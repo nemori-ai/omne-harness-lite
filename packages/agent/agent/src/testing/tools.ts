@@ -1,7 +1,3 @@
-// A hand-written double of the Tool runtime that Agent consumes. `tool-contract/testing` gives
-// doubles of the Tool ports only, and a real Tool runtime needs a host, a catalog and child calls
-// that have no doubles, so this package writes its own. It satisfies `ToolRuntime<P, B>` and runs no
-// Tool rule: every method answers `unavailable` until a test scripts it.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import type { ToolDefiniteFailure, ToolFailure, ToolRuntime } from '@omne-harness/tool-contract'
@@ -18,7 +14,6 @@ export type ScriptedToolRuntime<P> = Readonly<{
   queries: Readonly<{ [K in keyof Runtime<P>['queries']]: ScriptOf<Runtime<P>['queries'][K]> }>
   commands: Readonly<{ [K in keyof Runtime<P>['commands']]: ScriptOf<Runtime<P>['commands'][K]> }>
   instances: Readonly<{ current: ScriptOf<Runtime<P>['instances']['current']> }>
-  /** The observation face answers frames; the script answers the whole iterable of one call. */
   observation: Readonly<{ observe: Script<In<Observe<P>>, AsyncIterable<FrameOf<P>>> }>
   content: Readonly<{ [K in keyof Runtime<P>['content']]: ScriptOf<Runtime<P>['content'][K]> }>
   body: Readonly<{ read: ScriptOf<Runtime<P>['body']['read']> }>
@@ -31,12 +26,10 @@ function unscripted(): ToolDefiniteFailure {
   return { kind: 'unavailable', dependency: OWNER, diagnostic: `${OWNER} has no scripted answer` }
 }
 
-/** The default of a method that returns a `Reply`. */
 function failing(): () => Outcome<never, ToolFailure> {
   return () => fail(unscripted())
 }
 
-/** An iterable that a scripted answer resolves to, exposed before the answer settles. */
 function deferred<T>(answer: Promise<AsyncIterable<T>>): AsyncIterable<T> {
   return {
     async *[Symbol.asyncIterator]() {
@@ -45,7 +38,6 @@ function deferred<T>(answer: Promise<AsyncIterable<T>>): AsyncIterable<T> {
   }
 }
 
-/** The default of a method that returns a command outcome: a definite rejection. */
 function rejecting(): () => Readonly<{ kind: 'rejected'; failure: ToolDefiniteFailure }> {
   return () => ({ kind: 'rejected', failure: unscripted() })
 }
@@ -55,6 +47,9 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
   const invoke = scriptedMethod<In<R['invoke']>, Out<R['invoke']>>(rejecting())
   const inspect = scriptedMethod<In<R['inspect']>, Out<R['inspect']>>(failing())
   const lookup = scriptedMethod<In<R['queries']['lookup']>, Out<R['queries']['lookup']>>(failing())
+  const contact = scriptedMethod<In<R['queries']['contact']>, Out<R['queries']['contact']>>(
+    failing(),
+  )
   const queryOperation = scriptedMethod<
     In<R['queries']['queryOperation']>,
     Out<R['queries']['queryOperation']>
@@ -87,7 +82,6 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
   const current = scriptedMethod<In<R['instances']['current']>, Out<R['instances']['current']>>(
     failing(),
   )
-  // Until scripted, an observation ends at once with the public `unavailable`.
   const observe = scriptedMethod<In<Observe<P>>, AsyncIterable<FrameOf<P>>>(() =>
     (async function* (): AsyncGenerator<FrameOf<P>> {
       yield { kind: 'ended', reason: 'unavailable' }
@@ -107,6 +101,7 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
       inspect: inspect.call,
       queries: {
         lookup: lookup.call,
+        contact: contact.call,
         queryOperation: queryOperation.call,
         readProcess: readProcess.call,
         readWait: readWait.call,
@@ -125,6 +120,7 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
     inspect: inspect.script,
     queries: {
       lookup: lookup.script,
+      contact: contact.script,
       queryOperation: queryOperation.script,
       readProcess: readProcess.script,
       readWait: readWait.script,

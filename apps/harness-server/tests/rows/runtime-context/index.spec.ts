@@ -1,13 +1,4 @@
 // @module-tag slow
-// The `runtime-context` row: the real Runtime Context provider (`createRuntimeContextPlugin()` of
-// `@omne-harness/runtime-context-cordis/cordis`) on a real Cordis. The row is ACTIVE and provides
-// `runtimeContext` once the trusted `runtimeContextTrust` is present; without it the row stays
-// PENDING and names that key. The trust is a test stand-in over the contract's scripted authority
-// ports: the real one is built by the assembly entry from the session bridge. The configuration is
-// the bounds and the diagnostics level of the assembly page; unknown fields and values outside a
-// bound are refused. The last group loads the row on the real entry object `runtimeContextTrust`:
-// the row is ACTIVE, and a targeted operation of a verified principal answers `unavailable` with
-// cause `scope-binding`, because the entry cannot bind Session's scope digest to a tenant yet.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -49,7 +40,6 @@ const scopeResult = decodeScopeRef({ ref: 'scope-1' })
 if (!('ok' in scopeResult)) throw new Error('fixture scope does not decode')
 const scope = scopeResult.ok
 
-/** Stands in for the assembly entry's `runtimeContextTrust`: the two original ports, scripted. */
 function trustObject(ports: TestAuthorityPorts<unknown>): EntryObjectModule {
   class Trust extends RuntimeContextTrustService<unknown> {
     readonly authority = ports.authority
@@ -195,7 +185,6 @@ describe('the runtime-context row: on a test stand-in of `runtimeContextTrust`',
 })
 
 describe('the runtime-context row: on the real `runtimeContextTrust` entry object', () => {
-  /** A probe row that sees `principalIssuer`, issues an acting principal and asks the row once. */
   function probeRow(seen: unknown[]): Plugin.Object {
     const plugin: Plugin.Object = {
       name: 'probe-runtime-context',

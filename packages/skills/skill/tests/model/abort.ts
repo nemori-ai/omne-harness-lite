@@ -1,10 +1,3 @@
-// S6, an abort gives nothing partial. Each run is first made without an abort, which gives its
-// port calls `n` and its answer. Then the signal aborts as the port gives answer number `k`, for
-// every `k` from 0 (aborted before the operation) to `n + 1`. For `k <= n` the run must stop
-// right there: exactly `k` port calls, and the answer `aborted` with nothing beside it (an
-// operation that needs no port at all, such as step 1, keeps its answer). For `k > n` the
-// abort never happens and the answer is the plain one. No port is ever called on an aborted
-// signal.
 import { isDeepStrictEqual } from 'node:util'
 import { accessRequests, Ledger, perform, type AccessRequest, type Report } from './explore.ts'
 import { runOf, type FaultPoint, type Held, type Schedule, type WorldSpec } from './world.ts'

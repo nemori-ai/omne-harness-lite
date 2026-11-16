@@ -22,10 +22,6 @@ import {
   TOOL_FORWARDING_OWNER,
 } from './invocation-forwarding.ts'
 
-/**
- * A received copy as stored: one host record per delivery key inside the parent's forwarding slot
- * domain, so the slot record stays one binding and a reader loads one copy by its key.
- */
 export type ReceivedCopy = Readonly<{
   kind: 'forwarding-copy'
   key: unknown
@@ -34,7 +30,6 @@ export type ReceivedCopy = Readonly<{
   evidence: unknown
 }>
 
-/** The stored copy of a host record, or null for any other value. */
 export function parseReceivedCopy(record: LedgerRecord | null): ReceivedCopy | null {
   if (record === null || record.kind !== 'host') return null
   const value = record.host.value
@@ -56,11 +51,6 @@ export function parseReceivedCopy(record: LedgerRecord | null): ReceivedCopy | n
   }
 }
 
-/**
- * Saves a complete delivery as one received copy in the parent's forwarding slot domain before
- * acknowledging custody. The copies of one slot are released together when the parent call's own
- * result delivery is released.
- */
 export function createForwardingReceiver<P, B extends ContentBlock>(
   input: LocalInvocationSourceInput<P>,
   forwarding: ReturnType<typeof createInvocationForwarding<P>>,

@@ -10,7 +10,6 @@ type Before = (fn: string, paths: readonly string[]) => Promise<void>
 let program: string | undefined
 let preparing: Promise<void> | undefined
 
-/** Only this test executable contains the syscall handshake; production has no fault controls. */
 export function prepareNativeHooks(): Promise<void> {
   return (preparing ??= (async () => {
     const helper = await compileNativeProgram(

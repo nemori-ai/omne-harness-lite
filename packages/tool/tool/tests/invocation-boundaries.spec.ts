@@ -99,7 +99,6 @@ const entries: readonly Entry[] = [
     action: 'connect',
     field: 'reference',
     command: false,
-    // `current` takes `{ access, reference }`: the flat boundary input is folded into that shape.
     run: (r, input) =>
       untrusted(
         r.instances.current,
@@ -159,9 +158,6 @@ const boundaryCases = [
     input: { ...access, reference: '[]', operation: '[]' },
     invalid: true,
   },
-  // A reference of another tenant is not a boundary case since R2-D357: the text carries no
-  // tenant, so it resolves in the caller's tenant and the store answers as for a missing call
-  // (invocation-runtime.spec.ts, the cross-tenant negative control).
   { name: 'null input', input: null, invalid: false },
   { name: 'primitive input', input: 1, invalid: false },
   { name: 'missing principal', input: withoutPrincipal, invalid: false },

@@ -1,8 +1,4 @@
 import { SESSION_LOG_PARTICIPANTS } from '../../src/participants.ts'
-// A composition of the Session storage over the real sqlite-provider: real files in a temporary
-// directory, a real write Worker per transaction domain and the real read Worker pool. It builds
-// the storage only through the public entry of `@omne-harness/sqlite-provider`; there is no
-// `node:sqlite` double in this file. It does not import vitest, so a child process can run it.
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -79,7 +75,6 @@ export const textOf = (tenant: TenantId): string => {
 
 export const COMBINATION = 'c1'
 
-/** The provider configuration of this fixture. Tests override single fields. */
 export function realConfig(storageRoot: string): SqliteStorageConfig {
   return {
     storageRoot,
@@ -120,7 +115,6 @@ export function realConfig(storageRoot: string): SqliteStorageConfig {
     groupMaxExecutionSliceMs: 5,
     walAutocheckpointPages: 100000,
     journalSizeLimitBytes: 67108864,
-    // The physical-transaction count reads the WAL, so a checkpoint must not restart it mid-test.
     checkpointIntervalMs: 3_600_000,
     checkpointWalBytes: 16777216,
     walReadPauseBytes: 67108864,
@@ -150,7 +144,6 @@ function catalogOf(
   return { catalog, digest: manifestDigest(manifest.manifest) }
 }
 
-/** The kinds of a storage `query` answer. This branch is the one place that reads the answer. */
 export type QueryKind = 'committed' | 'rolled_back' | 'not_committed' | 'unknown'
 export function queryKindOf(result: QueryResultV2): QueryKind {
   switch (result.kind) {
@@ -166,7 +159,6 @@ export function queryKindOf(result: QueryResultV2): QueryKind {
   }
 }
 
-/** The storage identity that the commit path gives generation `attempt` of one operation. */
 export const identityOf = (
   tenant: TenantId,
   domain: string,
@@ -183,11 +175,6 @@ export const identityOf = (
 
 export type WalSample = Readonly<{ commits: number; generation: string }>
 
-/**
- * Commit frames in the live WAL file of a domain: each physical write transaction ends with one.
- * `generation` is the WAL salt pair; a changed salt means the WAL restarted and two samples are
- * not comparable. This reads the file as bytes; it asks nothing of the provider.
- */
 export function walSample(file: string): WalSample {
   let bytes: Buffer
   try {
@@ -208,17 +195,13 @@ export function walSample(file: string): WalSample {
 }
 
 export type RealAppOptions = Readonly<{
-  /** An existing root to reopen. Without it a new temporary root is made and removed on dispose. */
   root?: string
   config?: Partial<SqliteStorageConfig>
   tenants?: readonly TenantId[]
-  /** The read output limit given to the materials; 20 MiB without it. */
   intakeLimits?: import('@omne-harness/session-contract').SessionIntakeLimits
   readOutputLimitBytes?: number
   participants?: readonly string[]
-  /** Fixture participants beside the Session materials, for a combination of `register`. */
   extraParticipants?: SqlMaterialCatalog['participants']
-  /** The access policy; without it every request is allowed and carries no write qualification. */
   policy?: Parameters<typeof createPolicySessionAccessCheck<string>>[0]
   protectedBasis?: SessionStorageOptions<string>['protectedBasis']
 }>
@@ -254,7 +237,6 @@ export async function openRealApp(options: RealAppOptions = {}) {
   const control: StorageControl = created.control
 
   let ops = 0
-  /** The real storage with a count of `commit` calls (original operations that reach the provider). */
   const storage: SqlStorage = {
     database: real.database,
     registerCombination: input => real.registerCombination(input),
@@ -304,7 +286,6 @@ export async function openRealApp(options: RealAppOptions = {}) {
     options.policy ??
       (request => ({ kind: 'allowed', evidence: evidence(`access/${request.operation}`) })),
   )
-  /** Registers one more combination of the catalog in the domain of every known tenant. */
   const register = async (combinationVersion: string, members: readonly string[]) => {
     const manifest = combinationManifest({ catalog, participants: members })
     if (manifest.kind !== 'manifest') throw new Error(`combination is ${JSON.stringify(manifest)}`)
@@ -329,7 +310,6 @@ export async function openRealApp(options: RealAppOptions = {}) {
     combination: { combinationVersion: COMBINATION, manifestDigest: digest },
   }
   const port = createSessionStorage<string>(storageOptions)
-  // The pair over the same options and storage: its public port and its delegated entry.
   const pair = createSessionStoragePair<string>(storageOptions)
   const access = (tenant: TenantId, session = 'session-1'): SessionAccess<string> => ({
     principal: 'tester',
@@ -373,7 +353,6 @@ export async function openRealApp(options: RealAppOptions = {}) {
     closed ??= await control.close({ initiator: 'disposal' })
     return closed
   }
-  /** Closes the provider, then removes the root when this app made it. */
   const dispose = async (): Promise<void> => {
     await close().catch(() => undefined)
     if (owned) await rm(root, { recursive: true, force: true })
@@ -395,10 +374,8 @@ export async function openRealApp(options: RealAppOptions = {}) {
     accept,
     close,
     dispose,
-    /** The SQLite file of a transaction domain. */
     domainFile: (domain: string): string =>
       join(storageRoot, 'domains', `${Buffer.from(domain).toString('hex')}.sqlite`),
-    /** `commit` calls that reached the real storage. */
     opCount: () => ops,
     domainOf: (tenant: TenantId): string => {
       const entry = entries.find(item => item.tenant === textOf(tenant))
@@ -410,7 +387,6 @@ export async function openRealApp(options: RealAppOptions = {}) {
 
 export type RealApp = Awaited<ReturnType<typeof openRealApp>>
 
-/** One execution-record publication of execution `exe_1` in `session-1` of tenant A. */
 export function jointWrite(over: Partial<ExecutionRecordWrite> = {}): ExecutionRecordWrite {
   return {
     tenant: TENANT_A,
@@ -437,11 +413,6 @@ export function jointWrite(over: Partial<ExecutionRecordWrite> = {}): ExecutionR
   }
 }
 
-/**
- * The Agent side of a fixture over any `SqlStorage`: it states original events and admissions to
- * the same-root index through the `execution-record` participant, as the execution record provider
- * would publish them. It asserts the original facts; it does not verify an adapter.
- */
 export type AgentEvent = Readonly<{
   tenant: TenantId
   session: string
@@ -464,7 +435,6 @@ export type AgentAdmission = Readonly<{
   accepted: DurableEvidence
   grant: DurableEvidence
   attachment: string
-  /** The SE15 attempt the acceptance was granted under; absent for a legacy row. */
   attempt?: string
 }>
 
@@ -512,7 +482,6 @@ export function agentPublisher(input: {
     blobs: [],
   })
   return {
-    /** Publishes one original event: the new head, its fact row and, when given, its batch row. */
     async publish(event: AgentEvent): Promise<void> {
       const key = `${textOf(event.tenant)}/${event.session}/${event.execution}`
       if (seen.has(`${key}#${event.sequence}`)) return
@@ -560,7 +529,6 @@ export function agentPublisher(input: {
       heads.set(key, { revision: event.revision, emitted, ended })
       seen.add(`${key}#${event.sequence}`)
     },
-    /** Publishes one original admission of an input into the reverse directory. */
     async admit(admission: AgentAdmission): Promise<void> {
       const key = `${textOf(admission.tenant)}/${admission.session}/${admission.execution}`
       const head = heads.get(key)?.revision ?? null
@@ -593,20 +561,17 @@ export function agentPublisher(input: {
 
 export type AgentPublisher = ReturnType<typeof agentPublisher>
 
-/** What a Run scene needs of an app: the port and its helpers, over either provider. */
 type SceneApp = Readonly<{
   port: SessionTransactionPort<string>
   access: (tenant: TenantId, session?: string) => SessionAccess<string>
 }>
 
-/** The current snapshot of session-1 of tenant A. */
 export async function workOf(a: SceneApp): Promise<WorkSnapshot> {
   const read = await a.port.readWork(a.access(TENANT_A))
   if ('failure' in read) throw new Error(`readWork: ${JSON.stringify(read.failure)}`)
   return read.ok
 }
 
-/** Starts the next Run of session-1 of tenant A on its first pending input. */
 export function startRun(a: SceneApp, name: string) {
   return a.port.commit({
     access: a.access(TENANT_A),
@@ -625,7 +590,6 @@ export function startRun(a: SceneApp, name: string) {
   })
 }
 
-/** Cancels the Run `run` of session-1 of tenant A by a forced cancel-run control. */
 export function cancelRun(a: SceneApp, run: RunId, name: string) {
   return a.port.commit({
     access: a.access(TENANT_A),
@@ -642,7 +606,6 @@ export function cancelRun(a: SceneApp, run: RunId, name: string) {
   })
 }
 
-/** The active Run of the snapshot: its Run, execution and current attempt. */
 export function activeRun(work: WorkSnapshot) {
   if (work.run.kind !== 'active' || work.run.advance === null)
     throw new Error('no active Run with an attempt')
@@ -650,12 +613,10 @@ export function activeRun(work: WorkSnapshot) {
     run: work.run.run,
     execution: work.run.execution.execution,
     attempt: work.run.advance.attempt,
-    /** The Run-layer revision of this read: the `expected` of a claim made from it. */
     revision: work.run.revision,
   }
 }
 
-/** The registration of the model call `n`, bound to `attempt` (a Session consequence of event `n`). */
 export function registrationOf(attempt: string, n: number | string): SessionLogConsequence {
   return {
     kind: 'call-registration',
@@ -679,10 +640,6 @@ export function registrationOf(attempt: string, n: number | string): SessionLogC
   }
 }
 
-/**
- * Event `n` of `execution` in session-1 of tenant A: its sequence and head revision are both `n`.
- * `tag` keeps the sources of two executions apart.
- */
 export function eventOf(
   scene: Readonly<{ run: RunId; execution: string }>,
   n: number,
@@ -704,7 +661,6 @@ export function eventOf(
   }
 }
 
-/** The Agent event that `observation` interprets, with the original kinds given (default: its own). */
 export function agentEventOf(
   observation: SessionLogCommitObservation,
   kinds: readonly string[] = observation.consequences.map(item => item.kind),
@@ -722,10 +678,6 @@ export function agentEventOf(
   }
 }
 
-/**
- * The intent of handoff `handoff-1` under entry `entry-1` in session-1 of tenant A, before any Run.
- * `change` replaces members of the opaque intent. The kill case writes this one in a child.
- */
 export function preadmissionIntent(
   change: Partial<PreadmissionIntent> = {},
 ): PreadmissionIntentWrite {

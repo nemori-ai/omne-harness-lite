@@ -1,7 +1,3 @@
-// Fast: the session reader's answers as the macOS backend reads them, with a stand-in reader
-// script. A reader that fails, times out or prints something else is never read as an empty
-// session or as a confirmed stop. The boot identity is read from a stand-in `sysctl`, swapped in
-// by path. Runs on every platform; the real reader is in primitives.spec.ts.
 import { chmod, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -19,7 +15,6 @@ import {
   stopSessions,
 } from '../../src/macos-execution/session.ts'
 
-/** Host tools the module under test runs, swapped by path for the test's stand-ins. */
 const swap = vi.hoisted(() => new Map<string, string>())
 
 vi.mock('node:child_process', async importOriginal => {
@@ -27,7 +22,6 @@ vi.mock('node:child_process', async importOriginal => {
   const { promisify } = await import('node:util')
   const execFile = (file: string, ...rest: unknown[]) =>
     Reflect.apply(actual.execFile, undefined, [swap.get(file) ?? file, ...rest])
-  // Keep the promisified form `{ stdout, stderr }` for any module that promisifies execFile.
   Object.defineProperty(execFile, promisify.custom, {
     value: (file: string, ...rest: unknown[]) =>
       Reflect.apply(promisify(actual.execFile), undefined, [swap.get(file) ?? file, ...rest]),
@@ -149,7 +143,6 @@ describe('a reader that does not answer', () => {
       expect(await stopSessions({ reader: path, sessions: [40], boundMs: 1_000 })).toBe(
         'unconfirmed',
       )
-    // The reader gets the bound and two more seconds; a reader past that is unconfirmed.
     expect(await stopSessions({ reader: late, sessions: [40], boundMs: 1 })).toBe('unconfirmed')
   })
 
@@ -254,7 +247,6 @@ describe('recorded domains', () => {
 describe('boot identity', () => {
   const boot = 'B6C8C544-54F8-4C43-967D-A47FD7BEBA7D'
 
-  /** A stand-in `sysctl` that answers only `-n kern.bootsessionuuid`, and only in an empty environment. */
   async function sysctl(answer: string, status = 0): Promise<void> {
     const path = await reader(
       'sysctl',

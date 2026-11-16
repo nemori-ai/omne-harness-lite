@@ -1,454 +1,52 @@
-// The pure fold of the Agent fact family into the in-process view (R2-D292): `fold(view, batch)`
-// reads its two arguments and nothing else, so two folds of one fact sequence are one view, a cached
-// view plus the batches it missed equals the fold from the start, and a successor process folds the
-// same view the predecessor had. Every structure here is a projection; it can be dropped and rebuilt
-// from the rows. The memory stand-in and the production provider fold through this one function.
 import type {
   ActionBatchId,
   ActionId,
-  AgentInstanceId,
-  Adoption,
-  AgentConclusion,
-  AgentExecutionId,
   AgentOperationId,
   Authority,
   ConsumerRef,
   ConsumptionId,
   ControlStage,
   DurableEvidence,
-  ExecutionControl,
   HandoffReference,
-  InputBatch,
-  InputId,
-  ModelReplyAdmission,
   PassageId,
-  PendingCall,
-  StepId,
-  Waiting,
 } from '@omne-harness/agent-contract'
-import type { ModelInvocationRef } from '@omne-harness/model-contract'
-import type { ToolInvocationRef, ToolOperationRef } from '@omne-harness/tool-contract'
 import { canonical } from '../testing/canonical.ts'
 import {
   eventKindOf,
-  type ExclusionReason,
-  digestOf,
-  type AttachmentBasis,
-  type Attempt,
   type CursorMembers,
   type FactBody,
   type FactOf,
-  type ParticipationKind,
-  type ProducerCall,
   type PublishedBatch,
   type Ref,
   type ResultStage,
 } from './facts.ts'
+import {
+  emptyExecutionView,
+  emptySessionView,
+  handoffKey,
+  listKey,
+  type BatchView,
+  type CandidateView,
+  type ControlView,
+  type ExclusionEntry,
+  type ExecutionView,
+  type HandoffView,
+  type IntentView,
+  type OperationEntry,
+  type PassageView,
+  type RejectionEntry,
+  type RequestView,
+  type ResultView,
+  type SessionJournalView,
+} from './view.ts'
+import { foldVoided } from './voided.ts'
 
-/** One attachment as the view keeps it: active until a detach or the next attach supersedes it. */
-export type AttachmentView = Readonly<{
-  authority: Authority
-  grant: DurableEvidence | null
-  basis: AttachmentBasis
-  status: 'active' | 'detached' | 'superseded'
-  handoff: DurableEvidence | null
-  /** The revision the detach that set `handoff` reached; 0 while attached. */
-  handoffRevision: number
-  pub: number
-}>
-
-export type InputView = Readonly<{
-  input: InputId
-  entry: AgentOperationId
-  message: Ref
-  source: DurableEvidence | null
-  priority: 'ordinary' | 'urgent'
-  watermark: DurableEvidence
-  pub: number
-  revision: number
-}>
-
-export type RequestView = Readonly<{
-  step: StepId
-  attempt: Attempt
-  reference: ModelInvocationRef
-  fixed: DurableEvidence
-  schema: Adoption
-  record: Ref
-  coverage: DurableEvidence | null
-  voided: DurableEvidence | null
-  pub: number
-}>
-
-/** One intended call and everything the ledger learned about it since. */
-export type IntentView = Readonly<{
-  action: ActionId
-  step: StepId
-  pending: PendingCall
-  authority: Authority
-  request: Ref | null
-  association: Readonly<{ reference: ToolInvocationRef; receipt: DurableEvidence }> | null
-  judgment: Readonly<{
-    judgment: 'pending' | 'waiting' | 'denied' | 'allowed'
-    evidence: DurableEvidence | null
-    passage: PassageId | null
-    request: Ref | null
-  }> | null
-  settlement: DurableEvidence | null
-  pub: number
-}>
-
-export type ResultView = Readonly<{
-  consumption: ConsumptionId
-  result: ProducerCall
-  received: Readonly<{
-    delivery: string
-    consumer: ConsumerRef
-    custody: Ref
-    saved: DurableEvidence
-    material: Ref | null
-    pub: number
-  }> | null
-  stages: Readonly<Partial<Record<ResultStage, DurableEvidence>>>
-  /** The pub of the last fact of this consumption. */
-  pub: number
-}>
-
-export type AdmissionView = Readonly<{
-  sequence: number
-  fact: ModelReplyAdmission
-  basis: DurableEvidence
-  publication: DurableEvidence
-  message: Ref | null
-  source: DurableEvidence | null
-  history: DurableEvidence | null
-  pub: number
-  revision: number
-}>
-
-export type HandoffView = Readonly<{
-  handoff: HandoffReference
-  prepared: Readonly<{ request: Ref; prepared: DurableEvidence; pub: number }> | null
-  resolved: Readonly<{
-    resolution: 'recorded' | 'excluded'
-    outcome: Ref
-    history: DurableEvidence | null
-    pub: number
-    revision: number
-  }> | null
-  retired: Readonly<{
-    reason: DurableEvidence
-    excluded: Ref
-    pub: number
-    revision: number
-  }> | null
-  /** The Rh chain: each recorded attempt in order, with its predecessor. */
-  recorded: readonly Readonly<{
-    resolution: 'recorded' | 'excluded'
-    outcome: Ref
-    predecessor: AgentOperationId | null
-    custody: Ref | null
-    op: AgentOperationId
-    pub: number
-  }>[]
-}>
-
-export type BatchView = Readonly<{
-  batch: ActionBatchId
-  step: StepId
-  source: ProducerCall
-  actions: readonly Readonly<{ action: ActionId; callId: string; arguments: Ref }>[]
-  pub: number
-}>
-
-export type PassageView = Readonly<{
-  passage: PassageId
-  subject: Ref
-  declared: DurableEvidence
-  progress: readonly Readonly<{ progress: Ref; round: string | null; pub: number }>[]
-  conclusion: Readonly<{ conclusion: Ref; evidence: DurableEvidence; pub: number }> | null
-  pub: number
-}>
-
-export type ControlView = Readonly<{
-  control: AgentOperationId
-  command: ExecutionControl
-  toolInvocation: ToolInvocationRef | null
-  toolOperation: ToolOperationRef | null
-  stages: Readonly<
-    Partial<
-      Record<ControlStage, Readonly<{ state: 'reached' | 'unresolved'; source: DurableEvidence }>>
-    >
-  >
-  rejected: readonly DurableEvidence[]
-  pub: number
-}>
-
-export type CandidateView = Readonly<{
-  candidate: AgentOperationId
-  claim: FactOf<'finish.candidate'>['claim']
-  /** The cursor reference of the candidate's checkpoint (R2-D297); never a checkpoint copy. */
-  cursor: Ref
-  route: DurableEvidence
-  /** The block of the route the candidate was established on. */
-  path: Ref
-  supersedes: AgentOperationId | null
-  beforeTerminal: DurableEvidence | null
-  pub: number
-  revision: number
-}>
-
-/**
- * One issued obligation list of a candidate (R2-D297): the close of the issue, which names its items
- * by the block of their ids and digests. A list is its own entry, keyed by candidate and ordinal;
- * it is never rewritten, a later issue is a new list.
- */
-export type ObligationListView = Readonly<{
-  candidate: AgentOperationId
-  list: number
-  issued: Readonly<{
-    count: number
-    evidence: DurableEvidence
-    coverage: Ref
-    listed: Ref
-    op: AgentOperationId
-    pub: number
-    revision: number
-  }>
-}>
-
-/** The current form of one obligation of the execution, as its last `finish.obligation` left it. */
-export type ObligationView = Readonly<{ category: string; item: Ref | null; pub: number }>
-
-/** The key of an obligation list in `FinishView.lists`. */
-export const listKey = (candidate: AgentOperationId, list: number): string => `${candidate}/${list}`
-
-export type FinishView = Readonly<{
-  candidates: readonly CandidateView[]
-  /** The issued obligation lists, by `listKey`, in the order they were issued. */
-  lists: ReadonlyMap<string, ObligationListView>
-  /** The obligations of the execution by id, each in its current form (R2-D322). */
-  obligations: ReadonlyMap<string, ObligationView>
-  current: AgentOperationId | null
-  ended: Readonly<{
-    candidate: AgentOperationId | null
-    conclusion: AgentConclusion
-    disposition: DurableEvidence
-    pub: number
-    revision: number
-  }> | null
-}>
-
-/** One projected event: the fact that is the event, with its dense sequence in the execution. */
-export type EventView = Readonly<{
-  eseq: number
-  kind: string
-  pub: number
-  ord: number
-  revision: number
-  attachment: Authority | null
-  fact: FactBody
-}>
-
-/** One binding of a pending call: the reference, the call, the holding instance and its pub. */
-export type BindingView = Readonly<{
-  definition: Adoption
-  reference: string
-  pending: Ref<PendingCall>
-  instance: AgentInstanceId
-  pub: number
-}>
-
-/** One excluded operation (R2-D307): why, on what evidence, and at which publication. */
-export type ExclusionEntry = Readonly<{
-  execution: AgentExecutionId
-  reason: ExclusionReason
-  evidence: DurableEvidence
-  predecessor: AgentOperationId | null
-  pub: number
-}>
-
-/** The entry of the operation index: where the batch of an operation is and what it reached. */
-export type OperationEntry = Readonly<{
-  execution: AgentExecutionId
-  digest: string
-  pub: number
-  /** The revision the answer names: the batch's own, or the recognized batch's. */
-  revision: number
-  /** The recognized operation, for a recognition batch; null otherwise. */
-  target: AgentOperationId | null
-  /** Whether the recognition recalls the target's own receipt (`op.recognized.recalls`). */
-  recalls: boolean
-  kinds: readonly ParticipationKind[]
-}>
-
-/** One persistent rejection of a recordControl: the audit, and the batch that fixed it. */
-export type RejectionEntry = Readonly<{
-  control: AgentOperationId
-  audit: DurableEvidence
-  pub: number
-  revision: number
-}>
-
-export type ExecutionView = Readonly<{
-  execution: AgentExecutionId
-  revision: number
-  /** The last publication folded into this execution. */
-  head: number
-  /** The authority generation of the active attachment, or the last one. */
-  gen: string
-  opened: Readonly<{
-    definition: Adoption
-    schema: Adoption
-    instance: string
-    scope: DurableEvidence
-    original: Readonly<{ input: InputId; entry: AgentOperationId; handoff: HandoffReference }>
-    coordination: 'standalone' | 'coordinated'
-    pub: number
-  }> | null
-  attachments: readonly AttachmentView[]
-  cursor: Readonly<Partial<CursorMembers>>
-  /** The pub of the last cursor move of each member. */
-  cursorMoved: Readonly<Partial<Record<keyof CursorMembers, number>>>
-  inputs: readonly InputView[]
-  steps: readonly Readonly<{ step: StepId; batch: InputBatch; pub: number }>[]
-  requests: readonly RequestView[]
-  /** The latest request not voided: AD-04's adopted request; its order is its pub. */
-  adopted: RequestView | null
-  intents: ReadonlyMap<ActionId, IntentView>
-  results: ReadonlyMap<ConsumptionId, ResultView>
-  admissions: readonly AdmissionView[]
-  handoffs: ReadonlyMap<string, HandoffView>
-  batches: ReadonlyMap<ActionBatchId, BatchView>
-  passages: ReadonlyMap<PassageId, PassageView>
-  controls: ReadonlyMap<AgentOperationId, ControlView>
-  waits: Readonly<{ step: StepId; waits: readonly Waiting[]; pub: number }> | null
-  finish: FinishView
-  settlements: readonly Readonly<{
-    variant: string
-    record: Ref
-    evidence: DurableEvidence
-    op: AgentOperationId
-    pub: number
-  }>[]
-  observations: readonly Readonly<{
-    terminal: DurableEvidence
-    passage: PassageId
-    implementation: Adoption
-    observed: DurableEvidence
-    pub: number
-  }>[]
-  acknowledged: number
-  /** The revision at which the acknowledged prefix last advanced. */
-  acknowledgedAt: number
-  /** The Tool start fences recorded, in pub order. */
-  fences: readonly Readonly<{
-    operation: string
-    guard: Readonly<{
-      owner: string
-      resource: string
-      revision: string
-      evidence: DurableEvidence
-    }>
-    fence: DurableEvidence
-    pub: number
-  }>[]
-  events: readonly EventView[]
-  /** The bindings of the pending calls the execution held, in pub order (`target.bound`). */
-  bindings: readonly BindingView[]
-  /** The materials kept for this execution, by the canonical text of their source. */
-  materials: ReadonlyMap<
-    string,
-    Readonly<{ source: DurableEvidence; value: Ref; consumer: ConsumerRef; pub: number }>
-  >
-  /** The operations that wrote this execution, in pub order. */
-  ops: ReadonlyMap<AgentOperationId, OperationEntry>
-  /** The operations excluded in this execution. */
-  excluded: ReadonlyMap<AgentOperationId, ExclusionEntry>
-  /** The operations whose recordControl was persistently rejected, by the rejecting operation. */
-  rejections: ReadonlyMap<AgentOperationId, RejectionEntry>
-  /**
-   * The operation whose batch advanced the execution to each revision: one batch advances to each
-   * revision, so a recognition finds the batch it recognizes by the revision, without a scan.
-   */
-  reached: ReadonlyMap<number, AgentOperationId>
-}>
-
-export type SessionJournalView = Readonly<{
-  /** The last publication folded: `er_root.published` when the view is current. */
-  head: number
-  executions: ReadonlyMap<AgentExecutionId, ExecutionView>
-  ops: ReadonlyMap<AgentOperationId, OperationEntry>
-  excluded: ReadonlyMap<AgentOperationId, ExclusionEntry>
-}>
-
-export const emptySessionView = (): SessionJournalView => ({
-  head: 0,
-  executions: new Map(),
-  ops: new Map(),
-  excluded: new Map(),
-})
-
-export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
-  return {
-    execution,
-    revision: 0,
-    head: 0,
-    gen: '0',
-    opened: null,
-    attachments: [],
-    cursor: {},
-    cursorMoved: {},
-    inputs: [],
-    steps: [],
-    requests: [],
-    adopted: null,
-    intents: new Map(),
-    results: new Map(),
-    admissions: [],
-    handoffs: new Map(),
-    batches: new Map(),
-    passages: new Map(),
-    controls: new Map(),
-    waits: null,
-    finish: {
-      candidates: [],
-      lists: new Map(),
-      obligations: new Map(),
-      current: null,
-      ended: null,
-    },
-    settlements: [],
-    observations: [],
-    acknowledged: 0,
-    acknowledgedAt: 0,
-    fences: [],
-    events: [],
-    bindings: [],
-    materials: new Map(),
-    ops: new Map(),
-    excluded: new Map(),
-    rejections: new Map(),
-    reached: new Map(),
-  }
-}
-
-/** The key of a handoff reference in `handoffs`. */
-export const handoffKey = (reference: HandoffReference): string => canonical(reference)
-
-/** The facts that advance no revision: a recognition, and a material kept. */
 const NO_REVISION: ReadonlySet<string> = new Set([
   'op.recognized',
   'material.preserved',
   'op.excluded',
 ])
 
-/**
- * Whether a batch advances the revision: a batch with a fact other than a recognition, a kept
- * material or an exclusion does, and so does a batch that carries a Session participation, which
- * is a joint commit of its own. A pure recognition, a material kept, the exclusions a batch carries
- * along and the envelope alone of a command that changed nothing do not.
- */
 export function advances(batch: PublishedBatch): boolean {
   return batch.envelope.kinds.length > 0 || batch.facts.some(fact => !NO_REVISION.has(fact.kind))
 }
@@ -522,13 +120,6 @@ function active(draft: Draft): Authority | null {
   return latest?.status === 'active' ? latest.authority : null
 }
 
-/** Applies one fact to the draft at `pub`, `ord`, after the revision of the batch is known. */
-/**
- * The event kind `fact` projects when applied to `draft`, or null (SPEC "事实族与折叠核", the event
- * rule): what the fact alone says (`eventKindOf`), and for a `control.stage` a record wrote, no
- * event after the execution ended, and none for the same stage fact already reached (the writer
- * recognizes it and appends no event).
- */
 function eventOf(draft: Draft, fact: FactBody): string | null {
   const kind = eventKindOf(fact)
   if (kind === null || fact.kind !== 'control.stage' || fact.step !== null) return kind
@@ -541,463 +132,623 @@ function eventOf(draft: Draft, fact: FactBody): string | null {
   return same ? null : kind
 }
 
+function foldExecAttached(draft: Draft, fact: FactOf<'exec.attached'>, pub: number): void {
+  const attachments = draft.attachments.map(item =>
+    item.status === 'active' ? { ...item, status: 'superseded' as const } : item,
+  )
+  attachments.push({
+    authority: fact.authority,
+    grant: fact.grant,
+    basis: fact.basis,
+    status: 'active',
+    handoff: null,
+    handoffRevision: 0,
+    pub,
+  })
+  draft.attachments = attachments
+  draft.gen = fact.authority.generation
+}
+
+function foldExecDetached(draft: Draft, fact: FactOf<'exec.detached'>, revision: number): void {
+  draft.attachments = draft.attachments.map(item =>
+    item.authority.executionAttachment === fact.attachment && item.status === 'active'
+      ? {
+          ...item,
+          status: 'detached' as const,
+          handoff: fact.handoff,
+          handoffRevision: revision,
+        }
+      : item,
+  )
+}
+
+function foldInputAccepted(
+  draft: Draft,
+  fact: FactOf<'input.accepted'>,
+  pub: number,
+  revision: number,
+): void {
+  if (!draft.inputs.some(item => item.input === fact.input))
+    draft.inputs = [
+      ...draft.inputs,
+      {
+        input: fact.input,
+        entry: fact.entry,
+        message: fact.message,
+        source: fact.source,
+        priority: fact.priority,
+        watermark: fact.watermark,
+        pub,
+        revision,
+      },
+    ]
+}
+
+function foldRequestAdopted(draft: Draft, fact: FactOf<'request.adopted'>, pub: number): void {
+  const request: RequestView = {
+    step: fact.step,
+    attempt: fact.attempt,
+    reference: fact.reference,
+    fixed: fact.fixed,
+    schema: fact.schema,
+    record: fact.record,
+    coverage: fact.coverage,
+    voided: null,
+    pub,
+  }
+  draft.requests = [...draft.requests, request]
+  draft.adopted = request
+}
+
+function foldCallIntended(draft: Draft, fact: FactOf<'call.intended'>, pub: number): void {
+  if (!draft.intents.has(fact.action))
+    draft.intents.set(fact.action, {
+      action: fact.action,
+      step: fact.step,
+      pending: fact.pending,
+      authority: fact.authority,
+      request: fact.request,
+      association: null,
+      judgment: null,
+      settlement: null,
+      pub,
+    })
+}
+
+function foldCallAssociated(draft: Draft, fact: FactOf<'call.associated'>): void {
+  const intent = draft.intents.get(fact.action)
+  if (intent !== undefined && intent.association === null)
+    draft.intents.set(fact.action, {
+      ...intent,
+      association: { reference: fact.reference, receipt: fact.receipt },
+      pending:
+        intent.pending.kind === 'tool'
+          ? { ...intent.pending, association: 'associated', reference: fact.reference }
+          : intent.pending,
+    })
+}
+
+function foldResultReceived(draft: Draft, fact: FactOf<'result.received'>, pub: number): void {
+  const known = draft.results.get(fact.consumption)
+  draft.results.set(fact.consumption, {
+    consumption: fact.consumption,
+    result: known?.result ?? fact.result,
+    received: known?.received ?? {
+      delivery: fact.delivery,
+      consumer: fact.consumer,
+      custody: fact.custody,
+      saved: fact.saved,
+      material: fact.material,
+      pub,
+    },
+    stages: known?.stages ?? {},
+    pub,
+  })
+}
+
+function foldResultHandled(draft: Draft, fact: FactOf<'result.handled'>, pub: number): void {
+  const known = draft.results.get(fact.consumption)
+  const stages: Partial<Record<ResultStage, DurableEvidence>> = { ...known?.stages }
+  if (stages[fact.stage] === undefined) stages[fact.stage] = fact.evidence
+  draft.results.set(fact.consumption, {
+    consumption: fact.consumption,
+    result: known?.result ?? fact.result,
+    received: known?.received ?? null,
+    stages,
+    pub,
+  })
+}
+
+function foldReplyJudged(
+  draft: Draft,
+  fact: FactOf<'reply.judged'>,
+  pub: number,
+  revision: number,
+): void {
+  if (!draft.admissions.some(item => item.sequence === fact.sequence))
+    draft.admissions = [
+      ...draft.admissions,
+      {
+        sequence: fact.sequence,
+        fact: fact.fact,
+        basis: fact.basis,
+        publication: fact.publication,
+        message: fact.message,
+        source: fact.source,
+        history: fact.history,
+        pub,
+        revision,
+      },
+    ]
+}
+
+function foldHandoffPrepared(draft: Draft, fact: FactOf<'handoff.prepared'>, pub: number): void {
+  const handoff = handoffOf(draft, fact.handoff)
+  if (handoff.prepared === null)
+    draft.handoffs.set(handoffKey(fact.handoff), {
+      ...handoff,
+      prepared: { request: fact.request, prepared: fact.prepared, pub },
+    })
+}
+
+function foldHandoffResolved(
+  draft: Draft,
+  fact: FactOf<'handoff.resolved'>,
+  pub: number,
+  revision: number,
+): void {
+  const handoff = handoffOf(draft, fact.handoff)
+  if (handoff.resolved === null)
+    draft.handoffs.set(handoffKey(fact.handoff), {
+      ...handoff,
+      resolved: {
+        resolution: fact.resolution,
+        outcome: fact.outcome,
+        history: fact.history,
+        pub,
+        revision,
+      },
+    })
+}
+
+function foldHandoffRetired(
+  draft: Draft,
+  fact: FactOf<'handoff.retired'>,
+  pub: number,
+  revision: number,
+): void {
+  const handoff = handoffOf(draft, fact.handoff)
+  if (handoff.retired === null)
+    draft.handoffs.set(handoffKey(fact.handoff), {
+      ...handoff,
+      retired: { reason: fact.reason, excluded: fact.excluded, pub, revision },
+    })
+}
+
+function foldHandoffRecorded(draft: Draft, fact: FactOf<'handoff.recorded'>, pub: number): void {
+  const handoff = handoffOf(draft, fact.handoff)
+  const op = draft.ops.size === 0 ? null : [...draft.ops.keys()].at(-1)
+  draft.handoffs.set(handoffKey(fact.handoff), {
+    ...handoff,
+    recorded: [
+      ...handoff.recorded,
+      {
+        resolution: fact.resolution,
+        outcome: fact.outcome,
+        predecessor: fact.predecessor,
+        custody: fact.custody,
+        op: op as AgentOperationId,
+        pub,
+      },
+    ],
+  })
+}
+
+function foldBatchFixed(draft: Draft, fact: FactOf<'batch.fixed'>, pub: number): void {
+  if (!draft.batches.has(fact.batch))
+    draft.batches.set(fact.batch, {
+      batch: fact.batch,
+      step: fact.step,
+      source: fact.source,
+      actions: fact.actions,
+      pub,
+    })
+}
+
+function foldActionJudged(draft: Draft, fact: FactOf<'action.judged'>): void {
+  const intent = draft.intents.get(fact.action)
+  if (intent !== undefined)
+    draft.intents.set(fact.action, {
+      ...intent,
+      judgment: {
+        judgment: fact.judgment,
+        evidence: fact.evidence,
+        passage: fact.passage,
+        request: fact.request,
+      },
+    })
+}
+
+function foldSlotSettled(draft: Draft, fact: FactOf<'slot.settled'>): void {
+  const intent = draft.intents.get(fact.action)
+  if (intent !== undefined && intent.settlement === null)
+    draft.intents.set(fact.action, { ...intent, settlement: fact.settlement })
+}
+
+function foldPassageDeclared(draft: Draft, fact: FactOf<'passage.declared'>, pub: number): void {
+  if (!draft.passages.has(fact.passage))
+    draft.passages.set(fact.passage, {
+      passage: fact.passage,
+      subject: fact.subject,
+      declared: fact.declared,
+      progress: [],
+      conclusion: null,
+      pub,
+    })
+}
+
+function foldPassageProgressed(
+  draft: Draft,
+  fact: FactOf<'passage.progressed'>,
+  pub: number,
+): void {
+  const passage = draft.passages.get(fact.passage)
+  if (passage !== undefined)
+    draft.passages.set(fact.passage, {
+      ...passage,
+      progress: [...passage.progress, { progress: fact.progress, round: fact.round, pub }],
+    })
+}
+
+function foldPassageConcluded(draft: Draft, fact: FactOf<'passage.concluded'>, pub: number): void {
+  const passage = draft.passages.get(fact.passage)
+  if (passage !== undefined && passage.conclusion === null)
+    draft.passages.set(fact.passage, {
+      ...passage,
+      conclusion: { conclusion: fact.conclusion, evidence: fact.evidence, pub },
+    })
+}
+
+function foldControlStage(draft: Draft, fact: FactOf<'control.stage'>, pub: number): void {
+  const known = draft.controls.get(fact.control)
+  const stages: {
+    -readonly [K in ControlStage]?: Readonly<{
+      state: 'reached' | 'unresolved'
+      source: DurableEvidence
+    }>
+  } = { ...known?.stages }
+  const current = stages[fact.stage]
+  if (current === undefined || (current.state === 'unresolved' && fact.state === 'reached'))
+    stages[fact.stage] = { state: fact.state, source: fact.source }
+  draft.controls.set(fact.control, {
+    control: fact.control,
+    command: known?.command ?? fact.command,
+    toolInvocation: known?.toolInvocation ?? fact.toolInvocation,
+    toolOperation: known?.toolOperation ?? fact.toolOperation,
+    stages,
+    rejected: known?.rejected ?? [],
+    pub,
+  })
+}
+
+function foldControlRejected(
+  draft: Draft,
+  fact: FactOf<'control.rejected'>,
+  pub: number,
+  revision: number,
+): void {
+  const known = draft.controls.get(fact.control)
+  if (known !== undefined)
+    draft.controls.set(fact.control, {
+      ...known,
+      rejected: [...known.rejected, fact.audit],
+      pub,
+    })
+  const op = [...draft.ops.keys()].at(-1)
+  if (op !== undefined && !draft.rejections.has(op))
+    draft.rejections.set(op, { control: fact.control, audit: fact.audit, pub, revision })
+}
+
+function foldTargetBound(draft: Draft, fact: FactOf<'target.bound'>, pub: number): void {
+  const definition = draft.cursor.definition ?? draft.opened?.definition
+  if (definition === undefined)
+    throw new TypeError('a call binding requires its original Agent definition')
+  draft.bindings = [
+    ...draft.bindings,
+    {
+      definition,
+      reference: fact.reference,
+      pending: fact.pending,
+      instance: fact.instance,
+      pub,
+    },
+  ]
+}
+
+function foldFinishCandidate(
+  draft: Draft,
+  fact: FactOf<'finish.candidate'>,
+  pub: number,
+  revision: number,
+): void {
+  if (!draft.finish.candidates.some(item => item.candidate === fact.candidate))
+    draft.finish = {
+      ...draft.finish,
+      candidates: [
+        ...draft.finish.candidates,
+        {
+          candidate: fact.candidate,
+          claim: fact.claim,
+          cursor: fact.cursor,
+          route: fact.route,
+          path: fact.path,
+          supersedes: fact.supersedes,
+          beforeTerminal: null,
+          pub,
+          revision,
+        },
+      ],
+      current: fact.candidate,
+    }
+}
+
+function foldFinishProved(draft: Draft, fact: FactOf<'finish.proved'>): void {
+  const candidate = draft.finish.candidates.find(item => item.route.record === fact.route.record)
+  if (candidate !== undefined && candidate.beforeTerminal === null)
+    candidateAt(draft, candidate.candidate, item => ({
+      ...item,
+      beforeTerminal: fact.beforeTerminal,
+    }))
+}
+
+function foldFinishObligation(draft: Draft, fact: FactOf<'finish.obligation'>, pub: number): void {
+  const obligations = new Map(draft.finish.obligations)
+  obligations.set(fact.id, { category: fact.category, item: fact.item, pub })
+  draft.finish = { ...draft.finish, obligations }
+}
+
+function foldFinishObligations(
+  draft: Draft,
+  fact: FactOf<'finish.obligations'>,
+  pub: number,
+  revision: number,
+): void {
+  const key = listKey(fact.candidate, fact.list)
+  if (draft.finish.lists.has(key)) return
+  const lists = new Map(draft.finish.lists)
+  lists.set(key, {
+    candidate: fact.candidate,
+    list: fact.list,
+    issued: {
+      count: fact.count,
+      evidence: fact.evidence,
+      coverage: fact.coverage,
+      listed: fact.listed,
+      op: [...draft.ops.keys()].at(-1) as AgentOperationId,
+      pub,
+      revision,
+    },
+  })
+  draft.finish = { ...draft.finish, lists }
+}
+
+function foldFinishEnded(
+  draft: Draft,
+  fact: FactOf<'finish.ended'>,
+  pub: number,
+  revision: number,
+): void {
+  if (draft.finish.ended === null)
+    draft.finish = {
+      ...draft.finish,
+      ended: {
+        candidate: fact.candidate,
+        conclusion: fact.conclusion,
+        disposition: fact.disposition,
+        pub,
+        revision,
+      },
+    }
+}
+
+function foldSettlementRecorded(
+  draft: Draft,
+  fact: FactOf<'settlement.recorded'>,
+  pub: number,
+): void {
+  const op = [...draft.ops.keys()].at(-1) ?? null
+  draft.settlements = [
+    ...draft.settlements,
+    {
+      variant: fact.variant,
+      record: fact.record,
+      evidence: fact.evidence,
+      op: op as AgentOperationId,
+      pub,
+    },
+  ]
+}
+
+function foldObservationRecorded(
+  draft: Draft,
+  fact: FactOf<'observation.recorded'>,
+  pub: number,
+): void {
+  if (!draft.observations.some(item => item.passage === fact.passage))
+    draft.observations = [...draft.observations, { ...fact, pub }]
+}
+
+function foldAckThrough(draft: Draft, fact: FactOf<'ack.through'>, revision: number): void {
+  if (fact.sequence > draft.acknowledged) {
+    draft.acknowledged = fact.sequence
+    draft.acknowledgedAt = revision
+  }
+}
+
+function foldMaterialPreserved(
+  draft: Draft,
+  fact: FactOf<'material.preserved'>,
+  pub: number,
+): void {
+  const key = canonical(fact.source)
+  if (!draft.materials.has(key))
+    draft.materials.set(key, {
+      source: fact.source,
+      value: fact.value,
+      consumer: fact.consumer,
+      pub,
+    })
+}
+
+function foldOpExcluded(draft: Draft, fact: FactOf<'op.excluded'>, pub: number): void {
+  if (!draft.ops.has(fact.operation) && !draft.excluded.has(fact.operation))
+    draft.excluded.set(fact.operation, {
+      execution: draft.execution,
+      reason: fact.reason,
+      evidence: fact.evidence,
+      predecessor: fact.predecessor,
+      pub,
+    })
+}
+
+function foldFenceStarted(draft: Draft, fact: FactOf<'fence.started'>, pub: number): void {
+  if (!draft.fences.some(item => item.operation === fact.operation))
+    draft.fences = [
+      ...draft.fences,
+      { operation: fact.operation, guard: fact.guard, fence: fact.fence, pub },
+    ]
+}
+
+function foldCursorMoved(draft: Draft, fact: FactOf<'cursor.moved'>, pub: number): void {
+  for (const [name, value] of Object.entries(fact.members) as [
+    keyof CursorMembers,
+    CursorMembers[keyof CursorMembers],
+  ][]) {
+    ;(draft.cursor as Record<string, unknown>)[name] = value
+    draft.cursorMoved[name] = pub
+  }
+}
+
 function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision: number): void {
   const event = eventOf(draft, fact)
   switch (fact.kind) {
     case 'exec.opened':
       draft.opened = { ...fact, pub }
       break
-    case 'exec.attached': {
-      const attachments = draft.attachments.map(item =>
-        item.status === 'active' ? { ...item, status: 'superseded' as const } : item,
-      )
-      attachments.push({
-        authority: fact.authority,
-        grant: fact.grant,
-        basis: fact.basis,
-        status: 'active',
-        handoff: null,
-        handoffRevision: 0,
-        pub,
-      })
-      draft.attachments = attachments
-      draft.gen = fact.authority.generation
+    case 'exec.attached':
+      foldExecAttached(draft, fact, pub)
       break
-    }
     case 'exec.detached':
-      draft.attachments = draft.attachments.map(item =>
-        item.authority.executionAttachment === fact.attachment && item.status === 'active'
-          ? {
-              ...item,
-              status: 'detached' as const,
-              handoff: fact.handoff,
-              handoffRevision: revision,
-            }
-          : item,
-      )
+      foldExecDetached(draft, fact, revision)
       break
     case 'input.accepted':
-      if (!draft.inputs.some(item => item.input === fact.input))
-        draft.inputs = [
-          ...draft.inputs,
-          {
-            input: fact.input,
-            entry: fact.entry,
-            message: fact.message,
-            source: fact.source,
-            priority: fact.priority,
-            watermark: fact.watermark,
-            pub,
-            revision,
-          },
-        ]
+      foldInputAccepted(draft, fact, pub, revision)
       break
     case 'step.begun':
       draft.steps = [...draft.steps, { step: fact.step, batch: fact.batch, pub }]
       break
-    case 'request.adopted': {
-      const request: RequestView = {
-        step: fact.step,
-        attempt: fact.attempt,
-        reference: fact.reference,
-        fixed: fact.fixed,
-        schema: fact.schema,
-        record: fact.record,
-        coverage: fact.coverage,
-        voided: null,
-        pub,
-      }
-      draft.requests = [...draft.requests, request]
-      draft.adopted = request
+    case 'request.adopted':
+      foldRequestAdopted(draft, fact, pub)
       break
-    }
-    case 'intent.voided': {
-      draft.requests = draft.requests.map(item =>
-        item.step === fact.step && item.attempt === fact.attempt
-          ? { ...item, voided: fact.basis }
-          : item,
-      )
-      draft.adopted = draft.requests.findLast(item => item.voided === null) ?? null
+    case 'intent.voided':
+      Object.assign(draft, foldVoided(draft, fact))
       break
-    }
     case 'call.intended':
-      if (!draft.intents.has(fact.action))
-        draft.intents.set(fact.action, {
-          action: fact.action,
-          step: fact.step,
-          pending: fact.pending,
-          authority: fact.authority,
-          request: fact.request,
-          association: null,
-          judgment: null,
-          settlement: null,
-          pub,
-        })
+      foldCallIntended(draft, fact, pub)
       break
-    case 'call.associated': {
-      const intent = draft.intents.get(fact.action)
-      if (intent !== undefined && intent.association === null)
-        draft.intents.set(fact.action, {
-          ...intent,
-          association: { reference: fact.reference, receipt: fact.receipt },
-          pending:
-            intent.pending.kind === 'tool'
-              ? { ...intent.pending, association: 'associated', reference: fact.reference }
-              : intent.pending,
-        })
+    case 'call.associated':
+      foldCallAssociated(draft, fact)
       break
-    }
-    case 'result.received': {
-      const known = draft.results.get(fact.consumption)
-      draft.results.set(fact.consumption, {
-        consumption: fact.consumption,
-        result: known?.result ?? fact.result,
-        received: known?.received ?? {
-          delivery: fact.delivery,
-          consumer: fact.consumer,
-          custody: fact.custody,
-          saved: fact.saved,
-          material: fact.material,
-          pub,
-        },
-        stages: known?.stages ?? {},
-        pub,
-      })
+    case 'result.received':
+      foldResultReceived(draft, fact, pub)
       break
-    }
-    case 'result.handled': {
-      const known = draft.results.get(fact.consumption)
-      const stages: Partial<Record<ResultStage, DurableEvidence>> = { ...known?.stages }
-      if (stages[fact.stage] === undefined) stages[fact.stage] = fact.evidence
-      draft.results.set(fact.consumption, {
-        consumption: fact.consumption,
-        result: known?.result ?? fact.result,
-        received: known?.received ?? null,
-        stages,
-        pub,
-      })
+    case 'result.handled':
+      foldResultHandled(draft, fact, pub)
       break
-    }
     case 'reply.judged':
-      if (!draft.admissions.some(item => item.sequence === fact.sequence))
-        draft.admissions = [
-          ...draft.admissions,
-          {
-            sequence: fact.sequence,
-            fact: fact.fact,
-            basis: fact.basis,
-            publication: fact.publication,
-            message: fact.message,
-            source: fact.source,
-            history: fact.history,
-            pub,
-            revision,
-          },
-        ]
+      foldReplyJudged(draft, fact, pub, revision)
       break
     case 'message.published':
-      // Only an event: the message is the Session history's and the event stream's.
       break
-    case 'handoff.prepared': {
-      const handoff = handoffOf(draft, fact.handoff)
-      if (handoff.prepared === null)
-        draft.handoffs.set(handoffKey(fact.handoff), {
-          ...handoff,
-          prepared: { request: fact.request, prepared: fact.prepared, pub },
-        })
+    case 'handoff.prepared':
+      foldHandoffPrepared(draft, fact, pub)
       break
-    }
-    case 'handoff.resolved': {
-      const handoff = handoffOf(draft, fact.handoff)
-      if (handoff.resolved === null)
-        draft.handoffs.set(handoffKey(fact.handoff), {
-          ...handoff,
-          resolved: {
-            resolution: fact.resolution,
-            outcome: fact.outcome,
-            history: fact.history,
-            pub,
-            revision,
-          },
-        })
+    case 'handoff.resolved':
+      foldHandoffResolved(draft, fact, pub, revision)
       break
-    }
-    case 'handoff.retired': {
-      const handoff = handoffOf(draft, fact.handoff)
-      if (handoff.retired === null)
-        draft.handoffs.set(handoffKey(fact.handoff), {
-          ...handoff,
-          retired: { reason: fact.reason, excluded: fact.excluded, pub, revision },
-        })
+    case 'handoff.retired':
+      foldHandoffRetired(draft, fact, pub, revision)
       break
-    }
-    case 'handoff.recorded': {
-      const handoff = handoffOf(draft, fact.handoff)
-      const op = draft.ops.size === 0 ? null : [...draft.ops.keys()].at(-1)
-      draft.handoffs.set(handoffKey(fact.handoff), {
-        ...handoff,
-        recorded: [
-          ...handoff.recorded,
-          {
-            resolution: fact.resolution,
-            outcome: fact.outcome,
-            predecessor: fact.predecessor,
-            custody: fact.custody,
-            op: op as AgentOperationId,
-            pub,
-          },
-        ],
-      })
+    case 'handoff.recorded':
+      foldHandoffRecorded(draft, fact, pub)
       break
-    }
     case 'batch.fixed':
-      if (!draft.batches.has(fact.batch))
-        draft.batches.set(fact.batch, {
-          batch: fact.batch,
-          step: fact.step,
-          source: fact.source,
-          actions: fact.actions,
-          pub,
-        })
+      foldBatchFixed(draft, fact, pub)
       break
-    case 'action.judged': {
-      const intent = draft.intents.get(fact.action)
-      if (intent !== undefined)
-        draft.intents.set(fact.action, {
-          ...intent,
-          judgment: {
-            judgment: fact.judgment,
-            evidence: fact.evidence,
-            passage: fact.passage,
-            request: fact.request,
-          },
-        })
+    case 'action.judged':
+      foldActionJudged(draft, fact)
       break
-    }
-    case 'slot.settled': {
-      const intent = draft.intents.get(fact.action)
-      if (intent !== undefined && intent.settlement === null)
-        draft.intents.set(fact.action, { ...intent, settlement: fact.settlement })
+    case 'slot.settled':
+      foldSlotSettled(draft, fact)
       break
-    }
     case 'passage.declared':
-      if (!draft.passages.has(fact.passage))
-        draft.passages.set(fact.passage, {
-          passage: fact.passage,
-          subject: fact.subject,
-          declared: fact.declared,
-          progress: [],
-          conclusion: null,
-          pub,
-        })
+      foldPassageDeclared(draft, fact, pub)
       break
-    case 'passage.progressed': {
-      const passage = draft.passages.get(fact.passage)
-      if (passage !== undefined)
-        draft.passages.set(fact.passage, {
-          ...passage,
-          progress: [...passage.progress, { progress: fact.progress, round: fact.round, pub }],
-        })
+    case 'passage.progressed':
+      foldPassageProgressed(draft, fact, pub)
       break
-    }
-    case 'passage.concluded': {
-      const passage = draft.passages.get(fact.passage)
-      if (passage !== undefined && passage.conclusion === null)
-        draft.passages.set(fact.passage, {
-          ...passage,
-          conclusion: { conclusion: fact.conclusion, evidence: fact.evidence, pub },
-        })
+    case 'passage.concluded':
+      foldPassageConcluded(draft, fact, pub)
       break
-    }
-    case 'control.stage': {
-      const known = draft.controls.get(fact.control)
-      const stages: {
-        -readonly [K in ControlStage]?: Readonly<{
-          state: 'reached' | 'unresolved'
-          source: DurableEvidence
-        }>
-      } = { ...known?.stages }
-      // A stage is a transition: unresolved may become reached; reached never changes.
-      const current = stages[fact.stage]
-      if (current === undefined || (current.state === 'unresolved' && fact.state === 'reached'))
-        stages[fact.stage] = { state: fact.state, source: fact.source }
-      draft.controls.set(fact.control, {
-        control: fact.control,
-        command: known?.command ?? fact.command,
-        toolInvocation: known?.toolInvocation ?? fact.toolInvocation,
-        toolOperation: known?.toolOperation ?? fact.toolOperation,
-        stages,
-        rejected: known?.rejected ?? [],
-        pub,
-      })
+    case 'control.stage':
+      foldControlStage(draft, fact, pub)
       break
-    }
-    case 'control.rejected': {
-      const known = draft.controls.get(fact.control)
-      if (known !== undefined)
-        draft.controls.set(fact.control, {
-          ...known,
-          rejected: [...known.rejected, fact.audit],
-          pub,
-        })
-      const op = [...draft.ops.keys()].at(-1)
-      if (op !== undefined && !draft.rejections.has(op))
-        draft.rejections.set(op, { control: fact.control, audit: fact.audit, pub, revision })
+    case 'control.rejected':
+      foldControlRejected(draft, fact, pub, revision)
       break
-    }
     case 'wait.entered':
       draft.waits = { step: fact.step, waits: fact.waits, pub }
       break
-    case 'target.bound': {
-      const definition = draft.cursor.definition ?? draft.opened?.definition
-      if (definition === undefined)
-        throw new TypeError('a call binding requires its original Agent definition')
-      draft.bindings = [
-        ...draft.bindings,
-        {
-          definition,
-          reference: fact.reference,
-          pending: fact.pending,
-          instance: fact.instance,
-          pub,
-        },
-      ]
+    case 'target.bound':
+      foldTargetBound(draft, fact, pub)
       break
-    }
     case 'finish.candidate':
-      if (!draft.finish.candidates.some(item => item.candidate === fact.candidate))
-        draft.finish = {
-          ...draft.finish,
-          candidates: [
-            ...draft.finish.candidates,
-            {
-              candidate: fact.candidate,
-              claim: fact.claim,
-              cursor: fact.cursor,
-              route: fact.route,
-              path: fact.path,
-              supersedes: fact.supersedes,
-              beforeTerminal: null,
-              pub,
-              revision,
-            },
-          ],
-          current: fact.candidate,
-        }
+      foldFinishCandidate(draft, fact, pub, revision)
       break
-    case 'finish.proved': {
-      const candidate = draft.finish.candidates.find(
-        item => item.route.record === fact.route.record,
-      )
-      if (candidate !== undefined && candidate.beforeTerminal === null)
-        candidateAt(draft, candidate.candidate, item => ({
-          ...item,
-          beforeTerminal: fact.beforeTerminal,
-        }))
+    case 'finish.proved':
+      foldFinishProved(draft, fact)
       break
-    }
-    case 'finish.obligation': {
-      const obligations = new Map(draft.finish.obligations)
-      obligations.set(fact.id, { category: fact.category, item: fact.item, pub })
-      draft.finish = { ...draft.finish, obligations }
+    case 'finish.obligation':
+      foldFinishObligation(draft, fact, pub)
       break
-    }
-    case 'finish.obligations': {
-      const key = listKey(fact.candidate, fact.list)
-      if (draft.finish.lists.has(key)) break
-      const lists = new Map(draft.finish.lists)
-      lists.set(key, {
-        candidate: fact.candidate,
-        list: fact.list,
-        issued: {
-          count: fact.count,
-          evidence: fact.evidence,
-          coverage: fact.coverage,
-          listed: fact.listed,
-          op: [...draft.ops.keys()].at(-1) as AgentOperationId,
-          pub,
-          revision,
-        },
-      })
-      draft.finish = { ...draft.finish, lists }
+    case 'finish.obligations':
+      foldFinishObligations(draft, fact, pub, revision)
       break
-    }
     case 'finish.ended':
-      if (draft.finish.ended === null)
-        draft.finish = {
-          ...draft.finish,
-          ended: {
-            candidate: fact.candidate,
-            conclusion: fact.conclusion,
-            disposition: fact.disposition,
-            pub,
-            revision,
-          },
-        }
+      foldFinishEnded(draft, fact, pub, revision)
       break
-    case 'settlement.recorded': {
-      const op = [...draft.ops.keys()].at(-1) ?? null
-      draft.settlements = [
-        ...draft.settlements,
-        {
-          variant: fact.variant,
-          record: fact.record,
-          evidence: fact.evidence,
-          op: op as AgentOperationId,
-          pub,
-        },
-      ]
+    case 'settlement.recorded':
+      foldSettlementRecorded(draft, fact, pub)
       break
-    }
     case 'observation.recorded':
-      if (!draft.observations.some(item => item.passage === fact.passage))
-        draft.observations = [...draft.observations, { ...fact, pub }]
+      foldObservationRecorded(draft, fact, pub)
       break
     case 'ack.through':
-      if (fact.sequence > draft.acknowledged) {
-        draft.acknowledged = fact.sequence
-        draft.acknowledgedAt = revision
-      }
+      foldAckThrough(draft, fact, revision)
       break
     case 'op.recognized':
       break
-    case 'material.preserved': {
-      const key = canonical(fact.source)
-      if (!draft.materials.has(key))
-        draft.materials.set(key, {
-          source: fact.source,
-          value: fact.value,
-          consumer: fact.consumer,
-          pub,
-        })
+    case 'material.preserved':
+      foldMaterialPreserved(draft, fact, pub)
       break
-    }
     case 'op.excluded':
-      // A committed operation is never excluded; the first exclusion of an operation stands.
-      if (!draft.ops.has(fact.operation) && !draft.excluded.has(fact.operation))
-        draft.excluded.set(fact.operation, {
-          execution: draft.execution,
-          reason: fact.reason,
-          evidence: fact.evidence,
-          predecessor: fact.predecessor,
-          pub,
-        })
+      foldOpExcluded(draft, fact, pub)
       break
     case 'fence.started':
-      if (!draft.fences.some(item => item.operation === fact.operation))
-        draft.fences = [
-          ...draft.fences,
-          { operation: fact.operation, guard: fact.guard, fence: fact.fence, pub },
-        ]
+      foldFenceStarted(draft, fact, pub)
       break
     case 'cursor.moved':
-      for (const [name, value] of Object.entries(fact.members) as [
-        keyof CursorMembers,
-        CursorMembers[keyof CursorMembers],
-      ][]) {
-        ;(draft.cursor as Record<string, unknown>)[name] = value
-        draft.cursorMoved[name] = pub
-      }
+      foldCursorMoved(draft, fact, pub)
       break
     default: {
       const _exhaustive: never = fact
@@ -1019,19 +770,10 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
     ]
 }
 
-/**
- * Folds one published batch into the session view: the execution's revision advances by one unless
- * the batch is a pure recognition, every fact is applied in order, the operation index gains the
- * batch's operation, and the head moves to the batch's pub. A batch already folded (`pub <= head`)
- * or an operation already indexed leaves the view as it is: the log, not the caller, is the truth.
- */
 export function fold(view: SessionJournalView, batch: PublishedBatch): SessionJournalView {
   if (batch.pub <= view.head) return view
   const draft = draftOf(view.executions.get(batch.execution) ?? emptyExecutionView(batch.execution))
-  // The index is written before the facts, so the facts that name the batch's op can read it.
-  // The envelope names the revision the batch reaches, computed by the writer under `expected`
-  // (for a batch that advances none, the revision before it); a writer that left it at 0 lets the
-  // fold compute it: one more unless the batch is a recognition or the envelope alone.
+  // Write the operation index before the facts, so facts that name this batch's op can read it.
   const moves = advances(batch)
   const revision =
     batch.envelope.rev >= 1 ? batch.envelope.rev : moves ? draft.revision + 1 : draft.revision
@@ -1067,7 +809,6 @@ export function fold(view: SessionJournalView, batch: PublishedBatch): SessionJo
   return { head: batch.pub, executions, ops, excluded }
 }
 
-/** Folds the batches in order, from `view` or from the empty view. */
 export function foldAll(
   batches: Iterable<PublishedBatch>,
   view: SessionJournalView = emptySessionView(),
@@ -1075,34 +816,4 @@ export function foldAll(
   let current = view
   for (const batch of batches) current = fold(current, batch)
   return current
-}
-
-/**
- * The reception targets of one execution (R2-D297): the intended calls whose result has not been
- * received, each with its consumer position. A projection of `intents` and `results`; nothing is
- * stored per execution and nothing is rewritten when a call is added.
- */
-export function openCalls(view: ExecutionView): readonly IntentView[] {
-  return [...view.intents.values()].filter(
-    intent => view.results.get(intent.pending.consumption)?.received == null,
-  )
-}
-
-function plain(value: unknown): unknown {
-  if (value instanceof Map)
-    return Object.fromEntries([...value].map(([key, item]) => [String(key), plain(item)]))
-  if (Array.isArray(value)) return value.map(plain)
-  if (value !== null && typeof value === 'object')
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, plain(item)]))
-  return value
-}
-
-/** The canonical digest of a view: equal digests mean equal views (F1, F3). */
-export function viewDigest(view: SessionJournalView): string {
-  return digestOf(plain(view))
-}
-
-/** The canonical text of a view, for a failing comparison to show. */
-export function viewText(view: SessionJournalView): string {
-  return canonical(plain(view))
 }

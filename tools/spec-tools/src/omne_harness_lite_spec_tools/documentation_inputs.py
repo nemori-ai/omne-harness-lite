@@ -1,15 +1,10 @@
 from __future__ import annotations
 
 import hashlib
-import json
-import os
 from pathlib import Path, PurePosixPath
 
-from jsonschema import Draft202012Validator
+from .doc_support import navigation_path
 
-from .doc_support import headings, navigation_path
-
-SCHEMA_PATH = Path(__file__).parent / "formats/documentation-bindings.schema.json"
 IGNORED = {".git", ".venv", "node_modules", "dist", "build", "__pycache__",
            ".pytest_cache", "tmp", ".worktrees", ".templates"}
 
@@ -61,76 +56,6 @@ class Inputs:
         data = self.read_bytes(relative)
         return data.decode("utf-8") if data is not None else None
 
-    def source(self, reference: dict) -> None:
-        path = reference["path"]
-        if self.read(path) is None:
-            raise ValueError(f"required basis source missing: {path}")
-        headings.cache_clear()
-        if reference.get("anchor") and reference["anchor"] not in headings(
-                safe_path(self.root, path)):
-            raise ValueError(f"required basis anchor missing: {path}#{reference['anchor']}")
-
     def verify(self) -> None:
         for relative in list(self.files):
             self.read_bytes(relative, navigation=relative in self._navigation)
-
-
-def discover(root: Path) -> list[str]:
-    result = ["docs/documentation.json"]
-    for prefix in ("docs/domains", "packages", "apps", "tools"):
-        for directory, children, files in os.walk(root / prefix):
-            children[:] = sorted(child for child in children if child not in IGNORED
-                                 and not (Path(directory) / child).is_symlink())
-            if "documentation.json" in files:
-                result.append((Path(directory) / "documentation.json").relative_to(root).as_posix())
-    return sorted(set(result))
-
-
-def load(inputs: Inputs, registries: list[str], *,
-         selected_document_ids: set[str] | None = None) -> tuple[list[dict], str]:
-    schema_bytes = SCHEMA_PATH.read_bytes()
-    schema = json.loads(schema_bytes)
-    Draft202012Validator.check_schema(schema)
-    validator = Draft202012Validator(schema)
-    documents, ids, paths, owners = [], set(), set(), set()
-    for registry in registries:
-        registry_path = safe_path(inputs.root, registry)
-        if registry_path != registry_path.resolve():
-            raise ValueError(f"registry path is an alias: {registry}")
-        raw = inputs.read(registry)
-        if raw is None:
-            raise ValueError(f"registry missing: {registry}")
-        value = json.loads(raw)
-        errors = sorted(validator.iter_errors(value), key=lambda e: str(list(e.path)))
-        if errors:
-            raise ValueError(f"registry {registry}: {errors[0].message}")
-        owner = value["owner"]
-        if owner["id"] in owners:
-            raise ValueError(f"duplicate owner id: {owner['id']}")
-        owners.add(owner["id"])
-        inputs.source(owner["source"])
-        for document in value["documents"]:
-            identity = (owner["id"], document["id"])
-            target = safe_path(inputs.root, document["path"])
-            if target != target.resolve():
-                raise ValueError(f"registered document path is an alias: {document['path']}")
-            if identity in ids or target in paths:
-                raise ValueError(f"duplicate document identity/path: {identity}")
-            ids.add(identity)
-            paths.add(target)
-            if not document["path"].endswith(".md"):
-                raise ValueError(f"Markdown target required: {document['path']}")
-            section_ids = [item["id"] for item in document["requiredSections"]]
-            anchors = [item["anchor"] for item in document["requiredSections"]]
-            if len(set(section_ids)) != len(section_ids) or len(set(anchors)) != len(anchors):
-                raise ValueError(f"duplicate section identity/anchor: {identity}")
-            references = [document["expectationSource"]]
-            if "gapAllowanceSource" in document:
-                references.append(document["gapAllowanceSource"])
-            for reference in references:
-                safe_path(inputs.root, reference["path"])
-            if selected_document_ids is None or document["id"] in selected_document_ids:
-                for reference in references:
-                    inputs.source(reference)
-                documents.append({**document, "owner": owner, "registry": registry})
-    return documents, hashlib.sha256(schema_bytes).hexdigest()

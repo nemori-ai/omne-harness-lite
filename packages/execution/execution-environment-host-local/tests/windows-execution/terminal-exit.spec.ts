@@ -1,5 +1,4 @@
 /** @module-tag slow */
-// Slow: every test runs a real Windows PowerShell 5.1 Runspace in a ConPTY child and its Job.
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -10,13 +9,8 @@ import { askBridge } from '../../src/windows-execution/bridge.ts'
 import { outputOf, psString, terminalFixture, visible } from './terminal-fixture.ts'
 
 const system = process.env['SystemRoot'] ?? 'C:\\Windows'
-/** A path that does not exist; each row names its own, so its reason is told apart. */
 const missing = (row: string) => `C:\\omne-missing-${row}`
 
-/**
- * The rows of the F3 table as measured in Windows PowerShell 5.1, in one persistent shell, so each
- * row also starts from the state the previous one left. `text` is the reason a failed row must show.
- */
 const rows: ReadonlyArray<Readonly<{ name: string; script: string; code: number; text?: string }>> =
   [
     {
@@ -59,7 +53,6 @@ const rows: ReadonlyArray<Readonly<{ name: string; script: string; code: number;
       code: 3,
       text: missing('after-failure'),
     },
-    // The previous row left $LASTEXITCODE at 3: the reset makes this row 1.
     {
       name: 'Write-Error',
       script: 'Write-Error "omne-write-error"',
@@ -129,7 +122,6 @@ it('answers every row of the F3 table with its exit code and shows the reason of
         row: row.name,
         result: { kind: 'completed', exit: { kind: 'code', code: row.code } },
       })
-      // The reason a failed row shows is in that row's own output.
       if (row.text !== undefined)
         expect({ row: row.name, text }).toMatchObject({
           row: row.name,
@@ -155,7 +147,6 @@ const alive = (pid: number) => {
   }
 }
 
-/** The members of a named Job, read from outside it; `gone` when no Job has that name. */
 const members = (name: string) =>
   askBridge(
     { mode: 'members', name },
@@ -163,7 +154,6 @@ const members = (name: string) =>
     10_000,
   )
 
-/** Writes the shell's process, its broker's and a background member of the Job into `file`. */
 const processes = (file: string) =>
   `$broker = (Get-WmiObject Win32_Process -Filter "ProcessId=$PID").ParentProcessId; $member = Start-Process -FilePath ping.exe -ArgumentList '-n','300','127.0.0.1' -WindowStyle Hidden -PassThru; Set-Content -LiteralPath ${psString(file)} -Value "$PID $broker $($member.Id)"`
 

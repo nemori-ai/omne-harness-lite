@@ -1,10 +1,9 @@
 // @module-tag slow
-// Every case spawns the built bin and talks to a real HTTP server on 127.0.0.1.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createSandbox, runCliAsync, type Sandbox } from './support/cli-process.ts'
-import { emptyCredential, resultUncertain, unrecognizedArguments } from './support/expected.ts'
+import { emptyCredential, unrecognizedArguments } from './support/expected.ts'
 import {
   closedPort,
   credentialText,
@@ -44,16 +43,14 @@ describe('omne commands as a process', () => {
       request: { messageId: expect.any(String) },
     })
     expect(readFileSync(join(state, 'login.json'), 'utf8')).toContain(issuedProof)
-    expect(JSON.stringify(service.seen[0]?.wire)).toContain(credentialText)
+    expect(JSON.stringify(service.seen[0]?.body)).toContain(credentialText)
     expect(result.stdout + result.stderr).not.toContain(issuedProof)
     expect(result.stdout + result.stderr).not.toContain(credentialText)
   })
 
-  it('carries a session command after a login, with the proof in the body', async () => {
+  it('carries a session command after a login, with the proof in the Authorization header', async () => {
     const options = { omneHome: state, omneServer: service.origin }
     await runCliAsync(sandbox, ['login', '--login-identifier', 'alice'], { ...options, stdin })
-    // The session command needs the owner tenant of the session: the process that created it
-    // recorded it, so this is the real create then act path.
     const created = await runCliAsync(
       sandbox,
       ['create-session', '--definition', 'default'],
@@ -68,11 +65,9 @@ describe('omne commands as a process', () => {
     expect(result.status).toBe(0)
     expect(result.stderr).toBe('')
     const sent = service.seen.at(-1)
-    expect(sent?.wire).toMatchObject({
-      operation: 'cancel-run',
-      loginProof: issuedProof,
-      body: { run: 'run-7', urgency: 'graceful' },
-    })
+    expect(sent?.path).toBe('/api/session/v1/cancel-run')
+    expect(sent?.headers['authorization']).toBe(`Bearer ${issuedProof}`)
+    expect(sent?.body).toMatchObject({ run: 'run-7', urgency: 'graceful' })
   })
 
   it('creates the default state directory under HOME only for login', async () => {
@@ -116,15 +111,15 @@ describe('omne commands as a process', () => {
     expect(existsSync(state)).toBe(false)
   })
 
-  it('exits 5 with result uncertain when the service is not running', async () => {
+  it('exits 4 with result unavailable when the service is not running', async () => {
     const port = await closedPort()
     const result = await runCliAsync(sandbox, ['register', '--login-identifier', 'a'], {
       omneServer: `http://127.0.0.1:${port}`,
       stdin,
     })
-    expect(result.status).toBe(5)
-    expect(result.stderr).toBe(resultUncertain('register'))
-    expect(JSON.parse(result.stdout)).toMatchObject({ result: 'uncertain' })
+    expect(result.status).toBe(4)
+    expect(result.stderr).toBe('')
+    expect(JSON.parse(result.stdout)).toMatchObject({ result: 'unavailable' })
   })
 
   it('exits 2 for a name no command has', async () => {

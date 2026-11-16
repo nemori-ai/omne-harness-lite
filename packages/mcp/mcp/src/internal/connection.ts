@@ -1,6 +1,3 @@
-// The Connection aggregate: the state machine of one MCP connection and its generation. It makes
-// no I/O. The connection table drives it after each port call. The state machine and the
-// invariants are the group design "MCP 连接"; the reasons are SPEC S7.
 import {
   isGeneration,
   type ConnectionKey,
@@ -12,13 +9,8 @@ import {
   type Residual,
 } from '@omne-harness/mcp-contract'
 
-/**
- * When the generation grows. `on-attempt` is stdio: every launch attempt, failed ones included.
- * `on-negotiation` is Streamable HTTP: every successful negotiation.
- */
 export type GenerationPolicy = 'on-attempt' | 'on-negotiation'
 
-/** The five reported states of SPEC S7, and `closed`, which the status view never shows. */
 export type AggregateState = ConnectionState | Readonly<{ kind: 'closed' }>
 
 type Event = 'attempt' | 'ready' | 'degrade' | 'lose' | 'close'
@@ -37,7 +29,6 @@ export class Connection {
   #state: AggregateState = { kind: 'none' }
   #peer: PeerIdentity | undefined
 
-  /** `generation` continues a count that an earlier, closed connection of the same key left. */
   constructor(key: ConnectionKey, policy: GenerationPolicy, generation: Generation = ZERO) {
     this.#key = key
     this.#policy = policy
@@ -56,7 +47,6 @@ export class Connection {
     return this.#state
   }
 
-  /** The committed generation: the one a late result is compared with. */
   get generation(): Generation {
     return this.#generation
   }
@@ -65,22 +55,15 @@ export class Connection {
     return this.#peer
   }
 
-  /** The peer while the connection takes requests (`ready` or `degraded`); else undefined. */
   get usablePeer(): PeerIdentity | undefined {
     const kind = this.#state.kind
     return kind === 'ready' || kind === 'degraded' ? this.#peer : undefined
   }
 
-  /** True once `close()` ran: the connection refuses requests from then on, for good. */
   get closed(): boolean {
     return this.#state.kind === 'closed'
   }
 
-  /**
-   * A launch or negotiation attempt begins. Answers the generation this attempt has once it is
-   * ready: under `on-attempt` it is committed now, failed attempts included; under
-   * `on-negotiation` it is committed by `ready`.
-   */
   attempt(): Generation {
     this.#expect('attempt', ['none', 'lost'])
     const next = generationOf(this.#generation + 1)
@@ -89,7 +72,6 @@ export class Connection {
     return next
   }
 
-  /** Negotiation done, or the next non-call request succeeded after `degraded`. */
   ready(peer: PeerIdentity): Generation {
     const from = this.#expect('ready', ['preparing', 'degraded'])
     if (from === 'preparing' && this.#policy === 'on-negotiation')
@@ -99,26 +81,22 @@ export class Connection {
     return this.#generation
   }
 
-  /** A non-call request failed for a while; the target and the credential still hold. */
   degrade(reason: DegradedReason): void {
     this.#expect('degrade', ['ready'])
     this.#state = { kind: 'degraded', reason }
   }
 
-  /** The connection no longer holds. `residual` is what a failed preparation left behind. */
   lose(reason: LostReason, residual?: readonly Residual[]): void {
     this.#expect('lose', ['preparing', 'ready', 'degraded'])
     this.#state =
       residual === undefined ? { kind: 'lost', reason } : { kind: 'lost', reason, residual }
   }
 
-  /** Refuses new requests. The transport and the process are closed by the holder. */
   close(): void {
     this.#expect('close', ['none', 'preparing', 'ready', 'degraded', 'lost'])
     this.#state = { kind: 'closed' }
   }
 
-  /** True when a result produced on `generation` belongs to the present, usable connection. */
   isCurrent(generation: Generation): boolean {
     const kind = this.#state.kind
     return generation === this.#generation && (kind === 'ready' || kind === 'degraded')

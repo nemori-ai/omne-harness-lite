@@ -1,31 +1,3 @@
-// C7 (I-9, I-10): the cost of one Tools call on the Tool and the host paths does not depend on how
-// many calls the tenant has settled before it. The seam is the real SQLite store and body store of
-// this member, the public Tool ledger over them, and the public host factories of `tool-host-local`:
-// the start coordinator, the invocation source with its forwarding slot and receiver, the control
-// subjects, the environment ledgers and the result delivery worker over a real Tool ledger.
-//
-// Each seeded call leaves what a settled Tools call leaves on these paths. On the host paths: a
-// source binding, a controller association, a consumed start, an environment acquisition with a
-// retained terminal and a retained process handed over to the session's long-lived retention scope
-// (both stopped, the process's end fact read back, the acquisition closed), a forwarded target with
-// its consumed start and one received result copy, and the parent's own result delivery driven to
-// `done`, which releases that copy. On the Tool path: a call of the same tenant whose final planned a
-// body over the inline threshold and settled with it offloaded, so the ledger holds its body entry,
-// the body store its chunks and manifest, and the due index its expiry. Half of the seeded bodies
-// are then swept, so the history holds reclaimed entries next to linked bodies.
-//
-// The counted call does both again and reads its body back page by page. The SQLite test provider
-// shows every statement of the participant and the read handlers to a meter, which splits them by
-// the owner of the rows; the two runs must run the same statements over the same rows and bytes on
-// each path. The one byte difference allowed is the decimal width of revision, ordinal and
-// counter texts, which grows with a u64-bounded count and not with history: the meter counts
-// those bytes, the comparison deducts them and shows that nothing else differs. The counting ledger store also sees every host read, and the two runs must read the
-// same records and bytes. The only tenant-level host domain is `start-guards`, which grows with
-// control actions only: its size is reported, not compared. The retention scope spans every call
-// of the session, so its record must not grow with the calls; its end facts, one per stopped
-// retained process, grow with the scope's lifetime (stop clause 7 of the execution-environment
-// contract) and are counted, and reading one of them touches one record.
-//
 // @module-tag slow: real SQLite under 200 seeded calls, about half a minute of IO and CPU.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -97,16 +69,10 @@ import {
 } from './fixtures/statement-meter.ts'
 
 const GUARD: GuardResource = { owner: 'permissions', resource: 'scope-1/read_file' }
-/** The retention scope of the session every seeded call belongs to. */
 const SCOPE = targetRequest().requesterScope
 const SCOPE_DOMAIN = retentionHostDomain(TENANT_A, canonicalDigest(SCOPE))
-// A cost that grows with the history shows at ten times the history as it does at a hundred times.
-// The earlier 2000 was there to pass the whole-domain read limit, which a tenant met near 1700
-// calls while every call wrote to tenant-level domains. Calls now live in their own domains and
-// leave after their grace, so no domain grows with the history and that limit cannot be met.
 const N = 200
 
-/** What the host read through the store: calls, records and the bytes of those records. */
 type ReadCount = { reads: number; records: number; bytes: number }
 
 function countingStore(store: ToolLedgerStore): ToolLedgerStore & { count: ReadCount } {
@@ -139,7 +105,6 @@ const access: StartCoordinatorAccess<Principal> = {
   qualify: async () => ({ kind: 'allowed' }),
 }
 
-/** The host over `store`: the public factories of `tool-host-local` and a real Tool ledger. */
 async function host(store: ToolLedgerStore) {
   const authority = createLocalStartCoordinator<Principal>({
     store,
@@ -222,7 +187,6 @@ async function host(store: ToolLedgerStore) {
 
 type Host = Awaited<ReturnType<typeof host>>
 
-/** One consumed start of `call`, as the driver does it: prepare, consume, inspect. */
 async function consumedStart(
   ports: Host,
   call: ToolCallId,
@@ -245,13 +209,6 @@ async function consumedStart(
   if (inspected.kind !== 'started') throw new Error(`inspect: ${inspected.kind}`)
 }
 
-/**
- * The environment work of one call: its acquisition record bound to the session's retention
- * scope, a retained terminal planned and permitted in that scope and its confirmed stop, a
- * retained process planned by the acquisition and handed over to the scope, its confirmed stop
- * and its end fact read back as a later `stop` reads it, and the closed acquisition, as a settled
- * call leaves them.
- */
 async function environmentOf(
   ports: Host,
   call: ToolCallId,
@@ -287,7 +244,6 @@ async function environmentOf(
   if ((await acquisition.close()) !== 'confirmed') throw new Error('acquisition close')
 }
 
-/** The forwarding of one Tools call: its target slot, the target's start and one received copy. */
 async function forwardedOf(
   ports: Host,
   parent: { call: ToolCallId; request: FixedToolRequest },
@@ -337,11 +293,6 @@ async function forwardedOf(
   )
 }
 
-/**
- * The parent settles with one result owed to its consumer, and the delivery worker drives that
- * delivery to `done`: frozen, pushed, released through the real ledger, the forwarded copies
- * released.
- */
 async function deliveredOf(ports: Host, running: CallRecord, index: number) {
   const call = running.call
   const callAccess = { principal: ports.principal, tenant: TENANT_A, call }
@@ -407,11 +358,6 @@ async function deliveredOf(ports: Host, running: CallRecord, index: number) {
   if (driven.pending !== 0) throw new Error(`delivery pending: ${String(driven.pending)}`)
 }
 
-/**
- * The host work of one Tools call: the source binding and controller association of the Tools
- * call, its call record, its consumed start, its environment, the target it forwards to with the
- * target's consumed start and one received copy, and the parent's own delivery.
- */
 async function toolsCall(ports: Host, index: number): Promise<void> {
   const request = parentRequest(index)
   const bound = await ports.source.issuer.resolve({ principal: alice, tenant: TENANT_A, request })
@@ -450,14 +396,12 @@ async function toolsCall(ports: Host, index: number): Promise<void> {
 
 type Offloaded = Awaited<ReturnType<typeof settledOffloaded>>
 
-/** The offloaded original of a settled call, which the 70 KiB text of the fixture always is. */
 function offloadedOf(live: Offloaded) {
   const original = live.value.original
   if (original.kind !== 'offloaded') throw new Error('the body was not offloaded')
   return original
 }
 
-/** Reads the body of `live` back page by page and answers its bytes. */
 async function readBack(live: Offloaded): Promise<number> {
   const body = offloadedOf(live)
   let after: string | null = null
@@ -479,7 +423,6 @@ async function readBack(live: Offloaded): Promise<number> {
   return bytes
 }
 
-/** The bodies of the tenant the body store and the due index still hold. */
 function heldBodies(app: App) {
   const count = (table: string) =>
     Number(
@@ -488,10 +431,6 @@ function heldBodies(app: App) {
   return { manifests: count('tl_body_manifest'), due: count("tl_due WHERE key LIKE 'body:%'") }
 }
 
-/**
- * The tenant-level host domains: every host domain whose name is not `<aggregate>@<call>` or
- * `retention@<scope>`, with its records and bytes.
- */
 function tenantHostDomains(app: App) {
   return Object.fromEntries(
     app.sqlite
@@ -507,17 +446,10 @@ function tenantHostDomains(app: App) {
   )
 }
 
-/** The most due entries one sweep reads (`DUE_READ_ENTRIES` of the store). */
 const DUE_ENTRIES_PER_SWEEP = 1000
 
 type Seeded = Readonly<{ app: App; meter: StatementMeter; held: ReturnType<typeof heldBodies> }>
 
-/**
- * `n` settled Tools calls, each with its offloaded body; the sweep reclaims half of the bodies.
- * The released calls are due for removal before the bodies expire, so the sweep handles those
- * entries first, at an instant before the expiry: it removes the domains that are quiet and
- * schedules the others again, past the expiry.
- */
 async function seeded(n: number): Promise<Seeded> {
   const meter = statementMeter()
   const app = await openApp({ observe: meter.observe })
@@ -543,14 +475,12 @@ async function seeded(n: number): Promise<Seeded> {
   return { app, meter, held: heldBodies(app) }
 }
 
-/** The bytes of the retention scope's record, the one record every call of the scope reads. */
 async function scopeRecordBytes(store: ToolLedgerStore) {
   const read = await store.readRecord(SCOPE_DOMAIN, hostKey('scope'))
   if (read.kind !== 'complete') throw new Error(`scope record: ${read.diagnostic}`)
   return Buffer.byteLength(JSON.stringify(read.record), 'utf8')
 }
 
-/** The end fact records of the retention scope: one per stopped retained process. */
 async function endFacts(store: ToolLedgerStore) {
   const read = await store.read(SCOPE_DOMAIN)
   if (read.kind !== 'complete') throw new Error(`scope domain: ${read.diagnostic}`)
@@ -559,7 +489,6 @@ async function endFacts(store: ToolLedgerStore) {
   ).length
 }
 
-/** What one `ended(key)` of the scope reads through `store`. */
 async function endedRead(store: ToolLedgerStore, index: number): Promise<ReadCount> {
   const counting = countingStore(store)
   const ports = await host(counting)
@@ -620,7 +549,6 @@ describe(`the Tool and host paths after 20 and after ${String(N)} settled Tools 
         })
         counts[String(n)] = { ...counting.count }
         scopeRecord[String(n)] = await scopeRecordBytes(app.store)
-        // Allowed to grow with the scope's stopped processes: n seeded plus the counted call.
         ended[String(n)] = await endFacts(app.store)
         expect(ended[String(n)]).toBe(n + 1)
         endedReads[String(n)] = await endedRead(app.store, 0)
@@ -630,7 +558,6 @@ describe(`the Tool and host paths after 20 and after ${String(N)} settled Tools 
       console.info('one Tools call runs', JSON.stringify(statements))
       console.info('one Tools call reads', counts, 'retention scope record bytes', scopeRecord)
       console.info('retention scope end facts', ended, 'one ended(key) reads', endedReads)
-      // Reported, not compared: the guard domain grows with control actions, never with calls.
       console.info('tenant-level host domains', JSON.stringify(tenantDomains))
       const after20 = statements['20']
       const afterN = statements[String(N)]

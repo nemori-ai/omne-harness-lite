@@ -28,7 +28,6 @@ function unavailable(diagnostic: string): Outcome<never, TokenizationFailure> {
   return fail({ kind: 'unavailable', diagnostic })
 }
 
-/** The first adoption check that fails, as a diagnostic, or `undefined` when all three hold. */
 function adoptionMismatch(resources: TiktokenResources): string | undefined {
   const { implementation, vocabulary, configuration } = resources.definition
   const engine = installedEngineVersion()
@@ -42,10 +41,6 @@ function adoptionMismatch(resources: TiktokenResources): string | undefined {
   return undefined
 }
 
-/**
- * Counts a segment sequence. Adjacent text segments join into one text before encoding, because
- * token counts of separate pieces do not add up to the count of the joined text.
- */
 function countSegments(
   textTokens: (text: string) => number,
   specialTokens: ReadonlySet<string>,
@@ -76,10 +71,6 @@ function countSegments(
   return succeed({ tokens: String(total) })
 }
 
-/**
- * Checks the family-supplied resources once and returns a tokenizer that counts with them.
- * Any failed adoption check returns `unavailable`; no other encoding replaces the resources.
- */
 export function createWorkerTokenizer(
   resources: TiktokenResources,
 ): Outcome<WorkerTokenizer, TokenizationFailure> {
@@ -98,7 +89,6 @@ export function createWorkerTokenizer(
     bpe_ranks: bpeRanks,
   })
   const ordinary = createOrdinaryCounter(engine)
-  // Own keys only, copied now: later changes to the caller's table do not change any count.
   const allowed: ReadonlySet<string> = new Set(Object.keys(resources.specialTokens))
   const tokenizer: WorkerTokenizer = {
     definition: frozenDefinition(resources.definition),

@@ -14,7 +14,6 @@ import type {
 expectTypeOf<RequestContextService<unknown>['contributeVariable']>().toEqualTypeOf<
   PromptContributionRegistry['contributeVariable']
 >()
-// The service projects the registry signatures one to one; the scope is no access grant.
 expectTypeOf<RequestContextService<unknown>['assembly']>().toEqualTypeOf<
   (target: ContextTarget) => AssemblyOperations<unknown>
 >()

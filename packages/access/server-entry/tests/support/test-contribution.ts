@@ -1,5 +1,3 @@
-// A contribution that is not in any release: the registry and settle tests mount it instead of a
-// domain's. Its handlers answer with what the test hands them.
 import { defineProtocol, ruleCodec } from '@omne-harness/public-contract'
 import type { AccessContribution } from '@omne-harness/access-cordis-contract'
 
@@ -38,7 +36,6 @@ export function notesProtocol(major = 1) {
 }
 export type NotesProtocol = ReturnType<typeof notesProtocol>
 
-/** A contribution whose handlers answer a fixed title, so two mounts can be told apart. */
 export function notesContribution(title: string, major = 1): AccessContribution<NotesProtocol> {
   return {
     protocol: notesProtocol(major),
@@ -62,11 +59,6 @@ const taggedNote = ruleCodec({
   fields: { noteId: { rule: { kind: 'text' } }, tenant: { rule: { kind: 'text' } } },
 })
 
-/**
- * The notes protocol with two more operations for the pipeline (#1233): `ping` needs no login, and
- * `tag-note` carries a tenant in its body that the pipeline hands on unjudged. The operations above
- * are the same, so the registry and settle cases keep using `notesProtocol`.
- */
 export function pipelineNotesProtocol(major = 1) {
   const base = notesProtocol(major)
   return defineProtocol({
@@ -88,6 +80,14 @@ export function pipelineNotesProtocol(major = 1) {
         outcomes: { succeeded: empty, conflict: empty },
         countsAsAccess: true,
       },
+      'open-note': {
+        identity: 'acting-tenant',
+        effect: 'read',
+        limit: 'small',
+        body: noteRef,
+        outcomes: { succeeded: note },
+        countsAsAccess: true,
+      },
       ping: {
         identity: 'none',
         effect: 'read',
@@ -104,7 +104,18 @@ export function pipelineNotesProtocol(major = 1) {
         outcomes: { succeeded: empty },
       },
     },
-    observations: base.observations,
+    observations: {
+      ...base.observations,
+      'watch-all': { identity: 'none', open: empty, frame: note, ends: [] },
+      'watch-tenant': {
+        identity: 'acting-tenant',
+        limit: 'input',
+        open: noteRef,
+        frame: note,
+        ends: ['note-deleted'],
+        countsAsAccess: true,
+      },
+    },
   })
 }
 export type PipelineNotesProtocol = ReturnType<typeof pipelineNotesProtocol>

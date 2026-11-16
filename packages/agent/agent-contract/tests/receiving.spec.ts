@@ -1,6 +1,3 @@
-// The receiving ports of SPEC "生产者接收面" through the `./testing` entry: each double passes its own
-// conformance suite, and a provider that breaks one named rule fails the case of that rule. The
-// second part keeps the suites honest: a suite that passes a broken provider would prove nothing.
 import { describe, expect, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
 import {
@@ -53,7 +50,6 @@ function caseNamed(cases: readonly ConformanceCase[], fragment: string): Conform
   return found
 }
 
-/** The events of an execution the suite opened, from a fixture that knows the execution. */
 async function eventsOf(
   fixture: Pick<AgentJournalEntriesFixture<string>, 'events'>,
   who: Access<string>,
@@ -70,7 +66,6 @@ const staleAttachment = (() => {
   return decoded.ok
 })()
 
-/** An `entry` event that a broken provider invents: wrong attachment, schema and cause. */
 function inventedEvent(
   execution: AgentExecutionId,
   sequence: number,
@@ -86,7 +81,6 @@ function inventedEvent(
   }
 }
 
-/** Runs every case of a suite and names the first case that fails. */
 async function runAll(cases: readonly ConformanceCase[]): Promise<void> {
   expect(cases.length).toBeGreaterThan(0)
   for (const entry of cases) {
@@ -111,7 +105,6 @@ describe('the doubles of the receiving ports', () => {
 })
 
 describe('the entries suite fails a provider that breaks a rule', () => {
-  /** The fixture of the double, with its port replaced by `wrap` of the double's port. */
   function brokenCases(
     wrap: (port: AgentJournalEntries<string>) => AgentJournalEntries<string>,
   ): readonly ConformanceCase[] {
@@ -120,7 +113,6 @@ describe('the entries suite fails a provider that breaks a rule', () => {
   }
 
   it('fails the stale-advance case when a superseded attachment can write', async () => {
-    // The broken provider writes an entry of a stale attachment under the current attachment.
     const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
     const latest = new Map<string, Authority>()
     const cases = agentJournalEntriesConformance({
@@ -156,7 +148,6 @@ describe('the entries suite fails a provider that breaks a rule', () => {
   })
 
   it('fails the key case when a repeated delivery is written again', async () => {
-    // A provider without key recognition: every push of a delivery becomes a new write.
     const cases = brokenCases(port => {
       let writes = 0
       return {
@@ -177,7 +168,6 @@ describe('the entries suite fails a provider that breaks a rule', () => {
   })
 
   it('fails the replay case when a recalled operation allocates another event', async () => {
-    // A provider that projects every call, also the one that only recalls the original receipt.
     const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
     const calls = new Map<string, number>()
     const cases = agentJournalEntriesConformance({
@@ -202,7 +192,6 @@ describe('the entries suite fails a provider that breaks a rule', () => {
   })
 
   it('fails the after-the-end case when an entry event follows the end', async () => {
-    // A provider that keeps projecting entries after ended.
     const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
     const attachments = new Map<string, ExecutionAttachmentId>()
     const ended = new Set<string>()
@@ -241,7 +230,6 @@ describe('the entries suite fails a provider that breaks a rule', () => {
   })
 
   it('fails the projection case when an entry is written without its event', async () => {
-    // A provider that writes entries but never allocates their events.
     const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
     const cases = agentJournalEntriesConformance({
       ...fixture,
@@ -254,7 +242,6 @@ describe('the entries suite fails a provider that breaks a rule', () => {
   })
 
   it('fails the stale-advance case when a refused record allocates an event', async () => {
-    // A provider that allocates an event on the refusal branch as well.
     const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
     const refusals = new Map<string, AgentJournalEntry[]>()
     const cases = agentJournalEntriesConformance({
@@ -284,8 +271,6 @@ describe('the entries suite fails a provider that breaks a rule', () => {
   })
 
   it('fails the lost-reply case when the applied write holds the entry but not its event', async () => {
-    // A provider that writes the entry and the event in two steps: the lost reply leaves the
-    // entry without its event.
     const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
     const lost = new Set<string>()
     const cases = agentJournalEntriesConformance({
@@ -310,7 +295,6 @@ describe('the entries suite fails a provider that breaks a rule', () => {
   })
 
   it('fails the failed-write case when a failure before publication leaves an event', async () => {
-    // A provider that allocates the event before it finds out that the write fails.
     const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
     const failed = new Map<string, AgentJournalEntry>()
     const cases = agentJournalEntriesConformance({
@@ -338,7 +322,6 @@ describe('the entries suite fails a provider that breaks a rule', () => {
   })
 
   it('fails the detach case when the event after a detach carries another attachment', async () => {
-    // A provider that allocates the event of a detached execution under a stale attachment.
     const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
     const detached = new Set<string>()
     const cases = agentJournalEntriesConformance({
@@ -360,7 +343,6 @@ describe('the entries suite fails a provider that breaks a rule', () => {
   })
 
   it('fails the projection case when an entry event carries another execution', async () => {
-    // A provider that files the events of one execution under another execution.
     const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
     const other = decodeAgentExecutionId('other-execution')
     if (!('ok' in other)) throw new Error('the test execution is invalid')
@@ -375,7 +357,6 @@ describe('the entries suite fails a provider that breaks a rule', () => {
   })
 
   it('fails the projection case when an entry event carries a stale attachment', async () => {
-    // A provider that allocates every entry event under an attachment that is not the latest.
     const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
     const cases = agentJournalEntriesConformance({
       ...fixture,
@@ -393,13 +374,11 @@ describe('the entries suite fails a provider that breaks a rule', () => {
 
 describe('the commit cases of the suite fail a provider that breaks a rule', () => {
   type Fixture = ReturnType<typeof memoryReceivedCommitFixture<string, ContentBlock>>
-  /** The required cases against the double, with the fixture replaced by `broken(fixture)`. */
   function brokenCases(broken: (fixture: Fixture) => Partial<Fixture>): readonly ConformanceCase[] {
     const fixture = memoryReceivedCommitFixture<string, ContentBlock>(access, otherAccess)
     const replaced = { ...fixture, ...broken(fixture) }
     return agentJournalEntriesConformance(replaced, { received: 'required', joint: replaced.joint })
   }
-  /** `commit` of the double, with `after` run on each reply. */
   function observedCommit(
     fixture: Fixture,
     after: (input: ReceivedCommitInput<string, ContentBlock>, reply: unknown) => void,
@@ -434,7 +413,6 @@ describe('the commit cases of the suite fail a provider that breaks a rule', () 
   })
 
   it('fails the commit projection case when the earlier entry has no event', async () => {
-    // A provider that projects received entries but not the start-fences written before them.
     const cases = brokenCases(fixture => ({
       events: async (who, execution) =>
         (await eventsOf(fixture, who, execution)).filter(
@@ -465,7 +443,6 @@ describe('the commit cases of the suite fail a provider that breaks a rule', () 
   })
 
   it('fails the commit replay case when a replayed commit returns another value', async () => {
-    // A provider that recalls the delivery on a replay but reports a new revision for it.
     const seen = new Set<string>()
     const cases = brokenCases(fixture => ({
       joint: {

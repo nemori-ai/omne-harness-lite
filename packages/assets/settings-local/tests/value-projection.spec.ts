@@ -20,7 +20,6 @@ afterEach(async () => {
   for (const world of worlds.splice(0)) await world.close()
 })
 
-/** A real independent target whose values the value projection reads back. */
 async function open(reopen?: { root: string; scopeRef: string }) {
   const withoutAssets = settingsWithoutAssetsMaterials()
   const values = settingsValueProjectionMaterials()

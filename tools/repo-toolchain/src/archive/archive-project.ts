@@ -6,7 +6,6 @@ import { hasArchivedDirectories, isLegacyFile } from '../core/check-scope.ts'
 
 export { hasArchivedDirectories }
 
-/** 归档范围的 Vitest 参数脚本：按本模块所在位置取 src 下的 .ts 或 dist 下的 .js。 */
 export const VITEST_ARCHIVE_ENTRY = fileURLToPath(
   new URL(`./vitest-archive.${import.meta.url.endsWith('.ts') ? 'ts' : 'js'}`, import.meta.url),
 )

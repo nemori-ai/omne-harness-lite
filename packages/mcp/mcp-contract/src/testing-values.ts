@@ -1,5 +1,3 @@
-// Helpers of the `./testing` entry: JSON trees from plain data, and branded sample values. They
-// throw on bad input, because a bad sample is a defect of the suite, not of the subject.
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import {
   isActionName,
@@ -38,14 +36,12 @@ const LIMITS = {
   maxNumberLength: 100,
 } as const
 
-/** The lossless tree of JSON text, so that a number keeps the lexeme as written. */
 export function jsonTextOf(text: string): JsonValue {
   const read = readJsonText(text, LIMITS)
   if (read.kind !== 'ok') throw new TypeError(`sample is not JSON: ${read.kind}`)
   return read.value
 }
 
-/** The lossless tree of a plain JSON value. */
 export function jsonOf(value: unknown): JsonValue {
   const read = readJsonText(JSON.stringify(value), LIMITS)
   if (read.kind !== 'ok') throw new TypeError(`sample is not JSON: ${read.kind}`)
@@ -107,14 +103,12 @@ export function millisOf(value: number): Millis {
   return value
 }
 
-/** An endpoint reference; the holding is `tenant/<name>` unless given. */
 export function endpointRefOf(name: string, holding = `tenant/${name}`): EndpointRef {
   if (!isEndpointName(name)) throw new TypeError(`not an endpoint name: ${name}`)
   if (!isEndpointHolding(holding)) throw new TypeError(`not an endpoint holding: ${holding}`)
   return { name, holding }
 }
 
-/** The negotiated facts of a peer that offers tools: the version given, the modern one unless given. */
 export function peerIdentityOf(version = '2026-07-28'): PeerIdentity {
   return { protocolVersion: protocolVersionOf(version), capabilities: jsonOf({ tools: {} }) }
 }

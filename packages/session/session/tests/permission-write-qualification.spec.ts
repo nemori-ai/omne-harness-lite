@@ -93,7 +93,6 @@ it('carries the original qualification to the public delegated port without crea
     evidence: evidence('access'),
     writeQualification: w.qualification,
   })
-  // This memory backend has no protected writer; the test proves only the service handoff.
   expect(await w.change()).toMatchObject({ failure: { kind: 'denied' } })
   expect(w.bound).toHaveLength(1)
   expect(w.bound[0]?.writeQualification).toEqual(w.qualification)

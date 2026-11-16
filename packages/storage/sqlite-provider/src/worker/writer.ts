@@ -1,7 +1,3 @@
-// Entry of the write Worker: one Worker per domain file (SPEC 5.1 item 4). Messages queue in
-// arrival order. A commit starts a group (group.ts) that takes the adjacent groupable commits that
-// are queued or arrive within the collection window. Every other message is a barrier: it runs
-// alone, after the group before it. The Worker has no Cordis Context and reads no global state.
 import { parentPort, workerData } from 'node:worker_threads'
 import { openDomain, registerInDomain, rollbackQuietly, type WorkerState } from './domain.ts'
 import { ModuleCache } from './modules.ts'
@@ -33,7 +29,6 @@ const wal = new WalMaintainer(
       state: walState,
     } satisfies WorkerEvent),
 )
-/** Requests that the Worker does not start once the provider closes (SPEC 13.3 step 2). */
 const WITHDRAWABLE: ReadonlySet<WorkerRequest['kind']> = new Set(['register', 'commit', 'query'])
 const inbox: Queued[] = []
 let notify: (() => void) | null = null
@@ -50,7 +45,6 @@ function internalError(error: unknown): InternalErrorReply {
   }
 }
 
-/** Resolves when a message arrives, or after `ms`. */
 function waitForArrival(ms: number): Promise<void> {
   return new Promise(resolve => {
     const done = (): void => {
@@ -66,9 +60,7 @@ function waitForArrival(ms: number): Promise<void> {
 function closeAndExit(): never {
   try {
     state.db?.close()
-  } catch {
-    // The process of the Worker ends next. SQLite recovers a connection that did not close.
-  }
+  } catch {}
   process.exit(0)
 }
 
@@ -90,9 +82,7 @@ async function handle(item: Queued): Promise<unknown> {
     case 'close':
       try {
         state.db?.close()
-      } catch {
-        // See closeAndExit.
-      }
+      } catch {}
       state.db = null
       return { kind: 'closed' }
     case 'commit':
@@ -105,7 +95,6 @@ async function runGroup(first: Queued): Promise<void> {
   const jobs = await runner.collect(first, inbox, waitForArrival)
   const posted = new Set<number>()
   if (closing()) {
-    // Nothing of this group started (SPEC 13.3 step 2): the control side gives `withdrawn_before_start`.
     for (const job of jobs) post(job.id, { kind: 'withdrawn' } satisfies WithdrawnReply)
     return
   }
@@ -117,7 +106,6 @@ async function runGroup(first: Queued): Promise<void> {
     inbox.unshift(...result.unstarted)
     if (result.fatal) closeAndExit()
   } catch (error) {
-    // A provider fault. The transaction is gone, the jobs that were not answered are not durable.
     if (state.db !== null) rollbackQuietly(state.db)
     for (const job of jobs) if (!posted.has(job.id)) post(job.id, internalError(error))
   }
@@ -162,14 +150,11 @@ port.on('message', (message: { id: number; request: Queued['request'] }) => {
   void pump()
 })
 
-/** Maintenance runs between two dispatches, never inside a physical transaction (SPEC 12.3). */
 function maintain(): void {
   if (closing()) return
   try {
     wal.tick()
-  } catch {
-    // A maintenance error is not a request error. The next tick tries again.
-  }
+  } catch {}
 }
 
 setInterval(() => {

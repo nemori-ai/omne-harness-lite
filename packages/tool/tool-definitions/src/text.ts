@@ -1,6 +1,5 @@
 import type { FacilityResult, FileIdentity } from '@omne-harness/execution-environment-contract'
 
-/** Older providers may omit this observation; never infer it from an object token. */
 export function writeEffectOf(value: object): string {
   if (!('writeEffect' in value)) return 'unreported'
   const effect = value.writeEffect
@@ -58,7 +57,6 @@ function truncateText(headText: string, tailText: string, total: number, maximum
   }
   return prefix('[tool truncated]', maximum)
 }
-/** UTF-8 byte ranges refer to the complete unbounded tool text. */
 export function bounded(text: string, maximum: number): string {
   const total = utf8Length(text)
   return total <= maximum ? text : truncateText(text, text, total, maximum)

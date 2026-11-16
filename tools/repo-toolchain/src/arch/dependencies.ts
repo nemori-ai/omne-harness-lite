@@ -17,7 +17,6 @@ export interface DependencyRow {
   readonly sites: readonly Site[]
   readonly relation?: PackageImport
 }
-/** Workspace path the checker can name. Create only writes the packages form. */
 export type MemberPath = string & { readonly __memberPath: unique symbol }
 
 function object(value: unknown): value is Record<string, unknown> {

@@ -1,5 +1,4 @@
 // @module-tag slow
-// Version isolation and JSON CLI behavior require temporary Git repositories and subprocesses.
 import { spawnSync } from 'node:child_process'
 import { readFileSync, renameSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
@@ -41,7 +40,6 @@ const invoke = (root: string, ...args: string[]) =>
     encoding: 'utf8',
   })
 function output(json: string): ActualArchitectureDocument {
-  // CLI shape is also checked against concrete public fields below, rather than only successful JSON.parse.
   return JSON.parse(json) as ActualArchitectureDocument
 }
 describe('independent actual architecture protocol', { timeout: 60_000 }, () => {

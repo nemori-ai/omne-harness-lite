@@ -1,6 +1,3 @@
-// What the double reports about each call that reaches it. An arrival holds classes and verdicts
-// only: no principal object, no credential, no login proof. An assembler that needs the evidence
-// (the end-to-end test of the line) passes an observer to `createSessionProviderRow`.
 import type { SessionFailure } from '@omne-harness/session-contract'
 
 export type SessionProviderMethod =
@@ -14,13 +11,9 @@ export type SessionProviderMethod =
 
 export type SessionProviderArrival = Readonly<{
   method: SessionProviderMethod
-  /** The kind of principal that reached the face. `unrecognized` is any other shape. */
   principalKind: 'system' | 'acting-for-tenant' | 'unrecognized'
-  /** The component name of the system part behind the principal, if the principal has one. */
   actorComponent: string | null
-  /** What the access check answered for this call. */
   access: 'allowed' | 'denied' | 'unavailable'
-  /** `ok`, or the kind of the failure that the face answered. */
   outcome: 'ok' | SessionFailure['kind']
 }>
 

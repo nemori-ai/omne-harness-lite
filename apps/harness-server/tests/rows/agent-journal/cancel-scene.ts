@@ -1,8 +1,3 @@
-// Fixture of the cancellation spec of the `agent-journal` row: a real tree (storage, the access
-// double, `session-storage`, the row under test) with a session that has an active Run and an
-// opened execution, and the cancellation route through the Journal the row provides. It does not
-// import vitest. The Session side is the real `session-storage` row; the access check is the
-// contract double of `session-contract/testing`.
 import {
   decodeAgentExecutionId,
   decodeAgentInstanceId,
@@ -138,22 +133,15 @@ function openInputOf(
   }
 }
 
-/** One session with an active Run whose execution the Journal has opened. */
 export type Run = Readonly<{ access: SessionAccess<string>; execution: AgentExecutionId }>
 
 export type CancelTree = Readonly<{
   tree: LoadedTree
   journal: AgentJournal<string>
-  /** A session of the given principal and name, with an active Run and an opened execution. */
   openRun(access: SessionAccess<string>): Promise<Run>
   release(): void
 }>
 
-/**
- * The tree of the release rows below the Journal. `cancellation: 'release'` loads the row the
- * release names, `'absent'` the row made without an installation. The access double allows the
- * tenant of `memoryAccess` and every tenant that created a session of its own.
- */
 export async function cancelTree(cancellation: 'release' | 'absent'): Promise<CancelTree> {
   const base = makeBase()
   const combination = agentJournalCombination()
@@ -275,7 +263,6 @@ export { memoryAccess }
 
 const cancelId = operation('cancel-control')
 
-/** The cancel control and its reached intent, as the cancel entry saves them. */
 export async function requestCancel(
   journal: AgentJournal<string>,
   run: Run,
@@ -311,10 +298,6 @@ function authorizationOf(
   return { kind: 'cancel', control, source: record.stages.accepted.source }
 }
 
-/**
- * Establish, judge, prepareFinish and tryFinish under the cancel `control`. Answers the first
- * failure (an `unavailable` of a missing installation among them) or the `tryFinish` result.
- */
 export async function endCancelled(
   journal: AgentJournal<string>,
   run: Run,
@@ -371,10 +354,6 @@ export async function endCancelled(
   })
 }
 
-/**
- * `intruder` presents the saved cancel control of `run` (its source evidence is all the
- * authorization carries) to establish the cancellation candidate of an execution that is not its own.
- */
 export async function establishAs(
   journal: AgentJournal<string>,
   run: Run,

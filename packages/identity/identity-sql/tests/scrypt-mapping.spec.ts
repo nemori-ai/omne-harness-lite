@@ -1,6 +1,3 @@
-// DP3-C6 (U-10): a scrypt refusal before the computation is `basis-unavailable`, for an existing
-// account and for an unknown one alike, so the answer cannot enumerate accounts. The decoy
-// comparison gives an unknown account the same scrypt path as a known one.
 import { afterEach, expect, it } from 'vitest'
 import { gatedCompute, TEST_SCRYPT_PROFILE } from './fixtures/scrypt.ts'
 import { openProvider, type OpenedProvider } from './fixtures/provider.ts'
@@ -19,7 +16,6 @@ it('answers basis-unavailable to a known and to an unknown account while the scr
     credential: 'credential-ada',
   })
   if (ada.kind !== 'succeeded') throw new Error('registration failed')
-  // Fill the module: one running computation and a full queue, all held at the gate.
   gate.hold()
   const occupants = []
   for (let index = 0; index <= TEST_SCRYPT_PROFILE.queue; index += 1) {

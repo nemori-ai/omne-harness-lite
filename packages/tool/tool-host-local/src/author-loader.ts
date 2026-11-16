@@ -22,9 +22,7 @@ type Construction<E, B extends ContentBlock> = Parameters<
 export type LocalToolLoaderInput<P, E, B extends ContentBlock> = Readonly<{
   authority: ToolAuthority
   verifier: LocalToolContributionVerifier<P>
-  /** Reads and validates construction values at the verified contribution layer. */
   settings(input: Load<P, E, B> & Readonly<{ authority: ToolAuthority }>): Reply<Construction<E, B>>
-  /** Checks declared schemas and legal setting paths before the registration becomes visible. */
   schemas(input: Load<P, E, B>, loaded: Omit<ToolLoadedRegistration<E, B>, symbol>): Reply<void>
 }>
 
@@ -65,7 +63,6 @@ export function createLocalToolLoader<P, E, B extends ContentBlock>(
         }
         const schemas = await dependencies.schemas(input, loaded)
         if ('failure' in schemas) return schemas
-        // Only the trusted loader mints this phantom brand, after all admission checks.
         return succeed(Object.freeze(loaded) as ToolLoadedRegistration<E, B>)
       } catch {
         return fail({

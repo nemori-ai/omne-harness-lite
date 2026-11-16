@@ -23,7 +23,6 @@ import {
 } from './runtime-values.ts'
 import { settlementFixture } from './settlement-values.ts'
 
-// Existing-record fixtures isolate release behavior. Late-result production belongs to a later increment.
 async function existingVersions() {
   const f = await settlementFixture({
     terminal: { kind: 'failed', cause: 'runtime-lost', diagnostic: 'fixture continuity lost' },
@@ -179,7 +178,7 @@ const handoffs: readonly Handoff[] = [
   { kind: 'processed', completion: evidence('fixture-done', request().consumer.owner) },
 ]
 
-describe('16 release isolation on existing version fixtures (P08)', () => {
+describe('16 release isolation on existing version fixtures', () => {
   it.each([
     { order: 'original first', indexes: [0, 1, 2] as const },
     { order: 'late first', indexes: [2, 1, 0] as const },

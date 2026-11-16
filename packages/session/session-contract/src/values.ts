@@ -2,8 +2,6 @@ import type { SessionPermissions } from './permission-values.ts'
 import type { PermissionDefinitionRef, PermissionRule } from '@omne-harness/permissions'
 import type { TodoItem } from './todos.ts'
 import type { SessionWorkEntryIndex } from './work-entry-values.ts'
-// The values of the work snapshot and the fixed inputs of the commands (SPEC「值与结果项的约束」).
-// Session keeps no continuation value: `ExecutionRef` points at the Agent's authoritative record.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { CompactionMessage, Message } from '@omne-harness/message'
 import type { TenantId, WorkspaceId } from '@omne-harness/legal-identity'
@@ -26,7 +24,6 @@ import type {
   SessionRevision,
 } from './identity.ts'
 
-/** First-loaded definition of one resident tool, as Tool reported it. shape is opaque to this member. */
 export type ResidentTool = Readonly<{
   capability: string
   version: string
@@ -38,18 +35,12 @@ export type SessionFrozen = Readonly<{
   evidence: DurableEvidence
   commit: DurableEvidence
 }>
-/**
- * Points at the Agent's authoritative record. revision and evidence come from the latest Agent event
- * read or the latest participated commit; both are null before the first one. readThrough is the
- * last Agent event sequence read and saved; "0" before the first event.
- */
 export type ExecutionRef = Readonly<{
   execution: string
   revision: string | null
   evidence: DurableEvidence | null
   readThrough: string
 }>
-/** P-2 material handed over by the execution record provider when Session acts as a commit participant. */
 export type Participation = Readonly<{
   execution: string
   operation: string
@@ -84,7 +75,6 @@ export type Consumption = Readonly<{
   binding: CallBinding
   results: readonly ResultConsumption[]
 }>
-/** One Agent input batch as the Agent's input-taken event reported it. Session never reselects it. */
 export type InputBatch = Readonly<{
   id: BatchId
   watermark: DurableEvidence
@@ -105,15 +95,9 @@ export type RunState =
       advance: AdvanceRef | null
       ordinal: string
       execution: ExecutionRef
-      /**
-       * The Run-layer revision (SPEC I-R2, R2-D327): the revision of the last commit that started
-       * this Run or changed its advance or adoption. `reduce` always sets it, and every snapshot
-       * with an active Run carries it (R2-D343).
-       */
       revision: SessionRevision
     }>
   | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
-/** passage and position are the Agent's names, saved and echoed as given. The contract has no dependency on the Agent contract, so it does not narrow them. */
 export type Waiting =
   | Readonly<{ kind: 'producer'; binding: CallBinding; position: string }>
   | Readonly<{
@@ -157,6 +141,7 @@ export type Control =
   | Readonly<{ kind: 'background-tool'; producer: Extract<ProducerRef, { kind: 'tool' }> }>
   | Readonly<{ kind: 'archive' }>
   | Readonly<{ kind: 'unarchive' }>
+  | Readonly<{ kind: 'retry-run'; run: RunId }>
 export type ControlIntent =
   | Readonly<{ kind: 'control'; value: Control }>
   | Readonly<{
@@ -166,10 +151,6 @@ export type ControlIntent =
       decision: DurableEvidence
     }>
   | Readonly<{ kind: 'auto-archive'; idleEvidence: DurableEvidence }>
-/** committed saves the original intent; propagating retains unknown propagation or responsibility.
- * reconciled confirms that intent's propagation, producer checks and original handoff duties.
- * It does not establish a Tool fence, physical stopping, reversed effects or completed archive tasks.
- * The superseded startFence remains the Agent/Tool J03 responsibility. */
 export type ControlProgress = Readonly<{
   operation: SessionOperationId
   target: ControlTarget
@@ -217,11 +198,6 @@ export type RecoveryTask =
       state: 'pending' | 'unknown'
       last: readonly ScopeReleaseDisposition[]
     }>
-/**
- * Bounded close by Session. Always ends as failed. "No record yet" and "execution ended" are not grounds.
- * `drive-refused` is the Agent's definite failure of `invoke` (`input` is the first input) or of
- * `resume` (`input` is null); its basis is what this close records, not an outside record.
- */
 export type BoundedClose =
   | Readonly<{ kind: 'uninterpretable'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'admission-rejected'; input: InputId; rejection: DurableEvidence }>
@@ -241,12 +217,6 @@ export type Modes = Readonly<{
   environment: Adoption
   collaboration: 'co-work' | 'auto-drive'
 }>
-/**
- * The workspace attachment: the instance axis and the version axis. The semantic owner of this
- * shape is the workspace domain (docs/domains/workspaces); both fields are non-empty text whose
- * format belongs to that domain. Once the workspace contract member is published, this type is
- * imported from there.
- */
 export type WorkspaceAttachment = Readonly<{ instance: string; basis: string }>
 export type SessionCreation = Readonly<{
   definition: Readonly<{ name: string; candidate: Adoption }>
@@ -260,7 +230,6 @@ export type SessionCreation = Readonly<{
     | Readonly<{ kind: 'tenant-default'; source: Adoption }>
   initial: Extract<RoutedInput, { kind: 'ordinary' }> | null
   entryContract: Adoption
-  /** The first model selection (XC-MODELSEL). The server entry fills it from the adopted default route. */
   initialModelSelection?: import('./control-values.ts').SavedModelSelection
   residentAdoption?: ResidentAdoption
   initialization?: InitializationSources
@@ -376,7 +345,6 @@ export type IdleObservation =
 export type AutoArchivePolicy =
   | Readonly<{ kind: 'disabled' }>
   | Readonly<{ kind: 'enabled'; idleMs: string }>
-/** Tool's adoption-point verdict that a resident tool cannot keep its shape. */
 export type FreezeVerdict = Readonly<{ cause: 'tool-shape-lost'; evidence: DurableEvidence }>
 
 export type WorkSnapshot = Readonly<{
@@ -404,7 +372,6 @@ export type WorkSnapshot = Readonly<{
   creation: SessionCreation
   tasks: readonly RecoveryTask[]
   idle: Readonly<{ observation: IdleObservation; commit: DurableEvidence }> | null
-  /** Missing optional projections represent no previously committed facts of that kind. */
   todos?: readonly TodoItem[]
   executions?: readonly RunExecution[]
   residentKeys?: ResidentAdoption['keys']
@@ -412,6 +379,8 @@ export type WorkSnapshot = Readonly<{
   children?: readonly SessionId[]
   autoArchive?: AutoArchivePolicy
   taken?: readonly InputId[]
+  unanswered?: readonly InputId[]
+  awaitingPerson?: true
   backgroundPlaceholders?: readonly ConsumptionId[]
   releasedScopes?: readonly Readonly<{ task: SessionOperationId; scope: string }>[]
   contextScopes?: readonly ContextScopeBinding[]
@@ -421,24 +390,20 @@ export type WorkSnapshot = Readonly<{
   historyIndex?: SessionHistoryIndex
   callRegistrations?: readonly SessionCallRecord[]
   callWaits?: readonly SessionCallWait[]
-  /**
-   * The tool calls of the active Run that the model sees and that have no tool message yet, by
-   * `callId`, in the order the assistant messages wrote them. The terminal of the Run answers them.
-   */
   unansweredCalls?: readonly string[]
-  /**
-   * The saved progress of the same-log entries interpretation, one item per (run, execution,
-   * channel). `reduce` derives it from the `entries.interpreted` rows; the log stays the authority.
-   */
   entriesProgress?: readonly SessionEntriesProgress[]
 }>
 
-/** Optional adoption material: omission preserves the existing resident keys and adds no definitions. */
+export type SessionWaiting = Readonly<{
+  run: RunId
+  pending: number
+  execution: string | null
+}>
+
 export type ResidentAdoption = Readonly<{
   residents: readonly ResidentTool[]
   keys: readonly Readonly<{ capability: string; key: ResidentKey }>[]
 }>
-/** A historical execution remains bound to its original Run after successors start. */
 export type RunExecution = Readonly<{
   run: RunId
   execution: ExecutionRef

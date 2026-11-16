@@ -1,5 +1,3 @@
-// The boundary parse of a secret text (SPEC「秘密设置项」): what may become a `SecretText`, and what is
-// refused before any custody sees it. Every refused input here would otherwise reach a vault file.
 import { describe, expect, it } from 'vitest'
 import { SECRET_TEXT_MAX_LENGTH, parseSecretText } from '../src/secrets.ts'
 

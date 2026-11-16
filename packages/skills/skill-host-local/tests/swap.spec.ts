@@ -1,7 +1,3 @@
-// An entry that another writer replaces by a link to a file outside the root while the source
-// reads the package. The source must never give the bytes of the outside file: it resolves every
-// entry before it reads it, and it opens the resolved file without following a final link.
-// The seam below runs the real file system and makes the replacement at one exact step.
 import { readFile, rm, symlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -12,7 +8,6 @@ import { directory, scratch, writeTree } from './scratch.ts'
 
 const MANIFEST = '---\nname: pkg\ndescription: Swap.\n---\n'
 
-/** A package `pkg` with `doc.md`, and `secret.txt` beside it, outside the package. */
 async function world(): Promise<
   Readonly<{ root: string; doc: string; swap: () => Promise<void> }>
 > {

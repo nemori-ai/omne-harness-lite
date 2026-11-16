@@ -1,10 +1,4 @@
 // @module-tag slow
-// Reads and controls in a tenant that the session-storage directory does not hold, through the real
-// Session faces (caller classes as `server-entry` takes them) over the real storage rows. Such a
-// tenant never created a session, so the session does not exist: the answer is `denied`, the one
-// answer of an absent session (public-contract「会话判断次序」第 6 步), and equal to the answer of a
-// registered tenant that lacks the session. It must not be `unavailable`, which the public contract
-// maps to `basis-unavailable` ("现在不能得出允许", retry later). Slow: a real SQLite tree per case.
 import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
@@ -46,7 +40,6 @@ import {
 import { disabledTelemetryRow } from '../telemetry/support.ts'
 import { TENANT_A, TENANT_B, createGuards, textOf } from '../storage/fixtures/tree.ts'
 
-/** A contract-double row that provides one key from a `session-contract/testing` double. */
 function doubleRow(row: string, key: string, make: (ctx: Context) => object): RowSpec {
   return declared(
     defineRow({
@@ -140,7 +133,6 @@ const asTenant = (tenant: typeof TENANT_A) => ({
   session: SESSION_OF_A,
 })
 
-/** The session-bound reads and controls that public operations reach, for the session of A named under `tenant`. */
 const PROBES: Readonly<
   Record<string, (tree: LoadedTree, tenant: typeof TENANT_A) => Promise<unknown>>
 > = {
@@ -178,17 +170,13 @@ describe('a tenant that the directory does not hold', () => {
         const created = await createIn(tree, TENANT_A, 'sess-of-a')
         expect('ok' in created, JSON.stringify(created)).toBe(true)
 
-        // Tenant B never created a session: the directory does not hold it.
         expect(heldTenants(base)).not.toContain(textOf(TENANT_B))
         const unregistered = await probe(tree, TENANT_B)
         expect(unregistered).toMatchObject({ failure: { kind: 'denied' } })
         expect(heldTenants(base)).not.toContain(textOf(TENANT_B))
 
-        // Once B has a session of its own, the same probe in B's tenant answers the same.
         const own = await createIn(tree, TENANT_B, 'sess-of-b')
         expect('ok' in own, JSON.stringify(own)).toBe(true)
-        // A malformed cursor is judged before the tenant is looked at, so `history.next` with the made-up
-        // cursor of this probe answers `invalid` in a registered tenant; it has no session-absent answer to compare.
         if (name !== 'history.next') expect(await probe(tree, TENANT_B)).toEqual(unregistered)
       },
     )

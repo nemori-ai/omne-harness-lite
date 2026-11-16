@@ -1,23 +1,14 @@
-// The start guard of the guard table (row 5): the current invocation kind and the current
-// qualification of one start. It keeps no verdict. The start fence (permit, acceptance, exclusion)
-// is the start coordinator's; this guard answers only what is true now.
-//
-// Known limitation (review N7): a fact of the definition side, such as a binding that closed or
-// drained after the admission, is not asked here. The fence invalidation of its owner covers it.
 import type { AccessVerdict, StartVerdict, ToolStartGuard } from '@omne-harness/tool'
 import type { StartCoordinatorAccess } from './start-coordinator.ts'
 import type { RequestAccessVerdict, StartCondition, ToolRequestAccess } from './ledger-guards.ts'
 
-/** The refusal reason of a call that is not direct: M2 has no programmatic call. */
 export const PROGRAMMATIC_NOT_IN_M2 = 'programmatic-not-in-m2'
 
 export type LocalStartGuardInput<P> = Readonly<{
-  /** The `start` view of the host access: the same adapter object that gives the ledger its access. */
   access: StartCoordinatorAccess<P>
   requestAccess?: ToolRequestAccess<P>
 }>
 
-/** Re-read a configured policy and validate its answer at the provider boundary. */
 export async function qualifyRequestAccess<P>(
   provider: ToolRequestAccess<P> | undefined,
   input: Parameters<ToolRequestAccess<P>['qualify']>[0],
@@ -45,12 +36,6 @@ export async function qualifyRequestAccess<P>(
   return { kind: 'unavailable', diagnostic: 'request-access unavailable' }
 }
 
-/**
- * Builds the start guard. A call whose invocation is not `direct` is `refused` without asking the
- * access. Otherwise the access is asked for the action `start` on every call of `qualifyStart`:
- * `allowed` is `allowed`, `denied` is `refused`, and an access that cannot answer or throws is
- * `unavailable`, never `allowed`.
- */
 export function createLocalStartGuard<P>(input: LocalStartGuardInput<P>): ToolStartGuard<P> {
   if (typeof input !== 'object' || input === null) throw new TypeError('input: missing')
   const { access } = input

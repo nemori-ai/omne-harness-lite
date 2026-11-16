@@ -29,7 +29,6 @@ function compare(a: CardKey, b: CardKey) {
       ? 1
       : a.ordinal - b.ordinal
 }
-/** 一个桶内从 start 起的请求序号。带来源或会话过滤时读过滤范围目录，否则读无过滤目录。 */
 function requestKeys(port: ReadPort, query: PoolScan, start: CardKey, bucket: string) {
   const tenant = stringCell(query.tenantRef),
     actor = stringCell(query.actorRef),

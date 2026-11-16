@@ -8,12 +8,10 @@ import { sessionReaderSource } from './native-source.ts'
 
 const run = promisify(execFile)
 
-/** The session reader, or why it is missing; the provider reports the latter as a prerequisite. */
 export type SessionReader =
   | Readonly<{ kind: 'ready'; path: string }>
   | Readonly<{ kind: 'missing'; missing: 'commandLineTools' | 'compile' }>
 
-/** Where the reader is compiled and with which tools; the tests point these elsewhere. */
 export type CompileTools = Readonly<{ cacheRoot: string; xcodeSelect: string; cc: string }>
 
 const hostTools = (): CompileTools => ({
@@ -24,12 +22,6 @@ const hostTools = (): CompileTools => ({
 
 let compilation: Promise<SessionReader> | undefined
 
-/**
- * The session reader's executable, compiled once per content into the user's own temporary
- * directory. `xcode-select -p` is asked first: on a host without the Command Line Tools,
- * `/usr/bin/cc` would open the installer dialog instead of failing. A missing answer is not kept,
- * so a later start finds tools installed meanwhile.
- */
 export function sessionReader(): Promise<SessionReader> {
   const running = (compilation ??= compileSessionReader(hostTools()).catch((): SessionReader => ({
     kind: 'missing',
@@ -41,12 +33,10 @@ export function sessionReader(): Promise<SessionReader> {
   return running
 }
 
-/** Compiles the reader into a content-addressed directory under `tools.cacheRoot`. */
 export async function compileSessionReader(tools: CompileTools): Promise<SessionReader> {
   return compileNativeProgram(tools, 'omne-session', sessionReaderSource)
 }
 
-/** Compiles a public-API helper using the same tool check and content-addressed cache. */
 export async function compileNativeProgram(
   tools: CompileTools,
   name: string,
@@ -58,9 +48,7 @@ export async function compileNativeProgram(
   try {
     await access(executable)
     return { kind: 'ready', path: executable }
-  } catch {
-    /* Compile the missing content-addressed artifact. */
-  }
+  } catch {}
   try {
     await run(tools.xcodeSelect, ['-p'], { timeout: 10_000 })
   } catch {

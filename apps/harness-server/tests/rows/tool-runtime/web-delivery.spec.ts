@@ -1,9 +1,4 @@
 // @module-tag slow
-// 慢：本进程装发行树（真实 SQLite），每条命令起一个 `omne` 子进程，模型走本进程的本地网关，页面来自本地 HTTP 夹具。
-// 先构建 `apps/cli`。Web 元工具在发行树上端到端（web-meta-tool 切片 02、04）：coding 会话发给模型的工具声明含 Web；脚本化模型
-// 先调 `Web().fetch` 取本地夹具页，Markdown 正文回到会话历史；再调 `Web().search`，租户经 `omne setting` 配了 key，
-// 本地 Exa 替身收到这把 key 并答一条结果，结果回到历史；模型给出最终回复，Run 以 completed 结束，停服退出码 0。
-// 未配 key 的 search、两租户与扫描在 `web-settings-e2e.spec.ts`。不访问外网。
 import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -14,17 +9,16 @@ import { runServe, type S0Record } from '../../../src/run.ts'
 import { exaResult, exaResults, startExaStub } from '../../fixtures/exa-stub.ts'
 import { startModelGateway, type GatewayScript } from '../../fixtures/model-gateway.ts'
 import { PAGE_BODY_MARKER, PAGE_TITLE_MARKER, startWebPages } from '../../fixtures/web-pages.ts'
-import { SESSION_PATH } from '../../r9/flow.ts'
 import {
   bodyOf,
   freePort,
   newScratch,
   operatorLayer,
   runOmne,
-  savedLoginProof,
   savedTenant,
 } from '../../r9/support.ts'
-import { connectable, until } from '../server-entry/support.ts'
+import { entriesOf, readHistoryPage, savedClients } from '../../support/protocol-clients.ts'
+import { connectable, until } from '../../support/listening.ts'
 
 const release: unknown = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
@@ -43,7 +37,6 @@ const serving = (body: string) => ({
 
 type Call = Readonly<{ id: string; arguments: string }>
 
-/** Request n answers the n-th scripted Web call; after the last call, the final text. */
 const webCallsThenText =
   (calls: readonly Call[], seen: string[]): GatewayScript =>
   ({ index, body }) => {
@@ -82,12 +75,11 @@ const webCallsThenText =
     }
   }
 
-/** The operator layer with `read-history` listing the tool results and the Run boundaries too. */
 function withHistoryKinds(layer: unknown): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
     ops: ops.map(op =>
-      op.id === 'server-entry'
+      op.id === 'session-access'
         ? {
             ...op,
             config: {
@@ -106,40 +98,16 @@ function withHistoryKinds(layer: unknown): unknown {
   }
 }
 
-async function post(port: number, body: unknown): Promise<{ status: number; body: string }> {
-  const response = await fetch(`http://127.0.0.1:${String(port)}${SESSION_PATH}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  return { status: response.status, body: await response.text() }
-}
-
-const readHistory = (tenant: string, session: string, loginProof: string) => ({
-  protocolVersion: 'session-public/1',
-  messageId: 'web-delivery-read-history',
-  operation: 'read-history',
-  body: { tenant, session, cursor: null, direction: 'forward', pageBytes: '262144' },
-  loginProof,
-})
-
 type Entry = Readonly<{ kind: string; payload: Record<string, unknown> }>
-const entriesOf = (body: string): readonly Entry[] =>
-  (JSON.parse(body) as { body: { entries: Entry[] } }).body.entries
 const blocksOf = (entry: Entry | undefined): readonly Record<string, unknown>[] =>
   ((entry?.payload['message'] as { blocks?: Record<string, unknown>[] } | undefined)?.blocks ??
     []) as readonly Record<string, unknown>[]
-/** The text blocks of a tool message entry after its result marker, joined. */
 const resultText = (entry: Entry | undefined): string =>
   blocksOf(entry)
     .slice(1)
     .map(block => String(block['text'] ?? ''))
     .join('')
 
-/**
- * One turn on the release tree with the scripted Web calls, after the tenant set the search key
- * through `omne setting`; returns the history, the model requests and what the Exa stand-in saw.
- */
 async function turnOnRelease(calls: readonly Call[], exaKey: string) {
   const seen: string[] = []
   const dir = newScratch('web-delivery-')
@@ -183,7 +151,6 @@ async function turnOnRelease(calls: readonly Call[], exaKey: string) {
     const credential = 'erin-pw-web02-7c3e'
     expect((await cli(['register', '--login-identifier', 'erin'], credential)).status).toBe(0)
     expect((await cli(['login', '--login-identifier', 'erin'], credential)).status).toBe(0)
-    // The search key goes in through the pipe of `omne setting set`, never the command line.
     const set = await cli(['setting', 'set', 'Web', 'exa.apiKey'], exaKey)
     expect(set.status, set.stderr).toBe(0)
     const created = await cli(['create-session', '--definition', 'coding'])
@@ -191,22 +158,23 @@ async function turnOnRelease(calls: readonly Call[], exaKey: string) {
     const session = String(bodyOf(created)['session'])
     const sent = await cli(['send-input', '--session', session, '--text', 'read the fixture page'])
     expect(sent.status, sent.stderr).toBe(0)
-    const request = readHistory(savedTenant(home), session, savedLoginProof(home))
-    let history = await post(port, request)
+    const clients = savedClients(port, home)
+    const readHistory = () => readHistoryPage(clients, savedTenant(home), session)
+    let history = await readHistory()
     for (
       const end = Date.now() + 120_000;
       Date.now() < end &&
-      !(history.status === 200 && entriesOf(history.body).some(e => e.kind === 'run.terminal'));
+      !(history.outcome === 'succeeded' && entriesOf(history).some(e => e.kind === 'run.terminal'));
       await sleep(500)
     )
-      history = await post(port, request)
-    expect(history.status, history.body).toBe(200)
+      history = await readHistory()
+    expect(history.outcome, JSON.stringify(history)).toBe('succeeded')
     controller.abort('test: stop')
     stopped = true
     const result = await finished
     const unsettled = records.filter(record => record.kind === 'shutdown-result')
     expect(result.exitCode, JSON.stringify(unsettled)).toBe(0)
-    return { entries: entriesOf(history.body), seen, exaRequests: exa.requests() }
+    return { entries: entriesOf(history), seen, exaRequests: exa.requests() }
   } finally {
     if (!stopped) controller.abort('test: stop')
     await finished.catch(() => undefined)
@@ -222,7 +190,6 @@ describe('the Web meta tool on the release tree (web-meta-tool slice 02)', () =>
     { timeout: 240_000 },
     async () => {
       const pages = await startWebPages()
-      // A sentinel key no provider knows, random per run.
       const exaKey = `exa-delivery-${randomBytes(12).toString('hex')}`
       try {
         const { entries, seen, exaRequests } = await turnOnRelease(
@@ -238,7 +205,6 @@ describe('the Web meta tool on the release tree (web-meta-tool slice 02)', () =>
           ],
           exaKey,
         )
-        // The declaration the model reads names Web among the tools of the coding session.
         expect(seen.length).toBe(3)
         expect(seen[0]).toContain('"name":"Web"')
         expect(entries.map(entry => entry.kind)).toEqual([
@@ -266,9 +232,7 @@ describe('the Web meta tool on the release tree (web-meta-tool slice 02)', () =>
         expect(fetched).toContain(PAGE_BODY_MARKER)
         expect(fetched).toContain('[external data begins')
         expect(fetched).not.toContain('alert(')
-        // The page server saw one GET for the one fetch.
         expect(pages.requests()).toEqual(['GET'])
-        // The second model request carries the fetched Markdown back to the model.
         expect(seen[1]).toContain(PAGE_BODY_MARKER)
         expect(blocksOf(entries[5])[0]).toMatchObject({
           kind: 'tool_result',
@@ -278,7 +242,6 @@ describe('the Web meta tool on the release tree (web-meta-tool slice 02)', () =>
         expect(searched.startsWith('done Web search query="omne harness" results=1\n')).toBe(true)
         expect(searched).toContain(`url=${HIT_URL}`)
         expect(searched).toContain('Hit excerpt')
-        // The stand-in saw the key the tenant set, once; the key is in no model request.
         expect(exaRequests.map(request => request.apiKey)).toEqual([exaKey])
         expect(seen.join('\n')).not.toContain(exaKey)
         expect(JSON.stringify(entries)).not.toContain(exaKey)

@@ -26,7 +26,6 @@ const unavailable = {
   },
 }
 
-/** True when the promise settles within a few turns of the event loop. */
 async function settlesSoon(promise: Promise<unknown>): Promise<boolean> {
   return Promise.race([
     promise.then(() => true),
@@ -52,7 +51,6 @@ describe('definition', () => {
   it('keeps its state out of the instance: only the two operations are reachable by other plugins', async () => {
     const world = await startCatalog()
 
-    // Cordis 4.0.4 places its tracker symbol on every Service instance; any other key is catalog state.
     expect(Reflect.ownKeys(world.catalog).map(String).sort()).toEqual([
       'Symbol(cordis.tracker)',
       'acquire',

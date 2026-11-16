@@ -1,12 +1,7 @@
-// The cross-row consistency checks of the Model rows (facts c.2, `tmp/wire-model/design.md` §6).
-// They run at the configuration boundary of `serve`, before any plugin loads: a value two rows must
-// share and do not makes the load fail with exit 2 and a reason that names both rows and the field.
-// Rows that are not the real export (stubs, fixtures) are not checked: a stub has no such field.
 import { isDeepStrictEqual } from 'node:util'
 import { ConfigError } from '../config-schema.ts'
 import type { TreeRow } from '../types.ts'
 
-/** The export names of the real rows, as the release names them in `./cordis`. */
 export const MODEL_ROW_EXPORTS = Object.freeze({
   records: 'modelRecordsRow',
   host: 'modelHostRow',
@@ -35,7 +30,6 @@ function same(
 ): void {
   const a = member(left.config, left.path)
   const b = member(right.config, right.path)
-  // A missing field is the row's own schema failure at load; only two present values are compared.
   if (a === undefined || b === undefined) return
   if (!isDeepStrictEqual(a, b))
     throw new ConfigError(
@@ -44,16 +38,6 @@ function same(
     )
 }
 
-/**
- * The three cross-row equalities of the release, and the one the send sources need:
- * 1. records `limits.resultPageTargetBytes` and `limits.readIdleMs` equal host `runtime` of the same name;
- * 2. records `combinationVersion` equals session-storage `combinationVersion` (both rows compute the
- *    manifest digest from the one catalog, `compositeManifestDigest(storageCatalog())`);
- * 3. records `sendStage.preparation` equals the whole `model-request-preparation` configuration
- *    (the OpenAI family and the lease bound);
- * 4. records `sendStage.profiles` equals `model-profiles` `retryPolicy` and `compactionTriggerPercent`.
- * Only the pairs where both rows are the real export are checked.
- */
 export function checkModelRowConsistency(rows: readonly TreeRow[]): void {
   const records = configOf(rows, 'model-records', MODEL_ROW_EXPORTS.records)
   if (records === undefined) return

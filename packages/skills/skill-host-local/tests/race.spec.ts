@@ -1,6 +1,3 @@
-// The source reads the directory as it is at each call and keeps nothing between calls. A change
-// after a snapshot shows in the next `open` and the next `snapshot`; comparing the bytes with the
-// snapshot is the caller's work, not the source's.
 import { rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'

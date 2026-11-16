@@ -1,5 +1,3 @@
-// SPEC「测量事件」: the Context segment of each call that Agent makes into agent-context (read,
-// prepare, derive, resume), and the absence of any change when no observer is given.
 import { describe, expect, it } from 'vitest'
 import type { ContextMeasureEvent } from '@omne-harness/agent-context'
 import {
@@ -94,7 +92,6 @@ describe('the Context segment', () => {
         throw new Error('observer crashed')
       },
     })
-    // The record key names the instance of its world, so the comparison leaves `source` and `state` out.
     const prepare = async (w: typeof plain) => {
       const result = await w.requests.prepare(w.prepareInput(await w.read()))
       if (!('ok' in result)) return result

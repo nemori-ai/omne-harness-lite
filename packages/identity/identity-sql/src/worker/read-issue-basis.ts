@@ -1,6 +1,3 @@
-// `identity.issue-basis`: the account row and the credential material of one login identifier,
-// read in one snapshot. The second statement reads the login table once, so a read that answers
-// proves the login table is readable before the provider compares the credential (DP3-C9 step 3).
 import {
   HANDLERS,
   isRecord,

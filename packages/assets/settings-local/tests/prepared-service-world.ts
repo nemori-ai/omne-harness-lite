@@ -23,7 +23,6 @@ export async function openPreparedServiceWorld(
     principalRef?: string
     withTargets?: boolean
     root?: string
-    /** Materials of the test, added to the catalog next to the preparation materials. */
     extraMaterials?: Partial<
       Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>
     >

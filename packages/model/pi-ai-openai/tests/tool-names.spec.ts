@@ -1,7 +1,3 @@
-// Tool names on the gateway (R2-D234), through the real OpenAI binding and the official profile:
-// a tool name is the Tool identity and stays as it is in the log; the record rule `underscore/1`
-// writes a gateway name of `[A-Za-z0-9_-]` up to 64, and the decoder of the same request maps a
-// returned name back. A collision or a name that is too long is `unsupported`, never cut.
 import { describe, expect, it } from 'vitest'
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import type { FixedModelRequest, ModelBlock } from '@omne-harness/model-contract'
@@ -26,7 +22,6 @@ import {
 const SOL = recordNamed('openai/gpt-5.6-sol')
 const GATEWAY_NAME = /^[a-zA-Z0-9_-]+$/
 
-/** The dotted names of the release tree, as Tool gives them. */
 const DOTTED = ['Files.read', 'Shell.close_session', 'Tools.status'] as const
 
 const HISTORY = [
@@ -67,7 +62,6 @@ async function bodyOf(request: FixedModelRequest): Promise<WireBody> {
   return JSON.parse(writeJsonText(outcome.ok.body))
 }
 
-/** Every function name that the body sends: the tools, the tool choice and the history calls. */
 function namesOf(body: WireBody): readonly string[] {
   return [
     ...body.tools.map(item => item.function.name),
@@ -101,7 +95,6 @@ function chunk(delta: object, finish: string | null = null): object {
   }
 }
 
-/** The tool calls that one reply with these gateway names seals, through a decoder of `request`. */
 async function decodedCalls(
   request: FixedModelRequest,
   names: readonly string[],

@@ -1,7 +1,3 @@
-// The read projections of one domain snapshot: lookup, operation resolution, result pages and the
-// call account (P01, P08, P09). They project `not-accepted` or `not-committed` only from a
-// complete snapshot; the ledger answers such a negative only after its exclusion fence commits,
-// and answers `unavailable` when the read itself failed.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -23,17 +19,12 @@ import { digestOf, mintEvidence } from './evidence.ts'
 import type { Snapshot } from './ledger-decider.ts'
 import type { CallAccount, ResultRecord } from './ledger-store.ts'
 
-/**
- * The current call state located by `admission`.
- * An absent admission in a complete snapshot is not accepted.
- */
 export function lookupCall(snapshot: Snapshot, admission: ToolOperationId): ToolLookup {
   const call = snapshot.call
   if (call !== null && call.admission === admission) return { kind: 'found', state: call.state }
   return { kind: 'not-accepted', operation: admission }
 }
 
-/** The resolution of one operation. The receipt evidence points at the operation record. */
 export function resolveOperation(
   snapshot: Snapshot,
   operation: ToolOperationId,
@@ -55,7 +46,6 @@ export type PageInput = Readonly<{
   adoption: Adoption
 }>
 
-/** The result record a read names, or why it cannot be read: not settled, or unknown version. */
 export function resultRecord(
   snapshot: Snapshot,
   version: ToolResultVersion,
@@ -68,11 +58,6 @@ export function resultRecord(
   return fail({ kind: 'not-found', target: 'result', reason: 'missing' })
 }
 
-/**
- * One page of a result version (P08). Pages cut between whole content blocks; every page carries
- * the same data, original and attachments of the version; `next` binds tenant, call, version,
- * projection and the next block position.
- */
 export function readResultPage<B extends ContentBlock>(
   snapshot: Snapshot,
   input: PageInput,
@@ -96,13 +81,6 @@ export function readResultPage<B extends ContentBlock>(
   )
 }
 
-/**
- * The complete recovery read of a call (P01 loadRecovery): what the call domain holds of its
- * way to a start, its suspensions and waits, its tasks and its first result. The checkpoint is the
- * one a suspended call holds. Program closure and scheduling are empty until their increments
- * record them. Fact streams project the saved cursor and the original receipts whose source
- * confirmation is pending.
- */
 export function readRecovery(snapshot: Snapshot): Outcome<ToolRecovery, ToolFailure> {
   const call = snapshot.call
   if (call === null) return invalid('call', 'unknown-call')
@@ -133,11 +111,6 @@ export function readRecovery(snapshot: Snapshot): Outcome<ToolRecovery, ToolFail
   })
 }
 
-/**
- * The start and resume records of the call, first to current (P07: recovery keeps the whole
- * chain). Each resume names the checkpoint it continues, and the suspension that committed that
- * checkpoint keeps the start of the segment before it.
- */
 function invocationChain(snapshot: Snapshot): ToolStartRecord[] {
   const chain: ToolStartRecord[] = []
   let current = snapshot.call?.start ?? null
@@ -154,7 +127,6 @@ function invocationChain(snapshot: Snapshot): ToolStartRecord[] {
   return chain
 }
 
-/** The current account of the call: the latest revision of the one recorded source. */
 export function readAccount(snapshot: Snapshot): Outcome<CallAccount, ToolFailure> {
   if (snapshot.call === null) return invalid('call', 'unknown-call')
   const latest = snapshot.accounts.at(-1)

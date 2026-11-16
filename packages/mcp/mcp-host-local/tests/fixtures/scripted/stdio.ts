@@ -1,5 +1,3 @@
-// The stdio half of the A-layer fixture: a scripted peer in a child process on real pipes, the
-// process handle double of a landing, and the records the peer reports back on stderr.
 import { Socket } from 'node:net'
 import { fileURLToPath } from 'node:url'
 import type { ProcessHandle, TransportMaterial } from '@omne-harness/mcp-contract/provider'
@@ -18,7 +16,6 @@ import { settledWithin } from '../settle.ts'
 const PEER = fileURLToPath(new URL('./stdio-peer.mjs', import.meta.url))
 const RECORD = '@omne '
 
-/** A peer that closes its stdin, says it is ready, and stays alive until it is stopped. */
 const CLOSED_STDIN = [
   "require('node:fs').closeSync(0)",
   `process.stderr.write(${JSON.stringify(`${RECORD}{"kind":"ready"}\n`)})`,
@@ -34,14 +31,6 @@ function listOf(replies: Replies | undefined): readonly PeerReply[] {
   return isList(replies) ? replies : [replies]
 }
 
-/**
- * Whether the script's first exchange is `unsent`, and whether a later `unsent` makes the script
- * unrealizable. On stdio a request fails before it leaves when the process does not read its
- * stdin any more; the peer that realizes it closed its stdin before the transport opened, and
- * stays alive, so the write itself fails (X02) and the line is not ended by an exit first. So
- * `unsent` is realizable only as the first exchange of the connection, in protocol order:
- * `server/discover`, then `initialize`, then the rest.
- */
 function unsentPlan(script: PeerScript): 'reachable' | 'unreachable' {
   const ordered: readonly (Replies | undefined)[] = [
     script.discover,
@@ -63,7 +52,6 @@ type Spawned = Readonly<{
   handle: ProcessHandle
   log: PeerReceived[]
   ready: Promise<void>
-  /** Settles once every record of the lines written to the peer's stdin so far is in `log`. */
   recorded(): Promise<void>
 }>
 
@@ -71,7 +59,6 @@ type Waiter = Readonly<{ bytes: number; resolve: () => void }>
 
 function spawnPeer(args: readonly string[]): Spawned {
   const log: PeerReceived[] = []
-  // The bytes of stdin the peer reported as read. The records of the lines in them are in `log`.
   let consumed = 0
   const waiting = new Set<Waiter>()
   let markReady = (): void => undefined
@@ -99,16 +86,10 @@ function spawnPeer(args: readonly string[]): Spawned {
   async function recorded(): Promise<void> {
     const stdin = child.stdin
     if (!(stdin instanceof Socket)) return closed
-    // Only the caller writes the peer's stdin, through the web stream of `handle.stdin`. That
-    // stream holds back every line after one the pipe could not take at once, until 'drain'. A
-    // write the caller started without waiting for it (a notification, `cancelRequest`) reaches
-    // the stream within this turn of the event loop, and the stream hands its queue over in the
-    // turn where the pipe takes more. So after a turn the queue is empty, unless the pipe waits
-    // for 'drain' again.
+    // Only the caller writes the peer's stdin; its web stream holds back each line after one the
+    // pipe could not take, until 'drain'. After one turn the queue is empty, unless the pipe waits.
     for (;;) {
       await new Promise(resolve => setImmediate(resolve))
-      // A peer that exited, or whose stdin is closed, reads no more lines: its last records are in
-      // once its pipes close.
       if (child.exitCode !== null || child.signalCode !== null || !stdin.writable) return closed
       if (!stdin.writableNeedDrain) break
       let onDrain = (): void => undefined
@@ -119,7 +100,6 @@ function spawnPeer(args: readonly string[]): Spawned {
       await Promise.race([drained, closed])
       stdin.off('drain', onDrain)
     }
-    // Every line the caller wrote is in the socket now, sent or buffered, and counted here.
     const written = stdin.bytesWritten
     if (consumed >= written) return
     const caughtUp = new Promise<void>(resolve => waiting.add({ bytes: written, resolve }))
@@ -135,16 +115,12 @@ export type StdioPeer = Readonly<{
 }>
 
 export type StdioPeerOptions = Readonly<{
-  /** The peer writes each record this many milliseconds late, as a peer under load may. */
   recordDelayMs?: number
-  /** How long `received()` waits for the peer to confirm its records before it fails. */
   confirmWithinMs?: number
 }>
 
-/** Far above a loaded machine's scheduling noise; a peer that does not confirm by then is stuck. */
 const CONFIRM_WITHIN_MS = 10_000
 
-/** Spawns the scripted peer for one case. The transport factory is the caller's. */
 export async function stdioPeer(
   script: PeerScript,
   needs: PeerNeeds,
@@ -171,7 +147,6 @@ export async function stdioPeer(
   return {
     material,
     async received() {
-      // A peer with no script records nothing, and its stdin is closed: there is nothing to wait for.
       if (plan === 'unreachable') return [...spawned.log]
       const within = options.confirmWithinMs ?? CONFIRM_WITHIN_MS
       if ((await settledWithin(spawned.recorded(), within)) === 'pending')

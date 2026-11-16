@@ -1,0 +1,20 @@
+export type LoginCredentials = Readonly<{ loginIdentifier: string; credential: string }>
+
+export type LoginResult = 'signed-in' | 'auth-failed' | 'unknown' | 'unavailable'
+
+export type LogoutResult = 'signed-out' | 'unknown'
+
+export type ShellLoginState = 'signed-out' | 'signing-in' | 'signed-in' | 'signing-out'
+
+export interface ShellLogin {
+  state(): ShellLoginState
+  subscribe(listener: (state: ShellLoginState) => void): () => void
+  login(credentials: LoginCredentials): Promise<LoginResult>
+  logout(): Promise<LogoutResult>
+}
+
+export interface ScopeSource {
+  get(): string | undefined
+  set(scope: string | undefined): void
+  subscribe(listener: (scope: string | undefined) => void): () => void
+}

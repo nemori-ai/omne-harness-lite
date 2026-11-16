@@ -1,8 +1,5 @@
-// Steps 1 to 6 of the new address (RFC-0015 §5 判断次序; #1233 spec C3): each step answers with a
-// status code and an empty body, closes the connection, and reads no body. Two steps broken at once
-// answer by the earlier one.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { HttpReply } from './support/harness.ts'
+import type { HttpReply } from './support/entry.ts'
 import {
   call,
   held,
@@ -10,8 +7,8 @@ import {
   rawHeaders,
   startAccessFixture,
   type AccessFixture,
-} from './support/pipeline-kit.ts'
-import { send } from './support/harness.ts'
+} from './support/access-kit.ts'
+import { send } from './support/entry.ts'
 
 let fixture: AccessFixture
 
@@ -70,8 +67,13 @@ describe('one answer per step', () => {
     expect(fixture.log.entries).toEqual([])
   })
 
-  it('step 5: an observation is 404 for now, and the call has left', async () => {
-    expectBare(await call(fixture.port, 'watch-note'), 404)
+  it('step 5: an observation enters like an operation and goes on to step 7 (#1249)', async () => {
+    const reply = await call(fixture.port, 'watch-note', {
+      headers: { 'omne-message-id': undefined },
+      body: '{"noteId":"n-1"}',
+    })
+    expect(reply.status).toBe(400)
+    expect(reply.json).toEqual({ outcome: 'protocol-rejected', body: {} })
     expect(fixture.log.entries).toEqual([{ name: 'watch-note', left: true }])
   })
 

@@ -8,5 +8,5 @@
     "rewriteRelativeImportExtensions": true
   },
   "include": ["tests/**/*.ts"],
-  "exclude": ["**/*.legacy/**"]
+  "exclude": ["**/*.legacy/**", "tests/fixtures/browser/**"]
 }

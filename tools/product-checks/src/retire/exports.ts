@@ -3,29 +3,23 @@ import { dirname, join, relative, resolve } from 'node:path'
 import ts from '@typescript/typescript6'
 import { collectTestingEntries } from '../testing-entries.ts'
 
-/** 声明所在的文件与行，路径相对于扫描根，POSIX 写法。 */
 export interface Site {
   readonly path: string
   readonly line: number
 }
 
-/** 一个 `./testing` 入口导出的一个值。 */
 export interface TestingExport {
   readonly name: string
-  /** 声明处；入口只重导出外部包的名字、解析不到声明时，退而取入口里的导出语句。 */
   readonly sites: readonly Site[]
-  /** 沿重导出链走过的全部文件：入口、中间的桶文件、声明文件。这些文件里的出现不算引用。 */
   readonly chain: ReadonlySet<string>
 }
 
 export interface TestingEntry {
-  /** 声明该入口的成员目录，相对于扫描根。 */
   readonly member: string
   readonly entry: string
   readonly exports: readonly TestingExport[]
 }
 
-/** 无法可靠读出入口：命令必须停下，不能把未知当成「没有导出」。 */
 export class EntryError extends Error {
   override readonly name = 'EntryError'
 }
@@ -44,7 +38,6 @@ function memberOf(root: string, entry: string): string {
   return posix(relative(root, directory))
 }
 
-/** 声明了 `exports["./testing"]` 的入口文件，按路径排序；声明解析沿用 lint:rules 的 `collectTestingEntries`。 */
 function declaredEntries(root: string): string[] {
   const entries = new Set<string>()
   for (const directory of SCAN_DIRECTORIES) {
@@ -60,7 +53,6 @@ function declaredEntries(root: string): string[] {
   return [...entries].sort()
 }
 
-/** 只跟随相对路径的 import：入口之间的重导出链全在成员内，不去读 node_modules 里的依赖。 */
 function programFor(files: readonly string[]): ts.Program {
   const options: ts.CompilerOptions = {
     noEmit: true,
@@ -113,7 +105,6 @@ function chainOf(
   return chain
 }
 
-/** 每个声明了 `./testing` 入口的成员，及其入口导出的值（纯类型不算），按名字排序。 */
 export function readTestingEntries(rootPath: string): TestingEntry[] {
   const root = resolve(rootPath)
   const entries = declaredEntries(root)

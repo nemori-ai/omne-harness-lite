@@ -1,5 +1,3 @@
-// R4-3: the credential and the login proof never reach the database files, the outcomes or the
-// diagnostics. The credential row holds scrypt material that verifies against the credential.
 import { readFile, stat } from 'node:fs/promises'
 import { DatabaseSync } from 'node:sqlite'
 import { expect, it } from 'vitest'
@@ -18,7 +16,6 @@ async function bytesOf(path: string): Promise<Buffer> {
   return readFile(path)
 }
 
-/** A JSON-safe copy of the outcomes. Instants and durations have no JSON form, so they become markers. */
 function plain(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(plain)
   if (value === null || typeof value !== 'object') return value
@@ -67,7 +64,6 @@ it('stores scrypt material only, and no output quotes the credential or the proo
       }),
     )
     opened.clock.restore()
-    // Close the storage first, so the files are complete; the provider is stopped by `close`.
     opened.provider.stop()
     await opened.scrypt.module.close()
     await opened.storage.close()
@@ -77,7 +73,6 @@ it('stores scrypt material only, and no output quotes the credential or the proo
     const wal = await bytesOf(`${file}-wal`)
     const files = Buffer.concat([database, wal])
     const text = JSON.stringify(plain(outputs)).replaceAll(proof, '<the proof itself>')
-    // Positive control: the search reaches the rows, and finds a planted plaintext sample.
     expect(occurrences(files, IDENTIFIER)).toBeGreaterThan(0)
     expect(occurrences(Buffer.from(`x${CREDENTIAL}x`), CREDENTIAL)).toBe(1)
     expect(occurrences(files, CREDENTIAL)).toBe(0)

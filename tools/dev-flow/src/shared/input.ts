@@ -1,4 +1,3 @@
-/** A refused input: a bad option, file or JSON value. The message names the path, never the value. */
 export class InputError extends Error {
   override name = 'DeliveryInputError'
 }

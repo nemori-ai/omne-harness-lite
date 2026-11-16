@@ -1,5 +1,3 @@
-// The places of the local single-user server. The rule is a pure function of platform, environment
-// and user directory, so the Linux (XDG) rule and the Windows rule both run on any test host.
 import { describe, expect, it } from 'vitest'
 import { resolveLocations, type LocationInput } from '../../src/local/locations.ts'
 

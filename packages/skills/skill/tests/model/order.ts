@@ -1,8 +1,3 @@
-// S5, the catalog answer does not depend on the order in which the read checks complete. The
-// read check answers are held back and let out one by one, in every order of the checks that
-// the catalog issued (at most 3! = 6 orders). Every order must give a deeply equal answer, and
-// the first one must be the answer that the contract gives (the oracle of S2), so the property
-// is not met by a catalog that answers the same wrong thing every time.
 import { isDeepStrictEqual } from 'node:util'
 import {
   Ledger,
@@ -51,7 +46,6 @@ const STATE_SETS: readonly (readonly [IdentityState, IdentityState, IdentityStat
   [{ kind: 'stand-in' }, { kind: 'adopted', current: 0 }, { kind: 'stand-in' }],
 ]
 
-/** One run in which the read check answers come out in `order` (names); the issue order when absent. */
 async function heldRun(
   world: WorldSpec,
   schedule: Schedule,

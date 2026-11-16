@@ -1,39 +1,45 @@
-// The pipeline of the new address `/api/<protocol>/v<major>/<name>`: steps 1 to 9 of RFC-0015 §5
-// 判断次序, then `settleCall` for steps 10 to 14. It knows no domain and none of the three existing
-// locations: the registry, the identity port and the grace come in as `access`, and the values of
-// the deployment configuration come from `http.ts` as `PipelineSettings`.
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { AccessIdentity, LoginIdentity } from '@omne-harness/access-cordis-contract'
+import { isDeepStrictEqual } from 'node:util'
+import type {
+  AccessIdentity,
+  LoginIdentity,
+  LoginResult,
+} from '@omne-harness/access-cordis-contract'
 import { readJsonBytes, type JsonLimits } from '@omne-harness/json-text'
-import type { OperationContract } from '@omne-harness/public-contract'
-import type { Entered, RegistryForPipeline } from '../registry/registry.ts'
-import { settleCall, systemClock, type Clock } from '../settle/settle.ts'
+import type { Codec, OperationContract } from '@omne-harness/public-contract'
+import {
+  createObservationHub,
+  type HubDiagnosticCode,
+  type ObservationHub,
+} from '../observation-hub/hub.ts'
+import type { LoginCheck } from '../observation-hub/records.ts'
+import type { AccessRegistry, Entered, RegistryForPipeline } from '../registry/registry.ts'
+import {
+  settleCall,
+  systemClock,
+  type Clock,
+  type Confirmation,
+  type SettleInput,
+  type SettleNote,
+} from '../settle/settle.ts'
 import { parseAddress, pathOf, type Address } from './address.ts'
 import { EMPTY_BODY, writeAnswer, writeBare } from './answer.ts'
 import { readBody } from './body.ts'
 import { contentTypeAccepted, countHeader, hostAccepted } from './headers.ts'
-import { establish, type Established } from './identity-rule.ts'
+import { establish, type Established, type SignedIn } from './identity-rule.ts'
 import { watchCall, type CallWatch, type Interruption } from './watch.ts'
 
-/** What turns the new address on. The three come together; without them `/api/...` answers 404. */
 export type PipelineAccess = Readonly<{
-  registry: RegistryForPipeline
+  registry: AccessRegistry
   identity: AccessIdentity
-  /** How long a handler may run after the abort before the entry answers for it (`SettleConfig`). */
   graceMs: number
-  /** The clock of the grace. Absent: the system clock. */
+  frameQueueBytes: number
+  availabilityBacklog: number
   clock?: Clock
-  /**
-   * Receives one event at each error point of the pipeline. Separate from the entry's
-   * `ServerEntryDiagnostic`, whose codes the assembly maps one by one. A sink that throws changes
-   * no answer.
-   */
   diagnostics?: (event: PipelineDiagnostic) => void
 }>
 
-/** The in-flight budget the new address shares with the three existing locations. */
 export type RequestSlots = Readonly<{
-  /** Takes a slot for this response, or `undefined` when the budget is full. Returns the release. */
   take: (res: ServerResponse) => (() => void) | undefined
 }>
 
@@ -43,41 +49,37 @@ export type PipelineDiagnosticCode =
   | 'access.host-rejected'
   | 'access.content-type-rejected'
   | 'access.not-mounted'
-  | 'access.observation-not-served'
   | 'access.busy'
   | 'access.message-id-rejected'
   | 'access.identity-denied'
   | 'access.identity-unavailable'
   | 'access.identity-fault'
+  | 'access.login-revoked-before-answer'
   | 'access.body-over-limit'
   | 'access.body-rejected'
   | 'access.aborted'
   | 'access.caller-gone'
+  | 'access.listener-fault'
   | 'access.report-fault'
+  | SettleNote
+  | HubDiagnosticCode
 
-/**
- * One event at an error point of the pipeline: its code, the path, and the protocol and operation
- * when they are known. Never a header value, a body, an answer, a principal or an error text.
- */
 export type PipelineDiagnostic = Readonly<{
   code: PipelineDiagnosticCode
-  path: string
+  path?: string
   protocol?: string
   major?: number
   operation?: string
 }>
 
-/** The values of the deployment configuration the pipeline needs, given by `http.ts`. */
 export type PipelineSettings = Readonly<{
-  /** The loopback address the `Host` header may name besides `localhost`. */
   loopback: string
-  /** The two body limits by name; an operation's `limit` column picks one. */
   bodyLimits: Readonly<Record<OperationContract['limit'], number>>
-  /** The strict-read budgets for a body limit. */
   readLimits: (maxBytes: number) => JsonLimits
-  /** The budgets for writing an answer. */
   writeLimits: JsonLimits
   slots: RequestSlots
+  observations: Readonly<{ perLogin: number; perInstance: number }>
+  heartbeatMs: number
 }>
 
 export type Admission =
@@ -88,12 +90,8 @@ export type Admission =
       path: string
       address?: Address
     }>
-  | Readonly<{ kind: 'entered'; address: Address; entered: Entered; contract: OperationContract }>
+  | Readonly<{ kind: 'entered'; address: Address; entered: Entered }>
 
-/**
- * Steps 1 to 5, one synchronous function: nothing between looking the protocol up and entering
- * the call can yield, so a take-down cannot split them (RFC-0015 §15「两条硬要求」).
- */
 export function admit(
   req: IncomingMessage,
   registry: RegistryForPipeline,
@@ -115,15 +113,9 @@ export function admit(
   if (!contentTypeAccepted(req)) return refused(415, 'access.content-type-rejected')
   const entered = registry.enter({ name: address.protocol, major: address.major }, address.name)
   if (entered === undefined) return refused(404, 'access.not-mounted')
-  if (entered.member.kind !== 'operation') {
-    // Observations come with the observation hub; until then their address answers 404.
-    entered.leave()
-    return refused(404, 'access.observation-not-served')
-  }
-  return { kind: 'entered', address, entered, contract: entered.member.contract }
+  return { kind: 'entered', address, entered }
 }
 
-/** The event of one error point: the path, and the protocol and operation once the path names them. */
 function eventOf(
   code: PipelineDiagnosticCode,
   path: string,
@@ -135,7 +127,6 @@ function eventOf(
 
 const MESSAGE_ID = /^[\x21-\x7e]{1,128}$/
 
-/** Step 7: exactly one `Omne-Message-Id` of 1 to 128 visible ASCII characters. */
 function messageIdOf(req: IncomingMessage): string | undefined {
   if (countHeader(req, 'omne-message-id') !== 1) return undefined
   const value = req.headers['omne-message-id']
@@ -148,14 +139,21 @@ type BodyOutcome =
   | Readonly<{ kind: 'rejected' }>
   | Readonly<{ kind: 'interrupted'; by: Interruption }>
 
-/** Step 9: the operation's limit, the strict read, then the contract's codec. */
-async function readOperationBody(
+type BodyRule = Readonly<{ limit: OperationContract['limit']; codec: Codec<unknown> }>
+
+function bodyRuleOf(member: Entered['member']): BodyRule {
+  return member.kind === 'operation'
+    ? { limit: member.contract.limit, codec: member.contract.body }
+    : { limit: member.contract.limit ?? 'small', codec: member.contract.open }
+}
+
+async function readBodyOf(
   req: IncomingMessage,
-  contract: OperationContract,
+  rule: BodyRule,
   settings: PipelineSettings,
   watch: CallWatch,
 ): Promise<BodyOutcome> {
-  const maxBytes = settings.bodyLimits[contract.limit]
+  const maxBytes = settings.bodyLimits[rule.limit]
   const read = await readBody(req, maxBytes, watch.halt)
   if (read.kind === 'over') return { kind: 'over' }
   if (read.kind === 'aborted') return { kind: 'interrupted', by: 'gone' }
@@ -163,32 +161,99 @@ async function readOperationBody(
   const limits = settings.readLimits(maxBytes)
   const json = readJsonBytes(read.bytes, limits)
   if (json.kind !== 'ok') return { kind: 'rejected' }
-  const decoded = contract.body.read(json.value, limits)
+  const decoded = rule.codec.read(json.value, limits)
   return decoded.ok ? { kind: 'read', value: decoded.value } : { kind: 'rejected' }
 }
 
+async function checkLogin(identity: AccessIdentity, login: SignedIn): Promise<LoginCheck> {
+  const result = await identity.identifyLogin(login.proof)
+  if (result.outcome === 'identified') return 'valid'
+  return result.outcome === 'denied' ? 'denied' : 'unavailable'
+}
+
+async function confirmLogin(
+  identity: AccessIdentity,
+  login: SignedIn,
+  note: (code: PipelineDiagnosticCode) => void,
+): Promise<Confirmation> {
+  let result: LoginResult
+  try {
+    result = await identity.identifyLogin(login.proof)
+  } catch {
+    note('access.identity-fault')
+    return 'unavailable'
+  }
+  if (result.outcome === 'basis-unavailable') {
+    note('access.identity-unavailable')
+    return 'unavailable'
+  }
+  if (result.outcome === 'identified' && isDeepStrictEqual(result.login, login.identity))
+    return 'valid'
+  note('access.login-revoked-before-answer')
+  return 'denied'
+}
+
+function loginHooks(
+  identity: AccessIdentity,
+  login: SignedIn | undefined,
+  contract: OperationContract,
+  note: (code: PipelineDiagnosticCode) => void,
+): Pick<SettleInput, 'reportAccess' | 'confirm'> {
+  if (login === undefined) return {}
+  const reportAccess = (): void => report(identity, login.identity, note)
+  if (contract.effect !== 'read') return { reportAccess }
+  return { reportAccess, confirm: () => confirmLogin(identity, login, note) }
+}
+
+function report(
+  identity: AccessIdentity,
+  login: LoginIdentity,
+  note: (code: PipelineDiagnosticCode) => void,
+): void {
+  let pending: Promise<void>
+  try {
+    pending = identity.reportAccess(login)
+  } catch {
+    note('access.report-fault')
+    return
+  }
+  Promise.resolve(pending).catch(() => note('access.report-fault'))
+}
+
 export type Pipeline = Readonly<{
-  /** Answers one request whose path is none of the three existing locations. */
   handle: (req: IncomingMessage, res: ServerResponse) => Promise<void>
+  endObservations: () => Promise<void>
 }>
 
 export function createPipeline(access: PipelineAccess, settings: PipelineSettings): Pipeline {
   const clock = access.clock ?? systemClock
+  let unrecognised = 0
+  const observationKey = (address: Address, messageId: string, login?: SignedIn): string =>
+    login === undefined
+      ? `unrecognised:${(unrecognised += 1)}`
+      : [login.proof, address.path, messageId].join('\n')
+  const hub: ObservationHub = createObservationHub({
+    limits: settings.observations,
+    heartbeatMs: settings.heartbeatMs,
+    loginCheckIntervalMs: settings.heartbeatMs,
+    frameQueueBytes: access.frameQueueBytes,
+    graceMs: access.graceMs,
+    clock,
+    writeLimits: settings.writeLimits,
+  })
   const diagnose = (event: PipelineDiagnostic): void => {
     try {
       access.diagnostics?.(event)
-    } catch {
-      // The sink is the host's; its failure is not the pipeline's to report.
-    }
+    } catch {}
   }
 
-  /** Steps 7 to 14 of one entered call. `leave` is called exactly once on every path. */
   async function serve(
     req: IncomingMessage,
     res: ServerResponse,
     admitted: Extract<Admission, { kind: 'entered' }>,
   ): Promise<void> {
-    const { address, entered, contract } = admitted
+    const { address, entered } = admitted
+    const { member } = entered
     const note = (code: PipelineDiagnosticCode): void =>
       diagnose(eventOf(code, address.path, address))
     const messageId = messageIdOf(req)
@@ -199,13 +264,11 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
       return
     }
     // Before the body is read in full, an answer closes the connection: otherwise Node would read
-    // the rest of the body off the wire to reuse it (#1233 spec 已定 11).
-    // Each answer is written before `leave`, so a take-down completes after every answer is out.
+    // the rest of the body off the wire to reuse it.
     const early = (outcome: 'denied' | 'basis-unavailable' | 'protocol-rejected'): void => {
       writeAnswer(res, { outcome, body: EMPTY_BODY, messageId, close: true })
       entered.leave()
     }
-    // An aborted call answers; a call whose caller has gone has nobody to answer.
     const interrupted = (by: Interruption): void => {
       if (by === 'aborted') {
         note('access.aborted')
@@ -216,7 +279,6 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
       entered.leave()
     }
 
-    /** Step 8 did not establish the caller. */
     const unestablished = (failure: Exclude<Established, { kind: 'caller' }>): void => {
       switch (failure.kind) {
         case 'interrupted':
@@ -229,7 +291,6 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
           return early('basis-unavailable')
       }
     }
-    /** Step 9 did not read a body. */
     const unread = (failure: Exclude<BodyOutcome, { kind: 'read' }>): void => {
       switch (failure.kind) {
         case 'interrupted':
@@ -238,7 +299,6 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
           note('access.body-over-limit')
           return early('protocol-rejected')
         case 'rejected':
-          // The body was read in full, so the connection stays open.
           note('access.body-rejected')
           writeAnswer(res, {
             outcome: 'protocol-rejected',
@@ -254,10 +314,10 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
     let caller: Extract<Established, { kind: 'caller' }>
     let body: unknown
     try {
-      const established = await establish(contract.identity, req, access.identity, watch)
+      const established = await establish(member.contract.identity, req, access.identity, watch)
       if (established.kind !== 'caller') return unestablished(established)
       caller = established
-      const read = await readOperationBody(req, contract, settings, watch)
+      const read = await readBodyOf(req, bodyRuleOf(member), settings, watch)
       if (read.kind !== 'read') return unread(read)
       body = read.value
     } finally {
@@ -265,6 +325,26 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
     }
 
     const { login } = caller
+    if (member.kind === 'observation') {
+      await hub.open({
+        entered,
+        contract: member.contract,
+        source: member.source,
+        principal: caller.principal,
+        messageId,
+        open: body,
+        key: observationKey(address, messageId, login),
+        ...(login === undefined
+          ? {}
+          : { loginKey: login.proof, checkLogin: () => checkLogin(access.identity, login) }),
+        ...(login === undefined || member.contract.countsAsAccess !== true
+          ? {}
+          : { reportAccess: () => report(access.identity, login.identity, note) }),
+        note,
+        res,
+      })
+      return
+    }
     await settleCall({
       entered,
       principal: caller.principal,
@@ -274,45 +354,45 @@ export function createPipeline(access: PipelineAccess, settings: PipelineSetting
       config: { graceMs: access.graceMs },
       clock,
       respond: answer => writeAnswer(res, { ...answer, messageId, close: false }),
-      ...(login === undefined ? {} : { reportAccess: () => report(login, note) }),
+      ...loginHooks(access.identity, login, member.contract, note),
+      note,
     })
   }
 
-  /** Step 14's report: not awaited, and a failure of it is one diagnostic, never a changed answer. */
-  function report(login: LoginIdentity, note: (code: PipelineDiagnosticCode) => void): void {
-    let pending: Promise<void>
-    try {
-      pending = access.identity.reportAccess(login)
-    } catch {
-      note('access.report-fault')
+  async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const admission = admit(req, access.registry, settings.loopback)
+    if (admission.kind === 'refused') {
+      diagnose(eventOf(admission.code, admission.path, admission.address))
+      writeBare(res, admission.status, admission.status === 405 ? { allow: 'POST' } : {})
       return
     }
-    Promise.resolve(pending).catch(() => note('access.report-fault'))
+    const release = settings.slots.take(res)
+    if (release === undefined) {
+      diagnose(eventOf('access.busy', admission.address.path, admission.address))
+      writeBare(res, 429, { 'x-omne-limit': 'in-flight-requests' })
+      admission.entered.leave()
+      return
+    }
+    try {
+      await serve(req, res, admission)
+    } catch (fault) {
+      admission.entered.leave()
+      throw fault
+    } finally {
+      release()
+    }
   }
 
   return {
+    endObservations: () => hub.endAll(),
     async handle(req, res) {
-      const admission = admit(req, access.registry, settings.loopback)
-      if (admission.kind === 'refused') {
-        diagnose(eventOf(admission.code, admission.path, admission.address))
-        writeBare(res, admission.status, admission.status === 405 ? { allow: 'POST' } : {})
-        return
-      }
-      const release = settings.slots.take(res)
-      if (release === undefined) {
-        diagnose(eventOf('access.busy', admission.address.path, admission.address))
-        writeBare(res, 429, { 'x-omne-limit': 'in-flight-requests' })
-        admission.entered.leave()
-        return
-      }
       try {
-        await serve(req, res, admission)
+        await handle(req, res)
       } catch (fault) {
-        // Every path of `serve` leaves itself; a fault in it must not keep a take-down waiting.
-        admission.entered.leave()
+        const target = req.url ?? ''
+        const address = parseAddress(target)
+        diagnose(eventOf('access.request-fault', address?.path ?? pathOf(target), address))
         throw fault
-      } finally {
-        release()
       }
     },
   }

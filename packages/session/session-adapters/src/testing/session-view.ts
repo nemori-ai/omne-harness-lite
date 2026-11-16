@@ -3,7 +3,6 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import type { ContentBlock } from '@omne-harness/content-block'
 
-/** Routes the tenant supplied on each public call to that tenant's root in one explicit Session. */
 type CompleteProvider<P> = AgentReceivedProvider<P, ContentBlock> & {
   received: NonNullable<AgentReceivedProvider<P, ContentBlock>['received']>
 }

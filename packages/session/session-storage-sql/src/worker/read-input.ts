@@ -1,4 +1,3 @@
-// R3: one ordinary input of one session, by its input identity.
 import { handler, oneRow, scopeOf, text } from './support.ts'
 
 export default handler('session.input', (input, port) => {

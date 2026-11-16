@@ -45,9 +45,7 @@ type Stage<P> =
   | { kind: 'idle' }
   | { kind: 'prepare'; input: Prepare; pending: boolean }
   | { kind: 'send'; demand: SendDemand<P> }
-  /** The send was not started. The dispatch record decides between settling and the refusal. */
   | { kind: 'not-sent'; demand: SendDemand<P>; refusal: ModelFailure }
-  /** The boundary did not start the send and recorded nothing final. Any drive asks it again. */
   | { kind: 'unsent'; demand: SendDemand<P> }
   | { kind: 'receive'; receiver: Receiver<P>; execution: ExecutionRef }
   | Finishing<P>
@@ -80,8 +78,6 @@ export function createModelDriver<P>(
 ) {
   const activities = new Map<string, Activity<P>>()
   const running = new Set<string>()
-  // Calls this process admitted or drove that are not yet known to be settled. Only quiesce reads
-  // the count; a durable call that this process never touched is not in it.
   const open = new Set<string>()
   const refreshes = new Map<string, { requested: boolean; completion: Promise<void> }>()
   function keyOf(input: Pick<ModelDriveInput<P>, 'tenant' | 'call'>) {
@@ -96,7 +92,6 @@ export function createModelDriver<P>(
     const key = keyOf(input)
     if (key) open.delete(key)
   }
-  /** Calls in drive, and the other open calls of this process. */
   function counts(): Readonly<{ pending: number; running: number }> {
     let pending = 0
     for (const key of open) if (!running.has(key)) pending++
@@ -133,9 +128,7 @@ export function createModelDriver<P>(
           work.requested = false
           try {
             await refresh(input)
-          } catch {
-            /* Confirmed writes survive an unavailable projection read. */
-          }
+          } catch {}
         }
       } finally {
         refreshes.delete(key)
@@ -255,7 +248,6 @@ export function createModelDriver<P>(
     entry: Finishing<P>,
     competition: TerminalCompetition,
   ): Reply<void> {
-    // Start releasing the sole stream, but let settlement progress independently.
     const releasing = entry.receiver?.release() ?? Promise.resolve({ ok: undefined })
     let result: Awaited<Reply<void>>
     try {
@@ -391,8 +383,6 @@ export function createModelDriver<P>(
   ): Reply<{ active: Activity<P>; recovery: Recovery<P> } | null> {
     const recovery = await commands.loadRecovery(input)
     if ('failure' in recovery) return recovery
-    // A settled call without an activity (its body released, or another process drove it) has no
-    // live execution to route to: it gets no new publication.
     if (!active && recovery.ok.state.phase === 'settled') return { ok: null }
     const records = await commands.dispatches(input)
     if ('failure' in records) return records
@@ -435,8 +425,6 @@ export function createModelDriver<P>(
     const prepared = await commands.prepareDispatch(entry.input)
     if ('failure' in prepared)
       return committed ? prepared : refusePrepare(active, execution, prepared)
-    // The whole request is read once, to send it. A read that fails leaves the stage: the next
-    // drive recognises the prepared dispatch and reads again.
     const request = await commands.loadRequest(input)
     if ('failure' in request) return request
     active.stage = {
@@ -456,7 +444,6 @@ export function createModelDriver<P>(
     refreshProjection(input)
     return { ok: undefined }
   }
-  /** The next step after a prepare that is known not to be durable. */
   function refusePrepare(
     active: Activity<P>,
     execution: ExecutionRef,
@@ -467,7 +454,6 @@ export function createModelDriver<P>(
         return prepared
       case 'outdated':
       case 'superseded':
-        // The next drive reads the call again and begins from what it finds.
         active.stage = { kind: 'idle' }
         return prepared
       case 'refused':
@@ -482,10 +468,6 @@ export function createModelDriver<P>(
         return { ok: undefined }
     }
   }
-  /**
-   * The failed terminal recorded on this not-sent dispatch, or null when the record has none. A
-   * read that fails is returned as a failure: it does not prove that there is no terminal.
-   */
   async function notSentTerminal(demand: SendDemand<P>): Reply<Termination | null> {
     try {
       const records = await commands.dispatches(demand)
@@ -501,12 +483,6 @@ export function createModelDriver<P>(
       return blocked('dispatch-record-unconfirmed')
     }
   }
-  /**
-   * A refusal that the boundary made final carries a terminal on the not-sent dispatch (for
-   * example a missing credential). The call then settles with it instead of waiting. When the
-   * record cannot be read, the stage stays, so the next drive reads it again. A refusal without
-   * a terminal follows the verdict of its failure.
-   */
   async function settleNotSent(
     active: Activity<P>,
     entry: Extract<Stage<P>, { kind: 'not-sent' }>,
@@ -595,7 +571,6 @@ export function createModelDriver<P>(
     }
     return { ok: true }
   }
-  /** Runs the send stage, or reads the record of a send that was not started. */
   async function sendOrSettle(
     active: Activity<P>,
     input: ModelDriveInput<P>,
@@ -656,12 +631,6 @@ export function createModelDriver<P>(
       competition,
     )
   }
-  /**
-   * The host tells the driver that the result body of a settled call is released: the call is
-   * driven no more and its activity, with the view of its output, is forgotten. Until then a
-   * repeated drive still hands back the original terminal outcome. A drive still running on the
-   * call keeps the activity it holds; only later drives miss it.
-   */
   function released(input: Pick<ModelDriveInput<P>, 'tenant' | 'call'>): void {
     const key = keyOf(input)
     if (key) activities.delete(key)

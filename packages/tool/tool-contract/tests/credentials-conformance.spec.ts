@@ -15,9 +15,6 @@ import { expect, it } from 'vitest'
 import { input, callId, scope, tenant } from './background-calls-fixture.ts'
 import { adoption, evidence, functionDefinition } from './tool-values.ts'
 
-// `escape`: the raw capability stays usable after the use ended. `revocation`: a failed revocation
-// is swallowed and the use reports success. `wrap`: the unknown error of the action is wrapped
-// instead of rethrown as it was. `refuse`: a matching secret is refused.
 type Breach =
   | 'none'
   | 'resolution'
@@ -67,7 +64,6 @@ function fixture(breach: Breach): ToolCredentialsFixture<string, 'selected-secre
   const sources: string[] = []
   const mismatch = () => !isDeepStrictEqual(stored, { ...request.usage, tenant: request.tenant })
   const invalid = () => fail({ kind: 'invalid' as const, field: 'binding', reason: 'mismatch' })
-  // The raw capability of one use: it acts until revoked, unless the provider breaches `escape`.
   const raw = () => {
     let revoked = false
     return {
@@ -81,7 +77,6 @@ function fixture(breach: Breach): ToolCredentialsFixture<string, 'selected-secre
       },
     }
   }
-  // One use: run `action` on a fresh raw capability, then revoke it; the exits of P15.
   const restrictedUse = async <T>(action: (capability: ReturnType<typeof raw>) => Promise<T>) => {
     const capability = raw()
     let result: T
@@ -141,9 +136,7 @@ function fixture(breach: Breach): ToolCredentialsFixture<string, 'selected-secre
         retry: async () => {
           try {
             kept?.act()
-          } catch {
-            // A refused action is the expected end of an escaped capability.
-          }
+          } catch {}
         },
       }
     },
@@ -185,7 +178,6 @@ const names = [
   'a failed revocation after a failed action keeps both errors',
 ]
 
-/** The violating providers that each case must catch, by an assertion of the suite. */
 function breachesOf(name: string): readonly Breach[] {
   if (name.includes('matching secret')) return ['refuse']
   if (name.includes('mismatch')) return ['resolution']
@@ -207,7 +199,6 @@ it.each(names)('credential suite checks %s and detects its violating provider', 
   expect(await runConformanceCase(scenario, fixture('none'))).toEqual({ kind: 'passed' })
   const breaches = breachesOf(name)
   expect(breaches.length, 'every case has a violating provider').toBeGreaterThan(0)
-  // Only an assertion of the suite counts as a detected breach; a crash is not a detection.
   for (const breach of breaches)
     await expect(scenario.run(fixture(breach)), breach).rejects.toThrow(AssertionError)
 })

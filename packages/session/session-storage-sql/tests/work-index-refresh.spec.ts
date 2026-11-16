@@ -1,10 +1,3 @@
-// A publication of the Agent records of this process without a Session participation in its
-// commit replaces only the index of the held snapshot (`registerSessionWorkIndex` without `work`,
-// C-TOPOLOGY §2.9.2). It replaces it only when the cache holds a snapshot and the count moved past
-// the held one, once per version (flight); a store at another tail registers nothing (stale); a
-// count that moved on during the index read is registered with the index read at it (P-4). The
-// cases drive the public entry the Journal provider calls and count the handler reads the storage
-// served and the fold counts of this process.
 import type { WorkSnapshot } from '@omne-harness/session-contract'
 import {
   evidence,
@@ -12,11 +5,11 @@ import {
   ordinaryInput,
   sessionId,
 } from '@omne-harness/session-contract/testing'
-import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
+import type { DomainRef, ReceiptV2, SqlStorage } from '@omne-harness/sql-contract'
 import { describe, expect, it } from 'vitest'
 import { canonicalText, encodeValue } from '../src/codec.ts'
 import { createSessionStorage } from '../src/index.ts'
-import { registerSessionWorkIndex } from '../src/participants.ts'
+import { afterSessionCommit } from '../src/participants.ts'
 import { workFoldCounts, type WorkFoldCounts } from '../src/work-cache.ts'
 import { app, textOf, TENANT_A, type App } from './fixtures/app.ts'
 import {
@@ -42,12 +35,10 @@ const ok = <T>(value: unknown): T => {
   return (value as { ok: T }).ok
 }
 
-/** The reads of `handler` the storage served since `from` (an index into the call log). */
 const readsOf = (a: App, handler: string, from: number): number =>
   a.provider.calls.slice(from).filter(call => call.kind === 'read' && call.handler === handler)
     .length
 
-/** The change of the fold counts of the database behind `storage` since `before`. */
 function since(storage: SqlStorage, before: WorkFoldCounts): WorkFoldCounts {
   const now = workFoldCounts(storage)
   return {
@@ -68,10 +59,6 @@ const none: WorkFoldCounts = {
   republished: 0,
 }
 
-/**
- * A port over a storage object of its own (a work cache of its own). `hooks` run once, before the
- * read of their handler goes to the storage.
- */
 function portOver(a: App) {
   const hooks = new Map<string, () => Promise<void> | void>()
   const storage: SqlStorage = {
@@ -94,13 +81,11 @@ function portOver(a: App) {
 const readWork = async (port: Port, a: App): Promise<WorkSnapshot> =>
   ok<WorkSnapshot>(await port.readWork(a.access(TENANT_A)))
 
-/** The answer of a whole read: a new port instance has an empty cache. */
 const wholeRead = (a: App): Promise<WorkSnapshot> => readWork(portOver(a).port, a)
 
 const sameAnswer = (left: WorkSnapshot, right: WorkSnapshot): void =>
   expect(canonicalText(encodeValue(left))).toBe(canonicalText(encodeValue(right)))
 
-/** The publication count of the Agent records of the session, as the store has it now. */
 function publishedOf(a: App): string {
   const [[published]] = a.provider.select(
     'dom_0',
@@ -110,11 +95,19 @@ function publishedOf(a: App): string {
   return String(published)
 }
 
-/** What the Journal provider calls after a publication that carried no Session participation. */
 const register = (storage: SqlStorage, published: string): Promise<void> =>
-  registerSessionWorkIndex(storage, DOMAIN, textOf(TENANT_A), SESSION, published)
+  afterSessionCommit({
+    storage,
+    domain: DOMAIN,
+    tenant: textOf(TENANT_A),
+    session: SESSION,
+    answer: {
+      receipt: { kind: 'committed', responses: [] } as unknown as ReceiptV2,
+      recalled: false,
+    },
+    journal: { published },
+  })
 
-/** A session with a running Run on `input-1` and `input-2` pending, and the publisher of its Agent. */
 async function scene() {
   const a = await app()
   const agent = agentPublisher({
@@ -127,7 +120,6 @@ async function scene() {
   ok(await startRun(a, 'start-run-1'))
   ok(await a.accept(TENANT_A, SESSION, 'input-2'))
   const run = activeRun(await readWork(a.port, a))
-  /** One publication that changes the index: the Agent admitted `input-2` to the Run's attempt. */
   const admit = () =>
     agent.admit({
       tenant: TENANT_A,
@@ -140,7 +132,6 @@ async function scene() {
       attachment: 'attachment-1',
       attempt: run.attempt,
     })
-  /** One publication that leaves the index as it was: an observed event of the execution. */
   const observe = () => agent.publish(agentEventOf(eventOf(run, 1, [], 'unused'), ['observed']))
   return { a, run, admit, observe }
 }
@@ -249,13 +240,12 @@ describe('the index of the held snapshot is replaced after a publication', () =>
     expect(after.pending).toContain('input-other')
   })
 
-  it('the count moves on during the index read: the answer is registered at that count (P-4)', async () => {
+  it('the count moves on during the index read: the answer is registered at that count', async () => {
     const { a, run, admit, observe } = await scene()
     const { port, storage, hooks } = portOver(a)
     await readWork(port, a)
     await observe()
     const asked = publishedOf(a)
-    // A second publication between the call and the index read: it admits `input-2`.
     hooks.set(INDEX, admit)
     const before = workFoldCounts(storage)
     await register(storage, asked)

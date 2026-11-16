@@ -41,7 +41,6 @@ function fixtureOf(create: (input: Input) => Made): RuntimeContextTrustFixture<s
 }
 const honest = (input: Input): Made => createTestRuntimeContextTrust<string>(input)
 
-/** Names of the cases that fail for a fixture. Every other case must pass. */
 async function failures(fixture: RuntimeContextTrustFixture<string>): Promise<string[]> {
   const failed: string[] = []
   for (const c of runtimeContextTrustConformance<string>()) {
@@ -58,7 +57,6 @@ describe('the fixed double satisfies the whole suite', () => {
   for (const c of runtimeContextTrustConformance<string>())
     it(c.name, async () => {
       const verdict = await runConformanceCase(c, fixtureOf(honest))
-      // The double never passes the known-gap case (#677); the other seventeen pass.
       expect(verdict).toEqual(
         c.name === 'async-notification-pending-revoked'
           ? { kind: 'not-applicable', handle: 'synchronous revocation source (known gap #677)' }

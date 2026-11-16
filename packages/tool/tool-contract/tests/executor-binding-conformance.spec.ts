@@ -1,6 +1,3 @@
-// Self-proof of the live-only ToolExecutorBinding suite: it passes on the conforming double,
-// each case fails under a violating variant that breaks the rule of that case, and a fixture
-// without control handles reports the cases that need them as not applicable.
 import type { TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
@@ -75,7 +72,6 @@ function operation(text: string) {
   return decoded.ok
 }
 
-/** The start input with another start operation: the executor launches again for it. */
 function elsewhere(input: StartInput): StartInput {
   const again = operation(`${input.start.operation}-again`)
   return {
@@ -89,10 +85,6 @@ function elsewhere(input: StartInput): StartInput {
   }
 }
 
-/**
- * The start of another record with a permit that is legal for it: the permit names the call and the
- * tenant of the input. A provider that answers a refused permit with this launches another start.
- */
 function startOfAnotherRecord(input: StartInput): StartInput {
   const other = elsewhere(input)
   const { execution } = other.permit.start
@@ -110,24 +102,20 @@ function startOfAnotherRecord(input: StartInput): StartInput {
   }
 }
 
-/** The text that tells one start from another: the tenant, the call and the start operation. */
 const keyOf = (input: StartInput): string =>
   JSON.stringify([input.tenant, input.call, input.start.operation])
 
-// Read when a case runs, not when the file is collected: the fixture mints its tenant then.
 const own = {
   get tenant(): TenantId {
     return memoryToolExecutorBindingFixture().access.tenant
   },
 }
 
-/** The tenant of an input is not the tenant of the fixture. */
 const isForeign = (tenant: typeof own.tenant): boolean =>
   JSON.stringify(tenant) !== JSON.stringify(own.tenant)
 
 const variants: readonly Variant<Fixture>[] = [
   {
-    // The second start with the same record launches another execution and hides it.
     name: 'a resent start launches again',
     fails: [NAMES.B1, NAMES.B21],
     fixture: variant(real => {
@@ -149,7 +137,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The second start with the same record gets an execution of its own.
     name: 'a resent start gets an independent execution',
     fails: [NAMES.B1, NAMES.B2, NAMES.B3, NAMES.B21],
     fixture: variant(real => {
@@ -230,7 +217,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // A start that cannot be inspected is started again instead of staying unknown.
     name: 'inspectStart starts again when it cannot tell',
     fails: [NAMES.B11],
     fixture: variant(real => {
@@ -291,7 +277,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The acknowledgement answers evidence, but the source keeps waiting for it.
     name: 'an acknowledgement does not release the source',
     fails: [NAMES.B15],
     fixture: variant(real => ({
@@ -301,7 +286,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // A reader that closed the channel is told that the start has settled.
     name: 'a closed channel settles the start',
     fails: [NAMES.B16],
     fixture: variant(real => {
@@ -356,7 +340,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The executor still runs, and the stop is reported as stopped all the same.
     name: 'a held stop is reported as stopped',
     fails: [NAMES.B18],
     fixture: variant((real, base) => {
@@ -392,7 +375,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // Two starts of one record that meet in flight both launch.
     name: 'starts that meet in flight launch twice',
     fails: [NAMES.B2],
     fixture: variant(real => {
@@ -411,7 +393,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The permit is read for its start only: the call that it names is not compared.
     name: 'start ignores the call of the permit',
     fails: [NAMES.B4],
     fixture: variant(real => ({
@@ -478,8 +459,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The permit that names another call is not refused: the start that it carries is answered
-    // with the execution of another start, and the start that the call asked for launches nothing.
     name: 'a start with the permit of another call is answered with another start',
     fails: [NAMES.B4],
     fixture: variant(real => ({
@@ -523,20 +502,15 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The facts of a start end at once, with nothing delivered.
     name: 'the facts of a start end at once',
     fails: [NAMES.B3, NAMES.B12, NAMES.B13, NAMES.B14, NAMES.B15],
     fixture: variant(real => ({
       binding: overExecution(real, () => ({
-        facts: () =>
-          (async function* () {
-            // no batch
-          })(),
+        facts: () => (async function* () {})(),
       })),
     })),
   },
   {
-    // Every event of the stream has the same identity.
     name: 'every event has the same event identity',
     fails: [NAMES.B12],
     fixture: variant(real => ({
@@ -550,7 +524,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // Every batch has the same batch identity; the acknowledgement maps it back.
     name: 'every batch has the same batch identity',
     fails: [NAMES.B12],
     fixture: variant(real => ({
@@ -571,7 +544,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // A resent acknowledgement releases the duty a second time: the source counts, not the batch.
     name: 'a resent acknowledgement releases the source twice',
     fails: [NAMES.B15],
     fixture: variant((real, base) => {
@@ -593,7 +565,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The stop is only accepted, but a read of it already says that the executor stopped.
     name: 'inspectControl claims stopped while the stop is only accepted',
     fails: [NAMES.B18],
     fixture: variant(real => ({
@@ -608,7 +579,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The stop is accepted, and the read of it afterwards says only that it is pending.
     name: 'inspectControl answers pending after the stop was accepted',
     fails: [NAMES.B17, NAMES.B18, NAMES.B19, NAMES.B20],
     fixture: variant(real => ({
@@ -629,7 +599,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // the stop is accepted, and a read of it while it is accepted answers other evidence.
     name: 'an accepted stop is read with another evidence',
     fails: [NAMES.B18],
     fixture: variant(real => ({
@@ -644,7 +613,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The reuse of a stop identity with another input is refused, but not as a conflict.
     name: 'a stop operation reused with another input is refused as invalid',
     fails: [NAMES.B20],
     fixture: variant(real => ({
@@ -673,7 +641,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // Only a binding that judges a permit of its own may call the other input an invalid permit.
     name: 'a binding that offers no permit answers a start with another input as invalid',
     fails: [NAMES.B21],
     fixture: variant(real => ({
@@ -688,8 +655,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // A binding with permits of its own judges the permit first, but refuses neither as a
-    // conflict nor as an invalid permit.
     name: 'a binding that offers its own permits answers a start with another input as denied',
     fails: [NAMES.B21],
     fixture: () => {
@@ -709,7 +674,6 @@ const variants: readonly Variant<Fixture>[] = [
     },
   },
   {
-    // The conflict is answered, and the start with the other input is launched all the same.
     name: 'a conflicting start still launches',
     fails: [NAMES.B21],
     fixture: variant(real => ({
@@ -724,7 +688,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The stop of an ended execution stays pending for ever.
     name: 'a stop of an ended execution stays pending',
     fails: [NAMES.B19],
     fixture: variant(real => ({
@@ -745,7 +708,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The key of the start leaves out the tenant: another tenant reads the start.
     name: 'inspectStart ignores the tenant',
     fails: [NAMES.B22],
     fixture: variant(real => ({
@@ -806,7 +768,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The start of another tenant joins the execution of the first one.
     name: 'start ignores the tenant',
     fails: [NAMES.B6, NAMES.B23],
     fixture: variant(real => ({
@@ -834,7 +795,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // A reader of the start that comes second is handed batches that carry other identities.
     name: 'a second reader of a start is handed other batches',
     fails: [NAMES.B3, NAMES.B7],
     fixture: variant(real => {
@@ -854,7 +814,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The execution that inspectStart hands out reads other batches than the one that start gave.
     name: 'the live execution of inspectStart reads other batches',
     fails: [NAMES.B7],
     fixture: variant(real => ({
@@ -941,7 +900,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // Every batch carries another fact that no one emitted.
     name: 'the stream carries a fact that was never emitted',
     fails: [NAMES.B12],
     fixture: variant(real => ({
@@ -962,7 +920,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The third event of the stream is delivered twice, so that the events are still distinct.
     name: 'a fact is delivered twice',
     fails: [NAMES.B12, NAMES.B13],
     fixture: variant(real => ({
@@ -983,11 +940,9 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The cursor does not move from batch to batch.
     name: 'every batch has the same cursor',
     fails: [NAMES.B12],
     fixture: variant(real => {
-      // A reconnect from the shared cursor reads from the first real one.
       let first: string | null = null
       return {
         binding: overExecution(real, execution => ({
@@ -1008,7 +963,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The first batch of a stream names a cursor before it.
     name: 'the first batch has an after cursor',
     fails: [NAMES.B12],
     fixture: variant(real => ({
@@ -1024,7 +978,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // A batch names another start than the one that the stream belongs to.
     name: 'a batch names another start',
     fails: [NAMES.B12],
     fixture: variant(real => ({
@@ -1038,7 +991,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // Each batch names another source.
     name: 'every batch has another source',
     fails: [NAMES.B12],
     fixture: variant(real => ({
@@ -1055,7 +1007,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The source owes one duty less than it counts.
     name: 'the source owes no duty before the receipt',
     fails: [NAMES.B15],
     fixture: variant((_real, base) => {
@@ -1072,7 +1023,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // The first acknowledgement is not counted; the duty is released by the resend.
     name: 'an acknowledgement releases the source only when resent',
     fails: [NAMES.B15],
     fixture: variant((real, base) => {
@@ -1092,7 +1042,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // After the executor has ended, a read of the stop still says that it is only accepted.
     name: 'inspectControl keeps saying accepted after the executor ended',
     fails: [NAMES.B17, NAMES.B18, NAMES.B20],
     fixture: variant(real => ({
@@ -1124,7 +1073,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // a stop is accepted, and the next ask of the same stop answers that it is only pending.
     name: 'a resent stop goes back from accepted to pending',
     fails: [NAMES.B17],
     fixture: variant((real, base) => {
@@ -1155,7 +1103,6 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    // a resend during progress answers a final that is not the one that lands.
     name: 'a resend during progress answers another final than the one that lands',
     fails: [NAMES.B17],
     fixture: variant(real => ({
@@ -1175,7 +1122,6 @@ const variants: readonly Variant<Fixture>[] = [
     })),
   },
   {
-    // The executor ended, and inspectStart still reports the start as live.
     name: 'inspectStart keeps reporting a stopped start as live',
     fails: [NAMES.B18],
     fixture: variant((real, base) => {
@@ -1206,11 +1152,6 @@ const variants: readonly Variant<Fixture>[] = [
   },
 ]
 
-// ---------------------------------------------------------------------------------------------
-// Providers that the contract allows are built in executor-binding-legal.ts, at the port boundary.
-// ---------------------------------------------------------------------------------------------
-
-/** The cases that need `settle` or `completeStop` when a first answer is progress. */
 const na = (handle: string, ...names: string[]): Record<string, string> =>
   Object.fromEntries(names.map(name => [name, handle]))
 const NEEDS_SETTLE = [NAMES.B7, NAMES.B9, NAMES.B10, NAMES.B16, NAMES.B22]
@@ -1248,11 +1189,6 @@ const legal: readonly LegalProvider<Fixture>[] = [
   },
 ]
 
-/**
- * Fixtures that break the completion contract of a handle (it resolves before the work landed)
- * and so fail the cases that read the landed state once after it. The first two are the
- * generated provider with a lagging lift; the third is a handle that returns before the stop is carried out.
- */
 const lateHandles: readonly Variant<Fixture>[] = [
   {
     name: 'completeStop resolves 3 turns before the stop lands (generated)',
@@ -1281,7 +1217,6 @@ const lateHandles: readonly Variant<Fixture>[] = [
   },
 ]
 
-/** Legal providers that offer no handle for the progress they answer: not applicable, never passed. */
 const legalWithoutHandles: readonly LegalProvider<Fixture>[] = [
   {
     name: 'generated: every first answer is unknown and the fixture offers no handle',
@@ -1305,7 +1240,6 @@ const legalWithoutHandles: readonly LegalProvider<Fixture>[] = [
   })),
 ]
 
-/** The methods of the port that take an access, and the case that checks another tenant on each. */
 const CROSS_TENANT: Readonly<Record<'start' | 'inspectStart', string>> = {
   start: NAMES.B23,
   inspectStart: NAMES.B22,
@@ -1368,7 +1302,6 @@ describe('live-only ToolExecutorBinding conformance suite', () => {
 
   itPassesLegal(cases, legalWithoutHandles)
 
-  // `settle` completes the answer of `inspectStart`; `completeStop` that of a stop.
   for (const kind of executorBindingAnswers.inspectStart.progress)
     itNeedsTheHandle(cases, {
       name: `generated: every first answer of inspectStart is ${kind}`,
@@ -1431,7 +1364,6 @@ describe('live-only ToolExecutorBinding conformance suite', () => {
   })
 
   describe('the quiet period', () => {
-    /** The execution of another tenant shows a fact 40 ms after it is read. */
     const leaksLate = (quietMs?: number) => (): Fixture => {
       const fixture = variant(real => ({
         binding: {
@@ -1472,7 +1404,6 @@ describe('live-only ToolExecutorBinding conformance suite', () => {
   })
 
   describe('the read deadline', () => {
-    /** A provider whose executor shows a fact only after `lateMs`. */
     const slow = (lateMs: number, readDeadlineMs?: number) => (): Fixture => {
       const base = memoryToolExecutorBindingFixture()
       return {

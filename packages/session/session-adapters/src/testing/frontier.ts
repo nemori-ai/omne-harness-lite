@@ -110,7 +110,6 @@ async function captured(
   }
 }
 
-/** Read cursors are disposable. Only the interpreter publishes consequences and durable progress. */
 export function createFrontier<P>(
   budget: ReadBudget,
   interpret: (
@@ -159,7 +158,6 @@ export function createFrontier<P>(
         if (!scope) return root
         const work = await captured(root, scope, extra, charge, budget.capacityBytes)
         metrics.passes++
-        // Finish the captured executions even when an earlier taken fact removes every Q member.
         for (const item of work.executions) {
           for (let index = item.after; index < item.upper; index++) {
             const event = item.execution.events[index]

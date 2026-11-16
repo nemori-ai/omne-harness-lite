@@ -19,14 +19,10 @@ export type TerminalScript<P = unknown> = (
 export type ScriptedTerminalFacility<P = unknown> = Readonly<{
   durability: 'none'
   facility: TerminalFacility<P>
-  /** Requests passed to the execution script. Rejected references and busy terminals are absent. */
   calls: readonly ExecuteRequest<P>[]
   stops: readonly ScriptedStopRecord[]
-  /** Refuse new facility operations. Existing handles and explicit controls remain usable. */
   close(): void
-  /** Observe loss of this terminal. It cannot execute again, even after a late process result. */
   invalidate(terminal: TerminalRef): void
-  /** Observe the scripted leg exiting, including after an unconfirmed stop. Starts nothing. */
   finish(terminal: TerminalRef): Promise<void>
 }>
 
@@ -42,7 +38,6 @@ type Terminal = {
   state: State
 }
 
-/** One non-durable acquisition. Scripts describe observations, never interpret shell text. */
 export function createScriptedTerminalFacility<P = unknown>(
   script: TerminalScript<P>,
 ): ScriptedTerminalFacility<P> {

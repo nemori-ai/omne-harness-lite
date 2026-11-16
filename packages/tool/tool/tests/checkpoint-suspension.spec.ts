@@ -1,7 +1,3 @@
-// A checkpointed call whose initial segment returns `suspended` enters its wait reliably through the
-// real runtime, ledger and driver (P02, P06, P07): one call-domain commit of `suspended`, the
-// checkpoint, the opening wait and its two duties; the registration with the decision owner by the
-// original identity; and the park that frees the execution slot.
 import { afterEach, describe, expect, it } from 'vitest'
 import { writeJsonText } from '@omne-harness/json-text'
 import type { ToolCallId, ToolWaitId } from '@omne-harness/tool-contract'
@@ -43,7 +39,6 @@ function setup(script: BridgeScript = 'registers', options: StartOptions = {}) {
   return { harness, checkpoint, bridge, authority }
 }
 
-/** Runs what the drives scheduled, until nothing is scheduled for a few rounds. */
 async function settle(harness: ReturnType<typeof setup>['harness']): Promise<void> {
   for (let quiet = 0, round = 0; quiet < 3 && round < 200; round += 1) {
     await new Promise(resolve => setTimeout(resolve, 2))
@@ -86,8 +81,6 @@ describe('a checkpointed segment that returns suspended', () => {
       wait: { kind: 'ask', wait, registration, decision: null },
     })
     expect(read.waits).toMatchObject([{ phase: 'open', intent: { kind: 'ask', wait } }])
-    // The ledger keeps the state of that checkpoint and the request original of the wait, each
-    // bound by the digest of its evidence.
     expect(read.checkpointState).toEqual({
       payload: read.checkpoint,
       state: Buffer.from('{"asked":"which file?"}').toString('base64'),
@@ -96,7 +89,6 @@ describe('a checkpointed segment that returns suspended', () => {
     const original = writeJsonText(question('which file?'))
     expect(read.waitRequest).toEqual({ wait, request: original })
     expect(read.waits[0]?.intent.request.digest).toBe(canonicalDigest(original))
-    // The initial segment ran once; the wait and the park owe nothing more.
     expect(checkpoint.segments).toEqual([start.operation])
     expect(read.tasks.map(task => task.kind)).not.toContain('suspend')
     expect(read.tasks.map(task => task.kind)).not.toContain('wait-registration')
@@ -112,7 +104,6 @@ describe('a checkpointed segment that returns suspended', () => {
     await admitCall(harness, 'c2')
     await harness.drive('c2')
     await settle(harness)
-    // The tool limit is 1: c2 starts only because the parked c1 holds no slot.
     expect(authority.accepted).toEqual(['c1', 'c2'])
     expect((await harness.state('c2')).phase).toBe('suspended')
     expect(await harness.queue()).toEqual([
@@ -143,7 +134,6 @@ describe('a checkpointed segment that returns suspended', () => {
   it('keeps the wait opening and its duty when the decision owner refuses the registration', async () => {
     const { harness, bridge } = await suspendedCall('refuses')
     const read = await recovery(harness, 'c1')
-    // A refusal is a verdict: no answer is made up, and the run is not retried on its own.
     expect(bridge.ensured).toHaveLength(1)
     expect(bridge.inspected).toEqual([])
     expect(read.waits).toMatchObject([{ phase: 'opening' }])
@@ -151,7 +141,6 @@ describe('a checkpointed segment that returns suspended', () => {
     expect(read.tasks.filter(task => task.kind === 'wait-registration')).toMatchObject([
       { state: 'blocked', diagnostic: 'registration-refused: denied' },
     ])
-    // The park does not depend on the registration.
     expect(await harness.queue()).toEqual([{ call: 'c1', ordinal: '1', stage: 'parked' }])
   })
 
@@ -161,9 +150,6 @@ describe('a checkpointed segment that returns suspended', () => {
       memory,
       commands: base => ({
         ...base,
-        // A decision that is accepted right after the suspend commit, before the park and even
-        // before the registration: the responding wait is written directly, so this case checks
-        // only the definition domain of the park.
         suspend: async input => {
           const suspended = await base.suspend(input)
           if ('ok' in suspended) await respond(memory, input.call)
@@ -191,12 +177,10 @@ describe('a checkpoint that the ledger refuses', () => {
         ...base,
         planSuspension: input => {
           plans.count += 1
-          // A bound, so that a spinning driver ends the test instead of hanging it.
           if (plans.count > 50) throw new Error('the driver plans the suspension again and again')
           return base.planSuspension(input)
         },
       }),
-      // The binding proves a checkpoint whose payload is not where the wait resumes.
       bindingsPort: () => ({
         ...checkpoint.bindings,
         resolve: async input => {
@@ -225,8 +209,6 @@ describe('a checkpoint that the ledger refuses', () => {
     await admitCall(harness, 'c1')
     await harness.drive('c1')
     await settle(harness)
-    // The refusal is a verdict on the checkpoint: the run ends on it instead of planning the
-    // same suspension again and again.
     expect(plans.count).toBeLessThanOrEqual(2)
     const read = await recovery(harness, 'c1')
     expect(read.tasks.filter(task => task.kind === 'suspend')).toHaveLength(1)
@@ -246,11 +228,9 @@ describe('the identities and the release basis of a suspension', () => {
     const domain = { kind: 'call', tenant: tenantA, call: callId('c1') } as const
     const before = await harness.memory.read(domain)
     if (before.kind !== 'complete') throw new Error('the call domain is unreadable')
-    // A suspended call that has not settled holds no basis: its entry only parks.
     expect(releaseBasisOf(snapshotOf(domain, before))).toBe(null)
     const checkpoint = (await harness.state('c1')).execution
     if (checkpoint.kind !== 'suspended') throw new Error('c1 is not suspended')
-    // 真实叫停让暂停中的调用收场，收场状态保留暂停的执行（Tool SPEC 第 32 条）。
     ok(
       await harness.commands.control({
         principal: principalA,
@@ -273,7 +253,6 @@ describe('the identities and the release basis of a suspension', () => {
   })
 })
 
-/** Writes the wait of `call` as `responding`, the way an accepted decision leaves it. */
 async function respond(memory: MemoryToolLedgerStore, call: ToolCallId): Promise<void> {
   const domain = { kind: 'call', tenant: tenantA, call } as const
   const read = await memory.read(domain)

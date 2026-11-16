@@ -1,7 +1,3 @@
-// The parse from `model.call` rows to the call document of the shared core: every column is read,
-// a row has exactly the columns of its table, a row of another tenant, call or operation is
-// refused, and the parts fold into the blocks they were written from. The rows here come from the
-// encoders, the way the participant writes them.
 import { describe, expect, it } from 'vitest'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -93,7 +89,6 @@ const GROWING = {
   value: 'hello',
 }
 
-/** A document with every nullable field set, so a field the parse drops shows as a difference. */
 function documentOf(): CallDocument {
   return {
     state: STATE,

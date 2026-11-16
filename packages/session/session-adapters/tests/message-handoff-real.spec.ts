@@ -1,5 +1,4 @@
 // @module-tag slow
-// Why slow: real Workers, real files and a killed child process.
 import { spawn } from 'node:child_process'
 import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -22,7 +21,6 @@ type ChildLine = Readonly<{
   outcome: HandoffOutcome | null
 }>
 
-/** Runs the child on `root` until it printed its line, then kills it with SIGKILL. */
 async function prepareThenKill(
   root: string,
   textFile: string,
@@ -51,11 +49,10 @@ async function prepareThenKill(
   await exited
   if (!text.startsWith('HANDOFF ')) throw new Error(`unexpected child output: ${text}`)
   const line = JSON.parse(text.slice('HANDOFF '.length)) as ChildLine
-  // A tenant is only valid as the minted value: the text form of the line names the same tenant.
   return { ...line, input: { ...line.input, principal: own.principal, tenant: own.tenant } }
 }
 
-describe('J06: recovery after a child is killed', () => {
+describe('recovery after a child is killed', () => {
   for (const stopAfter of ['intent', 'outcome'] as const)
     it(`a new provider recovers a 24 KiB candidate after kill at ${stopAfter}`, async () => {
       const root = await realpath(await mkdtemp(join(tmpdir(), 'message-handoff-')))

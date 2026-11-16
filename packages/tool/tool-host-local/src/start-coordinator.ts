@@ -1,14 +1,3 @@
-// The local start coordinator (G5): the start ordering domain of P04 for one machine. The facts
-// of one call (its permit, acceptance, rejection, exclusion and exclusion operations) live in the
-// `start@<call>` host domain of that call; the guards and their invalidations live in the
-// tenant-level `start-guards` domain, which grows with control actions only. A permit is stored
-// when it is issued and carries the revision of each guard it saw. Consume accepts only the stored
-// permit, once, and commits the acceptance into the call domain under a read-set assertion that
-// the guard domain still has the revision consume read, so an acceptance and an invalidation
-// linearize although they live in two domains (the StartConsume model of `verification/models`).
-// An invalidation returns its evidence only after its commit, so an invalidation that returned
-// before a consume is always seen by it (P04: an invalidation that holds first forbids the start).
-
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   canonicalDigest,
@@ -58,24 +47,16 @@ import { qualifyRequestAccess } from './start-guard.ts'
 
 type TenantId = LedgerDomain['tenant']
 
-/** The owner named in every evidence the coordinator mints. */
 export const START_COORDINATOR_OWNER = '@omne-harness/tool-host-local'
 
-/** The identity of this coordinator, named in its permits. */
 export const startCoordinatorAdoption: Adoption = describedAdoption({
   owner: START_COORDINATOR_OWNER,
   name: 'local-start-coordinator',
   revision: '1',
 })
 
-/** A resource whose current revision guards a start; its owner invalidates it to refuse starts. */
 export type GuardResource = Readonly<{ owner: string; resource: string }>
 
-/**
- * The qualification question the coordinator asks before any read or write. `start` covers
- * prepare, consume, inspect and exclude for one call; `invalidate` is asked without a call,
- * because a guard belongs to a resource of the tenant, not to a call.
- */
 export interface StartCoordinatorAccess<P> {
   qualify(
     input: Readonly<{
@@ -88,69 +69,36 @@ export interface StartCoordinatorAccess<P> {
 }
 
 export type LocalStartCoordinatorInput<P> = Readonly<{
-  /**
-   * The ledger store whose `host` domains keep the start facts: the same store the ledger of the
-   * runtime uses, so one durable provider keeps both.
-   */
   store: ToolLedgerStore
-  /** Proves the principal, the tenant and the call; a forged tenant is denied. */
   access: StartCoordinatorAccess<P>
-  /**
-   * The request policy with the commit that honours its conditions. An acceptance whose verdict
-   * carries a condition is committed through `commit`, in one transaction with the condition.
-   */
   requestAccess?: Readonly<{ access: ToolRequestAccess<P>; commit: ConditionalLedgerCommit }>
-  /** Required for new starts. Omission fails closed while existing acceptances remain readable. */
   permitRequirements?: StartPermitRequirements<P>
-  /** The guard resources that apply to a request; each becomes one guard of its permit. */
   guardsOf: (request: FixedToolRequest) => readonly GuardResource[]
-  /** How many times a revision conflict is re-read and re-decided. */
   commitAttempts: number
-  /**
-   * The longest one caller waits for its turn of the tenant section, in milliseconds. A caller
-   * that reaches it answers `unavailable` instead of waiting further, so a turn that never
-   * settles cannot hold every later call of the same tenant forever.
-   *
-   * The default is derived from the store's own bounds rather than chosen: one turn runs at most
-   * `commitAttempts` rounds, and one round does one read and one commit. The sqlite provider bounds
-   * a read by `readQueueTimeoutMs` (1000) and a write lock by `lockWaitMs` (5000)
-   * (sqlite-provider SPEC:307,323), so one round stays under 6000 ms and a turn under
-   * `commitAttempts × 6000 ms`. An operator that deploys a store with other bounds passes its own
-   * value.
-   */
   turnTimeoutMs?: number
 }>
 
-/** The store bounds one round of a turn can consume: a read wait plus a write lock wait. */
 const TURN_MS_PER_ATTEMPT = 6_000
-
-// ---------------------------------------------------------------------------------------------
-// The records of the host domain
-// ---------------------------------------------------------------------------------------------
 
 type GuardRecord = Readonly<{
   kind: 'guard'
   owner: string
   resource: string
   revision: string
-  /** The latest invalidation that set this revision. */
   operation: ToolOperationId | null
   evidence: DurableEvidence | null
 }>
-/** The permanent binding of an invalidation operation to its full guard input and first evidence. */
 type InvalidationRecord = Readonly<{
   kind: 'invalidation'
   operation: ToolOperationId
   digest: string
   evidence: DurableEvidence
 }>
-/** The one permit of a start that consume may accept. A newer permit replaces it. */
 type PermitRecord = Readonly<{
   kind: 'permit'
   call: ToolCallId
   start: ToolOperationId
   digest: string
-  /** The digest of the fixed request; the request itself stays with the call. */
   inputDigest?: string
   requestBinding?: string
   requirementSource?: DurableEvidence
@@ -167,13 +115,11 @@ type AcceptanceRecord = Readonly<{
 type RejectionRecord = Readonly<{
   kind: 'rejection'
   call: ToolCallId
-  /** The start the rejection applies to, or null for the whole pending invocation of the call. */
   start: ToolOperationId | null
   operation: ToolOperationId
   reason: string
   evidence: DurableEvidence
 }>
-/** The input and returned evidence of each successful call exclusion operation. */
 type ExclusionOperationRecord = Readonly<{
   kind: 'exclusion-operation'
   call: ToolCallId
@@ -181,7 +127,6 @@ type ExclusionOperationRecord = Readonly<{
   reason: string
   evidence: DurableEvidence
 }>
-/** The proof that every permit of the start issued before it can no longer be consumed. */
 type ExclusionRecord = Readonly<{
   kind: 'exclusion'
   call: ToolCallId
@@ -197,20 +142,13 @@ type CoordinatorRecord =
   | ExclusionOperationRecord
   | ExclusionRecord
 
-/** The records of one host domain by key, with the domain revision. */
 type DomainSnapshot = Readonly<{
   revision: ToolRevision
   records: ReadonlyMap<string, CoordinatorRecord>
 }>
 
-/**
- * What prepare and consume decide on: the call's own domain and the tenant's guards. The other
- * operations decide on their written domain alone and never read `start-guards`.
- */
 type Snapshot = DomainSnapshot & Readonly<{ guards: DomainSnapshot }>
 
-// Keys are JSON texts of their parts, so an identity text that holds a separator cannot reach the
-// key of another record. A start operation is unique per call only (P01), so its keys name both.
 const guardKey = (guard: GuardResource): string =>
   `guard:${JSON.stringify([guard.owner, guard.resource])}`
 const invalidationKey = (operation: ToolOperationId): string =>
@@ -257,16 +195,11 @@ const RECORD_FIELDS: Readonly<Record<CoordinatorRecord['kind'], readonly string[
   exclusion: ['call', 'start'],
 }
 
-/**
- * A host record the coordinator wrote: its kind and the text fields that kind needs. The store
- * interprets none of them, so a value of another shape is a defect of the store, not a record.
- */
 function parseRecord(value: unknown): CoordinatorRecord | null {
   if (typeof value !== 'object' || value === null) return null
   const kind: unknown = Reflect.get(value, 'kind')
   if (typeof kind !== 'string' || !Object.hasOwn(RECORD_FIELDS, kind)) return null
   const fields = RECORD_FIELDS[kind as CoordinatorRecord['kind']]
-  // The kind and its text fields were checked; the coordinator wrote the rest of the record.
   return fields.every(field => filledText(Reflect.get(value, field)))
     ? (value as CoordinatorRecord)
     : null
@@ -286,7 +219,6 @@ function nextRevision(revision: ToolRevision): ToolRevision {
   return revisionOf((BigInt(revision) + 1n).toString())
 }
 
-/** An evidence of one record of the host domain, committed at `revision`. */
 function mint(
   tenant: TenantId,
   key: string,
@@ -302,7 +234,6 @@ function mint(
   })
 }
 
-/** The first revision of a guard that was never invalidated. */
 const INITIAL_GUARD_REVISION = '0'
 
 function guardOf(guards: DomainSnapshot, resource: GuardResource): GuardRecord {
@@ -318,7 +249,6 @@ function guardOf(guards: DomainSnapshot, resource: GuardResource): GuardRecord {
   }
 }
 
-/** The acceptance or the rejection of a start, or null while the start is undecided. */
 function progressOf(
   snapshot: DomainSnapshot,
   call: ToolCallId,
@@ -334,10 +264,6 @@ function progressOf(
   return null
 }
 
-// ---------------------------------------------------------------------------------------------
-// Boundary checks
-// ---------------------------------------------------------------------------------------------
-
 function invalid(field: string, reason: string): Outcome<never, ToolFailure> {
   return fail({ kind: 'invalid', field, reason })
 }
@@ -350,7 +276,6 @@ function isObject(value: unknown): value is object {
   return typeof value === 'object' && value !== null
 }
 
-/** Minted identities are immutable. Shape-only callers still cannot mutate a queued value. */
 function snapshotTenant(tenant: TenantId): TenantId {
   if (
     Object.isFrozen(tenant) &&
@@ -365,7 +290,6 @@ function snapshotTenant(tenant: TenantId): TenantId {
   })
 }
 
-/** Reads `keys` of `value` as filled texts, or names the first key that is not one. */
 function texts<K extends string>(
   value: unknown,
   keys: readonly K[],
@@ -378,7 +302,6 @@ function texts<K extends string>(
     if (!filledText(member)) return invalid(`${field}.${key}`, 'type')
     out[key] = member
   }
-  // Every key was written above with a filled text.
   return succeed(out as Record<K, string>)
 }
 
@@ -386,7 +309,6 @@ function judgeEvidence(value: unknown, field: string): Outcome<DurableEvidence, 
   return texts(value, ['owner', 'record', 'revision', 'digest'], field)
 }
 
-/** Parses only contract fields so canonical identity excludes unrelated input properties. */
 function judgeGuard(value: unknown): Outcome<StartGuard, ToolFailure> {
   if (!isObject(value)) return invalid('guard', 'type')
   const guard = texts(value, ['owner', 'resource', 'revision'], 'guard')
@@ -438,11 +360,6 @@ function judgeExecution(value: unknown, field: string): Outcome<ToolExecutionRef
   )
 }
 
-/**
- * A start record: the first start, or the resume of a checkpoint (P07), with its operation, its
- * executor adoption and execution; a resume also names its checkpoint. A resume takes a permit of
- * its own through the same guards as a first start.
- */
 function judgeStart(value: unknown, field: string): Outcome<ToolStartRecord, ToolFailure> {
   if (!isObject(value)) return invalid(field, 'type')
   const kind: unknown = Reflect.get(value, 'kind')
@@ -470,7 +387,6 @@ function judgeStart(value: unknown, field: string): Outcome<ToolStartRecord, Too
 
 type CallInput<P> = Readonly<{ principal: P; tenant: TenantId; call: ToolCallId }>
 
-/** Principal, tenant and call. A missing or malformed tenant is denied, like a foreign one. */
 function judgeCallInput<P>(input: unknown): Outcome<CallInput<P>, ToolFailure> {
   if (!isObject(input)) return invalid('input', 'type')
   const tenant: unknown = Reflect.get(input, 'tenant')
@@ -478,7 +394,6 @@ function judgeCallInput<P>(input: unknown): Outcome<CallInput<P>, ToolFailure> {
     return fail({ kind: 'denied', action: 'start' })
   const call = decodeToolCallId(Reflect.get(input, 'call'))
   if ('failure' in call) return invalid('call', call.failure.reason)
-  // The principal is the caller's type; the access guard judges it.
   return succeed(
     Object.freeze({
       principal: Reflect.get(input, 'principal') as P,
@@ -490,7 +405,6 @@ function judgeCallInput<P>(input: unknown): Outcome<CallInput<P>, ToolFailure> {
 
 type PermitGuard = Readonly<{ owner: string; resource: string; revision: string }>
 
-/** The parts of a permit the coordinator reads back, and the digest it stored them under. */
 type PermitInput = Readonly<{
   start: ToolStartRecord
   guards: readonly PermitGuard[]
@@ -498,7 +412,6 @@ type PermitInput = Readonly<{
   inputDigest: string
 }>
 
-/** The digest a permit is stored under: its start, its guard revisions and its request. */
 function permitDigest(
   call: ToolCallId,
   start: ToolStartRecord,
@@ -567,7 +480,6 @@ function requestBinding(
   return canonicalDigest({ tenant, call, start, inputDigest, permit })
 }
 
-/** The digest of the request the stored permit is bound to, or null when the binding is not intact. */
 function boundInput(
   stored: PermitRecord,
   tenant: TenantId,
@@ -609,20 +521,14 @@ function rejectStart(
   }
 }
 
-// ---------------------------------------------------------------------------------------------
-// The coordinator
-// ---------------------------------------------------------------------------------------------
-
 type Decision<T> =
   | Readonly<{ kind: 'reply'; outcome: Outcome<T, ToolFailure> }>
   | Readonly<{
       kind: 'commit'
       puts: readonly CoordinatorRecord[]
       deletes?: readonly string[]
-      /** Commit only while the guard domain still has this revision, the one the decision read. */
       assertGuards?: ToolRevision
       value: T
-      /** The writes take effect only together with this condition. */
       condition?: StartCondition
     }>
 
@@ -634,7 +540,6 @@ function hostRecord(key: string, value: CoordinatorRecord | null): LedgerRecord 
   return { kind: 'host', host: { key, value } }
 }
 
-/** The store writes of a decision; a deleted key is addressed as the store keys a host record. */
 function writesOf(decision: Extract<Decision<unknown>, { kind: 'commit' }>): LedgerWrite[] {
   return [
     ...(decision.deletes ?? []).map(key => ({
@@ -648,7 +553,6 @@ function writesOf(decision: Extract<Decision<unknown>, { kind: 'commit' }>): Led
   ]
 }
 
-/** A host domain as the coordinator reads it. Any other record is a defect of the store. */
 function snapshotOf(
   read: Extract<LedgerRead, { kind: 'complete' }>,
 ): Outcome<DomainSnapshot, ToolFailure> {
@@ -661,23 +565,11 @@ function snapshotOf(
   return succeed({ revision: read.revision, records })
 }
 
-/**
- * Builds the coordinator. It implements `ToolStartAuthority` for one process: `prepare` stores
- * and returns a permit with the current revision of every guard of the request; `consume`
- * accepts the stored permit once, and only while every guard keeps its revision, asserting the
- * guard domain revision at the commit; `inspect`
- * answers the acceptance or the rejection, and otherwise withdraws the outstanding permit before
- * it answers `not-started`; `invalidate` advances a guard and returns its evidence after the
- * commit; `exclude` rejects the whole pending invocation of a call that has no acceptance.
- * An unreadable ledger answers `unavailable`, never an acceptance or a rejection.
- */
 export function createLocalStartCoordinator<P>(
   input: LocalStartCoordinatorInput<P>,
 ): ToolStartAuthority<P> {
   const { store, access, guardsOf, commitAttempts, permitRequirements } = input
   const requestAccess = input.requestAccess?.access
-  // A condition comes only from the request policy, so this default is never reached. It keeps
-  // the state closed: a condition is never dropped.
   const commitWith: ConditionalLedgerCommit['commit'] =
     input.requestAccess === undefined
       ? () =>
@@ -693,15 +585,6 @@ export function createLocalStartCoordinator<P>(
     throw new TypeError('turnTimeoutMs: range')
   const sections = new Map<string, Promise<void>>()
 
-  /**
-   * Each written domain keeps one queue; an old tail cannot remove a newer queued turn.
-   *
-   * The wait of one caller is bounded: it answers `expired()` once `turnTimeoutMs` passes, whether
-   * it spent that time behind an earlier turn or inside its own work. A turn that expires this way
-   * keeps its section until its work settles, so two turns never run at once and the domain
-   * revision still orders every write; later callers queue behind it and each answer `expired()`
-   * on their own bound rather than waiting forever.
-   */
   const serial = <T>(
     target: LedgerDomain,
     work: () => Promise<T>,
@@ -775,11 +658,6 @@ export function createLocalStartCoordinator<P>(
     return snapshotOf(result)
   }
 
-  /**
-   * Reads the written domain (and what `snapshotOf` adds to it), decides, and commits by the
-   * revision of the written domain inside its serial section. A decision that asserts the guards
-   * commits only while the guard domain still has the revision the decision read.
-   */
   const rounds = <T, S>(
     target: LedgerDomain,
     snapshotOf: (own: DomainSnapshot) => Promise<Outcome<S, ToolFailure>>,
@@ -823,14 +701,12 @@ export function createLocalStartCoordinator<P>(
         }
         return unavailable(`${commitAttempts} revision or condition conflicts in a row`)
       },
-      // The expired turn keeps running and may still commit, so its caller is told it does not know.
       () =>
         unknown(
           `The turn did not settle within ${turnTimeoutMs} ms; earlier work of this tenant may still be running`,
         ),
     )
 
-  /** The rounds of prepare and consume: the call's domain and the tenant's guards. */
   const transact = <T>(
     target: LedgerDomain,
     decide: (snapshot: Snapshot, revision: ToolRevision) => Decision<T> | Promise<Decision<T>>,
@@ -846,7 +722,6 @@ export function createLocalStartCoordinator<P>(
       unknown,
     )
 
-  /** The rounds of inspect, exclude and invalidate: the written domain alone. */
   const transactOwn = <T>(
     target: LedgerDomain,
     decide: (snapshot: DomainSnapshot, revision: ToolRevision) => Decision<T>,
@@ -857,7 +732,6 @@ export function createLocalStartCoordinator<P>(
   const unknownProgress = (diagnostic: string): Outcome<StartProgress, ToolFailure> =>
     succeed({ kind: 'unknown', diagnostic })
 
-  /** The checked call, start and qualification of a call-scoped operation. */
   const callEntry = async (raw: unknown): Promise<Outcome<CallInput<P>, ToolFailure>> => {
     const checked = judgeCallInput<P>(raw)
     if ('failure' in checked) return checked
@@ -1037,7 +911,6 @@ export function createLocalStartCoordinator<P>(
           acceptance,
           requirementSource: requirement.source,
         }
-        // The guards were read before this decision; the commit holds only while they are unchanged.
         return {
           kind: 'commit',
           puts: [accepted],
@@ -1067,8 +940,6 @@ export function createLocalStartCoordinator<P>(
         const excluded = snapshot.records.get(startKey('exclusion', call, operation))
         if (permit === undefined && excluded?.kind === 'exclusion')
           return reply(succeed({ kind: 'not-started', exclusion: excluded.evidence }))
-        // Neither accepted nor rejected: a permit issued before this answer must not be consumed
-        // after it, so the answer is given only once the permit is withdrawn (P04 not-started).
         const key = startKey('exclusion', call, operation)
         const evidence = mint(tenant, key, revision, { excluded: true })
         const marker: ExclusionRecord = { kind: 'exclusion', call, start: operation, evidence }
@@ -1092,7 +963,6 @@ export function createLocalStartCoordinator<P>(
     if ('failure' in operation) return invalid('operation', operation.failure.reason)
     const target = judgeGuard(Reflect.get(raw, 'guard'))
     if ('failure' in target) return target
-    // The principal is the caller's type; the access guard judges it.
     const principal = Reflect.get(raw, 'principal') as P
     const allowed = await qualify(principal, tenant, null, 'invalidate')
     if ('failure' in allowed) return allowed
@@ -1158,8 +1028,6 @@ export function createLocalStartCoordinator<P>(
           }
           return { kind: 'commit', puts: [record], value: existing.evidence }
         }
-        // An accepted invocation is in flight; a control stops it, an exclusion cannot (P04). The
-        // domain holds this call only, so the scan is over its few records.
         for (const record of snapshot.records.values())
           if (record.kind === 'acceptance')
             return reply(fail({ kind: 'conflict', operation: record.start }))

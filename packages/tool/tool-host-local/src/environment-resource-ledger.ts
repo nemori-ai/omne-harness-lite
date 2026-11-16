@@ -32,7 +32,6 @@ export type EnvironmentResourceLedger = ResourceLedger &
     inspect(): Promise<readonly ResourceFact[] | null>
   }>
 
-/** A confirmed stop and a handover are final for this acquisition; a later stop fact keeps them. */
 function settledStop(current: ResourceStop, status: 'confirmed' | 'unconfirmed'): ResourceStop {
   return current === 'confirmed' || current === 'handedOver' ? current : status
 }
@@ -152,21 +151,11 @@ export async function createEnvironmentResourceLedger(
 
 export type RetainedTerminalLedgerInput = EnvironmentResourceLedgerInput &
   Readonly<{ scope: ScopeRef }>
-/**
- * The retention scope's ledger view for one original call. The integrator hands the same object as
- * the retained terminal ledger and as the retained process ledger: `permit` serves terminals, `adopt`
- * commits the handover of a one-shot command's domain.
- */
 export type RetainedTerminalLedgerView = Pick<
   ResourceLedger,
   'closed' | 'plan' | 'permit' | 'adopt' | 'stopped'
 > &
   Readonly<{
-    /**
-     * Whether the scope holds the end fact of a handed-over process (stop clause 7): `confirmed`
-     * from the commit that confirmed its stop on, `none` before, `unavailable` when the end fact
-     * cannot be read.
-     */
     ended(key: string): Promise<'confirmed' | 'none' | 'unavailable'>
     close(): Promise<'confirmed' | 'unavailable'>
     inspect(): Promise<readonly RetainedResourceFact[] | null>
@@ -178,7 +167,6 @@ const creatorOf = (creator: EnvironmentState): RetainedCreator => ({
   original: canonicalDigest(creator.original),
 })
 
-/** The acquisition with every fact it keeps for `key` written as a confirmed stop. */
 function stoppedKey(state: EnvironmentState, key: string): EnvironmentState {
   return {
     ...state,
@@ -191,11 +179,6 @@ function stoppedKey(state: EnvironmentState, key: string): EnvironmentState {
   }
 }
 
-/**
- * The acquisition with `resource` reserved (`PlanCommit`): `not-settled` when the scope or the
- * acquisition is closed, a conflict when the key holds another resource, unchanged when it holds
- * this one.
- */
 function reserve(
   state: EnvironmentState | null,
   scopeClosed: boolean,
@@ -221,10 +204,6 @@ function planAnswer(result: Outcome<EnvironmentState, ToolFailure>) {
   return result.failure.kind === 'not-settled' ? 'closed' : 'unavailable'
 }
 
-/**
- * The take-over decision of `key` (`TakeCommit`): `held` when the scope adopted it already, else
- * the entry for an active reservation of an open acquisition in an open scope.
- */
 function takeDecision(
   key: string,
   taken: RetainedResourceFact['taken'],
@@ -277,12 +256,6 @@ export async function createRetainedTerminalLedger(
   const initial = await input.state.readRetention(input.address, input.scope)
   if ('ok' in initial && initial.ok?.phase === 'closed') controller.abort()
 
-  /**
-   * The take-over of this call's reservation `key`: one commit of the scope's record, decided on
-   * the creating acquisition and the scope. A process the scope adopted already answers
-   * `confirmed` without a write, so a repeated `adopt` is the query for a lost answer. A closed scope, a
-   * closed acquisition and a settled original call answer `closed`.
-   */
   async function takeOver(
     key: string,
     taken: RetainedResourceFact['taken'],
@@ -298,7 +271,6 @@ export async function createRetainedTerminalLedger(
     return result.failure.kind === 'not-settled' ? 'closed' : 'unavailable'
   }
 
-  /** A stop of a key the scope holds (`StopCommit`): the creator's facts first when confirmed. */
   async function stopHeld(
     held: RetainedResourceFact,
     key: string,
@@ -317,10 +289,6 @@ export async function createRetainedTerminalLedger(
     return 'ok' in stopped ? 'recorded' : 'unavailable'
   }
 
-  /**
-   * A stop of this call's own reservation (`CreatorStopCommit`). A key the scope took over after
-   * the read is the scope's to record.
-   */
   async function stopOwn(
     key: string,
     status: 'confirmed' | 'unconfirmed',
@@ -344,11 +312,6 @@ export async function createRetainedTerminalLedger(
 
   const ledger: RetainedTerminalLedgerView = {
     closed: controller.signal,
-    /**
-     * The reservation goes into this call's own acquisition record, never into the scope. The
-     * write decides on the scope's record and asserts its revision: a closed scope answers
-     * `closed` and nothing is written.
-     */
     async plan(resource) {
       const bound = await binding()
       if (!bound) return 'unavailable'
@@ -366,13 +329,6 @@ export async function createRetainedTerminalLedger(
     },
     permit: key => takeOver(key, 'permitted'),
     adopt: key => takeOver(key, 'adopted'),
-    /**
-     * A key the scope took over belongs to the scope, so any view of the scope records its stop:
-     * after a provider restart no view of the creating call exists. A confirmed stop first writes
-     * the creator's own facts for the key, then removes the entry in one commit of the scope.
-     * A reservation the scope did not take over is the creating call's: its view records the stop
-     * in its own record, whether or not the scope is closed.
-     */
     async stopped(key, status) {
       if (!(await binding())) return 'unavailable'
       const current = await input.state.readRetention(input.address, input.scope)
@@ -381,7 +337,6 @@ export async function createRetainedTerminalLedger(
       return held ? stopHeld(held, key, status) : stopOwn(key, status)
     },
     ended: key => input.state.readEnded(input.address, input.scope, key),
-    /** Marks the scope closed: nothing is taken over any more; what it took over stays. */
     async close() {
       if (!(await binding())) return 'unavailable'
       const result = await input.state.closeRetention(input.address, input.scope)

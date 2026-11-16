@@ -7,7 +7,6 @@ import { consumerShape, requestShape } from './request-shape.ts'
 export { MODEL_INPUT_LIMITS } from './input-tree.ts'
 
 export type ModelInputRejection = Readonly<{
-  /** JSON Pointer containing only known fields and indices. The root is the empty string. */
   field: string
   reason:
     | 'type'
@@ -85,14 +84,12 @@ function copyAdmitPayload(
   return succeed(payload)
 }
 
-/** Synchronous snapshot before any consumer can queue or await. Access stays opaque. */
 export function judgeAdmit<P>(
   value: ModelAdmitCandidate<P>,
 ): Outcome<Admit<P>, ModelInputRejection> {
   const captured = captureAdmitFields(value)
   if ('failure' in captured) return captured
   const fields = captured.ok
-  // The typed Access supplies P. Its captured own data value is retained without traversal.
   const principal: P = fields.principal?.value
   const tenant: ModelAdmitCandidate<P>['tenant'] = fields.tenant?.value
   if (!tenantCodec.encode(tenant).ok) return rejected('/tenant', 'identity')

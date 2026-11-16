@@ -1,5 +1,3 @@
-// The identity port the pipeline asks (RFC-0015 §5 AccessIdentity). It fails in two ways only, and
-// a result is told apart by its `outcome`, because the login and the principal are opaque.
 import { expectTypeOf, test } from 'vitest'
 import type {
   AccessIdentity,

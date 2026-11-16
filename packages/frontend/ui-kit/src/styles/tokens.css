@@ -1,0 +1,421 @@
+@property --omne-ring-room {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
+:root {
+  color-scheme: light dark;
+
+  --omne-motion-feedback: 120ms;
+  --omne-motion-state: 180ms;
+  --omne-motion-enter: 240ms;
+  --omne-motion-exit: 140ms;
+  --omne-motion-layout: 300ms;
+  --omne-motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --omne-motion-ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --omne-motion-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --omne-motion-ease-glide: cubic-bezier(0.61, 1, 0.88, 1);
+  --omne-motion-glyph-swing: 480ms;
+  --omne-motion-ease-swing: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --omne-motion-glyph-stagger: 160ms;
+
+  --omne-motion-sketch-stagger: 60ms;
+  --omne-motion-ordinal: 0;
+
+  --omne-motion-activity: 1.5s;
+  --omne-motion-shimmer: 1.4s;
+  --omne-motion-ease-loop: linear;
+
+  --omne-motion-spirit-flow: 2.6s;
+  --omne-motion-spirit-dwell: 2000ms;
+  --omne-glyph-tilt: -4deg;
+  --omne-glyph-turn: 20deg;
+  --omne-glyph-drift: 1.5px;
+  --omne-glyph-stub: 0.85;
+
+  --kami-page: light-dark(#f5f4ed, #1c1c19);
+  --kami-canvas: light-dark(#e8e6dc, #141413);
+  --kami-surface: light-dark(#faf9f5, #252521);
+  --kami-inset: light-dark(#eeece3, #171714);
+  --kami-hover: light-dark(#e8e6dc, #30302b);
+  --kami-hover-2: light-dark(#dedcd0, #3b3b34);
+  --kami-ink: light-dark(#141413, #eceadf);
+  --kami-ink-2: light-dark(#504e49, #c5c2b7);
+  --kami-ink-3: light-dark(#6b6a64, #aaa69a);
+  --kami-line: light-dark(#e5e3d8, #393931);
+  --kami-line-strong: light-dark(#8e8b80, #807b6c);
+  --kami-line-soft: light-dark(#eeece3, #2d2d27);
+  --kami-field: light-dark(#faf9f5, #292924);
+  --kami-stripe: light-dark(#e8e6dc, #30302b);
+  --kami-stripe-bg: light-dark(#f0eee6, #252521);
+  --kami-accent: light-dark(#1b365d, #9bb8d8);
+  --kami-accent-ink: light-dark(#1b365d, #b1c8e2);
+  --kami-accent-hover: light-dark(#142b4b, #b1c8e2);
+  --kami-accent-press: light-dark(#0f2139, #c6d7ea);
+  --kami-accent-tint: light-dark(#e4ecf5, #283442);
+  --kami-green: light-dark(#3e6149, #a4c39f);
+  --kami-green-tint: light-dark(#e5ebdf, #2b372b);
+  --kami-orange: light-dark(#79562a, #dfbf87);
+  --kami-orange-tint: light-dark(#f0e8d7, #3c3324);
+  --kami-red: light-dark(#963f36, #e1a094);
+  --kami-red-tint: light-dark(#f0e0d8, #402a27);
+  --kami-tooltip-bg: light-dark(#30302e, #eeece3);
+  --kami-tooltip-fg: light-dark(#faf9f5, #141413);
+  --kami-tooltip-muted: light-dark(#c0beb3, #504e49);
+  --kami-tooltip-border: light-dark(#504e49, #b6b2a5);
+  --kami-white: light-dark(#faf9f5, #faf9f5);
+  --kami-shadow: light-dark(#141413, #141413);
+  --kami-on-accent: light-dark(#faf9f5, #172332);
+  --kami-on-danger: light-dark(#faf9f5, #301b18);
+  --kami-bubble-user: light-dark(#e4ecf5, #293645);
+  --kami-bubble-assistant: light-dark(#faf9f5, #252521);
+  --kami-bubble-ink: light-dark(#1b365d, #d1dfed);
+  --kami-sidebar-selected: light-dark(#dedcd0, #33332c);
+  --kami-focus: light-dark(#1b365d, #9bb8d8);
+}
+
+:root,
+.omne-size-standard {
+  --omne-size: 1;
+
+  --spacing: 4px;
+
+  --omne-text-caption: 12px;
+  --omne-text-ui: 14px;
+  --omne-text-body: 16px;
+  --omne-text-lead: 20px;
+  --omne-text-title: 24px;
+  --omne-text-display: 32px;
+
+  --omne-leading-ui: 1.4;
+  --omne-leading-wrapped: 1.5;
+  --omne-leading-reading: 1.55;
+  --omne-leading-title: 1.3;
+  --omne-control-height: 32px;
+  --omne-control-height-large: 36px;
+  --omne-control-height-touch: 40px;
+  --omne-control-height-compact: 28px;
+
+  --omne-icon-compact: 14px;
+  --omne-icon-label: 16px;
+  --omne-icon-face: 18px;
+
+  --omne-chip-height: 22px;
+
+  --omne-nav-row-height: 40px;
+
+  --omne-row-padding: 10px 12px;
+  --omne-ring-width: 2px;
+  --omne-ring-offset: 2px;
+  --omne-ring-room: calc(var(--omne-ring-width) + var(--omne-ring-offset));
+  --omne-radius-chip: 6px;
+  --omne-radius-control: 8px;
+  --omne-radius-card: 8px;
+  --omne-radius-window: 12px;
+  --omne-radius-pill: 999px;
+  --omne-sidebar-width: 272px;
+  --omne-sidebar-rail-width: 64px;
+  --omne-space-inline: 8px;
+  --omne-space-block: 16px;
+  --omne-space-section: 24px;
+  --omne-space-page: 32px;
+  --omne-measure-decision: 600px;
+
+  --omne-measure-reading: 70ch;
+
+  --omne-bubble-padding: 12px 16px;
+}
+
+:root[data-size='small'] {
+  --omne-size: 0.75;
+  --spacing: 3px;
+  --omne-text-caption: 10px;
+  --omne-text-ui: 11px;
+  --omne-text-body: 12px;
+  --omne-text-lead: 15px;
+  --omne-text-title: 18px;
+  --omne-text-display: 24px;
+  --omne-leading-ui: 1.45;
+  --omne-leading-wrapped: 1.55;
+  --omne-leading-reading: 1.6;
+  --omne-leading-title: 1.35;
+  --omne-control-height: 26px;
+  --omne-control-height-large: 28px;
+  --omne-control-height-touch: 32px;
+  --omne-control-height-compact: 24px;
+  --omne-icon-compact: 11px;
+  --omne-icon-label: 12px;
+  --omne-icon-face: 14px;
+  --omne-chip-height: 18px;
+  --omne-nav-row-height: 30px;
+  --omne-row-padding: 8px 9px;
+  --omne-radius-chip: 5px;
+  --omne-radius-control: 6px;
+  --omne-radius-card: 6px;
+  --omne-radius-window: 9px;
+
+  --omne-sidebar-width: 216px;
+  --omne-sidebar-rail-width: 48px;
+  --omne-space-inline: 6px;
+  --omne-space-block: 12px;
+  --omne-space-section: 18px;
+  --omne-space-page: 24px;
+  --omne-measure-decision: 450px;
+  --omne-bubble-padding: 9px 12px;
+}
+
+:root[data-size='large'] {
+  --omne-size: 1.25;
+  --spacing: 5px;
+  --omne-text-caption: 15px;
+  --omne-text-ui: 17px;
+  --omne-text-body: 20px;
+  --omne-text-lead: 25px;
+  --omne-text-title: 30px;
+  --omne-text-display: 40px;
+  --omne-control-height: 40px;
+  --omne-control-height-large: 45px;
+  --omne-control-height-touch: 50px;
+  --omne-control-height-compact: 35px;
+  --omne-icon-compact: 17px;
+  --omne-icon-label: 20px;
+  --omne-icon-face: 22px;
+  --omne-chip-height: 27px;
+  --omne-nav-row-height: 50px;
+  --omne-row-padding: 12px 15px;
+  --omne-ring-offset: 2px;
+  --omne-radius-chip: 7px;
+  --omne-radius-control: 10px;
+  --omne-radius-card: 10px;
+  --omne-radius-window: 15px;
+  --omne-sidebar-width: 320px;
+  --omne-sidebar-rail-width: 80px;
+  --omne-space-inline: 10px;
+  --omne-space-block: 20px;
+  --omne-space-section: 30px;
+  --omne-space-page: 40px;
+  --omne-measure-decision: 750px;
+  --omne-bubble-padding: 15px 20px;
+}
+
+:root[data-size='reading'] {
+  --omne-size: 1.5;
+  --spacing: 6px;
+  --omne-text-caption: 18px;
+  --omne-text-ui: 21px;
+  --omne-text-body: 24px;
+  --omne-text-lead: 30px;
+  --omne-text-title: 36px;
+  --omne-text-display: 48px;
+  --omne-control-height: 48px;
+  --omne-control-height-large: 54px;
+  --omne-control-height-touch: 60px;
+  --omne-control-height-compact: 42px;
+  --omne-icon-compact: 21px;
+  --omne-icon-label: 24px;
+  --omne-icon-face: 27px;
+  --omne-chip-height: 33px;
+  --omne-nav-row-height: 60px;
+  --omne-row-padding: 15px 18px;
+  --omne-ring-width: 3px;
+  --omne-ring-offset: 3px;
+  --omne-radius-chip: 9px;
+  --omne-radius-control: 12px;
+  --omne-radius-card: 12px;
+  --omne-radius-window: 18px;
+  --omne-sidebar-width: 360px;
+  --omne-sidebar-rail-width: 96px;
+  --omne-space-inline: 12px;
+  --omne-space-block: 24px;
+  --omne-space-section: 36px;
+  --omne-space-page: 48px;
+  --omne-measure-decision: 900px;
+  --omne-bubble-padding: 18px 24px;
+}
+
+:root {
+  --omne-surface-page: var(--kami-page);
+  --omne-surface-panel: var(--kami-surface);
+  --omne-surface-panel-soft: var(--kami-inset);
+  --omne-surface-overlay: var(--kami-surface);
+  --omne-surface-field: var(--kami-field);
+  --omne-hover: var(--kami-hover);
+  --omne-press: var(--kami-hover-2);
+
+  --omne-selected: var(--kami-hover-2);
+
+  --omne-accent: var(--kami-accent);
+  --omne-accent-hover: var(--kami-accent-hover);
+  --omne-accent-press: var(--kami-accent-press);
+  --omne-accent-ink: var(--kami-on-accent);
+  --omne-accent-disabled: var(--kami-hover-2);
+  --omne-accent-ink-disabled: var(--kami-ink-3);
+
+  --omne-ink-primary: var(--kami-ink);
+  --omne-ink-muted: var(--kami-ink-2);
+  --omne-ink-faint: var(--kami-ink-3);
+
+  --omne-line-subtle: var(--kami-line);
+  --omne-line: var(--kami-line-strong);
+  --omne-line-focus: var(--kami-focus);
+
+  --omne-caution-ink: var(--kami-orange);
+  --omne-caution-fill: var(--kami-orange-tint);
+  --omne-caution-line: var(--kami-orange);
+  --omne-danger-ink: var(--kami-red);
+  --omne-danger-fill: var(--kami-red-tint);
+  --omne-danger-line: var(--kami-red);
+  --omne-danger-foreground: var(--kami-on-danger);
+
+  --omne-danger-hover: color-mix(in srgb, var(--omne-danger-ink) 86%, var(--omne-ink-primary));
+  --omne-danger-press: color-mix(in srgb, var(--omne-danger-ink) 72%, var(--omne-ink-primary));
+  --omne-good-ink: var(--kami-green);
+  --omne-good-fill: var(--kami-green-tint);
+  --omne-good-line: var(--kami-green);
+  --omne-info-ink: var(--kami-accent-ink);
+  --omne-info-fill: var(--kami-accent-tint);
+  --omne-info-line: var(--kami-accent);
+
+  --omne-avatar-slate: light-dark(#344452, #bccbd8);
+  --omne-avatar-blue: light-dark(#275181, #a6c9f2);
+  --omne-avatar-teal: light-dark(#245a56, #9dd6cf);
+  --omne-avatar-green: light-dark(#3a562d, #b7d6a8);
+  --omne-avatar-amber: light-dark(#75511a, #ebcb8b);
+  --omne-avatar-rose: light-dark(#823c50, #e7b2c0);
+  --omne-avatar-violet: light-dark(#5c447d, #cbb5e6);
+
+  --omne-bubble-user: var(--kami-bubble-user);
+  --omne-bubble-assistant: var(--kami-bubble-assistant);
+  --omne-bubble-ink: var(--kami-bubble-ink);
+
+  --omne-elevation-hairline: 0 0 0 1px var(--kami-line);
+  --omne-elevation-control: 0 0 0 1px var(--kami-line-strong);
+  --omne-elevation-raised:
+    0 0 0 1px var(--kami-line), 0 8px 24px color-mix(in srgb, var(--kami-shadow) 12%, transparent);
+  --omne-elevation-overlay:
+    0 0 0 1px var(--kami-line), 0 12px 32px color-mix(in srgb, var(--kami-shadow) 18%, transparent);
+  --omne-overlay: color-mix(in srgb, var(--kami-shadow) 40%, transparent);
+
+  --omne-tooltip: var(--kami-tooltip-bg);
+  --omne-tooltip-ink: var(--kami-tooltip-fg);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: var(--omne-font-ui);
+  --font-serif: var(--omne-font-reading);
+  --font-mono: var(--omne-font-mono);
+  --font-weight-medium: var(--omne-weight-strong);
+  --font-weight-semibold: var(--omne-weight-strong);
+  --font-weight-bold: var(--omne-weight-heading);
+
+  --color-surface-page: var(--omne-surface-page);
+  --color-surface-panel: var(--omne-surface-panel);
+  --color-surface-panel-soft: var(--omne-surface-panel-soft);
+  --color-surface-overlay: var(--omne-surface-overlay);
+  --color-surface-field: var(--omne-surface-field);
+  --color-hover: var(--omne-hover);
+  --color-press: var(--omne-press);
+  --color-selected: var(--omne-selected);
+
+  --color-accent: var(--omne-accent);
+  --color-accent-hover: var(--omne-accent-hover);
+  --color-accent-press: var(--omne-accent-press);
+  --color-accent-ink: var(--omne-accent-ink);
+  --color-accent-disabled: var(--omne-accent-disabled);
+  --color-accent-ink-disabled: var(--omne-accent-ink-disabled);
+
+  --color-ink-primary: var(--omne-ink-primary);
+  --color-ink-muted: var(--omne-ink-muted);
+  --color-ink-faint: var(--omne-ink-faint);
+
+  --color-line-subtle: var(--omne-line-subtle);
+  --color-line: var(--omne-line);
+  --color-line-focus: var(--omne-line-focus);
+
+  --color-caution-ink: var(--omne-caution-ink);
+  --color-caution-fill: var(--omne-caution-fill);
+  --color-caution-line: var(--omne-caution-line);
+  --color-danger-ink: var(--omne-danger-ink);
+  --color-danger-fill: var(--omne-danger-fill);
+  --color-danger-line: var(--omne-danger-line);
+  --color-danger-foreground: var(--omne-danger-foreground);
+  --color-danger-hover: var(--omne-danger-hover);
+  --color-danger-press: var(--omne-danger-press);
+  --color-good-ink: var(--omne-good-ink);
+  --color-good-fill: var(--omne-good-fill);
+  --color-good-line: var(--omne-good-line);
+  --color-info-ink: var(--omne-info-ink);
+  --color-info-fill: var(--omne-info-fill);
+  --color-info-line: var(--omne-info-line);
+
+  --color-bubble-user: var(--omne-bubble-user);
+  --color-tooltip: var(--omne-tooltip);
+  --color-tooltip-ink: var(--omne-tooltip-ink);
+  --color-overlay: var(--omne-overlay);
+  --color-avatar-slate: var(--omne-avatar-slate);
+  --color-avatar-blue: var(--omne-avatar-blue);
+  --color-avatar-teal: var(--omne-avatar-teal);
+  --color-avatar-green: var(--omne-avatar-green);
+  --color-avatar-amber: var(--omne-avatar-amber);
+  --color-avatar-rose: var(--omne-avatar-rose);
+  --color-avatar-violet: var(--omne-avatar-violet);
+
+  --shadow-hairline: var(--omne-elevation-hairline);
+  --shadow-control: var(--omne-elevation-control);
+  --shadow-raised: var(--omne-elevation-raised);
+  --shadow-overlay: var(--omne-elevation-overlay);
+
+  --radius-chip: var(--omne-radius-chip);
+  --radius-control: var(--omne-radius-control);
+  --radius-card: var(--omne-radius-card);
+  --radius-window: var(--omne-radius-window);
+  --radius-pill: var(--omne-radius-pill);
+  --radius-xs: var(--omne-radius-chip);
+  --radius-sm: var(--omne-radius-chip);
+  --radius-md: var(--omne-radius-control);
+  --radius-lg: var(--omne-radius-card);
+  --radius-xl: var(--omne-radius-window);
+
+  --default-transition-duration: var(--omne-motion-feedback);
+  --default-transition-timing-function: var(--omne-motion-ease);
+  --ease-standard: var(--omne-motion-ease);
+  --ease-enter: var(--omne-motion-ease-enter);
+  --ease-exit: var(--omne-motion-ease-exit);
+  --animate-fade-up: omne-fade-up var(--omne-motion-enter) var(--omne-motion-ease-enter) both;
+  --animate-shimmer-text: omne-shimmer-text var(--omne-motion-shimmer) var(--omne-motion-ease-loop)
+    infinite;
+}
+
+@theme inline {
+  --text-micro: var(--omne-text-caption);
+  --text-micro--line-height: var(--omne-leading-ui);
+  --text-xs: var(--omne-text-caption);
+  --text-xs--line-height: var(--omne-leading-ui);
+  --text-sm: var(--omne-text-ui);
+  --text-sm--line-height: var(--omne-leading-ui);
+  --text-base: var(--omne-text-body);
+  --text-base--line-height: var(--omne-leading-reading);
+  --text-lg: var(--omne-text-lead);
+  --text-lg--line-height: var(--omne-leading-title);
+  --text-xl: var(--omne-text-lead);
+  --text-xl--line-height: var(--omne-leading-title);
+  --text-2xl: var(--omne-text-title);
+  --text-2xl--line-height: var(--omne-leading-title);
+  --text-3xl: var(--omne-text-display);
+  --text-3xl--line-height: var(--omne-leading-title);
+
+  --leading-*: initial;
+  --leading-ui: var(--omne-leading-ui);
+  --leading-wrapped: var(--omne-leading-wrapped);
+  --leading-reading: var(--omne-leading-reading);
+  --leading-title: var(--omne-leading-title);
+}

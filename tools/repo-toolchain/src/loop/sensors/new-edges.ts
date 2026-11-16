@@ -1,16 +1,13 @@
-// 相对基线新增的跨成员依赖：当前图与基线合并点上的图都由 dependency-cruiser 算，这里只比边集。
 import type { ImportSite, MemberEdge } from '../../deps/graph.ts'
 
 export interface EdgeChange {
   readonly from: string
   readonly to: string
-  /** 第一个导入处：新增的取当前的，消失的取合并点上的。 */
   readonly site: ImportSite | undefined
 }
 
 export interface EdgeDelta {
   readonly added: readonly EdgeChange[]
-  /** 参考：基线上有、现在没有的边。 */
   readonly removed: readonly EdgeChange[]
 }
 

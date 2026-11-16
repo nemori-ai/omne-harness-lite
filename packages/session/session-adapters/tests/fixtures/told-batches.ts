@@ -1,0 +1,16 @@
+export const TOLD_BATCHES: readonly (readonly string[])[] = [
+  ['run.batch-taken', 'history.annotated'],
+  ['call.bound', 'extension.passage', 'history.annotated'],
+  ['call.execution-fact', 'account.linked', 'entries.interpreted'],
+  ['call.execution-fact', 'history.annotated'],
+  ['message.assistant'],
+  ['call.bound', 'extension.passage', 'history.annotated'],
+  ['call.execution-fact', 'entries.interpreted'],
+  ['call.execution-fact', 'history.annotated'],
+  ['message.tool'],
+  ['call.bound', 'extension.passage', 'history.annotated'],
+  ['call.execution-fact', 'account.linked', 'entries.interpreted'],
+  ['call.execution-fact', 'history.annotated'],
+  ['message.assistant'],
+  ['run.attempt-released', 'run.terminal', 'history.annotated'],
+]

@@ -1,7 +1,6 @@
 import type { CalendarEnvironmentReader } from '@omne-harness/calendar'
 import type { SchedulePredictionEnvironmentReader } from '@omne-harness/schedule'
 
-/** This projection carries an observation, not a guard for a later command. */
 export function createScheduleCalendarEnvironment(
   environment: CalendarEnvironmentReader,
 ): SchedulePredictionEnvironmentReader {

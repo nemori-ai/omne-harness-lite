@@ -1,6 +1,3 @@
-// The storage under the session service in a test: a public port and a delegated entry over one
-// store, built with the access check of the test so that the service and the port share it. The
-// in-memory pair of session-contract is here; the real SQL pair is in `sql.ts`.
 import type {
   GuardCommand,
   SessionAccessCheck,
@@ -28,7 +25,6 @@ export type Backend = Readonly<{
   name: string
   transactions: SessionTransactionPort<string>
   delegated: SessionDelegatedTransactions<string>
-  /** The initialization material this store accepts for `command`, as the evidence bridge hands it over. */
   initializationGuards(command: InitializationCommand): Promise<readonly GuardCommand[]>
   dispose(): Promise<void>
 }>
@@ -38,7 +34,6 @@ export type BackendFactory = Readonly<{
   open(accessCheck: SessionAccessCheck<string>): Promise<Backend>
 }>
 
-/** The adopted fixture facts of a create, as the initialization source of the assembly gives them. */
 export function fixtureInitializationGuard(command: InitializationCommand): GuardCommand {
   if (command.kind !== 'create') throw new Error('the fixture registers create only')
   return initializationFixtureGuard(

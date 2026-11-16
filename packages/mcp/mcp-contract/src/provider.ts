@@ -1,5 +1,3 @@
-// The `./provider` entry: the five requirement ports, the transport port and the transport
-// factory, for their implementers. Types that the root entry already exports are not repeated.
 export type {
   AdoptedEndpoint,
   AdoptionView,

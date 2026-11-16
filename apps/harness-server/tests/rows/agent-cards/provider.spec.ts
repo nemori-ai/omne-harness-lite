@@ -1,8 +1,3 @@
-// The DecisionCards provider over HITL (tmp design 08a, the mapping table), against doubles of the
-// HITL application, the host and the session read: which HITL calls each port operation makes, in
-// which order, and how each HITL answer maps to the answer of the port. The principals come from
-// the real in-process issuer. The real store behind HITL is covered by human-intervention-local
-// (`agent-origins.spec.ts`).
 import { describe, expect, it } from 'vitest'
 import {
   admissionPassageOf,

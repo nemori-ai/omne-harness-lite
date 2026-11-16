@@ -1,10 +1,4 @@
 // @module-tag slow
-// AC-1 (identity spec, second half): the identity governance contract suite on the persistent
-// provider over the real SQLite provider. Slow: every case opens a new storage deployment with its
-// Worker threads, and the restart cases close it and open the same files again. The fixture injects
-// the suite's record store faults and restarts, so no case is not applicable. The configurations
-// are those of the reference double's test file (packages/identity/identity/tests/
-// governance-contract.spec.ts).
 import { afterAll, describe, expect, it } from 'vitest'
 import {
   IDENTITY_GOVERNANCE_CONTRACT_CASES,

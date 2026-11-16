@@ -1,12 +1,3 @@
-// One ready preparation that the real agent-context makes (FIXED-FACTS F3): `createAgentRequests`
-// fixes a candidate of the real Request Context registry, so `ready.state` is the fixed request
-// record and `ready.coverage` the coverage evidence that agent-context mints, with its own
-// canonical text and digest. The tests of this member hand the two to AD-04 as the `a` part, so
-// the digest check of AD-04 meets the evidence agent-context really makes. Real: agent-context,
-// the Request Context registry with the default strategies, the Runtime Context mechanism. Doubles:
-// the history and adoption sources of request-context-contract, the holder parts, the reader
-// eligibility handoff and the Model request preparation. The world follows the one of the
-// agent-context tests, cut to what one ready preparation needs.
 import {
   decodeActionId,
   decodeAgentExecutionId,
@@ -76,12 +67,10 @@ const authority = () => ({
 })
 
 export type AgentContextReady = Readonly<{
-  /** The target agent-context fixed the request for: the tenant given, the fixture scope. */
   target: ContextTarget
   ready: Extract<Preparation, { kind: 'ready' }>
 }>
 
-/** One main-purpose ready preparation of agent-context for `tenant`. */
 export async function agentContextReady(tenant: TenantId): Promise<AgentContextReady> {
   const f = createAssemblyFixture({
     tenant,
@@ -104,7 +93,6 @@ export async function agentContextReady(tenant: TenantId): Promise<AgentContextR
         : { kind: 'invalid', field: 'evidence', reason: 'unknown-epoch' },
   }
 
-  // Runtime Context: the real mechanism, its scope bound to the tenant, one model eligibility.
   const ports = createTestAuthorityPorts<string>()
   const rc = createRuntimeContext<string>({ trust: ports })
   ports.bind(f.target.scope, tenant)
@@ -141,14 +129,12 @@ export async function agentContextReady(tenant: TenantId): Promise<AgentContextR
     ],
   })
 
-  // Request Context: the real registry with the default strategies.
   const registry = createContextSourceRegistry<string>({
     principalBinding: createTestingPrincipalBinding<string>(),
     registrationAuthority: { check: async () => ({ kind: 'allowed' }) },
     policies: f.policies,
   })
 
-  // Model: the request preparation double, planned for every input as it arrives.
   const transport = createScriptedTransport({
     receipt: { supplier: owner, representation: owner, payloadDigest: 'none' },
     facts: [],

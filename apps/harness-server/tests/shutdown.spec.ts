@@ -1,11 +1,9 @@
-// 有序关闭（s0-spec-r2 §9）：登记服务与关闭协调器。句柄是替身，时钟是注入的假时钟；
-// 撤除与换代用例经真实 Cordis 4.0.4 的 fiber。末尾的 B-7 在本进程跑一次 `runServe`，看关闭之后的 stdout 封口。
 import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { stubPlugin } from '../src/cordis.ts'
 import { defineRow } from '../src/row.ts'
 import { serveOnce } from './fixtures/serve/harness.ts'
-import { TELEMETRY_ROW_CONFIG } from './rows/server-entry/support.ts'
+import { TELEMETRY_ROW_CONFIG } from './support/listening.ts'
 import {
   LifecycleRefusedError,
   LifecycleRegistry,
@@ -30,11 +28,10 @@ const EXPECTED = new Map<RowId, LifecyclePhase>([
   [row('storage'), 'storage'],
 ])
 
-/** 手动推进的单调时钟；`after(ms <= 0)` 在下一个宏任务触发，让同步可得的结果先到。 */
 function fakeClock() {
   let current = 0
   const timers: { at: number; fire: () => void; live: boolean }[] = []
-  const delays: number[] = [] // 每次 after 收到的参数
+  const delays: number[] = []
   const clock: ShutdownClock & { advance(ms: number): void; delays: number[] } = {
     delays,
     now: () => current,
@@ -116,7 +113,6 @@ function setup(calls: Calls, handles: readonly LifecycleHandle[], clock: FakeClo
 describe('X-1 关闭次序', () => {
   it('接入 → 业务 → 会话存储组合 → 存储 → 报告确定 → assemblyReportSettled → 撤除根', async () => {
     const calls: Calls = []
-    // 倒序登记，证明次序来自阶段而不是登记次序。
     const { run } = setup(calls, fullSet(calls).reverse())
     const report = await run()
     expect(calls.filter(c => !c.startsWith('log:stop'))).toEqual([
@@ -194,13 +190,11 @@ describe('X-1 关闭次序', () => {
       stopsFirst: new Map([[row('provider'), [row('consumer')]]]),
     })
     await flush()
-    // The row without a relation stops at once; the provider waits for its consumer.
     expect(calls).toEqual(['stop:consumer', 'stop:other'])
     release()
     const report = await done
     expect(calls).toEqual(['stop:consumer', 'stop:other', 'stop:provider'])
     expect(report.overall).toBe('settled')
-    // The report keeps the order of the expected rows.
     expect(report.outcomes.map(outcome => outcome.row)).toEqual(['consumer', 'provider', 'other'])
   })
 
@@ -251,7 +245,7 @@ describe('X-1 关闭次序', () => {
   })
 })
 
-describe('X-1b 同一阶段内的停止次序由行清单推出', () => {
+describe('同一阶段内的停止次序由行清单推出', () => {
   const spec = (
     id: string,
     phase: LifecyclePhase | null,
@@ -324,7 +318,6 @@ describe('X-2 期限', () => {
       'stop:session-storage',
       'stop:storage',
     ])
-    // 超时写入报告，不是只留在日志里。
     expect(JSON.stringify(report)).toContain('deadline')
     expect(records.length).toBeGreaterThan(0)
   })
@@ -344,7 +337,7 @@ describe('X-2 期限', () => {
     )
     const done = run()
     await flush()
-    clock.advance(DEADLINE_MS) // 只推进一次：D 一到，之后各阶段的计时器都已过期
+    clock.advance(DEADLINE_MS)
     const report = await done
     expect(report.overall).toBe('incomplete')
     expect(clock.delays[0]).toBe(DEADLINE_MS)
@@ -424,7 +417,6 @@ describe('X-5 关闭前撤除', () => {
     const outcome = report.outcomes.find(o => o.row === 'session-storage')
     expect(outcome).toMatchObject({ result: { kind: 'disposed-before-stop' } })
     expect(report.overall).toBe('incomplete')
-    // 撤除时 disposer 发起了一次停止，结果作诊断；协调者没有再调用它。
     expect(calls.filter(c => c === 'stop:session-storage')).toHaveLength(1)
     expect(outcome!.result).toMatchObject({ detail: expect.stringContaining('settled') })
   })
@@ -501,7 +493,131 @@ describe('X-8 迟到结果', () => {
   })
 })
 
-describe('N-7 登记准入', () => {
+describe('X-9 排空：业务阶段之前，先让有 drain 的行做完已经接到的工作', () => {
+  const DRAIN_MS = 5000
+
+  function draining(
+    calls: Calls,
+    drain: (deadline: number) => Promise<StopResult>,
+    clock: FakeClock = fakeClock(),
+    drainMs: number | null = DRAIN_MS,
+  ) {
+    const deadlines: Record<string, number> = {}
+    const modelHost = handle(
+      calls,
+      'agent-host',
+      'business',
+      async deadline => {
+        deadlines['stop'] = deadline
+        return { kind: 'settled' }
+      },
+      {
+        drain: async deadline => {
+          calls.push('drain:agent-host')
+          deadlines['drain'] = deadline
+          return drain(deadline)
+        },
+      },
+    )
+    const registry = new LifecycleRegistry({ expected: EXPECTED, clock, requestStop: () => {} })
+    for (const h of fullSet(calls, { 'agent-host': modelHost })) registry.add(h)
+    const run = () =>
+      runShutdown(registry, EXPECTED, DEADLINE_MS, clock, drainMs === null ? {} : { drainMs })
+    return { run, clock, deadlines }
+  }
+
+  it('drain 排在入口阶段之后、任何业务行的 stop 之前，结果进报告', async () => {
+    const calls: Calls = []
+    const { run } = draining(calls, async () => ({ kind: 'settled' }))
+    const report = await run()
+    expect(calls).toEqual([
+      'stop:server-entry',
+      'drain:agent-host',
+      'stop:agent-host',
+      'stop:session-storage',
+      'stop:storage',
+      'report-settled',
+    ])
+    expect(report.drains).toEqual([{ row: 'agent-host', result: { kind: 'settled' } }])
+    expect(report.overall).toBe('settled')
+  })
+
+  it('drain 没结束之前，业务行的 stop 不被调用', async () => {
+    const calls: Calls = []
+    let finish: (r: StopResult) => void = () => {}
+    const { run } = draining(calls, () => new Promise<StopResult>(r => (finish = r)))
+    const done = run()
+    await flush()
+    expect(calls).toEqual(['stop:server-entry', 'drain:agent-host'])
+    finish({ kind: 'settled' })
+    await done
+    expect(calls).toContain('stop:agent-host')
+  })
+
+  it('排空用掉的时间不从 D 里扣：之后各阶段的截止时间顺延', async () => {
+    const calls: Calls = []
+    let finish: (r: StopResult) => void = () => {}
+    const { run, clock, deadlines } = draining(
+      calls,
+      () => new Promise<StopResult>(r => (finish = r)),
+    )
+    const done = run()
+    await flush()
+    clock.advance(3000)
+    finish({ kind: 'settled' })
+    const report = await done
+    expect(deadlines['drain']).toBe(DRAIN_MS)
+    expect(deadlines['stop']).toBe(DEADLINE_MS + 3000)
+    expect(report.overall).toBe('settled')
+  })
+
+  it('到排空期限还没做完：记 incomplete，整体 incomplete，停止照常进行', async () => {
+    const calls: Calls = []
+    const { run, clock } = draining(calls, () => new Promise<StopResult>(() => {}))
+    const done = run()
+    await flush()
+    clock.advance(DRAIN_MS)
+    const report = await done
+    expect(report.drains).toEqual([
+      { row: 'agent-host', result: { kind: 'incomplete', detail: 'drain deadline reached' } },
+    ])
+    expect(report.overall).toBe('incomplete')
+    expect(report.outcomes.map(o => o.result.kind)).toEqual([
+      'settled',
+      'settled',
+      'settled',
+      'settled',
+    ])
+  })
+
+  it('drain 如实答没做完：照它的话记，整体 incomplete', async () => {
+    const calls: Calls = []
+    const { run } = draining(calls, async () => ({ kind: 'incomplete', detail: '1 call' }))
+    const report = await run()
+    expect(report.drains?.[0]?.result).toEqual({ kind: 'incomplete', detail: '1 call' })
+    expect(report.overall).toBe('incomplete')
+  })
+
+  it('drain 抛出：记 failed，停止照常进行', async () => {
+    const calls: Calls = []
+    const { run } = draining(calls, async () => {
+      throw new Error('boom')
+    })
+    const report = await run()
+    expect(report.drains?.[0]?.result).toEqual({ kind: 'failed', detail: 'boom' })
+    expect(calls).toContain('stop:storage')
+  })
+
+  it('没有给排空期限：不调用 drain，报告里没有这一项', async () => {
+    const calls: Calls = []
+    const { run } = draining(calls, async () => ({ kind: 'settled' }), fakeClock(), null)
+    const report = await run()
+    expect(calls).not.toContain('drain:agent-host')
+    expect(report.drains).toBeUndefined()
+  })
+})
+
+describe('登记准入', () => {
   const newRegistry = () =>
     new LifecycleRegistry({ expected: EXPECTED, clock: fakeClock(), requestStop: () => {} })
   const refusal = (fn: () => unknown) => {
@@ -563,7 +679,7 @@ describe('N-7 登记准入', () => {
   })
 })
 
-describe('N-3 运行期换代视为计划停止', () => {
+describe('运行期换代视为计划停止', () => {
   it('启动后提供者换代使登记行重跑：进入停止，不重新调用 start', async () => {
     const calls: Calls = []
     const clock = fakeClock()
@@ -601,8 +717,8 @@ describe('N-3 运行期换代视为计划停止', () => {
     await root.plugin(Dep)
     await flush()
 
-    expect(generation).toBe(2) // 本行确实重跑过
-    expect(starts).toEqual([1]) // 没有对新一代调用 start
+    expect(generation).toBe(2)
+    expect(starts).toEqual([1])
     expect(stopRequests).toHaveLength(1)
     expect(registry.state).toBe('stopping')
     expect(registry.liveRows()).toEqual([])
@@ -642,7 +758,7 @@ describe('N-3 运行期换代视为计划停止', () => {
   })
 })
 
-describe('X-5 启动期的停止状态与失败（§9 步骤 1、N-3，Reduce R-1、R-2）', () => {
+describe('X-5 启动期的停止状态与失败', () => {
   const startable = (calls: Calls, id: string, phase: LifecyclePhase, onStart?: () => void) =>
     handle(calls, id, phase, undefined, {
       start: async () => {
@@ -705,7 +821,7 @@ describe('X-5 启动期的停止状态与失败（§9 步骤 1、N-3，Reduce R-
     ])
     const registry = new LifecycleRegistry({ expected, clock: fakeClock(), requestStop: () => {} })
     const add = (id: string, phase: LifecyclePhase) => registry.add(startable(calls, id, phase))
-    add('e2', 'entry') // 倒序登记混入：阶段内以登记次序为准，阶段间以阶段为准
+    add('e2', 'entry')
     add('s1', 'storage')
     add('b1', 'business')
     add('s2', 'storage')
@@ -749,8 +865,7 @@ describe('X-5 启动期的停止状态与失败（§9 步骤 1、N-3，Reduce R-
   })
 })
 
-describe('B-7 stdout 在 shutdown-result 之后封口', () => {
-  /** 业务阶段的行：stop 在期限之后才结束。 */
+describe('stdout 在 shutdown-result 之后封口', () => {
   function lateStopRow(holdMs: number, done: () => void) {
     return defineRow({
       row: 'late-stop',
@@ -787,7 +902,6 @@ describe('B-7 stdout 在 shutdown-result 之后封口', () => {
     })
     const before = run.records.length
     await late
-    // 封口之后 stdout 没有新记录。
     expect(run.records).toHaveLength(before)
     expect(run.records.at(-1)?.kind).toBe('shutdown-result')
     const json = run.stderr

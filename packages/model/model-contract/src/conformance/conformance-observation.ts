@@ -1,5 +1,3 @@
-// The checks of observation: the stream starts from a snapshot, closing it does not stop the call,
-// a cut connection ends only the observation, and in-flight blocks show their accumulated value.
 import type { JsonValue } from '@omne-harness/json-text'
 import { compareOutputCursors } from '../identity-values.ts'
 import {
@@ -33,7 +31,6 @@ import {
 } from './conformance-kit.ts'
 import type { Check } from './conformance-types.ts'
 
-/** The tree form of the JSON document {"a":1}. */
 const ARGUMENTS: JsonValue = {
   kind: 'object',
   entries: [{ key: 'a', value: { kind: 'number', lexeme: '1' } }],

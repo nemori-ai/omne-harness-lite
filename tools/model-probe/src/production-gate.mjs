@@ -2,7 +2,6 @@ import { lstat, mkdir, open, realpath } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { openLedger } from './budget.mjs'
 
-/** Production verification never creates a replacement ledger or accepts an alternative path. */
 export async function openProductionLedger(path, approvedPath, budget, options) {
   const expected = await realpath(approvedPath)
   const actual = await realpath(path)
@@ -33,7 +32,6 @@ export async function writePrivateEvidence(path, source) {
     await file.close()
   }
 }
-/** A reservation must be durable before the sole effect. No automatic refund after cancellation. */
 export async function paidInvocation(ledger, reservation, invoke) {
   const id = await ledger.reserve(reservation)
   let receipt

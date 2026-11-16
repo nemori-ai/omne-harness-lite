@@ -142,7 +142,6 @@ async function* execute(
       return fail({ kind: 'not-started', reason: 'cancelled' })
     }
     const preparationResult = await preparation(
-      // An independent execution is one first dispatch: no message is resent.
       () => transport.prepare(request, supplier, { resent: [] }),
       'prepare',
     )

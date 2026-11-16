@@ -1,7 +1,3 @@
-// The send sources of the records row (`src/model/sources.ts`) name the official profiles the way
-// the real `model-profiles` row publishes them. The adoption digest rule is a copy of the member's
-// private rule; this file is the guard: every source's profile adoption equals the adoption the
-// real `ModelProfilesLocalPlugin` resolves for that route. A diverging rule turns it red.
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { modelProfilesKey } from '@omne-harness/model-cordis-contract/cordis'

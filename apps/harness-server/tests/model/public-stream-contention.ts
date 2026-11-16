@@ -1,11 +1,3 @@
-// Does taking the current stream often slow the Model call down? (#1214) Not in the release.
-// Usage, from apps/harness-server after `pnpm run build` of the member and of apps/cli:
-//   node tests/model/public-stream-contention.ts 5 [readers] [pauseMs]   (defaults: 1 reader, 1 ms)
-// Each round holds the answer of the main call at the gateway, then lets it go and times the call
-// from the release to `settled` on the monotonic clock of this process (polling `inspect` every
-// 5 ms). Rounds alternate: quiet (nobody takes the current stream) and contended (`readers` readers
-// each take the current stream of the same call, `pauseMs` apart, from before the release until it
-// settles).
 import { setTimeout as sleep } from 'node:timers/promises'
 import { onReleaseTree, type ReleaseTree } from '../support/release-tree.ts'
 import {

@@ -145,9 +145,7 @@ export function decodeCursor(
       encodeCursor(parsed) === cursor
     )
       return parsed
-  } catch {
-    /* Invalid cursors carry no authority. */
-  }
+  } catch {}
   return fail(context, 'stale_cursor', 'Cursor does not match this query')
 }
 export function encodeCursor(value: QueryCursor): string {

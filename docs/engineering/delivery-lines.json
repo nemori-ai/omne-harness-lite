@@ -7,6 +7,8 @@
       "contracts": [
         "packages/session/session-contract",
         "packages/session/session-cordis-contract",
+        "packages/session/session-protocol",
+        "packages/session/session-diagnostics-protocol",
         "packages/agent/agent-contract",
         "packages/agent/agent-cordis-contract",
         "packages/context/runtime-context-contract",
@@ -48,7 +50,10 @@
         "packages/common/legal-identity",
         "packages/governance/governance-contract",
         "packages/identity/identity",
-        "packages/identity/authorization"
+        "packages/identity/identity-protocol",
+        "packages/identity/authorization",
+        "packages/assets/assets-protocol",
+        "packages/human-intervention/human-intervention-protocol"
       ]
     },
     {

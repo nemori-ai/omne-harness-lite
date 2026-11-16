@@ -1,0 +1,67 @@
+.omne-action-tooltip,
+[data-radix-popper-content-wrapper]:has(> .omne-action-tooltip) {
+  pointer-events: none !important;
+}
+
+.omne-action-tooltip[data-state='closed'] {
+  animation: none;
+}
+
+.omne-segmented {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  max-width: 100%;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--omne-radius-control);
+  background: var(--omne-surface-panel-soft);
+  box-shadow: inset var(--omne-elevation-hairline);
+}
+.omne-segmented > [data-segmented-thumb] {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 0;
+  border-radius: var(--omne-radius-chip);
+  background: var(--omne-surface-overlay);
+  box-shadow: inset var(--omne-elevation-hairline);
+  pointer-events: none;
+}
+.omne-segmented > [data-segment] {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: var(--omne-control-height-compact);
+  padding: 0 12px;
+  border-radius: var(--omne-radius-chip);
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-ui);
+  line-height: var(--omne-leading-ui);
+  white-space: nowrap;
+}
+.omne-segmented > [data-segment] > svg {
+  width: var(--omne-icon-label);
+  height: var(--omne-icon-label);
+  flex: none;
+}
+.omne-segmented > [data-segment][aria-pressed='true'] {
+  color: var(--omne-ink-primary);
+}
+[data-slot='dropdown-menu-content'],
+[data-slot='dropdown-menu-sub-content'],
+[data-slot='popover-content'],
+[data-slot='select-content'] {
+  border: 0;
+  border-radius: var(--radius-card);
+  box-shadow: var(--omne-elevation-overlay);
+}
+
+[data-slot='tooltip-content'] {
+  border: 0;
+  box-shadow: var(--omne-elevation-overlay);
+}

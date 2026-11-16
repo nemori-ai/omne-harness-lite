@@ -1,5 +1,3 @@
-// The turns of the critical section: one run at a time per key, each caller gets its own result,
-// and a run that rejects does not block the key.
 import { describe, expect, it } from 'vitest'
 import { createTurns } from '../src/internal/turns.ts'
 import { deferred, settled } from './doubles/deferred.ts'

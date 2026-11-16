@@ -1,7 +1,4 @@
 // @module-tag slow
-// A Session permission assignment of a mapped permission is one Session commit. The tenant layer
-// is read inside the commit. The organization layer is in another domain: the basis source reads
-// it for every delivery and keeps nothing.
 import { rmSync } from 'node:fs'
 import { afterEach, expect, it } from 'vitest'
 import { loginStateCodec, organizationCodec } from '@omne-harness/legal-identity'
@@ -118,7 +115,6 @@ it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)
     }
     const definition = w.declaration.settings[0]
     if (!definition) throw new Error('Settings declaration')
-    // The organization source has its own storage in this world. Nothing reserves it.
     const source = await openSourceServiceWorld(
       { seal: async () => ({ kind: 'unavailable' }) },
       undefined,
@@ -188,7 +184,6 @@ it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)
         },
       },
     })
-    // The organization source is in the system domain; the storage of its world answers it.
     const read: SqlStorage['read'] = (input, readOptions) =>
       (input.domain.scope.kind === 'system' ? source.options.storage : w.storage).read(
         input,
@@ -202,7 +197,6 @@ it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)
       login: () => w.identityGovernance,
       settings: createSessionPermissionSettingsResolver({
         read: request => readSettings(request),
-        // `selected-source` names an organization source that does not exist.
         organizationSource: async () =>
           route === undefined || scenario !== 'selected-source'
             ? route
@@ -211,7 +205,6 @@ it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)
       readCatalog: request => w.service.readCatalog(w.access, request),
       combinations: { clear: unused, unmapped: unused, mapped },
     })
-    // A change gets the real access check. The creation and the reads are fixture decisions.
     const accessCheck: SessionAccessCheck<Principal> = {
       check: request =>
         request.operation === 'change'
@@ -294,8 +287,6 @@ it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)
       },
     })
     expect(await commit(command)).toMatchObject({ ok: { recovered: true } })
-    // The organization value changes after the write. The next write is judged on the new value;
-    // the committed operation stays the committed one.
     expect(
       await source.set({ pick: 'deny', allowedSet: null }, 1, 'set-source-again'),
     ).toMatchObject({ kind: 'committed' })

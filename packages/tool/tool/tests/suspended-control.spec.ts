@@ -1,6 +1,3 @@
-// 叫停暂停中的检查点调用（契约 P02、P06、P07；Tool SPEC 第 32 条）：真实 runtime、账本与推进协程，
-// 非耐久记录仓，脚本化的决策方与按段执行的检查点绑定。三个位置：等待 opening 或 open 时暂停，
-// 答复已接受而在排队，prepareResume 之后、恢复段 live 之前。
 import { afterEach, describe, expect, it } from 'vitest'
 import type { DurableEvidence, ToolWaitId } from '@omne-harness/tool-contract'
 import type { DecisionValue } from '@omne-harness/tool-contract'
@@ -54,7 +51,6 @@ import {
 
 afterEach(auditQueues)
 
-/** `c1` 的第一个等待：首次 start 是 `op-c1/start`，等待身份由 start 派生。 */
 const FIRST = 'op-c1/start/wait' as ToolWaitId
 const ACCESS = { principal: principalA, tenant: tenantA, call: callId('c1') }
 const STOP = { ...ACCESS, operation: operationId('stop-c1'), intent: { kind: 'stop' } } as const
@@ -85,7 +81,6 @@ function setup(
 
 type Built = ReturnType<typeof setup>
 
-/** 运行推进协程调度的工作，直到连续几轮没有新调度。 */
 async function settle(harness: Built['harness']): Promise<void> {
   for (let quiet = 0, round = 0; quiet < 3 && round < 200; round += 1) {
     await new Promise(resolve => setTimeout(resolve, 2))
@@ -97,7 +92,6 @@ async function recovery(harness: Built['harness']) {
   return ok(await harness.commands.loadRecovery(ACCESS))
 }
 
-/** `c1` 受理后运行到第一个等待，并按脚本登记。 */
 async function suspended(options: Parameters<typeof setup>[0] = {}) {
   const built = setup(options)
   await admitCall(built.harness, 'c1')
@@ -107,13 +101,11 @@ async function suspended(options: Parameters<typeof setup>[0] = {}) {
   return built
 }
 
-/** 叫停之后再推进一次 `c1`：失效与释放两项待办由协程完成。 */
 async function driveAfterStop(built: Built): Promise<void> {
   await built.harness.drive('c1')
   await settle(built.harness)
 }
 
-/** 叫停提交写下的调用记录：已收场、等待已关闭、两项待办已写。 */
 async function expectSettledByStop(built: Built) {
   const read = await recovery(built.harness)
   expect(read.state).toMatchObject({
@@ -149,10 +141,6 @@ async function expectSettledByStop(built: Built) {
   return read
 }
 
-/**
- * 两项待办完成之后：失效带着收场状态的证据经决策方执行一次，条目已删、墓碑在，调用没有剩下的失效或
- * 释放待办。
- */
 async function expectInvalidatedAndReleased(built: Built, terminal: DurableEvidence) {
   const { harness, bridge } = built
   const read = await recovery(harness)
@@ -169,19 +157,16 @@ describe('a stop of a call suspended on its wait', () => {
     const built = await suspended({ queueCapacity: 1 })
     const { harness } = built
     expect(await harness.queue()).toEqual([{ call: 'c1', ordinal: '1', stage: 'parked' }])
-    // 停泊的条目仍计入 queueCapacity。
     await expect(admitCall(harness, 'c2')).rejects.toThrow('tool-queue')
 
     const receipt = ok(await harness.commands.control(STOP))
     expect(receipt.progress.kind).toBe('already-ended')
     expect(receipt.state.phase).toBe('settled')
-    // 同一操作重送认回原回执。
     expect(ok(await harness.commands.control(STOP))).toEqual(receipt)
     await expectSettledByStop(built)
 
     await driveAfterStop(built)
     await expectInvalidatedAndReleased(built, receipt.state.source)
-    // 名额回到范围：容量为 1 的范围又能受理。
     await admitCall(harness, 'c2')
   })
 
@@ -203,7 +188,6 @@ describe('a stop of a call suspended on its wait', () => {
 
     await driveAfterStop(built)
     await expectInvalidatedAndReleased(built, read.state.source)
-    // 登记只试过一次：叫停之后不再登记。
     expect(built.bridge.ensured).toHaveLength(1)
   })
 
@@ -211,7 +195,6 @@ describe('a stop of a call suspended on its wait', () => {
     const built = await suspended({ script: 'refuses' })
     ok(await built.harness.commands.control(STOP))
     const read = await expectSettledByStop(built)
-    // 登记的回包晚到：叫停已经关闭了这个等待。
     const late = await built.harness.commands.attachRegistration({
       ...ACCESS,
       instance: read.execution?.instance as never,
@@ -273,7 +256,6 @@ describe('a stop of a call suspended on its wait', () => {
 describe('a stop of a call whose decision was accepted', () => {
   it('settles the call queued for its slot: the resume segment never runs and the ready entry is released', async () => {
     let calls = 0
-    // c1 暂停在等待上，c2 的首段一直运行，占着工具唯一的名额。
     const built = await suspended({
       initial: () => {
         calls += 1
@@ -290,7 +272,6 @@ describe('a stop of a call whose decision was accepted', () => {
     bridge.decide(FIRST, { kind: 'answer', value: text('a.txt') } satisfies DecisionValue)
     await harness.drive('c1')
     await settle(harness)
-    // 答复已接受，条目重新排队却取不到名额：调用仍暂停，等待 responding。
     const queued = await recovery(harness)
     expect(queued.waits).toMatchObject([{ phase: 'responding' }])
     expect(await harness.queue()).toEqual([
@@ -322,7 +303,6 @@ describe('a stop of a call whose decision was accepted', () => {
     )
     ok(await harness.commands.control(STOP))
     const read = await expectSettledByStop(built)
-    // 接受写下的 queue 待办由释放待办取代。
     expect(read.tasks.filter(task => task.kind === 'queue').map(task => task.operation)).toEqual([
       'stop-c1',
     ])
@@ -359,7 +339,6 @@ describe('a stop between prepareResume and the live resume segment', () => {
     bridge.decide(FIRST, { kind: 'answer', value: text('a.txt') })
     await harness.drive('c1')
     await settle(harness)
-    // 叫停在 starting 提交：不收场，保存 pending 的停止与 stop 待办，指向恢复记录。
     expect(stopped).toMatchObject([
       { ok: { progress: { kind: 'pending' }, state: { phase: 'starting' } } },
     ])
@@ -374,8 +353,6 @@ describe('a stop between prepareResume and the live resume segment', () => {
   })
 })
 
-// 下面的用例把真实运行里读下来的快照直接交给 decideControl：账本在事务里按事务快照再判一次，
-// 所以每个定义域分支与拒绝分支都要逐个确认——拒绝的种类与原因、什么都不写、提交时写下的记录。
 const UNSUPPORTED = {
   kind: 'unsupported',
   reason: expect.stringContaining('a stop of a started or resuming invocation'),
@@ -564,7 +541,6 @@ describe('decideControl: a stop of a call suspended on its wait', () => {
       source,
       progress,
     })
-    // 终局的结果由账本自己造，没有执行者的原件。文字是作者为「等待被关闭」预写的那一份。
     expect(putsOf(decision.writes, 'result')).toMatchObject([
       { result: { custody: { kind: 'synthetic' }, settledBy: STOP_OPERATION } },
     ])
@@ -688,7 +664,6 @@ describe('decideControl: a stop of a call suspended on its wait', () => {
       const open = [...snapshot.waits.values()].filter(wait => wait.record.phase !== 'closed')
       expect(open).toHaveLength(1)
       const openWait = open[0]?.record.intent.wait as string
-      // 第一个等待已被答复关闭，叫停关的是第二个。
       expect(openWait).not.toBe(FIRST_WAIT)
       const decision = committed(decideStop(snapshot))
       expect(putsOf(decision.writes, 'wait')).toMatchObject([
@@ -783,13 +758,11 @@ describe('decideControl: a stop of a call suspended on its wait', () => {
       duty('wait-registration', 'op-kept-invalidate', { wait: FIRST_WAIT, action: 'invalidate' }),
       duty('deliver', 'op-kept-deliver', {}),
       duty('facts', 'op-kept-facts', { basis: evidence('basis') }),
-      // 另一种等待的登记待办不是这次叫停取代的：只有 Ask 等待的登记待办被取代。
       duty('resource-wait', 'op-kept-resource', { action: 'ensure', evidence: evidence('basis') }),
     ]
     const crowded = { ...snapshot, tasks: [...old, ...kept] }
     const decision = committed(decideStop(crowded))
     const deleted = decision.writes.flatMap(write => (write.kind === 'delete' ? [write.key] : []))
-    // 收场的提交同时删掉调用为暂停保存的两样内容：检查点状态与等待的请求原文。
     expect(deleted.sort()).toEqual(
       [...old.map(task => taskKey(task)), CHECKPOINT_STATE_KEY, WAIT_REQUEST_KEY].sort(),
     )

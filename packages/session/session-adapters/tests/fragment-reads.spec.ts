@@ -1,7 +1,3 @@
-// `readOrNull`, the read the production Journal makes of the original fragments of an event. A
-// missing original leaves the event undecided with no noise; a `TypeError` leaves it undecided too
-// but is reported through `fault`, so a defect of the reader is not turned into a quiet "undecided";
-// any other error is not hidden.
 import { describe, expect, it } from 'vitest'
 import { readOrNull } from '../src/cordis/agent-journal.ts'
 import { HistoryFailure } from '../src/testing/history-failure.ts'

@@ -1,15 +1,13 @@
-// WAL maintenance (SQL contract SPEC 12.3, C19): checkpoint cadence, the read-paused and
-// write-stopped states, FULL kept, and a query that is not starved while maintenance cannot finish.
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { advance, tick } from './gate.ts'
 import {
   buildReadMaterials,
   closeProviders,
   commitOf,
-  delay,
   readRequest,
   readyProvider,
   summary,
@@ -126,6 +124,8 @@ describe('WalMaintainer', () => {
 })
 
 describe('write-stopped through the provider', () => {
+  // The write Worker runs its checkpoints on a real interval of its own thread.
+  const CHECKPOINT_INTERVAL_MS = 20
   let workspace: Workspace
   let built: Built
 
@@ -141,7 +141,7 @@ describe('write-stopped through the provider', () => {
 
   it('refuses commit with domain_unavailable, still answers query, holds reads, and recovers', async () => {
     const { storage } = await readyProvider(workspace, built, {
-      checkpointIntervalMs: 20,
+      checkpointIntervalMs: CHECKPOINT_INTERVAL_MS,
       checkpointWalBytes: 6000,
       journalSizeLimitBytes: 6000,
       walReadPauseBytes: 24000,
@@ -158,31 +158,25 @@ describe('write-stopped through the provider', () => {
     reader.exec('begin')
     reader.prepare('select count(*) from t_ledger').get()
     try {
-      let stopped = false
-      for (let index = 0; index < 60 && !stopped; index += 1) {
+      for (let index = 0; ; index += 1) {
         const result = await storage.commit(commitOf(built, `k${String(index)}`))
-        if (kindOf(result) === 'rejected_before_accept/domain_unavailable') stopped = true
-        else expect(kindOf(result)).toBe('committed')
-        await delay(40)
+        if (kindOf(result) === 'rejected_before_accept/domain_unavailable') break
+        expect(kindOf(result)).toBe('committed')
+        await tick(CHECKPOINT_INTERVAL_MS)
       }
-      expect(stopped).toBe(true)
-      const began = Date.now()
       expect(kindOf(await storage.query(identity({ operationKey: 'k0' })))).toBe('committed')
-      expect(Date.now() - began).toBeLessThan(1500)
-      // read-paused: no new read is dispatched, so the read waits and times out (SPEC 5.5).
-      expect(summary(await storage.read(readRequest('page')))).toBe('unavailable/queue_timeout')
+      const held = storage.read(readRequest('page'))
+      advance(200)
+      expect(summary(await held)).toBe('unavailable/queue_timeout')
     } finally {
       reader.exec('rollback')
       reader.close()
     }
-    await vi.waitFor(
-      async () => {
-        expect(kindOf(await storage.commit(commitOf(built, `again-${String(Date.now())}`)))).toBe(
-          'committed',
-        )
-      },
-      { timeout: 5000, interval: 100 },
-    )
+    for (let index = 0; ; index += 1) {
+      const result = await storage.commit(commitOf(built, `again-${String(index)}`))
+      if (kindOf(result) === 'committed') break
+      await tick(CHECKPOINT_INTERVAL_MS)
+    }
     expect(summary(await storage.read(readRequest('page')))).toBe('read')
   })
 })

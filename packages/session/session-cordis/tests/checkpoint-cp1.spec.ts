@@ -1,11 +1,4 @@
-// CP1, the first in-line checkpoint (R3, RUN-5): the session provider and the session SQL storage
-// on one real Cordis root, over the real sqlite-provider. A session is created, one input is
-// appended through the work face in one command, and the operation is queried and is `committed`;
-// a principal of another tenant is answered `denied`. The storage is `createSessionStoragePair`
-// over real files, one real write Worker for each transaction domain and the real read Workers.
-// Everything else (identity, evidence, the access policy) is a double of session-contract.
 // @module-tag slow
-// Why slow: real sqlite-provider Workers and real files in a temporary directory.
 import { afterEach, describe, expect, it } from 'vitest'
 import { operationId, ordinaryInput, succeeded } from '@omne-harness/session-contract/testing'
 import { assemble, type Assembly } from './fixtures/assembly.ts'
@@ -22,7 +15,7 @@ async function build(): Promise<Assembly> {
   return assembly
 }
 
-describe('CP1: create, append through the work face, query; another tenant is denied', () => {
+describe('create, append through the work face, query; another tenant is denied', () => {
   it('commits both commands to the real SQL storage and answers committed on query', async () => {
     const a = await build()
     const intake = await a.caller('intake')
@@ -40,7 +33,6 @@ describe('CP1: create, append through the work face, query; another tenant is de
     )
     expect(query).toEqual({ kind: 'committed', receipt: appended })
 
-    // The same operation, repeated, is recognized: the same revision, answered as recovered.
     const again = await a.accept(intake, 'first-input', 'session-1', 'hello from the checkpoint')
     expect(again).toEqual({ ...appended, recovered: true })
   })
@@ -57,7 +49,6 @@ describe('CP1: create, append through the work face, query; another tenant is de
     const never = await coordinator.session().work.readWork(a.access('never-created'))
     expect(never).toEqual({ failure: { kind: 'denied', action: 'readWork' } })
 
-    // The stranger also cannot append to, or query the operations of, the session of the other tenant.
     const appended = await intake.session().work.accept({
       ...a.access(),
       principal: 'b:stranger',
@@ -77,7 +68,6 @@ describe('CP1: create, append through the work face, query; another tenant is de
     const a = await build()
     const intake = await a.caller('intake')
     await a.create(intake)
-    // The stand-in storage row closes the real provider, so a close that came early would break the command.
     await a.mountStorageRow(() => a.backend.dispose())
     a.log.length = 0
     const gate = a.hold()
@@ -91,7 +81,6 @@ describe('CP1: create, append through the work face, query; another tenant is de
     gate.release()
     const results = await shutting
     expect(results['session-provider']).toEqual({ kind: 'settled' })
-    // The command ended with a receipt on the real store before the store was closed.
     expect((await inflight).revision).toBeDefined()
     const order = [
       'commit-settled',
@@ -109,7 +98,6 @@ describe('CP1: create, append through the work face, query; another tenant is de
     const intake = await a.caller('intake')
     await a.create(intake)
     await expect.poll(() => a.events.length).toBe(1)
-    // Every entry of the batch, the first one of the receipt included (session SPEC「通知」).
     expect(a.events[0]![4]).toEqual(['session.created', 'session.adoption'])
   })
 })

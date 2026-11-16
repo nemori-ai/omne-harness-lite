@@ -1,5 +1,3 @@
-// The closed vocabulary of gateway request fields: how each field is written into the body and how
-// an extension value is read for it.
 import type { JsonValue } from '@omne-harness/json-text'
 import { bool, finite, lexeme, list, object, text } from './json.ts'
 import type { GatewayField, GatewayParam } from './vocabulary.ts'
@@ -14,7 +12,6 @@ const EFFORTS = [
   'max',
 ] as const satisfies readonly Extract<GatewayParam, { field: 'reasoning.effort' }>['value'][]
 
-/** Every field of the vocabulary, for the checks of a record. */
 export const GATEWAY_FIELDS = [
   'temperature',
   'top_p',
@@ -27,7 +24,6 @@ export const GATEWAY_FIELDS = [
   'store',
 ] as const satisfies readonly GatewayField[]
 
-/** The JSON value of a gateway parameter. */
 function valueOf(param: GatewayParam): JsonValue {
   switch (param.field) {
     case 'temperature':
@@ -52,10 +48,6 @@ function valueOf(param: GatewayParam): JsonValue {
   }
 }
 
-/**
- * The body members of a list of gateway parameters. A field with a dot nests one level. A field
- * written twice is a defect of the record or the engine and throws.
- */
 export function gatewayMembers(
   params: readonly GatewayParam[],
 ): Readonly<Record<string, JsonValue>> {
@@ -86,7 +78,6 @@ function splitField(field: GatewayField): readonly [string, string | null] {
   return dot < 0 ? [field, null] : [field.slice(0, dot), field.slice(dot + 1)]
 }
 
-/** The gateway parameter that an extension value gives for `field`, or `null` when it does not fit. */
 export function readGatewayParam(field: GatewayField, value: JsonValue): GatewayParam | null {
   switch (field) {
     case 'temperature':

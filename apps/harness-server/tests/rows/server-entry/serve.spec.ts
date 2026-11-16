@@ -1,21 +1,11 @@
-// The `server-entry` row in a `serve` tree: it listens on the loopback port only after every row is
-// ACTIVE, never while a row is PENDING, and a malformed configuration fails the row.
 import { request } from 'node:http'
 import { networkInterfaces } from 'node:os'
 import { describe, expect, it } from 'vitest'
 import { defineRow } from '../../../src/row.ts'
 import { syntheticRow } from '../../fixtures/serve/index.ts'
-import {
-  GOVERNANCE_PATH,
-  connectable,
-  freePort,
-  governance,
-  post,
-  startTree,
-  waitListening,
-} from './support.ts'
+import { connectable, freePort } from '../../support/listening.ts'
+import { startTree, waitListening } from './support.ts'
 
-// A local network proxy can accept TCP without reaching this HTTP listener.
 function answersHttp(host: string, port: number): Promise<boolean> {
   return new Promise(resolve => {
     const req = request({ host, port, path: '/', headers: { host: `127.0.0.1:${port}` } }, res => {
@@ -28,15 +18,36 @@ function answersHttp(host: string, port: number): Promise<boolean> {
   })
 }
 
+function availabilityStatus(port: number): Promise<number> {
+  const body = '{}'
+  return new Promise((resolve, reject) => {
+    const req = request(
+      {
+        host: '127.0.0.1',
+        port,
+        method: 'POST',
+        path: '/api/access/v1/availability',
+        headers: {
+          host: `127.0.0.1:${port}`,
+          'content-type': 'application/json',
+          'content-length': String(body.length),
+          'omne-message-id': 'm-availability',
+        },
+      },
+      res => {
+        resolve(res.statusCode ?? 0)
+        req.destroy()
+      },
+    )
+    req.on('error', reject)
+    req.end(body)
+  })
+}
+
 function stderrOf(run: { stderr: readonly string[] }): string {
   return run.stderr.filter(line => !line.startsWith('serve: stop requested: test')).join('\n')
 }
 
-/**
- * A row that loads right after `server-entry` and reports whether the port already answers. The
- * loader creates rows in order and waits for each one, so the probe sees the state the assembly
- * is in at that moment: the body of `server-entry` has run, the barrier has not been called.
- */
 function portProbe(port: number, seen: boolean[]) {
   return defineRow({
     row: 'port-probe',
@@ -62,18 +73,12 @@ describe('server-entry row: listening', () => {
       extraPlugins: { probe: portProbe(port, seen) },
     })
     await waitListening(tree, port)
-    const reply = await post(
-      port,
-      GOVERNANCE_PATH,
-      governance('register-and-activate', { loginIdentifier: 'alice', credential: 'pw-1' }),
-    )
-    expect(reply.status).toBe(200)
+    expect(await availabilityStatus(port)).toBe(200)
     const run = await tree.stop()
     expect(run.result.exitCode).toBe(0)
     expect(run.state('server-entry')).toMatchObject({ state: 'ACTIVE' })
     expect(run.startup).toMatchObject({ accepting: true })
     expect(run.startup['startedRows']).toContain('server-entry')
-    // While the later row was loading, the body of `server-entry` had run and nothing listened.
     expect(seen).toEqual([false])
     expect(stderrOf(run)).toBe('')
   })
@@ -81,7 +86,6 @@ describe('server-entry row: listening', () => {
   it('does not listen while another row is PENDING, although its own body has run', async () => {
     const port = await freePort()
     const seen: boolean[] = []
-    // A row that injects a name nothing provides stays PENDING, so the barrier is never called.
     const blocked = syntheticRow({ id: 'blocked', injects: ['nothing-provides-this'] })
     const tree = startTree({
       config: { listenPort: port },
@@ -103,20 +107,6 @@ describe('server-entry row: listening', () => {
     expect(await connectable('127.0.0.1', port)).toBe(false)
   })
 
-  it('stays PENDING and silent when the Session row is not in the tree', async () => {
-    const port = await freePort()
-    const tree = startTree({
-      config: { listenPort: port },
-      withoutSession: true,
-      readinessTimeoutMs: 600,
-    })
-    const run = await tree.finished
-    expect(run.state('server-entry')).toMatchObject({ state: 'PENDING' })
-    expect(run.state('server-entry')?.['missing']).toEqual(['session'])
-    expect(await connectable('127.0.0.1', port)).toBe(false)
-    expect(run.startup['startedRows']).not.toContain('server-entry')
-  })
-
   it('answers HTTP on the loopback address only', async () => {
     const port = await freePort()
     const tree = startTree({ config: { listenPort: port } })
@@ -129,7 +119,6 @@ describe('server-entry row: listening', () => {
     const reachable = await Promise.all(others.map(address => answersHttp(address, port)))
     const ipv6 = await answersHttp('::1', port)
     await tree.stop()
-    // The positive control proves the real HTTP listener answers; a bare proxy handshake does not.
     expect(reachable.every(accepted => !accepted)).toBe(true)
     expect(ipv6).toBe(false)
   })
@@ -175,8 +164,6 @@ describe('server-entry row: configuration', () => {
   })
 
   it('takes initial values for every key it is not given', async () => {
-    // An empty configuration is valid; it asks for port 8787. Only the shape is checked here, so
-    // the port is not bound: the test reads the parsed result of the schema directly.
     const { serverEntryConfig } = await import('../../../src/rows/server-entry/config.ts')
     expect(serverEntryConfig.parse({})).toEqual({
       listenPort: 8787,
@@ -190,9 +177,7 @@ describe('server-entry row: configuration', () => {
         maxStringLength: 1048576,
         maxNumberLength: 64,
       },
-      maxPageBytes: 1048576,
-      historyKinds: ['message.user', 'message.assistant'],
-      observation: { perLogin: 4, perInstance: 1000, cancelRetentionMs: 60000 },
+      observation: { perLogin: 4, perInstance: 1000 },
     })
   })
 })

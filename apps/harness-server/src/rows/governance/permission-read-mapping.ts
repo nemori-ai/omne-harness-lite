@@ -28,12 +28,6 @@ export type PermissionReadMappingOptions = Readonly<{
   release(): ToolRelease
 }>
 
-/**
- * Addresses the target of a release tool. The installation holds the tool at `toolAssetTarget`, and
- * the organization source has a fixed address too, so the mapping reads nothing. An address is not
- * evidence that the target exists: the basis read and the acceptance commit check the adoption,
- * the definition and the current facts at this address.
- */
 export function createPermissionReadMapping(options: PermissionReadMappingOptions) {
   const scope = structuredClone(options.scope)
   return async (input: ToolPermissionAction): Promise<PermissionReadMapping | undefined> => {

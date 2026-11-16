@@ -1,5 +1,3 @@
-// The official profiles: one per current record, derived from the record, and each one round
-// trips: its supplier acquires a binding through composeFamilies and plans a request.
 import { describe, expect, it } from 'vitest'
 import { composeFamilies, recordAdoption } from '@omne-harness/pi-ai-transport'
 import {

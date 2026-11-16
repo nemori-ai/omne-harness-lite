@@ -1,6 +1,3 @@
-// The `./secrets` entry: the file provider of the secret custody ports of `@omne-harness/settings`,
-// and what a host setup command needs around it (building a vault on a host, the permission guard,
-// reading a secret from a terminal). It has no Cordis dependency.
 export {
   createSecretVault,
   inspectSecretVault,

@@ -1,7 +1,3 @@
-// Fast: the macOS command gate driven in this process. Its channels are in-memory streams, its
-// session reader is the stand-in reader, and its commands are real `/bin/sh` processes. The stand-in
-// answers a live pid as the leader of its own session, so the gate is given this process's pid.
-// Runs on every POSIX host; the real gate as a process is in commands.spec.ts.
 import { randomBytes } from 'node:crypto'
 import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -16,7 +12,6 @@ import { fakeReader, type FakeReader } from './fake-reader.ts'
 type Gate = Readonly<{
   control: PassThrough
   frames: PassThrough
-  /** The frame lines read so far, as written. */
   lines: string[]
   exits: number[]
   write(value: unknown): void
@@ -29,12 +24,9 @@ let gatePid = 0
 let intervals: MockInstance<typeof setInterval>
 
 beforeEach(async context => {
-  // The gate's commands are `/bin/sh` processes and its reader a shell script.
   if (process.platform === 'win32') return context.skip()
   reader = await fakeReader()
   cwd = await realpath(await mkdtemp(join(tmpdir(), 'omne-macos-gate-')))
-  // The gate's pid is a sleeper that leads its own process group, never this test process: a
-  // broken gate that stops its session with no pid excepted kills that group only.
   const sleeper = spawn('/bin/sleep', ['60'], { detached: true, stdio: 'ignore' })
   sleeper.unref()
   gatePid = sleeper.pid ?? 0
@@ -46,18 +38,12 @@ afterEach(async () => {
   if (process.platform === 'win32') return
   try {
     if (gatePid > 1) process.kill(-gatePid, 'SIGKILL')
-  } catch {
-    /* Already gone. */
-  }
-  // A command that may outlive its test writes its pid to `pid` in its working directory.
+  } catch {}
   const pid = Number(await readFile(join(cwd, 'pid'), 'utf8').catch(() => ''))
   if (Number.isSafeInteger(pid) && pid > 0)
     try {
       process.kill(pid, 'SIGKILL')
-    } catch {
-      // Already gone.
-    }
-  // After its exit frame a gate keeps its process alive with an interval; here the test ends it.
+    } catch {}
   for (const result of intervals.mock.results)
     if (result.type === 'return') clearInterval(result.value)
   intervals.mockRestore()
@@ -117,7 +103,6 @@ function request(
 
 const go = { c: 'go' }
 
-/** The bytes of one stream's data frames, in order. */
 function output(gate: Gate, stream: 'stdout' | 'stderr'): Buffer {
   return Buffer.concat(
     gate
@@ -280,7 +265,6 @@ describe('the macOS command gate in this process', () => {
       const pid = await commandPid()
       await vi.waitFor(() => expect(frames.writableNeedDrain).toBe(true), { interval: 10 })
       await new Promise(resolve => setTimeout(resolve, 300))
-      // Base64 frames of the whole output would be over 5 MiB; a paused command leaves a few chunks.
       expect(frames.writableLength + frames.readableLength).toBeLessThan(1024 * 1024)
       expect(isAlive(pid)).toBe(true)
       collect(frames, gate.lines)

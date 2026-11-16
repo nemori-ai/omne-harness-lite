@@ -1,6 +1,3 @@
-// The scripted provider builds the identities it owns (revisions, cursors, read ids) through the
-// package decoders, so no brand is made by an assertion. Every text built here is a decimal
-// number, which the decoders always accept.
 import type { Outcome } from '@omne-harness/operation-result'
 import { decodeOutputCursor, decodeReadId, decodeRevision } from '../identity-values.ts'
 import type { OutputCursor, ReadId, Revision } from '../root.ts'

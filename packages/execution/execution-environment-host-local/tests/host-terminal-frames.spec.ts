@@ -1,11 +1,3 @@
-// What the host does with the control frames of a persistent terminal's gate: the bytes read
-// between two segments and the begin sentinel's frame, which only the slow tier's real PTY
-// reaches otherwise. The real `createHostTerminals` runs against a stand-in `systemd-run` that
-// acts as the gate and says only what each test scripts (`fixtures/fake-terminal-gate.mjs`), and
-// a stand-in `systemctl` (`fixtures/fake-supervisor.mjs`). The gate here never truncates or
-// attributes anything: the tests script what a gate that did so would send, and read what the host
-// makes of it. How the real gate attributes bytes is the slow tier's to show. Linux only: the
-// stand-ins use descriptor 3 and signals; elsewhere the file is skipped, and a skip is not a pass.
 import { chmod, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -71,17 +63,12 @@ const alive = (pid: number) => {
   }
 }
 
-/**
- * `vi.waitFor` with a bound that holds while the stand-in gate and tools run as processes on a
- * loaded machine. It only guards against a hang.
- */
 const eventually = <T>(check: () => T | Promise<T>) => vi.waitFor(check, { timeout: 10_000 })
 
 afterEach(async () => {
   vi.restoreAllMocks()
   for (const terminals of terminalsOpened.splice(0)) await terminals.stopAll()
   const pids = gatePids.splice(0)
-  // The stand-in gate is killed through the stand-in `systemctl`, as the real gate is.
   for (const pid of pids) await eventually(() => expect(alive(pid), `gate ${pid}`).toBe(false))
   for (const directory of directories.splice(0))
     await rm(directory, { recursive: true, force: true })
@@ -164,7 +151,6 @@ function summaryOf(outcome: CommandOutcome) {
   return output
 }
 
-/** A leg's frames as the gate sends them: started, between bytes, the begin frame, data, finished. */
 const leg = (parts: {
   between?: readonly string[]
   discarded?: number
@@ -222,7 +208,6 @@ describe('the host reads the control frames of a terminal gate', { skip: !onLinu
         data: bytes('abcd'),
         count: { observedBytes: 10, discardedBytes: 6 },
       })
-      // The host handed the gate the bound it was given.
       expect((await f.received())[0]).toMatchObject({ betweenSegmentBytes: 4 })
     })
 
@@ -439,11 +424,6 @@ describe('the host reads the control frames of a terminal gate', { skip: !onLinu
   })
 
   describe('frames that share one chunk with a fault', () => {
-    // The stand-in gate writes them in one write, so the host reads them in one chunk: a write this
-    // small is atomic on a Linux pipe. That is what makes these cases fail on a reader that drops
-    // the frames before a fault; every other way to cut the bytes is covered without a pipe by the
-    // reader's own cut test in terminal-control.spec.ts. The outcome must be the one the same frames
-    // give when they arrive one by one.
     const joined = (frames: readonly object[]): object[] =>
       frames.map((frame, at) => (at === 0 ? frame : { ...frame, joined: true }))
 

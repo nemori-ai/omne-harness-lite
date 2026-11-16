@@ -1,5 +1,3 @@
-// Reading a secret from a terminal with the echo off: the raw mode and its restoration, the line
-// editing keys, the control sequences that are skipped, and the ways a read gives up.
 import { EventEmitter } from 'node:events'
 import { inspect } from 'node:util'
 import { describe, expect, it, vi } from 'vitest'
@@ -111,8 +109,6 @@ describe('reading the secret from a terminal', () => {
     const input = new FakeTerminal()
     const reading = read(input)
     await listening(input)
-    // CSI (`ESC [ A`), SS3 (`ESC O C`), a stray ESC before a printable character, and a CSI whose
-    // parameters run on before its final byte.
     input.type('abX\u007f', 'c\u001b[A\u001bOC\u001bxd\u001b[1;5Ce\r', 'ignored after the line end')
     await expect(reading).resolves.toBe('abcde')
   })

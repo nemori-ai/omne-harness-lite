@@ -1,12 +1,3 @@
-// The ports of the explorer: the line, the credential handle, the metadata fetch and the
-// scheduler that `Session` is driven on. Every call the session makes on a port is a
-// `PortCall` that stays pending until the explorer settles it with one of the port's answers.
-// The credential handle and the metadata fetch may also be answered `hang`: the call never
-// settles, not even when the run is driven to rest; the session must not make a caller wait for
-// it. A port call that was given a signal does not settle by itself when the signal fires: the
-// explorer chooses whether the port honours the abort, answers late, or hangs. The ports also
-// keep the ledger of what went out and what came in, which the properties read; none of them
-// reads the session.
 import { AsyncLocalStorage } from 'node:async_hooks'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Ack } from '@omne-harness/operation-result'
@@ -16,7 +7,6 @@ import type { Exchange, GetOpened, Line, LineEvent, Outbound } from '../../src/l
 import { AsyncQueue } from '../../src/queue.ts'
 import type { Scheduler } from '../../src/session.ts'
 
-/** The answers of each port, the lawful one first. A run driven to rest answers with the first. */
 export const PORT_ANSWERS = {
   'line.send': [
     'answer',
@@ -45,19 +35,10 @@ export type PortName = keyof typeof PORT_ANSWERS
 export type AnswerOf<P extends PortName> = (typeof PORT_ANSWERS)[P][number]
 export type Answer = AnswerOf<PortName>
 
-/**
- * A port answer that breaks the port's contract: a reject, a refused authorization, or a call
- * that never answers (`hang`). Each spends the breach budget of the scenario.
- */
 export const BREACHES: ReadonlySet<Answer> = new Set<Answer>(['reject', 'fail', 'hang'])
 
-/** The answer that never comes: the call is taken out of the answerable calls and stays pending. */
 export const HANG: Answer = 'hang'
 
-/**
- * A wire answer other than the lawful one: what the peer, the network or the process may do.
- * Each of them spends the wire budget of the scenario.
- */
 export const WIRE_FAULTS: ReadonlySet<Answer> = new Set<Answer>([
   'stream',
   'empty',
@@ -73,25 +54,19 @@ export const WIRE_FAULTS: ReadonlySet<Answer> = new Set<Answer>([
   'break',
 ])
 
-/** What a call was made under: the client operation, and the request id once the line saw it. */
 export type Context = Readonly<{ op: string; request?: string }>
 
 export const contexts = new AsyncLocalStorage<Context>()
 
 export type PortCall = Readonly<{
-  /** The order the call was made in, within one run. */
   seq: number
   port: PortName
-  /** The request id, the stream, or the resource the call acts on. */
   subject: string
   context: Context | undefined
-  /** The signal the session gave the call, when the port takes one. */
   signal: AbortSignal | undefined
-  /** The functions of `src/` on the stack when the call was made: where its answer goes. */
   site: string
 }>
 
-/** A port call that rejected on the explorer's say. */
 export class PortFault extends Error {
   readonly call: PortCall
 
@@ -106,41 +81,30 @@ export type CallRequest<T> = Readonly<{
   port: PortName
   subject: string
   signal?: AbortSignal
-  /** The value of an answer that does not reject. */
   value: (answer: Answer) => T
 }>
 
-/** The explorer side of the ports: it registers each call and settles it later. */
 export interface CallDesk {
   open<T>(request: CallRequest<T>): Promise<T>
   readonly ledger: Ledger
 }
 
-/** One message the session wrote: its method, its id when it is a request, and its session header. */
 export type SentMessage = Readonly<{
   method: string
   id: string | undefined
   session: boolean
-  /** Whether the credential wrote an `authorization` header into it. */
   authorized: boolean
-  /** The `requestId` of a `notifications/cancelled`. */
   cancels: string | undefined
 }>
 
-/** What the ports saw: every message out, every credential call, every stream and line event. */
 export type Ledger = {
   sent: SentMessage[]
-  /** The `authorize` calls, with whether the session had already closed when each was made. */
   authorizations: number
   rejections: number
-  /** `reportRejection` calls made after `close()` resolved, and `authorize` calls likewise. */
   credentialCallsAfterClose: string[]
-  /** The ids of the answer streams the session aborted. */
   abortedStreams: string[]
   lineCloses: number
-  /** The events pushed on the shared stream, in order. */
   events: string[]
-  /** The fallback GET: whether the session kept the stream (`enter`) or let it go. */
   getEntered: boolean
   getDiscarded: boolean
 }
@@ -162,14 +126,12 @@ export function emptyLedger(): Ledger {
 const TARGET = 'https://peer.test/mcp'
 const METADATA_URL = 'https://peer.test/.well-known/oauth-protected-resource/mcp'
 
-/** The address `metadataCandidatesOf` tries first for `TARGET` with a challenge that names none. */
 export { METADATA_URL, TARGET }
 
 function isRecord(value: unknown): value is Readonly<{ [key: string]: unknown }> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** The text of a result for the request `id`, as the peer would write it. */
 function resultTextOf(id: string, method: string): string {
   const result =
     method === 'server/discover'
@@ -184,7 +146,6 @@ function resultTextOf(id: string, method: string): string {
 
 const PING_TEXT = '{"jsonrpc":"2.0","id":7,"method":"ping"}'
 
-/** The headers of the HTTP status classes the explorer answers with (T8 S05–S07, O08, O07). */
 function statusExchange(answer: Answer): Exchange | undefined {
   switch (answer) {
     case '401':
@@ -209,7 +170,6 @@ function statusExchange(answer: Answer): Exchange | undefined {
   }
 }
 
-/** A 2xx answer whose messages are all there and whose body ended. */
 function endedStream(messages: readonly string[]): Exchange {
   const queue = new AsyncQueue<string>()
   for (const message of messages) queue.push(message)
@@ -217,10 +177,6 @@ function endedStream(messages: readonly string[]): Exchange {
   return { kind: 'stream', headers: {}, messages: queue, abort: () => undefined }
 }
 
-/**
- * A 2xx answer stream the explorer feeds: every `next()` of the consumer is a pending
- * `stream.next` call. `abort()` by the session is recorded; the stream does not end by itself.
- */
 class ExplorerStream implements AsyncIterable<string> {
   aborted = false
   private readonly desk: CallDesk
@@ -275,7 +231,6 @@ export class ExplorerLine implements Line {
   readonly events: AsyncIterable<LineEvent>
   readonly queue = new AsyncQueue<LineEvent>()
   readonly openGet: ((headers: Headers, signal: AbortSignal) => Promise<GetOpened>) | undefined
-  /** The answer streams the session holds, by request id. */
   readonly streams = new Map<string, ExplorerStream>()
   private readonly desk: CallDesk
   private sse = false
@@ -292,7 +247,6 @@ export class ExplorerLine implements Line {
     return this.sse
   }
 
-  /** Pushes one event of the shared stream: a line of the peer, `ended`, or `broken`. */
   push(event: LineEvent): void {
     this.desk.ledger.events.push(
       event.kind === 'line' ? `line:${event.text.length > 40 ? 'ping' : event.text}` : event.kind,
@@ -300,7 +254,6 @@ export class ExplorerLine implements Line {
     this.queue.push(event)
   }
 
-  /** The answer of the peer to the sent request `id`, on the shared stream. */
   pushAnswer(sent: SentMessage): void {
     if (sent.id === undefined) throw new TypeError('a notification has no answer')
     this.desk.ledger.events.push(`line:answer ${sent.id}`)
@@ -328,7 +281,6 @@ export class ExplorerLine implements Line {
       cancels,
     }
     this.desk.ledger.sent.push(sent)
-    // The request id becomes part of the context of what the session does with the answer.
     const store = contexts.getStore()
     if (store !== undefined && id !== undefined) contexts.enterWith({ ...store, request: id })
     if (this.closed) return Promise.resolve({ kind: 'unsent' })
@@ -429,7 +381,6 @@ export class ExplorerLine implements Line {
   }
 }
 
-/** The credential handle of the material: `authorize` and `reportRejection` are explorer calls. */
 export function explorerCredential(
   desk: CallDesk,
   closeReturned: () => boolean,
@@ -472,7 +423,6 @@ const METADATA: JsonValue = {
   ],
 }
 
-/** The metadata fetch of the material (R4): one explorer call per address. */
 export function explorerMetadataFetch(desk: CallDesk): MetadataFetch {
   return (url, signal) =>
     desk.open<JsonValue | undefined>({
@@ -483,10 +433,8 @@ export function explorerMetadataFetch(desk: CallDesk): MetadataFetch {
     })
 }
 
-/** A timer the explorer fires: named by the request it was armed for. */
 export type Timer = Readonly<{ name: string; fire: () => void; context: Context | undefined }>
 
-/** The scheduler of the session: every probe time is a timer of the explorer. */
 export function explorerScheduler(timers: Timer[]): Scheduler {
   return (_delayMs, fire) => {
     const context = contexts.getStore()

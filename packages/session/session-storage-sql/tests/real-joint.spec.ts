@@ -1,11 +1,5 @@
 import { sessionCommitCommands } from '../src/participants.ts'
-// The joint commit of the Session log combination over the real sqlite-provider: real Workers, real
-// files. One commit with an execution-record and a session command is all or nothing on the real
-// write Worker; the publication of either side moves the common root that the real read Worker
-// reads in one snapshot; after the process is killed, a new provider on the same files answers the
-// original identity committed and both sides are there.
 // @module-tag slow
-// Why slow: real Workers, real files and a killed child process.
 import { spawn } from 'node:child_process'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -79,7 +73,6 @@ async function read(app: RealApp, handler: string, input: Record<string, JsonVal
   return result.output
 }
 
-/** The publication count of the session and the envelope body of its last batch (null: none). */
 async function stateOf(app: RealApp) {
   const page = decodeExecutionRecordFacts(await read(app, 'execution-record.facts', { after: '0' }))
   return page?.kind === 'facts'
@@ -150,9 +143,6 @@ describe('the size of the content blocks of one session', () => {
     const app = await open()
     expect('ok' in (await app.create(TENANT_A))).toBe(true)
     const cap = realConfig('unused').maxCommandBytes
-    // The command is the facts of one execution-record write; its UTF-8 size in canonical JSON
-    // (no spaces, sorted keys, ASCII only here) is the size of its JSON text. The two operations
-    // have names of one length, so the same room fits both.
     const block = (pad: number) => {
       const payload = 'x'.repeat(pad)
       return { digest: blobDigest(payload), media: 'text/plain', payload }

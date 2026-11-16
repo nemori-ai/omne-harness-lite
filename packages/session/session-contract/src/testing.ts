@@ -1,5 +1,3 @@
-// Framework-independent conformance cases and non-durable provider doubles. A passing double
-// proves the tested in-memory behavior, not durability or a production assembly.
 export {
   NotApplicable,
   assertIndistinguishable,

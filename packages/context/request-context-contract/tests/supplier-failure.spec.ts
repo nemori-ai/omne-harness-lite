@@ -1,6 +1,3 @@
-// RQ-05 steps 2 and 3: a failure of the rules or of the meter of a supplier keeps its kind. The
-// same input gives `invalid` and `unsupported` again, so the measurement must not answer
-// unavailable: a caller waits on unavailable.
 import { describe, expect, it } from 'vitest'
 import { adoption, assemble, fixture } from './fixtures.js'
 
@@ -19,7 +16,7 @@ const answers = (step: 'preparation' | 'meter') => ({
   unavailable: { kind: 'unavailable', owner: step },
 })
 
-describe('a failure of a supplier keeps its kind (RQ-05)', () => {
+describe('a failure of a supplier keeps its kind', () => {
   it.each(kinds)('the rules answer %s', async kind => {
     const f = fixture()
     const result = await assemble(

@@ -1,6 +1,3 @@
-// The pi transport: `createPiTransport` returns a `ModelTransport` that prepares through a family
-// binding, materializes one payload under a capacity reservation and starts one exchange. This
-// module owns the outer lifecycle and the prepared transports; materialized.ts owns one send.
 import type {
   FixedModelRequest,
   ReplayDeclaration,
@@ -19,19 +16,9 @@ import { materialize, type MaterializedHandle } from './materialized.ts'
 
 export type PiTransport = Readonly<{
   transport: ModelTransport
-  /**
-   * Refuses new prepares, closes every prepared and materialized transport that is still open,
-   * and resolves after their exchanges stopped physically and their family bindings were
-   * released. It does not close the network resources. Idempotent.
-   */
   close(): Promise<void>
 }>
 
-/**
- * `open`: holds the family binding. `materializing`: one materialize runs; the binding is held.
- * `materialized`: the one materialization was handed out. `closing`: the close runs. `closed`:
- * the binding is released.
- */
 type PreparedPhase =
   | Readonly<{ kind: 'open'; binding: PiFamilyBinding }>
   | Readonly<{
@@ -47,13 +34,8 @@ type TransportPhase =
   | Readonly<{ kind: 'open' }>
   | Readonly<{ kind: 'closing'; done: Promise<void> }>
 
-/**
- * Builds a pi transport over injected network resources, family contributions and credential
- * slot. Throws `RangeError` synchronously for a configuration out of its rules.
- */
 export function createPiTransport(config: PiTransportConfig): PiTransport {
   const checked = checkConfig(config)
-  /** Ends the family acquires that are still running when the transport closes. */
   const closing = new AbortController()
   const open = new Set<PreparedTransport>()
   let phase: TransportPhase = { kind: 'open' }
@@ -89,7 +71,6 @@ export function createPiTransport(config: PiTransportConfig): PiTransport {
     return { ok: prepared }
   }
 
-  /** Waits for every prepared close to settle, then reports the first failure. */
   async function drain(): Promise<void> {
     closing.abort()
     const closes = await Promise.allSettled([...open].map(prepared => prepared.close()))
@@ -130,10 +111,6 @@ function sameSupplier(left: Supplier, right: Supplier): boolean {
   )
 }
 
-/**
- * The replay declaration that the request fixes for the supplier: the item of `declarations` at
- * the position of the supplier in `suppliers`. `null` when the request does not name the supplier.
- */
 function declarationOf(request: FixedModelRequest, supplier: Supplier): ReplayDeclaration | null {
   const index = request.suppliers.findIndex(item => sameSupplier(item, supplier))
   return index < 0 ? null : (request.declarations[index] ?? null)
@@ -163,7 +140,6 @@ function createPrepared(
   }>,
 ): PreparedTransport {
   const { config, request, supplier, declaration, resent, onClosed } = input
-  /** Ends a materialize that still waits for capacity when this prepared transport closes. */
   const closing = new AbortController()
   let phase: PreparedPhase = { kind: 'open', binding: input.binding }
 
@@ -207,7 +183,6 @@ function createPrepared(
     }
   }
 
-  /** Ends the materialization first, then releases the binding. */
   async function closeFrom(
     from: Exclude<PreparedPhase, Readonly<{ kind: 'closing' | 'closed' }>>,
   ): Promise<void> {
@@ -234,8 +209,6 @@ function createPrepared(
       )
       phase = { kind: 'materializing', binding: current.binding, settled }
       const outcome = await running
-      // A close that started meanwhile owns the child: it waits for `settled` and closes the
-      // child itself. The caller never gets a materialization that the close owns.
       if (phase.kind !== 'materializing') return { failure: PREPARED_CLOSED }
       phase = {
         kind: 'materialized',
@@ -248,7 +221,6 @@ function createPrepared(
   }
 }
 
-/** The materialization of a prepared transport, once any running materialize has settled. */
 async function childOf(
   phase: Exclude<PreparedPhase, Readonly<{ kind: 'closing' | 'closed' }>>,
 ): Promise<MaterializedHandle | null> {

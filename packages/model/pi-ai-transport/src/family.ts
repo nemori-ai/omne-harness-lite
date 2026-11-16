@@ -1,5 +1,3 @@
-// The accepted pi family contribution interface. The shapes are copied verbatim from
-// packages/model/docs/architecture.md, section "pi 家族贡献的取得协议"; change them there first.
 import type { RouteAccounting } from './config.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { JsonValue } from '@omne-harness/json-text'

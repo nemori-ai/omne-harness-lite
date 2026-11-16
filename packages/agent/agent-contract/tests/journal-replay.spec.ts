@@ -1,8 +1,3 @@
-// The trace replay driver of the `./testing` entry against a scripted performer: it accepts a
-// trace whose every step is observed as the model expects it, and it reports the first step whose
-// reply or state differs, without running the steps after it. The embedded traces are the ones the
-// TLC simulation of verification/models/Finishing.tla exported. The runs against real Journals
-// are in packages/agent/agent and packages/session/session-adapters.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
@@ -21,7 +16,6 @@ const exported: unknown = JSON.parse(
   readFileSync(new URL('../verification/models/finishing-traces.json', import.meta.url), 'utf8'),
 )
 
-/** A performer that observes each step as the trace expects, except where `change` says. */
 function performer(
   change: (step: JournalReplayStep, index: number) => JournalReplayObservation | undefined = () =>
     undefined,
@@ -133,7 +127,6 @@ describe('checkJournalTrace', () => {
   it('reports the forbidden step of each violating trace when the performer keeps the protocol', async () => {
     for (const trace of agentJournalViolatingTraces) {
       const last = trace.steps.length - 1
-      // A Journal that keeps the protocol answers the last step otherwise.
       const { perform } = performer((step, index) =>
         index === last ? { reply: 'kept the protocol', state: step.state } : undefined,
       )

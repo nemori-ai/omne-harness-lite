@@ -1,34 +1,23 @@
-# 保留技术源入口
+# 留存的技术设计
 
-本区只维护尚未承接的技术专题及其状态导航。全系统目标设计归[系统架构](../../../docs/architecture/README.md)，项目要求归[docs/requirements.md](../../../docs/requirements.md)，业务责任归[领域设计](../../../docs/domains/README.md)。成员的公开形状、完整必要行为与持续验证资源由实际拥有者维护。
+这里留着八个专题的技术设计，给统筹用。它们不约束实现。现行的架构在[系统架构](../../../docs/architecture/README.md)，各成员的承诺在包组的规格里。
 
-## 尚未承接的专题
+做到其中一个专题的那一程时，拿这里的设计当输入，对照当时的架构正文重新定约。每份设计只写它应该是什么样：目标设计、未决、验证义务、规范场景与模型。和现行正文对不上的地方写成了未决，没有选边。
 
-以下专题尚未确定完整迁出位置，暂留原处供整合和消费者核对，不为接收材料创建空包。旧接受记录不构成与docs架构并列的权威，也不授予冲突设计继续采用。内容须按[现行架构准入规则](../../../docs/architecture/README.md#采用状态与当前有效源)筛选，符合上层的细化才可承接；实现限制作为偏离，未判定保持未判定。
+| 专题 | 讲什么 | 今天归谁 |
+| --- | --- | --- |
+| [资产治理](asset-governance/README.md) | 资产记录的创作与发布、各层持有、替换锁、选版、配值、引用告知。每个操作的资格、先拒绝哪一条、失败的集合 | 资产与规则 |
+| [资产复制与分享](asset-transfer/README.md) | 资产在租户与组织之间复制与分享，待确认的通知与邀请。带一个有限的形式模型 | 资产与规则 |
+| [中心连接观察](center-connection/README.md) | 会话据点怎样知道所属的治理中心此刻在不在应答 | 还没有现行的拥有者 |
+| [连接件接入边界](connector/README.md) | 外部消息经信封进会话的约束与条件 | 没有定。连接件是不是一类资产是它的第一条未决 |
+| [兼容 hook 翻译](hooks-import/README.md) | 把 Claude Code 与 Codex 配置里的命令型 hook 导入成拓展件 | Agent 的循环拓展 |
+| [MCP 动作桥接](mcp-bridge/README.md) | MCP 的已知动作怎样投影成工具条目，对端报错怎样进工具结果，接入点上的 OAuth 取值 | 投影由 MCP 与工具共同定。OAuth 归凭据一侧 |
+| [模态投影与消息转换](modality-projection/README.md) | 会话历史的模态投影怎样算，一条消息的转换全有或全无，工具可用性怎样用到转换件 | 投影由谁算没有定。工具可用性归工具目录 |
+| [会话推进的进展、成本与诊断](session-progress-cost-diagnostics/README.md) | 会话持续有追加时承接仍能轮到，模型请求输入的成本界，恢复与收场要观测的量 | 进展归会话。成本界归请求上下文 |
 
-| 专题 | 当前入口 |
-|---|---|
-| 资产治理 | [asset-governance](asset-governance/README.md) |
-| 资产转移 | [asset-transfer](asset-transfer/README.md)及其模型与验证资源 |
-| 治理中心接入 | [center-connection](center-connection/README.md) |
-| Hooks导入 | [hooks-import](hooks-import/README.md)及方言与场景 |
-| MCP桥接 | [mcp-bridge](mcp-bridge/README.md) |
-| 多模态投影 | [modality-projection](modality-projection/README.md) |
-| 完整Session与Agent第一期候选 | [session-agent-runtime-phase1](session-agent-runtime-phase1/README.md)；F0限定授权与完整候选分开，实际成员维护其当前契约 |
-| Connector接入 | [connector](connector/README.md)；产品整体搁置，保留条件性设计，不构成当前交付承诺 |
+## 怎样维护
 
-PF 分解后的当前产品正文从[产品入口](../product/README.md)进入，领域、能力组与成员分别维护已落位关系、工程设计及行为规格。尚未承接的 PF 详细技术保留在[封存原源](../product.0.0.1.legacy/README.md)，只供后续专项核对，不成为已落位正文的并列权威。
-
-## 已承接信息从哪里读取
-
-共同集成保证归[Cordis集成约定](../../../docs/architecture/cordis-integration-conventions.md)，采用定位归[机读约束](../../../docs/architecture/constraints.json)，机械规则覆盖归执行仓库`tools/repo-toolchain/src/arch/CONFORMANCE.md`。阶段后端选择归[基础设施采用](../../../docs/architecture/deployment/infrastructure-policy.md)。它们与目标架构、实际成员契约分别拥有不同信息，不从路径或绿色结构报告推断行为已兑现。
-
-身份、组织、登录、注册、治理入口和客户端的精确行为沿[身份与治理责任](../../../docs/domains/identity-and-authorization/README.md)定位实际成员。装配、插件树、Storage/Clock与Session相关承诺沿[架构入口](../../../docs/architecture/README.md)和[领域导航](../../../docs/domains/README.md)展开，不再消费旧施工页。
-
-未取得关闭依据的原组合问题继续由[符合性问题入口](../../../docs/architecture/assurance.md#尚未取得关闭依据的组合问题)显示未知。OG3等已接受但未实现的增量继续由其实际成员规格维护，不能因施工页退出而销项。
-
-## 维护与退出
-
-迁出前先按docs现行项目要求、系统架构及领域责任判断内容是否仍有效，再核对可承接细化的条件、例外、消费者、Schema、规范场景、模型及验证义务。冲突旧设计不得进入正式规范，不能以保全为由降低上层目标。正文和必要消费实际切换后退出被替代源；公开身份不因移动自动改变，不建立两份现行权威。
-
-归属、表达及留空规则由执行仓库的文档治理维护，成员完整规格与内部设计由两层成员文档维护；可点击入口见[工作区地图](../../README.md)。提案、比较、接受过程和单次输出留执行工作树tmp。当前入口变化时同步本页及真实消费者。
+- 一个专题开工时，把它的设计取出去定约。设计落进现行正文与规格之后，删掉这里的那一份，不留两份。
+- 放进来的只能是一个还没做的能力的设计。讲过程的、讲现状的、讲某一程怎样做的不放这里。
+- 形式模型的配置与预期写在[模型说明](asset-transfer/models/README.md)里。改了模型或它的注释之后，把十六个配置都重跑一遍。
+- 上游内核行为的取证在 [basis](../basis/README.md)。

@@ -30,11 +30,6 @@ export function leaseFailure(failure: M.ModelFailure): Failure {
       return { kind: 'unavailable', owner: 'preparation', diagnostic: canonical(failure) }
   }
 }
-/**
- * The failure of the rules or the meter of one supplier, as an answer of the measurement. A
- * failure that the same input gives again (`invalid`, `unsupported`) is an invalid request: the
- * caller must not wait for it. Only `unavailable` is a dependency that can come back.
- */
 function supplierFailure(failure: M.TransportFailure, owner: 'preparation' | 'meter'): Failure {
   switch (failure.kind) {
     case 'denied':
@@ -58,13 +53,6 @@ function sameSupplier(left: M.Supplier, right: M.ProfileSupplier): boolean {
   )
 }
 
-/**
- * Measures one complete candidate (RQ-05): acquire a lease with this access and lineage, plan
- * per supplier, measure with that supplier's own representation and parameter adoptions, then
- * give the lease back on every path. A release failure never yields a fixable success; when the
- * operation already failed, that failure is returned and the give-back failure stays with the
- * lease owner (the registry records it per generation, RQ-12).
- */
 export async function measureCandidate<P>(
   context: MeasureContext<P>,
   selection: SelectedModel,
@@ -129,10 +117,6 @@ export async function measureWithLease(
   return mergeReports(reports)
 }
 
-/**
- * One budget for the candidate that keeps every supplier: all checks, every counting basis once,
- * and the union of deferred media. A supplier's own report is never cut away.
- */
 function mergeReports(reports: readonly M.RequestBudget[]): M.RequestBudget | Failure {
   const first = reports[0]
   if (first === undefined)

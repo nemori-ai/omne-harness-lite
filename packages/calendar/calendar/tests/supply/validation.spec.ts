@@ -365,7 +365,7 @@ describe('one target horizon policy for health and release consumers', () => {
     [11, 'warning'],
     [0, 'warning'],
     [-1, 'critical'],
-  ])('classifies CN remaining days %s as %s under A1-D3', (remainingCoverageDays, expected) => {
+  ])('classifies CN remaining days %s as %s', (remainingCoverageDays, expected) => {
     expect(
       classifyCalendarSupplyHorizon({
         policy: cn,

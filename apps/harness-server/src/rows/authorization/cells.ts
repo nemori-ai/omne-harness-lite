@@ -1,10 +1,5 @@
-// The shape of one policy cell (DP-4 §3.2): what the authorization row does for one access
-// operation and one class of principal. An allowing cell cannot be written without a citation, so
-// a cell with no source is a type error, not a runtime finding. Which cell applies to a branched
-// operation (`accept` by RoutedInput kind, `receive` by fact kind) is decided by `resolveCell`.
 import type { ProducerFact, RoutedInput } from '@omne-harness/session-contract'
 
-/** A non-empty citation of the rule that allows a cell. Only `cite` makes one. */
 export type Citation = string & { readonly __citation: 'non-empty' }
 
 export function cite(text: string): Citation {
@@ -12,7 +7,6 @@ export function cite(text: string): Citation {
   return text as Citation
 }
 
-/** The purposes of the system matrix that a policy cell may name. `auditPolicy` checks each against `SYSTEM_ACTION_MATRIX`. */
 export type SystemPurpose =
   | 'enumerate-tenants'
   | 'resident-references'
@@ -26,7 +20,6 @@ export type SystemPurpose =
 export type RoutedKind = RoutedInput['kind']
 export type ReceivedFactKind = ProducerFact['kind']
 
-/** The branch of an operation that a cell is limited to. A request outside the listed kinds is denied. */
 export type Branch =
   | Readonly<{ kind: 'routed'; kinds: readonly RoutedKind[] }>
   | Readonly<{ kind: 'fact'; kinds: readonly ReceivedFactKind[] }>
@@ -40,25 +33,13 @@ export type MatrixCell = Readonly<{
 }>
 export type DenyCell = Readonly<{ verdict: 'deny'; basis: string }>
 
-/**
- * `member`: the tenant admission check with an empty `requires`. `matrix`: the system action
- * authorization on the named purpose. `deny`: denied with a written basis, no dependency called. A
- * cell that waits for a product rule is a `deny` cell whose basis names the missing rule (R2-D204 item 4).
- *
- * A `member` cell has no `requires` of its own: the adapters ask the admission with an empty list, so
- * the tenant role does not decide Session or Agent operations (identity delivery spec D2; PD:33,
- * ID-16:301-307). `role-neutral-member-cells.spec.ts` proves it for every `member` cell.
- */
 export type PolicyCell = MemberCell | MatrixCell | DenyCell
 
-/** The three classes of principal (policy draft §2): login principal, session work principal, system principal. */
 export type PrincipalColumn = 'login' | 'work' | 'system'
 export type PolicyRow = Readonly<Record<PrincipalColumn, PolicyCell>>
 
-/** A cell after its branch was applied: `when` is gone, the request either fits it or is denied. */
 export type ResolvedCell = Omit<MemberCell, 'when'> | Omit<MatrixCell, 'when'> | DenyCell
 
-/** What the request carries of the branched inputs. Absent when the operation has no such input. */
 export type BranchInput = Readonly<{ routed?: RoutedKind; fact?: ReceivedFactKind }>
 
 function fits(branch: Branch, input: BranchInput): boolean {
@@ -74,7 +55,6 @@ function fits(branch: Branch, input: BranchInput): boolean {
   }
 }
 
-/** The cell that applies to this request. A branched cell whose branch the request does not fit is a denial. */
 export function resolveCell(cell: PolicyCell, input: BranchInput): ResolvedCell {
   if (cell.verdict === 'deny') return cell
   const { when, ...plain } = cell
@@ -109,7 +89,6 @@ function freezeBranch(branch: Branch): Branch {
     : Object.freeze({ kind: 'fact', kinds: Object.freeze([...branch.kinds]) })
 }
 
-/** The constructors of the tables. Kept together so a table reads as data. */
 export const cell = Object.freeze({ member, matrix, deny })
 
 export function row(login: PolicyCell, work: PolicyCell, system: PolicyCell): PolicyRow {

@@ -1,7 +1,3 @@
-// The replay of the finish in the in-memory ModelCommands: the scope comes from the request
-// declaration of the dispatch supplier and the format from the replay format of the dispatch
-// receipt. A reply with reasoning state settles only when both are known, on the stream path and
-// on the late terminal path.
 import { describe, expect, it } from 'vitest'
 import {
   decodeDispatchId,
@@ -17,7 +13,6 @@ import { fixture, instance, op, proof, unbox } from './memory-fixture.ts'
 const FORMAT = 'test-format-v1'
 const COMPLETED = { kind: 'completed', reason: 'stop' } as const
 
-/** A part through the message judge; only the three kinds of this file are wanted. */
 function part(value: unknown): ModelBlock {
   const judged = judgePart(value)
   if (!('ok' in judged)) throw new Error('fixture part')
@@ -47,7 +42,6 @@ const thinking = part({
   text: 'pondering',
 })
 
-/** An admitted and claimed call with one prepared dispatch. */
 async function running() {
   const f = fixture()
   const { commands } = createMemoryModelCommands(f.options)
@@ -80,7 +74,6 @@ async function running() {
   return { ...f, commands, dispatch, write }
 }
 
-/** A dispatch materialized with this receipt, started, with one open receive window `w`. */
 async function sent(replayFormat: string | undefined) {
   const f = await running()
   const receipt: MaterializationReceipt = {

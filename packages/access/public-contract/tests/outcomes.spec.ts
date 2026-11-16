@@ -1,8 +1,6 @@
-// The common outcome table is the closed set of the binding page, one row each.
 import { expect, it } from 'vitest'
 import { OUTCOMES } from '@omne-harness/public-contract'
 
-// docs/http-binding.md「结果到状态码」, in table order.
 const BINDING_TABLE = [
   'succeeded',
   'no-change',

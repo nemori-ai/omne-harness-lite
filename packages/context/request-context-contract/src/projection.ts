@@ -50,7 +50,6 @@ function filterMessage(
   if ('rejected' in judged) return null
   return { message: judged.ok, dropped: message.blocks.filter(b => !ids.has(b.id)).map(b => b.id) }
 }
-/** Keeps the source call only on an assistant message (J48). */
 export function sourced(message: Message, call: TenantModelCall | undefined): SourcedMessage {
   if (message.role !== 'assistant') return { message }
   return call === undefined ? { message } : { message, sourceCall: call }
@@ -85,12 +84,6 @@ export function project(rows: readonly HistoryRow[], epoch: EpochId): ProjectedH
     compaction: latest === undefined ? null : { seq: latest.seq, entry: latest.entry },
   }
 }
-/**
- * Appends the projection of rows that continue the rows of `previous` in the same epoch. It gives
- * the same view as `project` over all rows, and only reads the added rows. A compaction record among
- * the added rows, or another epoch, cannot be appended: it answers null and the caller projects
- * every row again.
- */
 export function appendProjection(
   previous: ProjectedHistory,
   addedRows: readonly HistoryRow[],

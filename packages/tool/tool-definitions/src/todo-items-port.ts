@@ -52,7 +52,6 @@ export type TodoAuthorReply =
   | Readonly<{ ok: TodoAuthorMutationReceipt | TodoAuthorPage }>
   | Readonly<{ failure: TodoAuthorFailure }>
 
-/** Each method uses the host's fixed call identity and current Session access. */
 export interface BoundTodoItems {
   add(input: Readonly<{ text: string }>): Promise<TodoAuthorReply>
   remove(input: Readonly<{ item: string }>): Promise<TodoAuthorReply>

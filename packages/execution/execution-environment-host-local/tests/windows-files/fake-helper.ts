@@ -1,13 +1,3 @@
-/**
- * A stand-in for the files helper process that speaks its frames and misbehaves on request. Run as
- * `node fake-helper.ts <log> <start>`. It appends `pid <pid>` and one `request <id> <named> <path>`
- * line per request to `<log>` before it acts, so a test counts what reached a process.
- *
- * `<start>`: `ready` writes the ready frame, `silent` never does, `exit` exits at once.
- * `named` of a request selects the behaviour: `answer` replies, `hold` never replies, `emit` writes
- * `path` verbatim and `emitExit` writes it and exits. In `path`, `#self` is the request's number,
- * `#0` and `#1` the numbers of the held requests and `#ok` a valid reply body.
- */
 import { appendFileSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 

@@ -1,5 +1,3 @@
-// The ledger commit that takes effect only together with a condition: commands of other
-// participants that run before the ledger write in the same SQL transaction (TS-12).
 import type { LedgerCommit, LedgerCommitInput } from '@omne-harness/tool'
 import { ledgerAnswer, type CommitAnswer } from './ledger-wire.ts'
 import { conditionalLedgerCommit, type LedgerCommitCondition } from './ledger-store.ts'
@@ -17,7 +15,6 @@ export type SqlToolConditionalCommit = Readonly<{
   commit(input: SqlToolConditionalCommitInput): Promise<SqlToolConditionalCommitResult>
 }>
 
-/** The SQL form of a condition. */
 export type SqlToolCondition = LedgerCommitCondition
 
 const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
@@ -43,10 +40,8 @@ function conditionOf(value: Readonly<Record<string, unknown>>): SqlToolCondition
     : null
 }
 
-/** What the store answers inside this module when a condition participant stopped the commit. */
 const CONDITION_FAILED = 'tool-storage-sql: the condition of the commit did not hold'
 
-/** A stop of another participant than the Tool participant is the condition: nothing took effect. */
 function answerOf(answer: CommitAnswer): LedgerCommit {
   if (answer.kind === 'rolled_back') {
     const stop = answer.responses.at(-1)
@@ -56,12 +51,6 @@ function answerOf(answer: CommitAnswer): LedgerCommit {
   return ledgerAnswer(answer)
 }
 
-/**
- * The condition commands run before the ledger write in one SQL transaction. When a condition
- * participant stops the operation, nothing took effect and the answer is `condition-failed`.
- * A condition never names the Tool participant: it cannot write the ledger. The commit goes
- * through the keeper of the database, as every ledger commit of the process does (TS-16).
- */
 export function createSqlToolConditionalCommit(
   options: SqlToolStorageOptions,
 ): SqlToolConditionalCommit {

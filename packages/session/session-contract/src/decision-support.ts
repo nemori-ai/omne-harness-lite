@@ -5,6 +5,7 @@ import { encodeEntry } from './entries.ts'
 import { digestOf } from './operations.ts'
 import type { Decision, EncodedEntry } from './judgments.ts'
 import { closingEntries } from './run-closure.ts'
+import { pendingAfterTerminal } from './input-leases.ts'
 
 export const rejected = (failure: SessionFailure): Decision => ({ kind: 'rejected', failure })
 export const invalid = (field: string, reason: string): Decision =>
@@ -19,11 +20,6 @@ export const sourceOf = (operation: SessionOperationId, what: string): DurableEv
   revision: '1',
   digest: `sha256:${digestOf({ operation, what })}`,
 })
-/**
- * The Run that the control `operation` ended as cancelled in its own commit: a cancel of the Run,
- * or an archive of a session whose Run was active. Null when the control ended no Run, or when the
- * session has started a later Run since.
- */
 export function runCancelledBy(
   snapshot: WorkSnapshot,
   operation: SessionOperationId,
@@ -123,7 +119,8 @@ export function terminalEntries(
       originOf(source),
     ),
   )
-  if (snapshot.frozen !== null && snapshot.pending.length > 0)
-    out.push(encodeEntry({ kind: 'intake.released', inputs: snapshot.pending }, originOf(source)))
+  const remaining = pendingAfterTerminal(snapshot, terminal.outcome)
+  if (snapshot.frozen !== null && remaining.length > 0)
+    out.push(encodeEntry({ kind: 'intake.released', inputs: remaining }, originOf(source)))
   return out
 }

@@ -15,11 +15,8 @@ import { basename, delimiter, resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 
-/**
- * The command line that starts `command`. On Windows `pnpm` on PATH is `pnpm.cmd` and a shell shim,
- * which Node cannot start without a shell; there pnpm runs as `node_modules/pnpm/bin/pnpm.cjs` next
- * to `pnpm.cmd` (the npm global layout) with this process's Node.
- */
+// On Windows `pnpm` on PATH is a `pnpm.cmd` shim that Node cannot start without a shell; there pnpm
+// runs as `node_modules/pnpm/bin/pnpm.cjs` beside `pnpm.cmd`, with this process's Node.
 function commandLine(command: string, args: string[]): [string, string[]] {
   if (process.platform !== 'win32' || command !== 'pnpm') return [command, args]
   for (const directory of (process.env['PATH'] ?? process.env['Path'] ?? '').split(delimiter)) {
@@ -89,7 +86,6 @@ it('installs only the pure tarball closure and consumes both ends through dist e
       const added = readdirSync(tarballs).filter(name => !before.has(name))
       expect(added).toHaveLength(1)
       const archive = join(tarballs, added[0] ?? '')
-      // tar runs in `tarballs` with the bare name: GNU tar reads an absolute `C:\…` as `host:file`.
       const members = run('tar', ['-tzf', basename(archive)], tarballs)
         .trim()
         .split('\n')
@@ -105,9 +101,6 @@ it('installs only the pure tarball closure and consumes both ends through dist e
       })
       dependencies[manifest.name] = `file:${archive}`
     }
-    // The install reads no pnpm state of the machine. Every third-party package comes from the
-    // directory where the workspace installed it, so pnpm asks no registry which version to take;
-    // the consumer names the pnpm of the workspace; the store and the cache are those of this run.
     type Installed = { version: string; path?: string; dependencies?: Record<string, Installed> }
     const thirdParty: Record<string, string> = {}
     const listing = [
@@ -152,32 +145,23 @@ it('installs only the pure tarball closure and consumes both ends through dist e
       ],
       consumer,
     )
-    for (const name of ['client', 'server'])
-      copyFileSync(new URL(`./fixtures/${name}.ts`, import.meta.url), join(consumer, `${name}.ts`))
+    copyFileSync(
+      new URL('./fixtures/browser/example-protocol.ts', import.meta.url),
+      join(consumer, 'example-protocol.ts'),
+    )
     writeFileSync(
       join(consumer, 'main.ts'),
       [
-        `import { tenantCodec } from '@omne-harness/legal-identity'`,
-        `import { createSessionRequest, createSessionResponse, healthRequest, healthResponse } from './client.js'`,
-        `import { receive, receiveSession } from './server.js'`,
-        `const limits = { maxBytes: 4096, maxDepth: 16, maxItems: 128, maxMembers: 32, maxStringLength: 1024, maxNumberLength: 64 }`,
-        `const request = healthRequest('installed', limits)`,
-        `if (request.kind !== 'encoded') throw new Error('request')`,
-        `const response = receive(request.bytes, limits)`,
-        `if (response.kind !== 'encoded') throw new Error('response')`,
-        `const read = healthResponse(response.bytes, 'installed', limits)`,
-        `if (read.kind !== 'response' || read.response.outcome !== 'succeeded') throw new Error('correlation')`,
-        `const tenant = tenantCodec.parse(JSON.stringify({ organization: 'org_00000000000000000000000000', account: 'acc_00000000000000000000000000' }))`,
-        `if (!tenant.ok) throw new Error('tenant')`,
-        `const create = createSessionRequest('installed-session', tenant.value, limits)`,
-        `if (create.kind !== 'encoded') throw new Error('session request')`,
-        `const accepted = receiveSession(create.bytes, limits)`,
-        `if (accepted.kind !== 'requires-business-owner') throw new Error('session read')`,
-        `const refusal = receiveSession(new TextEncoder().encode(JSON.stringify({ protocolVersion: 'governance-public/1', messageId: 'installed-session' })), limits)`,
-        `if (refusal.kind !== 'encoded') throw new Error('session refusal')`,
-        `const refused = createSessionResponse(refusal.bytes, 'installed-session', limits)`,
-        `if (refused.kind !== 'response') throw new Error('session correlation')`,
-        `console.log(JSON.stringify({ kind: read.kind, outcome: read.response.outcome, session: { accepted: accepted.request.operation, refused: refused.response.outcome } }))`,
+        `import { readTenantText } from '@omne-harness/public-contract'`,
+        `import { exampleLimits, notesProtocol } from './example-protocol.js'`,
+        `const { body } = notesProtocol.operations['save-note']`,
+        `const written = body.write({ noteId: 'n-1', title: 'Plan', tags: ['draft'], revision: '7' }, exampleLimits)`,
+        `if (!written.ok) throw new Error('write')`,
+        `const read = body.read(written.value, exampleLimits)`,
+        `if (!read.ok) throw new Error('read')`,
+        `const refused = body.read({ kind: 'object', entries: [] }, exampleLimits)`,
+        `const tenant = readTenantText(JSON.stringify({ organization: 'org_00000000000000000000000000', account: 'acc_00000000000000000000000000' }))`,
+        `console.log(JSON.stringify({ read: read.value.noteId, refused: refused.ok, tenant: tenant !== undefined }))`,
         ``,
       ].join('\n'),
     )
@@ -197,14 +181,8 @@ it('installs only the pure tarball closure and consumes both ends through dist e
       }),
     )
     run(process.execPath, [tsc, '-p', 'tsconfig.json'], consumer)
-    const execution = JSON.parse(run(process.execPath, ['out/main.js'], consumer)) as {
-      kind: string
-      outcome: string
-      session: { accepted: string; refused: string }
-    }
-    expect(execution.kind).toBe('response')
-    expect(execution.outcome).toBe('succeeded')
-    expect(execution.session).toEqual({ accepted: 'create-session', refused: 'protocol-rejected' })
+    const execution = JSON.parse(run(process.execPath, ['out/main.js'], consumer)) as unknown
+    expect(execution).toEqual({ read: 'n-1', refused: false, tenant: true })
     const resolved = run(
       process.execPath,
       [
@@ -269,7 +247,6 @@ it('installs only the pure tarball closure and consumes both ends through dist e
       '@omne-harness/json-text',
       '@omne-harness/legal-identity',
       '@omne-harness/utc-instant',
-      'jsonc-parser',
     ])
     writeFileSync(
       join(evidence, 'install-closure.json'),

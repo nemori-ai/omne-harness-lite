@@ -1,12 +1,3 @@
-// AD-14, the `sessionAgentDrive` provider: Session's outbound port to Agent. It translates each port
-// operation into the public Agent entry that SPEC AD-14 names, and each Agent answer into a
-// `DriveFailure` by the result table there. The outbound principal is the one the assembly issues to
-// the session coordinator; it is handed in, it is not read from Cordis, the plugin tree or a config.
-// `invoke` and `resume` find the Agent instance by the session slot reference of the active Run: the
-// plugin reads the Run with the `coordinator` caller class, parses the reference, checks it against
-// the Run, takes the slot's instance from `agentInstanceProvision` and resolves its runtime in
-// `agentInstances`. The plugin keeps only derived values: the execution handles that `invoke` and
-// `resume` returned, dropped when their instance retires or the plugin stops.
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import {
@@ -50,18 +41,13 @@ import type {
 import { AgentDrivePortService, sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { resolveToolInvocationRef, type ToolCallId } from '@omne-harness/tool-contract'
 import { decodeSessionSlotRef } from '../slot-ref.ts'
+import { announcePublished } from './published-queue.ts'
 
-/** The failures of the coordinator principal: those of `SessionWorkPrincipals.forSession`. */
 export type SessionCoordinatorPrincipalFailure = Extract<
   SessionFailure,
   { kind: 'denied' | 'unavailable' | 'quarantined' }
 >
 
-/**
- * What the assembly hands to AD-14: the principal that it issues to the coordinator of one
- * session. The assembly entry answers it with `forSession({ actor: 'coordinator', ... })` of the
- * session work principals.
- */
 export type SessionAgentDriveInput<P> = Readonly<{
   coordinator(
     input: Readonly<{ tenant: TenantId; session: SessionId }>,
@@ -91,15 +77,10 @@ function digestOf(parts: readonly string[]): string {
   return createHash('sha256').update(JSON.stringify(parts)).digest('hex')
 }
 
-/**
- * The security scope of a session's slot (XC-AGINST 第 2 节): the same value for the same session
- * before and after a restart. The host compares it whole and does not parse it.
- */
 export function sessionScopeEvidence(tenant: string, session: SessionId): DurableEvidence {
   return { owner: 'session', record: session, revision: '1', digest: digestOf([tenant, session]) }
 }
 
-/** The reason basis that names one Session operation, for control and detach. */
 function sessionBasis(tenant: string, session: SessionId, operation: string): DurableEvidence {
   return {
     owner: 'session',
@@ -126,11 +107,6 @@ function sameAdoption(left: Adoption, right: Adoption): boolean {
   )
 }
 
-/**
- * The admission provider's rejection record that an `invalid(value)` carries, or null. A refusal
- * of the message admission is a refusal of the input only with that record; this member does not
- * make one (AD-00 rules 2 and 7, NP-12).
- */
 function admissionRecord(failure: Extract<Failure, { kind: 'invalid' }>): DurableEvidence | null {
   if (failure.field !== 'value') return null
   const rejection = judgeEvidence(Reflect.get(failure, 'rejection'))
@@ -141,11 +117,6 @@ function receiptOf(receipt: CommandReceipt): DriveReceipt {
   return { revision: receipt.revision, evidence: receipt.evidence }
 }
 
-/**
- * Why a Session producer reference does not give its call: a translation defect. The reference text
- * carries no tenant (R2-D357), so a call of another tenant resolves for the target tenant and the
- * Agent finds no such call there.
- */
 type Unresolved = Readonly<{ kind: 'malformed'; diagnostic: string }>
 
 const unresolved = (
@@ -157,21 +128,11 @@ const unresolved = (
     diagnostic: `the ${family} call is not a ${family} invocation reference (${failure.kind})`,
   })
 
-/**
- * The Tool call that a Session Tool producer names. Session names a call by its invocation
- * reference (session-contract 稳定调用引用的读取); the Agent control names the call, which the
- * Tool resolver gives for the target tenant.
- */
 function toolCallOf(reference: string, tenant: TenantId): Outcome<ToolCallId, Unresolved> {
   const parts = resolveToolInvocationRef(reference, tenant)
   return 'ok' in parts ? succeed(parts.ok.call) : unresolved('Tool', parts.failure)
 }
 
-/**
- * The Agent control that one Session control intent becomes, or null when none is sent. A producer
- * is resolved for the target tenant: Session names a Model or Tool call by its invocation
- * reference, the Agent control by the call that the reference holds.
- */
 function controlOf(
   intent: Control,
   tenant: TenantId,
@@ -197,6 +158,7 @@ function controlOf(
     case 'archive':
       return succeed({ kind: 'cancel', reason })
     case 'unarchive':
+    case 'retry-run':
       return succeed(null)
     default: {
       const unknown: never = intent
@@ -208,7 +170,7 @@ function controlOf(
   }
 }
 
-function statusOf(snapshot: ExecutionSnapshot): ExecutionStatus {
+function statusOf(snapshot: ExecutionSnapshot, lost: DurableEvidence | null): ExecutionStatus {
   const { state } = snapshot
   if (state.kind === 'ended') {
     const { conclusion } = state
@@ -216,6 +178,7 @@ function statusOf(snapshot: ExecutionSnapshot): ExecutionStatus {
       revision: snapshot.revision,
       state: 'ended',
       attachment: null,
+      lost: null,
       conclusion: {
         outcome: conclusion.kind,
         cause: conclusion.kind === 'complete' ? null : conclusion.cause,
@@ -224,14 +187,12 @@ function statusOf(snapshot: ExecutionSnapshot): ExecutionStatus {
       evidence: snapshot.history,
     }
   }
-  // `suspended` is the state of an execution whose attachment was handed back: the detach that
-  // revokes the attachment is the commit that suspends the execution, so the snapshot carries no
-  // attachment then.
   if (state.kind === 'suspended')
     return {
       revision: snapshot.revision,
       state: 'suspended',
       attachment: 'detached',
+      lost: null,
       conclusion: null,
       evidence: snapshot.history,
     }
@@ -239,16 +200,12 @@ function statusOf(snapshot: ExecutionSnapshot): ExecutionStatus {
     revision: snapshot.revision,
     state: 'open',
     attachment: snapshot.executionAttachment === null ? null : 'active',
+    lost: snapshot.executionAttachment === null ? null : lost,
     conclusion: null,
     evidence: snapshot.history,
   }
 }
 
-/**
- * The provider. It needs the Agent directory, the slot provision, the recovery and control entries
- * and `session` with the `coordinator` class; while any is absent the plugin stays pending and
- * `sessionAgentDrive` is absent, so Session keeps its tasks and replays them.
- */
 class SessionAgentDriveProvider<P> extends AgentDrivePortService {
   private readonly kept = new Map<string, Kept>()
   private readonly scope: Context
@@ -269,8 +226,6 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       this.kept.clear()
     })
   }
-
-  // --- the port --------------------------------------------------------------------------------
 
   readonly invoke: AgentDrivePort['invoke'] = input =>
     this.guarded('invoke', async () => {
@@ -295,7 +250,6 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       if (tenant === undefined)
         return this.defect('submit', 'the tenant was not made by the parser')
       const kept = this.kept.get(this.keyOf(tenant, input))
-      // NP-03: without a handle the task stays with Session.
       if (kept === undefined) return unavailable('no execution handle for submit (NP-03)')
       const prepared = await this.prepare(input)
       if ('failure' in prepared) return prepared
@@ -331,7 +285,6 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       const reason = sessionBasis(tenant, input.session, input.control)
       const command = controlOf(input.intent, input.tenant, reason)
       if ('failure' in command) return this.defect('control', command.failure.diagnostic)
-      // unarchive is reconciled by the original Session command; Agent is not called.
       if (command.ok === null) return fail({ kind: 'unsupported' })
       const answer = await this.scope.agentExecutionControl.control({
         ...mutation,
@@ -354,8 +307,6 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
         execution: mutation.execution,
       })
       if ('failure' in loaded) return this.agentFailure('detach', loaded.failure)
-      // An attachment that was handed back already is recognized: the answer is its handover
-      // evidence (contract PM-04; Agent SPEC "交接与停用": 已 detached 只认回既有交接).
       if (loaded.ok.state.kind === 'suspended') return succeed(loaded.ok.state.handoff)
       const authority = loaded.ok.executionAttachment
       if (authority === null) return unavailable('the execution has no attachment to hand back')
@@ -367,7 +318,6 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       return 'ok' in answer ? succeed(answer.ok) : this.agentFailure('detach', answer.failure)
     })
 
-  // NP-04: there is no public entry through which a qualified custodian records a late result.
   readonly recordResult: AgentDrivePort['recordResult'] = async () =>
     unavailable('recordResult has no Agent entry yet (NP-04)')
 
@@ -383,7 +333,6 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
         case 'unknown':
           return succeed(answer.ok.kind)
         case 'rejected':
-          // The port only queries the drive operations it sent; none of them is a recorded control.
           return this.defect('query', 'query answered rejected for a drive operation')
         default: {
           const unknown: never = answer.ok
@@ -407,21 +356,29 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
         tenant: input.tenant,
         execution: execution.ok,
       })
-      // NP-05: load has no answer for "no record", so this port never says missing.
-      return 'ok' in loaded
-        ? succeed(statusOf(loaded.ok))
-        : this.agentFailure('inspect', loaded.failure)
+      if ('failure' in loaded) return this.agentFailure('inspect', loaded.failure)
+      const authority = loaded.ok.executionAttachment
+      const { kind } = loaded.ok.state
+      if (kind === 'ended') this.wake(input.tenant, input.session, execution.ok)
+      if (authority === null || kind === 'ended' || kind === 'suspended')
+        return succeed(statusOf(loaded.ok, null))
+      const contact = await this.scope.agentExecutionRecovery.contact({
+        principal: principal.ok,
+        tenant: input.tenant,
+        execution: execution.ok,
+        authority,
+      })
+      const lost = 'ok' in contact && contact.ok.kind === 'lost' ? contact.ok.evidence : null
+      return succeed(statusOf(loaded.ok, lost))
     })
 
-  // P-7: no Agent entry is called before the host instance-creation entry is adopted for prewarm.
   readonly prewarm: AgentDrivePort['prewarm'] = async () => fail({ kind: 'unsupported' })
 
-  // --- steps -----------------------------------------------------------------------------------
+  private wake(tenant: TenantId, session: SessionId, execution: AgentExecutionId): void {
+    const logger = this.scope.logger(LOGGER)
+    announcePublished(this.scope, line => logger.warn(line), { tenant, session, execution })
+  }
 
-  /**
-   * Runs one operation. A closed plugin gives unavailable. A throw is reported as a defect and also
-   * gives unavailable, never a rejection.
-   */
   private async guarded<T>(operation: string, run: () => Promise<Drive<T>>): Promise<Drive<T>> {
     if (this.closed) return unavailable('the agent drive has stopped')
     try {
@@ -449,7 +406,6 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
     target: DriveTarget,
     placed: Placed & { handle: AgentExecutionHandle<unknown> },
   ) {
-    // A call that was in flight when the plugin stopped keeps nothing.
     if (this.closed) return
     this.kept.set(this.keyOf(tenant, target), {
       tenant,
@@ -458,13 +414,11 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
     })
   }
 
-  /** A translation defect: reported, and answered as unavailable, never as a business refusal. */
   private defect(operation: string, diagnostic: string): Drive<never> {
     this.scope.logger(LOGGER).error(`${operation}: translation defect: ${diagnostic}`)
     return unavailable(`translation defect: ${diagnostic}`)
   }
 
-  /** The coordinator principal of the target session. */
   private async principalOf(
     target: Pick<DriveTarget, 'tenant' | 'session'>,
   ): Promise<Drive<unknown>> {
@@ -476,7 +430,6 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
     return this.sessionFailure('principal', principal.failure)
   }
 
-  /** The identities of the target as Agent identities, and the coordinator principal. */
   private async prepare(
     target: DriveTarget,
   ): Promise<Drive<Readonly<{ tenant: string; mutation: Mutation }>>> {
@@ -501,11 +454,6 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
     })
   }
 
-  /**
-   * The slot of the active Run (SPEC AD-14「会话槽引用」): read the Run, parse its slot reference and
-   * check it against the target session and the Run's adoption. Any mismatch is a defect of whoever
-   * computed the reference, so no instance is taken.
-   */
   private async slotOf(
     target: DriveTarget,
     principal: unknown,
@@ -530,7 +478,6 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
     })
   }
 
-  /** The Agent input of one Session input: its content from `readInput`, with its source basis. */
   private async accepted(
     target: DriveTarget,
     principal: unknown,
@@ -550,7 +497,6 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
     })
   }
 
-  /** The runtime of the slot's instance: `acquire`, then `resolve`. */
   private async place(mutation: Mutation, slot: Slot): Promise<Drive<Placed>> {
     const access = { principal: mutation.principal, tenant: mutation.tenant }
     const acquired = await this.scope.agentInstanceProvision.acquire({ ...access, ...slot })
@@ -561,11 +507,6 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
     return succeed({ instance, runtime: runtime.ok })
   }
 
-  /**
-   * Runs `invoke` or `resume` on the slot's instance. When it answers unavailable and the slot now
-   * has another instance (the old one was reclaimed between `acquire` and the call), the call runs
-   * once more on the new instance (XC-AGINST 第 3.5 节第 3 条).
-   */
   private async onSlot(
     operation: 'invoke' | 'resume',
     mutation: Mutation,
@@ -586,11 +527,6 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       : this.driveFailure(operation, retried.failure)
   }
 
-  /**
-   * The answer of the Agent's `invoke` or `resume` (SPEC AD-14 result table). A definite failure,
-   * `unsupported` or an `invalid` that is not an admission refusal with its record, is a drive
-   * refusal: the same request fails again, so Session closes the Run and does not replay it.
-   */
   private driveFailure(operation: 'invoke' | 'resume', failure: Failure): Drive<never> {
     if (failure.kind === 'unsupported')
       return fail({ kind: 'refused', failure: 'unsupported', field: null, reason: null })
@@ -604,10 +540,6 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
     return this.agentFailure(operation, failure)
   }
 
-  /**
-   * The receipt of an accepted `invoke` or `resume`: the runtime hands back a handle only, so the
-   * receipt is read back by the original operation. An answer that is not known yet stays unknown.
-   */
   private async receipt(target: DriveTarget, mutation: Mutation): Promise<Drive<DriveReceipt>> {
     const answer = await this.scope.agentExecutionRecovery.query(mutation)
     if ('failure' in answer) return this.agentFailure('query', answer.failure)
@@ -621,7 +553,6 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
     }
   }
 
-  /** The result table of SPEC AD-14, from an Agent failure. */
   private agentFailure(operation: string, failure: Failure): Drive<never> {
     switch (failure.kind) {
       case 'denied':
@@ -658,7 +589,6 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
     }
   }
 
-  /** A Session failure of a read or of the principal: denied stays denied, the rest is unavailable. */
   private sessionFailure(operation: string, failure: SessionFailure): Drive<never> {
     if (failure.kind === 'denied') return fail({ kind: 'denied' })
     const detail = 'diagnostic' in failure ? `: ${failure.diagnostic}` : ''
@@ -666,10 +596,6 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
   }
 }
 
-/**
- * The AD-14 plugin. `input.coordinator` is the principal source that the assembly entry hands in;
- * it is not a Cordis service and not a config member.
- */
 export function createSessionAgentDrivePlugin<P>(input: SessionAgentDriveInput<P>) {
   return {
     name: 'session-ad14',

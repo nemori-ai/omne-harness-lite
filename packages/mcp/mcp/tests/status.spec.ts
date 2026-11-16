@@ -1,6 +1,3 @@
-// The status port (SPEC S1, S7): the credential in four states and never its value, use in two
-// states, the connection state with its residual, and the same answer to a principal without
-// access whether the endpoint exists or not.
 import assert from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
 import { core } from './doubles/core.ts'

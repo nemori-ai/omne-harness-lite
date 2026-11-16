@@ -1,9 +1,3 @@
-// The two rules of `validateObservation` that keep a control event a deferred fact: the
-// consequences of a deferred fact are Session's to decide, so an observation that carries them is
-// invalid; and control evidence belongs to a deferred fact only, so an observation of any other
-// fact that carries it is invalid. Each is reached through `projectSessionLog` on a snapshot whose
-// history index holds the fact. The memory history fixture only writes facts from consequences, so
-// the deferred shape is set on the snapshot's index here, the way the production Journal writes it.
 import { describe, expect, it } from 'vitest'
 import {
   projectSessionLog,
@@ -15,7 +9,6 @@ import { open } from './scene.ts'
 
 const control = { through: '0', records: [], settled: [], urgent: [] } as const
 
-/** An observation of event 1 of the active execution, a wait, with the head the fact row names. */
 async function waiting() {
   const s = await open()
   const { run } = await s.active()
@@ -38,7 +31,6 @@ async function waiting() {
   return { observation, snapshot: await s.read() }
 }
 
-/** The snapshot with every fact row of its history index marked deferred. */
 function deferred(snapshot: WorkSnapshot): WorkSnapshot {
   const index = snapshot.historyIndex
   if (index === undefined) throw new Error('fixture: the snapshot holds a history index')

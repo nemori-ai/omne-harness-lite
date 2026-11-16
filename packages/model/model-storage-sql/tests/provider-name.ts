@@ -1,4 +1,3 @@
-// The provider name of a test supplier, through the one decoder that mints it.
 import { decodeProviderName, type ProviderName } from '@omne-harness/model-contract'
 
 export function providerName(text: string): ProviderName {

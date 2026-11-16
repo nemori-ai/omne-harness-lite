@@ -1,8 +1,3 @@
-// The stream stall timeout: the longest gap between two response bytes. The configuration checks
-// run in the fast layer. Every other case sends over a real local HTTPS server, so it is slow
-// (openssl child process, real sockets); the stall timer itself runs on fake timers, and the real
-// network is awaited through the facts and results that it produces, never through a real wait of
-// the stall length.
 import type { ClientRequest, IncomingMessage, ServerResponse } from 'node:http'
 import type { RequestOptions } from 'node:https'
 import type { Socket } from 'node:net'
@@ -38,7 +33,6 @@ import {
 import { createTestFamily, END_MARKER, LIMITS, SUPPLIER, sseBody } from './support/test-family.ts'
 import { slotFree, transportOver } from './support/transport.ts'
 
-/** Every response Node received for this file: a delegate of the real `https.request` records it. */
 const built = vi.hoisted((): { readonly responses: IncomingMessage[] } => ({ responses: [] }))
 vi.mock('node:https', async importOriginal => {
   const actual = await importOriginal<typeof import('node:https')>()
@@ -70,7 +64,6 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-/** The real timer of the test process, for a wait that no fake clock may advance. */
 const realSetTimeout = setTimeout
 
 describe('the configuration of the stall timeout', () => {
@@ -82,7 +75,6 @@ describe('the configuration of the stall timeout', () => {
   function construct(limits: Readonly<Record<string, unknown>>): void {
     const resources = openNetwork({ maxConnections: 1, idleConnectionTimeoutMs: 1_000 })
     networks.push(resources)
-    // The cast stands for a caller without the types: the limit object is checked at run time.
     const config = {
       network: resources.handle,
       families: createTestFamily().families,
@@ -150,7 +142,6 @@ describe('an exchange that is given an invalid stall limit', () => {
 
 type Scene = Readonly<{ server: HttpsFixture; resources: NetworkInternals }>
 
-/** A server and a network bound to it; both are closed after `run`. */
 async function withScene(
   handler: RequestHandler,
   run: (scene: Scene) => Promise<void>,
@@ -166,17 +157,14 @@ async function withScene(
   }
 }
 
-/** A handler that sends nothing at all and never ends the exchange. */
 const SILENT: RequestHandler = () => new Promise<void>(() => {})
 
-/** Answers 500 with half an error body and never ends it. */
 const HALF_ERROR_BODY: RequestHandler = res => {
   res.writeHead(500)
   res.write('partial')
   return new Promise<void>(() => {})
 }
 
-/** Answers 200 with the given first chunk, keeps the response open, and hands it to the test. */
 function opening(first: string): { handler: RequestHandler; response: () => ServerResponse } {
   let current: ServerResponse | undefined
   return {
@@ -212,7 +200,6 @@ function start(
   )
 }
 
-/** Waits, in real time, until Node holds the head of the latest response and the given bytes of its body. */
 async function untilResponse(minimumBuffered = 0): Promise<void> {
   for (let turns = 0; turns < 2_000; turns += 1) {
     const response = built.responses.at(-1)
@@ -222,10 +209,6 @@ async function untilResponse(minimumBuffered = 0): Promise<void> {
   throw new Error('the response did not arrive')
 }
 
-/**
- * Waits, in real time, until Node holds the head of the latest response and its reader has taken
- * every byte that arrived: the next expiry of the stall timer is a stall, not a slow reader.
- */
 async function untilErrorBodyRead(): Promise<void> {
   await untilResponse()
   for (let turns = 0; turns < 2_000; turns += 1) {
@@ -236,14 +219,12 @@ async function untilErrorBodyRead(): Promise<void> {
   throw new Error('the error body was not read')
 }
 
-/** The socket of the latest response, while the response holds it. */
 function latestSocket(): Socket {
   const socket = built.responses.at(-1)?.socket
   if (socket === undefined || socket === null) throw new Error('no response holds a socket')
   return socket
 }
 
-/** Waits, in real time, until Node has received the whole body of the latest response. */
 async function untilComplete(): Promise<void> {
   for (let turns = 0; turns < 2_000; turns += 1) {
     if (built.responses.at(-1)?.complete === true) return
@@ -269,7 +250,6 @@ describe('a stalled exchange', () => {
 
         vi.advanceTimersByTime(1)
         expect(await exchange.result).toEqual({ kind: 'stalled' })
-        // The result is given after the physical stop: the request is closed and the slot is back.
         expect(reservation.state).toBe('released')
         await exchange.stopped
         expect(vi.getTimerCount()).toBe(0)
@@ -346,7 +326,6 @@ describe('a stalled exchange', () => {
           await untilResponse(1)
           vi.advanceTimersByTime(STALL * 5)
           await settle()
-          // Only now does the reader take the bytes: nothing was lost to the stall timer.
           expect((await readToEnd(claimed(result))).length).toBe(512 * 1024)
           await exchange.stopped
           expect(vi.getTimerCount()).toBe(0)
@@ -395,13 +374,12 @@ describe('a stalled exchange', () => {
         const body = claimed(await exchange.result)[Symbol.asyncIterator]()
         const socket = latestSocket()
         expect(Buffer.from((await body.next()).value as Uint8Array).toString()).toBe('all of it')
-        response().end() // Keep-alive: the end of the body does not close the connection.
+        response().end()
         await untilComplete()
         vi.advanceTimersByTime(STALL)
         await settle()
         expect(await body.next()).toEqual({ done: true, value: undefined })
         await exchange.stopped
-        // Nothing was missing, so nothing stalled: the connection is not destroyed but goes back to the pool.
         expect(socket.destroyed).toBe(false)
         expect(Object.values(scene.resources.agent.freeSockets).flat()).toEqual([socket])
         expect(reservation.state).toBe('released')
@@ -419,7 +397,7 @@ describe('a stalled exchange', () => {
         const exchange = start(scene, reservation)
         await untilErrorBodyRead()
         vi.advanceTimersByTime(STALL)
-        exchange.stop() // The physical stop has not completed: the stop comes second.
+        exchange.stop()
         expect(await exchange.result).toMatchObject({
           kind: 'http-error',
           status: 500,
@@ -487,7 +465,6 @@ describe('the timer of a stall limit is cleared when the exchange ends', () => {
           expect(await readToEnd(claimed(result))).toBe('complete')
           await exchange.stopped
           expect(Object.values(scene.resources.agent.freeSockets).flat()).toEqual([socket])
-          // A listener of the exchange left on a pooled connection would outlive the exchange.
           expect(socket.listenerCount('data')).toBe(0)
         },
       )
@@ -543,7 +520,7 @@ describe('the timer of a stall limit is cleared when the exchange ends', () => {
         ),
       )
       expect(vi.getTimerCount()).toBe(2)
-      await settle() // The pool hands the socket over on a later tick; the connect timer is armed.
+      await settle()
       vi.advanceTimersByTime(300)
       expect(await exchange.result).toEqual({ kind: 'connect-failed', timeout: true })
       await exchange.stopped
@@ -583,7 +560,6 @@ function handlerOf(stage: Stage, opened: RequestHandler): RequestHandler {
   }
 }
 
-/** A transport over a server that answers by `stage`, with the stall limit on. */
 async function withStalledTransport(
   stage: Stage,
   run: (scene: {
@@ -711,8 +687,8 @@ describe('the termination of a stalled send', () => {
           if (step.done) throw new Error('the stream ended early')
           facts.push(step.value)
         }
-        await take() // block-open
-        await take() // block-delta 'a'
+        await take()
+        await take()
         for (const piece of ['b', 'c', 'd']) {
           vi.advanceTimersByTime(STALL - 100)
           opened.response().write(`data: ${TEXT(piece)}\n\n`)
@@ -766,7 +742,6 @@ describe('a stall racing a cancel', () => {
   it.each<readonly [Stage, TransportFact]>([
     ['before the response', failedWith('upstream-unavailable', 'stream-stall')],
     ['after the response began', failedWith('stream-lost', 'stream-stall')],
-    // The error body ends as read-failed; the status, not the stall, gives the termination.
     [
       'in the error body',
       {
@@ -794,7 +769,7 @@ describe('a stall racing a cancel', () => {
         })()
         if (stage === 'in the error body') await untilErrorBodyRead()
         vi.advanceTimersByTime(STALL)
-        abort() // The physical stop has not completed: the cancel comes second.
+        abort()
         await rest
         expect(facts).toEqual([ended])
       })

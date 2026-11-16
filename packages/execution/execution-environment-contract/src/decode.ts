@@ -32,7 +32,6 @@ export function isRecord(value: unknown): value is Readonly<Record<string, unkno
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** Refuses a record with a missing required key or any key outside `required` and `optional`. */
 export function exactKeys(
   record: Readonly<Record<string, unknown>>,
   path: Path,
@@ -70,8 +69,6 @@ export function decodeNumber(value: unknown, path: Path): Decoded<number> {
     : refuse(path, 'expected a finite number')
 }
 
-// Facility keys and isolation claims are open vocabularies: any non-empty string is a claim of a
-// key. Whether the key is registered is checked when an acquisition asks for it.
 function isFacilityKeyText(text: string): text is FacilityKey {
   return text.length > 0
 }
@@ -127,7 +124,6 @@ export function decodeNonEmpty(value: unknown, path: Path): Decoded<string> {
     : refuse(path, 'expected a non-empty string')
 }
 
-/** Accepts exactly one of `literals`; the message names them all. */
 export function decodeLiteral<const L extends string>(literals: readonly L[]): Decoder<L> {
   return (value, path) => {
     const found = literals.find(literal => literal === value)
@@ -135,11 +131,6 @@ export function decodeLiteral<const L extends string>(literals: readonly L[]): D
   }
 }
 
-/**
- * Checks that a runtime member is a function and returns the record unchanged. Runtime objects
- * (providers, leases, ports) are checked by structure only: the caller must get back the very
- * object it handed in, not a copy.
- */
 export function hasFunctions(
   record: Readonly<Record<string, unknown>>,
   path: Path,
@@ -150,10 +141,6 @@ export function hasFunctions(
   return accept(true)
 }
 
-/**
- * A JSON value is the closed tree of json-text, judged by `judgeJsonValue`. Its refusal becomes one
- * issue whose path continues into the tree.
- */
 export const decodeJsonValue: Decoder<JsonValue> = (value, path) => {
   const judged = judgeJsonValue(value)
   return 'ok' in judged
@@ -191,7 +178,6 @@ function isIdentityPart<N extends string>(value: unknown, name: N): value is Ide
   return isRecord(value) && value['name'] === name && typeof value['text'] === 'string'
 }
 
-// Checks the shape only. Whether legal-identity minted the value is asked of its own codec below.
 function hasTenantShape(value: unknown): value is TenantShape {
   return (
     isRecord(value) &&
@@ -201,11 +187,6 @@ function hasTenantShape(value: unknown): value is TenantShape {
   )
 }
 
-/**
- * The wire form of a tenant belongs to legal-identity: the tenant text of `tenantCodec`, parsed and
- * minted by that codec. A tenant minted in this process passes unchanged when `tenantCodec` can
- * encode it. Any other object, even one shaped like a tenant, is refused.
- */
 export const decodeTenant: Decoder<TenantId> = (value, path) => {
   if (typeof value === 'string') {
     const parsed = tenantCodec.parse(value)
@@ -217,10 +198,6 @@ export const decodeTenant: Decoder<TenantId> = (value, path) => {
   return refuse(path, 'expected tenant text or a minted tenant identity')
 }
 
-/**
- * An access identity. The principal is opaque to the environment: its key must be present, its
- * value is passed on as it is. The tenant follows `decodeTenant`.
- */
 export const decodeAccess: Decoder<Access<unknown>> = (value, path) => {
   if (!isRecord(value)) return refuse(path, 'expected an access identity')
   const keys = exactKeys(value, path, ['principal', 'tenant'])
@@ -321,7 +298,6 @@ export const decodeRequirement: Decoder<EnvironmentRequirement> = (value, path) 
   )
 }
 
-/** Wraps a decoder as a synchronous Standard Schema that schema-provider also accepts. */
 export function standardSchema<T>(
   decode: Decoder<T>,
 ): StandardSchemaV1<unknown, T> & StandardTyped<T> {

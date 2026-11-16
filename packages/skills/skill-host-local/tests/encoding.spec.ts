@@ -1,6 +1,3 @@
-// Names as the file system stores them: bytes. A name or a resolved path that is not strict UTF-8
-// cannot become a package path, and that is a fault of the package, not a passing failure of the
-// source. A byte order mark at the start of a name is part of the name.
 import { mkdir, symlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'

@@ -1,5 +1,3 @@
-// Step 10 through `verifiedBytes` directly: the bytes from the source for one entry, the digest
-// check, the source failures of `open`, and the abort checks around the port call.
 import { describe, expect, it } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
 import { computeDigest, type PackageEntry, type ReadFailure } from '@omne-harness/skill-contract'

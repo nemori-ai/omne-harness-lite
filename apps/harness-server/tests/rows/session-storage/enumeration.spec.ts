@@ -12,7 +12,6 @@ const authority = inProcessPrincipalAuthority()
 const issued = authority.issuer.issueSystem({ component: 'test-scanner' })
 if (!('ok' in issued)) throw new Error('test principal issuance failed')
 const principal = issued.ok
-// Explicit test grant. This is not the release grant table or a release assembly test.
 const grants: MaintenanceGrantSource = {
   read: async () => ({
     kind: 'found',

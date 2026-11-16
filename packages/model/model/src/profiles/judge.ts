@@ -1,7 +1,3 @@
-// The pure verdicts of one profile snapshot: which same-name profile wins, what the requirement
-// allows, and what a list offers. The judges read the snapshot only: no environment, no I/O, no
-// secret, and no throw. A snapshot that cannot prove its own composition is refused whole, so no
-// caller acts on half a directory.
 import { organizationEquals, tenantEquals } from '@omne-harness/legal-identity'
 import type {
   ModalityRequirement,
@@ -22,7 +18,6 @@ function unavailable(diagnostic: string): ModelFailure {
   return { kind: 'unavailable', dependency: PROFILES, diagnostic }
 }
 
-/** Two scopes of one layer and identity compare; a copied identity does not. */
 function sameScope(left: ProfileScope, right: ProfileScope): boolean {
   switch (left.kind) {
     case 'factory':
@@ -40,18 +35,10 @@ function sameScope(left: ProfileScope, right: ProfileScope): boolean {
   }
 }
 
-/**
- * The position of a scope in the layer order; -1 when the snapshot does not list it. The array
- * reads like a scope chain, outermost first, so a later position is the more specific layer.
- */
 function layerOf(precedence: readonly ProfileScope[], scope: ProfileScope): number {
   return precedence.findIndex(layer => sameScope(layer, scope))
 }
 
-/**
- * Refuses a snapshot that claims what it cannot prove: a candidate outside the layer order, or two
- * candidates of one identity. Both mean the source did not give the current composition.
- */
 function checkSnapshot(snapshot: ModelProfileSnapshot): ModelFailure | null {
   const seen: { scope: ProfileScope; route: string }[] = []
   for (const { profile } of snapshot.candidates) {
@@ -65,19 +52,11 @@ function checkSnapshot(snapshot: ModelProfileSnapshot): ModelFailure | null {
   return null
 }
 
-/**
- * True when the profile accepts every modality the requirement names. A requirement may name a
- * modality no profile can declare, such as `video`; the comparison is over the modality names.
- */
 function covers(candidate: Candidate, required: ModalityRequirement): boolean {
   const input: readonly string[] = candidate.profile.definition.input
   return required.modalities.every(modality => input.includes(modality))
 }
 
-/**
- * What one route may win: withdrawn candidates go first, then the excluded ones. A chain with
- * nothing left names why it offers nothing, and an unknown route is never sold as withdrawn.
- */
 function alive(
   snapshot: ModelProfileSnapshot,
   route: string,
@@ -96,7 +75,6 @@ function alive(
   return { kind: 'eligible', candidates: eligible }
 }
 
-/** The most specific candidate of an eligible list. */
 function mostSpecific(
   precedence: readonly ProfileScope[],
   candidates: readonly Candidate[],
@@ -116,7 +94,6 @@ function reasonsOf(winner: Candidate, required: ModalityRequirement): readonly R
   return reasons
 }
 
-/** The lower layers of the same route that the winner hides, in layer order. */
 function shadowedOf(
   winner: Candidate,
   candidates: readonly Candidate[],
@@ -132,7 +109,6 @@ function shadowedOf(
     .map(candidate => candidate.profile.adoption)
 }
 
-/** Resolve one route of an already checked snapshot. */
 function resolveChecked(
   snapshot: ModelProfileSnapshot,
   route: string,
@@ -153,7 +129,6 @@ function resolveChecked(
   }
 }
 
-/** The resolution of one route against one requirement, or the snapshot defect that stops it. */
 export function judgeProfileResolution(
   snapshot: ModelProfileSnapshot,
   route: string,
@@ -164,10 +139,6 @@ export function judgeProfileResolution(
   return { ok: resolveChecked(snapshot, route, required) }
 }
 
-/**
- * The list of one snapshot: the selectable routes in the order they first appear, and the asked
- * selection explained even when the snapshot cannot offer it. The selection is not recorded.
- */
 export function judgeProfileChoices(
   snapshot: ModelProfileSnapshot,
   selected: string | null,

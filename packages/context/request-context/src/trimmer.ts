@@ -1,13 +1,8 @@
-// The default trimmer: it shortens the text of tool results above a byte threshold, in the
-// material that goes to the summary step. It builds new messages with the same identities and
-// never touches the recorded ones or the model view. Media placeholders are text, so they are
-// shortened the same way.
 import { judgeMessage, type CoveredEntry, type Message } from '@omne-harness/message'
 import type { SummaryMaterial } from '@omne-harness/request-context-contract'
 
 type Trimmed = SummaryMaterial['trimmed'][number]
 
-/** The longest prefix of `text` that is at most `limit` bytes and ends on a character boundary. */
 function prefixWithin(text: string, limit: number): string {
   let bytes = 0
   let end = 0
@@ -39,11 +34,9 @@ function trimMessage(message: Message, limit: number): { message: Message; cut: 
   })
   if (cut.length === 0) return { message, cut }
   const judged = judgeMessage({ ...message, blocks })
-  // A shortened message the judge refuses is left as it was; nothing is reported as cut.
   return 'ok' in judged ? { message: judged.ok, cut } : { message, cut: [] }
 }
 
-/** `limit` is the byte threshold; the material is returned as is when nothing exceeds it. */
 export function trimMaterial(material: SummaryMaterial, limit: bigint): SummaryMaterial {
   const bound = limit > BigInt(Number.MAX_SAFE_INTEGER) ? Number.MAX_SAFE_INTEGER : Number(limit)
   const trimmed: Trimmed[] = [...material.trimmed]

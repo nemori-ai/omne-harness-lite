@@ -1,12 +1,7 @@
 import { execFile, execFileSync } from 'node:child_process'
 
-/** One POSIX session of a domain: its id (the leader's pid) and the leader's start time. */
 export type RecordedSession = Readonly<{ sid: number; start: string }>
 
-/**
- * Where a macOS domain lives: the sessions the provider created for it, in one boot. A command has
- * the gate's session; a terminal has the gate's session and the shell's.
- */
 export type SessionCoordinate = Readonly<{
   bootId: string
   sessions: readonly RecordedSession[]
@@ -24,7 +19,6 @@ export const positive = (text: string | undefined): number | undefined => {
   return Number.isSafeInteger(value) && value > 0 ? value : undefined
 }
 
-/** The reader's `members` answer; undefined when a line does not parse. */
 export function parseMembers(text: string): readonly SessionMember[] | undefined {
   const members: SessionMember[] = []
   for (const line of text.split('\n')) {
@@ -38,7 +32,6 @@ export function parseMembers(text: string): readonly SessionMember[] | undefined
   return members
 }
 
-/** The reader's `identity` answer; undefined when it does not parse. */
 export function parseIdentity(text: string): Identity | undefined {
   const line = text.trim()
   if (line === 'gone') return { kind: 'gone' }
@@ -52,14 +45,12 @@ export function parseIdentity(text: string): Identity | undefined {
   return { kind: 'alive', sid, start: `${seconds}.${micros.padStart(6, '0')}` }
 }
 
-/** The reader's `stop` answer; undefined when it does not parse. */
 export function parseStop(text: string): StopStatus | undefined {
   const line = text.trim()
   if (line === 'confirmed') return 'confirmed'
   return /^unconfirmed [0-9]+$/u.test(line) ? 'unconfirmed' : undefined
 }
 
-/** Runs the reader within `boundMs`; undefined when it failed, timed out or exited non-zero. */
 function ask(
   reader: string,
   args: readonly string[],
@@ -75,7 +66,6 @@ function ask(
   })
 }
 
-/** The live members of the sessions, `except` left out; undefined when they cannot be read. */
 export async function readMembers(input: {
   reader: string
   sessions: readonly number[]
@@ -100,10 +90,6 @@ export async function readIdentity(input: {
   return out === undefined ? undefined : parseIdentity(out)
 }
 
-/**
- * Kills every live member of the sessions and their process groups until two readings in a row
- * are empty. A failed or late reader answers `unconfirmed`, never `confirmed`.
- */
 export async function stopSessions(input: {
   reader: string
   sessions: readonly number[]
@@ -136,7 +122,6 @@ export function readBootIdNow(): string | undefined {
   }
 }
 
-/** This boot's identity; `kern.boottime` is not used because a clock step changes it. */
 export function readBootId(): Promise<string | undefined> {
   return new Promise(resolve => {
     execFile(
@@ -151,12 +136,6 @@ export function readBootId(): Promise<string | undefined> {
   })
 }
 
-/**
- * The sessions of a recorded domain that are still this domain's. A leader pid that names a live
- * process with another start time was reused: that session is gone. A leader that is gone leaves
- * its session id to the members still in it, since a pid that is a session id is not reused.
- * Undefined when an identity cannot be read.
- */
 export async function ownSessions(input: {
   reader: string
   sessions: readonly RecordedSession[]
@@ -175,10 +154,6 @@ export async function ownSessions(input: {
   return own
 }
 
-/**
- * Stops a recorded domain and confirms it empty. A domain of another boot is stopped: nothing of
- * that boot lives. An unreadable identity answers `unconfirmed`.
- */
 export async function stopRecordedDomain(input: {
   reader: string
   coordinate: SessionCoordinate

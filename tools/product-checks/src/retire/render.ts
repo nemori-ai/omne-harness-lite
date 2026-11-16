@@ -17,7 +17,6 @@ function exportLine(item: InventoryExport): string {
   return `    ${item.name}${ids}  测试 ${item.testFiles}  产品 ${item.productFiles}`
 }
 
-/** 本次放行波次的核对范围：到期的项里，哪些有导出名被扫描，哪些没有。 */
 export function renderScope(table: RetireTable, wave: Wave): string[] {
   const due = table.items.filter(item => isDue(item, wave))
   const scanned = due.filter(item => item.exports.length > 0).map(item => item.id)
@@ -28,7 +27,6 @@ export function renderScope(table: RetireTable, wave: Wave): string[] {
   ]
 }
 
-/** 给人读的文本：三类问题、表过期、未映射、清点表、核对范围（可选）和结论。 */
 export function renderText(result: ScanResult, scope: readonly string[] = []): string {
   const lines = [`替身清点  放行波次 ${result.wave}  检出 ${result.ref.slice(0, 9)}`]
   for (const kind of ['overdue', 'retired-referenced', 'misassembled'] as const) {

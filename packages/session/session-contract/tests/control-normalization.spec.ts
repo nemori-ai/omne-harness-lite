@@ -1,10 +1,3 @@
-// The pure rule that decides the Session consequences of an Agent control event
-// (`decideControlConsequences`). The two conditions that let a cancel reconcile a control are
-// checked on hand-made material: the cancel covers a responsibility only when the attempt that
-// started it is an attempt of the interpreted execution, and its qualification is revoked only when
-// every attempt of that execution released the advance. Each case states the answer the rule must
-// give; a cancel that covered a foreign attempt, or a qualification that held while the advance was
-// still held, would reconcile the control and the cases would turn red.
 import { describe, expect, it } from 'vitest'
 import {
   decideControlConsequences,
@@ -26,15 +19,11 @@ const ATTEMPT = 'attempt-1' as AttemptId
 const WAIT = { consumption: 'consumption-1', position: 'position-1' }
 
 type Material = Readonly<{
-  /** The execution the SE15 record of the attempt names. */
   attemptOf: string
-  /** Whether the Run still holds the advance of the interpreted execution. */
   advance: 'held' | 'released'
-  /** Whether a responsibility of the control waits on the attempt. */
   waits: boolean
 }>
 
-/** One open cancel of the Run, interpreted at an event whose cancel record reached every stage. */
 function decide(material: Material) {
   const progress: ControlProgress = {
     operation: OPERATION,

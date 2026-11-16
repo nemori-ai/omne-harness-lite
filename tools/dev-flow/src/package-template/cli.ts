@@ -13,7 +13,10 @@ const HELP = `Usage:
 Creation previews by default. --write creates a draft without replacing files.
 Inventory scan is read-only. Package --check requires current markers, complete structure and no known static integration deviations.
 Explicit --group --check asserts current group structure and completed drafts without certifying adoption. Unknowns still require manual review.
-Variants: module, cordis-module, service-contract, service-provider.`
+Variants: module, cordis-module, service-contract, service-provider.
+Root script: pnpm package:template. A generated draft has no adoption marker. src/index.ts and src/cordis.ts carry PACKAGE_TEMPLATE_DRAFT until real interfaces, accepted behavior and verification exist.
+Scan exit codes: 0 after a complete report (with --check: current marker, passing structure, no known static deviation).
+1 with --check: missing or older marker, structure failure or deviation. 2: no exact rule for a marker, or an input error.`
 
 function options(args: readonly string[], command: string) {
   const values = new Map<string, string>()

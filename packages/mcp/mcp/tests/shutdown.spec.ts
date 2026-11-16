@@ -1,7 +1,3 @@
-// The shutdown (SPEC decisions 5 and 6): `closeAll` releases the handles of the landings in flight
-// at once, whatever another entry's close waits on, and a build that is under way when the table
-// shuts goes no further than the step it is in. Steps are ordered with deferred promises; the only
-// timers are the connection bounds under test.
 import { describe, expect, it } from 'vitest'
 import { only } from './doubles/calls.ts'
 import { manualBounds } from './doubles/bounds.ts'
@@ -30,7 +26,7 @@ function opens(w: World): number {
   return w.transports.calls.filter(call => call.kind === 'open').length
 }
 
-describe('closeAll releases the handles of the landings in flight at once (MC-14)', () => {
+describe('closeAll releases the handles of the landings in flight at once', () => {
   it('while the close of another entry waits on its transport', async () => {
     const closing = deferred<'closed'>()
     const w = world({ script: [...usualScript(), { close: closing }] })
@@ -39,7 +35,6 @@ describe('closeAll releases the handles of the landings in flight at once (MC-14
       ...WITH_CREDENTIAL,
       settings: { connectTimeout: VALUE(millisOf(50)) },
     })
-    // The start for `files` is call 1 and lands; the start for `notes` is call 2 and never does.
     const stalled = stallingLanding(w.landing, only(2))
     const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
     expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
@@ -89,18 +84,15 @@ describe('closeAll releases the handles of the landings in flight at once (MC-14
     expect(stalled.calls()).toBe(1)
     const all = c.connections.closeAll()
     await settled()
-    // No bound fired: the landing is in flight within its bound, and its handle is released.
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
     stalled.gate.resolve()
     expect(await refreshed).toEqual(REFUSED)
-    // The build that sees the close tears nothing down; the close stops the process that landed
-    // and reports what that stop confirmed (MC-10).
     expect(await all).toEqual([{ ref: files, process: 'tree-confirmed' }])
     expect(w.landing.processes()).toEqual([{ stops: 1 }])
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
   })
 
-  it('not for a landing that already handed over its process: the handle waits for its stop (S9)', async () => {
+  it('not for a landing that already handed over its process: the handle waits for its stop', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files, {
       ...WITH_CREDENTIAL,
@@ -112,7 +104,6 @@ describe('closeAll releases the handles of the landings in flight at once (MC-14
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual(REFUSED)
     landing.gate.resolve()
     await settled()
-    // The late process is being stopped; it carries the handle in its environment.
     const all = c.connections.closeAll()
     await settled()
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 0 }])
@@ -124,7 +115,7 @@ describe('closeAll releases the handles of the landings in flight at once (MC-14
   })
 })
 
-describe('a build under way when the table shuts goes no further (MC-5)', () => {
+describe('a build under way when the table shuts goes no further', () => {
   it('shut while the credential is asked: no process starts, no transport opens, the handle is released once', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files, WITH_CREDENTIAL)
@@ -160,7 +151,7 @@ describe('a build under way when the table shuts goes no further (MC-5)', () => 
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
   })
 
-  it('shut while negotiating: the same refusal as after the shutdown, not a connection about to be torn down (MC-5)', async () => {
+  it('shut while negotiating: the same refusal as after the shutdown, not a connection about to be torn down', async () => {
     const discover = deferred<PeerIdentity>()
     const w = world({ script: [{ discover }] })
     adoptStdio(w, files, WITH_CREDENTIAL)
@@ -181,7 +172,6 @@ describe('a build cut off by the shutdown marks nothing', () => {
   it('the catalog keeps its revision: the shutdown is a fact of this instance, not of the endpoint', async () => {
     const w = world({ script: [...usualScript(), ...usualScript()] })
     adoptStdio(w, files)
-    // The first start lands at once; the start of the rebuild waits until the table is shut.
     const stalled = stallingLanding(w.landing, only(2))
     const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
     expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
@@ -202,7 +192,7 @@ describe('a build cut off by the shutdown marks nothing', () => {
     expect(await w.store.read(ANONYMOUS_KEY)).toEqual(published)
   })
 
-  it('a build that fails after the shutdown began marks nothing either, and answers as after the shutdown (MC-5, MC-10)', async () => {
+  it('a build that fails after the shutdown began marks nothing either, and answers as after the shutdown', async () => {
     const w = world({ script: [...usualScript(), ...usualScript()] })
     adoptStdio(w, files)
     const bounds = manualBounds()
@@ -220,7 +210,6 @@ describe('a build cut off by the shutdown marks nothing', () => {
     expect(stalled.calls()).toBe(2)
     const all = c.connections.closeAll()
     await settled()
-    // The rebuild's bound fires after the shutdown began: the build fails at the landing.
     bounds.fire('build', 1)
     expect(await refreshed).toEqual(REFUSED)
     expect(await all).toEqual([{ ref: files, process: 'unconfirmed' }])

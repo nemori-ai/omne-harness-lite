@@ -1,5 +1,3 @@
-// 待核对主张 1（六节点共用）：`inject` 没有可选形式——写进 inject 的服务缺席即 PENDING；
-// 可选依赖的路径是 `ctx.get(name)`：不要求 inject，提供者不在或未 ACTIVE 时返回 undefined，且提供者换代不重跑调用方。
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { FIBER_STATE, plugin } from './basis-support.ts'
@@ -25,7 +23,6 @@ describe('inject-has-no-optional-form', () => {
         async inner => {
           inner.effect(function* () {
             yield inner.provide('credentials', credentials)
-            // 同一 effect 逆序释放；屏障未打开前服务仍在 store，能区分状态过滤和已注销。
             yield async () => {
               enteredDisposer.resolve()
               await releaseDisposer.promise
@@ -122,6 +119,6 @@ describe('inject-has-no-optional-form', () => {
       plugin('credB', (inner: Context) => inner.provide('credentials', { gen: 'B' })),
     )
     expect(resolveOptional<{ gen: string }>(captured!, 'credentials')?.gen).toBe('B')
-    expect(runs).toBe(1) // 调用方插件体没有因为 credentials 换代而重跑
+    expect(runs).toBe(1)
   })
 })

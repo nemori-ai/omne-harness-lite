@@ -40,7 +40,6 @@ function originalCallMatches(action: ToolPermissionAction): action is ToolPermis
   )
 }
 
-/** The owner answered for the given call, with records of the tenant of the permission request. */
 function answersGivenCall(
   original: InvocationQualification,
   given: InvocationQualification['request'],
@@ -55,7 +54,6 @@ function answersGivenCall(
   )
 }
 
-/** Used by the permission basis read, after its Identity check. */
 export async function qualifyToolPermission(
   input: Readonly<{
     action: ToolPermissionContext

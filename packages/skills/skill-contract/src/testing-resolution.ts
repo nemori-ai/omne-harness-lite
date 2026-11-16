@@ -1,4 +1,3 @@
-// The conformance suite of `SkillResolution` and its memory double.
 import assert from 'node:assert/strict'
 import type { CapabilityId } from '@omne-harness/assets'
 import type { Access } from '@omne-harness/legal-identity'
@@ -23,13 +22,11 @@ export type MemoryMaterial = Readonly<{ ref: SkillRef; declared: DeclaredProject
 
 export type MemoryResolutionEntry<P, S> = Readonly<{
   capability: CapabilityId
-  /** Whether the principal may know this identity in the scope. */
   visible: (access: Access<P>, scope: S) => boolean
   state:
     | Readonly<{
         kind: 'adopted'
         current: MemoryMaterial
-        /** Earlier versions that a basis may still name. */
         earlier?: readonly MemoryMaterial[]
       }>
     | Readonly<{
@@ -40,10 +37,6 @@ export type MemoryResolutionEntry<P, S> = Readonly<{
       }>
 }>
 
-/**
- * Whether `basis` names `material`. With an asset version the version decides; without one the
- * source layer decides. The digest is not compared: Skill compares it with the snapshot itself.
- */
 function names(material: MemoryMaterial, basis: SkillMaterialBasis): boolean {
   const { ref } = material
   if (!sameCapability(ref.capability, basis.capability) || ref.layer !== basis.layer) return false
@@ -67,8 +60,6 @@ function answerOf<P, S>(
   if (basis === undefined || state.kind === 'known-unavailable') return currentAnswer(entry)
   const material = [state.current, ...(state.earlier ?? [])].find(item => names(item, basis))
   if (material === undefined) return { kind: 'basis-not-lawful' }
-  // The digest is not compared: the reference carries the digest of the basis back, and Skill
-  // compares it with the snapshot (PR3), a material without a package included.
   return {
     kind: 'adopted',
     ref: { ...material.ref, digest: basis.digest },
@@ -76,10 +67,6 @@ function answerOf<P, S>(
   }
 }
 
-/**
- * A resolution over fixed identities in memory. An identity that the principal may not know
- * answers `none`, the same as an identity that does not exist.
- */
 export function createMemoryResolution<P, S>(
   entries: readonly MemoryResolutionEntry<P, S>[],
 ): SkillResolution<P, S> {
@@ -98,31 +85,18 @@ export function createMemoryResolution<P, S>(
 
 export type PrincipalSample<P, S> = Readonly<{ access: Access<P>; scope: S }>
 
-/** A fresh resolution for one case, and the principals and identities that the case asks about. */
 export type ResolutionFixture<P, S> = Readonly<{
   resolution: SkillResolution<P, S>
-  /** A principal who may read `adopted` in the scope. */
   permitted: PrincipalSample<P, S>
-  /** A principal who has no right to `adopted` or `standIn`. */
   refused: PrincipalSample<P, S>
-  /** An identity adopted for `permitted`. */
   adopted: CapabilityId
-  /** An identity that exists for nobody. */
   missing: CapabilityId
-  /** An identity that `permitted` knows lawfully and that is not available now, if there is one. */
   standIn?: CapabilityId
-  /** A basis of an earlier lawful version of `adopted`, if there is one. */
   earlier?: SkillMaterialBasis
-  /** A source layer in which `adopted` is not lawful for `permitted`, if there is one. */
   unlawfulLayer?: SourceLayer
-  /**
-   * An identity adopted for `permitted` whose material has no readable package (its asset body
-   * has no `package.digest`), if there is one.
-   */
   noPackage?: CapabilityId
 }>
 
-/** The name of the non-disclosure case. */
 export const RESOLUTION_NO_DISCLOSURE =
   'answers a principal without the right the same for an existing and a missing identity'
 
@@ -137,7 +111,6 @@ async function adoptedRef<P, S>(fixture: ResolutionFixture<P, S>): Promise<Skill
   return answer.ref
 }
 
-/** A basis of the material of `ref`. The port does not compare the digest, so any digest serves. */
 function basisOf(ref: SkillRef): SkillMaterialBasis {
   return {
     capability: ref.capability,
@@ -147,14 +120,12 @@ function basisOf(ref: SkillRef): SkillMaterialBasis {
   }
 }
 
-/** An asset version that differs from `version`. */
 function otherVersion(version: AssetVersion): AssetVersion {
   for (const text of ['conformance-unlawful-version', 'conformance-unlawful-version-2'])
     if (isAssetVersion(text) && text !== version) return text
   throw new Error('unreachable: two different texts cannot both equal one version')
 }
 
-/** A package digest that differs from `digest`. */
 function otherDigest(digest: PackageDigest): PackageDigest {
   for (const text of [`sha256:${'0'.repeat(64)}`, `sha256:${'1'.repeat(64)}`])
     if (isPackageDigest(text) && text !== digest) return text

@@ -114,13 +114,8 @@ it('scopes, identities and modalities are closed vocabularies', () => {
 })
 
 it('the supported modalities are a subset of the shared vocabulary, and a requirement may carry any of it', () => {
-  // Red when ModelModality names a value that the shared vocabulary does not have (a renamed
-  // modality) or loses one of the three. A literal union equal to the derived one passes: types
-  // compare by structure, so the derivation itself is a source fact, not a type-level one.
   expectTypeOf<ModelModality>().toExtend<Modality>()
   expectTypeOf<ModelModality>().toEqualTypeOf<'text' | 'image' | 'voice'>()
-  // Red when the projection is narrowed back to the supported subset: Model could then not be told
-  // that the history holds video, and could not answer that no profile fits.
   expectTypeOf<ModalityRequirement['modalities'][number]>().toEqualTypeOf<Modality>()
   const video: ModalityRequirement = { modalities: ['text', 'video'], source: evidence }
   // @ts-expect-error an unlisted modality

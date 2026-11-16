@@ -124,7 +124,6 @@ for (const boundary of ['runtime', 'commands'] as const) {
     expect(
       await f.dependencies.commands.recall({ ...f.admit, admission: f.admit.operation }),
     ).toEqual({ ok: { kind: 'not-accepted', operation: f.admit.operation } })
-    // The rejected submissions hold nothing: the call is admitted with the input it had then.
     const raw = { ...f.admit, request: structuredClone(f.admit.request) }
     const pending = calls.admit(raw)
     Object.defineProperty(raw.request.profile, 'name', { value: 'after-call' })

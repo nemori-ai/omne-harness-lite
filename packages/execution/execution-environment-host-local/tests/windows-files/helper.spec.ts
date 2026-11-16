@@ -1,7 +1,3 @@
-// The transport of the files helper against a stand-in process (`fake-helper.ts`) that writes the
-// frames a test asks for. Each case names the FilesHelper property it holds
-// (`verification/models/README.md#fileshelper`). The stand-in logs every request that reaches it,
-// so "never written" is counted, not inferred from timing.
 import type { ChildProcess } from 'node:child_process'
 import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -12,7 +8,6 @@ import { createFilesHelper } from '../../src/windows-files/helper.ts'
 import type { RunInput } from '../../src/windows-files/protocol.ts'
 
 const kills = vi.hoisted(() => ({
-  /** When set, `kill()` of a spawned child only reports; the test kills it with `now`. */
   defer: false,
   requested: Promise.withResolvers<void>(),
   now: (): void => undefined,
@@ -53,7 +48,6 @@ afterEach(async () => {
   await rm(directory, { recursive: true, force: true })
 })
 
-/** A helper whose processes are stand-ins; `starts` are the start modes of successive launches. */
 function helper(
   options: Readonly<{
     inFlightLimit?: number
@@ -73,7 +67,6 @@ function helper(
   })
 }
 
-/** A request the stand-in acts on by `named`; `path` carries its argument. */
 function input(named: string, path = '-'): RunInput {
   return {
     root: 'C:\\',
@@ -104,7 +97,6 @@ const lines = async (): Promise<string[]> => {
   }
 }
 
-/** Waits until `count` requests named `named` reached a stand-in. */
 async function reached(named: string, count = 1): Promise<void> {
   await vi.waitFor(
     async () => {
@@ -130,7 +122,6 @@ it('P2: answers unknown for a written request when the process is killed, and ke
   process.kill(first ?? 0)
   expect(await written).toBe('unknown')
   expect(await queued).toMatchObject(done)
-  // The queued request was written once, to the second process only.
   const log = await lines()
   expect(log.filter(line => line.startsWith('pid '))).toHaveLength(2)
   expect(log.findIndex(line => line.includes(' answer '))).toBeGreaterThan(
@@ -141,7 +132,6 @@ it('P2: answers unknown for a written request when the process is killed, and ke
 it('P1: a reply that never got its line end is no frame, so the request answers unknown', async () => {
   const files = helper()
   expect(await files.request(input('emitExit', '{"v":1,"id":#self,"ok":#ok}'))).toBe('unknown')
-  // A torn line invalidates the process; the request is unknown, not answered from the fragment.
   expect(await files.request(input('emit', '{"v":1,"id":#self,"ok":{"info"\n'))).toBe('unknown')
   expect(await files.request(input('answer'))).toMatchObject(done)
 }, 30_000)
@@ -155,7 +145,6 @@ it('P5: answers once, and drops a duplicate frame together with every frame read
   const frame = (held: string) => `{"v":1,"id":${held},"ok":#ok}\n`
   const trigger = files.request(input('emit', frame('#0') + frame('#0') + frame('#1')))
   expect(await first).toMatchObject(done)
-  // The duplicate invalidated the process: the frame for the second request came too late.
   expect(await second).toBe('unknown')
   expect(await trigger).toBe('unknown')
   expect(await files.request(input('answer'))).toMatchObject(done)
@@ -181,6 +170,5 @@ it('answers the waiting requests unavailable when the helper cannot start, and s
   for (let attempt = 0; attempt < 3; attempt++)
     expect(await files.request(input('answer'))).toBe('unavailable')
   expect(await files.request(input('answer'))).toMatchObject(done)
-  // Nothing was written to a process that never became ready.
   expect((await lines()).filter(line => line.startsWith('request '))).toHaveLength(1)
 }, 30_000)

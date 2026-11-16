@@ -1,5 +1,3 @@
-// 耗时账本：把各成员 vitest 的 JSON 报告与计时报告汇总成成员、文件、用例三级的耗时、导入耗时、
-// 贴着自身时限的用例与失败清单。纯函数。
 import { relative } from 'node:path'
 import type { Failure, Ledger } from '@omne-harness/repo-toolchain/core/test-ledger'
 export type {
@@ -10,10 +8,8 @@ export type {
 } from '@omne-harness/repo-toolchain/core/test-ledger'
 import type { TimingReport } from './timing-reporter.ts'
 
-/** vitest 的默认用例时限。计时报告缺失（成员没跑到报告器那一步）时，贴线按它判，并在账本里标明是假定的。 */
 export const VITEST_DEFAULT_TIMEOUT_SECONDS = 5
 
-/** vitest `--reporter=json` 的形状里这里用到的部分。 */
 export interface VitestJsonReport {
   readonly testResults: readonly {
     readonly name: string
@@ -31,19 +27,14 @@ export interface VitestJsonReport {
 }
 
 export interface MemberRun {
-  /** 仓库相对的成员目录。 */
   readonly member: string
   readonly exitCode: number
   readonly wallSeconds: number
-  /** 没有报告：脚本不是 vitest，或进程在写出报告前就退出了。 */
   readonly report?: VitestJsonReport
-  /** 计时报告；与 JSON 报告同理可能没有。 */
   readonly timing?: TimingReport
-  /** 运行器自己判的失败（如报告里有嵌套归档目录的文件）；有它时退出码一定非零。 */
   readonly problem?: string
 }
 
-/** 什么都没跑的账本正文（计划跳过了全部验收时用）。 */
 export function emptyLedger(): Ledger {
   return { members: [], files: [], nearTimeout: [], fastOverBudget: [], failures: [] }
 }
@@ -57,11 +48,9 @@ const round = (seconds: number) => Math.round(seconds * 10) / 10
 
 type FileTiming = TimingReport['files'][number]
 
-/** 跑了的用例：通过或失败；跳过、待写、被层过滤掉的不算。 */
 const ranTest = (assertion: { readonly status: string }) =>
   assertion.status === 'passed' || assertion.status === 'failed'
 
-/** 报告里跑了的用例数。 */
 export function testCount(report: VitestJsonReport): number {
   return report.testResults.reduce(
     (sum, file) => sum + file.assertionResults.filter(ranTest).length,
@@ -69,7 +58,6 @@ export function testCount(report: VitestJsonReport): number {
   )
 }
 
-/** 慢层的标签名（定义在仓库根 `vitest.tiers.mts`）。 */
 export const SLOW_TAG = 'slow'
 
 interface TestTiming {
@@ -77,7 +65,6 @@ interface TestTiming {
   readonly slow: boolean
 }
 
-/** 一个成员的计时报告按文件索引；同一文件里同名的用例取第一条。 */
 function timingIndex(timing: TimingReport | undefined) {
   const files = new Map<string, { file: FileTiming; tests: Map<string, TestTiming> }>()
   for (const file of timing?.files ?? []) {
@@ -133,7 +120,6 @@ export function buildLedger(
           longestSeconds = Math.max(longestSeconds, testSeconds)
         }
         const timeoutSeconds = known?.timeoutSeconds ?? VITEST_DEFAULT_TIMEOUT_SECONDS
-        // 时限 0 在 vitest 里是「不设时限」，无线可贴。
         if (timeoutSeconds > 0 && testSeconds >= timeoutSeconds * nearTimeoutRatio)
           tests.push({
             member: run.member,
@@ -175,12 +161,10 @@ export function buildLedger(
         longestSeconds: round(longestSeconds),
         ...(timing === undefined ? {} : { collectSeconds: round(timing.file.collectSeconds) }),
       })
-      // 文件判失败却没有任何失败用例：收集、加载或钩子出的错。
       if (result.status === 'failed' && failedHere === 0)
         failures.push({ member: run.member, file, message: firstLine(result.message ?? '') })
     }
     if (run.problem !== undefined) failures.push({ member: run.member, message: run.problem })
-    // 成员退出码非零却没有任何可归到文件的失败：报告缺失，或失败发生在测试之外（如类型检查）。
     else if (run.exitCode !== 0 && !failures.some(failure => failure.member === run.member))
       failures.push({
         member: run.member,
@@ -214,11 +198,9 @@ export interface LedgerSummaryContext {
   readonly nearTimeoutRatio: number
   readonly top: number
   readonly runDir: string
-  /** 结果缓存命中、因而没有跑的成员数；账本的成员一级读数里没有它们。 */
   readonly cachedMembers?: number
 }
 
-/** 给人和 agent 看的摘要：事实与数，不带建议。 */
 export function ledgerSummary(ledger: Ledger, context: LedgerSummaryContext): string[] {
   const total = ledger.members.reduce(
     (sum, member) => ({
@@ -289,13 +271,8 @@ export function ledgerSummary(ledger: Ledger, context: LedgerSummaryContext): st
   return lines
 }
 
-/** 回快层的线是归慢那条线的一半：空闲与忙时的读数差一倍上下，同一条线会让贴着它的文件在两个方向上轮流被点名。 */
 const RETURN_SHARE = 0.5
 
-/**
- * 归层的漂移：快层的承诺是单条用例不到默认时限的 `nearTimeoutRatio`（自带更宽时限的也一样）、单个文件的快层用例合计不到 `slowFileSeconds`；
- * 列出没守住的，和归了慢层却连这两条线的一半都不到的。只列事实，改快还是改归层由改代码的人定。
- */
 function driftLines(ledger: Ledger, context: LedgerSummaryContext): string[] {
   const quickTest = VITEST_DEFAULT_TIMEOUT_SECONDS * context.nearTimeoutRatio
   const returnTest = quickTest * RETURN_SHARE

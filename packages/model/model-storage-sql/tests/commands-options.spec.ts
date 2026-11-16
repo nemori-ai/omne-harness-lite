@@ -23,9 +23,6 @@ import {
   type Principal,
 } from './fixture.ts'
 
-// Which parts of the durable assembly exist is a function of the options alone: `observation` and
-// `initialRun` bring the confirming observation layer, `send` brings the coordinator,.
-
 const limits: ModelObservationLimits = {
   maxSnapshotBytes: 100000,
   maxDeltaBytes: 100000,

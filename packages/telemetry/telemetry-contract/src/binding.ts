@@ -11,13 +11,10 @@ import {
   type ValidationResult,
 } from './limits.ts'
 
-/** An opaque reference with the name of its owner. Telemetry does not decode it. */
 export type OwnedRef = Readonly<{ owner: string; ref: string }>
 
-/** Whom the recorded fact belongs to: one tenant's work, or the service process itself. */
 export type TelemetryScope = ActingScope
 
-/** The correlation of every record that one emitter makes. */
 export type Binding = Readonly<{
   scope: TelemetryScope
   component: string
@@ -43,8 +40,6 @@ function isBoundedList(value: unknown, max: number, item: (value: unknown) => bo
 }
 
 function isScope(value: unknown): boolean {
-  // The codec is the minting check: it encodes only a scope that legal-identity minted, and
-  // answers a failure for any other value, whatever its type.
   return actingScopeCodec.encode(value as ActingScope).ok
 }
 
@@ -54,7 +49,6 @@ function optional(check: (value: unknown) => boolean): (value: unknown) => boole
 
 type MemberCheck = readonly [(value: unknown) => boolean, InvalidReason]
 
-/** Every member a binding may have, the check of its value and the reason when the check fails. */
 const MEMBERS: ReadonlyMap<PropertyKey, MemberCheck> = new Map<PropertyKey, MemberCheck>([
   ['scope', [isScope, 'scope']],
   ['component', [value => isToken(value, TELEMETRY_LIMITS.componentMaxLength), 'component']],
@@ -87,10 +81,6 @@ function check(binding: unknown): ValidationResult {
   return OK
 }
 
-/**
- * Checks a binding. The scope must be minted by legal-identity; a value of the same shape is not
- * enough. Never throws: an input that throws while it is read is `malformed`.
- */
 export function validateBinding(binding: Binding): ValidationResult {
   try {
     return check(binding)

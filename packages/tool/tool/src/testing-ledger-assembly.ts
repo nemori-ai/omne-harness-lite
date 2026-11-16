@@ -126,7 +126,6 @@ function invokeRequest(): ToolInvokeRequest {
   }
 }
 
-/** A real ledger with a fixed non-production trust model; the provider supplies only the store. */
 export async function ledgerAssembly(
   fixture: ToolLedgerStoreFixture,
   deps: LedgerAssemblyDependencies,
@@ -303,7 +302,6 @@ export async function ledgerAssembly(
       revoked = true
     },
     query: (operation = input.operation) => ledger.reads.operation({ ...access, operation }),
-    /** A second complete trusted internal binding for the same operation, as in named-source tests. */
     changedInput: () => {
       const fixed: FixedToolRequest = {
         ...input.request,

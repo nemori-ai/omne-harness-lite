@@ -1,5 +1,3 @@
-// Original Agent facts and material use the Session Journal on real SQLite Workers.
-// Session access and Tool description are explicit fixtures; this does not prove a capture commit.
 import { expect } from 'vitest'
 import {
   decodeActionId,

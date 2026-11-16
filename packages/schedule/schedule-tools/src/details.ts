@@ -92,7 +92,6 @@ const verdictSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('unavailable'), diagnostic: z.string() }),
 ])
 type GuardedAction = Parameters<ToolHostAccess<unknown>['guard']['qualify']>[0]['action']
-/** The reads that disclose a result: its pages, and its content and body bytes. */
 const protectedActions = new Set<GuardedAction>(['read-result', 'read-content'])
 function guardFor<P>(
   base: ToolHostAccess<P>['guard'],

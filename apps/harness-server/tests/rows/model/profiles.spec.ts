@@ -1,5 +1,3 @@
-// `model-profiles` row: model-host-local `ModelProfilesLocalPlugin` as a row. It injects nothing.
-// The profiles are the official OpenAI snapshot; the test reads them through the row's service.
 import { describe, expect, it } from 'vitest'
 import type { ModelProfile } from '@omne-harness/model-contract'
 import { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
@@ -10,7 +8,6 @@ import { TENANT, withLiveRows } from './support.ts'
 
 const plugins = { modelProfilesRow }
 const config = {
-  // A judged adoption digest is 64 hex characters; the profile judge refuses anything else at use.
   retryPolicy: {
     owner: 'harness-server-release',
     name: 'retry',

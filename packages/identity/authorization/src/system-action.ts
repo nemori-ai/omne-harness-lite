@@ -1,7 +1,3 @@
-// The system action decision (SPEC AU-12): a pure judgment over the request and the facts that the
-// caller read for it. It reads nothing itself and keeps no state, so the same request with changed
-// facts gives a changed decision: an allowed answer is never cached. The order is fixed, and the
-// first failed step decides: principal, matrix, grant record, arguments.
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { PrincipalVerification, SystemPrincipal } from '@omne-harness/identity'
 import {
@@ -13,18 +9,15 @@ import {
 import type { AdmissionOperation, AdmissionTarget } from './operation.ts'
 import { systemActionRowOf, type SystemActionRow } from './system-matrix.ts'
 
-/** Where a system action lands: a deployment-wide resource, or a resource in the partition of one tenant. */
 export type SystemActionTarget =
   | Readonly<{ kind: 'system'; resource: AdmissionTarget }>
   | Readonly<{ kind: 'tenant'; tenant: TenantId; resource: AdmissionTarget }>
 
-/** `component` of the principal is for diagnosis; the verifier, not the text, makes the principal trusted. */
 export type SystemActionRequest = Readonly<{
   principal: SystemPrincipal
   scope: 'system'
   operation: AdmissionOperation
   target: SystemActionTarget
-  /** The digest of the arguments; `noArguments()` for a row that takes none. */
   arguments: EffectiveArguments
 }>
 
@@ -36,10 +29,6 @@ export type SystemActionDenial =
   | 'grant-revoked'
   | 'grant-expired'
 
-/**
- * One maintenance grant record as its source holds it. `purposes` are purpose names of the matrix
- * rows. `generation` only enters the basis. `expiresAt` is judged by the injected clock.
- */
 export type MaintenanceGrant = Readonly<{
   source: string
   record: string
@@ -50,26 +39,22 @@ export type MaintenanceGrant = Readonly<{
   expiresAt?: string
 }>
 
-/** What the grant source answered: a record, no record, or no answer. */
 export type MaintenanceGrantReading =
   | Readonly<{ kind: 'found'; grant: MaintenanceGrant }>
   | Readonly<{ kind: 'none' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/** What the expiry clock answered about one end time. */
 export type ExpiryReading =
   | Readonly<{ kind: 'reached' }>
   | Readonly<{ kind: 'pending' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/** The facts read for one request. `grant` and `expiry` are null when they were not read. */
 export type SystemActionFacts = Readonly<{
   principal: PrincipalVerification
   grant: MaintenanceGrantReading | null
   expiry: ExpiryReading | null
 }>
 
-/** Everything the decision rested on. `principal` and `grant` are null until their step read them. */
 export type SystemActionBasis = Readonly<{
   operation: AdmissionOperation
   target: SystemActionTarget
@@ -86,18 +71,12 @@ export type SystemActionDecision =
       basis: SystemActionBasis
       evidence: DecisionEvidence
     }>
-  /** A necessary fact could not be read. Not a denial, and never a permission. */
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/** The port: one check, answered by the facts of now. */
 export interface SystemActionAuthorization {
   check(input: SystemActionRequest): Promise<SystemActionDecision>
 }
 
-/**
- * An own frozen copy of the value fields of a request. The principal and the minted tenant keep
- * their original objects. `scope` is copied as given, so a foreign scope reaches the judgment.
- */
 export function requestSnapshot(request: SystemActionRequest): SystemActionRequest {
   const { resource } = request.target
   const frozen = Object.freeze({ owner: resource.owner, kind: resource.kind, key: resource.key })
@@ -113,7 +92,6 @@ export function requestSnapshot(request: SystemActionRequest): SystemActionReque
   })
 }
 
-/** An own frozen copy of the value fields of a grant. */
 export function grantSnapshot(grant: MaintenanceGrant): MaintenanceGrant {
   return Object.freeze({
     source: grant.source,
@@ -164,7 +142,6 @@ function unavailable(diagnostic: string): SystemActionDecision {
   return Object.freeze({ kind: 'unavailable', diagnostic })
 }
 
-/** Whether the verification is of the very principal of the request, and that principal is a system one. */
 export function principalTrusted(
   request: SystemActionRequest,
   verified: PrincipalVerification,
@@ -176,12 +153,10 @@ export function principalTrusted(
   )
 }
 
-/** The matrix row that the request binds to, or the denial of step 2. */
 export type MatrixStep =
   | Readonly<{ kind: 'row'; row: SystemActionRow }>
   | Readonly<{ kind: 'denied'; reason: 'operation-forbidden' | 'binding-mismatch' }>
 
-/** Step 2. An operation outside the matrix is forbidden; a row whose scope, target, owner or kind differ is a mismatch. */
 export function matrixStep(request: SystemActionRequest): MatrixStep {
   const row = systemActionRowOf(request.operation)
   if (row === null) return { kind: 'denied', reason: 'operation-forbidden' }
@@ -194,7 +169,6 @@ export function matrixStep(request: SystemActionRequest): MatrixStep {
   return bound ? { kind: 'row', row } : { kind: 'denied', reason: 'binding-mismatch' }
 }
 
-/** A record whose members are not in the agreed shape (`revoked` boolean, `purposes` a list of text) cannot be read as a trusted fact. */
 function recordReadable(grant: unknown): grant is MaintenanceGrant {
   if (typeof grant !== 'object' || grant === null) return false
   const { revoked, purposes } = grant as Partial<Record<keyof MaintenanceGrant, unknown>>
@@ -205,7 +179,6 @@ function recordReadable(grant: unknown): grant is MaintenanceGrant {
   )
 }
 
-/** Whether step 3 reaches the end time: a record of this purpose that is not revoked and has one. */
 export function expiryDecides(
   row: SystemActionRow,
   grant: MaintenanceGrantReading | null,
@@ -222,7 +195,6 @@ export function expiryDecides(
 
 const OUTSIDE_GRANT_CONTRACT = 'the maintenance grant source answered outside its contract'
 
-/** Step 3: the grant record holds the purpose, is not revoked, and has not reached its end time. */
 function grantStep(
   row: SystemActionRow,
   facts: SystemActionFacts,
@@ -230,7 +202,6 @@ function grantStep(
 ): SystemActionDecision | SystemActionBasis {
   const reading = facts.grant
   if (reading === null) return unavailable('the maintenance grant was not read')
-  // Closed: any answer that is not `found`, `none` or `unavailable` is not a trusted fact.
   if (typeof reading !== 'object') return unavailable(OUTSIDE_GRANT_CONTRACT)
   if (reading.kind === 'unavailable') return unavailable(reading.diagnostic)
   if (reading.kind === 'none') return denied('grant-missing', basis)
@@ -244,7 +215,6 @@ function grantStep(
   if (grant.expiresAt === undefined) return known
   const expiry = facts.expiry
   if (expiry === null) return unavailable('the end time of the grant was not checked')
-  // Closed: any answer that is not `reached` or `pending` is not a trusted fact.
   switch (expiry.kind) {
     case 'reached':
       return denied('grant-expired', known)
@@ -263,21 +233,12 @@ function isDecision(
   return 'kind' in value
 }
 
-/**
- * Decides one system action from the request and the facts read for it. The order is fixed: the
- * verifier verified the very principal of the request; the operation is in the matrix and the
- * target matches its row; the grant source holds an open record of the row's purpose; the
- * arguments fit the row. The first failed step gives the denial; a fact that could not be read
- * gives `unavailable` at its step.
- */
 export function decideSystemAction(
   request: SystemActionRequest,
   facts: SystemActionFacts,
 ): SystemActionDecision {
   const basis = initialBasis(request)
   const verified = facts.principal
-  // Closed: an answer outside `verified`, `rejected` and `unavailable`, or a `verified` without a
-  // principal, is not a trusted fact.
   if (typeof verified !== 'object' || verified === null)
     return unavailable(OUTSIDE_VERIFIER_CONTRACT)
   if (verified.kind === 'unavailable') return unavailable(verified.diagnostic)

@@ -55,7 +55,13 @@
     "agent-context",
     "agent-account-outlet",
     "runtime-context",
-    "server-entry"
+    "session-observation",
+    "server-entry",
+    "identity-access",
+    "session-access",
+    "assets-access",
+    "human-intervention-access",
+    "session-diagnostics-access"
   ],
   "trusted": [
     {
@@ -91,7 +97,8 @@
         "standingDestinationResolver",
         "toolInvocationQualification",
         "currentToolPermission",
-        "sessionModesInstallation"
+        "sessionModesInstallation",
+        "tenantDomainRegistration"
       ]
     },
     {
@@ -114,7 +121,8 @@
         "sessionScopeOwners",
         "sessionDelegatedTransactions",
         "systemActionAuthorization",
-        "sessionPermissionBackend"
+        "sessionPermissionBackend",
+        "tenantDomainRegistration"
       ]
     },
     {
@@ -306,9 +314,43 @@
       "row": "server-entry",
       "names": [
         "principalIssuer",
-        "definitionMappings",
-        "identityGovernance",
+        "identityGovernance"
+      ]
+    },
+    {
+      "row": "identity-access",
+      "names": [
+        "identityGovernance"
+      ]
+    },
+    {
+      "row": "session-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding",
+        "definitionMappings"
+      ]
+    },
+    {
+      "row": "assets-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding",
         "settingsSecretItems"
+      ]
+    },
+    {
+      "row": "human-intervention-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "session-diagnostics-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
       ]
     }
   ]

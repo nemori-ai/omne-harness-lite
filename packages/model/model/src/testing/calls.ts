@@ -5,8 +5,6 @@ import {
 } from '../commands/commands.ts'
 import type { MemoryState } from './state.ts'
 
-// Calls and recovery of the memory commands: the shared core over the memory storage.
-
 export function callCommands<P>(
   store: MemoryState<P>,
 ): Pick<ModelCommands<P>, 'admit' | 'recall' | 'query' | 'dispatches' | 'control' | 'settle'> {

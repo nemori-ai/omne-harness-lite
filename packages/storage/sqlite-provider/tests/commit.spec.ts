@@ -1,10 +1,9 @@
-// Single-operation commit (SQL contract SPEC 7.1 to 7.6): recognition, rejection order, failure
-// classification, response evidence, the fact cell and cancellation by observation.
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { CommitResultV2, RolledBackV2 } from '@omne-harness/sql-contract'
 import { unpackText } from '@omne-harness/sql-contract/worker'
+import { tick } from './gate.ts'
 import {
   DOMAIN,
   buildMaterials,
@@ -124,7 +123,6 @@ describe('execution and evidence', () => {
     expect(await first.storage.commit(changed)).toEqual({
       kind: 'identity_conflict',
       identity: request.identity,
-      // The existing receipt is the stored one: it has no `recalled` mark.
       existing: { ...committed, recalled: undefined },
     })
     await first.control.close({ initiator: 'disposal' })
@@ -334,8 +332,6 @@ describe('rejection order (SPEC 7.2, adjacent steps)', () => {
   })
 
   it('step 7 command_limit before step 8 queue_full', async () => {
-    // admissionWaitMs 0: a full point refuses at once (sql-contract 准入等待 rule 7), so the order of
-    // the steps is observable.
     const { storage } = await ready({
       admissionQueueLimit: 1,
       globalAdmissionLimit: 1,
@@ -367,7 +363,6 @@ describe('rejection order (SPEC 7.2, adjacent steps)', () => {
   })
 
   it('step 12 manifest_mismatch before step 13 material_unavailable', async () => {
-    // One write Worker per file in the process (SPEC 13.5): the first generation ends first.
     await (await ready()).control.close({ initiator: 'disposal' })
     const changed = await buildMaterials(workspace, {
       suffix: '-x',
@@ -383,7 +378,6 @@ describe('rejection order (SPEC 7.2, adjacent steps)', () => {
   })
 
   it('step 13 material_unavailable before step 14 participant_not_in_combination', async () => {
-    // One write Worker per file in the process (SPEC 13.5): the first generation ends first.
     await (await ready()).control.close({ initiator: 'disposal' })
     const changed = await buildMaterials(workspace, {
       suffix: '-x',
@@ -441,8 +435,8 @@ describe('observation cancel (SPEC 7.1)', () => {
     const result = await pending
     expect(result).toMatchObject({ kind: 'unknown', diagnostic: 'observer_detached' })
     let found = await storage.query(request.identity)
-    for (let i = 0; i < 200 && found.kind === 'unknown'; i += 1) {
-      await new Promise(resolve => setTimeout(resolve, 10))
+    while (found.kind === 'unknown') {
+      await tick()
       found = await storage.query(request.identity)
     }
     expect(found.kind).toBe('committed')

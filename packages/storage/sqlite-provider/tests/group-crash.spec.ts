@@ -1,5 +1,3 @@
-// Worker exit and generations (SPEC 7.7.2, scenario C13). A participant that calls process.exit
-// ends the Worker thread in the middle of an operation.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createSqliteStorage } from '../src/index.ts'
 import { WriterClient } from '../src/writer-client.ts'
@@ -12,6 +10,7 @@ import type {
 } from '@omne-harness/sql-contract'
 import { defaultConfig, makeWorkspace, type Built, type Workspace } from './support.ts'
 import {
+  GROUPING,
   buildGroupMaterials,
   groupRegistration,
   op,
@@ -43,7 +42,7 @@ afterEach(async () => {
 
 async function start(): Promise<SqlStorage> {
   const created = await createSqliteStorage({
-    config: { ...defaultConfig(workspace.storageRoot), groupCollectMs: 150 },
+    config: { ...defaultConfig(workspace.storageRoot), ...GROUPING },
     materials: built.catalog,
     closeLeases: {
       admit(name) {
@@ -79,7 +78,6 @@ describe('C13: a Worker that exits inside a group', () => {
     for (const result of results)
       expect(result.kind === 'unknown' && result.diagnostic).toContain('worker_exited')
 
-    // A touch of the domain opens a new Worker. Its lease is admitted after the old one is released.
     expect((await storage.query(identityOf(results[0]))).kind).toBe('not_committed')
     expect((await storage.query(identityOf(results[1]))).kind).toBe('not_committed')
     expect((await storage.query(identityOf(results[2]))).kind).toBe('not_committed')
@@ -136,7 +134,6 @@ describe('C13: replies of an older Worker generation', () => {
       kind: 'query',
       identity: insert('q').identity,
     })
-    // The request is sent but the Worker has not answered yet. A stale envelope with the same id.
     const worker = (client as unknown as { worker: Worker }).worker
     worker.emit('message', { id: 1, generation: 4, reply: { kind: 'none' } })
     const reply = await pending

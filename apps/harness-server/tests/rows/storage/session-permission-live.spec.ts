@@ -1,5 +1,4 @@
 // @module-tag slow
-// Original login, authorization and governance rows; Session initialization is a named fixture.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

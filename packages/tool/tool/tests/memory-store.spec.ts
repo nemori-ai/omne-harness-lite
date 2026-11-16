@@ -66,16 +66,13 @@ describe('18 the non-durable store', () => {
       records: [exclusion],
     })
     expect(recordKey(exclusion)).toBe('exclusion:op-1')
-    // A commit prepared against revision 0 fails after the fence.
     expect(await store.commit({ ...fence, writes: [{ kind: 'put', record: task }] })).toEqual({
       kind: 'conflict',
       current: '1',
     })
-    // A commit that changes no record still advances the revision.
     const empty = { domain, expected: '1' as never, revision: '2' as never, writes: [] }
     expect(await store.commit(empty)).toEqual({ kind: 'committed' })
     expect(await store.read(domain)).toMatchObject({ revision: '2', records: [exclusion] })
-    // A delete of a key that holds no record is a no-op that still advances the revision.
     const absent = {
       ...empty,
       expected: '2' as never,
@@ -246,7 +243,6 @@ describe('18 the non-durable store', () => {
     expect(store.landDelayed()).toEqual([{ kind: 'committed' }])
     expect(await store.read(domain)).toEqual({ kind: 'complete', revision: '1', records: [task] })
     expect(store.landDelayed()).toEqual([])
-    // A held commit whose expected revision has moved on is dropped when it lands.
     store.injectCommit('unknown-delayed')
     await store.commit({ ...commit, writes: [{ kind: 'delete', key: recordKey(task) }] })
     await store.commit({ ...commit, expected: '1' as never, revision: '2' as never, writes: [] })

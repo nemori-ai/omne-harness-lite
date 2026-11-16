@@ -1,47 +1,30 @@
-// `pnpm run check` 的步骤图运行器：步骤只声明「先于我完成的步骤」，没有依赖的就同时跑。
-// 重步骤（构建、类型检查、成员测试、验收）自己按预算起多进程把机器占满，所以同时至多 `heavyConcurrency` 个（缺省 1）；
-// 轻步骤（含 pytest；pytest 自己用 xdist 起预算四分之一的进程）受 `lightConcurrency` 限制，免得在核少的机器上把重步骤挤慢；两类步骤同等优先级：
-// 把轻步骤降级量过（24 核），pytest 与 check:docs 这些关键路径上的轻步骤被挤慢 40% 到 100%，重步骤早完成的时间全空等。
-// 任一步失败：不再起新步骤，正在跑的整棵进程树终止，退出码取第一个失败的那一步；`keepGoing` 时其余照跑，依赖失败步骤的不启动。
-// 每步的输出落自己的日志。
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { closeSync, mkdirSync, openSync, rmSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
 
-/** 一条命令：可执行文件与参数，至少有可执行文件。 */
 export type Command = readonly [string, ...string[]]
 
 export interface CheckStep {
   readonly name: string
   readonly command: Command
-  /** 先于本步完成的步骤名。 */
   readonly after: readonly string[]
-  /** 自己按预算起多进程的步骤；轻步骤受 `lightConcurrency` 限制。 */
   readonly heavy: boolean
-  /** 按计划跑的步骤（跑不跑、跑哪些成员由影响面计划定）；其余是每次都跑的常驻检查。 */
   readonly planned?: boolean
-  /** 开始前整个删掉的目录（相对根）。 */
   readonly clean?: readonly string[]
 }
 
 export interface StepResult {
   readonly name: string
-  /** -1：起不来或被信号结束，`reason` 写原因。 */
   readonly exitCode: number
-  /** 相对整张图开始的毫秒。 */
   readonly startedMs: number
   readonly endedMs: number
   readonly logPath: string
-  /** 因别的步骤失败而被终止。 */
   readonly cancelled: boolean
-  /** 起不来（spawn 出错、日志打不开、要清的目录删不掉）或被信号结束时的原因；正常退出没有。 */
   readonly reason?: string
 }
 
 export interface GraphRun {
-  /** 按结束顺序。没开始的步骤不在内。 */
   readonly results: readonly StepResult[]
-  /** 因失败而没有开始的步骤名。 */
   readonly skipped: readonly string[]
   readonly wallMs: number
 }
@@ -51,21 +34,14 @@ export interface GraphOptions {
   readonly logDir: string
   readonly env: NodeJS.ProcessEnv
   readonly lightConcurrency: number
-  /**
-   * 同时跑几个重步骤，缺省 1：重步骤各自按预算把机器占满，两个一起只会互相挤、让预算采样看到对方的尖峰。
-   * 轻步骤不占这条道。
-   */
   readonly heavyConcurrency?: number
-  /** 一步失败后继续跑别的步骤（依赖失败的仍不启动），用于一次看全部失败；缺省失败即终止其余。 */
   readonly keepGoing?: boolean
   readonly onStart?: (step: CheckStep, logPath: string) => void
   readonly onFinish?: (result: StepResult) => void
 }
 
-/** 日志文件名：步骤名里的 `:` 换成 `-`。 */
 export const logNameOf = (name: string) => `${name.replaceAll(':', '-')}.log`
 
-/** 核对步骤图：名字唯一、依赖都存在、没有环。 */
 export function checkGraph(steps: readonly CheckStep[]): void {
   const names = new Set<string>()
   for (const step of steps) {
@@ -89,7 +65,6 @@ export function checkGraph(steps: readonly CheckStep[]): void {
   for (const step of steps) visit(step.name)
 }
 
-/** 终止整棵进程树：Windows 用 taskkill，POSIX 给进程组发 SIGTERM（子进程以 detached 起，自成一组）。 */
 function terminate(child: ChildProcess): void {
   if (child.pid === undefined || child.exitCode !== null) return
   if (process.platform === 'win32') {
@@ -135,7 +110,6 @@ export async function runGraph(
       terminate(child)
     }
   }
-  // 运行器自己被打断时把正在跑的整棵树都终止：子进程在 POSIX 上自成进程组，终端的信号到不了它们。
   const onSignal = () => {
     terminateAll()
     process.exitCode = 130
@@ -175,7 +149,6 @@ export async function runGraph(
         }
         resolve()
       }
-      // 起不来的原因也写进这一步的日志，日志读者不必再找别处。
       const failToStart = (reason: string, log?: number) => {
         if (log !== undefined) writeSync(log, `${reason}\n`)
         settle(-1, reason, log)

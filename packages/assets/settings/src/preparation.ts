@@ -75,7 +75,6 @@ export type SettingsPreparedOperationResult =
   | SettingsPendingOperation
 export type SettingsCancelResult = SettingsPreparedCommitResult | Readonly<{ kind: 'not_found' }>
 
-/** A preparation reference identifies persisted work; it does not grant authority to commit it. */
 export interface SettingsPreparationPort<Context> {
   prepareChange(context: Context, command: SettingsChange): Promise<SettingsPrepareResult>
   commitChange(

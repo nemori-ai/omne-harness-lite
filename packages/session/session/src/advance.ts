@@ -1,11 +1,3 @@
-// S1, the advance trigger (SPEC S1), and the open-Run part of C2, the Agent advance coordinator
-// (SPEC C2 顺序：开 Run): judgeRunStart → startRun → invoke → receive(input-handover). Each face
-// operation takes its own principal (SPEC cp-access): S1 reads as `maintainer`, C2 commits as
-// `coordinator`. A granted Run whose invoke the Agent has not accepted is invoked again with the
-// same outbound identity (contract PA-06 item 2, PM-14). Every step that stops on a failure records
-// a named diagnostic (SPEC C2 失败分支, R2-D327). The other C2 sequences (continuation, same-log
-// interpretation, recovery and takeover, reload) are not in this member yet; SPEC「实现现状」lists
-// them with their triggers.
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
   deriveDriveOperation,
@@ -20,6 +12,7 @@ import {
   type DurableEvidence,
   type FreezeVerdict,
   type InputId,
+  type ProducerFact,
   type RunId,
   type SessionFaces,
   type SessionFailure,
@@ -29,6 +22,7 @@ import {
 import type { SessionDependencies } from './dependencies.ts'
 import type { SessionDiagnostic } from './diagnostics.ts'
 import { messageOf } from './failures.ts'
+import type { KnownHandovers } from './known-handovers.ts'
 import type { Lifecycle } from './lifecycle.ts'
 import type { SchedulingPolicy } from './policy.ts'
 import type { Resolution } from './resolution.ts'
@@ -36,7 +30,6 @@ import { sessionKey, type Actor, type Scheduling, type SessionRef } from './sche
 import { sessionSlotReference } from './slot-reference.ts'
 
 export type Advance = Readonly<{
-  /** Wakes S1 for one session. A trigger in flight absorbs later ones into one more check. */
   trigger(ref: SessionRef): void
   interrupt(ref: SessionRef): boolean
 }>
@@ -45,18 +38,32 @@ type Faces<P> = Readonly<Record<Actor, SessionFaces<P>>>
 
 type ActiveRun = Extract<WorkSnapshot['run'], { kind: 'active' }>
 
-/**
- * PA-06 item 2: the Run is active, an attempt holds the advance and the first input has no
- * hand-over (SE35) yet, so the invoke of the Run was not accepted, or its acceptance not recorded.
- */
-function grantedNotInvoked(snapshot: WorkSnapshot): ActiveRun | null {
+type HandoverFact = Extract<ProducerFact, { kind: 'input-handover' }>
+
+type Holding = boolean | Readonly<{ failure: SessionFailure }>
+
+function grantedNotInvoked(snapshot: WorkSnapshot, known: ReadonlySet<InputId>): ActiveRun | null {
   const { run } = snapshot
-  if (run.kind !== 'active' || run.advance === null) return null
+  if (run.kind !== 'active' || run.advance === null || known.has(run.first)) return null
   if (!snapshot.pending.includes(run.first) || snapshot.handed.includes(run.first)) return null
   return run
 }
 
-/** The Run before the active one: the predecessor that the OP-00 identity of its startRun names. */
+function waitingInputs(
+  snapshot: WorkSnapshot,
+  known: ReadonlySet<InputId>,
+): Readonly<{ run: ActiveRun; inputs: readonly InputId[] }> | null {
+  const { run } = snapshot
+  if (run.kind !== 'active' || run.advance === null) return null
+  const handed = new Set([...snapshot.handed, ...known])
+  const inputs = snapshot.pending.filter(input => input !== run.first && !handed.has(input))
+  return inputs.length === 0 ? null : { run, inputs }
+}
+
+function routedSource(snapshot: WorkSnapshot, input: InputId): DurableEvidence | null {
+  return snapshot.historyIndex?.inputs.find(item => item.input === input)?.source ?? null
+}
+
 function predecessorOf(snapshot: WorkSnapshot, run: RunId): RunId | null {
   const executions = snapshot.executions ?? []
   const at = executions.findIndex(item => item.run === run)
@@ -71,13 +78,14 @@ export function createAdvance<P>(
     scheduling: Scheduling<P>
     resolution: Resolution
     faces: Faces<P>
+    known: KnownHandovers
+    recover: (ref: SessionRef) => void
   }>,
 ): Advance {
-  const { dependencies, lifecycle, policy, scheduling, resolution, faces } = input
+  const { dependencies, lifecycle, policy, scheduling, resolution, faces, known, recover } = input
   const coordinator = faces.coordinator.work
   const waiting = new Map<string, AbortController>()
 
-  /** Records a stopped step. Nothing is reported once the instance closes: closing is no failure. */
   const report = (
     ref: SessionRef,
     owner: SessionDiagnostic['owner'],
@@ -98,7 +106,6 @@ export function createAdvance<P>(
     })
   }
 
-  /** Reports a failed answer of a C2 step; `commit-unknown` is not a stop, it goes to S4. */
   const reportFailure = (
     ref: SessionRef,
     step: SessionDiagnostic['step'],
@@ -109,7 +116,6 @@ export function createAdvance<P>(
       report(ref, 'C2', step, run, answer.failure.kind, answer.failure)
   }
 
-  /** One face operation as `actor`: its own principal first; a principal failure stops the step. */
   const as = async <T>(
     actor: Actor,
     ref: SessionRef,
@@ -120,7 +126,6 @@ export function createAdvance<P>(
     return operation(principal.ok)
   }
 
-  /** A `commit-unknown` goes to S4, which resumes the same step with the same identity. */
   const unknownTo = (
     ref: SessionRef,
     answer: Outcome<unknown, SessionFailure>,
@@ -140,33 +145,15 @@ export function createAdvance<P>(
     }
   }
 
-  const handOver = async (
-    ref: SessionRef,
-    started: StartedRun,
-    receipt: DurableEvidence,
-  ): Promise<void> => {
-    const fact = {
-      kind: 'input-handover' as const,
-      execution: started.execution,
-      input: started.first,
-      result: { kind: 'accepted' as const, receipt },
-    }
+  const handOver = async (ref: SessionRef, run: RunId, fact: HandoverFact): Promise<void> => {
     const operation = deriveSessionOperation({ kind: 'fact', fact })
     const answer = await as('coordinator', ref, principal =>
       faces.coordinator.reconciliation.receive({ principal, ...ref, operation, fact }),
     )
-    reportFailure(ref, 'receive', started.advance.run, answer)
-    unknownTo(ref, answer, () => handOver(ref, started, receipt))
+    reportFailure(ref, 'receive', run, answer)
+    unknownTo(ref, answer, () => handOver(ref, run, fact))
   }
 
-  /**
-   * PM-02: the first input refused by the message admission, or an `invoke` that the Agent refused
-   * for good, closes the Run with a bounded failure; the first input is rejected in the same batch
-   * and is not replayed. `finishRun` carries the Run-layer revision this step read; an unrelated
-   * commit does not move it (contract I-R2, R2-D327). When the Run layer moved meanwhile it answers
-   * `changed`, and the step reads again and retries up to `command.retriesOnChanged` times, then
-   * records a diagnostic.
-   */
   const closeRefused = async (
     ref: SessionRef,
     started: StartedRun,
@@ -211,7 +198,7 @@ export function createAdvance<P>(
           return report(ref, 'C2', 'finishRun', run, 'retries-exhausted', answer.failure)
         const delays = policy.advance.retryDelaysMs
         const delay = delays[changes] ?? delays.reduce((_, last) => last)
-        if (await retryWait(ref, started, delay, 'finishRun'))
+        if (await retryWait(ref, run, delay, 'finishRun', () => stillAdvancing(ref, started)))
           return closeRefused(ref, started, bounded, changes + 1)
         return
       }
@@ -233,7 +220,6 @@ export function createAdvance<P>(
     }
   }
 
-  /** Whether the Agent already knows the outcome of the invoke, so it may be sent again at once. */
   const settled = async (
     port: AgentDrivePort,
     target: Parameters<AgentDrivePort['query']>[0],
@@ -246,14 +232,7 @@ export function createAdvance<P>(
     }
   }
 
-  /**
-   * Whether the advance of this attempt still holds on the current snapshot (SC-01). A failed read
-   * comes back as the failure, so the caller can report it.
-   */
-  const stillAdvancing = async (
-    ref: SessionRef,
-    started: StartedRun,
-  ): Promise<boolean | Readonly<{ failure: SessionFailure }>> => {
+  const stillAdvancing = async (ref: SessionRef, started: StartedRun): Promise<Holding> => {
     const snapshot = await as('coordinator', ref, principal =>
       coordinator.readWork({ principal, ...ref }),
     )
@@ -268,22 +247,33 @@ export function createAdvance<P>(
     )
   }
 
+  const stillRunning = async (ref: SessionRef, execution: string): Promise<Holding> => {
+    const snapshot = await as('coordinator', ref, principal =>
+      coordinator.readWork({ principal, ...ref }),
+    )
+    if (lifecycle.closed) return false
+    if ('failure' in snapshot) return snapshot
+    const { run } = snapshot.ok
+    return run.kind === 'active' && run.execution.execution === execution
+  }
+
   const retriable = (failure: DriveFailure): boolean =>
     failure.kind === 'busy' || failure.kind === 'unavailable' || failure.kind === 'commit-unknown'
 
   const retryWait = async (
     ref: SessionRef,
-    started: StartedRun,
+    run: RunId,
     delay: number,
-    step: 'invoke' | 'finishRun',
+    step: 'invoke' | 'finishRun' | 'submit',
+    holds: () => Promise<Holding>,
   ): Promise<boolean> => {
     const key = sessionKey(ref)
     const stop = new AbortController()
     waiting.set(key, stop)
     try {
-      const holding = await stillAdvancing(ref, started)
+      const holding = await holds()
       if (typeof holding !== 'boolean') {
-        reportFailure(ref, step, started.advance.run, holding)
+        reportFailure(ref, step, run, holding)
         return false
       }
       if (!holding) {
@@ -291,9 +281,11 @@ export function createAdvance<P>(
           ref,
           'C2',
           step,
-          started.advance.run,
+          run,
           'advance-withdrawn',
-          'the original attempt no longer holds the advance',
+          step === 'submit'
+            ? 'the execution is no longer the one of the active Run'
+            : 'the original attempt no longer holds the advance',
         )
         return false
       }
@@ -303,7 +295,7 @@ export function createAdvance<P>(
         ref,
         'C2',
         step,
-        started.advance.run,
+        run,
         result === 'cancelled' ? 'wait-cancelled' : 'clock-refused',
         'the backoff wait did not elapse',
       )
@@ -313,15 +305,86 @@ export function createAdvance<P>(
     }
   }
 
-  /**
-   * The outbound invoke with the identity derived from the committed start (OP-00). `busy`,
-   * `unavailable` and an unknown outcome back off by `advance.retryDelaysMs`, always with the same
-   * identity. When the sequence runs out the step records `retries-exhausted`; the Run stays active
-   * with its first input pending, so the next S1 trigger or the S3 scan invokes it again with the
-   * same identity (PA-06 item 2). An admission refusal (`invalid`) and a drive refusal (`refused`)
-   * close the Run instead (PM-02). Nothing is sent once closed.
-   */
-  const invoke = async (ref: SessionRef, started: StartedRun): Promise<void> => {
+  const submitOnce = async (
+    port: AgentDrivePort,
+    target: Parameters<AgentDrivePort['submit']>[0],
+  ): Promise<Outcome<DriveReceipt, DriveFailure>> => {
+    try {
+      return await port.submit(target)
+    } catch (error) {
+      return fail({ kind: 'unavailable', diagnostic: `submit threw: ${messageOf(error)}` })
+    }
+  }
+
+  const submit = async (
+    ref: SessionRef,
+    run: ActiveRun,
+    input: InputId,
+    source: DurableEvidence,
+  ): Promise<boolean> => {
+    const { execution } = run.execution
+    const operation = deriveDriveOperation({ kind: 'submit', execution, input })
+    const target = { ...ref, execution, operation }
+    const delays = policy.advance.retryDelaysMs
+    const recorded = async (result: HandoverFact['result']): Promise<true> => {
+      known.note(ref, run.run, input)
+      await handOver(ref, run.run, { kind: 'input-handover', execution, input, result })
+      return true
+    }
+    for (let attempt = 0; ; attempt += 1) {
+      if (lifecycle.closed) return false
+      const port = drive()
+      if (port === null) {
+        report(ref, 'C2', 'submit', run.run, 'agent-absent', 'the Agent drive port is absent')
+        return false
+      }
+      const answer = await submitOnce(port, { ...target, input, source })
+      if ('ok' in answer) return recorded({ kind: 'accepted', receipt: answer.ok.evidence })
+      const failure = answer.failure
+      if (failure.kind === 'invalid')
+        return recorded({ kind: 'rejected', reason: failure.reason, rejection: failure.rejection })
+      if (failure.kind === 'terminal') return false
+      const delay = retriable(failure) ? delays[attempt] : undefined
+      if (delay === undefined) {
+        report(
+          ref,
+          'C2',
+          'submit',
+          run.run,
+          retriable(failure) ? 'retries-exhausted' : failure.kind,
+          failure,
+        )
+        return false
+      }
+      if (failure.kind === 'commit-unknown' && (await settled(port, target))) continue
+      if (!(await retryWait(ref, run.run, delay, 'submit', () => stillRunning(ref, execution))))
+        return false
+    }
+  }
+
+  const handIn = async (ref: SessionRef): Promise<void> => {
+    const snapshot = await as('coordinator', ref, principal =>
+      coordinator.readWork({ principal, ...ref }),
+    )
+    if ('failure' in snapshot) return reportFailure(ref, 'submit', null, snapshot)
+    const due = waitingInputs(snapshot.ok, known.of(ref, snapshot.ok))
+    if (due === null) return
+    for (const input of due.inputs) {
+      const source = routedSource(snapshot.ok, input)
+      if (source === null)
+        return report(
+          ref,
+          'C2',
+          'submit',
+          due.run.run,
+          'source-unavailable',
+          `the snapshot names no routed entry of ${input}`,
+        )
+      if (!(await submit(ref, due.run, input, source))) return
+    }
+  }
+
+  const invoke = async (ref: SessionRef, started: StartedRun, replay = false): Promise<void> => {
     const run = started.advance.run
     const operation = deriveDriveOperation({
       kind: 'invoke',
@@ -353,7 +416,17 @@ export function createAdvance<P>(
         source: started.receipt.source,
         grant: started.receipt.source,
       })
-      if ('ok' in answer) return handOver(ref, started, answer.ok.evidence)
+      if ('ok' in answer) {
+        known.note(ref, run, started.first)
+        await handOver(ref, run, {
+          kind: 'input-handover',
+          execution: started.execution,
+          input: started.first,
+          result: { kind: 'accepted', receipt: answer.ok.evidence },
+        })
+        if (replay) recover(ref)
+        return handIn(ref)
+      }
       const failure = answer.failure
       if (failure.kind === 'invalid')
         return closeRefused(ref, started, {
@@ -395,7 +468,7 @@ export function createAdvance<P>(
           failure,
         )
       if (failure.kind === 'commit-unknown' && (await settled(port, target))) continue
-      if (!(await retryWait(ref, started, delay, 'invoke'))) return
+      if (!(await retryWait(ref, run, delay, 'invoke', () => stillAdvancing(ref, started)))) return
     }
   }
 
@@ -412,7 +485,6 @@ export function createAdvance<P>(
     unknownTo(ref, answer, () => freeze(ref, verdict))
   }
 
-  /** The startRun of (first, predecessor) with the candidate it was or is committed with (OP-00). */
   const start = (
     ref: SessionRef,
     first: InputId,
@@ -445,57 +517,44 @@ export function createAdvance<P>(
     if ('ok' in started) return invoke(ref, started.ok)
     const failure = started.failure
     if (failure.kind === 'frozen') {
-      // With a verdict the adoption brought the freeze; without one the session is frozen already.
       if (failure.verdict !== null) return freeze(ref, failure.verdict)
       return
     }
-    // `run-active`: another one opened the Run first, which is harmless (SPEC C2).
     if (failure.kind !== 'run-active') reportFailure(ref, 'startRun', null, started)
     unknownTo(ref, started, () => openRun(ref, snapshot, first))
   }
 
-  /**
-   * PA-06 item 2, PM-14: the granted Run is invoked again. The startRun of the Run is recalled with
-   * its own OP-00 identity, which gives back the original start, so the invoke carries the same
-   * outbound identity, source and grant. It reads the snapshot again first: the session lane may
-   * have run another step since S1 read it.
-   */
   const replay = async (ref: SessionRef): Promise<void> => {
     const snapshot = await as('coordinator', ref, principal =>
       coordinator.readWork({ principal, ...ref }),
     )
     if ('failure' in snapshot) return reportFailure(ref, 'replay', null, snapshot)
-    const run = grantedNotInvoked(snapshot.ok)
+    const run = grantedNotInvoked(snapshot.ok, known.of(ref, snapshot.ok))
     if (run === null) return
     const started = await start(ref, run.first, predecessorOf(snapshot.ok, run.run), run.adoption)
     if ('failure' in started) {
       reportFailure(ref, 'replay', run.run, started)
       return unknownTo(ref, started, () => replay(ref))
     }
-    // The advance moved to a later attempt (claim, reload): its invoke needs the grant of that
-    // attempt, which is the takeover of C5, not in this member yet (SPEC「实现现状」).
-    if (run.advance?.attempt !== started.ok.advance.attempt)
-      return report(
-        ref,
-        'C2',
-        'replay',
-        run.run,
-        'attempt-replaced',
-        'the granted Run is held by a later attempt; its invoke waits for the takeover (C5)',
-      )
-    return invoke(ref, started.ok)
+    if (run.advance?.attempt !== started.ok.advance.attempt) {
+      known.note(ref, run.run, run.first)
+      recover(ref)
+      return report(ref, 'C2', 'replay', run.run, 'attempt-replaced', 'held by a later attempt')
+    }
+    return invoke(ref, started.ok, true)
   }
 
-  /** S1: read the snapshot and hand the session to C2 when a Run may start or must be invoked again. */
   const check = async (ref: SessionRef): Promise<void> => {
     const snapshot = await as('maintainer', ref, principal =>
       faces.maintainer.work.readWork({ principal, ...ref }),
     )
     if ('failure' in snapshot)
       return report(ref, 'S1', 'read', null, snapshot.failure.kind, snapshot.failure)
-    if (grantedNotInvoked(snapshot.ok) !== null)
+    const seen = known.of(ref, snapshot.ok)
+    if (grantedNotInvoked(snapshot.ok, seen) !== null)
       return scheduling.serial(sessionKey(ref), () => replay(ref))
-    // A frozen session starts no new Run (I-F2): skip without judging.
+    if (waitingInputs(snapshot.ok, seen) !== null)
+      return scheduling.serial(sessionKey(ref), () => handIn(ref))
     if (snapshot.ok.frozen !== null && snapshot.ok.run.kind !== 'active') return
     const judgment = judgeRunStart(snapshot.ok, 'interactive')
     if (judgment.kind !== 'eligible') return

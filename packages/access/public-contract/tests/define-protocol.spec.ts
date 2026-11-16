@@ -1,5 +1,3 @@
-// defineProtocol adds the outcomes the pipeline answers for the domain. The table covers every
-// pair of identity requirement and effect; observations keep only their own end reasons.
 import { describe, expect, it } from 'vitest'
 import { defineProtocol, ruleCodec } from '@omne-harness/public-contract'
 
@@ -79,6 +77,18 @@ describe('the definition', () => {
     expect(protocol.operations.probe.body).toBe(empty)
     expect(protocol.name).toBe('example')
     expect(protocol.major).toBe(1)
+  })
+
+  it('refuses an operation named observe, the name a client keeps its observations under', () => {
+    const contract = {
+      name: 'example',
+      major: 1,
+      operations: { observe: operation('login', 'read') },
+      observations: {},
+    }
+    expect(() => defineProtocol(contract as never)).toThrow(
+      'example/v1: no operation may be named "observe"',
+    )
   })
 
   it('keeps an observation as written, with only its own end reasons', () => {

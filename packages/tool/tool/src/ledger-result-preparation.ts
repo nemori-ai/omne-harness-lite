@@ -20,11 +20,6 @@ import type { BodyWriting } from './ledger-body-writer.ts'
 import type { ResultReference } from './tools-protocol.ts'
 import { prepareResult, type PreparedResult, type ResultValue } from './ledger-result-material.ts'
 
-/**
- * What a result the ledger forms itself is made from. A terminal of a call that no tool ended
- * describes itself. A call that a control settled while it was suspended carries the words its
- * author wrote for a closed wait (P06, SPEC 32); the ledger does not word that result.
- */
 export type SyntheticNeed =
   | Readonly<{
       terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>

@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// The command `omne-telemetry-summary`: reads telemetry JSON lines from a file or standard input and
-// prints the report of `summarizeTelemetry`. Exit codes: 0 report printed, 1 input not readable,
-// 2 usage error. The rules are SPEC.md TN-11.
 import { createReadStream, realpathSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import type { Readable } from 'node:stream'
@@ -87,7 +84,6 @@ function number(value: number): string {
   return String(Math.round(value * 1000) / 1000)
 }
 
-/** Columns padded to their widest cell, two spaces apart. */
 function table(header: readonly string[], rows: readonly (readonly string[])[]): string[] {
   if (rows.length === 0) return ['(none)']
   const widths = header.map((cell, column) =>
@@ -148,7 +144,6 @@ function humanReport(summary: TelemetrySummary): string {
   ].join('\n')
 }
 
-/** Runs the command and returns its exit code. It does not exit the process. */
 export async function runSummaryCli(argv: readonly string[], io: SummaryCliIo): Promise<number> {
   let call: Invocation
   try {

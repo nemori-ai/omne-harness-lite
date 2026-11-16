@@ -1,5 +1,3 @@
-// 传感器的纯计算部分：稳定依赖不稳定、一起改却分属两组、没有断言的测试、相对基线新增的边、工作树清单。
-// 读 git 的那几层在 loop-repository.spec.ts 用临时仓库测。
 import { describe, expect, it } from 'vitest'
 import { casesWithoutAssertions } from '../src/loop/sensors/assertions.ts'
 import { cochange, parseCommitMembers } from '../src/loop/sensors/cochange.ts'

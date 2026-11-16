@@ -42,7 +42,6 @@ export const authorAccess = accessOf(tenantA)
 export const authorAuthority = authorityFor({ kind: 'official' }, 'read_file')
 export function authorModule(
   execute: (signal: AbortSignal) => Promise<unknown>,
-  /** The parameter result of the author; parsed by default. */
   parsed: () => Outcome<
     unknown,
     Readonly<{ kind: 'incomplete' | 'invalid'; reason: string }>

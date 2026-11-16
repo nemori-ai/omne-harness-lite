@@ -1,8 +1,4 @@
 // @module-tag slow
-// 慢：每个用例启动 dist/bin.js 子进程。
-// 进程入口的子命令分派：位置参数里没有 `serve` 时，走 S0 的基线解析路径（`parseArgs` 允许位置参数，
-// 子命令可在任意位置，错误文字前缀 `s0:`）。有 `serve` 时走真实模式。S0 的字节级比较（对基线源码）由
-// 过程目录里的 `s0-bytes-compare.sh` 做；本文件把基线行为里能写成字面值的部分固定下来。
 import { execFile } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

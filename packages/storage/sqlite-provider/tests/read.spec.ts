@@ -1,14 +1,13 @@
-// read, snapshot ordering and the read port (SQL contract SPEC 9.2 to 9.4). Scenario C09 and the
-// read side of C15. Every case runs a real handler module on a real read connection.
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { stillPending } from './gate.ts'
 import {
   buildReadMaterials,
   closeProviders,
   commitOf,
-  delay,
+  heldRead,
   readRequest,
   readyProvider,
   summary,
@@ -53,10 +52,10 @@ describe('snapshot read (C09)', () => {
 
   it('gives both SELECT statements of one read the same state while a commit lands between them', async () => {
     const { storage } = await readyProvider(workspace, built, {}, 1)
-    const reading = storage.read(readRequest('page', { sleepMs: 600 }))
-    await delay(250)
+    const reading = await heldRead(storage, workspace, 'page')
     expect((await storage.commit(commitOf(built, 'between'))).kind).toBe('committed')
-    expect(await reading).toMatchObject({ kind: 'read', output: { a: '1', b: '1' } })
+    reading.gate.open()
+    expect(await reading.result).toMatchObject({ kind: 'read', output: { a: '1', b: '1' } })
     expect(await storage.read(readRequest('page'))).toMatchObject({ output: { a: '2', b: '2' } })
   })
 
@@ -82,7 +81,7 @@ describe('snapshot read (C09)', () => {
   })
 })
 
-describe('limits and handler failures (C15, SPEC 9.2 steps 4 to 13)', () => {
+describe('limits and handler failures', () => {
   it('returns read_limit when the rows read exceed maxRowsRead, and no output', async () => {
     const { storage } = await readyProvider(workspace, built, {}, 5)
     const result = await storage.read(readRequest('rows', { limit: 5 }))
@@ -136,7 +135,7 @@ describe('limits and handler failures (C15, SPEC 9.2 steps 4 to 13)', () => {
     expect(summary(await storage.read(readRequest('nope')))).toBe('unavailable/handler_unavailable')
   })
 
-  it('reads back a result between 1 MiB and 20 MiB under the candidate config (R2-D81)', async () => {
+  it('reads back a result between 1 MiB and 20 MiB under the candidate config', async () => {
     const big = await buildReadMaterials(workspace, {
       bigout: { maxOutputBytes: 20 * 1024 * 1024 },
     })
@@ -174,23 +173,16 @@ describe('limits and handler failures (C15, SPEC 9.2 steps 4 to 13)', () => {
   })
 
   it('waits while the result reservation of the handler does not fit, and reads once it does', async () => {
-    // Defect: the reservation ignores the bytes: the second read Worker would run the read at once
-    // and end it before the slow one.
     const { storage } = await readyProvider(workspace, built, {
       maxReadResultBytes: 4096,
       globalReadResultBytes: 4096,
     })
-    const ended: string[] = []
-    const first = storage.read(readRequest('slow', { ms: 300 })).then(result => {
-      ended.push('first')
-      return summary(result)
-    })
-    await delay(50)
-    const second = await storage.read(readRequest('page'))
-    ended.push('second')
-    expect(summary(second)).toBe('read')
-    expect(await first).toBe('read')
-    expect(ended).toEqual(['first', 'second'])
+    const first = await heldRead(storage, workspace)
+    const second = storage.read(readRequest('page'))
+    await stillPending(second)
+    first.gate.open()
+    expect(summary(await second)).toBe('read')
+    expect(summary(await first.result)).toBe('read')
   })
 
   it('returns queue_full when the read queue of the domain and its waiting list are full', async () => {
@@ -199,17 +191,12 @@ describe('limits and handler failures (C15, SPEC 9.2 steps 4 to 13)', () => {
       readQueueGlobal: 4,
       maxReadWorkersPerDomain: 1,
     })
-    const held = [
-      storage.read(readRequest('slow', { ms: 300 })),
-      storage.read(readRequest('slow', { ms: 10 })),
-    ]
-    await delay(50)
-    // Two more wait (sql-contract 准入等待); the waiting list of the domain holds two, so the next
-    // is refused at once. Had the per-domain count been ignored, the first two would have been
-    // admitted and the next would wait on the global count instead.
+    const running = await heldRead(storage, workspace)
+    const queued = storage.read(readRequest('held'))
     const waiting = [storage.read(readRequest('page')), storage.read(readRequest('page'))]
     expect(summary(await storage.read(readRequest('page')))).toBe('unavailable/queue_full')
-    expect((await Promise.all([...held, ...waiting])).map(summary)).toEqual([
+    running.gate.open()
+    expect((await Promise.all([running.result, queued, ...waiting])).map(summary)).toEqual([
       'read',
       'read',
       'read',

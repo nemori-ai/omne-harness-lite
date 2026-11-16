@@ -2,7 +2,7 @@
 # Idempotent Cloud Agent install. The authored copy lives in
 # .meta_harness/agents/cloud/cursor/; compile_agents.py projects it to .cursor/.
 # Cursor runs the projection from the repository root while it prepares a Build.
-# The first three commands match docs/development.md.
+# The first three commands match CONTRIBUTING.md "准备检出".
 # Git author identity belongs to the image wrapper at /usr/local/bin/git.
 set -eu
 

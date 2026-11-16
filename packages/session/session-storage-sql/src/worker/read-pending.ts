@@ -1,4 +1,3 @@
-// R8: the sessions of one tenant that have work, one page after a session identity.
 import { handler, rowsOf, text } from './support.ts'
 
 type Input = Readonly<{

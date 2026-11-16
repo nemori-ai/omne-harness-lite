@@ -20,12 +20,10 @@ export type LocalToolCatalogView = Readonly<{
   entries: readonly Readonly<{
     key: ToolBindingKey
     resident: boolean
-    /** Last lawful plain definition supplied by the current adoption owner, without a live binding. */
     knownDefinition?: ToolDefinition
   }>[]
 }>
 
-/** The assembly supplies current, exact-version inclusion and disclosure evidence. */
 export interface LocalToolCatalogViewSource<P> {
   read(access: Access<P>): Reply<LocalToolCatalogView>
 }

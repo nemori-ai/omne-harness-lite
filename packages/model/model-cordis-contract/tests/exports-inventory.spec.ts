@@ -15,8 +15,6 @@ import {
   type InventoryName,
 } from './exports-inventory.ts'
 
-// The comparison is the measuring instrument for the export inventory. These cases build tiny declaration files
-// that break one rule each and assert that the instrument reports exactly that rule.
 const directory = realpathSync(mkdtempSync(join(tmpdir(), 'exports-inventory-')))
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
 
@@ -406,17 +404,10 @@ describe('navigationProblems', () => {
 
   it('closes a fence only with its own character and at least as many of it', () => {
     const again = 'Extra: a code block declares A again; the source is the only declaration'
-    // A stray fence line is content of the block that holds it, and TypeScript reads it as an
-    // expression that declares nothing; so the declaration sits in a second block, which is read
-    // as a block only when the first one was closed by the right line.
     const declaring = '```ts\ntype A = 1\n```'
-    // A tilde line does not close a backtick fence.
     expect(blockProblems(`\`\`\`ts\n~~~\n\`\`\`\n${declaring}`)).toEqual([again])
-    // A backtick line does not close a tilde fence.
     expect(blockProblems(`~~~ts\n\`\`\`\n~~~\n${declaring}`)).toEqual([again])
-    // A shorter fence does not close a longer one.
     expect(blockProblems(`\`\`\`\`ts\n\`\`\`\n\`\`\`\`\n${declaring}`)).toEqual([again])
-    // A longer fence closes a shorter one.
     expect(blockProblems(`\`\`\`ts\ntype B = 1\n\`\`\`\`\n${declaring}`)).toEqual([
       'Extra: a code block declares B again; the source is the only declaration',
       again,

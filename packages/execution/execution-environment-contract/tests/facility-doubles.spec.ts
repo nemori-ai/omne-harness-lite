@@ -39,7 +39,6 @@ const scope: ProviderAcquireInput['scope'] = { ref: scopeRef }
 const text = new TextEncoder()
 const bytes = (value: string) => text.encode(value)
 let sequence = 0
-/** The value of a promise the doubles must have settled by the next macrotask; never hangs. */
 async function settled<T>(promise: Promise<T>): Promise<T> {
   const open = Symbol('open')
   const value = await Promise.race([promise, new Promise<typeof open>(r => setImmediate(r, open))])
@@ -48,7 +47,6 @@ async function settled<T>(promise: Promise<T>): Promise<T> {
 }
 const request = () => ({ requestId: `r${++sequence}`, access, origin, binding })
 
-/** The two doubles in one scripted provider, put together the way #790 does. */
 function environment() {
   const fs = createMemoryFileSystem({ files: { 'notes.txt': 'hello' } })
   const cmd = createScriptedCommandFacility(() => ({
@@ -175,7 +173,6 @@ it('writes a file, reads it back, refuses a stale version and a path outside the
   ).toMatchObject({ kind: 'rejected', reason: 'closed' })
 })
 
-/** The provider suite with the memory file system as the held facility. */
 function filesSubject(): ProviderConformanceSubject {
   const fs = createMemoryFileSystem({ files: { 'held.txt': 'before' } })
   const provider = createScriptedEnvironmentProvider({
@@ -225,7 +222,6 @@ it('passes the provider suite with the memory file system as the held facility',
   for (const test of environmentProviderConformance({ subject: filesSubject }))
     verdicts.push(await runConformanceCase(test))
   const notApplicable = verdicts.filter(v => v.status === 'not-applicable').map(v => v.name)
-  // The double gives no in-flight hold hook, so only the drain case does not apply.
   expect(notApplicable).toEqual(['V-EE18.retire-waits-for-in-flight'])
   expect(
     verdicts.find(v => v.name === 'V-EE18.held-facility-refuses-new-operations-after-retire'),

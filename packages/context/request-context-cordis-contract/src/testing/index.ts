@@ -1,8 +1,3 @@
-// The testing entry: the scripted trust double and the trust conformance suite, defined here, and
-// the memory holder double and the holder sources suite, re-exported from their own files.
-// The trust part stays in this file because only the declared entry may import a testing subpath;
-// the holder files import no testing subpath. No file imports a provider member: the fixtures hand
-// in the registry factory or plug the holder, and the suites drive them through public ports only.
 import type {
   Access,
   Adoption,
@@ -22,7 +17,6 @@ import {
 } from '@omne-harness/request-context-contract/testing'
 import type { RequestContextTrust } from '../trust.js'
 
-/** Every answer is listed; an input that is not listed is answered `unavailable`. */
 export type RequestContextTrustScript<P> = Readonly<{
   keys: readonly Readonly<{ access: Access<P>; result: SourceRead<PrincipalKey> }>[]
   grants: readonly Readonly<{
@@ -34,7 +28,6 @@ export type RequestContextTrustScript<P> = Readonly<{
   }>[]
 }>
 
-/** Structural equality of plain data; a field the script does not state is a difference. */
 function same(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true
   if (typeof left !== 'object' || typeof right !== 'object' || left === null || right === null)
@@ -52,7 +45,6 @@ const unlisted = (what: string) => ({
   diagnostic: `The scripted trust lists no ${what} for this input`,
 })
 
-/** A trust object that answers only what the script lists; success is never a default. */
 export function createScriptedRequestContextTrust<P>(
   script: RequestContextTrustScript<P>,
 ): RequestContextTrust<P> {
@@ -79,10 +71,6 @@ export function createScriptedRequestContextTrust<P>(
 }
 
 export interface RequestContextTrustFixture<P> {
-  /**
-   * Two different tenants minted by the identity owner. The suite cannot mint tenants itself:
-   * a tenant is accepted only when the identity owner minted it.
-   */
   readonly tenants: readonly [Tenant, Tenant]
   createRegistry(
     input: Readonly<{ trust: RequestContextTrust<P>; policies: AssemblyPolicies }>,
@@ -160,7 +148,6 @@ const cases = (fixture: RequestContextTrustFixture<string>): readonly RequestCon
       const b = createAssemblyFixture({ tenant: fixture.tenants[1] })
       const owner = ownerOf('1')
       const accessB = testingAccess(a.call.access.principal, b.target.tenant)
-      // The same principal text acts in two tenants; only the first tenant has a key.
       const registry = fixture.createRegistry({
         trust: createScriptedRequestContextTrust<string>({
           keys: [keyed(a)],
@@ -249,7 +236,6 @@ const cases = (fixture: RequestContextTrustFixture<string>): readonly RequestCon
     clause:
       'RQ-12 registration authority: denied, unknown and unavailable are returned, nothing is published',
     async run() {
-      // A refused or undecided registration publishes nothing.
       for (const decision of [{ kind: 'denied' }, { kind: 'unknown' }] as SourceDecision[]) {
         const f = createAssemblyFixture()
         const owner = ownerOf('1')
@@ -260,7 +246,6 @@ const cases = (fixture: RequestContextTrustFixture<string>): readonly RequestCon
         expectKind(await register(owner), decision.kind, `authority ${decision.kind}`)
         expectKind(await served(), 'unavailable', `nothing is published after ${decision.kind}`)
       }
-      // An authority that cannot answer a replace is returned and the old set keeps serving.
       const f = createAssemblyFixture()
       const owner = ownerOf('1')
       const offline: SourceDecision = { kind: 'unavailable', diagnostic: 'authority offline' }
@@ -338,7 +323,6 @@ const cases = (fixture: RequestContextTrustFixture<string>): readonly RequestCon
   },
 ]
 
-/** The cases of the trust suite; run each one and report it by `name`. */
 export function requestContextTrustConformance<P>(
   fixture: RequestContextTrustFixture<P>,
 ): readonly RequestContextTrustCase[] {

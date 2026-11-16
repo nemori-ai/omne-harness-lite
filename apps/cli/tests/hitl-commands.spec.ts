@@ -1,5 +1,3 @@
-// The three HITL commands (SPEC「HITL 命令」): the request each one sends to the HITL location, the
-// tenant it names, the usage errors that send nothing, and the exit code of each outcome.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -40,7 +38,7 @@ const page = { items: [], next: null, snapshotRef: 'snapshot-1', completeness: '
 
 async function serve(answer?: (seen: Seen) => Answer | undefined): Promise<FakeService> {
   const service = await startFakeService(seen => {
-    if (seen.wire['operation'] === 'list-cards') return { outcome: 'succeeded', body: page }
+    if (seen.operation === 'list-cards') return { outcome: 'succeeded', body: page }
     return answer?.(seen) ?? defaultAnswer(seen)
   })
   services.push(service)
@@ -59,9 +57,8 @@ async function loggedIn(answer?: (seen: Seen) => Answer | undefined): Promise<Fa
   return service
 }
 
-/** The HITL requests the service received, without the login. */
 const hitlSeen = (service: FakeService) =>
-  service.seen.filter(seen => seen.path === '/hitl-public/1')
+  service.seen.filter(seen => seen.path.startsWith('/api/human-intervention/v1/'))
 const card = (tenant: string) => ({
   request: { tenantRef: tenant, requestId: 'r-1' },
   cardId: 'q1',
@@ -85,14 +82,16 @@ describe('list-cards', () => {
     ])
     expect([pool.code, bySession.code]).toEqual([0, 0])
     const [first, second] = hitlSeen(service)
-    expect(first?.wire).toMatchObject({
-      protocolVersion: 'hitl-public/1',
-      operation: 'list-cards',
-      loginProof: issuedProof,
-      body: { tenant: tenantText, filter: { states: ['pending'] }, cursor: null, limit: 100 },
+    expect(first?.path).toBe('/api/human-intervention/v1/list-cards')
+    expect(first?.headers['authorization']).toBe(`Bearer ${issuedProof}`)
+    expect(first?.headers['omne-acting-tenant']).toBeUndefined()
+    expect(first?.body).toEqual({
+      tenant: tenantText,
+      filter: { states: ['pending'] },
+      cursor: null,
+      limit: 100,
     })
-    expect((first!.wire['body'] as { filter: object }).filter).not.toHaveProperty('sessionRef')
-    expect(second?.wire['body']).toEqual({
+    expect(second?.body).toEqual({
       tenant: tenantText,
       filter: { states: ['decided'], sessionRef: sessionId },
       cursor: 'next-1',
@@ -102,7 +101,7 @@ describe('list-cards', () => {
       result: 'response',
       outcome: 'succeeded',
       body: page,
-      request: { messageId: first?.wire['messageId'], tenant: tenantText },
+      request: { messageId: first?.messageId, tenant: tenantText },
     })
   })
 
@@ -125,14 +124,14 @@ describe('read-card', () => {
   it('builds the card reference from the tenant, --request and --card', async () => {
     const service = await loggedIn()
     const result = await cli(['read-card', ...ref, '--tenant', otherTenantText])
-    // The fake service denies a read it does not know: exit 3.
     expect(result.code).toBe(3)
-    expect(hitlSeen(service)[0]?.wire['body']).toEqual({
+    expect(hitlSeen(service)[0]?.path).toBe('/api/human-intervention/v1/read-card')
+    expect(hitlSeen(service)[0]?.body).toEqual({
       tenant: otherTenantText,
       card: card(otherTenantText),
     })
     expect(JSON.parse(result.stdout).request).toEqual({
-      messageId: hitlSeen(service)[0]?.wire['messageId'],
+      messageId: hitlSeen(service)[0]?.messageId,
       tenant: otherTenantText,
     })
   })
@@ -140,7 +139,7 @@ describe('read-card', () => {
 
 describe('submit-reply', () => {
   const invalidated = (seen: Seen): Answer | undefined =>
-    seen.wire['operation'] === 'submit-reply'
+    seen.operation === 'submit-reply'
       ? { outcome: 'succeeded', body: { kind: 'invalidated', reason: 'cancelled' } }
       : undefined
 
@@ -152,9 +151,10 @@ describe('submit-reply', () => {
     const service = await loggedIn(invalidated)
     const result = await cli(['submit-reply', ...ref, '--revision', '3', ...given])
     expect(result.code).toBe(0)
-    const sent = hitlSeen(service)[0]?.wire
-    expect(sent).toMatchObject({ operation: 'submit-reply', loginProof: issuedProof })
-    const body = sent?.['body'] as Record<string, unknown>
+    const sent = hitlSeen(service)[0]
+    expect(sent?.path).toBe('/api/human-intervention/v1/submit-reply')
+    expect(sent?.headers['authorization']).toBe(`Bearer ${issuedProof}`)
+    const body = sent?.body as Record<string, unknown>
     expect(body).toEqual({
       tenant: tenantText,
       card: card(tenantText),
@@ -162,19 +162,18 @@ describe('submit-reply', () => {
       reply,
       replyId: body['replyId'],
     })
-    // A generated reply id is echoed, so the person can retry the same reply with it.
     expect(JSON.parse(result.stdout).request).toEqual({
-      messageId: sent?.['messageId'],
+      messageId: sent?.messageId,
       replyId: body['replyId'],
       tenant: tenantText,
     })
-    expect(body['replyId']).not.toBe(sent?.['messageId'])
+    expect(body['replyId']).not.toBe(sent?.messageId)
   })
 
   it('--reply-id is sent as given', async () => {
     const service = await loggedIn(invalidated)
     await cli(['submit-reply', ...ref, '--revision', '0', '--decline', '--reply-id', 'reply-7'])
-    expect((hitlSeen(service)[0]!.wire['body'] as { replyId: string }).replyId).toBe('reply-7')
+    expect(hitlSeen(service)[0]?.body['replyId']).toBe('reply-7')
   })
 
   it.each([
@@ -202,9 +201,7 @@ describe('submit-reply', () => {
     ['basis-unavailable', 4],
     ['unknown', 5],
   ] as const)('the outcome %s exits %i', async (outcome, code) => {
-    await loggedIn(seen =>
-      seen.wire['operation'] === 'submit-reply' ? { outcome, body: {} } : undefined,
-    )
+    await loggedIn(seen => (seen.operation === 'submit-reply' ? { outcome, body: {} } : undefined))
     const result = await cli(['submit-reply', ...ref, '--revision', '0', '--decline'])
     expect(result.code).toBe(code)
     expect(JSON.parse(result.stdout)).toMatchObject({ result: 'response', outcome })
@@ -242,6 +239,6 @@ describe('what every HITL command needs', () => {
   ])('%s --tenant names another tenant of the login', async (command, given) => {
     const service = await loggedIn()
     await cli([command, ...given, '--tenant', otherTenantText])
-    expect(hitlSeen(service)[0]?.wire['body']).toMatchObject({ tenant: otherTenantText })
+    expect(hitlSeen(service)[0]?.body).toMatchObject({ tenant: otherTenantText })
   })
 })

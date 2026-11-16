@@ -1,12 +1,3 @@
-// The instance provision of the `agent-host` plugin on real Cordis 4.0.4: the conformance suite of
-// agent-cordis-contract `./testing` against the real host, then the host rules that the suite does
-// not hold (agent-cordis-contract docs/cordis.md "实例的取得与回收"): the guard point of the reclaim,
-// a quiesce that fails or leaves work unresolved, a reserve that grants nothing, an old withdrawal
-// that leaves the successor, and a withdrawal from a fiber that is not the host's.
-//
-// The suite runs with `withRuntimeDuties` (see host-support.ts), which scripts the runtime's quiesce.
-// The cases named "plain factory" run the real Agent factory, whose quiesce drains an idle instance
-// (R2-D173, R2-D185; agent SPEC "停用"), so the host reclaims it.
 import {
   decodeAgentOperationId,
   decodeAgentRegistrationId,
@@ -39,7 +30,6 @@ async function world(factory: 'plain' | 'duties'): Promise<World> {
   return made
 }
 
-/** Waits until the directory reported the end of the instance, or fails after many turns. */
 async function retiredOf(world: World, instance: AgentInstanceId): Promise<string> {
   for (let turn = 0; turn < 50; turn += 1) {
     const found = world.retired.find(entry => entry.instance === instance)
@@ -124,8 +114,6 @@ describe('acquire with the plain factory', () => {
     expect(host.controls.access.check.calls).toHaveLength(0)
   })
 
-  // R2-D173, R2-D185: the real factory drains an idle instance, so the idle time reclaims it. Before
-  // them its quiesce answered the stage-temporary `unavailable` and the instance stayed published.
   it('reclaims an idle instance: the runtime drains and the registration is withdrawn', async () => {
     const host = await world('plain')
     const { instance } = ok(await host.provision.acquire(slotOf('a')))
@@ -157,7 +145,6 @@ describe('the reclaim guard point', () => {
     const runtime = ok(await host.directory.resolve({ ...caller('a'), instance }))
     await turns()
     host.advance(IDLE_MS + 1)
-    // The expiry runs on a later microtask; the invoke takes the slot first.
     void runtime.invoke({
       ...caller('a'),
       execution: 'guard-execution' as never,

@@ -25,6 +25,7 @@ import {
   credentialText,
   issuedProof,
   otherTenantText,
+  ownLoginId,
   sessionId,
   startFakeService,
   tenantText,
@@ -61,11 +62,6 @@ async function login(service: FakeService, identifier = 'alice') {
   return cli(['login', '--login-identifier', identifier, '--server', service.origin])
 }
 
-/**
- * A login that also owns `sessionId` as the tenant of that login. The commands that act on an
- * existing session need the owner: no `--tenant` and no record is a usage error, so the tests
- * that are not about the owner rule start from a state in which the owner is known.
- */
 async function loginOwningSession(service: FakeService) {
   const result = await login(service)
   const written = writeSessionOwners(state, new Map([[sessionId, tenantText]]))
@@ -77,7 +73,7 @@ const loginFile = () => join(state, 'login.json')
 const parsed = (text: string) => JSON.parse(text) as Record<string, unknown>
 
 describe('register', () => {
-  it('registers through the governance location and prints the response', async () => {
+  it('registers through the identity protocol and prints the response', async () => {
     const service = await serve()
     const result = await cli([
       'register',
@@ -100,11 +96,11 @@ describe('register', () => {
     })
     expect(result.stdout.endsWith('}\n')).toBe(true)
     const [seen] = service.seen
-    expect(seen?.path).toBe('/governance-public/1')
-    expect(seen?.wire).toMatchObject({
-      operation: 'register-and-activate',
-      body: { loginIdentifier: 'alice', credential: credentialText },
-    })
+    expect(seen?.path).toBe('/api/identity/v1/register-and-activate')
+    expect(seen?.messageId).toBe('id-1')
+    expect(seen?.body).toEqual({ loginIdentifier: 'alice', credential: credentialText })
+    expect(seen?.headers['authorization']).toBeUndefined()
+    expect(seen?.headers['omne-acting-tenant']).toBeUndefined()
   })
 
   it('does not read or create the state directory', async () => {
@@ -157,6 +153,7 @@ describe('login', () => {
         loginIdentifier: 'alice',
         issuedAt: '2026-11-01T12:00:00Z',
         tenantId: tenantText,
+        loginId: ownLoginId,
       },
       request: { messageId: 'id-1' },
     })
@@ -167,10 +164,12 @@ describe('login', () => {
       issuedAt: '2026-11-01T12:00:00Z',
       tenantId: tenantText,
       loginProof: issuedProof,
+      loginId: ownLoginId,
     })
-    // Positive control: the proof and the credential do exist in this run, in the file and on the wire.
     expect(readFileSync(loginFile(), 'utf8')).toContain(issuedProof)
-    expect(JSON.stringify(service.seen[0]?.wire)).toContain(credentialText)
+    expect(service.seen[0]?.path).toBe('/api/identity/v1/issue-login')
+    expect(service.seen[0]?.headers['authorization']).toBeUndefined()
+    expect(JSON.stringify(service.seen[0]?.body)).toContain(credentialText)
     for (const text of [result.stdout, result.stderr]) {
       expect(text).not.toContain(issuedProof)
       expect(text).not.toContain(credentialText)
@@ -279,7 +278,7 @@ describe('session commands', () => {
       expect(service.seen).toHaveLength(0)
     })
 
-    it('sends the login proof in the body, prints the response, and keeps the proof out of the output', async () => {
+    it('sends the login proof in the Authorization header, prints the response, and keeps the proof out of the output', async () => {
       const service = await serve()
       await loginOwningSession(service)
       const result = await cli([name, ...args])
@@ -287,23 +286,47 @@ describe('session commands', () => {
       const printed = parsed(result.stdout)
       expect(printed).toMatchObject({ result: 'response', outcome: 'succeeded' })
       const sent = service.seen.at(-1)
-      expect(sent?.path).toBe('/session-public/1')
-      expect(sent?.wire).toMatchObject({ operation: name, loginProof: issuedProof })
-      expect(JSON.stringify(sent?.headers)).not.toContain(issuedProof)
+      expect(sent?.path).toBe(`/api/session/v1/${name}`)
+      expect(sent?.headers['authorization']).toBe(`Bearer ${issuedProof}`)
+      expect(JSON.stringify(sent?.body)).not.toContain(issuedProof)
       for (const text of [result.stdout, result.stderr]) expect(text).not.toContain(issuedProof)
     })
 
-    it('exits 5 with result uncertain when the service is not running', async () => {
+    it('sends the acting tenant header only for an operation that acts as a tenant', async () => {
+      const service = await serve()
+      await loginOwningSession(service)
+      await cli([name, ...args])
+      const header = service.seen.at(-1)?.headers['omne-acting-tenant']
+      expect(header).toBe(name === 'create-session' ? tenantText : undefined)
+    })
+
+    it('exits 4 with result unavailable when the service is not running, as nothing was sent', async () => {
       const service = await serve()
       await loginOwningSession(service)
       const port = await closedPort()
       const result = await cli([name, ...args, '--server', `http://127.0.0.1:${port}`])
+      expect(result.code).toBe(4)
+      expect(result.stderr).toBe('')
+      const printed = parsed(result.stdout)
+      expect(printed['result']).toBe('unavailable')
+      expect(printed).not.toHaveProperty('outcome')
+      expect(printed).not.toHaveProperty('body')
+      expect(printed['request']).toHaveProperty('messageId')
+    })
+
+    it('exits 5 with result uncertain when the answer cannot be trusted', async () => {
+      const service = await serve(seen =>
+        seen.operation === 'issue-login'
+          ? { outcome: 'succeeded', body: loginBody(seen) }
+          : { outcome: 'not-a-known-outcome', body: {} },
+      )
+      await loginOwningSession(service)
+      const result = await cli([name, ...args])
       expect(result.code).toBe(5)
       expect(result.stderr).toBe(resultUncertain(name))
       const printed = parsed(result.stdout)
       expect(printed['result']).toBe('uncertain')
       expect(printed).not.toHaveProperty('outcome')
-      expect(printed).not.toHaveProperty('body')
       expect(printed['request']).toHaveProperty('messageId')
     })
 
@@ -314,7 +337,7 @@ describe('session commands', () => {
       ['basis-unavailable', 4],
     ])('exits %s -> %i from the outcome and not from the status code', async (outcome, code) => {
       const service = await serve(seen =>
-        seen.wire['operation'] === 'issue-login'
+        seen.operation === 'issue-login'
           ? { outcome: 'succeeded', body: loginBody(seen) }
           : { outcome, body: {} },
       )
@@ -327,7 +350,7 @@ describe('session commands', () => {
 
     it('exits 5 and notes the uncertainty when the outcome is unknown', async () => {
       const service = await serve(seen =>
-        seen.wire['operation'] === 'issue-login'
+        seen.operation === 'issue-login'
           ? { outcome: 'succeeded', body: loginBody(seen) }
           : { outcome: 'unknown', body: {} },
       )
@@ -375,10 +398,11 @@ describe('session commands', () => {
 
   function loginBody(seen: Seen): unknown {
     return {
-      loginIdentifier: (seen.wire['body'] as Record<string, unknown>)['loginIdentifier'],
+      loginIdentifier: (seen.body as Record<string, unknown>)['loginIdentifier'],
       issuedAt: '2026-11-01T12:00:00Z',
       tenantId: tenantText,
       loginProof: issuedProof,
+      loginId: ownLoginId,
     }
   }
 
@@ -389,10 +413,13 @@ describe('session commands', () => {
     const request = parsed(result.stdout)['request'] as Record<string, string>
     expect(request['tenant']).toBe(tenantText)
     expect(new Set([request['messageId'], request['createCallId']]).size).toBe(2)
-    expect(service.seen.at(-1)?.wire).toMatchObject({
-      messageId: request['messageId'],
-      actingTenant: tenantText,
-      body: { createCallId: request['createCallId'], definition: 'default', purpose: 'demo' },
+    const sent = service.seen.at(-1)
+    expect(sent?.messageId).toBe(request['messageId'])
+    expect(sent?.headers['omne-acting-tenant']).toBe(tenantText)
+    expect(sent?.body).toEqual({
+      createCallId: request['createCallId'],
+      definition: 'default',
+      purpose: 'demo',
     })
   })
 
@@ -407,9 +434,7 @@ describe('session commands', () => {
       'call-9',
     ])
     expect(parsed(result.stdout)).toMatchObject({ request: { createCallId: 'call-9' } })
-    expect(service.seen.at(-1)?.wire).toMatchObject({
-      body: { createCallId: 'call-9', purpose: '' },
-    })
+    expect(service.seen.at(-1)?.body).toMatchObject({ createCallId: 'call-9', purpose: '' })
   })
 
   it('send-input wraps the text as one user message and may start with a dash', async () => {
@@ -419,7 +444,7 @@ describe('session commands', () => {
     const request = parsed(result.stdout)['request'] as Record<string, string>
     expect(request['tenant']).toBe(tenantText)
     expect(new Set([request['messageId'], request['acceptId'], request['inputId']]).size).toBe(3)
-    const body = service.seen.at(-1)?.wire['body'] as {
+    const body = service.seen.at(-1)?.body as {
       tenant: string
       session: string
       acceptId: string
@@ -454,7 +479,7 @@ describe('session commands', () => {
     await cli(argv)
     const [one, two] = service.seen
       .slice(-2)
-      .map(seen => (seen.wire['body'] as { message: unknown }).message)
+      .map(seen => (seen.body as { message: unknown }).message)
     expect(one).toEqual(two)
   })
 
@@ -465,7 +490,7 @@ describe('session commands', () => {
     const request = parsed(result.stdout)['request'] as Record<string, string>
     expect(request['tenant']).toBe(tenantText)
     expect(request['controlId']).not.toBe(request['messageId'])
-    expect(service.seen.at(-1)?.wire['body']).toEqual({
+    expect(service.seen.at(-1)?.body).toEqual({
       tenant: tenantText,
       session: sessionId,
       controlId: request['controlId'],
@@ -487,14 +512,14 @@ describe('session commands', () => {
       'force',
     ])
     expect(forced.code).toBe(0)
-    expect(service.seen.at(-1)?.wire['body']).toMatchObject({ urgency: 'force' })
+    expect(service.seen.at(-1)?.body).toMatchObject({ urgency: 'force' })
     const bad = await cli(['cancel-run', '--session', sessionId, '--run', 'r', '--urgency', 'now'])
     expect(bad).toMatchObject({ code: 2, stderr: commandUnrecognized('cancel-run') })
   })
 
   it('stop-call sends the producer, and a tool target reaches the service', async () => {
     const service = await serve(seen =>
-      seen.wire['operation'] === 'issue-login'
+      seen.operation === 'issue-login'
         ? { outcome: 'succeeded', body: loginBody(seen) }
         : { outcome: 'unsupported', body: {} },
     )
@@ -510,7 +535,7 @@ describe('session commands', () => {
       '--control-id',
       'ctl',
     ])
-    expect(service.seen.at(-1)?.wire['body']).toMatchObject({
+    expect(service.seen.at(-1)?.body).toMatchObject({
       controlId: 'ctl',
       producer: { kind: 'tool', call: 'call-3' },
     })
@@ -562,7 +587,7 @@ describe('session commands', () => {
       otherTenantText,
     ])
     expect(parsed(sent.stdout)).toMatchObject({ request: { tenant: otherTenantText } })
-    expect(service.seen.at(-1)?.wire['body']).toMatchObject({ tenant: otherTenantText })
+    expect(service.seen.at(-1)?.body).toMatchObject({ tenant: otherTenantText })
     const bad = await cli([
       'cancel-run',
       '--session',
@@ -585,7 +610,7 @@ describe('session commands', () => {
     await cli(args, { omneServer: second.origin })
     await cli([...args, '--server', third.origin], { omneServer: second.origin })
     const sessionCalls = (service: FakeService) =>
-      service.seen.filter(seen => seen.path === '/session-public/1').length
+      service.seen.filter(seen => seen.path === '/api/session/v1/cancel-run').length
     expect([sessionCalls(first), sessionCalls(second), sessionCalls(third)]).toEqual([1, 1, 1])
   })
 })
@@ -622,7 +647,7 @@ describe('server address for register and login', () => {
     expect(other.seen).toHaveLength(1)
   })
 
-  it('exits 5 when nothing listens at the address', async () => {
+  it('exits 4 when nothing listens at the address, as nothing was sent', async () => {
     const port = await closedPort()
     const result = await cli([
       'register',
@@ -631,9 +656,31 @@ describe('server address for register and login', () => {
       '--server',
       `http://127.0.0.1:${port}`,
     ])
-    expect(result.code).toBe(5)
-    expect(result.stderr).toBe(resultUncertain('register'))
-    expect(parsed(result.stdout)).toEqual({ result: 'uncertain', request: { messageId: 'id-1' } })
+    expect(result.code).toBe(4)
+    expect(result.stderr).toBe('')
+    expect(parsed(result.stdout)).toEqual({ result: 'unavailable', request: { messageId: 'id-1' } })
+  })
+
+  it('accepts a localhost address and refuses an https or a userinfo address', async () => {
+    const service = await serve()
+    const port = new URL(service.origin).port
+    const named = await cli([
+      'register',
+      '--login-identifier',
+      'a',
+      '--server',
+      `http://localhost:${port}`,
+    ])
+    expect(named.code).toBe(0)
+    for (const address of [`https://127.0.0.1:${port}`, `http://user@127.0.0.1:${port}`]) {
+      const result = await cli(['register', '--login-identifier', 'a', '--server', address])
+      expect(result).toMatchObject({
+        code: 2,
+        stdout: '',
+        stderr: serverRefused,
+        credentialReads: 0,
+      })
+    }
   })
 
   it.each(['register', 'login'])('%s names the missing login identifier', async name => {

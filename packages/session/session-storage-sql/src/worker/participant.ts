@@ -2,10 +2,6 @@ import { writePermissionCurrent } from './permission-current.ts'
 import { readSessionBasis } from './session-basis.ts'
 import { SESSION_COMMIT_PROTOCOL, type SessionCommitBasis } from '../commit-basis.ts'
 import type { SessionPermissionChangeBasis } from '@omne-harness/session-contract'
-// The `session` participant module (SPEC W1 steps 3 to 7, W2 for the shared commit). It runs inside
-// the provider's write transaction and uses the pure `decide` and `reduce` of session-contract:
-// this file reads their inputs, assigns positions, writes rows and maintains the derived rows. It
-// never begins, commits or rolls back, and it writes no rule of its own.
 import {
   commandDigest,
   sessionIntakeLimits,
@@ -50,6 +46,7 @@ import {
 } from './history-index.ts'
 import { judgeLog, readCoveringHead, type CoveringSnapshot, type LogBatch } from './log.ts'
 import type { SessionWorkReply } from '../participants.ts'
+import { writeSessionList } from './session-list.ts'
 import { assemble, deepFreeze, writeState, type StoredState } from './state-rows.ts'
 import {
   assignPositions,
@@ -68,9 +65,7 @@ import {
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_INITIALIZATION_RECEIPTS = 1000
 const MAX_VIEW_ROWS = 100_000
-/** The sessions whose parsed snapshot one write Worker keeps (C-WORKCACHE A2). */
 export const PARTICIPANT_SNAPSHOT_SESSIONS = 256
-/** The snapshot text, in UTF-16 code units, that one write Worker keeps over all sessions. */
 export const PARTICIPANT_SNAPSHOT_TEXT = 64 * 1024 * 1024
 
 type ParsedEntry = Readonly<{
@@ -80,32 +75,7 @@ type ParsedEntry = Readonly<{
   snapshot: WorkSnapshot
 }>
 
-/**
- * The parsed snapshot of each session in this write Worker, so a commit that reads the same head
- * text as an earlier one does not read the chunk rows nor parse them again (C-WORKCACHE A2,
- * R2-D292). Read handlers run in read Workers and do not use it.
- *
- * - Every commit still reads the `sl_state` head row of its session and checks `covered == tail`.
- *   A kept snapshot is reused only when the head text of that row is equal to the text it was kept
- *   with. The head carries the token of its chunk rows (`state-rows.ts`), so an equal head text
- *   means equal chunks.
- *   This deviates from design v2 §6.1, which reuses on `covered == tail` without reading the row
- *   (R2-D96): the revision does not tell databases apart (one module instance can serve more than
- *   one database, as the in-process test provider does), a rolled-back write can leave a revision
- *   that a later commit writes again with other content, and in a group commit a later operation
- *   sees the staged row of an earlier one. Equal text gives an equal parse in each of these cases,
- *   so a hit never answers a snapshot that the rows do not hold. The cost: one read of the head row
- *   and one comparison of the head text per commit. What it saves is the read of the chunk rows,
- *   `JSON.parse` and `decodeValue`.
- * - The snapshot that a commit wrote is kept with the head text it wrote. The participant does not
- *   see whether its transaction commits: a rolled-back write leaves the old head, which is not
- *   equal, so the kept snapshot is not used.
- * - A row that does not cover the tail answers `behind` and drops the entry; a row that does not
- *   parse throws and keeps nothing for the session.
- * - A kept snapshot is deep-frozen. A reader that writes into it throws a `TypeError`, so the
- *   commit fails and rolls back, and the next reader still gets the parsed row.
- * - Least recently used order, bounded by sessions and by the total text. `sessions: 0` keeps none.
- */
+// Reuse a kept snapshot only when the head text equals the one it was kept with, not on revision alone: a revision does not tell databases apart and a rolled-back write can leave a revision that is written again with other content.
 export class ParsedSnapshots {
   private readonly entries = new Map<string, ParsedEntry>()
   private readonly sessions: number
@@ -120,7 +90,6 @@ export class ParsedSnapshots {
     this.textLimit = textLimit
   }
 
-  /** The snapshot that covers `tail`: the kept one when the row holds the same head text. */
   readonly covering: CoveringSnapshot = (port, tenant, session, tail) => {
     const key = JSON.stringify([tenant, session])
     const kept = this.entries.get(key)
@@ -137,7 +106,6 @@ export class ParsedSnapshots {
     return snapshot
   }
 
-  /** Keeps the snapshot that a commit wrote, under the head text it wrote. */
   wrote(tenant: string, session: string, covered: bigint, stored: StoredState): void {
     const key = JSON.stringify([tenant, session])
     const kept = this.entries.get(key)
@@ -146,17 +114,14 @@ export class ParsedSnapshots {
     this.keep(key, { covered, text: head, bytes, snapshot: deepFreeze(stored.snapshot) })
   }
 
-  /** The kept entry of a session, without changing the order (for tests). */
   peek(tenant: string, session: string): ParsedEntry | undefined {
     return this.entries.get(JSON.stringify([tenant, session]))
   }
 
-  /** The number of kept sessions and their stored text length. */
   get size(): Readonly<{ sessions: number; text: number }> {
     return { sessions: this.entries.size, text: this.held }
   }
 
-  /** Drops every kept snapshot. Correctness does not depend on it. */
   clear(): void {
     this.entries.clear()
     this.held = 0
@@ -178,7 +143,6 @@ export class ParsedSnapshots {
   }
 }
 
-/** The parsed snapshots of this write Worker (see above). */
 export const parsedSnapshots = new ParsedSnapshots()
 
 type Decision = ReturnType<typeof decide>
@@ -188,24 +152,23 @@ type PendingReason = string
 const isControl = (command: SessionCommand): boolean =>
   command.kind === 'cancelRun' || command.kind === 'stopCall'
 
-const participated = (result: unknown, recovered: boolean, work?: JsonValue): ParticipantReply => ({
+const participated = (
+  result: unknown,
+  recovered: boolean,
+  work?: JsonValue,
+  batch?: JsonValue,
+): ParticipantReply => ({
   kind: 'participated',
-  response: { result: encodeValue(result), recovered, ...(work === undefined ? {} : { work }) },
+  response: {
+    result: encodeValue(result),
+    recovered,
+    ...(work === undefined ? {} : { work }),
+    ...(batch === undefined ? {} : { batch }),
+  },
 })
 
-/** The JSON text the decision of a work reply may take (C-TOPOLOGY §2.9). */
 export const WORK_BASIS_BYTES = 16 * 1024
 
-/**
- * What a published batch tells the work cache of the main thread (C-TOPOLOGY §2.9), so that it can
- * fold the batch onto the snapshot it holds instead of reading the new one whole: the version and
- * the stored text length of the new snapshot, the positions of the batch, and the input range and
- * focus of the history read the batch was reduced on (`basis`), from which a read Worker reproduces
- * that index and those reads (H2). `indexed` is false when the batch was reduced on the stored
- * snapshot without an index and without reads (the entries channel). The basis is left out over
- * `WORK_BASIS_BYTES`, and the cache then reads the snapshot whole: the provider stores every reply
- * with its receipt and fails one over its response bound. A recall carries no work.
- */
 function workOf(
   port: ParticipantPort,
   input: Readonly<{
@@ -220,7 +183,7 @@ function workOf(
   const { tenant, session, revision, bytes, entries, decided } = input
   const work: SessionWorkReply = {
     tail: revision,
-    // Read after this transaction moved the journal row to `revision`.
+    // Read after this transaction moved the journal row to revision.
     published: readVersion(port, { tenant, session })?.published ?? '0',
     bytes,
     first: (entries[0] as HistoryEntry).id,
@@ -292,11 +255,6 @@ function callLookup(snapshot: WorkSnapshot, producer: ProducerRef): SessionCallL
     : { kind: 'absent' as const, producer, covered: snapshot.revision }
 }
 
-/**
- * The result a command returns, built from the snapshot after its batch (the recall of the original).
- * A control that left no progress item is not reachable, but it answers `null` (unavailable), never
- * throws, as the session-contract double does.
- */
 export function resultOf(
   command: SessionCommand,
   snapshot: WorkSnapshot,
@@ -368,7 +326,6 @@ export function resultOf(
   }
 }
 
-/** The ordinary input that a command admits, if any, for `readInput`. */
 function admittedInput(command: SessionCommand): { input: string } | null {
   if (command.kind === 'accept' && command.input.value.kind === 'ordinary')
     return command.input.value
@@ -411,7 +368,6 @@ function messageOf(entry: HistoryEntry): ViewMessage | null {
   return message ?? null
 }
 
-/** Appends the model-visible rows of the batch to the current epoch; a compaction opens a new epoch (W4). */
 export function maintainModelView(
   port: ParticipantPort,
   tenant: string,
@@ -458,7 +414,6 @@ export function maintainModelView(
         'SELECT entry, message FROM sl_model_view WHERE tenant = ? AND session = ? AND epoch = ? ORDER BY seq LIMIT ?',
         [tenant, session, current, BigInt(limit + 1)],
       )
-      // A compaction over a partial epoch would drop rows from the model view.
       if (old.length > limit) return null
       const covers = BigInt(String(message.covers?.to ?? 0))
       const retained = new Set((message.retained ?? []).map(ref => String(ref)))
@@ -504,11 +459,6 @@ type ResidentRow = Readonly<{ key: string; capability: string; shape: ResidentTo
 
 const shapeText = (row: ResidentRow): string => JSON.stringify(encodeValue(row.shape))
 
-/**
- * The rows of the resident index that a snapshot stands for: none before the session exists and
- * none once it is archived, else one row per registered key whose capability has a definition. The
- * map key is the rest of the primary key of a row, after the tenant and the session.
- */
 function residentRows(snapshot: WorkSnapshot | null): ReadonlyMap<string, ResidentRow> {
   const rows = new Map<string, ResidentRow>()
   if (snapshot === null || snapshot.lifecycle === 'archived') return rows
@@ -524,12 +474,6 @@ function residentRows(snapshot: WorkSnapshot | null): ReadonlyMap<string, Reside
   return rows
 }
 
-/**
- * The derived rows of a published batch (W3). The pending index and the resident index hold the
- * rows of every session of the tenant, so each is maintained by the difference between the rows of
- * the previous snapshot and those of the new one, and each statement names a whole primary key: a
- * batch that leaves them alone runs no statement, and none visits the rows of another session.
- */
 export function maintainDerived(
   port: ParticipantPort,
   tenant: string,
@@ -579,7 +523,6 @@ export function maintainDerived(
       'INSERT OR REPLACE INTO sl_released_scope_idx (tenant, session, scope, data) VALUES (?, ?, ?, ?)',
       [tenant, session, scope.scope, JSON.stringify(encodeValue(scope))],
     )
-  // A scope is minted once and keeps its owner, so a row is only ever added.
   for (const binding of snapshot.contextScopes ?? [])
     port.execute(
       'INSERT OR IGNORE INTO sl_scope_idx (tenant, scope, session, generation) VALUES (?, ?, ?, ?)',
@@ -587,7 +530,6 @@ export function maintainDerived(
     )
 }
 
-/** Every operation receipt of the session, in revision order, that completeInitialization recalls. */
 export function initializationReceipts(
   port: ParticipantPort,
   tenant: string,
@@ -603,11 +545,6 @@ export function initializationReceipts(
   return rows.map(row => JSON.parse(packed(row['receipt'])) as CommitReceipt)
 }
 
-/**
- * The execution index row of each SE13 (`run.started`) of the batch, in the batch's transaction.
- * An execution is unique within its tenant: a row that already exists, for another session or for
- * the same one, fails the commit and stays as it is.
- */
 function indexExecutions(
   port: ParticipantPort,
   tenant: string,
@@ -672,7 +609,6 @@ function writeEntries(
   return indexExecutions(port, tenant, session, entries)
 }
 
-/** The receipt of one committed batch: the same for a command batch and an entries batch. */
 function batchReceipt(
   input: Readonly<{
     tenant: string
@@ -701,7 +637,6 @@ function batchReceipt(
   } as CommitReceipt
 }
 
-/** W1 step 7, last: the tail moves only from the tail that the batch was judged on. */
 function advanceTail(
   port: ParticipantPort,
   input: Readonly<{
@@ -723,7 +658,6 @@ function advanceTail(
     : { kind: 'failed', diagnostic: 'the conditional tail update changed no row' }
 }
 
-/** The record of one operation under its identity; a control answer has no revision. */
 function insertOperation(
   port: ParticipantPort,
   record: Readonly<{
@@ -744,14 +678,8 @@ function insertOperation(
   )
 }
 
-/** What a batch wrote before its operation record: the new model view epoch and the stored size. */
-type Written = Readonly<{ kind: 'written'; epoch: string; bytes: number }>
+type Written = Readonly<{ kind: 'written'; epoch: string; bytes: number; batch: JsonValue }>
 
-/**
- * The rows every published batch writes before its operation record (W1 step 7): the entries and
- * their indexes, the model view, the snapshot row and the derived rows. A failure rolls back the
- * whole transaction, and its reply is answered instead.
- */
 function writeBatch(
   port: ParticipantPort,
   batch: Readonly<{
@@ -762,9 +690,12 @@ function writeBatch(
     previous: WorkSnapshot | null
     snapshot: WorkSnapshot
     entries: readonly HistoryEntry[]
+    receipt: CommitReceipt
+    seq: bigint
+    at: string | null
   }>,
 ): Written | ParticipantReply {
-  const { tenant, session, revision, previous, snapshot, entries } = batch
+  const { tenant, session, revision, previous, snapshot, entries, receipt } = batch
   const unindexed = writeEntries(port, tenant, session, entries)
   if (unindexed !== null) return unindexed
   const epoch = maintainModelView(port, tenant, session, batch.epoch, entries)
@@ -775,7 +706,27 @@ function writeBatch(
   parsedSnapshots.wrote(tenant, session, covered, stored)
   writePermissionCurrent(port, { tenant, session }, previous, snapshot, entries)
   maintainDerived(port, tenant, session, previous, snapshot)
-  return { kind: 'written', epoch, bytes: stored.layout.bytes }
+  writeSessionList(port, {
+    tenant,
+    session,
+    seq: batch.seq,
+    at: batch.at,
+    previous,
+    snapshot,
+    entries,
+  })
+  return {
+    kind: 'written',
+    epoch,
+    bytes: stored.layout.bytes,
+    batch: {
+      tenant,
+      session,
+      revision,
+      source: receipt.source,
+      kinds: [...new Set(entries.map(entry => entry.kind))],
+    },
+  }
 }
 
 function runQuery(
@@ -820,11 +771,6 @@ function runQuery(
   }
 }
 
-/**
- * The snapshot a result carries, with the history index of its pending inputs read from the rows
- * this commit wrote, as `readWork` reads it (the memory pair gives its results the same index).
- * Only the result of `create` carries the snapshot; over the read bound it carries none.
- */
 function withIndex(port: ParticipantPort, command: SessionCommand, snapshot: WorkSnapshot) {
   if (command.kind !== 'create') return snapshot
   const tenant = tenantCodec.encode(snapshot.tenant)
@@ -836,7 +782,6 @@ function withIndex(port: ParticipantPort, command: SessionCommand, snapshot: Wor
   return history === 'too-many' ? snapshot : { ...snapshot, historyIndex: history.index }
 }
 
-/** The rows a command is judged on: its key, the record of its identity, the journal and the snapshot. */
 type CommandStart = Readonly<{
   tenant: string
   session: string
@@ -846,19 +791,17 @@ type CommandStart = Readonly<{
   previous: WorkSnapshot | null
 }>
 
-/** The command, its guards and the access evidence it carries, as the participant received them. */
 type Received = Readonly<{
   command: SessionCommand
   guards: readonly GuardCommand[]
   evidence: string | null
+  at: string | null
 }>
 
-/** W1 steps 3 and 4: the key of the command, then its record, its journal row and its snapshot. */
 function commandStart(
   command: SessionCommand,
   port: ParticipantPort,
 ): CommandStart | ParticipantReply {
-  // Before the session or any lookup: the answer must not tell what exists.
   if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
     return stopped({ kind: 'unsupported' })
   const tenantText = tenantCodec.encode(command.input.tenant)
@@ -897,11 +840,6 @@ function commandStart(
 const isStart = (value: CommandStart | ParticipantReply): value is CommandStart =>
   !('kind' in value)
 
-/**
- * `startRun`: the stored first pending input with its origin, from `sl_input` in this commit's
- * transaction, so the login gate of `decide` sees the input the commit starts the Run from. No row
- * gives no read, and `decide` then confirms no login.
- */
 function firstInputOf(
   port: ParticipantPort,
   tenant: string,
@@ -923,7 +861,6 @@ function firstInputOf(
   return { firstInput: { input: stored.input, origin: stored.origin } }
 }
 
-/** The reads of `decide` that come from rows: the frozen receipt, the lookups and the receipts. */
 function commandReads(
   port: ParticipantPort,
   command: SessionCommand,
@@ -940,7 +877,6 @@ function commandReads(
            WHERE e.tenant = ? AND e.session = ? AND e.kind = 'session.frozen' LIMIT 1`,
           [tenant, session],
         )
-  // A bound reached by a read inside the commit is a definite failure, never a shorter read.
   const receipts =
     command.kind === 'completeInitialization' ? initializationReceipts(port, tenant, session) : []
   if (receipts === null)
@@ -967,7 +903,6 @@ function commandReads(
   }
 }
 
-/** The input range whose history this command reads: its selected inputs, or the pending ones. */
 function commandScope(command: SessionCommand, previous: WorkSnapshot | null): SessionInputScope {
   if (command.kind === 'startRun')
     return { kind: 'selected', inputs: (previous?.pending ?? []).slice(0, 1) }
@@ -976,7 +911,6 @@ function commandScope(command: SessionCommand, previous: WorkSnapshot | null): S
   return { kind: 'pending', inputs: previous?.pending ?? [] }
 }
 
-/** A control answer is saved under its identity with no revision: it writes no entry. */
 function saveControlAnswer(
   port: ParticipantPort,
   received: Received,
@@ -999,10 +933,6 @@ function saveControlAnswer(
   return participated(receipt, false)
 }
 
-/**
- * The recall of the original operation that `decide` named. A `completeInitialization` that recalls
- * another operation saves its own record with the original receipt.
- */
 function recallOriginal(
   port: ParticipantPort,
   received: Received,
@@ -1039,14 +969,12 @@ function recallOriginal(
   return participated(value, true)
 }
 
-/** The judged batch of a command, with what its publication needs. */
 type CommandBatch = Readonly<{
   prepared: WorkSnapshot | null
   history: SessionHistory | null
   entries: Extract<Decision, { kind: 'entries' }>['entries']
 }>
 
-/** W1 step 7: positions, rows, derived rows, then the conditional tail update. */
 function publishCommand(
   port: ParticipantPort,
   received: Received,
@@ -1063,7 +991,6 @@ function publishCommand(
   )
   if (reduced.kind === 'quarantined')
     return definite('quarantined', `reduce quarantined: ${reduced.diagnostic}`)
-  // The index is a read projection of this transaction, never stored in the snapshot row.
   const { historyIndex: _index, ...snapshot } = reduced.snapshot
   const receipt = batchReceipt({ tenant, session, operation, seq, revision, entries })
 
@@ -1075,9 +1002,12 @@ function publishCommand(
     previous,
     snapshot,
     entries,
+    receipt,
+    seq,
+    at: received.at,
   })
   if (written.kind !== 'written') return written
-  const { epoch, bytes } = written
+  const { epoch, bytes, batch: committed } = written
   const granted = recordAttemptGrants(port, { tenant, session, entries, receipt })
   if (granted !== null) return granted
   const admitted = admittedInput(command)
@@ -1116,10 +1046,9 @@ function publishCommand(
           entries,
           decided: { scope: batch.history.reads.scope, focus: NO_FOCUS },
         })
-  return participated(result, false, work)
+  return participated(result, false, work, committed)
 }
 
-/** The revision, commit sequence and entry positions of the batch, after the journal of `start`. */
 function positioned(port: ParticipantPort, start: CommandStart, batch: CommandBatch) {
   const { tenant, session, journal } = start
   const tail = journal === undefined ? 0n : big(journal['tail'])
@@ -1129,7 +1058,6 @@ function positioned(port: ParticipantPort, start: CommandStart, batch: CommandBa
   return { tail, seq, revision, entries }
 }
 
-/** The journal row of a new session, or the conditional tail update of an existing one. */
 function moveJournal(
   port: ParticipantPort,
   start: CommandStart,
@@ -1146,7 +1074,6 @@ function moveJournal(
   return null
 }
 
-/** The record of the command's identity that `decide` compares, or null for a new identity. */
 function recordOf(command: SessionCommand, start: CommandStart): OperationRecord | null {
   const { held } = start
   return held === undefined
@@ -1158,7 +1085,6 @@ function recordOf(command: SessionCommand, start: CommandStart): OperationRecord
       }
 }
 
-/** The history index is read in the same transaction as the snapshot, for the input range of this command. */
 function commandHistory(
   port: ParticipantPort,
   command: SessionCommand,
@@ -1170,7 +1096,6 @@ function commandHistory(
     : readHistory(port, tenant, session, previous, commandScope(command, previous))
 }
 
-/** The answer to a command's decision: a refusal, a control answer, a recall or a published batch. */
 function settleDecision(
   port: ParticipantPort,
   received: Received,
@@ -1189,13 +1114,12 @@ function settleDecision(
 }
 
 function runCommand(
-  command: SessionCommand,
-  guards: readonly GuardCommand[],
-  evidence: string | null,
+  received: Received,
   port: ParticipantPort,
   intakeLimits: SessionIntakeLimits,
   permissionChange: SessionPermissionChangeBasis | undefined,
 ): ParticipantReply {
+  const { command, guards } = received
   const start = commandStart(command, port)
   if (!isStart(start)) return start
   const reads = commandReads(port, command, start)
@@ -1212,21 +1136,16 @@ function runCommand(
     intakeLimits,
     ...(history === null ? {} : { history: history.reads }),
   })
-  return settleDecision(port, { command, guards, evidence }, start, decision, { prepared, history })
+  return settleDecision(port, received, start, decision, { prepared, history })
 }
 
-/** What a same-log batch publishes: its rows, its snapshot and the record of its operation. */
 type SameLogBatch = EntriesBatch | LogBatch
 type SameLogRecord = Readonly<{ form: 'entries' | 'log'; receipt: unknown; result: unknown }>
 
-/**
- * One same-log interpretation commit (entries or log channel): the consequence rows, the progress
- * row, the model view, the snapshot, the derived rows, the operation record and the tail, in this
- * one transaction. A failure at any step rolls all of them back.
- */
 function publishSameLog(
   port: ParticipantPort,
   batch: SameLogBatch,
+  at: string | null,
   record: (receipt: CommitReceipt) => SameLogRecord,
 ): ParticipantReply {
   const { tenant, session, operation, journal, previous, snapshot, entries } = batch
@@ -1240,9 +1159,12 @@ function publishSameLog(
     previous,
     snapshot,
     entries,
+    receipt,
+    seq: journal.seq,
+    at,
   })
   if (written.kind !== 'written') return written
-  const { epoch, bytes } = written
+  const { epoch, bytes, batch: committed } = written
   const granted = recordAttemptGrants(port, { tenant, session, entries, receipt })
   if (granted !== null) return granted
   const saved = record(receipt)
@@ -1270,18 +1192,21 @@ function publishSameLog(
     batch.answer,
     false,
     workOf(port, { tenant, session, revision, bytes, entries, decided }),
+    committed,
   )
 }
 
-/** The answer of a same-log commit carries the digest of its observation (SL07). */
 function withDigest(reply: ParticipantReply, digest: string, extra: object = {}): ParticipantReply {
   return reply.kind === 'participated'
     ? { kind: 'participated', response: { ...(reply.response as object), ...extra, digest } }
     : reply
 }
 
-/** The entries interpretation commit. Its record keeps the batch receipt and the entries receipt. */
-function runEntries(facts: Readonly<Record<string, JsonValue>>, port: ParticipantPort) {
+function runEntries(
+  facts: Readonly<Record<string, JsonValue>>,
+  port: ParticipantPort,
+  at: string | null,
+) {
   const judged = judgeEntries(facts, port, parsedSnapshots.covering)
   switch (judged.kind) {
     case 'unsupported':
@@ -1296,7 +1221,7 @@ function runEntries(facts: Readonly<Record<string, JsonValue>>, port: Participan
       return withDigest(participated(judged.result, true), judged.digest)
     case 'publish':
       return withDigest(
-        publishSameLog(port, judged.batch, receipt => ({
+        publishSameLog(port, judged.batch, at, receipt => ({
           form: 'entries',
           receipt,
           result: judged.batch.answer,
@@ -1306,13 +1231,11 @@ function runEntries(facts: Readonly<Record<string, JsonValue>>, port: Participan
   }
 }
 
-/**
- * The event channel interpretation commit. Its record keeps the log receipt in both columns: it is
- * neither a batch nor a control record. A recall of another operation's interpretation and a
- * refusal save no record of this identity, and say so (`recorded`), so the lookup reads this
- * identity as unknown.
- */
-function runLog(facts: Readonly<Record<string, JsonValue>>, port: ParticipantPort) {
+function runLog(
+  facts: Readonly<Record<string, JsonValue>>,
+  port: ParticipantPort,
+  at: string | null,
+) {
   const judged = judgeLog(facts, port, parsedSnapshots.covering)
   switch (judged.kind) {
     case 'unsupported':
@@ -1336,7 +1259,7 @@ function runLog(facts: Readonly<Record<string, JsonValue>>, port: ParticipantPor
     case 'publish': {
       const { answer } = judged.batch
       return withDigest(
-        publishSameLog(port, judged.batch, () => ({
+        publishSameLog(port, judged.batch, at, () => ({
           form: 'log',
           receipt: answer,
           result: answer,
@@ -1348,10 +1271,6 @@ function runLog(facts: Readonly<Record<string, JsonValue>>, port: ParticipantPor
   }
 }
 
-/**
- * The access evidence that a command carries, as the JSON text stored with its operation record.
- * Absent is `null` (no decision travelled); a value that is not a durable evidence is `malformed`.
- */
 function evidenceOf(value: JsonValue | undefined): string | null | 'malformed' {
   if (value === undefined || value === null) return null
   if (typeof value !== 'object' || Array.isArray(value)) return 'malformed'
@@ -1361,12 +1280,6 @@ function evidenceOf(value: JsonValue | undefined): string | null | 'malformed' {
     : 'malformed'
 }
 
-/**
- * The grant of each SE15 row of the batch (R2-D349): the source of the batch receipt, which the
- * Session hands to the Agent as the grant of the attempt, keyed by the attempt and placed at the
- * row's position. Written in the transaction that writes the rows; an SE15 row without its attempt
- * fails the commit.
- */
 function recordAttemptGrants(
   port: ParticipantPort,
   input: Readonly<{
@@ -1390,7 +1303,6 @@ function recordAttemptGrants(
   return null
 }
 
-/** The evidence row of an operation record, in the transaction that writes the record. */
 function storeEvidence(
   port: ParticipantPort,
   key: Readonly<{ tenant: string; session: string; operation: string }>,
@@ -1403,7 +1315,6 @@ function storeEvidence(
   )
 }
 
-/** The command intent: the command with its guards and evidence, answered with its digest. */
 function intakeLimitsOf(value: JsonValue | undefined): SessionIntakeLimits | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
   if (!('maxPendingInputs' in value) || !('maxInputBytes' in value)) return null
@@ -1421,6 +1332,7 @@ function runCommandFacts(
   facts: Readonly<Record<string, JsonValue>>,
   port: ParticipantPort,
   basis: SessionCommitBasis,
+  at: string | null,
 ): ParticipantReply {
   if (typeof facts['command'] !== 'object' || !Array.isArray(facts['guards']))
     return {
@@ -1454,9 +1366,7 @@ function runCommandFacts(
     basis.permissionChange.operation === command.input.operation
       ? { ...basis.permissionChange, operation: command.input.operation }
       : undefined
-  const reply = runCommand(command, guards, evidence, port, intakeLimits, permissionChange)
-  // The digest of the command travels with the answer, so a later caller can tell a recall of the
-  // same command from the same identity used for another command (SL07).
+  const reply = runCommand({ command, guards, evidence, at }, port, intakeLimits, permissionChange)
   return reply.kind === 'participated'
     ? {
         kind: 'participated',
@@ -1465,7 +1375,6 @@ function runCommandFacts(
     : reply
 }
 
-/** The query intent: the original record of one operation identity. */
 function runQueryFacts(
   facts: Readonly<Record<string, JsonValue>>,
   port: ParticipantPort,
@@ -1481,17 +1390,20 @@ function executeSession(
   port: ParticipantPort,
   basis: SessionCommitBasis,
 ): ParticipantReply {
+  const at = facts['at'] ?? null
+  if (at !== null && typeof at !== 'string')
+    return { kind: 'unsupported', basis: { reason: 'the commit time is not a text' } }
   switch (facts['intent']) {
     case 'query':
       return runQueryFacts(facts, port)
     case 'entries':
-      return runEntries(facts, port)
+      return runEntries(facts, port, at)
     case 'log':
-      return runLog(facts, port)
+      return runLog(facts, port, at)
     case 'check':
       return runChecks(facts, port)
     case 'command':
-      return runCommandFacts(facts, port, basis)
+      return runCommandFacts(facts, port, basis, at)
     default:
       return {
         kind: 'unsupported',
@@ -1513,8 +1425,6 @@ const participant: ParticipantModule = {
     try {
       reply = executeSession(facts, port, basis)
     } catch (error) {
-      // A gap after the cursor of the kept history index heals itself: the index was dropped, and
-      // the next call builds it again from the log. A temporary failure (SPEC 参加者失败的定性).
       if (error instanceof LogGap) return { kind: 'failed', diagnostic: error.message }
       throw error
     }

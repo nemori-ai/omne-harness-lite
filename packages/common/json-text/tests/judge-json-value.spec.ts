@@ -29,7 +29,6 @@ const obj = (...entries: [unknown, unknown][]): { kind: 'object'; entries: unkno
   entries: entries.map(([key, value]) => ({ key, value })),
 })
 
-/** An object of `count` members, built without spreading the members as arguments. */
 function manyMembers(count: number): { kind: 'object'; entries: unknown[] } {
   return {
     kind: 'object',
@@ -102,7 +101,6 @@ describe('judgeJsonValue accepts', () => {
     expect('ok' in judgeJsonValue(wrapped)).toBe(true)
   })
 
-  // A spread of the members as call arguments overflows the stack from about 130,000 members.
   it('an object of 200,000 members, as a copy that equals it', () => {
     const wide = manyMembers(200_000)
     expect(accepted(judgeJsonValue(wide))).toEqual(wide)
@@ -418,7 +416,6 @@ describe('judgeJsonValue lets no exception out of reading the input', () => {
 })
 
 describe('judgeJsonValue visit budget', () => {
-  // One child per level, so the node that reaches the limit does not depend on a visiting order.
   const chain = arr(arr(nil))
 
   it('accepts a tree of exactly maxVisits nodes and rejects at the list that would pass it', () => {
@@ -443,8 +440,6 @@ describe('judgeJsonValue visit budget', () => {
   })
 
   it('counts the siblings that wait in the queue when it checks a list', () => {
-    // The first item is a list of ten leaves and ten leaf siblings wait behind it: 22 visits.
-    // The inner list alone fits in 21, so only the waiting siblings make it exceed the budget.
     const waiting = arr(arr(...Array.from({ length: 10 }, () => nil)), ...Array(10).fill(nil))
     expect('ok' in judgeJsonValue(waiting, { maxVisits: 22 })).toBe(true)
     expect(judgeJsonValue(waiting, { maxVisits: 21 })).toEqual({
@@ -492,7 +487,6 @@ describe('judgeJsonValue visit budget', () => {
     },
   )
 
-  // Slow: two walks over one million nodes each, which is heavy CPU.
   it('has a default of 1,000,000 visits', { tags: ['slow'] }, () => {
     const wide = (count: number): unknown => ({
       kind: 'array',
@@ -502,7 +496,6 @@ describe('judgeJsonValue visit budget', () => {
     expect(rejection(judgeJsonValue(wide(1_000_001))).rejected).toBe('budget')
   })
 
-  // Slow: the deepest default-budget object, about one million entries, copied and compared.
   it(
     'accepts an object of 999,999 members under the default budget as a copy that equals it',
     { tags: ['slow'] },
@@ -565,7 +558,6 @@ describe('judgeJsonValue visit budget', () => {
 
 describe('judgeJsonValue finds a duplicate key', () => {
   const entry = (key: unknown): [unknown, unknown] => [key, nil]
-  /** Keys of one length that differ only in their last digits. */
   const longKey = (length: number, index: number): string =>
     'x'.repeat(length - 8) + String(index).padStart(8, '0')
 
@@ -649,7 +641,6 @@ describe('judgeJsonValue finds a duplicate key', () => {
     expect('ok' in judgeJsonValue(obj(...keys.map(entry)))).toBe(true)
   })
 
-  // Slow: 999 keys of 50,000 units, a size at which a hash set of keys takes seconds.
   it(
     'judges 999 keys of 50,000 equal-length code units in under 1.5 seconds',
     { tags: ['slow'] },

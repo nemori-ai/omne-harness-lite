@@ -1,8 +1,3 @@
-// The diagnostics read face `ModelDiagnostics.list` over the Model records: the whitelist page of
-// one call's dispatches, the qualification mapping `tenant-self`, the cursor, the retention adoption
-// and the Cordis plugin that publishes `modelDiagnostics`. The call documents are written through
-// the real participant on node:sqlite (fixture.ts); the read goes through the `model.diagnostics`
-// handler loaded from the static materials. Nothing here proves the Worker or durability.
 import { requestHead } from '@omne-harness/model-contract/provider'
 import { createHmac } from 'node:crypto'
 import { Context } from '@deepseek-ai/cordis'
@@ -58,7 +53,6 @@ import {
 
 const A = tenantOf('a')
 const B = tenantOf('b')
-/** The vendor text of a failed dispatch. It must never reach a diagnostics page. */
 const CANARY = 'upstream said: SECRET-CANARY-7f3a'
 const UNKNOWN = { kind: 'unknown' } as const
 
@@ -90,7 +84,6 @@ function dispatchOf(
   }
 }
 
-/** Four dispatches: completed, failed with a vendor text, interrupted by a logical terminal, pending. */
 const DISPATCHES: readonly DispatchDocument[] = [
   dispatchOf(0, {
     send: 'started',
@@ -145,7 +138,6 @@ function callOf(
   }
 }
 
-/** One write through the storage port, as the core would do it: read, change, commit once. */
 async function write(
   store: SqlModelStorage,
   tenant: string,
@@ -513,8 +505,6 @@ describe('the Cordis plugin', () => {
   })
 })
 
-// --- Pages, qualification and absence in detail -------------------------------------------------
-
 type Scene = ReturnType<typeof scene>
 type AuthorityQuestion = Parameters<ModelCommandsAuthority<Principal>['authorize']>[0]
 
@@ -526,7 +516,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** A face over the scene's storage with the dependencies or options a case replaces. */
 function faceOf(
   f: Scene,
   replaced: Partial<Parameters<typeof createSqlModelDiagnostics<Principal>>[0]> = {},
@@ -723,11 +712,8 @@ describe('qualification in detail', () => {
   })
 })
 
-// --- Cursors signed with a known key ------------------------------------------------------------
-
 const CURSOR_KEY = new Uint8Array(32).fill(7)
 
-/** A cursor signed as SPEC 诊断读面「游标」 describes, over any payload. */
 function signedCursor(call: ModelCallId, body: unknown): ModelDiagnosticCursor {
   const payload = Buffer.from(JSON.stringify(body)).toString('base64url')
   const mac = createHmac('sha256', CURSOR_KEY)
@@ -757,7 +743,6 @@ describe('the cursor in detail', () => {
     await f.seeded(call)
     const face = faceOf(f, { cursorKey: CURSOR_KEY })
     const first = page(await face.list({ ...f.access(A, call), after: null, limit: 2 }))
-    // The signer must reproduce the cursor the face issued, else the cases below prove nothing.
     expect(signedCursor(call, [1, 1])).toBe(first.next)
     for (const body of [
       null,
@@ -781,15 +766,8 @@ describe('the cursor in detail', () => {
   })
 })
 
-// --- Stored rows that do not parse ------------------------------------------------------------
-
-/** The JSON columns of a dispatch row: they hold the packed text form (sql-contract §10.1). */
 const PACKED = new Set(['record', 'logical_terminal'])
 
-/**
- * Writes one column of one stored dispatch row, as a damaged or foreign writer would leave it. A
- * text for a JSON column is stored in the packed text form, so only its content is damaged.
- */
 function rewriteDispatch(
   f: Scene,
   call: ModelCallId,
@@ -805,7 +783,6 @@ function rewriteDispatch(
   )
 }
 
-/** Changes the stored record of one dispatch with `edit` and writes it back as JSON. */
 function rewriteRecord(
   f: Scene,
   call: ModelCallId,
@@ -962,11 +939,8 @@ describe('a stored row outside the contract shape', () => {
     })
 })
 
-// --- A provider that answers rows the handler would not -----------------------------------------
-
 type Forge = (output: Record<string, unknown>, after: JsonValue | undefined) => JsonValue
 
-/** A face whose storage passes the real `model.diagnostics` output through `forge` first. */
 function forgedFace(f: Scene, forge: Forge, cursorKey?: Uint8Array) {
   const storage: SqlStorage = {
     ...f.sqlite.storage,
@@ -1043,7 +1017,6 @@ describe('a read output that the projection cannot trust', () => {
     await f.seeded(call)
     const face = forgedFace(f, (output, after) => {
       if (after === null) return output as JsonValue
-      // The continuation repeats the last row of the first page.
       const rows = dispatchRows(output)
       return { ...output, dispatches: [{ ...rows[0], seq: after }, ...rows.slice(1)] } as JsonValue
     })
@@ -1055,9 +1028,6 @@ describe('a read output that the projection cannot trust', () => {
   })
 })
 
-// --- The worker half ----------------------------------------------------------------------------
-
-/** A read port over the scene's database that counts the rows it hands out. */
 function portOf(f: Scene, counted: { rows: number } = { rows: 0 }): ReadPort {
   return {
     execute: (sql, params) => {
@@ -1130,7 +1100,6 @@ describe('the read handler model.diagnostics', () => {
       portOf(f, counted),
     )
     if (read.kind !== 'read') throw new Error(`the largest page failed: ${read.diagnostic}`)
-    // One call row and one more dispatch row than the page.
     expect(counted.rows).toBe(DIAGNOSTICS_PAGE_MAX + 2)
     expect(counted.rows).toBeLessThanOrEqual(declared.maxRowsRead)
     expect(Buffer.byteLength(JSON.stringify(read.output))).toBeLessThanOrEqual(

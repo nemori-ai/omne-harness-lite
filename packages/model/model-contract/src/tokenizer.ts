@@ -1,4 +1,3 @@
-// Declarations of the public-api chapter "文本分词与完整计量依据".
 import type { Outcome } from '@omne-harness/operation-result'
 import type { Adoption } from './root.ts'
 import type { ProfileSupplier } from './profile.ts'

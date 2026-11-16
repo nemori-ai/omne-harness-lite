@@ -1,7 +1,4 @@
 // @module-tag slow
-// 归慢层：每条用例在临时 git 仓库里建提交，并对 BASE 跑一次实际架构抽取（建 TypeScript 程序）。
-// 收工钩子 BASE 一侧架构观测的缓存：命中给同样的读数、不重算；换提交、换配置段、换检查器代码各自重算；
-// 坏文件按未命中；读出来的坐标换成当前的根。
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -34,7 +31,6 @@ const source = `${member}/src/plugin.ts`
 const prefix = "import {Context} from '@deepseek-ai/cordis';\n"
 const ON = { enabled: true }
 
-/** 一个成员、一份架构预期的仓库，提交一次作 BASE；之后在工作树里改。 */
 function workspace() {
   const root = repository()
   write(root, 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n')
@@ -58,7 +54,6 @@ function workspace() {
   return { root, base, home: temporaryDirectory('loop-baseline-home-') }
 }
 
-/** 数重算次数的 BASE 读取器。 */
 function counting() {
   const computed: string[] = []
   const compute: BaselineReader = (root, base) => {
@@ -141,11 +136,9 @@ describe('BASE 一侧架构观测的缓存', { timeout: 60_000 }, () => {
     const path = join(home, BASELINE_DIRECTORY, `${key}.json`)
     writeFileSync(path, '{not json')
     cachedBaselineReader(home, ON, { tool: 't1', compute })(root, base)
-    // 形状完整、只是记的键不是这一个（例如哈希撞了或被手工拷过来）：同样不认。
     const stored = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>
     writeFileSync(path, JSON.stringify({ ...stored, key: 'other' }))
     cachedBaselineReader(home, ON, { tool: 't1', compute })(root, base)
-    // 重算后覆盖了那份：再读就命中。
     cachedBaselineReader(home, ON, { tool: 't1', compute })(root, base)
     expect(computed).toEqual([base, base])
   })

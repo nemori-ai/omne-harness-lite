@@ -1,8 +1,3 @@
-// The driver steps of a checkpointed call after a person answered its wait (P06, P07): learn the
-// decision from the decision owner and accept it, take the slot again and save the resume, and
-// close the wait at the resume segment's `continued` fact. Each step is one ledger command, or one
-// port read, with an identity the wait fixes: a repeat after a crash or an unknown answer recalls
-// the original, so one wait is answered once and its checkpoint resumed once.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -32,7 +27,6 @@ function failed(failure: ToolFailure): Result {
   return { kind: 'failed', failure }
 }
 
-/** The answer of a command: progress, a step to read again, or a verdict that stops the run. */
 function after(reply: Outcome<unknown, ToolFailure>): Result {
   if ('ok' in reply) return CONTINUE
   const { failure } = reply
@@ -43,10 +37,6 @@ function after(reply: Outcome<unknown, ToolFailure>): Result {
     : failed(failure)
 }
 
-/**
- * The operation of a step on a wait: `<wait>/accept`, `<wait>/resume` or `<wait>/close`. A call
- * never uses a wait identity twice, so the wait and the step fix the operation.
- */
 export function waitStepOperation(
   wait: ToolWaitId,
   step: 'accept' | 'resume' | 'close',
@@ -57,7 +47,6 @@ export function waitStepOperation(
     : fail({ kind: 'invalid', field: 'operation', reason: decoded.failure.reason })
 }
 
-/** The responding wait whose decision resumes at the call's checkpoint, or undefined. */
 function respondingWait(recovery: ToolRecovery): Responding | undefined {
   const { state } = recovery
   if (state.phase !== 'suspended') return undefined
@@ -83,7 +72,6 @@ export function createResumptionDriver<P, B extends ContentBlock, E>(
     expected: recovery.state.revision,
   })
 
-  /** What the decision owner reports for the wait: its decision evidence, or null while none. */
   const inspect = async (step: Step<P>, wait: ToolWaitId) => {
     try {
       return await decisions.inspect({
@@ -101,12 +89,6 @@ export function createResumptionDriver<P, B extends ContentBlock, E>(
     }
   }
 
-  /**
-   * The step of a suspended call on its open Ask wait (P06): ask the decision owner whether the
-   * person decided; with a decision, accept it under `<wait>/accept`. No decision yet leaves the
-   * call idle until a wake-up. The registration that the owner reports must be the one the wait
-   * holds; another one is not this wait's decision.
-   */
   const decide = async (step: Step<P>, recovery: ToolRecovery): Promise<Result> => {
     const { state } = recovery
     if (state.phase !== 'suspended' || state.wait.kind !== 'ask') return IDLE
@@ -132,12 +114,6 @@ export function createResumptionDriver<P, B extends ContentBlock, E>(
     )
   }
 
-  /**
-   * The step of a suspended call whose decision was accepted (P02, P07): prepare the resume under
-   * `<wait>/resume`, which requeues the parked entry, takes a slot and saves the resume record.
-   * `waiting` tells the caller that the call waits for its place; a refused start qualification
-   * stops the run with the reason.
-   */
   const resume = async (step: Step<P>, recovery: ToolRecovery): Promise<Result | 'waiting'> => {
     const wait = respondingWait(recovery)
     if (wait === undefined || recovery.state.phase !== 'suspended')
@@ -156,13 +132,11 @@ export function createResumptionDriver<P, B extends ContentBlock, E>(
     return after(prepared)
   }
 
-  /** The waits whose resume segment continued them and that `closeWait` still owes. */
   const continued = (recovery: ToolRecovery): readonly Responding[] =>
     recovery.waits.flatMap(wait =>
       wait.phase === 'responding' && wait.progress.kind === 'continued' ? [wait] : [],
     )
 
-  /** Closes a continued wait under `<wait>/close`, with the evidence of its `continued` fact. */
   const close = async (
     step: Step<P>,
     recovery: ToolRecovery,

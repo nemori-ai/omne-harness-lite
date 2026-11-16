@@ -1,7 +1,3 @@
-// The `model-converters` row: model-host-local `ModelConvertersLocalPlugin`, the one converter
-// catalog. It injects `modelConverterAuthority`, which an entry object of the assembly provides. The
-// catalog has no consumer in M2 and no other row injects its key. It has no shutdown phase and no
-// configuration.
 import {
   modelConverterAuthorityKey,
   modelConvertersKey,

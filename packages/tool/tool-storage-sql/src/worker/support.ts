@@ -1,5 +1,3 @@
-// Shared by the Worker modules: row access over the statement ports, and the parse of the JSON
-// values that cross into a Worker module. A value that does not parse is refused by the caller.
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { unpackText, type SqlCell, type SqlValue } from '@omne-harness/sql-contract/worker'
 
@@ -23,19 +21,16 @@ export function oneRow(port: Executor, sql: string, params: readonly SqlValue[])
   return rowsOf(port, sql, params)[0]
 }
 
-/** The text of a TEXT cell; any other cell is a schema fault, so it throws. */
 export function text(cell: SqlCell | undefined): string {
   if (typeof cell !== 'string') throw new TypeError('a TEXT cell was expected')
   return cell
 }
 
-/** The text of a BLOB cell in the packed text form (sql-contract §10.1); any other cell throws. */
 export function packed(cell: SqlCell | undefined): string {
   if (!(cell instanceof Uint8Array)) throw new TypeError('a BLOB cell was expected')
   return unpackText(cell)
 }
 
-/** The decimal text of an INTEGER cell (read as BigInt by the provider). */
 export function integer(cell: SqlCell | undefined): string {
   if (typeof cell !== 'bigint' && typeof cell !== 'number')
     throw new TypeError('an INTEGER cell was expected')
@@ -48,13 +43,11 @@ export function isObject(value: JsonValue | undefined): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** A non-empty string member of `value`, or null. */
 export function textOf(value: JsonObject, key: string): string | null {
   const member = value[key]
   return typeof member === 'string' && member !== '' ? member : null
 }
 
-/** A non-negative safe integer member of `value`, or null. */
 export function countOf(value: JsonObject, key: string): number | null {
   const member = value[key]
   return typeof member === 'number' && Number.isSafeInteger(member) && member >= 0 ? member : null

@@ -1,7 +1,5 @@
-// A clock the test moves by hand: nothing waits for real time.
 export type ManualClock = {
   readonly schedule: (ms: number, run: () => void) => () => void
-  /** Moves time forward and runs what fell due, in order. */
   readonly advance: (ms: number) => void
   readonly pending: () => number
 }

@@ -1,27 +1,15 @@
-// Counts the messages this process posts to its worker threads, by phase: storage commits by
-// participant, reads by the module of their handler, and the queries a caller sends before a
-// commit. A count is taken at `Worker.prototype.postMessage`, so no product code changes; the
-// SQLite provider runs every storage operation in a worker, so one message is one round trip.
-// Each commit also adds the bytes of its `execution-record` commands: the own bytes of the session
-// log, as `docs/engineering/perf-baseline.md` defines them (the JSON text of the command in UTF-8).
-// From the scripts of issue #1196 (`m-attr.ts`), made a module with phases.
 import { Worker } from 'node:worker_threads'
 
 export const JOURNAL_PARTICIPANT = 'execution-record'
 
 export type PhaseCounts = {
-  /** `commit:<participants joined by +>`, `read:<handler module>`, `query`, or another kind. */
   messages: Record<string, number>
-  /** Commits by each participant that has a command in them; one commit counts once per participant. */
   commitsByParticipant: Record<string, number>
   commits: number
   reads: number
   queries: number
-  /** Queries by the prefix of their operation key (`mop_` for a Model operation, and so on). */
   queriesByOperation: Record<string, number>
-  /** The JSON bytes of every `execution-record` command committed in the phase. */
   journalOwnBytes: number
-  /** The same bytes by the part of the command that holds them (see `attribute`). */
   journalOwnBytesByKind: Record<string, number>
 }
 
@@ -66,11 +54,6 @@ function jsonBytes(value: unknown): number {
   }
 }
 
-/**
- * The JSON bytes of a command split by what holds them: an element of an array that has a string
- * `kind` counts under `<path>[<kind>]`; any other value under its path, down to four levels. The
- * parts add up to the bytes of the command less the punctuation between them.
- */
 function attribute(value: unknown, path = '', depth = 0, into: Record<string, number> = {}) {
   if (Array.isArray(value)) {
     for (const item of value) {
@@ -92,10 +75,6 @@ function attribute(value: unknown, path = '', depth = 0, into: Record<string, nu
   return into
 }
 
-/**
- * The owner prefix of a storage operation key: `mop_` for a Model operation, `sop_` for a Session
- * operation (whose key is a JSON array `[session, operation, attempt]`), `other` otherwise.
- */
 function operationPrefix(key: string): string {
   const direct = /^([a-z]+_)/u.exec(key)?.[1]
   if (direct !== undefined) return direct
@@ -106,13 +85,10 @@ function operationPrefix(key: string): string {
         const found = typeof part === 'string' ? /^([a-z]+_)/u.exec(part)?.[1] : undefined
         if (found !== undefined) return found
       }
-  } catch {
-    // Not a JSON key: counted as other.
-  }
+  } catch {}
   return 'other'
 }
 
-/** Installs the count once per process; `phase` sets the phase that later messages count in. */
 export function installWorkerCount() {
   const phases = new Map<number, PhaseCounts>()
   let phase = 0

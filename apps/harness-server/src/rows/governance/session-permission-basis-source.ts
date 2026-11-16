@@ -1,8 +1,3 @@
-// The source of the commit basis of a Session permission assignment (session-storage-sql
-// `SessionProtectedBasisSource`). The Session commit asks it for one delivery. It reads the facts
-// of other domains now and keeps nothing: the login, and the organization layer of a mapped
-// target. The facts of the tenant domain are read again inside the commit by the members that the
-// plan names, so a change after this read stops the commit.
 import { canonicalText } from '@omne-harness/authorization'
 import type { GovernanceScope } from '@omne-harness/governance-contract'
 import {
@@ -44,7 +39,6 @@ import { targetSnapshotCommands } from './target-snapshot.ts'
 type Principal = ActingForTenantPrincipal
 type Commit = SessionProtectedCommit<Principal>
 type Plan = Outcome<SessionProtectedBasis, SessionFailure>
-/** The stated part of the producer facts. The Session command stays as the commit gave it. */
 type Stated = Pick<SessionPermissionBasisFacts, 'change' | 'assignment'> &
   Readonly<{ commands: readonly [FactCommandV2] }>
 type Selected = Stated & Pick<SessionPermissionBasisFacts, 'selection'>
@@ -54,13 +48,11 @@ export type SessionPermissionBasisSource = SessionProtectedBasisSource<Principal
 export type SessionPermissionBasisSourceOptions = Readonly<{
   scope: GovernanceScope
   domain: DomainRef
-  /** The current epoch of the Governance scope; the projections of the commit read this epoch. */
   epoch: string
   storage: Pick<SqlStorage, 'read'>
   login?: () => SessionPermissionLogin | undefined
   settings?: SessionPermissionSettingsResolver
   readCatalog: SessionPermissionCatalogReader
-  /** The registered combination of each mode: the Session writer, its producer and their sources. */
   combinations: Readonly<Record<SessionPermissionBasisMode, Combination>>
 }>
 
@@ -69,7 +61,6 @@ const denied = (): Plan => fail({ kind: 'denied', action: 'change' })
 const unavailable = (diagnostic: string): Plan =>
   fail({ kind: 'unavailable', owner: OWNER, diagnostic })
 
-/** What the access decision qualified, when it is the decision of this command in this scope. */
 function stated(
   scope: GovernanceScope,
   commit: Commit,
@@ -189,7 +180,6 @@ export function createSessionPermissionBasisSource(
     if (mapped === undefined) return unavailable('the Settings target of the permission is unknown')
     const target = permissionScope(session, canonicalText(mapped.target))
     if (target === undefined) return unavailable('the tenant has no permission scope')
-    // An unreadable organization layer goes into the judgment as unavailable; the producer decides.
     const organization: PermissionSource = organizationPermissionSource(
       await readSettingsSource(options.storage, mapped.source),
       permission,

@@ -1,4 +1,3 @@
-// The conformance suite of `ProcessLanding`, and an in-memory double that passes it.
 import assert from 'node:assert/strict'
 import type { Access } from '@omne-harness/legal-identity'
 import type {
@@ -15,10 +14,8 @@ import type { StdioLaunch } from './values.ts'
 export type ProcessLandingFixture<P> = Readonly<{
   port: ProcessLanding<P>
   access: Access<P>
-  /** A launch that lands. Its credential variables are filled from `credential`. */
   launch: StdioLaunch
   credential: () => Promise<ProcessCredentialHandle>
-  /** The secret value behind `credential`, which the process writes to standard error. */
   secret?: string
   missingFacility?: StdioLaunch
   invalidLanding?: StdioLaunch
@@ -74,8 +71,6 @@ export function mcpProcessLandingConformance<P>(): readonly ConformanceCase<
       async fixture => {
         const secret = handle(fixture.secret, 'secret')
         const process = await started(fixture)
-        // Standard error ends only when the process has stopped. Without a confirmed stop the
-        // case would wait without bound, so it does not read the stream.
         if ((await process.stop()) === 'unconfirmed') throw new NotApplicable('confirmed stop')
         assert.ok(
           !(await textOf(process.stderr)).includes(secret),
@@ -158,11 +153,6 @@ function memoryProcess(lines: readonly string[]): ProcessHandle {
   }
 }
 
-/**
- * A landing without processes. A started process writes each credential variable to standard
- * error with its secret masked, and stops when asked. It refuses the listed commands as
- * `landing-invalid` and a facility it does not offer as `facility-missing`.
- */
 export function createMemoryProcessLanding<P>(
   options: Readonly<{ facilities: readonly string[]; refusedCommands?: readonly string[] }>,
 ): MemoryProcessLanding<P> {

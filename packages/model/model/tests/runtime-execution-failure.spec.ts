@@ -12,7 +12,6 @@ const refusal: ModelFailure = { kind: 'invalid', field: 'synthetic', reason: 're
 const open: TransportFact = { kind: 'block-open', index: '0', mode: 'append', content: 'text' }
 const delta: TransportFact = { kind: 'block-delta', index: '0', delta: 'kept' }
 
-/** A runtime whose `write` answers `failure` from its `from`-th call on. No drive is scheduled. */
 function refusing(write: Write, failure: ModelFailure, from = 1) {
   const calls = { [write]: 0, settle: 0 } as Record<Write | 'settle', number>
   const f = runtimeFixture({}, commands => {
@@ -83,7 +82,6 @@ it('ends the call as an execution failure when the prepare is refused', async ()
 
 for (const write of ['preserve', 'openReceiveWindow'] as const) {
   it(`ends the call as an execution failure and releases the stream when ${write} is refused`, async () => {
-    // The sender opens the first window, so the receiver's first open is the second call.
     const m = refusing(write, refusal, write === 'preserve' ? 1 : 2)
     unbox(await m.provider.runtime.calls.admit(m.f.admit))
     const running = m.drive()
@@ -177,7 +175,6 @@ function refusingNothing(f: ReturnType<typeof runtimeFixture>) {
   }
 }
 
-/** A runtime whose send boundary answers `first` once, then is the real boundary. */
 function notStarted(first: ModelFailure) {
   const f = runtimeFixture()
   let asked = 0

@@ -1,12 +1,3 @@
-// S7, the content comes only from the material of the requested identity. Without the premise
-// PR1 and PR3, the resolution may answer `adopted` with the reference of another identity
-// (`misdirect`, to each of the other two identities, readable by the observer or not) or, with a
-// basis, with a reference whose source layer, asset version or digest is not the basis's. Every
-// success must name the requested identity, and every page, listing and export must be bytes of a
-// material of that identity (the S3 check against the pinned material). A misdirection that
-// breaks the request is no answer: the operation answers `unknown` alone and calls no port after
-// it (the S2 check). Not vacuous: without a fault, `describe` of the requested identity without a
-// basis succeeds.
 import { isDeepStrictEqual } from 'node:util'
 import { isPackageDigest } from '@omne-harness/skill-contract'
 import { mixedBreak } from './basis.ts'
@@ -41,7 +32,6 @@ function field(value: unknown, key: string): unknown {
   return typeof value === 'object' && value !== null ? Reflect.get(value, key) : undefined
 }
 
-/** The identity that a basis-like value names, and whose material its digest is. */
 function namesTarget(basis: unknown): string | undefined {
   if (!isDeepStrictEqual(field(basis, 'capability'), CAPABILITY[TARGET]))
     return `names ${JSON.stringify(field(basis, 'capability'))}`
@@ -51,7 +41,6 @@ function namesTarget(basis: unknown): string | undefined {
   return undefined
 }
 
-/** The S7 check of one run; a message when it breaks. */
 export function identityBreak(
   world: WorldSpec,
   request: AccessRequest,
@@ -122,7 +111,6 @@ export async function exploreIdentity(): Promise<Report> {
               ...(point === undefined ? {} : { faults: [point] }),
             }
             for (const request of requests) {
-              // A misdirection that the request cannot tell from an honest answer is not one.
               if (point !== undefined && !misdirects(point, request.basis)) continue
               const run = runOf(world, schedule)
               const observation = await perform(run, 'alice', request)

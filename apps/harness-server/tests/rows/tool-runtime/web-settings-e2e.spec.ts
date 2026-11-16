@@ -1,9 +1,4 @@
 // @module-tag slow
-// 慢：本进程装发行树（真实 SQLite），每条命令起一个 `omne` 子进程，模型走本进程的本地网关，Exa 走本地替身，页面来自本地 HTTP 夹具。
-// 先构建 `apps/cli`。Web 的 search 凭据端到端（web-meta-tool 切片 04，spec C2、C4、C5、C6）：`omne setting` 写入、查看、列表、清除
-// Web 的 `exa.apiKey`；配了 key 的 coding 会话里 `Web().search` 把这把 key 发给 Exa 替身，结果回到历史；替身的 0 条、401、402、429、500
-// 各得到可分辨的结果；两个租户各用自己的 key；Model 的凭据与 Web 的 key 互相取不到；哨兵 key 不出现在数据库、会话日志、服务端诊断、
-// CLI 输出与工具结果里，只在保管文件里。哨兵 key 每次运行随机生成，不写死真实 key。不访问外网。
 import { randomBytes } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -30,7 +25,6 @@ import {
 } from '../../fixtures/exa-stub.ts'
 import { startModelGateway, type GatewayScript } from '../../fixtures/model-gateway.ts'
 import { PAGE_BODY_MARKER, startWebPages, type WebPages } from '../../fixtures/web-pages.ts'
-import { SESSION_PATH } from '../../r9/flow.ts'
 import {
   bodyOf,
   freePort,
@@ -38,16 +32,15 @@ import {
   newScratch,
   operatorLayer,
   runOmne,
-  savedLoginProof,
   savedTenant,
   testVaultPath,
   TEST_DEPLOYMENT_KEY,
   type CliRun,
 } from '../../r9/support.ts'
+import { entriesOf, readHistoryPage, savedClients } from '../../support/protocol-clients.ts'
 import { TEST_CONSTRUCTION, tree } from '../tool-host/support.ts'
-import { connectable, until } from '../server-entry/support.ts'
+import { connectable, until } from '../../support/listening.ts'
 
-/** The Settings holding of a release tool definition, or `null` when it declares no settings. */
 function toolHolding(definition: ToolDefinition): SettingsHolding | null {
   const held = officialHolding(toolAsset(definition))
   return held.kind === 'declared' ? held.ref.holding : null
@@ -61,7 +54,6 @@ const FINAL = 'MARKER-web-settings-final'
 const WEB_ASSET = 'Web'
 const RESULT_URL = 'https://results.example.test/MARKER-exa-hit'
 
-/** A sentinel key that no real provider knows: random per run, so a leak cannot be a stale fixture. */
 const sentinel = (label: string): string => `exa-${label}-${randomBytes(12).toString('hex')}`
 
 const sse = (events: readonly unknown[]): string =>
@@ -82,10 +74,6 @@ const fetchCall = (id: string, url: string): Call => ({
   arguments: JSON.stringify({ command: 'fetch', params: { url } }),
 })
 
-/**
- * The gateway script of every turn: while scripted calls are queued, each request answers the
- * next one as a Web tool call; with the queue empty, the final text. Turns run one at a time.
- */
 function queuedCalls(queue: Call[], seen: string[]): GatewayScript {
   return ({ body }) => {
     seen.push(body)
@@ -124,12 +112,11 @@ function queuedCalls(queue: Call[], seen: string[]): GatewayScript {
   }
 }
 
-/** The operator layer with `read-history` listing the tool results and the Run boundaries too. */
 function withHistoryKinds(layer: unknown): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
     ops: ops.map(op =>
-      op.id === 'server-entry'
+      op.id === 'session-access'
         ? {
             ...op,
             config: {
@@ -148,30 +135,10 @@ function withHistoryKinds(layer: unknown): unknown {
   }
 }
 
-async function post(port: number, body: unknown): Promise<{ status: number; body: string }> {
-  const response = await fetch(`http://127.0.0.1:${String(port)}${SESSION_PATH}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  return { status: response.status, body: await response.text() }
-}
-
-const readHistory = (tenant: string, session: string, loginProof: string) => ({
-  protocolVersion: 'session-public/1',
-  messageId: 'web-settings-read-history',
-  operation: 'read-history',
-  body: { tenant, session, cursor: null, direction: 'forward', pageBytes: '262144' },
-  loginProof,
-})
-
 type Entry = Readonly<{ kind: string; payload: Record<string, unknown> }>
-const entriesOf = (body: string): readonly Entry[] =>
-  (JSON.parse(body) as { body: { entries: Entry[] } }).body.entries
 const blocksOf = (entry: Entry | undefined): readonly Record<string, unknown>[] =>
   ((entry?.payload['message'] as { blocks?: Record<string, unknown>[] } | undefined)?.blocks ??
     []) as readonly Record<string, unknown>[]
-/** The text blocks of a tool message entry after its result marker, joined. */
 const resultText = (entry: Entry | undefined): string =>
   blocksOf(entry)
     .slice(1)
@@ -181,29 +148,22 @@ const resultText = (entry: Entry | undefined): string =>
 type Who = 'alice' | 'bob'
 
 type Turn = Readonly<{
-  /** The entries this turn appended to the history. */
   entries: readonly Entry[]
-  /** The result texts of the tool messages of this turn, in call order. */
   results: readonly string[]
 }>
 
 type Tools = Readonly<{
   cli(who: Who, args: readonly string[], secret?: string): Promise<CliRun>
-  /** Registers and logs in `who`; the outputs join the scanned text. */
   login(who: Who): Promise<void>
   session(who: Who): Promise<string>
-  /** One turn of a session: the scripted Web calls, then the final text; returns what came back. */
   turn(who: Who, session: string, calls: readonly Call[]): Promise<Turn>
   exa: ExaStub
   pages: WebPages
-  /** Every CLI stdout and stderr so far. */
   outputs(): string
-  /** The in-process vault of the tree, opened again by the test (no cache on either side). */
   vault(): SecretVault
   vaultPath: string
   base: string
   tenant(who: Who): string
-  /** The `authorization` header of every Model request the gateway received, in order. */
   modelAuthorizations(): readonly (string | null)[]
 }>
 
@@ -213,7 +173,6 @@ type Run = Readonly<{
   stderr: readonly string[]
 }>
 
-/** The Web definition of the release, for the holding the secret keys are derived from. */
 async function webHolding() {
   const snapshot = await loadProductionRelease()
   if (snapshot.kind !== 'trusted') throw new Error(`release ${snapshot.diagnostic}`)
@@ -228,10 +187,6 @@ async function webHolding() {
   return holding
 }
 
-/**
- * Runs the release tree in this process with the local gateway, the Exa stand-in and the page
- * fixture, gives `scenario` the tools, then stops the tree in order and returns the run.
- */
 async function withTree<T>(
   scenario: (tools: Tools) => Promise<T>,
 ): Promise<{ value: T; run: Run }> {
@@ -298,12 +253,13 @@ async function withTree<T>(
       return String(bodyOf(created)['session'])
     }
     const history = async (who: Who, id: string) => {
-      const answer = await post(
-        port,
-        readHistory(savedTenant(homes[who]), id, savedLoginProof(homes[who])),
+      const answer = await readHistoryPage(
+        savedClients(port, homes[who]),
+        savedTenant(homes[who]),
+        id,
       )
-      expect(answer.status, answer.body).toBe(200)
-      return entriesOf(answer.body)
+      expect(answer.outcome, JSON.stringify(answer)).toBe('succeeded')
+      return entriesOf(answer)
     }
     const turn: Tools['turn'] = async (who, id, calls) => {
       const before = (await history(who, id)).length
@@ -366,7 +322,6 @@ async function withTree<T>(
   }
 }
 
-/** Every regular file below `root`, except those whose path `skip` accepts. */
 function filesBelow(root: string, skip: (path: string) => boolean): string[] {
   const found: string[] = []
   const walk = (dir: string) => {
@@ -384,9 +339,28 @@ const text = (value: string) => value as SecretText
 const unconfiguredLine =
   'unconfigured reason=no search key is configured; set the Web setting exa.apiKey'
 
+const exaView = (own: string, official: string) => ({
+  asset: { category: 'tool', name: WEB_ASSET },
+  item: EXA_KEY_ITEM,
+  revision: '0',
+  declaration: {
+    title: 'Exa API key',
+    purpose: expect.any(String),
+    appliesAt: expect.any(String),
+    clearEffect: expect.any(String),
+  },
+  kind: 'secret',
+  own,
+  official,
+  editable: { kind: 'yes' },
+})
+const itemsOf = (run: CliRun): readonly Record<string, unknown>[] =>
+  bodyOf(run)['items'] as Record<string, unknown>[]
+const exaOf = (run: CliRun) => itemsOf(run).find(item => item['item'] === EXA_KEY_ITEM)
+
 describe('the Web search key through `omne setting` on the release tree (web-meta-tool slice 04)', () => {
   it(
-    'C2 and C6: set, show, list and unset the key; search uses it; the custody is the one fact; no sentinel leaves the vault',
+    'set, show, list and unset the key; search uses it; the custody is the one fact; no sentinel leaves the vault',
     { timeout: 300_000 },
     async () => {
       const holding = await webHolding()
@@ -402,28 +376,18 @@ describe('the Web search key through `omne setting` on the release tree (web-met
           '--json',
         ])
         expect(shown0.status, shown0.stderr).toBe(0)
-        expect(bodyOf(shown0)).toEqual({
-          own: { state: 'unbound' },
-          official: { state: 'unbound' },
-        })
+        expect(bodyOf(shown0)).toEqual({ item: exaView('unset', 'unset') })
         const listed0 = await tools.cli('alice', ['setting', 'list', WEB_ASSET])
         expect(listed0.status, listed0.stderr).toBe(0)
-        expect(bodyOf(listed0)).toEqual({
-          items: [
-            {
-              asset: { category: 'tool', name: WEB_ASSET },
-              item: EXA_KEY_ITEM,
-              title: 'Exa API key',
-              sensitivity: 'secret',
-              state: { state: 'unbound' },
-              official: { state: 'unbound' },
-            },
-          ],
-          completeness: 'complete',
-        })
+        expect(bodyOf(listed0)).toMatchObject({ completeness: 'complete' })
+        expect(exaOf(listed0)).toEqual(exaView('unset', 'unset'))
 
-        // Without a key: search is unconfigured and sends nothing; fetch works.
         const session = await tools.session('alice')
+        const listedAfterSession = await tools.cli('alice', ['setting', 'list', WEB_ASSET])
+        expect(listedAfterSession.status, listedAfterSession.stderr).toBe(0)
+        expect(bodyOf(listedAfterSession)).toMatchObject({ completeness: 'complete' })
+        expect(exaOf(listedAfterSession)).toEqual(exaView('unset', 'unset'))
+        expect(itemsOf(listedAfterSession)[0]).toEqual(exaView('unset', 'unset'))
         const first = await tools.turn('alice', session, [
           searchCall('call_search_0', 'omne harness'),
           fetchCall('call_fetch_0', tools.pages.pageUrl),
@@ -432,12 +396,9 @@ describe('the Web search key through `omne setting` on the release tree (web-met
         expect(first.results[1]).toContain(PAGE_BODY_MARKER)
         expect(tools.exa.requests()).toEqual([])
 
-        // The secret goes in through the pipe; the answer carries the time only.
         const set = await tools.cli('alice', ['setting', 'set', WEB_ASSET, EXA_KEY_ITEM], key)
         expect(set.status, set.stderr).toBe(0)
-        const configuredAt = bodyOf(set)['configuredAt']
-        expect(typeof configuredAt).toBe('string')
-        expect(Object.keys(bodyOf(set))).toEqual(['configuredAt'])
+        expect(bodyOf(set)).toEqual({ revision: '0' })
         const shown1 = await tools.cli('alice', [
           'setting',
           'show',
@@ -445,18 +406,10 @@ describe('the Web search key through `omne setting` on the release tree (web-met
           EXA_KEY_ITEM,
           '--json',
         ])
-        expect(bodyOf(shown1)).toEqual({
-          own: { state: 'usable', tenantId: tenant, configuredAt },
-          official: { state: 'unbound' },
-        })
+        expect(bodyOf(shown1)).toEqual({ item: exaView('available', 'unset') })
         const listed1 = await tools.cli('alice', ['setting', 'list', WEB_ASSET])
-        expect(bodyOf(listed1)).toMatchObject({
-          items: [
-            { item: EXA_KEY_ITEM, state: { state: 'usable', tenantId: tenant, configuredAt } },
-          ],
-        })
+        expect(exaOf(listed1)).toEqual(exaView('available', 'unset'))
 
-        // With the key: search sends it to Exa and the hits come back; fetch is unchanged.
         tools.exa.answer(() => exaResults([exaResult('Hit title', RESULT_URL, 'Hit excerpt')]))
         const second = await tools.turn('alice', session, [
           searchCall('call_search_1', 'omne harness'),
@@ -475,7 +428,6 @@ describe('the Web search key through `omne setting` on the release tree (web-met
           callId: 'call_search_1',
         })
 
-        // One fact: a binding removed straight from the vault file is gone for show and list at once.
         const parsed = tenantCodec.parse(tenant)
         if (!parsed.ok) throw new Error('tenant text')
         const tenantKey = holdingKey(
@@ -486,12 +438,11 @@ describe('the Web search key through `omne setting` on the release tree (web-met
         expect(tools.vault().unbind(tenantKey)).toBe('removed')
         expect(
           bodyOf(await tools.cli('alice', ['setting', 'show', WEB_ASSET, EXA_KEY_ITEM, '--json'])),
-        ).toMatchObject({ own: { state: 'unbound' } })
-        expect(bodyOf(await tools.cli('alice', ['setting', 'list', WEB_ASSET]))).toMatchObject({
-          items: [{ item: EXA_KEY_ITEM, state: { state: 'unbound' } }],
+        ).toMatchObject({ item: { own: 'unset' } })
+        expect(exaOf(await tools.cli('alice', ['setting', 'list', WEB_ASSET]))).toMatchObject({
+          own: 'unset',
         })
 
-        // Set again, then unset through the public operation.
         expect(
           (await tools.cli('alice', ['setting', 'set', WEB_ASSET, EXA_KEY_ITEM], key)).status,
         ).toBe(0)
@@ -502,11 +453,10 @@ describe('the Web search key through `omne setting` on the release tree (web-met
         expect(unset.result?.['outcome']).toBe('succeeded')
         expect(
           bodyOf(await tools.cli('alice', ['setting', 'show', WEB_ASSET, EXA_KEY_ITEM, '--json'])),
-        ).toMatchObject({ own: { state: 'unbound' } })
+        ).toMatchObject({ item: { own: 'unset' } })
         const again = await tools.cli('alice', ['setting', 'unset', WEB_ASSET, EXA_KEY_ITEM])
         expect(again.result?.['outcome']).toBe('no-change')
 
-        // Everything the scan reads, gathered while the tree runs.
         const files = filesBelow(tools.base, path => path === tools.vaultPath)
         const fileTexts = files.map(path => readFileSync(path, 'latin1')).join('\n')
         return {
@@ -519,8 +469,6 @@ describe('the Web search key through `omne setting` on the release tree (web-met
       })
       expect(run.exitCode).toBe(0)
       const secrets = { key: [key] }
-      // The sentinel is in none of the places a reader could see: files (SQLite, logs, state), the
-      // server records and stderr, the CLI outputs, the history with the tool results.
       expect(value.files).toBeGreaterThan(0)
       expect(leaked(value.fileTexts, secrets)).toEqual([])
       expect(leaked(JSON.stringify({ records: run.records, stderr: run.stderr }), secrets)).toEqual(
@@ -528,13 +476,12 @@ describe('the Web search key through `omne setting` on the release tree (web-met
       )
       expect(leaked(value.outputs, secrets)).toEqual([])
       expect(leaked(value.history, secrets)).toEqual([])
-      // Positive control: the same search finds the key where it is, the vault file while it was bound.
       expect(leaked(value.vaultText, secrets)).toEqual(['key'])
     },
   )
 
   it(
-    'C4: zero results, 401, 402, 429 and 500 of the search provider each give their own result',
+    'zero results, 401, 402, 429 and 500 of the search provider each give their own result',
     { timeout: 300_000 },
     async () => {
       const key = sentinel('alice')
@@ -547,6 +494,11 @@ describe('the Web search key through `omne setting` on the release tree (web-met
       ]
       const { value, run } = await withTree(async tools => {
         await tools.login('alice')
+        expect(
+          (await tools.cli('alice', ['setting', 'set', WEB_ASSET, EXA_KEY_ITEM], key)).status,
+        ).toBe(0)
+        const unset = await tools.cli('alice', ['setting', 'unset', WEB_ASSET, EXA_KEY_ITEM])
+        expect(unset.result?.['outcome'], unset.stderr).toBe('succeeded')
         expect(
           (await tools.cli('alice', ['setting', 'set', WEB_ASSET, EXA_KEY_ITEM], key)).status,
         ).toBe(0)
@@ -576,14 +528,13 @@ describe('the Web search key through `omne setting` on the release tree (web-met
       expect(value.results[4]).toBe(
         'upstream reason=the remote server answered HTTP 500 status=500',
       )
-      // The limit the author asked for stays within the operator bound (maxSearchResults 10).
       for (const request of value.requests)
         expect((request.body as { numResults: number }).numResults).toBeLessThanOrEqual(10)
     },
   )
 
   it(
-    "C5: two tenants send only their own key; a cleared key is not replaced by another tenant's or a cached one; Model and Web keys do not see each other",
+    "two tenants send only their own key; a cleared key is not replaced by another tenant's or a cached one; Model and Web keys do not see each other",
     { timeout: 300_000 },
     async () => {
       const holding = await webHolding()
@@ -607,10 +558,12 @@ describe('the Web search key through `omne setting` on the release tree (web-met
           (await tools.cli('alice', ['setting', 'set', 'openrouter', 'apiKey'], modelSecret))
             .status,
         ).toBe(0)
-        // Each tenant sees only its own item state.
         expect(
           bodyOf(await tools.cli('bob', ['setting', 'show', WEB_ASSET, EXA_KEY_ITEM, '--json'])),
-        ).toMatchObject({ own: { state: 'usable', tenantId: tools.tenant('bob') } })
+        ).toMatchObject({ item: { own: 'available' } })
+        expect(
+          bodyOf(await tools.cli('alice', ['setting', 'show', 'openrouter', 'apiKey', '--json'])),
+        ).toMatchObject({ item: { own: 'available' } })
         tools.exa.answer(() => exaResults([exaResult('T', RESULT_URL, 'E')]))
         const alice = await tools.session('alice')
         const bob = await tools.session('bob')
@@ -619,7 +572,6 @@ describe('the Web search key through `omne setting` on the release tree (web-met
         expect(aliceFirst.results[0]).toContain('results=1')
         expect(bobFirst.results[0]).toContain('results=1')
 
-        // The custody keys apart: the OpenRouter key and the Web key of one tenant never answer for each other.
         const aliceTenant = tenantCodec.parse(tools.tenant('alice'))
         if (!aliceTenant.ok) throw new Error('tenant text')
         const webKey = holdingKey(
@@ -637,11 +589,9 @@ describe('the Web search key through `omne setting` on the release tree (web-met
         const vault = tools.vault()
         expect(vault.use(webKey)).toEqual({ kind: 'secret', value: keys.alice })
         expect(vault.use(modelKey)).toEqual({ kind: 'secret', value: modelSecret })
-        // Both are setting secrets of the same tenant: only the holding target tells them apart.
         expect(modelKey).toEqual({ ...webKey, target: modelKey.target })
         expect(webKey.target).not.toEqual(modelKey.target)
 
-        // Alice clears her key: her next search is unconfigured; Bob's key is not hers and nothing is cached.
         expect(
           (await tools.cli('alice', ['setting', 'unset', WEB_ASSET, EXA_KEY_ITEM])).status,
         ).toBe(0)
@@ -650,8 +600,6 @@ describe('the Web search key through `omne setting` on the release tree (web-met
         const bobSecond = await tools.turn('bob', bob, [searchCall('call_b2', 'bob again')])
         expect(bobSecond.results[0]).toContain('results=1')
 
-        // An official key, written by the operator's stand-in: held by every legal tenant (F7), so
-        // Alice without her own key searches with it, and Bob still with his own.
         expect(
           vault.bind(
             holdingKey({ layer: 'official' }, holding, EXA_KEY_ITEM),
@@ -669,13 +617,12 @@ describe('the Web search key through `omne setting` on the release tree (web-met
       })
       expect(run.exitCode).toBe(0)
       expect(value.requests).toEqual([keys.alice, keys.bob, keys.bob, keys.official, keys.bob])
-      // The Model secret never reached the search provider.
       expect(value.requests).not.toContain(modelSecret)
     },
   )
 
   it(
-    'C1: the Model sends with the official OpenRouter key, with the tenant key once it is set, and with the official key again once it is cleared',
+    'the Model sends with the official OpenRouter key, with the tenant key once it is set, and with the official key again once it is cleared',
     { timeout: 300_000 },
     async () => {
       const own = `sk-or-v1-${randomBytes(12).toString('hex')}`
@@ -706,12 +653,11 @@ describe('the Web search key through `omne setting` on the release tree (web-met
       const deployment = `Bearer ${TEST_DEPLOYMENT_KEY}`
       expect(value.official.length).toBeGreaterThan(0)
       expect(new Set(value.official)).toEqual(new Set([deployment]))
-      expect(value.shown).toMatchObject({ own: { state: 'usable' } })
+      expect(value.shown).toMatchObject({ item: { kind: 'secret', own: 'available' } })
       expect(value.withOwn.length).toBeGreaterThan(0)
       expect(new Set(value.withOwn)).toEqual(new Set([`Bearer ${own}`]))
       expect(value.afterClear.length).toBeGreaterThan(0)
       expect(new Set(value.afterClear)).toEqual(new Set([deployment]))
-      // The key never comes back through the CLI or the tree's records.
       expect(value.outputs).not.toContain(own)
       expect(JSON.stringify(run.records)).not.toContain(own)
     },

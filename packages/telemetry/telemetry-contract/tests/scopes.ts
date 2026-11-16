@@ -14,7 +14,6 @@ function parsed<T>(result: { ok: true; value: T } | { ok: false }): T {
 
 const BODY = '0123456789abcdefghjkmnpqrs'
 
-/** A scope minted by legal-identity for one tenant. */
 export function aTenantScope(): ActingScope {
   return tenantScope(
     tenant(
@@ -24,7 +23,6 @@ export function aTenantScope(): ActingScope {
   )
 }
 
-/** The minted system scope. */
 export function theSystemScope(): ActingScope {
   return systemScope()
 }

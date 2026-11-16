@@ -1,6 +1,3 @@
-// How a model calls a multi-command tool through its one declaration slot (D-94, R2-D393, R2-D396).
-// A multi-command tool is one tool to the model. The call names the command inside the arguments;
-// the encoding is a closed set of strategies, and each tool definition names the one it uses.
 import {
   readJsonText,
   writeJsonText,
@@ -12,11 +9,6 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolArguments, ToolCommandDeclaration, ToolDefinition } from './definitions.ts'
 import { returnGuide, returnSummary } from './return-description.ts'
 
-/**
- * The encodings of one call. `wrapped` is `{"command": <name>, "params": {…}}` and `params` may be
- * omitted for `{}`. `flat` is `{"command": <name>, …fields}`; a flat tool declares no field named
- * `command`.
- */
 export const COMMAND_CALL_ENCODINGS = ['wrapped', 'flat'] as const
 export type CommandCallEncoding = (typeof COMMAND_CALL_ENCODINGS)[number]
 
@@ -24,15 +16,12 @@ export const COMMAND_FIELD = 'command'
 export const PARAMS_FIELD = 'params'
 
 type JsonObject = Extract<JsonValue, { kind: 'object' }>
-/** What the menu, the examples and the call schema read from a multi-command definition. */
 export type CommandTable = Pick<
   Extract<ToolDefinition, { kind: 'commands' }>,
   'name' | 'encoding' | 'commands' | 'guide'
 >
-/** One decoded call: the selected command and its parameter object. */
 export type CommandCall = Readonly<{ command: string; params: JsonObject }>
 
-/** Why a call text names no command of the tool. Each kind has one fixed English text. */
 export type CommandCallRejection =
   | Readonly<{ kind: 'unreadable'; reason: string }>
   | Readonly<{ kind: 'not-object' }>
@@ -43,7 +32,6 @@ export type CommandCallRejection =
   | Readonly<{ kind: 'command-mismatch'; command: string; admitted: string | null }>
 
 const EMPTY: JsonObject = Object.freeze({ kind: 'object', entries: Object.freeze([]) })
-// The budgets of a call text. Admission parsed the same text with the release budgets already.
 const CALL_LIMITS: JsonLimits = {
   maxBytes: 4194304,
   maxDepth: 64,
@@ -53,11 +41,6 @@ const CALL_LIMITS: JsonLimits = {
   maxNumberLength: 64,
 }
 
-/**
- * The partial inverse of `encodeCommandCall`: defined on a JSON object whose `command` names one of
- * `commands` and, for `wrapped`, whose other member is at most an object `params`. Everywhere else
- * it answers a rejection, never a guess.
- */
 export function decodeCommandCall(
   encoding: CommandCallEncoding,
   commands: readonly string[],
@@ -77,10 +60,6 @@ export function decodeCommandCall(
     : fail({ kind: 'params-not-object' })
 }
 
-/**
- * The command a call names, read from its `command` member only. A route uses it to reach the
- * command, whose codec then judges the whole call and answers any other fault with its reason.
- */
 export function selectCommand(
   commands: readonly string[],
   value: JsonValue,
@@ -98,7 +77,6 @@ function commandIn(
   return commands.includes(command) ? succeed(command) : fail({ kind: 'command-unknown', command })
 }
 
-/** Reads a call text and selects its command; an unreadable text is a rejection. */
 export function selectCommandText(
   commands: readonly string[],
   text: string,
@@ -108,7 +86,6 @@ export function selectCommandText(
   return selectCommand(commands, read.value)
 }
 
-/** The call value of one command. `decodeCommandCall` gives back the same call. */
 export function encodeCommandCall(encoding: CommandCallEncoding, call: CommandCall): JsonObject {
   const command: JsonEntry = { key: COMMAND_FIELD, value: { kind: 'string', value: call.command } }
   return {
@@ -120,7 +97,6 @@ export function encodeCommandCall(encoding: CommandCallEncoding, call: CommandCa
   }
 }
 
-/** Reads a call text and decodes it; an unreadable text is a rejection, not a thrown error. */
 export function decodeCommandCallText(
   encoding: CommandCallEncoding,
   commands: readonly string[],
@@ -131,12 +107,6 @@ export function decodeCommandCallText(
   return decodeCommandCall(encoding, commands, read.value)
 }
 
-/**
- * The arguments a command's codec parses (D-94). A function tool keeps its arguments. For a
- * multi-command tool the arguments text is the whole call: it must name the admitted command, and
- * the parameter object is cut out of it. An incomplete block stays as it is, so the codec answers
- * `incomplete`. A rejection is `invalid` with its fixed reason, which the model reads.
- */
 export function commandArguments(
   definition: ToolDefinition,
   admitted: string | null,
@@ -169,11 +139,6 @@ function strings(value: JsonValue | undefined): readonly string[] {
     : []
 }
 
-/**
- * The one-line signature of a command, derived from its parameter schema: required fields by name,
- * optional fields with `?`, closed choices as `=a|b`. It never repeats types or descriptions. An
- * executor-owned command is `{…}`.
- */
 export function commandSignature(parameters: ToolCommandDeclaration['parameters']): string {
   if (parameters.kind === 'executor-owned') return '{…}'
   const schema = parameters.value.schema
@@ -189,7 +154,6 @@ export function commandSignature(parameters: ToolCommandDeclaration['parameters'
   return `{${fields.join(', ')}}`
 }
 
-/** A call of one command as the model writes it, for usage lines, help and receipts. */
 export function commandExample(definition: CommandTable, command: string): string {
   const found = definition.commands.find(item => item.name === command)
   const signature = found === undefined ? '{…}' : commandSignature(found.parameters)
@@ -199,10 +163,6 @@ export function commandExample(definition: CommandTable, command: string): strin
     : `${definition.name} {"command": "${command}", "params": ${signature}}`
 }
 
-/**
- * The command menu of a multi-command tool: the call form, then one line per command with its
- * signature and summary. The model declaration and `help` without a command use the same menu.
- */
 export function commandMenu(definition: CommandTable): string {
   const form =
     definition.encoding === 'flat'
@@ -220,7 +180,6 @@ export function commandMenu(definition: CommandTable): string {
 const string = (value: string): JsonValue => ({ kind: 'string', value })
 const entry = (key: string, value: JsonValue): JsonEntry => ({ key, value })
 
-/** The arguments schema of the one declaration of a multi-command tool. */
 export function commandCallSchema(definition: CommandTable): JsonValue {
   const command = {
     kind: 'object' as const,
@@ -245,7 +204,6 @@ export function commandCallSchema(definition: CommandTable): JsonValue {
   }
 }
 
-/** The fixed English reason of a rejection. */
 function rejectionText(rejection: CommandCallRejection): string {
   switch (rejection.kind) {
     case 'unreadable':
@@ -269,11 +227,6 @@ function rejectionText(rejection: CommandCallRejection): string {
   }
 }
 
-/**
- * The guide the model reads of a multi-command tool, derived from its definition. Without a known
- * command it is the menu. With one it is that command in full: its call, summary, JSON Schema and
- * field descriptions. The guide of the whole tool follows either. `help` answers the same text.
- */
 export function commandGuide(definition: CommandTable, command?: string): string {
   const found = definition.commands.find(item => item.name === command)
   const body = found === undefined ? [commandMenu(definition)] : commandUsage(definition, found)
@@ -292,7 +245,6 @@ function commandUsage(definition: CommandTable, command: ToolCommandDeclaration)
   ]
 }
 
-/** A call that names no command: the reason, then the guide of the tool (D-104). */
 export function describeCommandCallRejection(
   definition: CommandTable,
   rejection: CommandCallRejection,
@@ -300,7 +252,6 @@ export function describeCommandCallRejection(
   return `${definition.name}: ${rejectionText(rejection)}.\n${commandGuide(definition)}`
 }
 
-/** Arguments that the named command does not take: the reason, then the guide of that command. */
 export function describeCommandArgumentsRejection(
   definition: CommandTable,
   command: string,
@@ -309,7 +260,6 @@ export function describeCommandArgumentsRejection(
   return `${definition.name} ${command}: ${reason}.\n${commandGuide(definition, command)}`
 }
 
-/** Whether a flat definition declares a field that the call itself uses. */
 export function flatConflict(
   commands: readonly Pick<ToolCommandDeclaration, 'name' | 'parameters'>[],
 ): string | undefined {

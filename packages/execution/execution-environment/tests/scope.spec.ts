@@ -1,5 +1,3 @@
-// The requester's scope: it travels with every placement and acquisition, independent of the
-// binding layer, and description, scope release and recovery filter by it on every layer.
 import { expect, it } from 'vitest'
 import {
   createRecoveryAccess,

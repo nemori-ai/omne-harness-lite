@@ -1,6 +1,3 @@
-// The ports of the locally required dependencies: each call reads the provider from the host's
-// Context. An absent provider answers `unavailable` named after its key and never waits; a present
-// one gets the call with its own `this`; a provider that comes or goes changes the next call only.
 import { Context } from '@deepseek-ai/cordis'
 import type { AgentMaterials } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'

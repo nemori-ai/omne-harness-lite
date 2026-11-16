@@ -20,10 +20,6 @@ type Failure = Readonly<{ kind: 'denied' }> | Readonly<{ kind: 'unavailable'; so
 const unavailable = (): Outcome<never, Failure> =>
   fail({ kind: 'unavailable', sourceRef: 'agent.tool-origin' })
 
-/**
- * The bound of the original Agent definition, or null when the call has no Agent origin. The Tool
- * owner supplies origin; the consumer text can require proof but cannot replace it.
- */
 export async function qualifyOriginalToolAgent(
   input: Readonly<{
     principal: ActingForTenantPrincipal

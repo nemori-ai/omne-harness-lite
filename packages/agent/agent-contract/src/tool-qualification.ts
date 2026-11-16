@@ -15,7 +15,6 @@ export type ToolQualificationRequest<P> = Access<P> &
     request: ToolInvokeRequest
   }>
 
-/** Agent provenance only. Tool verifies the invocation, and consumers recheck this revision. */
 export type ToolQualification = Readonly<{
   version: 1
   request: Omit<ToolQualificationRequest<unknown>, 'principal'>

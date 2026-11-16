@@ -1,6 +1,3 @@
-// 暂停一侧的决策器直接面对快照时的提交与拒绝（P06、P07）：快照取自真实运行的调用，在账本问到命令的那一刻
-// 读下来；决策器写下的记录、提交时撤掉的待办、拒绝的原因都从它的返回值上看。真实运行已经覆盖「调用经账本
-// 走到暂停」这条路；这里把账本自己到不了的前置状态做出来，并确认每一笔提交写下的是哪些记录、只撤掉哪些待办。
 import { describe, expect, it } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
 import {
@@ -44,7 +41,6 @@ function first<T>(items: readonly T[]): T {
   return item
 }
 
-/** 账本问到 planSuspension 的那一刻，调用运行在发出 Ask 等待的启动上。 */
 function planOf(built: Suspended) {
   const { snapshot, input } = first(built.before.planSuspension)
   const command = {
@@ -59,7 +55,6 @@ function planOf(built: Suspended) {
   return { snapshot, command }
 }
 
-/** 账本问到 suspend 的那一刻：计划已存，段已收尾。 */
 function suspendOf(
   built: Suspended,
   index = 0,
@@ -103,7 +98,6 @@ describe('savedWaitOf: the Ask wait fact that a segment ended with', () => {
     })
     const elsewhere = { ...command.start, operation: operationId('op-other/start') }
     expect(savedWaitOf(snapshot, elsewhere)).toBeUndefined()
-    // 同一个启动存下的等待不是 Ask：它不是暂停要找的事实。
     const resource = withFacts(snapshot, fact =>
       fact.fact !== undefined && (fact.fact as Record_).kind === 'wait'
         ? { ...fact, fact: { ...(fact.fact as Record_), value: { kind: 'resource' } } }
@@ -228,7 +222,6 @@ describe('decideSuspend: the commit of a suspension', () => {
   })
 
   describe('the responses a checkpoint names as consumed', () => {
-    /** 恢复段再次暂停：第二个检查点消耗了第一个等待的响应。 */
     async function resumedAndSuspendedAgain() {
       const built = await suspendedCall({
         resume: (_input, count) =>
@@ -243,7 +236,6 @@ describe('decideSuspend: the commit of a suspension', () => {
     }
 
     function nameless(snapshot: CallSnapshot, response: string | null): CallSnapshot {
-      // 第一个等待既没有以 responding 记着响应，恢复段的 continued 事实也不在：响应无处可认。
       const closed = withWaitRecord(snapshot, FIRST, {
         phase: 'closed',
         cause: 'continued',
@@ -325,7 +317,6 @@ describe('decideAttachRegistration: the wait opens on its registration', () => {
 describe('parkDutyOf and decideClosePark: the duty that parks the queue entry of a suspended call', () => {
   const OPERATION = operationId('op-c1/start/suspended')
 
-  /** 暂停已提交、等待开着的调用，加上 suspend 待办。 */
   async function parkable() {
     const built = await suspendedCall()
     const snapshot = await snapshotOfCall(built.harness)
@@ -344,15 +335,12 @@ describe('parkDutyOf and decideClosePark: the duty that parks the queue entry of
     const { snapshot } = await parkable()
     const none = { kind: 'none' }
     expect(parkDutyOf(snapshot, operationId('op-unknown'))).toEqual(none)
-    // 同一个 operation 上的别种待办不是停放待办。
     const queueTask = { kind: 'queue', operation: OPERATION, state: 'pending', diagnostic: null }
     const other = { ...snapshot, tasks: [queueTask as never] }
     expect(parkDutyOf(other, OPERATION)).toEqual(none)
     expect(parkDutyOf({ ...snapshot, call: null }, OPERATION)).toEqual(none)
-    // 别种待办与停放待办可以共用 operation：停放待办不因前面有别种待办而找不到。
     const both = { ...snapshot, tasks: [queueTask as never, ...snapshot.tasks] }
     expect(parkDutyOf(both, OPERATION)).toMatchObject({ kind: 'park' })
-    // 计划的待办还欠着检查点：不是停放。
     const planOnly = withSuspensions(snapshot, entries =>
       entries.map(([key, entry]) => [key, { ...entry, checkpoint: null }]),
     )
@@ -391,7 +379,6 @@ describe('parkDutyOf and decideClosePark: the duty that parks the queue entry of
       record: running.call,
       holder: planned.start.operation,
     })
-    // 开着的等待属于别的暂停：这个暂停没有等待要停放。
     const foreign = withWait(snapshot, FIRST, found => ({
       ...found,
       suspension: operationId('op-other/suspension'),
@@ -406,11 +393,9 @@ describe('parkDutyOf and decideClosePark: the duty that parks the queue entry of
       { kind: 'delete', key: taskKey({ kind: 'suspend', operation: OPERATION }) },
     ])
     expect(decision.value).toEqual({ closed: true })
-    // 没有这笔待办：什么都不写。
     expect(replied(decideClosePark(snapshot, operationId('op-unknown')))).toEqual({
       ok: { closed: false },
     })
-    // 同一个 operation 上的别种待办，和别的 operation 上的停放待办，都不是它。
     const otherKind = {
       ...snapshot,
       tasks: [{ kind: 'queue', operation: OPERATION, state: 'pending', diagnostic: null } as never],
@@ -425,7 +410,6 @@ describe('parkDutyOf and decideClosePark: the duty that parks the queue entry of
 })
 
 describe('decideBlockRegistration: the refused registration of a wait', () => {
-  /** 暂停已提交、等待登记待办还在：账本问到 attachRegistration 的那一刻。 */
   async function registering() {
     const built = await suspendedCall()
     const { snapshot } = attachOf(built)
@@ -461,7 +445,6 @@ describe('decideBlockRegistration: the refused registration of a wait', () => {
         },
       },
     ])
-    // 回执绑着决议：另一个理由，另一份回执。
     const other = committed(
       decideBlockRegistration(
         snapshot,
@@ -508,7 +491,6 @@ describe('decideBlockRegistration: the refused registration of a wait', () => {
 describe('decideCompleteInvalidation: the invalidation of a wait after its call ended', () => {
   const EVIDENCE = evidence('invalidated', 'test-decisions')
 
-  /** 调用已收场，失效待办还在。 */
   async function invalidating() {
     const built = await suspendedCall()
     const base = await snapshotOfCall(built.harness)
@@ -599,16 +581,13 @@ describe('decideCompleteInvalidation: the invalidation of a wait after its call 
       replied(
         decideCompleteInvalidation(changed, { ...command, task: given } as never, mintOf(snapshot)),
       )
-    // 没有这笔待办。
     expect(decide({ ...snapshot, tasks: snapshot.tasks.filter(item => item !== task) })).toEqual(
       notPending,
     )
-    // 是登记待办，但是登记（ensure），不是失效。
     const ensure = { ...task, action: 'ensure' }
     expect(decide({ ...snapshot, tasks: [...snapshot.tasks, ensure as never] }, ensure)).toEqual(
       notPending,
     )
-    // 是别种待办。
     const queue = {
       kind: 'queue',
       operation: operationId('op-q'),

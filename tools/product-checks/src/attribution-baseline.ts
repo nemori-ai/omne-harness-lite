@@ -1,5 +1,3 @@
-// 提交署名的历史审计基线：已在共享历史里、不能改写的提交，逐条列出完整 SHA 与决定。
-// 只跳过这些确切提交里“把 agent 列为共同作者”的行；作者、提交者与其余提交照常检查。
 import { readFileSync } from 'node:fs'
 import { COMMIT_ATTRIBUTION_RULE, type CommitRecord } from '@omne-harness/repo-toolchain/commits'
 import type { Violation } from '@omne-harness/repo-toolchain/core/rule'
@@ -12,7 +10,6 @@ export interface AttributionBaseline {
 const SHA = /^[0-9a-f]{40}$/u
 const CO_AUTHOR_MESSAGE = '把 agent 列为共同作者'
 
-/** 读并校验基线文件；格式不对就报错，不当作空基线。 */
 export function readAttributionBaseline(path: string): AttributionBaseline {
   const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'))
   const fail = (why: string): never => {
@@ -41,7 +38,6 @@ export function readAttributionBaseline(path: string): AttributionBaseline {
   return { decision: body['decision'] as string, commits }
 }
 
-/** 去掉基线里确切提交的共同作者违规。违规按 `commit <短号>` 定位，用读到的完整提交号对回基线。 */
 export function applyAttributionBaseline(
   violations: readonly Violation[],
   commits: readonly CommitRecord[],

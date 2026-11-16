@@ -74,7 +74,6 @@ function record<const F extends Fields, const O extends Fields = Record<never, n
       if (!item.ok) return item
       result[key] = item.value
     }
-    // Every property has been decoded by its matching field decoder above.
     return accept(
       Object.freeze(result) as {
         readonly [K in keyof F]: Output<F[K]>
@@ -380,7 +379,6 @@ const provider: Decoder<EnvironmentProvider> = (value, path) => {
     const retained = hasFunctions(value, path, ['retainedProcesses'])
     if (!retained.ok) return retained
   }
-  // Data fields and callable members were checked; keep the original runtime object.
   return accept(value as unknown as EnvironmentProvider)
 }
 const lease: Decoder<EnvironmentLease> = (value, path) => {
@@ -502,6 +500,16 @@ export const recoverOwnedParamsSchema: OperationSchema<
 export const releaseScopeParamsSchema: OperationSchema<
   Parameters<ExecutionEnvironment<unknown>['releaseScope']>
 > = standardSchema(pairWithOptional(decodeScope, recoveryAccess, decodeArray(original)))
+export const recoverResourcesParamsSchema: OperationSchema<
+  Parameters<ExecutionEnvironment<unknown>['recoverResources']>
+> = standardSchema((value, path) => {
+  if (!Array.isArray(value) || value.length !== 3)
+    return refuse(path, 'expected a three-item parameter tuple')
+  const head = pair(decodeScope, recoveryAccess)(value.slice(0, 2), path)
+  if (!head.ok) return head
+  const given = resources(value[2], [...path, 2])
+  return given.ok ? accept([head.value[0], head.value[1], given.value]) : given
+})
 export const registerFacilityParamsSchema: OperationSchema<
   [
     Readonly<{
@@ -564,9 +572,23 @@ export const recoverOwnedResultSchema: OperationSchema<
 export const releaseScopeResultSchema: OperationSchema<
   Awaited<ReturnType<ExecutionEnvironment<unknown>['releaseScope']>>
 > = standardSchema(variants('kind', { recovered: ownedRecovery, rejected, unknown: lookupUnknown }))
+export const recoverResourcesResultSchema: OperationSchema<
+  Awaited<ReturnType<ExecutionEnvironment<unknown>['recoverResources']>>
+> = standardSchema(
+  variants('kind', {
+    recovered: record({
+      kind: literal('recovered'),
+      scope: decodeScope,
+      stopped: resources,
+      pending: resources,
+      unsupported: resources,
+    }),
+    rejected,
+    unknown: lookupUnknown,
+  }),
+)
 export const providerFactsSchema = standardSchema(decodeFacts)
 export const managedResourceSchema = standardSchema(resource)
-/** The description a caller keeps before the provider is called; recovery uses it to find the original. */
 export const originalAcquisitionSchema: OperationSchema<OriginalAcquisition> =
   standardSchema(original)
 type EnvironmentSchemas = {
@@ -605,6 +627,10 @@ export const operationSchemas: EnvironmentSchemas &
   releaseScope: Object.freeze({
     params: releaseScopeParamsSchema,
     result: releaseScopeResultSchema,
+  }),
+  recoverResources: Object.freeze({
+    params: recoverResourcesParamsSchema,
+    result: recoverResourcesResultSchema,
   }),
   registerFacility: Object.freeze({ params: registerFacilityParamsSchema }),
   registerProvider: Object.freeze({ params: registerProviderParamsSchema }),

@@ -1,6 +1,3 @@
-// Negative controls of the governance contract suite: switch off one check of the reference double
-// at a time and show that the cases written for it turn red. The switch is internal to the double's
-// module; `./testing` does not export it.
 import { expect, it } from 'vitest'
 import { parseDuration, parseInstant } from '@omne-harness/utc-instant'
 import { checkIdentityGovernanceContract } from '@omne-harness/identity/testing'
@@ -13,9 +10,6 @@ const long = parseDuration('PT86400S')
 if (!start.ok || !short.ok || !long.ok) throw new Error('fixture time invalid')
 const options = { start: start.value, short: short.value, long: long.value }
 
-// Each switched-off set of checks, and the cases that must fail without it. Leaving a personal
-// organization is also stopped by the last administrator check, so that control switches off both;
-// the concurrent removal holds only while a check and its write are one commit.
 const CONTROLS: readonly (readonly [string, readonly DoubleCheck[], readonly string[]])[] = [
   ['last-admin', ['last-admin'], ['leave-last-admin-denied', 'last-admin-concurrent']],
   ['expected-role', ['expected-role'], ['change-role-expected-conflict']],

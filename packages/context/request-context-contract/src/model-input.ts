@@ -16,14 +16,6 @@ export type ModelInputContent = Pick<
   M.AssembledModelInput,
   'system' | 'messages' | 'tools' | 'toolChoice' | 'source'
 >
-/**
- * The one conversion from a selection to a Model input (RQ-05). Request parameters carry only
- * the applied values; an explicit `replay: 'off'` is written, `on` is omitted. The parameter
- * adoption records stay on the selection and on the supplier measuring path. The request
- * representation is the adoption the selected profile fixes (`definition.representation`); a
- * family refuses any other one at plan. The representation strategy of this member is not a
- * request representation: its identity stays in the evidence of this member.
- */
 export function buildModelInput(
   selection: Pick<SelectedModel, 'profile' | 'parameters' | 'replay'>,
   content: ModelInputContent,
@@ -43,12 +35,7 @@ export function buildModelInput(
 function evidenceOf(record: string, value: unknown): DurableEvidence {
   return { owner: 'request-context-contract', record, revision: '1', digest: digest(value) }
 }
-/** The facts of one candidate that a later request compares before it declares `continues`. */
 export type ContinuationFacts = Omit<ContinuationBasis, 'call' | 'fixed'>
-/**
- * `projection` is the identity of the representation strategy that projected the messages; the
- * request representation the profile fixes is covered by the profile adoption and revision.
- */
 export function continuationFacts(
   history: HistoryEvidence,
   selection: SelectedModel,
@@ -97,10 +84,6 @@ function continues<P>(
   return holds ? basis.call.call : null
 }
 
-/**
- * The lineage of one candidate (J48): the source call of each assistant message that enters it,
- * once, in candidate order; `continues` only when every precondition holds, otherwise omitted.
- */
 export function lineageFor<P>(
   access: Access<P>,
   projected: readonly ProjectedMessage[],

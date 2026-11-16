@@ -1,5 +1,3 @@
-// The conformance suite: it passes for the memory double, and each deliberately wrong provider is
-// caught by the scenario that owns the violated property (SPEC 16.1, third column).
 import { describe, expect, it } from 'vitest'
 import type {
   CommitRequestV2,

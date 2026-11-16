@@ -1,6 +1,3 @@
-// session.run-live：在同一 SQL 事务里读 Session 快照的头，核对会话未归档、Run 仍在进行。
-// 取消 Run 与归档都在同一笔 Session 提交里写入 Run 的终局（decide-management.ts 的 cancelsRun），
-// 所以「Run 是当前进行中的 Run」同时排除了已取消与已终局。只读快照头与 run 成员，不读集合分块。
 import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
 import { RunLiveGuardSchema, SESSION_RUN_LIVE_FACT, SESSION_RUN_LIVE_GUARD } from '../run-live.ts'
 import { readMember } from './state-rows.ts'

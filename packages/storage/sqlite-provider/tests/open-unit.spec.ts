@@ -1,4 +1,3 @@
-// DO-1 steps 3 and 4 as units: the version floor and the PRAGMA read-back (SQL contract SPEC 5.3).
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

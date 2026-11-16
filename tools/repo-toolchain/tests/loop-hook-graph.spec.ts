@@ -1,7 +1,4 @@
 // @module-tag slow
-// 归慢层：每条用例在临时 git 仓库里建提交、跑 dependency-cruiser（基线一次全量，改动一层）。
-// 收工钩子的依赖图只换改过的文件的边：新边闭成环、新边违反方向规则要报，新边不闭环不报；去掉的边不再在图里；
-// 成员清单里的解析字段变了就不量依赖项，只出一句。对照：同一棵树上整张工作树图的成员边与环。
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { workingGraph, type DependencyGraph } from '../src/deps/graph.ts'
 import { readLoopConfig } from '../src/loop/config.ts'
@@ -10,7 +7,7 @@ import { hookGraph, RESOLUTION_NOTE } from '../src/loop/hook-graph.ts'
 import { measureForHook } from '../src/loop/hook-measure.ts'
 import { changeSince } from '../src/loop/run.ts'
 import { readMetricsConfig } from '../src/metrics/config.ts'
-import { runner } from './fixtures/group-cycle.ts'
+import { runner } from './fixtures/runner.ts'
 import { commit, removeTemporaries, repository, write } from './fixtures/loop-canary/repository.ts'
 
 afterEach(() => {
@@ -26,7 +23,6 @@ const A = 'apps/a'
 const source = (imports: readonly string[]) =>
   `${imports.map((path, index) => `import { v as v${index} } from '${path}'`).join('\n')}\nexport const v = ${imports.length === 0 ? '1' : imports.map((_, index) => `v${index}`).join(' + ')}\n`
 
-/** 基线：x → y，z 与 a 不导入别人；y 有包名。返回被检树与基线提交。 */
 function subject(): { readonly root: string; readonly base: string } {
   const root = repository()
   write(root, 'tsconfig.base.json', '{}\n')
@@ -41,7 +37,7 @@ function subject(): { readonly root: string; readonly base: string } {
   write(root, `${A}/src/index.ts`, source([]))
   const base = commit(root, 'base')
   vi.stubEnv('OMNE_SUBJECT_ROOT', root)
-  vi.stubEnv('OMNE_RUNNER_ROOT', runner(null))
+  vi.stubEnv('OMNE_RUNNER_ROOT', runner())
   vi.stubEnv('OMNE_DEP_GRAPH_CACHE', '0')
   return { root, base }
 }
@@ -55,20 +51,15 @@ function measured(root: string, base: string): DependencyGraph {
 const pairs = (graph: Pick<DependencyGraph, 'edges'>) =>
   graph.edges.map(edge => `${edge.from}→${edge.to}`)
 const cycleMessages = (graph: DependencyGraph) =>
-  graph.findings
-    .filter(finding => finding.kind === 'member-cycle' || finding.kind === 'group-cycle')
-    .map(finding => finding.message)
+  graph.findings.filter(finding => finding.kind === 'member-cycle').map(finding => finding.message)
 
 describe('收工钩子的依赖图只换改过的文件的边', { timeout: 120_000 }, () => {
-  it('新边闭成环：成员环与组环都在，与整张工作树图相同', () => {
+  it('新边闭成环：成员环在，与整张工作树图相同', () => {
     const { root, base } = subject()
     write(root, `${Y}/src/index.ts`, source(['../../../context/x/src/index.ts']))
     const graph = measured(root, base)
     expect(pairs(graph)).toEqual([`${X}→${Y}`, `${Y}→${X}`])
-    expect(cycleMessages(graph)).toEqual([
-      `成员之间成环：${X}、${Y}`,
-      '组之间成环：packages/context、packages/tool',
-    ])
+    expect(cycleMessages(graph)).toEqual([`成员之间成环：${X}、${Y}`])
     const whole = workingGraph(root)
     expect(pairs(graph)).toEqual(pairs(whole))
     expect(cycleMessages(graph)).toEqual(cycleMessages(whole))

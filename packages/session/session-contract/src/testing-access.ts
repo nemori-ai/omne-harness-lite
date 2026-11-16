@@ -7,12 +7,10 @@ export type SessionAccessScript =
 export interface ScriptedSessionAccessCheck<P> extends SessionAccessCheck<P> {
   readonly durability: 'none'
   readonly controls: Readonly<{
-    /** The received requests in call order, retaining the caller's principal and target identities. */
     asked(): readonly SessionAccessRequest<P>[]
   }>
 }
 
-/** An explicit, finite script for tests. Exhaustion is unavailable; there is no default permission. */
 export function createScriptedSessionAccessCheck<P>(
   answers: readonly SessionAccessScript[],
 ): ScriptedSessionAccessCheck<P> {
@@ -33,11 +31,6 @@ export function createScriptedSessionAccessCheck<P>(
   })
 }
 
-/**
- * An explicit policy for fixtures that run many operations: `policy` answers every request on its
- * own, and the double records each request. The policy is the fixture's stated choice; the double
- * adds no default, so a request the policy does not answer is an error of the fixture.
- */
 export function createPolicySessionAccessCheck<P>(
   policy: (request: SessionAccessRequest<P>) => SessionAccessScript,
 ): ScriptedSessionAccessCheck<P> {

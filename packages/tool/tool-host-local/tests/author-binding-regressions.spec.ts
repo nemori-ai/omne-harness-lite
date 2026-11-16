@@ -78,7 +78,6 @@ async function harness(
   const authority = createMemoryToolStartAuthority<string>()
   const settlements: Settlement[] = []
   const closes: string[] = []
-  // A rebuild over the same registry and authority stands for a new process: it holds no attempt.
   const make = () =>
     createLocalToolBindings({
       registry,
@@ -388,9 +387,6 @@ describe('author binding start identity and consume outcomes', () => {
   })
 })
 
-// A consume that did not answer `started` never entered the author, so the binding keeps no answer
-// of it: the same start asks the fence again, and an inspection asks the fence what it decided
-// (U2, U3). The author still runs at most once.
 describe('author binding of a start whose consume did not answer started', () => {
   const counted = () => {
     let entered = 0
@@ -436,7 +432,6 @@ describe('author binding of a start whose consume did not answer started', () =>
       expect(fixture.consumed()).toBe(2)
       expect(author.entered()).toBe(1)
       expect(fixture.settlements).toHaveLength(1)
-      // The start that ran is not run again.
       unbox(await binding.start(input, {}))
       expect(fixture.consumed()).toBe(2)
     },
@@ -477,7 +472,6 @@ describe('author binding of a start whose consume did not answer started', () =>
     expect(fixture.settlements).toHaveLength(1)
   })
 
-  /** A binding whose first consume answers unavailable, and whose fence answers `inspect`. */
   const askingFence = async (inspect: ToolStartAuthority<string>['inspect']) => {
     const author = counted()
     let fixture: Fixture
@@ -554,7 +548,6 @@ describe('author binding of a start whose consume did not answer started', () =>
     const inspected = binding.inspectStart(input)
     held.resolve()
     expect(await started).toHaveProperty('ok')
-    // The answer comes from the execution (it may have settled by now), not from the fence.
     expect(['live', 'settled']).toContain(unbox(await inspected).kind)
     await settled()
     expect(author.entered()).toBe(1)
@@ -723,7 +716,6 @@ function commandModule(
             adoption: adoption(`parameters-${name}`),
             parse: value => {
               events.push(`parse-${name}`)
-              // The command codec receives the parameters only, cut out of the whole call.
               if (value.effective === '{"v":"partial"}')
                 return fail({ kind: 'incomplete', reason: 'partial' })
               return value.effective === `{"v":"${name}"}`
@@ -767,7 +759,6 @@ function commandModule(
   }
 }
 
-/** The whole call text of a wrapped command call. */
 function call(command: string, value: string): string {
   return JSON.stringify({ command, params: { v: value } })
 }
@@ -954,7 +945,6 @@ describe('author binding command selection', () => {
     unbox(await binding.start(await fixture.input(fixed), {}))
     await new Promise<void>(resolve => setImmediate(resolve))
     expect(events).toEqual(['parse-second'])
-    // The reason of the codec comes with the guide of the admitted command (D-104).
     expect(fixture.settlements[0]?.outcome).toEqual({
       kind: 'failed',
       reason: [
@@ -1014,7 +1004,6 @@ describe('author binding command selection', () => {
     const binding = await fixture.resolve(fixed)
     unbox(await binding.start(await fixture.input(fixed), {}))
     await new Promise<void>(resolve => setImmediate(resolve))
-    // The failure is a result the model reads, not a silent run of the other command.
     expect(events).toEqual([])
     const outcome = fixture.settlements[0]?.outcome
     if (outcome?.kind !== 'failed') throw new Error('the call did not fail')
@@ -1108,7 +1097,6 @@ describe('author binding of a live author that ends badly', () => {
     ])
   })
 
-  // F3 of #1218: the execution stays live, with no final; it is not marked unobservable for good.
   it('keeps the execution live and publishes nothing when the settlement answers a failure', async () => {
     const fixture = await harness(
       authorModule(async () => 'done'),
@@ -1119,7 +1107,6 @@ describe('author binding of a live author that ends badly', () => {
     const live = unbox(await (await fixture.resolve()).start(input, {}))
     await tick()
     const binding = await fixture.resolve()
-    // A call whose end was not settled has no final to give yet: its execution is still live.
     expect(
       unbox(
         await binding.inspectStart({ ...authorAccess, call: callId('first'), start: input.start }),

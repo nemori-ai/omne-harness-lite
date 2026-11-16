@@ -6,7 +6,6 @@ import type {
 } from '@omne-harness/permissions'
 import { canonicalDigest } from '@omne-harness/tool'
 
-/** The caller qualifies the original action and its adoption before requesting this projection. */
 export async function readAgentPermissionConstraint<P>(input: {
   adoptions: Pick<AgentAdoptions<P>, 'resolve'>
   resolution: Parameters<AgentAdoptions<P>['resolve']>[0]

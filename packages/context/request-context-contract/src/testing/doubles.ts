@@ -35,7 +35,6 @@ export function createScriptedInputMeter(
     },
   }
 }
-/** What one acquire saw; tests read it to check the lineage and the access of each candidate. */
 export type PreparationCall = Readonly<{
   principal: unknown
   lineage: M.PreparationLineage | undefined
@@ -43,7 +42,6 @@ export type PreparationCall = Readonly<{
 }>
 export type PreparationScript = Readonly<{
   meter: M.ModelInputMeter
-  /** The representation each supplier plans; defaults to a materialized one with the given bytes. */
   plan?: (
     input: Parameters<M.ModelRequestRules['plan']>[0],
   ) => ReturnType<M.ModelRequestRules['plan']>
@@ -55,7 +53,6 @@ export interface ScriptedPreparationResources<P> extends M.ModelPreparationResou
   calls(): readonly PreparationCall[]
   outstanding(): number
 }
-/** Leases with one binding per profile supplier; release and acquire failures are scriptable. */
 export function createScriptedPreparationResources<P>(
   script: PreparationScript,
 ): ScriptedPreparationResources<P> {
@@ -159,7 +156,6 @@ const identity = {
   revision: '1',
   digest: 'fixture',
 }
-/** Deterministic test policy, not a default product strategy. */
 export function createScriptedCompactionPolicy(
   config: CompactionPolicy = FIXTURE_COMPACTION_POLICY,
 ): CompactionPolicyPort & Readonly<{ durability: 'none' }> {

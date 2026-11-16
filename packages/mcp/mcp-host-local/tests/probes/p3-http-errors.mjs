@@ -1,5 +1,3 @@
-// P3: what the global fetch (undici) reports for each HTTP failure the transport must classify.
-// Run from the package root: node tests/probes/p3-http-errors.mjs
 import { createServer } from 'node:http'
 
 const describe = error =>
@@ -16,7 +14,6 @@ const body = JSON.stringify({ jsonrpc: '2.0', id: 'r1', method: 'server/discover
 const post = (url, init = {}) =>
   fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body, ...init })
 
-// (a) nothing listens on the port.
 {
   const { server, port } = await listen(() => {})
   await new Promise(resolve => server.close(resolve))
@@ -28,7 +25,6 @@ const post = (url, init = {}) =>
   }
 }
 
-// (b) the server answered once with Connection: close, then closed; the next fetch must be refused.
 {
   let n = 0
   const { server, port } = await listen((req, res) => {
@@ -49,7 +45,6 @@ const post = (url, init = {}) =>
   }
 }
 
-// (c) the server reads the request, then destroys the socket before any response head.
 {
   const { server, port } = await listen((req, res) => {
     req.on('end', () => res.socket.destroy())
@@ -65,7 +60,6 @@ const post = (url, init = {}) =>
   server.closeAllConnections()
 }
 
-// (d) 200 text/event-stream, one event, then the socket is destroyed: what does the body reader see?
 {
   const { server, port } = await listen((req, res) => {
     res.writeHead(200, { 'content-type': 'text/event-stream' })
@@ -91,7 +85,6 @@ const post = (url, init = {}) =>
   server.closeAllConnections()
 }
 
-// (e) a silent server and an AbortSignal: the error shape of a caller abort.
 {
   const { server, port } = await listen(() => {})
   const controller = new AbortController()
@@ -106,7 +99,6 @@ const post = (url, init = {}) =>
   server.closeAllConnections()
 }
 
-// (f) 200 application/json whose content-length promises more than the body: body read fails.
 {
   const { server, port } = await listen((req, res) => {
     res.writeHead(200, { 'content-type': 'application/json', 'content-length': '100' })
@@ -124,7 +116,6 @@ const post = (url, init = {}) =>
   server.closeAllConnections()
 }
 
-// (g) a redirect: fetch with redirect 'manual' exposes the 3xx; default follows.
 {
   const { server, port } = await listen((req, res) => {
     res.writeHead(302, { location: `http://127.0.0.1:${port}/elsewhere` })
@@ -138,7 +129,6 @@ const post = (url, init = {}) =>
   server.closeAllConnections()
 }
 
-// (h) DNS failure shape.
 try {
   await post('http://no-such-host.invalid/mcp')
 } catch (error) {

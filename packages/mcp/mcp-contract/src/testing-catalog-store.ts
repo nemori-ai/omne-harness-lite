@@ -1,4 +1,3 @@
-// The conformance suite of `CatalogStore`, and an in-memory double that passes it.
 import assert from 'node:assert/strict'
 import { mergeListing, type ActionCatalogRecord, type CatalogState } from './catalog.ts'
 import { completeListing } from './listing.ts'
@@ -9,15 +8,11 @@ import type { CatalogKey, PeerAccount } from './values.ts'
 
 export type CatalogStoreFixture = Readonly<{
   store: CatalogStore
-  /** A key that was never written. */
   key: CatalogKey
-  /** Keys that differ from `key` in the tenant, the account or the holding; never written. */
   otherKeys: readonly CatalogKey[]
-  /** Makes the store unavailable. */
   unavailable?: () => Promise<void>
 }>
 
-/** A record of `revision` whose actions are the given names, built by the public functions. */
 function sampleRecord(revision: number, names: readonly string[]): ActionCatalogRecord {
   let state: CatalogState = { kind: 'not-acquired' }
   for (let round = 1; round <= revision; round += 1) {
@@ -145,10 +140,6 @@ function accountText(account: PeerAccount): string {
   return account.kind === 'anonymous' ? 'anonymous' : `credential:${account.binding}`
 }
 
-/**
- * Records by tenant, account and holding, for the suite and for tests. It is not the
- * production store, and it keeps nothing durable.
- */
 export function createMemoryCatalogStore(): MemoryCatalogStore {
   const records = new Map<string, ActionCatalogRecord>()
   let unavailable = false

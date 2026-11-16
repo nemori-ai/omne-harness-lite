@@ -1,11 +1,3 @@
-// The resident reference index `sl_resident_idx` as the commits of a session maintain it (W3). Its
-// rows are a function of the snapshot: none once the session is archived, else one row per
-// registered resident key with the definition of its capability. What is checked: the rows after
-// each transition, that a commit which leaves the registrations alone runs no statement on the
-// index, and that no statement on the index visits the rows of another session. The table holds the
-// residents of every session of the tenant, so a statement that scans it costs more with every
-// session the tenant has ever created. The plan is that of the node:sqlite test double, the same
-// engine as the provider.
 import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
 import type {
@@ -37,7 +29,6 @@ const resident = (capability: string, shape = `shape of ${capability}`): Residen
   admitted: evidence(`admitted/${capability}`),
 })
 
-/** Creates a session that registers `capabilities` under the one resident key. */
 async function createResident(a: App, session: string, capabilities: readonly string[]) {
   const command: SessionCommand = {
     kind: 'create',
@@ -82,7 +73,6 @@ const control = async (a: App, session: string, kind: 'archive' | 'unarchive') =
     ),
   ).toBeUndefined()
 
-/** The index rows of the tenant domain, as `session/capability`. */
 const indexed = (a: App): string[] =>
   a.provider
     .select('dom_0', 'SELECT session, capability FROM sl_resident_idx ORDER BY session, capability')
@@ -100,14 +90,12 @@ async function referenced(a: App): Promise<string[]> {
   return out.ok.sessions.map(row => `${row.session}/${row.capability}`)
 }
 
-/** The statements on the index that the commits since `from` ran. */
 const indexWrites = (a: App, from = 0): string[] =>
   a.provider.participantWrites
     .slice(from)
     .map(write => write.sql)
     .filter(sql => sql.includes('sl_resident_idx'))
 
-/** The query plan of `statement` on a database with the Session tables. */
 function planOf(statement: string): string {
   const params = Array.from(statement.matchAll(/\?/g), () => 'x')
   const db = new DatabaseSync(':memory:')
@@ -157,8 +145,6 @@ describe('the resident index over the commits of a session', () => {
   })
 })
 
-// The transitions that only a run start with new adoption material reaches: the keys are replaced
-// or a capability gets another definition. They are driven on the module, between two snapshots.
 describe('the resident index between two snapshots', () => {
   const tenant = textOf(TENANT_A)
   const snapshot = (

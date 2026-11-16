@@ -32,8 +32,6 @@ import type {
 import { canonical, digest, invalid } from './value.ts'
 import type { CallDocument, DispatchDocument, EvidenceContext, TenantDocuments } from './types.ts'
 
-// Pure judgments over call documents. Nothing here writes a document or calls a port.
-
 export const MAX_TERMINATION_BYTES = 4096
 export const MAX_SETTLEMENT_BYTES = 8192
 export const MAX_PAGE_CURSOR = String(Number.MAX_SAFE_INTEGER)
@@ -41,8 +39,6 @@ export const MAX_PAGE_CURSOR = String(Number.MAX_SAFE_INTEGER)
 export function encodedBytes(value: unknown): number {
   return Buffer.byteLength(canonical(value), 'utf8')
 }
-
-// --- Result parts and pages.
 
 export function resultParts(call: CallDocument): readonly ResultPart[] {
   return call.dispatches.flatMap(dispatch =>
@@ -85,8 +81,6 @@ export function makePage(
   }
 }
 
-// --- Recovery: unresolved operations and the tasks a call still owes.
-
 export function unresolved(state: TenantDocuments, call: ModelCallId): ModelOperationId[] {
   return [...state.operations].flatMap(([id, op]) =>
     op.call === call && op.status === 'unknown' ? [id] : [],
@@ -109,12 +103,6 @@ export function tasks(call: CallDocument, pending: readonly ModelOperationId[]):
     result.push('account')
   return result
 }
-/**
- * Whether a call still owes recovery work: one of its tasks, or an operation that stays unknown.
- * `pending` is the operations of the call that stay unknown, as `unresolved` reads them. This is the
- * rule that `scanPending` applies to every call of a tenant, so a storage that selects pending
- * calls itself asks the same question.
- */
 export function hasRecoveryWork(
   call: CallDocument,
   pending: readonly ModelOperationId[] = [],
@@ -133,8 +121,6 @@ export function pendingCalls(root: TenantDocuments): readonly ModelCallId[] {
     ]),
   ].sort()
 }
-
-// --- Write preconditions shared by the methods.
 
 export function expected(
   call: CallDocument,
@@ -166,8 +152,6 @@ export function evidenceContext(
   }
 }
 
-// --- Dispatch and retry legality.
-
 const NOT_RETRYABLE_CAUSES = [
   'input-over-limit',
   'excluded',
@@ -176,7 +160,6 @@ const NOT_RETRYABLE_CAUSES = [
   'modality',
 ]
 
-/** The receipt names the dispatch supplier and the request representation, in valid shapes. */
 export function receiptBinds(
   receipt: MaterializationReceipt,
   supplier: Supplier,
@@ -278,8 +261,6 @@ export function retryChoiceFailure(
   return null
 }
 
-// --- Settlement legality.
-
 export function settlementFailure(
   call: CallDocument,
   termination: Termination,
@@ -289,10 +270,6 @@ export function settlementFailure(
   if (executionFailed(termination)) return null
   return settlementPendingFailure(call) ?? settlementActualFailure(call, termination)
 }
-/**
- * The execution owner could not record its own work. This terminal is the owner's verdict on the
- * call, not a fact of a dispatch, so it is legal in every state that is not settled.
- */
 export function executionFailed(termination: Termination): boolean {
   return termination.kind === 'failed' && termination.fault.cause === 'persistence'
 }
@@ -338,8 +315,6 @@ function undecidedRetryFailure(call: CallDocument): ModelFailure | null {
   return null
 }
 
-// --- Stream facts: block shapes, completion and diagnostics.
-
 function target() {
   const parsed = parseMessageId(`msg_${randomUUID()}`)
   if (!parsed.ok) throw new TypeError('internal stream target')
@@ -374,7 +349,6 @@ function toolArgumentsFailure(block: ModelBlock, value: string): ModelFailure | 
     ? invalid('block', 'tool-arguments')
     : null
 }
-/** Whether a seal of `block` over `prior` forms a valid closed block. */
 export function sealed(
   block: ModelBlock,
   prior: VisibleBlock | undefined,
@@ -403,7 +377,6 @@ export function hasContent(block: ModelBlock): boolean {
   if (block.kind === 'text' || block.kind === 'thinking') return block.text.length > 0
   return 'inline' in block ? block.inline.length > 0 : true
 }
-/** Media blocks and reasoning state parts may arrive sealed, without an open before them. */
 export function sealsWhole(block: ModelBlock): boolean {
   return block.kind === 'image' || block.kind === 'file' || block.kind === 'reasoning_state'
 }
@@ -430,12 +403,6 @@ function completionBlockSteps(
   steps.push({ step: 'close', index, block })
   return steps
 }
-/**
- * Whether the blocks of a completed dispatch form one assistant message. `formed`: they do, or the
- * termination does not complete. `refused`: the content does not form a message, so the logical
- * terminal stays open. `replay-unknown`: the content holds reasoning state parts, but the replay
- * `format` of this dispatch is unknown, so the message cannot be written.
- */
 export type Completion =
   | Readonly<{ kind: 'formed' }>
   | Readonly<{ kind: 'refused' | 'replay-unknown'; failure: ModelFailure }>
@@ -443,13 +410,6 @@ type FinishReplay =
   | Readonly<{ kind: 'none' }>
   | Readonly<{ kind: 'range'; scope: string; format: string }>
   | Readonly<{ kind: 'unknown'; failure: ModelFailure }>
-/**
- * The replay of the finish. `scope` is the `produces` of the request declaration of the dispatch
- * supplier; `format` is the `replayFormat` of the dispatch receipt. Content without reasoning
- * leaves the finish without replay. Thinking alone without a known range does too (RS-03: the
- * origin of the reasoning text is unknown). Reasoning state parts need both: a missing `format`
- * fails named (`replay-format-unknown`); a missing `scope` breaks an invariant and throws.
- */
 function finishReplay(
   call: CallDocument,
   dispatch: DispatchDocument,
@@ -467,9 +427,6 @@ function finishReplay(
   const scope = call.request?.declarations[index]?.produces
   if (scope !== undefined) return { kind: 'range', scope, format }
   if (!state) return { kind: 'none' }
-  // Unreachable while the invariants hold: the request declares every supplier it may dispatch
-  // to; the cleanup clears the request and the blocks in one step; and a late terminal of a
-  // settled call forms no message. Reaching here is a program defect, not a failure of the write.
   throw new TypeError(
     'a completion with reasoning state found no replay declaration for its dispatch supplier: ' +
       'the request must declare every supplier, and cleanup must clear the blocks with the request',
@@ -515,7 +472,6 @@ function isCount(value: unknown): boolean {
 function isText(value: unknown): boolean {
   return typeof value === 'string' && value.length > 0
 }
-/** True when the diagnostic has exactly the fields of its kind, each of the right type. */
 export function wellFormed(diagnostic: ProviderDiagnostic): boolean {
   const fields: readonly string[] | undefined = Object.hasOwn(DIAGNOSTIC_FIELDS, diagnostic.kind)
     ? DIAGNOSTIC_FIELDS[diagnostic.kind]

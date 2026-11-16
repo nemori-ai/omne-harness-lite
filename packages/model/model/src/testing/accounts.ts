@@ -1,9 +1,3 @@
-// The accounts conformance suite of ModelCommands: drives an implementation through its public
-// methods only and reports, for each account obligation of the Model contract, whether it is kept.
-// The account obligations include what lives as long as the account on the dispatch record (the
-// message identities) and the batch whose termination cannot settle (nothing of it is kept, the
-// account included). The in-memory ModelCommands runs it now; a durable provider runs the same
-// suite later.
 import { randomBytes } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 import { judgePart } from '@omne-harness/message'
@@ -32,37 +26,21 @@ import {
   type WriteContext,
 } from '@omne-harness/model-contract/provider'
 
-/** What the party that assembled the ModelCommands gives the suite. */
 export type CommandsAccountsSubject<P> = Readonly<{
   commands: ModelCommands<P>
-  /**
-   * An admission the commands accept. The suite gives each call its own `call` and `operation`.
-   * Its request holds at least one message, so that the suite can see the message identities.
-   */
   admit: Admit<P>
-  /** The instance that claims each call; the commands must accept its execution channel. */
   instance: ModelInstanceId
-  /** Continuity evidence the commands accept for claiming `call`. */
   continuity(call: ModelCallId): DurableEvidence
-  /** A trusted supplier receipt the commands accept for a late fact of this dispatch. */
   lateSource(input: Readonly<{ call: ModelCallId; dispatch: DispatchId }>): DurableEvidence
-  /**
-   * The completion evidence of the admission's consumer that the commands accept for a processed
-   * handoff of this result version of the call.
-   */
   completion(input: Readonly<{ call: ModelCallId; result: ResultVersion }>): DurableEvidence
-  /** A caller of the admission's tenant without the qualification to read dispatch facts. */
   outsider: Access<P>
-  /** Releases what the subject holds. */
   dispose?(): Promise<void>
 }>
 
 export type CommandsAccountsOptions<P> = Readonly<{
-  /** Makes a fresh subject. The suite makes one per obligation. */
   subject(): CommandsAccountsSubject<P> | Promise<CommandsAccountsSubject<P>>
 }>
 
-/** Every obligation, in the order the suite checks them. */
 export const ACCOUNT_OBLIGATIONS = [
   'account-completed-with-subject-and-receipt',
   'account-read-by-original-call',
@@ -77,7 +55,6 @@ export const ACCOUNT_OBLIGATIONS = [
 
 export type AccountObligation = (typeof ACCOUNT_OBLIGATIONS)[number]
 
-/** A passed obligation carries no detail; a failed one says what the suite saw. */
 export type AccountObligationResult =
   | Readonly<{ obligation: AccountObligation; status: 'pass' }>
   | Readonly<{ obligation: AccountObligation; status: 'fail'; detail: string }>
@@ -87,7 +64,6 @@ export type CommandsAccountsReport = Readonly<{
   results: readonly AccountObligationResult[]
 }>
 
-/** A violation the suite found. Every other exception is reported as a thrown subject. */
 class AccountsViolation extends Error {}
 
 function check(condition: boolean, detail: string): asserts condition {
@@ -118,7 +94,6 @@ function decodedOrThrow<T>(outcome: Readonly<{ ok: T }> | Readonly<{ failure: un
 const operation = (): ModelOperationId =>
   decodedOrThrow(decodeModelOperationId(`mop_accounts-${suffix()}`))
 
-/** The account a supplier reports for the first time. Its cost is billable and known. */
 const REPORT: CallAccountReport = {
   usage: [
     { name: 'input', state: 'known', lexeme: '400', unit: 'token' },
@@ -131,13 +106,11 @@ const REPORT: CallAccountReport = {
   revision: '1',
 }
 
-/** The same event with another value: a contradiction, not a revision. */
 const OTHER_REPORT: CallAccountReport = {
   ...REPORT,
   usage: [{ name: 'output', state: 'known', lexeme: '19', unit: 'token' }],
 }
 
-/** A later revision that shares no field value with the first report except its kinds. */
 const REVISED: CallAccountReport = {
   usage: [{ name: 'output', state: 'known', lexeme: '21', unit: 'token' }],
   cost: [{ state: 'unknown', unit: 'openrouter-credit', source: 'billable' }],
@@ -150,27 +123,14 @@ const REVISED: CallAccountReport = {
 type Started<P> = Readonly<{
   access: CallAccess<P>
   dispatch: DispatchId
-  /** Opens a new receive window of the dispatch and preserves the facts in it. */
   deliver(facts: readonly TransportFact[]): ReturnType<ModelCommands<P>['preserve']>
-  /** The dispatch record of this dispatch as `dispatches` gives it to `access`. */
   record(): Promise<DispatchRecord | undefined>
-  /** Settles the call with this termination and gives the result version. */
   settle(termination: Termination): Promise<ResultVersion>
-  /**
-   * Hands the result off as processed, then advances the cleanup step by step until it is
-   * `released`, at most `MAX_CLEANUP_STEPS` times. Gives the released custody.
-   */
   clean(result: ResultVersion): Promise<CustodyState>
 }>
 
-/**
- * The most `advanceCleanup` steps the suite takes after a processed handoff. The contract lets the
- * recovery worker advance the cleanup in steps until `released`; an implementation that is still
- * short of `released` after this many steps fails the obligation.
- */
 const MAX_CLEANUP_STEPS = 16
 
-/** Admits and claims a call, then prepares, materializes and starts one dispatch of it. */
 async function startedDispatch<P>(subject: CommandsAccountsSubject<P>): Promise<Started<P>> {
   const { commands } = subject
   const call = decodedOrThrow(decodeModelCallId(`mcall_accounts-${suffix()}`))
@@ -292,7 +252,6 @@ function accountFact(event: string, value: CallAccountReport): TransportFact {
 
 const COMPLETED = { kind: 'completed', reason: 'stop' } as const
 
-/** A part of the reply through the message judge, so its shape is the one the contract accepts. */
 function part(value: unknown): ModelBlock {
   const judged = judgePart(value)
   if (!('ok' in judged)) throw new Error(`the suite made an invalid part: ${show(judged.rejected)}`)
@@ -301,7 +260,6 @@ function part(value: unknown): ModelBlock {
   throw new Error(`the suite made a part of kind ${block.kind}`)
 }
 
-/** One text part of the reply at this index: open, one delta and its seal. */
 function textPart(index: string): readonly TransportFact[] {
   const text = part({
     kind: 'text',
@@ -316,7 +274,6 @@ function textPart(index: string): readonly TransportFact[] {
   ]
 }
 
-/** A reasoning state part sealed whole, then one text part. */
 function stateReply(): readonly TransportFact[] {
   const state = part({
     kind: 'reasoning_state',
@@ -419,7 +376,6 @@ function obligations<P>(): Readonly<Record<AccountObligation, Obligation<P>>> {
         {
           kind: 'account',
           event: 'usage',
-          // A provider that names the subject itself; the shape is what an untyped provider sends.
           value: Object.assign(
             { subject: { kind: 'model_call', id: started.access.call } },
             REPORT,
@@ -468,7 +424,6 @@ function obligations<P>(): Readonly<Record<AccountObligation, Obligation<P>>> {
       )
     },
 
-    // The receipt of `startedDispatch` names no replay format, so the reply cannot form a message.
     async 'state-reply-without-replay-format-refused'(subject) {
       const started = await startedDispatch(subject)
       const refused = await started.deliver([
@@ -530,11 +485,6 @@ async function runOne<P>(
   return result
 }
 
-/**
- * Checks the account obligations of a ModelCommands implementation through its public methods.
- * Each obligation runs on a fresh subject. A violation, a thrown error or a failed dispose is a
- * failure of that obligation; the suite reports and does not throw.
- */
 export async function checkCommandsAccounts<P>(
   options: CommandsAccountsOptions<P>,
 ): Promise<CommandsAccountsReport> {

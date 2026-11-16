@@ -1,4 +1,3 @@
-// 覆盖采集读 test-runner 的计划文件：只认形状对、且是对当前提交算的计划；按计划选覆盖成员；入口的参数组合。
 import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -142,14 +141,12 @@ describe('--coverage 前的计划外检查（入口，真实文件树）', () =>
     )
   }
 
-  // 归慢层：子进程：在临时 git 仓库里起度量入口 CLI 子进程，它读依赖图与实际架构。
   it('只改组根文档时不报计划外的成员', { tags: ['slow'] }, () => {
     const result = runCoverage(workspace(), { 'packages/g/docs/architecture.md': 'after\n' })
     expect(result.stderr).not.toContain('计划外的成员')
     expect(result.status).toBe(0)
   })
 
-  // 归慢层：子进程：同上。
   it('真实成员改了却不在计划里仍然报，且不连带组根', { tags: ['slow'] }, () => {
     const result = runCoverage(workspace(), {
       'packages/g/docs/architecture.md': 'after\n',

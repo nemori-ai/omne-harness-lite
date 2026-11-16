@@ -1,5 +1,3 @@
-// How `open` answers a path that names no readable file: a directory is not an entry, a path
-// through a file names nothing, and a pipe is refused without blocking the read.
 import { execFile } from 'node:child_process'
 import { join } from 'node:path'
 import { promisify } from 'node:util'

@@ -1,9 +1,3 @@
-// The conformance suite of `SkillAccess`. It takes a service over doubles that the implementer
-// built, and checks the read steps of the group page "读取" and the shape rules of the SPEC
-// "读取的形状规则" from the outside: non-disclosure, the basis, no partial content, the abort,
-// the byte ranges, the whole export, the stand-in, and a description that reads no bytes. The
-// fixture's `world` moves the material behind the ports and counts the port calls; the suite
-// builds no service itself.
 import assert from 'node:assert/strict'
 import type { CapabilityId } from '@omne-harness/assets'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -15,47 +9,27 @@ import { conformanceCase, handle, type ConformanceCase } from './testing-case.ts
 import type { PrincipalSample } from './testing-resolution.ts'
 import type { PackagePath, SkillMaterialBasis } from './values.ts'
 
-/** How many times each port was called since the fixture was made. */
 export type PortCalls = Readonly<{ check: number; resolve: number; snapshot: number; open: number }>
 
-/** A fresh service for one case, the principals and identities it asks about, and the world. */
 export type AccessFixture<P, S> = Readonly<{
   access: SkillAccess<P, S>
   principals: Readonly<{
-    /** A principal who may read `adopted`. */
     reader: PrincipalSample<P, S>
-    /** A principal who has no right to any identity of the fixture. */
     stranger: PrincipalSample<P, S>
   }>
   capability: Readonly<{
-    /**
-     * An identity adopted for `reader`, with a readable package. For A10 the package has a text
-     * resource that holds a character outside ASCII; without one, A10 is not applicable.
-     */
     adopted: CapabilityId
-    /** An identity that exists for nobody. */
     missing: CapabilityId
-    /** An identity that the read check grants to `reader` and the resolution does not know. */
     checkedOnly: CapabilityId
-    /** An identity that `reader` knows lawfully and that is not available now. */
     standIn?: CapabilityId
-    /** An identity adopted for `reader` whose asset body has no `package.digest`. */
     noPackage?: CapabilityId
-    /** An identity adopted for `reader` whose body is longer than one page (65536 bytes). */
     large?: CapabilityId
   }>
-  /** Changes to the world behind the ports, and a view of it. Each change holds for the calls
-   * that follow it. */
   world: Readonly<{
-    /** The source now holds other content for `adopted`; the resolution still names the old digest. */
     replaceAdopted(): void
-    /** The bytes of one resource of `adopted` now differ from what its snapshot lists. */
     changeEntry(): PackagePath
-    /** The source now throws at `open`. */
     breakOpen(): void
-    /** A signal that is aborted right after the source answers the next `snapshot`. */
     abortAfterSnapshot(): AbortSignal
-    /** How many times each port was called since the fixture was made. */
     calls(): PortCalls
   }>
 }>
@@ -87,7 +61,6 @@ async function describedBasis<P, S>(f: AccessFixture<P, S>): Promise<SkillMateri
   return description.material.basis
 }
 
-/** The text of one text resource of `adopted`, read page by page by the actual ranges. */
 async function readAll<P, S>(f: AccessFixture<P, S>, path: PackagePath): Promise<string> {
   const { reader } = f.principals
   const pages: string[] = []
@@ -107,7 +80,6 @@ async function readAll<P, S>(f: AccessFixture<P, S>, path: PackagePath): Promise
 
 type TextSample = Readonly<{ path: PackagePath; text: string; bytes: Uint8Array }>
 
-/** The text resources of `adopted`, read whole. */
 async function textResources<P, S>(f: AccessFixture<P, S>): Promise<TextSample[]> {
   const { reader } = f.principals
   const listing = ok(
@@ -123,7 +95,6 @@ async function textResources<P, S>(f: AccessFixture<P, S>): Promise<TextSample[]
   return samples
 }
 
-/** The index of the first lead byte of a character of several bytes, or `undefined`. */
 function leadByteAt(bytes: Uint8Array): number | undefined {
   const index = bytes.findIndex(byte => byte >= 0xc0)
   return index === -1 ? undefined : index

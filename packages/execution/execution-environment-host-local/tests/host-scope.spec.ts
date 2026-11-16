@@ -1,9 +1,3 @@
-// How `readScopeMembers` reads the processes of one scope unit: from a known cgroup directory
-// without asking the supervisor, and otherwise from what `systemctl --user show` says. The
-// supervisor is a scripted stand-in (`fixtures/scripted-systemctl.mjs`) that answers in the
-// `key=value` lines of the real tool and records every call, so the tests read the exact arguments.
-// A failed reading is never an empty unit: the three `unreadable` answers are each pinned. Linux
-// only: the file is skipped elsewhere, and a skip is not a pass.
 import { chmod, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -13,8 +7,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readScopeMembers, type Supervisor } from '../src/host-scope.ts'
 import { unifiedCgroupDirectory } from '../src/scope-cgroup.ts'
 
-// One test control under `node:fs`: while `mountinfoFails` is set, reading `/proc/self/mountinfo`
-// fails, and while `mountinfo` is set it reads that text. Every other read is real.
 const control = vi.hoisted(() => ({
   mountinfoFails: false,
   mountinfo: undefined as string | undefined,
@@ -55,7 +47,6 @@ async function temporary(): Promise<string> {
   return directory
 }
 
-/** The scripted `systemctl` of one test, and the readers of what it was asked. */
 async function scripted(replies: readonly Reply[]) {
   const directory = await temporary()
   await writeFile(join(directory, 'replies.json'), JSON.stringify(replies))
@@ -74,7 +65,6 @@ async function scripted(replies: readonly Reply[]) {
   return { tools, calls, directory }
 }
 
-/** A `systemctl show` answer for the unit, with the property lines in the order of the real tool. */
 function shown(loadState: string, activeState: string, controlGroup?: string): Reply {
   const lines = [`LoadState=${loadState}`, `ActiveState=${activeState}`]
   if (controlGroup !== undefined) lines.push(`ControlGroup=${controlGroup}`)
@@ -96,7 +86,6 @@ const showArguments = [
   unit,
 ]
 
-/** The `0::` path of this process, and the directory the kernel keeps it in; absent where there is none. */
 function ownCgroup(): { path: string; directory: string } | undefined {
   const procCgroup = readFileSync('/proc/self/cgroup', 'utf8')
   const path = procCgroup
@@ -240,7 +229,6 @@ onLinux('readScopeMembers', () => {
   })
 
   it('gives a ControlGroup no unified mount reaches as unreadable with the show', async () => {
-    // A mount table with no cgroup2 line: the path maps to no directory.
     control.mountinfo = '33 24 0:28 / /sys/fs/cgroup ro,nosuid shared:9 - tmpfs tmpfs ro,mode=755\n'
     const { tools } = await scripted([shown('loaded', 'active', '/user.slice/x')])
     expect(await readScopeMembers({ tools, unit, boundMs })).toEqual({

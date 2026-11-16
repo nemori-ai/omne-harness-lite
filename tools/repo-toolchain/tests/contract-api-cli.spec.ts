@@ -1,5 +1,4 @@
 // @module-tag slow
-// The diff reads snapshots from temporary Git repositories, and the CLI cases start real Node subprocesses.
 import { spawnSync } from 'node:child_process'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -73,7 +72,6 @@ describe('contract API diff and command', { timeout: 120_000 }, () => {
 
   it('does not read a gap as no change: no snapshot on either side, a dropped member, a renamed package', () => {
     const { root, base } = committedCheckout()
-    // Neither side has the snapshot file.
     const bare = contractCheckout(MEMBERS, Object.keys(MEMBERS), repository())
     const bareBase = commit(bare, 'no snapshots')
     expect(diffSnapshots(bare, CONFIG, bareBase).members[0]).toMatchObject({
@@ -81,7 +79,6 @@ describe('contract API diff and command', { timeout: 120_000 }, () => {
       change: 'review',
       differences: [{ target: { scope: 'snapshot' }, kind: 'missing', change: 'review' }],
     })
-    // b leaves the contract list and its snapshot is deleted: the base side still counts.
     setContracts(root, ['packages/x/a'])
     rmSync(join(root, 'packages/x/b/api'), { recursive: true, force: true })
     expect(diffSnapshots(root, CONFIG, base).members[1]).toMatchObject({
@@ -91,7 +88,6 @@ describe('contract API diff and command', { timeout: 120_000 }, () => {
       change: 'review',
       differences: [{ target: { scope: 'snapshot' }, kind: 'removed', change: 'review' }],
     })
-    // a is renamed: its snapshot path moves with the package name, and the rename is review.
     setContracts(root, Object.keys(MEMBERS))
     const manifest = join(root, 'packages/x/a/package.json')
     writeFileSync(

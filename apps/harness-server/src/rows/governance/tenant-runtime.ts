@@ -7,6 +7,12 @@ import type { ActingForTenantPrincipal, StandingDestinationResolver } from '@omn
 import { access, tenantCodec } from '@omne-harness/legal-identity'
 import { GovernanceScopeSchema } from '@omne-harness/governance-contract'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
+import type {
+  SettingsBasis,
+  SettingsFailure,
+  SettingsViewRequest,
+  TenantSettingsWriter,
+} from '@omne-harness/settings'
 import {
   createGovernanceLocal,
   createGovernanceLocalDestination,
@@ -31,10 +37,11 @@ export type TenantGovernanceOptions = Omit<
     settings?: SessionPermissionSettingsResolver
   }>
 type Combinations = ReturnType<typeof governanceStorageCombinations>
-const unavailable = (phase: 'binding' | 'registration' | 'startup') => ({
+const unavailable = (phase: 'binding' | 'registration' | 'startup', reason: string) => ({
   kind: 'unavailable' as const,
   owner: 'harness.tenant-governance',
   phase,
+  reason,
 })
 
 function reference(registration: Combinations['metadata']) {
@@ -44,7 +51,7 @@ function reference(registration: Combinations['metadata']) {
   }
 }
 
-async function validReader(options: TenantGovernanceOptions): Promise<boolean> {
+async function readerFault(options: TenantGovernanceOptions): Promise<string | undefined> {
   const tenant = tenantCodec.encode(options.catalogPrincipal.tenant)
   if (
     !tenant.ok ||
@@ -52,25 +59,35 @@ async function validReader(options: TenantGovernanceOptions): Promise<boolean> {
     options.domain.scope.kind !== 'tenant' ||
     options.domain.scope.tenant !== tenant.value
   )
-    return false
+    return 'catalog reader is not of this tenant'
   const verified = await options.identity.verifier.verify(options.catalogPrincipal)
-  return verified.kind === 'verified' && verified.principal === options.catalogPrincipal
+  if (verified.kind !== 'verified') return `catalog reader verification answered ${verified.kind}`
+  return verified.principal === options.catalogPrincipal
+    ? undefined
+    : 'catalog reader verified as another principal'
 }
 
-async function register(options: TenantGovernanceOptions, combinations: Combinations) {
-  for (const combination of Object.values(combinations)) {
+async function registrationFault(
+  options: TenantGovernanceOptions,
+  combinations: Combinations,
+): Promise<string | undefined> {
+  for (const [name, combination] of Object.entries(combinations)) {
     const result = await options.storage.registerCombination({ ...options.domain, ...combination })
-    if (result.kind !== 'registered') return false
+    if (result.kind === 'rejected_before_accept')
+      return `combination ${name} rejected: ${result.reason}`
+    if (result.kind !== 'registered') return `combination ${name} registration ${result.kind}`
   }
-  return true
+  return undefined
 }
 
 async function open(options: TenantGovernanceOptions, combinations: Combinations) {
   let phase: 'binding' | 'registration' | 'startup' = 'binding'
   try {
-    if (!(await validReader(options))) return unavailable(phase)
+    const reader = await readerFault(options)
+    if (reader !== undefined) return unavailable(phase, reader)
     phase = 'registration'
-    if (!(await register(options, combinations))) return unavailable(phase)
+    const registration = await registrationFault(options, combinations)
+    if (registration !== undefined) return unavailable(phase, registration)
     phase = 'startup'
     const handler = options.materials.readHandlers.find(
       item => item.handler === GOVERNANCE_PROJECTION_READ,
@@ -94,7 +111,7 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
         catalog: governanceCatalogProjection,
       },
     })
-    if (runtime.kind !== 'created') return unavailable(phase)
+    if (runtime.kind !== 'created') return unavailable(phase, `${runtime.owner} ${runtime.kind}`)
     const { service } = runtime
     let closed = false
     const permissionBasis =
@@ -144,19 +161,26 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
       },
     }
   } catch {
-    return unavailable(phase)
+    return unavailable(phase, 'threw')
   }
 }
+
+export type TenantSettingsAccess = Readonly<{
+  read(request: SettingsViewRequest): Promise<SettingsBasis | SettingsFailure>
+  writer: TenantSettingsWriter
+}>
 
 /** Publish the durable settlement routes before open() can begin historical recovery. */
 export type TenantGovernanceAssembly = Readonly<{
   destination: StandingDestinationResolver
+  settings?: TenantSettingsAccess
   open(): Promise<
     | Awaited<ReturnType<typeof open>>
     | Readonly<{
         kind: 'unavailable'
         owner: 'harness.tenant-governance'
         phase: 'installation'
+        reason: string
         close: Extract<Awaited<ReturnType<typeof open>>, { kind: 'created' }>['close']
       }>
   >
@@ -180,7 +204,6 @@ export function prepareTenantGovernance(input: TenantGovernanceOptions): TenantG
   let opening: ReturnType<typeof open> | undefined
   return {
     destination: createGovernanceLocalDestination(coordination),
-    // One prepared assembly owns one attempt. Retry or remount creates a new assembly over the same durable domain.
     open: () => (opening ??= Promise.resolve().then(() => open(options, combinations))),
   }
 }

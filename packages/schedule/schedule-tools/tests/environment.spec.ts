@@ -154,9 +154,7 @@ it('rebuilds the original key and fingerprint from SQL after close/reopen, prese
   } finally {
     try {
       first.close()
-    } catch {
-      /* Closed before reopening. */
-    }
+    } catch {}
   }
 })
 it('rejects substituted request, admission, adapter, missing evidence, and provider failure while preserving the acquired lease', async () => {

@@ -10,10 +10,6 @@ export function sameScope(left: ScopeRef | undefined, right: ScopeRef | undefine
   return left?.ref === right?.ref
 }
 
-/**
- * Whether two bindings name the same layer and owner. `left` is the trusted side; `right` may come
- * from a caller and is only read field by field, so a malformed value compares unequal.
- */
 export function sameBinding(left: EnvironmentBinding, right: EnvironmentBinding): boolean {
   switch (left.kind) {
     case 'host_machine':
@@ -35,7 +31,6 @@ export function sameBinding(left: EnvironmentBinding, right: EnvironmentBinding)
   }
 }
 
-/** Compares two key lists as sets: order and repetition do not matter. */
 export function sameSet(left: readonly string[], right: readonly string[]): boolean {
   const leftSet = new Set(left)
   const rightSet = new Set(right)
@@ -60,7 +55,6 @@ function scopeChain(scope: ScopeRef | undefined): readonly string[] {
   return refs
 }
 
-/** The tenant text of a minted tenant, or undefined. Records and routes key on it. */
 export function tenantText(tenant: TenantId): string | undefined {
   const encoded = tenantCodec.encode(tenant)
   return encoded.ok ? encoded.value : undefined
@@ -83,11 +77,6 @@ function bindingFacts(binding: EnvironmentBinding): readonly unknown[] {
   }
 }
 
-/**
- * The fingerprint of an original acquisition without its tenant, which the slot key already names:
- * quota domain, origin, the full scope chain, the binding, the provider identity, the continuity,
- * the facility and isolation sets, and the ordered allowed bindings.
- */
 export function fingerprint(original: OriginalAcquisition): string {
   const p = original.placement
   return JSON.stringify([
@@ -140,7 +129,6 @@ export function copyPlacement(placement: Placement): Placement {
   })
 }
 
-/** Copies an original acquisition description before the first await. */
 export function copyOriginal(original: OriginalAcquisition): OriginalAcquisition {
   return Object.freeze({
     tenant: original.tenant,

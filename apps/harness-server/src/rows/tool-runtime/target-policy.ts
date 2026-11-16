@@ -9,7 +9,6 @@ import {
 import { targetResidency } from '../../entry/tool-target-residency.ts'
 import type { ToolTargetPolicy } from '../authorization/tool-target-policy.ts'
 
-/** Admission policy does not withdraw custody or maintenance of an already admitted call. */
 export function withTargetAdmissionPolicy(
   original: ToolSourceGuard<unknown>,
   store: ToolLedgerStore,
@@ -41,7 +40,6 @@ export function withTargetAdmissionPolicy(
   }
 }
 
-/** Used by both initial admission and the runtime's start-time access check. */
 export function currentTargetPolicy(
   ports: Readonly<{
     authorization(): ToolTargetPolicy | undefined

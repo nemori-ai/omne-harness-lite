@@ -1,4 +1,3 @@
-// Shared helpers of the package parsing tests.
 import {
   isSkillName,
   parseSkillPackage,
@@ -31,7 +30,6 @@ export function codeOf(
       : result.failure.kind
 }
 
-/** A legal SKILL.md for the root `demo`, with optional extra frontmatter lines. */
 export function demo(extra: readonly string[] = []): string {
   return manifestText(['name: demo', 'description: A demo skill.', ...extra])
 }

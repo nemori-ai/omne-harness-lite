@@ -1,35 +1,20 @@
-// The host clock (G4): one monotonic reading per process plus a process epoch. A marker names the
-// epoch it was made in and holds the monotonic start; `elapsed` is the monotonic distance from that
-// start. A marker of another epoch (another process, a restart) is not compared: the clock answers
-// a failure, never a number, so a recovery does not recount from zero and does not add budget.
-// The wall time only answers `now` and the instants of `waitUntil`; nothing is measured with it.
 import { createHmac, randomBytes, randomUUID } from 'node:crypto'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { DurableEvidence, ToolFailure } from '@omne-harness/tool-contract'
 import type { ToolClock } from '@omne-harness/tool-contract/provider'
 
-/** The owner named in every evidence the clock mints. */
 export const LOCAL_TOOL_CLOCK_OWNER = '@omne-harness/tool-host-local/clock'
 
 const SOURCE = 'tool-host-local/monotonic'
-/** The longest delay a timer holds, in milliseconds. */
 const LONGEST_TIMER_MS = 2_147_483_647
 
 export type LocalToolClockInput = Readonly<{
-  /** The wall time in milliseconds since the Unix epoch. Absent means `Date.now`. */
   wallMs?: () => number
-  /**
-   * A reading that never goes back, in milliseconds. Absent means the process high-resolution
-   * timer. It must not be the wall time: the wall time can be turned back.
-   */
   monotonicMs?: () => number
-  /** The identity of this process run. Absent means a random one. No `/` in it. */
   epoch?: string
-  /** Waits `milliseconds` or until `signal` aborts. Absent means a timer. */
   sleep?: (milliseconds: number, signal: AbortSignal) => Promise<'elapsed' | 'cancelled'>
 }>
 
-/** The process high-resolution timer in milliseconds: never goes back, not the wall time. */
 export const processMonotonicMs = (): number => Number(process.hrtime.bigint() / 1_000_000n)
 
 function timerSleep(milliseconds: number, signal: AbortSignal): Promise<'elapsed' | 'cancelled'> {
@@ -50,11 +35,6 @@ function timerSleep(milliseconds: number, signal: AbortSignal): Promise<'elapsed
 const unreadable = (diagnostic: string): Outcome<never, ToolFailure> =>
   fail({ kind: 'unavailable', dependency: 'clock', diagnostic })
 
-/**
- * Builds the host clock. The markers are non-durable: they are only comparable inside the process
- * run that made them, and a digest keyed by a secret of this run refuses a marker that was
- * changed or made elsewhere.
- */
 export function createLocalToolClock(input: LocalToolClockInput = {}): ToolClock {
   const wallMs = input.wallMs ?? Date.now
   const monotonicMs = input.monotonicMs ?? processMonotonicMs
@@ -88,7 +68,6 @@ export function createLocalToolClock(input: LocalToolClockInput = {}): ToolClock
       const [prefix, markerEpoch, start, , ...operation] = evidence.record.split('/')
       if (prefix !== 'clock' || operation.length === 0)
         return Promise.resolve(unreadable('the evidence is not a marker of this clock'))
-      // A marker of another run is a marker of a clock that this one cannot be compared with.
       if (markerEpoch !== epoch)
         return Promise.resolve(unreadable('the epoch of the marker cannot be compared'))
       if (!sealed(evidence))

@@ -26,10 +26,6 @@ export const source = {
   target: { ...sourceFixture.target, scopeRef: organization.value },
 }
 const configuration = { destination: 'settings.organization', sourceRoute: 'settings.source' }
-/**
- * One organization source target with its source reservations. The value of the target is written
- * through preparation and commit, with the real organization current participants.
- */
 export async function openSourceServiceWorld(
   destination: Pick<SettingsSourceDestination, 'seal'> &
     Partial<Pick<SettingsSourceDestination, 'recognize'>>,
@@ -114,7 +110,6 @@ export async function openSourceServiceWorld(
     },
   }
   const sources = createSettingsSourceReservations(options)
-  // The writer of the value: an administrator of the organization that owns the target.
   const owning = organizationCodec.parse(target.scopeRef)
   if (!owning.ok) throw new Error('Invalid organization of the source target')
   const administrator: ActingForTenantPrincipal = {

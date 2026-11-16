@@ -1,5 +1,3 @@
-// 流程体检页与它的文字摘要。页面自包含：样式取审讯页的同一套，走向图是内联 SVG，不带脚本，不引任何外部地址。
-// 每一块要么有数据，要么写明「没有数据」与原因，不留空白、不画空图。纯函数。
 import { escapeHtml, STYLE } from '../report/render.ts'
 import { RUN_TIERS, TIER_NAMES } from '../core/test-ledger.ts'
 import { BAND_WORDS, type Band, type Lines } from './bands.ts'
@@ -30,7 +28,6 @@ const esc = (text: string) => escapeHtml(text).replaceAll('"', '&quot;')
 
 const pad = (value: number) => String(value).padStart(2, '0')
 
-/** 本机时区的 `YYYY-MM-DD HH:MM`。 */
 export function localTime(iso: string): string {
   const date = new Date(iso)
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
@@ -40,7 +37,6 @@ const LABELS = new Map<string, string>([
   ...Object.entries(INDICATOR_LABELS),
   ...Object.entries(BUDGET_LABELS),
 ])
-/** 趋势里有、本版已不认得的指标照原名显示。 */
 const labelOf = (id: string) => LABELS.get(id) ?? id
 const bandWord = (band: Band | null) => (band === null ? '不分带' : BAND_WORDS[band])
 const empty = (reason: string) => `<div class="empty nodata">没有数据：${esc(reason)}</div>`
@@ -63,10 +59,6 @@ function table(
   )
 }
 
-/**
- * 一条小折线：值为 null 的点断开；有线的画出提醒线（黄）与处置线（红）；最新一个有值的点画圆点。
- * 纵轴从 0 与最小值里较小的那个起，到最大值与线里最大的那个止。
- */
 export function sparkline(values: readonly (number | null)[], lines: Lines | null): string {
   const width = 240
   const height = 48
@@ -137,7 +129,6 @@ function testsHtml(block: TestsBlock): string {
       ? ''
       : `读不了的账本 ${block.unreadable.length} 份：${block.unreadable.join('、')}`,
   ].filter(text => text !== '')
-  // 各层的墙钟不可比，一层一条走向线。
   const lines = RUN_TIERS.map(tier => ({
     tier,
     seconds: block.runs.filter(run => run.tier === tier).map(run => run.wallSeconds),
@@ -243,7 +234,6 @@ const EXTRA_STYLE = `
 .nodata { border:1px dashed var(--line); border-radius:6px; padding:8px 10px; }
 `
 
-/** 自包含、离线可开的体检页。 */
 export function renderHealthPage(health: Health): string {
   const { meta } = health
   const notes =
@@ -291,7 +281,6 @@ ${
 `
 }
 
-/** 十来行的文字摘要，末行是页面路径。不超过 15 行。 */
 export function healthSummary(health: Health, pagePath: string): string[] {
   const line = <T>(title: string, reading: Reading<T>, text: (value: T) => string) =>
     `${title}：${reading.status === 'no-data' ? `没有数据，${reading.reason}` : text(reading.data)}`

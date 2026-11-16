@@ -210,7 +210,6 @@ const negatives = [
     message: 'every marked call once',
   },
   {
-    // A store that refuses every commit with an assertion, as one that never read them would.
     name: 'store.asserts-hold',
     fixture: () =>
       wrappedFixture(store => ({
@@ -223,7 +222,6 @@ const negatives = [
     message: 'a commit whose assertion holds must commit',
   },
   {
-    // A store that drops the assertions and applies the writes.
     name: 'store.asserts-conflict',
     fixture: () =>
       wrappedFixture(store => ({
@@ -360,7 +358,6 @@ const negatives = [
     message: 'Expected values to be strictly',
   },
   {
-    // A store that deletes the records of a dropped domain and keeps its due entries.
     name: 'drop.leaves-the-domain-as-never-committed',
     fixture: () =>
       wrappedFixture(store => ({
@@ -379,7 +376,6 @@ const negatives = [
     message: 'Expected values to be strictly',
   },
   {
-    // A store that takes a drop with another write and applies the other write only.
     name: 'drop.is-the-only-write-and-resets-the-revision',
     fixture: () =>
       wrappedFixture(store => ({

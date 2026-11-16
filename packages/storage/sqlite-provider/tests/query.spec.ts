@@ -1,4 +1,3 @@
-// query (SQL contract SPEC 8): receipts, the pending index, the five proofs, and every unknown case.
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -111,7 +110,6 @@ describe('query answers unknown', () => {
   })
 
   it('when the queue is full, without an answer about the receipt', async () => {
-    // admissionWaitMs 0: a full queue refuses at once (sql-contract 准入等待 rule 7).
     const { storage } = await ready({
       queryQueuePerDomain: 1,
       queryQueueGlobal: 1,

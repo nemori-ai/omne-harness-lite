@@ -1,21 +1,7 @@
-// MD-04: the host part of `ModelRuntimeLocalPlugin`. It builds the local driver host, binds the
-// driver of the runtime provider, and only then publishes `modelInstanceHost`. The runtime provider
-// comes in through `options.provider`; the runtime stage of `./runtime.ts` gives it its commands
-// and publishes `modelRuntime` next to the host, at the marked place in `ModelRuntimeLocalPlugin.start`.
-//
-// Three structural facts hold this file together:
-// - The host object is built unbound, and the contribution that publishes it is created in the
-//   same flow after `await host.bind(...)`. There is no earlier place that can name the service.
-// - The contribution lives in its own child fiber, and one outer effect owns both the ordered
-//   shutdown and that child. Cordis disposes the parts of one effect in reverse order, one after
-//   the other, so the child (the published services) goes last, after quiesce and after every
-//   drive was handed back. Separate top-level effects would be disposed together.
-// - All scheduling state is in the closure of `createLocalDriverHost`. The service instance carries
-//   the four operations of `ModelInstanceHost` and nothing else: `bind` stays with the plugin.
 import { randomUUID } from 'node:crypto'
 import { Service, symbols, type Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { ModelRuntimeProvider } from '@omne-harness/model'
+import type { ModelLiveness, ModelRuntimeProvider } from '@omne-harness/model'
 import {
   drivable,
   type ModelInitialExecution,
@@ -24,6 +10,7 @@ import {
 } from '@omne-harness/model/commands'
 import type {
   CallAccess,
+  DurableEvidence,
   ModelCallId,
   ModelFailure,
   ModelHandle,
@@ -48,6 +35,7 @@ import {
   modelHostAuthorityKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { modelHostConfigSchema, type ModelHostSettings } from './config.ts'
+import { whenEmpty } from './idle.ts'
 import { createRuntimeStage, reportRuntimeEvent, type ResultPushOptions } from './runtime.ts'
 import { createModelStreamLocalPlugin } from './stream-observation.ts'
 
@@ -60,7 +48,6 @@ function unavailable(diagnostic: string): { failure: ModelFailure } {
 
 type Wake = Readonly<{ tenant: TenantId; call: ModelCallId }>
 
-/** What the host reports to the plugin for a diagnostic: kinds and counts only, no identities. */
 export type HostEvent =
   | Readonly<{ kind: 'blocked'; failure: ModelFailure['kind'] }>
   | Readonly<{ kind: 'drive-failed'; failure: ModelFailure['kind'] }>
@@ -71,7 +58,6 @@ type HostInput = Readonly<{
   settings: Pick<ModelHostSettings, 'concurrencyLimit' | 'wakeCapacity' | 'scanIntervalMs'>
   authority: ModelHostAuthority<unknown>
   clock: ModelClock
-  /** The current observation qualification of the observer; see `ModelHostPluginOptions`. */
   qualifyObservation: ModelHostPluginOptions['qualifyObservation']
   observation?: ModelObservationHost<unknown>
   report(event: HostEvent): void
@@ -84,27 +70,39 @@ function keyOf(tenant: TenantId, call: ModelCallId): string | undefined {
   return text.ok ? JSON.stringify([text.value, call]) : undefined
 }
 
-/**
- * The local driver host. A wake is a bit per tenant and call: a repeated wake sets the bit that is
- * already set. At most `concurrencyLimit` drives run, each started by this host from its own
- * closure, never under a caller's context. Waiting work is a map of at most `wakeCapacity` keys,
- * so a full host refuses a wake and creates no promise for it. The durable pending work stays in
- * `ModelCommands`; nothing here marks it done. A drive that ended without ending the call, on a
- * call that this process can still drive, is woken again after `scanIntervalMs`.
- */
-/**
- * The local driver host and its one addition: `retireRoute` retires the route and publication of a
- * call whose result body the push released. A settled call keeps its route until then, so it stays
- * observable while its result is held; after that the routes and the source's publications hold
- * no call whose result is gone, and their size is bounded by the calls in flight and the results
- * not yet released, not by the life of the process.
- */
-type LocalDriverHost = ModelDriverHost<unknown> & Readonly<{ retireRoute(target: Wake): void }>
+type LocalDriverHost = ModelDriverHost<unknown> &
+  Readonly<{
+    retireRoute(target: Wake): void
+    idle(signal: AbortSignal): Promise<number>
+    drives(target: Wake): boolean
+  }>
+
+async function driveOnce(
+  { authority, report }: Pick<HostInput, 'authority' | 'report'>,
+  signal: AbortSignal,
+  driver: ModelDriver<unknown>,
+  target: Wake,
+): Promise<boolean> {
+  try {
+    const resolved = await authority.resolve(target)
+    if ('failure' in resolved) {
+      report({ kind: 'blocked', failure: resolved.failure.kind })
+      return false
+    }
+    if (signal.aborted) return false
+    const outcome = await driver.drive(resolved.ok, signal)
+    if ('ok' in outcome) return false
+    report({ kind: 'drive-failed', failure: outcome.failure.kind })
+    return drivable(outcome.failure)
+  } catch {
+    report({ kind: 'drive-threw' })
+    return false
+  }
+}
 
 function createLocalDriverHost(input: HostInput): LocalDriverHost {
-  const { settings, authority, clock, report } = input
+  const { settings, clock, report } = input
   const wakes = new Map<string, Wake>()
-  /** The calls that wait for their next wake after a drive that can be driven again. */
   const owed = new Set<string>()
   const running = new Map<string, Promise<void>>()
   const routes = new Map<string, { publication: Publication; handle: ModelHandle<unknown> }>()
@@ -112,29 +110,9 @@ function createLocalDriverHost(input: HostInput): LocalDriverHost {
   let phase: Phase = 'unbound'
   let bound: { driver: ModelDriver<unknown>; binding: ModelDriverBinding } | undefined
   let closing: Reply<void> | undefined
+  const drive = (driver: ModelDriver<unknown>, target: Wake) =>
+    driveOnce(input, stopDrives.signal, driver, target)
 
-  /** Whether the call is owed another drive. */
-  async function drive(driver: ModelDriver<unknown>, target: Wake): Promise<boolean> {
-    try {
-      const resolved = await authority.resolve(target)
-      if ('failure' in resolved) {
-        // No trusted input for this call, for example no evidence that the old process ended: the
-        // call is not driven. Queries and custody are other services and stay available.
-        report({ kind: 'blocked', failure: resolved.failure.kind })
-        return false
-      }
-      if (stopDrives.signal.aborted) return false
-      const outcome = await driver.drive(resolved.ok, stopDrives.signal)
-      if ('ok' in outcome) return false
-      report({ kind: 'drive-failed', failure: outcome.failure.kind })
-      return drivable(outcome.failure)
-    } catch {
-      report({ kind: 'drive-threw' })
-      return false
-    }
-  }
-
-  /** Sets the wake bit of an owed call after the pause. A full queue is asked again a pause later. */
   async function wakeLater(key: string, target: Wake): Promise<void> {
     if (owed.has(key)) return
     owed.add(key)
@@ -147,7 +125,6 @@ function createLocalDriverHost(input: HostInput): LocalDriverHost {
       }
       wakes.set(key, target)
     } catch {
-      /* A clock that fails wakes nothing. The durable pending work stays in the commands. */
     } finally {
       owed.delete(key)
     }
@@ -155,7 +132,6 @@ function createLocalDriverHost(input: HostInput): LocalDriverHost {
   }
 
   function start(driver: ModelDriver<unknown>, key: string, target: Wake): void {
-    // `drive` does not reject, so the chained promise needs no handler of its own.
     const task = drive(driver, target).then(again => {
       running.delete(key)
       if (again) void wakeLater(key, target)
@@ -164,8 +140,8 @@ function createLocalDriverHost(input: HostInput): LocalDriverHost {
     running.set(key, task)
   }
 
-  // A key that is running keeps its bit and waits: the drive that runs now may already have read
-  // its state, so the bit is what makes sure the call is looked at again after it returns.
+  // A running key keeps its bit: the drive that runs now may already have read its state,
+  // so the bit makes sure the call is looked at again after it returns.
   function pump(): void {
     if (phase !== 'bound' || bound === undefined) return
     for (const [key, target] of wakes) {
@@ -179,8 +155,6 @@ function createLocalDriverHost(input: HostInput): LocalDriverHost {
   async function closeNow(): Reply<void> {
     phase = 'closing'
     input.observation?.close()
-    // What was woken but not yet dispatched is handed to the successor: it is durable in the
-    // commands and the recovery scan finds it. It is not reported as done.
     const undispatched = wakes.size
     wakes.clear()
     report({ kind: 'handed-over', undispatched })
@@ -201,6 +175,11 @@ function createLocalDriverHost(input: HostInput): LocalDriverHost {
   }
 
   return {
+    idle: signal => whenEmpty(running, signal),
+    drives(target) {
+      const key = keyOf(target.tenant, target.call)
+      return key !== undefined && (running.has(key) || wakes.has(key) || owed.has(key))
+    },
     retireRoute(target) {
       const key = keyOf(target.tenant, target.call)
       const held = key === undefined ? undefined : routes.get(key)
@@ -216,7 +195,6 @@ function createLocalDriverHost(input: HostInput): LocalDriverHost {
       if (typeof driver?.drive !== 'function')
         return { failure: { kind: 'invalid', field: 'driver', reason: 'drive-missing' } }
       if (bound !== undefined) {
-        // The same driver object is recognised; another one is a conflict.
         return bound.driver === driver
           ? { ok: bound.binding }
           : ({ failure: { kind: 'conflict' } } satisfies { failure: ModelBindingFailure })
@@ -257,8 +235,6 @@ function createLocalDriverHost(input: HostInput): LocalDriverHost {
           held.publication.execution.instance === execution.instance &&
           held.publication.execution.generation === execution.generation
         if (same) return { ok: held.publication }
-        // Only a later generation replaces a route, so a late publication of an older instance
-        // cannot take the route back from its successor.
         if (BigInt(execution.generation) <= BigInt(held.publication.execution.generation))
           return { failure: { kind: 'stale-instance', instance: execution.instance } }
       }
@@ -291,8 +267,6 @@ function createLocalDriverHost(input: HostInput): LocalDriverHost {
     },
 
     directory: {
-      // The route table alone proves no right to observe: the observer's current qualification is
-      // asked first, and its failure, `denied` included, is the answer.
       async connect(access: CallAccess<unknown>) {
         const refused = usable()
         if (refused) return refused
@@ -301,7 +275,6 @@ function createLocalDriverHost(input: HostInput): LocalDriverHost {
           return { failure: { kind: 'invalid', field: 'tenant', reason: 'invalid-identity' } }
         const qualified = await input.qualifyObservation(access)
         if ('failure' in qualified) return qualified
-        // The host may have closed while the qualification was asked.
         const stillRefused = usable()
         if (stillRefused) return stillRefused
         const route = routes.get(key)
@@ -313,9 +286,7 @@ function createLocalDriverHost(input: HostInput): LocalDriverHost {
   }
 }
 
-/** The contribution: the four operations of `ModelInstanceHost` and nothing else. */
 class HostContribution extends ModelInstanceHostService<unknown> {
-  // Cordis hands consumers the instance, so the host (with its `bind`) stays in this closure.
   readonly schedule: ModelInstanceHost<unknown>['schedule']
   readonly publish: ModelInstanceHost<unknown>['publish']
   readonly withdraw: ModelInstanceHost<unknown>['withdraw']
@@ -330,45 +301,34 @@ class HostContribution extends ModelInstanceHostService<unknown> {
   }
 }
 
-/**
- * What the plugin needs besides its injected services and its configuration. They are objects, not
- * serialisable values, so they come from the assembly that creates the plugin class.
- */
 export type ModelHostPluginOptions = Readonly<{
   executionChannel?(): ReturnType<ModelInitialExecution<unknown>['openHost']>
-  /** The entry closes its send child and then the channel after host and push drain. */
   releaseExecution?(): Promise<void>
   observation?: Readonly<{
     commands: ModelCommands<unknown>
     source: ModelObservationSource<unknown>
   }>
-  /**
-   * Builds the runtime provider over the unbound host, the commands of the plugin and the injected
-   * clock. The plugin binds its `driver` and calls its `quiesce` first when it shuts down. A
-   * provider with a `runtime` gets `modelRuntime` published from it, and then `results` is needed.
-   * Every write of the provider goes through the `commands` it is given: the result push learns of
-   * committed settles and late accounts there.
-   */
   provider(
     input: Readonly<{
       host: ModelInstanceHost<unknown>
       commands: ModelCommands<unknown>
       clock: ModelClock
+      liveness: ModelLiveness
     }>,
   ): Pick<ModelRuntimeProvider<unknown>, 'driver' | 'quiesce'> &
     Partial<Pick<ModelRuntimeProvider<unknown>, 'released'>> &
     Readonly<{ runtime?: ModelRuntime<unknown> }>
-  /** The ledger and bounds of the result push. Required with a runtime, refused without one. */
   results?: ResultPushOptions
-  /**
-   * The observer's current right to observe the call. The design gives the host no injected source
-   * for it, so the assembly supplies one. The directory returns a route only after it answers ok.
-   */
   qualifyObservation(access: CallAccess<unknown>): Reply<void>
+  lostContact?(call: string): DurableEvidence | null
 }>
 
-/** The instance of the plugin class: Cordis calls `Service.init` and awaits it before ACTIVE. */
-export type ModelRuntimeLocalPluginInstance = Readonly<{ [Service.init]: () => Promise<void> }>
+export type ModelRuntimeLocalPluginInstance = Readonly<{
+  [Service.init]: () => Promise<void>
+  drain(signal: AbortSignal): Promise<ModelHostDrain>
+}>
+
+export type ModelHostDrain = Readonly<{ quiesced: boolean; inFlight: number }>
 
 export type ModelRuntimeLocalPluginClass = {
   new (ctx: Context, settings: ModelHostSettings): ModelRuntimeLocalPluginInstance
@@ -381,7 +341,6 @@ type ExecutionChannel = Exclude<
   { failure: unknown }
 >['ok']
 
-/** Refuses a start whose options contradict the injected service or each other. */
 function assertStartOptions(ctx: Context, options: ModelHostPluginOptions): void {
   if (
     options.observation !== undefined &&
@@ -392,7 +351,6 @@ function assertStartOptions(ctx: Context, options: ModelHostPluginOptions): void
     throw new TypeError('model host: execution channel requires an entry release owner')
 }
 
-/** Takes the execution channel of the entry, if the options name one; a failed lease throws. */
 function captureExecutionChannel(options: ModelHostPluginOptions): ExecutionChannel | undefined {
   const captured = options.executionChannel?.()
   if (captured !== undefined && 'failure' in captured)
@@ -400,10 +358,6 @@ function captureExecutionChannel(options: ModelHostPluginOptions): ExecutionChan
   return captured?.ok
 }
 
-/**
- * The one release of the channel: the entry release owner first, then the close of the channel,
- * even when the owner throws. Every call returns the same promise, so the release runs once.
- */
 function createExecutionRelease(
   ctx: Context,
   options: ModelHostPluginOptions,
@@ -423,7 +377,6 @@ function createExecutionRelease(
   }
 }
 
-/** Opens the host lease of the observation source, if the options name one; a failed lease throws. */
 function openObservationHost(
   options: ModelHostPluginOptions,
 ): ModelObservationHost<unknown> | undefined {
@@ -442,17 +395,9 @@ type BoundHostParts = Readonly<{
   releaseExecution: () => Promise<void>
 }>
 
-/**
- * Publishes the bound host and owns its shutdown. When the contribution cannot be created or
- * does not settle, the bound host closes and the stage stops before the error goes on.
- */
 async function publishBoundHost(ctx: Context, parts: BoundHostParts): Promise<void> {
   const { host, stage, provider, binding, observation, releaseExecution } = parts
   try {
-    // The extension point of the runtime facade: `modelRuntime` is published in the same
-    // contribution as the host, after the bind and from `provider`. The contribution is
-    // created inside this `try`: a fiber that unloads in the start window makes it throw, and the
-    // bound host must then close.
     const contribution = ctx.plugin({
       name: 'model-runtime-local-contribution',
       apply: (child: Context) => {
@@ -461,7 +406,7 @@ async function publishBoundHost(ctx: Context, parts: BoundHostParts): Promise<vo
         if (observation !== undefined) createModelStreamLocalPlugin({ source: observation })(child)
       },
     })
-    // The entry owns the send child on another fiber. Await its release after drives and push
+    // The entry owns the send child on another fiber: await its release after drives and push
     // return, while the commands parent is still alive.
     ctx.effect(() => [
       contribution.dispose,
@@ -484,15 +429,14 @@ async function publishBoundHost(ctx: Context, parts: BoundHostParts): Promise<vo
   }
 }
 
-/**
- * The class that is the `ModelRuntimeLocalPlugin` of the design, for the host part. It is made by a
- * function because its two options are objects. The static `inject` is the design's: commands,
- * clock and host authority. `Config` carries the four bounds.
- */
 export function createModelRuntimeLocalPlugin(
   options: ModelHostPluginOptions,
 ): ModelRuntimeLocalPluginClass {
-  async function start(ctx: Context, settings: ModelHostSettings): Promise<void> {
+  async function start(
+    ctx: Context,
+    settings: ModelHostSettings,
+    bound: (drain: ModelRuntimeLocalPluginInstance['drain']) => void,
+  ): Promise<void> {
     assertStartOptions(ctx, options)
     const channel = captureExecutionChannel(options)
     const releaseExecution = createExecutionRelease(ctx, options, channel)
@@ -512,8 +456,8 @@ export function createModelRuntimeLocalPlugin(
           commands: channel?.commands ?? ctx.modelCommands,
           authority: ctx.modelHostAuthority,
           scanBatchSize: settings.scanBatchSize,
+          clock: ctx.modelClock,
           report: event => reportRuntimeEvent(ctx, event),
-          // The route and the provider's activity of a call leave together, once its body is released.
           released: target => {
             host.retireRoute(target)
             provider.released?.(target)
@@ -525,18 +469,29 @@ export function createModelRuntimeLocalPlugin(
         host,
         commands: stage.commands,
         clock: ctx.modelClock,
+        liveness: {
+          holds: target =>
+            host.drives(target) ? 'drive' : stage.delivering(target) ? 'push' : null,
+          lostContact: call => options.lostContact?.(call) ?? null,
+        },
       })
-      // The order is the guarantee: the host was built unbound, it binds here, and only after the
-      // bind has returned is the contribution that publishes it created.
-      const bound = await host.bind(provider.driver)
-      if ('failure' in bound)
-        throw new Error(`the model host could not bind: ${bound.failure.kind}`)
+      // The order is the guarantee: the host binds first, and only after the bind returns is the
+      // contribution that publishes it created.
+      const binding = await host.bind(provider.driver)
+      if ('failure' in binding)
+        throw new Error(`the model host could not bind: ${binding.failure.kind}`)
+      bound(async signal => {
+        const quiesced = await quiesceForDrain(ctx, provider)
+        const drives = await host.idle(signal)
+        const pushes = await stage.idle(signal)
+        return { quiesced, inFlight: drives + pushes }
+      })
 
       await publishBoundHost(ctx, {
         host,
         stage,
         provider,
-        binding: bound.ok,
+        binding: binding.ok,
         observation,
         releaseExecution,
       })
@@ -551,21 +506,37 @@ export function createModelRuntimeLocalPlugin(
     static readonly inject = [modelCommandsKey, modelClockKey, modelHostAuthorityKey]
     static readonly Config = modelHostConfigSchema
 
-    // Cordis awaits this before the fiber is ACTIVE. It is set in the constructor, so that the
-    // context and the settings live in a closure and not on the instance.
     declare readonly [Service.init]: () => Promise<void>
 
+    declare readonly drain: ModelRuntimeLocalPluginInstance['drain']
+
     constructor(ctx: Context, settings: ModelHostSettings) {
-      Object.defineProperty(this, Service.init, { value: () => start(ctx, settings) })
+      let drain: ModelRuntimeLocalPluginInstance['drain'] | undefined
+      Object.defineProperty(this, Service.init, {
+        value: () => start(ctx, settings, bound => (drain = bound)),
+      })
+      Object.defineProperty(this, 'drain', {
+        value: (signal: AbortSignal) =>
+          drain?.(signal) ?? Promise.resolve({ quiesced: true, inFlight: 0 }),
+      })
     }
   }
 }
 
-/**
- * Quiesce, then stop dispatching and wait for every drive to hand back. It never rejects: the
- * disposers after it in the chain would not run if it did. A refused quiesce or a failed close is
- * reported, and shutdown goes on, so the unload ends; the report says what is still owed.
- */
+async function quiesceForDrain(
+  ctx: Context,
+  provider: Pick<ModelRuntimeProvider<unknown>, 'quiesce'>,
+): Promise<boolean> {
+  try {
+    const quiesced = await provider.quiesce()
+    if ('ok' in quiesced) return true
+    ctx.logger.warn(`model host: quiesce was refused (${quiesced.failure.kind})`)
+  } catch {
+    ctx.logger.warn('model host: quiesce threw')
+  }
+  return false
+}
+
 function orderedShutdown(
   ctx: Context,
   provider: Pick<ModelRuntimeProvider<unknown>, 'quiesce'>,

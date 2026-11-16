@@ -192,7 +192,7 @@ def test_git_wrapper_preserves_caller_configuration_at_exec(tmp_path, configurat
 def test_image_pins_matt_revision_and_resets_cursor_agent_identity(tmp_path):
     repo = Path(__file__).resolve().parents[3]
     dockerfile = (repo / ".meta_harness/agents/cloud/cursor/Dockerfile").read_text(encoding="utf-8")
-    skills = (repo / "docs/engineering/skills.md").read_text(encoding="utf-8")
+    skills = (repo / ".meta_harness/tooling/README.md").read_text(encoding="utf-8")
     revision = "b0618bc436ad893b3c5e84e55fba86586d34a404"
     name = "潘其威(William)"
     email = "46810637+PanQiWei@users.noreply.github.com"

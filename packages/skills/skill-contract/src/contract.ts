@@ -80,7 +80,6 @@ function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
   return first === undefined ? { ok: true } : refusal(first.code)
 }
 
-/** Checks the additive fields `description` and `package.digest`. Each one may be absent. */
 function extensionFindings(body: unknown): readonly Finding[] {
   const findings: Finding[] = []
   const description = field(body, 'description')

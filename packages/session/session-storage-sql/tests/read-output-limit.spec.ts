@@ -1,13 +1,4 @@
-// The output limit of the read handlers of the member (the `readOutputLimitBytes` the application
-// gives `sessionStorageMaterials`, here 20 MiB, session-storage-sql SPEC K-1) on the Agent records: a
-// content block comes back through `execution-record.blob` as one output, so a block past the old
-// bound of 1 MiB is read whole and a block whose output passes 20 MiB answers `read_limit`, never a
-// part of it. The block is written through the real commit path, so the write bounds of the provider
-// are raised for this file: the command of the largest block has to fit `maxCommandBytes`. The limit
-// is a literal handed in through the parameter, so that a handler that ignores the parameter turns
-// the cases red.
 // @module-tag slow
-// Why slow: real Workers and real files; a state of 20 MiB is written and read.
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -24,7 +15,6 @@ import {
 } from './fixtures/real-provider.ts'
 
 const LIMIT = 20 * 1024 * 1024
-/** The write bounds that let a command of a little more than the limit in. */
 const WRITE = {
   maxCommandBytes: LIMIT + 1024 * 1024,
   maxRequestBytes: LIMIT + 2 * 1024 * 1024,
@@ -47,7 +37,6 @@ async function opened(): Promise<RealApp> {
   return app
 }
 
-/** The block read after a block whose payload is `pad` bytes long was written with a batch. */
 async function stateOfSize(pad: number) {
   const app = await opened()
   const operation = 'aop_big'
@@ -72,7 +61,6 @@ async function stateOfSize(pad: number) {
   })
 }
 
-/** The payload length of the block that a read gave back. */
 function padLength(output: JsonValue): number {
   const found = decodeExecutionRecordBlob(output)
   if (found?.kind !== 'blob') throw new Error('the read output is not a block')

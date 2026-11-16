@@ -164,6 +164,7 @@ export function createMemoryAgentDrive(): MemoryAgentDrive {
           : method === 'invoke' || method === 'resume'
             ? 'active'
             : (current?.attachment ?? null),
+      lost: null,
       conclusion: current?.conclusion ?? null,
       evidence: receipt.evidence,
     })
@@ -195,6 +196,7 @@ export function createMemoryAgentDrive(): MemoryAgentDrive {
               revision: null,
               state: 'missing',
               attachment: null,
+              lost: null,
               conclusion: null,
               evidence: evidence(`missing/${digestOf(keyOf(input))}`),
             },

@@ -5,7 +5,6 @@ import {
   type ModelInvocationRef,
 } from '../reference.ts'
 
-/** Construct a fixture locator from explicit original identities before admission. */
 export function invocationReference<T extends ModelInvocationParts>(parts: T): ModelInvocationRef {
   const encoded = encodeModelInvocationRef({
     tenant: parts.tenant,
@@ -16,7 +15,6 @@ export function invocationReference<T extends ModelInvocationParts>(parts: T): M
   return encoded.ok
 }
 
-/** Negative fixture: bypass the codec to send a reserved admission into the public boundary. */
 export function reservedReference<T extends ModelInvocationParts>(parts: T): string {
   if (!tenantCodec.encode(parts.tenant).ok) throw new Error('fixture requires a minted tenant')
   return JSON.stringify(['model-invocation', 2, parts.call, parts.admission])

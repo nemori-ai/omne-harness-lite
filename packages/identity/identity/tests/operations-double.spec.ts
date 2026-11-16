@@ -60,13 +60,11 @@ describe('the deadlines of the double come from the injected terms', () => {
     const login = await issuedUnder(start, max, idle)
     expect(encodeInstant(login.issuedAt)).toBe(start)
     expect(encodeInstant(login.maxDeadline)).toBe(maxDeadline)
-    // Fractions keep the finer scale of the two operands; trailing zeros are kept as written.
     expect(encodeInstant(login.idleDeadline).replace(/\.0+Z$/u, 'Z')).toBe(idleDeadline)
   })
 
   it('counts an inserted leap second as an ordinary second, a documented limit', async () => {
     const login = await issuedUnder('2016-12-31T23:59:59Z', 'PT2S', 'PT2S')
-    // SI-exact arithmetic would give 00:00:00; the double gives 00:00:01.
     expect(encodeInstant(login.maxDeadline)).toBe('2017-01-01T00:00:01Z')
   })
 
@@ -101,7 +99,6 @@ describe('the deadlines of the double come from the injected terms', () => {
     await expect(operations.recognizeLogin({ loginProof: login.loginProof })).resolves.toEqual({
       kind: 'invalid',
     })
-    // The record is still there, so the clock decides (SPEC ID-17 step 4).
     clock.makeUnavailable('clock down')
     await expect(
       operations.recognizeLogin({ loginProof: login.loginProof }),

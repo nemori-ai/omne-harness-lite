@@ -12,7 +12,6 @@ export interface FileTemplate {
   readonly target: string
 }
 export interface LayoutRules {
-  /** Closed file slots. * matches within one component, ** matches whole directories. */
   readonly files: readonly string[]
   readonly requiredDirectories: readonly string[]
   readonly requiredFileGroups: readonly {
@@ -26,16 +25,12 @@ export interface TemplateManifest {
   readonly format: 1
   readonly id: string
   readonly version: string
-  /** Rule set 3 adds the docs topics and the content-based acceptance condition. */
-  readonly ruleSet: 3
-  /** Each topic is either docs/<topic>.md or docs/<topic>/ with README.md and index.md. */
-  readonly topics: readonly string[]
+  readonly ruleSet: 5
   readonly common: readonly FileTemplate[]
   readonly variants: Readonly<Record<Variant, readonly FileTemplate[]>>
   readonly requiredFiles: readonly string[]
   readonly variantRequiredFiles: Readonly<Record<Variant, readonly string[]>>
   readonly layout: LayoutRules
-  /** Exact historical versions only. These are structural rules, never old template bodies. */
   readonly previousVersions: Readonly<
     Record<
       string,
@@ -43,7 +38,8 @@ export interface TemplateManifest {
         readonly requiredFiles: readonly string[]
         readonly variantRequiredFiles: Readonly<Record<Variant, readonly string[]>>
         readonly layout: LayoutRules
-        readonly ruleSet: 2
+        readonly ruleSet: 2 | 3 | 4
+        readonly topics?: readonly string[]
       }
     >
   >
@@ -60,7 +56,6 @@ export interface PackageScan {
   readonly marker?: TemplateMarker
   readonly variant: Variant
   readonly structure: 'pass' | 'fail' | 'uncovered'
-  /** Whether acceptance/ holds executable scenarios (*.acceptance.ts outside acceptance/fixtures/). */
   readonly acceptance: 'executable' | 'none'
   readonly tree: readonly {
     readonly path: string

@@ -34,8 +34,6 @@ export function runCli(
   argv: readonly string[],
   options: { readonly omneHome?: string; readonly bin?: string } = {},
 ): CliResult {
-  // `os.homedir()` reads HOME on POSIX and USERPROFILE on Windows. Both point at the sandbox, so a
-  // child that creates the default state directory creates it there and the test can see it.
   const env: Record<string, string> = {
     PATH: process.env.PATH ?? '',
     HOME: sandbox.home,
@@ -57,7 +55,6 @@ export interface AsyncOptions {
   readonly stdin?: string
 }
 
-/** Spawns the built bin without blocking this process, so an HTTP server in this process can answer it. */
 export function runCliAsync(
   sandbox: Sandbox,
   argv: readonly string[],
@@ -68,7 +65,6 @@ export function runCliAsync(
     HOME: sandbox.home,
     USERPROFILE: sandbox.home,
   }
-  // Windows sockets need the system directory; it carries no state of this repository.
   if (process.env.SystemRoot !== undefined) env.SystemRoot = process.env.SystemRoot
   if (options.omneHome !== undefined) env.OMNE_HOME = options.omneHome
   if (options.omneServer !== undefined) env.OMNE_SERVER = options.omneServer

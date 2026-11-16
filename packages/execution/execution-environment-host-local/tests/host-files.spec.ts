@@ -22,11 +22,6 @@ async function tree(base = tmpdir()) {
   return root
 }
 
-/**
- * A tree that a relative path from the working directory reaches. On Windows the temporary
- * directory can be on another drive, where no relative path leads; the tree then goes below the
- * ignored `tmp/` of the working directory.
- */
 async function treeReachedRelatively() {
   if (!isAbsolute(relative(process.cwd(), tmpdir()))) return tree()
   const base = join(process.cwd(), 'tmp')

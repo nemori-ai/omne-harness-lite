@@ -1,8 +1,3 @@
-// Fast: the cold recovery of a macOS domain from its marker, with a real index in a temporary state
-// directory and a stand-in session reader (`fake-reader.ts`), on any POSIX host. A domain is
-// confirmed stopped only when its stop was confirmed, it belongs to another boot, or it has no
-// marker; every other case stays pending and keeps its marker. The real kernel is in
-// commands.spec.ts.
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { chmod, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
@@ -23,7 +18,6 @@ import {
 import { fakeReader, type FakeReader } from './fake-reader.ts'
 import { alive, eventually, freshScope, killAll } from './fixture.ts'
 
-/** The stand-in reader is a POSIX shell script; Windows has neither it nor sessions. */
 const posixOnly = { skip: process.platform === 'win32' }
 const bootId = 'B6C8C544-54F8-4C43-967D-A47FD7BEBA7D'
 const otherBoot = '0F2A9E43-7C1B-4D55-9A0E-1B2C3D4E5F60'
@@ -31,7 +25,6 @@ const provider = 'host-local'
 const scope = freshScope()
 
 let fake: FakeReader
-/** The stand-in behind a stop that kills each session's process group itself, as in manager.spec.ts. */
 let front = ''
 let state = ''
 let index: DomainIndex
@@ -72,7 +65,6 @@ function resourceOf(boot = bootId, key: string = randomUUID()): ManagedResource 
   return { key, provider, reference: domainReference(key, boot, scope) }
 }
 
-/** A live process that leads its own session, as a gate does. */
 function session(): number {
   const child = spawn('/bin/sleep', ['30'], { detached: true, stdio: 'ignore' })
   children.push(child)
@@ -80,7 +72,6 @@ function session(): number {
   return child.pid
 }
 
-/** Records the marker of a domain whose one session is `sid`, started at the stand-in's 1.000001. */
 async function recorded(resource: ManagedResource, sid: number, boot = bootId): Promise<void> {
   const written = await index.record(resource, scope, {
     bootId: boot,

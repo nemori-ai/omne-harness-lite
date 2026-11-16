@@ -6,13 +6,12 @@ import {
   type CommandServices,
   type CredentialRead,
 } from '@omne-harness/cli'
-import { createHttpTransport } from '@omne-harness/sdk'
+import { createHttpProtocolTransport } from '@omne-harness/sdk/core'
 
 export interface InProcessResult {
   readonly code: number
   readonly stdout: string
   readonly stderr: string
-  /** How many times the command asked for the credential. */
   readonly credentialReads: number
 }
 
@@ -25,7 +24,6 @@ export interface InProcessOptions {
   readonly failStdout?: boolean
 }
 
-/** Runs the production catalog in this process: real HTTP transport, scripted credential and ids. */
 export async function runInProcess(
   argv: readonly string[],
   options: InProcessOptions = {},
@@ -35,7 +33,7 @@ export async function runInProcess(
   let credentialReads = 0
   let counter = 0
   const services: CommandServices = {
-    createTransport: (origin, location) => createHttpTransport({ origin, location }),
+    createTransport: (origin, credentials) => createHttpProtocolTransport({ origin, credentials }),
     readCredential: async () => {
       credentialReads += 1
       return options.credential ?? { kind: 'credential', value: 'correct horse battery staple' }

@@ -1,13 +1,3 @@
-// G-RESIDENTS (R2-D159): the resident tools of a `create`. The mapping entry names them (the
-// `resident` Tool references of its definition); the adoption source plans them through Tool's
-// binding registry with the first definitions of the trusted release, and puts the material into
-// Session's initialization guard. Real rows and entry objects: the release snapshot, the registrant,
-// `tool-bindings` and `tool-host` with the operator construction of the tests. The Session core
-// (`decide`) then writes one admitted resident per tool, so the committed snapshot holds them.
-//
-// The authors are loaded by the release registrant before the creation: nothing in the release
-// tree does that yet (only the registrant may register an official author; see the row page), so
-// these cases state what `create` does once the tools are live, and what it does when they are not.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { decide, type AdoptionEvidenceCommand } from '@omne-harness/session-contract'
@@ -36,7 +26,6 @@ const toolRef = (name: string, resident = true) => ({
   resident,
 })
 
-/** A mapping entry whose definition names `references`. */
 const withReferences = (name: string, references: readonly unknown[]) =>
   entryConfig(name, {
     definition: { category: 'AgentDefinition', name, references, attributes: [] },
@@ -50,13 +39,10 @@ afterEach(async () => {
 })
 
 type Options = Readonly<{
-  /** Which release authors the registrant loads before the creation. */
   loaded?: readonly string[]
-  /** Leaves out `tool-bindings` and `tool-host`. */
   tools?: 'absent'
 }>
 
-/** The source of this row over `config`, on a root with the release and the tool rows. */
 async function sourceOn(config: unknown, options: Options = {}) {
   const fixture: ReleaseFixture = await releaseFixture()
   if (options.tools !== 'absent') {
@@ -91,13 +77,11 @@ async function sourceOn(config: unknown, options: Options = {}) {
 
 const prepare = (source: AdoptionSourcesImpl, command: Create) => source.prepare(command, access)
 
-/** The initial adoption of the one guard of a successful preparation. */
 function initialOf(outcome: Awaited<ReturnType<AdoptionSourcesImpl['prepare']>>): Plain {
   if (!('ok' in outcome)) throw new Error(`expected material: ${JSON.stringify(outcome)}`)
   return factsOf(outcome.ok[0]!)['initialAdoption'] as Plain
 }
 
-/** J06's projection of one resident into a binding (session-adapters `conditions.ts`). */
 const bindingOf = (resident: Plain) => {
   const admitted = resident['admitted'] as Plain
   return {

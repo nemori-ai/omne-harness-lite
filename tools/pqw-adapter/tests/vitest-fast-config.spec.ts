@@ -23,10 +23,19 @@ it('fixes the fast mode and the root, and puts the mutation time limit over the 
     test: {
       include: ['fast'],
       testTimeout: MUTATION_TEST_TIMEOUT_MS,
+      tagsFilter: ['!source-text'],
       experimental: { preParse: false },
     },
   })
   expect(MUTATION_TEST_TIMEOUT_MS).toBe(60_000)
+})
+
+it('leaves tests of the source text out of the mutation run, on top of the tier filter of the member', async () => {
+  const root = member(
+    "export default () => ({ test: { tagsFilter: ['!slow'], tags: [{ name: 'slow' }] } })\n",
+  )
+  const config = await fastConfig(root, { mode: 'test', command: 'serve' })
+  expect(config.test.tagsFilter).toEqual(['!slow', '!source-text'])
 })
 
 it('refuses a member config that cannot select the tier', async () => {

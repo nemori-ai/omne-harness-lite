@@ -16,7 +16,6 @@ export type FactKind =
   | 'contributes'
   | 'composition'
 export interface Fact extends Site {
-  /** Semantic identity excludes source position. */
   readonly id: string
   readonly member: string
   readonly plugin?: string
@@ -27,7 +26,6 @@ export interface Fact extends Site {
   readonly contract?: string
   readonly owner?: string
   readonly definitionForm?: 'context-augmentation' | 'service-class'
-  /** Exact class provenance for definitions, typed Context properties and class providers. */
   readonly serviceDefinition?: Site & {
     readonly member?: string
     readonly symbol: string
@@ -68,7 +66,6 @@ export interface PackageImport extends Site {
   readonly specifier: string
   readonly symbol: string
   readonly local?: string
-  /** Version-local resolved module source, including imports inside the same member. */
   readonly resolvedPath?: string
   readonly type: boolean
   readonly form: ImportFact['form']
@@ -84,7 +81,6 @@ export interface ImportUnknown extends Site {
   readonly expression: string
   readonly reason: string
 }
-/** Complete observations from the shared static extractor. */
 export interface ActualExtraction {
   readonly facts: readonly Fact[]
   readonly unknown: readonly Unknown[]
@@ -105,11 +101,9 @@ export interface ActualExtraction {
 export interface Snapshot {
   readonly texts: ReadonlyMap<string, string>
   readonly members: readonly Member[]
-  /** Resolution can use development members; relationship discovery uses only these members. */
   readonly analysisMembers?: readonly Member[]
 }
 
-/** Delimiters in names are data. Positions never participate in semantic identity. */
 export function actualFactIdentity(fact: Fact): string {
   return JSON.stringify([
     fact.member,

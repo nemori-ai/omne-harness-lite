@@ -1,16 +1,11 @@
 import { judgeJsonValue, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
 import type { Instant } from '@omne-harness/utc-instant'
-import { convert } from './codec.ts'
 import type { AccountId, LoginStateId, OrganizationId, TenantId } from './identity-text.ts'
-import type { LeafKind, Rule } from './operation-rules.ts'
+import { convert } from './leaf-codec.ts'
+import type { LeafKind, Rule } from './rule.ts'
 
 export type CodecResult<T> = { readonly ok: true; readonly value: T } | { readonly ok: false }
 
-/**
- * Reads a JSON value tree into a typed value and writes it back. The caller gives the structure
- * limits; the contract names a limit but never fixes its numbers. Neither direction throws for
- * a value the rule does not accept: it gives `ok: false` and no partial value.
- */
 export type Codec<T> = {
   readonly read: (value: JsonValue, limits: JsonLimits) => CodecResult<T>
   readonly write: (value: T, limits: JsonLimits) => CodecResult<JsonValue>
@@ -18,7 +13,6 @@ export type Codec<T> = {
 
 type JsonObject = Extract<JsonValue, { readonly kind: 'object' }>
 
-/** The local value each leaf rule reads to; the shared engine produces exactly these. */
 type LeafValues = {
   readonly text: string
   readonly string: string
@@ -33,6 +27,7 @@ type LeafValues = {
   readonly tenant: TenantId
   readonly instant: Instant
   readonly 'positive-integer': number
+  readonly count: number
   readonly 'page-limit': number
   readonly parameters: JsonObject
   readonly json: JsonValue
@@ -50,7 +45,6 @@ type ObjectValue<F extends Fields> = Flatten<
   }
 >
 
-/** The local value that `R` reads to and writes from. */
 export type RuleValue<R extends Rule> = R extends { readonly kind: infer K extends LeafKind }
   ? LeafValues[K]
   : R extends { readonly kind: 'literal'; readonly values: readonly (infer V)[] }
@@ -65,12 +59,7 @@ export type RuleValue<R extends Rule> = R extends { readonly kind: infer K exten
 
 const rejected: CodecResult<never> = Object.freeze({ ok: false })
 
-/**
- * The codec of one rule, read and written by the shared engine. Reading first judges the tree, so
- * a duplicate key or a malformed node is rejected before any field is converted.
- */
 export function ruleCodec<const R extends Rule>(rule: R): Codec<RuleValue<R>> {
-  // The engine converts any rule; only this signature ties the value type to `R`.
   return engineCodec(rule) as Codec<RuleValue<R>>
 }
 

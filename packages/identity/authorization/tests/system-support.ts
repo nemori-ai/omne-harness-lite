@@ -1,5 +1,3 @@
-// Fixtures of the system action tests. The matrix below is an independent literal copy of the
-// rows of SPEC AU-12, so a change to the implementation table shows up as a failing comparison.
 import {
   noArguments,
   effectiveArgumentsOf,

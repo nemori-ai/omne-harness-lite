@@ -18,7 +18,6 @@ function matches(pattern: string, path: string): boolean {
   return new RegExp(`^${expression}$`, 'u').test(path)
 }
 
-/** Visit every owned node, including untracked files and empty directories. Never follow links. */
 export function checkLayout(root: string, member: string, rules: LayoutRules) {
   const tree: PackageScan['tree'][number][] = []
   const excludedDirectories: string[] = []

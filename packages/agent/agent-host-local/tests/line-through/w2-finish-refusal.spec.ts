@@ -5,11 +5,20 @@ import { openW2World, replyText } from './w2-world.ts'
 
 it('waits on Session pending input without replacing the completion candidate', async () => {
   let injected = false
+  const handIn = Promise.withResolvers<void>()
   const w = await openW2World({
     receptionTargets: 'journal',
     model: a => ({ parts: [replyText(`reply-${a.index}`, 'recovered answer')], reason: 'stop' }),
     wrapAgentDependencies: dependencies => ({
       ...dependencies,
+      handoff: {
+        ...dependencies.handoff,
+        async prepare(input) {
+          if (input.kind === 'submit' && String(input.request.reference.input) === 'in-2')
+            await handIn.promise
+          return dependencies.handoff.prepare(input)
+        },
+      },
       conditions: {
         read(input) {
           if (!injected) {
@@ -24,9 +33,16 @@ it('waits on Session pending input without replacing the completion candidate', 
   try {
     await w.createSession('finish-refusal')
     await w.runRound(1, 'recover this input', 10_000)
-    expect(await w.lastOutcome()).toBe('failed')
-    const failed = await w.execution()
-    await w.accept('in-2', 'another input while the first needs recovery')
+    const [failedEnd] = w.endedRuns()
+    expect(failedEnd).toMatchObject({ outcome: 'failed' })
+    if (failedEnd === undefined) throw new Error('the first Run did not end')
+    const failed = failedEnd.execution
+    expect(ok(await w.probe.readWork(intakeAccess))).toMatchObject({
+      awaitingPerson: true,
+      pending: ['in-1'],
+    })
+
+    await w.accept('in-2', 'another input after the failure')
     await w.until(() => w.modelCalls.length === 1 && w.releases() === 3, 10_000)
     const active = await w.execution()
     expect(active).not.toBe(failed)
@@ -44,10 +60,20 @@ it('waits on Session pending input without replacing the completion candidate', 
     expect(work.pending).toContain('in-2')
     expect(work.handed).not.toContain('in-2')
     expect(w.modelCalls).toHaveLength(1)
+
+    handIn.resolve()
+    await w.until(async () => ok(await w.fresh().load(access)).state.kind === 'ended', 10_000)
+    const ended = ok(await w.fresh().load(access))
+    expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
+    expect(ended.checkpoint.inputBatch?.ordered).toEqual(['in-2'])
+    expect(w.modelCalls).toHaveLength(2)
+    await w.until(async () => (await w.lastOutcome()) === 'completed', 10_000)
+    expect(ok(await w.probe.readWork(intakeAccess)).pending).toHaveLength(0)
     expect(ok(await w.fresh().load({ ...w.agentAccess, execution: failed })).state.kind).toBe(
       'ended',
     )
   } finally {
+    handIn.resolve()
     await w.close()
   }
 })

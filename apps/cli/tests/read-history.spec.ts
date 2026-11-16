@@ -3,9 +3,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { writeSessionOwners } from '@omne-harness/cli'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { commandMissing, commandUnrecognized, resultUncertain } from './support/expected.ts'
+import { commandMissing, commandUnrecognized } from './support/expected.ts'
 import {
   closedPort,
+  defaultAnswer,
   issuedProof,
   otherTenantText,
   sessionId,
@@ -83,23 +84,21 @@ interface PageBody {
   readonly entries: readonly unknown[]
   readonly next: string | null
   readonly exhausted: boolean
+  readonly upper: string
   readonly scannedThrough: string
 }
 const page = (entries: readonly unknown[], next: string | null): PageBody => ({
   entries,
   next,
   exhausted: next === null,
+  upper: '0',
   scannedThrough: '0',
 })
 
-/**
- * A service that serves `pages` for `read-history`. It answers like the public contract: a first
- * page request has `direction` and `pageBytes`, and a request with a cursor has neither.
- */
 function historyService(pages: readonly PageBody[], extra?: (seen: Seen) => Answer | undefined) {
   return (seen: Seen): Answer => {
-    const body = (seen.wire['body'] ?? {}) as Record<string, unknown>
-    if (seen.wire['operation'] !== 'read-history') return defaultFor(seen)
+    const { body } = seen
+    if (seen.operation !== 'read-history') return defaultAnswer(seen)
     const given = extra?.(seen)
     if (given !== undefined) return given
     const cursor = body['cursor']
@@ -111,19 +110,6 @@ function historyService(pages: readonly PageBody[], extra?: (seen: Seen) => Answ
     return found === undefined
       ? { outcome: 'invalid', body: {} }
       : { outcome: 'succeeded', body: found }
-  }
-}
-
-function defaultFor(seen: Seen): Answer {
-  const body = (seen.wire['body'] ?? {}) as Record<string, unknown>
-  return {
-    outcome: 'succeeded',
-    body: {
-      loginIdentifier: body['loginIdentifier'],
-      issuedAt: '2026-11-01T12:00:00Z',
-      tenantId: tenantText,
-      loginProof: issuedProof,
-    },
   }
 }
 
@@ -143,8 +129,8 @@ async function loginOwningSession(service: FakeService) {
 }
 
 const reads = (service: FakeService) =>
-  service.seen.filter(item => item.wire['operation'] === 'read-history')
-const bodyOf = (seen: Seen | undefined) => (seen?.wire['body'] ?? {}) as Record<string, unknown>
+  service.seen.filter(item => item.operation === 'read-history')
+const bodyOf = (seen: Seen | undefined) => (seen?.body ?? {}) as Record<string, unknown>
 
 describe('read-history', () => {
   describe('paging', () => {
@@ -187,7 +173,7 @@ describe('read-history', () => {
       const service = await serve(historyService(pages))
       await loginOwningSession(service)
       await cli(['read-history', '--session', sessionId])
-      const ids = reads(service).map(item => item.wire['messageId'])
+      const ids = reads(service).map(item => item.messageId)
       expect(new Set(ids).size).toBe(3)
     })
 
@@ -202,23 +188,16 @@ describe('read-history', () => {
     })
 
     it('shows a page request that carries direction or pageBytes as protocol-rejected (control of the service model)', async () => {
-      // The test service refuses a cursor page that carries the first-page fields, as the public
-      // contract does. This shows that the service model can tell the two request shapes apart,
-      // so the assertions on the CLI's second request above can fail.
       const service = await serve(historyService(pages))
-      const answer = await fetch(`${service.origin}/session-public/1`, {
+      const answer = await fetch(`${service.origin}/api/session/v1/read-history`, {
         method: 'POST',
+        headers: { 'omne-message-id': 'm' },
         body: JSON.stringify({
-          protocolVersion: 'session-public/1',
-          messageId: 'm',
-          operation: 'read-history',
-          body: {
-            tenant: tenantText,
-            session: sessionId,
-            cursor: 'cursor-1',
-            direction: 'forward',
-            pageBytes: '65536',
-          },
+          tenant: tenantText,
+          session: sessionId,
+          cursor: 'cursor-1',
+          direction: 'forward',
+          pageBytes: '65536',
         }),
       })
       expect(await answer.json()).toMatchObject({ outcome: 'protocol-rejected' })
@@ -226,15 +205,16 @@ describe('read-history', () => {
   })
 
   describe('request', () => {
-    it('sends to the session location with the proof and the owner tenant, not the selected one', async () => {
+    it('sends to the session protocol with the proof in the header and the owner tenant, not the selected one', async () => {
       const service = await serve(historyService([page([], null)]))
       await cli(['login', '--login-identifier', 'alice', '--server', service.origin])
       writeSessionOwners(state, new Map([[sessionId, otherTenantText]]))
       const result = await cli(['read-history', '--session', sessionId, '--json'])
       expect(result.code).toBe(0)
       const [sent] = reads(service)
-      expect(sent?.path).toBe('/session-public/1')
-      expect(sent?.wire).toMatchObject({ loginProof: issuedProof })
+      expect(sent?.path).toBe('/api/session/v1/read-history')
+      expect(sent?.headers['authorization']).toBe(`Bearer ${issuedProof}`)
+      expect(sent?.headers['omne-acting-tenant']).toBeUndefined()
       expect(bodyOf(sent)['tenant']).toBe(otherTenantText)
       expect(JSON.parse(result.stdout).request.tenant).toBe(otherTenantText)
     })
@@ -455,7 +435,7 @@ describe('read-history', () => {
       )
     })
 
-    it('exits 5 when the service is not running', async () => {
+    it('exits 4 when the service is not running, as nothing was sent', async () => {
       const service = await serve(historyService([page([], null)]))
       await loginOwningSession(service)
       const port = await closedPort()
@@ -467,10 +447,12 @@ describe('read-history', () => {
         '--server',
         `http://127.0.0.1:${port}`,
       ])
-      expect(result.code).toBe(5)
-      expect(result.stderr).toContain(resultUncertain('read-history'))
+      expect(result.code).toBe(4)
+      expect(result.stderr).toBe(
+        'omne read-history: history incomplete after 0 entries: page 1 was not sent: the service is unavailable\n',
+      )
       expect(JSON.parse(result.stdout)).toMatchObject({
-        result: 'uncertain',
+        result: 'unavailable',
         body: { entries: [], complete: false },
       })
     })
@@ -492,7 +474,7 @@ describe('read-history', () => {
       const service = await serve(
         historyService([], () => ({
           outcome: 'succeeded',
-          body: { entries: [], next: null, exhausted: false, scannedThrough: '0' },
+          body: { entries: [], next: null, exhausted: false, upper: '0', scannedThrough: '0' },
         })),
       )
       await loginOwningSession(service)
@@ -505,7 +487,7 @@ describe('read-history', () => {
       const service = await serve(
         historyService([], () => ({
           outcome: 'succeeded',
-          body: { entries: [], next: 'same', exhausted: false, scannedThrough: '0' },
+          body: { entries: [], next: 'same', exhausted: false, upper: '0', scannedThrough: '0' },
         })),
       )
       await loginOwningSession(service)

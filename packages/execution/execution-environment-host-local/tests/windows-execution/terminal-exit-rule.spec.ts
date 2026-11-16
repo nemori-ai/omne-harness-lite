@@ -1,5 +1,4 @@
 /** @module-tag slow */
-// Slow: it compiles the C# rule with the .NET Framework compiler and runs it in a process.
 import { execFile } from 'node:child_process'
 import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -8,9 +7,6 @@ import { promisify } from 'node:util'
 import { expect, it } from 'vitest'
 import { terminalExitRuleSource } from '../../src/windows-execution/terminal-native-source.ts'
 
-// Each case is one line for the harness. `code <exit|-> <succeeded 0|1> <lastExitCode|-> <kinds>`;
-// `added <head> <maximum> <records…>` with the records newest first, `#` for an object that is not an
-// ErrorRecord, and the head as an index into the records, `none`, or `gone` (left the list).
 const harness = String.raw`
 using System;
 using System.Collections;
@@ -33,7 +29,6 @@ public static class OmneExitRuleHarness {
 }
 `
 
-// The rows of the F3 table, then the edges of each rule.
 const codes: ReadonlyArray<readonly [string, string, string]> = [
   ['native success, standard error merged', 'code - 0 0 NativeOnly', '0'],
   ['native failure 3', 'code - 0 3 None', '3'],

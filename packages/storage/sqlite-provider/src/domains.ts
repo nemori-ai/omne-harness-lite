@@ -1,11 +1,3 @@
-// The domain state table of one provider generation (SPEC 5.2) and the control side of DO-1
-// (SPEC 5.3). A domain has no entry while it is absent or unopened. The first operation that
-// touches it starts the open, and operations that arrive meanwhile wait for the same outcome.
-//
-// States that this closure keeps: opening, ready, quarantined. `absent` and `unopened` are the
-// lack of an entry. `recovering` is not kept: the exit of a Worker is observed at once, so the
-// entry is dropped and the next touch runs path A again (write generation plus one). `draining`
-// and `closed` are the provider lifecycle, see `Lifecycle`.
 import { mkdir, rm, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { CloseLeasePort, SqlMaterialCatalog, StorageScope } from '@omne-harness/sql-contract'
@@ -17,18 +9,20 @@ import { WriterClient } from './writer-client.ts'
 
 export type Lifecycle = { closing: boolean }
 
-/** What the domain table needs from the close protocol (SPEC 13.4) and the read pool (SPEC 12.3). */
 export type CloseHooks = Readonly<{
   latch: ReportLatch
-  /** read-paused: no new read starts on the domain. `resume` ends it. */
   readGate: Readonly<{ pause(domain: string): void; resume(domain: string): void }>
+  readers: Readonly<{
+    count(): number
+    retireIdle(): Promise<void> | null
+    slotFreed(): void
+  }>
 }>
 
 type LiveWorker = {
   readonly domain: string
   readonly leaseName: string
   readonly client: WriterClient
-  /** Known when the registration names it, or after the open reply. */
   scope: StorageScope | null
 }
 
@@ -37,12 +31,12 @@ export type ReadyDomain = {
   readonly domain: string
   readonly client: WriterClient
   readonly scope: StorageScope
-  /** Participants that the schema check handles as singletons in this generation (SPEC 4.5). */
   readonly singletons: readonly string[]
   readonly leaseName: string
-  /** The WAL state that the Worker reports (SPEC 12.3). `write-stopped` refuses new writes. */
   readonly wal: { state: WalState }
 }
+
+export type VerifiedDomain = Readonly<{ domain: string; scope: StorageScope }>
 
 type OpeningDomain = {
   readonly state: 'opening'
@@ -54,10 +48,6 @@ type QuarantinedDomain = { readonly state: 'quarantined'; readonly diagnostic: s
 type Entry = ReadyDomain | OpeningDomain | QuarantinedDomain
 
 export type OpenOutcome =
-  /**
-   * `created` is the registration that this open wrote with the binding (path B), else null. A
-   * caller with a registration that gets null still runs the Worker-side steps (SPEC 6.2 step 9).
-   */
   | Readonly<{ kind: 'ready'; entry: ReadyDomain; created: RegistrationSpec | null }>
   | Readonly<{ kind: 'absent' }>
   | Readonly<{ kind: 'quarantined'; diagnostic: string }>
@@ -69,14 +59,22 @@ const hex = (text: string): string => Buffer.from(text, 'utf8').toString('hex')
 
 let providerCounter = 0
 
-async function exists(file: string): Promise<boolean> {
+type Presence = Readonly<{ kind: 'present' | 'missing' | 'unknown'; file: string }>
+
+/** A file that was seen missing before an open began. Only such a file may be removed again. */
+type SeenMissing = Presence & Readonly<{ kind: 'missing' }>
+
+async function presence(file: string): Promise<Presence> {
   try {
     await stat(file)
-    return true
-  } catch {
-    return false
+    return { kind: 'present', file }
+  } catch (error) {
+    const missing = (error as { code?: unknown } | null)?.code === 'ENOENT'
+    return { kind: missing ? 'missing' : 'unknown', file }
   }
 }
+
+const seenMissing = (seen: Presence): seen is SeenMissing => seen.kind === 'missing'
 
 export class Domains {
   private readonly entries = new Map<string, Entry>()
@@ -86,9 +84,14 @@ export class Domains {
   private readonly lifecycle: Lifecycle
   private readonly hooks: CloseHooks
   private readonly providerGeneration: number
-  /** Write Workers whose exit was not observed yet, by lease name. */
   private readonly workers = new Map<string, LiveWorker>()
   private workerGeneration = 0
+  private reserved = 0
+  private readonly holds = new Map<string, number>()
+  private readonly lastHeld = new Map<string, number>()
+  private holdClock = 0
+  private readonly departing = new Map<string, Promise<void>>()
+  private readonly verified = new Map<string, VerifiedDomain>()
 
   constructor(
     config: SqliteStorageConfig,
@@ -106,32 +109,87 @@ export class Domains {
     this.providerGeneration = providerCounter
   }
 
-  /** The domain file as a real path, the same form that the writer claim keys (SPEC 13.5). */
   fileOf(domain: string): string {
     return canonicalFile(join(this.config.storageRoot, 'domains', `${hex(domain)}.sqlite`))
   }
 
-  /** Admits the lease of a read Worker (SPEC 13.2). Throws when the assembly stopped admission. */
   admitReader(domain: string, generation: number): { name: string; lease: object } {
     const name = `storage/${String(this.providerGeneration)}/reader/${hex(domain)}.sqlite/${String(generation)}`
     return { name, lease: this.leases.admit(name) }
   }
 
-  /** Returns a lease after the exit of its Worker was observed. */
   releaseLease(lease: object): void {
     this.hooks.latch.release(() => this.leases.release(lease))
   }
 
-  /** The ready domain right now, without waiting. Operations send at once when it exists. */
+  hold(domain: string): () => void {
+    this.holds.set(domain, (this.holds.get(domain) ?? 0) + 1)
+    this.holdClock += 1
+    this.lastHeld.set(domain, this.holdClock)
+    let held = true
+    return () => {
+      if (!held) return
+      held = false
+      const left = (this.holds.get(domain) ?? 1) - 1
+      if (left > 0) this.holds.set(domain, left)
+      else this.holds.delete(domain)
+    }
+  }
+
+  writerSlots(): number {
+    return this.workers.size + this.reserved
+  }
+
+  yieldIdle(except: string | null): Promise<void> | null {
+    const leaving = this.departing.values().next()
+    if (leaving.done !== true) return leaving.value
+    let victim: ReadyDomain | null = null
+    let oldest = Number.POSITIVE_INFINITY
+    for (const entry of this.entries.values()) {
+      if (entry.state !== 'ready' || entry.domain === except) continue
+      if (this.holds.has(entry.domain) || entry.wal.state !== 'normal') continue
+      const at = this.lastHeld.get(entry.domain) ?? 0
+      if (at < oldest) {
+        victim = entry
+        oldest = at
+      }
+    }
+    if (victim === null) return null
+    const { domain, client } = victim
+    this.entries.delete(domain)
+    this.lastHeld.delete(domain)
+    const gone = client.close().then(() => {
+      if (this.departing.get(domain) === gone) this.departing.delete(domain)
+    })
+    this.departing.set(domain, gone)
+    return gone
+  }
+
+  private async takeSlot(domain: string): Promise<boolean> {
+    for (;;) {
+      if (this.lifecycle.closing) return false
+      if (this.writerSlots() + this.hooks.readers.count() < this.config.maxWorkers) {
+        this.reserved += 1
+        return true
+      }
+      const room =
+        this.departing.values().next().value ??
+        this.hooks.readers.retireIdle() ??
+        this.yieldIdle(domain)
+      if (room === null) return false
+      await room
+    }
+  }
+
+  readable(domain: string): VerifiedDomain | null {
+    return this.lifecycle.closing ? null : (this.verified.get(domain) ?? null)
+  }
+
   peekReady(domain: string): ReadyDomain | null {
     const entry = this.entries.get(domain)
     return entry?.state === 'ready' && !this.lifecycle.closing ? entry : null
   }
 
-  /**
-   * Makes the domain ready, opening it if needed. With `create`, an absent domain is created with
-   * that registration (path B). `commit`, `query` and `read` pass null and never create a file.
-   */
   async ensure(domain: string, create: RegistrationSpec | null): Promise<OpenOutcome> {
     for (;;) {
       if (this.lifecycle.closing) return { kind: 'closing' }
@@ -146,10 +204,10 @@ export class Domains {
     }
   }
 
-  /** Marks a ready domain quarantined, for example when a Worker finds a material mismatch. */
   quarantine(entry: ReadyDomain, diagnostic: string): void {
     if (this.entries.get(entry.domain) === entry)
       this.entries.set(entry.domain, { state: 'quarantined', diagnostic })
+    this.verified.delete(entry.domain)
     void entry.client.close()
   }
 
@@ -161,10 +219,15 @@ export class Domains {
   }
 
   private async open(domain: string, create: RegistrationSpec | null): Promise<OpenOutcome> {
+    await this.departing.get(domain)
     const file = this.fileOf(domain)
-    const existed = await exists(file)
+    const before = await presence(file)
     const forget = (): void => void this.entries.delete(domain)
-    if (!existed && create === null) {
+    if (before.kind === 'unknown') {
+      forget()
+      return { kind: 'failed', diagnostic: 'domain_presence_unknown' }
+    }
+    if (before.kind === 'missing' && create === null) {
       forget()
       return { kind: 'absent' }
     }
@@ -172,9 +235,21 @@ export class Domains {
       forget()
       return { kind: 'closing' }
     }
+    if (!(await this.takeSlot(domain))) {
+      forget()
+      return this.lifecycle.closing
+        ? { kind: 'closing' }
+        : { kind: 'failed', diagnostic: 'no_worker_slot' }
+    }
+    let slotReserved = true
+    const settleSlot = (): void => {
+      if (!slotReserved) return
+      slotReserved = false
+      this.reserved -= 1
+    }
     const claim = claimWriter(file, this.providerGeneration)
     if (claim === null) {
-      // Another generation still has a write Worker on this file (SPEC 13.5): a transient fault.
+      settleSlot()
       forget()
       return { kind: 'failed', diagnostic: 'writer_claim_held' }
     }
@@ -185,6 +260,7 @@ export class Domains {
       lease = this.leases.admit(leaseName)
     } catch {
       this.lifecycle.closing = true
+      settleSlot()
       releaseWriter(claim)
       forget()
       return { kind: 'closing' }
@@ -217,7 +293,6 @@ export class Domains {
           generation: this.workerGeneration,
         },
         () => {
-          // Unexpected exit: the next touch opens the domain again (SPEC 5.2, recovering).
           const current = this.entries.get(domain)
           if (current?.state === 'ready' && current.client === started) this.entries.delete(domain)
         },
@@ -232,20 +307,23 @@ export class Domains {
       claim.client = started
       const live: LiveWorker = { domain, leaseName, client: started, scope: create?.scope ?? null }
       this.workers.set(leaseName, live)
+      settleSlot()
       void started.exited.then(() => {
         this.workers.delete(leaseName)
         releaseWriter(claim)
         this.hooks.latch.release(() => this.leases.release(lease))
+        this.hooks.readers.slotFreed()
       })
       reply = await started.request<OpenReply>({ kind: 'open', create })
     } catch {
+      settleSlot()
       forget()
       if (client !== null) await client.close()
       else {
         releaseWriter(claim)
         this.leases.release(lease)
       }
-      if (!existed) await this.removeFiles(file)
+      if (seenMissing(before)) await this.removeCreated(before)
       return { kind: 'failed', diagnostic: 'worker_unavailable' }
     }
     if (reply.kind === 'ready' && client !== null) {
@@ -261,34 +339,28 @@ export class Domains {
       const live = this.workers.get(leaseName)
       if (live !== undefined) live.scope = reply.scope
       this.entries.set(domain, entry)
-      // A file that held a binding was opened through path A: the registration was not written.
+      if (!this.verified.has(domain)) this.verified.set(domain, { domain, scope: reply.scope })
       return { kind: 'ready', entry, created: reply.created ? create : null }
     }
     await client?.close()
     if (reply.kind === 'quarantined') {
+      this.verified.delete(domain)
       this.entries.set(domain, { state: 'quarantined', diagnostic: reply.diagnostic })
       return { kind: 'quarantined', diagnostic: reply.diagnostic }
     }
     forget()
-    // A domain that this open created and that holds no binding is absent again.
-    if (!existed) await this.removeFiles(file)
+    if (seenMissing(before)) await this.removeCreated(before)
     if (reply.kind === 'absent') return { kind: 'absent' }
     if (reply.kind === 'unknown') return { kind: 'unknown', diagnostic: reply.diagnostic }
     if (reply.kind === 'ready') return { kind: 'failed', diagnostic: 'worker_unavailable' }
     return { kind: 'failed', diagnostic: reply.diagnostic }
   }
 
-  private async removeFiles(file: string): Promise<void> {
+  private async removeCreated({ file }: SeenMissing): Promise<void> {
     for (const suffix of ['', '-wal', '-shm', '-journal'])
       await rm(`${file}${suffix}`, { force: true }).catch(() => undefined)
   }
 
-  /**
-   * Closes every Worker. In-flight requests finish first: the close message queues behind them.
-   * Resolves when the exit of every write Worker was observed, whatever the state of its domain
-   * entry: a quarantined domain or a failed open can leave a Worker that is still ending (SPEC 13.3
-   * step 5).
-   */
   async closeAll(): Promise<void> {
     const closing: Promise<void>[] = []
     for (const entry of Array.from(this.entries.values())) {
@@ -304,15 +376,6 @@ export class Domains {
     await Promise.all([...this.workers.values()].map(worker => worker.client.exited))
   }
 
-  /** Write Workers whose exit was not observed yet: they still hold a Worker slot (SPEC 12.2). */
-  liveWriterCount(): number {
-    return this.workers.size
-  }
-
-  /**
-   * Write Workers that have not exited, for the residuals of an incomplete close. A Worker that is
-   * still opening an existing file has no scope yet, and is not listed.
-   */
   residualWorkers(): readonly (LiveWorker & { scope: StorageScope })[] {
     return [...this.workers.values()].filter(
       (worker): worker is LiveWorker & { scope: StorageScope } => worker.scope !== null,

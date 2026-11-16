@@ -1,14 +1,3 @@
-// The `session-handoff` row (B1, R2-D136): the J06 message admission plugin of session-adapters
-// (`createSessionMessageHandoffPlugin`), which provides `agentMessageHandoff`. Its admission records
-// go to the `er_preadmission` table of the execution-record participant of the session log, so it
-// injects the trusted `storage` and `tenantDomainLookup`, plus `agentAccessCheck` and `session` as
-// `coordinator`. Construction inputs (runtime objects, not configuration): the coordinator
-// principal source over the trusted `sessionWorkPrincipals`; the stable identity text of a caller
-// that the record keeps (the two principal shapes of identity, never a credential); and the adoption
-// that names this provider in every outcome.
-//
-// Configuration (release data): the session log combination that the records commit under, the
-// same `combinationVersion` and `manifestDigest` as the `agent-journal` row.
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import {
   agentAccessCheckKey,
@@ -23,7 +12,6 @@ import { z } from 'zod'
 import { defineRow } from '../../row.ts'
 import { coordinatorPrincipalsOf } from '../session-adapters/coordinator.ts'
 
-/** The adopted implementation of the provider, named in every outcome. */
 export const MESSAGE_HANDOFF_PROVIDER = Object.freeze({
   owner: '@omne-harness/session-adapters',
   name: 'message-handoff',
@@ -38,11 +26,6 @@ export const sessionHandoffConfig = z.strictObject({
 })
 export type SessionHandoffConfig = z.output<typeof sessionHandoffConfig>
 
-/**
- * The stable identity text of a principal for the admission record: the component of a system
- * principal, or the component, tenant and work of an acting principal. A value that is not one of
- * the two shapes has no identity; the record keeps a marker, never the value.
- */
 export function principalIdentityOf(principal: unknown): string {
   const value = principal as Principal | null | undefined
   if (value?.kind === 'system') return `system:${value.component}`

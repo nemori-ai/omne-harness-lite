@@ -1,5 +1,3 @@
-// The write path and the operation lookups (SPEC SL07, SL09, W1, R7, XC-INTERRUPT, XC-MODELSEL)
-// on the real participant, reached through the public port only.
 import { describe, expect, it } from 'vitest'
 import type { RunId, SessionCommand } from '@omne-harness/session-contract'
 import { evidence, operationId, sessionId } from '@omne-harness/session-contract/testing'
@@ -303,14 +301,12 @@ describe('queryOperation', () => {
     )
   })
 
-  it('an operation without a receipt is asked of the storage under its original identity and is unknown, not not-committed (R7)', async () => {
+  it('an operation without a receipt is asked of the storage under its original identity and is unknown, not not-committed', async () => {
     const a = await started()
     const mark = a.provider.calls.length
     const resolved = ok<{ kind: string; exclusion?: { owner: string } }>(
       await a.port.queryOperation({ ...a.access(TENANT_A), operation: operationId('never') }),
     )
-    // The entry that tells a participating operation from a Session operation is absent (R7), so a
-    // clean generation 1 is not proof that the operation was never committed.
     expect(resolved.kind).toBe('unknown')
     expect(resolved.exclusion).toBeUndefined()
     const asked = a.provider.calls.slice(mark).filter(call => call.kind === 'query')

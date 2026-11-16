@@ -1,7 +1,4 @@
 import { SESSION_ORDINARY_BASIS, sessionCommitCommands } from './commit-basis.ts'
-// The write path (SQL r2 section 17): `commit`, `commitEntries` and the original-receipt lookup go
-// through the storage commit, the `session` participant. The response evidence of a rollback keeps
-// the original failure basis, so no failure is recomputed outside the transaction.
 import { createHash, randomUUID } from 'node:crypto'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
@@ -32,13 +29,8 @@ import {
 } from '@omne-harness/sql-contract'
 import { canonicalText, decodeValue, encodeValue } from './codec.ts'
 import { OWNER } from './cursor.ts'
-import {
-  SESSION_PARTICIPANT,
-  decodeSessionReply,
-  sessionCommandFacts,
-  type SessionWorkReply,
-} from './participants.ts'
-import { foldCommitted } from './work-cache.ts'
+import { SESSION_PARTICIPANT, decodeSessionReply, sessionCommandFacts } from './participants.ts'
+import { afterSessionCommit } from './committed.ts'
 import {
   domainOf,
   failure,
@@ -49,17 +41,12 @@ import {
 } from './context.ts'
 import type { SessionProtectedBasisSource, SessionProtectedCommit } from './protected-basis.ts'
 
-/**
- * What a committed answer must match: the operation identity and the digest of its input. Another
- * digest under the same identity is another operation (SL07).
- */
 export type Expected = Readonly<{ operation: SessionOperationId; digest: string }>
 type Found = Readonly<{
   kind: 'operation'
   form: string
   receipt: JsonValue
   result: JsonValue
-  /** The access evidence stored with the record; null when its commit carried none. */
   evidence: JsonValue
 }>
 type Rest = Awaited<ReturnType<typeof exclusion>>
@@ -72,18 +59,14 @@ const identityOf = (domain: TenantDomainRef, operation: string, key: string): Sq
   operationKey: key,
 })
 
-/** What a storage commit adds to its identity: the combination and the complete command set. */
 type Submission = Omit<CommitRequestV2, 'identity'>
-/** Forms the submission of one delivery, after the storage said that no delivery is committed. */
 type Submit = () => Promise<Outcome<Submission, SessionFailure>>
 
-/** The registered combination with the ordinary basis producer. It needs nothing outside. */
 const ordinaryOf = <P>(context: Context<P>, command: FactCommandV2): Submission => ({
   ...context.options.combination,
   commands: sessionCommitCommands([command]),
 })
 
-/** The combination and the producer commands that the protected source forms for this delivery. */
 function protectedSubmission<P>(
   source: SessionProtectedBasisSource<P>,
   commit: SessionProtectedCommit<P>,
@@ -121,7 +104,6 @@ const sessionFacts = (facts: Readonly<Record<string, JsonValue>>): FactCommandV2
   facts,
 })
 
-/** A recalled result says so: the receipt inside it, or the receipt it is, carries `recovered`. */
 function markRecovered(value: unknown): unknown {
   if (typeof value !== 'object' || value === null) return value
   const record = value as Record<string, unknown>
@@ -133,18 +115,13 @@ function markRecovered(value: unknown): unknown {
   return value
 }
 
-/** How a recalled result says it is a recall. */
 export type Recall = (value: unknown) => unknown
-
-/** Takes the work of a fresh committed reply (SPEC RT-04): never one of a recall. */
-type OnWork = (work: SessionWorkReply) => void
 
 function fromCommitted(
   receipt: ReceiptV2,
   expected: Expected,
   recall: boolean,
   mark: Recall = markRecovered,
-  onWork?: OnWork,
 ): Outcome<unknown, SessionFailure> {
   const entry = receipt.responses.find(item => item.participant === SESSION_PARTICIPANT)
   if (entry?.reply.kind !== 'participated')
@@ -154,7 +131,6 @@ function fromCommitted(
   if (answer.digest !== expected.digest)
     return failure({ kind: 'conflict', operation: expected.operation })
   if (recall || answer.recovered) return succeed(mark(answer.result))
-  if (answer.work !== undefined) onWork?.(answer.work)
   return succeed(answer.result)
 }
 
@@ -173,9 +149,6 @@ function fromRolledBack(receipt: ReceiptV2): Outcome<never, SessionFailure> {
         reason: 'the participant does not support the facts',
       })
     case 'failed':
-      // The participant reports only temporary failures; a definite one is a conflict. Every other
-      // category is decided by the provider from the input and the committed data, so the same
-      // operation fails the same way (W1 step 9, sql-contract §7.6).
       return stop.kind === 'failed' && stop.category !== 'participant_reported'
         ? failure({ kind: 'invalid', field: 'storage', reason: stop.category })
         : failure(unavailable(`participant failed (${decoded.diagnostic})`))
@@ -188,15 +161,10 @@ function fromResult(
   result: CommitResultV2,
   expected: Expected,
   mark: Recall,
-  onWork: OnWork,
 ): Outcome<unknown, SessionFailure> | 'next-attempt' {
   switch (result.kind) {
-    // A recalled receipt is the receipt of an earlier call (sql-contract §8, model
-    // `RecallAtCommit`): a committed one is recognised, a rolled back one spends the generation.
     case 'committed':
-      return result.recalled
-        ? fromCommitted(result, expected, true, mark)
-        : fromCommitted(result, expected, false, mark, onWork)
+      return fromCommitted(result, expected, result.recalled, mark)
     case 'rolled_back':
       return result.recalled ? 'next-attempt' : fromRolledBack(result)
     case 'unknown':
@@ -214,18 +182,9 @@ function fromResult(
   }
 }
 
-/**
- * The process memory of one storage operation's generations: tenant, domain, session and
- * operation, as the identity of a generation names them.
- */
 const generationKey = (domain: TenantDomainRef, session: string, operation: string): string =>
   JSON.stringify([domain.text, domain.domain.transactionDomain, session, operation])
 
-/**
- * Notes what generation `attempt` of `key` turned out to be (SPEC W1 attempts, step 3). A rolled
- * back generation stays rolled back, so the next search starts after it; a committed operation is
- * forgotten. An unknown generation is asked again.
- */
 function saw(
   generations: Map<string, number>,
   key: string,
@@ -237,14 +196,11 @@ function saw(
     generations.set(key, attempt)
 }
 
-/** A generation of one storage operation, as the storage receipts place it (SPEC W1 attempts). */
 type Generation =
   | Readonly<{ kind: 'committed'; receipt: ReceiptV2 }>
   | Readonly<{ kind: 'unknown' }>
-  /** Every earlier generation is rolled back and this one is not used. */
   | Readonly<{ kind: 'open'; attempt: number; identity: SqlIdentity }>
 
-/** Walks the generations of one operation from `from`: the committed one, or the first open one. */
 async function generationFrom<P>(
   context: Context<P>,
   domain: TenantDomainRef,
@@ -264,18 +220,23 @@ async function generationFrom<P>(
   }
 }
 
-/**
- * Commits the participant facts of one operation of `session` in the tenant domain. The attempt
- * generation is chosen by the storage receipts: a generation is used only when every earlier one is
- * a rolled back receipt, so an older attempt can never take effect beside a newer one (SPEC W1).
- * `mark` says of a recalled result that it is a recall; the default fits a batch or control result.
- * `submit` forms the combination and the commands when a basis source must be asked; without it
- * the commit uses the ordinary basis and is sent without a query first. A source is asked only
- * when no delivery of the operation is committed. When it fails, the receipts are asked once more,
- * so a delivery that committed meanwhile is recalled and is not answered with that failure.
- * A fresh committed batch is folded into the work cache before the answer returns (SPEC RT-04); a
- * fold that cannot be made registers nothing and never changes the answer.
- */
+export async function withCommitTime<P>(
+  context: Context<P>,
+  command: FactCommandV2,
+): Promise<FactCommandV2> {
+  const { clock } = context.options
+  if (clock === undefined) return command
+  let at: string
+  try {
+    const sample = await clock.sample()
+    if ('failure' in sample) return command
+    at = sample.ok.at
+  } catch {
+    return command
+  }
+  return { ...command, facts: { ...command.facts, at } }
+}
+
 export async function commitFacts<P>(
   context: Context<P>,
   domain: TenantDomainRef,
@@ -290,20 +251,13 @@ export async function commitFacts<P>(
   const { generations } = context
   const key = generationKey(domain, session, operation)
   const unknown = failure({ kind: 'commit-unknown', operation })
-  // No bound: every refusal of the participant, `changed` included, rolls back and uses up a
-  // generation, and the caller comes again with the same operation (SPEC W1 attempts).
   for (let attempt = (generations.get(key) ?? 0) + 1; ; attempt += 1) {
     let identity: SqlIdentity
     let submission: Submission
     if (submit === undefined) {
-      // The ordinary basis asks no one, so the commit is sent without a query first: the storage
-      // recognises an earlier receipt of the identity before it runs anything, and the answer
-      // says so (sql-contract 认回标记). A recalled rollback spends the generation.
       identity = identityOf(domain, operation, JSON.stringify([session, operation, attempt]))
       submission = ordinaryOf(context, command)
     } else {
-      // A basis source is asked only when no delivery of the operation is committed, and the
-      // receipts are asked once more when it fails (model `SessionPermissionWrite`).
       const slot = await generationFrom(context, domain, session, operation, attempt)
       if (slot.kind === 'committed') return fromCommitted(slot.receipt, expected, true, mark)
       if (slot.kind === 'unknown') return unknown
@@ -317,31 +271,24 @@ export async function commitFacts<P>(
       identity = slot.identity
       submission = asked.ok
     }
-    let work: SessionWorkReply | undefined
     const result = await storage.commit({ identity, ...submission })
     if (result.kind === 'committed' || result.kind === 'rolled_back')
       saw(generations, key, attempt, result.kind)
     else if (result.kind === 'identity_conflict')
       saw(generations, key, attempt, result.existing.kind)
-    const settled = fromResult(result, expected, mark, fresh => {
-      work = fresh
+    const settled = fromResult(result, expected, mark)
+    await afterSessionCommit({
+      storage,
+      domain: domain.domain,
+      tenant: domain.text,
+      session,
+      answer: result.kind === 'committed' ? { receipt: result, recalled: result.recalled } : null,
+      ...(context.options.workCache === undefined ? {} : { bounds: context.options.workCache }),
     })
-    if (work !== undefined)
-      await foldCommitted(
-        {
-          storage,
-          domain: domain.domain,
-          tenant: domain.text,
-          session,
-          ...(context.options.workCache === undefined ? {} : { bounds: context.options.workCache }),
-        },
-        work,
-      )
     if (settled !== 'next-attempt') return settled
   }
 }
 
-/** Commits one command under the explicit access of this call. */
 export async function commit<P, K extends MutationName>(
   context: Context<P>,
   input: Readonly<{
@@ -360,15 +307,12 @@ export async function commit<P, K extends MutationName>(
     return failure({ kind: 'denied', action: command.kind })
   const allowed = await context.access(mutationAccessRequest(access, command))
   if ('failure' in allowed) return allowed
-  // A Tool target is refused before any identity, session or storage lookup (SPEC XC-INTERRUPT).
   if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
     return failure({ kind: 'unsupported' })
   const domain = await domainOf(context, command.input.tenant)
   if ('failure' in domain) return domain
   let facts: FactCommandV2
   try {
-    // The allowed decision goes into the facts, so the participant writes it with the operation
-    // record in the same transaction (session-contract SPEC「当前操作的访问裁定」).
     const base = sessionCommandFacts(command, input.guards, context.intakeLimits)
     facts = { ...base, facts: { ...base.facts, evidence: encodeValue(allowed.ok.evidence) } }
   } catch (error) {
@@ -378,6 +322,7 @@ export async function commit<P, K extends MutationName>(
       reason: error instanceof Error ? error.message : 'not JSON data',
     })
   }
+  facts = await withCommitTime(context, facts)
   const expected = { operation: command.input.operation, digest: commandDigest(command) }
   const source = context.options.protectedBasis
   if (
@@ -386,7 +331,6 @@ export async function commit<P, K extends MutationName>(
     command.input.declaration.kind !== 'permission-assignment'
   )
     return commitFacts(context, domain.ok, command.input.session, expected, facts)
-  // The basis of a permission assignment comes from the protected source (docs/commit-basis.md).
   const qualification = allowed.ok.writeQualification
   if (qualification === undefined) return failure({ kind: 'denied', action: command.kind })
   return commitFacts(
@@ -400,10 +344,6 @@ export async function commit<P, K extends MutationName>(
   )
 }
 
-/**
- * The write-path lookup of the original receipt, in the transaction domain that owns it. The
- * lookup writes nothing and nobody recalls it, so it keeps no receipt of its own (sql-contract §3.1).
- */
 async function lookup<P>(
   context: Context<P>,
   domain: TenantDomainRef,
@@ -411,7 +351,6 @@ async function lookup<P>(
   operation: SessionOperationId,
   action: string,
 ): Promise<Outcome<Found | null, SessionFailure>> {
-  // The lookup keeps no receipt: no caller recalls it (sql-contract §3.1).
   const identity: SqlIdentity = {
     ...identityOf(domain, 'session.lookup', `lookup#${operation}#${randomUUID()}`),
     recall: 'never',
@@ -433,11 +372,6 @@ async function lookup<P>(
   return succeed(answer.kind === 'operation' ? (answer as Found) : null)
 }
 
-/**
- * True when the attempt left no record of its own identity and says so: a log commit that recalled
- * the interpretation of another operation (committed), or that the pure layer refused (rolled
- * back). Such an identity stays unknown, as in the memory pair, and is not a rejected attempt.
- */
 function leftNoRecord(receipt: ReceiptV2): boolean {
   const reply = receipt.responses.find(item => item.participant === SESSION_PARTICIPANT)?.reply
   const said =
@@ -454,7 +388,6 @@ function leftNoRecord(receipt: ReceiptV2): boolean {
   )
 }
 
-/** An original that has no receipt: ask the storage about every attempt generation (SPEC R7). */
 async function exclusion<P>(
   context: Context<P>,
   domain: TenantDomainRef,
@@ -467,8 +400,6 @@ async function exclusion<P>(
   | Readonly<{ kind: 'committed-unseen' }>
 > {
   let rolledBack = false
-  // From `#1` and without a bound: generation 1 tells not-committed from attempt-rejected, and the
-  // rolled back generations are finite, so the search always stops (SPEC R7).
   for (let attempt = 1; ; attempt += 1) {
     const found = await context.options.storage.query(
       identityOf(domain, operation, JSON.stringify([session, operation, attempt])),
@@ -514,12 +445,6 @@ async function resolve<P>(
 
 type Unfound = ControlOperationResolution & OperationResolution
 
-/**
- * R7: the entry that tells a participating operation from a Session operation is missing, so a
- * clean generation 1 never proves the operation was not committed (a participating operation
- * never uses this storage identity). It answers `unknown`. Only a rolled back later generation
- * is `attempt-rejected`, and that answer is for `queryOperation` only.
- */
 function unfound(rest: Rest, control: boolean): Outcome<Unfound, SessionFailure> {
   switch (rest.kind) {
     case 'committed-unseen':
@@ -546,8 +471,6 @@ export async function queryOperation<P>(
   if ('failure' in looked) return looked
   const { found, rest } = looked.ok
   if (found === null) return unfound(rest as Rest, false)
-  // A control identity is not a batch identity (SL07). An entries record has a batch receipt. A
-  // log record has neither: a caller of unknown outcome retries `commitLog` with the same identity.
   if (found.form === 'control' || found.form === 'answer' || found.form === 'log')
     return failure({ kind: 'conflict', operation: input.operation })
   return succeed({ kind: 'committed', receipt: decodeValue(found.receipt) as CommitReceipt })

@@ -47,8 +47,6 @@ function minted(account: string): TenantId {
   if (!result.ok) throw new Error('Invalid tenant fixture')
   return result.value
 }
-// Decoded fixtures, minted tenants included, are built inside each test, so a decoder fault
-// fails that test rather than the module load or the collection.
 const tenant = () => minted('0')
 const foreign = () => minted('1')
 const callId = () => must(decodeModelCallId('mcall_a'))
@@ -296,7 +294,6 @@ describe('reference, identity and source checks', () => {
   )
 
   it('carries no tenant in a reference, so the value of another tenant is the same text', () => {
-    // R2-D357: the tenant comes from the caller and its store partition, not from the text.
     expect(reference('str_a', foreign())).toBe(reference('str_a'))
   })
 

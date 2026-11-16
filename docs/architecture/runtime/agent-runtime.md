@@ -2,8 +2,6 @@
 
 Agent Loop 根据显式工作事实和当下条件求出下一步。会话路径由 Session 适配器提供这些事实。Agent runtime 执行这个决定，发起调用，并从工作日志取得模型结果及处理进度。工具结果继续按自身交接协议承接。Loop 规则没有实例寿命；Agent runtime 可以退出或替换，原 Run 和它调用的执行不因此结束。
 
-状态：已接受的目标架构。契约类型与 Cordis 服务定义已在 [agent-contract](../../../packages/agent/agent-contract/src/index.ts) 与 [agent-cordis-contract](../../../packages/agent/agent-cordis-contract/src/cordis.ts) 实现。Loop、runtime 与提供者尚未实现。Session、Run 和 attempt 的身份及推进权归[会话治理](session-and-run.md)，扩展的详细规则归[Loop extensions](loop-extensions.md)。
-
 <a id="h1-agent-reassembly"></a>
 ## 可随时重装配的运行实例
 
@@ -25,7 +23,7 @@ Agent runtime 可在一次工作完成后保持空闲和注册，后续执行复
 
 Session 拥有 Run 及 attempt，外部适配器保存 Run/execution 和 attempt/execution attachment/runtime 的关联。Agent 条件性结束本域执行。会话专用提供者把 Session 输入受理、当前输入/等待/控制核验及普通 Run 终结纳入同一提交边界；已受理而通知延迟的输入不能遗漏。事件流结束或 Agent 对象退出不代替 Run 终态。Run 已完成不强制注销空闲 Agent，也不自动取消独立 Model/Tool 工作。
 
-具体 OOP、接口及状态归 [Agent 对象模型](../../../packages/agent/agent-contract/docs/object-model.md)。独立调用者提供合格的本域持久和准入依赖，不虚构 Session/Run，也无需返回完成批准；系统路径仍兑现 Session 的唯一推进和终态规则。
+具体 OOP、接口及状态归 [Agent 对象模型](../../../packages/agent/SPEC.md#领域边界)。独立调用者提供合格的本域持久和准入依赖，不虚构 Session/Run，也无需返回完成批准；系统路径仍兑现 Session 的唯一推进和终态规则。
 
 ## 一轮推进
 
@@ -72,7 +70,7 @@ step 用于标识一次 Loop 推进单元，不能替代实际调用身份。同
 
 ### 完成条件与终态
 
-Agent 执行满足候选条件时，执行终态前扩展。会话路径将该候选关联到原 Run，终结协议由 Agent SPEC 的[条件终结](../../../packages/agent/agent-contract/SPEC.md#条件终结)与[提交参加者协议](../../../packages/agent/agent-contract/SPEC.md#提交参加者协议)细化。扩展可要求继续、等待或否决完成候选或失败候选。取消候选不经过这些扩展，由系统的受信只读核对决定 Agent 能否结束这次执行，规则见 Agent SPEC 的[取消判断与路线](../../../packages/agent/agent-contract/SPEC.md#取消判断与路线)。只有实际记录的终态才生效，随后执行终态后扩展。后置扩展不能撤销已成立的终态。
+Agent 执行满足候选条件时，执行终态前扩展。会话路径将该候选关联到原 Run，终结协议由 Agent SPEC 的[条件终结](../../../packages/agent/SPEC.md#终结)与[提交参加者协议](../../../packages/agent/SPEC.md#提交认回与未知)细化。扩展可要求继续、等待或否决完成候选或失败候选。取消候选不经过这些扩展，由系统的受信只读核对决定 Agent 能否结束这次执行，规则见 Agent SPEC 的[取消判断与路线](../../../packages/agent/SPEC.md#控制与取消)。只有实际记录的终态才生效，随后执行终态后扩展。后置扩展不能撤销已成立的终态。
 
 失败和取消也经过适用的终态路径，不能由普通消息冒充。终态后禁止发起新的工作，迟到结果与费用仍可记录。真实收场、逻辑终态、结果消费及资源清理分别判断。
 
@@ -93,8 +91,4 @@ Agent 执行满足候选条件时，执行终态前扩展。会话路径将该�
 
 Loop 读取有类型的推进事实，不解码 Model/Tool 内部状态或读取 Session 治理对象。效果协调者关联原调用与控制，并从日志投影模型的真实收场和处理进度。Agent 对 Model 的实时调用只有 `admit` 与 `cancel`，其余模型事实经日志到达。Model 的观察与读取操作由 Agent 外侧的观察者使用，恢复时取回账目的 dispatches 由结果接收方使用。结果接收方是 Agent 外侧的角色，由 Agent 宿主装配并常驻，不是 Agent 实例，不随 Agent 实例重装配丢失状态。结果接收方保存模型结果后返回 saved，Model 以原 evidence 沿专用 ACK operation 自己取得 ACK。ACK 未知时 Model 沿原 query 认回。这些操作都不交给 Agent。工具的等待、后台占位与交付责任仍按工具契约处理。Loop 不要求每次扫描全部会话历史。派生投影和缓存须可重建，并标明其对应的事实范围。性能优化不能遗漏新输入、未完成等待或取消意图。
 
-循环守卫根据原始事实计算，不能因压缩或更换 attempt 清零。预算、时限和轮数采用明确策略，不在架构中虚构统一上限。M2 有一项临时兜底：Agent 工厂配置 `maxRunSteps` 限制一次执行的步数，缺省为 50。依据是 R2-D221，完整的循环判断见波 3。实现验证须覆盖重复触发、推进者竞争、等待后替换实例、迟到结果及终态后禁止新发起。
-
-## 依据
-
-主流程、step、扩展与终态的产品责任见 [Agent 定义与工作推进](../../../.meta_harness/design/product/agent-progression/README.md)。该产品页已由产品负责人采用，见[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。受理与队列的候选责任见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)，输入与可靠交接也见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)。会话与工作的产品页仍为草案；本页架构承诺按项目要求与实际已接受范围执行。
+循环守卫根据原始事实计算，不能因压缩或更换 attempt 清零。预算、时限和轮数采用明确策略，不在架构中虚构统一上限。实现验证须覆盖重复触发、推进者竞争、等待后替换实例、迟到结果及终态后禁止新发起。

@@ -1,6 +1,3 @@
-// The `model-profiles` row: model-host-local `ModelProfilesLocalPlugin`, the official OpenAI
-// profiles as one frozen snapshot. It injects nothing and has no shutdown phase. The configuration
-// is the plugin's own (`retryPolicy`, `compactionTriggerPercent`, `updatedAt`), all required.
 import { modelProfilesKey } from '@omne-harness/model-cordis-contract/cordis'
 import { ModelProfilesLocalPlugin } from '@omne-harness/model-host-local/cordis'
 import { defineRow } from '../../row.ts'

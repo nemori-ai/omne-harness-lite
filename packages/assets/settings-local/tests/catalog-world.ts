@@ -32,11 +32,6 @@ import { openIdentityWorld } from './identity-world.ts'
 import { openPreparedTargetWorld } from './prepared-target-world.ts'
 import { definition } from './world.ts'
 
-/**
- * The real catalog over a real independent target and a real Identity. Reads go through the
- * catalog. Writes and rebases go through the preparation service, whose access source is the
- * catalog and whose current facts follow the real owner record and the stored revision.
- */
 export async function openCatalogWorld(
   options: {
     assets?: {
@@ -73,8 +68,6 @@ export async function openCatalogWorld(
       ...s.ownerParticipants,
       ...settingsStandaloneMaterials().participants.map(item => item.participant),
       ...projections.participants.map(item => item.participant),
-      // `settings.target-guard` gives the guard fact of the direct path; the standalone
-      // projection of this world gives the same fact, and the prepared path reads neither.
       ...catalogMaterials.participants
         .map(item => item.participant)
         .filter(name => name !== 'settings.target-guard'),
@@ -141,7 +134,6 @@ export async function openCatalogWorld(
   })
   const provision = await s.provision()
   if (provision.kind !== 'committed') throw new Error(JSON.stringify(provision))
-  /** The stored revision of one target; 0 when nothing is stored for it. */
   function storedRevision(target: SettingsChange['target']): number {
     const database = new DatabaseSync(
       join(s.root, 'domains', `${Buffer.from(s.domain.transactionDomain).toString('hex')}.sqlite`),
@@ -160,10 +152,6 @@ export async function openCatalogWorld(
       database.close()
     }
   }
-  /**
-   * The current facts of the test follow the real owner of the target: its projection as the real
-   * projection participants give it (a standalone or an asset target), and the stored revision.
-   */
   async function follow(target: SettingsChange['target']) {
     const binding: SettingsProjectionBinding = {
       domain: s.domain,
@@ -181,8 +169,6 @@ export async function openCatalogWorld(
       ...registered,
       commands: [...project(binding), settingsValueProjectionCommand(binding)],
     })
-    // A target without a current projection (retired, unknown) gets no new facts: the access of
-    // the catalog refuses the call.
     if (result.kind !== 'committed') return
     const [view] = SettingsValueProjectionSchema.parse(
       result.responses.find(reply => reply.participant === SETTINGS_VALUE_PROJECTION.participant)
@@ -219,7 +205,6 @@ export async function openCatalogWorld(
     identity: identity.identity,
     remove: identity.remove,
     change: s.command,
-    /** The storage of the settings, its catalog combination and its row counts. */
     world: {
       storage: s.storage,
       domain: s.domain,
@@ -227,7 +212,6 @@ export async function openCatalogWorld(
       combination: registered,
       counts: s.counts,
     },
-    /** The service without Identity and its current facts, for a write outside the catalog. */
     fixture: { service: s.service, context: s.context, updateCurrent: s.updateCurrent },
     terminalOptions,
     catalog,
@@ -238,7 +222,6 @@ export async function openCatalogWorld(
     owner: s.owner,
     record: s.record,
     prepared: prepared.service,
-    /** One change, prepared and committed on the current owner record and stored revision. */
     async write(principal: ActingForTenantPrincipal, command: SettingsChange) {
       await follow(command.target)
       return commit(
@@ -247,7 +230,6 @@ export async function openCatalogWorld(
         prepared.service.prepareChange(principal, command),
       )
     },
-    /** One explicit rebase, prepared and committed the same way. */
     async rebase(command: SettingsRebase, principal = identity.principal) {
       await follow(command.target)
       return commit(

@@ -1,5 +1,3 @@
-// Value helpers of the memory Journal: the semantic key that recognizes "the same input", the brands
-// that the Journal mints, and a set that cannot change after construction.
 import { createHash } from 'node:crypto'
 import {
   decodeExecutionAttachmentId,
@@ -13,15 +11,8 @@ import {
 import type { Outcome } from '@omne-harness/operation-result'
 import { canonical } from './canonical.ts'
 
-/** The owner name of every evidence that the memory Journal mints. */
 export const JOURNAL_OWNER = 'session-memory-journal'
 
-/**
- * The semantic key of one write: the method and the SHA-256 of the canonical text of the input
- * without its Access members `principal` and `tenant`. Two keys are equal exactly when the method
- * and that text are (up to a hash collision). The key is kept with every operation record, so it
- * holds the digest, not the text: the text of a commit carries its whole checkpoint.
- */
 export function semanticKey(method: string, input: object): string {
   const rest = Object.fromEntries(
     Object.entries(input).filter(([key]) => key !== 'principal' && key !== 'tenant'),
@@ -29,9 +20,14 @@ export function semanticKey(method: string, input: object): string {
   return `${method}:sha256:${createHash('sha256').update(canonical(rest)).digest('hex')}`
 }
 
+export function openKey(input: Readonly<{ runtime: object }>): string {
+  const runtime = Object.fromEntries(
+    Object.entries(input.runtime).filter(([key]) => key !== 'instance'),
+  )
+  return semanticKey('open', { ...input, runtime })
+}
+
 function minted<T>(decoded: Outcome<T, unknown>, text: string): T {
-  // The Journal builds every text below from identities that already passed their decoders and
-  // from decimal counters, so a decode failure is a defect of this file, not a caller error.
   if ('failure' in decoded) throw new Error(`memory Journal minted an invalid identity: ${text}`)
   return decoded.ok
 }
@@ -60,7 +56,6 @@ export function journalEvidence(record: string, revision: number): DurableEviden
   }
 }
 
-/** Parses a decimal sequence text: `null` and `"0"` are 0. Anything else is `undefined`. */
 export function sequenceOf(text: string | null): number | undefined {
   if (text === null) return 0
   if (!/^(0|[1-9]\d*)$/u.test(text)) return undefined
@@ -68,7 +63,6 @@ export function sequenceOf(text: string | null): number | undefined {
   return Number.isSafeInteger(value) ? value : undefined
 }
 
-/** A read-only view of a set that the view's holder cannot change, even with a cast. */
 export function frozenSet<T>(values: Iterable<T>): ReadonlySet<T> {
   const inner = new Set(values)
   const view: ReadonlySet<T> = {

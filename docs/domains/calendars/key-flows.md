@@ -1,6 +1,6 @@
 # 日历跨领域关键流程
 
-本页维护已确认目标流程，尚不表示实现或运行验证。精确行为见[calendar/calendar SPEC](../../../packages/calendar/calendar/SPEC.md)，责任见[领域协作](architecture.md)，产品范围见[产品正文](../../../.meta_harness/design/product/calendars/design.md)。既有流程与不变量编号保留作追溯入口。
+本页维护已确认目标流程。精确行为见[日历规格](../../../packages/calendar/SPEC.md)，责任见[领域协作](architecture.md)，产品范围见[产品正文](../../../.meta_harness/design/product/calendars/design.md)。
 
 ## F-CA01 供应、校验与不可变发布
 

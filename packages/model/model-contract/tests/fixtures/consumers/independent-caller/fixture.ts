@@ -1,8 +1,5 @@
 import { invocationReference } from './values.ts'
 import { judgeAdmit, judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
-// A caller that has no Session, Run or Agent: it fixes a request, admits it under its own call and
-// operation, then looks it up, observes it, cancels it, reads its result and acknowledges it. It
-// imports only the public contract and the scripted provider that stands for whatever serves it.
 import type { DispatchRecord, Observation } from '@omne-harness/model-contract'
 import {
   access,
@@ -35,13 +32,11 @@ type Path = Readonly<{
 
 const completed = { kind: 'completed', reason: 'stop' } as const
 
-/** The cancel that `principal` sends for the call `name` under the operation `label`. */
 const cancelOf = (name: string, label: string, principal = alice) => ({
   ...access(name, principal),
   operation: operation(label),
 })
 
-/** The cost that the supplier reported after the call had already been cancelled. */
 const lateAccount: NonNullable<DispatchRecord['account']> = {
   subject: { kind: 'model_call', id: 'mcall_late' },
   usage: [{ name: 'input-tokens', state: 'known', lexeme: '12', unit: 'tokens' }],
@@ -246,9 +241,6 @@ async function cancelLeavesAnotherCallAlone(): Promise<void> {
   expect(other.custody.kind === 'producer', 'the other call changed hands')
 }
 
-// docs/public-api.md `unauthorised-cancel-denied` and SPEC.md ("控制、取消与晚到事实": Model checks the
-// control right of the principal): a principal without the right gets `denied` and the call shows no
-// control. The page leaves the `action` text open, so only the kind is checked.
 async function deniedCancelWidensNothing(): Promise<void> {
   const world = newWorld()
   await world.admit('a')
@@ -260,10 +252,6 @@ async function deniedCancelWidensNothing(): Promise<void> {
   expect(owner.kind === 'requested' && owner.operation === operation('cancel-alice'), 'not its own')
 }
 
-// docs/context.md ("admit commit-unknown: 查询原 operation") and SPEC.md admit row ("未知只查询原
-// operation"): the caller looks the original admission up and repeats the same call and operation;
-// no second call appears. The world records every admission the caller sends, and a call enters
-// the tenant no other way, so the record shows whether another call or admission appeared.
 async function unknownAdmissionIsLookedUpNotResent(): Promise<void> {
   const world = newWorld()
   world.controller.commitUnknown({

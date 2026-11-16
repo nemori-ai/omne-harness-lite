@@ -1,8 +1,3 @@
-// The Cordis binding of the SQLite provider (SQL contract SPEC 2.2, 2.3, 14). A function plugin:
-// it only injects `storageHost`, builds one StorageService subclass instance and does not provide
-// the key a second time. A construction failure throws, so the fiber ends FAILED. A managed effect
-// closes the provider when the fiber is disposed. Worker, queues and result owner live in the
-// provider object, never on the Context of a caller (IC-13).
 import { definePlugin, type StandardSchema } from '@omne-harness/kernel-basis/cordis'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SqlStorage } from '@omne-harness/sql-contract'
@@ -10,7 +5,6 @@ import { StorageService, storageHostKey } from '@omne-harness/sql-contract/cordi
 import { validateConfig, type SqliteStorageConfig } from './config.ts'
 import { createSqliteStorage } from './provider.ts'
 
-/** The `StorageService` instance. Every method forwards to the function object of the provider. */
 class SqliteStorageService extends StorageService {
   readonly database: SqlStorage['database']
   readonly registerCombination: SqlStorage['registerCombination']
@@ -57,7 +51,6 @@ export const SqliteStoragePlugin = definePlugin({
       throw new Error(`sqlite storage rejected (${created.reason}): ${created.problems.join('; ')}`)
     new SqliteStorageService(ctx, created.storage)
     host.attachControl(created.control)
-    // Disposal does not undo what was committed. It stops admission and ends the Workers.
     ctx.effect(() => () => created.control.close({ initiator: 'disposal' }))
   },
 })

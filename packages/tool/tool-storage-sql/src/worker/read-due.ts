@@ -1,6 +1,3 @@
-// The due entries of one tenant with `due_at <= now` (`domain-serial`): oldest first, then by
-// domain and key, at most `limit`. It is ordered after every commit admitted before it, so an
-// entry a committed commit scheduled is in the answer.
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import { parseDueReadInput, type DomainKind, type DueReadOutput } from './facts.ts'
 import { DUE_READ_ENTRIES, DUE_READ_HANDLER, PROTOCOL } from './schema.ts'

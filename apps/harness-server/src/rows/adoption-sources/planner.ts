@@ -62,7 +62,6 @@ function recordedKey(
   return keyMatches(key, recorded) ? key : undefined
 }
 
-/** The shape Session recorded for this capability, read back through Tool's public projection. */
 function recordedShape<P>(
   access: SessionAccess<P>,
   recorded: Recorded,
@@ -124,12 +123,10 @@ function planInitial(
         shape: facts.ok.shape,
       },
     ],
-    // Tool validated this encoding; Session's brand adds no second wire format.
     keys: [{ capability, key: facts.ok.key as ResidentKey }],
   }
 }
 
-/** Collects adoption facts only. Session owns committing the returned material. */
 export function createAdoptionPlanner<P>(options: AdoptionPlannerOptions<P>) {
   const snapshot = (access: SessionAccess<P>) => options.readBindings()?.snapshot(access)
 

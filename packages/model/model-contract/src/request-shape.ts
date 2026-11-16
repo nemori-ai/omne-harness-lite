@@ -20,10 +20,6 @@ type Checked<T> = Outcome<T, ModelInputRejection>
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
-/**
- * This module only receives the descriptor snapshot, never the caller's objects. Every key in
- * `keys` must be present; a key in `optional` may be absent.
- */
 export function closed(
   value: unknown,
   keys: readonly string[],
@@ -333,7 +329,6 @@ function requestProvenance(
   })
 }
 type RequestReplay = Pick<FixedModelRequest, 'replay' | 'declarations'>
-/** Where a reason of `judgeReplayDeclaration` points inside one declaration, and what it is. */
 const DECLARATION_REJECTIONS: Readonly<
   Record<string, Readonly<{ key: string; reason: ModelInputRejection['reason'] }>>
 > = {
@@ -343,7 +338,6 @@ const DECLARATION_REJECTIONS: Readonly<
   'accepts-lacks-produces': { key: 'accepts', reason: 'value' },
   'foreign-thinking': { key: 'foreignThinking', reason: 'value' },
 }
-/** One expanded declaration: all three keys must be present, so no default applies. */
 function expandedDeclaration(
   value: unknown,
   supplier: Supplier,

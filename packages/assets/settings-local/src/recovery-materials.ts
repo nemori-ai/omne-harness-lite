@@ -51,7 +51,6 @@ export const SETTINGS_COMMIT_PARTICIPANTS = [
   ),
   SOURCE_READINESS_PARTICIPANT,
 ]
-/** The participants that plan, observe and finish the phases of a prepared operation. */
 export function settingsPhaseParticipants(): ParticipantDescriptor[] {
   return [
     {
@@ -139,7 +138,6 @@ export function settingsPhaseParticipants(): ParticipantDescriptor[] {
     },
   ]
 }
-/** The reader of a prepared operation and its attempts. */
 export function preparationReadHandler(): SqlMaterialCatalog['readHandlers'][number] {
   return {
     ...PREPARATION_READ,

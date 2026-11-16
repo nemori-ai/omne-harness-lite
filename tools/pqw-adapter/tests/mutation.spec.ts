@@ -14,7 +14,14 @@ import {
   workersFor,
   type MemberMutation,
 } from '../src/mutation.ts'
-import { changedMember, recorder, scratch, valueOf, writeJson } from './support.ts'
+import {
+  changedMember,
+  NO_STRYKER_OPTIONS,
+  recorder,
+  scratch,
+  valueOf,
+  writeJson,
+} from './support.ts'
 
 it('calls mutation.mjs per member with the omne build, Stryker modules and fast-tier config', () => {
   const args = mutationArgs({
@@ -26,6 +33,7 @@ it('calls mutation.mjs per member with the omne build, Stryker modules and fast-
     json: '/o/t.json',
     planOnly: true,
     workers: 3,
+    stryker: NO_STRYKER_OPTIONS,
   })
   expect(args[0]).toBe(
     '/repo/.meta_harness/agents/vendor/pqw-skills/skills/slice-closeout/scripts/mutation.mjs',
@@ -48,6 +56,7 @@ it('calls mutation.mjs per member with the omne build, Stryker modules and fast-
     files: [],
     json: 'j',
     planOnly: false,
+    stryker: NO_STRYKER_OPTIONS,
   })
   expect(real).not.toContain('--plan-only')
   expect(real).not.toContain('--files')
@@ -99,12 +108,14 @@ it('reads the JSON back after exit 1 and treats other exits as a failed call', a
     files: ['tools/t/src/j.ts', 'tools/u/src/k.ts'],
     outDir: out,
     exec,
+    stryker: { recheck: false, timeoutFactor: '6' },
   })
   const result = await mutateMember(changedMember('tools/t'), context(one.exec), {
     planOnly: false,
   })
   expect(result.result).toEqual(pqw)
   expect(valueOf(one.calls[0]?.args ?? [], '--files')).toBe('tools/t/src/j.ts')
+  expect(valueOf(one.calls[0]?.args ?? [], '--timeout-factor')).toBe('6')
   expect(invalid(result)).toBe(true)
   const two = recorder(() => ({ code: 2, stderr: '找不到 Stryker' }))
   const failed = await mutateMember(changedMember('tools/v'), context(two.exec), {
@@ -113,7 +124,6 @@ it('reads the JSON back after exit 1 and treats other exits as a failed call', a
   expect(failed.error).toBe('mutation.mjs 退出 2：找不到 Stryker')
 })
 
-/** 假执行器：每次调用挂起，直到用例按成员放行；记下开跑顺序、各自的 --workers 与同时在跑的进程数之和。 */
 function gated() {
   const started: { member: string; workers: number }[] = []
   const release = new Map<string, () => void>()
@@ -146,6 +156,7 @@ const context = (exec: Executor) => ({
   files: [],
   outDir: scratch(),
   exec,
+  stryker: NO_STRYKER_OPTIONS,
 })
 const sized = (lines: Record<string, number>) =>
   Object.entries(lines).map(([path, count]) => ({ member: changedMember(path), lines: count }))
@@ -317,6 +328,7 @@ it('hands mutation.mjs exactly the repo, member, base, joined scopes, build, Str
     files: [],
     json: '/o/t.json',
     planOnly: false,
+    stryker: NO_STRYKER_OPTIONS,
   }
   const script =
     '/repo/.meta_harness/agents/vendor/pqw-skills/skills/slice-closeout/scripts/mutation.mjs'
@@ -342,6 +354,28 @@ it('hands mutation.mjs exactly the repo, member, base, joined scopes, build, Str
   expect(
     mutationArgs({ ...call, files: ['x.ts', 'y.ts'], workers: 2, planOnly: true }).slice(9, 11),
   ).toEqual(['--files', 'x.ts,y.ts'])
+  const afterConfig = (args: readonly string[]) => args.slice(args.indexOf(FAST_VITEST_CONFIG) + 1)
+  expect(
+    afterConfig(
+      mutationArgs({
+        ...call,
+        stryker: { timeout: '15s', timeoutFactor: '6', recheck: true, recheckLimit: '3' },
+      }),
+    ),
+  ).toEqual([
+    '--timeout',
+    '15s',
+    '--timeout-factor',
+    '6',
+    '--recheck',
+    '--recheck-limit',
+    '3',
+    '--json',
+    '/o/t.json',
+  ])
+  expect(
+    afterConfig(mutationArgs({ ...call, stryker: { recheck: false, recheckLimit: '0' } })),
+  ).toEqual(['--recheck-limit', '0', '--json', '/o/t.json'])
 })
 
 it('points at the fast-tier vitest config module that Stryker loads', async () => {
@@ -360,7 +394,7 @@ it('writes the plan and the run to differently named JSON files in the output di
     writeJson(valueOf(command.args, '--json') ?? '', { mutate: [], summary: { valid: null } })
     return {}
   })
-  const base = { root: '/repo', base: 'b', files: [], outDir: out, exec }
+  const base = { ...context(exec), outDir: out }
   const plan = await mutateMember(changedMember('tools/t'), base, { planOnly: true })
   const run = await mutateMember(changedMember('tools/t'), base, { planOnly: false })
   expect(plan.json).toBe(`${out}/tools__t.plan.json`)
@@ -370,7 +404,7 @@ it('writes the plan and the run to differently named JSON files in the output di
 it('counts a call as failed when it exits 2 with an earlier JSON in place, or exits 0 without writing one', async () => {
   const out = scratch()
   writeJson(`${out}/tools__t.mutation.json`, { mutate: [], summary: { valid: true } })
-  const base = (exec: Executor) => ({ root: '/repo', base: 'b', files: [], outDir: out, exec })
+  const base = (exec: Executor) => ({ ...context(exec), outDir: out })
   const stale = await mutateMember(
     changedMember('tools/t'),
     base(recorder(() => ({ code: 2, stderr: '崩了' })).exec),

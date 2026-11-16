@@ -1,16 +1,5 @@
-// The cancellation policy installation of the release (R2-D35): the immutable governance record and
-// the pure judgment it names. The assembly entry hands it to the `agent-journal` row; the row gives it
-// to the session-log Journal of every session. A caller never supplies or names an implementation:
-// a cancel request only refers to the record (Agent SPEC "取消判断与路线" / "安装记录与资格").
-//
-// This is not a Cordis service and not a configuration member: the judgment is a function holder.
-// The record is fixed here by name, revision and a digest of that identity. Changing the criteria
-// below means a new revision, a new digest and so a new installation record.
-//
-// The judgment is pure. It reads only the input the Journal built from its own authoritative read
-// of the Run (control, candidate, obligations, coverage, participants), in the order of SPEC
-// "判断输入、判据与记录". It never allows by default: it answers `allowed` only when the cancel is
-// effective, every obligation is settled or held, and every participant condition is ready.
+// The installation record is fixed by name, revision and digest: changing the criteria below means
+// a new revision, a new digest and so a new installation record.
 import { createHash } from 'node:crypto'
 import type {
   Adoption,
@@ -35,14 +24,10 @@ const evidence = (record: string): DurableEvidence =>
 const adoption = (name: string): Adoption =>
   Object.freeze({ owner: OWNER, name, revision: REVISION, digest: digestOf(name) })
 
-/** The exact adoption of the cancellation protocol the release runs; `judge` is the implementation. */
 export const RELEASE_CANCELLATION_POLICY: Adoption = adoption('cancellation-policy')
-/** The exact adoption of the judgment input and criteria. */
 export const RELEASE_CANCELLATION_INPUT_SCHEMA: Adoption = adoption('cancellation-input')
-/** The exact adoption of the implementation of `judge` below. */
 export const RELEASE_CANCELLATION_IMPLEMENTATION: Adoption = adoption('cancellation-judge')
 
-/** The installation record of the release: all seven fields present, no legacy protocol to map. */
 export const releaseCancellationPolicyInstallation: CancellationPolicyInstallation = Object.freeze({
   record: evidence('cancellation/installation'),
   decision: evidence('cancellation/decision'),
@@ -74,12 +59,6 @@ function queryControl(input: CancellationJudgmentInput): CancellationBlock['requ
   }
 }
 
-/**
- * The judgment of the release. `unknown` when any obligation or participant condition is unknown or
- * the coverage was read at another revision; `blocked` when the cancel is not effective, a
- * revocation is unresolved, an obligation is pending, or a participant is blocked or changed;
- * `allowed` otherwise. The Journal checks tenant, execution and qualification before it calls this.
- */
 export function createReleaseCancellationPolicy(): CancellationPolicy {
   return Object.freeze({
     policy: RELEASE_CANCELLATION_POLICY,
@@ -180,7 +159,6 @@ export function createReleaseCancellationPolicy(): CancellationPolicy {
   })
 }
 
-/** What the `agent-journal` row of the release hands to `createSessionAgentJournalPlugin`. */
 export const releaseCancellation = Object.freeze({
   installation: releaseCancellationPolicyInstallation,
   policy: createReleaseCancellationPolicy(),

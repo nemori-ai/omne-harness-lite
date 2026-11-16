@@ -13,11 +13,6 @@ import { decodeEntries } from './entries.ts'
 import { digestOf } from './operations.ts'
 import { evidence } from './testing-values.ts'
 
-/**
- * The evidence that the history index of the fixture gives for one row of the log: the row
- * identity, its revision and the digest of its content. `commitLog` of the double names the
- * progress row of its commit with the same function, so the saved fact and the index agree.
- */
 export function entryEvidence(row: HistoryEntry): DurableEvidence {
   return {
     owner: '@omne-harness/session-contract',
@@ -28,9 +23,7 @@ export function entryEvidence(row: HistoryEntry): DurableEvidence {
 }
 
 export interface MemorySessionHistorySource {
-  /** Fixture-owned Agent facts. Calling this asserts the original event, not adapter verification. */
   observe(observation: SessionLogObservation): void
-  /** The caller supplies original grant and attachment facts; none are inferred from pending. */
   admit(
     scope: Pick<SessionAccess<never>, 'tenant' | 'session'>,
     input: InputId,
@@ -43,7 +36,6 @@ export interface MemorySessionHistorySource {
   ): Readonly<{ index: SessionHistoryIndex; reads: SessionHistoryReads }>
 }
 
-/** Explicitly empty, non-durable Agent-history fixture, populated only through observe/admit. */
 export function createMemorySessionHistorySource(): MemorySessionHistorySource {
   const scopes = new Map<
     string,

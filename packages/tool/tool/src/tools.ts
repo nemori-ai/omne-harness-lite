@@ -25,7 +25,6 @@ export type ToolsReadRuntime<P> = Readonly<{
   content: Pick<ToolRuntime<P, ToolMessageContentBlock>['content'], 'read'>
   body: ToolRuntime<P, ToolMessageContentBlock>['body']
 }>
-/** Fixed result/attachment reading and presentation, independent of any tool author. */
 export type ToolResultReader<P> = Readonly<{
   present(input: ToolsAccess<P>): Promise<ToolResult<ToolMessageContentBlock>>
   readReply(input: ToolsAccess<P>): Reply<ToolResult<ToolMessageContentBlock>>

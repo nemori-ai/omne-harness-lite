@@ -10,21 +10,12 @@ import type {
   ScopeBindingSource,
 } from '@omne-harness/runtime-context-contract'
 
-/**
- * The current bridge of a trusted assembly. `capture()` fixes the valid generations of every source
- * the answer depends on at the moment it is called and returns a view that turns false, once and for
- * all, when any of them is invalidated. The real provider belongs to the application; the
- * synchronous revocation source it needs stays a known gap (#677).
- */
 export interface RuntimeContextCurrentBridge {
   capture(): Readonly<{ current(): boolean }>
 }
 
-// The replay facts are declared by the Cordis contract of Session, which also carries the service
-// key. They are re-exported here for the consumers that read them from this member.
 export type { SessionReplayFacts, StepCommittedBlocks }
 
-/** Every port is required. There is no default that allows. */
 export type SessionRuntimeContextTrustInput<P> = Readonly<{
   authority: RuntimeContextAuthority<P>
   bindings: ScopeBindingSource
@@ -32,25 +23,12 @@ export type SessionRuntimeContextTrustInput<P> = Readonly<{
   replayFacts: SessionReplayFacts
 }>
 
-/**
- * Builds the two ports a trusted assembly hands to Runtime Context from the original authority, the
- * original trusted binding source, a current bridge and the holder's session facts.
- *
- * It is a composition adapter and issues no second authorization. For every call it captures the
- * bridge before the first await, asks the original authority and keeps the original branch. An
- * authorized answer stays current only while the original `current()` and the captured view hold.
- * The binding source passes through unchanged.
- *
- * The one check of its own is the coverage of a finished recovery: the holder authority answers
- * `replay-incomplete` when the material leaves out a block that already has a step commit. It reads
- * the holder facts only for a scope the trusted bindings assign to the action's tenant.
- */
+// Capture the current bridge before the first await, so a revocation during the wait invalidates this answer.
 export function createSessionRuntimeContextTrust<P>(
   input: SessionRuntimeContextTrustInput<P>,
 ): RuntimeContextTrust<P> {
   const { authority, bindings, current, replayFacts } = input
 
-  /** Captures before the caller's first await; the view keeps its own receiver. */
   function capture(): () => boolean {
     const captured = current.capture()
     return () => captured.current()
@@ -65,7 +43,6 @@ export function createSessionRuntimeContextTrust<P>(
     return { ...decision, current: () => original() && live() }
   }
 
-  /** The verdict that replaces the authorized answer, or `undefined` when the recovery is covered. */
   async function uncovered(action: FinishReplayAction): Promise<HolderDecision<P> | undefined> {
     const binding = await bindings.lookup(action.scope)
     if (binding.kind === 'unavailable' || binding.kind === 'unknown') return { kind: binding.kind }
@@ -88,7 +65,6 @@ export function createSessionRuntimeContextTrust<P>(
         const decision = bridged(await authority.holder(principal, action), live)
         if (decision.kind !== 'authorized' || action.kind !== 'finish-replay') return decision
         const verdict = await uncovered(action)
-        // A stale answer goes back as it is: the caller refuses it, and learns nothing of the facts.
         return verdict === undefined || !decision.current() ? decision : verdict
       },
       async producer(principal, action) {

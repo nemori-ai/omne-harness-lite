@@ -60,7 +60,6 @@ it('recognizes an allowed saved intent at Tool startup, without widening A0 qual
         reference: ok(encodeToolInvocationRef(input)),
       },
     }
-    // The real SQLite target test covers persistence; this fixture isolates Agent's binding interpretation.
     const associated = createAgentToolQualification({
       materials: assembly.dependencies.materials,
       journal: {

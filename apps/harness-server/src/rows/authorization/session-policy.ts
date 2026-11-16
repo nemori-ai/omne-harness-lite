@@ -1,12 +1,3 @@
-// The Session policy table (DP-4, policy draft §5): one row per SessionAccessOperation, one cell
-// per principal class. The citations use the abbreviations of policy draft §1 (SS, SAC, SCC, AD,
-// SW, IA, AU, ID, PC, AA, DA4, AGI, LP). `satisfies` makes a missing or extra row a type error.
-//
-// Role neutrality (identity delivery spec D2): every `member` cell asks the tenant admission with an
-// empty `requires`, so tenant role never decides a Session or Agent operation. Basis: no accepted
-// text makes a Session or Agent operation conditional on a tenant role; a Session is the private
-// work of the tenant (PD:33); the only named qualification, `organization-cost-ledger-read`, has no
-// Session consumer (ID-16:301-307). Proof: tests/rows/authorization/role-neutral-member-cells.spec.ts.
 import type { SessionAccessOperation } from '@omne-harness/session-contract'
 import { cell, row, type PolicyRow } from './cells.ts'
 
@@ -145,6 +136,11 @@ export const SESSION_POLICY = Object.freeze({
     member('SS:588，DA4 §4.1'),
     deny(OUTSIDE_MATRIX),
   ),
+  retryRun: row(
+    member('与 `cancelRun` 相同：SW:265 J-SW06，`session/v1` 的 `retry-run`，SS:588'),
+    member('与 `cancelRun` 相同：SS:588，DA4 §4.1'),
+    deny(OUTSIDE_MATRIX),
+  ),
   stopCall: row(
     member('SW:265 J-SW06，PC:454 `stop-call`，SS:588'),
     member('SS:588，DA4 §4.1'),
@@ -165,6 +161,11 @@ export const SESSION_POLICY = Object.freeze({
     ),
   ),
   readWork: row(deny(NO_SOURCE), member('SS:552，DA4 §4.1'), deny(NO_SYSTEM_READ)),
+  readWaiting: row(
+    member('`session/v1` 的 `read-waiting`，packages/session/SPEC.md「等人」'),
+    deny(NO_SOURCE),
+    deny(NO_SYSTEM_READ),
+  ),
   readInput: row(
     deny(NO_SOURCE),
     member('SS:553，AD:446 AD-14 读输入，DA4 §4.1'),
@@ -215,6 +216,11 @@ export const SESSION_POLICY = Object.freeze({
     deny(NO_SOURCE),
     member('SS:634，DA4 §4.7 第 3 步。只核租户，不核工作绑定'),
     matrix('pending-sessions', 'AU:266，DA4 §4.5、§4.7 第 2 步，AA:308。目标为租户分支'),
+  ),
+  'directory.list': row(
+    member('RFC-0015 §8「列出会话」：登录的人按租户成员放行，不看租户角色。目标为租户分支'),
+    deny('RFC-0015 §8「列出会话」：工作主体拒绝'),
+    deny(NO_SYSTEM_READ),
   ),
   references: row(
     deny(SYSTEM_ONLY),

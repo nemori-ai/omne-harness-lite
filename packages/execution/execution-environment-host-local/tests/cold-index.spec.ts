@@ -1,4 +1,3 @@
-// The cold index's marker files: how they are written, read, listed and removed.
 import { randomUUID } from 'node:crypto'
 import { mkdir, mkdtemp, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -16,7 +15,6 @@ afterEach(async () => {
 async function index() {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'omne-cold-index-')))
   roots.push(root)
-  // The directory does not exist yet, nor does its parent.
   const directory = join(root, 'state', 'markers')
   const cold = createColdIndex<Marker>({
     directory,
@@ -41,7 +39,6 @@ it('writes a marker into a directory it creates, reads it back and forgets it', 
   expect(await cold.all()).toEqual([{ key, note: 'up' }])
   expect(await cold.forget(key)).toBe(true)
   expect(await cold.read(key)).toBe('absent')
-  // A marker that is not there is forgotten already.
   expect(await cold.forget(key)).toBe(true)
   expect(await cold.all()).toEqual([])
 })
@@ -62,11 +59,9 @@ it('makes no complete list when one marker cannot be read or names another key',
   expect(await cold.read(other)).toBe('unreadable')
   expect(await cold.all()).toBe('unavailable')
   await rm(join(directory, `${other}.json`))
-  // A file that is no marker at all also makes no complete list.
   await writeFile(join(directory, 'notes.txt'), '')
   expect(await cold.all()).toBe('unavailable')
   await rm(join(directory, 'notes.txt'))
-  // A staging file is not a marker.
   await writeFile(join(directory, `.${randomUUID()}.1.tmp`), '')
   expect(await cold.all()).toEqual([{ key, note: 'up' }])
 })
@@ -76,7 +71,6 @@ it('skips a marker removed while the list is read', async context => {
   const key = randomUUID()
   expect(await cold.record(key, { key, note: 'up' })).toBe(true)
   await mkdir(directory, { recursive: true })
-  // A name whose file is gone by the time it is read: a link to nothing.
   try {
     await symlink(join(directory, 'nothing'), join(directory, `${randomUUID()}.json`))
   } catch {

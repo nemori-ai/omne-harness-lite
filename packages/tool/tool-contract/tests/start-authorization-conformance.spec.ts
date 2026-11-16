@@ -1,6 +1,3 @@
-// Self-proof of the authorization consumption suite of P04: it passes on the conforming double, and
-// each case fails under a violating variant. The variants wrap the authority or the authorization
-// handles of the double at the port boundary; they live here and are not exported.
 import { isDeepStrictEqual } from 'node:util'
 import { describe, expect, it } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
@@ -52,7 +49,6 @@ const NAMES = {
 type Handles = ToolStartAuthorizationHandles<string>
 type Layer = Partial<{ authority: ToolStartAuthority<string>; authorization: Handles }>
 
-/** The double with `build` laid over its authority and its authorization handles. */
 function variant(
   build: (real: { authority: ToolStartAuthority<string>; authorization: Handles }) => Layer,
 ): () => Fixture {
@@ -85,7 +81,6 @@ const variants: readonly Variant<Fixture>[] = [
     fixture: variant(({ authorization }) => ({
       authorization: {
         ...authorization,
-        // The binding never reaches the authority: a fresh permit of another ledger, always open.
         bind: input =>
           Promise.resolve({ tenant: input.access.tenant, permit: `unbound-${String(input.call)}` }),
         read: permit =>
@@ -258,7 +253,6 @@ const variants: readonly Variant<Fixture>[] = [
             const presented = input.permit
             if (presented === undefined || isDeepStrictEqual(presented.tenant, input.access.tenant))
               return authorization.bind(input)
-            // The foreign permit is swapped for one of the call's tenant, which the start consumes.
             const own = await authorization.bind({ access: input.access, call: input.call })
             substitutes.set(key(presented), own)
             return presented

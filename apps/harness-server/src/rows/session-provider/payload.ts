@@ -1,13 +1,9 @@
-// The history payload of an accepted input: the plain value of the message as a json-text tree,
-// which is the form of `HistoryEntry.payload`. The tree type comes from the Session contract, so
-// this member needs no dependency of its own on the json-text package.
 import type { HistoryEntry } from '@omne-harness/session-contract'
 
 export type Payload = HistoryEntry['payload']
 
 const MAX_DEPTH = 64
 
-/** Converts plain data to a tree. Throws `TypeError` for a value that is not plain data. */
 export function payloadOf(value: unknown, depth = 0): Payload {
   if (depth > MAX_DEPTH) throw new TypeError('the value is nested too deeply')
   if (value === null) return { kind: 'null' }
@@ -33,7 +29,6 @@ export function payloadOf(value: unknown, depth = 0): Payload {
   }
 }
 
-/** The size that the page budget counts for one payload: its UTF-8 bytes as JSON text. */
 export function payloadBytes(payload: Payload): number {
   return Buffer.byteLength(JSON.stringify(payload), 'utf8')
 }

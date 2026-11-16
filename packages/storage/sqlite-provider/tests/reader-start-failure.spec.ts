@@ -25,7 +25,7 @@ it('returns a failed read and releases its lease and budget when a reader cannot
   const provider = await createProvider(
     workspace,
     built,
-    { readQueuePerDomain: 1, readQueueGlobal: 1, readQueueTimeoutMs: 100 },
+    { readQueuePerDomain: 1, readQueueGlobal: 1 },
     leases,
   )
   try {

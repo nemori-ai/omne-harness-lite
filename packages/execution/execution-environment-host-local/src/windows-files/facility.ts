@@ -21,22 +21,13 @@ import type { ChangeInput, Final, Metadata, NativeInput, RunInput, Start } from 
 const invoke = (input: NativeInput, boundMs?: number) =>
   getWindowsFilesHelper().request(input, boundMs)
 
-/** How the last segment of `path` is opened: see `Final`. */
 function finalOf(path: string): Final {
   const follow = path.split(/[\\/]/u).findLast(part => part !== '') === '.'
   return { directory: follow || /[\\/]$/u.test(path), follow }
 }
 
-/**
- * The helper reads its frames with the .NET JSON serializer, which turns an unpaired surrogate into
- * U+FFFD. A path with one would name another object, so it is unsupported, with or without a root.
- */
 const carried = (path: string): boolean => path.isWellFormed()
 
-/**
- * The start of a path when no files root is configured: the root of its drive. A form outside the
- * supported range answers `unsupported`; a `..` answers `notAuthorized`, as it does below a root.
- */
 function driveStart(path: string): Outcome<Start> {
   if (!carried(path)) return fail('unsupported')
   const parsed = windowsPathSegments(path)
@@ -45,10 +36,6 @@ function driveStart(path: string): Outcome<Start> {
   return ok({ root, expectedRoot: '', segments: parsed.segments, rooted: false })
 }
 
-/**
- * The token and metadata of the object that `path` names, read by the files helper from the drive
- * root. Ancestor links are followed and the last segment is not, as `lstat` does on POSIX.
- */
 export async function windowsObjectInfo(
   path: string,
   boundMs?: number,
@@ -59,11 +46,6 @@ export async function windowsObjectInfo(
   return typeof found === 'string' ? fail(found) : ok(found.info)
 }
 
-/**
- * Checks the Windows files prerequisite: the .NET Framework compiler exists, and the files helper
- * starts and creates, reads, lists and removes a file handle-relative in an owned temporary
- * directory below `directory`.
- */
 export async function probeWindowsFilesPrerequisite(
   directory = tmpdir(),
 ): Promise<ProviderFacts['prerequisites']> {
@@ -177,10 +159,6 @@ function snapshot<R extends FileRequest<unknown>>(request: R): R {
   }
 }
 
-/**
- * The token of a files root, read by the files helper at the first use. One engine binds one root
- * identity; a failed binding is tried again without replacing a known root.
- */
 export function createWindowsRootIdentity(root: string): () => Promise<string | undefined> {
   let binding: Promise<string | undefined> | undefined
   return async () => {
@@ -195,11 +173,6 @@ export function createWindowsRootIdentity(root: string): () => Promise<string | 
   }
 }
 
-/**
- * The Windows files backend. Every operation runs in the files helper, with or without a files
- * root: below a root, the helper walks from the root's handle; without one, from the handle of the
- * drive root.
- */
 export function createWindowsFiles(
   options: Readonly<{
     root?: string
@@ -225,10 +198,6 @@ export function createWindowsFiles(
     sizeBytes: info.size,
     modifiedMs: info.modified,
   })
-  /**
-   * Where `path` starts and the segments it walks. Below a root, a path outside it, with a `..` or
-   * in a refused form is `notAuthorized`. Nothing is opened yet.
-   */
   const locate = async (path: string): Promise<Outcome<Start>> => {
     if (configured === undefined) return driveStart(path)
     if (!carried(path)) return fail('unsupported')
@@ -236,7 +205,6 @@ export function createWindowsFiles(
     if (segments === undefined) return fail('notAuthorized')
     return ok({ root: configured, expectedRoot: '', segments, rooted: true })
   }
-  /** `located` with the recorded token of the files root; `unavailable` when it cannot be bound. */
   const bound = async (located: Start): Promise<Outcome<Start>> => {
     if (!located.rooted || rootIdentity === undefined) return ok(located)
     const token = await rootIdentity()
@@ -314,12 +282,6 @@ export function createWindowsFiles(
     FileSystemFacility<unknown>,
     'read' | 'stat' | 'list' | 'search' | 'mkdir' | 'remove' | 'move' | 'write' | 'copy'
   > = {
-    /**
-     * Two helper requests: the first streams the source into a new object beside the target and
-     * flushes it, the second publishes that object by the rules of a write. The helper refuses only
-     * once the staged object is gone; a helper that answers nothing to the second request may leave
-     * it, so that is unknown.
-     */
     async copy(request) {
       request = {
         ...snapshot(request),

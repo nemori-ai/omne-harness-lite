@@ -60,7 +60,6 @@ export const ScheduleInstructionSchema = scheduleUtf8TextSchema(65_536)
 export const ScheduleReasonSchema = scheduleCodePointTextSchema(1_024)
 export const ScheduleOperationKeySchema = scheduleUtf8TextSchema(128)
 
-// Validate without copying: z.json() drops literal __proto__ properties.
 function isJsonData(value: unknown, ancestors = new Set<object>()): boolean {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return true
   if (typeof value === 'number')

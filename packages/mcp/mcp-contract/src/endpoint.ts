@@ -1,4 +1,3 @@
-// The endpoint body: the parser, the local-command judgment and the category port of `mcp`.
 import {
   isReadBody,
   readBodyText,
@@ -21,7 +20,6 @@ import type {
   TransportDeclaration,
 } from './values.ts'
 
-/** Why a body is not an endpoint definition. The set is closed. */
 export type EndpointBodyRejection =
   | 'malformed'
   | 'name-mismatch'
@@ -48,13 +46,6 @@ function isAuthKind(value: string): value is AuthKind {
   return AUTH_KINDS.some(known => known === value)
 }
 
-/**
- * Reads an endpoint body. The input is a JSON tree of `@omne-harness/json-text`; anything else
- * is `malformed`. The function does not throw. The order of the checks is part of the contract
- * (SPEC E2), so it stays in this one function: a structural defect first, then a name that
- * differs from the given capability name, an unknown transport, an unknown authentication kind,
- * an unlawful combination, and last a launch declaration that the transport requires or forbids.
- */
 export function parseEndpointBody(
   body: unknown,
   capabilityName?: string,
@@ -81,7 +72,6 @@ export function parseEndpointBody(
   return succeed({ name, transport: declaration, auth })
 }
 
-/** OAuth is for HTTP only, and without authentication no variable comes from a credential. */
 function isLawfulCombination(
   transport: Transport,
   auth: AuthKind,
@@ -95,7 +85,6 @@ function isSettingSourced(binding: EnvironmentBinding): boolean {
   return binding.source === 'setting'
 }
 
-/** stdio needs a launch declaration; Streamable HTTP must not have one. */
 function transportOf(
   transport: Transport,
   launch: StdioLaunch | undefined,
@@ -119,21 +108,18 @@ function launchOf(value: JsonValue): StdioLaunch | 'malformed' {
     : { command, args, cwd, env, facilities }
 }
 
-/** An omitted value is undefined; a present value must be non-empty text. */
 function optionalNonEmptyText(value: JsonValue | undefined): string | 'malformed' | undefined {
   if (value === undefined) return undefined
   const text = textOf(value)
   return text === undefined || text === '' ? 'malformed' : text
 }
 
-/** An omitted list reads as empty. Each name follows the facility lexicon and appears once. */
 function facilitiesOf(value: JsonValue | undefined): readonly string[] | undefined {
   const names = textsOf(value)
   if (names === undefined || !names.every(name => FACILITY.test(name))) return undefined
   return new Set(names).size === names.length ? names : undefined
 }
 
-/** An omitted list reads as empty. A list with a member that is not text is undefined. */
 function textsOf(value: JsonValue | undefined): readonly string[] | undefined {
   if (value === undefined) return []
   const items = itemsOf(value)
@@ -170,7 +156,6 @@ function bindingOf(item: JsonObject): EnvironmentBinding | undefined {
   return { name, source }
 }
 
-/** True when the endpoint may start a local command. It is known when the body is loaded. */
 export function launchesLocalCommand(definition: EndpointDefinition): boolean {
   return definition.transport.kind === 'stdio'
 }
@@ -180,11 +165,6 @@ const CREDENTIAL = 'setting:placement-identity:credential'
 const CONNECT_TIMEOUT = 'setting:preference:connect-timeout'
 const ENV_PREFIX = 'setting:placement-identity:env.'
 
-/**
- * The setting declarations of an endpoint: the connection target only for Streamable HTTP, the
- * credential only when authentication is not `none`, one item for each environment variable whose
- * source is `setting`, in body order, and the connect timeout always.
- */
 function declarationsOf(definition: EndpointDefinition): readonly string[] {
   const env =
     definition.transport.kind === 'stdio'
@@ -213,10 +193,6 @@ const schemaRead = readBodyText(ENDPOINT_BODY_SCHEMA, SCHEMA_LIMITS)
 if (schemaRead.kind !== 'ok') throw new TypeError('the MCP endpoint body schema is not JSON')
 const schema: JsonValue = schemaRead.value
 
-/**
- * Parses a read body. A body that did not come from the asset reader is refused with
- * `incomplete-reference`, as the asset contract requires of every category port.
- */
 function definitionOf(
   body: unknown,
   context?: JudgeContext,
@@ -237,7 +213,6 @@ function judgedDefinition(body: unknown, context?: JudgeContext): EndpointDefini
   return parsed.ok
 }
 
-/** The category port of MCP endpoint bodies. Category `mcp`. */
 export function mcpEndpointBodyContract(): BodyContract {
   return {
     category: 'mcp',

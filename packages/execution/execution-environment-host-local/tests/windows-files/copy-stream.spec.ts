@@ -1,7 +1,4 @@
 /** @module-tag slow */
-// A copy streams through the files helper: copying 128 MiB answers within the request bound and keeps
-// the helper's peak working set below 64 MiB. Slow: it writes and flushes 256 MiB, and it starts
-// Windows PowerShell once to read the peak of the helper process.
 import { createHash } from 'node:crypto'
 import type { ChildProcess } from 'node:child_process'
 import { createReadStream } from 'node:fs'

@@ -1,9 +1,3 @@
-// The parsers of the port answers, field by field, by the contract SPEC "端口答复的统一处置".
-// Each table row breaks one checked field of a well-formed answer: the field is missing, of the
-// wrong type, or outside its range. A broken field makes the whole answer no answer
-// (`undefined`); the parser never throws. Well-formed answers come back equal, built anew and
-// frozen; a field that the SPEC does not list does not come back. The parsers are called
-// directly, without `answered`, so that a parser that throws shows as a throw here.
 import { describe, expect, it } from 'vitest'
 import { capabilityId, type CapabilityId } from '@omne-harness/assets'
 import { isAssetVersion, isPackageDigest } from '@omne-harness/skill-contract'
@@ -46,15 +40,11 @@ function granted<T>(guard: (value: unknown) => value is T, value: unknown): T {
   return value
 }
 
-/** The parse of a `resolve` answer to a request about `review`, the identity of `ADOPTED`. */
 const aboutReview = parseResolution({ capability: identity('skill', 'review') })
-/** The parse of a `resolve` answer to a request about `retired`, the identity of `STAND_IN`. */
 const aboutRetired = parseResolution({ capability: identity('skill', 'retired') })
 
-/** A marker for "this field is absent". */
 const MISSING = Symbol('missing')
 
-/** A deep copy of `value` with the field at `path` set to `field`, or removed for `MISSING`. */
 function withField(value: unknown, path: readonly (string | number)[], field: unknown): unknown {
   const copy: unknown = structuredClone(value)
   let parent: unknown = copy
@@ -67,13 +57,11 @@ function withField(value: unknown, path: readonly (string | number)[], field: un
   return copy
 }
 
-/** Whether `value` and every object below it is frozen. */
 function deeplyFrozen(value: unknown): boolean {
   if (typeof value !== 'object' || value === null) return true
   return Object.isFrozen(value) && Object.values(value).every(deeplyFrozen)
 }
 
-/** A function that carries a `kind`: an object, but not one that a port type allows. */
 function withKind(kind: string): unknown {
   return Object.assign(() => undefined, { kind })
 }

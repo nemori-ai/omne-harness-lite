@@ -1,7 +1,6 @@
 import { expectTypeOf, test } from 'vitest'
 import type * as Provider from '@omne-harness/mcp-contract/provider'
 
-// The type exports of `./provider`, each named once.
 type ProviderTypes = {
   AdoptedEndpoint: Provider.AdoptedEndpoint
   AdoptionView: Provider.AdoptionView<unknown, unknown>
@@ -30,9 +29,6 @@ type ProviderTypes = {
 }
 
 test('./provider exports the port types and no value', () => {
-  // A removed or renamed type fails to compile above. An added one is caught by the export-name
-  // tests in public-entry.spec.ts, which read the entry source with regular expressions: they
-  // list named exports, report star exports, and refuse any form but `export type { … } from`.
   expectTypeOf<ProviderTypes['CredentialUse']>().not.toBeNever()
   expectTypeOf<keyof typeof import('@omne-harness/mcp-contract/provider')>().toEqualTypeOf<never>()
 })

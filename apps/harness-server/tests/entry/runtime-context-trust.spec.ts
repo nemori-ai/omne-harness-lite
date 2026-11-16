@@ -41,7 +41,6 @@ function scopeOf(ref: string): ScopeRef {
   if ('failure' in decoded) throw new Error('fixture: scope')
   return decoded.ok
 }
-/** The shape Session mints (`decide-management.ts`): a one-way digest of tenant, session and generation. */
 const scope = scopeOf(`session-scope:${'a'.repeat(64)}`)
 const KEY = 'test.notes' as const
 const PRODUCER = { producer: 'test-producer' }
@@ -65,7 +64,6 @@ function eligibility(principal: unknown, tenant: TenantId): Eligibility<unknown>
   }
 }
 
-/** Every holder action kind that names a tenant, for one tenant. */
 function holderActions(principal: unknown, tenant: TenantId): readonly HolderAction<unknown>[] {
   const { id, state, ...material } = eligibility(principal, tenant)
   void id
@@ -124,7 +122,6 @@ function producerActions(tenant: TenantId): readonly ProducerAction[] {
   ]
 }
 
-/** An authority with one verified acting principal of `component` for `tenant`. */
 function authorityWithActing(
   component: string,
   tenant: TenantId,
@@ -144,7 +141,6 @@ function authorityWithActing(
   return { authority, actor, acting }
 }
 
-/** The three faces, each asked once for the same tenant; every answer must have the same kind. */
 async function kinds(
   authority: RuntimeContextAuthority<unknown>,
   principal: unknown,
@@ -348,14 +344,11 @@ describe('the absent bindings port', () => {
       kind: 'unavailable',
     })
   })
-
-  // The replay facts port is linked to `sessionReplayFacts`: runtime-context-replay-facts.spec.ts.
 })
 
 type Installed = Readonly<{
   trust: Context
   acting: Principal
-  /** Loads a reader fiber on the trusted scope that asks one holder decision through the service. */
   reader(): Promise<Readonly<{ decision: HolderDecision<unknown>; dispose(): Promise<void> }>>
 }>
 

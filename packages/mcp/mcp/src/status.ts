@@ -1,6 +1,3 @@
-// The status port `EndpointStatus` (SPEC S1, S7), composed on the gate. It reads adoption,
-// eligibility and the connection table; it connects to nothing. The credential is reported in
-// four states, never by value.
 import type { Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -27,14 +24,12 @@ export type StatusDependencies<P, S> = Readonly<{
 
 type InspectRefusal = Extract<Refusal, { kind: 'not-available-to-you' | 'unknown' }>
 
-/** The credential in four states (S7), from the parsed body and the setting value. */
 function credentialOf(adopted: AdoptedOnly): EndpointStatusView['credential'] {
   if (adopted.definition.auth === 'none') return 'not-required'
   const { credential } = adopted.settings
   return credential.kind === 'value' ? 'present' : credential.kind
 }
 
-/** The use of a decided endpoint: usable, blocked, or a refusal of inspect. */
 function useOf(
   decision: GateDecision,
 ): Outcome<
@@ -86,7 +81,6 @@ export function createStatus<P, S>(deps: StatusDependencies<P, S>): EndpointStat
     ref: EndpointRef,
   ): Promise<Outcome<EndpointStatusView, InspectRefusal>> {
     const decision = await admit(ports, access, ref)
-    // Invariant 6 at this use: a withdrawn or blocked endpoint does not keep its connection.
     if (withdraws(decision)) await table.close(access.tenant, ref.holding)
     const use = useOf(decision)
     if ('failure' in use)

@@ -1,14 +1,3 @@
-// The scope owner source (SessionScopeOwnerSource): the session that minted a Context scope, from
-// `sl_scope_idx`, which the `session` participant writes in the commit that mints the scope. It does
-// not ask the access check: like the session binding source it is a trusted read of an ownership
-// fact, for the trusted closure of the assembly.
-//
-// The scope text is a one-way digest of the tenant, the session and the generation, so the source
-// cannot tell the tenant from it: it reads `session.scope-owner` in the domain of each registered
-// tenant, in tenant order, and stops at the first that owns the scope. An owned answer never changes,
-// so it is kept and read no more; `unknown` is never kept, since the scope may be minted next. A
-// domain that could not be read makes the answer `unavailable`, never `unknown`: the scope may be
-// there. After `stop`, every read is `unavailable`, kept answers included.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -24,10 +13,8 @@ export type SessionScopeOwnersOptions = Pick<SessionStorageOptions<unknown>, 'st
 
 export const SCOPE_OWNER_HANDLER = 'session.scope-owner'
 
-/** The scopes whose owner the source keeps; past it the oldest one goes and is read again. */
 export const SCOPE_OWNER_MEMO = 65_536
 
-/** The source, and the one way to end it. */
 export type SessionScopeOwners = SessionScopeOwnerSource & Readonly<{ stop(): void }>
 
 type Lookup = Awaited<ReturnType<SessionScopeOwnerSource['lookup']>>
@@ -40,7 +27,6 @@ const unreadable = (diagnostic: string): Outcome<never, Failure> =>
 
 type TenantEntry = Readonly<{ tenant: string; domain: Parameters<typeof readHandler>[1] }>
 
-/** One point read in the domain of one tenant: its owner of `scope`, `null` when it has none. */
 async function ownerIn(
   reach: Parameters<typeof readHandler>[0],
   entry: TenantEntry,

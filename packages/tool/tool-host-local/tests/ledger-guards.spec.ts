@@ -1,12 +1,3 @@
-// The guard table of the local Tool host (TL-11): the assembly `createLocalToolLedgerGuards`, the
-// text result factory and the production guards under the real ledger of `@omne-harness/tool`.
-//
-// TEST DOUBLES: the allow table of `createTableToolAccess` stands in for the application
-// adapter of the authorization decision; the invoke authority is built on it; the principal
-// codec, the in-memory ledger store, the output custody and the environment are from
-// `@omne-harness/tool/testing`, `@omne-harness/tool-contract/testing` or this file. They prove the
-// behaviour of the guards over one process and one store object, not durability and not the real
-// authorization adapter.
 import { describe, expect, it } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
 import {
@@ -50,7 +41,6 @@ const bob: P = { subject: 'bob' }
 
 const scope = fixedRequest().scope
 
-/** The real ledger with the production guards over a store that counts its reads and commits. */
 function assembly() {
   const memory = createMemoryToolLedgerStore()
   const counts = { reads: 0, commits: 0 }
@@ -154,7 +144,6 @@ function assembly() {
 
 type Assembly = ReturnType<typeof assembly>
 
-/** Resolves the source for `request` as alice in tenant A and admits it. */
 async function admitted(fixture: Assembly, request: ToolInvokeRequest = invokeRequest()) {
   const bound = await fixture.sources.issuer.resolve({ principal: alice, tenant: tenantA, request })
   if (bound.kind !== 'bound') throw new Error(`fixture: expected bound, got ${bound.kind}`)
@@ -174,8 +163,8 @@ const callId = (text: string) => {
   return decoded.ok
 }
 
-describe('TL-11 guards under the real ledger', () => {
-  it('TL-11 the qualified principal is admitted and can look the admission up', async () => {
+describe('guards under the real ledger', () => {
+  it('the qualified principal is admitted and can look the admission up', async () => {
     const fixture = assembly()
     const { bound, input, outcome } = await admitted(fixture)
     expect(outcome).toHaveProperty('ok')
@@ -188,7 +177,7 @@ describe('TL-11 guards under the real ledger', () => {
     expect(lookup).toHaveProperty('ok')
   })
 
-  it('TL-11 A1 another tenant is denied on admit, lookup and source resolution, and the store is not read', async () => {
+  it('another tenant is denied on admit, lookup and source resolution, and the store is not read', async () => {
     const fixture = assembly()
     const { bound, input } = await admitted(fixture)
     for (const principal of [alice, bob]) {
@@ -217,7 +206,7 @@ describe('TL-11 guards under the real ledger', () => {
     }
   })
 
-  it('TL-11 A1 a principal without the lookup rule is denied in the tenant that admitted the call', async () => {
+  it('a principal without the lookup rule is denied in the tenant that admitted the call', async () => {
     const fixture = assembly()
     const { bound, input } = await admitted(fixture)
     fixture.counts.reads = 0
@@ -232,7 +221,7 @@ describe('TL-11 guards under the real ledger', () => {
     expect(fixture.counts.reads).toBe(0)
   })
 
-  it('TL-11 an access guard that cannot answer makes admission unavailable and reads nothing', async () => {
+  it('an access guard that cannot answer makes admission unavailable and reads nothing', async () => {
     const fixture = assembly()
     const { input } = await admitted(fixture)
     fixture.table.fail('adapter down')
@@ -243,7 +232,7 @@ describe('TL-11 guards under the real ledger', () => {
     expect(fixture.counts.reads).toBe(0)
   })
 
-  it('TL-11 a request whose source was never issued is denied at admission', async () => {
+  it('a request whose source was never issued is denied at admission', async () => {
     const fixture = assembly()
     const { bound, input } = await admitted(fixture)
     const invented = decodeToolOperationId('admit-invented')
@@ -259,7 +248,7 @@ describe('TL-11 guards under the real ledger', () => {
     expect(bound.call).not.toBe('call-invented')
   })
 
-  it('TL-11 A6 a scope owner that no verifier declares is denied by the ledger', async () => {
+  it('a scope owner that no verifier declares is denied by the ledger', async () => {
     const fixture = assembly()
     const { outcome } = await admitted(
       fixture,
@@ -268,21 +257,20 @@ describe('TL-11 guards under the real ledger', () => {
     expect(outcome).toMatchObject({ failure: { kind: 'denied' } })
   })
 
-  it('TL-11 A6 the declared owner with another key or another grant is denied by the ledger', async () => {
+  it('the declared owner with another key or another grant is denied by the ledger', async () => {
     const fixture = assembly()
     const changes = [
       { ...scope, key: 'another-key' },
       { ...scope, grant: evidence('another-grant') },
     ]
     for (const [index, changed] of changes.entries()) {
-      // One consumer position each: one consumer position is one binding of one request.
       const consumer = { ...fixedRequest().consumer, position: `position-${index}` }
       const { outcome } = await admitted(fixture, invokeRequest({ scope: changed, consumer }))
       expect(outcome).toMatchObject({ failure: { kind: 'denied' } })
     }
   })
 
-  it('TL-11 A5 an argument that fails to parse settles the call with a result that the policy accepts', async () => {
+  it('an argument that fails to parse settles the call with a result that the policy accepts', async () => {
     const fixture = assembly()
     const { outcome } = await admitted(
       fixture,
@@ -293,8 +281,8 @@ describe('TL-11 guards under the real ledger', () => {
   })
 })
 
-describe('TL-11 A5 text results', () => {
-  it('TL-11 the text of a logical terminal is one block that the default result policy accepts', () => {
+describe('text results', () => {
+  it('the text of a logical terminal is one block that the default result policy accepts', () => {
     const made = createLocalTextResults().text('the arguments could not be parsed: invalid json')
     if (!('ok' in made)) throw new Error('the factory refused plain text')
     expect(made.ok.content).toHaveLength(1)
@@ -310,7 +298,7 @@ describe('TL-11 A5 text results', () => {
     expect(defaultResultPolicy.judgeResult(made.ok)).toHaveProperty('ok')
   })
 
-  it('TL-11 a value that no block can carry is a refusal, not an exception', () => {
+  it('a value that no block can carry is a refusal, not an exception', () => {
     const made = createLocalTextResults().text(undefined as never)
     expect(made).toHaveProperty('failure.reason')
   })
@@ -335,8 +323,8 @@ function parts(overrides: Record<string, unknown> = {}) {
   }
 }
 
-describe('TL-11 A7 the assembly of the guards', () => {
-  it('TL-11 the guards are the parts that were passed in, and the policy is the default one', () => {
+describe('the assembly of the guards', () => {
+  it('the guards are the parts that were passed in, and the policy is the default one', () => {
     const { input } = parts()
     const guards = createLocalToolLedgerGuards<P>(input as never)
     expect(guards.access).toBe(input.access.guard)
@@ -349,7 +337,7 @@ describe('TL-11 A7 the assembly of the guards', () => {
     expect(typeof guards.results.text).toBe('function')
   })
 
-  it('TL-11 the start guard asks the start view of the access, the ledger guard asks the other', async () => {
+  it('the start guard asks the start view of the access, the ledger guard asks the other', async () => {
     const asked: string[] = []
     const record = (name: string): ToolAccessGuard<P> => ({
       qualify: () => {
@@ -374,7 +362,7 @@ describe('TL-11 A7 the assembly of the guards', () => {
     expect(asked).toEqual(['guard', 'start'])
   })
 
-  it('TL-11 the fact acknowledgement guard answers unavailable when the bindings cannot recover', async () => {
+  it('the fact acknowledgement guard answers unavailable when the bindings cannot recover', async () => {
     const { input } = parts()
     const guards = createLocalToolLedgerGuards<P>(input as never)
     const verdict = await guards.factAcknowledgements.verify({
@@ -399,21 +387,21 @@ describe('TL-11 A7 the assembly of the guards', () => {
     ['bindings', {}, 'bindings.recover: missing'],
     ['grants', undefined, 'grants: not a Map'],
     ['grants', {}, 'grants: not a Map'],
-  ] as const)('TL-11 a bad %s (%#) is a TypeError', (key, value, message) => {
+  ] as const)('a bad %s (%#) is a TypeError', (key, value, message) => {
     const { input } = parts()
     expect(() => createLocalToolLedgerGuards<P>({ ...input, [key]: value } as never)).toThrow(
       new TypeError(message),
     )
   })
 
-  it('TL-11 the whole input missing is a TypeError', () => {
+  it('the whole input missing is a TypeError', () => {
     expect(() => createLocalToolLedgerGuards<P>(undefined as never)).toThrow(
       new TypeError('input: missing'),
     )
   })
 
   it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1, '5'])(
-    'TL-11 a budget of %s is a TypeError',
+    'a budget of %s is a TypeError',
     bad => {
       for (const key of Object.keys(localArgumentLimits)) {
         const { input } = parts({ budgets: { arguments: { ...localArgumentLimits, [key]: bad } } })
@@ -424,7 +412,7 @@ describe('TL-11 A7 the assembly of the guards', () => {
     },
   )
 
-  it('TL-11 a budget with a missing item is a TypeError and a complete one is used as it is', () => {
+  it('a budget with a missing item is a TypeError and a complete one is used as it is', () => {
     expect(() =>
       createLocalToolLedgerGuards<P>({ ...parts().input, budgets: {} } as never),
     ).toThrow(new TypeError('budgets.arguments: missing'))
@@ -439,7 +427,7 @@ describe('TL-11 A7 the assembly of the guards', () => {
     ).toEqual(custom)
   })
 
-  it('TL-11 the default budgets are positive safe integers', () => {
+  it('the default budgets are positive safe integers', () => {
     expect(Object.keys(localArgumentLimits).sort()).toEqual([
       'maxBytes',
       'maxDepth',

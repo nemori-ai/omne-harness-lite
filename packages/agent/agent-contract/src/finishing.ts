@@ -1,9 +1,3 @@
-// Finishing types of the Agent contract (SPEC "条件终结", "取消判断与路线", "终结责任清单" and
-// "commitSettlement 的变体"): the candidate content a commit fixes, the candidate and route records
-// the Journal keeps, the issued obligations, the settlement projection of the snapshot, the trusted
-// cancellation judgment with its installation, and the six settlement variants. Types, and the one
-// pure rule that derives an obligation's category from its kind. `FinishIntent`, the projection of
-// the current candidate, lives in execution.ts next to the execution state that carries it.
 import type * as T from '@omne-harness/tool-contract'
 import type {
   AcceptedInput,
@@ -48,15 +42,6 @@ import type {
 } from './passages.ts'
 import type { ProducedResult } from './evaluation.ts'
 
-// ------------------------------------------------------------------------------------------
-// The candidate and its route (SPEC "候选与路线")
-
-/**
- * The business content of an ordinary candidate, written by the F1 commit in `JournalCommit.finish`
- * (SPEC "条件终结" 1). The checkpoint of the candidate is the `checkpoint` of the same commit, so it
- * is not repeated here. `origin` resolves to the evaluation that proposed the candidate and
- * `conditions` to the condition facts that evaluation read; both are fixed records of their owners.
- */
 export type FinishCandidateContent = Readonly<{
   origin: DurableEvidence
   conclusion: AgentConclusion
@@ -64,11 +49,6 @@ export type FinishCandidateContent = Readonly<{
   inputWatermark: DurableEvidence
   conditions: DurableEvidence
 }>
-/**
- * One candidate record of the Journal. `candidate` is the first F1 operation of an ordinary
- * candidate and the establishing operation of a cancellation candidate. The content never changes
- * after it is established; a changed premise establishes a new candidate with a supersession link.
- */
 export type FinishCandidate = Readonly<{
   candidate: AgentOperationId
   origin: DurableEvidence
@@ -78,11 +58,6 @@ export type FinishCandidate = Readonly<{
   checkpoint: AgentCheckpoint
   conditions: DurableEvidence
 }>
-/**
- * One entry of the legacy before-terminal plan that a migration fixes (SPEC "MigrationRecord"
- * progress row): either an extension that never started, with the evidence that excludes its
- * original and any late start, or the complete original Passage with its immutable version.
- */
 export type LegacyF2Entry =
   | Readonly<{
       kind: 'not-started'
@@ -93,12 +68,6 @@ export type LegacyF2Entry =
       exclusion: DurableEvidence
     }>
   | Readonly<{ kind: 'recorded'; passage: Passage; version: DurableEvidence }>
-/**
- * The route of a candidate to its before-terminal judgment. The author route carries the proof of
- * the before-terminal passage once the commit that completes it holds; the cancellation route is
- * immutable and points at its installation, with the operation that created it natively or by
- * migration.
- */
 export type FinishRoute =
   | Readonly<{
       kind: 'author'
@@ -119,20 +88,14 @@ export type FinishRoute =
         | Readonly<{ kind: 'native'; operation: AgentOperationId }>
         | Readonly<{ kind: 'migration'; operation: AgentOperationId }>
     }>
-/** The link from a superseded candidate to the candidate that replaced it (SPEC "旧记录的选择"). */
 export type CandidateSupersession = Readonly<{
   from: AgentOperationId
   to: AgentOperationId
-  /** The cancel control when a complete or failed candidate was replaced by a cancelled one; null otherwise. */
   control: AgentOperationId | null
   revision: ExecutionRevision
   route: FinishRoute
 }>
 
-// ------------------------------------------------------------------------------------------
-// The obligations (SPEC "终结责任清单")
-
-/** The closed reasons of a `pending` disposition. Each names what the owner still owes. */
 export type PendingReason =
   | 'input-disposition'
   | 'cancel-intent'
@@ -147,7 +110,6 @@ export type PendingReason =
   | 'output-custody'
   | 'observation-custody'
   | 'handoff-history'
-/** The closed actions a `RecoveryContinuation` names. None is an arbitrary command or a callback. */
 export type RecoveryAction =
   | 'original-operation-query'
   | 'original-invoke-recovery'
@@ -167,21 +129,10 @@ export type RecoveryAction =
   | 'handoff-exclude'
   | 'handoff-record'
   | 'handoff-source-recovery'
-/**
- * The original public operation one continuation runs (SPEC "终结责任清单", RecoveryContinuation):
- * its complete parameters, a stable record that holds them under its exact schema, or, when that
- * record does not resolve, the original key with the source that is missing. A continuation is
- * never an arbitrary command or a callback.
- */
 export type ContinuationRequest<Parameters> =
   | Readonly<{ kind: 'parameters'; value: Parameters }>
   | Readonly<{ kind: 'record'; schema: Adoption; record: DurableEvidence }>
   | Readonly<{ kind: 'unresolved'; key: string; missing: DurableEvidence }>
-/**
- * The common members of every continuation: the action, the request of the original public
- * operation, the owner now responsible, the custodian that accepted the material when one has,
- * and the public operation whose qualification the continuation uses.
- */
 type ContinuationHead<
   K extends RecoveryAction,
   Parameters,
@@ -193,17 +144,9 @@ type ContinuationHead<
   custodian: ConsumerRef | null
   purpose: Purpose
 }>
-/** The material branch of a `recordHandoff` request (SPEC "准入结果保管"). */
 export type HandoffRecordMaterial =
   | Readonly<{ kind: 'source-bound-request' }>
   | Readonly<{ kind: 'observed-operation'; originalCall: DurableEvidence }>
-/**
- * The one continuation that completes an obligation, one closed variant per action (SPEC
- * "终结责任清单", RecoveryContinuation). The four handoff actions carry the parameters and the
- * qualification of the SPEC handoff table; `original-invoke-recovery` only locates the complete
- * original request, it is not an unconditional invoke; `tool-association-retain` carries the fixed
- * trusted return source and the original registration request.
- */
 export type RecoveryContinuation =
   | ContinuationHead<
       'original-operation-query',
@@ -281,7 +224,6 @@ export type RecoveryContinuation =
       }>,
       'query'
     >
-/** One unknown of a judgment: who owns the fact, which obligation it concerns, where it is queried and why it is unknown. */
 export type CancellationUnknown = Readonly<{
   owner: string
   key: string
@@ -294,7 +236,6 @@ export type CancellationUnknown = Readonly<{
     | 'policy-unavailable'
     | 'qualification-unavailable'
 }>
-/** The four dispositions of one obligation (SPEC "ObligationDisposition"). */
 export type ObligationDisposition =
   | Readonly<{ kind: 'settled'; completion: DurableEvidence }>
   | Readonly<{
@@ -306,14 +247,7 @@ export type ObligationDisposition =
     }>
   | Readonly<{ kind: 'pending'; reason: PendingReason; required: RecoveryContinuation }>
   | Readonly<{ kind: 'unknown'; question: CancellationUnknown; required: RecoveryContinuation }>
-/** The five categories of the SPEC "条件终结" table; the kind of an obligation fixes its category. */
 export type ObligationCategory = 'inputs' | 'controls' | 'operations' | 'passages' | 'custody'
-/**
- * The common head of every obligation: its kind, the original identity key the SPEC table names,
- * the fixed source and version, the consumer position when one applies, and the disposition. The
- * key is text built from the existing identities, never a fresh random id. The category is not a
- * member: the SPEC table fixes it per kind.
- */
 type ObligationHead<K extends string> = Readonly<{
   kind: K
   key: string
@@ -322,11 +256,6 @@ type ObligationHead<K extends string> = Readonly<{
   position: ConsumerRef | null
   disposition: ObligationDisposition
 }>
-/**
- * The closed union of obligations (SPEC "终结责任清单" table). The `control` item carries only its
- * head and key: its required content is the named gap U-9 of the open questions page, so no provider
- * can claim it from one chosen content.
- */
 export type FinishObligation =
   | (ObligationHead<'accepted-input'> &
       Readonly<{
@@ -343,7 +272,6 @@ export type FinishObligation =
         method: string
         request: DurableEvidence
         resolution: 'committed' | 'rejected' | 'excluded' | 'unknown'
-        /** The original record the result of the operation belongs to; null while it is not committed. */
         result: DurableEvidence | null
       }>)
   | (ObligationHead<'handoff'> & Readonly<{ handoff: HandoffReference; record: ExecutionHandoff }>)
@@ -354,7 +282,6 @@ export type FinishObligation =
         pending: PendingCall
         started: DurableEvidence | null
         outcome: DurableEvidence | null
-        /** The existing interrupt requests of this call: the operations of its interrupt or background controls. */
         interruptions: readonly AgentOperationId[]
         custodian: ConsumerRef | null
       }>)
@@ -372,7 +299,6 @@ export type FinishObligation =
         round: CardRound
         present: DurableEvidence | null
         lookups: readonly AgentOperationId[]
-        /** The stable invalidate operation of the round with its fixed reason; null while none was issued. */
         invalidate: Readonly<{ operation: AgentOperationId; reason: DurableEvidence }> | null
       }>)
   | (ObligationHead<'result'> &
@@ -385,7 +311,6 @@ export type FinishObligation =
         resultVersion: DurableEvidence
         material: DurableEvidence
         custodian: ConsumerRef | null
-        /** The basis on which the custodian accepted the material; null while nobody has. */
         acceptance: DurableEvidence | null
       }>)
   | (ObligationHead<'output'> &
@@ -396,10 +321,6 @@ export type FinishObligation =
       }>)
   | (ObligationHead<'terminal-observation'> &
       Readonly<{ observation: TerminalObservation; terminal: DurableEvidence | null }>)
-/**
- * The category of one obligation kind, as the SPEC "终结责任清单" table fixes it. The category is
- * not a member of the public head; a Journal and a policy derive it from the kind.
- */
 export function obligationCategoryOf(kind: FinishObligation['kind']): ObligationCategory {
   switch (kind) {
     case 'accepted-input':
@@ -420,13 +341,11 @@ export function obligationCategoryOf(kind: FinishObligation['kind']): Obligation
       return 'custody'
   }
 }
-/** One facet of the responsibility coverage: its owner, fixed version and complete read evidence. */
 export type CoverageFacet = Readonly<{
   owner: string
   version: DurableEvidence
   read: DurableEvidence
 }>
-/** The coverage of the responsibility closure of one execution (SPEC "ResponsibilityCoverage"). */
 export type ResponsibilityCoverage = Readonly<{
   readRevision: ExecutionRevision
   inputWatermark: DurableEvidence
@@ -440,7 +359,6 @@ export type ResponsibilityCoverage = Readonly<{
   observations: CoverageFacet
   handoffs: CoverageFacet
 }>
-/** The read-only terminal condition of one external participant of a coordinated binding. */
 export type TerminalParticipantFact = Readonly<{
   owner: string
   protocol: Adoption
@@ -451,7 +369,6 @@ export type TerminalParticipantFact = Readonly<{
     | Readonly<{ kind: 'blocked'; category: ObligationCategory; source: DurableEvidence }>
   purpose: DurableEvidence
 }>
-/** The participant facts of the binding (SPEC "TerminalParticipantFacts"). */
 export type TerminalParticipantFacts =
   | Readonly<{ kind: 'standalone'; basis: DurableEvidence }>
   | Readonly<{
@@ -459,12 +376,6 @@ export type TerminalParticipantFacts =
       association: DurableEvidence
       participants: readonly TerminalParticipantFact[]
     }>
-/**
- * The obligations that one `prepareFinish` issued (SPEC "终结责任清单"): bound to the tenant and
- * execution of its operation, the candidate and its fixed content, the complete items with their
- * dispositions, and the coverage. `evidence` is what `FinishIntent.obligations` points at. The list
- * is immutable; dispositions advance in later records of their own.
- */
 export type FinishObligations = Readonly<{
   operation: AgentOperationId
   revision: ExecutionRevision
@@ -479,10 +390,6 @@ export type FinishObligations = Readonly<{
   coverage: ResponsibilityCoverage
 }>
 
-// ------------------------------------------------------------------------------------------
-// The trusted cancellation judgment (SPEC "取消判断与路线")
-
-/** The immutable installation that governance issued for the cancellation policy (SPEC "安装记录与资格"). */
 export type CancellationPolicyInstallation = Readonly<{
   record: DurableEvidence
   decision: DurableEvidence
@@ -496,7 +403,6 @@ export type CancellationPolicyInstallation = Readonly<{
   }>[]
   admission: DurableEvidence
 }>
-/** The authoritative input the Journal builds for one judgment (SPEC "判断输入、判据与记录"). */
 export type CancellationJudgmentInput = Readonly<{
   tenant: Access<unknown>['tenant']
   execution: AgentExecutionId
@@ -508,7 +414,6 @@ export type CancellationJudgmentInput = Readonly<{
   items: readonly FinishObligation[]
   participants: TerminalParticipantFacts
 }>
-/** One blocked reason of a judgment: the category, the key, the pending reason, the source and the continuation. */
 export type CancellationBlock = Readonly<{
   category: ObligationCategory
   key: string
@@ -524,13 +429,11 @@ export type CancellationDecision =
       questions: readonly [CancellationUnknown, ...CancellationUnknown[]]
       knownBlocked: readonly CancellationBlock[]
     }>
-/** The pure judgment implementation that governance installs; it is not an author invoke. */
 export interface CancellationPolicy {
   readonly policy: Adoption
   readonly implementation: Adoption
   judge(input: CancellationJudgmentInput): CancellationDecision
 }
-/** The immutable record of one judgment; a newer one points at it through `supersedes`. */
 export type CancellationJudgmentRecord = Readonly<{
   operation: AgentOperationId
   receipt: CommandReceipt
@@ -549,17 +452,12 @@ export type CancellationJudgmentRecord = Readonly<{
   supersedes: AgentOperationId | null
 }>
 
-// ------------------------------------------------------------------------------------------
-// The settlement records (SPEC "commitSettlement 的变体")
-
-/** The excluded predecessor of a migration or an association request, with its chain back to root. */
 export type ExcludedPredecessor = Readonly<{
   operation: AgentOperationId
   request: DurableEvidence
   exclusion: DurableEvidence
   chain: readonly AgentOperationId[]
 }>
-/** The record of one policy switch of a cancelled candidate (SPEC "MigrationRecord" table). */
 export type MigrationRecord = Readonly<{
   operation: AgentOperationId
   receipt: CommandReceipt
@@ -598,7 +496,6 @@ export type MigrationRecord = Readonly<{
   }>
   priorExcluded: ExcludedPredecessor | null
 }>
-/** The late return of an author invocation that started before the cancellation fence (SPEC "迟到的作者调用返回"). */
 export type LegacyInvocationReturn = Readonly<{
   operation: AgentOperationId
   receipt: CommandReceipt
@@ -614,13 +511,11 @@ export type LegacyInvocationReturn = Readonly<{
   custody: DurableEvidence
   revision: ExecutionRevision
 }>
-/** The stable key of one Tool call obligation (SPEC "commitSettlement 的变体", Tool paragraph). */
 export type ToolIntentKey = Readonly<{
   intent: AgentOperationId
   action: ActionId
   position: ConsumerRef
 }>
-/** The association record of one Tool return a trusted host kept (SPEC "record-tool-association"). */
 export type ToolAssociationRecord = Readonly<{
   operation: AgentOperationId
   receipt: CommandReceipt
@@ -635,7 +530,6 @@ export type ToolAssociationRecord = Readonly<{
   priorExcluded: ExcludedPredecessor | null
   revision: ExecutionRevision
 }>
-/** The responsibility of one card round as a reconciliation recorded it. */
 export type CardReconciliationRecord = Readonly<{
   operation: AgentOperationId
   receipt: CommandReceipt
@@ -647,11 +541,6 @@ export type CardReconciliationRecord = Readonly<{
   obligation: Extract<FinishObligation, { kind: 'card-round' }>
   revision: ExecutionRevision
 }>
-/**
- * The settlement projection of a snapshot at one revision (SPEC "ExecutionSnapshot.settlement"):
- * the current candidate and route, the chain of surviving candidates, the migration, judgment,
- * card, legacy-return and association records, and the current judgment pointer.
- */
 export type ExecutionSettlement = Readonly<{
   candidate: FinishCandidate | null
   route: FinishRoute | null
@@ -666,15 +555,7 @@ export type ExecutionSettlement = Readonly<{
   toolAssociations: readonly ToolAssociationRecord[]
 }>
 
-// ------------------------------------------------------------------------------------------
-// The six variants of commitSettlement
-
 type CancelAuthorization = Extract<FinishAuthorization, { kind: 'cancel' }>
-/**
- * The request of `commitSettlement`, one closed variant per kind. The candidate, migration and
- * judgment variants carry `expected` and the cancel authorization; the custody variants carry
- * neither. No variant carries a checkpoint, effects, events, a CallerCommit or a state.
- */
 export type SettlementRequest<P> = ExecutionMutation<P> &
   (
     | Readonly<{
@@ -725,7 +606,6 @@ export type SettlementRequest<P> = ExecutionMutation<P> &
         priorExcluded: ExcludedPredecessor | null
       }>
   )
-/** The complete success result of each variant; the same operation answers it again. */
 export type SettlementResult =
   | Readonly<{
       kind: 'establish-cancellation'

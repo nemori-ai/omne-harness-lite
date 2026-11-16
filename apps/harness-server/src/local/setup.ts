@@ -1,14 +1,3 @@
-// `harness-server setup`: the one command that prepares a host for the local single-user server.
-// It picks the standard places (`locations.ts`), puts the model credential into the secret vault of
-// the state directory (settings-local's file custody; the credential is the official layer of the
-// OpenRouter provider's credential item, the deployment default every official profile sends with),
-// and writes the settings file. A second run keeps what is there: the settings
-// change only with `--reconfigure` (or `--reset` for a file that is not valid), and the credential
-// only with `--replace-credential`. A vault that cannot be read is a failure, never "kept".
-//
-// Order: arguments, places, existing settings, wanted settings, directories, credential, settings
-// file. The credential step comes before the settings file, so a settings file means that the
-// vault was there when it was written. Nothing that this command prints holds the credential.
 import { lstatSync, mkdirSync, statSync, unlinkSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import {
@@ -40,13 +29,8 @@ import {
   type ServerSettings,
 } from './settings.ts'
 
-/** The provider whose credential `setup` stores: the one every official profile sends to. */
 const DEPLOYMENT_PROVIDER = 'openrouter'
 
-/**
- * The binding key of the deployment default: the official layer of the provider's one credential
- * item, the key `omne setting` shows as the official layer and the send reads.
- */
 function deploymentKey(): SecretBindingKey {
   const provider = releaseProvider(DEPLOYMENT_PROVIDER)
   const [credential, ...more] = provider?.body.credentials ?? []
@@ -86,23 +70,16 @@ export type SetupOutput = Readonly<{
 export type SetupDeps = Readonly<{
   platform: NodeJS.Platform
   env: Readonly<Record<string, string | undefined>>
-  /** The user directory. The vault must lie below its real path. */
   home: string
-  /** Resolves a relative `--workspace`. */
   cwd: string
-  /** Reads the model credential. Called at most once, and only when the vault needs a key. */
   readSecret: () => Promise<string>
-  /** POSIX: sets a mode. Absent on Windows, where entries inherit the access control of the user directory. */
   chmod?: (path: string, mode: number) => void
-  /** Whether a file exists at the path. Used for the shell executable. */
   isFile: (path: string) => boolean
-  /** The guard of the vault files. Default: the vault's own platform guard. */
   vaultGuard?: PermissionGuard
 }>
 
 class SetupRefused extends Error {
   readonly code: 1 | 2
-  /** The arguments were wrong: the usage line follows the message. */
   readonly usage: boolean
 
   constructor(message: string, code: 1 | 2, usage = false) {
@@ -135,7 +112,6 @@ function parseFlags(argv: readonly string[]): Flags {
   try {
     parsed = parseSetupArgs(argv)
   } catch {
-    // The parse error can quote the argument, and an argument can be a key: it is not repeated.
     throw new SetupRefused('unrecognized arguments', 2, true)
   }
   const { values, positionals } = parsed
@@ -169,14 +145,9 @@ function parseSetupArgs(argv: readonly string[]) {
 }
 
 type Existing =
-  /** No settings to keep. `replaced` when a file was there and `--reset` replaces it. */
   | Readonly<{ kind: 'none'; replaced: boolean }>
   | Readonly<{ kind: 'kept'; settings: ServerSettings }>
 
-/**
- * The settings to start from. A file that is not valid is never replaced by default values in
- * silence, not even with `--reconfigure`: only `--reset` replaces it.
- */
 function existingSettings(locations: ServerLocations, reset: boolean): Existing {
   const read = readSettings(locations.settingsFile)
   if (read.kind === 'missing') return { kind: 'none', replaced: false }
@@ -208,7 +179,6 @@ function wantedSettings(
         }
   return {
     ...base,
-    // `--reconfigure` takes the environment again, for example after a new tool changed PATH.
     ...(flags.reconfigure
       ? { shellEnvironment: captureShellEnvironment(deps.platform, deps.env) }
       : {}),
@@ -248,7 +218,6 @@ function refuseSilentChange(
   )
 }
 
-/** Creates a directory that the server owns and, on POSIX, makes it private to the user. */
 function ownDirectory(path: string, deps: SetupDeps): void {
   try {
     mkdirSync(path, { recursive: true, mode: 0o700 })
@@ -267,7 +236,6 @@ function prepareWorkspace(path: string, deps: SetupDeps): void {
     if (error instanceof SetupRefused) throw error
     existed = false
   }
-  // A workspace that a person named and that exists keeps its mode. A new one is private.
   if (!existed) ownDirectory(path, deps)
 }
 
@@ -277,7 +245,6 @@ function codeSuffix(error: unknown): string {
   return typeof code === 'string' ? ` (${code})` : ''
 }
 
-/** Why the credential step failed: the vault reasons, no readable vault, or a write that stays wide. */
 type CredentialStoreFailure = SecretVaultInitFailure | 'vault-unavailable' | 'written-not-private'
 
 const VAULT_REASONS: Readonly<
@@ -315,7 +282,6 @@ function pathKind(path: string): PathKind {
   }
 }
 
-/** A vault path that holds something that is not a file: setup never removes it. */
 function notAFile(path: string): SetupRefused {
   return new SetupRefused(
     `the model credential vault path ${path} holds a directory or a link, not a vault file\n` +
@@ -352,11 +318,6 @@ function isRegularFile(path: string): boolean {
   }
 }
 
-/**
- * Writes the new deployment key through the management face under the guard, then confirms it by
- * reading it back and narrows the file mode. `written` and `unconfirmed` are both decided by the
- * read-back: a publish whose confirmation failed may still have landed.
- */
 function replaceTyped(
   vault: SecretVault,
   path: string,
@@ -380,12 +341,6 @@ function replaceTyped(
   return { ok: true, rebuilt: false }
 }
 
-/**
- * Replaces an unreadable regular file by a new vault: the key is read and checked first, then the
- * file is removed, then the vault is built by the rules of `initSecretVault`. A directory, a link
- * or a missing path is never removed; the answer stays `vault-unavailable`. Its old content is not
- * read, so the tenant secrets of the old vault are gone.
- */
 async function rebuild(path: string, deps: ReplaceDeps): Promise<ReplaceResult> {
   if (!isRegularFile(path)) return { ok: false, reason: 'vault-unavailable' }
   const typed = await readTypedSecret(deps.readSecret)
@@ -404,11 +359,6 @@ async function rebuild(path: string, deps: ReplaceDeps): Promise<ReplaceResult> 
   return built.ok ? { ok: true, rebuilt: true } : built
 }
 
-/**
- * Replaces the deployment key of the vault at `path`: a readable vault on the path, read the key,
- * bind it under the guard, confirm, narrow the mode. Bindings stay as they are. A running custody
- * on the same file reads the new key on its next resolution. An unreadable regular file is rebuilt.
- */
 async function replaceDeploymentKey(path: string, deps: ReplaceDeps): Promise<ReplaceResult> {
   const opened = openSecretVault({ path })
   if (opened.kind !== 'open') return rebuild(path, deps)
@@ -421,11 +371,6 @@ async function replaceDeploymentKey(path: string, deps: ReplaceDeps): Promise<Re
   }
 }
 
-/**
- * The vault step. An existing vault is opened (under its lock), not only found: one that cannot be
- * read stops setup with exit 1 and the way to fix it. With `--replace-credential` a vault file that
- * cannot be read is replaced by a new vault. A directory or a link on the path is never removed.
- */
 async function storeCredential(
   locations: ServerLocations,
   flags: Flags,
@@ -506,7 +451,6 @@ function summary(input: {
   ].join('\n')
 }
 
-/** Runs `setup` and returns the exit code: 0 done, 1 a step failed, 2 a usage or settings refusal. */
 export async function runSetup(
   argv: readonly string[],
   output: SetupOutput,

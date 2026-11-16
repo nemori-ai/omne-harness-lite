@@ -1,6 +1,3 @@
-// Machine guards of the formal properties in verification/models (README there). Each block
-// names the property it guards and the defect that turns it red. Generated cases use a seeded
-// generator, so a red case is reproducible from its seed.
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import type * as M from '@omne-harness/model-contract'
@@ -26,7 +23,6 @@ import {
 
 const CASES = 48
 
-/** mulberry32: a small seeded generator, enough for reproducible cases. */
 function generator(seed: number) {
   let a = seed >>> 0
   const next = () => {
@@ -57,7 +53,6 @@ function canonical(value: unknown): string {
 const sha = (value: unknown) => createHash('sha256').update(canonical(value)).digest('hex')
 
 type Block = Snapshot['contextRead']['perRequest'][number]
-/** The stably read materials of one case: history texts and the layer ⑥ blocks. */
 type Materials = Readonly<{ texts: readonly string[]; tail: readonly Block[] }>
 
 function perRequest(key: string, value: unknown): Block {
@@ -71,7 +66,6 @@ function materials(g: Gen): Materials {
   return { texts, tail }
 }
 
-/** The input and ports of one case; `amount` and `digestOf` script the meter. */
 function caseOf(
   m: Materials,
   meter: Readonly<{
@@ -145,8 +139,6 @@ const contentDigest = (measured: unknown) =>
   sha((measured as { representation: unknown }).representation)
 
 describe('FR: the content of a request is a function of its stably read materials', () => {
-  // Red when the content depends on the measurement, on call order or on the order a source
-  // lists its per-request blocks (FixedReplay: the derivation the replay claim rests on).
   it('equal materials give equal content under different meters and block order', async () => {
     for (let seed = 1; seed <= CASES; seed++) {
       const m = materials(generator(seed))
@@ -159,9 +151,6 @@ describe('FR: the content of a request is a function of its stably read material
     }
   })
 
-  // Red when a part of the request is assembled after measurement or is left out of the measured
-  // input: the recorded input digest would then not tell two contents apart, and a recovery that
-  // compares digests would re-admit another request under the fixed identity (SentMatchesRecord).
   it('the recorded input digest changes with every change of content, layer ⑥ included', async () => {
     for (let seed = 1; seed <= CASES; seed++) {
       const g = generator(seed)
@@ -184,9 +173,6 @@ describe('FR: the content of a request is a function of its stably read material
     }
   })
 
-  // The replay counterexample of FixedReplay in code: fixing a request changes the adopted fact,
-  // so context.window-usage in layer ⑥ changes and so does the content. Red when the tail stops
-  // reaching the measured input, which would hide this difference from the digest comparison.
   it('a fixing that moves context.window-usage changes the content and its digest', async () => {
     const before = {
       texts: ['a', 'b'],
@@ -244,8 +230,6 @@ describe('CF: capacity outcomes are closed and visible', () => {
     BigInt(c.measurement.amount) +
     BigInt(c.measurement.kind === 'estimate' ? c.measurement.margin : '0')
 
-  // Red when a request over a hard limit or over the trigger line is judged to fit, when the
-  // estimate margin is dropped, or when the fixed part is not what decides cannot-fit.
   it('judgeBudget never lets a request over a limit or the trigger fit', () => {
     for (let seed = 1; seed <= CASES * 4; seed++) {
       const g = generator(seed)
@@ -297,8 +281,6 @@ describe('CF: capacity outcomes are closed and visible', () => {
     }
   })
 
-  // Red when a preparation enters a second compaction plan (hot loop), or when a request that
-  // does not fit is handed out as a candidate with part of its history cut away.
   it('a request that does not fit is never a shortened candidate, and plans at most once', async () => {
     for (let seed = 1; seed <= CASES; seed++) {
       const g = generator(seed)
@@ -323,7 +305,6 @@ describe('CF: capacity outcomes are closed and visible', () => {
       } else if (amount === '1') {
         throw new Error(`seed ${seed}: a fitting request did not give a candidate: ${result.kind}`)
       } else if (amount === '1001') {
-        // the fixed part itself is over the limit: cannot-fit, with or without a plan
         expect(result, `seed ${seed}`).toMatchObject({
           kind: 'cannot-fit',
           reason: 'fixed-part-over-limit',
@@ -336,8 +317,6 @@ describe('CF: capacity outcomes are closed and visible', () => {
 })
 
 describe('RA: every Model input takes the representation the profile fixes', () => {
-  // Red when any candidate (whole, fixed part, retention probe, post-summary check) takes the
-  // representation strategy identity or a constant instead of profile.definition.representation.
   it('assemble, planCompaction and deriveStep give rules.plan the profile representation', async () => {
     const base = fixture().input.selection.profile
     for (let seed = 1; seed <= CASES / 4; seed++) {
@@ -346,8 +325,6 @@ describe('RA: every Model input takes the representation the profile fixes', () 
       const profile = { ...base, definition: { ...base.definition, representation } }
       const fits = caseOf(materials(g), { amount: '1' }, { profile })
       candidateOf(await assemble(fits.input, fits.ports, fits.policies))
-      // Over the trigger only with the whole history: the retention probe and the post-summary
-      // check measure fewer messages and fit.
       const whole = (measured: unknown) => {
         const tokens = (measured as { representation: { tokenInput: { value: string } } })
           .representation.tokenInput.value

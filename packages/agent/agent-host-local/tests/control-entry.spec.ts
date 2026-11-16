@@ -1,13 +1,3 @@
-// The control entry (`agentExecutionControl`, AG-05) on an execution whose active attachment belongs
-// to a runtime that this host still runs (the "accepted control left to recovery" limit in the agent-host-local SPEC, section on control advance). The host is the `agent-host` plugin on real
-// Cordis 4.0.4 with the production factory `createAgentRuntime`; the Journal, Model, access check
-// and the stage ports are the non-durable doubles of `@omne-harness/agent/testing`.
-// What is checked: a cancellation through the entry is advanced as the execution handle advances it
-// (the intent is established before the entry answers, and the Loop sends no further Model
-// request), a retry of the same control operation writes nothing, and the principal check of the
-// entry still refuses another tenant and a refused principal before anything is saved. The
-// progression is `continue`, so a Loop that missed the cancellation would send a next request.
-// Nothing here proves a real Journal, a real Model or another process.
 import { agentEvaluator } from '@omne-harness/agent'
 import { testAdoption } from '@omne-harness/agent/testing'
 import {
@@ -74,7 +64,6 @@ const conditions: RuntimeConditions = {
 }
 
 const selected = {
-  // A Model request accepts only an adoption whose digest is 64 hex digits, as testAdoption mints.
   recipient: { route: 'route-1', profile: testAdoption('profile') },
   resolution: { kind: 'resolved', selectable: true },
   parameters: [],
@@ -99,7 +88,6 @@ function input(): AcceptedInput {
   }
 }
 
-/** Waits for `probe` on later turns, at most `ms` milliseconds. */
 async function until(probe: () => boolean | Promise<boolean>, ms = 10_000): Promise<void> {
   const end = Date.now() + ms
   while (!(await probe())) {
@@ -115,7 +103,6 @@ const cancel = (tenant: 'a' | 'b', name: string) => ({
   command: { kind: 'cancel' as const, reason: evidence(name) },
 })
 
-/** A host whose runtime holds EXECUTION, waiting on its first Model call. */
 async function running() {
   const host = await openWorld({
     stages: true,
@@ -157,7 +144,6 @@ async function running() {
   return { host, instance, load }
 }
 
-/** Settles the open Model call with one text and an account, and pushes it to the receiver. */
 async function deliverReply(host: World, snapshot: ExecutionSnapshot) {
   const pending = snapshot.checkpoint.calls.find(call => call.kind === 'model')
   if (pending?.kind !== 'model') throw new Error('no Model call is open')
@@ -232,7 +218,6 @@ describe('the control entry on an execution that a runtime of this host runs', (
     expect(established?.stages['intent-established']?.state).toBe('reached')
     expect(established?.stages['qualification-revoked']?.state).toBe('reached')
 
-    // The reply that was in flight still arrives; the cancelled Loop ends without a next request.
     await until(async () => (await load()).settlement.judgments.length > 0)
     const call = await deliverReply(host, await load())
     await until(async () => (await load()).state.kind === 'ended')
@@ -240,7 +225,6 @@ describe('the control entry on an execution that a runtime of this host runs', (
     expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'cancelled' } })
     expect(host.admits.length - sent).toBe(0)
 
-    // What was already produced stays readable: the received result and the account of its call.
     const entries = await entriesOf(host.controls.journal.provider.entries, {
       ...caller('a'),
       execution: EXECUTION,
@@ -301,7 +285,6 @@ describe('the control entry on an execution that a runtime of this host runs', (
     expect(await host.control.control({ ...cancel('a', 'cancel-intruder'), ...intruder })).toEqual({
       failure: { kind: 'denied', action: 'control' },
     })
-    // The advance reads the execution with the caller's principal; a refused caller reaches none.
     expect(host.journalCalls.filter(call => call.principal === intruder.principal)).toEqual([])
     expect((await load()).controls).toEqual([])
   })

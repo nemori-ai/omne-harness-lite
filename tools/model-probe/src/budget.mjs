@@ -7,7 +7,6 @@ export function usdUnits(value) {
   if (typeof value !== 'string' || !/^\d+(?:\.\d+)?$/.test(value))
     throw new Error('USD must be a nonnegative decimal string')
   const [whole, fraction = ''] = value.split('.')
-  // Reservations round up, including rates more precise than our accounting unit.
   return (
     BigInt(whole) * scale +
     BigInt(fraction.slice(0, 18).padEnd(18, '0')) +
@@ -17,7 +16,6 @@ export function usdUnits(value) {
 export function usdString(units) {
   return `${units / scale}.${(units % scale).toString().padStart(18, '0')}`
 }
-// Actual receipts keep every reported decimal digit; only reservations round upward.
 function aboveLimit(values, limit) {
   const decimals = [...values, limit].map(value => {
     if (typeof value !== 'string' || !/^\d+(?:\.\d+)?$/.test(value))
@@ -69,7 +67,6 @@ export function estimateReservation(pricing, inputBytes, outputTokens) {
   )
     throw new Error('Invalid token bounds')
   const rates = [pricing, ...(pricing.overrides ?? [])]
-  // A byte is a conservative input-token bound for these controlled ASCII fixtures.
   const input = rates
     .flatMap(p =>
       [p.prompt, p.input_cache_write, p.input_cache_write_1h].filter(v => v !== undefined),
@@ -84,11 +81,6 @@ export function estimateReservation(pricing, inputBytes, outputTokens) {
   )
 }
 
-// One lock covers the complete run; a killed process leaves a visible lock and reservation.
-// Never automatically recover a stale lock: the external effect may already have occurred.
-// Approved total scope for any ledger this tool may open. Raised 100 -> 200 on 2026-09-30 by
-// the user (tmp/model-request-runtime/budget-change-authorization-20260930-200.json); the
-// per-ledger limitUsd must still equal the ledger header (see "Ledger/config mismatch").
 export const APPROVED_SCOPE_LIMIT_USD = '200'
 
 export async function openLedger(

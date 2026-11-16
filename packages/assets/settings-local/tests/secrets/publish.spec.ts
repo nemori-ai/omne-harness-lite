@@ -1,7 +1,3 @@
-// The publish path of the vault file: the lock, the atomic replace and the injected faults. The
-// faults come from a mocked `node:fs` (rename, write, fsync); the lock cases hold a real lock, in
-// this process or in a child process. Every case keeps the old file intact unless the publish
-// landed, and reports which of the two it was.
 import { spawn } from 'node:child_process'
 import {
   existsSync,
@@ -132,8 +128,6 @@ function valueAt(path: string, of: SecretBindingKey = key()): string | undefined
   return typeof taken === 'string' ? undefined : taken.value
 }
 
-// The vault syncs the parent directory after the rename only on POSIX: Windows cannot fsync a
-// directory handle (EPERM), so there the rename is the last step and no confirmation can fail.
 const postRenameConfirmation = it.skipIf(process.platform === 'win32')
 
 describe('a publish that fails before the rename', () => {
@@ -462,7 +456,6 @@ describe('the file lock', () => {
     'a long-lived synchronous write does not let another process steal the lock',
     { tags: ['slow'], timeout: 20_000 },
     async () => {
-      // This test intentionally holds the lock through a multi-second synchronous pause.
       const { path, directory } = scratch()
       const goPath = join(directory, 'go')
       const resultPath = join(directory, 'child-result.json')
@@ -520,10 +513,8 @@ describe('the file lock', () => {
         })
       })
       const result = JSON.parse(readFileSync(resultPath, 'utf8')) as { start: number; end: number }
-      // The child must have waited for the parent's lock, not stolen it.
       expect(result.end - result.start).toBeGreaterThanOrEqual(6000)
       expect(parentDuration).toBeGreaterThanOrEqual(6500)
-      // Both writes survived the overlap.
       expect(valueAt(path, key('a'))).toBeUndefined()
       expect(valueAt(path, key('b'))).toBe('parent-secret')
       expect(valueAt(path, key('c'))).toBe('child-secret')

@@ -1,5 +1,3 @@
-// Fast: the decisions of the macOS command backend that need no process: the residue and its
-// reason in the contract's order, and the request checks. Runs everywhere.
 import { describe, expect, it } from 'vitest'
 import { originRef } from '@omne-harness/execution-environment-contract'
 import {

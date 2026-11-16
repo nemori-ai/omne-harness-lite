@@ -1,0 +1,47 @@
+{
+  "name": "@omne-harness/human-intervention-access",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The access plugin of human-intervention/v1: the handlers of the four card operations over the human intervention faces, and the frame source of the card change observation",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/access-cordis-contract": "workspace:*",
+    "@omne-harness/human-intervention": "workspace:*",
+    "@omne-harness/human-intervention-protocol": "workspace:*",
+    "@omne-harness/identity": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/public-contract": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

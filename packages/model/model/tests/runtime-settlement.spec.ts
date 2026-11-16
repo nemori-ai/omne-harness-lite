@@ -79,7 +79,6 @@ async function finish(f: ReturnType<typeof runtimeFixture>, facts: TransportFact
   return f.results.get(f.admit.call)
 }
 async function savedParts(f: ReturnType<typeof runtimeFixture>) {
-  // This settlement probe reads the memory Commands provider. Public consumption has separate tests.
   const result = unbox(
     await f.dependencies.commands.acquireRead({
       ...f.admit,
@@ -774,8 +773,6 @@ it('hands back the same terminal evidence after the confirmation callback fails 
         confirmed = structuredClone(result.ok)
         const blocks = result.ok.blocks
         let reads = 0
-        // The first read fixes receiver evidence. The second is the observation callback.
-        // Only the returned object is faulted; the real committed Snapshot stays unchanged.
         Object.defineProperty(result.ok, 'blocks', {
           enumerable: true,
           get() {
@@ -848,7 +845,6 @@ it('keeps the content barrier through repeated confirmation failures and recover
         confirmed = clone(result.ok)
         let snapshotClones = 0
         let failures = 2
-        // Fault publication after receiver's first clone fixed the real committed Snapshot.
         const spy = vi.spyOn(globalThis, 'structuredClone').mockImplementation((value, options) => {
           if (
             value &&
@@ -911,7 +907,6 @@ it('forgets a settled call once the host releases it: the cached outcome goes an
   try {
     const first = await finish(f, answer)
     expect(first).toMatchObject({ failure: { diagnostic: 'resource-release-failed' } })
-    // Until the release a repeated drive hands back the original outcome.
     expect(await f.drive()).toEqual(first)
     const publication = f.publications.get(f.admit.call)
     f.provider.released({ tenant: f.tenant, call: f.admit.call })

@@ -1,6 +1,3 @@
-// The assembly of the e2e journey: `createMcp` on the five requirement ports and the local
-// transport factory. Four ports are the contract's in-memory doubles; the landing starts real
-// processes; the output validator answers `conforms` to every pair.
 import { createMcp } from '@omne-harness/mcp'
 import type {
   ConnectionTarget,
@@ -50,7 +47,6 @@ const CONFIG: McpConfig<Principal> = {
   instructionsByteLimit: 4096,
 }
 
-/** The landing of the journey: a Node program runs through `spawnHandle`, any other program through `spawnCommand`. */
 const landing: ProcessLanding<Principal> = {
   async start(_access, launch) {
     const handle: ProcessHandle =
@@ -63,7 +59,6 @@ const landing: ProcessLanding<Principal> = {
 
 export type Assembly = Readonly<{
   services: McpServices<Principal, string>
-  /** Adopts one endpoint for alice and grants her the use eligibility. */
   adopt(ref: EndpointRef, endpoint: Adoption): void
 }>
 

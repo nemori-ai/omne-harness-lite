@@ -1,33 +1,3 @@
-// AD-06, Tool log consumption: the plugin reads the Tool results and accounts that the Agent host
-// result receiver already wrote into the same session log, and commits what they mean for Session
-// as one batch of the entries channel `tool-received`. It never injects or calls Tool.
-//
-// One call reads the Run that owns the execution as `coordinator`, loads the execution from the same
-// AgentJournal, and takes the `received` entries of producer `tool` in commit order. From the saved
-// progress of the channel on, every entry is checked and translated, in order: its call reference
-// names the tenant of the call; Session holds the producer binding of the call with the same
-// consumption and consumer; the material that the entry names reads, through the same provider's
-// AgentMaterials, as the complete Tool delivery that the receiver kept for exactly this delivery.
-// A result becomes `receive(execution)` of the call, and also `receive(account)` when the runtime
-// completed an account; an account delivery becomes `receive(account)`. No report stays no fact.
-//
-// The complete Tool settlement (`terminal`, `actualTerminal`, `effect`) has no adopted facts schema
-// (TOOL-SETTLEMENT-SCHEMA of the assembly page, AGENT-M06 of Agent). The plugin does not define one:
-// the assembly hands it the adopted reading of the material, `toolDeliveries`, and while there is
-// none every Tool entry answers `unavailable` and the batch stays where it is. A result page, a
-// release or the mere presence of `received` is never read as a settlement.
-//
-// The translated items go to `commitEntries` in one observation: consequences, progress and the
-// answer of the operation are one Session commit, after the Agent commit and apart from it. The
-// operation identity is derived from the observation, so a lost reply is recognized by sending the
-// same observation again, and a later read starts after the saved progress and commits nothing new.
-// The plugin does not write ProducerFact.release: the Tool original confirmation belongs to AD-05
-// (JC-RELEASE-TOOL-PATH).
-//
-// The plugin keeps nothing but the current generation of its dependencies. A call made while it is
-// pending or stopped, or one that was waiting when it stopped, answers `unavailable`; one that
-// stopped after a commit answered `commit-unknown` stays `commit-unknown`, since that commit may
-// have landed.
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
@@ -76,36 +46,17 @@ import { subscribePublished } from './published-queue.ts'
 
 const OWNER = 'session-adapters/tool-log'
 const CHANNEL = 'tool-received'
-/** The reads after a `changed`: another commit moved the channel between the read and the commit. */
 const ROUNDS = 3
-/** The initial values of the two configuration fields (IC-14: the assembly may set others). */
 const TIMEOUT_MS = 30_000
 const RETRY_BACKOFF_MS = 50
 
-/**
- * A decoded Tool delivery material: the tenant text the receiver kept and the complete delivery.
- * The shape is that of the receiver's Model facts material; which schema carries it is the owner's.
- */
 export type ToolDeliveryEnvelope = Readonly<{
   tenant: string
   delivery: ToolDelivery<ContentBlock>
 }>
 
-/**
- * The Agent owner's adopted reading of the material in which the result receiver keeps a Tool
- * delivery: the envelope, or null for a material of any other schema or one that does not decode.
- * It is pure: it reads no store and proves no qualification.
- */
 export type ToolDeliveryReader = (material: Material<ContentBlock>) => ToolDeliveryEnvelope | null
 
-/**
- * What the assembly hands to AD-06. `toolDeliveries` is null until the Agent owner adopts the Tool
- * delivery schema (TOOL-SETTLEMENT-SCHEMA); with null every Tool entry answers `unavailable`.
- * `coordinator` is the principal that the assembly issues to the coordinator of one session, as for
- * AD-05 (`forSession({ actor: 'coordinator', ... })`). The published-event trigger needs it, since
- * the event names no principal; without it the plugin subscribes to nothing and only `consume`
- * reads.
- */
 export type SessionToolLogConsumptionInput = Readonly<{
   toolDeliveries: ToolDeliveryReader | null
   coordinator?: (
@@ -113,20 +64,11 @@ export type SessionToolLogConsumptionInput = Readonly<{
   ) => Promise<Outcome<unknown, SessionCoordinatorPrincipalFailure>>
 }>
 
-/**
- * The configuration of the row (data only): how long one dependency call may take, and the wait
- * before a resend after `commit-unknown` or a new read after `changed`.
- */
 export type SessionToolLogConsumptionConfig = Readonly<{
   timeoutMs?: number
   retryBackoffMs?: number
 }>
 
-/**
- * One call: the execution of one Session whose Tool entries are read, and the principal that the
- * assembly issued to the coordinator of that session. The tenant and the principal come with every
- * call (IC-18); the plugin keeps neither.
- */
 export type ToolLogTarget = Readonly<{
   principal: unknown
   tenant: TenantId
@@ -134,12 +76,6 @@ export type ToolLogTarget = Readonly<{
   execution: AgentExecutionId
 }>
 
-/**
- * The answer of one call. `progress` is the saved progress of the execution's Tool channel after the
- * call, null when no batch of it was ever saved. `committed` tells whether this call committed a
- * batch (or recognized its own commit whose reply was lost). `waiting` counts the Tool entries after
- * the progress that wait for Session to bind their call.
- */
 export type ToolLogConsumed = Readonly<{
   progress: Readonly<{ through: string; interpreted: DurableEvidence }> | null
   committed: boolean
@@ -147,13 +83,8 @@ export type ToolLogConsumed = Readonly<{
 }>
 
 type Answer<T> = Outcome<T, SessionFailure>
-/** The most entries one page of the entries read asks for. */
 const ENTRY_PAGE = 256
 
-/**
- * Every committed receiving entry of the execution, page by page through the entries port of the
- * same Journal provider: the snapshot carries none (agent-contract SPEC "日志条目" 6).
- */
 async function committedEntries<P>(
   read: AgentJournalEntries<P>['read'],
   input: Readonly<{ principal: P; tenant: TenantId; execution: AgentExecutionId }>,
@@ -173,14 +104,12 @@ type ToolEntry = ReceivedEntry &
   Readonly<{ delivery: Extract<ReceivedEntry['delivery'], { producer: 'tool' }> }>
 type Step = Readonly<{ kind: 'item'; item: SessionEntriesItem }> | Readonly<{ kind: 'unbound' }>
 
-/** The dependencies of one generation of the plugin. */
 type Ports = Readonly<{
   readWork(access: SessionAccess<unknown>): Reply<WorkSnapshot>
   load: AgentJournal<unknown>['load']
   entries: AgentJournalEntries<unknown>['read']
   read: AgentMaterials<unknown, ContentBlock>['read']
   commitEntries: SessionTransactionPort<unknown>['commitEntries']
-  /** True once the generation stopped; checked before every commit. */
   stopped(): boolean
 }>
 
@@ -200,7 +129,6 @@ function describe(cause: unknown): string {
   }
 }
 
-/** An Agent read failure in Session's terms: refusals stay refusals, the rest is unavailable. */
 function agentFailure(read: string, failure: Failure): Answer<never> {
   switch (failure.kind) {
     case 'denied':
@@ -216,19 +144,16 @@ function isToolReceived(entry: AgentJournalEntry): entry is ToolEntry {
   return entry.kind === 'received' && entry.delivery.producer === 'tool'
 }
 
-/** The Run that owns `execution` in the snapshot: the active Run or an earlier one. */
 function runOf(work: WorkSnapshot, execution: string): RunId | null {
   if (work.run.kind === 'active' && work.run.execution.execution === execution) return work.run.run
   return work.executions?.find(item => item.execution.execution === execution)?.run ?? null
 }
 
-/** Session and Agent brand the same consumption text differently. */
 const sameText = (left: string, right: string): boolean => left === right
 
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-/** A result delivery carries its whole settlement; an envelope without it is not complete. */
 function settled(delivery: Record<string, unknown>): boolean {
   return (
     object(delivery.terminal) &&
@@ -237,7 +162,6 @@ function settled(delivery: Record<string, unknown>): boolean {
   )
 }
 
-/** The answer of `work`, or `late` when it took longer than `ms`. A rejection propagates. */
 async function within<T>(
   ms: number,
   work: () => Promise<T>,
@@ -256,7 +180,6 @@ async function within<T>(
 const pause = (ms: number) =>
   ms === 0 ? Promise.resolve() : new Promise<void>(resolve => setTimeout(resolve, ms))
 
-/** The operation identity of one observation: the same reading is the same operation. */
 function operationOf(
   tenantText: string,
   observation: Omit<SessionEntriesObservation, 'operation' | 'tenant'>,
@@ -267,11 +190,6 @@ function operationOf(
   return `ad06_${digest}` as SessionOperationId
 }
 
-/**
- * The evidence of the execution head that the channel boundary records: the load revision and the
- * Tool entries of the channel at that revision. The Agent snapshot carries no head evidence of its
- * own, so the plugin derives it, the same value for the same load.
- */
 function headEvidence(
   tenantText: string,
   execution: string,
@@ -288,12 +206,6 @@ function headEvidence(
   }
 }
 
-/**
- * The Agent J02 read check of the material of one Tool entry under the adopted reading: the tenant
- * the receiver kept, the delivery kind and key, the frozen consumer, the account of the entry, the
- * complete settlement of a result, and the relation that Tool's own judgment checks. Answers null
- * when it holds.
- */
 function materialRefusal(
   read: ToolDeliveryReader,
   tenant: TenantId,
@@ -329,13 +241,11 @@ function materialRefusal(
   } catch {
     return invalid(field, 'the material holds a delivery that does not decode')
   }
-  // The reference carries no tenant (R2-D357): it is read in the caller's tenant.
   if ('failure' in judged)
     return invalid(field, `the material fails the delivery check: ${judged.failure.reason}`)
   return null
 }
 
-/** The producer facts of one checked Tool entry; an unreported account is no fact, never zero. */
 function interpretationOf(entry: ToolEntry): SessionEntriesInterpretation[] {
   const producer = { kind: 'tool' as const, call: entry.delivery.key.reference }
   const source = entry.material
@@ -347,16 +257,11 @@ function interpretationOf(entry: ToolEntry): SessionEntriesInterpretation[] {
   ]
 }
 
-/**
- * The consumption of one generation. It reads, translates and commits; it keeps nothing between
- * calls, so a new generation starts from the saved progress.
- */
 function createToolLogConsumption(
   given: SessionToolLogConsumptionInput,
   ports: Ports,
   settings: Settings,
 ): (target: ToolLogTarget) => Reply<ToolLogConsumed> {
-  /** One dependency read within the configured time; `late` is unavailable, never an answer. */
   async function bounded<T>(name: string, work: () => Promise<T>): Promise<Answer<T>> {
     const answer = await within(settings.timeoutMs, work)
     if (answer.kind === 'late')
@@ -418,7 +323,6 @@ function createToolLogConsumption(
     })
   }
 
-  /** One read of the channel and, when it has items, one commit. `changed` goes back to the caller. */
   async function round(
     access: SessionAccess<unknown>,
     tenantText: string,
@@ -451,8 +355,6 @@ function createToolLogConsumption(
     )
     if ('failure' in read) return read
     if ('failure' in read.ok) return agentFailure('load', read.ok.failure)
-    // The entries and the revision come from two reads: a revision that moved between them is
-    // read again on the next publication, not bound to entries of another revision.
     const again = await bounded('agentJournal.load', () => ports.load(reading))
     if ('failure' in again) return again
     if ('failure' in again.ok) return agentFailure('load', again.ok.failure)
@@ -503,7 +405,6 @@ function createToolLogConsumption(
     return commit(observation, start, waiting)
   }
 
-  /** The Session commit; a lost reply is sent again once under the same operation. */
   async function commit(
     observation: SessionEntriesObservation,
     start: SessionEntriesStart,
@@ -511,17 +412,14 @@ function createToolLogConsumption(
   ): Promise<Answer<ToolLogConsumed>> {
     const unknown = fail({ kind: 'commit-unknown', operation: observation.operation } as const)
     for (let attempt = 0; ; attempt += 1) {
-      // After a commit-unknown the earlier attempt may have landed: stopping keeps it unknown.
       if (ports.stopped())
         return attempt === 0 ? unavailable('the tool log consumption has stopped') : unknown
       let answer
       try {
         answer = await within(settings.timeoutMs, () => ports.commitEntries({ observation, start }))
       } catch {
-        // The write may have happened: the outcome is unknown, never a plain failure.
         return unknown
       }
-      // A commit that did not answer in time may still land; it is unknown, not resent blind.
       if (answer.kind === 'late') return unknown
       const reply = answer.value
       if ('ok' in reply)
@@ -576,14 +474,6 @@ const configSchema = {
   '~standard': { version: 1 as const, vendor: 'session-adapters', validate: parseConfig },
 }
 
-/**
- * The AD-06 plugin and the call that reaches it. The plugin provides no key: it needs `session`
- * with the `coordinator` caller class, `agentJournal`, `agentMaterials` and `sessionTransactions`,
- * and stays pending while any of them is absent. A new provider of any of them runs the plugin
- * again. With `input.coordinator` it subscribes to `session-adapters/agent-published` and reads the
- * named execution after each event, one session at a time. `consume` reaches the current
- * generation; while there is none it answers `unavailable`.
- */
 export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsumptionInput) {
   let current: ((target: ToolLogTarget) => Reply<ToolLogConsumed>) | null = null
   return {
@@ -599,8 +489,6 @@ export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsu
       Config: configSchema,
       apply(ctx: Context, config: SessionToolLogConsumptionConfig | undefined) {
         let stopped = false
-        // A wrapper that declares the injects as a plain list (the assembly's row) drops the intercept
-        // configuration; the plugin names its caller class again so `session` always sees it.
         const session = ctx.intercept(sessionKey, { caller: 'coordinator' })[sessionKey]
         const journal = ctx[agentJournalKey]
         const entries = ctx[agentJournalEntriesKey]
@@ -630,9 +518,6 @@ export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsu
             return unavailable(`a dependency threw: ${describe(cause)}`)
           }
         }
-        // AD-06 trigger, as AD-05: each successful write of the Journal names its execution; a read
-        // after it commits the Tool entries received since the saved progress, and nothing when
-        // there are none. The event carries no principal, so the coordinator is asked for it.
         const { coordinator } = input
         if (coordinator === undefined)
           logger.warn(

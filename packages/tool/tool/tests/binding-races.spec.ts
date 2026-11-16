@@ -21,7 +21,6 @@ const refused = () =>
     diagnostic: 'paused exclusion',
   })
 
-/** A binding that refuses the start for good: the failure marker and the exclusion follow. */
 const definitelyRefused = () =>
   fail<ToolFailure>({
     kind: 'unsupported',
@@ -116,16 +115,13 @@ for (const pause of [
         }),
       })
 
-      // C430-1 retains the old negative answer while the other driver commits its observation.
-      // Later checkpoints let that old reader reach the named port before the marker commits.
-      // A marker records failure, while P04 orders actual acceptance against permanent exclusion.
       const oldReader = second.runOnce('c1')
       await negativeRead.promise
       const observer = first.runOnce('c1')
       try {
         if (pause === 'negative-marker') {
           await observer
-          await first.runOnce('c1') // Exclusion is unavailable, as in the original red probe.
+          await first.runOnce('c1')
         } else {
           await markerPending.promise
           passNegative.resolve()
@@ -157,8 +153,6 @@ for (const pause of [
         allowExclusion = true
         await first.runOnce('c1')
         await second.runOnce('c1')
-        // A reader paused before authority.inspect sees an exclusion before entering start.
-        // A reader already past inspect can still enter the method with its revoked permit.
         expect(attempts).toBe(pause === 'negative-marker' && winner === 'exclude' ? 1 : 2)
         expect(first.authority.consumed).toEqual(
           pause === 'negative-marker' && winner === 'exclude' ? [] : ['c1'],

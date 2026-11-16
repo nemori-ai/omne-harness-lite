@@ -27,7 +27,8 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
-    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false",
+    "release:recompute": "node scripts/recompute-release.mjs"
   },
   "dependencies": {
     "@omne-harness/exchange-refs": "workspace:*",

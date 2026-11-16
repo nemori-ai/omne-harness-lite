@@ -1,5 +1,3 @@
-// The Web author through real command decoding, `executeTool`, output check and codec. `WebAccess`
-// is a scripted double: these tests prove the result text, not the network.
 import { describe, expect, it, vi } from 'vitest'
 import { createIndependentToolScope, executeTool } from '@omne-harness/tool'
 import { readJsonText } from '@omne-harness/json-text'
@@ -132,7 +130,6 @@ describe('Web author: declaration and help', () => {
     expect(test.implementation.facts.declarations.settings?.items).toEqual([
       expect.objectContaining({ path: ['exa', 'apiKey'], category: 'binding', sensitive: true }),
     ])
-    // The menu is not repeated in the description: the declaration adds it (D-94).
     expect(test.implementation.facts.description).not.toContain('{"command"')
     const help = await test.run('help', {})
     expect(help).toBe(`done Web help\n${commandGuide(test.definition)}`)

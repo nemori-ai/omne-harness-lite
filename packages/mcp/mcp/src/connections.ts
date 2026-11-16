@@ -1,6 +1,3 @@
-// The connections port `Connections` (SPEC S1, S8): `release` passes the gate and closes the
-// endpoint's connection in the close order; `closeAll` closes every connection for the host at
-// exit and asks no port about adoption or eligibility.
 import type { Access } from '@omne-harness/legal-identity'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Connections, EndpointRef, McpPorts, ReleaseReport } from '@omne-harness/mcp-contract'

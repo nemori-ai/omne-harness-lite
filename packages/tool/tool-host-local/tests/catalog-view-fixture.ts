@@ -4,7 +4,6 @@ import type { LocalToolCatalogViewSource, ToolListingSource } from '@omne-harnes
 
 export const catalogSearch = { k1: 1.2, b: 0.75, maxCachedCorpora: 2 }
 
-/** Test-only disclosure authority. Production assemblies must supply their own adopted view. */
 export function catalogView<P>(
   registry: ToolListingSource<P> | null,
 ): LocalToolCatalogViewSource<P> {

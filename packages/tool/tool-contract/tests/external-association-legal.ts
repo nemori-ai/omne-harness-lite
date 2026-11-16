@@ -1,8 +1,3 @@
-// The legal providers of the cases that the decision bridge suite and the resource response suite
-// share (P06), and the generated boundary provider of the two ports. Each is built at
-// the port boundary, over the calls that both ports have: it wraps the methods of the port and the
-// handles that it defines itself, and it never calls a control of the double (`hold`,
-// `excludeDeferred`) to make the double behave.
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { DurableEvidence, ToolFailure, ToolOperationId } from '@omne-harness/tool-contract'
@@ -14,13 +9,8 @@ import { evidence } from './tool-values.ts'
 
 type Answer<T> = Promise<Outcome<T, ToolFailure>>
 
-/** A provider that the contract allows, and that the shared cases must therefore let pass. */
 export type Legal<F> = Readonly<{ name: string; fixture: () => F }>
 
-/**
- * The legal providers of the shared cases. `mutators` names the methods that take a mutation and
- * answer evidence, as for `externalGenerated`: the deferring provider defers each of them.
- */
 export function externalLegal<F extends ExternalBase>(
   make: MakeVariant<F>,
   options: Readonly<{ mutators?: readonly string[] }> = {},
@@ -28,10 +18,6 @@ export function externalLegal<F extends ExternalBase>(
   const mutators = options.mutators ?? ['ensure', 'invalidate']
   return [
     {
-      // P06 lets a reply be lost: every new operation is answered `commit-unknown` first and is
-      // applied when the provider settles. The provider defers the operation itself: the double
-      // sees it only when it lands, in the order it arrived. It defines its own `hold` (every new
-      // operation is deferred already) and its own `excludeDeferred`.
       name: 'every new operation answers commit-unknown first and lands at settle',
       fixture: make((real, base) => {
         type Entry = {
@@ -120,7 +106,6 @@ export function externalLegal<F extends ExternalBase>(
       }),
     },
     {
-      // P06 lets `excluded` answer an operation that was never seen, if it never takes effect.
       name: 'an operation never seen is excluded as a fence and refused afterwards',
       fixture: make(real => {
         const fenced = new Set<string>()
@@ -155,20 +140,9 @@ export function externalLegal<F extends ExternalBase>(
   ]
 }
 
-// ---------------------------------------------------------------------------------------------
-// The generated boundary provider of the external-association ports
-// ---------------------------------------------------------------------------------------------
-
 export const operationKey = (input: Mutation<string>): string =>
   JSON.stringify([input.tenant, input.call, input.operation])
 
-/**
- * The generated provider of an answer table: the first answer of every method for a new operation
- * is progress of `kind` (the lost reply `commit-unknown` for the mutators, `pending` or `unknown`
- * for `inspectOperation`), and every read says so until `settle` resolves. Only the answer is
- * masked, the effect happened at once. `mutators` names the methods that take a mutation and
- * answer evidence (`ensure`, `invalidate`, and `expire` of the resource responses).
- */
 export function externalGenerated<F extends ExternalBase>(
   make: MakeVariant<F>,
   model: AnswerModel,
@@ -176,7 +150,6 @@ export function externalGenerated<F extends ExternalBase>(
   options: Readonly<{
     settle?: boolean
     mutators?: readonly string[]
-    /** Lays a violation over the masked port: a fixture whose resend during progress is wrong. */
     wrap?: (port: Partial<ExternalPort>) => Partial<ExternalPort>
   }> = {},
 ): () => F {
@@ -207,7 +180,6 @@ export function externalGenerated<F extends ExternalBase>(
     return { port, handles: { settle } }
   })
   if (options.settle !== false) return built
-  // A fixture that offers no settle: the handle is taken away, not set to nothing.
   return () => {
     const { settle: _settle, ...rest } = built()
     return rest as F

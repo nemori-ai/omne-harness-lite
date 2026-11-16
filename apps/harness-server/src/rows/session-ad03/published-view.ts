@@ -1,8 +1,3 @@
-// The trusted read of one translated view of `session.modes`: the current Context scope of the
-// Session, its recovery, coordinator eligibility, one bound reader, one selected need. A consumer
-// names the binding of its need (`sessionInquiryBinding` for the inquiry handling,
-// `sessionInteractionBinding` for the meta-capability host) and gets only that view. Nothing is
-// cached: every read binds and ends its own reader.
 import type { Context } from '@deepseek-ai/cordis'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import type { SessionAccess, SessionWork, SessionId } from '@omne-harness/session-contract'
@@ -33,13 +28,11 @@ export type PublishedViewPorts = Readonly<{
 
 type Basis = Readonly<{ basis: Readonly<{ tenant: string; session: string }> }>
 
-/** The part of a `session.modes` binding the read selects with. */
 export type PublishedViewBinding<V extends Basis> = Readonly<{
   key: 'session.modes'
   need: Readonly<{ name: string; shape: z.ZodType<V> }>
 }>
 
-/** Why a read answered no view: a diagnostic for the consumer to report, never a default. */
 export type PublishedViewRead<V> = Outcome<V, string>
 
 async function currentScope(
@@ -75,11 +68,6 @@ async function selected<V extends Basis>(
     : fail('read: the basis names another session')
 }
 
-/**
- * Reads the view of `binding` from the current owner's publication and releases its reader.
- * A missing, refused, unknown, malformed or failed read answers why; the consumer decides what that
- * absence means.
- */
 export async function readPublishedView<V extends Basis>(
   ports: PublishedViewPorts,
   input: SessionAccess<unknown>,
@@ -115,7 +103,6 @@ export async function readPublishedView<V extends Basis>(
   }
 }
 
-/** The ports from the running assembly, read per call; null when one of them is absent. */
 export function publishedViewPortsOf(ctx: Context): PublishedViewPorts | null {
   const session = ctx.intercept(sessionKey, { caller: 'coordinator' }).get(sessionKey)
   const eligibility = ctx.get(runtimeContextReaderEligibilityKey)

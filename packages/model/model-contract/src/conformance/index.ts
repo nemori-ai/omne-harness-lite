@@ -1,6 +1,3 @@
-// The `./conformance` entry: independent suites for Model providers, credential ports and public
-// streams. It exports no scripted double: scripted providers and transports live in `./testing`,
-// so a production check that imports this entry does not take them into its dependencies.
 export { checkModelProviderConformance } from './conformance.ts'
 export { CONFORMANCE_OBLIGATIONS } from './conformance-types.ts'
 export type {

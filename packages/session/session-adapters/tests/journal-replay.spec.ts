@@ -1,9 +1,3 @@
-// The session-log Journal against the trace replay of the Agent contract's `./testing` entry
-// (AG-23): the behaviors the TLC simulation of the finishing model exported are replayed step by
-// step, and the violating behaviors of the negative controls are reported at their forbidden last
-// step. The Agent memory Journal runs the same replay on its own fixture. Each trace opens its own
-// Session scene; the Session side records the handover of every input the Agent accepted, so an
-// ordinary end is not blocked on the Session side (a Session write after the Journal answered).
 import { describe, it } from 'vitest'
 import {
   agentJournalReplayConformance,
@@ -49,7 +43,6 @@ const fixture: AgentJournalCoreFixture<string> = {
       checkpoint: s.checkpoint,
       installation: testCancellationPolicyInstallation,
       acceptInput: label => accept(s, `input-${label}`),
-      // A Tool call whose effect intent the execution saves under the current attachment.
       produceResult: async label => {
         const tool = toolCall(s.access.tenant, label)
         const loaded = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))

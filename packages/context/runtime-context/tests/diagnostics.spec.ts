@@ -15,7 +15,6 @@ import {
   tenantA,
 } from './support.js'
 
-// RC-08: diagnostics carry block keys, revisions, generations and result kinds, never a value.
 const SECRET = 424242
 
 it('an old generation publication, a supply timeout and a failing change outlet leave no value in diagnostics', async () => {

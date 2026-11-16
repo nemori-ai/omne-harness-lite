@@ -1,5 +1,3 @@
-// The fact stream of one started send: SSE events, then protocol frames, then the family decoder,
-// and exactly one `ended` at the end, after the exchange has physically stopped.
 import type { ModelFault } from '@omne-harness/model-contract'
 import type {
   ProviderDiagnostic,
@@ -24,15 +22,9 @@ export type SendInput = Readonly<{
   decoder: PiResponseDecoder
   route: CheckedRoute
   limits: PiTransportLimits
-  /** The diagnostics of the encoding of the request that this exchange sent. */
   diagnostics: readonly ProviderDiagnostic[]
 }>
 
-/**
- * The facts of a started exchange: the diagnostics of the encoding first, then the facts of the
- * response. A reader that ends the stream early, even before its first `next()`, stops the
- * exchange and waits for its physical stop.
- */
 export function factsOfSend(input: SendInput): AsyncGenerator<TransportFact, void, undefined> {
   const { exchange } = input
   return closeSourceOnEarlyEnd(readSend(input), () => {
@@ -41,17 +33,14 @@ export function factsOfSend(input: SendInput): AsyncGenerator<TransportFact, voi
   })
 }
 
-/** A stream that gives only the termination of a send that never left the transport. */
 export async function* endedBeforeSend(
   end: SendEnd,
 ): AsyncGenerator<TransportFact, void, undefined> {
   yield { kind: 'ended', termination: terminationOf(end) }
 }
 
-/** The stream of a repeated start: no fact. */
 export async function* noFacts(): AsyncGenerator<TransportFact, void, undefined> {}
 
-/** `true` once the 2xx body was read to its end, so the exchange closes by itself. */
 export type Progress = { bodyComplete: boolean }
 
 async function* readSend(input: SendInput): AsyncGenerator<TransportFact, void, undefined> {
@@ -62,14 +51,12 @@ async function* readSend(input: SendInput): AsyncGenerator<TransportFact, void, 
     for (const value of input.diagnostics) yield { kind: 'diagnostic', value }
     end = yield* decodeSend(input, progress)
   } finally {
-    // A body left unread keeps the connection and the slot; only a complete one closes by itself.
     if (!progress.bodyComplete) exchange.stop()
     await exchange.stopped
   }
   yield { kind: 'ended', termination: terminationOf(end) }
 }
 
-/** Gives every fact but the termination, and returns how the send ended. */
 async function* decodeSend(
   input: SendInput,
   progress: Progress,
@@ -109,17 +96,10 @@ export type BodyInput = Readonly<{
   decoder: PiResponseDecoder
   endMarker: string | null
   limits: Pick<PiTransportLimits, 'maxEventBytes' | 'json'>
-  /** `true` when the whole body was already read when the end marker arrived. */
   received(): boolean
   progress: Progress
 }>
 
-/**
- * Gives every fact of a 2xx body but the termination, and returns how the send ended. The frames
- * of the body go through the decoder; the decoder's `ended` is kept and checked to be the only one.
- * When the body, a frame or the decoder fails, the decoder still ends once, so that a response that
- * reached its finish gives the account of the usage it received before the failed `ended`.
- */
 export async function* decodeBody(
   input: BodyInput,
 ): AsyncGenerator<TransportFact, SendEnd, undefined> {
@@ -137,7 +117,6 @@ export async function* decodeBody(
   return { kind: 'decoded', termination: held.termination }
 }
 
-/** Reads the body until the protocol ends. Returns how it failed, or `null` when it ended. */
 async function* readBody(
   input: BodyInput,
   held: Held,
@@ -147,7 +126,6 @@ async function* readBody(
     endMarker,
     json: limits.json,
   })
-  // The frames end at the end of the body, unless the end marker stops the reading first.
   let bodyComplete = true
   try {
     for await (const frame of frames) {
@@ -157,10 +135,6 @@ async function* readBody(
       const fault = yield* passFacts(accepted.ok, held)
       if (fault !== null) return { kind: 'decoder-fault', fault }
       if (frame.ok.kind === 'end-marker') {
-        // The protocol ended: nothing after the marker is decoded and the body end is not awaited.
-        // `received()` alone decides: `Readable.read()` hands over the whole buffered body in one
-        // chunk, so a body that Node holds whole was consumed with the marker's frame and the
-        // connection stays pooled. A body still open is stopped.
         bodyComplete = input.received()
         break
       }
@@ -176,10 +150,6 @@ async function* readBody(
   return null
 }
 
-/**
- * Ends the decoder after a failed read and gives its facts but its `ended`: the failure decides
- * the termination. A decoder that had not finished, or whose end fails, gives nothing.
- */
 async function* settleAfterFailure(
   decoder: PiResponseDecoder,
 ): AsyncGenerator<TransportFact, void, undefined> {
@@ -188,10 +158,8 @@ async function* settleAfterFailure(
   for (const fact of settled.ok) if (fact.kind !== 'ended') yield fact
 }
 
-/** The decoder's termination, kept until the body has ended so that it is the last fact. */
 type Held = { termination: TransportTermination | null }
 
-/** Gives the facts and keeps the decoder's `ended`. A second `ended` is a fault of the protocol. */
 async function* passFacts(
   facts: readonly TransportFact[],
   held: Held,
@@ -207,13 +175,6 @@ async function* passFacts(
   return null
 }
 
-/**
- * The stream stall timeout fired. The send fails with an existing cause and the diagnostic
- * `stream-stall`: before the response head the other side was unavailable; after it the stream was
- * lost. `SendEnd` has no stall variant and `terminationOf` gives a fault as it is, so the fault
- * travels as the `decoder-fault` end; a body stall still goes through the decoder's `end()` so that
- * the usage received so far is kept.
- */
 const STALLED_BEFORE_RESPONSE: SendEnd = Object.freeze({
   kind: 'decoder-fault',
   fault: Object.freeze({

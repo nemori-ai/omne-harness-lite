@@ -7,7 +7,7 @@ description: "为新的能力或责任边界核对已有覆盖、性质保护责
 
 先确认本次执行仓库、有效要求、所核修订、采用范围及承诺拥有者。本技能提供判断方法，不定义系统、领域或成员承诺，也不授予实施、接受或发布权限。
 
-项目输入从执行仓库读取。新责任从 `docs/requirements.md`、`docs/architecture/README.md`、`docs/domains/README.md` 定位本次拥有者。已有接口从实际包或应用的公开定义及必要行为读取。通用方法按执行仓库 `docs/engineering/skills.md` 加载。信息足够就停，不递归通读整个文档树。
+项目输入从执行仓库读取。新责任从 `docs/requirements.md`、`docs/architecture/README.md`、`docs/domains/README.md` 定位本次拥有者。已有接口从实际包或应用的公开定义及必要行为读取。通用方法按执行仓库 `.meta_harness/tooling/README.md` 的「来源与采用」加载。信息足够就停，不递归通读整个文档树。
 
 技能资源从宿主给出的本 SKILL.md 实际位置读取。不要从安装目录向上猜项目 docs，也不要假定维护源码和当前工作仓库相邻。
 
@@ -38,4 +38,4 @@ description: "为新的能力或责任边界核对已有覆盖、性质保护责
 
 关键语义或采用依据缺失时，只停依赖部分。提出有范围的候选，不用当前实现、结构通过或评审意见补造接受。达到任务约定终点即停止，剩余责任可定位、可接续。
 
-本项目的唯一源和保存规则归 `docs/engineering/documentation.md`，验证义务归 `docs/verification.md`，风险和评审条件归 `docs/engineering/quality.md`。普通交付直接消费这些拥有者，不以加载本技能作为默认前提。
+本项目的唯一源规则归根 `AGENTS.md`「知识放哪」，验证义务、风险和评审条件归 `docs/architecture/assurance.md`。普通交付直接消费这些拥有者，不以加载本技能作为默认前提。

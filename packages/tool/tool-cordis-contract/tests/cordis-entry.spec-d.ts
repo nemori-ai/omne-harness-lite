@@ -1,5 +1,3 @@
-// Compile-time checks of the `./cordis` augmentation. Each `@ts-expect-error` names the
-// diagnostic that the accepted types must produce.
 import type { Context, Events } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { expectTypeOf, it } from 'vitest'
@@ -57,7 +55,6 @@ it('brands VerifiedAuthority so that only verify produces it', () => {
 it('exposes only invalidate on the start fence, which the start authority also serves', () => {
   expectTypeOf(ctx.toolStartFence).toEqualTypeOf<ToolStartFenceService<unknown>>()
   expectTypeOf<typeof toolStartFenceKey>().toEqualTypeOf<'toolStartFence'>()
-  // One provider can serve both keys: the authority service is a start fence.
   expectTypeOf<ToolStartAuthorityService<unknown>>().toExtend<ToolStartFence<unknown>>()
   // @ts-expect-error TS2339: the fence holds no prepare; an outer caller cannot start a call.
   void ctx.toolStartFence.prepare

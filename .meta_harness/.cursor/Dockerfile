@@ -11,9 +11,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
 ARG NODE_VERSION=26.12.0
 ARG PNPM_VERSION=10.28.1
 ARG UV_VERSION=0.13.0
-# Matt skills revision is owned by docs/engineering/skills.md. Do not float latest.
+# Matt skills revision is owned by .meta_harness/tooling/README.md. Do not float latest.
 ARG MATT_SKILLS_REVISION=b0618bc436ad893b3c5e84e55fba86586d34a404
-# ub-mode revision is owned by docs/engineering/skills.md. It is one SKILL.md.
+# ub-mode revision is owned by .meta_harness/tooling/README.md. It is one SKILL.md.
 ARG UB_MODE_REVISION=57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f
 # skills CLI that copies a local tree for Cursor. 1.7.2 installs global Cursor skills
 # under ~/.agents/skills. A tree URL is not used: that CLI treats the revision as a branch.

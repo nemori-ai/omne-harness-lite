@@ -1,0 +1,385 @@
+[data-control],
+[data-glide-row] {
+  transition-property:
+    color, background-color, border-color, box-shadow, opacity, text-decoration-color, scale;
+  transition-duration: var(--omne-motion-state);
+  transition-timing-function: var(--omne-motion-ease);
+}
+:is([data-control], [data-glide-row]):is(:hover, :active, :focus-visible) {
+  transition-duration: var(--omne-motion-feedback);
+}
+[data-control]:is(:disabled, [aria-disabled='true']) {
+  scale: 1;
+}
+
+[data-control='button'][data-variant='default']:hover {
+  background-color: var(--omne-accent-hover);
+}
+[data-control='button'][data-variant='default']:active {
+  background-color: var(--omne-accent-press);
+}
+[data-control='button'][data-variant='destructive']:hover {
+  background-color: var(--omne-danger-hover);
+}
+[data-control='button'][data-variant='destructive']:active {
+  background-color: var(--omne-danger-press);
+}
+[data-control='button']:is([data-variant='default'], [data-variant='destructive']):active:not(
+    :disabled
+  ) {
+  scale: 0.97;
+}
+[data-control='button']:not([data-variant='default'], [data-variant='destructive']):hover {
+  background-color: var(--omne-hover);
+}
+[data-control='button']:not([data-variant='default'], [data-variant='destructive']):active {
+  background-color: var(--omne-press);
+}
+
+[data-control='button'][data-size='icon'] > svg:not([class*='size-']) {
+  width: var(--omne-icon-face);
+  height: var(--omne-icon-face);
+}
+[data-control='button'][data-size='icon-compact'] > svg:not([class*='size-']) {
+  width: var(--omne-icon-compact);
+  height: var(--omne-icon-compact);
+}
+
+[data-glide-row] {
+  position: relative;
+}
+
+[data-control='row']:not([data-glide-row], [data-glide-row] *):hover {
+  background-color: var(--omne-hover);
+}
+
+[data-control='row']:not([data-glide-row]):is(
+    [data-selected='true'],
+    [aria-selected='true'],
+    [aria-current]:not([aria-current='false'])
+  ):hover {
+  background-color: var(--omne-selected);
+}
+:is([data-control='row'], [data-glide-row]):active:not(
+    :disabled,
+    [aria-disabled='true'],
+    [data-disabled]
+  ) {
+  background-color: var(--omne-press);
+}
+:is(
+    :is([data-control='row'], [data-glide-row]):is([data-selected='true'], [aria-selected='true']),
+    [data-glide-row][aria-current]:not([aria-current='false'])
+  ):active:not(:disabled, [aria-disabled='true'], [data-disabled]) {
+  background-color: var(--omne-hover);
+}
+
+:is([data-control='row'], [data-glide-row]):focus-visible,
+:is([data-control='row'], [data-glide-row])[data-slot]:focus-visible {
+  outline-offset: calc(-1 * var(--omne-ring-width));
+}
+
+[data-glide-menu] [role^='menuitem']:focus-visible,
+[data-glide-menu] [role='option']:focus-visible {
+  outline: none;
+}
+
+[data-control='segment']:not([aria-pressed='true'], [data-state='active']):hover {
+  background-color: var(--omne-hover);
+}
+[data-control='segment']:not([aria-pressed='true'], [data-state='active']):active {
+  background-color: var(--omne-press);
+}
+
+[data-control='card']:hover {
+  box-shadow: var(--omne-elevation-control);
+  background-color: var(--omne-hover);
+}
+:is(a, button)[data-control='card']:active,
+[data-control='card']:has([data-card-open]:active) {
+  background-color: var(--omne-press);
+}
+
+[data-control='link'] {
+  text-decoration-line: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 4px;
+}
+[data-control='link']:hover {
+  text-decoration-color: currentColor;
+}
+[data-control='link']:active {
+  color: var(--omne-accent-press);
+}
+
+[data-control='prose-link'] {
+  text-decoration-line: underline;
+  text-underline-offset: 4px;
+}
+[data-control='prose-link']:hover {
+  color: var(--omne-ink-primary);
+}
+[data-control='prose-link']:active {
+  color: var(--omne-accent-press);
+}
+
+:is([data-control='field'], [data-control='choice']):hover:not(
+    :disabled,
+    :focus-visible,
+    [aria-invalid='true'],
+    [data-state='checked']
+  ) {
+  border-color: var(--omne-ink-faint);
+}
+[data-control='choice'][data-state='checked']:not([role='radio'], :disabled):hover {
+  border-color: var(--omne-accent-hover);
+  background-color: var(--omne-accent-hover);
+}
+
+:is(
+    [data-control],
+    [data-glide-row],
+    button,
+    a[href],
+    summary,
+    [role='option'],
+    [role^='menuitem']
+  ):not([data-control='field'], [data-control='choice']):is(
+    :hover,
+    :active,
+    [data-selected='true'],
+    [aria-current]:not([aria-current='false']),
+    [aria-selected='true'],
+    [aria-pressed='true']
+  ),
+:is(
+  .bg-hover,
+  .bg-press,
+  .bg-selected,
+  .bg-caution-fill,
+  .bg-danger-fill,
+  .bg-good-fill,
+  .bg-info-fill
+) {
+  --omne-ink-faint: var(--omne-ink-muted);
+  --color-ink-faint: var(--omne-ink-muted);
+}
+
+[data-slot='switch-thumb'] {
+  transition:
+    translate var(--omne-motion-state) var(--omne-motion-ease-enter),
+    transform var(--omne-motion-state) var(--omne-motion-ease-enter);
+}
+
+[data-expand-content] {
+  overflow: clip;
+  overflow-clip-margin: var(--omne-ring-room);
+}
+[data-expand][data-open='false'] > [data-expand-content] {
+  visibility: hidden;
+  transition: visibility 0s var(--omne-motion-layout);
+}
+
+:is(
+  [data-slot='popover-content'],
+  [data-slot='dropdown-menu-content'],
+  [data-slot='dropdown-menu-sub-content'],
+  [data-slot='select-content'],
+  [data-slot='tooltip-content'],
+  [data-slot='sheet-content'],
+  [data-motion='dialog']
+) {
+  --omne-presence-x: 0px;
+  --omne-presence-y: 4px;
+  animation: omne-presence-enter var(--omne-motion-enter) var(--omne-motion-ease-enter);
+}
+:is(
+  [data-slot='popover-content'],
+  [data-slot='dropdown-menu-content'],
+  [data-slot='dropdown-menu-sub-content'],
+  [data-slot='select-content'],
+  [data-slot='tooltip-content'],
+  [data-motion='dialog']
+)[data-side='top'] {
+  --omne-presence-y: 4px;
+}
+:is(
+  [data-slot='popover-content'],
+  [data-slot='dropdown-menu-content'],
+  [data-slot='dropdown-menu-sub-content'],
+  [data-slot='select-content'],
+  [data-slot='tooltip-content'],
+  [data-motion='dialog']
+)[data-side='bottom'] {
+  --omne-presence-y: -4px;
+}
+:is(
+  [data-slot='popover-content'],
+  [data-slot='dropdown-menu-content'],
+  [data-slot='dropdown-menu-sub-content'],
+  [data-slot='select-content'],
+  [data-slot='tooltip-content'],
+  [data-motion='dialog']
+)[data-side='left'] {
+  --omne-presence-x: 4px;
+  --omne-presence-y: 0px;
+}
+:is(
+  [data-slot='popover-content'],
+  [data-slot='dropdown-menu-content'],
+  [data-slot='dropdown-menu-sub-content'],
+  [data-slot='select-content'],
+  [data-slot='tooltip-content'],
+  [data-motion='dialog']
+)[data-side='right'] {
+  --omne-presence-x: -4px;
+  --omne-presence-y: 0px;
+}
+
+[data-slot='sheet-content'] {
+  animation-duration: var(--omne-motion-layout);
+}
+[data-slot='sheet-content'][data-side='right'] {
+  --omne-presence-x: 100%;
+  --omne-presence-y: 0px;
+}
+[data-slot='sheet-content'][data-side='left'] {
+  --omne-presence-x: -100%;
+  --omne-presence-y: 0px;
+}
+[data-slot='sheet-content'][data-side='top'] {
+  --omne-presence-y: -100%;
+}
+[data-slot='sheet-content'][data-side='bottom'] {
+  --omne-presence-y: 100%;
+}
+:is(
+  [data-slot='popover-content'],
+  [data-slot='dropdown-menu-content'],
+  [data-slot='dropdown-menu-sub-content'],
+  [data-slot='select-content'],
+  [data-slot='sheet-content'],
+  [data-motion='dialog']
+)[data-state='closed'] {
+  pointer-events: none;
+  animation: omne-presence-exit var(--omne-motion-exit) var(--omne-motion-ease-exit);
+}
+
+[data-slot='tooltip-content'][data-state='closed'] {
+  animation: none;
+  pointer-events: none;
+}
+:is([data-slot='sheet-overlay'], [data-motion='overlay']) {
+  animation: omne-overlay-enter var(--omne-motion-enter) var(--omne-motion-ease-enter);
+}
+:is([data-slot='sheet-overlay'], [data-motion='overlay'])[data-state='closed'] {
+  pointer-events: none;
+  animation: omne-overlay-exit var(--omne-motion-exit) var(--omne-motion-ease-exit);
+}
+
+@keyframes omne-presence-enter {
+  from {
+    opacity: 0;
+    translate: var(--omne-presence-x) var(--omne-presence-y);
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes omne-presence-exit {
+  from {
+    opacity: 1;
+    translate: 0 0;
+  }
+  to {
+    opacity: 0;
+    translate: var(--omne-presence-x) var(--omne-presence-y);
+  }
+}
+@keyframes omne-overlay-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes omne-overlay-exit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-control],
+  [data-control]:is(:hover, :active, :focus-visible) {
+    transition-duration: var(--omne-motion-feedback) !important;
+  }
+  [data-control]:active {
+    scale: 1 !important;
+  }
+  [data-slot='switch-thumb'],
+  [data-segmented-thumb],
+  [data-expand],
+  .omne-disclosure-trigger > svg {
+    transition: none !important;
+  }
+
+  [data-glide-highlight] {
+    transition: opacity var(--omne-motion-feedback) var(--omne-motion-ease) !important;
+  }
+  :is(
+    [data-slot='popover-content'],
+    [data-slot='dropdown-menu-content'],
+    [data-slot='dropdown-menu-sub-content'],
+    [data-slot='select-content'],
+    [data-slot='tooltip-content'],
+    [data-slot='sheet-content'],
+    [data-motion='dialog'],
+    [data-motion='overlay'],
+    [data-slot='sheet-overlay']
+  ) {
+    animation: omne-overlay-enter var(--omne-motion-feedback) var(--omne-motion-ease) !important;
+  }
+  :is(
+    [data-slot='popover-content'],
+    [data-slot='dropdown-menu-content'],
+    [data-slot='dropdown-menu-sub-content'],
+    [data-slot='select-content'],
+    [data-slot='sheet-content'],
+    [data-motion='dialog'],
+    [data-motion='overlay'],
+    [data-slot='sheet-overlay']
+  )[data-state='closed'] {
+    animation: omne-overlay-exit var(--omne-motion-feedback) var(--omne-motion-ease) !important;
+  }
+  [data-slot='tooltip-content'][data-state='closed'] {
+    animation: none !important;
+  }
+}
+
+::view-transition-group(omne-object-cover),
+::view-transition-group(omne-object-title),
+::view-transition-group(omne-object-surface) {
+  animation-duration: var(--omne-motion-layout);
+  animation-timing-function: var(--omne-motion-ease-enter);
+}
+::view-transition-old(omne-object-title),
+::view-transition-new(omne-object-title) {
+  height: 100%;
+  width: auto;
+  object-fit: none;
+  object-position: left center;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition {
+  pointer-events: none;
+}

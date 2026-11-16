@@ -1,4 +1,3 @@
-// The named default result policy (G3, P14): its identity and its judgment.
 import { decodeToolInstant } from './body-store.ts'
 import {
   judgeContentBlock,
@@ -30,11 +29,6 @@ import {
 } from './shape.ts'
 import { adoption, contentReference, schemaIdentity } from './value-shapes.ts'
 
-/**
- * The rule set of the default result policy. The policy accepts only text blocks and shared
- * reference blocks (`ToolMessageContentBlock`). It rejects thinking blocks, inline media, inline
- * files, nested containers and unknown kinds. A change to these rules needs a new revision.
- */
 export const defaultResultPolicyRules = Object.freeze({
   owner: '@omne-harness/tool-contract',
   name: 'default-result-policy',
@@ -49,17 +43,12 @@ export const defaultResultPolicyRules = Object.freeze({
   ] as const),
 })
 
-/**
- * The adoption of the default result policy. `digest` is `sha256:` and the hexadecimal SHA-256
- * of the JSON text of `defaultResultPolicyRules`, so a reader can recompute it.
- */
 export const defaultResultPolicyAdoption: Adoption = describedAdoption(defaultResultPolicyRules)
 
 type PolicyRule =
   | (typeof defaultResultPolicyRules.accept)[number]
   | (typeof defaultResultPolicyRules.reject)[number]
 
-/** The rule of each content block kind, written inline and written as a shared reference. */
 const BLOCK_RULES: Readonly<
   Record<ContentBlockKind, Readonly<{ inline: PolicyRule; reference: PolicyRule }>>
 > = {
@@ -70,7 +59,6 @@ const BLOCK_RULES: Readonly<
   file: { inline: 'inline-file', reference: 'file-reference' },
 }
 
-/** A value holds other content when it is a message tool part or carries a block list. */
 const CONTAINER_KINDS: readonly string[] = ['tool_call', 'tool_result']
 const CONTAINER_KEYS: readonly string[] = ['blocks', 'content']
 const ACCEPTED: ReadonlySet<PolicyRule> = new Set(defaultResultPolicyRules.accept)
@@ -107,10 +95,6 @@ function messageReference(block: ReferenceContentBlock): ReferenceContentBlock {
   })
 }
 
-/**
- * Judges one block. A rejected kind returns its rule name from `defaultResultPolicyRules.reject`.
- * An accepted kind with a broken shape returns `invalid-` and the content-block rejection.
- */
 function judgeBlock(
   value: unknown,
 ): Outcome<ToolMessageContentBlock, Readonly<{ reason: string }>> {
@@ -224,10 +208,6 @@ export function judgeCommittedToolResult<B extends ContentBlock>(
   return 'failure' in admitted ? admitted : checked
 }
 
-/**
- * The named default result policy (G3). `judge` admits one block; `judgeResult` admits a whole
- * result, including the summary of an offloaded original. Rejections name the rule or the path.
- */
 export const defaultResultPolicy: ResultPolicy<ToolMessageContentBlock> = Object.freeze({
   adoption: defaultResultPolicyAdoption,
   judge: judgeBlock,

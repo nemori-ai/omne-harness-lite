@@ -1,5 +1,3 @@
-// The layer rule of a supplier's credential (SPEC「凭据引用与解析端口」): one layer, whole or failing,
-// never items of two layers; a tenant that holds any item never falls back to the official layer.
 import {
   readCredentialLayer,
   selectCredentialLayer,
@@ -104,7 +102,6 @@ describe('selectCredentialLayer', () => {
     expect(selectCredentialLayer(input)).toEqual(expected)
   })
 
-  // Every state of two items in both layers, with and without an official profile and holding.
   const cases = STATES.flatMap(t1 =>
     STATES.flatMap(t2 =>
       STATES.flatMap(o1 =>
@@ -130,7 +127,7 @@ describe('selectCredentialLayer', () => {
     }
   })
 
-  it('never falls back to the official layer when the tenant holds any item (I-3)', () => {
+  it('never falls back to the official layer when the tenant holds any item', () => {
     for (const input of cases) {
       const holds = ITEMS.some(item => input.tenant.get(item) !== 'unbound')
       const result = selectCredentialLayer({ items: ITEMS, ...input })

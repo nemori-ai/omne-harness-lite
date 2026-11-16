@@ -19,7 +19,6 @@ export type ContributionsResult =
   | Readonly<{ kind: 'current'; set: PromptContributionSet }>
   | Readonly<{ kind: 'rejected'; reason: 'closed' }>
 
-/** 登记面操作类型。作用域不是参数：托管实现从调用方的 intercept 配置取得（RQD 性质 4、7）。 */
 export interface PromptContributionRegistry {
   contributeSection(section: Omit<PromptSection, 'scope' | 'revision'>): ContributionResult
   contributeVariable(variable: Omit<PromptVariable, 'scope' | 'revision'>): ContributionResult

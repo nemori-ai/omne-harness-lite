@@ -1,7 +1,3 @@
-// The `./testing` entry: conformance suites of the five requirement ports, in-memory doubles
-// that pass them, and the exhaustive sample tables of `classifyOutcome` and `mergeListing`.
-// Product code does not import it. A double keeps nothing durable; do not assemble it into a
-// product.
 export {
   NotApplicable,
   isNotApplicable,

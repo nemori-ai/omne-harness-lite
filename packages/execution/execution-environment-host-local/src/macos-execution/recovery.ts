@@ -8,15 +8,9 @@ export type MacosRecovery = Readonly<{
   domains: DomainIndex | undefined
   reader(): Promise<SessionReader>
   stopBoundMs: number
-  /** This boot's identity; `kern.bootsessionuuid` when absent. */
   bootId?: () => Promise<string | undefined>
 }>
 
-/**
- * The macOS domains of a scope from the cold index, with the retained terminals the caller holds
- * (read after the index, so a reservation made meanwhile is listed). Without a state directory
- * there is no index, and a listing that cannot be complete is `unavailable`, not empty.
- */
 export async function listMacosResources(
   recovery: MacosRecovery,
   scope: ScopeRef,
@@ -32,10 +26,6 @@ export async function listMacosResources(
 
 export type MacosRecoverStatus = 'confirmedStopped' | 'pending' | 'unsupported'
 
-/**
- * Stops a macOS domain of this provider and removes its marker. A domain of another boot is
- * stopped. A domain without a marker never got GO (the marker precedes it) or was stopped already.
- */
 export async function recoverMacosResource(
   recovery: MacosRecovery,
   resource: ManagedResource,

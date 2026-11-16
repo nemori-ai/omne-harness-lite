@@ -43,7 +43,6 @@ import {
 } from './environment-state.ts'
 
 export type EnvPreparationInput<P> = Parameters<ToolEnvironment<P, unknown>['prepare']>[0]
-/** Without `processes` no one-shot command is retained. */
 export type EnvironmentRetention = Readonly<{
   scope: ScopeRef
   ledger: RetainedTerminalLedger
@@ -178,11 +177,6 @@ function terminalPreparation(
   }
 }
 
-/**
- * The answer for a record this process holds no registration of: a process that is gone acquired
- * its environment, and the architecture does not take over the environment of an old process. A
- * terminal record keeps its answer; any other is `lost`, and the record keeps its cleanup.
- */
 function coldPreparation(record: EnvironmentState): PreparationProgress<ToolEnvironmentValue> {
   return (
     terminalPreparation(record) ?? {
@@ -568,9 +562,6 @@ export function createLocalExecutionEnvironment<P>(
         ...record,
         closed: true,
         release: { record: record.release.record, confirmed: true },
-        // The acquisition's duty for every resource ends here: the release stopped the ones it
-        // still owned, and a handed-over one belongs to its retention scope, which shows it as
-        // `handedOver` for as long as it holds it.
         resources: record.resources.map(resource => ({ ...resource, stop: 'confirmed' })),
         evidence: record.release.confirmed
           ? record.evidence

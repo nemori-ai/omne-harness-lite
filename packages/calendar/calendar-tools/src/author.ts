@@ -75,7 +75,6 @@ async function execute(
   }
 }
 
-/** A trusted local binding. Construction JSON cannot select a query provider or identity. */
 export function createCalendarToolModule(
   queries: CalendarQueries,
 ): ToolImplementationModule<CalendarToolEnvironment, ToolMessageContentBlock> {

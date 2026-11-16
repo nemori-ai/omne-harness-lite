@@ -32,7 +32,6 @@ export type CalendarSettingsBinding<P> = Readonly<{
 }>
 export type CalendarSettingsEnvironmentOptions<P> = Readonly<{
   settings: SettingsReadPort<P>
-  /** The host recovers an issued principal and adopted mapping from the original call. */
   resolve(context: CalendarCallContext): Promise<CalendarSettingsBinding<P> | null>
 }>
 const same = (left: unknown, right: unknown) => canonicalize(left) === canonicalize(right)

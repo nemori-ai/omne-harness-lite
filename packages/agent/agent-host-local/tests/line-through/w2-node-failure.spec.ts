@@ -1,5 +1,4 @@
 // @module-tag slow
-// Real SQLite, Session AD-02 and Agent runtime; producer and context doubles are defined in w2-world.
 import { afterEach, expect, it } from 'vitest'
 import type { AgentExecutionId } from '@omne-harness/agent-contract'
 import { operationId } from '@omne-harness/session-contract/testing'
@@ -133,7 +132,7 @@ it('keeps a cancelled producer callback away from the next Run', async () => {
   }
 })
 
-it('retains a failed execution and lets Session regrant its untaken input on real SQL', async () => {
+it('retains a failed execution and hands its untaken input to the Run a new input starts on real SQL', async () => {
   const failedExecutions: AgentExecutionId[] = []
   const w = await openW2World({
     model: a => ({ parts: [replyText(`reply-${a.index}`, 'second run answer')], reason: 'stop' }),
@@ -153,14 +152,19 @@ it('retains a failed execution and lets Session regrant its untaken input on rea
   worlds.push(w)
   await w.createSession('node-failure')
   await w.runRound(1, 'retry this input after the failed execution', 10_000)
-  expect(await w.lastOutcome()).toBe('failed')
-  expect(w.modelCalls).toHaveLength(0)
-  const firstRun = await w.lastTerminal()
   const [execution] = failedExecutions
   if (execution === undefined) throw new Error('the conditions fault was not injected')
+  expect(w.endedRuns()).toEqual([{ run: expect.any(String), execution, outcome: 'failed' }])
+  expect(ok(await w.probe.readWork(intakeAccess))).toMatchObject({
+    run: { kind: 'terminal', terminal: { outcome: 'failed' } },
+    pending: ['in-1'],
+    awaitingPerson: true,
+  })
+  expect(w.modelCalls).toHaveLength(0)
   const access = { ...w.agentAccess, execution }
   const first = ok(await w.fresh().load(access))
   expect(first.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'fail' } })
+  expect(first.checkpoint.calls.filter(call => call.kind === 'model')).toHaveLength(0)
   expect(first.settlement.candidate?.failure).toMatchObject({
     kind: 'node-failed',
     node: 'E2',
@@ -176,15 +180,12 @@ it('retains a failed execution and lets Session regrant its untaken input on rea
   expect(events.events.filter(event => event.body.kind === 'input-taken')).toHaveLength(0)
   expect(events.events.filter(event => event.body.kind === 'ended')).toHaveLength(1)
 
-  w.sessionClock.controls.advance(30_000)
-  await w.until(async () => (await w.lastOutcome()) === 'completed', 10_000)
+  await w.runRound(2, 'the person answers the failure', 10_000)
   expect(await w.lastOutcome()).toBe('completed')
-  expect(await w.lastTerminal()).not.toBe(firstRun)
   const secondExecution = await w.execution()
   expect(secondExecution).not.toBe(execution)
-  expect(w.modelCalls).toHaveLength(1)
   const second = ok(await w.fresh().load({ ...w.agentAccess, execution: secondExecution }))
-  expect(second.checkpoint.inputBatch?.ordered).toEqual(inputs.batch.ordered)
+  expect(second.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
   const secondEvents = ok(
     await w.fresh().output.read({
       ...w.agentAccess,
@@ -194,24 +195,29 @@ it('retains a failed execution and lets Session regrant its untaken input on rea
     }),
   )
   if (secondEvents.kind !== 'page') throw new Error('the successor events are unavailable')
-  expect(secondEvents.events.filter(event => event.body.kind === 'input-taken')).toHaveLength(1)
-  expect(ok(await w.probe.readWork(intakeAccess)).pending).toHaveLength(0)
+  expect(
+    secondEvents.events.flatMap(event =>
+      event.body.kind === 'input-taken' ? event.body.batch.ordered : [],
+    ),
+  ).toEqual([...inputs.batch.ordered, 'in-2'])
+  const secondCalls = w.modelCalls.length
+  expect(ok(await w.probe.readWork(intakeAccess))).toMatchObject({
+    run: { kind: 'terminal', terminal: { outcome: 'completed' } },
+    pending: [],
+  })
   const retained = ok(await w.fresh().load(access))
   expect(retained.state).toEqual(first.state)
   expect(retained.settlement.candidate).toEqual(first.settlement.candidate)
   expect(ok(await w.fresh().inputs({ ...access, watermark: first.inputWatermark }))).toEqual(inputs)
-  expect(ok(await w.probe.readWork(intakeAccess)).run).toMatchObject({
-    kind: 'terminal',
-    terminal: { outcome: 'completed' },
-  })
-  await w.runRound(2, 'a fresh question after recovery', 10_000)
+
+  await w.runRound(3, 'a fresh question after recovery', 10_000)
   expect(await w.lastOutcome()).toBe('completed')
-  expect(w.modelCalls).toHaveLength(2)
+  expect(w.modelCalls).toHaveLength(secondCalls + 1)
   const thirdExecution = await w.execution()
   expect(thirdExecution).not.toBe(secondExecution)
   expect(thirdExecution).not.toBe(execution)
   const third = ok(await w.fresh().load({ ...w.agentAccess, execution: thirdExecution }))
-  expect(third.checkpoint.inputBatch?.ordered).toEqual(['in-2'])
+  expect(third.checkpoint.inputBatch?.ordered).toEqual(['in-3'])
   expect(ok(await w.fresh().load(access)).state).toEqual(first.state)
 })
 

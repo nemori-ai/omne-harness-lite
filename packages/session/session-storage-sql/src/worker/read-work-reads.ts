@@ -1,10 +1,3 @@
-// The basis a committed batch was reduced on, reproduced in a read Worker (SPEC RT-04, C-TOPOLOGY
-// §2.9 H2): the history index and reads of the decision, read as the log was when it ended at the
-// position before the batch. The Session rows of a position do not change once written, and the
-// Agent rows change only with the publication count, so a read bounded at that position with the
-// same count gives what the participant read inside its transaction. Another count, a position whose
-// row is not of the revision before the batch, or a kept index past the position is `stale`, and the
-// work cache then reads the snapshot whole.
 import type { SessionInputScope } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue, isCount } from '../codec.ts'
@@ -20,7 +13,6 @@ type Request = Readonly<{
   snapshot: JsonValue
 }>
 
-/** The members of the input past the tenant and session; an input without them is invalid. */
 function requestOf(input: JsonValue): Request {
   const { revision, published, upto, inputs, focus, snapshot } = input as Readonly<
     Record<string, JsonValue>
@@ -35,7 +27,6 @@ export default handler('session.work-reads', (input, port) => {
   const scope = scopeOf(input)
   if (scope === null) throw new Error('invalid input')
   const { revision, published, upto, inputs, focus, snapshot } = requestOf(input)
-  // A name without a session has no row at `upto` either: it is stale whatever count it asks.
   if (readVersion(port, scope)?.published !== published) return { kind: 'stale' }
   const last = oneRow(
     port,

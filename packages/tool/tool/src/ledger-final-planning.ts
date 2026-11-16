@@ -1,6 +1,3 @@
-// The ledger plans the final when the execution records it: the result is planned under its body
-// policy and, when it offloads, the ledger's own writer seals the system body now (model Begin,
-// Put, StoreSeal, LedgerSeal). The fact then stores the plan; settlement only links the body.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Adoption, Reply, ToolFailure, ToolStartRecord } from '@omne-harness/tool-contract'
@@ -29,7 +26,6 @@ export function createLedgerFinalPlanner<P, B extends ContentBlock>(
     writeBody: BodyWriting<P>['writeBody']
   }>,
 ): ToolFinalPlanner<P, B> {
-  /** The planner's input: the mutation context, the final as the policy fixes it, and a qualified writer. */
   const planningInput = async (supplied: unknown) => {
     const context = judgeMutationInput<P>(supplied, 'write')
     if ('failure' in context) return context
@@ -73,7 +69,6 @@ export function createLedgerFinalPlanner<P, B extends ContentBlock>(
   }
 }
 
-/** The call the final belongs to: it exists and `start` is the start it recorded. */
 function originalCall(
   snapshot: Snapshot,
   start: ToolStartRecord,
@@ -84,7 +79,6 @@ function originalCall(
     : succeed(call)
 }
 
-/** An authored body keeps its own policy; otherwise the declared policy, or the system's for a failure. */
 function policyOf<B extends ContentBlock>(
   snapshot: Snapshot,
   final: ToolFinalEnvelope<B>,

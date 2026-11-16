@@ -19,8 +19,6 @@ import type {
 } from './registration.ts'
 
 type ReleaseResult = Awaited<ReturnType<ModelConverterRegistration['release']>>
-// One frozen result per registration, and every release of it returns that result. The failed
-// result carries a fixed diagnostic: the error of the provider may hold what the provider keeps private.
 const released: ReleaseResult = Object.freeze({ removed: true })
 const releaseFailed: ReleaseResult = Object.freeze({
   removed: true,
@@ -35,29 +33,21 @@ type Entry<P> = {
   readonly fiber: CordisContext['fiber']
   readonly adoption: Adoption
   readonly converter: ModelConverter<P>
-  // What `acquire` lends: the registered converter behind a guard that ends a conversion in flight
-  // when the contribution is withdrawn suddenly.
   readonly lent: ModelConverter<P>
   readonly withdrawal: AbortController
   readonly registration: ModelConverterRegistration
   readonly closing: PromiseWithResolvers<ReleaseResult>
-  // The hook of the provider, if it gave one. It runs once, after the last lease is back.
   readonly hook: (() => Promise<void>) | undefined
   state: 'active' | 'retiring' | 'releasing' | 'closed'
   leases: number
 }
 
-// A key holds at most one active entry. Retired entries stay in `draining` until their last lease
-// is released, so a successor can take the key while the old leases still point at the old entry.
 type Slot<P> = { active: Entry<P> | undefined; readonly draining: Set<Entry<P>> }
 
 function slotId(key: ConverterKey): string {
   return key.kind === 'media-type' ? `media-type:${key.mediaType}` : `modality:${key.modality}`
 }
 
-// Why a registration key is not a key of the shared vocabulary, or `undefined` when it is. A media
-// type key must already be in canonical form: the catalog matches keys by equality and does not
-// normalise. A modality key must be one of the modalities of `@omne-harness/modality`, `video` included.
 function keyFault(key: ConverterKey): string | undefined {
   if (key.kind === 'media-type')
     return isCanonicalMediaType(key.mediaType)
@@ -77,9 +67,6 @@ const conversionWithdrawn = fail<ConversionFailure>({
   diagnostic: 'the converter was withdrawn while the conversion was running',
 })
 
-// The conversion runs on the registered converter. A sudden withdrawal aborts its signal and ends
-// the call with `unavailable`; the call never falls through to another converter. An orderly
-// release leaves the signal alone, so a conversion in flight finishes.
 async function convertWhileRegistered<P>(
   entry: Entry<P>,
   request: Conversion<P>,
@@ -100,7 +87,6 @@ async function convertWhileRegistered<P>(
   }
 }
 
-// The hook is called as a method of the registration input, as it is declared.
 function hookOf<P>(request: ModelConverterRegistrationInput<P>): (() => Promise<void>) | undefined {
   const { release } = request
   return release === undefined ? undefined : () => release.call(request)
@@ -128,9 +114,6 @@ function createCatalog<P>(authority: ModelConverterAuthority<P>) {
     entry.closing.resolve(result)
   }
 
-  // Every lease is back. The entry stays in `draining` while the hook runs, so the key keeps
-  // answering unavailable until the provider has given its resources back. A failing hook does
-  // not stop the release: the entry leaves the directory and the result reports the failure.
   async function runHook(entry: Entry<P>, hook: () => Promise<void>): Promise<void> {
     try {
       await hook()
@@ -146,8 +129,6 @@ function createCatalog<P>(authority: ModelConverterAuthority<P>) {
     void runHook(entry, entry.hook)
   }
 
-  // Idempotent. Retiring ends the public availability of the entry at once. Completion waits for
-  // the leases that were handed out before.
   function retire(entry: Entry<P>): Promise<ReleaseResult> {
     if (entry.state !== 'active') return entry.closing.promise
     entry.state = 'retiring'
@@ -160,8 +141,6 @@ function createCatalog<P>(authority: ModelConverterAuthority<P>) {
     return entry.closing.promise
   }
 
-  // The registering fiber ended while the contribution was still active. Conversions in flight
-  // end now; leases stay counted until they are released.
   function withdrawSuddenly(entry: Entry<P>): void {
     if (entry.state !== 'active') return
     entry.withdrawal.abort()
@@ -179,8 +158,8 @@ function createCatalog<P>(authority: ModelConverterAuthority<P>) {
     }
   }
 
-  // Runs inside the effect of the calling fiber and never yields: the authority is asked, the key
-  // is checked and the entry is recorded in one step, so the answer cannot go stale in between.
+  // Runs inside the calling fiber's effect and never yields: the authority is asked, the key is
+  // checked and the entry is recorded in one step, so the answer cannot go stale.
   function admit(
     fiber: CordisContext['fiber'],
     request: ModelConverterRegistrationInput<P>,
@@ -207,8 +186,6 @@ function createCatalog<P>(authority: ModelConverterAuthority<P>) {
         sameAdoption(held.adoption, request.adoption)
         ? { kind: 'recognised', registration: held.registration }
         : { kind: 'refused', failure: { kind: 'conflict' } }
-    // `retire` comes first: it moves the entry out of the active state, so the disposer that
-    // `removeEffect` runs finds an orderly release and does not abort conversions in flight.
     const registration: ModelConverterRegistration = Object.freeze({
       token: randomUUID(),
       release: () => {
@@ -242,8 +219,6 @@ function createCatalog<P>(authority: ModelConverterAuthority<P>) {
     acquire: async (
       ...[request]: Parameters<ModelConverterCatalog<P>['acquire']>
     ): Reply<ConverterLookup<P>> => {
-      // The caller gets both values from `judgeMediaType`. The catalog does not normalise them
-      // for the caller, and a lookup with other values never reaches a converter.
       if (!isCanonicalMediaType(request.mediaType))
         return fail({
           kind: 'invalid',
@@ -258,8 +233,6 @@ function createCatalog<P>(authority: ModelConverterAuthority<P>) {
       for (const id of ids) {
         const slot = slots.get(id)
         if (slot === undefined) continue
-        // A key that is held but no longer active is being withdrawn. It is not absent, and no
-        // other converter may stand in for it.
         if (slot.active === undefined)
           return fail({
             kind: 'unavailable',

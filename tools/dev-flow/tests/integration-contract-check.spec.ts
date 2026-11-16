@@ -1,6 +1,3 @@
-// The failing `contract:api --check` step of `pnpm run check`. Unit cases judge injected
-// `--check --json` output; the slow cases run the installed, pinned `omne-contract-api` in a
-// temporary Git checkout through the integration CLI.
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -40,7 +37,6 @@ const member = (directory: string, status: string, extra: object = {}) => ({
   status,
   ...extra,
 })
-/** One member in each of the six statuses of the pinned `--check --json`. */
 const SIX = {
   match: member('pkg/match', 'match', { snapshotFile: 'pkg/match/api/match.api.md', sha256 }),
   differs: member('pkg/differs', 'differs', {
@@ -109,7 +105,6 @@ describe('the judgement of one --check run', () => {
   })
 })
 
-// 起不了进程时的错误码：POSIX 上没有执行位的文件是 EACCES；Windows 不看执行位，非可执行映像按找不到报 ENOENT。
 const CANNOT_START = process.platform === 'win32' ? 'ENOENT' : 'EACCES'
 
 describe('the --check process', () => {
@@ -123,7 +118,6 @@ describe('the --check process', () => {
   })
 })
 
-/** Runs `integration contract-check` as `scripts/check.sh` does. */
 function cli(root: string) {
   const result = spawnSync(
     process.execPath,
@@ -138,7 +132,6 @@ function cli(root: string) {
   )
   return { status: result.status, stdout: result.stdout, stderr: result.stderr }
 }
-/** A Git checkout with the members, their dist and snapshots that match the dist. */
 function snapshotted(): string {
   const root = temporary()
   init(root)
@@ -200,7 +193,6 @@ describe('integration contract-check with the installed omne-contract-api', () =
     const result = cli(root)
     expect(result.status).toBe(2)
     expect(result.stdout).toBe('')
-    // The failure goes to standard error as one JSON line with its code and message.
     expect(JSON.parse(result.stderr)).toMatchObject({
       code: expect.any(String),
       message: expect.any(String),

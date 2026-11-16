@@ -1,6 +1,3 @@
-// The call document of the shared commands core, its rows, and the parse between them. Rows enter
-// here only: the output of `model.call` is parsed once into documents, and the encoders give the
-// rows that the participant writes. The column sets come from `TABLES` in schema.ts.
 import type { FixedRequestHead } from '@omne-harness/model-contract/provider'
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
 import {
@@ -37,12 +34,6 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { TABLES, type Table } from './schema.ts'
 
-// --- Stored shapes -------------------------------------------------------------------------
-
-/**
- * What one part holds. A block is `open` then `append` or `replace` pieces, or one `seal`. `open`
- * and `seal` carry the block index; `position` in the row key is the place of the block.
- */
 export type PartBody =
   | Readonly<{
       kind: 'open'
@@ -53,11 +44,9 @@ export type PartBody =
   | Readonly<{ kind: 'append'; delta: string }>
   | Readonly<{ kind: 'replace'; value: string }>
   | Readonly<{ kind: 'seal'; index: string; block: ModelBlock }>
-/** The key of one `md_part` row: dispatch `seq`, block `position` (column `block`), piece `part`. */
 export type PartKey = Readonly<{ seq: number; position: number; part: number }>
 export type StoredPart = PartKey & PartBody
 
-/** The latest confirmed snapshot. Its blocks are a dispatch's blocks, or kept inline. */
 export type SnapshotHead = Readonly<{
   cursor: OutputCursor
   state: CallState
@@ -66,7 +55,6 @@ export type SnapshotHead = Readonly<{
     | Readonly<{ kind: 'inline'; blocks: readonly VisibleBlock[] }>
 }>
 
-/** One call as one read sees it: the CAS token, the document and the parts it was folded from. */
 export type CallRecord = Readonly<{
   version: number
   pending: boolean
@@ -74,22 +62,15 @@ export type CallRecord = Readonly<{
   parts: readonly StoredPart[]
 }>
 
-/** The committed binding of one operation, with the operation it binds. */
 export type StoredBinding = BindingBase & Readonly<{ operation: ModelOperationId }>
 
-/** What one `model.call` read gives. */
 export type CallRead = Readonly<{
   record: CallRecord | undefined
-  /** The committed binding of the operation read, also when it names another call. */
   binding: StoredBinding | null
-  /** How many calls of the tenant hold request material. */
   held: number
 }>
 
-/** A row or an output that does not have the stored shape. */
 export type RowFailure = Readonly<{ field: string; reason: string }>
-
-// --- Values inside JSON columns ------------------------------------------------------------
 
 const TENANT = '$tenant'
 const WORKSPACE = '$workspace'
@@ -122,7 +103,6 @@ function encodeScalar(value: Scalar): JsonValue {
   return value
 }
 
-/** A minted tenant or workspace travels as marked text. */
 const MINTED = [
   {
     name: 'TenantId',
@@ -153,7 +133,6 @@ function encodeRecord(value: Record<string, unknown>): JsonValue {
   return out
 }
 
-/** Strict JSON of a stored value. */
 function encodeValue(value: unknown): JsonValue {
   if (isScalar(value)) return encodeScalar(value)
   if (Array.isArray(value)) return value.map(item => encodeValue(item))
@@ -181,11 +160,6 @@ function decodeValue(value: unknown): unknown {
   return out
 }
 
-/**
- * The value of a JSON column. Only the `model` participant writes these tables (they are its
- * owned tables), from values this file encoded, so the nested contract shape is not checked again
- * here. The identity and key columns around it are checked.
- */
 function stored<T>(text: string, field: string): T {
   let raw: unknown
   try {
@@ -198,12 +172,8 @@ function stored<T>(text: string, field: string): T {
 
 const jsonText = (value: unknown): string => JSON.stringify(encodeValue(value))
 
-// --- Rows ----------------------------------------------------------------------------------
-
-/** One row as it crosses the SQL boundary: TEXT cells as strings, INTEGER cells as safe integers. */
 export type Row = Readonly<Record<string, string | number | null>>
 
-/** One cell of column `item`: present, and null only where the column allows it. */
 function cellOf(table: Table, item: Table['columns'][number], raw: Record<string, unknown>) {
   const field = `${table.name}.${item.name}`
   if (!Object.hasOwn(raw, item.name)) throw new RowError(field, 'missing-column')
@@ -217,7 +187,6 @@ function cellOf(table: Table, item: Table['columns'][number], raw: Record<string
   throw new RowError(field, 'cell-kind')
 }
 
-/** The cells of a row: exactly the columns of `table`, each of its declared kind. */
 function cellsOf(table: Table, raw: unknown): Row {
   if (!isRecord(raw)) throw new RowError(table.name, 'not-a-row')
   for (const key of Object.keys(raw))
@@ -347,9 +316,6 @@ function parseDispatchRow(
       ),
       windows: entries(str(row, 'windows'), 'md_dispatch.windows'),
       events: entries(str(row, 'events'), 'md_dispatch.events'),
-      // The core types `assembly` as `StreamAssembly | null`. A live assembly is process state
-      // and is never stored, so a stored dispatch reads back with none (`encodeDispatchRow`
-      // refuses to write one).
       assembly: null,
       nextSeq: entries(str(row, 'next_seq'), 'md_dispatch.next_seq'),
       trims: entries(str(row, 'trims'), 'md_dispatch.trims'),
@@ -450,7 +416,6 @@ function growing(part: Extract<PartBody, { kind: 'open' }>): VisibleBlock {
 
 type Growing = Extract<VisibleBlock, { kind: 'growing' }>
 
-/** The growing block that `append` or `replace` continues, in that mode. */
 function growingIn(block: VisibleBlock | null, mode: Growing['mode']): Growing {
   if (block === null || block.kind !== 'growing' || block.mode !== mode)
     throw new RowError('md_part.kind', mode)
@@ -467,7 +432,6 @@ function applySeal(block: VisibleBlock | null, part: Extract<PartBody, { kind: '
   return { kind: 'sealed' as const, index: part.index, block: part.block }
 }
 
-/** One part applied to the block that the earlier parts of its position folded into. */
 function applyPart(block: VisibleBlock | null, part: StoredPart): VisibleBlock {
   if (block?.kind === 'sealed') throw new RowError('md_part.kind', 'after-seal')
   switch (part.kind) {
@@ -488,14 +452,12 @@ function applyPart(block: VisibleBlock | null, part: StoredPart): VisibleBlock {
   }
 }
 
-/** The visible block that the parts of one block position fold into, in part order. */
 function foldBlock(parts: readonly StoredPart[]): VisibleBlock {
   const block = parts.reduce<VisibleBlock | null>(applyPart, null)
   if (block === null) throw new RowError('md_part.block', 'empty')
   return block
 }
 
-/** The blocks of one dispatch: block positions 0, 1, ... in order, each folded from its parts. */
 function foldDispatch(parts: readonly StoredPart[]): VisibleBlock[] {
   const blocks: VisibleBlock[] = []
   let start = 0
@@ -527,7 +489,6 @@ function snapshotOf(
 
 export type CallReadScope = CallRowScope & Readonly<{ operation: ModelOperationId | null }>
 
-/** The binding row of the operation read; one is only allowed when an operation was asked. */
 function bindingOf(raw: unknown, scope: CallReadScope): StoredBinding | null {
   if (raw !== null && scope.operation === null)
     throw new RowError('md_operation.operation', 'scope')
@@ -536,7 +497,6 @@ function bindingOf(raw: unknown, scope: CallReadScope): StoredBinding | null {
     : parseOperationRow(raw, scope.tenant, scope.operation)
 }
 
-/** The dispatch rows in `seq` order and the part rows in key order, each under its dispatch. */
 function childrenOf(
   dispatches: readonly unknown[],
   parts: readonly unknown[],
@@ -596,7 +556,6 @@ function guarded<T>(work: () => T): Outcome<T, RowFailure> {
   }
 }
 
-/** Parses the output of one `model.call` read, for exactly the tenant, call and operation asked. */
 export function parseCallRead(
   output: JsonValue,
   scope: CallReadScope,
@@ -604,25 +563,19 @@ export function parseCallRead(
   return guarded(() => parseRead(output, scope))
 }
 
-/** The cells of one row of `table`: exactly its columns, each of its kind. */
 export function parseRow(table: Table, raw: unknown): Outcome<Row, RowFailure> {
   return guarded(() => cellsOf(table, raw))
 }
 
-/** The CAS token after a write: 1 for a new call, one more than the expected version otherwise. */
 export const nextVersion = (expected: number | null): number =>
   expected === null ? 1 : expected + 1
 
-/** The same JSON text for equal stored values; tells whether a block or a row changed. */
 export function sameStored(left: unknown, right: unknown): boolean {
   return jsonText(left) === jsonText(right)
 }
 
-// --- Encoders: the rows the participant writes ---------------------------------------------
-
 const textOf = (value: unknown): string | null => (value === null ? null : jsonText(value))
 
-/** The head of the snapshot with the latest cursor. Its blocks refer to a dispatch when equal. */
 export function snapshotHeadOf(call: CallDocument): SnapshotHead | null {
   let latest: Snapshot | null = null
   for (const snapshot of call.snapshots.values())
@@ -673,8 +626,6 @@ export function encodeDispatchRow(
   dispatch: DispatchDocument,
 ): Outcome<Row, RowFailure> {
   return guarded(() => {
-    // The narrowing from the core's `StreamAssembly | null` to the stored `null`: a dispatch
-    // with a live assembly is refused, never written without it.
     if (dispatch.assembly !== null) throw new RowError('dispatch.assembly', 'live')
     return {
       tenant,

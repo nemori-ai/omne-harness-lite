@@ -1,8 +1,3 @@
-// The paired invocation source (TL-11, row 2 of the guard table): identity issuance and recall over
-// the `host` domain of a ledger store, and the verification of a fixed request against the
-// binding. The authority (qualification and subject comparison) and the principal codec are test
-// parameters; the store is the in-memory store of `@omne-harness/tool/testing`, so these cases
-// prove behaviour over one store object, not durability.
 import { describe, expect, it } from 'vitest'
 
 import { fail } from '@omne-harness/operation-result'
@@ -44,7 +39,6 @@ const mallory: P = { subject: 'mallory' }
 
 const codec = subjectCodec
 
-/** Counts the calls and answers by subject: every subject is qualified, only equal ones are the same. */
 function authority(
   options: Readonly<{ qualify?: AccessVerdict; same?: AccessVerdict; throws?: boolean }> = {},
 ): ToolInvokeAuthority<P> & Readonly<{ calls: { qualify: number; same: number } }> {
@@ -73,7 +67,6 @@ type Fault =
   | 'commit-throws'
   | 'rejected'
 
-/** A store over the memory store that counts reads and commits and fails the next one on demand. */
 function observed() {
   const memory = createMemoryToolLedgerStore()
   const counts = { reads: 0, commits: 0 }
@@ -159,7 +152,6 @@ async function bound(issuer: ReturnType<typeof source>['issuer'], input = resolv
   return outcome
 }
 
-/** The mutation input the ledger passes to `verify` for a bound outcome. */
 function verifyInput(
   outcome: Awaited<ReturnType<typeof bound>>,
   overrides: Partial<{ principal: P; tenant: typeof tenantA }> = {},
@@ -174,8 +166,8 @@ function verifyInput(
   }
 }
 
-describe('TL-11 invocation source: issuance and recall', () => {
-  it('TL-11 the same input twice gives the same call, admission and invocation', async () => {
+describe('invocation source: issuance and recall', () => {
+  it('the same input twice gives the same call, admission and invocation', async () => {
     const { store } = observed()
     const { issuer } = source(store)
     const first = await bound(issuer)
@@ -190,7 +182,7 @@ describe('TL-11 invocation source: issuance and recall', () => {
     expect(first.invocation.kind).toBe('direct')
   })
 
-  it('TL-11 a source rebuilt over the same store recalls the original identities', async () => {
+  it('a source rebuilt over the same store recalls the original identities', async () => {
     const { store } = observed()
     const first = await bound(source(store).issuer)
     const again = await bound(source(store).issuer)
@@ -202,7 +194,7 @@ describe('TL-11 invocation source: issuance and recall', () => {
     })
   })
 
-  it('TL-11 another consumer position gets another call and admission', async () => {
+  it('another consumer position gets another call and admission', async () => {
     const { store } = observed()
     const { issuer } = source(store)
     const first = await bound(issuer)
@@ -223,14 +215,13 @@ describe('TL-11 invocation source: issuance and recall', () => {
     expect(other.admission).not.toBe(first.admission)
   })
 
-  it('TL-11 the same consumer in another tenant is another association in another host domain', async () => {
+  it('the same consumer in another tenant is another association in another host domain', async () => {
     const { store, memory } = observed()
     const { issuer } = source(store)
     const a = await bound(issuer)
     const b = await bound(issuer, resolveInput({ tenant: tenantB }))
     expect(b.recovered).toBe(false)
     expect(b.call).not.toBe(a.call)
-    // Each binding lives in the source domain of the call it names, in its own tenant.
     for (const [tenant, outcome] of [
       [tenantA, a],
       [tenantB, b],
@@ -243,7 +234,7 @@ describe('TL-11 invocation source: issuance and recall', () => {
     }
   })
 
-  it('TL-11 a different subject for a known consumer is not recalled and mints nothing', async () => {
+  it('a different subject for a known consumer is not recalled and mints nothing', async () => {
     const { store, counts } = observed()
     const { issuer } = source(store)
     await bound(issuer)
@@ -253,7 +244,7 @@ describe('TL-11 invocation source: issuance and recall', () => {
     expect(counts.commits).toBe(commits)
   })
 
-  it('TL-11 a recall whose subject comparison cannot be answered is unavailable', async () => {
+  it('a recall whose subject comparison cannot be answered is unavailable', async () => {
     const { store } = observed()
     await bound(source(store).issuer)
     const outcome = await source(
@@ -266,7 +257,7 @@ describe('TL-11 invocation source: issuance and recall', () => {
     })
   })
 
-  it('TL-11 the same consumer with another request conflicts on the original admission', async () => {
+  it('the same consumer with another request conflicts on the original admission', async () => {
     const { store } = observed()
     const { issuer } = source(store)
     const first = await bound(issuer)
@@ -283,7 +274,7 @@ describe('TL-11 invocation source: issuance and recall', () => {
     })
   })
 
-  it('TL-11 a stored principal that cannot be decoded is association-unknown, not a new identity', async () => {
+  it('a stored principal that cannot be decoded is association-unknown, not a new identity', async () => {
     const { store, memory, counts } = observed()
     const { issuer } = source(store)
     const outcome = await bound(issuer)
@@ -310,7 +301,7 @@ describe('TL-11 invocation source: issuance and recall', () => {
     expect(counts.commits).toBe(commits)
   })
 
-  it('TL-11 concurrent resolves of one input agree on one identity', async () => {
+  it('concurrent resolves of one input agree on one identity', async () => {
     const { store, memory } = observed()
     const { issuer } = source(store)
     const all = await Promise.all([1, 2, 3, 4].map(() => bound(issuer)))
@@ -323,7 +314,7 @@ describe('TL-11 invocation source: issuance and recall', () => {
   })
 })
 
-describe('TL-11 invocation source: boundary and failure', () => {
+describe('invocation source: boundary and failure', () => {
   it('rejects the reserved forwarding consumer before consulting authority or storage', async () => {
     const { store, counts } = observed()
     const policy = authority()
@@ -344,7 +335,7 @@ describe('TL-11 invocation source: boundary and failure', () => {
     expect(policy.calls.qualify).toBe(0)
   })
 
-  it('TL-11 a denied qualification is rejected before any store access', async () => {
+  it('a denied qualification is rejected before any store access', async () => {
     const { store, counts } = observed()
     const { issuer } = source(store, authority({ qualify: { kind: 'denied', reason: 'no' } }))
     expect(await issuer.resolve(resolveInput())).toEqual({
@@ -354,7 +345,7 @@ describe('TL-11 invocation source: boundary and failure', () => {
     expect(counts).toEqual({ reads: 0, commits: 0 })
   })
 
-  it('TL-11 an unavailable or throwing authority is unavailable and reports no thrown text', async () => {
+  it('an unavailable or throwing authority is unavailable and reports no thrown text', async () => {
     const { store } = observed()
     const unavailable = await source(
       store,
@@ -372,7 +363,7 @@ describe('TL-11 invocation source: boundary and failure', () => {
     expect(JSON.stringify(thrown)).not.toContain('secret')
   })
 
-  it('TL-11 a tenant that legal-identity did not mint is denied before the authority is asked', async () => {
+  it('a tenant that legal-identity did not mint is denied before the authority is asked', async () => {
     const { store, counts } = observed()
     const checked = authority()
     const forged = { name: 'TenantId', organization: { text: 'x' }, account: { text: 'y' } }
@@ -386,7 +377,7 @@ describe('TL-11 invocation source: boundary and failure', () => {
     expect(counts.reads).toBe(0)
   })
 
-  it('TL-11 a request that is not a legal invoke request is invalid', async () => {
+  it('a request that is not a legal invoke request is invalid', async () => {
     const { store } = observed()
     const outcome = await source(store).issuer.resolve({
       ...resolveInput(),
@@ -395,7 +386,7 @@ describe('TL-11 invocation source: boundary and failure', () => {
     expect(outcome).toMatchObject({ kind: 'rejected', failure: { kind: 'invalid' } })
   })
 
-  it('TL-11 a principal that cannot be encoded is unavailable and mints nothing', async () => {
+  it('a principal that cannot be encoded is unavailable and mints nothing', async () => {
     const { store, counts } = observed()
     const broken = createLocalInvocationSource<P>({
       store,
@@ -417,7 +408,7 @@ describe('TL-11 invocation source: boundary and failure', () => {
     expect(counts.commits).toBe(0)
   })
 
-  it('TL-11 a read that fails is unavailable, whether it answers or throws', async () => {
+  it('a read that fails is unavailable, whether it answers or throws', async () => {
     const { store, arm } = observed()
     const { issuer } = source(store)
     arm('read-unavailable')
@@ -431,7 +422,7 @@ describe('TL-11 invocation source: boundary and failure', () => {
     expect(JSON.stringify(thrown)).not.toContain('secret')
   })
 
-  it('TL-11 a commit with an unknown answer reports issuance-unknown, and the retry finds the same identities', async () => {
+  it('a commit with an unknown answer reports issuance-unknown, and the retry finds the same identities', async () => {
     for (const fault of ['lost-reply', 'unknown-unwritten'] as const) {
       const { store, arm } = observed()
       const { issuer } = source(store)
@@ -444,7 +435,7 @@ describe('TL-11 invocation source: boundary and failure', () => {
     }
   })
 
-  it('TL-11 a commit the store rejects is a definite failure, not re-read and not unknown', async () => {
+  it('a commit the store rejects is a definite failure, not re-read and not unknown', async () => {
     const { store, arm, counts } = observed()
     arm('rejected', 4)
     expect(await source(store).issuer.resolve(resolveInput())).toEqual({
@@ -454,7 +445,7 @@ describe('TL-11 invocation source: boundary and failure', () => {
     expect(counts).toEqual({ reads: 1, commits: 1 })
   })
 
-  it('TL-11 a commit that throws is issuance-unknown and reports no thrown text', async () => {
+  it('a commit that throws is issuance-unknown and reports no thrown text', async () => {
     const { store, arm } = observed()
     arm('commit-throws')
     const outcome = await source(store).issuer.resolve(resolveInput())
@@ -462,7 +453,7 @@ describe('TL-11 invocation source: boundary and failure', () => {
     expect(JSON.stringify(outcome)).not.toContain('secret')
   })
 
-  it('TL-11 a revision conflict is re-read and decided again, up to the attempt limit', async () => {
+  it('a revision conflict is re-read and decided again, up to the attempt limit', async () => {
     const retried = observed()
     retried.arm('conflict', 2)
     expect((await source(retried.store).issuer.resolve(resolveInput())).kind).toBe('bound')
@@ -477,7 +468,7 @@ describe('TL-11 invocation source: boundary and failure', () => {
     })
   })
 
-  it('TL-11 an illegal attempt limit throws a TypeError at construction', () => {
+  it('an illegal attempt limit throws a TypeError at construction', () => {
     const { store } = observed()
     for (const attempts of [0, -1, 1.5, Number.NaN]) {
       expect(() => source(store, authority(), attempts)).toThrow(
@@ -487,21 +478,21 @@ describe('TL-11 invocation source: boundary and failure', () => {
   })
 })
 
-describe('TL-11 invocation source: verification of the fixed request', () => {
-  it('TL-11 the request that was issued is trusted', async () => {
+describe('invocation source: verification of the fixed request', () => {
+  it('the request that was issued is trusted', async () => {
     const { store } = observed()
     const { issuer, guard } = source(store)
     const outcome = await bound(issuer)
     expect(await guard.verify(verifyInput(outcome))).toEqual({ kind: 'trusted' })
   })
 
-  it('TL-11 a trusted request is still trusted by a source rebuilt over the same store', async () => {
+  it('a trusted request is still trusted by a source rebuilt over the same store', async () => {
     const { store } = observed()
     const outcome = await bound(source(store).issuer)
     expect(await source(store).guard.verify(verifyInput(outcome))).toEqual({ kind: 'trusted' })
   })
 
-  it('TL-11 a changed scope, consumer or argument makes the request forged', async () => {
+  it('a changed scope, consumer or argument makes the request forged', async () => {
     const { store } = observed()
     const { issuer, guard } = source(store)
     const outcome = await bound(issuer)
@@ -518,7 +509,7 @@ describe('TL-11 invocation source: verification of the fixed request', () => {
     }
   })
 
-  it('TL-11 a call or admission operation other than the issued ones is forged', async () => {
+  it('a call or admission operation other than the issued ones is forged', async () => {
     const { store } = observed()
     const { issuer, guard } = source(store)
     const outcome = await bound(issuer)
@@ -545,7 +536,7 @@ describe('TL-11 invocation source: verification of the fixed request', () => {
     })
   })
 
-  it('TL-11 a source that was never issued, or issued in another tenant, is forged', async () => {
+  it('a source that was never issued, or issued in another tenant, is forged', async () => {
     const { store } = observed()
     const { issuer, guard } = source(store)
     const outcome = await bound(issuer)
@@ -556,7 +547,7 @@ describe('TL-11 invocation source: verification of the fixed request', () => {
     expect(await empty.verify(verifyInput(outcome))).toMatchObject({ kind: 'forged' })
   })
 
-  it('TL-11 a different subject is forged', async () => {
+  it('a different subject is forged', async () => {
     const { store } = observed()
     const { issuer, guard } = source(store)
     const outcome = await bound(issuer)
@@ -565,7 +556,7 @@ describe('TL-11 invocation source: verification of the fixed request', () => {
     })
   })
 
-  it('TL-11 a binding that cannot be read is unavailable, whether the store answers or throws', async () => {
+  it('a binding that cannot be read is unavailable, whether the store answers or throws', async () => {
     const { store, arm } = observed()
     const { issuer, guard } = source(store)
     const outcome = await bound(issuer)
@@ -577,7 +568,7 @@ describe('TL-11 invocation source: verification of the fixed request', () => {
     expect(JSON.stringify(thrown)).not.toContain('secret')
   })
 
-  it('TL-11 a stored binding of another shape is unavailable, not forged', async () => {
+  it('a stored binding of another shape is unavailable, not forged', async () => {
     const { store, memory } = observed()
     const { issuer, guard } = source(store)
     const outcome = await bound(issuer)
@@ -600,7 +591,7 @@ describe('TL-11 invocation source: verification of the fixed request', () => {
     expect(await guard.verify(verifyInput(outcome))).toMatchObject({ kind: 'unavailable' })
   })
 
-  it('TL-11 a stored principal that the codec cannot decode is unavailable, not forged', async () => {
+  it('a stored principal that the codec cannot decode is unavailable, not forged', async () => {
     const { store } = observed()
     const outcome = await bound(source(store).issuer)
     const refusing: PrincipalCodec<P> = {
@@ -618,7 +609,7 @@ describe('TL-11 invocation source: verification of the fixed request', () => {
     })
   })
 
-  it('TL-11 an authority that cannot compare subjects makes verification unavailable', async () => {
+  it('an authority that cannot compare subjects makes verification unavailable', async () => {
     const { store } = observed()
     const outcome = await bound(source(store).issuer)
     const broken: ToolInvokeAuthority<P> = {
@@ -631,8 +622,8 @@ describe('TL-11 invocation source: verification of the fixed request', () => {
   })
 })
 
-describe('TL-11 operation identities', () => {
-  it('TL-11 every new operation is a legal operation identity that was not returned before', async () => {
+describe('operation identities', () => {
+  it('every new operation is a legal operation identity that was not returned before', async () => {
     const identities = createLocalOperationIdentities()
     const seen = new Set<string>()
     for (let index = 0; index < 20; index += 1) {
@@ -644,7 +635,7 @@ describe('TL-11 operation identities', () => {
     expect(seen.size).toBe(20)
   })
 
-  it('TL-11 two mints that were built separately do not return the same value', async () => {
+  it('two mints that were built separately do not return the same value', async () => {
     const [one, two] = [createLocalOperationIdentities(), createLocalOperationIdentities()]
     const [a, b] = [await one.newOperation(), await two.newOperation()]
     expect('ok' in a && 'ok' in b && a.ok !== b.ok).toBe(true)

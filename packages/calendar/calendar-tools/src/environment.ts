@@ -19,7 +19,6 @@ export type CalendarToolEnvironment = Readonly<{
 }>
 const contextResultSchema = calendarQueryResultSchema(calendarCallContextSchema)
 
-/** The host retains preparation/release ownership; the resolver contributes no resource lease. */
 export function createCalendarToolEnvironment<P, E>(
   base: ToolEnvironment<P, E>,
   resolver: CalendarToolContextResolver<P>,

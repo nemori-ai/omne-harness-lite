@@ -1,5 +1,4 @@
 // @module-tag slow
-// Exercises real Git routing, object storage and local transport.
 import { copyFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'

@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { accepted, fixture, unbox } from './fixture.ts'
 
-it('C01 executes once through production services and releases the saved original delivery', async () => {
+it('executes once through production services and releases the saved original delivery', async () => {
   const world = await fixture(async (value, environment) => `${environment.facts.system}:${value}`)
   try {
     const invocation = world.invocation('first')

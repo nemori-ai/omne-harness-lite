@@ -38,7 +38,6 @@ export function toolsCapabilityOf(context: ToolExecutionContext): ToolsCapabilit
   return attachments.get(context)
 }
 
-/** The attachment belongs to a fresh context and closes before the original scope finishes. */
 export function attachToolsCapability(
   scope: ToolExecutionScope,
   capability: Readonly<{ value: ToolsCapability; close(): Promise<void> }>,

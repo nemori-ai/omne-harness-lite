@@ -1,6 +1,3 @@
-// Fixed history for the default-strategy tests: plain messages, a tool call with its result, and a
-// tool result whose body is large. Built through the real judges so a shape the judges refuse
-// fails the fixture, not a later assertion.
 import { judgeBlockIdentity, type BlockId } from '@omne-harness/content-block'
 import {
   judgeMessage,

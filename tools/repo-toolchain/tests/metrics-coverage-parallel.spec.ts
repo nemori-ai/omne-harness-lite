@@ -1,5 +1,3 @@
-// 覆盖率跨成员并行的调度部分：并发度的写法、按上次耗时排先后、限并发且结果按原顺序的任务池。
-// 真实 vitest 的串行与并行对照在 metrics-legacy-coverage.spec.ts（慢层）。
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -63,7 +61,6 @@ describe('排先后', () => {
   })
 
   it('没有上次耗时的按测试文件数，换算成有耗时成员的平均每文件秒数，再与有耗时的一起排', () => {
-    // 有耗时的：x 10 秒 5 个文件 → 每文件 2 秒。y 没耗时、6 个文件 → 估 12 秒，排在 x 前；z 1 个文件 → 2 秒。
     const order = longestFirst(
       ['x', 'y', 'z'],
       new Map([['x', 10]]),
@@ -74,7 +71,6 @@ describe('排先后', () => {
       ]),
     )
     expect(order).toEqual(['y', 'x', 'z'])
-    // 都没有耗时：只按文件数。
     expect(
       longestFirst(
         ['p', 'q'],

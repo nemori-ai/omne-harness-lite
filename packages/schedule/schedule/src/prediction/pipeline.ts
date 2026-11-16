@@ -373,7 +373,6 @@ export class PredictionPipeline {
             this.seal(null)
             return this.view(null)
           }
-          // The worker exhausted the bounded window, not the original rule.
           const frontier = await this.frontier(horizon, false)
           if (this.seal(frontier)) return this.view(null)
           return this.view('search_limit')
@@ -405,7 +404,6 @@ export class PredictionPipeline {
       this.calendar !== null
     )
       date = await this.calendar.previousBound(date)
-    // All supported offsets are within 24 hours. This lower bound also covers folds and date-line changes.
     return conservativeInstant(date)
   }
 }

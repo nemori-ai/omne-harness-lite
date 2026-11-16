@@ -1,6 +1,3 @@
-// The values that the suite sends to a provider when the subject gives none of its own. They are
-// data of the right shape and mean nothing to a real provider: a subject whose provider checks
-// them gives its own.
 import type { Adoption, ConsumerRef, FixedModelRequest, ProviderName, Supplier } from '../index.ts'
 import { decodeProviderName } from '../provider-name.ts'
 
@@ -44,7 +41,6 @@ export const DEFAULT_CONSUMER: ConsumerRef = {
   purpose: 'purpose',
 }
 
-/** The same request with another fixed source, so a provider that fixes inputs sees a difference. */
 export function variantOf(request: FixedModelRequest): FixedModelRequest {
   return {
     ...request,

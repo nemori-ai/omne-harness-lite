@@ -157,7 +157,6 @@ export function createRuntimePublication(
             subscriber.end = { kind: 'ended', reason: 'capacity' }
           else if (latest === null) subscriber.end = { kind: 'ended', reason: 'unavailable' }
           else {
-            // Snapshot and subscription registration are one synchronous transition.
             enqueue(subscriber, latest)
             subscriptions.add(subscriber)
           }

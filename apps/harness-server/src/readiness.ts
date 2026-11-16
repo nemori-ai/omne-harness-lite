@@ -3,12 +3,6 @@ import type { FiberStateName, RowId, RowManifest, RowState, ServiceName } from '
 
 type CordisFiberState = typeof import('@deepseek-ai/cordis').FiberState
 
-/*
- * `FiberState` is a `declare const enum` in @deepseek-ai/cordis 4.0.4, so the
- * runtime cannot read it under `isolatedModules`. The numbers are copied here
- * and `satisfies` ties each one to the declared member. Both tables must cover
- * every member name, so a member added by a later Cordis fails the typecheck.
- */
 const FIBER_VALUE = {
   PENDING: 0 satisfies CordisFiberState['PENDING'],
   LOADING: 1 satisfies CordisFiberState['LOADING'],
@@ -18,8 +12,6 @@ const FIBER_VALUE = {
   UNLOADING: 5 satisfies CordisFiberState['UNLOADING'],
 } as const satisfies Record<keyof CordisFiberState, number>
 
-// UNLOADING has no name in the frozen FiberStateName. A fiber that is being
-// removed is not usable, so it reads as DISPOSED.
 const FIBER_NAME = {
   PENDING: 'PENDING',
   LOADING: 'LOADING',
@@ -36,7 +28,6 @@ export function mapFiberState(raw: number): FiberStateName {
   throw new Error(`unknown fiber state ${raw}`)
 }
 
-/** A loaded row: the fiber handle plus what the row declared. `error` is filled in when the fiber fails. */
 export type LoadedRow = {
   readonly id: RowId
   readonly ctx: Context
@@ -50,14 +41,12 @@ export type ReadinessOutcome = 'ready' | 'pending' | 'failed' | 'readiness-timeo
 
 export type ReadinessReport = Readonly<{
   outcome: ReadinessOutcome
-  /** 0 ready; 3 at least one FAILED; 4 PENDING remains or LOADING did not finish. */
   exitCode: 0 | 3 | 4
   rows: readonly RowState[]
 }>
 
 const stateOf = (row: LoadedRow): FiberStateName => mapFiberState(row.fiber.state)
 
-/** Await the current load work of a row. A rejection is the fiber's own startup error. */
 function observe(row: LoadedRow): Promise<void> {
   return row.fiber.await().then(
     () => undefined,
@@ -67,7 +56,6 @@ function observe(row: LoadedRow): Promise<void> {
   )
 }
 
-/** Wait until no row is LOADING. Returns true when the deadline passed first. */
 async function settle(rows: readonly LoadedRow[], timeoutMs: number): Promise<boolean> {
   let timer: ReturnType<typeof setTimeout> | undefined
   const deadline = new Promise<'deadline'>(resolve => {
@@ -93,11 +81,6 @@ function errorInfo(error: unknown): NonNullable<RowState['error']> {
   return { tag: 'unknown', message: String(error) }
 }
 
-/**
- * A name is missing when the row's own context finds no ACTIVE provider for it.
- * A provider row that exists but is not ACTIVE blocks the row, and a provider
- * under another label (it does not see the name the way this row does) does not.
- */
 function pendingReasons(
   row: LoadedRow,
   all: readonly LoadedRow[],
@@ -140,10 +123,6 @@ const EXIT_CODE = {
   'readiness-timeout': 4,
 } as const satisfies Record<ReadinessOutcome, 0 | 3 | 4>
 
-/**
- * Wait for the loaded rows to settle, report every row, and call the barrier
- * once only when every row is ACTIVE. A timeout never turns PENDING into FAILED.
- */
 export async function awaitReadiness(options: {
   rows: readonly LoadedRow[]
   timeoutMs: number

@@ -1,6 +1,3 @@
-// Non-durable doubles of the construction ports that the first tenant path needs: the identity
-// bridge (scripted: allow, deny, unavailable), the evidence bridge, the Context input and the
-// clock. Each double declares `durability: 'none'` and must not be assembled into production.
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { SessionAccess } from './identity.ts'
 import type { ClockSample } from './values.ts'
@@ -15,24 +12,16 @@ import type {
 import { adoption, guard, mintEvidence } from './testing-values.ts'
 import type { MemoryInitializationSource } from './testing-initialization-source.ts'
 
-/** What the scripted identity bridge answers: a material, a refusal, or that the source is unavailable. */
 export type IdentityScript = 'allow' | 'deny' | 'unavailable'
 
 export interface ScriptedSessionIdentityBridge<P> extends SessionIdentityBridge<P> {
   readonly durability: 'none'
   readonly controls: Readonly<{
-    /** The answer of every later `prepare`. */
     script(next: IdentityScript): void
-    /** The commands that `prepare` was asked about, in order. */
     asked(): readonly SessionCommand[]
   }>
 }
 
-/**
- * An identity bridge that answers by script. `allow` hands over a material that binds the tenant,
- * the session, the operation and the complete command; `deny` refuses the action; `unavailable` names
- * the identity source as the owner that is down.
- */
 export function createScriptedSessionIdentityBridge<P>(
   initial: IdentityScript = 'allow',
 ): ScriptedSessionIdentityBridge<P> {
@@ -81,10 +70,6 @@ export interface MemorySessionEvidenceBridge extends SessionEvidenceBridge {
   }>
 }
 
-/**
- * An evidence bridge that hands over one material per command, naming the command kind. The login
- * gate of a `startRun` is not evidence: Session reads the first input's origin itself.
- */
 export function createMemorySessionEvidenceBridge(
   options: Readonly<{ initialization?: MemoryInitializationSource }> = {},
 ): MemorySessionEvidenceBridge {
@@ -132,7 +117,6 @@ export interface MemorySessionContextInput<P> extends SessionContextInput<P> {
   readonly controls: Readonly<{ unavailable(down: boolean): void }>
 }
 
-/** A Context input that hands over one registration material per command. */
 export function createMemorySessionContextInput<P>(): MemorySessionContextInput<P> {
   let down = false
   return Object.freeze({
@@ -167,11 +151,8 @@ export function createMemorySessionContextInput<P>(): MemorySessionContextInput<
 export interface MemorySessionClock extends SessionClock {
   readonly durability: 'none'
   readonly controls: Readonly<{
-    /** Lets milliseconds pass; every waiter whose instant is reached answers `elapsed`. */
     advance(milliseconds: number): void
-    /** The instant that lies this many milliseconds ahead of now. */
     instantAfter(milliseconds: number): string
-    /** Every later `sample` fails `unavailable`. */
     unavailable(down: boolean): void
   }>
 }
@@ -180,7 +161,6 @@ const ORIGIN = Date.parse('2026-01-01T00:00:00.000Z')
 
 type Waiter = { readonly at: number; resolve(answer: 'elapsed'): void }
 
-/** A clock on manual time. `sample` answers the manual instant with the evidence of the sample. */
 export function createMemorySessionClock(): MemorySessionClock {
   let now = 0
   let minted = 0

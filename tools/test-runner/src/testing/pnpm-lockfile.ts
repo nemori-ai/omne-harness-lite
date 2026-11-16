@@ -1,13 +1,6 @@
-// `pnpm-lock.yaml` 的读取：只认 pnpm 9（lockfileVersion 9.0）实际写出的那一小块 YAML——
-// 两空格缩进的块映射、`- ` 块序列、单行流式映射 `{integrity: …}` 与流式序列 `[x64]`、单引号与双引号标量、`{}` 空映射。
-// 本成员没有 YAML 解析依赖，repo-toolchain 也不导出它的；锚点、多行标量、合并键等整段 YAML 这里都不认，
-// 认不出的写法直接报错（带行号），由调用方把「解析失败」判成全量：判不准就多跑，不按猜出来的树少跑。
-// 解析结果是一棵只有字符串、序列、映射的树；锁文件的含义（importer、snapshot、依赖边）由 `lockfile-impact.ts` 读。
-
 export type YamlNode = string | readonly YamlNode[] | YamlMap
 export type YamlMap = ReadonlyMap<string, YamlNode>
 
-/** 解析失败：`line` 是 1 起的行号。 */
 export class LockfileSyntaxError extends Error {
   readonly line: number
 
@@ -24,7 +17,6 @@ interface Line {
   readonly text: string
 }
 
-/** 去掉空行与整行注释，量出每行缩进；制表符缩进不认。 */
 function significantLines(source: string): Line[] {
   return source.split('\n').flatMap((raw, index) => {
     const number = index + 1
@@ -37,7 +29,6 @@ function significantLines(source: string): Line[] {
   })
 }
 
-/** 一段文本里读一个流式值（标量或流式集合）的游标。 */
 class FlowReader {
   private position = 0
   private readonly text: string
@@ -48,7 +39,6 @@ class FlowReader {
     this.line = line
   }
 
-  /** 整段文本必须正好是一个值。 */
   readWhole(): YamlNode {
     const value = this.readValue(new Set())
     this.skipSpaces()
@@ -112,7 +102,6 @@ class FlowReader {
     }
   }
 
-  /** 键：引号里的原样，否则到 `stop` 里任一字符为止。 */
   private readKey(stop: ReadonlySet<string>): string {
     this.skipSpaces()
     const char = this.text[this.position]
@@ -196,7 +185,6 @@ class FlowReader {
   }
 }
 
-/** 块映射一行的键与冒号后面的部分；键可以带引号，引号里允许 `:`、`(`、`@`。 */
 function splitEntry(line: Line): { readonly key: string; readonly rest: string } {
   const { text } = line
   const quote = text[0]
@@ -245,7 +233,6 @@ class BlockParser {
     return root
   }
 
-  /** 读完缩进正好是 `indent` 的一段：序列或映射。 */
   private parseBlock(indent: number): YamlNode {
     const first = this.lines[this.index]
     if (first === undefined || first.indent !== indent)
@@ -283,7 +270,6 @@ class BlockParser {
     }
   }
 
-  /** 冒号后面有内容就是单行值；没有内容就是下一行起、缩进更深的块。 */
   private parseEntryValue(line: Line, rest: string): YamlNode {
     if (rest.trim() !== '') return new FlowReader(rest, line.number).readWhole()
     const next = this.lines[this.index]
@@ -293,15 +279,12 @@ class BlockParser {
   }
 }
 
-/** 解析锁文件文本；认不出的写法抛 `LockfileSyntaxError`。 */
 export function parseLockfileYaml(source: string): YamlMap {
   return new BlockParser(significantLines(source)).parseDocument()
 }
 
-/** `Array.isArray` 不缩窄只读数组，这里显式说明。 */
 const isSequence = (node: YamlNode): node is readonly YamlNode[] => Array.isArray(node)
 
-/** 两棵树是否相同：映射按键比，顺序不算。 */
 export function equalNodes(left: YamlNode, right: YamlNode): boolean {
   if (typeof left === 'string' || typeof right === 'string') return left === right
   if (isSequence(left) || isSequence(right)) {

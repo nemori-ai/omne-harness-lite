@@ -7,15 +7,8 @@ import {
 } from '../layout.ts'
 import { codeMatches, lineAt, viewsOf } from '@omne-harness/repo-toolchain/core/source-text'
 
-/** 生产路径的随机源（出示物模块导出的那一个）；插件体要么不传，要么传的就是它。 */
 const PRODUCTION_SOURCE = 'cryptoRandomSource'
 
-/**
- * AI verification S-45「熵下限」行的两条文本规则（AI design「随机源的故障怎么注入」：生产代码里唯一的可替换点由文本规则守）：
- * ① 账号能力包源码不出现 `Math.random`；`node:crypto` 的随机函数（`randomBytes` 等）只在出示物模块出现。
- * ② 插件体构造服务实现类时不传别的随机源：插件体模块里 `random:` 的值只能是出示物模块导出的 `cryptoRandomSource`，
- *    简写 `{ random }` 判不出值，一并报出。插件体模块缺席而包存在 ⇒ 布局偏离，报出（② 会静默失效）。
- */
 export const noRandomSourceInline: Rule = {
   id: 'no-random-source-inline',
   source:
@@ -54,7 +47,6 @@ export const noRandomSourceInline: Rule = {
       }
       if (file.path === ACCOUNT_IDENTITY_PLUGIN_MODULE) {
         for (const m of codeMatches(views, /(?<![\w$.])random\s*:\s*([^,}\n]*)/)) {
-          // 类型位置（`random: RandomSource`）不是传参；只看对象字面量里的值
           const value = (m[1] ?? '').trim()
           if (value === PRODUCTION_SOURCE || value === 'RandomSource') continue
           push(

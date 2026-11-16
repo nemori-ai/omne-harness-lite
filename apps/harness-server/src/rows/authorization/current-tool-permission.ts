@@ -63,20 +63,12 @@ export function agentPermissionOperation(
 }
 
 type Decision = Exclude<AdmissionDecision, { kind: 'need-decision' }>
-/**
- * An allow carries the condition of the reading. A consumer that commits the action commits this
- * condition in the same transaction; a consumer that only answers early ignores it.
- */
 export type ToolPermissionDecision =
   | (Extract<Decision, { kind: 'allow' }> & Readonly<{ condition: StartCondition | null }>)
   | Exclude<Decision, { kind: 'allow' }>
 export type ToolPermissionCheck = Readonly<{
   check(input: ToolPermissionAction): Promise<ToolPermissionDecision>
 }>
-/**
- * The request of one check, the reading of the current permission for it, and the condition that
- * keeps the reading current at a commit. The source maps the action to its request once per check.
- */
 export type CurrentPermissionRead = Readonly<{
   request: unknown
   reading: unknown
@@ -93,10 +85,8 @@ export type ToolPermissionPorts = Readonly<{
   inquiry(input: ToolPermissionAction): Promise<SessionInquiryView | null>
 }>
 
-const unavailable = () => ({
-  kind: 'unavailable' as const,
-  diagnostic: 'Current permission source or binding is unavailable.',
-})
+const unavailable = (diagnostic: string) => ({ kind: 'unavailable' as const, diagnostic })
+const undecidable = (diagnostic: string) => ({ kind: 'undecidable' as const, diagnostic })
 
 export function releasedToolPermission(release: ToolRelease, input: ToolPermissionAction) {
   if (release.kind !== 'trusted') return undefined
@@ -161,7 +151,7 @@ function interpretReading(
   inquiry: SessionInquiryView | null,
 ): ToolPermissionDecision {
   const parsed = PermissionBasisReadingSchema.safeParse(raw)
-  if (!parsed.success) return unavailable()
+  if (!parsed.success) return undecidable('The permission reading is malformed.')
   const reading = parsed.data
   const evidence = decisionEvidence('current-tool-permission', '2', {
     request,
@@ -172,7 +162,7 @@ function interpretReading(
   if (reading.kind === 'denied')
     return { kind: 'deny', reason: 'permission-source-denied', evidence }
   if (reading.kind !== 'current' || canonicalText(reading.request) !== canonicalText(request))
-    return unavailable()
+    return undecidable('The permission reading does not answer this request.')
   const decision = interpretPermission({
     released: interpretation,
     action: { binding: interpretation.binding, request },
@@ -180,10 +170,13 @@ function interpretReading(
   })
   if (decision.kind === 'deny') return { kind: 'deny', reason: 'permission-policy', evidence }
   if (decision.kind === 'allow') return { kind: 'allow', evidence, condition }
-  if (decision.kind !== 'need-decision') return unavailable()
+  if (decision.kind !== 'need-decision')
+    return undecidable('The permission interpretation answered outside its contract.')
   const disposition = decideInquiry('required', inquiry?.inquiry.policy ?? null)
   if (disposition === 'deny') return { kind: 'deny', reason: 'inquiry-policy', evidence }
-  return disposition === 'continue' ? { kind: 'allow', evidence, condition } : unavailable()
+  return disposition === 'continue'
+    ? { kind: 'allow', evidence, condition }
+    : undecidable('The permission needs a decision and asking is not installed.')
 }
 
 export function createCurrentToolPermission(ports: ToolPermissionPorts): ToolPermissionCheck {
@@ -197,18 +190,23 @@ export function createCurrentToolPermission(ports: ToolPermissionPorts): ToolPer
           origin: structuredClone(input.origin),
         }
         const released = releasedToolPermission(ports.release(), captured)
-        if (released === undefined) return unavailable()
+        if (released === undefined)
+          return undecidable('The released tool has no single trusted permission binding.')
         const { interpretation } = released
         const source = ports.source()
-        if (source === undefined) return unavailable()
+        if (source === undefined)
+          return unavailable('The current permission source is not provided now.')
         const inquiry = capturedInquirySchema.parse(await ports.inquiry(captured).catch(() => null))
         const read = await source.readCurrent({ ...captured, inquiry })
+        const reading = PermissionBasisReadingSchema.safeParse(read.reading)
+        if (reading.success && reading.data.kind === 'unavailable')
+          return unavailable('The permission basis could not be read now.')
         const parsed = PermissionBasisRequestSchema.safeParse(read.request)
         if (!parsed.success || !toolPermissionRequestMatches(captured, parsed.data, interpretation))
-          return unavailable()
+          return undecidable('The permission source answered for another request.')
         return interpretReading(parsed.data, interpretation, read, inquiry)
       } catch {
-        return unavailable()
+        return undecidable('The current permission check failed.')
       }
     },
   }

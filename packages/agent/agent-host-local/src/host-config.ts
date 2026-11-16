@@ -1,16 +1,7 @@
-// The configuration of the `agent-host` plugin: the value items of the factory configuration
-// (agent docs/public-api.md "工厂配置") and the host's own `instanceIdleMs`. The check is a Standard
-// Schema, so Cordis refuses a wrong value before the plugin body runs and the fiber fails. The
-// rules of each factory item are those of the factory table: this check judges the same values, and
-// the factory judges them again when it creates an instance.
 import type { AgentConfiguration } from '@omne-harness/agent'
 import { judgeAdoption } from '@omne-harness/agent-contract'
+import { parseRetryPolicy } from '@omne-harness/retry'
 
-/**
- * The reception items: the tenant capacity of the Model result receiver and the waits of its
- * maintenance (SPEC "结果接收"). Optional as a whole; absent, the host takes `RECEPTION_INITIAL` of
- * `reception.ts`, which are initial values of the configuration, not limits of the member.
- */
 export type AgentHostReceptionConfig = Readonly<{
   records: number
   bytes: number
@@ -20,7 +11,6 @@ export type AgentHostReceptionConfig = Readonly<{
   retryMaxMs: number
 }>
 
-/** The validated configuration: the factory configuration and the idle time of an instance. */
 export type AgentHostConfig = AgentConfiguration &
   Readonly<{ instanceIdleMs: number; reception?: AgentHostReceptionConfig }>
 
@@ -43,16 +33,27 @@ const POSITIVE = [
   'toolConcurrency',
   'instanceIdleMs',
 ] as const
-const NON_NEGATIVE = ['reconciliationDelayMs', 'denialBackoffMs'] as const
+const NON_NEGATIVE = ['denialBackoffMs'] as const
 const FIELDS: ReadonlySet<string> = new Set([
   ...POSITIVE,
   ...NON_NEGATIVE,
+  'reconciliationDelaysMs',
   'jointCommits',
   'coordination',
   'loopGuardPolicy',
+  'modelRetry',
   'maxRunSteps',
   'reception',
 ])
+
+function modelRetryIssues(value: unknown): readonly string[] {
+  try {
+    parseRetryPolicy(value)
+    return []
+  } catch (error) {
+    return [`modelRetry: ${error instanceof Error ? error.message : 'not a retry policy'}`]
+  }
+}
 
 const RECEPTION_FIELDS = [
   'records',
@@ -79,14 +80,12 @@ function jointCommitsIssue(value: unknown): string | undefined {
   return undefined
 }
 
-/** Optional: the factory takes its default step limit when the assembly gives none (R2-D221). */
 function stepLimitIssues(value: unknown): readonly string[] {
   return value === undefined || isPositive(value)
     ? []
     : ['maxRunSteps: not a positive safe integer']
 }
 
-/** Optional: every item positive when given, and the longest wait not below the first. */
 function receptionIssues(value: unknown): readonly string[] {
   if (value === undefined) return []
   if (typeof value !== 'object' || value === null || Array.isArray(value))
@@ -95,7 +94,6 @@ function receptionIssues(value: unknown): readonly string[] {
   return issues.length > 0 ? issues : receptionOrderIssues(value)
 }
 
-/** Unknown fields, and the items that are not positive safe integers. */
 function receptionFieldIssues(value: object): string[] {
   const allowed: ReadonlySet<string> = new Set(RECEPTION_FIELDS)
   return [
@@ -108,7 +106,6 @@ function receptionFieldIssues(value: object): string[] {
   ]
 }
 
-/** The longest wait is not below the first one. */
 function receptionOrderIssues(value: object): string[] {
   const first = Reflect.get(value, 'retryMs') as number
   return (Reflect.get(value, 'retryMaxMs') as number) < first
@@ -116,7 +113,6 @@ function receptionOrderIssues(value: object): string[] {
     : []
 }
 
-/** The issues of one value, in the order of the fields. An empty list means a valid value. */
 function issuesOf(value: unknown): readonly Issue[] {
   if (typeof value !== 'object' || value === null || Array.isArray(value))
     return [{ message: 'the configuration is not an object' }]
@@ -128,6 +124,10 @@ function issuesOf(value: unknown): readonly Issue[] {
     if (!isPositive(read(field))) issues.push(`${field}: not a positive safe integer`)
   for (const field of NON_NEGATIVE)
     if (!isNonNegative(read(field))) issues.push(`${field}: not a non-negative safe integer`)
+  const delays = read('reconciliationDelaysMs')
+  if (!Array.isArray(delays) || delays.length === 0 || !delays.every(isNonNegative))
+    issues.push('reconciliationDelaysMs: not a non-empty list of non-negative safe integers')
+  issues.push(...modelRetryIssues(read('modelRetry')))
   issues.push(...stepLimitIssues(read('maxRunSteps')))
   issues.push(...receptionIssues(read('reception')))
   if (!COORDINATION.includes(read('coordination'))) issues.push('coordination: unknown mode')
@@ -138,21 +138,14 @@ function issuesOf(value: unknown): readonly Issue[] {
   return issues.map(message => ({ message }))
 }
 
-/**
- * The Standard Schema of the plugin configuration. It has no default: the assembly gives every
- * item except the optional `maxRunSteps`, whose default the factory owns, and the optional
- * `reception`, whose initial values the host owns.
- */
 export const agentHostConfig = {
   '~standard': {
     version: 1 as const,
     vendor: 'agent-host-local',
-    // The return type is written out so that the published declaration names both result shapes.
     validate(
       value: unknown,
     ): { issues?: never; value: AgentHostConfig } | { value?: never; issues: readonly Issue[] } {
       const issues = issuesOf(value)
-      // After the check every field holds a value of its type, so the object is the configuration.
       return issues.length > 0 ? { issues } : { value: value as AgentHostConfig }
     },
   },

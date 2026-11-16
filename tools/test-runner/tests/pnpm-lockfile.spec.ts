@@ -1,6 +1,3 @@
-// pnpm-lock.yaml 的读取：只认 pnpm 9 实际写出的那一小块 YAML。守的是两件事——
-// 它写出的键与值都认得（带引号的键、流式集合、空映射、块序列、单引号转义），认不出的写法报错并带行号，
-// 以及树的比较不看映射键序、看序列顺序。
 import { describe, expect, it } from 'vitest'
 import { equalNodes, LockfileSyntaxError, parseLockfileYaml } from '../src/testing/pnpm-lockfile.ts'
 

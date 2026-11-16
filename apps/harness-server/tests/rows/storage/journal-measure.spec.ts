@@ -1,5 +1,3 @@
-// Journal 测量设施的快层测试：WAL 读取器对真实 SQLite 的 WAL 文件；增长判据对合成曲线和现状实测曲线（负控）；
-// `scripts/check-journal-facts.mjs` 对构造的违规库判红。世界里的测量与增长用例在 `journal-bytes.spec.ts`（慢层）。
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -35,8 +33,6 @@ const tempDir = (): string => {
   return dir
 }
 
-// --- 1a. WAL 读取器 ----------------------------------------------------------------------------
-
 describe('the WAL reader', () => {
   it('counts the pages and the commit frames each transaction adds, on a real WAL file', () => {
     const dir = tempDir()
@@ -54,7 +50,6 @@ describe('the WAL reader', () => {
       expect(one.delta.pageSize).toBe(4096)
       expect(one.delta.frames.filter(frame => frame.commit)).toHaveLength(1)
       expect(one.delta.frames.length).toBeGreaterThanOrEqual(1)
-      // 两次事务提交，两个提交帧；没有新写入时没有新帧。
       db.exec("insert into t (v) values ('c')")
       db.exec("insert into t (v) values ('d')")
       const two = readWalDelta(`${file}-wal`, cursor)
@@ -97,8 +92,6 @@ describe('the WAL reader', () => {
   })
 })
 
-// --- 1b. 增长判据 ------------------------------------------------------------------------------
-
 const reading = (step: number, journalBytes: number, entryBytes = 0): CommitReading => ({
   seq: 1,
   step,
@@ -119,16 +112,11 @@ const reading = (step: number, journalBytes: number, entryBytes = 0): CommitRead
   tablePages: {},
 })
 
-/** 每步一次发布，字节由 `bytesOf(step)` 给。 */
 const series = (steps: number, bytesOf: (step: number) => number): StepSummary[] =>
   summarizeSteps(
     Array.from({ length: steps }, (_, index) => reading(index + 1, bytesOf(index + 1))),
   )
 
-/**
- * 现状（WIRE 4d5a7e0bc 的存储）在 release 的 command 上限下的实测：第 1 到第 5 步每步最大一次发布的字节数，
- * 小消息档。第 6 步被存储拒绝（`command_limit`），运行停止。见 `docs/engineering/perf-baseline.md`。
- */
 const BASELINE_MAX_PUBLICATION = [231_217, 405_558, 579_926, 754_600, 929_352] as const
 
 describe('the growth judgements', () => {
@@ -234,8 +222,6 @@ describe('the growth judgements', () => {
     expect(BOUNDED_PUBLICATION).toEqual({ from: 5, to: 20, slackBytes: 2_048 })
   })
 })
-
-// --- 1c. check-journal-facts 的负控 ------------------------------------------------------------
 
 function factsDatabase(rows: readonly (readonly [number, number, string, string])[]): string {
   const file = join(tempDir(), 'world.sqlite')

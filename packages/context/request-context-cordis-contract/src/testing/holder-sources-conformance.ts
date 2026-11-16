@@ -1,6 +1,3 @@
-// The conformance suite of `contextHolderSources`: one case for each leased part and for each lease
-// property. The fixture plugs the holder under test into a Context the suite owns; the suite takes
-// leases from a borrower plugin and observes only the lease, the settlement calls and `readsClosed`.
 import { Context } from '@deepseek-ai/cordis'
 import type { Access, SourceSettlement } from '@omne-harness/request-context-contract'
 import { contextHolderSourcesKey } from '../cordis.js'
@@ -11,26 +8,20 @@ import type {
   LeaseSettlement,
 } from '../holder-sources.js'
 
-/** One call of one part, and the result kind that call gives while the access is admitted. */
 export type ContextHolderPartCall<P> = Readonly<{
   call(parts: ContextHolderParts<P>, access: Access<P>): Promise<Readonly<{ kind: string }>>
   admitted: string
 }>
 
 export interface ContextHolderUnderTest<P> {
-  /** An access the holder admits when it starts. */
   readonly access: Access<P>
-  /** Unloads the plugin that provides the key; ends when the holder has closed its reads. */
   stop(): Promise<void>
-  /** True once the holder has closed the reads it lent. */
   readsClosed(): boolean
-  /** Ends the current eligibility of `access` where the holder checks it. */
   revoke(access: Access<P>): void
   readonly calls: Readonly<{ [K in keyof ContextHolderParts<P>]: ContextHolderPartCall<P> }>
 }
 
 export interface ContextHolderSourcesFixture<P> {
-  /** Plugs a fresh holder that provides `contextHolderSources` into `ctx`. */
   start(ctx: Context): Promise<ContextHolderUnderTest<P>>
 }
 
@@ -53,7 +44,6 @@ function expectThat(condition: boolean, message: string): void {
   if (!condition) throw new Error(message)
 }
 
-/** A settlement function that counts its calls and ends only when `finish` is called. */
 function gatedSettlement() {
   const gate = Promise.withResolvers<SourceSettlement>()
   let calls = 0
@@ -67,7 +57,6 @@ function gatedSettlement() {
   }
 }
 
-/** A settlement function that counts its calls and has nothing to wait for. */
 function readySettlement() {
   let calls = 0
   return {
@@ -79,7 +68,6 @@ function readySettlement() {
   }
 }
 
-/** Lets pending callbacks and timers of the holder run. */
 async function drain(): Promise<void> {
   for (let round = 0; round < 3; round++) await new Promise(resolve => setTimeout(resolve, 0))
 }
@@ -263,7 +251,6 @@ const cases = <P>(fixture: ContextHolderSourcesFixture<P>): ContextHolderSources
   },
 ]
 
-/** The cases of the holder sources suite; run each one and report it by `name`. */
 export function contextHolderSourcesConformance<P>(
   fixture: ContextHolderSourcesFixture<P>,
 ): readonly ContextHolderSourcesCase[] {

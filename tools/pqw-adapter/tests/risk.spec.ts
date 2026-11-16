@@ -7,7 +7,6 @@ import {
   toolchainPathspecs,
 } from '../src/risk.ts'
 
-// 路径表逐行：每条规则有命中例，与几个紧挨着命中例、不该命中的近邻（前后多一截、层级错一位）。
 const ROWS = [
   {
     id: 'ci',
@@ -121,7 +120,7 @@ it('prints the level, each hit rule with its paths, and what was not judged', ()
     { base: '454d1574e1234', changed: 9, missing: '工具链路径' },
   )
   expect(lines).toEqual([
-    '风险级别 L3（改动路径推出的下限，级别定义见 docs/engineering/quality.md）；不完整',
+    '风险级别 L3（改动路径推出的下限，级别定义见 docs/architecture/assurance.md）；不完整',
     '基线 454d1574e 到工作树，改动 9 个文件',
     '- L3 CI：.github/a、.github/b、.github/c 等 4 个',
     '没判的规则：工具链路径',
@@ -171,7 +170,7 @@ it('lists up to three paths in full and counts the rest', () => {
 
 it('prints a complete judgement with no hits as two lines, without the incomplete mark', () => {
   expect(riskLines({ level: 1, hits: [] }, { base: '454d1574e1234', changed: 2 })).toEqual([
-    '风险级别 L1（改动路径推出的下限，级别定义见 docs/engineering/quality.md）',
+    '风险级别 L1（改动路径推出的下限，级别定义见 docs/architecture/assurance.md）',
     '基线 454d1574e 到工作树，改动 2 个文件，没有命中路径规则',
   ])
 })

@@ -17,11 +17,6 @@ import {
   inconsistent,
 } from './session-validation.ts'
 
-/**
- * The revision of the observation is the same-root execution head. One below the head is a read
- * that another write of the execution overtook: an expired same-root basis answers `changed`, and
- * the caller reads the head again. One above it was never a head of this root.
- */
 function sameRootHead(
   snapshot: WorkSnapshot,
   observation: SessionLogObservation,

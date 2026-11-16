@@ -52,7 +52,6 @@ async function open(blockCommit = false, fixedGrant = false) {
           base.access.authorize(
             {
               allowed: true,
-              // `fixedGrant`: the access source names the first principal whoever calls.
               principalRef: standingPrincipalRef(fixedGrant ? identity.principal : principal),
             },
             request,
@@ -169,7 +168,6 @@ it('an unavailable destination keeps revocation pending and blocks new reservati
     }
     expect(failed).toBeInstanceOf(Error)
     const failure = z.object({ operation: z.object({ operationId: z.string() }) }).parse(failed)
-    // The revocation is not finished: Identity gives no new reservation for this standing.
     expect(
       await s.backend.service.prepareChange(s.principal, {
         ...s.w.command,

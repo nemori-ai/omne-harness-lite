@@ -9,7 +9,6 @@ export type BudgetInput = Readonly<{
   limits: readonly M.ModelLimit[]
   policy: CompactionPolicy
 }>
-/** Exact decimal arithmetic, including conservative rounding of estimates. */
 function decimal(text: string): { n: bigint; scale: bigint } {
   const [whole = '0', fraction = ''] = text.split('.')
   return { n: BigInt(whole + fraction), scale: 10n ** BigInt(fraction.length) }
@@ -24,7 +23,6 @@ function amount(check: M.BudgetCheck): bigint {
 function exceeds(c: M.BudgetCheck): boolean {
   return amount(c) > BigInt(c.limit)
 }
-/** The trigger line in input tokens: the smaller of the window percentage and the room left. */
 function triggerOf(context: M.ContextLimits, policy: CompactionPolicy): bigint {
   const percent = decimal(policy.triggerPercent ?? context.compactionTriggerPercent)
   const threshold = (BigInt(context.window.provided) * percent.n) / (100n * percent.scale)
@@ -32,11 +30,6 @@ function triggerOf(context: M.ContextLimits, policy: CompactionPolicy): bigint {
   const remaining = BigInt(context.window.provided) - reserved
   return remaining < threshold ? remaining : threshold
 }
-/**
- * The checks of one whole request that are over a hard limit or, for input tokens, over the
- * trigger line. The verdict of `judgeBudget` and the check after a summary share this rule, so
- * a compaction that passes the second does not fail the first (RQ-06).
- */
 export function overTrigger(
   whole: M.RequestBudget,
   context: M.ContextLimits,

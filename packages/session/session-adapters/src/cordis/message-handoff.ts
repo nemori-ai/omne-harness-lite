@@ -1,29 +1,3 @@
-// J06, the message admission provider of the Session log combination (row `session-handoff`). It
-// provides `agentMessageHandoff` and keeps each admission in the preadmission records of the
-// `execution-record` participant (C-STORAGE): the intent first, the outcome once, both durable
-// before the answer.
-//
-// `prepare` follows the six steps of Agent SPEC "消息准入":
-// 1. the shape (`judgeHandoffPrepare`), the tenant and the qualification of the caller. The binding
-//    of each branch comes from trusted facts, never from the input: the execution branch and the
-//    submit branch route their execution through the execution index of the tenant; the invoke
-//    branch decodes its runtime scope as the session slot scope that AD-14 gives the instance
-//    (`sessionScopeEvidence`, whose digest only checks consistency), and the Session snapshot of that
-//    session must hold the execution in its active Run. The invoke and submit branches ask
-//    `agentAccessCheck` with their operation names; the execution branch is the runtime's call
-//    inside an operation already checked and is not checked again;
-// 2. the stable identity and the complete original request: an internal H must be the P that the
-//    Journal of the same session saved; an external request is found by its entry index Ki. A held
-//    record with another request is a conflict; a fixed outcome is recalled before anything else;
-// 3. the execution branch then checks that the advance is the current one (`stale-advance`);
-// 4. a first call saves the intent (Ki, H, the request, the origin, the stable principal identity,
-//    the qualification basis and the adopted implementation) and goes on only when it is durable;
-// 5. this wave has no representation conversion;
-// 6. the outcome is fixed once: `prepared` with the original candidate, or `rejected` when the
-//    candidate fails the message check; then the answer.
-//
-// `lookup` reads a record and starts nothing. `exclude` is not offered in this wave: it answers
-// `unsupported`.
 import { createHash, randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import {
@@ -89,19 +63,14 @@ import { decodeState, encodeState } from './durable-codec.ts'
 const OWNER = 'session-adapters/message-handoff'
 const LOGGER = 'session-adapters/message-handoff'
 
-/** What the assembly hands to the provider. */
 export type SessionMessageHandoffInput<P> = Readonly<{
-  /** The principal the assembly issues to the coordinator of one session, as for AD-02 and AD-14. */
   coordinator(
     input: Readonly<{ tenant: TenantId; session: SessionId }>,
   ): Promise<Outcome<P, SessionCoordinatorPrincipalFailure>>
-  /** The stable identity of a caller that the record keeps; never a credential. */
   principalIdentity(principal: P): string
-  /** The adopted implementation of this provider, which every outcome names. */
   provider: Adoption
 }>
 
-/** The plugin configuration: the declared Session log combination its records commit under. */
 export type MessageHandoffConfig = JournalCombination
 
 type Ports<P> = Readonly<{
@@ -119,22 +88,18 @@ type Ports<P> = Readonly<{
   stopped(): boolean
 }>
 
-/** The trusted binding of one prepare: where it belongs, its origin and its qualification basis. */
 type Binding = Readonly<{
   bound: Bound
   origin: InputOrigin | null
   basis: DurableEvidence | null
 }>
 
-/** Where one request belongs: its session and the identities its record is keyed by. */
 type Bound = Readonly<{
   tenant: TenantId
   tenantText: string
   session: SessionId
   execution: AgentExecutionId
-  /** H: the handoff identity text. */
   handoff: string
-  /** Ki: the entry index text of an external request; null for an internal H. */
   entry: string | null
 }>
 
@@ -149,13 +114,10 @@ function sha256(text: string): string {
   return createHash('sha256').update(text).digest('hex')
 }
 
-/** The H of a request: the canonical text of its reference. */
 const handoffOf = (request: HandoffRequest): string => canonical(request.reference)
 
-/** The Ki of an external request: its execution and its original entry operation. */
 const entryOf = (execution: string, operation: string): string => canonical([execution, operation])
 
-/** The evidence of one saved record: it names the tenant, H and the saved intent. */
 function recordEvidence(record: PreadmissionRecord): DurableEvidence {
   return {
     owner: OWNER,
@@ -165,7 +127,6 @@ function recordEvidence(record: PreadmissionRecord): DurableEvidence {
   }
 }
 
-/** The candidate message of a request: the P candidate, or the accepted content of the entry. */
 function candidateOf(request: HandoffRequest): Message {
   if (request.kind === 'execution') return request.candidate
   return request.entry.kind === 'invoke'
@@ -246,7 +207,6 @@ function restoreDecision(
   }
 }
 
-/** The provider of one generation. */
 function createMessageHandoff<P>(
   given: SessionMessageHandoffInput<P>,
   ports: Ports<P>,
@@ -277,7 +237,6 @@ function createMessageHandoff<P>(
     return result.kind === 'read' ? { output: result.output } : null
   }
 
-  /** The session that started `execution` for the tenant, by the execution index. */
   async function sessionOfExecution(
     tenantText: string,
     domain: DomainRef,
@@ -294,7 +253,6 @@ function createMessageHandoff<P>(
     return indexed === null ? fail(denied(action)) : succeed(indexed.session as SessionId)
   }
 
-  /** The Session snapshot of the bound session, read as its coordinator. */
   async function snapshotOf(
     tenant: TenantId,
     session: SessionId,
@@ -307,11 +265,9 @@ function createMessageHandoff<P>(
       : fail(unavailable('the Session snapshot is not readable'))
   }
 
-  /** The active Run of the snapshot must hold `execution`. */
   const runHolds = (work: WorkSnapshot, execution: string): boolean =>
     work.run.kind === 'active' && work.run.execution.execution === execution
 
-  /** The session the Run of `execution` is active in, after `check` allowed the call. */
   async function qualified(
     access: Access<P>,
     session: SessionId,
@@ -325,12 +281,7 @@ function createMessageHandoff<P>(
     return ports.check(access, action, target)
   }
 
-  /**
-   * The invoke branch: the runtime scope is the slot scope of a session (AD-14). Its record names
-   * the session. The digest is a consistency check only: it has no key, so anyone can compute it
-   * for a tenant and a session and it is not a guard. Another tenant's session is kept out by the
-   * tenant domain lookup and the Session execution boundary.
-   */
+  // The scope digest only checks consistency; it has no key and is not a guard. Another tenant is kept out by the tenant domain lookup and the Session execution boundary.
   async function bindInvoke(
     access: Access<P>,
     tenantText: string,
@@ -361,7 +312,6 @@ function createMessageHandoff<P>(
     })
   }
 
-  /** The submit branch: the original execution by the execution index of the tenant. */
   async function bindSubmit(
     access: Access<P>,
     tenantText: string,
@@ -400,7 +350,6 @@ function createMessageHandoff<P>(
     })
   }
 
-  /** Step 1: the trusted binding of each branch, and the qualification of an external call. */
   async function bind(
     access: Access<P>,
     tenantText: string,
@@ -427,9 +376,7 @@ function createMessageHandoff<P>(
     })
   }
 
-  /** Steps 2 and 3 of the execution branch: the P of the same session and the current advance. */
   async function internal(bound: Bound, prepare: Extract<HandoffPrepare, { kind: 'execution' }>) {
-    // The execution's records and its attachments, folded from the facts of the execution.
     const records = await readExecutionRecords(ports, bound)
     if (records.kind === 'unavailable') return fail(unavailable(records.diagnostic))
     const execution = records.execution
@@ -446,11 +393,6 @@ function createMessageHandoff<P>(
     return succeed(execution.attachments)
   }
 
-  /**
-   * The advance must be the current attempt: the attempt the Session issued the grant of the
-   * Authority's attachment for (R2-D348, R2-D349). A snapshot without its attempt records proves
-   * nothing, so the advance is stale.
-   */
   async function advances(
     bound: Bound,
     attachments: readonly GrantedAttachment[],
@@ -468,7 +410,6 @@ function createMessageHandoff<P>(
       : fail({ kind: 'stale-advance' })
   }
 
-  /** One read of the preadmission records, by H or by Ki. */
   async function recordOf(bound: Bound): Promise<Outcome<PreadmissionRecord | null, Failure>> {
     const domain = await domainOf(bound.tenantText)
     if ('failure' in domain) return domain
@@ -489,7 +430,6 @@ function createMessageHandoff<P>(
       : succeed(record)
   }
 
-  /** One write of the preadmission records; it answers only after the storage committed it. */
   async function write(
     bound: Bound,
     facts: Parameters<typeof preadmissionFacts>[0],
@@ -524,7 +464,6 @@ function createMessageHandoff<P>(
     }
   }
 
-  /** Step 6: the decision for the original candidate; only a failed message check rejects. */
   function decide(request: HandoffRequest, basis: DurableEvidence): HandoffDecision {
     const judged = judgeMessage(candidateOf(request))
     return 'ok' in judged
@@ -536,7 +475,6 @@ function createMessageHandoff<P>(
         }
   }
 
-  /** Step 2: a held record answers by its own request; null when it holds no fixed outcome yet. */
   function recall(
     record: PreadmissionRecord,
     request: HandoffRequest,
@@ -552,7 +490,6 @@ function createMessageHandoff<P>(
     return succeed(decodeOutcome(record))
   }
 
-  /** Step 4: the first call saves the intent; the answer waits for the storage commit. */
   function saveIntent(
     access: Access<P>,
     binding: Binding,
@@ -583,7 +520,6 @@ function createMessageHandoff<P>(
     })
   }
 
-  /** Step 6: the outcome of the saved intent, fixed once; the answer is the fixed one. */
   async function fixOutcome(bound: Bound, record: PreadmissionRecord): Reply<HandoffOutcome> {
     const original = decodeIntent(record)
     const decision = decide(original.request, original.qualification)
@@ -623,10 +559,6 @@ function createMessageHandoff<P>(
     return admit(access, binding.ok, value, held.ok)
   }
 
-  /**
-   * What steps 2 and 3 already decide: a refusal, the original outcome of the held record, or a
-   * stale advance. `null`: the request goes on to the intent and the outcome.
-   */
   async function decidedEarly(
     bound: Bound,
     value: HandoffPrepare,
@@ -646,7 +578,6 @@ function createMessageHandoff<P>(
     return null
   }
 
-  /** Steps 2 to 6 for a bound request and the record its identity holds, if any. */
   async function admit(
     access: Access<P>,
     binding: Binding,
@@ -661,7 +592,6 @@ function createMessageHandoff<P>(
       const intent = await saveIntent(access, binding, value)
       if ('failure' in intent) return intent
       record = intent.ok
-      // Another H already held this Ki: its own outcome, if fixed, is the answer.
       const fixed = decodeOutcome(record)
       if (fixed !== null) return succeed(fixed)
     }
@@ -705,7 +635,6 @@ function createMessageHandoff<P>(
   }
 }
 
-/** `agentMessageHandoff`, made by the body of the plugin. */
 class SessionMessageHandoff extends MessageHandoffService<unknown> {
   readonly prepare: MessageHandoff<unknown>['prepare']
   readonly lookup: MessageHandoff<unknown>['lookup']
@@ -741,13 +670,6 @@ function parseConfig(
       }
 }
 
-/**
- * The plugin of `agentMessageHandoff` (row `session-handoff`). It needs `storage`, the trusted
- * `tenantDomainLookup`, `agentAccessCheck` and `session` with the `coordinator` class; while any is
- * absent it stays pending and provides nothing. Its configuration is the declared Session log
- * combination (`combinationVersion`, `manifestDigest`). Stopping makes every call, also through a
- * reference held from before, answer `unavailable`.
- */
 export function createSessionMessageHandoffPlugin<P>(input: SessionMessageHandoffInput<P>) {
   return {
     name: 'session-handoff',

@@ -15,7 +15,6 @@ export type SessionPermissionDiscovery =
   | Readonly<{ kind: 'found'; declaration: GovernanceDefinitionBundle }>
   | Readonly<{ kind: 'unavailable' }>
 
-/** The permissions of a declaration that an assignment names. */
 export function matchingPermissions(
   declaration: GovernanceDefinitionBundle,
   change: SessionPermissionAssignment,

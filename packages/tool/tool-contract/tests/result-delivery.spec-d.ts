@@ -1,5 +1,3 @@
-// Compile-time checks of the result push (SPEC「结果推送与保存」), the start fence and the
-// acceptance record of P04. Each `@ts-expect-error` names the diagnostic the accepted types produce.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -41,7 +39,6 @@ it('keys a result by producer, reference and version, and an account by event an
   >()
   expectTypeOf<Result['key']>().toEqualTypeOf<Extract<ToolDeliveryKey, { kind: 'result' }>>()
   expectTypeOf<Result['account']>().toExtend<object | null>()
-  // The payload does not copy the tenant: it comes from the reference only.
   expectTypeOf<Result>().not.toHaveProperty('tenant')
 })
 
@@ -80,7 +77,6 @@ declare const tenant: TenantId
 declare const decision: DurableEvidence & { readonly owner: 'authorization' }
 
 it('takes a permit reference and a consumption fact of the authorization shape as they are', () => {
-  // The authorization values have a branded text and a narrowed evidence; they stay assignable.
   const permit: ToolPermitRef = { tenant, permit: permitText }
   const fact: ToolPermitConsumption = {
     permit,

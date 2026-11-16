@@ -1,5 +1,3 @@
-// Compile-time checks of the `./cordis` augmentation. Each `@ts-expect-error` names the diagnostic
-// that the accepted types must produce.
 import type { Context, Events } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { ModelCallId, ModelOperationId, Revision } from '@omne-harness/model-contract'

@@ -1,4 +1,3 @@
-// Independent external providers for PD-tool-execution S1–S3. No product boundary is replaced.
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { writeFileSync, mkdirSync } from 'node:fs'
@@ -447,7 +446,6 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
               const checked = ok(
                 author.output.check({ arguments: argumentsValue, value: returned }),
               )
-              // The original codec must be able to encode the checked value; the bytes are not kept.
               ok(author.codec.encode(checked))
 
               const value = ok(
@@ -588,7 +586,6 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
       })
     assert.ok(paragraphs.every(text => text.length > 0))
     for (const page of pages) assert.equal(page.delivery, delivery.delivery)
-    // The consumer performs a concrete transform, then saves the completion before handoff.
     const record = {
       reference,
       result: settled.result,
@@ -619,8 +616,6 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
     assert.equal(released.kind, 'released')
     const current = await state(reference)
     assert.equal(current.delivery?.kind, 'released')
-    // Registered S1: inline material may be released once unused; reading continues from the
-    // content the consumer saved before `processed`, and Tool answers `released`.
     const after = await runtime.queries.readResult({
       ...access,
       reference,

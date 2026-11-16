@@ -6,7 +6,6 @@ import type { PreparationRecord } from './records.ts'
 import { conformanceCase, expectKind, succeeded, type ConformanceCase } from './testing-case.ts'
 import { callId, fixedRequest, preparationRecord } from './testing-values.ts'
 
-/** Provider-owned controls for the allocation-before-adoption path. No control performs adoption. */
 export interface ToolEnvironmentAllocationFixture<P, E> {
   readonly environment: ToolEnvironment<P, E>
   readonly access: Access<P>
@@ -34,7 +33,6 @@ function scene<P, E>(fixture: ToolEnvironmentAllocationFixture<P, E>) {
   }
 }
 
-/** P03 facts, bounded original adoption and lost-registration boundaries, for adapters that support this path. */
 export function toolEnvironmentAllocationConformance<P, E>(): readonly ConformanceCase<
   ToolEnvironmentAllocationFixture<P, E>
 >[] {

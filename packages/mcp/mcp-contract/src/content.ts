@@ -1,4 +1,3 @@
-// Peer content to delivered content. Typed, in peer order, and nothing is dropped.
 import {
   judgeContentBlock,
   type ContentBlock,
@@ -15,7 +14,6 @@ function isBase64(text: string | undefined): text is string {
   return text !== undefined && BASE64.test(text)
 }
 
-/** Builds a common block through its own judgment, so that no field is asserted. */
 function block(candidate: Readonly<Record<string, unknown>>): ContentBlock {
   const judged = judgeContentBlock(candidate)
   if ('rejected' in judged) throw new TypeError(`content block rejected: ${judged.rejected}`)
@@ -72,14 +70,12 @@ function invalid(index: number, reason: ContentDefect, type?: string): Delivered
 
 type BlockReader = (item: JsonObject, id: string) => Reading
 
-/** The content types that become common blocks. A type not here and not below is unknown. */
 const BLOCK_READERS: Readonly<Record<string, BlockReader>> = {
   text: textReading,
   image: (item, id) => mediaReading(item, id, 'image'),
   audio: (item, id) => mediaReading(item, id, 'voice'),
 }
 
-/** The protocol content types that keep their type, with the check of each. */
 const PROTOCOL_DEFECTS: Readonly<
   Record<'resource_link' | 'resource', (item: JsonObject) => ContentDefect | undefined>
 > = {
@@ -117,13 +113,6 @@ function deliveredItem(item: JsonValue, index: number): DeliveredContent {
   }
 }
 
-/**
- * Turns peer content items into delivered content, one for one and in peer order. Text becomes
- * a text block, an image an image block, audio a voice block. A resource link and an embedded
- * resource keep their protocol type. An invalid item becomes a text block that names its type
- * and the reason; its content is not copied. Block identifiers are `content-<index>`, unique
- * within one outcome. Both audiences see every block: who sees what is the caller's decision.
- */
 export function toContentBlocks(items: readonly JsonValue[]): readonly DeliveredContent[] {
   return items.map(deliveredItem)
 }

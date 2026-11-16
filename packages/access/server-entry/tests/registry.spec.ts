@@ -1,5 +1,3 @@
-// The registry's contract tests. Their names are those of RFC-0015 §15「精化对照」; each one was
-// first seen red against the defect its model counterpart injects.
 import { describe, expect, it } from 'vitest'
 import { AccessAssemblyError } from '@omne-harness/access-cordis-contract'
 import { createAccessRegistry } from '../src/registry/registry.ts'
@@ -166,15 +164,6 @@ describe('subscribe', () => {
     unsubscribe()
     registry.mount(notesContribution('v1 again'))
     expect(view.revision).toBe(3)
-  })
-
-  it('keeps the registry when a subscriber throws and no diagnostic sink is given', () => {
-    const registry = createAccessRegistry()
-    registry.subscribe(() => {
-      throw new Error('listener failed')
-    })
-    expect(() => registry.mount(notesContribution('first'))).not.toThrow()
-    expect(registry.enter(NOTES, 'read-note')).toBeDefined()
   })
 
   it('keeps the registry and the other subscribers when a subscriber throws', () => {

@@ -1,7 +1,3 @@
-// Type tests: the capability tokens of the gate cannot be written as literals or built from an
-// adopted endpoint; an adopted-only token is not an admitted one; only `admit` grants admission.
-// The scope of the table is handed out as a view that can only take work: nobody outside the
-// table can exit it, and the bounded wait takes only that view.
 import { describe, expectTypeOf, it } from 'vitest'
 import type { AdoptedEndpoint } from '@omne-harness/mcp-contract/provider'
 import type { AdmittedEndpoint, AdoptedOnly } from '../src/internal/gate.ts'

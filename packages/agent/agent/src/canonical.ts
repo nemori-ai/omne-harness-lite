@@ -1,7 +1,3 @@
-/**
- * A canonical text of a data value: object members in key order, arrays in order, byte views as
- * their bytes. Two values are the same input when their texts are equal.
- */
 export function canonical(value: unknown): string {
   if (value === undefined) return 'undefined'
   if (value === null || typeof value !== 'object') return JSON.stringify(value)

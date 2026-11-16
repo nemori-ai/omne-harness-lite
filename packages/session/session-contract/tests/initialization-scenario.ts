@@ -81,7 +81,6 @@ export function initializationScenario(value: Partial<SessionCreation> = {}) {
   const access = memoryAccess('tester')
   const base = { tenant: access.tenant, session: access.session }
   const source = createMemoryInitializationSource()
-  // The scenarios test initialization; the access policy is stated open and every request is logged.
   const accessCheck = createPolicySessionAccessCheck<string>(() => ({
     kind: 'allowed',
     evidence: evidence('access'),

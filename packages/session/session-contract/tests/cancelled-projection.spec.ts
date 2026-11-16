@@ -78,6 +78,7 @@ describe('Agent cancelled requires the original Run cancellation', () => {
       const original = await s.active()
       if (state !== 'active') await fail(s, original.run.run)
       if (state === 'successor-active' || state === 'successor-cancelled') {
+        await s.accept('after-failure')
         await s.start('successor')
         if (state === 'successor-cancelled') await cancel(s, (await s.active()).run.run)
       }
@@ -147,7 +148,6 @@ describe('Agent cancelled requires the original Run cancellation', () => {
         failure: { kind: 'invalid', field: 'outcome' },
       })
 
-      // Preserve the original Agent fact while testing a changed interpretation.
       expect(await s.port.controls.project(replay, operation)).toEqual({
         failure: {
           kind: 'invalid',

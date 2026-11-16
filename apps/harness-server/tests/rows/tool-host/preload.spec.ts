@@ -1,6 +1,3 @@
-// 发行作者的首装（R2-D79 第 4 条、R2-D169 候选 A）：发行行装好后，用发行登记者对受信快照的全部条目调用
-// `ensureLoaded`，两个作者在 `toolBindings` 里 live。缺运维者构造值时不装，并在 `tool-host` 记录器写明哪个作者、
-// 什么原因。首装的 access 是登记者本身，不是 system 作用域。
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ToolBindingScope } from '@omne-harness/tool-contract/provider'
 import { toolBindingsKey } from '@omne-harness/tool-cordis-contract/cordis'
@@ -33,7 +30,6 @@ async function loaded(preload: boolean, construction: unknown) {
   return { fixture, names }
 }
 
-/** Polls `ready` up to 8 s; returns whether it became true. */
 async function until(ready: () => boolean) {
   const end = Date.now() + 8000
   while (!ready() && Date.now() < end) await new Promise(r => setTimeout(r, 20))
@@ -56,7 +52,6 @@ describe('tool-host: the release authors are loaded by the registrant at start',
     { timeout: 20_000 },
     async () => {
       const { names } = await loaded(false, TEST_CONSTRUCTION)
-      // The same window in which the start load fills the registry in the case above.
       await new Promise(r => setTimeout(r, 1000))
       expect(names()).toEqual([])
     },

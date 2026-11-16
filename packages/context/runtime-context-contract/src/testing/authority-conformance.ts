@@ -40,7 +40,6 @@ export function authorityConformance<P>(): readonly ConformanceCase<RuntimeConte
   }))
 }
 
-/** A scope bound to the other tenant cannot be claimed, registered into or published to (J18, J41). */
 async function forgedFirstBindingRefused<P>(fixture: RuntimeContextFixture<P>) {
   const { subject, ports } = await start(fixture)
   const foreign = scope('foreign')
@@ -86,10 +85,6 @@ async function forgedFirstBindingRefused<P>(fixture: RuntimeContextFixture<P>) {
   assert.equal(calls, 0)
 }
 
-/**
- * The principal belongs to the fixture tenant; the input names the other tenant, and the binding of
- * the scope agrees with the input. Only the authority port can refuse: it answers for the principal.
- */
 async function principalTenantMismatchRefused<P>(fixture: RuntimeContextFixture<P>) {
   const { subject, ports } = await start(fixture)
   const theirs = scope('theirs')
@@ -190,7 +185,6 @@ async function authorityUnavailableAndUnknown<P>(fixture: RuntimeContextFixture<
   assert.equal(applied.kind, 'applied')
 }
 
-/** An answer whose `current()` is false never lets a value take effect (RC-01 当前授权前提). */
 async function staleCurrentRefused<P>(fixture: RuntimeContextFixture<P>) {
   const s = await started(fixture)
   await s.handle.publish({ scope: s.scope, tenant: s.tenant, value: 1 })
@@ -207,7 +201,6 @@ async function staleCurrentRefused<P>(fixture: RuntimeContextFixture<P>) {
   assert.equal(await snapshotValue(s.reader), 1)
 }
 
-/** A revocation while the source answers discards the late value (RC-07 回调协议). */
 async function revocationDuringSupplyDiscarded<P>(fixture: RuntimeContextFixture<P>) {
   const { subject, ports } = await start(fixture)
   const target = scope('revoked-supply')
@@ -267,7 +260,6 @@ async function revocationDuringSupplyDiscarded<P>(fixture: RuntimeContextFixture
   assert.equal(read.value.missing.length, 1)
 }
 
-/** Changing the caller's input object after the call does not change the authorized target (RC-01 输入快照). */
 async function inputSnapshotStable<P>(fixture: RuntimeContextFixture<P>) {
   const s = await started(fixture)
   const other = scope('other-tenant-scope')
@@ -281,7 +273,6 @@ async function inputSnapshotStable<P>(fixture: RuntimeContextFixture<P>) {
   assert.equal(await snapshotValue(s.reader), 3)
 }
 
-/** The producer slot is tenant plus key; another tenant registers the same key independently (J41). */
 async function producerSlotPerTenant<P>(fixture: RuntimeContextFixture<P>) {
   const s = await started(fixture)
   const other = await s.subject.registerProducer(s.principal, {
@@ -319,7 +310,6 @@ async function publishTenantMismatchRefused<P>(fixture: RuntimeContextFixture<P>
   assert.equal(missing.value.missing.length, 1)
 }
 
-/** A tenant invalidation lists and changes only the handle tenant's scopes (J41). */
 async function tenantInvalidateScopedToTenant<P>(fixture: RuntimeContextFixture<P>) {
   const s = await started(fixture)
   const foreign = scope('foreign-tenant')
@@ -353,7 +343,6 @@ async function tenantInvalidateScopedToTenant<P>(fixture: RuntimeContextFixture<
   })
 }
 
-/** One refused target leaves the whole tenant batch unchanged (RC-07). */
 async function tenantInvalidateBatchAtomic<P>(fixture: RuntimeContextFixture<P>) {
   const s = await started(fixture)
   const second = await addScope(s, 'second')
@@ -374,7 +363,6 @@ async function tenantInvalidateBatchAtomic<P>(fixture: RuntimeContextFixture<P>)
   assert.equal(await snapshotValue(s.reader), 1)
 }
 
-/** The five supply answers and the protocol failures land in their closed read results (RC-07). */
 async function supplyAnswerMapping<P>(fixture: RuntimeContextFixture<P>) {
   const { subject, ports } = await start(fixture)
   const target = scope('answers')
@@ -421,7 +409,6 @@ async function supplyAnswerMapping<P>(fixture: RuntimeContextFixture<P>) {
   const reader = bound.reader
   next = async () => ({ kind: 'refused' })
   assert.deepEqual(await reader.snapshot(), { kind: 'refused', reason: 'unauthorized' })
-  // JSON.parse gives an untyped answer outside the closed set without a type assertion.
   const nonsense = async (): Promise<SupplyAnswer<unknown>> => JSON.parse('{"kind":"nonsense"}')
   const cases: readonly [() => Promise<SupplyAnswer<unknown>>, object][] = [
     [async () => ({ kind: 'unknown' }), { kind: 'unknown', cause: 'source-unknown' }],

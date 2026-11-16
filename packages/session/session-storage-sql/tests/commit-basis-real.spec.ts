@@ -1,5 +1,4 @@
 // @module-tag slow
-// Real SQLite Workers exercise the declared transaction combination.
 import { afterEach, expect, it } from 'vitest'
 import { sessionCommitCommands } from '../src/participants.ts'
 import {
