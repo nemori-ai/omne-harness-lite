@@ -1948,6 +1948,21 @@ function coordinate<P>(
     return succeed(answeredCandidate(execution, action, text))
   }
 
+  async function backgroundCandidate(action: Action): Promise<Outcome<Message, Failure>> {
+    const received = await receivedToolDelivery(action, 'placeholder')
+    if ('failure' in received) return received
+    if (received.ok === null)
+      return fail(defect('T2: a background slot without its received placeholder'))
+    const call = toolCallOf(access, received.ok.pending)
+    return succeed(placeholderCandidate(execution, action, call, received.ok.delivery.source))
+  }
+
+  function passing(slot: ActionSlot | undefined): ActionSlot | null {
+    if (slot?.kind === 'background') return slot.candidateDigest === null ? slot : null
+    if (slot === undefined || slot.each !== null) return null
+    return slot.kind === 'denied' || slot.kind === 'result' ? { ...slot, each: [] } : null
+  }
+
   async function computedCandidate(
     action: Action,
     slot: ActionSlot,
@@ -1955,14 +1970,7 @@ function coordinate<P>(
     if (slot.each !== null && slot.each.length > 0)
       return fail(notYet('T2', 'a single-result passage with conclusions', '#502 stage 5'))
     if (slot.kind === 'denied') return deniedSlotCandidate(action)
-    if (slot.kind === 'background') {
-      const received = await receivedToolDelivery(action, 'placeholder')
-      if ('failure' in received) return received
-      if (received.ok === null)
-        return fail(defect('T2: a background slot without its received placeholder'))
-      const call = toolCallOf(access, received.ok.pending)
-      return succeed(placeholderCandidate(execution, action, call, received.ok.delivery.source))
-    }
+    if (slot.kind === 'background') return backgroundCandidate(action)
     if (slot.kind !== 'result') return fail(defect(`T2: no candidate of a ${slot.kind} slot`))
     const received = await receivedToolDelivery(action, 'result')
     if ('failure' in received) return received
@@ -2428,16 +2436,8 @@ function coordinate<P>(
       if ('failure' in read) return read
       let batch = currentBatch()
       for (const action of batch.actions) {
-        const slot = slotOf(batch, action.id)
-        if (slot?.kind === 'background' && slot.candidateDigest === null) {
-          const candidate = await computedCandidate(action, slot)
-          if ('failure' in candidate) return candidate
-          batch = replaceSlot(batch, { ...slot, candidateDigest: candidateDigest(candidate.ok) })
-          continue
-        }
-        if (slot === undefined || slot.each !== null) continue
-        if (slot.kind !== 'denied' && slot.kind !== 'result') continue
-        const passed = { ...slot, each: [] }
+        const passed = passing(slotOf(batch, action.id))
+        if (passed === null) continue
         const candidate = await computedCandidate(action, passed)
         if ('failure' in candidate) return candidate
         batch = replaceSlot(batch, { ...passed, candidateDigest: candidateDigest(candidate.ok) })

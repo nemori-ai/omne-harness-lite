@@ -96,6 +96,16 @@ describe('a Tool call moved to the background', () => {
       }),
     )
     expect(assembly.controls.tools.invoke.calls).toHaveLength(1)
+    const sources = assembly.controls.journal
+      .handoffRecords({ tenant: alice.tenant, execution: input.execution })
+      .flatMap(record => (record.request.kind === 'execution' ? [record.request.source] : []))
+    expect(sources).toContainEqual(
+      expect.objectContaining({
+        kind: 'tool-result',
+        call: 'tcall_call-1',
+        result: expect.objectContaining({ version: 'placeholder' }),
+      }),
+    )
   })
 
   it.each([
