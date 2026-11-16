@@ -254,7 +254,9 @@ interface LedgerLine {
   readonly exitCode: number
   readonly arrivedAt: string
   readonly acquiredAt: string | null
+  readonly acquiredMs: number | null
   readonly endedAt: string
+  readonly endedMs: number
   readonly loadAtAcquire: readonly number[] | null
   readonly loadAtEnd: readonly number[]
 }
@@ -761,6 +763,13 @@ const timer = setInterval(() => {
         heldSeconds: 1,
       }),
     ])
+    const [line] = ledger()
+    const acquired = line?.acquiredMs ?? 0
+    const ended = line?.endedMs ?? 0
+    expect(Math.floor(acquired / 1000)).toBe(CLOCK_SECOND / 1000)
+    expect(acquired).toBeGreaterThanOrEqual(CLOCK_SECOND + 900)
+    expect(Math.floor(ended / 1000)).toBe(CLOCK_SECOND / 1000 + 2)
+    expect(ended - acquired).toBeGreaterThanOrEqual(1600)
   })
 
   it('运行账本：工作树有 task context 时记下最后一项任务的卡号与 attempt', () => {
@@ -848,6 +857,7 @@ const timer = setInterval(() => {
         aheadOnArrival: 0,
         tokens: null,
         acquiredAt: null,
+        acquiredMs: null,
         heldSeconds: null,
         cpuSeconds: null,
         loadAtAcquire: null,

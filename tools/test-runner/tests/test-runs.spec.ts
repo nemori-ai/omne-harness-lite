@@ -20,12 +20,7 @@ import {
   ownerOf,
   workspacePatterns,
 } from '@omne-harness/repo-toolchain/core/workspace'
-import {
-  ledgerHome,
-  parseTestRunsConfig,
-  readTestRunsConfig,
-  workerCountOverride,
-} from '../src/testing/config.ts'
+import { ledgerHome, parseTestRunsConfig, readTestRunsConfig } from '../src/testing/config.ts'
 import { buildLedger, ledgerSummary, type MemberRun } from '../src/testing/ledger.ts'
 import { readLoopConfig } from '@omne-harness/repo-toolchain/loop/config'
 import type { TimingReport } from '../src/testing/timing-reporter.ts'
@@ -251,12 +246,6 @@ describe('并行度', () => {
         cache: CACHE_EMPTY,
       }),
     ).toThrow('parallel.reserveCores')
-  })
-
-  it('Stryker 的进程数：VITEST_MAX_WORKERS 已设时以它为准，否则取给的预算', () => {
-    expect(workerCountOverride({}, 19)).toBe(19)
-    expect(workerCountOverride({ VITEST_MAX_WORKERS: '1' }, 19)).toBe(1)
-    expect(() => workerCountOverride({ VITEST_MAX_WORKERS: 'x' }, 19)).toThrow('VITEST_MAX_WORKERS')
   })
 
   it('仓库里的配置：策略不含任何一台机器的核数，上下限齐全；退役的常数不再出现', () => {

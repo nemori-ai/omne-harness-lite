@@ -15,6 +15,7 @@
 | `triage` | `pnpm run test:triage` | 失败归因 |
 | `replay` | | 对一段历史逐个提交算计划 |
 | `coverage-parallel` | 由 `scripts/metrics.sh` 调 | 覆盖率的并发度 |
+| `token-ledger` | | 核对令牌账本没有超卖 |
 | `check` | `pnpm run check`、`admission`、`preflight` | 步骤图、准入、接续、预检 |
 | `admission-evidence` | | 核对可采用的全量准入 |
 
@@ -294,7 +295,7 @@
 
 机器有 C = max(1, 核数 − `parallel.reserveCores`) 个令牌。一件活带两个数来要令牌：`want` 是最多用得上几个，`min` 是至少几个才跑。活按先来先得排队。排在队首的活在空闲的令牌不少于 `min` 时拿 min(`want`, 空闲数) 个，拿到之后个数不再变，跑完全部归还。
 
-`scripts/with-test-slot.sh [--want <n>] [--min <n>] [--] <命令> [参数…]` 拿到令牌才执行命令，把拿到的个数经 `OMNE_WORKER_BUDGET` 交给命令，并原样返回它的退出码。不给 `--want` 时要全部令牌，不给 `--min` 时至少 1 个。`min` 大于 C 时按 C 算。实现在 `scripts/with-test-slot.mjs`，只用 Node 标准库，macOS、Linux 与 Windows 通用。
+`scripts/with-test-slot.sh [--want <n>] [--min <n>] [--] <命令> [参数…]` 拿到令牌才执行命令，把拿到的个数经 `OMNE_WORKER_BUDGET` 交给命令，并原样返回它的退出码。不给 `--want` 时要全部令牌，不给 `--min` 时至少 1 个。`min` 大于 C 时按 C 算。只用得上一两个核的命令要自己给 `--want`：它不给就拿走全部空闲的令牌，它跑完之前别的活只能等。实现在 `scripts/with-test-slot.mjs`，只用 Node 标准库，macOS、Linux 与 Windows 通用。
 
 - 整条命令当一件活来要令牌的入口：`test`、`test:gate`、`test:affected`、`test:tier`、`test:triage`、`test:python`、`acceptance`、`metrics --coverage`、`closeout:metrics`、`closeout:mutation`。`test:affected` 与 `closeout:mutation` 带 `--plan-only` 时不要令牌。预检不要令牌。根 `pnpm run check` 与 `admission` 自己不要，它们的各步各自去要，见[并行度](#并行度)。
 - 已经在令牌之内的进程（`OMNE_TEST_SLOT_HELD` 非空）再调用它时直接放行，不重复排队，也不另记账本。`OMNE_TEST_SLOT_HELD` 的值是它持有的第一个令牌的目录。
@@ -316,8 +317,8 @@
 | `OMNE_TEST_SLOT_LEDGER` | `${XDG_STATE_HOME:-~/.local/state}/omne-test-slots/ledger.jsonl` | 令牌账本 |
 
 - 排队时在标准错误报前面还有几个、令牌被什么命令占着，变了再报一次。75 表示「没轮到」，既不是检查失败也不是通过。
-- 每次用完令牌或等到超时放弃，往令牌账本追加一行 JSON：`event`（`ran` 或 `gave-up`）、`command`（截到 500 字符）、`cwd`、`pid`、`issue` 与 `attempt`（取自工作树的任务上下文，取不到为 null）、`cores`、`capacity`、`want`、`min`、`tokens`、`aheadOnArrival`、`arrivedAt`、`acquiredAt`、`endedAt`（RFC 3339，截到秒）、`waitSeconds`、`heldSeconds`（毫秒差向下取整）、`cpuSeconds`（到 0.01 秒）、`loadAtAcquire`、`loadAtEnd`、`exitCode`。放弃时拿到之后才有的栏为 null，`exitCode` 为 75。写不进去只提醒一句，不改退出码。
-- 平均核数落在 (`cpuSeconds` ÷ (`heldSeconds` + 1)，`cpuSeconds` ÷ `heldSeconds`] 区间里。任何时刻账本里正持有的 `tokens` 之和不超过 `capacity`。
+- 每次用完令牌或等到超时放弃，往令牌账本追加一行 JSON：`event`（`ran` 或 `gave-up`）、`command`（截到 500 字符）、`cwd`、`pid`、`issue` 与 `attempt`（取自工作树的任务上下文，取不到为 null）、`cores`、`pool`（锁目录）、`capacity`、`want`、`min`、`tokens`、`aheadOnArrival`、`arrivedAt`、`acquiredAt`、`endedAt`（RFC 3339，截到秒）、`acquiredMs`、`endedMs`（历元毫秒，拿到令牌之后与归还之前各读一次）、`waitSeconds`、`heldSeconds`（毫秒差向下取整）、`cpuSeconds`（到 0.01 秒）、`loadAtAcquire`、`loadAtEnd`、`exitCode`。放弃时拿到之后才有的栏为 null，`exitCode` 为 75。写不进去只提醒一句，不改退出码。
+- 平均核数落在 (`cpuSeconds` ÷ (`heldSeconds` + 1)，`cpuSeconds` ÷ `heldSeconds`] 区间里。任何时刻账本里正持有的 `tokens` 之和不超过 `capacity`。核对命令：`node --experimental-strip-types tools/test-runner/src/testing/cli.ts token-ledger [--since <时刻>]`。它按行里的 `pool`（锁目录）分开，每个池按 `acquiredMs` 与 `endedMs` 扫一遍，同一毫秒先算归还，报一个池里同时持有的最高值；有超过容量的时刻就逐个列出并退出 1。两个时刻都读在持有期之内，所以它不会把没有重叠的两次持有报成超卖。
 
 令牌池的已知限制：
 

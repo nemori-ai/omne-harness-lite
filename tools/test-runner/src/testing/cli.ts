@@ -36,6 +36,7 @@ import { parseFlags as parseSharedFlags, type Flags } from './support.ts'
 import { triage, triageSummary } from './triage.ts'
 import { budgetFor, describeBudget } from './parallelism.ts'
 import { coverageParallelism } from './coverage-parallel.ts'
+import { auditTokenUses, describeAudit, tokenLedgerPath, tokenUses } from './token-ledger.ts'
 import { tokenSource } from './token-pool.ts'
 import { runCheck } from './check.ts'
 import { runPreflight } from './preflight.ts'
@@ -66,6 +67,9 @@ const USAGE = [
   '      读那次运行的账本，把每处失败单独重跑 triage.repeats 次并归类，日志与报告在运行目录的 triage/ 下；只报告，不改那次运行的结论',
   '  coverage-parallel',
   '      打印覆盖率跨成员并行的并发度 <同时成员数>x<每成员工作进程数>，两数之积不超过本机的工作进程预算（scripts/metrics.sh 用）',
+  '  token-ledger [--since <时刻>] [--ledger <路径>]',
+  '      读令牌账本（缺省是令牌池脚本写的那一份），核对任一时刻持有的令牌数之和不超过容量；--since 只看在这个时刻之后结束的持有；',
+  '      没有超过的时刻退出 0，有就逐个列出并退出 1',
   '  check [--admission] [--keep-going] [--list] [--no-cache] [--resume-from <H1>] | check --preflight',
   '      `pnpm run check` 的正文：取基线、算计划，再按步骤图跑全部检查（无依赖的同时跑，一步失败其余终止）；',
   '      --admission 或环境变量 OMNE_ADMISSION=1 为准入模式：构建与类型检查不读缓存，成员测试只认准入模式下真跑出来的记录，并写准入日志与运行记录；',
@@ -77,10 +81,11 @@ const USAGE = [
   '      --preflight 预检（根脚本 pnpm run preflight）：只跑准入里不依赖构建与全量测试的步骤，全部同时起、失败不终止其余，',
   '      最后一次列出全部发现与修法；开始时同样自检并自愈环境；不写准入日志与运行记录。不与别的 check 开关同给',
   ADMISSION_EVIDENCE_USAGE,
-  '根脚本：check:plan 是 plan；test:gate 是 step test；test:affected 是 run（带 --plan-only 时不占运行名额）；',
+  '根脚本：check:plan 是 plan；test:gate 是 step test；test:affected 是 run（带 --plan-only 时不要令牌）；',
   '  test:tier <fast|slow|all> 与 test 是 run --all --build；test:triage 是 triage；acceptance 是 run --all --script acceptance；',
   '  check、admission、preflight 经 scripts/check.sh 进 check（admission 带 --admission，preflight 带 --preflight）',
-  '环境变量：OMNE_WORKER_BUDGET 钉死工作进程预算（正整数，超过核数按核数）；OMNE_TEST_MEMBER_CONCURRENCY 与 VITEST_MAX_WORKERS 临时盖过同时成员数与每成员工作进程数；',
+  '环境变量：OMNE_WORKER_BUDGET 是令牌池脚本交给命令的令牌数，已在令牌之内的运行按它在进程内分；OMNE_TEST_SLOT_CAPACITY 改这台机器的令牌总数；',
+  '  VITEST_MAX_WORKERS 由运行器按拿到的令牌写给每个成员的 vitest，外面设的不生效；',
   '  OMNE_TEST_CACHE_HOME 结果缓存的根（缺省主检出 tmp/test-cache/）；OMNE_TEST_LEDGER_HOME 测试账本的根（缺省主检出 tmp/test-ledger/）；',
   '  OMNE_ACCEPTANCE_LEDGER_HOME 验收账本的根（缺省主检出 tmp/acceptance-ledger/）；OMNE_SUBJECT_ROOT 被检查的检出（缺省本工具所在的检出）',
   '退出码：run 与 step 全过为 0，有失败为 1；check 取第一个失败步骤的退出码；用法错误、算不出计划与接续前提不满足为 2。--help 打印本说明并退出 0',
@@ -273,6 +278,18 @@ async function coverageParallel(argv: readonly string[]): Promise<number> {
   return 0
 }
 
+function tokenLedger(argv: readonly string[]): number {
+  const flags = parseFlags(argv, ['--ledger', '--since'], [])
+  const path = flags.values.get('--ledger') ?? tokenLedgerPath(process.env)
+  const since = flags.values.get('--since')
+  const sinceMs = since === undefined ? 0 : Date.parse(since)
+  if (Number.isNaN(sinceMs)) throw new Error(`--since 要给一个时刻，例如 2026-11-16T12:00:00Z`)
+  if (!existsSync(path)) throw new Error(`令牌账本 ${path} 不存在`)
+  const audit = auditTokenUses(tokenUses(readFileSync(path, 'utf8'), sinceMs))
+  for (const line of describeAudit(audit)) console.log(line)
+  return audit.oversold.length === 0 ? 0 : 1
+}
+
 async function runTriage(argv: readonly string[]): Promise<number> {
   const flags = parseFlags(argv, ['--run'], [])
   const runDir = flags.values.get('--run')
@@ -329,6 +346,7 @@ async function main(): Promise<void> {
   else if (command === 'replay') process.exitCode = runReplay(rest)
   else if (command === 'triage') process.exitCode = await runTriage(rest)
   else if (command === 'coverage-parallel') process.exitCode = await coverageParallel(rest)
+  else if (command === 'token-ledger') process.exitCode = tokenLedger(rest)
   else if (command === 'check') {
     const flags = parseFlags(
       rest,

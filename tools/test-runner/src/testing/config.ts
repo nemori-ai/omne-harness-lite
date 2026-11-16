@@ -183,21 +183,3 @@ export function readTestRunsConfig(): TestRunsConfig {
 }
 
 export const VITEST_MAX_WORKERS_ENV = 'VITEST_MAX_WORKERS'
-
-function positiveIntegerOverride(
-  env: Readonly<Record<string, string | undefined>>,
-  name: string,
-  fallback: number,
-): number {
-  const value = env[name]
-  if (value === undefined || value === '') return fallback
-  if (!/^[1-9]\d*$/u.test(value)) throw new Error(`环境变量 ${name} 须为正整数，现在是 ${value}`)
-  return Number(value)
-}
-
-export function workerCountOverride(
-  env: Readonly<Record<string, string | undefined>>,
-  fallback: number,
-): number {
-  return positiveIntegerOverride(env, VITEST_MAX_WORKERS_ENV, fallback)
-}

@@ -37,6 +37,7 @@
       "tools/test-runner/src/testing/member-turbo.ts",
       "tools/test-runner/src/testing/parallelism.ts",
       "tools/test-runner/src/testing/token-pool.ts",
+      "tools/test-runner/src/testing/token-ledger.ts",
       "tools/test-runner/src/testing/member-history.ts",
       "tools/test-runner/src/testing/coverage-parallel.ts",
       "tools/test-runner/src/testing/check.ts",
