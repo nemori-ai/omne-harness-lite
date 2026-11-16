@@ -4,6 +4,7 @@ import type { Decision } from '../src/ledger-decider.ts'
 import { controlIntent } from '../src/control-intent.ts'
 import { decideControl, decideReleasePlaceholder } from '../src/ledger-control.ts'
 import { decideSettleLost } from '../src/ledger-lost.ts'
+import { timerSchedules } from '../src/ledger-timers.ts'
 import { taskKey } from '../src/ledger-store.ts'
 import {
   admittedCallSnapshot,
@@ -608,4 +609,107 @@ describe('a withdraw or stop of a foreground call (the foreground rows of the co
       expect(deletedKeys(decision)).toEqual(expect.arrayContaining(owed))
     },
   )
+})
+
+describe('the foreground timers (threshold and foreground limit)', () => {
+  const request = (limits: Record_) => ({
+    limits: { concurrency: 1, scopeBudget: null, ...limits },
+  })
+  const NOW = '2026-11-16T21:00:00.000Z'
+  const RUNNING_400 = { kind: 'running', accumulatedMs: '400', segment: {} } as never
+
+  it('schedules one due entry for each limit the request fixed, after the foreground time still left', () => {
+    expect(
+      timerSchedules(
+        request({ backgroundAfterMs: 1000, foregroundMs: 5000 }) as never,
+        RUNNING_400,
+        NOW as never,
+      ),
+    ).toEqual([
+      { kind: 'schedule', key: 'timer:threshold', dueAt: '2026-11-16T21:00:00.600Z' },
+      { kind: 'schedule', key: 'timer:foreground-limit', dueAt: '2026-11-16T21:00:04.600Z' },
+    ])
+    expect(
+      timerSchedules(
+        request({ backgroundAfterMs: null, foregroundMs: 100 }) as never,
+        RUNNING_400,
+        NOW as never,
+      ),
+    ).toEqual([{ kind: 'schedule', key: 'timer:foreground-limit', dueAt: NOW }])
+    expect(
+      timerSchedules(
+        request({ backgroundAfterMs: null, foregroundMs: null }) as never,
+        RUNNING_400,
+        NOW as never,
+      ),
+    ).toEqual([])
+    expect(
+      timerSchedules(
+        request({ backgroundAfterMs: 1000, foregroundMs: 5000 }) as never,
+        { kind: 'paused', accumulatedMs: '0' },
+        NOW as never,
+      ),
+    ).toEqual([])
+  })
+
+  it('a threshold moves a call that may move with a placeholder whose source is the threshold', async () => {
+    const decision = committed(
+      decide(permitted(await runningCallSnapshot()), BACKGROUND, { origin: 'threshold' }),
+    )
+    const placeholder = tasksOf(decision).find(task => task.kind === 'placeholder')
+    expect(placeholder).toMatchObject({ source: { kind: 'threshold' } })
+    expect(stateOf(decision)).toMatchObject({
+      relation: 'background',
+      foreground: { kind: 'background', source: { kind: 'threshold' } },
+    })
+  })
+
+  it('a foreground limit moves a call that may move with a placeholder whose source is the limit', async () => {
+    const decision = committed(
+      decide(
+        permitted(await runningCallSnapshot()),
+        { kind: 'background', otherwise: 'stop' },
+        { origin: 'foreground-limit' },
+      ),
+    )
+    expect(tasksOf(decision).find(task => task.kind === 'placeholder')).toMatchObject({
+      source: { kind: 'foreground-limit' },
+    })
+  })
+
+  it('a foreground limit ends the foreground of a call that cannot move: interrupted by the limit now, the execution asked to stop', async () => {
+    const snapshot = await runningCallSnapshot()
+    const decision = committed(
+      decideStop(
+        snapshot,
+        { kind: 'background', otherwise: 'stop' },
+        { origin: 'foreground-limit' },
+      ),
+    )
+    expect(stateOf(decision)).toMatchObject({
+      phase: 'settled',
+      relation: 'foreground',
+      foreground: { kind: 'final' },
+      terminal: { kind: 'interrupted', cause: { kind: 'foreground-limit' } },
+      execution: (recordOf(snapshot).state as Record_).execution,
+    })
+    expect(
+      tasksOf(decision)
+        .map(task => task.kind)
+        .sort(),
+    ).toEqual(['deliver', 'stop'])
+  })
+
+  it('a move to the background and a settlement both drop the timers of the call', async () => {
+    const timers = [
+      { kind: 'unschedule', key: 'timer:threshold' },
+      { kind: 'unschedule', key: 'timer:foreground-limit' },
+    ]
+    const moved = committed(decide(permitted(await runningCallSnapshot())))
+    expect(moved.writes).toEqual(expect.arrayContaining(timers))
+    const withdrawn = committed(
+      decideStop(await runningCallSnapshot(), { kind: 'withdraw', reach: 'all' }),
+    )
+    expect(withdrawn.writes).toEqual(expect.arrayContaining(timers))
+  })
 })

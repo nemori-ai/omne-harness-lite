@@ -30,6 +30,7 @@ import {
   type Mint,
   type Snapshot,
 } from './ledger-decider.ts'
+import { TIMERS_OFF, type TimerOrigin } from './ledger-timers.ts'
 import type { PreparedSynthetic, SyntheticDecision } from './ledger-result-preparation.ts'
 import {
   backgroundCell,
@@ -53,8 +54,14 @@ import {
 } from './ledger-store.ts'
 
 type Command = MutationInput<unknown> & Readonly<{ inputDigest: string }>
-type ControlCommand = Command &
-  Readonly<{ intent: ToolControl; subject: DurableEvidence; timing?: TimingClose }>
+// `origin` names the timer when Tool commits the control itself; a caller's control has none.
+export type ControlCommand = Command &
+  Readonly<{
+    intent: ToolControl
+    subject: DurableEvidence
+    timing?: TimingClose
+    origin?: TimerOrigin
+  }>
 type ProgressCommand = Command &
   Readonly<{
     control: ToolOperationId
@@ -116,6 +123,8 @@ const PENDING_PHASES: ReadonlySet<ToolState['phase']> = new Set(['accepted', 'pr
 const WITHDRAWN_RUNNING =
   'The call was withdrawn from the foreground. Its execution was asked to stop; a result it still produces is kept as a late version.'
 const ENDED_BEFORE_START = 'The call was ended before it started. It did not run.'
+const LIMIT_PASSED =
+  'The foreground time limit of the call passed. Its execution was asked to stop; a result it still produces is kept as a late version.'
 
 function withdrawnBy(intent: ToolControl): boolean {
   return (
@@ -124,6 +133,8 @@ function withdrawnBy(intent: ToolControl): boolean {
 }
 
 function interruptedBy(command: ControlCommand) {
+  if (command.origin === 'foreground-limit')
+    return { kind: 'interrupted', cause: { kind: 'foreground-limit' } } as const
   return {
     kind: 'interrupted',
     cause: {
@@ -257,7 +268,11 @@ function decideForegroundWithdraw(
   const { consumer } = call.request
   const made = syntheticChannels(
     command,
-    { terminal, consumer, closedResult: WITHDRAWN_RUNNING },
+    {
+      terminal,
+      consumer,
+      closedResult: command.origin === 'foreground-limit' ? LIMIT_PASSED : WITHDRAWN_RUNNING,
+    },
     prepared,
   )
   if ('kind' in made) return made
@@ -439,7 +454,10 @@ function refusedBackground(
     snapshot,
     call,
     command,
-    otherwise === 'stop' ? 'stop' : 'foreground-and-unadmitted',
+    // The foreground limit ends the foreground now; the execution is still asked to stop.
+    otherwise === 'stop' && command.origin !== 'foreground-limit'
+      ? 'stop'
+      : 'foreground-and-unadmitted',
     prepared,
     mint,
   )
@@ -454,7 +472,9 @@ function moveToBackground(
 ): Decision<ControlReceipt> {
   const placeholder = backgroundPlaceholder(
     { call: call.call, operation: command.operation, consumer: call.request.consumer },
-    { kind: 'control', operation: command.operation },
+    command.origin === undefined
+      ? { kind: 'control', operation: command.operation }
+      : { kind: command.origin },
     source,
   )
   const control: ControlRecord = {
@@ -477,7 +497,7 @@ function moveToBackground(
   return {
     kind: 'commit',
     value: made.receipt,
-    writes: [...made.writes, put({ kind: 'task', task: placeholder.task })],
+    writes: [...made.writes, put({ kind: 'task', task: placeholder.task }), ...TIMERS_OFF],
   }
 }
 

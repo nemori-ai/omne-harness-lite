@@ -76,6 +76,7 @@ import {
   backgroundPlaceholder,
   type BackgroundPlaceholder,
 } from './ledger-background.ts'
+import { TIMERS_OFF } from './ledger-timers.ts'
 
 export type Snapshot = Readonly<{
   bodies: ReadonlyMap<string, BodyEntryRecord>
@@ -524,7 +525,7 @@ export function firstResultWrites(
   }
   return {
     version: { version, delivery, record },
-    writes: [put({ kind: 'result', result: record }), put({ kind: 'task', task })],
+    writes: [put({ kind: 'result', result: record }), put({ kind: 'task', task }), ...TIMERS_OFF],
   }
 }
 

@@ -22,8 +22,10 @@ import type {
 import type {
   PreparationRecord,
   StartProgress,
+  ToolInstant,
   ToolTask,
 } from '@omne-harness/tool-contract/provider'
+import { timerSchedules } from './ledger-timers.ts'
 import { executionResultOf, unstartedReleaseBasis } from './ledger-ending.ts'
 import { invalid } from './boundary.ts'
 import { mintEvidence, digestOf, sameFactValue } from './evidence.ts'
@@ -857,6 +859,7 @@ export type RecordStartCommand = WriteCommand &
     outcome: StartProgress
     segment: ClockSegment | null
     execution: ToolExecutionRef
+    startedAt?: ToolInstant | null
   }>
 
 function startingCall(
@@ -946,6 +949,7 @@ function started(
       put({ kind: 'call', call: { ...record, state, execution: command.execution } }),
       put(operationRecord(command, { kind: 'record-start', state }, mint)),
       ...deleteTasks(snapshot, ['start']),
+      ...timerSchedules(record.request, timing, command.startedAt ?? null),
       put({
         kind: 'task',
         task: {

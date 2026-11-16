@@ -18,6 +18,7 @@ import { fixCleanupFields } from './cleanup-boundary.ts'
 import type { ToolControlSubjects, ToolLedgerControls } from './construction.ts'
 import { mintEvidence, sameFactValue } from './evidence.ts'
 import { rejectControl } from './ledger-control.ts'
+import { timerSubject } from './ledger-timers.ts'
 import { reply, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
 
 import type { CallRecord, LedgerDomain } from './ledger-store.ts'
@@ -124,6 +125,8 @@ export function createLedgerControls<P>(
           if (original.progress.kind !== 'pending') return reply(succeed(original))
           const subject = pendingController(snapshot, call, original)
           if ('failure' in subject) return reply(subject)
+          const place = { tenant: call.tenant, call: call.call, operation: original.operation }
+          if (sameFactValue(subject.ok, timerSubject(place))) return reply(succeed(original))
           if (subjects === undefined)
             return reply(unavailable('original controller provider is missing'))
           try {

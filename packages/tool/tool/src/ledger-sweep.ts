@@ -10,6 +10,7 @@ import type { ToolLedgerPorts } from './construction.ts'
 import { INITIAL_REVISION } from './evidence.ts'
 import { instantAfter } from './ledger-body-writer.ts'
 import { put, type Decision, type Snapshot } from './ledger-decider.ts'
+import { timerOriginOf } from './ledger-timers.ts'
 import { createLedgerTransactions } from './ledger-transactions.ts'
 import {
   CALL_DUE_KEY,
@@ -136,6 +137,7 @@ export function createLedgerSweep<P>(ports: SweepPorts<P>): ToolLedgerSweep {
       let reclaimed = 0
       let removed = 0
       for (const entry of due.entries) {
+        if (timerOriginOf(entry.key) !== null) continue
         if (entry.domain.kind === 'call' && entry.key === CALL_DUE_KEY) {
           const outcome = await removeCall({ ...entry, domain: entry.domain }, now)
           if ('failure' in outcome) return outcome

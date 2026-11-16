@@ -1,4 +1,6 @@
 import { createBodyWriting, instantAfter } from './ledger-body-writer.ts'
+import { createLedgerTimers, type ToolLedgerTimers } from './ledger-timer-fire.ts'
+import { instantOf, segmentCloser } from './ledger-timers.ts'
 import { createLedgerSweep, type ToolLedgerSweep } from './ledger-sweep.ts'
 import type { ToolBodyWrites } from '@omne-harness/tool-contract/provider'
 import { firstResultReference } from './result-address.ts'
@@ -44,7 +46,6 @@ import {
   type ToolResult,
   type ToolStartRecord,
   type ToolState,
-  type ToolTiming,
   type ToolWaitId,
   type DecisionValue,
 } from '@omne-harness/tool-contract'
@@ -189,6 +190,7 @@ export type ToolLedger<P, B extends ContentBlock> = Readonly<{
   }>
   bodyWrites: ToolBodyWrites<P>
   sweep: ToolLedgerSweep['sweep']
+  timers: ToolLedgerTimers<P>
   finalPlanner: ToolFinalPlanner<P, B>
   controls: ToolLedgerControls<P>
   commands: ToolCommands<P, B>
@@ -1091,7 +1093,12 @@ export function createToolLedger<P, B extends ContentBlock>(
       (snapshot, mint, prepared) =>
         decideRecordStart(
           snapshot,
-          { ...command, segment: timing, execution: executionOf(context.ok) },
+          {
+            ...command,
+            segment: timing,
+            execution: executionOf(context.ok),
+            startedAt: instantOf(clock),
+          },
           prepared,
           digestOf,
           mint,
@@ -1165,24 +1172,7 @@ export function createToolLedger<P, B extends ContentBlock>(
     return releaseQueue(context.ok, record.ok, settled.ok)
   }
 
-  const closeSegment = async (timing: ToolTiming): Promise<ToolTiming> => {
-    if (timing.kind !== 'running') return timing
-    const unknown = {
-      kind: 'unknown',
-      accumulatedMs: timing.accumulatedMs,
-      segment: timing.segment,
-      diagnostic: 'suspension-elapsed-unavailable',
-    } as const
-    try {
-      const elapsed = await clock.elapsed(timing.segment.marker)
-      if ('failure' in elapsed || !/^(0|[1-9][0-9]*)$/u.test(elapsed.ok.milliseconds))
-        return unknown
-      const total = BigInt(timing.accumulatedMs) + BigInt(elapsed.ok.milliseconds)
-      return { kind: 'paused', accumulatedMs: total.toString() }
-    } catch {
-      return unknown
-    }
-  }
+  const closeSegment = segmentCloser(clock)
 
   const planSuspension: ToolCommands<P, B>['planSuspension'] = async input => {
     const context = await writeEntry(input)
@@ -1843,6 +1833,13 @@ export function createToolLedger<P, B extends ContentBlock>(
       },
     }),
     bodyWrites: bodyWriting.writes,
+    timers: createLedgerTimers<P>({
+      now: () => instantOf(clock),
+      due: store.due,
+      read,
+      closeSegment,
+      settle: settleSynthetic,
+    }),
     sweep: createLedgerSweep<P>({
       bodies: settlement.bodies,
       due: (tenant, now, limit) => store.due(tenant, now, limit),
