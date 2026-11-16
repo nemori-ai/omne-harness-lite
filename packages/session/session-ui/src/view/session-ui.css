@@ -130,7 +130,7 @@
 }
 .omne-session-dock {
   flex: none;
-  max-height: 50%;
+  max-height: 70%;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -250,6 +250,12 @@
 .omne-ask-options {
   margin: 0;
   padding-left: 18px;
+}
+.omne-ask-options li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--omne-space-inline);
 }
 .omne-ask-text,
 .omne-ask-hint {
