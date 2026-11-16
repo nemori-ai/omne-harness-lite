@@ -514,6 +514,12 @@ describe('a withdraw or stop of a foreground call (the foreground rows of the co
       })
       expect(state.execution).toEqual(before.execution)
       expect(state.queue).toEqual(before.queue)
+      expect(state.wait).toEqual({ kind: 'none' })
+      expect(state.timing).toMatchObject({ kind: 'unknown', diagnostic: 'withdrawn' })
+      expect((state.controls as Record_[]).at(-1)).toMatchObject({
+        intent,
+        progress: { kind: 'pending' },
+      })
       expect(decision.value.progress).toEqual({
         kind: 'pending',
         diagnostic: 'stop-not-dispatched',
@@ -553,6 +559,14 @@ describe('a withdraw or stop of a foreground call (the foreground rows of the co
       execution: { kind: 'lost', evidence: continuity },
     })
     expect((state.queue as Record_).kind).not.toBe('held')
+    expect(tasksOf(decision).map(task => task.kind)).toContain('queue')
+    const receipts = (decision.writes as readonly Record_[]).flatMap(write => {
+      const record = write.record as Record_ | undefined
+      return write.kind === 'put' && record?.kind === 'operation'
+        ? [((record.operation as Record_).receipt as Record_).kind]
+        : []
+    })
+    expect(receipts).toEqual(['settle-lost'])
     const stops = withdrawn.tasks.filter(task => (task as Record_).kind === 'stop')
     expect(stops).toHaveLength(1)
     expect(deletedKeys(decision)).toContain(taskKey(stops[0] as never))

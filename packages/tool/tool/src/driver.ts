@@ -712,7 +712,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       if (task?.kind !== 'queue') return IDLE
       const reason = ledgerRejectedReason(recovery, task.operation)
       if (reason !== null) return settleRejected(step, recovery, reason)
-      return ['suspended', 'lost'].includes(recovery.state.execution.kind)
+      return ['suspended', 'lost', 'not-started'].includes(recovery.state.execution.kind)
         ? releaseSuspended(step, recovery, task)
         : settle(step, recovery, task, cancelled)
     }

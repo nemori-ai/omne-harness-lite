@@ -11,6 +11,7 @@ import {
   guards,
   configurationOf,
   testSettlementPorts,
+  callId,
   failure,
   judged,
   ok,
@@ -703,5 +704,88 @@ it('uses the settled final when settlement overtakes an already prepared alias',
     ok(await f.ledger.facts.read({ ...f.access, basis: saved.fact.evidence })).fact,
   ).toMatchObject({
     kind: 'settled-final',
+  })
+})
+
+describe('a late version after a withdraw of the running foreground', () => {
+  it('keeps the logical terminal, adds the real final as a supplement and only then gives back the queue position', async () => {
+    const f = await settlementFixture()
+    const withdraw = operationId('withdraw-running')
+    // The fixture ledger has no control subjects; the harness ledger shares its store and has them.
+    ok(
+      await f.harness.commands.control({
+        ...f.access,
+        operation: withdraw,
+        intent: { kind: 'withdraw', reach: 'foreground-and-unadmitted' },
+      }),
+    )
+    const withdrawn = await f.load()
+    expect(withdrawn.state).toMatchObject({
+      phase: 'settled',
+      terminal: {
+        kind: 'interrupted',
+        cause: { kind: 'control', operation: withdraw, withdrawn: true },
+      },
+      execution: { kind: 'live' },
+      supplements: [],
+    })
+    expect(await f.harness.released(f.access.call)).toBe(false)
+    const task = withdrawn.tasks.find(item => item.kind === 'settle')
+    if (task?.kind !== 'settle') throw new Error('the withdraw dropped the settle task')
+    const late = judged(
+      ok(
+        await f.ledger.commands.preserveResult({
+          ...f.input,
+          expected: withdrawn.state.revision,
+          basis: task.basis,
+        }),
+      ),
+    )
+    if (withdrawn.state.phase !== 'settled' || late.phase !== 'settled')
+      throw new Error('fixture not settled')
+    expect(late).toMatchObject({
+      terminal: withdrawn.state.terminal,
+      result: withdrawn.state.result,
+      effect: f.final.effect,
+      execution: { kind: 'ended' },
+    })
+    expect(late.supplements).toEqual([
+      expect.objectContaining({
+        actual: f.final.terminal,
+        delivery: expect.objectContaining({ kind: 'pending' }),
+      }),
+    ])
+    expect(late.supplements[0]?.result).not.toEqual(withdrawn.state.result)
+    expect(await f.harness.released(f.access.call)).toBe(true)
+    const again = await f.ledger.commands.preserveResult({
+      ...f.input,
+      operation: operationId('preserve-again'),
+      expected: late.revision,
+    })
+    expect(failure(again).kind).toBe('conflict')
+  })
+})
+
+describe('the queue position of a call a control ended before its start', () => {
+  it('is given back, so the queue does not hold the call', async () => {
+    const f = await settlementFixture()
+    await admitCall(f.harness, 'waiter')
+    await f.harness.drive('waiter')
+    expect((await f.harness.state('waiter')).phase).toBe('queued')
+    expect(await f.harness.queue()).toContainEqual(expect.objectContaining({ call: 'waiter' }))
+    ok(
+      await f.harness.commands.control({
+        ...f.access,
+        call: callId('waiter'),
+        operation: operationId('stop-waiter'),
+        intent: { kind: 'stop' },
+      }),
+    )
+    expect(await f.harness.state('waiter')).toMatchObject({
+      phase: 'settled',
+      execution: { kind: 'not-started' },
+    })
+    await f.harness.drive('waiter')
+    expect(await f.harness.queue()).not.toContainEqual(expect.objectContaining({ call: 'waiter' }))
   })
 })

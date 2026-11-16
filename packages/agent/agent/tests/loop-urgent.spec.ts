@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import type { AgentEventBody, EventPage } from '@omne-harness/agent-contract'
+import type {
+  AgentEventBody,
+  CommandReceipt,
+  EventPage,
+  Failure,
+} from '@omne-harness/agent-contract'
+import { fail, type Outcome } from '@omne-harness/operation-result'
+import { releaseForeground } from '../src/control.ts'
 import {
   decodeToolCallId,
   decodeToolOperationId,
@@ -24,6 +31,7 @@ import {
   deliverToolSuggestion,
   pushToolResult,
   toolAssembly,
+  toolCall,
   toolDelivery,
   toolPlaceholder,
   toolReceiver,
@@ -173,5 +181,103 @@ describe('an urgent input releases the foreground wait of the current step', () 
     await eventually(async () => (await control()) === 'requested')
     const controls = (await loadWithEntries(assembly.dependencies, input)).controls
     expect(controls.map(record => record.command.kind)).toEqual(['interrupt-model'])
+  })
+
+  it('releases each foreground Tool call with its own control, answers the receipt of the submit and recognizes a resend', async () => {
+    const assembly = await toolAssembly({ toolConcurrency: 2 })
+    let count = 0
+    assembly.controls.tools.invoke.always(async () => accepted(`call-${(count += 1)}`))
+    const handle = ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    const pending = await associatedTools(assembly, 2)
+    assembly.controls.tools.commands.control.always(input => {
+      const found = pending.find(call => call.reference === input.reference)
+      if (found === undefined) throw new Error('a control of an unknown call')
+      return acceptedControl(found, `release-${pending.indexOf(found)}`)
+    })
+    const submit = () =>
+      handle.input.submit({ ...input, operation: operation('urgent'), value: urgent('u') })
+    const answer = ok(await submit())
+    expect(answer.operation).toBe(operation('urgent'))
+    await eventually(async () => assembly.controls.tools.commands.control.calls.length === 2)
+    expect(
+      assembly.controls.tools.commands.control.calls.map(call => call.reference).sort(),
+    ).toEqual(pending.map(call => call.reference).sort())
+    expect(ok(await submit())).toEqual(answer)
+    const records = (await loadWithEntries(assembly.dependencies, input)).controls
+    expect(records.map(record => record.command.kind)).toEqual(['release-tool', 'release-tool'])
+    expect(assembly.controls.tools.commands.control.calls).toHaveLength(2)
+  })
+})
+
+describe('the release of an urgent input, read straight off the journal', () => {
+  const receipt = {
+    operation: operation('urgent'),
+    execution: execution(),
+    revision: 'revision-1',
+    evidence: evidence('urgent-submitted'),
+  } as unknown as CommandReceipt
+  const modelPending = { kind: 'model', reference: 'unresolvable' } as const
+  const cancelling = {
+    command: { kind: 'cancel' },
+    stages: { 'intent-established': { state: 'reached' } },
+  }
+
+  function ports(snapshot: Outcome<unknown, Failure>) {
+    const loads: unknown[] = []
+    const writes: unknown[] = []
+    const journal = {
+      load: async (input: unknown) => {
+        loads.push(input)
+        return snapshot
+      },
+      control: async (input: unknown) => {
+        writes.push(input)
+        return fail({ kind: 'busy' } as Failure)
+      },
+    }
+    return { loads, writes, ports: { journal, models: {}, tools: {}, materials: {} } as never }
+  }
+
+  const released = (
+    made: ReturnType<typeof ports>,
+    priority: 'ordinary' | 'urgent',
+    answer: Outcome<CommandReceipt, Failure> = { ok: receipt },
+  ) => releaseForeground(made.ports, { ...input, value: { ...urgent('u'), priority } }, answer)
+
+  it('reads nothing for an ordinary input or a refused submit', async () => {
+    const made = ports({ ok: {} })
+    expect(await released(made, 'ordinary')).toEqual({ ok: receipt })
+    const refused = fail({ kind: 'terminal' } as Failure)
+    expect(await released(made, 'urgent', refused)).toBe(refused)
+    expect(made.loads).toEqual([])
+  })
+
+  it.each([
+    ['has ended', { state: { kind: 'ended' }, controls: [] }],
+    ['is being cancelled', { state: { kind: 'open' }, controls: [cancelling] }],
+  ])('writes no control once the execution %s', async (_name, read) => {
+    const made = ports({ ok: { ...read, checkpoint: { calls: [modelPending] } } })
+    expect(await released(made, 'urgent')).toEqual({ ok: receipt })
+    expect(made.writes).toEqual([])
+  })
+
+  it('answers the failure of the journal read', async () => {
+    const unavailable = fail({
+      kind: 'unavailable',
+      owner: 'journal',
+      diagnostic: 'down',
+    } as Failure)
+    expect(await released(ports(unavailable), 'urgent')).toEqual(unavailable)
+  })
+
+  it('answers invalid for a pending Model call whose reference does not resolve, before any write', async () => {
+    const made = ports({
+      ok: { state: { kind: 'open' }, controls: [], checkpoint: { calls: [modelPending] } },
+    })
+    expect(await released(made, 'urgent')).toMatchObject({
+      failure: { kind: 'invalid', field: 'checkpoint.calls' },
+    })
+    expect(made.writes).toEqual([])
   })
 })

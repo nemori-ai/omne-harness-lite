@@ -478,6 +478,29 @@ describe('tool call control', () => {
     expect(assembly.controls.tools.commands.control.calls).toHaveLength(1)
   })
 
+  it('asks Tool to move a named call to the background, or else reject, for a background control', async () => {
+    const assembly = await toolAssembly({ toolConcurrency: 2 })
+    const { handle, first } = await twoCalls(assembly)
+    assembly.controls.tools.commands.control.always(() =>
+      acceptedStop(toolOperation(first, 'move-a'), 'move-a'),
+    )
+    const { call } = ok(resolveToolInvocationRef(first.reference, alice.tenant))
+    ok(
+      await handle.control.control({
+        ...alice,
+        execution: handle.execution,
+        operation: operation('move-a'),
+        command: { kind: 'background-tool', call, reason: evidence('move-a') },
+      }),
+    )
+    expect(assembly.controls.tools.commands.control.calls).toEqual([
+      expect.objectContaining({
+        reference: first.reference,
+        intent: { kind: 'background', otherwise: 'reject' },
+      }),
+    ])
+  })
+
   it('queries a Tool control with an unknown answer and never sends it again', async () => {
     const assembly = await toolAssembly({ toolConcurrency: 2 })
     const { handle, first } = await twoCalls(assembly)

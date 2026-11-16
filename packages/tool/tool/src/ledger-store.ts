@@ -268,7 +268,7 @@ export type QueueCounterRecord = Readonly<{ next: string }>
 export type ReleaseBasis =
   | Readonly<{ kind: 'pre-start-rejection'; exclusion: DurableEvidence }>
   | Readonly<{ kind: 'physical-end'; proof: DurableEvidence }>
-  | Readonly<{ kind: 'ledger-rejected'; result: DurableEvidence }>
+  | Readonly<{ kind: 'ledger-rejected' | 'ended-before-start'; result: DurableEvidence }>
   | Readonly<{
       kind: 'suspended-exclusion'
       checkpoint: DurableEvidence

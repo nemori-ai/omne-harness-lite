@@ -164,6 +164,8 @@ describe('an urgent input reconciles its control once the Agent released each fo
       command: string | null
       reached: readonly string[]
       settled?: 'background' | 'result'
+      settledAt?: string
+      settledBy?: string
     }>,
   ) {
     const progress = {
@@ -228,8 +230,11 @@ describe('an urgent input reconciles its control once the Agent released each fo
             : [
                 {
                   kind: material.settled,
-                  binding: { producer: PRODUCER, initiatingAttempt: ATTEMPT } as never,
-                  revision: '4',
+                  binding: {
+                    producer: { ...PRODUCER, call: material.settledBy ?? PRODUCER.call },
+                    initiatingAttempt: ATTEMPT,
+                  } as never,
+                  revision: material.settledAt ?? '4',
                 },
               ],
         urgent: material.submitted
@@ -283,6 +288,27 @@ describe('an urgent input reconciles its control once the Agent released each fo
       name: 'the call moved to the background before the Agent wrote any release: no wait is left',
       material: { submitted: true, command: null, reached: [], settled: 'background' },
       answer: reconciled,
+    },
+    {
+      name: 'a result committed at the revision the evidence was read through still ends the wait',
+      material: { submitted: true, command: null, reached: [], settled: 'result', settledAt: '5' },
+      answer: reconciled,
+    },
+    {
+      name: 'a result committed after the evidence was read does not count',
+      material: { submitted: true, command: null, reached: [], settled: 'result', settledAt: '6' },
+      answer: unchanged,
+    },
+    {
+      name: 'a result of another call does not end the wait of this one',
+      material: {
+        submitted: true,
+        command: null,
+        reached: [],
+        settled: 'result',
+        settledBy: 'tool-ref-2',
+      },
+      answer: unchanged,
     },
     {
       name: 'a background request that Tool refused does not release the call',
