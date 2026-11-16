@@ -5,7 +5,6 @@ import { sessionAccessRow } from '../../../src/rows/session-access/index.ts'
 import { rowManifests } from '../../../src/s0/stubs.ts'
 import { savedLoginProof, savedTenant } from '../../r9/support.ts'
 import { onReleaseTree, type ReleaseTree } from '../../support/release-tree.ts'
-import { until } from '../../support/listening.ts'
 
 function createSession(tree: ReleaseTree): Promise<{ status: number; body: string }> {
   const body = JSON.stringify({ createCallId: 'create-1', purpose: 'hello' })
@@ -45,7 +44,7 @@ type Frame = Readonly<{
 }>
 
 function openAvailability(port: number) {
-  const frames: Frame[] = []
+  const first = Promise.withResolvers<Frame>()
   let buffered = ''
   const body = '{}'
   const req = request({
@@ -69,14 +68,14 @@ function openAvailability(port: number) {
         buffered = buffered.slice(end + 2)
         if (!block.startsWith('data: ')) continue
         const event = JSON.parse(block.slice('data: '.length)) as { kind: string; frame?: Frame }
-        if (event.kind === 'frame' && event.frame !== undefined) frames.push(event.frame)
+        if (event.kind === 'frame' && event.frame !== undefined) first.resolve(event.frame)
       }
     })
     res.on('error', () => {})
   })
-  req.on('error', () => {})
+  req.on('error', first.reject)
   req.end(body)
-  return { frames, close: () => req.destroy() }
+  return { first: first.promise, close: () => req.destroy() }
 }
 
 describe('session-access row', () => {
@@ -99,9 +98,9 @@ describe('session-access row', () => {
         async tree => {
           const availability = openAvailability(tree.port)
           try {
-            await until(() => availability.frames.length >= 1, 'the snapshot', 10_000)
-            expect(availability.frames[0]?.kind).toBe('snapshot')
-            expect(availability.frames[0]?.protocols).toContainEqual({ name: 'session', major: 1 })
+            const snapshot = await availability.first
+            expect(snapshot.kind).toBe('snapshot')
+            expect(snapshot.protocols).toContainEqual({ name: 'session', major: 1 })
             const created = await createSession(tree)
             expect(created.status).toBe(200)
             expect(JSON.parse(created.body)).toMatchObject({
