@@ -113,10 +113,35 @@
   font-weight: 500;
 }
 
-.assets-setting-asset {
-  color: var(--omne-ink-faint);
+.assets-holding {
+  display: grid;
+  gap: var(--omne-space-inline);
+  padding-block: var(--omne-space-block);
+}
+
+.assets-holding-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--omne-space-inline);
+}
+
+.assets-holding-title {
+  margin: 0;
+  color: var(--omne-ink-primary);
   font-family: var(--omne-font-mono, monospace);
+  font-size: var(--omne-text-ui);
+  font-weight: 500;
+}
+
+.assets-holding-category {
+  color: var(--omne-ink-faint);
   font-size: var(--omne-text-caption);
+}
+
+.assets-category-slot:empty,
+.assets-holding-slot:empty {
+  display: none;
 }
 
 .assets-setting-purpose {

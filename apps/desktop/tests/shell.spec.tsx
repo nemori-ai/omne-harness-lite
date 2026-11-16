@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
@@ -12,6 +12,7 @@ import type {
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import type { ResolvedTheme, ThemeChoice } from '@omne-harness/ui-kit'
 import type { Connectivity } from '../src/page/connectivity.ts'
+import { ITEM_FAILED_TEXT } from '../src/page/shell/item.tsx'
 import { DesktopShell, shellPlugin } from '../src/page/shell/service.ts'
 import { NO_LOGIN_TEXT, Shell } from '../src/page/shell/shell.tsx'
 import { LOGOUT_UNKNOWN_TEXT, createShellState } from '../src/page/shell/state.ts'
@@ -408,6 +409,424 @@ describe('外壳：附着位置与页面标记', () => {
     const empty = document.querySelector('.shell-nav-badge')
     expect(empty).not.toBeNull()
     expect(empty?.textContent).toBe('')
+  })
+})
+
+describe('外壳：宿主自己排版', () => {
+  const labelled = (id: string, anchor: string, order: number, label?: string) =>
+    defineUiModule({
+      name: `arranged-${id}`,
+      inject: [],
+      apply(shell) {
+        shell.contribute('attached', {
+          id,
+          order,
+          anchor,
+          ...(label === undefined ? {} : { label }),
+          render: ({ scope, subject }) => (
+            <p data-attached={id} data-scope={scope ?? ''} data-subject={subject}>
+              {`附着${id}`}
+            </p>
+          ),
+        })
+      },
+    })
+  const tabsPage = (anchor: string, subject: string) =>
+    defineUiModule({
+      name: 'tabs-page',
+      inject: [],
+      apply(shell) {
+        shell.contribute('pages', {
+          id: 'host',
+          title: '宿主',
+          order: 0,
+          render: (): ReactNode =>
+            shell.arranged(anchor, subject, entries => (
+              <ul data-tabs={entries.length}>
+                {entries.map(entry => (
+                  <li key={entry.id} data-tab={entry.id} data-label={entry.label ?? ''}>
+                    {entry.node}
+                  </li>
+                ))}
+              </ul>
+            )),
+        })
+      },
+    })
+  const tabs = () =>
+    [...document.querySelectorAll<HTMLElement>('[data-tab]')].map(
+      node => `${node.dataset['tab']}:${node.dataset['label']}`,
+    )
+
+  it('排版函数收到每一项的标识、标签与渲染结果，次序与附着位置相同', async () => {
+    const t = await setup({
+      login: 'signed-in',
+      modules: [
+        labelled('late', 'a', 2, '晚'),
+        labelled('other', 'b', 0),
+        labelled('early', 'a', 1),
+        tabsPage('a', 's1'),
+      ],
+    })
+    act(() => t.state.scope.set('tenant-x'))
+    expect(tabs()).toEqual(['early:', 'late:晚'])
+    const late = document.querySelector<HTMLElement>('[data-tab="late"] [data-attached="late"]')!
+    expect(late.dataset['subject']).toBe('s1')
+    expect(late.dataset['scope']).toBe('tenant-x')
+  })
+
+  it('没有名字相同的项时排版函数收到空表', async () => {
+    await setup({ login: 'signed-in', modules: [labelled('x', 'b', 0), tabsPage('a', 's1')] })
+    expect(document.querySelector<HTMLElement>('[data-tabs]')?.dataset['tabs']).toBe('0')
+    expect(tabs()).toEqual([])
+  })
+
+  it('宿主画出之后放进一项、撤下一项，排版跟着重画', async () => {
+    const t = await setup({ login: 'signed-in', modules: [tabsPage('a', 's1')] })
+    expect(tabs()).toEqual([])
+    const fiber = t.root.plugin(labelled('x', 'a', 0, '甲'))
+    await act(async () => {
+      await fiber
+    })
+    expect(tabs()).toEqual(['x:甲'])
+    await act(async () => {
+      await fiber.dispose()
+    })
+    expect(tabs()).toEqual([])
+  })
+
+  it('贡献方依赖的服务不在时它不加载；服务出现，它的项出现；服务撤下，只有它的项没有了；服务回来，项回来，次序不变', async () => {
+    const DEPENDED = 'fake:contributor-protocol'
+    const dependent = defineUiModule({
+      name: 'dependent-contributor',
+      inject: [DEPENDED],
+      apply(shell) {
+        shell.contribute('attached', {
+          id: 'dependent',
+          order: 1,
+          anchor: 'a',
+          label: '依赖协议的',
+          render: () => <p data-attached="dependent">依赖协议的一项</p>,
+        })
+      },
+    })
+    const t = await setup({
+      login: 'signed-in',
+      modules: [dependent, labelled('always', 'a', 2, '一直在'), tabsPage('a', 's1')],
+    })
+    expect(tabs()).toEqual(['always:一直在'])
+    const withdraw = await t.provide(DEPENDED)
+    expect(tabs()).toEqual(['dependent:依赖协议的', 'always:一直在'])
+    await withdraw()
+    expect(tabs()).toEqual(['always:一直在'])
+    expect(document.querySelector('[data-attached="dependent"]')).toBeNull()
+    await t.provide(DEPENDED)
+    expect(tabs()).toEqual(['dependent:依赖协议的', 'always:一直在'])
+  })
+
+  it('三个插件按三种次序加载，排版出来逐字相同', async () => {
+    const modules = [
+      labelled('one', 'a', 1, '一'),
+      labelled('two', 'a', 2, '二'),
+      tabsPage('a', 's1'),
+    ]
+    const markups: string[] = []
+    for (const order of [
+      [0, 1, 2],
+      [2, 1, 0],
+      [1, 2, 0],
+    ]) {
+      await setup({ login: 'signed-in', modules: order.map(index => modules[index]!) })
+      markups.push(document.querySelector('[data-tabs]')?.outerHTML ?? '')
+      cleanup()
+    }
+    expect(markups[0]).toContain('data-tab="one"')
+    expect(new Set(markups).size).toBe(1)
+  })
+
+  it('租户变了，排版里的项跟着重渲染', async () => {
+    const t = await setup({
+      login: 'signed-in',
+      modules: [labelled('x', 'a', 0), tabsPage('a', 's1')],
+    })
+    act(() => t.state.scope.set('t1'))
+    expect(document.querySelector<HTMLElement>('[data-attached="x"]')?.dataset['scope']).toBe('t1')
+    act(() => t.state.scope.set('t2'))
+    expect(document.querySelector<HTMLElement>('[data-attached="x"]')?.dataset['scope']).toBe('t2')
+  })
+})
+
+describe('外壳：一项坏了只坏这一项', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const boom = (): never => {
+    throw new Error('boom')
+  }
+  function Boom(): ReactNode {
+    return boom()
+  }
+  const failed = () => [...document.querySelectorAll('.shell-item-failed')]
+  const attachedModule = (id: string, anchor: string, order: number, render: () => ReactNode) =>
+    defineUiModule({
+      name: `attached-${id}`,
+      inject: [],
+      apply(shell) {
+        shell.contribute('attached', { id, order, anchor, render })
+      },
+    })
+  const good = (id: string) => () => <p data-attached={id}>{`附着${id}`}</p>
+  const attachedIds = () =>
+    [...document.querySelectorAll('[data-attached]')].map(node =>
+      node.getAttribute('data-attached'),
+    )
+  const pageModule = (id: string, order: number, render: () => ReactNode) =>
+    defineUiModule({
+      name: `page-${id}`,
+      inject: [],
+      apply(shell) {
+        shell.contribute('pages', { id, title: `页${id}`, order, render })
+      },
+    })
+
+  it('附着的一项的渲染函数抛出：只有它显示读不出，同一个位置里别的项与宿主的页照常', async () => {
+    await setup({
+      login: 'signed-in',
+      modules: [
+        attachedModule('bad', 'a', 0, boom),
+        attachedModule('good', 'a', 1, good('good')),
+        pageModule('host', 0, () => null),
+        defineUiModule({
+          name: 'host-attached',
+          inject: [],
+          apply(shell) {
+            shell.contribute('sidebar', {
+              id: 'host',
+              order: 0,
+              render: () => shell.attached('a', 's1'),
+            })
+          },
+        }),
+      ],
+    })
+    expect(ITEM_FAILED_TEXT).toBe('这一块读不出')
+    expect(failed().map(node => node.textContent)).toEqual(['这一块读不出'])
+    expect(attachedIds()).toEqual(['good'])
+    expect(navTitles()).toEqual(['页host'])
+  })
+
+  it('附着的一项返回的组件在渲染当中抛出：也只坏这一项', async () => {
+    await setup({
+      login: 'signed-in',
+      modules: [
+        attachedModule('bad', 'a', 0, () => <Boom />),
+        attachedModule('good', 'a', 1, good('good')),
+        pageModule('host', 0, () => null),
+        defineUiModule({
+          name: 'host-attached',
+          inject: [],
+          apply(shell) {
+            shell.contribute('sidebar', {
+              id: 'host',
+              order: 0,
+              render: () => shell.attached('a', 's1'),
+            })
+          },
+        }),
+      ],
+    })
+    expect(failed()).toHaveLength(1)
+    expect(attachedIds()).toEqual(['good'])
+  })
+
+  it('经排版函数拿到的一项抛出：宿主的排版照常，只有这一项的位置上显示读不出', async () => {
+    await setup({
+      login: 'signed-in',
+      modules: [
+        attachedModule('bad', 'a', 0, boom),
+        attachedModule('good', 'a', 1, good('good')),
+        defineUiModule({
+          name: 'host-arranged',
+          inject: [],
+          apply(shell) {
+            shell.contribute('pages', {
+              id: 'host',
+              title: '宿主',
+              order: 0,
+              render: (): ReactNode =>
+                shell.arranged('a', 's1', entries => (
+                  <ul>
+                    {entries.map(entry => (
+                      <li key={entry.id} data-tab={entry.id}>
+                        {entry.node}
+                      </li>
+                    ))}
+                  </ul>
+                )),
+            })
+          },
+        }),
+      ],
+    })
+    expect(
+      [...document.querySelectorAll<HTMLElement>('[data-tab]')].map(node => node.dataset['tab']),
+    ).toEqual(['bad', 'good'])
+    expect(document.querySelector('[data-tab="bad"] .shell-item-failed')).not.toBeNull()
+    expect(document.querySelector('[data-tab="good"] [data-attached="good"]')).not.toBeNull()
+    expect(failed()).toHaveLength(1)
+  })
+
+  it('一页抛出：只有这一页读不出，导航、别的页与侧栏区照常', async () => {
+    await setup({
+      login: 'signed-in',
+      modules: [
+        pageModule('bad', 0, boom),
+        pageModule('fine', 1, () => <p data-fine="">好的一页</p>),
+        fakeSidebar({ id: 'side', order: 0, text: '侧栏占位' }),
+      ],
+    })
+    expect(navTitles()).toEqual(['页bad', '页fine'])
+    expect(section('bad')?.querySelector('.shell-item-failed')?.textContent).toBe(ITEM_FAILED_TEXT)
+    expect(section('fine')?.querySelector('[data-fine]')).not.toBeNull()
+    expect(document.querySelector('[data-placeholder="侧栏占位"]')).not.toBeNull()
+    expect(failed()).toHaveLength(1)
+  })
+
+  it('侧栏区的一项抛出：只有它读不出，别的侧栏项与页面照常', async () => {
+    await setup({
+      login: 'signed-in',
+      modules: [
+        defineUiModule({
+          name: 'bad-side',
+          inject: [],
+          apply(shell) {
+            shell.contribute('sidebar', { id: 'bad', order: 0, render: boom })
+          },
+        }),
+        fakeSidebar({ id: 'side', order: 1, text: '侧栏占位' }),
+        pageModule('fine', 0, () => <p data-fine="">好的一页</p>),
+      ],
+    })
+    expect(
+      document.querySelector('.shell-sidebar-item[data-item="bad"] .shell-item-failed'),
+    ).not.toBeNull()
+    expect(document.querySelector('[data-placeholder="侧栏占位"]')).not.toBeNull()
+    expect(section('fine')?.querySelector('[data-fine]')).not.toBeNull()
+    expect(failed()).toHaveLength(1)
+  })
+
+  it('登录门抛出：登录之外的页面还在，门的位置上显示读不出', async () => {
+    await setup({
+      modules: [
+        defineUiModule({
+          name: 'bad-gate',
+          inject: [],
+          apply(shell) {
+            shell.contribute('gate', { id: 'bad.gate', render: boom })
+          },
+        }),
+      ],
+    })
+    expect(document.querySelector('.shell-gate .shell-item-failed')?.textContent).toBe(
+      ITEM_FAILED_TEXT,
+    )
+    expect(document.querySelector('.shell-brand-outside')?.textContent).toBe('omne')
+  })
+
+  it('页面的小标记抛出：标记不画，导航与页面照常', async () => {
+    await setup({
+      login: 'signed-in',
+      modules: [
+        defineUiModule({
+          name: 'bad-badge',
+          inject: [],
+          apply(shell) {
+            shell.contribute('pages', {
+              id: 'badged',
+              title: '待办',
+              order: 0,
+              badge: boom,
+              render: () => <p data-fine="">好的一页</p>,
+            })
+          },
+        }),
+      ],
+    })
+    expect(navTitles()).toEqual(['待办'])
+    expect(document.querySelector('.shell-nav-badge')?.textContent).toBe('')
+    expect(section('badged')?.querySelector('[data-fine]')).not.toBeNull()
+    expect(failed()).toHaveLength(0)
+  })
+
+  it('失败之后换了对象会重试一次；对象与租户都没变的重画不重试', async () => {
+    let calls = 0
+    const t = await setup({
+      login: 'signed-in',
+      modules: [
+        defineUiModule({
+          name: 'picky-real',
+          inject: [],
+          apply(shell) {
+            shell.contribute('attached', {
+              id: 'real',
+              order: 1,
+              anchor: 'a',
+              render: ({ subject }) => {
+                calls += 1
+                if (subject === 's1') throw new Error('boom')
+                return <p data-attached="real">{subject}</p>
+              },
+            })
+          },
+        }),
+      ],
+    })
+    const view = render(<>{t.service.attached('a', 's1')}</>)
+    expect(view.container.querySelectorAll('.shell-item-failed')).toHaveLength(1)
+    const afterFailure = calls
+    view.rerender(<>{t.service.attached('a', 's1')}</>)
+    expect(calls).toBe(afterFailure)
+    expect(view.container.querySelectorAll('.shell-item-failed')).toHaveLength(1)
+    view.rerender(<>{t.service.attached('a', 's2')}</>)
+    expect(view.container.querySelector('[data-attached="real"]')?.textContent).toBe('s2')
+    expect(view.container.querySelectorAll('.shell-item-failed')).toHaveLength(0)
+  })
+
+  it('失败之后租户每换一次重试一次：从没有到有，从一个到另一个', async () => {
+    const seen: (string | undefined)[] = []
+    const t = await setup({
+      login: 'signed-in',
+      modules: [
+        pageModule('host', 0, () => null),
+        defineUiModule({
+          name: 'tenant-picky',
+          inject: [],
+          apply(shell) {
+            shell.contribute('sidebar', {
+              id: 'picky',
+              order: 0,
+              render: ({ scope }) => {
+                seen.push(scope)
+                if (scope !== 't2') throw new Error('boom')
+                return <p data-side={scope}>{scope}</p>
+              },
+            })
+          },
+        }),
+      ],
+    })
+    expect(failed()).toHaveLength(1)
+    expect(new Set(seen)).toEqual(new Set([undefined]))
+    act(() => t.state.scope.set('t1'))
+    expect(failed()).toHaveLength(1)
+    expect(new Set(seen)).toEqual(new Set([undefined, 't1']))
+    act(() => t.state.scope.set('t2'))
+    expect(failed()).toHaveLength(0)
+    expect(document.querySelector('[data-side="t2"]')).not.toBeNull()
   })
 })
 

@@ -136,7 +136,7 @@ Human Intervention（人工介入，HITL）包组回答一个问题：一件工�
 ### 界面模块
 
 - `human-intervention-ui` 的 `./cordis` 入口导出工厂 `createHumanInterventionUiModule(options?)`、它的选项类型 `HumanInterventionUiOptions`，以及页面的标识 `PAGE_ID` 与次序 `PAGE_ORDER`。工厂造出的界面模块注入 `human-intervention/v1` 的协议客户端：协议没挂着时模块不加载；协议撤了模块卸载，放进外壳的项随之撤掉，这个模块的全部驱动随作用域的效应收回而停下。根入口与 Cordis 无关，只导出卡的存放 `CardsHub` 与三处视图 `DecisionsPage`、`SessionCards`、`PendingBadge`。
-- 模块总是往外壳的页面位置放一页「待你决定」，标识 `decisions`，次序 10，在对话（0）与设置（20）之间，页面项带张数的标记位；不放侧栏项与登录门。选项给了 `sessionAnchor` 时，模块另往附着位置放一项：标识 `decisions-in-session`，次序 0，位置的名字就是 `sessionAnchor`，收到的对象是会话引用的文本。位置的名字由应用的装配给，本成员不认识哪个界面模块展示会话，也不导入它。外壳还没给租户时，三处都什么都不画。
+- 模块总是往外壳的页面位置放一页「待你决定」，标识 `decisions`，次序 10，在对话（0）与设置（20）之间，页面项带张数的标记位；不放侧栏项与登录门。选项给了 `sessionDock` 时，模块另往这个[拓展点](../../.meta_harness/design/ubiquitous_language/terms/architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)里放一项：标识 `decisions-in-session`，次序 0，收到的对象是 `{ session }`，`session` 是会话引用的文本。`sessionDock` 是外壳契约的 `PointSink<{ session: string }>`：只有贡献的一面，对象的形状由本成员自己写。拓展点由应用的装配给，本成员不认识哪个界面模块展示会话，也不导入它；装配交来的拓展点对象形状对不上时，在装配处编译不过。外壳还没给租户时，三处都什么都不画。
 - 一个租户只有一份卡的存放：这个租户全部状态是 `pending` 的卡，加每张卡的提交状态。`CardsHub` 按租户给出同一个驱动；视图挂上时持有它，卸下时放手。持有数从 0 变 1 时驱动开始工作：读一遍列表，建立观察；从 1 变 0 时停下：中止观察，取消等着的重连。三处是这一份存放的三个读法，不各建各的存放，不各发各的请求：
 
   | 显示 | 外壳里的位置 | 显示什么 |
