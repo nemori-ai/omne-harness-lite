@@ -39,8 +39,13 @@ export type AttachedItem = Readonly<{
   id: string
   order: number
   anchor: string
+  label?: string
   render: (props: AttachedProps) => ReactNode
 }>
+
+export type AttachedEntry = Readonly<{ id: string; label: string | undefined; node: ReactNode }>
+
+export type AttachedLayout = (entries: readonly AttachedEntry[]) => ReactNode
 
 export type SlotItems = {
   gate: GateItem

@@ -80,7 +80,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 | 入口 | 内容 |
 | --- | --- |
-| `.` | 运行时有三样：常量表 `slots`、错误 `ShellAssemblyError`、存放的工厂 `createSlotStore`。其余是类型：存放的类型 `SlotStore`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
+| `.` | 运行时有五样：常量表 `slots`、错误 `ShellAssemblyError`、存放的工厂 `createSlotStore`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`。其余是类型：存放的类型 `SlotStore`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
 | `./cordis` | 服务 `shell` 的抽象类 `ShellService`、它的键 `shellKey`、界面模块的助手 `defineUiModule` 与它的类型 `UiModuleDefinition`。根入口的源码闭包不含 Cordis 绑定 |
 
 #### 插入位置
@@ -92,7 +92,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | `gate` 登录门 | 一个 | `id`、`render` | 身份的界面模块。没有登录时外壳只显示它 |
 | `pages` 页面 | 一列 | `id`、`title`、`order`、可选的 `icon`（图标名）、可选的 `badge`（显示在导航里标题旁的小标记，返回空值时不显示）、`render` | 会话的对话页、资产的设置页 |
 | `sidebar` 侧栏区 | 一列 | `id`、`order`、`render` | 会话的会话列表、身份的账号块 |
-| `attached` 附着位置 | 一列 | `id`、`order`、`anchor`（位置的名字）、`render` | 要把自己的界面附着到别人展示的对象上的界面模块，或应用的装配 |
+| `attached` 附着位置 | 一列 | `id`、`order`、`anchor`（位置的名字）、可选的 `label`（宿主排成页签时用的标签）、`render` | 要把自己的界面附着到别人展示的对象上的界面模块，或应用的装配 |
 
 渲染函数收到的属性由契约定。页面与侧栏区的一项收到 `{ scope }`，页面项的 `badge` 也收到 `{ scope }`，`scope` 是当前租户的文本，还没有查到时是 `undefined`。附着位置的一项收到 `{ scope, subject }`，`subject` 是展示它的那个地方给出的对象文本。登录门的一项不收租户，属性是空的。界面模块要的协议客户端不经属性传，它自己从客户端的树上注入。
 
@@ -103,10 +103,11 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | 位置 \ 现状 | 空 | 有别的标识的项 | 有同一个标识的项 |
 | --- | --- | --- | --- |
 | 只放一个 | 放进去 | 抛出 | 抛出 |
-| 放一列 | 放进去 | 放进去，按次序排 | 抛出 |
+| 放一列（页面、侧栏区） | 放进去 | 放进去，按次序排 | 抛出 |
+| 附着位置 | 放进去 | 放进去，按次序排 | 位置的名字不同：放进去。位置的名字相同：抛出 |
 
 - 抛出的是 `ShellAssemblyError`，带 `slot`、`id` 与原因：只放一个的位置已有东西是 `occupied`，放一列的位置里标识重复是 `duplicate`。装配错了不静默覆盖。
-- 标识只在同一个位置里不许重复；不同位置里可以同名。
+- 标识只在同一个位置里不许重复；不同位置里可以同名。附着位置里，标识在同一个位置的名字（`anchor`）下不许重复：两个互不知道的界面模块在两个名字下可以用同一个标识。
 - 放一列的位置按 `order` 升序排，`order` 相同按 `id` 的码元序排，不用区域比较，结果与放进去的先后、加载的次序无关。
 - 放进去的一项绑在调用者的作用域上：`contribute` 在调用者的作用域上登记一个效应，作用域卸载时自动撤掉。界面模块不写撤下的代码。撤掉的只是它自己放的，别人放的不动。
 - 撤掉当前显示的页面时，外壳回到次序最前的一页；一页都没有时主区空着。这一条归外壳的实现。
@@ -122,6 +123,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | `scope` | 当前租户的文本：`get()`、`set(文本)`、`subscribe`。设它的是知道租户的那个界面模块（身份）。登录状态离开「已登录」时外壳把它清空 |
 | `navigate(页面的标识)` | 把一个页面切到前面。标识不在时什么都不做 |
 | `attached(位置的名字, 对象)` | 给出附着位置里 `anchor` 与位置的名字相同的全部项的渲染结果，按存放的次序排；每一项收到 `{ scope, subject }`，`scope` 是外壳当前的租户文本，`subject` 是这里给的对象。位置里的项放进或撤下、租户变了，已经渲染出来的结果跟着变。没有匹配的项时什么都不渲染 |
+| `arranged(位置的名字, 对象, 排版函数)` | 和 `attached` 取同样的项、同样的次序，但不替宿主拼在一起：把每一项的标识、标签、渲染结果（`AttachedEntry`）交给宿主的排版函数，给出排版函数的返回值。没有匹配的项时排版函数收到空表。订阅位置与租户的变化仍在外壳里，宿主不碰存放 |
 
 `login(凭据)` 只交出凭据，答案只有结果，不含任何登录证明：`signed-in`、`auth-failed`、`unknown`、`unavailable`。`logout()` 的结果是 `signed-out` 或 `unknown`。结果不知道就是 `unknown`，不写成成功或失败。
 
@@ -134,6 +136,22 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 - `place` 放进去后通知这个位置的订阅者，返回撤下的函数。被拒绝的放入不通知任何人，也不改变存放。
 - 撤下只撤这一次 `place` 放进去的那一项，撤下后通知这个位置的订阅者；撤两次，第二次什么都不做、不通知，也不动后来放进同一个标识的项。
 - `items(位置)` 每次给出排好序的新数组；订阅者只收到自己订阅的位置的变化；订阅返回取消订阅的函数。
+
+#### 带类型的拓展点
+
+展示对象的界面模块要让别的领域往自己的界面里放东西时，用 `definePoint` 或 `defineKeyedPoint` 声明一个[拓展点](../../.meta_harness/design/ubiquitous_language/terms/architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)。它是附着位置上的一层薄壳：位置的名字与对象对外壳仍然只是文本，薄壳在两头做编解码。共同的规则见[拓展点的共同契约](../../docs/architecture/cross-cutting-concepts.md#拓展点的共同契约)。
+
+| 函数 | 声明什么 | 返回的拓展点 |
+| --- | --- | --- |
+| `definePoint<S>({ name, subject })` | 名字，与对象 `S` 的编解码 `PointCodec<S>`（`encode` 把对象编成文本，`decode` 把文本解回对象，解不回时给 `undefined`） | `Point<S>`：`name`；宿主用的 `slot(外壳, 对象, 排版函数)`；贡献方用的 `contribute(外壳, 一项)` |
+| `defineKeyedPoint<S>(同上)` | 同上。这个拓展点按键分 | `KeyedPoint<S>`：`slot` 与 `contribute` 各多一个键。不同的键互不可见 |
+
+- 一项是 `PointItem<S>`：`id`、`order`、可选的 `label`、`render`。`render` 收到 `{ scope, subject }`，`subject` 是解回来的对象。文本解不回对象时这一项不画，不抛出。
+- 按不按键分由用哪一个函数定。不按键的拓展点上写不出键。
+- 不按键的拓展点，附着位置的名字就是拓展点的名字，所以直接往同名的 `anchor` 里放的项也在里面。按键的拓展点，附着位置的名字是「拓展点的名字、冒号、键」。拓展点的名字里不带冒号。
+- 贡献可以先于键放进去。宿主什么时候展示这个键，它什么时候出现。
+- 编解码由宿主交进来。薄壳不导入任何协议契约，也不导入 Cordis：它要的外壳写成两个结构类型，`PointContributor`（有 `contribute`）与 `PointHost`（有 `arranged`），服务 `shell` 两样都满足。
+- 贡献方不导入宿主的界面模块。宿主从自己的 `./cordis` 入口导出拓展点，应用的装配把它交给贡献方。贡献方只要贡献的一面，类型是 `PointSink<S>` 或 `KeyedPointSink<S>`，并用自己要的对象形状写 `S`。宿主的对象比它宽时可以交过去；对不上时，在应用的装配处编译不过。
 
 #### 界面模块
 
@@ -162,8 +180,8 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I06 | `Prose` 流式输入分次给出，已给出的内容一个字也不丢 | 回复在流式过程中缺字 | `ui-kit/tests/prose.spec.tsx` 的流式用例 |
 | FE-I07 | 汇总样式能被 Tailwind 4 编出来，产物里有 `--omne-` 变量与控件的类 | 应用引入后样式缺失 | 构建核对：在最小的 Vite 工程里只引汇总样式，`vite build` 后检查产物 |
 | FE-I08 | `shell-contract` 的 `src/` 只导入 Cordis、React 的类型与自己 | 契约反过来认识客户端装配、领域或应用，界面模块经它带进不该有的依赖 | `shell-contract/tests/boundaries.spec.ts`；`pnpm run lint:deps` 的 `frontend-knows-no-domain` |
-| FE-I09 | 只放一个的位置不会有第二项；放一列的位置里标识不重复。违反时抛出 `ShellAssemblyError`，存放不变，不通知任何人 | 两个界面模块静默互相覆盖，看到哪一个取决于加载次序 | `shell-contract/tests/contribute.spec.ts` 的全化表六格与存放工厂的用例 |
+| FE-I09 | 只放一个的位置不会有第二项；放一列的位置里标识不重复，附着位置里同一个名字下标识不重复。违反时抛出 `ShellAssemblyError`，存放不变，不通知任何人 | 两个界面模块静默互相覆盖，看到哪一个取决于加载次序 | `shell-contract/tests/contribute.spec.ts` 的全化表与存放工厂的用例 |
 | FE-I10 | 放一列的位置的次序只由 `order` 与 `id` 决定，与放进去的先后无关 | 同一组界面模块在两次启动里排出不同的次序 | `shell-contract/tests/order.spec.ts` |
 | FE-I11 | 一个作用域卸载时，撤掉的恰好是它放的那些项；撤两次第二次什么都不做 | 卸载一个界面模块带走别人放的东西，或留下自己的 | `shell-contract/tests/unload.spec.ts` 与存放工厂的撤回用例 |
 | FE-I12 | 登录与退出的答案只有结果，不含任何登录证明 | 页面里的界面模块读到登录证明 | `shell-contract/tests/slots.spec-d.ts` 里登录端口的类型用例 |
-| FE-I13 | 附着位置里的一项只渲染在名字相同的地方，收到那个地方给的对象 | 一个对象的界面出现在另一个对象上 | `shell-contract/tests/attached.spec.ts` 的参考外壳用例；`apps/desktop/tests/shell.spec.tsx` 的附着位置用例 |
+| FE-I13 | 附着位置里的一项只渲染在名字相同的地方，收到那个地方给的对象；按键的拓展点里，一项只出现在它的键下 | 一个对象的界面出现在另一个对象上 | `shell-contract/tests/attached.spec.ts` 的参考外壳用例；`shell-contract/tests/point.spec.ts`；`apps/desktop/tests/shell.spec.tsx` 的附着位置用例 |

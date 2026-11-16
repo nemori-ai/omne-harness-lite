@@ -5,6 +5,7 @@ import type { ClientOf } from '@omne-harness/sdk/core'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
 import {
   createSlotStore,
+  type AttachedLayout,
   type ItemOf,
   type ScopeSource,
   type ShellLogin,
@@ -49,6 +50,18 @@ export class TestShell extends ShellService implements ShellSlots {
       .map(item => (
         <Fragment key={item.id}>{item.render({ scope: this.scope.get(), subject })}</Fragment>
       ))
+  }
+
+  arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode {
+    return layout(
+      this.items('attached')
+        .filter(item => item.anchor === anchor)
+        .map(item => ({
+          id: item.id,
+          label: item.label,
+          node: item.render({ scope: this.scope.get(), subject }),
+        })),
+    )
   }
 
   protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
