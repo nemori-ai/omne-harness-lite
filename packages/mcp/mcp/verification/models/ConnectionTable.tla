@@ -41,7 +41,8 @@ CONSTANTS
 
 DeviationNames == {"fail", "reject", "throw"}
 BugNames == {"no-absorb-close", "no-shut", "ok-after-shut", "unbounded-wrap",
-             "close-after-build"}
+             "close-after-build", "keep-handle", "late-into-entry", "late-revive",
+             "key-blind", "no-join"}
 
 ASSUME Deviations \subseteq DeviationNames /\ Bugs \subseteq BugNames
 ASSUME {Ensures, Releases, Loses, Budget} \subseteq Nat /\ CloseAlls \in 0..1
@@ -257,10 +258,14 @@ StartBuild(x, k, e) ==
   IN [st |-> [AddFiber(x1, NewFiber("build", "attempt", k, en)) EXCEPT !.ents[en].build = b],
       b |-> b]
 
+(* The negative control "key-blind" finds the entry without its key: every *)
+(* key reads the slot of the first key (table.ts `entryOf`).              *)
+EntryOf(x, k) == IF "key-blind" \in Bugs THEN x.tbl[KeyOrder[1]] ELSE x.tbl[k]
+
 EnsureStep(i) ==
   LET f == s.fib[i]
       k == f.key
-      e == s.tbl[k]
+      e == EntryOf(s, k)
   IN /\ f.kind = "ensure" /\ Runnable(i) /\ MayRun(f.key)
      /\ CASE f.pc = "begin" ->
              IF s.shut THEN s' = Leave(Done(s, i, "refused"), k)
@@ -275,7 +280,7 @@ EnsureStep(i) ==
              THEN s' = [s EXCEPT !.fib[i].pc = "blockedW",
                                  !.fib[i].wf = IF s.ents[e].close # 0 THEN s.ents[e].close
                                                ELSE s.ents[e].tear]
-             ELSE IF e # 0 /\ s.ents[e].build # 0
+             ELSE IF e # 0 /\ s.ents[e].build # 0 /\ "no-join" \notin Bugs
              THEN s' = Leave([s EXCEPT !.fib[i].pc = "joinedW", !.fib[i].wf = s.ents[e].build], k)
              ELSE IF e # 0 /\ Usable(s.ents[e])
              THEN s' = Leave([Done(s, i, "ok") EXCEPT !.fib[i].ent = e,
@@ -401,7 +406,8 @@ TearStep(i) ==
           [] f.pc = "trel" ->
              IF en.cr = 0 THEN s' = TearDone(s, i, "ok")
              ELSE \E y \in Ask(s, i, "release", en.cr, 0, "trelW") : s' = y
-          [] f.pc = "trelW" -> s' = TearDone([s EXCEPT !.ents[e].cr = 0], i, "ok")
+          [] f.pc = "trelW" ->
+             s' = TearDone([s EXCEPT !.ents[e].cr = IF "keep-handle" \in Bugs THEN @ ELSE 0], i, "ok")
 
 -----------------------------------------------------------------------------
 (* Internal steps: `closeEntry`, the client operations' waits, late paths. *)
@@ -442,9 +448,14 @@ LateStep(i) ==
   IN /\ f.kind = "late" /\ Runnable(i) /\ MayRun(f.key)
      /\ CASE f.pc = "lateW" /\ f.late = "relLate" ->
              IF ~ok THEN s' = Done(s, i, "ok")
+             ELSE IF "late-into-entry" \in Bugs
+             THEN s' = Done([s EXCEPT !.ents[f.ent].cr = call.made], i, "ok")
              ELSE \E y \in Ask(s, i, "release", call.made, 0, "lcloseW") : s' = y
           [] f.pc = "lateW" /\ f.late = "closeLate" ->
              IF ~ok THEN s' = Done(s, i, "ok")
+             ELSE IF "late-revive" \in Bugs
+             THEN s' = Done([s EXCEPT !.ents[f.ent].tr = call.made, !.ents[f.ent].st = "ready",
+                                      !.ents[f.ent].gen = call.gen], i, "ok")
              ELSE \E y \in Ask(s, i, "close", call.made, 0, "lcloseW") : s' = y
           [] f.pc = "lcloseW" -> s' = Done(s, i, "ok")
 

@@ -110,6 +110,42 @@
       "expected": "P8_BoundedEnsure"
     },
     {
+      "name": "bad-keep-handle",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-keep-handle.cfg",
+      "expected": "P1_AtMostOnce"
+    },
+    {
+      "name": "bad-no-absorb-close-shutdown",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-no-absorb-close-shutdown.cfg",
+      "expected": "P1_ShutdownReleasesAll"
+    },
+    {
+      "name": "bad-late-into-entry",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-late-into-entry.cfg",
+      "expected": "P2_ForgetHoldsNothing"
+    },
+    {
+      "name": "bad-key-blind",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-key-blind.cfg",
+      "expected": "P5_KeyIsolation"
+    },
+    {
+      "name": "bad-late-revive",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-late-revive.cfg",
+      "expected": "P6_LateInvisible"
+    },
+    {
+      "name": "bad-no-join",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-no-join.cfg",
+      "expected": "P7_ErrorsHandled"
+    },
+    {
       "name": "probe-a1",
       "model": "models/ConnectionTable.tla",
       "config": "models/probe-a1.cfg",
