@@ -178,7 +178,7 @@
   inherits: false;
   initial-value: 0px;
 }
-@keyframes pe-code-edge {
+@keyframes omne-code-edge {
   from,
   97% {
     --omne-code-edge: 40px;
@@ -195,7 +195,7 @@
       oklch(0 0 0) var(--omne-code-edge)
     );
     mask-image: linear-gradient(to left, oklch(0 0 0 / 0), oklch(0 0 0) var(--omne-code-edge));
-    animation: pe-code-edge both;
+    animation: omne-code-edge both;
     animation-timeline: scroll(self inline);
   }
 }

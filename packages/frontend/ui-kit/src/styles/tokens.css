@@ -76,7 +76,7 @@
 }
 
 :root,
-.pe-size-standard {
+.omne-size-standard {
   --omne-size: 1;
 
   --spacing: 4px;
@@ -390,8 +390,8 @@
   --ease-standard: var(--omne-motion-ease);
   --ease-enter: var(--omne-motion-ease-enter);
   --ease-exit: var(--omne-motion-ease-exit);
-  --animate-fade-up: pe-fade-up var(--omne-motion-enter) var(--omne-motion-ease-enter) both;
-  --animate-shimmer-text: pe-shimmer-text var(--omne-motion-shimmer) var(--omne-motion-ease-loop)
+  --animate-fade-up: omne-fade-up var(--omne-motion-enter) var(--omne-motion-ease-enter) both;
+  --animate-shimmer-text: omne-shimmer-text var(--omne-motion-shimmer) var(--omne-motion-ease-loop)
     infinite;
 }
 

@@ -107,7 +107,7 @@
     }
   }
 }
-@keyframes pe-shimmer-text {
+@keyframes omne-shimmer-text {
   from {
     background-position: 150% center;
   }
@@ -115,7 +115,7 @@
     background-position: -50% center;
   }
 }
-@keyframes pe-fade-up {
+@keyframes omne-fade-up {
   from {
     opacity: 0;
     translate: 0 4px;
