@@ -1,7 +1,7 @@
 import { parentPort, workerData } from 'node:worker_threads'
 import { DatabaseSync } from 'node:sqlite'
 import { ModuleCache } from './modules.ts'
-import { runRead, type ReaderState } from './read-port.ts'
+import { runLoad, runRead, type ReaderState } from './read-port.ts'
 import type { ReaderEnv, ReaderEnvelope, ReaderMessage, ReaderReply } from './reader-protocol.ts'
 
 const port = parentPort
@@ -51,6 +51,9 @@ port.on('message', (message: ReaderMessage) => {
       switch (message.request.kind) {
         case 'open':
           reply = open()
+          break
+        case 'load':
+          reply = await runLoad(state, message.request.handler)
           break
         case 'read':
           reply = await runRead(state, message.request.handler, message.request.input)

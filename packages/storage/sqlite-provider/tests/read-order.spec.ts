@@ -24,12 +24,14 @@ let workspace: Workspace
 let built: Built
 
 async function warmReaders(storage: Provider['storage']): Promise<void> {
-  const results = await Promise.all([
-    storage.read(readRequest('page')),
-    storage.read(readRequest('page')),
-  ])
-  for (const result of results)
-    if (result.kind !== 'read') throw new Error(`warm-up read is ${result.kind}`)
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const results = await Promise.all([
+      storage.read(readRequest('page')),
+      storage.read(readRequest('page')),
+    ])
+    if (results.every(result => result.kind === 'read')) return
+  }
+  throw new Error('the readers did not warm up')
 }
 
 beforeEach(async () => {

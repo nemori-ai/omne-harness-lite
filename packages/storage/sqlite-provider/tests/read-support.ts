@@ -37,9 +37,20 @@ export default {
 }
 `
 
+const slowToLoad = (
+  name: string,
+  ms: number,
+): string => `await new Promise(resolve => setTimeout(resolve, ${String(ms)}))
+export default {
+  handler: '${name}', protocol: '1',
+  read() { return { kind: 'read', output: { loaded: true } } },
+}`
+
 const HANDLERS: Readonly<Record<string, string>> = {
   page: COUNT_PAIR.replace('NAME', 'page'),
   serial: COUNT_PAIR.replace('NAME', 'serial'),
+  slowload: slowToLoad('slowload', 300),
+  slowserial: slowToLoad('slowserial', 800),
   rows: `export default {
   handler: 'rows', protocol: '1',
   read(input, port) {
@@ -95,7 +106,10 @@ export default {
 
 const sha = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex')
 
-const ORDERING: Readonly<Record<string, ReadOrdering>> = { serial: 'domain-serial' }
+const ORDERING: Readonly<Record<string, ReadOrdering>> = {
+  serial: 'domain-serial',
+  slowserial: 'domain-serial',
+}
 
 export type ReadFixture = Readonly<{ built: Built; handlers: readonly ReadHandlerDescriptor[] }>
 
@@ -163,6 +177,16 @@ export function readRequest(handler: string, input: ReadRequest['input'] = {}): 
     requestKey: `req-${String(counter)}`,
     input,
   }
+}
+
+export async function warm(
+  storage: Provider['storage'],
+  handler: string,
+  input: ReadRequest['input'] = {},
+): Promise<void> {
+  for (let attempt = 0; attempt < 20; attempt += 1)
+    if ((await storage.read(readRequest(handler, input))).kind === 'read') return
+  throw new Error(`the reader did not warm up for ${handler}`)
 }
 
 export function summary(result: ReadResult): string {

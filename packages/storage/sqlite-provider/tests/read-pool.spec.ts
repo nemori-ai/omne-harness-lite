@@ -4,10 +4,12 @@ import { ReaderClient } from '../src/reader-client.ts'
 import {
   buildReadMaterials,
   closeProviders,
+  commitOf,
   delay,
   readRequest,
   readyProvider,
   summary,
+  warm,
 } from './read-support.ts'
 import { DOMAIN, TENANT_A, leases, makeWorkspace, type Built, type Workspace } from './support.ts'
 
@@ -113,6 +115,40 @@ describe('timeouts (SPEC 9.2 steps 9 and 10)', () => {
     expect(Date.now() - start).toBeGreaterThanOrEqual(450)
   })
 
+  it('does not count the first load of a handler in a reader against readObservationMs', async () => {
+    const { storage } = await readyProvider(
+      workspace,
+      built,
+      { ...one, readObservationMs: 100, readQueueTimeoutMs: 2000 },
+      0,
+    )
+    expect(summary(await storage.read(readRequest('slowload')))).toBe('read')
+  })
+
+  it('counts the load against the queue time, and the reader that loaded serves the next read', async () => {
+    const { storage } = await readyProvider(
+      workspace,
+      built,
+      { ...one, readQueueTimeoutMs: 100 },
+      0,
+    )
+    expect(summary(await storage.read(readRequest('slowload')))).toBe('unavailable/queue_timeout')
+    await delay(600)
+    expect(summary(await storage.read(readRequest('slowload')))).toBe('read')
+    expect(new Set(leases.admitted.filter(name => name.includes('/reader/'))).size).toBe(1)
+  })
+
+  it('does not hold the barrier of a domain-serial read while its handler loads', async () => {
+    const { storage } = await readyProvider(workspace, built, one, 0)
+    const reading = storage.read(readRequest('slowserial'))
+    await delay(200)
+    const start = Date.now()
+    const written = await storage.commit(commitOf(built, 'during-load'))
+    expect(written.kind).toBe('committed')
+    expect(Date.now() - start).toBeLessThan(250)
+    expect(summary(await reading)).toBe('read')
+  })
+
   it('returns queue_timeout when no reader is free in time', async () => {
     const { storage } = await readyProvider(
       workspace,
@@ -120,6 +156,7 @@ describe('timeouts (SPEC 9.2 steps 9 and 10)', () => {
       { ...one, readQueueTimeoutMs: 100 },
       0,
     )
+    await warm(storage, 'slow', { ms: 0 })
     const running = storage.read(readRequest('slow', { ms: 500 }))
     await delay(50)
     expect(summary(await storage.read(readRequest('page')))).toBe('unavailable/queue_timeout')
