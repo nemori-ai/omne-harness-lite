@@ -828,7 +828,7 @@ describe('agentActionAdmission', () => {
       { decision: {} },
     ]) {
       expect(await admission.admit({ ...input, ...change } as never)).toMatchObject({
-        ok: { kind: 'unavailable' },
+        ok: { kind: 'undecidable' },
       })
     }
     const exact = createActionAdmission({
@@ -852,7 +852,7 @@ describe('agentActionAdmission', () => {
           ...input,
           definition: { ...input.definition, [field]: 'other' },
         } as never),
-      ).toMatchObject({ ok: { kind: 'unavailable' } })
+      ).toMatchObject({ ok: { kind: 'undecidable' } })
     }
     for (const mode of ['throws', 'unavailable'] as const) {
       w.flags.standing = mode
@@ -861,20 +861,23 @@ describe('agentActionAdmission', () => {
     w.flags.standing = 'member'
     w.flags.verifierThrows = true
     expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'unavailable' } })
-    for (const readAdmission of [
-      () => undefined,
-      () => {
-        throw new Error('SECRET')
-      },
-      () => ({ check: async () => ({ kind: 'odd' }) as never }),
-    ]) {
+    for (const [readAdmission, kind] of [
+      [() => undefined, 'unavailable'],
+      [
+        () => {
+          throw new Error('SECRET')
+        },
+        'undecidable',
+      ],
+      [() => ({ check: async () => ({ kind: 'odd' }) as never }), 'undecidable'],
+    ] as const) {
       const failed = createActionAdmission({
         readAdmission,
         readPermission: () => undefined,
         actionRules: rules,
       })
       const result = await failed.admit(input as never)
-      expect(result).toMatchObject({ ok: { kind: 'unavailable' } })
+      expect(result).toMatchObject({ ok: { kind } })
       expect(JSON.stringify(result)).not.toContain('SECRET')
     }
   })
@@ -952,7 +955,7 @@ describe('agentActionAdmission', () => {
     expect(await admission.admit(input as never)).not.toEqual(answer)
   })
 
-  it('has no default allow: every action is unavailable, with or without permissions or a decision', async () => {
+  it('has no default allow: every action is undecidable, with or without permissions or a decision', async () => {
     const admission = createActionAdmission({
       readAdmission: () => undefined,
       readPermission: () => undefined,
@@ -963,7 +966,7 @@ describe('agentActionAdmission', () => {
       { permissions: [], decision: { card: 'c', answer: 'a' } },
     ]) {
       const answer = await admission.admit(input as never)
-      expect(answer).toMatchObject({ ok: { kind: 'unavailable' } })
+      expect(answer).toMatchObject({ ok: { kind: 'undecidable' } })
       expect(JSON.stringify(answer)).not.toContain('"allow"')
     }
   })
@@ -1117,7 +1120,7 @@ describe('the row', () => {
     }
     try {
       const admission = ctx.agentActionAdmission
-      expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'unavailable' } })
+      expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'undecidable' } })
       await row.dispose()
       expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'unavailable' } })
     } finally {
@@ -1282,7 +1285,7 @@ describe('the row', () => {
     expect(answers['holder']).toMatchObject({ kind: 'allowed' })
     expect(answers['intruder']).toEqual({ kind: 'denied' })
     expect(answers['agent']).toMatchObject({ kind: 'allowed' })
-    expect(answers['admission']).toMatchObject({ ok: { kind: 'unavailable' } })
+    expect(answers['admission']).toMatchObject({ ok: { kind: 'undecidable' } })
     expect(answers['broken']).toMatchObject({ kind: 'unavailable' })
     expect(JSON.stringify([answers, run.records, run.stderr])).not.toContain('SECRET-TEXT')
   })

@@ -203,6 +203,7 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'I4', on: 'empty', to: 'I8' },
   { from: 'I4', on: 'tools', to: 'A0' },
   { from: 'A0', on: 'judged', to: 'A1' },
+  { from: 'A0', on: 'wait', to: 'W0' },
   { from: 'A1', on: 'judge', to: 'A0' },
   { from: 'A1', on: 'carded', to: 'A1' },
   { from: 'A1', on: 'wait', to: 'W0' },

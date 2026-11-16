@@ -220,6 +220,7 @@ export type AdmissionDecision =
   | Readonly<{ kind: 'deny'; reason: string; evidence: DurableEvidence }>
   | Readonly<{ kind: 'need-decision'; card: DecisionCardDraft; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+  | Readonly<{ kind: 'undecidable'; diagnostic: string }>
 export interface ActionAdmission<P> {
   admit(
     input: Access<P> &
