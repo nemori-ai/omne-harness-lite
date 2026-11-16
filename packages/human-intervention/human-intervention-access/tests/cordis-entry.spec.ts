@@ -29,6 +29,7 @@ async function mount(faces: boolean) {
       faces: () => (faces ? world.hitl.faces : undefined),
       entryPrincipals: () => world.holder.holder,
       logins: () => ({ admits: async () => 'admitted' }),
+      changes: () => world.signals.changes,
     }),
     { locationRef: 'configured-location' },
   )
@@ -51,7 +52,7 @@ it('the cordis entry gives the plugin factory and nothing else at run time', asy
   expect(Object.keys(cordis)).toEqual(['createHitlAccessPlugin'])
 })
 
-it('mounts human-intervention/v1 with its four operations, and the location comes from the settings', async () => {
+it('mounts human-intervention/v1 with its four operations and its observation, and the location comes from the settings', async () => {
   const { world, registry } = await mount(true)
   expect(registry.mounted).toHaveLength(1)
   const contribution = registry.mounted[0]!
@@ -59,13 +60,21 @@ it('mounts human-intervention/v1 with its four operations, and the location come
   expect(Object.keys(contribution.operations).sort()).toEqual(
     Object.keys(humanInterventionProtocol.operations).sort(),
   )
-  expect(Object.keys(contribution.observations)).toEqual([])
+  expect(Object.keys(contribution.observations)).toEqual(['observe-cards'])
   const answer = await contribution.operations['list-cards'](
     as(ALICE) as never,
     bodyOf('list-cards', list),
   )
   expect(answer.outcome).toBe('succeeded')
   expect(world.hitl.calls[0]?.input).toMatchObject({ locationRef: 'configured-location' })
+  const observed = await contribution.observations['observe-cards'](
+    as(ALICE) as never,
+    {
+      tenant: ALICE.tenant,
+    } as never,
+  )
+  expect(observed.outcome).toBe('succeeded')
+  expect(world.signals.subscribed).toEqual([ALICE.tenantText])
 })
 
 it('answers basis-unavailable while the faces are absent, with the protocol still mounted', async () => {
