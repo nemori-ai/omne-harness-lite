@@ -3,6 +3,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { CommitResultV2, RolledBackV2 } from '@omne-harness/sql-contract'
 import { unpackText } from '@omne-harness/sql-contract/worker'
+import { tick } from './gate.ts'
 import {
   DOMAIN,
   buildMaterials,
@@ -434,8 +435,8 @@ describe('observation cancel (SPEC 7.1)', () => {
     const result = await pending
     expect(result).toMatchObject({ kind: 'unknown', diagnostic: 'observer_detached' })
     let found = await storage.query(request.identity)
-    for (let i = 0; i < 200 && found.kind === 'unknown'; i += 1) {
-      await new Promise(resolve => setTimeout(resolve, 10))
+    while (found.kind === 'unknown') {
+      await tick()
       found = await storage.query(request.identity)
     }
     expect(found.kind).toBe('committed')
