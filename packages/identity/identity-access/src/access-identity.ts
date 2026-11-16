@@ -9,7 +9,12 @@ import type {
   PrincipalIssuer,
   SystemPrincipal,
 } from '@omne-harness/identity'
-import { accountEquals, tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import {
+  accountEquals,
+  tenantCodec,
+  tenantEquals,
+  type TenantId,
+} from '@omne-harness/legal-identity'
 import { callerOf, LOGIN_WORK_OWNER, loginIdentityOf, loginTextOf, principalOf } from './caller.ts'
 
 export type AccessIdentityDependencies = Readonly<{
@@ -76,7 +81,16 @@ export function createAccessIdentity(
       const caller = callerOf(login)
       const target = tenantCodec.parse(tenant)
       if (!target.ok || !accountEquals(target.value.account, caller.account)) return DENIED
-      return issueFor(target.value, caller.loginText)
+      let memberships
+      try {
+        memberships = await governance.queryOwnMemberships({ login: caller.login })
+      } catch {
+        return UNAVAILABLE
+      }
+      if (memberships.kind === 'basis-unavailable') return UNAVAILABLE
+      if (memberships.kind !== 'succeeded') return DENIED
+      const member = memberships.memberships.some(entry => tenantEquals(entry.tenant, target.value))
+      return member ? issueFor(target.value, caller.loginText) : DENIED
     },
 
     resume(tenant, loginText): ActForResult {

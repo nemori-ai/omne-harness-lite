@@ -2,7 +2,17 @@ import type { LoginIdentity } from '@omne-harness/access-cordis-contract'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { createAccessIdentity } from '@omne-harness/identity-access'
 import { describe, expect, it } from 'vitest'
-import { fixture, signIn, signUp, textOf, type Fixture } from './support.ts'
+import {
+  accept,
+  createTeam,
+  fixture,
+  invite,
+  removeMember,
+  signIn,
+  signUp,
+  textOf,
+  type Fixture,
+} from './support.ts'
 
 function port(f: Fixture) {
   return createAccessIdentity({
@@ -210,5 +220,139 @@ describe('createAccessIdentity', () => {
       issuer: f.authority.issuer,
     })
     await expect(down.reportAccess(login)).rejects.toThrow()
+  })
+})
+
+describe('actFor answers whether the login can act for the tenant now', () => {
+  function withGovernance(
+    f: Fixture,
+    queryOwnMemberships: Fixture['governance']['queryOwnMemberships'],
+  ) {
+    const queried: unknown[] = []
+    const identity = createAccessIdentity({
+      operations: f.operations,
+      governance: {
+        ...f.governance,
+        queryOwnMemberships: async input => {
+          queried.push(input)
+          return queryOwnMemberships(input)
+        },
+      },
+      issuer: f.authority.issuer,
+    })
+    return { identity, queried }
+  }
+
+  it('does not read the memberships when the tenant is not of the login account or is not a tenant', async () => {
+    const f = fixture()
+    const alice = await signUp(f.operations, 'alice')
+    const bob = await signUp(f.operations, 'bob')
+    const { identity, queried } = withGovernance(f, f.governance.queryOwnMemberships)
+    const login = await loginOf(identity, alice.proof)
+
+    expect(await identity.actFor(login, bob.tenantText)).toEqual({ outcome: 'denied' })
+    expect(await identity.actFor(login, 'not-a-tenant')).toEqual({ outcome: 'denied' })
+    expect(queried).toEqual([])
+  })
+
+  it('answers basis-unavailable when reading the memberships throws', async () => {
+    const f = fixture()
+    const alice = await signUp(f.operations, 'alice')
+    const { identity } = withGovernance(f, async () => {
+      throw new Error('store down')
+    })
+    const login = await loginOf(identity, alice.proof)
+
+    expect(await identity.actFor(login, alice.tenantText)).toEqual({ outcome: 'basis-unavailable' })
+  })
+
+  it('answers basis-unavailable when identity cannot answer the memberships', async () => {
+    const f = fixture()
+    const alice = await signUp(f.operations, 'alice')
+    const { identity } = withGovernance(f, async () => ({
+      kind: 'basis-unavailable',
+      diagnostic: 'down',
+    }))
+    const login = await loginOf(identity, alice.proof)
+
+    expect(await identity.actFor(login, alice.tenantText)).toEqual({ outcome: 'basis-unavailable' })
+  })
+
+  it('denies a login that identity no longer holds as valid', async () => {
+    const f = fixture()
+    const identity = port(f)
+    const alice = await signUp(f.operations, 'alice')
+    const login = await loginOf(identity, alice.proof)
+    const own = await f.operations.recognizeLogin({ loginProof: alice.proof })
+    if (own.kind !== 'recognized') throw new Error('fixture login was not recognized')
+
+    expect(await f.governance.revokeLogin({ login: own.login, target: own.login })).toEqual({
+      kind: 'succeeded',
+    })
+
+    expect(await identity.actFor(login, alice.tenantText)).toEqual({ outcome: 'denied' })
+  })
+
+  it('denies a tenant that the own membership list does not hold', async () => {
+    const f = fixture()
+    const identity = port(f)
+    const alice = await signUp(f.operations, 'alice')
+    const bob = await signUp(f.operations, 'bob')
+    const team = await createTeam(f, alice)
+    const joined = await accept(f, team, bob, await invite(f, team, 'bob'))
+    const login = await loginOf(identity, bob.proof)
+    expect((await identity.actFor(login, textOf(joined))).outcome).toBe('issued')
+    const own = await f.operations.recognizeLogin({ loginProof: bob.proof })
+    if (own.kind !== 'recognized') throw new Error('fixture login was not recognized')
+
+    expect(
+      await f.governance.switchCurrentTenant({
+        login: own.login,
+        actingTenant: own.tenant,
+        tenant: joined,
+      }),
+    ).toMatchObject({ kind: 'succeeded' })
+    expect(
+      await f.governance.leaveOrganization({ login: own.login, actingTenant: joined }),
+    ).toEqual({ kind: 'succeeded' })
+
+    expect(await identity.actFor(login, textOf(joined))).toEqual({ outcome: 'denied' })
+  })
+
+  it('issues for a tenant of an organization the login belongs to', async () => {
+    const f = fixture()
+    const identity = port(f)
+    const alice = await signUp(f.operations, 'alice')
+    const bob = await signUp(f.operations, 'bob')
+    const team = await createTeam(f, alice)
+    const joined = await accept(f, team, bob, await invite(f, team, 'bob'))
+
+    const acting = await identity.actFor(await loginOf(identity, bob.proof), textOf(joined))
+
+    expect(acting.outcome).toBe('issued')
+    if (acting.outcome !== 'issued') return
+    const principal = acting.principal as unknown as ActingForTenantPrincipal
+    expect(textOf(principal.tenant)).toBe(textOf(joined))
+    expect(await f.authority.verifier.verify(principal)).toMatchObject({ kind: 'verified' })
+  })
+
+  it('follows the membership: a still valid login stops acting when removed from the organization and acts again when it rejoins', async () => {
+    const f = fixture()
+    const identity = port(f)
+    const alice = await signUp(f.operations, 'alice')
+    const bob = await signUp(f.operations, 'bob')
+    const team = await createTeam(f, alice)
+    const joined = await accept(f, team, bob, await invite(f, team, 'bob'))
+    const login = await loginOf(identity, bob.proof)
+    expect((await identity.actFor(login, textOf(joined))).outcome).toBe('issued')
+
+    await removeMember(f, team, bob)
+
+    expect(await identity.actFor(login, textOf(joined))).toEqual({ outcome: 'denied' })
+    expect((await identity.actFor(login, bob.tenantText)).outcome).toBe('issued')
+
+    await accept(f, team, bob, await invite(f, team, 'bob'))
+
+    expect((await identity.actFor(login, textOf(joined))).outcome).toBe('issued')
   })
 })
