@@ -1,8 +1,12 @@
 import {
+  DEFAULT_TEAM_MODEL,
+  DEFAULT_TEAM_ROLES,
   inProcessPrincipalAuthority,
   type IdentityGovernance,
   type IdentityOperations,
   type PrincipalAuthority,
+  type TenantStandingReading,
+  type TenantStandingSource,
 } from '@omne-harness/identity'
 import {
   adjustableInvitationTerms,
@@ -19,10 +23,43 @@ function duration(text: string): Duration {
   return parsed.value
 }
 
+export type StandingDouble = Readonly<{
+  source: Pick<TenantStandingSource, 'read'>
+  asked: TenantId[]
+  answer(next: 'member' | 'not-member' | 'unavailable' | 'throws'): void
+}>
+
+export function standingDouble(): StandingDouble {
+  const asked: TenantId[] = []
+  let next: 'member' | 'not-member' | 'unavailable' | 'throws' = 'member'
+  const evidence = { record: 'fixture-record', revision: '1' }
+  return {
+    asked,
+    answer(answer) {
+      next = answer
+    },
+    source: {
+      async read({ tenant }): Promise<TenantStandingReading> {
+        asked.push(tenant)
+        if (next === 'throws') throw new Error('standing store down')
+        if (next === 'unavailable') return { kind: 'unavailable', diagnostic: 'fixture' }
+        if (next === 'not-member') return { kind: 'not-member', evidence }
+        return {
+          kind: 'member',
+          role: { model: DEFAULT_TEAM_MODEL, role: DEFAULT_TEAM_ROLES.member },
+          qualifications: [],
+          evidence,
+        }
+      },
+    },
+  }
+}
+
 export type Fixture = Readonly<{
   operations: IdentityOperations
   governance: IdentityGovernance
   authority: PrincipalAuthority
+  standing: StandingDouble
 }>
 
 export function fixture(): Fixture {
@@ -44,6 +81,7 @@ export function fixture(): Fixture {
     operations: identity.operations,
     governance: identity.governance,
     authority: inProcessPrincipalAuthority(),
+    standing: standingDouble(),
   }
 }
 

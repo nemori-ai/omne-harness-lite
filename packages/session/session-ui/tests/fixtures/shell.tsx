@@ -12,8 +12,8 @@ import {
   type SlotName,
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
-import { StrictMode, useEffect, useState } from 'react'
-import { sessionClientService, sessionUiModule } from '../../src/cordis.tsx'
+import { Fragment, StrictMode, useEffect, useState, type ReactNode } from 'react'
+import { sessionClientService, sessionUiModule } from '../../src/cordis.ts'
 
 export class TestShell extends ShellService implements ShellSlots {
   readonly navigated: string[] = []
@@ -23,8 +23,9 @@ export class TestShell extends ShellService implements ShellSlots {
     login: async () => 'signed-in',
     logout: async () => 'signed-out',
   }
+  tenant: string | undefined = undefined
   readonly scope: ScopeSource = {
-    get: () => undefined,
+    get: () => this.tenant,
     set: () => undefined,
     subscribe: () => () => undefined,
   }
@@ -40,6 +41,14 @@ export class TestShell extends ShellService implements ShellSlots {
 
   navigate(pageId: string): void {
     this.navigated.push(pageId)
+  }
+
+  attached(anchor: string, subject: string): ReactNode {
+    return this.items('attached')
+      .filter(item => item.anchor === anchor)
+      .map(item => (
+        <Fragment key={item.id}>{item.render({ scope: this.scope.get(), subject })}</Fragment>
+      ))
   }
 
   protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
@@ -97,6 +106,7 @@ export async function mountModule(
   const { root, shell } = await startShell()
   const withdraw = root.reflect.provide(sessionClientService, client)
   await root.plugin(sessionUiModule)
+  shell.tenant = scope
   const tree = (next: string | undefined) =>
     options.strict === true ? (
       <StrictMode>
@@ -114,6 +124,9 @@ export async function mountModule(
         await withdraw()
       })
     },
-    rerender: (next: string | undefined) => view.rerender(tree(next)),
+    rerender: (next: string | undefined) => {
+      shell.tenant = next
+      view.rerender(tree(next))
+    },
   }
 }

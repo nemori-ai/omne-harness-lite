@@ -37,7 +37,7 @@ export function Disclosure({
     <div
       data-slot="collapsible"
       data-state={state}
-      className={cn('pe-disclosure', className)}
+      className={cn('omne-disclosure', className)}
       {...rest}
     >
       <DisclosureTrigger
@@ -53,7 +53,7 @@ export function Disclosure({
           <div
             data-slot="collapsible-content"
             data-state={state}
-            className={cn('pe-disclosure-content', contentClassName)}
+            className={cn('omne-disclosure-content', contentClassName)}
           >
             {children}
           </div>
@@ -91,7 +91,7 @@ export function DisclosureTrigger({
       data-size={size}
       aria-expanded={open}
       aria-controls={controls}
-      className={cn('pe-disclosure-trigger', className)}
+      className={cn('omne-disclosure-trigger', className)}
       onClick={onToggle}
     >
       <DisclosureIcon aria-hidden="true" />

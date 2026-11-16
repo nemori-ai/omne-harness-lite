@@ -103,6 +103,7 @@ export type ToolAdmission =
     }>
   | Readonly<{ kind: 'asked'; action: Action; card: DecisionCardDraft; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
+  | Readonly<{ kind: 'refused'; owner: string; diagnostic: string }>
 
 export type HandBack = Readonly<{ card: DurableEvidence; answer: CardAnswer | CardRemark }>
 
@@ -112,9 +113,10 @@ const judged = (action: Action): Outcome<ToolAdmission, Failure> =>
 const unavailableAdmission = (owner: string, diagnostic: string): Outcome<ToolAdmission, Failure> =>
   succeed({ kind: 'unavailable', owner, diagnostic })
 
-function asUnavailable(owner: string, failure: Failure): Outcome<ToolAdmission, Failure> {
+function notAnswered(owner: string, failure: Failure): Outcome<ToolAdmission, Failure> {
   if (failure.kind === 'unavailable') return unavailableAdmission(failure.owner, failure.diagnostic)
-  if (failure.kind === 'denied') return unavailableAdmission(owner, `denied ${failure.action}`)
+  if (failure.kind === 'denied')
+    return succeed({ kind: 'refused', owner, diagnostic: `denied ${failure.action}` })
   return fail(failure)
 }
 
@@ -130,6 +132,12 @@ function notAllowed(
     })
   if (decision.kind === 'unavailable')
     return unavailableAdmission('agentActionAdmission', decision.diagnostic)
+  if (decision.kind === 'undecidable')
+    return succeed({
+      kind: 'refused',
+      owner: 'agentActionAdmission',
+      diagnostic: decision.diagnostic,
+    })
   return succeed({ kind: 'asked', action, card: decision.card, evidence: decision.evidence })
 }
 
@@ -146,7 +154,11 @@ export async function admitToolAction<P>(
   if (original.callId !== action.original.callId)
     return fail({ kind: 'invalid', field: 'original', reason: 'not the tool call of the action' })
   if (ports.toolRequests === undefined)
-    return unavailableAdmission('agentToolRequests', 'trusted Tool request source is unavailable')
+    return succeed({
+      kind: 'refused',
+      owner: 'agentToolRequests',
+      diagnostic: 'trusted Tool request source is not assembled',
+    })
   const input = {
     ...access,
     execution,
@@ -156,7 +168,7 @@ export async function admitToolAction<P>(
     consumer: toolConsumer(execution, action),
   }
   const described = await ports.toolRequests.describe(input)
-  if ('failure' in described) return asUnavailable('agentToolRequests', described.failure)
+  if ('failure' in described) return notAnswered('agentToolRequests', described.failure)
   if (described.ok.kind === 'answered')
     return answered(ports, access, execution, action, described.ok.text)
   const { definition } = described.ok
@@ -168,14 +180,14 @@ export async function admitToolAction<P>(
     permissions: [],
     decision: handBack,
   })
-  if ('failure' in admitted) return asUnavailable('agentActionAdmission', admitted.failure)
+  if ('failure' in admitted) return notAnswered('agentActionAdmission', admitted.failure)
   if (admitted.ok.kind !== 'allow') return notAllowed(action, admitted.ok)
   const prepared = await ports.toolRequests.prepare({
     ...input,
     definition,
     admission: admitted.ok.evidence,
   })
-  if ('failure' in prepared) return asUnavailable('agentToolRequests', prepared.failure)
+  if ('failure' in prepared) return notAnswered('agentToolRequests', prepared.failure)
   const request = checkedRequest(prepared.ok, definition, input.consumer, action, original)
   if ('failure' in request) return request
   return succeed({ kind: 'allowed', action, evidence: admitted.ok.evidence, request: request.ok })
@@ -241,16 +253,17 @@ export function deniedUnchecked(
   )
 }
 
-export function deniedForUnavailableAdmission(
+export function deniedForRefusedAdmission(
   execution: AgentExecutionId,
   batch: ActionBatch,
-  cause: Extract<ToolAdmission, { kind: 'unavailable' }>,
-  actions: readonly Action[],
+  cause: Extract<ToolAdmission, { kind: 'refused' }>,
+  judged: readonly Readonly<{ action: Action }>[],
 ): readonly Action[] {
   const evidence = agentEvidence(uncheckedRecord(execution, batch), {
     owner: cause.owner,
     diagnostic: cause.diagnostic,
   })
+  const actions = [...judged.map(answer => answer.action), ...batch.actions.slice(judged.length)]
   return actions.map(action =>
     action.judgment.kind === 'denied'
       ? action
@@ -442,7 +455,7 @@ export function uncheckedCandidate(execution: AgentExecutionId, action: Action):
       kind: 'text',
       id: `${action.id}/denied` as BlockId,
       visibility: VISIBLE,
-      text: 'The tool call did not run: its permission could not be checked, because the permission basis was unavailable at that moment. No rule and no person refused it. The same call may run when it is made again.',
+      text: 'The tool call did not run: its permission could not be decided in this deployment. No rule and no person refused it. Making the same call again will not change this.',
     },
   ])
 }

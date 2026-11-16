@@ -23,10 +23,10 @@ export const FACT_TONE: Record<Fact, Tone> = {
 
 export const TONE_SURFACE: Record<Tone, string> = {
   neutral: 'bg-hover text-ink-muted shadow-hairline',
-  info: 'pe-tone pe-tone-info bg-info-fill text-info-ink',
-  good: 'pe-tone pe-tone-good bg-good-fill text-good-ink',
-  caution: 'pe-tone pe-tone-caution bg-caution-fill text-caution-ink',
-  danger: 'pe-tone pe-tone-danger bg-danger-fill text-danger-ink',
+  info: 'omne-tone omne-tone-info bg-info-fill text-info-ink',
+  good: 'omne-tone omne-tone-good bg-good-fill text-good-ink',
+  caution: 'omne-tone omne-tone-caution bg-caution-fill text-caution-ink',
+  danger: 'omne-tone omne-tone-danger bg-danger-fill text-danger-ink',
 }
 
 export const TONE_INK: Record<Tone, string> = {

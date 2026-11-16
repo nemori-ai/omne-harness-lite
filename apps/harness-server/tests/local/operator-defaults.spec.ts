@@ -113,6 +113,18 @@ describe('localOperatorLayer over the bundled distribution', () => {
     expect(WAIT_RESPONSE_MAX_BYTES).toBeLessThanOrEqual(commandBytes / 2)
   })
 
+  it('lets a read wait as long as a caller watches a sent write, and never less than a read may run', () => {
+    const storage = z
+      .object({
+        lockWaitMs: z.number(),
+        readQueueTimeoutMs: z.number(),
+        readObservationMs: z.number(),
+      })
+      .parse(configOf(layer, 'storage'))
+    expect(storage.readQueueTimeoutMs).toBe(2 * storage.lockWaitMs)
+    expect(storage.readQueueTimeoutMs).toBeGreaterThanOrEqual(storage.readObservationMs)
+  })
+
   it('names only the vault path for the secret custody, and no secret anywhere', () => {
     expect(configOf(layer, 'model-credential')).toBeUndefined()
     expect(configOf(layer, 'secret-custody')).toEqual({ path: '/h/state/model-vault.json' })

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The access plugin of human-intervention/v1: the handlers of the four card operations over the human intervention faces",
+  "description": "The access plugin of human-intervention/v1: the handlers of the four card operations over the human intervention faces, and the frame source of the card change observation",
   "engines": {
     "node": ">=24"
   },

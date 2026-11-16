@@ -20,7 +20,7 @@ const travelling = (root: Element | null, on: boolean): void => {
       node instanceof HTMLElement && node.dataset['objectPart'] !== undefined,
   )
   for (const part of parts) {
-    part.style.viewTransitionName = on ? `pe-object-${part.dataset['objectPart']}` : ''
+    part.style.viewTransitionName = on ? `omne-object-${part.dataset['objectPart']}` : ''
   }
 }
 

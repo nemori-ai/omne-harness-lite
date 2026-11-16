@@ -5,6 +5,8 @@
 }
 
 .hitl-cards {
+  display: grid;
+  gap: var(--omne-space-block);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -13,48 +15,64 @@
 .hitl-card {
   display: grid;
   gap: var(--omne-space-inline);
-  padding-block: var(--omne-space-block);
-  border-top: 1px solid var(--omne-line-subtle);
-}
-
-.hitl-card:first-child {
-  border-top: 0;
+  width: 100%;
+  max-width: var(--omne-measure-decision);
+  min-width: 0;
+  padding: var(--omne-space-block);
+  border-radius: var(--omne-radius-card);
+  background: var(--omne-surface-overlay);
+  box-shadow: var(--omne-elevation-hairline);
+  color: var(--omne-ink-primary);
+  line-height: var(--omne-leading-reading);
 }
 
 .hitl-card-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: var(--omne-space-inline);
+  min-width: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-wrapped);
+}
+
+.hitl-card-kind {
+  font-weight: var(--omne-weight-strong);
+}
+
+.hitl-card-origin {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
 }
 
 .hitl-card-title {
   margin: 0;
   color: var(--omne-ink-primary);
   font-size: var(--omne-text-ui);
-  font-weight: 500;
+  font-weight: var(--omne-weight-strong);
+  line-height: var(--omne-leading-wrapped);
+  overflow-wrap: anywhere;
 }
 
 .hitl-card-text,
 .hitl-card-context {
   margin: 0;
   color: var(--omne-ink-muted);
-  line-height: var(--omne-leading-wrapped);
+  line-height: var(--omne-leading-reading);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .hitl-card-context {
   font-size: var(--omne-text-caption);
 }
 
-.hitl-card-answer,
 .hitl-card-choices {
   display: grid;
   gap: var(--omne-space-inline);
   min-width: 0;
-}
-
-.hitl-card-choices {
   margin: 0;
   padding: 0;
   border: 0;
@@ -62,7 +80,7 @@
 
 .hitl-card-choices legend {
   padding: 0;
-  color: var(--omne-ink-muted);
+  color: var(--omne-ink-faint);
   font-size: var(--omne-text-caption);
 }
 
@@ -71,15 +89,88 @@
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   column-gap: var(--omne-space-inline);
+  min-height: var(--omne-control-height);
+  padding-inline: var(--omne-space-inline);
+  border-radius: var(--omne-radius-control);
+  color: var(--omne-ink-muted);
+  cursor: pointer;
+  transition: background-color var(--omne-motion-feedback) var(--omne-motion-ease);
+}
+
+.hitl-card-choice:hover {
+  background-color: var(--omne-hover);
+}
+
+.hitl-card-choice[data-state='checked'] {
+  color: var(--omne-ink-primary);
+  font-weight: var(--omne-weight-strong);
+}
+
+.hitl-card-choice-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .hitl-card-choice-text {
   grid-column: 2;
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
+  font-weight: var(--omne-weight-regular);
+  overflow-wrap: anywhere;
 }
 
-.hitl-card-actions {
+.hitl-card-choices:disabled .hitl-card-choice {
+  cursor: not-allowed;
+}
+
+.hitl-card-foot {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--omne-space-inline);
+  min-width: 0;
+}
+
+.hitl-card-submit {
+  margin-left: auto;
+}
+
+.hitl-card[data-state='refused'] .hitl-card-foot,
+.hitl-card[data-state='unknown'] .hitl-card-foot {
+  align-items: flex-start;
+}
+
+.hitl-session-cards {
+  display: grid;
+  gap: var(--omne-space-inline);
+  width: 100%;
+  max-width: var(--omne-measure-decision);
+  min-width: 0;
+}
+
+.hitl-session-cards-title {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  font-weight: var(--omne-weight-strong);
+}
+
+.hitl-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--omne-chip-height);
+  height: var(--omne-chip-height);
+  padding-inline: var(--omne-space-inline);
+  border-radius: var(--omne-radius-pill);
+  background: var(--omne-accent);
+  color: var(--omne-accent-ink);
+  font-size: var(--omne-text-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hitl-card-choice {
+    transition: none;
+  }
 }

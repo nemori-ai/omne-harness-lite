@@ -326,9 +326,9 @@ it('EntityChip is a link, a button or plain by what it is given, and removes on 
 
 it('Shimmer marks itself only while active', () => {
   const { rerender } = render(<Shimmer active>想一想</Shimmer>)
-  expect(screen.getByText('想一想').className).toContain('pe-shimmer')
+  expect(screen.getByText('想一想').className).toContain('omne-shimmer')
   rerender(<Shimmer active={false}>想一想</Shimmer>)
-  expect(screen.getByText('想一想').className).not.toContain('pe-shimmer')
+  expect(screen.getByText('想一想').className).not.toContain('omne-shimmer')
 })
 
 it('Trace header folds its rows and each row tells its status', () => {

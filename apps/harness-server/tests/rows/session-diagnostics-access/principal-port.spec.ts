@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { inProcessPrincipalAuthority, type ActingForTenantPrincipal } from '@omne-harness/identity'
-import { createAccessIdentity } from '@omne-harness/identity-access'
+import {
+  DEFAULT_TEAM_MODEL,
+  DEFAULT_TEAM_ROLES,
+  inProcessPrincipalAuthority,
+  type ActingForTenantPrincipal,
+  type TenantStandingReading,
+  type TenantStandingSource,
+} from '@omne-harness/identity'
+import { createAccessIdentity, createMemberActing } from '@omne-harness/identity-access'
 import {
   adjustableInvitationTerms,
   adjustableLoginTerms,
@@ -14,6 +21,25 @@ function duration(text: string) {
   const parsed = parseDuration(text)
   if (!parsed.ok) throw new Error(`fixture duration ${text} did not parse`)
   return parsed.value
+}
+
+type Standing = 'member' | 'not-member' | 'unavailable'
+
+function standingDouble(answer: () => Standing): Pick<TenantStandingSource, 'read'> {
+  const evidence = { record: 'fixture-record', revision: '1' }
+  return {
+    async read(): Promise<TenantStandingReading> {
+      const next = answer()
+      if (next === 'unavailable') return { kind: 'unavailable', diagnostic: 'fixture' }
+      if (next === 'not-member') return { kind: 'not-member', evidence }
+      return {
+        kind: 'member',
+        role: { model: DEFAULT_TEAM_MODEL, role: DEFAULT_TEAM_ROLES.member },
+        qualifications: [],
+        evidence,
+      }
+    },
+  }
 }
 
 function world() {
@@ -31,15 +57,28 @@ function world() {
     }).source,
   })
   const authority = inProcessPrincipalAuthority()
+  let standing: Standing = 'member'
   const access = createAccessIdentity({
     operations: identity.operations,
     governance: identity.governance,
     issuer: authority.issuer,
   })
-  return { identity, access }
+  return {
+    identity,
+    access,
+    actingFor: createMemberActing({
+      identity: access,
+      standing: standingDouble(() => standing),
+    }),
+    answer(next: Standing) {
+      standing = next
+    },
+  }
 }
 
-async function signIn(operations: ReturnType<typeof world>['identity']['operations']) {
+type World = ReturnType<typeof world>
+
+async function signIn(operations: World['identity']['operations']) {
   const issued = await operations.issueLogin({ loginIdentifier: 'alice', credential: 'secret' })
   if (issued.kind !== 'succeeded') throw new Error('fixture login failed')
   const encoded = tenantCodec.encode(issued.tenant)
@@ -47,9 +86,22 @@ async function signIn(operations: ReturnType<typeof world>['identity']['operatio
   return { proof: issued.loginProof, tenantText: encoded.value }
 }
 
+async function signedUp() {
+  const w = world()
+  const registered = await w.identity.operations.registerAndActivate({
+    loginIdentifier: 'alice',
+    credential: 'secret',
+  })
+  if (registered.kind !== 'succeeded') throw new Error('fixture registration failed')
+  const signed = await signIn(w.identity.operations)
+  const identified = await w.access.identifyLogin(signed.proof)
+  if (identified.outcome !== 'identified') throw new Error('the login is not identified')
+  return { ...w, signed, login: identified.login }
+}
+
 describe('the principal port the diagnostics row hands to the plugin', () => {
   it('still issues for a login that was revoked after it was identified: it judges the account of the tenant, not the life of the login', async () => {
-    const { identity, access } = world()
+    const { identity, access, actingFor } = world()
     const registered = await identity.operations.registerAndActivate({
       loginIdentifier: 'alice',
       credential: 'secret',
@@ -69,9 +121,30 @@ describe('the principal port the diagnostics row hands to the plugin', () => {
     ).toEqual({ kind: 'succeeded' })
     expect(await access.identifyLogin(sending.proof)).toEqual({ outcome: 'denied' })
 
-    const issued = await access.actFor(identified.login, sending.tenantText)
+    const issued = await actingFor(identified.login, sending.tenantText)
     expect(issued.outcome).toBe('issued')
     if (issued.outcome !== 'issued') return
     expect((issued.principal as unknown as ActingForTenantPrincipal).kind).toBe('acting-for-tenant')
+  })
+
+  it('does not issue for a tenant whose standing says not a member, and does not answer for one it cannot read', async () => {
+    const { actingFor, answer, login, signed } = await signedUp()
+
+    answer('not-member')
+    expect(await actingFor(login, signed.tenantText)).toEqual({ outcome: 'denied' })
+
+    answer('unavailable')
+    expect(await actingFor(login, signed.tenantText)).toEqual({ outcome: 'basis-unavailable' })
+  })
+
+  it('issues for the own tenant while the standing says member', async () => {
+    const { actingFor, answer, login, signed } = await signedUp()
+    answer('member')
+
+    const own = await actingFor(login, signed.tenantText)
+
+    expect(own.outcome).toBe('issued')
+    if (own.outcome !== 'issued') return
+    expect((own.principal as unknown as ActingForTenantPrincipal).kind).toBe('acting-for-tenant')
   })
 })

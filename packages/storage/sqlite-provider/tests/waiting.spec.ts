@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { WaitingQueue, type Acquired, type Fit, type Resource } from '../src/waiting.ts'
+import { advance } from './gate.ts'
 
 type Need = Readonly<{ domain: string; bytes: number }>
 
@@ -116,6 +117,10 @@ describe('WaitingQueue', () => {
     await w.arrive('a', 'd1', 1)
     const expired = w.arrive('c', 'd2', 2, 20)
     void w.arrive('d', 'd3', 1)
+    advance(19)
+    await settle()
+    expect(w.outcomes.get('c')).toBeUndefined()
+    advance(1)
     expect((await expired).kind).toBe('expired')
     await settle()
     expect(w.outcomes.get('d')).toBe('granted')
@@ -143,24 +148,19 @@ describe('WaitingQueue', () => {
   })
 
   it('a waiter that is granted leaves no timer and no abort listener behind', async () => {
-    vi.useFakeTimers()
-    try {
-      const w = world()
-      await w.arrive('a', 'd1')
-      await w.arrive('b', 'd2')
-      const abort = new AbortController()
-      const removed = vi.spyOn(abort.signal, 'removeEventListener')
-      void w.arrive('c', 'd3', 1, 10_000, abort.signal)
-      await Promise.resolve()
-      expect(vi.getTimerCount()).toBe(1)
-      w.release('a')
-      await Promise.resolve()
-      expect(w.outcomes.get('c')).toBe('granted')
-      expect(vi.getTimerCount()).toBe(0)
-      expect(removed).toHaveBeenCalledWith('abort', expect.any(Function))
-    } finally {
-      vi.useRealTimers()
-    }
+    const w = world()
+    await w.arrive('a', 'd1')
+    await w.arrive('b', 'd2')
+    const abort = new AbortController()
+    const removed = vi.spyOn(abort.signal, 'removeEventListener')
+    void w.arrive('c', 'd3', 1, 10_000, abort.signal)
+    await Promise.resolve()
+    expect(vi.getTimerCount()).toBe(1)
+    w.release('a')
+    await Promise.resolve()
+    expect(w.outcomes.get('c')).toBe('granted')
+    expect(vi.getTimerCount()).toBe(0)
+    expect(removed).toHaveBeenCalledWith('abort', expect.any(Function))
   })
 
   it('an abort before the call is aborted, nothing taken', async () => {

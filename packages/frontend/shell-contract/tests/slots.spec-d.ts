@@ -1,6 +1,8 @@
 import { expectTypeOf, test } from 'vitest'
 import type { ReactNode } from 'react'
 import type {
+  AttachedItem,
+  AttachedProps,
   GateItem,
   GateProps,
   ItemOf,
@@ -15,10 +17,20 @@ import type {
 import { ShellService, defineUiModule } from '@omne-harness/shell-contract/cordis'
 
 test('each slot takes its own item', () => {
-  expectTypeOf<SlotName>().toEqualTypeOf<'gate' | 'pages' | 'sidebar'>()
+  expectTypeOf<SlotName>().toEqualTypeOf<'gate' | 'pages' | 'sidebar' | 'attached'>()
   expectTypeOf<ItemOf<'gate'>>().toEqualTypeOf<GateItem>()
   expectTypeOf<ItemOf<'pages'>>().toEqualTypeOf<PageItem>()
   expectTypeOf<ItemOf<'sidebar'>>().toEqualTypeOf<SidebarItem>()
+  expectTypeOf<ItemOf<'attached'>>().toEqualTypeOf<AttachedItem>()
+  expectTypeOf<AttachedItem>().toEqualTypeOf<
+    Readonly<{
+      id: string
+      order: number
+      anchor: string
+      render: (props: AttachedProps) => ReactNode
+    }>
+  >()
+  expectTypeOf<PageItem['badge']>().toEqualTypeOf<((props: ScopedProps) => ReactNode) | undefined>()
   expectTypeOf<GateItem>().toEqualTypeOf<
     Readonly<{ id: string; render: (props: GateProps) => ReactNode }>
   >()
@@ -28,6 +40,7 @@ test('each slot takes its own item', () => {
       title: string
       order: number
       icon?: string
+      badge?: (props: ScopedProps) => ReactNode
       render: (props: ScopedProps) => ReactNode
     }>
   >()
@@ -39,6 +52,9 @@ test('each slot takes its own item', () => {
 test('the render properties: the gate gets no tenant, the others get the tenant text', () => {
   expectTypeOf<keyof GateProps>().toBeNever()
   expectTypeOf<ScopedProps>().toEqualTypeOf<Readonly<{ scope: string | undefined }>>()
+  expectTypeOf<AttachedProps>().toEqualTypeOf<
+    Readonly<{ scope: string | undefined; subject: string }>
+  >()
 })
 
 test('contribute refuses an item that belongs to another slot', () => {
@@ -47,17 +63,23 @@ test('contribute refuses an item that belongs to another slot', () => {
   shell.contribute('gate', { id: 'g', render })
   shell.contribute('pages', { id: 'p', title: 'P', order: 0, render })
   shell.contribute('sidebar', { id: 's', order: 0, render })
+  shell.contribute('attached', { id: 'a', order: 0, anchor: 'x', render })
+  // @ts-expect-error an attached item needs an anchor
+  shell.contribute('attached', { id: 'a', order: 0, render })
   // @ts-expect-error a gate item has no title and order
   shell.contribute('pages', { id: 'g', render })
   // @ts-expect-error a page item does not belong in the gate
   shell.contribute('gate', { id: 'p', title: 'P', order: 0, render })
-  // @ts-expect-error there is no fourth slot
+  // @ts-expect-error there is no fifth slot
   shell.contribute('footer', { id: 'f', render })
 })
 
 test('the slots reader and the service members', () => {
   expectTypeOf<ShellSlots['items']>().toBeCallableWith('pages')
   expectTypeOf<ShellService['navigate']>().toEqualTypeOf<(pageId: string) => void>()
+  expectTypeOf<ShellService['attached']>().toEqualTypeOf<
+    (anchor: string, subject: string) => ReactNode
+  >()
   expectTypeOf<ShellService['scope']['get']>().toEqualTypeOf<() => string | undefined>()
   expectTypeOf<ShellService['login']['logout']>().returns.resolves.toEqualTypeOf<
     'signed-out' | 'unknown'

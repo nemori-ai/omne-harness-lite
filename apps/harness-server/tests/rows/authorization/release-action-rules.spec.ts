@@ -83,11 +83,11 @@ describe('release action rules', () => {
     expect(await admit('Files')).toMatchObject({ ok: { kind: 'unavailable' } })
     expect(await admit('Shell')).toMatchObject({ ok: { kind: 'unavailable' } })
   })
-  it('allows Shell and Files with current permission and keeps every other tool unavailable', async () => {
+  it('allows Shell and Files with current permission and keeps every other tool undecidable', async () => {
     const admit = admissionFor(configOf(undefined))
     expect(await admit('Files')).toMatchObject({ ok: { kind: 'allow' } })
     expect(await admit('Shell')).toMatchObject({ ok: { kind: 'allow' } })
-    expect(await admit('Other')).toMatchObject({ ok: { kind: 'unavailable' } })
+    expect(await admit('Other')).toMatchObject({ ok: { kind: 'undecidable' } })
   })
 
   it('matches a multi-command call by its tool: the release rules cover every command of Shell and Files', async () => {
@@ -99,7 +99,7 @@ describe('release action rules', () => {
     expect(await admit('Files.read')).toMatchObject({
       ok: { kind: 'allow', evidence: { record: 'action-current-permission' } },
     })
-    expect(await admit('Other.run')).toMatchObject({ ok: { kind: 'unavailable' } })
+    expect(await admit('Other.run')).toMatchObject({ ok: { kind: 'undecidable' } })
   })
 
   it('a deny on Shell stops Shell.run: naming one command does not pass the rule of its tool', async () => {

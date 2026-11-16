@@ -2,11 +2,12 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { stillPending } from './gate.ts'
 import {
   buildReadMaterials,
   closeProviders,
   commitOf,
-  delay,
+  heldRead,
   readRequest,
   readyProvider,
   summary,
@@ -51,10 +52,10 @@ describe('snapshot read (C09)', () => {
 
   it('gives both SELECT statements of one read the same state while a commit lands between them', async () => {
     const { storage } = await readyProvider(workspace, built, {}, 1)
-    const reading = storage.read(readRequest('page', { sleepMs: 600 }))
-    await delay(250)
+    const reading = await heldRead(storage, workspace, 'page')
     expect((await storage.commit(commitOf(built, 'between'))).kind).toBe('committed')
-    expect(await reading).toMatchObject({ kind: 'read', output: { a: '1', b: '1' } })
+    reading.gate.open()
+    expect(await reading.result).toMatchObject({ kind: 'read', output: { a: '1', b: '1' } })
     expect(await storage.read(readRequest('page'))).toMatchObject({ output: { a: '2', b: '2' } })
   })
 
@@ -176,17 +177,12 @@ describe('limits and handler failures', () => {
       maxReadResultBytes: 4096,
       globalReadResultBytes: 4096,
     })
-    const ended: string[] = []
-    const first = storage.read(readRequest('slow', { ms: 300 })).then(result => {
-      ended.push('first')
-      return summary(result)
-    })
-    await delay(50)
-    const second = await storage.read(readRequest('page'))
-    ended.push('second')
-    expect(summary(second)).toBe('read')
-    expect(await first).toBe('read')
-    expect(ended).toEqual(['first', 'second'])
+    const first = await heldRead(storage, workspace)
+    const second = storage.read(readRequest('page'))
+    await stillPending(second)
+    first.gate.open()
+    expect(summary(await second)).toBe('read')
+    expect(summary(await first.result)).toBe('read')
   })
 
   it('returns queue_full when the read queue of the domain and its waiting list are full', async () => {
@@ -195,14 +191,12 @@ describe('limits and handler failures', () => {
       readQueueGlobal: 4,
       maxReadWorkersPerDomain: 1,
     })
-    const held = [
-      storage.read(readRequest('slow', { ms: 300 })),
-      storage.read(readRequest('slow', { ms: 10 })),
-    ]
-    await delay(50)
+    const running = await heldRead(storage, workspace)
+    const queued = storage.read(readRequest('held'))
     const waiting = [storage.read(readRequest('page')), storage.read(readRequest('page'))]
     expect(summary(await storage.read(readRequest('page')))).toBe('unavailable/queue_full')
-    expect((await Promise.all([...held, ...waiting])).map(summary)).toEqual([
+    running.gate.open()
+    expect((await Promise.all([running.result, queued, ...waiting])).map(summary)).toEqual([
       'read',
       'read',
       'read',

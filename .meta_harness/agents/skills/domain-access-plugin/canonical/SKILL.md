@@ -39,8 +39,8 @@ description: >
 
 样例照着读，不照着抄形状以外的东西：
 
-- 最小的一套（四个操作，没有观察）：`packages/human-intervention/human-intervention-protocol`、`human-intervention-access`，行在 `apps/harness-server/src/rows/human-intervention-access/`。
-- 带观察的：`packages/session/session-protocol`、`session-access`。
+- 最小的一套（一个操作，没有观察）：`packages/session/session-diagnostics-protocol`、`session-diagnostics-access`，行在 `apps/harness-server/src/rows/session-diagnostics-access/`。
+- 带观察的：`packages/session/session-protocol`、`session-access`（帧带内容，断了能接续）；`packages/human-intervention/human-intervention-protocol`、`human-intervention-access` 的 `observe-cards`（帧只说「可能变了」，客户端收到就重读）。
 - 带界面模块的：`packages/assets/assets-protocol`、`assets-access`、`assets-ui`。
 
 ## 次序
@@ -57,7 +57,7 @@ description: >
 
 处理函数的次序是固定的，每一步答什么也是固定的：
 
-1. 核这次登录可以为目标租户行事。登录对插件不透明，读不出账号：插件声明一个端口，由应用的行用身份的 `actFor` 适配。拒绝答 `denied`，依据取不到答 `basis-unavailable`。
+1. 核这次登录可以为目标租户行事。登录对插件不透明，读不出账号：插件声明一个端口，由应用的行用身份的 `createMemberActing` 适配，它在账号对得上之外还核成员资格当前有效。拒绝答 `denied`，依据取不到答 `basis-unavailable`。
 2. 取为这个租户行事的主体。主体每次调用现取，不缓存。
 3. 取领域的面。面按调用现取；取不到答 `basis-unavailable`，协议不撤下。
 4. 调领域的公开入口，把领域的结果映射成协议的结果。领域抛出时：读操作答 `basis-unavailable`，提交操作答 `unknown`。不把抛出写成成功或失败。

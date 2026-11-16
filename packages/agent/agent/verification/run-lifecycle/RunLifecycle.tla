@@ -30,6 +30,7 @@ CONSTANTS
   MaxRunSteps,         \* the configured step limit (factory `maxRunSteps`)
   MaxActions,          \* tool calls one reply may carry: 1 or 2
   MaxCrashes, MaxRefuse, MaxRejects, MaxTicks, MaxUnknown,
+  MaxAdmUnavailable,   \* times the admission may answer unavailable before it answers
   CBase, CAct,         \* commits per step: base, and per action
   DispatchBeforeIntent,\* bug: dispatch first, save the intent in a later commit
   RetryRedispatch,     \* bug: an unknown admit is retried under a fresh identity
@@ -38,7 +39,7 @@ CONSTANTS
   FailTerminates,      \* TRUE: ought (node failure ends the run); FALSE: is (R2-D285)
   NoWakeOnReceive,     \* bug: the received commit does not wake the waiting drive
   DropOnAbsent,        \* bug: a push without a registered receiver drops the result
-  StallOnUnavailable,  \* bug: an unavailable admission leaves the batch at A0
+  StallOnUnavailable,  \* bug: an unavailable admission is never asked again, the batch stays at A0
   ReleaseOnUnavailable,\* bug: actions allowed earlier are released although a later one is unavailable
   CommitOnIdleWake     \* bug: every wake without progress commits the wait again
 
@@ -103,7 +104,7 @@ TakeInputs ==
   /\ Ready /\ d.node = "I0" /\ d.step < MaxSteps
   /\ \/ /\ d' = [d EXCEPT !.node = "M0", !.ckpt = "M0", !.step = @ + 1, !.reply = "none",
                           !.actions = 0, !.barrier = "none", !.admUnavail = FALSE,
-                          !.commits = 1, !.waitSaved = FALSE]
+                          !.admWaited = FALSE, !.commits = 1, !.waitSaved = FALSE]
         /\ m' = NoModel /\ acts' = NoActs
         /\ w' = [w EXCEPT !.asleep = FALSE, !.woken = FALSE]
         /\ UNCHANGED <<env, run>>
@@ -219,27 +220,37 @@ Actions ==
           /\ UNCHANGED <<m, acts, w, env, run>>
      \/ Refuse /\ UNCHANGED <<m, acts, w>>
 
-(* A0/A1: judge the batch. An unavailable admission denies the whole batch (SPEC rule 2,
-   R2-D266); the denial messages are published with the barrier. *)
+(* A0/A1: judge the batch. An admission that is unavailable for now is a dependency wait,
+   like the Model at M6: nothing is judged, no intent is saved, nothing is invoked. The wait
+   is saved once and the same batch is asked again at the next check. A port that refuses
+   the Agent denies the whole batch; the denial messages are published with the barrier. *)
 Admission ==
   /\ Ready /\ d.node = "A0"
-  /\ \/ \E adm \in [1..d.actions -> {"allowed", "denied", "unavailable"}] :
+  /\ \/ \E adm \in [1..d.actions -> {"allowed", "denied", "unavailable", "refused"}] :
           LET unav == \E i \in 1..d.actions : adm[i] = "unavailable"
-              denyAll == (unav /\ ~ReleaseOnUnavailable)
-                         \/ ~(\E i \in 1..d.actions : adm[i] = "allowed")
+              refused == \E i \in 1..d.actions : adm[i] = "refused"
+              denyAll == refused \/ ~(\E i \in 1..d.actions : adm[i] = "allowed")
               Final(i) == IF i > d.actions THEN NoAct
                           ELSE IF denyAll \/ adm[i] /= "allowed"
                             THEN [NoAct EXCEPT !.adm = "denied", !.msg = TRUE]
                           ELSE [NoAct EXCEPT !.adm = "allowed"]
-          IN /\ acts' = [i \in Acts |-> Final(i)]
-             /\ IF unav /\ StallOnUnavailable
-                  THEN d' = [d EXCEPT !.stalled = TRUE, !.admUnavail = TRUE]
-                  ELSE d' = [d EXCEPT !.admUnavail = unav,
+          IN IF unav /\ ~ReleaseOnUnavailable
+               THEN /\ env.admUnav < MaxAdmUnavailable
+                    /\ env' = [env EXCEPT !.admUnav = @ + 1]
+                    /\ d' = IF StallOnUnavailable
+                              THEN [d EXCEPT !.stalled = TRUE, !.admUnavail = TRUE]
+                            ELSE IF ~d.waitSaved \/ CommitOnIdleWake
+                              THEN [d EXCEPT !.admUnavail = TRUE, !.commits = @ + 1,
+                                             !.waitSaved = TRUE, !.admWaited = TRUE]
+                            ELSE [d EXCEPT !.admUnavail = TRUE]
+                    /\ UNCHANGED <<m, acts, w, run>>
+               ELSE /\ acts' = [i \in Acts |-> Final(i)]
+                    /\ d' = [d EXCEPT !.admUnavail = unav,
                                       !.barrier = IF denyAll THEN "all-denied" ELSE "open",
                                       !.node = IF denyAll THEN "I8" ELSE "A2",
                                       !.ckpt = IF denyAll THEN "I8" ELSE "A2",
-                                      !.commits = @ + 1]
-             /\ UNCHANGED <<m, w, env, run>>
+                                      !.commits = @ + 1, !.waitSaved = FALSE]
+                    /\ UNCHANGED <<m, w, env, run>>
      \/ Refuse /\ UNCHANGED <<m, acts, w>>
 
 (* A2 per action: save the Tool intent, then invoke under that identity, then save the
@@ -373,12 +384,13 @@ Recover ==
 
 Init ==
   /\ d = [node |-> "I0", ckpt |-> "I0", step |-> 0, requests |-> 0, reply |-> "none",
-          actions |-> 0, barrier |-> "none", admUnavail |-> FALSE, endReason |-> "none",
+          actions |-> 0, barrier |-> "none", admUnavail |-> FALSE, admWaited |-> FALSE,
+          endReason |-> "none",
           commits |-> 0, waitSaved |-> FALSE, stalled |-> FALSE]
   /\ m = NoModel /\ acts = NoActs
   /\ w = [asleep |-> FALSE, woken |-> FALSE, timerWakes |-> 0, ticks |-> 0]
   /\ env \in {[receiverUp |-> up, crashed |-> FALSE, crashes |-> 0, refusals |-> 0,
-               rejects |-> 0, unknowns |-> 0] : up \in BOOLEAN}
+               rejects |-> 0, unknowns |-> 0, admUnav |-> 0] : up \in BOOLEAN}
   /\ run = [slot |-> "running", stopped |-> FALSE, reported |-> 0]
 
 Drive ==
@@ -427,14 +439,18 @@ P3_ReportedOnce == run.reported <= 1
 P4_WakeOnReceive == (w.asleep /\ Readable) => w.woken
 P4_NoResultLost == m.res /= "lost" /\ \A i \in Acts : acts[i].res /= "lost"
 
-(* P5 an unavailable admission denies the whole batch: no intent, no invocation. *)
-P5_UnavailableDeniesBatch ==
+(* P5 an unavailable admission releases nothing: while the batch waits for it, no action
+   has a saved intent or an invocation. *)
+P5_UnavailableReleasesNothing ==
   d.admUnavail => \A i \in Acts : ~acts[i].intent /\ ~acts[i].sent
 
 (* P6 the commits of one step are bounded by a constant plus the actions, plus one attach
    per crash and one redone candidate per refused commit (with FailTerminates a refusal goes
-   back to F1). Waiting without progress adds nothing. *)
-P6_CommitsBounded == d.commits <= CBase + CAct * d.actions + env.crashes + env.refusals
+   back to F1), plus the one saved wait of a step whose admission was unavailable. Waiting
+   without progress adds nothing. *)
+P6_CommitsBounded ==
+  d.commits <= CBase + CAct * d.actions + env.crashes + env.refusals
+               + (IF d.admWaited THEN 1 ELSE 0)
 
 (* Liveness, under the fairness of `Live`. *)
 L1_RunEnds == <>(d.node = "ended")

@@ -7,14 +7,15 @@ import {
   type Provider,
   type Workspace,
 } from './support.ts'
+import { tick } from './gate.ts'
 import {
+  GROUPING,
   buildGroupMaterials,
   domainFile,
   groupRegistration,
   op,
   readRows,
   seqCommand,
-  sleep,
 } from './group-support.ts'
 
 let workspace: Workspace
@@ -36,7 +37,7 @@ async function ready(
   config: Record<string, number> = {},
   materials: Built = built,
 ): Promise<Provider> {
-  const provider = await createProvider(workspace, materials, { groupCollectMs: 150, ...config })
+  const provider = await createProvider(workspace, materials, { ...GROUPING, ...config })
   providers.push(provider)
   const result = await provider.storage.registerCombination(groupRegistration(materials))
   if (result.kind !== 'registered') throw new Error(`registration is ${result.kind}`)
@@ -154,7 +155,7 @@ describe('group boundaries (SPEC 7.3)', () => {
     const first = op(built, 'a', [seqCommand({ tag: 'a' })])
     const pendingFirst = storage.commit(first)
     const queried = storage.query(first.identity)
-    await sleep(40)
+    await tick()
     const second = await storage.commit(probeOp('p'))
     expect((await pendingFirst).kind).toBe('committed')
     expect((await queried).kind).toBe('committed')

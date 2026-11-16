@@ -1,6 +1,6 @@
 import type { LoginIdentity } from '@omne-harness/access-cordis-contract'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
-import { createAccessIdentity } from '@omne-harness/identity-access'
+import { createAccessIdentity, createMemberActing } from '@omne-harness/identity-access'
 import { describe, expect, it } from 'vitest'
 import { fixture, signIn, signUp, textOf, type Fixture } from './support.ts'
 
@@ -173,7 +173,11 @@ describe('createAccessIdentity', () => {
     const alice = await signUp(f.operations, 'alice')
     const { issueSystem, issueActingForTenant } = f.authority.issuer
     const withIssuer = (issuer: Parameters<typeof createAccessIdentity>[0]['issuer']) =>
-      createAccessIdentity({ operations: f.operations, governance: f.governance, issuer })
+      createAccessIdentity({
+        operations: f.operations,
+        governance: f.governance,
+        issuer,
+      })
     const noSystem = withIssuer({
       issueSystem: () => ({ failure: { field: 'component', reason: 'type' } }),
       issueActingForTenant,
@@ -210,5 +214,123 @@ describe('createAccessIdentity', () => {
       issuer: f.authority.issuer,
     })
     await expect(down.reportAccess(login)).rejects.toThrow()
+  })
+})
+
+describe('actFor issues for a tenant of the login account and leaves membership to the service the principal reaches', () => {
+  it('issues for a tenant the standing calls not a member, and never reads the standing', async () => {
+    const f = fixture()
+    const identity = port(f)
+    const alice = await signUp(f.operations, 'alice')
+    const login = await loginOf(identity, alice.proof)
+    f.standing.answer('not-member')
+
+    const acting = await identity.actFor(login, alice.tenantText)
+
+    expect(acting.outcome).toBe('issued')
+    expect(f.standing.asked).toEqual([])
+  })
+})
+
+describe('createMemberActing answers whether the login can act for a target tenant now', () => {
+  async function actingLogin(f: Fixture) {
+    const identity = port(f)
+    const member = createMemberActing({ identity, standing: f.standing.source })
+    const alice = await signUp(f.operations, 'alice')
+    return { identity, member, alice, login: await loginOf(identity, alice.proof) }
+  }
+
+  it('does not read the standing when the tenant is not of the login account or is not a tenant', async () => {
+    const f = fixture()
+    const { member, login } = await actingLogin(f)
+    const bob = await signUp(f.operations, 'bob')
+
+    expect(await member(login, bob.tenantText)).toEqual({ outcome: 'denied' })
+    expect(await member(login, 'not-a-tenant')).toEqual({ outcome: 'denied' })
+    expect(f.standing.asked).toEqual([])
+  })
+
+  it('answers basis-unavailable when reading the standing throws', async () => {
+    const f = fixture()
+    const { member, alice, login } = await actingLogin(f)
+    f.standing.answer('throws')
+
+    expect(await member(login, alice.tenantText)).toEqual({ outcome: 'basis-unavailable' })
+  })
+
+  it('answers basis-unavailable when the standing is unavailable', async () => {
+    const f = fixture()
+    const { member, alice, login } = await actingLogin(f)
+    f.standing.answer('unavailable')
+
+    expect(await member(login, alice.tenantText)).toEqual({ outcome: 'basis-unavailable' })
+  })
+
+  it('denies a tenant the login account is not a member of', async () => {
+    const f = fixture()
+    const { member, alice, login } = await actingLogin(f)
+    f.standing.answer('not-member')
+
+    expect(await member(login, alice.tenantText)).toEqual({ outcome: 'denied' })
+  })
+
+  it('answers what the port answers once the standing says member: basis-unavailable when it cannot issue', async () => {
+    const f = fixture()
+    const { alice, login } = await actingLogin(f)
+    const member = createMemberActing({
+      identity: { actFor: async () => ({ outcome: 'basis-unavailable' }) },
+      standing: f.standing.source,
+    })
+
+    expect(await member(login, alice.tenantText)).toEqual({ outcome: 'basis-unavailable' })
+  })
+
+  it('issues a verifiable principal for a member tenant, asking the standing about exactly that tenant', async () => {
+    const f = fixture()
+    const { member, alice, login } = await actingLogin(f)
+
+    const acting = await member(login, alice.tenantText)
+
+    expect(acting.outcome).toBe('issued')
+    expect(f.standing.asked.map(textOf)).toEqual([alice.tenantText])
+    if (acting.outcome !== 'issued') return
+    const principal = acting.principal as unknown as ActingForTenantPrincipal
+    expect(textOf(principal.tenant)).toBe(alice.tenantText)
+    expect(await f.authority.verifier.verify(principal)).toMatchObject({ kind: 'verified' })
+  })
+
+  it('reads the standing on every call: the answer follows it and nothing is cached', async () => {
+    const f = fixture()
+    const { member, alice, login } = await actingLogin(f)
+
+    expect((await member(login, alice.tenantText)).outcome).toBe('issued')
+    f.standing.answer('not-member')
+    expect(await member(login, alice.tenantText)).toEqual({ outcome: 'denied' })
+    f.standing.answer('member')
+    expect((await member(login, alice.tenantText)).outcome).toBe('issued')
+    expect(f.standing.asked).toHaveLength(3)
+  })
+
+  it('still issues for a login revoked after it was identified: whether a login is still valid belongs to the entry pipeline', async () => {
+    const f = fixture()
+    const identity = port(f)
+    const member = createMemberActing({ identity, standing: f.standing.source })
+    const alice = await signUp(f.operations, 'alice')
+    const sending = await signIn(f.operations, 'alice')
+    const login = await loginOf(identity, sending.proof)
+    const keeper = await f.operations.recognizeLogin({ loginProof: alice.proof })
+    const sender = await f.operations.recognizeLogin({ loginProof: sending.proof })
+    if (keeper.kind !== 'recognized' || sender.kind !== 'recognized')
+      throw new Error('fixture logins were not recognized')
+
+    expect(await f.governance.revokeLogin({ login: keeper.login, target: sender.login })).toEqual({
+      kind: 'succeeded',
+    })
+
+    const acting = await member(login, alice.tenantText)
+    expect(acting.outcome).toBe('issued')
+    if (acting.outcome !== 'issued') return
+    expect(await f.authority.verifier.verify(acting.principal)).toMatchObject({ kind: 'verified' })
+    expect(await identity.identifyLogin(sending.proof)).toEqual({ outcome: 'denied' })
   })
 })

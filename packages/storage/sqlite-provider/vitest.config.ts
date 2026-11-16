@@ -7,6 +7,7 @@ export default defineConfig(({ mode }) => {
     test: {
       ...tiers,
       include: ['tests/**/*.spec.ts'],
+      setupFiles: ['tests/setup.ts'],
       typecheck: {
         ...tiers.typecheck,
         enabled: true,

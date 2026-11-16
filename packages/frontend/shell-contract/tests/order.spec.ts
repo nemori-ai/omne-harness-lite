@@ -20,6 +20,23 @@ describe('a list slot', () => {
     expect(shell.items('sidebar').map(item => item.id)).toEqual(['first', 'a', 'b', 'z', 'c'])
   })
 
+  it('orders the attached slot by order, then by id, not by anchor', async () => {
+    const { root, shell } = await startShell()
+    const entries: [string, number, string][] = [
+      ['c', 2, 'x'],
+      ['b', 1, 'y'],
+      ['a', 1, 'z'],
+      ['first', 0, 'z'],
+    ]
+    for (const [id, order, anchor] of entries)
+      await root.plugin({
+        name: `p-${id}`,
+        inject: ['shell'],
+        apply: ctx => ctx.shell.contribute('attached', { id, order, anchor, render }),
+      })
+    expect(shell.items('attached').map(item => item.id)).toEqual(['first', 'a', 'b', 'c'])
+  })
+
   it('compares ids by code unit, not by locale', async () => {
     const { root, shell } = await startShell()
     for (const id of ['b', 'B', 'a'])

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The UI shell contract: the three UI slots, the shell service given to UI modules, and defineUiModule",
+  "description": "The UI shell contract: the UI slots, the shell service given to UI modules, and defineUiModule",
   "engines": {
     "node": ">=24"
   },

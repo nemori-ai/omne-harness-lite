@@ -3,7 +3,6 @@ import type { Principal } from '@omne-harness/access-cordis-contract'
 import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
 import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
-import { createAccessIdentity } from '@omne-harness/identity-access'
 import { modelDiagnosticsKey, modelRuntimeKey } from '@omne-harness/model-cordis-contract/cordis'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import type {
@@ -15,7 +14,7 @@ import { createSessionDiagnosticsAccessPlugin } from '@omne-harness/session-diag
 import { toolRuntimeKey, type ToolRuntimeService } from '@omne-harness/tool-cordis-contract/cordis'
 import { z } from 'zod'
 import { defineRow } from '../../row.ts'
-import { governanceOfCall, identityOfCall } from '../server-entry/identity.ts'
+import { memberActingOfCall } from '../server-entry/identity.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
 
@@ -41,14 +40,10 @@ export const sessionDiagnosticsAccessConfig = z
   })
 
 function diagnosticsPrincipals(ctx: Context): DiagnosticsPrincipals {
-  const identity = createAccessIdentity({
-    operations: identityOfCall(ctx),
-    governance: governanceOfCall(ctx),
-    issuer: ctx.principalIssuer,
-  })
+  const actForMember = memberActingOfCall(ctx)
   return {
     async actingFor(login, tenant) {
-      const issued = await identity.actFor(login, tenant)
+      const issued = await actForMember(login, tenant)
       return issued.outcome === 'issued' ? { ok: issued.principal } : { refused: issued.outcome }
     },
   }
