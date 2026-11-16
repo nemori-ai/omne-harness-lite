@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { WriteBarrier, type BarrierOutcome } from '../src/write-barrier.ts'
+import { advance } from './gate.ts'
 
 const DOMAIN = 'd'
 
 const flush = (): Promise<void> => new Promise(resolve => setImmediate(resolve))
-
-const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 type Tracked = Readonly<{
   outcome: Promise<BarrierOutcome>
@@ -22,12 +21,8 @@ function track(log: string[], name: string, pending: Promise<BarrierOutcome>): T
   return { outcome, release: () => granted?.() }
 }
 
-async function within(ms: number, outcome: Promise<BarrierOutcome>): Promise<string> {
-  const result = await Promise.race([
-    outcome.then(item => item.kind),
-    delay(ms).then(() => 'pending'),
-  ])
-  return result
+function stateOf(outcome: Promise<BarrierOutcome>): Promise<string> {
+  return Promise.race([outcome.then(item => item.kind), flush().then(() => 'pending')])
 }
 
 describe('one arrival order for writes and barriers', () => {
@@ -117,13 +112,16 @@ describe('bounded waits', () => {
     const b1 = track(log, 'b1', barrier.acquire(DOMAIN, {}))
     await flush()
     const write = track(log, 'w', barrier.enterWrite(DOMAIN, { timeoutMs: 20 }))
-    expect(await within(300, write.outcome)).toBe('withdrawn')
+    advance(19)
+    expect(await stateOf(write.outcome)).toBe('pending')
+    advance(1)
+    expect(await stateOf(write.outcome)).toBe('withdrawn')
     const b2 = track(log, 'b2', barrier.acquire(DOMAIN, {}))
     b1.release()
-    expect(await within(300, b2.outcome)).toBe('granted')
+    expect(await stateOf(b2.outcome)).toBe('granted')
     b2.release()
     const later = track(log, 'w2', barrier.enterWrite(DOMAIN, {}))
-    expect(await within(300, later.outcome)).toBe('granted')
+    expect(await stateOf(later.outcome)).toBe('granted')
     later.release()
     expect(log).toEqual(['b1:granted', 'w:withdrawn', 'b2:granted', 'w2:granted'])
   })
@@ -138,8 +136,8 @@ describe('bounded waits', () => {
     await flush()
     expect(log).toEqual(['w1:granted'])
     abort.abort()
-    expect(await within(300, b.outcome)).toBe('withdrawn')
-    expect(await within(300, w2.outcome)).toBe('granted')
+    expect(await stateOf(b.outcome)).toBe('withdrawn')
+    expect(await stateOf(w2.outcome)).toBe('granted')
     w1.release()
     w2.release()
   })
@@ -154,10 +152,10 @@ describe('bounded waits', () => {
       'w',
       barrier.enterWrite(DOMAIN, { signal: AbortSignal.abort(), timeoutMs: 1000 }),
     )
-    expect(await within(100, write.outcome)).toBe('withdrawn')
+    expect(await stateOf(write.outcome)).toBe('withdrawn')
     const next = track(log, 'b2', barrier.acquire(DOMAIN, {}))
     held.release()
-    expect(await within(300, next.outcome)).toBe('granted')
+    expect(await stateOf(next.outcome)).toBe('granted')
     next.release()
   })
 
@@ -167,12 +165,12 @@ describe('bounded waits', () => {
     const abort = new AbortController()
     const held = track(log, 'b', barrier.acquire(DOMAIN, { signal: abort.signal, timeoutMs: 10 }))
     await flush()
-    await delay(40)
+    advance(40)
     abort.abort()
     const write = track(log, 'w', barrier.enterWrite(DOMAIN, {}))
-    expect(await within(100, write.outcome)).toBe('pending')
+    expect(await stateOf(write.outcome)).toBe('pending')
     held.release()
-    expect(await within(300, write.outcome)).toBe('granted')
+    expect(await stateOf(write.outcome)).toBe('granted')
     write.release()
   })
 
@@ -187,9 +185,9 @@ describe('bounded waits', () => {
     b1.release()
     await flush()
     expect(log).toEqual(['b1:granted', 'b2:granted'])
-    expect(await within(100, b3.outcome)).toBe('pending')
+    expect(await stateOf(b3.outcome)).toBe('pending')
     b2.release()
-    expect(await within(300, b3.outcome)).toBe('granted')
+    expect(await stateOf(b3.outcome)).toBe('granted')
     b3.release()
   })
 })

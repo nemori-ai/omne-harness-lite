@@ -117,6 +117,7 @@ type PoolReader = {
   boundScope: string | null
   state: 'starting' | 'idle' | 'busy' | 'closing'
   idleTimer: NodeJS.Timeout | null
+  readonly loaded: Set<string>
 }
 
 type ReaderAcquisition = PoolReader | 'start-failed' | null
@@ -429,6 +430,7 @@ export class ReaderPool {
       boundScope: null,
       state: 'starting',
       idleTimer: null,
+      loaded: new Set(),
     }
     try {
       reader.client = new ReaderClient(
@@ -469,6 +471,14 @@ export class ReaderPool {
     if (reader.state === 'closing' && !task.settled) {
       this.park(d, task, true)
       this.pump(job.domain)
+      return
+    }
+    const unloaded = await this.loadHandler(reader, job.handler)
+    if (unloaded !== null) {
+      if (unloaded.reason === 'worker_exited') void this.retire(reader)
+      else this.release(reader)
+      task.settle(unloaded)
+      task.finish()
       return
     }
     const release = await this.holdBarrier(task)
@@ -516,6 +526,36 @@ export class ReaderPool {
     task.settle(outcome)
     task.finish()
     this.pump(job.domain)
+  }
+
+  private async loadHandler(
+    reader: PoolReader,
+    handler: ReadHandlerDescriptor,
+  ): Promise<Extract<ReadOutcome, { kind: 'unavailable' }> | null> {
+    const key = `${handler.codeDigest}\n${handler.moduleUrl}`
+    if (reader.loaded.has(key)) return null
+    this.tokenCounter += 1
+    let reply: ReaderReply
+    try {
+      reply = await reader.client.call(
+        { kind: 'load', handler: { moduleUrl: handler.moduleUrl, codeDigest: handler.codeDigest } },
+        `${String(reader.generation)}:${String(this.tokenCounter)}`,
+      )
+    } catch (error) {
+      return {
+        kind: 'unavailable',
+        reason: error instanceof WorkerExited ? 'worker_exited' : 'read_failed',
+        diagnostic: error instanceof WorkerExited ? 'worker_exited' : 'read_failed',
+      }
+    }
+    if (reply.kind !== 'loaded')
+      return {
+        kind: 'unavailable',
+        reason: 'read_failed',
+        diagnostic: reply.kind === 'read_failed' ? reply.diagnostic : 'provider_error',
+      }
+    reader.loaded.add(key)
+    return null
   }
 
   private async holdBarrier(task: Task): Promise<(() => void) | null> {

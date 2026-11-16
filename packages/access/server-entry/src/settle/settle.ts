@@ -10,7 +10,11 @@ export type SettleConfig = {
 }
 
 export type Clock = {
-  readonly schedule: (ms: number, run: () => void) => () => void
+  readonly schedule: (
+    ms: number,
+    run: () => void,
+    options?: Readonly<{ background?: boolean }>,
+  ) => () => void
 }
 
 export type SettleInput = {
@@ -151,8 +155,9 @@ export async function settleCall(input: SettleInput): Promise<SettledAnswer> {
 }
 
 export const systemClock: Clock = {
-  schedule: (ms, run) => {
+  schedule: (ms, run, options) => {
     const timer = setTimeout(run, ms)
+    if (options?.background === true) timer.unref()
     return () => clearTimeout(timer)
   },
 }

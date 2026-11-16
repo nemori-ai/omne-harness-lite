@@ -480,6 +480,22 @@ async function walk(browser, origin, proofs) {
     if (/[{}"]/.test(list.innerText)) throw new Error('the arguments show raw JSON: ' + list.innerText)
     return { pairs, arguments: list.innerText }`,
   )
+  await step(
+    '卡片展开之后才送达的滚动事件，不让转写区停止跟随',
+    `
+    const scroller = document.querySelector('section[data-page=conversation] .omne-conversation')
+    const gap = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight
+    const before = gap()
+    if (before <= 32) throw new Error('the open card does not push the end out of view, so this step cannot tell: gap ' + before)
+    scroller.dispatchEvent(new Event('scroll'))
+    fill(document.querySelector('textarea[aria-label="输入消息"]'), 'one more message')
+    await press('button[type=submit]', '发送')
+    await wait('the message in the transcript', () => transcript().includes('one more message'))
+    await wait('the reply to the message', () =>
+      transcript().split('one more message').at(-1).includes('done') && byText('button[type=submit]', '发送'))
+    await wait('the end of the transcript in view', () => gap() <= 32)
+    return { before, after: gap() }`,
+  )
   phase = 'ask'
   await step(
     '一轮停在 Ask 上：对话页出现这张卡，导航上有张数',

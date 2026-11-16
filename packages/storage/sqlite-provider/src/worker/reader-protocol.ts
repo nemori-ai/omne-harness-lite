@@ -18,6 +18,7 @@ export type HandlerSpec = Readonly<{
 
 export type ReaderRequest =
   | Readonly<{ kind: 'open' }>
+  | Readonly<{ kind: 'load'; handler: Pick<HandlerSpec, 'moduleUrl' | 'codeDigest'> }>
   | Readonly<{ kind: 'read'; handler: HandlerSpec; input: JsonValue }>
   | Readonly<{ kind: 'close' }>
 
@@ -31,6 +32,7 @@ export type ReaderMessage = Readonly<{
 export type ReaderReply =
   | Readonly<{ kind: 'ready'; scope: string }>
   | Readonly<{ kind: 'open_failed'; diagnostic: string }>
+  | Readonly<{ kind: 'loaded' }>
   | Readonly<{ kind: 'read'; output: JsonValue }>
   | Readonly<{ kind: 'schema_unavailable' }>
   | Readonly<{ kind: 'read_limit' }>

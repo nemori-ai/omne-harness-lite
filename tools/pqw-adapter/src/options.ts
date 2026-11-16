@@ -9,11 +9,18 @@ export interface Options {
   readonly out?: string
   readonly workers?: number
   readonly maxLines?: number
+  readonly timeout?: string
+  readonly timeoutFactor?: string
+  readonly recheck: boolean
+  readonly recheckLimit?: string
 }
 
 type Spec =
-  | { readonly kind: 'flag'; readonly field: 'full' | 'planOnly' }
-  | { readonly kind: 'single'; readonly field: 'base' | 'out' }
+  | { readonly kind: 'flag'; readonly field: 'full' | 'planOnly' | 'recheck' }
+  | {
+      readonly kind: 'single'
+      readonly field: 'base' | 'out' | 'timeout' | 'timeoutFactor' | 'recheckLimit'
+    }
   | { readonly kind: 'count'; readonly field: 'workers' | 'maxLines' }
   | { readonly kind: 'multi'; readonly field: 'scopes' | 'files' }
 
@@ -26,6 +33,10 @@ const SPECS: ReadonlyMap<string, Spec> = new Map<string, Spec>([
   ['--files', { kind: 'multi', field: 'files' }],
   ['--full', { kind: 'flag', field: 'full' }],
   ['--plan-only', { kind: 'flag', field: 'planOnly' }],
+  ['--timeout', { kind: 'single', field: 'timeout' }],
+  ['--timeout-factor', { kind: 'single', field: 'timeoutFactor' }],
+  ['--recheck', { kind: 'flag', field: 'recheck' }],
+  ['--recheck-limit', { kind: 'single', field: 'recheckLimit' }],
 ])
 
 function positive(flag: string, text: string): number {
@@ -91,7 +102,13 @@ function collect(argv: readonly string[], allowed: readonly string[]): Raw {
 type Mutable<T> = { -readonly [K in keyof T]: T[K] }
 
 function optionsOf(raw: Raw): Options {
-  const options: Mutable<Options> = { scopes: [], files: [], full: false, planOnly: false }
+  const options: Mutable<Options> = {
+    scopes: [],
+    files: [],
+    full: false,
+    planOnly: false,
+    recheck: false,
+  }
   for (const [flag, spec] of SPECS) {
     const text = raw.singles.get(flag)
     switch (spec.kind) {

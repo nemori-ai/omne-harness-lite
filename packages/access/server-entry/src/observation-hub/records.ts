@@ -1,3 +1,4 @@
+import type { Clock } from '../settle/settle.ts'
 import type { SseStream } from './sse.ts'
 
 export type HubEndReason =
@@ -21,6 +22,7 @@ export type RecordsEvent<O extends string = never> = Readonly<{
 export type RecordsInput<O extends string = never> = Readonly<{
   limits: Readonly<{ perLogin: number; perInstance: number; cancelRetentionMs: number }>
   loginCheckIntervalMs: number
+  clock: Clock
   report?: (event: RecordsEvent<O>) => void
 }>
 
@@ -35,7 +37,7 @@ export type ClaimInput<O extends string = never> = Readonly<{
 }>
 
 type Active<O extends string = never> = ClaimInput<O> & {
-  checkTimer: NodeJS.Timeout | undefined
+  cancelCheck: (() => void) | undefined
   stream: SseStream | undefined
   ended: Ended<O> | undefined
 }
@@ -56,10 +58,10 @@ export interface ObservationRecords<O extends string = never> {
 export function createObservationRecords<O extends string = never>(
   input: RecordsInput<O>,
 ): ObservationRecords<O> {
-  const { limits, loginCheckIntervalMs, report } = input
+  const { limits, loginCheckIntervalMs, clock, report } = input
   const active = new Map<string, Active<O>>()
   const perLogin = new Map<string, number>()
-  const retained = new Map<string, NodeJS.Timeout>()
+  const retained = new Map<string, () => void>()
 
   const count = (loginKey: string | undefined, delta: number): void => {
     if (loginKey === undefined) return
@@ -69,12 +71,12 @@ export function createObservationRecords<O extends string = never>(
   }
 
   const retain = (key: string): void => {
-    const existing = retained.get(key)
-    if (existing !== undefined) clearTimeout(existing)
+    retained.get(key)?.()
     if (limits.cancelRetentionMs === 0) return
-    const timer = setTimeout(() => retained.delete(key), limits.cancelRetentionMs)
-    timer.unref()
-    retained.set(key, timer)
+    retained.set(
+      key,
+      clock.schedule(limits.cancelRetentionMs, () => retained.delete(key), { background: true }),
+    )
   }
 
   const hasCapacity = (loginKey: string | undefined, key: string): boolean => {
@@ -88,10 +90,8 @@ export function createObservationRecords<O extends string = never>(
 
   const forget = (observation: Active<O>, ended: Ended<O>): void => {
     observation.ended = ended
-    if (observation.checkTimer !== undefined) {
-      clearTimeout(observation.checkTimer)
-      observation.checkTimer = undefined
-    }
+    observation.cancelCheck?.()
+    observation.cancelCheck = undefined
     if (active.get(observation.key) === observation) active.delete(observation.key)
     count(observation.loginKey, -1)
     retain(observation.key)
@@ -118,12 +118,14 @@ export function createObservationRecords<O extends string = never>(
 
   const armLoginCheck = (observation: Active<O>): void => {
     if (observation.checkLogin === undefined) return
-    const timer = setTimeout(() => {
-      observation.checkTimer = undefined
-      void checkLogin(observation)
-    }, loginCheckIntervalMs)
-    timer.unref()
-    observation.checkTimer = timer
+    observation.cancelCheck = clock.schedule(
+      loginCheckIntervalMs,
+      () => {
+        observation.cancelCheck = undefined
+        void checkLogin(observation)
+      },
+      { background: true },
+    )
   }
 
   const checkLogin = async (observation: Active<O>): Promise<void> => {
@@ -162,7 +164,7 @@ export function createObservationRecords<O extends string = never>(
       if (previous !== undefined) end(previous, 'observer-replaced')
       const observation: Active<O> = {
         ...input,
-        checkTimer: undefined,
+        cancelCheck: undefined,
         stream: undefined,
         ended: undefined,
       }

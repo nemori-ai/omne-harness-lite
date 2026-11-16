@@ -1,4 +1,5 @@
 // @module-tag slow
+import { testAdoption } from '@omne-harness/agent/testing'
 import { afterEach, describe, expect, it } from 'vitest'
 import { EARLIER, intakeAccess, ok, strangerAccess } from './world.ts'
 import { ad04RowsOf, historyReadGrowth, type RoundCount } from './w2-measure.ts'
@@ -164,7 +165,40 @@ describe('J2: a Tool result enters the next Model request', () => {
     expect(saved).toHaveProperty('ok')
   })
 
-  it('J2 a Tool action whose admission is unavailable is denied, the denial goes to the Model, and the Run completes', async () => {
+  it('J2 a Tool action whose admission is unavailable waits, and runs once the admission answers', async () => {
+    let described = 0
+    const w = await openW2World({
+      earlier: 'session',
+      model: a =>
+        a.index === 0
+          ? { parts: [toolCallBlock('tc-j2w')], reason: 'tool-suggestions' }
+          : { parts: [replyText(`r${a.index}`, 'ran it')], reason: 'stop' },
+      toolRequests: {
+        describe: async () => {
+          described += 1
+          return described === 1
+            ? {
+                failure: {
+                  kind: 'unavailable',
+                  owner: 'agentToolRequests',
+                  diagnostic: 'scenario',
+                },
+              }
+            : { ok: { kind: 'tool', definition: testAdoption('w2-read_file') } }
+        },
+      },
+    })
+    worlds.push(w)
+    await w.createSession('j2w')
+    await w.runRound(1, 'read the file')
+    expect(await w.lastOutcome()).toBe('completed')
+    expect(described).toBeGreaterThanOrEqual(2)
+    expect(w.tools.invoke.calls).toHaveLength(1)
+    const tools = (w.assembled[1] ?? []).filter(message => message.role === 'tool')
+    expect(tools).toHaveLength(1)
+  })
+
+  it('J2 a Tool action whose request source refuses the Agent is denied, the denial goes to the Model, and the Run completes', async () => {
     const w = await openW2World({
       earlier: 'session',
       model: a =>
@@ -173,7 +207,7 @@ describe('J2: a Tool result enters the next Model request', () => {
           : { parts: [replyText(`r${a.index}`, 'could not run it')], reason: 'stop' },
       toolRequests: {
         describe: async () => ({
-          failure: { kind: 'unavailable', owner: 'agentToolRequests', diagnostic: 'scenario' },
+          failure: { kind: 'denied', action: 'describe-tool-request' },
         }),
       },
     })
@@ -205,7 +239,7 @@ describe('J2: a Tool result enters the next Model request', () => {
           : delivery,
       toolRequests: {
         describe: async () => ({
-          failure: { kind: 'unavailable', owner: 'agentToolRequests', diagnostic: 'scenario' },
+          failure: { kind: 'denied', action: 'describe-tool-request' },
         }),
       },
     })

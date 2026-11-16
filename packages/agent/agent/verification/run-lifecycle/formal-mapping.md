@@ -14,14 +14,14 @@
 | P2   | 步数上限：步数与逻辑主请求数不超过 `maxRunSteps`；拒收后的重试计入；guard 终结时步数恰为上限；complete 只在无动作且已准入的回复之后（`P2_StepBound`、`P2_GuardAtLimit`、`P2_CompleteIsFinal`） | SPEC「循环守卫」；Loop 页 I8                                | 无界循环，费用无界                       | `loop-run-steps.spec.ts`                                     | 模型；负控 `bad-reject-not-counted-p2`；守卫 P2                                                           |
 | P3   | 失败不静默：驱动停下时槽位为 failed，恰好报告一次（`P3_StopVisible`、`P3_ReportedOnce`）。应然（`FailTerminates = TRUE`）：节点失败最终结束 Run（`L3_FailedRunEnds`）。实然：Run 不结束        | `provider.ts` 的 `failRun`；                                | 卡死且无人知道                           | `provider-run-failure.spec.ts`（只覆盖 I0）                  | 模型；负控 `bad-driver-swallows-p3`；守卫 P3（I0、M0、I4、F1）。`bad-is-no-terminate-l3` 是已知偏离的演示 |
 | P4   | 结果保存后等待中的驱动被唤醒（`P4_WakeOnReceive`）；接收方没有登记时结果不丢（`P4_NoResultLost`）                                                                                              | Loop 页 W0；SPEC「结果接收」；                              | 结果已到却停到检查时刻，或结果丢失       | `loop-model-wait.spec.ts`；宿主的接收与退避用例              | 模型；负控 `bad-no-wake-p4`、`bad-drop-on-absent-p4`                                                      |
-| P5   | 准入不可用时整批拒绝：没有动作保存意图或发起；A0 最终离开（`P5_UnavailableDeniesBatch`、`L2_AdmissionResolves`）                                                                               | SPEC「整批判断屏障与动作准入」；                            | 停在 A0；或先允许的动作越过屏障          | `loop-tools.spec.ts`                                         | 模型；负控 `bad-release-on-unavailable-p5`、`bad-stall-on-unavailable-l2`                                 |
-| P6   | 每步提交次数有界：不超过 `CBase + CAct × 动作数 + 崩溃数 + 被拒提交数`；等待无进展不提交（`P6_CommitsBounded`）                                                                                | Loop 页「复杂度、上界与进展」                               | 空转唤醒反复提交，Journal 随等待时长增长 | `loop-model-wait.spec.ts`                                    | 模型；负控 `bad-commit-on-idle-wake-p6`；[证明](proofs/run-lifecycle.md#p6-每步提交次数)                  |
+| P5   | 准入暂时不可用时整批等待，不放行任何动作：没有动作保存意图或发起；不可用的次数有界时 A0 最终离开（`P5_UnavailableReleasesNothing`、`L2_AdmissionResolves`）                                    | SPEC「整批判断屏障与动作准入」；                            | 不再去问、停死在 A0；或先允许的动作越过屏障 | `loop-tools.spec.ts`                                         | 模型；负控 `bad-release-on-unavailable-p5`、`bad-stall-on-unavailable-l2`                                 |
+| P6   | 每步提交次数有界：不超过 `CBase + CAct × 动作数 + 崩溃数 + 被拒提交数`，这一步在准入上等过时再加一；等待无进展不提交（`P6_CommitsBounded`）                                                    | Loop 页「复杂度、上界与进展」                               | 空转唤醒反复提交，Journal 随等待时长增长 | `loop-model-wait.spec.ts`                                    | 模型；负控 `bad-commit-on-idle-wake-p6`；[证明](proofs/run-lifecycle.md#p6-每步提交次数)                  |
 
 ## 状态与有限范围
 
 六组记录变量：`d`（驱动位置、checkpoint、步、请求数、回复、动作数、屏障、提交数）、`m`（主 Model 调用）、`acts`（每个动作）、`w`（等待）、`env`（接收方、崩溃、被拒提交、拒收、未知答复）、`run`（运行时槽位与报告）。
 
-正控 `run-is` 与 `run-ought`：MaxSteps 3、MaxRunSteps 2、MaxActions 1、MaxCrashes 1、MaxRefuse 1、MaxRejects 1、MaxTicks 2、MaxUnknown 1、CBase 10、CAct 5。前者取实然 `FailTerminates = FALSE`，后者取应然 TRUE。`run-wide` 放大为 MaxActions 2、MaxRejects 2、MaxUnknown 2、MaxTicks 3。活性正控 `live-ought` 用 `Live`（驱动与环境弱公平），MaxSteps 与 MaxRunSteps 都为 2。
+正控 `run-is` 与 `run-ought`：MaxSteps 3、MaxRunSteps 2、MaxActions 1、MaxCrashes 1、MaxRefuse 1、MaxRejects 1、MaxTicks 2、MaxUnknown 1、MaxAdmUnavailable 1、CBase 10、CAct 5。前者取实然 `FailTerminates = FALSE`，后者取应然 TRUE。`run-wide` 放大为 MaxActions 2、MaxRejects 2、MaxUnknown 2、MaxAdmUnavailable 2、MaxTicks 3。`MaxAdmUnavailable` 是准入答不可用的次数上界：环境假定准入在有限次不可用之后给出答复。负控 `bad-commit-on-idle-wake-p6` 取 2，让准入上的空转也能越界。活性正控 `live-ought` 用 `Live`（驱动与环境弱公平），MaxSteps 与 MaxRunSteps 都为 2。
 
 ## 模型与代码的对应
 
@@ -31,7 +31,7 @@
 | `m.intent`（`SaveModelIntent`）       | M0 的提交：首次 admit 前保存 `PendingCall.model.reference`                                          |
 | `m.sent`、`AdmitModel`                | M6 的 `models.calls.admit`；unavailable 按依赖等待，unknown 按原 reference `inspect`                |
 | `acts[i].intent`、`sent`、`assoc`     | A2 的 `sendAction`：先提交意图，再 `tools.invoke`，再保存关联；关联未知时沿原 invoke 重入           |
-| `Admission`                           | `src/loop/tools.ts` 的不可用准入；A1 的 all-denied 提交                                             |
+| `Admission`                           | `src/loop/tools.ts` 的准入结果：暂时不可用（`unavailable`）时 A0 按依赖等待，被端口拒绝（`refused`）时整批判拒；A1 的 all-denied 提交 |
 | `Sleep`、`Wake`                       | `src/loop/wait.ts` 的 `waitForExecutionChange`；`src/provider.ts` 驱动闭包的等待循环                |
 | `PushModel`、`PushTool`、`ReceiverUp` | agent-host-local 的接收与接收驱动（退避 1 秒起，到 60 秒）；Tool 宿主侧退避在 tool-host-local       |
 | `Refuse`、`run.slot`、`run.reported`  | `src/provider.ts` 的 `failRun` 与槽位的 failed 分支；`FailTerminates = TRUE` 是应然                 |
@@ -63,7 +63,7 @@
 | `bad-driver-swallows-p3`        | 负控           | `P3_StopVisible` 违反            |
 | `bad-no-wake-p4`                | 负控           | `P4_WakeOnReceive` 违反          |
 | `bad-drop-on-absent-p4`         | 负控           | `P4_NoResultLost` 违反           |
-| `bad-release-on-unavailable-p5` | 负控           | `P5_UnavailableDeniesBatch` 违反 |
+| `bad-release-on-unavailable-p5` | 负控           | `P5_UnavailableReleasesNothing` 违反 |
 | `bad-commit-on-idle-wake-p6`    | 负控           | `P6_CommitsBounded` 违反         |
 | `bad-stall-on-unavailable-l2`   | 活性负控       | `L2_AdmissionResolves` 违反      |
 | `bad-is-no-terminate-l3`        | 活性负控       | `L3_FailedRunEnds` 违反          |

@@ -20,6 +20,7 @@ import {
   ARCHIVE_EXCLUDE,
   FAST_TEST_TIMEOUT_MS,
   SLOW_TEST_TIMEOUT_MS,
+  SOURCE_TEXT_TAG,
   TEST_REPORT_DIR_ENV as ROOT_REPORT_DIR_ENV,
   TEST_TIERS,
   VITEST_DEFAULT_EXCLUDE,
@@ -174,10 +175,13 @@ describe('根上的分层定义', () => {
 
   const PLAIN = ['node', '/x/node_modules/vitest/vitest.mjs', 'run', '--mode', 'fast']
 
-  it('不给 mode：声明 slow 标签及其时限、排除嵌套归档目录，不过滤', () => {
+  it('不给 mode：声明 slow 标签及其时限与不带时限的 source-text 标签、排除嵌套归档目录，不过滤', () => {
     const tiers = testTiers(undefined, {}, REPOSITORY, PLAIN)
     expect(tiers).toEqual({
-      tags: [expect.objectContaining({ name: 'slow', timeout: SLOW_TEST_TIMEOUT_MS })],
+      tags: [
+        expect.objectContaining({ name: 'slow', timeout: SLOW_TEST_TIMEOUT_MS }),
+        { name: SOURCE_TEXT_TAG, description: expect.any(String) },
+      ],
       exclude: [...VITEST_DEFAULT_EXCLUDE, ARCHIVE_EXCLUDE],
       testTimeout: FAST_TEST_TIMEOUT_MS,
       typecheck: { exclude: [...VITEST_DEFAULT_EXCLUDE, ARCHIVE_EXCLUDE] },
