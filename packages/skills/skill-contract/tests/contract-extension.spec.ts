@@ -111,7 +111,7 @@ describe('the extended skill body', () => {
   })
 
   it('gives the original reasons before the reasons of the extension', () => {
-    const bad = { description: '' }
+    const bad = { settings: [{ name: 'a', category: 'secret' }] }
     expect(port.judge(body({ ...bad, name: 'other' }), { capabilityName: 'review' })).toEqual({
       ok: false,
       rejected: 'name-mismatch',
@@ -119,6 +119,15 @@ describe('the extended skill body', () => {
     expect(port.judge(body({ ...bad, tools: [{ category: 'mcp', name: 'x' }] }))).toEqual({
       ok: false,
       rejected: 'incomplete-reference',
+    })
+  })
+
+  it('gives setting-category-unknown before malformed', () => {
+    const category = { settings: [{ name: 'a', category: 'secret' }] }
+    const malformed = { description: '' }
+    expect(port.judge(body({ ...malformed, ...category }))).toEqual({
+      ok: false,
+      rejected: 'setting-category-unknown',
     })
   })
 })
