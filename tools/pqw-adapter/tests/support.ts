@@ -5,6 +5,7 @@ import { onTestFinished } from 'vitest'
 import type { WorkspaceMember } from '@omne-harness/repo-toolchain/core/workspace'
 import type { ReadingConfig } from '../src/config.ts'
 import type { ChangedMember } from '../src/members.ts'
+import type { StrykerOptions } from '../src/mutation.ts'
 import type { Command, Executor, Outcome } from '../src/process.ts'
 import type { Repo } from '../src/repo.ts'
 
@@ -32,6 +33,8 @@ export const changedMember = (
   scopes: [`${path}/`],
   ...overrides,
 })
+
+export const NO_STRYKER_OPTIONS: StrykerOptions = { recheck: false }
 
 export const CONFIG: ReadingConfig = {
   cyclomatic: { warn: 10, alert: 12 },
