@@ -32,14 +32,20 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-function Transcript() {
-  const { scroller, onScroll } = useFollowBottom()
+function Transcript({ rows = 0 }: { readonly rows?: number }) {
+  const { scroller, onScroll } = useFollowBottom(rows)
   return <div data-testid="transcript" ref={scroller} onScroll={onScroll} />
 }
 
 function sized(element: HTMLElement, scrollHeight: number, clientHeight: number): void {
   Object.defineProperty(element, 'scrollHeight', { configurable: true, value: scrollHeight })
   Object.defineProperty(element, 'clientHeight', { configurable: true, value: clientHeight })
+}
+
+function followedAt(element: HTMLElement, scrollHeight: number, clientHeight: number): void {
+  sized(element, scrollHeight, clientHeight)
+  observed[0]!.callback()
+  element.scrollTop = scrollHeight - clientHeight
 }
 
 it('keeps the end of the transcript in view when its own box gets smaller', () => {
@@ -62,6 +68,83 @@ it('leaves the transcript where the reader scrolled it when its box changes size
   fireEvent.scroll(element)
 
   sized(element, 900, 120)
+  observed[0]!.callback()
+
+  expect(element.scrollTop).toBe(100)
+})
+
+it('keeps following when a scroll event arrives after the content grew unseen', () => {
+  const view = render(<Transcript rows={1} />)
+  const element = view.getByTestId('transcript')
+  followedAt(element, 900, 300)
+
+  sized(element, 1100, 300)
+  fireEvent.scroll(element)
+  view.rerender(<Transcript rows={2} />)
+
+  expect(element.scrollTop).toBe(1100)
+})
+
+it('keeps following when a scroll event arrives after its box got smaller, before the observer', () => {
+  const element = render(<Transcript />).getByTestId('transcript')
+  followedAt(element, 900, 300)
+
+  sized(element, 900, 120)
+  fireEvent.scroll(element)
+  observed[0]!.callback()
+
+  expect(element.scrollTop).toBe(900)
+})
+
+it('stops following when the reader scrolls away while the content grows', () => {
+  const view = render(<Transcript rows={1} />)
+  const element = view.getByTestId('transcript')
+  followedAt(element, 900, 300)
+
+  sized(element, 1100, 300)
+  element.scrollTop = 400
+  fireEvent.scroll(element)
+  view.rerender(<Transcript rows={2} />)
+
+  expect(element.scrollTop).toBe(400)
+})
+
+it('keeps following after the content got shorter and the position was pulled back', () => {
+  const element = render(<Transcript />).getByTestId('transcript')
+  followedAt(element, 900, 300)
+
+  sized(element, 700, 300)
+  element.scrollTop = 400
+  fireEvent.scroll(element)
+  sized(element, 800, 300)
+  observed[0]!.callback()
+
+  expect(element.scrollTop).toBe(800)
+})
+
+it('goes back to the end when a hidden page is shown again', () => {
+  const element = render(<Transcript />).getByTestId('transcript')
+  followedAt(element, 900, 300)
+
+  sized(element, 0, 0)
+  observed[0]!.callback()
+  sized(element, 900, 300)
+  element.scrollTop = 0
+  observed[0]!.callback()
+
+  expect(element.scrollTop).toBe(900)
+})
+
+it('leaves a reader who scrolled away where he was when a hidden page is shown again', () => {
+  const element = render(<Transcript />).getByTestId('transcript')
+  followedAt(element, 900, 300)
+  element.scrollTop = 100
+  fireEvent.scroll(element)
+
+  sized(element, 0, 0)
+  observed[0]!.callback()
+  sized(element, 900, 300)
+  fireEvent.scroll(element)
   observed[0]!.callback()
 
   expect(element.scrollTop).toBe(100)
