@@ -495,6 +495,55 @@ describe('外壳：宿主自己排版', () => {
     expect(tabs()).toEqual([])
   })
 
+  it('贡献方依赖的服务不在时它不加载；服务出现，它的项出现；服务撤下，只有它的项没有了；服务回来，项回来，次序不变', async () => {
+    const DEPENDED = 'fake:contributor-protocol'
+    const dependent = defineUiModule({
+      name: 'dependent-contributor',
+      inject: [DEPENDED],
+      apply(shell) {
+        shell.contribute('attached', {
+          id: 'dependent',
+          order: 1,
+          anchor: 'a',
+          label: '依赖协议的',
+          render: () => <p data-attached="dependent">依赖协议的一项</p>,
+        })
+      },
+    })
+    const t = await setup({
+      login: 'signed-in',
+      modules: [dependent, labelled('always', 'a', 2, '一直在'), tabsPage('a', 's1')],
+    })
+    expect(tabs()).toEqual(['always:一直在'])
+    const withdraw = await t.provide(DEPENDED)
+    expect(tabs()).toEqual(['dependent:依赖协议的', 'always:一直在'])
+    await withdraw()
+    expect(tabs()).toEqual(['always:一直在'])
+    expect(document.querySelector('[data-attached="dependent"]')).toBeNull()
+    await t.provide(DEPENDED)
+    expect(tabs()).toEqual(['dependent:依赖协议的', 'always:一直在'])
+  })
+
+  it('三个插件按三种次序加载，排版出来逐字相同', async () => {
+    const modules = [
+      labelled('one', 'a', 1, '一'),
+      labelled('two', 'a', 2, '二'),
+      tabsPage('a', 's1'),
+    ]
+    const markups: string[] = []
+    for (const order of [
+      [0, 1, 2],
+      [2, 1, 0],
+      [1, 2, 0],
+    ]) {
+      await setup({ login: 'signed-in', modules: order.map(index => modules[index]!) })
+      markups.push(document.querySelector('[data-tabs]')?.outerHTML ?? '')
+      cleanup()
+    }
+    expect(markups[0]).toContain('data-tab="one"')
+    expect(new Set(markups).size).toBe(1)
+  })
+
   it('租户变了，排版里的项跟着重渲染', async () => {
     const t = await setup({
       login: 'signed-in',
