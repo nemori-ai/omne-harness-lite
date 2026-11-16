@@ -43,6 +43,11 @@ export function decideControl(
     intent.kind === 'auto-archive' || (intent.kind === 'control' && intent.value.kind === 'archive')
   const unarchive = intent.kind === 'control' && intent.value.kind === 'unarchive'
   const retry = intent.kind === 'control' && intent.value.kind === 'retry-run'
+  // The relation is already established: the scope names nothing to send and nobody to wait on.
+  const established =
+    intent.kind === 'control' &&
+    intent.value.kind === 'background-tool' &&
+    scope.producers.length === 0
   const target: ControlProgress['target'] =
     intent.kind === 'interrupt'
       ? { kind: 'run', run: intent.run }
@@ -57,7 +62,7 @@ export function decideControl(
     operation,
     target,
     intent,
-    state: unarchive || retry ? 'reconciled' : 'propagating',
+    state: unarchive || retry || established ? 'reconciled' : 'propagating',
     pending: scope.producers,
     pendingUnassociatedWaiting: scope.unassociatedWaiting ?? [],
   }

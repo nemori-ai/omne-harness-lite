@@ -8,16 +8,19 @@ export type DirectCallControl = Readonly<{ producer: ToolProducer; intent: 'stop
 
 export type ControlRoutes = Readonly<{ agent: boolean; direct: readonly DirectCallControl[] }>
 
-function backgrounded(snapshot: WorkSnapshot, pending: readonly ProducerRef[]): ToolProducer[] {
+/** The calls of the session that went to the background and have not settled. */
+export function backgroundCalls(snapshot: WorkSnapshot): readonly ToolProducer[] {
   const placeholders = new Set<string>(snapshot.backgroundPlaceholders ?? [])
   return snapshot.consumptions.flatMap(item => {
     const { producer } = item.binding
-    return producer.kind === 'tool' &&
-      placeholders.has(item.id) &&
-      pending.some(other => equalValue(other, producer))
-      ? [producer]
-      : []
+    return producer.kind === 'tool' && placeholders.has(item.id) ? [producer] : []
   })
+}
+
+function backgrounded(snapshot: WorkSnapshot, pending: readonly ProducerRef[]): ToolProducer[] {
+  return backgroundCalls(snapshot).filter(producer =>
+    pending.some(other => equalValue(other, producer)),
+  )
 }
 
 // A stop of a backgrounded call goes to Tool alone; an archive also withdraws each backgrounded

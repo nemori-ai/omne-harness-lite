@@ -632,32 +632,14 @@ describe('stop-call', () => {
     )
   })
 
-  it('answers unsupported to a Tool target', async () => {
+  it('answers not-found to an unbound Tool target, the same as a Model target', async () => {
     const world = createWorld()
     const session = await created(world)
     expect(await ops(world)['stop-call'](as(login()), bodyOf(session, 'tool'))).toEqual({
-      outcome: 'unsupported',
+      outcome: 'not-found',
       body: {},
     })
   })
-
-  it.each([
-    [{ kind: 'denied', action: 'stopCall' }, { outcome: 'denied' }],
-    [{ kind: 'unavailable', owner: 'x', diagnostic: 'y' }, { outcome: 'basis-unavailable' }],
-    [
-      { kind: 'conflict', operation: 'op' },
-      { outcome: 'unsupported', body: {} },
-    ],
-  ] as const)(
-    'keeps only access and availability of Session for a Tool target: %j',
-    async (failure, expected) => {
-      const world = createWorld()
-      const session = await created(world)
-      world.session.controls.refuseToolTargets(false)
-      world.session.controls.failWith(failure as SessionFailure)
-      expect(await ops(world)['stop-call'](as(login()), bodyOf(session, 'tool'))).toEqual(expected)
-    },
-  )
 
   it.each([
     [

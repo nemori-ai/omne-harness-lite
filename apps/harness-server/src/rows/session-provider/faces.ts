@@ -60,6 +60,7 @@ const unimplemented = (): Promise<Result<never>> => Promise.resolve(fail(UNAVAIL
 const UNIMPLEMENTED_WORK = {
   readWork: unimplemented,
   readWaiting: unimplemented,
+  readBackgroundCalls: unimplemented,
   readInput: unimplemented,
   startRun: unimplemented,
   claim: unimplemented,

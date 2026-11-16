@@ -140,7 +140,7 @@ type SessionOutcomes = {
     | 'unsupported'
 }
 
-test('the operations are exactly the ten of session/v1', () => {
+test('the operations are exactly the twelve of session/v1', () => {
   expectTypeOf<Name>().toEqualTypeOf<
     | 'create-session'
     | 'query-create-session'
@@ -152,6 +152,8 @@ test('the operations are exactly the ten of session/v1', () => {
     | 'cancel-run'
     | 'stop-call'
     | 'retry-run'
+    | 'background-call'
+    | 'list-background-calls'
   >()
   expectTypeOf<keyof SessionProtocol['observations']>().toEqualTypeOf<'observe-session'>()
   expectTypeOf(sessionProtocol.name).toEqualTypeOf<'session'>()
@@ -326,4 +328,19 @@ test('observe-session opens on a tenant and a session and has five frame kinds',
     | { readonly kind: 'refreshing' }
   >()
   expectTypeOf<ValueOf<Observation['frame']>>().toEqualTypeOf<ObserveSessionFrame>()
+})
+
+test('background-call names one Tool call and answers requested or background', () => {
+  type ToolCall = { readonly kind: 'tool'; readonly call: string }
+  expectTypeOf<BodyOf<'background-call'>>().toEqualTypeOf<
+    Flat<Target & { readonly controlId: string; readonly producer: ToolCall }>
+  >()
+  expectTypeOf<ResultBody<'background-call', 'succeeded'>>().toEqualTypeOf<{
+    readonly kind: 'requested' | 'background'
+    readonly controlId: string
+    readonly producer: ToolCall
+  }>()
+  expectTypeOf<ResultBody<'list-background-calls', 'succeeded'>>().toEqualTypeOf<{
+    readonly calls: readonly { readonly producer: ToolCall }[]
+  }>()
 })

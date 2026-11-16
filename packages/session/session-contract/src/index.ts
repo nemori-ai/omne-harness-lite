@@ -277,7 +277,12 @@ export {
   judgeSessionIntake,
   pendingIntakeCount,
 } from './intake.ts'
-export { controlRoutes, type ControlRoutes, type DirectCallControl } from './call-control.ts'
+export {
+  backgroundCalls,
+  controlRoutes,
+  type ControlRoutes,
+  type DirectCallControl,
+} from './call-control.ts'
 export {
   BACKGROUND_INPUT_OWNER,
   backgroundInputId,

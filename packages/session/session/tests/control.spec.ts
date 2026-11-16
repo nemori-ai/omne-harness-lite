@@ -771,3 +771,18 @@ it('已记下的直交不再重送，同一调用的另一条停止按自己的�
     operationId('stop-2'),
   ])
 })
+
+it('受理入口按引用列出本会话转了后台而没有结算的调用；别的调用方被拒', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  expect(
+    succeeded(await f.h.faces('intake').work.readBackgroundCalls(f.h.access()), 'read'),
+  ).toEqual([])
+  const { binding } = await backgroundedCall(f)
+  expect(
+    succeeded(await f.h.faces('intake').work.readBackgroundCalls(f.h.access()), 'read'),
+  ).toEqual([{ producer: binding.producer }])
+  expect(await f.h.faces('coordinator').work.readBackgroundCalls(f.h.access())).toMatchObject({
+    failure: { kind: 'denied', action: 'readBackgroundCalls' },
+  })
+})

@@ -234,6 +234,7 @@
 - `Waiting` · `values.d.ts`
 - `WorkSnapshot` · `values.d.ts`
 - `WorkspaceAttachment` · `values.d.ts`
+- `backgroundCalls` · `call-control.d.ts`
 - `backgroundInputId` · `background-outcome.d.ts`
 - `batchEvidence` · `reduce.d.ts`
 - `commandDigest` · `decide.d.ts`
@@ -372,7 +373,7 @@ import type { SessionPermissionWriteQualification } from './permission-values.ts
 import type { Access, TenantId } from '@omne-harness/legal-identity';
 import type { DurableEvidence, ResidentKey, SessionAccess, SessionId } from './identity.ts';
 import type { MutationName, SessionCommand, SessionTransactionPort } from './ports.ts';
-export type SessionReadAccessOperation = 'listTodos' | 'readWork' | 'readWaiting' | 'readInput' | 'queryOperation' | 'readModelSelection' | 'queryControlOperation' | 'loadRecovery' | 'inspectIdle' | 'history.begin' | 'history.next' | 'history.since' | 'history.readModelView';
+export type SessionReadAccessOperation = 'listTodos' | 'readWork' | 'readWaiting' | 'readBackgroundCalls' | 'readInput' | 'queryOperation' | 'readModelSelection' | 'queryControlOperation' | 'loadRecovery' | 'inspectIdle' | 'history.begin' | 'history.next' | 'history.since' | 'history.readModelView';
 type SessionMutationAccess<P> = {
     readonly [K in MutationName]: Readonly<{
         access: Access<P>;
@@ -533,6 +534,7 @@ export type ControlRoutes = Readonly<{
     agent: boolean;
     direct: readonly DirectCallControl[];
 }>;
+export declare function backgroundCalls(snapshot: WorkSnapshot): readonly ToolProducer[];
 export declare function controlRoutes(snapshot: WorkSnapshot, progress: ControlProgress): ControlRoutes;
 export declare function settledControls(controls: readonly ControlProgress[], producer: ProducerRef): readonly ControlProgress[];
 export {};
@@ -1347,6 +1349,11 @@ export interface SessionWork<P> {
     }>): Reply<CommitReceipt>;
     readWork(input: SessionAccess<P>): Reply<WorkSnapshot>;
     readWaiting(input: SessionAccess<P>): Reply<SessionWaiting | null>;
+    readBackgroundCalls(input: SessionAccess<P>): Reply<readonly Readonly<{
+        producer: Extract<ProducerRef, {
+            kind: 'tool';
+        }>;
+    }>[]>;
     readInput(input: SessionAccess<P> & Readonly<{
         input: InputId;
     }>): Reply<Extract<RoutedInput, {
@@ -1912,7 +1919,7 @@ export type { RunBoundaryView } from './run-boundary.ts';
 export type { SessionWorkEntryIndex, SessionCallEntryReferences, SessionControlEntryReferences, } from './work-entry-values.ts';
 export { mutationAccessRequest, readAccessRequest, type SessionAccessCheck, type SessionAccessDecision, type SessionAccessOperation, type SessionAccessRequest, type SessionAccessTarget, type SessionCheckedAccess, type SessionDelegatedTransactions, type SessionReadAccessOperation, } from './access.ts';
 export { DEFAULT_SESSION_INTAKE_LIMITS, sessionIntakeLimits, sessionInputBytes, judgeSessionIntake, pendingIntakeCount, } from './intake.ts';
-export { controlRoutes, type ControlRoutes, type DirectCallControl } from './call-control.ts';
+export { backgroundCalls, controlRoutes, type ControlRoutes, type DirectCallControl, } from './call-control.ts';
 export { BACKGROUND_INPUT_OWNER, backgroundInputId, judgeBackgroundOutcome, type BackgroundOutcomeJudgment, } from './background-outcome.ts';
 export type { SessionIntakeLimits } from './intake.ts';
 export type { TodoItem, VisibleTodoItem, TodoMutationReceipt, TodoPageCursor, TodoPage, SessionTodos, } from './todos.ts';
@@ -3064,8 +3071,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:3b20c474023a05f9fcc3587d0dc6b5086564c69dae02f7fe8052a6bbb3cf9cf1";
-export declare const SESSION_RELEASE_DIGEST = "sha256:3b20c474023a05f9fcc3587d0dc6b5086564c69dae02f7fe8052a6bbb3cf9cf1";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:658236e62a2ac4a52d698476c372f8babdda6972af5c1323eeb451d6179bb8f3";
+export declare const SESSION_RELEASE_DIGEST = "sha256:658236e62a2ac4a52d698476c372f8babdda6972af5c1323eeb451d6179bb8f3";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

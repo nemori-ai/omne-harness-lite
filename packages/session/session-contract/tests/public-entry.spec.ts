@@ -9,6 +9,7 @@ it('exports exactly the declared root runtime surface', () => {
     'DEFAULT_SESSION_INTAKE_LIMITS',
     'INGRESS_FAMILIES',
     'INITIALIZATION_PROTOCOL',
+    'backgroundCalls',
     'backgroundInputId',
     'batchEvidence',
     'commandDigest',

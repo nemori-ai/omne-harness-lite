@@ -127,6 +127,9 @@ export interface SessionWork<P> {
   accept(input: Mutation<P> & Readonly<{ value: RoutedInput }>): Reply<CommitReceipt>
   readWork(input: SessionAccess<P>): Reply<WorkSnapshot>
   readWaiting(input: SessionAccess<P>): Reply<SessionWaiting | null>
+  readBackgroundCalls(
+    input: SessionAccess<P>,
+  ): Reply<readonly Readonly<{ producer: Extract<ProducerRef, { kind: 'tool' }> }>[]>
   readInput(
     input: SessionAccess<P> & Readonly<{ input: InputId }>,
   ): Reply<Extract<RoutedInput, { kind: 'ordinary' }>>

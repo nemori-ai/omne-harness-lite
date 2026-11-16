@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { Message } from '@omne-harness/message'
-import { controlRoutes, openWork, pendingIntakeCount } from '@omne-harness/session-contract'
+import {
+  backgroundCalls,
+  controlRoutes,
+  openWork,
+  pendingIntakeCount,
+} from '@omne-harness/session-contract'
 import type {
   ConsumptionId,
   ControlProgress,
@@ -900,5 +905,42 @@ describe('background inputs leave the list once they leave the pending inputs', 
     const after = await c.s.read()
     expect(after.pending).toEqual([])
     expect(after.backgroundInputs).toEqual([])
+  })
+})
+
+describe('the backgrounded calls of a session and a background control', () => {
+  const backgroundOf = (c: Scene, name: string) =>
+    c.s.commit({
+      kind: 'control',
+      input: {
+        ...c.s.base,
+        operation: operationId(name),
+        intent: { kind: 'background-tool', producer },
+      },
+    })
+
+  it('lists the backgrounded calls by their references until they settle', async () => {
+    const c = await bound()
+    expect(backgroundCalls(await c.s.read())).toEqual([])
+    succeeded(await commitEntries(c, observation(c, 'p', 0, [[backgrounded]])), 'placeholder')
+    expect(backgroundCalls(await c.s.read())).toEqual([producer])
+    succeeded(await commitEntries(c, observation(c, 'r', 1, [[execution, outcome()]])), 'outcome')
+    expect(backgroundCalls(await c.s.read())).toEqual([])
+  })
+
+  it('backgrounding a foreground call propagates through Agent', async () => {
+    const c = await bound()
+    const answer = succeeded(await backgroundOf(c, 'bg'), 'background')
+    expect(answer.progress).toMatchObject({ state: 'propagating', pending: [producer] })
+    expect(controlRoutes(await c.s.read(), answer.progress)).toEqual({ agent: true, direct: [] })
+  })
+
+  it('backgrounding a call already in the background is reconciled at once and sends nothing', async () => {
+    const c = await bound()
+    succeeded(await commitEntries(c, observation(c, 'p', 0, [[backgrounded]])), 'placeholder')
+    const answer = succeeded(await backgroundOf(c, 'bg'), 'background')
+    expect(answer.progress).toMatchObject({ state: 'reconciled', pending: [] })
+    expect(controlRoutes(await c.s.read(), answer.progress)).toEqual({ agent: false, direct: [] })
+    expect(succeeded(await backgroundOf(c, 'bg'), 'recall').progress).toEqual(answer.progress)
   })
 })

@@ -529,7 +529,7 @@
       },
       "packages/session/session-access/src/contribution.ts": {
         "count": 1,
-        "longest": 310
+        "longest": 304
       },
       "packages/session/session-adapters/src/cordis/agent-journal-provider.ts": {
         "count": 1,
@@ -629,7 +629,7 @@
       },
       "packages/session/session/src/faces.ts": {
         "count": 1,
-        "longest": 162
+        "longest": 161
       },
       "packages/skills/skill-contract/src/testing-access.ts": {
         "count": 1,
