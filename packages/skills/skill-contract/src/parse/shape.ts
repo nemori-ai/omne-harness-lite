@@ -58,8 +58,8 @@ function textOf(value: JsonValue | undefined): string | undefined {
 
 const SETTING_CATEGORIES: readonly SettingCategory[] = ['preference', 'binding']
 
-function isSettingCategory(text: string): text is SettingCategory {
-  return SETTING_CATEGORIES.some(category => category === text)
+export function isSettingCategory(value: unknown): value is SettingCategory {
+  return SETTING_CATEGORIES.some(category => category === value)
 }
 
 function listOf<T>(

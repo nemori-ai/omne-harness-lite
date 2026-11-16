@@ -33,7 +33,7 @@ function readerOf(files: Readonly<Record<string, Uint8Array>>): PackageReader {
 
 const layout = skillBodyContract().layout
 
-describe('C9 the layout of the skill category', () => {
+describe('the layout of the skill category', () => {
   it('gives the namespace skills and the package limits of the contract', () => {
     expect(layout?.namespace).toBe('skills')
     expect(layout?.limits).toEqual({
@@ -93,7 +93,7 @@ describe('C9 the layout of the skill category', () => {
   })
 })
 
-describe('C9 the other rejections of inspect', () => {
+describe('the other rejections of inspect', () => {
   const plain = fixtureFiles('plain-skill')
 
   it('gives the failure of the manifest as source-failed', async () => {
@@ -133,7 +133,7 @@ describe('C9 the other rejections of inspect', () => {
   })
 })
 
-describe('C10 a snapshot sealed from manifest entries', () => {
+describe('a snapshot sealed from manifest entries', () => {
   it('is the same, field by field, as the snapshot sealed from every byte', () => {
     const built = buildFixture('full-skill')
     const fromBytes = built.snapshot

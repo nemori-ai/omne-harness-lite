@@ -99,7 +99,7 @@ const locator = {
   ref: 'tenant/skill/weekly-report',
 } as const
 
-describe('C10 the content-store source over the read port of assets', () => {
+describe('the content-store source over the read port of assets', () => {
   it('reads the snapshot and a file through the read port', async () => {
     const source = createContentStoreSource({ readerOf: readerOf(store()) })
     const snapshot = await source.snapshot(locator)

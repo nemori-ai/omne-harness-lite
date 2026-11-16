@@ -185,6 +185,7 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
           name: manifest.name,
           description: manifest.description,
           tools: declaration.dependencies,
+          settings: declaration.settings,
         },
       }
       return { layer: 'official', state: 'read', candidates: [candidate] }

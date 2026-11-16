@@ -13,11 +13,13 @@ import {
   isAssetVersion,
   isPackageDigest,
   isSafeReason,
+  isSettingCategory,
   isSkillDescription,
   isSkillName,
   type DeclaredProjection,
   type PackageDigest,
   type SafeReason,
+  type SettingDeclaration,
   type SkillMaterialBasis,
   type SourceLayer,
 } from '@omne-harness/skill-contract'
@@ -236,13 +238,27 @@ function toolsOf(tools: JsonValue | undefined): CapabilityId[] | undefined {
   return ids
 }
 
+function settingsOf(settings: JsonValue | undefined): SettingDeclaration[] | undefined {
+  if (settings === undefined) return []
+  if (settings.kind !== 'array') return undefined
+  const read: SettingDeclaration[] = []
+  for (const setting of settings.items) {
+    const name = textOf(field(setting, 'name'))
+    const category = textOf(field(setting, 'category'))
+    if (name === undefined || name === '' || !isSettingCategory(category)) return undefined
+    read.push({ name, category })
+  }
+  return read
+}
+
 function declaredOf(body: JsonValue): DeclaredProjection | undefined {
   const name = textOf(field(body, 'name'))
   const description = textOf(field(body, 'description'))
   const tools = toolsOf(field(body, 'tools'))
-  if (!isSkillName(name) || tools === undefined) return undefined
-  if (description === undefined) return { name, tools }
-  return isSkillDescription(description) ? { name, description, tools } : undefined
+  const settings = settingsOf(field(body, 'settings'))
+  if (!isSkillName(name) || tools === undefined || settings === undefined) return undefined
+  if (description === undefined) return { name, tools, settings }
+  return isSkillDescription(description) ? { name, description, tools, settings } : undefined
 }
 
 export function publishedCandidate(

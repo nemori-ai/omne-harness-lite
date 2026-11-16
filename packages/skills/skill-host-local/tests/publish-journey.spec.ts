@@ -24,7 +24,7 @@ async function journey(officialImmutable: boolean) {
   })
 }
 
-describe('C12 publishing a directory as a Skill of the tenant, then reading it', () => {
+describe('publishing a directory as a Skill of the tenant, then reading it', () => {
   it('the tenant copy wins over an official copy that can be replaced, and is read', async () => {
     const run = await journey(false)
     expect(run.resolution).toMatchObject({

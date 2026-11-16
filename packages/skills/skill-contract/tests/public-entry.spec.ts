@@ -20,6 +20,7 @@ it('exports the skill body port', () => {
     'isPackageDigest',
     'isPackagePath',
     'isSafeReason',
+    'isSettingCategory',
     'isSkillDescription',
     'isSkillName',
     'parseSkillPackage',

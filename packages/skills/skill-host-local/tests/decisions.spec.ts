@@ -80,7 +80,7 @@ function decisions(
   })
 }
 
-describe('C11 the translation of the evaluation (decision 18)', () => {
+describe('the translation of the evaluation', () => {
   it('winner 翻成 adopted', async () => {
     const official = candidate('official/weekly-report', {}, 'b')
     const mine = candidate('tenant/weekly-report')
@@ -254,6 +254,7 @@ describe('publishedCandidate', () => {
         name: 'weekly-report',
         description: 'Writes the weekly report.',
         tools: [{ category: 'tool', name: 'Shell' }],
+        settings: [],
       },
     })
   })
@@ -279,6 +280,13 @@ describe('publishedCandidate: bodies of another shape', () => {
     entries: [
       { key: 'category', value: text(category) },
       { key: 'name', value: text(name) },
+    ],
+  })
+  const setting = (name: string, category: string): JsonValue => ({
+    kind: 'object',
+    entries: [
+      { key: 'name', value: text(name) },
+      { key: 'category', value: text(category) },
     ],
   })
   const fields: Record<string, JsonValue> = {
@@ -311,7 +319,19 @@ describe('publishedCandidate: bodies of another shape', () => {
     expect(candidateOf(bodyWith({ description: undefined }))?.declared).toEqual({
       name: 'weekly-report',
       tools: [{ category: 'tool', name: 'Shell' }],
+      settings: [],
     })
+  })
+
+  it('takes the settings of a published Skill, a preference and a binding', () => {
+    const settings: JsonValue = {
+      kind: 'array',
+      items: [setting('tone', 'preference'), setting('calendar', 'binding')],
+    }
+    expect(candidateOf(bodyWith({ settings }))?.declared.settings).toEqual([
+      { name: 'tone', category: 'preference' },
+      { name: 'calendar', category: 'binding' },
+    ])
   })
 
   it.each([
@@ -326,6 +346,15 @@ describe('publishedCandidate: bodies of another shape', () => {
     ],
     ['a tool that is no object', { tools: { kind: 'array', items: [text('Shell')] } as JsonValue }],
     ['an empty description', { description: text('') }],
+    ['settings that are no list', { settings: text('tone') }],
+    [
+      'a setting of a category that is neither a preference nor a binding',
+      { settings: { kind: 'array', items: [setting('owner', 'governance')] } as JsonValue },
+    ],
+    [
+      'a setting without a name',
+      { settings: { kind: 'array', items: [setting('', 'preference')] } as JsonValue },
+    ],
     ['no package', { package: undefined }],
     [
       'a package digest of another form',

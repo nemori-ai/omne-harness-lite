@@ -3,10 +3,10 @@ import {
   isAssetVersion,
   isPackageDigest,
   isSafeReason,
+  isSettingCategory,
   isSkillDescription,
   isSkillName,
   type DeclaredProjection,
-  type SettingCategory,
   type SettingDeclaration,
   type SourceLayer,
   type StandIn,
@@ -113,19 +113,10 @@ function refOf(value: unknown): SkillRef | undefined {
   return Object.freeze({ capability, layer, ...assetVersion, locator, ...digest })
 }
 
-function settingCategoryOf(value: unknown): SettingCategory | undefined {
-  switch (value) {
-    case 'preference':
-    case 'binding':
-      return value
-  }
-  return undefined
-}
-
 function settingOf(value: unknown): SettingDeclaration | undefined {
   const name = text(fieldOf(value, 'name'))
-  const category = settingCategoryOf(fieldOf(value, 'category'))
-  if (name === undefined || category === undefined) return undefined
+  const category = fieldOf(value, 'category')
+  if (name === undefined || !isSettingCategory(category)) return undefined
   return Object.freeze({ name, category })
 }
 
