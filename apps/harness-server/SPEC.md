@@ -252,6 +252,14 @@
 - Shell 进程不继承服务进程的环境。它的环境是配置文件里在配置时按白名单取的变量，加上指向宿主状态目录的临时目录。名字像秘密的变量不进 Shell 的环境：手工写进配置的，`serve` 以配置不合格拒绝，生成运维者层时再滤一次。经宿主服务管理器起的进程归服务管理器，不归执行环境。
 - Windows 上 PowerShell 以只作用于这一个进程的执行策略启动，并带一段把控制台编码与读文件的缺省编码设为 UTF-8 的前导；不改机器或用户的任何设置。
 
+### 发行验收
+
+- `acceptance/` 在发行装配上跑持续场景，对应[工具执行的产品验收页](../../.meta_harness/design/product/tool-execution/acceptance.md)的 S4、S5。场景起真实的发行树（真实的 Session、Agent、Tool 与 SQLite 存储），模型换成脚本化网关，命令行用构建后的 `omne`。先在仓库根构建 `pnpm --workspace-concurrency=1 --filter @omne-harness/harness-server... -r run build`，再运行 `pnpm --filter @omne-harness/harness-server run acceptance`。
+- S4：模型让一条长命令发起即后台。前台位置得到占位，这一轮结束。命令结束后，历史里有一条来源为后台工具执行、带命令输出的提醒，并自动开始新的一轮。账本里这次调用只启动一次，会话里这次调用的账目与账本一致，不因转后台多出一份。
+- S5：两条长命令都在后台。`omne calls stop` 停其中一条，回执是受理；之后 `omne calls show` 读到 `stopped` 与 `interrupted`。被停的那条不产生提醒，另一条照常完成并回到会话。
+- 每条场景在标准输出写一行 JSON：`result` 为 `PASS` 或 `FAIL`，`observed` 是判定用到的观察。断言失败时以非零退出码结束。等待只等实际条件，单个条件最多等两分钟。
+- 场景要求宿主能运行 `/bin/sh` 的一次性命令。它们不证明跨进程恢复、真实模型或多租户隔离。
+
 ## 原则与约束
 
 - 本应用只装配。一条领域规则出现在这里时，先问它的拥有者是谁，写进拥有者的规格。

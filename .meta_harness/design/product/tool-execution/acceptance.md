@@ -12,7 +12,7 @@
 
 ## 执行与范围
 
-运行方式、具体装配与可执行场景见[Tool验收入口](../../../../packages/tool/tool/acceptance/README.md)。S4、S5 在发行装配上跑，见[发行验收入口](../../../../apps/harness-server/acceptance/README.md)。执行文件使用 `// covers: PD-tool-execution S<N>` 引用本表。编号只定位场景，不创建新业务对象或公开接口。
+运行方式、具体装配与可执行场景见[Tool验收入口](../../../../packages/tool/tool/acceptance/README.md)。S4、S5 在发行装配上跑，见[发行验收](../../../../apps/harness-server/SPEC.md#发行验收)。执行文件使用 `// covers: PD-tool-execution S<N>` 引用本表。编号只定位场景，不创建新业务对象或公开接口。
 
 验收使用构建后的公开入口、真实运行时和账本逻辑，以及单进程非耐久提供者。外部身份、资格、环境与宿主条件由受控装配提供。场景不证明生产授权、真实Agent或Session、持久化、跨进程或断电恢复。两个失败场景不会经历成功路径的全部步骤，不制造不存在的执行事实。
 
