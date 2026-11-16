@@ -81,23 +81,40 @@ it('installs only the packed closure and every entry resolves inside the consume
     '@omne-harness/model-contract/testing',
   ])
   expect(report.forbidden).toEqual([])
-  expect(report.install).toEqual({ mode: 'offline', allowNetwork: false })
-  // Without a scenario the consumer depends on the target member alone.
-  const manifest = JSON.parse(
-    readFileSync(join(workDirectories[0] as string, 'project/package.json'), 'utf8'),
-  ) as { dependencies: Record<string, string>; packageManager: string }
-  expect(Object.keys(manifest.dependencies)).toEqual(['@omne-harness/model-contract'])
-  // The run reads no pnpm state of the machine: the consumer names the pnpm of the workspace, the
-  // store is its own, and no registry metadata was read or written to resolve a package.
+  // The consumer was installed by the pnpm that runs this test (npm_execpath), the version pinned by
+  // the root devEngines, even though the consumer itself pins none.
   const root = JSON.parse(readFileSync(join(workspaceRoot, 'package.json'), 'utf8')) as {
-    packageManager: string
+    devEngines: { packageManager: { version: string } }
   }
-  expect(manifest.packageManager).toBe(root.packageManager)
+  expect(report.install).toEqual({
+    mode: 'offline',
+    allowNetwork: false,
+    pnpm: root.devEngines.packageManager.version,
+  })
+  // Without a scenario the consumer depends on the target member alone.
+  const project = join(workDirectories[0] as string, 'project')
+  const manifest = JSON.parse(readFileSync(join(project, 'package.json'), 'utf8')) as {
+    dependencies: Record<string, string>
+    packageManager?: string
+    pnpm?: unknown
+  }
+  expect(Object.keys(manifest.dependencies)).toEqual(['@omne-harness/model-contract'])
+  // pnpm 12 reads overrides only from the consumer's own pnpm-workspace.yaml; the manifest pins no
+  // pnpm and has no pnpm field. The store is the run's own, and no registry metadata was read or
+  // written to resolve a package.
+  expect(manifest.packageManager).toBeUndefined()
+  expect(manifest.pnpm).toBeUndefined()
+  const workspace = readFileSync(join(project, 'pnpm-workspace.yaml'), 'utf8')
+  expect(workspace).toMatch(/^packages: \[\]\noverrides:\n/u)
   expect(existsSync(join(workDirectories[0] as string, 'pnpm-store'))).toBe(true)
   const cached = readdirSync(join(workDirectories[0] as string, 'pnpm-cache'), {
     recursive: true,
     withFileTypes: true,
   })
-  expect(cached.filter(entry => entry.isFile())).toEqual([])
+  // pnpm 12 records the supply-chain check of the consumer's lockfile in the cache
+  // (lockfile-verified.jsonl); that is no registry metadata.
+  expect(
+    cached.filter(entry => entry.isFile() && entry.name !== 'lockfile-verified.jsonl'),
+  ).toEqual([])
   expect(run.status).toBe(0)
 })

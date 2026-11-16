@@ -1,9 +1,8 @@
 // Child processes of the install-closure facility, and the TypeScript compiler that it owns. A
 // member does not depend on the compiler: the facility brings its own.
 import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { delimiter, dirname, join } from 'node:path'
+import { dirname, join } from 'node:path'
 import ts from '@typescript/typescript6'
 
 /**
@@ -23,29 +22,19 @@ export function childEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv 
 }
 
 /**
- * The pnpm entry that Node can start on Windows. There `pnpm` on PATH is `pnpm.cmd` and a shell shim,
- * which Node cannot start without a shell; the entry is `node_modules/pnpm/bin/pnpm.cjs` next to
- * `pnpm.cmd` (the npm global layout), run with this process's Node. A missing entry is an error.
+ * The command line that starts `command`. `pnpm` is the pnpm that runs this test, named by
+ * `npm_execpath`: the consumer project pins no pnpm, so a `pnpm` on PATH would be whatever the
+ * machine has. Without `npm_execpath` (the test did not run through pnpm) this is an error; it does
+ * not fall back to PATH. A JavaScript entry runs with this process's Node.
  */
-function windowsPnpmEntry(): string {
-  const seen: string[] = []
-  for (const directory of (process.env['PATH'] ?? process.env['Path'] ?? '').split(delimiter)) {
-    if (directory === '' || !existsSync(join(directory, 'pnpm.cmd'))) continue
-    const entry = join(directory, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
-    if (existsSync(entry)) return entry
-    seen.push(join(directory, 'pnpm.cmd'))
-  }
-  throw new Error(
-    seen.length === 0
-      ? 'no pnpm.cmd on PATH'
-      : `no node_modules/pnpm/bin/pnpm.cjs next to ${seen.join(', ')}`,
-  )
-}
-
-/** The command line that starts `command`; only `pnpm` on Windows differs from the arguments. */
 function commandLine(command: string, args: readonly string[]): [string, readonly string[]] {
-  if (process.platform !== 'win32' || command !== 'pnpm') return [command, args]
-  return [process.execPath, [windowsPnpmEntry(), ...args]]
+  if (command !== 'pnpm') return [command, args]
+  const entry = process.env['npm_execpath']
+  if (entry === undefined || entry === '')
+    throw new Error(
+      'npm_execpath is not set: run the tests through pnpm (pnpm exec vitest, pnpm run test) so that the pinned pnpm is known',
+    )
+  return /\.[cm]?js$/u.test(entry) ? [process.execPath, [entry, ...args]] : [entry, args]
 }
 
 export function exec(

@@ -8,26 +8,26 @@ import {
   readdirSync,
   writeFileSync,
   copyFileSync,
-  existsSync,
   rmSync,
 } from 'node:fs'
-import { basename, delimiter, resolve, join } from 'node:path'
+import { basename, resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 
 /**
- * The command line that starts `command`. On Windows `pnpm` on PATH is `pnpm.cmd` and a shell shim,
- * which Node cannot start without a shell; there pnpm runs as `node_modules/pnpm/bin/pnpm.cjs` next
- * to `pnpm.cmd` (the npm global layout) with this process's Node.
+ * The command line that starts `command`. `pnpm` is the pnpm that runs this test, named by
+ * `npm_execpath`: the consumer pins no pnpm, so a `pnpm` on PATH would be whatever the machine has.
+ * Without `npm_execpath` this is an error; it does not fall back to PATH. A JavaScript entry runs
+ * with this process's Node.
  */
 function commandLine(command: string, args: string[]): [string, string[]] {
-  if (process.platform !== 'win32' || command !== 'pnpm') return [command, args]
-  for (const directory of (process.env['PATH'] ?? process.env['Path'] ?? '').split(delimiter)) {
-    const entry = join(directory, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
-    if (directory !== '' && existsSync(join(directory, 'pnpm.cmd')) && existsSync(entry))
-      return [process.execPath, [entry, ...args]]
-  }
-  throw new Error('no pnpm.cmd with node_modules/pnpm/bin/pnpm.cjs next to it on PATH')
+  if (command !== 'pnpm') return [command, args]
+  const entry = process.env['npm_execpath']
+  if (entry === undefined || entry === '')
+    throw new Error(
+      'npm_execpath is not set: run the tests through pnpm (pnpm exec vitest, pnpm run test) so that the pinned pnpm is known',
+    )
+  return /\.[cm]?js$/u.test(entry) ? [process.execPath, [entry, ...args]] : [entry, args]
 }
 
 it('installs only the pure tarball closure and consumes both ends through dist exports', () => {
@@ -107,7 +107,7 @@ it('installs only the pure tarball closure and consumes both ends through dist e
     }
     // The install reads no pnpm state of the machine. Every third-party package comes from the
     // directory where the workspace installed it, so pnpm asks no registry which version to take;
-    // the consumer names the pnpm of the workspace; the store and the cache are those of this run.
+    // the store and the cache are those of this run.
     type Installed = { version: string; path?: string; dependencies?: Record<string, Installed> }
     const thirdParty: Record<string, string> = {}
     const listing = [
@@ -125,26 +125,31 @@ it('installs only the pure tarball closure and consumes both ends through dist e
           thirdParty[name] = `file:${tree.path}`
         listing.push(tree)
       }
-    const { packageManager } = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as {
-      packageManager: string
-    }
     writeFileSync(
       join(consumer, 'package.json'),
       JSON.stringify({
         name: 'public-contract-independent-consumer',
         private: true,
         type: 'module',
-        packageManager,
         dependencies,
-        pnpm: { overrides: { ...thirdParty, ...dependencies } },
       }),
     )
+    // pnpm 12 reads overrides only from pnpm-workspace.yaml. The file also makes the consumer its own
+    // workspace root, so pnpm does not adopt the repository's. No packageManager: with an empty
+    // cache and --offline, a pinned pnpm fails with ERR_PNPM_BAD_CONFIG_DEP.
+    writeFileSync(
+      join(consumer, 'pnpm-workspace.yaml'),
+      `packages: []\noverrides:\n${Object.entries({ ...thirdParty, ...dependencies })
+        .map(([name, target]) => `  ${JSON.stringify(name)}: ${JSON.stringify(target)}\n`)
+        .join('')}`,
+    )
+    // The pnpm that installs the consumer, recorded in the evidence: the pinned one (npm_execpath).
+    const pnpmVersion = run('pnpm', ['-v'], consumer).trim()
     const installation = run(
       'pnpm',
       [
         'install',
         '--ignore-scripts',
-        '--ignore-workspace',
         '--offline',
         '--store-dir',
         join(scratch, 'pnpm-store'),
@@ -230,11 +235,7 @@ it('installs only the pure tarball closure and consumes both ends through dist e
       ]),
     )
     for (const location of Object.values(resolutions)) expect(location).toContain('/dist/index.js')
-    const closure = run(
-      'pnpm',
-      ['list', '--prod', '--depth', 'Infinity', '--json', '--ignore-workspace'],
-      consumer,
-    )
+    const closure = run('pnpm', ['list', '--prod', '--depth', 'Infinity', '--json'], consumer)
     type DependencyTree = { dependencies?: Record<string, DependencyTree> }
     const trees = JSON.parse(closure) as DependencyTree[]
     const installed = new Set<string>()
@@ -276,6 +277,7 @@ it('installs only the pure tarball closure and consumes both ends through dist e
       JSON.stringify(
         {
           commandLogs: logs,
+          pnpmVersion,
           installation,
           execution,
           resolved,

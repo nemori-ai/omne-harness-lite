@@ -1,7 +1,7 @@
 // @module-tag slow
 // Packs the member, installs the tarball into a directory under tmp/, and runs pnpm, node and tsc in it.
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -91,7 +91,15 @@ it('installs only the packed closure and every entry resolves inside the consume
     '@omne-harness/model-cordis-contract/cordis',
     '@omne-harness/model-cordis-contract/testing',
   ])
-  expect(report.install).toEqual({ mode: 'offline', allowNetwork: false })
+  // The consumer was installed by the pnpm that runs this test (npm_execpath): the root devEngines version.
+  const root = JSON.parse(readFileSync(join(workspaceRoot, 'package.json'), 'utf8')) as {
+    devEngines: { packageManager: { version: string } }
+  }
+  expect(report.install).toEqual({
+    mode: 'offline',
+    allowNetwork: false,
+    pnpm: root.devEngines.packageManager.version,
+  })
   expect(status).toBe(0)
 })
 
