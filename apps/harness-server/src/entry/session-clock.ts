@@ -4,20 +4,29 @@ import type { Adoption } from '@omne-harness/exchange-refs'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ClockSample, SessionClock } from '@omne-harness/session-contract'
 import { SessionClockService, sessionClockKey } from '@omne-harness/session-cordis-contract/cordis'
+import {
+  systemTime,
+  waitUntil as waitUntilEpoch,
+  type TimeSource,
+} from '@omne-harness/time-source'
 import { parseInstant, type InstantFailure } from '@omne-harness/utc-instant'
-import type { EntryObjectModule } from '../types.ts'
+import type { EntryObjectModule, EntryTime } from '../types.ts'
+import { timeOf } from './time.ts'
 
 export type SystemInstant =
   | Readonly<{ ok: true; text: string }>
   | Readonly<{ ok: false; failure: InstantFailure }>
 
-export function readSystemInstant(): SystemInstant {
-  const text = new Date(
-    /* wall-clock: clock-source -- the sessionClock and agentClock entry objects are the clock the assembly provides (AA runtime objects, 时钟). */ Date.now(),
-  ).toISOString()
+export function readInstant(time: TimeSource): SystemInstant {
+  const text = new Date(time.now()).toISOString()
   const parsed = parseInstant(text)
   return parsed.ok ? { ok: true, text } : { ok: false, failure: parsed.failure }
 }
+
+const rowTime = systemTime()
+
+/** For the rows that still read the clock on their own; an entry object reads the time the assembly gave. */
+export const readSystemInstant = (): SystemInstant => readInstant(rowTime)
 
 export function epochMillisOf(instantText: string): number {
   const direct = Date.parse(instantText)
@@ -27,68 +36,33 @@ export function epochMillisOf(instantText: string): number {
   return beforeLeap + 1000
 }
 
-const MAX_DELAY_MS = 2_147_483_647
-
-export function waitUntilEpoch(
-  targetMs: number,
-  signal: AbortSignal,
-): Promise<'elapsed' | 'cancelled'> {
-  return new Promise(resolve => {
-    if (signal.aborted) {
-      resolve('cancelled')
-      return
-    }
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const finish = (answer: 'elapsed' | 'cancelled'): void => {
-      clearTimeout(timer)
-      signal.removeEventListener('abort', onAbort)
-      resolve(answer)
-    }
-    const onAbort = (): void => finish('cancelled')
-    const arm = (): void => {
-      const remaining =
-        targetMs -
-        /* wall-clock: operation-timing -- how long until the target instant; the domain reading is readSystemInstant. */ Date.now()
-      if (remaining <= 0) {
-        finish('elapsed')
-        return
-      }
-      timer = setTimeout(arm, Math.min(remaining, MAX_DELAY_MS))
-    }
-    signal.addEventListener('abort', onAbort, { once: true })
-    arm()
-  })
-}
-
 const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex')
 const OWNER = 'harness-server'
-const PROTOCOL_NAME = 'system-clock'
 const REVISION = '1'
 
-const PROTOCOL: Adoption = Object.freeze({
-  owner: OWNER,
-  name: PROTOCOL_NAME,
-  revision: REVISION,
-  digest: sha256(`${OWNER}/${PROTOCOL_NAME}/${REVISION}`),
-})
-
-export function createSessionClock(): SessionClock {
+export function createSessionClock(time: EntryTime): SessionClock {
+  const protocol: Adoption = Object.freeze({
+    owner: OWNER,
+    name: time.protocol,
+    revision: REVISION,
+    digest: sha256(`${OWNER}/${time.protocol}/${REVISION}`),
+  })
   let ordinal = 0
   const sample: SessionClock['sample'] = () => {
-    const reading = readSystemInstant()
+    const reading = readInstant(time.source)
     if (!reading.ok)
       return Promise.resolve(
         fail({
           kind: 'unavailable',
           owner: 'clock',
-          diagnostic: `system-clock:${reading.failure.kind}`,
+          diagnostic: `${time.protocol}:${reading.failure.kind}`,
         }),
       )
     ordinal += 1
-    const record = `${PROTOCOL_NAME}/sample/${ordinal}`
+    const record = `${time.protocol}/sample/${ordinal}`
     const value: ClockSample = Object.freeze({
       at: reading.text,
-      protocol: PROTOCOL,
+      protocol,
       source: Object.freeze({
         owner: OWNER,
         record,
@@ -102,7 +76,7 @@ export function createSessionClock(): SessionClock {
     const parsed = parseInstant(instant)
     if (!parsed.ok)
       throw new TypeError(`sessionClock.waitUntil: instant text refused (${parsed.failure.kind})`)
-    return waitUntilEpoch(epochMillisOf(instant), signal)
+    return waitUntilEpoch(time.source, epochMillisOf(instant), signal)
   }
   return Object.freeze({ sample, waitUntil })
 }
@@ -120,7 +94,7 @@ class EntrySessionClock extends SessionClockService {
 export const sessionClock: EntryObjectModule = {
   name: sessionClockKey,
   implementation: 'real',
-  install(scope) {
-    new EntrySessionClock(scope, createSessionClock())
+  install(scope, env) {
+    new EntrySessionClock(scope, createSessionClock(timeOf(env)))
   },
 }

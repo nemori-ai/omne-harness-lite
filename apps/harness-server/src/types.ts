@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { CloseReport } from '@omne-harness/telemetry-contract'
 import type { CordisLogBridgeCounts } from '@omne-harness/telemetry-node/cordis'
+import type { TimeSource } from '@omne-harness/time-source'
 
 export type RowId = string & { readonly __brand: 'RowId' }
 export type ServiceName = string
@@ -92,10 +93,13 @@ export type ShutdownReport = Readonly<{
   telemetry?: TelemetryShutdownReport
 }>
 
+export type EntryTime = Readonly<{ source: TimeSource; protocol: string }>
+
 export type EntryEnv = Readonly<{
   stateRoot: string
   readTrusted(name: ServiceName): Context
   once<T>(key: symbol, create: () => T): T
+  time?: EntryTime
 }>
 
 export type EntryObjectModule = Readonly<{
