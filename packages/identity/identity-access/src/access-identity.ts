@@ -8,18 +8,15 @@ import type {
   IdentityOperations,
   PrincipalIssuer,
   SystemPrincipal,
+  TenantStandingSource,
 } from '@omne-harness/identity'
-import {
-  accountEquals,
-  tenantCodec,
-  tenantEquals,
-  type TenantId,
-} from '@omne-harness/legal-identity'
+import { accountEquals, tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { callerOf, LOGIN_WORK_OWNER, loginIdentityOf, loginTextOf, principalOf } from './caller.ts'
 
 export type AccessIdentityDependencies = Readonly<{
   operations: IdentityOperations
   governance: IdentityGovernance
+  standing: Pick<TenantStandingSource, 'read'>
   issuer: PrincipalIssuer
 }>
 
@@ -31,7 +28,7 @@ const UNAVAILABLE = Object.freeze({ outcome: 'basis-unavailable' as const })
 export function createAccessIdentity(
   deps: AccessIdentityDependencies,
 ): AccessIdentity & Readonly<{ resume(tenant: string, loginText: string): ActForResult }> {
-  const { operations, governance, issuer } = deps
+  const { operations, governance, standing, issuer } = deps
   let actor: SystemPrincipal | undefined
 
   const systemPrincipal = (): SystemPrincipal | undefined => {
@@ -81,16 +78,14 @@ export function createAccessIdentity(
       const caller = callerOf(login)
       const target = tenantCodec.parse(tenant)
       if (!target.ok || !accountEquals(target.value.account, caller.account)) return DENIED
-      let memberships
+      let reading
       try {
-        memberships = await governance.queryOwnMemberships({ login: caller.login })
+        reading = await standing.read({ tenant: target.value })
       } catch {
         return UNAVAILABLE
       }
-      if (memberships.kind === 'basis-unavailable') return UNAVAILABLE
-      if (memberships.kind !== 'succeeded') return DENIED
-      const member = memberships.memberships.some(entry => tenantEquals(entry.tenant, target.value))
-      return member ? issueFor(target.value, caller.loginText) : DENIED
+      if (reading.kind === 'unavailable') return UNAVAILABLE
+      return reading.kind === 'member' ? issueFor(target.value, caller.loginText) : DENIED
     },
 
     resume(tenant, loginText): ActForResult {

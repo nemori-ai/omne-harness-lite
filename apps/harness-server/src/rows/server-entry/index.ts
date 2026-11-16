@@ -1,12 +1,11 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
-import { createAccessIdentity } from '@omne-harness/identity-access'
 import { createServerEntry } from '@omne-harness/server-entry'
 import { telemetryKey } from '@omne-harness/telemetry-cordis-contract/cordis'
 import { defineRow, type RowHandle } from '../../row.ts'
 import { serverEntryConfig } from './config.ts'
-import { governanceOfCall, identityOfCall } from './identity.ts'
+import { accessIdentityOfCall } from './identity.ts'
 import { entryAccess } from './access.ts'
 
 const LOOPBACK = '127.0.0.1'
@@ -15,15 +14,7 @@ async function build(ctx: Context, raw: unknown): Promise<RowHandle> {
   const config = serverEntryConfig.parse(raw)
   const entry = createServerEntry({
     config: { listenAddress: LOOPBACK, ...config },
-    access: entryAccess(
-      ctx,
-      ctx.telemetry,
-      createAccessIdentity({
-        operations: identityOfCall(ctx),
-        governance: governanceOfCall(ctx),
-        issuer: ctx.principalIssuer,
-      }),
-    ),
+    access: entryAccess(ctx, ctx.telemetry, accessIdentityOfCall(ctx)),
   })
   ctx.effect(() => () => entry.stop(), 'server-entry.listener')
   return {

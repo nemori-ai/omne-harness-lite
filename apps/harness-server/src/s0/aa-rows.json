@@ -314,7 +314,8 @@
       "row": "server-entry",
       "names": [
         "principalIssuer",
-        "identityGovernance"
+        "identityGovernance",
+        "tenantStanding"
       ]
     },
     {
@@ -327,6 +328,7 @@
       "row": "session-access",
       "names": [
         "principalIssuer",
+        "tenantStanding",
         "definitionMappings"
       ]
     },
@@ -334,19 +336,22 @@
       "row": "assets-access",
       "names": [
         "principalIssuer",
+        "tenantStanding",
         "settingsSecretItems"
       ]
     },
     {
       "row": "human-intervention-access",
       "names": [
-        "principalIssuer"
+        "principalIssuer",
+        "tenantStanding"
       ]
     },
     {
       "row": "session-diagnostics-access",
       "names": [
-        "principalIssuer"
+        "principalIssuer",
+        "tenantStanding"
       ]
     }
   ]

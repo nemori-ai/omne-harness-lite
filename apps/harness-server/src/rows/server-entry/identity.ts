@@ -3,11 +3,38 @@ import type {
   GovernanceBasisUnavailable,
   IdentityGovernance,
   IdentityOperations,
+  TenantStandingSource,
 } from '@omne-harness/identity'
-import { identityGovernanceKey, identityOperationsKey } from '@omne-harness/identity/cordis'
+import {
+  identityGovernanceKey,
+  identityOperationsKey,
+  tenantStandingKey,
+} from '@omne-harness/identity/cordis'
+import { createAccessIdentity } from '@omne-harness/identity-access'
 
 const MISSING = 'identity operations are not provided by the tree'
 const GOVERNANCE_MISSING = 'identity governance is not provided by the tree'
+const STANDING_MISSING = 'the tenant standing source is not provided by the tree'
+
+export function accessIdentityOfCall(ctx: Context): ReturnType<typeof createAccessIdentity> {
+  return createAccessIdentity({
+    operations: identityOfCall(ctx),
+    governance: governanceOfCall(ctx),
+    standing: standingOfCall(ctx),
+    issuer: ctx.principalIssuer,
+  })
+}
+
+export function standingOfCall(ctx: Context): Pick<TenantStandingSource, 'read'> {
+  return {
+    async read(input) {
+      const standing = ctx.get(tenantStandingKey)
+      return standing === undefined
+        ? { kind: 'unavailable', diagnostic: STANDING_MISSING }
+        : standing.read(input)
+    },
+  }
+}
 
 export function identityOfCall(ctx: Context): IdentityOperations {
   const current = (): IdentityOperations | undefined => ctx.get(identityOperationsKey)
