@@ -301,7 +301,7 @@ describe('G 启动门控', () => {
     const base = withConfig('agent-adoptions', { mappingIds: ['map-a', 'map-b'] })
     return runS0Process(
       withConfig(
-        'server-entry',
+        'adoption-sources',
         {
           expectIn: {
             service: 's0.definitionMappings',
@@ -315,10 +315,10 @@ describe('G 启动门控', () => {
     )
   }
 
-  it('映射选择不在映射列表：server-entry 启动时 FAILED', async () => {
+  it('映射选择不在映射列表：消费映射的行启动时 FAILED', async () => {
     const out = await mappingRun('map-zzz')
     expect(out.code).toBe(3)
-    expect(states(out).get('server-entry')).toMatchObject({
+    expect(states(out).get('adoption-sources')).toMatchObject({
       state: 'FAILED',
       error: { tag: 'mapping-selection-unknown' },
     })
