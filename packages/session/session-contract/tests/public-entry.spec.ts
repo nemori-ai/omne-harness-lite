@@ -14,6 +14,7 @@ it('exports exactly the declared root runtime surface', () => {
     'commandDigest',
     'contextScopeOf',
     'contextScopesOf',
+    'controlRoutes',
     'decide',
     'decideControlConsequences',
     'deriveDriveOperation',

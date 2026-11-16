@@ -403,8 +403,6 @@ export function createSessionTransactions<P>(
 
   const commit = (input: PreparedCommit): Outcome<unknown, SessionFailure> => {
     const command: SessionCommand = input.command
-    if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
-      return fail({ kind: 'unsupported' })
     const key = keyOf(command.input.tenant, command.input.session)
     if ('failure' in key) return key
     const blocked = stores.gate(key.ok)

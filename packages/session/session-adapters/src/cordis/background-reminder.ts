@@ -44,12 +44,8 @@ const forModel = (blocks: readonly ContentBlock[]): MessageContentBlock[] =>
     (block): block is MessageContentBlock => block.kind !== 'thinking' && block.visibility.toModel,
   )
 
-/**
- * The system reminder that the outcome of a backgrounded call becomes. The first block names
- * the call as the placeholder message did, then the terminal and the effect; the model-visible
- * content of the result follows unchanged. Offloaded output and attachments stay with the result
- * and are only named.
- */
+// The reminder a backgrounded call's outcome becomes: a head that names the call, its terminal and
+// effect, then the model-visible content; offloaded output and attachments are only named.
 export function backgroundReminder(
   call: ToolCallId,
   delivery: ResultDelivery,

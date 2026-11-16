@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Message } from '@omne-harness/message'
-import { openWork, pendingIntakeCount } from '@omne-harness/session-contract'
+import { controlRoutes, openWork, pendingIntakeCount } from '@omne-harness/session-contract'
 import type {
   ConsumptionId,
   InputId,
@@ -437,5 +437,69 @@ describe('system inputs and the pending budget', () => {
     expect(pendingIntakeCount(snapshot)).toBe(1)
     expect(pendingIntakeCount({ ...snapshot, backgroundInputs: [] })).toBe(2)
     await c.s.accept('after-reminder')
+  })
+})
+
+describe('a control of a backgrounded call goes to Tool, and its outcome reconciles it', () => {
+  async function placed() {
+    const c = await bound()
+    succeeded(await commitEntries(c, observation(c, 'p', 0, [[backgrounded]])), 'placeholder')
+    return c
+  }
+  const stopOf = (c: Scene, name: string, call = CALL) =>
+    c.s.commit({
+      kind: 'stopCall',
+      input: { ...c.s.base, operation: operationId(name), producer: { kind: 'tool', call } },
+    })
+  const lastControl = async (c: Scene) => (await c.s.read()).controls.at(-1)!
+
+  it('a stop of a foreground call keeps its route through Agent', async () => {
+    const c = await bound()
+    succeeded(await stopOf(c, 'stop'), 'stop')
+    expect(controlRoutes(await c.s.read(), await lastControl(c))).toEqual({
+      agent: true,
+      direct: [],
+    })
+  })
+
+  it('a stop of a backgrounded call goes to Tool alone; its outcome settles kept and reconciles the stop', async () => {
+    const c = await placed()
+    succeeded(await stopOf(c, 'stop'), 'stop')
+    expect(controlRoutes(await c.s.read(), await lastControl(c))).toEqual({
+      agent: false,
+      direct: [{ producer, intent: 'stop' }],
+    })
+    const before = entryCount(c)
+    succeeded(await commitEntries(c, observation(c, 'r', 1, [[execution, outcome()]])), 'outcome')
+    const added = await newEntries(c, before)
+    expect(added.find(entry => entry.kind === 'call.background-settled')).toMatchObject({
+      disposition: { kind: 'kept', reason: 'stopped' },
+    })
+    expect(added.some(entry => entry.kind === 'message.system_reminder')).toBe(false)
+    const after = await c.s.read()
+    expect(after.controls.at(-1)).toMatchObject({ state: 'reconciled', pending: [] })
+    expect(controlRoutes(after, after.controls.at(-1)!)).toEqual({ agent: false, direct: [] })
+  })
+
+  it('an archive withdraws the backgrounded call by its reference and keeps the Agent route', async () => {
+    const c = await placed()
+    succeeded(
+      await c.s.commit({
+        kind: 'control',
+        input: { ...c.s.base, operation: operationId('archive'), intent: { kind: 'archive' } },
+      }),
+      'archive',
+    )
+    const archive = await lastControl(c)
+    expect(controlRoutes(await c.s.read(), archive)).toEqual({
+      agent: true,
+      direct: [{ producer, intent: 'withdraw' }],
+    })
+    succeeded(await commitEntries(c, observation(c, 'r', 1, [[execution, outcome()]])), 'outcome')
+    const after = await c.s.read()
+    const settled = after.controls.find(control => control.operation === archive.operation)!
+    expect(settled.pending).not.toContainEqual(producer)
+    expect(settled.state).toBe(archive.state)
+    expect(controlRoutes(after, settled).direct).toEqual([])
   })
 })

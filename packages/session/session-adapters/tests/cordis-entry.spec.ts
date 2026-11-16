@@ -24,6 +24,7 @@ it('cordis entry exports the production plugins that have landed', async () => {
     'createSessionModelLogConsumptionPlugin',
     'createSessionModesPlugin',
     'createSessionToolLogConsumptionPlugin',
+    'createToolCallControl',
     'encodeContextRegistrationChange',
     'encodeContextStepCommit',
     'encodeInitialContextRegistration',

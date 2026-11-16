@@ -5,7 +5,14 @@ import type { ConsumptionId, InputId } from './identity.ts'
 import type { SessionEntriesInterpretation } from './interpretation-values.ts'
 import type { EncodedEntry } from './judgments.ts'
 import { digestOf } from './operations.ts'
-import type { BackgroundDisposition, ProducerRef, RoutedInput, WorkSnapshot } from './values.ts'
+import type {
+  BackgroundDisposition,
+  ControlProgress,
+  ProducerRef,
+  RoutedInput,
+  WorkSnapshot,
+} from './values.ts'
+import { settledControls } from './call-control.ts'
 
 /** The origin owner of an input that a background tool execution's outcome became. */
 export const BACKGROUND_INPUT_OWNER = 'background-tool-execution'
@@ -26,6 +33,7 @@ export type BackgroundStep =
       entries: readonly EncodedEntry[]
       admitted: readonly Ordinary[]
       placeholders: readonly ConsumptionId[]
+      controls: readonly ControlProgress[]
     }>
   | Readonly<{ kind: 'rejected'; failure: SessionFailure }>
 
@@ -46,11 +54,8 @@ function stoppedAlone(snapshot: WorkSnapshot, producer: ProducerRef): boolean {
   )
 }
 
-/**
- * Whether the outcome of a backgrounded call becomes an input (SW-I14). The eligibility is
- * derived from the snapshot: archiving the session or stopping this one call revokes it;
- * cancelling the Run does not. Rows are tried in order.
- */
+// Eligibility comes from the snapshot (SW-I14): archiving or stopping this one call revokes it,
+// cancelling the Run does not. Rows are tried in order.
 export function judgeBackgroundOutcome(
   snapshot: WorkSnapshot,
   consumption: ConsumptionId,
@@ -92,6 +97,7 @@ function decideBackgrounded(
     ],
     admitted: [],
     placeholders: [...placeholders, consumption],
+    controls: snapshot.controls,
   }
 }
 
@@ -123,17 +129,26 @@ function decideOutcome(
   const judged = judgeBackgroundOutcome(snapshot, consumption, fact.producer)
   if (judged.kind === 'refused') return invalid('producer', 'the call is not backgrounded')
   const placeholders = (snapshot.backgroundPlaceholders ?? []).filter(item => item !== consumption)
-  const settled = (disposition: BackgroundDisposition) =>
+  const released = settledControls(snapshot.controls, fact.producer)
+  const controls = snapshot.controls.map(
+    control => released.find(item => item.operation === control.operation) ?? control,
+  )
+  const settled = (disposition: BackgroundDisposition) => [
     encodeEntry(
       { kind: 'call.background-settled', consumption, result: fact.result, disposition },
       origin,
-    )
+    ),
+    ...released.map(progress =>
+      encodeEntry({ kind: 'control.progress', progress, fact: null }, origin),
+    ),
+  ]
   if (judged.kind === 'kept')
     return {
       kind: 'entries',
-      entries: [settled({ kind: 'kept', reason: judged.reason })],
+      entries: settled({ kind: 'kept', reason: judged.reason }),
       admitted: [],
       placeholders,
+      controls,
     }
   const input = reminderInput(fact)
   if (snapshot.pending.includes(input.input))
@@ -142,7 +157,7 @@ function decideOutcome(
   return {
     kind: 'entries',
     entries: [
-      settled({ kind: 'input', input: input.input }),
+      ...settled({ kind: 'input', input: input.input }),
       encodeEntry(
         {
           kind: 'message.system_reminder',
@@ -167,10 +182,10 @@ function decideOutcome(
     ],
     admitted: [input],
     placeholders,
+    controls,
   }
 }
 
-/** Decides the consequence of one background interpretation within an entries batch. */
 export function decideBackground(
   snapshot: WorkSnapshot,
   fact: Backgrounded | Outcome,

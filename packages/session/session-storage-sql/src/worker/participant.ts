@@ -795,8 +795,6 @@ function commandStart(
   command: SessionCommand,
   port: ParticipantPort,
 ): CommandStart | ParticipantReply {
-  if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
-    return stopped({ kind: 'unsupported' })
   const tenantText = tenantCodec.encode(command.input.tenant)
   if (!tenantText.ok)
     return stopped({ kind: 'invalid', field: 'tenant', reason: 'not minted by legal-identity' })

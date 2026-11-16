@@ -890,8 +890,6 @@ function decideCommand(
   record: OperationRecord | null,
   reads: DecideReads,
 ): Decision {
-  if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
-    return rejected({ kind: 'unsupported' })
   if (
     previous !== null &&
     (previous.session !== command.input.session ||

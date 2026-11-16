@@ -140,6 +140,7 @@ export type {
   MutationName,
   ScopeReleasePort,
   ScopeReleaseReadback,
+  SessionCallControl,
   SessionBlockDeclaration,
   SessionClock,
   SessionCommand,
@@ -276,6 +277,7 @@ export {
   judgeSessionIntake,
   pendingIntakeCount,
 } from './intake.ts'
+export { controlRoutes, type ControlRoutes, type DirectCallControl } from './call-control.ts'
 export {
   BACKGROUND_INPUT_OWNER,
   backgroundInputId,

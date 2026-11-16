@@ -205,7 +205,7 @@ function interpret(
         if (step.kind === 'rejected') refusedAt(step.failure, field)
         out.push(...step.entries)
         admitted.push(...step.admitted)
-        current = { ...current, backgroundPlaceholders: step.placeholders }
+        current = { ...current, backgroundPlaceholders: step.placeholders, controls: step.controls }
         return
       }
       const decision = decideProducerFact(
