@@ -3,6 +3,7 @@ import type { ControlReceipt, ToolControl } from '@omne-harness/tool-contract'
 import type { Decision } from '../src/ledger-decider.ts'
 import { controlIntent } from '../src/control-intent.ts'
 import { decideControl, decideReleasePlaceholder } from '../src/ledger-control.ts'
+import { decideSettleLost } from '../src/ledger-lost.ts'
 import { taskKey } from '../src/ledger-store.ts'
 import {
   admittedCallSnapshot,
@@ -453,34 +454,144 @@ describe('a withdraw of a call in the background (the background row of the cont
     }
   })
 
-  it('withdraw all of a background call that has not started stays unsupported, and the foreground reach still misses it', async () => {
+  it('withdraw all of a background call that has not started excludes its start and ends it interrupted, and the foreground reach still misses it', async () => {
     const snapshot = permitted(await admittedCallSnapshot())
     const moved = after(snapshot, committed(decide(snapshot)))
-    expect(
-      replied(decide(moved, WITHDRAW_ALL, { operation: operationId('withdraw-c1') })),
-    ).toMatchObject({ failure: { kind: 'unsupported' } })
+    const ended = committed(
+      decideStop(moved, WITHDRAW_ALL, { operation: operationId('withdraw-c1') }),
+    )
+    expect(ended.value.progress.kind).toBe('stopped')
+    expect(stateOf(ended)).toMatchObject({
+      phase: 'settled',
+      relation: 'background',
+      execution: { kind: 'not-started' },
+      effect: { kind: 'not-occurred' },
+      terminal: { kind: 'interrupted', cause: { kind: 'control', withdrawn: true } },
+      foreground: { kind: 'background' },
+    })
     const missed = committed(
       decide(moved, WITHDRAW_FOREGROUND, { operation: operationId('withdraw-c1') }),
     )
     expect(missed.value.progress).toMatchObject({ kind: 'rejected', reason: 'out-of-reach' })
   })
 
-  it('a withdraw of a background call that settled without ever starting sends no stop', async () => {
+  it('a withdraw of a background call that settled without ever starting answers already-ended and sends no stop', async () => {
     const snapshot = permitted(await admittedCallSnapshot())
     const settled = withState(after(snapshot, committed(decide(snapshot))), {
       phase: 'settled',
-      execution: { kind: 'ended', evidence: evidence('ended') },
+      execution: { kind: 'not-started' },
     })
-    expect(
-      replied(decide(settled, WITHDRAW_ALL, { operation: operationId('withdraw-c1') })),
-    ).toMatchObject({ failure: { kind: 'unsupported' } })
+    const decision = committed(
+      decide(settled, WITHDRAW_ALL, { operation: operationId('withdraw-c1') }),
+    )
+    expect(decision.value.progress.kind).toBe('already-ended')
+    expect(tasksOf(decision)).toEqual([])
+  })
+})
+
+describe('a withdraw or stop of a foreground call (the foreground rows of the control table)', () => {
+  const WITHDRAW_ALL: ToolControl = { kind: 'withdraw', reach: 'all' }
+  const WITHDRAW_FOREGROUND: ToolControl = { kind: 'withdraw', reach: 'foreground-and-unadmitted' }
+  const deletedKeys = (decision: ReturnType<typeof committed>) =>
+    (decision.writes as readonly Record_[]).flatMap(write =>
+      write.kind === 'delete' ? [String(write.key)] : [],
+    )
+
+  it('a withdraw of a running foreground call gives the foreground an interrupted final now and still asks the execution to stop', async () => {
+    const snapshot = await runningCallSnapshot()
+    const before = recordOf(snapshot).state as Record_
+    for (const intent of [WITHDRAW_ALL, WITHDRAW_FOREGROUND]) {
+      const decision = committed(
+        decideStop(snapshot, intent, { operation: operationId('withdraw-c1') }),
+      )
+      const state = stateOf(decision)
+      expect(state).toMatchObject({
+        phase: 'settled',
+        relation: 'foreground',
+        foreground: { kind: 'final' },
+        terminal: { kind: 'interrupted', cause: { kind: 'control', withdrawn: true } },
+        effect: { kind: 'unknown', diagnostic: 'withdrawn-execution-still-running' },
+      })
+      expect(state.execution).toEqual(before.execution)
+      expect(state.queue).toEqual(before.queue)
+      expect(decision.value.progress).toEqual({
+        kind: 'pending',
+        diagnostic: 'stop-not-dispatched',
+      })
+      expect(
+        tasksOf(decision)
+          .map(task => task.kind)
+          .sort(),
+      ).toEqual(['deliver', 'stop'])
+    }
   })
 
-  it('a withdraw of a call in the foreground stays unsupported', async () => {
+  it('a withdrawn call whose execution is then lost ends the execution and gives back its queue position, keeping its terminal', async () => {
     const snapshot = await runningCallSnapshot()
-    for (const intent of [WITHDRAW_ALL, WITHDRAW_FOREGROUND])
-      expect(
-        replied(decide(snapshot, intent, { operation: operationId('withdraw-c1') })),
-      ).toMatchObject({ failure: { kind: 'unsupported' } })
+    const withdrawn = after(
+      snapshot,
+      committed(decideStop(snapshot, WITHDRAW_ALL, { operation: operationId('withdraw-c1') })),
+    )
+    const before = recordOf(withdrawn).state as Record_
+    const continuity = evidence('continuity')
+    const command = controlCommand(
+      { kind: 'stop' },
+      {
+        operation: operationId('lost-c1'),
+        continuity,
+        inputDigest: 'digest-lost',
+      },
+    )
+    const decision = committed(
+      decideSettleLost(withdrawn, command as never, null, mintOf(withdrawn)) as never,
+    )
+    const state = stateOf(decision)
+    expect(state).toMatchObject({
+      phase: 'settled',
+      terminal: before.terminal,
+      foreground: before.foreground,
+      execution: { kind: 'lost', evidence: continuity },
+    })
+    expect((state.queue as Record_).kind).not.toBe('held')
+    const stops = withdrawn.tasks.filter(task => (task as Record_).kind === 'stop')
+    expect(stops).toHaveLength(1)
+    expect(deletedKeys(decision)).toContain(taskKey(stops[0] as never))
   })
+
+  it('a background that cannot move withdraws the foreground when it says otherwise withdraw', async () => {
+    const snapshot = await runningCallSnapshot()
+    const decision = committed(decideStop(snapshot, { kind: 'background', otherwise: 'withdraw' }))
+    expect(stateOf(decision)).toMatchObject({
+      phase: 'settled',
+      relation: 'foreground',
+      terminal: { kind: 'interrupted', cause: { kind: 'control', withdrawn: true } },
+    })
+    expect(tasksOf(decision).map(task => task.kind)).toContain('stop')
+  })
+
+  it.each([
+    [{ kind: 'stop' } as ToolControl, false],
+    [WITHDRAW_ALL, true],
+    [WITHDRAW_FOREGROUND, true],
+  ])(
+    '%j of a foreground call that has not started excludes the start, and the call ends interrupted without an effect',
+    async (intent, withdrawn) => {
+      const snapshot = await admittedCallSnapshot()
+      const decision = committed(decideStop(snapshot, intent))
+      expect(decision.value.progress.kind).toBe('stopped')
+      expect(stateOf(decision)).toMatchObject({
+        phase: 'settled',
+        relation: 'foreground',
+        foreground: { kind: 'final' },
+        execution: { kind: 'not-started' },
+        effect: { kind: 'not-occurred' },
+        terminal: { kind: 'interrupted', cause: { kind: 'control', withdrawn } },
+      })
+      expect(tasksOf(decision).some(task => task.kind === 'stop')).toBe(false)
+      const owed = snapshot.tasks
+        .filter(task => ['queue', 'prepare', 'start'].includes((task as Record_).kind as string))
+        .map(task => taskKey(task as never))
+      expect(deletedKeys(decision)).toEqual(expect.arrayContaining(owed))
+    },
+  )
 })

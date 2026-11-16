@@ -91,3 +91,44 @@ it('records a rejected background for a definition that does not permit it, and 
     await world.close()
   }
 })
+
+it('withdraws a running foreground call: the foreground gets an interrupted final at once, and the real end comes later as a late version', async () => {
+  const { completions, author } = longRunning()
+  const world = await fixture(author)
+  try {
+    const reference = accepted(await world.api.invoke(world.invocation('withdrawn')))
+    await expect.poll(() => world.launches()).toBe(1)
+    const withdrawn = await world.api.commands.control({
+      ...world.query(reference),
+      intent: { kind: 'withdraw', reach: 'foreground-and-unadmitted' },
+    })
+    expect(withdrawn).toMatchObject({ kind: 'committed' })
+    await expect.poll(() => world.deliveries.map(item => item.kind)).toEqual(['result'])
+    expect(world.deliveries[0]).toMatchObject({
+      relation: 'original',
+      terminal: { kind: 'interrupted', cause: { kind: 'control', withdrawn: true } },
+    })
+    await expect.poll(() => world.signals.get('{"value":"withdrawn"}')?.aborted).toBe(true)
+    completions.get('{"value":"withdrawn"}')?.('ended-after-withdraw')
+    await expect.poll(() => world.deliveries.length).toBe(2)
+    // The stop reached the execution first, so its real end is the cancellation the executor reports.
+    expect(world.deliveries[1]).toMatchObject({
+      kind: 'result',
+      relation: 'late',
+      terminal: { kind: 'interrupted', cause: { kind: 'control', withdrawn: true } },
+      actualTerminal: { kind: 'interrupted' },
+      value: { content: [{ text: 'the execution was cancelled' }] },
+    })
+    const found = unbox(await world.api.queries.lookup(world.query(reference)))
+    expect(found).toMatchObject({
+      kind: 'found',
+      state: { phase: 'settled', execution: { kind: 'ended' }, foreground: { kind: 'final' } },
+    })
+    if (found.kind !== 'found') throw new Error('the call is gone')
+    expect(found.state.supplements).toHaveLength(1)
+    expect(world.launches()).toBe(1)
+  } finally {
+    for (const complete of completions.values()) complete('cleanup')
+    await world.close()
+  }
+})

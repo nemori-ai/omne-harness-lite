@@ -37,7 +37,13 @@ import {
   backgroundTiming,
   type TimingClose,
 } from './ledger-background.ts'
-import { commonOf, dropSuspensionContent, nextState, type StateBody } from './ledger-start.ts'
+import {
+  commonOf,
+  deleteTasks,
+  dropSuspensionContent,
+  nextState,
+  type StateBody,
+} from './ledger-start.ts'
 import {
   taskKey,
   type CallRecord,
@@ -73,8 +79,6 @@ function withControls(
 
 type BackgroundCommand = ControlCommand &
   Readonly<{ intent: Extract<ToolControl, { kind: 'background' }> }>
-type WithdrawCommand = ControlCommand &
-  Readonly<{ intent: Extract<ToolControl, { kind: 'withdraw' }> }>
 
 const LIVE_STOP_ONLY =
   'control currently requires a suspended call, or a stop of a started or resuming invocation'
@@ -95,27 +99,231 @@ export function decideControl(
     return decideBackground(snapshot, call, { ...command, intent }, prepared, mint)
   if (call.state.phase === 'suspended')
     return decideSuspendedControl(snapshot, call, command, prepared, mint)
-  if (intent.kind === 'withdraw') return decideWithdraw(call, { ...command, intent }, mint)
-  return decideLiveStop(call, command, mint)
-}
-
-// The background row: `all` stops the call and its own result still comes; the foreground reach misses it.
-function decideWithdraw(
-  call: CallRecord,
-  command: WithdrawCommand,
-  mint: Mint,
-): Decision<ControlReceipt> {
-  if (call.state.relation !== 'background') return unsupported(call, LIVE_STOP_ONLY)
-  if (command.intent.reach === 'all' || call.state.execution.kind === 'ended')
-    return decideLiveStop(call, command, mint)
-  const source = controlSource(call, command, mint)
-  return recorded(
+  return decideEnd(
+    snapshot,
     call,
     command,
-    { kind: 'rejected', reason: 'out-of-reach', evidence: source },
-    source,
+    intent.kind === 'withdraw' ? intent.reach : 'stop',
+    prepared,
     mint,
   )
+}
+
+type EndReach = 'stop' | Extract<ToolControl, { kind: 'withdraw' }>['reach']
+
+const PENDING_PHASES: ReadonlySet<ToolState['phase']> = new Set(['accepted', 'preparing', 'queued'])
+const WITHDRAWN_RUNNING =
+  'The call was withdrawn from the foreground. Its execution was asked to stop; a result it still produces is kept as a late version.'
+const ENDED_BEFORE_START = 'The call was ended before it started. It did not run.'
+
+function withdrawnBy(intent: ToolControl): boolean {
+  return (
+    intent.kind === 'withdraw' || (intent.kind === 'background' && intent.otherwise === 'withdraw')
+  )
+}
+
+function interruptedBy(command: ControlCommand) {
+  return {
+    kind: 'interrupted',
+    cause: {
+      kind: 'control',
+      operation: command.operation,
+      withdrawn: withdrawnBy(command.intent),
+    },
+  } as const
+}
+
+// The stop and withdraw columns of the control table, for a call that is not suspended.
+function decideEnd(
+  snapshot: Snapshot,
+  call: CallRecord,
+  command: ControlCommand,
+  reach: EndReach,
+  prepared: PreparedSynthetic | null,
+  mint: Mint,
+): SyntheticDecision<ControlReceipt> {
+  const source = controlSource(call, command, mint)
+  if (call.state.phase === 'settled')
+    return recorded(
+      call,
+      command,
+      { kind: 'already-ended', evidence: call.state.source },
+      source,
+      mint,
+    )
+  if (reach === 'foreground-and-unadmitted' && call.state.relation === 'background')
+    return recorded(
+      call,
+      command,
+      { kind: 'rejected', reason: 'out-of-reach', evidence: source },
+      source,
+      mint,
+    )
+  if (call.start === null) return decideUnstarted(snapshot, call, command, prepared, mint)
+  if (
+    reach !== 'stop' &&
+    call.state.relation === 'foreground' &&
+    call.state.execution.kind === 'live'
+  )
+    return decideForegroundWithdraw(snapshot, call, call.start, command, prepared, mint)
+  return decideLiveStop(call, call.start, command, mint)
+}
+
+// The start is excluded in the same commit: every start step checks the phase, which is now settled.
+function decideUnstarted(
+  snapshot: Snapshot,
+  call: CallRecord,
+  command: ControlCommand,
+  prepared: PreparedSynthetic | null,
+  mint: Mint,
+): SyntheticDecision<ControlReceipt> {
+  if (!PENDING_PHASES.has(call.state.phase)) return unsupported(call, LIVE_STOP_ONLY)
+  const terminal = interruptedBy(command)
+  const { consumer } = call.request
+  const made = syntheticChannels(
+    command,
+    { terminal, consumer, closedResult: ENDED_BEFORE_START },
+    prepared,
+  )
+  if ('kind' in made) return made
+  if ('failure' in made) return reply(made)
+  const source = controlSource(call, command, mint)
+  const effect = { kind: 'not-occurred', evidence: source } as const
+  const settled = settlementWrites(snapshot, command, consumer, terminal, made.ok, mint, effect)
+  if ('failure' in settled) return reply(settled)
+  const { version, delivery } = settled.ok.version
+  const control: ControlRecord = {
+    operation: command.operation,
+    intent: command.intent,
+    source,
+    progress: { kind: 'stopped', evidence: source },
+  }
+  const current = commonOf(call.state)
+  const shared = {
+    ...current,
+    phase: 'settled',
+    wait: { kind: 'none' },
+    result: version,
+    terminal,
+    effect,
+    execution: { kind: 'not-started' },
+    timing: { kind: 'closed', accumulatedMs: current.timing.accumulatedMs },
+    queue:
+      current.queue.kind === 'none'
+        ? current.queue
+        : ({
+            kind: 'released',
+            key: current.queue.key,
+            ordinal: current.queue.ordinal,
+            evidence: source,
+          } as const),
+    controls: [...current.controls, control],
+    delivery,
+  } as const
+  const body: StateBody =
+    call.state.relation === 'background'
+      ? { ...shared, relation: 'background' }
+      : { ...shared, relation: 'foreground', foreground: { kind: 'final', result: version } }
+  const state = nextState(call, body, mint.revision)
+  const made2 = receiptWrites(call, command, state, control, mint)
+  const queue: LedgerWrite[] =
+    call.request.availability.kind === 'available'
+      ? [put({ kind: 'task', task: queueTask(command.operation, state.source) })]
+      : []
+  return {
+    kind: 'commit',
+    value: made2.receipt,
+    writes: [
+      ...made2.writes,
+      ...settled.ok.writes,
+      ...deleteTasks(snapshot, ['queue', 'prepare', 'start']),
+      ...queue,
+    ],
+  }
+}
+
+// The foreground gets its final now; the running execution is asked to stop and keeps its queue
+// position until its real final comes in as a late version.
+function decideForegroundWithdraw(
+  snapshot: Snapshot,
+  call: CallRecord,
+  start: NonNullable<CallRecord['start']>,
+  command: ControlCommand,
+  prepared: PreparedSynthetic | null,
+  mint: Mint,
+): SyntheticDecision<ControlReceipt> {
+  const terminal = interruptedBy(command)
+  const { consumer } = call.request
+  const made = syntheticChannels(
+    command,
+    { terminal, consumer, closedResult: WITHDRAWN_RUNNING },
+    prepared,
+  )
+  if ('kind' in made) return made
+  if ('failure' in made) return reply(made)
+  const effect = { kind: 'unknown', diagnostic: 'withdrawn-execution-still-running' } as const
+  const settled = settlementWrites(snapshot, command, consumer, terminal, made.ok, mint, effect)
+  if ('failure' in settled) return reply(settled)
+  const { version, delivery } = settled.ok.version
+  const source = controlSource(call, command, mint)
+  const control: ControlRecord = {
+    operation: command.operation,
+    intent: command.intent,
+    source,
+    progress: { kind: 'pending', diagnostic: 'stop-not-dispatched' },
+  }
+  const current = commonOf(call.state)
+  const state = nextState(
+    call,
+    {
+      ...current,
+      phase: 'settled',
+      wait: { kind: 'none' },
+      result: version,
+      relation: 'foreground',
+      terminal,
+      foreground: { kind: 'final', result: version },
+      effect,
+      timing: closedTiming(backgroundTiming(current.timing, command.timing, 'withdrawn')),
+      controls: [...current.controls, control],
+      delivery,
+    },
+    mint.revision,
+  )
+  const made2 = receiptWrites(call, command, state, control, mint)
+  return {
+    kind: 'commit',
+    value: made2.receipt,
+    writes: [...made2.writes, ...settled.ok.writes, stopTask(call, start, command, source)],
+  }
+}
+
+function stopTask(
+  call: CallRecord,
+  start: NonNullable<CallRecord['start']>,
+  command: ControlCommand,
+  source: DurableEvidence,
+): LedgerWrite {
+  const dispatch: ControlDispatch = {
+    tenant: call.tenant,
+    call: call.call,
+    operation: command.operation,
+    adoption: start.executor,
+    inputDigest: command.inputDigest,
+    start,
+    intent: { kind: 'stop' },
+    source,
+  }
+  return put({
+    kind: 'task',
+    task: {
+      kind: 'stop',
+      operation: command.operation,
+      state: 'pending',
+      diagnostic: null,
+      control: dispatch,
+    },
+  })
 }
 
 function controlSource(call: CallRecord, command: ControlCommand, mint: Mint): DurableEvidence {
@@ -226,8 +434,14 @@ function refusedBackground(
   }
   if (call.state.phase === 'suspended')
     return decideSuspendedControl(snapshot, call, command, prepared, mint)
-  if (otherwise === 'stop') return decideLiveStop(call, command, mint)
-  return unsupported(call, 'a withdraw of a running call is not supported yet')
+  return decideEnd(
+    snapshot,
+    call,
+    command,
+    otherwise === 'stop' ? 'stop' : 'foreground-and-unadmitted',
+    prepared,
+    mint,
+  )
 }
 
 function moveToBackground(
@@ -268,59 +482,26 @@ function moveToBackground(
 
 function decideLiveStop(
   call: CallRecord,
+  start: NonNullable<CallRecord['start']>,
   command: ControlCommand,
   mint: Mint,
 ): Decision<ControlReceipt> {
-  const resumeStarting = call.start?.kind === 'resume' && call.state.execution.kind === 'starting'
-  if (
-    call.start === null ||
-    (call.state.execution.kind !== 'live' &&
-      call.state.execution.kind !== 'ended' &&
-      !resumeStarting)
-  )
+  const resumeStarting = start.kind === 'resume' && call.state.execution.kind === 'starting'
+  if (call.state.execution.kind !== 'live' && !resumeStarting)
     return unsupported(call, LIVE_STOP_ONLY)
   const source = controlSource(call, command, mint)
-  const ended = call.state.execution.kind === 'ended'
   const control: ControlRecord = {
     operation: command.operation,
     intent: command.intent,
     source,
-    progress: ended
-      ? { kind: 'already-ended', evidence: call.state.source }
-      : { kind: 'pending', diagnostic: 'stop-not-dispatched' },
+    progress: { kind: 'pending', diagnostic: 'stop-not-dispatched' },
   }
   const revised = withControls(call, [...call.state.controls, control], mint)
   const made = receiptWrites(call, command, revised.state, control, mint)
-  const dispatch: ControlDispatch = {
-    tenant: call.tenant,
-    call: call.call,
-    operation: command.operation,
-    adoption: call.start.executor,
-    inputDigest: command.inputDigest,
-    start: call.start,
-    intent: { kind: 'stop' },
-    source,
-  }
   return {
     kind: 'commit',
     value: made.receipt,
-    writes: [
-      ...made.writes,
-      ...(ended
-        ? []
-        : [
-            put({
-              kind: 'task',
-              task: {
-                kind: 'stop',
-                operation: command.operation,
-                state: 'pending',
-                diagnostic: null,
-                control: dispatch,
-              },
-            }),
-          ]),
-    ],
+    writes: [...made.writes, stopTask(call, start, command, source)],
   }
 }
 
@@ -364,9 +545,7 @@ function decideSuspendedControl(
     cause: {
       kind: 'control',
       operation: command.operation,
-      withdrawn:
-        intent.kind === 'withdraw' ||
-        (intent.kind === 'background' && intent.otherwise === 'withdraw'),
+      withdrawn: withdrawnBy(intent),
     },
   } as const
   const made = syntheticChannels(

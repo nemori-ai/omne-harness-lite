@@ -421,9 +421,12 @@ describe('decideControl: a stop of a call that is not suspended', () => {
     expect(decision.writes).toHaveLength(3)
   })
 
-  it('records already-ended on the state of a call whose execution ended, and owes no stop duty', async () => {
+  it('records already-ended on the state of a settled call, and owes no stop duty', async () => {
     const snapshot = await runningCallSnapshot()
-    const ended = withState(snapshot, { execution: { kind: 'ended', evidence: evidence('ended') } })
+    const ended = withState(snapshot, {
+      phase: 'settled',
+      execution: { kind: 'ended', evidence: evidence('ended') },
+    })
     const decision = committed(decideStop(ended))
     expect(decision.value.progress).toEqual({
       kind: 'already-ended',
@@ -457,22 +460,6 @@ describe('decideControl: a stop of a call that is not suspended', () => {
     expect(replied(decideStop({ ...snapshot, call: null }))).toEqual(
       invalidOf('call', 'unknown-call'),
     )
-  })
-
-  it('is unsupported for a withdraw of a live call: only a stop reaches a started invocation', async () => {
-    const snapshot = await runningCallSnapshot()
-    const intent = { kind: 'withdraw', reach: 'foreground-and-unadmitted' } as const
-    expect(replied(decideStop(snapshot, intent))).toEqual({
-      failure: { ...UNSUPPORTED, adoption: adoptionOf(snapshot) },
-    })
-  })
-
-  it('is unsupported for a stop of a call that has no start record', async () => {
-    const snapshot = await admittedCallSnapshot()
-    expect(callOf(snapshot).start).toBeNull()
-    expect(replied(decideStop(snapshot))).toEqual({
-      failure: { ...UNSUPPORTED, adoption: adoptionOf(snapshot) },
-    })
   })
 
   it.each([

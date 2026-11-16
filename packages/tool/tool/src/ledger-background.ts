@@ -79,13 +79,17 @@ export function backgroundCell(call: CallRecord): BackgroundCell {
 
 export type TimingClose = Readonly<{ from: ToolTiming; closed: ToolTiming }>
 
-export function backgroundTiming(timing: ToolTiming, close: TimingClose | undefined): ToolTiming {
+export function backgroundTiming(
+  timing: ToolTiming,
+  close: TimingClose | undefined,
+  why: 'moved-to-background' | 'withdrawn' = 'moved-to-background',
+): ToolTiming {
   if (timing.kind !== 'running') return timing
   if (close !== undefined && sameFactValue(close.from, timing)) return close.closed
   return {
     kind: 'unknown',
     accumulatedMs: timing.accumulatedMs,
     segment: timing.segment,
-    diagnostic: 'moved-to-background',
+    diagnostic: why,
   }
 }

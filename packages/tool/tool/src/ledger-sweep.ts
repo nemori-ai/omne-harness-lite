@@ -68,6 +68,7 @@ function quiet(snapshot: Snapshot): boolean {
   if (state === undefined) return true
   return (
     state.phase === 'settled' &&
+    state.execution.kind !== 'live' &&
     snapshot.tasks.every(task => task.kind === 'clock' && task.state === 'blocked') &&
     [state.delivery, ...state.supplements.map(item => item.delivery)].every(
       delivery => delivery?.kind === 'released',

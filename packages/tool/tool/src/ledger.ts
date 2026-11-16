@@ -1462,7 +1462,7 @@ export function createToolLedger<P, B extends ContentBlock>(
           intent: intent.ok,
           subject: subject.ok,
           inputDigest: digestOf(intent.ok),
-          ...(intent.ok.kind === 'background' && timing?.kind === 'running'
+          ...(intent.ok.kind !== 'stop' && timing?.kind === 'running'
             ? { timing: { from: timing, closed: await closeSegment(timing) } }
             : {}),
         }

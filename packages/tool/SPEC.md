@@ -12,8 +12,8 @@ Tool 回答一件事：一次工具调用怎样被受理、执行、等待、控
 | `tool-host-local`      | 在一台机器上把账本、启动排序域、时钟、绑定登记表、目录、作者装载与邻域端口接起来，并给出 Cordis 插件            |
 | `tool-storage-sql`     | 在 SQL 存储契约上兑现耐久的记录仓、正文存储与到期索引                                                           |
 | `tool-definitions`     | 发行自带的几个工具作者（Tools、Files、Shell、TodoItems、Ask、Web）：参数、操作映射与结果文本                    |
-| `tool-protocol`        | 一个登录的人按调用引用读一次调用时，有哪些操作与观察：协议契约 `tool/v1`，纯数据                                  |
-| `tool-access`          | `tool/v1` 的接入插件：把三个读口接到 `ToolRuntime` 的查询、内容与观察上                                          |
+| `tool-protocol`        | 一个登录的人按调用引用读一次调用时，有哪些操作与观察：协议契约 `tool/v1`，纯数据                                |
+| `tool-access`          | `tool/v1` 的接入插件：把三个读口接到 `ToolRuntime` 的查询、内容与观察上                                         |
 
 依赖只朝内：`tool-host-local` 依赖 `tool` 与 `tool-cordis-contract`，它们依赖 `tool-contract`；`tool-storage-sql` 依赖 `tool`、`tool-contract` 与 SQL 存储契约。别的领域的生产代码只依赖 `tool-contract`，写 Cordis 插件时另加 `tool-cordis-contract`。`tool-protocol` 不依赖任何 Tool 成员以外的领域；`tool-access` 依赖 `tool-protocol`、`tool-contract` 与 `tool-cordis-contract`，按 `packages/access/SPEC.md` 的规则装配。
 
@@ -44,15 +44,15 @@ Tool 向外声明的端口（它需要别人做的）：
 
 Tool 为别人实现的端口（它提供的）：
 
-| 端口                                                                  | 对方                              | 一句话                                                                      |
-| --------------------------------------------------------------------- | --------------------------------- | --------------------------------------------------------------------------- |
+| 端口                                                                  | 对方                                                                      | 一句话                                                                      |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | `ToolRuntime`                                                         | `packages/agent`；按调用引用的第三方（`packages/session`、`tool-access`） | Tool 提供受理、查询、那一问 `contact`、控制、交付解除、观察、内容读取与目录 |
-| `toolStartFence`                                                      | 外层调用方（`packages/agent`）    | Tool 提供使还没受理的启动失效的窄服务，返回失效证据                         |
-| `tool.background-calls` 供给块                                        | `packages/context`                | Tool 提供一个租户在一个请求者作用域下仍有责任的后台调用列表                 |
-| `toolBodyContract` 与 `toolAssetBody`                                 | `packages/assets`，经应用装配登记 | Tool 提供 `tool` 类别的正文判定与设置投影                                   |
-| `encodeResidentKey`、`residentToolFacts`、`projectResidentReferences` | `packages/session` 与应用装配     | Tool 提供常驻登记键的唯一文本编码与持有者引用的投影                         |
-| `planAdoption` 的冻结判定                                             | `packages/session`，经装配协调者  | Tool 给出常驻工具在采用点前进、保持、替换或冻结的判定，提交冻结归会话       |
-| 元工具作者与 `createWebAccess`                                        | 应用装配                          | Tool 提供 Tools、Files、Shell、TodoItems、Ask、Web 的作者与单机 Web 提供者  |
+| `toolStartFence`                                                      | 外层调用方（`packages/agent`）                                            | Tool 提供使还没受理的启动失效的窄服务，返回失效证据                         |
+| `tool.background-calls` 供给块                                        | `packages/context`                                                        | Tool 提供一个租户在一个请求者作用域下仍有责任的后台调用列表                 |
+| `toolBodyContract` 与 `toolAssetBody`                                 | `packages/assets`，经应用装配登记                                         | Tool 提供 `tool` 类别的正文判定与设置投影                                   |
+| `encodeResidentKey`、`residentToolFacts`、`projectResidentReferences` | `packages/session` 与应用装配                                             | Tool 提供常驻登记键的唯一文本编码与持有者引用的投影                         |
+| `planAdoption` 的冻结判定                                             | `packages/session`，经装配协调者                                          | Tool 给出常驻工具在采用点前进、保持、替换或冻结的判定，提交冻结归会话       |
+| 元工具作者与 `createWebAccess`                                        | 应用装配                                                                  | Tool 提供 Tools、Files、Shell、TodoItems、Ask、Web 的作者与单机 Web 提供者  |
 
 ## 心智模型
 
@@ -156,15 +156,15 @@ Tool 为别人实现的端口（它提供的）：
   - `background` 必须带 `otherwise`，说明转不了时怎么办：`reject` 提交控制，进度 `rejected` 并带原因，调用不变；`withdraw` 按 `withdraw(foreground-and-unadmitted)` 撤回前台。公开调用方只能用这两种；`stop` 只给前台上限用。「能转就转，不能就撤回」由 Tool 在一次提交里判，因为要读的许可、关系与等待都是 Tool 的事实。
 - reach、`otherwise` 的判断与提交原子完成。下表是控制意图对调用状态的全化表，每格是一次条件提交：
 
-| 调用状态 | `background`，能转 | `background`，不能转 | `withdraw` | `stop` |
-| --- | --- | --- | --- | --- |
-| 未开始，前台 | 转后台，之后照常排队启动 | 按 `otherwise` | 排除未受理的启动，以 `interrupted` 收场，效果 `not-occurred` | 同 `withdraw` |
-| 运行中，前台 | 转后台 | 按 `otherwise` | 前台先得 `interrupted` 逻辑终局与前台 final；停止待办照发 | 停止待办，前台继续等真实收场 |
-| 暂停，等 Ask | 不可达（暂停在等待） | 按 `otherwise` | 以 `closedResult` 收场 | 同 `withdraw` |
-| 未开始或运行中，后台 | 进度 `relation-changed`，不再转 | 同左 | `all`：停止待办，收场时照常交原结果；`foreground-and-unadmitted`：`out-of-reach` | 停止待办 |
-| 已收场 | `already-ended` | 同左 | 同左 | 同左 |
+| 调用状态             | `background`，能转              | `background`，不能转 | `withdraw`                                                                       | `stop`                       |
+| -------------------- | ------------------------------- | -------------------- | -------------------------------------------------------------------------------- | ---------------------------- |
+| 未开始，前台         | 转后台，之后照常排队启动        | 按 `otherwise`       | 排除未受理的启动，以 `interrupted` 收场，效果 `not-occurred`                     | 同 `withdraw`                |
+| 运行中，前台         | 转后台                          | 按 `otherwise`       | 前台先得 `interrupted` 逻辑终局与前台 final；停止待办照发                        | 停止待办，前台继续等真实收场 |
+| 暂停，等 Ask         | 不可达（暂停在等待）            | 按 `otherwise`       | 以 `closedResult` 收场                                                           | 同 `withdraw`                |
+| 未开始或运行中，后台 | 进度 `relation-changed`，不再转 | 同左                 | `all`：停止待办，收场时照常交原结果；`foreground-and-unadmitted`：`out-of-reach` | 停止待办                     |
+| 已收场               | `already-ended`                 | 同左                 | 同左                                                                             | 同左                         |
 
-- 前台目标被撤回时可以先形成 `interrupted` 逻辑终局与前台 final；真实结果、效果与成本沿原调用另存为晚到版本，不恢复入队资格。受理控制不等于物理停止；只有实际收场证据证明 `stopped`。
+- 前台目标被撤回时可以先形成 `interrupted` 逻辑终局与前台 final；真实结果、效果与成本沿原调用另存为晚到版本，不恢复入队资格。撤回之后执行失联时，只把执行记为失联并释放名额，逻辑终局不变，也不再有晚到版本。受理控制不等于物理停止；只有实际收场证据证明 `stopped`。
 - 中断原因分三类，各自可辨：控制请求（带控制操作号与是否撤回）、前台上限、恢复被拒（带排除依据）。工具自身失联属于失败，不与有意中断混成一类。
 
 ### 等待与检查点作者
@@ -329,6 +329,6 @@ Tool 为别人实现的端口（它提供的）：
 | TL-44 | 由别的实例开始过的执行，只在判断来源给出证据时才由新的活体接回并收场；没有证据不接、不写账本 | 旧实例还在跑时新实例给它收场，同一调用两份结局               | `tool-host-local` 的那一问与失联收场用例；系统级模型 `SystemRecovery` 的 `LostMeansNobodyHolds`                      |
 | TL-45 | 记失联之前，这次执行名下的受管资源已按原资源身份停掉并确认；确认不了不记失联                 | 留下没人管的进程，它的效果在「效果未知」之后还在发生         | `tool-host-local` 的失联收场用例                                                                                     |
 | TL-46 | 开始过的执行绝不重跑；失联收场以失败、效果未知交回一次，已存下的原 final 照原 final 收场     | 工具效果发生第二次，或已存下的真实结果被丢掉                 | `tool` 的 `settleLost` 用例；`tool-host-local` 的失联收场用例；系统级模型 `SystemRecovery` 的 `ToolEffectAtMostOnce` |
-| TL-47 | 一次调用的前台交还恰好一份：原 final 或占位；转后台与收场在调用域修订号上排出先后 | 消费方的槽位里同时有结果与占位，或一个都没有 | `tool` 的控制全化表用例；结果接收方一致性套件的占位行 |
-| TL-48 | 关系只从前台到后台、至多一次；转后台不新建执行、不释放名额，转了后台的执行不再开等待 | 命令跑两遍；后台调用挤爆名额；后台等人没人答 | `tool` 的控制全化表用例与 `background-cannot-wait` 用例 |
-| TL-49 | 只有许可后台的定义能转后台；阈值、前台上限、控制与插队都不创造许可 | 不该脱离等待的工具脱离了等待 | `tool` 的控制全化表用例；`tool-host-local` 的计时到点用例 |
+| TL-47 | 一次调用的前台交还恰好一份：原 final 或占位；转后台与收场在调用域修订号上排出先后            | 消费方的槽位里同时有结果与占位，或一个都没有                 | `tool` 的控制全化表用例；结果接收方一致性套件的占位行                                                                |
+| TL-48 | 关系只从前台到后台、至多一次；转后台不新建执行、不释放名额，转了后台的执行不再开等待         | 命令跑两遍；后台调用挤爆名额；后台等人没人答                 | `tool` 的控制全化表用例与 `background-cannot-wait` 用例                                                              |
+| TL-49 | 只有许可后台的定义能转后台；阈值、前台上限、控制与插队都不创造许可                           | 不该脱离等待的工具脱离了等待                                 | `tool` 的控制全化表用例；`tool-host-local` 的计时到点用例                                                            |

@@ -828,7 +828,9 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       })),
     (step, recovery, cancelled) => {
       const task = recovery.tasks.find(item => item.kind === 'settle')
-      return recovery.state.phase !== 'settled' && task?.kind === 'settle'
+      // A call a withdraw settled while it still ran settles again with its real, late final.
+      const open = recovery.state.phase !== 'settled' || recovery.state.execution.kind === 'live'
+      return open && task?.kind === 'settle'
         ? [{ key: 'settle', run: () => settle(step, recovery, task, cancelled) }]
         : []
     },

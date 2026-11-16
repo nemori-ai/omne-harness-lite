@@ -42,6 +42,7 @@ import {
   mintEvidence,
   digestOf,
   FIRST_RESULT_VERSION,
+  resultVersion,
 } from './evidence.ts'
 import {
   CALL_DUE_KEY,
@@ -475,6 +476,11 @@ export type FirstVersion = Readonly<{
   record: ResultRecord
 }>
 
+// A late version keeps the logical terminal of the call and carries the real one as `actual`.
+export type LateVersion = Readonly<{ logical: ToolTerminal }>
+
+export const LATE_RESULT_VERSION = resultVersion(2)
+
 export function firstResultWrites(
   place: Readonly<{ tenant: TenantId; call: ToolCallId; operation: ToolOperationId }>,
   consumer: ConsumerRef,
@@ -483,18 +489,19 @@ export function firstResultWrites(
   value: ResultRecord['value'],
   custody: ResultCustody,
   mint: Mint,
+  late: LateVersion | null = null,
 ): Readonly<{ version: FirstVersion; writes: readonly LedgerWrite[] }> {
   const { tenant, call, operation } = place
-  const version = FIRST_RESULT_VERSION
-  const delivery = { kind: 'pending', delivery: deliveryId(1), consumer } as const
+  const version = late === null ? FIRST_RESULT_VERSION : LATE_RESULT_VERSION
+  const delivery = { kind: 'pending', delivery: deliveryId(late === null ? 1 : 2), consumer } as const
   const resultPlace = { tenant, call, result: version, delivery: delivery.delivery, operation }
   const record: ResultRecord = {
     tenant,
     call,
     result: version,
-    relation: 'original',
-    terminal,
-    actual: null,
+    relation: late === null ? 'original' : 'late',
+    terminal: late === null ? terminal : late.logical,
+    actual: late === null ? null : terminal,
     effect,
     value,
     delivery,
