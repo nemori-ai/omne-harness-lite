@@ -123,10 +123,12 @@ function active(draft: Draft): Authority | null {
   return latest?.status === 'active' ? latest.authority : null
 }
 
+// The writer appends no event after the execution ended (a result received then is kept only),
+// and a control stage it already reached appends none either.
 function eventOf(draft: Draft, fact: FactBody): string | null {
   const kind = eventKindOf(fact)
-  if (kind === null || fact.kind !== 'control.stage' || fact.step !== null) return kind
-  if (draft.finish.ended !== null) return null
+  if (kind === null || draft.finish.ended !== null) return null
+  if (fact.kind !== 'control.stage' || fact.step !== null) return kind
   const current = draft.controls.get(fact.control)?.stages[fact.stage]
   const same =
     current !== undefined &&

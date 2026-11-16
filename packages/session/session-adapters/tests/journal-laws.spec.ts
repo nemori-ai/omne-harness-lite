@@ -737,6 +737,20 @@ async function finished(calls: number, options: { reissue?: boolean } = {}) {
   }
 }
 
+describe('no event after the execution ended, as the writer appends none', () => {
+  it('a result received after the end folds as kept custody and projects no event', async () => {
+    const { log } = await finished(1)
+    const received = log.find(batch => batch.facts.some(fact => fact.kind === 'result.received'))
+    if (received === undefined) throw new Error('the log has no received result')
+    const late: PublishedBatch = { ...received, pub: log.length + 1 }
+    const before = foldAll(log)
+    const after = foldAll([...log, late])
+    const events = after.executions.get(received.execution)?.events ?? []
+    expect(events.at(-1)?.kind).toBe('ended')
+    expect(events).toEqual(before.executions.get(received.execution)?.events)
+  })
+})
+
 describe('the issue of obligations does not grow with the Tool calls', () => {
   it('after 150 Tool calls prepareFinish succeeds, its batch is the size it is after 1, and the end batch too', async () => {
     const small = await finished(1)
