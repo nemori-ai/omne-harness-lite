@@ -56,7 +56,7 @@
     {
       "name": "finding-lock-steal-c2",
       "config": "models/finding-lock-steal-c2.cfg",
-      "expected": "P1"
+      "expected": "P2"
     }
   ]
 }

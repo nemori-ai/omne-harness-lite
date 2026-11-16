@@ -32,6 +32,8 @@ None == "none"
 NoJudge == <<"none", 0>>
 Tokens == 1..C
 Numbers == 1..MaxTicket
+\* Not a set of tokens (0 is no token): p has not read the free tokens.
+Unseen == {0}
 
 VARIABLES
   tokens,      \* tokens[i]: registrant of the entry in core-<i>, or None
@@ -44,10 +46,11 @@ VARIABLES
   judged,      \* what p judged stale and has not removed yet
   myTicket,    \* the ticket number p believes it has (0: none)
   want, mn,    \* the request
-  held         \* the token indices p believes it holds
+  held,        \* the token indices p believes it holds
+  seen         \* without the lock only: the free tokens p read in a step of its own; else Unseen
 
 vars == <<tokens, tickets, lockDir, lockEntries, alive, phase, loc, judged, myTicket, want, mn,
-          held>>
+          held, seen>>
 
 \* out: not in the lock. made: did mkdir, entry not created yet. placed: entry
 \* created, sole-entry check not done. in: holds the lock. leave: done with the
@@ -75,6 +78,7 @@ TypeOK ==
   /\ loc \in [Procs -> LockSteps]
   /\ myTicket \in [Procs -> 0..MaxTicket]
   /\ held \in [Procs -> SUBSET Tokens]
+  /\ seen \in [Procs -> SUBSET (0..C)]
 
 Init ==
   /\ tokens = [i \in Tokens |-> None]
@@ -89,6 +93,7 @@ Init ==
   /\ want = [p \in Procs |-> 1]
   /\ mn = [p \in Procs |-> 1]
   /\ held = [p \in Procs |-> {}]
+  /\ seen = [p \in Procs |-> Unseen]
 
 \* A request arrives: want in 1..C, min a configured choice not above want.
 request(p) ==
@@ -98,9 +103,10 @@ request(p) ==
        /\ want' = [want EXCEPT ![p] = w]
        /\ mn' = [mn EXCEPT ![p] = m]
   /\ phase' = [phase EXCEPT ![p] = "waiting"]
-  /\ UNCHANGED <<tokens, tickets, lockDir, lockEntries, alive, loc, judged, myTicket, held>>
+  /\ UNCHANGED <<tokens, tickets, lockDir, lockEntries, alive, loc, judged, myTicket, held, seen>>
 
-Unchanged_but_lock == UNCHANGED <<tokens, tickets, alive, phase, myTicket, want, mn, held>>
+Unchanged_but_lock ==
+  UNCHANGED <<tokens, tickets, alive, phase, myTicket, want, mn, held, seen>>
 
 \* enter, first half: mkdir queue.lock (atomic). Without a lock (negative
 \* control) the process is simply in.
@@ -188,7 +194,7 @@ alive_judge(p) ==
      \/ \E n \in Numbers : tickets[n] # None /\ ~alive[tickets[n]]
                           /\ judged' = [judged EXCEPT ![p] = <<"ticket", n>>]
   /\ UNCHANGED <<tokens, tickets, lockDir, lockEntries, alive, phase, loc, myTicket, want, mn,
-                 held>>
+                 held, seen>>
 
 \* remove: delete what was judged. A token entry goes by its exact name, so only
 \* the judged registrant's entry; the old recovery removes the token file by path.
@@ -203,11 +209,22 @@ remove(p) ==
                /\ UNCHANGED tickets
        ELSE /\ tickets' = [tickets EXCEPT ![judged[p][2]] = None] /\ UNCHANGED tokens
   /\ judged' = [judged EXCEPT ![p] = NoJudge]
-  /\ UNCHANGED <<lockDir, lockEntries, alive, phase, loc, myTicket, want, mn, held>>
+  /\ UNCHANGED <<lockDir, lockEntries, alive, phase, loc, myTicket, want, mn, held, seen>>
 
 \* Stale entries the scan in takeTurn would still meet (with Reap it removes them first).
 Unreaped == Reap /\ (\/ \E i \in Tokens : tokens[i] # None /\ ~alive[tokens[i]]
                      \/ \E n \in Numbers : tickets[n] # None /\ ~alive[tickets[n]])
+
+\* The one pass of takeTurn is one step only because the queue lock excludes
+\* the others. Without the lock (negative control) reading the free tokens is
+\* a step of its own, and taking them comes later, on what was read.
+look(p) ==
+  /\ ~UseLock
+  /\ alive[p] /\ phase[p] = "waiting" /\ loc[p] = "in" /\ judged[p] = NoJudge
+  /\ seen[p] = Unseen
+  /\ seen' = [seen EXCEPT ![p] = Free]
+  /\ UNCHANGED <<tokens, tickets, lockDir, lockEntries, alive, phase, loc, judged, myTicket, want,
+                 mn, held>>
 
 \* takeTurn: take a ticket the first time (or again after it was recycled),
 \* count the live tickets ahead, and as head take min(want, free) tokens when
@@ -215,15 +232,17 @@ Unreaped == Reap /\ (\/ \E i \in Tokens : tokens[i] # None /\ ~alive[tokens[i]]
 takeTurn(p) ==
   /\ alive[p] /\ phase[p] = "waiting" /\ loc[p] = "in" /\ judged[p] = NoJudge
   /\ ~Unreaped
+  /\ UseLock \/ seen[p] # Unseen
   /\ LET has == myTicket[p] # 0 /\ tickets[myTicket[p]] = p
          used == {n \in Numbers : tickets[n] # None}
          n == IF has THEN myTicket[p] ELSE Max(used \cup {0}) + 1
+         read == IF UseLock THEN Free ELSE seen[p]
      IN /\ n <= MaxTicket
         /\ LET tickets1 == [tickets EXCEPT ![n] = p]
                ahead == Cardinality({m \in Numbers : m < n /\ Live(tickets1[m])})
-               free == Cardinality(Free)
+               free == Cardinality(read)
            IN IF (~HeadOnly \/ ahead = 0) /\ free >= mn[p]
-                THEN LET got == Smallest(Free, Min(want[p], free))
+                THEN LET got == Smallest(read, Min(want[p], free))
                      IN /\ tokens' = [i \in Tokens |-> IF i \in got THEN p ELSE tokens[i]]
                         /\ held' = [held EXCEPT ![p] = got]
                         /\ tickets' = [tickets1 EXCEPT ![n] = None]
@@ -232,6 +251,7 @@ takeTurn(p) ==
                      /\ UNCHANGED <<tokens, held, phase>>
         /\ myTicket' = [myTicket EXCEPT ![p] = n]
         /\ loc' = [loc EXCEPT ![p] = "leave"]
+  /\ seen' = [seen EXCEPT ![p] = Unseen]
   /\ UNCHANGED <<lockDir, lockEntries, alive, judged, want, mn>>
 
 \* run: the wrapped command ends; the holder goes back to the queue to release.
@@ -239,7 +259,7 @@ run(p) ==
   /\ alive[p] /\ phase[p] = "holding" /\ loc[p] = "out"
   /\ phase' = [phase EXCEPT ![p] = "releasing"]
   /\ UNCHANGED <<tokens, tickets, lockDir, lockEntries, alive, loc, judged, myTicket, want, mn,
-                 held>>
+                 held, seen>>
 
 \* releaseTokens: in the lock, leave every token it holds (own entries only).
 releaseTokens(p) ==
@@ -248,7 +268,7 @@ releaseTokens(p) ==
   /\ held' = [held EXCEPT ![p] = {}]
   /\ phase' = [phase EXCEPT ![p] = "done"]
   /\ loc' = [loc EXCEPT ![p] = "leave"]
-  /\ UNCHANGED <<tickets, lockDir, lockEntries, alive, judged, myTicket, want, mn>>
+  /\ UNCHANGED <<tickets, lockDir, lockEntries, alive, judged, myTicket, want, mn, seen>>
 
 \* The environment kills a process at any point; its entries and files stay.
 crash(p) ==
@@ -257,11 +277,12 @@ crash(p) ==
   /\ (CrashInLock \/ ~InLock(p))
   /\ alive' = [alive EXCEPT ![p] = FALSE]
   /\ UNCHANGED <<tokens, tickets, lockDir, lockEntries, phase, loc, judged, myTicket, want, mn,
-                 held>>
+                 held, seen>>
 
 Step(p) == request(p) \/ enter_mkdir(p) \/ enter_place(p) \/ enter_check(p)
            \/ inQueue_judge(p) \/ reap(p) \/ removeIfEmpty(p) \/ leave(p)
-           \/ alive_judge(p) \/ remove(p) \/ takeTurn(p) \/ run(p) \/ releaseTokens(p)
+           \/ alive_judge(p) \/ remove(p) \/ look(p) \/ takeTurn(p) \/ run(p)
+           \/ releaseTokens(p)
 
 Finished == \A p \in Procs : ~alive[p] \/ (phase[p] = "done" /\ loc[p] = "out")
 
