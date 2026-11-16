@@ -6,7 +6,7 @@ import { createHumanInterventionUiModule } from '@omne-harness/human-interventio
 import { identityUiModule } from '@omne-harness/identity-ui/cordis'
 import '@omne-harness/identity-ui/identity-ui.css'
 import type { ProtocolContract } from '@omne-harness/public-contract'
-import { SESSION_DOCK, sessionUiModule } from '@omne-harness/session-ui/cordis'
+import { sessionDock, sessionUiModule } from '@omne-harness/session-ui/cordis'
 import '@omne-harness/session-ui/session-ui.css'
 import { domainProtocols } from '../shared/protocols.ts'
 
@@ -20,7 +20,7 @@ export const assembly: Assembly = {
   modules: [
     identityUiModule,
     sessionUiModule,
-    createHumanInterventionUiModule({ sessionAnchor: SESSION_DOCK }),
+    createHumanInterventionUiModule({ sessionDock }),
     assetsUiModule,
   ],
 }

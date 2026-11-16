@@ -4,6 +4,7 @@ import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import { humanInterventionProtocol } from '@omne-harness/human-intervention-protocol'
+import { definePoint } from '@omne-harness/shell-contract'
 import { createHumanInterventionUiModule } from '../src/cordis.ts'
 import { page, questionItem } from './fixtures/cards.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
@@ -18,6 +19,10 @@ const SERVICE = protocolServiceName({
 })
 const ANCHOR = 'session-transcript'
 const SESSION = 'ses_0123456789abcdef'
+const dock = definePoint<{ readonly session: string }>({
+  name: ANCHOR,
+  subject: { encode: value => value.session, decode: text => ({ session: text }) },
+})
 
 beforeAll(stubAnimation)
 
@@ -117,19 +122,19 @@ it('U6 张数与页面读同一份：一次列表，一个观察', async () => {
   expect(fake.observations).toHaveLength(1)
 })
 
-it('U7 不给会话的附着位置：不往 attached 放', async () => {
+it('U7 不给会话的拓展点：不往 attached 放', async () => {
   const { root, shell } = await startShell()
   root.reflect.provide(SERVICE, createFakeClient().client)
   await root.plugin(createHumanInterventionUiModule())
   expect(shell.items('attached')).toEqual([])
 })
 
-it('U8 给了会话的附着位置：往 attached 放一项，展示这个会话的卡', async () => {
+it('U8 给了会话的拓展点：往它里面放一项，展示这个会话的卡', async () => {
   const { root, shell } = await startShell()
   const fake = createFakeClient()
   root.reflect.provide(SERVICE, fake.client)
   shell.tenant = TENANT
-  await root.plugin(createHumanInterventionUiModule({ sessionAnchor: ANCHOR }))
+  await root.plugin(createHumanInterventionUiModule({ sessionDock: dock }))
   expect(shell.items('attached')).toEqual([
     expect.objectContaining({ id: 'decisions-in-session', order: 0, anchor: ANCHOR }),
   ])
@@ -143,11 +148,11 @@ it('U8 给了会话的附着位置：往 attached 放一项，展示这个会话
   expect(none.container.innerHTML).toBe('')
 })
 
-it('U9 附着位置没有租户：什么都不画', async () => {
+it('U9 拓展点里的一项没有租户：什么都不画', async () => {
   const { root, shell } = await startShell()
   const fake = createFakeClient()
   root.reflect.provide(SERVICE, fake.client)
-  await root.plugin(createHumanInterventionUiModule({ sessionAnchor: ANCHOR }))
+  await root.plugin(createHumanInterventionUiModule({ sessionDock: dock }))
   const view = render(<>{shell.attached(ANCHOR, SESSION)}</>)
   await settle()
   expect(view.container.innerHTML).toBe('')
@@ -165,4 +170,26 @@ it('U10 模块卸载：观察被中止', async () => {
   unprovide()
   await new Promise(resolve => setTimeout(resolve, 0))
   expect(fake.observations[0]!.signal.aborted).toBe(true)
+})
+
+it('U11 给了会话的拓展点：协议客户端撤下，放在里面的一项没有了、观察被中止；协议客户端回来，这一项回来', async () => {
+  const { root, shell } = await startShell()
+  const fake = createFakeClient()
+  shell.tenant = TENANT
+  const unprovide = root.reflect.provide(SERVICE, fake.client)
+  await root.plugin(createHumanInterventionUiModule({ sessionDock: dock }))
+  const placed = () => shell.items('attached').map(item => `${item.anchor}/${item.id}`)
+  expect(placed()).toEqual([`${ANCHOR}/decisions-in-session`])
+  render(<>{shell.attached(ANCHOR, SESSION)}</>)
+  await settle()
+  expect(fake.observations).toHaveLength(1)
+
+  unprovide()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  expect(placed()).toEqual([])
+  expect(fake.observations[0]!.signal.aborted).toBe(true)
+
+  root.reflect.provide(SERVICE, createFakeClient().client)
+  await new Promise(resolve => setTimeout(resolve, 0))
+  expect(placed()).toEqual([`${ANCHOR}/decisions-in-session`])
 })
