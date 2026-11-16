@@ -27,7 +27,7 @@ import {
   type Failure,
   type Mutation,
 } from './schema.ts'
-import { createPublishedPackages } from './packages.ts'
+import { createPublishedPackages, type PackageRecords } from './packages.ts'
 import { receiptResult } from './results.ts'
 import type {
   AssetsLocal,
@@ -229,25 +229,29 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     categories: options.categories,
     afterStep: options.afterPackageStep,
     durability: options.packageDurability,
-    records: {
-      publish: local.publish,
-      getOperation: local.getOperation,
-      async readAssetRevision(assetRef) {
-        const result = await local.readAsset({ assetRef })
-        if (result.kind === 'rejected') return { failure: result.reason }
-        return { ok: result.kind === 'asset' ? result.asset.revision : 0 }
-      },
-      async readVersionRecord(assetRef, version) {
-        const asset = await local.readAsset({ assetRef })
-        if (asset.kind === 'rejected') return { failure: asset.reason }
-        if (asset.kind === 'absent') return { ok: undefined }
-        const result = await local.readVersion({ assetRef, version })
-        if (result.kind === 'rejected') return { failure: result.reason }
-        if (result.kind === 'absent') return { ok: undefined }
-        const { category, name, body } = result.version
-        return { ok: { category, name, body } }
-      },
-    },
+    records: packageRecordsOf(local),
   })
   return { ...local, packages }
+}
+
+function packageRecordsOf(local: Omit<AssetsLocal, 'packages'>): PackageRecords {
+  return {
+    publish: local.publish,
+    getOperation: local.getOperation,
+    async readAssetRevision(assetRef) {
+      const result = await local.readAsset({ assetRef })
+      if (result.kind === 'rejected') return { failure: result.reason }
+      return { ok: result.kind === 'asset' ? result.asset.revision : 0 }
+    },
+    async readVersionRecord(assetRef, version) {
+      const asset = await local.readAsset({ assetRef })
+      if (asset.kind === 'rejected') return { failure: asset.reason }
+      if (asset.kind === 'absent') return { ok: undefined }
+      const result = await local.readVersion({ assetRef, version })
+      if (result.kind === 'rejected') return { failure: result.reason }
+      if (result.kind === 'absent') return { ok: undefined }
+      const { category, name, body } = result.version
+      return { ok: { category, name, body } }
+    },
+  }
 }

@@ -212,6 +212,12 @@ async function isDirectory(path: string): Promise<boolean> {
 
 type StagingMeta = Readonly<{ category: string; name: string; assetRef: string; version: string }>
 
+type Staged = Readonly<{ dir: string; meta?: StagingMeta }>
+
+type PublishRequest = Parameters<PublishedPackages['publish']>[0]
+
+type Place = Readonly<{ manifest: PackageManifest; final: string }>
+
 type Prepared = Readonly<{
   root: string
   staging: string
@@ -220,6 +226,22 @@ type Prepared = Readonly<{
   body: JsonValue
   meta: StagingMeta
   final: string
+}>
+
+type Shared = Readonly<{
+  root: string | undefined
+  categories: CategoryRegistry
+  records: PackageRecords
+}>
+
+type PackageDisk = Readonly<{
+  stage(
+    staging: string,
+    manifest: PackageManifest,
+    from: PackageReader,
+    meta: StagingMeta,
+  ): Promise<PackageSourceFailure | undefined>
+  swap(staging: string, final: string, category: string): Promise<void>
 }>
 
 function recordBody(
@@ -240,100 +262,84 @@ function recordBody(
     : fail({ kind: 'record-rejected', reason: 'limit_exceeded' })
 }
 
-export function createPublishedPackages(input: {
-  root: string | undefined
-  categories: CategoryRegistry
-  records: PackageRecords
-  afterStep?: ((step: PackageStep) => void | Promise<void>) | undefined
-  durability?: PackageDurability | undefined
-}): LocalPackages {
-  const { root, categories, records } = input
-  const durability = input.durability ?? nodeDurability
+function finalOf(root: string, layout: PackageLayout, name: string, version: string): string {
+  return join(root, layout.namespace, name, versionDirectoryName(version))
+}
 
-  function finalOf(root: string, layout: PackageLayout, name: string, version: string): string {
-    return join(root, layout.namespace, name, versionDirectoryName(version))
-  }
-  function layoutOf(category: string): PackageLayout | undefined {
-    return categories.lookup(category)?.layout
-  }
+function recordRejected(reason: string): PackagePublishResult {
+  return reason === 'revision_conflict' || reason === 'version_conflict'
+    ? { kind: 'conflict' }
+    : rejected({ kind: 'record-rejected', reason })
+}
 
-  async function stagings(root: string): Promise<{ dir: string; meta?: StagingMeta }[]> {
-    let names: string[]
-    try {
-      names = await readdir(join(root, STAGING))
-    } catch (error) {
-      if (errorCode(error) === 'ENOENT') return []
-      throw error
-    }
-    return Promise.all(
-      names.map(async name => {
-        const dir = join(root, STAGING, name)
-        try {
-          const meta = JSON.parse(await readFile(join(dir, 'meta.json'), 'utf8')) as StagingMeta
-          return { dir, meta }
-        } catch {
-          return { dir }
-        }
-      }),
-    )
+async function stagingsIn(root: string): Promise<Staged[]> {
+  let names: string[]
+  try {
+    names = await readdir(join(root, STAGING))
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return []
+    throw error
   }
+  return Promise.all(
+    names.map(async name => {
+      const dir = join(root, STAGING, name)
+      try {
+        const meta = JSON.parse(await readFile(join(dir, 'meta.json'), 'utf8')) as StagingMeta
+        return { dir, meta }
+      } catch {
+        return { dir }
+      }
+    }),
+  )
+}
 
-  async function swap(staging: string, final: string, category: string): Promise<void> {
-    const place = dirname(final)
-    const namespace = dirname(place)
-    await mkdir(place, { recursive: true })
-    const named = join(namespace, CATEGORY_FILE)
-    if (!existsSync(named)) await durability.file(named, category)
-    try {
-      await rename(join(staging, 'files'), final)
-    } catch (error) {
-      if (!(await isDirectory(final))) throw error
-    }
-    for (const directory of [place, namespace, dirname(namespace)])
-      await durability.directory(directory)
-    await rm(staging, { recursive: true, force: true })
+function packageDisk(durability: PackageDurability): PackageDisk {
+  return {
+    async stage(staging, manifest, from, meta) {
+      const files = join(staging, 'files')
+      await mkdir(files, { recursive: true })
+      const directories = new Set([files, staging, dirname(staging)])
+      for (const entry of manifest.entries) {
+        const opened = await from.open(entry.path, entry.digest)
+        if (!('ok' in opened)) return opened.failure
+        if (opened.ok.length !== entry.bytes || digestBytes(opened.ok) !== entry.digest)
+          return 'material-unavailable'
+        const target = join(files, entry.path)
+        await mkdir(dirname(target), { recursive: true })
+        for (let dir = dirname(target); dir !== files; dir = dirname(dir)) directories.add(dir)
+        await durability.file(target, opened.ok)
+      }
+      await durability.file(join(staging, 'meta.json'), JSON.stringify(meta))
+      for (const directory of [...directories].sort((a, b) => b.length - a.length))
+        await durability.directory(directory)
+      return undefined
+    },
+    async swap(staging, final, category) {
+      const place = dirname(final)
+      const namespace = dirname(place)
+      await mkdir(place, { recursive: true })
+      const named = join(namespace, CATEGORY_FILE)
+      if (!existsSync(named)) await durability.file(named, category)
+      try {
+        await rename(join(staging, 'files'), final)
+      } catch (error) {
+        if (!(await isDirectory(final))) throw error
+      }
+      for (const directory of [place, namespace, dirname(namespace)])
+        await durability.directory(directory)
+      await rm(staging, { recursive: true, force: true })
+    },
   }
+}
 
-  async function completeSwap(root: string, meta: StagingMeta, final: string): Promise<void> {
-    if (await isDirectory(final)) return
-    const staged = (await stagings(root)).find(
-      one =>
-        one.meta?.category === meta.category &&
-        one.meta.name === meta.name &&
-        one.meta.version === meta.version,
-    )
-    if (staged === undefined) throw new Error('a recorded version has neither files nor staging')
-    await swap(staged.dir, final, meta.category)
-  }
+function packagePublisher(
+  shared: Shared,
+  disk: PackageDisk,
+  afterStep: ((step: PackageStep) => void | Promise<void>) | undefined,
+): (request: PublishRequest) => Promise<PackagePublishResult> {
+  const { root, categories, records } = shared
 
-  async function stage(
-    staging: string,
-    manifest: PackageManifest,
-    from: PackageReader,
-    meta: StagingMeta,
-  ): Promise<PackageSourceFailure | undefined> {
-    const files = join(staging, 'files')
-    await mkdir(files, { recursive: true })
-    const directories = new Set([files, staging, dirname(staging)])
-    for (const entry of manifest.entries) {
-      const opened = await from.open(entry.path, entry.digest)
-      if (!('ok' in opened)) return opened.failure
-      if (opened.ok.length !== entry.bytes || digestBytes(opened.ok) !== entry.digest)
-        return 'material-unavailable'
-      const target = join(files, entry.path)
-      await mkdir(dirname(target), { recursive: true })
-      for (let dir = dirname(target); dir !== files; dir = dirname(dir)) directories.add(dir)
-      await durability.file(target, opened.ok)
-    }
-    await durability.file(join(staging, 'meta.json'), JSON.stringify(meta))
-    for (const directory of [...directories].sort((a, b) => b.length - a.length))
-      await durability.directory(directory)
-    return undefined
-  }
-
-  async function validate(
-    request: Parameters<PublishedPackages['publish']>[0],
-  ): Promise<Outcome<Prepared, PackageRejection>> {
+  async function validate(request: PublishRequest): Promise<Outcome<Prepared, PackageRejection>> {
     const { capability, from } = request
     if (root === undefined) return fail({ kind: 'not-configured' })
     const contract = categories.lookup(capability.category)
@@ -364,14 +370,27 @@ export function createPublishedPackages(input: {
     })
   }
 
+  async function completeSwap(prepared: Prepared): Promise<void> {
+    const { meta, final } = prepared
+    if (await isDirectory(final)) return
+    const staged = (await stagingsIn(prepared.root)).find(
+      one =>
+        one.meta?.category === meta.category &&
+        one.meta.name === meta.name &&
+        one.meta.version === meta.version,
+    )
+    if (staged === undefined) throw new Error('a recorded version has neither files nor staging')
+    await disk.swap(staged.dir, final, meta.category)
+  }
+
   async function settledBefore(
     prepared: Prepared,
     operationId: string,
   ): Promise<PackagePublishResult | undefined> {
-    const { meta, final, version } = prepared
+    const { meta, version } = prepared
     const receipt = await records.getOperation(operationId)
     if (receipt.kind === 'committed') {
-      await completeSwap(prepared.root, meta, final)
+      await completeSwap(prepared)
       return { kind: 'published', version, changed: receipt.changed }
     }
     if (receipt.kind === 'unknown') return { kind: 'unknown', operationId }
@@ -379,26 +398,25 @@ export function createPublishedPackages(input: {
     const existing = await records.readVersionRecord(meta.assetRef, version)
     if (!('ok' in existing)) return rejected({ kind: 'record-rejected', reason: existing.failure })
     if (existing.ok === undefined) return undefined
-    await completeSwap(prepared.root, meta, final)
+    await completeSwap(prepared)
     return { kind: 'published', version, changed: false }
   }
 
   async function stageRecordSwap(
     prepared: Prepared,
-    request: Parameters<PublishedPackages['publish']>[0],
+    request: PublishRequest,
   ): Promise<PackagePublishResult> {
     const { capability, assetRef, from, operationId } = request
-    const { manifest, version, body, meta, final } = prepared
-    const { staging } = prepared
+    const { staging, manifest, version, body, meta, final } = prepared
     await rm(staging, { recursive: true, force: true })
     const revision = await records.readAssetRevision(assetRef)
     if (!('ok' in revision)) return rejected({ kind: 'record-rejected', reason: revision.failure })
-    const failure = await stage(staging, manifest, from, meta)
+    const failure = await disk.stage(staging, manifest, from, meta)
     if (failure !== undefined) {
       await rm(staging, { recursive: true, force: true })
       return rejected({ kind: 'source-failed', failure })
     }
-    await input.afterStep?.('staged')
+    await afterStep?.('staged')
     const recorded = await records.publish({
       operationId,
       assetRef,
@@ -410,14 +428,12 @@ export function createPublishedPackages(input: {
       await rm(staging, { recursive: true, force: true })
       return recordRejected(recorded.reason)
     }
-    await input.afterStep?.('recorded')
-    await swap(staging, final, capability.category)
+    await afterStep?.('recorded')
+    await disk.swap(staging, final, capability.category)
     return { kind: 'published', version, changed: recorded.changed }
   }
 
-  async function publish(
-    request: Parameters<PublishedPackages['publish']>[0],
-  ): Promise<PackagePublishResult> {
+  return async request => {
     const prepared = await validate(request)
     if (!('ok' in prepared)) return rejected(prepared.failure)
     return (
@@ -425,80 +441,95 @@ export function createPublishedPackages(input: {
       stageRecordSwap(prepared.ok, request)
     )
   }
+}
 
-  function recordRejected(reason: string): PackagePublishResult {
-    return reason === 'revision_conflict' || reason === 'version_conflict'
-      ? { kind: 'conflict' }
-      : rejected({ kind: 'record-rejected', reason })
-  }
+async function placeOf(
+  shared: Shared,
+  assetRef: string,
+  version: string,
+): Promise<Outcome<Place, PackageSourceFailure>> {
+  const { root, categories, records } = shared
+  if (root === undefined) return fail('unavailable')
+  const record = await records.readVersionRecord(assetRef, version)
+  if (!('ok' in record)) return fail('unavailable')
+  if (record.ok === undefined) return fail('package-not-found')
+  const layout = categories.lookup(record.ok.category)?.layout
+  const manifest = manifestOf(record.ok.body)
+  if (layout === undefined || manifest === undefined) return fail('package-not-found')
+  return succeed({ manifest, final: finalOf(root, layout, record.ok.name, version) })
+}
 
-  async function placeOf(
-    assetRef: string,
-    version: string,
-  ): Promise<Outcome<{ manifest: PackageManifest; final: string }, PackageSourceFailure>> {
-    if (root === undefined) return fail('unavailable')
-    const record = await records.readVersionRecord(assetRef, version)
-    if (!('ok' in record)) return fail('unavailable')
-    if (record.ok === undefined) return fail('package-not-found')
-    const layout = layoutOf(record.ok.category)
-    const manifest = manifestOf(record.ok.body)
-    if (layout === undefined || manifest === undefined) return fail('package-not-found')
-    return succeed({ manifest, final: finalOf(root, layout, record.ok.name, version) })
-  }
-
-  function reader(request: { assetRef: string; version: string }): PackageReader {
-    const { assetRef, version } = request
-    let found: { manifest: PackageManifest; final: string } | undefined
-    async function located(): Promise<
-      Outcome<{ manifest: PackageManifest; final: string }, PackageSourceFailure>
-    > {
-      try {
-        if (found === undefined) {
-          const placed = await placeOf(assetRef, version)
-          if (!('ok' in placed)) return placed
-          found = placed.ok
-        }
-        return (await isDirectory(found.final)) ? succeed(found) : fail('material-unavailable')
-      } catch {
-        return fail('unavailable')
+function packageReader(
+  shared: Shared,
+  request: { assetRef: string; version: string },
+): PackageReader {
+  const { assetRef, version } = request
+  let found: Place | undefined
+  async function located(): Promise<Outcome<Place, PackageSourceFailure>> {
+    try {
+      if (found === undefined) {
+        const placed = await placeOf(shared, assetRef, version)
+        if (!('ok' in placed)) return placed
+        found = placed.ok
       }
-    }
-    return {
-      async manifest() {
-        const place = await located()
-        return 'ok' in place ? succeed(place.ok.manifest) : place
-      },
-      async open(path, expected) {
-        const place = await located()
-        if (!('ok' in place)) return place
-        const entry = place.ok.manifest.entries.find(
-          one => one.path === path && one.digest === expected,
-        )
-        if (entry === undefined) return fail('entry-not-found')
-        let bytes: Uint8Array
-        try {
-          const read = await readFile(join(place.ok.final, entry.path))
-          bytes = new Uint8Array(read.buffer, read.byteOffset, read.byteLength)
-        } catch {
-          return fail('material-unavailable')
-        }
-        return digestBytes(bytes) === expected ? succeed(bytes) : fail('material-unavailable')
-      },
+      return (await isDirectory(found.final)) ? succeed(found) : fail('material-unavailable')
+    } catch {
+      return fail('unavailable')
     }
   }
+  return {
+    async manifest() {
+      const place = await located()
+      return 'ok' in place ? succeed(place.ok.manifest) : place
+    },
+    async open(path, expected) {
+      const place = await located()
+      if (!('ok' in place)) return place
+      const entry = place.ok.manifest.entries.find(
+        one => one.path === path && one.digest === expected,
+      )
+      if (entry === undefined) return fail('entry-not-found')
+      let bytes: Uint8Array
+      try {
+        const read = await readFile(join(place.ok.final, entry.path))
+        bytes = new Uint8Array(read.buffer, read.byteOffset, read.byteLength)
+      } catch {
+        return fail('material-unavailable')
+      }
+      return digestBytes(bytes) === expected ? succeed(bytes) : fail('material-unavailable')
+    },
+  }
+}
 
-  async function settle(
-    root: string,
-    staged: Readonly<{ dir: string; meta?: StagingMeta }>,
-  ): Promise<'completed' | 'discarded'> {
+async function locatePackage(
+  shared: Shared,
+  request: { assetRef: string; version: string },
+): Promise<PackageLocation> {
+  if (shared.root === undefined) return { kind: 'absent' }
+  try {
+    const placed = await placeOf(shared, request.assetRef, request.version)
+    if (!('ok' in placed))
+      return placed.failure === 'unavailable' ? { kind: 'unavailable' } : { kind: 'absent' }
+    return (await isDirectory(placed.ok.final))
+      ? { kind: 'local-directory', path: placed.ok.final }
+      : { kind: 'absent' }
+  } catch {
+    return { kind: 'unavailable' }
+  }
+}
+
+function packageRecovery(shared: Shared, disk: PackageDisk): () => Promise<PackageRecovery> {
+  const { root, categories, records } = shared
+
+  async function settle(root: string, staged: Staged): Promise<'completed' | 'discarded'> {
     const { meta } = staged
-    const layout = meta === undefined ? undefined : layoutOf(meta.category)
+    const layout = meta === undefined ? undefined : categories.lookup(meta.category)?.layout
     if (meta !== undefined && layout !== undefined) {
       const recorded = await records.readVersionRecord(meta.assetRef, meta.version)
       if (!('ok' in recorded)) throw new Error(recorded.failure)
       const final = finalOf(root, layout, meta.name, meta.version)
       if (recorded.ok !== undefined && !(await isDirectory(final))) {
-        await swap(staged.dir, final, meta.category)
+        await disk.swap(staged.dir, final, meta.category)
         return 'completed'
       }
     }
@@ -506,37 +537,48 @@ export function createPublishedPackages(input: {
     return 'discarded'
   }
 
-  async function recover(): Promise<PackageRecovery> {
+  return async () => {
     if (root === undefined) return { completed: 0, discarded: 0, mismatched: [] }
     let completed = 0
     let discarded = 0
-    for (const staged of await stagings(root)) {
+    for (const staged of await stagingsIn(root)) {
       if ((await settle(root, staged)) === 'completed') completed += 1
       else discarded += 1
     }
-    return { completed, discarded, mismatched: await mismatched(root) }
+    return { completed, discarded, mismatched: await mismatchedIn(root) }
   }
+}
 
-  async function mismatched(root: string): Promise<CapabilityId[]> {
-    const found = new Map<string, CapabilityId>()
-    for (const namespace of await directoriesIn(root)) {
-      let category: string
-      try {
-        category = await readFile(join(root, namespace, CATEGORY_FILE), 'utf8')
-      } catch {
-        continue
-      }
-      for (const name of await directoriesIn(join(root, namespace)))
-        for (const version of await directoriesIn(join(root, namespace, name))) {
-          const dir = join(root, namespace, name, version)
-          if (versionDirectoryName(packageDigest(await entriesIn(dir, ''))) === version) continue
-          const id = capabilityId(category, name)
-          if (id.ok) found.set(`${category}\0${name}`, id.id)
-        }
+async function mismatchedIn(root: string): Promise<CapabilityId[]> {
+  const found = new Map<string, CapabilityId>()
+  for (const namespace of await directoriesIn(root)) {
+    let category: string
+    try {
+      category = await readFile(join(root, namespace, CATEGORY_FILE), 'utf8')
+    } catch {
+      continue
     }
-    return [...found.values()]
+    for (const name of await directoriesIn(join(root, namespace)))
+      for (const version of await directoriesIn(join(root, namespace, name))) {
+        const dir = join(root, namespace, name, version)
+        if (versionDirectoryName(packageDigest(await entriesIn(dir, ''))) === version) continue
+        const id = capabilityId(category, name)
+        if (id.ok) found.set(`${category}\0${name}`, id.id)
+      }
   }
+  return [...found.values()]
+}
 
+export function createPublishedPackages(input: {
+  root: string | undefined
+  categories: CategoryRegistry
+  records: PackageRecords
+  afterStep?: ((step: PackageStep) => void | Promise<void>) | undefined
+  durability?: PackageDurability | undefined
+}): LocalPackages {
+  const shared: Shared = { root: input.root, categories: input.categories, records: input.records }
+  const disk = packageDisk(input.durability ?? nodeDurability)
+  const publish = packagePublisher(shared, disk, input.afterStep)
   return {
     async publish(request) {
       try {
@@ -545,21 +587,9 @@ export function createPublishedPackages(input: {
         return { kind: 'unknown', operationId: request.operationId }
       }
     },
-    reader,
-    recover,
-    async locate({ assetRef, version }) {
-      if (root === undefined) return { kind: 'absent' }
-      try {
-        const placed = await placeOf(assetRef, version)
-        if (!('ok' in placed))
-          return placed.failure === 'unavailable' ? { kind: 'unavailable' } : { kind: 'absent' }
-        return (await isDirectory(placed.ok.final))
-          ? { kind: 'local-directory', path: placed.ok.final }
-          : { kind: 'absent' }
-      } catch {
-        return { kind: 'unavailable' }
-      }
-    },
+    reader: request => packageReader(shared, request),
+    recover: packageRecovery(shared, disk),
+    locate: request => locatePackage(shared, request),
   }
 }
 
