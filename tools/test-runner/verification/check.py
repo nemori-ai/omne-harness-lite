@@ -79,7 +79,7 @@ def main():
         if only and case["name"] not in only:
             continue
         command = [java, "-Xmx1g", "-XX:+UseParallelGC", "-cp", str(jar), "tlc2.TLC",
-                   "-workers", "2", "-seed", "1", "-metadir", str(out / case["name"]),
+                   "-workers", "1", "-seed", "1", "-metadir", str(out / case["name"]),
                    "-config", str(root / case["config"]), str(root / manifest["model"])]
         try:
             result = subprocess.run(command, cwd=root, capture_output=True, text=True,

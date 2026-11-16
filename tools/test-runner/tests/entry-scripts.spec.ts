@@ -227,9 +227,9 @@ fi
   const runLine = (line: string, env: Record<string, string> = {}): Promise<Ran> =>
     launch(['-c', line], env, RUN_TIMEOUT_MS, root)
   const occupySlot = () => {
-    mkdirSync(join(home, 'locks'), { recursive: true })
+    mkdirSync(join(home, 'locks', 'core-1'), { recursive: true })
     writeFileSync(
-      join(home, 'locks', 'slot-1.lock'),
+      join(home, 'locks', 'core-1', `owner-${process.pid}-0a`),
       `pid=${process.pid}\nsince=${Math.floor(Date.now() / 1000)}\ncwd=${home}\ncmd=占着的\nbeat=5\n`,
     )
   }
@@ -366,11 +366,11 @@ describe('package.json 的 test:python', () => {
     ])
   })
 
-  it('只有一个名额、它被占着且最多等 0 秒：以 75 退出，不起 pytest', async () => {
+  it('只有一个令牌、它被占着且最多等 0 秒：以 75 退出，不起 pytest', async () => {
     const { runLine, occupySlot } = fixture({ realSlot: true })
     occupySlot()
     const refused = await runLine(line, {
-      OMNE_TEST_SLOTS: '1',
+      OMNE_TEST_SLOT_CAPACITY: '1',
       OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '0',
     })
     expect(refused.status).toBe(75)

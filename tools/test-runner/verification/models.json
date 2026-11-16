@@ -4,6 +4,16 @@
   "scope": "finite model of the core token pool protocol in scripts/with-test-slot.mjs: 3 processes, C = 2 or 3, one request each; stale abstracted to registrant dead; no implementation refinement",
   "cases": [
     {
+      "name": "safety-c2-lockcrash",
+      "config": "models/safety-c2-lockcrash.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "negative-no-sole-entry",
+      "config": "models/negative-no-sole-entry.cfg",
+      "expected": "LockExclusive"
+    },
+    {
       "name": "positive-c2-nolockcrash",
       "config": "models/positive-c2-nolockcrash.cfg",
       "expected": "complete"

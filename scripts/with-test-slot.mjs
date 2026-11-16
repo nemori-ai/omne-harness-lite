@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
 import {
   appendFileSync,
   existsSync,
@@ -9,6 +10,7 @@ import {
   closeSync,
   readFileSync,
   readdirSync,
+  rmdirSync,
   rmSync,
   statSync,
   utimesSync,
@@ -16,30 +18,60 @@ import {
 } from 'node:fs'
 import os from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const args = process.argv.slice(2)
-if (args.length === 0) {
-  process.stderr.write(
-    [
-      'Usage: with-test-slot <command> [args...]',
-      'Runs the command when a run slot is free, in arrival order, and returns its exit code. The command does not run through a shell.',
-      'A process that already holds a slot (OMNE_TEST_SLOT_HELD) runs the command at once.',
-      'Environment:',
-      '  OMNE_TEST_SLOTS                  slots on this machine (default 2, equal to parallel.concurrentRuns in tools/test-runner/test-runs.config.json)',
-      '  OMNE_TEST_SLOT_DIR               lock directory (default omne-test-slots-<user> in the Windows temp directory, shared with WSL; /tmp/omne-test-slots-<uid> on other POSIX hosts)',
-      '  OMNE_TEST_SLOT_POLL_SECONDS      seconds between queue checks (default 5)',
-      '  OMNE_TEST_SLOT_MAX_WAIT_SECONDS  longest wait (default 7200)',
-      '  OMNE_TEST_SLOT_LEDGER            slot ledger, one JSON line per use (default ${XDG_STATE_HOME:-~/.local/state}/omne-test-slots/ledger.jsonl)',
-      'Exit 75: the wait timed out and the command did not run. Exit 127 on Windows: no pnpm or no Git bash was found. Exit 2: usage error.',
-      'To stop a run that holds a slot on POSIX, kill the whole process group. Rules: tools/test-runner/SPEC.md.',
-      '',
-    ].join('\n'),
-  )
+const USAGE = [
+  'Usage: with-test-slot [--want <n>] [--min <n>] [--] <command> [args...]',
+  'Runs the command when it holds cores from the machine token pool, in arrival order, and returns its exit code. The command does not run through a shell.',
+  'The pool has C = max(1, cores - parallel.reserveCores) tokens (tools/test-runner/test-runs.config.json). Only the head of the queue takes tokens:',
+  'it takes min(want, free) tokens when at least min tokens are free, and keeps them until the command ends. Default want is C, default min is 1.',
+  'The command gets the number of tokens in OMNE_WORKER_BUDGET. A process that already holds tokens (OMNE_TEST_SLOT_HELD) runs the command at once.',
+  'Environment:',
+  '  OMNE_TEST_SLOT_CAPACITY          tokens on this machine (default from the core count; set the same value for every caller on the machine)',
+  '  OMNE_TEST_SLOT_DIR               lock directory (default omne-core-tokens-<user> in the Windows temp directory, shared with WSL; /tmp/omne-core-tokens-<uid> on other POSIX hosts)',
+  '  OMNE_TEST_SLOT_POLL_SECONDS      seconds between queue checks (default 5)',
+  '  OMNE_TEST_SLOT_MAX_WAIT_SECONDS  longest wait (default 7200)',
+  '  OMNE_TEST_SLOT_LEDGER            token ledger, one JSON line per use (default ${XDG_STATE_HOME:-~/.local/state}/omne-test-slots/ledger.jsonl)',
+  'Exit 75: the wait timed out and the command did not run. Exit 127 on Windows: no pnpm or no Git bash was found. Exit 2: usage error.',
+  'To stop a run that holds tokens on POSIX, kill the whole process group. Rules: tools/test-runner/SPEC.md.',
+  '',
+].join('\n')
+
+const request = parseRequest(process.argv.slice(2))
+if (request.error !== undefined) {
+  process.stderr.write(`with-test-slot: ${request.error}\n${USAGE}`)
   process.exit(2)
 }
+const args = request.command
 
 if (process.env['OMNE_TEST_SLOT_HELD'])
   process.exit(await run(args, process.env, false).then(r => r.status))
+
+function parseRequest(argv) {
+  const numbers = {}
+  let index = 0
+  for (; index < argv.length; index += 2) {
+    const flag = argv[index]
+    if (flag !== '--want' && flag !== '--min') break
+    const value = argv[index + 1]
+    if (value === undefined || !/^[1-9][0-9]*$/.test(value))
+      return { error: `${flag} 须跟一个正整数，现在是 ${value ?? '（缺）'}` }
+    numbers[flag.slice(2)] = Number(value)
+  }
+  if (argv[index] === '--') index += 1
+  const command = argv.slice(index)
+  if (command.length === 0) return { error: '没给命令' }
+  const { want, min } = numbers
+  if (want !== undefined && min !== undefined && min > want)
+    return { error: `--min ${min} 大于 --want ${want}` }
+  return { want, min, command }
+}
+
+function grant({ head, free, want, min }) {
+  return head && free >= min ? Math.min(want, free) : 0
+}
+
+const now = () => Date.now()
 
 const env = process.env
 const integer = name => {
@@ -50,7 +82,28 @@ const integer = name => {
   }
   return Number(value)
 }
-const slots = integer({ env: 'OMNE_TEST_SLOTS', initial: '2', label: 'slots' })
+
+function reserveCores() {
+  const config = join(
+    dirname(fileURLToPath(import.meta.url)),
+    '..',
+    'tools',
+    'test-runner',
+    'test-runs.config.json',
+  )
+  try {
+    const value = JSON.parse(readFileSync(config, 'utf8'))?.parallel?.reserveCores
+    if (Number.isSafeInteger(value) && value >= 0) return value
+  } catch {}
+  process.stderr.write(`with-test-slot: 读不到 ${config} 的 parallel.reserveCores，按 2 算\n`)
+  return 2
+}
+
+const capacity = env['OMNE_TEST_SLOT_CAPACITY']
+  ? integer({ env: 'OMNE_TEST_SLOT_CAPACITY', initial: '1', label: 'capacity' })
+  : Math.max(1, (os.availableParallelism?.() ?? os.cpus().length) - reserveCores())
+const want = request.want ?? capacity
+const min = Math.min(request.min ?? 1, capacity, want)
 const pollSeconds = integer({
   env: 'OMNE_TEST_SLOT_POLL_SECONDS',
   initial: '5',
@@ -61,8 +114,8 @@ const maxWaitSeconds = integer({
   initial: '7200',
   label: 'max_wait_seconds',
 })
-if (slots < 1 || pollSeconds < 1) {
-  process.stderr.write('with-test-slot: 名额数与轮询间隔须至少为 1\n')
+if (capacity < 1 || pollSeconds < 1) {
+  process.stderr.write('with-test-slot: 令牌数与轮询间隔须至少为 1\n')
   process.exit(2)
 }
 const SIDE = `${process.platform}@${os.hostname()}${env['WSL_DISTRO_NAME'] ? `/${env['WSL_DISTRO_NAME']}` : ''}`
@@ -81,12 +134,12 @@ try {
 } catch {}
 
 function defaultSlotDir() {
-  const own = join(process.platform === 'win32' ? os.tmpdir() : '/tmp', `omne-test-slots-${user}`)
+  const own = join(process.platform === 'win32' ? os.tmpdir() : '/tmp', `omne-core-tokens-${user}`)
   if (!env['WSL_DISTRO_NAME']) return own
   const shared = windowsSlotDir()
   if (shared.dir !== undefined) return shared.dir
   process.stderr.write(
-    `with-test-slot: WSL 与 Windows 没有共用名额（${shared.reason}），这次用 ${own}\n`,
+    `with-test-slot: WSL 与 Windows 没有共用令牌池（${shared.reason}），这次用 ${own}\n`,
   )
   return own
 }
@@ -99,7 +152,7 @@ function windowsSlotDir() {
   const script = [
     '[Console]::OutputEncoding = [Text.Encoding]::UTF8',
     "$ErrorActionPreference = 'Stop'",
-    "$dir = Join-Path (Get-Item -LiteralPath $env:TEMP).FullName ('omne-test-slots-' + [Environment]::UserName)",
+    "$dir = Join-Path (Get-Item -LiteralPath $env:TEMP).FullName ('omne-core-tokens-' + [Environment]::UserName)",
     'New-Item -ItemType Directory -Force -Path $dir | Out-Null',
     "Get-ChildItem -LiteralPath $dir -Filter '.omne-probe-*' -Force | Where-Object { $_.LastWriteTime -lt (Get-Date).AddMinutes(-10) } | Remove-Item -Force",
     `New-Item -ItemType File -Force -Path (Join-Path $dir '${probe}') | Out-Null`,
@@ -153,7 +206,7 @@ function interopLauncher() {
 }
 
 const commandLine = args.join(' ').replaceAll('\n', ' ')
-const unixNow = () => Math.floor(Date.now() / 1000)
+const unixNow = () => Math.floor(now() / 1000)
 const wholeSeconds = ms => Math.floor(ms / 1000)
 const sleepSync = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 const sleep = seconds => new Promise(settle => setTimeout(settle, seconds * 1000))
@@ -162,7 +215,7 @@ function describe(beatSeconds) {
   return `version=2\npid=${process.pid}\nside=${SIDE}\nsince=${unixNow()}\ncwd=${process.cwd()}\ncmd=${commandLine}\nbeat=${beatSeconds}\n`
 }
 
-function fields(path, queueOwner = false) {
+function fields(path) {
   try {
     const text = readFileSync(path, 'utf8')
     if (!text.endsWith('\n')) return null
@@ -175,7 +228,6 @@ function fields(path, queueOwner = false) {
     const pid = Number(entry.pid)
     if (!Number.isSafeInteger(pid) || pid < 1) return null
     if (entry.side !== undefined && entry.side === '') return null
-    if (queueOwner && Object.keys(entry).every(key => ['pid', 'side'].includes(key))) return entry
     if (
       !/^\d+$/.test(entry.since ?? '') ||
       !entry.cwd ||
@@ -215,22 +267,79 @@ function alive(path) {
   if (entry === undefined) return false
   if (entry === null) return true
   const beat = Number(entry.beat) || pollSeconds
-  let age = 0
-  try {
-    age = Date.now() / 1000 - statSync(path).mtimeMs / 1000
-  } catch {
-    return false
-  }
+  const age = ageOf(path)
+  if (age === undefined) return false
   if (registrantPresent(entry) && age <= 3 * beat + 5) return true
   remove(path)
   return false
 }
 
+function releaseTokens(entries) {
+  for (const entry of entries) leave(entry)
+}
+
+const OWNER_ENTRY = /^owner-\d+-[0-9a-f]+$/
+
+const freshEntry = () => `owner-${process.pid}-${randomBytes(8).toString('hex')}`
+
+function owners(directory) {
+  try {
+    return readdirSync(directory).filter(name => OWNER_ENTRY.test(name))
+  } catch {
+    return []
+  }
+}
+
+function removeIfEmpty(directory) {
+  try {
+    rmdirSync(directory)
+  } catch {}
+}
+
+function reap(directory, name) {
+  remove(join(directory, name))
+  removeIfEmpty(directory)
+}
+
+function enter(directory, beatSeconds) {
+  try {
+    mkdirSync(directory)
+  } catch (error) {
+    if (error.code === 'EEXIST') return 'taken'
+    if (['EPERM', 'EACCES', 'EBUSY', 'ENOTEMPTY', 'ENOENT'].includes(error.code)) {
+      if (error.code === 'ENOENT') mkdirSync(slotDir, { recursive: true })
+      return 'retry'
+    }
+    throw error
+  }
+  const entry = join(directory, freshEntry())
+  if (!createExclusive(entry, describe(beatSeconds))) {
+    removeIfEmpty(directory)
+    return 'retry'
+  }
+  if (owners(directory).length === 1) return entry
+  leave(entry)
+  return 'retry'
+}
+
+function leave(entry) {
+  remove(entry)
+  removeIfEmpty(dirname(entry))
+}
+
+function ageOf(path) {
+  try {
+    return (now() - statSync(path).mtimeMs) / 1000
+  } catch {
+    return undefined
+  }
+}
+
 function beatOwn(path) {
   if (!mine(fields(path))) return false
   try {
-    const now = new Date()
-    utimesSync(path, now, now)
+    const at = new Date(now())
+    utimesSync(path, at, at)
     return true
   } catch {
     return false
@@ -264,59 +373,45 @@ function createExclusive(path, text) {
   return true
 }
 
-function removeQueueLock(lock) {
-  rmSync(lock, { recursive: true, force: true, maxRetries: 10, retryDelay: 20 })
-}
+const QUEUE_LOCK_STALE_SECONDS = 30
 
 function inQueue(work) {
   const lock = join(slotDir, 'queue.lock')
-  const ownerPath = join(lock, 'owner')
   let refusals = 0
+  let entry
   for (;;) {
-    try {
-      mkdirSync(lock)
-    } catch (error) {
-      if (['EPERM', 'EACCES', 'EBUSY', 'ENOTEMPTY', 'ENOENT'].includes(error.code)) {
-        if ((refusals += 1) > 250) throw error
-        if (error.code === 'ENOENT') mkdirSync(slotDir, { recursive: true })
-        sleepSync(20)
-        continue
-      }
-      if (error.code !== 'EEXIST') throw error
-      const owner = fields(ownerPath, true)
-      let age = 0
-      try {
-        age = Date.now() / 1000 - statSync(lock).mtimeMs / 1000
-      } catch {
-        continue
-      }
-      const gone = owner != null && sameSide(owner) && !processAlive(Number(owner.pid))
-      if (!gone && age <= 30) {
-        sleepSync(20)
-        continue
-      }
-      try {
-        removeQueueLock(lock)
-      } catch {}
+    const entered = enter(lock, pollSeconds)
+    if (entered !== 'taken' && entered !== 'retry') {
+      entry = entered
+      break
+    }
+    if (entered === 'retry') {
+      if ((refusals += 1) > 250) throw new Error(`队列锁 ${lock} 一直建不成`)
+      sleepSync(20)
       continue
     }
-    try {
-      if (createExclusive(ownerPath, describe(pollSeconds)) && mine(fields(ownerPath, true))) break
-    } catch (error) {
-      if (error.code !== 'ENOENT') throw error
+    const names = owners(lock)
+    let reaped = false
+    for (const name of names) {
+      const path = join(lock, name)
+      const owner = fields(path)
+      const age = ageOf(path)
+      const dead = owner != null && sameSide(owner) && !processAlive(Number(owner.pid))
+      if (dead || (age !== undefined && age > QUEUE_LOCK_STALE_SECONDS)) {
+        reap(lock, name)
+        reaped = true
+      }
     }
+    if (names.length === 0 && (ageOf(lock) ?? 0) > QUEUE_LOCK_STALE_SECONDS) {
+      removeIfEmpty(lock)
+      reaped = true
+    }
+    if (!reaped) sleepSync(20)
   }
   try {
     return work()
   } finally {
-    if (mine(fields(ownerPath, true)))
-      try {
-        removeQueueLock(lock)
-      } catch (error) {
-        process.stderr.write(
-          `with-test-slot: 队列锁 ${lock} 删不掉（${error.code}），30 秒后由下一个看队列的进程回收\n`,
-        )
-      }
+    leave(entry)
   }
 }
 
@@ -367,10 +462,24 @@ const task = currentTask()
 
 let ticket
 let ticketNumber = 0
-let acquired = 0
+let tokens = []
 let ahead = 0
+let free = 0
 let holders = []
 let holderIds = []
+
+const tokenDir = index => join(slotDir, `core-${index}`)
+
+function tokenHolder(directory) {
+  let holder
+  for (const name of owners(directory)) {
+    const path = join(directory, name)
+    if (alive(path)) holder ??= path
+    else removeIfEmpty(directory)
+  }
+  removeIfEmpty(directory)
+  return holder
+}
 
 function takeTurn() {
   let newest = 0
@@ -389,34 +498,54 @@ function takeTurn() {
       if (createExclusive(ticket, describe(pollSeconds))) break
     }
   }
-  if (ahead === 0)
-    for (let index = 1; index <= slots; index += 1) {
-      const path = join(slotDir, `slot-${index}.lock`)
-      if (existsSync(path) && alive(path)) continue
-      if (createExclusive(path, describe(HOLDER_BEAT_SECONDS))) {
-        removeOwn(ticket)
-        acquired = index
-        return
-      }
+  const held = new Map()
+  for (const name of readdirSync(slotDir)) {
+    const match = /^core-(\d+)$/.exec(name)
+    if (match === null) continue
+    const holder = tokenHolder(join(slotDir, name))
+    if (holder !== undefined) held.set(Number(match[1]), holder)
+  }
+  const vacant = []
+  for (let index = 1; index <= capacity; index += 1) if (!held.has(index)) vacant.push(index)
+  free = Math.max(0, Math.min(vacant.length, capacity - held.size))
+  const granted = grant({ head: ahead === 0, free, want, min })
+  if (granted > 0) {
+    const taken = []
+    for (const index of vacant) {
+      if (taken.length === granted) break
+      const entry = enter(tokenDir(index), HOLDER_BEAT_SECONDS)
+      if (entry !== 'taken' && entry !== 'retry') taken.push(entry)
     }
+    if (taken.length >= min) {
+      removeOwn(ticket)
+      tokens = taken
+      return
+    }
+    releaseTokens(taken)
+  }
   holders = []
   holderIds = []
-  for (let index = 1; index <= slots; index += 1) {
-    const path = join(slotDir, `slot-${index}.lock`)
-    if (!existsSync(path) || !alive(path)) continue
+  const byHolder = new Map()
+  for (const path of held.values()) {
     const entry = fields(path) ?? {}
+    const key = `${entry.pid}@${entry.side ?? SIDE}@${entry.since}`
+    const seen = byHolder.get(key)
+    if (seen === undefined) byHolder.set(key, { entry, count: 1 })
+    else seen.count += 1
+  }
+  for (const [key, { entry, count }] of byHolder) {
     const since = /^\d+$/.test(entry.since ?? '') ? Number(entry.since) : unixNow()
     let cmd = entry.cmd ?? ''
     if (cmd.length > 160) cmd = `${cmd.slice(0, 160)}…`
     holders.push(
-      `名额 ${index}/${slots} 正由「${cmd}」占着，已 ${duration(Math.max(0, unixNow() - since))}（${entry.cwd ?? ''}，进程 ${entry.pid ?? ''}，${entry.side ?? SIDE}）`,
+      `${count} 个令牌正由「${cmd}」占着，已 ${duration(Math.max(0, unixNow() - since))}（${entry.cwd ?? ''}，进程 ${entry.pid ?? ''}，${entry.side ?? SIDE}）`,
     )
-    holderIds.push(`${entry.pid}@${since}`)
+    holderIds.push(`${key}x${count}`)
   }
 }
 
 const HOLDER_BEAT_SECONDS = 5
-const started = Date.now()
+const started = now()
 let aheadOnArrival
 let waited = 0
 let status = 0
@@ -430,11 +559,13 @@ function record(event, run) {
     cwd: process.cwd(),
     pid: process.pid,
     cores: os.availableParallelism?.() ?? os.cpus().length,
-    slots,
+    capacity,
+    want,
+    min,
     aheadOnArrival,
     arrivedAt: jsonTime(started),
     waitSeconds: waited,
-    slot: event === 'ran' ? acquired : null,
+    tokens: event === 'ran' ? tokens.length : null,
     acquiredAt: event === 'ran' ? jsonTime(run.acquiredAt) : null,
     heldSeconds: event === 'ran' ? wholeSeconds(run.endedAt - run.acquiredAt) : null,
     cpuSeconds: event === 'ran' ? run.cpuSeconds : null,
@@ -451,7 +582,7 @@ function record(event, run) {
 }
 
 const interrupted = signal => {
-  if (ticket !== undefined && acquired === 0) removeOwn(ticket)
+  if (ticket !== undefined && tokens.length === 0) removeOwn(ticket)
   process.exit(128 + (os.constants.signals[signal] ?? 1))
 }
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(signal, interrupted)
@@ -462,21 +593,21 @@ let recycled = false
 for (;;) {
   inQueue(takeTurn)
   aheadOnArrival ??= ahead
-  waited = wholeSeconds(Date.now() - started)
+  waited = wholeSeconds(now() - started)
   if (recycled) {
     process.stderr.write(`with-test-slot: 票被回收，重新排队（前面还有 ${ahead} 个）\n`)
     recycled = false
     lastSeen = ''
   }
-  if (acquired) break
+  if (tokens.length > 0) break
   if (waited >= maxWaitSeconds) {
     status = 75
     inQueue(() => {
       removeOwn(ticket)
-      record('gave-up', { endedAt: Date.now() })
+      record('gave-up', { endedAt: now() })
     })
     process.stderr.write(
-      `with-test-slot: 等了 ${waited} 秒仍没轮到（前面还有 ${ahead} 个，共 ${slots} 个名额，锁在 ${slotDir}），命令没有执行\n`,
+      `with-test-slot: 等了 ${waited} 秒仍没轮到（前面还有 ${ahead} 个，空闲 ${free} 个，共 ${capacity} 个令牌，至少要 ${min} 个，锁在 ${slotDir}），命令没有执行\n`,
     )
     process.exit(75)
   }
@@ -484,10 +615,10 @@ for (;;) {
   if (seen !== lastSeen) {
     if (!announced) {
       process.stderr.write(
-        `with-test-slot: 排队中，前面还有 ${ahead} 个（共 ${slots} 个名额；每 ${pollSeconds} 秒看一次，最多等 ${maxWaitSeconds} 秒）\n`,
+        `with-test-slot: 排队中，前面还有 ${ahead} 个（共 ${capacity} 个令牌，空闲 ${free} 个；这次要 ${want} 个、至少 ${min} 个；每 ${pollSeconds} 秒看一次，最多等 ${maxWaitSeconds} 秒）\n`,
       )
       announced = true
-    } else process.stderr.write(`with-test-slot: 前面还有 ${ahead} 个\n`)
+    } else process.stderr.write(`with-test-slot: 前面还有 ${ahead} 个，空闲 ${free} 个\n`)
     for (const line of holders) process.stderr.write(`with-test-slot:   ${line}\n`)
     lastSeen = seen
   }
@@ -500,24 +631,34 @@ for (;;) {
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.off(signal, interrupted)
 
 if (announced)
-  process.stderr.write(`with-test-slot: 等了 ${waited} 秒，拿到名额 ${acquired}/${slots}\n`)
-const slotPath = join(slotDir, `slot-${acquired}.lock`)
-const acquiredAt = Date.now()
+  process.stderr.write(
+    `with-test-slot: 等了 ${waited} 秒，拿到 ${tokens.length} 个令牌（共 ${capacity} 个）\n`,
+  )
+const acquiredAt = now()
 const loadAtAcquire = load()
 let noticedGone = false
 const heartbeat = setInterval(() => {
-  if (beatOwn(slotPath) || noticedGone) return
+  const gone = tokens.filter(path => !beatOwn(path))
+  if (gone.length === 0 || noticedGone) return
   noticedGone = true
   process.stderr.write(
-    `with-test-slot: 名额文件被删（${slotPath}），本进程的登记被当作失效；命令照常跑完，但别的等待者可能已经开始\n`,
+    `with-test-slot: 令牌文件被删（${gone.join('、')}），本进程的登记被当作失效；命令照常跑完，但别的等待者可能已经开始\n`,
   )
 }, HOLDER_BEAT_SECONDS * 1000)
-const result = await run(args, { ...process.env, OMNE_TEST_SLOT_HELD: slotPath }, true)
+const result = await run(
+  args,
+  {
+    ...process.env,
+    OMNE_TEST_SLOT_HELD: dirname(tokens[0]),
+    OMNE_WORKER_BUDGET: String(tokens.length),
+  },
+  true,
+)
 clearInterval(heartbeat)
 status = result.status
-const endedAt = Date.now()
+const endedAt = now()
 inQueue(() => {
-  removeOwn(slotPath)
+  releaseTokens(tokens)
   record('ran', { acquiredAt, endedAt, cpuSeconds: result.cpuSeconds, loadAtAcquire })
 })
 process.exit(status)

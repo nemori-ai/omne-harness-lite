@@ -1,7 +1,4 @@
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { readTestRunsConfig } from '../src/testing/config.ts'
 import {
   budgetFor,
   deriveParallelism,
@@ -113,17 +110,6 @@ describe('调用方交下来的预算', () => {
       'OMNE_WORKER_BUDGET',
     )
     expect((await budgetFor({ ...POLICY, sampleMs: 0 }, {})).source).toBe('sampled')
-  })
-})
-
-describe('名额数与池子的分法是同一个数', () => {
-  it('运行名额的缺省个数等于配置里按几次检查同时跑来分池子', () => {
-    const script = readFileSync(
-      fileURLToPath(new URL('../../../scripts/with-test-slot.mjs', import.meta.url)),
-      'utf8',
-    )
-    const initial = /env: 'OMNE_TEST_SLOTS', initial: '(\d+)'/u.exec(script)?.[1]
-    expect(initial).toBe(String(readTestRunsConfig().parallel.concurrentRuns))
   })
 })
 
