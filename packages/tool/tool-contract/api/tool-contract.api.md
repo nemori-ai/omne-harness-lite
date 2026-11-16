@@ -1965,6 +1965,11 @@ export interface ToolCommands<P, B extends ContentBlock> {
         consumer: ConsumerRef;
         evidence: Handoff;
     }>): Reply<ReleasedDelivery>;
+    releasePlaceholder(input: Mutation<P> & Readonly<{
+        delivery: ToolDeliveryId;
+        consumer: ConsumerRef;
+        evidence: Handoff;
+    }>): Reply<ReleasedDelivery>;
     scanPending(input: Access<P> & Readonly<{
         after: string | null;
         limit: number;
@@ -2386,7 +2391,7 @@ import type { FixedToolRequest, ToolAvailability } from './definitions.ts';
 import type { Access, CallAccess, ConsumerRef, DurableEvidence, ToolCallId, ToolCursor, ToolDeliveryId, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolWaitId } from './identity.ts';
 import type { ControlProgress, WaitRecord } from './records.ts';
 import type { ToolInvocationRef, ToolOperationRef } from './reference.ts';
-import type { Attachment, ReleasedDelivery, OperationResolution, Reply, ResultPage, ToolCallContact, ToolFailure, ToolLookup, ToolState } from './results.ts';
+import type { Attachment, DeliveryState, ReleasedDelivery, OperationResolution, Reply, ResultPage, ToolCallContact, ToolFailure, ToolLookup, ToolState } from './results.ts';
 export type ToolControl = Readonly<{
     kind: 'stop';
 }> | Readonly<{
@@ -2394,6 +2399,7 @@ export type ToolControl = Readonly<{
     reach: 'all' | 'foreground-and-unadmitted';
 }> | Readonly<{
     kind: 'background';
+    otherwise: 'reject' | 'withdraw' | 'stop';
 }>;
 export type ControlReceipt = Readonly<{
     operation: ToolOperationId;
@@ -2417,6 +2423,7 @@ export type ForegroundReturn = Readonly<{
     kind: 'background';
     call: ToolCallId;
     source: BackgroundSource;
+    delivery: DeliveryState;
 }>;
 export type ProcessBlock = Readonly<{
     index: string;
@@ -3042,7 +3049,7 @@ import type { ToolWaitSchemaSnapshot } from './author-context.ts';
 import type { FixedToolRequest } from './definitions.ts';
 import type { ToolExecutionRef } from './execution.ts';
 import type { Access, Adoption, CallAccess, ConsumerRef, DurableEvidence, Mutation, ToolCallId, ToolDeliveryId, ToolOperationId, ToolResultVersion, ToolWaitId } from './identity.ts';
-import type { ToolControl } from './operations.ts';
+import type { BackgroundSource, ToolControl } from './operations.ts';
 import type { DecisionValue, PreparedEnvironment, ToolExecutionFact, ToolStartLookup, ToolStartRecord } from './ports.ts';
 import type { ChildReservation, ProgramEnd } from './program.ts';
 import type { Reply, WaitState } from './results.ts';
@@ -3452,6 +3459,12 @@ export type ToolTask = Readonly<{
     delivery: ToolDeliveryId;
     consumer: ConsumerRef;
 }> | Readonly<{
+    kind: 'placeholder';
+    delivery: ToolDeliveryId;
+    consumer: ConsumerRef;
+    source: BackgroundSource;
+    evidence: DurableEvidence;
+}> | Readonly<{
     kind: 'queue' | 'settle' | 'account' | 'facts' | 'clock';
     basis: DurableEvidence;
 }> | Readonly<{
@@ -3637,6 +3650,7 @@ import type { ContentBlock } from '@omne-harness/content-block';
 import { type TenantId } from '@omne-harness/legal-identity';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { Access, ConsumerRef, DurableEvidence, ToolDeliveryId, ToolResultVersion } from './identity.ts';
+import type { BackgroundSource } from './operations.ts';
 import { type ToolInvocationRef } from './reference.ts';
 import type { Effect, ToolResult, ToolTerminal } from './results.ts';
 export type ToolDeliveryKey = Readonly<{
@@ -3650,6 +3664,10 @@ export type ToolDeliveryKey = Readonly<{
     reference: ToolInvocationRef;
     event: string;
     revision: CallAccount['revision'];
+}> | Readonly<{
+    kind: 'placeholder';
+    producer: 'tool';
+    reference: ToolInvocationRef;
 }>;
 export type ToolDelivery<B extends ContentBlock> = Readonly<{
     kind: 'result';
@@ -3672,6 +3690,15 @@ export type ToolDelivery<B extends ContentBlock> = Readonly<{
     }>;
     consumer: ConsumerRef;
     account: CallAccount;
+}> | Readonly<{
+    kind: 'placeholder';
+    key: Extract<ToolDeliveryKey, {
+        kind: 'placeholder';
+    }>;
+    consumer: ConsumerRef;
+    delivery: ToolDeliveryId;
+    source: BackgroundSource;
+    evidence: DurableEvidence;
 }>;
 export type ToolSavedReceipt = Readonly<{
     key: ToolDeliveryKey;

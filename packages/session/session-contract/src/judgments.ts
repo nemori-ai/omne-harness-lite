@@ -128,6 +128,7 @@ export type Decision =
         through: string
       }>
       interpreted?: readonly Readonly<{ ordinal: string; key: string }>[]
+      admitted?: readonly Extract<RoutedInput, { kind: 'ordinary' }>[]
     }>
   | Readonly<{
       kind: 'control-answer'

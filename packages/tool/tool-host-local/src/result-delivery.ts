@@ -492,24 +492,27 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     return 'ok' in finished && finished.ok.phase.kind === 'done'
   }
 
+  // The placeholder goes first: while it is owed, no result of the call is pushed.
   async function deliverPlaceholder(
     access: CallAccess<P>,
     call: CallRecord,
-    task: Extract<ToolTask, { kind: 'placeholder' }>,
+    tasks: readonly ToolTask[],
     signal: AbortSignal,
     sweep: Sweep,
-  ): Promise<boolean> {
+  ): Promise<'none' | 'released' | 'owed'> {
+    const task = tasks.find(item => item.kind === 'placeholder')
+    if (task?.kind !== 'placeholder') return 'none'
     const payload = placeholderPayload<B>(call, task)
     const operation = decodeToolOperationId(`${task.operation}/release-placeholder`)
-    if (payload === null || 'failure' in operation) return false
+    if (payload === null || 'failure' in operation) return 'owed'
     const owed: Owed = { digest: canonicalDigest(payload), payload }
     sweep.owed.add(owed.digest)
-    if (paced.away(access, owed) !== null) return false
-    if ('failure' in judgeToolDelivery({ tenant: access.tenant, delivery: payload })) return false
+    if (paced.away(access, owed) !== null) return 'owed'
+    if ('failure' in judgeToolDelivery({ tenant: access.tenant, delivery: payload })) return 'owed'
     const receiver = await receiverOf(access, owed)
-    if ('failure' in receiver) return false
+    if ('failure' in receiver) return 'owed'
     const custody = await exchange(access, owed, receiver.ok, payload, signal)
-    if ('failure' in custody) return false
+    if ('failure' in custody) return 'owed'
     const released = await input.commands.releasePlaceholder({
       ...access,
       operation: operation.ok,
@@ -517,7 +520,7 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
       consumer: task.consumer,
       evidence: { kind: 'retained', custody: custody.ok },
     })
-    return 'ok' in released
+    return 'ok' in released ? 'released' : 'owed'
   }
 
   async function deliver(
@@ -534,20 +537,6 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     if (saved === null || signal.aborted) return false
     const outcome = await release(access, saved, signal)
     return 'ok' in outcome && (await finish(access, request, outcome.ok))
-  }
-
-  async function placeholderFirst(
-    access: CallAccess<P>,
-    call: CallRecord,
-    tasks: readonly ToolTask[],
-    signal: AbortSignal,
-    sweep: Sweep,
-  ): Promise<'none' | 'released' | 'owed'> {
-    const placeholder = tasks.find(task => task.kind === 'placeholder')
-    if (placeholder?.kind !== 'placeholder') return 'none'
-    if (await deliverPlaceholder(access, call, placeholder, signal, sweep)) return 'released'
-    if (!signal.aborted) paced.retain(access, sweep.owed)
-    return 'owed'
   }
 
   async function run(
@@ -570,10 +559,9 @@ export function createLocalToolResultDelivery<P, B extends ContentBlock>(
     )
     let pending = tasks.length
     const sweep: Sweep = { owed: new Set(), certain: true }
-    const first = await placeholderFirst(qualified.ok, call.call, tasks, signal, sweep)
-    if (first === 'owed') return succeed({ pending })
+    const first = await deliverPlaceholder(qualified.ok, call.call, tasks, signal, sweep)
     if (first === 'released') pending -= 1
-    for (const row of read.records) {
+    for (const row of first === 'owed' ? [] : read.records) {
       if (row.kind !== 'result' || signal.aborted) continue
       const base = resultDeliveryBase(call.call, row.result)
       if (

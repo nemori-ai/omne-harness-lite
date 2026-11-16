@@ -4,10 +4,12 @@ import * as testing from '@omne-harness/session-contract/testing'
 
 it('exports exactly the declared root runtime surface', () => {
   expect(Object.keys(session).sort()).toEqual([
+    'BACKGROUND_INPUT_OWNER',
     'CONTEXT_SCOPE_KINDS',
     'DEFAULT_SESSION_INTAKE_LIMITS',
     'INGRESS_FAMILIES',
     'INITIALIZATION_PROTOCOL',
+    'backgroundInputId',
     'batchEvidence',
     'commandDigest',
     'contextScopeOf',
@@ -26,6 +28,7 @@ it('exports exactly the declared root runtime surface', () => {
     'initializationRegistrationCommit',
     'isDeferredFact',
     'judgeAdvance',
+    'judgeBackgroundOutcome',
     'judgeCompletion',
     'judgeIdle',
     'judgeRunStart',
@@ -33,6 +36,7 @@ it('exports exactly the declared root runtime surface', () => {
     'judgeWaiting',
     'mutationAccessRequest',
     'openWork',
+    'pendingIntakeCount',
     'projectSessionEntries',
     'projectSessionLog',
     'readAccessRequest',

@@ -3233,6 +3233,11 @@ export type ReceivedDelivery = Readonly<{
         kind: 'account';
     }>;
     account: CallAccount;
+}> | Readonly<{
+    producer: 'tool';
+    key: Extract<T.ToolDeliveryKey, {
+        kind: 'placeholder';
+    }>;
 }>;
 export type ReceivedEntry = Readonly<{
     kind: 'received';

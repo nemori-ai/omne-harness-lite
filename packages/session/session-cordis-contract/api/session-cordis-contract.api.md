@@ -16,6 +16,9 @@
 - `AgentInstanceRef` · 包 `@omne-harness/session-contract`
 - `AttemptId` · 包 `@omne-harness/session-contract`
 - `AutoArchivePolicy` · 包 `@omne-harness/session-contract`
+- `BACKGROUND_INPUT_OWNER` · 包 `@omne-harness/session-contract`
+- `BackgroundDisposition` · 包 `@omne-harness/session-contract`
+- `BackgroundOutcomeJudgment` · 包 `@omne-harness/session-contract`
 - `BatchId` · 包 `@omne-harness/session-contract`
 - `BoundedClose` · 包 `@omne-harness/session-contract`
 - `CONTEXT_SCOPE_KINDS` · 包 `@omne-harness/session-contract`
@@ -239,6 +242,7 @@
 - `Waiting` · 包 `@omne-harness/session-contract`
 - `WorkSnapshot` · 包 `@omne-harness/session-contract`
 - `WorkspaceAttachment` · 包 `@omne-harness/session-contract`
+- `backgroundInputId` · 包 `@omne-harness/session-contract`
 - `batchEvidence` · 包 `@omne-harness/session-contract`
 - `commandDigest` · 包 `@omne-harness/session-contract`
 - `contextScopeOf` · 包 `@omne-harness/session-contract`
@@ -257,6 +261,7 @@
 - `initializationRegistrationCommit` · 包 `@omne-harness/session-contract`
 - `isDeferredFact` · 包 `@omne-harness/session-contract`
 - `judgeAdvance` · 包 `@omne-harness/session-contract`
+- `judgeBackgroundOutcome` · 包 `@omne-harness/session-contract`
 - `judgeCompletion` · 包 `@omne-harness/session-contract`
 - `judgeIdle` · 包 `@omne-harness/session-contract`
 - `judgeRunStart` · 包 `@omne-harness/session-contract`
@@ -264,6 +269,7 @@
 - `judgeWaiting` · 包 `@omne-harness/session-contract`
 - `mutationAccessRequest` · 包 `@omne-harness/session-contract`
 - `openWork` · 包 `@omne-harness/session-contract`
+- `pendingIntakeCount` · 包 `@omne-harness/session-contract`
 - `projectSessionEntries` · 包 `@omne-harness/session-contract`
 - `projectSessionLog` · 包 `@omne-harness/session-contract`
 - `readAccessRequest` · 包 `@omne-harness/session-contract`

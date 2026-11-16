@@ -53,6 +53,7 @@ export type {
   RunState,
   RunTerminal,
   ScopeReleaseDisposition,
+  BackgroundDisposition,
   SessionCreation,
   SessionFrozen,
   SessionWaiting,
@@ -273,7 +274,14 @@ export {
   sessionIntakeLimits,
   sessionInputBytes,
   judgeSessionIntake,
+  pendingIntakeCount,
 } from './intake.ts'
+export {
+  BACKGROUND_INPUT_OWNER,
+  backgroundInputId,
+  judgeBackgroundOutcome,
+  type BackgroundOutcomeJudgment,
+} from './background-outcome.ts'
 export type { SessionIntakeLimits } from './intake.ts'
 export type {
   TodoItem,

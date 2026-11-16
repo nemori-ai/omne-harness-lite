@@ -76,6 +76,7 @@ import { materializeModelView, compactionReads, type MaterializedModelView } fro
 import { decodeEntry } from './entries.ts'
 import { reduce } from './reduce.ts'
 import { digestSessionEntries, projectSessionEntries } from './entries-interpretation.ts'
+import { admittedInputs, withInputs } from './testing-inputs.ts'
 import { digestSessionLog, executionReadThrough } from './log-interpretation.ts'
 import type {
   SessionEntriesObservation,
@@ -442,14 +443,6 @@ function firstInputRead(
   const first = store.snapshot.pending[0]
   const stored = first === undefined ? undefined : store.inputs.get(first)
   return stored === undefined ? {} : { firstInput: { input: stored.input, origin: stored.origin } }
-}
-
-function admittedInput(command: SessionCommand): Extract<RoutedInput, { kind: 'ordinary' }> | null {
-  if (command.kind === 'accept' && command.input.value.kind === 'ordinary')
-    return command.input.value
-  if (command.kind === 'create') return command.input.creation.initial
-  if (command.kind === 'interrupt') return command.input.urgent
-  return null
 }
 
 function sameProducer(left: ProducerRef, right: ProducerRef): boolean {
@@ -823,9 +816,7 @@ export function createMemorySessionTransactionPair<P>(
           ? { form: 'control' as const }
           : {}),
       })
-      const inputs = new Map(store?.inputs)
-      const admitted = admittedInput(command)
-      if (admitted !== null) inputs.set(admitted.input, admitted)
+      const inputs = withInputs(store?.inputs, admittedInputs(command))
       const target: Store = {
         snapshot: committedSnapshot,
         modelView: materializeModelView(
@@ -919,6 +910,7 @@ export function createMemorySessionTransactionPair<P>(
         modelView: materializeModelView(store.modelView, entries, committedEntries),
         entries: committedEntries,
         operations,
+        inputs: withInputs(store.inputs, decision.admitted ?? []),
       })
       return succeed(answer)
     }
