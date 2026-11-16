@@ -36,6 +36,23 @@ export default {
 }
 `
 
+const LOAD_HELD = ['slowload', 'slowserial'] as const
+type LoadHeld = (typeof LOAD_HELD)[number]
+
+const heldAtLoad = (name: string, path: string): string => `${HOLD}hold(${JSON.stringify(path)})
+export default {
+  handler: '${name}', protocol: '1',
+  read() { return { kind: 'read', output: { loaded: true } } },
+}`
+
+const loadGates = new WeakMap<Workspace, Readonly<Record<LoadHeld, Gate>>>()
+
+export function loadGateOf(workspace: Workspace, handler: LoadHeld): Gate {
+  const gates = loadGates.get(workspace)
+  if (gates === undefined) throw new Error('the read materials of this workspace are not built')
+  return gates[handler]
+}
+
 const HANDLERS: Readonly<Record<string, string>> = {
   page: COUNT_PAIR.replace('NAME', 'page'),
   serial: COUNT_PAIR.replace('NAME', 'serial'),
@@ -94,7 +111,10 @@ export default {
 
 const sha = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex')
 
-const ORDERING: Readonly<Record<string, ReadOrdering>> = { serial: 'domain-serial' }
+const ORDERING: Readonly<Record<string, ReadOrdering>> = {
+  serial: 'domain-serial',
+  slowserial: 'domain-serial',
+}
 
 export type ReadFixture = Readonly<{ built: Built; handlers: readonly ReadHandlerDescriptor[] }>
 
@@ -105,7 +125,14 @@ export async function buildReadMaterials(
 ): Promise<Built> {
   const base = await buildMaterials(workspace, materials)
   const handlers: ReadHandlerDescriptor[] = []
-  for (const [name, source] of Object.entries(HANDLERS)) {
+  const held = { slowload: gate(workspace.root), slowserial: gate(workspace.root) }
+  loadGates.set(workspace, held)
+  const sources = {
+    ...HANDLERS,
+    slowload: heldAtLoad('slowload', held.slowload.path),
+    slowserial: heldAtLoad('slowserial', held.slowserial.path),
+  }
+  for (const [name, source] of Object.entries(sources)) {
     const file = join(workspace.materialsDir, `handler-${name}.mjs`)
     await writeFile(file, source, 'utf8')
     handlers.push({

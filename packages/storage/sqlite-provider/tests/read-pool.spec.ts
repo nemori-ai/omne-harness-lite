@@ -5,7 +5,9 @@ import { advance, atLimit, chance, stillPending, until } from './gate.ts'
 import {
   buildReadMaterials,
   closeProviders,
+  commitOf,
   heldRead,
+  loadGateOf,
   readRequest,
   readyProvider,
   summary,
@@ -112,6 +114,49 @@ describe('timeouts (SPEC 9.2 steps 9 and 10)', () => {
     running.gate.open()
     expect(summary(await next)).toBe('read')
     expect(readerLeases()).toHaveLength(1)
+  })
+
+  it('does not count the first load of a handler in a reader against readObservationMs', async () => {
+    const { storage } = await readyProvider(
+      workspace,
+      built,
+      { ...one, readObservationMs: 100, readQueueTimeoutMs: 2000 },
+      0,
+    )
+    const load = loadGateOf(workspace, 'slowload')
+    const reading = storage.read(readRequest('slowload'))
+    await load.entered()
+    advance(100)
+    await stillPending(reading)
+    load.open()
+    expect(summary(await reading)).toBe('read')
+  })
+
+  it('counts the load against the queue time, and the reader that loaded serves the next read', async () => {
+    const { storage } = await readyProvider(
+      workspace,
+      built,
+      { ...one, readQueueTimeoutMs: 100 },
+      0,
+    )
+    const load = loadGateOf(workspace, 'slowload')
+    const reading = storage.read(readRequest('slowload'))
+    await load.entered()
+    expect(summary(await atLimit(reading, 100))).toBe('unavailable/queue_timeout')
+    load.open()
+    expect(summary(await storage.read(readRequest('slowload')))).toBe('read')
+    expect(readerLeases()).toHaveLength(1)
+  })
+
+  it('does not hold the barrier of a domain-serial read while its handler loads', async () => {
+    const { storage } = await readyProvider(workspace, built, one, 0)
+    const load = loadGateOf(workspace, 'slowserial')
+    const reading = storage.read(readRequest('slowserial'))
+    await load.entered()
+    const written = await storage.commit(commitOf(built, 'during-load'))
+    expect(written.kind).toBe('committed')
+    load.open()
+    expect(summary(await reading)).toBe('read')
   })
 
   it('returns queue_timeout when no reader is free in time', async () => {
