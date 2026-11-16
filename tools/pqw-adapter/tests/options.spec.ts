@@ -10,6 +10,10 @@ const ALL = [
   '--out',
   '--workers',
   '--max-lines',
+  '--timeout',
+  '--timeout-factor',
+  '--recheck',
+  '--recheck-limit',
 ]
 
 it('collects several values after --scope, repeated flags and comma lists, and skips the pnpm separator', () => {
@@ -35,7 +39,22 @@ it('collects several values after --scope, repeated flags and comma lists, and s
     files: ['x.ts'],
     full: false,
     planOnly: true,
+    recheck: false,
   })
+})
+
+it('keeps the mutation time limit and recheck values as the text pqw reads, and leaves out the ones not given', () => {
+  expect(
+    parseOptions(
+      ['--timeout-factor', '6', '--timeout', '15s', '--recheck', '--recheck-limit', '0'],
+      ALL,
+    ),
+  ).toMatchObject({ timeoutFactor: '6', timeout: '15s', recheck: true, recheckLimit: '0' })
+  const bare = parseOptions(['--timeout-factor', '2.5'], ALL)
+  expect(bare).toMatchObject({ timeoutFactor: '2.5', recheck: false })
+  expect(Object.keys(bare)).not.toContain('timeout')
+  expect(Object.keys(bare)).not.toContain('recheckLimit')
+  expect(() => parseOptions(['--timeout-factor'], ALL)).toThrow('--timeout-factor 要给值')
 })
 
 it('parses numbers and flags', () => {
@@ -49,6 +68,7 @@ it('parses numbers and flags', () => {
     files: [],
     full: true,
     planOnly: false,
+    recheck: false,
   })
 })
 
@@ -79,7 +99,7 @@ it('takes a value that is only commas for no value, and a value flag that is the
 it('adds up the values of a repeated multi-value flag and leaves unset single values out', () => {
   const options = parseOptions(['--files', 'a,b', '--files', 'c'], ALL)
   expect(options.files).toEqual(['a', 'b', 'c'])
-  expect(Object.keys(options).sort()).toEqual(['files', 'full', 'planOnly', 'scopes'])
+  expect(Object.keys(options).sort()).toEqual(['files', 'full', 'planOnly', 'recheck', 'scopes'])
 })
 
 it('accepts 1 as the smallest positive count', () => {
