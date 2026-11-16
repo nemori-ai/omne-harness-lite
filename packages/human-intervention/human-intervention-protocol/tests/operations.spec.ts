@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { humanInterventionProtocol } from '@omne-harness/human-intervention-protocol'
+import { expectRoundTrip, readSample, tenant } from './fixtures/samples.ts'
 
 const table = {
   'list-cards': { identity: 'login', effect: 'read', limit: 'small' },
@@ -19,11 +20,24 @@ const always = ['succeeded', 'protocol-rejected', 'basis-unavailable', 'denied']
 const operations = humanInterventionProtocol.operations
 
 describe('human-intervention/v1', () => {
-  it('is human-intervention major 1 with exactly the four operations and no observation', () => {
+  it('is human-intervention major 1 with exactly the four operations and one observation', () => {
     expect(humanInterventionProtocol.name).toBe('human-intervention')
     expect(humanInterventionProtocol.major).toBe(1)
     expect(Object.keys(operations).sort()).toEqual(Object.keys(table).sort())
-    expect(Object.keys(humanInterventionProtocol.observations)).toEqual([])
+    expect(Object.keys(humanInterventionProtocol.observations)).toEqual(['observe-cards'])
+  })
+
+  it('observe-cards needs a login, opens on a tenant, and its frame says only that cards changed', () => {
+    const observation = humanInterventionProtocol.observations['observe-cards']
+    expect(observation.identity).toBe('login')
+    expect(observation.ends).toEqual([])
+    expect('countsAsAccess' in observation).toBe(false)
+    expectRoundTrip(observation.open, { tenant })
+    expect(readSample(observation.open, {})).toEqual({ ok: false })
+    expect(readSample(observation.open, { tenant, session: 's' })).toEqual({ ok: false })
+    expectRoundTrip(observation.frame, { kind: 'changed' })
+    expect(readSample(observation.frame, { kind: 'changed', cardId: 'c' })).toEqual({ ok: false })
+    expect(readSample(observation.frame, { kind: 'decided' })).toEqual({ ok: false })
   })
 
   it.each(Object.entries(table))(

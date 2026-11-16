@@ -72,10 +72,10 @@ export function ImpactPanel({
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="pe-impact-overlay" data-motion="overlay" />
+        <Dialog.Overlay className="omne-impact-overlay" data-motion="overlay" />
         <Dialog.Content
           ref={presence}
-          className="pe-impact-panel"
+          className="omne-impact-panel"
           data-motion="dialog"
           data-keyboard-modal=""
           data-tone={tone}
@@ -92,13 +92,15 @@ export function ImpactPanel({
             target.focus({ preventScroll: true })
           }}
         >
-          <Dialog.Title className="pe-impact-title">{title}</Dialog.Title>
+          <Dialog.Title className="omne-impact-title">{title}</Dialog.Title>
           {description !== undefined && (
-            <Dialog.Description className="pe-impact-description">{description}</Dialog.Description>
+            <Dialog.Description className="omne-impact-description">
+              {description}
+            </Dialog.Description>
           )}
           {sections.map(([key, body]) =>
             body === undefined || body === null || body === false ? null : (
-              <section key={key} className="pe-impact-section" data-impact={key}>
+              <section key={key} className="omne-impact-section" data-impact={key}>
                 <h3>{sectionLabels[key]}</h3>
                 <div>{body}</div>
               </section>
@@ -106,7 +108,7 @@ export function ImpactPanel({
           )}
           {children}
           {error !== undefined && error !== null && error !== false && error}
-          <div className="pe-impact-actions">
+          <div className="omne-impact-actions">
             <Button
               ref={cancel}
               variant="ghost"

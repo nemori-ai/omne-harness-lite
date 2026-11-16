@@ -17,12 +17,20 @@ import type {
 import { standingPrincipalRef, type ActingForTenantPrincipal } from '@omne-harness/identity'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { hitlReplyIdentity, tenantTextOf } from './derivation.ts'
-import type { HitlAccessSettings, HitlEntryPrincipals, HitlFaces, LoginTenants } from './ports.ts'
+import { createCardObservation, loginAdmission } from './observe-cards.ts'
+import type {
+  CardChanges,
+  HitlAccessSettings,
+  HitlEntryPrincipals,
+  HitlFaces,
+  LoginTenants,
+} from './ports.ts'
 
 export type HitlContributionInput = Readonly<{
   faces: () => HitlFaces | undefined
   entryPrincipals: HitlEntryPrincipals
   logins: LoginTenants
+  changes: () => CardChanges | undefined
   settings: HitlAccessSettings
 }>
 
@@ -144,12 +152,7 @@ export function createHitlContribution(
     tenant: TenantId,
   ): Promise<Admitted | typeof DENIED | typeof UNAVAILABLE> {
     const tenantText = tenantTextOf(tenant)
-    let admitted
-    try {
-      admitted = await logins.admits(login, tenantText)
-    } catch {
-      return UNAVAILABLE
-    }
+    const admitted = await loginAdmission(logins, login, tenantText)
     if (admitted === 'denied') return DENIED
     if (admitted !== 'admitted') return UNAVAILABLE
     try {
@@ -250,6 +253,8 @@ export function createHitlContribution(
         return 'outcome' in found ? found : inspectionAnswer(found)
       },
     },
-    observations: {},
+    observations: {
+      'observe-cards': createCardObservation({ logins, changes: input.changes }),
+    },
   }
 }

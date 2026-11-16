@@ -128,7 +128,7 @@ export function withChosenRewrite(
 
 export function afterAdmission(
   passages: readonly Passage[],
-  answer: Exclude<ToolAdmission, { kind: 'unavailable' }>,
+  answer: Exclude<ToolAdmission, { kind: 'unavailable' | 'refused' }>,
   before: Passage | null,
   at: AgentInstant,
 ): Step & Readonly<{ opened?: CardRoundId }> {

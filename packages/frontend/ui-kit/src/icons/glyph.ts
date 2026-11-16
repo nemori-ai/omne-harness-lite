@@ -10,7 +10,7 @@ interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'ref' | 'children'> {
 
 export type Icon = (props: IconProps) => React.JSX.Element
 
-const maskId = (id: string): string => `pe-icon-${id}`
+const maskId = (id: string): string => `omne-icon-${id}`
 
 const ink = (stroke: Stroke, mask?: string): ReactNode =>
   h('path', { key: stroke.ink, d: stroke.ink, mask })
@@ -59,7 +59,7 @@ export function defineIcon(name: string, glyph: Glyph): Icon {
         fill: 'currentColor',
         'aria-hidden': 'true',
         'data-icon': name,
-        className: cn('pe-icon', className),
+        className: cn('omne-icon', className),
         ...props,
       },
       glyph.still.map(stroke => ink(stroke)),

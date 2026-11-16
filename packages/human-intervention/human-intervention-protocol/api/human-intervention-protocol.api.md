@@ -2414,7 +2414,19 @@ export declare const humanInterventionProtocol: {
     };
     readonly name: "human-intervention";
     readonly major: 1;
-    readonly observations: {};
+    readonly observations: {
+        readonly 'observe-cards': {
+            readonly identity: "login";
+            readonly open: import("@omne-harness/public-contract").Codec<{
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly frame: import("@omne-harness/public-contract").Codec<{
+                readonly kind: "changed";
+            }>;
+            readonly ends: readonly [
+            ];
+        };
+    };
 };
 export type HumanInterventionProtocol = typeof humanInterventionProtocol;
 export type HumanInterventionCardPage = RuleValue<typeof cardPage>;

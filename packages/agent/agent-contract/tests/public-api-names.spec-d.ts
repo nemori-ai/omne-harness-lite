@@ -997,7 +997,7 @@ describe('the discriminants of the passage ledger', () => {
 
   it('keep the discriminants of admission, hand-over and material', () => {
     expectTypeOf<KindOf<AdmissionDecision>>().toEqualTypeOf<
-      'allow' | 'deny' | 'need-decision' | 'unavailable'
+      'allow' | 'deny' | 'need-decision' | 'unavailable' | 'undecidable'
     >()
     expectTypeOf<KindOf<MessageSource>>().toEqualTypeOf<
       | 'external-input'

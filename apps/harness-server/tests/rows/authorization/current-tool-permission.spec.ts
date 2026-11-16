@@ -204,7 +204,7 @@ it.each(['arguments', 'operation', 'tenant', 'session', 'implementation'])(
     if (field === 'session') w.request.scope.sessionId = 'other'
     if (field === 'implementation') w.request.implementationRef = 'other'
     expect(await createCurrentToolPermission(w.ports).check(w.input)).toMatchObject({
-      kind: 'unavailable',
+      kind: 'undecidable',
     })
     expect(w.reads()).toBe(1)
   },
@@ -227,7 +227,7 @@ it('refuses a previous response for changed arguments', async () => {
   }
   expect(
     await createCurrentToolPermission(ports).check({ ...w.input, effectiveArguments: '{}' }),
-  ).toMatchObject({ kind: 'unavailable' })
+  ).toMatchObject({ kind: 'undecidable' })
   expect(w.reads()).toBe(1)
 })
 
@@ -235,18 +235,36 @@ it('requires a current source and never turns ask or missing constraints into al
   const w = world(),
     check = createCurrentToolPermission(w.ports)
   w.current.evaluation.sources.tenant.rule.pick = 'ask'
-  expect(await check.check(w.input)).toMatchObject({ kind: 'unavailable' })
+  expect(await check.check(w.input)).toMatchObject({ kind: 'undecidable' })
   w.current.evaluation.sources.tenant.rule.pick = 'auto'
   w.set({
     ...w.current,
     evaluation: { ...w.current.evaluation, requiredConstraintIds: ['agent.definition'] },
   })
-  expect(await check.check(w.input)).toMatchObject({ kind: 'unavailable' })
+  expect(await check.check(w.input)).toMatchObject({ kind: 'undecidable' })
   w.set({ kind: 'unavailable', sourceRef: 'settings' })
   expect(await check.check(w.input)).toMatchObject({ kind: 'unavailable' })
   expect(
     await createCurrentToolPermission({ ...w.ports, source: () => undefined }).check(w.input),
   ).toMatchObject({ kind: 'unavailable' })
+})
+
+it('answers unavailable when the source could not read the basis and gives no request back', async () => {
+  const w = world()
+  const check = createCurrentToolPermission({
+    ...w.ports,
+    source: () => ({
+      readCurrent: async () => ({
+        request: null,
+        reading: { kind: 'unavailable', sourceRef: 'harness.current-permission' },
+        condition: null,
+      }),
+    }),
+  })
+  expect(await check.check(w.input)).toEqual({
+    kind: 'unavailable',
+    diagnostic: 'The permission basis could not be read now.',
+  })
 })
 
 it('retains a known denial when another required owner is unavailable', async () => {
@@ -272,7 +290,7 @@ it('rejects a substituted declaration even when its identity is unchanged', asyn
     },
   })
   expect(await createCurrentToolPermission(w.ports).check(w.input)).toMatchObject({
-    kind: 'unavailable',
+    kind: 'undecidable',
   })
 })
 
@@ -283,13 +301,13 @@ it('does not reuse an interpretation for a different adoption or an unavailable 
       ...w.input,
       definition: { ...w.input.definition, digest: 'other' },
     }),
-  ).toMatchObject({ kind: 'unavailable' })
+  ).toMatchObject({ kind: 'undecidable' })
   expect(
     await createCurrentToolPermission({
       ...w.ports,
       release: () => ({ kind: 'unavailable', diagnostic: 'gone' }),
     }).check(w.input),
-  ).toMatchObject({ kind: 'unavailable' })
+  ).toMatchObject({ kind: 'undecidable' })
   expect(w.reads()).toBe(0)
 })
 
@@ -301,7 +319,7 @@ it('does not expose dependency exception details', async () => {
       throw new Error('SECRET')
     },
   }).check(w.input)
-  expect(decision).toMatchObject({ kind: 'unavailable' })
+  expect(decision).toMatchObject({ kind: 'undecidable' })
   expect(JSON.stringify(decision)).not.toContain('SECRET')
 })
 
@@ -323,7 +341,7 @@ it('carries the original owner context and the unchanged issued principal to the
 
 it.each([
   ['deny', 'deny'],
-  ['ask-human', 'unavailable'],
+  ['ask-human', 'undecidable'],
   ['skip-ask', 'allow'],
 ] as const)(
   'consumes published %s only for a structurally permitted inquiry',
@@ -352,7 +370,7 @@ it.each(['missing', 'exception'] as const)(
       },
     })
     w.current.evaluation.sources.tenant.rule.pick = 'ask'
-    expect(await check.check(w.input)).toMatchObject({ kind: 'unavailable' })
+    expect(await check.check(w.input)).toMatchObject({ kind: 'undecidable' })
     w.current.evaluation.sources.tenant.rule.pick = 'deny'
     expect(await check.check(w.input)).toMatchObject({ kind: 'deny' })
   },

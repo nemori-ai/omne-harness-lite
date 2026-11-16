@@ -62,7 +62,7 @@ export function Segmented<T extends string>({
       role="group"
       aria-label={label}
       data-slot="segmented"
-      className={cn('pe-segmented', className)}
+      className={cn('omne-segmented', className)}
     >
       {thumb !== null && (
         <span

@@ -1,13 +1,47 @@
 import type { Context } from '@deepseek-ai/cordis'
+import type { AccessIdentity } from '@omne-harness/access-cordis-contract'
 import type {
   GovernanceBasisUnavailable,
   IdentityGovernance,
   IdentityOperations,
+  TenantStandingSource,
 } from '@omne-harness/identity'
-import { identityGovernanceKey, identityOperationsKey } from '@omne-harness/identity/cordis'
+import {
+  identityGovernanceKey,
+  identityOperationsKey,
+  tenantStandingKey,
+} from '@omne-harness/identity/cordis'
+import { createAccessIdentity, createMemberActing } from '@omne-harness/identity-access'
 
 const MISSING = 'identity operations are not provided by the tree'
 const GOVERNANCE_MISSING = 'identity governance is not provided by the tree'
+const STANDING_MISSING = 'the tenant standing source is not provided by the tree'
+
+export function accessIdentityOfCall(ctx: Context): ReturnType<typeof createAccessIdentity> {
+  return createAccessIdentity({
+    operations: identityOfCall(ctx),
+    governance: governanceOfCall(ctx),
+    issuer: ctx.principalIssuer,
+  })
+}
+
+export function memberActingOfCall(
+  ctx: Context,
+  identity: Pick<AccessIdentity, 'actFor'> = accessIdentityOfCall(ctx),
+): AccessIdentity['actFor'] {
+  return createMemberActing({ identity, standing: standingOfCall(ctx) })
+}
+
+export function standingOfCall(ctx: Context): Pick<TenantStandingSource, 'read'> {
+  return {
+    async read(input) {
+      const standing = ctx.get(tenantStandingKey)
+      return standing === undefined
+        ? { kind: 'unavailable', diagnostic: STANDING_MISSING }
+        : standing.read(input)
+    },
+  }
+}
 
 export function identityOfCall(ctx: Context): IdentityOperations {
   const current = (): IdentityOperations | undefined => ctx.get(identityOperationsKey)

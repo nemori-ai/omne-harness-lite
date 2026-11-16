@@ -67,7 +67,7 @@ export function ActionTooltip({
     <Scope>
       <Tooltip>
         <TooltipTrigger asChild>{children}</TooltipTrigger>
-        <TooltipContent side={side} sideOffset={4} className="pe-action-tooltip">
+        <TooltipContent side={side} sideOffset={4} className="omne-action-tooltip">
           {label}
         </TooltipContent>
       </Tooltip>

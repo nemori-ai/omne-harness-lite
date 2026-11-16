@@ -49,8 +49,13 @@ it('imports no Node built-in module and no Cordis', () => {
   expect(offenders).toEqual([])
 })
 
-it('keeps the old variable prefix out of the styles and the code', () => {
-  expect(FILES.filter(file => file.text.includes('--pe-')).map(file => file.name)).toEqual([])
+it('keeps the old prefix out of the variables, class names and animation names', () => {
+  const offenders = FILES.filter(file => /\.(?:css|tsx?)$/.test(file.name)).flatMap(file =>
+    [...file.text.matchAll(/(?:^|[^a-zA-Z0-9_-])(?:--)?pe-[a-z][a-zA-Z0-9_-]*/gm)].map(
+      match => `${file.name}: ${match[0].trim()}`,
+    ),
+  )
+  expect(offenders).toEqual([])
 })
 
 it('uses no translation library', () => {

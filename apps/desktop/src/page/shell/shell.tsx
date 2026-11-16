@@ -112,7 +112,12 @@ function Outside(props: {
   )
 }
 
-function PageLink(props: { page: PageItem; current: boolean; choose: (id: string) => void }) {
+function PageLink(props: {
+  page: PageItem
+  scope: string | undefined
+  current: boolean
+  choose: (id: string) => void
+}) {
   const Icon = props.page.icon === undefined ? undefined : ICONS[props.page.icon]
   return (
     <button
@@ -124,6 +129,9 @@ function PageLink(props: { page: PageItem; current: boolean; choose: (id: string
     >
       {Icon === undefined ? null : <Icon aria-hidden="true" />}
       <span className="shell-link-label">{props.page.title}</span>
+      {props.page.badge === undefined ? null : (
+        <span className="shell-nav-badge">{props.page.badge({ scope: props.scope })}</span>
+      )}
     </button>
   )
 }
@@ -186,6 +194,7 @@ function Sidebar(props: {
             <PageLink
               key={page.id}
               page={page}
+              scope={scope}
               current={page.id === props.shown}
               choose={props.state.page.choose}
             />
