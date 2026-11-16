@@ -80,20 +80,23 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 | 入口 | 内容 |
 | --- | --- |
-| `.` | 运行时有三样：常量表 `slots`、错误 `ShellAssemblyError`、存放的工厂 `createSlotStore`。其余是类型：存放的类型 `SlotStore`，三种位置的一项 `GateItem`、`PageItem`、`SidebarItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`，外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
+| `.` | 运行时有三样：常量表 `slots`、错误 `ShellAssemblyError`、存放的工厂 `createSlotStore`。其余是类型：存放的类型 `SlotStore`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
 | `./cordis` | 服务 `shell` 的抽象类 `ShellService`、它的键 `shellKey`、界面模块的助手 `defineUiModule` 与它的类型 `UiModuleDefinition`。根入口的源码闭包不含 Cordis 绑定 |
 
-#### 三个插入位置
+#### 插入位置
 
 插入位置写死在常量表 `slots` 里，不在运行期创建。种类是「只放一个」（`one`）或「放一列」（`list`）。
 
 | 位置 | 种类 | 一项 | 谁放 |
 | --- | --- | --- | --- |
 | `gate` 登录门 | 一个 | `id`、`render` | 身份的界面模块。没有登录时外壳只显示它 |
-| `pages` 页面 | 一列 | `id`、`title`、`order`、可选的 `icon`（图标名）、`render` | 会话的对话页、资产的设置页 |
+| `pages` 页面 | 一列 | `id`、`title`、`order`、可选的 `icon`（图标名）、可选的 `badge`（显示在导航里标题旁的小标记，返回空值时不显示）、`render` | 会话的对话页、资产的设置页 |
 | `sidebar` 侧栏区 | 一列 | `id`、`order`、`render` | 会话的会话列表、身份的账号块 |
+| `attached` 附着位置 | 一列 | `id`、`order`、`anchor`（位置的名字）、`render` | 要把自己的界面附着到别人展示的对象上的界面模块，或应用的装配 |
 
-渲染函数收到的属性由契约定。页面与侧栏区的一项收到 `{ scope }`，`scope` 是当前租户的文本，还没有查到时是 `undefined`。登录门的一项不收租户，属性是空的。界面模块要的协议客户端不经属性传，它自己从客户端的树上注入。
+渲染函数收到的属性由契约定。页面与侧栏区的一项收到 `{ scope }`，页面项的 `badge` 也收到 `{ scope }`，`scope` 是当前租户的文本，还没有查到时是 `undefined`。附着位置的一项收到 `{ scope, subject }`，`subject` 是展示它的那个地方给出的对象文本。登录门的一项不收租户，属性是空的。界面模块要的协议客户端不经属性传，它自己从客户端的树上注入。
+
+附着位置让一个界面模块把东西放进另一个界面模块展示的对象里，而两边互不导入：展示对象的界面模块为这个位置起一个名字（`anchor`），调用服务的 `attached(位置的名字, 对象)` 留出位置；别的界面模块或应用的装配往同名的 `anchor` 里放项。位置的名字由展示那个对象的界面模块定，并写在它自己的规格里；契约不认识名字与对象的含义，它们对契约只是文本。
 
 #### 放进去与撤下
 
@@ -118,6 +121,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | `login` | 登录在页面一侧的全部，类型 `ShellLogin`：`state()`、`subscribe(监听)`、`login(凭据)`、`logout()`。契约自己声明这个端口，登录状态 `ShellLoginState` 的四个取值与 `client-assembly` 的 `LoginState` 逐字相同，但契约不依赖客户端装配。应用在装配处把客户端装配的登录状态源交给外壳；两边的形状不一致时，在应用那里编译不过，这就是对上的办法 |
 | `scope` | 当前租户的文本：`get()`、`set(文本)`、`subscribe`。设它的是知道租户的那个界面模块（身份）。登录状态离开「已登录」时外壳把它清空 |
 | `navigate(页面的标识)` | 把一个页面切到前面。标识不在时什么都不做 |
+| `attached(位置的名字, 对象)` | 给出附着位置里 `anchor` 与位置的名字相同的全部项的渲染结果，按存放的次序排；每一项收到 `{ scope, subject }`，`scope` 是外壳当前的租户文本，`subject` 是这里给的对象。位置里的项放进或撤下、租户变了，已经渲染出来的结果跟着变。没有匹配的项时什么都不渲染 |
 
 `login(凭据)` 只交出凭据，答案只有结果，不含任何登录证明：`signed-in`、`auth-failed`、`unknown`、`unavailable`。`logout()` 的结果是 `signed-out` 或 `unknown`。结果不知道就是 `unknown`，不写成成功或失败。
 
@@ -162,3 +166,4 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I10 | 放一列的位置的次序只由 `order` 与 `id` 决定，与放进去的先后无关 | 同一组界面模块在两次启动里排出不同的次序 | `shell-contract/tests/order.spec.ts` |
 | FE-I11 | 一个作用域卸载时，撤掉的恰好是它放的那些项；撤两次第二次什么都不做 | 卸载一个界面模块带走别人放的东西，或留下自己的 | `shell-contract/tests/unload.spec.ts` 与存放工厂的撤回用例 |
 | FE-I12 | 登录与退出的答案只有结果，不含任何登录证明 | 页面里的界面模块读到登录证明 | `shell-contract/tests/slots.spec-d.ts` 里登录端口的类型用例 |
+| FE-I13 | 附着位置里的一项只渲染在名字相同的地方，收到那个地方给的对象 | 一个对象的界面出现在另一个对象上 | `shell-contract/tests/attached.spec.ts` 的参考外壳用例；`apps/desktop/tests/shell.spec.tsx` 的附着位置用例 |

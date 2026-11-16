@@ -12,7 +12,7 @@ import {
   type SlotName,
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
-import { StrictMode, useEffect, useState } from 'react'
+import { Fragment, StrictMode, useEffect, useState, type ReactNode } from 'react'
 import { sessionClientService, sessionUiModule } from '../../src/cordis.tsx'
 
 export class TestShell extends ShellService implements ShellSlots {
@@ -40,6 +40,14 @@ export class TestShell extends ShellService implements ShellSlots {
 
   navigate(pageId: string): void {
     this.navigated.push(pageId)
+  }
+
+  attached(anchor: string, subject: string): ReactNode {
+    return this.items('attached')
+      .filter(item => item.anchor === anchor)
+      .map(item => (
+        <Fragment key={item.id}>{item.render({ scope: this.scope.get(), subject })}</Fragment>
+      ))
   }
 
   protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {

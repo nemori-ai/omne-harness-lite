@@ -10,7 +10,12 @@ const byOrderThenId = (a: Held, b: Held): number =>
   (a.order ?? 0) - (b.order ?? 0) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 
 export function createSlotStore(): SlotStore {
-  const held: Record<SlotName, Held[]> = { gate: [], pages: [], sidebar: [] }
+  const held: Record<SlotName, Held[]> = {
+    gate: [],
+    pages: [],
+    sidebar: [],
+    attached: [],
+  }
   const listeners = new Set<{ slot: SlotName; listener: () => void }>()
 
   function changed(slot: SlotName): void {
