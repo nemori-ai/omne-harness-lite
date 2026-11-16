@@ -257,7 +257,19 @@ const commandFields = {
   }),
   returns: returnDeclaration,
 }
-const command = record(commandFields)
+const command = record(commandFields, { background: record({ unless: names(filled) }) })
+
+// A command tool permits the background only where a command declares it, and only if the tool does.
+function backgroundDeclared(
+  allowed: boolean,
+  commands: readonly Pick<ToolCommandDeclaration, 'background'>[],
+  at: string,
+): Readonly<{ field: string; reason: string }> | undefined {
+  const index = commands.findIndex(entry => entry.background !== undefined)
+  if (!allowed && index >= 0)
+    return { field: member(item(at, index), 'background'), reason: 'background-not-allowed' }
+  return allowed && index < 0 ? { field: at, reason: 'no-background-command' } : undefined
+}
 
 const functionShapeFields = {
   kind: literal('function'),
@@ -288,21 +300,35 @@ function flatCallable<
 
 export const toolDefinition: Check<ToolDefinition> = variant('kind', {
   function: record({ ...metadataFields, ...functionShapeFields }, metadataOptional),
-  commands: flatCallable(
-    record(
-      { ...metadataFields, ...commandsShapeFields },
-      { ...metadataOptional, ...commandsShapeOptional },
+  commands: refine(
+    flatCallable(
+      record(
+        { ...metadataFields, ...commandsShapeFields },
+        { ...metadataOptional, ...commandsShapeOptional },
+      ),
     ),
+    (value, at) =>
+      backgroundDeclared(value.backgroundAllowed, value.commands, member(at, 'commands')),
   ),
 })
 
-const implementationFacts: Check<ToolImplementationFacts> = record({
-  ...declarationFields,
-  implements: variant('kind', {
-    function: record(functionShapeFields),
-    commands: flatCallable(record(commandsShapeFields, commandsShapeOptional)),
+const implementationFacts: Check<ToolImplementationFacts> = refine(
+  record({
+    ...declarationFields,
+    implements: variant('kind', {
+      function: record(functionShapeFields),
+      commands: flatCallable(record(commandsShapeFields, commandsShapeOptional)),
+    }),
   }),
-})
+  (value, at) =>
+    value.implements.kind === 'commands'
+      ? backgroundDeclared(
+          value.backgroundAllowed,
+          value.implements.commands,
+          member(member(at, 'implements'), 'commands'),
+        )
+      : undefined,
+)
 
 export function judgeImplementationFacts(
   value: unknown,

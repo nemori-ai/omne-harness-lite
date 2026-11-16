@@ -52,6 +52,7 @@ export function createAuthor<E>(
       summary: command.summary,
       parameters: { kind: 'declared', value: contract(command) },
       returns,
+      ...(command.background === undefined ? {} : { background: command.background }),
     })),
   }
   const table: Record<
@@ -107,12 +108,16 @@ export function createAuthor<E>(
       },
     })
     if ('failure' in operation) throw new TypeError(JSON.stringify(operation.failure))
-    table[command.name] = { summary: command.summary, operation: operation.ok }
+    table[command.name] = {
+      summary: command.summary,
+      operation: operation.ok,
+      ...(command.background === undefined ? {} : { background: command.background }),
+    }
   }
   const result = defineCommandTool({
     implementation: {
       description: purpose,
-      backgroundAllowed: false,
+      backgroundAllowed: commands.some(command => command.background !== undefined),
       declarations: {
         adoption,
         environment: {

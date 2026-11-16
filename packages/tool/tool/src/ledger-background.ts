@@ -1,11 +1,13 @@
-import type {
-  BackgroundSource,
-  ConsumerRef,
-  DurableEvidence,
-  ForegroundReturn,
-  ToolCallId,
-  ToolOperationId,
-  ToolTiming,
+import {
+  decodeCommandCallText,
+  type BackgroundSource,
+  type ConsumerRef,
+  type DurableEvidence,
+  type FixedToolRequest,
+  type ForegroundReturn,
+  type ToolCallId,
+  type ToolOperationId,
+  type ToolTiming,
 } from '@omne-harness/tool-contract'
 import type { ToolTask } from '@omne-harness/tool-contract/provider'
 import { deliveryId, sameFactValue } from './evidence.ts'
@@ -51,12 +53,25 @@ export type BackgroundCell =
 
 const refused = (reason: BackgroundRefusal): BackgroundCell => ({ kind: 'refused', reason })
 
+/** The author's permission for this call: the tool's, narrowed to its command and given parameters. */
+export function backgroundAllowed(request: FixedToolRequest): boolean {
+  const { definition } = request.availability
+  if (!definition.backgroundAllowed) return false
+  if (definition.kind === 'function') return true
+  const names = definition.commands.map(command => command.name)
+  const declared = definition.commands.find(command => command.name === request.command)
+  if (declared?.background === undefined) return false
+  const call = decodeCommandCallText(definition.encoding, names, request.arguments.effective)
+  if ('failure' in call || call.ok.command !== request.command) return false
+  const given = new Set(call.ok.params.entries.map(entry => entry.key))
+  return declared.background.unless.every(name => !given.has(name))
+}
+
 export function backgroundCell(call: CallRecord): BackgroundCell {
   const { source: _source, ...body } = call.state
   if (body.phase === 'settled') return { kind: 'ended' }
   if (body.relation === 'background') return { kind: 'background' }
-  if (!call.request.availability.definition.backgroundAllowed)
-    return refused('background-not-allowed')
+  if (!backgroundAllowed(call.request)) return refused('background-not-allowed')
   if (body.wait.kind === 'ask') return refused('ask-wait')
   if (body.wait.kind !== 'none') return refused('waiting')
   return { kind: 'movable', body: { ...body, relation: 'background', wait: { kind: 'none' } } }

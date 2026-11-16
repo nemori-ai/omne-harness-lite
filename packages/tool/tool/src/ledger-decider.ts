@@ -70,7 +70,11 @@ import {
   type WaitLedgerRecord,
   type WaitRequestRecord,
 } from './ledger-store.ts'
-import { backgroundPlaceholder, type BackgroundPlaceholder } from './ledger-background.ts'
+import {
+  backgroundAllowed,
+  backgroundPlaceholder,
+  type BackgroundPlaceholder,
+} from './ledger-background.ts'
 
 export type Snapshot = Readonly<{
   bodies: ReadonlyMap<string, BodyEntryRecord>
@@ -262,7 +266,7 @@ export function decideAdmit<B extends ContentBlock>(
   if (snapshot.call !== null) return reply(staleCall(snapshot.call))
   const { request } = command
   const { definition } = request.availability
-  if (request.mode === 'background' && !definition.backgroundAllowed)
+  if (request.mode === 'background' && !backgroundAllowed(request))
     return reply(invalid('request.mode', 'background-not-allowed'))
   if (request.availability.kind === 'known-unavailable')
     return settle(

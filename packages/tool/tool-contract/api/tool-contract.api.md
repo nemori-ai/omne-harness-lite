@@ -71,6 +71,7 @@
 - `ToolCallId` · `identity.d.ts`
 - `ToolCatalog` · `authoring.d.ts`
 - `ToolCatalogSearchEntry` · `authoring.d.ts`
+- `ToolCommandBackground` · `definitions.d.ts`
 - `ToolCommandDeclaration` · `definitions.d.ts`
 - `ToolCommandOutcome` · `operations.d.ts`
 - `ToolConsumerProfile` · `authoring.d.ts`
@@ -1661,6 +1662,9 @@ export type ToolGovernance = Readonly<{
     requiredCapabilities: readonly string[];
     programmable?: boolean;
 }>;
+export type ToolCommandBackground = Readonly<{
+    unless: readonly string[];
+}>;
 export type ToolCommandDeclaration = Readonly<{
     name: string;
     summary: string;
@@ -1671,6 +1675,7 @@ export type ToolCommandDeclaration = Readonly<{
         kind: 'executor-owned';
     }>;
     returns: ToolReturnDeclaration;
+    background?: ToolCommandBackground;
 }>;
 export type ToolImplementationShape = Readonly<{
     kind: 'function';
@@ -2224,7 +2229,7 @@ export type { ToolBodyReadRequest, ToolBodyPage, ToolInvocationBodyReader } from
 export type { Access, Adoption, ConsumerRef, DurableEvidence, ToolBodyId, ToolCallId, ToolCursor, ToolDeliveryId, ToolIdentity, ToolIdentityRejection, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolRevision, ToolWaitId, } from './identity.ts';
 export { encodeToolInvocationRef, encodeToolOperationRef, readToolOperationRef, resolveToolInvocationRef, resolveToolOperationRef, } from './reference.ts';
 export type { ToolInvocationLocation, ToolInvocationParts, ToolInvocationRef, ToolOperationLocation, ToolOperationParts, ToolOperationRef, ToolReferenceFailure, ToolReferenceRejection, } from './reference.ts';
-export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolBodyDeclaration, ToolCommandDeclaration, ToolDefinition, ToolEnvironmentDeclaration, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolOffloadingDeclaration, ToolPublishedSchema, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
+export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolBodyDeclaration, ToolCommandBackground, ToolCommandDeclaration, ToolDefinition, ToolEnvironmentDeclaration, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolOffloadingDeclaration, ToolPublishedSchema, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
 export type { ActiveRelation, Attachment, DeliveryState, Effect, InterruptionCause, OperationResolution, ReleasedDelivery, Reply, ResultPage, ToolCallContact, ToolFailure, ToolLookup, ToolRelation, ToolResult, ToolRenderedResult, ToolOffloadedBody, ToolBodyRetention, ToolBodyRepresentation, ToolResultData, ToolState, ToolTerminal, WaitState, } from './results.ts';
 export type { BackgroundSource, ControlReceipt, ForegroundReturn, Handoff, InvocationAccess, ProcessBlock, ToolCommandOutcome, ToolControl, ToolDefiniteFailure, ToolInvocationCommands, ToolInvocationContentReader, ToolInvocationQueries, ToolInvokeOutcome, ToolInvokeRequest, ToolReleaseDeliveryOutcome, ToolRuntime, ToolStreamDelta, ToolStreamEnd, ToolStreamObservation, ToolStreamReferences, ToolStreamSelection, ToolStreamSnapshot, } from './operations.ts';
 export type { ToolDecision, ToolWaitSchemaSnapshot } from './author-context.ts';
@@ -3563,7 +3568,7 @@ import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
 import { type CheckpointedToolExecutor } from './checkpointed-author.ts';
 import type { ToolAuthor, ToolImplementation, ToolImplementationDeclaration, ToolOperation, ToolOperationParameters, ToolOperationSpec } from './authoring.ts';
-import type { ToolReturnDeclaration } from './definitions.ts';
+import type { ToolCommandBackground, ToolReturnDeclaration } from './definitions.ts';
 import { type CommandCallEncoding } from './command-call.ts';
 type Rejection = Readonly<{
     field: string;
@@ -3603,6 +3608,7 @@ export declare function defineCommandTool<E, B extends ContentBlock>(input: Read
     commands: Readonly<Record<string, Readonly<{
         summary: string;
         operation: ToolOperation<E, B>;
+        background?: ToolCommandBackground;
     }>>>;
 }>): Outcome<ToolImplementation<E, B>, Rejection>;
 export {};

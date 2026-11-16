@@ -211,6 +211,32 @@ describe('the trusted Tool request source', () => {
     expect(request.environment).toEqual(definitions.get('Shell')?.declarations.environment)
   })
 
+  it('reads the wait mode from run_in_background in the call: true is a launch in the background, anything else the foreground', async () => {
+    const { ports, principalA } = await world()
+    const source = createReleaseToolRequests(ports)
+    const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+    const modeOf = async (params: string) => {
+      const args = `{"command":"execute","params":${params}}`
+      const input = actionInput(principalA, TENANT_A, 'Shell', args)
+      const described = await source.describe(input)
+      if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
+      const answer = await source.prepare({
+        ...input,
+        definition: described.ok.definition,
+        admission,
+      })
+      return (okOf(answer, 'prepare') as ToolInvokeRequest).mode
+    }
+    expect(await modeOf('{"script":"sleep 9","run_in_background":true}')).toBe('background')
+    expect(await modeOf('{"script":"sleep 9","run_in_background":false}')).toBe('foreground')
+    expect(await modeOf('{"script":"sleep 9","run_in_background":"true"}')).toBe('foreground')
+    expect(await modeOf('{"script":"sleep 9"}')).toBe('foreground')
+    // Admission, not the entry, refuses a terminal execution in the background.
+    expect(await modeOf('{"script":"x","terminal":"t1","run_in_background":true}')).toBe(
+      'background',
+    )
+  })
+
   it('answers unavailable when the principal verifier is absent (authorization source missing)', async () => {
     const { ports, principalA } = await world()
     expect(await prepared({ ...ports, verifier: () => undefined }, principalA)).toMatchObject({

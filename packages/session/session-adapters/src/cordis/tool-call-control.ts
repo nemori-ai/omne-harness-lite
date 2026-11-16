@@ -1,7 +1,9 @@
+import type { Context } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { SessionCallControl, SessionFailure, SessionId } from '@omne-harness/session-contract'
+import { SessionCallControlService } from '@omne-harness/session-cordis-contract/cordis'
 import {
   resolveToolInvocationRef,
   type ToolControl,
@@ -76,6 +78,24 @@ export function createToolCallControl<P>(input: ToolCallControlInput<P>): Sessio
         case 'rejected':
           return toolFailure(sent.failure)
       }
+    },
+  }
+}
+
+class SessionCallControlProvider extends SessionCallControlService {
+  readonly control: SessionCallControl['control']
+  constructor(ctx: Context, control: SessionCallControl) {
+    super(ctx)
+    this.control = control.control
+  }
+}
+
+/** Provides `sessionCallControl`: Session hands a control of a backgrounded call straight to Tool. */
+export function createSessionCallControlPlugin<P>(input: ToolCallControlInput<P>) {
+  return {
+    name: 'session-call-control',
+    apply(ctx: Context) {
+      new SessionCallControlProvider(ctx, createToolCallControl(input))
     },
   }
 }

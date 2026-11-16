@@ -107,7 +107,7 @@ export function toolCallsThenText(
   }
 }
 
-function withHistoryKinds(layer: unknown): unknown {
+function withHistoryKinds(layer: unknown, extra: readonly string[] = []): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
     ops: ops.map(op =>
@@ -122,6 +122,7 @@ function withHistoryKinds(layer: unknown): unknown {
                 'message.tool',
                 'run.started',
                 'run.terminal',
+                ...extra,
               ],
             },
           }
@@ -365,6 +366,8 @@ export type ReleaseTreeOptions = Readonly<{
   audience?: (registrar: string) => HitlAudience
   queueCapacity?: number
   observationPolicy?: Readonly<Record<string, number>>
+  /** History kinds read through session/v1 besides the five every tree reads. */
+  extraHistoryKinds?: readonly string[]
 }>
 
 export async function onReleaseTree(
@@ -443,6 +446,7 @@ async function serveOnce(
         withQueueCapacity(
           withHistoryKinds(
             operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: state.modelRoute }),
+            options.extraHistoryKinds,
           ),
           options.queueCapacity,
         ),

@@ -554,6 +554,9 @@ importers:
       '@omne-harness/tool':
         specifier: workspace:*
         version: link:../../packages/tool/tool
+      '@omne-harness/tool-access':
+        specifier: workspace:*
+        version: link:../../packages/tool/tool-access
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../packages/tool/tool-contract

@@ -40,6 +40,7 @@
 | `session-ad11` | AD-11 空闲输入 | `sessionIdleInput` | `modelRuntime`、`toolRuntime`、`session`（`'maintainer'`） | 无 | 无 |
 | `session-ad12` | AD-12 Context 输入 | `sessionContextInput` | `runtimeContext` | `sessionWorkPrincipals`（受信，取协调者主体） | 无 |
 | `session-ad14` | AD-14 `AgentDrivePort`（session-adapters 的 `createSessionAgentDrivePlugin`） | `sessionAgentDrive` | `agentInstances`、`agentInstanceProvision`、`agentExecutionRecovery`、`agentExecutionControl`、`session`（`'coordinator'`） | `sessionWorkPrincipals`（受信，取协调者主体） | 无 |
+| `session-call-control` | session-adapters 的 `createSessionCallControlPlugin`：停或撤回一次转了后台的 Tool 调用时，Session 凭调用引用直交 Tool | `sessionCallControl` | 无 | `toolRuntime`；`sessionWorkPrincipals`（受信，取协调者主体）。任一缺席时这次控制答 `unavailable`，Session 按控制重放规则再送 | 无 |
 | `session-ad15` | AD-15 作用域释放，含重新释放子插件 | `sessionScopeRelease` | `executionEnvironment`（`caller: 'maintainer'`）；子插件还需 `session`（`'maintainer'`） | 构造时交入恢复授权 | 超时、重试退避与重新释放页大小 |
 | `session-handoff` | session-adapters 的 J06 消息准入插件（`createSessionMessageHandoffPlugin`） | `agentMessageHandoff` | `session`（`'coordinator'`）、`agentAccessCheck`；`storage`、`tenantDomainLookup`（受信存储子树；只对已登记租户查找事务域，不触发登记）；`sessionWorkPrincipals`（受信，取协调者主体） | 协调者主体来源；调用者稳定身份文本；本提供者的采用身份 | `combinationVersion`、`manifestDigest`：与 `agent-journal` 行相同的会话日志组合。准入记录落 `execution-record` 参加者的 `er_preadmission` 表，见[租户到事务域的目录](#租户到事务域的目录) |
 | `session-conditions` | session-adapters 的 J06 当前条件插件（`createSessionConditionsPlugin`）。以原 Authority 经执行索引定位会话，Run 持有该 execution 且 Journal 记录的 attempt 为当前 attempt 才读；`configuration` 取 Run 采用，`progression` 由协作模式投影（`co-work` → `evaluate-completion`，`auto-drive` → `continue`），`model` 取已保存路由的采用依据，`context` 取未结束的 Runtime Context 作用域，`bindings` 取常驻工具；缺任何来源答 `unavailable`，不补默认。 | `agentConditions` | `session`（`'coordinator'`，调用方 Access 只经此面核访问）；子插件 `session-conditions-selection` 另 `inject` `session`（`'maintainer'`），只读保存的模型选择，因为 `readModelSelection` 只接受 `intake` 与 `maintainer`，每个插件只用一个调用方类（session-adapters AD-00 第 1 条）；`storage`、`tenantDomainLookup`（受信存储子树；执行索引与 Journal 的 attempt 记录）；`definitionMappings`（受信；解出 `tenant-default` 模式的值，映射条目的模式采用须与创建所记来源逐字相等） | 租户默认模式解析器（基于受信 `definitionMappings` 构造） | 无 |
@@ -84,6 +85,7 @@
 | `assets-access` | `@omne-harness/assets-access` 的 `./cordis` 插件 `createAssetsAccessPlugin`：`assets/v1` 的接入插件。装上这一行，新地址才开放 `assets/v1` | 无。插件把 `assets/v1` 的贡献（设置的 4 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createAccessIdentity` 与 `createMemberActing`，为目标租户换主体只经后者；资格读口缺席时换不出，调用答 `basis-unavailable`） | `settingsSecretItems`（受信，[秘密设置项](#settings-secret-items)）与 `tenantSettings`（[租户层设置读写面](#tenant-settings)），本行并成一个设置端口。需要问到的那一个缺席时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `human-intervention-access` | `@omne-harness/human-intervention-access` 的 `./cordis` 插件 `createHitlAccessPlugin`：`human-intervention/v1` 的接入插件。装上这一行，新地址才开放 `human-intervention/v1` | 无。插件把 `human-intervention/v1` 的贡献（列卡、读卡、提交答复、认回提交 4 个操作与观察 `observe-cards`）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createAccessIdentity` 与 `createMemberActing`，只经后者核对登录可为目标租户行事；资格读口缺席时核不出，调用与建立观察答 `basis-unavailable`；入口主体经 `createHitlEntryPrincipals` 签发） | HITL 入口面与卡有变化的信号（都取自工具人工介入宿主的 `holder`）。取不到时调用与建立观察答 `basis-unavailable`，协议不撤下 | `locationRef`：HITL 位置引用，缺省为 HITL 宿主的位置 |
 | `session-diagnostics-access` | `@omne-harness/session-diagnostics-access` 的 `./cordis` 插件 `createSessionDiagnosticsAccessPlugin`：`session-diagnostics/v1` 的接入插件。装上这一行，新地址才开放 `session-diagnostics/v1` | 无。插件把 `session-diagnostics/v1` 的贡献（读会话诊断页 1 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createAccessIdentity` 与 `createMemberActing`，把登录换成为目标租户行事的主体只经后者；资格读口缺席时换不出，调用答 `basis-unavailable`） | 会话的读者面（`session`，调用者 `reader`）；`agentJournal`、`modelRuntime`、`modelDiagnostics`、`toolRuntime` 四个只读来源。取不到时调用答 `basis-unavailable`，协议不撤下 | `maxPageBytes`：一页的字节上限，缺省 1048576；`diagnosticsKinds`、`maxRuns`、`maxCallsPerRun`：投影的范围，三项一起给或都不给 |
+| `tool-access` | `@omne-harness/tool-access` 的 `./cordis` 插件 `createToolAccessPlugin`：`tool/v1` 的接入插件。装上这一行，新地址才开放 `tool/v1` | 无。插件把 `tool/v1` 的贡献（按调用引用读一次调用与读结果 2 个操作、观察 `observe-call`）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createMemberActing`，把登录换成为目标租户行事的主体；资格读口缺席时换不出，调用答 `basis-unavailable`） | `toolRuntime` 的查询、实例与观察。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 
 每行装一个插件（[IC-16](../cordis-integration-conventions.md#ic-16)）；插件自己的子插件随父插件装载。`session-ad*` 各行的 `inject` 以 [session-adapters 的 Cordis 页](../../../packages/session/SPEC.md#领域边界)为准，运维者可以按行 id 单独替换其中一行。
 
@@ -204,6 +206,11 @@ flowchart LR
   server-entry --> session-diagnostics-access
   identity -.-> session-diagnostics-access
   session-provider -.-> session-diagnostics-access
+  server-entry --> tool-access
+  identity -.-> tool-access
+  tool-runtime -.-> tool-access
+  tool-runtime -.-> session-call-control
+  session-call-control -.-> session-provider
   authorization --> session-handoff
   storage --> agent-journal
   session-storage --> agent-journal
@@ -301,6 +308,7 @@ flowchart LR
 | `session-ad09` | `principalVerifier` |
 | `session-ad12` | `sessionWorkPrincipals` |
 | `session-ad14` | `sessionWorkPrincipals` |
+| `session-call-control` | `sessionWorkPrincipals` |
 | `agent-host` | `sessionModesInstallation` |
 | `agent-journal` | `storage`、`tenantDomainLookup`、`agentReceivedRecords` |
 | `session-handoff` | `storage`、`tenantDomainLookup`、`sessionWorkPrincipals` |
@@ -323,6 +331,7 @@ flowchart LR
 | `assets-access` | `principalIssuer`、`tenantStanding`、`settingsSecretItems` |
 | `human-intervention-access` | `principalIssuer`、`tenantStanding` |
 | `session-diagnostics-access` | `principalIssuer`、`tenantStanding` |
+| `tool-access` | `principalIssuer`、`tenantStanding` |
 
 表中未列的行可见集合为空。受信子树内的行提供的其他服务名不受隔离，根上的行照常 `inject`。
 

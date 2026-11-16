@@ -1,10 +1,15 @@
+import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import { sampleReceivedToolAccount } from '@omne-harness/agent-contract/testing'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { SessionOperationId } from '@omne-harness/session-contract'
 import { memoryAccess } from '@omne-harness/session-contract/testing'
 import type { ToolControl, ToolState } from '@omne-harness/tool-contract'
-import { createToolCallControl } from '../src/cordis/tool-call-control.ts'
+import { sessionCallControlKey } from '@omne-harness/session-cordis-contract/cordis'
+import {
+  createSessionCallControlPlugin,
+  createToolCallControl,
+} from '../src/cordis/tool-call-control.ts'
 
 const access = memoryAccess('tester', 'call-control')
 const entry = sampleReceivedToolAccount(access.tenant, 'call-control')
@@ -181,5 +186,23 @@ describe('Session controls a call by its reference through Tool', () => {
     expect(await ask(controller(runtime), 'stop')).toMatchObject({
       failure: { kind: 'unavailable', owner: 'session-adapters/tool-call-control' },
     })
+  })
+})
+
+describe('the Cordis plugin', () => {
+  it('provides sessionCallControl with the same control, and takes it down with the plugin', async () => {
+    const runtime = tools({ phase: 'running', controls: [] })
+    const root = new Context()
+    const plugin = await root.plugin(
+      createSessionCallControlPlugin<string>({
+        tools: () => runtime as never,
+        principal: async () => succeed('session:coordinator'),
+      }),
+    )
+    const provided = root.get(sessionCallControlKey) as ReturnType<typeof controller> | undefined
+    if (provided === undefined) throw new Error('sessionCallControl is not provided')
+    expect(await ask(provided, 'stop')).toEqual(succeed('recorded'))
+    await plugin.dispose()
+    expect(root.get(sessionCallControlKey)).toBeUndefined()
   })
 })
