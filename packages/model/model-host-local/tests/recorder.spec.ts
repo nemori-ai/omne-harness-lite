@@ -1,10 +1,4 @@
 // @module-tag slow — starts openssl child processes and real local HTTPS servers, writes vault
-// files, and drives Model calls through the assembled send path.
-//
-// The recorder of real requests, against a local HTTPS server that stands in for the gateway.
-// The server writes its answer in several pieces, so the body arrives with chunked transfer
-// coding. The recorder must write exactly the bytes the server sent, a note whose digest is the
-// SHA-256 of the request body the server received, and nothing at all when a condition fails.
 import { createHash } from 'node:crypto'
 import {
   existsSync,
@@ -36,7 +30,6 @@ import {
 } from './support/recording-cases.ts'
 import { readCapturedStream, readRecordFixture, type FamilyName } from './support/records.ts'
 
-/** The record body of the family model with a reasoning state reply: the server's answer. */
 function recordedStream(family: FamilyName, model: string): string {
   const records = family === 'pi-ai-openai' ? OPENAI_RECORDS : ANTHROPIC_RECORDS
   const record = records.find(entry => entry.name === model && entry.status === 'current')
@@ -53,7 +46,6 @@ const NOW = new Date('2026-10-23T12:34:56.789Z')
 const certificate = createCertificate()
 let server: HttpsFixture
 const PIECE_BYTES = 40
-/** What the server answers next: a status and the body, written in pieces of `PIECE_BYTES`. */
 let answer: Readonly<{ status: number; body: string | Buffer }>
 let root: string
 let output: string
@@ -67,7 +59,6 @@ beforeAll(async () => {
       return
     }
     res.writeHead(answer.status, { 'content-type': 'text/event-stream' })
-    // One piece per timer turn: each reaches the client as its own chunk of the transfer coding.
     const bytes = typeof answer.body === 'string' ? Buffer.from(answer.body, 'utf8') : answer.body
     const writeFrom = (at: number): void => {
       if (at >= bytes.byteLength) {
@@ -121,7 +112,6 @@ describe('a recording through the assembled path', () => {
 
       const received = server.requests.slice(before)
       expect(received).toHaveLength(1)
-      // The request went out through the vault's placeholder, through the send fence.
       expect(received[0]?.headers.authorization).toBe(`Bearer ${PLACEHOLDER}`)
       const sent = received[0]?.body ?? ''
       const directory = join(output, name)
@@ -133,7 +123,6 @@ describe('a recording through the assembled path', () => {
         termination: expect.anything(),
         reasoningState: true,
       })
-      // Two files and nothing else: no header, no request body.
       expect(readdirSync(output)).toEqual([name])
       expect(readdirSync(directory).sort()).toEqual([RECORDING_FILES.note, RECORDING_FILES.stream])
       expect(readFileSync(join(directory, RECORDING_FILES.stream)).equals(Buffer.from(body))).toBe(
@@ -144,7 +133,6 @@ describe('a recording through the assembled path', () => {
         payloadDigest: sha256(sent),
         recordedAt: NOW.toISOString(),
       })
-      // The request is the case's own: its parameters and its one question.
       const json: unknown = JSON.parse(sent)
       expect(Reflect.get(Object(json), 'model')).toBe(item.model)
       const maxTokens = item.parameters.find(parameter => parameter.kind === 'max-output-tokens')
@@ -189,7 +177,6 @@ describe('the recorder writes nothing', () => {
     'when the body holds a key of pattern %s, and the refusal names the pattern only',
     async (pattern, fake) => {
       const item = RECORD_CASES['openai-reasoning']
-      // An SSE comment line: the call still settles, so only the key check stops the write.
       answer = { status: 200, body: `: ${fake}\n\n${recordedStream(item.family, item.model)}` }
       const outcome = await recordRound(inputOf('openai-reasoning'))
       expect(outcome).toEqual({ kind: 'refused', refusal: { kind: 'secret', patterns: [pattern] } })
@@ -246,7 +233,6 @@ describe('a continued round', () => {
       const firstRequest = firstRoundRequest(first)
       expect(await recordRound(inputOf(firstName))).toMatchObject({ kind: 'written' })
 
-      // The first round's reply comes from its recording, replayed through the same path.
       const replayed = await replayRound({
         request: firstRequest,
         recording: join(output, firstName),
@@ -294,8 +280,6 @@ describe('a continued round', () => {
 })
 
 describe('a real reply captured from the gateway', () => {
-  // openai/gpt-5.6-sol at medium effort, the request of the openai-reasoning case: 92 summary
-  // pieces, one encrypted item and the answer, about a hundred facts.
   it('openai-reasoning: the first round is written with its reasoning state, and the continued round carries it', async () => {
     const first = RECORD_CASES['openai-reasoning']
     const record = OPENAI_RECORDS.find(entry => entry.name === first.model)
@@ -329,7 +313,6 @@ describe('a real reply captured from the gateway', () => {
     expect(sent).toHaveLength(1)
     const messages: unknown = Reflect.get(Object(JSON.parse(sent[0]?.body ?? '')), 'messages')
     const reply = JSON.stringify(Reflect.get(Object(messages), 1))
-    // The encrypted item goes back with its real id.
     expect(reply).toContain('rs_0d68cbc2f79b1f96016adb17346bd887d196f9c22bc3fc528a')
     expect(outcome).toMatchObject({ kind: 'written', reasoningState: true })
   })

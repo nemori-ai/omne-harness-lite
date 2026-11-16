@@ -1,5 +1,4 @@
 // @module-tag slow
-// Packs the member, installs the tarball into a directory under tmp/, and runs pnpm, node and tsc in it.
 import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
@@ -14,9 +13,6 @@ afterAll(() => {
   for (const directory of workDirectories) rmSync(directory, { recursive: true, force: true })
 })
 
-// The members that the facility packs, in its order: the member itself, then the workspace
-// packages of its production closure. A change to the declared dependencies changes this list
-// and nothing else in the expected report.
 const closureMembers = [
   '@omne-harness/model-contract',
   '@omne-harness/assets',
@@ -33,8 +29,6 @@ const closureMembers = [
   '@omne-harness/utc-instant',
 ]
 
-// The vitest bin shim sets NODE_PATH, and a developer shell may allow the network: the facility
-// must start without either.
 const { NODE_PATH: _path, OMNE_INSTALL_ALLOW_NETWORK: _network, ...environment } = process.env
 
 it('installs only the packed closure and every entry resolves inside the consumer', () => {
@@ -52,7 +46,6 @@ it('installs only the packed closure and every entry resolves inside the consume
   )
   const report = JSON.parse(run.stdout) as Report
   expect(report.checks.filter(check => !check.ok)).toEqual([])
-  // The complete id set: a judgment that is no longer wired into the report must turn this red.
   expect(report.checks.map(check => check.id)).toEqual([
     'node-path-unset',
     'forbidden-declared',

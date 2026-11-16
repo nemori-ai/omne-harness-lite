@@ -1,9 +1,3 @@
-// The parsers of the port answers, field by field, by the contract SPEC "端口答复的统一处置".
-// Each table row breaks one checked field of a well-formed answer: the field is missing, of the
-// wrong type, or outside its range. A broken field makes the whole answer no answer
-// (`undefined`); the parser never throws. Well-formed answers come back equal, built anew and
-// frozen; a field that the SPEC does not list does not come back. The parsers are called
-// directly, without `answered`, so that a parser that throws shows as a throw here.
 import { describe, expect, it } from 'vitest'
 import { capabilityId, type CapabilityId } from '@omne-harness/assets'
 import { isAssetVersion, isPackageDigest } from '@omne-harness/skill-contract'
@@ -11,7 +5,6 @@ import { parseLawfulSet, parseResolution, parseVerdict } from '../src/port-answe
 
 const DIGEST = `sha256:${'a'.repeat(64)}`
 
-/** A JSON tree with every kind of node. */
 const PARAMETERS = {
   kind: 'object',
   entries: [
@@ -67,15 +60,11 @@ function granted<T>(guard: (value: unknown) => value is T, value: unknown): T {
   return value
 }
 
-/** The parse of a `resolve` answer to a request about `review`, the identity of `ADOPTED`. */
 const aboutReview = parseResolution({ capability: identity('skill', 'review') })
-/** The parse of a `resolve` answer to a request about `retired`, the identity of `STAND_IN`. */
 const aboutRetired = parseResolution({ capability: identity('skill', 'retired') })
 
-/** A marker for "this field is absent". */
 const MISSING = Symbol('missing')
 
-/** A deep copy of `value` with the field at `path` set to `field`, or removed for `MISSING`. */
 function withField(value: unknown, path: readonly (string | number)[], field: unknown): unknown {
   const copy: unknown = structuredClone(value)
   let parent: unknown = copy
@@ -88,25 +77,21 @@ function withField(value: unknown, path: readonly (string | number)[], field: un
   return copy
 }
 
-/** Whether `value` and every object below it is frozen. */
 function deeplyFrozen(value: unknown): boolean {
   if (typeof value !== 'object' || value === null) return true
   return Object.isFrozen(value) && Object.values(value).every(deeplyFrozen)
 }
 
-/** A function that carries a `kind`: an object, but not one that a port type allows. */
 function withKind(kind: string): unknown {
   return Object.assign(() => undefined, { kind })
 }
 
-/** A JSON tree of `depth` nested arrays around a null node. */
 function nested(depth: number): unknown {
   let node: unknown = { kind: 'null' }
   for (let level = 0; level < depth; level += 1) node = { kind: 'array', items: [node] }
   return node
 }
 
-/** A JSON tree of `depth` nested objects, each with one entry, around a null node. */
 function nestedObjects(depth: number): unknown {
   let node: unknown = { kind: 'null' }
   for (let level = 0; level < depth; level += 1)
@@ -358,7 +343,6 @@ describe('parseResolution: the answer names the requested material (S7)', () => 
 })
 
 describe('parseResolution: the JSON tree of script parameters', () => {
-  /** The parameters that come back for a script with `parameters`, or `undefined` when none. */
   function parametersOf(parameters: unknown): unknown {
     const parsed = aboutReview(
       withField(ADOPTED, ['declared', 'scripts', 0, 'parameters'], parameters),

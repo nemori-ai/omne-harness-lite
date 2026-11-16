@@ -6,11 +6,6 @@ import { settleBodyEntries } from './ledger-body-entries.ts'
 import type { Snapshot } from './ledger-decider.ts'
 import type { LedgerWrite, ResultRecord } from './ledger-store.ts'
 
-/**
- * The body part of model `Settle`: the referenced body is linked and scheduled, the other bodies
- * of the call are orphaned at `orphanDue` (null when the call never had a writer, as at an
- * admission-time settlement).
- */
 export function settleResultBodies(
   snapshot: Snapshot,
   result: ResultRecord,

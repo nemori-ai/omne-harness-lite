@@ -1,8 +1,3 @@
-// The static materials (sql-contract §4): one participant `model`, its migration and the three read
-// handlers, each module named by its file URL and the SHA-256 of the file bytes. A provider loads
-// every module by the default export of that file, so each case here loads it the same way. The
-// fixture of the other suites also takes its participant, migration and handlers from these files,
-// so every ModelCommands case runs through them.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -100,7 +95,6 @@ describe('loading by the default export of each module file', () => {
     const admitted = unbox(await commands.admit(core.admitOf(A, callId('one'), opId('admit-one'))))
     expect(admitted.recovered).toBe(false)
     const access = { principal: core.admitOf(A, callId('one'), opId('x')).principal, tenant: A }
-    // `model.call` answers the recall; `model.pending` answers the scan.
     const recalled = unbox(
       await commands.recall({ ...access, call: callId('one'), admission: opId('admit-one') }),
     )

@@ -4,16 +4,9 @@ import ts from '@typescript/typescript6'
 import { describe, expect, it } from 'vitest'
 import { loadInventory, namesOf } from './exports-inventory.ts'
 
-// A declared type with no type probe would drift without a failing check. The probes live in
-// `tests/*.spec-d.ts`; this test only requires that each declared type is used in one of them.
 const testsDirectory = fileURLToPath(new URL('.', import.meta.url))
 const inventory = loadInventory(fileURLToPath(new URL('./fixtures/exports.json', import.meta.url)))
 
-/**
- * Identifiers that a probe uses outside its imports. An import list names a type without probing
- * it, and the compiler does not flag an unused import here, so mentions in imports, comments and
- * string literals must not count.
- */
 function usedIdentifiers(text: string): Set<string> {
   const used = new Set<string>()
   const file = ts.createSourceFile('probe.ts', text, ts.ScriptTarget.ESNext, true)

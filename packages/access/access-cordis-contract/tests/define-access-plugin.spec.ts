@@ -1,6 +1,3 @@
-// `defineAccessPlugin` on real Cordis 4.0.4 with the smallest provider: the plugin mounts its
-// contribution on load and takes it down on unload, and a handler takes the domain service at each
-// call. The whole path through the entry's registry is in server-entry's registry-cordis.spec.ts.
 import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { defineProtocol, ruleCodec, type ProtocolContract } from '@omne-harness/public-contract'
@@ -10,7 +7,6 @@ import {
   defineAccessPlugin,
 } from '@omne-harness/access-cordis-contract/cordis'
 
-/** A provider that keeps what is mounted, by protocol name. */
 class KeepingRegistry extends AccessRegistryService {
   readonly mounted = new Map<string, AccessContribution<ProtocolContract>>()
   protected attach(contribution: AccessContribution<ProtocolContract>): () => Promise<void> {

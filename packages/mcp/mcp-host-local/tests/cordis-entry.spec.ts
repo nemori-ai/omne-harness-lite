@@ -1,9 +1,3 @@
-// The MCP plugin on a real Cordis `Context`, without a process. The adoption, eligibility and
-// credential ports are the memory doubles of `@omne-harness/mcp-contract/testing`, each provided as
-// a Service subclass. The landing records each launch it is asked for and answers
-// `facility-missing`, so no transport is opened: a refresh that reaches it answers
-// `landing-unavailable` (mcp-contract R6). The cases that start a scripted peer are in
-// `cordis-journey.spec.ts`.
 import { Context, ValidationError, type Fiber, type Message } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import { access, accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
@@ -73,7 +67,6 @@ afterEach(async () => {
   await Promise.all(fibers.splice(0).map(fiber => fiber.dispose()))
 })
 
-/** Loads `loaded` on `ctx` with `config`; the fiber is disposed after the case. */
 async function load<C>(
   ctx: Context,
   loaded: { apply(ctx: Context, config: C): unknown },
@@ -117,7 +110,6 @@ function landingService(port: ProcessLanding<unknown>) {
   }
 }
 
-/** A landing that records each launch it is asked for and starts nothing. */
 function recordingLanding() {
   const launches: StdioLaunch[] = []
   const port: ProcessLanding<unknown> = {
@@ -129,7 +121,6 @@ function recordingLanding() {
   return { port, launches }
 }
 
-/** The memory credential use, with the purpose of each `acquire` recorded. */
 function recordingPurposes(inner: CredentialUse<unknown>) {
   const purposes: CredentialPurpose[] = []
   type Access = Parameters<CredentialUse<unknown>['acquire']>[0]
@@ -161,7 +152,6 @@ function recordingPurposes(inner: CredentialUse<unknown>) {
   return { port, purposes }
 }
 
-/** A `fetch` that records each request and fails before the connection is made. */
 function refusingFetch() {
   const requests: { url: string; authorization: string | null }[] = []
   const refused: typeof fetch = async (input, init) => {
@@ -176,7 +166,6 @@ function refusingFetch() {
 
 type Endpoint = Readonly<{ args: readonly string[]; credential?: boolean }>
 
-/** Adopts `FILES` for alice in `SCOPE`: a stdio endpoint whose launch has `args`. */
 function adoptFiles(adoption: MemoryAdoptionView<unknown, unknown>, endpoint: Endpoint): void {
   const credential = endpoint.credential === true
   adoption.adopt({
@@ -202,7 +191,6 @@ function adoptFiles(adoption: MemoryAdoptionView<unknown, unknown>, endpoint: En
   })
 }
 
-/** The four ports as Service classes, with `FILES` adopted and alice granted its use. */
 function ports(endpoint: Endpoint) {
   const adoption = createMemoryAdoptionView<unknown, unknown>({ scopeKey: String })
   const eligibility = createMemoryUseEligibility<unknown>({ principalKey })
@@ -225,7 +213,6 @@ type PortName = 'adoption' | 'eligibility' | 'credentials' | 'landing'
 const PORT_NAMES: readonly PortName[] = ['adoption', 'eligibility', 'credentials', 'landing']
 const ARGS = ['peer'] as const
 
-/** Loads the ports except `absent`, then the plugin. */
 async function assembled(endpoint: Endpoint, absent?: PortName) {
   const ctx = new Context()
   const provided = ports(endpoint)
@@ -263,9 +250,7 @@ function recordErrors(ctx: Context): unknown[] {
   return errors
 }
 
-/** Loads the plugin with a configuration the typed overload would refuse. */
 async function loadUntyped(ctx: Context, config: unknown) {
-  // The typed overload forbids the bad configuration; an assembly reading a plugin tree does not.
   const loading: unknown = Reflect.apply(ctx.plugin, ctx, [plugin, config])
   return Promise.resolve(loading)
 }
@@ -308,7 +293,6 @@ describe('the MCP plugin on a Cordis context, without a process', () => {
       CONFIG,
     )
 
-    // The request left no connection (contract T8 X01), so refresh answers the connection failure of R6 and S5.
     expect(await refreshed(ctx)).toEqual({ failure: { kind: 'connection-unavailable' } })
     expect(credentials.purposes).toEqual([{ kind: 'http-authorization', target }])
     expect(requests).toEqual([{ url: target, authorization: 'Bearer s' }])
@@ -485,7 +469,6 @@ describe('the MCP plugin on a Cordis context, without a process', () => {
   it('Cordis mechanism probe: each error of an AggregateError a removal throws is logged and the unload completes', async () => {
     const ctx = new Context()
     const errors = recordErrors(ctx)
-    // Cordis 4.0.4 `Logger` writes each error of an AggregateError, not the AggregateError itself.
     const defects = [new Error('a defect'), new Error('another defect')]
     const failure = new AggregateError(defects, 'closeAll failed')
     const probe = {
@@ -521,10 +504,6 @@ describe('the MCP plugin on a Cordis context, without a process', () => {
       expect(validate(bare)).toEqual({ value: CONFIG })
     })
 
-    /**
-     * Each row: what the configuration is, the configuration, the issue, and whether the load
-     * still fails when the schema is removed, and why.
-     */
     const refused: readonly (readonly [string, unknown, string, string])[] = [
       [
         'that is not an object',

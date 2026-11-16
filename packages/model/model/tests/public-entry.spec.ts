@@ -27,7 +27,6 @@ it('the source reaches neither a custodian, Cordis nor the host package', () => 
 })
 
 it('the package exposes its root and isolated testing entry: the old cordis and execute subpaths do not resolve', () => {
-  // Node's own resolver: vitest's module loader reports a missing export without the error code.
   const resolve = createRequire(import.meta.url).resolve
   for (const subpath of ['cordis', 'execute']) {
     expect(() => resolve(`@omne-harness/model/${subpath}`)).toThrow(

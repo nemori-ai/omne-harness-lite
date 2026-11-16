@@ -3,7 +3,6 @@ import type { ArchitectureView, SelectedArchitecture } from '../arch/view.ts'
 import type { ConformanceRow } from '../arch/conformance-model.ts'
 import type { ReportUiApi } from './flow/architecture/controls-api.ts'
 
-/** Separate intent navigation from source graph layout. All external values enter through textContent. */
 export function conformanceBrowser(
   graph: ArchitectureView,
   focus: (member: string) => void,
@@ -24,7 +23,6 @@ export function conformanceBrowser(
     node.textContent = text
     return node
   }
-  // 下拉与按钮由 antd 渲染，经句柄读写。
   const state = ui.select('conformance-state'),
     domain = ui.select('conformance-domain'),
     member = ui.select('conformance-member')

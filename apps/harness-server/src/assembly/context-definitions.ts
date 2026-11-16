@@ -1,12 +1,5 @@
-// The assembly's `SessionContextDefinitions` (AD-12, `context-input.ts`「The definitions」): what JSON
-// cannot hold, given back from one exact adopted definition. A need binding's shape and translation
-// and a stateful block's schema and reducer are functions, so a Context material only references
-// them, and the assembly, which adopted the definitions, gives them back. AD-12 compares by object
-// identity (`definitions.binding(ref) !== binding`), so one table is built once from the declared
-// blocks and every query returns the object it was built from, never a copy.
-//
-// The application adopts the adapter's supplied modes carrier independently of Agent definitions.
-// Its binding is recoverable by exact adoption; its supplied declaration belongs to the producer.
+// AD-12 compares these definitions by object identity, so the table is built once and every query
+// returns the object it was built from, never a copy.
 import type {
   ContextBlockKey,
   NeedBinding,
@@ -19,12 +12,9 @@ import {
 import { SESSION_MODES_PUBLICATION } from '@omne-harness/session-adapters'
 import type { Adoption } from '@omne-harness/session-contract'
 
-/** The Context blocks that one exact adopted definition declares. */
 export type DeclaredContextBlocks = Readonly<{
   definition: Adoption
-  /** The need bindings of the definition; one per need name and block key. */
   bindings: readonly NeedBinding[]
-  /** The stateful blocks the definition declares; one per block key. */
   declarations: readonly StatefulBlockDescriptor<ContextBlockKey, unknown, unknown>[]
 }>
 
@@ -35,7 +25,6 @@ type DefinitionTable = Readonly<{
   declarations: ReadonlyMap<ContextBlockKey, Declaration>
 }>
 
-/** The exact adoption: every field counts, the digest included. */
 const adoptionKey = (adoption: Adoption): string =>
   JSON.stringify([adoption.owner, adoption.name, adoption.revision, adoption.digest])
 
@@ -62,11 +51,6 @@ function tableOf(declared: DeclaredContextBlocks): DefinitionTable {
   return { bindings, declarations }
 }
 
-/**
- * One table over the declared blocks of the adopted definitions, built once. A query of a
- * definition, need or key the table does not hold is `undefined`. A table that lists one definition
- * twice, binds one need and key twice or declares one key twice is refused at construction.
- */
 export function createContextDefinitions(
   declared: readonly DeclaredContextBlocks[],
 ): SessionContextDefinitions {
@@ -93,6 +77,5 @@ const ADOPTED: readonly DeclaredContextBlocks[] = [
   },
 ]
 
-/** The definitions of the release, for the `session-ad12` row. */
 export const adoptedContextDefinitions: SessionContextDefinitions =
   createContextDefinitions(ADOPTED)

@@ -1,7 +1,3 @@
-// The Model credential port over the secret custody of the settings domain (model-contract
-// SPEC「凭据引用与解析端口」). Settings keeps the secrets. The port knows, for each provider, the
-// credential items it declares, whether the release holds its official layer, and the binding key
-// of one item in one scope. It fixes and reads a layer with the contract's own two rules.
 import type { ProviderName } from '@omne-harness/model-contract'
 import {
   MODEL_SEND,
@@ -20,26 +16,17 @@ import type {
   SecretScope,
 } from '@omne-harness/settings'
 
-/** What the port knows of one provider. The assembly derives it from the provider asset. */
 export type CredentialProviderSource = Readonly<{
-  /** The credential items the provider body declares. */
   items: readonly string[]
-  /** The release holds the provider, and so an official layer can exist. */
   official: boolean
-  /** The binding key of one credential item in one scope. */
   keyOf(scope: SecretScope, item: string): SecretBindingKey
 }>
 
 export type SecretCredentialPortOptions = Readonly<{
-  /** The read face and the use face of the secret custody. The port never writes. */
   custody: Pick<SecretCustodyManagement, 'describe'> & SecretCustodyUse
   providers: ReadonlyMap<ProviderName, CredentialProviderSource>
 }>
 
-/**
- * A credential port that reads the secrets of the settings domain. An unknown provider and a purpose
- * other than `model-send` are denied. A custody that refuses or cannot answer gives its own failure.
- */
 export function createSecretCredentialPort<P = unknown>(
   options: SecretCredentialPortOptions,
 ): CredentialPort<P> {
@@ -58,7 +45,6 @@ export function createSecretCredentialPort<P = unknown>(
     return succeed(states)
   }
 
-  /** The secret of every item of a layer that `readCredentialLayer` found usable. */
   function secretsOf(
     source: CredentialProviderSource,
     scope: SecretScope,
@@ -67,7 +53,6 @@ export function createSecretCredentialPort<P = unknown>(
     for (const item of source.items) {
       const used = custody.use(source.keyOf(scope, item))
       if (used === 'denied' || used === 'unavailable') return fail({ kind: used })
-      // The binding changed between the read of its life and its use: no answer for now.
       if (used === 'missing') return fail({ kind: 'unavailable' })
       secrets.set(item, used.value)
     }
@@ -80,8 +65,6 @@ export function createSecretCredentialPort<P = unknown>(
       if (source === undefined) return fail({ kind: 'denied' })
       const tenant = reading(source, { layer: 'tenant', tenant: access.tenant })
       if ('failure' in tenant) return tenant
-      // The official layer matters only when the tenant holds no item, and only to an official
-      // profile of a provider the release holds: a tenant layer is never judged by the other one.
       const holdsTenantItem = [...tenant.ok.values()].some(state => state !== 'unbound')
       let deployment: CredentialLayerReading | null = null
       if (official && source.official && !holdsTenantItem) {

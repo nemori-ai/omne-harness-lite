@@ -1,5 +1,3 @@
-// `baseline` 命令：统一缺省基线规则的入口（`pnpm run check` 开头用它）。
-// 在造出来的仓库里跑真实的命令行，核对基线取自哪一条，以及已绑定任务的树拒绝不等于 targetBase 的显式基线。
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -40,8 +38,6 @@ function baseline(root: string, args: string[] = [], env: Record<string, string>
 }
 
 function bind(root: string, targetBase: string): void {
-  // 和流程工具一样从 git 的顶层目录取真实路径：Windows 的临时目录是 8.3 短名，
-  // 对它直接 realpath 不会展开成 git 回的长名。
   const actual = realpathSync(git(root, 'rev-parse', '--show-toplevel'))
   const gitDir = join(actual, '.git')
   const owner = {
@@ -86,7 +82,6 @@ describe('baseline 命令', () => {
     })
   })
 
-  // 归慢层：在临时 git 仓库里连起几次 baseline 命令子进程。全量准入快层账本里这条 1.3 秒，负载下 3.3 秒，负载下超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
   it('--base 先于环境变量 BASELINE，环境变量先于 origin/main', { tags: ['slow'] }, () => {
     const root = repository()
     git(root, 'update-ref', 'refs/remotes/origin/main', 'HEAD')
@@ -96,7 +91,6 @@ describe('baseline 命令', () => {
     expect(JSON.parse(env.stdout)).toMatchObject({ targetBase: 'main', source: 'explicit' })
   })
 
-  // 归慢层：在临时 git 仓库里起 baseline 命令子进程。全量准入快层账本里这条 1.4 秒，负载下 3.0 秒，负载下超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
   it(
     '已绑定任务的树：取固定的 targetBase；不等于它的显式基线被拒绝，退出 2',
     { tags: ['slow'] },

@@ -1,29 +1,12 @@
-// The publication bound of the Agent records (R2-D294 invariant 1): one publication appends the
-// facts its step adds, so the largest batch of a step does not grow with the steps the Run already
-// took (round k against round k + n). One Run here takes 20 Tool rounds: each round is one Model
-// call that asks for a Tool and the Tool call it starts; a last Model call answers with text and the
-// Run completes. The case asserts bytes and the outcome of the Run, not how the facts are shaped.
-// The sensor is the provider's `report` hook: `batchBytes` is the `er_fact` batch of the
-// publication (the envelope and the fact bodies, no content block), `recordBytes` the whole
-// `execution-record` command; a wrapper of the storage measures the same commands where the
-// storage receives them, so the report is checked against what was sent.
-//
-// Real: the product parts of ./w2-world.ts (the Journal plugin of session-adapters over the real
-// sqlite-provider, AD-02, AD-05, AD-06, the receivers). Doubles: the Model and the Tool (fixed short
-// delays), the Tool request preparation (R2-D36). No network.
 // @module-tag slow
-// Why slow: real Workers, real files and the whole line on one root, for 41 Model and Tool calls.
 import { writeFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import type { JournalPublicationReport } from '@omne-harness/session-adapters/cordis'
 import { replyText, toolCallBlock, openW2World, type W2World } from './w2-world.ts'
 
-/** The Tool rounds of the Run. */
 const ROUNDS = 20
-/** The growth the largest batch of round 20 may have over round 5: room for longer identities. */
 const BOUND = 2 * 1024
-/** The storage limit of one command, as the release configures it. */
 const COMMAND_LIMIT = 1_048_576
 
 const worlds: W2World[] = []
@@ -33,7 +16,6 @@ afterEach(async () => {
 
 type Published = Readonly<{ round: number; report: JournalPublicationReport }>
 
-/** The bytes of each `execution-record` command the storage received, in order. */
 function measured(sent: number[]) {
   return (storage: SqlStorage): SqlStorage => ({
     ...storage,
@@ -50,7 +32,6 @@ describe('the publication bound of the Agent records over 20 Tool rounds', () =>
   it('the largest batch of round 20 is at most that of round 5 plus 2 KiB', async () => {
     const published: Published[] = []
     const sent: number[] = []
-    // The round of a publication is that of the last Model call admitted before it.
     let round = 0
     const w = await openW2World({
       model: admission => {
@@ -73,7 +54,6 @@ describe('the publication bound of the Agent records over 20 Tool rounds', () =>
     try {
       await w.runRound(1, `read the ${ROUNDS} files one by one`, 600_000)
     } catch (error) {
-      // What the line did before it stopped, so the failure names it.
       const outcomes = published.map(
         item => `${item.round}:${item.report.method}:${item.report.outcome}`,
       )
@@ -105,21 +85,16 @@ describe('the publication bound of the Agent records over 20 Tool rounds', () =>
       total: of(at + 1).reduce((sum, item) => sum + item.report.batchBytes, 0),
       blobs: of(at + 1).reduce((sum, item) => sum + item.report.blobBytes, 0),
     }))
-    // The readings of the run, written where `OMNE_JROWS_BYTES_OUT` names (not an assertion).
     const out = process.env['OMNE_JROWS_BYTES_OUT']
     if (out !== undefined) writeFileSync(out, JSON.stringify(table, null, 2))
 
     expect(await w.lastOutcome()).toBe('completed')
     expect(w.tools.invoke.calls).toHaveLength(ROUNDS)
     expect(w.modelCalls).toHaveLength(ROUNDS + 1)
-    // No publication was refused or left unknown. A rolled back one lost a race with the other copy
-    // (the receivers write through their own) and was made again.
     const failed = run.filter(
       item => item.report.outcome === 'unavailable' || item.report.outcome === 'commit-unknown',
     )
     expect(failed).toEqual([])
-    // The report tells the bytes the storage received: each reported publication is the next
-    // `execution-record` command of the storage, in order (other writers of the world send more).
     let at = 0
     for (const item of published) {
       while (at < sent.length && sent[at] !== item.report.recordBytes) at += 1

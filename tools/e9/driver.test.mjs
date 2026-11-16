@@ -59,7 +59,6 @@ test('timeout removes the spawned descendant process', async () => {
   try {
     assert.equal(timed.timedOut, true)
     if (process.platform === 'linux') {
-      // A zombie has stopped executing but can await its external reaper.
       try {
         assert.match(readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ')[1], /^[ZX] /)
       } catch (error) {

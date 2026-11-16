@@ -31,7 +31,6 @@ export function writerResponse(receipt: CommittedV2) {
     ? { kind: 'response' as const, value: entry.reply.response }
     : unavailable()
 }
-/** The saved receipt of a commit answer: the `recalled` mark belongs to the answer, not to it. */
 function savedReceipt(
   answer: (CommittedV2 | RolledBackV2) & Readonly<{ recalled?: boolean }>,
 ): CommittedV2 | RolledBackV2 {

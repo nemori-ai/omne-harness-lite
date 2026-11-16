@@ -1,39 +1,16 @@
-// The text of one `sl_entry` row: the only writer and the only reader of the `entry` column.
-//
-// The text is one JSON object. Its members are the members of the `HistoryEntry` in their order,
-// and the member `payload` is written as `body`: the plain JSON text of the json-text value tree,
-// not the tree itself. A number keeps its source lexeme and an object keeps its key order, so the
-// reader gives back the same tree; a text whose objects repeat a key is refused. The other members
-// travel as `encodeValue` gives them (a minted identity becomes marked text).
-//
-// A text without `body` is not read. A row of the retired encoding (before this module: the whole
-// entry as `encodeValue` JSON, with the value tree under `payload`) has `payload` instead, so it is
-// refused with its own diagnostic and is never read as a plain payload.
-//
-// Both directions have a fast path through the native JSON functions and an exact path through
-// json-text. Writing goes through `JSON.stringify` with each number as raw JSON text; an object
-// with an array-index key (JavaScript would move it to the front) is written by `writeJsonText`.
-// Reading parses with `JSON.parse` and accepts the result only when `JSON.stringify` gives back the
-// same text, character for character: then no key repeats or moved and every number lexeme is the
-// one JavaScript writes. Any other text is read by `readJsonText`, which keeps the lexemes and the
-// order and refuses a repeated key.
 import { readJsonText, writeJsonText, type JsonLimits } from '@omne-harness/json-text'
 import type { HistoryEntry } from '@omne-harness/session-contract'
 import type { JsonValue as JsonTree } from '@omne-harness/json-text'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue, plainOf } from './codec.ts'
 
-/** The member of the stored text that holds the payload as plain JSON. */
 const BODY = 'body'
-/** The member of the entry that holds the payload as a json-text tree. */
 const PAYLOAD = 'payload'
 
-/** A stored `entry` text that this codec does not read. Readers answer it as unavailable. */
 export class StoredEntryMalformed extends Error {
   override readonly name = 'StoredEntryMalformed'
 }
 
-/** The rows are written by `writeEntryText`, so the exact reader needs no budget of its own. */
 const UNBOUNDED: JsonLimits = {
   maxBytes: Number.MAX_SAFE_INTEGER,
   maxDepth: Number.MAX_SAFE_INTEGER,
@@ -45,7 +22,6 @@ const UNBOUNDED: JsonLimits = {
 
 const rawJSON = (JSON as unknown as { rawJSON(text: string): unknown }).rawJSON
 
-/** A key that JavaScript orders before the others in an object: an array index. */
 const isIndexKey = (key: string): boolean =>
   /^(?:0|[1-9][0-9]*)$/.test(key) && Number(key) < 4294967295
 
@@ -53,10 +29,6 @@ function malformedTree(what: string): TypeError {
   return new TypeError(`the payload is not a json-text tree: ${what}`)
 }
 
-/**
- * The plain value of a tree for `JSON.stringify`, numbers as raw JSON. `state.moved` is set when an
- * object has an array-index key. A repeated key throws, so it is never written.
- */
 function plainForText(node: unknown, state: { moved: boolean }): unknown {
   if (typeof node !== 'object' || node === null) throw malformedTree('a node is not an object')
   const tree = node as Record<string, unknown>
@@ -104,17 +76,12 @@ function plainForText(node: unknown, state: { moved: boolean }): unknown {
   }
 }
 
-/** The plain JSON text of a payload tree. */
 function payloadText(payload: unknown): string {
   const state = { moved: false }
   const plain = plainForText(payload, state)
   return state.moved ? writeJsonText(payload as JsonTree) : JSON.stringify(plain)
 }
 
-/**
- * The stored `entry` text of one entry. Throws `TypeError` for a payload that is not a json-text
- * tree or repeats a key in an object, and for an entry that has a member named `body`.
- */
 export function writeEntryText(entry: HistoryEntry): string {
   const parts: string[] = []
   let body = false
@@ -130,7 +97,6 @@ export function writeEntryText(entry: HistoryEntry): string {
   return `{${parts.join(',')}}`
 }
 
-/** The json-text tree of a value that `JSON.parse` gave for a verified text. */
 function treeOf(value: unknown): JsonTree {
   if (value === null) return { kind: 'null' }
   switch (typeof value) {
@@ -151,7 +117,6 @@ function treeOf(value: unknown): JsonTree {
   }
 }
 
-/** The members of the stored object, the payload as a tree: fast path, or undefined. */
 function readFast(text: string): Record<string, unknown> | undefined {
   let parsed: unknown
   try {
@@ -166,7 +131,6 @@ function readFast(text: string): Record<string, unknown> | undefined {
   return members
 }
 
-/** The members of the stored object, the payload as a tree, by json-text. Throws when it does not read. */
 function readExact(text: string, where: string): Record<string, unknown> {
   const read = readJsonText(text, UNBOUNDED)
   if (read.kind !== 'ok')
@@ -179,10 +143,6 @@ function readExact(text: string, where: string): Record<string, unknown> {
   return members
 }
 
-/**
- * The entries of the stored texts that a `session.history` page carries (worker/read-history.ts).
- * Throws `StoredEntryMalformed` as `readEntryText` does, and for a list that is not one of texts.
- */
 export function readEntryTexts(texts: unknown): HistoryEntry[] {
   if (!Array.isArray(texts))
     throw new StoredEntryMalformed('session.history: the page has no entry list')
@@ -193,11 +153,6 @@ export function readEntryTexts(texts: unknown): HistoryEntry[] {
   })
 }
 
-/**
- * The entry of one stored `entry` text. `where` names the row in the diagnostic. Throws
- * `StoredEntryMalformed` for a text that this codec did not write, a row of the retired encoding
- * included.
- */
 export function readEntryText(text: string, where = 'sl_entry'): HistoryEntry {
   if (text.isWellFormed() === false)
     throw new StoredEntryMalformed(`${where}: the text has a lone surrogate`)

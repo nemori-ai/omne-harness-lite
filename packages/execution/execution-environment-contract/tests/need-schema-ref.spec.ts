@@ -22,7 +22,6 @@ const valid = {
   layers: ['host_machine'],
 }
 
-/** One sample per way a field can go wrong, plus the accepted shapes. Samples are JSON values. */
 const samples: readonly (readonly [string, unknown])[] = [
   ['a full declaration', valid],
   ['empty arrays', { facilities: [], isolation: [], layers: [] }],

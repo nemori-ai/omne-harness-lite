@@ -1,15 +1,4 @@
-// The read bound of the Session snapshot (session SPEC 已知限制 SN-1): `session.work` hands the whole
-// stored snapshot out, and its handler has the output limit the application gives
-// `sessionStorageMaterials` (`readOutputLimitBytes`, here 20 MiB). A snapshot past it is not read: the real provider answers `read_limit`,
-// and `readWork` answers a prompt `unavailable` that names it, never a hang and never a part of the
-// snapshot. A snapshot between the old bound of 1 MiB and the new one reads whole. The limit is a
-// literal handed in through the parameter, so that a handler that ignores it turns the cases red. In
-// the C-JOINT world the snapshot of one session passes 1 MiB at about round 169 of the plain shape;
-// here the stored row is made that large directly: the longest text member of the stored snapshot is
-// lengthened, so the snapshot keeps its shape. The row is written into the closed domain file, as the
-// system reads do; this verifies the read path only.
 // @module-tag slow
-// Why slow: real Workers and real files; every case opens the provider twice.
 import { realpath, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -27,7 +16,6 @@ afterEach(async () => {
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 
-/** The path of the longest text of `value` that is not a member of a codec mark (`$…`). */
 function longestText(value: Json, path: (string | number)[] = []): (string | number)[] | null {
   let best: { path: (string | number)[]; length: number } | null = null
   const visit = (node: Json, at: (string | number)[]) => {
@@ -44,7 +32,6 @@ function longestText(value: Json, path: (string | number)[] = []): (string | num
   return (best as { path: (string | number)[] } | null)?.path ?? null
 }
 
-/** A session whose stored snapshot is about `bytes` long, read through a reopened provider. */
 async function sessionOfSize(bytes: number) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'session-work-limit-')))
   roots.push(root)
@@ -104,7 +91,6 @@ describe('the read bound of the Session snapshot', () => {
         diagnostic: expect.stringContaining('read_limit'),
       }),
     })
-    // An explicit answer, not a wait: both reads came back well inside the slow tier's time.
     expect(Date.now() - started).toBeLessThan(10_000)
   })
 

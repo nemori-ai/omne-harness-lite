@@ -6,10 +6,6 @@ import { positive, type RecordedSession, type SessionCoordinate } from './sessio
 
 const text = (value: string) => ({ kind: 'string', value }) as const
 
-/**
- * The resource reference of a macOS domain. It is planned before the gate exists, so it names the
- * domain by its key and boot; the sessions are known only later and live in the domain's marker.
- */
 export function domainReference(
   key: string,
   bootId: string,
@@ -25,7 +21,6 @@ export function domainReference(
   }
 }
 
-/** The key and boot in a macOS resource reference; undefined for any other reference. */
 export function readDomainReference(
   reference: ManagedResource['reference'],
 ): Readonly<{ key: string; bootId: string }> | undefined {
@@ -60,7 +55,6 @@ function parseSessions(value: unknown): readonly RecordedSession[] | undefined {
   return sessions
 }
 
-/** A marker's content; undefined when any part is missing or names another key. */
 export function parseMarker(content: string, key: string): Marker | undefined {
   let value: unknown
   try {
@@ -87,24 +81,14 @@ export function parseMarker(content: string, key: string): Marker | undefined {
   return { resource: resource as ManagedResource, scope, coordinate: { bootId, sessions } }
 }
 
-/**
- * The cold index of macOS domains: one marker per domain in the state directory. The marker is
- * written after the gate reported ready and before GO, so no command runs without one; it is
- * removed after the domain's confirmed stop was recorded. A terminal's marker is written again
- * once the shell's session exists.
- */
 export type DomainIndex = Readonly<{
-  /** Writes the marker atomically; false when it could not be written. */
   record(
     resource: ManagedResource,
     scope: ScopeRef,
     coordinate: SessionCoordinate,
   ): Promise<boolean>
-  /** The recorded sessions; `absent` when there is no marker, `unreadable` when it cannot be read. */
   coordinate(key: string): Promise<SessionCoordinate | 'absent' | 'unreadable'>
-  /** Removes the marker; false when it could not be removed. */
   forget(key: string): Promise<boolean>
-  /** The domains of the scope; `unavailable` unless every marker was read. */
   list(scope: ScopeRef): Promise<readonly ManagedResource[] | 'unavailable'>
 }>
 

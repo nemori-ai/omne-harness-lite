@@ -1,7 +1,3 @@
-// The plan of one preparation (`createLocalEnvironmentPlanResolver`): the current Tool qualification,
-// the scope binding of the caller, the requirement and the placement the Execution authority gives.
-// Every refusal names its cause: a refused or unknown placement answers `unavailable` with the
-// reason the authority gave, so that the run-stop log of the executor shows why a call does not move.
 import { describe, expect, it } from 'vitest'
 import {
   originRef,
@@ -46,7 +42,6 @@ const preparation: PreparationRecord = {
   inputDigest: 'input-1',
   purpose: 'initial',
 }
-/** The fixed request of the call travels beside the preparation record. */
 const fixed = request()
 const prepare = {
   tenant: tenantA,
@@ -60,7 +55,6 @@ const facts = { system: 'fixture', release: '1', architecture: 'fixture', facili
 type Placed = Awaited<ReturnType<ExecutionEnvironment<Principal>['resolvePlacement']>>
 type Qualified = Awaited<ReturnType<LocalEnvironmentPlanInput<Principal>['access']['qualify']>>
 
-/** The resolver over stand-ins; `changes` replaces what one source answers. */
 function resolver(
   changes: Readonly<{
     qualified?: Qualified['kind']

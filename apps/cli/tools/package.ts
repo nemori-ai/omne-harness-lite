@@ -7,17 +7,12 @@ import { fileURLToPath } from 'node:url'
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url))
 const cliDir = resolve(repoRoot, 'apps/cli')
 const target = process.argv[2]
-/** The archive's name inside staging; tar writes it there and it is copied next to the target. */
 const STAGED_ARCHIVE = 'omne-cli.tar.gz'
 
 type Step = { command: string; args: string[]; cwd: string }
 
-/**
- * The command line that starts a step, with the same rule as `pnpmCommand` in tools/test-runner.
- * The steps run at the repository root, where pnpm switches itself to the pinned version. On Windows
- * `pnpm` must be a `pnpm.exe` on PATH (a standalone or mise install): Node cannot start the
- * `pnpm.cmd` shell shim without a shell. A missing `pnpm.exe` fails the step.
- */
+// On Windows pnpm must be a pnpm.exe on PATH (standalone or mise install): Node cannot start the
+// pnpm.cmd shim without a shell, and the pnpm 12 package has no pnpm.cjs to run instead.
 function commandLine(step: Step): [string, string[]] {
   if (process.platform !== 'win32' || step.command !== 'pnpm') return [step.command, step.args]
   for (const directory of (process.env['PATH'] ?? process.env['Path'] ?? '').split(delimiter)) {
@@ -27,11 +22,8 @@ function commandLine(step: Step): [string, string[]] {
   throw new Error('pnpm.exe not found on PATH: install pnpm 12 standalone or with mise')
 }
 
-// The same steps as the member's `build` script, with the output moved to staging; change both together.
-// Source maps are left out: the archive carries no sources, and maps built outside `apps/cli/dist`
-// would record this machine's paths.
-// tar runs inside staging with relative names: GNU tar (Git for Windows) reads an absolute `C:\…`
-// archive name as a remote `host:file`.
+// The same steps as the `build` script, output in staging; change both together. No source maps: they would record this machine's paths.
+// tar runs in staging with relative names: GNU tar (Git for Windows) reads an absolute `C:\…` name as a remote `host:file`.
 function buildSteps(dist: string, staging: string): Step[] {
   return [
     {
@@ -64,7 +56,6 @@ function buildSteps(dist: string, staging: string): Step[] {
 /** Builds into a private staging directory, so `apps/cli/dist` is never removed or rewritten. */
 function packageInto(target: string): number {
   const staging = mkdtempSync(join(tmpdir(), 'omne-cli-package-'))
-  // The archive is copied next to the target and renamed into place, so a failed run leaves no partial target.
   const partial = join(dirname(target), `.${basename(target)}.partial`)
   try {
     for (const step of buildSteps(join(staging, 'dist'), staging)) {

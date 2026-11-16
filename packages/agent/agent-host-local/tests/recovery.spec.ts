@@ -1,11 +1,3 @@
-// The recovery entry (`agentExecutionRecovery`, AG-04) and the control entry without a live runtime
-// (`agentExecutionControl`, AG-05) of the `agent-host` plugin on real Cordis 4.0.4. An execution is
-// opened straight in the memory Journal, so no runtime of the host holds it unless a case says so.
-// What is checked: both entries check the principal with the operation name of the call and the
-// execution target before the Journal is asked; they read back by the original execution, need no
-// handle, answer another tenant `denied`, and keep a refusal of the access check; detach of an
-// attachment whose runtime the host still runs also needs takeover; reconcile answers a named
-// `unavailable`. A sudden loss of a dependency detaches nothing: the attachment stays as it was.
 import {
   decodeAgentExecutionId,
   decodeAgentInstanceId,
@@ -21,6 +13,7 @@ import {
 } from '@omne-harness/agent-contract'
 import { judgeMessage } from '@omne-harness/message'
 import { afterEach, describe, expect, it } from 'vitest'
+import { createAgentHostLocalPlugin } from '../src/cordis.ts'
 import { caller, ok, openWorld, slotOf, turns, type World } from './host-support.ts'
 
 const opened: World[] = []
@@ -83,7 +76,6 @@ function checkpoint(): AgentCheckpoint {
   }
 }
 
-/** Opens the execution in the memory Journal, attached to `instance`. */
 async function openExecution(host: World, instance: AgentInstanceId) {
   const initial = input()
   const runtime = {
@@ -130,7 +122,7 @@ async function openExecution(host: World, instance: AgentInstanceId) {
 
 const unknownInstance = ok(decodeAgentInstanceId('not-a-host-instance'))
 
-describe('the recovery entry (AG-04)', () => {
+describe('the recovery entry', () => {
   it('reads back by the original execution without a live runtime', async () => {
     const host = await world()
     const opened = await openExecution(host, unknownInstance)
@@ -208,7 +200,62 @@ describe('the recovery entry (AG-04)', () => {
   })
 })
 
-describe('the control entry without a live runtime (AG-05)', () => {
+describe('the judgment of the runtime that holds an attachment (contact)', () => {
+  async function provingWorld(lostContact: (instance: AgentInstanceId) => DurableEvidence | null) {
+    const made = await openWorld({ plugin: createAgentHostLocalPlugin({ lostContact }) })
+    opened.push(made)
+    return made
+  }
+  const ask = (host: World, authority: Awaited<ReturnType<typeof openExecution>>['authority']) =>
+    host.recovery.contact({ ...caller('a'), execution: EXECUTION, authority })
+
+  it('answers live for a runtime the host still runs, and does not ask the assembly', async () => {
+    const asked: AgentInstanceId[] = []
+    const host = await provingWorld(instance => {
+      asked.push(instance)
+      return evidence('lock')
+    })
+    const { instance } = ok(await host.provision.acquire(slotOf('a')))
+    const held = await openExecution(host, instance)
+    expect(ok(await ask(host, held.authority))).toEqual({ kind: 'live' })
+    expect(asked).toEqual([])
+  })
+
+  it('answers lost with the proof of the assembly for an instance the host does not run', async () => {
+    const host = await provingWorld(instance => evidence(`lock/${instance}`))
+    const held = await openExecution(host, unknownInstance)
+    expect(ok(await ask(host, held.authority))).toEqual({
+      kind: 'lost',
+      evidence: evidence(`lock/${unknownInstance}`),
+    })
+    expect(host.controls.access.check.calls.map(call => call.operation)).toEqual(['load'])
+    const snapshot = ok(await host.recovery.load({ ...caller('a'), execution: EXECUTION }))
+    expect(snapshot.executionAttachment).toEqual(held.authority)
+  })
+
+  it('answers unknown when the assembly has no proof now', async () => {
+    const host = await provingWorld(() => null)
+    const held = await openExecution(host, unknownInstance)
+    expect(ok(await ask(host, held.authority))).toEqual({ kind: 'unknown' })
+  })
+
+  it('answers unknown when the assembly gave no proof source at all', async () => {
+    const host = await world()
+    const held = await openExecution(host, unknownInstance)
+    expect(ok(await ask(host, held.authority))).toEqual({ kind: 'unknown' })
+  })
+
+  it('keeps a refusal of the access check and judges nothing', async () => {
+    const host = await provingWorld(() => evidence('lock'))
+    const held = await openExecution(host, unknownInstance)
+    host.refuseNext('load')
+    expect(await ask(host, held.authority)).toEqual({
+      failure: { kind: 'denied', action: 'load' },
+    })
+  })
+})
+
+describe('the control entry without a live runtime', () => {
   const cancel = (tenant: 'a' | 'b', name: string) => ({
     ...caller(tenant),
     execution: EXECUTION,

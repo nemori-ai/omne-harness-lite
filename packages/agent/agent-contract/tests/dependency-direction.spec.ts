@@ -8,10 +8,8 @@ import {
   type ModuleKind,
 } from './module-graph.ts'
 
-/** The members that depend on this contract. It must not depend on any of them. */
 const dependentMember = /^@omne-harness\/agent(-host-local|-cordis-contract)?(\/|$)/u
 
-/** A root graph must not reach Cordis, a Cordis entry of any package, or a dependent member. */
 function forbiddenFromRoot(specifier: string): boolean {
   return (
     specifier === '@deepseek-ai/cordis' ||
@@ -63,7 +61,6 @@ describe('the root entry reaches no Cordis and no dependent member', () => {
   })
 
   it('reaches the contract packages that the design page names', () => {
-    // A guard for the walk: an empty or shallow graph would pass the check above for free.
     const graph = walkModules(memberPath('dist/index.js'), 'javascript')
     const seen = new Set(graph.imports.map(edge => edge.specifier))
     for (const name of ['@omne-harness/assets', '@omne-harness/legal-identity']) {
@@ -72,15 +69,12 @@ describe('the root entry reaches no Cordis and no dependent member', () => {
   })
 
   it('does not load the testing entry or node:assert', () => {
-    // The doubles and suites of `./testing` must stay out of what a production consumer loads.
     const graph = walkModules(memberPath('dist/index.js'), 'javascript')
     expect([...graph.files].filter(file => /\/dist\/testing/u.test(file))).toEqual([])
     expect(graph.imports.filter(edge => edge.specifier.startsWith('node:assert'))).toEqual([])
   })
 
   it('sees every import form that can load a module', () => {
-    // A guard for the scanner itself: a scanner that misses one of these forms would pass the
-    // checks above while the root still loaded Cordis. Comments and strings are not imports.
     const text = [
       "import '@deepseek-ai/cordis'",
       "import type { Context } from 'a-type'",

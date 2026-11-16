@@ -1,13 +1,3 @@
-// The finishing records of the session-log Journal (Agent SPEC "条件终结", "取消判断与路线",
-// "终结责任清单" and "commitSettlement 的变体"): the candidate, route, obligation, judgment and custody
-// records of one execution, the FinishIntent and settlement projections `load` derives from them,
-// the obligations the Journal builds from its own records, and the five blocked categories in
-// their fixed order. The records are a projection of the finishing facts (R2-D297): a candidate
-// from `finish.candidate` and its cursor block, a list from its `finish.obligation` items and the
-// `finish.obligations` close, a settlement record from its `settlement.recorded` block; the last
-// section maps a folded view back to the records. Pure over what it is given; the writes live in
-// journal.ts. The Agent memory Journal keeps its own records; the two are held to the same
-// conformance suite, not to shared code.
 import type {
   AcceptedInput,
   Adoption,
@@ -63,18 +53,12 @@ import {
   type BlobStore,
 } from '../journal/decide.ts'
 import type { CursorMembers, FactBody, FactOf, Ref } from '../journal/facts.ts'
-import type { CandidateView, ExecutionView, ObligationListView } from '../journal/fold.ts'
+import type { CandidateView, ExecutionView, ObligationListView } from '../journal/view.ts'
 
-/**
- * The finishing records of one execution. Every record is immutable once appended; the one
- * exception is the proof of an author route, which F2 sets by replacing the route at its index.
- */
 export type FinishingRecords = {
   candidates: FinishCandidate[]
   routes: FinishRoute[]
-  /** The current candidate, or null before the first F1 or establish. */
   current: AgentOperationId | null
-  /** The record text of the current route. */
   route: string | null
   supersessions: CandidateSupersession[]
   migrations: MigrationRecord[]
@@ -83,11 +67,8 @@ export type FinishingRecords = {
   cardReconciliations: CardReconciliationRecord[]
   legacyReturns: LegacyInvocationReturn[]
   toolAssociations: ToolAssociationRecord[]
-  /** Every list this Journal issued, by the record text of its evidence. */
   issued: Map<string, FinishObligations>
-  /** The record text of the list issued for the current candidate, or null. */
   obligations: string | null
-  /** The commit operation that saved each effect intent, by action (the intent of a Tool key). */
   effectOperations: Map<string, AgentOperationId>
 }
 
@@ -110,7 +91,6 @@ export function emptyFinishing(): FinishingRecords {
   }
 }
 
-/** The draft copy of a common-root transaction: lists and maps copied, the records shared. */
 export function copyFinishing(value: FinishingRecords): FinishingRecords {
   return {
     ...value,
@@ -127,7 +107,6 @@ export function copyFinishing(value: FinishingRecords): FinishingRecords {
   }
 }
 
-/** The fixed order of the five categories (Agent SPEC "条件终结"). */
 export const CATEGORY_ORDER: readonly ObligationCategory[] = [
   'inputs',
   'controls',
@@ -172,7 +151,6 @@ export function currentObligations(records: FinishingRecords): FinishObligations
   return records.obligations === null ? undefined : records.issued.get(records.obligations)
 }
 
-/** Whether two candidate contents are the same business content (Agent SPEC "条件终结" 2). */
 export function sameContent(
   left: FinishCandidateContent | FinishCandidate,
   right: FinishCandidateContent,
@@ -188,10 +166,6 @@ export function sameContent(
   return content(left) === content(right)
 }
 
-/**
- * The proof of the before-terminal judgment of the current route: the F2 commit of an author
- * route, the current judgment record of a cancellation route, null before either.
- */
 export function beforeTerminalOf(records: FinishingRecords): DurableEvidence | null {
   const route = currentRoute(records)
   if (route === undefined) return null
@@ -199,7 +173,6 @@ export function beforeTerminalOf(records: FinishingRecords): DurableEvidence | n
   return currentJudgment(records)?.evidence ?? null
 }
 
-/** The FinishIntent projection of the current candidate; `undefined` without one. */
 export function intentOf(records: FinishingRecords): FinishIntent | undefined {
   const candidate = currentCandidate(records)
   if (candidate === undefined) return undefined
@@ -231,42 +204,29 @@ export function settlementOf(records: FinishingRecords): ExecutionSettlement {
   }
 }
 
-/** Whether the checkpoint still has a before-terminal passage that is not applied. */
 export function beforeTerminalOpen(checkpoint: AgentCheckpoint): boolean {
   return checkpoint.passages.some(
     passage => passage.position === 'before_terminal' && passage.progress.kind !== 'applied',
   )
 }
 
-// ------------------------------------------------------------------------------------------
-// The obligations (Agent SPEC "终结责任清单")
-
-/** What the builder reads of one execution: its own records, never another owner's. */
 export type ObligationSource = Readonly<{
-  /** The execution the obligations belong to. */
   id: AgentExecutionId
-  /** The namespaced text the fixed evidence of the obligations is named under. */
   execution: string
   revision: number
   checkpoint: AgentCheckpoint
   inputs: readonly AcceptedInput[]
   committedInputBatchOf: (input: AcceptedInput) => InputBatchId | null
-  /** The entry operation that accepted an input, from its external handoff. */
   acceptanceOf: (input: AcceptedInput) => AgentOperationId | undefined
   controls: readonly ControlRecord[]
   results: readonly ResultResponsibility[]
-  /** The receiving entries of the execution (a `received` entry settles the call it names). */
   entries: readonly AgentJournalEntry[]
   effects: readonly EffectIntent[]
-  /** The interrupt and background controls that name the call of an effect. */
   interruptionsOf: (effect: EffectIntent) => readonly AgentOperationId[]
-  /** The Model call id the reference of a Model effect resolves to, null for any other effect. */
   modelCallOf: (effect: EffectIntent) => string | null
   emitted: number
   acknowledged: number
-  /** The handoffs whose prepared message no Ja published yet. */
   unpublished: readonly Extract<FinishObligation, { kind: 'handoff' }>['record'][]
-  /** The writes of the execution still undecided, except the issuing one. */
   pending: readonly Readonly<{ operation: AgentOperationId; method: string }>[]
   finishing: FinishingRecords
 }>
@@ -278,7 +238,6 @@ const SESSION_CUSTODIAN: ConsumerRef = Object.freeze({
   purpose: 'custody',
 })
 
-/** The schema under which the session log keeps the record a continuation refers to. */
 const RECORD_SCHEMA: Adoption = Object.freeze({
   owner: JOURNAL_OWNER,
   name: 'session-log-record',
@@ -286,19 +245,16 @@ const RECORD_SCHEMA: Adoption = Object.freeze({
   digest: 'session-log:record',
 })
 
-/** The request of a continuation that refers to a record of this Journal under its schema. */
 function ofRecord(
   record: DurableEvidence,
 ): Extract<ContinuationRequest<never>, { kind: 'record' }> {
   return { kind: 'record', schema: RECORD_SCHEMA, record }
 }
 
-/** The request of a continuation that carries the complete parameters of the original operation. */
 function ofParameters<T>(value: T): Extract<ContinuationRequest<T>, { kind: 'parameters' }> {
   return { kind: 'parameters', value }
 }
 
-/** The continuation is the Journal's own and no custodian accepted it yet. */
 const BY_JOURNAL = Object.freeze({ owner: JOURNAL_OWNER, custodian: null })
 
 const settled = (completion: DurableEvidence): ObligationDisposition => ({
@@ -321,10 +277,6 @@ function pending(
   return { kind: 'pending', reason, required }
 }
 
-/**
- * A call whose acceptance is not known (Agent SPEC "Tool 调用关联与控制引用"): no result and no
- * accepted association, so the original request may still be in flight.
- */
 function callUnknown(
   action: string,
   position: DurableEvidence,
@@ -339,17 +291,12 @@ function callUnknown(
 
 const LATE_STAGES = ['producer-confirmed', 'physically-stopped', 'duty-released'] as const
 
-/**
- * The original record an obligation names. The Journal keeps every one of them, so a missing one
- * is a defect of this double; it never takes another identity in its place.
- */
 function recorded<T>(value: T | null | undefined, what: string): T {
   if (value === null || value === undefined)
     throw new Error(`session Journal defect: ${what} is not on record`)
   return value
 }
 
-/** The failures that settle the call they name: no reply, or a refused admission (R2-D241). */
 const settlesCall = (
   failure: FailureCandidate | null | undefined,
 ): failure is Extract<FailureCandidate, { kind: 'no-reply' | 'model-refused' }> =>
@@ -470,8 +417,6 @@ export function buildObligations(
       source: prepared,
       version: prepared,
       position: null,
-      // A prepared message does not complete the pending history: a complete candidate does not
-      // pass it as retained; a failed or cancelled one holds it (Agent SPEC "终结责任清单").
       disposition:
         candidate.conclusion.kind === 'complete'
           ? pending('handoff-history', lookup)
@@ -482,7 +427,6 @@ export function buildObligations(
   }
   items.push(...callObligations(source))
   const supersession = source.finishing.supersessions.find(link => link.to === candidate.candidate)
-  // A migrated candidate's passages belong to the author route it left (Agent SPEC "终结责任清单").
   const migration = source.finishing.migrations.find(item => item.candidate === candidate.candidate)
   for (const passage of source.checkpoint.passages) {
     const superseded = cancelled && passage.position === 'before_terminal'
@@ -492,7 +436,6 @@ export function buildObligations(
         : superseded && supersession !== undefined
           ? supersession.route
           : currentRoute(source.finishing)
-    // On its own author route (before or after a migration) the passage is the candidate's own.
     const own = route?.kind === 'author' && route.candidate === candidate.candidate
     const lookup: RecoveryContinuation = {
       kind: 'card-lookup',
@@ -526,7 +469,6 @@ export function buildObligations(
     })
     if (passage.progress.kind !== 'asked') continue
     for (const round of passage.progress.rounds) {
-      // Of several reconciliations of one round the known result counts, else the last.
       const reconciliations = source.finishing.cardReconciliations.filter(
         item => item.passage === passage.id && item.round === round.round,
       )
@@ -631,7 +573,6 @@ export function buildObligations(
   }
 }
 
-/** The part of an obligation source the call and result obligations read. */
 export type LedgerSource = Pick<
   ObligationSource,
   | 'id'
@@ -646,28 +587,20 @@ export type LedgerSource = Pick<
   | 'checkpoint'
 >
 
-/** The first item of each key, in a map. */
 function firstBy<T, K>(items: readonly T[], key: (item: T) => K): Map<K, T> {
   const out = new Map<K, T>()
   for (const item of items) if (!out.has(key(item))) out.set(key(item), item)
   return out
 }
 
-/** The evidence fixed for one obligation `what` of the execution at the read revision. */
 function fixedOf(source: Pick<ObligationSource, 'execution' | 'revision'>) {
   return (what: string): DurableEvidence =>
     journalEvidence(`${source.execution}/obligation/${what}`, source.revision)
 }
 
-/**
- * The call obligations of the execution, one per effect intent (Agent SPEC "终结责任清单" call
- * row). They do not depend on the candidate beyond the failures of all its candidates, so the
- * Journal keeps them current step by step (R2-D322).
- */
 export function callObligations(source: LedgerSource): FinishObligation[] {
   const fixed = fixedOf(source)
   const items: FinishObligation[] = []
-  // Indexed once: the Journal reads the call obligations after every step (R2-D322).
   const results = firstBy(source.results, item => item.consumption)
   const entries = firstBy(
     source.entries.filter(entry => entry.kind === 'received'),
@@ -678,17 +611,10 @@ export function callObligations(source: LedgerSource): FinishObligation[] {
     associated.set(item.intent.action, [...(associated.get(item.intent.action) ?? []), item])
   for (const effect of source.effects) {
     const result = results.get(effect.pending.consumption)
-    // A result saved as a `received` entry of the same consumption settles the call too: the
-    // entry is the result's custody when the receiver wrote it (Agent SPEC "终结责任清单" call row).
     const received = entries.get(effect.pending.consumption)
-    // A later unknown return does not take an accepted association back to unknown; without an
-    // accepted one the last record counts.
     const associations = associated.get(effect.action) ?? []
     const association =
       associations.find(item => item.association.kind === 'accepted') ?? associations.at(-1)
-    // A final failure of the producer settles the call, and so does the Model's definite refusal
-    // of its admission (R2-D237, R2-D241: a refused admission leaves no send). It is read from every
-    // candidate, so a cancelled candidate that replaced that failure does not undo it.
     const call = source.modelCallOf(effect)
     const finalFailure =
       call === null
@@ -699,12 +625,7 @@ export function callObligations(source: LedgerSource): FinishObligation[] {
               settlesCall(item.failure) &&
               item.failure.call === call,
           )?.failure ?? undefined)
-    // R2-D292: a Model intent the Model answered authoritatively not-accepted was never admitted
-    // or sent; its voided record settles the call on the basis of that answer.
-    const voided =
-      effect.pending.kind === 'model'
-        ? source.checkpoint.voided.find(item => item.reference === effect.pending.reference)
-        : undefined
+    const voided = source.checkpoint.voided.find(item => item.action === effect.action)
     const custodian =
       association?.obligation.kind === 'call' ? association.obligation.custodian : null
     const retain = (saved: ToolAssociationRecord): RecoveryContinuation => ({
@@ -758,7 +679,6 @@ export function callObligations(source: LedgerSource): FinishObligation[] {
   return items
 }
 
-/** The result obligations of the execution, one per result responsibility. */
 export function resultObligations(source: LedgerSource): FinishObligation[] {
   const fixed = fixedOf(source)
   const items: FinishObligation[] = []
@@ -802,14 +722,12 @@ export function resultObligations(source: LedgerSource): FinishObligation[] {
   return items
 }
 
-/** The evidence of the first presented card of a round, or null while nothing was presented. */
 function presentOf(round: CardRound): DurableEvidence | null {
   const progress = round.progress
   if (progress.kind === 'requested' || progress.kind === 'present-failed') return null
   return progress.cards[0]?.card ?? null
 }
 
-/** The target an obligation is about, for the responsibility projection. */
 function targetOf(item: FinishObligation): unknown {
   switch (item.kind) {
     case 'accepted-input':
@@ -841,17 +759,9 @@ function targetOf(item: FinishObligation): unknown {
   }
 }
 
-/**
- * The responsibility projection of a list (Agent SPEC "终结责任清单"): the set of items with the
- * identity, kind and target of each, without the dispositions. A list stays usable while the
- * projection of the current closure equals the projection of the list.
- */
 export function projectionOf(items: readonly FinishObligation[]): string {
   return canonical(items.map(item => canonical([item.kind, item.key, targetOf(item)])).sort())
 }
-
-// ------------------------------------------------------------------------------------------
-// The five blocked categories (Agent SPEC "条件终结")
 
 export type FinishCheck =
   | Readonly<{ kind: 'clear' }>
@@ -859,7 +769,6 @@ export type FinishCheck =
   | Readonly<{ kind: 'blocked'; value: Extract<FinishResult, { kind: 'blocked' }> }>
   | Readonly<{ kind: 'unknown'; diagnostic: string }>
 
-/** The value with every evidence in it reduced to its record text, which no revision changes. */
 function recordsOnly(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(recordsOnly)
   if (value === null || typeof value !== 'object') return value
@@ -870,11 +779,6 @@ function recordsOnly(value: unknown): unknown {
   return Object.fromEntries(entries.map(([name, item]) => [name, recordsOnly(item)]))
 }
 
-/**
- * The judgment basis of a closure (Agent SPEC "取消路线上的 tryFinish"): each item by kind, key,
- * target and disposition, and the condition of each participant. Evidence is compared by its
- * record, because the evidence of the closure names the revision it was read at.
- */
 export function judgmentBasis(
   items: readonly FinishObligation[],
   participants: TerminalParticipantFacts,
@@ -890,27 +794,13 @@ export function judgmentBasis(
   })
 }
 
-/** What the check reads of one execution besides its finishing records. */
 export type FinishCheckSource = Readonly<{
-  /** The closure of the candidate rebuilt now, by the builder prepareFinish uses. */
   items: readonly FinishObligation[]
-  /** The items of the issued list; a blocked answer names the source of the listed item. */
   listed: readonly FinishObligation[]
-  /** The participant facts the closure is judged with now. */
   participants: TerminalParticipantFacts
   finishing: FinishingRecords
 }>
 
-/**
- * The finish check of `candidate` over the current closure. Author route: a cancelled candidate that
- * did not migrate is blocked on passages at the route record; otherwise the first pending item
- * in the fixed order inputs, controls, operations, passages, custody is blocked, with the source
- * of that item in the issued list; a route without its before-terminal proof counts as a pending passage; without a
- * pending item, an unknown one is `unknown`. Cancellation route: no current judgment of this
- * candidate is blocked on passages; a judgment whose basis is not the current closure is
- * `changed`; a blocked judgment answers its first reason's category and an unknown one is
- * `unknown`.
- */
 export function finishCheck(source: FinishCheckSource, candidate: FinishCandidate): FinishCheck {
   const blocked = (
     reason: Extract<FinishResult, { kind: 'blocked' }>['reason'],
@@ -920,8 +810,6 @@ export function finishCheck(source: FinishCheckSource, candidate: FinishCandidat
   if (route === undefined || route.candidate !== candidate.candidate)
     throw new Error('session Journal defect: the current candidate has no current route')
   if (route.kind === 'author') {
-    // A cancelled candidate on an author route did not migrate: it does not end under the cancel
-    // without the trusted judgment of a cancellation route.
     if (candidate.conclusion.kind === 'cancelled') return blocked('passages', route.record)
     const open: { category: ObligationCategory; source: DurableEvidence }[] = source.items
       .filter(item => item.disposition.kind === 'pending')
@@ -966,38 +854,22 @@ export function finishCheck(source: FinishCheckSource, candidate: FinishCandidat
   return { kind: 'clear' }
 }
 
-// ------------------------------------------------------------------------------------------
-// The finishing facts and their projection (R2-D297)
-
-/** A block the facts refer to. A missing one is a defect of the writer, never a value to invent. */
 function block<T>(blobs: BlobStore, ref: Readonly<{ digest: string }>, what: string): T {
   if (!blobs.has(ref.digest))
     throw new TypeError(`the Journal holds no block for the ${what} a finishing fact refers to`)
   return structuredClone(blobs.get(ref.digest)) as T
 }
 
-/** The reference of a block: its digest and the bytes of its canonical text. */
 function refOfBlob([digest, value]: Blob): Ref {
   return { digest, size: Buffer.byteLength(canonical(value), 'utf8') }
 }
 
-/**
- * The cursor block of a candidate: the cursor members of its checkpoint, and the two members the
- * cursor keeps in other facts (R2-D292), the whole input batch and the voided intents, as they
- * stood when the candidate was established. Small values and references only; the member blocks
- * are the ones `cursor.moved` refers to.
- */
 export type CandidateCursor = Readonly<{
   members: CursorMembers
   inputBatch: InputBatch | null
   voided: readonly VoidedIntent[]
 }>
 
-/**
- * The `finish.candidate` fact of a candidate and the blocks it refers to. The checkpoint enters as
- * a cursor reference: the cursor block, whose members refer to the member blocks; the failure and
- * the route enter as blocks.
- */
 export function candidateFact(
   candidate: FinishCandidate,
   route: FinishRoute,
@@ -1035,7 +907,6 @@ export function candidateFact(
   }
 }
 
-/** The candidate a folded `finish.candidate` names: its claim, its failure and its cursor checkpoint. */
 export function candidateOfView(view: CandidateView, blobs: BlobStore): FinishCandidate {
   const { failure, ...claim } = view.claim
   return {
@@ -1049,19 +920,13 @@ export function candidateOfView(view: CandidateView, blobs: BlobStore): FinishCa
   }
 }
 
-/**
- * The checkpoint a candidate's cursor block names: the members from their blocks, the input batch
- * and the voided intents as the block holds them. A member block the store lacks throws.
- */
 function checkpointOfCursor(held: CandidateCursor, blobs: BlobStore): AgentCheckpoint {
-  const base = checkpointOf(
-    { cursor: { ...held.members, inputBatch: null }, steps: [], requests: [], intents: new Map() },
-    blobs,
-  )
+  const cursor = { ...held.members, inputBatch: null }
+  const none = { steps: [], requests: [], voided: [], intents: new Map() }
+  const base = checkpointOf({ cursor, ...none }, blobs)
   return { ...base, inputBatch: held.inputBatch, voided: held.voided }
 }
 
-/** The route a folded `finish.candidate` was established on, with the proof `finish.proved` set. */
 export function routeOfView(view: CandidateView, blobs: BlobStore): FinishRoute {
   const route = block<FinishRoute>(blobs, view.path, 'route')
   return route.kind === 'author' && view.beforeTerminal !== null
@@ -1069,19 +934,12 @@ export function routeOfView(view: CandidateView, blobs: BlobStore): FinishRoute 
     : route
 }
 
-/** The id of one obligation: its kind and key, the same for every form the item takes. */
 export function obligationId(item: FinishObligation): string {
   return canonical([item.kind, item.key])
 }
 
-/** The revision text a stored obligation holds in place of the revision it was read at. */
 const READ = '$read'
 
-/**
- * The read-revision-free form of an obligation (R2-D322): every evidence the builder fixed at the
- * read revision (`<execution>/obligation/...`) holds `$read` instead of the revision. Two reads
- * of an unchanged obligation at two revisions have one form, so the block is written once.
- */
 export function storedObligation(
   item: FinishObligation,
   execution: string,
@@ -1107,7 +965,6 @@ export function storedObligation(
   return walk(item) as FinishObligation
 }
 
-/** The obligation a stored form names, read at `revision`: the inverse of `storedObligation`. */
 export function readObligation(stored: FinishObligation, revision: number): FinishObligation {
   const walk = (value: unknown): unknown => {
     if (Array.isArray(value)) return value.map(walk)
@@ -1120,13 +977,10 @@ export function readObligation(stored: FinishObligation, revision: number): Fini
   return walk(stored) as FinishObligation
 }
 
-/** The current forms of the obligations of an execution, by id, as the fold keeps them. */
 export type ObligationLedger = ReadonlyMap<string, Readonly<{ category: string; item: Ref | null }>>
 
-/** The kinds the Journal keeps current step by step: their number follows the Model and Tool calls. */
 export const LEDGER_KINDS: ReadonlySet<string> = new Set(['call', 'result'])
 
-/** Facts that may change any call or result obligation: the step compares all of them. */
 const BROAD: ReadonlySet<string> = new Set([
   'control.stage',
   'control.rejected',
@@ -1137,11 +991,6 @@ const BROAD: ReadonlySet<string> = new Set([
   'op.excluded',
 ])
 
-/**
- * Which call and result obligations a step may have changed, from its facts: the calls and
- * consumptions its facts name, or all of them after a fact that reaches across calls. A miss only
- * leaves the ledger behind; the issue compares every obligation and appends what still differs.
- */
 export function touchedBy(facts: readonly FactBody[]): (item: FinishObligation) => boolean {
   if (facts.some(fact => BROAD.has(fact.kind))) return () => true
   const names = new Set<string>()
@@ -1157,12 +1006,6 @@ export function touchedBy(facts: readonly FactBody[]): (item: FinishObligation) 
         : true
 }
 
-/**
- * The `finish.obligation` facts that bring the ledger to `items`: one per item whose stored form
- * differs from its current form, and, when `complete` names the kinds `items` holds all of, one
- * `item: null` per obligation of those kinds that left. At most `room` facts; the rest waits for a
- * later step, and an issue appends what still differs.
- */
 export function obligationChanges(
   items: readonly FinishObligation[],
   ledger: ObligationLedger,
@@ -1170,7 +1013,6 @@ export function obligationChanges(
   revision: number,
   complete: ReadonlySet<string> | null,
   room: number = Number.POSITIVE_INFINITY,
-  /** The items worth comparing; the others are taken as unchanged (an issue compares them all). */
   consider: (item: FinishObligation) => boolean = () => true,
 ): Readonly<{
   facts: readonly FactOf<'finish.obligation'>[]
@@ -1203,12 +1045,6 @@ export function obligationChanges(
   return { facts, blobs, listed }
 }
 
-/**
- * The facts of one issue of obligations (R2-D322): the obligations whose stored form is not the
- * ledger's current one, then the close. The close names the items by id and block digest, in list
- * order, through a block; it carries no item. An issue after the ledger kept up appends the close
- * and the few obligations that changed since, whatever the number of calls.
- */
 export function issueFacts(
   candidate: AgentOperationId,
   list: number,
@@ -1242,11 +1078,6 @@ export function issueFacts(
   }
 }
 
-/**
- * The issued list a folded close names: the items in list order from the blocks the close lists,
- * read at the revision of its coverage, and the candidate content the list is bound to. A close
- * whose listed items do not match its count is a defect of the writer.
- */
 export function listOfView(
   view: ObligationListView,
   candidate: FinishCandidate,
@@ -1276,16 +1107,10 @@ export function listOfView(
   }
 }
 
-/** The number of lists already issued for `candidate`: the ordinal of the next list less one. */
 export function listsIssued(records: FinishingRecords, candidate: AgentOperationId): number {
   return [...records.issued.values()].filter(list => list.candidate === candidate).length
 }
 
-/**
- * The block of one settlement record: the variant's record without its receipt, which is derived
- * from the batch; a judgment's input names its candidate by identity, so the block holds no copy
- * of the candidate's checkpoint.
- */
 export type SettlementBlock =
   | Readonly<{
       kind: 'migrate-cancellation'
@@ -1313,10 +1138,8 @@ export type SettlementBlock =
       association: Omit<ToolAssociationRecord, 'receipt'>
     }>
 
-/** A settlement result that a `settlement.recorded` fact carries. */
 export type RecordedSettlement = Exclude<SettlementResult, { kind: 'establish-cancellation' }>
 
-/** The block of a settlement result: the result without the receipts it carries. */
 export function settlementBlock(result: RecordedSettlement): SettlementBlock {
   switch (result.kind) {
     case 'migrate-cancellation': {
@@ -1349,10 +1172,6 @@ export function settlementBlock(result: RecordedSettlement): SettlementBlock {
   }
 }
 
-/**
- * The settlement result a block names, with the receipt derived from its batch. A judgment input's
- * candidate is the candidate record of the same execution; one the records lack is a defect.
- */
 export function settlementOfBlock(
   value: SettlementBlock,
   receipt: CommandReceipt,
@@ -1398,7 +1217,6 @@ export function settlementOfBlock(
   }
 }
 
-/** The settlement result a `settlement.recorded` block names, read from the blocks. */
 export function settlementOfFact(
   record: Ref,
   receipt: CommandReceipt,
@@ -1408,7 +1226,6 @@ export function settlementOfFact(
   return settlementOfBlock(block<SettlementBlock>(blobs, record, 'settlement'), receipt, records)
 }
 
-/** Applies one recorded settlement result to the records, as its variant prescribes. */
 export function applySettlement(records: FinishingRecords, result: RecordedSettlement): void {
   switch (result.kind) {
     case 'migrate-cancellation':
@@ -1437,10 +1254,6 @@ export function applySettlement(records: FinishingRecords, result: RecordedSettl
   }
 }
 
-/**
- * Applies one established candidate to the records: the supersession of the current candidate on
- * its current route, the candidate, its route, and the pointers that a new candidate resets.
- */
 export function applyCandidate(
   records: FinishingRecords,
   candidate: FinishCandidate,
@@ -1456,7 +1269,6 @@ export function applyCandidate(
   records.obligations = null
 }
 
-/** The supersession a new candidate makes of the current one, on the current route. */
 export function supersessionOf(
   records: FinishingRecords,
   candidate: AgentOperationId,
@@ -1475,20 +1287,11 @@ export function supersessionOf(
   }
 }
 
-/** What the projection of a whole view needs besides the view and the blocks. */
 export type FinishingMint = Readonly<{
-  /** The receipt of the batch at `pub` that operation `op` appended at `revision`. */
   receipt: (op: AgentOperationId, pub: number, revision: number) => CommandReceipt
-  /** The evidence an issued list names the candidate's checkpoint by. */
   checkpoint: (candidate: AgentOperationId, revision: number) => DurableEvidence
 }>
 
-/**
- * The finishing records of one execution as the projection of its folded view (R2-D297): the
- * candidates, their routes and supersessions, the issued lists, the settlement records and the
- * pointers, applied in publication order. The intent operation of each effect is the operation of
- * the batch that intended the call. The view and the blocks are the whole input.
- */
 export function finishingOf(
   view: ExecutionView,
   blobs: BlobStore,

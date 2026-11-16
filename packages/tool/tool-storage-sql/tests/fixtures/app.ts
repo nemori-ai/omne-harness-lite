@@ -1,6 +1,3 @@
-// The composition of one test application: a SQLite test provider in a fresh temporary directory,
-// a fault wrapper over it, a published tenant directory with one transaction domain per tenant,
-// the registered `tool` combination, and the two adapters of this member over them.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -16,7 +13,6 @@ import {
   type StatementObserver,
 } from './sqlite-storage.ts'
 
-/** The tenants of the tool conformance suites and of the coordinator tests. */
 export const SUITE_TENANTS: readonly TenantId[] = [
   testingTenant(`org_${'0'.repeat(26)}`, `acc_${'1'.repeat(26)}`),
   testingTenant(`org_${'2'.repeat(26)}`, `acc_${'1'.repeat(26)}`),
@@ -28,7 +24,6 @@ export const SUITE_TENANTS: readonly TenantId[] = [
 
 export const [TENANT_A, TENANT_B] = SUITE_TENANTS as [TenantId, TenantId, ...TenantId[]]
 
-/** A legal tenant that the directory does not hold. */
 export const UNREGISTERED = testingTenant(`org_${'9'.repeat(26)}`, `acc_${'9'.repeat(26)}`)
 
 export const COMBINATION = { combinationVersion: 'tool-c1', manifestDigest: 'a'.repeat(64) }
@@ -41,7 +36,6 @@ export function textOf(tenant: TenantId): string {
   return encoded.value
 }
 
-/** The transaction domain the directory publishes for `tenant`. */
 export function domainNameOf(tenant: TenantId): string {
   const index = SUITE_TENANTS.findIndex(known => textOf(known) === textOf(tenant))
   if (index === -1) throw new Error('the tenant is not in the directory')
@@ -54,7 +48,6 @@ export type App = Readonly<{
   faults: FaultyStorage
   options: SqlToolLedgerStoreOptions
   store: ReturnType<typeof createSqlToolLedgerStore>
-  /** Closes the databases and removes the directory. */
   close(): void
 }>
 
@@ -72,7 +65,6 @@ function lookupOf(tenants: readonly TenantId[]): TenantDomainLookup {
   }
 }
 
-/** 部署已登记的租户：全部套件租户与各自的事务域，供跨租户的待办扫描。 */
 function listingOf(tenants: readonly TenantId[]): () => Promise<TenantDomainListing> {
   const entries = tenants.map(tenant => ({
     tenant: textOf(tenant),
@@ -81,10 +73,6 @@ function listingOf(tenants: readonly TenantId[]): () => Promise<TenantDomainList
   return () => Promise.resolve({ kind: 'ready', revision: '1', entries })
 }
 
-/**
- * Opens (or reopens, when `directory` is given) the test application. Every suite tenant is
- * registered with the `tool` combination, as the session storage composite would do.
- */
 export async function openApp(
   input: Readonly<{
     directory?: string

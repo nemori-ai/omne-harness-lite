@@ -1,9 +1,3 @@
-// The assembled input against a real Model family: the default strategies in a real operation
-// group, with the rules and the meter of the OpenAI family binding in the scripted lease. The
-// request representation is the adoption the profile fixes (`definition.representation`); the
-// family refuses any other one at plan, so a candidate, a compaction plan and a summary step exist
-// only when every path writes the value of the profile. The identity of the representation
-// strategy stays in the evidence of this member. Nothing is sent.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { decodeRevision, type ModelProfile, type Supplier } from '@omne-harness/model-contract'
 import { createTiktokenExecutor, type TiktokenExecutor } from '@omne-harness/tokenizer-tiktoken'
@@ -144,7 +138,6 @@ function candidateOf(result: AssemblyResult): RequestCandidate {
     throw new Error(`Expected a candidate, got ${JSON.stringify(result)}`)
   return result.candidate
 }
-/** Plans and measures one assembled input with the family binding, as a lease would. */
 async function planAndMeasure(assembled: RequestCandidate['assembled']) {
   const plan = binding.rules.plan({ profile, supplier, assembled })
   if (!('ok' in plan)) throw new Error(`plan refused: ${JSON.stringify(plan.failure)}`)
@@ -165,7 +158,6 @@ describe('the request representation is the one the profile fixes', () => {
   it('a fixed history assembles into an input the family plans and measures completely', async () => {
     const representation = createDefaultRepresentationPolicy()
     const f = fixture({ compaction: createDefaultCompactionPolicy(), representation })
-    // The lease ran the family plan and meter; a refused plan gives no candidate.
     const candidate = candidateOf(await f.operations().assemble(f.call))
     expect(candidate.assembled.representation).toEqual(profile.definition.representation)
     const { plan, budget } = await planAndMeasure(candidate.assembled)
@@ -173,7 +165,6 @@ describe('the request representation is the one the profile fixes', () => {
     expect(budget.kind).toBe('complete')
     const input = budget.checks.find(check => check.metric === 'input-tokens')
     expect(input?.measurement.kind).toBe('estimate')
-    // The strategy identity is the projection evidence of a later continuation, not the request.
     expect(candidate.continuation.projection).toEqual(representation.identity)
     expect(candidate.continuation.projection).not.toEqual(candidate.assembled.representation)
     expect(f.preparation.outstanding()).toBe(0)
@@ -186,13 +177,11 @@ describe('the request representation is the one the profile fixes', () => {
       representation: createDefaultRepresentationPolicy(),
     })
     const operations = f.operations()
-    // The retention probe measures through the lease, so a refused plan gives no compaction plan.
     const planned = await operations.planCompaction(f.call)
     if (planned.kind !== 'planned')
       throw new Error(`Expected a plan, got ${JSON.stringify(planned)}`)
     expect(planned.first.assembled.representation).toEqual(profile.definition.representation)
     expect((await planAndMeasure(planned.first.assembled)).budget.kind).toBe('complete')
-    // The window check after the summary measures through the lease as well.
     const step = await operations.deriveStep({
       call: f.call,
       plan: planned.plan,

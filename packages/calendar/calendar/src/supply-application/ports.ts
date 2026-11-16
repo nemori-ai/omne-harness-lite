@@ -101,9 +101,7 @@ export interface CalendarSupplyJournal {
     input: Readonly<{ systemScopeRef: string; operationRef: string }>,
   ): Promise<CalendarJournalResult<CalendarPreparedRun | null>>
   readRun(query: CalendarOperationQuery): Promise<CalendarJournalResult<CalendarPreparedRun | null>>
-  /** Atomically keeps the first prepared command for address+fingerprint; a different fingerprint conflicts. */
   prepareRun(run: CalendarPreparedRun): Promise<CalendarJournalResult<CalendarPreparedRun>>
-  /** Exactly once per original run; published/noChange advance success, withheld/rejected increment failures. */
   completeRun(
     input: CalendarOperationQuery & CalendarRunCompletion,
   ): Promise<CalendarJournalResult<null>>

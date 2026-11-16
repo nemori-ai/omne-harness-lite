@@ -1,6 +1,3 @@
-// Tool names on the gateway (R2-D234) through the real Anthropic binding: the family shares the
-// engine rule `underscore/1` and the length 64 with OpenAI, so a dotted Tool name goes out as a
-// gateway name and comes back as the Tool name; a name over 64 is `unsupported`.
 import { describe, expect, it } from 'vitest'
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
 import type { TransportFact } from '@omne-harness/model-contract/provider'

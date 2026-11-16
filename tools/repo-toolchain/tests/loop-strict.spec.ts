@@ -1,6 +1,4 @@
 // @module-tag slow
-// 归慢层：子进程：在临时 git 仓库里起回路入口 CLI 子进程（严格模式）。
-// 严格模式（pnpm run check 用的那一档）：另判「开着的传感器都有数据」，要求基线与产物目录，回路目录一个字节都不动。
 import { spawnSync } from 'node:child_process'
 import {
   existsSync,
@@ -42,10 +40,6 @@ interface Baseline {
   readonly base: string
 }
 
-/**
- * 每个传感器都能有数据的仓库：两个不同组的成员一起提交过、成员里有带断言的测试、有一个产品 topic。
- * 返回基线（成员都在的那个提交）。
- */
 function buildComplete(root: string): Baseline {
   repository(root)
   write(root, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*/*'\n  - 'apps/*'\n")
@@ -67,7 +61,6 @@ function buildComplete(root: string): Baseline {
   return { root, base: commit(root, 'members') }
 }
 
-/** 同样的仓库再删掉全部产品源码与测试，只剩产品骨架；返回骨架那个提交。 */
 function buildSkeleton(root: string): Baseline {
   buildComplete(root)
   git(
@@ -81,8 +74,6 @@ function buildSkeleton(root: string): Baseline {
   return { root, base: commit(root, 'product skeleton') }
 }
 
-// 两种基线仓库整个文件只建一次，每条用例复制一份，在自己的临时目录里改动与提交。
-// 基线不进 removeTemporaries 的登记，由 afterAll 删。
 let baselines: string
 let completeBaseline: Baseline
 let skeletonBaseline: Baseline
@@ -116,7 +107,6 @@ const tangled = Array.from(
     `export function tangled${n}(x: number) {\n${Array.from({ length: 14 }, (__, i) => `  if (x === ${i}) return ${i}`).join('\n')}\n  return -1\n}\n`,
 ).join('\n')
 
-// 每条用例都起 git 与 node 子进程；全量检查满载时单条会超过默认的 5 秒。
 describe('严格模式', { timeout: 60_000 }, () => {
   it.each(['symlink', 'gitlink'])(
     'refuses engineering exemption after deleting a historical root %s',
@@ -159,7 +149,6 @@ describe('严格模式', { timeout: 60_000 }, () => {
   )
   it('engineering keeps direction, cycle and acceptance-lock hard failures', () => {
     const { root, home, out, base } = complete()
-    // common 依赖领域成员是方向违规；两边互相导入成环。
     write(
       root,
       'packages/common/s/src/index.ts',
@@ -520,11 +509,6 @@ describe('严格模式', { timeout: 60_000 }, () => {
 })
 
 describe('Loop historical acceptance audit', { timeout: 60_000 }, () => {
-  // The audit reads the real history of this repository. With `newEdges` on, the first run makes
-  // dependency-cruiser build the graph of the whole base commit (about 34 of 40 seconds on the
-  // host), which took the case to the edge of its limit. That sensor does not decide the acceptance
-  // lock. The case therefore runs the loop in process with only `newEdges` off, as the case on
-  // switched-off sensors above does. The audit and the acceptance-lock hard line do not change.
   const status = (root: string, home: string, base: string, out: string) => {
     const config = readLoopConfig()
     return runLoopStatus(

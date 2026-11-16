@@ -3,7 +3,6 @@ import type { OperatorOp, RowId, TreeRow } from './types.ts'
 
 export type DisabledRow = Readonly<{ id: RowId; source: 'operator' }>
 
-/** Final tree: enabled rows in load order, plus the rows the operator disabled. */
 export type ResolvedTree = Readonly<{
   rows: readonly TreeRow[]
   disabled: readonly DisabledRow[]
@@ -16,7 +15,6 @@ function unknownTarget(op: OperatorOp, target: RowId): ConfigError {
   )
 }
 
-/** Apply operator operations in order over the distribution rows. Inputs are not mutated. */
 export function applyOperatorOps(
   distributionRows: readonly TreeRow[],
   ops: readonly OperatorOp[],
@@ -55,7 +53,6 @@ export function applyOperatorOps(
   return { rows, disabled }
 }
 
-/** Validate both layers at the boundary, then layer them. `operatorInput` is optional. */
 export function loadTree(
   distributionInput: unknown,
   operatorInput: unknown,
@@ -81,7 +78,6 @@ function canonicalJson(value: unknown): string {
   return JSON.stringify(value)
 }
 
-/** Deterministic text form of the final tree. One line per row, disabled rows last. */
 export function printTree(tree: ResolvedTree): string {
   const lines = tree.rows.map(
     (row, index) =>

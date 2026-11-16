@@ -1,11 +1,5 @@
-// The canonical JSON text of a plain data value, for the SHA-256 digest of a family record. The
-// rule is the one of tokenizer-tiktoken (its SPEC, "规范 JSON"), widened to every JSON value:
-// no white space, object keys sorted by UTF-16 code units, strings as `JSON.stringify` writes
-// them, finite numbers as `JSON.stringify` writes them, `true`, `false` and `null`. For these
-// values the text equals RFC 8785 (JCS).
 import { createHash } from 'node:crypto'
 
-/** Thrown when a value is not plain JSON data: the message names the path and the reason. */
 export class RecordPurityError extends Error {
   override readonly name = 'RecordPurityError'
 }
@@ -14,7 +8,6 @@ function impure(path: string, reason: string): RecordPurityError {
   return new RecordPurityError(`${path} ${reason}`)
 }
 
-/** The value of an own enumerable data property. An accessor is never called. */
 function dataOf(holder: object, key: string, path: string): unknown {
   const descriptor = Reflect.getOwnPropertyDescriptor(holder, key)
   if (descriptor === undefined) throw impure(path, 'is a hole')
@@ -69,16 +62,10 @@ function valueText(value: unknown, path: string, open: Set<object>): string {
   }
 }
 
-/**
- * The canonical JSON text of a plain data value. Throws `RecordPurityError` for a function,
- * `undefined`, a symbol, a bigint, a number that is not finite, an array hole, an accessor, a
- * non-plain object, a symbol key or a cycle.
- */
 export function canonicalJson(value: unknown): string {
   return valueText(value, '$', new Set())
 }
 
-/** The SHA-256 of the UTF-8 bytes of the canonical JSON text, as 64 lower-case hex digits. */
 export function canonicalDigest(value: unknown): string {
   return createHash('sha256').update(canonicalJson(value), 'utf8').digest('hex')
 }

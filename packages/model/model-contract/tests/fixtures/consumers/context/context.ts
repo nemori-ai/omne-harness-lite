@@ -1,10 +1,3 @@
-// What a context assembler does with the Model contract: it picks a profile, passes each content
-// block through message conversion, assembles the input with neutral tool declarations, has it
-// measured, judges the reported count by its own policy (it compresses past the compaction trigger
-// of the profile or over the limit, and does not prepare an input that was not measured), and has
-// the preparation fix the request. The preparation and the send measure nothing. When a finished
-// call says that the upstream found the input over its limit, the context compresses again and
-// sends a new call. It never reads media and never asks for a transport.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { judgeMessage, type Message, type MessagePart } from '@omne-harness/message'
 import type {
@@ -40,11 +33,8 @@ export type Services = Readonly<{
 
 export type Prepared =
   | Readonly<{ kind: 'prepared'; request: FixedModelRequest; dropped: number }>
-  /** A service answered with a failure; the context hands it on as it came. */
   | Readonly<{ kind: 'rejected'; failure: ModelFailure | ConversionFailure; dropped: number }>
-  /** The budget has no check of the input tokens, so the input is not measured. */
   | Readonly<{ kind: 'unmeasured'; dropped: number }>
-  /** The input is over the limit of the check and cannot be compressed further. */
   | Readonly<{ kind: 'too-large'; amount: string; limit: string; dropped: number }>
   | Readonly<{ kind: 'no-profile' }>
 
@@ -52,7 +42,6 @@ const route = 'default'
 
 type Converted<T> = Outcome<T, ConversionFailure>
 
-/** The blocks of a message after conversion: a converted block is replaced by what it derived. */
 async function convertedParts(
   conversion: ModelMessageConversion<Principal>,
   parts: readonly MessagePart[],
@@ -91,7 +80,6 @@ async function convertedHistory(
   return succeed(out)
 }
 
-/** The message again with converted blocks; its role still decides which blocks it may hold. */
 function withBlocks(message: Message, blocks: readonly MessagePart[]): Message {
   const judged = judgeMessage({ ...message, blocks })
   if (!('ok' in judged))
@@ -116,21 +104,10 @@ function assemble(
   }
 }
 
-/** The check of the input tokens that a budget reports, or null when the budget has none. */
 function inputCheck(budget: RequestBudget): BudgetCheck | null {
   return budget.checks.find(item => item.metric === 'input-tokens') ?? null
 }
 
-/**
- * Prepares the request for a history and some tools. The context measures the input itself,
- * before it asks for a preparation, and judges the count that the meter reports: an input past
- * the compaction trigger of the profile, or over the limit of the check, loses its oldest message
- * and is measured again, until it is under the trigger or only one message is left; one message
- * that is still over the limit is too large. A meter that answers with a failure has not measured
- * the input, so nothing is dropped and the failure is handed on; a budget without a check of the
- * input tokens is an unfinished measurement, and nothing is prepared on it either. The
- * preparation measures nothing.
- */
 export async function prepareRequest(
   services: Services,
   input: Readonly<{
@@ -183,12 +160,6 @@ export type Submitted =
   | Readonly<{ kind: 'not-sent'; prepared: Exclude<Prepared, { kind: 'prepared' }> }>
   | Readonly<{ kind: 'gave-up'; calls: readonly ModelCallId[] }>
 
-/**
- * Prepares and sends. When the call ends failed with an input-over-limit fault, the Model has
- * not retried and will not: the upstream refused this input, so sending it again would be refused
- * again. The context drops its oldest message, prepares again and sends a new call under a new
- * identity. It gives up when one message is left. Any other ending is the result of the call.
- */
 export async function submitRequest(
   services: Services,
   input: Readonly<{

@@ -1,5 +1,3 @@
-// SPEC「测量事件」: the Session segment of each face operation, the round-complete fact of a Run
-// terminal, and the absence of any change when no observer is given.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ResidentKey, StartedRun } from '@omne-harness/session-contract'
 import { creation, operationId, succeeded } from '@omne-harness/session-contract/testing'

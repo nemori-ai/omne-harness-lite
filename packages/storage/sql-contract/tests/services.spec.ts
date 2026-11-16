@@ -1,4 +1,3 @@
-// The three Service definitions of the cordis entry (SPEC 2.2 to 2.4), loaded in a real Context.
 import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import type {
@@ -54,7 +53,6 @@ describe('StorageService', () => {
         await registerSmall(service, fixture)
         const result = await service.commit(commitRequest(fixture))
         expect(result.kind).toBe('committed')
-        // The close control is not reachable through the service.
         expect(Object.keys(service).filter(key => /control|close/i.test(key))).toEqual([])
       } finally {
         await fiber.dispose()

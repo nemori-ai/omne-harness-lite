@@ -1,16 +1,4 @@
 import { principalVerifierKey } from '@omne-harness/identity/cordis'
-// The `session-ad03` row (B1, R2-D136): the AD-03 holder of session-adapters, three plugins from one
-// `createSessionContextHolder` call (they share one index): the holder, which provides the model
-// reader eligibility (K-RC); the replay sub-plugin, the only caller of `applyCommit`; and the facts
-// sub-plugin, which provides `sessionReplayFacts` and `sessionScopeLookup`. The coordinator
-// principal comes from the trusted `sessionWorkPrincipals`; the commit translation is the one over
-// the definitions the release adopted, as row `session-ad12` uses.
-//
-// The `runtimeContextTrust` entry object reads `sessionReplayFacts` of the facts sub-plugin per call
-// (B1-GAP-REPLAY-FACTS-LINK closed by SC2 in `src/entry/runtime-context-trust.ts`); the `replayFacts`
-// value of this bundle is not handed out.
-//
-// Configuration (data only, from the operator layer): `scopeIndexEntries` and `pageBytes`.
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import {
   runtimeContextKey,
@@ -28,7 +16,7 @@ import {
 } from '@omne-harness/session-cordis-contract/cordis'
 import { z } from 'zod'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
-import { definitionMappingsKey } from '@omne-harness/server-entry/cordis'
+import { definitionMappingsKey } from '../agent-adoptions/definition-mappings.ts'
 import { sessionModesPrincipalsKey } from '../../entry/session-modes-principals.ts'
 import { defaultModesOf } from '../session-conditions/index.ts'
 import { SessionModesInstallation, sessionModesInstallationKey } from './modes.ts'

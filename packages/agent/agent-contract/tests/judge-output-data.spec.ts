@@ -1,9 +1,3 @@
-// What `judgeExtensionOutput` returns when it accepts, and how it compares a rewritten subject
-// with the subject that the author received. The table of positions and powers is in
-// judge-output.spec.ts. The accepted value is plain data, so these tests compare it with
-// `toStrictEqual` on the canonical form of the value: a member that holds `undefined`, or a member
-// that is missing, is a defect, and `toEqual` would not see it. The accepted value is a copy without
-// prototype, and its prototype is not part of the contract, so the canonical form drops it.
 import { describe, expect, it } from 'vitest'
 import {
   judgeExtensionOutput,
@@ -25,7 +19,6 @@ const WHERE = {
   trigger: null,
 } as const satisfies Partial<ExtensionOutputJudgeInput>
 
-/** Judges `output` at `before_action` for a veto extension, where every output kind but `retry` is open. */
 function judgeAt(
   output: unknown,
   subject: Record<string, unknown> = {},
@@ -39,7 +32,6 @@ function judgeAt(
   })
 }
 
-/** The value with plain prototypes, sorted members and every member kept, also one that holds `undefined`. */
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical)
   if (typeof value !== 'object' || value === null) return value
@@ -51,7 +43,6 @@ function canonical(value: unknown): unknown {
   )
 }
 
-/** The judgment in canonical form. */
 const judge = (input: ExtensionOutputJudgeInput) => canonical(judgeExtensionOutput(input))
 
 const accepted = (value: unknown) => canonical({ kind: 'accepted', value })
@@ -98,8 +89,6 @@ describe('the accepted value of each output kind', () => {
   })
 
   it('keeps a retry plan member for member, the instant text as written', () => {
-    // SPEC "声明判断", `retry`: the accepted `notBefore` is the original text, not normalized. The
-    // fraction digits and the null case go red when a judgment rewrites or drops the text.
     for (const notBefore of ['2026-10-17T08:00:00Z', '2026-10-17T08:00:00.250Z', null]) {
       const plan = {
         supplier: { adoption, provider: 'recipient', model: 'model' },
@@ -248,7 +237,6 @@ describe('the comparison of a rewrite with the subject outside its rewritable fi
   })
 
   it('compares a field that lies below a path that the subject does not have as an object', () => {
-    // At `before_model_call` the rewritable fields lie below `preparation.input`.
     const at = (subject: Record<string, unknown>, output: Record<string, unknown>) =>
       judge({
         position: 'before_model_call',

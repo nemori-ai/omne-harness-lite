@@ -47,21 +47,17 @@ type CreateRequest = Parameters<TerminalFacility<unknown>['create']>[0]
 type ExecuteRequest = Parameters<TerminalFacility<unknown>['execute']>[0]
 type StopStatus = 'confirmed' | 'unconfirmed'
 type Finished = Extract<TerminalFrame, { t: 'finished' }>
-/** A file of the pseudoconsole a terminal start could not read. */
 export type WindowsTerminalPrerequisite = 'conpty.dll' | 'OpenConsole.exe'
 type PlatformInput = Readonly<{
   provider: string
   settings: TerminalSettings
   capacity?: WindowsTerminalCapacity
-  /** The absolute path of conpty.dll, with its OpenConsole.exe beside it; node-pty's when absent. */
   conpty?: string
-  /** Receives the files a start found missing before it answers `unavailable`. */
   unavailable?(missing: readonly WindowsTerminalPrerequisite[]): void
 }>
 
 const resolveHere = createRequire(import.meta.url)
 
-/** The conpty.dll that node-pty ships for this architecture; undefined when node-pty is not installed. */
 export function bundledConpty(): string | undefined {
   try {
     const root = win32.dirname(resolveHere.resolve('node-pty/package.json'))
@@ -71,7 +67,6 @@ export function bundledConpty(): string | undefined {
   }
 }
 
-/** The files of the pseudoconsole that cannot be read, in the order the terminal needs them. */
 export async function missingConptyFiles(
   conpty: string | undefined,
 ): Promise<WindowsTerminalPrerequisite[]> {
@@ -101,10 +96,8 @@ type Leg = {
   outcome: ReturnType<typeof deferred<CommandOutcome>>
   window: TerminalWindow
   next: TerminalWindow
-  /** The bytes kept between segments, taken at the begin sentinel. */
   between: BetweenSegments | undefined
   sawEnd: boolean
-  /** The shell's finished frame, kept until the end sentinel arrives: the two come on unordered channels. */
   completion: Finished | undefined
   startedAt: number
   done: boolean
@@ -170,7 +163,6 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
   let sequence = 0
   let completedSequence = 0
   let sentinels: SentinelScan = idleSentinels
-  /** Bytes read outside any segment, kept for the next segment up to `betweenSegmentBytes`. */
   let between: Uint8Array[] = []
   let betweenKept = 0
   let betweenDiscarded = 0
@@ -201,7 +193,6 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
     betweenKept += kept
     betweenDiscarded += bytes.byteLength - kept
   }
-  /** Stops watching the current nonce; bytes held as a possible sentinel start stay between segments. */
   const releaseScan = () => {
     const released = releaseSentinels(sentinels)
     sentinels = released.scan
@@ -236,11 +227,6 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
           },
     )
   }
-  /**
-   * `control`: the shell or the broker failed. An invocation whose finished frame arrived still
-   * waits for its end sentinel: the broker forwards output until it exits. `ended`: the broker's
-   * output ended, or a broken frame stopped the reading of it. `order`: the sentinels came in an impossible order. `output`: bytes were lost.
-   */
   const invalidate = (reason: 'control' | 'ended' | 'order' | 'output' = 'control') => {
     if (state === 'closed') return
     if (reason === 'output') outputFailed = true
@@ -249,7 +235,6 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
     opened.resolve(false)
     if (reason !== 'control' || leg?.completion === undefined) finish()
   }
-  /** Answers the invocation once both its finished frame and its end sentinel arrived. */
   const settle = () => {
     const current = leg
     if (current?.completion === undefined || !current.sawEnd) return
@@ -265,7 +250,6 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
           ? 'idle'
           : 'invalid'
   }
-  /** One attributed piece of PTY output; false when the sentinel order is impossible. */
   const attribute = (piece: SentinelPiece): boolean => {
     const current = leg
     switch (piece.kind) {
@@ -299,7 +283,6 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
         return true
     }
   }
-  /** The shell started an invocation; a frame for another invocation invalidates the terminal. */
   const started = (id: string) => {
     if (completedFrame(id)) return
     if (leg?.id !== id) return invalidate()
@@ -308,7 +291,6 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
     leg.startedAt = now()
     leg.started.resolve(true)
   }
-  /** PTY bytes, attributed by the sentinels of the invocation being watched. */
   const data = (base64: string) => {
     const scanned = scanSentinels(sentinels, Buffer.from(base64, 'base64'))
     sentinels = scanned.scan
@@ -352,7 +334,6 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
       case 'legFault':
         if (!completedFrame(value.id)) invalidate()
         return
-      // The broker is still there: a stop sent to it gets its answer.
       case 'controlLost':
       case 'inputFault':
         invalidate()
@@ -363,10 +344,6 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
       }
     }
   }
-  /**
-   * Stops the Job through the broker, else by its name; the broker's own answer can still arrive
-   * while the stop by name runs. True once the Job is stopped and the broker is gone.
-   */
   async function stopNative(remaining: () => number): Promise<boolean> {
     if (bridge === undefined) nativeStopped = true
     if (!nativeStopped) {
@@ -392,7 +369,6 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
         )) === true
     return bridge === undefined || bridgeEnded
   }
-  /** Records the stop on the ledger once; confirmed only when released and recorded as such. */
   async function recordStop(released: boolean, remaining: () => number): Promise<boolean> {
     const status = released ? 'confirmed' : 'unconfirmed'
     recording ??= {
@@ -417,7 +393,6 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
       finish()
       const released = await stopNative(remaining)
       if (released) {
-        // Sealing the unused window releases its reservation; the bytes kept between segments go with it.
         spare?.seal()
         spare = undefined
         between = []
@@ -433,7 +408,6 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
     })
     return stopping
   }
-  /** The checks of a create request that need no process, in order. */
   const startIssue = (request: typeof input.request): FacilityReason | undefined => {
     if (request.binding.kind !== 'host_machine') return 'unsupported'
     if (
@@ -528,7 +502,6 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
       starting = false
     }
   }
-  /** The checks of an execute request against the terminal's state and its own shape, in order. */
   const executeIssue = (request: ExecuteRequest): FacilityReason | undefined => {
     if (closed() || state === 'closed') return 'closed'
     if (starting || state === 'running') return 'busy'
@@ -544,7 +517,6 @@ function reserve(input: PlatformInput & ReservationInput & { capacity: WindowsTe
       return 'invalidInput'
     return undefined
   }
-  /** A stop through one invocation's handle: only the running invocation stops the terminal. */
   const stopLeg = async (current: Leg, mode: 'graceful' | 'forced'): Promise<StopStatus> => {
     if (confirmed) return 'confirmed'
     if (current.done && !current.foregroundCompleted && state === 'invalid')

@@ -1,7 +1,3 @@
-// The holder-reference reader double (RD-TOOLHEAD) and the resident-key round-trip suite
-// (XC-RESKEY). The double must pass the shared reader suite over several pages, must never turn a
-// failure into an empty page, and must read an outer Session-shaped source through the same
-// encoding and projection as the real bridge.
 import { describe, expect, it } from 'vitest'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -34,7 +30,6 @@ const shape = (name: string): ToolShape => ({
 function builtInFixture() {
   const double = createMemoryToolResidencyReader({ pageSize: 2 })
   const at = key('read_file')
-  // Three holders, so the reads span two pages; the same session text in two tenants.
   const holders = [
     { tenant: tenantA(), session: 'session-1', shape: shape('read_file') },
     { tenant: tenantB(), session: 'session-1', shape: shape('read_file') },
@@ -134,7 +129,6 @@ describe('createMemoryToolResidencyReader with the built-in source', () => {
   })
 })
 
-/** A Session-shaped source: it stores records by key text and pages them with `limit`. */
 function sessionLike() {
   const records = new Map<string, ResidentReferencesPage['sessions'][number][]>()
   let failure: string | null = null
@@ -213,7 +207,6 @@ describe('createMemoryToolResidencyReader with an outer source', () => {
   })
 })
 
-/** The round-trip composition before the real bridge: write path through residentToolFacts. */
 function roundTripFixture(): ResidentKeyRoundTripFixture {
   const source = sessionLike()
   let sessions = 0

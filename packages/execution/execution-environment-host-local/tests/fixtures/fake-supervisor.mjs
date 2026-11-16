@@ -1,34 +1,4 @@
 #!/usr/bin/env node
-// A stand-in for the two supervisor tools, for the fast-tier custody tests. The first argument
-// names the tool; the rest are the arguments the provider passes. Everything it does is in
-// `FAKE_DIR` (the environment of the test): the pid of each fake gate, a line per `systemctl`
-// call, a line per control command the gate received, a line per `retain`, and a hold file that
-// keeps a unit "deactivating".
-//
-// `systemd-run`: ignores its options and acts as the gate of unit `--unit=<unit>`. It writes its
-// pid to `<unit>.pid`, answers the request line with `ready`, GO with `started` and then one exit
-// frame with one other member, appends `<unit> <command>` to `control.log` for every control
-// command after the request, appends the unit to `retain.log` on `retain`, and stays alive until
-// it is killed. An optional `gate.json` in `FAKE_DIR` changes the script; absent keys keep the
-// behavior above:
-//   onRequest: 'ready' | 'silent' (never ready) | 'vanish' (exits before ready)
-//   onGo: 'started' | 'spawnFailed' | 'silent' (never started) | 'startedThenGarbage' (`started`
-//     and a line that is not JSON in one write, so the manager reads them in one chunk)
-//   afterStarted: 'exit' (the exit frame `exitAfterMs` later) | 'stay' | 'vanish' (exits 20 ms
-//     later, no exit frame) | 'garbage' (a line that is not JSON, 20 ms later)
-//   exitAfterMs: how long after `started` the exit frame comes (initial 20)
-//   exit: the fields of the exit frame after `started` (initial `{ code: 0, signal: null, members: 1 }`)
-//   onTerm: 'ignore' | 'exit' (answers `term` with `{ code: null, signal: 'SIGTERM', members: 1 }`)
-//   beforeExit: frames sent right after `started` (initial none)
-//   afterExit: frames sent in the same write as the exit frame, so the manager reads them in the
-//     chunk of the exit frame (initial none)
-//   onRetain: frames sent when `retain` arrives (initial none)
-//   afterRetain: 'stay' | 'closeStdout' (closes the frame channel right after the `onRetain` frames)
-//     | 'garbage' (a line that is not JSON right after the `onRetain` frames)
-//
-// `systemctl`: appends its arguments to `systemctl.log`. `kill <unit>` sends SIGKILL to the pid in
-// `<unit>.pid`; `stop` exits 0; `show` reports the unit `deactivating` while `<unit>.hold` exists,
-// otherwise `inactive` and `not-found`.
 import { appendFileSync, closeSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { Socket } from 'node:net'
 
@@ -118,9 +88,7 @@ function systemctl() {
   if (args.includes('kill')) {
     try {
       process.kill(Number(readFileSync(`${directory}/${unit}.pid`, 'utf8')), 'SIGKILL')
-    } catch {
-      /* The gate is gone already. */
-    }
+    } catch {}
   } else if (args.includes('show')) {
     process.stdout.write(
       existsSync(`${directory}/${unit}.hold`)

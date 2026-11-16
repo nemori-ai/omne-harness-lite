@@ -36,7 +36,6 @@ const alive = (pid: number) => {
   }
 }
 
-/** Numbers the command wrote to a file, once there are `count` of them. */
 async function numbersIn(path: string, count: number): Promise<number[]> {
   for (let attempt = 0; attempt < 200; attempt++) {
     const numbers = (await readFile(path, 'utf8').catch(() => '')).split(' ').map(Number)
@@ -118,10 +117,6 @@ async function retainingManager() {
   return { root, manager, index, request, released, recorded, tenant: tenant.value }
 }
 
-/**
- * A main process that leaves a detached child behind and writes the child's and the bridge's ids.
- * The child keeps the inherited output pipes, so the bridge goes on draining them after the exit.
- */
 const leaving = (pidFile: string) => [
   '-e',
   `const c=require('child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{detached:true,stdio:['ignore','inherit','inherit']});c.unref();require('fs').writeFileSync(process.argv[1],c.pid+' '+process.ppid)`,
@@ -146,10 +141,8 @@ it('retains what the main process left, keeps it past the bridge, lists it and s
     if (outcome.kind !== 'completed' || outcome.residue?.kind !== 'retained')
       throw new Error('expected a retained residue')
     const ref = outcome.residue.process
-    // The retention scope owns the Job now: the acquisition's handle cannot stop it.
     expect(await started.value.stop('forced')).toBe('unconfirmed')
     expect(alive(child)).toBe(true)
-    // The anchor holds the Job: the bridge's death leaves the retained process running.
     process.kill(bridge)
     await expect.poll(() => alive(bridge)).toBe(false)
     await new Promise(resolve => setTimeout(resolve, 500))
@@ -202,7 +195,6 @@ it('reads a retained Job of another login session as unknown, never as gone or s
   expect(await supervision.stop({ unit, bootId: self.boot })).toMatchObject({
     status: 'unconfirmed',
   })
-  // In its own session, a name that does not exist is a Job whose last handle closed.
   const own = retainedJobUnit(self.session, job())
   expect(await supervision.members({ unit: own })).toMatchObject({ kind: 'gone' })
   expect(await supervision.stop({ unit: own, bootId: self.boot })).toMatchObject({
@@ -216,8 +208,6 @@ it('retains what a main process without a console left when a graceful stop coul
   try {
     const script = join(f.root, 'leave.js')
     const pidFile = join(f.root, 'up')
-    // wscript.exe has no console: the graceful stop sends nothing, and the main process exits by
-    // itself later, leaving a child behind.
     await writeFile(
       script,
       [

@@ -79,7 +79,6 @@ interface Slot {
 
 type HashValue = Uint8Array | { code: 'unavailable' }
 
-/** Largest secret this package will copy into scrypt. Not a composition rule. */
 const SECRET_UTF8_LIMIT = 4096
 
 function secretFits(secret: string): boolean {

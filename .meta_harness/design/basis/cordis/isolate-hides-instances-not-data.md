@@ -12,7 +12,7 @@ lines:
   - "reflect.ts:289-290"
   - "context.ts:115-125"
 probe: packages/assembly/kernel-basis/tests/isolate-hides-instances-not-data.spec.ts
-checked: 2026-09-22
+checked: 2026-11-15
 ---
 
 # `isolate` 隔离服务实例的可见性，不隔离数据
@@ -45,9 +45,9 @@ checked: 2026-09-22
 上游 DSH 在 Cordis 之上另有 `dsh-scope` 等包，其自述不是沙箱也不是权限边界；
 那属于以 agent 为键的上层 scope，不能算到 Cordis 原生 `isolate` 头上。
 
-## probe 断言什么
+## 探针断言什么
 
-probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。对 4.0.4 通过（2026-09-22）；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
 
 1. 两个 `ctx.isolate('store')` 标签下各 provide 一个服务实例，两实例共享同一个 `Map`；
    标签 A 下的消费者解析到的是 A 的实例（标签生效），但经它写入再读出的数据对 B 同样可见——隔离不及于数据。
@@ -62,5 +62,5 @@ probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行�
 1. 不提供隔离（本条读数）；
 2. 实例数按租户数增长，租户增删伴随服务装卸，与「完全动态系统」目标相悖；
 3. **它使「组织上下文造成的差异」多出一类**——实例本身不同。
-   如果需求把上下文效用限定为若干项（本项目的 PF-001 正是如此），这一条会当场失守，
+   如果需求把上下文效用限定为若干项，这一条会当场失守，
    且失守方式不是报错，是多了一种没人枚举过的差异。

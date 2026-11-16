@@ -1,9 +1,8 @@
-// The built-in protocol `access/v1` (#1249 C7, C8): no operation, one observation that needs no
-// login, opens with an empty object and has no end reason of its own.
 import { describe, expect, it } from 'vitest'
-import { accessProtocol, type GovernanceCodecLimits } from '@omne-harness/public-contract'
+import type { JsonLimits } from '@omne-harness/json-text'
+import { accessProtocol } from '@omne-harness/public-contract'
 
-const limits: GovernanceCodecLimits = {
+const limits: JsonLimits = {
   maxBytes: 65_536,
   maxDepth: 16,
   maxItems: 1_000,

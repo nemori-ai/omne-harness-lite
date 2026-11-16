@@ -181,7 +181,7 @@ describe('启动段', () => {
     expect(JSON.parse(ran.stdout)).toMatchObject({ dependencies: { status: 'reinstalled' } })
   })
 
-  it('store 为空、离线安装失败：以 2 停下，给出的联网重装命令与 docs/development.md 的准备命令相同', context => {
+  it('store 为空、离线安装失败：以 2 停下，给出的联网重装命令与 CONTRIBUTING.md 的准备命令相同', context => {
     needs(context, POSIX)
     const f = fixture()
     const ran = f.run({ INSTALL_FAIL: '1' })
@@ -189,9 +189,8 @@ describe('启动段', () => {
     expect(ran.stdout).toBe('')
     expect(ran.calls).not.toContain('pnpm --silent exec node -v')
     expect(ran.stderr).toContain('ERR_PNPM_NO_OFFLINE_TARBALL')
-    const docs = readFileSync(new URL('docs/development.md', REPOSITORY), 'utf8')
-    const prepare =
-      /## 准备可用的检出[\s\S]*?```sh\n[\s\S]*?```\n\n[\s\S]*?```sh\n([\s\S]*?)```/u.exec(docs)?.[1]
+    const docs = readFileSync(new URL('CONTRIBUTING.md', REPOSITORY), 'utf8')
+    const prepare = /### 准备检出[\s\S]*?```sh\n([\s\S]*?)```/u.exec(docs)?.[1]
     expect(prepare).toBeDefined()
     for (const line of [
       'pnpm install --frozen-lockfile --ignore-scripts',
@@ -226,6 +225,6 @@ describe('启动段', () => {
     const broken = f.run()
     expect(broken.status).toBe(2)
     expect(broken.stderr).toContain('不是 Mach-O 文件')
-    expect(broken.stderr).toContain('准备可用的检出')
+    expect(broken.stderr).toContain('准备检出')
   })
 })

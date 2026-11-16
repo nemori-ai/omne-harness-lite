@@ -1,4 +1,3 @@
-// The public root: the factory and its options, and what `open` does before any request (T9).
 import { describe, expect, it } from 'vitest'
 import { isConnectionTarget } from '@omne-harness/mcp-contract'
 import type {
@@ -31,7 +30,6 @@ function idleProcess(): ProcessHandle & Readonly<{ events: readonly string[] }> 
       write: () => {
         events.push('write')
       },
-      // Closing or aborting the write end both end the peer's input: either is "stdin closed".
       close: () => {
         events.push('stdin-closed')
       },

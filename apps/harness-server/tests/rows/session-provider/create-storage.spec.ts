@@ -1,14 +1,4 @@
 // @module-tag slow
-// The real `session-provider` row over the real storage rows (`storage`, the authorization double,
-// `session-storage`): a tenant that the tenant directory does not hold yet creates its first session.
-// The Session core reads through the bound view (`queryOperation`) before it commits, and
-// session-storage-sql resolves the tenant's domain on every read, so the `session-storage` row has
-// to register the domain of a bound `create` before that first read, not at the commit. The session
-// is in SQLite: a second tree over the same storage reads it back, and the directory file holds the
-// tenant. Above the storage rows: the real `session-ad12` row over a `runtimeContext` contract
-// double, and the `session-contract/testing` doubles for the identity bridge and the evidence
-// bridge (the release's `session-ad09` is real; `session-ad10` has no production sources yet).
-// Slow: a real SQLite tree per case.
 import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
@@ -53,7 +43,6 @@ import { TENANT_A, createGuards, textOf } from '../storage/fixtures/tree.ts'
 
 type CreateCommand = Extract<SessionCommand, { kind: 'create' }>
 
-/** A contract-double row that provides one key from a `session-contract/testing` double. */
 function doubleRow(row: string, key: string, make: (ctx: Context) => object): RowSpec {
   return declared(
     defineRow({
@@ -71,7 +60,6 @@ function doubleRow(row: string, key: string, make: (ctx: Context) => object): Ro
   )
 }
 
-/** The identity bridge lets the command through; the evidence bridge gives a `create` its initialization guard. */
 function bridges(): readonly RowSpec[] {
   const identityRow = doubleRow('session-ad09', sessionIdentityKey, ctx => {
     const scripted = createScriptedSessionIdentityBridge<unknown>('allow')
@@ -126,7 +114,6 @@ function faces(tree: LoadedTree, caller: 'intake' | 'coordinator'): SessionServi
 const SESSION = sessionId('first-of-tenant')
 const access = { principal: 'tester', tenant: TENANT_A, session: SESSION }
 
-/** The faces as `server-entry` takes them: `create` through the `intake` caller class. */
 function createFirst(tree: LoadedTree) {
   const command: CreateCommand['input'] = {
     tenant: TENANT_A,

@@ -1,5 +1,3 @@
-// 入口层包（governance-center-entry）的规则：包尚未建（波次 2 同期），所以每条都在内存夹具里
-// 两向自测，另在临时目录里造出整个包，经 collectSources 与 CLI 证明「真有违反就退出 1」。
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -115,7 +113,6 @@ describe('ops-import-whitelist', () => {
     const drift = opsImportWhitelist.check([onlyRouting])
     expect(drift).toHaveLength(2)
     expect(drift.map(v => v.message).join('\n')).toMatch(/事件声明模块[\s\S]*运维面目录/)
-    // 测试文件不算包存在
     expect(opsImportWhitelist.check([file(`${E}tests/x.spec.ts`, "import 'zod'")])).toEqual([])
   })
 })
@@ -132,7 +129,7 @@ describe('D055 maintenance import boundary', () => {
     const input = file(`${E}src/schema-inputs.ts`, `import data from '../schema/${name}'`)
     expect(opsImportWhitelist.check([events, ops, input])).toHaveLength(violations)
   })
-  it('checks the D-116 resource leaf and permits only its finite generated entry', () => {
+  it('checks the native-loading resource leaf and permits only its finite generated entry', () => {
     const schema = file(
       `${E}src/routing/schema.ts`,
       "import { entryDefinitions } from '../schema-inputs.ts'; import type { ErrorObject } from 'ajv/dist/2020.js'; const validators = require('./generated/ordinary.cjs')",
@@ -264,14 +261,14 @@ describe('ops-event-whitelist', () => {
       `${E}src/ops/bad.ts`,
       header +
         [
-          "ctx.on('login.revoked', () => {})", // 2：字符串字面量订阅治理事件
-          "ctx.on(`governance-center-entry/${'serving'}`, () => {})", // 3：计算出的名字
-          'ctx.on(listening, () => {})', // 4：listening 不能订阅
-          'ctx.emit(serving, payload)', // 5：只许派发 listening
-          "ctx.serial('account.activated', x)", // 6：serial 也是派发
-          'const bus = ctx', // 7
-          "bus.on('organization.purged', () => {})", // 8：别名
-          'ctx.on(name, () => {})', // 9：不是从事件模块导入的名字
+          "ctx.on('login.revoked', () => {})",
+          "ctx.on(`governance-center-entry/${'serving'}`, () => {})",
+          'ctx.on(listening, () => {})',
+          'ctx.emit(serving, payload)',
+          "ctx.serial('account.activated', x)",
+          'const bus = ctx',
+          "bus.on('organization.purged', () => {})",
+          'ctx.on(name, () => {})',
         ].join('\n'),
     )
     const lines = opsEventWhitelist.check([bad]).map(v => v.line)
@@ -364,13 +361,13 @@ describe('single-table-entry', () => {
     const bad = file(
       `${E}src/routing/leak.ts`,
       [
-        "db.selectFrom('login_state').selectAll()", // 1
-        'db.deleteFrom(TABLES.center)', // 2：成员表达式判不出
-        "db.selectFrom('governance_center').innerJoin('account', 'a.id', 'g.id')", // 3
-        'await sql`select * from account`.execute(db)', // 4
-        "sql.raw('drop table x')", // 5
-        "tx.lockRow('organization', { organization_id: o })", // 6
-        "db.selectFrom(['governance_center', 'account'])", // 7
+        "db.selectFrom('login_state').selectAll()",
+        'db.deleteFrom(TABLES.center)',
+        "db.selectFrom('governance_center').innerJoin('account', 'a.id', 'g.id')",
+        'await sql`select * from account`.execute(db)',
+        "sql.raw('drop table x')",
+        "tx.lockRow('organization', { organization_id: o })",
+        "db.selectFrom(['governance_center', 'account'])",
       ].join('\n'),
     )
     expect(
@@ -431,11 +428,11 @@ describe('presentation-only-authn', () => {
     const bad = file(
       `${E}src/routing/authn.ts`,
       [
-        'const judged = await logins.verify(handle)', // 1
-        "import { parseLoginStateId } from '@omne-harness/identity-values'", // 2
-        'await logins.listEffective(payload.loginStateHandle as LoginStateId)', // 3
-        'const id = <LoginStateId>payload.handle', // 4
-        'const parsed = iv.parseLoginStateId(x)', // 5
+        'const judged = await logins.verify(handle)',
+        "import { parseLoginStateId } from '@omne-harness/identity-values'",
+        'await logins.listEffective(payload.loginStateHandle as LoginStateId)',
+        'const id = <LoginStateId>payload.handle',
+        'const parsed = iv.parseLoginStateId(x)',
       ].join('\n'),
     )
     expect(presentationOnlyAuthn.check([bad]).map(v => v.line)).toEqual([1, 2, 3, 4, 5])
@@ -487,7 +484,6 @@ describe('presentation-only-authn', () => {
       ].join('\n'),
     )
     expect(presentationOnlyAuthn.check([clean])).toEqual([])
-    // 入口层包之外（组织治理 inject accounts）不查
     const og = file('tenancy/organization-governance-sql/src/plugin.ts', "inject: ['accounts']")
     expect(presentationOnlyAuthn.check([og])).toEqual([])
   })
@@ -526,7 +522,7 @@ describe('no-network-listen-in-tenancy', () => {
   })
 })
 
-describe('restricted-call-sites：入口 SC-1 新增的四个方法', () => {
+describe('restricted-call-sites：入口新增的四个方法', () => {
   it('入口层包与其他非 owner 包调 createPersonal/activate/purge/sweepStaleSelections ⇒ 报出', () => {
     const entry = file(
       `${E}src/routing/leak.ts`,
@@ -590,7 +586,6 @@ describe('临时目录里造出入口层包：collectSources + CLI 真的会红'
       encoding: 'utf8',
     })
 
-  // 归慢层：子进程＋重 CPU：起真实 CLI 子进程，它会扫描整个仓库的执行模块。
   it('违反的包 ⇒ runRules 报出各条、CLI 退出 1 并逐条打印', { tags: ['slow'] }, () => {
     const dir = writeTree({
       ['core/governance-center-entry/src/events.ts']: events.text,
@@ -623,7 +618,6 @@ describe('临时目录里造出入口层包：collectSources + CLI 真的会红'
     expect(result.stderr).toContain(`${E}src/ops/plugin.ts:2 [ops-event-whitelist]`)
   })
 
-  // 归慢层：子进程＋重 CPU：起真实 CLI 子进程，它会扫描整个仓库的执行模块。
   it('合规的包 ⇒ CLI 退出 0', { tags: ['slow'] }, () => {
     const dir = writeTree({
       ['core/governance-center-entry/src/events.ts']: events.text,
@@ -642,7 +636,7 @@ describe('临时目录里造出入口层包：collectSources + CLI 真的会红'
   })
 })
 
-describe('R1-T5 strict JSON shape owner', () => {
+describe('strict JSON shape owner', () => {
   const events = file('core/governance-center-entry/src/events.ts', '')
   const ops = file(`${E}src/ops/start.ts`, '')
   it('admits only the moved named type imports in the original reader', () => {
@@ -654,7 +648,6 @@ describe('R1-T5 strict JSON shape owner', () => {
       `${E}src/json-shapes.ts`,
       'export interface JsonLimits { depth: number }; export type JsonReading = unknown',
     )
-    // Empty statements are absent from the actual declaration-only owner.
     const exactShapes = file(shapes.path, shapes.text.replace('; export', '\nexport'))
     expect(opsImportWhitelist.check([events, ops, reader, exactShapes])).toEqual([])
   })

@@ -1,7 +1,3 @@
-// The answer of a Journal operation is a function of its own batch (R2-D292, F4): no answer is
-// stored. A retry with the same input finds the batch through the operation index and derives the
-// same answer; a recognition answers with the revision of the batch it recognized. The evidence of a
-// receipt is minted from the batch's coordinates, never read back from a row.
 import type {
   AgentConclusion,
   AgentOperationId,
@@ -12,9 +8,8 @@ import type {
 } from '@omne-harness/agent-contract'
 import { decodeExecutionRevision } from '@omne-harness/agent-contract'
 import type { PublishedBatch, Ref } from './facts.ts'
-import type { SessionJournalView } from './fold.ts'
+import type { SessionJournalView } from './view.ts'
 
-/** What one batch answers, by the kind of command that appended it. */
 export type Answer =
   | Readonly<{ kind: 'receipt'; receipt: CommandReceipt }>
   | Readonly<{ kind: 'authority'; receipt: CommandReceipt; authority: Authority }>
@@ -39,7 +34,6 @@ export type Answer =
       evidence: DurableEvidence
     }>
 
-/** Where the batch evidence is minted from: the owner name and the session text. */
 export type Mint = Readonly<{ owner: string; session: string }>
 
 function revisionOf(value: number): ExecutionRevision {
@@ -48,7 +42,6 @@ function revisionOf(value: number): ExecutionRevision {
   return decoded.ok
 }
 
-/** The evidence of one batch: its coordinates and digest, the same every time it is minted. */
 export function batchEvidence(
   mint: Mint,
   batch: PublishedBatch,
@@ -62,19 +55,10 @@ export function batchEvidence(
   }
 }
 
-/**
- * The revision a batch's answer names: the view's index entry for the operation, which holds the
- * recognized batch's revision for a recognition; or, before the batch is indexed, the envelope.
- */
 export function answeredRevision(view: SessionJournalView, batch: PublishedBatch): number {
   return view.ops.get(batch.envelope.op)?.revision ?? batch.envelope.rev
 }
 
-/**
- * The receipt of one batch: applied, at the revision the batch answers. A recognition that recalls
- * answers the recognized operation's own receipt, minted from that batch's coordinates in the
- * index: warm and cold readers derive the same.
- */
 export function receiptOf(
   mint: Mint,
   view: SessionJournalView,
@@ -108,13 +92,6 @@ export function receiptOf(
   }
 }
 
-/**
- * Derives the answer of a batch from the batch alone and the index of the view it was folded into
- * (the table of R2-D292 "原操作认回"). The kind of answer follows the facts the batch carries:
- * an attachment answers the authority, a detach the handoff, a reception the custody and saved, an
- * issue of obligations its evidence, an end the conclusion, a settlement its record; every other
- * batch answers its receipt.
- */
 export function answer(mint: Mint, view: SessionJournalView, batch: PublishedBatch): Answer {
   const receipt = receiptOf(mint, view, batch)
   for (const fact of batch.facts) {
@@ -143,11 +120,6 @@ export function answer(mint: Mint, view: SessionJournalView, batch: PublishedBat
   return { kind: 'receipt', receipt }
 }
 
-/**
- * What `query` concludes for an operation from the view alone (R2-D307): `committed` when its batch
- * is indexed, `excluded` when an exclusion fact names it, otherwise `unknown`. An answer that wrote
- * nothing leaves no batch, so a retry re-evaluates; nothing is inferred from a missing batch.
- */
 export function operationState(
   view: SessionJournalView,
   operation: AgentOperationId,
@@ -157,7 +129,6 @@ export function operationState(
   return 'unknown'
 }
 
-/** The batch of an operation, by the index, or null when the operation wrote none. */
 export function batchOf(
   view: SessionJournalView,
   operation: AgentOperationId,

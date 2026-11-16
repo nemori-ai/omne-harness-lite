@@ -1,6 +1,3 @@
-// 恢复一侧三个决策器的拒绝与提交（P06 acceptDecision、closeWait，P07 prepareResume）。快照取自真实运行
-// 的调用，命令直接交给决策器：账本在事务前先读一次再判，决策器在事务里按事务快照再判一次，两次之间别处
-// 可能改了记录——这里把那样的前置状态做出来，逐个拒绝分支确认：拒绝的种类与原因、什么都不写、提交时写下的记录。
 import { describe, expect, it } from 'vitest'
 import type { DurableEvidence, ToolWaitId } from '@omne-harness/tool-contract'
 import { adoption, evidence, ok, operationId, tenantA } from './runtime-values.ts'
@@ -106,7 +103,6 @@ describe('refuseDecision: which wait of which call can take a decision', () => {
     expect(refuseDecision(withState(snapshot, { wait: resource }), FIRST)).toEqual(
       invalidOf('wait', 'not-the-current-wait'),
     )
-    // 调用还没有登记好等待（状态里没有等待）：同样不是当前等待。
     expect(refuseDecision(withState(snapshot, { wait: { kind: 'none' } }), FIRST)).toEqual(
       invalidOf('wait', 'not-the-current-wait'),
     )
@@ -141,7 +137,6 @@ describe('decideAcceptDecision: the one acceptance of a wait', () => {
       revision: mint.revision,
       wait: { kind: 'ask', wait: FIRST, decision: DECISION },
     })
-    // 检查点没有因接受而改变。
     const before = snapshot.call?.state as { checkpoint: unknown }
     expect(call.call.state.checkpoint).toEqual(before.checkpoint)
 
@@ -162,7 +157,6 @@ describe('decideAcceptDecision: the one acceptance of a wait', () => {
       progress: { kind: 'accepted' },
     })
     expect((intent as Record_).wait).toBe(FIRST)
-    // 回执是账本为这次接受铸的 operation 证据，等待记录与响应记录引用的是同一份。
     const receipt = ((wait.wait.record as Record_).progress as { receipt: DurableEvidence }).receipt
     expect(receipt.record.startsWith('operation:')).toBe(true)
     expect(receipt.revision).toBe(mint.revision)
@@ -183,8 +177,6 @@ describe('decideAcceptDecision: the one acceptance of a wait', () => {
       state: 'pending',
       basis: (call.call.state as { source: DurableEvidence }).source,
     })
-    // The resume segment prepares its own environment from the binding of the segment that
-    // suspended, under the wait's own operation.
     const preparations = (call.call as unknown as { preparations: Record_[] }).preparations
     expect(preparations.at(-1)).toMatchObject({
       operation: `${FIRST}/resume/prepare`,
@@ -239,7 +231,6 @@ describe('decideAcceptDecision: the one acceptance of a wait', () => {
   })
 })
 
-/** 已接受决定、尚未恢复的调用，以及恢复命令。 */
 async function readyToResume() {
   const built = await suspendedCall()
   const snapshot = await resumePrepared(built)
@@ -282,7 +273,6 @@ describe('refuseResume: when a checkpoint can be resumed', () => {
     if (record === null || record.execution === null) throw new Error('the call has no execution')
     const bound = record.preparations.at(-1)
     if (bound === undefined) throw new Error('no preparation')
-    // The write context carries the principal as the driver's does.
     const write = { ...record.execution, principal: ACCESS.principal }
     ok(
       await built.harness.commands.planPreparation({
@@ -388,12 +378,10 @@ describe('refuseResume: when a checkpoint can be resumed', () => {
 
   it('refuses a checkpoint whose wait took no decision: an open wait, or a response for another checkpoint', async () => {
     const { snapshot, record, command } = await readyToResume()
-    // 同一个检查点的等待还开着：没有人答复它。
     const open = withWaitRecord(snapshot, FIRST, { phase: 'open' })
     expect(refuseResume(open, record, command.checkpoint)).toEqual(
       invalidOf('wait', 'no-accepted-decision'),
     )
-    // 已答复的等待恢复的是别的检查点。
     const elsewhere = withWait(snapshot, FIRST, found => ({
       ...found,
       record: {
@@ -446,7 +434,6 @@ describe('decidePrepareResume: the unique successor of a checkpoint', () => {
       inputDigest: 'digest-resume',
       receipt: { kind: 'prepare-resume', start, state: decision.value.state },
     })
-    // 接受时留下的 queue 待办在这一笔里去掉：恢复已经拿到名额。
     const queued = snapshot.tasks.filter(item => item.kind === 'queue')
     expect(queued).toHaveLength(1)
     expect(decision.writes).toContainEqual({
@@ -538,14 +525,12 @@ describe('decideCloseWait: the close of a wait at the continued fact of its resu
     return { snapshot, command }
   }
 
-  /** 这条等待的 continued 事实。 */
   function continuedFact(snapshot: CallSnapshot) {
     const fact = [...snapshot.facts.values()].find(entry => entry.fact.kind === 'continued')
     if (fact === undefined) throw new Error('no continued fact')
     return fact
   }
 
-  /** 只把 continued 事实改一处。 */
   function withContinued(snapshot: CallSnapshot, changes: (fact: Record_) => Record_) {
     const target = continuedFact(snapshot)
     return withFacts(snapshot, fact => (fact === target ? changes(fact) : fact))
@@ -637,12 +622,10 @@ describe('decideCloseWait: the close of a wait at the continued fact of its resu
   it('refuses a continuation that is not what the response progressed to', async () => {
     const { snapshot, command } = await running()
     const notContinued = invalidOf('continuation', 'not-the-continued-fact')
-    // 响应只推进到 accepted，哪怕回执恰好就是这份证据。
     const accepted = withWaitRecord(snapshot, FIRST, {
       progress: { kind: 'accepted', receipt: command.continuation },
     })
     expect(replied(decideCloseWait(accepted, command, mintOf(snapshot)))).toEqual(notContinued)
-    // 响应推进到 continued，但是推进到的是另一份证据。
     const other = withWaitRecord(snapshot, FIRST, {
       progress: { kind: 'continued', receipt: evidence('continued/other') },
     })
@@ -654,17 +637,13 @@ describe('decideCloseWait: the close of a wait at the continued fact of its resu
     const notContinued = invalidOf('continuation', 'not-the-continued-fact')
     const refuse = (changed: CallSnapshot) =>
       replied(decideCloseWait(changed, command, mintOf(snapshot)))
-    // 没有保存这份证据的事实。
     expect(
       refuse(withFacts(snapshot, fact => (fact === continuedFact(snapshot) ? null : fact))),
     ).toEqual(notContinued)
-    // 保存下来的不是 continued 事实。
     expect(refuse(withContinued(snapshot, fact => ({ ...fact, fact: { kind: 'wait' } })))).toEqual(
       notContinued,
     )
-    // 调用现在不在任何一次启动上。
     expect(refuse(withCall(snapshot, record => ({ ...record, start: null })))).toEqual(notContinued)
-    // 事实属于另一次启动。
     expect(
       refuse(
         withContinued(snapshot, fact => ({
@@ -673,7 +652,6 @@ describe('decideCloseWait: the close of a wait at the continued fact of its resu
         })),
       ),
     ).toEqual(notContinued)
-    // 事实说的是另一个等待。
     expect(
       refuse(
         withContinued(snapshot, fact => ({
@@ -682,7 +660,6 @@ describe('decideCloseWait: the close of a wait at the continued fact of its resu
         })),
       ),
     ).toEqual(notContinued)
-    // 事实说的是对另一个响应的继续。
     expect(
       refuse(
         withContinued(snapshot, fact => ({

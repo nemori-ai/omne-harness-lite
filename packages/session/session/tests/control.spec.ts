@@ -24,7 +24,7 @@ afterEach(async () => {
   for (const h of open.splice(0)) await h.close()
 })
 
-it('SC-02 本地取消传播原操作与原执行', async () => {
+it('本地取消传播原操作与原执行', async () => {
   const f = await controlFixture()
   open.push(f.h)
   await f.cancel()
@@ -44,7 +44,7 @@ it('SC-02 本地取消传播原操作与原执行', async () => {
   expect((await readControlWork(f.h)).controls[0]?.state).toBe('propagating')
 })
 
-it('SC-02 归档向被它取消的 Run 的执行传播同一取消', async () => {
+it('归档向被它取消的 Run 的执行传播同一取消', async () => {
   const f = await controlFixture()
   open.push(f.h)
   succeeded(
@@ -73,12 +73,11 @@ it('SC-02 归档向被它取消的 Run 的执行传播同一取消', async () =>
   expect(after.controls[0]?.state).toBe('propagating')
 })
 
-it('SC-02 归档只向它自己终结的那个 Run 的执行发送', async () => {
+it('归档只向它自己终结的那个 Run 的执行发送', async () => {
   const f = await controlFixture()
   open.push(f.h)
   await f.cancel()
   await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
-  // The cancel ended the first Run. The pending input starts a later Run, and the archive ends it.
   await vi.waitFor(async () => {
     const { run } = await readControlWork(f.h)
     if (run.kind !== 'active' || run.run === f.original.run) throw new Error('waiting for Run')
@@ -100,7 +99,7 @@ it('SC-02 归档只向它自己终结的那个 Run 的执行发送', async () =>
   ])
 })
 
-it('SC-02 后继 Run 不接原取消', async () => {
+it('后继 Run 不接原取消', async () => {
   const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 3 } } })
   open.push(f.h)
   await f.cancel()
@@ -116,7 +115,7 @@ it('SC-02 后继 Run 不接原取消', async () => {
   expect(f.control.mock.calls[1]).toEqual(f.control.mock.calls[0])
 })
 
-it('SC-03 单调用控制保持范围', async () => {
+it('单调用控制保持范围', async () => {
   const f = await controlFixture()
   open.push(f.h)
   const [binding] = await f.calls()
@@ -150,7 +149,7 @@ it('SC-03 单调用控制保持范围', async () => {
 })
 
 for (const missing of ['attempt', 'history', 'ambiguous'] as const)
-  it(`SC-03 ${missing} 原关联不足时不发送`, async () => {
+  it(`${missing} 原关联不足时不发送`, async () => {
     const f = await controlFixture()
     open.push(f.h)
     const [binding] = await f.calls()
@@ -193,7 +192,7 @@ for (const missing of ['attempt', 'history', 'ambiguous'] as const)
     expect((await readControlWork(f.h)).controls[0]?.state).toBe('propagating')
   })
 
-it('SC-03 background-tool 只以原 producer 的执行与意图发送', async () => {
+it('background-tool 只以原 producer 的执行与意图发送', async () => {
   const f = await controlFixture()
   open.push(f.h)
   const [binding] = await f.calls('tool')
@@ -215,7 +214,7 @@ it('SC-03 background-tool 只以原 producer 的执行与意图发送', async ()
   })
 })
 
-it('SC-03 后继 Run 开始后旧调用控制仍只指向原执行', async () => {
+it('后继 Run 开始后旧调用控制仍只指向原执行', async () => {
   const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 3 } } })
   open.push(f.h)
   const [binding] = await f.calls()
@@ -245,7 +244,7 @@ it('SC-03 后继 Run 开始后旧调用控制仍只指向原执行', async () =>
   ).toBe(true)
 })
 
-it('SC-02 原 Run 的执行记录不是恰好一个时不发送', async () => {
+it('原 Run 的执行记录不是恰好一个时不发送', async () => {
   for (const shape of ['none', 'twice'] as const) {
     const f = await controlFixture()
     open.push(f.h)
@@ -266,7 +265,7 @@ it('SC-02 原 Run 的执行记录不是恰好一个时不发送', async () => {
   }
 })
 
-it('SC-06 离开传播的控制不再重放，且不留重放记录', async () => {
+it('离开传播的控制不再重放，且不留重放记录', async () => {
   const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 5 } } })
   open.push(f.h)
   let settled = false
@@ -292,16 +291,14 @@ it('SC-06 离开传播的控制不再重放，且不留重放记录', async () =
   f.h.clock.controls.advance(100)
   await turn()
   await turn()
-  // A running replay that finds the control settled stops without asking or sending again.
   expect(f.control).toHaveBeenCalledTimes(1)
   expect(f.query).toHaveBeenCalledTimes(1)
-  // Its record is gone: seen propagating again, the control starts over with a send, not a query.
   settled = false
   await f.notice()
   await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(2))
 })
 
-it('SC-06 受理后停止的重放记录在控制离开传播后随发现清除', async () => {
+it('受理后停止的重放记录在控制离开传播后随发现清除', async () => {
   const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 1 } } })
   open.push(f.h)
   let settled = false
@@ -337,7 +334,7 @@ it('SC-06 受理后停止的重放记录在控制离开传播后随发现清除'
   await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(2))
 })
 
-it('SC-06 控制一直不返回时不占住会话队列，关闭也能结束', async () => {
+it('控制一直不返回时不占住会话队列，关闭也能结束', async () => {
   const f = await controlFixture()
   open.push(f.h)
   f.control.mockImplementation(() => new Promise(() => undefined))
@@ -353,7 +350,7 @@ it('SC-06 控制一直不返回时不占住会话队列，关闭也能结束', a
   expect(f.control).toHaveBeenCalledTimes(1)
 })
 
-it('SC-04 受理不结清责任', async () => {
+it('受理不结清责任', async () => {
   const f = await controlFixture({ drive: false })
   open.push(f.h)
   await f.calls()
@@ -388,7 +385,7 @@ it('SC-04 受理不结清责任', async () => {
   expect(f.invoke).toHaveBeenCalledTimes(invoked)
 })
 
-it('SC-05 未知先查询', async () => {
+it('未知先查询', async () => {
   const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 10 } } })
   open.push(f.h)
   f.control.mockResolvedValue(fail({ kind: 'commit-unknown', operation: 'ignored-port-operation' }))
@@ -420,7 +417,7 @@ it('SC-05 未知先查询', async () => {
   expect((await readControlWork(f.h)).controls[0]?.state).toBe('propagating')
 })
 
-it('SC-05 最小预算下未知提交仍先查询原身份', async () => {
+it('最小预算下未知提交仍先查询原身份', async () => {
   const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 1 } } })
   open.push(f.h)
   f.control.mockResolvedValue(fail({ kind: 'commit-unknown', operation: 'ignored-port-operation' }))
@@ -438,7 +435,7 @@ it('SC-05 最小预算下未知提交仍先查询原身份', async () => {
   expect(f.query).toHaveBeenCalledTimes(1)
 })
 
-it('SC-06 重复通知不绕过间隔与上限，关闭停止发送', async () => {
+it('重复通知不绕过间隔与上限，关闭停止发送', async () => {
   const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 2 } } })
   open.push(f.h)
   f.control.mockResolvedValue(fail({ kind: 'busy' }))
@@ -458,7 +455,7 @@ it('SC-06 重复通知不绕过间隔与上限，关闭停止发送', async () =
   expect((await readControlWork(f.h)).controls[0]?.state).toBe('propagating')
 })
 
-it('SC-06 在途发送只保留一个任务', async () => {
+it('在途发送只保留一个任务', async () => {
   const f = await controlFixture()
   open.push(f.h)
   let complete: (() => void) | undefined
@@ -475,7 +472,7 @@ it('SC-06 在途发送只保留一个任务', async () => {
   complete?.()
 })
 
-it('SC-06 关闭时在途发送完成后不再发送', async () => {
+it('关闭时在途发送完成后不再发送', async () => {
   const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 5 } } })
   open.push(f.h)
   let complete: (() => void) | undefined
@@ -497,7 +494,7 @@ it('SC-06 关闭时在途发送完成后不再发送', async () => {
 })
 
 for (const kind of ['control.requested', 'control.progress'])
-  it(`SC-07 外部 ${kind} 唤醒`, async () => {
+  it(`外部 ${kind} 唤醒`, async () => {
     const f = await controlFixture()
     open.push(f.h)
     await f.cancel(false)
@@ -507,7 +504,7 @@ for (const kind of ['control.requested', 'control.progress'])
     await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
   })
 
-it('SC-07 未提交的取消不传播', async () => {
+it('未提交的取消不传播', async () => {
   const f = await controlFixture()
   open.push(f.h)
   f.h.view.onCommit(async () =>
@@ -525,7 +522,7 @@ it('SC-07 未提交的取消不传播', async () => {
   expect((await readControlWork(f.h)).controls).toEqual([])
 })
 
-it('SC-07 提交未知的取消不提前传播，由扫描找回', async () => {
+it('提交未知的取消不提前传播，由扫描找回', async () => {
   const f = await controlFixture()
   open.push(f.h)
   f.h.view.onCommit(async (input, next) => {
@@ -546,7 +543,7 @@ it('SC-07 提交未知的取消不提前传播，由扫描找回', async () => {
   await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
 })
 
-it('SC-07 启动找回已保存控制', async () => {
+it('启动找回已保存控制', async () => {
   const f = await controlFixture()
   open.push(f.h)
   await f.cancel(false)
@@ -554,18 +551,18 @@ it('SC-07 启动找回已保存控制', async () => {
   await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
 })
 
-it('SC-07 周期找回遗漏通知的控制', async () => {
+it('周期找回遗漏通知的控制', async () => {
   const f = await controlFixture({
     policy: {
       recoveryScan: {
         periodMs: 100,
         pageSize: 100,
+        startupRetryDelaysMs: [1000, 5000, 30000],
         sessionBackoff: { initialMs: 1, multiplier: 2, maxMs: 10 },
       },
     },
   })
   open.push(f.h)
-  // Without this, the pending input of the Run would name the session by the inputs reason.
   hideReasons(f.h, ['inputs', 'unresolved'])
   succeeded(await f.h.instance.maintain(TENANT_A), 'maintain')
   await turn()
@@ -574,7 +571,7 @@ it('SC-07 周期找回遗漏通知的控制', async () => {
   await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
 })
 
-it('SC-08 租户间控制独立', async () => {
+it('租户间控制独立', async () => {
   const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 1 } } })
   open.push(f.h)
   const other = f.h.other()
@@ -615,7 +612,7 @@ it('SC-08 租户间控制独立', async () => {
   expect(f.control.mock.calls.some(([input]) => tenantEquals(input.tenant, TENANT_B))).toBe(true)
 })
 
-it('SC-08 主体失败不调用 Agent', async () => {
+it('主体失败不调用 Agent', async () => {
   const f = await controlFixture()
   open.push(f.h)
   await f.cancel(false)

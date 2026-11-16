@@ -1,10 +1,6 @@
-// The concrete subclass of `SessionService`, which is also the plugin (SPEC properties 1 and 2).
-// The abstract class registers the key `session`; this class writes no key and does not call
-// `ctx.provide`. State lives in `runtime` and not in `#private` fields, because a caller reads
-// the service through an extended copy of it and `#private` fields fail through that copy.
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type { SessionInstanceOptions } from '@omne-harness/session'
-import type { SessionFaces } from '@omne-harness/session-contract'
+import type { SessionDirectory, SessionFaces } from '@omne-harness/session-contract'
 import {
   SessionService,
   sessionAccessCheckKey,
@@ -21,10 +17,6 @@ import {
 import { callerClassOf } from './faces.ts'
 import { startProvider, type ProviderRuntime } from './runtime.ts'
 
-/**
- * The caller class that `service` was read for. `this.ctx` of a property read is the Context of
- * the caller, and its intercept configuration holds `{ caller }` when the caller declared it.
- */
 function callerOf(service: SessionService<unknown>) {
   try {
     return callerClassOf(service[Service.resolveConfig]())
@@ -34,8 +26,6 @@ function callerOf(service: SessionService<unknown>) {
 }
 
 export class SessionProvider extends SessionService<unknown> {
-  // Five keys: a change of any of their providers unloads the plugin and runs it again. The other
-  // ports are read per call. The last key is private (IC-8 deviation, see assembly-lifecycle.ts).
   static readonly inject = [
     sessionAccessCheckKey,
     sessionDelegatedTransactionsKey,
@@ -47,7 +37,6 @@ export class SessionProvider extends SessionService<unknown> {
 
   private readonly runtime: ProviderRuntime
 
-  /** The observers of the session instance; only the plugin factory hands them in. */
   constructor(
     ctx: Context,
     config: SessionProviderConfig = {},
@@ -72,22 +61,13 @@ export class SessionProvider extends SessionService<unknown> {
   get history(): SessionFaces<unknown>['history'] {
     return this.runtime.facesFor(callerOf(this)).history
   }
+  override get directory(): SessionDirectory<unknown> {
+    return this.runtime.facesFor(callerOf(this)).directory
+  }
 }
 
-/**
- * What the assembly entry hands to `createSessionProviderPlugin`: the observers of the session
- * instance, `measure` (Session SPEC「测量事件」) and `diagnose` (Session SPEC「诊断出口」). The plugin
- * hands them to `createSessionInstance` as they are, for every load. They are functions, so they
- * are not configuration members. Absent, the instance behaves as with `SessionProvider` itself.
- */
 export type SessionProviderPluginInput = SessionInstanceOptions
 
-/**
- * The plugin of `SessionProvider` with the observers that the assembly entry hands in. The
- * `inject`, the configuration and the provided key are those of `SessionProvider`; an observer is
- * not a Cordis service and not a configuration member. Use the returned class as
- * `ctx.plugin(Plugin, config)` does with `SessionProvider`.
- */
 export function createSessionProviderPlugin(
   input: SessionProviderPluginInput = {},
 ): typeof SessionProvider {

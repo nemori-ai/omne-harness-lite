@@ -1,6 +1,3 @@
-// The transaction suite of session-contract, run face by face on the session service over the
-// in-memory pair (public port and delegated entry over one store). The real SQL run is in
-// conformance-sql.spec.ts. Every case runs and none is pinned as a known failure.
 import { afterEach, describe, it } from 'vitest'
 import { sessionTransactionsConformance } from '@omne-harness/session-contract/testing'
 import { memoryBackend } from './fixtures/backends.ts'

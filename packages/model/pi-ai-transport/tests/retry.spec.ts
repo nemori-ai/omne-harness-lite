@@ -1,5 +1,3 @@
-// The retry of a send that failed before its request bytes left, over injected exchanges: no
-// socket and no network. The real sockets are in transport-retry.spec.ts.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createConnectionCapacity, type ConnectionReservation } from '../src/capacity.ts'
 import type { TransportDiagnostic } from '../src/diagnostics.ts'
@@ -19,7 +17,6 @@ const STOPPED: ExchangeResult = { kind: 'stopped', responded: false }
 type FakeExchange = HttpExchange &
   Readonly<{ settle: (result: ExchangeResult) => void; stops: () => number }>
 
-/** An exchange that settles when the test says so, as the real one settles after its physical end. */
 function fake(requestMaySent: boolean, onClosed: () => void = () => undefined): FakeExchange {
   let settle: (result: ExchangeResult) => void = () => undefined
   const result = new Promise<ExchangeResult>(resolve => {
@@ -39,7 +36,6 @@ function fake(requestMaySent: boolean, onClosed: () => void = () => undefined): 
   }
 }
 
-/** A retrying exchange over fake attempts that hold real capacity slots, as the real ones do. */
 async function scene(backoffMs: readonly number[], options: { firstMaySend?: boolean } = {}) {
   const capacity = createConnectionCapacity(1)
   const events: TransportDiagnostic[] = []
@@ -197,7 +193,6 @@ describe('stop during a retry', () => {
     const { attempts, capacity, exchange } = await scene([100])
     attempts[0]?.settle(TIMEOUT)
     await vi.advanceTimersByTimeAsync(1)
-    // Another sender takes the only slot during the backoff.
     const other = await capacity.reserve(new AbortController().signal)
     await vi.advanceTimersByTimeAsync(200)
     expect(attempts).toHaveLength(1)

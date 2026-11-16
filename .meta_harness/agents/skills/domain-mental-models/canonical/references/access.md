@@ -28,12 +28,7 @@
 - 界面要按许可显示或隐藏一个功能，于是去读「挂着哪些协议」：读错了地方。许可由领域自己的读口给。
 - 一个协议撤下时，它的在途调用没有答复：错了。撤下时每个在途调用和在途观察都有确定的结局。
 
-## 现状
-
-上面是已接受的目标。现有实现和它的差别，见 `docs/architecture/layers-and-dependencies.md`「现行偏离」。
-
 ## 出处
 
 - `docs/architecture/layers-and-dependencies.md`「领域能力的公开位置」「依赖关系与禁止方向」
-- `docs/rfcs/RFC-0015-access-dynamic-registration.md`
-- `docs/package-organization.md`「SDK与系统接入」
+- `packages/access/SPEC.md`「总体架构」「领域边界」

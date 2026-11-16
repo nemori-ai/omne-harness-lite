@@ -91,9 +91,7 @@ it.each([
   expect(judgeMediaType(value)).toEqual({ rejected: 'media-type' })
 })
 
-/** RFC 9110 §5.6.2 的全部 tchar 符号，外加数字与大小写字母的两端。 */
 const TCHARS = [..."!#$%&'*+-.^_`|~", '0', '9', 'A', 'Z', 'a', 'z']
-/** 不是 tchar 的字符：RFC 9110 §5.6.2 的分隔符、空白、控制字符与 obs-text。 */
 const NON_TCHARS = [...'"(),/:;<=>?@[\\]{}', ' ', '\t', '\u007f', '\u0000', 'é']
 const TOKEN_POSITIONS = [
   {

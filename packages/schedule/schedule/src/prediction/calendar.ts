@@ -255,7 +255,6 @@ export class FixedCalendar {
     return result.value
   }
   async previousBound(date: string): Promise<string> {
-    // At the coverage start no earlier valid adjusted date is supported.
     if (date <= this.version.coverageStart) return this.version.coverageStart
     return (await this.shift(date, -1)).date
   }

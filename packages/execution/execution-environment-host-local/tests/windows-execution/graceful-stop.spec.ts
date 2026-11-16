@@ -50,7 +50,6 @@ it('lets a console program finish on CTRL_BREAK, then confirms the stop of its J
       .toBe('up')
     expect(await command.value.stop('graceful')).toBe('confirmed')
     expect(await readFile(marker, 'utf8')).toBe('break')
-    // The main process ended by itself, so its code is known; the Job is stopped, not retained.
     expect(await command.value.result).toMatchObject({
       kind: 'completed',
       exit: { kind: 'code', code: 3 },
@@ -66,7 +65,6 @@ it('answers unconfirmed at once for a main process without a console, and leaves
   const root = await directory()
   const script = join(root, 'wait.js')
   const pidFile = join(root, 'pid')
-  // wscript.exe is a GUI program: it has no console, so no console event reaches it.
   await writeFile(
     script,
     [

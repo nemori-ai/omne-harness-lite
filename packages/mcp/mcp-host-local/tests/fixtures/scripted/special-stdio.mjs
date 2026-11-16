@@ -1,6 +1,3 @@
-// stdio peers that do what no script can say: write what is not JSON, write a line above the
-// byte bound, end stdout and stay alive, or exit at a chosen moment. The mode is argv[2]. Every
-// request gets a modern `server/discover` answer or an empty result, after the mode's act.
 import { createInterface } from 'node:readline'
 
 const mode = process.argv[2] ?? 'noisy'
@@ -16,7 +13,6 @@ function answer(message) {
 }
 
 if (mode === 'exit-at-start') process.exit(0)
-// A peer that never reads stdin: a large request fills the pipe and the write never completes.
 if (mode === 'deaf') {
   setInterval(() => undefined, 1000)
 } else {
@@ -31,7 +27,6 @@ if (mode === 'deaf') {
     if (message.id === undefined) return
     switch (mode) {
       case 'noisy':
-        // A log line, an empty line, a BOM, a truncated object, a duplicate key: all dropped (F4).
         process.stdout.write(
           'Listening on stdio\n\n﻿{"jsonrpc":"2.0","id":"x","result":{}}\n{"jsonrpc":"2.0","id":"x"\n{"jsonrpc":"2.0","id":"x","result":{},"result":{}}\n',
         )

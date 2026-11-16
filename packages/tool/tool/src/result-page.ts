@@ -4,7 +4,6 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Adoption, ResultPage, ToolFailure } from '@omne-harness/tool-contract'
 import { tenantKey } from './boundary.ts'
 
-/** The projection a cursor binds. Only the complete result projection exists today. */
 const PROJECTION = 'full'
 
 type Cursor = Readonly<{
@@ -32,7 +31,6 @@ function isCursor(value: unknown): value is Cursor {
   )
 }
 
-/** Reads a cursor and checks that it was issued for this result (P08: no silent version change). */
 function readCursor(after: string, expected: Cursor): Outcome<number, ToolFailure> {
   let parsed: unknown
   try {
@@ -50,15 +48,10 @@ function readCursor(after: string, expected: Cursor): Outcome<number, ToolFailur
   return succeed(parsed.block)
 }
 
-/** The bytes one block takes on a page: its whole JSON encoding, id, visibility and escapes included. */
 export function blockBytes(block: ContentBlock): number {
   return Buffer.byteLength(JSON.stringify(block))
 }
 
-/**
- * The blocks from `start` that fit in `pageBytes`, at least one. A first block larger than the
- * page cannot be split (P08); settlement commits only results whose every block fits the page.
- */
 function pageBlocks<B extends ContentBlock>(
   content: readonly B[],
   start: number,
@@ -94,7 +87,6 @@ function unsupportedPage(
   })
 }
 
-/** Pure pagination shared by production custody and consumers holding the same fixed result. */
 export function pageToolResult<B extends ContentBlock>(
   input: Pick<CallAccess<unknown>, 'tenant' | 'call'> &
     Readonly<{ after: string | null; pageBytes: number; adoption: Adoption }>,
@@ -109,8 +101,6 @@ export function pageToolResult<B extends ContentBlock>(
   }
   const start = input.after === null ? succeed(0) : readCursor(input.after, bound)
   if ('failure' in start) return start
-  // A cursor is issued only for a block that exists, so a cursor at or after the end is not one
-  // of ours; a page is never empty (at least one block).
   if (input.after !== null && start.ok >= result.value.content.length)
     return fail({ kind: 'invalid-cursor', reason: 'past-the-end' })
   const page = pageBlocks(result.value.content, start.ok, input.pageBytes, input.adoption)

@@ -1,4 +1,3 @@
-// Tool definitions, availability, arguments, resource scope and the fixed request.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { OrganizationId, TenantId, WorkspaceId } from '@omne-harness/legal-identity'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
@@ -40,11 +39,6 @@ export type ToolBodyDeclaration =
   | Readonly<{ kind: 'text'; codec: Adoption }>
   | Readonly<{ kind: 'json-document'; codec: Adoption; document: ToolPublishedSchema }>
   | Readonly<{ kind: 'json-lines'; codec: Adoption; record: ToolPublishedSchema }>
-/**
- * The author's offloading bounds. `inline` caps the body shown inline and so sets the offloading
- * threshold; `preview` caps the excerpt shown first once the body is offloaded. An omitted
- * `preview` is the system bound.
- */
 export type ToolOffloadingDeclaration = Readonly<{
   inline: Readonly<{ kind: 'system' }> | Readonly<{ kind: 'bounded'; maxInlineUtf8Bytes: number }>
   retention: Readonly<{ kind: 'system' }> | Readonly<{ kind: 'bounded'; maxRetentionMs: number }>
@@ -67,19 +61,12 @@ export type ToolReturnDeclaration = Readonly<{
         value: Readonly<{ kind: 'tool-result'; contract: Adoption }>
       }>
   )
-/**
- * The published version of a tool asset: the capability name and the version adoption. A derived
- * definition carries `adoption` equal to this version; the binding key and `ToolAuthority` name the
- * same value (RFC-0012 object chain).
- */
 export type ToolAssetVersion = Readonly<{ name: string; adoption: Adoption }>
-/** The asset side of a definition: what the asset governs, not how the implementation works. */
 export type ToolGovernance = Readonly<{
   asset: ToolAssetVersion
   requiredCapabilities: readonly string[]
   programmable?: boolean
 }>
-/** One declared command of a multi-command implementation. */
 export type ToolCommandDeclaration = Readonly<{
   name: string
   summary: string
@@ -88,28 +75,20 @@ export type ToolCommandDeclaration = Readonly<{
     | Readonly<{ kind: 'executor-owned' }>
   returns: ToolReturnDeclaration
 }>
-/** The shape an implementation projects: one function, or a command table. */
 export type ToolImplementationShape =
   | Readonly<{ kind: 'function'; parameters: ParameterContract; returns: ToolReturnDeclaration }>
   | Readonly<{
       kind: 'commands'
-      /** How the model names a command inside the arguments of the tool's one declaration. */
       encoding: CommandCallEncoding
       commands: readonly ToolCommandDeclaration[]
-      /** The rules of the whole tool, which follow every guide the model reads of it. */
       guide?: string
     }>
-/** The implementation side of a definition: its shape and what the author declares about it. */
 export type ToolImplementationFacts = Readonly<{
   implements: ToolImplementationShape
   description: string
   backgroundAllowed: boolean
   declarations: ToolDeclarations
 }>
-/**
- * The complete definition that `deriveDefinition(governance, facts)` composes. Its shape is the
- * fixed definition shape of P02: the asset fields, the author facts and the implementation shape.
- */
 export type ToolDefinition = Readonly<{
   adoption: Adoption
   name: string
@@ -120,10 +99,6 @@ export type ToolDefinition = Readonly<{
   declarations: ToolDeclarations
 }> &
   ToolImplementationShape
-/**
- * The source layer of a contribution: one position on the asset ownership order (G7). It comes
- * from the verified authority, never from the registrant's `Access.tenant`.
- */
 export type SourceLayer =
   | Readonly<{ kind: 'official' }>
   | Readonly<{ kind: 'organization'; organization: OrganizationId }>
@@ -142,10 +117,6 @@ export type ToolArguments = Readonly<{
   effective: string
   complete: boolean
 }>
-/**
- * The concurrency scope a call counts and queues in. The scope owner grants `key` to the tenant
- * and caller; `grant` is the evidence of that grant, which admission verifies.
- */
 export type ResourceScope = Readonly<{ owner: string; key: string; grant: DurableEvidence }>
 export type ToolInvocation = Readonly<{
   kind: 'direct' | 'programmatic'
@@ -168,9 +139,7 @@ export type FixedToolRequest = Readonly<{
   batchDecision: DurableEvidence | null
   mode: 'foreground' | 'background'
   limits: Readonly<{
-    /** The most held slots of this tool in its scope (P02); null is no limit. */
     concurrency: number | null
-    /** The most held slots of all tools in the scope (P02); null is no limit. */
     scopeBudget: number | null
     foregroundMs: number | null
     backgroundAfterMs: number | null

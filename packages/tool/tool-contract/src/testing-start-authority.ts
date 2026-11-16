@@ -1,7 +1,3 @@
-// The ToolStartAuthority conformance suite (P04, story 24) and a non-durable double that conforms
-// to it, with a variant of the double that also consumes authorization permits at the consumption
-// point. The doubles keep their state in memory and declare `durability: 'none'`: they prove
-// nothing about a durable provider and must not be assembled into production.
 import assert from 'node:assert/strict'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { FixedToolRequest } from './definitions.ts'
@@ -48,38 +44,14 @@ import {
   tenantKey,
 } from './testing-values.ts'
 
-// ---------------------------------------------------------------------------------------------
-// The suite
-// ---------------------------------------------------------------------------------------------
-
-/**
- * What the start authority suite needs. A fresh fixture serves one case. `access` is a principal
- * and a tenant that the authority accepts; `request` replaces the built-in fixed request when the
- * provider needs its own. A provider that has no guard resource issues a permit with no guard: the
- * cases that invalidate a guard are then reported not applicable, naming the handle `guard`.
- * `otherAccess` is the access of a second tenant, with a principal of its own: the cases that check
- * that another tenant neither reads nor changes a start of the first are reported not applicable
- * without it. `settle` is for a provider that answers `unknown` to a `consume` or an `inspect` that
- * it can decide later: it resolves only after the authority has decided every start it answered
- * `unknown` for, so that every read of `consume` and `inspect` tells the decision; the suite asks
- * once more after it and never polls. Without `settle`, a case that needs the decision is reported
- * not applicable when the first answer is `unknown`.
- */
 export interface ToolStartAuthorityFixture<P> {
   readonly authority: ToolStartAuthority<P>
   readonly access: Access<P>
   readonly otherAccess?: Access<P>
   readonly request?: FixedToolRequest
-  /** Resolves after the authority has decided every start it answered `unknown` for, and every read tells it. */
   settle?(): Promise<void>
 }
 
-/**
- * The answer model of the start authority (P04): `consume` and `inspect` answer `unknown` when
- * the authority cannot yet prove an exclusion or an acceptance, and the others (`started`,
- * `not-started`, `rejected`) are final for the permit or start that they answer. `prepare`,
- * `invalidate` and `exclude` answer with a permit or evidence and have no progress kind.
- */
 export const startAuthorityAnswers = {
   prepare: { clause: 'P04', progress: [] },
   consume: { clause: 'P04', progress: ['unknown'] },
@@ -100,7 +72,6 @@ function scene<P>(fixture: ToolStartAuthorityFixture<P>, access: Access<P> = fix
   const tryConsume = (permit: StartPermit, capsule = 'capsule') =>
     authority.consume({ ...callAccess, permit, executorReceipt: evidence(capsule), request })
   const tryInspect = () => authority.inspect({ ...callAccess, start })
-  /** The final answer of `consume`, or the refusal of it: `unknown` is driven by `settle`. */
   const tryConsumeFinal = (permit: StartPermit, capsule = 'capsule', what = 'consume') =>
     finalAnswer({
       ask: () => tryConsume(permit, capsule),
@@ -111,22 +82,18 @@ function scene<P>(fixture: ToolStartAuthorityFixture<P>, access: Access<P> = fix
   return {
     start,
     completion,
-    /** What every call of the scene sends: its access and its call. */
     sends: [access, call] as const,
     prepare: async (): Promise<StartPermit> =>
       succeeded(await authority.prepare({ ...callAccess, start, request }), 'prepare'),
     tryPrepare: () => authority.prepare({ ...callAccess, start, request }),
     tryConsume,
-    /** One read of `consume`: a decision is not asked for. */
     consume: async (permit: StartPermit, capsule = 'capsule'): Promise<StartProgress> =>
       succeeded(await tryConsume(permit, capsule), 'consume'),
     tryConsumeFinal,
     consumeFinal: async (permit: StartPermit, capsule = 'capsule'): Promise<StartProgress> =>
       succeeded(await tryConsumeFinal(permit, capsule), 'consume'),
     tryInspect,
-    /** One read of `inspect`: a decision is not asked for. */
     inspect: async (): Promise<StartProgress> => succeeded(await tryInspect(), 'inspect'),
-    /** The final answer of `inspect`: `unknown` is driven by `settle`. */
     inspectFinal: async (): Promise<StartProgress> =>
       succeeded(
         await finalAnswer({
@@ -137,19 +104,12 @@ function scene<P>(fixture: ToolStartAuthorityFixture<P>, access: Access<P> = fix
         }),
         'inspect',
       ),
-    /**
-     * The consume of a permit that must never start: the answer is driven to its end, and a refusal
-     * is no start. A permit that the authority refuses outright has no answer to drive.
-     */
     neverStarts: async (permit: StartPermit, what: string, capsule = 'capsule'): Promise<void> => {
       const answer = await tryConsumeFinal(permit, capsule, what)
       if ('ok' in answer)
         assert.notEqual(answer.ok.kind, 'started', `${what}: the start was accepted`)
     },
-    guardOf: (permit: StartPermit): StartGuard =>
-      // A provider without a guard resource issues a permit with no guard (P04): there is nothing
-      // to invalidate, so the cases that invalidate report it as not applicable.
-      handle<StartGuard>(permit.guards[0], 'guard'),
+    guardOf: (permit: StartPermit): StartGuard => handle<StartGuard>(permit.guards[0], 'guard'),
     tryInvalidate: (guard: StartGuard, operation: string) =>
       authority.invalidate({ ...access, operation: operationId(operation), guard }),
     invalidate: async (permit: StartPermit, operation: string): Promise<DurableEvidence> =>
@@ -173,7 +133,6 @@ function scene<P>(fixture: ToolStartAuthorityFixture<P>, access: Access<P> = fix
   }
 }
 
-/** A stale consume must refuse for good, never start, and never stay undecided. */
 function assertRefusal(progress: StartProgress, what: string): void {
   expectOneOf(progress, ['rejected', 'not-started'], what)
 }
@@ -189,7 +148,6 @@ async function prepareStartsNothing<P>(fixture: Fixture<P>): Promise<void> {
     assert.ok(guard.resource.length > 0, 'the resource of the guard is named')
     assert.ok(guard.revision.length > 0, 'the revision of the guard is named')
   }
-  // A permit alone authorises nothing: no start is reported until a consume is accepted.
   const inspected = await s.inspect()
   assert.ok(
     isProgress(inspected, answers.inspect) || inspected.kind === 'not-started',
@@ -215,7 +173,6 @@ async function secondPermit<P>(fixture: Fixture<P>): Promise<void> {
   const s = scene(fixture)
   const first = expectKind(await s.consumeFinal(await s.prepare()), 'started', 'first consume')
   const again = await s.tryPrepare()
-  // A new permit may be refused outright; if it is issued, the start was accepted once.
   if ('ok' in again) {
     const answer = await s.tryConsumeFinal(again.ok, 'capsule-2')
     if ('ok' in answer)
@@ -240,7 +197,6 @@ async function acceptedStaysInFlight<P>(fixture: Fixture<P>): Promise<void> {
   const accepted = expectKind(await s.consumeFinal(permit), 'started', 'consume')
   await s.invalidate(permit, 'revoke-1')
   resendRecalls(answers.inspect, { earlier: accepted, later: await s.inspect() }, 'inspect')
-  // A consume that is sent again after the invalidation recalls the acceptance.
   resendRecalls(
     answers.consume,
     { earlier: accepted, later: await s.consume(permit) },
@@ -261,8 +217,6 @@ async function inspectRecallsRejection<P>(fixture: Fixture<P>): Promise<void> {
   await s.invalidate(permit, 'revoke-1')
   const refusal = await s.consumeFinal(permit)
   assertRefusal(refusal, 'consume after invalidation')
-  // A permanent rejection is recalled as it was. A refusal that is `not-started` excludes only
-  // the permit, and the start may be asked again: it must not turn into a start.
   const inspected = await s.inspectFinal()
   if (refusal.kind === 'rejected')
     resendRecalls(answers.inspect, { earlier: refusal, later: inspected }, 'inspect')
@@ -272,8 +226,6 @@ async function inspectRecallsRejection<P>(fixture: Fixture<P>): Promise<void> {
 async function notStartedWithdraws<P>(fixture: Fixture<P>): Promise<void> {
   const s = scene(fixture)
   const permit = await s.prepare()
-  // Nothing was accepted, so the authority tells that the start did not happen; the permit
-  // that it issued before cannot start any more.
   expectKind(await s.inspectFinal(), 'not-started', 'inspect of an undecided start')
   await s.neverStarts(permit, 'consume of the withdrawn permit')
 }
@@ -282,8 +234,6 @@ async function notStartedStartsAnew<P>(fixture: Fixture<P>): Promise<void> {
   const s = scene(fixture)
   await s.prepare()
   expectKind(await s.inspectFinal(), 'not-started', 'inspect of an undecided start')
-  // Not-started excludes the old permit and nothing else: without a permanent refusal the
-  // same start is checked again and may start, once.
   expectKind(
     await s.consumeFinal(await s.prepare(), 'capsule-2'),
     'started',
@@ -297,7 +247,6 @@ async function exclusionForbids<P>(fixture: Fixture<P>): Promise<void> {
   succeeded(await s.exclude('exclude-1'), 'exclude')
   await s.neverStarts(permit, 'consume after an exclusion')
   const again = await s.tryPrepare()
-  // A new permit may be refused outright; if it is issued it must not start either.
   if ('ok' in again)
     await s.neverStarts(again.ok, 'consume of a new permit after an exclusion', 'capsule-2')
 }
@@ -330,14 +279,12 @@ async function invalidationConflict<P>(fixture: Fixture<P>): Promise<void> {
   const first = await s.prepare()
   const original = await s.invalidate(first, 'revoke-1')
   const second = await s.prepare()
-  // The same operation names the guard of the second permit, which is another input.
   const other = refused(
     await s.tryInvalidate(s.guardOf(second), 'revoke-1'),
     'invalidate under the operation of another guard',
   )
   assert.equal(other.kind, 'conflict')
   assert.deepEqual(await s.invalidate(first, 'revoke-1'), original)
-  // The refused invalidation moved nothing: the permit that it named still starts.
   expectKind(await s.consumeFinal(second), 'started', 'consume after the conflict')
 }
 
@@ -358,7 +305,6 @@ async function foreignInspect<P>(fixture: Fixture<P>): Promise<void> {
   const own = scene(fixture)
   const other = scene(fixture, otherAccessOf(fixture))
   const accepted = expectKind(await own.consumeFinal(await own.prepare()), 'started', 'consume')
-  // The other tenant names the same call and start: only the acceptance identifies the record.
   await crossTenantAnswers({
     ask: { real: other.tryInspect, ghost: () => other.inspectOf(callId('call-ghost')) },
     row: answers.inspect,
@@ -378,8 +324,6 @@ async function foreignConsume<P>(fixture: Fixture<P>): Promise<void> {
   const own = scene(fixture)
   const other = scene(fixture, otherAccessOf(fixture))
   const permit = await own.prepare()
-  // The other tenant sends the permit itself, and the permit names the tenant: an answer may echo
-  // all of it, so what is left to check is that the two answers read alike.
   await crossTenantAnswers({
     ask: {
       real: () => other.tryConsume(permit),
@@ -402,7 +346,6 @@ async function foreignInvalidate<P>(fixture: Fixture<P>): Promise<void> {
   const other = scene(fixture, otherAccessOf(fixture))
   const permit = await own.prepare()
   const guard = own.guardOf(permit)
-  // The other tenant sends the guard itself; the permit request still identifies the record.
   await crossTenantAnswers({
     ask: {
       real: () => other.tryInvalidate(guard, 'revoke-9'),
@@ -437,8 +380,6 @@ async function foreignPrepare<P>(fixture: Fixture<P>): Promise<void> {
   const own = scene(fixture)
   const other = scene(fixture, otherAccessOf(fixture))
   const accepted = expectKind(await own.consumeFinal(await own.prepare()), 'started', 'consume')
-  // The same call and start of another tenant is a start of its own: it neither joins nor
-  // overrules the start of the first tenant.
   const permit = await other.tryPrepare()
   if ('ok' in permit) {
     assert.deepEqual(permit.ok.tenant, otherAccessOf(fixture).tenant, 'the permit names the tenant')
@@ -487,17 +428,12 @@ export function toolStartAuthorityConformance<P>(): readonly ConformanceCase<Fix
   ]
 }
 
-// ---------------------------------------------------------------------------------------------
-// The non-durable double
-// ---------------------------------------------------------------------------------------------
-
 export interface MemoryToolStartAuthority<P> extends ToolStartAuthority<P> {
   readonly durability: 'none'
 }
 
 const FENCE_OWNER = 'conformance-fence'
 const FENCE_RESOURCE = 'start-fence'
-/** The one guard resource that the in-memory authority applies to every request. */
 export const MEMORY_START_GUARD = Object.freeze({ owner: FENCE_OWNER, resource: FENCE_RESOURCE })
 
 type Guard = { revision: number; operation: string | null; evidence: DurableEvidence | null }
@@ -511,11 +447,6 @@ function strip(guard: StartGuard): { owner: string; resource: string; revision: 
   return { owner: guard.owner, resource: guard.resource, revision: guard.revision }
 }
 
-/**
- * What the authorized double asks at the consumption point (SPEC「授权消费点与撤权再核」), after
- * the guards. `admitted` is the revocation recheck of the action of the call; `consume` consumes
- * every permit bound to the call and answers the facts, or the reason it refuses the start.
- */
 type MemoryStartAuthorization = Readonly<{
   admitted(tenant: Tenant, call: ToolCallId): 'allowed' | 'denied' | 'unavailable'
   consume(
@@ -527,26 +458,15 @@ type MemoryStartAuthorization = Readonly<{
     | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 }>
 
-/** The in-memory start authority, and the acceptance records it formed. */
 type MemoryStartDomain<P> = Readonly<{
   authority: MemoryToolStartAuthority<P>
   acceptanceOf(acceptance: DurableEvidence): ToolStartAcceptance | null
 }>
 
-/**
- * A start authority that keeps its records in memory. Every operation runs to its end before the
- * next one starts, which is the ordering domain of P04 for one process. A permit is stored when
- * it is issued, carries the revision of the one guard it saw, and is accepted once and only while
- * that guard keeps the revision.
- */
 export function createMemoryToolStartAuthority<P>(): MemoryToolStartAuthority<P> {
   return buildMemoryStartDomain<P>(null).authority
 }
 
-/**
- * The double behind `createMemoryToolStartAuthority`. With an authorization side it also rechecks
- * the admission and consumes the bound permits in the same turn as the acceptance, before it.
- */
 function buildMemoryStartDomain<P>(
   authorization: MemoryStartAuthorization | null,
 ): MemoryStartDomain<P> {
@@ -558,7 +478,6 @@ function buildMemoryStartDomain<P>(
   const rejected = new Map<string, Refusal>()
   const callRejected = new Map<string, Refusal>()
   const excluded = new Map<string, DurableEvidence>()
-  /** What each invalidation or exclusion operation asked: another input under it is a conflict. */
   const operations = new Map<string, { digest: string; evidence: DurableEvidence }>()
   let minted = 0
 
@@ -653,8 +572,6 @@ function buildMemoryStartDomain<P>(
             : verdict === 'denied'
               ? { kind: 'refused' as const, reason: 'the admission was revoked before the start' }
               : { kind: 'unavailable' as const, diagnostic: 'the admission verdict is unavailable' }
-        // A verdict or a ledger that cannot be read decides nothing: the permit stays issued, so
-        // the original task asks again with it, and nothing is refused for good.
         if (consumed.kind === 'unavailable')
           return reply(succeed({ kind: 'unknown', diagnostic: consumed.diagnostic }))
         permits.delete(start)
@@ -688,8 +605,6 @@ function buildMemoryStartDomain<P>(
       const start = startKey(input, input.start.operation)
       const known = decided(callKey(input), start)
       if (known !== null) return reply(succeed(known))
-      // Neither accepted nor rejected: a permit issued before this answer must not be consumed
-      // after it, so the permit is withdrawn before the answer is given.
       permits.delete(start)
       const exclusion = excluded.get(start) ?? mint('exclusion', { start })
       excluded.set(start, exclusion)
@@ -739,28 +654,12 @@ function buildMemoryStartDomain<P>(
   })
 }
 
-// ---------------------------------------------------------------------------------------------
-// The authorization side of the double (SPEC「授权消费点与撤权再核」)
-// ---------------------------------------------------------------------------------------------
-
-/**
- * What the permit ledger holds for a permit: open, consumed with its fact, no such permit, or a
- * ledger that cannot be read now.
- */
 export type ToolPermitReading =
   | Readonly<{ kind: 'open' }>
   | Readonly<{ kind: 'consumed'; fact: ToolPermitConsumption }>
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'unavailable' }>
 
-/**
- * The handles of the authorization side that the suite drives. `bind` attaches a permit to the
- * start of `call` as the trusted configuration of the provider does, a fresh one without `permit`.
- * `revoke` revokes, at the authorization owner, the admission of the action of `call`. `read` reads
- * the permit at the permit ledger. `outage` makes one dependency of `call` unreadable, the permit
- * ledger or the admission verdict, until `restore` ends it; a read of the ledger during its outage
- * answers `unavailable`. The cases that need the two are reported not applicable without them.
- */
 export interface ToolStartAuthorizationHandles<P> {
   bind(
     input: Readonly<{ access: Access<P>; call: ToolCallId; permit?: ToolPermitRef }>,
@@ -775,34 +674,21 @@ export interface ToolStartAuthorizationHandles<P> {
   ): Promise<void>
 }
 
-/**
- * The in-memory start authority with an in-memory authorization side: the handles of the suite,
- * and the acceptance record that `started.acceptance` locates.
- */
 export interface MemoryAuthorizedToolStartAuthority<P> extends MemoryToolStartAuthority<P> {
   readonly authorization: ToolStartAuthorizationHandles<P>
   acceptanceOf(acceptance: DurableEvidence): ToolStartAcceptance | null
 }
 
-/** The owner named in the consumption position of the double. */
 const CONSUMER_OWNER = 'conformance-start-authority'
 
 type Entry = { readonly ref: ToolPermitRef; state: ToolPermitReading }
 
-/**
- * A start authority whose consume rechecks the admission and consumes the bound permits in the same
- * turn as the acceptance (P04). The position of a consumption is `{ owner, work: call, position:
- * 'start' }`, so every start of the call recognises its own consumption and every other call meets
- * `already-consumed`. A permit of another tenant than the call is never consumed. The bound permits
- * are consumed all or none: a refusal of one leaves the others open.
- */
 export function createMemoryAuthorizedToolStartAuthority<
   P,
 >(): MemoryAuthorizedToolStartAuthority<P> {
   const permits = new Map<string, Entry>()
   const bindings = new Map<string, ToolPermitRef[]>()
   const revoked = new Set<string>()
-  /** The calls whose dependency cannot be read now, per dependency. */
   const outages = { ledger: new Set<string>(), admission: new Set<string>() }
   let granted = 0
 
@@ -810,7 +696,6 @@ export function createMemoryAuthorizedToolStartAuthority<
     JSON.stringify([tenantKey(tenant), call])
   const permitKey = (ref: ToolPermitRef): string =>
     JSON.stringify([tenantKey(ref.tenant), ref.permit])
-  /** The ledger is unreadable for a permit while a call it is bound to has a ledger outage. */
   const ledgerDown = (ref: ToolPermitRef): boolean =>
     [...bindings].some(
       ([call, refs]) =>
@@ -834,7 +719,6 @@ export function createMemoryAuthorizedToolStartAuthority<
         fact.consumer.position === consumer.position &&
         tenantKey(fact.permit.tenant) === tenantKey(tenant)
       const bound = bindings.get(callKey(tenant, call)) ?? []
-      // First every check, then every write: the permits are consumed all or none.
       for (const ref of bound) {
         if (tenantKey(ref.tenant) !== tenantKey(tenant))
           return { kind: 'refused', reason: 'the permit belongs to another tenant' }
@@ -901,13 +785,11 @@ export function createMemoryAuthorizedToolStartAuthority<
   })
 }
 
-/** A fresh fixture over a fresh in-memory authority. */
 export function memoryToolStartAuthorityFixture(): ToolStartAuthorityFixture<string> {
   return {
     authority: createMemoryToolStartAuthority<string>(),
     access: memoryAccess('tester'),
     otherAccess: memoryOtherAccess('tester-other'),
-    // Every answer of the double is decided when the call returns, so nothing is left to land.
     settle: () => Promise.resolve(),
   }
 }

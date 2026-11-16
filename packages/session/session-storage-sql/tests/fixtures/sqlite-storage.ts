@@ -4,12 +4,6 @@ import readPermissionCurrent from '../../src/worker/read-permission-current.ts'
 import ordinaryBasis from '../../src/worker/ordinary-basis.ts'
 import { SESSION_LOG_PARTICIPANTS } from '../../src/participants.ts'
 import type { FactKey, JsonValue } from '@omne-harness/sql-contract'
-// A test provider of `SqlStorage` on node:sqlite. The memory double of sql-contract has no SQL, so
-// it cannot run the Session participant or the read handlers; this one runs the real modules of
-// this member against one in-memory database per transaction domain. It models receipts, rollback
-// by a stopping reply, recognition by the full identity, scope partition and the read port rules
-// (only SELECT, every statement with LIMIT). It does not model Workers, durability, queues or
-// limits, and a pass proves none of those.
 import { DatabaseSync } from 'node:sqlite'
 import {
   inputDigestV2,
@@ -69,6 +63,8 @@ import readWork from '../../src/worker/read-work.ts'
 import stateItemMigration from '../../src/worker/state-item-migration.ts'
 import attemptGrantMigration from '../../src/worker/attempt-grant-migration.ts'
 import scopeIndexMigration from '../../src/worker/scope-index-migration.ts'
+import sessionListMigration from '../../src/worker/session-list-migration.ts'
+import readSessionList from '../../src/worker/read-session-list.ts'
 import readScopeOwner from '../../src/worker/read-scope-owner.ts'
 import statePartMigration from '../../src/worker/state-part-migration.ts'
 
@@ -85,6 +81,7 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readHistory,
   readModelView,
   readPending,
+  readSessionList,
   readReferences,
   readReleasedScopes,
   readScopeOwner,
@@ -98,7 +95,6 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readPreadmission,
 ]
 
-/** The participant modules by name; the execution order is the order of the commands. */
 const PARTICIPANTS: ReadonlyMap<string, ParticipantModule> = new Map([
   [ordinaryBasis.participant, ordinaryBasis],
   [participant.participant, participant],
@@ -113,6 +109,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   attemptGrantMigration,
   permissionMigration,
   scopeIndexMigration,
+  sessionListMigration,
   preadmissionMigration,
   admissionAttemptMigration,
   statePartMigration,
@@ -128,41 +125,17 @@ export type StorageCall =
 export type SqliteStorage = Readonly<{
   storage: SqlStorage
   calls: StorageCall[]
-  /** Every SQL text that a read handler ran. */
   readSql: string[]
-  /** Every SELECT that a participant ran inside a write transaction, with the rows it returned. */
   participantReads: { sql: string; rows: number }[]
-  /**
-   * Every other statement that a participant ran inside a write transaction, with the length of its
-   * text parameters, a packed text parameter (sql-contract §10.1) by its text: what a commit wrote,
-   * whether the transaction then committed or not.
-   */
   participantWrites: { sql: string; text: number }[]
-  /** Domains that exist, by transaction domain name. */
   domains(): readonly string[]
-  /** Seeds derived rows that the commands of this test cannot produce (a test set-up, not a path). */
   seed(domain: string, sql: string, params?: readonly SqlValue[]): void
-  /** Reads rows of one domain outside any transaction, for a test that counts what a commit wrote. */
   select(domain: string, sql: string, params?: readonly SqlValue[]): QueryRows
-  /** Makes every later read of `handler` answer unavailable; `null` ends it. */
   failReads(handler: string | null): void
-  /** Makes the next commit answer `unknown` after it ran (the reply is lost). */
   loseNextReply(): void
-  /**
-   * Makes the participant port throw at the `nth` later statement that matches `pattern`, inside
-   * the write transaction; `null` ends it. Without `errcode` the failure is an environment error
-   * (an I/O error, say): as in the real provider, the commit answers `unknown` and keeps no
-   * rolled back receipt. With the result code of a data error (`SQLITE_CONSTRAINT` 19, say) the
-   * transaction rolls back with the failure `sql_error` (sql-contract §7.6).
-   */
   failWrite(pattern: RegExp | null, nth?: number, errcode?: number): void
 }>
 
-/**
- * sql-contract §7.6: the SQLite result codes that only the statement and the data decide (TOOBIG,
- * CONSTRAINT, MISMATCH, RANGE, and ERROR for syntax or schema), read from `errcode` as the real
- * provider reads them. Every other statement error is an environment error.
- */
 const DATA_CODES = new Set([1, 18, 19, 20, 25])
 const isDataError = (error: unknown): boolean => {
   const code = (error as { errcode?: unknown } | null)?.errcode
@@ -180,7 +153,6 @@ const scopeKey = (scope: DomainRef['scope']): string =>
 const receiptKey = (identity: SqlIdentity): string =>
   JSON.stringify([identity.operation, identity.operationKey])
 
-/** The text length of one parameter: a text, or a packed text (the only BLOBs this member writes). */
 const textLength = (value: SqlValue): number =>
   typeof value === 'string'
     ? value.length
@@ -219,7 +191,6 @@ export function createSqliteStorage(): SqliteStorage {
   let failing: string | null = null
   let lose = false
   let writeFault: { pattern: RegExp; left: number; errcode: number | undefined } | null = null
-  /** Counts the statement against the armed write fault and throws at the chosen one. */
   const faultAt = (sql: string): void => {
     if (writeFault === null || !writeFault.pattern.test(sql)) return
     writeFault.left -= 1
@@ -244,12 +215,6 @@ export function createSqliteStorage(): SqliteStorage {
     return domain
   }
 
-  /**
-   * Runs the commands in one transaction. A statement error is classified as the real provider
-   * does (sql-contract §7.6; sqlite-provider `worker/ports.ts`, `worker/execute.ts`): an error that
-   * only the statement and the data decide is `sql_error`; any other one is an environment error,
-   * for which the transaction is rolled back with no receipt and the commit is `unknown`.
-   */
   const execute = (
     domain: Domain,
     request: CommitRequestV2,
@@ -267,7 +232,6 @@ export function createSqliteStorage(): SqliteStorage {
         responses: entries,
       }) as unknown as ReceiptV2
     domain.db.exec('BEGIN IMMEDIATE')
-    // This fixture models the three-member Session dependency order, not arbitrary SQL catalogs.
     const facts = new Map<string, JsonValue>()
     const order: readonly string[] = SESSION_LOG_PARTICIPANTS
     const ordered = [...request.commands].sort(
@@ -427,7 +391,6 @@ export function createSqliteStorage(): SqliteStorage {
         execute: (sql, params) => {
           readSql.push(sql)
           if (!/^\s*SELECT/i.test(sql)) throw new Error('a read handler ran a write')
-          // sql-contract SPEC §9.4: every statement of a read handler has a LIMIT.
           if (!/\blimit\b/i.test(sql)) throw new Error('a read statement has no LIMIT')
           return rowsOf(domain.db, sql, params)
         },
@@ -468,7 +431,6 @@ export function createSqliteStorage(): SqliteStorage {
   }
 }
 
-/** One migrated in-memory database and a participant statement port over it, for module-level tests. */
 export function migratedPort(): Readonly<{
   port: {
     execute(sql: string, params?: readonly SqlValue[]): QueryRows

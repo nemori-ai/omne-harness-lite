@@ -23,12 +23,6 @@ function thrown(dependency: string): string {
   return `${dependency} threw an exception; its message is not reported`
 }
 
-/**
- * The reply of one commit answer, or null after a revision conflict: the caller re-reads and
- * decides again. Only a conflict is retried. An unavailable store is temporary and the caller
- * resends the same operation; a rejected commit can never be accepted, so it is the definite
- * failure `invalid` (`field: storage`) at once, and it spends no attempt (SPEC 11).
- */
 export function answerOf<T>(
   committed: LedgerCommit,
   value: T,
@@ -82,7 +76,6 @@ export function createLedgerTransactions(
     revision: Snapshot['revision'],
     writes: readonly LedgerWrite[],
     asserts: readonly LedgerAssertion[] = [],
-    // 调用域的待办标记：这笔提交生效后这个调用是否还有待推进的工作。缺省不动标记。
     pending?: boolean,
   ): Promise<Awaited<ReturnType<typeof store.commit>>> => {
     try {
@@ -126,7 +119,6 @@ export function createLedgerTransactions(
         if (excludedSince(snapshot.ok, identity, firstRead)) return excluded(identity)
       }
       const writes = withExclusionsRemoved(decision.writes, operations)
-      // 调用域的每笔提交都带上提交生效后的待办标记，由这里按读到的记录与写入算出，决策器不写标记。
       const pending = domain.kind === 'call' ? pendingAfter(raw.ok.records, writes) : undefined
       const committed = await commit(domain, snapshot.ok.revision, revision, writes, [], pending)
       const answer = answerOf(committed, decision.value, unknown)

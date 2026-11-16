@@ -152,7 +152,7 @@ describe('tenant isolation in unload protection', () => {
 
       const invalidTenant: Tenant = {
         ...tenantA,
-        account: { ...tenantA.account, text: '' }, // Invalid empty account text
+        account: { ...tenantA.account, text: '' },
       }
 
       const fixture2 = await assemble({
@@ -169,7 +169,6 @@ describe('tenant isolation in unload protection', () => {
         const row2 = fixture2.rows()[0]
         if (row2 === undefined) throw new Error('missing second author')
 
-        // Invalid tenant codec causes retain (line 119 returns retain())
         expect(await fixture2.generations.unload({ key: key2 })).toEqual(
           succeed({ state: 'retained' }),
         )
@@ -199,11 +198,9 @@ describe('tenant isolation in unload protection', () => {
       const row = fixture.rows()[0]
       if (row === undefined) throw new Error('missing original author')
 
-      // Load official replacement
       unbox(await fixture.load(officialReplacement))
       expect(fixture.rows()).toHaveLength(2)
 
-      // Load organization replacement
       unbox(await fixture.load(orgReplacement))
       expect(fixture.rows()).toHaveLength(3)
 
@@ -220,11 +217,10 @@ describe('tenant isolation in unload protection', () => {
         unbox(await fixture2.load(orgReplacement))
 
         const originalKey = keyOf(authorAuthority)
-        // Both official and organization replacements should protect the original
         expect(await fixture2.generations.unload({ key: originalKey })).toEqual(
           succeed({ state: 'released' }),
         )
-        expect(fixture2.rows()).toHaveLength(2) // Both replacements remain
+        expect(fixture2.rows()).toHaveLength(2)
       } finally {
         await fixture2.root.fiber.dispose()
       }
@@ -249,7 +245,6 @@ describe('tenant isolation in unload protection', () => {
       const row = fixture.rows()[0]
       if (row === undefined) throw new Error('missing original author')
 
-      // Load organization B replacement (different org from tenantA)
       unbox(await fixture.load(orgB))
       expect(fixture.rows()).toHaveLength(2)
 
@@ -264,12 +259,10 @@ describe('tenant isolation in unload protection', () => {
         const { key: keyA } = unbox(await fixture2.load())
         unbox(await fixture2.load(orgB))
 
-        // Organization B replacement should NOT protect tenantA's original
-        // because organization.text doesn't match
         expect(await fixture2.generations.unload({ key: keyA })).toEqual(
           succeed({ state: 'retained' }),
         )
-        expect(fixture2.rows()).toHaveLength(2) // Both remain
+        expect(fixture2.rows()).toHaveLength(2)
       } finally {
         await fixture2.root.fiber.dispose()
       }
@@ -294,7 +287,6 @@ describe('tenant isolation in unload protection', () => {
       const row = fixture.rows()[0]
       if (row === undefined) throw new Error('missing original author')
 
-      // Load tenantA2 (same organization, different account)
       unbox(await fixture.load(tenantA2Authority))
       expect(fixture.rows()).toHaveLength(2)
 
@@ -309,8 +301,6 @@ describe('tenant isolation in unload protection', () => {
         const { key: keyA } = unbox(await fixture2.load())
         unbox(await fixture2.load(tenantA2Authority))
 
-        // tenantA2 should NOT protect tenantA's original
-        // even though they share the same organization
         expect(await fixture2.generations.unload({ key: keyA })).toEqual(
           succeed({ state: 'retained' }),
         )
@@ -362,11 +352,10 @@ describe('tenant isolation in unload protection', () => {
         const { key: keyA } = unbox(await fixture2.load(tenantAAuthority))
         unbox(await fixture2.load(tenantAReplacement))
 
-        // Exact tenant match should protect the original
         expect(await fixture2.generations.unload({ key: keyA })).toEqual(
           succeed({ state: 'released' }),
         )
-        expect(fixture2.rows()).toHaveLength(1) // Only replacement remains
+        expect(fixture2.rows()).toHaveLength(1)
       } finally {
         await fixture2.root.fiber.dispose()
       }
@@ -380,7 +369,6 @@ describe('tenant isolation in unload protection', () => {
     try {
       const { key } = unbox(await fixture.load())
 
-      // emptyReader returns no holders, so the loop completes without hitting retain()
       expect(await fixture.generations.unload({ key })).toEqual(succeed({ state: 'released' }))
       expect(fixture.rows()).toEqual([])
     } finally {
@@ -407,7 +395,6 @@ describe('tenant isolation in unload protection', () => {
       try {
         const { key: key2 } = unbox(await fixture2.load())
 
-        // Holder exists but no replacement loaded, so serving=false → retain()
         expect(await fixture2.generations.unload({ key: key2 })).toEqual(
           succeed({ state: 'retained' }),
         )
@@ -435,7 +422,6 @@ describe('tenant isolation in unload protection', () => {
       const replacementRow = fixture.rows().find(r => r.key.asset.adoption.revision === '2')
       if (replacementRow === undefined) throw new Error('missing replacement')
 
-      // Close the replacement to make it draining
       unbox(fixture.registry.close(keyOf(replacement)))
 
       const fixture2 = await assemble({
@@ -453,7 +439,6 @@ describe('tenant isolation in unload protection', () => {
         unbox(await fixture2.load(replacement))
         unbox(fixture2.registry.close(keyOf(replacement)))
 
-        // Draining replacement should NOT protect the original
         expect(await fixture2.generations.unload({ key: keyA })).toEqual(
           succeed({ state: 'retained' }),
         )
@@ -493,7 +478,6 @@ describe('tenant isolation in unload protection', () => {
         const { key: keyA } = unbox(await fixture2.load())
         unbox(await fixture2.load(replacement))
 
-        // Different shape should NOT protect the original
         expect(await fixture2.generations.unload({ key: keyA })).toEqual(
           succeed({ state: 'retained' }),
         )

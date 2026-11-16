@@ -1,5 +1,3 @@
-// The permission basis participant and its guard, run with explicit facts. The projection read
-// test and the release tree tests run them in the real provider.
 import { expect, it } from 'vitest'
 import { canonicalText } from '@omne-harness/authorization'
 import {
@@ -29,7 +27,6 @@ import { settingsSnapshotFixture } from './settings-snapshot-fixture.ts'
 function world() {
   const { snapshot } = settingsSnapshotFixture()
   snapshot.binding.mode = 'runtime'
-  // The binding schema of the commands requires a canonical tenant reference.
   const tenantRef = JSON.stringify({
     organization: 'org_00000000000000000000000001',
     account: 'acc_00000000000000000000000002',
@@ -115,7 +112,6 @@ it('computes the tenant-domain basis from the target snapshot and the Session pe
   const basis = permissionBasisSchema.parse(reply.response)
   expect(basis.permission).toEqual(w.permission)
   expect(basis.evaluation.sources.session).toMatchObject({ kind: 'absent' })
-  // The organization layer is in another domain: this participant leaves it unavailable.
   expect(basis.evaluation.sources.organization).toMatchObject({ kind: 'unavailable' })
   expect(w.facts.get(permissionBasisFact.key)).toEqual(reply.response)
 })

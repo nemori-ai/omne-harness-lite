@@ -4,10 +4,6 @@ function stringCheck(column: string, maxBytes: number) {
   return `${column} IS NULL OR (json_valid(${column}) AND json_type(${column})='text' AND length(CAST(${column} AS BLOB)) BETWEEN 3 AND ${maxBytes})`
 }
 
-/**
- * 来源的种类与可选引用。independent 不带会话；tool 必须带调用引用，admission 可带，agent-extension 不带；
- * runRef 须配 sessionRef。
- */
 function originColumns() {
   return `origin_kind TEXT NOT NULL CHECK(origin_kind IN ('independent','tool','admission','agent-extension')),
   session_ref TEXT CHECK(${stringCheck('session_ref', 1538)}),
@@ -251,8 +247,6 @@ export const requestDdl = [
   FOREIGN KEY(tenant_ref,request_sequence,actor_ref) REFERENCES hi_request_readers_v2(tenant_ref,request_sequence,actor_ref)
 ) STRICT, WITHOUT ROWID;`,
   `CREATE INDEX hi_pool_actor_bucket_v2 ON hi_pool_request_buckets_v2(tenant_ref,actor_ref,bucket,request_sequence);`,
-  // 带过滤的池查询所用的目录。每个请求按来源写入若干范围：任意会话与本来源种类；有会话时，
-  // 另写本会话与任意种类、本会话与本来源种类。'*' 表示该维度不过滤，与 JSON 字符串单元格不会相同。
   `CREATE TABLE hi_pool_scoped_buckets_v2 (
   tenant_ref TEXT NOT NULL CHECK(${stringCheck('tenant_ref', 1538)}),
   request_sequence INTEGER NOT NULL,
@@ -278,7 +272,6 @@ export const requestTables = [
   'hi_pool_scoped_buckets_v2',
 ] as const
 
-/** 建表迁移的共同部分。up 直接执行当前 DDL，verify 核对每张表都已存在。 */
 export function createTables(
   ddl: readonly string[],
   tables: readonly string[],

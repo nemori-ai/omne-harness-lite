@@ -1,7 +1,3 @@
-// The instance provision through the `./testing` entry: the memory double passes the conformance
-// suite of `AgentInstanceProvision`, and a provider that breaks one named rule fails the case of
-// that rule. The second part keeps the suite honest: a suite that passes a broken provider would
-// prove nothing. The double stands in for the host plugin, so its pass does not prove the host.
 import {
   decodeAgentInstanceId,
   type AgentInstanceId,
@@ -64,10 +60,6 @@ type Memory = ReturnType<typeof createMemoryInstanceProvision<string>>
 type Create = Parameters<typeof createMemoryInstanceProvision<string>>[0]['create']
 type Fixture = AgentInstanceProvisionFixture<string> & { readonly memory: Memory }
 
-/**
- * The fixture of the double. `refuse` names the one operation whose next check fails. `provision`
- * wraps the port that the suite sees, so a test can break one rule of the provider.
- */
 function memoryFixture(
   options: {
     readonly create?: Create
@@ -101,7 +93,6 @@ function memoryFixture(
   }
 }
 
-/** Runs every case of a suite and names the first case that fails. */
 async function runAll(cases: readonly ConformanceCase[]): Promise<void> {
   expect(cases.length).toBeGreaterThan(0)
   for (const entry of cases) {
@@ -117,7 +108,6 @@ function caseNamed(cases: readonly ConformanceCase[], fragment: string): Conform
   return found
 }
 
-/** The cases of the suite, run against the double with its port wrapped by `provision`. */
 const casesOver = (provision: (memory: Memory) => AgentInstanceProvision<string>) =>
   agentInstanceProvisionConformance(() => memoryFixture({ provision }))
 
@@ -138,7 +128,6 @@ describe('the memory double of the instance provision', () => {
 })
 
 describe('the suite fails a provider that breaks a rule', () => {
-  // A provider that gives each call its own slot never finds the instance of an earlier call.
   const forgetful = (memory: Memory): AgentInstanceProvision<string> => {
     let calls = 0
     return {

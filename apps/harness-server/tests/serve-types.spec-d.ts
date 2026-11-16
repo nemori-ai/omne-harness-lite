@@ -1,4 +1,3 @@
-// 行声明类型的负例（DP1-C15）：成员插件不能直接做带关闭阶段的行。
 import type { Plugin } from '@deepseek-ai/cordis'
 import { expectTypeOf, test } from 'vitest'
 import type { RowBody, RowDefinition } from '../src/row.ts'

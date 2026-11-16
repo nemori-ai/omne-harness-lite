@@ -1,6 +1,3 @@
-// The client core over the in-process transport (#1249 C12, C13): calls are written and read by
-// the contract, and the three results of a transport become an answer, `unavailable` or
-// `uncertain`, never a success or a failure that did not come from the peer.
 import { describe, expect, it } from 'vitest'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import {
@@ -22,7 +19,6 @@ const object = (entries: Record<string, string>): JsonValue => ({
   })),
 })
 
-/** A peer that answers each send with the next report of the script and keeps every request. */
 function scripted(reports: CallReport[]) {
   const requests: CallRequest[] = []
   const peer: Transport = {
@@ -42,7 +38,7 @@ function scripted(reports: CallReport[]) {
 
 const NOTE = object({ noteId: 'n-1', title: 'first' })
 
-describe('C12: a client from one protocol contract', () => {
+describe('a client from one protocol contract', () => {
   it('writes the body by the contract and reads the answer by the contract', async () => {
     const { requests, client } = scripted([{ kind: 'answered', outcome: 'succeeded', body: NOTE }])
     const answer = await client['read-note']({ noteId: 'n-1' }, { messageId: 'm-1' })
@@ -89,7 +85,7 @@ describe('C12: a client from one protocol contract', () => {
   })
 })
 
-describe('C13: the three results of a transport', () => {
+describe('the three results of a transport', () => {
   it('sends once more when the first send did not leave, under the same message id', async () => {
     const { requests, client } = scripted([
       { kind: 'not-sent' },
@@ -230,7 +226,6 @@ describe('the in-process transport', () => {
   })
 })
 
-/** A peer whose observation gives `frames` and then ends with `end`. */
 function observing(frames: JsonValue[], end: ObserveEnd) {
   const seen: { signal?: AbortSignal; messageId: string }[] = []
   let closed = false
@@ -267,7 +262,7 @@ async function endOf(frames: JsonValue[], end: ObserveEnd): Promise<unknown> {
   }
 }
 
-describe('C14: how an observation ends', () => {
+describe('how an observation ends', () => {
   it('passes the reasons the contract allows, and the two of the hub', async () => {
     for (const reason of ['note-deleted', 'denied', 'unavailable'])
       expect(await endOf([], { kind: 'ended', reason })).toEqual({ kind: 'ended', reason })
@@ -309,5 +304,145 @@ describe('C14: how an observation ends', () => {
       { signal: controller.signal },
     )
     await expect(refused.next()).rejects.toThrow('notes/v1/watch-note')
+  })
+})
+
+describe('读类调用对「现在读不到」按策略再问', () => {
+  const unavailableBasis: CallReport = {
+    kind: 'answered',
+    outcome: 'basis-unavailable',
+    body: object({}),
+  }
+  const succeeded: CallReport = { kind: 'answered', outcome: 'succeeded', body: NOTE }
+
+  function retrying(
+    reports: CallReport[],
+    options: {
+      delay?: (failures: number, elapsedMs: number) => number | null
+      onWait?: (ms: number, signal: AbortSignal | undefined) => void
+    } = {},
+  ) {
+    const requests: CallRequest[] = []
+    const delays: { failures: number; elapsedMs: number }[] = []
+    const waits: number[] = []
+    const peer: Transport = {
+      async call(request) {
+        requests.push(request)
+        const report = reports.shift()
+        if (report === undefined) throw new Error('the script has no more reports')
+        return report
+      },
+      // eslint-disable-next-line require-yield
+      async *observe(): AsyncGenerator<JsonValue, ObserveEnd> {
+        return { kind: 'uncertain' }
+      },
+    }
+    const client = createClient(notesProtocol, createInProcessTransport(peer), {
+      readRetry: {
+        delayMs: (failures, elapsedMs) => {
+          delays.push({ failures, elapsedMs })
+          return options.delay === undefined ? 10 : options.delay(failures, elapsedMs)
+        },
+        wait: async (ms, signal) => {
+          waits.push(ms)
+          options.onWait?.(ms, signal)
+        },
+      },
+    })
+    return { requests, delays, waits, client }
+  }
+
+  it('asks again after each basis-unavailable, with a new message id each time', async () => {
+    const { requests, delays, waits, client } = retrying([
+      unavailableBasis,
+      unavailableBasis,
+      succeeded,
+    ])
+    expect(await client['read-note']({ noteId: 'n-1' }, { messageId: 'm-1' })).toMatchObject({
+      outcome: 'succeeded',
+    })
+    expect(requests).toHaveLength(3)
+    expect(delays.map(delay => delay.failures)).toEqual([1, 2])
+    expect(waits).toEqual([10, 10])
+    expect(delays[0]!.elapsedMs).toBeGreaterThanOrEqual(0)
+    expect(requests[0]!.messageId).toBe('m-1')
+    expect(new Set(requests.map(request => request.messageId)).size).toBe(3)
+  })
+
+  it('counts a local unavailable as one failure and asks again', async () => {
+    const { requests, delays, client } = retrying([
+      { kind: 'not-sent' },
+      { kind: 'not-sent' },
+      succeeded,
+    ])
+    expect(await client['read-note']({ noteId: 'n-1' })).toMatchObject({ outcome: 'succeeded' })
+    expect(requests).toHaveLength(3)
+    expect(delays.map(delay => delay.failures)).toEqual([1])
+  })
+
+  it('counts an uncertain answer as one failure and asks again', async () => {
+    const { requests, delays, client } = retrying([{ kind: 'uncertain' }, succeeded])
+    expect(await client['read-note']({ noteId: 'n-1' })).toMatchObject({ outcome: 'succeeded' })
+    expect(requests).toHaveLength(2)
+    expect(delays.map(delay => delay.failures)).toEqual([1])
+  })
+
+  it('returns the answer in hand when the policy gives no delay', async () => {
+    const { requests, delays, waits, client } = retrying([unavailableBasis, unavailableBasis], {
+      delay: failures => (failures < 2 ? 5 : null),
+    })
+    expect(await client['read-note']({ noteId: 'n-1' })).toEqual({ outcome: 'basis-unavailable' })
+    expect(requests).toHaveLength(2)
+    expect(delays).toHaveLength(2)
+    expect(waits).toEqual([5])
+  })
+
+  it('does not ask again when the signal aborts during the wait', async () => {
+    const controller = new AbortController()
+    const { requests, client } = retrying([unavailableBasis, succeeded], {
+      onWait: (_ms, signal) => {
+        expect(signal).toBe(controller.signal)
+        controller.abort()
+      },
+    })
+    expect(await client['read-note']({ noteId: 'n-1' }, { signal: controller.signal })).toEqual({
+      outcome: 'basis-unavailable',
+    })
+    expect(requests).toHaveLength(1)
+  })
+
+  it('does not ask the policy when the signal is already aborted after the answer', async () => {
+    const controller = new AbortController()
+    const { requests, delays, client } = retrying([unavailableBasis, succeeded])
+    controller.abort()
+    expect(await client['read-note']({ noteId: 'n-1' }, { signal: controller.signal })).toEqual({
+      outcome: 'basis-unavailable',
+    })
+    expect(requests).toHaveLength(1)
+    expect(delays).toEqual([])
+  })
+
+  it('does not return other answers to the policy', async () => {
+    const { requests, delays, client } = retrying([
+      { kind: 'answered', outcome: 'not-found', body: object({}) },
+    ])
+    expect(await client['read-note']({ noteId: 'n-1' })).toMatchObject({ outcome: 'not-found' })
+    expect(requests).toHaveLength(1)
+    expect(delays).toEqual([])
+  })
+
+  it('leaves a commit operation alone: one send, the policy is not asked', async () => {
+    const { requests, delays, client } = retrying([unavailableBasis, succeeded])
+    expect(await client['save-note']({ noteId: 'n-1', title: 't' })).toEqual({
+      outcome: 'basis-unavailable',
+    })
+    expect(requests).toHaveLength(1)
+    expect(delays).toEqual([])
+  })
+
+  it('without a policy, a read answered basis-unavailable is sent once', async () => {
+    const { requests, client } = scripted([unavailableBasis, succeeded])
+    expect(await client['read-note']({ noteId: 'n-1' })).toEqual({ outcome: 'basis-unavailable' })
+    expect(requests).toHaveLength(1)
   })
 })

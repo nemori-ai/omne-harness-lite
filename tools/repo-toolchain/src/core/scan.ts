@@ -3,7 +3,6 @@ import { join, relative } from 'node:path'
 import { isLegacyDirectory } from './check-scope.ts'
 import type { Rule, SourceFile, Violation } from './rule.ts'
 
-/** 收集 `root` 下全部 `.ts` 源（跳过 node_modules 与 dist），路径相对于 root。 */
 export function collectSources(root: string): SourceFile[] {
   const out: SourceFile[] = []
   const walk = (dir: string) => {

@@ -76,7 +76,6 @@ export function readRequestHeader(port: ReadPort, ref: RequestRef, actor?: strin
         ).rows[0]
   return row ? header(row) : undefined
 }
-/** 请求的原来源，含原 WaitRef。答复据此路由，装配据此给出守卫。 */
 export function readRequestRoute(port: ReadPort, ref: RequestRef, actor: string) {
   const row = port.execute(
     `SELECT ${identityColumns} ${requestJoin}

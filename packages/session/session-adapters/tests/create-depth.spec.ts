@@ -1,9 +1,3 @@
-// Why the real sqlite-provider scenes of this member set `maxJsonDepth` above 64 (SPEC K-14): the
-// guard facts of a Session `create` embed the typed form of the command input, which costs about
-// seven JSON levels for each further level of the input. A creation with an initial input has an input
-// eight levels deep (`input.creation.initial.message.blocks[].visibility`), so its commit command
-// nests 69 levels; one without an initial input nests 48. The provider refuses a command deeper
-// than `maxJsonDepth` as `command_limit`.
 import { describe, expect, it } from 'vitest'
 import {
   adoptedInitializationFixture,
@@ -17,7 +11,6 @@ import {
 import type { SessionCommand } from '@omne-harness/session-contract'
 import { sessionCommandFacts } from '@omne-harness/session-storage-sql/participants'
 
-/** The nesting the provider limits: a scalar has depth 0, a container one more than its deepest member. */
 const depth = (value: unknown): number =>
   value !== null && typeof value === 'object'
     ? 1 + Math.max(0, ...Object.values(value).map(depth))

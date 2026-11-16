@@ -1,5 +1,3 @@
-// `bodyOffsetOf`: where the body of a SKILL.md starts, in bytes, after the line end of the
-// closing delimiter; and the delimiter boundaries of the frontmatter through the package rules.
 import { describe, expect, it } from 'vitest'
 import { bodyOffsetOf } from '@omne-harness/skill-contract'
 import { manifestText } from './package-builder.ts'

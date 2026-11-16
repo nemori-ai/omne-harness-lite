@@ -1,7 +1,4 @@
 import type { ResultPart } from '@omne-harness/model-contract'
-// The consumer that owns a result: it reads the exact settled version in pages, hands it off with
-// evidence that it holds, and repeats an acknowledgement instead of claiming the result again. It
-// imports only the public contract and the scripted provider that stands for whatever serves it.
 import {
   access,
   callRef,
@@ -24,7 +21,6 @@ type Path = Readonly<{
   run: () => Promise<void>
 }>
 
-/** Settles the call `name` with five blocks cut into pages of two. */
 function settle(world: World, name: string): void {
   world.controller.settle({
     ...callRef(name),
@@ -149,9 +145,6 @@ async function openReadSurvivesAcknowledgeAndCleanupIsShown(): Promise<void> {
   expect(custody.diagnostic === 'disk is full', 'the reason of the block was lost')
 }
 
-// SPEC.md "逐操作行为" acknowledge row and docs/object-model.md (ModelConsumption): an early
-// acknowledgement is refused and the result keeps its state. No kind is pinned for it, so only the
-// refusal and the unchanged custody are checked.
 async function acknowledgeBeforeSettlementIsRefused(): Promise<void> {
   const world = newWorld()
   await world.admit('a')
@@ -162,8 +155,6 @@ async function acknowledgeBeforeSettlementIsRefused(): Promise<void> {
   expect(receipt.custody.kind === 'acknowledged', 'the consumer cannot acknowledge once settled')
 }
 
-// Same clauses: evidence that the provider does not accept (a forged one) is refused and the result
-// keeps its state. No kind is pinned, so only the refusal and the unchanged custody are checked.
 async function foreignEvidenceIsRefused(): Promise<void> {
   const world = newWorld()
   await world.admit('a')
@@ -175,8 +166,6 @@ async function foreignEvidenceIsRefused(): Promise<void> {
   expect(receipt.custody.receipt.record === 'processed', 'the real evidence was not taken')
 }
 
-// SPEC.md "逐操作行为" and "写操作" paragraphs: the operation and its arguments are fixed together, so
-// other evidence under the same operation conflicts and never replaces the first.
 async function otherEvidenceUnderTheSameOperationConflicts(): Promise<void> {
   const world = newWorld()
   await world.admit('a')
@@ -189,9 +178,6 @@ async function otherEvidenceUnderTheSameOperationConflicts(): Promise<void> {
   expect(custody.receipt.record === 'first', 'the second evidence replaced the first')
 }
 
-// SPEC.md acknowledge row ("提交未知认回原 ACK") and docs/object-model.md: an unknown reply is
-// answered by repeating the same operation with the same evidence, and the full result is not read
-// again.
 async function unknownReplyIsRepeatedWithTheSameOperation(): Promise<void> {
   const world = newWorld()
   await world.admit('a')

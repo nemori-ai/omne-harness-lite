@@ -1,7 +1,3 @@
-// Refusals of the file system, made through the injected `DirectoryFs` seam: the tests run as any
-// user, root included, because no file mode is involved. Each refusal comes back as the source
-// failure that the README "Behavior" section gives for it. Every code that a table of the source
-// lists has its own case here, so a code removed from a table turns a case red.
 import { rm } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -37,9 +33,7 @@ async function open(fs: DirectoryFs, root: string, at: string) {
 
 const named = (name: string) => (path: string) => basename(path) === name
 
-/** The codes that make an entry unreadable when the source resolves it or reads its kind. */
 const RESOLVE_CODES = ['ELOOP', 'ENOTDIR', 'EACCES', 'EPERM', 'EIO']
-/** The codes that make an entry unreadable when the source lists a directory or reads a file. */
 const READ_CODES = ['EACCES', 'EPERM', 'EIO', 'ELOOP', 'ENXIO']
 
 describe('a file that cannot be read', () => {

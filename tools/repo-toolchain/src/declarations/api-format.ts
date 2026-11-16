@@ -1,42 +1,28 @@
-// 契约 API 快照的文件格式：结构化模型与它的 Markdown 写法、读法都只在这里定义。
-// 生成层产出模型，由 renderSnapshot 写成文本；分类层只经 parseSnapshot 读回模型，不自己拆文本。
-// 快照有两部分：每个入口导出了哪些名字（给人读，也给分类对齐导出），以及入口可达的 dist 声明文件，
-// 经 TypeScript 打印器规范化。声明文件可以原样还原成一组能编译的 .d.ts，分类器在它上面跑检查器。
-// 格式改了就提高 SNAPSHOT_FORMAT：读到别的版本时报错，要求重新生成，不按旧规则猜。
-
 export const SNAPSHOT_FORMAT = 1
 
-/** 按 UTF-16 码元比较，与区域设置无关；快照与报告里一切排序都用它。 */
 export function byCodeUnit(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0
 }
 
-/** 导出的名字声明在哪里：本成员的某个声明文件、别的包，或是本成员某个文件的命名空间导出（`export * as ns`）。 */
 export type ExportOrigin =
   | { readonly kind: 'file'; readonly path: string }
   | { readonly kind: 'package'; readonly name: string }
   | { readonly kind: 'namespace'; readonly path: string }
 
 export interface EntryExport {
-  /** 导出名；命名空间导出的成员写成 `ns.A`。 */
   readonly name: string
-  /** 改名导出的原名（`export { A as B }` 的 `A`）。 */
   readonly renamedFrom?: string
-  /** 值经 `export type` 导出，消费者只能当类型用。 */
   readonly typeOnly: boolean
   readonly origin: ExportOrigin
 }
 
 export interface EntrySection {
-  /** `exports` 的子路径。 */
   readonly subpath: string
-  /** 入口的声明文件，dist 内相对路径。 */
   readonly file: string
   readonly exports: readonly EntryExport[]
 }
 
 export interface DeclarationFile {
-  /** dist 内相对路径，例如 `facilities/files.d.ts`；本成员的声明按它与名字定位。 */
   readonly path: string
   readonly code: string
 }
@@ -71,7 +57,6 @@ function exportLine(item: EntryExport): string {
   return `- \`${item.name}\`${renamed}${item.typeOnly ? ' 仅类型' : ''} · ${originText(item.origin)}`
 }
 
-/** 写成文本：入口按子路径、导出按名字、文件按路径排序，同一模型永远写出同样的字节。 */
 export function renderSnapshot(snapshot: ApiSnapshot): string {
   const lines = [
     `# ${snapshot.packageName} 的 API 快照`,
@@ -98,7 +83,6 @@ const EXPORT =
 
 export class SnapshotFormatError extends Error {}
 
-/** 读回快照；格式版本不对、行认不出、入口或文件重复、同一入口里导出名重复时抛 SnapshotFormatError。 */
 export function parseSnapshot(text: string): ApiSnapshot {
   return new SnapshotReader(text.split('\n')).read()
 }
@@ -134,7 +118,6 @@ class SnapshotReader {
     throw new SnapshotFormatError(`快照第 ${index + 1} 行${why}`)
   }
 
-  /** 标题与格式版本；返回包名。 */
   private header(): string {
     const title = /^# (.+) 的 API 快照$/u.exec(this.lines[0] ?? '')?.[1]
     if (title === undefined) return this.fail(0, '不是快照标题')
@@ -145,7 +128,6 @@ class SnapshotReader {
     return title
   }
 
-  /** 读一行（入口标题、导出行或声明文件），返回读到的最后一行。 */
   private readLine(index: number, line: string): number {
     const entry = ENTRY.exec(line)
     if (entry !== null) return this.openEntry(index, entry[1] ?? '', entry[2] ?? '')

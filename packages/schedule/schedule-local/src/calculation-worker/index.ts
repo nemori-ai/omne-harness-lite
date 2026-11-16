@@ -19,7 +19,6 @@ export function createScheduleCalculationWorker(options: {
 }): { calculator: ScheduleRecurrenceCalculator; dispose(): Promise<void> } {
   const capacity = calculationCapacity(options)
   const pool = new Piscina<ScheduleEnumerationInput, ScheduleEnumerationResult>({
-    // Both source and compiled imports start this package's compiled entry.
     filename: new URL('../../dist/calculation-worker/entry.js', import.meta.url).href,
     minThreads: options.maxConcurrent,
     maxThreads: options.maxConcurrent,

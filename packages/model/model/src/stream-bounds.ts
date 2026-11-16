@@ -2,7 +2,6 @@ import type { ModelObservationLimits } from './stream-types.ts'
 
 export type StreamMeasure = Readonly<{ bytes: number; nodes: number; containers: number }>
 
-/** Counts canonical JSON incrementally. A rejected value never allocates its encoded text. */
 export function measureStreamValue(value: unknown, limit: number): StreamMeasure | null {
   let bytes = 0
   let nodes = 0
@@ -35,7 +34,6 @@ export function measureStreamValue(value: unknown, limit: number): StreamMeasure
     if (!add(2)) return false
     return Array.isArray(item) ? array(item) : record(item)
   }
-  /** Arrays must be dense; each element after the first adds its comma. */
   function array(items: readonly unknown[]): boolean {
     for (let index = 0; index < items.length; index += 1) {
       if (!Object.hasOwn(items, index) || (index > 0 && !add(1)) || !visit(items[index]))
@@ -43,7 +41,6 @@ export function measureStreamValue(value: unknown, limit: number): StreamMeasure
     }
     return true
   }
-  /** Keys in sorted order; only data properties count, an accessor rejects the value. */
   function record(item: object): boolean {
     let first = true
     for (const key of Object.keys(item).sort()) {
@@ -107,5 +104,4 @@ export function checkStreamLimits(limits: ModelObservationLimits): void {
   }
 }
 
-// Logical storage units, not RSS: iterator identity/control plus a maximum encoded terminal slot.
 export const STREAM_OBSERVER_BYTES = 256 + 16384

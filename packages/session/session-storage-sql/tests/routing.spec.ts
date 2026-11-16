@@ -1,5 +1,3 @@
-// Read routing (SQL r2 section 17): a session read is one `snapshot` read of the storage and
-// never takes the write path; the receipt lookups are the only reads that go through a commit.
 import { describe, expect, it } from 'vitest'
 import { app, TENANT_A } from './fixtures/app.ts'
 import { SESSION_ENTRIES, SYSTEM_ENTRIES } from './fixtures/entries.ts'

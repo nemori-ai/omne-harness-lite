@@ -1,5 +1,4 @@
 // @module-tag slow
-// Real SQLite registration runs migrations for all production governance combinations.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -64,6 +63,18 @@ it('registers all governance combinations on the Session tenant domain without c
     await made.control.close({ initiator: 'disposal' })
     rmSync(root, { recursive: true, force: true })
   }
+})
+
+it('names every governance combination after its own manifest', async () => {
+  const combinations = governanceStorageCombinations(await productionStorageCatalog())
+  const versions = Object.entries(combinations).map(([name, combination]) => {
+    expect(combination.manifestDigest, name).toMatch(/^[0-9a-f]{64}$/)
+    expect(combination.combinationVersion, name).toBe(
+      `harness-governance-${name}/${combination.manifestDigest.slice(0, 16)}`,
+    )
+    return combination.combinationVersion
+  })
+  expect(new Set(versions).size).toBe(versions.length)
 })
 
 it('keeps ordinary storage available when the Tool release cannot be loaded', async () => {

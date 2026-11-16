@@ -457,10 +457,6 @@ it('returns the new reservation when requalification fails after a confirmed exc
   expect(f.backing.controls.allocations()).toBe(2)
 })
 
-// The counterexamples of the #675 round-2 QA (`additionalPrepares=1`, `invalidForwards=1`): the
-// last adoption read of `check` queues a microtask that replaces the current adoption; the outer
-// `await check` resumes after it ran. Each path must then refuse instead of forwarding the stale
-// original to the adapter.
 function forwardRace(f: ReturnType<typeof environmentBoundaryFixture>) {
   const original = f.backing.adoption
   let current = original
@@ -521,12 +517,10 @@ it('refuses the first send when the adoption changed after the dispatch check re
     },
   })
   expect(f.backing.controls.allocations()).toBe(0)
-  // The reservation went back: once the adapter is back, another tenant takes the single slot at once.
   race.restore()
   const other = f.other()
   expect(await race.environment.prepare(other)).toHaveProperty('ok.kind', 'prepared')
   await race.environment.release(await f.release(other))
-  // The original binding is retained; the same original is sent on the next explicit request.
   expect(await race.environment.prepare(original)).toHaveProperty('ok.kind', 'prepared')
   expect(f.calls).toEqual([other.preparation, original.preparation])
 })
@@ -553,7 +547,6 @@ it('refuses the recognizing prepare when the adoption changed after the recheck 
   })
   expect(f.backing.controls.allocations()).toBe(1)
   expect(f.backing.controls.leases()).toBe(0)
-  // The sent original keeps its slot and its query responsibility; it is recognized once the adapter is back.
   race.restore()
   expect(await race.environment.prepare(original)).toHaveProperty('ok.kind', 'prepared')
   expect(f.calls).toEqual([original.preparation, original.preparation])
@@ -630,7 +623,6 @@ it.each(['first-send', 'recognize', 'inspect'] as const)(
       cause,
     })
     if (path === 'first-send') {
-      // The unsent reservation is already back while the receiver still waits.
       throwAt = Number.POSITIVE_INFINITY
       const other = f.other()
       expect(await environment.prepare(other)).toHaveProperty('ok.kind', 'prepared')
@@ -643,7 +635,6 @@ it.each(['first-send', 'recognize', 'inspect'] as const)(
         diagnostic: 'environment operation failed; stage=qualify; diagnostic=recorded',
       },
     })
-    // Nothing was forwarded for the refused path; the first-send case only sent the other tenant.
     expect(f.calls.map(record => record.operation)).toEqual(
       path === 'first-send' ? [f.other().preparation.operation] : [input.preparation.operation],
     )

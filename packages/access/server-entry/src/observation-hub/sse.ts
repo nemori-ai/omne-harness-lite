@@ -1,12 +1,7 @@
-// One SSE response with one serial writer. Events and heartbeats go through the same queue, so a
-// heartbeat never lands inside an event and the first event is always the one `open` was given
-// (binding page「SSE 观察」「心跳」). The new address opens without a first event, adds its own
-// headers, and bounds the events not yet written (#1249 spec 已定 6).
 import type { ServerResponse } from 'node:http'
 
 const HEARTBEAT = ': heartbeat\n\n'
 const END = Symbol('end')
-/** A queued text, and how many of its bytes count against the frame queue (a heartbeat: none). */
 type Chunk = Readonly<{ text: string; frameBytes: number }> | typeof END
 const encoder = new TextEncoder()
 
@@ -31,9 +26,8 @@ export class SseStream {
     this.finished = new Promise(resolve => {
       this.#resolveFinished = resolve
     })
-    // A client that left while the request was still being answered has already emitted `close`;
-    // a listener added now would never fire. The stream starts closed instead, so a registration
-    // made on it releases at once and no heartbeat is armed against a destroyed response.
+    // A client that left earlier already emitted `close`; a listener added now would never fire.
+    // So the stream starts closed: a registration on it releases at once and no heartbeat is armed.
     if (res.destroyed || res.writableEnded || res.socket?.destroyed === true) this.#onClosed()
     else res.once('close', () => this.#onClosed())
   }
@@ -42,21 +36,15 @@ export class SseStream {
     return this.#closed
   }
 
-  /** The bytes of the events handed to the writer and not yet written out. Heartbeats do not count. */
   get queuedFrameBytes(): number {
     return this.#queuedFrameBytes
   }
 
-  /** Settles once every event queued so far is written out, or the response closed. */
   written(): Promise<void> {
     if (this.#closed || this.#queuedFrameBytes === 0) return Promise.resolve()
     return new Promise(resolve => this.#writtenWaiters.push(resolve))
   }
 
-  /**
-   * Writes the head and, when given, the first event. Nothing else can be queued before it.
-   * Without a first event the head goes out at once and the heartbeat starts.
-   */
   open(status: number, firstEvent?: string, headers: Readonly<Record<string, string>> = {}): void {
     if (this.#opened) throw new TypeError('server-entry: SSE stream opened twice')
     this.#opened = true
@@ -74,13 +62,11 @@ export class SseStream {
     this.#armHeartbeat()
   }
 
-  /** Queues one event after everything already queued. */
   event(text: string): void {
     if (!this.#opened) throw new TypeError('server-entry: SSE event before the first event')
     this.#event(text)
   }
 
-  /** Ends the response after everything already queued. */
   end(): void {
     if (this.#ending) return
     this.#ending = true

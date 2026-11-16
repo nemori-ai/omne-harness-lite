@@ -1,9 +1,5 @@
 import { adoption } from './coordinator-values.ts'
 import { createMemoryToolEnvironment } from '@omne-harness/tool-contract/testing'
-// The local start coordinator under the real Tool runtime, ledger and driver, over one
-// non-durable store: the call domain, the queue domain and the coordinator's host domain. The
-// binding stages a capsule and consumes its permit through the coordinator, as P04 requires of
-// the trusted execution boundary.
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
 import { createToolLedger, createToolRuntime, type ToolLedgerStore } from '@omne-harness/tool'
@@ -40,7 +36,6 @@ function rejecting<T extends object>(methods: readonly string[]): T {
   const out: Record<string, unknown> = {}
   for (const method of methods)
     out[method] = () => Promise.reject(new Error(`${method} is not on the way to a start`))
-  // Every method rejects, so the object has the port's shape at run time.
   return out as T
 }
 
@@ -60,19 +55,13 @@ function liveExecution(): ToolLiveExecution {
   }
 }
 
-/**
- * The runtime of one call `c1`, with a binding whose start runs `beforeConsume` between staging
- * the capsule and consuming the permit, the moment an invalidation can still win.
- */
 function assembly(
   options: Readonly<{
     beforeConsume?: () => Promise<void>
     store?: (memory: ToolLedgerStore) => ToolLedgerStore
-    /** Stands in for the coordinator's consume, given the real one. */
     consume?: (
       real: ReturnType<typeof coordinator>['consume'],
     ) => ReturnType<typeof coordinator>['consume']
-    /** The store of an earlier assembly: this one is a new process over it. */
     memory?: ToolLedgerStore
   }> = {},
 ) {
@@ -114,8 +103,6 @@ function assembly(
         request: input.request,
         executorReceipt: evidence(`capsule-${input.call}`),
       })
-      // The answers of the execution binding (tool-host-local SPEC): a consume that does not answer
-      // `started` never enters the author.
       if ('failure' in consumed) return consumed
       if (consumed.ok.kind === 'unknown')
         return fail({ kind: 'commit-unknown', operation: input.start.operation })
@@ -123,7 +110,6 @@ function assembly(
       executions.push(input.call)
       return succeed(liveExecution())
     },
-    // A start that this binding did not run is what the coordinator decided.
     inspectStart: async input => {
       const decided = await authority.inspect(input)
       if ('failure' in decided) return decided
@@ -259,7 +245,6 @@ function assembly(
               },
             }),
           ),
-        // A new process reconnects the environment that the first one prepared.
         inspectPreparation: input =>
           Promise.resolve(
             succeed({
@@ -405,8 +390,8 @@ function assembly(
   }
 }
 
-describe('G5 under the runtime', () => {
-  it('G5 composition: an invalidation before the acceptance settles the call unavailable, never started', async () => {
+describe('the local start coordinator under the runtime', () => {
+  it('composition: an invalidation before the acceptance settles the call unavailable, never started', async () => {
     let invalidate: (() => Promise<unknown>) | null = null
     const harness = assembly({
       beforeConsume: async () => {
@@ -430,7 +415,7 @@ describe('G5 under the runtime', () => {
     })
   })
 
-  it('G5 composition: an acceptance before the invalidation is a start in flight', async () => {
+  it('composition: an acceptance before the invalidation is a start in flight', async () => {
     const harness = assembly()
     await harness.admit()
     await harness.run()
@@ -440,7 +425,7 @@ describe('G5 under the runtime', () => {
     expect(await harness.state()).toMatchObject({ phase: 'running', execution: { kind: 'live' } })
   })
 
-  it('G5 composition: a lost recordStart answer is recovered from the coordinator, and the binding starts once', async () => {
+  it('composition: a lost recordStart answer is recovered from the coordinator, and the binding starts once', async () => {
     let lose = true
     const harness = assembly({
       store: memory => ({
@@ -476,10 +461,7 @@ describe('G5 under the runtime', () => {
   })
 })
 
-// The coordinator cannot answer a consume once (F1): the start was not accepted, so it is not a
-// failure of the call. The run ends unavailable and the next run, in this process or a new one,
-// starts the same start with a new permit (U1 to U4). Before, it was settled unavailable for good.
-describe('G5 under the runtime: a consume the coordinator cannot answer', () => {
+describe('the local start coordinator under the runtime: a consume the coordinator cannot answer', () => {
   const busyOnce = (real: ReturnType<typeof coordinator>['consume']) => {
     let busy = true
     return ((input: Parameters<typeof real>[0]) => {
@@ -491,7 +473,7 @@ describe('G5 under the runtime: a consume the coordinator cannot answer', () => 
     }) as typeof real
   }
 
-  it('G5 composition: the next run starts the call', async () => {
+  it('composition: the next run starts the call', async () => {
     const harness = assembly({ consume: busyOnce })
     await harness.admit()
     await harness.run()
@@ -502,7 +484,7 @@ describe('G5 under the runtime: a consume the coordinator cannot answer', () => 
     expect(await harness.state()).toMatchObject({ phase: 'running', execution: { kind: 'live' } })
   })
 
-  it('G5 composition: a new process over the same store starts the call', async () => {
+  it('composition: a new process over the same store starts the call', async () => {
     const first = assembly({ consume: busyOnce })
     await first.admit()
     await first.run()

@@ -15,6 +15,311 @@ import {
 import { associated, registerCall, registeredWaiting } from './call-state.ts'
 
 type Draft = { -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K] }
+
+function takeBatch(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'run.batch-taken' }>,
+): string | null {
+  const ordered = entry.batch.ordered
+  if (new Set(ordered).size !== ordered.length) return 'a taken batch repeats an input'
+  draft.pending = draft.pending.filter(input => !ordered.includes(input))
+  if (draft.run.kind !== 'active' || draft.run.run !== entry.run) return null
+  if (ordered.some(input => (draft.taken ?? []).includes(input)))
+    return 'an input taken twice in the same Run'
+  draft.handed = draft.handed.filter(input => !ordered.includes(input))
+  draft.taken = [...(draft.taken ?? []), ...ordered]
+  draft.unanswered = [...(draft.unanswered ?? []), ...ordered]
+  return null
+}
+
+function applyResidentAdmitted(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'session.tool-resident-admitted' }>,
+): string | null {
+  if (draft.residents.some(item => item.capability === entry.resident.capability))
+    return 'resident admitted twice'
+  draft.residents = [...draft.residents, entry.resident]
+  return null
+}
+
+function applyDeclaration(
+  draft: Draft,
+  entry: Extract<
+    SessionEntry,
+    {
+      kind:
+        | 'session.mode-changed'
+        | 'session.model-selected'
+        | 'session.declaration-adopted'
+        | 'session.context-registration-changed'
+        | 'session.recovery-input-adopted'
+    }
+  >,
+  source: DurableEvidence,
+): string | null {
+  if ('policy' in entry) {
+    draft.autoArchive = entry.policy
+    draft.declarations = source
+    draft.revisions = {
+      ...draft.revisions,
+      declarations: String(BigInt(draft.revisions.declarations) + 1n),
+    }
+    return null
+  }
+  if (entry.kind === 'session.declaration-adopted') {
+    draft.declarations = source
+    draft.revisions = {
+      ...draft.revisions,
+      declarations: String(BigInt(draft.revisions.declarations) + 1n),
+    }
+  }
+  if (entry.kind === 'session.declaration-adopted' && entry.declaration.kind === 'environment-mode')
+    return null
+  draft.changes = [...(draft.changes ?? []), entry.declaration]
+  if (
+    entry.scope !== null &&
+    (entry.declaration.kind === 'context-registration' ||
+      entry.declaration.kind === 'context-step-commit')
+  )
+    draft.contextRecords = [
+      ...(draft.contextRecords ?? []),
+      { scope: entry.scope, declaration: entry.declaration },
+    ]
+  return null
+}
+
+function applyWorkspaceChanged(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'session.workspace-changed' }>,
+): string | null {
+  draft.changes = [
+    ...(draft.changes ?? []),
+    {
+      kind: 'workspace',
+      value: entry.workspace,
+      workspaceAttachment: entry.workspaceAttachment,
+      basis: entry.basis,
+    },
+  ]
+  draft.revisions = {
+    ...draft.revisions,
+    workspace: String(BigInt(draft.revisions.workspace) + 1n),
+  }
+  return null
+}
+
+function applyRelation(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'session.relation' | 'session.resident' }>,
+): string | null {
+  draft.relation = entry.relation
+  return null
+}
+
+function applyIdleEvidence(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'session.idle-evidence' }>,
+  source: DurableEvidence,
+): string | null {
+  draft.idle =
+    entry.observation === null ? null : { observation: entry.observation, commit: source }
+  return null
+}
+
+function applyFrozen(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'session.frozen' }>,
+  source: DurableEvidence,
+): string | null {
+  if (draft.tasks.some(task => task.kind === 'initialization'))
+    return 'session frozen before every initialization item was ready'
+  if (draft.frozen !== null) return 'a second freeze'
+  draft.frozen = { cause: 'tool-shape-lost', evidence: entry.evidence, commit: source }
+  return null
+}
+
+function applyInputsReleased(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'intake.released' }>,
+): string | null {
+  draft.pending = draft.pending.filter(input => !entry.inputs.includes(input))
+  draft.handed = draft.handed.filter(input => !entry.inputs.includes(input))
+  return null
+}
+
+function applyHistoryAnnotated(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'history.annotated' }>,
+): string | null {
+  if (!('execution' in entry)) return null
+  const old = draft.executions?.find(item => item.run === entry.run)
+  if (old === undefined || old.execution.execution !== entry.execution.execution)
+    return 'missing historical execution binding'
+  evidenceFields(entry.execution.evidence, 'execution.evidence')
+  const revision = decimal(entry.execution.revision, 'execution.revision')
+  if (
+    old.execution.revision !== null &&
+    revision < decimal(old.execution.revision, 'execution.revision')
+  )
+    return 'execution head moved backwards'
+  if (
+    old.execution.revision === entry.execution.revision &&
+    old.execution.evidence !== null &&
+    !equalValue(old.execution.evidence, entry.execution.evidence)
+  )
+    return 'execution head receipt changed'
+  if (
+    decimal(entry.execution.readThrough, 'execution.readThrough') <
+    BigInt(old.execution.readThrough)
+  )
+    return 'execution read progress moved backwards'
+  draft.executions = (draft.executions ?? []).map(item =>
+    item.run === entry.run ? { ...item, execution: entry.execution } : item,
+  )
+  if (draft.run.kind === 'active' && draft.run.run === entry.run)
+    draft.run = { ...draft.run, execution: entry.execution }
+  return null
+}
+
+function applyEntriesInterpreted(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'entries.interpreted' }>,
+): string | null {
+  if (decimal(entry.through, 'entries.through') <= decimal(entry.after, 'entries.after'))
+    return 'entries progress does not advance'
+  if (
+    !(draft.executions ?? []).some(
+      item => item.run === entry.run && item.execution.execution === entry.execution,
+    )
+  )
+    return 'missing historical execution binding'
+  return null
+}
+
+function applyCallBound(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'call.bound' }>,
+  source: DurableEvidence,
+): string | null {
+  if ('binding' in entry && entry.reference !== entry.binding.producer.call)
+    invalidAt('reference', 'does not match original binding')
+  registerCall(
+    draft,
+    entry.consumption,
+    'registration' in entry ? entry.registration : associated(entry.binding, entry.purpose),
+    source,
+    'association' in entry ? entry.association : null,
+  )
+  return null
+}
+
+function applyExtensionPassage(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'extension.passage' }>,
+): string | null {
+  if ('calls' in entry) registeredWaiting(draft, entry.run, entry.calls, entry.other)
+  else {
+    const calls = entry.waiting.flatMap(wait => {
+      if (wait.kind !== 'producer') return []
+      const record = draft.callRegistrations?.find(
+        item =>
+          item.registration.kind === 'associated' &&
+          equalValue(item.registration.binding, wait.binding),
+      )
+      if (record === undefined) unavailableAt('waiting.registration')
+      return [{ consumption: record.consumption, position: wait.position }]
+    })
+    registeredWaiting(
+      draft,
+      entry.run,
+      calls,
+      entry.waiting.filter(item => item.kind !== 'producer'),
+    )
+  }
+  return null
+}
+
+function applyControlRequested(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'control.requested' }>,
+): string | null {
+  requestControl(draft, entry.progress)
+  return null
+}
+
+function applyControlProgress(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'control.progress' }>,
+): string | null {
+  if (entry.progress !== null) {
+    const progress = entry.progress
+    validateControlProgress(draft, progress)
+    draft.controls = draft.controls.map(item =>
+      item.operation === progress.operation ? progress : item,
+    )
+  }
+  const fact = entry.fact
+  if (fact === null) return null
+  if (fact.kind === 'cascade')
+    draft.tasks = draft.tasks.filter(
+      task =>
+        task.kind !== 'cascade' ||
+        task.child !== fact.child ||
+        task.childOperation !== fact.childOperation,
+    )
+  if (fact.kind === 'routed-input')
+    draft.tasks = draft.tasks.filter(
+      task => task.kind !== 'routed-input' || task.originalOperation !== fact.originalOperation,
+    )
+  if (fact.kind === 'scope-release') {
+    const released =
+      fact.dispositions.length > 0 && fact.dispositions.every(item => item === 'released')
+    draft.tasks = draft.tasks.flatMap(task =>
+      task.kind === 'scope-release' && task.archive === fact.archive && task.scope === fact.scope
+        ? released
+          ? []
+          : [{ ...task, last: fact.dispositions }]
+        : [task],
+    )
+    if (released)
+      draft.releasedScopes = [
+        ...(draft.releasedScopes ?? []),
+        { task: fact.archive, scope: fact.scope },
+      ]
+  }
+  return null
+}
+
+function applyArchived(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'session.archived' }>,
+): string | null {
+  draft.lifecycle = 'archived'
+  draft.pending = []
+  draft.handed = []
+  draft.waiting = []
+  draft.callWaits = []
+  draft.taken = []
+  delete draft.unanswered
+  delete draft.awaitingPerson
+  draft.tasks = [...draft.tasks.filter(task => task.kind !== 'routed-input'), ...entry.tasks]
+  const existing = draft.contextScopes ?? []
+  draft.contextScopes = [
+    ...existing.filter(scope => scope.scope !== entry.scope.scope),
+    entry.scope,
+  ]
+  return null
+}
+
+function applyUnarchived(
+  draft: Draft,
+  entry: Extract<SessionEntry, { kind: 'session.unarchived' }>,
+): string | null {
+  draft.lifecycle = 'dormant'
+  draft.contextScopes = [...(draft.contextScopes ?? []), entry.scope]
+  return null
+}
+
 export function applyExtended(
   draft: Draft,
   entry: SessionEntry,
@@ -25,151 +330,35 @@ export function applyExtended(
     case 'session.permission-assigned':
       return null
     case 'session.tool-resident-admitted':
-      if (draft.residents.some(item => item.capability === entry.resident.capability))
-        return 'resident admitted twice'
-      draft.residents = [...draft.residents, entry.resident]
-      return null
+      return applyResidentAdmitted(draft, entry)
     case 'session.mode-changed':
     case 'session.model-selected':
     case 'session.declaration-adopted':
     case 'session.context-registration-changed':
     case 'session.recovery-input-adopted':
-      if ('policy' in entry) {
-        draft.autoArchive = entry.policy
-        draft.declarations = source
-        draft.revisions = {
-          ...draft.revisions,
-          declarations: String(BigInt(draft.revisions.declarations) + 1n),
-        }
-        return null
-      }
-      if (entry.kind === 'session.declaration-adopted') {
-        draft.declarations = source
-        draft.revisions = {
-          ...draft.revisions,
-          declarations: String(BigInt(draft.revisions.declarations) + 1n),
-        }
-      }
-      if (
-        entry.kind === 'session.declaration-adopted' &&
-        entry.declaration.kind === 'environment-mode'
-      )
-        return null
-      draft.changes = [...(draft.changes ?? []), entry.declaration]
-      if (
-        entry.scope !== null &&
-        (entry.declaration.kind === 'context-registration' ||
-          entry.declaration.kind === 'context-step-commit')
-      )
-        draft.contextRecords = [
-          ...(draft.contextRecords ?? []),
-          { scope: entry.scope, declaration: entry.declaration },
-        ]
-      return null
+      return applyDeclaration(draft, entry, source)
     case 'session.workspace-changed':
-      draft.changes = [
-        ...(draft.changes ?? []),
-        {
-          kind: 'workspace',
-          value: entry.workspace,
-          workspaceAttachment: entry.workspaceAttachment,
-          basis: entry.basis,
-        },
-      ]
-      draft.revisions = {
-        ...draft.revisions,
-        workspace: String(BigInt(draft.revisions.workspace) + 1n),
-      }
-      return null
+      return applyWorkspaceChanged(draft, entry)
     case 'session.relation':
     case 'session.resident':
-      draft.relation = entry.relation
-      return null
+      return applyRelation(draft, entry)
     case 'session.idle-evidence':
-      draft.idle =
-        entry.observation === null ? null : { observation: entry.observation, commit: source }
-      return null
+      return applyIdleEvidence(draft, entry, source)
     case 'session.frozen':
-      if (draft.tasks.some(task => task.kind === 'initialization'))
-        return 'session frozen before every initialization item was ready'
-      if (draft.frozen !== null) return 'a second freeze'
-      draft.frozen = { cause: 'tool-shape-lost', evidence: entry.evidence, commit: source }
-      return null
+      return applyFrozen(draft, entry, source)
     case 'intake.released':
-      draft.pending = draft.pending.filter(input => !entry.inputs.includes(input))
-      draft.handed = draft.handed.filter(input => !entry.inputs.includes(input))
-      return null
+      return applyInputsReleased(draft, entry)
     case 'hitl.decision':
     case 'run.attempt-exited':
       return null
-    case 'history.annotated': {
-      if (!('execution' in entry)) return null
-      const old = draft.executions?.find(item => item.run === entry.run)
-      if (old === undefined || old.execution.execution !== entry.execution.execution)
-        return 'missing historical execution binding'
-      evidenceFields(entry.execution.evidence, 'execution.evidence')
-      const revision = decimal(entry.execution.revision, 'execution.revision')
-      if (
-        old.execution.revision !== null &&
-        revision < decimal(old.execution.revision, 'execution.revision')
-      )
-        return 'execution head moved backwards'
-      if (
-        old.execution.revision === entry.execution.revision &&
-        old.execution.evidence !== null &&
-        !equalValue(old.execution.evidence, entry.execution.evidence)
-      )
-        return 'execution head receipt changed'
-      if (
-        decimal(entry.execution.readThrough, 'execution.readThrough') <
-        BigInt(old.execution.readThrough)
-      )
-        return 'execution read progress moved backwards'
-      draft.executions = (draft.executions ?? []).map(item =>
-        item.run === entry.run ? { ...item, execution: entry.execution } : item,
-      )
-      if (draft.run.kind === 'active' && draft.run.run === entry.run)
-        draft.run = { ...draft.run, execution: entry.execution }
-      return null
-    }
+    case 'history.annotated':
+      return applyHistoryAnnotated(draft, entry)
     case 'entries.interpreted':
-      // RD-2 and RD-3. RD-1 needs the saved progress of the channel: see `advanceEntriesProgress`.
-      if (decimal(entry.through, 'entries.through') <= decimal(entry.after, 'entries.after'))
-        return 'entries progress does not advance'
-      if (
-        !(draft.executions ?? []).some(
-          item => item.run === entry.run && item.execution.execution === entry.execution,
-        )
-      )
-        return 'missing historical execution binding'
-      return null
+      return applyEntriesInterpreted(draft, entry)
     case 'run.batch-taken':
-      // I-R3: an input is taken at most once. A repeated member or a second taking in the same
-      // Run is a contradiction to report, not a value to merge.
-      if (new Set(entry.batch.ordered).size !== entry.batch.ordered.length)
-        return 'a taken batch repeats an input'
-      if (draft.run.kind !== 'active' || draft.run.run !== entry.run) {
-        draft.pending = draft.pending.filter(input => !entry.batch.ordered.includes(input))
-        return null
-      }
-      if (entry.batch.ordered.some(input => (draft.taken ?? []).includes(input)))
-        return 'an input taken twice in the same Run'
-      draft.pending = draft.pending.filter(input => !entry.batch.ordered.includes(input))
-      draft.handed = draft.handed.filter(input => !entry.batch.ordered.includes(input))
-      draft.taken = [...(draft.taken ?? []), ...entry.batch.ordered]
-      return null
-    case 'call.bound': {
-      if ('binding' in entry && entry.reference !== entry.binding.producer.call)
-        invalidAt('reference', 'does not match original binding')
-      registerCall(
-        draft,
-        entry.consumption,
-        'registration' in entry ? entry.registration : associated(entry.binding, entry.purpose),
-        source,
-        'association' in entry ? entry.association : null,
-      )
-      return null
-    }
+      return takeBatch(draft, entry)
+    case 'call.bound':
+      return applyCallBound(draft, entry, source)
     case 'call.result-preserved':
     case 'call.result-processed':
       return applyResult(draft, entry)
@@ -177,89 +366,15 @@ export function applyExtended(
     case 'account.linked':
       return applyProducerFact(draft, entry)
     case 'extension.passage':
-      if ('calls' in entry) registeredWaiting(draft, entry.run, entry.calls, entry.other)
-      else {
-        const calls = entry.waiting.flatMap(wait => {
-          if (wait.kind !== 'producer') return []
-          const record = draft.callRegistrations?.find(
-            item =>
-              item.registration.kind === 'associated' &&
-              equalValue(item.registration.binding, wait.binding),
-          )
-          if (record === undefined) unavailableAt('waiting.registration')
-          return [{ consumption: record.consumption, position: wait.position }]
-        })
-        registeredWaiting(
-          draft,
-          entry.run,
-          calls,
-          entry.waiting.filter(item => item.kind !== 'producer'),
-        )
-      }
-      return null
+      return applyExtensionPassage(draft, entry)
     case 'control.requested':
-      requestControl(draft, entry.progress)
-      return null
-    case 'control.progress': {
-      if (entry.progress !== null) {
-        const progress = entry.progress
-        validateControlProgress(draft, progress)
-        draft.controls = draft.controls.map(item =>
-          item.operation === progress.operation ? progress : item,
-        )
-      }
-      const fact = entry.fact
-      if (fact === null) return null
-      if (fact.kind === 'cascade')
-        draft.tasks = draft.tasks.filter(
-          task =>
-            task.kind !== 'cascade' ||
-            task.child !== fact.child ||
-            task.childOperation !== fact.childOperation,
-        )
-      if (fact.kind === 'routed-input')
-        draft.tasks = draft.tasks.filter(
-          task => task.kind !== 'routed-input' || task.originalOperation !== fact.originalOperation,
-        )
-      if (fact.kind === 'scope-release') {
-        const released =
-          fact.dispositions.length > 0 && fact.dispositions.every(item => item === 'released')
-        draft.tasks = draft.tasks.flatMap(task =>
-          task.kind === 'scope-release' &&
-          task.archive === fact.archive &&
-          task.scope === fact.scope
-            ? released
-              ? []
-              : [{ ...task, last: fact.dispositions }]
-            : [task],
-        )
-        if (released)
-          draft.releasedScopes = [
-            ...(draft.releasedScopes ?? []),
-            { task: fact.archive, scope: fact.scope },
-          ]
-      }
-      return null
-    }
-    case 'session.archived': {
-      draft.lifecycle = 'archived'
-      draft.pending = []
-      draft.handed = []
-      draft.waiting = []
-      draft.callWaits = []
-      draft.taken = []
-      draft.tasks = [...draft.tasks.filter(task => task.kind !== 'routed-input'), ...entry.tasks]
-      const existing = draft.contextScopes ?? []
-      draft.contextScopes = [
-        ...existing.filter(scope => scope.scope !== entry.scope.scope),
-        entry.scope,
-      ]
-      return null
-    }
+      return applyControlRequested(draft, entry)
+    case 'control.progress':
+      return applyControlProgress(draft, entry)
+    case 'session.archived':
+      return applyArchived(draft, entry)
     case 'session.unarchived':
-      draft.lifecycle = 'dormant'
-      draft.contextScopes = [...(draft.contextScopes ?? []), entry.scope]
-      return null
+      return applyUnarchived(draft, entry)
     default:
       return `unsupported entry ${entry.kind}`
   }
@@ -267,12 +382,6 @@ export function applyExtended(
 
 type ProgressRow = Extract<SessionEntry, { kind: 'entries.interpreted' }>
 
-/**
- * The saved entries progress after the progress rows of one reduced batch (RD-1). A row must start
- * at the saved through of its channel, or at 0 for a channel with no saved progress; it then sets
- * the item of its channel to its through and to `evidence`, the evidence of the batch. Returns a
- * diagnostic when the chain breaks.
- */
 export function advanceEntriesProgress(
   saved: readonly SessionEntriesProgress[],
   rows: readonly ProgressRow[],

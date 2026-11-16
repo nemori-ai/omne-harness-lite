@@ -1,7 +1,3 @@
-// The derived account projection (RQ-14) and its recovery (RQ-15). The durable facts stay in the
-// result receiver's log; this index is rebuilt from it and never authorizes cleaning it. A target
-// is the unit of eviction (CX-11): when a new target needs a slot, the least recently used ready
-// target without an operation in flight goes back to "never initialized".
 import { canonicalAccount, judgeCallAccount, type CallAccount } from '@omne-harness/call-account'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import {
@@ -24,7 +20,6 @@ import {
 } from '@omne-harness/request-context-contract'
 import { createHash } from 'node:crypto'
 
-/** What assembly needs of the current revision: its number and the known input amount. */
 type Revision = Readonly<{ revision: bigint; known: bigint | null }>
 type DispatchIndex = { current: Revision | null; revisions: Map<string, string> }
 type Index = { dispatches: Map<string, DispatchIndex>; facts: number }
@@ -32,17 +27,13 @@ type TargetState = {
   status: 'uninitialized' | 'rebuilding' | 'ready'
   generation: AccountingGeneration | null
   index: Index
-  /** Operations (`receive`, `usage`) that hold this target now. A held target is not evicted. */
   inflight: number
-  /** The position of the last use in the instance order; the smallest is the least recent. */
   touched: number
-  /** False while a new target is rebuilding for the first time: it has no slot yet. */
   slotted: boolean
 }
 const ATTEMPTS = 2
 const INPUT_ITEMS = ['input', 'cache-read', 'cache-write'] as const
 
-/** The account owner's canonical form of an account that `judgeCallAccount` admitted. */
 function fingerprint(account: CallAccount): string {
   return createHash('sha256').update(canonicalAccount(account)).digest('base64url')
 }
@@ -65,7 +56,6 @@ type Applied =
   | Readonly<{ kind: 'conflict'; field: string }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/** The receive rules shared by ordinary delivery and replay: idempotency, then capacity, then write. */
 function apply(
   index: Index,
   input: ContextAccountingInput,
@@ -96,7 +86,6 @@ function apply(
   return { kind: 'applied', change: 'inserted' }
 }
 
-/** Shape, account legality and the internal tenant relation of one fact. */
 function factFailure(input: unknown): Readonly<{
   kind: 'invalid'
   field: string
@@ -114,7 +103,6 @@ function factFailure(input: unknown): Readonly<{
     return { kind: 'invalid', field: 'input', reason: 'unsupported-format' }
   return null
 }
-/** The account as its owner admits it, or the named invalid result. */
 function admittedAccount(
   input: ContextAccountingInput,
 ):
@@ -139,7 +127,6 @@ type Adopted = Readonly<{
   forecast: string | null
   dispatch: string | null
 }>
-/** Parses the adopted fact at the boundary; a bad value is the named invalid result. */
 function decodeAdopted(
   fact: AdoptedRequestFact,
 ): Adopted | Readonly<{ kind: 'invalid'; field: string; reason: 'unsupported-format' }> {
@@ -169,10 +156,6 @@ function decodeAdopted(
   }
   return { fact, windowTokens: value.windowTokens, forecast: used, dispatch }
 }
-/**
- * The complete known input amount in tokens of one account, or null. A missing, provisional,
- * unknown or non-token item, or a repeated item name (the basis is unclear), is not `actual`.
- */
 function knownInput(account: CallAccount): bigint | null {
   let total = 0n
   for (const name of INPUT_ITEMS) {
@@ -186,7 +169,6 @@ function knownInput(account: CallAccount): bigint | null {
   return total
 }
 
-/** Creates the account projection: an inbox for result receivers and a recovery port for hosts. */
 export function createContextAccounting<P>(
   options: AccountingOptions<P>,
 ): Readonly<{ inbox: ContextAccountingInbox<P>; recovery: ContextRecovery<P> }> {
@@ -204,7 +186,6 @@ export function createContextAccounting<P>(
   const touch = (state: TargetState): void => {
     state.touched = ++clock
   }
-  /** The least recently used target that is ready and has no operation in flight, if any. */
   const victim = (): string | undefined => {
     let found: string | undefined
     let oldest = Infinity
@@ -215,10 +196,6 @@ export function createContextAccounting<P>(
       }
     return found
   }
-  /**
-   * Holds one target for the length of an operation, so that it is not evicted meanwhile. `take`
-   * moves the hold to the given state; `release` is idempotent.
-   */
   const holder = () => {
     let held: TargetState | undefined
     const take = (state: TargetState | undefined): void => {
@@ -377,8 +354,6 @@ export function createContextAccounting<P>(
       const existing = states.get(key)
       if (existing?.status === 'rebuilding')
         return { kind: 'unavailable', diagnostic: 'rebuilding' }
-      // The precheck: a new target needs a free slot or a target to evict. Nothing is replayed
-      // for a rebuild that cannot be published. The eviction itself waits for the publication.
       if (existing === undefined && slots >= limits.maxTargets && victim() === undefined)
         return { kind: 'unavailable', diagnostic: 'capacity' }
       const state: TargetState = existing ?? {
@@ -419,8 +394,6 @@ export function createContextAccounting<P>(
         }
         const last = await check()
         if (last.kind !== 'allowed') return last
-        // Publication, with no await from here on: take the slot of a new target, evicting the
-        // least recently used idle target if the table is full, then write the state.
         if (!state.slotted) {
           if (slots >= limits.maxTargets) {
             const gone = victim()
@@ -444,8 +417,6 @@ export function createContextAccounting<P>(
         }
       } finally {
         if (!rebuilt) {
-          // The old complete index is kept, but a not-ready target never serves it; a new target
-          // that never became ready gives its capacity slot back.
           state.status = 'uninitialized'
           if (existing === undefined) states.delete(key)
         }

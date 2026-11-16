@@ -26,7 +26,6 @@ import {
 const FIELDS = { code: 'identity.fault', retried: false, attempts: 1, request: 'req-1' } as const
 
 function bypass<T>(value: unknown): T {
-  // The test reaches past the contract types on purpose: the runtime checks actual values.
   return value as T
 }
 
@@ -174,7 +173,6 @@ describe('outlet failures (G1, G2)', () => {
       clock.advance(100)
     }
 
-    // Fifteen failures inside one interval of 1000 ms: one summary line, not fifteen.
     expect(summaries).toHaveLength(1)
     expect(summaries[0]).toContain('outputErrors=1')
     clock.advance(1000)
@@ -184,7 +182,6 @@ describe('outlet failures (G1, G2)', () => {
     expect(summaries[1]).toContain('outputErrors=16')
 
     const report = await runtime.close(1000)
-    // The runtime never feeds its own failures back into its queue.
     expect(report.admitted).toBe(16)
     expect(report.droppedBy).toEqual({ output: 16 })
     expect(report.dropped).toBe(16)
@@ -405,7 +402,6 @@ describe('segment lifetime (TN-6)', () => {
     expect(emitter.startSegment(handling)).toEqual({ kind: 'dropped', reason: 'capacity' })
 
     clock.advance(51)
-    // The old segment is 101 ms open, the young one 51 ms: one place is free again.
     const third = emitter.startSegment(handling)
     expect(isSegment(third)).toBe(true)
     expect(old.end('ok')).toEqual(DROPPED_EXPIRED)

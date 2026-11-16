@@ -1,7 +1,3 @@
-// The ports that the plugin reads per call (SPEC「端口接线」; verification 2 and 3). A port that is
-// absent or that throws makes only the operation that needs it answer `unavailable`, with the
-// service key of the port as owner; reads and unrelated operations go on, and a provider that
-// arrives later is used by the next call without the plugin body running again.
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -27,7 +23,6 @@ async function build(omit: readonly PortName[] = []): Promise<Assembly> {
   return assembly
 }
 
-/** `ctx.plugin` for plugins of any shape; the typed overloads reject the test doubles. */
 const loose = (ctx: Context) =>
   ctx.plugin as unknown as (plugin: unknown) => Promise<{ dispose(): Promise<void> }>
 
@@ -35,7 +30,6 @@ const throwing = (method: string) => ({
   [method]: () => Promise.reject(new Error('port crashed')),
 })
 
-/** `create` through the real service, as the answer and not as a receipt. */
 async function tryCreate(a: Assembly, session = 'session-1') {
   const intake = await a.caller('intake')
   return intake.session().management.create({
@@ -87,7 +81,6 @@ describe('a port that is absent', () => {
     expect(await reconcile.releasedScopes({ ...system } as never)).toMatchObject({
       failure: { kind: 'unavailable', owner: 'sessionTransactions' },
     })
-    // A command and a single-session read go through the delegated entry and are not affected.
     await a.create(intake)
     expect(
       await intake.session().work.queryOperation({
@@ -144,11 +137,9 @@ describe('a port that throws', () => {
           diagnostic: expect.stringContaining('port crashed'),
         },
       })
-      // The fault is recorded where a person can find it.
       expect(
         a.ctx.logger.buffer.some(message => String(message.args[0]).includes('port crashed')),
       ).toBe(true)
-      // A later provider that works restores the operation; the failed call left nothing behind.
       await a.withdraw(key)
       await a.provide(key)
       const intake = await a.caller('intake')

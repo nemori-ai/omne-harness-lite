@@ -1,7 +1,3 @@
-// The Cordis service definitions of Skill: the abstract Service of each of the three Skill services
-// and of the two demand ports that other domains implement. Each Service writes its key once, in
-// `provide`; the exported key constants are taken from it. A Service declares no `inject`: the plugin that uses a port reads it from its own
-// context on each call and treats its absence as an unknown answer.
 import { type Context, Service } from '@deepseek-ai/cordis'
 import type { SkillAccess, SkillCatalog } from '@omne-harness/skill-contract'
 import type {
@@ -119,8 +115,6 @@ export abstract class SkillResolutionService<P, S>
 export const skillResolutionKey = SkillResolutionService.provide
 
 declare module '@deepseek-ai/cordis' {
-  // The principal and scope types stay `unknown` here; an implementation checks every input at run
-  // time, and an assembly with a trusted identity adapter narrows them.
   interface Context {
     skillPackageInspection: PackageInspectionService
     skillCatalog: SkillCatalogService<unknown, unknown>

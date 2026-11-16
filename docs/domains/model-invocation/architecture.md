@@ -1,6 +1,6 @@
 # 模型调用的角色与交接
 
-本页的领域关系与非 pi-ai 技术设计已接受。Model 契约、内部机制和 Cordis 集成按各拥有者正文实施；pi-ai 的采用范围由[组架构各节](../../../packages/model/docs/architecture.md#成员与新增条件)维护。运行实现及实际验证仍待完成。
+Model 契约、内部机制和 Cordis 集成按各拥有者正文实施；pi-ai 的采用范围由[包组规格](../../../packages/model/SPEC.md#总体架构)维护。
 
 ## 责任分解
 
@@ -18,7 +18,7 @@
 Session 拥有选择事实、工作及有效推进关系，模型维护求值所需档案和执行事实。Context 拥有派生请求与模态投影的具体读取维护；模型提供含义和能力依据。模型不会写消费者私有状态，也不会执行工具建议。Model 不依赖 Tool；调用建议和 ToolMessage 通过 common/message 交接，内容块通过 common/content-block 交接。上层请求组装者拥有模型声明到原工具及命令的映射，Model 不承担工具准入或注册发现。
 
 
-完整行为读[能力组](../../../packages/model/README.md)，精确机制与流程随成员维护。
+完整行为读[能力组规格](../../../packages/model/SPEC.md)，精确机制与流程随成员维护。
 
 ## 凭据引用与保管
 

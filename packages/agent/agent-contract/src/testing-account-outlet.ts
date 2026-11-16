@@ -1,6 +1,3 @@
-// The AgentAccountOutlet conformance suite (SPEC "账目出站", J28) and a non-durable double that
-// passes it. The double stands in for the adapter on the side of Request Context: it keeps the
-// current revision of each (tenant, call, dispatch) and answers a repeated handoff the same.
 import assert from 'node:assert/strict'
 import { admitRevision, judgeCallAccount, type CallAccount } from '@omne-harness/call-account'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -16,16 +13,13 @@ import type { Access, DurableEvidence } from './identity.ts'
 import type { AgentAccountHandoff, AgentAccountOutcome, AgentAccountOutlet } from './receiving.ts'
 import { canonicalText, tenantText, type ConformanceCase } from './testing-case.ts'
 
-/** A non-durable double of the account outlet. It must not be assembled into production. */
 export interface MemoryAgentAccountOutlet<P> extends AgentAccountOutlet<P> {
   readonly durability: 'none'
-  /** The current handoff of each dispatch of `tenant`, in the order of first arrival. */
   received(tenant: TenantId): readonly AgentAccountHandoff[]
 }
 
 type Kept = { current: AgentAccountHandoff; readonly revisions: Map<string, string> }
 
-/** Creates the double. */
 export function createMemoryAgentAccountOutlet<P>(): MemoryAgentAccountOutlet<P> {
   const kept = new Map<string, Map<string, Kept>>()
   return {
@@ -62,7 +56,6 @@ export function createMemoryAgentAccountOutlet<P>(): MemoryAgentAccountOutlet<P>
       if (earlier !== undefined)
         return earlier === text ? { kind: 'received' } : { kind: 'conflict' }
       known.revisions.set(account.revision, text)
-      // call-account owns the revision order: the higher revision of the same subject wins.
       const winner = admitRevision(known.current.account, account)
       if ('ok' in winner && winner.ok.revision === account.revision) {
         known.current = structuredClone(handoff)
@@ -75,11 +68,6 @@ export function createMemoryAgentAccountOutlet<P>(): MemoryAgentAccountOutlet<P>
   }
 }
 
-/**
- * What the suite needs from a provider. `access` and `otherAccess` belong to two different
- * tenants. `current` reads the current account revision that the provider keeps for one dispatch,
- * or null when it keeps none.
- */
 export interface AgentAccountOutletFixture<P> {
   readonly outlet: AgentAccountOutlet<P>
   readonly access: Access<P>
@@ -99,7 +87,6 @@ const committed = (record: string): DurableEvidence => ({
   digest: 'd',
 })
 
-/** A handoff of the suite for one dispatch of a call that `tenant` owns. */
 export function sampleAccountHandoff(
   tenant: TenantId,
   name: string,
@@ -133,7 +120,6 @@ export function sampleAccountHandoff(
   }
 }
 
-/** The cases that a provider of `AgentAccountOutlet` passes. */
 export function agentAccountOutletConformance<P>(
   fixture: AgentAccountOutletFixture<P>,
 ): readonly ConformanceCase[] {
@@ -195,8 +181,6 @@ export function agentAccountOutletConformance<P>(
       },
     },
     {
-      // The call reference carries no tenant (R2-D357): a handoff is the deliverer's own, and it
-      // never reaches the outlet state of another tenant.
       name: 'keeps a handoff in the tenant that delivers it and nothing for another tenant',
       async run() {
         const handoff = sampleAccountHandoff(otherAccess.tenant, 'foreign')
@@ -254,7 +238,6 @@ export function agentAccountOutletConformance<P>(
   ]
 }
 
-/** A fixture of the double, for its own conformance run and for consumer tests. */
 export function memoryAgentAccountOutletFixture<P>(
   access: Access<P>,
   otherAccess: Access<P>,

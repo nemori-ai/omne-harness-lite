@@ -1,21 +1,51 @@
-# 模态投影与转换：当前设计与未实现边界
+# 模态投影与消息转换：设计
 
-产品规则归[产品入口](../../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/README.md)；本页只维护尚无真实提供者的已采用技术行为及未决，不授予实现或验证状态。公开数据沿实际定义拥有者，不建空包。新增产品政策仍由产品负责人决定。
+## 范围
 
-| 操作 | 资格、首拒绝与闭合失败 | 提交、重复 |
-| --- | --- | --- |
-| project  | 输入为合法可读日志前缀；授权归log reader，函数不授权；仅invalidInput | 纯fold，无提交；同L同集合；不能读log时caller明确失败，不传空集 |
-| compatible  | 合法profile+已知projection；无授权；仅invalidInput | 纯 S⊆profile.inputModalities，blocked=S\input；不看output/大小/在册/范围；同输入同结论 |
-| declareConverters  | 仅system assembly可达；所有shape先invalidInput，然后重复key→keyTaken；集合闭合invalidInput,keyTaken | 进程内整表原子生效，**没有耐久提交**；可声明空表表示已知无登记；旧新无混合/替换无unregistered窗口，失败旧表不变；同key引用再次声明可重复、不比较opaque converter身份 |
-| convert  | 仅系统builtin消费；block为无renderings/transcript的voice/image/file、tenant为消息真实Session归属；invalidInput→registry未知converterFailed→每候选确无登记noConverter成功→调用/字节不可得converterFailed→transcript缺/空transcriptMissing→其余产出违约converterFailed | 不自己落盘；无去重，转换可不确定，重复是新外部效果；成功renderings/transcript随原消息同一次提交 |
-| lookupConverter  | 仅合法key；无授权；失败仅invalidInput | 只读三支registered/unregistered/unavailable；答不出不是unregistered；只答登记不答converter当次可用 |
+[模态投影](../../ubiquitous_language/terms/record-and-context.md#ul-modality-projection--模态投影--modality-projection)回答：一个会话的历史里，还有哪几种模态要模型直接读原件。Model 拿它与胜出档案的输入模态比对，投影缺失或不可读不能当作空历史放行（[Model 包组规格](../../../../packages/model/SPEC.md#模态转换与工具声明)）。本页写三件事：投影怎样从日志算出来，一条消息在接纳之前的模态转换怎样全有或全无，工具可用性怎样用到转换件。转换件的选取、键的规范形式与转换产出的要求归 Model，本页不重复。
 
-折叠定义接续（类型不表达）：只计已落日志消息的原块树，含任意nested tool_result，排除renderings；块及全部祖先toModel真且有modality、无transcript才入集合。不是“此刻模型可读”，压缩名单不抹掉模态；SystemMessage不落log且本期文本，非modal file不计。随前缀单调、追加可union、每prefix增量=重算，合法模型判定必须覆当次尾。后登converter不回扫历史改块/投影。
+## 投影
 
-ConverterKey匹配：voice/image仅modality键；file取规范mediaType去参数，先media_type再非text modality，码点恰等，不嗅探/扩展名猜。image/png图块不走media_type键。转换产出恰一DerivedRendering、producedBy system、非空合法text/image/audio且每派生模态异于原输入（无modality file例外），无file/thought/call/result、无递归renderings，非空transcript。不能只给transcript、取多份第一份或删坏块“修好”。
+操作 `project`：输入是一个合法、可读的日志前缀 L，输出是一个模态集合。
 
-接纳前跨域：非 Tool ref 来源由实现消息准入的提供者在接纳前调用系统转换，Agent 只看到接纳后的消息与派生表示。系统转换遍历所有模型可见、未派生的eligible块，有eligible才解析真实Session tenant/registry，纯文本/只给人消息不依赖这一侧。确无登记可原样落；registry未知、converter不可用/坏产出、取字节失败、时限/tenant解不出皆整条veto。失败reason至少blockID+failure+key（若已知），不含内容；一块失败全条消息/先前派生不落。它不在扩展位置上；模型回复只此系统件能加派生，接纳后改块非法。转换不发model调用，converter不是普通asset。撤除/换代时未知不能变noConverter，尚未落盘产出不能被写者私自补入日志。
+- 读日志的授权归日志的读者，`project` 本身不授权。它只有一种失败：输入不合形状，答 `invalidInput`。
+- `project` 是一次纯折叠，没有提交。同一个 L 总得到同一个集合。
 
-当前 model-request-runtime `SelectionProjection`/`SelectionCompatibility`、session selection projection(prefix)端口已拥有消费者形状；引用它们，不造另一ModelProfile/SessionRef。旧无SessionRef及loop environment出处语句已被messages/session-tenancy/当前loop端口更新取代。现有端口未实现通用fold/converterregistry/builtin converter。仍未闭：附件字节授权/持久化/被veto字节保留，通用log投影协议真实owner与当前CheckedPrefix整合，时限值（归runner配置）、Converter活体完成/撤除的提供者机制；不扩完整Session协调。
+折叠的定义：
 
-验证义务与规范输入见[verification](verification/README.md)。尚未闭合的公共语义阻止相应提供者实施，不以迁移目录关闭业务缺口。
+- 只计已经落进日志的消息的原块树，包括任意层嵌套在工具结果里的块，不计派生表示里的块。
+- 一个块计入集合，当且仅当这个块与它的全部祖先都标着给模型看，这个块有模态，而且它没有 transcript。
+- 投影不是「此刻模型能读到什么」。压缩记录的名单不让块退出投影。
+- 系统提示词不落日志，不计。没有模态的文件块不计。
+- 投影随前缀单调增长。追加一条消息时，新集合是旧集合并上这一条的贡献。对每个前缀，逐条并入的结果等于整份重算。
+- 判定一个模型合不合法，必须用覆盖到本次请求尾部的投影。
+- 事后登记的转换件不回头扫历史，不改历史里的块，也不改投影。
+
+## 一条消息的转换：全有或全无
+
+非 Tool 引用来源的转换在消息接纳之前完成（[Model 包组规格](../../../../packages/model/SPEC.md#模态转换与工具声明)，[Agent 包组规格的领域边界](../../../../packages/agent/SPEC.md#领域边界)）。一条消息怎样整体落日志，规则如下：
+
+- 一条消息里，所有标着给模型看、还没有派生表示、有模态的块都要转换。只有至少一块要转换时，才解析这条消息所属会话的租户与转换件。纯文本的消息与只给人看的块不依赖转换这一侧。
+- 任一块转换失败，整条消息被否决：这条消息不落日志，已经为别的块做出的派生表示也不落。失败包括：转换件答不出，转换件不可用或产出不合要求，读不到字节，超过时限，解析不出租户。确实没有登记转换件的块原样落日志。
+- 解析不出租户时，不调起转换件，不以缺席的租户或别的租户去读字节。
+- 否决的原因至少带出错块的身份、失败种类与转换件的键（已知时），不带内容。
+- 对模型回复，唯一允许的改动是系统转换给块挂上派生表示，模型说的话一字不改。消息接纳之后再改块是非法的。
+- 转换件撤除或换代时，还没有落日志的产出不能由日志的写入者私下补进日志。
+- 否决之后怎样告知发送方，归输入受理方。
+
+## 工具可用性用到转换件
+
+工具声明它的结果里会有哪些模态。工具目录判一个工具对有效模型可不可用时，结果那一端这样用转换件：
+
+- 结果里的一种模态，有效模型的输入模态里有它，这一项满足。
+- 输入模态里没有它时，按这种模态的模态键查转换件。查到了，这一项满足。查不到，这一项不满足。答不出时按不满足处理。
+- 只在某个媒体类型键上登记了转换件，不等于这种模态有兜底。
+
+调用那一端不经转换件：工具参数里要的模态，由工具目录拿工具声明与有效模型的输出模态自己比。
+
+## 未决
+
+1. **投影由谁计算。** 现行正文说投影由调用方随运行时上下文提供（`packages/model/SPEC.md` 第 201 行），没有说谁算、算出的投影怎样与它所依据的日志前缀绑在一起。要定：计算者是谁，投影怎样带上它覆盖到的前缀。
+2. **附件的字节。** 附件字节的读取授权与持久化，以及被否决消息的字节保留多久，都没有定。
+3. **转换的时限。** 一次转换的时限由谁配置，没有定。这份设计的读法是归运行转换的那一方的配置。
+4. **按模态查转换件。** 「工具可用性用到转换件」要求只按模态键查。现行的转换件目录按媒体类型与模态一起查，媒体类型必填（`packages/model/model-contract/src/conversion.ts` 第 41 到 45 行）。要定：目录加一种只按模态键的查法，还是工具目录换一种问法。

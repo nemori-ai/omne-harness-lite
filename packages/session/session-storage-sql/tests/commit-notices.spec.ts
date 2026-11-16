@@ -1,12 +1,3 @@
-// The batch of a commit, from the one writer of the session log to the notifiers registered on the
-// database (#1230, SPEC「本批与提交通知」): the Session participant gives the batch in its reply,
-// from the one place that writes the entries; the one landing of the main thread tells it to the
-// `SessionNotifier`s registered on `storage.database`. The cases drive three committers of this
-// member against the real SQLite provider (the command entry, the entries channel, the log
-// channel); the fourth (the Session participation of an Agent journal commit) is in session-adapters.
-// Each notice must name the revision, the batch evidence and the entry kinds of that one batch; a
-// recall, a refusal and a commit that wrote no entry tell nothing; a notifier never changes or holds
-// up an answer.
 import type {
   CommitReceipt,
   DurableEvidence,
@@ -42,7 +33,6 @@ const ok = <T>(value: unknown): T => {
   return (value as { ok: T }).ok
 }
 
-/** The commit receipt of an answer: `create` wraps it in `receipt`, `accept` is it. */
 const receiptOf = (value: unknown): CommitReceipt => {
   const answer = ok<{ receipt?: CommitReceipt } & CommitReceipt>(value)
   return answer.receipt ?? answer
@@ -53,7 +43,6 @@ afterEach(() => {
   for (const unregister of unregisters.splice(0)) unregister()
 })
 
-/** A notifier that records every notice, registered on the database of `a`. */
 function listen(a: App, committed?: SessionNotifier['committed']) {
   const notices: Notice[] = []
   const notifier: SessionNotifier = {
@@ -67,7 +56,6 @@ function listen(a: App, committed?: SessionNotifier['committed']) {
   return { notices, unregister }
 }
 
-/** The entries of session-1 of tenant A, oldest first, every kind. */
 async function historyOf(a: App): Promise<readonly HistoryEntry[]> {
   const access = a.access(TENANT_A)
   const entries: HistoryEntry[] = []
@@ -87,14 +75,12 @@ async function historyOf(a: App): Promise<readonly HistoryEntry[]> {
   }
 }
 
-/** The kinds of the entries of `revision`, without repeats, sorted. */
 async function kindsOf(a: App, revision: SessionRevision): Promise<readonly string[]> {
   const entries = (await historyOf(a)).filter(entry => entry.revision === revision)
   expect(entries.length, `the log has revision ${revision}`).toBeGreaterThan(0)
   return [...new Set(entries.map(entry => entry.kind))].sort()
 }
 
-/** The stored operation record of `operation`: its form and the decoded receipt and result. */
 function operationRow(a: App, operation: string) {
   const rows = a.provider.select(
     'dom_0',
@@ -112,7 +98,6 @@ function operationRow(a: App, operation: string) {
   }
 }
 
-/** The commit sequence of the journal row of session-1 of tenant A. */
 function commitSeqOf(a: App): string {
   const [[seq]] = a.provider.select(
     'dom_0',
@@ -122,7 +107,6 @@ function commitSeqOf(a: App): string {
   return String(seq)
 }
 
-/** The one notice the commit since `from` gave: tenant, session and the sorted kinds checked. */
 async function oneNotice(a: App, notices: readonly Notice[], from: number): Promise<Notice> {
   const fresh = notices.slice(from)
   expect(fresh).toHaveLength(1)
@@ -134,7 +118,6 @@ async function oneNotice(a: App, notices: readonly Notice[], from: number): Prom
   return notice
 }
 
-/** A session with a running Run, and an entries observation of one Tool call of it. */
 async function entriesScene() {
   const a = await app()
   ok(await a.create(TENANT_A))
@@ -202,7 +185,6 @@ async function entriesScene() {
   return { a, observation, commitEntries }
 }
 
-/** A session with a running Run, the Agent event 1 of its execution published, and its observation. */
 async function logScene() {
   const a = await app()
   const agent = agentPublisher({
@@ -313,7 +295,6 @@ describe('no notice without a fresh batch', () => {
     ok(await a.create(TENANT_A))
     const { notices } = listen(a)
     const before = (await historyOf(a)).length
-    // Auto archive is not enabled for the session: the writer answers success and writes nothing.
     ok(
       await a.port.commit({
         access: a.access(TENANT_A),

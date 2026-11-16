@@ -1,7 +1,3 @@
-// Cut short (#1233 spec 已定 12, 13; C8, C13): a take-down answers a call waiting on the identity
-// port or on its body at once; a caller who goes away gets no handler call before the handler
-// starts and does not stop it after; stopping the entry waits for the calls in flight. The moments
-// come from the test identity's and the handlers' own records, never from a timed wait.
 import { getEventListeners } from 'node:events'
 import { connect, type Socket } from 'node:net'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -16,7 +12,7 @@ import {
   startAccessFixture,
   turn,
   type AccessFixture,
-} from './support/pipeline-kit.ts'
+} from './support/access-kit.ts'
 
 let fixture: AccessFixture
 
@@ -30,11 +26,9 @@ afterEach(async () => {
 
 type OpenCall = {
   readonly socket: Socket
-  /** Everything the server wrote, once it ends the connection. */
   readonly reply: Promise<string>
 }
 
-/** Sends the request head and `sent` bytes of the body, and keeps the connection open. */
 function openCall(name: string, body: string, sent: number): Promise<OpenCall> {
   return new Promise((resolve, reject) => {
     const socket = connect({ host: '127.0.0.1', port: fixture.port }, () => {
@@ -53,14 +47,13 @@ function openCall(name: string, body: string, sent: number): Promise<OpenCall> {
   })
 }
 
-/** Lets the event loop turn until `ready` holds. Bounded by the case's time limit, not by a clock. */
 async function until(ready: () => boolean): Promise<void> {
   while (!ready()) await turn()
 }
 
 const UNAVAILABLE = '{"outcome":"basis-unavailable","body":{}}'
 
-describe('C8: a take-down answers a waiting call at once', () => {
+describe('a take-down answers a waiting call at once', () => {
   it('while the identity port has not returned', async () => {
     fixture.accessIdentity.identifyLogin = { kind: 'hold', held: held<LoginResult>() }
     const reply = call(fixture.port, 'read-note', { body: '{"noteId":"n-1"}' })
@@ -119,7 +112,7 @@ describe('C8: a take-down answers a waiting call at once', () => {
   })
 })
 
-describe('C8: the caller goes away', () => {
+describe('the caller goes away', () => {
   it('before the identity port returns: no handler call, and the take-down completes', async () => {
     const recognised = held<LoginResult>()
     fixture.accessIdentity.identifyLogin = { kind: 'hold', held: recognised }
@@ -184,7 +177,7 @@ describe('the abort signal keeps no listener of a finished call', () => {
   })
 })
 
-describe('C13: stopping the entry waits for the calls at the new address', () => {
+describe('stopping the entry waits for the calls at the new address', () => {
   it('stop settles only after the handler in flight has answered', async () => {
     const answer = held<{ outcome: 'succeeded'; body: { noteId: string; title: string } }>()
     fixture.notes.scripts['read-note'] = () => answer.promise

@@ -1,10 +1,10 @@
 # 日程与 Job 协作设计
 
-本页维护已确认的目标领域边界，不表示实现、装配或运行验证。范围归[领域入口](README.md)，精确行为归[schedule/schedule SPEC](../../../packages/schedule/schedule/SPEC.md)，产品规则归[产品正文](../../../.meta_harness/design/product/schedules-and-jobs/design.md)。类型定义由实际成员唯一维护，下列接口名表达目标消费责任，不声称已经导出。
+本页维护已确认的目标领域边界。范围归[领域入口](README.md)，精确行为归[日程规格](../../../packages/schedule/SPEC.md)，产品规则归[产品正文](../../../.meta_harness/design/product/schedules-and-jobs/design.md)。类型定义由实际成员唯一维护，下列接口名表达目标消费责任，不声称已经导出。
 
 ## 独立部署与本地实现
 
-本域公共服务可以独立于 Session、Agent runtime 部署。公共请求、结果和身份采用可序列化协议，不依赖同进程对象或跨域共享事务。本次由 `-local` 后端提供单机装配；公开契约、实现、绑定和工具分别维护。具体安装依赖、强一致前提和未实现范围见[包组织](../../package-organization.md#日历与日程的安装和部署边界)。
+本域公共服务可以独立于 Session、Agent runtime 部署。公共请求、结果和身份采用可序列化协议，不依赖同进程对象或跨域共享事务。本次由 `-local` 后端提供单机装配；公开契约、实现、绑定和工具分别维护。具体安装依赖、强一致前提和未实现范围见[日历与日程的边界实例](../../architecture/layers-and-dependencies.md#日历与日程的边界实例)。
 
 ## 事实拥有者与消费者
 
@@ -98,7 +98,7 @@ Session intake/inbound 根据来源及政策将 instruction 解释为合法输�
 
 ### 当前存储前提与未验证边界
 
-[sql-contract](../../../packages/storage/sql-contract/SPEC.md)及[sqlite-provider](../../../packages/storage/sqlite-provider/SPEC.md)已有实现。本域日程管理 participant、schema 与原操作恢复已实现；Job恢复扫描和dispatcher仍待后续波段。目标不得超出其[已知限制](../../../packages/storage/sqlite-provider/SPEC.md#已知限制)：L-1 留有资格核验至提交窗口，L-4 不保证跨进程写者排除；L-2 合并收益、L-3 Worker 容量、L-5 中断与恢复时限、L-6 内存、L-7 受信构建、L-8 磁盘、L-9 authorizer、L-10 关闭残留表示、L-11 控制查询延迟均须按原条款处理。这里不以目标同提交设计宣称这些限制已经消失。
+目标不得超出存储的[保证的范围](../../../packages/storage/SPEC.md#保证的范围)：L-1 留有资格核验至提交窗口，L-4 不保证跨进程写者排除；L-2 合并收益、L-3 Worker 容量、L-5 中断与恢复时限、L-6 内存、L-7 受信构建、L-8 磁盘、L-9 authorizer、L-10 关闭残留表示、L-11 控制查询延迟均须按原条款处理。这里不以目标同提交设计宣称这些限制已经消失。
 
 本域尤其须由权限拥有者提供符合撤权语义的 fence，并由装配验证它和接受提交的保护边界。远端快照、回调或缓存不足以证明强撤权竞争保证；缺少该协议时停止相关后台接受，保留受阻事实。Cordis 只绑定服务和生命周期，不填补业务原子性。
 

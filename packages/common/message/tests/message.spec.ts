@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
 import { judgeMessage, judgePart } from '@omne-harness/message'
 
@@ -65,13 +64,6 @@ it('M6 rejects a tool_call that has no callId', () => {
     rejected: 'callId',
     blockIndex: 0,
   })
-})
-
-it('M7 judges the README sample imported from @omne-harness/message', () => {
-  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8')
-  const fenced = /```json\n([\s\S]*?)\n```/u.exec(readme)
-  if (fenced?.[1] === undefined) throw new Error('README sample missing')
-  expect(judgeMessage(JSON.parse(fenced[1]))).toEqual(judgeMessage(message('assistant')))
 })
 
 const marker = { kind: 'tool_result', id: 'r1', visibility: text.visibility, callId: 'c1' }

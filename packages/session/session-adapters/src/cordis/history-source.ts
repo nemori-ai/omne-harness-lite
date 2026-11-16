@@ -1,27 +1,3 @@
-// AD-04, the Request Context history source of Session (SPEC AD-04): two sub-plugins and the
-// session-side parts of K-RQ.
-//
-// - The source sub-plugin `session-ad04` injects `session` with the `reader` caller class and
-//   provides `contextHolderSources` (K-RQ). It lends four parts: the history source (`read`,
-//   `compactionContext`), the narrow adoption source, the read eligibility bridge and the history
-//   evidence resolver. Every Session call of a part carries the access of that call; the plugin has
-//   no principal of its own.
-// - The lower bound sub-plugin `session-ad04-lower-bound` injects `session` with the `coordinator`
-//   caller class. It reads `readWork` with the access of the call: the open work that bounds the
-//   compaction window from below, and the context scopes of the session.
-//
-// A lease is an effect of the borrower fiber. The holder pulls the settlement when the lease ends,
-// by `release` or by that unload, and closes the lent reads only after every settlement it pulled
-// has ended (RQ-12). After the reads have closed, every part answers unavailable.
-//
-// The Session log is the authority. The plugins keep only derivatives: the scope-to-session index
-// (process lifetime, bounded) and the lease bookkeeping of one source fiber. Named gap: the
-// decoding of a history head evidence to its session is handed in as `heads`.
-//
-// The narrow adoption source reads the `a` part of the session (FIXED-FACTS F5): the request the
-// last main-purpose M0 recorded, through `sessionAdoptedRequests` of the session-log Journal
-// provider, taken per call. It decodes the fixed request record of request-context-contract and
-// checks it against the target and the coverage evidence of the same M0.
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -85,45 +61,25 @@ import { canonical } from '../testing/canonical.ts'
 import { compactionReads } from '../testing/session-values.ts'
 
 const LOGGER = 'session-adapters/history-source'
-/** The initial bound of the scope-to-session index; the assembly may set another (IC-14). */
 const SCOPE_INDEX_ENTRIES = 4096
-/** The initial page size of the full history read of a compaction window (IC-14). */
 const PAGE_BYTES = 65536
-/** A history read that has not ended after this many pages is not a complete read. */
 const MAX_PAGES = 10000
-/** The most sessions whose model view cursors one source fiber keeps; the oldest goes first. */
 const CURSOR_SESSIONS = 1024
-/**
- * The most model view cursors kept per session; the one after the lowest row goes first, except
- * the one just issued. A read never depends on a kept cursor to move on: it carries the cursor of
- * its own last page.
- */
 const CURSORS_PER_SESSION = 16
-/** The most row sizes kept per session; the lowest rows go first. */
 const SIZES_PER_SESSION = 65536
 
-/** The session that one durable history head names. */
 export type SessionHistoryHead = Readonly<{ tenant: TenantId; session: SessionId }>
 
-/**
- * Decodes the durable evidence of a history head (the `history` evidence of an Agent execution
- * snapshot) to the session it names. `null` is evidence this decoder does not know. The decoder
- * checks nothing: the resolver checks the tenant and the access of every call.
- */
 export interface SessionHistoryHeads {
   sessionOf(evidence: DurableEvidence): SessionHistoryHead | null
 }
 
-/** What the assembly hands to AD-04. */
 export type SessionHistorySourceInput = Readonly<{
   heads: SessionHistoryHeads
-  /** The most scopes the scope-to-session index keeps; the oldest goes first. */
   scopeIndexEntries?: number
-  /** The page size of the full history read of a compaction window. */
   pageBytes?: number
 }>
 
-/** The authority the narrow adoption source names: the `a` part of the session log. */
 const ADOPTED_AUTHORITY: AdoptedRequestSource<unknown>['authority'] = {
   owner: '@omne-harness/session-adapters',
   name: 'session-ad04/adopted',
@@ -131,27 +87,19 @@ const ADOPTED_AUTHORITY: AdoptedRequestSource<unknown>['authority'] = {
   digest: 'session-ad04:adopted',
 }
 
-/**
- * The digest that agent-context mints for the coverage evidence of a preparation: SHA-256 of the
- * canonical text of the `Coverage`, base64url (agent-context SPEC, record evidence table).
- */
 function coverageDigest(coverage: Coverage): string {
   return createHash('sha256').update(canonical(coverage)).digest('base64url')
 }
 
-/** The `readWork` of the lower bound sub-plugin, as the source sub-plugin sees it. */
 interface WorkReads {
   readWork(access: SessionAccess<unknown>): Promise<Outcome<WorkSnapshot, SessionFailure>>
 }
 
 type Shared = {
   readonly input: SessionHistorySourceInput
-  /** tenant text and scope ref → the session; a derivative of `readWork`, kept across generations. */
   readonly index: Map<string, SessionHistoryHead>
   readonly link: { work: WorkReads | undefined }
-  /** One number per source fiber in this process; the eligibility revision carries it. */
   generations: number
-  /** The reads state of the latest source fiber; `undefined` before the first one. */
   latest: { closed: boolean } | undefined
 }
 
@@ -189,14 +137,8 @@ function indexKey(tenant: string, scope: ScopeRef): string {
   return `${tenant}\u0000${scope.ref}`
 }
 
-// --- translation between the Session model view and the Request Context history evidence ----------
-
 const EPOCH_ESCAPE = /%([0-9a-f]{2})/gu
 
-/**
- * The Session epoch text as an `EpochId`. The Session text may hold control characters, which an
- * `EpochId` refuses; they, the space, DEL and `%` are written as `%xx`, so the mapping is reversible.
- */
 function epochOf(text: string): EpochId | undefined {
   let escaped = ''
   for (const character of text) {
@@ -216,12 +158,6 @@ function sessionEpochOf(epoch: EpochId): string {
   )
 }
 
-// The two sequences of one epoch view. The Session model view numbers its rows from 1 and names
-// the empty view by the upper bound "0"; a Request Context history numbers the rows of an epoch
-// from 0 (request-context-contract SPEC, "历史源读口与 epoch 视图"). Row n of Session is row n - 1
-// of the history; a Session cursor after row n is a history cursor after row n - 1.
-
-/** The history sequence of the Session row `seq`; undefined for "0" or a non-canonical text. */
 function historySeqOf(seq: string): HistorySequence | undefined {
   const decoded = decodeHistorySequence(seq)
   if (!('ok' in decoded) || decoded.ok === '0') return undefined
@@ -229,17 +165,14 @@ function historySeqOf(seq: string): HistorySequence | undefined {
   return 'ok' in shifted ? shifted.ok : undefined
 }
 
-/** The Session row of the history sequence `seq`, a canonical decimal checked before. */
 function sessionSeqOf(seq: HistorySequence): string {
   return String(BigInt(seq) + 1n)
 }
 
-/** The Session row number of a model view row: a canonical decimal from 1. */
 function sessionRowOf(seq: string): bigint | undefined {
   return historySeqOf(seq) === undefined ? undefined : BigInt(seq)
 }
 
-/** `"0"` is the empty history; any other canonical decimal is the entry of its last row. */
 function upperOf(text: string): HistoryUpper | undefined {
   if (text === '0') return { kind: 'empty' }
   const seq = historySeqOf(text)
@@ -264,7 +197,6 @@ function rowOf(row: ModelViewRow): HistoryRow | undefined {
   const entry = parseRecordEntryRef(row.entry)
   if (seq === undefined || entry === null || !Number.isSafeInteger(row.bytes) || row.bytes < 0)
     return undefined
-  // No model view row carries its original Model call, so no row has `sourceCall` (SPEC AD-04 3).
   return {
     seq,
     entry,
@@ -285,7 +217,6 @@ function sameEvidence(left: HistoryEvidence, right: HistoryEvidence): boolean {
   )
 }
 
-/** Whether a history cursor is well formed and was issued under the same evidence. */
 function cursorFollows(cursor: HistoryCursor, evidence: HistoryEvidence): boolean {
   return (
     typeof cursor === 'object' &&
@@ -298,7 +229,6 @@ function cursorFollows(cursor: HistoryCursor, evidence: HistoryEvidence): boolea
   )
 }
 
-/** A Session read refusal as the refusal of a part. Session reads have no unknown. */
 function refusalOf(failure: SessionFailure, field: string): Refusal {
   switch (failure.kind) {
     case 'denied':
@@ -314,18 +244,10 @@ function refusalOf(failure: SessionFailure, field: string): Refusal {
   }
 }
 
-// --- the cursors Session issued -------------------------------------------------------------------
-
-/** One model view page as the reader needs it: the rows after the cursor, and whether more follow. */
 type ViewRead =
   | Readonly<{ kind: 'page'; rows: readonly ModelViewRow[]; more: boolean }>
   | Readonly<{ kind: 'epoch-changed'; current: ModelViewBasis }>
 
-/**
- * What one session's model view reads have learned under one epoch: the opaque cursor Session
- * issued after a row, and the size of each row seen. A derivative of the reads, lost with the
- * fiber; rows of an epoch never change, so neither does a kept cursor's position or a kept size.
- */
 class CursorBook {
   readonly key: string
   readonly epoch: string
@@ -337,14 +259,12 @@ class CursorBook {
     this.epoch = epoch
   }
 
-  /** Where a read for the rows after `after` starts: the nearest kept cursor at or before it. */
   reach(after: bigint): Reach {
     let best = 0n
     for (const row of this.tokens.keys()) if (row <= after && row > best) best = row
     return { position: best, token: best === 0n ? null : (this.tokens.get(best) ?? null) }
   }
 
-  /** The bytes of the rows `from + 1` to `to`, or undefined when the size of one is not known. */
   span(from: bigint, to: bigint): number | undefined {
     let total = 0
     for (let row = from + 1n; row <= to; row++) {
@@ -360,14 +280,12 @@ class CursorBook {
     while (this.sizes.size > SIZES_PER_SESSION) dropLowest(this.sizes)
   }
 
-  /** Keeps a cursor Session issued after `row`; the cursor just issued is never the one dropped. */
   remember(row: bigint, token: string): void {
     this.tokens.set(row, token)
     while (this.tokens.size > CURSORS_PER_SESSION) dropLowest(this.tokens, row)
   }
 }
 
-/** Drops the lowest row of `map`, except `keep`. */
 function dropLowest(map: Map<bigint, unknown>, keep?: bigint): void {
   let lowest: bigint | undefined
   for (const row of map.keys())
@@ -375,23 +293,16 @@ function dropLowest(map: Map<bigint, unknown>, keep?: bigint): void {
   if (lowest !== undefined) map.delete(lowest)
 }
 
-/**
- * Where a read of the model view stands: the Session row it has reached and the cursor Session
- * issued after it (`null` at the start of the epoch, which needs none).
- */
 type Reach = Readonly<{ position: bigint; token: string | null }>
 
-/** The bytes of the rows a read from `position` skips to reach `after`; the page limit if unknown. */
 function skippedBytes(book: CursorBook, position: bigint, after: bigint): number {
   return position === after ? 0 : (book.span(position, after) ?? PAGE_BYTES)
 }
 
-/** A cursor that Session refuses on a first attempt: the book is forgotten and the read starts over. */
 function staleCursor(token: string | null, failure: SessionFailure, retried: boolean): boolean {
   return token !== null && failure.kind === 'invalid' && !retried
 }
 
-/** The refusal of a read whose budget or cursor is not usable under `evidence`, if there is one. */
 function readRefusal(
   budgetBytes: number,
   cursor: HistoryCursor | null,
@@ -404,7 +315,6 @@ function readRefusal(
   return undefined
 }
 
-/** The page of the rows of `kept` that fit `budget` (at least one), and whether more follow. */
 function pageWithin(kept: readonly ModelViewRow[], budget: number, next: boolean): ViewRead {
   const taken: ModelViewRow[] = []
   let bytes = 0
@@ -416,11 +326,8 @@ function pageWithin(kept: readonly ModelViewRow[], budget: number, next: boolean
   return { kind: 'page', rows: taken, more: taken.length < kept.length || next }
 }
 
-// --- validation of the inputs of a part ----------------------------------------------------------
-
 type Checked = Readonly<{ kind: 'checked'; tenant: string; access: Access<unknown> }>
 
-/** The access of one call; a missing access or tenant is invalid, never a Session call. */
 function checkAccess(access: unknown): Checked | Invalid {
   if (typeof access !== 'object' || access === null) return invalid('access', 'missing-access')
   const tenant = tenantText((access as Access<unknown>).tenant)
@@ -430,7 +337,6 @@ function checkAccess(access: unknown): Checked | Invalid {
 
 type Targeted = Checked & Readonly<{ target: ContextTarget }>
 
-/** The access and the target of one call; another tenant's target is denied before any read. */
 function checkTarget(access: unknown, target: unknown): Targeted | Invalid | Denied {
   const checked = checkAccess(access)
   if (checked.kind !== 'checked') return checked
@@ -446,7 +352,6 @@ function checkTarget(access: unknown, target: unknown): Targeted | Invalid | Den
 
 type Evidenced = Readonly<{ kind: 'evidence'; evidence: HistoryEvidence }>
 
-/** A history evidence of the right shape; a malformed epoch or upper is invalid. */
 function checkEvidence(evidence: unknown): Evidenced | Invalid {
   if (typeof evidence !== 'object' || evidence === null) return invalid('evidence', 'missing-input')
   const { epoch, upper } = evidence as HistoryEvidence
@@ -461,8 +366,6 @@ function checkEvidence(evidence: unknown): Evidenced | Invalid {
   return { kind: 'evidence', evidence: evidence as HistoryEvidence }
 }
 
-// --- the source sub-plugin -----------------------------------------------------------------------
-
 type Located = Omit<Targeted, 'kind'> &
   Readonly<{ kind: 'located'; session: SessionAccess<unknown> }>
 
@@ -470,11 +373,9 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
   private readonly scope: Context
   private readonly shared: Shared
   private readonly state = { closing: false, closed: false }
-  /** The settlements pulled and not yet finished; a finished one is reported and leaves the set. */
   private readonly pending = new Set<Promise<SourceSettlement>>()
   private readonly revision: GroupToken
   private readonly parts: ContextHolderParts<unknown>
-  /** Per session, the model view cursors Session issued and the row sizes (`CursorBook`). */
   private readonly cursors = new Map<string, CursorBook>()
 
   constructor(scope: Context, shared: Shared) {
@@ -506,7 +407,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
       }
       pulled.then(settled.resolve, settled.reject)
     }
-    // `this.ctx` is the borrower's context: its unload ends the lease like `release` (IC-13).
     const remove = this.ctx.effect(() => end, 'contextHolderSources.lease')
     const promise = settled.promise
     this.pending.add(promise)
@@ -532,14 +432,12 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     }
   }
 
-  /** Waits for every settlement it pulled, then closes the lent reads (RQ-12). */
   private async close(): Promise<void> {
     this.state.closing = true
     await Promise.allSettled(this.pending)
     this.state.closed = true
   }
 
-  /** Reports a settlement that failed or left outstanding work; a clean one says nothing. */
   private report(result: PromiseSettledResult<SourceSettlement>): void {
     const logger = this.scope.logger(LOGGER)
     if (result.status === 'rejected')
@@ -548,7 +446,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
       logger.warn(`a lease settled with outstanding work: ${result.value.outstanding.length}`)
   }
 
-  /** One Session call; a throw or a stopped plugin is unavailable, never a success. */
   private async call<T>(
     read: () => Promise<Outcome<T, SessionFailure>>,
   ): Promise<Outcome<T, SessionFailure>> {
@@ -569,7 +466,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     }
   }
 
-  /** The session of a target, from the index that the resolver built from `readWork`. */
   private locate(access: unknown, target: unknown): Located | Invalid | Denied | Unavailable {
     if (this.state.closed) return unavailable('the reads closed')
     const targeted = checkTarget(access, target)
@@ -591,7 +487,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     return unavailable(`translation defect: ${diagnostic}`)
   }
 
-  /** The current read eligibility of the access on the session of the target. */
   private async admitted(
     access: unknown,
     target: unknown,
@@ -636,12 +531,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     return { history, adopted, eligibility, resolveHistory }
   }
 
-  /**
-   * The current fixed adoption of a target (RQ-14): after the same check as `eligibility.check`,
-   * the `a` part of the session of the target, through `sessionAdoptedRequests` with the access of
-   * the call. The provider answers what it saved; this part decodes the fixed request record and
-   * checks it against the target and the coverage evidence of the same M0.
-   */
   private async adoptedFact(
     input: AdoptedRead<unknown>,
   ): Promise<SourceRead<AdoptedRequestFact | null>> {
@@ -663,7 +552,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     }
   }
 
-  /** What `sessionAdoptedRequests` saved for the session of `located`, read per call. */
   private async savedOf(located: Located): Promise<SessionAdoptedRequestRead> {
     let requests: SessionAdoptedRequests<unknown> | undefined
     try {
@@ -683,13 +571,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     }
   }
 
-  /**
-   * The answer when the last M0 of the session fixed a request of another scope than the target.
-   * It is `null` only while the target is still the current scope of its session, read after the
-   * `a` part was read: a new scope that has not fixed a request yet. A target scope that was
-   * retired fixed a request that can no longer be read, and that is `unavailable`, never `null`
-   * (RQ-14: unknown or unavailable is not null).
-   */
   private async notYetFixed(input: AdoptedRead<unknown>): Promise<SourceRead<null>> {
     const admitted = await this.admitted(input.access, input.target)
     if (admitted.kind !== 'located') return admitted
@@ -707,10 +588,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
       : unavailable('the target scope was retired: the request it fixed is not readable')
   }
 
-  /**
-   * The `AdoptedRequestFact` of one saved request for the target of `located`, or `other-scope`
-   * when the saved request was fixed for another scope of the session.
-   */
   private factOf(
     located: Located,
     saved: SessionAdoptedRequest,
@@ -743,11 +620,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     }
   }
 
-  /**
-   * The token of the current fixed adoption of a target: the generation of this source fiber with
-   * the order and the fixed basis of the fact, or with `none` and the target scope while there is
-   * none. It changes when a new M0 is saved, and only then within one generation.
-   */
   private async adoptedCount(input: AdoptedRead<unknown>): Promise<SourceRead<GroupToken>> {
     const fact = await this.adoptedFact(input)
     if (fact.kind !== 'value') return fact
@@ -789,7 +661,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     return { kind: 'page', page: { rows, next: { evidence, after: last.seq } } }
   }
 
-  /** The answer of a read whose basis moved on: the evidence of the current basis. */
   private epochChanged(
     located: Located,
     basis: ModelViewBasis,
@@ -800,7 +671,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
       : { kind: 'epoch-changed', current }
   }
 
-  /** The history rows of model view rows; a row that does not translate is a defect. */
   private translateRows(source: readonly ModelViewRow[]): HistoryRow[] | Unavailable {
     const rows: HistoryRow[] = []
     for (const row of source) {
@@ -812,19 +682,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     return rows
   }
 
-  /**
-   * The model view rows after the Session row `after` under `basis`, at most `budget` bytes of them
-   * (at least one row), and whether more follow. Session cursors are opaque: this reader never
-   * decodes one. It keeps, per session and epoch, the cursor Session issued after each row it has
-   * seen and the size of each row (`CursorBook`), and starts each read at the kept cursor nearest
-   * before `after`, skipping the rows up to `after`. Within one read it moves on with the cursor
-   * of its own last page, not with what the book still keeps, so a full book cannot send it back.
-   * A page that reaches the upper bound carries no cursor, so after such a page the reader asks
-   * Session once more for the rows before the last one (`mint`): the next read, after the upper
-   * bound of this one, then starts one row before it. With no cursor near `after` (a cold start,
-   * another epoch, a cursor Session no longer accepts) the read starts at the beginning of the
-   * epoch and skips the rows it already has.
-   */
   private async viewAfter(
     located: Located,
     basis: ModelViewBasis,
@@ -845,8 +702,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
         }),
       )
       if ('failure' in answer) {
-        // A cursor Session refuses (expired, or signed by a key it dropped): forget the book and
-        // read once more from the start, which needs no cursor.
         if (staleCursor(reach.token, answer.failure, retried)) {
           this.cursors.delete(book.key)
           return this.viewAfter(located, basis, after, budget, field, true)
@@ -866,10 +721,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     return unavailable('the model view read did not reach the cursor')
   }
 
-  /**
-   * The page of `view` that holds the rows after `after`, or undefined when it holds none. A page
-   * that reaches the upper bound without a cursor makes the reader mint the cursor before its last row.
-   */
   private async pageAfter(
     located: Located,
     basis: ModelViewBasis,
@@ -886,11 +737,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     return pageWithin(kept, budget, view.next !== null)
   }
 
-  /**
-   * Takes what one page taught: the size of each row and the cursor after its last row. A page of
-   * another basis, a row that does not translate, a cursor that follows no row and a page that
-   * does not move past `position` are translation defects, never a success.
-   */
   private learn(
     book: CursorBook,
     basis: ModelViewBasis,
@@ -914,12 +760,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     return undefined
   }
 
-  /**
-   * Asks Session for the cursor after the row `target` of `basis`: one page of exactly the rows
-   * between the nearest kept cursor and `target`, whose sizes the reader has seen. It only adds to
-   * the book; a refusal or a page of another shape leaves the book as it was, and the next read
-   * then starts further back.
-   */
   private async mint(
     located: Located,
     basis: ModelViewBasis,
@@ -947,7 +787,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     }
   }
 
-  /** The cursor book of the session of `located` for `epoch`; another epoch starts a new one. */
   private bookOf(located: Located, epoch: string): CursorBook {
     const key = `${located.tenant}\u0000${located.session.session}`
     let book = this.cursors.get(key)
@@ -962,7 +801,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     return book
   }
 
-  /** The session that a history evidence names, when the access of `tenant` may name it. */
   private headOf(
     evidence: unknown,
     tenant: string,
@@ -981,7 +819,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     return headTenant === tenant ? { kind: 'head', head, tenant: headTenant } : DENIED
   }
 
-  /** The scope refs of the context scope bindings of a session, oldest first. */
   private scopesOf(bindings: readonly { scope: string }[]): ScopeRef[] | Unavailable {
     const scopes: ScopeRef[] = []
     for (const binding of bindings) {
@@ -1023,10 +860,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
       : { kind: 'value', value: resolved }
   }
 
-  /**
-   * The current context scope of the session of `head`, read from its open work. Every binding of
-   * the session is a fact of its log and is remembered; the newest scope is the current one.
-   */
   private async currentScope(
     work: NonNullable<Shared['link']['work']>,
     session: SessionAccess<unknown>,
@@ -1062,7 +895,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     }
   }
 
-  /** The row of `upper` under `basis`, or why it is not there. */
   private async upperRow(
     located: Located,
     evidence: HistoryEvidence,
@@ -1088,7 +920,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     return { kind: 'row', entry: row.entry }
   }
 
-  /** Every entry of the session log, forward; a read that ends early is not complete. */
   private async entries(
     session: SessionAccess<unknown>,
   ): Promise<Outcome<readonly HistoryEntry[], Refusal>> {
@@ -1116,11 +947,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     }
   }
 
-  /**
-   * The CM-02 judgment window under one evidence: the full log read as `reader`, the open work read
-   * as `coordinator` by the lower bound sub-plugin, cut at the entry of the fixed upper. The basis is
-   * read before and after, so a compaction committed meanwhile answers `epoch-changed`.
-   */
   private async compactionContext(
     input: Parameters<HistorySource<unknown>['compactionContext']>[0],
   ): Promise<CompactionContextResult> {
@@ -1168,13 +994,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
   }
 }
 
-// --- the factory -----------------------------------------------------------------------------------
-
-/**
- * The AD-04 sub-plugins. Mount both; each stays `PENDING` while `session` is absent. Without the
- * lower bound sub-plugin the source sub-plugin still provides `contextHolderSources`; its resolver
- * and its compaction window answer unavailable.
- */
 export function createSessionHistorySource(input: SessionHistorySourceInput) {
   const shared: Shared = {
     input,
@@ -1184,7 +1003,6 @@ export function createSessionHistorySource(input: SessionHistorySourceInput) {
     latest: undefined,
   }
   return {
-    /** `session-ad04`: provides `contextHolderSources`; calls `session` as `reader`. */
     source: {
       name: 'session-ad04',
       inject: { [sessionKey]: { caller: 'reader' as const } },
@@ -1192,7 +1010,6 @@ export function createSessionHistorySource(input: SessionHistorySourceInput) {
         new SessionHolderSources(ctx, shared)
       },
     },
-    /** `session-ad04-lower-bound`: reads `readWork` as `coordinator` for the source sub-plugin. */
     lowerBound: {
       name: 'session-ad04-lower-bound',
       inject: { [sessionKey]: { caller: 'coordinator' as const } },
@@ -1207,7 +1024,6 @@ export function createSessionHistorySource(input: SessionHistorySourceInput) {
         )
       },
     },
-    /** True once the latest source fiber has closed the reads it lent, or before the first one. */
     readsClosed: () => shared.latest?.closed ?? true,
   }
 }

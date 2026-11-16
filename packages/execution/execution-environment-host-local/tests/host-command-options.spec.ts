@@ -1,7 +1,3 @@
-// The command bounds as configuration: which values each option accepts, the issue a rejected value
-// is reported with (the provider throws it as a RangeError, the plugin configuration shows it), the
-// order the checks run in when several values are wrong, and the chunk bound against the buffer
-// bound when one of them is left at its initial value. Pure functions; no process is started.
 import { describe, expect, it } from 'vitest'
 import { commandDefaults, commandOptionsIssue, commandSettings } from '../src/host-command.ts'
 
@@ -9,12 +5,10 @@ const byteOptions = ['maxBufferedBytes', 'maxChunkBytes'] as const
 const timeOptions = ['startBoundMs', 'graceMs', 'stopBoundMs', 'probeRetryMs'] as const
 const countOptions = ['retainedPerScope', 'retainedPollMs'] as const
 
-/** Values a whole-number option of one or more refuses; the last two are not numbers at all. */
 const notWholeOneOrMore = [0, -1, 1.5, 2 ** 53, Number.NaN, Number.POSITIVE_INFINITY, '1', null]
 
 describe.each(byteOptions)('%s', name => {
   it('accepts one byte and more', () => {
-    // Both byte bounds take the value, so the chunk never exceeds the buffer.
     for (const value of [1, 4096, 2 ** 40])
       expect(commandOptionsIssue({ maxBufferedBytes: value, maxChunkBytes: value })).toBe(undefined)
     expect(commandOptionsIssue({ [name]: 65_536 })).toBe(undefined)

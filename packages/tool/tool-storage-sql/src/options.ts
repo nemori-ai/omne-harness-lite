@@ -1,5 +1,3 @@
-// What the Tool storage needs from the application: the SQL storage, the trusted tenant domain
-// lookup and the combination the application registered for the tenant scope.
 import type {
   SqlStorage,
   TenantDomainListing,
@@ -8,23 +6,13 @@ import type {
 
 export type SqlToolStorageOptions = Readonly<{
   storage: SqlStorage
-  /**
-   * The read-only lookup of the published tenant domain directory (sql-contract §2.4). A tenant
-   * that it does not hold is not written; the storage never registers a tenant or a combination.
-   */
   domains: TenantDomainLookup
-  /** The combination version and manifest digest the application registered for the tenant scope. */
   combination: Readonly<{ combinationVersion: string; manifestDigest: string }>
 }>
 
 export type SqlToolLedgerStoreOptions = SqlToolStorageOptions &
   Readonly<{
-    /**
-     * 部署已登记的租户事务域（sql-contract §2.4 `TenantDomains.enumerate` 的结果），跨租户的待办扫描
-     * 按它逐个租户读标记。装配用获准枚举的主体绑定它；记录仓不持有主体。
-     */
     tenants: () => Promise<TenantDomainListing>
   }>
 
-/** The owner named in every evidence and every content reference that the Tool storage mints. */
 export const TOOL_STORAGE_OWNER = '@omne-harness/tool-storage-sql'

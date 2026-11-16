@@ -160,9 +160,6 @@ export async function openSettingsComposition(
       readHandlers: [...groups.flatMap(m => m.readHandlers), ...identityMaterials.readHandlers],
       declaredCombinations: { tenant: null, system: null },
     }
-    // The owner's publication and the catalog read, with the participants their facts depend on.
-    // The plans of a prepared write (`commit-plan`, `ready-plan`, `checkpoint-plan`) stay out: only
-    // an application gives their current facts. `recovery-plan` gives the finalization plan here.
     const participants = [
       'settings.source-snapshot',
       'settings.source-retention',
@@ -465,7 +462,6 @@ export async function openSettingsComposition(
       principalRef: standingPrincipalRef(foreignPrincipal),
       owner: { ...context.owner, tenantId: foreign.value },
     })
-    // Intentionally return the original trusted binding for every context to exercise the adapter's owner check.
     const environment = createCalendarSettingsEnvironment({
       settings: catalog,
       resolve: async () => ({
@@ -493,10 +489,6 @@ export async function openSettingsComposition(
       definition,
       target,
       lifecycle,
-      /**
-       * The owner publishes another version of the definition with these defaults. A change by
-       * the user goes through the Settings preparation service, which this world does not assemble.
-       */
       async republish(change: Partial<Defaults>, expectedRevision: number) {
         const defaults = { ...current, ...change }
         const next = defined(String(expectedRevision + 1), defaults)

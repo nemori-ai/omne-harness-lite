@@ -1,18 +1,7 @@
-// `omne setting list|set|show|unset` (SPEC「设置命令」): the settings of the acting tenant, through
-// the four governance operations `list-settings`, `set-setting`, `describe-setting` and
-// `clear-setting`. The asset and the item are words on the command line; the secret of `set` comes
-// from standard input or a hidden prompt, never from the command line. It goes into the request and
-// nowhere else. `show` prints the two layers of the item, the tenant's own and the deployment's, as
-// two lines; `--json` prints the result object instead.
-import {
-  createGovernanceClient,
-  tenantText,
-  type CallerResult,
-  type GovernanceRequest,
-} from '@omne-harness/sdk'
+import { assetsProtocol } from '@omne-harness/assets-protocol'
+import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
 import {
-  attempt,
   loadLogin,
   localFailure,
   missingOption,
@@ -21,22 +10,22 @@ import {
   unrecognized,
   usageError,
 } from './command-support.ts'
+import type { CallResult, Link } from './link.ts'
 import { readOptions } from './options.ts'
 import { exitCodeOf, report, type RequestEcho } from './report.ts'
 
-const protocolVersion = 'governance-public/1'
 const JSON_SWITCH = '--json'
+const PAGE_LIMIT = 100
+const MAX_PAGES = 10_000
 
 type Action = 'list' | 'set' | 'show' | 'unset'
 
-/** The asset of the public contract's setting operations; the request type checks the shape. */
 type AssetSelector = { readonly category?: string; readonly name: string }
 
 function isAction(value: string | undefined): value is Action {
   return value === 'list' || value === 'set' || value === 'show' || value === 'unset'
 }
 
-/** The words each action takes after its name: `list` takes the asset optionally. */
 const WORDS: Readonly<Record<Action, readonly string[]>> = {
   list: ['<asset>'],
   set: ['<asset>', '<item>'],
@@ -44,10 +33,8 @@ const WORDS: Readonly<Record<Action, readonly string[]>> = {
   unset: ['<asset>', '<item>'],
 }
 
-/** Options that take a value, so the word after one is its value and not a positional word. */
 const VALUE_OPTIONS: readonly string[] = [serverOption]
 
-/** Splits the words of the command from its options. Anything that starts with `-` is an option. */
 function split(args: readonly string[]): { words: string[]; options: string[] } {
   const words: string[] = []
   const options: string[] = []
@@ -64,31 +51,28 @@ function split(args: readonly string[]): { words: string[]; options: string[] } 
   return { words, options }
 }
 
-/** One layer of a secret item in words: its state and, when the custody recorded it, the time. */
-function layerText(layer: unknown): string {
-  const state = text(layer, 'state')
-  const words =
-    state === 'unbound'
-      ? 'not set'
-      : state === 'usable'
-        ? 'set'
-        : state === 'revoked'
-          ? 'set, but revoked'
-          : 'set, but it cannot be read'
-  const at = text(layer, 'configuredAt')
-  return at === '' ? words : `${words} (configured at ${at})`
+const SECRET_STATES: Readonly<Record<string, string>> = {
+  unset: 'not set',
+  available: 'set',
+  revoked: 'set, but revoked',
+  unreadable: 'set, but it cannot be read',
 }
 
-/** The human summary of `show`: one line per layer. A non-success result names its outcome only. */
-function summary(result: CallerResult): string {
+function secretText(state: string): string {
+  return SECRET_STATES[state] ?? 'set, but it cannot be read'
+}
+
+function summary(result: CallResult): string {
   if (result.kind === 'uncertain') return 'Result: uncertain\n'
-  const { outcome, body } = result.message
-  if (outcome !== 'succeeded') return `Result: ${outcome}\n`
-  const layers = body as { own?: unknown; official?: unknown }
-  return `Your key: ${layerText(layers.own)}\nDeployment default: ${layerText(layers.official)}\n`
+  if (result.kind === 'unavailable') return 'Result: unavailable\n'
+  if (result.outcome !== 'succeeded') return `Result: ${result.outcome}\n`
+  const item = (result.body as { item?: unknown }).item
+  if (text(item, 'kind') !== 'secret')
+    return `Not a secret setting (${text(item, 'kind')}). Add --json to read it.\n`
+  return `Your key: ${secretText(text(item, 'own'))}\nDeployment default: ${secretText(text(item, 'official'))}\n`
 }
 
-function writeSummary(name: string, result: CallerResult, output: CliOutput): ExitCode {
+function writeSummary(name: string, result: CallResult, output: CliOutput): ExitCode {
   const code = exitCodeOf(result)
   try {
     output.stdout(summary(result))
@@ -100,7 +84,6 @@ function writeSummary(name: string, result: CallerResult, output: CliOutput): Ex
   return code
 }
 
-/** `[<category>:]<name>`: the text before the first colon is the category. Both parts are non-empty. */
 function assetOf(text: string): AssetSelector | undefined {
   const colon = text.indexOf(':')
   if (colon === -1) return text === '' ? undefined : { name: text }
@@ -109,17 +92,16 @@ function assetOf(text: string): AssetSelector | undefined {
   return category === '' || name === '' ? undefined : { category, name }
 }
 
-/** What one action names: its options, and the asset and item it acts on. */
+type Targeted = Readonly<{
+  values: ReadonlyMap<string, string>
+  asset: AssetSelector
+  item: string
+}>
+
 type Invocation =
   | Readonly<{ action: 'list'; values: ReadonlyMap<string, string>; asset?: AssetSelector }>
-  | Readonly<{
-      action: Exclude<Action, 'list'>
-      values: ReadonlyMap<string, string>
-      asset: AssetSelector
-      item: string
-    }>
+  | (Targeted & Readonly<{ action: Exclude<Action, 'list'> }>)
 
-/** Reads the words and options of one action, or the text of the usage error that refuses them. */
 function readInvocation(
   action: Action,
   rest: readonly string[],
@@ -148,7 +130,6 @@ function readInvocation(
   return { action, values: read.values, asset, item }
 }
 
-/** The secret of `set`, from standard input or a hidden prompt; the exit code when there is none. */
 async function readSecret(
   output: CliOutput,
   environment: CommandEnvironment,
@@ -157,6 +138,147 @@ async function readSecret(
   if (secret.kind === 'failure') return localFailure(output, secret.message)
   if (secret.value === '') return usageError(output, 'omne: empty secret\n')
   return secret.value
+}
+
+type Listing =
+  | { readonly kind: 'complete'; readonly items: readonly unknown[]; readonly completeness: string }
+  | { readonly kind: 'stopped'; readonly result: CallResult }
+  | { readonly kind: 'broken'; readonly reason: string }
+  | { readonly kind: 'refused' }
+
+function pageOf(body: unknown): {
+  items: readonly unknown[]
+  next: string | null
+  partial: boolean
+} {
+  const { items, next, completeness } = body as {
+    items: readonly unknown[]
+    next: string | null
+    completeness: string
+  }
+  return { items, next, partial: completeness === 'partial' }
+}
+
+async function listAll(
+  link: Link,
+  tenant: TenantId,
+  asset: AssetSelector | undefined,
+  firstMessageId: string,
+  newId: () => string,
+): Promise<Listing> {
+  const items: unknown[] = []
+  let partial = false
+  let after: string | null = null
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
+    const result = await link.call(
+      assetsProtocol,
+      'list-settings',
+      { tenant, ...(asset === undefined ? {} : { asset }), after, limit: PAGE_LIMIT },
+      page === 1 ? firstMessageId : newId(),
+    )
+    if (result === undefined) return { kind: 'refused' }
+    if (result.kind !== 'response' || result.outcome !== 'succeeded')
+      return { kind: 'stopped', result }
+    const read = pageOf(result.body)
+    items.push(...read.items)
+    partial ||= read.partial
+    if (read.next === null)
+      return { kind: 'complete', items, completeness: partial ? 'partial' : 'complete' }
+    if (read.next === after) return { kind: 'broken', reason: 'a page did not advance the cursor' }
+    after = read.next
+  }
+  return { kind: 'broken', reason: `more than ${MAX_PAGES} pages` }
+}
+
+async function runList(
+  name: string,
+  link: Link,
+  tenant: TenantId,
+  asset: AssetSelector | undefined,
+  output: CliOutput,
+  environment: CommandEnvironment,
+): Promise<ExitCode> {
+  const { newId } = environment.services
+  const messageId = newId()
+  const echo: RequestEcho = { messageId, tenant: encodeTenantText(tenant) }
+  const listing = await listAll(link, tenant, asset, messageId, newId)
+  if (listing.kind === 'refused') return usageError(output, unrecognized(name))
+  if (listing.kind === 'broken') return localFailure(output, `omne ${name}: ${listing.reason}\n`)
+  if (listing.kind === 'stopped') return report(name, listing.result, echo, output)
+  const body = { items: listing.items, completeness: listing.completeness }
+  return report(name, { kind: 'response', outcome: 'succeeded', body }, echo, output)
+}
+
+async function runWrite(
+  name: string,
+  action: 'set' | 'unset',
+  invocation: Targeted,
+  link: Link,
+  tenant: TenantId,
+  output: CliOutput,
+  environment: CommandEnvironment,
+): Promise<ExitCode> {
+  const { newId } = environment.services
+  const { asset, item } = invocation
+  const readId = newId()
+  let secret = ''
+  if (action === 'set') {
+    const read = await readSecret(output, environment)
+    if (typeof read !== 'string') return read
+    secret = read
+  }
+  const tenantEcho = encodeTenantText(tenant)
+  const described = await link.call(
+    assetsProtocol,
+    'describe-setting',
+    { tenant, asset, item },
+    readId,
+  )
+  if (described === undefined) return usageError(output, unrecognized(name))
+  if (described.kind !== 'response' || described.outcome !== 'succeeded')
+    return report(name, described, { messageId: readId, tenant: tenantEcho }, output)
+
+  const messageId = newId()
+  const target = {
+    tenant,
+    asset,
+    item,
+    operation: newId(),
+    expectedRevision: text((described.body as { item?: unknown }).item, 'revision'),
+  }
+  const result =
+    action === 'set'
+      ? await link.call(
+          assetsProtocol,
+          'set-setting',
+          { ...target, value: { kind: 'secret', secret } },
+          messageId,
+        )
+      : await link.call(assetsProtocol, 'clear-setting', target, messageId)
+  if (result === undefined) return usageError(output, unrecognized(name))
+  // The echo holds the request number and the tenant only: never the body, so never the secret.
+  return report(name, result, { messageId, tenant: tenantEcho }, output)
+}
+
+async function runShow(
+  name: string,
+  invocation: Targeted,
+  link: Link,
+  tenant: TenantId,
+  output: CliOutput,
+  environment: CommandEnvironment,
+): Promise<ExitCode> {
+  const messageId = environment.services.newId()
+  const { asset, item } = invocation
+  const result = await link.call(
+    assetsProtocol,
+    'describe-setting',
+    { tenant, asset, item },
+    messageId,
+  )
+  if (result === undefined) return usageError(output, unrecognized(name))
+  if (!invocation.values.has(JSON_SWITCH)) return writeSummary(name, result, output)
+  return report(name, result, { messageId, tenant: encodeTenantText(tenant) }, output)
 }
 
 async function runSetting(
@@ -170,44 +292,18 @@ async function runSetting(
   const invocation = readInvocation(action, rest, name)
   if (typeof invocation === 'string') return usageError(output, invocation)
 
-  const loaded = loadLogin(invocation.values, output, environment, 'governance')
+  const loaded = loadLogin(invocation.values, output, environment)
   if (loaded.kind === 'exit') return loaded.code
-  const messageId = environment.services.newId()
-  const head = {
-    protocolVersion,
-    messageId,
-    proof: { kind: 'present', value: loaded.state.loginProof },
-    actingTenant: loaded.tenant,
-  } as const
-  let request: GovernanceRequest
-  if (invocation.action === 'list')
-    request = {
-      ...head,
-      operation: 'list-settings',
-      body: invocation.asset === undefined ? {} : { asset: invocation.asset },
-    }
-  else {
-    const { asset, item } = invocation
-    if (invocation.action === 'set') {
-      const secret = await readSecret(output, environment)
-      if (typeof secret !== 'string') return secret
-      request = { ...head, operation: 'set-setting', body: { asset, item, secret } }
-    } else
-      request = {
-        ...head,
-        operation: invocation.action === 'show' ? 'describe-setting' : 'clear-setting',
-        body: { asset, item },
-      }
+  const { link, tenant } = loaded
+  switch (invocation.action) {
+    case 'list':
+      return runList(name, link, tenant, invocation.asset, output, environment)
+    case 'show':
+      return runShow(name, invocation, link, tenant, output, environment)
+    case 'set':
+    case 'unset':
+      return runWrite(name, invocation.action, invocation, link, tenant, output, environment)
   }
-
-  const client = createGovernanceClient({ transport: loaded.opened.transport })
-  const result = await attempt(() => client.submit(request))
-  if (result === undefined) return usageError(output, unrecognized(name))
-  // The echo holds the request number and the tenant only: never the body, so never the secret.
-  const echo: RequestEcho = { messageId, tenant: tenantText(loaded.tenant) }
-  if (action === 'show' && !invocation.values.has(JSON_SWITCH))
-    return writeSummary(name, result, output)
-  return report(name, result, echo, output)
 }
 
 export const settingCommand: CommandSpec = {

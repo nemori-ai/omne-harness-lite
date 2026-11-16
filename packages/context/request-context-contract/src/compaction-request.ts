@@ -12,7 +12,6 @@ import { canonical } from './internal.js'
 export function invalid(reason: InvalidReason, field = 'plan'): AssemblyFailure {
   return { kind: 'invalid', field, reason }
 }
-/** The untrimmed material of a plan, rebuilt from its basis. */
 export function baseMaterial(plan: CompactionPlan): SummaryMaterial {
   const end = plan.basis.context.covered.findIndex(entry => entry.ref === plan.covers.to)
   return materialOf(
@@ -21,18 +20,12 @@ export function baseMaterial(plan: CompactionPlan): SummaryMaterial {
     plan.retained,
   )
 }
-/** The material of a new plan, trimmed once when the plan says so (J12). Only `planCompaction` calls it. */
 export function planMaterial(plan: CompactionPlan, policies: AssemblyPolicies): SummaryMaterial {
   const material = baseMaterial(plan)
   return plan.shape.trimFirst
     ? policies.compaction.trim(material, { maxBlockBytes: '65536' })
     : material
 }
-/**
- * Whether a carried material belongs to the plan without trimming again: untrimmed it must equal
- * the basis; trimmed it keeps the entry identities, message identities and retained set, and each
- * trimmed record names a covered message.
- */
 export function materialOfPlan(plan: CompactionPlan, material: SummaryMaterial): boolean {
   const base = baseMaterial(plan)
   if (!plan.shape.trimFirst) return canonical(material) === canonical(base)
@@ -47,7 +40,6 @@ export function materialOfPlan(plan: CompactionPlan, material: SummaryMaterial):
     material.trimmed.every(item => messages.has(item.message))
   )
 }
-/** One summarize step: the fixed instruction and the material messages that are not retained. */
 export function summaryStep(
   plan: CompactionPlan,
   index: string,

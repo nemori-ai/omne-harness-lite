@@ -24,7 +24,6 @@ import type { StructureFlowApi, StructureHandle, StructureProps } from './api.ts
 import { visibleEdges, worstOf, type EdgeState, type VisibleEdge } from './edges.ts'
 import { structureLayout, type GroupBox, type LayerBox, type StructureLayout } from './layout.ts'
 
-/** 评分 1（最差）到 10（最好）：不超过 5 在「差 → 中」之间取色，否则在「中 → 好」之间取色。 */
 export function toneOf(grade: number, suffix: '' | '-fill'): string {
   return grade <= 5
     ? `color-mix(in srgb, var(--mid${suffix}) ${Math.round((grade / 5) * 100)}%, var(--bad${suffix}))`
@@ -38,7 +37,6 @@ interface MemberData extends Record<string, unknown> {
   readonly member: MemberRow
   readonly noData: boolean
   readonly selected: boolean
-  /** 有选中或悬停的成员时，与它不相邻的成员淡化。 */
   readonly muted: boolean
   readonly incoming: readonly EdgeRow[]
   readonly outgoing: readonly EdgeRow[]
@@ -57,13 +55,11 @@ type GroupNode = Node<GroupData, 'package'>
 type StructureNode = MemberNode | LayerNode | GroupNode
 interface FlowData extends Record<string, unknown> {
   readonly color: string
-  /** 连着选中或悬停的成员：高亮并有沿线流动的小点。 */
   readonly active: boolean
 }
 type FlowEdge = Edge<FlowData, 'flow'>
 type StructureInstance = ReactFlowInstance<StructureNode, FlowEdge>
 
-/** 每个成员和组的左右两侧各有一进一出，连线按两端的左右关系选侧。 */
 function Sides() {
   return (
     <>
@@ -183,13 +179,10 @@ function MemberView({ data }: NodeProps<MemberNode>) {
   )
 }
 
-// 不叫 group：React Flow 的默认样式给 group 类型的节点加内边距、边框与背景。
 const NODE_TYPES = { member: MemberView, layer: LayerView, package: GroupView }
 
-/** 小点沿线走一圈的时长，与参考架构快照一致。 */
 const FLOW_DURATION = '1.6s'
 
-/** 贝塞尔曲线：同侧出发的线各自弯向对端，不像直角走线那样共用竖段而叠成一条。 */
 function FlowEdgeView(props: EdgeProps<FlowEdge>) {
   const [path] = getBezierPath(props)
   const { data, markerEnd, style } = props
@@ -212,11 +205,6 @@ function FlowEdgeView(props: EdgeProps<FlowEdge>) {
 
 const EDGE_TYPES = { flow: FlowEdgeView }
 
-/**
- * 线与箭头都用页面 token，内联 style 里的 var() 随深浅色切换即时生效。
- * 普通导入取发起成员卡片的颜色（从黄卡出发的线是黄的），组间连线取发起组左边线的颜色；
- * 红、蓝仍留给违规与变更。
- */
 const EDGE_COLOR: Readonly<Record<'bad' | 'changed', string>> = {
   bad: 'var(--bad)',
   changed: 'var(--changed)',
@@ -311,13 +299,11 @@ export function edgesOf(
     const from = centers.get(edge.from)
     const to = centers.get(edge.to)
     if (from === undefined || to === undefined) return []
-    // 依赖方向朝左（内层在左）时从左侧出、进右侧；朝右反之；同一列时都走左侧绕出去。
     const [sourceHandle, targetHandle] =
       from > to ? ['l-out', 'r-in'] : from < to ? ['r-out', 'l-in'] : ['l-out', 'l-in']
     const color = colorOf(edge)
     const active = focus !== null && (edge.from === focus || edge.to === focus)
     const muted = focus !== null && !active
-    // 组间连线一画出来就是要看的，与选中时一样加粗发光，但不放流动小点。
     const lit = active || edge.tone === 'group'
     return [
       {
@@ -329,7 +315,6 @@ export function edgesOf(
         type: 'flow',
         focusable: false,
         selectable: false,
-        // 曲线不避让节点，会穿过卡片；放在卡片（zIndex 0）上层，被穿过的那段才看得见。
         zIndex: 1,
         className: [
           'structure-edge',
@@ -357,7 +342,6 @@ function minimapColor(node: StructureNode): string {
   return 'transparent'
 }
 
-/** 离开卡片后等这么久再撤掉悬停：鼠标跨过卡片间的空隙时，连线不至于闪一下。 */
 const HOVER_RELEASE_MS = 120
 
 function Structure({
@@ -372,7 +356,6 @@ function Structure({
   readonly instance: RefObject<StructureInstance | null>
 }) {
   const zoomKeyHeld = useKeyPress(ZOOM_KEYS)
-  // 悬停在成员上等同于临时选中它：画它的线、描它的边框；离开后回到点击定下的选中。
   const [hovered, setHovered] = useState<string | null>(null)
   const release = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => () => clearTimeout(release.current), [])
@@ -417,7 +400,6 @@ function Structure({
         onInit={flow => {
           instance.current = flow
         }}
-        // 点层或组的空白区域与点画布空白一样，取消选中。
         onNodeClick={(_, node) => {
           if (node.type === 'member') props.onSelect(node.id)
           else clear()
@@ -455,7 +437,6 @@ export const structureFlow: StructureFlowApi = {
       update(selection) {
         const state = { ...selection, limit: props.changedEdgeLimit }
         root.render(<Structure props={props} layout={layout} state={state} instance={instance} />)
-        // 说明只对点击定下的状态给出；悬停是临时的，不改底栏的说明。
         return visibleEdges(props.report, state).note
       },
       zoomIn: () => void instance.current?.zoomIn({ duration: 180 }),

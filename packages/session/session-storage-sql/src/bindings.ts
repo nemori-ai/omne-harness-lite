@@ -1,14 +1,3 @@
-// The session binding source (D-AUTH r4 4.1, R1-D14 O3). It proves the tenant ownership of one
-// session in the domain of the tenant that the call names, and the evidence that established the
-// session, and it does not ask the access check. An unknown session and a session of another tenant
-// read alike as `not-bound`; a read that could not look is `unavailable`.
-//
-// The ownership and the establishing evidence (the evidence of the batch that created the session)
-// never change once the session exists. The read is therefore narrow: the handler `session.binding`
-// reads the journal row and the entries of the first batch, never the work snapshot, so its cost does
-// not grow with the session. A `bound` answer is kept in the process and read no more; `not-bound`
-// and `unavailable` are never kept, since the session may be created next. After `stop`, every read
-// is `unavailable`, kept answers included.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -26,15 +15,12 @@ export type SessionPrincipalBindingsOptions = Pick<
   'storage' | 'domains'
 >
 
-/** The sessions whose `bound` answer the source keeps; past it the oldest one goes and is read again. */
 export const BINDING_MEMO_SESSIONS = 65_536
 
 export const BINDING_HANDLER = 'session.binding'
 
-/** The source, and the one way to end it. */
 export type SessionPrincipalBindings = SessionPrincipalBindingSource &
   Readonly<{
-    /** From now on every read is `unavailable` with a diagnostic that tells the storage is closing. */
     stop(): void
   }>
 
@@ -45,13 +31,11 @@ type Bound = Extract<Extract<BindingRead, { ok: unknown }>['ok'], { kind: 'bound
 const unreadable = (diagnostic: string): Outcome<never, BindingFailure> =>
   fail<BindingFailure>({ kind: 'unavailable', owner: OWNER, diagnostic })
 
-/** A failure of the domain or of the storage read. It never reads as `not-bound`. */
 const unreadableOf = (failed: SessionFailure): Outcome<never, BindingFailure> =>
   unreadable(`session binding: ${'diagnostic' in failed ? failed.diagnostic : failed.kind}`)
 
 const isText = (value: unknown): value is string => typeof value === 'string'
 
-/** The `bound` answer of a handler output for the named tenant and session, or why it is not one. */
 function boundOf(
   output: Readonly<Record<string, unknown>>,
   named: Readonly<{ tenant: string; session: string }>,
@@ -71,10 +55,8 @@ function boundOf(
     return 'the establishing evidence is not complete'
   const parsed = tenantCodec.parse(named.tenant)
   if (!parsed.ok) return 'the tenant text does not parse'
-  // Kept and shared by every reader of the session, so it is frozen.
   return Object.freeze({
     kind: 'bound',
-    // The tenant and session are those of the stored record, not those of the request.
     tenant: parsed.value as TenantId,
     session: session as SessionId,
     source: Object.freeze({
@@ -86,7 +68,6 @@ function boundOf(
   })
 }
 
-/** The answers kept by key; the oldest one goes first when `limit` is passed. */
 export function createBindingMemo<T = Bound>(
   limit: number,
 ): {
@@ -111,7 +92,6 @@ export function createBindingMemo<T = Bound>(
   }
 }
 
-/** One `session.binding` read mapped to the answer of the source; only `bound` is worth keeping. */
 async function readBound(
   reach: StorageReach,
   domain: DomainRef,

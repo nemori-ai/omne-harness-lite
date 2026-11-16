@@ -47,7 +47,6 @@ export const shape = (name = 'read_file'): ToolShape => ({
 })
 export type Read = SessionReconciliation<unknown>['references']
 
-/** A real Session provider, over the public in-memory transaction pair. No durable backend. */
 export async function assembly(pageSize = 1) {
   const root = new Context()
   const { issuer } = inProcessPrincipalAuthority()
@@ -91,7 +90,6 @@ export async function assembly(pageSize = 1) {
   const row = await root.plugin(toolResidencyRow, { pageSize })
   const reader = root.toolResidencyReader
   let serial = 0
-  // All tenants' first holder has the same text. Later writes in one tenant need separate sessions.
   const counts = new Map<string, number>()
   const writeRaw: NonNullable<ResidentKeyRoundTripFixture['writeRaw']> = async input => {
     const facts = factsOf(input.key, shape(input.key.asset.name))

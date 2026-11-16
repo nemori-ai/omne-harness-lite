@@ -1,18 +1,3 @@
-// The row configuration of `model-records` (R2-D6, facts a.3): data only. The member's own part
-// (`owners`, `limits`, `requestChunkBytes`, `combinationVersion`, `send`, `observation`) is
-// validated by the member's schema. The member takes `observation` as optional; the release
-// requires it (#1214: the formal assembly always publishes the public Model stream, and the
-// operator layer gives its bounds). The application's part is validated here:
-// - `initial`: the bounds of the first-execution run of this process.
-// - `sendStage`: what the send child needs beside its one member bound `maxRetainedAttempts`:
-//   the materialization record bound, the official profiles input (equal to the `model-profiles`
-//   row), the preparation and OpenAI family configuration (equal to the `model-request-preparation`
-//   row), the network, the operator's provider endpoints and the transport limits. The routes
-//   themselves come from the release provider bodies (`src/assets/model-providers.ts`).
-// - `diagnostics`: the read face `modelDiagnostics` the row provides beside the commands (#1140 A5):
-//   the eligibility mapping `diagnosticsRead` (only `tenant-self`) and the retention adoption. The
-//   member's schema validates it; without `retention` every `list` answers `unavailable`.
-// Every number is the operator's; the release layer writes none.
 import {
   createSqlModelDiagnosticsPlugin,
   createSqlModelRecordsPlugin,
@@ -54,7 +39,6 @@ export const modelRecordsAppConfig = z
         maxConnections: count,
         idleConnectionTimeoutMs: count,
       }),
-      /** A complete `https:` endpoint that replaces a provider body's own, by provider name. */
       endpoints: z.record(text, z.string().url()),
       transportLimits: z.strictObject({
         connectTimeoutMs: count.nullable(),
@@ -71,10 +55,6 @@ export const modelRecordsAppConfig = z
 
 export type ModelRecordsAppConfig = z.output<typeof modelRecordsAppConfig>
 
-/**
- * The member's configuration schema. The member exports it only as the static `Config` of the plugin
- * class, so a class with no live objects is created once to read it; it is never loaded.
- */
 const memberSchema = createSqlModelRecordsPlugin<unknown, never>({
   inject: [],
   resolve: () => {
@@ -85,7 +65,6 @@ const memberSchema = createSqlModelRecordsPlugin<unknown, never>({
   },
 }).Config
 
-/** The diagnostics read schema of the member, read the same way. */
 const diagnosticsSchema = createSqlModelDiagnosticsPlugin<unknown>({
   inject: [],
   resolve: () => {
@@ -99,7 +78,6 @@ export type ModelRecordsConfig = Readonly<{
   diagnostics: SqlModelDiagnosticsConfig
 }>
 
-/** The three parts of the row configuration, each by its owner's schema. */
 export const modelRecordsConfig = {
   '~standard': {
     version: 1 as const,

@@ -1,8 +1,3 @@
-// The reply admission ledger of the memory Journal (Agent SPEC "回复准入的已核实前缀"): the dense
-// facts of one execution, the basis of each prefix, the projection the original Ja maintains
-// incrementally, and the read of one fixed range `(from, through]` page by page. Every read goes
-// through `rowsOf`, which counts each row it touches, so the complexity tests count what a read
-// really scans. The session-adapters Journal keeps its own copy of this ledger.
 import {
   decodeReplyAdmissionPageCursor,
   decodeReplyAdmissionSequence,
@@ -24,18 +19,13 @@ import { createHash } from 'node:crypto'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { canonical } from '../canonical.ts'
 
-/** One reply admission fact as the Journal keeps it, at index `sequence - 1`. */
 export type AdmissionRecord = Readonly<{
   fact: ModelReplyAdmission
-  /** The receipt evidence of the original Ja that published the fact. */
   publication: DurableEvidence
-  /** The basis of the prefix that ends with this fact; null when a test removed it. */
   basis: DurableEvidence | null
-  /** False when a test removed the fact itself. */
   present: boolean
 }>
 
-/** The projection the original Ja maintains: the counts under `rule` and the end prefix. */
 export type AdmissionProjection = Readonly<{
   rule: Adoption
   consecutive: number
@@ -45,40 +35,26 @@ export type AdmissionProjection = Readonly<{
   basis: DurableEvidence
 }>
 
-/** The per-execution state of the ledger besides the facts. A write replaces it whole. */
 export type AdmissionLedger = Readonly<{
-  /** The basis of the zero prefix, formed by the original open; null when a test removed it. */
   origin: DurableEvidence | null
-  /** The first sequence whose fact is still kept; 1 keeps every fact. */
   retainedFrom: number
-  /** The smallest `through` sequence that still resolves; 0 resolves every range. */
   rangesFrom: number
   projection: AdmissionProjection
 }>
 
-/**
- * Where a ledger belongs: `parts` are the tenant text first, then the scope texts of the provider,
- * then the execution. Every basis, range and cursor the ledger mints names them.
- */
 export type AdmissionScope = Readonly<{
   parts: readonly string[]
   owner: string
   mint(record: string, revision: number): DurableEvidence
 }>
 
-/** What the reads of one Journal did, for the complexity tests (Agent SPEC D5 第 8 节). */
 export type AdmissionCounters = {
-  /** Range positions: one per page that reads at least one row. */
   seeks: number
-  /** Rows a read touched, including rows it then skipped. */
   scanned: number
-  /** Facts a read decoded into a page. */
   decoded: number
   pages: number
-  /** Facts a projection rebuild folded. */
   folds: number
   loads: number
-  /** Commits that wrote a checkpoint. */
   checkpointWrites: number
 }
 
@@ -86,14 +62,12 @@ export function admissionCounters(): AdmissionCounters {
   return { seeks: 0, scanned: 0, decoded: 0, pages: 0, folds: 0, loads: 0, checkpointWrites: 0 }
 }
 
-/** A test removal of ledger material, as a storage fault or an operator error would leave it. */
 export type AdmissionDamage =
   | Readonly<{ kind: 'missing-fact'; sequence: number }>
   | Readonly<{ kind: 'missing-basis'; sequence: number }>
   | Readonly<{ kind: 'retention'; from: number }>
   | Readonly<{ kind: 'range-unavailable'; below: number }>
 
-/** How the provider limits one page by itself, besides the caller's `limit`. */
 export type AdmissionPageLimits = Readonly<{ items: number | null; bytes: number | null }>
 
 const PREFIX = 'reply-admission-prefix'
@@ -110,12 +84,10 @@ function sameEvidence(left: DurableEvidence, right: DurableEvidence): boolean {
   return canonical(left) === canonical(right)
 }
 
-/** The record text of a basis or range: the scope parts, the kind and the sequence. */
 function recordOf(scope: AdmissionScope, kind: string, sequence: number): string {
   return `${JSON.stringify(scope.parts)}/${kind}/${sequence}`
 }
 
-/** The scope parts and the sequence a record text names, or undefined when it is not one. */
 function parseRecord(
   record: string,
   kind: string,
@@ -134,7 +106,6 @@ function parseRecord(
   }
 }
 
-/** Another tenant is `denied`, any other scope `invalid` (Agent SPEC "判定次序与失败映射" 1). */
 function scopeFailure(
   scope: AdmissionScope,
   parts: readonly string[],
@@ -147,7 +118,6 @@ function scopeFailure(
   return undefined
 }
 
-/** The ledger of a new execution: the zero prefix formed by the original open at `revision`. */
 export function originLedger(scope: AdmissionScope, rule: Adoption, revision: number) {
   const origin = scope.mint(recordOf(scope, PREFIX, 0), revision)
   const ledger: AdmissionLedger = {
@@ -159,7 +129,6 @@ export function originLedger(scope: AdmissionScope, rule: Adoption, revision: nu
   return ledger
 }
 
-/** The projection after one more fact: the incremental step of the original Ja. */
 function stepProjection(
   projection: AdmissionProjection,
   fact: ModelReplyAdmission,
@@ -182,10 +151,6 @@ function stepProjection(
       }
 }
 
-/**
- * The record and the next ledger of one new fact, published by the Ja at `revision` with the
- * receipt evidence `publication`. The caller writes both in the same write as the Ja.
- */
 export function admit(
   scope: AdmissionScope,
   ledger: AdmissionLedger,
@@ -201,18 +166,15 @@ export function admit(
   }
 }
 
-/** The key of the deduplication of SPEC:598: the original call and result version. */
 export function admissionKey(fact: ModelReplyAdmission): string {
   return JSON.stringify([fact.call, fact.resultVersion])
 }
 
-/** The fixed range of the current facts, as `load` names it. */
 export function throughOf(scope: AdmissionScope, ledger: AdmissionLedger): DurableEvidence {
   const sequence = ledger.projection.sequence
   return scope.mint(recordOf(scope, RANGE, sequence), sequence)
 }
 
-/** The projection `load` returns, or a failure when the rule changed without a conversion. */
 export function projectionOf(
   scope: AdmissionScope,
   ledger: AdmissionLedger,
@@ -235,7 +197,6 @@ export function projectionOf(
   })
 }
 
-/** Every row from index `start`, `count` rows; each row touched is counted. */
 function rowsOf(
   records: readonly (AdmissionRecord | undefined)[],
   start: number,
@@ -251,10 +212,6 @@ function rowsOf(
   return rows
 }
 
-/**
- * The projection of every fact under `rule`, folded from the origin: the cold path of a rule
- * change (Agent SPEC D5 第 4 节). Undefined when a fact is missing: there is no trusted start.
- */
 export function rebuild(
   records: readonly (AdmissionRecord | undefined)[],
   ledger: AdmissionLedger,
@@ -278,17 +235,11 @@ export function rebuild(
   return projection
 }
 
-/** The resolution of a basis: its sequence, a refusal, or material the Journal lost. */
 type Resolved =
   | Readonly<{ kind: 'resolved'; sequence: number }>
   | Readonly<{ kind: 'refused'; failure: Failure }>
   | Readonly<{ kind: 'missing'; sequence: number }>
 
-/**
- * Resolves `prefix` by a point read of its basis: another tenant is `denied`, another execution,
- * an unknown or forged basis, or a sequence that does not match is `invalid`, a lawful basis whose
- * material the Journal lost is `missing`.
- */
 function resolvePrefix(
   scope: AdmissionScope,
   records: readonly (AdmissionRecord | undefined)[],
@@ -319,15 +270,10 @@ function resolvePrefix(
   return { kind: 'resolved', sequence }
 }
 
-/** A short digest of a text, so that a cursor stays within the identity length. */
 function digestOf(text: string): string {
   return createHash('sha256').update(text).digest('hex').slice(0, 24)
 }
 
-/**
- * The cursor of the next page: digests of the tenant and of the full scope with the execution
- * origin, the lower bound, the range and the end of the page before. It carries no grant.
- */
 function cursorOf(
   scope: AdmissionScope,
   origin: DurableEvidence | null,
@@ -344,7 +290,6 @@ function cursorOf(
   return decoded.ok
 }
 
-/** The end of the page before that a cursor names, after checking it against the request. */
 function cursorPosition(
   scope: AdmissionScope,
   origin: DurableEvidence | null,
@@ -369,7 +314,6 @@ function cursorPosition(
   return succeed(position)
 }
 
-/** The fixed range a `through` names, a refusal, or the gap of a range no longer resolvable. */
 function resolveThrough(
   scope: AdmissionScope,
   ledger: AdmissionLedger,
@@ -396,12 +340,6 @@ export type ReadRequest = Readonly<{
   limit: number
 }>
 
-/**
- * One page of the fixed range `(from, through]` (Agent SPEC "回复准入的已核实前缀", 3.3): at most
- * `limit` facts and at most the provider's own item and byte limits, at least one fact unless the
- * range is complete, a gap for a missing fact, a missing basis, retention or a range that no
- * longer resolves.
- */
 export function readAdmissionPage(
   scope: AdmissionScope,
   records: readonly (AdmissionRecord | undefined)[],
@@ -472,7 +410,6 @@ export function readAdmissionPage(
   const count = Math.min(request.limit, limits.items ?? request.limit, target - start)
   const items: ReplyAdmissionItem[] = []
   let bytes = 0
-  // The basis of each row, for the end of the page: only the last fact of a page needs one.
   const bases: (DurableEvidence | null)[] = []
   for (const [offset, row] of rowsOf(records, start, count, counters).entries()) {
     if (row === undefined || !row.present) {
@@ -480,7 +417,6 @@ export function readAdmissionPage(
       break
     }
     const size = canonical(row.fact).length
-    // A fact larger than the provider's byte limit still gets a page of its own.
     if (limits.bytes !== null && items.length > 0 && bytes + size > limits.bytes) break
     bytes += size
     counters.decoded += 1
@@ -491,7 +427,6 @@ export function readAdmissionPage(
     })
     bases.push(row.basis)
   }
-  // A page ends at its last fact whose prefix basis the Journal still holds.
   while (items.length > 0 && bases.at(-1) === null) {
     items.pop()
     bases.pop()
@@ -513,12 +448,6 @@ export function readAdmissionPage(
   })
 }
 
-/**
- * The commit-time check of a checkpoint's read position (Agent SPEC D5 5.1, 预防): when it changes,
- * the new value is verified, its basis resolves to this execution, it does not pass the published
- * facts and it does not go back. Another tenant's basis is `denied`; a lawful basis whose material
- * the Journal lost is `unavailable` with the diagnostic `missing-basis`. A point read; no scan.
- */
 export function checkReadPosition(
   scope: AdmissionScope,
   records: readonly (AdmissionRecord | undefined)[],
@@ -545,7 +474,6 @@ export function checkReadPosition(
   return undefined
 }
 
-/** The records and ledger after `damage`; the records are replaced, never changed in place. */
 export function damaged(
   records: readonly (AdmissionRecord | undefined)[],
   ledger: AdmissionLedger,

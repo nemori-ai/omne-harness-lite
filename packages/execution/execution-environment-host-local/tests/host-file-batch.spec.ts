@@ -1,7 +1,3 @@
-// commitBatch and recoverBatch on the real file system. Each entry is published on its own, and a
-// manifest in the state directory records the batch so that a later recovery can say what happened.
-// Faults and pauses reach Node calls on Linux and native calls on macOS. The crash case kills a
-// real child process.
 import { execFile } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import {
@@ -90,7 +86,6 @@ vi.mock('node:fs/promises', async importOriginal => {
 
 const dirs: string[] = []
 
-// Linux uses descriptor paths; macOS uses the native helper with the same behavior assertions.
 beforeEach(async ({ skip }) => {
   skip(process.platform !== 'linux' && process.platform !== 'darwin')
   if (process.platform === 'darwin') await prepareNativeHooks()

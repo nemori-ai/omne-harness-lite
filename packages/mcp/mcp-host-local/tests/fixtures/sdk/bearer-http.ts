@@ -1,6 +1,3 @@
-// A modern Streamable HTTP peer behind the SDK's bearer gate: `createMcpHandler` served through
-// `toNodeHandler`, every request first checked by `requireBearerAuth`, and the protected resource
-// metadata at the RFC 9728 address. The B layer for the authorization flow (contract T4, R4).
 import { createServer, type Server } from 'node:http'
 import { toNodeHandler } from '@modelcontextprotocol/node'
 import {
@@ -34,7 +31,6 @@ function echoServer(): McpServer {
   return server
 }
 
-/** Serves the peer; only `token` is accepted, and it carries `scopes`. */
 export async function bearerServer(
   token: string,
   scopes: readonly string[],

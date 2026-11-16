@@ -5,16 +5,12 @@ import {
   type FacilityResult,
 } from '../facility.ts'
 
-/** Opaque object identity. A host provider puts device and inode in it; a sandbox its own token. */
 export type ObjectToken = { readonly token: string }
 export type HandleGeneration = { readonly object: ObjectToken; readonly generation: string }
-/** Metadata version: an observation condition, not a permission and not an external CAS. */
 export type FileVersion = string
 
 export type FileRequest<P> = FacilityRequest<P> & {
-  /** An explicit absolute path on the host; relative to the granted root where a file limit is claimed. */
   readonly path: string
-  /** The object the authorization named; for a target that does not exist, its parent directory. */
   readonly named: ObjectToken | null
 }
 
@@ -29,7 +25,6 @@ export type FileWriteResult = FileIdentity & {
 }
 
 export type FileInformation = FileIdentity & {
-  /** Only `stat` can report `symlink`; content operations refuse a final symbolic link. */
   readonly type: 'file' | 'directory' | 'symlink'
   readonly sizeBytes: number
   readonly modifiedMs: number
@@ -58,9 +53,7 @@ export type FileBatchOutcome = {
 export type FileBatchRecognition = {
   readonly batch: FileBatchRef
   readonly state: 'complete' | 'partial' | 'interrupted' | 'conflict' | 'pending'
-  /** Paths with a durable publication receipt. */
   readonly published: readonly string[]
-  /** Paths whose current bytes match the staged bytes. A match is not a receipt. */
   readonly matchingPrepared: readonly string[]
   readonly conflicting: readonly string[]
 }
@@ -116,7 +109,6 @@ export interface FileSystemFacility<P> {
       readonly truncated: boolean
     }>
   >
-  /** `named` is the parent directory; with `parents`, the nearest existing ancestor. */
   mkdir(
     request: FileRequest<P> & { readonly parents: boolean },
   ): Promise<FacilityResult<FileIdentity>>
@@ -141,7 +133,6 @@ export interface FileSystemFacility<P> {
     },
   ): Promise<FacilityResult<{ readonly source: ObjectToken; readonly target: FileIdentity }>>
 
-  /** Stages every entry, then publishes each path on its own. No multi-path atomic commit. */
   commitBatch(
     request: FacilityRequest<P> & {
       readonly entries: readonly {
@@ -152,7 +143,6 @@ export interface FileSystemFacility<P> {
       }[]
     },
   ): Promise<FacilityResult<FileBatchOutcome>>
-  /** Reads the manifest, targets and receipts only. It does not publish, roll back or overwrite. */
   recoverBatch(
     request: FacilityRequest<P> & { readonly batch: FileBatchRef },
   ): Promise<FacilityResult<FileBatchRecognition>>

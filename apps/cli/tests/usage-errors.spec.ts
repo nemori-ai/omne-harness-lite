@@ -1,5 +1,4 @@
 // @module-tag slow
-// Every case spawns the built bin as a child process.
 import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, beforeEach, expect, it } from 'vitest'

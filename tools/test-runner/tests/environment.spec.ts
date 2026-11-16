@@ -1,6 +1,3 @@
-// 环境自检与自愈（准入与预检开始时）：依赖一栏照抄启动段（scripts/check-bootstrap.mjs）交来的结果，没有就记 not-bootstrapped；
-// 索引为 LF 而工作副本为 CRLF 的已跟踪文件从索引重新检出，有内容改动的不覆盖。结果写成记录里的一栏。
-// 依赖的核对与离线重装本身由启动段做，测试在 tests/check-bootstrap.spec.ts。
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -22,7 +19,6 @@ beforeEach(() => {
   const git = (...args: string[]) =>
     execFileSync('git', args, { cwd: root, env: repositoryEnv(process.env), encoding: 'utf8' })
   git('init', '-q', '-b', 'main')
-  // 换行判定不依赖机器的 autocrlf：读字节、算 blob 哈希与索引比。
   git('config', 'core.autocrlf', 'false')
   put('.gitignore', 'node_modules/\n')
   put('a.txt', 'one\ntwo\n')

@@ -150,8 +150,6 @@ describe('semantic principal snapshots in the paired non-durable source', () => 
           ? { kind: 'allowed' }
           : { kind: 'denied', reason: 'different-subject' },
     }
-    // This token and its authentication closure are immutable. Identity-preserving reuse keeps
-    // its issuer registration valid; subject comparison still uses the authenticated subject.
     const a = assembly({ authority: opaqueAuthority, snapshotPrincipal: principal => principal })
     const first = accepted(await a.invoke(token))
     expect(accepted(await a.invoke(token))).toEqual({ ...first, recovered: true })

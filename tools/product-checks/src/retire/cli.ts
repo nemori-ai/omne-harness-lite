@@ -6,8 +6,15 @@ import { renderScope, renderText } from './render.ts'
 import { scanRetire } from './scan.ts'
 import { DEFAULT_TABLE_PATH, readRetireTable, TableError, WAVES, type Wave } from './table.ts'
 
-const USAGE =
-  '用法：retire --wave <A|B|C|D|E> [--root <检出目录>] [--table <退役表>] [--json] [--strict]'
+const USAGE = `用法：retire --wave <A|B|C|D|E> [--root <检出目录>] [--table <退役表>] [--json] [--strict]
+按放行波次核对退役表里的替身，报告 overdue、retired-referenced、misassembled 三类问题，并列出各成员 ./testing 入口的清点表。只读。
+从成员目录运行，或 pnpm --filter @omne-harness/product-checks run retire -- --wave B。单独的 -- 忽略。
+  --wave    必填，放行波次。E 指 M2-E。
+  --root    被扫描的 Git 检出，缺省为本工具所在的检出。
+  --table   退役表，缺省为包根的 retire-doubles.json。
+  --json    机读输出，顶层字段 wave、ref、findings、inventory、unmapped、stale。
+  --strict  把未映射也算问题。放行核对用它，缺省只列出。
+退出 0 没有问题；1 有问题（--strict 时含未映射）；2 表、检出或参数不可用，或表过期。`
 const ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
 
 interface Arguments {
@@ -26,7 +33,6 @@ function parseArguments(argv: readonly string[]): Arguments {
   let strict = false
   for (let index = 0; index < argv.length; index++) {
     const flag = argv[index]
-    // pnpm 把 `pnpm run retire -- --wave B` 里的 `--` 原样传给脚本，单独的 `--` 不是参数。
     if (flag === '--') continue
     if (flag === '--json') json = true
     else if (flag === '--strict') strict = true
@@ -43,7 +49,6 @@ function parseArguments(argv: readonly string[]): Arguments {
   return { wave: wave as Wave, root, table, json, strict }
 }
 
-/** 退出码：0 无问题；1 有问题（--strict 时含未映射）；2 表、检出或参数不可用，或表过期。 */
 function main(argv: readonly string[]): number {
   const args = parseArguments(argv)
   const table = readRetireTable(args.table)
@@ -57,6 +62,11 @@ function main(argv: readonly string[]): number {
   }
   if (result.findings.length > 0) return 1
   return args.strict && result.unmapped.length > 0 ? 1 : 0
+}
+
+if (process.argv.includes('--help')) {
+  console.log(USAGE)
+  process.exit(0)
 }
 
 try {

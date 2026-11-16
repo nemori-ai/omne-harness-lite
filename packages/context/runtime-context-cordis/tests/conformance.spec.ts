@@ -15,11 +15,6 @@ import type { RuntimeContextService } from '@omne-harness/runtime-context-cordis
 import { RuntimeContextProvider } from '@omne-harness/runtime-context-cordis/cordis'
 import { tenantA, tenantB, trustOf } from './support.js'
 
-// The whole contract suite on real Cordis 4.0.4: a fresh Context with a trust provider that hands
-// over the suite's ports, and the product provider plugin. `bind` goes through an intercepted
-// context whose consumer class is the one the eligibility was issued for. That only routes the
-// assembly fact a real consumer plugin would declare; it adds no product behavior.
-
 const CONSUMERS: readonly ConsumerClass[] = ['model', 'tool', 'extension', 'coordinator']
 const closers = new WeakMap<object, () => Promise<void>>()
 
@@ -31,7 +26,6 @@ async function subject(
   const fiber = await ctx.plugin(RuntimeContextProvider, { retention: 64, replayCapacity: 8 })
   const service = ctx.get(runtimeContextKey)
   if (!service) throw new Error('The provider did not load')
-  // Services seen from contexts that declare each consumer class, captured while loaded.
   const declared = new Map<ConsumerClass, RuntimeContextService<unknown>>()
   for (const consumer of CONSUMERS) {
     const seen = ctx.intercept(runtimeContextKey, { consumer }).get(runtimeContextKey)

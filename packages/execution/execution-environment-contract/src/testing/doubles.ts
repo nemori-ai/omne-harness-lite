@@ -49,12 +49,7 @@ export type ProviderScript = Readonly<{
   isolation?: EnvironmentProvider['isolation']
   lease?: Partial<EnvironmentFacilities>
   acquire?: (input: ProviderAcquireInput) => Promise<ProviderAcquisition>
-  /** Runs before the default allocation; it may change test state, for example revoke access. */
   beforeAcquire?: (input: ProviderAcquireInput) => void | Promise<void>
-  /**
-   * Runs after the allocation is recorded. It may replace or throw away the response, which models a
-   * provider that allocated but whose answer was lost.
-   */
   afterAcquire?: (
     input: ProviderAcquireInput,
     receipt: ProviderAcquisition,
@@ -67,7 +62,6 @@ export type ProviderScript = Readonly<{
     list(scope: ProviderAcquireInput['scope']): Promise<RecoveryListing>
     recover(resource: ManagedResource): Promise<ResourceRecovery>
   }
-  /** With it the provider offers `retainedProcesses` and answers with this script. */
   retained?: (
     scope: ScopeRef,
     tenant: TenantId,
@@ -79,7 +73,6 @@ type HeldRecord = {
   evidence: JsonValue
   state: 'acquired' | 'released'
 }
-/** The double's key of one original acquisition: quota domain, tenant text and acquisition key. */
 function recordKey(original: OriginalAcquisition): string | undefined {
   const tenant = tenantCodec.encode(original.tenant)
   if (!tenant.ok) return undefined
@@ -90,7 +83,6 @@ function scopeChain(scope: ScopeRef | undefined): readonly string[] {
   for (let s = scope; s; s = s.parent) refs.push(s.ref)
   return refs
 }
-/** Fingerprint of an original description without the tenant, which the key already names. */
 function fingerprint(original: OriginalAcquisition): string {
   const p = original.placement
   return JSON.stringify([
@@ -107,10 +99,6 @@ function fingerprint(original: OriginalAcquisition): string {
     p.requirement.allowedBindings.map(b => [b.kind, 'scope' in b ? scopeChain(b.scope) : null]),
   ])
 }
-/**
- * A scripted provider. Its original-acquisition record lives in this object only: it suits tests of
- * the registry, never a real provider. Default quota is unbounded per tenant with no global bound.
- */
 export function createScriptedEnvironmentProvider(script: ProviderScript = {}) {
   const evidence = judgeJsonValue({ kind: 'boolean', value: true })
   if (!('ok' in evidence)) throw new TypeError('invalid test evidence')
@@ -383,17 +371,11 @@ export function createScriptedRecoveryAuthority(
   }
 }
 
-/** A scripted answer to one environment action; `undefined` keeps the default authorized answer. */
 export type EnvironmentAuthorityScript<P> = (
   access: Access<P>,
   action: EnvironmentAction,
 ) => AuthorityDecision<P> | undefined
 
-/**
- * A scripted environment authority. It authorizes every action with the caller's principal until a
- * script or `revokeAll` says otherwise; after `revokeAll`, `current()` of every earlier answer is false.
- * Not for production: it holds no real policy.
- */
 export function createScriptedEnvironmentAuthority<P>() {
   const calls: { access: Access<P>; action: EnvironmentAction }[] = []
   let scripted: EnvironmentAuthorityScript<P> | undefined
@@ -423,10 +405,6 @@ export function createScriptedEnvironmentAuthority<P>() {
   })
 }
 
-/**
- * A scripted trusted binding source. It trusts whatever the test binds; an unbound scope answers
- * `unbound`. Not for production.
- */
 export type ScriptedScopeBindings = ScopeBindingSource &
   Readonly<{
     durability: 'none'

@@ -1,4 +1,3 @@
-// The lease view: which keys resolve, the per-operation gate, invalidation and release.
 import { expect, it } from 'vitest'
 import {
   originRef,
@@ -96,7 +95,6 @@ it('refuses malformed requests as invalid input without calling the facility', a
     [{ ...valid, binding: {} }, 'start-1'],
     [{ ...valid, binding: { kind: 3 } }, 'start-1'],
   ]
-  // The gate is the boundary for untyped callers, so the requests go in without the static type.
   const start = (request: unknown): Promise<unknown> =>
     Reflect.apply(command.start, command, [request])
   for (const [request, requestId] of malformed)

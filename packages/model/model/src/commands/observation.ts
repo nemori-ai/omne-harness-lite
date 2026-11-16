@@ -67,12 +67,10 @@ function facts(tenant: string, call: CallDocument): ObservationFacts | null {
   }
 }
 
-/** The call document that the pass staged, or else the one it saw. */
 function passCall(pass: ModelConfirmationPass): CallDocument | undefined {
   if (pass.staged?.kind === 'write') return pass.staged.write.call
   return pass.staged?.kind === 'publish' ? pass.staged.call : pass.seen?.call
 }
-/** A run that threw, or a staged write whose commit is unknown, leaves the call unconfirmed. */
 function unconfirmedWrite(
   pass: ModelConfirmationPass,
   completion: Exclude<ModelRunCompletion, { kind: 'confirmed' }>,
@@ -205,7 +203,6 @@ export function createModelObservationStorage<P>(
       call: decoded.ok.call,
     })
   }
-  /** Inside the storage run: the reader may read the call, the reference binds it, and no write is unknown. */
   function checkRead(
     read: ObservationRead<P>,
     parts: ModelInvocationParts,

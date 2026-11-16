@@ -1,5 +1,3 @@
-// The production in-memory catalog store runs the contract's conformance suite. It is never
-// unavailable, so CS8 is not applicable; the three isolation cases make that key rule explicit.
 import { describe, expect, it } from 'vitest'
 import type { CatalogKey } from '@omne-harness/mcp-contract'
 import {

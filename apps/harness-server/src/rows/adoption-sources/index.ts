@@ -1,7 +1,5 @@
-// The `adoption-sources` row: Session's adoption source over the table of `agent-adoptions`. The
-// row injects `definitionMappings` and reads no configuration of its own.
 import type { Context, Plugin } from '@deepseek-ai/cordis'
-import { definitionMappingsKey } from '@omne-harness/server-entry/cordis'
+import { definitionMappingsKey } from '../agent-adoptions/definition-mappings.ts'
 import {
   sessionAdoptionSourceKey,
   sessionWorkPrincipalsKey,

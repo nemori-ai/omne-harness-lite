@@ -1,5 +1,3 @@
-// The holder sources suite run against the in-memory holder double: four parts and the five lease
-// properties of `contextHolderSources`. Each case is red when the double breaks its clause.
 import { tenantEquals } from '@omne-harness/legal-identity'
 import type {
   Access,

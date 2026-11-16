@@ -1,11 +1,3 @@
-// The shared fixture of the ModelCommands cases: a node:sqlite test provider of `SqlStorage` that
-// runs the real participant, migration and read handlers of this member, loaded as a provider loads
-// them: from the module files of `modelStorageMaterials()`, by default export. The core options
-// (authority, evidence, owners, clock, limits) that build the SQL and the in-memory commands
-// alike. The provider keeps one in-memory database per transaction domain, receipts by full
-// identity and rollback on a stopping reply. Its read port refuses a statement without LIMIT, as
-// the contract's read port does. It does not model Workers, durability, queues or limits: a pass
-// proves none of those.
 import { DatabaseSync } from 'node:sqlite'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -52,8 +44,6 @@ import type {
 } from '@omne-harness/sql-contract/worker'
 import { providerName } from './provider-name.ts'
 
-// --- Values --------------------------------------------------------------------------------
-
 export function unbox<T>(outcome: Outcome<T, unknown>): T {
   if ('ok' in outcome) return outcome.ok
   throw new Error(`fixture failure: ${JSON.stringify(outcome.failure)}`)
@@ -94,7 +84,6 @@ export const OWNER: ModelConsumerOwnerDeclaration = {
 }
 export const DIGEST = 'a'.repeat(64)
 
-/** The request of every admission: two user messages, so kept message identities are visible. */
 export const REQUEST: FixedModelRequest = (() => {
   const user = (id: string) => ({
     id: `msg_${id.padEnd(22, '0')}`,
@@ -135,8 +124,6 @@ export function proof(record: string, owner = 'host'): DurableEvidence {
   return { owner, record, revision: '1', digest: '1'.repeat(64) }
 }
 
-// --- Test provider -------------------------------------------------------------------------
-
 function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): QueryRows {
   const statement = db.prepare(sql)
   statement.setReadBigInts(true)
@@ -159,7 +146,6 @@ async function defaultOf<T>(url: string): Promise<T> {
   return ((await import(/* @vite-ignore */ url)) as { default: T }).default
 }
 
-/** The modules of the materials, each loaded by the default export of its file. */
 const MODULES = await (async () => {
   const materials = modelStorageMaterials()
   const [participant] = materials.participants
@@ -177,7 +163,6 @@ const MODULES = await (async () => {
 const { participant } = MODULES
 
 type Domain = { readonly db: DatabaseSync; readonly receipts: Map<string, ReceiptV2> }
-/** Receipts are kept by the full identity: the scope is part of it, as in the real provider. */
 const keyOf = (identity: SqlIdentity) =>
   JSON.stringify([identity.scope, identity.operation, identity.operationKey])
 
@@ -232,13 +217,9 @@ export type SqliteStorage = ReturnType<typeof sqliteStorage>
 export function sqliteStorage() {
   const domains = new Map<string, Domain>()
   const hooks: {
-    /** The next commit is saved, then its reply is lost (`unknown`). */
     loseNextReply: boolean
-    /** Runs once before the next commit reaches the database, as a concurrent writer would. */
     beforeCommit: (() => void) | null
-    /** The next commit is rejected before the storage accepts it, for this reason. */
     rejectNext: 'writer_not_current' | 'queue_full' | null
-    /** The next commit stays undecided: it answers `unknown` and so does every query of it. */
     holdNext: boolean
   } = { loseNextReply: false, beforeCommit: null, rejectNext: null, holdNext: false }
   const held = new Set<string>()
@@ -302,8 +283,6 @@ export function sqliteStorage() {
     read(request) {
       const handler = MODULES.handlers.get(request.handler)
       const db = domainOf(request.domain.transactionDomain).db
-      // The read port rule of sql-contract (SPEC 读 handler): every statement carries a LIMIT. The
-      // sqlite provider refuses the read as `read_port_violation`; this double refuses the statement.
       const outcome = handler?.read(request.input, {
         execute: (sql, params) => {
           if (!/\blimit\b/iu.test(sql)) throw new Error('read port: a statement has no LIMIT')
@@ -333,7 +312,6 @@ export function sqliteStorage() {
   }
 }
 
-/** Every tenant in `registered` gets its own scope in the transaction domain `domain`. */
 export function lookup(registered: readonly string[], domain: string): TenantDomainLookup {
   return {
     lookup: ({ tenant }) =>
@@ -348,15 +326,8 @@ export function lookup(registered: readonly string[], domain: string): TenantDom
   }
 }
 
-// --- Core options --------------------------------------------------------------------------
-
-/** A principal of one tenant. The authority knows the principals it minted, by object. */
 export type Principal = Readonly<{ subject: string }>
 
-/**
- * The options of the shared core for the tenants given: one minted principal per tenant, the
- * owner declaration, evidence that accepts the proofs of `proof`, and a fixed clock.
- */
 export function coreOptions(tenants: readonly TenantId[]) {
   const principals = new Map<Principal, TenantId>()
   const principalOf = new Map<string, Principal>()
@@ -437,13 +408,6 @@ export function coreOptions(tenants: readonly TenantId[]) {
   return { options, completeWindows, admitOf }
 }
 
-// --- The SQL commands ----------------------------------------------------------------------
-
-/**
- * The SQL ModelCommands over one test provider. Every tenant in `tenants` is registered in the one
- * transaction domain `domain`, so a statement without its tenant condition meets the rows of the
- * other tenant.
- */
 export function sqlCommands(
   tenants: readonly TenantId[],
   overrides: Partial<SqlModelCommandsOptions<Principal>> = {},

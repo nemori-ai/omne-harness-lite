@@ -79,7 +79,6 @@ async function fixture(consumed = false) {
     const pending = check.check(input)
     await reached(entered.promise, pending)
     released.resolve(answer)
-    // The lookup continuation runs first, then this provider reuse, then the check continuation.
     const reused = Promise.withResolvers<void>()
     queueMicrotask(() => {
       try {

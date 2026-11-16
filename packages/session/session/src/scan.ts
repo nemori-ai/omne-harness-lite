@@ -1,14 +1,8 @@
-// S3, the recovery scanner of one tenant (SPEC S3), in the subset this member hands work to: a
-// session with pending inputs goes to S1, each unknown operation goes to S4, a control that
-// propagates goes to C3, and an active Run goes to the recovery of C2. The startup scan reads the
-// union of reasons; the periodic scan reads `inputs`, `unresolved`, `controls` and `run`. The other
-// reasons have no handler in this member yet (SPEC「实现现状」). The cursor is not persistent.
 import { fail, succeed } from '@omne-harness/operation-result'
 import type {
   PendingReason,
   Reply,
   SessionFaces,
-  SessionId,
   SessionInternalPrincipals,
 } from '@omne-harness/session-contract'
 import type { Advance } from './advance.ts'
@@ -26,7 +20,10 @@ import {
   type TenantId,
 } from './scheduling.ts'
 
-export type MaintenanceHandle = Readonly<{ release(): Promise<void> }>
+export type MaintenanceHandle = Readonly<{
+  release(): Promise<void>
+  ended: Promise<void>
+}>
 
 export type Scan = Readonly<{
   maintain(tenant: TenantId): Reply<MaintenanceHandle>
@@ -34,6 +31,15 @@ export type Scan = Readonly<{
 }>
 
 const PERIODIC_REASONS: readonly PendingReason[] = ['inputs', 'unresolved', 'controls', 'run']
+
+type Outcome = 'found' | 'empty' | 'incomplete'
+
+type Scanner = {
+  readonly handle: MaintenanceHandle
+  readonly stop: AbortController
+  readonly settle: () => void
+  demand: boolean
+}
 
 export function createScan<P>(
   input: Readonly<{
@@ -50,7 +56,7 @@ export function createScan<P>(
 ): Scan {
   const { lifecycle, policy, scheduling, principals, maintainer } = input
   const { advance, resolution, controls, recovery } = input
-  const scanners = new Map<string, Readonly<{ handle: MaintenanceHandle; stop: AbortController }>>()
+  const scanners = new Map<string, Scanner>()
 
   const page = (tenant: TenantId, after: string | null, reason?: PendingReason) =>
     maintainer.reconciliation.pending({
@@ -61,7 +67,6 @@ export function createScan<P>(
       ...(reason === undefined ? {} : { reason }),
     })
 
-  /** Hands one session to its handlers, by the reasons its snapshot decides. */
   const dispatch = async (ref: SessionRef): Promise<void> => {
     const principal = await scheduling.principal('maintainer', ref)
     if ('failure' in principal) return
@@ -77,71 +82,105 @@ export function createScan<P>(
       })
   }
 
-  /** One round over all pages of one reading; each session is handed over once per round. */
-  const round = async (
+  const read = async (
     tenant: TenantId,
     seen: Set<string>,
-    first: readonly SessionId[],
-    next: string | null,
+    stop: AbortSignal,
     reason?: PendingReason,
-  ): Promise<void> => {
-    let sessions = first
-    let cursor = next
-    for (;;) {
-      for (const session of sessions) {
+  ): Promise<Outcome> => {
+    let found = false
+    let cursor: string | null = null
+    do {
+      const answer = await page(tenant, cursor, reason)
+      if ('failure' in answer) return 'incomplete'
+      found ||= answer.ok.sessions.length > 0
+      for (const session of answer.ok.sessions) {
         const ref = { tenant, session }
         const key = sessionKey(ref)
         if (seen.has(key)) continue
         seen.add(key)
         await dispatch(ref)
       }
-      if (cursor === null || lifecycle.closed) return
-      const more = await page(tenant, cursor, reason)
-      if ('failure' in more) return
-      sessions = more.ok.sessions
-      cursor = more.ok.next
+      cursor = answer.ok.next
+    } while (cursor !== null && !stop.aborted && !lifecycle.closed)
+    return cursor === null ? (found ? 'found' : 'empty') : 'incomplete'
+  }
+
+  const periodic = async (tenant: TenantId, stop: AbortSignal): Promise<Outcome> => {
+    const seen = new Set<string>()
+    const outcomes: Outcome[] = []
+    for (const reason of PERIODIC_REASONS) {
+      if (stop.aborted) return 'incomplete'
+      outcomes.push(await read(tenant, seen, stop, reason))
+    }
+    if (outcomes.includes('incomplete')) return 'incomplete'
+    return outcomes.includes('found') ? 'found' : 'empty'
+  }
+
+  const end = (key: string, scanner: Scanner): void => {
+    scanner.stop.abort()
+    if (scanners.get(key) === scanner) scanners.delete(key)
+    scanner.settle()
+  }
+
+  // Each return ends the scanner in the same synchronous step as the decision, so a maintain either arrived before the decision or finds no scanner.
+  const run = async (key: string, tenant: TenantId, scanner: Scanner): Promise<void> => {
+    const { signal } = scanner.stop
+    const { periodMs, startupRetryDelaysMs: delays } = policy.recoveryScan
+    const idle = (outcome: Outcome): boolean => outcome === 'empty' && !scanner.demand
+    try {
+      for (let attempt = 0; ; attempt += 1) {
+        scanner.demand = false
+        const outcome = await read(tenant, new Set(), signal)
+        if (signal.aborted || idle(outcome)) return
+        if (outcome !== 'incomplete') break
+        const delay = delays[attempt] ?? delays.reduce((_, last) => last)
+        if ((await scheduling.wait(delay, signal)) !== 'elapsed') return
+      }
+      for (;;) {
+        if ((await scheduling.wait(periodMs, signal)) !== 'elapsed') return
+        scanner.demand = false
+        const outcome = await periodic(tenant, signal)
+        if (signal.aborted || idle(outcome)) return
+      }
+    } finally {
+      end(key, scanner)
     }
   }
 
-  return {
-    maintain: async tenant => {
-      if (lifecycle.closed)
-        return fail(unavailable(OWNERS.session, 'the session instance is closed'))
-      const key = tenantKey(tenant)
-      const existing = scanners.get(key)
-      if (existing !== undefined) return succeed(existing.handle)
-      // The startup scan reads the union of reasons; its first page decides whether a scanner starts.
-      const startup = await page(tenant, null)
-      if ('failure' in startup) return fail(startup.failure)
-      const raced = scanners.get(key)
-      if (raced !== undefined) return succeed(raced.handle)
-      const stop = new AbortController()
-      const handle: MaintenanceHandle = Object.freeze({
+  const start = (tenant: TenantId, key: string): Scanner => {
+    let settle!: () => void
+    const ended = new Promise<void>(resolve => {
+      settle = resolve
+    })
+    const scanner: Scanner = {
+      handle: Object.freeze({
         release: () => {
-          stop.abort()
-          if (scanners.get(key)?.stop === stop) scanners.delete(key)
+          end(key, scanner)
           return Promise.resolve()
         },
-      })
-      scanners.set(key, { handle, stop })
-      lifecycle.spawn(async () => {
-        await round(tenant, new Set(), startup.ok.sessions, startup.ok.next)
-        while (!stop.signal.aborted) {
-          if ((await scheduling.wait(policy.recoveryScan.periodMs, stop.signal)) !== 'elapsed')
-            return
-          const seen = new Set<string>()
-          for (const reason of PERIODIC_REASONS) {
-            const first = await page(tenant, null, reason)
-            if ('failure' in first) continue
-            await round(tenant, seen, first.ok.sessions, first.ok.next, reason)
-          }
-        }
-      })
-      return succeed(handle)
+        ended,
+      }),
+      stop: new AbortController(),
+      settle,
+      demand: false,
+    }
+    scanners.set(key, scanner)
+    lifecycle.spawn(() => run(key, tenant, scanner))
+    return scanner
+  }
+
+  return {
+    maintain: tenant => {
+      if (lifecycle.closed)
+        return Promise.resolve(fail(unavailable(OWNERS.session, 'the session instance is closed')))
+      const key = tenantKey(tenant)
+      const existing = scanners.get(key)
+      if (existing !== undefined) existing.demand = true
+      return Promise.resolve(succeed((existing ?? start(tenant, key)).handle))
     },
     stopAll: () => {
-      for (const { stop } of scanners.values()) stop.abort()
-      scanners.clear()
+      for (const [key, scanner] of scanners) end(key, scanner)
     },
   }
 }

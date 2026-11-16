@@ -1,4 +1,3 @@
-// 测试运行工具的已知值核对：成员清单、并行度覆盖、耗时账本、计时报告器、失败归因的分类。影响面的计划另见 affected.spec.ts。
 import { execFileSync, spawnSync } from 'node:child_process'
 import {
   existsSync,
@@ -34,7 +33,6 @@ import type { TimingReport } from '../src/testing/timing-reporter.ts'
 import { classify, namePattern, outcomeOf, triageSummary } from '../src/testing/triage.ts'
 
 const ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
-// vitest 的 bin 入口本身，由当前 Node 起；`.bin/vitest` 在 Windows 上是 shell 垫片，Node 不经 shell 起不了。
 const VITEST = fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url))
 const TIMING_REPORTER = fileURLToPath(new URL('../src/testing/timing-reporter.ts', import.meta.url))
 
@@ -149,7 +147,6 @@ describe('与回路配置一致', () => {
   })
 })
 
-// 路径期望经 path.join 写成本机分隔符（Windows 上是反斜杠），结构与 POSIX 上相同。
 describe('账本根', () => {
   it('测试与验收各放一处；环境变量给了用它，给空串当没给', () => {
     expect(ledgerHome('test', '/repo', {})).toBe(join('/repo/tmp/test-ledger'))
@@ -493,10 +490,8 @@ describe('耗时账本', () => {
         ],
         [],
       ),
-      // 自带 30 秒时限、跑 3 秒：没贴自己的线，却超了快层的单条预算。
       file('loose.spec.ts', [['自带宽时限', 3_000]], [], { 自带宽时限: 30 }),
       file('needless.spec.ts', [['其实很快', 200]], ['其实很快']),
-      // 每条都不到 2.5 秒、整份不到 10 秒，但没低过一半：不提示回快层，免得负载一变就来回点名。
       file(
         'borderline.spec.ts',
         [
@@ -606,7 +601,6 @@ describe('计时报告器（真起一次 vitest）', { timeout: 60_000 }, () => 
         ].join('\n'),
       )
       const timingPath = join(project, 'timing.json')
-      // 报告器的选项只能写在配置里。
       writeFileSync(
         join(project, 'vitest.config.mjs'),
         `export default { test: { reporters: [[${JSON.stringify(TIMING_REPORTER)}, { outputFile: ${JSON.stringify(timingPath)} }]] } }\n`,
@@ -618,7 +612,6 @@ describe('计时报告器（真起一次 vitest）', { timeout: 60_000 }, () => 
       expect(ran.status, `${ran.stdout}${ran.stderr}`).toBe(0)
       const timing = JSON.parse(readFileSync(timingPath, 'utf8')) as TimingReport
       expect(timing.files).toHaveLength(1)
-      // 与 JSON 报告同一拼法：vitest 的 moduleId 在各平台都用正斜杠。
       expect(timing.files[0]?.file).toBe(join(project, 'x.spec.ts').split(sep).join('/'))
       expect(timing.files[0]?.collectSeconds).toBeGreaterThanOrEqual(0)
       expect(timing.files[0]?.tests).toEqual([

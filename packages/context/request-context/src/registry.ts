@@ -1,6 +1,3 @@
-// The source registry (RQ-12): one valid source set per (tenant, scope), generations that are
-// never reused, borrows and leases that keep a generation unsettled, and publication checked
-// synchronously.
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import type * as M from '@omne-harness/model-contract'
 import {
@@ -30,12 +27,9 @@ type Generation<P> = {
   readonly target: ContextTarget
   readonly owner: Adoption
   readonly sources: ContextSources<P>
-  /** Derived candidate material of this generation; dropped when the generation is retired. */
   readonly cache: GenerationCache
   borrows: number
-  /** Leases acquired through this generation and not yet given back. */
   leases: number
-  /** A lease of this generation was not given back; kept after settlement until close reports it. */
   leaked: boolean
   withdrawn: boolean
   readonly settled: Promise<SourceSettlement>
@@ -44,7 +38,6 @@ type Generation<P> = {
 }
 type Refusal = Extract<AssemblyFailure, { kind: 'invalid' | 'denied' | 'unavailable' }>
 
-/** The results that carry stable material worth keeping; failures keep nothing. */
 function keepsMaterial(result: unknown): boolean {
   const kind = (result as { kind?: unknown } | null)?.kind
   return (
@@ -68,17 +61,14 @@ function hasAccess<P>(access: Access<P> | null | undefined): access is Access<P>
   return access !== null && access !== undefined && typeof access === 'object'
 }
 
-/** Creates the registry; the request-context-cordis provider projects it as a Cordis service. */
 export function createContextSourceRegistry<P>(
   options: ContextRegistryOptions<P>,
 ): ContextSourceRegistry<P> {
   let closed = false
   let count = 0
   const current = new Map<string, Generation<P>>()
-  /** Every generation not yet reported by `close`: unsettled ones and settled ones that leaked. */
   const tracked = new Set<Generation<P>>()
 
-  /** Records the release of every lease taken through this generation (RQ-05, RQ-12). */
   function preparationOf(item: Generation<P>): M.ModelPreparationResources<P> {
     const inner = item.sources.preparation
     return {
@@ -168,10 +158,6 @@ export function createContextSourceRegistry<P>(
     }
   }
 
-  /**
-   * Access shape and access tenant come first, so a caller of another tenant gets the same answer
-   * whether or not the target is registered; only then is the registration looked up.
-   */
   function borrowed<A, R>(
     target: ContextTarget,
     accessOf: (argument: A) => Access<P> | null | undefined,
@@ -209,7 +195,6 @@ export function createContextSourceRegistry<P>(
             owner: 'source-registry',
             diagnostic: 'The source set was withdrawn or replaced during the operation',
           }
-        // Still the same synchronous step: the staged material is published with its result.
         if (keepsMaterial(result)) transaction.commit()
         return result
       } finally {
@@ -245,7 +230,6 @@ export function createContextSourceRegistry<P>(
       if (!hasAccess(access)) return { kind: 'invalid', field: 'access', reason: 'missing-access' }
       if (closed) return { kind: 'unavailable', diagnostic: 'Registry is closed' }
       const previous = [...current.values()].find(item => item.ref === expected)
-      // A registration of another tenant answers exactly as a registration that does not exist.
       if (previous === undefined || !tenantEquals(previous.target.tenant, access.tenant))
         return { kind: 'conflict' }
       const decision = await options.registrationAuthority.check({
@@ -257,7 +241,6 @@ export function createContextSourceRegistry<P>(
       if (decision.kind !== 'allowed') return decision
       if (closed) return { kind: 'unavailable', diagnostic: 'Registry is closed' }
       if (current.get(previous.key) !== previous) return { kind: 'conflict' }
-      // One local step: publish the new set and retire the old one.
       const item = mint(previous.target, previous.key, previous.owner, sources)
       current.set(previous.key, item)
       retire(previous)
@@ -280,7 +263,6 @@ export function createContextSourceRegistry<P>(
     },
     async close() {
       closed = true
-      // Deleting the visited entry while iterating a Map is safe.
       for (const item of current.values()) retire(item)
       const pending = [...tracked]
       await Promise.all(pending.map(item => item.settled))

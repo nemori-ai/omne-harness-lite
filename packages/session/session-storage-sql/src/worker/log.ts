@@ -1,9 +1,3 @@
-// The judgment of one event channel interpretation commit inside the write transaction
-// (session-contract docs/same-log-pure.md「事件通道的解释提交」). It reads the snapshot, the record
-// of the operation identity and, in this same transaction, the history index with the Agent rows of
-// the observed execution (K-5, history-index.ts); then it calls `projectSessionLog`, assigns the
-// positions and reduces the batch. It writes nothing: the participant publishes the batch with the
-// same steps as an entries batch.
 import {
   digestSessionLog,
   executionReadThrough,
@@ -42,7 +36,6 @@ import {
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_LOG_RECORDS = 100_000
 
-/** A legal observation, ready to publish: the rows with their positions, and the reduced snapshot. */
 export type LogBatch = Readonly<{
   tenant: string
   session: string
@@ -53,14 +46,9 @@ export type LogBatch = Readonly<{
   snapshot: WorkSnapshot
   entries: readonly HistoryEntry[]
   answer: SessionLogReceipt
-  /** The input range and focus of the history read the observation was judged and reduced on. */
   decision: HistoryBasis
 }>
 
-/**
- * `recovered` answers an earlier interpretation. `recorded` is false when this identity saved no
- * record of its own: the event was interpreted by another operation, which the answer recalls.
- */
 export type LogJudgment =
   | Readonly<{ kind: 'unsupported'; reason: string }>
   | Readonly<{ kind: 'stopped'; failure: SessionFailure }>
@@ -87,7 +75,6 @@ function observationOf(
   }
 }
 
-/** The input range of the observation, as the memory pair reads it: a taken batch, else the pending inputs. */
 function scopeOf(
   snapshot: WorkSnapshot,
   observation: SessionLogCommitObservation,
@@ -98,7 +85,6 @@ function scopeOf(
     : { kind: 'pending', inputs: snapshot.pending }
 }
 
-/** The interpretation row of the Run of the observation that the batch writes. */
 function progressRowOf(
   entries: readonly HistoryEntry[],
   observation: SessionLogCommitObservation,
@@ -110,11 +96,6 @@ function progressRowOf(
   })
 }
 
-/**
- * The projection wrote no row (LC-04, LC-08). An event at or below the saved progress recalls the
- * log commit of the execution that covers it with the least progress; without one it is
- * `unavailable`. Any other event has no Session consequence and is not committed.
- */
 function withoutRows(
   port: ParticipantPort,
   key: Readonly<{ tenant: string; session: string }>,
@@ -162,7 +143,6 @@ function withoutRows(
     : { kind: 'recovered', result: { ...covering, recovered: true }, digest, recorded: false }
 }
 
-/** The snapshot of the session that covers `tail`, or `behind` when `sl_state` does not cover it. */
 export type CoveringSnapshot = (
   port: ParticipantPort,
   tenant: string,
@@ -170,7 +150,6 @@ export type CoveringSnapshot = (
   tail: bigint,
 ) => WorkSnapshot | 'behind'
 
-/** The head text of the `sl_state` row of the session when it covers `tail`, else `behind`. */
 export function readCoveringHead(
   port: ParticipantPort,
   tenant: string,
@@ -186,11 +165,6 @@ export function readCoveringHead(
   return text(state['snapshot'])
 }
 
-/**
- * Reads the head row and the chunk rows each time. The participant passes its parsed-snapshot
- * cache instead (`ParsedSnapshots.covering`), which reads the same head row and reads the chunks
- * only for a new head text.
- */
 export const readCoveringSnapshot: CoveringSnapshot = (port, tenant, session, tail) => {
   const read = readState(port, tenant, session, tail)
   return read === 'behind' ? read : read.snapshot
@@ -203,7 +177,6 @@ type Read = Readonly<{
   held: Readonly<{ form: string; digest: string; result: string }> | undefined
 }>
 
-/** The rows the judgment starts from: the journal, the covering snapshot and the operation record. */
 function readStart(
   port: ParticipantPort,
   observation: SessionLogCommitObservation,
@@ -222,7 +195,6 @@ function readStart(
     'SELECT tail, commit_seq, epoch FROM sl_journal WHERE tenant = ? AND session = ? LIMIT 1',
     [tenant, session],
   )
-  // No log of (tenant, session): the answer does not tell whether another tenant has it.
   if (journalRow === undefined)
     return { kind: 'stopped', failure: { kind: 'denied', action: 'commitLog' } }
   const journal: JournalRow = {
@@ -249,7 +221,6 @@ function readStart(
   return { tenant, journal, previous, held }
 }
 
-/** Positions and revision for the projected rows, then the reduction and the receipt of the commit. */
 function batchOf(
   port: ParticipantPort,
   start: Read,
@@ -271,14 +242,12 @@ function batchOf(
     { revision, entries } as never,
     projected.history.reads,
   )
-  // Every contradiction of the batch with the history: nothing is written.
   if (reduced.kind === 'quarantined')
     return { kind: 'stopped', failure: { kind: 'quarantined', diagnostic: reduced.diagnostic } }
   const progress = progressRowOf(entries, observation)
   const readThrough = executionReadThrough(reduced.snapshot, observation.run, observation.execution)
   if (progress === undefined || readThrough === null)
     return { kind: 'stopped', failure: unavailable('a log commit without its execution progress') }
-  // The index is a read projection of this transaction, never stored in the snapshot row.
   const { historyIndex: _index, ...snapshot } = reduced.snapshot
   return {
     kind: 'publish',
@@ -314,7 +283,6 @@ export function judgeLog(
   if ('kind' in start) return start
   const { tenant, previous, held } = start
   const digest = digestSessionLog(observation)
-  // The recall by operation identity comes before every check of the history (M-LOG `Judge`).
   if (held !== undefined)
     return held.form === 'log' && held.digest === digest
       ? {

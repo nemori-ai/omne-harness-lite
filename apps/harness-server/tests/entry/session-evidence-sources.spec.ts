@@ -1,6 +1,3 @@
-// 证据桥的两个来源入口对象（`sessionProductionSource`、`sessionCustodySource`）：根上的真实入口对象，定义的子类；
-// 入口没有生产事实与保管事实的来源，所以每次 `prepare` 答 `unavailable`、`owner` 是该键、诊断点名来源，不给任何守卫。
-// 装了它们之后真实的 `session-ad10` 行 ACTIVE；`create` 只问采用来源，所以不受影响。
 import { describe, expect, it } from 'vitest'
 import type { SessionCommand } from '@omne-harness/session-contract'
 import {
@@ -15,7 +12,6 @@ import {
 } from '../../src/entry/session-evidence-sources.ts'
 import { fixtureEnv, got } from './support.ts'
 
-/** 一条只有种类的命令：来源在读任何字段之前就答不可用，形状不进判断。 */
 const command = (kind: string) => ({ kind, input: {} }) as unknown as SessionCommand
 
 async function installed() {

@@ -1,5 +1,3 @@
-// The stateless operation group (RQ-12, RQ-13): every call checks access and eligibility, reads
-// the groups stably, derives, and checks eligibility again before it publishes the result.
 import { tenantEquals } from '@omne-harness/legal-identity'
 import type { ContextTarget, PrincipalKey, SourceGeneration } from './refs.js'
 import type { AssemblyOperations, AssemblyPolicies } from './ports.js'
@@ -28,12 +26,7 @@ export type AssemblyOperationsInput<P> = Readonly<{
   sources: ContextSources<P>
   principalBinding: PrincipalBinding<P>
   policies: AssemblyPolicies
-  /** The source set generation when a registry binds the group; part of `PreparedInputKey`. */
   generation?: SourceGeneration | null
-  /**
-   * The reuse a registry lends to one call (CX-14). Absent for a standalone group, which keeps no
-   * state between calls.
-   */
   reuse?: AssemblyReuse
 }>
 
@@ -58,7 +51,6 @@ async function eligible<P>(
   }
 }
 
-/** Access shape, tenant of the target, eligibility and principal key, before any source read. */
 async function begin<P>(
   call: AssemblyCall<P>,
   input: AssemblyOperationsInput<P>,
@@ -84,7 +76,6 @@ async function begin<P>(
   return failure.kind === 'unavailable' ? { ...failure, owner: 'principal-binding' } : failure
 }
 
-/** The last eligibility observation before the result leaves the operation. */
 async function publish<P, R>(
   call: AssemblyCall<P>,
   input: AssemblyOperationsInput<P>,
@@ -94,7 +85,6 @@ async function publish<P, R>(
   return refused ?? result
 }
 
-/** Binds a source set of one target; no Cordis, registry or production store is needed. */
 export function createAssemblyOperations<P>(
   input: AssemblyOperationsInput<P>,
 ): AssemblyOperations<P> {

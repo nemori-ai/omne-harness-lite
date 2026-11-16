@@ -1,5 +1,3 @@
-// The client's types come from the contract (#1249 C12): a body of the wrong shape, a name that is
-// not an operation, and an answer read as another outcome's body do not compile.
 import { expectTypeOf, test } from 'vitest'
 import { createClient, type Transport } from '@omne-harness/sdk/core'
 import { notesProtocol } from './support/notes-protocol.ts'

@@ -9,7 +9,6 @@ import type { RuntimeContextOperations } from '@omne-harness/runtime-context-con
 import { createRuntimeContext } from '@omne-harness/runtime-context'
 import { tenantA, tenantB } from './support.js'
 
-// The whole contract suite runs against the mechanism itself, not the contract's memory double.
 const closers = new WeakMap<object, () => Promise<void>>()
 const fixture = {
   tenant: tenantA,

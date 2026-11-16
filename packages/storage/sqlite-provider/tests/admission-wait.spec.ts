@@ -1,7 +1,3 @@
-// The admission wait at the four admission points (sql-contract SPEC 准入等待), through the public
-// SqlStorage. A spinning commit keeps the write Worker busy, so what it holds stays held for as
-// long as the case needs; a slow read does the same for the read queue. Each case was red before
-// the waiting list: a full point refused at once.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { SqlIdentity } from '@omne-harness/sql-contract'
 import {
@@ -52,7 +48,6 @@ const plain = (key: string) =>
   commitRequest(built, { identity: keyOf(key), commands: [command('ledger', { note: key })] })
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
-/** One write reservation in all, so a second commit has to wait for the first. */
 const ONE_WRITE = { admissionQueueLimit: 1, globalAdmissionLimit: 1, groupMaxOperations: 1 }
 
 describe('commit: the write reservations are full', () => {
@@ -70,7 +65,6 @@ describe('commit: the write reservations are full', () => {
     const start = performance.now()
     const waiter = await storage.commit(plain('wait'))
     expect(kindOf(waiter)).toBe('rejected_before_accept/queue_full')
-    // It waited: before the waiting list a full point answered at once.
     expect(performance.now() - start).toBeGreaterThanOrEqual(95)
     await holder
     expect((await storage.query(keyOf('wait'))).kind).toBe('not_committed')
@@ -114,9 +108,6 @@ describe('commit: the write reservations are full', () => {
     await holder
   })
 
-  // Defect: the send does not look at the signal once more after the grant. A signal that aborts
-  // between the grant (which removes the wait's abort listener) and the send is then missed, and
-  // the commit runs although its caller stopped observing it.
   it('an abort between the grant and the send settles unknown with observer_detached', async () => {
     const { storage } = await ready({ ...ONE_WRITE, admissionWaitMs: 10_000 })
     const holder = storage.commit(spinning('hold', 300))
@@ -126,7 +117,6 @@ describe('commit: the write reservations are full', () => {
         return aborted
       },
       addEventListener: () => undefined,
-      // The grant removes the abort listener of the wait: the caller aborts at that moment.
       removeEventListener: () => void (aborted = true),
     } as unknown as AbortSignal
     const waiter = await storage.commit(plain('wait'), { signal })
@@ -233,8 +223,6 @@ describe('read: the read queue is full', () => {
     expect(summary(await holder)).toBe('read')
   })
 
-  // Defect: the close does not reach the waiting list of the reads: the waiter stays until the
-  // running read gives its reservation back, and only then meets the close.
   it('a close while it waits answers closing at once, not when the running read ends', async () => {
     const provider = await ready({ ...ONE_READ, readQueueTimeoutMs: 10_000 })
     const holder = provider.storage.read(readRequest('slow', { ms: 1500 }))
@@ -248,9 +236,6 @@ describe('read: the read queue is full', () => {
     await Promise.allSettled([holder, closed])
   })
 
-  // Defect: the global read count is not checked. readQueuePerDomain <= readQueueGlobal (SPEC
-  // 12.1), so only a read of another domain meets the global bound first: it then runs at once and
-  // ends before the slow one.
   it('holds at most readQueueGlobal reads in all: a read of another domain waits for one to end', async () => {
     const { storage } = await ready({ ...ONE_READ, readQueueTimeoutMs: 10_000 })
     const other = await storage.registerCombination(
@@ -273,8 +258,6 @@ describe('read: the read queue is full', () => {
     expect(ended).toEqual(['slow', 'other'])
   })
 
-  // Defect: a read that only its own domain blocks stops the scan, so a later read of another
-  // domain that fits waits behind it until the running read ends.
   it('a read that only its own domain blocks does not hold up a read of another domain', async () => {
     const { storage } = await ready({
       readQueuePerDomain: 1,
@@ -306,9 +289,6 @@ describe('read: the read queue is full', () => {
     expect(ended[0]).toBe('other-domain')
   })
 
-  // Defect: after the wait for a reservation, the queue deadline starts again in full (or longer)
-  // instead of from the call. A domain-serial read then waits behind a long write past
-  // readQueueTimeoutMs measured from the call.
   it('the deadline runs from the call: the wait for a reservation and the wait in the queue add up', async () => {
     const { storage } = await ready({
       ...ONE_READ,

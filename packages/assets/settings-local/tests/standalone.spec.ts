@@ -12,7 +12,6 @@ const opened: { close(): Promise<void> }[] = []
 afterEach(async () => {
   for (const world of opened.splice(0)) await world.close()
 })
-/** The real owner of an independent target, on the catalog of the prepared path. */
 async function open() {
   const w = await openPreparedTargetWorld({ actions: ['set', 'clear', 'lock', 'unlock'] })
   opened.push(w)

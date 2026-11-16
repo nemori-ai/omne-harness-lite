@@ -96,9 +96,10 @@ ClearAck == /\ st.worker = "clearing"
 Stop == /\ st.worker \notin {"stopping", "dead"}
         /\ st' = [st EXCEPT !.worker = "stopping", !.cancelled = @ \cup st.physical,
                      !.answer = [j \in Jobs |-> IF j \in st.physical THEN "failed" ELSE st.answer[j]]]
+Restartable(s) == s.host = "open" /\ s.gen < MaxGeneration
 Exit == /\ st.worker # "dead"
-        /\ LET replace == st.host = "open" /\ st.gen < MaxGeneration
-               doomed == st.physical \cup (IF replace THEN {} ELSE st.queue)
+        /\ \E replace \in {r \in BOOLEAN : r => Restartable(st)} :
+           LET doomed == st.physical \cup (IF replace THEN {} ELSE st.queue)
            IN st' = [st EXCEPT !.worker = IF replace THEN "starting" ELSE "dead",
                        !.gen = IF replace THEN @ + 1 ELSE @,
                        !.physical = {}, !.cache = {}, !.clear = 0, !.initialized = FALSE,
@@ -106,6 +107,8 @@ Exit == /\ st.worker # "dead"
                        !.answer = [j \in Jobs |-> IF j \in doomed THEN "failed" ELSE st.answer[j]],
                        !.leases = [l \in Leases |-> IF st.leases[l] = "releasing"
                                                     THEN "released" ELSE st.leases[l]]]
+BackoffStart == /\ st.worker = "dead" /\ Restartable(st)
+                /\ st' = [st EXCEPT !.worker = "starting", !.gen = @ + 1]
 OldReady(messageGen) == /\ messageGen < st.gen /\ st.worker = "starting"
                         /\ st' = [st EXCEPT !.worker = IF BadStale THEN "idle" ELSE @]
 Close == /\ st.host = "open"
@@ -120,6 +123,7 @@ CloseDone == /\ st.host = "closing" /\ st.worker = "dead" /\ Live(st) = {}
              /\ st' = [st EXCEPT !.host = "closed"]
 Next == Ready \/ (\E l \in Leases : Acquire(l) \/ Release(l) \/ ClearStart(l))
         \/ (\E j \in Jobs : Submit(j) \/ Dispatch(j) \/ Cancel(j) \/ Counted(j))
-        \/ ClearAck \/ Stop \/ Exit \/ (\E g \in 1..MaxGeneration : OldReady(g)) \/ Close \/ CloseDone
+        \/ ClearAck \/ Stop \/ Exit \/ BackoffStart
+        \/ (\E g \in 1..MaxGeneration : OldReady(g)) \/ Close \/ CloseDone
 Spec == Init /\ [][Next]_vars
 =============================================================================

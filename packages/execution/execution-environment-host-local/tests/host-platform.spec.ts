@@ -23,7 +23,6 @@ afterEach(() => {
   if (platform) Object.defineProperty(process, 'platform', platform)
   if (arch) Object.defineProperty(process, 'arch', arch)
 })
-/** The Windows backend supports x64 only; the architecture of the test host must not decide. */
 function onWindows() {
   Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
   Object.defineProperty(process, 'arch', { value: 'x64', configurable: true })

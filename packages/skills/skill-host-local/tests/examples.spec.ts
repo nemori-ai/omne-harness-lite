@@ -1,11 +1,3 @@
-// The real-directory example of `examples/directory-journey.ts` runs as a test: a temporary
-// directory holds two legal packages and one illegal package; the journey inspects every
-// package through the directory source, builds the catalog and the access over the read check
-// and resolution that this test gives it, lists the summaries, searches by the description,
-// describes the Skill it found and reads the first page of its body. The read check and the
-// resolution are the memory doubles of `skill-contract/testing`; the capability identities and
-// the reader are built by the real constructors of `@omne-harness/assets` and
-// `@omne-harness/legal-identity`. Nothing here is a product assembly.
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -43,13 +35,11 @@ const PACKAGES = {
   deploy: {
     'SKILL.md': '---\nname: deploy\ndescription: Ships a release.\n---\nRun the pipeline.\n',
   },
-  // The directory `broken` has no `SKILL.md`: a package that cannot be read, `manifest-missing`.
   broken: {
     'notes.md': 'Only notes, no manifest.\n',
   },
 }
 
-/** A legal package whose directory is `renamed` and whose manifest names `other`. */
 const RENAMED = {
   'SKILL.md': '---\nname: other\ndescription: Names another package.\n---\nYes.\n',
 }
@@ -74,7 +64,6 @@ const reader: Reader<Principal, Scope> = {
   scope: 'example',
 }
 
-/** What a resolution holds for an adopted package of a workspace source: its reference and projection. */
 function adoptedOf(item: InspectedPackage) {
   const capability = identity(item.definition.manifest.name)
   const ref: SkillRef = {
@@ -86,11 +75,6 @@ function adoptedOf(item: InspectedPackage) {
   return { capability, ref, declared: declaredOf(item.definition) }
 }
 
-/**
- * The read check refuses `deploy` and grants every other identity; the resolution adopts every
- * legal package for everyone. A package that inspection rejected would be granted if it reached
- * the stand-ins at all, so its absence from the summaries shows that it did not.
- */
 const standIns: StandIns<Principal, Scope> = packages => {
   const adopted = packages.map(adoptedOf)
   return {
@@ -110,7 +94,6 @@ const standIns: StandIns<Principal, Scope> = packages => {
   }
 }
 
-/** The stand-ins above, with a resolution that runs `before` each time it resolves `review`. */
 function resolvingWith(before: (call: number) => Promise<void>): StandIns<Principal, Scope> {
   return packages => {
     const ports = standIns(packages)

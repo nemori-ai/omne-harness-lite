@@ -200,8 +200,7 @@ describe('release operation identity failures', () => {
             newOperation: () =>
               fault === 'throw'
                 ? Promise.reject(new Error(secret))
-                : // This forged brand models a provider violating its identity contract.
-                  Promise.resolve(succeed('has space' as ToolOperationId)),
+                : Promise.resolve(succeed('has space' as ToolOperationId)),
           },
         },
         base.configuration,

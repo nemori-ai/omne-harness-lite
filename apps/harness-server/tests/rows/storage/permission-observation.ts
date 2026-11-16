@@ -6,7 +6,6 @@ import type { EntryObjectModule } from '../../../src/types.ts'
 
 export type PermissionObservation = Readonly<{ stage: string; result: unknown }>
 
-/** Observes real public replies unchanged; it supplies no authority or decision. */
 export function permissionObservation(trace: PermissionObservation[]): EntryObjectModule {
   return {
     name: 'permission-observation',

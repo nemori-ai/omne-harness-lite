@@ -74,7 +74,6 @@ export interface ResolvedString {
   readonly declaration?: Site & { readonly member?: string }
 }
 
-/** Symbol resolution uses a version-local virtual filesystem. No product code or installed barrel is loaded. */
 export class StaticResolver {
   readonly files: readonly SourceFile[]
   readonly program: ts.Program
@@ -82,7 +81,6 @@ export class StaticResolver {
   readonly modulePath: (specifier: string, file: ts.SourceFile) => string | undefined
   readonly snapshot: Snapshot
   readonly configurationFiles = new Set<string>()
-  /** Package-name extends point at installed modules, which are not version-local: `<config> -> <specifier>`. */
   readonly installedExtends = new Set<string>()
   publicDeclarations(path: string): readonly (Site & { readonly offset: number })[] {
     const tree = this.program.getSourceFile(ROOT + path)
@@ -97,7 +95,6 @@ export class StaticResolver {
       }))
     })
   }
-  /** Drops package-name extends so that only this version's files configure resolution; records each one dropped. */
   private withoutInstalledExtends(path: string, text: string): string {
     const parsed = ts.parseConfigFileTextToJson(path, text)
     const config: unknown = parsed.config
@@ -285,7 +282,6 @@ export class StaticResolver {
   declaration(node: ts.Node): ts.Declaration | undefined {
     return this.symbol(node)?.valueDeclaration ?? this.symbol(node)?.declarations?.[0]
   }
-  /** Read the actual module surface, including aliases and re-exports. */
   exported(
     tree: ts.SourceFile,
     name: string,
@@ -348,7 +344,6 @@ export class StaticResolver {
       ) ?? false
     )
   }
-  /** Follow lexical imports/exports before external unresolved aliases lose their source. */
   imported(
     node: ts.Node,
     name: string,

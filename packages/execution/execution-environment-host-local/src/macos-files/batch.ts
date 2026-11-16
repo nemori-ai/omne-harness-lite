@@ -53,9 +53,7 @@ function notify(
       temporary: event.cleanupError.temp,
       code: event.cleanupError.code,
     })
-  } catch {
-    /* A diagnostic cannot revoke a completed publication. */
-  }
+  } catch {}
 }
 
 async function commit(options: Options, request: Commit, tenant: string, directory: string) {

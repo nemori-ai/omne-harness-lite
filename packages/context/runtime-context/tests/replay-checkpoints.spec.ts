@@ -2,9 +2,6 @@ import { expect, it } from 'vitest'
 import type { StatefulBlockDescriptor } from '@omne-harness/runtime-context-contract'
 import { harness, issue, numberSchema, reader, scope, tenantA } from './support.js'
 
-// B6 reading (a): a checkpointed block that is registered but has no step commit yet has no value
-// to restore. The material may leave it out; after the replay it reads as before the restart.
-
 function stateful<K extends `${string}.${string}`>(
   key: K,
   required: boolean,

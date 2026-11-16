@@ -24,17 +24,11 @@ const attribute = z.strictObject({
   item: z.enum(ATTRIBUTE_ITEMS),
 })
 
-// One prompt section: exactly `id` and `text`, both non-empty. The id shape, the byte limit of the
-// text, the variable marker and the uniqueness of ids are composition rules, checked after the
-// schema so that the refusal can name the section.
 const instruction = z.strictObject({
   id: z.string().min(1),
   text: z.string().min(1),
 })
 
-// The declaration table. A member it does not list, `version` among them, is `malformed`.
-// `instructions` is optional; present, it is a non-empty list of at most `maxSections` sections.
-// "No prompt" has one spelling, absence, so that equal content has one canonical text.
 const definition = z.strictObject({
   category: z.literal('AgentDefinition'),
   name: z.string().min(1),
@@ -46,7 +40,6 @@ const definition = z.strictObject({
 
 type Parsed = z.output<typeof definition>
 
-/** A frozen copy of one reference. An absent `resident` stays absent. */
 function copyReference(reference: Parsed['references'][number]): AssetReference {
   const capability = Object.freeze({
     category: reference.capability.category,
@@ -85,16 +78,10 @@ function issueReason(path: readonly (string | number)[], value: unknown): Refusa
 
 const utf8 = new TextEncoder()
 
-/** The number of UTF-8 bytes of a text. The declaration limit counts UTF-16 units; this one does not. */
 export function utf8Length(text: string): number {
   return utf8.encode(text).byteLength
 }
 
-/**
- * The first rule that the sections break, as a diagnostic, or `undefined` when they all hold
- * (SPEC "声明判断", the `instructions` rules). Checked in order of the sections, and within one
- * section id shape, id uniqueness, text bytes, then the variable marker.
- */
 export function instructionsProblem(
   sections: readonly Readonly<{ id: string; text: string }>[],
 ): string | undefined {
@@ -147,8 +134,6 @@ function acceptDefinition(parsed: Parsed): Judgment<AgentDefinition> {
       : definePermissionUpperBounds(parsed.permissionBounds)
   if (bounds?.kind === 'invalid-input')
     return refused('malformed', 'Invalid permission upper bounds')
-  // The accepted value is frozen at every level and shares no object with the input. An absent
-  // `instructions` stays absent.
   return {
     kind: 'accepted',
     value: Object.freeze({
@@ -173,8 +158,6 @@ export async function judgeAgentDefinition(value: unknown): Promise<Judgment<Age
       return refused(checked.reason)
     case 'invalid': {
       const [issue] = checked.issues
-      // A structure problem inside `instructions` names its member, so that the author of a prompt
-      // can find it; the reason stays `malformed`.
       const detail =
         issue.path[0] === 'instructions'
           ? `${issue.path

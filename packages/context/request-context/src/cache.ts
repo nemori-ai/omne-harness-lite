@@ -1,27 +1,14 @@
-// The candidate cache of one source set generation (CX-14). It holds derived material only: it can
-// be dropped at any time and every call then derives the same content from the sources again. A
-// call works on its own transaction; the shared slots change only when the registry commits that
-// transaction after the publication check of the generation, with no await in between.
 import type { AssemblyReuse, CachedAssemblyMaterial } from '@omne-harness/request-context-contract'
 
-/**
- * Slots kept per generation: one per principal and purpose. The consumption position is not part of
- * the slot: each Run of a session asks from its own position, and the material of the previous Run
- * is the prefix of the next one. Whether that material still describes a call is decided by the
- * guards of each layer (history evidence and epoch, group tokens, snapshot identity), not by the
- * position, which does not enter any derived content.
- */
 export const CACHE_SLOT_LIMIT = 32
 
 type Slot = Readonly<{ revision: number; material: CachedAssemblyMaterial }>
 export type CacheTransaction = Readonly<{
   reuse: AssemblyReuse
-  /** Makes the staged material the slot content, unless another call committed that slot first. */
   commit(): void
 }>
 export type GenerationCache = Readonly<{
   begin(): CacheTransaction
-  /** Drops every slot; a transaction that commits later finds its slot revision changed. */
   clear(): void
   size(): number
 }>
@@ -61,11 +48,9 @@ export function createGenerationCache(limit: number = CACHE_SLOT_LIMIT): Generat
         commit() {
           if (cleared !== startedAt) return
           for (const [name, material] of staged) {
-            // Only the call that saw the newest slot content may replace it.
             if ((slots.get(name)?.revision ?? 0) !== seen.get(name)) continue
             slots.delete(name)
             slots.set(name, { revision: ++revisions, material })
-            // The oldest committed slot goes first.
             if (slots.size > limit) {
               const oldest = slots.keys().next()
               if (oldest.done !== true) slots.delete(oldest.value)

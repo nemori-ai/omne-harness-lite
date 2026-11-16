@@ -1,9 +1,3 @@
-// The input meter of the OpenAI family. `represent` turns the projection that encode writes into
-// the token input of `openai-visible-json/1` and the message side table of its units; `measure`
-// counts that text with the o200k proxy encoding, adds the image rule of the record per measured
-// image, and reports an estimate with the configured margin. Encrypted reasoning is never
-// tokenized and never dropped: a unit that carries it is counted as the output tokens of the call
-// that produced it when a preparation lease hands that count over, else the request has no estimate.
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { MediaMeasurementFact, TransportFailure } from '@omne-harness/model-contract'
 import type { ModelTextTokenizer } from '@omne-harness/model-contract/provider'
@@ -23,15 +17,8 @@ import { IMAGE_RULES, type ImageDetail } from './images.ts'
 import { OPENAI_OWNER } from './owner.ts'
 import type { OpenAiRecord } from './record.ts'
 
-/**
- * The sealed method of the output-count substitution (input-meters/openai-family-policy.ts,
- * `OPENAI_FAMILY_REPLAY`): the method name suffix of a measurement that counted a unit as the
- * output of its source. The anchored suffix is the shared `ANCHORED_METHOD`.
- */
 export const OUTPUT_GROUP_METHOD = 'openai-complete-output-group-workload-estimated/1'
 export { ANCHORED_METHOD, type MeterMargin } from '@omne-harness/pi-ai-transport/chat-completions'
-
-// --- the token input -------------------------------------------------------------------------
 
 function str(value: string): JsonValue {
   return { kind: 'string', value }
@@ -48,7 +35,6 @@ function arr(items: readonly JsonValue[]): JsonValue {
   return { kind: 'array', items }
 }
 
-/** One part of a wire message in the token input; `null` for a part the wire does not carry here. */
 function partJson(part: ProjectedPart, detail: string): JsonValue | null {
   switch (part.kind) {
     case 'text':
@@ -73,8 +59,6 @@ function partJson(part: ProjectedPart, detail: string): JsonValue | null {
       })
     case 'tool_result':
       return obj({ type: str('tool_result'), id: str(part.callId) })
-    // A thinking part goes out through the replay member only. Foreign thinking that the
-    // projection writes as text reaches the meter as a text part.
     case 'thinking':
     case 'tool_call_incomplete':
     case 'voice':
@@ -94,7 +78,6 @@ function replayJson(turn: ProjectedTurn): Readonly<Record<string, JsonValue>> {
     case 'plain':
       return { reasoning: str(turn.replay.text) }
     case 'details':
-      // Only the count: ciphertext has no text to count.
       return {
         reasoning_details: obj({
           opaque: { kind: 'number', lexeme: String(turn.replay.details.length) },
@@ -115,12 +98,6 @@ function turnJson(turn: ProjectedTurn, detail: string): JsonValue {
   return obj({ role: str(turn.role), content: arr(parts), ...replayJson(turn) })
 }
 
-/**
- * The token input of `openai-visible-json/1`: the instruction, the wire messages, the tools, the
- * tool choice and the applied parameters, in wire order. Images are placeholders without data.
- * The units name the message of each member of `messages`, built from the same list, so the two
- * stay aligned by construction; the instruction unit is `null`.
- */
 export function representationOf(
   record: OpenAiRecord,
   view: ProjectedRequest,
@@ -162,17 +139,8 @@ export function representationOf(
   return { tokenInput, units: units.map(unit => unit.message) }
 }
 
-// --- reading the token input -----------------------------------------------------------------
-
-/** What the meter reads from one message unit of the token input. */
 type UnitContent = Readonly<{
   images: readonly Readonly<{ detail: ImageDetail }>[]
-  /**
-   * True when the unit carries a `reasoning_details` member. The family codec wrote it only for
-   * a whole group it can replay (sealed classifyOpenAiDetail: `reasoning.encrypted`, format
-   * `openai-responses-v1`, ciphertext present and not `[REDACTED]`), so this is the sealed
-   * whole-group condition seen from the meter.
-   */
   reasoning: boolean
 }>
 
@@ -182,7 +150,6 @@ function memberOf(value: JsonValue, key: string): JsonValue | undefined {
 
 const DETAILS: readonly ImageDetail[] = ['low', 'high', 'auto', 'original']
 
-/** The images and the reasoning of each unit of a token input, or `null` when it is not this schema. */
 function contentOf(tokenInput: JsonValue): readonly UnitContent[] | null {
   const messages = memberOf(tokenInput, 'messages')
   if (messages?.kind !== 'array') return null
@@ -205,16 +172,10 @@ function contentOf(tokenInput: JsonValue): readonly UnitContent[] | null {
   return units
 }
 
-// --- measuring -------------------------------------------------------------------------------
-
 function unavailable(diagnostic: string): Outcome<never, TransportFailure> {
   return { failure: { kind: 'unavailable', dependency: OPENAI_OWNER, diagnostic } }
 }
 
-/**
- * The estimated tokens of each measured image, per unit and in order, or the failure that keeps
- * one out. The facts stand for the images of the whole token input, in image order.
- */
 function imageTokens(
   record: OpenAiRecord,
   units: readonly UnitContent[],
@@ -247,11 +208,6 @@ function imageTokens(
   return { ok: extras }
 }
 
-/**
- * The meter of one record over an initialized tokenizer. Pure: no file, network or environment.
- * The shared meter of pi-ai-transport does the checks, the arithmetic and the budget; this family
- * gives its adoptions, its unit reading, its image rule, its tokenizer and its method names.
- */
 export function createOpenAiMeter(
   record: OpenAiRecord,
   tokenizer: ModelTextTokenizer,

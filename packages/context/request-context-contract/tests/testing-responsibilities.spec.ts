@@ -166,7 +166,6 @@ it('a synthesized compaction epoch exposes the same retained/summary/tail histor
 it('retaining the coverage endpoint and colliding opaque refs never overwrite the new compaction record', async () => {
   const { f, data } = historyFixture(),
     record = { ...compaction(), retained: [entry('entry:2')] }
-  // Existing opaque refs can have the exact spelling chosen by an internal generator.
   const occupied = entry('compaction:' + record.id)
   const occupiedSuffix = entry('compaction:' + record.id + ':1')
   const previous = data.epochs[0]!

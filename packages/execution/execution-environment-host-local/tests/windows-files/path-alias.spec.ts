@@ -1,8 +1,3 @@
-// A files root and a path that spell the same directory in two ways (R2-D374): the 8.3 short name
-// and the long name, or another case. The root's segments are matched as the same directory entry,
-// so either spelling reaches the root; a path outside the root, a `..`, and a link of another name
-// stay refused. Short names come from `cmd` (`%~sI`). When this host gives no short name that
-// differs from the long one (8.3 names turned off), the cases that need it are skipped, not passed.
 import { spawnSync } from 'node:child_process'
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'

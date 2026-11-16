@@ -11,7 +11,6 @@ import { waitKey } from './wait-record.ts'
 import { originCells } from './origin-cells.ts'
 import type { WaitDelta, WaitPlan } from './wait-schema.ts'
 
-/** 写入辅助只需要执行 SQL 的能力，参与者端口即满足。 */
 type SqlPort = Pick<ParticipantPort, 'execute'>
 
 export function insertPreparation(port: SqlPort, delta: Extract<WaitDelta, { kind: 'prepare' }>) {

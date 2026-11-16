@@ -1,7 +1,3 @@
-// lockfile-impact.spec.ts 的夹具：一份照 pnpm 9 写法手写的小锁文件，与它的几种差异。
-// 成员 a 经 mid 间接依赖 leaf，b 直接依赖 leaf 并 link 到 shared，c 依赖带 peer 后缀的 other；根只依赖 tooling（走 catalog）。
-
-/** 按顺序做替换，每一处都必须真的命中：没命中就是夹具写错了，不让它悄悄等于原文。 */
 function edited(text: string, edits: readonly (readonly [from: string, to: string])[]): string {
   return edits.reduce((current, [from, to]) => {
     if (!current.includes(from)) throw new Error(`夹具里没有这一段：${from}`)
@@ -101,7 +97,6 @@ snapshots:
   tooling@1.0.0: {}
 `
 
-/** 只改一个成员的依赖：c 加了 extra。 */
 export const ONE_MEMBER_DEPENDENCY = edited(BASE, [
   [
     `      other:
@@ -129,7 +124,6 @@ export const ONE_MEMBER_DEPENDENCY = edited(BASE, [
   ],
 ])
 
-/** 只升级一个被两个成员依赖的包：leaf 1.0.0 → 1.1.0。b 直接依赖它，a 经 mid 隔一跳依赖它，c 不依赖。 */
 export const SHARED_UPGRADE = edited(BASE, [
   [
     `      leaf:
@@ -154,7 +148,6 @@ export const SHARED_UPGRADE = edited(BASE, [
   ],
 ])
 
-/** 顶层 overrides 有变化。 */
 export const OVERRIDES = edited(BASE, [
   [
     'catalogs:',
@@ -165,12 +158,10 @@ catalogs:`,
   ],
 ])
 
-/** 认不出的写法：流式映射没有闭合。 */
 export const UNPARSABLE = edited(BASE, [
   ['resolution: {integrity: sha512-mid1}', 'resolution: {integrity: sha512-mid1'],
 ])
 
-/** 与 BASE 等价：importer 顺序、空行与一个条目的键顺序不同。 */
 export const EQUIVALENT = edited(BASE, [
   [
     `  packages/a:
@@ -207,7 +198,6 @@ export const EQUIVALENT = edited(BASE, [
   ],
 ])
 
-/** 根 importer 的依赖变了（tooling 1.0.0 → 1.0.1，catalog 段不动）。 */
 export const ROOT_DEPENDENCY = edited(BASE, [
   [
     `        specifier: 'catalog:'
@@ -224,10 +214,6 @@ export const ROOT_DEPENDENCY = edited(BASE, [
   ['  tooling@1.0.0: {}', '  tooling@1.0.1: {}'],
 ])
 
-/**
- * 别名依赖（`npm:` 写法）：c 以 other-alias 的名字依赖 other，version 写的是 `other@2.0.0(peer@3.0.0)`，snapshot 键也是它。
- * 这是 pnpm 9 对别名的写法（本仓库的锁文件里没有别名，夹具按 pnpm 的写法手写）。
- */
 export const ALIAS_DEPENDENCY = edited(BASE, [
   [
     `      other:
@@ -242,7 +228,6 @@ export const ALIAS_DEPENDENCY = edited(BASE, [
   ],
 ])
 
-/** 引用了 snapshots 里没有的版本：b 的 leaf 指向 1.2.0，但 snapshots 没有它。 */
 export const DANGLING_REFERENCE = edited(BASE, [
   [
     `      leaf:

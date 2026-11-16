@@ -1,7 +1,3 @@
-// `check:aa-rows` 的源码规则（身份治理 E1、E2）：受信表里的名字怎样读，签发调用点在哪些文件。
-// 每条用例在临时目录里搭一个迷你仓库（`apps/harness-server/src/{entry,rows}`、`packages/…`），经命令行入口检查它：
-// 基线树必须零误报，每个负控是基线加一处违规，检查必须变红并指名文件、名字与规则。
-// 真实源码上的零误报由 `aa-rows.spec.ts` 的 R-P1 覆盖。
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -51,7 +47,6 @@ const CONFIG = {
   issuerDefinition: ['packages/identity/identity/src/principal.ts'],
 }
 
-/** 基线：全部合法读法，各放一处最容易被误报的写法。 */
 const BASE: Files = {
   [`${SRC}/entry/principals.ts`]: [
     "import { principalIssuerKey } from '@x/identity/cordis'",
@@ -92,7 +87,6 @@ const BASE: Files = {
     '  body: ctx => shared(ctx),',
     '})',
   ].join('\n'),
-  // A helper that declares no row takes the rows of the files that import it.
   [`${SRC}/rows/identity/shared.ts`]: [
     "import { storageKey } from '@x/sql-contract/cordis'",
     'export const shared = ctx => ctx[storageKey]',
@@ -103,7 +97,6 @@ const BASE: Files = {
     '  body: ctx => ctx.principalIssuer,',
     '})',
   ].join('\n'),
-  // An unrelated object property with a trusted name is not a read through a context.
   [`${SRC}/rows/authorization/index.ts`]: [
     'export const authorizationRow = defineRow({',
     "  row: 'authorization',",
@@ -120,7 +113,6 @@ const BASE: Files = {
     "const a = issuer.issueSystem({ component: 'x' })",
     'const b = issuer.issueActingForTenant({})',
   ].join('\n'),
-  // Comments, strings, tests and specs never count as call sites.
   'packages/other/src/note.ts': [
     '// call issuer.issueSystem( here and there',
     "export const text = 'issueActingForTenant('",
@@ -186,7 +178,7 @@ function checkTree(options: Options = {}): Run {
   return { status: result.status, stdout: result.stdout, stderr: result.stderr }
 }
 
-describe('E1: a trusted name is read through env.readTrusted or inside a row that sees it', () => {
+describe('a trusted name is read through env.readTrusted or inside a row that sees it', () => {
   test('the baseline tree has no violation: every legal read, and the look-alikes, pass', () => {
     const result = checkTree()
     expect(result.stderr).toBe('')
@@ -260,7 +252,7 @@ describe('E1: a trusted name is read through env.readTrusted or inside a row tha
     expect(result.stderr).toMatch(/row-not-visible storage .*rows\/orphan\/x\.ts:1 rows=\(none\)/)
   })
 
-  test('systemActionAuthorization (R2-D245): session-storage reads it; another row that reaches for the same name is refused', () => {
+  test('systemActionAuthorization: session-storage reads it; another row that reaches for the same name is refused', () => {
     const rows = [...ROWS, 'session-storage']
     const table = {
       ...TABLE,
@@ -305,7 +297,7 @@ describe('E1: a trusted name is read through env.readTrusted or inside a row tha
   })
 })
 
-describe('E2: issuer calls only from the listed files', () => {
+describe('issuer calls only from the listed files', () => {
   test.each([
     [
       'issueSystem(',
@@ -333,7 +325,7 @@ describe('E2: issuer calls only from the listed files', () => {
   })
 })
 
-describe('P-9: names that must become trusted are enforced once the table lists them', () => {
+describe('names that must become trusted are enforced once the table lists them', () => {
   const READER = {
     [`${SRC}/rows/authorization/index.ts`]: [
       'export const authorizationRow = defineRow({',

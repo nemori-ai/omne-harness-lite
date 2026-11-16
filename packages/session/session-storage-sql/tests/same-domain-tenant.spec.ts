@@ -1,8 +1,3 @@
-// Two tenants in ONE transaction domain. The test providers of the other specs put each tenant in
-// its own domain, so a statement that lost its `tenant = ?` predicate still read nothing of the
-// other tenant there. Here the rows of tenant A are in the same database that tenant B reads: only
-// the predicate keeps them apart. Each case has a control read as tenant A, so a read that is empty
-// for another reason cannot pass for isolation.
 import { describe, expect, it } from 'vitest'
 import { encodeValue } from '../src/codec.ts'
 import { judgeLog } from '../src/worker/log.ts'
@@ -47,7 +42,6 @@ describe('the commit log of one transaction domain', () => {
   }
 
   it('reads the journal of its own tenant: the judgment goes past the journal', () => {
-    // The journal is there, so the judgment stops at the next row it needs (`sl_state`), not at it.
     expect(judgeLog(observation(TENANT_A), insert())).toMatchObject({
       kind: 'failed',
       diagnostic: 'sl_state does not cover the tail',

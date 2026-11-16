@@ -9,9 +9,6 @@ import {
 } from '../src/stream-observation.ts'
 import type { ModelObservationLimits } from '../src/stream-types.ts'
 
-// The FIFO's own timing, with a clock and waits that only the test moves: a due timer rechecks and
-// re-arms, a cancelled or superseded one does nothing, and a delivery rechecks residence first.
-
 type Wait = { deadline: number; resolve(value: 'elapsed' | 'cancelled'): void }
 
 function harness(limits: Partial<ModelObservationLimits> = {}) {
@@ -92,7 +89,6 @@ function harness(limits: Partial<ModelObservationLimits> = {}) {
   }
 }
 
-/** Resolves with the settled value, or `pending` when the promise is still open after the queue drains. */
 async function settled<T>(promise: Promise<T>): Promise<T | 'pending'> {
   const marker = Symbol('pending')
   const result = await Promise.race([

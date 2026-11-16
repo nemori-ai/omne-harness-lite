@@ -1,13 +1,6 @@
 import { adoption } from './runtime-values.ts'
 import { testControlSubjects } from './control-subject-values.ts'
 import type { ToolControlSubjects } from '@omne-harness/tool'
-// A real runtime and ledger over the non-durable store, with controllable ports for the way from
-// an admission to a start: an environment provider, a live-only binding whose start stages a
-// capsule and consumes the permit, a start authority and a clock. The authority here is a small
-// in-memory stand-in with the P04 answers the driver relies on; the local start coordinator of
-// `tool-host-local` is tested against the same runtime in that package.
-// admitCall supplies trusted internal admission facts for named-call startup/queue tests.
-// Public invoke uses the real paired source and a source-verifying ledger over the same store.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
@@ -74,7 +67,6 @@ import {
   testSettlementPorts,
 } from './runtime-values.ts'
 
-/** What the environment provider answers for a call's preparation. */
 export type EnvironmentAnswer = 'prepared' | 'rejected' | 'unavailable' | 'pending' | 'unknown'
 
 export type StartOptions = HarnessOptions &
@@ -82,7 +74,6 @@ export type StartOptions = HarnessOptions &
     bodySchemas?: ToolLedgerPorts<Principal>['bodySchemas']
     controlSubjects?: ToolControlSubjects<Principal> | null
     omitRuntimeControls?: boolean
-    /** The answer of the environment provider by call; `prepared` when absent. */
     environment?: ReadonlyMap<string, EnvironmentAnswer>
     authority?: TestAuthority
     binding?: TestBinding
@@ -92,28 +83,17 @@ export type StartOptions = HarnessOptions &
     bindingsPort?: (
       base: ToolBindings<Principal, TestEnvironment>,
     ) => ToolBindings<Principal, TestEnvironment>
-    /** The decision owner of the waits; every method refuses when absent. */
     decisions?: ToolDecisionBridge<Principal>
-    /** Builds over this memory instead of a new one: a second runtime over the same records. */
     memory?: MemoryToolLedgerStore
-    /** Wraps the memory store, to make one commit or read of the start path misbehave. */
     store?: (memory: MemoryToolLedgerStore) => ToolLedgerStore
     readsPort?: (
       base: ToolDependencies<Principal, Block, TestEnvironment>['reads'],
     ) => ToolDependencies<Principal, Block, TestEnvironment>['reads']
-    /** Wraps the commands the driver writes through, to observe what each command answered. */
     commands?: (
       base: ToolDependencies<Principal, Block, TestEnvironment>['commands'],
     ) => ToolDependencies<Principal, Block, TestEnvironment>['commands']
   }>
 
-/**
- * The stand-in start authority (P04). A start is accepted at most once; `refuse` makes the next
- * consume of a call answer `rejected`, as an invalidation that holds before the acceptance does;
- * `inspect` of an undecided start withdraws the outstanding permit before it answers
- * `not-started`, or answers `unknown` for a call marked `uncertain`; `exclude` rejects the whole
- * pending invocation of a call without an acceptance.
- */
 export type TestAuthority = ToolStartAuthority<Principal> &
   Readonly<{
     refuse(call: string): void
@@ -134,7 +114,6 @@ export function testAuthority(): TestAuthority {
   const acceptedCalls: string[] = []
   const excluded: string[] = []
   let issued = 0
-  // An acceptance belongs to one start record: a resume of the same call is a start of its own.
   const progress = (call: string, start: string): StartProgress | null => {
     const acceptance = accepted.get(`${call}\u0000${start}`)
     if (acceptance !== undefined) return { kind: 'started', acceptance }
@@ -211,13 +190,8 @@ function evidenceAdoption(name: string) {
   return { owner: 'test-owner', name, revision: '1', digest: `sha256:${name}` }
 }
 
-/** The environment a prepared call runs in: the call it was prepared for. */
 export type TestEnvironment = Readonly<{ preparedFor: string }>
 
-/**
- * `prepared` lists the calls the provider was asked to prepare, `inspected` those whose record it
- * was asked to read; `answer` changes what it says for a call from the next question on.
- */
 export type TestEnvironments = ToolEnvironment<Principal, TestEnvironment> &
   Readonly<{
     readonly prepared: string[]
@@ -275,11 +249,6 @@ function testEnvironments(initial: ReadonlyMap<string, EnvironmentAnswer>): Test
   }
 }
 
-/**
- * A live-only binding. Its start stages a capsule (the executor receipt), then lets the authority
- * consume the permit; only an acceptance runs the executor. `attempts` lists every start the
- * binding was asked for, `executions` every executor run, `environments` what each run got.
- */
 export type TestBinding = Readonly<{
   bindings: ToolBindings<Principal, TestEnvironment>
   readonly attempts: string[]
@@ -360,7 +329,6 @@ function testBinding(
   }
 }
 
-/** The clock stand-in; `begun` lists the call of every timing segment it was asked to begin. */
 type TestClock = ToolClock & Readonly<{ readonly begun: string[] }>
 
 function testClock(): TestClock {
@@ -379,7 +347,6 @@ function testClock(): TestClock {
         }),
       )
     },
-    // Every committed segment measured 25 ms; only a suspension reads it.
     elapsed: marker =>
       Promise.resolve(
         succeed({ milliseconds: '25', evidence: evidence(`elapsed-${marker.record}`) }),
@@ -392,14 +359,12 @@ function refusing<T extends object>(name: string, methods: readonly string[]): T
   const out: Record<string, unknown> = {}
   for (const method of methods)
     out[method] = () => Promise.reject(new Error(`${name}.${method} is not on the way to a start`))
-  // Every method of the port rejects, so the object has the port's shape at run time.
   return out as T
 }
 
 export type StartHarness = Readonly<{
   memory: MemoryToolLedgerStore
   runtime: ReturnType<typeof createToolRuntime<Principal, Block, TestEnvironment>>['runtime']
-  /** 提供者的恢复入口：按租户扫描有待推进工作的调用，并请宿主运行它们。 */
   recover: ReturnType<typeof createToolRuntime<Principal, Block, TestEnvironment>>['recover']
   rebuildRuntime(): ReturnType<
     typeof createToolRuntime<Principal, Block, TestEnvironment>
@@ -413,22 +378,12 @@ export type StartHarness = Readonly<{
   identities: TestToolIdentities
   source: TestInvocationSource<Principal>
   internalRequests: Map<string, FixedToolRequest>
-  /** The calls whose timing segment the clock was asked to begin. */
   begun: readonly string[]
-  /** Runs the drivers of these calls concurrently, then every wake-up they caused. */
   drive(...calls: readonly string[]): Promise<void>
-  /** One run of the driver of this call, without following the wake-ups it asks for. */
   runOnce(call: string, signal?: AbortSignal): Promise<void>
-  /** The queue maintenance entry of the ledger. */
   queues: ToolDependencies<Principal, Block, TestEnvironment>['queues']
-  /**
-   * Whether the place of a call admitted with `op-<call>` is released: its call domain shows the
-   * release, and the queue domain of the default key holds no entry for it.
-   */
   released(call: string): Promise<boolean>
-  /** The current state of a call admitted with `op-<call>`. */
   state(call: string): Promise<ToolState>
-  /** The queue entries of the default request's scope, as the queue domain holds them. */
   queue(): Promise<readonly Readonly<{ call: string; ordinal: string; stage: string }>[]>
 }>
 
@@ -476,7 +431,6 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     releaseInspection: environments,
     content: null,
     ...(controlSubjects === null ? {} : { controlSubjects }),
-    // acceptDecision resolves the decision through the same owner the driver asks.
     ...(options.decisions === undefined ? {} : { decisions: options.decisions }),
   }
   const ledger = createToolLedger(
@@ -524,7 +478,6 @@ export function startHarness(options: StartOptions = {}): StartHarness {
   }
   const provider = createToolRuntime(dependencies, config)
   const drive = async (...calls: readonly string[]) => {
-    // Wake-ups from before, such as the admissions', are hints this drive does not follow.
     host.scheduled.splice(0)
     await Promise.all(calls.map(call => host.runCall(callId(call))))
     await host.runScheduled()
@@ -578,7 +531,6 @@ export function startHarness(options: StartOptions = {}): StartHarness {
     recover: input => provider.recover(input),
     rebuildRuntime: () => createToolRuntime(dependencies, config).runtime,
     commands: ledger.commands,
-    // Internal admission recall tests carry source facts from the previous harness.
     ledger: createToolLedger(
       store,
       { ...guards(options), factAcknowledgements },
@@ -606,7 +558,6 @@ export function startHarness(options: StartOptions = {}): StartHarness {
 
 const audited: StartHarness[] = []
 
-/** One call domain of the default tenant, as the records hold it. */
 async function callRecords(harness: StartHarness, call: string) {
   const read = await harness.memory.read({
     kind: 'call',
@@ -617,12 +568,6 @@ async function callRecords(harness: StartHarness, call: string) {
   return read.records
 }
 
-/**
- * Why the queue entry of `call` is not accounted for by its call domain, or null (SPEC 22). An
- * entry repeats a fact that its call owns, so every unreleased entry must be reachable from that
- * call: the call owes the queue domain a step (an open `queue` task), or its state already shows
- * the entry's stage, or the entry is held and the call committed the operation that held it.
- */
 async function unaccounted(
   harness: StartHarness,
   entry: Readonly<{ call: string; ordinal: string; stage: string; operation: string }>,
@@ -648,16 +593,10 @@ async function unaccounted(
     candidate =>
       candidate.kind === 'operation' && candidate.operation.operation === entry.operation,
   )
-  // A held entry was held, and a parked one parked, by an operation its call committed.
   if ((entry.stage === 'held' || entry.stage === 'parked') && committed) return null
   return `entry ${entry.stage} (op ${entry.operation}) of a call in ${state.phase} with no queue task`
 }
 
-/**
- * The accounting invariant of the queue entries (SPEC 22), checked over every harness this test
- * built: every entry is accounted for by its call domain, and the queue domain holds nothing but
- * entries and its counter. A violation is an entry that nothing would ever move or remove.
- */
 export async function auditQueues(): Promise<void> {
   const harnesses = audited.splice(0)
   const problems: string[] = []
@@ -683,7 +622,6 @@ export async function auditQueues(): Promise<void> {
     throw new Error(`queue entries nothing accounts for: ${problems.join('; ')}`)
 }
 
-/** The queue key of the default request (P02: the concurrency scope, scope owner and key). */
 export function queueKey(): string {
   const { scope } = request()
   return JSON.stringify([scope.owner, scope.key])
@@ -710,7 +648,6 @@ export async function admitCall(
   return outcome.ok.state
 }
 
-/** The write context of the next command on `call`, at the call's current state revision. */
 export async function writeContext(harness: StartHarness, call: string, operation: string) {
   const state = await harness.state(call)
   return {
@@ -724,7 +661,6 @@ export async function writeContext(harness: StartHarness, call: string, operatio
   }
 }
 
-/** Takes an admitted call to `starting` through the commands, without the driver. */
 export async function toStarting(harness: StartHarness, call: string) {
   const preparation = ok(
     await harness.commands.planPreparation({
@@ -746,12 +682,6 @@ export async function toStarting(harness: StartHarness, call: string) {
     .start
 }
 
-/**
- * A store over `memory` whose commits matching `matches` answer `fault` the first `times` times
- * instead of committing, as a store whose answer was lost would: `dropped` writes nothing,
- * `applied` writes and still answers unknown. `rejected` writes nothing and answers that the
- * commit can never be accepted (`command_limit`).
- */
 export function losingCommits(
   memory: ToolLedgerStore,
   matches: (input: LedgerCommitInput) => boolean,
@@ -776,13 +706,6 @@ export function losingCommits(
   }
 }
 
-/**
- * A store over `memory` that runs `land` once, right after the n-th read of a call domain that
- * follows `arm(n)`, as a reader that answered a negative between two reads of a command would.
- * What `land` reads or commits through this store is forwarded without a second interception.
- * The command under test reads its call domain first to decide whether it may touch the queue or
- * a port (read 1); the transaction then reads again (read 2, or 3 after a port's own re-read).
- */
 export function landingAfterRead(
   memory: ToolLedgerStore,
   land: () => Promise<unknown>,

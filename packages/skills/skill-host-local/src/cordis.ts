@@ -1,7 +1,3 @@
-// The Skill plugin over local directories: it builds the three Skill services over the directory
-// source and provides them on the loading fiber. The two demand ports (read check, resolution)
-// belong to other domains. The plugin reads each of them from its own load context on every call,
-// and without one the answer is `unknown`, never a pass.
 import type { Context } from '@deepseek-ai/cordis'
 import { definePlugin, type StandardSchema } from '@omne-harness/kernel-basis/cordis'
 import { fail } from '@omne-harness/operation-result'
@@ -21,7 +17,6 @@ import {
 } from '@omne-harness/skill-cordis-contract/cordis'
 import { createDirectorySource } from './directory-source.ts'
 
-/** True for `undefined`, `null`, and a plain object that has no own key. */
 function isEmptyConfiguration(value: unknown): boolean {
   if (value === undefined || value === null) return true
   if (typeof value !== 'object') return false
@@ -30,7 +25,6 @@ function isEmptyConfiguration(value: unknown): boolean {
   return Reflect.ownKeys(value).length === 0
 }
 
-/** The configuration of the plugin: an absent value, or a plain object without fields. */
 const emptyConfig: StandardSchema<object> = {
   '~standard': {
     version: 1,
@@ -87,7 +81,6 @@ class HostSkillAccess extends SkillAccessService<unknown, unknown> {
   }
 }
 
-/** The read check port that asks the `skillReadCheck` service on each call (IC-9). */
 function readCheckOf(ctx: Context): SkillReadCheck<unknown, unknown> {
   return {
     async check(...args) {
@@ -98,7 +91,6 @@ function readCheckOf(ctx: Context): SkillReadCheck<unknown, unknown> {
   }
 }
 
-/** The resolution port that asks the `skillResolution` service on each call (IC-9). */
 function resolutionOf(ctx: Context): SkillResolution<unknown, unknown> {
   return {
     async resolve(...args) {
@@ -114,11 +106,6 @@ function resolutionOf(ctx: Context): SkillResolution<unknown, unknown> {
   }
 }
 
-/**
- * Provides `skillPackageInspection`, `skillCatalog` and `skillAccess` over the directory source on
- * the loading fiber. It takes no configuration. It registers no removal: the three services go
- * away when the fiber unloads.
- */
 export const skillPlugin = definePlugin({
   name: 'skill',
   Config: emptyConfig,

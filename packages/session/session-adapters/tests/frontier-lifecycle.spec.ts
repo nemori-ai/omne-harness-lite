@@ -214,8 +214,6 @@ for (const final of ['cancel', 'finish', 'archive', 'ended'] as const)
           bounded: { kind: 'uninterpretable' as const, evidence: evidence('bounded') },
         },
       }
-      // The frozen prefixes move the snapshot revision, not the Run-layer revision that `expected`
-      // names (contract I-R2, R2-D343), so the final decision commits at once.
       ok(await s.backend.transactions.commit({ access: s.access, command, guards: [] }))
     } else if (final === 'archive')
       ok(
@@ -245,7 +243,10 @@ for (const final of ['cancel', 'finish', 'archive', 'ended'] as const)
     const rows = s.backend.controls.entriesOf(s.access.tenant, s.access.session),
       kinds = rows.map(row => row.kind)
     expect(kinds.indexOf('run.batch-taken')).toBeLessThan(kinds.indexOf('run.terminal'))
-    expect(kinds).not.toContain('intake.released')
+    if (final === 'finish') {
+      expect(kinds.indexOf('run.terminal')).toBeLessThan(kinds.indexOf('intake.released'))
+      expect(ok(await s.backend.transactions.readWork(s.access)).pending).toEqual([])
+    } else expect(kinds).not.toContain('intake.released')
     if (final !== 'ended')
       ok(
         await s.backend.controls.interpret({

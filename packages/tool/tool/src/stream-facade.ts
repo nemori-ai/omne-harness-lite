@@ -1,10 +1,3 @@
-// The ordinary observation face of the runtime on the public stream protocol (tool-contract SPEC
-// 「公共流协议上的观察」): `instances.current` answers the public reference of the current
-// publication generation, and `observation.observe` routes a reference to the handle of that
-// generation. The facade holds no process data: the handle's observation source produces every
-// frame after the route is established. The facade is the final integration output boundary, so
-// before it hands on any frame it checks the caller's eligibility again at the same source as the
-// route (the directory, for this call and this access).
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   encodeStreamRef,
@@ -44,7 +37,6 @@ type Ended = Extract<Frame, { kind: 'ended'; reason: string }>['reason']
 
 const ended = (reason: Exclude<Ended, 'producer-ended'>): Frame => ({ kind: 'ended', reason })
 
-/** The current authoritative state of the call, or the failure of reading it. */
 async function stateOf<P, B extends ContentBlock>(
   reads: ToolReads<P, B>,
   resolved: ResolvedAccess<P>,
@@ -60,7 +52,6 @@ async function stateOf<P, B extends ContentBlock>(
   return succeed(looked.ok.state)
 }
 
-/** The route of a call through the trusted directory, with its failure or exception kept apart. */
 async function routeOf<P>(
   directory: ToolDirectory<P>,
   resolved: ResolvedAccess<P>,
@@ -79,12 +70,6 @@ async function routeOf<P>(
   return succeed(route.ok.kind === 'live' ? route.ok.handle : null)
 }
 
-/**
- * The caller's current eligibility for the call, at the source of the route: the directory
- * refusing the access is `denied`; its absence, exception or `unsupported` is `unavailable`. Any
- * answer that is not a failure keeps the eligibility; whether the generation is still current is
- * the producer's to end (SPEC「旧代次的终止帧」cases 1 and 2), not the facade's.
- */
 async function eligibilityOf<P>(
   directory: ToolDirectory<P>,
   resolved: ResolvedAccess<P>,
@@ -96,7 +81,6 @@ async function eligibilityOf<P>(
 
 const ABORTED = Symbol('aborted')
 
-/** Starts `work` and waits for it unless `signal` aborts first; an aborted signal starts nothing. */
 async function unlessAborted<T>(
   signal: AbortSignal,
   work: () => Promise<T>,
@@ -117,11 +101,6 @@ async function unlessAborted<T>(
 
 type ObservationInput<P> = Readonly<{ ref: unknown; access: Access<P>; signal: AbortSignal }>
 
-/**
- * Reads the observation request as an untrusted value: a request, `access` or `signal` of the
- * wrong shape is null, which the facade ends with `denied` like every other access it cannot admit.
- * The tenant inside `access` is checked by the public reference judgment that follows.
- */
 function observationInput<P>(request: unknown): ObservationInput<P> | null {
   if (!isObject(request)) return null
   const access = Reflect.get(request, 'access')
@@ -139,8 +118,6 @@ export function createStreamFacade<P, B extends ContentBlock>(input: {
   const { directory, reads } = input
 
   const current: ToolStreamReferences<P>['current'] = async input => {
-    // The boundary reads an untrusted value: a missing or non-object `access` is denied like
-    // every other reference access, before any port is consulted.
     const access = isObject(input) ? Reflect.get(input, 'access') : undefined
     const resolved = invocationInput<P>(
       isObject(access) ? { ...access, reference: Reflect.get(input, 'reference') } : null,
@@ -260,7 +237,6 @@ export function createStreamFacade<P, B extends ContentBlock>(input: {
           call: parts.ok.call,
           admission: parts.ok.admission,
         }
-        // The accepted Tool routing exception ends an initial abort without a directory lookup.
         const route = await unlessAborted(signal, () => routeOf(directory, resolved))
         if (route === ABORTED) return fail(ended('observer-closed'))
         if ('failure' in route)
@@ -287,7 +263,6 @@ export function createStreamFacade<P, B extends ContentBlock>(input: {
           sourceClosed = true
           return { done: true, value: undefined }
         }
-        // Every output, including an abort end, needs the current final-boundary permission.
         const verdict = await eligibilityOf(directory, resolved)
         if (returned) return { done: true, value: undefined }
         if (verdict !== 'eligible') return end(ended(verdict))

@@ -1,9 +1,3 @@
-// 发行内置作者的来源与装载器输入（简报 B3-T2a 第 4、7、8 项，L-TOOL 事实清单 §1）。
-// - `source.resolve`：只从受信快照取 Shell、Files 的固定模块、配置与上下文，不按调用参数 import。
-// - `loaderFor`：`createLocalToolLoader`。`settings` 核固定发行设置采用并交运维者层的构造值；`schemas` 先核
-//   定义摘要与清单全等，再履行非空 environment 声明的义务（R2-D68 及补充，R2-D80 经执行域的 schema-provider）。
-// - `recordRejection`：本波没有耐久拒绝记录仓，返回被拒绝的 Promise，协调者转为 `unavailable`（具名缺件，波 3）。
-// 任何来源缺失、不一致或读不到都答失败，不默认放行。
 import type { Context } from '@deepseek-ai/cordis'
 import {
   environmentNeedAdoption,
@@ -46,13 +40,8 @@ import {
 } from '../../entry/tool-release-manifest.ts'
 
 type B = ToolMessageContentBlock
-/** 运维者层给出的构造值，按作者名。发行层不写默认值，缺哪一项哪一个作者就答 `unavailable`。 */
 export type OperatorConstruction = Readonly<Partial<Record<string, unknown>>>
 
-/**
- * `environmentNeedAdoption` 映射到的检查（R2-D80）：执行域的 schema-provider 实例，加执行环境契约公开的
- * `environmentNeedSchemaRef`。provider 由 harness-server 入口给出，行不自建预算。
- */
 export type EnvironmentNeedCheck = Readonly<{
   provider: SchemaProvider
   schema: SchemaRef<EnvironmentNeedProjection>
@@ -69,7 +58,6 @@ function entryFor(ctx: Context, name: string) {
   return entry === undefined ? undefined : { release, entry }
 }
 
-/** 运维者层的构造值转成作者要的 JSON 树；缺值或不能表示为 JSON 时为 undefined。 */
 function constructionOf(
   operator: OperatorConstruction,
   entry: ToolReleaseEntry,
@@ -78,12 +66,6 @@ function constructionOf(
   return value === undefined ? undefined : constructionTree(value)
 }
 
-/**
- * 履行非空 environment 声明的义务（R2-D80），并给出校验后的声明值。采用不是 `environmentNeedAdoption` 答 invalid；
- * 值读不成 JSON 文本或超出读取上限答 invalid；schema-provider 答 `invalid` 对应 invalid；`refused`、`unavailable`、
- * `cancelled` 或 provider 抛出都答 unavailable。只有 `valid` 才通过。声明为 null 时给 null。
- * Tool 运行时组的环境需求（`rows/tool-runtime/environment.ts`）复用同一条路径取声明值。
- */
 export async function readEnvironmentNeed(
   definition: ToolDefinition,
   check: EnvironmentNeedCheck,
@@ -115,7 +97,6 @@ export async function readEnvironmentNeed(
   }
 }
 
-/** `readEnvironmentNeed` 只取判定、不取值的形式：loader 的 `schemas` 用它。 */
 export async function checkEnvironmentNeed(
   definition: ToolDefinition,
   check: EnvironmentNeedCheck,
@@ -125,20 +106,16 @@ export async function checkEnvironmentNeed(
 }
 
 export type ReleaseAuthorOptions = Readonly<{
-  /** 执行域的 schema-provider。生产路径由行在装载时按入口的预算建立，并在行撤除时关闭。 */
   schemaProvider?: SchemaProvider
-  /** 只在测试里换：映射到 `environmentNeedAdoption` 的 schema，默认是契约的 `environmentNeedSchemaRef`。 */
   environmentNeed?: SchemaRef<EnvironmentNeedProjection>
 }>
 
-/** 行自建的 provider：预算来自入口，行 fiber 撤除时关闭，之后的检查答 `refused`，即不可用。 */
 function ownProvider(ctx: Context): SchemaProvider {
   const provider = createEnvironmentSchemaProvider()
   ctx.effect(() => () => closeEnvironmentSchemaProvider(provider), 'tool-host.schema-provider')
   return provider
 }
 
-/** tool-host 工厂的三个参数，绑定本行的上下文与运维者构造值。 */
 export function releaseAuthorInput(
   ctx: Context,
   operator: OperatorConstruction,
@@ -149,7 +126,6 @@ export function releaseAuthorInput(
     schema: options.environmentNeed ?? environmentNeedSchemaRef,
   }
 
-  // The verifier is the injected authority, read again on every call.
   const verifier: LocalToolContributionVerifier<unknown> = {
     verify: authority => {
       const current = ctx.get(toolContributionAuthorityKey)
@@ -197,7 +173,6 @@ export function releaseAuthorInput(
               construction,
               settings: entry.settings,
             }),
-            // The authors declare no host services; nothing else is handed to them.
             context: Object.freeze({
               access,
               asset: governanceOf(entry),
@@ -236,11 +211,6 @@ export function releaseAuthorInput(
       },
     })
 
-  /**
-   * 模块绑到清单的固定模块（R2-D82 D1）：调用方交来的模块的 executor 四项必须与清单全等，否则 invalid；
-   * 真正交给 loader 的始终是快照里的固定模块，调用方给的 `createAuthor` 不会运行。contributeTool 会把固定
-   * 模块包一层再交来，所以这里不能要求同一对象，改为按清单换回固定模块。
-   */
   const loaderFor = (authority: ToolAuthority): ToolLoader<unknown, unknown, B> => {
     const loader = inner(authority)
     return {
@@ -263,7 +233,6 @@ export function releaseAuthorInput(
   return Object.freeze({
     source,
     loaderFor,
-    // No durable rejection store in wave 2 (named gap, wave 3); the coordinator answers unavailable.
     recordRejection: (): Promise<DurableEvidence> =>
       Promise.reject(new Error('tool-host: no durable rejection record store (wave 3)')),
   })

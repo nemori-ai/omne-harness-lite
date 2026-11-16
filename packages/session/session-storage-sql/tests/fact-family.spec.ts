@@ -1,10 +1,3 @@
-// The Agent fact family (`er_fact`) and the content blocks (`sl_blob`) of the `execution-record`
-// participant, over the node:sqlite test provider and over one migrated database. A publication
-// appends one batch and the blocks it needs, all or nothing. Two gates guard a concurrent write:
-// the publication count and the primary key; the envelope and event indexes keep one batch per
-// operation and one row per event sequence. A tenant holds one block per digest. The reads give the
-// batches after a publication, the open executions, the events after a sequence, one block and the
-// batch of one operation; a session or a key of another tenant answers as if it did not exist.
 import { readFileSync } from 'node:fs'
 import type { JsonValue, SqlIdentity } from '@omne-harness/sql-contract'
 import type { SqlValue } from '@omne-harness/sql-contract/worker'
@@ -50,7 +43,6 @@ const block = (payload: string, media = 'application/json'): ExecutionBlobRecord
   payload,
 })
 
-/** The envelope of publication `n` and, unless `event` is false, event `n` of the execution. */
 function factsOf(n: number, execution: string, event = true): ExecutionFactRecord[] {
   const envelope: ExecutionFactRecord = { kind: 'batch', body: { n } }
   if (!event) return [envelope]
@@ -70,7 +62,6 @@ function factsOf(n: number, execution: string, event = true): ExecutionFactRecor
   ]
 }
 
-/** Publication `n` (from 1) of execution `exe_1` in `session-1` of `tenant`. */
 function nth(n: number, over: Partial<ExecutionRecordWrite> = {}): ExecutionRecordWrite {
   const execution = over.execution ?? 'exe_1'
   return {
@@ -97,9 +88,6 @@ function nth(n: number, over: Partial<ExecutionRecordWrite> = {}): ExecutionReco
     ...over,
   }
 }
-
-// ---------------------------------------------------------------------------------------------
-// Over the test provider: one storage commit per publication
 
 const identity = (name: string, tenant: TenantId = TENANT_A): SqlIdentity => ({
   scope: { kind: 'tenant', tenant: textOf(tenant) },
@@ -141,7 +129,6 @@ async function read(a: App, handler: string, input: JsonValue, tenant: TenantId 
 const count = (a: App, table: string, domain = 'dom_0'): number =>
   Number(a.provider.select(domain, `SELECT COUNT(*) AS n FROM ${table}`).rows[0]?.[0] ?? 0)
 
-/** The rows of the Agent side of one domain that a failed commit must not leave. */
 const agentRows = (a: App) => ({
   facts: count(a, 'er_fact'),
   blobs: count(a, 'sl_blob'),
@@ -285,7 +272,6 @@ describe('one publication appends one batch', () => {
           return port.execute(sql, params)
         },
       }
-      // The same widths at every n: two-digit counts from the 10th publication on.
       const reply = executionRecord.execute(
         structuredClone(executionRecordFacts(nth(n)).facts) as never,
         counting as never,
@@ -339,7 +325,6 @@ describe('one publication appends one batch', () => {
 
   it('a body at the bound is taken', async () => {
     const a = await session()
-    // The body is a JSON text: two quotes around the characters.
     const body = 'x'.repeat(EXECUTION_FACT_MAX_BYTES - 2)
     expect((await commit(a, nth(1, { facts: [{ kind: 'batch', body }] }))).kind).toBe('committed')
   })
@@ -359,7 +344,6 @@ describe('the two gates of a concurrent write', () => {
       kind: 'rolled_back',
       reply: { kind: 'revision-conflict', revision: '1', published: '1' },
     })
-    // The loser reads only what it missed and prepares on the new head.
     const missed = await factsRead(a, '0')
     expect(missed?.kind === 'facts' ? missed.batches.map(batch => batch.operation) : null).toEqual([
       'aop_writer_1',
@@ -376,7 +360,6 @@ describe('the two gates of a concurrent write', () => {
   it('a writer of another execution on a stale count is a revision conflict: the count is the gate of the session', async () => {
     const a = await session()
     expect((await commit(a, nth(1))).reply.kind).toBe('published')
-    // A new execution: its head check passes (no head yet), only the count is stale.
     const other = nth(1, {
       execution: 'exe_2',
       operation: 'aop_other',
@@ -393,7 +376,6 @@ describe('the two gates of a concurrent write', () => {
 
   it('a write that passes the count check at a taken position collides on the primary key and leaves nothing', async () => {
     const a = await session()
-    // A row at publication 1 whose count was not written: the count check passes, the key does not.
     a.provider.seed(
       'dom_0',
       `INSERT INTO er_fact (tenant, session, pub, ord, execution, kind, eseq, op, kinds, event, body)
@@ -460,7 +442,6 @@ describe('a failure inside the commit leaves neither the batch nor its blocks', 
   ] as const)('a failure at %s', async (_, pattern, nthStatement) => {
     const a = await session()
     const write = nth(1, { blobs: [block('{"content":"kept once"}')] })
-    // A constraint failure: a data error, so the commit rolls back explicitly (sql-contract §7.6).
     a.provider.failWrite(pattern, nthStatement, 19)
     expect(await commit(a, write)).toMatchObject({ kind: 'rolled_back', reply: { kind: 'failed' } })
     expect(agentRows(a)).toEqual({ facts: 0, blobs: 0, operations: 0, roots: 0, heads: 0 })
@@ -631,14 +612,12 @@ describe('the reads of the fact family', () => {
     for (let n = 1; n <= 3; n += 1) await commit(a, nth(n))
     a.provider.seed('dom_0', 'DELETE FROM er_fact WHERE pub = 2')
     expect(await factsRead(a, '0')).toEqual({ kind: 'missing', published: '3' })
-    // A batch without its envelope is a gap too.
     a.provider.seed('dom_0', 'DELETE FROM er_fact WHERE pub = 3 AND ord = 0')
     expect(await factsRead(a, '2')).toEqual({ kind: 'missing', published: '3' })
   })
 
   it('a session published before the fact family answers missing on every read', async () => {
     const a = await session()
-    // What the migration leaves of an old session: its count and its head rows, no fact.
     a.provider.seed('dom_0', 'INSERT INTO er_root (tenant, session, published) VALUES (?, ?, 7)', [
       textOf(TENANT_A),
       SESSION,
@@ -764,7 +743,6 @@ describe('the reads of the fact family', () => {
       batch: null,
       body: { event: 4 },
     })
-    // Gate (two point reads and the first batch), head, and the two events after the sequence.
     expect(rows.at(-1)).toBe(2)
   })
 
@@ -830,9 +808,6 @@ describe('the reads of the fact family', () => {
   })
 })
 
-// ---------------------------------------------------------------------------------------------
-// Over one migrated database: two tenants share the tables, only the predicates keep them apart
-
 type Port = ReturnType<typeof migratedPort>['port']
 type Handler = typeof readExecutionBatches
 
@@ -875,7 +850,6 @@ function handlerRead(
 }
 
 describe('another tenant in the same tables', () => {
-  /** Tenants A and B each hold session-1, exe_1, operation aop_1 and one block of the same digest. */
   function shared() {
     const { port } = migratedPort()
     const one = block('{"content":"shared"}')
@@ -992,7 +966,6 @@ describe('another tenant in the same tables', () => {
 
   it('a write of one tenant never meets the rows of another: its count, operation and block are its own', () => {
     const { port } = shared()
-    // Tenant B's second publication: the count of B, the operation of B; A is unchanged.
     publishOn(port, nth(2, { tenant: TENANT_B, blobs: [block('{"content":"shared"}')] }))
     const counts = port.execute(
       'SELECT tenant, published FROM er_root ORDER BY tenant LIMIT 10',

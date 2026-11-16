@@ -1,10 +1,3 @@
-// Machine guards of the Admission model (model-contract verification/models/Admission.tla):
-//   P1 one accepted call per work: while an admit is commit-unknown, recall never answers
-//      not-accepted; after the reveal, recall and a re-entry with the same identity agree; the
-//      same call under another operation is a conflict that leaves the record as it was;
-//   P5 the share is honest: admits reserve what they ask, a refusal reserves nothing;
-//   P6 a principal of another tenant learns nothing about the call.
-// The cases are enumerated, not sampled: every legal effect and reveal of an unknown admit.
 import { describe, expect, it } from 'vitest'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import { createMemoryModelCommands } from '@omne-harness/model/testing'
@@ -24,7 +17,6 @@ describe('Admission guard P1: an unknown admit is never answered as not accepted
     const recall = () => commands.recall({ ...f.admit, admission: f.admit.operation })
     control.injectUnknown({ ...f.admit, method: 'admit', effect })
     expect(await commands.admit(f.admit)).toMatchObject({ failure: { kind: 'commit-unknown' } })
-    // While the write is unresolved, every read and every re-entry stays unknown.
     for (let i = 0; i < 3; i++) {
       expect(await recall()).toMatchObject({ failure: { kind: 'commit-unknown' } })
       expect(await commands.admit(f.admit)).toMatchObject({ failure: { kind: 'commit-unknown' } })
@@ -39,7 +31,6 @@ describe('Admission guard P1: an unknown admit is never answered as not accepted
       expect(after.kind).toBe('not-accepted')
       expect(again.recovered).toBe(false)
     }
-    // Now the call is accepted exactly once: a further re-entry recovers it.
     expect(unbox(await commands.admit(f.admit)).recovered).toBe(true)
     expect(unbox(await recall()).kind).toBe('found')
   })
@@ -107,7 +98,6 @@ describe('Admission guard P6: another tenant learns nothing about the call', () 
       'not-accepted',
     )
     expect(unbox(await commands.query(foreign))).toEqual({ kind: 'not-committed' })
-    // The owner's own read still finds it: the answer above is isolation, not loss.
     expect(unbox(await commands.recall({ ...f.admit, admission: f.admit.operation })).kind).toBe(
       'found',
     )

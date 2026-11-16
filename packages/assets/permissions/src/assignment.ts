@@ -67,7 +67,6 @@ function judgeBound(rule: PermissionRule, bounds: PermissionBounds): PermissionA
     : { kind: 'denied', reason: 'outside-bound' }
 }
 
-/** Checks assignment semantics only. The writer still owns authority, row binding and atomicity. */
 export function judgePermissionAssignment(input: unknown): PermissionAssignmentJudgment {
   const parsed = requestSchema.safeParse(input)
   if (!parsed.success) return { kind: 'invalid-input', reason: 'structure' }

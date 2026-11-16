@@ -1,12 +1,3 @@
-// The reads of the Agent fact family from the `execution-record` participant (R2-D292): the batches
-// after a publication (`pub > head`, the incremental read of a view), the open executions and their
-// facts (the cold start), the events of one execution after a sequence (AD-02 and `output.read`),
-// the batch of one operation (the cold path of recognition) and one content block. Every read of
-// batches is one snapshot: its pages must read one publication count, else it starts again, and
-// after a fixed number of tries it answers `unavailable`, never a log of two counts.
-//
-// The rows of a batch are the facts of the fact family, decoded by `decodeRows` of `../journal`;
-// a row of another kind is a batch of an older writer, and the batch does not decode.
 import { randomUUID } from 'node:crypto'
 import type { AgentExecutionId, AgentOperationId } from '@omne-harness/agent-contract'
 import {
@@ -24,19 +15,10 @@ import {
 import type { DomainRef, JsonValue, ReadRequest, SqlStorage } from '@omne-harness/sql-contract'
 import { decodeRows, type FactRow, type PublishedBatch } from '../journal/index.ts'
 
-/**
- * How many times a snapshot read starts again when its pages read different publication counts (a
- * writer committed between two pages). Three is the same fixed bound as `SENDS` of the AD-02
- * plugin: enough to ride over a passing writer, not a policy knob.
- */
 export const READ_ATTEMPTS = 3
 
 export type Scope = Readonly<{ tenant: string; session: string }>
 
-/**
- * One storage read of a handler: its output, or why the storage did not read it. The reason is
- * the storage's own (for example `queue_full`), so a diagnostic built on it names it.
- */
 export type ReadOutput =
   | Readonly<{ kind: 'read'; output: JsonValue }>
   | Readonly<{ kind: 'unread'; reason: string }>
@@ -56,18 +38,14 @@ export async function readOutput(
 
 export type Reader = (handler: string, input: JsonValue) => Promise<ReadOutput>
 
-/** The reader of one domain's execution records. */
 export const readerOf =
   (storage: SqlStorage, domain: DomainRef): Reader =>
   (handler, input) =>
     readOutput(storage, { domain, handler, protocol: EXECUTION_RECORD_PROTOCOL, input })
 
-/** One batch as read: the facts of the family, decoded. */
 export type ReadBatch = Readonly<{
   pub: number
-  /** The decoded batch of the family; null when the rows read hold no envelope (a partial read). */
   batch: PublishedBatch | null
-  /** The event facts of the batch, by sequence, as the store projects them. */
   events: readonly ExecutionFact[]
 }>
 
@@ -75,11 +53,7 @@ export type BatchesRead =
   | Readonly<{ kind: 'read'; published: number; batches: readonly ReadBatch[] }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/** The row of the fact family a stored fact is, for `decodeRows`. */
 function rowOf(scope: Scope, pub: number, operation: string | null, fact: ExecutionFact): FactRow {
-  // The envelope row: the operation and the participation kinds are in its body; the store's
-  // `op` column holds the storage operation and its `kinds` column the consequence kinds of an
-  // event, neither of which is the envelope's.
   const envelope =
     fact.ord === 0 &&
     fact.body !== null &&
@@ -103,13 +77,6 @@ function rowOf(scope: Scope, pub: number, operation: string | null, fact: Execut
   }
 }
 
-/**
- * Decodes one stored batch of the family. The family's facts are the dense prefix from the
- * envelope; a batch read without its envelope (a read of one execution's facts, whose envelope row
- * belongs to the writing execution) decodes no family batch. A row of a kind the family does not
- * have (the `core.*` facts of the K-23 bridge of an older writer) does not decode: the records
- * then read as unavailable, not as a session without them.
- */
 export function splitBatch(scope: Scope, stored: ExecutionBatch): ReadBatch | 'malformed' {
   const pub = Number(stored.published)
   const sorted = [...stored.facts].sort((left, right) => left.ord - right.ord)
@@ -127,11 +94,6 @@ export function splitBatch(scope: Scope, stored: ExecutionBatch): ReadBatch | 'm
   return { pub, batch: decoded.ok[0] ?? null, events }
 }
 
-/**
- * The batches after `after`, every page of one snapshot. With `execution`, only the facts of that
- * execution; the batches then may be part of their publications. `missing` (a gap, or a session
- * published before the fact family) is `unavailable`.
- */
 export async function readBatches(
   read: Reader,
   scope: Scope,
@@ -155,7 +117,6 @@ export async function readBatches(
         return unread(`the Agent records of the session are not readable: ${output.reason}`)
       const page = decodeExecutionRecordFacts(output.output)
       if (page === null) return unread('the Agent records of the session do not decode')
-      // A session that is not of this tenant reads as one without records: nothing is told of it.
       if (page.kind === 'denied') return { kind: 'read', published: 0, batches: [] }
       if (page.kind === 'missing')
         return unread('the Agent records of the session are not all there (a gap or older records)')
@@ -181,7 +142,6 @@ export type OpenRead =
   | Readonly<{ kind: 'read'; published: number; executions: readonly string[] }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/** The open executions of the session, every page of one snapshot. */
 export async function readOpenExecutions(read: Reader, scope: Scope): Promise<OpenRead> {
   const unread = (diagnostic: string): OpenRead => ({ kind: 'unavailable', diagnostic })
   for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
@@ -199,7 +159,6 @@ export async function readOpenExecutions(read: Reader, scope: Scope): Promise<Op
         return unread(`the open executions of the session are not readable: ${output.reason}`)
       const page = decodeExecutionRecordOpen(output.output)
       if (page === null) return unread('the open executions of the session do not decode')
-      // A session that is not of this tenant reads as one without records: nothing is told of it.
       if (page.kind === 'denied') return { kind: 'read', published: 0, executions: [] }
       if (page.kind === 'missing') return unread('the Agent records of the session are older')
       if (published !== null && page.published !== published) {
@@ -216,7 +175,6 @@ export async function readOpenExecutions(read: Reader, scope: Scope): Promise<Op
   return unread('the open executions of the session kept changing while they were read')
 }
 
-/** The cold start: the facts of every open execution and of the root, in publication order. */
 export async function readColdStart(read: Reader, scope: Scope) {
   const open = await readOpenExecutions(read, scope)
   if (open.kind === 'unavailable') return open
@@ -258,11 +216,6 @@ export type EventsRead =
   | Readonly<{ kind: 'absent' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/**
- * The events of one execution after sequence `after`, every page of one head: the head row must
- * read the same revision and emitted count on every page. The sequences must follow `after`
- * without a gap, and the last page must reach the head.
- */
 export async function readEvents(
   read: Reader,
   scope: Scope,
@@ -333,7 +286,6 @@ export type OperationRead =
   | Readonly<{ kind: 'none' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/** The batch of one operation of the tenant, by the operation key; `none` when it wrote none. */
 export async function readOperation(
   read: Reader,
   tenant: string,
@@ -363,7 +315,6 @@ export async function readOperation(
   }
 }
 
-/** One content block of the tenant: its payload, or null when the tenant holds no block of `digest`. */
 export async function readBlob(
   read: Reader,
   tenant: string,

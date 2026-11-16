@@ -35,10 +35,6 @@ type Other = Readonly<{ id: number }>
 declare const transport: ModelTransport
 declare const profile: ModelProfile
 
-/**
- * The shape of the Agent request preparation port. This package does not depend on the Agent
- * contract, so the probe states the port by its shape: other inputs, other replies, more methods.
- */
 interface AgentRequestPreparation<P> {
   prepare(
     input: Access<P> & Readonly<{ action: string; history: DurableEvidence }>,

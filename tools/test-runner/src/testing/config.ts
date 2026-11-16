@@ -1,4 +1,3 @@
-// 测试运行的策略只在 `test-runs.config.json` 里定一次；这里读它、校验它，并接受环境变量的临时覆盖。
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
@@ -16,60 +15,36 @@ export {
 import type { Parallelism } from '@omne-harness/repo-toolchain/core/test-ledger'
 import { deriveParallelism, type Budget, type ParallelPolicy } from './parallelism.ts'
 
-/**
- * 影响面的路径规则（`src/testing/affected.ts`）。路径模式都相对仓库根：`*` 不跨目录，`**` 跨目录。
- * 每个改动文件按 全局 → 读者 → 成员文件 → Python 工具 → 只需常驻检查 的顺序归类，哪类都不是的判全量。
- */
 export interface AffectedRules {
-  /** 这些根目录下的成员不参与测试、构建与类型检查的收窄（它们的文件靠下面的规则归类）。 */
   readonly excludeRoots: readonly string[]
-  /** 命中任一条即全部成员、全部步骤：决定「怎么跑」的文件与被大量测试读的规格。 */
   readonly globalPaths: readonly string[]
-  /** 成员外（或别的成员里）被某些成员的测试读的路径：改了只把这些成员带进来，不沿反向依赖传播。 */
   readonly readers: readonly ReaderRule[]
-  /** 成员目录里命中这些模式的文件不算成员改动（除非读者规则点了名）。 */
   readonly memberDocuments: readonly string[]
-  /** 命中则跑 pytest。 */
   readonly pythonPaths: readonly string[]
-  /** 只被常驻检查读的路径：不构建、不测成员、不跑 pytest。 */
   readonly residentPaths: readonly string[]
-  /** 常驻检查运行前要构建的成员（连同它们的依赖），每一份计划都构建。 */
   readonly residentBuild: readonly { readonly member: string; readonly why: string }[]
 }
 
 export interface ReaderRule {
   readonly paths: readonly string[]
-  /** 成员目录。 */
   readonly members: readonly string[]
-  /** 谁读、证据在哪；工具只原样展示。 */
   readonly why: string
 }
 
 export interface TestRunsConfig {
-  /** 并行度策略：并行度本身由机器推出来，见 `parallelism.ts`。 */
   readonly parallel: ParallelPolicy
   readonly affected: AffectedRules
   readonly ledger: {
     readonly slowFileSeconds: number
-    /**
-     * 单条用例耗时达到它自身时限的这个比例就列入账本（贴着时限）。初值 0.5：
-     * 空闲时就占掉一半时限的用例，机器一忙就会越线。
-     */
     readonly nearTimeoutRatio: number
     readonly top: number
   }
   readonly triage: { readonly repeats: number }
-  /** 成员级测试结果缓存（`test-cache.ts`）：键里带哪些环境变量。文件输入与影响面规则同源，不在这里另列。 */
   readonly cache: CacheRules
 }
 
 export interface CacheRules {
-  /**
-   * 进缓存键的环境变量名模式（`*` 通配）：改了会改变测试结果的变量。
-   * 并行度、报告目录、预算这类只影响怎么跑、不影响结果的不要列进来，否则机器一忙键就变、缓存永远不命中。
-   */
   readonly env: readonly string[]
-  /** 虽被上面的模式匹配到、却不进键的变量名（精确）。 */
   readonly ignoreEnv: readonly string[]
 }
 
@@ -203,12 +178,9 @@ export function readTestRunsConfig(): TestRunsConfig {
   }
 }
 
-/** 成员并行数的临时覆盖；机器忙或闲时用它调，不改配置文件。 */
 export const MEMBER_CONCURRENCY_ENV = 'OMNE_TEST_MEMBER_CONCURRENCY'
-/** vitest 自己认的工作进程上限；设了它，各成员配置里的 `maxWorkers` 也被它盖过。 */
 export const VITEST_MAX_WORKERS_ENV = 'VITEST_MAX_WORKERS'
 
-/** 环境变量 `name` 设了就用它（须为正整数），没设用 `fallback`。 */
 function positiveIntegerOverride(
   env: Readonly<Record<string, string | undefined>>,
   name: string,
@@ -220,7 +192,6 @@ function positiveIntegerOverride(
   return Number(value)
 }
 
-/** 一份运行能起的工作进程数：`VITEST_MAX_WORKERS` 已设时以它为准，否则取 `fallback`（例如整份预算）。 */
 export function workerCountOverride(
   env: Readonly<Record<string, string | undefined>>,
   fallback: number,
@@ -228,7 +199,6 @@ export function workerCountOverride(
   return positiveIntegerOverride(env, VITEST_MAX_WORKERS_ENV, fallback)
 }
 
-/** 并行度：按策略从预算推出来；环境变量已设的以环境变量为准。 */
 export function effectiveParallelism(
   config: TestRunsConfig,
   env: Readonly<Record<string, string | undefined>>,

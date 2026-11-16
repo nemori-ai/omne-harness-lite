@@ -1,10 +1,3 @@
-// SS-02 complexity of the service layer (perf-baseline 第 2.1～2.3 节, 第 5 节): deterministic counts,
-// not times. Outside the provider and around the service, count the decisions, the delegated-view
-// calls by method and the material calls of each face operation, at two history sizes. What the
-// service adds per operation must not grow with the history: the snapshot is read materialized
-// (2.1), a history page and a model-view page are one bounded read (2.2, 2.1), and a command
-// decides on the snapshot, never by re-reading the history (2.3). A negative control shows that the
-// counts do see a reader whose work grows with the history.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { SessionFaces } from '@omne-harness/session-contract'
 import { operationId, ordinaryInput, succeeded } from '@omne-harness/session-contract/testing'
@@ -22,7 +15,6 @@ const PAGE_BYTES = 2048
 
 type Counts = Readonly<Record<string, number>>
 
-/** A session with `size` accepted inputs, committed through the public port. */
 async function history(size: number): Promise<Harness> {
   const h = await harness({
     backend: memoryBackendWithLimits({ maxPendingInputs: LARGE + 1, maxInputBytes: 1024 * 1024 }),
@@ -49,7 +41,6 @@ async function history(size: number): Promise<Harness> {
   return h
 }
 
-/** The counts that one face operation causes around the service. */
 async function measure(h: Harness, operation: () => Promise<unknown>): Promise<Counts> {
   const checks = h.checks.count()
   const identity = h.identity.controls.asked().length
@@ -66,7 +57,6 @@ async function measure(h: Harness, operation: () => Promise<unknown>): Promise<C
   return counts
 }
 
-/** The per-operation counts of the face operations on one session of `size` inputs. */
 async function profile(size: number): Promise<Readonly<Record<string, Counts>>> {
   const h = await history(size)
   const coordinator: SessionFaces<string> = h.faces('coordinator')
@@ -112,7 +102,6 @@ async function profile(size: number): Promise<Readonly<Record<string, Counts>>> 
   }
 }
 
-/** Reads the whole history page by page: work that grows with the history, as a control. */
 async function readAll(h: Harness): Promise<number> {
   const reader = h.faces('reader').history
   let page = succeeded(
@@ -133,12 +122,11 @@ async function readAll(h: Harness): Promise<number> {
   return pages
 }
 
-describe(`SS-02: the counts of each face operation at ${String(SMALL)} and ${String(LARGE)} inputs`, () => {
+describe(`the counts of each face operation at ${String(SMALL)} and ${String(LARGE)} inputs`, () => {
   it('every face operation causes the same counts at both sizes', async () => {
     const small = await profile(SMALL)
     const large = await profile(LARGE)
     expect(large).toEqual(small)
-    // The table of the evidence: one decision per face operation, and a bounded number of reads.
     expect(small).toMatchInlineSnapshot(`
       {
         "accept": {

@@ -1,5 +1,3 @@
-// prepareStartupDirectory prepares the tenant directory only for the enabled real directory, and takes
-// the storage location from the real storage row, whatever else the row list holds before it.
 import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -49,7 +47,6 @@ describe('prepareStartupDirectory', () => {
   it('does nothing when the directory is not the enabled real one', () => {
     const base = scratch()
     const directoryFile = join(base, 'root', 'directory.sqlite')
-    // Neither a double directory nor a missing one needs a storage row.
     expect(() => prepareStartupDirectory([session('s0-double', directoryFile)])).not.toThrow()
     expect(() => prepareStartupDirectory([])).not.toThrow()
     expect(() =>

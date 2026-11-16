@@ -1,0 +1,36 @@
+.code-surface {
+  border-radius: var(--radius-card);
+  background: var(--omne-surface-field);
+  box-shadow: var(--omne-elevation-hairline);
+}
+.code-surface-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--omne-space-inline);
+  min-height: var(--omne-control-height);
+  padding: 0 4px 0 10px;
+  border-bottom: 1px solid var(--omne-line-subtle);
+}
+.code-surface-name {
+  font-family: var(--omne-font-mono);
+  font-size: var(--omne-text-caption);
+  color: var(--omne-ink-faint);
+}
+.code-surface pre {
+  max-height: 18rem;
+  margin: 0;
+  overflow: auto;
+  padding: var(--omne-space-inline) 10px;
+  font-family: var(--omne-font-mono);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-reading);
+  color: var(--omne-ink-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+}
+
+.code-surface pre:focus-visible {
+  outline-offset: calc(-1 * var(--omne-ring-width));
+}

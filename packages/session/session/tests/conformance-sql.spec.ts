@@ -1,7 +1,4 @@
-// The session service over the real SQL pair (R3.1): the transaction suite of session-contract face
-// by face, one decision per face operation, and the refusal of another tenant. Every case runs.
 // @module-tag slow
-// Why slow: real sqlite-provider Workers and real files in a temporary directory.
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   operationId,

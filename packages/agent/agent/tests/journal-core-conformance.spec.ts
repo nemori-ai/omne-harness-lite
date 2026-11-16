@@ -1,6 +1,3 @@
-// The memory Journal against the core conformance suite of the contract's `./testing` entry
-// (SPEC "并发与提交", "托管协调与运行实例"): the facts every binding, standalone or coordinated,
-// answers alike. The session-adapters Journal runs the same suite on its own fixture.
 import { beforeAll, describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createMemoryAgentJournal } from '@omne-harness/agent/testing'
@@ -136,9 +133,6 @@ const fixture: AgentJournalCoreFixture<string> = {
         return source
       },
       acceptInput: async label => acceptedInput(`input-${label}`),
-      // The result of a model call whose effect intent this execution saved: the call item of
-      // the list is settled by the result, the custody stays with the result item (SPEC
-      // "终结责任清单", the call and result rows).
       produceResult: async label => {
         const result = producedResult(label)
         const owned = consumption(`consumption-${label}`)
@@ -208,7 +202,6 @@ describe('the memory Journal passes the core conformance suite', () => {
   }
 })
 
-/** The fixture with the memory Journal of each opened execution wrapped by `decorate`. */
 function decorated(
   decorate: (journal: Journal, opened: Opened) => Journal,
 ): AgentJournalCoreFixture<string> {
@@ -220,7 +213,6 @@ function decorated(
   }
 }
 
-/** The names of the cases that fail for `fixture`; a case that passes contributes nothing. */
 async function failing(fixture: AgentJournalCoreFixture<string>): Promise<string[]> {
   const names: string[] = []
   for (const entry of agentJournalCoreConformance(fixture)) {
@@ -233,12 +225,6 @@ async function failing(fixture: AgentJournalCoreFixture<string>): Promise<string
   return names
 }
 
-/**
- * The suite turns red for a Journal that breaks one rule (S1 review I3): each decorator below keeps
- * every other answer of the memory Journal and breaks exactly one of the facts the suite states.
- * The baseline fails nothing, so a red case comes from the decorator alone, and each negative
- * names the case its rule lives in.
- */
 describe('the core conformance suite fails a Journal that breaks one of its rules', () => {
   beforeAll(async () => {
     expect(await failing(fixture)).toEqual([])
@@ -328,7 +314,6 @@ describe('the core conformance suite fails a Journal that breaks one of its rule
   })
 })
 
-/** The names of the D5 cases that fail for `fixture`; the other cases are not run. */
 async function failingD5(fixture: AgentJournalCoreFixture<string>): Promise<string[]> {
   const names: string[] = []
   for (const entry of agentJournalCoreConformance(fixture)) {
@@ -345,7 +330,6 @@ async function failingD5(fixture: AgentJournalCoreFixture<string>): Promise<stri
 type Read = Journal['readReplyAdmissions']
 type Page = Extract<Awaited<ReturnType<Read>>, { ok: unknown }>['ok']
 
-/** A decorator that rewrites every successful page of `readReplyAdmissions`. */
 function pages(
   rewrite: (page: Page, input: Parameters<Read>[0]) => Awaited<ReturnType<Read>>,
 ): AgentJournalCoreFixture<string> {
@@ -385,10 +369,6 @@ const D5 = {
     'D5 read qualification: each page, a read from a verified prefix and the query of an old Ja check the current qualification; after it is given back the read goes on from the same prefix and nothing was undone',
 } as const
 
-/**
- * The D5 cases turn red for a provider that breaks one page or range rule (D5 r2.2 第 3.3 节): each
- * decorator keeps every other answer of the memory Journal and breaks one rule.
- */
 describe('the D5 cases fail a Journal that breaks one page or range rule', () => {
   beforeAll(async () => {
     expect(await failingD5(fixture)).toEqual([])

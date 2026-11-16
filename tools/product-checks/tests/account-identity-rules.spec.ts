@@ -17,15 +17,15 @@ describe('no-presentation-in-diagnostics', () => {
     const bad = file(
       `${AI}logins.ts`,
       [
-        "this.deps.diagnostics.warn('issued', { presentation })", // 1
-        'ctx.logger.info(`issued ${presentation}`)', // 2
-        "ctx.emit('login.issued', { value: issued.presentation })", // 3
-        'throw new Error(`bad presentation ${p}`)', // 4：p 标注为出示物
-        'function f(p: LoginStatePresentation) {}', // 5
-        "throw defect('x', fresh)", // 6：fresh 由 generatePresentation 得来
-        'const fresh = generatePresentation(this.deps.random)', // 7
-        "logger.error('%s', parsed)", // 8：parsed 由 parseLoginStatePresentation 得来
-        'const parsed = parseLoginStatePresentation(raw)', // 9
+        "this.deps.diagnostics.warn('issued', { presentation })",
+        'ctx.logger.info(`issued ${presentation}`)',
+        "ctx.emit('login.issued', { value: issued.presentation })",
+        'throw new Error(`bad presentation ${p}`)',
+        'function f(p: LoginStatePresentation) {}',
+        "throw defect('x', fresh)",
+        'const fresh = generatePresentation(this.deps.random)',
+        "logger.error('%s', parsed)",
+        'const parsed = parseLoginStatePresentation(raw)',
       ].join('\n'),
     )
     expect(noPresentationInDiagnostics.check([bad]).map(v => v.line)).toEqual([1, 2, 3, 4, 6, 8])
@@ -113,12 +113,12 @@ describe('ai-r8-no-credential-in-write', () => {
     const bad = file(
       `${AI}accounts.ts`,
       [
-        'return storage.write(async tx => {', // 1
-        '  const m = await credentials.derive(presented)', // 2
-        '  if (await credentials.verify(m, presented)) {}', // 3
-        '})', // 4
-        'await this.deps.storage.write(tx => credentials.checkPolicy(p, c))', // 5
-        'await storage.write(async tx => { credentials.parse(x) })', // 6
+        'return storage.write(async tx => {',
+        '  const m = await credentials.derive(presented)',
+        '  if (await credentials.verify(m, presented)) {}',
+        '})',
+        'await this.deps.storage.write(tx => credentials.checkPolicy(p, c))',
+        'await storage.write(async tx => { credentials.parse(x) })',
       ].join('\n'),
     )
     expect(aiR8NoCredentialInWrite.check([bad]).map(v => v.line)).toEqual([2, 3, 5, 6])

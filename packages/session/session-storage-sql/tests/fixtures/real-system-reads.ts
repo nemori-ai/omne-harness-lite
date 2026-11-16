@@ -1,11 +1,3 @@
-// The Session storage over the real sqlite-provider for the system reads (R10 references, R11
-// releasedScopes): two tenants in their own transaction domains, and a directory and an access
-// decision that a test can switch. The provider comes from `openRealApp`, so it is the real write
-// Worker and the real read Worker pool behind the public entry of `@omne-harness/sqlite-provider`.
-//
-// The index rows are written straight into the domain files with `node:sqlite` while the provider
-// is closed; the provider is then opened again on the same files. The rows therefore verify the
-// read path only. They do not verify how the index is maintained by a commit (the W3 maintenance).
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { DatabaseSync } from 'node:sqlite'
 import { tmpdir } from 'node:os'
@@ -19,7 +11,6 @@ import { openRealApp, TENANT_A, TENANT_B, textOf } from './real-provider.ts'
 
 export { TENANT_A, TENANT_B }
 
-/** A resident index row. `tenant` defaults to the tenant of the domain; a stray row names another. */
 export type ResidentRow = Readonly<{
   domain: TenantId
   tenant?: TenantId
@@ -90,7 +81,6 @@ export async function openSystemReads(rows: SystemRows) {
     )
   const real = await openRealApp({ root })
 
-  /** Every tenant domain that a read reached. */
   const reads: string[] = []
   const storage: SqlStorage = {
     database: real.storage.database,
@@ -144,7 +134,6 @@ export async function openSystemReads(rows: SystemRows) {
     port,
     reads,
     directory,
-    /** The access decision stops allowing this operation. */
     deny: (operation: 'references' | 'releasedScopes') => denied.add(operation),
     dispose: async (): Promise<void> => {
       await real.dispose()

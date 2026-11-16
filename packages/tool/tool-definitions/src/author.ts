@@ -26,7 +26,6 @@ import {
 } from './protocol.ts'
 import { bounded } from './text.ts'
 
-/** How the model calls Files and Shell through their one declaration (D-94, R2-D396). */
 export const ENCODING: CommandCallEncoding = 'wrapped'
 const returns = textReturns(adoption)
 
@@ -112,7 +111,6 @@ export function createAuthor<E>(
   }
   const result = defineCommandTool({
     implementation: {
-      // The command menu joins the description where the tool is declared to a model.
       description: purpose,
       backgroundAllowed: false,
       declarations: {
@@ -134,10 +132,6 @@ export function createAuthor<E>(
   if ('failure' in result) throw new TypeError(JSON.stringify(result.failure))
   return result.ok
 }
-/**
- * Help answers the guide of one command, or of the whole tool: the same text a wrong call reads.
- * The codec already checked that a given name is a command, so an unknown name never reaches here.
- */
 function help(menu: CommandTable, args: Arguments): string {
   const name = args.optionalText('name')
   const done = `done ${menu.name} help${name === undefined ? '' : ` ${name}`}`

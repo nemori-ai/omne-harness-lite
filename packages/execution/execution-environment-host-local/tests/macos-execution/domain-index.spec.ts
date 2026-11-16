@@ -1,5 +1,3 @@
-// Fast: the cold index of macOS domains on a real state directory. A listing is complete or
-// `unavailable`: a marker that cannot be read is never skipped. Runs on every platform.
 import { chmod, mkdir, mkdtemp, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -83,7 +81,6 @@ describe('markers', () => {
     expect(await index.coordinate(keyA)).toEqual(coordinate)
     expect(await index.list(scope)).toEqual([resource(keyA)])
     expect(await index.list(other)).toEqual([resource(keyB, other)])
-    // A second record replaces the first: a terminal adds the shell's session.
     const both = {
       bootId: boot,
       sessions: [...coordinate.sessions, { sid: 401, start: '1.000001' }],
@@ -143,7 +140,6 @@ describe('markers', () => {
     await mkdir(join(state, 'macos-domains'))
     await writeFile(join(state, 'macos-domains', 'not-a-uuid.json'), '{}')
     expect(await index.coordinate('not-a-uuid')).toBe('absent')
-    // The key names no path: a forget never removes a file outside the index.
     await writeFile(join(state, 'escape.json'), '')
     expect(await index.forget('../escape')).toBe(true)
     expect(await readdir(state)).toContain('escape.json')
@@ -156,7 +152,6 @@ describe('markers', () => {
     expect(await index.list(scope)).toBe('unavailable')
   })
 
-  // Root reads and writes a directory whatever its mode, so the refusal cannot be staged there.
   it.skipIf(process.getuid?.() === 0)(
     'forgets a marker that is not there, and answers false when it cannot remove one',
     async () => {
@@ -170,7 +165,6 @@ describe('markers', () => {
     },
   )
 
-  // Root reads and writes a directory whatever its mode, so the refusal cannot be staged there.
   it.skipIf(process.getuid?.() === 0)(
     'answers false or unavailable when the directory cannot be written or read',
     async () => {

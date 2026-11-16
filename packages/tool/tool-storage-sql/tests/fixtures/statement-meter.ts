@@ -1,11 +1,3 @@
-// What the member's SQL costs while a piece of work runs: statements, rows read, rows written,
-// logical bytes and the bytes of decimal texts among them, split by the owner of the rows. A
-// revision, an ordinal or a counter is a decimal text whose width grows with the count it holds,
-// and that count has a u64 bound; `decimal` lets a comparison deduct that width. A row of a `host` ledger domain belongs to the
-// host; every other row (call domains, body chunks and manifests, the due index) belongs to the
-// Tool. Every ledger and due statement binds `(tenant, kind, …)`, so the second parameter names
-// the domain kind; the body statements bind `(tenant, call, …)` and name no kind. A record of
-// `tl_record` is stored packed (sql-contract §10.1); its logical bytes are those of its text.
 import { unpackText, type SqlValue } from '@omne-harness/sql-contract/worker'
 import type { ObservedStatement, StatementObserver } from './sqlite-storage.ts'
 
@@ -14,7 +6,6 @@ export type Cost = {
   rowsRead: number
   rowsWritten: number
   bytes: number
-  /** The bytes of `bytes` that are decimal texts: whole decimal values and quoted decimals in JSON. */
   decimal: number
 }
 
@@ -22,7 +13,6 @@ export type OwnedCost = Readonly<{ tool: Cost; host: Cost }>
 
 const zero = (): Cost => ({ statements: 0, rowsRead: 0, rowsWritten: 0, bytes: 0, decimal: 0 })
 
-/** The logical bytes of one value: UTF-8 for text, eight for a number, the length of a blob. */
 function bytesOf(value: SqlValue): number {
   if (value === null) return 0
   if (typeof value === 'string') return Buffer.byteLength(value, 'utf8')
@@ -30,10 +20,6 @@ function bytesOf(value: SqlValue): number {
   return value.byteLength
 }
 
-/**
- * The decimal bytes of one value: all of a text that is one decimal number, else the digits of
- * every quoted decimal string inside a JSON text, however deep the quoting is escaped.
- */
 function decimalBytesOf(value: SqlValue): number {
   if (typeof value !== 'string') return 0
   if (/^\d+$/u.test(value)) return value.length
@@ -42,7 +28,6 @@ function decimalBytesOf(value: SqlValue): number {
   return digits
 }
 
-/** The cost with its decimal texts deducted: what must not depend on history. */
 export function withoutDecimals(cost: OwnedCost): OwnedCost {
   const deduct = ({ statements, rowsRead, rowsWritten, bytes, decimal }: Cost): Cost => ({
     statements,
@@ -60,7 +45,6 @@ function ownerOf(statement: ObservedStatement): keyof OwnedCost {
 
 export type StatementMeter = Readonly<{
   observe: StatementObserver
-  /** Runs `work` and answers what the member's statements cost while it ran. */
   count(work: () => Promise<void>): Promise<OwnedCost>
 }>
 

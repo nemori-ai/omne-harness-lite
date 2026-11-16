@@ -1,5 +1,3 @@
-// A codec made from a rule reads and writes through the shared engine. Reading is strict:
-// a field outside the rule, a duplicate key or a malformed tree gives `ok: false`.
 import type { JsonLimits, JsonValue } from '@omne-harness/json-text'
 import { describe, expect, it } from 'vitest'
 import { readAccountIdText, ruleCodec } from '@omne-harness/public-contract'

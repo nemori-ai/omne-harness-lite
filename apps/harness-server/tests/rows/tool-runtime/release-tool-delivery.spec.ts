@@ -1,9 +1,5 @@
 import { observeToolResults, resultsReleased } from './release-material-observation.ts'
 // @module-tag slow
-// 慢：本进程装发行树（真实 SQLite），每条命令起一个 `omne` 子进程，模型走本进程的本地网关。先构建 `apps/cli`。
-// 发行树上一次工具调用的结果交回 Agent（R2-D272 第二十层）：模型先答一个调用 Shell 的 info 命令，再答文字。工具执行完，
-// Tool 宿主按受理时冻结的 consumer owner（`@omne-harness/agent`）找结果接收方推送，接收方把结果写进会话日志，Agent
-// 从 T0 醒来，结果进历史，模型给出最终回复，Run 以 completed 结束，停服退出码 0。
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
@@ -11,18 +7,22 @@ import { describe, expect, it } from 'vitest'
 import * as cordis from '../../../src/cordis.ts'
 import { runServe, type S0Record } from '../../../src/run.ts'
 import { startModelGateway, type GatewayScript } from '../../fixtures/model-gateway.ts'
-import { SESSION_PATH } from '../../r9/flow.ts'
 import {
   bodyOf,
   freePort,
   newScratch,
   operatorLayer,
   runOmne,
-  savedLoginProof,
   savedTenant,
   toolRowsOperatorConfig,
 } from '../../r9/support.ts'
-import { connectable, until } from '../server-entry/support.ts'
+import {
+  readHistoryFrom,
+  readHistoryPage,
+  savedClients,
+  type ProtocolClients,
+} from '../../support/protocol-clients.ts'
+import { connectable, until } from '../../support/listening.ts'
 import { bodyReadingModel } from './body-reading-model.ts'
 import { toolRuntimeConfigSchema } from '../../../src/rows/tool-runtime/config.ts'
 
@@ -42,10 +42,6 @@ const serving = (body: string) => ({
 
 type Call = Readonly<{ id: string; arguments: string; name?: string }>
 
-/**
- * First request: the given calls of the release Shell. Every later request: the final text. The
- * request bodies are kept in `seen`, so a test reads what the model was sent.
- */
 const toolsThenText =
   (calls: readonly Call[], seen: string[] = []): GatewayScript =>
   ({ index, body }) => {
@@ -81,7 +77,6 @@ const toolsThenText =
     }
   }
 
-/** The operator layer with `read-history` listing the tool result and the Run boundaries too. */
 function withHistoryKinds(
   layer: unknown,
   construction?: ReturnType<typeof toolRowsOperatorConfig>['construction'],
@@ -106,14 +101,13 @@ function withHistoryKinds(
           })()
         : op.id === 'tool-bindings' && maxInlineUtf8Bytes !== undefined
           ? (() => {
-              // A Tools reply fits the inline threshold of the runtime that carries it.
               const config = op.config as { tools: { replyMaxBytes: number } }
               const replyMaxBytes = Math.min(config.tools.replyMaxBytes, maxInlineUtf8Bytes)
               return { ...op, config: { ...config, tools: { ...config.tools, replyMaxBytes } } }
             })()
           : op.id === 'tool-host' && construction !== undefined
             ? { ...op, config: { construction } }
-            : op.id === 'server-entry'
+            : op.id === 'session-access'
               ? {
                   ...op,
                   config: {
@@ -132,59 +126,34 @@ function withHistoryKinds(
   }
 }
 
-async function post(port: number, body: unknown): Promise<{ status: number; body: string }> {
-  const response = await fetch(`http://127.0.0.1:${String(port)}${SESSION_PATH}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  return { status: response.status, body: await response.text() }
-}
-
-const readHistory = (tenant: string, session: string, loginProof: string) => ({
-  protocolVersion: 'session-public/1',
-  messageId: 'tool-delivery-read-history',
-  operation: 'read-history',
-  body: { tenant, session, cursor: null, direction: 'forward', pageBytes: '262144' },
-  loginProof,
-})
-
 type Entry = Readonly<{ kind: string; payload: Record<string, unknown> }>
 
-/** The history entries in order. */
-const entriesOf = (body: string): readonly Entry[] =>
-  (JSON.parse(body) as { body: { entries: Entry[] } }).body.entries
+type AllHistory = Readonly<{ outcome: string; entries: readonly Entry[] }>
 
-async function allHistory(port: number, request: ReturnType<typeof readHistory>) {
-  let page = await post(port, request)
+async function allHistory(
+  clients: ProtocolClients,
+  tenant: string,
+  session: string,
+): Promise<AllHistory> {
+  let page = await readHistoryPage(clients, tenant, session)
   const entries: Entry[] = []
   const cursors = new Set<string>()
   for (;;) {
-    if (page.status === 503) return page
-    expect(page.status, page.body).toBe(200)
-    const value = JSON.parse(page.body) as { body: { entries: Entry[]; next: string | null } }
-    entries.push(...value.body.entries)
-    const cursor = value.body.next
-    if (cursor === null) return { status: page.status, body: JSON.stringify({ body: { entries } }) }
+    if (page.outcome !== 'succeeded') return { outcome: page.outcome, entries }
+    entries.push(...page.body.entries)
+    const cursor = page.body.next
+    if (cursor === null) return { outcome: page.outcome, entries }
     expect(cursors.has(cursor), 'history cursor must advance').toBe(false)
     cursors.add(cursor)
     expect(cursors.size).toBeLessThan(128)
-    page = await post(port, {
-      ...request,
-      body: { tenant: request.body.tenant, session: request.body.session, cursor },
-    })
+    page = await readHistoryFrom(clients, tenant, session, cursor)
   }
 }
 
-/** The blocks of a message entry. */
 const blocksOf = (entry: Entry | undefined): readonly Record<string, unknown>[] =>
   ((entry?.payload['message'] as { blocks?: Record<string, unknown>[] } | undefined)?.blocks ??
     []) as readonly Record<string, unknown>[]
 
-/**
- * Runs one turn on the release tree with the gateway `script`: register, log in, create a coding
- * session, send one input and read the history until the Run ends, then stop the server.
- */
 async function turnOnRelease(
   script: GatewayScript,
   shellResultMaxBytes?: number,
@@ -241,17 +210,18 @@ async function turnOnRelease(
     const session = String(bodyOf(created)['session'])
     const sent = await cli(['send-input', '--session', session, '--text', 'list your files'])
     expect(sent.status, sent.stderr).toBe(0)
-    const request = readHistory(savedTenant(home), session, savedLoginProof(home))
-    let history = await allHistory(port, request)
+    const clients = savedClients(port, home)
+    const readAll = () => allHistory(clients, savedTenant(home), session)
+    let history = await readAll()
     for (
       const end = Date.now() + 120_000;
       Date.now() < end &&
-      !(history.status === 200 && entriesOf(history.body).some(e => e.kind === 'run.terminal'));
+      !(history.outcome === 'succeeded' && history.entries.some(e => e.kind === 'run.terminal'));
       await sleep(500)
     )
-      history = await allHistory(port, request)
-    expect(history.status, history.body).toBe(200)
-    if (!entriesOf(history.body).some(entry => entry.kind === 'run.terminal')) {
+      history = await readAll()
+    expect(history.outcome, JSON.stringify(history)).toBe('succeeded')
+    if (!history.entries.some(entry => entry.kind === 'run.terminal')) {
       const diagnostics = await cli(['read-session-diagnostics', '--session', session])
       throw new Error(
         `the Run must reach a terminal before shutdown; model requests=${gateway.requests()}; diagnostics=${JSON.stringify(diagnostics)}`,
@@ -259,7 +229,6 @@ async function turnOnRelease(
     }
     const modelRequests = gateway.requests()
     if (checkRelease !== null) {
-      // C6: once the Agent durably took the result, the record keeps the summary, not the values.
       const offloaded = checkRelease === 'offloaded' ? 1 : 0
       let physical = observeToolResults(dir.storageRoot)
       for (
@@ -270,11 +239,10 @@ async function turnOnRelease(
         physical = observeToolResults(dir.storageRoot)
       expect(resultsReleased(physical, offloaded), JSON.stringify(physical)).toBe(true)
       console.info('W3-RELEASE', JSON.stringify(physical))
-      const reread = await allHistory(port, request)
-      expect(reread.status).toBe(200)
-      expect(entriesOf(reread.body)).toEqual(entriesOf(history.body))
-      // One history entry per released result: the Agent keeps its copy, the Tool keeps the summary.
-      expect(entriesOf(reread.body).filter(entry => entry.kind === 'message.tool')).toHaveLength(
+      const reread = await readAll()
+      expect(reread.outcome).toBe('succeeded')
+      expect(reread.entries).toEqual(history.entries)
+      expect(reread.entries.filter(entry => entry.kind === 'message.tool')).toHaveLength(
         physical.length,
       )
     }
@@ -297,27 +265,25 @@ async function turnOnRelease(
         'continue from the saved result',
       ])
       expect(next.status, next.stderr).toBe(0)
-      let reread = await allHistory(port, request)
+      let reread = await readAll()
       for (
         const end = Date.now() + 120_000;
         Date.now() < end &&
-        entriesOf(reread.body).filter(entry => entry.kind === 'run.terminal').length < 2;
+        reread.entries.filter(entry => entry.kind === 'run.terminal').length < 2;
         await sleep(500)
       )
-        reread = await allHistory(port, request)
-      expect(reread.status, reread.body).toBe(200)
-      reopenedEntries = [...entriesOf(reread.body)]
+        reread = await readAll()
+      expect(reread.outcome, JSON.stringify(reread)).toBe('succeeded')
+      reopenedEntries = [...reread.entries]
       expect(reopenedEntries.filter(entry => entry.kind === 'run.terminal')).toHaveLength(2)
-      expect(reopenedEntries.slice(0, entriesOf(history.body).length)).toEqual(
-        entriesOf(history.body),
-      )
+      expect(reopenedEntries.slice(0, history.entries.length)).toEqual(history.entries)
       expect(gateway.requests()).toBe(modelRequests)
       controller.abort('test: stop reopened server')
       stopped = true
       expect((await finished).exitCode).toBe(0)
     }
     return {
-      entries: entriesOf(history.body),
+      entries: history.entries,
       reopenedEntries,
       modelRequests,
       logs: records.filter(
@@ -341,14 +307,13 @@ async function turnOnRelease(
   }
 }
 
-/** The text blocks of a tool message entry after its result marker, joined. */
 const resultText = (entry: Entry | undefined): string =>
   blocksOf(entry)
     .slice(1)
     .map(block => String(block['text'] ?? ''))
     .join('')
 
-describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => {
+describe('a Tool result on the release tree reaches the Agent', () => {
   it(
     'W3-A carries return schemas through native declarations, Tools.inspect and command help into model requests',
     { timeout: 240_000 },
@@ -533,7 +498,6 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
       const { entries, modelRequests } = await turnOnRelease(
         toolsThenText([{ id: 'call_deliver', arguments: '{"command":"info","params":{}}' }]),
       )
-      // The tool call, its result, the final reply after it, then the end of the Run.
       expect(entries.map(entry => entry.kind)).toEqual([
         'message.user',
         'run.started',
@@ -548,7 +512,6 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
         kind: 'tool_result',
         callId: 'call_deliver',
       })
-      // The call ran: the result is the Shell info, not a denial.
       expect(resultText(entries[3])).toContain('shell=')
       expect(blocksOf(entries[4])).toMatchObject([{ kind: 'text', text: FINAL }])
       expect(entries[5]?.payload['terminal']).toMatchObject({ outcome: 'completed' })
@@ -556,7 +519,7 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
   )
 
   it(
-    'a call that names no command reads the tool guide, a wrong parameter reads the command guide, and the other call runs (D-104)',
+    'a call that names no command reads the tool guide, a wrong parameter reads the command guide, and the other call runs',
     { timeout: 240_000 },
     async () => {
       const seen: string[] = []
@@ -580,17 +543,14 @@ describe('a Tool result on the release tree reaches the Agent (R2-D272)', () => 
         'message.assistant',
         'run.terminal',
       ])
-      // Not run, answered with the reason and the guide of the tool; the batch is not denied.
       const unknown = resultText(entries[3])
       expect(unknown.startsWith('Shell: there is no command "nope".')).toBe(true)
       expect(unknown).toContain('info {} - ')
-      // Run, failed with the reason and the guide of the command.
       const missing = resultText(entries[4])
       expect(missing).toContain('Shell execute: ')
       expect(missing).toContain('Usage: Shell {"command": "execute", "params": {script')
       expect(resultText(entries[5])).toContain('shell=')
       expect(entries[7]?.payload['terminal']).toMatchObject({ outcome: 'completed' })
-      // The model reads both guides in its next request.
       expect(seen[1]).toContain('there is no command \\"nope\\"')
       expect(seen[1]).toContain('Usage: Shell {\\"command\\": \\"execute\\"')
     },

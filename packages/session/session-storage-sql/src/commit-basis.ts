@@ -38,12 +38,11 @@ export const SessionBasisCommandsSchema = z.strictObject({
     .length(1),
 })
 
-/** Binds every Session fact, including its guards and budgets, without interpreting the command. */
 export function sessionCommitDigest(commands: readonly FactCommandV2[]): string {
   return `sha256:${sha256(canonicalText(commands))}`
 }
 
-/** Adds the ordinary producer only after all participants have formed their final command facts. */
+// Add the ordinary producer only after every participant has formed its final command facts.
 export function sessionCommitCommands(
   commands: readonly FactCommandV2[],
 ): readonly FactCommandV2[] {
@@ -83,6 +82,7 @@ const commandKinds = {
   interrupt: true,
   cancelRun: true,
   stopCall: true,
+  retryRun: true,
   freeze: true,
   receive: true,
 } satisfies Record<MutationName, true>
@@ -119,7 +119,6 @@ const intentShape = z.discriminatedUnion('intent', [
   z.looseObject({ intent: z.literal('log'), observation: object }),
 ])
 
-/** Classifies the execution path; the Session writer remains responsible for business validation. */
 export function ordinarySessionFacts(facts: FactCommandV2['facts']): boolean {
   const parsed = intentShape.safeParse(facts)
   if (!parsed.success) return false

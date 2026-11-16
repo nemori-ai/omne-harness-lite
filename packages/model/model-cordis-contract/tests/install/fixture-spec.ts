@@ -1,6 +1,3 @@
-// A role fixture is a small consumer project that lives in the member's tests. This file reads what
-// the fixture declares in `fixture.json` and judges it against the member's closure: the declarations decide what the
-// consumer directory installs, so a fixture cannot depend on more than it says.
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { declaredClosure, type DeclaredClosure, type Policy } from './closure.ts'
@@ -8,9 +5,7 @@ import { declaredClosure, type DeclaredClosure, type Policy } from './closure.ts
 export type FixtureSpec = Readonly<{
   directory: string
   role: string
-  /** The packages that `fixture.ts` may import, by name. */
   dependencies: readonly string[]
-  /** Names or `*` patterns that this fixture forbids on top of the member's policy. */
   forbidden: readonly string[]
 }>
 
@@ -18,7 +13,6 @@ export type FixtureRead =
   | Readonly<{ kind: 'read'; spec: FixtureSpec }>
   | Readonly<{ kind: 'unreadable'; detail: string }>
 
-/** The files that make a directory a fixture. */
 export const FIXTURE_FILES = ['fixture.json', 'tsconfig.json', 'fixture.ts'] as const
 
 function isTextList(value: unknown): value is readonly string[] {
@@ -42,7 +36,6 @@ function unreadable(detail: string): FixtureRead {
   return { kind: 'unreadable', detail }
 }
 
-/** Reads `fixture.json` of a fixture; every way that it can be wrong is a named reason. */
 export function readFixture(directory: string): FixtureRead {
   const missing = FIXTURE_FILES.filter(file => !existsSync(join(directory, file)))
   if (missing.length > 0) return unreadable(`${directory} lacks ${missing.join(', ')}`)
@@ -59,12 +52,10 @@ export function readFixture(directory: string): FixtureRead {
   }
 }
 
-/** The declared dependencies that the member's closure does not contain. */
 export function outsideClosure(spec: FixtureSpec, closure: ReadonlySet<string>): string[] {
   return spec.dependencies.filter(name => !closure.has(name))
 }
 
-/** The member's policy with this fixture's own forbidden names added as one more category. */
 export function withFixtureForbidden(policy: Policy, spec: FixtureSpec): Policy {
   if (spec.forbidden.length === 0) return policy
   return {
@@ -73,10 +64,6 @@ export function withFixtureForbidden(policy: Policy, spec: FixtureSpec): Policy 
   }
 }
 
-/**
- * What the fixture declares, with the closure behind each declared package: the packages that the
- * fixture reaches and nothing else of the member's closure.
- */
 export function fixtureClosure(
   spec: FixtureSpec,
   members: ReadonlyMap<string, string>,
@@ -104,11 +91,6 @@ export type Dependencies =
   | Readonly<{ kind: 'resolved'; dependencies: Readonly<Record<string, string>> }>
   | Readonly<{ kind: 'unpinned'; names: readonly string[] }>
 
-/**
- * The direct dependencies of the consumer project: a workspace member by its tarball, a third-party
- * package by the one version that the workspace pins. A package with no single pin is reported
- * rather than guessed.
- */
 export function directDependencies(
   spec: FixtureSpec,
   tarballs: ReadonlyMap<string, string>,

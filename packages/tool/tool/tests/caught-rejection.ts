@@ -11,7 +11,6 @@ try {
   const harness = startHarness({
     bindingPort: base => ({
       ...base,
-      // A definite refusal: the failure marker is written (an unavailable answer writes none).
       start: async () =>
         fail({
           kind: 'unsupported',

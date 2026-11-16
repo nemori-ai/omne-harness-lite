@@ -192,7 +192,6 @@ it('with an owner permission override, still needs the original default for a mo
     authorization: evidence('environment'),
     setting: evidence('setting'),
   } as const
-  // The default is gone, and at most one of the two other modes was changed since.
   for (const changes of [[], [collaboration], [environment]])
     expect(
       createSessionModesPublication({
@@ -201,7 +200,6 @@ it('with an owner permission override, still needs the original default for a mo
         work: { ...input.work, changes },
       }),
     ).toEqual({ kind: 'unavailable', reason: 'default-mode-missing' })
-  // A default whose adoption differs in one field is not the original default.
   for (const key of ['owner', 'name', 'revision', 'digest'] as const)
     expect(
       createSessionModesPublication({

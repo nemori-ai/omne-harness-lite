@@ -1,7 +1,4 @@
 // @module-tag slow — every case spawns a scripted peer in a child process or on a local HTTP server.
-// The contract's transport conformance suite on the real lines (MC3-9): every case runs on a
-// fresh scripted peer; passed, failed and not-applicable are counted apart, and the set of
-// not-applicable cases is pinned with its reasons.
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import { createLocalTransportFactory } from '@omne-harness/mcp-host-local'
 import {
@@ -47,15 +44,6 @@ function fixtureOf(kinds: readonly TransportKind[]): TransportFixture {
   }
 }
 
-/**
- * The cases that are not applicable on the real lines, with the reason the fixture gives. A
- * fixture of both kinds runs every case; a case picks the first kind unless it names one.
- * - X02 on stdio: a request fails before it leaves only when the process exited before the
- *   transport opened, so only the first exchange of a connection can be `unsent`; the
- *   `discover-retry` and `initialize` cells are not realizable (design Q8).
- * - The peer's requests after `notifications/initialized` on Streamable HTTP: this transport
- *   opens no GET stream, so the peer has no channel for them (design §8.1).
- */
 const NOT_APPLICABLE: Readonly<{ [name: string]: string }> = {
   'T8 [X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable':
     'a stdio process that fails a later request before it leaves',
@@ -95,7 +83,6 @@ function suite(title: string, kinds: readonly TransportKind[], expected: readonl
     }
 
     afterAll(() => {
-      // The counts of MC3-9, for the report.
       process.stdout.write(
         `conformance ${title}: passed ${counts.passed.length}, not-applicable ${counts.notApplicable.size}, failed ${counts.failed.length}\n`,
       )

@@ -59,7 +59,6 @@ function growing(value: Record<string, unknown>): VisibleBlock | null {
   }
 }
 
-/** The part kinds that never ride in a sealed visible block are the open and the tool-side ones. */
 function isSealable<T extends { kind: string }>(part: T): part is Extract<T, ModelBlock> {
   switch (part.kind) {
     case 'tool_call_incomplete':
@@ -73,7 +72,6 @@ function isSealable<T extends { kind: string }>(part: T): part is Extract<T, Mod
 
 type SealedShape = Record<string, unknown> & { index: string; block: Record<string, unknown> }
 
-/** The envelope of a sealed block: its keys on the wire, a string index and a record block. */
 function hasSealedShape(value: Record<string, unknown>, encoding: boolean): value is SealedShape {
   if (!encoding && !outputFields(value, ['kind', 'index', 'block'])) return false
   return typeof value.index === 'string' && outputRecord(value.block)
@@ -102,7 +100,6 @@ function visible(
   return growing(value)
 }
 
-/** Unknown kinds are omitted only at the producer boundary; wire input rejects them. */
 export function outputBlocks(value: unknown, encoding: boolean): readonly VisibleBlock[] | null {
   if (!Array.isArray(value)) return null
   const blocks: VisibleBlock[] = []

@@ -1,43 +1,29 @@
-// The replay fixtures of the OpenAI family, as one reviewable table. Each case extracts an inline
-// SSE case of a sealed test and states the facts that the sealed behaviour becomes in contract
-// facts. `pnpm run fixtures` writes the table to `tests/fixtures`; `fixtures.spec.ts` checks the
-// files against the table and the engine against the files. tests/fixtures/README.md lists the
-// intended differences.
 import type { RequestParts } from './openai.ts'
 import { message, stateBlock, textBlock } from './openai.ts'
 
-/** Where a case lives: the one fixture of a record, or an extra case directory. */
 export type Slot = 'record' | 'case'
 
 export type FixtureCase = Readonly<{
   id: string
   slot: Slot
   record: string
-  /** The sealed test file, the line range and the test name. */
   source: string
   request: RequestParts
-  /** The expected request body, as plain JSON. */
   body: unknown
   stream: string
-  /** The expected facts, `ended` included, as plain JSON. */
   facts: readonly unknown[]
 }>
 
-// --- SSE -------------------------------------------------------------------------------------
-
-/** One SSE event with a JSON data line. */
 function sse(frame: object): string {
   return `data: ${JSON.stringify(frame)}\n\n`
 }
 
-/** One SSE event with this exact data text. */
 function raw(data: string): string {
   return `data: ${data}\n\n`
 }
 
 const DONE = raw('[DONE]')
 
-/** The serving members the engine requires on the first frame; sealed frames lack them. */
 function serving(record: string): Readonly<{ model: string; provider: string }> {
   return { model: record, provider: 'OpenAI' }
 }
@@ -46,16 +32,12 @@ function choice(delta: object, finish?: string): object {
   return { choices: [finish === undefined ? { delta } : { delta, finish_reason: finish }] }
 }
 
-/** `finish()` of the sealed support: a finish frame, then the end marker. */
 function finish(reason = 'stop'): string {
   return sse(choice({}, reason)) + DONE
 }
 
-/** The usage of the sealed refusal tests. The cost keeps its exact lexeme. */
 const USAGE_TEXT =
   '{"prompt_tokens":123,"completion_tokens":7,"prompt_tokens_details":{"cached_tokens":20,"cache_write_tokens":3},"cost":0.000123456789123456789}'
-
-// --- facts -----------------------------------------------------------------------------------
 
 const SHOWN = { toHuman: true, toModel: true }
 const HIDDEN = { toHuman: false, toModel: true }
@@ -92,7 +74,6 @@ function sealState(index: number, payload: string, pairs: readonly string[] = []
   }
 }
 
-/** The token counts of an account in the order of the usage rule; `null` is unknown. */
 type Counts = Readonly<{
   input: string | null
   output: string | null
@@ -109,7 +90,6 @@ const NO_COUNTS: Counts = {
   reasoning: null,
 }
 
-/** The counts of `USAGE_TEXT`: 123 prompt less 20 read and 3 written leave 100 uncached. */
 const USAGE_COUNTS: Counts = {
   input: '100',
   output: '7',
@@ -125,10 +105,6 @@ function counted(name: string, lexeme: string | null): object {
     : { name, state: 'known', lexeme, unit: 'token' }
 }
 
-/**
- * The account that the decoder gives before the termination of a finished response. A Pro record
- * has the unknown input scope, so its input is unknown whatever the counts.
- */
 function account(record: string, counts: Counts, cost: string | null = null): object {
   const input = record.endsWith('-pro') ? null : counts.input
   return {
@@ -165,11 +141,8 @@ function failed(cause: string, diagnostic: string, upstreamStatus: string | null
   }
 }
 
-// --- requests --------------------------------------------------------------------------------
-
 const PROVIDER = { allow_fallbacks: false, order: ['openai'], require_parameters: true }
 
-/** The request of the sealed `input()`: an instruction, a reminder, a user turn and 128 tokens. */
 const BASIC: RequestParts = {
   system: [textBlock('s1', 'instruction')],
   messages: [
@@ -202,8 +175,6 @@ function basicCase(
   return { slot: 'case', ...input, record, request: BASIC, body: basicBody(record) }
 }
 
-// --- the encrypted replay of GPT-5.6 ---------------------------------------------------------
-
 const ENCRYPTED_DETAIL = {
   type: 'reasoning.encrypted',
   data: 'ENCRYPTED_NEVER_TOKENIZE',
@@ -211,7 +182,6 @@ const ENCRYPTED_DETAIL = {
   id: 'rs-local',
   index: 0,
 }
-/** The payload of the state part: the detail as JSON with sorted keys. */
 const ENCRYPTED_PAYLOAD =
   '{"data":"ENCRYPTED_NEVER_TOKENIZE","format":"openai-responses-v1","id":"rs-local","index":0,"type":"reasoning.encrypted"}'
 
@@ -277,16 +247,12 @@ function encryptedReplay(record: string): FixtureCase {
   }
 }
 
-// --- the refusal stream ----------------------------------------------------------------------
-
 const REFUSAL = 'refusal-stream.spec.ts'
 
-/** The first frame of a refusal case: a refusal delta with the serving members. */
 function refusal(record: string, text: string): string {
   return sse({ ...serving(record), ...choice({ refusal: text }) })
 }
 
-/** The RF-V2 stream; `withId` adds the call id that the contract requires. */
 function toolOrderStream(record: string, withId: boolean): string {
   const call = {
     index: 0,
@@ -312,11 +278,6 @@ const TOOL_ORDER_FACTS = [
   delta(1, 'after'),
 ]
 
-/** RF-V4: the actual finish, a repeated finish with usage, then the end marker. */
-/**
- * RF-V4: a refusal text, the finish, and the usage in a repeated finish frame. A failed ending
- * seals nothing: a `tool_calls` finish without a tool call fails.
- */
 function trailingUsage(
   record: string,
   reason: string,
@@ -345,7 +306,6 @@ function trailingUsage(
   })
 }
 
-/** RF-V5: delivered text, then a tail that keeps the reply from succeeding. */
 function brokenTail(
   input: Readonly<{ id: string; label: string; tail: string; facts: readonly object[] }>,
 ): FixtureCase {
@@ -374,7 +334,6 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
   encryptedReplay('openai/gpt-5.6-sol'),
   encryptedReplay('openai/gpt-5.6-terra'),
   encryptedReplay('openai/gpt-5.6-luna'),
-  // The records added from the official lists of 2026-11-03 reuse the encrypted replay.
   encryptedReplay('openai/gpt-6.1-sol'),
   encryptedReplay('openai/gpt-6.1-terra'),
   basicCase({
@@ -433,7 +392,6 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
     { kind: 'completed', fact: completed('stop') },
     'rf-v4-stop',
   ),
-  // The sealed stream has no tool call, so the `tool_calls` finish fails.
   trailingUsage(
     'openai/gpt-6-sol-pro',
     'tool_calls',
@@ -506,7 +464,6 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
         `{"choices":[{"delta":{},"finish_reason":"stop"}],"usage":${USAGE_TEXT.replace('"prompt_tokens":123', '"prompt_tokens":124')}}`,
       ) +
       DONE,
-    // The decoder keeps the last usage; the Pro scope leaves the input unknown either way.
     facts: [
       open(0, 'text'),
       delta(0, 'text'),
@@ -526,7 +483,6 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
       id: `rf-v1-${label}-refusal`,
       source: `${REFUSAL}:124-135 "RF-V1 ${label} neither opens a block nor passes the first-content gate"`,
       stream: sse({ ...serving(ASTRA), ...choice(value) }) + finish(),
-      // No block opens, so the `stop` finish fails.
       facts: [account(ASTRA, NO_COUNTS), failed('upstream-protocol', 'finish-without-content')],
     }),
   ),
@@ -571,7 +527,6 @@ export const LEGACY_CASES: readonly FixtureCase[] = [
     id: 'rf-v5-changed-finish',
     label: 'changed finish',
     tail: sse(choice({}, 'stop')) + sse(choice({}, 'length')),
-    // The response reached its finish, so the fault after it keeps the account of the usage so far.
     facts: [
       seal(0, 'text', 'delivered refusal'),
       account(ASTRA, NO_COUNTS),

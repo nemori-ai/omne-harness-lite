@@ -1,20 +1,8 @@
-// Compares two long-session runs of the same commit against the repeat ranges of
-// `docs/engineering/perf-baseline.md` 「长会话」: counts within 2 %, reads within 20 %, window
-// medians of own overhead within 25 % (the machine is shared), resident memory at the last round
-// within 15 %, the data directory at the last round within 5 %, and the same verdict for every
-// series: grows (a gate fails) or not. The verdict of a single gate is printed, not compared: a
-// statistic near its line can fall on either side. Reads were first stated at 5 % and every gate
-// had to agree; the first pair broke both (the session subscribers read once per wake, and wakes
-// merge more under load), so the ranges were revised and checked on a third run that did not set
-// them. Prints one line per reading; exits 0 when every reading is in range and 1 when one is not.
-//
-//   node apps/harness-server/tests/long-session/compare.ts <run a> <run b>
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Summary } from './judge.ts'
 
-/** The relative ranges, by reading. */
 export const REPEAT_RANGES = {
   commitsMedian: 0.02,
   queriesMedian: 0.02,
@@ -46,7 +34,6 @@ function readings(summary: Summary): Record<Reading, number | undefined> {
 
 type Gates = Readonly<{ median: Gate; growth: Gate }>
 
-/** The gates of a summary by series. */
 function seriesGates(summary: Summary): Record<string, Gates> {
   return {
     overhead: summary.overhead.gates,
@@ -58,7 +45,6 @@ function seriesGates(summary: Summary): Record<string, Gates> {
   }
 }
 
-/** A series grows when one of its gates fails; it is blocked when a gate is blocked and none fails. */
 function verdict(gates: Gates): string {
   const states = [gates.median.state, gates.growth.state]
   if (states.includes('fail')) return 'grows'

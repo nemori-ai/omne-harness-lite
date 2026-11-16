@@ -1,6 +1,3 @@
-// Self-proof of the commitLog suite: it passes on the conforming in-memory double and on the same
-// double without its optional handles (the cases that need them are then not applicable), and each
-// case fails under a violating variant that breaks the rule of that case.
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it } from 'vitest'
 import type { SessionLogReceipt } from '@omne-harness/session-contract'
@@ -43,7 +40,6 @@ const NAMES = {
 type Fixture = SessionLogFixture<string>
 type Commit = Fixture['port']['commitLog']
 
-/** A fixture whose `commitLog` is `build(real, fixture)`, everything else the conforming double. */
 function variant(build: (real: Commit, fixture: Fixture) => Commit): () => Fixture {
   return () => {
     const base = memorySessionLogFixture()

@@ -1,7 +1,4 @@
 // @module-tag slow
-// R4-2: an account and a login survive a process restart. Slow: it starts two Node child processes
-// over one storage root. The first registers and issues, then exits. The second recognizes the
-// login, reads the standing and sees the login end at its deadline.
 import { execFile } from 'node:child_process'
 import { rm } from 'node:fs/promises'
 import { join } from 'node:path'

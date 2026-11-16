@@ -53,31 +53,30 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
       if (result.kind === 'closed') await assets.close()
       return result
     }
-    let installed = false
+    let fault: string | undefined
     try {
-      installed =
-        (
-          await installToolGovernance({
-            principal: options.installationPrincipal,
-            scope: options.scope,
-            epoch: runtime.epoch,
-            release: options.release,
-            service: runtime.service,
-            assets,
-            organizationTargets: options.organizationTargets,
-          })
-        ).kind === 'installed'
+      const installed = await installToolGovernance({
+        principal: options.installationPrincipal,
+        scope: options.scope,
+        epoch: runtime.epoch,
+        release: options.release,
+        service: runtime.service,
+        assets,
+        organizationTargets: options.organizationTargets,
+      })
+      fault = installed.kind === 'installed' ? undefined : `tool installation ${installed.phase}`
     } catch {
-      installed = false
+      fault = 'tool installation threw'
     } finally {
-      if (!installed) await close()
+      if (fault !== undefined) await close()
     }
-    return installed
+    return fault === undefined
       ? { ...runtime, close }
       : {
           kind: 'unavailable',
           owner: 'harness.tenant-governance',
           phase: 'installation',
+          reason: fault,
           close,
         }
   }

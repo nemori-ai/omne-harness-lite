@@ -22,7 +22,6 @@ async function boundedWait<T>(operation: Promise<T>): Promise<T> {
 }
 
 function verifyCompletion(invocation: Invocation, completed: CompletedInvocation): string {
-  // A v2 reference carries no tenant (R2-D357); the tenant is the invocation's own Access.
   const { call } = readToolInvocationRef(invocation.reference)
   assert.deepEqual(completed.invocation, invocation, 'settle must return the original invocation')
   assert.equal(completed.state.call, call)

@@ -10,7 +10,6 @@ export type HostFilesMaintenance =
 
 export type HostFilesRuntime = ReturnType<typeof createHostFilesRuntime>
 
-/** The entry owns the domain and this queue across all provider generations. */
 export function createHostFilesRuntime(options: {
   domain?: HostFilesDomain
   diagnose: (

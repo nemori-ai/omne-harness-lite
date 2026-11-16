@@ -1,5 +1,3 @@
-// Agent 的两种来源（admission 放行卡、agent-extension 扩展件卡）：登记、按会话与来源过滤的池、答复，
-// 经公开应用入口、真实 Identity 与真实 SQLite。原工作守卫与来源种类无关，由 tool-origin.spec.ts 覆盖。
 import { afterEach, expect, it } from 'vitest'
 import {
   RegisterRequestSchema,
@@ -42,7 +40,6 @@ const cards = {
 } as const
 type Kind = keyof typeof cards
 
-/** 把世界准备的独立登记改成 Agent 一条链的一轮卡片：带会话与 Run，等待由 Agent 拥有。 */
 const agentRegistration =
   (kind: Kind) =>
   (request: RegisterRequest): RegisterRequest =>

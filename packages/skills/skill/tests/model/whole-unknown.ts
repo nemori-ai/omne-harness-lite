@@ -1,11 +1,3 @@
-// S2, whole unknown. A port answer that cannot be decided (`unknown`, malformed, a rejection, a
-// synchronous throw, an answer that throws while it is read) ends the operation with one
-// failure: `unknown` for the read check, the resolution and the lawful set; `source-unavailable`
-// for the source (the `unavailable` row of the mapping). No port is called after it, nothing
-// looks complete, nothing is thrown. For the catalog the relevant answers are the lawful set and
-// the read checks of the identities that the request keeps; an independent oracle from the
-// contract rules gives the whole expected answer, so a catalog that answers `unknown` everywhere
-// does not pass either.
 import { isDeepStrictEqual } from 'node:util'
 import {
   accessRequests,
@@ -49,14 +41,12 @@ export const SOURCE_FAULTS: readonly Fault[] = [
 ]
 const SOURCE_UNDECIDED: readonly Fault[] = ['malformed', 'reject', 'throw', 'proxy']
 
-/** What an undecided answer at `call` must turn the operation into. */
 function expectedFor(call: TracedCall): string {
   return call.site.port === 'snapshot' || call.site.port === 'open'
     ? 'source-unavailable'
     : 'unknown'
 }
 
-/** The trace check of S2 for one run; a message when it breaks. */
 export function wholeUnknownBreak(
   observation: Observation,
   trace: readonly TracedCall[],
@@ -98,11 +88,9 @@ function accessWorld(state: IdentityState, held: IdentitySpec['held']): WorldSpe
 const ACCESS_FAULTS: readonly FaultPoint[] = [
   ...UNDECIDED.map(fault => ({ site: { port: 'check', name: 'alpha' }, fault }) as const),
   ...UNDECIDED.map(fault => ({ site: { port: 'resolve', name: 'alpha' }, fault }) as const),
-  // A reference to other material is no answer when it breaks the request (no PR1, PR3).
   ...MISDIRECTIONS.map(fault => ({ site: { port: 'resolve', name: 'alpha' }, fault }) as const),
   ...SOURCE_FAULTS.map(fault => ({ site: { port: 'snapshot' }, fault }) as const),
   ...SOURCE_FAULTS.map(fault => ({ site: { port: 'open' }, fault }) as const),
-  // The second entry of an export: the first entry passed, the package must not.
   ...SOURCE_UNDECIDED.map(
     fault => ({ site: { port: 'open', path: 'docs/guide.md' }, fault }) as const,
   ),
@@ -134,7 +122,6 @@ async function exploreAccess(ledger: Ledger): Promise<void> {
         }
 }
 
-/** The search rule of the contract for the ASCII texts of this world. */
 function searchKeeps(text: string, name: Name): boolean {
   const hay = `${name}\n${DESCRIPTION_WORD[name]} things.`.toLowerCase()
   return text
@@ -145,7 +132,6 @@ function searchKeeps(text: string, name: Name): boolean {
 
 type Expected = 'unknown' | readonly string[]
 
-/** The answer that the contract gives the catalog request of `alice`, written as sorted `name:kind`. */
 export function catalogOracle(
   world: WorldSpec,
   faults: readonly FaultPoint[],
@@ -182,7 +168,6 @@ export function catalogOracle(
     .sort()
 }
 
-/** The observed catalog answer in the form of the oracle, or `undefined` when it is neither. */
 export function catalogSeen(observation: Observation): Expected | undefined {
   if (failureKind(observation) === 'unknown') return 'unknown'
   const entries = okOf(observation)
@@ -281,7 +266,6 @@ async function exploreInspection(ledger: Ledger): Promise<void> {
       ledger.count()
       const broken = wholeUnknownBreak(observation, run.trace())
       if (broken !== undefined) ledger.break({ world, schedule, request, detail: broken })
-      // Not vacuous: a plain package inspects to a definition.
       if (point === undefined && okOf(observation) === undefined)
         ledger.break({
           world,

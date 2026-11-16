@@ -1,4 +1,3 @@
-// R5: one byte-bounded page of the model view of one epoch.
 import { big, handler, oneRow, PAGE_ROWS, rowsOf, scopeOf, text } from './support.ts'
 
 type Input = Readonly<{

@@ -8,7 +8,6 @@ export interface EdgeRoute {
   readonly labels: readonly { readonly x: number; readonly y: number; readonly text: string }[]
 }
 
-/** ELK routed sections as one SVG path. Coordinates are root-relative because the graph has no nesting. */
 export function routeOf(edge: ElkExtendedEdge): EdgeRoute {
   if (edge.sections === undefined || edge.sections.length === 0)
     throw new Error('Missing edge route')

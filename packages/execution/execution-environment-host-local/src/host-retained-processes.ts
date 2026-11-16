@@ -1,9 +1,3 @@
-// The index of the processes one-shot commands left behind and handed over to a retention scope.
-// One index per state directory: the markers under `<stateDirectory>/retained-processes/` are the
-// durable truth a restarted provider reads, the memory holds what this process reserved, handed
-// over or is stopping. Capacity is counted per retention scope, reservations and stopping entries
-// included, and never evicts. Every reading of a unit's members comes from the supervisor; a
-// reading that fails is never an empty unit.
 import { randomUUID } from 'node:crypto'
 import { closeSync, fsyncSync, openSync } from 'node:fs'
 import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
@@ -29,14 +23,12 @@ import {
 } from './host-scope.ts'
 import type { RetainedTail } from './retained-tail.ts'
 
-/** The supervisor readings the index needs; the host provider binds them to `systemctl`. */
 export type RetainedSupervision = Readonly<{
   bootId(): Promise<string | undefined>
   members(input: { unit: string; directory?: string | undefined }): Promise<MembersReading>
   stop(coordinate: ScopeCoordinate): Promise<StopReading>
 }>
 
-/** A fact about a marker file the index could not keep in step with the unit. */
 export type RetainedMarkerFact = Readonly<{
   key: string
   unit: string
@@ -46,47 +38,35 @@ export type RetainedMarkerFact = Readonly<{
 export type RetainedProcessIndexInput = Readonly<{
   stateDirectory: string
   provider: string
-  /** Retained processes one retention scope may hold, reservations and stopping ones included. */
   capacityPerScope: number
-  /** Pause between two readings of the retained units' members. */
   pollMs: number
-  /** The supervisor, when the platform prerequisites hold; otherwise nothing can be read or stopped. */
   supervision(): Promise<RetainedSupervision | undefined>
   diagnose?: ((fact: RetainedMarkerFact) => void) | undefined
 }>
 
-/** A place taken in a retention scope before the handover is committed. */
 export type RetainedReservation = Readonly<{
   key: string
-  /** Gives the place back; nothing was handed over. */
   abort(): void
 }>
 
-/** What the commit records about the handed-over domain. */
 export type HandoverDetails = Readonly<{
   unit: string
   bootId: string
   origin: OriginRef
-  /** The gate's process id, excluded from the member count; absent when the launcher had none. */
   gatePid: number | undefined
-  /** The gate's reading at exit; null when it could not read. */
   members: number | null
   ledger: RetainedProcessLedger
-  /** What the domain wrote after the handover, or `unsupported` when nothing is kept. Default `unsupported`. */
   output?: RetainedTail | 'unsupported'
 }>
 
 export type Handover = Readonly<{ process: RetainedProcessRef; marker: 'written' | 'notWritten' }>
 
-/** A commit whose domain was interrupted meanwhile, with the stop the acquisition may have issued already. */
 export type StoppingHandoverDetails = HandoverDetails &
   Readonly<{
-    /** A stop of the unit already in flight; the index waits for its reading instead of issuing another. */
     issued?: Promise<StopReading> | undefined
   }>
 
 export type RetainedProcessIndex = Readonly<{
-  /** Loads the markers once; false when they cannot be read completely, which is not an empty index. */
   ready(): Promise<boolean>
   /** Takes a place synchronously; `unavailable` before the markers were read. */
   reserve(
@@ -94,66 +74,35 @@ export type RetainedProcessIndex = Readonly<{
     tenant: TenantId,
     key: string,
   ): RetainedReservation | 'capacity' | 'unavailable'
-  /** The commit took effect: writes the marker and holds the domain as running. */
   commit(reservation: RetainedReservation, details: HandoverDetails): Promise<Handover>
-  /**
-   * The commit took effect, but the domain was stopped, released or its scope closed meanwhile:
-   * the retention scope owns it, so the index holds it as stopping (synchronously: it keeps its
-   * place and is listed), stops it or waits for the stop already issued, records the stop on
-   * `details.ledger`, and lets it go once confirmed. The marker is written as for any handover, so
-   * a stop not confirmed before a crash is listed again after it (as running: the marker does not
-   * carry the stop).
-   */
   commitStopping(
     reservation: RetainedReservation,
     details: StoppingHandoverDetails,
   ): Promise<StopStatus>
-  /** The retained processes of `scope` and `tenant`, members read now; `unavailable` when unread. */
   list(
     scope: ScopeRef,
     tenant: TenantId,
   ): Promise<readonly RetainedProcessInformation[] | 'unavailable'>
-  /** The managed resources of `scope` the index holds, after `ready()`. */
   resources(scope: ScopeRef): readonly ManagedResource[]
-  /** Stops the domain of `key`, records the stop on its ledger, removes its marker once confirmed. */
   stop(key: string): Promise<StopStatus>
-  /**
-   * Stops the retained process `ref` names when `scope` and `tenant` hold it, joining a stop in
-   * flight; `ledger` records it. When the index no longer holds it, `ledger.ended` decides: a
-   * confirmed end fact answers `confirmed`, none answers `notFound`, an unread one `unavailable`.
-   */
   stopRef(
     ref: RetainedProcessRef,
     scope: ScopeRef,
     tenant: TenantId,
     ledger: RetainedProcessLedger,
   ): Promise<StopStatus | 'notFound' | 'unavailable'>
-  /**
-   * What the retained process `ref` names wrote after the handover, when `scope` and `tenant` hold
-   * it. `notFound` once it left the index; `unavailable` for one loaded after a restart.
-   */
   output(
     ref: RetainedProcessRef,
     scope: ScopeRef,
     tenant: TenantId,
     from?: RetainedOutputFrom,
   ): Promise<RetainedOutput | 'notFound' | 'unavailable'>
-  /** Stops every retained process of `scope`; `ledger` records those loaded without one. */
   closeScope(scope: ScopeRef, ledger?: RetainedProcessLedger): Promise<readonly ManagedResource[]>
-  /**
-   * Closes `scope` when `signal` aborts. One listener per signal, however many acquisitions share
-   * it; the latest ledger view given for the scope records the stops.
-   */
   watchClosure(signal: AbortSignal, scope: ScopeRef, ledger: RetainedProcessLedger): void
-  /** Stops the retained process a resource names; undefined when the index does not hold it. */
   recover(resource: ManagedResource): Promise<StopStatus | undefined>
-  /** Whether the index holds, or may hold, a process with this key; true while markers are unread. */
   mayHold(key: string): Promise<boolean>
-  /** One reading of every retained unit: settles the empty ones, retries the stopping ones. */
   maintain(): Promise<number>
-  /** A provider generation that reads members by this index; the polling runs while one is joined. */
   join(generation: string): void
-  /** The generation no longer polls; the retained processes stay with their scopes. */
   retire(generation: string): void
 }>
 
@@ -171,13 +120,8 @@ type Entry = {
   state: 'reserved' | 'running' | 'stopping'
   members: number | 'unknown'
   ledger: RetainedProcessLedger | undefined
-  /** The tail; `unsupported` when nothing is kept; `unavailable` for one loaded after a restart. */
   output: RetainedTail | 'unsupported' | 'unavailable'
   stopping: Promise<StopStatus> | undefined
-  /**
-   * The marker on disk: `written` or loaded; `notWritten` when the write failed and the
-   * maintenance writes it again; `none` for a reservation, before the commit.
-   */
   marker: 'written' | 'notWritten' | 'none'
 }
 
@@ -213,7 +157,6 @@ function tenantText(tenant: TenantId): string | undefined {
   return text.ok ? text.value : undefined
 }
 
-/** The members other than the gate; the gate is counted out by its process id. */
 function countOf(pids: readonly number[], gatePid: number | undefined): number {
   return pids.filter(pid => pid !== gatePid).length
 }
@@ -223,7 +166,6 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
   const entries = new Map<string, Entry>()
   const generations = new Set<string>()
   const watched = new WeakSet<AbortSignal>()
-  /** The latest ledger view an acquisition gave for each scope digest. */
   const scopeLedgers = new Map<string, RetainedProcessLedger>()
   let loading: Promise<boolean> | undefined
   let loaded = false
@@ -235,12 +177,9 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
   const diagnose = (fact: RetainedMarkerFact) => {
     try {
       input.diagnose?.(fact)
-    } catch {
-      /* A diagnostic sink never changes the result. */
-    }
+    } catch {}
   }
 
-  /** Writes the marker durably: a temporary file, fsync, rename, fsync of the directory. */
   const writeMarker = async (entry: Entry): Promise<boolean> => {
     const marker: Marker = {
       version: markerVersion,
@@ -277,11 +216,6 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     }
   }
 
-  /**
-   * Writes the marker of a handed-over entry. The marker stays from the commit until the entry left
-   * the index (its stop confirmed and recorded), running or stopping alike; a write that lands after
-   * the entry left is removed again.
-   */
   const persist = async (entry: Entry): Promise<boolean> => {
     entry.marker = 'notWritten'
     if (!(await writeMarker(entry))) return false
@@ -290,7 +224,6 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     return true
   }
 
-  /** Writes again a marker whose write failed, for an entry the index still holds. */
   const rewriteMarker = async (entry: Entry): Promise<void> => {
     if (entry.marker !== 'notWritten' || !entries.has(entry.key)) return
     await persist(entry)
@@ -299,13 +232,10 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
   const discardMarker = async (name: string, key: string, unit: string): Promise<void> => {
     try {
       await rm(join(directory, name), { force: true })
-    } catch {
-      /* The next load discards it again. */
-    }
+    } catch {}
     diagnose({ key, unit, issue: 'discarded' })
   }
 
-  /** Reads one marker file into an entry, or discards it: unreadable, another boot, or a gone unit. */
   const loadMarker = async (
     name: string,
     bootId: string,
@@ -323,7 +253,6 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     } catch {
       parsed = undefined
     }
-    // A file that is not a marker of this version is not a retained process: it is discarded.
     if (!isMarker(parsed) || `${parsed.key}.json` !== name) {
       await discardMarker(name, name, '')
       return 'discarded'
@@ -353,14 +282,12 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
       state: 'running',
       members: reading.kind === 'members' ? countOf(reading.pids, gatePid) : 'unknown',
       ledger: undefined,
-      // The tail lived in the memory of the process that took the handover.
       output: 'unavailable',
       stopping: undefined,
       marker: 'written',
     }
   }
 
-  /** Loads every marker; any one that cannot be read makes the whole load incomplete. */
   const load = async (): Promise<boolean> => {
     let names: string[]
     try {
@@ -403,11 +330,6 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     reference: scopeReference({ unit: entry.unit, bootId: entry.bootId }),
   })
 
-  /**
-   * Records the stop on the entry's ledger, or, for a process loaded after a restart that has none
-   * of its own, on the latest view an acquisition gave for its scope. Without any view the stop is
-   * not recorded (a known deviation of the SPEC).
-   */
   const recordStop = async (entry: Entry, status: StopStatus): Promise<boolean> => {
     const ledger = entry.ledger ?? scopeLedgers.get(entry.scope)
     if (ledger === undefined) return true
@@ -418,7 +340,6 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     }
   }
 
-  /** The stop of one unit, or the wait for the stop `issued` already; one in flight per entry. */
   const stop = (entry: Entry, issued?: Promise<StopReading>): Promise<StopStatus> => {
     entry.state = 'stopping'
     entry.stopping ??= (async () => {
@@ -432,7 +353,6 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
       }
       const recorded = await recordStop(entry, reading.status)
       if (reading.status === 'confirmed' && recorded) {
-        // Out of the index first: a marker write landing from now on removes itself.
         entries.delete(entry.key)
         await removeMarker(entry)
       }
@@ -443,7 +363,6 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     return entry.stopping
   }
 
-  /** Reads one running unit; an empty one is stopped, a gone one settled, an unread one left alone. */
   const observe = async (entry: Entry, supervision: RetainedSupervision): Promise<void> => {
     if (entry.state !== 'running') return
     const reading = await supervision.members({ unit: entry.unit, directory: entry.directory })
@@ -460,7 +379,6 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
   }
 
   const tick = async (): Promise<number> => {
-    // Nothing held: asking for the supervisor would start the platform probe for no reading.
     if (entries.size === 0) return 0
     const supervision = await input.supervision()
     if (supervision === undefined) return entries.size
@@ -484,7 +402,6 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     return ticking
   }
 
-  /** Polls while a generation is joined and there is something to read. */
   const startPolling = () => {
     if (timer !== undefined || generations.size === 0 || entries.size === 0) return
     timer = setInterval(() => void maintain(), input.pollMs)
@@ -501,7 +418,6 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     return [...entries.values()].filter(entry => entry.scope === digest)
   }
 
-  /** The reserved entry of a commit that took effect, filled with what the handover recorded. */
   const committed = (reservation: RetainedReservation, details: HandoverDetails): Entry => {
     const entry = entries.get(reservation.key)
     if (entry === undefined || entry.state !== 'reserved')
@@ -519,7 +435,6 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
     return entry
   }
 
-  /** The handed-over entry `ref` names, when `scope` and `tenant` hold it with the same generation. */
   const held = (
     ref: RetainedProcessRef,
     scope: ScopeRef,
@@ -691,11 +606,8 @@ export function createRetainedProcessIndex(input: RetainedProcessIndexInput): Re
   })
 }
 
-/**
- * Flushes the directory after a marker was renamed into it, so the new name survives a host crash.
- * Windows opens no directory as a file, and NTFS journals the rename itself, so there is nothing to
- * flush there.
- */
+/** Flushes the directory after the rename, so the marker's name survives a host crash. Windows opens
+ *  no directory as a file and NTFS journals the rename, so nothing is flushed there. */
 function syncDirectory(directory: string): void {
   if (process.platform === 'win32') return
   const descriptor = openSync(directory, 'r')

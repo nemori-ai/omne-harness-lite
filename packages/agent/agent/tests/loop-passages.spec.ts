@@ -1,6 +1,3 @@
-// The steps of a passage that asks a person (src/loop/passages.ts), against the constraints the
-// CardRounds model gives the implementation (agent-contract verification, models/CardRounds.tla).
-// Each case names its constraint and the check whose removal turns it red.
 import { describe, expect, it } from 'vitest'
 import {
   ACTION_ADMISSION_DECLARATION,
@@ -94,7 +91,6 @@ const lastOf = (passage: Passage): CardRound => {
   if (passage.progress.kind === 'requested') throw new Error('the passage has no round')
   return passage.progress.rounds.at(-1) as CardRound
 }
-/** One round, presented with cards `a`, `b`, ... in the order of the requests. */
 const presented = (ordinal: number, passage: Passage, ...explanations: string[]): Passage =>
   ok(
     markPresented(
@@ -110,7 +106,6 @@ const outside = (step: string, state: string) => ({ failure: { kind: 'outside', 
 
 describe('a round is saved before its cards exist (constraint 1)', () => {
   it('refuses cards for a passage that saved no round', () => {
-    // Red when markPresented stops requiring a round saved as requested.
     expect(markPresented(fresh, [evidence('card')])).toEqual(outside('markPresented', 'requested'))
   })
 
@@ -134,8 +129,6 @@ describe('a round is saved before its cards exist (constraint 1)', () => {
 
 describe('progress only moves forward (constraints 2 and 12)', () => {
   it('opens no second round while the saved round waits for its cards or its answers', () => {
-    // Red when openRound accepts a passage whose last round is requested or presented: an
-    // unknown present would then be answered with a new round.
     const round = cardRound(id, 2)
     const ask = concluded({ kind: 'ask', card: draft('Again?') })
     expect(openRound(asking(1, fresh, 'Run rm?'), round, ask, requestsOf(2, 'Again?'))).toEqual(
@@ -152,7 +145,6 @@ describe('progress only moves forward (constraints 2 and 12)', () => {
       outside('markPresented', 'asked/presented'),
     )
     const replied = ok(recordReply(passage, evidence('card-1-0'), chosen('a')))
-    // Red when recordReply overwrites a saved reply.
     expect(
       recordReply(replied, evidence('card-1-0'), { kind: 'declined', evidence: evidence('late') }),
     ).toEqual(outside('recordReply', 'asked/presented'))
@@ -172,7 +164,6 @@ describe('progress only moves forward (constraints 2 and 12)', () => {
 
 describe('a round is answered when every card has the answer of a person (constraints 5 and 9)', () => {
   it('waits for the second card after the first is answered', () => {
-    // Red when one answered card makes the round answered.
     const first = ok(
       recordReply(presented(1, fresh, 'Run rm?', 'Run curl?'), evidence('card-1-0'), chosen('a')),
     )
@@ -193,7 +184,6 @@ describe('a round is answered when every card has the answer of a person (constr
   })
 
   it('saves an invalidated card as invalidated and gets no answer from it', () => {
-    // Red when an invalidated card counts as the answer of a person.
     const passage = ok(
       recordReply(presented(1, fresh, 'Run rm?'), evidence('card-1-0'), {
         kind: 'invalidated',
@@ -215,19 +205,16 @@ describe('the saved progress decides whether the judge is called again (constrai
     expect(needOf(fresh)).toBe('judge')
     expect(needOf(asking(1, fresh, 'Run rm?'))).toBe('present')
     expect(needOf(presented(1, fresh, 'Run rm?'))).toBe('read')
-    // Red when an answered round is treated as still waiting for a person (no resume).
     expect(needOf(answered(1, fresh))).toBe('judge')
   })
 
   it('does not hand back a round twice', () => {
     const allow = concluded({ kind: 'observed' })
     const resolved = ok(resolve(answered(1, fresh), allow, evidence('allow')))
-    // Red when resolve accepts a resolved passage (a second hand-back).
     expect(needOf(resolved)).toBe('settled')
     expect(resolve(resolved, allow, evidence('allow'))).toEqual(
       outside('resolve', 'resolved/processed'),
     )
-    // After the judge asked again the earlier round keeps its answers and is not handed back.
     const again = asking(2, answered(1, fresh), 'And curl?')
     expect(needOf(again)).toBe('present')
     expect(answeredRound(again)).toBeNull()
@@ -304,7 +291,6 @@ describe('cards that were refused for certain end the passage', () => {
 
 describe('the batch barrier before cards are presented (constraint 4)', () => {
   it('holds the cards while a chain still needs its judge', () => {
-    // Red when a chain whose last round is answered and not handed back counts as ready.
     expect(mayPresent(['present', needOf(answered(1, fresh))])).toBe(false)
     expect(mayPresent(['present', needOf(null)])).toBe(false)
     expect(mayPresent(['present', 'read', 'settled'])).toBe(true)

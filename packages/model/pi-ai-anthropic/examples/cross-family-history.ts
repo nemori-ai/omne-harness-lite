@@ -1,25 +1,4 @@
 import { openTokenizerExecutor } from './support.ts'
-// One history across two families: OpenAI, Anthropic, OpenAI, Anthropic, four rounds through
-// OpenRouter with the real shared transport. OpenAI runs at effort `high` and Anthropic at effort
-// `low`; at these efforts both models usually return a reasoning state for a question that needs a
-// little reasoning, but the upstream decides.
-//
-// Before each round the example prints the replay projection of the request: which assistant
-// messages carry their reasoning state and which leave it out, with the diagnostics. A state that
-// another family produced cannot continue and is left out; a state of this model goes back. After
-// each round the example prints whether the reply carried a reasoning state, folds the facts into
-// the assistant message with `assembleStream`, with the replay scope of the profile (`produces`)
-// and the replay format of the record, and appends it to the history. An independent execution
-// leaves this to its caller.
-//
-// Expected: a later round carries each earlier reply of its own family that has a state, and leaves
-// out each earlier reply of the other family that has a state. When every reply has a state, round
-// 2 leaves out round 1; round 3 carries round 1 and leaves out round 2; round 4 carries round 2 and
-// leaves out rounds 1 and 3.
-//
-// Run from the package directory after building:
-// node --experimental-strip-types examples/cross-family-history.ts
-// HTTPS_PROXY must point to the proxy that adds the OpenRouter credential.
 import { type ModelProfile, type Parameter } from '@omne-harness/model-contract'
 import { projectReplay } from '@omne-harness/model-contract/provider'
 import {
@@ -45,7 +24,6 @@ import {
   RETRY_POLICY,
 } from './support.ts'
 
-/** Two reasoning models, one of each family. */
 const OPENAI_MODEL = 'openai/gpt-5.6-luna'
 const ANTHROPIC_MODEL = 'anthropic/claude-opus-5.5'
 
@@ -87,7 +65,6 @@ try {
     anthropic: profileOf(officialAnthropicProfiles(official), ANTHROPIC_MODEL),
   }
 
-  /** The parameters of a round: a family effort and a bounded output. */
   function parametersAt(effort: 'low' | 'high'): readonly Parameter[] {
     return [
       { kind: 'reasoning-effort', value: effort },
@@ -97,7 +74,6 @@ try {
   const OPENAI_PARAMETERS = parametersAt('high')
   const ANTHROPIC_PARAMETERS = parametersAt('low')
 
-  /** Each question needs a little reasoning, so that the reply is likely to carry a state. */
   const ROUNDS: readonly Readonly<{
     profile: ModelProfile
     parameters: readonly Parameter[]
@@ -128,9 +104,7 @@ try {
     },
   ]
 
-  /** The history as plain JSON values; the contract judges it again in every round. */
   const history: unknown[] = []
-  /** The round that produced each assistant message, by message id. */
   const producedIn = new Map<string, number>()
 
   const open = openTransport(families)
@@ -183,7 +157,6 @@ try {
 
       const result = await executeOnce(open, request)
       if (!result.completed) break
-      // The live test derives the expected replay summaries of the later rounds from these lines.
       console.log(`reply state: round ${number} ${result.states > 0 ? 'yes' : 'no'}`)
       const id = `msg_example-assistant-round-${number}`
       const reply = assembleReply(id, result.facts, {

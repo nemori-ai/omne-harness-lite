@@ -1,5 +1,4 @@
 // @module-tag slow
-// An isolated installed package copy exercises an unavailable compiled worker entry in a real process.
 import { execFile } from 'node:child_process'
 import { cp, mkdir, mkdtemp, realpath, rm, symlink } from 'node:fs/promises'
 import { join } from 'node:path'

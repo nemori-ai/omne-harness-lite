@@ -1,5 +1,3 @@
-// A minimal registry used only to exercise the trust suite: one reference that honours the
-// registration rules, and named defects that each break exactly one rule.
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import {
   createAssemblyOperations,
@@ -95,14 +93,12 @@ export function createReferenceRegistry(
       owner: asked,
       action,
     })
-    // A registry that keeps the decision of the registration and ignores a later revocation.
     if (defect === 'stale-decision' && action === 'replace' && decision.kind === 'denied') {
       const kept = decisions.get(key)
       if (kept !== undefined) return kept
     }
     if (decision.kind === 'allowed') decisions.set(key, decision)
     if (defect === 'unknown-as-allowed' && decision.kind === 'unknown') return { kind: 'allowed' }
-    // A registry that falls back to the eligibility inside the source set when the authority cannot answer.
     if (defect === 'self-grant' && action === 'register' && decision.kind === 'unavailable') {
       const eligible = await sources.eligibility.check({ access, target, operation: 'assembly' })
       if (eligible.kind === 'allowed') return { kind: 'allowed' }

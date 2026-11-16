@@ -1,8 +1,3 @@
-// The contract suite of the identity operations (SPEC ID-17). It runs each case on a fresh provider
-// that the fixture makes over the suite's own clock, terms and record store faults, and reports
-// every case by name. It
-// needs no test framework, so a durable provider can run the same cases in its own tests. Messages
-// never quote a proof or a credential.
 import {
   accountCodec,
   loginStateCodec,
@@ -38,33 +33,18 @@ import {
 } from './controls.ts'
 import { addDuration, isPositive, justBefore, spansLeapSecond } from './time.ts'
 
-/** What the suite gives `create`: its clock, its terms and its record store fault switch. */
 export type IdentityContractProviderOptions = IdentityOperationsOptions &
   Readonly<{ faults: RecordStoreFaults }>
 
-/**
- * How the suite gets providers. Every call of `create` must give a new, empty provider that stands
- * for a separate deployment: one case presents a proof of another call's provider as foreign.
- */
 export interface IdentityContractFixture {
   create(options: IdentityContractProviderOptions): IdentityOperations | Promise<IdentityOperations>
-  /**
-   * True when the provider consults `faults` before it queries its account store and its login
-   * store, so that a store the suite switches off does not answer. Without it the cases that need a
-   * silent store are not applicable.
-   */
   injectsRecordFaults?: boolean
-  /**
-   * Optional: leaves a registration with this identifier and credential that is not activated. A
-   * provider that activates on registration has none, and the case that needs it is not applicable.
-   */
   registerWithoutActivation?(
     operations: IdentityOperations,
     input: LoginCredentialInput,
   ): Promise<void>
 }
 
-/** The time the suite starts at and two lifetimes. `short` must be shorter than `long`. */
 export type IdentityContractOptions = Readonly<{ start: Instant; short: Duration; long: Duration }>
 
 export type IdentityContractCaseResult = Readonly<{
@@ -75,7 +55,6 @@ export type IdentityContractCaseResult = Readonly<{
 }>
 
 export type IdentityContractReport = Readonly<{
-  /** True when no case failed. */
   passed: boolean
   cases: readonly IdentityContractCaseResult[]
 }>
@@ -87,9 +66,7 @@ type Context = Readonly<{
   terms: AdjustableLoginTerms
   faults: RecordStoreFaultControl
   operations: IdentityOperations
-  /** Another provider over the same clock and terms. */
   another(): Promise<IdentityOperations>
-  /** `start` plus the duration. */
   at(duration: Duration): Instant
 }>
 
@@ -139,7 +116,6 @@ async function recognizedAs(
   check(loginStateEquals(outcome.login, login.login), `recognition named another login ${when}`)
 }
 
-/** A diagnostic is internal, and still never quotes an identifier, a credential or a proof. */
 function checkDiagnostic(outcome: object, secrets: readonly string[], what: string): void {
   if (!('diagnostic' in outcome)) return
   const diagnostic = outcome.diagnostic
@@ -148,7 +124,6 @@ function checkDiagnostic(outcome: object, secrets: readonly string[], what: stri
     check(secret === '' || !diagnostic.includes(secret), `${what}: the diagnostic quotes a secret`)
 }
 
-/** A backward reading after the given verdict is not adopted, so it cannot revive the login. */
 async function backwardIsUnavailable(
   operations: IdentityOperations,
   clock: ManualIdentityClock,
@@ -176,7 +151,6 @@ function terms(maxLifetime: Duration, idlePeriod: Duration): LoginTerms {
   return { maxLifetime, idlePeriod }
 }
 
-/** A zero or negative lifetime: the illegal terms that a provider must refuse to issue under. */
 function illegal(text: string): Duration {
   const parsed = parseDuration(text)
   if (!parsed.ok) throw new RangeError('an illegal suite lifetime did not parse')
@@ -580,7 +554,6 @@ const CASES: readonly ContractCase[] = [
   },
 ]
 
-/** The case names and rules, in run order. */
 export const IDENTITY_CONTRACT_CASES: readonly Readonly<{ id: string; rule: string }>[] =
   Object.freeze(CASES.map(({ id, rule }) => Object.freeze({ id, rule })))
 
@@ -591,17 +564,11 @@ function checkOptions(options: IdentityContractOptions): void {
   const long = addDuration(options.start, options.long)
   if (short === undefined || long === undefined || compareInstants(short, long) >= 0)
     throw new RangeError('the short lifetime must be shorter than the long one')
-  // The cases look a little before the start, and the double's days have 86400 seconds.
   const earliest = justBefore(options.start)
   if (earliest === undefined || spansLeapSecond(earliest, long))
     throw new RangeError('the suite window must not span a leap second')
 }
 
-/**
- * Runs every case on a fresh provider. Each case gets a clock at `options.start` and terms with
- * `long` as the maximum lifetime and `short` as the idle period, unless the case sets its own.
- * Throws RangeError for unusable options; a provider failure is a failed case, not a throw.
- */
 export async function checkIdentityOperationsContract(
   fixture: IdentityContractFixture,
   options: IdentityContractOptions,

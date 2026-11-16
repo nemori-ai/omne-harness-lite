@@ -107,7 +107,6 @@ export async function settlementFixture(
     offloading?: ToolConfiguration['offloading']
     resultPageBytes?: number
     readResultArguments?: JsonLimits
-    /** The participant clock of issuer, settler and reader; the memory body store reads it too. */
     bodyClock?: ToolInstantClock
     process?: readonly ProcessBlock[]
     attachments?: Attachment[]
@@ -266,7 +265,6 @@ export async function settlementFixture(
   }
   return {
     harness,
-    /** The plan of the final: the refusal a test asserts when planning itself is refused. */
     planned,
     bodies,
     lateClockSamples,
@@ -277,7 +275,6 @@ export async function settlementFixture(
     get ledger() {
       return ledger
     },
-    /** A ledger over the same records under another configuration, as after a restart. */
     rebuild: (
       offloading: ToolConfiguration['offloading'],
       readResultArguments?: JsonLimits,

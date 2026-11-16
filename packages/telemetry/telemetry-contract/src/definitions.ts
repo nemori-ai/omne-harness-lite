@@ -1,10 +1,5 @@
 import { TELEMETRY_LIMITS, dataMembers, isToken } from './limits.ts'
 
-/**
- * The rule of one field. There is no free-text rule: a string is an enum value or an opaque
- * reference with a restricted character set. `optional: true` lets the field be absent; a present
- * field is checked as usual. The marker is `true` or absent, never `false`.
- */
 export type FieldRule =
   | Readonly<{ kind: 'enum'; values: readonly [string, ...string[]]; optional?: true }>
   | Readonly<{ kind: 'boolean'; optional?: true }>
@@ -12,7 +7,6 @@ export type FieldRule =
   | Readonly<{ kind: 'ref'; owner: string; maxBytes: number; optional?: true }>
 export type FieldSchema = Readonly<Record<string, FieldRule>>
 
-/** The rule of one metric label: bounded cardinality only. */
 export type LabelRule = Extract<FieldRule, { kind: 'enum' | 'boolean' }>
 export type LabelSchema = Readonly<Record<string, LabelRule>>
 
@@ -30,13 +24,8 @@ type OptionalKeys<S extends FieldSchema> = {
   [K in keyof S]: S[K] extends { optional: true } ? K : never
 }[keyof S]
 
-/** One object type with the modifiers of the intersection, so that a value type reads as one shape. */
 type Flat<T> = { [K in keyof T]: T[K] }
 
-/**
- * The field values that a schema declares: every declared key, and no other key. A key whose rule
- * says `optional: true` may be omitted.
- */
 export type Fields<S extends FieldSchema> = Flat<
   { readonly [K in Exclude<keyof S, OptionalKeys<S>>]: FieldValue<S[K]> } & {
     readonly [K in OptionalKeys<S>]?: FieldValue<S[K]>
@@ -213,10 +202,6 @@ function aggregation(value: unknown): MetricDefinition<LabelSchema>['aggregation
   return Object.freeze({ kind, boundaries: histogramBoundaries(read.get('boundaries')) })
 }
 
-/**
- * Declares one event. The definition is a frozen copy of the input. Throws TypeError for an
- * invalid definition. Nothing is registered: two calls with the same name make two definitions.
- */
 export function defineEvent<const S extends FieldSchema>(
   input: Readonly<{
     owner: string
@@ -233,15 +218,10 @@ export function defineEvent<const S extends FieldSchema>(
     signal: 'event',
     ...head(read),
     level,
-    // The copy holds the same rules as the validated input, so it has the input's schema type.
     schema: copySchema(read.get('schema'), FIELD_KINDS) as S,
   })
 }
 
-/**
- * Declares one metric. Labels are enum or boolean only. Throws TypeError for an invalid
- * definition.
- */
 export function defineMetric<const S extends LabelSchema>(
   input: Readonly<{
     owner: string
@@ -260,12 +240,10 @@ export function defineMetric<const S extends LabelSchema>(
     ...head(read),
     unit,
     aggregation: aggregation(read.get('aggregation')),
-    // The copy holds the same rules as the validated input, so it has the input's schema type.
     schema: copySchema(read.get('schema'), LABEL_KINDS) as S,
   })
 }
 
-/** Declares one segment. Throws TypeError for an invalid definition. */
 export function defineSegment(
   input: Readonly<{ owner: string; name: string; version: number }>,
 ): SegmentDefinition {

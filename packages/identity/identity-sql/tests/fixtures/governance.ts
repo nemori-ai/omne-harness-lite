@@ -1,9 +1,3 @@
-// The governance contract fixture over the real SQLite provider. Every `create` is a new deployment
-// on a new storage root, with both ports of one provider instance over it and the suite's faults on
-// the storage boundary. `restart` stops the instance, closes the storage, opens the same files
-// again and builds a new instance: the records stay, the latest adopted clock reading does not.
-// The suite runs one case at a time, so `create` closes the deployments of the earlier cases.
-// `build` is the package under test: the real one, or a mutant of it (`mutants.ts`).
 import type {
   IdentityGovernanceContractFixture,
   IdentityGovernanceContractProviderOptions,
@@ -16,7 +10,6 @@ import { withRecordFaults } from './faults.ts'
 import { openTestScrypt, type OpenedScrypt } from './scrypt.ts'
 import { openSqliteStorage, type OpenedStorage } from './storage.ts'
 
-/** What the fixture needs from a build of this package. */
 export type IdentitySqlBuild = Pick<
   typeof real,
   'createIdentitySql' | 'identitySqlMaterials' | 'identitySqlRegistration'
@@ -33,7 +26,6 @@ type Deployment = Readonly<{
 
 export type GovernanceFixture = Readonly<{
   fixture: IdentityGovernanceContractFixture
-  /** Closes every deployment that is still open and removes its root. */
   close(): Promise<void>
 }>
 
@@ -57,7 +49,6 @@ export function governanceFixture(build: IdentitySqlBuild = REAL_BUILD): Governa
       clock: options.clock,
       terms: options.terms,
       invitationTerms: options.invitationTerms,
-      // Shorter than half of the suite's shortest idle period, so every report of the suite commits.
       accessRefreshGranularity: REFRESH,
       scrypt: scrypt.module,
       decoyMaterial: scrypt.decoyMaterial,
@@ -77,7 +68,6 @@ export function governanceFixture(build: IdentitySqlBuild = REAL_BUILD): Governa
   }
 
   const closeAll = async (): Promise<void> => {
-    // Deleting the entry being visited is safe in a Map iteration.
     for (const [providers, deployment] of live) {
       live.delete(providers)
       await shut(deployment, true)

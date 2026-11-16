@@ -3,9 +3,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { writeSessionOwners } from '@omne-harness/cli'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { commandMissing, commandUnrecognized, resultUncertain } from './support/expected.ts'
+import { commandMissing, commandUnrecognized } from './support/expected.ts'
 import {
   closedPort,
+  defaultAnswer,
   issuedProof,
   otherTenantText,
   sessionId,
@@ -32,8 +33,6 @@ afterEach(async () => {
   rmSync(root, { recursive: true, force: true })
 })
 
-// Fixtures in the wire shape of the public contract's `SessionDiagnosticsPage`. The SDK hands a
-// page over only after the contract read it, so every field a rule requires is present.
 const adapter = {
   owner: '@omne-harness/model',
   name: 'openai-compatible',
@@ -85,7 +84,6 @@ const run = (fields: Record<string, unknown>) => ({
   ...fields,
 })
 
-/** A Run that Model refused to accept: the smoke case the RFC starts from. */
 const refused = run({
   terminal: {
     outcome: 'failed',
@@ -97,7 +95,6 @@ const refused = run({
   modelCalls: [modelCall({})],
 })
 
-/** A Run whose upstream answered 504 in the stream: the other smoke case. */
 const noReply = run({
   run: 'run-2',
   execution: 'exec-2',
@@ -185,17 +182,13 @@ const page = (
   gaps: pageGaps,
 })
 
-/**
- * A service that serves `pages` for `read-session-diagnostics`. It answers like the public
- * contract: a first page request has `run` and `pageBytes`, and a request with a cursor has neither.
- */
 function diagnosticsService(
   pages: readonly PageBody[],
   extra?: (seen: Seen) => Answer | undefined,
 ) {
   return (seen: Seen): Answer => {
-    const body = (seen.wire['body'] ?? {}) as Record<string, unknown>
-    if (seen.wire['operation'] !== name) return defaultFor(seen)
+    const { body } = seen
+    if (seen.operation !== name) return defaultAnswer(seen)
     const given = extra?.(seen)
     if (given !== undefined) return given
     const cursor = body['cursor']
@@ -210,19 +203,6 @@ function diagnosticsService(
   }
 }
 
-function defaultFor(seen: Seen): Answer {
-  const body = (seen.wire['body'] ?? {}) as Record<string, unknown>
-  return {
-    outcome: 'succeeded',
-    body: {
-      loginIdentifier: body['loginIdentifier'],
-      issuedAt: '2026-11-01T12:00:00Z',
-      tenantId: tenantText,
-      loginProof: issuedProof,
-    },
-  }
-}
-
 async function serve(answer: (seen: Seen) => Answer): Promise<FakeService> {
   const service = await startFakeService(answer)
   services.push(service)
@@ -234,12 +214,13 @@ function cli(argv: readonly string[], options: InProcessOptions = {}) {
 }
 
 async function loginOwningSession(service: FakeService) {
-  await cli(['login', '--login-identifier', 'alice', '--server', service.origin])
+  const login = await cli(['login', '--login-identifier', 'alice', '--server', service.origin])
+  expect(login.code).toBe(0)
   expect(writeSessionOwners(state, new Map([[sessionId, tenantText]])).kind).toBe('written')
 }
 
-const reads = (service: FakeService) => service.seen.filter(item => item.wire['operation'] === name)
-const bodyOf = (seen: Seen | undefined) => (seen?.wire['body'] ?? {}) as Record<string, unknown>
+const reads = (service: FakeService) => service.seen.filter(item => item.operation === name)
+const bodyOf = (seen: Seen | undefined) => (seen?.body ?? {}) as Record<string, unknown>
 
 describe('read-session-diagnostics', () => {
   describe('paging', () => {
@@ -273,7 +254,7 @@ describe('read-session-diagnostics', () => {
       })
       expect(second).toEqual({ tenant: tenantText, session: sessionId, cursor: 'cursor-1' })
       expect(third).toEqual({ tenant: tenantText, session: sessionId, cursor: 'cursor-2' })
-      expect(new Set(reads(service).map(item => item.wire['messageId'])).size).toBe(3)
+      expect(new Set(reads(service).map(item => item.messageId)).size).toBe(3)
     })
 
     it('sends --run as the run filter of the first request, and the default page size', async () => {
@@ -625,15 +606,16 @@ describe('read-session-diagnostics', () => {
   })
 
   describe('request', () => {
-    it('sends to the session location with the proof and the owner tenant, not the selected one', async () => {
+    it('sends to the session diagnostics protocol with the proof in the header and the owner tenant, not the selected one', async () => {
       const service = await serve(diagnosticsService([page([], null)]))
       await cli(['login', '--login-identifier', 'alice', '--server', service.origin])
       writeSessionOwners(state, new Map([[sessionId, otherTenantText]]))
       const result = await cli([name, '--session', sessionId, '--json'])
       expect(result.code).toBe(0)
       const [sent] = reads(service)
-      expect(sent?.path).toBe('/session-public/1')
-      expect(sent?.wire).toMatchObject({ loginProof: issuedProof })
+      expect(sent?.path).toBe('/api/session-diagnostics/v1/read-session-diagnostics')
+      expect(sent?.headers['authorization']).toBe(`Bearer ${issuedProof}`)
+      expect(sent?.headers['omne-acting-tenant']).toBeUndefined()
       expect(bodyOf(sent)['tenant']).toBe(otherTenantText)
       expect(JSON.parse(result.stdout).request.tenant).toBe(otherTenantText)
     })
@@ -747,7 +729,7 @@ describe('read-session-diagnostics', () => {
       )
     })
 
-    it('exits 5 when the service is not running', async () => {
+    it('exits 4 when the service is not running, as nothing was sent', async () => {
       const service = await serve(diagnosticsService([page([], null)]))
       await loginOwningSession(service)
       const port = await closedPort()
@@ -759,10 +741,12 @@ describe('read-session-diagnostics', () => {
         '--server',
         `http://127.0.0.1:${port}`,
       ])
-      expect(result.code).toBe(5)
-      expect(result.stderr).toContain(resultUncertain(name))
+      expect(result.code).toBe(4)
+      expect(result.stderr).toBe(
+        `omne ${name}: incomplete after 0 runs: page 1 was not sent: the service is unavailable\n`,
+      )
       expect(JSON.parse(result.stdout)).toMatchObject({
-        result: 'uncertain',
+        result: 'unavailable',
         body: { runs: [], gaps: [], complete: false },
       })
     })

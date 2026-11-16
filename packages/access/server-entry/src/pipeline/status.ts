@@ -1,6 +1,3 @@
-// The status code of each outcome (binding page「状态码映射」), the only copy in the repository. The
-// key is the shared contract's closed `Outcome`, so a missing row fails the type check. The three
-// existing locations read it through `../status.ts`; the new address reads it here.
 import type { Outcome } from '@omne-harness/public-contract'
 
 export const STATUS_BY_OUTCOME: Readonly<Record<Outcome, number>> = Object.freeze({

@@ -1,4 +1,3 @@
-// The conformance suite of `AdoptionView`, and an in-memory double that passes it.
 import assert from 'node:assert/strict'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Access, TenantId } from '@omne-harness/legal-identity'
@@ -10,18 +9,12 @@ import type { EndpointRef, EndpointSettings } from './values.ts'
 export type AdoptionViewFixture<P, S> = Readonly<{
   port: AdoptionView<P, S>
   scope: S
-  /** A principal of the tenant that adopted `adopted` in `scope`. */
   reader: Access<P>
   adopted: EndpointRef
-  /** An endpoint that exists for the reader's tenant but is not adopted. */
   notAdopted: EndpointRef
-  /** An endpoint adopted for the reader in another scope. */
   elsewhere?: EndpointRef
-  /** A principal of another tenant, and an endpoint that exists nowhere. */
   outsider: Readonly<{ access: Access<P>; missing: EndpointRef }>
-  /** Changes one setting value of `adopted`. */
   change?: () => Promise<void>
-  /** Makes the port unable to read the adoption. */
   unreadable?: () => Promise<void>
 }>
 
@@ -124,10 +117,6 @@ const NO_SETTINGS: EndpointSettings = { target: ABSENT, credential: ABSENT, conn
 
 type Stored<S> = Readonly<{ tenant: string; scope: string; endpoint: AdoptedEndpoint; source: S }>
 
-/**
- * Adoptions by tenant. Every adoption and every update gets a new revision. A principal sees
- * only the adoptions of its own tenant. It keeps nothing durable.
- */
 export function createMemoryAdoptionView<P, S>(
   options: Readonly<{ scopeKey: (scope: S) => string }>,
 ): MemoryAdoptionView<P, S> {

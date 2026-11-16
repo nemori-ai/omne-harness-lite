@@ -1,5 +1,3 @@
-// The revisioned rules behind the four hooks: the whole signed group, usage arithmetic, the tool
-// schema subset and the cross-field check.
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { GatewayUsage, ReasoningDetail } from '@omne-harness/pi-ai-transport/chat-completions'
@@ -15,7 +13,6 @@ function str(value: string): JsonValue {
   return { kind: 'string', value }
 }
 
-/** A joined detail; string members are strings, `index` a number, `null` the JSON null. */
 function detail(members: Readonly<Record<string, string | number | null>>): ReasoningDetail {
   const raw = Object.fromEntries(
     Object.entries(members).map(([key, value]): [string, JsonValue] => [
@@ -62,7 +59,6 @@ describe('anthropic-signed-group/1', () => {
     })
   })
 
-  // Sealed anthropic-replay.ts:157-196: one item that Anthropic cannot take back spoils the group.
   it.each([
     ['unsigned text', { ...SIGNED, signature: null }],
     ['an empty signature', { ...SIGNED, signature: '' }],
@@ -161,7 +157,6 @@ const item = (name: string, lexeme: string | null) =>
     ? { name, state: 'unknown', unit: 'token' }
     : { name, state: 'known', lexeme, unit: 'token' }
 
-// Sealed accounts.ts:17-36.
 describe('anthropic-usage/1', () => {
   const anthropic = USAGE_RULES['anthropic-usage/1']()
 

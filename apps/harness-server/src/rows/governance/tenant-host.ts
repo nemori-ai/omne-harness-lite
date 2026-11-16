@@ -1,26 +1,46 @@
 import type { DomainRef, TenantDomainLookup } from '@omne-harness/sql-contract'
 import type { StandingDestinationResolver } from '@omne-harness/identity'
 import { tenantCodec } from '@omne-harness/legal-identity'
+import { pauseAfterFailures } from '../../retry-pause.ts'
 import { monotonicClock } from '../../shutdown.ts'
 import type { StopResult } from '../../types.ts'
-import type { TenantGovernanceAssembly } from './tenant-runtime.ts'
+import type { TenantDomainRegistration } from './tenant-domain-registration-service.ts'
+import type { TenantGovernanceAssembly, TenantSettingsAccess } from './tenant-runtime.ts'
 
 type Opened = Awaited<ReturnType<TenantGovernanceAssembly['open']>>
 type Runtime = Extract<Opened, { kind: 'created' }>
+
+export type TenantGovernanceOpenFailure = Readonly<{
+  tenantRef: string
+  phase: string
+  reason: string
+  failures: number
+  againInMs: number
+}>
+
 type Options = Readonly<{
   domains: TenantDomainLookup
+  registration?(): TenantDomainRegistration | undefined
   prepare(tenantRef: string, domain: DomainRef): TenantGovernanceAssembly
+  retryPauseMs?(failures: number): number
+  now?(): number
+  report?(failure: TenantGovernanceOpenFailure): void
 }>
+
 type Entry = {
   domain: DomainRef
   assembly: TenantGovernanceAssembly
-  opening?: Promise<Opened>
+  opening?: Promise<Opened | undefined>
+  spent?: { retryAt: number }
 }
 const unavailable = () => ({ kind: 'unavailable' as const, diagnostic: 'tenant-governance-route' })
 
 export class TenantGovernanceHost {
   private readonly options: Options
   private readonly entries = new Map<string, Promise<Entry | undefined>>()
+  private readonly failures = new Map<string, number>()
+  private readonly preparePauses = new Map<string, number>()
+  private readonly renewals = new WeakMap<Entry, Promise<Entry | undefined>>()
   private closing = false
   private stopping: Promise<StopResult> | undefined
   readonly destination: StandingDestinationResolver
@@ -35,39 +55,142 @@ export class TenantGovernanceHost {
     }
   }
 
+  private now(): number {
+    return this.options.now?.() ?? monotonicClock.now()
+  }
+
   private async prepare(tenantRef: string): Promise<Entry | undefined> {
     if (!tenantCodec.parse(tenantRef).ok) return undefined
-    const result = await this.options.domains.lookup({ tenant: tenantRef })
-    if (result.kind !== 'ready') return undefined
+    const pause = this.preparePauses.get(tenantRef)
+    if (pause !== undefined) {
+      if (this.now() < pause) return undefined
+      this.preparePauses.delete(tenantRef)
+    }
+    let result: Awaited<ReturnType<TenantDomainLookup['lookup']>>
+    try {
+      result = await this.options.domains.lookup({ tenant: tenantRef })
+    } catch {
+      return this.failPrepare(tenantRef, 'lookup', 'threw')
+    }
+    if (result.kind === 'unregistered') return undefined
+    if (result.kind !== 'ready') return this.failPrepare(tenantRef, 'lookup', result.diagnostic)
     const domain = result.domain
     if (domain.scope.kind !== 'tenant' || domain.scope.tenant !== tenantRef) return undefined
-    return { domain: structuredClone(domain), assembly: this.options.prepare(tenantRef, domain) }
+    try {
+      return { domain: structuredClone(domain), assembly: this.options.prepare(tenantRef, domain) }
+    } catch {
+      return this.failPrepare(tenantRef, 'prepare', 'threw')
+    }
+  }
+
+  private failPrepare(tenantRef: string, phase: 'lookup' | 'prepare', reason: string): undefined {
+    const againInMs = this.countFailure(tenantRef, phase, reason)
+    this.preparePauses.set(tenantRef, this.now() + againInMs)
+    return undefined
+  }
+
+  private keep(tenantRef: string, pending: Promise<Entry | undefined>): Promise<Entry | undefined> {
+    const kept = pending
+      .catch(() => undefined)
+      .then(entry => {
+        if (entry === undefined && this.entries.get(tenantRef) === kept)
+          this.entries.delete(tenantRef)
+        return entry
+      })
+    this.entries.set(tenantRef, kept)
+    return kept
   }
 
   private entry(tenantRef: string): Promise<Entry | undefined> {
-    const existing = this.entries.get(tenantRef)
-    if (existing) return existing
-    const pending = Promise.resolve()
-      .then(() => this.prepare(tenantRef))
-      .catch(() => undefined)
-      .then(entry => {
-        if (entry === undefined) this.entries.delete(tenantRef)
-        return entry
-      })
-    this.entries.set(tenantRef, pending)
-    return pending
+    return (
+      this.entries.get(tenantRef) ??
+      this.keep(
+        tenantRef,
+        Promise.resolve().then(() => this.prepare(tenantRef)),
+      )
+    )
+  }
+
+  private fail(tenantRef: string, entry: Entry, phase: string, reason: string): void {
+    entry.spent = { retryAt: this.now() + this.countFailure(tenantRef, phase, reason) }
+  }
+
+  private countFailure(tenantRef: string, phase: string, reason: string): number {
+    const failures = (this.failures.get(tenantRef) ?? 0) + 1
+    this.failures.set(tenantRef, failures)
+    const againInMs = Math.max(0, (this.options.retryPauseMs ?? pauseAfterFailures)(failures))
+    this.options.report?.({ tenantRef, phase, reason, failures, againInMs })
+    return againInMs
+  }
+
+  private open(tenantRef: string, entry: Entry): Promise<Opened | undefined> {
+    return Promise.resolve()
+      .then(() => entry.assembly.open())
+      .then(
+        result => {
+          if (result.kind === 'created') this.failures.delete(tenantRef)
+          else this.fail(tenantRef, entry, result.phase, result.reason)
+          return result
+        },
+        () => {
+          this.fail(tenantRef, entry, 'threw', 'open threw')
+          return undefined
+        },
+      )
+  }
+
+  private renew(tenantRef: string, spent: Entry): Promise<Entry | undefined> {
+    const known = this.renewals.get(spent)
+    if (known !== undefined) return known
+    const renewal = this.keep(
+      tenantRef,
+      (async () => {
+        const held = await spent.opening
+        const closed = held !== undefined && 'close' in held ? await held.close() : undefined
+        if (closed !== undefined && closed.kind !== 'closed') {
+          this.renewals.delete(spent)
+          this.fail(tenantRef, spent, 'close', `close answered ${closed.kind}`)
+          return spent
+        }
+        return this.prepare(tenantRef)
+      })(),
+    )
+    this.renewals.set(spent, renewal)
+    return renewal
   }
 
   async runtime(tenantRef: string): Promise<Runtime | undefined> {
     if (this.closing) return undefined
-    const entry = await this.entry(tenantRef)
+    let entry = await this.entry(tenantRef)
+    if (entry?.spent !== undefined) {
+      if (this.now() < entry.spent.retryAt) return undefined
+      entry = await this.renew(tenantRef, entry)
+      if (entry?.spent !== undefined) return undefined
+    }
     if (!entry || this.closing) return undefined
-    entry.opening ??= Promise.resolve().then(() => entry.assembly.open())
+    entry.opening ??= this.open(tenantRef, entry)
     const result = await entry.opening
-    if (result.kind !== 'created') return undefined
+    if (result?.kind !== 'created') return undefined
     if (!this.closing) return result
     await result.close()
     return undefined
+  }
+
+  private async registered(tenantRef: string): Promise<boolean> {
+    if (this.closing || !tenantCodec.parse(tenantRef).ok) return false
+    const registration = this.options.registration?.()
+    if (registration === undefined) return true
+    try {
+      return (await registration.ensure({ tenant: tenantRef })).kind === 'ready'
+    } catch {
+      return false
+    }
+  }
+
+  async settings(tenantRef: string): Promise<TenantSettingsAccess | undefined> {
+    if (!(await this.registered(tenantRef))) return undefined
+    if ((await this.runtime(tenantRef)) === undefined) return undefined
+    return (await this.entry(tenantRef))?.assembly.settings
   }
 
   private async drain(): Promise<StopResult> {

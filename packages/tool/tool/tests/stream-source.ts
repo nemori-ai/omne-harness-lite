@@ -1,11 +1,3 @@
-// A controlled in-process publisher of one Tool process stream, for the tests of the runtime's
-// observation facade. It is test support, not a provider: it keeps every frame in memory, has no
-// executor behind it, and its limits are the test's. It follows the public observation contract
-// (stream-arrival README): a snapshot and the subscription are taken in one synchronous step, each
-// delta starts at the cursor last delivered to that observer, a queue overflow or lost history
-// removes the subscription first and leaves one terminal gap, abort ends with `observer-closed`,
-// a reference to another stream ends with `stale-stream`, and the two Tool-owned ends travel in
-// `producer-ended`.
 import {
   decodeStreamPosition,
   encodeStreamCursor,
@@ -34,15 +26,10 @@ type Observer = {
 
 export type TestStreamSource<P> = Readonly<{
   observation: ToolStreamObservation<P>
-  /** Confirms one projection change: the delta for subscribers, the snapshot for later observers. */
   confirm(delta: ToolStreamDelta, snapshot: ToolStreamSnapshot): void
-  /** Ends every observation with a Tool-owned reason; later requests end the same way at once. */
   end(reason: ToolStreamEnd['reason']): void
-  /** Forgets the history before the current position: subscribers behind it get gap(source-history). */
   dropHistory(): void
-  /** The inputs of every `observe` call, in call order. */
   readonly observed: readonly Readonly<{ ref: StreamRef; access: Access<P> }>[]
-  /** How many observers are subscribed now. */
   subscribers(): number
 }>
 
@@ -58,9 +45,7 @@ export function createTestStreamSource<P>(input: {
   stream: StreamId
   ref: StreamRef
   initial: ToolStreamSnapshot
-  /** The most frames one observer may have queued; the next one overflows (gap buffer). */
   queuedFrames?: number
-  /** The most UTF-8 JSON bytes of a snapshot; a larger one ends with capacity. */
   snapshotBytes?: number
 }): TestStreamSource<P> {
   const limits = {
@@ -81,7 +66,6 @@ export function createTestStreamSource<P>(input: {
     observer.live = false
     observers.delete(observer)
   }
-  /** Removes the subscription and discards pending data first, then leaves one terminal frame. */
   const terminate = (observer: Observer, frame: Frame) => {
     detach(observer)
     observer.queue.length = 0
@@ -117,7 +101,6 @@ export function createTestStreamSource<P>(input: {
             push(observer, { kind: 'ended', reason: 'capacity' })
             return
           }
-          // Snapshot and subscription in one synchronous step: nothing confirmed can fall between.
           observer.live = true
           observers.add(observer)
           observer.delivered = cursorOf(input.ref, position)

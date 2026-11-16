@@ -56,7 +56,6 @@ export function toolAssetPublication(entry: ToolReleaseEntry) {
   return { assetRef: origin.assetId, pinned, publicationRef }
 }
 
-/** This category projects only publications verified by the built-in Tool release owner. */
 export function createToolAssetCategory(
   release: Extract<ToolRelease, { kind: 'trusted' }>,
 ): BodyContract {

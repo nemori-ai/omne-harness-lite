@@ -1,12 +1,3 @@
-// The terminal of an ordinary completion on the production session-log Journal, with the Session
-// finish check of the same storage commit (Agent SPEC "条件终结"; session-contract PA-02). The
-// Agent takes the initial input (I0), commits the main reply Ja, F1, F2 and prepareFinish before
-// AD-02 interpreted its `input-taken` event: Session still holds the initial input as pending for
-// this Run, so the check answers a conflict. tryFinish then answers FinishResult.changed, not
-// Failure.changed, and writes nothing. Once AD-02 commits the interpretation (`run.batch-taken`
-// through `commitLog`), the same tryFinish ends the execution, and the reply is in the Session
-// history as `message.assistant`. On the node:sqlite double that runs the published participant
-// modules, with the AD-02 plugin on a real Cordis root.
 import { describe, expect, it } from 'vitest'
 import { setImmediate as nextTurn } from 'node:timers/promises'
 import { setFlagsFromString } from 'node:v8'
@@ -15,6 +6,8 @@ import { decodePassageId, type Passage } from '@omne-harness/agent-contract'
 import { succeed } from '@omne-harness/operation-result'
 import type { FinishCandidateContent, JournalCommit } from '@omne-harness/agent-contract'
 import { memoryAccess } from '@omne-harness/session-contract/testing'
+import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
+import { m0Checkpoint } from './fixtures/adopted-request.ts'
 import { evidence, ok, operation } from './fixtures/common-journal.ts'
 import { admitted, applied, load, prepared } from './fixtures/main-reply.ts'
 import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
@@ -27,7 +20,6 @@ const kinds = (s: SqlScene): string[] =>
     String(row[0]),
   )
 
-/** I0: the batch of the initial input is taken, with its `input-taken` event. */
 async function take(s: SqlScene, authority: JournalCommit<string>['authority']) {
   const loaded = await load(s)
   const page = ok(
@@ -56,7 +48,6 @@ async function take(s: SqlScene, authority: JournalCommit<string>['authority']) 
   )
 }
 
-/** F1, F2 and prepareFinish of a complete candidate, as the coordinator writes them. */
 async function prepareEnd(
   s: SqlScene,
   authority: JournalCommit<string>['authority'],
@@ -106,7 +97,7 @@ async function prepareEnd(
   return load(s)
 }
 
-describe('tryFinish on the production session-log Journal with the PA-02 finish check', () => {
+describe('tryFinish on the production session-log Journal with the pending-input finish check', () => {
   for (const storage of ['double', 'real'] as const) {
     it(
       `node failure retains the original untaken input and candidate across a cold provider (${storage})`,
@@ -192,9 +183,6 @@ describe('tryFinish on the production session-log Journal with the PA-02 finish 
   }
 
   it('an observation of the events that started before the terminal receives the ended event', async () => {
-    // The wait of the Agent loop observes the events of its execution (loop-algorithm W0). The
-    // commit that ends the last open execution must reach that observation: the loop leaves its
-    // slot on this event, not on a later check of the clock.
     const s = await sqlScene('finish-observed')
     try {
       const opened = ok(await s.view.journal.open(s.openInput))
@@ -232,7 +220,6 @@ describe('tryFinish on the production session-log Journal with the PA-02 finish 
             return page.events.map(event => event.body.kind)
         }
       })()
-      // The observation is attached before the terminal is written.
       for (let turn = 0; turn < 20; turn += 1) await nextTurn()
       const ended = ok(
         await s.view.journal.tryFinish({
@@ -249,8 +236,6 @@ describe('tryFinish on the production session-log Journal with the PA-02 finish 
         setTimeout(() => resolve(['not-observed']), 500),
       )
       expect(await Promise.race([observed, late])).toContain('ended')
-      // The observation keeps the book's copy while it is open: work in another session does not
-      // send the book cold under it. Once it ends, that work does.
       const readsOfOneLoad = async () => {
         let reads = 0
         s.rewriteReads.current = (_request, answer) => {
@@ -297,7 +282,6 @@ describe('tryFinish on the production session-log Journal with the PA-02 finish 
       }
       const before = { rows: count(s, 'sl_entry'), records: count(s, 'er_operation') }
 
-      // The initial input is pending for this Run and has no SE35: PA-02 answers a conflict.
       expect(await s.view.journal.tryFinish(finish)).toEqual({
         ok: { kind: 'changed', revision: ready.revision },
       })
@@ -306,7 +290,6 @@ describe('tryFinish on the production session-log Journal with the PA-02 finish 
       expect(count(s, 'sl_entry')).toBe(before.rows)
       expect(count(s, 'er_operation')).toBe(before.records)
 
-      // AD-02 interprets the events of the execution: `input-taken` leaves the pending inputs.
       const c = await cordisScene(s)
       try {
         const interpretation = createSessionJournalInterpretationPlugin<string>({
@@ -332,6 +315,50 @@ describe('tryFinish on the production session-log Journal with the PA-02 finish 
       await s.close()
     }
   })
+})
+
+it('a provider that starts from the durable records reads an execution that went on after a candidate: the member blocks only the candidate cursor names are fetched', async () => {
+  const s = await sqlScene('finish-then-on')
+  try {
+    const open = ok(await s.view.journal.open(s.openInput))
+    const authority = open.authority
+    await take(s, authority)
+    const request = await prepared(s, authority, 'model-reply')
+    ok(await s.view.journal.commit(await applied(s, authority, request, admitted(request))))
+    const target = { tenant: s.access.tenant, scope: ok(decodeScopeRef({ ref: 'scope:finish' })) }
+    const adopt = async (tag: string) => {
+      const loaded = await load(s)
+      const { adoptedRequest, adoptedContext } = m0Checkpoint(target, tag)
+      ok(
+        await s.view.journal.commit({
+          ...s.access,
+          execution: s.execution,
+          operation: operation(`m0-${tag}`),
+          authority,
+          expected: loaded.revision,
+          checkpoint: { ...loaded.checkpoint, adoptedRequest, adoptedContext },
+          state: { kind: 'advancing' },
+          events: [],
+          effects: [],
+          caller: { kind: 'none' },
+          replyAdmission: null,
+          handoff: null,
+          finish: null,
+        }),
+      )
+    }
+    await adopt('before-the-candidate')
+    await prepareEnd(s, authority)
+    await adopt('after-the-candidate')
+    const warm = await load(s)
+
+    const cold = ok(await s.fresh().journal.load({ ...s.access, execution: s.execution }))
+    expect(cold.revision).toBe(warm.revision)
+    expect(cold.checkpoint).toEqual(warm.checkpoint)
+    expect(cold.settlement).toEqual(warm.settlement)
+  } finally {
+    await s.close()
+  }
 })
 
 it('reclaims terminal working records while retaining the original observation and receipt in SQL', async () => {
@@ -425,8 +452,6 @@ it('reclaims terminal working records while retaining the original observation a
     s.rewriteReads.current = null
     const ended = ok(await s.view.journal.tryFinish(input))
     expect(ended.kind).toBe('ended')
-    // The book of the session that worked last keeps its copy: the steps of the loop after the
-    // terminal read it. A read after the terminal costs the storage what a read before it did.
     async function readsOfOneLoad() {
       let reads = 0
       s.rewriteReads.current = (_request, answer) => {
@@ -438,15 +463,11 @@ it('reclaims terminal working records while retaining the original observation a
       return reads
     }
     expect(await readsOfOneLoad()).toBe(warmReads)
-    // Another session works: the resting book returns to the state of a cold start.
     async function workElsewhere() {
       const other = memoryAccess('tester', 'another-session')
       await s.journals.forSession(other).journal.load({ ...other, execution: s.execution })
     }
     await workElsewhere()
-    // The snapshot now comes from the durable records, so none of its objects is one this test
-    // passed in. Every object of it, not only the observation: the folded facts and the decoded
-    // blocks that the provider read for it leave with the working copy.
     async function snapshotWeakly() {
       const parts: WeakRef<object>[] = []
       const visit = (value: unknown) => {

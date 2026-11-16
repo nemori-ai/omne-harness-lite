@@ -50,7 +50,7 @@ it('object inject passes each caller scope and registrations belong to contribut
   const ctx = new Context()
   const provider = await ctx.plugin(ProbeProvider)
   const one = createAssemblyFixture().target.scope
-  const two = { ...one, ref: one.ref } // a scope is compared by its opaque ref, not object identity
+  const two = { ...one, ref: one.ref }
   const a = await ctx.plugin({
     inject: { [requestContextKey]: { scope: one } },
     apply(c) {

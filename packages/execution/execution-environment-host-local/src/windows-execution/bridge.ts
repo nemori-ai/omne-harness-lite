@@ -5,12 +5,10 @@ const now = () =>
   /* wall-clock: operation-timing -- Bound a one-shot bridge question. */ performance.now()
 
 export type BridgeFrame =
-  /** The Job, its anchor and the suspended process exist; `anchor` is the anchor's process id. */
   | { readonly t: 'ready'; readonly anchor: number | undefined }
   | { readonly t: 'started' }
   | { readonly t: 'fault'; readonly stopped?: boolean }
   | { readonly t: 'data'; readonly s: 'stdout' | 'stderr'; readonly b: string }
-  /** The main process exited; `members` are the Job's other processes, null when unread. */
   | {
       readonly t: 'exit'
       readonly code: number
@@ -18,13 +16,9 @@ export type BridgeFrame =
       readonly outputLost: boolean
     }
   | { readonly t: 'probe'; readonly ok: boolean }
-  /** CTRL_BREAK_EVENT reached the main process's console; false without a console or a running main. */
   | { readonly t: 'break'; readonly sent: boolean }
-  /** A named Job's live processes other than console hosts, or `gone` when the name does not exist. */
   | { readonly t: 'members'; readonly reading: readonly number[] | 'gone' }
-  /** The boot time as Windows reports it, and the bridge's login session. */
   | { readonly t: 'identity'; readonly boot: string; readonly session: number }
-  /** `absent` when a named stop found no Job of that name. */
   | {
       readonly t: 'stopped'
       readonly status: 'confirmed' | 'unconfirmed'
@@ -186,7 +180,6 @@ export async function startBridge(input: {
     disconnect() {
       child.stdin.end()
     },
-    /** The bridge and its pipes no longer keep the provider's process alive. */
     unref() {
       child.unref()
       for (const stream of [child.stdin, child.stdout, child.stderr]) {
@@ -200,10 +193,6 @@ export async function startBridge(input: {
   }
 }
 
-/**
- * Starts a bridge for one question that needs no command: the answer is the first frame `pick`
- * accepts, within `boundMs`. A fault, a closed bridge or the bound answers `undefined`.
- */
 export async function askBridge<T>(
   request: object,
   pick: (frame: BridgeFrame) => T | undefined,

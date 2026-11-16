@@ -75,7 +75,6 @@ async function registered() {
       },
     ],
   }
-  // A separate original source supplies this event; the first fixture only supplied observed.
   const index = fixture.snapshot.historyIndex
   if (index === undefined) throw new Error('history fixture')
   const snapshot = {
@@ -542,7 +541,7 @@ describe('whole release batches and historical taken', () => {
     expect(reduce(snapshot, standalone, material.reads)).toMatchObject({ kind: 'quarantined' })
     expect(snapshot.pending).toEqual(['first', 'second'])
   })
-  it('late original SE14 removes only its input and leaves a successor advance, taken and waiting intact', async () => {
+  it('late original run.batch-taken removes only its input and leaves a successor advance, taken and waiting intact', async () => {
     const s = await open()
     const { run, advance } = await s.active()
     await s.commit({
@@ -695,8 +694,6 @@ describe('original admission directory pages', () => {
       expect(projectSessionLog(snapshot, observation, { ...reads, admissions }).kind).toBe(
         'rejected',
       )
-    // The head revision is compared as an integer, not a float: one below it is an expired
-    // same-root basis (changed, read again), one above it was never a head (invalid).
     expect(
       projectSessionLog(snapshot, { ...observation, revision: '9007199254740992' }, reads),
     ).toMatchObject({ kind: 'rejected', failure: { kind: 'changed' } })

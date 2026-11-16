@@ -16,28 +16,29 @@ function children(root: string, path: string, segment: string): string[] {
   return readdirSync(join(root, path), { withFileTypes: true }).flatMap(entry => {
     const child = `${path}/${entry.name}`
     if (path.split('/').length === 2 && entry.name === 'docs' && entry.isDirectory()) {
-      const layout = readDomainTemplate().layout
-      const result = checkLayout(root, child, {
-        ...layout,
-        files: layout.files.filter(file => file.startsWith('docs/')).map(file => file.slice(5)),
-      })
+      const template = readDomainTemplate()
+      const layout = template.layout
+      const documents = new Set(
+        [layout, ...Object.values(template.previousVersions).map(rules => rules.layout)]
+          .flatMap(rules => rules.files)
+          .filter(file => file.startsWith('docs/'))
+          .map(file => file.slice(5)),
+      )
+      const result = checkLayout(root, child, { ...layout, files: [...documents] })
       if (result.tree.length === 0 || result.findings.length > 0)
         throw new Error(`${child}: product discovery rejects invalid group documentation`)
       return []
     }
     if (entry.isDirectory()) return [child]
-    // Only group navigation files may occupy a non-directory slot. A wrong node kind
-    // must not hide a group or member before the source resolver filters it out.
     if (
       entry.isFile() &&
       (['README.md', 'README_ZH.md', 'AGENTS.md', 'CLAUDE.md'].includes(entry.name) ||
-        (path.split('/').length === 2 && entry.name === 'documentation.json'))
+        (path.split('/').length === 2 && ['documentation.json', 'SPEC.md'].includes(entry.name)))
     )
       return []
     throw new Error(`${child}: product discovery rejects links and unexpected non-directory nodes`)
   })
 }
-/** Verify filesystem candidates before the architecture resolver filters non-file manifests. */
 export function discoverProducts(root: string): string[] {
   const patterns = workspacePatterns(
     readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8'),

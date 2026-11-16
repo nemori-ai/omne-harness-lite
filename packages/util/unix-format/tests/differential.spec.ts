@@ -1,5 +1,3 @@
-// Finite comparison against the fixed source branch golden fixture.
-// The historical Python producer is not executed by this suite.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {

@@ -21,7 +21,6 @@ export type ProviderConformanceSubject = Readonly<{
   tenant: ProviderAcquireInput['tenant']
   facility: FacilityKey
   hooks?: {
-    /** Prepares a legal operation on an already-held facility and observes its external effects. */
     prepareHeldOperation?(
       context: Readonly<{ lease: EnvironmentLease; input: ProviderAcquireInput }>,
     ): Promise<{

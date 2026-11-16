@@ -1,8 +1,3 @@
-// The scripted model of one history-cost call: it calls the release Shell once with the payload
-// script, then follows the read instructions of the result. An inline result ends the call when the
-// body arrives whole; an offloaded one is read page by page until `Body traversal ended.`, checking
-// that the pages are contiguous and that together they hold the original bytes. A seeding call (`readBody: false`) stops at the first
-// body read instruction, so its body stays unread and the result settles with it offloaded.
 import { createHash } from 'node:crypto'
 import type { GatewayScript } from '../fixtures/model-gateway.ts'
 
@@ -64,7 +59,6 @@ export function createTraversal(
       current.bytes += page.length
       current.pages += 1
       if (text.includes('Body traversal ended.')) {
-        // The Shell result frames its output, so the body holds the payload, not only the payload.
         check(current.pagesText.join('').includes(input.body), 'the body read back differs')
         current.completed = true
         current.digest = digest

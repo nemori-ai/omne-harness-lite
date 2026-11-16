@@ -60,7 +60,6 @@ const operationRef: ToolOperationRef = (() => {
 describe('invocation reference codec', () => {
   it('encodes the versioned array form and decodes it back to the canonical text', () => {
     expect(invocationRef).toBe(JSON.stringify(['tool-invocation', 2, call, admission]))
-    // R2-D357: the text carries no tenant; the caller's Access supplies it.
     expect(invocationRef).not.toContain(tenantTextA)
     expect(decodeToolInvocationRef(invocationRef)).toEqual({ ok: invocationRef })
     const spaced = `[ "tool-invocation", 2, "${call}", "${admission}" ]`
@@ -78,7 +77,6 @@ describe('invocation reference codec', () => {
     expect(decodeToolInvocationRef(operationRef)).toEqual(failure('type'))
     expect(decodeToolInvocationRef('["tool-invocation",3,"c","a"]')).toEqual(failure('version'))
     expect(decodeToolInvocationRef('["tool-invocation","2","c","a"]')).toEqual(failure('version'))
-    // A version 1 text (it carried the tenant) is refused, not read.
     const v1 = JSON.stringify(['tool-invocation', 1, tenantTextA, call, admission])
     expect(decodeToolInvocationRef(v1)).toEqual(failure('version'))
     expect(resolveToolInvocationRef(v1, tenantA)).toEqual({
@@ -145,8 +143,6 @@ describe('reference resolution against the presented tenant', () => {
   })
 
   it('locates in another minted tenant and refuses a presented shape', () => {
-    // R2-D357: a reference of tenant A, presented by tenant B, names B's call of the same identity;
-    // B's store has none, so the store-backed entry answers as for a call that never existed.
     expect(resolveToolInvocationRef(invocationRef, tenantB)).toEqual({
       ok: { tenant: tenantB, call, admission },
     })
@@ -243,7 +239,6 @@ describe('reference codec boundary cases with otherwise legal parts', () => {
     expect(decode(JSON.stringify(input))).toEqual({ failure: { field, reason } })
   })
 
-  // Forged brands model an untyped caller violating the encoder's public input types.
   const invalidCall = 'has space' as ToolCallId
   const invalidOperation = 'has space' as ToolOperationId
   it.each([

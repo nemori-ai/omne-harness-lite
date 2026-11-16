@@ -1,6 +1,3 @@
-// The failures this member produces itself. Every other failure is the one a port returned, passed
-// on as it is. The owners are the service keys of the ports (session-cordis-contract 端口服务键), so
-// a host without Cordis still names the same owner.
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import type { SessionFailure } from '@omne-harness/session-contract'
 
@@ -34,7 +31,6 @@ export function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-/** Runs a port call; a throw becomes `unavailable` of `owner`, never a success or a business refusal. */
 export async function guarded<T>(
   owner: Owner,
   what: string,

@@ -1,0 +1,85 @@
+.hitl-decisions {
+  min-height: 0;
+  overflow-y: auto;
+  font-size: var(--omne-text-ui);
+}
+
+.hitl-cards {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hitl-card {
+  display: grid;
+  gap: var(--omne-space-inline);
+  padding-block: var(--omne-space-block);
+  border-top: 1px solid var(--omne-line-subtle);
+}
+
+.hitl-card:first-child {
+  border-top: 0;
+}
+
+.hitl-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--omne-space-inline);
+}
+
+.hitl-card-title {
+  margin: 0;
+  color: var(--omne-ink-primary);
+  font-size: var(--omne-text-ui);
+  font-weight: 500;
+}
+
+.hitl-card-text,
+.hitl-card-context {
+  margin: 0;
+  color: var(--omne-ink-muted);
+  line-height: var(--omne-leading-wrapped);
+  white-space: pre-wrap;
+}
+
+.hitl-card-context {
+  font-size: var(--omne-text-caption);
+}
+
+.hitl-card-answer,
+.hitl-card-choices {
+  display: grid;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+}
+
+.hitl-card-choices {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.hitl-card-choices legend {
+  padding: 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+
+.hitl-card-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--omne-space-inline);
+}
+
+.hitl-card-choice-text {
+  grid-column: 2;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+
+.hitl-card-actions {
+  display: flex;
+  gap: var(--omne-space-inline);
+}

@@ -77,11 +77,6 @@ type Hooks<P> = {
     state: CommandReceipt['state'],
   ): CommandReceipt
   nextEvidence(execution: MemoryExecution, what: string, revision: number): DurableEvidence
-  /**
-   * Writes the entry and, in the same step, allocates its `entry` event under the same commit
-   * (SPEC "日志条目" 6). The Journal owns the sequence, the attachment and the ended rule: after
-   * the ended event it appends no event, and it wakes the readers of the event stream itself.
-   */
   writeEntry(execution: MemoryExecution, entry: AgentJournalEntry, cause: DurableEvidence): void
 }
 const unavailable = (diagnostic: string): Failure => ({
@@ -140,9 +135,7 @@ function shape<P>(input: Input<P>): Failure | undefined {
 
 export function createJournalReceiving<P>(hooks: Hooks<P>) {
   const materials = new Map<string, Stored>()
-  /** One copy of each content per tenant: every material of the same digest shares it. */
   const blobs = new Map<string, Material<ContentBlock>>()
-  /** The digest each (tenant, identity, consumer) first preserved; other content is a conflict. */
   const identities = new Map<string, string>()
   const keep = (tenant: string, value: Material<ContentBlock>): Material<ContentBlock> => {
     const blob = canonical([tenant, materialDigest(value)])
@@ -454,7 +447,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       const named = canonical([tenant, input.identity, input.consumer])
       const prior = identities.get(named)
       if (prior !== undefined && prior !== digest) return fail(invalid('identity'))
-      // Addressed by content: the same content of the same execution is the same material.
       const source = journalEvidence(canonical(['material', tenant, input.execution, digest]), 1)
       identities.set(named, digest)
       const key = canonical(source)
@@ -535,7 +527,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     loseMaterial(source: DurableEvidence) {
       materials.delete(canonical(source))
     },
-    /** Every material source kept for the execution, whether a fact refers to it or not. */
     materialSources(access: Access<P>, execution: AgentExecutionId): readonly DurableEvidence[] {
       return [...materials.values()]
         .filter(
@@ -543,7 +534,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         )
         .map(value => structuredClone(value.source))
     },
-    /** The number of distinct contents kept for the tenant: one per digest. */
     contentCount(access: Access<P>): number {
       const prefix = canonical([tenantText(access.tenant)]).slice(0, -1)
       return [...blobs.keys()].filter(key => key.startsWith(prefix)).length
@@ -560,7 +550,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       const requested = resolveModelInvocationRef(input.reference, input.access.tenant)
       if ('failure' in requested) return fail(denied())
       const found = callTargets.get(targetKey(input.access, requested.ok.call))
-      // A route names the execution whose records are read; a binding of another one is absent.
       if (!found || (input.execution !== undefined && input.execution !== found.execution))
         return fail(denied())
       const permission = qualified({ ...input.access, execution: found.execution })

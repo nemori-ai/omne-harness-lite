@@ -1,20 +1,6 @@
-// 联调 A 的 S1-5 拒绝路径脚本：不经 CLI，直接对插件树上的真件发请求。
-//
-// 判据（`slices.md` S1-5）：伪造或另一租户的主体调会话服务、Agent 宿主、Runtime Context，
-// 都得到拒绝；对一个历史多于一页的会话分页读历史，游标跨页连续，篡改过的游标被拒绝。
-//
-// 用法：
-//   node tools/joint-a/refusal.mjs [--evidence <目录>] [--keep]
-//
-// 判定三种：通过、失败、等件。等件写明等哪一件，不记成通过。
-// 退出码：全部通过 0；有失败 1；只剩等件 3。
-//
-// 本脚本不构造替身，不改实现。会话面经 `/session-public/1` 直接 POST；
-// 判断只看响应体里的 `outcome`，不看状态码（公开契约的承载页第 211 行同款规则）。
 import { join } from 'node:path'
 import {
   holdTestSlot,
-  SESSION_PATH,
   blockedCount,
   doubleRows,
   evidenceDirFor,
@@ -25,8 +11,7 @@ import {
   missingBuild,
   newScratch,
   operatorLayer,
-  post,
-  readHistoryRequest,
+  readHistoryReply,
   replyOf,
   report,
   runOmne,
@@ -37,12 +22,19 @@ import {
   writeJson,
 } from './support.mjs'
 
-holdTestSlot(import.meta.url)
+holdTestSlot(
+  import.meta.url,
+  [
+    '用法：node tools/joint-a/refusal.mjs [--evidence <目录>] [--keep]',
+    '联调 A 的拒绝路径判据（S1-5）：另一租户读会话、伪造主体、跨租户取 Runtime Context、游标跨页连续、篡改的游标被拒。',
+    '只按响应体里的 outcome 判定，不看状态码。先占一个运行名额，经构建产物起进程，产物不在时每步记等件。',
+    '证据缺省写到 tmp/m2-joint-a/refusal/。--keep 保留临时目录。',
+    '退出码：全部通过 0，有失败 1，只剩等件 3。',
+  ].join('\n'),
+)
 
 const CREDENTIALS = { alice: 'alice-pw-REFUSE-4b19', bob: 'bob-pw-REFUSE-8d02' }
-/** 真实的会话标识形状，但没有人创建过。 */
 const UNKNOWN_SESSION = 'f'.repeat(64)
-/** 一页的字节上界。故意给小，逼出多页。 */
 const SMALL_PAGE = '64'
 
 const checks = []
@@ -54,7 +46,6 @@ const BUILD_AWAIT =
   '两个应用成员的构建产物：pnpm --filter @omne-harness/harness-server build' +
   ' 与 pnpm --filter @omne-harness/cli build'
 
-/** 篡改一份登录证明：换掉末字符。原文仍要能用于对照，所以不改入参。 */
 function tamperProof(proof) {
   const last = proof.slice(-1)
   return `${proof.slice(0, -1)}${last === 'A' ? 'B' : 'A'}`
@@ -101,7 +92,6 @@ async function run(scratch, port, doubles) {
   const cli = (who, args, credential) =>
     runOmne({ args, home: homes[who], server: url, cwd: scratch.base, credential })
 
-  // 两个租户各自注册登录，再建一个会话。
   for (const who of ['alice', 'bob']) {
     cli(who, ['register', '--login-identifier', who], CREDENTIALS[who])
     cli(who, ['login', '--login-identifier', who], CREDENTIALS[who])
@@ -113,34 +103,18 @@ async function run(scratch, port, doubles) {
   const bobTenant = savedTenant(homes.bob)
   const bobProof = savedLoginProof(homes.bob)
 
-  // ---- 1. 另一租户的主体读会话：两种租户文本对同一个真实会话与一个不存在的会话，四种组合。
   const cross = {
-    ownerTenantReal: await post(
-      port,
-      SESSION_PATH,
-      readHistoryRequest(aliceTenant, session, bobProof),
-    ),
-    ownerTenantUnknown: await post(
-      port,
-      SESSION_PATH,
-      readHistoryRequest(aliceTenant, UNKNOWN_SESSION, bobProof),
-    ),
-    ownTenantReal: await post(port, SESSION_PATH, readHistoryRequest(bobTenant, session, bobProof)),
-    ownTenantUnknown: await post(
-      port,
-      SESSION_PATH,
-      readHistoryRequest(bobTenant, UNKNOWN_SESSION, bobProof),
-    ),
+    ownerTenantReal: await readHistoryReply(port, aliceTenant, session, bobProof),
+    ownerTenantUnknown: await readHistoryReply(port, aliceTenant, UNKNOWN_SESSION, bobProof),
+    ownTenantReal: await readHistoryReply(port, bobTenant, session, bobProof),
+    ownTenantUnknown: await readHistoryReply(port, bobTenant, UNKNOWN_SESSION, bobProof),
   }
-  // 用属主的租户文本读，答 denied。bob 自己的租户在首次 create 之前没有事务域，
-  // 存储按 session-storage-sql SPEC「事务域目录没有该租户」答 unavailable，
-  // 接入层映射为 basis-unavailable。两种答案都要求真实会话与不存在的会话逐字节相同。
   const isUnregistered = reply => replyOf(reply)?.outcome === 'basis-unavailable'
   const allDenied =
     isDenied(cross.ownerTenantReal) &&
     isDenied(cross.ownerTenantUnknown) &&
     [cross.ownTenantReal, cross.ownTenantUnknown].every(r => isDenied(r) || isUnregistered(r))
-  const sameAnswer = (a, b) => a.status === b.status && a.body === b.body
+  const sameAnswer = (a, b) => a.text === b.text
   const indistinguishable =
     sameAnswer(cross.ownerTenantReal, cross.ownerTenantUnknown) &&
     sameAnswer(cross.ownTenantReal, cross.ownTenantUnknown)
@@ -153,20 +127,10 @@ async function run(scratch, port, doubles) {
       .join(' ')}；两种租户文本内各自逐字节${indistinguishable ? '相同' : '不同'}`,
   )
 
-  // ---- 2. 伪造主体：缺登录证明、空串、改一个字符的证明。三者都要被拒。
   const forged = {
-    missing: await post(port, SESSION_PATH, {
-      protocolVersion: 'session-public/1',
-      messageId: 'refuse-missing-proof',
-      operation: 'read-history',
-      body: { tenant: aliceTenant, session, cursor: null, direction: 'forward', pageBytes: '64' },
-    }),
-    empty: await post(port, SESSION_PATH, readHistoryRequest(aliceTenant, session, '')),
-    tampered: await post(
-      port,
-      SESSION_PATH,
-      readHistoryRequest(aliceTenant, session, tamperProof(aliceProof)),
-    ),
+    missing: await readHistoryReply(port, aliceTenant, session, undefined, { pageBytes: '64' }),
+    empty: await readHistoryReply(port, aliceTenant, session, ''),
+    tampered: await readHistoryReply(port, aliceTenant, session, tamperProof(aliceProof)),
   }
   const forgedDenied = Object.values(forged).every(reply => !isSucceeded(reply))
   record(
@@ -177,9 +141,6 @@ async function run(scratch, port, doubles) {
       `改一字 ${String(replyOf(forged.tampered)?.outcome)}`,
   )
 
-  // ---- 3. 跨租户取 Runtime Context。
-  // 接入层没有 Runtime Context 的路由：`serve` 的入口对象注册表里没有 `runtimeContextTrust`，
-  // 发行配置里 `runtime-context` 仍是替身。所以这里没有可发的请求，按等件记，不伪造一个面。
   blocked(
     'S1-5',
     '跨租户取 Runtime Context 被拒',
@@ -189,7 +150,6 @@ async function run(scratch, port, doubles) {
       '接入层给出取 Runtime Context 的路由',
   )
 
-  // ---- 4 与 5. 游标：跨页连续，篡改被拒。
   if (session === '') {
     const why = '建会话没有成功，游标这一段的判据走不到'
     blocked('S1-5', '历史多于一页时游标跨页连续', why, '可用的会话')
@@ -199,14 +159,8 @@ async function run(scratch, port, doubles) {
   await cursors(port, session, aliceTenant, aliceProof, treeDouble)
 }
 
-/** 4 与 5：先逼出多页，再用篡改的游标。 */
 async function cursors(port, session, tenant, proof, treeDouble) {
-  // 多页需要历史多于一页。替身树上的历史由替身保管，只有一条输入，所以先看有没有下一页。
-  const first = await post(
-    port,
-    SESSION_PATH,
-    readHistoryRequest(tenant, session, proof, { pageBytes: SMALL_PAGE, messageId: 'cursor-1' }),
-  )
+  const first = await readHistoryReply(port, tenant, session, proof, { pageBytes: SMALL_PAGE })
   const firstBody = replyOf(first)?.body
   const next = typeof firstBody?.next === 'string' ? firstBody.next : undefined
 
@@ -222,11 +176,7 @@ async function cursors(port, session, tenant, proof, treeDouble) {
         : '足够多的历史条目撑过一页',
     )
   } else {
-    const second = await post(
-      port,
-      SESSION_PATH,
-      readHistoryRequest(tenant, session, proof, { cursor: next, messageId: 'cursor-2' }),
-    )
+    const second = await readHistoryReply(port, tenant, session, proof, { cursor: next })
     const revisions = [
       ...(firstBody?.entries ?? []),
       ...(replyOf(second)?.body?.entries ?? []),
@@ -245,9 +195,6 @@ async function cursors(port, session, tenant, proof, treeDouble) {
     )
   }
 
-  // 篡改：改末字符、截断、换成任意文本。三者都要被拒，且不带任何条目。
-  // 没有真实的 `next` 时，篡改从一个固定形状的候选开始：拒绝仍要有依据（游标错域或签名不符），
-  // 不能让「没有游标可篡」变成跳过。
   const base = next ?? '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
   const samples = [
     `${base.slice(0, -1)}${base.slice(-1) === 'A' ? 'B' : 'A'}`,
@@ -255,17 +202,8 @@ async function cursors(port, session, tenant, proof, treeDouble) {
     'not-a-cursor',
   ]
   const tampered = []
-  for (const [index, cursor] of samples.entries())
-    tampered.push(
-      await post(
-        port,
-        SESSION_PATH,
-        readHistoryRequest(tenant, session, proof, {
-          cursor,
-          messageId: `tampered-${String(index)}`,
-        }),
-      ),
-    )
+  for (const cursor of samples)
+    tampered.push(await readHistoryReply(port, tenant, session, proof, { cursor }))
   const rejected = tampered.every(reply => !isSucceeded(reply))
   const leaked = tampered.some(reply => (replyOf(reply)?.body?.entries?.length ?? 0) > 0)
   record(
@@ -278,8 +216,6 @@ async function cursors(port, session, tenant, proof, treeDouble) {
       (treeDouble ? '（替身树上的结果；真件换上后要重跑）' : ''),
   )
 }
-
-// ------------------------------------------------------------------------------ 入口
 
 const argv = process.argv.slice(2)
 const evidenceOverride = argv.includes('--evidence')

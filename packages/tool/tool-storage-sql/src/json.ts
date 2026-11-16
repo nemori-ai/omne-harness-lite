@@ -1,7 +1,3 @@
-// The strict JSON form of the values that cross into a command (sql-contract §3.2). A member whose
-// value is `undefined` is left out, as JSON text leaves it out; every other value that JSON cannot
-// carry (a function, a symbol, a BigInt, a number that is not finite, a typed array, a Map, a Date,
-// a cycle) is refused with `NotJsonError`, before anything is sent.
 import type { JsonValue } from '@omne-harness/sql-contract'
 
 export class NotJsonError extends Error {
@@ -16,7 +12,6 @@ function plain(value: object): boolean {
   return prototype === Object.prototype || prototype === null
 }
 
-/** A value that is not an object: itself when JSON carries it, otherwise `NotJsonError`. */
 function encodeLeaf(value: unknown, path: string): JsonValue {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return value
   if (typeof value === 'number') {
@@ -50,7 +45,6 @@ function encode(value: unknown, path: string, open: Set<object>): JsonValue {
   }
 }
 
-/** A fresh strict JSON copy of `value`; it shares nothing with the caller's value. */
 export function toJson(value: unknown, path = 'value'): JsonValue {
   return encode(value, path, new Set())
 }

@@ -71,17 +71,10 @@ export function checkpoint(): AgentCheckpoint {
   }
 }
 export type SceneQualification = {
-  /** The Agent qualification: one answer for every action, or one per action name. */
   agent: boolean | ((action: string) => boolean)
   session: boolean | 'unavailable'
-  /** When set, the Session check holds its answer until the returned promise settles. */
   hold?: (request: SessionAccessRequest<string>) => Promise<void> | undefined
 }
-/**
- * The finishing setup of a scene's Agent Journal: the test cancellation policy is installed
- * unless `cancellationPolicy` is `absent`; `hostRecords` are the trusted host reads of the
- * custody variants of commitSettlement, read at each call.
- */
 export type SceneFinishing = Readonly<{
   cancellationPolicy?: 'installed' | 'absent'
   hostRecords?: ReadonlyMap<string, TestHostRecord>
@@ -96,10 +89,6 @@ export async function scene(
   const access =
     tenant === 'other' ? memoryOtherAccess('intruder', session) : memoryAccess('tester', session)
   const initialization = createMemoryInitializationSource()
-  // The Session side: an explicit policy. Only the scene's own tenant may touch a session; the
-  // scene's qualification flag decides the rest per request, and every allowed decision gets its
-  // own evidence so a test can tell which call a recorded decision came from. Every conclusion is
-  // recorded with its request, so a test can tell a refusal of the check from one of the store.
   let decisions = 0
   const decided: { request: SessionAccessRequest<string>; answer: SessionAccessDecision }[] = []
   const policy = createPolicySessionAccessCheck<string>(request => {
@@ -223,11 +212,6 @@ const HANDOFF_PROVIDER = {
 }
 const DEFINITION = { owner: 'test', name: 'definition', revision: '1', digest: 'test:definition' }
 
-/**
- * The open of one invoke, as the coordinator gives it after `MessageHandoff.prepare`: the invoke
- * entry with the initial input and checkpoint, the external H and its prepared outcome, and the
- * runtime context with the instance and the Session grant.
- */
 export function openInput(
   fields: Readonly<{
     access: Access<string>
@@ -283,7 +267,6 @@ export function openInput(
   }
 }
 
-/** The original acceptance of a submit entry: the entry, the external H and its prepared outcome. */
 export function submitAcceptance(
   execution: AgentExecutionId,
   entry: AgentOperationId,
@@ -318,7 +301,6 @@ export function submitAcceptance(
   }
 }
 
-/** A first submit of `value` under `operation`: the new-input lineage of its own acceptance. */
 export function submitInput(
   access: Access<string>,
   execution: AgentExecutionId,

@@ -1,4 +1,3 @@
-/** Windows SDK declarations carried by the installed PowerShell/.NET Framework runtime. */
 export const nativeSource = String.raw`
 using System;
 using System.Collections.Generic;

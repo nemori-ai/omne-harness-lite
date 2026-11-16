@@ -1,6 +1,3 @@
-// Type-level promises: brands come only from their validating functions, the root entry does not
-// name the internal reference or the package locator, and each failure union names only the kinds
-// that its operation can give.
 import { expectTypeOf, test } from 'vitest'
 import type * as root from '@omne-harness/skill-contract'
 import type {

@@ -1,5 +1,3 @@
-// The two synchronous steps of RFC-0015 §15「两条硬要求」are pinned in the types: neither `enter`
-// nor `subscribe` returns a promise, so no implementation can yield between their two halves.
 import { expectTypeOf, test } from 'vitest'
 import type { ProtocolKey } from '@omne-harness/access-cordis-contract'
 import type {

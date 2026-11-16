@@ -1,4 +1,3 @@
-// The conformance suite of `UseEligibility`, and an in-memory double that passes it.
 import assert from 'node:assert/strict'
 import type { Access } from '@omne-harness/legal-identity'
 import type { BlockedReason } from './outcomes.ts'
@@ -8,15 +7,10 @@ import type { EndpointRef } from './values.ts'
 
 export type UseEligibilityFixture<P> = Readonly<{
   port: UseEligibility<P>
-  /** A principal with use eligibility for the endpoint. */
   eligible: Readonly<{ access: Access<P>; endpoint: EndpointRef }>
-  /** A principal without eligibility for `existing`, and an endpoint that does not exist. */
   ineligible: Readonly<{ access: Access<P>; existing: EndpointRef; missing: EndpointRef }>
-  /** An eligible principal whom a setting blocks. */
   blocked?: Readonly<{ access: Access<P>; endpoint: EndpointRef; reason: BlockedReason }>
-  /** Withdraws the eligibility of `eligible`. */
   revoke?: () => Promise<void>
-  /** A question the port cannot decide now. */
   unreadable?: Readonly<{ access: Access<P>; endpoint: EndpointRef }>
 }>
 
@@ -76,10 +70,6 @@ export type MemoryUseEligibility<P> = UseEligibility<P> &
     setUnreadable(access: Access<P>, endpoint: EndpointRef, unreadable: boolean): void
   }>
 
-/**
- * Eligibility by tenant, principal and endpoint. Anything not granted is `not-eligible`, whether
- * the endpoint exists or not. A block implies eligibility. It keeps nothing durable.
- */
 export function createMemoryUseEligibility<P>(
   options: Readonly<{ principalKey: (principal: P) => string }>,
 ): MemoryUseEligibility<P> {

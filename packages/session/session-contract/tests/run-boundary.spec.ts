@@ -1,6 +1,3 @@
-// readRunBoundary (SPEC「稳定调用引用的读取」, #1248): the run of a `run.started` and of a
-// `run.terminal` entry. Every entry is built with this member's own encoder, the writer of both
-// payloads.
 import { describe, expect, it } from 'vitest'
 import { encodeEntry } from '../src/entries.ts'
 import type { SessionEntry } from '../src/entries.ts'

@@ -10,9 +10,9 @@ symbols:
 lines:
   - "logger.ts:22-27"
   - "logger.ts:154-158"
-  - "logger.ts:231-237"
+  - "logger.ts:232-238"
 probe: packages/assembly/kernel-basis/tests/logger-level-order-error-lowest.spec.ts
-checked: 2026-09-23
+checked: 2026-11-15
 ---
 
 # logger 的级别序是 ERROR 0 < INFO 1 < WARN 2 < DEBUG 3，缺省只导出到 INFO
@@ -25,8 +25,8 @@ exporter 的阈值是「最多导出到哪一级」，**缺省是 INFO**。于�
 
 **想当然的理解**：warn 比 info 更该被看见，默认一定导出。
 
-**实际（4.0.4 取证）**：warn 级诊断默认看不见。装配（tenancy-host）要看到各节点的 warn 级诊断（例如通知处理者抛出、
-升级不可撤回 U-3 这类），必须给它登记的 exporter 配 `levels: { default: 2 }` 或更高；不配就是静默。
+**实际（4.0.4 取证）**：warn 级诊断默认看不见。装配要看到各节点的 warn 级诊断（例如通知处理者抛出），
+必须给它登记的 exporter 配 `levels: { default: 2 }` 或更高；不配就是静默。
 
 ## 证据
 
@@ -35,3 +35,13 @@ exporter 的阈值是「最多导出到哪一级」，**缺省是 INFO**。于�
 | `LoggerLevel` | 四个数值 | exporter 阈值 3 时收到的四条消息 `level` 依次是 0、1、2、3 |
 | `_method` 的阈值判断 | 缺省 INFO | 无阈值的 exporter 只收到 error 与 info |
 | `levels.default` | 可放宽 | 阈值 2 时 warn 可见、debug 不可见 |
+
+## 探针断言什么
+
+探针在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行，针对 Cordis 4.0.4 核对：
+
+1. exporter 的 `levels.default` 为 3 时，依次发 error、info、warn、debug，收到的消息 `level` 依次是 0、1、2、3。
+2. exporter 不配阈值时，只收到 error 与 info，warn 与 debug 被丢。
+3. exporter 的 `levels.default` 为 2 时，warn 可见，debug 仍不可见。
+
+上游若改动级别数值或缺省阈值，三条中至少一条失败。本条目随之失效。

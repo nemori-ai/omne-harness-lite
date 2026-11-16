@@ -2,7 +2,6 @@ import ts from '@typescript/typescript6'
 import type { SourceFile } from '@omne-harness/repo-toolchain/core/rule'
 import { syntaxOf, visitSyntax } from '@omne-harness/repo-toolchain/core/syntax'
 
-/** Permit the host's private declaration comparison, without resolving a purge service. */
 export function hostPolicyReferences(file: SourceFile): ReadonlySet<number> {
   const allowed = new Set<number>()
   if (file.path !== 'tenancy-host/src/policy.ts') return allowed

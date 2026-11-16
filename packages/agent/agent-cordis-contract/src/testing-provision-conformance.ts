@@ -1,7 +1,3 @@
-// The conformance suite of `AgentInstanceProvision`: the rules of the slot that a caller can
-// observe through `acquire` and the directory. A provider is the memory double or the host plugin.
-// The suite opens a new fixture for each case, so the count of live instances is absolute and no
-// case depends on the state that an earlier case left.
 import assert from 'node:assert/strict'
 import type {
   Access,
@@ -15,19 +11,8 @@ import type {
 import type { Outcome } from '@omne-harness/operation-result'
 import type { AgentInstanceProvision } from './index.ts'
 
-/**
- * One case of the suite. `run` resolves when the provider keeps the rule of the case and rejects
- * with a `node:assert` AssertionError when it does not. The shape is the plain case of the
- * conformance suites of `@omne-harness/agent-contract/testing`, so a runner for those runs this one.
- */
 export type AgentInstanceProvisionCase = Readonly<{ name: string; run: () => Promise<void> }>
 
-/**
- * What the suite needs from a provider. `access` gives the callers of two different tenants.
- * `idleOut` and `busyOut` move the clock past `instanceIdleMs` for the instance in the state that
- * the name gives. `denyHostPrincipal` makes the host principal, which publishes for the caller,
- * fail its check, so a provider that does not check it cannot pass.
- */
 export interface AgentInstanceProvisionFixture<P> {
   readonly provision: AgentInstanceProvision<P>
   readonly directory: AgentDirectory<P>
@@ -35,17 +20,11 @@ export interface AgentInstanceProvisionFixture<P> {
   slot(
     variant: 'first' | 'other-definition',
   ): Readonly<{ scope: DurableEvidence; definition: Adoption }>
-  /** Makes the instance idle, and moves the clock past `instanceIdleMs`. */
   idleOut(instance: AgentInstanceId): Promise<void>
-  /** Makes the instance occupied, as if it took the execution slot, and moves the clock past `instanceIdleMs`. */
   busyOut(instance: AgentInstanceId): Promise<void>
-  /** The number of published instances that are not marked for reclaim. */
   live(): number
-  /** Makes the next check of `reserve` refuse. */
   denyReserve(): void
-  /** Makes the next check of the host principal for `publish` refuse. */
   denyHostPrincipal(): void
-  /** Ends the fixture: the provider that needs it closes its context here. */
   dispose?(): Promise<void> | void
 }
 
@@ -63,10 +42,6 @@ function failedWith<T>(answer: Outcome<T, Failure>, kind: Failure['kind'], what:
   assert.equal(answer.failure.kind, kind, `${what} should fail with ${kind}`)
 }
 
-/**
- * The cases that a provider of `AgentInstanceProvision` passes. `open` makes a fixture with no
- * instance in it, and the suite calls it once for each case.
- */
 export function agentInstanceProvisionConformance<P>(
   open: () => AgentInstanceProvisionFixture<P> | Promise<AgentInstanceProvisionFixture<P>>,
 ): readonly AgentInstanceProvisionCase[] {

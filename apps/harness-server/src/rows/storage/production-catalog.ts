@@ -3,7 +3,6 @@ import { loadProductionRelease, type ToolRelease } from '../../entry/tool-releas
 import { governanceStorageMaterials } from '../governance/storage-materials.ts'
 import { storageCatalog } from './catalog.ts'
 
-/** The core combinations retain their original participants and manifest digests. */
 export async function productionStorageCatalog(
   readRelease: () => Promise<ToolRelease> = loadProductionRelease,
 ): Promise<SqlMaterialCatalog> {

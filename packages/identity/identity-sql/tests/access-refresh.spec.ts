@@ -1,6 +1,3 @@
-// The access refresh granularity g (identity ID-18「成功业务访问报告」, SPEC IS-14): reports within g
-// of the last refresh commit nothing, the next report after g commits one refresh, and the idle
-// period still ends a login that nobody reports. g is checked against the idle period at start.
 import { afterEach, expect, it } from 'vitest'
 import type { CommitRequestV2, SqlStorage } from '@omne-harness/sql-contract'
 import { addDuration } from '../src/deadline.ts'

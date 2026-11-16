@@ -2,6 +2,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import {
   createModelRuntime,
   type ModelConfiguration,
+  type ModelLiveness,
   type SendResources,
 } from '@omne-harness/model'
 import { createTestModelDependencies, type MemoryModelEvidence } from '@omne-harness/model/testing'
@@ -44,6 +45,7 @@ export function runtimeFixture(
     commands: ModelCommands<ReturnType<typeof fixture>['principal']>,
   ) => ModelCommands<ReturnType<typeof fixture>['principal']>,
   handoff?: MemoryModelEvidence['handoff'],
+  liveness?: ModelLiveness,
 ) {
   const f = fixture()
   const assembly = createTestModelDependencies({
@@ -161,7 +163,6 @@ export function runtimeFixture(
       openInputs.push(input)
       return commands.openReceiveWindow(input)
     },
-    // The materialization write opens the sender's receive window: it is the first open.
     async recordMaterialization(input: Parameters<typeof commands.recordMaterialization>[0]) {
       openInputs.push(input)
       return commands.recordMaterialization(input)
@@ -239,7 +240,10 @@ export function runtimeFixture(
     },
   }
   const dependencies = { ...assembly.dependencies, commands: recorded, send, instances }
-  const provider = createModelRuntime(dependencies, { ...configuration, ...config })
+  const provider = createModelRuntime(
+    liveness === undefined ? dependencies : { ...dependencies, liveness },
+    { ...configuration, ...config },
+  )
   return {
     ...f,
     ...assembly,
@@ -271,7 +275,6 @@ export function runtimeFixture(
       const before = preserveInputs.length
       channel(call).push(facts)
       await eventually(() => preserveInputs.length >= before + facts.length || results.has(call))
-      // Let the real command receipt reach the observation projection.
       for (let i = 0; i < 100; i++) await Promise.resolve()
     },
     async replace(call: ModelCallId, next: ModelInstanceId) {

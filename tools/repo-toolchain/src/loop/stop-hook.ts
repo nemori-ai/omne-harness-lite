@@ -1,7 +1,3 @@
-// 收工钩子的入口：宿主（Claude Code、Codex）在 Stop 与 SubagentStop 上调它，标准输入是一个 JSON 对象。
-// 要反馈时向标准输出写恰好一个 {"decision":"block","reason":…}；量读数时自己出错写恰好一个 {"systemMessage":…}
-//（宿主显示给用户，不拦）；其余情形一个字节都不写。所有路径都退出 0。
-// 宿主把退出码 2 一律当拦截，所以这里不经 make、不透传任何子进程的退出码。判断在 hook.ts。
 import { appendFileSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
@@ -29,7 +25,6 @@ function repository(cwd: string): ReturnType<HookDeps['repository']> {
   }
 }
 
-/** 量读数的子进程要的 TypeScript 解析器能不能从这份脚本解析到；主进程只问路径，不加载它。 */
 function installed(): boolean {
   try {
     createRequire(import.meta.url).resolve('@typescript/typescript6')
@@ -42,7 +37,6 @@ function installed(): boolean {
 function writeState(home: string, text: string): void {
   mkdirSync(home, { recursive: true })
   const path = join(home, STATE_FILE)
-  // 先写临时文件再改名：几棵工作树同时收工时，读到的总是完整的一份。
   const temporary = `${path}.${process.pid}.tmp`
   writeFileSync(temporary, text)
   renameSync(temporary, path)
@@ -73,12 +67,9 @@ try {
     readState: home => readIfFile(join(home, STATE_FILE)),
     writeState,
     log,
-    // 这份脚本所在检出的根；判断在 tool-root.ts。
     toolRoot: () => toolRoot(process.env, dirname(fileURLToPath(import.meta.url))),
     installed,
   })
   if (output !== undefined) process.stdout.write(output)
-} catch {
-  // 读不了标准输入之类：不反馈。钩子自己出错从不拦人。
-}
+} catch {}
 process.exitCode = 0

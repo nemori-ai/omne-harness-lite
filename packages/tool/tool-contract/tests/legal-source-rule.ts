@@ -1,12 +1,5 @@
-// The source rule that keeps the legal providers of the self-proof at the port boundary. A legal
-// provider lives in a `*-legal.ts` file (or is the generated provider) and never names a control
-// of a double, in any spelling: a property read, an optional call, a destructuring, a string
-// index or a string that holds the name. A spec registers legal providers only by reference to
-// such a file: a row of a table given to `itPassesLegal` or `itNeedsTheHandle` holds no provider
-// code of its own. The rule reads the syntax tree, not the variable names.
 import ts from '@typescript/typescript6'
 
-/** The controls with which a double is made to behave in a way that its port never shows. */
 export const DOUBLE_CONTROLS = [
   'controls',
   'hold',
@@ -18,22 +11,15 @@ export const DOUBLE_CONTROLS = [
   'blindInspection',
 ] as const
 
-/** The module of a legal provider, as an import specifier of a spec names it. */
 const LEGAL_MODULE = /(?:-legal|\/generated-provider)\.ts$/u
 
-/**
- * The values that a legal file may import from a test module that is not legal: values and
- * timing helpers that reach no double. Every other value of a test module could carry a control.
- */
 const ALLOWED_TEST_IMPORTS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
   ['./tool-values.ts', new Set(['evidence'])],
   ['./conformance-harness.ts', new Set(['turns', 'keep', 'later'])],
 ])
 
-/** The members of a table row that hold a provider. `spy` only wraps a handle of the provider. */
 const PROVIDER_KEYS = new Set(['fixture', 'withHandle', 'without'])
 
-/** The harness calls whose second argument is a table, or a row, of legal providers. */
 const LEGAL_CALLS = new Set(['itPassesLegal', 'itNeedsTheHandle'])
 
 function parse(fileName: string, text: string): ts.SourceFile {
@@ -50,7 +36,6 @@ function walk(node: ts.Node, visit: (node: ts.Node) => void): void {
   node.forEachChild(child => walk(child, visit))
 }
 
-/** The text of a name that a property, an element or a binding names, or null for a computed one. */
 function nameText(name: ts.Node | undefined): string | null {
   if (name === undefined) return null
   if (ts.isIdentifier(name) || ts.isPrivateIdentifier(name)) return name.text
@@ -58,11 +43,6 @@ function nameText(name: ts.Node | undefined): string | null {
   return null
 }
 
-/**
- * The values that a legal file imports from a test module that is neither legal nor allowed: a
- * helper of such a module could reach a control of a double out of sight of this rule. A type
- * import, and an import of a package entry, are not test modules.
- */
 function testModuleImports(file: ts.SourceFile): string[] {
   const found: string[] = []
   for (const statement of file.statements) {
@@ -87,14 +67,6 @@ function testModuleImports(file: ts.SourceFile): string[] {
   return found
 }
 
-/**
- * Every place where `text` names one of `controls`: a property read (`.hold`, `?.hold`), an
- * element read (`['hold']`), a destructuring (`const { hold } = …`, `{ hold: h }`), or any other
- * string that holds the name (`const k = 'hold'`). A property that an object literal defines
- * (`hold: () => undefined`, `{ excludeDeferred }`) is a handle of the provider itself and is
- * allowed. A value imported from a test module that is not legal is reported too, unless the list
- * of allowed imports names it.
- */
 export function controlReads(
   fileName: string,
   text: string,
@@ -124,9 +96,7 @@ export function controlReads(
 }
 
 type Scope = Readonly<{
-  /** The names that a spec imports from a legal module. */
   legal: ReadonlySet<string>
-  /** The top-level constants and functions of the spec, by name. */
   local: ReadonlyMap<string, ts.Node>
 }>
 
@@ -154,7 +124,6 @@ function scopeOf(file: ts.SourceFile): Scope {
   return { legal, local }
 }
 
-/** The identifier that a call chain starts from: `make` of `make(a).map(f)`, or null. */
 function rootOf(expression: ts.Expression): ts.Identifier | null {
   if (ts.isIdentifier(expression)) return expression
   if (ts.isPropertyAccessExpression(expression) || ts.isParenthesizedExpression(expression))
@@ -171,7 +140,6 @@ const isFunctionLike = (node: ts.Node): boolean =>
   ts.isGetAccessorDeclaration(node) ||
   ts.isSetAccessorDeclaration(node)
 
-/** The names that the parameters of a function bind, destructured ones included. */
 function parameterNames(fn: ts.SignatureDeclarationBase): string[] {
   const names: string[] = []
   const collect = (name: ts.BindingName): void => {
@@ -184,15 +152,10 @@ function parameterNames(fn: ts.SignatureDeclarationBase): string[] {
   return names
 }
 
-/**
- * Checks the provider rows of one table node of a spec. `table` bounds the walk up from a row to
- * the callbacks that enclose it.
- */
 function tableViolations(file: ts.SourceFile, scope: Scope, table: ts.Node): string[] {
   const found: string[] = []
   const seen = new Set<ts.Node>()
 
-  /** The parameters of the callbacks between `node` and `table`, and those of a legal `.map`. */
   const enclosing = (node: ts.Node): Readonly<{ any: Set<string>; legal: Set<string> }> => {
     const any = new Set<string>()
     const legal = new Set<string>()
@@ -211,7 +174,6 @@ function tableViolations(file: ts.SourceFile, scope: Scope, table: ts.Node): str
     return { any, legal }
   }
 
-  /** An argument of a legal builder: no function of its own, and no provider code of the spec. */
   function isPlainArgument(argument: ts.Node, params: ReadonlySet<string>): boolean {
     let plain = true
     walk(argument, node => {
@@ -226,7 +188,6 @@ function tableViolations(file: ts.SourceFile, scope: Scope, table: ts.Node): str
     return plain
   }
 
-  /** A provider expression that comes from a legal module. */
   function isLegalValue(
     expression: ts.Expression,
     anyParams: ReadonlySet<string>,
@@ -246,10 +207,6 @@ function tableViolations(file: ts.SourceFile, scope: Scope, table: ts.Node): str
     return false
   }
 
-  /**
-   * A table, a row or a spread table that a call gives: the call must start from a legal module
-   * (or from the row of a legal `.map`), or the rows that it returns are out of sight of this rule.
-   */
   function checkCall(call: ts.CallExpression): void {
     const root = rootOf(call)
     if (root === null || scope.legal.has(root.text) || enclosing(call).legal.has(root.text)) return
@@ -269,7 +226,6 @@ function tableViolations(file: ts.SourceFile, scope: Scope, table: ts.Node): str
         if (!isLegalValue(value, params.any, params.legal))
           found.push(`${where(file, child)} builds the provider of a legal row in the spec`)
       } else if (ts.isArrayLiteralExpression(child)) {
-        // A row or a spread table that the spec declares elsewhere is checked where it is declared.
         for (const element of child.elements) {
           const target = ts.isSpreadElement(element) ? element.expression : element
           if (ts.isCallExpression(target)) checkCall(target)
@@ -285,11 +241,6 @@ function tableViolations(file: ts.SourceFile, scope: Scope, table: ts.Node): str
   return found
 }
 
-/**
- * Every legal row of a spec whose provider is not taken from a legal module: a function written
- * in the row, a call of a builder of the spec, or a builder of a legal module given a function of
- * the spec.
- */
 export function inlineLegalProviders(fileName: string, text: string): string[] {
   const file = parse(fileName, text)
   const scope = scopeOf(file)

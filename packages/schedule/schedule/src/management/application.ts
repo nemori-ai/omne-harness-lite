@@ -355,7 +355,6 @@ export function createScheduleManagementApplication(
           ),
         ),
       )
-    // Parsing the discriminated wrapper separately preserves the public command branch.
     const validated: ManagementRequest =
       request.kind === 'create'
         ? { kind: 'create', input: ScheduleCreateRequestSchema.parse(request.input) }

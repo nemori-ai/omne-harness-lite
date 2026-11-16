@@ -6,7 +6,6 @@ import { promisify } from 'node:util'
 
 const run = promisify(execFile)
 
-/** An owned APFS image supplies a second device without sudo or a Finder window. */
 export async function apfsVolume(mountpoint?: string) {
   const base = await realpath(await mkdtemp(join(tmpdir(), 'omne-files-volume-')))
   const mount = mountpoint ?? join(base, 'mount')
@@ -43,8 +42,6 @@ export async function apfsVolume(mountpoint?: string) {
   return {
     path: await realpath(mount),
     async dispose() {
-      // All assertions have finished; this image belongs only to the fixture.
-      // A busy disposable volume must not keep teardown running into the next case.
       await run('/usr/bin/hdiutil', ['detach', '-force', mount], { timeout: 60_000 })
       await rm(base, { recursive: true, force: true })
     },

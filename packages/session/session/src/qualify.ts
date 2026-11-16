@@ -1,6 +1,3 @@
-// The one access decision of a face operation and its delegated view (contract「当前操作的访问裁定」,
-// SPEC CP-01 第 1 步核权). `check` is asked once; `allowed` binds a view that serves this face
-// operation only and is never kept past it.
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import {
@@ -44,10 +41,6 @@ function permissionBindingHolds<P>(
   )
 }
 
-/**
- * Asks the access check once for `request`. `denied` answers `denied`; `unavailable` or a throw
- * answers `unavailable` with owner `sessionAccessCheck`. Only `allowed` binds the view.
- */
 export async function qualify<P>(
   dependencies: Qualifying<P>,
   request: SessionAccessRequest<P>,
@@ -95,10 +88,6 @@ export async function qualify<P>(
   }
 }
 
-/**
- * The authoritative snapshot through the view. A snapshot that names another tenant or session
- * is never used: it answers `denied`, as for a session that does not exist under this tenant.
- */
 export async function readSnapshot<P>(
   view: SessionTransactionPort<P>,
   access: SessionAccess<P>,

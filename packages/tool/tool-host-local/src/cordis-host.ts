@@ -69,7 +69,6 @@ export function createLocalToolHostPlugin<P, E, B extends ContentBlock>(
     constructor(ctx: Context, config?: Readonly<Record<string, never>>) {
       checkEmptyToolConfig(config)
       super(ctx)
-      // The assembly fixes P/E/B; Cordis stores services with erased type parameters.
       const erasedRegistry: unknown = ctx.toolBindings
       const registry = erasedRegistry as ToolBindingRegistry<P, E, B>
       const verifier = ctx.toolContributionAuthority as ToolContributionAuthority<P>

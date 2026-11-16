@@ -1,4 +1,3 @@
-// R11: the scopes that archived sessions of one tenant released, one page after (session, scope).
 import { handler, rowsOf, text } from './support.ts'
 
 type Input = Readonly<{

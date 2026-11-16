@@ -16,13 +16,11 @@ it('publishes the adopted exports and the acting scope and access additions, not
       'tenant',
       'tenantCodec',
       'tenantEquals',
-      // Additions for the acting scope and the shared access basis.
       'access',
       'actingScopeCodec',
       'actingScopeEquals',
       'systemScope',
       'tenantScope',
-      // Addition for the workspace identity family.
       'workspaceCodec',
       'workspaceEquals',
     ].sort(),

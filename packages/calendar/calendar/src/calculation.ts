@@ -18,7 +18,6 @@ import {
   type SelectNthWorkingDayResult,
 } from '@omne-harness/calendar-contract'
 
-/** A civil-day computation budget, independent of business scheduling limits. */
 export const DEFAULT_SCAN_BUDGET = 36600
 
 function invalid(message: string): CalculationFailure {

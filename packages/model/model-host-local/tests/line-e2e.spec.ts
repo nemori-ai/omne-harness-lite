@@ -1,28 +1,4 @@
 // @module-tag slow — starts an openssl child process and a real local HTTPS server, writes a vault
-// file and a SQLite file, drives Model calls through the assembled send path over the pi transport,
-// and holds a streamed response open until the client stops it.
-//
-// The line-through case of the Model line: one process, one real Cordis 4.0.4 root Context, the
-// five members assembled by `support/line-assembly.ts`. Six steps, each with what a user sees:
-// 1. Preparation: the profile plugin and the preparation plugin give the fixed request; no request
-//    reaches the gateway while it is prepared.
-// 2. Send (replay): call A goes through the send stage to the local HTTPS gateway, which answers
-//    with the synthetic recording of `openai-tool-call`; one termination; the digest of the request
-//    the gateway received is the digest the recording notes; the placeholder credential is in the
-//    sent header only.
-// 3. Durability: the facts and the result of A are in the SQLite file. The connection is closed and
-//    reopened, and fresh commands over the reopened file (no runtime, no in-process state) read the
-//    terminal state and the result page of A.
-// 4. Push: the receiver stand-in registers, A is pushed, the receiver answers `saved` and only then
-//    the producer acknowledges; after the ACK the cleanup of A advances to `released`.
-// 5. Cancel: call B streams and the gateway holds its response; `calls.cancel` stops the supplier
-//    stream (the transport's `exchange-stopped`), the settlement comes after the physical stop, and
-//    B ends interrupted by that cancel.
-// 6. Large request: call C has a request larger than one command of the storage. It is admitted,
-//    the gateway receives the whole request, and C ends completed.
-// With `OMNE_EVIDENCE_OUT=<directory>` the case writes `line-e2e.json` there: the conclusion of each
-// step, the call identities, the termination kinds, which ModelCommands and SQL provider ran and the
-// Cordis version. No request body, no reply text, no header and no credential.
 import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import type { ServerResponse } from 'node:http'
@@ -63,20 +39,17 @@ const RECORDING = readRecording(
 )
 
 const sse = (value: unknown) => `data: ${JSON.stringify(value)}\n\n`
-/** The answer of call B that is on its way when the cancel comes: content, no finish yet. */
 const HEAD = sse({
   model: 'openai/gpt-5.6-sol',
   provider: 'OpenAI',
   choices: [{ delta: { content: 'partial answer' } }],
 })
-/** The rest of a natural completion of B, written only to release a held response at the end. */
 const TAIL =
   sse({
     choices: [{ delta: {}, finish_reason: 'stop' }],
     usage: { prompt_tokens: 12, completion_tokens: 3, cost: 0.000042 },
   }) + 'data: [DONE]\n\n'
 
-/** One streamed response that the gateway holds open until the test finishes it. */
 type Held = Readonly<{
   closed: Promise<void>
   finish(): void
@@ -86,7 +59,6 @@ const certificate = createCertificate()
 let server: HttpsFixture
 let directory: string
 let storage: FileStorage
-/** What the gateway does with the next request: replay the recording, or stream a head and hold. */
 let gateway: 'replay' | 'hold' = 'replay'
 const held: Held[] = []
 
@@ -129,7 +101,6 @@ async function eventually(check: () => boolean | Promise<boolean>, label: string
   throw new Error(`timed out waiting for ${label}`)
 }
 
-/** Resolves with the value, or rejects after `ms` with `label`: a stream that never stops is red. */
 function within<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
     promise,
@@ -141,7 +112,6 @@ function within<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
 
 const sha256 = (text: string) => createHash('sha256').update(text, 'utf8').digest('hex')
 
-/** The assembled input of the recorded request: what a consumer hands to `prepare`. */
 function assembledOf(fixed: FixedModelRequest): AssembledModelInput {
   return {
     system: fixed.system,
@@ -154,7 +124,6 @@ function assembledOf(fixed: FixedModelRequest): AssembledModelInput {
   }
 }
 
-/** A copy of `request` with the text of its first text block replaced by a text of `length` characters. */
 function enlarged(request: FixedModelRequest, length: number) {
   const text = 'large request '.repeat(Math.ceil(length / 14)).slice(0, length)
   const copy = structuredClone(request)
@@ -214,7 +183,6 @@ describe('the Model line in one process', () => {
       c: null,
     }
     try {
-      // --- 1. preparation: the profile and the preparation plugin, no network ----------------------
       const recorded = firstRoundRequest(RECORD_CASES[CASE])
       const requestsBefore = server.requests.length
       const request = decoded(
@@ -235,7 +203,6 @@ describe('the Model line in one process', () => {
       steps.prepare =
         'the fixed request came from the profile and the preparation plugin; no request reached the gateway'
 
-      // --- 2. send: call A through the send stage to the local gateway, which replays -----------------
       gateway = 'replay'
       const a = await admit(line, 'a', request)
       await eventually(
@@ -266,7 +233,6 @@ describe('the Model line in one process', () => {
       expect(line.messages.join('\n')).not.toContain(PLACEHOLDER)
       steps.send = `call A completed once by replay; the gateway received the recorded request (digest ${RECORDING.note.payloadDigest.slice(0, 12)}…); the placeholder is in the sent header only`
 
-      // --- 3. durability: close and reopen the file; fresh commands read A from it -------------------
       storage.reopen()
       const fresh = durableCommands(storage.storage).commands
       const reread = await readResult(fresh, a.call)
@@ -280,7 +246,6 @@ describe('the Model line in one process', () => {
       expect(JSON.stringify(reread)).not.toContain(PLACEHOLDER)
       steps.persist = `after closing and reopening ${basename(storage.file)}, fresh commands read the settled state, ${reread.parts.length} result parts and the dispatch of call A`
 
-      // --- 4. push: the receiver registers; saved first, then the producer's ACK, then cleanup --------
       const scripted = scriptedReceiver(line.log)
       await line.register(scripted.receiver)
       await eventually(
@@ -307,7 +272,6 @@ describe('the Model line in one process', () => {
       steps.push =
         'call A was pushed once to the receiver stand-in; the receiver saved it before the producer acknowledged; after the ACK the cleanup is released'
 
-      // --- 5. cancel: call B streams, the gateway holds; cancel stops the stream first ----------------
       gateway = 'hold'
       const mark = line.log.length
       const firstHeld = held.length
@@ -322,7 +286,6 @@ describe('the Model line in one process', () => {
         await line.runtime.calls.cancel({ ...ACCESS, call: b.call, operation: op('cancel-b') }),
       )
       expect(cancelled).toMatchObject({ kind: 'requested', operation: op('cancel-b') })
-      // The response ends only because the client stopped it: the gateway never finishes this answer.
       await within(response.closed, 5_000, 'the close of the response of call B at the gateway')
       await eventually(
         async () => (await line.stateOf(b.call)).phase === 'settled',
@@ -343,7 +306,6 @@ describe('the Model line in one process', () => {
       const [dispatchB] = await line.dispatchesOf(b.call)
       expect(dispatchB?.terminal).toEqual({ kind: 'interrupted', control: op('cancel-b') })
       expect(dispatchB?.account).toBeNull()
-      // The content delivered before the cancel stays in the result: the receiver gets it.
       await eventually(() => scripted.pushes.length >= 2, 'the push of call B')
       const pushedB = scripted.pushes.find(delivery => delivery.key.reference === b.reference)
       if (pushedB?.kind !== 'result') throw new Error('call B was not pushed as a result')
@@ -352,7 +314,6 @@ describe('the Model line in one process', () => {
       steps.cancel =
         'call B was streaming; calls.cancel stopped the supplier stream (exchange-stopped) before the settlement; B ended interrupted by that cancel with its content kept'
 
-      // --- 6. large request: larger than one command of the storage; admitted, sent whole, completed --
       gateway = 'replay'
       const large = enlarged(request, MAX_COMMAND_BYTES + (MAX_COMMAND_BYTES >> 1))
       const sentBefore = server.requests.length

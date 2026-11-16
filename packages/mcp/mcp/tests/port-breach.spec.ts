@@ -1,8 +1,3 @@
-// Ports in breach (SPEC MC-15): every port is asked through `ask`, so a port that throws when it
-// is called, or rejects instead of answering an `Outcome`, answers its breach: `unknown` for
-// adoption and eligibility, `unavailable` for the store, a connection failure for the ports of a
-// build. The close-order ports in breach are in `teardown.spec.ts`; a rejected `discover` is in
-// `races.spec.ts`.
 import { describe, expect, it } from 'vitest'
 import type { AdoptionView, UseEligibility } from '@omne-harness/mcp-contract/provider'
 import { only, picker, type Which } from './doubles/calls.ts'
@@ -25,7 +20,6 @@ const ADOPTION_DOWN: AdoptionView<Principal, string> = {
 
 const ELIGIBILITY_DOWN: UseEligibility<Principal> = { check: () => down('eligibility') }
 
-/** The adoption view whose `endpoint` calls picked by `which` reject; the others answer. */
 function adoptionDownAt(w: World, which: Which): AdoptionView<Principal, string> {
   const asked = picker(which)
   return {
@@ -63,12 +57,10 @@ describe('a read port that rejects is read as unknown', () => {
   it('adoption rejecting at the re-read before a build: refresh answers unknown and builds nothing', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files)
-    // Call 1 is the gate of the refresh and answers; call 2, the re-read before the build, rejects.
     const c = core({ ...w, ports: { ...w.ports, adoption: adoptionDownAt(w, only(2)) } })
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
       failure: { kind: 'unknown' },
     })
-    // The gate passed: eligibility was asked, so the refusal is the re-read's.
     expect(w.eligibility.calls()).toBe(1)
     expect(w.transports.calls).toHaveLength(0)
     expect(w.landing.processes()).toEqual([])

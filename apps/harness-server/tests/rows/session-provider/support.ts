@@ -1,7 +1,3 @@
-// Shared fixtures of the `session-provider` row tests. `loadProviderTree` loads the row with the
-// rows and entry objects it injects (an access check double, a delegated-transactions double and
-// the real principal entry objects) and hands out the Session faces by caller class, as
-// `server-entry` asks for them. It does not import vitest.
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import type { ActingForTenantPrincipal, SystemPrincipal } from '@omne-harness/identity'
 import { principalIssuerKey, type PrincipalIssuerService } from '@omne-harness/identity/cordis'
@@ -66,10 +62,6 @@ function tenantOfPrincipal(principal: unknown): string | undefined {
   return encoded.ok ? encoded.value : undefined
 }
 
-/**
- * The tenant rule of the authorization row, and nothing else: the principal's tenant must be the
- * tenant of the access. It does not know which tenant owns a session.
- */
 export const sameTenantPolicy: AccessPolicy = request => {
   const principalTenant = tenantOfPrincipal(request.access.principal)
   const accessTenant = 'tenant' in request.access ? textOf(request.access.tenant) : undefined
@@ -78,7 +70,6 @@ export const sameTenantPolicy: AccessPolicy = request => {
     : { kind: 'denied' }
 }
 
-/** A contract-double row `authorization` that provides `sessionAccessCheck` over `policy`. */
 export function accessCheckRow(policy: AccessPolicy): Readonly<{
   plugin: Plugin.Object
   check: ScriptedSessionAccessCheck<unknown>
@@ -102,7 +93,6 @@ export function accessCheckRow(policy: AccessPolicy): Readonly<{
   return { plugin, check }
 }
 
-/** A contract-double row `session-storage` that only provides the delegated entry, which no test uses. */
 export const delegatedTransactionsRow = defineRow({
   row: 'session-storage',
   implementation: 'contract-double',
@@ -143,15 +133,12 @@ function declared(plugin: Plugin.Object): RowSpec {
 
 export type ProviderTree = Readonly<{
   root: Context
-  /** The Session faces as `server-entry` asks for them: `intake` for work and management, `reader` for history. */
   intake: SessionFaces<unknown>
   reader: SessionFaces<unknown>
   check: ScriptedSessionAccessCheck<unknown>
   arrivals: readonly SessionProviderArrival[]
   state(): string
-  /** A principal that the in-process authority signed: the system part `component` acting for `tenant`. */
   principalFor(tenant: TenantId, component?: string): ActingForTenantPrincipal
-  /** A system principal that the in-process authority signed, acting for no tenant. */
   systemFor(component: string): SystemPrincipal
   dispose(): Promise<void>
 }>

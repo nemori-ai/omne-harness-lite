@@ -150,7 +150,6 @@ describe('batch identities and continuity', () => {
       record => record.kind === 'task' && record.task.kind === 'fact-ack',
     )
     if (batch?.kind !== 'fact-batch' || ack?.kind !== 'task') throw new Error('fixture')
-    // B owns the confirmation command. Stage its documented committed record to test A recall.
     const confirmed: FactBatchRecord = {
       ...batch.batch,
       acknowledgement: { kind: 'confirmed', sourceReceipt: evidence('ack') },
@@ -234,8 +233,6 @@ describe('batch identities and continuity', () => {
       expect(harness.memory.commits).toBe(count)
     },
   )
-  // An Ask wait is received (checkpointed segments); a resource wait is still not. A `continued`
-  // fact is received on a resume start only; its case is below.
   it.each(['resource wait', 'account', 'program-scheduling'] as const)(
     'rejects an entire batch containing unsupported %s',
     async kind => {
@@ -251,7 +248,6 @@ describe('batch identities and continuity', () => {
           { event: 'last', fact: finalFact() },
         ],
       }
-      // Exercise the untyped producer boundary for variants that A deliberately cannot consume.
       const answer = await Reflect.apply(harness.commands.receiveFacts, null, [
         { ...access, start: batch.start, batch: unsupported },
       ])
@@ -276,7 +272,6 @@ describe('batch identities and continuity', () => {
     const answer = await Reflect.apply(harness.commands.receiveFacts, null, [
       { ...access, start: batch.start, batch: rejected },
     ])
-    // A first start continues no wait: the batch is invalid, and nothing of it is saved.
     expect(answer).toMatchObject({
       failure: { kind: 'invalid', reason: 'continued-without-resume' },
     })
@@ -741,7 +736,6 @@ describe('fixed producer boundary and current access', () => {
     if (stored.kind !== 'complete') throw new Error('fixture')
     const call = stored.records.find(record => record.kind === 'call')
     if (call?.kind !== 'call' || call.call.execution === null) throw new Error('fixture')
-    // Existing claim is not delivered. Model only its changed coordinator execution binding.
     await harness.memory.commit({
       domain,
       expected: stored.revision,

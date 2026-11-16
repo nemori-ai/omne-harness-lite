@@ -1,6 +1,3 @@
-// The delegated entry of the SQL storage (session-contract SPEC「当前操作的访问裁定」, R1-D14 O1): the
-// delegated-view suite of session-contract on the real participant and read handlers, and the
-// tenant cases that the suite cannot see because its other tenant has no session of the same name.
 import { describe, expect, it } from 'vitest'
 import { readAccessRequest, mutationAccessRequest } from '@omne-harness/session-contract'
 import type { SessionCommand, SessionTransactionPort } from '@omne-harness/session-contract'
@@ -23,7 +20,6 @@ import { decodeValue } from '../src/codec.ts'
 import { app, textOf, TENANT_A, TENANT_B, type App } from './fixtures/app.ts'
 import { kindOf, SESSION_ENTRIES } from './fixtures/entries.ts'
 
-/** The evidence stored with an operation record, read from the domain of the tenant (null: none). */
 function storedEvidence(
   a: App,
   tenant: TenantId,
@@ -98,7 +94,6 @@ describe('a view bound to session-1 of tenant A, while tenant B has its own sess
     expect(a.accessCheck.controls.asked().length).toBe(asked)
   })
 
-  // `commit` goes through the fixture's own port, and `pending` names no session: both are below.
   for (const entry of SESSION_ENTRIES.filter(item => !['commit', 'pending'].includes(item.name)))
     it(`${entry.name}: tenant B's session-1 is denied, unasked, and nothing reaches the storage`, async () => {
       const a = await twoTenants()

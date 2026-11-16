@@ -1,6 +1,3 @@
-// 按 run 划分的并发范围（切片 04，验收 C5）：`runToolScope` 是请求来源 consumer 的纯函数，`runScopeGrants` 是该范围
-// 拥有者的授予核验器。核验器只认本拥有者按当前租户与 `scope.key` 签发的授予，所以同一个 key 拿到别的租户下用会被拒
-// （Tool SPEC 第 10 节「并发范围的授予经 guards.grants 核验」）。
 import { describe, expect, it } from 'vitest'
 import type { ConsumerRef, ResourceScope } from '@omne-harness/tool-contract'
 import { decodeToolCallId } from '@omne-harness/tool-contract'
@@ -18,7 +15,6 @@ const action = (work: string, position: string): ConsumerRef => ({
 })
 const RUN = action('exec-1', 'a-1')
 
-/** The verdict of the release verifier for `scope`, asked under `tenant`. */
 async function verdictOf(scope: ResourceScope, tenant = TENANT_A) {
   const verifier = runScopeGrants().get(scope.owner)
   if (verifier === undefined) return { kind: 'no-verifier' }

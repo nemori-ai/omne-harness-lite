@@ -1,4 +1,3 @@
-/** Styling of the React island. Colors follow the page tokens so dark mode needs no second palette. */
 export const FLOW_STYLE = `
 .arch-flow { position:absolute; inset:0; }
 .arch-flow .react-flow { background:var(--canvas); --xy-background-pattern-dots-color-default: rgba(120,128,140,.35); }

@@ -1,8 +1,3 @@
-// The storage command bound takes the suspension content of a tool call (Tool SPEC 30 and 31).
-// Tool keeps the request original, the checkpoint state and the response of a suspended call in
-// records of the call, each written by one commit, and the contract bounds the three. A storage
-// row whose command bound is below what those commits need is refused at the configuration
-// boundary: with it, the store never refuses such a commit for its size.
 import { describe, expect, it } from 'vitest'
 import {
   CHECKPOINT_STATE_MAX_BYTES,
@@ -30,8 +25,6 @@ function tree(maxCommandBytes: unknown, plugins = ['storageRow', 'toolRecordsRow
 
 describe('the storage command bound takes the suspension content of a tool call', () => {
   it('needs a command twice the largest of the three records, as they are stored', () => {
-    // The request original is canonical JSON text (at most twice its size as a string of the
-    // record), the state is base64 text, and half of the command is for the other records.
     expect(SUSPENSION_COMMAND_BYTES).toBe(
       2 *
         Math.max(

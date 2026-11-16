@@ -16,7 +16,7 @@ Claude Code 不从检出读取环境文件。setup 脚本保存在云端环境�
 4. 安装 uv 0.13.0 到 `/root/.local/bin`，替换镜像自带的旧版。
 5. 从 GitHub 添加 `michael-denyer/pstack-claude` 与 `mattpocock/skills` 两个 marketplace，在 user 作用域安装 `pstack` 与 `mattpocock-skills`。再把 `unclebob/ub-mode` 默认分支 `master` 的 `SKILL.md` 下载到 `~/.claude/skills/ub-mode/`。下载完整且文件含 `name: ub-mode` 一行才替换旧文件。否则只输出诊断并保留旧文件，setup 继续。
 6. 在 `~/.claude/settings.json` 登记 SessionStart 钩子。钩子运行检出里的 `session-start.sh`。
-7. 检出已存在时，执行[开发指南](../../../../docs/development.md#准备可用的检出)的三条依赖命令，再生成 agent 投影。
+7. 检出已存在时，执行[准备检出](../../../../CONTRIBUTING.md#准备检出)的三条依赖命令，再生成 agent 投影。
 
 `NODE_VERSION` 必须等于根 `package.json` 的 `devEngines.runtime`。`PNPM_VERSION` 必须等于 `devEngines.packageManager`（与 `packageManager` 相同）。更换其中之一时，同步修改本脚本和 [Cursor 源](../cursor/README.md) 的 Dockerfile。
 
@@ -35,6 +35,8 @@ Claude Code 不从检出读取环境文件。setup 脚本保存在云端环境�
 6. 更新两个 marketplace，再把 `pstack` 与 `mattpocock-skills` 更新到上游最新版本。再从 `master` 重新下载 ub-mode 的 `SKILL.md`。下载完整且文件含 `name: ub-mode` 一行才替换旧文件，否则删除临时文件、输出诊断并保留旧文件。
 
 脚本不丢弃本地工作。`main` 已分叉、或检出的 `main` 不能快进时，脚本输出诊断并保持原状。任何一步失败都只输出诊断，会话照常启动。
+
+这个环境不安装 Java、TLC、Alloy 或 Postgres。缺这些工具时报告没有执行，不把跳过的检查写成通过。密钥和令牌放在云端环境的设置里，不写进仓库。
 
 如果 Claude Code 在钩子运行之前已经加载插件和技能，插件与 ub-mode 的更新要到下一次会话才生效。这一前提没有验证，见[未验证的部分](#未验证的部分)。
 
@@ -63,7 +65,7 @@ Claude Code 不从检出读取环境文件。setup 脚本保存在云端环境�
 
 ## 与技能来源表的差异
 
-[技能来源表](../../../../docs/engineering/skills.md#来源与项目采用) 固定 pstack port 0.9.79、Matt 1.3.1 与 ub-mode 的 revision。本宿主按负责人要求跟随上游最新版本，所以实际版本可能比来源表新。版本差异按 [开发指南](../../../../docs/development.md#初始化-coding-agent-插件) 核对和报告。跟随最新版本不扩大方法采用范围。pqw-skills 不在此列：它是钉了提交的子模块，`session-start.sh` 每次会话按检出里的钉值初始化，版本与来源表一致。
+[技能来源表](../../../tooling/README.md#来源与采用) 固定 pstack port 0.9.79、Matt 1.3.1 与 ub-mode 的 revision。本宿主按负责人要求跟随上游最新版本，所以实际版本可能比来源表新。版本差异按 [开始工作](../../../../CONTRIBUTING.md#开始工作) 核对和报告。跟随最新版本不扩大方法采用范围。pqw-skills 不在此列：它是钉了提交的子模块，`session-start.sh` 每次会话按检出里的钉值初始化，版本与来源表一致。
 
 ## 未验证的部分
 

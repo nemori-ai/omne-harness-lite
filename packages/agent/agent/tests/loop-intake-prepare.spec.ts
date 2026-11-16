@@ -50,7 +50,7 @@ async function snapshot(assembly: LoopAssembly) {
 }
 
 describe('I0 fixes one batch at a legal input boundary', () => {
-  it('NA-I0-1: fixes all accepted inputs, the new step and one input-taken in one commit', async () => {
+  it('fixes all accepted inputs, the new step and one input-taken in one commit', async () => {
     const commits: JournalCommit<Principal>[] = []
     let loads = 0
     const assembly = await loopAssembly([execution()], d => ({
@@ -59,7 +59,6 @@ describe('I0 fixes one batch at a legal input boundary', () => {
         ...d.journal,
         async load(input) {
           loads += 1
-          // Accept two inputs before E2's atomic snapshot, after E1 checked the open receipt.
           if (loads === 2) {
             for (const id of ['second', 'third'])
               ok(
@@ -101,7 +100,7 @@ describe('I0 fixes one batch at a legal input boundary', () => {
     )
   })
 
-  it('NA-I0-2: an input accepted after intent and before Model admission waits for the next step', async () => {
+  it('an input accepted after intent and before Model admission waits for the next step', async () => {
     const taken: JournalCommit<Principal>[] = []
     let before: AgentCheckpoint | null = null
     let after: AgentCheckpoint | null = null
@@ -153,11 +152,10 @@ describe('I0 fixes one batch at a legal input boundary', () => {
     expect(calls).toBe(2)
   })
 
-  it('NA-I0-2: two invokes on the runtime take disjoint input batches', async () => {
+  it('two invokes on the runtime take disjoint input batches', async () => {
     const assembly = await loopAssembly([execution(), execution('exec-2')])
     assembly.release.open()
     const first = await eventsOf(ok(await invoke(assembly)))
-    // The ended event precedes E9. Wait for the actual slot release before another invoke.
     const controller = new AbortController()
     for await (const seen of assembly.provider.observation.observe({
       ...alice,
@@ -211,12 +209,9 @@ describe('I0 fixes one batch at a legal input boundary', () => {
       tenant: alice.tenant,
       call: ok(resolveModelInvocationRef(pending.reference, alice.tenant)).call,
     })
-    // A port's unavailable is a dependency wait: the pass ends waiting (Agent SPEC
-    // 依赖不可用时的等待).
     ok(await c.runExecution())
     expect(after).toEqual(before)
     const at = (await snapshot(assembly)).checkpoint
-    // R2-D292: the ready preparation lived in memory only; the saved intent keeps the request.
     expect(at.requestPreparation).toBeNull()
     expect(at.position).toBe('I8')
     expect(assembly.controls.requests.prepare.calls).toHaveLength(2)
@@ -224,7 +219,7 @@ describe('I0 fixes one batch at a legal input boundary', () => {
 })
 
 describe('I1 prepares at the fixed input boundary', () => {
-  it('NA-I1-1: reads conditions, selects, reads context and prepares assembled before P1 produces ready', async () => {
+  it('reads conditions, selects, reads context and prepares assembled before P1 produces ready', async () => {
     const log: string[] = []
     const saved: AgentCheckpoint[] = []
     const prepared: unknown[] = []
@@ -279,7 +274,6 @@ describe('I1 prepares at the fixed input boundary', () => {
       'prepare-review',
       'conditions',
     ])
-    // R2-D292: the I1 and P1 commits move the position; neither saves the preparation.
     expect(saved.map(at => [at.position, at.requestPreparation])).toEqual([
       ['P0', null],
       ['I2', null],
@@ -300,7 +294,7 @@ describe('I1 prepares at the fixed input boundary', () => {
     expect(saved[0]?.priorConditions).toEqual(initial?.conditions.source)
   })
 
-  it('NA-I1-2: new execution reads with no adopted coverage, then M0 adopts the returned coverage', async () => {
+  it('new execution reads with no adopted coverage, then M0 adopts the returned coverage', async () => {
     let recorded: AgentCheckpoint | null = null
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
@@ -318,7 +312,6 @@ describe('I1 prepares at the fixed input boundary', () => {
     expect(read?.adopted).toBeNull()
     expect(read?.transition).toBeNull()
     const final = (await snapshot(assembly)).checkpoint
-    // R2-D292: the ready preparation is not saved; M0 adopts the coverage it held.
     expect(final.requestPreparation).toBeNull()
     expect(recorded).toMatchObject({ adoptedContext: final.adoptedContext })
     expect(final.adoptedContext).not.toBeNull()
@@ -363,7 +356,7 @@ describe('I1 prepares at the fixed input boundary', () => {
   })
 
   it.each(['conditions', 'selection', 'modelContext', 'requests'] as const)(
-    'NA-I1-3: unavailable %s saves one I1 wait without preparing or calling Model',
+    'unavailable %s saves one I1 wait without preparing or calling Model',
     async port => {
       let modelCalls = 0
       const unavailable = {
@@ -669,8 +662,6 @@ describe('I1 preparation outcomes', () => {
     assembly.controls.requests.prepare.always(input => ({ ok: cannotFit(input, 'fixed') }))
     const current = coordinator(assembly)
     ok(await current.accept())
-    // A port's unavailable is a dependency wait: the pass ends waiting (Agent SPEC
-    // 依赖不可用时的等待).
     ok(await current.runExecution())
     const stopped = await snapshot(assembly)
     expect(stopped.checkpoint.position).toBe('F1')

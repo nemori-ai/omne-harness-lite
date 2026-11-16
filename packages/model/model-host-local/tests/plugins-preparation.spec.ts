@@ -1,12 +1,3 @@
-// The request preparation plugin and its metering leases on real Cordis 4.0.4. Doubles, each with
-// its source:
-// - ModelCommands: `createMemoryModelCommands` of `@omne-harness/model/testing` (no durability),
-//   served through a `ModelCommandsService` test class. The durable commands join with the storage
-//   member; until then nothing here proves a restart.
-// - The family: a stub `PreparationBindingSource` with a recording meter, the same shape as the
-//   stub in `model/tests/preparation.spec.ts`. The real pi families join at the assembly.
-// - The credential completion `supplierOf` is a test function (the assembly supplies the real one).
-// No network and no `modelRuntime` is loaded anywhere in this file.
 import { Context } from '@deepseek-ai/cordis'
 import { accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'
 import {
@@ -61,8 +52,6 @@ const PRINCIPAL = Object.freeze({ subject: 'trusted' })
 const principals = new WeakSet<object>([PRINCIPAL])
 const callOf = (name: string): ModelCallId => unbox(decodeModelCallId(`mcall_${name}`))
 const opOf = (name: string) => unbox(decodeModelOperationId(`mop_${name}`))
-
-// --- fixtures: a profile, requests with messages, a stub family ------------------------------------
 
 const SUPPLIER = {
   adoption: ADOPTION,
@@ -149,7 +138,6 @@ const BASIS: ModelCountingBasis = {
 
 function stubFamily() {
   const released = { count: 0 }
-  // What the test switches on: a release that rejects, and a planning rule that throws.
   const faults = { releaseRejects: false, planThrows: false }
   const meter: CalibratedInputMeter = {
     basis: BASIS,
@@ -215,8 +203,6 @@ const supplierOf = ({
   },
 })
 
-// --- the memory commands and a settled call ------------------------------------------------------
-
 function memoryCommands(): ModelCommands<unknown> {
   const options: MemoryModelCommandsOptions<unknown> = {
     owners: [{ consumerOwner: 'consumer', work: { kind: 'exempt' }, evidence: ADOPTION }],
@@ -279,7 +265,6 @@ const ACCOUNT_FACT: TransportFact = {
   },
 }
 
-/** Settles call `call` with an account of 123 real input tokens, through the commands alone. */
 async function settleCall(
   commands: ModelCommands<unknown>,
   call: ModelCallId,
@@ -330,7 +315,6 @@ async function settleCall(
     }),
   )
   unbox(await commands.recordSend({ ...(await write()), dispatch, state: 'started' }))
-  // A sealed block of the contract's own shape: the first block of a judged request message.
   const sealed = requestWith([user('reply', 'answer')]).messages[0]?.blocks[0]
   if (sealed?.kind !== 'text') throw new Error('fixture block')
   const facts: TransportFact[] = [
@@ -348,8 +332,6 @@ async function settleCall(
     }),
   )
 }
-
-// --- the Cordis side ----------------------------------------------------------------------------
 
 function commandsServiceOver(commands: ModelCommands<unknown>) {
   return class extends ModelCommandsService<unknown> {
@@ -419,8 +401,6 @@ function anchorOf(measured: Awaited<ReturnType<typeof measure>>) {
   if (!('ok' in measured)) throw new Error('measure')
   return measured.ok.calibration?.anchor
 }
-
-// --- C4: the service, with no runtime and no network ---------------------------------------------
 
 it('serves modelRequestPreparation with no runtime and no network, and forms the request from the assembled input', async () => {
   const { ctx } = await loaded()
@@ -501,14 +481,11 @@ it('rejects a missing or out-of-range maxCitedCalls and loads nothing', async ()
     })
     const ctx = new Context()
     await ctx.plugin(commandsServiceOver(memoryCommands()))
-    // The values are wrong on purpose: the cast only lets them through the type of the class.
     const fiber = ctx.plugin(plugin, config as typeof CONFIG)
     await expect(Promise.resolve(fiber).then(() => 'loaded')).rejects.toBeInstanceOf(Error)
     expect(ctx.modelRequestPreparation).toBeUndefined()
   }
 })
-
-// --- C5: the lease and the commands it shares with the host --------------------------------------
 
 it('a second-round lease on the same commands reads the first round, and one on other commands does not', async () => {
   const commands = memoryCommands()
@@ -525,7 +502,6 @@ it('a second-round lease on the same commands reads the first round, and one on 
   expect(anchorOf(await measure(sharedLease, requestWith(THREE)))).toEqual({ kind: 'hit' })
   await sharedLease.release()
 
-  // The same plugin over another store: the first round is not in it.
   const other = await loaded(memoryCommands())
   const otherLease = unbox(
     await other.resources.acquire({
@@ -580,8 +556,6 @@ it('the leases are given again once the plugin is loaded again, over the command
   if ('ok' in lease) await lease.ok.release()
 })
 
-// --- C6: replacement and loss of the commands ----------------------------------------------------
-
 it('a lease taken before the commands were replaced keeps the facts it read, and a new lease reads the successor', async () => {
   const first = memoryCommands()
   await settleCall(first, callOf('x'), requestWith(TWO))
@@ -590,8 +564,6 @@ it('a lease taken before the commands were replaced keeps the facts it read, and
     await resources.acquire({ ...access, profile: PROFILE, lineage: { continues: callOf('x') } }),
   )
 
-  // Another store takes the place of the commands service: Cordis unloads the plugin and loads it
-  // again over the successor, which does not know call x.
   await commandsFiber.dispose()
   await ctx.plugin(commandsServiceOver(memoryCommands()))
   await new Promise(resolve => setTimeout(resolve, 20))
@@ -618,8 +590,6 @@ it('with the commands lost, the preparation service is gone and the lease source
     failure: { kind: 'unavailable', diagnostic: 'preparation-plugin-unloaded' },
   })
 })
-
-// --- the lease ends with the request, and only the plugin's own resources end with it ----------------
 
 it('fails the prepare when the lease cannot be given back: the provider still owes the resource', async () => {
   const { ctx, family } = await loaded()
@@ -668,8 +638,6 @@ it('keeps the leases of a successor that loaded first when the earlier load is u
   if ('ok' in lease) await lease.ok.release()
 })
 
-// --- the second key of the fiber: modelPreparationResources -------------------------------------
-
 it('provides modelPreparationResources on the same fiber, and its lease reads the facts of the injected commands', async () => {
   const commands = memoryCommands()
   await settleCall(commands, callOf('x'), requestWith(TWO))
@@ -683,7 +651,6 @@ it('provides modelPreparationResources on the same fiber, and its lease reads th
       lineage: { continues: callOf('x') },
     }),
   )
-  // A hit needs call x, which only the commands that the plugin injects hold.
   expect(anchorOf(await measure(lease, requestWith(THREE)))).toEqual({ kind: 'hit' })
   expect(await lease.release()).toEqual({})
 })
@@ -706,17 +673,14 @@ it('removes modelPreparationResources with the plugin, and a kept reference refu
       diagnostic: 'preparation-plugin-unloaded',
     },
   })
-  // The lease taken before the unload keeps its bindings until it is released.
   expect(anchorOf(await measure(lease, requestWith(THREE)))).toEqual({ kind: 'hit' })
   expect(await lease.release()).toEqual({})
   expect(family.released.count).toBe(1)
 
-  // A new load provides the key again, over its own commands.
   await ctx.plugin(plugin, CONFIG)
   expect(ctx.modelPreparationResources).toBeInstanceOf(ModelPreparationResourcesService)
 })
 
-/** The real plugin on its own Context, for the conformance cases of the contract member. */
 async function subject(releaseRejects: boolean) {
   const { ctx, family } = await loaded()
   family.faults.releaseRejects = releaseRejects

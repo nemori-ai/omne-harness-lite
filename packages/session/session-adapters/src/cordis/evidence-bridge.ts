@@ -1,14 +1,3 @@
-// AD-10, the evidence bridge: the `sessionEvidence` provider (SPEC AD-10). It splits the material
-// table by command and hands each command to the narrow sources that prepare its material:
-// `sessionAdoptionSource`, `sessionProductionSource` and `sessionCustodySource`. It reads no
-// original fact owner itself and calls no `session` operation. It keeps nothing: the material is
-// prepared on each call.
-//
-// Its own checks are few and on the boundary: a command whose tenant was not minted gets `denied`;
-// an initialization material (session-contract「初始化守卫编码」) that binds another tenant or session
-// than the command gets `denied`; and a command of the table with no material at all is `unavailable`, not an empty success. A source failure comes back
-// as the source gave it. The resident-tool part of the candidate adoption (P-8) is still a candidate:
-// the bridge passes the source's material through and encodes no resident key.
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -28,9 +17,7 @@ import {
   sessionProductionSourceKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 
-/** The owner named in `unavailable` when the bridge itself cannot answer. */
 const BRIDGE_OWNER = 'sessionEvidence'
-/** The owner of the initialization guard material (session-contract「初始化守卫编码」). */
 const INITIALIZATION = 'session-initialization'
 
 const ADOPTION: ReadonlySet<string> = new Set<AdoptionEvidenceCommand['kind']>([
@@ -83,7 +70,6 @@ function isGuard(value: unknown): value is GuardCommand {
   )
 }
 
-/** One member of a JSON tree object, or undefined. */
 function member(tree: unknown, key: string): unknown {
   if (typeof tree !== 'object' || tree === null) return undefined
   const node = tree as { kind?: unknown; entries?: unknown }
@@ -103,10 +89,6 @@ function textOf(tree: unknown): string | undefined {
   return node.kind === 'string' && typeof node.value === 'string' ? node.value : undefined
 }
 
-/**
- * Whether an initialization material binds the tenant and the session of the command. Its facts
- * are a JSON tree whose `binding` holds the tenant text and the session (「初始化守卫编码」).
- */
 function bindsCommand(guard: GuardCommand, tenant: string, session: string): boolean {
   const binding = member(guard.facts, 'binding')
   return (
@@ -114,14 +96,8 @@ function bindsCommand(guard: GuardCommand, tenant: string, session: string): boo
   )
 }
 
-/** What the bridge has to answer: the outcome of `prepare`. */
 type Answer = Awaited<Prepared>
 
-/**
- * The material one source gave, or the outcome that ends the preparation: a throw, an answer that
- * is no outcome or no material list, or the source's own failure, which keeps its kind and its
- * owner and is not rewritten into a business refusal.
- */
 async function guardsOf<P>(
   source: Source<P>,
   command: SessionCommand,
@@ -141,21 +117,12 @@ async function guardsOf<P>(
   return { guards: answer.ok }
 }
 
-/**
- * The refusal of one material on the boundary of the bridge, or null when it passes: an
- * initialization material must bind the tenant and the session of the command.
- */
 function refusalOf(guard: GuardCommand, command: SessionCommand, tenant: string): Answer | null {
   if (guard.owner === INITIALIZATION && !bindsCommand(guard, tenant, command.input.session))
     return fail({ kind: 'denied' as const, action: command.kind })
   return null
 }
 
-/**
- * The evidence bridge. It needs all three sources: with one of them absent the plugin stays pending
- * and does not provide `sessionEvidence`, so Session mutations that need evidence answer
- * `unavailable` (装配页缺口表).
- */
 export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceBridgeService<P> {
   static readonly inject = [
     sessionAdoptionSourceKey,
@@ -169,10 +136,8 @@ export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceB
 
   constructor(ctx: Context) {
     super(ctx)
-    // Each source is typed by its narrow command union; the bridge routes by kind before it calls.
     this.adoption = {
       key: sessionAdoptionSourceKey,
-      // The original access goes to the adoption source as it came. The two other sources keep their signature.
       prepare: (command, access) =>
         ctx[sessionAdoptionSourceKey].prepare(command as AdoptionEvidenceCommand, access),
     }
@@ -192,12 +157,10 @@ export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceB
 
   readonly prepare: SessionEvidenceBridge<P>['prepare'] = async (command, access) => {
     if (this.closed) return unavailable(BRIDGE_OWNER, 'the evidence bridge has stopped')
-    // A tenant that legal-identity did not mint names no tenant: no source sees the command.
     const tenant = tenantCodec.encode(command.input.tenant)
     if (!tenant.ok) return fail({ kind: 'denied' as const, action: command.kind })
 
     const sources = this.sourcesFor(command)
-    // The material table has no row for this command (`claim`, a routed accept): no material.
     if (sources.length === 0) return succeed([])
 
     const materials: GuardCommand[] = []
@@ -219,9 +182,7 @@ export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceB
     return succeed(materials)
   }
 
-  /** The sources the material table names for the kind of `command`, in table order. */
   private sourcesFor(command: SessionCommand): Source<P>[] {
-    // Permission assignments require the transaction's dedicated write qualification, not adoption.
     if (command.kind === 'change' && command.input.declaration.kind === 'permission-assignment')
       return []
     const sources: Source<P>[] = []

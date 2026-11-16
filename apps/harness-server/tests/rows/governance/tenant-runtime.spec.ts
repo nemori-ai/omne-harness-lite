@@ -2,7 +2,6 @@ import { toolAssetTarget } from '../../../src/rows/governance/tool-installation-
 import { canonicalText } from '@omne-harness/authorization'
 import { CurrentPermissionService } from '../../../src/rows/governance/current-permission-service.ts'
 // @module-tag slow
-// Real Identity and SQLite providers; only the clock and caller installation are test inputs.
 import { randomUUID } from 'node:crypto'
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -313,7 +312,6 @@ it('settles an original Settings catalog hold after SQL restart before opening t
           if (result.kind === 'held') held = result.reservation
           return result
         },
-        // Lose only settlement delivery; the original reservation and directory terminal persist.
         async settle() {
           return { kind: 'unavailable' as const, diagnostic: 'fixture-lost-settlement' }
         },
@@ -565,6 +563,10 @@ it.each(['wrong-domain', 'unissued-reader'] as const)(
     expect(await prepareTenantGovernance(changed).open()).toMatchObject({
       kind: 'unavailable',
       phase: 'binding',
+      reason:
+        scenario === 'wrong-domain'
+          ? 'catalog reader is not of this tenant'
+          : expect.stringMatching(/^catalog reader (verification answered|verified as)/),
     })
     expect(registration).not.toHaveBeenCalled()
   },
@@ -580,7 +582,11 @@ it('retries a refused registration with the same durable combination identities'
     storage: { ...w.options.storage, registerCombination: registration },
   }
   const rejected = prepareTenantGovernance(options)
-  expect(await rejected.open()).toMatchObject({ kind: 'unavailable', phase: 'registration' })
+  expect(await rejected.open()).toMatchObject({
+    kind: 'unavailable',
+    phase: 'registration',
+    reason: 'threw',
+  })
   await rejected.open()
   expect(registration).toHaveBeenCalledTimes(1)
   const retry = prepareTenantGovernance(options)
@@ -757,7 +763,6 @@ it('installs the actual Tool release and adopts its original holdings before exp
   )
   expect(targets).toHaveLength(1)
   const target = targets[0]!.target
-  // The installation holds the tool at the address that consumers compute.
   expect(target).toEqual(toolAssetTarget(tool, w.options.scope.tenantRef))
   expect(request?.scope.targetId).toBe(canonicalText(target))
   expect(
@@ -900,6 +905,7 @@ it('retains and retries close responsibility for an unavailable installation', a
             kind: 'unavailable' as const,
             owner: 'harness.tenant-governance',
             phase: 'installation' as const,
+            reason: 'tool installation adopt',
             close,
           }
         },
@@ -922,7 +928,11 @@ it('closes an interrupted installation and resumes from original partial holding
       throw new Error('organization read transport failure')
     },
   }).open()
-  expect(interrupted).toMatchObject({ kind: 'unavailable', phase: 'installation' })
+  expect(interrupted).toMatchObject({
+    kind: 'unavailable',
+    phase: 'installation',
+    reason: expect.stringMatching(/^tool installation \S+$/),
+  })
   if (!('close' in interrupted)) throw new Error('installation lost its close responsibility')
   cleanup.push(interrupted.close)
   expect(await interrupted.close()).toEqual({ kind: 'closed' })
@@ -1019,7 +1029,6 @@ it('preserves a nonempty Settings assignment across default tenant installation 
       domain: w.options.domain,
       destination: configuration.destination,
       registrations,
-      // The seed takes the target snapshot of the tenant domain and states it as the current facts.
       ...settingsSeedCurrent({
         configuration,
         snapshot: async () => {
@@ -1049,7 +1058,6 @@ it('preserves a nonempty Settings assignment across default tenant installation 
           )
         },
       }),
-      // This setup capability seeds one original tenant value; it does not test user editing policy.
       access: {
         async authorize(principal, request) {
           return {

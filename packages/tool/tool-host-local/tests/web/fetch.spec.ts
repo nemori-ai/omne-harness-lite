@@ -1,5 +1,3 @@
-// The local fetch of `createWebAccess` against a `node:http` fixture on 127.0.0.1: media types,
-// redirects, the total timeout, the decompressed byte cap, the read-only request and cancellation.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
 import { createWebAccess, type WebAccessOptions } from '@omne-harness/tool-host-local/web'
@@ -137,12 +135,10 @@ describe('Web fetch: time and size', () => {
   })
 
   it('a body over maxBodyBytes is cut there and marked truncated, counted after decompression', async () => {
-    // 64 KiB of two-byte characters; the cap falls inside a character, which is dropped, not replaced.
     const big = await page('/big', { maxBodyBytes: 10_001 })
     expect(big.truncated).toBe(true)
     expect(Buffer.byteLength(big.markdown, 'utf8')).toBe(10_000)
     expect(big.markdown).not.toContain('�')
-    // The gzip bomb is a few KiB on the wire and 8 MiB decompressed: the cap applies to the latter.
     const bomb = await page('/bomb', { maxBodyBytes: 4096 })
     expect(bomb.truncated).toBe(true)
     expect(bomb.markdown).toBe('a'.repeat(4096))

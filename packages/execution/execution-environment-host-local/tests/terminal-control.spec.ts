@@ -1,7 +1,3 @@
-// The host's reader of the terminal gate's control frames: what each frame says (decode), and
-// which frame each state of one terminal accepts (the reader's transitions). Everything is driven
-// through `createTerminalReader`: bytes in, frames or a fault out. A frame the state does not
-// accept ends the reader in `fault`, for good.
 import { describe, expect, it } from 'vitest'
 import { createTerminalReader } from '../src/terminal-control.ts'
 
@@ -13,7 +9,6 @@ type Wire = Record<string, unknown>
 const line = (frame: unknown) => Buffer.from(`${JSON.stringify(frame)}\n`)
 const b64 = (text: string) => Buffer.from(text).toString('base64')
 
-/** One frame of each kind in the wire shape the gate sends, for leg `id`. */
 const wire = {
   ready: (): Wire => ({ t: 'ready', generation }),
   opened: (): Wire => ({ t: 'opened', cwd: '/w', generation }),
@@ -39,10 +34,6 @@ function pushAll(reader: Reader, ...frames: unknown[]): void {
     if (!accepted(reader, frame)) throw new Error(`setup: ${JSON.stringify(frame)} was refused`)
 }
 
-/**
- * The eight situations a reader can be in. `starting` and `running` each come with and without
- * the begin sentinel, because the sentinel may be read before or after the started observation.
- */
 const situations = {
   launching: () => newReader(),
   ready: () => {
@@ -83,7 +74,6 @@ const situations = {
 }
 type Situation = keyof typeof situations
 
-/** Which frames each situation accepts; every other frame of the right leg is a fault. */
 const accepts: Record<Situation, readonly Kind[]> = {
   launching: ['ready'],
   ready: ['opened'],
@@ -106,7 +96,6 @@ describe('the reader accepts a frame only in the state that expects it', () => {
           expect(result.kind).toBe(expected ? 'frames' : 'fault')
           if (result.kind === 'frames')
             expect(result.frames.map(frame => frame.kind)).toEqual([kind])
-          // A refusal is final; an acceptance leaves the reader usable.
           expect(reader.push(Buffer.alloc(0)).kind).toBe(expected ? 'frames' : 'fault')
         })
       }
@@ -165,7 +154,6 @@ describe('the order of one leg', () => {
   it('goes back to idle on finished and then expects the next leg only', () => {
     const reader = situations.runningBegun()
     pushAll(reader, wire.finished())
-    // The finished leg is closed: its id means nothing any more, and no leg is expected yet.
     expect(reader.push(line(wire.data())).kind).toBe('fault')
 
     const next = situations.runningBegun()
@@ -184,7 +172,6 @@ describe('the order of one leg', () => {
     const reader = situations.runningBegun()
     pushAll(reader, wire.finished())
     reader.expectLeg('M')
-    // A stale begun from the previous leg would refuse this begun; stale counts would refuse the between.
     pushAll(reader, wire.between('M', '0123456789'), wire.begun('M'))
   })
 })
@@ -256,7 +243,6 @@ describe('the between-segment bound', () => {
 })
 
 describe('what each frame says', () => {
-  /** A fresh reader in a state where `frame` is accepted unless its content is wrong. */
   function pushed(kind: Kind, frame: unknown) {
     const where: Record<Kind, Situation> = {
       ready: 'launching',
@@ -403,7 +389,6 @@ describe('what each frame says', () => {
     })
     it('take a chunk of exactly the chunk bound and refuse one byte more', () => {
       const bound = bounds.maxChunkBytes
-      // The between-segment bound is a different limit; keep it out of the way here.
       const reader = (): Reader => {
         if (kind === 'data') return situations.runningBegun()
         const wide = newReader({ betweenSegmentBytes: 1000 })

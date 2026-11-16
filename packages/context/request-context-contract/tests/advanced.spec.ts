@@ -94,7 +94,6 @@ it('resident known-unavailable declarations retain definition; nonresidents rema
       },
     ]).programmatic,
   ).toEqual([])
-  // A function tool is declared as it is, and its route selects no command.
   expect(declareTools([available])).toMatchObject({
     direct: [
       {
@@ -105,7 +104,6 @@ it('resident known-unavailable declarations retain definition; nonresidents rema
     ],
     routes: [{ declared: 'lookup', selection: { kind: 'none' } }],
   })
-  // A multi-command tool is one declaration (D-94): the command is an argument, never a name.
   const files = {
     ...definition,
     name: 'Files',
@@ -370,7 +368,6 @@ it('policy identity change, plan mismatch, and veto all preserve closed result s
       f.policies,
     ),
   ).toMatchObject({ kind: 'cannot-fit', cause: 'step-vetoed', progress: { completed: '1' } })
-  // A changed model selection after planning is a plan mismatch, not a silent model switch.
   expect(
     await deriveStep(
       { ...f.input, selection: { ...f.input.selection, replay: 'off' } },
@@ -379,7 +376,6 @@ it('policy identity change, plan mismatch, and veto all preserve closed result s
       f.policies,
     ),
   ).toMatchObject({ kind: 'invalid', reason: 'plan-mismatch', field: 'model' })
-  // A basis that does not match its digest is rejected before any progress.
   expect(
     await deriveStep(
       f.input,

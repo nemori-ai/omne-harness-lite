@@ -1,6 +1,3 @@
-// Extract the plugin-tree rows (and the optional trusted-subtree table) from the
-// application assembly page, then check or write the committed snapshot.
-// Plain Node, no dependencies, no build step.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -30,7 +27,6 @@ const cells = line =>
     .split('|')
     .map(cell => cell.trim())
 
-/** Find the first table in lines[from, to) whose header cells equal `header`. Returns its data rows. */
 function findTable(lines, from, to, header) {
   for (let i = from; i < to; i++) {
     if (!lines[i].startsWith('|')) continue
@@ -90,7 +86,6 @@ export function extract(markdown) {
 const canonical = snapshot =>
   `${JSON.stringify({ source: snapshot.source, rows: snapshot.rows, trusted: snapshot.trusted }, null, 2)}\n`
 
-/** Itemised differences between the AA extraction (aa) and the snapshot (rows). */
 export function diff(aa, rows) {
   const out = []
   for (const id of aa.rows) if (!rows.rows.includes(id)) out.push(`+${id}`)
@@ -144,7 +139,6 @@ function parseArgs(argv) {
   }
 }
 
-/** E1 and E2 over the sources. Returns the exit code; findings on pending names are only reported. */
 function checkSources(aa, { srcRoot, repoRoot, configPath }) {
   const config = readTrustConfig(configPath)
   const findings = [

@@ -1,14 +1,3 @@
-// The `modelPreparationResources` double and its conformance cases.
-// - `createScriptedModelPreparationResources` is a lease source with one binding per profile
-//   supplier; acquire and release failures are scriptable. It has the shape of
-//   `createScriptedPreparationResources` in `@omne-harness/request-context-contract/testing`, built
-//   here because this member does not depend on Context. It does not read call facts or lineage.
-//   The real source joins at the assembly: `model-host-local` provides the key from its request
-//   preparation plugin.
-// - `createModelPreparationResourcesPlugin` provides the key on its own plugin fiber over any lease
-//   source, so a consumer can load the key without the Model host.
-// - `modelPreparationResourcesConformance` drives a provider through the key only. Passing proves
-//   the lease rules of one provider in one process.
 import type { Context } from '@deepseek-ai/cordis'
 import type {
   ModelFailure,
@@ -24,19 +13,14 @@ type Released = Awaited<ReturnType<ModelPreparationLease['release']>>
 type PlanInput = Parameters<ModelRequestRules['plan']>[0]
 
 export type ScriptedModelPreparationResourcesScript = Readonly<{
-  /** The meter of every binding. */
   meter: ModelInputMeter
-  /** The plan of every binding; defaults to a materialized representation of the assembled input. */
   plan?: (input: PlanInput) => ReturnType<ModelRequestRules['plan']>
-  /** A failure refuses the acquire; `null` grants it. Defaults to granting. */
   acquire?: () => ModelFailure | null
-  /** The answer of a release. Defaults to no failure. */
   release?: () => Released
 }>
 
 export interface ScriptedModelPreparationResources<P> extends ModelPreparationResources<P> {
   readonly durability: 'none'
-  /** Leases given and not yet released. */
   outstanding(): number
 }
 
@@ -56,7 +40,6 @@ function materialized(input: PlanInput): ReturnType<ModelRequestRules['plan']> {
   }
 }
 
-/** Leases with one binding per profile supplier; release and acquire answers are scriptable. */
 export function createScriptedModelPreparationResources<P = unknown>(
   script: ScriptedModelPreparationResourcesScript,
 ): ScriptedModelPreparationResources<P> {
@@ -109,7 +92,6 @@ class DelegatingModelPreparationResourcesService<P> extends ModelPreparationReso
   }
 }
 
-/** A plugin that provides `modelPreparationResources` on its own fiber over `source`. */
 export function createModelPreparationResourcesPlugin<P = unknown>(
   source: ModelPreparationResources<P>,
 ): Readonly<{ name: string; apply(ctx: Context): void }> {
@@ -121,7 +103,6 @@ export function createModelPreparationResourcesPlugin<P = unknown>(
   }
 }
 
-/** A live provider of `modelPreparationResources` below `context`, and an input it grants. */
 export interface ModelPreparationResourcesSubject {
   readonly context: Context
   readonly input: Parameters<Acquire<unknown>>[0]
@@ -129,15 +110,12 @@ export interface ModelPreparationResourcesSubject {
 }
 
 export interface ModelPreparationResourcesFixture {
-  /** A fresh provider whose release hooks succeed. */
   create(): Promise<ModelPreparationResourcesSubject>
-  /** A fresh provider whose release hooks fail. */
   createWithFailingRelease(): Promise<ModelPreparationResourcesSubject>
 }
 
 export type ModelPreparationResourcesCase = Readonly<{
   name: string
-  /** The rule the case holds, in words. */
   clause: string
   run(): Promise<void>
 }>
@@ -146,7 +124,6 @@ function check(condition: boolean, message: string): asserts condition {
   if (!condition) throw new Error(message)
 }
 
-/** The service as a consumer plugin sees it through `inject`. */
 async function consumed(
   subject: ModelPreparationResourcesSubject,
 ): Promise<ModelPreparationResourcesService<unknown>> {
@@ -172,10 +149,6 @@ async function leaseOf(
   return acquired.ok
 }
 
-/**
- * The conformance cases of `modelPreparationResources`: a released lease gives way to a new one,
- * and a failed release comes back as `failure` instead of a throw.
- */
 export function modelPreparationResourcesConformance(
   fixture: ModelPreparationResourcesFixture,
 ): readonly ModelPreparationResourcesCase[] {

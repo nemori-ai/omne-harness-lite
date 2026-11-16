@@ -6,18 +6,13 @@ export interface BlockDescriptorBase<K extends ContextBlockKey, V> {
   readonly key: K
   readonly schema: StandardSchemaV1<unknown, V>
   readonly consumers: readonly ConsumerClass[]
-  /** Required perception: a missing value reads as missing, not as absent. */
   readonly required: boolean
   readonly disclosure: 'plain' | 'eligibility-checked'
-  /** Whether snapshots and reminders may carry the previous value. */
   readonly carriesPrevious: boolean
-  /** How often the value is expected to change relative to model steps and requests. */
   readonly volatility: 'stable' | 'per-step' | 'per-request'
-  /** Scope-level parameters the holder may give at registration; the declarer owns the shape. */
   readonly parameterSchema?: StandardSchemaV1<unknown, unknown>
 }
 
-/** A block whose current value one producer supplies. */
 export interface SuppliedBlockDescriptor<K extends ContextBlockKey, V> extends BlockDescriptorBase<
   K,
   V
@@ -26,7 +21,6 @@ export interface SuppliedBlockDescriptor<K extends ContextBlockKey, V> extends B
   readonly recovery: 'persisted' | 'reread' | 'recompute'
 }
 
-/** A block that participants update and the holder commits at step boundaries. */
 export interface StatefulBlockDescriptor<
   K extends ContextBlockKey,
   V,
@@ -48,7 +42,6 @@ export type DescriptorCatalog = Readonly<{
   get(key: ContextBlockKey): ContextBlockDescriptor<ContextBlockKey, unknown, unknown> | undefined
 }>
 
-/** Stable comparison of declaration metadata. Validator and reducer function bodies are not serializable declaration data. */
 export function declarationDigest(
   descriptor: ContextBlockDescriptor<ContextBlockKey, unknown, unknown>,
 ): string {

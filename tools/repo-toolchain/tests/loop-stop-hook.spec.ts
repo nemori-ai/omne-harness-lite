@@ -1,8 +1,4 @@
 // @module-tag slow
-// 归慢层：在临时 git 仓库里起收工钩子脚本子进程、喂标准输入。全量准入快层账本里整份合计 14.2 秒，负载下 30.8 秒，快层 4 条里 2 条在全量准入超单条预算（2.5 秒），另 3 条本已逐条慢层（tools/test-runner/README_ZH.md「归层」）。
-// 收工钩子的入口与量读数的子进程：临时 git 仓库，子进程跑脚本、喂标准输入。
-// 钉住的是宿主看得到的东西：退出码永远是 0，标准输出要么空、要么恰好一个 JSON 对象——
-// 反馈时只有 decision 与 reason，钩子自己出错时只有 systemMessage。
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -23,7 +19,6 @@ import {
 afterEach(removeTemporaries)
 
 const script = fileURLToPath(new URL('../src/loop/stop-hook.ts', import.meta.url))
-// 夹具仓库没有回路配置：配置由运行检查器的仓库（本仓库）提供。
 const runner = fileURLToPath(new URL('../../../', import.meta.url))
 const hook = (cwd: string, home: string, input: string) =>
   spawnSync(process.execPath, ['--experimental-strip-types', script], {
@@ -38,7 +33,6 @@ const tangled = `export function tangled(x: number): number {\n${Array.from(
   (_, i) => `  if (x === ${i}) return ${i}`,
 ).join('\n')}\n  return -1\n}\n`
 
-/** 主线上有一个成员；之后在工作分支上改。 */
 function work(): { root: string; home: string } {
   const root = repository()
   write(root, 'packages/core/a/src/index.ts', 'export const a = 1\n')
@@ -55,7 +49,6 @@ const logLines = (home: string) =>
     ? readFileSync(join(home, 'hook.log'), 'utf8').split('\n').filter(Boolean)
     : []
 
-// 每条用例都起 node 与 git 子进程；全量检查满载时单条会超过默认的 5 秒。
 describe('收工钩子的入口', { timeout: 60_000 }, () => {
   it('坏 JSON、输入的 cwd 不在 git 仓库里：退出 0，标准输出为空（进程所在的仓库明明有红项）', () => {
     const { root, home } = work()
@@ -70,7 +63,6 @@ describe('收工钩子的入口', { timeout: 60_000 }, () => {
     expect(hook(root, home, input(root)).stdout).not.toBe('')
   })
 
-  // 归慢层：子进程：在临时 git 仓库里连着起几次收工钩子脚本子进程（另有 git 子进程）。
   it(
     '种一个超 alert 的函数：恰好一个只有 decision、reason 的 JSON 对象；再跑一次为空；续跑中为空',
     { tags: ['slow'] },
@@ -96,7 +88,6 @@ describe('收工钩子的入口', { timeout: 60_000 }, () => {
     },
   )
 
-  // 归慢层：子进程：在临时 git 仓库里连着起几次收工钩子脚本子进程（另有 git 子进程）。
   it(
     '存量超线的函数：改一行不加分支不反馈；加一个分支才反馈，带「原 N」',
     { tags: ['slow'] },
@@ -184,12 +175,10 @@ describe('收工钩子的入口', { timeout: 60_000 }, () => {
     expect(parsed['systemMessage']).toContain(`${home}/hook.log`)
     const lines = logLines(home)
     expect(lines).toHaveLength(before + 1)
-    // 日志记的是 git 顶层目录；Windows 上那是正斜杠、长文件名，与临时目录的 8.3 短名写法不同。
     expect(lines[0]).toContain(git(root, 'rev-parse', '--show-toplevel'))
   })
 })
 
-// 归慢层：子进程：量读数的子进程在临时 git 仓库里连着量两次读数（另有 git 子进程）。
 describe('量读数的子进程', { tags: ['slow'] }, () => {
   it('没碰产品源码给 undefined；碰了给读数；超过时限以超时拒绝', async () => {
     const { root, home } = work()
@@ -204,7 +193,6 @@ describe('量读数的子进程', { tags: ['slow'] }, () => {
     )
   })
 
-  // 子进程里做的事本身在进程内跑一遍：没碰、碰了且基线读数这次现算、碰了且基线读数已缓存。
   it('resultOf：没碰产品源码不报；碰了给读数，基线读数这次现算才报「已备好」，第二次读缓存不报', () => {
     const { root, home } = work()
     const job = { root, primaryBranch: 'main', home }
@@ -228,7 +216,6 @@ describe('量读数的子进程', { tags: ['slow'] }, () => {
   })
 
   it('resultOf：只有架构观测的基线这次现算（依赖图的基线仍在缓存里）也报「已备好」', () => {
-    // 基线里有 workspace 才有架构观测可存。
     const root = repository()
     write(root, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*/*'\n")
     write(root, 'packages/core/a/src/index.ts', 'export const a = 1\n')
@@ -248,7 +235,6 @@ describe('量读数的子进程', { tags: ['slow'] }, () => {
     expect(prepared).toEqual([git(root, 'rev-parse', 'main')])
   })
 
-  // 量读数时有一次同步的子进程调用（dependency-cruiser）卡着：到时限要连它一起杀掉，主进程才能按时退出。
   it.skipIf(process.platform === 'win32')(
     '卡在同步子进程里也按时限拒绝，它起的进程一起结束；先报过「已备好」的写进超时说明',
     async () => {

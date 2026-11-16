@@ -15,9 +15,6 @@ import {
   valueSchema,
 } from './tool-values.ts'
 
-// The json-text tree check of this package is a thin adapter over `judgeJsonValue`: it gives a
-// structural path the field names of this package. These tests reach it through the schema of a
-// tool definition, so every field name below starts with `parameters.schema`.
 const AT = 'parameters.schema'
 
 function rejection(schema: unknown) {
@@ -29,7 +26,6 @@ function rejection(schema: unknown) {
   return judged.failure
 }
 
-/** A list of `length` empty slots: a hole is no own property. */
 function holes(length: number): unknown[] {
   const list: unknown[] = []
   list.length = length

@@ -1,6 +1,3 @@
-// The Streamable HTTP half of the A-layer fixture: a scripted peer on a `node:http` server that
-// answers JSON bodies, SSE streams, any status, the well-known metadata, the legacy HTTP+SSE
-// transport (`GET` stream + endpoint), and makes itself unreachable where the script says `unsent`.
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { isConnectionTarget } from '@omne-harness/mcp-contract'
 import type { McpTransportFactory, TransportMaterial } from '@omne-harness/mcp-contract/provider'
@@ -24,11 +21,8 @@ import {
 const METADATA_PATH = '/.well-known/oauth-protected-resource'
 const servers = new Set<Server>()
 
-/**
- * Listens on a free port above 10080: `fetch` refuses the WHATWG "bad ports" (1719, 4045, 6665,
- * … up to 10080) with `TypeError: fetch failed` and no cause code, and this host's ephemeral
- * range starts at 1024. A port in use is tried again.
- */
+// Listens on a free port above 10080: `fetch` refuses the WHATWG "bad ports" (1719 up to 10080)
+// with a bare `TypeError: fetch failed`. A port in use is tried again.
 export async function listenFree(server: Server): Promise<number> {
   for (;;) {
     const port = 20_000 + Math.floor(Math.random() * 40_000)
@@ -44,7 +38,6 @@ export async function listenFree(server: Server): Promise<number> {
   }
 }
 
-/** The ports of the servers still listening. A test fails on a non-empty list and closes them. */
 export async function leftoverServers(): Promise<readonly number[]> {
   const ports: number[] = []
   for (const server of servers) {
@@ -70,7 +63,6 @@ function isRecord(value: PlainJson | undefined): value is Readonly<{ [key: strin
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** The MCP request headers the peer saw, by lower-case name. */
 function mcpHeadersOf(request: IncomingMessage): PeerRequestHeaders {
   const headers: { [name: string]: string } = {}
   for (const name of ['mcp-protocol-version', 'mcp-method', 'mcp-name', 'mcp-session-id']) {
@@ -91,16 +83,12 @@ function readBody(request: IncomingMessage): Promise<string> {
 
 type Picked = Readonly<{ key: string; replies: readonly PeerReply[] }>
 
-/** How the peer answers; the same choice rule as the contract's in-memory scripted peer. */
 class Peer {
   readonly log: PeerReceived[] = []
-  /** The method and path of every request, in order: what the log does not say about where it went. */
   readonly requestLines: string[] = []
-  /** The bytes of the endless metadata document that were written before the client gave up. */
   endlessWritten = 0
   private readonly consumed = new Map<string, number>()
   private peerRequestCount = 0
-  /** The open streams of the legacy HTTP+SSE mode, by session. */
   private readonly sseStreams = new Map<string, ServerResponse>()
   private sessionCount = 0
 
@@ -125,7 +113,6 @@ class Peer {
     this.sseStreams.clear()
   }
 
-  /** The streams stay open; their sessions are forgotten, so the endpoint answers 404. */
   endSessions(): void {
     this.sseStreams.clear()
   }
@@ -138,7 +125,6 @@ class Peer {
     return list[Math.min(index, list.length - 1)] ?? fallback
   }
 
-  /** The scripted replies in protocol order, with their keys, for the `unsent` plan. */
   private ordered(): readonly Picked[] {
     const script = this.script
     const entries: Picked[] = []
@@ -159,13 +145,6 @@ class Peer {
     return entries
   }
 
-  /**
-   * After a reply (and at the start): when the next request in protocol order would be answered
-   * `unsent`, the server goes away, so that the request fails before it leaves (T8 X01). An
-   * unconsumed `server/discover` answer does not hold the plan back: a case may never send the
-   * probe (the suite scripts a modern answer by default). An `initialize` that is `unsent` waits
-   * for a scripted probe answer that leads to the legacy path.
-   */
   planUnsent(): void {
     const next = (key: string, replies: readonly PeerReply[]): PeerReply | undefined => {
       const index = this.consumed.get(key) ?? 0
@@ -237,7 +216,6 @@ class Peer {
       : this.pick(`notification:${method}`, replies, { kind: 'silent' })
   }
 
-  /** The requests the peer sends at a point of the legacy path, as JSON-RPC messages. */
   peerRequests(at: 'initialize' | 'initialized'): readonly PlainJson[] {
     return (this.script.peerRequests ?? [])
       .filter(request => (request.at ?? 'initialized') === at)
@@ -277,7 +255,6 @@ class Peer {
     response.writeHead(404, { 'content-type': 'text/html' }).end('<html>not found</html>')
   }
 
-  /** A 200 JSON document that never ends: the client must stop reading it at its byte bound. */
   private endlessMetadata(request: IncomingMessage, response: ServerResponse): void {
     response.writeHead(200, { 'content-type': 'application/json' })
     response.write('{"authorization_servers":["https://endless.test"],"pad":"')
@@ -292,7 +269,6 @@ class Peer {
     more()
   }
 
-  /** The legacy HTTP+SSE transport: the stream with the `endpoint` event. */
   private openSse(request: IncomingMessage, response: ServerResponse): void {
     this.options.onSseRequest?.()
     const refusal = this.options.sseRefusal
@@ -348,7 +324,6 @@ class Peer {
     const id = message['id']
     const params = isRecord(message['params']) ? message['params'] : {}
     if (typeof method !== 'string') {
-      // The client's answer to a request of the peer.
       this.log.push({
         kind: 'response',
         id: String(id),
@@ -382,7 +357,6 @@ class Peer {
     const token = isRecord(params['_meta']) ? params['_meta']['progressToken'] : undefined
     const before = method === 'initialize' ? this.peerRequests('initialize') : []
     if (stream !== undefined) {
-      // The legacy HTTP+SSE mode: the answer goes on the shared stream; the POST is accepted.
       response.writeHead(202).end()
       this.realizeOnStream(stream, chosen, id, token, before)
       this.planUnsent()
@@ -449,8 +423,6 @@ class Peer {
       case 'silent':
       case 'unsent':
       case 'process-exits':
-        // The answer never comes: the stream stays open until the client ends it. With
-        // `holdHeads` not even the answer head goes out.
         if (this.options.holdHeads === true) return
         response.writeHead(200, { 'content-type': 'text/event-stream' })
         response.flushHeaders()
@@ -505,7 +477,6 @@ class Peer {
     response.end(chosen.body ?? '')
   }
 
-  /** The answer head goes out, then the socket dies: the client reads a broken 2xx body. */
   private breakStream(response: ServerResponse): void {
     response.writeHead(200, { 'content-type': 'text/event-stream' })
     response.write(': open\n\n')
@@ -516,33 +487,20 @@ class Peer {
   }
 }
 
-/** The request header that carries the number the counting `fetch` gave the request. */
 const REQUEST_HEADER = 'x-omne-fixture-request'
 
-/** A request that is stuck: `received()` rejects when the log is not complete by then. */
 const RECEIVED_WITHIN_MS = 5_000
 
-/** What the fixture knows of one request that went out through the peer's factory. */
 type Tracked = {
   readonly n: number
   readonly url: string
   readonly signal: AbortSignal | undefined
-  /** The `fetch` rejected. */
   rejected: boolean
-  /** The server got the request: the peer's `handle()` was called for it. */
   seen: boolean
-  /** The promise of `handle()` settled. */
   handled: boolean
-  /** The answer's `close` event came. */
   closed: boolean
 }
 
-/**
- * The peer has recorded everything about the request: `handle()` settled (the peer records
- * before it returns), and, when the client aborted the request, the answer closed (the peer
- * records an aborted answer stream on `close`). A request that failed without reaching the
- * server has nothing to record.
- */
 function recorded(request: Tracked): boolean {
   if (request.rejected && !request.seen) return true
   return request.handled && (request.signal?.aborted !== true || request.closed)
@@ -554,19 +512,12 @@ function missingOf(request: Tracked): string {
   return 'the aborted answer did not close'
 }
 
-/**
- * The requests that went out through the peer's factory, in step with what the server did with
- * each. The counting `fetch` numbers every request and sends the number in `REQUEST_HEADER`; the
- * server reads it back, so the two sides of one request are joined without a time window.
- */
 class Requests {
   private readonly tracked = new Map<number, Tracked>()
   private count = 0
-  /** Counts the rounds `newRound` opened. */
   private epoch = 0
   private waiters: (() => void)[] = []
 
-  /** The `fetch` of the peer's factory: the global one, with each request numbered and tracked. */
   readonly fetch: typeof fetch = (input, init) => {
     this.count += 1
     const n = this.count
@@ -596,12 +547,6 @@ class Requests {
     return answer
   }
 
-  /**
-   * The server got a request. Returns what to call when `handle()` settled. A request without the
-   * header did not come through the peer's factory and is not tracked. The `close` listener goes on
-   * before `handle()` adds its own, so the peer records an aborted stream in the same `close`
-   * event, before a waiter resumes.
-   */
   arrived(request: IncomingMessage, response: ServerResponse): () => void {
     const header = request.headers[REQUEST_HEADER]
     const tracked = typeof header === 'string' ? this.tracked.get(Number(header)) : undefined
@@ -618,14 +563,6 @@ class Requests {
     }
   }
 
-  /**
-   * Resolves when the peer has recorded every request that started before, and one more turn of
-   * the event loop started no request, aborted none and brought none to the server. A caller's
-   * promise may settle before the client sends what follows it, such as a cancellation or an
-   * answer to the peer; a request that reaches the server may make the peer send something the
-   * client answers with a request of its own. Rejects after `RECEIVED_WITHIN_MS` with the requests
-   * not yet recorded.
-   */
   async settle(): Promise<void> {
     let timer: ReturnType<typeof setTimeout> | undefined
     const late = new Promise<'late'>(resolve => {
@@ -652,13 +589,11 @@ class Requests {
     return new Promise(resolve => this.waiters.push(resolve))
   }
 
-  /** A request started, was aborted or reached the server: `settle` waits one more round. */
   private newRound(): void {
     this.epoch += 1
     this.progressed()
   }
 
-  /** A request moved on toward being recorded: the waiters look again. */
   private progressed(): void {
     const waiters = this.waiters
     this.waiters = []
@@ -673,60 +608,31 @@ function stuck(open: readonly Tracked[]): Error {
   )
 }
 
-/** The options of the client a test builds: `httpPeer` adds only its tracking `fetch`. */
 export type ClientOptions = Omit<LocalTransportOptions, 'fetch'>
 
 export type HttpPeer = Readonly<{
   material: TransportMaterial
-  /**
-   * The transport factory on the test's client options whose `fetch` the peer tracks.
-   * `received()` waits only for the requests that went out through it.
-   */
   factory: McpTransportFactory
-  /**
-   * The log, once the peer has recorded every request that went out through `factory` before the
-   * call, and what the client sent right after. Rejects when a request is not recorded within
-   * `RECEIVED_WITHIN_MS`.
-   */
   received(): Promise<readonly PeerReceived[]>
-  /** The method and path of every request the peer got, in order. */
   requestLines(): readonly string[]
-  /** The bytes of the endless metadata document written before the client stopped reading. */
   endlessBytes(): number
-  /** The legacy HTTP+SSE mode: destroys every open stream. */
   breakStreams(): void
-  /** The legacy HTTP+SSE mode: forgets every session, so that its endpoint answers 404. */
   endSessions(): void
   close(): Promise<void>
 }>
 
 export type HttpPeerOptions = Readonly<{
-  /** The peer speaks the legacy HTTP+SSE transport: `GET` gives the stream and the endpoint. */
   legacySse?: boolean
-  /** The origin the `endpoint` event names; default: the peer's own. */
   endpointOrigin?: string
-  /** A `silent` reply sends no answer head at all, not even the status line. */
   holdHeads?: boolean
-  /** The metadata GET never answers (`hangs`), or answers a JSON document that never ends. */
   metadata?: 'hangs' | 'endless'
-  /** The GET of the legacy fallback answers this status, a partial body, and the rest after a delay. */
   sseRefusal?: Readonly<{
     status: number
     headers?: Readonly<{ [name: string]: string }>
     bodyDelayMs: number
   }>
-  /** Called when the peer sees the GET of the legacy fallback. */
   onSseRequest?: () => void
-  /**
-   * Every 2xx answer goes out as an SSE body whose first event is not a `message` event: a `ping`
-   * event carrying a decoy answer with the request's id. A transport reads message events only.
-   */
   sseNoise?: boolean
-  /**
-   * Called with the method of each request the peer takes, after the body is read and before the
-   * peer records it; the record and the answer wait for it. Only the fixture's own cases use it,
-   * to record a request late, as a peer under load may.
-   */
   beforeRecord?: (method: string) => Promise<void>
 }>
 

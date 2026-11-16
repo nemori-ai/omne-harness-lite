@@ -1,7 +1,3 @@
-// The close protocol of one provider generation (SPEC 13). `close` is the one entry for both
-// initiators. The deadline has one source, `closeDeadlineMs`, counted from the first call. A call
-// returns at the earlier of "everything ended" and "the deadline passed". Nothing here stops a
-// Worker: a Worker that has not ended at the deadline is reported as a residual and ends by itself.
 import type {
   SqlIdentity,
   StorageCloseResult,
@@ -13,10 +9,6 @@ import type { SqliteStorageConfig } from './config.ts'
 import type { Domains, Lifecycle } from './domains.ts'
 import type { ReaderPool } from './reader-pool.ts'
 
-/**
- * The reporting latch (SPEC 13.4). Once an `assembly` close gave `incomplete`, the lease of a
- * residual Worker is released only after its exit was observed and the assembly report is settled.
- */
 export class ReportLatch {
   private engaged = false
   private settled = false
@@ -26,7 +18,6 @@ export class ReportLatch {
     if (!this.settled) this.engaged = true
   }
 
-  /** Runs `release` now, or holds it until the report is settled. Call it once the exit was observed. */
   release(release: () => void): void {
     if (this.engaged && !this.settled) this.held.push(release)
     else release()
@@ -40,13 +31,10 @@ export class ReportLatch {
 
 export type InFlightOp = Readonly<{
   domain: string
-  /** The original identity, or null for a registration. */
   identity: SqlIdentity | null
-  /** Gives the caller `unknown` (`close_deadline`). The operation itself stays in flight. */
   expire(): void
 }>
 
-/** Operations that hold a reservation and wait for a Worker (SPEC 13.3 step 6, `residuals`). */
 export class InFlight {
   private readonly ops = new Set<InFlightOp>()
 
@@ -69,7 +57,6 @@ export class InFlight {
 export type CloseDeps = Readonly<{
   config: SqliteStorageConfig
   lifecycle: Lifecycle
-  /** Its waiters end with closing when the close starts (sql-contract SPEC 准入等待 rule 6). */
   admission: Readonly<{ close(): void }>
   domains: Domains
   inFlight: InFlight
@@ -88,7 +75,6 @@ export function createControl(deps: CloseDeps): StorageControl {
   let drained = false
   let deadlineAt = 0
 
-  /** Steps 1 to 5. Step 1 is the lifecycle flag. Steps 2 to 4 are the Workers' own confirmations. */
   const start = (): Promise<void> => {
     if (drain === null) {
       deadlineAt =
@@ -138,7 +124,6 @@ export function createControl(deps: CloseDeps): StorageControl {
       ])
       stop.abort()
       if (winner === 'closed' || drained) return { kind: 'closed' }
-      // The deadline passed. Callers get `unknown`; the reservations stay with the Workers.
       deps.inFlight.expireAll()
       const left = residuals()
       if (input.initiator === 'assembly') deps.latch.engage()

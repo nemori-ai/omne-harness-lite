@@ -21,10 +21,8 @@ import {
 } from './extensions.ts'
 import { refused, type BatchJudgment, type Judgment, type RefusalReason } from './judgment.ts'
 
-/** ISO 8601 duration text. The text is checked, never converted to a number. */
 const ISO_DURATION = /^P(?!$)(\d+Y)?(\d+M)?(\d+W)?(\d+D)?(T(?=\d)(\d+H)?(\d+M)?(\d+(\.\d+)?S)?)?$/
 
-/** The positions that run before the protected state change. The other positions run after. */
 const BEFORE_POSITIONS: readonly Position[] = [
   'before_compaction',
   'before_model_call',
@@ -32,7 +30,6 @@ const BEFORE_POSITIONS: readonly Position[] = [
   'before_terminal',
 ]
 
-/** `onError` values by power at a before position. A position after the change allows only `ignore`. */
 const ERROR_POLICIES = {
   observe: ['ignore'],
   rewrite: ['ignore', 'record'],
@@ -59,10 +56,6 @@ const implementation = z.discriminatedUnion('kind', [
   }),
 ])
 
-/**
- * One need declaration. Every member is required; `required` has no default. `schema` is the
- * exact adoption of the contract the delivered need follows.
- */
 const need = z.strictObject({ name: text, schema: adoptionShape, required: z.boolean() })
 
 const declaration = z.strictObject({
@@ -88,13 +81,11 @@ function dimensionReason(value: unknown): RefusalReason {
   return 'malformed'
 }
 
-/** A missing `implementation` has its own reason. Any other fault of it is a malformed shape. */
 function implementationReason(path: readonly (string | number)[], value: unknown): RefusalReason {
   const missing = path.length === 1 && isRecord(value) && !Object.hasOwn(value, 'implementation')
   return missing ? 'implementation-missing' : 'malformed'
 }
 
-/** The reason for the first schema issue. A field that the schema names maps to its own reason. */
 function issueReason(path: readonly (string | number)[], value: unknown): RefusalReason {
   switch (path[0]) {
     case 'position':
@@ -128,7 +119,6 @@ function dimensionRefusal(value: Parsed): RefusalReason | undefined {
   }
 }
 
-/** Two needs with the same name would be one key of the delivery, so the list is refused. */
 function needsRefusal(value: Parsed): RefusalReason | undefined {
   const needs = value.needs
   if (needs === undefined) return undefined
@@ -152,7 +142,6 @@ function unavailabilityRefusal(value: Parsed): RefusalReason | undefined {
     : 'unavailability-not-allowed'
 }
 
-/** The combination rules of one declaration, in the order of the declaration table. */
 function combinationRefusal(value: Parsed): RefusalReason | undefined {
   if (value.source === 'workspace' && value.power !== 'observe') return 'power-above-ceiling'
   return (
@@ -190,7 +179,6 @@ function copyNeed(entry: z.output<typeof need>): NeedDeclaration {
   })
 }
 
-/** The `needs` member of the accepted value: present only when the declaration listed needs. */
 function needsMember(
   needs: readonly z.output<typeof need>[] | undefined,
 ): Pick<LoopExtensionDeclaration, 'needs'> {
@@ -200,10 +188,6 @@ function needsMember(
     : { needs: Object.freeze([copyNeed(first), ...rest.map(copyNeed)]) }
 }
 
-/**
- * The accepted value: frozen plain data that shares nothing with the input. An omitted optional
- * field stays omitted, because the contract fills no default.
- */
 function acceptedValue(value: Parsed): LoopExtensionDeclaration {
   return Object.freeze({
     name: value.name,

@@ -164,8 +164,6 @@ try {
     process.exitCode = 1
   }
   finished = true
-  // Readers poll this report while the supervisor may still be writing it. Write it under a
-  // temporary name in the same directory and rename it into place, so no reader sees a partial report.
   writeFileSync(`${target}.supervisor.json.tmp`, JSON.stringify(report, null, 2))
   renameSync(`${target}.supervisor.json.tmp`, `${target}.supervisor.json`)
   console.log(JSON.stringify(report))

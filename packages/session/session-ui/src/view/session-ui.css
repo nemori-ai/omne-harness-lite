@@ -1,0 +1,294 @@
+.omne-session-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+}
+.omne-sessions {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.omne-session-items {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.omne-session-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  width: 100%;
+  padding: var(--omne-row-padding);
+  border: 0;
+  border-radius: var(--omne-radius-control);
+  background: transparent;
+  color: var(--omne-ink-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.omne-session-item:hover {
+  background: var(--omne-hover);
+}
+.omne-session-item[aria-current='true'] {
+  background: var(--omne-surface-panel-soft);
+}
+.omne-session-item:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.omne-session-item-title {
+  display: block;
+  overflow: hidden;
+  font-size: var(--omne-text-ui);
+  font-weight: var(--omne-weight-strong);
+  line-height: var(--omne-leading-wrapped);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.omne-session-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+.omne-session-item-meta time {
+  color: var(--omne-ink-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.omne-sessions-note {
+  margin: var(--omne-space-inline) 0 0;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+
+.omne-session-page {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 40px 32px;
+}
+.omne-session-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 64px;
+  min-width: 0;
+  border-bottom: 1px solid var(--omne-line-subtle);
+}
+.omne-session-heading {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.omne-session-title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--omne-text-ui);
+  font-weight: var(--omne-weight-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.omne-session-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+.omne-session-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--omne-space-inline);
+  width: 100%;
+  max-width: 740px;
+  min-height: 0;
+  margin: 0 auto;
+  padding-top: var(--omne-space-inline);
+}
+.omne-conversation {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 160px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 0 24px;
+}
+.omne-conversation > * + * {
+  margin-top: var(--omne-space-block);
+}
+.omne-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--omne-space-inline);
+  color: var(--omne-ink-muted);
+}
+
+.omne-message {
+  width: 100%;
+  min-width: 0;
+}
+.omne-message[data-role='user'] {
+  align-self: flex-end;
+  width: fit-content;
+  max-width: 88%;
+}
+.omne-message-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 5px 2px;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+.omne-message[data-role='user'] > .omne-message-head {
+  justify-content: flex-end;
+}
+.omne-message-body {
+  width: fit-content;
+  max-width: min(100%, var(--omne-measure-reading));
+  padding: var(--omne-bubble-padding);
+  border-radius: var(--omne-radius-card);
+  background: var(--omne-bubble-assistant);
+  font-family: var(--omne-font-reading);
+  font-size: var(--omne-text-body);
+  line-height: var(--omne-leading-reading);
+  overflow-wrap: anywhere;
+}
+.omne-message-body:has(pre, table) {
+  width: 100%;
+}
+.omne-message[data-role='user'] > .omne-message-body {
+  background: var(--omne-bubble-user);
+  color: var(--omne-bubble-ink);
+  white-space: pre-wrap;
+}
+.omne-marker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--omne-ink-faint);
+  font-size: var(--omne-text-caption);
+}
+.omne-marker::before,
+.omne-marker::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--omne-line-subtle);
+}
+.omne-placeholder {
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+.omne-pre {
+  margin: 0;
+  overflow-x: auto;
+  font-family: var(--omne-font-mono);
+  font-size: var(--omne-text-caption);
+  white-space: pre-wrap;
+}
+.omne-arguments {
+  margin: 0;
+  padding: 0 0 0 12px;
+  list-style: none;
+  font-size: var(--omne-text-caption);
+}
+.omne-arguments > li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.omne-arguments > li > .omne-arguments {
+  flex-basis: 100%;
+}
+.omne-argument-name {
+  color: var(--omne-ink-muted);
+  font-family: var(--omne-font-mono);
+}
+.omne-argument-value {
+  font-family: var(--omne-font-mono);
+  overflow-wrap: anywhere;
+}
+.omne-ask {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--omne-bubble-padding);
+  border-radius: var(--omne-radius-card);
+  box-shadow: 0 0 0 1px var(--omne-line);
+}
+.omne-ask-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: var(--omne-weight-strong);
+}
+.omne-ask-options {
+  margin: 0;
+  padding-left: 18px;
+}
+.omne-ask-text,
+.omne-ask-hint {
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+
+.omne-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: var(--omne-radius-window);
+  background: var(--omne-surface-overlay);
+  box-shadow: 0 0 0 1px var(--omne-line);
+  transition: box-shadow var(--omne-motion-feedback) var(--omne-motion-ease);
+}
+.omne-composer:has([data-slot='textarea']:focus-visible) {
+  box-shadow: 0 0 0 1px var(--omne-line-focus);
+}
+.omne-composer [data-slot='textarea'] {
+  min-height: 38px;
+  max-height: min(40dvh, 320px);
+  padding: 2px 2px 0;
+  overflow-y: auto;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: var(--omne-text-body);
+  line-height: var(--omne-leading-reading);
+  resize: none;
+}
+.omne-composer [data-slot='textarea']:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.omne-composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+.omne-live-status {
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+.omne-card-label {
+  margin: 8px 0 4px;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}

@@ -9,7 +9,6 @@ import { fixture, ok } from './fixture.ts'
 type Fixture = Awaited<ReturnType<typeof fixture>>
 type Commitment = Readonly<{ fingerprint: unknown; original: unknown }>
 
-/** Rewrites the stored commitment and keeps the record's digests consistent with it. */
 async function storeCommitment(f: Fixture, change: (stored: Commitment) => Commitment) {
   const domain = callHostDomain(f.access.tenant, 'delivery', f.access.call)
   const read = await f.store.read(domain)
@@ -110,7 +109,6 @@ it.each([
   expect(f.input.commands.releaseDelivery).toHaveBeenCalledTimes(1)
 })
 
-/** Rewrites the whole stored record; the change keeps or breaks its digests itself. */
 async function storeRecord(f: Fixture, change: (stored: Stored) => unknown) {
   const domain = callHostDomain(f.access.tenant, 'delivery', f.access.call)
   const read = await f.store.read(domain)
@@ -128,7 +126,6 @@ async function storeRecord(f: Fixture, change: (stored: Stored) => unknown) {
 
 type Stored = Record<string, unknown> & { payload: Record<string, unknown> }
 
-/** The record with `payload`, under the digest of that payload. */
 const sealed = (stored: Stored, payload: Record<string, unknown>) => ({
   ...stored,
   payload,

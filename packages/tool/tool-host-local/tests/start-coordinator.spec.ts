@@ -1,6 +1,3 @@
-// The local start coordinator (G5) as the start ordering domain of P04: permits, consume,
-// inspect, invalidate and exclude over the `host` domain of a non-durable ledger store.
-
 import type { ToolLedgerStore } from '@omne-harness/tool'
 import { describe, expect, it } from 'vitest'
 import { createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
@@ -61,8 +58,8 @@ const consumeWith = (permit: StartPermit, call = 'c1') => ({
   request: request(),
 })
 
-describe('G5 the start ordering domain', () => {
-  it('G5 order: an invalidation that returned before the consume rejects the start for good', async () => {
+describe('the start ordering domain', () => {
+  it('order: an invalidation that returned before the consume rejects the start for good', async () => {
     const authority = coordinator(createMemoryToolLedgerStore())
     const permit = await permitFor(authority, 'c1')
     ok(await authority.invalidate(invalidation('revoke-1')))
@@ -74,12 +71,11 @@ describe('G5 the start ordering domain', () => {
     expect(ok(await authority.inspect({ ...callAccess('c1'), start: startOf('c1') }))).toEqual(
       consumed,
     )
-    // A new permit for the same start cannot undo the rejection.
     const again = await permitFor(authority, 'c1')
     expect(ok(await authority.consume(consumeWith(again)))).toEqual(consumed)
   })
 
-  it('G5 order: a consume that was accepted before the invalidation stays in flight', async () => {
+  it('order: a consume that was accepted before the invalidation stays in flight', async () => {
     const authority = coordinator(createMemoryToolLedgerStore())
     const permit = await permitFor(authority, 'c1')
     const accepted = ok(await authority.consume(consumeWith(permit)))
@@ -91,11 +87,7 @@ describe('G5 the start ordering domain', () => {
     )
   })
 
-  it('G5 order: a concurrent invalidation and consume are decided by their commits, and the answer agrees with that order', async () => {
-    // The permit and the acceptance live in the call's domain, the guard in the tenant's guard
-    // domain. The two have no shared revision order; the operation whose read is suspended
-    // commits last. Consume asserts the guard revision at its commit, so the acceptance and the
-    // invalidation linearize on their commits (StartConsume P1), not on the order they entered.
+  it('order: a concurrent invalidation and consume are decided by their commits, and the answer agrees with that order', async () => {
     const seen = new Set<string>()
     for (const invalidationBlocked of [true, false]) {
       const memory = createMemoryToolLedgerStore()
@@ -128,7 +120,6 @@ describe('G5 the start ordering domain', () => {
       block = true
       let invalidationPending: ReturnType<typeof authority.invalidate>
       let consumePending: ReturnType<typeof authority.consume>
-      // The suspended operation commits last: the other one runs to its commit first.
       if (invalidationBlocked) {
         invalidationPending = authority.invalidate(invalidation('revoke-1'))
         await firstRead
@@ -144,26 +135,18 @@ describe('G5 the start ordering domain', () => {
       const [invalidated, consumed] = await Promise.all([invalidationPending, consumePending])
       ok(invalidated)
       const answer = ok(consumed)
-      // An acceptance committed before the invalidation stays; a consume that reads the advanced
-      // guard is rejected.
       expect(answer.kind).toBe(invalidationBlocked ? 'started' : 'rejected')
       if (answer.kind === 'rejected') expect(answer.reason).toContain('invalidated')
-      // The answer is the decided order: inspect and a repeated consume agree with it.
       expect(ok(await authority.inspect({ ...callAccess('c1'), start: startOf('c1') }))).toEqual(
         answer,
       )
       expect(ok(await authority.consume(consumeWith(permit)))).toEqual(answer)
       seen.add(answer.kind)
     }
-    // Both orders occurred, so each branch above was checked.
     expect([...seen].sort()).toEqual(['rejected', 'started'])
   })
 
-  it('G5 order: an invalidation committed between the consume read of the guards and its commit refuses the start', async () => {
-    // The fence the StartConsume model checks: consume reads `start-guards`, decides, and commits
-    // the acceptance into the call domain. An invalidation that commits in that window must make
-    // the acceptance a conflict, so the retry sees the moved guard and rejects for good. A store
-    // wrapper pauses the acceptance commit and lets the invalidation run to completion meanwhile.
+  it('order: an invalidation committed between the consume read of the guards and its commit refuses the start', async () => {
     const memory = createMemoryToolLedgerStore()
     let invalidateInWindow: (() => Promise<void>) | null = null
     const store: ToolLedgerStore = {
@@ -208,19 +191,18 @@ describe('G5 the start ordering domain', () => {
     expect(guards.kind === 'complete' && guards.revision).toBe('1')
   })
 
-  it('G5 order: the invalidation evidence is given only after its commit', async () => {
+  it('order: the invalidation evidence is given only after its commit', async () => {
     for (const answer of ['unknown', 'unavailable'] as const) {
       const store = failingNextCommit(createMemoryToolLedgerStore(), answer)
       const authority = coordinator(store)
       const permit = await permitFor(authority, 'c1')
       store.arm()
       expect('failure' in (await authority.invalidate(invalidation('revoke-1')))).toBe(true)
-      // The invalidation did not hold, and the caller was not told it did.
       expect(ok(await authority.consume(consumeWith(permit))).kind).toBe('started')
     }
   })
 
-  it('G5 order: a commit the store rejects is a definite failure, not re-read and not unknown', async () => {
+  it('order: a commit the store rejects is a definite failure, not re-read and not unknown', async () => {
     const memory = createMemoryToolLedgerStore()
     const store = failingNextCommit(memory, 'rejected')
     const authority = coordinator(store)
@@ -234,7 +216,7 @@ describe('G5 the start ordering domain', () => {
     expect(ok(await authority.consume(consumeWith(permit))).kind).toBe('started')
   })
 
-  it('G5 order: a resent invalidation returns its first evidence and moves the guard once', async () => {
+  it('order: a resent invalidation returns its first evidence and moves the guard once', async () => {
     const authority = coordinator(createMemoryToolLedgerStore())
     const first = ok(await authority.invalidate(invalidation('revoke-1')))
     expect(ok(await authority.invalidate(invalidation('revoke-1')))).toEqual(first)
@@ -242,7 +224,7 @@ describe('G5 the start ordering domain', () => {
     expect(permit.guards).toMatchObject([{ owner: 'permissions', revision: '1' }])
   })
 
-  it('G5 order: historical invalidation identity survives a later invalidation and coordinator reconstruction', async () => {
+  it('order: historical invalidation identity survives a later invalidation and coordinator reconstruction', async () => {
     const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const original = invalidation('revoke-1')
@@ -267,7 +249,7 @@ describe('G5 the start ordering domain', () => {
     expect((await permitFor(other, 'c2')).guards).toMatchObject([{ revision: '0' }])
   })
 
-  it('G5 order: an applied invalidation with an unknown answer is recalled after reconstruction', async () => {
+  it('order: an applied invalidation with an unknown answer is recalled after reconstruction', async () => {
     const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     store.injectCommit('unknown-applied')
@@ -282,7 +264,7 @@ describe('G5 the start ordering domain', () => {
     expect((await permitFor(restored, 'c1')).guards).toMatchObject([{ revision: '1' }])
   })
 
-  it('G5 identity: invalidation binds every guard field and ignores property order and extra fields', async () => {
+  it('identity: invalidation binds every guard field and ignores property order and extra fields', async () => {
     const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const original = invalidation('revoke-1')
@@ -316,7 +298,7 @@ describe('G5 the start ordering domain', () => {
     expect(store.commits).toBe(commits)
   })
 
-  it('G5 identity: program guard identity includes every scope field', async () => {
+  it('identity: program guard identity includes every scope field', async () => {
     const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const scope = {
@@ -350,7 +332,7 @@ describe('G5 the start ordering domain', () => {
     expect(store.commits).toBe(commits)
   })
 
-  it('G5 identity: open program guards bind their parent and scope across reconstruction', async () => {
+  it('identity: open program guards bind their parent and scope across reconstruction', async () => {
     const store = createMemoryToolLedgerStore()
     const original = {
       ...invalidation('revoke-open'),
@@ -381,7 +363,7 @@ describe('G5 the start ordering domain', () => {
     expect(store.commits).toBe(commits)
   })
 
-  it('G5 identity: malformed guard fields are invalid before any ledger access', async () => {
+  it('identity: malformed guard fields are invalid before any ledger access', async () => {
     const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const original = invalidation('revoke-1')
@@ -434,7 +416,7 @@ describe('G5 the start ordering domain', () => {
     ['exclusion-operation', 'operation'],
     ['exclusion-operation', 'reason'],
   ])(
-    'G5 records: a stored %s without %s is unavailable rather than a historical answer',
+    'records: a stored %s without %s is unavailable rather than a historical answer',
     async (kind, field) => {
       const store = createMemoryToolLedgerStore()
       const authority = coordinator(store)
@@ -476,7 +458,6 @@ describe('G5 the start ordering domain', () => {
         },
       })
       const commits = store.commits
-      // The probe reads the domain that holds the record: prepare reads the guards, inspect the call.
       const probe =
         kind === 'invalidation'
           ? restored.prepare({ ...callAccess('c1'), start: startOf('c1'), request: request() })
@@ -489,7 +470,7 @@ describe('G5 the start ordering domain', () => {
     },
   )
 
-  it('G5 identity: an exclusion alias binds its reason and survives coordinator reconstruction', async () => {
+  it('identity: an exclusion alias binds its reason and survives coordinator reconstruction', async () => {
     const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const original = { ...callAccess('c1'), operation: operationId('op-a'), reason: 'first' }
@@ -512,7 +493,7 @@ describe('G5 the start ordering domain', () => {
     })
   })
 
-  it('G5 exclude: an unknown applied alias commit is recalled with its input binding', async () => {
+  it('exclude: an unknown applied alias commit is recalled with its input binding', async () => {
     const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const original = { ...callAccess('c1'), operation: operationId('op-a'), reason: 'first' }
@@ -531,7 +512,7 @@ describe('G5 the start ordering domain', () => {
     expect(store.commits).toBe(commits)
   })
 
-  it('G5 placement: only prepare and consume read start-guards; inspect, exclude and invalidate read their own domain', async () => {
+  it('placement: only prepare and consume read start-guards; inspect, exclude and invalidate read their own domain', async () => {
     const memory = createMemoryToolLedgerStore()
     const guardReads = { count: 0 }
     const store: ToolLedgerStore = {
@@ -560,23 +541,21 @@ describe('G5 the start ordering domain', () => {
       }),
     )
     expect(guardReads.count).toBe(2)
-    // Invalidate writes the guards: it reads them once as its own domain, not a second time as guards.
     ok(await authority.invalidate(invalidation('revoke-placement')))
     expect(guardReads.count).toBe(3)
   })
 
-  it('G5 inspect: an undecided start is not-started only after its outstanding permit was withdrawn', async () => {
+  it('inspect: an undecided start is not-started only after its outstanding permit was withdrawn', async () => {
     const authority = coordinator(createMemoryToolLedgerStore())
     const stale = await permitFor(authority, 'c1')
     const inspected = ok(await authority.inspect({ ...callAccess('c1'), start: startOf('c1') }))
     expect(inspected.kind).toBe('not-started')
-    // The permit issued before the answer is excluded; a permit issued after it is not.
     expect(ok(await authority.consume(consumeWith(stale)))).toEqual(inspected)
     const fresh = await permitFor(authority, 'c1')
     expect(ok(await authority.consume(consumeWith(fresh))).kind).toBe('started')
   })
 
-  it('G5 consume: a permit the coordinator did not issue is not accepted', async () => {
+  it('consume: a permit the coordinator did not issue is not accepted', async () => {
     const authority = coordinator(createMemoryToolLedgerStore())
     const permit = await permitFor(authority, 'c1')
     const forged = { ...permit, guards: [] }
@@ -593,7 +572,7 @@ describe('G5 the start ordering domain', () => {
     expect(ok(await authority.consume(consumeWith(permit))).kind).toBe('started')
   })
 
-  it('G5 consume: the request must be the one the permit was prepared for', async () => {
+  it('consume: the request must be the one the permit was prepared for', async () => {
     const authority = coordinator(createMemoryToolLedgerStore())
     const permit = await permitFor(authority, 'c1')
     expect(await authority.consume({ ...consumeWith(permit), request: {} as never })).toMatchObject(
@@ -604,13 +583,12 @@ describe('G5 the start ordering domain', () => {
     expect(await authority.consume({ ...consumeWith(permit), request: other })).toEqual({
       failure: { kind: 'invalid', field: 'request', reason: 'not-the-permitted-request' },
     })
-    // The permit names the digest of its request; another digest is not the stored binding.
     const renamed = { ...permit, inputDigest: 'sha256:other' }
     expect(ok(await authority.consume(consumeWith(renamed))).kind).toBe('unknown')
     expect(ok(await authority.consume(consumeWith(permit))).kind).toBe('started')
   })
 
-  it('G5 consume: an unreadable acceptance ledger is unavailable, never an acceptance or a rejection', async () => {
+  it('consume: an unreadable acceptance ledger is unavailable, never an acceptance or a rejection', async () => {
     const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const permit = await permitFor(authority, 'c1')
@@ -625,7 +603,7 @@ describe('G5 the start ordering domain', () => {
     expect(ok(await authority.consume(consumeWith(permit))).kind).toBe('started')
   })
 
-  it('G5 consume: a lost acceptance answer is unknown, and the acceptance is recalled after it', async () => {
+  it('consume: a lost acceptance answer is unknown, and the acceptance is recalled after it', async () => {
     const store = failingNextCommit(createMemoryToolLedgerStore(), 'unknown')
     const authority = coordinator(store)
     const permit = await permitFor(authority, 'c1')
@@ -634,7 +612,7 @@ describe('G5 the start ordering domain', () => {
     expect(ok(await authority.consume(consumeWith(permit))).kind).toBe('started')
   })
 
-  it('G5 exclude: a call without an acceptance is excluded for good; an accepted one is in flight', async () => {
+  it('exclude: a call without an acceptance is excluded for good; an accepted one is in flight', async () => {
     const authority = coordinator(createMemoryToolLedgerStore())
     const permit = await permitFor(authority, 'c1')
     const exclusion = ok(
@@ -678,7 +656,7 @@ describe('G5 the start ordering domain', () => {
     ).toEqual({ failure: { kind: 'conflict', operation: 'c2/start' } })
   })
 
-  it('G5 identity: two calls with the same start operation text keep separate acceptances', async () => {
+  it('identity: two calls with the same start operation text keep separate acceptances', async () => {
     const authority = coordinator(createMemoryToolLedgerStore())
     const shared = { ...startOf('c1'), operation: operationId('op/start') }
     const first = ok(
@@ -692,8 +670,8 @@ describe('G5 the start ordering domain', () => {
   })
 })
 
-describe('G5 tenants and qualification', () => {
-  it('G5 tenant: every operation denies a principal of another tenant before it reads', async () => {
+describe('tenants and qualification', () => {
+  it('tenant: every operation denies a principal of another tenant before it reads', async () => {
     const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const permit = await permitFor(authority, 'c1')
@@ -728,7 +706,7 @@ describe('G5 tenants and qualification', () => {
     ).toEqual({ failure: { kind: 'denied', action: 'start' } })
   })
 
-  it('G5 tenant: an invalidation in one tenant does not touch the guard of the same name in another', async () => {
+  it('tenant: an invalidation in one tenant does not touch the guard of the same name in another', async () => {
     const authority = coordinator(createMemoryToolLedgerStore())
     const accessB = { principal: principalB, tenant: tenantB as never, call: callId('c1') }
     const permitB = ok(
@@ -747,7 +725,7 @@ describe('G5 tenants and qualification', () => {
     ).toBe('started')
   })
 
-  it('G5 tenant: the same invalidation operation can bind a different guard in another tenant', async () => {
+  it('tenant: the same invalidation operation can bind a different guard in another tenant', async () => {
     const store = createMemoryToolLedgerStore()
     const authority = coordinator(store)
     const original = invalidation('revoke-1')
@@ -767,7 +745,7 @@ describe('G5 tenants and qualification', () => {
     expect(store.commits).toBe(commits)
   })
 
-  it('G5 access: an unreadable qualification is unavailable, not an acceptance', async () => {
+  it('access: an unreadable qualification is unavailable, not an acceptance', async () => {
     const authority = coordinator(createMemoryToolLedgerStore(), {
       unavailable: 'directory down',
     })
@@ -778,7 +756,7 @@ describe('G5 tenants and qualification', () => {
     })
   })
 
-  it('G5 construction: commit attempts outside their range are an assembly defect', () => {
+  it('construction: commit attempts outside their range are an assembly defect', () => {
     for (const commitAttempts of [0, 1.5])
       expect(() =>
         createLocalStartCoordinator({
@@ -790,7 +768,7 @@ describe('G5 tenants and qualification', () => {
       ).toThrow('commitAttempts: range')
   })
 
-  it('G5 construction: a turn timeout outside its range is an assembly defect', () => {
+  it('construction: a turn timeout outside its range is an assembly defect', () => {
     for (const turnTimeoutMs of [0, -1, 1.5])
       expect(() =>
         createLocalStartCoordinator({
@@ -803,9 +781,6 @@ describe('G5 tenants and qualification', () => {
       ).toThrow('turnTimeoutMs: range')
   })
 
-  // A store whose read never settles stands for a turn that holds the tenant section without ever
-  // finishing. Every caller of that tenant must still answer within its bound: an answer that never
-  // arrives is a silent failure, whatever holds the store.
   const neverSettles = (): ToolLedgerStore => ({
     durability: 'none',
     scanPending: () => new Promise(() => {}),
@@ -815,7 +790,7 @@ describe('G5 tenants and qualification', () => {
     commit: () => new Promise(() => {}),
   })
 
-  it('G5 bound: a turn that never settles expires its caller as unavailable, in time', async () => {
+  it('bound: a turn that never settles expires its caller as unavailable, in time', async () => {
     const authority = createLocalStartCoordinator({
       store: neverSettles(),
       access: access(),
@@ -837,11 +812,10 @@ describe('G5 tenants and qualification', () => {
         diagnostic: expect.stringContaining('did not settle within 60 ms'),
       },
     })
-    // The bound is what ends the wait, not a store answer: it must fire near its own value.
     expect(elapsed).toBeLessThan(2_000)
   })
 
-  it('G5 bound: a later caller behind a stuck turn also answers unavailable, in time', async () => {
+  it('bound: a later caller behind a stuck turn also answers unavailable, in time', async () => {
     const authority = createLocalStartCoordinator({
       store: neverSettles(),
       access: access(),
@@ -872,11 +846,7 @@ describe('G5 tenants and qualification', () => {
   })
 })
 
-// A turn that outlives its bound keeps running and may still commit (the serial section above).
-// The caller that stopped waiting cannot tell whether it did, so it gets the unknown answer of its
-// own operation, never `unavailable`, which would claim that nothing was decided.
-describe('G5 bound: what an expired turn may still commit is unknown, not unavailable', () => {
-  /** A store over memory whose commits wait until `release()`, then write as usual. */
+describe('bound: what an expired turn may still commit is unknown, not unavailable', () => {
   const heldCommits = () => {
     const memory = createMemoryToolLedgerStore()
     let held: (() => void)[] = []

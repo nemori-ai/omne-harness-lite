@@ -1,8 +1,3 @@
-// A9: the static materials (sql-contract §4). One participant named `tool`, two migrations and the
-// read handlers, all on `tl_` tables, each module described by its build-fixed file URL and the
-// SHA-256 of its bytes. The materials form a valid combination alone, and beside a stand-in of the
-// Session participant of the same shape; a stand-in that owns a `tl_` table is refused, which
-// shows that the combination check does look at the tables.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'

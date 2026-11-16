@@ -84,7 +84,6 @@ export function compactionReads(
     const boundary = covered.findIndex(row => row.ref === prior.covers.to)
     window = covered.filter((row, index) => index > boundary || prior.retained.includes(row.ref))
   }
-  // Pair witnesses come from the original history, including calls hidden by earlier compaction.
   const original = [...covered, ...after]
   const pairings = [...window, ...after].flatMap(row => {
     if (row.message?.role !== 'tool') return []

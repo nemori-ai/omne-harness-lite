@@ -1,7 +1,3 @@
-// The demonstration command of the common contract. From packages/access/public-contract run
-//   node --conditions=source tests/fixtures/browser/demo.ts
-// It prints the complete outcome set of a read operation and of a commit operation of the
-// example protocol, then writes one body to JSON text and reads it back.
 import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { exampleLimits, notesProtocol } from './example-protocol.ts'
 

@@ -27,12 +27,7 @@ const admitted = await provider.runtime.calls.admit({
   consumer: example.consumer,
 })
 if ('failure' in admitted) throw new Error(`Admission failed: ${JSON.stringify(admitted.failure)}`)
-// Reuse the returned locator with current Access for both observation and facts.
 const reference = admitted.ok.reference
-// driver belongs to the trusted host. A normal caller receives only provider.runtime.
-// driveInput carries principal/tenant for current authority, call for the logical invocation,
-// instance for its live executor, operation for the original claim, and continuity as the
-// trusted evidence that this host continues that call. The assembly supplies all six fields.
 const driving = provider.driver.drive(example.driveInput, new AbortController().signal)
 let observer: AsyncIterator<import('@omne-harness/model-contract').Observation> | undefined
 try {
@@ -55,13 +50,11 @@ try {
     .observe({ ...example.access, signal: new AbortController().signal })
     [Symbol.asyncIterator]()
   const first = await observer.next()
-  // Observation is snapshot, changed, or ended. A live route alone proves no business result.
   if (first.done || first.value.kind !== 'snapshot')
     throw new Error('Expected the initial snapshot')
   console.log('observation:', first.value.kind)
   example.upstream.resume()
   const driven = await driving
-  // drive reports local execution and release. Inspect remains the authority for Settlement.
   if ('failure' in driven) throw new Error(`Drive failed: ${JSON.stringify(driven.failure)}`)
   const changed = await observer.next()
   if (changed.done || changed.value.kind !== 'changed')
@@ -80,11 +73,8 @@ try {
     termination.kind,
     termination.kind === 'completed' ? termination.reason : '',
   )
-  // version identifies the retained result. source.owner/record identify the evidence owner
-  // and record. source.revision/digest bind the original evidence revision and content.
   console.log('settlement:', JSON.stringify({ version, termination, source }))
 } finally {
-  // Returning the observer stops only observation. The original driver owns stream release.
   await observer?.return?.()
   example.upstream.resume()
   await driving

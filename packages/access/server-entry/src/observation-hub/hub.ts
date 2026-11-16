@@ -1,8 +1,3 @@
-// The observation hub (RFC-0015 §5「观察中枢」, #1249 spec 已定 2 to 7): what is the same for every
-// observation at the new address. It takes the slot, lets the frame source decide whether to open,
-// writes the frames as SSE events, bounds the bytes not yet written, checks the login each round,
-// and ends the observation on every way it can end. `leave` is called in one place, once, after
-// the `ended` frame is written out or the grace ran out: a take-down completes only then.
 import type { ServerResponse } from 'node:http'
 import type { FrameSource } from '@omne-harness/access-cordis-contract'
 import { writeJsonText, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
@@ -20,28 +15,22 @@ import {
 } from './records.ts'
 import { SseStream } from './sse.ts'
 
-/** The error points of the hub, reported through the pipeline's `access.diagnostics`. */
 export type HubDiagnosticCode =
   | 'access.observation-full'
   | 'access.frame-source-fault'
   | 'access.frame-rejected'
   | 'access.frame-queue-full'
 
-/** The values the hub needs, given by `http.ts` at construction. */
 export type HubSettings = Readonly<{
   limits: Readonly<{ perLogin: number; perInstance: number }>
   heartbeatMs: number
-  /** The length of one round: the wait between two login checks of one observation. */
   loginCheckIntervalMs: number
-  /** The upper bound of the bytes of one observation's events not yet written out. */
   frameQueueBytes: number
-  /** How long an `ended` frame may take to be written out before the connection is cut. */
   graceMs: number
   clock: Clock
   writeLimits: JsonLimits
 }>
 
-/** One observation the pipeline hands over after step 9. */
 export type HubOpen = Readonly<{
   entered: Entered
   contract: ObservationContract
@@ -49,32 +38,21 @@ export type HubOpen = Readonly<{
   principal: unknown
   messageId: string
   open: unknown
-  /** Same key, same observation: a new one replaces the old one. */
   key: string
-  /** The login the per-login bound counts and the round checks. Absent for `identity: 'none'`. */
   loginKey?: string
   checkLogin?: () => Promise<LoginCheck>
-  /** Reports one successful business access; called once, after the first frame is queued. */
   reportAccess?: () => void
   note: (code: HubDiagnosticCode) => void
   res: ServerResponse
 }>
 
 export type ObservationHub = Readonly<{
-  /** Serves one observation; settles after it ended and `leave` was called. */
   open: (input: HubOpen) => Promise<void>
-  /** Ends every observation with `unavailable` (the entry stops). */
   endAll: () => Promise<void>
 }>
 
 type Reason = EndReason<string>
 
-/**
- * Marks frames the hub takes at the pace they are written out: the next frame is pulled only once
- * the last one left the write queue, so the backlog stays with the frame source. Only the entry's
- * own availability source carries it; the package entry does not export it, so a domain's
- * observation is always pulled as soon as a frame is there and its backlog meets the byte bound.
- */
 export const PACED = Symbol('server-entry: paced frames')
 
 function isPaced(frames: object): boolean {
@@ -97,7 +75,6 @@ const frameText = (frame: JsonValue): string =>
     ['frame', frame],
   ])
 
-/** A frame source may end with its own reasons or the two of the hub it meets itself. */
 function endsWithin(contract: ObservationContract, reason: unknown): reason is string {
   return (
     typeof reason === 'string' &&
@@ -111,7 +88,6 @@ type Step =
   | Readonly<{ kind: 'threw' }>
   | Readonly<{ kind: 'ended' }>
 
-/** How the frame source's step ends the observation; `undefined` when it already ended elsewhere. */
 function endOf(
   step: Exclude<Step, { kind: 'frame' }>,
   contract: ObservationContract,
@@ -130,7 +106,6 @@ function endOf(
 
 type Frames = AsyncGenerator<unknown, unknown>
 
-/** The next step of the frame source, or the end that came first. */
 function nextStep(frames: Frames, ended: Promise<Step>): Promise<Step> {
   return Promise.race<Step>([
     frames.next().then(
@@ -150,21 +125,12 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
     loginCheckIntervalMs: settings.loginCheckIntervalMs,
   })
 
-  /**
-   * Waits for the `ended` frame to be written out, or cuts the connection after the grace. A cut
-   * connection closes the stream, so both ways settle through `finished`.
-   */
   const drained = async (stream: SseStream, res: ServerResponse): Promise<void> => {
     const cancel = settings.clock.schedule(settings.graceMs, () => res.destroy())
     await stream.finished
     cancel()
   }
 
-  /**
-   * Lets the frame source decide whether to open. A refusal, a fault or a take-down is answered
-   * here; a caller who went away gets nothing. Returns the frames when it opened; otherwise the
-   * caller aborts `source` at once, which is the moment the wait was interrupted.
-   */
   async function decide(input: HubOpen, source: AbortController): Promise<Frames | undefined> {
     const { entered, res, messageId, note } = input
     const watch = watchCall(entered.signal, res)
@@ -180,12 +146,10 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
     if (decided.kind === 'interrupted' && decided.by === 'gone') return undefined
     if (decided.kind === 'threw') note('access.frame-source-fault')
     const outcome = decided.kind === 'done' ? decided.value.outcome : 'basis-unavailable'
-    // writeAnswer closes the connection of every denied answer.
     writeAnswer(res, { outcome, body: EMPTY_BODY, messageId, close: false })
     return undefined
   }
 
-  /** Ends the observation by the frame source's last step, unless it already ended elsewhere. */
   function endBy(
     input: HubOpen,
     claim: ObservationClaim<string>,
@@ -197,7 +161,6 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
     claim.end(end.reason)
   }
 
-  /** Queues one frame as an event. A frame outside the contract ends the observation instead. */
   function put(
     input: HubOpen,
     claim: ObservationClaim<string>,
@@ -214,7 +177,6 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
     return true
   }
 
-  /** Writes frames until the observation ends, by its source, its observer or anything else. */
   async function pump(
     input: HubOpen,
     claim: ObservationClaim<string>,
@@ -223,7 +185,6 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
     ended: Promise<Step>,
   ): Promise<void> {
     const paced = isPaced(frames)
-    // Reported once, after the first frame is queued.
     let report = input.reportAccess
     for (;;) {
       const step = await nextStep(frames, ended)
@@ -232,7 +193,6 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
       report?.()
       report = undefined
       if (stream.queuedFrameBytes > settings.frameQueueBytes) {
-        // The observer is not reading: no frame can reach it, so the connection goes too.
         input.note('access.frame-queue-full')
         claim.end('capacity')
         input.res.destroy()
@@ -260,7 +220,6 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
       writeAnswer(res, { outcome: 'basis-unavailable', body: EMPTY_BODY, messageId, close: false })
       return entered.leave()
     }
-    // The frame source sees one signal: the take-down, the caller going away, or the end.
     const source = new AbortController()
     const frames = await decide(input, source)
     if (frames === undefined) {
@@ -277,7 +236,6 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
     await pump(input, claim, stream, frames, ended)
     entered.signal.removeEventListener('abort', onAbort)
     source.abort()
-    // The frame source winds down in its own time; its end reason no longer matters.
     void frames.return(undefined).catch(() => {})
     await drained(stream, res)
     entered.leave()

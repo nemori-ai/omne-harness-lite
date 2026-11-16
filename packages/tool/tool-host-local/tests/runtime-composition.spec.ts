@@ -1,14 +1,4 @@
 import { catalogSearch, catalogView } from './catalog-view-fixture.ts'
-// The production parts of this package under the real Tool runtime factory: the host clock, a
-// binding registry with the Catalog over it, the three absent ports and the default result policy.
-// `createToolRuntime` checks that every dependency is present and throws a TypeError when one is
-// not, so a construction that does not throw shows that these parts fill their ports.
-//
-// TEST DOUBLES, all of them from `@omne-harness/tool/testing` or this directory: the in-memory
-// ledger store with the real ledger on it, the output custody (`toolOutputCustody` is not a part of
-// this package), the start authority, environment and executor, the instance host, the invocation
-// source, and the scripted origin check and availability facts. They prove only the wiring of the
-// production parts above, in one process, without durability.
 import { describe, expect, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -105,7 +95,6 @@ function composition() {
   })
   const absent = createAbsentToolPorts<string>()
 
-  // TEST DOUBLE: the invocation source and its identities.
   const identities = createTestToolIdentities()
   const source = createTestInvocationSource<string>({
     snapshotPrincipal: principal => principal,
@@ -115,7 +104,6 @@ function composition() {
     },
   })
   let installed: ToolDriver<string> | null = null
-  // TEST DOUBLE: an instance host that records the driver and schedules nothing.
   const host: ToolInstanceHost<string> = {
     install: driver => {
       installed = driver
@@ -130,7 +118,6 @@ function composition() {
       connect: () => Promise.resolve(succeed({ kind: 'no-live-route' } as const)),
     },
   }
-  // TEST DOUBLE: ledger, store, custody, start authority, environment and executor.
   const test = createTestToolDependencies<string>({
     configuration,
     operationIdentities: identities.operationIdentities,

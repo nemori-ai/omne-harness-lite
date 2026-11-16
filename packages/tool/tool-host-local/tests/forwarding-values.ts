@@ -129,7 +129,6 @@ export async function forwardingFixture(
   }
   const source = createLocalInvocationSource(input)
   const business = parentRequest()
-  // Rebuild without function-only declaration fields when using a command definition.
   const definition = business.availability.definition
   if (definition.kind !== 'commands') throw new Error('commands required')
   const cleaned = {

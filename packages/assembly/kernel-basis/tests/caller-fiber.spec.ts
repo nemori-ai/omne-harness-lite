@@ -1,6 +1,3 @@
-// The lifecycle and failure boundary of `registerInCallerFiber` (SPEC「调用方 fiber 登记辅助」), on a
-// real Cordis 4.0.4 Context. The directory under test is a Service whose `register` runs with the
-// caller's `this.ctx`, so the effect belongs to the caller fiber and not to the provider fiber.
 import { Context, CordisError, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import { registerInCallerFiber, type Admission } from '@omne-harness/kernel-basis/cordis'
@@ -10,12 +7,10 @@ type Registration = Readonly<{ token: string }>
 type Entry = Readonly<{ key: string; registration: Registration }>
 type Failure = Readonly<{ kind: 'conflict' | 'denied' }>
 
-/** A directory that records every call of `admit` and `withdrawal`, keyed by the entry. */
 class ProbeDirectory extends Service {
   readonly entries = new Map<string, Entry>()
   readonly admits: string[] = []
   readonly withdrawals: Entry[] = []
-  /** What the next `register` of a key returns when the key is free; `entered` by default. */
   decide: (key: string, dropEffect: () => void) => Admission<Entry, Failure> | null = () => null
   onWithdraw: (entry: Entry) => void = () => undefined
 
@@ -52,7 +47,6 @@ async function world() {
   return { root, providerFiber, directory }
 }
 
-/** Loads a caller plugin whose body runs `work` with its own ctx. */
 async function caller(root: Context, work: (ctx: Context) => void) {
   return root.plugin(plugin('caller', (ctx: Context) => work(ctx), ['probeDirectory']))
 }
@@ -226,8 +220,6 @@ describe('dropEffect belongs to this call and withdraws once', () => {
     let drop: (() => void) | undefined
     directory.decide = (_key, dropEffect) => {
       drop = dropEffect
-      // The unload starts now and takes the fiber's effects, this one included, before the
-      // remover of this call exists; the early drop is only recorded.
       unloading = fiber.dispose()
       expect(fiber.state as number).toBe(FIBER_STATE.UNLOADING)
       dropEffect()
@@ -235,7 +227,6 @@ describe('dropEffect belongs to this call and withdraws once', () => {
     }
     const outcome = dir(callerCtx as Context).register('a')
     expect('ok' in outcome && outcome.ok).toEqual({ token: 'a' })
-    // The function requested its own remover once; the started unload completes after it returned.
     expect(directory.withdrawals).toHaveLength(1)
     await unloading
     expect(fiber.state as number).toBe(FIBER_STATE.DISPOSED)
@@ -251,7 +242,6 @@ describe('dropEffect belongs to this call and withdraws once', () => {
     let outcome: ReturnType<ProbeDirectory['register']> | undefined
     const fiber = await caller(root, ctx => {
       directory.decide = (_key, dropEffect) => {
-        // The fiber is still loading: Cordis defers the unload until the load step ends.
         unloading = ctx.fiber.dispose()
         dropEffect()
         return null
@@ -383,7 +373,6 @@ describe('the effect belongs to the caller fiber, not the provider fiber', () =>
         ['probeDirectory'],
       ),
     )
-    // The probe directory recognises by key only; the helper leaves no effect on the second fiber.
     expect(second.getEffects().map(effect => effect.label)).not.toContain('registerInCallerFiber')
     await second.dispose()
     expect(directory.entries.has('a')).toBe(true)

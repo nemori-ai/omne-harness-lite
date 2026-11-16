@@ -1,6 +1,3 @@
-// The push world of runtime-push.spec.ts, shared with the push bound guards. It is a copy of the
-// fixture part of that file (the real plugin on Cordis 4.0.4 over the in-memory Model commands,
-// with a scripted receiver); the two copies are to be merged into this one.
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import {
   accountCodec,
@@ -20,6 +17,7 @@ import {
   decodeModelInstanceId,
   decodeModelOperationId,
   decodeResultVersion,
+  encodeModelInvocationRef,
   type DurableEvidence,
   type FixedModelRequest,
   type ModelCallId,
@@ -118,7 +116,6 @@ const report = (revision: string): CallAccountReport => ({
   revision,
 })
 
-// The answer ends at the output limit, so its growing text block completes as it is.
 const ANSWER: readonly Exclude<TransportFact, { kind: 'ended' }>[] = [
   { kind: 'block-open', index: '0', content: 'text', mode: 'append' },
   { kind: 'block-delta', index: '0', delta: 'kept' },
@@ -134,18 +131,12 @@ export async function until(check: () => boolean, label: string): Promise<void> 
   throw new Error(`timed out waiting for ${label}`)
 }
 
-/** Gives the macrotask queue a few turns, so that nothing that would happen is still on its way. */
 export async function quiet(): Promise<void> {
   for (let n = 0; n < 5; n += 1) await new Promise(resolve => setTimeout(resolve, 5))
 }
 
 type Conjunct = 'material' | 'responsibility' | 'deduplication' | 'retention'
 
-/**
- * The scripted receiver. It keeps the four facts of `saved` apart: the material, the consumer's
- * responsibility, the deduplication by key and the retention. A missing fact gives the answer that
- * the contract gives for it, and never `saved`. `next` answers the next pushes instead, in order.
- */
 export function scriptedReceiver() {
   const pushes: ModelDelivery[] = []
   const saved = new Map<string, { delivery: ModelDelivery; receipt: ModelSavedReceipt }>()
@@ -210,32 +201,24 @@ export function scriptedReceiver() {
 }
 
 type Hooks = {
-  /** `lost`: this ACK takes effect and its answer is lost; the storage knows it committed. */
   handoff?(): 'lost' | 'pass'
   advanceCleanup?(): 'fail' | 'pass'
-  /** Runs before each `dispatches` of the plugin's commands; the read waits for what it returns. */
   dispatches?(): Promise<void> | void
+  resolve?(): Promise<'pass' | 'refuse'> | 'pass' | 'refuse'
+  loadRecovery?(settled: boolean): 'fail' | 'deny' | 'pass'
 }
 
-/**
- * The services the plugin injects, the in-memory commands under them, and a plugin class whose
- * provider is the real Model runtime over the plugin's commands.
- */
 export function world(
   input: Readonly<{
     limits?: ResultPushLimits
     ledger?: ResultPushLedger
-    /**
-     * `unavailable`: the consumer owner's evidence adapter cannot confirm, as the release's
-     * `handoff` evidence answers while the durable received record cannot be read (R2-D257).
-     */
     custodyEvidence?: 'verified' | 'unavailable'
-    /** The share of the whole assembly; the memory commands sum every tenant against it. */
-    /** How many unacknowledged results the tenant may hold. */
     share?: number
+    lostContact?: (instance: string) => DurableEvidence | null
   }> = {},
 ) {
   const ledger = input.ledger ?? createMemoryResultPushLedger()
+  const evidence = { mode: input.custodyEvidence ?? 'verified' }
   const hooks: Hooks = {}
   const handoffs: Parameters<ModelCommands<unknown>['handoff']>[0][] = []
   const memory = createTestModelDependencies<unknown>({
@@ -278,9 +261,8 @@ export function world(
         retry: () => ({
           failure: { kind: 'unavailable', dependency: 'retry', diagnostic: 'none' },
         }),
-        // The custody evidence is the scripted receiver's own, for this call's frozen key only.
         handoff: given =>
-          input.custodyEvidence === 'unavailable'
+          evidence.mode === 'unavailable'
             ? {
                 failure: {
                   kind: 'unavailable',
@@ -331,6 +313,13 @@ export function world(
   const raw = memory.dependencies.commands
   const commands: ModelCommands<unknown> = {
     ...raw,
+    loadRecovery: async target => {
+      const loaded = await raw.loadRecovery(target)
+      const answer = hooks.loadRecovery?.('ok' in loaded && loaded.ok.state.phase === 'settled')
+      if (answer === 'fail')
+        return { failure: { kind: 'unavailable', dependency: 'records', diagnostic: 'synthetic' } }
+      return answer === 'deny' ? { failure: { kind: 'denied', action: 'recover' } } : loaded
+    },
     handoff: async ack => {
       handoffs.push(structuredClone({ ...ack, principal: null }))
       if (hooks.handoff?.() !== 'lost') return raw.handoff(ack)
@@ -370,7 +359,13 @@ export function world(
     },
   }
   class Authority extends ModelHostAuthorityService<unknown> {
-    readonly resolve = async (target: { tenant: TenantId; call: ModelCallId }) => ({
+    readonly resolve = async (target: { tenant: TenantId; call: ModelCallId }) =>
+      (await hooks.resolve?.()) === 'refuse'
+        ? ({
+            failure: { kind: 'unavailable', dependency: 'host', diagnostic: 'refused' },
+          } as const)
+        : this.trusted(target)
+    readonly trusted = (target: { tenant: TenantId; call: ModelCallId }) => ({
       ok: {
         principal: PRINCIPAL,
         tenant: target.tenant,
@@ -424,7 +419,6 @@ export function world(
       Object.assign(this, commands)
     }
   }
-  // The commands the provider writes through: the plugin's, captured for the late-account source.
   const provided: { commands?: ModelCommands<unknown> } = {}
   const Plugin = createModelRuntimeLocalPlugin({
     provider: given => {
@@ -437,12 +431,14 @@ export function world(
           retry: memory.dependencies.retry,
           instances: given.host,
           clock: given.clock,
+          liveness: given.liveness,
         },
         CONFIGURATION,
       )
     },
     qualifyObservation: async () => ({ ok: undefined }),
     results: { ledger, limits: input.limits ?? LIMITS },
+    ...(input.lostContact === undefined ? {} : { lostContact: input.lostContact }),
   })
   const ctx = new Context()
   const messages: string[] = []
@@ -459,6 +455,7 @@ export function world(
   return {
     ctx,
     ledger,
+    evidence,
     hooks,
     handoffs,
     messages,
@@ -467,6 +464,29 @@ export function world(
     controls: memory.controls,
     Plugin,
     provided,
+    contact(name: string) {
+      return ctx.modelRuntime.calls.contact({
+        principal: PRINCIPAL,
+        tenant: TENANT,
+        reference: unbox(
+          encodeModelInvocationRef({
+            tenant: TENANT,
+            call: callOf(name),
+            admission: op(`admit-${name}`),
+          }),
+        ),
+      })
+    },
+    admitBehind(name: string) {
+      return raw.admit({
+        principal: PRINCIPAL,
+        tenant: TENANT,
+        call: callOf(name),
+        operation: op(`admit-${name}`),
+        request,
+        consumer: { owner: CONSUMER, work: 'work', position: 'answer', purpose: 'push-test' },
+      })
+    },
     async services() {
       await ctx.plugin(Authority)
       await ctx.plugin(Clock)
@@ -475,7 +495,6 @@ export function world(
     load(): Fiber {
       return ctx.plugin(Plugin, { ...SETTINGS })
     },
-    /** A plugin that registers `receiver` under `owner`, the way the Agent host does. */
     register(receiver: ModelResultReceiver<unknown>, owner = CONSUMER): Fiber {
       return ctx.plugin({
         name: 'receiver-stand-in',
@@ -488,7 +507,6 @@ export function world(
     async admit(name: string) {
       return unbox(await this.tryAdmit(name))
     },
-    /** The admission answer as it is, a refusal included. */
     tryAdmit(name: string) {
       return ctx.modelRuntime.calls.admit({
         principal: PRINCIPAL,
@@ -519,7 +537,6 @@ export function world(
         await raw.dispatches({ principal: PRINCIPAL, tenant: TENANT, call: callOf(name) }),
       )
     },
-    /** A late account from the trusted supplier source, through the provider's commands. */
     async late(name: string, revision: string, operation = `late-${name}-${revision}`) {
       const target = provided.commands
       if (target === undefined) throw new Error('the provider was not built')

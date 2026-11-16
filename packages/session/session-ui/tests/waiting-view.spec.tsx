@@ -1,0 +1,134 @@
+// @vitest-environment happy-dom
+import { act, cleanup, fireEvent, screen } from '@testing-library/react'
+import { afterEach, expect, it } from 'vitest'
+import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
+import { listed, listPage, page, plainEntry, userEntry } from './fixtures/frames.ts'
+import { mountModule } from './fixtures/shell.tsx'
+
+const TENANT =
+  '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
+const SESSION = 'ses_main'
+
+afterEach(cleanup)
+
+async function settle(): Promise<void> {
+  await act(async () => {
+    for (let round = 0; round < 5; round += 1) await Promise.resolve()
+    await new Promise(resolve => setTimeout(resolve, 0))
+  })
+}
+
+async function openFailed(fake: FakeClient): Promise<void> {
+  await mountModule(fake.client, TENANT)
+  ;(await fake.next('list-sessions')).answer(listPage([listed(SESSION, '会话')]))
+  await settle()
+  fireEvent.click(screen.getByRole('button', { name: '会话' }))
+  await settle()
+  ;(await fake.next('read-history')).answer({
+    outcome: 'succeeded',
+    body: page(
+      [
+        userEntry('1', '1', '帮我查一下', 'msg_a'),
+        plainEntry('2', '2', 'run.terminal', { terminal: { run: 'run_1', outcome: 'failed' } }),
+      ],
+      '2',
+    ),
+  })
+  await settle()
+}
+
+const waiting = (pending: number, cause: { kind: string; detail: string | null } | null) => ({
+  outcome: 'succeeded',
+  body: { waiting: { run: 'run_1', pending, cause } },
+})
+
+it('一轮失败之后：失败的那一行下面写成因、没处理的条数与「重试」；重试点名那一轮', async () => {
+  const fake = createFakeClient()
+  await openFailed(fake)
+  const read = await fake.next('read-waiting')
+  expect(read.body).toMatchObject({ session: SESSION })
+  read.answer(waiting(2, { kind: 'no-reply', detail: 'http-400' }))
+  await settle()
+  const block = screen.getByRole('status', { name: '这一轮失败了' })
+  expect(block.previousElementSibling?.textContent).toBe('这一轮失败了')
+  expect(block.textContent).toContain('模型没有给出有效的回复。诊断：http-400')
+  expect(block.textContent).toContain('还有 2 条消息没有处理')
+
+  fireEvent.click(screen.getByRole('button', { name: '重试' }))
+  const retry = await fake.next('retry-run')
+  expect(retry.body).toMatchObject({ session: SESSION, run: 'run_1' })
+  retry.answer({ outcome: 'no-change', body: {} })
+  await settle()
+  expect(block.textContent).toContain('没有没处理的消息，发一条新消息让它接着做')
+  expect(screen.queryByRole('button', { name: '重试' })).toBeNull()
+})
+
+it('条数为零：只提示发一条新消息，没有重试', async () => {
+  const fake = createFakeClient()
+  await openFailed(fake)
+  ;(await fake.next('read-waiting')).answer(waiting(0, { kind: 'brand-new', detail: null }))
+  await settle()
+  const block = screen.getByRole('status', { name: '这一轮失败了' })
+  expect(block.textContent).toContain('这一轮失败了，原因是「brand-new」。')
+  expect(block.textContent).toContain('没有没处理的消息，发一条新消息让它接着做')
+  expect(screen.queryByRole('button', { name: '重试' })).toBeNull()
+})
+
+it('读等人这个操作不在：退回只显示这一轮失败了', async () => {
+  const fake = createFakeClient()
+  await openFailed(fake)
+  ;(await fake.next('read-waiting')).answer({ outcome: 'stage-not-provided' })
+  await settle()
+  expect(screen.getByText('这一轮失败了')).toBeTruthy()
+  expect(screen.queryByRole('status', { name: '这一轮失败了' })).toBeNull()
+  expect(screen.queryByRole('button', { name: '重试' })).toBeNull()
+})
+
+it('重试的结果不知道：如实显示，再问一次用同一个编号；恢复了就重新读等人', async () => {
+  const fake = createFakeClient()
+  await openFailed(fake)
+  ;(await fake.next('read-waiting')).answer(waiting(1, null))
+  await settle()
+  fireEvent.click(screen.getByRole('button', { name: '重试' }))
+  const first = await fake.next('retry-run')
+  first.answer({ outcome: 'unknown' })
+  await settle()
+  expect(screen.getByText(/重试的结果不知道/)).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: '再问一次' }))
+  const second = await fake.next('retry-run')
+  expect((second.body as { controlId: string }).controlId).toBe(
+    (first.body as { controlId: string }).controlId,
+  )
+  second.answer({ outcome: 'succeeded', body: { recovered: true } })
+  await settle()
+  ;(await fake.next('read-waiting')).answer({ outcome: 'succeeded', body: { waiting: null } })
+  await settle()
+  expect(screen.queryByRole('status', { name: '这一轮失败了' })).toBeNull()
+})
+
+it('提示挂在等的那一轮的失败那一行下面，不挂在别的失败下面，也不挂在末尾', async () => {
+  const fake = createFakeClient()
+  await mountModule(fake.client, TENANT)
+  ;(await fake.next('list-sessions')).answer(listPage([listed(SESSION, '会话')]))
+  await settle()
+  fireEvent.click(screen.getByRole('button', { name: '会话' }))
+  await settle()
+  ;(await fake.next('read-history')).answer({
+    outcome: 'succeeded',
+    body: page(
+      [
+        plainEntry('1', '1', 'run.terminal', { terminal: { run: 'run_0', outcome: 'failed' } }),
+        plainEntry('2', '2', 'run.terminal', { terminal: { run: 'run_1', outcome: 'failed' } }),
+        plainEntry('3', '3', 'message.compaction', {}),
+      ],
+      '3',
+    ),
+  })
+  await settle()
+  ;(await fake.next('read-waiting')).answer(waiting(1, null))
+  await settle()
+  const block = screen.getByRole('status', { name: '这一轮失败了' })
+  const markers = [...document.querySelectorAll('.omne-marker')]
+  expect(block.previousElementSibling?.contains(markers[1] ?? null)).toBe(true)
+  expect(block.nextElementSibling?.textContent).toBe('前面的对话已压缩')
+})

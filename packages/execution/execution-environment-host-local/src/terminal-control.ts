@@ -2,19 +2,13 @@ export type TerminalFrame =
   | Readonly<{ kind: 'ready' }>
   | Readonly<{ kind: 'opened'; cwd: string }>
   | Readonly<{ kind: 'started'; leg: string }>
-  /** Between-segment bytes the gate kept before it read this leg's begin sentinel. */
   | Readonly<{ kind: 'between'; leg: string; bytes: Uint8Array }>
-  /** The gate read this leg's begin sentinel; `discarded` between-segment bytes did not fit the bound. */
   | Readonly<{ kind: 'begun'; leg: string; discarded: number }>
   | Readonly<{ kind: 'data'; leg: string; bytes: Uint8Array }>
   | Readonly<{ kind: 'finished'; leg: string; code: number; cwd: string }>
   | Readonly<{ kind: 'fault' }>
 
 type FrameOf<K extends TerminalFrame['kind']> = Extract<TerminalFrame, { kind: K }>
-/**
- * The frames one push accepted, in order. A fault keeps the frames accepted before the refused
- * line of the same push: they happened, and how the bytes were cut must not change the outcome.
- */
 type FrameStep = Readonly<{ kind: 'frames' | 'fault'; frames: readonly TerminalFrame[] }>
 const base64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u
 
@@ -70,8 +64,6 @@ export function createTerminalReader(input: {
   let pending = Buffer.alloc(0)
   let state: 'launching' | 'ready' | 'idle' | 'starting' | 'running' | 'fault' = 'launching'
   let leg: string | undefined
-  // The PTY and the observation FIFO are not ordered against each other, so the begin
-  // sentinel may be read before or after the started observation.
   let begun = false
   let between = 0
   const fault = (frames: readonly TerminalFrame[] = []): FrameStep => {
@@ -85,7 +77,6 @@ export function createTerminalReader(input: {
     return true
   }
   const ofLeg = (id: string) => id === leg
-  // One transition per frame kind: the answer is whether the frame is accepted in the current state.
   const transitions: { [K in TerminalFrame['kind']]: (frame: FrameOf<K>) => boolean } = {
     fault: () => false,
     ready: () => enter('launching', 'ready'),

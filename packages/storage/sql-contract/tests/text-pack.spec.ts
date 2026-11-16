@@ -1,5 +1,3 @@
-// The packed text of a large text column (SPEC §10.1): the format marker, the threshold, the round
-// trip and the refusal of an unknown marker.
 import { describe, expect, it } from 'vitest'
 import { packText, unpackText } from '@omne-harness/sql-contract/worker'
 

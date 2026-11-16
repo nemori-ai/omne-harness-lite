@@ -27,7 +27,7 @@ const MACH_O_MAGICS = new Set([
 
 /**
  * 起 PATH 上的 pnpm 的命令：在仓库根运行时它按 packageManager 自己切到钉住的版本，规则同 tools/test-runner 的 `pnpmCommand`。
- * Windows 上只认 PATH 上的 pnpm.exe（docs/development.md 写明的装法），不经 shell 起 pnpm.cmd。
+ * Windows 上只认 PATH 上的 pnpm.exe（CONTRIBUTING.md 写明的装法），不经 shell 起 pnpm.cmd。
  */
 export function pnpmCommand(env = process.env, platform = process.platform) {
   if (platform !== 'win32') return { command: 'pnpm', args: [] }
@@ -38,7 +38,7 @@ export function pnpmCommand(env = process.env, platform = process.platform) {
     if (existsSync(exe)) return { command: exe, args: [] }
   }
   throw new Error(
-    'PATH 上没有 pnpm.exe：Windows 上按 docs/development.md 装 pnpm 12（独立安装或 mise）',
+    'PATH 上没有 pnpm.exe：Windows 上按 CONTRIBUTING.md 装 pnpm 12（独立安装或 mise）',
   )
 }
 
@@ -111,7 +111,7 @@ export function prepareNative(root, { env = process.env, platform = process.plat
   if (problems.length > 0)
     return {
       status: 1,
-      output: `${output}spawn-helper 仍不可用：\n${problems.join('\n')}\n删掉 node_modules 后按 docs/development.md「准备可用的检出」重装`,
+      output: `${output}spawn-helper 仍不可用：\n${problems.join('\n')}\n删掉 node_modules 后按 CONTRIBUTING.md「准备检出」重装`,
     }
   return { status: 0, output }
 }

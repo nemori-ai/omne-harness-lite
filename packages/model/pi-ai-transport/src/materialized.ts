@@ -1,5 +1,3 @@
-// One send of the pi transport: materialize fixes the payload under a capacity reservation, and
-// the materialized transport holds that reservation until start consumes it or close returns it.
 import type {
   FixedModelRequest,
   MaterializationReceipt,
@@ -30,31 +28,17 @@ export type MaterializeInput = Readonly<{
   route: CheckedRoute
   request: FixedModelRequest
   supplier: Supplier
-  /** The replay declaration that the request fixes for the supplier. */
   declaration: ReplayDeclaration
-  /** The messages that this dispatch must treat as unable to continue. */
   resent: TransportDispatch['resent']
   binding: PiFamilyBinding
-  /** The caller's signal, joined with the close of the prepared transport. */
   signal: AbortSignal
 }>
 
-/**
- * `held`: owns the reservation and the encoded body; nothing was sent. `started`: start ran
- * once; the exchange, if one started, owns the slot. `closed`: the reservation is back or the
- * exchange has physically stopped once `done` resolves.
- */
 type MaterializedPhase =
   | Readonly<{ kind: 'held'; reservation: ConnectionReservation; body: Uint8Array }>
   | Readonly<{ kind: 'started'; exchange: HttpExchange | null }>
   | Readonly<{ kind: 'closed'; done: Promise<void> }>
 
-/**
- * Reserves a connection slot, refuses a request with a content reference, encodes the request
- * through the family, and fixes the bytes and their digest in the receipt, and the diagnostics of
- * the encoding for the facts of the send. Every failure, a thrown one included, returns the
- * reservation. Nothing is sent.
- */
 export async function materialize(
   input: MaterializeInput,
 ): Promise<Outcome<MaterializedHandle, TransportFailure>> {
@@ -93,16 +77,13 @@ export async function materialize(
   }
 }
 
-/** The observer of one transport hears of a retry; whatever it does never reaches the send. */
 function tell(
   observer: CheckedConfig['onConnectRetry'],
   event: Parameters<NonNullable<CheckedConfig['onConnectRetry']>>[0],
 ): void {
   try {
     observer?.(Object.freeze({ ...event }))
-  } catch {
-    // The observer is the caller's: its failure changes nothing of the send.
-  }
+  } catch {}
 }
 
 function capacityUnavailable(diagnostic: 'cancelled' | 'network-closed'): TransportFailure {
@@ -124,16 +105,11 @@ function createMaterialized(
     body: input.body,
   }
 
-  /**
-   * Reads the credential and sends at once, inside this synchronous call. A send that does not
-   * leave the transport returns the reservation and gives a stream with only its termination.
-   */
   function send(
     held: Extract<MaterializedPhase, Readonly<{ kind: 'held' }>>,
     signal: AbortSignal,
   ): AsyncIterable<TransportFact> {
     const { config, route } = input
-    // A cancel or a closed network wins over a missing credential: nothing could be sent.
     if (signal.aborted || config.network.closed) return refusedBeforeSend(held, { kind: 'stopped' })
     const secrets = config.credential.read()
     const secret = route.auth === null ? null : secrets?.get(route.auth.item)
@@ -160,9 +136,7 @@ function createMaterialized(
       { ...exchangeInput, reservation: held.reservation },
       signal,
     )
-    // startExchange returned the reservation for a refusal.
     if (started.kind === 'refused') return endedBeforeSend(endOfRefusal(started.reason))
-    // The retries keep the secret in the headers that this one call built: the slot is read once.
     const exchange =
       config.limits.connectRetry === undefined || config.limits.connectRetry.backoffMs.length === 0
         ? started.exchange
@@ -212,10 +186,8 @@ function createMaterialized(
       switch (current.kind) {
         case 'held':
           break
-        // A repeated start is a usage error: nothing is sent and nothing ends.
         case 'started':
           return noFacts()
-        // Every close stops the send before it leaves, as the close of the network does.
         case 'closed':
           return endedBeforeSend({ kind: 'stopped' })
         default: {
@@ -254,11 +226,6 @@ function createMaterialized(
   }
 }
 
-/**
- * The end of a send that `startExchange` refused. The headers other than the credential are
- * fixed, so an invalid header is the credential. The route, the body, the limits and the
- * reservation were checked before: their refusal is a defect of this package.
- */
 function endOfRefusal(reason: ExchangeRefusal): SendEnd {
   switch (reason) {
     case 'cancelled':

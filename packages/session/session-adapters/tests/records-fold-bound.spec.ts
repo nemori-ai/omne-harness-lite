@@ -1,8 +1,3 @@
-// The bound of the folds that the step reads of an execution keep (`readExecutionRecords`). A
-// reader does not learn that an execution ended, so a fold leaves by age. A fold holds every block
-// of its executions, so a bound on the number of folds bounds no memory: the bound is on the text
-// of the blocks. What is checked: the least recently read leave first, the fold being read stays
-// whatever its size, and nothing leaves at or under the bound.
 import { describe, expect, it } from 'vitest'
 import { dropFoldsOver } from '../src/cordis/agent-journal.ts'
 

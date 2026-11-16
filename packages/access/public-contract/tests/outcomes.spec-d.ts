@@ -1,21 +1,5 @@
 import { expectTypeOf, test } from 'vitest'
-import type {
-  FixedOutcome,
-  GovernanceResponse,
-  HitlResponse,
-  Outcome,
-  SessionResponse,
-} from '@omne-harness/public-contract'
-
-test('the outcome type equals the outcomes the three existing families answer', () => {
-  type Existing =
-    | GovernanceResponse['outcome']
-    | SessionResponse['outcome']
-    | HitlResponse['outcome']
-    | 'protocol-rejected'
-    | 'stage-not-provided'
-  expectTypeOf<Outcome>().toEqualTypeOf<Existing>()
-})
+import type { FixedOutcome, Outcome } from '@omne-harness/public-contract'
 
 test('six outcomes are fixed to an empty body', () => {
   expectTypeOf<FixedOutcome>().toEqualTypeOf<

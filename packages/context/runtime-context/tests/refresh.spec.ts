@@ -13,9 +13,6 @@ import {
   type Harness,
 } from './support.js'
 
-// RC-09 restored supply, review N4: the first ordinary reads after a replay call the source under
-// a concurrency limit and a retry interval. Concurrent reads of one block share one source call.
-
 async function restored(h: Harness, target: ScopeRef): Promise<void> {
   h.ports.bind(target, tenantA)
   const begun = await h.rc.beginReplay('holder', {
@@ -99,7 +96,6 @@ describe('supply after a replay', () => {
     ).toHaveLength(1)
     gate.resolve({ kind: 'value', value: 1 })
     expect(await pending).toEqual({ kind: 'value', value: 1 })
-    // The mark is kept: the next read of b refreshes it.
     expect(await firstBlock(rb)).toEqual({ kind: 'value', value: 1 })
     expect(calls).toEqual([a.ref, b.ref])
   })

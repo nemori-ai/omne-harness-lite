@@ -1,6 +1,3 @@
-// The JSON form of Session values that cross the SQL boundary. legal-identity mints tenants and
-// workspaces, so they travel as marked text and are parsed back by their own codecs. Every other
-// value is already plain data. The Worker modules and the port adapter share this file.
 import { createHash } from 'node:crypto'
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
@@ -12,7 +9,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** Strict JSON of a Session value. `undefined` members are left out; a minted identity becomes text. */
 export function encodeValue(value: unknown): JsonValue {
   if (value === null || value === undefined) return null
   if (typeof value === 'string' || typeof value === 'boolean') return value
@@ -41,7 +37,6 @@ export function encodeValue(value: unknown): JsonValue {
   return out
 }
 
-/** The inverse of `encodeValue`: the marked texts are parsed back into minted identities. */
 export function decodeValue(value: JsonValue): unknown {
   if (Array.isArray(value)) return value.map(item => decodeValue(item))
   if (!isRecord(value)) return value
@@ -61,7 +56,6 @@ export function decodeValue(value: JsonValue): unknown {
   return out
 }
 
-/** Keys in code-unit order, so equal values give equal text. */
 export function canonicalText(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(item => canonicalText(item)).join(',')}]`
   if (isRecord(value))
@@ -73,13 +67,11 @@ export function canonicalText(value: unknown): string {
   return JSON.stringify(value) ?? 'null'
 }
 
-/** A count of the store (a position, a revision, a publication count): it travels as decimal text. */
 export const isCount = (value: unknown): value is string =>
   typeof value === 'string' && /^\d+$/.test(value)
 
 export const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex')
 
-/** The plain value of a json-text tree, as the Session entries store their payloads. */
 export function plainOf(tree: unknown): unknown {
   if (!isRecord(tree)) return null
   switch (tree['kind']) {
@@ -102,18 +94,8 @@ export function plainOf(tree: unknown): unknown {
   }
 }
 
-/**
- * The digest of one content block (TB-04): `sha256:` and the hex SHA-256 of the UTF-8 bytes of its
- * payload text. The `execution-record` participant checks it, so a digest names one payload.
- */
 export const blobDigest = (payload: string): string => `sha256:${sha256(payload)}`
 
-/** The most facts one batch of the Agent fact family holds (the participant refuses more). */
 export const EXECUTION_BATCH_MAX_FACTS = 256
 
-/**
- * The most UTF-8 bytes of the body of one Agent fact. A fact holds identities, digests, references
- * and small values only, so its size has a bound that does not depend on the content it refers to
- * (the per-step commit bound, R2-D294); the participant refuses a larger body.
- */
 export const EXECUTION_FACT_MAX_BYTES = 4096

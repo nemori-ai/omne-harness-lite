@@ -1,6 +1,3 @@
-// The frames of session observation and 帧的翻译 (RFC-0015 §8): the one place that turns what the
-// locate and the stream found into frames. A state frame goes out only when one of its four fields
-// changed; the first one always goes out. Snapshots and deltas carry the model-output-v1 value.
 import type { JsonValue } from '@omne-harness/json-text'
 import {
   projectModelOutputV1,
@@ -25,18 +22,15 @@ export type SessionObservationFrame =
   | Readonly<{ kind: 'gap'; reason: 'buffer' | 'source-history' }>
   | Readonly<{ kind: 'refreshing' }>
 
-/** Why the frames ran out. An aborted observation ends without one. */
 export type SessionObservationEnd = 'refresh-exhausted' | 'denied' | 'unavailable'
 
 export type StateFields = Omit<StateFrame, 'kind'>
 
-/** A content frame, or null when the Model value has no model-output-v1 projection. */
 type Content = Extract<SessionObservationFrame, { kind: 'snapshot' | 'delta' }> | null
 
 export class FrameTranslator {
   #last: StateFields | undefined
 
-  /** The state frame for `fields`, or null when none of the four fields changed. */
   state(fields: StateFields): StateFrame | null {
     const last = this.#last
     if (

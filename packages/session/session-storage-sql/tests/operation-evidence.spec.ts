@@ -1,10 +1,4 @@
 import { sessionCommitCommands } from '../src/participants.ts'
-// The access evidence of an operation record: a commit that carried an allowed decision writes it
-// into `sl_operation_evidence` in the same transaction as the operation row, and the query
-// answer of the record carries it back. The record of another tenant is not reachable, a recall
-// keeps the original evidence, and a commit that rolls back leaves no evidence behind. The suite
-// case of session-contract for the view (`delegated.spec.ts`) checks the view; this file checks
-// the storage side of the same fact and the public port.
 import { describe, expect, it } from 'vitest'
 import { mutationAccessRequest } from '@omne-harness/session-contract'
 import type { SessionCommand } from '@omne-harness/session-contract'
@@ -28,7 +22,6 @@ const ok = <T>(value: unknown): T => {
 
 const SESSION = 'session-1'
 
-/** The stored evidence text of one operation in the domain of tenant A (undefined: no row). */
 function storedText(a: App, operation: string): string | undefined {
   const found = a.provider.select(
     'dom_0',
@@ -38,7 +31,6 @@ function storedText(a: App, operation: string): string | undefined {
   return found.rows.length === 0 ? undefined : (found.rows[0]?.[0] as string)
 }
 
-/** The number of operation records of the name in the domain of tenant A. */
 const operationRows = (a: App, operation: string): unknown =>
   a.provider.select(
     'dom_0',
@@ -70,7 +62,6 @@ const viewCommit = (a: App, command: SessionCommand, bound: string) =>
     })
     .commit({ access: a.access(TENANT_A), command, guards: [] })
 
-/** The commit of a Session command by an external committer, with the given extra facts. */
 function directCommit(a: App, command: SessionCommand, extra: Readonly<Record<string, unknown>>) {
   const base = sessionCommandFacts(command, [])
   return a.provider.storage.commit({
@@ -102,6 +93,7 @@ describe('the migration of the evidence table', () => {
       'session/005-attempt-grant',
       'session/006-permission-current',
       'session/007-scope-index',
+      'session/008-session-list',
       'execution-record/002-preadmission',
       'execution-record/003-admission-attempt',
       'execution-record/004-state-parts',
@@ -154,7 +146,6 @@ describe('the evidence of a commit is stored with its operation record', () => {
   it('a commit that fails after the operation row leaves no row and no evidence; the retry stores once', async () => {
     const a = await created()
     a.provider.failWrite(/UPDATE sl_journal/u)
-    // An environment error inside the transaction is unknown (sql-contract §7.6).
     expect(kindOf(await viewCommit(a, acceptCommand('one'), 'access/face/accept'))).toBe(
       'commit-unknown',
     )

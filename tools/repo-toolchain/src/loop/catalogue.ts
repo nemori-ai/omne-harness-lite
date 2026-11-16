@@ -1,5 +1,3 @@
-// 条目对照表的条数。约定（正文在 docs/clean-loop.md）：表头有一栏叫「归类」的 Markdown 表，
-// 数据行这一格必须是五个词之一。另把对照表的条目名对回条目全表，只报告对不上的。
 import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { data, noData, type Reading } from './reading.ts'
@@ -8,7 +6,6 @@ export const CATEGORIES = ['传感器', '评审问法', '归人', '不适用', '
 export type Category = (typeof CATEGORIES)[number]
 
 export interface TableRow {
-  /** 1 起的行号。 */
   readonly line: number
   readonly cells: readonly string[]
 }
@@ -18,7 +15,6 @@ export interface Table {
   readonly rows: readonly TableRow[]
 }
 
-/** 按 `|` 切格，`\|` 不切；去掉首尾的竖线与每格两端的空白。 */
 function cellsOf(line: string): string[] {
   const body = line
     .trim()
@@ -31,7 +27,6 @@ const isTableLine = (line: string) => line.trim().startsWith('|')
 const isSeparator = (line: string) =>
   /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?$/u.test(line.trim())
 
-/** 文件里的 Markdown 表：表头、分隔行、数据行连续出现；代码块里的不算。 */
 export function parseTables(text: string): Table[] {
   const lines = text.split('\n')
   const tables: Table[] = []
@@ -81,7 +76,6 @@ export function countCategories(path: string, text: string): CategoryCount {
   return { counts, invalid }
 }
 
-/** 有「归类」一栏的表里，「现状」一格以「待建」开头的行数。 */
 export function countPending(text: string): number {
   return parseTables(text)
     .filter(table => table.header.includes('归类'))
@@ -92,7 +86,6 @@ export function countPending(text: string): number {
     }, 0)
 }
 
-/** 表头第一栏叫「条目」的表里，每行第一格的条目名。 */
 export function entryNames(text: string): string[] {
   return parseTables(text)
     .filter(table => table.header[0] === '条目')
@@ -101,11 +94,8 @@ export function entryNames(text: string): string[] {
 }
 
 export interface CrossCheck {
-  /** 全表有、对照表里没有或出现次数少于全表。 */
   readonly missing: readonly string[]
-  /** 对照表有而全表没有。 */
   readonly unknown: readonly string[]
-  /** 两边都有，对照表里出现次数多于全表。 */
   readonly repeated: readonly string[]
 }
 
@@ -115,10 +105,6 @@ function occurrences(names: readonly string[]): Map<string, number> {
   return counts
 }
 
-/**
- * 按条目名的出现次数对：全表里同名的条目可以有几行（例如分在两节），对照表照着有同样几行就对得上。
- * 对照表次数少于全表算缺，多于全表算多出，全表没有的名字单列。
- */
 export function crossCheck(doctrine: readonly string[], catalogue: readonly string[]): CrossCheck {
   const expected = occurrences(doctrine)
   const seen = occurrences(catalogue)

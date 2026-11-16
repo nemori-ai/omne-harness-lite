@@ -4,6 +4,7 @@ import { associated, validateBinding, validateRegistration } from './call-state.
 import type { HistoryEntry } from './faces.ts'
 import { isDeferredFact, type SessionHistoryReads } from './history-values.ts'
 import type { WorkSnapshot } from './values.ts'
+import { pendingAfterTerminal } from './input-leases.ts'
 import {
   executionBoundary,
   historyContext,
@@ -20,7 +21,6 @@ import {
   unique,
 } from './session-validation.ts'
 
-/** Command and replay share the complete final release check. */
 export function validateFrontierBatch(
   snapshot: WorkSnapshot,
   entries: readonly SessionEntry[],
@@ -47,11 +47,20 @@ export function validateFrontierBatch(
   if (releases.length > 0 || mustRelease)
     requirePrepared(historyContext(snapshot, reads), { kind: 'pending', inputs: snapshot.pending })
   let pending = [...snapshot.pending]
+  let unanswered = [...(snapshot.unanswered ?? [])]
+  const active = snapshot.run.kind === 'active' ? snapshot.run.run : null
   for (const entry of entries) {
     if (entry.kind === 'intake.handed-over' && entry.result.kind === 'rejected')
       pending = pending.filter(input => input !== entry.input)
-    if (entry.kind === 'run.batch-taken')
+    if (entry.kind === 'run.batch-taken') {
       pending = pending.filter(input => !entry.batch.ordered.includes(input))
+      if (entry.run === active) unanswered = [...unanswered, ...entry.batch.ordered]
+    }
+    if (entry.kind === 'message.assistant') unanswered = []
+    if (entry.kind === 'run.terminal') {
+      pending = [...pendingAfterTerminal({ pending, unanswered }, entry.terminal.outcome)]
+      unanswered = []
+    }
     if (entry.kind === 'intake.released') {
       unique(entry.inputs, item => item, 'intake.released.inputs')
       if (!mustRelease || !equalValue(entry.inputs, pending))
@@ -151,7 +160,6 @@ function interpretationRuns(
           ))
       )
     })
-    // A deferred control fact that Session decided as observed saves its progress alone.
     const deferredProgress = boundary.facts.some(
       fact =>
         fact.sequence === entry.execution.readThrough &&
@@ -164,7 +172,6 @@ function interpretationRuns(
   return runs
 }
 
-/** Apply the original event's Run constraint against the evolving batch, including new registrations. */
 export function validateInterpretationEntry(
   snapshot: WorkSnapshot,
   entry: SessionEntry,
@@ -251,14 +258,12 @@ export function validateReplayHistory(
           ? [kind]
           : []
       })
-      // Session decided a deferred control fact in this batch: only `control` rows, any number.
       if (isDeferredFact(fact.kinds)) {
         if (actual.some(kind => kind !== 'control'))
           inconsistent('interpretation of a deferred control fact writes other consequences')
         continue
       }
       const required = fact.kinds.filter(kind => kind !== 'observed')
-      // The legacy forms normalize to their registration-backed equivalents.
       const normalize = (kind: string) =>
         kind === 'call' ? 'call-registration' : kind === 'waiting' ? 'registered-waiting' : kind
       if (!equalValue(actual.map(normalize), required.map(normalize)))

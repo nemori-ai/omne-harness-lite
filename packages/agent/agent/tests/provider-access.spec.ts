@@ -1,7 +1,3 @@
-// C2 of #509: every public operation of the four faces checks the tenant of its Access against the
-// binding, then calls access.check exactly once, and only `allowed` reaches the operation body.
-// Apart from invoke (#510), the bodies are not implemented yet: after `allowed` each returns a named
-// `unavailable`. That is a stage-temporary answer, not a contract result; the tests that pin it say so.
 import { describe, expect, it } from 'vitest'
 import type { AgentProvider } from '@omne-harness/agent'
 import { createTestAgentDependencies } from '@omne-harness/agent/testing'
@@ -40,7 +36,6 @@ type Operation = Readonly<{
 const onInstance: AgentAccessTarget = { kind: 'instance', instance: instance() }
 const onExecution: AgentAccessTarget = { kind: 'execution', execution: execution() }
 
-/** Every public operation of the four faces that answers with a Reply. */
 const operations: readonly Operation[] = [
   {
     name: 'invoke',
@@ -108,7 +103,6 @@ const operations: readonly Operation[] = [
   },
 ]
 
-/** A provider over the test assembly whose every dependency call is logged. */
 async function setup() {
   const assembly = createTestAgentDependencies<Principal>()
   const { dependencies, calls } = watched(assembly.dependencies)
@@ -116,16 +110,13 @@ async function setup() {
   return { provider, calls, check: assembly.controls.access.check }
 }
 
-/** An Access without a tenant, as an untyped caller could send it. */
 const withoutTenant = { principal: 'alice' } as unknown as Access<Principal>
 
-/** Tenants that legal-identity did not mint: a copy of a minted one and a plain string. */
 const malformedTenants: readonly [string, Access<Principal>][] = [
   ['a copy of a minted tenant', { principal: 'alice', tenant: { ...tenantA } }],
   ['a string', { principal: 'alice', tenant: 'tenant-a' as unknown as typeof tenantA }],
 ]
 
-/** Answers of the check that are not one of the three decisions, as a provider could send them. */
 const strayDecisions: readonly [string, unknown][] = [
   ['undefined', undefined],
   ['null', null],
@@ -134,7 +125,6 @@ const strayDecisions: readonly [string, unknown][] = [
   ['unavailable without diagnostic', { kind: 'unavailable' }],
 ]
 
-/** Scripts the check to answer a value outside its type. */
 const strayAnswer = (value: unknown) => () => value as AgentAccessDecision
 
 describe.each(operations)('C2 $name', ({ name, target, call }) => {
@@ -222,10 +212,6 @@ describe.each(operations)('C2 $name', ({ name, target, call }) => {
   })
 })
 
-// invoke has its body since #510; its allowed path is in loop-invoke.spec.ts and just below.
-// quiesce has its body (R2-D173); its allowed path is in provider-quiesce.spec.ts and just below.
-// resume has its body for an execution that was handed over; its allowed path is in
-// provider-handover.spec.ts and just below.
 const bodiless = operations.filter(entry => !['invoke', 'quiesce', 'resume'].includes(entry.name))
 
 describe.each(bodiless)('C2 $name', ({ name, call }) => {
@@ -326,8 +312,6 @@ describe('C2 observe', () => {
     expect(calls).toEqual(['access.check'])
   })
 
-  // 待拥有者: as for a missing tenant, the contract gives no `invalid` end reason. The guard answers
-  // invalid, and the observation ends as `denied`, fail closed, without access.check.
   it.each(malformedTenants)(
     '待拥有者: an Access whose tenant is %s ends with denied before access.check',
     async (_, access) => {
@@ -368,9 +352,6 @@ describe('C2 observe', () => {
     expect(check.calls).toHaveLength(2)
   })
 
-  // 待拥有者: AgentObservation has no `invalid` reason, so the contract gives no channel for an
-  // Access without tenant. The test pins only what holds whatever the owner decides: the sequence
-  // ends, shows no state and never reaches access.check. The ended reason is not asserted.
   it('待拥有者: an Access without tenant ends without a state and without access.check', async () => {
     const { provider, calls } = await setup()
     const seen = await take(observe(provider, withoutTenant), 5)

@@ -98,14 +98,12 @@ const callShape: Check<ToolBackgroundCallsValue['calls'][number]> = record({
 })
 const valueShape = refine(record({ tenant, calls: list(callShape) }), value => {
   for (const [index, call] of value.calls.entries()) {
-    // The reference carries no tenant (R2-D357): the value's tenant is the tenant of every call.
     if (readToolInvocationRef(call.reference).call !== call.call)
       return { field: `calls[${index}].reference`, reason: 'call-mismatch' }
   }
   return undefined
 })
 
-/** Closed value validation only; it proves neither current access nor original admission. */
 export const backgroundCallsSchema: SuppliedBlockDescriptor<
   'tool.background-calls',
   ToolBackgroundCallsValue

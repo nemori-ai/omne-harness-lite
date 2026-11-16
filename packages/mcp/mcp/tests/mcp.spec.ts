@@ -1,6 +1,3 @@
-// `createMcp`: the configuration is checked at construction (SPEC S3), the services share one
-// connection table, the clock of the ports stamps the listings, and the inspection port is the
-// category port plus the two readers.
 import { describe, expect, it } from 'vitest'
 import { readBodyText } from '@omne-harness/assets'
 import type { McpServices } from '@omne-harness/mcp-contract'
@@ -47,7 +44,7 @@ describe('createMcp', () => {
     })
   })
 
-  it('stamps the acquisition time from the clock of the ports (SPEC S3)', async () => {
+  it('stamps the acquisition time from the clock of the ports', async () => {
     const w = world({ script: usualScript() })
     adoptStdio(w, files)
     const clock = { now: () => new Date('2026-11-03T08:00:00Z') }

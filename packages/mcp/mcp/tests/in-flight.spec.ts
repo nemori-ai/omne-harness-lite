@@ -1,7 +1,3 @@
-// The in-flight table: reservation is one step and hands out the call's place with its one stop
-// signal, only the same tenant and principal cancel, a key not in the table is unknown, a changed
-// generation is unknown, a cancel fires the stop signal of the call, and the one conclusion of a
-// place goes by the phase the table recorded and whether its stop signal fired.
 import { describe, expect, it } from 'vitest'
 import type { Generation } from '@omne-harness/mcp-contract'
 import type { ConnectionView } from '../src/internal/entry.ts'
@@ -12,7 +8,6 @@ import { away, home } from './doubles/identities.ts'
 
 const correlation = correlationKeyOf
 
-/** A connection view whose current generation the test moves. */
 function connectionAt(generation: Generation): ConnectionView & { current: Generation } {
   const view = {
     current: generation,
@@ -41,7 +36,6 @@ const malloryCall: InFlightKey = {
   correlationKey: correlation('c1'),
 }
 
-/** A reservation of `key` under a caller signal the test controls; answers the place. */
 function reserved(
   calls: InFlightCalls,
   key: InFlightKey,
@@ -52,7 +46,6 @@ function reserved(
   return { place, controller }
 }
 
-/** A reservation whose call left on a connection of generation 1. */
 function sentOn(calls: InFlightCalls, key: InFlightKey, generation = generationOf(1)) {
   const { place } = reserved(calls, key)
   place.recordSent(connectionAt(generation), generation)

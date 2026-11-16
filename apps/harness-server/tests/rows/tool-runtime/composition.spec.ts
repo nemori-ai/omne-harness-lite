@@ -1,15 +1,5 @@
-// Tool B 段的进程内组合：真实 Cordis 根上装 Tool 运行时五行、tool-bindings、tool-host（预装发行作者）、执行环境
-// 四行（宿主提供者真件），真实 SQLite 存储与会话存储组合（tool 参加者在同一登记里），真实入口对象（核验器、
-// 签发者、会话工作主体、发行来源权威与登记者、toolClock、toolPublicationAuthority、执行环境授权）。
-// 具名替身：identity 行（租户存续）、authorization 行（会话访问裁定放行一切，只为建会话登记租户）、
-// tool-residency 行（空的常驻引用）、可信作用域绑定的来源（本用例的作用域绑定到本租户；生产来源是
-// session-ad03 的作用域查找，这里不建 Context 作用域）。会话归属读口有两种：第一条用例用一个只认本用例会话的
-// 归属替身（入口的 `createSessionWorkPrincipals` 读它）；第二条用例用发行的 `session-storage` 行提供的
-// `sessionPrincipalBindings`（session-storage-sql 的 `createSessionPrincipalBindings`）和发行的入口对象
-// `sessionWorkPrincipals`，证明发行读口签得出会话工作主体，调用真正执行。
-// 请求由生产的 Tool 请求供给者构造（`createReleaseToolRequests`），会话快照读口给出那个作用域。
-// 用例：Shell.execute 一次、Files.write 加 Files.read 各一次，读回原结果；外租户的同一调用被拒。
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -20,6 +10,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -53,8 +44,10 @@ import type { ToolMessageContentBlock } from '@omne-harness/tool-contract/provid
 import {
   ToolResidencyReaderService,
   toolCatalogKey,
+  toolCommandsKey,
   toolResidencyReaderKey,
   toolRuntimeKey,
+  type ToolCommandsService,
   type ToolRuntimeService,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { executionScopeBindingKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
@@ -81,9 +74,11 @@ import { releaseOf } from '../../../src/entry/tool-release.ts'
 import { createReleaseToolRequests } from '../../../src/entry/tool-requests.ts'
 import { toolClock, toolPublicationAuthority } from '../../../src/entry/tool-runtime-objects.ts'
 import { defineRow } from '../../../src/row.ts'
-import { callHostDomain } from '@omne-harness/tool-host-local'
+import { callHostDomain, createEnvironmentStateStore } from '@omne-harness/tool-host-local'
 import { COMBINATION_VERSION } from '../../../src/rows/agent-journal/config.ts'
 import { toolRuntimeHolder } from '../../../src/rows/tool-runtime/holder.ts'
+import { createToolRecordsRow } from '../../../src/rows/tool-runtime/index.ts'
+import { acquireStateLock, lostContactBy } from '../../../src/state-lock.ts'
 import { permissionOriginsOf } from '../../../src/rows/governance/permission-origins.ts'
 import { sessionWorkOf } from '../../../src/rows/tool-runtime/session-work.ts'
 import { TOOL_BODY_SCHEMA_VOCABULARY } from '../../../src/entry/tool-body-schemas.ts'
@@ -129,7 +124,6 @@ const MEMBER: TenantStandingReading = Object.freeze({
   evidence: { record: 'standing:fixture', revision: '1' },
 })
 
-/** Stands for the `identity` row: both fixture tenants are members. */
 const identityStandIn = defineRow({
   row: 'identity',
   implementation: 'contract-double',
@@ -151,7 +145,6 @@ const identityStandIn = defineRow({
   },
 })
 
-/** Stands for the `tool-residency` row: no session holds a resident reference. */
 const residencyStandIn = defineRow({
   row: 'tool-residency',
   implementation: 'contract-double',
@@ -168,18 +161,15 @@ const residencyStandIn = defineRow({
   },
 })
 
-/** The scope source of this test: the one scope belongs to tenant A. */
 const scopeBindings: ScopeBindingSource = {
   lookup: async scope =>
     scope.ref === SCOPE_REF.ref ? { kind: 'bound', tenant: TENANT_A } : { kind: 'unbound' },
 }
 
-/** The execution authority entry objects with the test scope source in place of AD-03's lookup. */
 const executionAuthorities: readonly EntryObjectModule[] = createExecutionAuthorityModules({
   readBindings: () => scopeBindings,
 }).map(module => ({ ...module, implementation: 'contract-double' as const }))
 
-/** Stands for the session ownership read: only this test's session of tenant A is bound. */
 const ownershipStandIn: SessionPrincipalBindingSource = {
   read: async ({ tenant, session }) =>
     tenantEquals(tenant, TENANT_A) && session === access(TENANT_A, SESSION).session
@@ -192,7 +182,6 @@ const ownershipStandIn: SessionPrincipalBindingSource = {
       : succeed({ kind: 'not-bound' as const }),
 }
 
-/** The real session work principals of the entry over the ownership stand-in. */
 const workPrincipalsOverStandIn: EntryObjectModule = {
   name: sessionWorkPrincipalsKey,
   implementation: 'contract-double',
@@ -208,7 +197,6 @@ const workPrincipalsOverStandIn: EntryObjectModule = {
   },
 }
 
-/** A session work principal of each tenant, issued by the entry's own narrow work issuer. */
 function workPrincipal(name: string, tenant: TenantId): EntryObjectModule {
   return {
     name,
@@ -306,10 +294,6 @@ function json(text: string): JsonValue {
   return read.value
 }
 
-/**
- * Polls `read` until `done` holds. At the deadline it throws with what it waited for and the last
- * value it read, so a slow cold start reads as a timeout of a named wait, not as a later assertion.
- */
 async function until<T>(
   what: string,
   read: () => Promise<T>,
@@ -328,26 +312,22 @@ async function until<T>(
 
 type Runtime = ToolRuntimeService<unknown, ToolMessageContentBlock>
 
-/** The production request source with the session snapshot that names the test scope. */
 function requestSource(ctx: Context) {
   const snapshot = {
     contextScopes: [{ generation: '1', scope: SCOPE_REF.ref, operation: 'op', ended: null }],
   } as unknown as WorkSnapshot
   return createReleaseToolRequests({
-    // The production read: the trusted verifier that the entry object `toolClock` hands over.
     verifier: () => toolRuntimeHolder(ctx).verifier(),
     catalog: () => ctx.get(toolCatalogKey),
     readWork: async () => succeed(snapshot),
     scopeBinding: () => ctx.get(executionScopeBindingKey),
     release: () => releaseOf(ctx),
-    // No test here calls a meta command, so the interaction is never read.
     interaction: async () => fail('no meta command in this test'),
     inquiry: async () => fail('no meta command in this test'),
   })
 }
 
 let positions = 0
-/** `command` is `<tool>.<command>`; the model calls the tool and names the command in the call. */
 async function requestFor(ctx: Context, principal: unknown, command: string, params: string) {
   const [name = command, selected] = command.split('.')
   const args = `{"command":${JSON.stringify(selected)},"params":${params}}`
@@ -386,13 +366,8 @@ async function requestFor(ctx: Context, principal: unknown, command: string, par
   return prepared.ok
 }
 
-/**
- * Resolves when the test has read the result of the call it is making. The receiver answers
- * `saved` only after that: a saved delivery is released, and a released result is not readable.
- */
 let resultRead: Promise<void> = Promise.resolve()
 
-/** Invokes, waits for the settled call, and reads the whole original result as text. */
 async function call(runtime: Runtime, principal: unknown, request: ToolInvokeRequest) {
   let read: () => void = () => undefined
   resultRead = new Promise(resolve => {
@@ -433,15 +408,12 @@ async function settledText(runtime: Runtime, principal: unknown, request: ToolIn
   return { state: found.ok.state, text }
 }
 
-/** Registers tenant A, installs the result receiver and waits until the catalog lists the authors. */
 async function ready(
   ctx: Context,
   saved: ToolDelivery<ToolMessageContentBlock>[],
   residents = true,
 ) {
-  // The session create registers tenant A's domain with the combination that holds `tool`.
   const base = createCommand(TENANT_A, SESSION)
-  // Named initialization fixture: these resident facts are committed through real Session SQL.
   const command = {
     ...base,
     input: {
@@ -492,7 +464,6 @@ async function ready(
   }
   runtime.registerResultReceiver('@omne-harness/agent', receiver)
   const principal = ctx.get(WORK_A)
-  // The release authors were preloaded by the tool-host row; wait until the catalog lists them.
   await until(
     'the catalog to list the release authors',
     () =>
@@ -518,7 +489,6 @@ type Ran = Readonly<{
   saved: readonly ToolDelivery<ToolMessageContentBlock>[]
 }>
 
-/** Shell once, Files write and read once, then the same Shell call by tenant B's work principal. */
 async function shellAndFiles(work: EntryObjectModule): Promise<Ran> {
   const { storageRoot } = workspace()
   const { rows, tools } = rowsOf(storageRoot)
@@ -538,7 +508,6 @@ async function shellAndFiles(work: EntryObjectModule): Promise<Ran> {
     },
     async ctx => {
       const { runtime, principal } = await ready(ctx, saved)
-      // Files takes absolute paths inside the files root.
       const target = join(tools.filesRoot, 'tool-b.txt')
       const shell = await call(
         runtime,
@@ -571,7 +540,6 @@ async function shellAndFiles(work: EntryObjectModule): Promise<Ran> {
         tenant: TENANT_A,
         request: foreignRequest,
       })
-      // Delivery to the original consumer runs on its own worker after the call settles.
       await until(
         'three deliveries to the original consumer',
         async () => saved.length,
@@ -660,9 +628,6 @@ describe('Tool segment B: the release rows in one process composition', () => {
     async () => {
       const { storageRoot } = workspace()
       const { rows, tools } = rowsOf(storageRoot)
-      // A 5000 byte output offloads at this threshold. The body writer keeps the default permit
-      // window, so a loaded machine cannot outrun it; the body expires `retentionMs` after
-      // publication, and the test moves the application clock past that instant instead of waiting.
       const offloading = tools.records.configuration.offloading
       offloading.maxInlineUtf8Bytes = 4096
       offloading.previewUtf8Bytes = 256
@@ -694,7 +659,6 @@ describe('Tool segment B: the release rows in one process composition', () => {
         },
         async ctx => {
           const { runtime, principal } = await ready(ctx, saved)
-          // `echo` and `>` read the same in sh and PowerShell; nothing reads the body back.
           const request = await requestFor(
             ctx,
             principal,
@@ -715,8 +679,6 @@ describe('Tool segment B: the release rows in one process composition', () => {
           const call = readToolInvocationRef(invoked.reference).call
           const sql = toolRuntimeHolder(ctx).sql
           if (sql === null) throw new Error('SQL not installed')
-          // The call comes to rest first: the result is released and no duty is left. A sweep that
-          // met an open task would move the removal one grace on.
           await until(
             'the call to come to rest',
             async () => {
@@ -735,8 +697,6 @@ describe('Tool segment B: the release rows in one process composition', () => {
               ),
             30_000,
           )
-          // The body is published: move the application clock past its expiry and the skew. The
-          // clock keeps running from there; the sweep runs on it and nothing else is faked.
           vi.useFakeTimers({
             toFake: ['Date'],
             shouldAdvanceTime: true,
@@ -746,9 +706,6 @@ describe('Tool segment B: the release rows in one process composition', () => {
               offloading.clockSkewMs +
               1000,
           })
-          // The sweep runs on the application clock. The result was released, so at the expiry of
-          // the body the sweep reclaims the body and then removes the call domain with the records
-          // the host kept for the call (spec C15).
           await until(
             'the sweep to remove the call domain',
             async () => {
@@ -787,9 +744,7 @@ describe('Tool segment B: the release rows in one process composition', () => {
       )
       expect(run.result.exitCode, JSON.stringify(run.of('shutdown-result'))).toBe(0)
       expect(value.call).toBeDefined()
-      // The command's own file is not the Tool's to reclaim.
       expect(existsSync(join(tools.filesRoot, 'native.txt'))).toBe(true)
-      // Physically: no body bytes, no due entry and no ledger record remain in the tenant's domain.
       const domains = join(storageRoot, 'domains')
       const counts = readdirSync(domains)
         .filter(name => name.endsWith('.sqlite'))
@@ -976,11 +931,8 @@ describe('Tool segment B: the release rows in one process composition', () => {
     },
   )
 
-  // The files root here is the short-name spelling that `realpathSync` keeps for the temp directory, as
-  // in the reported `setup --workspace` (R2-D374). The calls name the workspace in its long spelling.
-  // A runtime skip, not `it.runIf`: the tier filter reads the cases statically.
   it(
-    'Windows: a workspace configured by its 8.3 short name runs Shell and Files with its long name; outside stays refused (R2-D374, R2-D376)',
+    'Windows: a workspace configured by its 8.3 short name runs Shell and Files with its long name; outside stays refused',
     { timeout: 180_000 },
     async context => {
       if (process.platform !== 'win32')
@@ -995,7 +947,6 @@ describe('Tool segment B: the release rows in one process composition', () => {
       const outside = join(dirname(longRoot), 'outside')
       mkdirSync(outside)
       writeFileSync(join(outside, 'secret.txt'), 'OUTSIDE-BYTES')
-      // A junction outside the root that points into it: `..` from there is the outside directory.
       const outsideToIn = join(outside, 'to-ws')
       symlinkSync(child, outsideToIn, 'junction')
 
@@ -1059,6 +1010,160 @@ describe('Tool segment B: the release rows in one process composition', () => {
       expect(value.throughLink.text).not.toContain('OUTSIDE-BYTES')
       expect(value.write.text).toMatch(/^done request=/u)
       expect(readFileSync(join(child, 'alias.txt'), 'utf8')).toBe('alias-files')
+    },
+  )
+
+  it.runIf(process.platform === 'linux')(
+    'a Shell command whose tool host was dropped without retirement is stopped by its unit, and its call is settled as lost by the tree that holds the state lock',
+    { tags: ['slow'], timeout: 180_000 },
+    async () => {
+      const { base, storageRoot } = workspace()
+      const { rows } = rowsOf(storageRoot)
+      const marker = join(base, 'lost-shell.txt')
+      const lockRoot = join(base, 'lock')
+      mkdirSync(lockRoot)
+      const plugins = {
+        ...cordis,
+        identityStandIn,
+        residencyStandIn,
+        policyAccess: maintenancePolicy,
+      }
+      const live = {
+        rows,
+        entryObjects: entryObjects(workPrincipalsOverStandIn),
+        probe: [toolRuntimeKey, toolCatalogKey, sessionTransactionsKey, toolCommandsKey, WORK_A],
+      }
+      const show = (unit: string) =>
+        execFileSync(
+          'systemctl',
+          ['--user', 'show', '-p', 'LoadState', '-p', 'ActiveState', unit],
+          {
+            encoding: 'utf8',
+          },
+        )
+      const delivered: ToolDelivery<ToolMessageContentBlock>[] = []
+      const taken = acquireStateLock(lockRoot)
+      if (taken.kind !== 'held') throw new Error('the lock of the test is in use')
+      try {
+        await withLiveRows({ ...live, plugins }, async first => {
+          const { runtime, principal } = await ready(first, [])
+          const caller = { principal, tenant: TENANT_A }
+          const script = `echo start >> ${marker}; sleep 150; echo end >> ${marker}`
+          const outcome = await runtime.invoke({
+            ...caller,
+            request: await requestFor(
+              first,
+              principal,
+              'Shell.execute',
+              JSON.stringify({ script }),
+            ),
+          })
+          if (outcome.kind !== 'accepted') throw new Error(`invoke: ${JSON.stringify(outcome)}`)
+          const { reference } = outcome
+          await until(
+            'the command to write its first line',
+            async () => existsSync(marker) && readFileSync(marker, 'utf8'),
+            text => text === 'start\n',
+            60_000,
+          )
+          const { call } = readToolInvocationRef(reference)
+          const commands = first.get(toolCommandsKey) as ToolCommandsService<
+            unknown,
+            ToolMessageContentBlock
+          >
+          const recovery = await commands.loadRecovery({ ...caller, call })
+          if ('failure' in recovery) throw new Error(`recovery: ${JSON.stringify(recovery)}`)
+          expect(recovery.ok.state.execution.kind).toBe('live')
+          const store = toolRuntimeHolder(first).sql?.store
+          const preparation = recovery.ok.preparations.at(-1)
+          if (store === undefined || preparation === undefined) throw new Error('no records')
+          const environment = await createEnvironmentStateStore({ store }).read({
+            tenant: TENANT_A,
+            call,
+            operation: preparation.operation,
+          })
+          const owned = 'ok' in environment ? (environment.ok?.resources ?? []) : []
+          expect(owned.map(fact => fact.stop)).toEqual(['active'])
+          const unit = JSON.stringify(owned[0]?.resource.reference).match(
+            /omne-host-[0-9a-f-]+\.scope/u,
+          )?.[0]
+          if (unit === undefined) throw new Error('the resource names no unit')
+          expect(show(unit)).toContain('ActiveState=active')
+          const taking = join(base, 'taking')
+          cpSync(join(base, 'state'), join(taking, 'state'), { recursive: true })
+          await withLiveRows(
+            {
+              ...live,
+              rows: rowsOf(join(taking, 'state', 'storage')).rows,
+              probe: [toolRuntimeKey, WORK_A],
+              plugins: {
+                ...plugins,
+                toolRecordsRow: createToolRecordsRow({
+                  lostContact: lostContactBy(() => taken.lock, 'instance'),
+                }),
+              },
+            },
+            async second => {
+              const next = second.get(toolRuntimeKey) as Runtime
+              next.registerResultReceiver('@omne-harness/agent', {
+                async push(input) {
+                  delivered.push(input.delivery)
+                  const key = canonicalDigest(input.delivery.key)
+                  return succeed({
+                    key: input.delivery.key,
+                    evidence: {
+                      owner: '@omne-harness/agent',
+                      record: key,
+                      revision: '1',
+                      digest: key,
+                    },
+                  })
+                },
+              })
+              const found = await until(
+                'the call to settle as lost',
+                () =>
+                  next.queries.lookup({
+                    principal: second.get(WORK_A),
+                    tenant: TENANT_A,
+                    reference,
+                  }),
+                read =>
+                  'ok' in read && read.ok.kind === 'found' && read.ok.state.phase === 'settled',
+                60_000,
+              )
+              expect(found).toMatchObject({
+                ok: {
+                  state: {
+                    terminal: { kind: 'failed', cause: 'runtime-lost' },
+                    effect: { kind: 'unknown' },
+                    execution: {
+                      kind: 'lost',
+                      evidence: { owner: '@omne-harness/harness-server', record: 'state-lock' },
+                    },
+                  },
+                },
+              })
+              expect(show(unit)).toMatch(/ActiveState=inactive|LoadState=not-found/u)
+              await until(
+                'one delivery',
+                async () => delivered.length,
+                count => count >= 1,
+                30_000,
+              )
+            },
+          )
+        })
+      } finally {
+        taken.lock.release()
+      }
+      expect(delivered).toHaveLength(1)
+      expect(delivered[0]).toMatchObject({
+        kind: 'result',
+        terminal: { kind: 'failed', cause: 'runtime-lost' },
+        effect: { kind: 'unknown' },
+      })
+      expect(readFileSync(marker, 'utf8')).toBe('start\n')
     },
   )
 

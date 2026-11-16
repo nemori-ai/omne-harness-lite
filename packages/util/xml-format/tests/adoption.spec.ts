@@ -18,7 +18,7 @@ const contentSchema: XmlSchema = {
   requiredFields: { text: { presentation: 'content' } },
 }
 
-describe('XF-1 and XF-4 explicit own declarations', () => {
+describe('explicit own declarations', () => {
   for (const name of ['toString', 'constructor', '__proto__']) {
     it(`XF4-OWN-${name} rejects undeclared selection and renders explicit optional fields`, () => {
       expect(() =>
@@ -39,7 +39,7 @@ describe('XF-1 and XF-4 explicit own declarations', () => {
   }
 })
 
-describe('XF-2 XML 1.0 ordinary character rejection', () => {
+describe('XML 1.0 ordinary character rejection', () => {
   const illegal = [
     ...Array.from({ length: 0x20 }, (_, n) => n).filter(n => ![9, 10, 13].includes(n)),
     0xd800,
@@ -90,7 +90,7 @@ describe('XF-2 XML 1.0 ordinary character rejection', () => {
   })
 })
 
-describe('XF-3 uniqueness on each emitted element', () => {
+describe('uniqueness on each emitted element', () => {
   it('XF3-DECLARATIONS rejects two declared fields with the same xmlName', () => {
     expect(() =>
       formatXml(
@@ -172,7 +172,7 @@ describe('XF-3 uniqueness on each emitted element', () => {
   })
 })
 
-describe('XF-6 caller-owned active objects and raw markup', () => {
+describe('caller-owned active objects and raw markup', () => {
   it('XF6-RAW contrasts ordinary escaping with unchanged trusted toXml output', () => {
     const raw = '</root><bad/>\u0000'
     expect(formatXml({ text: raw.slice(0, -1) }, textSchema)).toBe(

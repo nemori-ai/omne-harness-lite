@@ -1,9 +1,3 @@
-// V1–V6 of SPEC「性质与证据」, checked by the bounded exhaustive explorer on the real `Session` at
-// the bounds of `scenarios.ts`. A violation fails its case with the shortest schedule that
-// showed it. The scenarios with ports that honour an abort are the positive controls; the
-// scenario whose ports may stay pending after their signal fired checks SPEC V4 in full.
-// Each exploration runs inside a case, not in a hook: per-case coverage then sees it, and
-// mutation testing runs only the cases that reach a mutant instead of every case for each one.
 import { describe, expect, it } from 'vitest'
 import { explore, type Exploration, type Scenario } from './explore.ts'
 import {
@@ -23,10 +17,6 @@ function violations(result: Exploration): readonly string[] {
   )
 }
 
-/**
- * What a run found, without the trace: each property and signature with the length of its
- * shortest schedule.
- */
 function kinds(result: Exploration): readonly string[] {
   const shortest = new Map<string, number>()
   for (const { property, signature, depth } of result.violations) {
@@ -36,13 +26,11 @@ function kinds(result: Exploration): readonly string[] {
   return [...shortest].map(([kind, depth]) => `${kind} at ${depth}`).sort()
 }
 
-/** Explores once, in the first case that asks; later cases of the scenario reuse the result. */
 function exploration(scenario: Scenario): () => Promise<Exploration> {
   let run: Promise<Exploration> | undefined
   return () => (run ??= explore(scenario))
 }
 
-/** Far above the longest scenario (seconds); a case that hits it is stuck, not slow. */
 const EXPLORE_MS = 600_000
 
 describe('minimal: HTTP with a handle, one call with its signal, close(); ports answer or hang', () => {

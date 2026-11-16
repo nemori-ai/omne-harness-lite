@@ -1,5 +1,4 @@
 // @module-tag slow — starts an openssl child process, a real local HTTPS server and a real local
-// CONNECT proxy, and waits for real connect timeouts, proxy resets and socket closure.
 import { createServer as createTcpServer } from 'node:net'
 import type { JsonLimits } from '@omne-harness/json-text'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -36,9 +35,7 @@ const JSON_LIMITS: JsonLimits = {
   maxNumberLength: 64,
 }
 
-/** Far beyond every bound below: Node's own tunnel timeout never decides an outcome here. */
 const IDLE_MS = 60_000
-/** What "promptly" means for a stop, a close or a connect timeout: well under `IDLE_MS`. */
 const PROMPT_MS = 1_000
 
 let certificate: Certificate
@@ -47,7 +44,6 @@ beforeAll(() => {
 })
 afterAll(() => certificate.dispose())
 
-/** Network resources whose exchanges go through `proxyUrl`, unless `bypass` matches the host. */
 function proxied(
   proxyUrl: URL | string,
   overrides: Partial<NetworkConfig> = {},
@@ -64,7 +60,6 @@ function proxied(
   )
 }
 
-/** The promise's value, or a failure when it does not settle within `ms`. */
 async function within<T>(promise: Promise<T>, ms: number): Promise<T> {
   let timer: NodeJS.Timeout | undefined
   const bound = new Promise<never>((_resolve, reject) => {
@@ -77,7 +72,6 @@ async function within<T>(promise: Promise<T>, ms: number): Promise<T> {
   }
 }
 
-/** A proxy and its resources; the proxy closes first, so a hung tunnel cannot hold `close()`. */
 async function withProxy(
   mode: ProxyMode,
   run: (proxy: ConnectProxy) => Promise<NetworkInternals | undefined>,
@@ -92,7 +86,6 @@ async function withProxy(
   }
 }
 
-/** A port on 127.0.0.1 that nothing listens on. */
 async function closedPort(): Promise<number> {
   const probe = createTcpServer()
   await new Promise<void>(resolve => probe.listen(0, '127.0.0.1', resolve))
@@ -163,8 +156,6 @@ describe('connecting through a proxy', () => {
     }
   })
 
-  // Node reads the raw `HTTPS_PROXY` text: it connects directly, without an error, unless the text
-  // starts with a lower-case `http://` or `https://`. `URL` accepts each of these forms.
   it.each([
     ['an upper-case scheme', (url: string) => url.replace('http://', 'HTTP://')],
     ['leading whitespace', (url: string) => ` ${url}`],
@@ -192,8 +183,6 @@ describe('connecting through a proxy', () => {
   })
 
   it('the connect timeout ends when the tunnel hands over a connected socket, not at the response', async () => {
-    // CONNECT, tunnel and TLS take well under the timeout even on a loaded machine; the response
-    // comes only after it. A timer that ran until the response would fail the exchange.
     const server = await startHttpsServer(certificate, async res => {
       await sleep(3_000)
       res.end('late')
@@ -229,8 +218,6 @@ describe('a proxy that fails the connection', () => {
       )
       expect(await exchange.result).toEqual({ kind: 'connect-failed', timeout: false })
       await exchange.stopped
-      // Without the pool's workaround, Node leaves the proxy socket without an error listener, and
-      // the reset below surfaces as an uncaught ECONNRESET that fails this run.
       await expect.poll(() => proxy.resets()).toBe(1)
       await sleep(100)
       expect(reservation.state).toBe('released')
@@ -311,7 +298,6 @@ describe('a proxy that fails the connection', () => {
   })
 
   it('a tunnel whose target fails the TLS handshake gives connect-failed without a timeout', async () => {
-    // The target answers the TLS client hello with plain text and closes the connection.
     const target = createTcpServer(socket => {
       socket.on('error', () => {})
       socket.resume()
@@ -422,8 +408,6 @@ describe('stopping while a connection is built through a proxy', () => {
 })
 
 describe('the connection cancel and a socket the pool already holds', () => {
-  // A stops in the same tick that its kept-alive socket goes back to the pool, and B takes that
-  // socket. A's cancel signal fires then. It must not destroy the socket that B now uses.
   it.each([false, true])(
     'a stop in the tick the socket is freed leaves the socket to the next exchange (through a proxy: %s)',
     async viaProxy => {
@@ -468,8 +452,6 @@ describe('the connection cancel and a socket the pool already holds', () => {
 })
 
 describe('the proxy URL as a secret', () => {
-  // Node's own messages carry the proxy URL, and these cases show that none reaches a result or
-  // a diagnostic. That the construction never reports the URL is proven in proxy-config.spec.ts.
   const SECRET = 'proxy-secret-value'
 
   function leaks(value: ExchangeResult | readonly TransportDiagnostic[], proxy: ConnectProxy) {

@@ -11,13 +11,6 @@ import {
 } from './module-graph.ts'
 
 it('exports on the root only the names members outside the Tool group import, and their closure', () => {
-  // SPEC「公开入口的分组」rule 1: the root runtime names are the reference codecs and the two
-  // identity decoders and the RC block declaration/schema consumed outside the Tool group,
-  // and by rule 3 the relation
-  // check of a result push, which receivers outside the group call, and the resident key text and
-  // reference projection that the Session evidence writer and the application bridge call, and
-  // the settings projection that the application assembly registers with Settings. The grouping
-  // table of the switch is in the PR (tmp/issue-626/provider-split.md).
   expect(Object.keys(tool).sort()).toEqual([
     'backgroundCallsBlock',
     'backgroundCallsSchema',
@@ -117,8 +110,6 @@ it('exports the provider protocol on the provider entry, and no name on both ent
 })
 
 it('exports every type name from exactly one of the root and provider entries', () => {
-  // The source entries are explicit export lists; a name listed in both would be two entries for
-  // one name, which the SPEC forbids.
   const names = (entry: string) =>
     [...readFileSync(memberPath(entry), 'utf8').matchAll(/export (?:type )?\{([^}]*)\}/gu)]
       .flatMap(match => (match[1] as string).split(','))
@@ -133,8 +124,6 @@ it('exports every type name from exactly one of the root and provider entries', 
 })
 
 it('keeps the readers of the author off the root and on the binding entry', async () => {
-  // A handle and a registration hide the executor (public-api); only a trusted binding provider
-  // imports the `./binding` entry that reads it.
   expect(Object.keys(tool)).not.toContain('readToolOperation')
   expect(Object.keys(tool)).not.toContain('readToolRegistration')
   const provider = await import('@omne-harness/tool-contract/provider')
@@ -149,8 +138,6 @@ it('keeps the readers of the author off the root and on the binding entry', asyn
 })
 
 it('reads an own property on the binding entry without running a getter', async () => {
-  // Every implementation reads an untrusted value the same way: an inherited key is absent, an
-  // accessor is reported and never called, and only an own data property yields its value.
   const { readOwnSlot } = await import('@omne-harness/tool-contract/binding')
   let ran = false
   const value = Object.create(
@@ -259,10 +246,8 @@ it.each(['src/index.ts', 'dist/index.d.ts', 'src/provider.ts', 'dist/provider.d.
   },
 )
 
-/** The other Tool packages. The contract package must not depend on any of them. */
 const toolMember = /^@omne-harness\/tool(-cordis-contract|-host-local)?(\/|$)/u
 
-/** A root graph must not reach Cordis, a Cordis entry of any package, or another Tool package. */
 function forbiddenFromRoot(specifier: string): boolean {
   return (
     specifier === '@deepseek-ai/cordis' ||
@@ -295,7 +280,6 @@ describe('contract package depends on no Tool member', () => {
   })
 })
 
-/** Production dependency routes from a workspace package to Cordis, through workspace packages. */
 function routesToCordis(directory: string, route: readonly string[]): string[][] {
   const manifest = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')) as {
     dependencies?: Record<string, string>
@@ -331,8 +315,6 @@ describe('root, provider, binding and testing entries have no Cordis', () => {
   })
 
   it('sees every import form that can load a module', () => {
-    // A guard for the walker itself: a walker that misses one of these forms would pass the
-    // checks above while the root still loaded Cordis.
     const text = [
       "import '@deepseek-ai/cordis'",
       "import type { Context } from 'a-type'",

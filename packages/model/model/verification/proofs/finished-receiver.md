@@ -1,6 +1,6 @@
 # 收场后的接收对象释放
 
-本论证覆盖 [driver.ts](../../src/driver.ts) 的 `finish`，消费 [成员规格](../../SPEC.md) 的收场和资源释放承诺。它不证明整个运行时内存有界，也不改变 Commands 的 ACK 或结果清理。
+本论证覆盖 [driver.ts](../../src/driver.ts) 的 `finish`，消费包组规格「[不变式](../../../SPEC.md#不变式)」MD-32 的收场和资源释放承诺。它不证明整个运行时内存有界，也不改变 Commands 的 ACK 或结果清理。
 
 ## 状态与规则
 

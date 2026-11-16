@@ -60,7 +60,6 @@ function projected(
   })
 }
 
-/** Runs when a committed mode is published or restored, never as a per-call mode interpreter. */
 export function projectSessionPermissionMode(
   input: SessionPermissionModeInput,
 ): SessionPermissionModeResult {

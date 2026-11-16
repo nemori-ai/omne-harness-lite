@@ -152,7 +152,6 @@ function digestCheck(check: unknown, seen: Set<object>): string {
   return canonical(data)
 }
 
-/** Data that changes check behavior. Functions are omitted; regular expressions keep source and flags. */
 function packData(value: unknown, seen: Set<object>): unknown {
   if (typeof value === 'function') return undefined
   if (value instanceof RegExp) return `${value.source}/${value.flags}`
@@ -321,7 +320,6 @@ function allowed(
   if (seen.has(node)) return true
   seen.add(node)
   nodes.count += 1
-  // A construct past the budget was not read. Compiling it could admit that construct.
   if (depth > budget.maxConstructDepth || nodes.count > budget.maxConstructNodes) return false
   if (refused(node)) return false
   const def = record(node.def)
@@ -345,7 +343,6 @@ function refused(node: Record<string, unknown>): boolean {
   return callerCheck(node, internal)
 }
 
-/** The `when` installed by this schema's own `.min`. A caller callback is a different function. */
 function engineWhen(schema: Record<string, unknown>): Function | undefined {
   const min = schema.min
   if (typeof min !== 'function') return undefined

@@ -1,5 +1,3 @@
-// HITL 宿主对还没有事务域的租户的读者资格（`rows/tool-hitl/host.ts` 的 `qualify`）：与 HITL local 的身份资格判断同一
-// 条规则。主体由真实的进程内签发者签发与核验，租户的成员资格是替身。存储与目录在这条路径上不被读取。
 import { describe, expect, it } from 'vitest'
 import { inProcessPrincipalAuthority, type TenantStandingSource } from '@omne-harness/identity'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'

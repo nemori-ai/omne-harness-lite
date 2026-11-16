@@ -26,7 +26,6 @@ export function adoption(name: string): Adoption {
 }
 
 export function evidence(record: string, value: unknown, owner = 'tool-tutorial'): DurableEvidence {
-  // This helper creates a reference, not storage. The caller owns record retention.
   return {
     owner,
     record,
@@ -113,7 +112,6 @@ export function createReportTool() {
       },
       author: {
         kind: 'ordinary',
-        // This codec uses the strict JSON parser, including duplicate-key rejection.
         parameters: valueOf(createDefaultParameterCodec(argumentLimits)),
         waits: [],
         executor: {
@@ -140,7 +138,6 @@ export function createReportTool() {
       },
     }),
   )
-  // The implementation side only: the name, the version and the governance come from the asset.
   const implementation = valueOf(
     defineFunctionTool({
       implementation: {
@@ -158,7 +155,6 @@ export function createReportTool() {
       operation,
     }),
   )
-  // The tutorial plays the asset: this is what a loader derives from the governance and the facts.
   const definition = deriveDefinition(
     { asset: { name: 'report', adoption: adoption('report') }, requiredCapabilities: [] },
     implementation.facts,

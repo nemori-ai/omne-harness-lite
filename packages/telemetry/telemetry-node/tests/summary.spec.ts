@@ -77,7 +77,6 @@ function tenantOf(members: typeof ORG_A): TenantId {
 
 describe('summarizeTelemetry: segments', () => {
   it('groups segment-end records by owner and name, with outcomes and nearest-rank percentiles', () => {
-    // 1..20 in a shuffled order. Nearest rank: p50 is the 10th value, p95 the 19th, p99 the 20th.
     const shuffled = [7, 20, 3, 14, 1, 18, 9, 12, 5, 16, 2, 19, 11, 6, 15, 4, 13, 8, 17, 10]
     const outcomes = [
       ...Array<string>(15).fill('ok'),
@@ -113,7 +112,6 @@ describe('summarizeTelemetry: segments', () => {
   })
 
   it('takes the value at rank ceil(p/100 * n) of the sorted durations', () => {
-    // n = 3: ranks 2, 3, 3. Sorted: 5, 7, 100.
     const summary = summarizeTelemetry(ends([100, 5, 7], ['ok', 'ok', 'ok']))
 
     expect(summary.segments[0]?.durationMs).toEqual({

@@ -10,7 +10,7 @@ import { testingTenant } from '@omne-harness/tool-contract/testing'
 import type { ToolLifecycleObservation } from '@omne-harness/tool'
 import { createToolLifecycleTelemetry } from '../../../src/rows/tool-runtime/telemetry.ts'
 import { processInstance } from '../../../src/rows/telemetry/instance.ts'
-import { TELEMETRY_ROW_CONFIG } from '../server-entry/support.ts'
+import { TELEMETRY_ROW_CONFIG } from '../../support/listening.ts'
 
 function observation(): ToolLifecycleObservation {
   const call = decodeToolCallId('PRIVATE-call-path')

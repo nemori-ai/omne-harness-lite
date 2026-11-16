@@ -1,5 +1,3 @@
-// Which `fetch` failures prove that no request byte left (#1249 C13): only a cause, or a list of
-// causes, whose codes are all connection errors before the first byte.
 import { describe, expect, it } from 'vitest'
 import { neverWritten } from '../src/never-written.ts'
 
@@ -20,6 +18,19 @@ describe('neverWritten', () => {
       expect(neverWritten(failed(coded(code)))).toBe(true)
       expect(neverWritten(failed({ errors: [coded(code), coded('ECONNREFUSED')] }))).toBe(true)
     }
+  })
+
+  it('is true when fetch refuses the port before it connects', async () => {
+    expect(neverWritten(failed(new Error('bad port')))).toBe(true)
+    const refused = await fetch('http://127.0.0.1:6667/', { method: 'POST' }).catch(
+      (error: unknown) => error,
+    )
+    expect(neverWritten(refused)).toBe(true)
+  })
+
+  it('is false for another refusal of fetch, and for a bad port that is not an Error', () => {
+    expect(neverWritten(failed(new Error('bad url')))).toBe(false)
+    expect(neverWritten(failed({ message: 'bad port' }))).toBe(false)
   })
 
   it('is false for any other code, a mixed list, no code, or no cause', () => {

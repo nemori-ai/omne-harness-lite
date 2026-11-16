@@ -1,8 +1,5 @@
-// A call at the new address that gets through (#1233 spec C2, C4, C9, C10, C11): the answer's
-// bytes and headers, the message id, what the handler receives, failures, and the report of a
-// successful business access.
 import { afterEach, describe, expect, it } from 'vitest'
-import { send, startFixture, type Fixture, type HttpReply } from './support/harness.ts'
+import { send, startEntry, type Entry, type HttpReply } from './support/entry.ts'
 import {
   MESSAGE_ID,
   PROOF,
@@ -14,9 +11,9 @@ import {
   startAccessFixture,
   turn,
   type AccessFixture,
-} from './support/pipeline-kit.ts'
+} from './support/access-kit.ts'
 
-let fixture: AccessFixture | Fixture
+let fixture: AccessFixture | Entry
 
 afterEach(async () => {
   await fixture.stop()
@@ -36,7 +33,7 @@ function expectAnswer(reply: HttpReply, status: number, text: string): void {
   expect(reply.headers['content-length']).toBe(String(reply.body.byteLength))
 }
 
-describe('C2: the new address answers', () => {
+describe('the new address answers', () => {
   it('a legal call gets the handler answer with the four headers', async () => {
     const entry = await access()
     const reply = await call(entry.port, 'read-note', { body: '{"noteId":"n-1"}' })
@@ -53,7 +50,7 @@ describe('C2: the new address answers', () => {
   })
 
   it('an entry without access answers 404 at the same address', async () => {
-    fixture = await startFixture()
+    fixture = await startEntry()
     const reply = await send(fixture.port, '/api/notes/v1/read-note', {
       headers: { authorization: `Bearer ${PROOF}`, 'omne-message-id': MESSAGE_ID },
       body: '{"noteId":"n-1"}',
@@ -61,9 +58,19 @@ describe('C2: the new address answers', () => {
     expect(reply.status).toBe(404)
     expect(reply.text).toBe('')
   })
+
+  it('an entry given no old faces answers 404 at the three old paths and serves the new one', async () => {
+    const entry = await access()
+    for (const path of ['/governance-public/1', '/session-public/1', '/hitl-public/1']) {
+      const reply = await send(entry.port, path, { body: '{}' })
+      expect([path, reply.status, reply.text]).toEqual([path, 404, ''])
+    }
+    const reply = await call(entry.port, 'read-note', { body: '{"noteId":"n-1"}' })
+    expectAnswer(reply, 200, '{"outcome":"succeeded","body":{"noteId":"n-1","title":"first note"}}')
+  })
 })
 
-describe('C4: the message id', () => {
+describe('the message id', () => {
   const rejected = '{"outcome":"protocol-rejected","body":{}}'
 
   it.each([
@@ -127,7 +134,7 @@ describe('C4: the message id', () => {
   })
 })
 
-describe('C9: what the handler receives', () => {
+describe('what the handler receives', () => {
   it('the login the identity port gave, the same object', async () => {
     const entry = await access()
     await call(entry.port, 'read-note', { body: '{"noteId":"n-1"}' })
@@ -161,7 +168,7 @@ describe('C9: what the handler receives', () => {
   })
 })
 
-describe('C10: failures and refusals', () => {
+describe('failures and refusals', () => {
   it('a handler that throws answers basis-unavailable for a read and unknown for a commit', async () => {
     const entry = await access()
     entry.notes.scripts['read-note'] = async () => {
@@ -195,7 +202,7 @@ describe('C10: failures and refusals', () => {
   })
 })
 
-describe('C11: the report of a successful business access', () => {
+describe('the report of a successful business access', () => {
   it('reports once after a success of an operation that counts', async () => {
     const entry = await access()
     const reply = await call(entry.port, 'save-note', { body: '{"noteId":"n-1","title":"t"}' })

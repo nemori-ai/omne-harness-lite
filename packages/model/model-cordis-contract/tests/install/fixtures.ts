@@ -1,6 +1,3 @@
-// Runs every role fixture of a member and prints one report. Exit code 0: every fixture ran clean
-// and every required role has one. 1: a fixture or the set failed (the JSON report names it).
-// 2: usage or tool error.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { runFixtureSet } from './fixture-set.ts'

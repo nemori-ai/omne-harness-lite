@@ -27,7 +27,6 @@ import {
   ScriptedModelError,
 } from '@omne-harness/model-contract/testing'
 
-// Every identity is minted by the codec that owns it, inside a helper that a test calls.
 function mint(organization: string, account: string): TenantId {
   const parsed = tenantCodec.parse(
     JSON.stringify({
@@ -48,7 +47,6 @@ function must<T>(outcome: Outcome<T, unknown>): T {
   throw new Error(`expected success, got ${JSON.stringify(outcome.failure)}`)
 }
 
-/** A principal with a method and a closure: the double must keep it by reference. */
 class Agent {
   readonly name: string
   readonly secret: () => string
@@ -137,7 +135,6 @@ async function rejection(promise: Promise<unknown>): Promise<unknown> {
   throw new Error('expected a rejection')
 }
 
-/** The script misuse that a refused registration throws, with the message that names its check. */
 const misuseOf = (message: string) => ({ reason: 'invalid-script', message })
 
 function scriptMisuse(run: () => void): ScriptedModelError {
@@ -174,7 +171,6 @@ describe('the principal and the access (M01, M02)', () => {
     const access: Access<Agent> = { tenant: tenantA(), principal }
     const scripted = createScriptedModelProfiles<Agent>()
     const required = requirement()
-    // A factory profile is registered: its scope grants nothing.
     scripted.setResolution(
       { ...access, route: 'default', required },
       { ok: resolvedOf(profileOf()) },
@@ -271,7 +267,6 @@ describe('tenant partitions (M03)', () => {
     expect(
       must(await scripted.profiles.resolve({ ...second, route: 'default', required })),
     ).toEqual({ kind: 'absent', reason: 'excluded' })
-    // The organization scope of the tenant's own organization applies to every tenant in it.
     const sibling: Access<Agent> = { tenant: sameOrganizationTenant(), principal }
     scripted.setResolution(
       { ...sibling, route: 'default', required },
@@ -460,7 +455,6 @@ describe('resolutions keep reasons and credentials as scripted (M06)', () => {
         await scripted.profiles.resolve({ ...access, route: 'default', required }),
       )
       expect(resolved).toEqual(answer)
-      // A missing credential does not fall back to an outer profile and does not take selectability.
       expect(resolved).toMatchObject({ selectable: true, profile: textOnly })
     }
   })
@@ -539,12 +533,9 @@ describe('answers are checked before they are kept (M08)', () => {
     const other = resolvedOf(profileOf({ route: 'other' }))
     const locked = resolvedOf(profile, { selectable: false, reasons: ['locked'] })
     const lists: ModelChoices[] = [
-      // An absent resolution, or one that cannot be chosen, is not a choice.
       { ...good, choices: [{ kind: 'absent', reason: 'unknown-name' }] },
       { ...good, choices: [locked], selected: { route: 'default', resolution: locked } },
-      // A route repeats.
       { ...good, choices: [choice, choice] },
-      // A selectable selection that is not the choice of its route.
       { ...good, choices: [other] },
       { ...good, choices: [resolvedOf(profile, { source: evidence('elsewhere') })] },
     ]
@@ -555,16 +546,12 @@ describe('answers are checked before they are kept (M08)', () => {
       expect(error.reason).toBe('invalid-script')
     }
     const resolutions: ProfileResolution[] = [
-      // The modality reason must state exactly whether the profile covers the requirement.
       resolvedOf(profile, { selectable: false, reasons: ['modality'] }),
       resolvedOf(profileOf({ input: ['image'] })),
-      // Selectable is the absence of reasons.
       resolvedOf(profile, { selectable: true, reasons: ['locked'] }),
       resolvedOf(profile, { selectable: false, reasons: [] }),
       resolvedOf(profile, { selectable: false, reasons: ['locked', 'locked'] }),
-      // A resolved profile is active; a withdrawn one is absent.
       resolvedOf(profileOf({ availability: 'withdrawn' })),
-      // The route of the resolved profile is the asked route.
       other,
     ]
     for (const answer of resolutions) {
@@ -583,10 +570,6 @@ describe('answers are checked before they are kept (M08)', () => {
   })
 })
 
-/**
- * Each check of an answer has one case whose answer breaks that check alone. The case asserts the
- * message that names the check and that the answers registered before are still given.
- */
 describe('each answer check has a case that breaks only it (M08)', () => {
   function registered() {
     const principal = new Agent('alice')
@@ -877,7 +860,6 @@ describe('copies and minted scopes (M09)', () => {
       }),
     )
     expect(resolved).toEqual(expected)
-    // The registered requirement is a copy too: changing it does not move the row.
     modalities.push('image')
     source.revision = '7'
     expect(
@@ -931,7 +913,6 @@ describe('copies and minted scopes (M09)', () => {
     expect(organizationCodec.encode(organizationScope.organization).ok).toBe(true)
     expect(tenantScope.tenant).toBe(access.tenant)
     expect(organizationScope.organization).toBe(own)
-    // The negative control: a structured clone of the same scope loses the minted identity.
     const cloned = structuredClone(tenantProfile.identity.scope)
     if (cloned.kind !== 'tenant') throw new Error('expected a tenant scope')
     expect(tenantCodec.encode(cloned.tenant).ok).toBe(false)

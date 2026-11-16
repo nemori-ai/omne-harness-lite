@@ -1,7 +1,3 @@
-// Cross-family replay, OpenAI side (spec D7, #465 C4): a history built as pure data holds an
-// assistant message that an Anthropic model produced. Encoding for an OpenAI record leaves its
-// reasoning out and omits its thinking; encode reports it as a `replay-omitted` diagnostic, as the
-// replay projection names it; the OpenAI message of the same history carries its state. The Anthropic family is not imported.
 import { describe, expect, it } from 'vitest'
 import { writeJsonText } from '@omne-harness/json-text'
 import { projectReplay, judgeReplayDeclaration } from '@omne-harness/model-contract/provider'
@@ -101,7 +97,6 @@ describe('an Anthropic message in an OpenAI request', () => {
         {},
       ],
     })
-    // The meter counts what goes out: the thinking text is in the token input.
     expect(writeJsonText(encoded.ok.representation.tokenInput)).toContain('claude private thinking')
     await binding.release()
   })

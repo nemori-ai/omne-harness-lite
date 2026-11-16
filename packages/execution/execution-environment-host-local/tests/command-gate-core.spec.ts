@@ -1,5 +1,3 @@
-// The command gate's judgments without its process: the request it accepts, the action for each
-// control line, how output becomes data frames, and when the quiet period after the exit ends.
 // The frames are compared as JSON text because their key order is part of the bytes on the wire.
 import { describe, expect, it } from 'vitest'
 import {
@@ -136,7 +134,6 @@ describe('dataFrames', () => {
 
 describe('the relay after the exit', () => {
   const bytes = (text: string) => new Uint8Array(Buffer.from(text))
-  /** A channel that takes `room` frames, reporting full on the last one it takes. */
   const channel = (room: number) => {
     const sent: CommandFrame[] = []
     return {
@@ -273,7 +270,6 @@ describe('controlStep', () => {
 describe('chunkRoute', () => {
   it('sends data frames before the exit frame, relays after it, and discards once the manager is gone', () => {
     expect(chunkRoute({ finished: false, detached: false })).toBe('frames')
-    // Before the exit frame a gone manager changes nothing here: the frames are dropped at the send.
     expect(chunkRoute({ finished: false, detached: true })).toBe('frames')
     expect(chunkRoute({ finished: true, detached: false })).toBe('relay')
     expect(chunkRoute({ finished: true, detached: true })).toBe('discard')

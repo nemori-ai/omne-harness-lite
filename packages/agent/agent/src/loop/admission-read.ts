@@ -1,7 +1,3 @@
-// E2's read of the reply admission facts (Agent SPEC "回复准入的已核实前缀"): the one rule that
-// chooses the lower bound, and the read of one fixed range `(from, through]` that checks every
-// page before it moves the verified prefix on. The coordinator owns the in-process prefix and
-// the page loop; this module owns no state. Sequences are compared as exact integers.
 import {
   decodeReplyAdmissionSequence,
   type DurableEvidence,
@@ -17,10 +13,8 @@ import {
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { canonical } from '../canonical.ts'
 
-/** The owner of a failure of the read: the Journal port that answered the page. */
 const READ_OWNER = 'agentJournal'
 
-/** The most facts E2 takes in one page; the provider may answer fewer. */
 export const REPLY_ADMISSION_PAGE_LIMIT = 100
 
 function exact(sequence: string): bigint | undefined {
@@ -28,10 +22,6 @@ function exact(sequence: string): bigint | undefined {
   return 'failure' in decoded ? undefined : BigInt(decoded.ok)
 }
 
-/**
- * The lower bound of the next read (D5 第 5 节 step 2): the larger of the in-process prefix and the
- * verified prefix of the checkpoint, the one that exists, or origin when neither does.
- */
 export function lowerBound(
   inProcess: ReplyAdmissionPrefix | null,
   saved: ReplyAdmissionRead,
@@ -45,12 +35,8 @@ export function lowerBound(
   return { kind: 'prefix', prefix: own >= kept ? inProcess : checkpoint }
 }
 
-/**
- * The read position an ordinary commit carries (D5 第 5 节 step 6): the in-process prefix when it
- * is further on than the saved one, otherwise the saved one. The retry of the operation that was
- * last sent carries what that operation carried: the same operation keeps the same semantic input
- * (SPEC:261, 102), and a newer prefix only goes into a new operation.
- */
+// A retry of the operation last sent carries that operation's read position: the same operation
+// keeps the same semantic input, and a newer prefix goes only into a new operation.
 export function sentPosition(
   last: Readonly<{ operation: string; read: ReplyAdmissionRead }> | null,
   operation: string,
@@ -67,7 +53,6 @@ export function sentPosition(
   return { kind: 'verified', prefix: inProcess }
 }
 
-/** The end of one range read: the verified target, or the gap the provider answered. */
 export type RangeRead =
   | Readonly<{ kind: 'complete'; prefix: ReplyAdmissionPrefix; pages: number; facts: number }>
   | Readonly<{ kind: 'gap'; reason: ReplyAdmissionGapReason; pages: number; facts: number }>
@@ -87,14 +72,6 @@ function refused(reason: string): Outcome<never, Failure> {
   })
 }
 
-/**
- * Reads `(from, through]` page by page (D5 第 5 节 steps 3 to 5) and checks each page: the range
- * is echoed, the page starts where the previous one ended (the first where `from` does), the
- * sequences are consecutive, `end` matches the items, `tail` is complete exactly at the target,
- * a more page carries a fact below the target and a cursor not seen before, and no page holds
- * more than `limit` facts. `verified` receives the end of each page that passed; a failure or a
- * gap never moves it. Each page is one await, which yields between pages.
- */
 export async function readRange(
   read: (
     input: Readonly<{
@@ -128,7 +105,6 @@ export async function readRange(
     if (page.kind === 'gap') return succeed({ kind: 'gap', reason: page.reason, pages, facts })
     if (canonical(page.through) !== canonical(request.through))
       return refused('the range is not the one requested')
-    // A bound that is not a canonical decimal cannot be continued: -1 fails the checks below.
     const first = exact(page.start.sequence) ?? -1n
     const end = exact(page.end.sequence) ?? -1n
     if (start === null ? first !== 0n : canonical(page.start) !== canonical(start))

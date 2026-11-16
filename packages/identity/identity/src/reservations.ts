@@ -3,14 +3,12 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import type { ActingForTenantPrincipal } from './principal.ts'
 import { isQualification, type Qualification } from './qualification.ts'
 
-/** Versioned, bounded routing data. Values and destination commands do not belong here. */
 export type StandingBinding = Readonly<{
   version: 'standing/1'
   owner: string
   operationId: string
   principalRef: string
   destination: string
-  /** The canonical tenantCodec encoding of the acting principal's tenant. */
   scopeRef: string
   targetRef: string
   inputDigest: string
@@ -29,7 +27,6 @@ export type StandingTerminal = Readonly<{
   outcome: 'committed' | 'aborted'
 }>
 
-/** Trusted assembly route. seal atomically aborts an absent operation or returns its terminal. */
 export interface StandingDestinationResolver {
   seal(
     reservation: StandingReservation,
@@ -42,7 +39,6 @@ export type StandingReserveOutcome =
   | Readonly<{ kind: 'denied' | 'operation-conflict' | 'blocked' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/** Read-only original-request observation. not_found is not a terminal or a release proof. */
 export type StandingObservation =
   | Readonly<{ kind: 'held'; reservation: StandingReservation }>
   | StandingTerminal
@@ -59,7 +55,6 @@ export type StandingRecoveryPage =
       kind: 'recovered'
       examined: number
       settled: number
-      /** Pass this cursor to the next bounded pass; null completes this scan. */
       next: string | null
     }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
@@ -89,14 +84,12 @@ const FIELDS = [
 const digest = (parts: readonly unknown[]) =>
   createHash('sha256').update(JSON.stringify(parts)).digest('hex')
 
-/** Stable reference to the issued principal's meaning; it is not a proof of issuance. */
 export function standingPrincipalRef(principal: ActingForTenantPrincipal): string {
   const encoded = tenantCodec.encode(principal.tenant)
   if (!encoded.ok) throw new TypeError('standing principal requires a minted tenant')
   return `principal/1/${digest([principal.actor.component, encoded.value, principal.work.owner, principal.work.work])}`
 }
 
-/** Canonical identity, shared by Identity and destination implementations. */
 export function standingReservationId(
   binding: StandingBinding,
   required: readonly Qualification[],

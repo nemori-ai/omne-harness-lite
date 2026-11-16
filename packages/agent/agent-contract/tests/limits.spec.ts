@@ -1,11 +1,5 @@
-// The limits of the input of a judgment (SPEC, "定义与扩展声明"): the declaration limits that
-// `judgeAgentDefinition` and `judgeLoopExtensions` apply, and the wider limits that
-// `judgeExtensionOutput` applies to the output of an extension.
-//
-// A function is the probe. The copy that a judgment takes of its input refuses a function as
-// `executable`, but a limit that is exceeded before the function is reached refuses the input as
-// `malformed`. So a function placed right after the value that sits on a limit shows whether the copy
-// stopped at the limit or went on past it, with a different reason that no later check can restore.
+// A function placed right after the value that sits on a limit is the probe: it is refused as
+// executable only if the copy went past the limit, otherwise the input is malformed.
 import { describe, expect, it } from 'vitest'
 import {
   judgeAgentDefinition,
@@ -35,7 +29,6 @@ const extension = {
 const executable = { kind: 'refused', reason: 'executable' }
 const malformed = { kind: 'refused', reason: 'malformed' }
 
-/** A chain of `wrappers` objects around the leaf. The leaf sits `wrappers` levels below the value. */
 function nested(wrappers: number, leaf: unknown): unknown {
   let value = leaf
   for (let level = 0; level < wrappers; level += 1) value = { k: value }
@@ -65,7 +58,6 @@ describe('the declaration limits of a definition', () => {
   })
 
   it('stops at the 201st JSON value and goes past the 200th', async () => {
-    // The root, `category`, `name`, `references` and `attributes` are 5 values, the array is the 6th.
     const nodeAt = (position: number) =>
       definition({ extra: [...Array<number>(position - 7).fill(0), probe] })
     expect(await judgeAgentDefinition(nodeAt(200))).toEqual(executable)
@@ -95,7 +87,6 @@ describe('the declaration limits of a definition', () => {
   })
 
   it('refuses a definition whose own text is longer than 100000 bytes although every value fits', async () => {
-    // Four strings of 9000 three-byte characters are 108000 bytes. The copy counts units, not bytes.
     const wide = '中'.repeat(9000)
     const reference = { capability: { category: wide, name: wide } }
     const refused = await judgeAgentDefinition(
@@ -125,16 +116,12 @@ describe('the declaration limits of an extension batch', () => {
       ...malformed,
       index: 2,
     })
-    // The 201st value makes the whole text too large: the index is 0 and not the member's.
     expect(
       await judgeLoopExtensions([ok, ok, item({ extra: [...Array<number>(190).fill(0), probe] })]),
     ).toEqual({ ...malformed, index: 0 })
   })
 
   it('reports the batch member whose 21st container is empty, as for a deeper one', async () => {
-    // The batch, the member and 18 objects are 20 containers, so the empty array opens level 21.
-    // The copy counts a container as it opens, as the reread of the whole text does, so the member
-    // is named and the index is not 0.
     const ok = item()
     expect(await judgeLoopExtensions([ok, item({ extra: nested(18, []) })])).toEqual({
       ...malformed,
@@ -144,7 +131,6 @@ describe('the declaration limits of an extension batch', () => {
       ...malformed,
       index: 1,
     })
-    // The copy stops at that container before it reaches the function, and goes past level 20.
     expect(await judgeLoopExtensions([ok, item({ extra: nested(18, []), run: probe })])).toEqual({
       ...malformed,
       index: 1,
@@ -156,8 +142,6 @@ describe('the declaration limits of an extension batch', () => {
   })
 
   it('stops at a reference to the batch member itself and names the member', async () => {
-    // 79 members and the reference are 80 members, so only the cycle is wrong. A copy that went on
-    // around the cycle would run out of values first and report index 0.
     const cyclic: Record<string, unknown> = {}
     for (let index = 0; index < 79; index += 1) cyclic[`k${index}`] = 0
     cyclic['self'] = cyclic
@@ -183,7 +167,6 @@ describe('the limits of the output of an extension', () => {
     output: undefined,
   }
 
-  /** A rewrite that hands back the subject unchanged, so that only the limits can refuse it. */
   function rewriteOf(members: Record<string, unknown>) {
     return judgeExtensionOutput({
       ...base,
@@ -193,7 +176,6 @@ describe('the limits of the output of an extension', () => {
   }
 
   it('accepts a value on level 64 and refuses one on level 65', () => {
-    // The output is level 0 and its subject is level 1, so `n` is level 2 and its leaf level 2 + wrappers.
     expect(rewriteOf({ n: nested(62, 0) })).toMatchObject({ kind: 'accepted' })
     expect(rewriteOf({ n: nested(63, 0) })).toEqual({ kind: 'refused', reason: 'malformed' })
   })
@@ -214,7 +196,6 @@ describe('the limits of the output of an extension', () => {
   })
 
   it('accepts 1000000 JSON values and refuses 1000001', () => {
-    // The output, `kind`, `subject` and the array are 4 values.
     const values = (count: number) => ({ list: Array<number>(count - 4).fill(0) })
     expect(rewriteOf(values(1_000_000))).toMatchObject({ kind: 'accepted' })
     expect(rewriteOf(values(1_000_001))).toEqual({ kind: 'refused', reason: 'malformed' })

@@ -21,7 +21,6 @@ function operationBinding(reservation: StandingReservation): HitlSqlBinding | un
   return { operationRef, inputDigest: binding.inputDigest }
 }
 
-/** Install only in Identity's trusted resolver holder. */
 export function createHitlStandingDestination(
   input: HitlSqlTerminalOptions & Readonly<{ destination: string }>,
 ): StandingDestinationResolver {

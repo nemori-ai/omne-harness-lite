@@ -1,6 +1,3 @@
-// Package checks across the rules: the fixture packages, a legal package, the rejection order
-// and control bytes that do not belong to the snapshot. Each rule set has its own file:
-// parse-manifest.spec.ts for SKILL.md, parse-declaration.spec.ts for .omne/skill.json.
 import { describe, expect, it } from 'vitest'
 import { parseSkillPackage, type InspectRejectionCode } from '@omne-harness/skill-contract'
 import {
@@ -43,8 +40,6 @@ describe('fixture packages', () => {
     for (const code of codes) expect(Object.values(EXPECTED)).toContain(code)
   })
 
-  // A host that expects the directory name: a name that differs from the root name alone is
-  // accepted (parse-compat.spec.ts), so `name-mismatch` needs the expected name.
   it.each(Object.entries(EXPECTED))('%s gives %s', (fixture, expected) => {
     const built = buildFixture(fixture)
     expect(

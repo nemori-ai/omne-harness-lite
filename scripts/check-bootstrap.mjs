@@ -22,7 +22,7 @@ export const BOOTSTRAP_ENV = 'OMNE_CHECK_BOOTSTRAP'
 export const LOCKFILE = 'pnpm-lock.yaml'
 export const INSTALLED_LOCKFILE = 'node_modules/.pnpm/lock.yaml'
 export const OFFLINE_INSTALL = ['install', '--offline', '--frozen-lockfile', '--ignore-scripts']
-/** 联网重装的命令：与 docs/development.md「准备可用的检出」的准备命令相同。 */
+/** 联网重装的命令：与 CONTRIBUTING.md「准备检出」的准备命令相同。 */
 export const ONLINE_INSTALL = [
   'pnpm install --frozen-lockfile --ignore-scripts',
   'pnpm run prepare:native',
@@ -194,7 +194,7 @@ function checkDependencies(root, io) {
       : `${INSTALLED_LOCKFILE} 与 ${LOCKFILE} 的本体不同`
   const command = `pnpm ${OFFLINE_INSTALL.join(' ')}`
   const online = [
-    `  修法：联网后按 docs/development.md「准备可用的检出」重装：`,
+    `  修法：联网后按 CONTRIBUTING.md「准备检出」重装：`,
     ...ONLINE_INSTALL.map(line => `    ${line}`),
   ]
   const install = io.install(root)
@@ -253,7 +253,7 @@ function checkNative(root, io) {
       '原生依赖：node-pty 的 spawn-helper 不可用，修复失败',
       ...(after.length === 0 ? before : after).map(line => `  ${line}`),
       tail(prepared.output),
-      '  修法：删掉 node_modules 后按 docs/development.md「准备可用的检出」重装',
+      '  修法：删掉 node_modules 后按 CONTRIBUTING.md「准备检出」重装',
     ],
   }
 }

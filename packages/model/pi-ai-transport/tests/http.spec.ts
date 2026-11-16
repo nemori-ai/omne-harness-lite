@@ -1,5 +1,4 @@
 // @module-tag slow — starts an openssl child process and talks to a real local HTTPS server,
-// with real waiting for connect timeouts and physical socket closure.
 import type { ClientRequest, IncomingMessage } from 'node:http'
 import type { RequestOptions } from 'node:https'
 import { createServer as createTcpServer } from 'node:net'
@@ -44,7 +43,6 @@ import {
   type RequestHandler,
 } from './support/https-server.ts'
 
-/** Every request Node built for this file, recorded by a delegate of the real `https.request`. */
 const built = vi.hoisted((): { readonly requests: ClientRequest[] } => ({ requests: [] }))
 vi.mock('node:https', async importOriginal => {
   const actual = await importOriginal<typeof import('node:https')>()
@@ -71,7 +69,6 @@ beforeAll(() => {
 })
 afterAll(() => certificate.dispose())
 
-/** A server and a network bound to it; both are closed after `run`. */
 async function withServer(
   handler: RequestHandler,
   run: (server: HttpsFixture, resources: NetworkInternals) => Promise<void>,
@@ -103,7 +100,6 @@ function clientResponse(): Promise<IncomingMessage> {
   return new Promise(resolve => request.once('response', resolve))
 }
 
-/** Waits until the exchange's client socket has read at least one byte of the response. */
 async function responseArrived(resources: NetworkInternals): Promise<void> {
   await expect
     .poll(() => clientSockets(resources).some(socket => socket.bytesRead > 0), { timeout: 5_000 })
@@ -123,10 +119,8 @@ describe('starting an exchange', () => {
         const start = startExchange(resources, input(server.url, reservation), signal)
         expect(start.kind).toBe('started')
         expect(Object.getPrototypeOf(startExchange)).toBe(Function.prototype)
-        // In the same tick: Node holds one new request and its end() was called.
         expect(built.requests).toHaveLength(before + 1)
         expect(built.requests.at(-1)?.writableEnded).toBe(true)
-        // Nothing of the exchange is touched before the server reports the request.
         const request = await arrival
         expect(request).toMatchObject({ method: 'POST', path: REQUEST_PATH })
         expect(request.headers).toMatchObject({
@@ -192,7 +186,7 @@ describe('starting an exchange', () => {
 describe('stopping an exchange', () => {
   it('abort before the response closes the socket; the slot returns only after stopped', async () => {
     await withServer(
-      () => {}, // Receives the request and never answers.
+      () => {},
       async (server, resources) => {
         const reservation = await held(resources)
         const controller = new AbortController()
@@ -241,7 +235,7 @@ describe('stopping an exchange', () => {
     await withServer(
       res => {
         res.writeHead(200, { 'content-type': 'text/event-stream' })
-        res.write('data: first\n\n') // Never ends.
+        res.write('data: first\n\n')
       },
       async (server, resources) => {
         const reservation = await held(resources)
@@ -269,7 +263,7 @@ describe('stopping an exchange', () => {
     await withServer(
       res => {
         res.writeHead(503, { 'content-length': '64' })
-        res.write('{"error":"partial') // Never completes the declared length.
+        res.write('{"error":"partial')
       },
       async (server, resources) => {
         const reservation = await held(resources)
@@ -322,7 +316,7 @@ describe('a 2xx body that ends before its end', () => {
       await withServer(
         res => {
           res.writeHead(200)
-          res.write('first') // Never ends.
+          res.write('first')
         },
         async (server, resources) => {
           const reservation = await held(resources)
@@ -467,7 +461,7 @@ describe('a 2xx response', () => {
       res => {
         res.writeHead(200)
         res.write('first')
-        res.write('second') // Never ends.
+        res.write('second')
       },
       async (server, resources) => {
         const reservation = await held(resources)
@@ -491,7 +485,7 @@ describe('a 2xx response', () => {
     await withServer(
       res => {
         res.writeHead(200)
-        res.write('chunk') // Never ends.
+        res.write('chunk')
       },
       async (server, resources) => {
         const reservation = await held(resources)
@@ -511,7 +505,7 @@ describe('a 2xx response', () => {
     await withServer(
       res => {
         res.writeHead(200, { 'content-type': 'text/event-stream' })
-        res.write('data: {}\n\n') // Never ends.
+        res.write('data: {}\n\n')
       },
       async (server, resources) => {
         const reservation = await held(resources)
@@ -709,7 +703,7 @@ describe('connecting', () => {
           new AbortController().signal,
         ),
       )
-      await settle() // The pool hands the socket over on a later tick; the timer starts then.
+      await settle()
       expect(activeTimers()).toBe(timersBefore + 1)
 
       exchange.stop()

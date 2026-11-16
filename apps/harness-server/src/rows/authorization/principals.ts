@@ -1,11 +1,8 @@
 import type { ActingForTenantPrincipal, SystemPrincipal } from '@omne-harness/identity'
 
-/** The `work.owner` of a principal that the login of this request produced (server-entry, ID-16). */
 export const LOGIN_WORK_OWNER = 'identity-login'
-/** The `work.owner` of a session work principal (AA runtime object table, DA4 §4.1). */
 export const SESSION_WORK_OWNER = 'session'
 
-/** The principal, classified by shape alone. The value is the very object that was given. */
 type Classified =
   | Readonly<{ column: 'login' | 'work'; principal: ActingForTenantPrincipal }>
   | Readonly<{ column: 'system'; principal: SystemPrincipal }>
@@ -41,7 +38,6 @@ function isActingShape(value: unknown): value is ActingForTenantPrincipal {
   )
 }
 
-/** Policy draft §2. A principal outside the three columns has no column. */
 export function classify(value: unknown): Classified | null {
   if (isSystemShape(value)) return { column: 'system', principal: value }
   if (!isActingShape(value)) return null

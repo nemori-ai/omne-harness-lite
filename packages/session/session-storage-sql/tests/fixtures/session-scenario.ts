@@ -1,10 +1,3 @@
-// A fixed, deterministic Session log of representative entries, for the size measure and the codec
-// bench. The shapes follow a real session of the harness: each turn routes an input, starts a Run
-// and an attempt, and makes model calls whose tool calls are bound, executed and answered; the
-// texts and tool outputs are of the sizes seen there (one to several KiB). The payload of each
-// entry is a json-text value tree, as session-contract writes it.
-
-/** The json-text tree of a plain value. A number keeps the text JavaScript gives it. */
 export function tree(value: unknown): unknown {
   if (value === null) return { kind: 'null' }
   if (typeof value === 'string') return { kind: 'string', value }
@@ -24,7 +17,6 @@ const SCHEMA = {
   digest: 'sha256:5f1c0e8a9b3d4c2e7f6a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e',
 }
 
-/** A deterministic text of about `length` characters. */
 function prose(seed: number, length: number): string {
   const words = [
     'the',
@@ -163,7 +155,6 @@ function turn(n: number): Draft[] {
   return drafts
 }
 
-/** The entries of the scenario: `session.created`, then `turns` turns of 18 entries each. */
 export function scenarioEntries(turns: number): Record<string, unknown>[] {
   const drafts: Draft[] = [
     {

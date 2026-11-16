@@ -1,9 +1,3 @@
-// Test double: a transport factory that answers from a script. `discover` and `listActions`
-// consume the next step, which has to be of their kind. `open` and `close` consume the next step
-// only when it is of their kind; otherwise they succeed at once. A step is an immediate value, a
-// `TransportFailure`, or a deferred that the test settles later. The double records every call.
-// It does not read the abort signal: the table under test has to keep its own time, which is
-// what the connection-bound cases check.
 import type {
   ListingPage,
   McpTransport,
@@ -32,7 +26,6 @@ export type Call =
 export type ScriptedTransports = McpTransportFactory &
   Readonly<{
     calls: readonly Call[]
-    /** How many steps the script still holds. */
     remaining: () => number
   }>
 
@@ -71,7 +64,6 @@ export function scriptedTransports(
 ): ScriptedTransports {
   const queue = [...script]
   const calls: Call[] = []
-  /** Takes the next step; it has to be of `kind`, or the script does not fit the test. */
   const take = (kind: StepKind): Step => {
     const head = queue.shift()
     if (head === undefined || !(kind in head))

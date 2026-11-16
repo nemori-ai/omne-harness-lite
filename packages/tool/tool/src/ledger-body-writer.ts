@@ -1,9 +1,3 @@
-// The writer over the body store (BodyLifecycle `Begin`, `Renew`, `Put`, `StoreSeal`,
-// `LedgerSeal`). The ledger commits `opened` and only then signs a permit; chunks go to the store
-// under the permit and never through the ledger; the store seals first, the ledger records `sealed`
-// afterwards. The running digest, byte count and block state of an open body live in this process:
-// the author's execution lives in the same process, and a body whose process dies stays `opened`
-// until settlement orphans it.
 import { createHash, type Hash } from 'node:crypto'
 import { readJsonBytes, readJsonText, type JsonLimits } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -68,14 +62,12 @@ export type BodyWritingPorts<P> = Readonly<{
   ): Reply<T>
 }>
 
-/** What this process knows about an open body: the permit and the running manifest. */
 type OpenBody = {
   permit: ToolBodyPermit
   chunks: number
   bytes: number
   hash: Hash
   blocks: Map<string, boolean>
-  /** The whole text, kept only for a JSON document, which is validated as a whole at seal. */
   text: string | null
 }
 
@@ -87,10 +79,6 @@ export type SystemBodyInput<P> = CallInput<P> &
 
 export type BodyWriting<P> = Readonly<{
   writes: ToolBodyWrites<P>
-  /**
-   * The ledger as writer: the mechanical body of a settlement, written whole as begin, put, store
-   * seal and ledger seal. `key` distinguishes the bodies one settlement may write.
-   */
   writeBody(
     input: SystemBodyInput<P>,
     key: string,
@@ -121,7 +109,6 @@ type Primitive<K extends ToolFailure['kind']> = (
   operation: string,
 ) => ToolBodyWriteFailure
 
-/** How each ledger failure reaches the author: a call or start problem closes the writer. */
 const PRIMITIVE: { [K in ToolFailure['kind']]: Primitive<K> } = {
   denied: failure => failure,
   invalid: failure =>
@@ -161,7 +148,6 @@ export function instantAfter(now: ToolInstant, ms: number): ToolInstant {
 const storeUnavailable = (diagnostic: string): Outcome<never, ToolFailure> =>
   fail({ kind: 'unavailable', dependency: 'body-store', diagnostic })
 
-/** A store answer other than success, as the ledger reports it. */
 function storeRefusal(
   answer: Exclude<ToolBodyPutAnswer | ToolBodySealAnswer, { kind: 'kept' | 'sealed' }>,
   entry: BodyEntryRecord,
@@ -212,7 +198,6 @@ function fragmentFrame(value: object): Outcome<Frame, ToolPrimitiveFailure> {
     : fail(invalid('valid JSON text fragment required'))
 }
 
-/** One JSON Lines record as the body stores it: a canonical JSON text within the record limits. */
 function recordLine(value: unknown, limits: JsonLimits): Outcome<string, ToolBodyWriteFailure> {
   const fixed = fixJsonTree(value, limits.maxBytes)
   if ('failure' in fixed)
@@ -232,7 +217,6 @@ function recordLine(value: unknown, limits: JsonLimits): Outcome<string, ToolBod
       })
 }
 
-/** The bytes of one frame would take the body over its hard limit or its validation budget. */
 function sizeRefusal(
   body: OpenBody,
   length: number,
@@ -249,7 +233,6 @@ function sizeRefusal(
   return null
 }
 
-/** `append` admits exactly the next sequence. */
 function sequenceRefusal(value: unknown, body: OpenBody): ToolBodyWriteFailure | null {
   if (!sequence(value, false)) return invalid('positive canonical sequence required')
   return value === String(body.chunks + 1)
@@ -257,7 +240,6 @@ function sequenceRefusal(value: unknown, body: OpenBody): ToolBodyWriteFailure |
     : { kind: 'conflict', reason: 'sequence must be the next admitted sequence' }
 }
 
-/** `seal` names the last sequence admitted, and every text block has ended. */
 function sealRefusal(afterSequence: unknown, body: OpenBody): ToolBodyWriteFailure | null {
   if (!sequence(afterSequence, true)) return invalid('canonical last sequence required')
   if (afterSequence !== String(body.chunks))
@@ -279,7 +261,6 @@ function sealedBody(entry: BodyEntryRecord): Outcome<SealedToolBody, ToolPrimiti
   })
 }
 
-/** What `inspect` answers for an entry: open with its confirmed sequences, sealed, or closed. */
 function writerStatus(entry: BodyEntryRecord, open: OpenBody | undefined): ToolBodyWriterStatus {
   switch (entry.state.kind) {
     case 'opened': {
@@ -307,7 +288,6 @@ export function createBodyWriting<P>(ports: BodyWritingPorts<P>): BodyWriting<P>
     call: input.call,
   })
 
-  /** Model `Begin`/`Renew`: a permit is signed only from a snapshot in which the body is writable. */
   const permitFor = (
     input: CallInput<P>,
     entry: BodyEntryRecord,
@@ -343,7 +323,6 @@ export function createBodyWriting<P>(ports: BodyWritingPorts<P>): BodyWriting<P>
     return succeed(undefined)
   }
 
-  /** A permit within ε of its deadline is renewed before the store sees it. */
   const freshPermit = async (
     input: CallInput<P>,
     entry: BodyEntryRecord,
@@ -357,10 +336,6 @@ export function createBodyWriting<P>(ports: BodyWritingPorts<P>): BodyWriting<P>
       : succeed(undefined)
   }
 
-  /**
-   * One store action under the body's permit: the permit is renewed first when it is within ε of
-   * its deadline, and once more when the store still finds it expired.
-   */
   const underPermit = async <A extends Readonly<{ kind: string }>>(
     input: CallInput<P>,
     entry: BodyEntryRecord,
@@ -413,7 +388,6 @@ export function createBodyWriting<P>(ports: BodyWritingPorts<P>): BodyWriting<P>
     return entry.state.kind === 'opened' ? openBody(input, entry) : succeed({ entry, body: null })
   }
 
-  /** A permit for a freshly opened entry, and the running manifest this process keeps for it. */
   const openBody = async (
     input: CallInput<P>,
     entry: BodyEntryRecord,
@@ -434,7 +408,6 @@ export function createBodyWriting<P>(ports: BodyWritingPorts<P>): BodyWriting<P>
     return succeed({ entry, body })
   }
 
-  /** Model `Put`: one chunk to the store under the permit. */
   const putChunk = async (
     input: CallInput<P>,
     entry: BodyEntryRecord,
@@ -454,7 +427,6 @@ export function createBodyWriting<P>(ports: BodyWritingPorts<P>): BodyWriting<P>
     return succeed(undefined)
   }
 
-  /** Model `StoreSeal` then `LedgerSeal`. */
   const sealBody = async (
     input: CallInput<P> & Readonly<{ operation: ToolOperationId }>,
     entry: BodyEntryRecord,
@@ -493,7 +465,6 @@ export function createBodyWriting<P>(ports: BodyWritingPorts<P>): BodyWriting<P>
     representation: ToolBodyRepresentation
   }>
 
-  /** The body policy and representation the call's return declaration fixes for its writer. */
   const declaredWriter = (
     request: NonNullable<Snapshot['call']>['request'],
     operation: ToolOperationId,
@@ -517,7 +488,6 @@ export function createBodyWriting<P>(ports: BodyWritingPorts<P>): BodyWriting<P>
     key: string
   }>
 
-  /** The shape of the author's input: the mutation context, the named fields, the source and the key. */
   const suppliedFields = (
     supplied: unknown,
     fields: readonly string[],
@@ -535,7 +505,6 @@ export function createBodyWriting<P>(ports: BodyWritingPorts<P>): BodyWriting<P>
       : fail(invalid('nonempty writer key required'))
   }
 
-  /** The author's input bound to its call: the original start, the snapshot and the declared writer. */
   const bind = async (
     supplied: unknown,
     fields: readonly string[],
@@ -573,7 +542,6 @@ export function createBodyWriting<P>(ports: BodyWritingPorts<P>): BodyWriting<P>
       : succeed({ entry, body })
   }
 
-  /** The schema port's verdict on a read value; `refused` says how its refusal reaches the author. */
   const checkSchema = async (
     schema: SchemaCheck<P>[0],
     read: SchemaCheck<P>[1],
@@ -590,7 +558,6 @@ export function createBodyWriting<P>(ports: BodyWritingPorts<P>): BodyWriting<P>
     }
   }
 
-  /** One JSON Lines record: a canonical text within the record limits that satisfies the record schema. */
   const recordText = async (
     value: unknown,
     policy: BodyPolicy,
@@ -611,7 +578,6 @@ export function createBodyWriting<P>(ports: BodyWritingPorts<P>): BodyWriting<P>
     return 'failure' in checked ? checked : succeed(`${line.ok}\n`)
   }
 
-  /** Format validation of a JSON document, before any commit of `sealed`. */
   const checkDocument = async (
     text: string,
     policy: BodyPolicy,
@@ -633,7 +599,6 @@ export function createBodyWriting<P>(ports: BodyWritingPorts<P>): BodyWriting<P>
     )
   }
 
-  /** The frame of an append as bytes of the body, after the frame, block and size rules. */
   const frameBytes = async (
     bound: Bound<P>,
     body: OpenBody,

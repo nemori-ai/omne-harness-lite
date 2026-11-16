@@ -28,10 +28,6 @@ function file(name: string) {
     digest: createHash('sha256').update(readFileSync(url)).digest('hex'),
   }
 }
-/**
- * The SQL catalog of Settings. A value is written only through preparation and commit; the
- * assembly registers the phase combinations from the exported participant sets.
- */
 export function settingsSqlMaterials(): Pick<
   SqlMaterialCatalog,
   'participants' | 'migrations' | 'readHandlers'

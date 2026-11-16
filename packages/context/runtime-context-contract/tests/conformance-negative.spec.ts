@@ -20,8 +20,6 @@ const other = tenantCodec.parse(
 if (!tenant.ok || !other.ok) throw new Error('Invalid fixture')
 const tenantId = tenant.value,
   otherTenantId = other.value
-// Return one deliberately malformed closed-result reply, after all prior setup replies remain real.
-// The reference run locates the final observable operation of each public behavioral case.
 
 function corruptReply(value: unknown): unknown {
   if (typeof value !== 'object' || value === null || !('kind' in value))

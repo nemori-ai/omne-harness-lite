@@ -1,6 +1,3 @@
-// 总是一起改却分属两组的成员：读 HEAD 上最近若干个非合并提交各自碰过哪些成员，
-// 数两两同时被碰到的次数。批量改动（一次碰了太多成员的提交）不计。
-// 解析与计数是纯函数；读 git 只在 `readCommitMembers` 一处。
 import { git } from '../../core/git.ts'
 import { memberOf } from '../../deps/graph.ts'
 
@@ -13,21 +10,16 @@ export interface CochangeOptions {
 export interface CochangePair {
   readonly a: string
   readonly b: string
-  /** 同时碰到两者的提交数。 */
   readonly together: number
-  /** together ÷ 两者各自被碰到的提交数中较小的那个。 */
   readonly ratio: number
 }
 
 export interface CochangeResult {
-  /** 参与计数的提交数（去掉批量改动之后）。 */
   readonly counted: number
-  /** 因为一次碰了太多成员而不计的提交数。 */
   readonly skipped: number
   readonly pairs: readonly CochangePair[]
 }
 
-/** `git log --format=%x00 --name-only` 的输出 → 每个提交碰过的成员（只看 packages/ 与 apps/）。 */
 export function parseCommitMembers(log: string): string[][] {
   return log
     .split('\u0000')
@@ -44,7 +36,6 @@ export function parseCommitMembers(log: string): string[][] {
 
 const groupOf = (member: string) => memberOf(`${member}/`)?.group ?? member
 
-/** 一个提交里分属不同组的成员对，键为 `a\0b`（a、b 按提交里的顺序）。 */
 function crossGroupPairs(members: readonly string[]): string[] {
   const keys: string[] = []
   members.forEach((a, i) => {
@@ -76,7 +67,6 @@ export function cochange(
   return { counted: kept.length, skipped: counting.length - kept.length, pairs }
 }
 
-/** HEAD 上最近 `window` 个非合并提交各自碰过的成员。 */
 export function readCommitMembers(root: string, window: number): string[][] {
   return parseCommitMembers(
     git(root, ['log', '--no-merges', `-n${window}`, '--format=%x00', '--name-only', 'HEAD']),

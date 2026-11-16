@@ -1,6 +1,3 @@
-// The header comparisons of the binding page「头的比较」, shared by the three existing locations and
-// the new address. Counting goes by the raw headers: Node keeps only the first of some repeated
-// headers in `req.headers`.
 import type { IncomingMessage } from 'node:http'
 
 export function countHeader(req: IncomingMessage, name: string): number {
@@ -10,7 +7,6 @@ export function countHeader(req: IncomingMessage, name: string): number {
   return count
 }
 
-/** Exactly one Host whose host name, port removed, is the loopback address or localhost. */
 export function hostAccepted(req: IncomingMessage, loopback: string): boolean {
   if (countHeader(req, 'host') !== 1) return false
   const value = req.headers.host
@@ -19,7 +15,6 @@ export function hostAccepted(req: IncomingMessage, loopback: string): boolean {
   return host === loopback || host === 'localhost'
 }
 
-/** Exactly one Content-Type of application/json, with at most a utf-8 charset parameter. */
 export function contentTypeAccepted(req: IncomingMessage): boolean {
   if (countHeader(req, 'content-type') !== 1) return false
   const value = req.headers['content-type']

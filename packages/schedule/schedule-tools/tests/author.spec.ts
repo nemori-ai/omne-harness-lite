@@ -1,7 +1,4 @@
 // @module-tag slow
-// Why slow: the first case admits, recovers, prepares and runs seventeen inputs through the public
-// author, which is heavy CPU. It alone takes about 13 s on an 8-core x86 server, over the fast
-// tier's time limit.
 import { expect, it, vi } from 'vitest'
 import { succeed } from '@omne-harness/operation-result'
 import {

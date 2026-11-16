@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import { accepted, fixture, unbox } from './fixture.ts'
 
-it('C02 publishes a real handle and iterator return releases a pending observation', async () => {
+it('publishes a real handle and iterator return releases a pending observation', async () => {
   let finish: (value: string) => void = () => {}
   const world = await fixture(
     () =>

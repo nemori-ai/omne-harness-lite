@@ -1,6 +1,3 @@
-// The units of one commit inside the write Worker (SPEC 7.2 steps 11 to 15, 7.4 to 7.6, 8):
-// receipts, the registration and dependency checks, and the run of the participants of one
-// operation. The group scheduler (group.ts) puts operations into savepoints and transactions.
 import type { DatabaseSync } from 'node:sqlite'
 import {
   combinationManifest,
@@ -32,8 +29,6 @@ type FactKey = Readonly<{ key: string; protocol: string }>
 const factId = (fact: FactKey): string => JSON.stringify([fact.key, fact.protocol])
 const sortNames = (names: readonly string[]): string[] => [...names].sort()
 
-// --- Receipts -----------------------------------------------------------------------------------
-
 export function readReceipt(db: DatabaseSync, identity: SqlIdentity): ReceiptV2 | null {
   const row = db
     .prepare('select receipt from _sql_receipt where operation = ? and operation_key = ?')
@@ -59,7 +54,6 @@ export function receiptOf(
   inputDigest: string,
   entries: readonly (ParticipatedEntry | StoppingEntry)[],
 ): ReceiptV2 {
-  // The entries end with the stopping entry for rolled_back and only participated ones otherwise.
   return {
     kind,
     identity: request.identity,
@@ -74,8 +68,6 @@ export function runQuery(state: WorkerState, identity: SqlIdentity): QueryReply 
   const receipt = readReceipt(state.db as DatabaseSync, identity)
   return receipt === null ? { kind: 'none' } : { kind: 'receipt', receipt }
 }
-
-// --- Registration and dependency checks (SPEC 7.2 steps 11 to 15) -------------------------------
 
 function dependencyMissing(
   named: readonly string[],
@@ -93,7 +85,6 @@ function dependencyMissing(
   )
 }
 
-/** Topological order over the facts, ties broken by name in UTF-16 code units (SPEC 7.5). */
 export function executionOrder(
   named: readonly string[],
   descriptors: ReadonlyMap<string, ParticipantDescriptor>,
@@ -141,8 +132,6 @@ export function checkRegistration(
   if (dependencyMissing(named, members, descriptors)) return 'participant_dependency_missing'
   return null
 }
-
-// --- Participants -------------------------------------------------------------------------------
 
 type Run =
   | Readonly<{

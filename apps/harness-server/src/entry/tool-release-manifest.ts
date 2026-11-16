@@ -1,7 +1,3 @@
-// 发行内置 Tool 清单（R2-D66、简报 B3-T2a 第 1、2 项）：`config/tool-release.json` 的形状、构成与核对。
-// 清单由 `scripts/tool-release.mjs write` 从已构建的 `@omne-harness/tool-definitions` 生成；本模块是生成与核对的
-// 唯一实现，脚本与启动快照都调用它。启动快照按包产物清单重算已安装产物的摘要，再按同一规则重建整份清单，
-// 与磁盘上的清单规范化后全等才受信。读不到、形状不对、任何一处不等，快照都是 `unavailable`，不放行。
 import { createHash } from 'node:crypto'
 import { readdir, readFile, realpath } from 'node:fs/promises'
 import { dirname, join, relative, sep } from 'node:path'
@@ -20,13 +16,10 @@ import { z } from 'zod'
 import { toolPermissionRelease, toolPermissionReleaseSchema } from './tool-permission-release.ts'
 
 export const TOOL_RELEASE_FORMAT = 'omne-harness/tool-release/2'
-/** 清单文件名，也是 holding、publication 与消费者证据 `record` 的定位前缀。 */
 export const TOOL_RELEASE_FILE = 'tool-release.json'
-/** 发行资产、设置采用与清单证据的拥有者（简报第 1 项）。 */
 export const TOOL_RELEASE_OWNER = '@omne-harness/harness-server'
 export const TOOL_DEFINITIONS_PACKAGE = '@omne-harness/tool-definitions' as const
 
-/** 发行内置作者与它们的固定导出、运维者层构造字段（L-TOOL 事实清单 §1）。表外的作者不进清单。 */
 export const RELEASE_TOOLS = Object.freeze([
   Object.freeze({
     name: 'Shell',
@@ -63,7 +56,6 @@ export const RELEASE_TOOLS = Object.freeze([
 export type ReleaseToolName = (typeof RELEASE_TOOLS)[number]['name']
 export type ReleaseToolExport = (typeof RELEASE_TOOLS)[number]['export']
 export type ReleaseModule = ToolImplementationModule<unknown, ToolMessageContentBlock>
-/** 固定导出名到模块。由调用方在核对产物之后从 `@omne-harness/tool-definitions` 取得。 */
 export type ReleaseModules = Readonly<Record<ReleaseToolExport, ReleaseModule>>
 
 const digestText = z.string().regex(/^sha256:[0-9a-f]{64}$/)
@@ -123,12 +115,9 @@ export type ToolReleaseArtifacts = ToolReleaseManifest['artifacts']
 
 const sha256 = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex')
 
-/** 采用（`Adoption`）的四个字段。 */
 export const ADOPTION_FIELDS = Object.freeze(['owner', 'name', 'revision', 'digest'] as const)
-/** 耐久证据（`DurableEvidence`）的四个字段。 */
 export const EVIDENCE_FIELDS = Object.freeze(['owner', 'record', 'revision', 'digest'] as const)
 
-/** `left` 是对象，且给定字段与 `right` 逐个严格相等。别的字段不看。 */
 export function sameFields(left: unknown, right: object, fields: readonly string[]): boolean {
   return (
     typeof left === 'object' &&
@@ -142,7 +131,6 @@ export const sameAdoption = (left: unknown, right: object): boolean =>
 export const sameEvidence = (left: unknown, right: object): boolean =>
   sameFields(left, right, EVIDENCE_FIELDS)
 
-/** 构造值转成 JSON 树的上限。值来自运维者配置，上限只防误配，不是发行默认值。 */
 export const CONSTRUCTION_LIMITS = Object.freeze({
   maxBytes: 65536,
   maxDepth: 8,
@@ -152,7 +140,6 @@ export const CONSTRUCTION_LIMITS = Object.freeze({
   maxNumberLength: 32,
 })
 
-/** 构造值转成作者要的 JSON 树；不能表示为 JSON 或超上限时为 undefined。 */
 export function constructionTree(value: unknown): JsonValue | undefined {
   const text = JSON.stringify(value)
   if (typeof text !== 'string') return undefined
@@ -160,7 +147,6 @@ export function constructionTree(value: unknown): JsonValue | undefined {
   return read.kind === 'ok' ? read.value : undefined
 }
 
-/** 被 import 的入口文件，相对包根。它必须在包产物清单里（R2-D82 D2）。 */
 export const RELEASE_ENTRY_FILE = 'dist/index.js'
 
 function releaseModuleOf(namespace: object, name: ReleaseToolExport): ReleaseModule {
@@ -172,14 +158,9 @@ function releaseModuleOf(namespace: object, name: ReleaseToolExport): ReleaseMod
     typeof Reflect.get(module, 'createAuthor') !== 'function'
   )
     throw new Error(`tool-release: ${name} is not an implementation module`)
-  // The assembly fixes the environment type; the release table erases it to unknown.
   return module as ReleaseModule
 }
 
-/**
- * 从已核对的包根 import 固定模块：直接 import `packageRoot/dist/index.js` 的文件 URL，不经包名解析，
- * 所以 import 的正是被核对的那份产物，不受 `--conditions` 等解析条件影响（R2-D82 D2）。
- */
 export async function importReleaseModules(packageRoot: string): Promise<ReleaseModules> {
   const namespace: unknown = await import(pathToFileURL(join(packageRoot, RELEASE_ENTRY_FILE)).href)
   if (typeof namespace !== 'object' || namespace === null)
@@ -194,7 +175,6 @@ export async function importReleaseModules(packageRoot: string): Promise<Release
   })
 }
 
-/** 包根之下的全部 `dist` 文件加 `package.json`（`exports` 决定实际装载哪个文件），按 POSIX 路径排序。 */
 async function artifactPaths(packageRoot: string): Promise<string[]> {
   const found: string[] = ['package.json']
   const walk = async (dir: string): Promise<void> => {
@@ -209,7 +189,6 @@ async function artifactPaths(packageRoot: string): Promise<string[]> {
   return found.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
 }
 
-/** 按包产物清单重算已安装产物：文件列表、各自 sha256 与总摘要。 */
 export async function scanArtifacts(packageRoot: string): Promise<ToolReleaseArtifacts> {
   const files: { path: string; sha256: string }[] = []
   for (const path of await artifactPaths(packageRoot))
@@ -221,7 +200,6 @@ export async function scanArtifacts(packageRoot: string): Promise<ToolReleaseArt
   }
 }
 
-/** 从 `from` 起按 Node 的 node_modules 查找规则找到已安装的 tool-definitions 包根（解开链接）。 */
 export async function locateToolDefinitions(from: string): Promise<string> {
   let dir = from
   for (;;) {
@@ -235,9 +213,7 @@ export async function locateToolDefinitions(from: string): Promise<string> {
         Reflect.get(manifest, 'name') === TOOL_DEFINITIONS_PACKAGE
       )
         return root
-    } catch {
-      // Not installed at this level; keep walking up.
-    }
+    } catch {}
     const parent = dirname(dir)
     if (parent === dir)
       throw new Error(`tool-release: ${TOOL_DEFINITIONS_PACKAGE} is not installed`)
@@ -245,7 +221,6 @@ export async function locateToolDefinitions(from: string): Promise<string> {
   }
 }
 
-/** 发行内置作者的治理面：资产版本，没有额外能力要求，不可编程调用。 */
 export function governanceOf(entry: Pick<ToolReleaseEntry, 'asset' | 'requiredCapabilities'>) {
   return Object.freeze({
     asset: entry.asset,
@@ -253,10 +228,6 @@ export function governanceOf(entry: Pick<ToolReleaseEntry, 'asset' | 'requiredCa
   }) satisfies ToolGovernance
 }
 
-/**
- * 作者定义的规范化摘要：`createAuthor(construction)` 的事实经 `deriveDefinition` 与 `judgeToolDefinition`
- * 得到定义，再取 `canonicalDigest`。装载时的 schemas 检查对 `loaded.definition` 取同一个摘要。
- */
 export function definitionDigest(
   module: ReleaseModule,
   governance: ToolGovernance,
@@ -278,7 +249,6 @@ const evidence = (record: string, generation: string, content: unknown): Durable
   digest: canonicalDigest({ generation, record, content }),
 })
 
-/** 构成整份清单。`definitions` 是每个作者的定义摘要，由调用方给出（生成时现算，核对时取自磁盘清单）。 */
 export function composeManifest(input: {
   version: string
   artifacts: ToolReleaseArtifacts
@@ -357,11 +327,9 @@ export function composeManifest(input: {
   }
 }
 
-/** 清单文件的确切文本。`check` 逐字节比较它，手改格式也算不一致。 */
 export const manifestText = (manifest: ToolReleaseManifest): string =>
   `${JSON.stringify(manifest, null, 2)}\n`
 
-/** 受信快照：清单与已安装产物全等时的当前发行代次与两项条目，加上核过的模块。 */
 export type ToolReleaseSnapshot =
   | Readonly<{
       kind: 'trusted'
@@ -371,15 +339,10 @@ export type ToolReleaseSnapshot =
     }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
-/**
- * 启动快照：读清单，按包产物清单重算已安装产物，核对通过后才由 `importModules` 从同一包根取得固定模块，再按同一规则
- * 重建清单，规范化后与磁盘清单全等才返回 `trusted`。任何异常、读不到或不等都返回 `unavailable`，只带固定诊断。
- */
 export async function loadToolRelease(input: {
   manifestPath: string
   packageRoot: () => Promise<string>
   version: () => Promise<string>
-  /** 从同一个已核对的包根取得固定模块。 */
   importModules: (packageRoot: string) => Promise<ReleaseModules>
 }): Promise<ToolReleaseSnapshot> {
   const unavailable = (diagnostic: string): ToolReleaseSnapshot =>

@@ -1,5 +1,4 @@
 // @module-tag slow
-// Why slow: real SQLite Workers and a controlled in-flight commit.
 import { setImmediate } from 'node:timers/promises'
 import { afterEach, expect, it, vi } from 'vitest'
 import { openW2World, replyText, type W2World } from './w2-world.ts'

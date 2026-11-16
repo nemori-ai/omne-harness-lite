@@ -1,20 +1,3 @@
-// The bounded exhaustive explorer of the session. It drives the real `Session` on the ports of
-// `ports.ts` and enumerates, breadth first, every schedule within the scenario's bounds: which
-// client operation starts (`discover`, `call`, `listActions`, `updateTask`, `cancelRequest`,
-// `close`), when a call's signal fires, which pending port call is answered and how, which event
-// the shared stream delivers, and when a probe timer fires. Between two choices every promise
-// reaction runs (one macrotask turn), so a choice is taken only in a quiescent state, as on a
-// real event loop.
-//
-// A state is a run replayed from the start: promises cannot be copied. States are told apart by
-// their projection (`projection`); two schedules that reach the same projection are explored once.
-// Every state reached is checked against the invariants of `properties.ts`. With `maxDepth`, the
-// states at that depth are driven to rest instead (every timer fires, then every port answers
-// lawfully, then `close()`) and checked on the way. The actions, and the model actions of
-// `verification/models/TransportSession.tla` they map to, are in `verification/README.md`.
-//
-// The engine is the one of `packages/mcp/mcp/tests/model/explore.ts` (the connection table),
-// written again here for the session's ports; what the two share is listed in the mapping.
 import type { Outcome } from '@omne-harness/operation-result'
 import { isConnectionTarget, type PeerAnswer, type PeerIdentity } from '@omne-harness/mcp-contract'
 import type {
@@ -69,73 +52,51 @@ import {
   type Timer,
 } from './ports.ts'
 
-/** The material a scenario drives the session on. `http-bare` is Streamable HTTP without a handle. */
 export type Material = 'stdio' | 'http' | 'http-bare'
 
 export type LineEnd = 'ended' | 'exited' | 'broken'
 
-/** The bounds of one exploration. */
 export type Scenario = Readonly<{
   name: string
   material: Material
-  /** Whether the line offers the GET of the legacy HTTP+SSE fallback. */
   withGet?: boolean
   discovers: number
   calls: number
   lists: number
   updates?: number
-  /** `cancelRequest` calls, each on a sent call. */
   cancels?: number
   close: boolean
-  /** Whether a call's signal may fire. */
   signals?: boolean
-  /** Peer `ping` requests on the shared stream (stdio, or the SSE mode). */
   pings?: number
-  /** How the shared stream may end, at most once. */
   lineEnds?: readonly LineEnd[]
-  /** The answers the explorer may choose per port; a port not listed answers lawfully only. */
   answers: Partial<Readonly<Record<PortName, readonly Answer[]>>>
-  /** How many port breaches (`reject`, `fail`) one schedule may take in total. */
   breaches: number
-  /** How many wire faults (statuses, broken streams, unsent, aborted, ping) one schedule may take. */
   wireFaults: number
-  /** Schedules longer than this are not extended; their last states are driven to rest. */
   maxDepth?: number
-  /** Explore every schedule, without merging states of equal projection (a cross-check). */
   exhaustivePaths?: boolean
 }>
 
-/** One choice of a schedule. */
 export type Step = Readonly<{ act: string }>
 
-/** A violation, with the shortest schedule that showed it and in how many states it was seen. */
 export type Violation = Found & Readonly<{ trace: readonly string[]; depth: number; seen: number }>
 
 export type Exploration = Readonly<{
   scenario: Scenario
-  /** Distinct projected states reached (schedules, with `exhaustivePaths`). */
   states: number
-  /** Schedules replayed, each one on a fresh session. */
   runs: number
-  /** Length of the longest schedule explored. */
   depth: number
-  /** States at `maxDepth` that were driven to rest instead of extended. */
   frontier: number
   elapsedMs: number
   violations: readonly Violation[]
-  /** Every distinct action some schedule took, sorted: what the bounds actually reached. */
   actions: readonly string[]
 }>
 
-/** The same schedule replayed differently: the implementation is not deterministic under it, and the exploration stops. */
 export class Nondeterminism extends Error {
   override readonly name = 'Nondeterminism'
 }
 
-/** Lawful steps after which a run driven to rest is taken as not coming to rest. */
 const REST_STEPS = 100
 
-/** The probe time: the explorer fires the timer; the value never elapses. */
 const PROBE_TIMEOUT_MS = 1000
 
 const VERSIONS = ['2026-07-28'] as const
@@ -158,7 +119,6 @@ function idleProcess(): ProcessHandle {
   }
 }
 
-/** Lets every promise reaction run: one macrotask turn, after Node reported unhandled rejections. */
 function drain(): Promise<void> {
   return new Promise(resolve => setImmediate(resolve))
 }
@@ -166,20 +126,12 @@ function drain(): Promise<void> {
 const SOURCE_FRAME =
   /at (?:async )?(?:(\S+) \()?(?:file:\/\/)?\S*\/packages\/mcp\/mcp-host-local\/src\/([\w.-]+\.ts):\d+:\d+\)?$/
 
-/** Frames enough to reach the code a port call returns to; fewer frames format faster. */
 const SITE_FRAMES = 12
 
-/**
- * V8's own text of a stack, as Node prints it when nothing replaces the formatter. A test runner
- * installs a formatter that maps every frame through the source map; `siteOf` runs on every port
- * call, so it formats the frames itself. The names and paths are V8's; only line and column, which
- * a site does not use, may differ from the mapped ones.
- */
 function plainStack(error: Error, frames: readonly NodeJS.CallSite[]): string {
   return [String(error), ...frames.map(frame => `    at ${String(frame)}`)].join('\n')
 }
 
-/** The functions of `src/` on the stack of the caller, innermost first, as `name@file`. */
 function siteOf(): string {
   const { prepareStackTrace, stackTraceLimit } = Error
   Error.stackTraceLimit = SITE_FRAMES
@@ -234,7 +186,6 @@ type Op = {
   signalled: boolean
   readonly requests: string[]
   readonly controller: AbortController
-  /** The request id `call()` handed out, for `cancelRequest`. */
   requestId: string | undefined
   cancelled: boolean
 }
@@ -252,7 +203,6 @@ type Budget = {
   wireFaults: number
 }
 
-/** A violation one run found: the step it showed in (1 for the first), and the schedule up to it. */
 type Report = Found & Readonly<{ step: number; trace: readonly string[] }>
 
 const OP_LETTER: Readonly<Record<OpKind, string>> = {
@@ -264,7 +214,6 @@ const OP_LETTER: Readonly<Record<OpKind, string>> = {
   close: 'k',
 }
 
-/** One schedule replayed on a fresh session. */
 class Run implements RunView, CallDesk {
   readonly ledger: Ledger = emptyLedger()
   readonly ops: Op[] = []
@@ -276,20 +225,15 @@ class Run implements RunView, CallDesk {
   phasesAtClose: Map<string, Phase> | undefined
   readonly phasesAtSignal = new Map<string, Phase>()
   lineEnd: Readonly<{ cause: LineEndCause; phases: Map<string, Phase> }> | undefined
-  /** Set when the run is driven to rest: no breaches, no wire faults from then on. */
   private resting = false
   private readonly scenario: Scenario
   private readonly session: Session
   private readonly line: ExplorerLine
   private readonly hasHandle: boolean
-  /** The port calls the explorer may still answer. */
   private calls: PendingCall[] = []
-  /** The port calls answered `hang`: pending for ever, not answered even at rest. */
   private readonly hung: PendingCall[] = []
   private readonly timerList: Timer[] = []
-  /** The requests whose answer the explorer delivered as a result. */
   private readonly delivered = new Set<string>()
-  /** The streams that delivered their result; their lawful next answer is `end`. */
   private readonly streamsAnswered = new Set<string>()
   private readonly reported = new Set<string>()
   private readonly unhandled: unknown[] = []
@@ -334,7 +278,6 @@ class Run implements RunView, CallDesk {
       probeTimeoutMs: PROBE_TIMEOUT_MS,
       fetchMetadata: explorerMetadataFetch(this),
       schedule: explorerScheduler(this.timerList),
-      // A defect of the session is a violation: it is reported like a rejection nobody handled.
       reportDefect: defect => this.rejectedUnhandled(defect),
     })
   }
@@ -347,10 +290,6 @@ class Run implements RunView, CallDesk {
     return this.timerList.length
   }
 
-  /**
-   * What decides the future of the run: the operations as their callers see them, the pending
-   * calls with the code their answers go to, the streams, the timers, the ledger and the budget.
-   */
   projection(): string {
     return JSON.stringify({
       ops: this.ops.map(
@@ -399,7 +338,6 @@ class Run implements RunView, CallDesk {
     })
   }
 
-  /** The actions a schedule may take now, in a fixed order. */
   enabled(): string[] {
     const acts: string[] = []
     if (this.left.discovers > 0) acts.push('discover')
@@ -423,12 +361,10 @@ class Run implements RunView, CallDesk {
     return acts
   }
 
-  /** Whether the line has a shared stream the peer writes on: stdio, or the SSE mode. */
   private get shared(): boolean {
     return this.line.kind === 'stdio' || this.line.inSseMode
   }
 
-  /** The answers the explorer may give one pending call now, within the scenario's menus. */
   private answersOf(call: PortCall): readonly Answer[] {
     const menu: readonly Answer[] = this.scenario.answers[call.port] ?? [PORT_ANSWERS[call.port][0]]
     const lawful: readonly Answer[] = [...new Set([PORT_ANSWERS[call.port][0], ...menu])]
@@ -442,7 +378,6 @@ class Run implements RunView, CallDesk {
     return true
   }
 
-  /** What the line kind and the state of the exchange allow: a status only on HTTP, and so on. */
   private lineAllows(call: PortCall, answer: Answer): boolean {
     const aborted = call.signal?.aborted === true
     switch (call.port) {
@@ -455,7 +390,6 @@ class Run implements RunView, CallDesk {
         }
         if (answer === 'aborted') return !this.shared || aborted
         if (answer.endsWith('xx') || answer.startsWith('40')) return !this.shared
-        // After the signal ended the exchange, the line reports `aborted` or answers late.
         if (aborted) return answer === 'answer' || answer === 'reject'
         return true
       }
@@ -523,10 +457,6 @@ class Run implements RunView, CallDesk {
     this.afterStep()
   }
 
-  /**
-   * Drives the run to rest, for a state at the depth bound: every timer fires with no port
-   * answering, then every port answers lawfully, then `close()`, and every port again.
-   */
   async rest(): Promise<void> {
     this.resting = true
     this.log.push('-- driven to rest: every timer fires, no port answers')
@@ -566,8 +496,6 @@ class Run implements RunView, CallDesk {
       site: siteOf(),
     }
     this.seq += 1
-    // A closed line settles its outstanding I/O at once: both real lines abort their writes,
-    // streams and GET inside `close()`, so a send or a stream read no longer hangs behind it.
     if (request.port === 'line.close') this.settleLineCalls()
     const op = this.ops.find(item => item.name === context?.op)
     if (op !== undefined) {
@@ -587,10 +515,6 @@ class Run implements RunView, CallDesk {
       },
     }
     this.calls.push(pending)
-    // A signal-bearing port honours an abort at once, as the real lines and `fetch` do (`line.ts`:
-    // the signal ends the wait), unless the explorer answered it `hang` first: a hung call left
-    // the answerable calls and stays pending. A port with no signal (the credential handle, a
-    // stream read) is answered by the explorer, left pending, or hung.
     if (request.signal !== undefined) {
       const honour = () => this.honourAbort(pending)
       if (request.signal.aborted) queueMicrotask(honour)
@@ -599,7 +523,6 @@ class Run implements RunView, CallDesk {
     return promise
   }
 
-  /** A lawful port answers an abort at once: what the real lines and `fetch` do. */
   private honourAbort(pending: PendingCall): void {
     if (!this.calls.includes(pending)) return
     this.calls = this.calls.filter(item => item !== pending)
@@ -614,7 +537,6 @@ class Run implements RunView, CallDesk {
     pending.settle(answer)
   }
 
-  /** The pending calls by label: port and subject, numbered when two are alike. */
   private labelled(): Map<string, PendingCall> {
     const labelled = new Map<string, PendingCall>()
     for (const pending of this.calls) {
@@ -714,10 +636,6 @@ class Run implements RunView, CallDesk {
     )
   }
 
-  /**
-   * Whether `discover` read the answer to `initialize`: the authorization it waits on after that
-   * is the one of `notifications/initialized`, which is not a request and has no settlement.
-   */
   private initialized(op: Op): boolean {
     return (
       op.kind === 'discover' &&
@@ -731,11 +649,6 @@ class Run implements RunView, CallDesk {
     )
   }
 
-  /**
-   * The phase of the operation's request when a stop comes, for V6; `none` when the request was
-   * settled already by a line end (S01–S04: not in flight any more), when what the operation
-   * waits on is no request, or when it waits on no port.
-   */
   private phaseAtStop(op: Op): Phase {
     if (op.status !== 'waiting' && op.status !== 'sent') return 'none'
     const lineEnded = this.ledger.events.some(event => event === 'ended' || event === 'broken')
@@ -749,7 +662,6 @@ class Run implements RunView, CallDesk {
     const phases = new Map<string, Phase>()
     for (const op of this.ops) {
       if (op.kind === 'close' || op.kind === 'cancel') continue
-      // A call whose signal fired is settled by the signal, not by close() (T5: first come).
       if (op.signalled) continue
       const phase = this.phaseAtStop(op)
       if (phase !== 'none') phases.set(op.name, phase)
@@ -786,12 +698,6 @@ class Run implements RunView, CallDesk {
     )
   }
 
-  /**
-   * The phase of the operation's request when the shared stream goes away, for V6: `none` when
-   * the operation is settled, waits on no request, or still waits on the line's `send` (then the
-   * explorer's own settlement of that send decides, see `settleGoneLineIo`); `sent` when the line
-   * took its request and the answer is still to come on the shared stream.
-   */
   private phaseAtLineEnd(op: Op): Phase {
     if (op.status !== 'waiting' && op.status !== 'sent') return 'none'
     const phase = phaseOf(this.pending, op.name)
@@ -824,13 +730,9 @@ class Run implements RunView, CallDesk {
       default:
         throw new Nondeterminism(`unknown line end ${end}`)
     }
-    // The shared stream is gone: a write to a broken pipe fails, a read of it breaks. The write a
-    // caller can no longer reach is carried by the line and aborted on `close()` (SPEC V4); the
-    // common case a gone process shows is the pipe breaking, which the explorer takes here.
     this.settleGoneLineIo()
   }
 
-  /** Settles the stdio line's outstanding I/O after the shared stream is gone. */
   private settleGoneLineIo(): void {
     for (const pending of this.calls.slice()) {
       const answer: Answer | undefined =
@@ -876,7 +778,6 @@ class Run implements RunView, CallDesk {
     this.calls = this.calls.filter(item => item !== pending)
     if (BREACHES.has(answer)) this.left.breaches -= 1
     else if (WIRE_FAULTS.has(answer)) this.left.wireFaults -= 1
-    // A hung call never settles: it is kept so the properties still see what it waits for.
     if (answer === HANG) this.hung.push(pending)
     else {
       this.account(pending.call, answer)
@@ -886,7 +787,6 @@ class Run implements RunView, CallDesk {
     this.afterStep()
   }
 
-  /** Settles the line's outstanding I/O as a closed line does: writes abort, streams break. */
   private settleLineCalls(): void {
     for (const pending of this.calls.slice()) {
       const answer: Answer | undefined =
@@ -904,7 +804,6 @@ class Run implements RunView, CallDesk {
     }
   }
 
-  /** What the explorer delivered: refusals the handle may hear of, results, line closes. */
   private account(call: PortCall, answer: Answer): void {
     if (call.port === 'line.send' || call.port === 'line.openGet') {
       if (answer === '401' || answer === '403+scope') {
@@ -921,7 +820,6 @@ class Run implements RunView, CallDesk {
     if (call.port === 'line.close' && answer === 'ok') this.lineCloseAnswered = true
   }
 
-  /** Answers every pending call lawfully, oldest first, then fires the timers left. */
   private async settleAll(): Promise<void> {
     for (let count = 0; count < REST_STEPS; count += 1) {
       const oldest = this.calls[0]
@@ -941,7 +839,6 @@ class Run implements RunView, CallDesk {
     ])
   }
 
-  /** The lawful answer of a call at rest: what a well-behaved port and peer do next. */
   private lawfulAnswerOf(call: PortCall): Answer {
     switch (call.port) {
       case 'line.send':
@@ -981,10 +878,8 @@ class Run implements RunView, CallDesk {
   }
 }
 
-/** What one replayed schedule found out about the state it ends in. */
 type Visit = Readonly<{
   projection: string
-  /** False when an earlier schedule reached the same projection. */
   fresh: boolean
   enabled: readonly string[]
 }>
@@ -993,13 +888,8 @@ type Queued = Readonly<{ path: readonly Step[]; parent: string | undefined }>
 
 let active: Run | undefined
 
-/** Rejections nobody handled while no run was active: a defect of the explorer. */
 const stray: unknown[] = []
 
-/**
- * For the duration of `body`, rejections that nobody handled go to the active run instead of the
- * test runner.
- */
 async function withHooks<T>(body: () => Promise<T>): Promise<T> {
   const listeners = process.listeners('unhandledRejection')
   const onUnhandled = (reason: unknown) => {
@@ -1017,10 +907,6 @@ async function withHooks<T>(body: () => Promise<T>): Promise<T> {
   }
 }
 
-/**
- * Explores every schedule of `scenario` breadth first, so the first schedule that shows a
- * violation is a shortest one. Throws `Nondeterminism` when a replay leaves the recorded path.
- */
 export async function explore(
   scenario: Scenario,
   progress: (states: number, runs: number, depth: number) => void = () => undefined,
@@ -1067,7 +953,6 @@ export async function explore(
 
   function collect(reports: readonly Report[], length: number, fresh: boolean): void {
     for (const report of reports) {
-      // A report made while the prefix replayed was collected when the prefix was new.
       if (report.step < length) continue
       const id = `${report.property}|${report.signature}`
       const known = found.get(id)

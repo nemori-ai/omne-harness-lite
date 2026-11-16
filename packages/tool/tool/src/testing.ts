@@ -60,7 +60,6 @@ import {
   type ToolAccessRule,
 } from './testing-access.ts'
 
-/** The caller supplies authorization, the trusted construction ports and the remaining ports. */
 export type TestToolDependenciesInput<P> = Readonly<{
   configuration: ToolLedgerConfiguration
   guards: Omit<ToolLedgerGuards<P, ContentBlock>, 'factAcknowledgements'>
@@ -92,7 +91,6 @@ export type TestToolDependencies<P> = Readonly<{
   doubles: TestToolDoubles<P>
 }>
 
-/** Builds a fresh non-durable assembly. The caller constructs and owns the runtime separately. */
 export function createTestToolDependencies<P>(
   input: TestToolDependenciesInput<P>,
 ): TestToolDependencies<P> {
@@ -209,7 +207,6 @@ function integrity(attachment: Attachment, bytes: Uint8Array): boolean {
   )
 }
 
-/** Bytes only. Association and current authorization are always checked by the real ledger. */
 export function createMemoryToolContent<P>(): MemoryToolContent<P> {
   const bytesByAddress = new Map<string, Uint8Array>()
   let fault: MemoryContentFault | null = null
@@ -332,7 +329,6 @@ const ledgerStoreCaseDependencies = {
   },
 }
 
-/** Provider-level snapshot, conditional commit, isolation, fault and pending-marker checks (G1/G6). */
 export function toolLedgerStoreConformance(): readonly ConformanceCase<ToolLedgerStoreFixture>[] {
   return [
     ...storeCases(ledgerStoreCaseDependencies),
@@ -342,7 +338,6 @@ export function toolLedgerStoreConformance(): readonly ConformanceCase<ToolLedge
   ]
 }
 
-/** P01 checks through the real ledger. The provider supplies only the record store. */
 export function toolLedgerStoreCompositionConformance(): readonly ConformanceCase<ToolLedgerStoreFixture>[] {
   return compositionCases({
     ...ledgerStoreCaseDependencies,
@@ -361,17 +356,12 @@ export type {
   ToolAccessRule,
 } from './testing-access.ts'
 
-/**
- * The table double of the Tool access guard (RD-TOOLHEAD): an explicit allow table, no default
- * allow, a forged tenant denied. See testing-access.ts for the verdict order.
- */
 export function createTableToolAccess<P>(
   input: Readonly<{ principalKey(principal: P): string; allow: readonly ToolAccessRule[] }>,
 ): TableToolAccess<P> {
   return tableToolAccess(input, { tenantText: testingTenantText })
 }
 
-/** The five cases every Tool access guard must pass. */
 export function toolAccessGuardConformance<P>(): readonly ConformanceCase<
   ToolAccessGuardFixture<P>
 >[] {
@@ -386,10 +376,6 @@ export type MemoryToolBodies = Readonly<{
   clock: ReturnType<typeof createManualInstantClock>
 }>
 
-/**
- * The non-durable body custody of a test assembly: the memory body store, one permit key and a
- * manual participant clock shared by issuer, settler, store and reader. Never a production fallback.
- */
 export function createMemoryToolBodies(start: ToolInstant = instantAt(0)): MemoryToolBodies {
   const permitKey = { secret: randomBytes(32) }
   const clock = createManualInstantClock(start)

@@ -1,6 +1,3 @@
-// How `contractApiCommand` turns the manifest of the installed repo-toolchain into the command that
-// starts `omne-contract-api`, and what it says when it cannot. The manifest lookup is a stand-in
-// that points at manifests written here; the real CLI runs in integration-contract-check.spec.ts.
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -14,7 +11,6 @@ const directory = realpathSync(mkdtempSync(join(tmpdir(), 'dev-flow-contract-api
 afterAll(() => rmSync(directory, { recursive: true, force: true }))
 beforeEach(() => lookup.find.mockReset())
 
-/** Writes `text` as the manifest the lookup finds, and returns its path. */
 function manifest(text: string): string {
   const path = join(directory, 'package.json')
   writeFileSync(path, text)

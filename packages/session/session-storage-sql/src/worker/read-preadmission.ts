@@ -1,6 +1,3 @@
-// R-PA: one preadmission record of the execution record provider, by tenant and handoff H or by
-// tenant and entry Ki, or null. Another tenant's record is never read: every statement filters on
-// the tenant. The participant answers its writes with the same record form (`preadmissionRecord`).
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { handler, oneRow, text, type Executor, type Row } from './support.ts'
 
@@ -10,7 +7,6 @@ export const PREADMISSION_COLUMNS =
 const optional = (cell: Row[string] | undefined): string | null =>
   cell === null || cell === undefined ? null : text(cell)
 
-/** The output form of one record: the opaque members as the JSON they were saved as. */
 export function preadmissionRecord(row: Row): JsonValue {
   const outcome = optional(row['outcome'])
   return {
@@ -26,7 +22,6 @@ export function preadmissionRecord(row: Row): JsonValue {
   }
 }
 
-/** The record of (tenant, handoff), or of (tenant, entry), in this transaction or snapshot. */
 export function findPreadmission(
   port: Executor,
   tenant: string,

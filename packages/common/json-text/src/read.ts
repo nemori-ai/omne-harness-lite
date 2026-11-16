@@ -11,8 +11,6 @@ import type {
   JsonValue,
 } from './types.ts'
 
-// jsonc-parser declares SyntaxKind and ScanError as ambient const enums, which
-// verbatimModuleSyntax cannot read, so the codes this reader uses are copied here.
 const TOKEN = {
   openBrace: 1,
   closeBrace: 2,
@@ -52,7 +50,6 @@ function isValueStart(token: number): token is ValueStartToken {
   return VALUE_STARTS.has(token)
 }
 
-/** An open container and the token it accepts next. */
 type Frame = ArrayFrame | ObjectFrame
 type ArrayFrame = {
   readonly kind: 'array'
@@ -63,14 +60,12 @@ type ObjectFrame = {
   readonly kind: 'object'
   readonly entries: JsonEntry[]
   readonly keys: KeySet
-  /** The key of the member whose value is read next. */
   key: string
   next: 'first-key' | 'key' | 'colon' | 'value' | 'comma'
 }
 
 const utf8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
 
-/** Reads one strict JSON document from UTF-8 bytes within the caller's budgets. */
 export function readJsonBytes(bytes: Uint8Array, limits: JsonLimits): JsonRead {
   if (!(bytes instanceof Uint8Array)) throw new TypeError('bytes must be a Uint8Array')
   const parsed = parseLimits(limits)
@@ -84,7 +79,6 @@ export function readJsonBytes(bytes: Uint8Array, limits: JsonLimits): JsonRead {
   return readDecoded(text, bytes.length, parsed)
 }
 
-/** Reads one strict JSON document from decoded text within the caller's budgets. */
 export function readJsonText(text: string, limits: JsonLimits): JsonRead {
   if (typeof text !== 'string') throw new TypeError('text must be a string')
   const parsed = parseLimits(limits)
@@ -127,7 +121,6 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
     )
   }
 
-  /** The budgets that a value of this kind meets as it starts. */
   const admit = (token: ValueStartToken): JsonFailure | undefined => {
     const opensContainer = token === TOKEN.openBrace || token === TOKEN.openBracket
     if (opensContainer && stack.length + 1 > limits.maxDepth) return budget('depth')
@@ -205,7 +198,6 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
     return undefined
   }
 
-  /** After a member value: a comma asks for the next key, and a close brace ends the object. */
   const stepAfterMember = (frame: ObjectFrame, token: number): JsonFailure | undefined => {
     if (token === TOKEN.comma) {
       frame.next = 'key'
@@ -236,7 +228,6 @@ function scanDocument(text: string, limits: JsonLimits): JsonRead {
     }
   }
 
-  /** Gives the token to the innermost open container, or starts the root value. */
   const step = (top: Frame | undefined, token: number): JsonFailure | undefined => {
     if (top === undefined) return startValue(token)
     return top.kind === 'array' ? stepArray(top, token) : stepObject(top, token)
@@ -270,18 +261,15 @@ function literal(token: typeof TOKEN.null | typeof TOKEN.true | typeof TOKEN.fal
   }
 }
 
-/** The keys and indexes from the root down to the innermost open container. */
 function pathTo(stack: readonly Frame[]): JsonPathSegment[] {
   return stack.slice(0, -1).map(frame => (frame.kind === 'array' ? frame.items.length : frame.key))
 }
 
-/** Illegal string text is a token. A legal unterminated string within budget is truncated. */
 function readString(scanner: JSONScanner, text: string, maxLength: number): JsonFailure | string {
   const error = scanner.getTokenError()
   // The scanner also reports a raw line break as the end of a string, before the end of the text.
   const unterminated = error === SCAN_END_OF_STRING && scanner.getPosition() === text.length
   if (error !== SCAN_OK && !unterminated) return syntax('token')
-  // End of text replaces an earlier illegal escape or control with this end error.
   const raw = text.slice(scanner.getTokenOffset(), scanner.getPosition())
   if (!isJsonStringPrefix(raw)) return syntax('token')
   const value = scanner.getTokenValue()
@@ -326,10 +314,6 @@ function isJsonStringPrefix(raw: string): boolean {
 
 export const RFC_8259_NUMBER = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/
 
-/**
- * The scanner splits `01` into two numbers and keeps `1.` as one, so the lexeme is
- * the whole run of number characters from the token start, checked against RFC 8259.
- */
 function readNumber(text: string, offset: number, maxLength: number): JsonFailure | string {
   let end = offset
   while (end < text.length && '0123456789+-.eE'.includes(text.charAt(end))) end += 1
@@ -351,7 +335,6 @@ function utf8Length(text: string): number {
   let length = 0
   for (let index = 0; index < text.length; index += 1) {
     const unit = text.charCodeAt(index)
-    // The text is well formed, so each surrogate half is one half of a 4-byte code point.
     length += unit < 0x80 ? 1 : unit < 0x800 || (unit >= 0xd800 && unit <= 0xdfff) ? 2 : 3
   }
   return length

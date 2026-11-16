@@ -86,7 +86,6 @@ export function createTestModelDependencies<P>(options: TestModelDependenciesOpt
     },
   }
 }
-// The shared commands core that the memory commands run on.
 export { createModelCommandsCore, modelCommands } from '../commands/index.ts'
 export type {
   CommandWrite,

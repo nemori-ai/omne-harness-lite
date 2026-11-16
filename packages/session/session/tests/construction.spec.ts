@@ -1,5 +1,3 @@
-// The factory checks its start conditions and its configuration before it builds or calls anything
-// (docs/public-api.md「依赖」「配置」, SPEC「资源与替换」, SR-3).
 import { describe, expect, it } from 'vitest'
 import {
   createSessionInstance,
@@ -8,7 +6,6 @@ import {
   type SessionDependencies,
 } from '../src/index.ts'
 
-/** Dependencies whose every method call is counted; the factory must call none at construction. */
 function countedDependencies(): { dependencies: SessionDependencies<string>; calls: () => number } {
   let calls = 0
   const port = new Proxy(
@@ -61,7 +58,7 @@ describe('start conditions', () => {
   })
 })
 
-describe('configuration (SR-3)', () => {
+describe('configuration', () => {
   it('the defaults are the SPEC SchedulingPolicy seeds', () => {
     expect(defaultSchedulingPolicy).toEqual({
       command: { retriesOnChanged: 3 },
@@ -70,6 +67,7 @@ describe('configuration (SR-3)', () => {
       recoveryScan: {
         periodMs: 30000,
         pageSize: 100,
+        startupRetryDelaysMs: [1000, 5000, 30000],
         sessionBackoff: { initialMs: 5000, multiplier: 2, maxMs: 300000 },
       },
       pendingResolution: { retryIntervalMs: 5000, maxAttempts: 60 },
@@ -81,7 +79,6 @@ describe('configuration (SR-3)', () => {
     })
   })
 
-  /** Replaces one field at `path` of the default policy. */
   function withField(path: string, value: unknown): SchedulingPolicy {
     const policy = structuredClone(defaultSchedulingPolicy) as Record<string, unknown>
     const keys = path.split('.')
@@ -138,15 +135,16 @@ describe('configuration (SR-3)', () => {
     ).not.toThrow()
   })
 
-  it('an empty or negative backoff sequence is refused', () => {
-    const { dependencies } = countedDependencies()
-    expect(() =>
-      createSessionInstance(dependencies, { policy: withField('advance.retryDelaysMs', []) }),
-    ).toThrow('policy.advance.retryDelaysMs')
-    expect(() =>
-      createSessionInstance(dependencies, { policy: withField('advance.retryDelaysMs', [10, -1]) }),
-    ).toThrow('policy.advance.retryDelaysMs.1')
-  })
+  for (const path of ['advance.retryDelaysMs', 'recoveryScan.startupRetryDelaysMs'])
+    it(`${path}: an empty or negative backoff sequence is refused`, () => {
+      const { dependencies } = countedDependencies()
+      expect(() => createSessionInstance(dependencies, { policy: withField(path, []) })).toThrow(
+        `policy.${path}`,
+      )
+      expect(() =>
+        createSessionInstance(dependencies, { policy: withField(path, [10, -1]) }),
+      ).toThrow(`policy.${path}.1`)
+    })
 
   it('prewarm cannot be switched on before the Agent host instance-creation entry exists', () => {
     const { dependencies } = countedDependencies()

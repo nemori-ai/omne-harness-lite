@@ -248,7 +248,6 @@ export function createInvocationForwarding<P>(
     const read = await readParent({ ...access, call: id.ok })
     if ('failure' in read || read.ok.start === null) return unavailable()
     const parent = read.ok
-    // A forwarding parent runs as a first start; a resume of a checkpointed call forwards nothing.
     if (parent.start?.kind !== 'start') return unavailable()
     const checked = await checkParent({
       ...access,
@@ -440,13 +439,6 @@ export function createInvocationForwarding<P>(
       }
     },
   }
-  /**
-   * Releases the received copies of the forwarding slot of `parent` (C6: the copies go with the
-   * parent call's own result delivery). It reads the slot's domain whole: that domain holds one
-   * parent's slot and the copies of that parent's target, so its size is bounded by that one
-   * fan-out, never by the tenant's history. A call that is not a forwarding parent has nothing
-   * to release. Idempotent: a repeated release finds no copy and writes nothing.
-   */
   const releaseReceivedCopies = async (
     given: Readonly<{
       tenant: LedgerDomain['tenant']
@@ -478,7 +470,6 @@ export function createInvocationForwarding<P>(
       }
       if (committed.kind === 'committed') return 'released'
       if (committed.kind === 'unavailable') return 'unavailable'
-      // A conflict or an unknown answer: the next round reads what is left and deletes it.
     }
     return 'unavailable'
   }

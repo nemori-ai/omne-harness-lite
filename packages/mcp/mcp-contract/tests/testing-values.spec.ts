@@ -1,5 +1,3 @@
-// The sample builders of `./testing`: each one answers a branded value for a lawful sample and
-// throws `TypeError` for anything its guard refuses, so a bad sample is a defect of the suite.
 import { describe, expect, it } from 'vitest'
 import {
   isAdoptionRevision,

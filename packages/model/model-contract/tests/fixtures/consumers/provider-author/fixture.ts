@@ -1,8 +1,3 @@
-// An author of a provider: the transport, the tokenizer and the meter are written against the
-// contract alone, and the conformance suite of `./conformance` decides whether an assembler may adopt
-// the transport. The rest of the provider is the scripted one, which stands in for what this author
-// did not write. The transport measures nothing; the meter is for the request assembler, which
-// calls it before it asks for a preparation.
 import type { ModelInputMeter } from '@omne-harness/model-contract'
 import {
   checkModelProviderConformance,
@@ -42,7 +37,6 @@ const TRANSPORT_OBLIGATIONS: readonly ConformanceObligation[] = [
   'transport-close-is-idempotent',
 ]
 
-/** Runs the suite with the author's transport in the place of the scripted one. */
 function check(
   defects: TransportDefects = {},
   refusal: SupplierRefusal | null = null,
@@ -59,7 +53,6 @@ function check(
   })
 }
 
-/** The assembler's rule: adopt only a provider that passed every transport obligation. */
 function adopts(report: ConformanceReport): boolean {
   return (
     report.ok &&
@@ -100,7 +93,6 @@ async function tokenizerCountsAndNamesWhatItDoesNotKnow(): Promise<void> {
   )
 }
 
-/** The input of one measurement: the text to count and whether the media is still a reference. */
 function measurement(text: string, media: 'none' | 'pending'): MeterInput {
   const base = {
     adoption: adoption('representation'),
@@ -151,8 +143,6 @@ async function meterCountsDefersAndReportsOverLimit(): Promise<void> {
   expect('ok' in pending, 'the meter refused an input with pending media')
   expect(pending.ok.kind === 'deferred-media', `the budget is ${pending.ok.kind}`)
   expect(pending.ok.references[0].key === 'image-1', 'the pending reference was lost')
-  // An input over the limit is reported, not refused: the check shows the count against the
-  // limit, and the assembler judges from it.
   const over = await meter.measure(measurement('four words are too many', 'none'))
   expect('ok' in over, `the meter refused an input over the limit: ${JSON.stringify(over)}`)
   const overCheck = over.ok.checks.find(item => item.metric === 'input-tokens')
@@ -163,10 +153,6 @@ async function meterCountsDefersAndReportsOverLimit(): Promise<void> {
   expect(judge(over, 3n) === 'compress', 'the assembler did not judge the input as over the limit')
 }
 
-/**
- * The assembler's rule, applied before it asks for a preparation: it judges the size of the input
- * from a measurement that names the count of input tokens, and from nothing else.
- */
 function judge(
   outcome: Awaited<ReturnType<ModelInputMeter['measure']>>,
   trigger: bigint,
@@ -187,10 +173,7 @@ async function tokenizerCountIsNotAMeasurementOfTheRequest(): Promise<void> {
     tokenizerOnly.failure.kind === 'unsupported' || tokenizerOnly.failure.kind === 'unavailable',
     `the meter answered ${tokenizerOnly.failure.kind} and not unsupported or unavailable`,
   )
-  // Two words are under a trigger of one word's worth only if the assembler trusted the text count;
-  // it does not, so it neither compresses nor takes the input as fitting.
   expect(judge(tokenizerOnly, 1n) === 'unmeasured', 'the assembler judged from a tokenizer count')
-  // The rule is not a refusal of everything: a meter with the whole counting basis is judged.
   const whole = createWordMeter(basis)
   expect(
     judge(await whole.measure(measurement('two words', 'none')), 2n) === 'keep',
@@ -210,7 +193,6 @@ function refusalOf(
   return { status, body: { code, message: `the supplier refused: ${code}`, ...figures } }
 }
 
-/** Runs the author's transport to its end and returns the facts of the stream and the send count. */
 async function runToEnd(refusal: SupplierRefusal) {
   const author = createAuthorTransport({}, refusal)
   const signal = new AbortController().signal
@@ -237,7 +219,6 @@ async function supplierOverLimitRefusalEndsAsInputOverLimit(): Promise<void> {
   expect(fault.reported.metric === 'context-tokens', 'the metric is not the one named')
   expect(fault.reported.limit === '50' && fault.reported.actual === '61', 'figures differ')
   expect(given.sends === 1, `the transport sent ${given.sends} times`)
-  // A supplier that names no figures leaves them null; nothing is counted locally to fill them.
   const silent = await runToEnd(refusalOf('context_length_exceeded', 400))
   const quiet = silent.ended?.termination
   expect(quiet?.kind === 'failed' && quiet.fault.cause === 'input-over-limit', 'not over-limit')
@@ -248,7 +229,6 @@ async function supplierOverLimitRefusalEndsAsInputOverLimit(): Promise<void> {
       quiet.fault.reported.actual === null,
     'a figure that the supplier did not give was filled in',
   )
-  // The conformance suite still accepts a transport that ends its stream with this fault.
   const report = await check(
     {},
     refusalOf('context_length_exceeded', 400, { limit: 50, actual: 61 }),
@@ -269,7 +249,6 @@ async function statusCodeAloneDoesNotMakeAnOverLimitRefusal(): Promise<void> {
   }
 }
 
-/** A maintenance whose clock reads the given instants one after the other, and the caller's access. */
 function maintenanceWith(readings: readonly string[]) {
   let next = 0
   const maintenance = createProfileMaintenance(() => {
@@ -302,7 +281,6 @@ async function maintenanceStampsAProfileFromItsOwnClock(): Promise<void> {
   })
   expect('ok' in revised, 'a revision with a later time was refused')
   expect(revised.ok.updatedAt === '2026-10-19T09:00:00Z', 'the revision has another time')
-  // The same instant is not earlier, so the next change at that instant is kept.
   const withdrawn = await change('withdraw', {
     kind: 'withdraw',
     identity,
@@ -424,7 +402,6 @@ async function maintenanceRefusesADefinitionThatBreaksARule(): Promise<void> {
       `${item.name}: fields "${outcome.failure.field}", not "${item.field}"`,
     )
     expect(maintenance.current(identity) === undefined, `${item.name} left a profile behind`)
-    // The caller fixes the definition and submits the same change again: it is kept.
     const again = await change('create-again', { kind: 'create', identity, definition })
     expect('ok' in again, `${item.name}: the corrected definition was refused`)
     expect(maintenance.current(identity)?.revision === again.ok.revision, 'the profile is not kept')
@@ -443,11 +420,9 @@ async function maintenanceRefusesADefinitionThatBreaksARule(): Promise<void> {
 }
 
 async function maintenanceAnswersARepeatedOperationWithItsOriginalResult(): Promise<void> {
-  // One reading only: a repeat that read the clock again would run out of readings.
   const { maintenance, change, access } = maintenanceWith(['2026-10-19T08:00:00Z'])
   const first = await change('same', { kind: 'create', identity, definition })
   expect('ok' in first, 'a valid definition was refused')
-  // The same change, written with its keys in another order, under the same operation.
   const again = await change('same', { kind: 'create', definition: { ...definition }, identity })
   expect(
     'ok' in again,
@@ -459,7 +434,6 @@ async function maintenanceAnswersARepeatedOperationWithItsOriginalResult(): Prom
   const inspected = await maintenance.inspect({ ...access, operation: operationOf('same') })
   expect('ok' in inspected && inspected.ok.kind === 'committed', 'the operation is not committed')
   expect(inspected.ok.value.revision === first.ok.revision, 'the inspection shows another result')
-  // Another change under the operation that created the profile: a conflict, and nothing changes.
   const other = await change('same', {
     kind: 'revise',
     identity,
@@ -503,7 +477,6 @@ async function maintenanceRefusesATimeThatGoesBack(): Promise<void> {
   })
   expect('failure' in withdrawn, 'a withdrawal with an earlier time was kept')
   expect(JSON.stringify(maintenance.current(identity)) === before, 'the withdrawal changed it')
-  // The clock is right again: the same revision, tried again, is kept with the new time.
   const retried = await change('revise-again', {
     kind: 'revise',
     identity,

@@ -1,6 +1,3 @@
-// The providers of the decision bridge suite that the contract allows, beyond the shared ones of
-// external-association-legal.ts, and how a provider of the shared calls becomes a fixture of this
-// port. Each is built at the port boundary and never calls a control of a double.
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type { DurableEvidence, ToolFailure } from '@omne-harness/tool-contract'
 import type {
@@ -18,7 +15,6 @@ import type { ExternalPort, MakeVariant } from './external-association-variants.
 type Fixture = ToolDecisionBridgeFixture<string>
 type Bridge = ToolDecisionBridge<string>
 
-/** The fixture of a provider laid over the calls that the decision bridge shares (P06). */
 export const makeShared: MakeVariant<Fixture> = build => () => {
   const base = memoryToolDecisionBridgeFixture()
   const laid = build(base.bridge as unknown as ExternalPort, base)
@@ -26,23 +22,14 @@ export const makeShared: MakeVariant<Fixture> = build => () => {
   return { ...base, ...laid.handles, bridge }
 }
 
-/** The generated provider of the table, with or without its `settle`. */
 export const generated = (kind: string, settle = true): (() => Fixture) =>
   externalGenerated(makeShared, decisionBridgeAnswers, kind, { settle })
 
-/** The double with one tenant only: the cross-tenant cases have no second access. */
 export function oneTenant(): Fixture {
   const { otherAccess: _other, ...rest } = memoryToolDecisionBridgeFixture()
   return rest
 }
 
-/**
- * A decision owner that names its records by a sequence number, as the row number of a table
- * does: "1", "2", and so on, in the order that it first answers them. It is the double behind a
- * renaming at the port boundary: the record of every evidence that the bridge or a handle answers
- * is replaced by its number, and the decision that `resolve` is given gets its record back. The
- * owner, the revision and the digest of each evidence stay as they are.
- */
 export function shortRecords(): Fixture {
   const base = memoryToolDecisionBridgeFixture()
   const { bridge, decide, invalidations } = base

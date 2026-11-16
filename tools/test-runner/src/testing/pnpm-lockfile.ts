@@ -1,15 +1,6 @@
-// `pnpm-lock.yaml` 的读取：只认 pnpm 9（lockfileVersion 9.0）实际写出的那一小块 YAML——
-// 两空格缩进的块映射、`- ` 块序列（项可以是标量、流式集合，或 `- 键: 值` 起头的块映射，pnpm 12 的 runtime 条目这样写）、单行流式映射 `{integrity: …}` 与流式序列 `[x64]`、单引号与双引号标量、`{}` 空映射。
-// 本成员没有 YAML 解析依赖，repo-toolchain 也不导出它的；锚点、多行标量、合并键等整段 YAML 这里都不认，
-// 认不出的写法直接报错（带行号），由调用方把「解析失败」判成全量：判不准就多跑，不按猜出来的树少跑。
-// 解析结果是一棵只有字符串、序列、映射的树；锁文件的含义（importer、snapshot、依赖边）由 `lockfile-impact.ts` 读。
-// pnpm 12 声明了自身版本时，锁文件是两个文档：以 `---` 开头、只锁 pnpm 自己的 `packageManagerDependencies` 文档，
-// 再一个 `---` 之后是依赖的锁文件本体；安装后的副本 `node_modules/.pnpm/lock.yaml` 只有本体。`parsePnpmLockfile` 拆开两者。
-
 export type YamlNode = string | readonly YamlNode[] | YamlMap
 export type YamlMap = ReadonlyMap<string, YamlNode>
 
-/** 解析失败：`line` 是 1 起的行号。 */
 export class LockfileSyntaxError extends Error {
   readonly line: number
 
@@ -26,7 +17,6 @@ interface Line {
   readonly text: string
 }
 
-/** 去掉空行与整行注释，量出每行缩进；制表符缩进不认。 */
 function significantLines(source: string): Line[] {
   return source.split('\n').flatMap((raw, index) => {
     const number = index + 1
@@ -39,7 +29,6 @@ function significantLines(source: string): Line[] {
   })
 }
 
-/** 一段文本里读一个流式值（标量或流式集合）的游标。 */
 class FlowReader {
   private position = 0
   private readonly text: string
@@ -50,7 +39,6 @@ class FlowReader {
     this.line = line
   }
 
-  /** 整段文本必须正好是一个值。 */
   readWhole(): YamlNode {
     const value = this.readValue(new Set())
     this.skipSpaces()
@@ -114,7 +102,6 @@ class FlowReader {
     }
   }
 
-  /** 键：引号里的原样，否则到 `stop` 里任一字符为止。 */
   private readKey(stop: ReadonlySet<string>): string {
     this.skipSpaces()
     const char = this.text[this.position]
@@ -198,7 +185,6 @@ class FlowReader {
   }
 }
 
-/** 块映射一行的键与冒号后面的部分；键可以带引号，引号里允许 `:`、`(`、`@`。 */
 function splitEntry(line: Line): { readonly key: string; readonly rest: string } {
   const { text } = line
   const quote = text[0]
@@ -261,7 +247,6 @@ class BlockParser {
     return root
   }
 
-  /** 读完缩进正好是 `indent` 的一段：序列或映射。 */
   private parseBlock(indent: number): YamlNode {
     const first = this.lines[this.index]
     if (first === undefined || first.indent !== indent)
@@ -306,7 +291,6 @@ class BlockParser {
     }
   }
 
-  /** 冒号后面有内容就是单行值；没有内容就是下一行起、缩进更深的块。 */
   private parseEntryValue(line: Line, rest: string): YamlNode {
     if (rest.trim() !== '') return new FlowReader(rest, line.number).readWhole()
     const next = this.lines[this.index]
@@ -316,12 +300,10 @@ class BlockParser {
   }
 }
 
-/** 解析单文档的 YAML 文本（锁文件本体、`pnpm-workspace.yaml`）；认不出的写法抛 `LockfileSyntaxError`。 */
 export function parseLockfileYaml(source: string): YamlMap {
   return new BlockParser(significantLines(source)).parseDocument()
 }
 
-/** 一份 `pnpm-lock.yaml`：本体，以及 pnpm 12 写在它前面的、锁 pnpm 自身的文档（没有就是 undefined）。 */
 export interface PnpmLockfile {
   readonly environment: YamlMap | undefined
   readonly main: YamlMap
@@ -329,10 +311,7 @@ export interface PnpmLockfile {
 
 const isDocumentMarker = (line: Line) => line.indent === 0 && line.text === '---'
 
-/**
- * 解析 `pnpm-lock.yaml`：不以 `---` 开头的是单文档，整份是本体；以 `---` 开头的必须正好两个文档，
- * 前一个是 pnpm 自身的锁定，后一个是本体。别的分法（三个文档、开头没有 `---` 却在中间分段、空文档）抛 `LockfileSyntaxError`。
- */
+// pnpm 12 声明了自身版本时，锁文件以 `---` 开头，先是只锁 pnpm 自身的文档，再是本体；安装副本只有本体。
 export function parsePnpmLockfile(source: string): PnpmLockfile {
   const lines = significantLines(source)
   const markers = lines.filter(isDocumentMarker)
@@ -354,10 +333,8 @@ export function parsePnpmLockfile(source: string): PnpmLockfile {
   }
 }
 
-/** `Array.isArray` 不缩窄只读数组，这里显式说明。 */
 const isSequence = (node: YamlNode): node is readonly YamlNode[] => Array.isArray(node)
 
-/** 两棵树是否相同：映射按键比，顺序不算。 */
 export function equalNodes(left: YamlNode, right: YamlNode): boolean {
   if (typeof left === 'string' || typeof right === 'string') return left === right
   if (isSequence(left) || isSequence(right)) {

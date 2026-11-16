@@ -1,17 +1,3 @@
-// The `execution-record` participant module: the Agent facts of the execution record provider (the
-// Agent Journal) as the second append-only family of the Session log (R2-D292), and the content
-// blocks of the tenant (TB-04). It decides nothing of the Agent. In the commit transaction a
-// publication does six things: it finds the original batch of the operation; it compares the
-// publication count of the session and the head revision of the execution with the expected
-// ones (the first gate); it appends the batch of facts at the next publication (the primary key is
-// the second gate) with the content blocks the batch needs, once per tenant and digest; it writes
-// the operation key, the head rows and the admissions the provider prepared; and it adds one to
-// the publication count. Nothing is replaced and no answer is stored: an answer is derived from
-// the batch of its operation. The fact bodies are opaque: it stores them as they came.
-// Its `blobs` intent stores content blocks alone, before the facts that refer to them, for a block
-// that does not fit one command with them.
-// Its `preadmission` intent keeps the preadmission records: the intent of one handoff is saved
-// before the provider answers, and its outcome is fixed once.
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantModule, ParticipantReply } from '@omne-harness/sql-contract/worker'
@@ -47,7 +33,6 @@ type Boundary = Readonly<{
   emittedThrough: string
   ended: JsonValue
 }>
-/** The event of a fact that is an event: its sequence, kinds and the projection Session reads. */
 type Event = Readonly<{ sequence: string; kinds: readonly string[]; projection: Json }>
 type Fact = Readonly<{ execution: string; kind: string; event: Event | null; body: string }>
 type Blob = Readonly<{ digest: string; media: string; payload: string }>
@@ -115,11 +100,6 @@ function parseBoundary(item: Json): Boundary | null {
     : null
 }
 
-/**
- * The event of a fact: a positive sequence, an evidence object as its source and text kinds.
- * `consequences`, `control` and `batch` pass as given; an absent `consequences` or `control` is
- * null (not decided, not a deferred control fact), an absent `batch` is left out.
- */
 function parseEvent(raw: JsonValue | undefined): Event | null | 'malformed' {
   if (raw === undefined || raw === null) return null
   if (!isJson(raw)) return 'malformed'
@@ -135,7 +115,6 @@ function parseEvent(raw: JsonValue | undefined): Event | null | 'malformed' {
   return { sequence, kinds: kinds as string[], projection }
 }
 
-/** One fact of the batch; its execution is the write's when it names none. */
 function parseFact(execution: string): (item: Json) => Fact | null {
   return item => {
     const owner = item['execution'] ?? execution
@@ -147,7 +126,6 @@ function parseFact(execution: string): (item: Json) => Fact | null {
   }
 }
 
-/** A block whose digest is the digest of its payload; any other block is malformed. */
 function parseBlob(item: Json): Blob | null {
   const { digest, media, payload } = item
   return isText(digest) &&
@@ -160,7 +138,6 @@ function parseBlob(item: Json): Blob | null {
 
 function parseAdmission(item: Json): Admission | null {
   const { input, execution, operation, attachment, attempt } = item
-  // An absent attempt is a legacy or unnamed one; a present one must be a non-empty text.
   const named = attempt === undefined || attempt === null || isText(attempt)
   return isText(input) && isText(execution) && isText(operation) && isText(attachment) && named
     ? {
@@ -187,7 +164,6 @@ type Head = Pick<
   | 'digest'
 >
 
-/** The identity and the expected counts of the write. */
 function parseHead(raw: Json): Head | null {
   const tenant = tenantOf(raw['tenant'])
   const { session, execution, expected, revision, published, operation, digest } = raw
@@ -205,11 +181,6 @@ function parseHead(raw: Json): Head | null {
   return { tenant, session, execution, expected, revision, published, operation, digest }
 }
 
-/**
- * Parses the write at the boundary; a malformed one is unsupported and writes nothing. A batch
- * holds one to `EXECUTION_BATCH_MAX_FACTS` facts (the first is its envelope), each body at most
- * `EXECUTION_FACT_MAX_BYTES`, and no two events of one execution with one sequence.
- */
 function parseWrite(raw: JsonValue | undefined): Write | null {
   if (!isJson(raw)) return null
   const head = parseHead(raw)
@@ -229,11 +200,6 @@ function parseWrite(raw: JsonValue | undefined): Write | null {
 
 const json = (value: JsonValue): string => JSON.stringify(value)
 
-/**
- * Appends the batch at publication `pub`. A plain INSERT: a row already at one of these positions
- * (a writer that passed the count check at a taken position), an event sequence or an operation
- * already written makes the statement fail, and the storage rolls the whole commit back.
- */
 function appendBatch(port: Executor, write: Write, pub: bigint): void {
   write.facts.forEach((fact, ord) =>
     port.execute(
@@ -255,7 +221,6 @@ function appendBatch(port: Executor, write: Write, pub: bigint): void {
   )
 }
 
-/** Stores each block once per tenant and digest: a block the tenant holds is not written again. */
 function storeBlobs(port: Executor, tenant: string, blobs: readonly Blob[]): void {
   for (const blob of blobs)
     port.execute(
@@ -300,7 +265,6 @@ function writeIndex(port: Executor, write: Write): void {
         admission.attachment,
       ],
     )
-    // The original attempt is a row beside the admission, with its key; none when it is not named.
     if (admission.attempt !== null)
       port.execute(
         'INSERT INTO er_admission_attempt_idx (tenant, session, input, ordinal, attempt) VALUES (?, ?, ?, ?, ?)',
@@ -311,8 +275,6 @@ function writeIndex(port: Executor, write: Write): void {
 
 function publish(port: Executor, write: Write): ParticipantReply {
   const { tenant, session, execution } = write
-  // The original batch first: the provider tells a recall of the same operation by its digest
-  // and derives the answer from the batch at `published`.
   const original = oneRow(
     port,
     'SELECT digest, published FROM er_operation WHERE tenant = ? AND operation = ? LIMIT 1',
@@ -339,7 +301,6 @@ function publish(port: Executor, write: Write): ParticipantReply {
     [tenant, execution],
   )
   const current = head === undefined ? null : text(head['revision'])
-  // The first gate. An execution of the same identity in another session is a conflict too.
   if (
     published !== BigInt(write.published) ||
     current !== write.expected ||
@@ -365,7 +326,6 @@ function publish(port: Executor, write: Write): ParticipantReply {
   return { kind: 'participated', response: { published: String(next), digest: write.digest } }
 }
 
-/** The `blobs` intent: blocks alone, before the facts that refer to them. A block is not a fact. */
 function blobs(port: Executor, raw: JsonValue | undefined): ParticipantReply {
   const tenant = isJson(raw) ? tenantOf(raw['tenant']) : null
   const list = isJson(raw) ? listOf(raw['blobs'], parseBlob) : null
@@ -375,15 +335,11 @@ function blobs(port: Executor, raw: JsonValue | undefined): ParticipantReply {
   return { kind: 'participated', response: { stored: list.map(blob => blob.digest) } }
 }
 
-// ---------------------------------------------------------------------------------------------
-// Preadmission records
-
 const optionalText = (value: JsonValue | undefined): value is string | null =>
   value === null || isText(value)
 
 const digestOf = (value: JsonValue): string => `sha256:${sha256(canonicalText(value))}`
 
-/** The members a saved intent carries; their content is opaque to this participant. */
 const INTENT_MEMBERS = [
   'request',
   'origin',
@@ -433,10 +389,6 @@ const preadmissionConflict = (row: Row): ParticipantReply => ({
   basis: { kind: 'preadmission', record: preadmissionRecord(row) },
 })
 
-/**
- * SaveIntent: the record of the same Ki is the answer as it is, whatever its H; then the record of
- * the same H recalls when its intent is the same and conflicts otherwise; else one new record.
- */
 function saveIntent(port: Executor, write: IntentWrite): ParticipantReply {
   const { tenant, handoff, entry } = write
   const sameEntry = entry === null ? undefined : findPreadmission(port, tenant, { entry })
@@ -457,7 +409,6 @@ function saveIntent(port: Executor, write: IntentWrite): ParticipantReply {
     : saved(true, row)
 }
 
-/** Commit: the outcome of a saved intent is fixed once; the same outcome recalls, another conflicts. */
 function fixOutcome(port: Executor, write: OutcomeWrite): ParticipantReply {
   const { tenant, handoff } = write
   const held = findPreadmission(port, tenant, { handoff })

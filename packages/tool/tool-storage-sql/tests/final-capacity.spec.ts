@@ -1,7 +1,4 @@
 // @module-tag slow
-// A 5 MiB final through the real SQLite command limit: the ledger plans it when the execution
-// records it, so the body goes to the body store as a system body and the fact, the result record
-// and the whole call domain stay bounded. The settled result reads back page by page and expires.
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

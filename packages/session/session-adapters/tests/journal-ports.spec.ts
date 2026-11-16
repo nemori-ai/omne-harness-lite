@@ -93,8 +93,6 @@ it('reply admissions page the actual original decisions and output acknowledgeme
         expected: receipt.revision,
         checkpoint: s.checkpoint,
         state: { kind: 'advancing' },
-        // One Agent-owned event per commit, so that the acknowledgement below has sequence '3'
-        // to reach; the Model reply itself is not an Agent event.
         events: [
           {
             kind: 'message',
@@ -172,7 +170,6 @@ it('commit refuses an entry or ended event body as invalid events, because the J
       expected: s.opened.receipt.revision,
       checkpoint: s.checkpoint,
       state: { kind: 'advancing' },
-      // The type already excludes these bodies; the cast is the caller bypassing it.
       events: [body] as unknown as Parameters<typeof s.view.journal.commit>[0]['events'],
       effects: [],
       caller: { kind: 'none' },

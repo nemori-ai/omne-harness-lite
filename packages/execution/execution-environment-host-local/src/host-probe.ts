@@ -14,16 +14,9 @@ import {
 } from './host-scope.ts'
 import { noUnifiedHierarchyExit } from './scope-cgroup.ts'
 
-/** Milliseconds on the monotonic clock, for the age of a probe answer. */
 const monotonicMs = () =>
   /* wall-clock: operation-timing -- Age an unsatisfied probe answer for its retry. */ performance.now()
 
-/**
- * The platform prerequisites of the host `command` facility: P1 Linux, P3 `systemd-run` and
- * `systemctl` on PATH, P4 a running user manager, P5 a process in a scope sees the unified cgroup
- * hierarchy, P6 the process finds itself listed in its unit's directory and the supervisor confirms
- * the forced stop of the probe scope.
- */
 export type HostCommandPrerequisite =
   | 'linux'
   | 'systemd-tools'
@@ -34,10 +27,8 @@ export type HostCommandPrerequisite =
 export type PrerequisiteReading =
   | Readonly<{ kind: 'satisfied'; tools: ScopeTools }>
   | Readonly<{ kind: 'unsatisfied'; missing: readonly HostCommandPrerequisite[] }>
-  /** The probe itself failed: nothing is known about the prerequisites. */
   | Readonly<{ kind: 'unknown' }>
 
-/** Resolves an executable on the current PATH of this process to an absolute path. */
 async function resolveTool(name: string): Promise<string | undefined> {
   for (const directory of (process.env['PATH'] ?? '').split(':')) {
     if (!directory.startsWith('/')) continue
@@ -45,9 +36,7 @@ async function resolveTool(name: string): Promise<string | undefined> {
     try {
       await access(candidate, constants.X_OK)
       if ((await stat(candidate)).isFile()) return candidate
-    } catch {
-      /* Not here: try the next directory. */
-    }
+    } catch {}
   }
   return undefined
 }
@@ -62,10 +51,6 @@ async function killOption(
   return help.stdout.includes('--kill-whom') ? '--kill-whom' : '--kill-who'
 }
 
-/**
- * The supervisor resolved now from PATH, for recovery when the probe is not satisfied: a scope of
- * another process may still be there.
- */
 export async function resolveSupervisor(boundMs: number): Promise<Supervisor | undefined> {
   const systemctl = await resolveTool('systemctl')
   const killWhom = systemctl === undefined ? undefined : await killOption(systemctl, boundMs)
@@ -88,10 +73,6 @@ const scopeProbeScript = fileURLToPath(
 
 type ScopeProbeItem = 'cgroup-v2' | 'scope-round-trip'
 
-/**
- * The items a probe scope leaves unsatisfied: P5 when its program saw no unified hierarchy, P6 when
- * the program failed otherwise, did not exit in time, or the forced stop is not confirmed.
- */
 export function scopeProbeMissing(
   code: number | null | 'late',
   stop: StopStatus,
@@ -103,7 +84,6 @@ export function scopeProbeMissing(
   return missing
 }
 
-/** P5 and P6 in one probe scope that runs the scope probe program. */
 async function probeScope(tools: ScopeTools, boundMs: number): Promise<readonly ScopeProbeItem[]> {
   const bootId = await readBootId()
   if (bootId === undefined) return ['scope-round-trip']
@@ -134,7 +114,6 @@ async function probeScope(tools: ScopeTools, boundMs: number): Promise<readonly 
   return scopeProbeMissing(code, stop.status)
 }
 
-/** P3 and P4: the tools by absolute path and a running user manager, or the item that is missing. */
 async function resolveScopeTools(
   boundMs: number,
 ): Promise<ScopeTools | 'systemd-tools' | 'user-manager'> {
@@ -147,7 +126,6 @@ async function resolveScopeTools(
   return { systemdRun, systemctl, killWhom }
 }
 
-/** Probes P1 and P3 to P6 once against the real host, in order; a later item needs the earlier ones. */
 export async function probeCommandPrerequisites(boundMs: number): Promise<PrerequisiteReading> {
   if (process.platform !== 'linux') return { kind: 'unsatisfied', missing: ['linux'] }
   const tools = await resolveScopeTools(boundMs)
@@ -156,15 +134,10 @@ export async function probeCommandPrerequisites(boundMs: number): Promise<Prereq
   return missing.length === 0 ? { kind: 'satisfied', tools } : { kind: 'unsatisfied', missing }
 }
 
-/** The probe of one provider generation: started at creation, a satisfied answer kept for the generation. */
-/** A probe's answer on any platform: what `describe()` and a start read of it. */
 type ProbeAnswer = Readonly<{ kind: 'satisfied' | 'unsatisfied' | 'unknown' }>
 
-/** The probe of one provider generation: started at creation, a satisfied answer kept for the generation. */
 export type PrerequisiteProbe<R extends ProbeAnswer = PrerequisiteReading> = Readonly<{
-  /** `unknown` while the probe runs or when it failed. */
   facts(): 'satisfied' | 'unsatisfied' | 'unknown'
-  /** Waits for the running probe; probes again when the last answer is not satisfied and older than the retry interval. */
   ready(): Promise<R>
 }>
 
@@ -175,7 +148,6 @@ export function createPrerequisiteProbe(input: {
 export function createPrerequisiteProbe<R extends ProbeAnswer>(input: {
   retryMs: number
   boundMs: number
-  /** The platform's probe; the Linux probe of P1 and P3 to P6 when absent. */
   probe: (boundMs: number) => Promise<R>
 }): PrerequisiteProbe<R>
 export function createPrerequisiteProbe(input: {
@@ -212,7 +184,6 @@ export function createPrerequisiteProbe(input: {
   })
 }
 
-/** Linux terminal prerequisites supplement the existing scope probe. No native module is loaded on another platform. */
 export type HostTerminalPrerequisite = 'linux' | 'bash' | 'mkfifo' | 'node-pty'
 
 export async function probeTerminalPrerequisites(): Promise<readonly HostTerminalPrerequisite[]> {

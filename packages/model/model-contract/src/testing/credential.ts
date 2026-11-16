@@ -1,6 +1,3 @@
-// The scripted credential port: a credential provider in memory over the providers the test names.
-// It fixes and reads layers with the contract's own rule, so a test of a consumer sees the answers
-// every real provider must give.
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
@@ -16,7 +13,6 @@ import type {
 } from '../conformance/credential-types.ts'
 import type { ProviderName } from '../root.ts'
 
-/** A provider the scripted port knows: its credential items and whether the release holds it. */
 export type ScriptedCredentialProvider = Readonly<{ items: readonly string[]; official: boolean }>
 
 export type ScriptedCredentialPortOptions = Readonly<{
@@ -44,7 +40,6 @@ export function createScriptedCredentialPort<P = unknown>(
   let unavailable = false
 
   function gate(tenant: TenantId): CredentialFailure | undefined {
-    // legal-identity has no separate mint check; equality with itself holds only for a minted tenant.
     if (closed || !tenantEquals(tenant, tenant)) return { kind: 'denied' }
     return unavailable ? { kind: 'unavailable' } : undefined
   }

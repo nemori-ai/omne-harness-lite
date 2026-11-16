@@ -78,7 +78,6 @@ it('writes the provider entry only as type re-exports and the one runtime re-exp
     expect(statement).toMatch(
       /^export type \{ [A-Za-z, ]+,? \} from '\.\/[a-z-]+\.ts'$|^export \{ isSealedSnapshot, sealSnapshot \} from '\.\/snapshot\.ts'$/,
     )
-  // Comments and empty statements are not exports: the mutation sandbox adds both.
   const withoutComments = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
   const rest = statements.reduce(
     (left, statement) => left.replace(/\s+/g, ' ').replace(statement, ''),
@@ -108,13 +107,11 @@ it('names on the provider entry exactly the types and values that the SPEC gives
 
 const src = fileURLToPath(new URL('../src/', import.meta.url))
 
-/** Module specifiers in a source text: `import … from`, `export … from`, bare and dynamic imports. */
 const SPECIFIER = /(?:\bfrom|\bimport\s*\(?)\s*(['"])([^'"]+)\1/g
 
 const isTestFramework = (specifier: string): boolean =>
   /^(?:vitest|jest|mocha|@vitest\/)/.test(specifier)
 
-/** The source modules that `entry` reaches by relative imports, and the bare specifiers it names. */
 function walk(entry: string): { files: Set<string>; bare: Set<string> } {
   const files = new Set<string>()
   const bare = new Set<string>()
@@ -131,11 +128,6 @@ function walk(entry: string): { files: Set<string>; bare: Set<string> } {
   return { files, bare }
 }
 
-/**
- * The names that a re-exporting entry file exports, types included, sorted. A star export
- * (`export *` or `export type *`) has no list of names, so it appears as `*`. An inline `type`
- * inside the braces is read too.
- */
 function exportedNames(entry: string): string[] {
   const text = readFileSync(entry, 'utf8')
   const names: string[] = []
@@ -153,7 +145,6 @@ function exportedNames(entry: string): string[] {
   return names.sort()
 }
 
-/** The export statements of an entry file, with their white space collapsed. */
 function exportStatements(entry: string): string[] {
   const text = readFileSync(entry, 'utf8')
   return [...text.matchAll(/export\b[^;]*?from\s*(['"])[^'"]+\1/g)].map(match =>

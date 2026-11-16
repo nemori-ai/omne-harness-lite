@@ -10,7 +10,6 @@ export interface ScryptProfile {
   readonly queue: number
 }
 
-/** OWASP minimum scrypt cost. One job is about 128 MiB and about 200 ms on the measured arm64 host. */
 export const SCRYPT_PROFILE: ScryptProfile = {
   N: 2 ** 17,
   r: 8,

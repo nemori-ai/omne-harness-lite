@@ -1,14 +1,3 @@
-// Explorer ports: every call of the MCP ports, and of the handles, processes and transports they
-// hand out, is a `ScriptedPortCall`. A call is decided twice. When it is made, the schedule says
-// whether it throws synchronously. Afterwards it stays pending until the explorer settles it with
-// one of the port's answers (`ok`, a failure, `reject`, or `unconfirmed` for `stop()`), or leaves
-// it pending forever (a hang). A call answered after its bound fired is a late answer. The ports
-// also keep the ledger of every resource they hand out, which the properties read.
-//
-// The call port (SPEC MC-16, MC-17) adds the transport's `call`, the peer's answer to a sent
-// call (`SentCall.answer`, a pending call of its own), `cancelRequest`, the four task methods,
-// the eligibility check of the gate, and the store's write that marking a catalog reaches once
-// the store holds one. A scenario with call operations gets a catalog of one action.
 import type { Access } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
@@ -44,7 +33,6 @@ import { catalogKeyTextOf } from '../../src/internal/text.ts'
 import { jsonOf, peerIdentityOf } from '@omne-harness/mcp-contract/testing'
 import { type Principal } from '../doubles/identities.ts'
 
-/** The answers of each port, the lawful one first. The closure phases answer with the first. */
 export const PORT_ANSWERS = {
   'adoption.endpoint': ['ok', 'fail', 'reject'],
   'eligibility.check': ['ok', 'fail', 'reject'],
@@ -57,15 +45,7 @@ export const PORT_ANSWERS = {
   'credential.release': ['ok', 'reject'],
   'store.read': ['ok', 'fail', 'reject'],
   'store.write': ['ok', 'fail', 'reject'],
-  /**
-   * `ok`: sent, with a request id; `fail`: `not-sent` (`connection-unavailable`) marked as not
-   * usable any more; `fail-usable`: the same failure without the mark (`USABLE_FAILURE`).
-   */
   'transport.call': ['ok', 'fail', 'fail-usable', 'reject'],
-  /**
-   * The peer's answer to a sent call. `ok`: the scenario's peer reply; `fail`: `no-answer` marked
-   * as not usable any more; `fail-usable`: `no-answer` without the mark.
-   */
   'transport.answer': ['ok', 'fail', 'fail-usable', 'reject'],
   'transport.cancelRequest': ['ok', 'reject'],
   'transport.getTask': ['ok', 'fail', 'fail-usable', 'reject'],
@@ -74,20 +54,13 @@ export const PORT_ANSWERS = {
   'transport.cancelTask': ['ok', 'fail', 'fail-usable', 'reject'],
 } as const
 
-/**
- * The answer of a transport method that fails while the transport stays usable: the failure
- * carries no `unusable` mark (contract T1). Only the methods a ready connection sends on offer
- * it; a build fails on any failure of `discover`, marked or not.
- */
 export const USABLE_FAILURE = 'fail-usable'
 
 export type PortName = keyof typeof PORT_ANSWERS
 export type Answer = (typeof PORT_ANSWERS)[PortName][number]
 
-/** A way a call can go other than its lawful answer; each one spends the deviation budget. */
 export type Deviation = Exclude<Answer, 'ok'> | 'throw'
 
-/** The ports the task operations wait for under the task bound (MC-17). */
 export const TASK_PORTS: ReadonlySet<PortName> = new Set<PortName>([
   'transport.getTask',
   'transport.getTaskResult',
@@ -95,7 +68,6 @@ export const TASK_PORTS: ReadonlySet<PortName> = new Set<PortName>([
   'transport.cancelTask',
 ])
 
-/** The ports whose calls are waited for under a bound (MC-5 for the build, MC-17 for a task). */
 export const BOUNDED_PORTS: ReadonlySet<PortName> = new Set<PortName>([
   'adoption.endpoint',
   'credentials.acquire',
@@ -105,14 +77,12 @@ export const BOUNDED_PORTS: ReadonlySet<PortName> = new Set<PortName>([
   ...TASK_PORTS,
 ])
 
-/** The three steps of the close order (MC-14). */
 export const TEARDOWN_PORTS: ReadonlySet<PortName> = new Set<PortName>([
   'transport.close',
   'process.stop',
   'credential.release',
 ])
 
-/** The four task operations and the transport method each one sends. */
 export const TASK_METHODS = {
   get: 'transport.getTask',
   result: 'transport.getTaskResult',
@@ -122,13 +92,10 @@ export const TASK_METHODS = {
 
 export type TaskMethod = keyof typeof TASK_METHODS
 
-/** What the peer answers to a sent call when the answer is lawful. */
 export type PeerReply = 'complete' | 'task'
 
-/** The one task id of the model: the task the peer answers with when the reply is `task`. */
 export const TASK_ID = 't1'
 
-/** One connection key of the scenario: who asks, for what, and the token the gate gave. */
 export type ModelKey = Readonly<{
   name: string
   access: Access<Principal>
@@ -137,29 +104,21 @@ export type ModelKey = Readonly<{
   admitted: AdmittedEndpoint
   connectionKey: ConnectionKey
   catalogKeyText: string
-  /** The digest of the one action in the catalog, for `expectedDefinition`. */
   digest: DefinitionDigest
 }>
 
-/** What a call was made under: the client operation it descends from, and its bound. */
 export type Context = Readonly<{ op: string; timer?: string }>
 
 export type ScriptedPortCall = Readonly<{
-  /** The order the call was made in, within one run. */
   seq: number
   port: PortName
-  /** The key the arguments name. */
   key: string
-  /** The resource the call acts on, or the key for a port without one. */
   subject: string
   context: Context | undefined
-  /** The functions of `src/` on the stack when the call was made: where its answer goes. */
   site: string
-  /** The transport a request goes on (P16); `undefined` for every other port. */
   transport: string | undefined
 }>
 
-/** A port call that threw or rejected on the explorer's say, with the call it belongs to. */
 export class PortFault extends Error {
   readonly call: ScriptedPortCall
   readonly how: 'threw' | 'rejected'
@@ -176,17 +135,12 @@ export type CallRequest<T> = Readonly<{
   port: PortName
   key: string
   subject: string
-  /** The transport a request goes on (P16): `transport.call`, `cancelRequest` and the task methods. */
   transport?: string
-  /** The value of an answer that does not reject, given the call as it was made. */
   value: (answer: Exclude<Answer, 'reject'>, call: ScriptedPortCall) => T
-  /** Told how the call ended: an answer, or that it threw when it was made. */
   ended?: (how: Answer | 'throw') => void
-  /** The context the call belongs to, for a call made outside the operation's async context. */
   context?: Context
 }>
 
-/** The explorer side of the ports: it registers each call and decides whether it throws now. */
 export interface CallDesk {
   open<T>(request: CallRequest<T>): Promise<T>
 }
@@ -196,7 +150,6 @@ export type HandleRecord = { readonly name: string; readonly key: string; releas
 export type ProcessRecord = {
   readonly name: string
   readonly key: string
-  /** The credential handle the process carries in its environment. */
   readonly handle: string | undefined
   stops: number
   lastStop: StopScope | 'rejected' | 'threw' | undefined
@@ -206,12 +159,10 @@ export type TransportRecord = {
   readonly name: string
   readonly key: string
   readonly generation: Generation
-  /** The `seq` of the `transports.open` call that handed it over (P16). */
   readonly opened: number
   closes: number
 }
 
-/** A request the transport sent: who sent it, and how often it was told to cancel it (P10). */
 export type RequestRecord = {
   readonly id: string
   readonly key: string
@@ -219,20 +170,14 @@ export type RequestRecord = {
   cancels: number
 }
 
-/** Every resource the ports handed out, with what was asked of it. */
 export type Ledger = Readonly<{
   handles: HandleRecord[]
   processes: ProcessRecord[]
   transports: TransportRecord[]
-  /** The requests sent, in order; the peer's answer to each is a pending call. */
   requests: RequestRecord[]
-  /** `cancelRequest` for a request id the transport never handed out (P10). */
   strayCancels: string[]
-  /** Arguments of one call that name two keys (P5). */
   crossings: string[]
-  /** Handles released while a process that carries them had no answer to `stop()` (P1, S9). */
   earlyReleases: string[]
-  /** The name of each handle, process and transport object the ports handed out. */
   names: WeakMap<object, string>
 }>
 
@@ -249,9 +194,7 @@ export function emptyLedger(): Ledger {
   }
 }
 
-/** What the ports answer besides the lifecycle: the catalog, and the peer's reply to a call. */
 export type PortOptions = Readonly<{
-  /** The catalog the store holds for every key; absent in the lifecycle scenarios. */
   catalog?: ActionCatalogRecord
   peer?: PeerReply
 }>
@@ -263,8 +206,6 @@ function notModelled(member: string): never {
 const PEER: PeerIdentity = peerIdentityOf()
 type NotSent = Extract<TransportFailure, { kind: 'not-sent' }>
 type NoAnswer = Extract<PeerAnswer, { kind: 'no-answer' }>
-// A failing transport method in this model is a line that ended (X02, S01, S03): the transport
-// marks the answer as not usable any more (contract T1), so the connection is lost as before.
 const NOT_SENT: NotSent = {
   kind: 'not-sent',
   cause: 'connection-unavailable',
@@ -275,18 +216,12 @@ const STREAM_BROKEN: NoAnswer = {
   cause: 'stream-broken',
   unusable: 'stream-broken',
 }
-// The failures of one request while the transport stays usable: no mark (contract T1), so the
-// connection stays as it is (contract S7). Streamable HTTP gives them (T8 X01, S06, C05, O08 for
-// `not-sent`; C04, O06, O07 for `no-answer`); the model's transport is stdio, and the services
-// read the mark, never the material.
 const NOT_SENT_USABLE: NotSent = { kind: 'not-sent', cause: 'connection-unavailable' }
 const STREAM_BROKEN_USABLE: NoAnswer = { kind: 'no-answer', cause: 'stream-broken' }
-// A failed `open` hands over no transport, so its failure carries no mark (contract T1).
 const OPEN_FAILED: NotSent = { kind: 'not-sent', cause: 'connection-unavailable' }
 const WORKING: TaskReport = { status: 'working' }
 const NOT_FINISHED: TaskAnswer = { kind: 'not-finished' }
 
-/** The peer's lawful reply to a call: a complete result with no content, or the task handle. */
 function replyOf(peer: PeerReply): PeerAnswer {
   return peer === 'task'
     ? { kind: 'result', result: jsonOf({ resultType: 'task', taskId: TASK_ID }) }
@@ -301,10 +236,6 @@ function nameOf(prefix: string, key: ModelKey, records: readonly { key: string }
   return `${prefix}${key.name}${records.filter(item => item.key === key.name).length + 1}`
 }
 
-/**
- * The MCP ports on `desk`, for `keys`. Stdio with a process credential only: the HTTP purpose,
- * the listing and the output check are not reached by the connection table or the call port.
- */
 export function scriptedPorts(
   desk: CallDesk,
   keys: readonly ModelKey[],
@@ -380,11 +311,6 @@ export function scriptedPorts(
     return process
   }
 
-  /**
-   * A call the transport sent: the request is recorded, and the peer's answer is a pending call
-   * of its own, under the context of the call that sent it (made outside that context, at the
-   * moment the explorer answers `transport.call`).
-   */
   function sentCallFor(key: ModelKey, context: Context | undefined): SentCall {
     const record: RequestRecord = {
       id: `r${ledger.requests.length + 1}`,
@@ -408,7 +334,6 @@ export function scriptedPorts(
     return { requestId: record.id, answer }
   }
 
-  /** The `not-sent` of a failing call or task method: marked, unless the answer is `fail-usable`. */
   function notSentOf(answer: Exclude<Answer, 'reject'>): NotSent {
     return answer === USABLE_FAILURE ? NOT_SENT_USABLE : NOT_SENT
   }
@@ -422,7 +347,6 @@ export function scriptedPorts(
       closes: 0,
     }
     ledger.transports.push(record)
-    /** A request on this transport: it carries the transport's name, the one P16 reads. */
     const requestOn = <T>(asked: Omit<CallRequest<T>, 'key' | 'transport'>): Promise<T> =>
       desk.open<T>({ ...asked, key: key.name, transport: record.name })
     const taskCall = <T>(port: PortName, taskId: string, value: T) =>
@@ -450,7 +374,6 @@ export function scriptedPorts(
         })
       },
       listActions: () => notModelled('transport.listActions'),
-      // The stop signal is not read: the explorer decides whether the call was sent (T5).
       call: () =>
         requestOn<Outcome<SentCall, NotSent>>({
           port: 'transport.call',

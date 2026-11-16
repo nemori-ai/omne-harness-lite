@@ -1,11 +1,6 @@
 /**
  * @module-tag slow
- * Heavy CPU: each case enumerates a bounded space of worlds, schedules and requests and drives
- * the real services through every combination (about 10^5 operations per property).
  */
-// The bounded exploration of S1-S7 against the real services (`dist`). The spaces and their
-// sizes are in tests/model/README.md; the theorems in verification/README.md. An empty violation
-// list is a bounded result for the enumerated space only, not a proof for every world.
 import { expect, it } from 'vitest'
 import { exploreAbort } from './abort.ts'
 import { exploreBasis } from './basis.ts'

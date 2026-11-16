@@ -71,7 +71,6 @@ it('keeps a failed pipe read distinct from a completely drained output', async c
       await closed
     }
   } finally {
-    // The anchor runs this bridge image and exits just after the Job stops.
     await rm(directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 })
   }
 }, 20_000)

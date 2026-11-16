@@ -20,14 +20,11 @@ import {
   runtimeContextTrustKey,
 } from '@omne-harness/runtime-context-cordis-contract/cordis'
 
-/** Where the provider writes mechanism diagnostics; `off` drops them. */
 export type RuntimeContextDiagnosticsLevel = 'off' | 'debug' | 'info' | 'warn'
 
-/** Plugin configuration: the mechanism bounds plus the diagnostics level. Every field may be omitted. */
 export type RuntimeContextPluginConfig = RuntimeContextConfig &
   Readonly<{ diagnostics?: RuntimeContextDiagnosticsLevel }>
 
-/** The mechanism factory; a test may replace it, the product uses runtime-context's one factory. */
 export type RuntimeContextMechanismFactory = (
   options: RuntimeContextOptions<unknown>,
 ) => RuntimeContextMechanism<unknown>
@@ -77,11 +74,6 @@ function isBoundField(name: string): name is (typeof BOUND_FIELDS)[number] {
   return BOUND_FIELDS.some(field => field === name)
 }
 
-/**
- * The plugin's Standard Schema validation. Unknown fields are refused so that a misspelled bound
- * fails the load instead of silently keeping its initial value. The bounds themselves are decided
- * by runtime-context's resolver, not here.
- */
 function parseConfig(value: unknown): Parsed {
   if (value === undefined || value === null) return { value: {} }
   if (!isRecord(value)) return { issues: [{ message: 'configuration must be an object' }] }
@@ -126,12 +118,6 @@ function boundsOf(config: RuntimeContextPluginConfig): RuntimeContextConfig {
   return bounds
 }
 
-/**
- * The Runtime Context provider. It takes the two original ports from `runtimeContextTrust`, builds
- * one mechanism, forwards the eight operations, and adds the Cordis duties: the producer
- * registration is an effect on the calling fiber, `bind` compares the caller's intercept consumer
- * class, the change outlet dispatches the scope-filtered wake-up, and unloading closes the mechanism.
- */
 export class RuntimeContextProvider extends RuntimeContextService<unknown> {
   static readonly inject = [runtimeContextTrustKey]
   static readonly Config = configSchema
@@ -154,8 +140,6 @@ export class RuntimeContextProvider extends RuntimeContextService<unknown> {
     const level = config.diagnostics ?? 'debug'
     const logger = ctx.logger('runtime-context')
     const { authority, bindings } = ctx.runtimeContextTrust
-    // The mechanism lives only in these closures. Cordis hands callers an extended instance, and
-    // `#private` fields fail through it; a plain field would expose the mechanism past `bind`.
     const mechanism = make({
       trust: { authority, bindings },
       config: boundsOf(config),
@@ -163,8 +147,6 @@ export class RuntimeContextProvider extends RuntimeContextService<unknown> {
         const dispatch = ctx.extend({
           [Context.filter]: (target: Context) => target[runtimeContextScopeKey]?.ref === scope.ref,
         })
-        // A throwing listener propagates to the mechanism's outlet guard, which diagnoses it; the
-        // write stands and the wake-up is only a hint.
         ctx.emit(dispatch, 'runtime-context-cordis-contract/changed', scope, revision)
       },
       ...(level === 'off'
@@ -191,8 +173,6 @@ export class RuntimeContextProvider extends RuntimeContextService<unknown> {
       try {
         release = caller.effect(() => () => handle.dispose(), 'runtimeContext.registerProducer')
       } catch {
-        // The calling fiber ended while the registration was in flight: no effect can own the
-        // registration, so withdraw it now and answer as a closed registrant.
         await handle.dispose()
         return { kind: 'rejected', reason: 'closed' }
       }
@@ -211,7 +191,6 @@ export class RuntimeContextProvider extends RuntimeContextService<unknown> {
   }
 }
 
-/** The handle the producer sees: disposing it runs the effect, so the fiber drops the disposer too. */
 function withRelease<K extends ContextBlockKey>(
   handle: ProducerHandle<K>,
   release: () => unknown,
@@ -229,10 +208,6 @@ function withRelease<K extends ContextBlockKey>(
   }
 }
 
-/**
- * The plugin entry. Without options it is the provider with runtime-context's factory. The
- * `mechanism` option replaces the factory, for tests only.
- */
 export function createRuntimeContextPlugin(
   options: Readonly<{ mechanism?: RuntimeContextMechanismFactory }> = {},
 ): typeof RuntimeContextProvider {

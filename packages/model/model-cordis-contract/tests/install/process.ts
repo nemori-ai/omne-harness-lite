@@ -1,15 +1,8 @@
-// Child processes of the install-closure facility, and the TypeScript compiler that it owns. A
-// member does not depend on the compiler: the facility brings its own.
 import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import ts from '@typescript/typescript6'
 
-/**
- * Child processes get no NODE_PATH, no inherited npm configuration and no Node options. Windows
- * variable names are case-insensitive and can arrive as `NPM_CONFIG_REGISTRY`, so there the names
- * are compared without case.
- */
 export function childEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   const fold = (name: string) => (process.platform === 'win32' ? name.toUpperCase() : name)
   const env: NodeJS.ProcessEnv = {}
@@ -21,12 +14,8 @@ export function childEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv 
   return { ...env, ...extra }
 }
 
-/**
- * The command line that starts `command`. `pnpm` is the pnpm that runs this test, named by
- * `npm_execpath`: the consumer project pins no pnpm, so a `pnpm` on PATH would be whatever the
- * machine has. Without `npm_execpath` (the test did not run through pnpm) this is an error; it does
- * not fall back to PATH. A JavaScript entry runs with this process's Node.
- */
+// pnpm is the one that runs this test (npm_execpath). The consumer pins no pnpm, so a pnpm on PATH
+// would be whatever the machine has; there is no fallback to it.
 function commandLine(command: string, args: readonly string[]): [string, readonly string[]] {
   if (command !== 'pnpm') return [command, args]
   const entry = process.env['npm_execpath']
@@ -54,7 +43,6 @@ export function exec(
   })
   return {
     status: result.status ?? -1,
-    /** Set when the process was killed, for example at the time limit. */
     signal: result.signal,
     stdout: result.stdout,
     stderr: result.stderr,
@@ -73,7 +61,6 @@ export function diagnostics(output: string): string {
     .join(' | ')
 }
 
-/** The command line of the compiler, ready to run with `process.execPath`. */
 export function compilerCommand(): string {
   const root = dirname(
     createRequire(import.meta.url).resolve('@typescript/typescript6/package.json'),
@@ -81,7 +68,6 @@ export function compilerCommand(): string {
   return join(root, 'lib', 'tsc.js')
 }
 
-/** The directory that holds the compiler's own library declarations. */
 export function libraryRoot(): string {
   return dirname(ts.getDefaultLibFilePath({}))
 }

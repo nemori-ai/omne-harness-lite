@@ -1,14 +1,3 @@
-// AD-14 on real Cordis: the session slot reference rule and the `sessionAgentDrive` provider. What
-// is checked: the two fixed samples encode to their texts and parse back, and every malformed text
-// is refused; `invoke` and `resume` read the active Run as `coordinator`, check the slot reference
-// against it, and reach the runtime only through `acquire` and `resolve`, with the coordinator
-// principal on every outbound call; each Agent answer maps by the SPEC table; a control names its
-// call by the invocation reference that Session holds, resolved for the target tenant, and a
-// producer that does not resolve is a reported `unavailable` (another tenant's is `denied`), never
-// an accepted or `unsupported` control; a reference that does
-// not match the Run, and an Agent `invalid` that is not an input refusal, answer `unavailable`;
-// another tenant's principal, session or handle is never used; the plugin is absent while any
-// dependency is absent and drops its handles when an instance retires or the plugin runs again.
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -69,9 +58,6 @@ import {
 import { createSessionAgentDrivePlugin, sessionScopeEvidence } from '../src/cordis/agent-drive.ts'
 import { decodeSessionSlotRef, encodeSessionSlotRef } from '../src/slot-ref.ts'
 
-// --- the slot reference rule -------------------------------------------------------------------
-
-// The two fixed samples of SPEC AD-14; the session coordinator's tests assert the same texts.
 const samples = [
   {
     name: 'plain texts',
@@ -92,7 +78,7 @@ const samples = [
   },
 ] as const
 
-describe('the session slot reference (SPEC AD-14)', () => {
+describe('the session slot reference', () => {
   for (const sample of samples)
     it(`${sample.name}: encodes to the sample text and parses back to its slot`, () => {
       const ref = encodeSessionSlotRef({ session: sample.session, adoption: sample.adoption })
@@ -120,8 +106,6 @@ describe('the session slot reference (SPEC AD-14)', () => {
   })
 })
 
-// --- the provider fixture ----------------------------------------------------------------------
-
 const A = memoryAccess<unknown>('unused')
 const B = memoryOtherAccess<unknown>('unused')
 const runAdoption: Adoption = samples[0].adoption
@@ -133,7 +117,6 @@ function textOf(tenant: TenantId): string {
   if (!encoded.ok) throw new Error('fixture: tenant')
   return encoded.value
 }
-/** The coordinator principal that the fixture's assembly issues for one session. */
 const coordinatorOf = (tenant: TenantId, session: SessionId) =>
   `coordinator:${textOf(tenant)}:${session}`
 
@@ -153,7 +136,6 @@ function activeRun(instance: AgentInstanceRef | null, adopted: Adoption = runAdo
       instance === null ? null : { run: 'run-1' as never, attempt: 'attempt-1' as never, instance },
     ordinal: '1',
     execution: { execution: EXECUTION, revision: null, evidence: null, readThrough: '0' },
-    // The fixture's Run layer: the face under test reads the Run, never this revision.
     revision: '1' as WorkSnapshot['revision'],
   }
 }
@@ -170,12 +152,6 @@ function receiptFor(operation: unknown, record: string): CommandReceipt {
   }
 }
 
-/**
- * A real Cordis root with the five dependencies of AD-14 and the plugin. The session service
- * serves `readWork` and `readInput` for the sessions in `runs`, only to the coordinator principal
- * of that session; the provision double builds scripted runtimes and refuses `reserve` to any
- * principal that is not the coordinator of the tenant.
- */
 async function assembled(options: { mount?: readonly string[] } = {}) {
   const ctx = new Context()
   const logged: { name: string; type: string }[] = []
@@ -197,13 +173,13 @@ async function assembled(options: { mount?: readonly string[] } = {}) {
   const owns = (access: SessionAccess<unknown>) =>
     runs.has(runKey(access)) && access.principal === coordinatorOf(access.tenant, access.session)
 
-  // Scripted answers. Each queue answers the next call; an empty queue answers the default.
   const script = {
     invoke: [] as ((
       instance: AgentInstanceId,
     ) => Outcome<'handle', Failure> | Promise<Outcome<'handle', Failure>>)[],
     query: [] as Awaited<ReturnType<AgentExecutionRecoveryService<unknown>['query']>>[],
     load: [] as Awaited<ReturnType<AgentExecutionRecoveryService<unknown>['load']>>[],
+    contact: [] as Awaited<ReturnType<AgentExecutionRecoveryService<unknown>['contact']>>[],
     submit: [] as Outcome<CommandReceipt, Failure>[],
     control: [] as Outcome<CommandReceipt, Failure>[],
   }
@@ -293,6 +269,10 @@ async function assembled(options: { mount?: readonly string[] } = {}) {
       calls.push({ method: 'detach', input })
       return succeed(evidence('handed-back'))
     }
+    readonly contact: AgentExecutionRecoveryService<unknown>['contact'] = async input => {
+      calls.push({ method: 'contact', input })
+      return script.contact.shift() ?? succeed({ kind: 'unknown' })
+    }
   }
   class Control extends AgentExecutionControlService<unknown> {
     readonly control: AgentExecutionControlService<unknown>['control'] = async input => {
@@ -368,7 +348,6 @@ async function assembled(options: { mount?: readonly string[] } = {}) {
     drive,
     methods: () => calls.map(call => call.method),
     faults,
-    /** The error records that AD-14 wrote. */
     errors: () =>
       logged.filter(
         entry => entry.type === 'error' && entry.name === 'session-adapters/agent-drive',
@@ -381,7 +360,6 @@ afterEach(async () => {
   for (const dispose of disposers.splice(0).reverse()) await dispose()
 })
 
-/** Mounts a plugin on the root and disposes its fiber after the test. */
 async function mount(ctx: Context, plugin: Parameters<Context['plugin']>[0]) {
   const fiber = await ctx.plugin(plugin)
   disposers.push(() => fiber.dispose())
@@ -401,8 +379,6 @@ const invokeInput = (access: SessionAccess<unknown> = A) => ({
   grant: evidence('se15-grant'),
 })
 
-// --- invoke and resume ---------------------------------------------------------------------------
-
 describe('invoke: the slot of the active Run, then acquire, resolve and invoke', () => {
   it('reads as coordinator, takes the instance of the slot, and invokes with the coordinator principal', async () => {
     const f = await assembled()
@@ -411,7 +387,6 @@ describe('invoke: the slot of the active Run, then acquire, resolve and invoke',
 
     const principal = coordinatorOf(A.tenant, A.session)
     expect(f.principalsAsked).toEqual([{ tenant: A.tenant, session: A.session }])
-    // Every read of `session` went through the coordinator class.
     expect(f.callers.length).toBeGreaterThan(0)
     expect(
       f.callers.every(caller => (caller as { caller?: unknown }).caller === 'coordinator'),
@@ -442,7 +417,6 @@ describe('invoke: the slot of the active Run, then acquire, resolve and invoke',
       },
       grant: evidence('se15-grant'),
     })
-    // The same principal reaches every outbound call.
     for (const call of f.calls)
       expect((call.input as { principal?: unknown }).principal, call.method).toBe(principal)
   })
@@ -525,7 +499,6 @@ describe('invoke: the slot of the active Run, then acquire, resolve and invoke',
   it('an invoke that meets a reclaimed instance takes the slot again and retries once on the new instance', async () => {
     const f = await assembled()
     f.script.invoke.push(async () => {
-      // The host reclaims the instance between acquire and invoke; the draining runtime refuses.
       await f.provision.reclaimIdle()
       return fail({ kind: 'unavailable', owner: 'runtime', diagnostic: 'draining' })
     })
@@ -570,8 +543,6 @@ describe('invoke: the slot of the active Run, then acquire, resolve and invoke',
   })
 })
 
-// --- the result table ----------------------------------------------------------------------------
-
 describe('the Agent answers map by the result table', () => {
   it.each(['busy', 'terminal', 'changed', 'stale-advance'] as const)(
     '%s keeps its kind',
@@ -603,8 +574,6 @@ describe('the Agent answers map by the result table', () => {
     })
   })
 
-  // A definite failure of the Agent's invoke or resume is a drive refusal: the same request fails
-  // again, so Session closes the Run instead of replaying it (AD-14 result table, PM-02, PM-05).
   const drives = {
     invoke: (f: Awaited<ReturnType<typeof assembled>>) => f.drive().invoke(invokeInput()),
     resume: (f: Awaited<ReturnType<typeof assembled>>) =>
@@ -638,7 +607,7 @@ describe('the Agent answers map by the result table', () => {
       ['no rejection record', {}],
       ['a rejection that is not evidence', { rejection: { owner: 'admission' } }],
     ])(
-      'a refusal of the message admission with %s is refused, and no record is made (NP-12)',
+      'a refusal of the message admission with %s is refused, and no record is made',
       async (_name, extra) => {
         const f = await assembled()
         f.script.invoke.push(() =>
@@ -718,8 +687,6 @@ describe('the Agent answers map by the result table', () => {
   })
 })
 
-// --- tenants -------------------------------------------------------------------------------------
-
 describe('another tenant is never served', () => {
   it('a session that the principal source refuses is denied before anything is read or taken', async () => {
     const f = await assembled()
@@ -730,7 +697,6 @@ describe('another tenant is never served', () => {
 
   it('a session read that Session refuses is denied, and no instance is taken', async () => {
     const f = await assembled()
-    // The principal source answers for tenant B, but the session belongs to tenant A only.
     f.runs.set(
       f.runKey(B),
       activeRun(encodeSessionSlotRef({ session: B.session, adoption: runAdoption })),
@@ -763,8 +729,6 @@ describe('another tenant is never served', () => {
   })
 })
 
-// --- submit, control, detach, inspect, recordResult, prewarm ------------------------------------
-
 describe('submit uses the handle that invoke or resume kept', () => {
   const submitInput = {
     ...target(A, 'dop_submit-1'),
@@ -772,7 +736,7 @@ describe('submit uses the handle that invoke or resume kept', () => {
     source: evidence('se11-receipt'),
   }
 
-  it('without a handle it answers unavailable and calls nothing (NP-03)', async () => {
+  it('without a handle it answers unavailable and calls nothing', async () => {
     const f = await assembled()
     expect(await f.drive().submit(submitInput)).toEqual({
       failure: { kind: 'unavailable', diagnostic: 'no execution handle for submit (NP-03)' },
@@ -780,7 +744,7 @@ describe('submit uses the handle that invoke or resume kept', () => {
     expect(f.calls).toHaveLength(0)
   })
 
-  it('after invoke it submits the read content with its SE11 source on the kept handle', async () => {
+  it('after invoke it submits the read content with its intake.routed source on the kept handle', async () => {
     const f = await assembled()
     await f.drive().invoke(invokeInput())
     const answer = await f.drive().submit(submitInput)
@@ -839,7 +803,6 @@ describe('submit uses the handle that invoke or resume kept', () => {
       .methods()
       .find(method => method.startsWith('invoke@'))!
       .slice('invoke@'.length) as AgentInstanceId
-    // Another tenant's retirement of the same instance text drops nothing.
     await f.ctx.parallel(
       'agent-cordis-contract/instance-retired',
       B.tenant,
@@ -882,8 +845,6 @@ describe('control goes to the long-term control entry, without a handle', () => 
     digest: expect.stringMatching(/^[0-9a-f]{64}$/),
   })
 
-  // A Session producer names its call by the invocation reference that AD-05 and AD-06 read from
-  // `key.reference` (session-contract 稳定调用引用的读取); the Agent control names the call itself.
   const modelReference = (tenant: TenantId, call = 'mcall_1') =>
     must(
       encodeModelInvocationRef({
@@ -949,8 +910,6 @@ describe('control goes to the long-term control entry, without a handle', () => 
     expect(f.calls).toHaveLength(0)
   })
 
-  // A producer call that does not resolve is answered unavailable and reported, never accepted and
-  // never `unsupported`: Session stops replaying on `unsupported` and would drop the control.
   it.each<[string, Parameters<AgentDrivePort['control']>[0]['intent']]>([
     [
       'a Model call that is not a reference',
@@ -985,9 +944,7 @@ describe('control goes to the long-term control entry, without a handle', () => 
     expect(f.errors()).toHaveLength(1)
   })
 
-  it('cannot name another tenant in a Model or Tool reference (R2-D357)', () => {
-    // The text carries no tenant: a reference encoded for tenant B is the caller's own reference,
-    // located in the caller's tenant.
+  it('cannot name another tenant in a Model or Tool reference', () => {
     expect(modelReference(B.tenant)).toBe(modelReference(A.tenant))
     expect(toolReference(B.tenant)).toBe(toolReference(A.tenant))
   })
@@ -1072,6 +1029,7 @@ describe('inspect maps the snapshot and never says missing', () => {
           revision: 'revision-7',
           state: 'open',
           attachment: 'active',
+          lost: null,
           conclusion: null,
           evidence: evidence('history'),
         },
@@ -1086,6 +1044,7 @@ describe('inspect maps the snapshot and never says missing', () => {
           revision: 'revision-7',
           state: 'suspended',
           attachment: 'detached',
+          lost: null,
           conclusion: null,
           evidence: evidence('history'),
         },
@@ -1100,6 +1059,7 @@ describe('inspect maps the snapshot and never says missing', () => {
           revision: 'revision-7',
           state: 'open',
           attachment: null,
+          lost: null,
           conclusion: null,
           evidence: evidence('history'),
         },
@@ -1118,6 +1078,7 @@ describe('inspect maps the snapshot and never says missing', () => {
           revision: 'revision-7',
           state: 'ended',
           attachment: null,
+          lost: null,
           conclusion: {
             outcome: 'fail',
             cause: evidence('cause'),
@@ -1137,10 +1098,82 @@ describe('inspect maps the snapshot and never says missing', () => {
     const f = await assembled()
     expect(await inspect(f)).toHaveProperty('failure.kind', 'unavailable')
   })
+
+  it('asks the host about the runtime of an active attachment, and carries a lost judgment as evidence', async () => {
+    const f = await assembled()
+    f.script.load.push(succeed(snapshot({ kind: 'advancing' }, authority)))
+    f.script.contact.push(succeed({ kind: 'lost', evidence: evidence('host-lock') }))
+    expect(await inspect(f)).toHaveProperty('ok.lost', evidence('host-lock'))
+    const asked = f.calls.find(call => call.method === 'contact')
+    expect(asked?.input).toMatchObject({ execution: EXECUTION, authority })
+  })
+
+  it.each([
+    ['a runtime that is alive', succeed({ kind: 'live' as const })],
+    ['a host without a judgment', succeed({ kind: 'unknown' as const })],
+    [
+      'a host that does not answer',
+      fail({ kind: 'unavailable' as const, owner: 'test', diagnostic: 'down' }),
+    ],
+  ])('has no lost judgment for %s, and the status is still answered', async (_name, contact) => {
+    const f = await assembled()
+    f.script.load.push(succeed(snapshot({ kind: 'advancing' }, authority)))
+    f.script.contact.push(contact)
+    expect(await inspect(f)).toMatchObject({
+      ok: { state: 'open', attachment: 'active', lost: null },
+    })
+  })
+
+  it.each<[string, ExecutionSnapshot['state'], typeof authority | null]>([
+    ['a suspended execution', { kind: 'suspended', handoff: evidence('h') }, null],
+    ['an execution without attachment', { kind: 'reconciling' }, null],
+    [
+      'an ended execution',
+      {
+        kind: 'ended',
+        conclusion: { kind: 'fail', cause: evidence('cause') },
+        disposition: evidence('disposition'),
+      },
+      authority,
+    ],
+  ])('does not ask the host about %s', async (_name, state, attachment) => {
+    const f = await assembled()
+    f.script.load.push(succeed(snapshot(state, attachment)))
+    await inspect(f)
+    expect(f.calls.some(call => call.method === 'contact')).toBe(false)
+  })
+
+  it('wakes the readers of the published events for an ended execution, and for no other state', async () => {
+    const f = await assembled()
+    const woken: unknown[][] = []
+    f.ctx.on('session-adapters/agent-published', (...named) => {
+      woken.push(named)
+    })
+    const others: [ExecutionSnapshot['state'], typeof authority | null][] = [
+      [{ kind: 'advancing' }, authority],
+      [{ kind: 'suspended', handoff: evidence('h') }, null],
+      [{ kind: 'reconciling' }, null],
+    ]
+    for (const [state, attachment] of others) {
+      f.script.load.push(succeed(snapshot(state, attachment)))
+      await inspect(f)
+    }
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(woken).toEqual([])
+    const ended: ExecutionSnapshot['state'] = {
+      kind: 'ended',
+      conclusion: { kind: 'complete' },
+      disposition: evidence('disposition'),
+    }
+    f.script.load.push(succeed(snapshot(ended, null)))
+    expect(await inspect(f)).toHaveProperty('ok.state', 'ended')
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(woken).toEqual([[A.tenant, A.session, EXECUTION]])
+  })
 })
 
 describe('the two operations that have no Agent entry', () => {
-  it('recordResult answers unavailable (NP-04) and prewarm unsupported (P-7), calling nothing', async () => {
+  it('recordResult answers unavailable and prewarm unsupported, calling nothing', async () => {
     const f = await assembled()
     const recorded = await f.drive().recordResult({
       ...target(),
@@ -1162,8 +1195,6 @@ describe('the two operations that have no Agent entry', () => {
   })
 })
 
-// --- Cordis --------------------------------------------------------------------------------------
-
 describe('loading and stopping on real Cordis 4.0.4', () => {
   it('provides sessionAgentDrive with all five dependencies and removes it when it stops', async () => {
     const f = await assembled()
@@ -1172,7 +1203,6 @@ describe('loading and stopping on real Cordis 4.0.4', () => {
     const held = f.drive()
     await f.plugin.dispose()
     expect(f.port()).toBeUndefined()
-    // A handle held after the stop answers unavailable and calls nothing.
     expect(await held.invoke(invokeInput())).toEqual({
       failure: { kind: 'unavailable', diagnostic: 'the agent drive has stopped' },
     })

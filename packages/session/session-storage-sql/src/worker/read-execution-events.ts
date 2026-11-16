@@ -1,8 +1,3 @@
-// The events of one execution after a sequence (`eseq > after`), in sequence order, one page at a
-// time: the event projection of the Agent facts (`output.read` and the interpretation of AD-02).
-// It reads the head row of the execution and the event rows after the sequence by the event
-// index, so a read does not grow with the session or with the events before `after`. An execution
-// that is not of this session and tenant answers `denied`, the same as one that does not exist.
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { isCount } from '../codec.ts'
 import { FACT_COLUMNS, factOutput, factRows, sessionHead } from './fact-rows.ts'
@@ -11,7 +6,6 @@ import { big, handler, oneRow, PAGE_ROWS, scopeOf, text, type Row } from './supp
 const parse = (cell: Row[string] | undefined): JsonValue =>
   cell === null || cell === undefined ? null : (JSON.parse(text(cell)) as JsonValue)
 
-/** One event: its place in the log, its kinds and its projection, and the opaque fact body. */
 function eventOutput(row: Row): JsonValue {
   const fact = factOutput(row)
   const event = (fact.event ?? {}) as Readonly<Record<string, JsonValue>>

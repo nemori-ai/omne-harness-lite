@@ -55,7 +55,6 @@ it('a second registration of the same target conflicts; replace publishes a new 
   })
   if (next.kind !== 'registered') throw new Error(next.kind)
   expect(next.handle.generation).not.toBe(first.handle.generation)
-  // Withdrawing the old handle does not remove its successor.
   first.handle.withdraw()
   expect((await ctx.requestContext.assembly(f.target).assemble(call)).kind).toBe(
     'candidate-before-extension',

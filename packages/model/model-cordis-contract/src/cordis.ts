@@ -110,12 +110,6 @@ export const modelStreamObservationKey = ModelStreamObservationService.provide
 export abstract class ModelRuntimeService<P> extends Service implements ModelRuntime<P> {
   static readonly provide = 'modelRuntime'
 
-  /**
-   * Registers `receiver` under the consumer `owner`, in an effect of the calling fiber. Returns
-   * the synchronous, idempotent removal function. Throws `ModelResultReceiverConflictError` when
-   * a live fiber already holds the owner; a registration of a fiber that is unloading, disposed
-   * or failed is replaced.
-   */
   readonly registerResultReceiver: (
     owner: ConsumerRef['owner'],
     receiver: ModelResultReceiver<P>,
@@ -126,7 +120,6 @@ export abstract class ModelRuntimeService<P> extends Service implements ModelRun
     receivers: ModelResultReceiverTable<P> = createModelResultReceiverTable<P>(),
   ) {
     super(ctx, ModelRuntimeService.provide)
-    // A plain function, so that Cordis binds `this.ctx` to the calling plugin.
     this.registerResultReceiver = function (this: ModelRuntimeService<P>, owner, receiver) {
       return receivers.register(this.ctx, owner, receiver)
     }
@@ -366,8 +359,6 @@ export abstract class ModelDiagnosticsService<P> extends Service implements Mode
 export const modelDiagnosticsKey = ModelDiagnosticsService.provide
 
 declare module '@deepseek-ai/cordis' {
-  // The trusted identity adapter of an assembly narrows the principal type. Providers still
-  // check every input at run time.
   interface Context {
     modelDiagnostics: ModelDiagnosticsService<unknown>
     modelRuntime: ModelRuntimeService<unknown>

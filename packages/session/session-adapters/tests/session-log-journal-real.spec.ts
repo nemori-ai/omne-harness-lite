@@ -1,10 +1,4 @@
-// The production session-log Journal on the real sqlite-provider: real write Worker, real read
-// Worker pool, real files. The first publication commits the Agent records and the Session message
-// in one storage commit; a Session refusal rolls the Agent side back; the later interpretation
-// commit is a Session commit alone; a new provider on the same storage answers from the durable
-// records.
 // @module-tag slow
-// Why slow: real Workers and real files.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AgentJournal } from '@omne-harness/agent-contract'
 import { decodeInputId } from '@omne-harness/agent-contract'
@@ -106,7 +100,6 @@ describe('the combination the Journal commits under', () => {
   it('a manifest digest other than the registered one is a definite failure, and nothing is written (fail closed)', async () => {
     const s = await sqlScene('real-manifest', { storage: 'real', manifest: 'b'.repeat(64) })
     scenes.push(s)
-    // manifest_mismatch is definite (sql-contract commitRejectionNature): waiting would never help.
     expect(await s.view.journal.open(s.openInput)).toMatchObject({
       failure: { kind: 'invalid', field: 'storage', reason: 'manifest_mismatch' },
     })
@@ -180,7 +173,6 @@ describe('the later interpretation commit on the real sqlite-provider', () => {
     const agent = await load(s)
     const progress = (await work(s)).entriesProgress
     s.commits.length = 0
-    // A range that does not start at the saved progress is refused by the Session participant.
     expect(
       await s.port.commitEntries({
         observation: observation('5', '6'),

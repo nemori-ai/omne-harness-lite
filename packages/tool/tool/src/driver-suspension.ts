@@ -1,8 +1,3 @@
-// The driver steps of a checkpointed call's wait (P06, P07): plan the suspension when the segment's
-// stream ended at its wait, commit the checkpoint the binding proves, park the queue entry, and
-// register the wait with the decision owner. Each step is one ledger command or one port call with
-// the identity the call and the wait fix, so a repeat after a crash or an unknown answer recalls
-// the original instead of doing it again.
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -40,7 +35,6 @@ function failed(failure: ToolFailure): Result {
   return { kind: 'failed', failure }
 }
 
-/** The answer of a command: progress, a step to read again, or a verdict that stops the run. */
 function after(reply: Outcome<unknown, ToolFailure>): Result {
   if ('ok' in reply) return CONTINUE
   const { failure } = reply
@@ -51,7 +45,6 @@ function after(reply: Outcome<unknown, ToolFailure>): Result {
     : failed(failure)
 }
 
-/** An operation derived from another one by a fixed suffix (the driver mints no other identity). */
 function derived(base: string, suffix: string): Outcome<ToolOperationId, ToolFailure> {
   const decoded = decodeToolOperationId(`${base}/${suffix}`)
   return 'ok' in decoded
@@ -59,7 +52,6 @@ function derived(base: string, suffix: string): Outcome<ToolOperationId, ToolFai
     : fail({ kind: 'invalid', field: 'operation', reason: decoded.failure.reason })
 }
 
-/** The plan of a suspension and its commit are named by the start of the segment that suspends. */
 export function suspensionOperations(
   start: ToolStartRecord,
 ): Outcome<Readonly<{ plan: ToolOperationId; commit: ToolOperationId }>, ToolFailure> {
@@ -79,10 +71,6 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
   executionOf: (step: Step<P>) => ToolExecutionRef,
   wake: (tenant: TenantId, request: FixedToolRequest) => Promise<void>,
 ) {
-  // The registrations whose answer was not certain in this process (`commit-unknown`). Their next
-  // step asks the decision owner about the original operation before it asks again. An owner that
-  // answers `unavailable` is not among them: it recalls the original by the same identity (P06), so
-  // the next run asks again with it, and nothing of that failure is kept here (U3).
   const uncertain = new Set<string>()
   const uncertainKey = (step: CallAccess<P>, operation: ToolOperationId) =>
     JSON.stringify([tenantKey(step.tenant), step.call, operation])
@@ -104,22 +92,14 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
     expected: recovery.state.revision,
   })
 
-  /** The checkpointed binding of the call, or null when the call runs as a live coroutine. */
   const checkpointed = async (step: Step<P>, recovery: ToolRecovery) => {
     const resolved = await bindings.resolve({ ...access(step), request: recovery.request })
     if ('failure' in resolved) return resolved
     return succeed(resolved.ok.kind === 'checkpointed' ? resolved.ok : null)
   }
 
-  /**
-   * The stream of a running segment ended. A checkpointed segment ends at its wait, so its
-   * suspension is planned; null tells the caller that the binding runs live coroutines.
-   */
   const plan = async (step: Step<P>, recovery: ToolRecovery): Promise<Result | null> => {
     if (recovery.state.phase !== 'running' || recovery.start === null) return null
-    // A suspension of this start was planned already: its `suspend` task owes the next step, and
-    // a recall of the plan moves nothing. Reading the ended stream again and recalling the plan
-    // would run the call again at once, forever, while the checkpoint commit is refused.
     const start = canonicalDigest(recovery.start)
     if (recovery.suspensions.some(suspension => canonicalDigest(suspension.start) === start))
       return {
@@ -140,7 +120,6 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
     )
   }
 
-  /** Commits the checkpoint that the binding proves for the planned suspension (P07). */
   const commit = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -157,7 +136,6 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
         progress.ok.kind === 'not-suspended'
           ? 'the binding proves that the segment did not suspend'
           : progress.ok.diagnostic
-      // An unknown answer leaves the only execution alone and asks again later (P07).
       return progress.ok.kind === 'unknown'
         ? failed({ kind: 'unavailable', dependency: 'tool-binding', diagnostic: reason })
         : { kind: 'blocked', diagnostic: `the suspension is ${progress.ok.kind}: ${reason}` }
@@ -174,7 +152,6 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
     )
   }
 
-  /** Parks the queue entry of a suspended call, then wakes the calls that wait for a slot. */
   const park = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -186,11 +163,6 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
     return CONTINUE
   }
 
-  /**
-   * The step a `suspend` task owes, not yet begun: the task of a plan carries the plan's own
-   * operation and owes the checkpoint commit while the segment's call runs; the task of a commit
-   * owes the park.
-   */
   const suspension = (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -217,11 +189,6 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
     return after(attached)
   }
 
-  /**
-   * A definite refusal of the registration (P06): the duty is blocked with the refusal, so no later
-   * run asks again on its own. The refusal is not a person's answer, and the wait stays open to
-   * the call's own end. A block that does not land leaves the duty for the next run.
-   */
   const refuse = async (
     step: Step<P>,
     task: RegistrationTask,
@@ -239,7 +206,6 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
     return 'ok' in blocked ? { kind: 'blocked', diagnostic: reason } : after(blocked)
   }
 
-  /** What the decision owner says about an ensure whose answer was not certain (P06). */
   const recall = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -252,7 +218,6 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
     if ('failure' in inspected) return failed(inspected.failure)
     const resolution = inspected.ok
     if (resolution.kind === 'committed') return attach(step, recovery, task, resolution.receipt)
-    // Excluded proves that the original never lands: the same identity may ask again.
     if (resolution.kind === 'excluded') return 'ensure'
     return failed({
       kind: 'unavailable',
@@ -261,11 +226,6 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
     })
   }
 
-  /**
-   * Registers the wait of a suspended call with the decision owner (P06 ensure), then opens it. An
-   * answer that is not certain is resolved through the original operation, never with another
-   * identity; a definite refusal stops the run and keeps the duty.
-   */
   const register = async (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -300,7 +260,6 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
       : recalled
   }
 
-  /** 以决策方对原失效操作的回执完成失效待办。 */
   const invalidated = async (
     step: Step<P>,
     task: RegistrationTask,
@@ -318,11 +277,6 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
     return after(done)
   }
 
-  /**
-   * 让已收场调用的原登记失效（P06 invalidate）。操作身份由调用与等待派生，与登记同法。回包不确定时
-   * 按原操作经 inspectOperation 认回，不换身份重发；`excluded` 证明原失效不会落地，同一身份可以再发。
-   * 决策方明确拒绝时，待办记为阻塞并保留拒绝原因，终局不变。
-   */
   const invalidate = async (
     step: Step<P>,
     task: RegistrationTask,
@@ -355,7 +309,6 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
       : recalled
   }
 
-  /** 决策方对一次回包不确定的失效怎样说（P06）：committed 即完成，excluded 允许同一身份再发。 */
   const recallInvalidation = async (
     step: Step<P>,
     task: RegistrationTask,
@@ -375,7 +328,6 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
     })
   }
 
-  /** The step a `wait-registration` task owes now, or null when it waits for another step. */
   const registration = (
     step: Step<P>,
     recovery: ToolRecovery,
@@ -383,7 +335,6 @@ export function createSuspensionDriver<P, B extends ContentBlock, E>(
   ): (() => Promise<Result>) | null => {
     if (task.state !== 'pending') return null
     if (task.action === 'invalidate') {
-      // 失效待办与关闭等待在同一笔提交里写下，所以这个等待已经关闭，原因不是 continued。
       const closed = recovery.waits.find(wait => wait.intent.wait === task.wait)
       if (recovery.state.phase !== 'settled' || closed?.phase !== 'closed') return null
       const { cause } = closed

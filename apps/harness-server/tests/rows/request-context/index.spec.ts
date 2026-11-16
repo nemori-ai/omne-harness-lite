@@ -1,10 +1,4 @@
 // @module-tag slow
-// The `request-context` row on a real Cordis with the release entry objects (SC2): the accounting
-// inbox it provides answers through the ports of `accounting.ts`. The read eligibility reads the
-// registered holder sources per call, so a holder that starts after the row is used, and no holder
-// is `unavailable`; an unverified principal is `denied` even with the configured sender, and the
-// denial reaches the row logger. The holder is a test stand-in of `contextHolderSources` (the real one is row
-// `session-ad04`).
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Context, Message } from '@deepseek-ai/cordis'
 import type { Access, ContextAccountingInbox } from '@omne-harness/request-context-contract'
@@ -47,7 +41,6 @@ async function start(): Promise<LoadedTree> {
   return tree
 }
 
-/** A holder stand-in whose eligibility denies every access. */
 function denyingHolder(leases: { count: number }) {
   return {
     name: 'holder-double',

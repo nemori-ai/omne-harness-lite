@@ -19,7 +19,6 @@ import type {
 } from '../ports.js'
 import type { HistoryEvidence, HistoryUpper, SourcedMessage } from '../values.js'
 import { canonical, digest } from '../internal.js'
-/** A fixture row: a history row without its chained digest, which the double computes. */
 export type HistoryFixtureRow = Readonly<{
   seq: HistorySequence
   entry: RecordEntryRef
@@ -39,7 +38,6 @@ export type HistoryFixture = Readonly<{
 }>
 export interface MemoryHistorySource<P> extends HistorySource<P> {
   readonly durability: 'none'
-  /** The evidence of the active epoch up to its last row. */
   evidence(): HistoryEvidence
   commitCompaction(record: CompactionMessage): EpochId
   denyTenant(tenant: TenantId): void
@@ -63,14 +61,12 @@ function callIds(message: Message | null, kinds: readonly string[]): string[] {
     kinds.includes(part.kind) && 'callId' in part ? [String(part.callId)] : [],
   )
 }
-/** Non-durable history double. Never install it as a production history owner. */
 export function createMemoryHistorySource<P>(fixture: HistoryFixture): MemoryHistorySource<P> {
   let active = 0,
     calls = 0
   let failed: string | null = null
   const denied: TenantId[] = []
   const epochs = [...fixture.epochs]
-  // The original log: every entry in the order it was first seen, compaction records included.
   const log: CoveredEntry[] = []
   const remember = (entries: readonly CoveredEntry[]) => {
     for (const entry of entries) if (!log.some(x => x.ref === entry.ref)) log.push(entry)

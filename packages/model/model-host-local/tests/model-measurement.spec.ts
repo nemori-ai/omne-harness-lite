@@ -475,7 +475,6 @@ it('keeps invocation correlation and the adopted delay when caller objects chang
   ])
 })
 
-// Uses a real timer and the real preparation plugin to produce raw interval evidence.
 it(
   'uses the real monotonic clock and abortable timer without a wait injection',
   { tags: ['slow'] },

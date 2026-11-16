@@ -16,7 +16,6 @@ export type MaterialBytes = Readonly<{
 export type EncodedToolCanonical = MaterialBytes &
   Readonly<{ fingerprint: ToolCanonicalFingerprint }>
 
-/** M02.1 canonical data after the caller has encoded its domain identities. */
 export function encodeToolCanonical(value: unknown): Outcome<EncodedToolCanonical, ToolFailure> {
   try {
     const bytes = new TextEncoder().encode(encodeValue(value, new Set()))

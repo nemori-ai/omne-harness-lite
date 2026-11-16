@@ -1,4 +1,3 @@
-// Real storage rows. The prechecked access and the backend that forms the basis are named fixtures.
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -56,10 +55,8 @@ import type { EntryObjectModule } from '../../../src/types.ts'
 
 type Basis = SessionProtectedBasisSource<unknown>
 const denied = { failure: { kind: 'denied', action: 'change' } } as const
-/** A backend that refuses every basis. The test reads what the delegated entry asked it. */
 const refusing = () => vi.fn<Basis>(async () => fail<SessionFailure>(denied.failure))
 
-/** Publishes a fixture backend under the trusted name, as the governance row does. */
 function backendModule(basis: Basis): EntryObjectModule {
   return {
     name: sessionPermissionBackendKey,
@@ -186,12 +183,10 @@ it('publishes a real tenant backend from the governance row without authorizing 
   if (identity.kind !== 'succeeded') throw new Error(JSON.stringify(identity))
   const q = qualified(identity.tenant)
   const backend = tree.trusted<SessionPermissionBackendService>(sessionPermissionBackendKey)
-  // The tenant has no storage domain yet, so it has no governance runtime.
   expect(await backend.basis(q.delivery)).toMatchObject({
     failure: { kind: 'unavailable', owner: 'harness.session-permission-write' },
   })
   await create(tree, q)
-  // The runtime exists now. The fixture principal carries no login that Identity issued.
   expect(await backend.basis(q.delivery)).toEqual(denied)
   expect(await view(tree, q).commit({ access: q.access, command: q.command, guards: [] })).toEqual(
     denied,

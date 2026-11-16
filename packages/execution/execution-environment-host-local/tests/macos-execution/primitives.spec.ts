@@ -1,10 +1,4 @@
 /** @module-tag slow */
-// Slow: the platform refinements the macOS backend relies on, on the real kernel with the real
-// session reader: Π2 reads every member of a session (job-control groups and nohup included, the
-// process that called setsid excluded), Π3 stops a session that keeps forking and confirms it
-// empty, the leader identity tells a reused pid, and Πt carries the sentinels through a real PTY.
-// The tests run only on macOS with `OMNE_HOST_MACOS=1`; elsewhere they are skipped, and a skip is
-// not a pass. Every process a test starts is stopped by pid at its end.
 import { spawn } from 'node:child_process'
 import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises'
 import { createRequire } from 'node:module'
@@ -37,7 +31,6 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const pidsIn = async (name: string) =>
   (await readFile(join(directory, name), 'utf8')).trim().split(/\s+/u).map(Number)
 
-/** Starts `/bin/sh -c script` as the leader of a new session, as the gate is started. */
 function session(script: string): number {
   const child = spawn('/bin/sh', ['-c', script], {
     detached: true,
@@ -69,16 +62,12 @@ afterEach(async () => {
     await stopSessions({ reader, sessions: [pid], boundMs: 5_000 })
     try {
       process.kill(pid, 'SIGKILL')
-    } catch {
-      /* Already gone. */
-    }
+    } catch {}
   }
   for (const pid of await pidsIn('escaped').catch(() => [])) {
     try {
       process.kill(pid, 'SIGKILL')
-    } catch {
-      /* Already gone. */
-    }
+    } catch {}
   }
   await rm(directory, { recursive: true, force: true })
   directory = await realpath(await mkdtemp(join(tmpdir(), 'omne-macos-primitives-')))
@@ -107,14 +96,11 @@ describe('Π2: session members', () => {
     expect(members?.map(member => member.pid).sort((a, b) => a - b)).toEqual(
       expect.arrayContaining(expected),
     )
-    // The job-control group differs from the leader's group: reading the leader's group would miss it.
     expect(new Set(members?.map(member => member.pgid)).size).toBeGreaterThan(1)
-    // The setsid escape is in another session: it is not a member, and it is still alive.
     const [escaped] = await pidsIn('escaped')
     expect(escaped !== undefined && alive(escaped)).toBe(true)
     expect(members?.map(member => member.pid)).not.toContain(escaped)
     expect((members ?? []).every(member => member.sid === leader)).toBe(true)
-    // Each member that exits leaves the reading.
     for (const pid of expected) process.kill(pid, 'SIGKILL')
     await until(async () => {
       const left = await readMembers({ reader, sessions: [leader], except: leader, boundMs: 5_000 })
@@ -169,7 +155,6 @@ describe('domain identity', () => {
     const identity = await readIdentity({ reader, pid: leader, boundMs: 5_000 })
     if (identity?.kind !== 'alive') throw new Error('leader not alive')
     expect(identity.sid).toBe(leader)
-    // A record with another start time names another process under the same pid: not stopped.
     const foreign = { bootId: bootId ?? '', sessions: [{ sid: leader, start: '1.000001' }] }
     expect(await stopRecordedDomain({ reader, coordinate: foreign, bootId, boundMs: 5_000 })).toBe(
       'confirmed',

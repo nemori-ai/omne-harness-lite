@@ -1,4 +1,3 @@
-// The author execution context: process output, internal waits and wait schemas.
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -117,22 +116,12 @@ export interface ToolWaitResponseValidator<P> {
   ): Reply<ToolWaitValidation>
 }
 
-/**
- * The local receiver of an independent execution scope (G2, P11). A success means only that the
- * receiver took the update. It does not promise durability across processes.
- */
 export interface ToolProcessReceiver {
   receive(
     input: Readonly<{ sequence: string; update: ToolProcessUpdate }>,
   ): Promise<Outcome<void, ToolPrimitiveFailure>>
 }
 
-/**
- * The input of `createIndependentToolScope` (G2, P11). The scope keeps its wait history in
- * memory inside `limits`, and its emit receipts are `local`. A null `process` makes `emit`
- * return `unsupported`. A null `waits` makes `wait` return `unsupported`. The scope applies the
- * P11 rules for order, wait keys, cancellation and the return barrier before it calls `waits`.
- */
 export type IndependentToolScopeInput = Readonly<{
   limits: ToolAuthorLimits
   signal: AbortSignal

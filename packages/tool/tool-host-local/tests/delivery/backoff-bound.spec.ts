@@ -1,18 +1,3 @@
-// Property guard of the push backoff (R2-D273, R2-D282), the machine-readable twin of
-// `verification/models/DeliveryBackoff.tla`. A seeded driver moves the clock by random steps
-// (zero included, so bursts of drives in one instant happen), lets the receiver answer
-// unavailable, denied or saved, and drives the real worker. A judge replays every drive against
-// the model:
-//   Q1 no push before the reported wait is over, and every wait of a streak doubles the last,
-//   Q2 no wait is longer than maxMs,
-//   Q3 the delivery stays owed until the receiver saved it,
-//   Q4 the first wait after an answer without unavailable is initialMs again,
-//   Q5 every push that the receiver answered unavailable writes exactly one named warning,
-//   Q6 every push that failed definitively (denied) writes exactly one named failure warning, and
-//      leaves the delivery owed (R2-D327),
-//   L  a drive after the wait is over pushes (the backoff never stops the delivery).
-// The negative control runs the same driver and judge against toy workers with one rule removed;
-// the judge must report that rule.
 import { fail, succeed } from '@omne-harness/operation-result'
 import { describe, expect, it, vi } from 'vitest'
 import { createLocalToolResultDelivery } from '../../src/result-delivery.ts'
@@ -25,7 +10,6 @@ type Subject = { step(now: number, mode: Mode): Promise<Observed> }
 const INITIAL = 1000
 const CAP = 8000
 
-/** mulberry32: a small seeded generator, so a red run names the seed that reproduces it. */
 function random(seed: number): () => number {
   let a = seed >>> 0
   return () => {
@@ -42,7 +26,6 @@ const waitOf = (warning: string): number | null => {
   return match === null ? null : Number(match[1])
 }
 
-/** Drives `subject` for `steps` drives and returns the violations the judge found. */
 async function judge(subject: Subject, seed: number, steps: number): Promise<string[]> {
   const next = random(seed)
   const violations: string[] = []
@@ -71,7 +54,6 @@ async function judge(subject: Subject, seed: number, steps: number): Promise<str
       if (seen.pending !== 1) say('Q3: an unavailable push ended the delivery')
       const wait = seen.warnings.length === 0 ? null : waitOf(seen.warnings[0] as string)
       if (wait === null) {
-        // Without the named wait the judge keeps the model's own wait, so Q1 still applies.
         last = last === null ? INITIAL : Math.min(2 * last, CAP)
       } else {
         if (wait > CAP) say(`Q2: the wait ${String(wait)} is above the cap`)
@@ -139,13 +121,8 @@ describe('the push backoff keeps the DeliveryBackoff properties under random clo
   })
 })
 
-// ---------------------------------------------------------------------------------------------
-// Negative control: a toy worker with one rule removed must be caught by the same judge.
-// ---------------------------------------------------------------------------------------------
-
 type Fault = 'hot-loop' | 'no-cap' | 'no-reset' | 'drop' | 'silent' | 'silent-failure' | 'stuck'
 
-/** The pacing of the worker in a few lines, with one rule removed. */
 function toy(fault: Fault): Subject {
   let last: number | null = null
   let until = 0

@@ -1,10 +1,3 @@
-// commitLog on the real participant over the node:sqlite test provider: the consequence rows, the
-// progress row, the snapshot, the derived rows, the `log` operation record and the tail are one
-// transaction (M-LOG P2). A write that fails inside the transaction leaves every table as it was,
-// and the same observation then commits once. The same operation recalls its original receipt and
-// another observation under it is a conflict (P1, P3); a lost reply is recalled by retrying
-// `commitLog`, never by `queryOperation`. The shared cases run in log-conformance.spec.ts; this
-// file holds what only a SQL transaction can show.
 import { describe, expect, it } from 'vitest'
 import type {
   SessionFailure,
@@ -39,7 +32,6 @@ const commitLog = (a: App, observation: SessionLogCommitObservation) => {
   return a.port.commitLog({ observation })
 }
 
-/** An active Run whose event 1 (one call registration) is published and not yet interpreted. */
 async function opened() {
   const a = await app()
   const agent = agentPublisher({
@@ -56,7 +48,6 @@ async function opened() {
   return { a, agent, scene, observation }
 }
 
-/** Every row of every Session table of tenant A's domain, so a rollback is checked on all of them. */
 function tables(a: App) {
   const names = a.provider
     .select('dom_0', `SELECT name FROM sqlite_schema WHERE type = 'table' AND name LIKE 'sl_%'`)
@@ -95,7 +86,6 @@ describe('commitLog writes in one transaction', () => {
     expect(receipt).toMatchObject({ readThrough: '1', recovered: false })
   })
 
-  // The four writes of the publication: a row, the snapshot, the operation record and the tail.
   it.each([
     ['at the progress row, after the consequence row', /INSERT INTO sl_entry/u, 2],
     ['at the snapshot', /INSERT OR REPLACE INTO sl_state/u, 1],
@@ -107,7 +97,6 @@ describe('commitLog writes in one transaction', () => {
       const { a, observation } = await opened()
       const before = tables(a)
       a.provider.failWrite(pattern, nth)
-      // An environment error inside the transaction is unknown (sql-contract §7.6).
       expect(failureOf(await commitLog(a, observation)).kind).toBe('commit-unknown')
       expect(tables(a)).toEqual(before)
       a.provider.failWrite(null)
@@ -145,7 +134,6 @@ describe('the operation identity of commitLog', () => {
     const retry = { ...observation, operation: operationId('log-1-retry') }
     expect(ok<SessionLogReceipt>(await commitLog(a, retry))).toEqual({ ...first, recovered: true })
     expect(tables(a)).toEqual(before)
-    // The retry identity saved no record: it stays unknown, as in the memory pair.
     expect(
       ok(await a.port.queryOperation({ ...a.access(TENANT_A), operation: retry.operation })),
     ).toEqual({ kind: 'unknown' })
@@ -211,9 +199,6 @@ describe('the tenant of commitLog', () => {
     })
 })
 
-// The log only grows, so a read inside the commit that passes its bound passes it for good: the
-// participant answers the definite failure `read-bound` and the port gives `invalid` on the field
-// `storage` (SPEC 参加者失败的定性). Nothing is written.
 describe('a commitLog whose in-transaction read would pass its bound', () => {
   const series = (count: number, insert: string, columns: string): string =>
     `${insert} WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ${count}) SELECT ${columns} FROM n`
@@ -221,7 +206,6 @@ describe('a commitLog whose in-transaction read would pass its bound', () => {
   it('a recall over more than 100000 log records of the session is invalid (read-bound)', async () => {
     const { a, observation } = await opened()
     ok(await commitLog(a, observation))
-    // The same event under another operation writes no row and looks for the commit that covers it.
     const again = { ...observation, operation: operationId('log-again') }
     a.provider.seed(
       'dom_0',

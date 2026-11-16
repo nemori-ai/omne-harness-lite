@@ -19,7 +19,6 @@ export type SessionPermissions = Readonly<{
   assignments: readonly SessionPermissionAssignment[]
 }>
 
-/** Transaction fact supplied by the protected writer, never accepted from a command's caller. */
 export type SessionPermissionChangeBasis = Readonly<{
   operation: SessionOperationId
   commandDigest: string
@@ -28,7 +27,6 @@ export type SessionPermissionChangeBasis = Readonly<{
   authority: DurableEvidence
 }>
 
-/** Original-operation qualification from the trusted access service. The protected commit binds it. */
 export type SessionPermissionWriteQualification = Readonly<{
   tenant: TenantId
   session: SessionId

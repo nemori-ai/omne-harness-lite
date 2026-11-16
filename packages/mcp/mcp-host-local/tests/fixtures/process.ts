@@ -1,6 +1,3 @@
-// A child process as a `ProcessHandle`: the double of a landing for the tests. The stdio pipes
-// are handed over as web streams; standard error goes line by line to a hook first (a scripted
-// peer reports what it received that way) and otherwise to the handle's stderr stream.
 import { spawn, type ChildProcess } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import { Readable, Writable } from 'node:stream'
@@ -15,7 +12,6 @@ export type Spawned = Readonly<{
 }>
 
 export type SpawnOptions = Readonly<{
-  /** Sees each line of standard error first; true when the line was consumed. */
   onStderrLine?: (line: string) => boolean
   env?: Readonly<{ [name: string]: string }>
 }>
@@ -39,17 +35,13 @@ export function spawnHandle(args: readonly string[], options: SpawnOptions = {})
       if (options.onStderrLine?.(line) === true) return
       try {
         stderrController?.enqueue(`${line}\n`)
-      } catch {
-        // The handle's stderr was cancelled: the line reads and discards it.
-      }
+      } catch {}
     })
   }
   void exited.then(() => {
     try {
       stderrController?.close()
-    } catch {
-      // Already closed or cancelled.
-    }
+    } catch {}
   })
   if (child.stdin === null || child.stdout === null) throw new Error('the child has no pipes')
   const stdin: WritableStream<Uint8Array> = Writable.toWeb(child.stdin)

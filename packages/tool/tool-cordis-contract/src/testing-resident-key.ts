@@ -1,8 +1,3 @@
-// The round-trip suite of the resident key (XC-RESKEY): what the write path records for a key must
-// come back through the holder-reference reader for the same key, with its tenant and a same
-// shape, and nothing else. It runs against a composition: the Session evidence writer with a
-// Session (or its in-memory transactions) on one side, the application bridge or the reader double
-// on the other. The encoding laws themselves are unit tests of tool-contract, not cases here.
 import assert from 'node:assert/strict'
 import type { TenantId, WorkspaceId } from '@omne-harness/legal-identity'
 import type { ResidentReferencesPage } from '@omne-harness/tool-contract'
@@ -14,10 +9,8 @@ import {
 import type { ToolResidencyReader, ToolResidencyReference } from './cordis.ts'
 
 export interface ResidentKeyRoundTripFixture {
-  /** Records through the write path that a session of `tenant` adopted `key` with first shape `shape`. */
   write(input: Readonly<{ tenant: TenantId; key: ToolBindingKey; shape: ToolShape }>): Promise<void>
   readonly reader: ToolResidencyReader
-  /** Optional: records a raw stored shape, for the negative case. */
   writeRaw?(
     input: Readonly<{
       tenant: TenantId
@@ -27,14 +20,12 @@ export interface ResidentKeyRoundTripFixture {
   ): Promise<void>
 }
 
-/** What the entry passes in from tool-contract/testing: minted test identities and not-applicable. */
 export type ResidentKeyCaseDependencies = Readonly<{
   tenant(organization: string, account: string): TenantId
   workspace(text: string): WorkspaceId
   missing(handle: string): never
 }>
 
-/** One case, in the shape of `ConformanceCase` of tool-contract/testing. */
 export type ResidentKeyCase = Readonly<{
   name: string
   clause: string
@@ -57,7 +48,6 @@ function shape(name: string): ToolShape {
   return { name, kind: 'function', parameters: { kind: 'executor-owned' } }
 }
 
-/** Reads every page; fails the case when a page is unavailable. */
 async function readAll(
   reader: ToolResidencyReader,
   at: ToolBindingKey,
@@ -76,7 +66,6 @@ async function readAll(
 const sameTenant = (left: TenantId, right: TenantId) =>
   left.organization.text === right.organization.text && left.account.text === right.account.text
 
-/** The suite. A fresh fixture per case: each case writes its own keys. */
 export function residentKeyCases(deps: ResidentKeyCaseDependencies): readonly ResidentKeyCase[] {
   const tenantA = () =>
     deps.tenant('org_c0nf0rmance000000000000000', 'acc_c0nf0rmance000000000000000')

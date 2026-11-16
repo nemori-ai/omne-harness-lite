@@ -1,5 +1,3 @@
-// 委派视图的裁定来源（session-contract `SessionDelegatedTransactions` 的契约文字）：绑定自己作答，不再问访问裁定。
-// 租户或会话与绑定的目标不同、提交的命令（种类、操作与去掉 `expected` 的 OP-00 摘要）与绑定的命令不同，都答 `denied`。
 import { tenantEquals } from '@omne-harness/legal-identity'
 import {
   commandDigest,
@@ -9,7 +7,6 @@ import {
   type SessionCommand,
 } from '@omne-harness/session-contract'
 
-/** 同一个命令，忽略 `expected`：面操作的 `changed` 重试仍在绑定内。 */
 function sameCheckedCommand(left: SessionCommand, right: SessionCommand): boolean {
   const strip = (command: SessionCommand): SessionCommand => {
     const { expected: _expected, ...input } = command.input as Record<string, unknown>

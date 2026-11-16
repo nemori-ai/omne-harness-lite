@@ -1,8 +1,3 @@
-// A community Skill whose description is longer than the 1024 characters of the Agent Skills
-// specification (for example `claude-api` with 1077) is usable, not only loadable: `inspect`
-// accepts it with the hint `description-over-limit`, and through ports that carry the whole
-// description `describe`, `read` of its body and the catalog all succeed. Over the contract's
-// `DESCRIPTION_LIMIT` (16384) the package stays rejected.
 import { describe, expect, it } from 'vitest'
 import { capabilityId } from '@omne-harness/assets'
 import { createPackageInspection, createSkillAccess, createSkillCatalog } from '@omne-harness/skill'

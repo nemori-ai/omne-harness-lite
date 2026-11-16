@@ -1,10 +1,3 @@
-// Plugin configuration and the choice of the two strategies (IC-14, CX-03).
-//
-// The selection is serializable: a name per strategy and its complete parameters, in the shape
-// that request-context-cordis-contract defines. A name that no strategy answers to, or parameters
-// that do not fit the schema, make the plugin fail to load. Nothing falls back to the default.
-// Trusted assembly code may instead pass ready strategy objects as `policies`; those are runtime
-// objects and never enter plugin tree JSON, so they exclude the serializable selection.
 import {
   createDefaultCompactionPolicy,
   createDefaultRepresentationPolicy,
@@ -25,20 +18,12 @@ import {
 } from '@omne-harness/request-context-contract'
 import type { RequestContextPolicySelection } from '@omne-harness/request-context-cordis-contract/cordis'
 
-/**
- * Runtime objects of the provider. The assembly entry builds them in trusted code; they are
- * passed as plugin options and never enter plugin tree JSON. Without `policies` and without
- * `selection`, the default strategies run with their initial values.
- */
 export type RequestContextProviderOptions = Readonly<{
   accounting: AccountingOptions<unknown>
-  /** Ready strategy objects from trusted code. Excludes `selection`. */
   policies?: AssemblyPolicies
-  /** The serializable choice of the two strategies. Excludes `policies`. */
   selection?: RequestContextPolicySelection
 }>
 
-/** The names under which the strategies of this package answer. */
 export const DEFAULT_STRATEGY = 'default'
 
 const compactionStrategies = new Map<string, (config: CompactionPolicy) => CompactionPolicyPort>([
@@ -94,7 +79,6 @@ function chosen<C, T>(
   return create(checked(schema, entry.config, `${where}.config`))
 }
 
-/** The two strategies the options ask for. Throws a TypeError for anything that does not hold. */
 export function selectPolicies(options: RequestContextProviderOptions): AssemblyPolicies {
   if (!isRecord(options.accounting)) throw new TypeError('accounting must be an object')
   const { policies, selection } = options
@@ -136,5 +120,4 @@ const decodeOptions: Decoder<RequestContextProviderOptions> = (value, path) => {
   }
 }
 
-/** The Standard Schema of the plugin configuration (IC-14). */
 export const requestContextProviderConfig = standardSchema(decodeOptions)
