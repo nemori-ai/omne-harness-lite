@@ -396,6 +396,7 @@ export declare abstract class ToolReadsService<P, B extends ContentBlock> extend
     static readonly provide = "toolReads";
     constructor(ctx: Context);
     abstract readonly lookup: ToolReads<P, B>['lookup'];
+    abstract readonly state: ToolReads<P, B>['state'];
     abstract readonly operation: ToolReads<P, B>['operation'];
     abstract readonly result: ToolReads<P, B>['result'];
     abstract readonly process: ToolReads<P, B>['process'];

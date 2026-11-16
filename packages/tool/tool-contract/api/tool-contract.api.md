@@ -1499,6 +1499,9 @@ export interface ToolReads<P, B extends ContentBlock> {
     lookup(input: CallAccess<P> & Readonly<{
         admission: ToolOperationId;
     }>): Reply<ToolLookup>;
+    state(input: CallAccess<P> & Readonly<{
+        admission: ToolOperationId;
+    }>): Reply<ToolState>;
     operation(input: CallAccess<P> & Readonly<{
         operation: ToolOperationId;
     }>): Reply<OperationResolution>;

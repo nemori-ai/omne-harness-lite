@@ -414,6 +414,7 @@ export abstract class ToolReadsService<P, B extends ContentBlock>
     super(ctx, ToolReadsService.provide)
   }
   abstract readonly lookup: ToolReads<P, B>['lookup']
+  abstract readonly state: ToolReads<P, B>['state']
   abstract readonly operation: ToolReads<P, B>['operation']
   abstract readonly result: ToolReads<P, B>['result']
   abstract readonly process: ToolReads<P, B>['process']

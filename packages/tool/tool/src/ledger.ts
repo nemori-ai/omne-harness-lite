@@ -144,6 +144,7 @@ import {
   readAccount,
   readRecovery,
   readResultPage,
+  readState,
   resultRecord,
   resolveOperation,
 } from './ledger-reads.ts'
@@ -229,6 +230,8 @@ type Fence<T> = Readonly<{
   negative(answer: T): boolean
   unknown: Outcome<T, ToolFailure>
 }>
+
+const PROCESS_READS = 'process observation and diagnostics'
 
 const lookupFence: Fence<ToolLookup> = {
   negative: answer => answer.kind === 'not-accepted',
@@ -1714,6 +1717,7 @@ export function createToolLedger<P, B extends ContentBlock>(
   const reads: ToolReads<P, B> = {
     body: { read: bodyReads.read },
     lookup: input => fenced(input, 'lookup', 'admission', lookupCall, lookupFence),
+    state: input => query(input, 'lookup', snapshot => readState(snapshot, input)),
     operation: input =>
       fenced(input, 'query-operation', 'operation', resolveOperation, operationFence),
     result: async input => {
@@ -1745,16 +1749,11 @@ export function createToolLedger<P, B extends ContentBlock>(
       const current = await access(fixed.ok, 'read-result')
       return 'failure' in current ? current : page
     },
-    process: input =>
-      query(input, 'read-process', () =>
-        unsupported('process', 'process observation and diagnostics'),
-      ),
+    process: input => query(input, 'read-process', () => unsupported('process', PROCESS_READS)),
     wait: input =>
       query(input, 'read-wait', () => unsupported('wait', 'waits, decisions and resources')),
     diagnostics: input =>
-      query(input, 'read-diagnostics', () =>
-        unsupported('diagnostics', 'process observation and diagnostics'),
-      ),
+      query(input, 'read-diagnostics', () => unsupported('diagnostics', PROCESS_READS)),
     account: input => query(input, 'account', snapshot => readAccount(snapshot)),
     content: createLedgerContent({
       bodyBytes: bodyReads.bytes,

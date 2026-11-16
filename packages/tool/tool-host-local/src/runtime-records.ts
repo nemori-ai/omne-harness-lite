@@ -101,6 +101,7 @@ export function publishRuntimeRecords(ctx: Context, records: RuntimeRecords): vo
   }
   class Reads extends ToolReadsService<unknown, ToolMessageContentBlock> {
     lookup = ledger.reads.lookup
+    state = ledger.reads.state
     operation = ledger.reads.operation
     result = ledger.reads.result
     process = ledger.reads.process
