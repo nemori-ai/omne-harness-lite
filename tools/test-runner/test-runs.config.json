@@ -1,13 +1,15 @@
 {
   "parallel": {
-    "memberDivisor": 3,
-    "workerDivisor": 4,
     "maxWorkersPerMember": 8,
-    "minimum": 2,
-    "memoryPerWorkerMiB": 512,
-    "sampleMs": 500,
     "reserveCores": 2,
-    "concurrentRuns": 2
+    "tokensPerWorker": [
+      {
+        "member": "apps/harness-server",
+        "tier": "slow",
+        "tokens": 2,
+        "why": "保守值，待量：用例里另起服务端进程。已有读数是 2 个 vitest 进程跑 824 到 843 秒、6 个进程过载变红；按账本的 CPU 秒数 ÷（墙钟秒数 × 进程数）量出来后改成那个数（向上取到 0.5 的倍数），并写上是哪一次量的"
+      }
+    ]
   },
   "affected": {
     "excludeRoots": ["examples"],
@@ -34,6 +36,8 @@
       "tools/test-runner/src/testing/typecheck-scope.ts",
       "tools/test-runner/src/testing/member-turbo.ts",
       "tools/test-runner/src/testing/parallelism.ts",
+      "tools/test-runner/src/testing/token-pool.ts",
+      "tools/test-runner/src/testing/member-history.ts",
       "tools/test-runner/src/testing/coverage-parallel.ts",
       "tools/test-runner/src/testing/check.ts",
       "tools/test-runner/src/testing/check-graph.ts",

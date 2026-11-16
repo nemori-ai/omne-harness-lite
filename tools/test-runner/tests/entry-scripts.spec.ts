@@ -404,12 +404,11 @@ describe('check.sh', () => {
     }
   })
 
-  it('没拿到名额：经名额脚本占一次，再带着它给的标记起运行器，不再重入名额脚本', async () => {
+  it('检查自己不整程占令牌：不经令牌池脚本，直接起运行器（各步在运行器里各自要令牌）', async () => {
     const { run } = fixture()
     const ran = await run('check.sh', ['--keep-going'])
     expect(ran.status, ran.stderr).toBe(0)
     expect(ran.lines).toEqual([
-      'slot|bash ./scripts/check.sh --keep-going',
       'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts check --keep-going',
     ])
   })

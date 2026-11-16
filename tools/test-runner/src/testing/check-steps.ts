@@ -104,6 +104,34 @@ export function residentStepNames(steps: readonly CheckStep[]): string[] {
   return steps.filter(step => step.planned !== true).map(step => step.name)
 }
 
+export function stepTokens(
+  step: CheckStep,
+  capacity: number,
+): { readonly want: number; readonly min: number } | undefined {
+  if (step.name === 'test' || step.name === 'acceptance') return undefined
+  if (step.name === 'build' || step.name === 'typecheck') return { want: capacity, min: 1 }
+  if (step.name === 'python') return { want: Math.max(2, Math.floor(capacity / 4)), min: 1 }
+  return { want: 1, min: 1 }
+}
+
+export function withTokens(step: CheckStep, capacity: number, slotScript: string): CheckStep {
+  const request = stepTokens(step, capacity)
+  if (request === undefined) return step
+  return {
+    ...step,
+    command: [
+      process.execPath,
+      slotScript,
+      '--want',
+      String(request.want),
+      '--min',
+      String(request.min),
+      '--',
+      ...step.command,
+    ],
+  }
+}
+
 export function describeSteps(steps: readonly CheckStep[]): string[] {
   return steps.map(
     step =>

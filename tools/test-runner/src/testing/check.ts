@@ -30,7 +30,14 @@ import {
   type CacheStates,
 } from './admission-run.ts'
 import { runGraph, type CheckStep, type StepResult } from './check-graph.ts'
-import { checkSteps, describeSteps, PLAN_DIR, PLAN_FILE, type StepInputs } from './check-steps.ts'
+import {
+  checkSteps,
+  describeSteps,
+  PLAN_DIR,
+  PLAN_FILE,
+  withTokens,
+  type StepInputs,
+} from './check-steps.ts'
 import {
   describeResume,
   resumeFacts,
@@ -52,8 +59,9 @@ import { readTestStepReport, TEST_STEP_REPORT_FILE } from './test-retry.ts'
 import { timestamp } from './support.ts'
 import { cachePolicy, TEST_CACHE_ENV } from './test-cache.ts'
 import { admissionRequested, affectedMembers, dependentMembers } from './turbo.ts'
-import { effectiveParallelism, readTestRunsConfig } from './config.ts'
-import { budgetFor, describeBudget, WORKER_BUDGET_ENV } from './parallelism.ts'
+import { readTestRunsConfig } from './config.ts'
+import { machineCapacity } from './parallelism.ts'
+import { SLOT_HELD_ENV, SLOT_SCRIPT } from './token-pool.ts'
 
 export const KEEP_RUN_DIRS = 5
 
@@ -320,35 +328,38 @@ export async function runCheck(
   for (const line of describePlanFile(root, plan)) say(line)
   writePlanFile(join(root, PLAN_FILE), plan)
 
-  // 预算在起任何步骤之前采一次：重步骤开始时在跑的轻步骤是本图自己的，再采样会把它们当成别的负载而缩预算。
-  const policy = readTestRunsConfig().parallel
-  const budget = await budgetFor(policy, env)
-  env[WORKER_BUDGET_ENV] = String(budget.workers)
-  const parallel = effectiveParallelism(readTestRunsConfig(), env, budget)
+  const capacity = machineCapacity(readTestRunsConfig().parallel, cores)
+  const held = (env[SLOT_HELD_ENV] ?? '') !== ''
   say(
-    `${describeBudget(budget)}；成员测试同时 ${parallel.memberConcurrency} 个成员、每个至多 ${parallel.vitestMaxWorkers} 个工作进程（环境变量已设的以环境变量为准）`,
+    held
+      ? `已在令牌之内（外层拿了 ${env['OMNE_WORKER_BUDGET'] ?? '?'} 个）：各步共用外层的令牌，重步骤一次一个`
+      : `本机 ${capacity} 个令牌（核数减留下的核）：每一步各要令牌，构建与类型检查最多要整台机器、拿到几个就以几路并发跑，单进程的检查各要 1 个；成员测试与验收每个成员的每一层各要一份`,
   )
   say(
-    `${steps.length} 步按依赖并行（重步骤一次一个、轻步骤同时至多 ${lightConcurrency(cores)} 个${options.keepGoing ? '；失败后继续跑其余步骤' : '；一步失败其余终止'}）；日志在 ${runDirName}/`,
+    `${steps.length} 步按依赖并行（${held ? '重步骤一次一个、' : ''}轻步骤同时至多 ${lightConcurrency(cores)} 个${options.keepGoing ? '；失败后继续跑其余步骤' : '；一步失败其余终止'}）；日志在 ${runDirName}/`,
   )
-  const run = await runGraph(steps, {
-    root,
-    logDir: runDir,
-    env,
-    lightConcurrency: lightConcurrency(cores),
-    keepGoing: options.keepGoing,
-    onStart: step => say(`▶ ${step.name}`),
-    onFinish: result => {
-      const took = `${seconds(result.endedMs - result.startedMs)} 秒`
-      const why = result.reason === undefined ? '' : `，${result.reason}`
-      if (result.cancelled) say(`⊘ ${result.name} 被终止（${took}${why}）`)
-      else if (result.exitCode === 0) say(`✓ ${result.name} ${took}`)
-      else
-        say(
-          `✗ ${result.name} ${took}，退出码 ${result.exitCode}${why}，日志 ${relative(root, result.logPath)}`,
-        )
+  const run = await runGraph(
+    held ? steps : steps.map(step => withTokens(step, capacity, SLOT_SCRIPT)),
+    {
+      root,
+      logDir: runDir,
+      env,
+      lightConcurrency: lightConcurrency(cores),
+      heavyConcurrency: held ? 1 : steps.length,
+      keepGoing: options.keepGoing,
+      onStart: step => say(`▶ ${step.name}`),
+      onFinish: result => {
+        const took = `${seconds(result.endedMs - result.startedMs)} 秒`
+        const why = result.reason === undefined ? '' : `，${result.reason}`
+        if (result.cancelled) say(`⊘ ${result.name} 被终止（${took}${why}）`)
+        else if (result.exitCode === 0) say(`✓ ${result.name} ${took}`)
+        else
+          say(
+            `✗ ${result.name} ${took}，退出码 ${result.exitCode}${why}，日志 ${relative(root, result.logPath)}`,
+          )
+      },
     },
-  })
+  )
 
   const table = stepsTable(run.results, run.skipped)
   writeFileSync(join(runDir, 'steps.tsv'), `${table.join('\n')}\n`)
