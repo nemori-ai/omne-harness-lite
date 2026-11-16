@@ -394,6 +394,7 @@
 | [UL-session-authorization-context](terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | 会话授权上下文 | Session Authorization Context | 会话承载的一次或本会话授权表达，**按序保存**；**是数据不是结论**，归档不丢 |
 | [UL-authorization-expression](terms/interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression) | 授权表达 | Authorization Expression | 可指认的授权表达：来源 × 方向 × 作用域；一次/本会话追加流水，全局按资格写设置；「决策记录」是弃用说法 |
 | [UL-inbound-arrival](terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) | 入站到达 | Inbound Arrival | 外面送进一个会话、**被受理之后**的那条事实；**不是消息**，**裸写「到达」不作数** |
+| [UL-background-result-eligibility](terms/interaction-and-dispatch.md#ul-background-result-eligibility--后台结果投递资格--background-result-eligibility) | 后台结果投递资格 | Background Result Eligibility | 转了后台的执行，真实结局还能不能作为入站到达进入原会话；归档或单独停止这次调用撤销，取消 Run 不撤销 |
 | [UL-inbound-target](terms/interaction-and-dispatch.md#ul-inbound-target--投递目标--inbound-target) | 投递目标 | Inbound Target | 连接件两种投递方式里 ①「已有会话开口接收」那一路的配置：进哪个会话，**本版只指一个已有的会话**；落点与身份类，**不是交付面** |
 | [UL-business-flow-extension-point](terms/interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point) | 业务流程拓展点 | Business Flow Extension Point | 拦得住请求，**碰不到已经落定的事实**；**与 Loop 拓展点并列的另一类** |
 | [UL-control-command](terms/interaction-and-dispatch.md#ul-control-command--控制指令--control-command) | 控制指令 | Control Command | 对正在发生的事或队列本身的直接处置，**不是内容、不排队** |

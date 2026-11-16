@@ -422,6 +422,24 @@
   交付面、连接件送达、定时到点、别的会话捎话，**同一套受理规矩，差别只在取值**；
   **斜杠命令不是来源取值**，它是经交付面进来的到达在受理时被认出的内容标注
 
+
+### UL-background-result-eligibility · 后台结果投递资格 · Background Result Eligibility
+
+> **中**：**一次转了后台的工具执行，它的真实结局还能不能作为一条[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)进入原会话。**
+> 它随原调用成立。**会话被归档，或这一次调用被单独停止**，它就撤销；**取消原来那一轮 Run 不撤销它**。
+> 撤销之后，结局照样保存、照样查得到，只是不再成为输入。
+>
+> **EN**: **Whether the real outcome of a backgrounded tool execution can still enter its
+> original session as an inbound arrival.** It starts with the original call. Archiving the
+> session, or stopping that one call, revokes it. Cancelling the original run does not revoke
+> it. After revocation the outcome is still kept and can still be read, but it does not become
+> an input.
+
+- **形态**：属性
+- **出处**：[会话与工作「一次工作可以等待、恢复和并行调用」](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 9）
+- **别混**：**它不是工具结果的交付。**交付是 Tool 把结果推给受理时冻结的消费位置，有没有这项资格都照推；
+  这项资格只管结局能不能再进会话，成为一条输入
+- **注意**：裸写「投递资格」只在讲后台结局的一段里作数；跨 topic 引用写正式名
 ### UL-inbound-target · 投递目标 · Inbound Target
 
 > **中**：**[连接件](capabilities-and-composition.md#ul-connector--连接件--connector)的一项[落点与身份类](capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)设置：它送进来的外部消息进哪个[会话](agent-runtime-loop.md#ul-session--会话--session)。**
