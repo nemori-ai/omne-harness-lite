@@ -231,6 +231,8 @@ describe('the trusted Tool request source', () => {
     expect(await modeOf('{"script":"sleep 9","run_in_background":false}')).toBe('foreground')
     expect(await modeOf('{"script":"sleep 9","run_in_background":"true"}')).toBe('foreground')
     expect(await modeOf('{"script":"sleep 9"}')).toBe('foreground')
+    // A call that names the command but does not decode waits in the foreground; admission answers it.
+    expect(await modeOf('[{"run_in_background":true}]')).toBe('foreground')
     // Admission, not the entry, refuses a terminal execution in the background.
     expect(await modeOf('{"script":"x","terminal":"t1","run_in_background":true}')).toBe(
       'background',

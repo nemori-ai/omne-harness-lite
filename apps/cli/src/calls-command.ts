@@ -11,6 +11,7 @@ import {
   unrecognized,
   usageError,
   type Option,
+  type OwnerResolution,
 } from './command-support.ts'
 import type { CallResult, Link } from './link.ts'
 import { readOptions } from './options.ts'
@@ -231,6 +232,19 @@ async function runSessionCall(
   return report(name, result, echoOf(invocation, messageId, { controlId }), output)
 }
 
+// A session names its owner tenant; a call alone is read for the tenant given or the login's.
+function ownerOf(
+  name: string,
+  values: Option,
+  given: TenantId | undefined,
+  login: Readonly<{ tenant: TenantId; directory: string }>,
+  output: CliOutput,
+): OwnerResolution {
+  const session = values.get('--session')
+  if (session === undefined) return { kind: 'owner', owner: given ?? login.tenant }
+  return resolveOwner(name, session, given, login.directory, output)
+}
+
 async function runCalls(
   args: readonly string[],
   output: CliOutput,
@@ -249,19 +263,13 @@ async function runCalls(
   if (given === null) return usageError(output, unrecognized(name))
   const loaded = loadLogin(read.values, output, environment)
   if (loaded.kind === 'exit') return loaded.code
-  // A session names its owner tenant; a call alone is read for the tenant given or the login's.
-  const session = read.values.get('--session')
-  let owner = given ?? loaded.tenant
-  if (session !== undefined) {
-    const resolved = resolveOwner(name, session, given, loaded.directory, output)
-    if (resolved.kind === 'exit') return resolved.code
-    owner = resolved.owner
-  }
+  const owner = ownerOf(name, read.values, given, loaded, output)
+  if (owner.kind === 'exit') return owner.code
   const invocation = {
     name,
     values: read.values,
     link: loaded.link,
-    owner,
+    owner: owner.owner,
     newId: environment.services.newId,
   }
   switch (action) {

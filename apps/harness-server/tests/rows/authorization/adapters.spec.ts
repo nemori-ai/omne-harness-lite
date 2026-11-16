@@ -1105,6 +1105,10 @@ describe('Tool access qualification', () => {
     expect(
       await guard.qualify({ ...input, principal: w.foreign(), action: 'read-result' }),
     ).toMatchObject({ kind: 'denied' })
+    for (const action of ['lookup', 'read-result'] as const)
+      expect(
+        await guard.qualify({ ...input, principal: w.system('sessionWorkPrincipals'), action }),
+      ).toEqual({ kind: 'denied', reason: 'session-work-and-call-required' })
     expect(w.seen.admissions).toHaveLength(before)
   })
 })
