@@ -11,7 +11,9 @@ export function createModelClock(time: EntryTime): ModelClock {
   const now: ModelClock['now'] = () => {
     const reading = readInstant(time.source)
     if (!reading.ok)
-      throw new TypeError(`modelClock.now: ${time.protocol} reading refused (${reading.failure.kind})`)
+      throw new TypeError(
+        `modelClock.now: ${time.protocol} reading refused (${reading.failure.kind})`,
+      )
     return reading.text
   }
   const waitUntil: ModelClock['waitUntil'] = async (instant, signal) => {

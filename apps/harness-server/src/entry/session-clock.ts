@@ -4,11 +4,7 @@ import type { Adoption } from '@omne-harness/exchange-refs'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { ClockSample, SessionClock } from '@omne-harness/session-contract'
 import { SessionClockService, sessionClockKey } from '@omne-harness/session-cordis-contract/cordis'
-import {
-  systemTime,
-  waitUntil as waitUntilEpoch,
-  type TimeSource,
-} from '@omne-harness/time-source'
+import { systemTime, waitUntil as waitUntilEpoch, type TimeSource } from '@omne-harness/time-source'
 import { parseInstant, type InstantFailure } from '@omne-harness/utc-instant'
 import type { EntryObjectModule, EntryTime } from '../types.ts'
 import { timeOf } from './time.ts'

@@ -49,7 +49,8 @@ function play(seed: number, steps: number): Outcome {
     const onFire = (): void => {
       expect(registering, 'a wait fired inside the call that registered it').toBe(false)
       const me = pending.get(id)
-      if (me === undefined) throw new Error(`wait ${String(id)} fired after it was cancelled or fired`)
+      if (me === undefined)
+        throw new Error(`wait ${String(id)} fired after it was cancelled or fired`)
       for (const [other, wait] of pending) {
         const earlier = position(me) < position(wait)
         expect(earlier || (position(me) === position(wait) && id <= other)).toBe(true)
