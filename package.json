@@ -1,13 +1,26 @@
 {
   "name": "omne-harness-lite-workspace",
   "private": true,
-  "packageManager": "pnpm@10.28.1",
+  "packageManager": "pnpm@12.18.0",
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "26.13.1",
+      "onFail": "download"
+    },
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.18.0",
+      "onFail": "download"
+    }
+  },
   "engines": {
     "node": ">=24"
   },
   "scripts": {
     "build": "TURBO_TELEMETRY_DISABLED=1 TURBO_NO_UPDATE_NOTIFIER=1 turbo run build --output-logs=errors-only",
     "typecheck": "TURBO_TELEMETRY_DISABLED=1 TURBO_NO_UPDATE_NOTIFIER=1 turbo run typecheck --output-logs=errors-only",
+    "prepare:native": "node scripts/prepare-native.mjs",
     "test": "./scripts/with-test-slot.sh node --experimental-strip-types tools/test-runner/src/testing/cli.ts run --all --build",
     "test:gate": "./scripts/with-test-slot.sh node --experimental-strip-types tools/test-runner/src/testing/cli.ts step test",
     "test:affected": "./scripts/slot-unless-plan-only.sh node --experimental-strip-types tools/test-runner/src/testing/cli.ts run",

@@ -74,14 +74,24 @@ catalog:
   '@stryker-mutator/core': 10.1.1
   '@stryker-mutator/vitest-runner': 10.1.1
 
-# 安装仍使用 --ignore-scripts；只允许显式构建这个已核对的原生依赖。
-onlyBuiltDependencies:
-  - node-pty@1.1.0
+# 安装仍使用 --ignore-scripts；只允许显式构建这个已核对的原生依赖。其余带构建脚本的依赖逐个写 false：
+# pnpm 12 让没写进这里的构建脚本使任何不带 --ignore-scripts 的安装以 ERR_PNPM_IGNORED_BUILDS 失败。
+allowBuilds:
+  node-pty@1.1.0: true
+  esbuild@0.28.2: false
 
-# node-pty 1.1.0 的 macOS 预编译包里 spawn-helper 没有可执行位，postinstall 也不补；补丁只把它改成 0755。
+# node-pty 的 spawn-helper 执行位由 scripts/prepare-native.mjs 补，不经 pnpm 补丁（pnpm 12 应用只改模式的补丁会损坏文件）。
 patchedDependencies:
-  node-pty@1.1.0: patches/node-pty@1.1.0.patch
   rrule@2.8.1: patches/rrule@2.8.1.patch
+
+# 根与成员脚本经 pnpm 内置的 shell 模拟器运行，Windows 上不需要机器级 script-shell。
+shellEmulator: true
+
+# 依赖过期时 pnpm run／exec 失败并提示安装，不自己安装：安装只走文档写明的准备命令与 scripts/check.sh 的启动段。
+verifyDepsBeforeRun: error
+
+# 不缓存构建脚本运行后的包目录：否则带脚本的安装取 store 里以前的构建结果，node-pty 可能缺 prebuilds。
+sideEffectsCache: false
 
 # dependency-cruiser 18 只认 TypeScript 6 以下的编译器，没有它就不解析 .ts。只给它补一份 TypeScript 6，成员仍用 catalog 的 TypeScript 7。
 packageExtensions:
