@@ -127,6 +127,8 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 `login(凭据)` 只交出凭据，答案只有结果，不含任何登录证明：`signed-in`、`auth-failed`、`unknown`、`unavailable`。`logout()` 的结果是 `signed-out` 或 `unknown`。结果不知道就是 `unknown`，不写成成功或失败。
 
+外壳的实现给它画的每一项包一层错误隔离：一项的渲染抛出时，只有这一项显示读不出（FE-I14）。坏了的一项显示什么，归外壳的实现。
+
 外壳一侧读位置用 `ShellSlots`：`items(位置)` 给出现在放着的项（列的位置已经排好序，只放一个的位置最多一项），`subscribe(位置, 监听)` 在这个位置变化时通知。外壳的实现同时实现 `ShellService` 与 `ShellSlots`。
 
 #### 存放 `createSlotStore`
@@ -185,3 +187,4 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I11 | 一个作用域卸载时，撤掉的恰好是它放的那些项；撤两次第二次什么都不做 | 卸载一个界面模块带走别人放的东西，或留下自己的 | `shell-contract/tests/unload.spec.ts` 与存放工厂的撤回用例 |
 | FE-I12 | 登录与退出的答案只有结果，不含任何登录证明 | 页面里的界面模块读到登录证明 | `shell-contract/tests/slots.spec-d.ts` 里登录端口的类型用例 |
 | FE-I13 | 附着位置里的一项只渲染在名字相同的地方，收到那个地方给的对象；按键的拓展点里，一项只出现在它的键下 | 一个对象的界面出现在另一个对象上 | `shell-contract/tests/attached.spec.ts` 的参考外壳用例；`shell-contract/tests/point.spec.ts`；`apps/desktop/tests/shell.spec.tsx` 的附着位置用例 |
+| FE-I14 | 外壳画的一项在渲染当中抛出时，只有这一项显示读不出；别的项与宿主的页面照常。这一条由外壳的实现守，契约只规定它 | 一个领域的界面出错，整个页面卸掉 | `apps/desktop/tests/shell.spec.tsx` 的「一项坏了只坏这一项」一组 |

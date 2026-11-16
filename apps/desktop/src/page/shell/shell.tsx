@@ -12,6 +12,7 @@ import {
 } from '@omne-harness/ui-kit'
 import type { Connectivity } from '../connectivity.ts'
 import { useSlot, useWatched } from './hooks.ts'
+import { Item } from './item.tsx'
 import { useSidebarFoldMotion, type SidebarWidth } from './sidebar-motion.ts'
 import type { ShellState } from './state.ts'
 
@@ -83,7 +84,7 @@ function Gate(props: { state: ShellState; connectivity: Connectivity }) {
         </InlineNotice>
       ) : null}
       {gate !== undefined ? (
-        gate.render({})
+        <Item key={gate.id} render={() => gate.render({})} />
       ) : props.connectivity === 'connecting' ? (
         <LoadingState label="正在连接服务……" />
       ) : (
@@ -119,6 +120,8 @@ function PageLink(props: {
   choose: (id: string) => void
 }) {
   const Icon = props.page.icon === undefined ? undefined : ICONS[props.page.icon]
+  const { badge } = props.page
+  const { scope } = props
   return (
     <button
       type="button"
@@ -129,8 +132,10 @@ function PageLink(props: {
     >
       {Icon === undefined ? null : <Icon aria-hidden="true" />}
       <span className="shell-link-label">{props.page.title}</span>
-      {props.page.badge === undefined ? null : (
-        <span className="shell-nav-badge">{props.page.badge({ scope: props.scope })}</span>
+      {badge === undefined ? null : (
+        <span className="shell-nav-badge">
+          <Item quiet scope={scope} render={() => badge({ scope })} />
+        </span>
       )}
     </button>
   )
@@ -203,7 +208,7 @@ function Sidebar(props: {
         <div className="shell-navigation-main">
           {items.map(item => (
             <div key={item.id} className="shell-sidebar-item" data-item={item.id}>
-              {item.render({ scope })}
+              <Item scope={scope} render={() => item.render({ scope })} />
             </div>
           ))}
         </div>
@@ -237,7 +242,7 @@ function Workspace(props: {
             data-page={page.id}
             hidden={page.id !== shown}
           >
-            {page.render({ scope })}
+            <Item scope={scope} render={() => page.render({ scope })} />
           </section>
         ))}
       </main>
