@@ -23,8 +23,6 @@ const EXPECTED: Readonly<Record<string, InspectRejectionCode | 'accepted'>> = {
 }
 
 describe('fixture packages', () => {
-  // `outside-package` comes only from the source snapshot, never from parsing the bytes: the
-  // inspection tests of @omne-harness/skill cover it.
   it('has an expectation for every fixture and a fixture for every parse rejection code', () => {
     expect(fixtureNames().sort()).toEqual(Object.keys(EXPECTED).sort())
     const codes: readonly InspectRejectionCode[] = [

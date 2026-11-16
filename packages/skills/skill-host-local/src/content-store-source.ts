@@ -1,12 +1,3 @@
-// `createContentStoreSource`: a `SkillPackageSource` for `{ kind: 'content-store', digest, ref }`
-// locators, over the read port of published packages that assets gives. It knows the asset
-// contract only: the assembly hands it the function that gives the read port of a package, for
-// example the `reader` of the local assets member. `ref` is the opaque reference that the content
-// store gave; the source passes it on as it is and does not interpret it.
-//
-// A package digest names one content, so the snapshot of a digest never changes: the source seals
-// it once from the manifest, one file at a time, and keeps the snapshots used last. A read then
-// opens one file.
 import type { PackageReader, PackageSourceFailure } from '@omne-harness/assets'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -22,12 +13,10 @@ import {
   type SourceFailure,
 } from '@omne-harness/skill-contract/provider'
 
-/** The read port of the package that the content store names with `ref` and `digest`. */
 export type PackageReaderOf = (
   locator: Readonly<{ ref: string; digest: PackageDigest }>,
 ) => PackageReader
 
-/** How many sealed snapshots the source keeps: the ones used last. */
 const KEPT_SNAPSHOTS = 256
 
 function failureOf(failure: PackageSourceFailure): SourceFailure {
@@ -48,7 +37,6 @@ type ContentLocator = Readonly<{ ref: string; digest: PackageDigest }>
 export function createContentStoreSource(
   options: Readonly<{ readerOf: PackageReaderOf }>,
 ): SkillPackageSource {
-  /** In the order of use, the oldest first. */
   const sealed = new Map<PackageDigest, SkillPackageSnapshot>()
 
   function keep(digest: PackageDigest, snapshot: SkillPackageSnapshot): void {
@@ -79,8 +67,6 @@ export function createContentStoreSource(
     }
     const snapshot = sealEntries({ rootName: digest, entries })
     if (!('ok' in snapshot)) return fail('entry-unreadable')
-    // The entries come from the bytes, and the manifest is checked, not trusted: the bytes must
-    // give the digest that names the package.
     if (snapshot.ok.digest !== digest) return fail('bytes-mismatch')
     keep(digest, snapshot.ok)
     return snapshot

@@ -1,5 +1,3 @@
-// The binding of the two judging ports (C11): each translation rule of the spec (decision 18)
-// has a case, and a source of candidates that cannot be read answers unknown, not none.
 import { describe, expect, it } from 'vitest'
 import { capabilityId, type CapabilityId, type JsonValue } from '@omne-harness/assets'
 import { access, accountCodec, organizationCodec, tenant } from '@omne-harness/legal-identity'

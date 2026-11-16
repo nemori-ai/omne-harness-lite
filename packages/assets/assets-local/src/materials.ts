@@ -46,8 +46,6 @@ export function assetsSqlMaterials(): Pick<
         ordering: 'snapshot',
         readTables: TABLES,
         requiresMigrations: [MIGRATION],
-        // The most rows of one read: a held-capability read takes the domain row, the held
-        // capability index row, the holding, the asset and the selected version.
         maxRowsRead: 5,
         maxOutputBytes: 2 * 1024 * 1024,
       },

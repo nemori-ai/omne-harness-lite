@@ -1,6 +1,3 @@
-// The content-store source over a fake read port of assets (C10): it reads the snapshot and the
-// files through the two steps of the read port, answers bytes-mismatch for bytes that differ from
-// the manifest and package-not-found for no package, and runs the source conformance suite.
 import { describe, expect, it } from 'vitest'
 import {
   digestBytes,
@@ -47,14 +44,10 @@ function packagePath(raw: string): PackagePath {
 }
 
 type Store = Readonly<{
-  /** What the read port of each digest holds. */
   packages: Map<string, Record<string, string>>
   opened: string[]
-  /** The refs that the source gave the read port, one for each read port it asked for. */
   refs: string[]
-  /** Bytes that the store gives in place of the stored ones, by path. */
   tampered: Map<string, string>
-  /** A failure that `open` gives for every file. */
   openFailure?: PackageSourceFailure
 }>
 
@@ -68,7 +61,6 @@ function store(overrides: Partial<Store> = {}): Store {
   }
 }
 
-/** A read port that checks the digest of the bytes it gives, as the read port of assets does. */
 function readerOf(held: Store) {
   return ({ ref, digest }: { ref: string; digest: string }): PackageReader => {
     held.refs.push(ref)
@@ -201,12 +193,10 @@ describe('the ref of the locator and the bound on what the source keeps', () => 
     const source = createContentStoreSource({ readerOf: readerOf(held) })
     const at = (index: number) =>
       ({ kind: 'content-store', digest: digests[index]!, ref: `asset-${index}` }) as const
-    // 0 to 255 fill the 256 places; using 0 again makes 1 the oldest; 256 then pushes 1 out.
     for (let index = 0; index < 256; index += 1) await source.snapshot(at(index))
     await source.snapshot(at(0))
     await source.snapshot(at(256))
     held.opened.length = 0
-    // Exactly 256 are kept: 0, 2 to 256.
     for (const index of [0, 2, 255, 256]) await source.snapshot(at(index))
     expect(held.opened).toEqual([])
     await source.snapshot(at(1))

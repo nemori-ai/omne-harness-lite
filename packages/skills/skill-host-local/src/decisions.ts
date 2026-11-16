@@ -1,9 +1,3 @@
-// The two judging ports of Skill, bound to the candidate resolution of assets. `resolve` takes
-// the same-named candidates of every layer from a function that the assembly gives (for example
-// the official candidates and the tenant's held capability), asks `evaluate` of assets, and
-// translates its answer into the five answers of `Resolution`. `check` passes the question on
-// to a function that the assembly gives. Who may use a capability is an input of the assembly:
-// this member defines no general port for it.
 import {
   capabilityId,
   evaluate,
@@ -37,17 +31,13 @@ import type {
   SkillResolution,
 } from '@omne-harness/skill-contract/provider'
 
-/** Where a candidate's package is. A content-store locator gets its `ref` from the binding: the
- * asset reference of the candidate. */
 export type CandidateLocator =
   | Readonly<{ kind: 'directory'; root: string }>
   | Readonly<{ kind: 'content-store'; digest: PackageDigest }>
 
-/** One same-named candidate of one layer, with what Skill needs to read it. */
 export type SkillCandidate = Candidate &
   Readonly<{
     locator: CandidateLocator
-    /** The package digest; absent when the body names no package. */
     digest?: PackageDigest
     declared: DeclaredProjection
   }>
@@ -58,20 +48,15 @@ export type SkillLayerInput =
 
 export type Eligibility = 'yes' | 'no' | 'unknown'
 
-/** The inputs of the assembly. A throw of any of them counts as `unknown`. */
 export type SkillDecisionInputs<P, S> = Readonly<{
-  /** The layers of one identity, from the widest to the most specific. */
   layers(access: Access<P>, scope: S, capability: CapabilityId): Promise<readonly SkillLayerInput[]>
-  /** Whether the principal may use this candidate; also whether it may know a disabled one. */
   eligible(
     access: Access<P>,
     scope: S,
     candidate: SkillCandidate,
     layer: SourceLayer,
   ): Promise<Eligibility>
-  /** The identities whose layers `adopted` resolves. */
   identities(access: Access<P>, scope: S): Promise<Outcome<readonly CapabilityId[], 'unknown'>>
-  /** The read check. */
   readable(access: Access<P>, scope: S, capability: CapabilityId): Promise<ReadVerdict>
 }>
 
@@ -84,13 +69,11 @@ const DISABLED: SafeReason = (() => {
   return reason
 })()
 
-/** One candidate with its layer and the eligibility that the assembly answered for it. */
 type Judged = Readonly<{ layer: SourceLayer; candidate: SkillCandidate; verdict: Eligibility }>
 
 export function createSkillDecisions<P, S>(
   inputs: SkillDecisionInputs<P, S>,
 ): Readonly<{ resolution: SkillResolution<P, S>; readCheck: SkillReadCheck<P, S> }> {
-  /** Asks the assembly for the eligibility of every candidate of every layer that was read. */
   async function judge(
     access: Access<P>,
     scope: S,
@@ -156,7 +139,6 @@ export function createSkillDecisions<P, S>(
   return Object.freeze({ resolution, readCheck })
 }
 
-/** The answer of `evaluate` as one of the five answers of `Resolution`. */
 function translate(
   capability: CapabilityId,
   result: Evaluation,
@@ -181,8 +163,6 @@ function translate(
   }
 }
 
-/** Without a winner: a disabled candidate that the principal may know stands in for the
- * identity; one whose eligibility is unknown makes the answer unknown; otherwise none. */
 function noWinner(
   capability: CapabilityId,
   filtered: readonly Filtered[],
@@ -197,7 +177,6 @@ function noWinner(
   return disabled.some(one => one.verdict === 'unknown') ? UNKNOWN : NONE
 }
 
-/** A basis is lawful when it names the winner's layer and, if it has one, the winner's version. */
 function isLawfulBasis(basis: SkillMaterialBasis, winner: Judged): boolean {
   return (
     basis.layer === winner.layer &&
@@ -205,7 +184,6 @@ function isLawfulBasis(basis: SkillMaterialBasis, winner: Judged): boolean {
   )
 }
 
-/** The internal reference of the winner; with a basis it carries the basis digest. */
 function refOf(capability: CapabilityId, winner: Judged, basis?: SkillMaterialBasis): SkillRef {
   const { candidate } = winner
   const digest = basis?.digest ?? candidate.digest
@@ -218,8 +196,6 @@ function refOf(capability: CapabilityId, winner: Judged, basis?: SkillMaterialBa
   }
 }
 
-/** The locator of the reference: a content-store locator carries the candidate's asset reference
- * as the opaque `ref`, which the content store gets back. */
 function locatorOf(candidate: SkillCandidate): PackageLocator {
   return candidate.locator.kind === 'content-store'
     ? { kind: 'content-store', digest: candidate.locator.digest, ref: candidate.asset }
@@ -246,7 +222,6 @@ function textOf(value: JsonValue | undefined): string | undefined {
   return value?.kind === 'string' ? value.value : undefined
 }
 
-/** The tool identities of the body's `tools`, or `undefined` when one item is not one. */
 function toolsOf(tools: JsonValue | undefined): CapabilityId[] | undefined {
   if (tools?.kind !== 'array') return undefined
   const ids: CapabilityId[] = []
@@ -261,7 +236,6 @@ function toolsOf(tools: JsonValue | undefined): CapabilityId[] | undefined {
   return ids
 }
 
-/** The declared projection of a body: name, description and tools. */
 function declaredOf(body: JsonValue): DeclaredProjection | undefined {
   const name = textOf(field(body, 'name'))
   const description = textOf(field(body, 'description'))
@@ -271,11 +245,6 @@ function declaredOf(body: JsonValue): DeclaredProjection | undefined {
   return isSkillDescription(description) ? { name, description, tools } : undefined
 }
 
-/**
- * The candidate of a published Skill from the body of its version record: the declared name,
- * description and tools, and the package digest as a content-store locator. `undefined` when the
- * body is not the body of a published Skill package.
- */
 export function publishedCandidate(
   input: Readonly<{
     asset: string

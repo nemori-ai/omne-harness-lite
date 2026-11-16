@@ -1,8 +1,3 @@
-// The publish journey of `examples/publish-journey.ts` (C12) as a test, on real SQLite storage and
-// a temporary package root: the directory becomes the tenant's Skill, the evaluation answers it,
-// `SkillAccess` reads the body and lists the files with the script among them, and the version
-// has a directory on this machine. An official copy of the same name loses to the tenant copy,
-// and wins when it declares that it cannot be replaced.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'

@@ -1,6 +1,3 @@
-// Published packages: one case for each cell of the totalized table of the publish flow
-// (publish, read and the recovery scan against none, published, staging only, recorded but not
-// swapped in), the two crash points, two publishes at once, and the rejections.
 import {
   existsSync,
   mkdtempSync,
@@ -31,7 +28,6 @@ afterEach(async () => {
 
 const encoder = new TextEncoder()
 
-/** A category whose body is a directory: at most 3 files, 16 bytes each, 32 bytes together. */
 function bundles() {
   const registry = createCategoryRegistry()
   registry.register({
@@ -73,7 +69,6 @@ function bundles() {
   return registry
 }
 
-/** A reader over files in memory. */
 function memory(files: Readonly<Record<string, string>>): PackageReader {
   const bytes = new Map(Object.entries(files).map(([path, text]) => [path, encoder.encode(text)]))
   return {
@@ -132,7 +127,6 @@ async function world(
   return { ...opened, packageRoot }
 }
 
-/** A world that crashes once, at the `nth` time it passes `step`, then runs on. */
 async function crashingWorld(step: Step, nth = 1) {
   let seen = 0
   return world({
@@ -432,7 +426,6 @@ describe('publishing a directory', () => {
   })
 
   it('C7 两次同名的发布同时来：一个 published，一个 conflict，后者的暂存被清掉', async () => {
-    // Both publishes read the revision and stage before either one records its version.
     const bothStaged = Promise.withResolvers<void>()
     let staged = 0
     const w = await world({

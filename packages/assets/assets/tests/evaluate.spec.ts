@@ -1,5 +1,3 @@
-// `evaluate`: the candidate resolution of SPEC「合法候选与替换」. One case for each cell of the
-// totalized table, named after the cell, and one property over a small exhaustive space.
 import { describe, expect, it } from 'vitest'
 import { evaluate, type Candidate, type Evaluation, type LayerInput } from '../src/index.ts'
 
@@ -65,7 +63,6 @@ describe('evaluate: the cells of the totalized table', () => {
         { layer: 'tenant', candidate: second, reason: 'disabled' },
       ],
     })
-    // The disabled filter comes before the eligibility filter.
     expect(asked).toEqual([])
   })
 
@@ -106,7 +103,6 @@ describe('evaluate: the cells of the totalized table', () => {
         { layer: 'tenant', candidate: tenant, reason: 'ineligible' },
       ],
     })
-    // Nor can a filtered candidate block others with its declaration or its lock.
     const lockedButDisabled = candidate('org/review', { disabled: true, immutable: true })
     const lockedButIneligible = candidate('org/other', { replaceLocked: true })
     expect(
@@ -135,7 +131,6 @@ describe('evaluate: the cells of the totalized table', () => {
       ],
       eligible: everyoneEligible,
     })
-    // The same concrete asset held again in a lower layer is no replacement.
     expect(result).toEqual({
       kind: 'winner',
       layer: 'tenant',
@@ -144,7 +139,6 @@ describe('evaluate: the cells of the totalized table', () => {
         { layer: 'organization', candidate: organization, reason: 'blocked', by: 'official' },
       ],
     })
-    // The constraint acts only downwards: a lower declaration does not bind an upper layer.
     const lowerLocked = candidate('tenant/review', flag)
     expect(
       evaluate({
@@ -200,9 +194,6 @@ describe('evaluate: the cells of the totalized table', () => {
   })
 })
 
-// The property, restated from the SPEC without the algorithm: a lawful candidate is neither
-// disabled nor ineligible; a lawful candidate is blocked when a lawful, unblocked candidate of a
-// wider layer declares immutable or holds a replace lock and is another concrete asset.
 describe('evaluate: property over every input of three layers with up to one candidate each', () => {
   const ASSETS = ['x', 'y'] as const
   const flags = [false, true] as const
@@ -219,7 +210,6 @@ describe('evaluate: property over every input of three layers with up to one can
   type Slot = 'not-applicable' | 'empty' | (Candidate & { eligible: boolean })
   const slots: Slot[] = ['not-applicable', 'empty', ...candidates()]
 
-  /** What the SPEC says about one input, or `undefined` when the result agrees. */
   function disagreement(picked: readonly Slot[], result: Evaluation): string | undefined {
     const lawful = picked.map(slot =>
       typeof slot === 'object' && !slot.disabled && slot.eligible ? slot : undefined,

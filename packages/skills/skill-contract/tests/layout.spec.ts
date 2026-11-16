@@ -1,4 +1,3 @@
-// The `layout` of the `skill` category (C9) and the snapshot sealed from manifest entries (C10).
 import { describe, expect, it } from 'vitest'
 import { digestBytes, packageDigest, type PackageReader } from '@omne-harness/assets'
 import {
@@ -10,7 +9,6 @@ import {
 import { packageEntryOf, sealEntries, sealSnapshot } from '@omne-harness/skill-contract/provider'
 import { buildFixture, fixtureFiles, path } from './package-builder.ts'
 
-/** A reader over the files of a package in memory. */
 function readerOf(files: Readonly<Record<string, Uint8Array>>): PackageReader {
   return {
     async manifest() {

@@ -23,10 +23,6 @@ function holdingResult(
     return { kind: 'read', output: { kind: 'rejected', reason: 'forbidden' } }
   return heldResult(readHolding(port, domain, lookup.holdingRef), port)
 }
-/**
- * The held holding of one capability identity in this domain: at most one, by the unique index.
- * A domain without any record yet has no holding; another domain is forbidden.
- */
 function heldCapabilityResult(
   request: Extract<ReadRequest, { kind: 'heldCapability' }>,
   port: Port,
@@ -83,7 +79,6 @@ function assetResult(
   const asset = readAsset(port, domain, request.lookup.assetRef)
   return { kind: 'read', output: json(asset ? { kind: 'asset', asset } : { kind: 'absent' }) }
 }
-/** One version record of one asset. */
 function versionResult(
   request: Extract<ReadRequest, { kind: 'version' }>,
   port: Port,

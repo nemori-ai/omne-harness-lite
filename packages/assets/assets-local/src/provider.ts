@@ -237,8 +237,6 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
         return { ok: result.kind === 'asset' ? result.asset.revision : 0 }
       },
       async readVersionRecord(assetRef, version) {
-        // No version without its asset; reading the asset first also answers a domain that has
-        // no record yet, which the version read answers `forbidden`.
         const asset = await local.readAsset({ assetRef })
         if (asset.kind === 'rejected') return { failure: asset.reason }
         if (asset.kind === 'absent') return { ok: undefined }

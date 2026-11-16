@@ -1,11 +1,3 @@
-// The publish demo: publishes `examples/sample-skill/` as a Skill of a tenant on real SQLite
-// storage under a temporary directory, records the holding, asks the bound resolution which one
-// the tenant uses now, reads the body and lists the files through `SkillAccess`, and prints where
-// the published directory is on this machine. Then it runs once more with an official copy that
-// declares it cannot be replaced, and prints which one wins.
-//
-// Run from the member directory after `pnpm run build` of this member and its dependencies:
-//   node --experimental-strip-types examples/publish-demo.ts
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

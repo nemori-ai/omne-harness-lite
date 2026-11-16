@@ -1,5 +1,3 @@
-// The digests of SPEC「正文是目录的类别」: known values for fixed input, and a package digest that
-// does not depend on the order of the entries.
 import { describe, expect, it } from 'vitest'
 import { digestBytes, packageDigest } from '../src/index.ts'
 

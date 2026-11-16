@@ -1,12 +1,3 @@
-// One journey from a directory to a Skill that a tenant reads, on real SQLite storage and a real
-// directory of package files: assets-local publishes the directory as a Skill of the tenant and
-// records the holding; the bound `SkillResolution` asks `evaluate` of assets over the official
-// candidate (a fixture directory) and the tenant's held capability; `SkillAccess` reads the body
-// and lists the files through the content-store source, which reads the read port of assets.
-// The assembly is this file: it hands the reader of assets-local to the content-store source.
-// Who may use the Skill is an input of the assembly here: every principal of the same tenant.
-//
-// It runs as the test `tests/publish-journey.spec.ts`, and as the demo `examples/publish-demo.ts`.
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
@@ -51,36 +42,25 @@ import {
 } from '@omne-harness/skill-host-local'
 
 export type PublishJourneyOptions = Readonly<{
-  /** The directory that the tenant publishes. */
   packageDir: string
-  /** The official package of the same name, a fixture directory. */
   officialDir: string
-  /** Whether the official definition declares that it cannot be replaced. */
   officialImmutable: boolean
-  /** An empty directory for the SQLite files and the package root. */
   stateDir: string
-  /** The reader, a principal of the tenant. */
   reader: Readonly<{ access: Access<string>; tenant: TenantId }>
 }>
 
 export type PublishJourney = Readonly<{
   capability: CapabilityId
-  /** The version that the publish gave: the package digest. */
   version: string
-  /** What the bound resolution answers for the capability. */
   resolution: Resolution
-  /** The body of the Skill that the reader reads. */
   body: ReadResult
-  /** The files of the Skill that the reader lists. */
   listing: ResourceListing
-  /** Where the published version is on this machine. */
   location: PackageLocation
 }>
 
 const SCOPE = 'tenant'
 type Scope = typeof SCOPE
 
-/** A `PackageReader` over a directory, through the directory source of this member. */
 function directoryReader(source: SkillPackageSource, root: string): PackageReader {
   const locator: PackageLocator = { kind: 'directory', root }
   return {
@@ -108,7 +88,6 @@ function directoryReader(source: SkillPackageSource, root: string): PackageReade
   }
 }
 
-/** The SQLite storage of one tenant domain with the assets and settings materials. */
 async function openStorage(stateDir: string, tenantRef: string) {
   const assets = assetsSqlMaterials()
   const settings = settingsSqlMaterials()
@@ -168,8 +147,6 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
     const capability = made.id
     const assetRef = 'tenant/skill/sample-skill'
 
-    // Step 1: publish the directory, then record it as the tenant's holding, following the
-    // current version. Holding is the caller's step, not part of publishing.
     const published = await assets.packages.publish({
       capability,
       assetRef,
@@ -190,8 +167,6 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
     })
     if (held.kind !== 'committed') throw new Error(JSON.stringify(held))
 
-    // Step 2: the two judging ports. The official candidate comes from the fixture directory;
-    // the tenant candidate comes from the held capability; there is no organization source.
     const inspection = createPackageInspection(directories)
     async function official(): Promise<SkillLayerInput> {
       const root = options.officialDir
@@ -241,8 +216,6 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
       readable: async who => (sameTenant(who) ? { kind: 'granted' } : { kind: 'refused' }),
     })
 
-    // Step 3: the content-store source reads the read port of assets; a directory locator goes
-    // to the directory source. Handing the reader of assets-local to it is this assembly's step.
     const contentStore = createContentStoreSource({
       readerOf: ({ ref, digest }) => assets.packages.reader({ assetRef: ref, version: digest }),
     })

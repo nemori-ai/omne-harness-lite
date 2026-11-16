@@ -29,7 +29,6 @@ export type BodyContract = {
   readonly deriveDeclarations: (body: JsonValue, context?: JudgeContext) => Declarations
   readonly settings?: (body: JsonValue, context?: JudgeContext) => SettingDefinitions | null
   readonly references: (body: JsonValue, context?: JudgeContext) => readonly CapabilityId[]
-  /** Only a category whose body is a directory gives it. */
   readonly layout?: PackageLayout
 }
 
