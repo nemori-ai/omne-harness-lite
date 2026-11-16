@@ -1,4 +1,8 @@
 {
   "formatVersion": 1,
-  "dependencies": [{ "category": "tool", "name": "read_file" }]
+  "dependencies": [{ "category": "tool", "name": "read_file" }],
+  "settings": [
+    { "name": "api-endpoint", "category": "binding" },
+    { "name": "tone", "category": "preference" }
+  ]
 }

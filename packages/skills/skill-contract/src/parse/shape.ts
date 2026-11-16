@@ -1,6 +1,7 @@
 import { capabilityId, type CapabilityId, type JsonValue } from '@omne-harness/assets'
 import { INSPECT_REJECTIONS, type InspectRejectionCode } from '../failures.ts'
 import { isBoundedText } from '../names.ts'
+import type { SettingCategory, SettingDeclaration } from '../values.ts'
 
 export type Finding = Readonly<{ code: InspectRejectionCode; detail: string }>
 
@@ -55,6 +56,12 @@ function textOf(value: JsonValue | undefined): string | undefined {
   return value !== undefined && value.kind === 'string' ? value.value : undefined
 }
 
+const SETTING_CATEGORIES: readonly SettingCategory[] = ['preference', 'binding']
+
+function isSettingCategory(text: string): text is SettingCategory {
+  return SETTING_CATEGORIES.some(category => category === text)
+}
+
 function listOf<T>(
   value: JsonValue | undefined,
   part: string,
@@ -98,4 +105,21 @@ export function readDependencies(value: JsonValue | undefined): Read<CapabilityI
     return { value: id.id, findings }
   })
   return noRepeats(list, id => id.name, 'dependencies')
+}
+
+export function readSettings(value: JsonValue | undefined): Read<SettingDeclaration[]> {
+  const list = listOf<SettingDeclaration>(value, 'settings', (item, at) => {
+    const fields = fieldsOf(item)
+    const findings = unknownKeys(fields, ['name', 'category'], at)
+    const name = textOf(fields?.get('name'))
+    const category = textOf(fields?.get('category'))
+    if (name === undefined || name === '' || category === undefined)
+      return { value: undefined, findings: [...findings, malformed(`${at} is not a setting`)] }
+    if (!isSettingCategory(category)) {
+      const unknown: Finding = { code: 'setting-category-unknown', detail: `${at}.category` }
+      return { value: undefined, findings: [...findings, unknown] }
+    }
+    return { value: Object.freeze({ name, category }), findings }
+  })
+  return noRepeats(list, setting => setting.name, 'settings')
 }

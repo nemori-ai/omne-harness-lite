@@ -39,6 +39,7 @@ function descriptionOf(gated: Gated): SkillDescription {
     material:
       'ok' in material ? { kind: 'pinned', basis: material.ok } : { kind: 'no-readable-package' },
     dependencies: declared.tools,
+    settings: declared.settings,
     addressing: 'package-relative-path',
   }
 }

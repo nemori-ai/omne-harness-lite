@@ -53,7 +53,12 @@ function candidate(
     replaceLocked: flags.replaceLocked ?? false,
     locator: { kind: 'content-store', digest: digest(fill) },
     digest: digest(fill),
-    declared: { name: skillName('weekly-report'), description: `From ${asset}.`, tools: [] },
+    declared: {
+      name: skillName('weekly-report'),
+      description: `From ${asset}.`,
+      tools: [],
+      settings: [],
+    },
   }
 }
 
@@ -366,7 +371,7 @@ describe('the translation: the branches of the winner and of no winner', () => {
       immutable: false,
       replaceLocked: false,
       locator: { kind: 'directory', root: '/skills/weekly-report' },
-      declared: { name: skillName('weekly-report'), tools: [] },
+      declared: { name: skillName('weekly-report'), tools: [], settings: [] },
     }
     const { resolution } = decisions([read('official', official)])
     expect(await resolution.resolve(reader, scope, report)).toEqual({

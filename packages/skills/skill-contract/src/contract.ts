@@ -16,9 +16,12 @@ import {
   fieldsOf,
   firstFinding,
   isSkillDescription,
+  readSettings,
   unknownKeys,
   type Finding,
+  type Read,
 } from './parse/shape.ts'
+import type { SettingDeclaration } from './values.ts'
 
 const schemaRead = readBodyText(
   JSON.stringify({
@@ -27,6 +30,7 @@ const schemaRead = readBodyText(
       name: 'string',
       description: 'string',
       tools: { category: 'tool', name: 'string' },
+      settings: { name: 'string', category: 'preference|binding' },
       package: { digest: 'string' },
     },
   }),
@@ -51,7 +55,11 @@ export function skillBodyContract(): BodyContract {
     deriveDeclarations(body, context) {
       const decision = judge(body, context)
       if (!decision.ok) throw new TypeError(`skill body failed judgment: ${decision.rejected}`)
-      return { entries: [] }
+      return {
+        entries: extensionOf(body).value.map(
+          setting => `setting:${setting.category}:${setting.name}`,
+        ),
+      }
     },
     references(body, context) {
       const decision = judge(body, context)
@@ -76,11 +84,11 @@ function judge(body: unknown, context?: { capabilityName?: string }): Judgment {
     return refusal('name-mismatch')
   if (!isSkillName(name)) return refusal('name-invalid')
   if (toolRefs(body) === undefined) return refusal('incomplete-reference')
-  const first = firstFinding(extensionFindings(body))
+  const first = firstFinding(extensionOf(body).findings)
   return first === undefined ? { ok: true } : refusal(first.code)
 }
 
-function extensionFindings(body: unknown): readonly Finding[] {
+function extensionOf(body: unknown): Read<readonly SettingDeclaration[]> {
   const findings: Finding[] = []
   const description = field(body, 'description')
   if (
@@ -91,6 +99,8 @@ function extensionFindings(body: unknown): readonly Finding[] {
       code: 'malformed',
       detail: `description is not text of 1 to ${DESCRIPTION_LIMIT} characters`,
     })
+  const settings = readSettings(field(body, 'settings'))
+  findings.push(...settings.findings)
   const pack = field(body, 'package')
   if (pack !== undefined) {
     const fields = fieldsOf(pack)
@@ -99,7 +109,7 @@ function extensionFindings(body: unknown): readonly Finding[] {
     if (digest?.kind !== 'string' || !isPackageDigest(digest.value))
       findings.push({ code: 'malformed', detail: 'package.digest is not a package digest' })
   }
-  return findings
+  return { value: settings.value, findings }
 }
 
 function toolRefs(body: unknown): readonly { category: string; name: string }[] | undefined {

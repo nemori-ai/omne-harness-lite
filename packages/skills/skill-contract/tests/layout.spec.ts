@@ -44,7 +44,7 @@ describe('C9 the layout of the skill category', () => {
     expect(layout?.limits).toEqual(SKILL_PACKAGE_LIMITS)
   })
 
-  it('projects the name, the description and the tools of a legal Skill directory', async () => {
+  it('projects the name, the description, the tools and the settings of a legal Skill directory', async () => {
     const files = fixtureFiles('full-skill')
     expect(Object.keys(files)).toContain('scripts/run.sh')
     const inspected = await layout?.inspect(readerOf(files))
@@ -59,6 +59,10 @@ describe('C9 the layout of the skill category', () => {
           { key: 'name', value: { kind: 'string', value: 'full-skill' } },
           { key: 'description', value: { kind: 'string' } },
           { key: 'tools', value: { kind: 'array', items: [{ kind: 'object' }] } },
+          {
+            key: 'settings',
+            value: { kind: 'array', items: [{ kind: 'object' }, { kind: 'object' }] },
+          },
           { key: 'package', value: { kind: 'object' } },
         ],
       },

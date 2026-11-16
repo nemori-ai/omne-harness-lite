@@ -313,6 +313,7 @@ describe('the body of a SKILL.md without a legal frontmatter', () => {
               declared: {
                 name: granted(isSkillName, 'review'),
                 tools: [],
+                settings: [],
               },
             },
           },

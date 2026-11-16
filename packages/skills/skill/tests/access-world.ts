@@ -128,6 +128,7 @@ const declared: DeclaredProjection = {
   name: granted(isSkillName, 'review'),
   description: 'Reviews a change.',
   tools: [tool('read-file')],
+  settings: [{ name: 'tone', category: 'preference' }],
 }
 
 function material(digest: PackageDigest | undefined, version: string): MemoryMaterial {

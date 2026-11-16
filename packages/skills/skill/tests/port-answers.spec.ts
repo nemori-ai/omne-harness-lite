@@ -151,6 +151,13 @@ describe('the resolution at resolve', () => {
         declared: { ...a.declared, tools: ['read-file'] },
       }),
     ],
+    [
+      'with a setting of a category outside the set',
+      (a: Adopted) => ({
+        ...a,
+        declared: { ...a.declared, settings: [{ name: 'tone', category: 'mood' }] },
+      }),
+    ],
   ])('an adopted answer %s makes describe and read answer unknown', async (_case, broken) => {
     const world = createWorld()
     const { adopted } = await lawfulAnswers(world)

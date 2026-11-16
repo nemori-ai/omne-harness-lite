@@ -24,6 +24,7 @@ describe('the description', () => {
       layer: 'tenant',
       material: { kind: 'pinned', basis: currentBasis },
       dependencies: [{ category: 'tool', name: 'read-file' }],
+      settings: [{ name: 'tone', category: 'preference' }],
       addressing: 'package-relative-path',
     })
   })

@@ -41,7 +41,28 @@ describe('malformed .omne/skill.json', () => {
       'a scripts field: a script is a file of the package, not a declaration',
       declaration({ formatVersion: 1, scripts: [] }),
     ],
-    ['a settings field', declaration({ formatVersion: 1, settings: [] })],
+    [
+      'a setting without a name',
+      declaration({ formatVersion: 1, settings: [{ category: 'binding' }] }),
+    ],
+    [
+      'a setting with an empty name',
+      declaration({ formatVersion: 1, settings: [{ name: '', category: 'binding' }] }),
+    ],
+    [
+      'a setting category that is not text',
+      declaration({ formatVersion: 1, settings: [{ name: 'a', category: 1 }] }),
+    ],
+    [
+      'a repeated setting name',
+      declaration({
+        formatVersion: 1,
+        settings: [
+          { name: 'a', category: 'binding' },
+          { name: 'a', category: 'preference' },
+        ],
+      }),
+    ],
   ])('rejects %s', (_case, text) => {
     const files = { 'SKILL.md': demo(), 'run.sh': 'echo', '.omne/skill.json': text }
     expect(codeOf(parse('demo', files))).toBe('malformed')
@@ -70,6 +91,16 @@ describe('malformed .omne/skill.json', () => {
       'tool-ref-invalid',
     )
   })
+
+  it.each(['placement-identity', 'governance'])(
+    'rejects %s as an unknown setting category',
+    category => {
+      const text = declaration({ formatVersion: 1, settings: [{ name: 'a', category }] })
+      expect(codeOf(parse('demo', { 'SKILL.md': demo(), '.omne/skill.json': text }))).toBe(
+        'setting-category-unknown',
+      )
+    },
+  )
 
   it('applies a smaller declaration budget that the caller gives', () => {
     const built = buildPackage('demo', {

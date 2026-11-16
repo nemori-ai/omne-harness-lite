@@ -48,6 +48,7 @@ function declaredOf(definition: SkillDefinition): DeclaredProjection {
     name: manifest.name,
     description: manifest.description,
     tools: declaration.dependencies,
+    settings: declaration.settings,
   }
 }
 

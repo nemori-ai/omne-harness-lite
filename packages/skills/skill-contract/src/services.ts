@@ -17,6 +17,7 @@ import type {
   PackageLocator,
   PackagePath,
   SafeReason,
+  SettingDeclaration,
   SkillDefinition,
   SkillMaterialBasis,
   SkillName,
@@ -70,6 +71,7 @@ export type SkillDescription = Readonly<{
   layer: SourceLayer
   material: MaterialState
   dependencies: readonly CapabilityId[]
+  settings: readonly SettingDeclaration[]
   addressing: 'package-relative-path'
 }>
 

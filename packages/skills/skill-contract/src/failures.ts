@@ -48,6 +48,7 @@ export const INSPECT_REJECTIONS = [
   'declaration-format-unsupported',
   'outside-package',
   'tool-ref-invalid',
+  'setting-category-unknown',
   'malformed',
 ] as const
 

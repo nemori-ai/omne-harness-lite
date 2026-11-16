@@ -143,6 +143,7 @@ function declaredOf(name: Name): DeclaredProjection {
     name: granted(isSkillName, name),
     description: `${DESCRIPTION_WORD[name]} things.`,
     tools: [tool('read-file')],
+    settings: [{ name: 'tone', category: 'preference' }],
   }
 }
 

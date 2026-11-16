@@ -17,6 +17,8 @@ export type Bytes = Uint8Array
 
 export type SourceLayer = 'official' | 'organization' | 'tenant' | 'workspace'
 
+export type SettingCategory = 'preference' | 'binding'
+
 export type PackageEntry = Readonly<{
   path: PackagePath
   encoding: 'text' | 'binary'
@@ -55,8 +57,11 @@ export type SkillManifest = Readonly<{
   extra: Readonly<Record<string, ManifestValue>>
 }>
 
+export type SettingDeclaration = Readonly<{ name: string; category: SettingCategory }>
+
 export type SkillDeclaration = Readonly<{
   dependencies: readonly CapabilityId[]
+  settings: readonly SettingDeclaration[]
 }>
 
 export type SkillDefinition = Readonly<{
@@ -70,6 +75,7 @@ export type DeclaredProjection = Readonly<{
   name: SkillName
   description?: string
   tools: readonly CapabilityId[]
+  settings: readonly SettingDeclaration[]
 }>
 
 export type SkillMaterialBasis = Readonly<{

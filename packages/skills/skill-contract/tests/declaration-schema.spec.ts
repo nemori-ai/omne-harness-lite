@@ -60,7 +60,9 @@ describe('skill-declaration.schema.json', () => {
     expect(node('formatVersion').const).toBe(1)
     expect(node('formatVersion').type).toBe('integer')
     expect(schema.additionalProperties).toBe(false)
-    expect(Object.keys(schema.properties).sort()).toEqual(['dependencies', 'formatVersion'].sort())
+    expect(Object.keys(schema.properties).sort()).toEqual(
+      ['dependencies', 'formatVersion', 'settings'].sort(),
+    )
     expect(verdict({ formatVersion: 1, other: [] })).toBe('malformed')
   })
 
@@ -69,6 +71,7 @@ describe('skill-declaration.schema.json', () => {
       expect(schema.description).toContain(lexeme)
       expect(verdictOfText(`{"formatVersion": ${lexeme}}`)).toBe('declaration-format-unsupported')
     }
+    expect(schema.description).toContain('setting names that repeat')
     expect(schema.description).toContain('lone surrogate')
     expect(schema.description).toContain('code points')
     expect(schema.description).toContain('repeated key')
@@ -76,22 +79,32 @@ describe('skill-declaration.schema.json', () => {
     expect(schema.description).toContain('not UTF-8')
   })
 
-  it.each([['dependencies', { category: 'tool', name: 'a' }]] as const)(
-    'closes each %s item and requires the same fields as the parser',
-    (part, item) => {
-      const items = node(part, 'items')
-      expect(items.additionalProperties).toBe(false)
-      expect(verdict({ formatVersion: 1, [part]: [{ ...item, extra: 1 }] })).toBe('malformed')
-      for (const key of items.required ?? []) {
-        const without = Object.fromEntries(Object.entries(item).filter(([name]) => name !== key))
-        expect(verdict({ formatVersion: 1, [part]: [without] }), key).not.toBe('accepted')
-      }
-      const optional = Object.keys(items.properties ?? {}).filter(
-        key => !(items.required ?? []).includes(key),
-      )
-      expect(optional).toEqual([])
-    },
-  )
+  it('lists exactly the setting categories that the parser accepts', () => {
+    const categories = node('settings', 'items', 'category').enum ?? []
+    expect(categories).toEqual(['preference', 'binding'])
+    for (const category of categories)
+      expect(verdict({ formatVersion: 1, settings: [{ name: 'a', category }] })).toBe('accepted')
+    expect(verdict({ formatVersion: 1, settings: [{ name: 'a', category: 'secret' }] })).toBe(
+      'setting-category-unknown',
+    )
+  })
+
+  it.each([
+    ['dependencies', { category: 'tool', name: 'a' }],
+    ['settings', { name: 'a', category: 'binding' }],
+  ] as const)('closes each %s item and requires the same fields as the parser', (part, item) => {
+    const items = node(part, 'items')
+    expect(items.additionalProperties).toBe(false)
+    expect(verdict({ formatVersion: 1, [part]: [{ ...item, extra: 1 }] })).toBe('malformed')
+    for (const key of items.required ?? []) {
+      const without = Object.fromEntries(Object.entries(item).filter(([name]) => name !== key))
+      expect(verdict({ formatVersion: 1, [part]: [without] }), key).not.toBe('accepted')
+    }
+    const optional = Object.keys(items.properties ?? {}).filter(
+      key => !(items.required ?? []).includes(key),
+    )
+    expect(optional).toEqual([])
+  })
 
   it('asks for unique dependencies as the parser does', () => {
     expect(node('dependencies').uniqueItems).toBe(true)

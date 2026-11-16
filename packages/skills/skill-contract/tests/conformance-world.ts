@@ -71,6 +71,7 @@ const declared: DeclaredProjection = {
   name: granted(isSkillName, 'review'),
   description: 'Reviews a change.',
   tools: [],
+  settings: [],
 }
 
 function material(digest: SkillRef['digest'], version: string): MemoryMaterial {

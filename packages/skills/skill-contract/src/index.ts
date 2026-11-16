@@ -58,6 +58,8 @@ export type {
   PackageEntry,
   PackagePath,
   SafeReason,
+  SettingCategory,
+  SettingDeclaration,
   SkillDeclaration,
   SkillDefinition,
   SkillManifest,
