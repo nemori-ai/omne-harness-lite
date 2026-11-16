@@ -13,18 +13,18 @@ const STAGED_ARCHIVE = 'omne-cli.tar.gz'
 type Step = { command: string; args: string[]; cwd: string }
 
 /**
- * The command line that starts a step. On Windows `pnpm` on PATH is `pnpm.cmd` and a shell shim,
- * which Node cannot start without a shell; there pnpm runs as `node_modules/pnpm/bin/pnpm.cjs` next
- * to `pnpm.cmd` (the npm global layout) with this process's Node. A missing entry fails the step.
+ * The command line that starts a step, with the same rule as `pnpmCommand` in tools/test-runner.
+ * The steps run at the repository root, where pnpm switches itself to the pinned version. On Windows
+ * `pnpm` must be a `pnpm.exe` on PATH (a standalone or mise install): Node cannot start the
+ * `pnpm.cmd` shell shim without a shell. A missing `pnpm.exe` fails the step.
  */
 function commandLine(step: Step): [string, string[]] {
   if (process.platform !== 'win32' || step.command !== 'pnpm') return [step.command, step.args]
   for (const directory of (process.env['PATH'] ?? process.env['Path'] ?? '').split(delimiter)) {
-    const entry = join(directory, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
-    if (directory !== '' && existsSync(join(directory, 'pnpm.cmd')) && existsSync(entry))
-      return [process.execPath, [entry, ...step.args]]
+    const exe = join(directory, 'pnpm.exe')
+    if (directory !== '' && existsSync(exe)) return [exe, step.args]
   }
-  throw new Error('pnpm.cjs not found next to pnpm.cmd on PATH')
+  throw new Error('pnpm.exe not found on PATH: install pnpm 12 standalone or with mise')
 }
 
 // The same steps as the member's `build` script, with the output moved to staging; change both together.

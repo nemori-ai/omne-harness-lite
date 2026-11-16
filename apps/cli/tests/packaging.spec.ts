@@ -7,6 +7,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readdirSync,
+  readFileSync,
   realpathSync,
   rmSync,
   statSync,
@@ -55,8 +56,28 @@ function packageFixture(root: string) {
     recursive: true,
     filter: source => !['node_modules', '.turbo'].includes(basename(source)),
   })
-  symlinkSync(join(repoRoot, 'node_modules'), join(checkout, 'node_modules'), 'dir')
+  // pnpm 12 refuses a symbolic-link root node_modules for --filter commands
+  // (ERR_PNPM_UNSAFE_TASK_RUN_STATE_PATH): the root node_modules is a real directory whose entries
+  // link to the repository's, except pnpm's task run state, which this checkout keeps for itself.
+  const modules = join(checkout, 'node_modules')
+  mkdirSync(modules)
+  for (const entry of readdirSync(join(repoRoot, 'node_modules'), { withFileTypes: true })) {
+    if (entry.name === '.pnpm-task-run-state-v1') continue
+    const source = join(repoRoot, 'node_modules', entry.name)
+    if (entry.isFile()) cpSync(source, join(modules, entry.name))
+    else symlinkSync(source, join(modules, entry.name), 'dir')
+  }
   symlinkSync(join(repoRoot, 'apps/cli/node_modules'), join(member, 'node_modules'), 'dir')
+  // This checkout has one member of the workspace, so pnpm would find the workspace structure
+  // changed against the linked install and refuse to run; it installs nothing here.
+  const workspace = join(checkout, 'pnpm-workspace.yaml')
+  writeFileSync(
+    workspace,
+    readFileSync(workspace, 'utf8').replace(
+      /^verifyDepsBeforeRun: error$/mu,
+      'verifyDepsBeforeRun: false',
+    ),
+  )
   return {
     checkout,
     script: join(checkout, 'scripts/package-cli.sh'),
