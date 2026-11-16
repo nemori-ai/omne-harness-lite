@@ -320,6 +320,8 @@ function createResultPush(
   let phase: 'ready' | 'started' | 'stopped' = 'ready'
   let release: (() => void) | undefined
   let scanning: Promise<void> = Promise.resolve()
+  const waking = new Set<string>()
+  const pauses = new Map<string, number>()
 
   function wake(target: Target): void {
     const key = keyOf(target)
@@ -334,12 +336,24 @@ function createResultPush(
       if (running.size >= limits.maxConcurrentCalls) return
       if (running.has(key)) continue
       dirty.delete(key)
-      const task = work(target).finally(() => {
+      const task = work(target).then(owed => {
         running.delete(key)
+        if (owed) void wakeLater(key, target)
+        else pauses.delete(key)
         pump()
       })
       running.set(key, task)
     }
+  }
+
+  async function wakeLater(key: string, target: Target): Promise<void> {
+    if (waking.has(key)) return
+    waking.add(key)
+    const failures = pauses.get(key) ?? 0
+    pauses.set(key, failures + 1)
+    const elapsed = await paused(recoveryPauseMs(failures))
+    waking.delete(key)
+    if (elapsed) wake(target)
   }
 
   function save(record: ResultPushRecord): ResultPushRecord {
@@ -361,24 +375,43 @@ function createResultPush(
     })
   }
 
-  async function work(target: Target): Promise<void> {
+  async function work(target: Target): Promise<boolean> {
     try {
       const resolved = await authority.resolve(target)
       if ('failure' in resolved) {
         report({ kind: 'blocked', failure: resolved.failure.kind })
-        return
+        return !definite(resolved.failure)
       }
       const access = { principal: resolved.ok.principal, tenant: target.tenant }
       let record = receive(ledger.read(target) ?? fresh(target))
-      if (record.origin === null || (record.result === null && record.acknowledgement === 'none'))
-        record = await freeze(record, access)
+      if (record.origin === null || (record.result === null && record.acknowledgement === 'none')) {
+        const frozen = await freeze(record, access)
+        if (frozen === 'again') return true
+        record = frozen
+      }
       record = await pushResult(record, access)
       record = await acknowledge(record, access)
       record = await clean(record, access)
       await pushAccounts(record, access)
+      return workLeft(ledger.read(target) ?? record)
     } catch {
       report({ kind: 'work-threw' })
+      return true
     }
+  }
+
+  function retried({ standing }: HeldDelivery): boolean {
+    return (
+      standing.status === 'pending' ||
+      (standing.status === 'waiting' && standing.reason !== 'no-receiver')
+    )
+  }
+
+  function workLeft(record: ResultPushRecord): boolean {
+    if (record.acknowledgement === 'acknowledged')
+      return record.cleanup !== 'released' || record.accounts.some(retried)
+    const held = record.result
+    return held !== null && (held.standing.status === 'saved' || retried(held))
   }
 
   type Access = Readonly<{ principal: unknown; tenant: TenantId }>
@@ -406,12 +439,15 @@ function createResultPush(
     return save(next)
   }
 
-  async function freeze(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
+  async function freeze(
+    record: ResultPushRecord,
+    access: Access,
+  ): Promise<ResultPushRecord | 'again'> {
     const call = { ...access, call: record.call }
     const recovery = await commands.loadRecovery(call)
     if ('failure' in recovery) {
       report({ kind: 'freeze-failed', step: 'recovery' })
-      return record
+      return definite(recovery.failure) ? record : 'again'
     }
     const { state, admission } = recovery.ok
     if (state.phase !== 'settled') return record
@@ -430,11 +466,12 @@ function createResultPush(
     const dispatches = await commands.dispatches(call)
     if ('failure' in dispatches) {
       report({ kind: 'freeze-failed', step: 'dispatches' })
-      return record
+      return definite(dispatches.failure) ? record : 'again'
     }
     const parts = await readParts(record, access, state.settlement.version)
     if (parts === 'acknowledged')
       return save({ ...record, origin, acknowledgement: 'acknowledged' })
+    if (parts === 'again') return parts
     if (parts === null) return record
     const delivery = frozen<ResultDelivery>({
       kind: 'result',
@@ -466,7 +503,7 @@ function createResultPush(
     record: ResultPushRecord,
     access: Access,
     result: ResultDelivery['key']['result'],
-  ): Promise<ResultPart[] | 'acknowledged' | null> {
+  ): Promise<ResultPart[] | 'acknowledged' | 'again' | null> {
     const call = { ...access, call: record.call }
     const started = await commands.acquireRead({
       ...call,
@@ -475,7 +512,7 @@ function createResultPush(
     })
     if ('failure' in started) {
       report({ kind: 'freeze-failed', step: 'read' })
-      return null
+      return definite(started.failure) ? null : 'again'
     }
     if (started.ok.kind === 'acknowledged') return 'acknowledged'
     const { read } = started.ok
@@ -491,7 +528,7 @@ function createResultPush(
       const next = await commands.nextRead({ ...call, read, after: state.page.next })
       if ('failure' in next) {
         report({ kind: 'freeze-failed', step: 'read' })
-        return null
+        return definite(next.failure) ? null : 'again'
       }
       state = next.ok
     }
@@ -943,7 +980,7 @@ function createResultPush(
     delivering(target) {
       const key = keyOf(target)
       if (phase !== 'started' || key === undefined) return false
-      if (dirty.has(key) || running.has(key)) return true
+      if (dirty.has(key) || running.has(key) || waking.has(key)) return true
       return awaitsReceiver(ledger.read(target), owner => resolveReceiver(owner))
     },
     async stop() {
