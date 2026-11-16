@@ -1,48 +1,31 @@
-import type { HumanInterventionProtocol } from '@omne-harness/human-intervention-protocol'
-import { readTenantText, type TenantId } from '@omne-harness/public-contract'
-import type { ClientOf } from '@omne-harness/sdk/core'
+import type { TenantId } from '@omne-harness/public-contract'
 import { Button, EmptyState, LoadingState, PageColumn, PageHeader } from '@omne-harness/ui-kit'
-import { useEffect, useMemo, useState, useSyncExternalStore, type JSX } from 'react'
-import { CardsDriver } from '../model/cards-driver.ts'
-import type { State } from '../model/cards-machine.ts'
+import type { JSX } from 'react'
+import type { CardsDriver } from '../model/cards-driver.ts'
+import type { CardsHub } from '../model/cards-hub.ts'
+import type { Live, State } from '../model/cards-machine.ts'
 import { CardView } from './card-view.tsx'
 import { NoticeLine } from './notice.tsx'
+import { useCards, useTenant } from './use-cards.ts'
 
 export type DecisionsPageProps = Readonly<{
-  client: ClientOf<HumanInterventionProtocol>
+  hub: CardsHub
   tenant: string
 }>
 
 export function DecisionsPage(props: DecisionsPageProps): JSX.Element {
-  const tenant = useMemo(() => readTenantText(props.tenant), [props.tenant])
+  const tenant = useTenant(props.tenant)
   if (tenant === undefined)
     return (
       <PageColumn className="hitl-decisions">
         <NoticeLine notice={{ kind: 'refused', text: '外壳给的租户读不懂，这一页不能工作。' }} />
       </PageColumn>
     )
-  return <Loader client={props.client} tenant={tenant} />
+  return <Decisions hub={props.hub} tenant={tenant} />
 }
 
-function Loader({
-  client,
-  tenant,
-}: {
-  readonly client: ClientOf<HumanInterventionProtocol>
-  readonly tenant: TenantId
-}) {
-  const [driver, setDriver] = useState<CardsDriver | null>(null)
-  useEffect(() => {
-    const created = new CardsDriver({ client, tenant })
-    setDriver(created)
-    created.readList()
-    return () => created.dispose()
-  }, [client, tenant])
-  return driver === null ? <PageColumn className="hitl-decisions" /> : <Decisions driver={driver} />
-}
-
-function Decisions({ driver }: { readonly driver: CardsDriver }) {
-  const state = useSyncExternalStore(driver.subscribe, driver.getState)
+function Decisions({ hub, tenant }: { readonly hub: CardsHub; readonly tenant: TenantId }) {
+  const { driver, state } = useCards(hub, tenant)
   return (
     <PageColumn className="hitl-decisions">
       <PageHeader
@@ -58,10 +41,26 @@ function Decisions({ driver }: { readonly driver: CardsDriver }) {
           </Button>
         }
       />
-      {state.last === null ? null : <NoticeLine notice={state.last} />}
+      {state.last === null ? null : <NoticeLine notice={state.last.notice} />}
+      <LiveLine live={state.live} />
       <Body state={state} driver={driver} />
     </PageColumn>
   )
+}
+
+function LiveLine({ live }: { readonly live: Live }) {
+  if (live.kind === 'retrying')
+    return (
+      <NoticeLine
+        notice={{
+          kind: 'unavailable',
+          text: '更新暂时连不上，列表可能不是最新的，正在重连。',
+        }}
+      />
+    )
+  if (live.kind === 'denied')
+    return <NoticeLine notice={{ kind: 'refused', text: '没有权限接收更新，或登录已失效。' }} />
+  return null
 }
 
 function Body({ state, driver }: { readonly state: State; readonly driver: CardsDriver }) {
@@ -83,7 +82,7 @@ function Body({ state, driver }: { readonly state: State; readonly driver: Cards
       {entries.length > 0 ? (
         <ul className="hitl-cards">
           {entries.map(entry => (
-            <CardView key={entry.key} entry={entry} driver={driver} />
+            <CardView key={entry.key} entry={entry} driver={driver} origin />
           ))}
         </ul>
       ) : read.kind === 'read' ? (
