@@ -13,7 +13,7 @@ import {
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
 import { Fragment, StrictMode, useEffect, useState, type ReactNode } from 'react'
-import { sessionClientService, sessionUiModule } from '../../src/cordis.tsx'
+import { sessionClientService, sessionUiModule } from '../../src/cordis.ts'
 
 export class TestShell extends ShellService implements ShellSlots {
   readonly navigated: string[] = []
@@ -23,8 +23,9 @@ export class TestShell extends ShellService implements ShellSlots {
     login: async () => 'signed-in',
     logout: async () => 'signed-out',
   }
+  tenant: string | undefined = undefined
   readonly scope: ScopeSource = {
-    get: () => undefined,
+    get: () => this.tenant,
     set: () => undefined,
     subscribe: () => () => undefined,
   }
@@ -105,6 +106,7 @@ export async function mountModule(
   const { root, shell } = await startShell()
   const withdraw = root.reflect.provide(sessionClientService, client)
   await root.plugin(sessionUiModule)
+  shell.tenant = scope
   const tree = (next: string | undefined) =>
     options.strict === true ? (
       <StrictMode>
@@ -122,6 +124,9 @@ export async function mountModule(
         await withdraw()
       })
     },
-    rerender: (next: string | undefined) => view.rerender(tree(next)),
+    rerender: (next: string | undefined) => {
+      shell.tenant = next
+      view.rerender(tree(next))
+    },
   }
 }

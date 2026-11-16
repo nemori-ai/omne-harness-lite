@@ -13,6 +13,7 @@ export const sessionClientService = protocolServiceName({
 
 export const CONVERSATION_PAGE = 'conversation'
 export const SESSION_LIST = 'session-list'
+export const SESSION_DOCK = 'session.dock'
 
 export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionProtocol>>>({
   name: 'session-ui',
@@ -35,7 +36,13 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
       title: '对话',
       order: 0,
       icon: 'conversation',
-      render: ({ scope }) => <ConversationPage workspaces={workspaces} scope={scope} />,
+      render: ({ scope }) => (
+        <ConversationPage
+          workspaces={workspaces}
+          scope={scope}
+          dock={session => shell.attached(SESSION_DOCK, session)}
+        />
+      ),
     })
   },
 })
