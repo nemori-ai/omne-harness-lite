@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { advance, atLimit, chance, gate, until } from './gate.ts'
 import {
   buildReadMaterials,
   closeProviders,
   commitOf,
-  delay,
+  heldRead,
   readRequest,
   readyProvider,
 } from './read-support.ts'
 import {
   DOMAIN,
   TENANT_A,
-  command,
-  commitRequest,
+  heldCommit,
   identity,
   leases,
   makeWorkspace,
@@ -24,15 +24,15 @@ let workspace: Workspace
 let built: Built
 
 async function warmReaders(storage: Provider['storage']): Promise<void> {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    const results = await Promise.all([
-      storage.read(readRequest('page')),
-      storage.read(readRequest('page')),
-    ])
-    if (results.every(result => result.kind === 'read')) return
-  }
-  throw new Error('the readers did not warm up')
+  const first = await heldRead(storage, workspace, 'page')
+  const second = await heldRead(storage, workspace, 'page')
+  first.gate.open()
+  second.gate.open()
+  for (const result of [await first.result, await second.result])
+    if (result.kind !== 'read') throw new Error(`warm-up read is ${result.kind}`)
 }
+
+const readerLeases = (): string[] => leases.admitted.filter(name => name.includes('/reader/'))
 
 beforeEach(async () => {
   workspace = await makeWorkspace()
@@ -49,15 +49,18 @@ describe('domain-serial', () => {
   it('holds the barrier until the read has ended: a commit that arrives meanwhile completes after it', async () => {
     const { storage } = await readyProvider(workspace, built, {}, 1)
     const events: string[] = []
-    const reading = storage.read(readRequest('serial', { sleepMs: 600 })).then(result => {
+    const running = await heldRead(storage, workspace, 'serial')
+    const reading = running.result.then(result => {
       events.push('read')
       return result
     })
-    await delay(250)
     const committing = storage.commit(commitOf(built, 'during')).then(result => {
       events.push('commit')
       return result
     })
+    await chance()
+    expect(events).toEqual([])
+    running.gate.open()
     expect(await reading).toMatchObject({ kind: 'read', output: { a: '1', b: '1' } })
     expect((await committing).kind).toBe('committed')
     expect(events).toEqual(['read', 'commit'])
@@ -65,23 +68,25 @@ describe('domain-serial', () => {
 
   it('runs two domain-serial reads one after the other', async () => {
     const { storage } = await readyProvider(workspace, built, {}, 1)
-    const start = Date.now()
-    const both = await Promise.all([
-      storage.read(readRequest('serial', { sleepMs: 300 })),
-      storage.read(readRequest('serial', { sleepMs: 300 })),
-    ])
-    expect(both.map(item => item.kind)).toEqual(['read', 'read'])
-    expect(Date.now() - start).toBeGreaterThanOrEqual(580)
+    const gates = [gate(workspace.root), gate(workspace.root)] as const
+    const both = gates.map(held => storage.read(readRequest('serial', { gate: held.path })))
+    await until(() => gates.some(held => held.isEntered()))
+    const [lead, follower] = gates[0].isEntered() ? gates : ([gates[1], gates[0]] as const)
+    await chance()
+    expect(follower.isEntered()).toBe(false)
+    lead.open()
+    await follower.entered()
+    follower.open()
+    expect((await Promise.all(both)).map(item => item.kind)).toEqual(['read', 'read'])
   })
 
   it('lets snapshot reads run side by side', async () => {
     const { storage } = await readyProvider(workspace, built, {}, 1)
-    const start = Date.now()
-    await Promise.all([
-      storage.read(readRequest('page', { sleepMs: 300 })),
-      storage.read(readRequest('page', { sleepMs: 300 })),
-    ])
-    expect(Date.now() - start).toBeLessThan(560)
+    const first = await heldRead(storage, workspace, 'page')
+    const second = await heldRead(storage, workspace, 'page')
+    first.gate.open()
+    second.gate.open()
+    expect([(await first.result).kind, (await second.result).kind]).toEqual(['read', 'read'])
   })
 })
 
@@ -89,51 +94,50 @@ describe('one arrival order for writes and barriers (SPEC 9.3)', () => {
   it('a commit makes progress while domain-serial reads keep arriving', async () => {
     const { storage } = await readyProvider(workspace, built, {}, 1)
     await warmReaders(storage)
-    const stopAt = Date.now() + 2000
+    let committed = false
+    let reads = 0
     const stream = async (): Promise<void> => {
-      while (Date.now() < stopAt) {
-        const result = await storage.read(readRequest('serial', { sleepMs: 100 }))
+      while (!committed) {
+        const result = await storage.read(readRequest('serial'))
         if (result.kind !== 'read') throw new Error(`stream read is ${result.kind}`)
+        reads += 1
       }
     }
     const streams = Array.from({ length: 6 }, stream)
-    await delay(300)
-    const start = Date.now()
-    expect((await storage.commit(commitOf(built, 'during-stream'))).kind).toBe('committed')
-    const elapsed = Date.now() - start
+    await until(() => reads >= 12)
+    const result = await storage.commit(commitOf(built, 'during-stream'))
+    committed = true
+    expect(result.kind).toBe('committed')
     await Promise.all(streams)
-    expect(elapsed).toBeLessThan(1000)
-    expect(start + elapsed).toBeLessThan(stopAt)
   })
 
   it('keeps the place of a sent write until the Worker answers, also after its caller stopped observing', async () => {
     const { storage } = await readyProvider(workspace, built, { lockWaitMs: 200 }, 0)
     await warmReaders(storage)
-    const start = Date.now()
-    const writing = storage.commit(
-      commitRequest(built, {
-        identity: identity({ operationKey: 'spinning' }),
-        commands: [command('ledger', { mode: 'spin', ms: '1000', note: 'spinning' })],
-      }),
-    )
-    expect(await writing).toMatchObject({ kind: 'unknown', diagnostic: 'reply_wait_expired' })
-    const read = await storage.read(readRequest('serial'))
-    expect(read).toMatchObject({ kind: 'read', output: { a: '1', b: '1' } })
-    expect(Date.now() - start).toBeGreaterThanOrEqual(950)
-    expect((await storage.query(identity({ operationKey: 'spinning' }))).kind).toBe('committed')
+    const writing = await heldCommit(storage, workspace, built, 'held')
+    advance(2 * 200)
+    expect(await writing.result).toMatchObject({
+      kind: 'unknown',
+      diagnostic: 'reply_wait_expired',
+    })
+    const reading = storage.read(readRequest('serial'))
+    writing.gate.open()
+    expect(await reading).toMatchObject({ kind: 'read', output: { a: '1', b: '1' } })
+    expect((await storage.query(identity({ operationKey: 'held' }))).kind).toBe('committed')
   })
 
   it('withdraws a write that waited at the barrier longer than lockWaitMs: unknown, no place kept, not pending', async () => {
     const { storage } = await readyProvider(workspace, built, { lockWaitMs: 200 }, 1)
     await warmReaders(storage)
-    const reading = storage.read(readRequest('serial', { sleepMs: 700 }))
-    await delay(150)
-    const start = Date.now()
-    const result = await storage.commit(commitOf(built, 'expired'))
-    expect(result).toMatchObject({ kind: 'unknown', diagnostic: 'barrier_wait_expired' })
-    expect(Date.now() - start).toBeLessThan(500)
-    const second = storage.read(readRequest('serial', { sleepMs: 50 }))
-    expect((await reading).kind).toBe('read')
+    const reading = await heldRead(storage, workspace, 'serial')
+    const committing = storage.commit(commitOf(built, 'expired'))
+    expect(await atLimit(committing, 200)).toMatchObject({
+      kind: 'unknown',
+      diagnostic: 'barrier_wait_expired',
+    })
+    const second = storage.read(readRequest('serial'))
+    reading.gate.open()
+    expect((await reading.result).kind).toBe('read')
     expect((await second).kind).toBe('read')
     expect((await storage.query(identity({ operationKey: 'expired' }))).kind).toBe('not_committed')
   })
@@ -141,27 +145,26 @@ describe('one arrival order for writes and barriers (SPEC 9.3)', () => {
   it('withdraws a domain-serial read that times out while it waits at the barrier: its reader serves the next read at once', async () => {
     const { storage } = await readyProvider(workspace, built, { readQueueTimeoutMs: 100 }, 1)
     await warmReaders(storage)
-    const first = storage.read(readRequest('serial', { sleepMs: 600 }))
-    await delay(100)
-    const expired = await storage.read(readRequest('serial', { sleepMs: 50 }))
-    expect(expired).toMatchObject({ kind: 'unavailable', reason: 'queue_timeout' })
-    const start = Date.now()
+    const first = await heldRead(storage, workspace, 'serial')
+    const expiring = storage.read(readRequest('serial'))
+    advance(100)
+    expect(await expiring).toMatchObject({ kind: 'unavailable', reason: 'queue_timeout' })
     expect((await storage.read(readRequest('page'))).kind).toBe('read')
-    expect(Date.now() - start).toBeLessThan(300)
-    expect((await first).kind).toBe('read')
+    first.gate.open()
+    expect((await first.result).kind).toBe('read')
+    expect(readerLeases()).toHaveLength(2)
   })
 
   it('withdraws a write whose observer aborts while it waits at the barrier: the write never runs', async () => {
     const { storage } = await readyProvider(workspace, built, {}, 1)
     await warmReaders(storage)
-    const reading = storage.read(readRequest('serial', { sleepMs: 500 }))
-    await delay(150)
+    const reading = await heldRead(storage, workspace, 'serial')
     const abort = new AbortController()
     const pending = storage.commit(commitOf(built, 'aborted'), { signal: abort.signal })
-    await delay(50)
     abort.abort()
     expect(await pending).toMatchObject({ kind: 'unknown', diagnostic: 'observer_detached' })
-    expect((await reading).kind).toBe('read')
+    reading.gate.open()
+    expect((await reading.result).kind).toBe('read')
     expect((await storage.query(identity({ operationKey: 'aborted' }))).kind).toBe('not_committed')
   })
 })
@@ -170,26 +173,21 @@ describe('the barrier is held for at most readObservationMs (SPEC 9.3)', () => {
   it('releases the barrier at the observation deadline: a commit does not wait for the abandoned read', async () => {
     const { storage } = await readyProvider(workspace, built, { readObservationMs: 100 }, 1)
     await warmReaders(storage)
-    const start = Date.now()
-    const reading = storage.read(readRequest('serial', { sleepMs: 800 }))
-    await delay(50)
-    expect((await storage.commit(commitOf(built, 'after-deadline'))).kind).toBe('committed')
-    expect(Date.now() - start).toBeLessThan(600)
-    expect((await reading).kind).toBe('unavailable')
-    expect(await reading).toMatchObject({ reason: 'read_timeout' })
+    const reading = await heldRead(storage, workspace, 'serial')
+    const committing = storage.commit(commitOf(built, 'after-deadline'))
+    expect((await atLimit(committing, 100)).kind).toBe('committed')
+    expect(await reading.result).toMatchObject({ kind: 'unavailable', reason: 'read_timeout' })
   })
 
   it('a cancelled observation does not stop the deadline: the barrier of a cancelled read still goes at it', async () => {
     const { storage } = await readyProvider(workspace, built, { readObservationMs: 100 }, 1)
     await warmReaders(storage)
-    const start = Date.now()
     const abort = new AbortController()
-    const reading = storage.read(readRequest('serial', { sleepMs: 800 }), { signal: abort.signal })
-    await delay(50)
+    const reading = await heldRead(storage, workspace, 'serial', { signal: abort.signal })
     abort.abort()
-    expect((await reading).kind).toBe('cancelled')
-    expect((await storage.commit(commitOf(built, 'after-cancel'))).kind).toBe('committed')
-    expect(Date.now() - start).toBeLessThan(600)
+    expect((await reading.result).kind).toBe('cancelled')
+    const committing = storage.commit(commitOf(built, 'after-cancel'))
+    expect((await atLimit(committing, 100)).kind).toBe('committed')
   })
 })
 
@@ -205,7 +203,7 @@ describe('reads that stay on the write path (C11)', () => {
       manifestDigest: built.digest(['auditor', 'ledger']),
       participants: ['auditor', 'ledger'],
     })
-    expect(leases.admitted.filter(name => name.includes('/reader/'))).toEqual([])
+    expect(readerLeases()).toEqual([])
     expect(leases.admitted.filter(name => name.includes('/writer/'))).toHaveLength(1)
   })
 })

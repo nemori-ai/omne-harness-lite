@@ -1,15 +1,16 @@
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ReaderClient } from '../src/reader-client.ts'
+import { advance, atLimit, chance, stillPending, until } from './gate.ts'
 import {
   buildReadMaterials,
   closeProviders,
   commitOf,
-  delay,
+  heldRead,
+  loadGateOf,
   readRequest,
   readyProvider,
   summary,
-  warm,
 } from './read-support.ts'
 import { DOMAIN, TENANT_A, leases, makeWorkspace, type Built, type Workspace } from './support.ts'
 
@@ -29,23 +30,27 @@ afterEach(async () => {
 
 const one = { maxReadWorkersPerDomain: 1 }
 
+const readerLeases = (): string[] => leases.admitted.filter(name => name.includes('/reader/'))
+
 describe('Worker exit and idle close', () => {
   it('reports worker_exited for a read in flight when the Worker dies, and the next read works', async () => {
     const { storage } = await readyProvider(workspace, built, {}, 1)
     expect(summary(await storage.read(readRequest('crash')))).toBe('unavailable/worker_exited')
     expect(summary(await storage.read(readRequest('page')))).toBe('read')
-    const readers = leases.admitted.filter(name => name.includes('/reader/'))
-    expect(new Set(readers).size).toBe(2)
+    expect(new Set(readerLeases()).size).toBe(2)
   })
 
   it('closes an idle reader after readerIdleMs and returns its lease only after the exit', async () => {
     const { storage } = await readyProvider(workspace, built, { readerIdleMs: 100 }, 1)
     const before = leases.released
     expect(summary(await storage.read(readRequest('page')))).toBe('read')
+    advance(99)
+    await chance()
     expect(leases.released).toBe(before)
-    await delay(600)
-    expect(leases.released).toBe(before + 1)
+    advance(1)
+    await until(() => leases.released === before + 1)
     expect(summary(await storage.read(readRequest('page')))).toBe('read')
+    expect(new Set(readerLeases()).size).toBe(2)
   })
 })
 
@@ -58,28 +63,27 @@ describe('cancellation (C12)', () => {
       0,
     )
     const abort = new AbortController()
-    const running = storage.read(readRequest('slow', { ms: 400 }), { signal: abort.signal })
-    await delay(100)
+    const running = await heldRead(storage, workspace, 'held', { signal: abort.signal })
     abort.abort()
-    expect((await running).kind).toBe('cancelled')
+    expect((await running.result).kind).toBe('cancelled')
     const waiting = storage.read(readRequest('page'))
     expect(summary(await storage.read(readRequest('page')))).toBe('unavailable/queue_full')
+    running.gate.open()
     expect(summary(await waiting)).toBe('read')
-    await delay(500)
     expect(summary(await storage.read(readRequest('page')))).toBe('read')
   })
 
   it('does not hand the connection of a cancelled running read to the next request', async () => {
     const { storage } = await readyProvider(workspace, built, one, 0)
     const abort = new AbortController()
-    const running = storage.read(readRequest('slow', { ms: 400 }), { signal: abort.signal })
-    await delay(100)
-    const start = Date.now()
+    const running = await heldRead(storage, workspace, 'held', { signal: abort.signal })
     abort.abort()
-    await running
-    const next = await storage.read(readRequest('page'))
-    expect(next.kind).toBe('read')
-    expect(Date.now() - start).toBeGreaterThanOrEqual(250)
+    await running.result
+    const next = storage.read(readRequest('page'))
+    await stillPending(next)
+    running.gate.open()
+    expect((await next).kind).toBe('read')
+    expect(readerLeases()).toHaveLength(1)
   })
 
   it('takes a queued read out at once and returns its reservation', async () => {
@@ -89,30 +93,27 @@ describe('cancellation (C12)', () => {
       { ...one, readQueuePerDomain: 2, readQueueGlobal: 2 },
       0,
     )
-    const running = storage.read(readRequest('slow', { ms: 400 }))
-    await delay(100)
+    const running = await heldRead(storage, workspace)
     const abort = new AbortController()
     const queued = storage.read(readRequest('page'), { signal: abort.signal })
-    await delay(30)
-    const start = Date.now()
     abort.abort()
     expect((await queued).kind).toBe('cancelled')
-    expect(Date.now() - start).toBeLessThan(150)
     const third = storage.read(readRequest('page'))
-    expect((await Promise.all([third, running])).map(summary)).toEqual(['read', 'read'])
+    running.gate.open()
+    expect((await Promise.all([third, running.result])).map(summary)).toEqual(['read', 'read'])
   })
 })
 
 describe('timeouts (SPEC 9.2 steps 9 and 10)', () => {
   it('ends observation at readObservationMs and does not reuse the connection before it is clean', async () => {
     const { storage } = await readyProvider(workspace, built, { ...one, readObservationMs: 100 }, 0)
-    const start = Date.now()
-    expect(summary(await storage.read(readRequest('slow', { ms: 500 })))).toBe(
-      'unavailable/read_timeout',
-    )
-    expect(Date.now() - start).toBeLessThan(400)
-    expect(summary(await storage.read(readRequest('page')))).toBe('read')
-    expect(Date.now() - start).toBeGreaterThanOrEqual(450)
+    const running = await heldRead(storage, workspace)
+    expect(summary(await atLimit(running.result, 100))).toBe('unavailable/read_timeout')
+    const next = storage.read(readRequest('page'))
+    await stillPending(next)
+    running.gate.open()
+    expect(summary(await next)).toBe('read')
+    expect(readerLeases()).toHaveLength(1)
   })
 
   it('does not count the first load of a handler in a reader against readObservationMs', async () => {
@@ -122,7 +123,13 @@ describe('timeouts (SPEC 9.2 steps 9 and 10)', () => {
       { ...one, readObservationMs: 100, readQueueTimeoutMs: 2000 },
       0,
     )
-    expect(summary(await storage.read(readRequest('slowload')))).toBe('read')
+    const load = loadGateOf(workspace, 'slowload')
+    const reading = storage.read(readRequest('slowload'))
+    await load.entered()
+    advance(100)
+    await stillPending(reading)
+    load.open()
+    expect(summary(await reading)).toBe('read')
   })
 
   it('counts the load against the queue time, and the reader that loaded serves the next read', async () => {
@@ -132,20 +139,23 @@ describe('timeouts (SPEC 9.2 steps 9 and 10)', () => {
       { ...one, readQueueTimeoutMs: 100 },
       0,
     )
-    expect(summary(await storage.read(readRequest('slowload')))).toBe('unavailable/queue_timeout')
-    await delay(600)
+    const load = loadGateOf(workspace, 'slowload')
+    const reading = storage.read(readRequest('slowload'))
+    await load.entered()
+    expect(summary(await atLimit(reading, 100))).toBe('unavailable/queue_timeout')
+    load.open()
     expect(summary(await storage.read(readRequest('slowload')))).toBe('read')
-    expect(new Set(leases.admitted.filter(name => name.includes('/reader/'))).size).toBe(1)
+    expect(readerLeases()).toHaveLength(1)
   })
 
   it('does not hold the barrier of a domain-serial read while its handler loads', async () => {
     const { storage } = await readyProvider(workspace, built, one, 0)
+    const load = loadGateOf(workspace, 'slowserial')
     const reading = storage.read(readRequest('slowserial'))
-    await delay(200)
-    const start = Date.now()
+    await load.entered()
     const written = await storage.commit(commitOf(built, 'during-load'))
     expect(written.kind).toBe('committed')
-    expect(Date.now() - start).toBeLessThan(250)
+    load.open()
     expect(summary(await reading)).toBe('read')
   })
 
@@ -156,11 +166,11 @@ describe('timeouts (SPEC 9.2 steps 9 and 10)', () => {
       { ...one, readQueueTimeoutMs: 100 },
       0,
     )
-    await warm(storage, 'slow', { ms: 0 })
-    const running = storage.read(readRequest('slow', { ms: 500 }))
-    await delay(50)
-    expect(summary(await storage.read(readRequest('page')))).toBe('unavailable/queue_timeout')
-    expect(summary(await running)).toBe('read')
+    const running = await heldRead(storage, workspace)
+    const waiting = storage.read(readRequest('page'))
+    expect(summary(await atLimit(waiting, 100))).toBe('unavailable/queue_timeout')
+    running.gate.open()
+    expect(summary(await running.result)).toBe('read')
   })
 })
 
@@ -172,19 +182,15 @@ describe('result byte budget (SPEC 9.2 step 6)', () => {
       { maxReadResultBytes: 4096, globalReadResultBytes: 8192, maxReadWorkersPerDomain: 3 },
       0,
     )
-    const ended: string[] = []
-    const track = (name: string, read: Promise<Parameters<typeof summary>[0]>) =>
-      read.then(result => {
-        ended.push(name)
-        return summary(result)
-      })
-    const first = track('first', storage.read(readRequest('slow', { ms: 400 })))
-    const second = track('second', storage.read(readRequest('slow', { ms: 400 })))
-    const third = track('third', storage.read(readRequest('page')))
-    expect(await Promise.all([first, second, third])).toEqual(['read', 'read', 'read'])
-    expect(ended.indexOf('third')).toBeGreaterThan(
-      Math.min(ended.indexOf('first'), ended.indexOf('second')),
-    )
+    const first = await heldRead(storage, workspace)
+    const second = await heldRead(storage, workspace)
+    const third = storage.read(readRequest('page'))
+    await stillPending(third)
+    first.gate.open()
+    expect(summary(await third)).toBe('read')
+    second.gate.open()
+    expect([summary(await first.result), summary(await second.result)]).toEqual(['read', 'read'])
+    expect(readerLeases()).toHaveLength(2)
   })
 })
 
@@ -217,11 +223,11 @@ describe('migration (SPEC 9.5, last item)', () => {
     const full = await buildReadMaterials(workspace, {}, { journal: 'ok', declaredVersion: 'v1' })
     const { storage } = await readyProvider(workspace, full, {}, 0)
     const events: string[] = []
-    const reading = storage.read(readRequest('slow', { ms: 500 })).then(result => {
+    const running = await heldRead(storage, workspace)
+    const reading = running.result.then(result => {
       events.push('read')
       return result
     })
-    await delay(150)
     const before = leases.released
     const registering = storage
       .registerCombination({
@@ -235,12 +241,14 @@ describe('migration (SPEC 9.5, last item)', () => {
         events.push('register')
         return result
       })
+    await chance()
+    expect(events).toEqual([])
+    running.gate.open()
     expect((await reading).kind).toBe('read')
     expect((await registering).kind).toBe('registered')
     expect(events).toEqual(['read', 'register'])
     expect(leases.released).toBeGreaterThan(before)
     expect(summary(await storage.read(readRequest('page')))).toBe('read')
-    const readers = leases.admitted.filter(name => name.includes('/reader/'))
-    expect(new Set(readers).size).toBe(2)
+    expect(new Set(readerLeases()).size).toBe(2)
   })
 })
