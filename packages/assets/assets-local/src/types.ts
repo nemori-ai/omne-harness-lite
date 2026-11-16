@@ -1,6 +1,6 @@
 import type { z } from 'zod'
 import type { CapabilityId, CategoryRegistry, PinnedBody } from '@omne-harness/assets'
-import type { LocalPackages, PackageStep } from './packages.ts'
+import type { LocalPackages, PackageDurability, PackageStep } from './packages.ts'
 import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
 import type {
   assetLookupSchema,
@@ -23,6 +23,7 @@ export type AssetsLocalOptions = Readonly<{
   categories: CategoryRegistry
   packageRoot?: string
   afterPackageStep?: (step: PackageStep) => void | Promise<void>
+  packageDurability?: PackageDurability
 }>
 export type AssetsPublish = Readonly<z.infer<typeof publishMetadataSchema> & { pinned: PinnedBody }>
 export type AssetsHold = z.infer<typeof holdSchema>

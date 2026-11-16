@@ -10,6 +10,7 @@ export type {
   PackageLocation,
   PackagePublishResult,
   PackageRecovery,
+  PackageDurability,
   PackageStep,
   PublishedPackages,
 } from './packages.ts'

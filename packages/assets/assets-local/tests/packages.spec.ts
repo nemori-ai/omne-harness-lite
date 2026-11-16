@@ -18,6 +18,7 @@ import {
   type PackageReader,
 } from '@omne-harness/assets'
 import type { SqlStorage } from '@omne-harness/sql-contract'
+import { nodeDurability, type PackageDurability } from '../src/packages.ts'
 import { ownerSources } from './sources.ts'
 import { grants, openWorld, type World } from './world.ts'
 
@@ -119,6 +120,7 @@ async function world(
   options: {
     afterPackageStep?: (step: Step) => void | Promise<void>
     ownerWrap?: (storage: SqlStorage) => SqlStorage
+    packageDurability?: PackageDurability
   } = {},
 ) {
   const packageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'assets-packages-')))
@@ -358,7 +360,7 @@ describe('a crash after a step, then the recovery scan: all old or all new', () 
 })
 
 describe('publishing a directory', () => {
-  it('C4 版本号等于包的摘要，记录的正文是清单加投影的声明，字节在正式位置', async () => {
+  it('版本号等于包的摘要，记录的正文是清单加投影的声明，字节在正式位置', async () => {
     const w = await world()
     const published = await publish(w, FIRST, 'publish-1')
     const version = versionOf(FIRST)
@@ -401,7 +403,7 @@ describe('publishing a directory', () => {
     })
   })
 
-  it('C4 同一个操作标识再发一次，不写，答复相同', async () => {
+  it('同一个操作标识再发一次，不写，答复相同', async () => {
     const w = await world()
     const first = await publish(w, FIRST, 'publish-1')
     const asset = await w.owner.readAsset({ assetRef: 'tenant/report' })
@@ -410,7 +412,7 @@ describe('publishing a directory', () => {
     expect(stagingOf(w.packageRoot)).toEqual([])
   })
 
-  it('C5 manifest 给出清单；open 按路径与摘要给字节；清单之外的路径答条目不存在', async () => {
+  it('manifest 给出清单；open 按路径与摘要给字节；清单之外的路径答条目不存在', async () => {
     const w = await world()
     await publish(w, FIRST, 'publish-1')
     const reader = w.owner.packages.reader({ assetRef: 'tenant/report', version: versionOf(FIRST) })
@@ -425,7 +427,7 @@ describe('publishing a directory', () => {
     expect(await reader.open('../outside', digest)).toEqual({ failure: 'entry-not-found' })
   })
 
-  it('C7 两次同名的发布同时来：一个 published，一个 conflict，后者的暂存被清掉', async () => {
+  it('两次同名的发布同时来：一个 published，一个 conflict，后者的暂存被清掉', async () => {
     const bothStaged = Promise.withResolvers<void>()
     let staged = 0
     const w = await world({
@@ -518,7 +520,7 @@ describe('reading by asset reference, and the directory names', () => {
   })
 })
 
-describe('C8 a directory that does not pass is rejected and nothing is written', () => {
+describe('a directory that does not pass is rejected and nothing is written', () => {
   it.each([
     ['超过文件数', { a: '1', b: '2', c: '3', d: '4' }, { kind: 'limit-exceeded', limit: 'files' }],
     ['超过单文件大小', { a: 'x'.repeat(17) }, { kind: 'limit-exceeded', limit: 'fileBytes' }],
@@ -567,8 +569,86 @@ describe('C8 a directory that does not pass is rejected and nothing is written',
   })
 })
 
+describe('publish keeps its bytes durable before the version is recorded', () => {
+  type Event = readonly ['file' | 'directory' | 'step', string]
+
+  async function recordedPublish() {
+    const events: Event[] = []
+    const w = await world({
+      packageDurability: {
+        async file(path, bytes) {
+          await nodeDurability.file(path, bytes)
+          events.push(['file', path])
+        },
+        async directory(path) {
+          await nodeDurability.directory(path)
+          events.push(['directory', path])
+        },
+      },
+      afterPackageStep(step) {
+        events.push(['step', step])
+      },
+    })
+    expect(await publish(w, FIRST, 'publish-1')).toMatchObject({ kind: 'published' })
+    return { events, root: w.packageRoot }
+  }
+
+  const at = (events: readonly Event[], event: Event) =>
+    events.findIndex(one => one[0] === event[0] && one[1] === event[1])
+
+  it('syncs every staged file and the staging directories before the record step', async () => {
+    const { events, root } = await recordedPublish()
+    const staged = at(events, ['step', 'staged'])
+    expect(staged).toBeGreaterThan(-1)
+    const before = events.slice(0, staged)
+    const staging = join(root, '.staging')
+    const files = before.filter(([kind]) => kind === 'file').map(([, path]) => path)
+    const directories = before.filter(([kind]) => kind === 'directory').map(([, path]) => path)
+    const own = files.find(path => path.endsWith('/meta.json'))
+    expect(own?.startsWith(`${staging}/`)).toBe(true)
+    const dir = own === undefined ? '' : own.slice(0, -'/meta.json'.length)
+    expect(files.sort()).toEqual(
+      [
+        join(dir, 'files/SKILL.md'),
+        join(dir, 'files/scripts/run.sh'),
+        join(dir, 'meta.json'),
+      ].sort(),
+    )
+    expect(directories).toEqual(
+      expect.arrayContaining([join(dir, 'files/scripts'), join(dir, 'files'), dir, staging]),
+    )
+    expect(at(events, ['step', 'recorded'])).toBeGreaterThan(staged)
+  })
+
+  it('syncs the place of the version up to the root after the swap', async () => {
+    const { events, root } = await recordedPublish()
+    const recorded = at(events, ['step', 'recorded'])
+    const after = events.slice(recorded + 1)
+    expect(after).toEqual(
+      expect.arrayContaining([
+        ['file', join(root, 'bundles', '.category')],
+        ['directory', join(root, 'bundles', 'report')],
+        ['directory', join(root, 'bundles')],
+        ['directory', root],
+      ]),
+    )
+    expect(
+      events.slice(0, recorded).some(([, path]) => path.startsWith(join(root, 'bundles'))),
+    ).toBe(false)
+  })
+
+  it('writes the bytes it is given and syncs a directory without changing it', async () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'assets-durable-')))
+    const path = join(dir, 'one.txt')
+    await nodeDurability.file(path, encoder.encode('one'))
+    expect(readFileSync(path, 'utf8')).toBe('one')
+    await nodeDurability.directory(dir)
+    expect(readdirSync(dir)).toEqual(['one.txt'])
+  })
+})
+
 describe('readHeldCapability', () => {
-  it('C8 按能力身份读到持有；没有时答没有', async () => {
+  it('按能力身份读到持有；没有时答没有', async () => {
     const w = await world()
     expect(await w.owner.readHeldCapability({ capability: report })).toEqual({ kind: 'absent' })
     await publish(w, FIRST, 'publish-1')

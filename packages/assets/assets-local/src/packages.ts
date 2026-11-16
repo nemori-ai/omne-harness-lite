@@ -1,5 +1,5 @@
 import { existsSync, type Dirent } from 'node:fs'
-import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, open, readdir, readFile, rename, rm, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import {
   capabilityId,
@@ -23,6 +23,32 @@ import { digest } from './encoding.ts'
 import type { AssetsMutationResult, AssetsOperationResult, AssetsPublish } from './types.ts'
 
 export type PackageStep = 'staged' | 'recorded'
+
+export type PackageDurability = Readonly<{
+  file(path: string, bytes: Uint8Array | string): Promise<void>
+  directory(path: string): Promise<void>
+}>
+
+export const nodeDurability: PackageDurability = Object.freeze({
+  async file(path: string, bytes: Uint8Array | string) {
+    const handle = await open(path, 'w')
+    try {
+      await handle.writeFile(bytes)
+      await handle.sync()
+    } finally {
+      await handle.close()
+    }
+  },
+  async directory(path: string) {
+    if (process.platform === 'win32') return
+    const handle = await open(path, 'r')
+    try {
+      await handle.sync()
+    } finally {
+      await handle.close()
+    }
+  },
+})
 
 export type PackagePublishResult =
   | Readonly<{ kind: 'published'; version: string; changed: boolean }>
@@ -219,8 +245,10 @@ export function createPublishedPackages(input: {
   categories: CategoryRegistry
   records: PackageRecords
   afterStep?: ((step: PackageStep) => void | Promise<void>) | undefined
+  durability?: PackageDurability | undefined
 }): LocalPackages {
   const { root, categories, records } = input
+  const durability = input.durability ?? nodeDurability
 
   function finalOf(root: string, layout: PackageLayout, name: string, version: string): string {
     return join(root, layout.namespace, name, versionDirectoryName(version))
@@ -251,14 +279,18 @@ export function createPublishedPackages(input: {
   }
 
   async function swap(staging: string, final: string, category: string): Promise<void> {
-    await mkdir(dirname(final), { recursive: true })
-    const named = join(dirname(dirname(final)), CATEGORY_FILE)
-    if (!existsSync(named)) await writeFile(named, category)
+    const place = dirname(final)
+    const namespace = dirname(place)
+    await mkdir(place, { recursive: true })
+    const named = join(namespace, CATEGORY_FILE)
+    if (!existsSync(named)) await durability.file(named, category)
     try {
       await rename(join(staging, 'files'), final)
     } catch (error) {
       if (!(await isDirectory(final))) throw error
     }
+    for (const directory of [place, namespace, dirname(namespace)])
+      await durability.directory(directory)
     await rm(staging, { recursive: true, force: true })
   }
 
@@ -282,6 +314,7 @@ export function createPublishedPackages(input: {
   ): Promise<PackageSourceFailure | undefined> {
     const files = join(staging, 'files')
     await mkdir(files, { recursive: true })
+    const directories = new Set([files, staging, dirname(staging)])
     for (const entry of manifest.entries) {
       const opened = await from.open(entry.path, entry.digest)
       if (!('ok' in opened)) return opened.failure
@@ -289,9 +322,12 @@ export function createPublishedPackages(input: {
         return 'material-unavailable'
       const target = join(files, entry.path)
       await mkdir(dirname(target), { recursive: true })
-      await writeFile(target, opened.ok)
+      for (let dir = dirname(target); dir !== files; dir = dirname(dir)) directories.add(dir)
+      await durability.file(target, opened.ok)
     }
-    await writeFile(join(staging, 'meta.json'), JSON.stringify(meta))
+    await durability.file(join(staging, 'meta.json'), JSON.stringify(meta))
+    for (const directory of [...directories].sort((a, b) => b.length - a.length))
+      await durability.directory(directory)
     return undefined
   }
 

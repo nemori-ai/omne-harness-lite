@@ -228,6 +228,7 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     root: options.packageRoot,
     categories: options.categories,
     afterStep: options.afterPackageStep,
+    durability: options.packageDurability,
     records: {
       publish: local.publish,
       getOperation: local.getOperation,

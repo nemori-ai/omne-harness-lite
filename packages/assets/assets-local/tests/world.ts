@@ -110,6 +110,7 @@ export async function openWorld(
     ownerWrap?: (storage: SqlStorage) => SqlStorage
     packageRoot?: string
     afterPackageStep?: Parameters<typeof createAssetsLocal>[0]['afterPackageStep']
+    packageDurability?: Parameters<typeof createAssetsLocal>[0]['packageDurability']
   } = {},
 ) {
   const parent = fileURLToPath(
@@ -160,6 +161,9 @@ export async function openWorld(
     ...(options.afterPackageStep === undefined
       ? {}
       : { afterPackageStep: options.afterPackageStep }),
+    ...(options.packageDurability === undefined
+      ? {}
+      : { packageDurability: options.packageDurability }),
   })
   async function setup() {
     const published = await owner.publish({
