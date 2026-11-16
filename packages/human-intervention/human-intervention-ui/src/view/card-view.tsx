@@ -60,7 +60,6 @@ export function CardView({
   origin,
 }: Props & { readonly origin: boolean }): JSX.Element {
   const question = entry.item.card.question
-  const asks = question.kind === 'question' || question.kind === 'extension'
   return (
     <li className="hitl-card" data-kind={question.kind} data-state={entry.submit.kind}>
       <div className="hitl-card-head">
@@ -74,12 +73,12 @@ export function CardView({
       {entry.item.displayContext === '' ? null : (
         <p className="hitl-card-context">{entry.item.displayContext}</p>
       )}
-      <Answer key={entry.item.card.revision} entry={entry} driver={driver} asks={asks} />
+      <Answer key={entry.item.card.revision} entry={entry} driver={driver} />
     </li>
   )
 }
 
-function Answer({ entry, driver, asks }: Props & { readonly asks: boolean }): JSX.Element {
+function Answer({ entry, driver }: Props): JSX.Element {
   const question = entry.item.card.question
   const group = useId()
   const [pick, setPick] = useState('')
@@ -89,7 +88,7 @@ function Answer({ entry, driver, asks }: Props & { readonly asks: boolean }): JS
   return (
     <>
       <fieldset className="hitl-card-choices" disabled={busy}>
-        <legend>{asks ? '选一个，或用自己的话回答' : '选一个'}</legend>
+        <legend>选一个，或用自己的话回答</legend>
         <RadioGroup name={group} value={pick} onValueChange={setPick} disabled={busy}>
           {question.options.map(option => (
             <Choice
@@ -100,12 +99,10 @@ function Answer({ entry, driver, asks }: Props & { readonly asks: boolean }): JS
               text={option.description}
             />
           ))}
-          {asks ? <Choice value={TEXT} pick={pick} label="用自己的话回答" text="" /> : null}
-          {asks ? (
-            <Choice value={DECLINE} pick={pick} label="跳过" text={question.declineConsequence} />
-          ) : null}
+          <Choice value={TEXT} pick={pick} label="用自己的话回答" text="" />
+          <Choice value={DECLINE} pick={pick} label="跳过" text={question.declineConsequence} />
         </RadioGroup>
-        {asks && pick === TEXT ? (
+        {pick === TEXT ? (
           <Textarea
             className="hitl-card-words"
             aria-label="你的回答"

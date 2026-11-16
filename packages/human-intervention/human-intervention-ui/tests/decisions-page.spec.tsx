@@ -80,14 +80,21 @@ it('V2 问题卡：来自哪个会话、问题、每个选项、用自己的话�
   expect((submitButton(question) as HTMLButtonElement).disabled).toBe(true)
 })
 
-it('V3 批准卡：只列协议给的选项，没有会话时写来源', async () => {
-  await listed([approvalItem()])
+it('V3 批准卡：协议给的选项之外同样能用自己的话回答、能跳过；没有会话时写来源', async () => {
+  const fake = await listed([approvalItem()])
   const approval = card('运行 rm -rf build？')
-  expect(approval.getAllByRole('radio')).toHaveLength(2)
-  expect(approval.queryByText('跳过')).toBeNull()
-  expect(approval.queryByText('用自己的话回答')).toBeNull()
+  expect(approval.getAllByRole('radio')).toHaveLength(4)
+  expect(approval.getByText('用自己的话回答')).toBeTruthy()
+  expect(approval.getByText('跳过')).toBeTruthy()
   expect(approval.getByText('准入')).toBeTruthy()
   expect(approval.getByText('请示')).toBeTruthy()
+  choose(approval, '跳过')
+  fireEvent.click(submitButton(approval))
+  const call = await fake.next('submit-reply')
+  expect(call.body).toMatchObject({
+    reply: { kind: 'decline' },
+    card: approvalItem().card.ref,
+  })
 })
 
 it('V4 选一个选项提交：带修订号；决定了就去掉卡，说「已提交」，再取列表', async () => {
