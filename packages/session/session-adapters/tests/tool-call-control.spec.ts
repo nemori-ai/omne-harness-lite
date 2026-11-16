@@ -57,6 +57,13 @@ describe('Session controls a call by its reference through Tool', () => {
       { kind: 'stop' },
       { kind: 'withdraw', reach: 'all' },
     ])
+    const expected = {
+      principal: 'session:coordinator',
+      tenant: access.tenant,
+      reference: producer.call,
+    }
+    expect(runtime.queries.lookup).toHaveBeenCalledWith(expected)
+    expect(runtime.commands.control).toHaveBeenCalledWith({ ...expected, intent: { kind: 'stop' } })
   })
 
   it('recalls a control of the same kind that Tool already holds and sends nothing', async () => {
@@ -98,5 +105,81 @@ describe('Session controls a call by its reference through Tool', () => {
       await ask(controller(runtime), 'stop', { kind: 'tool', call: 'nonsense' }),
     ).toMatchObject({ failure: { kind: 'invalid', field: 'producer.call' } })
     expect(runtime.queries.lookup).not.toHaveBeenCalled()
+  })
+
+  it('asks the principal for the session of the call; a principal refusal reaches no Tool', async () => {
+    const runtime = tools({ phase: 'running', controls: [] })
+    const scopes: unknown[] = []
+    const refused = createToolCallControl<string>({
+      tools: () => runtime as never,
+      principal: async scope => {
+        scopes.push(scope)
+        return fail({ kind: 'denied', action: 'principal' })
+      },
+    })
+    expect(await ask(refused, 'stop')).toEqual(fail({ kind: 'denied', action: 'principal' }))
+    expect(scopes).toEqual([{ tenant: access.tenant, session: access.session }])
+    expect(runtime.queries.lookup).not.toHaveBeenCalled()
+  })
+
+  it('a call Tool has not accepted is unavailable; a lookup refusal keeps its kind', async () => {
+    expect(await ask(controller(tools(null)), 'stop')).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+    const runtime = tools({ phase: 'running', controls: [] })
+    runtime.queries.lookup.mockResolvedValueOnce(
+      fail({ kind: 'denied', action: 'lookup' }) as never,
+    )
+    expect(await ask(controller(runtime), 'stop')).toEqual(
+      fail({ kind: 'denied', action: 'control-call' }),
+    )
+    runtime.queries.lookup.mockResolvedValueOnce(
+      fail({ kind: 'commit-unknown', operation: 'x' }) as never,
+    )
+    expect(await ask(controller(runtime), 'stop')).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+    expect(runtime.commands.control).not.toHaveBeenCalled()
+  })
+
+  it('a held control of another kind does not stand for the one asked', async () => {
+    const runtime = tools({ phase: 'running', controls: [{ intent: { kind: 'stop' } } as never] })
+    expect(await ask(controller(runtime), 'withdraw')).toEqual(succeed('recorded'))
+    expect(runtime.commands.control.mock.calls.map(([input]) => input.intent)).toEqual([
+      { kind: 'withdraw', reach: 'all' },
+    ])
+  })
+
+  it('a tenant that legal-identity did not mint is denied and reaches no Tool', async () => {
+    const runtime = tools({ phase: 'running', controls: [] })
+    const forged = { ...access.tenant } as typeof access.tenant
+    expect(
+      await controller(runtime).control({
+        tenant: forged,
+        session: access.session,
+        control: 'stop' as SessionOperationId,
+        producer,
+        intent: 'stop',
+      }),
+    ).toEqual(fail({ kind: 'denied', action: 'control-call' }))
+    expect(runtime.queries.lookup).not.toHaveBeenCalled()
+  })
+
+  it('a Tool refusal maps by kind: denied, invalid, and anything else unavailable', async () => {
+    const runtime = tools({ phase: 'running', controls: [] })
+    const reject = (failure: unknown) =>
+      runtime.commands.control.mockResolvedValueOnce({ kind: 'rejected', failure } as never)
+    reject({ kind: 'denied', action: 'control' })
+    expect(await ask(controller(runtime), 'stop')).toEqual(
+      fail({ kind: 'denied', action: 'control-call' }),
+    )
+    reject({ kind: 'invalid', field: 'intent', reason: 'type' })
+    expect(await ask(controller(runtime), 'stop')).toEqual(
+      fail({ kind: 'invalid', field: 'intent', reason: 'type' }),
+    )
+    reject({ kind: 'busy' })
+    expect(await ask(controller(runtime), 'stop')).toMatchObject({
+      failure: { kind: 'unavailable', owner: 'session-adapters/tool-call-control' },
+    })
   })
 })

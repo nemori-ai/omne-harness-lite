@@ -5,7 +5,7 @@ import type { SessionCallControl, SessionFailure, SessionId } from '@omne-harnes
 import {
   resolveToolInvocationRef,
   type ToolControl,
-  type ToolDefiniteFailure,
+  type ToolFailure,
   type ToolInvocationRef,
   type ToolRuntime,
 } from '@omne-harness/tool-contract'
@@ -29,7 +29,7 @@ const INTENTS: Readonly<Record<'stop' | 'withdraw', ToolControl>> = {
   withdraw: { kind: 'withdraw', reach: 'all' },
 }
 
-function toolFailure(failure: ToolDefiniteFailure): Outcome<never, SessionFailure> {
+function toolFailure(failure: ToolFailure): Outcome<never, SessionFailure> {
   switch (failure.kind) {
     case 'denied':
       return fail({ kind: 'denied', action: 'control-call' })
@@ -60,10 +60,7 @@ export function createToolCallControl<P>(input: ToolCallControlInput<P>): Sessio
       const reference = producer.call as ToolInvocationRef
       const access = { principal: principal.ok, tenant, reference }
       const looked = await runtime.queries.lookup(access)
-      if ('failure' in looked)
-        return looked.failure.kind === 'commit-unknown'
-          ? unavailable('the lookup answered commit-unknown')
-          : toolFailure(looked.failure)
+      if ('failure' in looked) return toolFailure(looked.failure)
       if (looked.ok.kind !== 'found') return unavailable('Tool has not accepted the call')
       const { state } = looked.ok
       if (state.phase === 'settled') return succeed('ended')

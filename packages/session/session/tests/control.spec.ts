@@ -728,3 +728,46 @@ it('直交答不可用时按回放间隔再送，答已记下就停', async () =
   await new Promise(resolve => setTimeout(resolve, 20))
   expect(sent).toHaveBeenCalledTimes(2)
 })
+
+it('直交一直不可用时只送到回放上限', async () => {
+  const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 3 } } })
+  open.push(f.h)
+  const { binding, sent } = await backgroundedCall(f)
+  sent.mockResolvedValue(fail({ kind: 'unavailable', owner: 'tool', diagnostic: 'away' }))
+  succeeded(
+    await f.h.faces('intake').work.stopCall({
+      ...f.h.access(),
+      operation: operationId('stop'),
+      producer: binding.producer,
+    }),
+    'stopCall',
+  )
+  for (const count of [1, 2, 3]) {
+    await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(count))
+    f.h.clock.controls.advance(100)
+  }
+  f.h.clock.controls.advance(100)
+  await new Promise(resolve => setTimeout(resolve, 20))
+  expect(sent).toHaveBeenCalledTimes(3)
+})
+
+it('已记下的直交不再重送，同一调用的另一条停止按自己的控制送', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  const { binding, sent } = await backgroundedCall(f)
+  const stop = (name: string) =>
+    f.h.faces('intake').work.stopCall({
+      ...f.h.access(),
+      operation: operationId(name),
+      producer: binding.producer,
+    })
+  succeeded(await stop('stop'), 'first stop')
+  await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(1))
+  succeeded(await stop('stop-2'), 'second stop')
+  await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(2))
+  await new Promise(resolve => setTimeout(resolve, 20))
+  expect(sent.mock.calls.map(([input]) => input.control)).toEqual([
+    operationId('stop'),
+    operationId('stop-2'),
+  ])
+})

@@ -13,6 +13,7 @@ import type {
   WorkSnapshot,
 } from './values.ts'
 import { settledControls } from './call-control.ts'
+import { equalValue } from './session-validation.ts'
 
 /** The origin owner of an input that a background tool execution's outcome became. */
 export const BACKGROUND_INPUT_OWNER = 'background-tool-execution'
@@ -42,15 +43,12 @@ export function backgroundInputId(producer: ProducerRef, result: string): InputI
   return `bg_${digestOf({ kind: 'background-outcome', producer, result })}` as InputId
 }
 
-const sameProducer = (left: ProducerRef, right: ProducerRef): boolean =>
-  left.kind === right.kind && left.call === right.call
-
 function stoppedAlone(snapshot: WorkSnapshot, producer: ProducerRef): boolean {
   return snapshot.controls.some(
     control =>
       control.intent.kind === 'control' &&
       control.intent.value.kind === 'stop-call' &&
-      sameProducer(control.intent.value.producer, producer),
+      equalValue(control.intent.value.producer, producer),
   )
 }
 
@@ -75,9 +73,7 @@ const invalid = (field: string, reason: string): BackgroundStep => ({
 })
 
 function consumptionOf(snapshot: WorkSnapshot, producer: ProducerRef): ConsumptionId | null {
-  return (
-    snapshot.consumptions.find(item => sameProducer(item.binding.producer, producer))?.id ?? null
-  )
+  return snapshot.consumptions.find(item => equalValue(item.binding.producer, producer))?.id ?? null
 }
 
 function decideBackgrounded(
@@ -151,8 +147,6 @@ function decideOutcome(
       controls,
     }
   const input = reminderInput(fact)
-  if (snapshot.pending.includes(input.input))
-    return invalid('result', 'the outcome of this result version was already accepted')
   const run = snapshot.run.kind === 'active' ? snapshot.run.run : null
   return {
     kind: 'entries',
@@ -201,7 +195,7 @@ export function applyBackgrounded(
   entry: Extract<SessionEntry, { kind: 'call.backgrounded' }>,
 ): string | null {
   const bound = draft.consumptions.find(item => item.id === entry.consumption)
-  if (bound === undefined || !sameProducer(bound.binding.producer, entry.producer))
+  if (bound === undefined || !equalValue(bound.binding.producer, entry.producer))
     return 'a placeholder of a call that is not bound to the consumption'
   const placeholders = draft.backgroundPlaceholders ?? []
   if (placeholders.includes(entry.consumption)) return 'a call backgrounded twice'
