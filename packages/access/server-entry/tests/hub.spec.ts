@@ -10,6 +10,7 @@ import {
   call,
   held,
   observe,
+  passRounds,
   rawCall,
   rawHeaders,
   startAccessFixture,
@@ -226,14 +227,16 @@ describe('the hub keeps its behaviour at the new address', () => {
     const revoked = open(fixture, 'watch-tenant', { headers: { 'omne-message-id': 'm-1' } })
     await fixture.notes.opened(1)
     const opening = fixture.accessIdentity.calls.length
-    await fixture.accessIdentity.called('identifyLogin', 3)
+    await passRounds(fixture, fixture.accessIdentity.called('identifyLogin', 3))
     const rounds = fixture.accessIdentity.calls.slice(opening)
     expect(rounds.every(entry => entry.method === 'identifyLogin' && entry.proof === PROOF)).toBe(
       true,
     )
     expect(fixture.accessIdentity.calls.filter(entry => entry.method === 'actFor')).toHaveLength(1)
     fixture.accessIdentity.identifyLogin = { kind: 'answer', value: { outcome: 'denied' } }
-    expect(await endedEvents(revoked)).toEqual([{ kind: 'ended', reason: 'denied' }])
+    expect(await passRounds(fixture, endedEvents(revoked))).toEqual([
+      { kind: 'ended', reason: 'denied' },
+    ])
 
     delete fixture.accessIdentity.identifyLogin
     const unjudged = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-2' } })
@@ -242,7 +245,9 @@ describe('the hub keeps its behaviour at the new address', () => {
       kind: 'answer',
       value: { outcome: 'basis-unavailable' },
     }
-    expect(await endedEvents(unjudged)).toEqual([{ kind: 'ended', reason: 'unavailable' }])
+    expect(await passRounds(fixture, endedEvents(unjudged))).toEqual([
+      { kind: 'ended', reason: 'unavailable' },
+    ])
   })
 
   it('ends every observation of a revoked login, and only those', async () => {
@@ -257,9 +262,11 @@ describe('the hub keeps its behaviour at the new address', () => {
     await fixture.notes.opened(3)
     ;(fixture.accessIdentity.logins as Map<string, unknown>).delete(PROOF)
     for (const client of mine)
-      expect(await endedEvents(client)).toEqual([{ kind: 'ended', reason: 'denied' }])
+      expect(await passRounds(fixture, endedEvents(client))).toEqual([
+        { kind: 'ended', reason: 'denied' },
+      ])
     const rounds = fixture.accessIdentity.calls.length
-    await fixture.accessIdentity.called('identifyLogin', rounds + 2)
+    await passRounds(fixture, fixture.accessIdentity.called('identifyLogin', rounds + 2))
     expect(theirs.events()).toEqual([])
     theirs.close()
   })
@@ -268,7 +275,7 @@ describe('the hub keeps its behaviour at the new address', () => {
     const fixture = await entry()
     const client = open(fixture)
     await fixture.notes.opened(1)
-    await client.waitForText(': heartbeat\n\n')
+    await passRounds(fixture, client.waitForText(': heartbeat\n\n'))
     expect(client.events()).toEqual([])
     client.close()
   })
@@ -440,13 +447,16 @@ describe('a take-down ends every observation, and completes after their ended fr
     for (let index = 0; index < 2048; index += 1) feed.push({ noteId: 'n-1', title })
     await until(() => feed.taken === 2048)
     let completed = false
+    const graceStarted = fixture.accessClock.nextScheduled(GRACE_MS)
     const done = fixture.takeDown().then(() => {
       completed = true
     })
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await graceStarted
+    fixture.accessClock.advance(GRACE_MS - 1)
+    for (let hostTurn = 0; hostTurn < 5; hostTurn += 1) await turn()
     expect(completed).toBe(false)
     expect(fixture.log.entries[0]?.left).toBe(false)
-    fixture.accessClock.advance(GRACE_MS)
+    fixture.accessClock.advance(1)
     await done
     expect(fixture.log.leaveCounts).toEqual([1])
     let tail = ''
@@ -482,7 +492,7 @@ describe('a take-down ends every observation, and completes after their ended fr
     const revoked = open(fixture, 'watch-note', { headers: { 'omne-message-id': 'm-3' } })
     await fixture.notes.opened(4)
     fixture.accessIdentity.identifyLogin = { kind: 'answer', value: { outcome: 'denied' } }
-    await endedEvents(revoked)
+    await passRounds(fixture, endedEvents(revoked))
     delete fixture.accessIdentity.identifyLogin
     const stopped = open(fixture, 'watch-all', { body: '{}' })
     await fixture.notes.opened(5)

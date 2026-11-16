@@ -1,4 +1,5 @@
 import type { ServerResponse } from 'node:http'
+import type { Clock } from '../settle/settle.ts'
 
 const HEARTBEAT = ': heartbeat\n\n'
 const END = Symbol('end')
@@ -8,6 +9,7 @@ const encoder = new TextEncoder()
 export class SseStream {
   readonly #res: ServerResponse
   readonly #heartbeatMs: number
+  readonly #clock: Clock
   readonly #queue: Chunk[] = []
   readonly #closeListeners: (() => void)[] = []
   readonly #writtenWaiters: (() => void)[] = []
@@ -15,14 +17,15 @@ export class SseStream {
   #opened = false
   #ending = false
   #closed = false
-  #heartbeat: NodeJS.Timeout | undefined
+  #cancelHeartbeat: (() => void) | undefined
   #queuedFrameBytes = 0
   readonly finished: Promise<void>
   #resolveFinished: () => void = () => {}
 
-  constructor(res: ServerResponse, heartbeatMs: number) {
+  constructor(res: ServerResponse, heartbeatMs: number, clock: Clock) {
     this.#res = res
     this.#heartbeatMs = heartbeatMs
+    this.#clock = clock
     this.finished = new Promise(resolve => {
       this.#resolveFinished = resolve
     })
@@ -113,16 +116,15 @@ export class SseStream {
   #armHeartbeat(): void {
     this.#clearHeartbeat()
     if (this.#queue.length > 0 || this.#ending) return
-    this.#heartbeat = setTimeout(() => {
-      this.#heartbeat = undefined
+    this.#cancelHeartbeat = this.#clock.schedule(this.#heartbeatMs, () => {
+      this.#cancelHeartbeat = undefined
       this.#enqueue({ text: HEARTBEAT, frameBytes: 0 })
-    }, this.#heartbeatMs)
+    })
   }
 
   #clearHeartbeat(): void {
-    if (this.#heartbeat === undefined) return
-    clearTimeout(this.#heartbeat)
-    this.#heartbeat = undefined
+    this.#cancelHeartbeat?.()
+    this.#cancelHeartbeat = undefined
   }
 
   #settleWritten(): void {

@@ -7,6 +7,7 @@ import {
   type RecordsInput,
 } from '../src/observation-hub/records.ts'
 import type { SseStream } from '../src/observation-hub/sse.ts'
+import { systemClock } from '../src/settle/settle.ts'
 
 type Own = 'note-deleted'
 
@@ -80,6 +81,7 @@ function setup(
   const records = createObservationRecords<Own>({
     limits: { perLogin: 2, perInstance: 3, cancelRetentionMs: RETENTION, ...limits },
     loginCheckIntervalMs: intervalMs,
+    clock: systemClock,
     ...(withReport ? { report: event => reports.push(event) } : {}),
   })
   return { records, reports }
