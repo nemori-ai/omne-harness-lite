@@ -47,6 +47,7 @@ type Scripted = Readonly<{
   current?: Awaited<ReturnType<ToolCallFaces['instances']['current']>> | 'throw'
   result?: Awaited<ReturnType<ToolCallFaces['queries']['readResult']>> | 'throw'
   frames?: readonly unknown[]
+  source?: AsyncIterable<unknown>
   faces?: 'absent'
 }>
 
@@ -70,6 +71,7 @@ function world(script: Scripted = {}) {
     observation: {
       observe: input => {
         calls.push({ kind: 'observe', input })
+        if (script.source !== undefined) return script.source as never
         const frames = script.frames ?? []
         return (async function* () {
           yield* frames as never[]
@@ -262,8 +264,9 @@ describe('read-call-result', () => {
 })
 
 describe('observe-call', () => {
-  const live = (frames: readonly unknown[]) =>
+  const live = (frames: readonly unknown[], source?: AsyncIterable<unknown>) =>
     world({
+      ...(source === undefined ? {} : { source }),
       current: succeed({
         state: running,
         current: {
@@ -305,7 +308,27 @@ describe('observe-call', () => {
       'delta',
       'gap',
     ])
-    expect(drained.frames[1]).toMatchObject({ call: runningView, process: { kind: 'array' } })
+    const text = (value: string) => ({ kind: 'string', value })
+    expect(drained.frames[1]).toEqual({
+      kind: 'delta',
+      call: runningView,
+      process: {
+        kind: 'array',
+        items: [
+          {
+            kind: 'object',
+            entries: [
+              { key: 'index', value: text('0') },
+              { key: 'mode', value: text('append') },
+              { key: 'state', value: text('open') },
+              { key: 'sequence', value: text('1') },
+              { key: 'content', value: { kind: 'null' } },
+              { key: 'trim', value: { kind: 'null' } },
+            ],
+          },
+        ],
+      },
+    })
     expect(drained.end).toBe('closed')
     expect(w.calls[2]).toEqual({
       kind: 'observe',
@@ -327,6 +350,31 @@ describe('observe-call', () => {
     [{ kind: 'ended', reason: 'capacity' }, 'unavailable'],
   ] as const)('ends %o as %s', async (frame, end) => {
     expect(await drain(await live([frame]).observe())).toEqual({ frames: [], end })
+  })
+
+  it('closes the Tool stream when the client stops reading', async () => {
+    let closed = 0
+    const source: AsyncIterable<unknown> = {
+      [Symbol.asyncIterator]: () => ({
+        next: async () => ({ done: false, value: { kind: 'gap', after: null, reason: 'buffer' } }),
+        return: async () => {
+          closed += 1
+          return { done: true, value: undefined }
+        },
+      }),
+    }
+    const opened = await live([], source).observe()
+    if (opened.outcome !== 'succeeded') throw new Error(opened.outcome)
+    expect((await opened.frames.next()).value).toEqual({ kind: 'gap' })
+    await opened.frames.return('closed')
+    expect(closed).toBe(1)
+  })
+
+  it('ends closed on a Tool stream whose iterator has no return', async () => {
+    const source: AsyncIterable<unknown> = {
+      [Symbol.asyncIterator]: () => ({ next: async () => ({ done: true, value: undefined }) }),
+    }
+    expect(await drain(await live([], source).observe())).toEqual({ frames: [], end: 'closed' })
   })
 
   it('opens with the same refusals as read-call', async () => {

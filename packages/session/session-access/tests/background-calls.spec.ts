@@ -138,3 +138,27 @@ describe('list-background-calls', () => {
     expect(await list(world, session, BOB)).toEqual({ outcome: 'denied' })
   })
 })
+
+describe('refusals before Session is asked', () => {
+  it.each(['denied', 'basis-unavailable'] as const)(
+    'a refusal of acting for the tenant (%s) answers both operations without a Session call',
+    async refusal => {
+      const world = createWorld()
+      const session = await created(world)
+      const before = world.session.controls.calls().length
+      world.refuseTargets(refusal)
+      expect(await background(world, session)).toEqual({ outcome: refusal })
+      expect(await list(world, session)).toEqual({ outcome: refusal })
+      expect(world.session.controls.calls()).toHaveLength(before)
+    },
+  )
+
+  it('background-call answers basis-unavailable when the principal has no login fact', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    const before = world.session.controls.calls().length
+    world.breakFacts('undescribed')
+    expect(await background(world, session)).toEqual({ outcome: 'basis-unavailable' })
+    expect(world.session.controls.calls()).toHaveLength(before)
+  })
+})

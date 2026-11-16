@@ -498,6 +498,22 @@ describe('a control of a backgrounded call goes to Tool, and its outcome reconci
     expect(controlRoutes(after, after.controls.at(-1)!)).toEqual({ agent: false, direct: [] })
   })
 
+  it('an archive withdraws only the backgrounded calls its pending names', async () => {
+    const c = await placed()
+    succeeded(
+      await c.s.commit({
+        kind: 'control',
+        input: { ...c.s.base, operation: operationId('archive'), intent: { kind: 'archive' } },
+      }),
+      'archive',
+    )
+    const archive = await lastControl(c)
+    expect(controlRoutes(await c.s.read(), { ...archive, pending: [] })).toEqual({
+      agent: true,
+      direct: [],
+    })
+  })
+
   it('an archive withdraws the backgrounded call by its reference and keeps the Agent route', async () => {
     const c = await placed()
     succeeded(
