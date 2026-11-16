@@ -163,7 +163,7 @@ while (( $# )); do
 done
 `,
   )
-  // node 只认测试运行器的 plan 与 coverage-parallel：前者写出 --json 指向的计划文件，FAIL_NODE 给出它的退出码；
+  // node 认启动段 check-bootstrap.mjs（见下）与测试运行器的 plan、coverage-parallel：plan 写出 --json 指向的计划文件，FAIL_NODE 给出它的退出码；
   // 后者打印 PARALLEL（缺省 3x5），FAIL_PARALLEL 给出它的退出码。真实的名额脚本要起真的 node，那时不放这个替身。
   // HANG_NODE 模拟运行器挂住：记下自己与 sleep 的进程号（Windows 上记 Windows 进程号）供用例核对它们被杀，然后一直等。
   if (options.realSlot !== true)
@@ -171,6 +171,12 @@ done
       join(bin, 'node'),
       `#!/usr/bin/env bash
 printf 'node|%s\\n' "$*" >> "$TRACE"
+# 启动段：FAIL_BOOTSTRAP 给出它的退出码，否则在标准输出写一份结果；检查器的 check 另记下它收到的那份结果。
+if [[ "$1" == scripts/check-bootstrap.mjs ]]; then
+  [[ -n "\${FAIL_BOOTSTRAP:-}" ]] && { echo "启动段：工具链失败" >&2; exit "$FAIL_BOOTSTRAP"; }
+  echo '{"stub":"bootstrap"}'; exit 0
+fi
+if [[ " $* " == *"/cli.ts check "* ]]; then printf 'bootstrap-env|%s\\n' "\${OMNE_CHECK_BOOTSTRAP-unset}" >> "$TRACE"; fi
 if [[ -n "\${HANG_NODE:-}" ]]; then
   winpid() { cat "/proc/$1/winpid" 2>/dev/null || echo "$1"; }
   sleep 600 &
@@ -426,16 +432,22 @@ describe('check.sh', () => {
     const ran = await run('check.sh', ['--admission', '--resume-from', 'abc123'], held)
     expect(ran.status, ran.stderr).toBe(0)
     expect(ran.lines).toEqual([
+      'node|scripts/check-bootstrap.mjs',
       'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts check --admission --resume-from abc123',
+      'bootstrap-env|{"stub":"bootstrap"}',
     ])
     expect((await run('check.sh', ['--keep-going'], held)).lines).toEqual([
+      'node|scripts/check-bootstrap.mjs',
       'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts check --keep-going',
+      'bootstrap-env|{"stub":"bootstrap"}',
     ])
     // 预检不占运行名额：没有拿到名额也直接起运行器。
     const preflight = await run('check.sh', ['--preflight'])
     expect(preflight.status, preflight.stderr).toBe(0)
     expect(preflight.lines).toEqual([
+      'node|scripts/check-bootstrap.mjs',
       'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts check --preflight',
+      'bootstrap-env|{"stub":"bootstrap"}',
     ])
     for (const args of [['--resume-from'], ['--resume-from', ''], ['--bogus'], ['abc']]) {
       const refused = await run('check.sh', args, held)
@@ -445,13 +457,25 @@ describe('check.sh', () => {
     }
   })
 
+  it('启动段失败：以它的退出码停下，不起检查器', async () => {
+    const { run } = fixture()
+    for (const args of [['--preflight'], ['--admission']]) {
+      const ran = await run('check.sh', args, { OMNE_TEST_SLOT_HELD: '1', FAIL_BOOTSTRAP: '2' })
+      expect(ran.status, args.join(' ')).toBe(2)
+      expect(ran.lines).toEqual(['node|scripts/check-bootstrap.mjs'])
+      expect(ran.stderr).toContain('启动段：工具链失败')
+    }
+  })
+
   it('没拿到名额：经名额脚本占一次，再带着它给的标记起运行器，不再重入名额脚本', async () => {
     const { run } = fixture()
     const ran = await run('check.sh', ['--keep-going'])
     expect(ran.status, ran.stderr).toBe(0)
     expect(ran.lines).toEqual([
       'slot|bash ./scripts/check.sh --keep-going',
+      'node|scripts/check-bootstrap.mjs',
       'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts check --keep-going',
+      'bootstrap-env|{"stub":"bootstrap"}',
     ])
   })
 })
@@ -470,7 +494,9 @@ describe('夹具：起脚本的时限与进程树', () => {
     expect(ran.timedOut).toBe(true)
     expect(ran.status).toBeNull()
     expect(ran.lines).toEqual([
+      'node|scripts/check-bootstrap.mjs',
       'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts check --keep-going',
+      'bootstrap-env|{"stub":"bootstrap"}',
     ])
     // 替身记下的两个进程（自己与 sleep）与 bash 本身都已不在。
     const recorded = readFileSync(pidsFile, 'utf8').split('\n').filter(Boolean).map(Number)

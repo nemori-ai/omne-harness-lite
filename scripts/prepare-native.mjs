@@ -26,15 +26,10 @@ const MACH_O_MAGICS = new Set([
 ])
 
 /**
- * 起 pnpm 的命令。经 pnpm 起的脚本里有 `npm_execpath`，它指向钉住的 pnpm；没有时找 PATH 上的 pnpm，
- * 在仓库根运行时 pnpm 自己切到钉住的版本。Windows 上只认 PATH 上的 pnpm.exe（docs/development.md 写明的装法）。
+ * 起 PATH 上的 pnpm 的命令：在仓库根运行时它按 packageManager 自己切到钉住的版本，规则同 tools/test-runner 的 `pnpmCommand`。
+ * Windows 上只认 PATH 上的 pnpm.exe（docs/development.md 写明的装法），不经 shell 起 pnpm.cmd。
  */
 export function pnpmCommand(env = process.env, platform = process.platform) {
-  const execpath = env['npm_execpath']
-  if (execpath !== undefined && execpath !== '') {
-    if (/\.(c|m)?js$/u.test(execpath)) return { command: process.execPath, args: [execpath] }
-    return { command: execpath, args: [] }
-  }
   if (platform !== 'win32') return { command: 'pnpm', args: [] }
   const path = env['PATH'] ?? env['Path'] ?? ''
   for (const directory of path.split(delimiter)) {

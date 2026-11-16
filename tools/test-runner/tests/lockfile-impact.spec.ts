@@ -7,8 +7,12 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { fileTree, listWorkspaceMembers } from '@omne-harness/repo-toolchain/core/workspace'
 import { readTestRunsConfig } from '../src/testing/config.ts'
-import { lockfileImpact, workspaceImpact } from '../src/testing/lockfile-impact.ts'
-import { parseLockfileYaml } from '../src/testing/pnpm-lockfile.ts'
+import {
+  ENVIRONMENT_DOCUMENT,
+  lockfileImpact,
+  workspaceImpact,
+} from '../src/testing/lockfile-impact.ts'
+import { parsePnpmLockfile } from '../src/testing/pnpm-lockfile.ts'
 import {
   ALIAS_DEPENDENCY,
   BASE,
@@ -284,6 +288,47 @@ describe('workspaceImpact', () => {
   })
 })
 
+describe('带 packageManagerDependencies 文档的锁文件（pnpm 12）', () => {
+  /** pnpm 12 声明了自身版本时写在本体前面的文档。 */
+  const environment = (version: string) => `---
+lockfileVersion: '9.0'
+
+importers:
+
+  .:
+    configDependencies: {}
+    packageManagerDependencies:
+      pnpm:
+        specifier: ${version}
+        version: ${version}
+
+---
+`
+
+  it('本体相同、pnpm 自身的锁定相同：等价', () => {
+    const text = environment('12.18.0') + BASE
+    expect(lockfileImpact(text, text, MEMBERS)).toMatchObject({ kind: 'unchanged' })
+  })
+
+  it('本体的差异照常按 importer 映射', () => {
+    const result = lockfileImpact(
+      environment('12.18.0') + BASE,
+      environment('12.18.0') + ONE_MEMBER_DEPENDENCY,
+      MEMBERS,
+    )
+    expect(result.kind).toBe('members')
+  })
+
+  it.each([
+    ['pnpm 自身的版本变了', environment('12.18.0') + BASE, environment('12.19.0') + BASE],
+    ['从单文档换成带 pnpm 自身锁定的两文档', BASE, environment('12.18.0') + BASE],
+  ])('%s：判全量并写明是那个文档', (_name, base, head) => {
+    const result = lockfileImpact(base, head, MEMBERS)
+    expect(result.kind).toBe('full')
+    expect(result.reason).toContain(ENVIRONMENT_DOCUMENT)
+  })
+})
+
 describe('仓库真实的 pnpm-lock.yaml', () => {
   const text = readFileSync(resolve(ROOT, 'pnpm-lock.yaml'), 'utf8')
   const members = listWorkspaceMembers(fileTree(ROOT), readTestRunsConfig().affected.excludeRoots)
@@ -296,7 +341,7 @@ describe('仓库真实的 pnpm-lock.yaml', () => {
   })
 
   it('每个 importer 都是成员清单里的成员或根', () => {
-    const importers = parseLockfileYaml(text).get('importers')
+    const importers = parsePnpmLockfile(text).main.get('importers')
     expect(importers).toBeInstanceOf(Map)
     if (!(importers instanceof Map)) return
     const known = new Set(members.map(member => member.path))

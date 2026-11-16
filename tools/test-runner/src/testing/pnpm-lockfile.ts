@@ -1,8 +1,10 @@
 // `pnpm-lock.yaml` 的读取：只认 pnpm 9（lockfileVersion 9.0）实际写出的那一小块 YAML——
-// 两空格缩进的块映射、`- ` 块序列、单行流式映射 `{integrity: …}` 与流式序列 `[x64]`、单引号与双引号标量、`{}` 空映射。
+// 两空格缩进的块映射、`- ` 块序列（项可以是标量、流式集合，或 `- 键: 值` 起头的块映射，pnpm 12 的 runtime 条目这样写）、单行流式映射 `{integrity: …}` 与流式序列 `[x64]`、单引号与双引号标量、`{}` 空映射。
 // 本成员没有 YAML 解析依赖，repo-toolchain 也不导出它的；锚点、多行标量、合并键等整段 YAML 这里都不认，
 // 认不出的写法直接报错（带行号），由调用方把「解析失败」判成全量：判不准就多跑，不按猜出来的树少跑。
 // 解析结果是一棵只有字符串、序列、映射的树；锁文件的含义（importer、snapshot、依赖边）由 `lockfile-impact.ts` 读。
+// pnpm 12 声明了自身版本时，锁文件是两个文档：以 `---` 开头、只锁 pnpm 自己的 `packageManagerDependencies` 文档，
+// 再一个 `---` 之后是依赖的锁文件本体；安装后的副本 `node_modules/.pnpm/lock.yaml` 只有本体。`parsePnpmLockfile` 拆开两者。
 
 export type YamlNode = string | readonly YamlNode[] | YamlMap
 export type YamlMap = ReadonlyMap<string, YamlNode>
@@ -226,12 +228,26 @@ function splitEntry(line: Line): { readonly key: string; readonly rest: string }
   return { key: text.slice(0, colon.index), rest: text.slice(colon.index + 1) }
 }
 
+/** 序列项是不是以 `键:` 起头的块映射：带引号的键要后接冒号，不带引号的要有后接空格或行尾的冒号；流式集合不是。 */
+function startsMapEntry(item: string, number: number): boolean {
+  const first = item[0]
+  if (first === undefined || first === '{' || first === '[') return false
+  if (first !== "'" && first !== '"') return /:(?: |$)/u.test(item)
+  try {
+    splitEntry({ number, indent: 0, text: item })
+    return true
+  } catch {
+    return false
+  }
+}
+
 class BlockParser {
   private index = 0
-  private readonly lines: readonly Line[]
+  /** 读到 `- 键: 值` 时，这一行就地换成缩进加 2 的 `键: 值`，所以是可改的副本。 */
+  private readonly lines: Line[]
 
   constructor(lines: readonly Line[]) {
-    this.lines = lines
+    this.lines = [...lines]
   }
 
   parseDocument(): YamlMap {
@@ -263,7 +279,14 @@ class BlockParser {
       if (line.indent > indent) throw new LockfileSyntaxError(line.number, '序列项的缩进对不上')
       if (!line.text.startsWith('- '))
         throw new LockfileSyntaxError(line.number, '序列里混进了非序列项')
-      items.push(new FlowReader(line.text.slice(2), line.number).readWhole())
+      const item = line.text.slice(2).trimStart()
+      if (startsMapEntry(item, line.number)) {
+        // 项本身是块映射：第一个键在 `- ` 之后，即缩进 indent + 2，后面的键与它对齐。
+        this.lines[this.index] = { number: line.number, indent: indent + 2, text: item }
+        items.push(this.parseMap(indent + 2))
+        continue
+      }
+      items.push(new FlowReader(item, line.number).readWhole())
       this.index += 1
     }
   }
@@ -293,9 +316,42 @@ class BlockParser {
   }
 }
 
-/** 解析锁文件文本；认不出的写法抛 `LockfileSyntaxError`。 */
+/** 解析单文档的 YAML 文本（锁文件本体、`pnpm-workspace.yaml`）；认不出的写法抛 `LockfileSyntaxError`。 */
 export function parseLockfileYaml(source: string): YamlMap {
   return new BlockParser(significantLines(source)).parseDocument()
+}
+
+/** 一份 `pnpm-lock.yaml`：本体，以及 pnpm 12 写在它前面的、锁 pnpm 自身的文档（没有就是 undefined）。 */
+export interface PnpmLockfile {
+  readonly environment: YamlMap | undefined
+  readonly main: YamlMap
+}
+
+const isDocumentMarker = (line: Line) => line.indent === 0 && line.text === '---'
+
+/**
+ * 解析 `pnpm-lock.yaml`：不以 `---` 开头的是单文档，整份是本体；以 `---` 开头的必须正好两个文档，
+ * 前一个是 pnpm 自身的锁定，后一个是本体。别的分法（三个文档、开头没有 `---` 却在中间分段、空文档）抛 `LockfileSyntaxError`。
+ */
+export function parsePnpmLockfile(source: string): PnpmLockfile {
+  const lines = significantLines(source)
+  const markers = lines.filter(isDocumentMarker)
+  if (markers.length === 0) return { environment: undefined, main: parseLockfileYaml(source) }
+  const [first, second, third] = markers
+  if (first === undefined || lines[0] !== first)
+    throw new LockfileSyntaxError(first?.number ?? 1, '文档分隔 --- 只能出现在开头与两个文档之间')
+  if (second === undefined)
+    throw new LockfileSyntaxError(first.number, '以 --- 开头的锁文件要有两个文档，只有一个')
+  if (third !== undefined) throw new LockfileSyntaxError(third.number, '锁文件至多两个文档')
+  const split = lines.indexOf(second)
+  const environment = lines.slice(1, split)
+  const main = lines.slice(split + 1)
+  if (environment.length === 0) throw new LockfileSyntaxError(second.number, '第一个文档是空的')
+  if (main.length === 0) throw new LockfileSyntaxError(second.number, '第二个文档是空的')
+  return {
+    environment: new BlockParser(environment).parseDocument(),
+    main: new BlockParser(main).parseDocument(),
+  }
 }
 
 /** `Array.isArray` 不缩窄只读数组，这里显式说明。 */

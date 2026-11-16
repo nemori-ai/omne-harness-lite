@@ -4,6 +4,7 @@
 // 映射规则（卡「准入增量化」T3）：`importers:` 下有变化的条目，对应成员受影响；`packages:`、`snapshots:` 下有变化的包，
 // 沿 snapshot 的 `dependencies`、`optionalDependencies` 反向走传递闭包，找到直接或间接依赖它的 importer。
 // 顶层 `lockfileVersion`、`settings`、`overrides`、`patchedDependencies` 有变化，或任一份解析失败，判全量；
+// pnpm 12 写在本体前面、锁 pnpm 自身的文档（`parsePnpmLockfile` 的 `environment`）按一个顶层键比，有变化（含只在一边有）也判全量；
 // 其余顶层键（`packageExtensionsChecksum`、`pnpmfileChecksum` 等）这里不认识它们的影响范围，有变化同样判全量。
 // 顶层 `catalogs` 例外：它只是工作区清单里被用到的 catalog 条目的副本。一个条目解析到的版本变了，
 // 用它的每个 importer 的 `version` 跟着变，已经算在 `importers:` 的差异里；条目的写法变了而解析结果没变，
@@ -20,6 +21,7 @@ import {
   equalNodes,
   LockfileSyntaxError,
   parseLockfileYaml,
+  parsePnpmLockfile,
   type YamlMap,
   type YamlNode,
 } from './pnpm-lockfile.ts'
@@ -72,12 +74,17 @@ function sectionOf(root: YamlMap, name: string): ReadonlyMap<string, YamlNode> {
   return section
 }
 
+/** 锁 pnpm 自身的那个文档在顶层比较里用的名字：它不是本体的键，名字只出现在全量的原因里。 */
+export const ENVIRONMENT_DOCUMENT = '开头锁定 pnpm 自身的文档'
+
 function readLockfile(source: string): Lockfile {
-  const root = parseLockfileYaml(source)
+  const { environment, main: root } = parsePnpmLockfile(source)
+  const topLevel = new Map(
+    [...root].filter(([key]) => !SECTION_KEYS.has(key) && !DERIVED_KEYS.has(key)),
+  )
+  if (environment !== undefined) topLevel.set(ENVIRONMENT_DOCUMENT, environment)
   return {
-    topLevel: new Map(
-      [...root].filter(([key]) => !SECTION_KEYS.has(key) && !DERIVED_KEYS.has(key)),
-    ),
+    topLevel,
     importers: sectionOf(root, 'importers'),
     packages: sectionOf(root, 'packages'),
     snapshots: sectionOf(root, 'snapshots'),

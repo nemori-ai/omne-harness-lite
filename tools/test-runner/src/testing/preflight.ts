@@ -1,6 +1,6 @@
 // 预检 `check --preflight`（根脚本 `pnpm run preflight`）：写者收尾与调度者入队前跑，把准入里不依赖构建与全量测试的步骤
 // 在当前树上一次跑完——步骤表在 check-steps.ts 的 `preflightSteps`，全部同时起（受轻步骤并发限制），失败不终止其余
-// （等价 --keep-going），最后一次列出全部发现与修法。开始时同样自检并自愈环境（environment.ts）。
+// （等价 --keep-going），最后一次列出全部发现与修法。开始时同样自愈换行并写出启动段的结果（environment.ts）。
 // 它不是准入证据：不写准入日志、不写运行记录，日志只落 `tmp/preflight/`。
 import { availableParallelism } from 'node:os'
 import { join, relative } from 'node:path'
@@ -8,7 +8,7 @@ import { mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { lightConcurrency } from './check.ts'
 import { runGraph, type CheckStep } from './check-graph.ts'
 import { PREFLIGHT_FIXES, preflightSteps } from './check-steps.ts'
-import { describeHealing, healEnvironment, type EnvironmentIo } from './environment.ts'
+import { describeHealing, healEnvironment, type BootstrapResult } from './environment.ts'
 
 export const PREFLIGHT_LOG_DIR = 'tmp/preflight'
 const TAIL_LINES = 20
@@ -25,11 +25,12 @@ const GIT_ENV = [
   'GIT_SHALLOW_FILE',
 ]
 
-/** 可替换的依赖：步骤表、修法表、环境自愈的外部动作与核数。测试换成假步骤。 */
+/** 可替换的依赖：步骤表、修法表、启动段的结果与核数。测试换成假步骤。 */
 export interface PreflightDependencies {
   readonly steps?: () => CheckStep[]
   readonly fixes?: Readonly<Record<string, string>>
-  readonly environment?: EnvironmentIo
+  /** 启动段（scripts/check-bootstrap.mjs）交来的结果；cli.ts 从环境变量读。进程内直接调用时可以没有。 */
+  readonly bootstrap?: BootstrapResult
   readonly cores?: number
 }
 
@@ -48,13 +49,7 @@ export async function runPreflight(
   dependencies: PreflightDependencies = {},
 ): Promise<number> {
   const say = (line: string) => console.log(line)
-  const healed = healEnvironment(root, dependencies.environment)
-  if (healed.dependencies.status === 'install-failed') {
-    for (const line of describeHealing(healed)) console.error(line)
-    console.error('依赖目录与锁文件不一致且离线安装失败：预检不跑任何步骤')
-    return 2
-  }
-  for (const line of describeHealing(healed)) say(line)
+  for (const line of describeHealing(healEnvironment(root, dependencies.bootstrap))) say(line)
 
   const env: NodeJS.ProcessEnv = { ...process.env }
   for (const name of GIT_ENV) delete env[name]

@@ -37,6 +37,10 @@ fi
 # --admission 或 OMNE_ADMISSION=1 为准入模式：构建、类型检查与成员测试不读缓存，并写准入日志与运行记录。--keep-going 失败后继续跑其余步骤。
 # --resume-from <H1> 接续 H1 上快速失败的准入（全量或按影响面；只在准入模式下接受），规则见 docs/engineering/integration.md「增量准入」。
 # --preflight 预检（根脚本 pnpm run preflight）：只跑准入里不依赖构建与全量测试的步骤，失败不终止其余，最后列出全部发现与修法；不写准入日志与记录。
-node --experimental-strip-types tools/test-runner/src/testing/cli.ts check "$@"
+# 启动段（check-bootstrap.mjs，只用 Node 标准库）先核对工具链、依赖目录与原生依赖：检查器静态导入依赖里的包，
+# 依赖缺失时它加载不起来，到不了任何自愈。启动段失败就以它的退出码停下；成功时把结果（一行 JSON）经环境变量交给检查器，
+# 检查器的 check 没有这份结果时拒绝运行。
+bootstrap="$(node scripts/check-bootstrap.mjs)" || exit $?
+OMNE_CHECK_BOOTSTRAP="$bootstrap" node --experimental-strip-types tools/test-runner/src/testing/cli.ts check "$@"
 }
 omne_repository_command main "$@"

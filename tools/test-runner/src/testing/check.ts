@@ -50,7 +50,7 @@ import {
   writePlanFile,
   type PlanFile,
 } from './steps.ts'
-import { describeHealing, healEnvironment, type EnvironmentIo } from './environment.ts'
+import { describeHealing, healEnvironment, type BootstrapResult } from './environment.ts'
 import { readTestStepReport, TEST_STEP_REPORT_FILE } from './test-retry.ts'
 import { timestamp } from './support.ts'
 import { cachePolicy, TEST_CACHE_ENV } from './test-cache.ts'
@@ -185,8 +185,8 @@ export interface CheckOptions {
 /** 可替换的依赖：步骤表。端到端测试在夹具仓库上换成假命令的表，别的照真。 */
 export interface CheckDependencies {
   readonly steps?: (inputs: StepInputs) => CheckStep[]
-  /** 环境自愈的外部动作（离线安装）；测试换成假的。 */
-  readonly environment?: EnvironmentIo
+  /** 启动段（scripts/check-bootstrap.mjs）交来的结果；cli.ts 从环境变量读。进程内直接调用时可以没有。 */
+  readonly bootstrap?: BootstrapResult
 }
 
 /** 步骤表的入口脚本路径（相对根）。 */
@@ -309,14 +309,9 @@ export async function runCheck(
   }
   const caches = cacheStates(env, full)
 
-  // 准入先自检并自愈环境（environment.ts），在读任何现场之前：CRLF 工作副本让 dirty 判定与 format:check 失真，
-  // 依赖目录与锁文件不一致让构建与测试失真。离线安装失败时不跑任何步骤、不写记录，以 2 退出。
-  const healed = admission ? healEnvironment(root, dependencies.environment) : undefined
-  if (healed?.dependencies.status === 'install-failed') {
-    for (const line of describeHealing(healed)) console.error(line)
-    console.error('依赖目录与锁文件不一致且离线安装失败：不跑任何步骤，不写记录')
-    return 2
-  }
+  // 准入先自愈换行（environment.ts），在读任何现场之前：CRLF 工作副本让 dirty 判定与 format:check 失真。
+  // 依赖目录与锁文件的一致由启动段在起检查器之前保证，这里只把它的结果写进记录。
+  const healed = admission ? healEnvironment(root, dependencies.bootstrap) : undefined
 
   // 基线按统一规则取：BASELINE，再取任务上下文的基线，再取 origin/main，最后取 main。规则拒绝时抛错，调用方以 2 退出。
   const { targetBase, source } = resolveBaseline(root, env['BASELINE'])

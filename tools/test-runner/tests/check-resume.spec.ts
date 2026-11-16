@@ -21,6 +21,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { repositoryEnv } from '@omne-harness/repo-toolchain/core/git-environment'
+import { BOOTSTRAP_ENV } from '../src/testing/environment.ts'
 import {
   ADMISSION_RECORD_DIR,
   CHECK_RUN_RECORD_DIR,
@@ -32,6 +33,13 @@ import {
 import type { CheckStep, Command } from '../src/testing/check-graph.ts'
 import { ADMISSION_NEXT_STEP, runCheck } from '../src/testing/check.ts'
 import { readTestRunsConfig } from '../src/testing/config.ts'
+
+/** 一份形状合法的启动段结果：真实 CLI 的 check 只在有它时运行。 */
+const BOOTSTRAP_JSON = JSON.stringify({
+  toolchain: { pnpm: '12.18.0', node: 'v26.13.1', runtime: 'v26.13.1' },
+  dependencies: { status: 'no-lockfile', detail: '夹具没有锁文件' },
+  native: { status: 'ok', detail: '夹具' },
+})
 
 const CLI = fileURLToPath(new URL('../src/testing/cli.ts', import.meta.url))
 const RULES = readTestRunsConfig().affected
@@ -466,11 +474,44 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
       {
         cwd: fx.root,
         encoding: 'utf8',
-        env: { ...process.env, OMNE_SUBJECT_ROOT: fx.root },
+        // 真实 CLI 只在经过启动段时运行 check：带上一份启动段的结果，测的是接续的拒绝，不是启动段的拒绝。
+        env: { ...process.env, OMNE_SUBJECT_ROOT: fx.root, [BOOTSTRAP_ENV]: BOOTSTRAP_JSON },
       },
     )
     expect(result.status, result.stderr).toBe(2)
     expect(result.stdout).toContain('拒绝接续：')
+  })
+
+  it('真实 CLI：没有启动段的结果时 check 以 2 退出、提示改用 ./scripts/check.sh、不写记录；--list 照常打印步骤表', () => {
+    const env: NodeJS.ProcessEnv = { ...process.env, OMNE_SUBJECT_ROOT: fx.root }
+    delete env[BOOTSTRAP_ENV]
+    const before = recordsIn(fx.root, ADMISSION_RECORD_DIR)
+    for (const args of [['--preflight'], ['--admission'], []]) {
+      const refused = spawnSync(
+        process.execPath,
+        ['--experimental-strip-types', CLI, 'check', ...args],
+        {
+          cwd: fx.root,
+          encoding: 'utf8',
+          env,
+        },
+      )
+      expect(refused.status, args.join(' ')).toBe(2)
+      expect(refused.stderr).toContain('./scripts/check.sh')
+      expect(refused.stdout).toBe('')
+    }
+    expect(recordsIn(fx.root, ADMISSION_RECORD_DIR)).toEqual(before)
+    const listed = spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', CLI, 'check', '--list'],
+      {
+        cwd: fx.root,
+        encoding: 'utf8',
+        env,
+      },
+    )
+    expect(listed.status, listed.stderr).toBe(0)
+    expect(listed.stdout).toContain('format:check')
   })
 
   it('H1..HEAD 碰到全局路径：不接续，整次全量，日志写明原因，记录是一次全量', async () => {
@@ -565,7 +606,8 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     const record = runRecord(fx.root, head)
     expect(record.dirty).toBe(false)
     expect(record.environment).toMatchObject({
-      dependencies: { status: 'no-lockfile' },
+      // 进程内直接调用 runCheck、没有经过启动段：依赖一栏记 not-bootstrapped。
+      dependencies: { status: 'not-bootstrapped' },
       lineEndings: { restored: ['members/d/src.ts'], kept: [] },
     })
     expect(healed.output.join('\n')).toContain('已从索引重新检出：members/d/src.ts')

@@ -45,14 +45,11 @@ const step = (name: string, ms: number, code = 0): CheckStep => ({
   heavy: false,
 })
 
-const noInstall = { install: () => ({ status: 0, output: '' }) }
-
 describe('预检', () => {
   it('两步失败、一步慢：全部跑完，最后一次列出两处失败、各自的日志末尾与修法；退出码取第一个失败', async () => {
     const code = await runPreflight(root, {
       steps: () => [step('ok', 20), step('bad-a', 50, 3), step('bad-b', 700, 4)],
       fixes: { 'bad-a': '修法 A', 'bad-b': '修法 B' },
-      environment: noInstall,
       cores: 24,
     })
     expect(code).toBe(3)
@@ -76,7 +73,6 @@ describe('预检', () => {
     const code = await runPreflight(root, {
       steps: () => [step('ok', 10), step('fine', 10)],
       fixes: {},
-      environment: noInstall,
     })
     expect(code).toBe(0)
     const text = printed.join('\n')
@@ -84,16 +80,22 @@ describe('预检', () => {
     expect(text).toContain('环境自检：')
   })
 
-  it('依赖离线安装失败：不跑步骤，以 2 退出', async () => {
-    writeFileSync(join(root, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    const code = await runPreflight(root, {
-      steps: () => [step('never', 10)],
-      fixes: {},
-      environment: { install: () => ({ status: 1, output: 'offline miss' }) },
-    })
-    expect(code).toBe(2)
-    expect(existsSync(join(root, PREFLIGHT_LOG_DIR, 'never.log'))).toBe(false)
+  it('写出启动段交来的依赖结果；没有经过启动段时写明没有核对', async () => {
+    const bootstrap = {
+      toolchain: { pnpm: '12.18.0', node: 'v24.22.0', runtime: 'v26.13.1' },
+      dependencies: {
+        status: 'reinstalled' as const,
+        detail: '没有 node_modules/.pnpm/lock.yaml，已重装',
+      },
+      native: { status: 'ok' as const, detail: 'node-pty 的 spawn-helper 可用' },
+    }
+    expect(await runPreflight(root, { steps: () => [step('ok', 5)], fixes: {}, bootstrap })).toBe(0)
+    expect(printed.join('\n')).toContain(
+      '依赖（启动段）——没有 node_modules/.pnpm/lock.yaml，已重装',
+    )
+    printed.length = 0
+    expect(await runPreflight(root, { steps: () => [step('ok', 5)], fixes: {} })).toBe(0)
+    expect(printed.join('\n')).toContain('没有经过启动段')
   })
 })
 
