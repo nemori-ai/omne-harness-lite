@@ -779,6 +779,16 @@ describe('submit uses the handle that invoke or resume kept', () => {
     }
     f.controls.set(f.runKey(A), [
       {
+        operation: 'sop_stop',
+        target: { kind: 'producer', producer: { kind: 'tool', call: 'tool-ref' } },
+        intent: {
+          kind: 'control',
+          value: { kind: 'stop-call', producer: { kind: 'tool', call: 'tool-ref' } },
+        },
+        state: 'propagating',
+        pending: [],
+      },
+      {
         operation: 'sop_interrupt',
         target: { kind: 'run', run: 'run-1' },
         intent: { kind: 'interrupt', run: 'run-1', urgent, decision: evidence('decision') },

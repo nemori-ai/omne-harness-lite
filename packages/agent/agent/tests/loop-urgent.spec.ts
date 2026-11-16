@@ -223,7 +223,7 @@ describe('the release of an urgent input, read straight off the journal', () => 
     stages: { 'intent-established': { state: 'reached' } },
   }
 
-  function ports(snapshot: Outcome<unknown, Failure>) {
+  function ports(snapshot: Outcome<unknown, Failure>, refusal: Failure = { kind: 'busy' }) {
     const loads: unknown[] = []
     const writes: unknown[] = []
     const journal = {
@@ -233,7 +233,7 @@ describe('the release of an urgent input, read straight off the journal', () => 
       },
       control: async (input: unknown) => {
         writes.push(input)
-        return fail({ kind: 'busy' } as Failure)
+        return fail(refusal)
       },
     }
     return { loads, writes, ports: { journal, models: {}, tools: {}, materials: {} } as never }
@@ -279,5 +279,33 @@ describe('the release of an urgent input, read straight off the journal', () => 
       failure: { kind: 'invalid', field: 'checkpoint.calls' },
     })
     expect(made.writes).toEqual([])
+  })
+
+  const toolPending = (association: 'associated' | 'unassociated') => ({
+    kind: 'tool',
+    association,
+    reference: (accepted('held') as Extract<ToolInvokeOutcome, { kind: 'accepted' }>).reference,
+  })
+  const open = (calls: readonly unknown[]) => ({
+    ok: { state: { kind: 'open' }, controls: [], checkpoint: { calls } },
+  })
+
+  it('writes nothing for a Tool call that is not associated yet', async () => {
+    const made = ports(open([toolPending('unassociated')]))
+    expect(await released(made, 'urgent')).toEqual({ ok: receipt })
+    expect(made.writes).toEqual([])
+  })
+
+  it('answers a write the journal refuses, and lets one through whose call or execution already ended', async () => {
+    const busy = ports(open([toolPending('associated')]))
+    expect(await released(busy, 'urgent')).toEqual({ failure: { kind: 'busy' } })
+    expect(busy.writes).toHaveLength(1)
+    for (const refusal of [
+      { kind: 'invalid', field: 'command.call', reason: 'no-associated-tool-call' },
+      { kind: 'terminal' },
+    ] as Failure[])
+      expect(await released(ports(open([toolPending('associated')]), refusal), 'urgent')).toEqual({
+        ok: receipt,
+      })
   })
 })

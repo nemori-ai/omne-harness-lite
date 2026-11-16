@@ -149,7 +149,8 @@ describe('a cancel reconciles its control only on the original execution and onc
 
 describe('an urgent input reconciles its control once the Agent released each foreground call', () => {
   const INTERRUPT = 'sop_interrupt' as SessionOperationId
-  const PRODUCER = { kind: 'tool', call: 'tool-ref-1' } as const
+  const TOOL = { kind: 'tool', call: 'tool-ref-1' } as const
+  const MODEL = { kind: 'model', call: 'model-ref-1' } as const
   const ITEM = { consumption: 'consumption-1', position: 'position-1' }
   const URGENT = {
     kind: 'ordinary',
@@ -166,8 +167,10 @@ describe('an urgent input reconciles its control once the Agent released each fo
       settled?: 'background' | 'result'
       settledAt?: string
       settledBy?: string
+      model?: true
     }>,
   ) {
+    const PRODUCER = material.model ? MODEL : TOOL
     const progress = {
       operation: INTERRUPT,
       target: { kind: 'run', run: RUN },
@@ -261,6 +264,30 @@ describe('an urgent input reconciles its control once the Agent released each fo
       name: 'the urgent input was submitted and Tool answered the release of the call',
       material: { submitted: true, command: 'release-tool', reached: released },
       answer: reconciled,
+    },
+    {
+      name: 'a release that Tool reports as physically stopped also releases the call',
+      material: {
+        submitted: true,
+        command: 'release-tool',
+        reached: ['physically-stopped', 'duty-released'],
+      },
+      answer: reconciled,
+    },
+    {
+      name: 'the interrupt of a foreground Model call releases it once the Model confirms',
+      material: {
+        submitted: true,
+        command: 'interrupt-model',
+        reached: ['intent-established', 'producer-confirmed', 'duty-released'],
+        model: true,
+      },
+      answer: reconciled,
+    },
+    {
+      name: 'an interrupt of a Model call does not release a Tool call',
+      material: { submitted: true, command: 'interrupt-model', reached: ['producer-confirmed'] },
+      answer: unchanged,
     },
     {
       name: 'the release of the call is still unanswered',

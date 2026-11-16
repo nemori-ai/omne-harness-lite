@@ -12,9 +12,8 @@ type TimerInput = LostExecutionsInput &
     }>
   }>
 
-// The upkeep of each call run: lost executions, and before them the due thresholds and foreground
-// limits of the tenant. The call of the next timer is woken when it falls due. A fire that fails
-// leaves its entries due, so the next run fires them again.
+// Each call run first fires the due timers of its tenant and wakes the call of the next one when it
+// falls due. A failed fire leaves its entries due for the next run.
 export function withTimers(
   input: TimerInput,
   later: Parameters<typeof createLostExecutions>[1],
