@@ -9,6 +9,7 @@ import { createHitlEntryPrincipals } from '../../entry/hitl-entry-principals.ts'
 import { defineRow } from '../../row.ts'
 import { hitlFacesOfCall } from './faces.ts'
 import { governanceOfCall, identityOfCall } from '../server-entry/identity.ts'
+import { toolHitlHolder } from '../tool-hitl/holder.ts'
 import { HITL_LOCATION } from '../tool-hitl/host.ts'
 
 export const humanInterventionAccessConfig = z.strictObject({
@@ -33,6 +34,7 @@ const plugin = createHitlAccessPlugin({
   faces: hitlFacesOfCall,
   entryPrincipals: ctx => createHitlEntryPrincipals(ctx.principalIssuer),
   logins: loginTenants,
+  changes: ctx => toolHitlHolder(ctx).host?.changes,
 })
 
 export const humanInterventionAccessRow = defineRow({
