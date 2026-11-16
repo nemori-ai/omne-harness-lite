@@ -305,7 +305,7 @@
 - Windows 侧与 WSL 侧共用 Windows 用户临时目录下的 `omne-core-tokens-<用户名>`。WSL 里经 interop 解析这个目录，并用探针文件核对两侧看到的是同一个目录。解析失败时回退 `/tmp/omne-core-tokens-<uid>`，并在标准错误报「WSL 与 Windows 没有共用令牌池」。
 - Windows 上，命令是 `pnpm` 时按 `PATH` 找能起 pnpm 的目录，命令以 `.sh` 结尾时经 Git for Windows 的 bash 运行，参数逐个加引号原样到达。找不到时以 127 退出。
 
-六条性质由 [TLA+ 模型](verification/README.md)核：不超卖、不重复、不漏、先来先得、不让资源闲着、一件活跑起来之后令牌不被收走。
+六条性质由 [TLA+ 模型](verification/formal-mapping.md)核：不超卖、不重复、不漏、先来先得、不让资源闲着、一件活跑起来之后令牌不被收走。
 
 | 环境变量 | 缺省 | 含义 |
 | --- | --- | --- |

@@ -35,6 +35,7 @@ import {
   TIER_NAMES,
   type RunScript,
   type RunTier,
+  type TestRunsConfig,
 } from './config.ts'
 import {
   buildLedger,
@@ -76,6 +77,7 @@ import {
   runTurboTests,
   slugOf,
   type MemberSchedule,
+  type MemberSpan,
 } from './run.ts'
 import { buildTargets, pnpmCommand, timestamp } from './support.ts'
 import {
@@ -433,27 +435,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
       memberDemand(config.parallel, member.path, tier, history.get(member.path)?.files),
   }
 
-  const found =
-    script === 'test' && run.cache !== undefined
-      ? lookupCache({
-          root,
-          mainRoot: run.at.mainRoot,
-          targets: targets.map(member => member.path),
-          tier,
-          policy: run.cache,
-          config,
-          env: process.env,
-        })
-      : undefined
-  const builtFrom =
-    found === undefined
-      ? undefined
-      : (run.builtFrom ??
-        (run.build
-          ? new Map([...found.keys].map(([member, { digest }]) => [member, { input: digest }]))
-          : undefined))
-  const lookup =
-    found === undefined || builtFrom === undefined ? found : { ...found, built: builtFrom }
+  const lookup = lookupFor(root, run, config)
   const hits = lookup?.hits ?? new Map<string, never>()
   const toRun = targets.filter(member => !hits.has(member.path))
   if (lookup !== undefined)
@@ -538,32 +520,17 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
     summary.push(`对这些失败做隔离重跑：pnpm run test:triage --run ${runDir}`)
   if (lookup !== undefined && recorded !== undefined)
     summary.push(...describeCacheResult(lookup, recorded))
-  writeFileSync(
-    join(runDir, 'ledger.json'),
-    `${JSON.stringify(
-      {
-        meta: {
-          ...meta,
-          parallel: observedParallelism(spans),
-          wallSeconds: Math.round(wallSeconds),
-          ...cache,
-          tokens: {
-            capacity: tokens.capacity,
-            jobs: spans.map(span => ({
-              member: span.member,
-              tokens: span.tokens,
-              workers: span.workers,
-              start: Math.round((span.start - started) / 100) / 10,
-              end: Math.round((span.end - started) / 100) / 10,
-            })),
-          },
-        },
-        ...ledger,
-      } satisfies LedgerFile & { meta: { tokens: unknown; cache?: unknown } },
-      null,
-      1,
-    )}\n`,
-  )
+  const file = {
+    meta: {
+      ...meta,
+      parallel: observedParallelism(spans),
+      wallSeconds: Math.round(wallSeconds),
+      ...cache,
+      tokens: { capacity: tokens.capacity, jobs: tokenJobs(spans, started) },
+    },
+    ...ledger,
+  } satisfies LedgerFile & { meta: { tokens: unknown; cache?: unknown } }
+  writeFileSync(join(runDir, 'ledger.json'), `${JSON.stringify(file, null, 1)}\n`)
   writeFileSync(join(runDir, 'summary.md'), `${summary.join('\n')}\n`)
   console.log(summary.join('\n'))
   return {
@@ -571,6 +538,39 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
     failures: ledger.failures,
     runDir,
   }
+}
+
+function lookupFor(
+  root: string,
+  run: RecordedRun,
+  config: TestRunsConfig,
+): CacheLookup | undefined {
+  if (run.script !== 'test' || run.cache === undefined) return undefined
+  const found = lookupCache({
+    root,
+    mainRoot: run.at.mainRoot,
+    targets: run.targets.map(member => member.path),
+    tier: run.tier,
+    policy: run.cache,
+    config,
+    env: process.env,
+  })
+  const builtFrom =
+    run.builtFrom ??
+    (run.build
+      ? new Map([...found.keys].map(([member, { digest }]) => [member, { input: digest }]))
+      : undefined)
+  return builtFrom === undefined ? found : { ...found, built: builtFrom }
+}
+
+function tokenJobs(spans: readonly MemberSpan[], started: number) {
+  return spans.map(span => ({
+    member: span.member,
+    tokens: span.tokens,
+    workers: span.workers,
+    start: Math.round((span.start - started) / 100) / 10,
+    end: Math.round((span.end - started) / 100) / 10,
+  }))
 }
 
 function describeLookup(lookup: CacheLookup, total: number): string[] {

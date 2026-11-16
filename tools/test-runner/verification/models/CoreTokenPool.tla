@@ -3,7 +3,7 @@
    Token directories core-<i>, ticket files ticket-<n>, and the queue lock
    directory queue.lock. Holding the queue lock (or a token) means having one's
    own entry owner-<pid>-<random> in that directory. Every action name is the
-   code function it models; README.md maps them. "Stale" (heartbeat expired,
+   code function it models; formal-mapping.md maps them. "Stale" (heartbeat expired,
    same-side pid gone, or lock entry older than 30 s) is abstracted to "the
    registrant is dead". Entry names are fresh per entry and a dead process makes
    no new entries, so an entry is identified by its registrant here.
