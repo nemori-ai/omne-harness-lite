@@ -7,6 +7,7 @@ import {
   type RecordsInput,
 } from '../src/observation-hub/records.ts'
 import type { SseStream } from '../src/observation-hub/sse.ts'
+import { systemClock } from '../src/settle/settle.ts'
 
 type Own = 'note-deleted'
 
@@ -80,6 +81,7 @@ function setup(
   const records = createObservationRecords<Own>({
     limits: { perLogin: 2, perInstance: 3, cancelRetentionMs: RETENTION, ...limits },
     loginCheckIntervalMs: intervalMs,
+    clock: systemClock,
     ...(withReport ? { report: event => reports.push(event) } : {}),
   })
   return { records, reports }
@@ -521,6 +523,23 @@ describe('cancel and its retention', () => {
     records.cancel('k', 'observer-cancelled')
     expect(vi.getTimerCount()).toBe(0)
     expect(records.cancel('k', 'observer-cancelled')).toBe('not-found')
+  })
+
+  it('waits out the retention in the background: a retained key does not keep the process', () => {
+    const background: (boolean | undefined)[] = []
+    const records = createObservationRecords<Own>({
+      limits: { perLogin: 2, perInstance: 3, cancelRetentionMs: RETENTION },
+      loginCheckIntervalMs: INTERVAL,
+      clock: {
+        schedule: (ms, run, options) => {
+          background.push(options?.background)
+          return systemClock.schedule(ms, run, options)
+        },
+      },
+    })
+    records.claim(input('k')[0])!.attach(fakeStream().stream)
+    records.cancel('k', 'observer-cancelled')
+    expect(background).toEqual([true])
   })
 
   it('restarts the retention when the same key ends again', async () => {
