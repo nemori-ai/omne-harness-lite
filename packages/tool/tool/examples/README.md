@@ -6,7 +6,7 @@ For Chinese setup instructions, see [运行教学示例](../README_ZH.md#运行�
 
 ## Prepare and run
 
-Use Node.js 24 or later and pnpm 10.28.1 in a repository checkout. These workspace packages are private. The tutorial does not require credentials, a model service, a database, or Cordis.
+Use Node.js 24 or later and pnpm 12.18.0 in a repository checkout. These workspace packages are private. The tutorial does not require credentials, a model service, a database, or Cordis.
 
 Run these commands from the repository root:
 

@@ -78,7 +78,7 @@ if [ -z "$fingerprint" ] || [ "$fingerprint" != "$(cat "$dependency_state" 2>/de
     rm -f "$dependency_state"
     if uv sync --locked --quiet \
         && pnpm install --frozen-lockfile --ignore-scripts --reporter=silent \
-        && pnpm -r rebuild node-pty >/dev/null; then
+        && pnpm run prepare:native >/dev/null; then
         if [ -n "$fingerprint" ]; then
             printf '%s\n' "$fingerprint" > "$dependency_state" || warn "dependency state could not be saved"
         fi

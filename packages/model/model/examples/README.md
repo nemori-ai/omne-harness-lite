@@ -4,7 +4,7 @@
 
 ## 准备并运行
 
-在仓库根使用 Node.js 24 或更高版本和 pnpm 10.28.1。新检出先安装依赖，再构建 Model 及其依赖：
+在仓库根使用 Node.js 24 或更高版本和 pnpm 12.18.0。新检出先安装依赖，再构建 Model 及其依赖：
 
 ```sh
 pnpm install --frozen-lockfile --ignore-scripts

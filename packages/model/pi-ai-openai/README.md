@@ -72,7 +72,7 @@ The package reads no environment, file or network. Node.js 24 or later is necess
 
 ## Verification
 
-Run these commands at the repository root. The package engines require Node.js >=24. The pnpm version is 10.28.1.
+Run these commands at the repository root. The package engines require Node.js >=24. The pnpm version is 12.18.0.
 
 ```sh
 pnpm turbo run typecheck test:fast --filter=@omne-harness/pi-ai-openai

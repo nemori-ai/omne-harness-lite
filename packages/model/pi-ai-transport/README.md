@@ -75,7 +75,7 @@ The package closes each exchange physically, returns its slot and drains in-flig
 
 ## Verification
 
-Run these commands from the repository root. The package engines require Node.js >=24, and the pnpm version is 10.28.1. The run reports state the Node.js version that each run used.
+Run these commands from the repository root. The package engines require Node.js >=24, and the pnpm version is 12.18.0. The run reports state the Node.js version that each run used.
 
 ```sh
 pnpm turbo run typecheck --filter=@omne-harness/pi-ai-transport

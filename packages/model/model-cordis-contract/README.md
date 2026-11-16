@@ -33,7 +33,7 @@ Framework definitions belong in `./cordis`; the root permits pure types only. Co
 
 ## Verification
 
-Run these commands from the repository root. The package requires Node.js >=24 and pnpm 10.28.1. Each run report identifies the Node.js version actually tested.
+Run these commands from the repository root. The package requires Node.js >=24 and pnpm 12.18.0. Each run report identifies the Node.js version actually tested.
 
 ```sh
 pnpm turbo run typecheck --filter=@omne-harness/model-cordis-contract

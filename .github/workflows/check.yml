@@ -40,12 +40,15 @@ jobs:
           # pqw-skills 是子模块，技能投影与收口读数都要它。
           submodules: true
       - uses: pnpm/action-setup@v6
+      # 与根 package.json 的 devEngines.runtime 相同；经 pnpm 起的命令本来就跑在它上面，这里让 PATH 上的 node 也一致。
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26.13.1
       - uses: astral-sh/setup-uv@v10
       - run: uv sync --locked
-      - run: pnpm install --frozen-lockfile
+      # 依赖脚本一律不跑；原生依赖由准备入口显式构建（Linux 上 node-pty 从源码编译）。
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm run prepare:native
       # 生成物被 Git 忽略，全新检出要先编译一次，agents-check 才有东西可比。
       - name: Compile agent outputs
         run: uv run --locked python .meta_harness/tooling/src/initialize_agents.py --project-root .
@@ -95,10 +98,13 @@ jobs:
         with:
           submodules: true
       - uses: pnpm/action-setup@v6
+      # 与根 package.json 的 devEngines.runtime 相同；经 pnpm 起的命令本来就跑在它上面，这里让 PATH 上的 node 也一致。
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
-      - run: pnpm install --frozen-lockfile
+          node-version: 26.13.1
+      # 依赖脚本一律不跑；原生依赖由准备入口显式构建（Linux 上 node-pty 从源码编译）。
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm run prepare:native
       # 一部分成员的测试经包名导入自己，执行的是 dist；先构建，覆盖率才映射得回 src。
       - run: nice -n 10 pnpm run build
       # 覆盖采集读测试运行器的计划；FULL=1 让计划选中全部成员。

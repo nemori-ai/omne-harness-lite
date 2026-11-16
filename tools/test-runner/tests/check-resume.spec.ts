@@ -142,7 +142,7 @@ function fixture(): Fixture {
   }
   put(
     'package.json',
-    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@10.28.1" }\n',
+    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@12.18.0" }\n',
   )
   put(
     'pnpm-workspace.yaml',
@@ -517,7 +517,7 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
   it('H1..HEAD 碰到全局路径：不接续，整次全量，日志写明原因，记录是一次全量', async () => {
     writeFileSync(
       join(fx.root, 'package.json'),
-      '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@10.28.1", "x": 1 }\n',
+      '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@12.18.0", "x": 1 }\n',
     )
     const h3 = fx.commit('card: touch root manifest')
     const degraded = await check({ resumeFrom: h1 })

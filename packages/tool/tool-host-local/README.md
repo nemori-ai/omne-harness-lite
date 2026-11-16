@@ -74,7 +74,7 @@ The assembly owns all inputs. `guardsOf` declares which guard resources apply to
 
 ## Verification
 
-From the repository root, use Node.js 24 or later and pnpm 10.28.1. Prepare workspace dependencies once, then build and run this member's checks:
+From the repository root, use Node.js 24 or later and pnpm 12.18.0. Prepare workspace dependencies once, then build and run this member's checks:
 
 ```sh
 pnpm --workspace-concurrency=1 --filter @omne-harness/tool... --filter @omne-harness/tool-host-local... -r run build

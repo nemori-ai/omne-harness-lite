@@ -99,7 +99,7 @@ OMNE_HOST_MACOS=1 pnpm run test:slow
 OMNE_HOST_MACOS=1 pnpm exec vitest run --mode slow --typecheck.enabled=false tests/macos-execution/
 ```
 
-慢层需要 Command Line Tools，以及权限为 0755 的 node-pty `spawn-helper`（由仓库的 `patches/node-pty@1.1.0.patch` 设置）。运行记录见 SPEC [组合与验证](../SPEC.md#组合与验证)。
+慢层需要 Command Line Tools，以及权限为 0755 的 node-pty `spawn-helper`（由仓库的原生依赖准备入口 `pnpm run prepare:native` 设置）。运行记录见 SPEC [组合与验证](../SPEC.md#组合与验证)。
 
 ### macOS 文件验证
 

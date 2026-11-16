@@ -1,15 +1,15 @@
 # Cloud Agent image for omne-harness-lite.
 # Cursor checks out the repository. Do not COPY the project into this image.
-# NODE_VERSION must satisfy the root package.json engines range (>=24).
-# PNPM_VERSION must match the root package.json packageManager field.
+# NODE_VERSION must equal the root package.json devEngines.runtime version.
+# PNPM_VERSION must equal the root package.json devEngines.packageManager version (and packageManager).
 
 FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHON=/usr/bin/python3
 
-ARG NODE_VERSION=26.12.0
-ARG PNPM_VERSION=10.28.1
+ARG NODE_VERSION=26.13.1
+ARG PNPM_VERSION=12.18.0
 ARG UV_VERSION=0.13.0
 # Matt skills revision is owned by docs/engineering/skills.md. Do not float latest.
 ARG MATT_SKILLS_REVISION=b0618bc436ad893b3c5e84e55fba86586d34a404

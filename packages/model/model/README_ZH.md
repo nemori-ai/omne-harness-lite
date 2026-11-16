@@ -34,7 +34,7 @@
 
 ## 运行教学示例
 
-在仓库检出中使用 Node.js 24 或更高版本和 pnpm 10.28.1。这些 workspace 包尚未公开发布。示例不需要厂商账户、网络或真实凭据。
+在仓库检出中使用 Node.js 24 或更高版本和 pnpm 12.18.0。这些 workspace 包尚未公开发布。示例不需要厂商账户、网络或真实凭据。
 
 在仓库根为新检出准备依赖并运行：
 
@@ -96,7 +96,7 @@ observerBufferBytes 约束逻辑登记与未读通知。每登记64字节，每�
 
 ## 验证
 
-在仓库根运行以下命令。包的 engines 要求 Node.js >=24，pnpm 版本为 10.28.1。实际验证过的 Node.js 版本以各次运行报告为准。
+在仓库根运行以下命令。包的 engines 要求 Node.js >=24，pnpm 版本为 12.18.0。实际验证过的 Node.js 版本以各次运行报告为准。
 
 ```sh
 pnpm turbo run typecheck --filter=@omne-harness/model

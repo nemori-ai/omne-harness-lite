@@ -109,10 +109,11 @@ TS workspace 由 pnpm 管理，成员范围由[`pnpm-workspace.yaml`](../pnpm-wo
 （成员写 `catalog:`）。每个成员自带 `build`／`typecheck`／`test` 脚本；根命令的构建与类型检查用 `pnpm -r` 聚合，
 测试由 [tools/test-runner 的测试运行入口](../tools/test-runner/README_ZH.md#测试运行)逐成员调用各自的 `test` 脚本
 （成员清单仍读 `pnpm-workspace.yaml`）。测试框架是 vitest（`*.spec.ts` 运行时、`*.spec-d.ts` 类型测试）。
-Node 与 pnpm 的精确版本由根 `package.json` 的
-`engines` 和 `packageManager` 声明，**以那里为准**；uv 管理的 Python 环境与之独立并存。
+开发用的 pnpm 与 Node 的精确版本由根 `package.json` 的
+`packageManager` 和 `devEngines` 声明，**以那里为准**；`engines` 只表示产品支持的 Node 下限。
+uv 的版本范围由 `pyproject.toml` 的 `required-version` 声明，Python 版本由根 `.python-version` 声明，uv 管理的 Python 环境与 Node 环境独立并存。
 
-产品运行时与构建路线由[技术基础](architecture/technical-foundations.md#共同技术选择)维护。产品开发和部署环境须支持Node24；现有开发工具的engines及packageManager仍以根声明为准。TS7/NodeNext/strict、库ESM与声明、应用bundle各自验证真实消费者，bundle不代替类型检查。新增依赖在具名实施任务同步成员声明、catalog及锁，本次文档采用不直接修改它们。
+产品运行时与构建路线由[技术基础](architecture/technical-foundations.md#共同技术选择)维护。产品开发和部署环境须支持Node24；现有开发工具的pnpm与Node版本仍以根声明（`packageManager`、`devEngines`）为准。TS7/NodeNext/strict、库ESM与声明、应用bundle各自验证真实消费者，bundle不代替类型检查。新增依赖在具名实施任务同步成员声明、catalog及锁，本次文档采用不直接修改它们。
 
 不把工具加入产品运行依赖；新增成员须符合叶子布局，**新增其他类别时显式更新 workspace 范围**。
 

@@ -74,7 +74,7 @@ const authority = createLocalStartCoordinator({
 
 ## 验证
 
-在仓库根使用 Node.js 24 或更高版本和 pnpm 10.28.1。准备一次 workspace 依赖后，构建并运行本成员检查：
+在仓库根使用 Node.js 24 或更高版本和 pnpm 12.18.0。准备一次 workspace 依赖后，构建并运行本成员检查：
 
 ```sh
 pnpm --workspace-concurrency=1 --filter @omne-harness/tool... --filter @omne-harness/tool-host-local... -r run build

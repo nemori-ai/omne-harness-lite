@@ -26,20 +26,20 @@ git submodule update --init
 
 外部技能集 pqw-skills 是子模块（`.meta_harness/agents/vendor/pqw-skills`），新检出与新工作树都先初始化它。子模块的提交是下限，生成投影时会改读接入约定版本相同的最新发行版，所以 pqw-skills 发新版不需要在本仓库提交。没有初始化时生成 agent 投影会失败，见[生成工具](../.meta_harness/tooling/README.md#外部技能集)。
 
-完整检查需要 Git、Bash、[uv](https://docs.astral.sh/uv/getting-started/installation/)，
-以及根 `package.json` 的 `engines`/`packageManager` 指定的 Node 与 pnpm。
+完整检查需要 Git、Bash、0.13.x 的 [uv](https://docs.astral.sh/uv/getting-started/installation/)、任意 12.x 的 pnpm 与 24 及以上的 Node。
+开发用的 pnpm 与 Node 由根 `package.json` 的 `packageManager` 和 `devEngines` 指定：在检出里运行的 pnpm 自己切到 `devEngines.packageManager` 的精确版本，经 pnpm 起的根脚本、成员脚本与 `pnpm exec` 运行在 `devEngines.runtime` 的 Node 上（缺失时下载）；`engines` 只表示产品支持的 Node 下限。`check` 的启动段核对两处 pnpm 声明相同，不符时第一步失败并给出修法。uv 的版本范围是 `pyproject.toml` 的 `required-version`，Python 版本是根 `.python-version`。
 
-支持在 macOS、Linux 与 Windows 上开发。`pnpm run check`、格式化脚本与 pre-commit 钩子是 Bash 脚本：Windows 上在 Git Bash 里运行，不支持在 PowerShell 或 cmd 中直接运行；也可以在 WSL2 的 Linux 发行版里检出仓库运行，但经 `/mnt/` 访问 NTFS 很慢。Windows 宿主要先做一次机器级设置：`pnpm config set script-shell "C:\Program Files\Git\bin\bash.exe"`，让 pnpm（以及经 pnpm 起成员脚本的 turbo）用 Git Bash 跑 POSIX 写法的脚本；仓库里不存这项设置。TypeScript 工具只用 Node 标准库与跨平台依赖；运行名额由 [with-test-slot.mjs](../scripts/with-test-slot.mjs) 实现，不依赖 `flock`。Windows 上 NTFS 没有执行位，agents 投影的执行位核对改读 Git 索引里的模式；Git 检出时建成文件型的根链接（`.claude` 等）由 `link_agents.py` 重建为目录链接。已知限制：Windows 宿主上 `pnpm run check` 的退出 0 可以作为准入结论，但有几处行为按平台不同，相应成员 README 写明：事件接收器不检查配置文件的模式位、也不设 ACL，目录私有由操作者保证；凭据存储与操作日志目录在 Windows 上不 fsync 目录句柄；名额账本的 `cpuSeconds` 在 Windows 上为 null；模型契约的协议模型需要 POSIX 进程组，监督进程在 Windows 上拒绝启动。按平台跳过的用例只在 Windows 上跳过并写明原因：拒绝本进程访问文件或目录的用例（chmod 只切只读属性，提权会话里 ACL deny 拦不住备份语义）、目录 fsync 确认、SIGHUP、符号链接目标里 `..` 的 POSIX 目录语义、无扩展名的 sh 替身截 `git`、NTFS 执行位（`staged_modes`）与需要 Ubuntu 镜像路径的用例（`linux_image`）。慢层开着 vitest 的 `experimental.preParse`：一个文件里全部用例都是静态 `skipIf`／`runIf` 时整个文件会被丢掉，按平台跳过要用运行时的 `context.skip`。Windows 上新增可执行源文件后要 `git update-index --chmod=+x`。
+支持在 macOS、Linux 与 Windows 上开发。`pnpm run check`、格式化脚本与 pre-commit 钩子是 Bash 脚本：Windows 上在 Git Bash 里运行，不支持在 PowerShell 或 cmd 中直接运行；也可以在 WSL2 的 Linux 发行版里检出仓库运行，但经 `/mnt/` 访问 NTFS 很慢。根与成员的 `package.json` 脚本经 pnpm 内置的 shell 模拟器运行（`pnpm-workspace.yaml` 的 `shellEmulator`），Windows 上不需要设置 `script-shell`：`pnpm install`、`pnpm run build`、`pnpm run typecheck`、`pnpm run check:plan` 与成员的 `build`、`typecheck`、`test*` 脚本在 PowerShell 里也能运行；调用 `./scripts/*.sh` 的根脚本（`check`、`admission`、`preflight`、`format:*`、`test:format`、`check:design`、`metrics`）仍要在 Git Bash 里运行。Windows 上只支持 PATH 上有 `pnpm.exe` 的装法（独立安装、mise 等）；经 `npm install -g` 装的 pnpm 12 在 Windows 上没有验证。TypeScript 工具只用 Node 标准库与跨平台依赖；运行名额由 [with-test-slot.mjs](../scripts/with-test-slot.mjs) 实现，不依赖 `flock`。Windows 上 NTFS 没有执行位，agents 投影的执行位核对改读 Git 索引里的模式；Git 检出时建成文件型的根链接（`.claude` 等）由 `link_agents.py` 重建为目录链接。已知限制：Windows 宿主上 `pnpm run check` 的退出 0 可以作为准入结论，但有几处行为按平台不同，相应成员 README 写明：事件接收器不检查配置文件的模式位、也不设 ACL，目录私有由操作者保证；凭据存储与操作日志目录在 Windows 上不 fsync 目录句柄；名额账本的 `cpuSeconds` 在 Windows 上为 null；模型契约的协议模型需要 POSIX 进程组，监督进程在 Windows 上拒绝启动。按平台跳过的用例只在 Windows 上跳过并写明原因：拒绝本进程访问文件或目录的用例（chmod 只切只读属性，提权会话里 ACL deny 拦不住备份语义）、目录 fsync 确认、SIGHUP、符号链接目标里 `..` 的 POSIX 目录语义、无扩展名的 sh 替身截 `git`、NTFS 执行位（`staged_modes`）与需要 Ubuntu 镜像路径的用例（`linux_image`）。慢层开着 vitest 的 `experimental.preParse`：一个文件里全部用例都是静态 `skipIf`／`runIf` 时整个文件会被丢掉，按平台跳过要用运行时的 `context.skip`。Windows 上新增可执行源文件后要 `git update-index --chmod=+x`。
 Python 范围由 [pyproject.toml](../pyproject.toml) 声明，uv 管理解释器与虚拟环境——
 **不要依赖系统 `python` 恰好存在**。使用coding agent参与本项目迭代维护时，先完成下一节的插件初始化。仓库依赖在实际使用的检出中准备：
 
 ```sh
 uv sync --locked
 pnpm install --frozen-lockfile --ignore-scripts
-pnpm -r rebuild node-pty
+pnpm run prepare:native
 ```
 
-安装依据锁文件且禁用依赖脚本。随后仅显式构建workspace白名单中的node-pty；这一步由 node-gyp 构建，需要 Make；使用Node 24及以上版本时还需要支持C++20的编译器，已有系统编译器过旧时在实际环境选择合适的CC/CXX，不修改依赖源码或跳过原生检查。依赖准备后按[任务影响面](#修改与验证)选择检查；需要核对完整交付候选时使用[组合检查](#交付与合并前的检查)。`pnpm run check`不调用真实模型，构建、成员测试及验收范围由实际计划决定。
+安装依据锁文件且禁用依赖脚本。随后由原生依赖准备入口 [prepare-native.mjs](../scripts/prepare-native.mjs) 仅显式构建workspace白名单（`allowBuilds`）中的node-pty，并在 macOS 上补上 `spawn-helper` 的执行位；凡是重建 `node_modules` 的安装之后都要运行它；这一步由 node-gyp 构建，需要 Make；使用Node 24及以上版本时还需要支持C++20的编译器，已有系统编译器过旧时在实际环境选择合适的CC/CXX，不修改依赖源码或跳过原生检查。依赖准备后按[任务影响面](#修改与验证)选择检查；需要核对完整交付候选时使用[组合检查](#交付与合并前的检查)。`pnpm run check`不调用真实模型，构建、成员测试及验收范围由实际计划决定。
 
 ### Cursor Cloud Agent 镜像
 
@@ -47,7 +47,7 @@ pnpm -r rebuild node-pty
 
 这份 `.cursor` 投影需要提交。Cursor 在安装脚本之前就要读到它。改源后按[根软链接](../.meta_harness/tooling/README.md#根软链接)重新编译并链接，生成工具自己把投影收敛到源。`pnpm run check:agents` 核对投影与根链接。手改投影或根目录会失败。
 
-镜像提供 Git、Bash、Make、rsync、支持 C++20 的编译器、GitHub CLI、uv 0.13.0，以及根 `package.json` 的 `engines` 与 `packageManager` 所要求的 Node 和 pnpm。精确版本写在源 Dockerfile 的 `NODE_VERSION` 与 `PNPM_VERSION`。当前分别是 26.12.0 和 10.28.1。
+镜像提供 Git、Bash、Make、rsync、支持 C++20 的编译器、GitHub CLI、uv 0.13.0，以及根 `package.json` 的 `devEngines` 指定的 Node 和 pnpm。精确版本写在源 Dockerfile 的 `NODE_VERSION` 与 `PNPM_VERSION`，分别等于 `devEngines.runtime` 与 `devEngines.packageManager`，当前是 26.13.1 和 12.18.0。
 
 镜像为 ubuntu 用户安装 Matt skills 1.3.1。revision 与[技能来源表](engineering/skills.md#来源与项目采用)相同。`npx skills` 不能把该 revision 当成分支克隆。镜像先取出这个 commit，再以 `-a cursor -g` 安装。正文在 `~/.agents/skills`，并链接到 `~/.cursor/skills`。安装完整插件不扩大方法采用范围。镜像不运行 `setup-matt-pocock-skills`。镜像还按来源表的固定提交把 ub-mode 的 `SKILL.md` 装到 ubuntu 用户的 `~/.cursor/skills/ub-mode/`。
 
@@ -55,13 +55,13 @@ Git 的 author 与 committer 是潘其威(William)。邮箱是 `46810637+PanQiWe
 
 此镜像不安装 Java、TLC、Alloy 或 Postgres。缺少这些工具时，按[失败与未知的处理](#失败与未知的处理)报告未执行。密钥和令牌放在 Cursor Cloud Agents 的 Secrets。不要把它们写入仓库。
 
-对已经包含这份投影和根链接的分支，直接启动 Cloud Agent。交互式 Set up agent 会忽略 Dockerfile。仓库内这份 `environment.json` 优先于仪表盘里保存的个人或团队环境。更换根 `engines` 或 `packageManager` 时，同步修改源 Dockerfile 里的对应版本，并重新投影。
+对已经包含这份投影和根链接的分支，直接启动 Cloud Agent。交互式 Set up agent 会忽略 Dockerfile。仓库内这份 `environment.json` 优先于仪表盘里保存的个人或团队环境。更换根 `devEngines` 的两项版本时，同步修改源 Dockerfile 里的对应版本，并重新投影。
 
 ### Claude Code on the web 环境
 
 手写源在 [`.meta_harness/agents/cloud/claude-code/`](../.meta_harness/agents/cloud/claude-code/README.md)。把其中 `setup.sh` 的全文粘贴到云端环境设置的 Setup script。平台缓存 setup 的结果，所以每次会话都要做的工作放在 `session-start.sh`。setup 把它登记成 user 作用域的 SessionStart 钩子。
 
-setup 安装 rsync、Node 26.12.0、pnpm 10.28.1、uv 0.13.0，pstack 与 Matt 两个 Claude Code 插件，以及 ub-mode 技能。检出已存在时，它再执行上面的三条依赖命令并生成 agent 投影。
+setup 安装 rsync、Node 26.13.1、pnpm 12.18.0、uv 0.13.0，pstack 与 Matt 两个 Claude Code 插件，以及 ub-mode 技能。检出已存在时，它再执行上面的三条依赖命令并生成 agent 投影。
 
 每次会话启动或恢复时，`session-start.sh` 把 Node 26 放到 Bash 工具的 PATH 最前。Git 作者与提交者优先使用云端环境的 `GIT_AUTHOR_NAME` 与 `GIT_AUTHOR_EMAIL`，各缺值才从开会话的 GitHub 账号补足。脚本还会取完整历史，把本地 `main` 快进到 `origin/main`，按需重装依赖和重新生成投影，并把两个插件和 ub-mode 更新到上游最新版本。Claude Code 如果在钩子运行之前已经加载插件和技能，这些更新要到下一次会话才生效。这一前提没有验证。
 
@@ -457,7 +457,8 @@ gh pr create --base integration/mainline --head <自己的工作分支> \
 - Bash 工具的命令行里含有搜索模式，所以 `pgrep -f` 会把调用它的 shell 报成存活进程，`pkill -f` 曾杀掉调用它的 shell（退出码 144）。POSIX 上列进程用 `ps -eo pid,etime,pcpu,args | grep '[p]attern'`，方括号让模式不匹配 grep 与调用它的 shell 自己的命令行。停宿主跟踪的后台任务用 TaskStop。
 - Windows 宿主例外（2026-10-29 实测）：对经 `with-test-slot` 的后台长链（`bash → node → turbo → pnpm.cmd`）或它的兄弟任务运行 TaskStop，会关掉这一批进程共用的控制台。之后同一棵进程树里新起的 `cmd.exe`、`pnpm.cmd` 立即以 `-1073741502`（`0xC0000142`）失败，看起来像全部成员 0 秒失败。这时不改 turbo 或测试。要停这类长链，用 `taskkill //PID <pid> //T //F` 结束整棵进程树，然后读名额目录，确认被结束的进程留下的 `ticket-*` 与 `slot-*.lock` 已经失效或已被删除。目录与失效规则见[运行名额](../scripts/README.md#运行名额)。
 - Claude Code 会话会把 shell 的工作目录重置回会话的主工作目录。在某棵工作树里启动的会话，`cd` 到别的工作树不会保持。要在几棵树之间切换，从主检出根启动会话，或者每条命令都写绝对路径或 `git -C <树>`。
-- 合并目标分支或换到新树之后，锁文件可能带来新依赖。不重装就跑准入，build 报模块无法解析。合并之后、准入之前，在该树运行 `pnpm install --offline --frozen-lockfile`，再运行 `git update-index --refresh`，然后确认 `git status --short` 为空。先装依赖再合并时，合并后还要再装一次。
+- 合并目标分支或换到新树之后，锁文件可能带来新依赖。`pnpm-workspace.yaml` 设了 `verifyDepsBeforeRun: error`：依赖过期时 `pnpm run …`（含 `pnpm run check`、`admission`、`preflight`）在起脚本之前就以 `ERR_PNPM_VERIFY_DEPS_BEFORE_RUN` 失败，不自己安装。这时在该树运行 `pnpm install --frozen-lockfile --ignore-scripts` 与 `pnpm run prepare:native`，再运行 `git update-index --refresh`，然后确认 `git status --short` 为空。直接运行 `./scripts/check.sh`（带同样的参数）时，启动段会自己离线重装并准备原生依赖。
+- 工具链换到 pnpm 12 与 Node 26.13.1（#1269）之后，各人已有的检出都要重装一次：pnpm 12 换了 store 目录，旧 store 里的包读不到。删掉 `node_modules` 后按[准备可用的检出](#准备可用的检出)的命令重装；离线重装报 `ERR_PNPM_NO_OFFLINE_TARBALL` 时联网再装。
 - Windows 宿主上，已跟踪文件的工作副本可能是 CRLF，而索引是 LF。`format:check` 因此失败。用 `git ls-files --eol | grep 'i/lf.*w/crlf'` 找出这些文件。只是工作副本换行不同时，删掉工作副本再 `git checkout -- <文件>`。改动本身带 CRLF 时，改成 LF 再提交。
 - 合并基线后先跑 `pnpm run preflight`：一次列出轻步骤的全部失败与修法。准入开始时会自检环境并自愈，用法见[环境自检与自愈](../scripts/README.md#环境自检与自愈)与[预检](../scripts/README.md#预检)。
 - Windows 宿主上，Git Bash 的 `/tmp` 与 Windows 版 Python、Node 看到的不是同一个目录。给这些程序传临时文件路径时先用 `cygpath -w` 转换，否则报找不到文件。

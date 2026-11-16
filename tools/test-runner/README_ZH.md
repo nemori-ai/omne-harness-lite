@@ -20,8 +20,10 @@ pnpm run test                                       # 全量两层：turbo 先�
 pnpm run test:gate                                  # pnpm run check 的测试一步：按影响面计划跑被选中成员的快层，快层全部通过才跑慢层（基线按统一规则取；FULL=1 全部）；单独运行时由 turbo 先构建
 OMNE_TEST_CACHE=0 pnpm run check                    # 成员测试不读结果缓存（本次有构建时照常写）；test:affected 与 cli.ts 的 run、step、check 另认 --no-cache；test:tier 不认 --no-cache，改用 OMNE_TEST_CACHE=0 或 FULL=1。缓存见「结果缓存」
 pnpm run acceptance                                 # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；--no-build 不构建
-node --experimental-strip-types tools/test-runner/src/testing/cli.ts check [--admission] [--keep-going] [--list] [--resume-from <H1>]  # pnpm run check 的正文：取基线、算计划、按步骤图跑全部检查；调用方（scripts/check.sh）先取运行名额。--list 只打印步骤表（名字、依赖、重轻、命令），不取基线、不算计划、不跑；--resume-from 接续 H1 上快速失败的准入（全量或按影响面），只在准入模式下可用，见「准入」一节
-node --experimental-strip-types tools/test-runner/src/testing/cli.ts check --preflight  # pnpm run preflight 的正文：只跑准入里不依赖构建与全量测试的步骤，同时起、失败不终止其余，最后列出全部发现与修法；不写准入日志与记录，见 scripts/README.md「预检」
+./scripts/check.sh [--admission] [--keep-going] [--resume-from <H1>]  # pnpm run check 的入口：先取运行名额、跑启动段，再起下一行的 check；直接调用 cli.ts check 没有启动段的结果，以 2 退出并提示改用它
+node --experimental-strip-types tools/test-runner/src/testing/cli.ts check --list  # 只打印步骤表，不要求启动段
+# cli.ts check [--admission] [--keep-going] [--resume-from <H1>] 是 pnpm run check 的正文：取基线、算计划、按步骤图跑全部检查；只经 scripts/check.sh 运行。--list 只打印步骤表（名字、依赖、重轻、命令），不取基线、不算计划、不跑；--resume-from 接续 H1 上快速失败的准入（全量或按影响面），只在准入模式下可用，见「准入」一节
+./scripts/check.sh --preflight  # pnpm run preflight，正文是 cli.ts check --preflight：只跑准入里不依赖构建与全量测试的步骤，同时起、失败不终止其余，最后列出全部发现与修法；不写准入日志与记录，见 scripts/README.md「预检」
 node --experimental-strip-types tools/test-runner/src/testing/cli.ts admission-evidence --for <F> [--record <路径>]  # 核对 F 上有没有可采用的全量准入（树相同的另一个提交上的也算），见「准入」一节
 ```
 
@@ -285,7 +287,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 | `steps`                      | 按步骤表的顺序，每步 `ran`、`exit`、`seconds`：跑完的记退出码，被终止的与没开始的记 `ran: false`、`exit: null`                                                                                                      |
 | `failedStep`                 | 快速失败的那一步（最早结束的失败步骤）；全部通过为 `null`                                                                                                                                                           |
 | `startedAt`、`finishedAt`    | 起止时刻                                                                                                                                                                                                            |
-| `environment`                | 开始时环境自检与自愈的结果（`src/testing/environment.ts`）：`dependencies.status` 取 `in-sync`、`reinstalled`、`install-failed`、`no-lockfile` 之一加 `detail`；`lineEndings.restored` 是从索引重新检出的 CRLF 工作副本，`kept` 是另有内容改动、没有覆盖的，`blocked` 是 `core.autocrlf=true` 时不检出的说明。只有准入运行写；早于这一栏的记录没有 |
+| `environment`                | 开始时环境自检与自愈的结果（`src/testing/environment.ts`）：`dependencies` 是启动段（`scripts/check-bootstrap.mjs`）交来的依赖结果，`status` 取 `in-sync`、`reinstalled`、`no-lockfile` 之一加 `detail`，进程内直接调用检查函数、没有经过启动段时是 `not-bootstrapped`，`install-failed` 只出现在启动段之前的旧记录里；`lineEndings.restored` 是从索引重新检出的 CRLF 工作副本，`kept` 是另有内容改动、没有覆盖的，`blocked` 是 `core.autocrlf=true` 时不检出的说明。只有准入运行写；早于这一栏的记录没有 |
 | `retried`                    | test 步一层失败后定向重跑过的文件（`src/testing/test-retry.ts`）：每项 `member`、`file`、`tier`（`fast`／`slow`）、`kind`（`timeout`、`stack-trace`、`startup`、`assertion`）、`firstError`（账本里第一处失败的第一行）、`retryResult`（`passed`、`failed`、`not-run`）。`admission-evidence` 把它列进输出，确认者看得到哪些用例是重跑才过的。没失败或没重跑时为空或没有 |
 | `testFailures`               | test 步最终失败时仍失败的文件（定向重跑后仍不过的，或没重跑时的全部），形状同 `retried` 去掉 `retryResult`；`--resume-from` 据它收窄。通过时为空或没有。失败不在任何文件里（成员一级）时为空 |
 

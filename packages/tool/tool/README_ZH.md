@@ -86,7 +86,7 @@ final 没有实际结束时钟 marker。running 计时保留 unknown、原 segme
 
 ## 运行教学示例
 
-使用 Node.js 24 或更高版本和 pnpm 10.28.1。在仓库根执行：
+使用 Node.js 24 或更高版本和 pnpm 12.18.0。在仓库根执行：
 
 ```sh
 pnpm install --frozen-lockfile --ignore-scripts

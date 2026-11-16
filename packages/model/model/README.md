@@ -34,7 +34,7 @@ A request assembler measures through a preparation lease. It constructs `createM
 
 ## Run the learning examples
 
-Use Node.js 24 or later and pnpm 10.28.1 in a repository checkout. These workspace packages are private. The examples do not require a vendor account, network access, or credentials.
+Use Node.js 24 or later and pnpm 12.18.0 in a repository checkout. These workspace packages are private. The examples do not require a vendor account, network access, or credentials.
 
 From the repository root, prepare a fresh checkout:
 
@@ -100,7 +100,7 @@ A started result carries the confirmed original `window` and its single `facts` 
 
 ## Verification
 
-Run these commands from the repository root. The package requires Node.js >=24 and pnpm 10.28.1. Each run report identifies the Node.js version actually tested.
+Run these commands from the repository root. The package requires Node.js >=24 and pnpm 12.18.0. Each run report identifies the Node.js version actually tested.
 
 ```sh
 pnpm turbo run typecheck --filter=@omne-harness/model

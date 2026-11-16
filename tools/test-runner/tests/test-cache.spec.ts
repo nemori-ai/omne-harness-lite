@@ -917,7 +917,7 @@ function workspace(names: readonly string[] = ['good', 'bad']): {
   }
   put(
     'package.json',
-    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@10.28.1" }\n',
+    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@12.18.0" }\n',
   )
   put('pnpm-workspace.yaml', 'packages:\n  - members/*\n')
   put('fake-vitest.mjs', FAKE_VITEST)
@@ -1314,7 +1314,7 @@ function distWorkspace(
   }
   put(
     'package.json',
-    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@10.28.1" }\n',
+    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@12.18.0" }\n',
   )
   put('pnpm-workspace.yaml', 'packages:\n  - members/*\n')
   put('.gitignore', 'run-*/\ndist/\ntmp/\n.turbo/\nnode_modules/\n')

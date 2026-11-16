@@ -72,7 +72,7 @@ const profiles = officialAnthropicProfiles({ retryPolicy, compactionTriggerPerce
 
 ## 验证
 
-在仓库根目录运行下列命令。包的 engines 要求 Node.js >=24，pnpm 版本为 10.28.1。
+在仓库根目录运行下列命令。包的 engines 要求 Node.js >=24，pnpm 版本为 12.18.0。
 
 ```sh
 pnpm turbo run typecheck test:fast --filter=@omne-harness/pi-ai-anthropic

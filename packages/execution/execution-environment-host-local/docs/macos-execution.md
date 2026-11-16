@@ -121,7 +121,7 @@ Bash 3.2 的结论：Linux 的 Bash 驱动与分段源码不改动，在系统�
 | `node-pty`           | node-pty 与它的原生模块可以加载   | 终端       |
 | `spawn-helper`       | node-pty 的 `spawn-helper` 可执行 | 终端       |
 
-依赖补丁：node-pty 1.1.0 把 darwin 的 `spawn-helper` 装成 0644，它的 postinstall 不改正。仓库的 `patches/node-pty@1.1.0.patch` 把这些文件的权限设为 0755，它登记在 `pnpm-workspace.yaml` 的 `patchedDependencies` 里。没有这个补丁时，终端的前提项 `spawn-helper` 不满足。
+执行位：node-pty 1.1.0 把 darwin 的 `spawn-helper` 装成 0644，它的 postinstall 不改正。仓库的原生依赖准备入口 `scripts/prepare-native.mjs`（根脚本 `pnpm run prepare:native`）把这些文件的权限设为 0755；`scripts/check.sh` 的启动段每次核对并在需要时调用它。安装依赖之后没有运行它时，终端的前提项 `spawn-helper` 不满足。
 
 ## 已知偏离
 

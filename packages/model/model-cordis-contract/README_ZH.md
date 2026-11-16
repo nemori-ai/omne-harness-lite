@@ -33,7 +33,7 @@
 
 ## 验证
 
-在仓库根运行以下命令。包的 engines 要求 Node.js >=24，pnpm 版本为 10.28.1。实际验证过的 Node.js 版本以各次运行报告为准。
+在仓库根运行以下命令。包的 engines 要求 Node.js >=24，pnpm 版本为 12.18.0。实际验证过的 Node.js 版本以各次运行报告为准。
 
 ```sh
 pnpm turbo run typecheck --filter=@omne-harness/model-cordis-contract

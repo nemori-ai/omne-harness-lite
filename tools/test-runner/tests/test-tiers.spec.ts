@@ -724,7 +724,7 @@ describe('入口的层参数', { timeout: 60_000 }, () => {
   // 计划经 turbo 选成员，turbo 要读被检查仓库根的 package.json 与 packageManager。
   writeFileSync(
     join(subject, 'package.json'),
-    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@10.28.1" }\n',
+    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@12.18.0" }\n',
   )
   // 影响面规则点名的成员都要在，否则计划报错；外加一个退役目录里的成员。
   for (const path of [

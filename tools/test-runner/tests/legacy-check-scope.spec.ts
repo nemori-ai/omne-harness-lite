@@ -102,7 +102,7 @@ describe('legacy check boundaries', () => {
       JSON.stringify({
         private: true,
         // turbo 要读被检查仓库根的 packageManager 才能解析 workspace。
-        packageManager: 'pnpm@10.28.1',
+        packageManager: 'pnpm@12.18.0',
         scripts: { typecheck: "node -e \"require('fs').writeFileSync('root-shortcut', 'wrong')\"" },
       }),
     )

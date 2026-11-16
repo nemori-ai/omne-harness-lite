@@ -88,7 +88,7 @@ The final has no execution-end clock marker. Running timing becomes unknown with
 
 ## Run the learning example
 
-Use Node.js 24 or later and pnpm 10.28.1. From the repository root:
+Use Node.js 24 or later and pnpm 12.18.0. From the repository root:
 
 ```sh
 pnpm install --frozen-lockfile --ignore-scripts

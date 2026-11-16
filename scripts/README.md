@@ -8,7 +8,9 @@
 |---|---|
 | [package-tenancy-host.sh](package-tenancy-host.sh) | 脚本仍执行 `apps/tenancy-host/tools/package.ts`。仓库里没有这个路径 |
 | [package-cli.sh](package-cli.sh) | 把 `@omne-harness/cli` 构建到临时目录，把其中的 `dist/` 写入一个尚不存在的绝对路径 `.tar.gz`。不删除、不写入 `apps/cli/dist`，不安装、不上传 |
-| [check.sh](check.sh) | 定位仓库根，先取一个运行名额，再把正文交给测试运行器的 `check` 命令：算基线以来改动的影响面并打印计划，按[步骤图](#check-的步骤图)跑常驻检查与计划里的各步（无依赖的同时跑），最后是严格模式的回路状态；任一步失败即终止其余并返回那一步的退出码。`--admission` 为准入模式并写准入日志与运行记录（根脚本 `pnpm run admission`），`--keep-going` 失败后继续跑其余步骤，`--resume-from <H1>` 接续 H1 上快速失败的准入（全量或按影响面；只在准入模式下可用，`pnpm run admission --resume-from <H1>`）；`--preflight` 是[预检](#预检)（根脚本 `pnpm run preflight`），不占运行名额 |
+| [check.sh](check.sh) | 定位仓库根，先取一个运行名额，再跑[启动段](#环境自检与自愈) `check-bootstrap.mjs`，然后把正文交给测试运行器的 `check` 命令：算基线以来改动的影响面并打印计划，按[步骤图](#check-的步骤图)跑常驻检查与计划里的各步（无依赖的同时跑），最后是严格模式的回路状态；任一步失败即终止其余并返回那一步的退出码。`--admission` 为准入模式并写准入日志与运行记录（根脚本 `pnpm run admission`），`--keep-going` 失败后继续跑其余步骤，`--resume-from <H1>` 接续 H1 上快速失败的准入（全量或按影响面；只在准入模式下可用，`pnpm run admission --resume-from <H1>`）；`--preflight` 是[预检](#预检)（根脚本 `pnpm run preflight`），不占运行名额 |
+| [check-bootstrap.mjs](check-bootstrap.mjs) | `check.sh` 的启动段，只用 Node 标准库：核对工具链、依赖目录与原生依赖，必要时离线重装，结果经环境变量 `OMNE_CHECK_BOOTSTRAP` 交给检查器，见[下文](#环境自检与自愈) |
+| [prepare-native.mjs](prepare-native.mjs) | 根脚本 `prepare:native` 的入口：原生依赖准备。构建 `allowBuilds` 放行的 `node-pty`，并在 macOS 上给 `spawn-helper` 补执行位；可以重复运行。安装依赖之后运行，见[准备可用的检出](../docs/development.md#准备可用的检出) |
 | [check-journal-facts.mjs](check-journal-facts.mjs) | 根脚本 `check:journal-facts` 的入口：扫测试世界留下的库（默认 `tmp/journal-facts/`，由 harness-server 的 `journal-bytes` 用例写入）里 `er_fact.body`，出现 `role`、`content`、`messages`、`system` 键就退出 1。没有库或没有 `er_fact` 表时跳过并说明原因，退出 0 |
 | [with-test-slot.sh](with-test-slot.sh) | 运行名额：让重负载的检查在同一台机器上排队执行，见[下文](#运行名额) |
 | [slot-unless-plan-only.sh](slot-unless-plan-only.sh) | 根脚本 `test:affected` 与 `mutation` 的入口：实际运行时取一个运行名额，带 `--plan-only` 只列范围时不取 |
@@ -68,12 +70,19 @@
 
 ### 环境自检与自愈
 
-准入（`--admission`）与预检开始时、读任何现场之前，先做两件事，只改工作副本与依赖目录，不改提交（实现在 [environment.ts](../tools/test-runner/src/testing/environment.ts)）：
+`check.sh` 在起检查器之前先跑启动段 [check-bootstrap.mjs](check-bootstrap.mjs)，普通检查、准入与预检都一样。检查器静态导入依赖目录里的包，依赖缺失时加载不起来，所以启动段只用 Node 标准库。它按五步走，前一步失败就以 2 退出、不起检查器，输出写明哪一步、期望、实际与修法：
 
-- 依赖目录与锁文件不一致（合并了别的分支后没重装）：pnpm 安装成功后把它用的锁文件留在 `node_modules/.pnpm/lock.yaml`，与 `pnpm-lock.yaml` 逐字节比；不同或没有就 `pnpm install --offline --frozen-lockfile`（只读 store，不改锁文件）。离线安装失败时不跑任何步骤、不写记录，以 2 退出，输出写明联网后手动 `pnpm install --frozen-lockfile`。
+1. 工具链：`packageManager` 与 `devEngines.packageManager` 相同；PATH 上的 Node 满足 `engines`；在仓库根运行的 pnpm 实际版本等于声明。
+2. 依赖：pnpm 安装成功后把锁文件本体抄在 `node_modules/.pnpm/lock.yaml`。pnpm 12 的 `pnpm-lock.yaml` 前面另有一个锁定 pnpm 自身的文档，副本里没有，所以只拿本体逐字节比。不同或没有就 `pnpm install --offline --frozen-lockfile --ignore-scripts`（只读 store，不改锁文件），再运行[原生依赖准备](prepare-native.mjs)。离线安装失败时输出写明联网重装的命令，与[准备可用的检出](../docs/development.md#准备可用的检出)相同。
+3. 经 pnpm 起的 Node（`pnpm exec node -v`）等于 `devEngines.runtime`。它排在依赖之后：`verifyDepsBeforeRun: error` 下依赖过期时 `pnpm exec` 自己就失败。
+4. 原生依赖：macOS 上 `node-pty` 的 `spawn-helper` 是有执行位的 Mach-O，不是就调用准备入口修复。
+5. 把结果（一行 JSON）经环境变量 `OMNE_CHECK_BOOTSTRAP` 交给检查器。检查器的 `check` 没有这份结果时以 2 退出，提示改用 `./scripts/check.sh`；`check --list` 除外。
+
+准入与预检开始时、读任何现场之前，检查器再做一件事，只改工作副本，不改提交（实现在 [environment.ts](../tools/test-runner/src/testing/environment.ts)）：
+
 - 已跟踪文件里索引为 LF、工作副本为 CRLF 的（Windows 编辑器写回的），只在除换行外与索引相同时 `git checkout-index -f` 重新检出；有内容改动的不碰，写在记录的 `kept` 里，`format:check` 会报它们。仓库 `core.autocrlf=true` 时检出就写 CRLF，不重新检出，写明改法。
 
-做了什么写进运行记录的 `environment` 一栏与准入日志的 `环境自检：` 两行；一致时也写明「不动」。
+启动段的依赖结果与换行自愈写进运行记录的 `environment` 一栏与准入日志的 `环境自检：` 两行；一致时也写明「不动」。
 
 ### 预检
 
