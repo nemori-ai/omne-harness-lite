@@ -248,10 +248,13 @@ describe('the connection of a task operation', () => {
 })
 
 describe('the answers of the task operations (T6)', () => {
-  it('no answer is effect-unknown with the same cause', async () => {
+  it('no answer is effect-unknown with the same cause, and the connection stays ready', async () => {
     const c = await started({ get: { kind: 'stream-breaks' } })
     expect(await c.invoker.queryTask(alice, task)).toEqual({
       failure: { kind: 'effect-unknown', cause: 'stream-broken' },
+    })
+    expect(await c.status.inspect(alice, files)).toMatchObject({
+      ok: { connection: { kind: 'ready' } },
     })
     expect(c.p.requests('tasks/get')).toHaveLength(2)
   })
