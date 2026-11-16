@@ -281,6 +281,42 @@ export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
     .sort((left, right) => Number(left.entry?.ordinal ?? 0) - Number(right.entry?.ordinal ?? 0))
 }
 
+export type ToolCallFacts = Readonly<{
+  arguments: string
+  starts: number
+  accounts: readonly string[]
+}>
+
+/** Per call of the Tool ledger: its admitted effective arguments, its start operations and its account events. */
+export function toolCallFacts(storageRoot: string): ReadonlyMap<string, ToolCallFacts> {
+  const args = new Map<string, string>()
+  const starts = new Map<string, number>()
+  const accounts = new Map<string, string[]>()
+  for (const row of ledgerRows(storageRoot)) {
+    const record = row.record as {
+      kind: string
+      call?: { call: string; request: { arguments: { effective: string } } }
+      operation?: { call: string; operation: string }
+      account?: { call: string; event: string }
+    }
+    if (record.kind === 'call' && record.call !== undefined)
+      args.set(record.call.call, record.call.request.arguments.effective)
+    if (record.kind === 'operation' && record.operation?.operation.endsWith('/start') === true)
+      starts.set(record.operation.call, (starts.get(record.operation.call) ?? 0) + 1)
+    if (record.kind === 'account' && record.account !== undefined)
+      accounts.set(record.account.call, [
+        ...(accounts.get(record.account.call) ?? []),
+        record.account.event,
+      ])
+  }
+  return new Map(
+    [...args].map(([call, value]) => [
+      call,
+      { arguments: value, starts: starts.get(call) ?? 0, accounts: accounts.get(call) ?? [] },
+    ]),
+  )
+}
+
 export type ToolCallLedger = Readonly<{
   call: string
   tool: string
