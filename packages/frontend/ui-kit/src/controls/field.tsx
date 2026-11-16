@@ -34,14 +34,14 @@ export function Section({
   readonly children: React.ReactNode
 }): React.JSX.Element {
   return (
-    <section id={id} aria-labelledby={`${id}-heading`} className="pe-section">
-      <div className="pe-section-heading">
-        <h3 id={`${id}-heading`} className="pe-section-title">
+    <section id={id} aria-labelledby={`${id}-heading`} className="omne-section">
+      <div className="omne-section-heading">
+        <h3 id={`${id}-heading`} className="omne-section-title">
           {title}
         </h3>
         {badge}
       </div>
-      <div className="pe-section-body">{children}</div>
+      <div className="omne-section-body">{children}</div>
     </section>
   )
 }

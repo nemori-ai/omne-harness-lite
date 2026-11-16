@@ -1,21 +1,21 @@
-.pe-inline-confirm {
+.omne-inline-confirm {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--omne-space-inline);
 }
-.pe-inline-confirm-consequence {
+.omne-inline-confirm-consequence {
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-ui);
 }
 
-.pe-impact-overlay {
+.omne-impact-overlay {
   position: fixed;
   inset: 0;
   z-index: 50;
   background: var(--omne-overlay);
 }
-.pe-impact-panel {
+.omne-impact-panel {
   position: fixed;
   z-index: 51;
   top: 50%;
@@ -34,38 +34,38 @@
   box-shadow: var(--omne-elevation-overlay);
   overflow-wrap: anywhere;
 }
-.pe-impact-panel:focus-visible {
+.omne-impact-panel:focus-visible {
   outline: none;
 }
-.pe-impact-title {
+.omne-impact-title {
   margin: 0;
   font-size: var(--omne-text-lead);
   font-weight: var(--omne-weight-strong);
   line-height: var(--omne-leading-title);
 }
-.pe-impact-description {
+.omne-impact-description {
   margin: calc(-1 * var(--omne-space-inline)) 0 0;
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-ui);
   line-height: var(--omne-leading-reading);
 }
-.pe-impact-section {
+.omne-impact-section {
   padding-top: var(--omne-space-block);
   border-top: 1px solid var(--omne-line-subtle);
   font-size: var(--omne-text-ui);
   line-height: var(--omne-leading-reading);
 }
-.pe-impact-section > h3 {
+.omne-impact-section > h3 {
   margin: 0 0 4px;
   color: var(--omne-ink-muted);
   font-size: var(--omne-text-caption);
   font-weight: var(--omne-weight-strong);
 }
-.pe-impact-section ul {
+.omne-impact-section ul {
   margin: 0;
   padding-left: 18px;
 }
-.pe-impact-actions {
+.omne-impact-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;

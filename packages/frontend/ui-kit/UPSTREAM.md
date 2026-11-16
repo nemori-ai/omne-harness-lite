@@ -19,7 +19,7 @@
 
 ## 改了哪几样
 
-- CSS 变量前缀 `--pe-` 全部改为 `--omne-`。Markdown 的根类名从 `conversation-markdown` 改为 `omne-prose`。
+- CSS 变量前缀 `--pe-` 全部改为 `--omne-`；类名与动画名的前缀 `pe-` 也全部改为 `omne-`。Markdown 的根类名从 `conversation-markdown` 改为 `omne-prose`。
 - 注释全部删去，只留许可声明与工具读的取时标注。
 - 路径别名 `@/` 改为相对导入，导入写 `.ts` 与 `.tsx` 扩展名。
 - 断开对来源自己东西的依赖：

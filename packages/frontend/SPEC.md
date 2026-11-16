@@ -151,7 +151,7 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | 编号 | 永远成立的性质 | 违反的后果 | 由什么守 |
 | --- | --- | --- | --- |
 | FE-I01 | `ui-kit` 不导入仓库里任何别的成员，不导入 Node 内置模块与 Cordis | 共用件反过来认识领域或应用，依赖成环 | `ui-kit/tests/boundary.spec.ts` 的导入用例；`pnpm run lint:deps` |
-| FE-I02 | 样式与代码里没有 `--pe-` 前缀，也没有 `react-i18next` | 来源的命名与多语言带进仓库，两套变量并存 | `ui-kit/tests/boundary.spec.ts` 的前缀与多语言用例 |
+| FE-I02 | 样式与代码里没有 `pe-` 前缀（变量、类名、动画名都算），也没有 `react-i18next` | 来源的命名与多语言带进仓库，两套命名并存 | `ui-kit/tests/boundary.spec.ts` 的前缀与多语言用例 |
 | FE-I03 | 每个基础控件在明暗两套下都渲染，且角色与可访问名称不变 | 一种主题下控件缺失或不可达 | `ui-kit/tests/controls.spec.tsx` 的主题用例 |
 | FE-I04 | 主题控制器不自己读写存储：偏好的读与写只经注入的函数 | 偏好有第二个来源，与调用者的存储不一致 | `ui-kit/tests/theme-controller.spec.ts` 的存储用例与读写用例 |
 | FE-I05 | `Prose` 的链接一律在新窗口打开并带 `rel="noreferrer noopener"`，没有应用内的自定义链接方案 | 外部内容的链接带着来源页面的信息，或者借自定义协议进入应用 | `ui-kit/tests/prose.spec.tsx` 的链接用例 |
