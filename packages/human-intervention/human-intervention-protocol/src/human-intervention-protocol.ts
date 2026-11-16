@@ -179,6 +179,9 @@ const replyResult = {
   ],
 } as const
 
+const observeCardsOpen = object({ tenant: { rule: tenant } })
+const observeCardsFrame = object({ kind: { rule: literal('changed') } })
+
 export const humanInterventionProtocol = defineProtocol({
   name: 'human-intervention',
   major: 1,
@@ -233,7 +236,14 @@ export const humanInterventionProtocol = defineProtocol({
       },
     },
   },
-  observations: {},
+  observations: {
+    'observe-cards': {
+      identity: 'login',
+      open: ruleCodec(observeCardsOpen),
+      frame: ruleCodec(observeCardsFrame),
+      ends: [],
+    },
+  },
 })
 
 export type HumanInterventionProtocol = typeof humanInterventionProtocol
