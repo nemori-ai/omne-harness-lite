@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import type { CardRef, Origin } from '@omne-harness/human-intervention'
+import type { CardChangeListener, CardChanges } from '@omne-harness/human-intervention-access'
 import {
   createHitlStandingDestination,
   createIndependentHitlApplication,
@@ -72,6 +73,7 @@ export type ToolHitlHost = Readonly<{
   ): Promise<CommitResultV2>
   destination: StandingDestinationResolver
   qualify(tenant: string, principal: ActingForTenantPrincipal): Promise<Qualification>
+  changes: CardChanges
   close(): Promise<void>
 }>
 
@@ -102,9 +104,83 @@ export function withDecided(
   }
 }
 
+function signalled<A extends readonly unknown[], R>(
+  write: (...args: A) => Promise<R>,
+  changed: () => void,
+): (...args: A) => Promise<R> {
+  return async (...args) => {
+    try {
+      return await write(...args)
+    } finally {
+      changed()
+    }
+  }
+}
+
+export function withChanges(application: HitlApplication, changed: () => void): HitlApplication {
+  return {
+    ...application,
+    registerRequest: signalled(application.registerRequest, changed),
+    submitReply: signalled(application.submitReply, changed),
+    invalidateWait: signalled(application.invalidateWait, changed),
+    acknowledgeDelivery: signalled(application.acknowledgeDelivery, changed),
+    bindReceiver: signalled(application.bindReceiver, changed),
+    consumeDecision: signalled(application.consumeDecision, changed),
+  }
+}
+
+type CardSignals = Readonly<{
+  changes: CardChanges
+  changed(tenant: string): void
+  close(): void
+}>
+
+function createCardSignals(): CardSignals {
+  const listeners = new Map<string, Set<{ listener: CardChangeListener }>>()
+  let closed = false
+  const tell = (
+    entries: Iterable<{ listener: CardChangeListener }>,
+    what: 'changed' | 'closed',
+  ) => {
+    for (const entry of entries)
+      try {
+        entry.listener[what]()
+      } catch {}
+  }
+  return {
+    changes: Object.freeze({
+      subscribe(tenant: string, listener: CardChangeListener) {
+        if (closed) {
+          tell([{ listener }], 'closed')
+          return () => {}
+        }
+        const entry = { listener }
+        const set = listeners.get(tenant) ?? new Set()
+        set.add(entry)
+        listeners.set(tenant, set)
+        return () => {
+          set.delete(entry)
+          if (set.size === 0 && listeners.get(tenant) === set) listeners.delete(tenant)
+        }
+      },
+    }),
+    changed(tenant) {
+      const set = listeners.get(tenant)
+      if (set !== undefined) tell(set, 'changed')
+    },
+    close() {
+      closed = true
+      const all = [...listeners.values()].flatMap(set => [...set])
+      listeners.clear()
+      tell(all, 'closed')
+    },
+  }
+}
+
 export function createToolHitlHost(input: ToolHitlHostInput): ToolHitlHost {
   const cursorKey = randomBytes(32)
   const tenants = new Map<string, Tenant>()
+  const signals = createCardSignals()
   let closed = false
 
   const tenant = async (text: string): Promise<TenantHitl> => {
@@ -144,7 +220,9 @@ export function createToolHitlHost(input: ToolHitlHostInput): ToolHitlHost {
     })
     const made: Tenant = {
       domain: found.domain,
-      application: withDecided(application, input.decided),
+      application: withChanges(withDecided(application, input.decided), () =>
+        signals.changed(text),
+      ),
       destination: createHitlStandingDestination({ ...terminal, destination: HITL_DESTINATION }),
     }
     tenants.set(text, made)
@@ -199,8 +277,10 @@ export function createToolHitlHost(input: ToolHitlHostInput): ToolHitlHost {
         }
       },
     },
+    changes: signals.changes,
     async close() {
       closed = true
+      signals.close()
       const open = [...tenants.values()]
       tenants.clear()
       await Promise.allSettled(open.map(entry => entry.application.close()))

@@ -191,7 +191,7 @@
 ) {
   --omne-presence-x: 0px;
   --omne-presence-y: 4px;
-  animation: pe-presence-enter var(--omne-motion-enter) var(--omne-motion-ease-enter);
+  animation: omne-presence-enter var(--omne-motion-enter) var(--omne-motion-ease-enter);
 }
 :is(
   [data-slot='popover-content'],
@@ -262,7 +262,7 @@
   [data-motion='dialog']
 )[data-state='closed'] {
   pointer-events: none;
-  animation: pe-presence-exit var(--omne-motion-exit) var(--omne-motion-ease-exit);
+  animation: omne-presence-exit var(--omne-motion-exit) var(--omne-motion-ease-exit);
 }
 
 [data-slot='tooltip-content'][data-state='closed'] {
@@ -270,14 +270,14 @@
   pointer-events: none;
 }
 :is([data-slot='sheet-overlay'], [data-motion='overlay']) {
-  animation: pe-overlay-enter var(--omne-motion-enter) var(--omne-motion-ease-enter);
+  animation: omne-overlay-enter var(--omne-motion-enter) var(--omne-motion-ease-enter);
 }
 :is([data-slot='sheet-overlay'], [data-motion='overlay'])[data-state='closed'] {
   pointer-events: none;
-  animation: pe-overlay-exit var(--omne-motion-exit) var(--omne-motion-ease-exit);
+  animation: omne-overlay-exit var(--omne-motion-exit) var(--omne-motion-ease-exit);
 }
 
-@keyframes pe-presence-enter {
+@keyframes omne-presence-enter {
   from {
     opacity: 0;
     translate: var(--omne-presence-x) var(--omne-presence-y);
@@ -287,7 +287,7 @@
     translate: 0 0;
   }
 }
-@keyframes pe-presence-exit {
+@keyframes omne-presence-exit {
   from {
     opacity: 1;
     translate: 0 0;
@@ -297,7 +297,7 @@
     translate: var(--omne-presence-x) var(--omne-presence-y);
   }
 }
-@keyframes pe-overlay-enter {
+@keyframes omne-overlay-enter {
   from {
     opacity: 0;
   }
@@ -305,7 +305,7 @@
     opacity: 1;
   }
 }
-@keyframes pe-overlay-exit {
+@keyframes omne-overlay-exit {
   from {
     opacity: 1;
   }
@@ -325,7 +325,7 @@
   [data-slot='switch-thumb'],
   [data-segmented-thumb],
   [data-expand],
-  .pe-disclosure-trigger > svg {
+  .omne-disclosure-trigger > svg {
     transition: none !important;
   }
 
@@ -343,7 +343,7 @@
     [data-motion='overlay'],
     [data-slot='sheet-overlay']
   ) {
-    animation: pe-overlay-enter var(--omne-motion-feedback) var(--omne-motion-ease) !important;
+    animation: omne-overlay-enter var(--omne-motion-feedback) var(--omne-motion-ease) !important;
   }
   :is(
     [data-slot='popover-content'],
@@ -355,21 +355,21 @@
     [data-motion='overlay'],
     [data-slot='sheet-overlay']
   )[data-state='closed'] {
-    animation: pe-overlay-exit var(--omne-motion-feedback) var(--omne-motion-ease) !important;
+    animation: omne-overlay-exit var(--omne-motion-feedback) var(--omne-motion-ease) !important;
   }
   [data-slot='tooltip-content'][data-state='closed'] {
     animation: none !important;
   }
 }
 
-::view-transition-group(pe-object-cover),
-::view-transition-group(pe-object-title),
-::view-transition-group(pe-object-surface) {
+::view-transition-group(omne-object-cover),
+::view-transition-group(omne-object-title),
+::view-transition-group(omne-object-surface) {
   animation-duration: var(--omne-motion-layout);
   animation-timing-function: var(--omne-motion-ease-enter);
 }
-::view-transition-old(pe-object-title),
-::view-transition-new(pe-object-title) {
+::view-transition-old(omne-object-title),
+::view-transition-new(omne-object-title) {
   height: 100%;
   width: auto;
   object-fit: none;

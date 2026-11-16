@@ -1,4 +1,4 @@
-.pe-shimmer {
+.omne-shimmer {
   background-image: linear-gradient(
     90deg,
     var(--omne-ink-faint) 35%,
@@ -11,30 +11,30 @@
   color: transparent;
 }
 
-.pe-shimmer[data-paused='true'] {
+.omne-shimmer[data-paused='true'] {
   animation-play-state: paused;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pe-shimmer {
+  .omne-shimmer {
     background-image: none;
     color: var(--omne-ink-muted);
   }
 }
 
-.pe-tone {
+.omne-tone {
   box-shadow: 0 0 0 1px color-mix(in oklch, var(--omne-ai-tone) 28%, transparent);
 }
 
-.pe-tone-info {
+.omne-tone-info {
   --omne-ai-tone: var(--omne-accent);
 }
-.pe-tone-good {
+.omne-tone-good {
   --omne-ai-tone: var(--omne-good-ink);
 }
-.pe-tone-caution {
+.omne-tone-caution {
   --omne-ai-tone: var(--omne-caution-ink);
 }
-.pe-tone-danger {
+.omne-tone-danger {
   --omne-ai-tone: var(--omne-danger-ink);
 }

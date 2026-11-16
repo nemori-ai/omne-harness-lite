@@ -6,11 +6,12 @@ it('exports the slot store, the assembly error and the slot table, and nothing e
   expect(Object.keys(root).sort()).toEqual(['ShellAssemblyError', 'createSlotStore', 'slots'])
 })
 
-it('declares three slots, two of them lists', () => {
+it('declares four slots, three of them lists', () => {
   expect(slots).toEqual({
     gate: { kind: 'one' },
     pages: { kind: 'list' },
     sidebar: { kind: 'list' },
+    attached: { kind: 'list' },
   })
   expect(ShellAssemblyError.prototype).toBeInstanceOf(Error)
 })

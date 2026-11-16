@@ -22,5 +22,14 @@ export function useFollowBottom(...changes: readonly unknown[]) {
     const element = scroller.current
     if (element !== null && pinned.current) element.scrollTop = element.scrollHeight
   }, changes)
+  useLayoutEffect(() => {
+    const element = scroller.current
+    if (element === null || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => {
+      if (pinned.current) element.scrollTop = element.scrollHeight
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
   return { scroller, onScroll }
 }

@@ -10,11 +10,12 @@ const ids = (items: readonly { id: string }[]) => items.map(item => item.id)
 describe('createSlotStore', () => {
   it('starts empty in every slot', () => {
     const store = createSlotStore()
-    expect([store.items('gate'), store.items('pages'), store.items('sidebar')]).toEqual([
-      [],
-      [],
-      [],
-    ])
+    expect([
+      store.items('gate'),
+      store.items('pages'),
+      store.items('sidebar'),
+      store.items('attached'),
+    ]).toEqual([[], [], [], []])
   })
 
   it('holds one in the gate and refuses a second, whatever its id', () => {

@@ -1,5 +1,5 @@
 import { Context, type Fiber } from '@deepseek-ai/cordis'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AvailabilityFrame } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import {
@@ -687,5 +687,277 @@ describe('what the guarded client passes through', () => {
     await settle()
     await t.service()!.ping({}, { messageId: 'm-given' })
     expect(t.fake.calls.map(call => call.messageId)).toEqual(['m-given'])
+  })
+})
+
+describe('when the missing-client diagnostic is raised', () => {
+  it('a give-back alone raises nothing: the report waits for the next availability change', async () => {
+    const t = await tree({ withoutClient: true })
+    const leave = t.root.get('connection')!.claim(NOTES)
+    t.fake.push(snapshot(1, NOTES))
+    await settle()
+    leave()
+    await settle()
+    expect(t.diagnostics).toEqual([])
+    t.fake.push(added(2, OTHER))
+    await settle()
+    expect(names(t.diagnostics)).toEqual(['notes', 'other'])
+  })
+
+  it('a protocol already reported while open is not reported again when it is claimed and given back, and is reported anew after it closes and opens again', async () => {
+    const t = await tree({ withoutClient: true })
+    t.fake.push(snapshot(1, NOTES))
+    await settle()
+    const leave = t.root.get('connection')!.claim(NOTES)
+    t.fake.push(added(2, OTHER))
+    await settle()
+    leave()
+    t.fake.push(added(3, ACCESS))
+    await settle()
+    expect(names(t.diagnostics)).toEqual(['notes', 'other', 'access'])
+    t.fake.push(removed(4, NOTES))
+    t.fake.push(added(5, NOTES))
+    await settle()
+    expect(names(t.diagnostics)).toEqual(['notes', 'other', 'access', 'notes'])
+  })
+
+  it('a claim is for one name and one major: another major of the same name is still reported', async () => {
+    const t = await tree({ withoutClient: true })
+    t.root.get('connection')!.claim({ name: 'notes', major: 2 })
+    t.fake.push(snapshot(1, NOTES))
+    await settle()
+    expect(t.diagnostics).toEqual([{ code: 'protocol-client-missing', protocol: NOTES }])
+  })
+
+  it('a connection without a diagnostics sink applies the availability and stays silent', async () => {
+    const root = new Context()
+    roots.push(root)
+    const fake = fakeTransport()
+    await root.plugin(
+      connectionPlugin({
+        transport: fake.transport,
+        login: loginSource().source,
+        sleep: () => new Promise(resolve => setImmediate(resolve)),
+      }),
+    )
+    fake.push(snapshot(1, NOTES))
+    await settle()
+    fake.push(added(2, OTHER))
+    await settle()
+    const { availability } = root.get('connection')!
+    expect(availability.isOpen(NOTES)).toBe(true)
+    expect(availability.isOpen(OTHER)).toBe(true)
+  })
+})
+
+describe('the availability face of the connection', () => {
+  const keysOf = (open: ReadonlySet<{ readonly name: string }>): string[] =>
+    [...open].map(key => key.name)
+
+  it('answers closed before any view arrived, and closed again once the protocol is withdrawn', async () => {
+    const t = await tree()
+    const { availability } = t.root.get('connection')!
+    expect(availability.isOpen(NOTES)).toBe(false)
+    expect(availability.current().size).toBe(0)
+    t.fake.push(snapshot(1, NOTES))
+    await settle()
+    expect(availability.isOpen(NOTES)).toBe(true)
+    t.fake.push(removed(2, NOTES))
+    await settle()
+    expect(availability.isOpen(NOTES)).toBe(false)
+    expect(availability.current().size).toBe(0)
+  })
+
+  it('tells a subscriber the open set of each change, and nothing after it unsubscribed; the others keep hearing', async () => {
+    const t = await tree()
+    const { availability } = t.root.get('connection')!
+    const first: string[][] = []
+    const second: string[][] = []
+    const leaveFirst = availability.subscribe(open => first.push(keysOf(open)))
+    availability.subscribe(open => second.push(keysOf(open)))
+    t.fake.push(snapshot(1, ACCESS))
+    await settle()
+    leaveFirst()
+    leaveFirst()
+    t.fake.push(added(2, NOTES))
+    await settle()
+    expect(first).toEqual([['access']])
+    expect(second).toEqual([['access'], ['access', 'notes']])
+  })
+
+  it('does not call a listener added during a notification until the next change', async () => {
+    const t = await tree()
+    const { availability } = t.root.get('connection')!
+    const late: string[][] = []
+    let adding = true
+    availability.subscribe(() => {
+      if (!adding) return
+      adding = false
+      availability.subscribe(open => late.push(keysOf(open)))
+    })
+    t.fake.push(snapshot(1, ACCESS))
+    await settle()
+    expect(late).toEqual([])
+    t.fake.push(added(2, NOTES))
+    await settle()
+    expect(late).toEqual([['access', 'notes']])
+  })
+
+  it('hands on the login state, and a login subscriber hears nothing after it unsubscribed', async () => {
+    const t = await tree()
+    const { login } = t.root.get('connection')!
+    const heard: LoginState[] = []
+    const leave = login.subscribe(state => heard.push(state))
+    t.login.set('signing-in')
+    leave()
+    t.login.set('signed-in')
+    expect(heard).toEqual(['signing-in'])
+    expect(login.state()).toBe('signed-in')
+  })
+})
+
+describe('what a read-retry wait leaves behind', () => {
+  const policy = { delayMs: (): number => HANG_MS }
+
+  function watched(signal: AbortSignal): Set<unknown> {
+    const live = new Set<unknown>()
+    const target = signal as unknown as {
+      addEventListener: (type: string, listener: unknown, options?: unknown) => void
+      removeEventListener: (type: string, listener: unknown, options?: unknown) => void
+    }
+    const add = target.addEventListener.bind(signal)
+    const remove = target.removeEventListener.bind(signal)
+    target.addEventListener = (type, listener, options) => {
+      if (type === 'abort') live.add(listener)
+      add(type, listener, options)
+    }
+    target.removeEventListener = (type, listener, options) => {
+      if (type === 'abort') live.delete(listener)
+      remove(type, listener, options)
+    }
+    return live
+  }
+
+  it('no listener stays on the caller signal when the wait ends by a frame', async () => {
+    const t = await tree({ readRetry: policy })
+    t.fake.push(snapshot(1, ACCESS))
+    await settle()
+    const controller = new AbortController()
+    const live = watched(controller.signal)
+    const waiting = t.root.get('connection')!.readRetry!.wait(HANG_MS, controller.signal)
+    await settle()
+    expect(live.size).toBe(1)
+    t.fake.push(added(2, OTHER))
+    await waiting
+    expect(live.size).toBe(0)
+  })
+
+  it('no listener stays on the caller signal when the wait ends by the caller aborting', async () => {
+    const t = await tree({ readRetry: policy })
+    const controller = new AbortController()
+    const live = watched(controller.signal)
+    const waiting = t.root.get('connection')!.readRetry!.wait(HANG_MS, controller.signal)
+    await settle()
+    controller.abort()
+    await waiting
+    expect(live.size).toBe(0)
+    expect(t.delays).toEqual([HANG_MS])
+  })
+
+  describe('with the default timer', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    async function timed() {
+      const root = new Context()
+      roots.push(root)
+      const fake = fakeTransport()
+      await root.plugin(
+        connectionPlugin({
+          transport: fake.transport,
+          login: loginSource().source,
+          readRetry: policy,
+        }),
+      )
+      fake.push(snapshot(1, ACCESS))
+      await settle()
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      return root.get('connection')!.readRetry!
+    }
+
+    it('ends at once when the caller aborts, and leaves no timer running', async () => {
+      const retry = await timed()
+      const base = vi.getTimerCount()
+      const controller = new AbortController()
+      const waiting = retry.wait(HANG_MS, controller.signal)
+      expect(vi.getTimerCount()).toBe(base + 1)
+      controller.abort()
+      await waiting
+      expect(vi.getTimerCount()).toBe(base)
+    })
+
+    it('ends when the time is up, and leaves no timer running', async () => {
+      const retry = await timed()
+      const base = vi.getTimerCount()
+      const waiting = retry.wait(HANG_MS, undefined)
+      expect(vi.getTimerCount()).toBe(base + 1)
+      vi.advanceTimersByTime(HANG_MS)
+      await waiting
+      expect(vi.getTimerCount()).toBe(base)
+    })
+  })
+})
+
+describe('the protocol client and the connection: claim and subscription', () => {
+  it('claims its protocol once, listens once, and on unload gives the claim back once and stops listening', async () => {
+    const root = new Context()
+    roots.push(root)
+    const fake = fakeTransport()
+    await root.plugin(
+      connectionPlugin({
+        transport: fake.transport,
+        login: loginSource().source,
+        sleep: () => new Promise(resolve => setImmediate(resolve)),
+      }),
+    )
+    const connection = root.get('connection')!
+    const claims: string[] = []
+    const gives: string[] = []
+    const realClaim = connection.claim
+    ;(connection as { claim: Connection['claim'] }).claim = key => {
+      claims.push(key.name)
+      const give = realClaim(key)
+      return () => {
+        gives.push(key.name)
+        give()
+      }
+    }
+    let listening = 0
+    const realSubscribe = connection.availability.subscribe
+    ;(connection.availability as { subscribe: Connection['availability']['subscribe'] }).subscribe =
+      listener => {
+        listening += 1
+        const leave = realSubscribe(listener)
+        return () => {
+          listening -= 1
+          leave()
+        }
+      }
+    let client: Fiber | undefined
+    await root.plugin({
+      name: 'host',
+      apply(ctx: Context) {
+        client = ctx.fiber
+        ctx.plugin(defineProtocolClient(notesProtocol))
+      },
+    })
+    await settle()
+    expect(claims).toEqual(['notes'])
+    expect(listening).toBe(1)
+    expect(gives).toEqual([])
+    await client!.dispose()
+    expect(gives).toEqual(['notes'])
+    expect(listening).toBe(0)
   })
 })

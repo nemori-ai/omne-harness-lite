@@ -128,6 +128,15 @@
   overscroll-behavior: contain;
   padding: 8px 0 24px;
 }
+.omne-session-dock {
+  flex: none;
+  max-height: 70%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.omne-session-dock:empty {
+  display: none;
+}
 .omne-conversation > * + * {
   margin-top: var(--omne-space-block);
 }
@@ -241,6 +250,12 @@
 .omne-ask-options {
   margin: 0;
   padding-left: 18px;
+}
+.omne-ask-options li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--omne-space-inline);
 }
 .omne-ask-text,
 .omne-ask-hint {

@@ -4,7 +4,6 @@ import type { Principal } from '@omne-harness/access-cordis-contract'
 import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
-import { createAccessIdentity } from '@omne-harness/identity-access'
 import {
   definitionMappingsKey,
   definitionResolverOf,
@@ -33,7 +32,7 @@ import {
 } from '../../assembly/session-modes-initialization.ts'
 import { LOCAL_HISTORY_KINDS } from '../../local/operator-defaults.ts'
 import { defineRow } from '../../row.ts'
-import { governanceOfCall, identityOfCall } from '../server-entry/identity.ts'
+import { accessIdentityOfCall, memberActingOfCall } from '../server-entry/identity.ts'
 import { runFailureCauses } from './causes.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
@@ -62,14 +61,11 @@ export const sessionAccessConfig = z
 const LOGIN_WORK_OWNER = 'identity-login'
 
 function targetTenantPrincipals(ctx: Context): TargetTenantPrincipals {
-  const identity = createAccessIdentity({
-    operations: identityOfCall(ctx),
-    governance: governanceOfCall(ctx),
-    issuer: ctx.principalIssuer,
-  })
+  const identity = accessIdentityOfCall(ctx)
+  const actForMember = memberActingOfCall(ctx, identity)
   return {
     async actingFor(login, tenant) {
-      const issued = await identity.actFor(login, tenant)
+      const issued = await actForMember(login, tenant)
       return issued.outcome === 'issued' ? { ok: issued.principal } : { refused: issued.outcome }
     },
     async resume(tenant, login) {

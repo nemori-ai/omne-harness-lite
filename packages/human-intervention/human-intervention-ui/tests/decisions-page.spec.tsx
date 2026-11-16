@@ -3,13 +3,15 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import type { HumanInterventionCardItem } from '@omne-harness/human-intervention-protocol'
 import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
-import { DecisionsPage } from '../src/index.ts'
+import { CardsHub, DecisionsPage } from '../src/index.ts'
 import { approvalItem, page, questionItem } from './fixtures/cards.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
+
+const hubOf = (fake: FakeClient) => new CardsHub({ client: fake.client })
 
 beforeAll(stubAnimation)
 
@@ -37,7 +39,7 @@ async function listed(
   items: readonly HumanInterventionCardItem[] = [questionItem()],
 ): Promise<FakeClient> {
   const fake = createFakeClient()
-  render(<DecisionsPage client={fake.client} tenant={TENANT} />)
+  render(<DecisionsPage hub={hubOf(fake)} tenant={TENANT} />)
   await answer(fake, 'list-cards', page(items))
   return fake
 }
@@ -51,7 +53,7 @@ const submitButton = (scope: ReturnType<typeof card>) => scope.getByRole('button
 
 it('V1 打开时只列当前租户待定的卡：一页一百张', async () => {
   const fake = createFakeClient()
-  render(<DecisionsPage client={fake.client} tenant={TENANT} />)
+  render(<DecisionsPage hub={hubOf(fake)} tenant={TENANT} />)
   const call = await fake.next('list-cards')
   expect(call.body).toMatchObject({
     filter: { states: ['pending'] },
@@ -65,7 +67,10 @@ it('V1 打开时只列当前租户待定的卡：一页一百张', async () => {
 it('V2 问题卡：来自哪个会话、问题、每个选项、用自己的话、跳过', async () => {
   await listed()
   const question = card('用哪个分支发布？')
-  expect(question.getByText('ses_01234567…')).toBeTruthy()
+  expect(question.getByText('问询')).toBeTruthy()
+  expect(question.getByText('ses_01234567…').closest('.hitl-card-origin')?.textContent).toBe(
+    '会话ses_01234567…',
+  )
   expect(question.getByText('有两个候选分支。')).toBeTruthy()
   expect(question.getByText('从主干发布。')).toBeTruthy()
   expect(question.getAllByRole('radio')).toHaveLength(4)
@@ -75,13 +80,21 @@ it('V2 问题卡：来自哪个会话、问题、每个选项、用自己的话�
   expect((submitButton(question) as HTMLButtonElement).disabled).toBe(true)
 })
 
-it('V3 批准卡：只列协议给的选项，没有会话时写来源', async () => {
-  await listed([approvalItem()])
+it('V3 批准卡：协议给的选项之外同样能用自己的话回答、能跳过；没有会话时写来源', async () => {
+  const fake = await listed([approvalItem()])
   const approval = card('运行 rm -rf build？')
-  expect(approval.getAllByRole('radio')).toHaveLength(2)
-  expect(approval.queryByText('跳过')).toBeNull()
-  expect(approval.queryByText('用自己的话回答')).toBeNull()
+  expect(approval.getAllByRole('radio')).toHaveLength(4)
+  expect(approval.getByText('用自己的话回答')).toBeTruthy()
+  expect(approval.getByText('跳过')).toBeTruthy()
   expect(approval.getByText('准入')).toBeTruthy()
+  expect(approval.getByText('请示')).toBeTruthy()
+  choose(approval, '跳过')
+  fireEvent.click(submitButton(approval))
+  const call = await fake.next('submit-reply')
+  expect(call.body).toMatchObject({
+    reply: { kind: 'decline' },
+    card: approvalItem().card.ref,
+  })
 })
 
 it('V4 选一个选项提交：带修订号；决定了就去掉卡，说「已提交」，再取列表', async () => {
@@ -162,7 +175,7 @@ it('V7 被拒：显示原因，可以再提交', async () => {
 
 it('V8 读不出：显示原因与「重试」，重试再取一次', async () => {
   const fake = createFakeClient()
-  render(<DecisionsPage client={fake.client} tenant={TENANT} />)
+  render(<DecisionsPage hub={hubOf(fake)} tenant={TENANT} />)
   await answer(fake, 'list-cards', { outcome: 'basis-unavailable' })
   expect(screen.getByText('服务端暂时读不出需要的依据，稍后再试。')).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: '重试' }))
@@ -181,15 +194,38 @@ it('V9 点「刷新」再取一次；不点就不再取', async () => {
 
 it('V10 列表不全时说出来', async () => {
   const fake = createFakeClient()
-  render(<DecisionsPage client={fake.client} tenant={TENANT} />)
+  render(<DecisionsPage hub={hubOf(fake)} tenant={TENANT} />)
   await answer(fake, 'list-cards', page([], null, 'partial'))
   expect(screen.getByText('列表不全：有的来源暂时读不出，这里没有列全。')).toBeTruthy()
 })
 
 it('V11 外壳给的租户读不懂：说明，不发请求', async () => {
   const fake = createFakeClient()
-  render(<DecisionsPage client={fake.client} tenant="not-a-tenant" />)
+  render(<DecisionsPage hub={hubOf(fake)} tenant="not-a-tenant" />)
   await settle()
   expect(screen.getByText('外壳给的租户读不懂，这一页不能工作。')).toBeTruthy()
   expect(fake.calls).toHaveLength(0)
+  expect(fake.observations).toHaveLength(0)
+})
+
+it('V12 一帧来了就重读，新的卡出现', async () => {
+  const fake = await listed([])
+  expect(fake.observations[0]!.open).toMatchObject({ tenant: expect.anything() })
+  fake.observations[0]!.frame()
+  await settle()
+  await answer(fake, 'list-cards', page([questionItem()]))
+  expect(screen.getByRole('heading', { name: '用哪个分支发布？' })).toBeTruthy()
+})
+
+it('V13 更新断了：说正在重连；被拒：说没有权限接收更新', async () => {
+  const fake = await listed([])
+  fake.observations[0]!.end({ kind: 'unavailable' })
+  await settle()
+  expect(screen.getByText('更新暂时连不上，列表可能不是最新的，正在重连。')).toBeTruthy()
+  cleanup()
+  const other = await listed([])
+  other.observations[0]!.end({ kind: 'refused', outcome: 'denied' })
+  await settle()
+  expect(screen.getByText('没有权限接收更新，或登录已失效。')).toBeTruthy()
+  expect(screen.queryByText('更新暂时连不上，列表可能不是最新的，正在重连。')).toBeNull()
 })

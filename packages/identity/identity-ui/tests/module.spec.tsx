@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { Context } from '@deepseek-ai/cordis'
+import type { ReactNode } from 'react'
 import {
   createSlotStore,
   type ItemOf,
@@ -27,6 +28,12 @@ class TestShell extends ShellService {
     this.scope = config.scope
   }
   navigate(): void {}
+  attached(anchor: string, subject: string): ReactNode {
+    return this.store
+      .items('attached')
+      .filter(item => item.anchor === anchor)
+      .map(item => item.render({ scope: this.scope.get(), subject }))
+  }
   protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
     return this.store.place(slot, item)
   }

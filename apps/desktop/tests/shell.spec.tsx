@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
+import type { ReactNode } from 'react'
 import type {
   LoginCredentials,
   LogoutResult,
@@ -278,6 +279,135 @@ describe('外壳：侧栏区与租户', () => {
     expect(t.chosen).toEqual(['dark'])
     fireEvent.click(screen.getByRole('button', { name: '换成浅色' }))
     expect(t.chosen).toEqual(['dark', 'light'])
+  })
+})
+
+describe('外壳：附着位置与页面标记', () => {
+  const attachedItem = (id: string, anchor: string, order = 0) =>
+    defineUiModule({
+      name: `attached-${id}`,
+      inject: [],
+      apply(shell) {
+        shell.contribute('attached', {
+          id,
+          order,
+          anchor,
+          render: ({ scope, subject }) => (
+            <p data-attached={id} data-scope={scope ?? ''} data-subject={subject}>
+              {`附着${id}`}
+            </p>
+          ),
+        })
+      },
+    })
+  const hostPage = (anchor: string, subject: string) =>
+    defineUiModule({
+      name: 'host-page',
+      inject: [],
+      apply(shell) {
+        shell.contribute('pages', {
+          id: 'host',
+          title: '宿主',
+          order: 0,
+          render: (): ReactNode => shell.attached(anchor, subject),
+        })
+      },
+    })
+  const attachedIds = () =>
+    [...document.querySelectorAll('[data-attached]')].map(node =>
+      node.getAttribute('data-attached'),
+    )
+
+  it('名字相同的项按次序出现在宿主页里，收到给的对象与当前租户', async () => {
+    const t = await setup({
+      login: 'signed-in',
+      modules: [
+        attachedItem('late', 'a', 2),
+        attachedItem('other', 'b'),
+        attachedItem('early', 'a', 1),
+        hostPage('a', 's1'),
+      ],
+    })
+    act(() => t.state.scope.set('tenant-x'))
+    expect(attachedIds()).toEqual(['early', 'late'])
+    const first = document.querySelector<HTMLElement>('[data-attached="early"]')!
+    expect(first.dataset['subject']).toBe('s1')
+    expect(first.dataset['scope']).toBe('tenant-x')
+    expect(document.querySelector('.shell-page > p')?.parentElement?.children).toHaveLength(2)
+  })
+
+  it('没有名字相同的项时什么都不渲染', async () => {
+    const t = await setup({
+      login: 'signed-in',
+      modules: [attachedItem('x', 'b'), hostPage('a', 's1')],
+    })
+    act(() => t.state.scope.set('tenant-x'))
+    expect(document.querySelector('.shell-page')?.childElementCount).toBe(0)
+  })
+
+  it('项撤下后消失，放进来后出现', async () => {
+    const module = attachedItem('x', 'a')
+    const t = await setup({ login: 'signed-in', modules: [hostPage('a', 's1')] })
+    expect(attachedIds()).toEqual([])
+    const fiber = t.root.plugin(module)
+    await act(async () => {
+      await fiber
+    })
+    expect(attachedIds()).toEqual(['x'])
+    await act(async () => {
+      await fiber.dispose()
+    })
+    expect(attachedIds()).toEqual([])
+  })
+
+  it('租户变了，已经渲染的项跟着重渲染', async () => {
+    const t = await setup({
+      login: 'signed-in',
+      modules: [attachedItem('x', 'a'), hostPage('a', 's1')],
+    })
+    act(() => t.state.scope.set('t1'))
+    expect(document.querySelector<HTMLElement>('[data-attached="x"]')?.dataset['scope']).toBe('t1')
+    act(() => t.state.scope.set('t2'))
+    expect(document.querySelector<HTMLElement>('[data-attached="x"]')?.dataset['scope']).toBe('t2')
+  })
+
+  it('宿主不重渲染时，服务给出的元素自己也跟着租户的变化', async () => {
+    const t = await setup({ login: 'signed-in', modules: [attachedItem('x', 'a')] })
+    const view = render(<>{t.service.attached('a', 's1')}</>)
+    const scopeOf = () =>
+      view.container.querySelector<HTMLElement>('[data-attached="x"]')?.dataset['scope']
+    expect(scopeOf()).toBe('')
+    act(() => t.state.scope.set('t3'))
+    expect(scopeOf()).toBe('t3')
+  })
+
+  it('页面项的标记出现在导航里标题之后，收到租户；标记为空时那个元素是空的', async () => {
+    let text: string | null = '还有 2 张'
+    const module = defineUiModule({
+      name: 'badged',
+      inject: [],
+      apply(shell) {
+        shell.contribute('pages', {
+          id: 'badged',
+          title: '待办',
+          order: 0,
+          badge: ({ scope }) => (text === null ? null : `${text}${scope ?? ''}`),
+          render: () => null,
+        })
+        shell.contribute('pages', { id: 'plain', title: '无标记', order: 1, render: () => null })
+      },
+    })
+    const t = await setup({ login: 'signed-in', modules: [module] })
+    act(() => t.state.scope.set('x'))
+    const links = [...document.querySelectorAll('.shell-nav-link')]
+    expect(links[0]!.querySelector('.shell-nav-badge')?.textContent).toBe('还有 2 张x')
+    expect(links[0]!.lastElementChild?.className).toBe('shell-nav-badge')
+    expect(links[1]!.querySelector('.shell-nav-badge')).toBeNull()
+    text = null
+    act(() => t.state.scope.set('y'))
+    const empty = document.querySelector('.shell-nav-badge')
+    expect(empty).not.toBeNull()
+    expect(empty?.textContent).toBe('')
   })
 })
 

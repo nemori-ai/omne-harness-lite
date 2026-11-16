@@ -2,7 +2,7 @@ import type {
   HumanInterventionCardItem,
   HumanInterventionProtocol,
 } from '@omne-harness/human-intervention-protocol'
-import type { BodyOf, ClientOf } from '@omne-harness/sdk/core'
+import type { BodyOf, ClientOf, ObservationEnd } from '@omne-harness/sdk/core'
 
 type Client = ClientOf<HumanInterventionProtocol>
 type Answer<K extends Exclude<keyof Client, 'observe'>> = Awaited<ReturnType<Client[K]>>
@@ -10,11 +10,20 @@ export type ListAnswer = Answer<'list-cards'>
 export type ReplyAnswer = Answer<'submit-reply'> | Answer<'query-submit-reply'>
 export type Reply = BodyOf<HumanInterventionProtocol['operations']['submit-reply']>['reply']
 export type CardRef = HumanInterventionCardItem['card']['ref']
+export type CardsEnd = ObservationEnd<HumanInterventionProtocol['observations']['observe-cards']>
 
 export type Notice = Readonly<{
   kind: 'done' | 'refused' | 'unavailable' | 'unknown'
   text: string
 }>
+
+export type Last = Readonly<{ notice: Notice; sessionRef: string | undefined }>
+
+export type Live =
+  | Readonly<{ kind: 'off' }>
+  | Readonly<{ kind: 'on'; generation: number; attempt: number }>
+  | Readonly<{ kind: 'retrying'; generation: number; attempt: number }>
+  | Readonly<{ kind: 'denied' }>
 
 export type Sent = Readonly<{
   card: CardRef
@@ -46,7 +55,10 @@ export type State = Readonly<{
   entries: readonly Entry[]
   read: Read
   issued: number
-  last: Notice | null
+  again: boolean
+  live: Live
+  generations: number
+  last: Last | null
 }>
 
 export type Event =
@@ -55,15 +67,31 @@ export type Event =
   | Readonly<{ kind: 'submit'; key: string; reply: Reply; replyId: string }>
   | Readonly<{ kind: 'reply-answered'; key: string; replyId: string; answer: ReplyAnswer }>
   | Readonly<{ kind: 'confirm'; key: string }>
+  | Readonly<{ kind: 'watch' }>
+  | Readonly<{ kind: 'unwatch' }>
+  | Readonly<{ kind: 'frame'; generation: number }>
+  | Readonly<{ kind: 'observation-ended'; generation: number; end: CardsEnd }>
+  | Readonly<{ kind: 'reconnect-due'; generation: number }>
 
 export type Effect =
   | Readonly<{ kind: 'list'; token: number; cursor: string | null }>
   | Readonly<{ kind: 'submit'; key: string; sent: Sent }>
   | Readonly<{ kind: 'query'; key: string; sent: Sent }>
+  | Readonly<{ kind: 'observe'; generation: number }>
+  | Readonly<{ kind: 'stop-observing' }>
+  | Readonly<{ kind: 'reconnect-later'; generation: number; attempt: number }>
 
 export type Step = Readonly<{ state: State; effects: readonly Effect[] }>
 
-export const INITIAL: State = { entries: [], read: { kind: 'never' }, issued: 0, last: null }
+export const INITIAL: State = {
+  entries: [],
+  read: { kind: 'never' },
+  issued: 0,
+  again: false,
+  live: { kind: 'off' },
+  generations: 0,
+  last: null,
+}
 
 export const keyOf = (ref: CardRef): string =>
   JSON.stringify([ref.request.tenantRef, ref.request.requestId, ref.cardId])
@@ -152,11 +180,15 @@ function merge(entries: readonly Entry[], items: readonly HumanInterventionCardI
   return [...listed, ...kept]
 }
 
+function readDone(state: State): Step {
+  return state.again ? readList({ ...state, again: false }) : same(state)
+}
+
 function listAnswered(state: State, token: number, answer: ListAnswer): Step {
   const read = state.read
   if (read.kind !== 'reading' || read.token !== token) return same(state)
   if (answer.outcome !== 'succeeded')
-    return same({
+    return readDone({
       ...state,
       read: { kind: 'failed', notice: refusal(answer.outcome, READ_SENTENCES) },
     })
@@ -168,7 +200,7 @@ function listAnswered(state: State, token: number, answer: ListAnswer): Step {
       state: { ...state, read: { kind: 'reading', token, collected, partial } },
       effects: [{ kind: 'list', token, cursor: page.next }],
     }
-  return same({
+  return readDone({
     ...state,
     entries: merge(state.entries, collected),
     read: { kind: 'read', partial },
@@ -199,8 +231,12 @@ function submit(state: State, key: string, reply: Reply, replyId: string): Step 
   ])
 }
 
-function settled(state: State, key: string, last: Notice): Step {
-  const kept = { ...state, entries: state.entries.filter(entry => entry.key !== key), last }
+function settled(state: State, entry: Entry, notice: Notice): Step {
+  const kept = {
+    ...state,
+    entries: state.entries.filter(candidate => candidate.key !== entry.key),
+    last: { notice, sessionRef: entry.item.origin.sessionRef },
+  }
   return readList(kept)
 }
 
@@ -218,9 +254,9 @@ function replyAnswered(state: State, key: string, replyId: string, answer: Reply
   switch (answer.outcome) {
     case 'succeeded': {
       const result = answer.body
-      if (result.kind === 'decided') return settled(state, key, SUBMITTED)
-      if (result.kind === 'already-decided') return settled(state, key, ALREADY_DECIDED)
-      return settled(state, key, {
+      if (result.kind === 'decided') return settled(state, entry, SUBMITTED)
+      if (result.kind === 'already-decided') return settled(state, entry, ALREADY_DECIDED)
+      return settled(state, entry, {
         kind: 'done',
         text: INVALIDATED[result.reason] ?? INVALIDATED_OTHER,
       })
@@ -258,6 +294,46 @@ function confirm(state: State, key: string): Step {
   ])
 }
 
+function observe(state: State, attempt: number): Step {
+  const generation = state.generations + 1
+  const read = readList({
+    ...state,
+    generations: generation,
+    live: { kind: 'on', generation, attempt },
+  })
+  return { state: read.state, effects: [...read.effects, { kind: 'observe', generation }] }
+}
+
+function frame(state: State, generation: number): Step {
+  const live = state.live
+  if (live.kind !== 'on' || live.generation !== generation) return same(state)
+  const settled: State = live.attempt === 0 ? state : { ...state, live: { ...live, attempt: 0 } }
+  return settled.read.kind === 'reading' ? same({ ...settled, again: true }) : readList(settled)
+}
+
+const deniedEnd = (end: CardsEnd): boolean =>
+  (end.kind === 'ended' && end.reason === 'denied') ||
+  (end.kind === 'refused' && end.outcome === 'denied')
+
+function observationEnded(state: State, generation: number, end: CardsEnd): Step {
+  const live = state.live
+  if (live.kind === 'off' || live.kind === 'denied' || live.generation !== generation)
+    return same(state)
+  if (deniedEnd(end)) return same({ ...state, live: { kind: 'denied' } })
+  if (end.kind === 'aborted') return same(state)
+  const attempt = live.attempt + 1
+  return {
+    state: { ...state, live: { kind: 'retrying', generation, attempt } },
+    effects: [{ kind: 'reconnect-later', generation, attempt }],
+  }
+}
+
+function reconnectDue(state: State, generation: number): Step {
+  const live = state.live
+  if (live.kind !== 'retrying' || live.generation !== generation) return same(state)
+  return observe(state, live.attempt)
+}
+
 export function step(state: State, event: Event): Step {
   switch (event.kind) {
     case 'read-list':
@@ -270,5 +346,17 @@ export function step(state: State, event: Event): Step {
       return replyAnswered(state, event.key, event.replyId, event.answer)
     case 'confirm':
       return confirm(state, event.key)
+    case 'watch':
+      return state.live.kind === 'off' ? observe(state, 0) : same(state)
+    case 'unwatch':
+      return state.live.kind === 'off'
+        ? same(state)
+        : { state: { ...state, live: { kind: 'off' } }, effects: [{ kind: 'stop-observing' }] }
+    case 'frame':
+      return frame(state, event.generation)
+    case 'observation-ended':
+      return observationEnded(state, event.generation, event.end)
+    case 'reconnect-due':
+      return reconnectDue(state, event.generation)
   }
 }

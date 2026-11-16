@@ -156,6 +156,31 @@ body,
   flex: none;
 }
 
+.shell-nav-badge {
+  margin-left: auto;
+  padding: 0 8px;
+  border-radius: var(--omne-radius-pill);
+  background: var(--omne-accent);
+  color: var(--omne-accent-ink);
+  font-size: var(--omne-text-caption);
+  line-height: var(--omne-leading-ui);
+}
+
+.shell-nav-badge:empty {
+  display: none;
+}
+
+.shell-navigation-content[data-expanded='false'] .shell-nav-badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  padding: 0;
+  overflow: hidden;
+  font-size: 0;
+}
+
 .shell-nav-link:hover,
 .shell-utility-button:hover {
   color: var(--omne-ink-primary);

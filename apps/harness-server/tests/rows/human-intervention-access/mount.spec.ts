@@ -11,6 +11,7 @@ import { rowManifests } from '../../../src/s0/stubs.ts'
 import { savedLoginProof, savedTenant } from '../../r9/support.ts'
 import { onReleaseTree, toolCallsThenText, type ReleaseTree } from '../../support/release-tree.ts'
 import { until } from '../../support/listening.ts'
+import { tenantOf } from '../../support/protocol-clients.ts'
 
 type Reply = Readonly<{ status: number; json: any }>
 
@@ -204,6 +205,50 @@ describe('human-intervention-access row', () => {
             'm-foreign',
           )
           expect(foreign.json).toMatchObject({ outcome: 'denied' })
+        },
+      )
+      expect(exitCode).toBe(0)
+    },
+  )
+
+  it(
+    'an observer of the cards gets a frame at once and another one after a card is registered',
+    { tags: ['slow'], timeout: 240_000 },
+    async () => {
+      const exitCode = await onReleaseTree(
+        {
+          script: toolCallsThenText(() => [{ id: 'call_ask', tool: 'Ask', arguments: ASK }]),
+          permission: 'bypass-permissions',
+        },
+        async tree => {
+          const controller = new AbortController()
+          const frames: unknown[] = []
+          const stream = tree.clients.humanIntervention.observe['observe-cards'](
+            { tenant: tenantOf(savedTenant(tree.home)) },
+            { signal: controller.signal },
+          )
+          const pumping = (async () => {
+            for (;;) {
+              const next = await stream.next()
+              if (next.done === true) return next.value
+              frames.push(next.value)
+            }
+          })()
+          try {
+            await until(() => frames.length >= 1, 'the first frame', 10_000)
+            expect(frames).toEqual([{ kind: 'changed' }])
+            const session = await tree.startSession('start: ask me')
+            await until(
+              async () => (await tree.cards({ sessionRef: session })).length === 1,
+              'the card',
+              120_000,
+            )
+            await until(() => frames.length >= 2, 'a frame after the card', 10_000)
+            for (const frame of frames) expect(frame).toEqual({ kind: 'changed' })
+          } finally {
+            controller.abort()
+            await pumping
+          }
         },
       )
       expect(exitCode).toBe(0)
