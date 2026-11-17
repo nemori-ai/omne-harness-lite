@@ -94,11 +94,11 @@ export function memberBatches(
 export function batchQueue(
   members: readonly string[],
   known: (member: string) => readonly FileTime[],
-  targetSeconds: number,
+  target: (member: string) => number,
   skipped: (member: string) => ReadonlySet<string> = () => new Set(),
 ): Batch[] {
   return members
-    .flatMap(member => memberBatches(member, known(member), targetSeconds, skipped(member)))
+    .flatMap(member => memberBatches(member, known(member), target(member), skipped(member)))
     .map((batch, order) => ({ batch, order }))
     .sort((a, b) => b.batch.seconds - a.batch.seconds || a.order - b.order)
     .map(({ batch }) => batch)

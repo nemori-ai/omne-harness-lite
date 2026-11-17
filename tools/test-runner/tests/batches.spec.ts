@@ -143,8 +143,27 @@ describe('所有成员的批排成一个队列', () => {
       big: [at('tests/x.spec.ts', 200), at('tests/y.spec.ts', 150)],
       same: [at('tests/t.spec.ts', 10)],
     }
-    const queue = batchQueue(['small', 'big', 'same', 'fresh'], member => known[member] ?? [], 90)
+    const queue = batchQueue(
+      ['small', 'big', 'same', 'fresh'],
+      member => known[member] ?? [],
+      () => 90,
+    )
     expect(queue.map(batchLabel)).toEqual(['fresh', 'big#1', 'big#2', 'small', 'same', 'big#rest'])
+  })
+
+  it('每个成员按自己的目标时长切：启动开销大的成员一批更大、批数更少', () => {
+    const files = [at('tests/a.spec.ts', 100), at('tests/b.spec.ts', 90), at('tests/c.spec.ts', 80)]
+    const queue = batchQueue(
+      ['slow-start', 'quick'],
+      () => files,
+      member => (member === 'slow-start' ? 200 : 90),
+    )
+    expect(
+      queue.filter(batch => batch.member === 'slow-start' && batch.kind === 'files'),
+    ).toHaveLength(2)
+    expect(queue.filter(batch => batch.member === 'quick' && batch.kind === 'files')).toHaveLength(
+      3,
+    )
   })
 })
 

@@ -245,6 +245,25 @@ export interface MemberSpan {
   readonly perWorker: number
   readonly weightSource: WeightSource
   readonly cpuSeconds?: number
+  readonly startupSeconds?: number
+}
+
+export function startupUse(spans: readonly MemberSpan[]): string | undefined {
+  const measured = spans.filter(span => span.startupSeconds !== undefined)
+  if (measured.length === 0) return undefined
+  const startup = measured.reduce((sum, span) => sum + (span.startupSeconds ?? 0), 0)
+  const wall = measured.reduce((sum, span) => sum + (span.end - span.start) / 1000, 0)
+  return (
+    `启动开销：${measured.length} 批从起批到第一份文件开跑平均 ${(startup / measured.length).toFixed(1)} 秒，` +
+    `合计 ${Math.round(startup)} 秒，占这些批墙钟的 ${wall === 0 ? '0.0' : ((100 * startup) / wall).toFixed(1)}%`
+  )
+}
+
+export function startupOfRun(run: MemberRun, start: number): number | undefined {
+  const first = Math.min(
+    ...(run.report?.testResults ?? []).map(result => result.startTime).filter(time => time > 0),
+  )
+  return Number.isFinite(first) ? Math.round(Math.max(0, first - start) / 100) / 10 : undefined
 }
 
 async function scheduleMembers(
@@ -525,6 +544,7 @@ export async function runTurboTests(
           workers,
           build.readSets === true,
         )
+        const startupSeconds = startupOfRun(run, start)
         spans.push({
           member: member.path,
           ...(batch.kind === 'whole' ? {} : { batch: batchLabel(batch) }),
@@ -535,6 +555,7 @@ export async function runTurboTests(
           perWorker,
           weightSource,
           ...(run.cpuSeconds === undefined ? {} : { cpuSeconds: run.cpuSeconds }),
+          ...(startupSeconds === undefined ? {} : { startupSeconds }),
         })
         finish(member, batch, run)
       },

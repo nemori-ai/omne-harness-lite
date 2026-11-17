@@ -21,6 +21,13 @@ export interface ParallelPolicy {
   readonly tokensPerWorker: readonly WorkerTokens[]
   readonly weight: WeightPolicy
   readonly batchSeconds: number
+  readonly startupShare: number
+}
+
+export function batchTarget(policy: ParallelPolicy, startupSeconds: number | undefined): number {
+  return startupSeconds === undefined
+    ? policy.batchSeconds
+    : Math.max(policy.batchSeconds, Math.round(startupSeconds / policy.startupShare))
 }
 
 export interface WeightReading {

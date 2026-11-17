@@ -7,6 +7,7 @@ import { dirname, join, relative, resolve } from 'node:path'
 import { batchQueue } from './batches.ts'
 import {
   describeBudget,
+  batchTarget,
   memberDemand,
   READING_VERSION,
   WORKER_BUDGET_ENV,
@@ -86,6 +87,7 @@ import {
   runMembers,
   runTurboTests,
   slugOf,
+  startupUse,
   tokenUse,
   type MemberSchedule,
   type MemberSpan,
@@ -552,7 +554,7 @@ function scheduleOf(
       batchQueue(
         members.map(member => member.path),
         member => history.get(member)?.fileTimes ?? [],
-        policy.batchSeconds,
+        member => batchTarget(policy, history.get(member)?.startupSeconds),
         member => skippedOf(reuse, member),
       ),
     cached: member => cachedRun(member, root, reuse.get(member) ?? new Map()),
@@ -674,8 +676,8 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
     runDir,
     ...(hits.size === 0 ? {} : { cachedMembers: hits.size }),
   })
-  const use = tokenUse(spans)
-  if (use !== undefined) summary.push(use)
+  for (const line of [tokenUse(spans), startupUse(spans)])
+    if (line !== undefined) summary.push(line)
   if (ledger.failures.length > 0)
     summary.push(`对这些失败做隔离重跑：pnpm run test:triage --run ${runDir}`)
   if (lookup !== undefined && recorded !== undefined)
@@ -737,6 +739,7 @@ function tokenJobs(spans: readonly MemberSpan[], started: number) {
     weightSource: span.weightSource,
     readingVersion: READING_VERSION,
     ...(span.cpuSeconds === undefined ? {} : { cpuSeconds: span.cpuSeconds }),
+    ...(span.startupSeconds === undefined ? {} : { startupSeconds: span.startupSeconds }),
     start: Math.round((span.start - started) / 100) / 10,
     end: Math.round((span.end - started) / 100) / 10,
   }))

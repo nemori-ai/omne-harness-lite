@@ -10,6 +10,7 @@ export interface MemberReading {
   readonly files: number
   readonly fileTimes: readonly FileTime[]
   readonly weights: readonly WeightReading[]
+  readonly startupSeconds?: number
 }
 
 const LEDGERS_READ = 20
@@ -21,6 +22,7 @@ interface Job {
   readonly start?: unknown
   readonly end?: unknown
   readonly readingVersion?: unknown
+  readonly startupSeconds?: unknown
 }
 
 type LedgerWithJobs = Partial<LedgerFile> & {
@@ -42,6 +44,15 @@ export function readingOf(jobs: readonly Job[], member: string): WeightReading |
     measured = true
   }
   return measured ? { cpuSeconds, processSeconds } : undefined
+}
+
+export function startupOf(jobs: readonly Job[], member: string): number | undefined {
+  const seconds = jobs.flatMap(job =>
+    job.member === member && isNumber(job.startupSeconds) ? [job.startupSeconds] : [],
+  )
+  return seconds.length === 0
+    ? undefined
+    : Math.round((seconds.reduce((sum, value) => sum + value, 0) / seconds.length) * 10) / 10
 }
 
 function tierOf(runName: string): RunTier | undefined {
@@ -93,10 +104,17 @@ export function memberHistory(home: string, tier: RunTier): Map<string, MemberRe
   ledgers.sort((a, b) => b.mtime - a.mtime)
   const readings = new Map<
     string,
-    { seconds: number; files: number; fileTimes: FileTime[]; weights: WeightReading[] }
+    {
+      seconds: number
+      files: number
+      fileTimes: FileTime[]
+      weights: WeightReading[]
+      startupSeconds?: number
+    }
   >()
   for (const { path } of ledgers.slice(0, LEDGERS_READ)) {
     const ledger = ledgerAt(path)
+    const jobs = ledger.meta?.tokens?.jobs ?? []
     for (const row of ledger.members ?? []) {
       if (row.exitCode !== 0) continue
       const reading = readings.get(row.member) ?? {
@@ -106,8 +124,10 @@ export function memberHistory(home: string, tier: RunTier): Map<string, MemberRe
         weights: [],
       }
       readings.set(row.member, reading)
-      const weight = readingOf(ledger.meta?.tokens?.jobs ?? [], row.member)
+      const weight = readingOf(jobs, row.member)
       if (weight !== undefined) reading.weights.push(weight)
+      const startup = reading.startupSeconds ?? startupOf(jobs, row.member)
+      if (startup !== undefined) reading.startupSeconds = startup
     }
   }
   return readings

@@ -11,7 +11,8 @@
       }
     ],
     "weight": { "floor": 0.5, "ceiling": 4, "readings": 3, "minProcessSeconds": 10 },
-    "batchSeconds": 90
+    "batchSeconds": 90,
+    "startupShare": 0.05
   },
   "affected": {
     "excludeRoots": ["examples"],
