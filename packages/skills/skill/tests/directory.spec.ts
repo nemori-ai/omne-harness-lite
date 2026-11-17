@@ -80,6 +80,17 @@ describe('read and list carry the local directory of the pinned package', () => 
     }
   })
 
+  it('stops a listing with aborted when the signal fires while the directory is asked', async () => {
+    const aborter = new AbortController()
+    const test = accessWith(async () => {
+      aborter.abort()
+      return succeed(DIRECTORY)
+    })
+    expect(
+      failureOf(await test.access.list(alice, scope, review, { signal: aborter.signal })),
+    ).toStrictEqual({ kind: 'aborted' })
+  })
+
   it('stops with aborted when the signal fires while the directory is asked, and reads no bytes', async () => {
     const aborter = new AbortController()
     const test = accessWith(async () => {

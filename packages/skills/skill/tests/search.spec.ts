@@ -15,7 +15,7 @@ import {
 
 const ranking = { k1: 1.2, b: 0.75 }
 
-type Sample = Readonly<{ name: string; description: string; readable?: boolean }>
+type Sample = Readonly<{ name: string; description?: string; readable?: boolean }>
 
 function catalogOf(samples: readonly Sample[]) {
   const checked: string[] = []
@@ -29,7 +29,7 @@ function catalogOf(samples: readonly Sample[]) {
           ref: { capability: capability(sample.name), layer: 'tenant', locator: reviewLocator },
           declared: {
             name: granted(isSkillName, sample.name),
-            description: sample.description,
+            ...(sample.description === undefined ? {} : { description: sample.description }),
             tools: [],
           },
         },
@@ -105,13 +105,19 @@ describe('Skill search ranks by relevance with the shared BM25 rules', () => {
   })
 
   it('ranks only among the Skills the reader may read, so an unreadable Skill does not move the order', async () => {
-    const withHidden = catalogOf([
-      ...library,
-      { name: 'hidden', description: 'meeting meeting meeting', readable: false },
-      { name: 'meeting-plan', description: 'plan a meeting' },
-    ])
-    const without = catalogOf([...library, { name: 'meeting-plan', description: 'plan a meeting' }])
-    expect(await withHidden.search('meeting notes')).toEqual(await without.search('meeting notes'))
+    const readable: Sample[] = [
+      { name: 'aaa', description: 'meeting' },
+      { name: 'bbb', description: 'notes notes' },
+    ]
+    const hidden: Sample = { name: 'hidden', description: 'notes notes plan', readable: false }
+    expect(await catalogOf(readable).search('meeting notes')).toEqual(['bbb', 'aaa'])
+    expect(await catalogOf([...readable, hidden]).search('meeting notes')).toEqual(['bbb', 'aaa'])
+  })
+
+  it('finds a Skill without a description by its name only', async () => {
+    const search = catalogOf([{ name: 'bare-skill' }])
+    expect(await search.search('bare')).toEqual(['bare-skill'])
+    expect(await search.search('here')).toEqual([])
   })
 
   it('refuses ranking parameters out of range when the catalog is made', () => {

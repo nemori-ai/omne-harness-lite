@@ -85,7 +85,7 @@ async function grantedOf<P, S>(
 function documentsOf(entries: readonly CatalogEntry[]) {
   return entries.map(entry => ({
     name: entry.capability.name,
-    fields: [entry.name, entry.description ?? ''],
+    fields: entry.description === undefined ? [entry.name] : [entry.name, entry.description],
   }))
 }
 

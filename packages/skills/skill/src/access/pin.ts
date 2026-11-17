@@ -8,7 +8,7 @@ import type {
 import { isSealedSnapshot, type PackageLocator } from '@omne-harness/skill-contract/provider'
 import { sourceFailureTo } from '../mapping.ts'
 import type { SkillPorts } from '../ports.ts'
-import { has } from '../answer-values.ts'
+import { fieldOf } from '../answer-values.ts'
 import { answered } from '../port-answer.ts'
 import { sourceAnswer } from '../source-answer.ts'
 import { checkpoint } from './checkpoint.ts'
@@ -82,7 +82,6 @@ export async function pin<P, S, F extends MovedFailure>(
 }
 
 function directoryOf(answer: unknown): Readonly<{ ok: string | null }> | undefined {
-  if (!has(answer, 'ok')) return undefined
-  const { ok } = answer
+  const ok = fieldOf(answer, 'ok')
   return typeof ok === 'string' || ok === null ? { ok } : undefined
 }
