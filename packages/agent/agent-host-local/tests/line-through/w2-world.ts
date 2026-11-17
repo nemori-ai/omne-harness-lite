@@ -287,7 +287,7 @@ export type W2Options = Readonly<{
   onHandoff?: (input: unknown, answer: unknown) => void
   wrapAgentDependencies?: (dependencies: Dependencies) => Dependencies
   wrapModelReceiver?: LineWorldOptions['wrapModelReceiver']
-  receptionTargets?: LineWorldOptions['receptionTargets']
+  reception?: LineWorldOptions['reception']
   earlier?: 'double' | 'session'
   plugins?: readonly PluginMount[]
   toolRequests?: Partial<NonNullable<Dependencies['toolRequests']>>
@@ -369,9 +369,7 @@ export async function openW2World(options: W2Options) {
       combination,
     ],
     ...(options.report === undefined ? {} : { journalReport: options.report }),
-    ...(options.receptionTargets === undefined
-      ? {}
-      : { receptionTargets: options.receptionTargets }),
+    ...(options.reception === undefined ? {} : { reception: options.reception }),
     handoff: 'external',
     hostConfig: {
       instanceIdleMs: 2_000_000_000,
@@ -577,7 +575,7 @@ export async function openW2World(options: W2Options) {
   }
   const made = createLocalToolReceiver<unknown>(
     {
-      provider: w.sessionLog,
+      provider: w.receivedProvider,
       access: w.access.port,
       capacity: () => ({
         records: options.receiverRecords ?? 10000,
@@ -586,7 +584,7 @@ export async function openW2World(options: W2Options) {
         inFlight: 64,
       }),
       targets:
-        options.receptionTargets === 'journal'
+        options.reception === 'routed'
           ? {
               resolve(input) {
                 const targets = w.ctx.get(agentToolReceptionTargetsKey)

@@ -424,6 +424,7 @@ export type AgentEvent = Readonly<{
   kinds: readonly string[]
   ended?: boolean
   batch?: JsonValue
+  consequences?: JsonValue
 }>
 
 export type AgentAdmission = Readonly<{
@@ -520,6 +521,7 @@ export function agentPublisher(input: {
               source: event.source,
               kinds: event.kinds,
               ...(event.batch === undefined ? {} : { batch: event.batch }),
+              ...(event.consequences === undefined ? {} : { consequences: event.consequences }),
             },
             body: { fixture: writes },
           },
