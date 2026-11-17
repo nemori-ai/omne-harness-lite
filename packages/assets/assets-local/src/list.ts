@@ -37,7 +37,7 @@ export default {
     const { domain, lookup } = parsed.data
     const current = readDomain(port)
     if (foreign(current, domain)) return FORBIDDEN
-    return pageOf(port, current === null ? [] : heldRows(port, domain, lookup), lookup.limit)
+    return pageOf(port, heldRows(port, domain, lookup), lookup.limit)
   },
 } satisfies ReadHandlerModule
 
