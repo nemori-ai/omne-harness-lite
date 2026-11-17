@@ -222,7 +222,7 @@ describe('the trusted Tool request source', () => {
       if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
       const answer = await source.prepare({
         ...input,
-        definition: described.ok.definition,
+        definition: described.ok.definition.adoption,
         admission,
       })
       return (okOf(answer, 'prepare') as ToolInvokeRequest).label
@@ -253,7 +253,7 @@ describe('the trusted Tool request source', () => {
       const input = actionInput(principalA, TENANT_A, 'Shell', args)
       const described = await source.describe(input)
       if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
-      return source.prepare({ ...input, definition: described.ok.definition, admission })
+      return source.prepare({ ...input, definition: described.ok.definition.adoption, admission })
     }
     const once = '{"command":"execute","intent":"build","params":{"script":"pnpm build"}}'
     const terminal =
@@ -301,7 +301,7 @@ describe('the trusted Tool request source', () => {
     const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
     const answer = await source.prepare({
       ...input,
-      definition: described.ok.definition,
+      definition: described.ok.definition.adoption,
       admission,
     })
     expect((okOf(answer, 'prepare') as ToolInvokeRequest).limits).toMatchObject({
