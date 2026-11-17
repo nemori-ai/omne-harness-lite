@@ -598,7 +598,7 @@
 > go and do it.**
 
 - **形态**：对象
-- **出处**：[元能力：`TodoItems()`](../../product/meta-capabilities/design.md#meta-todo)（rev 8）·
+- **出处**：[元能力：`TodoItems()`](../../product/meta-capabilities/design.md#meta-todo)（rev 9）·
   [PF-015 §5.6 第 13 项](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
 - **别混**：**与「目标」不是一回事**——那是**跨会话**的东西，
   [元能力：明写它不装在这扇门后面，而设计链里还没有它的家](../../product/meta-capabilities/design.md#meta-todo)
