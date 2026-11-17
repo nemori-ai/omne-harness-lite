@@ -1751,6 +1751,18 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  packages/common/text-search:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/common/utc-instant:
     devDependencies:
       '@types/node':
@@ -4480,6 +4492,9 @@ importers:
       '@omne-harness/stream-arrival':
         specifier: workspace:*
         version: link:../../common/stream-arrival
+      '@omne-harness/text-search':
+        specifier: workspace:*
+        version: link:../../common/text-search
       '@omne-harness/tool':
         specifier: workspace:*
         version: link:../tool
