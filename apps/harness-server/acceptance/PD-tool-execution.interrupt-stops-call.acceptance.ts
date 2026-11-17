@@ -23,8 +23,7 @@ const ASK = JSON.stringify({
   },
 })
 
-// Not verified in this run: after the interrupt, Ask gives no result within the limit and the turn stays open (plan, out-of-run finding 2).
-it.skip(
+it(
   'S10 an urgent input while the agent waits on a call that cannot go to the background: it is interrupted, the turn takes the input',
   { timeout: 4 * LIMIT_MS },
   async () => {
@@ -65,7 +64,11 @@ it.skip(
           const result = entries.find(entry => entry.kind === 'message.tool')
           observed['result'] = result === undefined ? null : textOf(result).slice(0, 600)
           assert.ok(result !== undefined, 'the foreground got a result')
-          assert.match(textOf(result), /interrupt/iu, 'the result says it was interrupted')
+          assert.match(
+            textOf(result),
+            /closed before the person answered/u,
+            'the result says why the call ended without an answer',
+          )
           assert.ok(
             bodies.some(body => body.includes(URGENT)),
             'the same turn took the urgent input',

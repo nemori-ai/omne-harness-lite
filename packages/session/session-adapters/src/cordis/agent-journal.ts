@@ -306,11 +306,11 @@ const ROUTE_ONLY: ReadonlySet<string> = new Set(['preserve'])
 
 function writtenOf(method: string, input: object): Written {
   const value = input as { execution?: unknown; operation?: unknown }
+  const own = !ROUTE_ONLY.has(method)
   return {
     method,
-    execution:
-      typeof value.execution === 'string' && !ROUTE_ONLY.has(method) ? value.execution : null,
-    operation: typeof value.operation === 'string' ? value.operation : null,
+    execution: own && typeof value.execution === 'string' ? value.execution : null,
+    operation: own && typeof value.operation === 'string' ? value.operation : null,
     digest: `sha256:${operationSemantic(input as ExecutionMutation<unknown>)}`,
   }
 }

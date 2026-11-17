@@ -11,7 +11,7 @@ const PARTIAL = 'S11 partial words'
 const serving = { model: 'm', provider: 'OpenAI' }
 const text = (words: string) => ({ ...serving, choices: [{ delta: { content: words } }] })
 
-// Not verified in this run: the held half reply ends the turn before the interrupt arrives, so it is taken as ordinary; the hold is not yet right.
+// Not verified in this run: the part of an interrupted reply that arrived is not kept (plan, out-of-run finding 3); the other checks pass without that one.
 it.skip(
   'S11 an urgent input while the model replies: the reply stops, what arrived stays, its action never runs',
   { timeout: 4 * LIMIT_MS },
@@ -38,7 +38,8 @@ it.skip(
         return {
           status: 200,
           contentType: 'text/event-stream',
-          body: sse([text(PARTIAL)]),
+          // Half a reply: no end marker, so the stream stays open until the rest.
+          body: `data: ${JSON.stringify(text(PARTIAL))}\n\n`,
           rest: {
             after: held.promise,
             body: sse([

@@ -79,6 +79,11 @@ it(
             1,
             'it runs on in the background',
           )
+          await until(
+            'the turn to end once the urgent input is answered',
+            () => history(tree, session),
+            value => count(value, 'run.terminal') >= 1,
+          )
           release(tree, 'go-s9')
           await until(
             'the outcome to come back',
@@ -96,8 +101,6 @@ it(
         }
       },
     )
-    // Known defect (plan, out-of-run finding 2): the interrupt control never reconciles after the
-    // call moves to the background, so the turn stays open and the tree closes with it running.
-    assert.equal(exitCode, 5, 'when this fails, the defect is fixed: expect 0 again')
+    assert.equal(exitCode, 0)
   },
 )

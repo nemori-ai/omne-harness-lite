@@ -52,7 +52,7 @@ it(
         return {
           status: 200,
           contentType: 'text/event-stream',
-          body: sse([text('thinking about ')]),
+          body: `data: ${JSON.stringify(text('thinking about '))}\n\n`,
           rest: { after: held.promise, body: sse([text('it'), stop]) },
         }
       return { status: 200, contentType: 'text/event-stream', body: sse([text('done'), stop]) }

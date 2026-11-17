@@ -1,7 +1,5 @@
-// The migration of when and how a session was archived (SPEC「已归档的会话」). It creates the table,
-// then backfills one row for each session that is archived already, from the commit that archived
-// it: that commit's time where the commit times have it, and who asked from its control request.
-// A commit's sequence and the revision of its entries advance together from 1 (`positioned`).
+// Creates the archive table, then backfills each archived session from the commit that archived
+// it; a commit's sequence and its entries' revision advance together from 1 (`positioned`).
 import type { MigrationModule } from '@omne-harness/sql-contract/worker'
 import { readEntryText } from '../entry-codec.ts'
 import { SESSION_ARCHIVE_MIGRATION, SESSION_ARCHIVE_STATEMENTS } from './schema.ts'
