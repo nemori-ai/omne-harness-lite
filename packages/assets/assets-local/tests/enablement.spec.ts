@@ -23,6 +23,7 @@ it('keeps the disabled state and management visibility, including after restart'
     operationId: 'disable',
     revision: 2,
     changed: true,
+    domainRevision: 3,
   })
   expect(await first.owner.changeHolding(disable)).toMatchObject({ revision: 2, changed: true })
   expect(await first.owner.changeHolding({ ...disable, operationId: 'stale' })).toEqual({

@@ -35,6 +35,7 @@ it('recovers an operation after the committed reply is lost without publishing t
     operationId: 'publish-lost',
     revision: 1,
     changed: true,
+    domainRevision: 1,
   })
   await world.close()
   const reopened = await open({ root: world.root })
@@ -43,6 +44,7 @@ it('recovers an operation after the committed reply is lost without publishing t
     operationId: 'publish-lost',
     revision: 1,
     changed: true,
+    domainRevision: 1,
   })
   expect(
     await reopened.owner.publish({

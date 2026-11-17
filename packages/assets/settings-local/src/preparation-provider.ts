@@ -7,7 +7,12 @@ import {
   SettingsCancelChangeSchema,
   SettingsOperationRefSchema,
   SettingsTargetSchema,
+  createChangeSignal,
+  type ChangeEmitter,
+  type ChangeSignal,
   type SettingsFailure,
+  type SettingsPrepareResult,
+  type SettingsTarget,
 } from '@omne-harness/settings'
 import type { StandingDestinationResolver } from '@omne-harness/identity'
 import { PreparationEngine } from './preparation-engine.ts'
@@ -31,6 +36,14 @@ const changesInputSchema = z.strictObject({
     .max(Number.MAX_SAFE_INTEGER - 1),
   limit: z.number().int().min(1).max(100),
 })
+function announcing(changes: ChangeEmitter<SettingsTarget>) {
+  return async <T extends SettingsPrepareResult>(pending: Promise<T>): Promise<T> => {
+    const result = await pending
+    if (result.kind === 'committed' && result.changed)
+      changes.emit({ domain: result.operation.target, revision: result.revision })
+    return result
+  }
+}
 export function createSettingsPreparationBackend<Context>(
   options: SettingsPreparationOptions<Context>,
 ): {
@@ -39,6 +52,8 @@ export function createSettingsPreparationBackend<Context>(
     close(): Promise<void>
     destination: StandingDestinationResolver
     sourceDestination: SettingsSourceDestination
+    /** One signal after each committed change of a target, with the target and its revision. */
+    changes: ChangeSignal<SettingsTarget>
   }
 } {
   const engine = new PreparationEngine(options)
@@ -51,29 +66,37 @@ export function createSettingsPreparationBackend<Context>(
     void promise.then(() => active.delete(promise))
     return promise
   }
+  const changes = createChangeSignal<SettingsTarget>()
+  const announced = announcing(changes)
   const service: SettingsPreparationService<Context> = {
     prepareChange(context, command) {
       if (!withinBudget(command)) return Promise.resolve(failure('limit_exceeded'))
       const parsed = SettingsChangeSchema.safeParse(command)
       if (!parsed.success) return Promise.resolve(failure('invalid_input'))
-      return run(() => engine.prepare(context, { kind: 'change', command: parsed.data }), {
-        kind: 'unknown' as const,
-        operation: { target: parsed.data.target, operationId: parsed.data.operationId },
-      })
+      return run(
+        () => announced(engine.prepare(context, { kind: 'change', command: parsed.data })),
+        {
+          kind: 'unknown' as const,
+          operation: { target: parsed.data.target, operationId: parsed.data.operationId },
+        },
+      )
     },
     prepareRebase(context, command) {
       if (!withinBudget(command)) return Promise.resolve(failure('limit_exceeded'))
       const parsed = SettingsRebaseSchema.safeParse(command)
       if (!parsed.success) return Promise.resolve(failure('invalid_input'))
-      return run(() => engine.prepare(context, { kind: 'rebase', command: parsed.data }), {
-        kind: 'unknown' as const,
-        operation: { target: parsed.data.target, operationId: parsed.data.operationId },
-      })
+      return run(
+        () => announced(engine.prepare(context, { kind: 'rebase', command: parsed.data })),
+        {
+          kind: 'unknown' as const,
+          operation: { target: parsed.data.target, operationId: parsed.data.operationId },
+        },
+      )
     },
     commitChange(context, input) {
       const parsed = SettingsPreparedCommitSchema.safeParse(input)
       if (!parsed.success) return Promise.resolve(failure('invalid_input'))
-      return run(() => engine.commit(context, parsed.data), {
+      return run(() => announced(engine.commit(context, parsed.data)), {
         kind: 'unknown' as const,
         operation: parsed.data.preparation.operation,
       })
@@ -132,6 +155,7 @@ export function createSettingsPreparationBackend<Context>(
   return {
     service,
     control: {
+      changes: { subscribe: changes.subscribe },
       sourceDestination: {
         recognize(request) {
           if (closing) return Promise.resolve({ kind: 'unavailable' as const })

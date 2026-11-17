@@ -185,7 +185,7 @@ export function mutate(port: ParticipantPort, binding: MutationBinding) {
       : command.kind === 'hold'
         ? hold(port, domain, command)
         : changeHolding(port, domain, command)
-  return 'kind' in result
-    ? result
-    : { kind: 'committed' as const, operationId: command.operationId, ...result }
+  if ('kind' in result) return result
+  const domainRevision = readDomain(port)?.revision ?? 0
+  return { kind: 'committed' as const, operationId: command.operationId, ...result, domainRevision }
 }

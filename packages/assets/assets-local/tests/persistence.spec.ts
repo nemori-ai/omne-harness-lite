@@ -31,6 +31,7 @@ it('persists immutable body, selected holding and original operation across prov
     operationId: 'hold-1',
     revision: 1,
     changed: true,
+    domainRevision: 2,
   })
   expect(
     await second.owner.hold({
@@ -42,5 +43,11 @@ it('persists immutable body, selected holding and original operation across prov
       sources: ownerSources('tenant'),
       grants,
     }),
-  ).toEqual({ kind: 'committed', operationId: 'hold-1', revision: 1, changed: true })
+  ).toEqual({
+    kind: 'committed',
+    operationId: 'hold-1',
+    revision: 1,
+    changed: true,
+    domainRevision: 2,
+  })
 })

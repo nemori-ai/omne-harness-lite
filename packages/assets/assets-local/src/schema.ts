@@ -170,6 +170,7 @@ export const committedSchema = z.strictObject({
   operationId: SettingsIdSchema,
   revision: revisionSchema,
   changed: z.boolean(),
+  domainRevision: revisionSchema,
 })
 export const receiptSchema = z.strictObject({
   binding: mutationBindingSchema,
@@ -242,6 +243,7 @@ export const listResultSchema = z.union([
   failureSchema,
 ])
 export const readRequestSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('domain'), domain: domainSchema, lookup: z.null() }),
   z.strictObject({ kind: z.literal('asset'), domain: domainSchema, lookup: assetLookupSchema }),
   z.strictObject({ kind: z.literal('holding'), domain: domainSchema, lookup: holdingLookupSchema }),
   z.strictObject({ kind: z.literal('version'), domain: domainSchema, lookup: versionLookupSchema }),

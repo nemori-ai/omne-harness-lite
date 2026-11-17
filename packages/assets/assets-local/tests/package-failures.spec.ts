@@ -101,7 +101,13 @@ function reader(
 function records(overrides: Partial<PackageRecords> = {}): PackageRecords {
   return {
     async publish(input) {
-      return { kind: 'committed', operationId: input.operationId, revision: 1, changed: true }
+      return {
+        kind: 'committed',
+        operationId: input.operationId,
+        revision: 1,
+        changed: true,
+        domainRevision: 1,
+      }
     },
     async getOperation() {
       return { kind: 'not_found' }
@@ -353,6 +359,7 @@ describe('publish of an operation that was asked before', () => {
           operationId: 'publish-1',
           revision: 1,
           changed: true,
+          domainRevision: 1,
         }),
       },
     })

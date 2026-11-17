@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { projectAssetSettings } from '@omne-harness/assets'
-import { SettingsIdSchema } from '@omne-harness/settings'
+import { SettingsIdSchema, createChangeSignal } from '@omne-harness/settings'
 import {
   SettingsProjectionBindingSchema,
   type SettingsProjectionBinding,
 } from '@omne-harness/settings-local'
-import type { FactCommandV2 } from '@omne-harness/sql-contract'
+import type { DomainRef, FactCommandV2 } from '@omne-harness/sql-contract'
 import { digest, equal, identity, json, withinBudget } from './encoding.ts'
 import {
   assetLookupSchema,
@@ -25,6 +25,8 @@ import {
   PARTICIPANT,
   PROTOCOL,
   publishMetadataSchema,
+  failureSchema,
+  revisionSchema,
   versionLookupSchema,
   versionResultSchema,
   type Failure,
@@ -94,7 +96,12 @@ function publishCommand(options: AssetsLocalOptions, input: AssetsPublish) {
   })
   return command.success ? command.data : fail('invalid_input')
 }
-type ReadKind = 'asset' | 'holding' | 'version' | 'heldCapability' | 'list'
+type ReadKind = 'asset' | 'holding' | 'version' | 'heldCapability' | 'list' | 'domain'
+
+const domainRevisionSchema = z.union([
+  z.strictObject({ kind: z.literal('revision'), revision: revisionSchema }),
+  failureSchema,
+])
 
 function storageRead(options: Pick<AssetsLocalOptions, 'storage' | 'domain'>) {
   return async (kind: ReadKind, lookup: unknown) => {
@@ -132,6 +139,9 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     void promise.then(() => active.delete(promise))
     return promise
   }
+  const read = storageRead(options)
+  const changes = createChangeSignal<DomainRef>()
+  const domainRevision = async () => domainRevisionSchema.parse(await read('domain', null))
   async function commit(command: Mutation): Promise<AssetsMutationResult> {
     try {
       const result = await options.storage.commit({
@@ -146,9 +156,10 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
         ],
       })
       const mapped = receiptResult(result, options.domain, command.operationId, command)
-      return mapped.kind === 'not_found'
-        ? { kind: 'unknown', operationId: command.operationId }
-        : mapped
+      if (mapped.kind === 'not_found') return { kind: 'unknown', operationId: command.operationId }
+      if (mapped.kind === 'committed' && mapped.changed)
+        changes.emit({ domain: options.domain, revision: mapped.domainRevision })
+      return mapped
     } catch {
       return { kind: 'unknown', operationId: command.operationId }
     }
@@ -158,8 +169,9 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     const parsed = mutationSchema.safeParse(value)
     return parsed.success ? commit(parsed.data) : fail('invalid_input')
   }
-  const read = storageRead(options)
   const local: Omit<AssetsLocal, 'packages'> = {
+    changes: { subscribe: changes.subscribe },
+    readDomainRevision: () => run(domainRevision),
     readAsset: input =>
       run(async () => {
         const parsed = assetLookupSchema.safeParse(input)

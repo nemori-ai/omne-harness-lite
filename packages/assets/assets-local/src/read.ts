@@ -86,6 +86,14 @@ function versionResult(
   const version = readVersion(port, domain, lookup.assetRef, lookup.version)
   return { kind: 'read', output: json(version ? { kind: 'version', version } : { kind: 'absent' }) }
 }
+function domainResult(
+  request: Extract<ReadRequest, { kind: 'domain' }>,
+  port: Port,
+): ReturnType<ReadHandlerModule['read']> {
+  const current = readDomain(port)
+  if (foreign(current, request.domain)) return FORBIDDEN
+  return { kind: 'read', output: { kind: 'revision', revision: current?.revision ?? 0 } }
+}
 
 export default {
   handler: HANDLER,
@@ -96,6 +104,8 @@ export default {
     if (!parsed.success) return { kind: 'failed', diagnostic: 'assets_invalid_input' }
     const request = parsed.data
     switch (request.kind) {
+      case 'domain':
+        return domainResult(request, port)
       case 'asset':
         return assetResult(request, port)
       case 'heldCapability':
