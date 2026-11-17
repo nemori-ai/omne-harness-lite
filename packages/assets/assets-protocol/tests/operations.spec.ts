@@ -37,6 +37,7 @@ const table = {
   'describe-setting': { identity: 'login', effect: 'read', limit: 'small' },
   'set-setting': { identity: 'login', effect: 'commit', limit: 'small' },
   'clear-setting': { identity: 'login', effect: 'commit', limit: 'small' },
+  'list-categories': { identity: 'login', effect: 'read', limit: 'small' },
 } as const
 
 const always = ['succeeded', 'protocol-rejected', 'basis-unavailable', 'denied']
@@ -45,6 +46,7 @@ const outcomes = {
   'describe-setting': ['not-visible', 'conflict'],
   'set-setting': ['no-change', 'not-visible', 'invalid', 'conflict', 'not-writable', 'unknown'],
   'clear-setting': ['no-change', 'not-visible', 'invalid', 'conflict', 'not-writable', 'unknown'],
+  'list-categories': [],
 } as const
 
 const operations = assetsProtocol.operations
@@ -102,7 +104,7 @@ const views = {
 } as const
 
 describe('assets/v1', () => {
-  it('is assets major 1 with exactly the four setting operations and no observation', () => {
+  it('is assets major 1 with the four setting operations, list-categories and no observation', () => {
     expect(assetsProtocol.name).toBe('assets')
     expect(assetsProtocol.major).toBe(1)
     expect(Object.keys(operations).sort()).toEqual(Object.keys(table).sort())
@@ -135,9 +137,19 @@ describe('assets/v1', () => {
 describe('bodies', () => {
   const write = { tenant, asset, item: 'invoke', operation: 'op-1', expectedRevision: '7' }
 
-  it('every operation carries its target tenant in the body', () => {
-    for (const operation of Object.values(operations))
-      rejects(operation.body, { asset, item: 'invoke', after: null, limit: 10 })
+  it('every setting operation carries its target tenant in the body', () => {
+    for (const [name, operation] of Object.entries(operations))
+      if (name !== 'list-categories')
+        rejects(operation.body, { asset, item: 'invoke', after: null, limit: 10 })
+  })
+
+  it('list-categories carries no tenant: after is the next text or null, limit is a page limit', () => {
+    const codec = operations['list-categories'].body
+    expectRoundTrip(codec, { after: null, limit: 100 })
+    expectRoundTrip(codec, { after: 'model-provider', limit: 1 })
+    rejects(codec, { tenant, after: null, limit: 10 })
+    rejects(codec, { after: null, limit: 101 })
+    rejects(codec, { after: null })
   })
 
   it('list-settings: an asset is optional, after is the next text or null, limit is a page limit', () => {
@@ -182,6 +194,16 @@ describe('answers', () => {
     expectRoundTrip(codec, { item: view })
     const { revision: _revision, ...withoutRevision } = view
     rejects(codec, { item: withoutRevision })
+  })
+
+  it('a page of categories carries each category with its name and summary, and its next', () => {
+    const codec = operations['list-categories'].outcomes.succeeded
+    expectRoundTrip(codec, {
+      items: [{ category: 'tool', title: '工具', summary: '代理可以调用的函数。' }],
+      next: 'tool',
+    })
+    expectRoundTrip(codec, { items: [], next: null })
+    rejects(codec, { items: [{ category: 'tool', title: '工具' }], next: null })
   })
 
   it('a write answers the new revision, and not-writable its reason', () => {

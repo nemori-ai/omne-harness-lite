@@ -5,6 +5,7 @@ import type { SettingView } from '@omne-harness/assets-protocol'
 import { AssetsPage, createGovernance } from '../src/index.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
+import { namesOf } from './fixtures/names.ts'
 import { ordinaryView, permissionView, secretView } from './fixtures/views.ts'
 
 const TENANT =
@@ -34,14 +35,14 @@ async function answer(
 
 async function listed(
   items: readonly SettingView[] = [permissionView()],
-  categoryLabels: Readonly<Record<string, string>> = {},
+  names: Readonly<Record<string, string>> = {},
 ): Promise<FakeClient> {
   const fake = createFakeClient()
   render(
     <AssetsPage
       governance={createGovernance({ client: fake.client })}
       tenant={TENANT}
-      categoryLabels={categoryLabels}
+      categoryNames={namesOf(names)}
     />,
   )
   await answer(fake, 'list-settings', {
