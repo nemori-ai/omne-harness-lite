@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import type { SettingView } from '@omne-harness/assets-protocol'
+import { readTenantText } from '@omne-harness/public-contract'
 import type { AttachedEntry, AttachedLayout } from '@omne-harness/shell-contract'
 import { useEffect, type ReactNode } from 'react'
 import { AssetsPage, createGovernance, type GovernanceModel } from '../src/index.ts'
@@ -90,6 +91,47 @@ const selected = () =>
     .getAllByRole('tab')
     .filter(tab => tab.getAttribute('aria-selected') === 'true')
     .map(tab => tab.textContent)
+
+it('A0 列表还在读、也没有贡献的页面：说正在读，不说没有资产', async () => {
+  const fake = createFakeClient()
+  render(<AssetsPage governance={createGovernance({ client: fake.client })} tenant={TENANT} />)
+  await fake.next('list-settings')
+  expect(screen.getByText('正在读取资产……')).toBeTruthy()
+  expect(screen.queryByText(/还没有可以管的资产/)).toBeNull()
+})
+
+it('A9 只有数据的类别按标识的码元序排，和列表里的先后无关', async () => {
+  await opened([held('c-cat', 'x'), held('a-cat', 'y'), held('b-cat', 'z')], [])
+  expect(tabTexts()).toEqual(['a-cat', 'b-cat', 'c-cat'])
+  const marked = tabs()
+    .getAllByRole('tab')
+    .map(tab => tab.getAttribute('data-active'))
+  expect(marked).toEqual(['true', 'false', 'false'])
+})
+
+it('A10 换租户：按新租户另读一份，旧租户迟到的答复不算数', async () => {
+  const fake = createFakeClient()
+  const governance = createGovernance({ client: fake.client })
+  const other = TENANT.replace('acc_00000000000000000000000001', 'acc_00000000000000000000000002')
+  const view = render(<AssetsPage governance={governance} tenant={TENANT} />)
+  const first = await fake.next('list-settings')
+  view.rerender(<AssetsPage governance={governance} tenant={other} />)
+  const second = await fake.next('list-settings')
+  expect(second.body).toMatchObject({ tenant: readTenantText(other) })
+  first.answer({
+    outcome: 'succeeded',
+    body: { items: [held('tool', 'shell')], next: null, completeness: 'complete' },
+  })
+  await settle()
+  expect(screen.queryByRole('tab', { name: '工具' })).toBeNull()
+  expect(screen.queryByRole('tab', { name: 'tool' })).toBeNull()
+  second.answer({
+    outcome: 'succeeded',
+    body: { items: [held('mcp', 'context7')], next: null, completeness: 'complete' },
+  })
+  await settle()
+  expect(tabTexts()).toEqual(['mcp'])
+})
 
 it('A1 一个页签都没有：写一句说明', async () => {
   await opened([], [])

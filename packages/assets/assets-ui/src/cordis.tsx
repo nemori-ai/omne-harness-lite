@@ -4,11 +4,11 @@ import type { AttachedLayout } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { Fragment } from 'react'
-import { assetGovernanceKey } from './governance-port.ts'
+import { assetGovernanceKey, governancePort } from './governance-port.ts'
 import { createGovernance } from './model/governance.ts'
 import { assetsCategory, assetsCategoryPage, assetsHolding } from './model/points.ts'
 import { AssetsPage } from './view/assets-page.tsx'
-import { SettingRow } from './view/setting-row.tsx'
+import { boundRow } from './view/setting-row.tsx'
 import { SettingsNote } from './view/settings-note.tsx'
 
 const ASSETS = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
@@ -29,7 +29,7 @@ export function createAssetsUiModule(options: AssetsUiOptions = {}) {
     apply(shell, services, provide) {
       const client = services[ASSETS]!
       const governance = createGovernance({ client })
-      provide(assetGovernanceKey, { open: governance.open, SettingRow })
+      provide(assetGovernanceKey, governancePort(governance, boundRow))
       shell.contribute('pages', {
         id: 'assets',
         title: '资产',
@@ -60,10 +60,9 @@ export function createAssetsUiModule(options: AssetsUiOptions = {}) {
 
 export const assetsUiModule = createAssetsUiModule()
 
-export { assetGovernanceKey, type AssetGovernance } from './governance-port.ts'
+export { assetGovernanceKey, type AssetGovernance, type CategoryView } from './governance-port.ts'
 export type { CategoryGovernance, CategorySnapshot } from './model/governance.ts'
 export type { Holding } from './model/holdings.ts'
-export type { SettingRowProps } from './view/setting-row.tsx'
 export {
   ASSETS_CATEGORY,
   ASSETS_CATEGORY_PAGE,

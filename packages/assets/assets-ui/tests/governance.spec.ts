@@ -156,6 +156,16 @@ describe('the governance port: one write, by the table of one submission', () =>
     expect(again.options).toEqual({ messageId: 'op-1' })
   })
 
+  it('a row that could not be read again is read again on retry', async () => {
+    const { fake, mcp, permissionKey } = await opened()
+    mcp.set(permissionKey, 'auto')
+    ;(await fake.next('set-setting')).answer({ outcome: 'succeeded', body: { revision: '2' } })
+    ;(await fake.next('describe-setting')).answer({ outcome: 'unavailable' })
+    await settle()
+    mcp.retryRow(permissionKey)
+    expect((await fake.next('describe-setting')).body).toMatchObject({ item: MCP_VIEW.item })
+  })
+
   it('clearing a setting goes out as a clear with its own operation', async () => {
     const { fake, mcp, permissionKey } = await opened()
     mcp.clear(permissionKey)

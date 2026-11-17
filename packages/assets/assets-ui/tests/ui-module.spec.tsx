@@ -4,6 +4,8 @@ import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import { assetsProtocol } from '@omne-harness/assets-protocol'
 import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
+import { readTenantText } from '@omne-harness/public-contract'
+import { permissionView } from './fixtures/views.ts'
 import { serviceOf, ShellAssemblyError } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import {
@@ -103,9 +105,29 @@ it('U6 the module provides the governance port: another module injects it, reads
   expect(seen).toHaveLength(1)
   const mcp = seen[0]!.open(TENANT, 'mcp')
   expect(mcp.getSnapshot()).toEqual({ kind: 'reading' })
-  expect((await fake.next('list-settings')).body).toMatchObject({ tenant: TENANT })
+  const list = await fake.next('list-settings')
+  expect(list.body).toMatchObject({ tenant: readTenantText(TENANT) })
+  await act(async () => {
+    list.answer({
+      outcome: 'succeeded',
+      body: {
+        items: [permissionView({ asset: { category: 'mcp', name: 'context7' } })],
+        next: null,
+        completeness: 'complete',
+      },
+    })
+    await new Promise(resolve => setTimeout(resolve, 0))
+  })
+  const snapshot = mcp.getSnapshot()
+  if (snapshot.kind !== 'read') throw new Error('not read')
+  const key = snapshot.holdings[0]!.rows[0]!.key
+  const view = render(<mcp.Row rowKey={key} />)
+  expect(view.getByRole('heading', { name: '调用权限' })).toBeTruthy()
+  view.unmount()
   mcp.close()
-  expect(typeof seen[0]!.SettingRow).toBe('function')
+  const broken = seen[0]!.open('not-a-tenant', 'mcp')
+  expect(broken.getSnapshot()).toMatchObject({ kind: 'unreadable' })
+  expect(fake.calls.filter(call => call.operation === 'list-settings')).toHaveLength(1)
   const lookup = root as unknown as { get(name: string): unknown }
   unprovide()
   await new Promise(resolve => setTimeout(resolve, 0))

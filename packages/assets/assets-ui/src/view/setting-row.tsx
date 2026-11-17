@@ -8,7 +8,7 @@ import {
   RadioGroup,
   RadioGroupItem,
 } from '@omne-harness/ui-kit'
-import { useId, useState, type JSX } from 'react'
+import { useId, useState, useSyncExternalStore, type ComponentType, type JSX } from 'react'
 import type { CategoryGovernance } from '../model/governance.ts'
 import type { SettingsDriver } from '../model/settings-driver.ts'
 import type { Row } from '../model/settings-machine.ts'
@@ -18,10 +18,13 @@ import { Facts, hasOwn } from './setting-facts.tsx'
 type RowActions = Pick<SettingsDriver, 'set' | 'setSecret' | 'clear' | 'confirm' | 'retryRow'>
 type Props = { readonly row: Row; readonly driver: RowActions }
 
-export type SettingRowProps = Readonly<{ row: Row; governance: CategoryGovernance }>
-
-export function SettingRow({ row, governance }: SettingRowProps): JSX.Element {
-  return <RowView row={row} driver={governance} />
+export function boundRow(view: CategoryGovernance): ComponentType<{ rowKey: string }> {
+  return function BoundRow({ rowKey }: { readonly rowKey: string }) {
+    const snapshot = useSyncExternalStore(view.subscribe, view.getSnapshot)
+    if (snapshot.kind !== 'read') return null
+    const row = snapshot.holdings.flatMap(holding => holding.rows).find(item => item.key === rowKey)
+    return row === undefined ? null : <RowView row={row} driver={view} />
+  }
 }
 type Permission = Extract<SettingView, { kind: 'permission' }>
 

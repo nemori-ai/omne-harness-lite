@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore, type JSX, type Reac
 import type { CategoryGovernance, CategorySnapshot, GovernanceModel } from '../model/governance.ts'
 import type { Holding } from '../model/holdings.ts'
 import { NoticeLine } from './notice.tsx'
-import { SettingRow } from './setting-row.tsx'
+import { RowView } from './setting-row.tsx'
 
 export type AssetsPageProps = Readonly<{
   governance: GovernanceModel
@@ -247,7 +247,7 @@ function HoldingBlock({
       </header>
       <ul className="assets-settings-list">
         {holding.rows.map(row => (
-          <SettingRow key={row.key} row={row} governance={view} />
+          <RowView key={row.key} row={row} driver={view} />
         ))}
       </ul>
       <div className="assets-holding-slot">
