@@ -3,8 +3,10 @@ import type { ClientOf } from '@omne-harness/sdk/core'
 import { sessionProtocol, type SessionProtocol } from '@omne-harness/session-protocol'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { Fragment } from 'react'
+import { BackgroundCallsStore } from './model/background-calls.ts'
 import { SessionWorkspaces } from './model/session-workspaces.ts'
-import { sessionDock, sessionSide } from './points.ts'
+import { sessionCallDetail, sessionDock, sessionSide } from './points.ts'
+import { BackgroundHint, SideWithBackground } from './view/background-pane.tsx'
 import { ConversationPage } from './view/conversation-page.tsx'
 import { SessionListPanel } from './view/session-list-panel.tsx'
 import { SidePanel } from './view/side-panel.tsx'
@@ -21,7 +23,17 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
   name: 'session-ui',
   inject: [sessionClientService],
   apply(shell, services) {
-    const workspaces = new SessionWorkspaces({ client: services[sessionClientService]! })
+    const client = services[sessionClientService]!
+    const workspaces = new SessionWorkspaces({ client })
+    const background = new BackgroundCallsStore(client)
+    sessionDock.contribute(shell, {
+      id: 'background-calls',
+      order: 10,
+      render: ({ scope, subject }) =>
+        scope === undefined ? null : (
+          <BackgroundHint store={background} tenant={scope} session={subject.session} />
+        ),
+    })
     shell.contribute('sidebar', {
       id: SESSION_LIST,
       order: 0,
@@ -48,7 +60,23 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
             )
           }
           side={session =>
-            sessionSide.slot(shell, { session }, entries => <SidePanel entries={entries} />)
+            sessionSide.slot(shell, { session }, entries =>
+              scope === undefined ? (
+                <SidePanel entries={entries} />
+              ) : (
+                <SideWithBackground
+                  entries={entries}
+                  store={background}
+                  tenant={scope}
+                  session={session}
+                  detail={call =>
+                    sessionCallDetail.slot(shell, { session, call }, details =>
+                      details.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
+                    )
+                  }
+                />
+              ),
+            )
           }
         />
       ),

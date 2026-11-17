@@ -6,8 +6,9 @@ import { createHumanInterventionUiModule } from '@omne-harness/human-interventio
 import { identityUiModule } from '@omne-harness/identity-ui/cordis'
 import '@omne-harness/identity-ui/identity-ui.css'
 import type { ProtocolContract } from '@omne-harness/public-contract'
-import { sessionDock, sessionUiModule } from '@omne-harness/session-ui/cordis'
+import { sessionCallDetail, sessionDock, sessionUiModule } from '@omne-harness/session-ui/cordis'
 import '@omne-harness/session-ui/session-ui.css'
+import { createToolUiModule } from '@omne-harness/tool-ui/cordis'
 import { domainProtocols } from '../shared/protocols.ts'
 
 export type Assembly = Readonly<{
@@ -30,5 +31,6 @@ export const assembly: Assembly = {
     sessionUiModule,
     createHumanInterventionUiModule({ sessionDock }),
     createAssetsUiModule({ categoryLabels: ASSET_CATEGORY_LABELS }),
+    createToolUiModule({ callDetail: sessionCallDetail }),
   ],
 }
