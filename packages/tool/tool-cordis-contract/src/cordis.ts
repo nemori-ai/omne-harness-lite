@@ -423,6 +423,7 @@ export abstract class ToolReadsService<P, B extends ContentBlock>
   abstract readonly account: ToolReads<P, B>['account']
   abstract readonly content: ToolReads<P, B>['content']
   abstract readonly body: ToolReads<P, B>['body']
+  abstract readonly output: ToolReads<P, B>['output']
 }
 export const toolReadsKey = ToolReadsService.provide
 

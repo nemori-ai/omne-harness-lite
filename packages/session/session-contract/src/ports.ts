@@ -26,6 +26,7 @@ import type {
   ScopeReleaseDisposition,
   WorkSnapshot,
 } from './values.ts'
+import type { BackgroundCallState } from './background-calls.ts'
 import type { ControlOperationResolution, SessionModelSelection } from './control-values.ts'
 import type {
   SessionEntriesObservation,
@@ -145,6 +146,16 @@ export interface SessionCallControl {
     }>,
   ): Reply<'recorded' | 'ended'>
 }
+/** Session asks the called side for the state of one call by its reference; it keeps none of it. */
+export interface SessionCallStates {
+  read(
+    input: Readonly<{
+      tenant: TenantId
+      session: SessionId
+      producer: Extract<ProducerRef, { kind: 'tool' }>
+    }>,
+  ): Reply<BackgroundCallState>
+}
 export interface ScopeReleasePort {
   release(
     input: Readonly<{
@@ -208,7 +219,9 @@ export type SessionCommand = {
             judgment?: DurableEvidence
             expected?: SessionRevision
           }>
-        : unknown)
+        : K extends 'stopCall'
+          ? Readonly<{ initiator?: import('./background-calls.ts').StopInitiator }>
+          : unknown)
   }>
 }[MutationName]
 export type GuardCommand = Readonly<{

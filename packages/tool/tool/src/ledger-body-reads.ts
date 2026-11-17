@@ -1,5 +1,6 @@
 import { readJsonBytes, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import type { ContentBlock } from '@omne-harness/content-block'
 import type {
   ContentPage,
   Reply,
@@ -12,10 +13,12 @@ import {
   TOOL_REFERENCE_MAX_LENGTH,
   type ToolBodyManifest,
   type ToolBodyReader,
+  type ToolReads,
   type ToolBodyRef,
   type ToolInstant,
 } from '@omne-harness/tool-contract/provider'
 import { invalid, type CallInput } from './boundary.ts'
+import { createLedgerOutputReads } from './ledger-output-reads.ts'
 import type { ToolLedgerPorts, ToolOffloadingConfiguration } from './construction.ts'
 import { digestOf } from './evidence.ts'
 import { sealedManifest, type BodyEntryRecord } from './ledger-body-entries.ts'
@@ -256,7 +259,7 @@ export function createLedgerBodyReads<P>(
   ports: Readonly<{
     bodies: ToolLedgerPorts<P>['bodies'] | undefined
     configuration: ToolOffloadingConfiguration
-    authorize(input: CallInput<P>): Reply<void>
+    authorize(input: CallInput<P>, action: 'read-content' | 'read-output'): Reply<void>
     load(input: CallInput<P>): Reply<Snapshot>
   }>,
 ): ToolBodyReader<P> & Readonly<{ bytes(input: BodyReadInput<P>): Reply<ContentPage> }> {
@@ -301,7 +304,7 @@ export function createLedgerBodyReads<P>(
     if (!manifestMatches(located.entry, range.ok.manifest, Number(located.body.bodyBytes)))
       return unavailable('integrity: the stored manifest differs from the ledger entry')
     if (!beforeExpiry(bodies.clock.now(), located.body)) return expired()
-    const current = await ports.authorize(input)
+    const current = await ports.authorize(input, 'read-content')
     return 'failure' in current ? current : succeed(range.ok)
   }
 
@@ -311,7 +314,7 @@ export function createLedgerBodyReads<P>(
   ): Promise<Outcome<Page, ToolFailure>> => {
     const bodies = ports.bodies
     if (bodies === undefined) return unavailable('body store is not connected')
-    const allowed = await ports.authorize(input)
+    const allowed = await ports.authorize(input, 'read-content')
     if ('failure' in allowed) return allowed
     const snapshot = await ports.load(input)
     if ('failure' in snapshot) return snapshot
@@ -439,4 +442,20 @@ export function createLedgerBodyReads<P>(
       })
     },
   }
+}
+
+/** The body and output reads of the ledger over one body store, and the bytes of a body. */
+export function createLedgerBodyFaces<P>(
+  ports: Parameters<typeof createLedgerBodyReads<P>>[0],
+): Readonly<{
+  reads: Pick<ToolReads<P, ContentBlock>, 'body' | 'output'>
+  bytes(input: BodyReadInput<P>): Reply<ContentPage>
+}> {
+  const { read, bytes } = createLedgerBodyReads<P>(ports)
+  const output = createLedgerOutputReads<P>({
+    bodies: ports.bodies,
+    authorize: input => ports.authorize(input, 'read-output'),
+    load: ports.load,
+  })
+  return { reads: { body: { read }, output }, bytes }
 }

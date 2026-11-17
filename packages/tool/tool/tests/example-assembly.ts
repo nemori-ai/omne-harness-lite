@@ -28,7 +28,7 @@ import {
   type ToolInstanceHost,
 } from '@omne-harness/tool-contract/provider'
 import { readToolRegistration } from '@omne-harness/tool-contract/binding'
-import { testingTenant } from '@omne-harness/tool-contract/testing'
+import { testingCallLabel, testingTenant } from '@omne-harness/tool-contract/testing'
 import {
   adoption,
   argumentLimits,
@@ -401,6 +401,7 @@ export function createDemo() {
     },
     command,
     arguments: { original: argumentsText, effective: argumentsText, complete: true },
+    label: testingCallLabel(command === null ? report.definition : tools.definition, command),
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,

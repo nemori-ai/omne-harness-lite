@@ -106,7 +106,7 @@ export function sameHistory(
 }
 
 export function shellCommand(script: string) {
-  return { command: 'execute', params: { script } }
+  return { command: 'execute', intent: 'test call', params: { script } }
 }
 
 export async function signedIn(tools: CellTools): Promise<ProtocolDriver> {

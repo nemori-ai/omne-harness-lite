@@ -232,6 +232,8 @@ export function lateBodyStore(holder: ToolRuntimeHolder): ToolBodyStore {
       holder.sql?.bodies.store.seal(permit, manifest) ?? Promise.resolve(unavailable),
     read: (body, range) =>
       holder.sql?.bodies.store.read(body, range) ?? Promise.resolve(unavailable),
+    readOpen: (body, range) =>
+      holder.sql?.bodies.store.readOpen(body, range) ?? Promise.resolve(unavailable),
     delete: body => holder.sql?.bodies.store.delete(body) ?? Promise.resolve(unavailable),
   } satisfies ToolBodyStore)
 }

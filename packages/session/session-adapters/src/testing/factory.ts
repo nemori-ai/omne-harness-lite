@@ -5,7 +5,7 @@ import { resultPreparation, preparationOperation } from './result-preparation.ts
 import { publicationHooks } from './publication.ts'
 import { captureBackground } from './background.ts'
 import { normalizeControls } from './control.ts'
-import { createFrontier, commandScope, defaultBudget } from './frontier.ts'
+import { createFrontier, commandScope, defaultBudget, runStartInputs } from './frontier.ts'
 import { emptyHistory } from './empty-history.ts'
 import { sessionView } from './session-view.ts'
 import {
@@ -1238,7 +1238,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         for (const batch of batches) {
           const scope: import('@omne-harness/session-contract').SessionInputScope =
             batch.entries.some(row => row.kind === 'run.started')
-              ? { kind: 'selected', inputs: snapshot?.pending.slice(0, 1) ?? [] }
+              ? { kind: 'selected', inputs: runStartInputs(snapshot) }
               : { kind: 'pending', inputs: snapshot?.pending ?? [] }
           const material = snapshot ? emptyHistory(snapshot, scope) : undefined
           const outcome = reduce(

@@ -98,6 +98,7 @@ function placeholderPayload<B extends ContentBlock>(
     consumer: task.consumer,
     delivery: task.delivery,
     source: task.source,
+    label: call.request.label,
     evidence: task.evidence,
   }
 }

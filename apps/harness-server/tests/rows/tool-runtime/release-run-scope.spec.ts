@@ -34,10 +34,11 @@ const ASK = JSON.stringify({
 const waitFor = (name: string) =>
   JSON.stringify({
     command: 'execute',
+    intent: 'test call',
     params: { script: `while [ ! -f ${name} ]; do sleep 0.1; done; echo ${name}-done` },
   })
 const echo = (text: string) =>
-  JSON.stringify({ command: 'execute', params: { script: `echo ${text}` } })
+  JSON.stringify({ command: 'execute', intent: 'test call', params: { script: `echo ${text}` } })
 
 const script = toolCallsThenText(body =>
   body.includes('start: ask and wait')

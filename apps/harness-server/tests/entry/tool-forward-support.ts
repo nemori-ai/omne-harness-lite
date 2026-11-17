@@ -46,13 +46,15 @@ export async function forwardWorld() {
     const module =
       name === 'TodoItems'
         ? release.modules.todoItemsToolModule
-        : name === 'Web'
-          ? release.modules.webToolModule
-          : name === 'Tools'
-            ? release.modules.toolsToolModule
-            : name === 'Shell' || name === 'ToyEcho'
-              ? release.modules.shellToolModule
-              : release.modules.filesToolModule
+        : name === 'BkgToolCalls'
+          ? release.modules.backgroundCallsToolModule
+          : name === 'Web'
+            ? release.modules.webToolModule
+            : name === 'Tools'
+              ? release.modules.toolsToolModule
+              : name === 'Shell' || name === 'ToyEcho'
+                ? release.modules.shellToolModule
+                : release.modules.filesToolModule
     const author = okOf(
       module.createAuthor(tree(TEST_CONSTRUCTION[name === 'ToyEcho' ? 'Shell' : name])),
       'author',
@@ -73,6 +75,7 @@ export async function forwardWorld() {
         source: { owner: 'fixture', record: 'parent', revision: '1', digest: 'fixture' },
       },
       command: 'help',
+      label: { intent: null, tool: definition.name, command: 'help', preview: '' },
       arguments: { original: '{}', effective: '{}', complete: true },
       settings: entry.settings,
       context: RELEASE_REQUEST_CONTEXT,

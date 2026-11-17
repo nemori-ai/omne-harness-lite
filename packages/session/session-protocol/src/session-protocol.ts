@@ -25,8 +25,32 @@ const backgroundAnswer = object({
   controlId: { rule: text },
   producer: { rule: toolCall },
 })
+const callLabel = object({
+  intent: { rule: nullable(anyText) },
+  tool: { rule: text },
+  command: { rule: nullable(text) },
+  preview: { rule: anyText },
+})
+// One call in the background as every reader sees it: its short number, label and state now.
+const backgroundCall = object({
+  id: { rule: text },
+  producer: { rule: toolCall },
+  label: { rule: callLabel },
+  source: { rule: literal('launched', 'control', 'threshold', 'foreground-limit') },
+  status: { rule: literal('queued', 'running', 'ended-pending', 'stopping', 'unknown') },
+  stop: {
+    rule: nullable(
+      object({
+        initiator: { rule: literal('user', 'agent', 'system') },
+        reason: { rule: nullable(anyText) },
+        progress: { rule: literal('requested', 'accepted', 'proven') },
+      }),
+    ),
+  },
+  lastLine: { rule: nullable(anyText) },
+})
 const backgroundCalls = object({
-  calls: { rule: { kind: 'array', item: object({ producer: { rule: toolCall } }) } },
+  calls: { rule: { kind: 'array', item: backgroundCall } },
 })
 const terminalSource = object({
   owner: { rule: text },
@@ -58,28 +82,58 @@ const limited = ruleCodec(
   }),
 )
 
-const listSessions = object({
+const instant = { kind: 'instant' } as const
+const page = {
   tenant: { rule: tenant },
   cursor: { rule: nullable(text) },
   limit: { rule: { kind: 'positive-integer' }, optional: true },
-  includeArchived: { rule: boolean, optional: true },
+} as const
+const listSessions = object(page)
+// The archived list narrows by archive time (from inclusive, to exclusive), by how, by title text.
+const listArchivedSessions = object({
+  ...page,
+  from: { rule: nullable(instant), optional: true },
+  to: { rule: nullable(instant), optional: true },
+  by: { rule: nullable(literal('person', 'auto', 'parent')), optional: true },
+  titleContains: { rule: nullable(anyText), optional: true },
 })
 
-const sessionList = object({
-  sessions: {
-    rule: {
-      kind: 'array',
-      item: object({
-        session: { rule: session },
-        createdAt: { rule: nullable({ kind: 'instant' }) },
-        lastActivityAt: { rule: nullable({ kind: 'instant' }) },
-        lifecycle: { rule: literal('initializing', 'dormant', 'active', 'frozen', 'archived') },
-        title: { rule: nullable(anyText) },
-      }),
-    },
-  },
-  next: { rule: nullable(text) },
-  completeness: { rule: literal('complete', 'partial') },
+const sessionItem = {
+  session: { rule: session },
+  createdAt: { rule: nullable(instant) },
+  lastActivityAt: { rule: nullable(instant) },
+  lifecycle: { rule: literal('initializing', 'dormant', 'active', 'frozen', 'archived') },
+  title: { rule: nullable(anyText) },
+} as const
+const listOf = <const F extends Fields>(item: F) =>
+  object({
+    sessions: { rule: { kind: 'array', item: object(item) } },
+    next: { rule: nullable(text) },
+    completeness: { rule: literal('complete', 'partial') },
+  })
+const sessionList = listOf(sessionItem)
+const archivedList = listOf({
+  ...sessionItem,
+  archivedAt: { rule: nullable(instant) },
+  archivedBy: { rule: nullable(literal('person', 'auto', 'parent')) },
+})
+
+// Archiving an archived session, or unarchiving one that is not, answers so; it is not refused.
+const archiveAnswer = {
+  kind: 'one-of',
+  rules: [
+    object({
+      kind: { rule: literal('archived') },
+      controlId: { rule: text },
+      runs: { rule: { kind: 'count' } },
+      backgroundCalls: { rule: { kind: 'count' } },
+    }),
+    object({ kind: { rule: literal('already-archived') }, controlId: { rule: text } }),
+  ],
+} as const
+const unarchiveAnswer = object({
+  kind: { rule: literal('unarchived', 'not-archived') },
+  controlId: { rule: text },
 })
 
 const readHistory = {
@@ -208,6 +262,31 @@ export const sessionProtocol = defineProtocol({
       },
       countsAsAccess: true,
     },
+    // An urgent input: it releases the foreground wait of the Run there, or is taken as ordinary.
+    'interrupt-input': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'input',
+      body: ruleCodec(
+        object({
+          ...target,
+          acceptId: { rule: text },
+          inputId: { rule: text },
+          message: { rule: { kind: 'user-message' } },
+        }),
+      ),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({ recovered: { rule: boolean }, as: { rule: literal('interrupt', 'ordinary') } }),
+        ),
+        limited,
+        invalid: empty,
+        archived: empty,
+        frozen: empty,
+        conflict: empty,
+      },
+      countsAsAccess: true,
+    },
     'query-send-input': {
       identity: 'login',
       effect: 'read',
@@ -238,6 +317,30 @@ export const sessionProtocol = defineProtocol({
       limit: 'small',
       body: ruleCodec(listSessions),
       outcomes: { succeeded: ruleCodec(sessionList), invalid: empty },
+      countsAsAccess: true,
+    },
+    'list-archived-sessions': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(listArchivedSessions),
+      outcomes: { succeeded: ruleCodec(archivedList), invalid: empty },
+      countsAsAccess: true,
+    },
+    'archive-session': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(object({ ...target, controlId: { rule: text } })),
+      outcomes: { succeeded: ruleCodec(archiveAnswer), invalid: empty, conflict: empty },
+      countsAsAccess: true,
+    },
+    'unarchive-session': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(object({ ...target, controlId: { rule: text } })),
+      outcomes: { succeeded: ruleCodec(unarchiveAnswer), invalid: empty, conflict: empty },
       countsAsAccess: true,
     },
     'cancel-run': {
@@ -273,7 +376,12 @@ export const sessionProtocol = defineProtocol({
       effect: 'commit',
       limit: 'small',
       body: ruleCodec(
-        object({ ...target, controlId: { rule: text }, producer: { rule: producer } }),
+        object({
+          ...target,
+          controlId: { rule: text },
+          producer: { rule: producer },
+          reason: { rule: nullable(anyText), optional: true },
+        }),
       ),
       outcomes: {
         succeeded: ruleCodec(

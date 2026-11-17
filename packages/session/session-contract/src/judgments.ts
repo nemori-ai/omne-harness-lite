@@ -1,5 +1,5 @@
 import type { SessionPermissionChangeBasis } from './permission-values.ts'
-import type { SessionIntakeLimits } from './intake.ts'
+import { wakingInputs, type SessionIntakeLimits } from './intake.ts'
 import { originalAttempt } from './history-validation.ts'
 import { waitKey } from './call-state.ts'
 import { backgroundCalls } from './call-control.ts'
@@ -133,10 +133,7 @@ export type Decision =
     }>
   | Readonly<{
       kind: 'control-answer'
-      answer: Exclude<
-        SessionControlAnswer<RunTerminal | SessionCallTerminal>,
-        { kind: 'requested' }
-      >
+      answer: SessionControlAnswer<RunTerminal | SessionCallTerminal>
       source: DurableEvidence
     }>
   | Readonly<{ kind: 'recovered'; receipt: CommitReceipt }>
@@ -248,7 +245,7 @@ export function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass): RunSt
   if (snapshot.lifecycle === 'initializing') return { kind: 'not-ready' }
   if (snapshot.run.kind === 'active') return { kind: 'run-active' }
   if (snapshot.awaitingPerson === true) return { kind: 'awaiting-person' }
-  const first = snapshot.pending[0]
+  const first = wakingInputs(snapshot)[0]
   if (first === undefined) return { kind: 'no-input' }
   return { kind: 'eligible', first }
 }
@@ -268,7 +265,7 @@ export function judgeRetryRun(
   if (snapshot.frozen !== null) return 'frozen'
   const waiting = judgeWaiting(snapshot)
   if (waiting === null || waiting.run !== run) return 'not-found'
-  return waiting.pending === 0 ? 'nothing-pending' : null
+  return wakingInputs(snapshot).length === 0 ? 'nothing-pending' : null
 }
 
 export function openWork(snapshot: WorkSnapshot): OpenWork {

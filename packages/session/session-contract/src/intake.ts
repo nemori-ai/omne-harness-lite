@@ -1,4 +1,5 @@
 import type { SessionFailure } from './faces.ts'
+import type { InputId } from './identity.ts'
 import type { RoutedInput, WorkSnapshot } from './values.ts'
 
 export type SessionIntakeLimits = Readonly<{
@@ -40,8 +41,27 @@ export function judgeSessionIntake(
 }
 
 export function pendingIntakeCount(
-  snapshot: Pick<WorkSnapshot, 'pending' | 'handed' | 'backgroundInputs'>,
+  snapshot: Pick<WorkSnapshot, 'pending' | 'handed' | 'backgroundInputs' | 'quietInputs'>,
 ): number {
-  const uncounted = new Set([...snapshot.handed, ...(snapshot.backgroundInputs ?? [])])
+  const uncounted = new Set([
+    ...snapshot.handed,
+    ...(snapshot.backgroundInputs ?? []),
+    ...(snapshot.quietInputs ?? []),
+  ])
   return snapshot.pending.reduce((count, input) => count + Number(!uncounted.has(input)), 0)
+}
+
+/** The input a Run starts from: the first waking one, or none. */
+export function runStartInputs(
+  snapshot: Pick<WorkSnapshot, 'pending' | 'quietInputs'> | null | undefined,
+): readonly InputId[] {
+  return snapshot === null || snapshot === undefined ? [] : wakingInputs(snapshot).slice(0, 1)
+}
+
+/** The pending inputs that can start a Run; a quiet one goes in with a batch another input opens. */
+export function wakingInputs(
+  snapshot: Pick<WorkSnapshot, 'pending' | 'quietInputs'>,
+): readonly InputId[] {
+  const quiet = new Set(snapshot.quietInputs ?? [])
+  return snapshot.pending.filter(input => !quiet.has(input))
 }

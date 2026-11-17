@@ -373,6 +373,7 @@ describe('a Tool result on the release tree reaches the Agent', () => {
             id: 'call_old_inline',
             arguments: JSON.stringify({
               command: 'execute',
+              intent: 'test call',
               params: { script: 'awk \'BEGIN { for(i=0;i<24576;i++) printf "x" }\'' },
             }),
           },
@@ -447,6 +448,7 @@ describe('a Tool result on the release tree reaches the Agent', () => {
             id: 'call_small_result',
             arguments: JSON.stringify({
               command: 'execute',
+              intent: 'test call',
               params: { script: "printf 'W3-SMALL-OK\\n'" },
             }),
           },
@@ -473,7 +475,11 @@ describe('a Tool result on the release tree reaches the Agent', () => {
           [
             {
               id: 'call_large_result',
-              arguments: JSON.stringify({ command: 'execute', params: { script } }),
+              arguments: JSON.stringify({
+                command: 'execute',
+                intent: 'test call',
+                params: { script },
+              }),
             },
           ],
           seen,
@@ -532,7 +538,10 @@ describe('a Tool result on the release tree reaches the Agent', () => {
         toolsThenText(
           [
             { id: 'call_unknown', arguments: '{"command":"nope"}' },
-            { id: 'call_missing', arguments: '{"command":"execute","params":{}}' },
+            {
+              id: 'call_missing',
+              arguments: '{"command":"execute","intent":"test call","params":{}}',
+            },
             { id: 'call_info', arguments: '{"command":"info","params":{}}' },
           ],
           seen,
@@ -553,7 +562,9 @@ describe('a Tool result on the release tree reaches the Agent', () => {
       expect(unknown).toContain('info {} - ')
       const missing = resultText(entries[4])
       expect(missing).toContain('Shell execute: ')
-      expect(missing).toContain('Usage: Shell {"command": "execute", "params": {script')
+      expect(missing).toContain(
+        'Usage: Shell {"command": "execute", "intent": "<one line: why you make this call>", "params": {script',
+      )
       expect(resultText(entries[5])).toContain('shell=')
       expect(entries[7]?.payload['terminal']).toMatchObject({ outcome: 'completed' })
       expect(seen[1]).toContain('there is no command \\"nope\\"')

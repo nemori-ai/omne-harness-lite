@@ -135,6 +135,17 @@ describe('what stop-call hands to Session and answers', () => {
     expect(call?.principal).toMatchObject({ kind: 'acting-for-tenant', tenant: ALICE.tenant })
   })
 
+  it('passes the reason when the body gives one, and never a stopper (C19, C22)', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    await ops(world)['stop-call'](as(login()), { ...bodyOf(session), reason: 'not needed' })
+    const call = world.session.controls.calls()[1]
+    expect(call?.input).toEqual({
+      producer: { kind: 'model', call: 'call-9' },
+      reason: 'not needed',
+    })
+  })
+
   it('answers requested with the control id and the producer of the message', async () => {
     const world = createWorld()
     const session = await created(world)

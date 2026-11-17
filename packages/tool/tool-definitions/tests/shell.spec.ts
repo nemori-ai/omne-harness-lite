@@ -36,7 +36,9 @@ it('declares all Shell commands and explains platform, background and terminal s
     ),
   ).toEqual([['execute', { unless: ['terminal'] }]])
   const help = await run(author, 'help', { name: 'execute' }, fixture.environment)
-  expect(help).toContain('Usage: Shell {"command": "execute", "params": {script, terminal?')
+  expect(help).toContain(
+    'Usage: Shell {"command": "execute", "intent": "<one line: why you make this call>", "params": {script, terminal?',
+  )
   expect(help).toContain('JSON Schema')
   expect(help).toContain('run_in_background')
   expect(help).not.toContain('unsupported')

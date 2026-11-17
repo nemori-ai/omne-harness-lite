@@ -405,6 +405,7 @@ export declare abstract class ToolReadsService<P, B extends ContentBlock> extend
     abstract readonly account: ToolReads<P, B>['account'];
     abstract readonly content: ToolReads<P, B>['content'];
     abstract readonly body: ToolReads<P, B>['body'];
+    abstract readonly output: ToolReads<P, B>['output'];
 }
 export declare const toolReadsKey = "toolReads";
 export declare abstract class ToolCatalogService<P> extends Service implements ToolCatalog<P> {

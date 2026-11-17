@@ -162,6 +162,7 @@ describe('an urgent input reconciles its control once the Agent released each fo
   function decideInterrupt(
     material: Readonly<{
       submitted: boolean
+      held?: Readonly<{ origin?: unknown; message?: unknown }>
       command: string | null
       reached: readonly string[]
       settled?: 'background' | 'result'
@@ -244,8 +245,8 @@ describe('an urgent input reconciles its control once the Agent released each fo
           ? [
               {
                 input: URGENT.input as never,
-                message: URGENT.message as never,
-                origin: URGENT.origin,
+                message: (material.held?.message ?? URGENT.message) as never,
+                origin: (material.held?.origin ?? URGENT.origin) as never,
               },
             ]
           : [],
@@ -346,5 +347,27 @@ describe('an urgent input reconciles its control once the Agent released each fo
 
   it.each(cases)('$name', ({ material, answer }) => {
     expect(decideInterrupt(material)).toEqual(answer)
+  })
+
+  it('the Agent holds the urgent input with the source of its routing entry: it is the same submission', () => {
+    const material = {
+      submitted: true,
+      held: { origin: evidence('routing-entry') },
+      command: 'release-tool',
+      reached: released,
+    }
+    expect(decideInterrupt(material)).toEqual(reconciled)
+  })
+
+  it('an urgent input the Agent holds with another message is not this submission', () => {
+    const material = {
+      submitted: true,
+      held: { message: { role: 'user', blocks: [{ kind: 'text', text: 'later' }] } },
+      command: 'release-tool',
+      reached: released,
+    }
+    expect(decideInterrupt(material)).toMatchObject({
+      failure: { diagnostic: 'urgent original submission mismatch' },
+    })
   })
 })

@@ -98,7 +98,9 @@ export type ListingScript =
   | Readonly<{ refused: 'invalid' | 'denied' | 'basis-unavailable' }>
   | 'throw'
 
-export type ListingCall = Parameters<SessionListing['list']>[0]
+export type ListingCall =
+  | Parameters<SessionListing['list']>[0]
+  | Parameters<SessionListing['listArchived']>[0]
 
 export type CauseScript = RunFailureReading | 'throw'
 
@@ -235,13 +237,12 @@ export function createWorld(
     },
   }
 
-  const listing: SessionListing = {
-    async list(call) {
-      listingCalls.push(call)
-      if (listed === 'throw') throw new Error('directory fault')
-      return listed
-    },
+  const read = async (call: ListingCall) => {
+    listingCalls.push(call)
+    if (listed === 'throw') throw new Error('directory fault')
+    return listed
   }
+  const listing: SessionListing = { list: read, listArchived: read }
 
   const causes: RunFailureCauses = {
     async read(call) {

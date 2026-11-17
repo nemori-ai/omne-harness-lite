@@ -55,7 +55,11 @@ type SessionRequestBodies = {
     readonly run: string
     readonly urgency: 'graceful' | 'force'
   }
-  'stop-call': Target & { readonly controlId: string; readonly producer: ProducerRef }
+  'stop-call': Target & {
+    readonly controlId: string
+    readonly producer: ProducerRef
+    readonly reason?: string | null
+  }
 }
 
 type SessionSuccessBodies = {
@@ -140,15 +144,19 @@ type SessionOutcomes = {
     | 'unsupported'
 }
 
-test('the operations are exactly the twelve of session/v1', () => {
+test('the operations are exactly the sixteen of session/v1', () => {
   expectTypeOf<Name>().toEqualTypeOf<
     | 'create-session'
     | 'query-create-session'
     | 'send-input'
+    | 'interrupt-input'
     | 'query-send-input'
     | 'read-history'
     | 'read-waiting'
     | 'list-sessions'
+    | 'list-archived-sessions'
+    | 'archive-session'
+    | 'unarchive-session'
     | 'cancel-run'
     | 'stop-call'
     | 'retry-run'
@@ -178,7 +186,6 @@ test('list-sessions has a body and a success body of its own, and `invalid` is e
     readonly tenant: TenantId
     readonly cursor: string | null
     readonly limit?: number
-    readonly includeArchived?: boolean
   }>()
   expectTypeOf<ResultBody<'list-sessions', 'succeeded'>>().toEqualTypeOf<{
     readonly sessions: readonly {
@@ -341,6 +348,23 @@ test('background-call names one Tool call and answers requested or background', 
     readonly producer: ToolCall
   }>()
   expectTypeOf<ResultBody<'list-background-calls', 'succeeded'>>().toEqualTypeOf<{
-    readonly calls: readonly { readonly producer: ToolCall }[]
+    readonly calls: readonly {
+      readonly id: string
+      readonly producer: ToolCall
+      readonly label: {
+        readonly intent: string | null
+        readonly tool: string
+        readonly command: string | null
+        readonly preview: string
+      }
+      readonly source: 'launched' | 'control' | 'threshold' | 'foreground-limit'
+      readonly status: 'queued' | 'running' | 'ended-pending' | 'stopping' | 'unknown'
+      readonly stop: {
+        readonly initiator: 'user' | 'agent' | 'system'
+        readonly reason: string | null
+        readonly progress: 'requested' | 'accepted' | 'proven'
+      } | null
+      readonly lastLine: string | null
+    }[]
   }>()
 })
