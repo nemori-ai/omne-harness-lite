@@ -1296,8 +1296,9 @@ export function createJournal<P>(
   const eventSchema: Adoption = options.eventSchema ?? DEFAULT_EVENT_SCHEMA
   let admissionRule: Adoption = options.replyAdmissionRule ?? DEFAULT_REPLY_ADMISSION_RULE
   const state = () => cell.state().agent
-  const caches = new WeakMap<
-    Execution,
+  // Memos of the ranges an execution minted. Its ids and records encode them, so they do not depend on how a transaction ends: one per execution, not per version.
+  const caches = new Map<
+    string,
     {
       batches: Map<InputBatchId, Range>
       watermarks: Map<string, Range>
@@ -1306,25 +1307,16 @@ export function createJournal<P>(
   const admissionStatistics = admissionCounters()
   let pageLimits: AdmissionPageLimits = { items: null, bytes: null }
   const cache = (execution: Execution) => {
-    let value = caches.get(execution)
+    const at = executionKey(execution.tenant, execution.id)
+    let value = caches.get(at)
     if (!value) {
-      const original = cell.original(execution)
-      const prior = original === undefined ? undefined : caches.get(original)
-      if (prior) {
-        value = {
-          batches: new Map(prior.batches),
-          watermarks: new Map(prior.watermarks),
-        }
-        caches.set(execution, value)
-        return value
-      }
       value = { batches: new Map(), watermarks: new Map() }
       for (const event of execution.events)
         if (event.body.kind === 'input-taken') {
           const range = takenRange(execution, event.body.batch)
           if (range !== undefined) value.batches.set(event.body.batch.id, range)
         }
-      caches.set(execution, value)
+      caches.set(at, value)
     }
     return value
   }

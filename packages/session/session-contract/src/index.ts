@@ -255,7 +255,9 @@ export type {
   SessionInputAdmission,
   SessionExecutionPrefix,
   SessionPrefixFact,
+  SessionUninterpretedCall,
 } from './history-values.ts'
+export { uninterpretedCalls } from './uninterpreted-calls.ts'
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts'
 export { readCallRegistration } from './call-registration.ts'
 export type { CallRegistrationView } from './call-registration.ts'
