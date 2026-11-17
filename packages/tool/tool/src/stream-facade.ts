@@ -10,7 +10,6 @@ import {
   resolveToolInvocationRef,
   type Access,
   type ToolFailure,
-  type ToolState,
   type ToolStreamDelta,
   type ToolStreamEnd,
   type ToolStreamObservation,
@@ -36,21 +35,6 @@ type Frame = StreamFrame<ToolStreamSnapshot, ToolStreamDelta, ToolStreamEnd>
 type Ended = Extract<Frame, { kind: 'ended'; reason: string }>['reason']
 
 const ended = (reason: Exclude<Ended, 'producer-ended'>): Frame => ({ kind: 'ended', reason })
-
-async function stateOf<P, B extends ContentBlock>(
-  reads: ToolReads<P, B>,
-  resolved: ResolvedAccess<P>,
-): Promise<Outcome<ToolState, ToolFailure>> {
-  const looked = await reads.lookup(resolved)
-  if ('failure' in looked) return looked
-  if (looked.ok.kind !== 'found')
-    return fail({
-      kind: 'invalid',
-      field: 'reference',
-      reason: 'the admission of the reference was not accepted; the call has no state',
-    })
-  return succeed(looked.ok.state)
-}
 
 async function routeOf<P>(
   directory: ToolDirectory<P>,
@@ -126,7 +110,7 @@ export function createStreamFacade<P, B extends ContentBlock>(input: {
     if ('failure' in resolved) return resolved
     const route = await routeOf(directory, resolved.ok)
     if ('failure' in route) return route
-    const state = await stateOf(reads, resolved.ok)
+    const state = await reads.state(resolved.ok)
     if ('failure' in state) return state
     const handle = route.ok
     const confirmed = await routeOf(directory, resolved.ok)

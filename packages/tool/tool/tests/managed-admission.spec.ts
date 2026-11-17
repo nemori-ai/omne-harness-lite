@@ -964,7 +964,12 @@ describe('13 invocation permission', () => {
     const admitted = accepted(await assembly.admitInternal(launched))
     expect(judged(admitted.state)).toMatchObject({
       relation: 'background',
-      foreground: { kind: 'background', call: 'call-1', source: { kind: 'launched' } },
+      foreground: {
+        kind: 'background',
+        call: 'call-1',
+        source: { kind: 'launched' },
+        delivery: { kind: 'pending', delivery: 'd0', consumer: launched.consumer },
+      },
     })
   })
 })

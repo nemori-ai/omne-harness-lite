@@ -233,9 +233,11 @@ export const shellCommands: readonly Command[] = withHelp([
       {
         name: 'run_in_background',
         kind: 'boolean',
-        description: 'true is unsupported and starts nothing in this delivery.',
+        description:
+          'true starts a one-shot execution in the background and returns a placeholder at once; not with terminal.',
       },
     ],
+    background: { unless: ['terminal'] },
   },
   {
     name: 'close_session',

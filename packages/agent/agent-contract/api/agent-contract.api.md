@@ -1080,7 +1080,7 @@ export type ExecutionControl = Readonly<{
     call: M.ModelCallId;
     reason: DurableEvidence;
 }> | Readonly<{
-    kind: 'interrupt-tool' | 'background-tool';
+    kind: 'interrupt-tool' | 'background-tool' | 'release-tool' | 'withdraw-tool';
     call: T.ToolCallId;
     reason: DurableEvidence;
 }> | Readonly<{
@@ -1096,7 +1096,7 @@ export type ControlStageFact = Readonly<{
     source: DurableEvidence;
 }>;
 type ToolControl = Extract<ExecutionControl, {
-    kind: 'interrupt-tool' | 'background-tool';
+    call: T.ToolCallId;
 }>;
 export type ControlRecord = Readonly<{
     operation: AgentOperationId;
@@ -3233,6 +3233,11 @@ export type ReceivedDelivery = Readonly<{
         kind: 'account';
     }>;
     account: CallAccount;
+}> | Readonly<{
+    producer: 'tool';
+    key: Extract<T.ToolDeliveryKey, {
+        kind: 'placeholder';
+    }>;
 }>;
 export type ReceivedEntry = Readonly<{
     kind: 'received';

@@ -19,6 +19,7 @@ import type {
   FreezeVerdict,
   IdleObservation,
   ProducedResult,
+  ProducerRef,
   ResidentAdoption,
   RoutedInput,
   ScopeReleaseDisposition,
@@ -130,6 +131,19 @@ export type ScopeReleaseReadback = Readonly<{
   dispositions: readonly ScopeReleaseDisposition[]
   source: DurableEvidence
 }>
+// Controls by reference a call no step waits on. `recorded`: Tool holds the control (a resend
+// recalls it); `ended`: the call already settled. Neither is a physical stop.
+export interface SessionCallControl {
+  control(
+    input: Readonly<{
+      tenant: TenantId
+      session: SessionId
+      control: SessionOperationId
+      producer: Extract<ProducerRef, { kind: 'tool' }>
+      intent: 'stop' | 'withdraw'
+    }>,
+  ): Reply<'recorded' | 'ended'>
+}
 export interface ScopeReleasePort {
   release(
     input: Readonly<{

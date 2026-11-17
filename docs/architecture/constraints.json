@@ -362,6 +362,22 @@
       "source": "packages/tool/SPEC.md"
     },
     {
+      "id": "packages/tool/tool-protocol",
+      "paths": ["packages/tool/tool-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["tool"],
+      "status": "candidate",
+      "source": "packages/tool/SPEC.md"
+    },
+    {
+      "id": "packages/tool/tool-access",
+      "paths": ["packages/tool/tool-access/src/**"],
+      "layer": "unknown",
+      "domains": ["tool"],
+      "status": "candidate",
+      "source": "packages/tool/SPEC.md"
+    },
+    {
       "id": "packages/session/session-contract",
       "paths": ["packages/session/session-contract/src/**"],
       "layer": "contract",

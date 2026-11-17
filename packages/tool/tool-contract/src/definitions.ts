@@ -67,6 +67,8 @@ export type ToolGovernance = Readonly<{
   requiredCapabilities: readonly string[]
   programmable?: boolean
 }>
+/** The command may go to the background unless the call gives one of these parameters. */
+export type ToolCommandBackground = Readonly<{ unless: readonly string[] }>
 export type ToolCommandDeclaration = Readonly<{
   name: string
   summary: string
@@ -74,6 +76,7 @@ export type ToolCommandDeclaration = Readonly<{
     | Readonly<{ kind: 'declared'; value: ParameterContract }>
     | Readonly<{ kind: 'executor-owned' }>
   returns: ToolReturnDeclaration
+  background?: ToolCommandBackground
 }>
 export type ToolImplementationShape =
   | Readonly<{ kind: 'function'; parameters: ParameterContract; returns: ToolReturnDeclaration }>

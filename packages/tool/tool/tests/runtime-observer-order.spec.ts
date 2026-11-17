@@ -29,9 +29,9 @@ async function world(beforeStateRead: () => Promise<void> = async () => {}) {
       ...base.dependencies,
       reads: {
         ...base.dependencies.reads,
-        lookup: async input => {
+        state: async input => {
           await beforeStateRead()
-          return base.dependencies.reads.lookup(input)
+          return base.dependencies.reads.state(input)
         },
       },
       instances: { ...base.dependencies.instances, directory: { connect: () => route() } },

@@ -118,6 +118,10 @@ export interface ToolCommands<P, B extends ContentBlock> {
         evidence: Handoff
       }>,
   ): Reply<ReleasedDelivery>
+  releasePlaceholder(
+    input: Mutation<P> &
+      Readonly<{ delivery: ToolDeliveryId; consumer: ConsumerRef; evidence: Handoff }>,
+  ): Reply<ReleasedDelivery>
   scanPending(
     input: Access<P> & Readonly<{ after: string | null; limit: number }>,
   ): Reply<Readonly<{ calls: readonly ToolCallId[]; next: string | null }>>

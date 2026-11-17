@@ -16,7 +16,7 @@ import type {
   ToolResultVersion,
   ToolWaitId,
 } from './identity.ts'
-import type { ToolControl } from './operations.ts'
+import type { BackgroundSource, ToolControl } from './operations.ts'
 import type {
   DecisionValue,
   PreparedEnvironment,
@@ -297,6 +297,13 @@ export type ToolTask = Readonly<{
         result: ToolResultVersion
         delivery: ToolDeliveryId
         consumer: ConsumerRef
+      }>
+    | Readonly<{
+        kind: 'placeholder'
+        delivery: ToolDeliveryId
+        consumer: ConsumerRef
+        source: BackgroundSource
+        evidence: DurableEvidence
       }>
     | Readonly<{ kind: 'queue' | 'settle' | 'account' | 'facts' | 'clock'; basis: DurableEvidence }>
     | Readonly<{

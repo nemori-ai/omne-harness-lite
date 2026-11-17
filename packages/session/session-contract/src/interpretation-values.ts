@@ -1,5 +1,7 @@
 import type { DurableEvidence, RunId, SessionAccess, SessionOperationId } from './identity.ts'
+import type { Message } from '@omne-harness/message'
 import type { ProducerFact } from './faces.ts'
+import type { ProducerRef } from './values.ts'
 import type { SessionLogObservation } from './projection.ts'
 
 export type SessionEntriesChannel = 'model-received' | 'tool-received'
@@ -14,6 +16,14 @@ export type SessionEntriesBoundary = Readonly<{
 
 export type SessionEntriesInterpretation =
   | Extract<ProducerFact, { kind: 'execution' | 'account' }>
+  | Readonly<{ kind: 'backgrounded'; producer: ProducerRef; source: DurableEvidence }>
+  | Readonly<{
+      kind: 'background-outcome'
+      producer: ProducerRef
+      result: string
+      reminder: Message
+      source: DurableEvidence
+    }>
   | Readonly<{ kind: 'observed' }>
 
 export type SessionEntriesItem = Readonly<{

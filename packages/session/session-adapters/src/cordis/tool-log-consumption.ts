@@ -38,8 +38,10 @@ import { sessionKey, sessionTransactionsKey } from '@omne-harness/session-cordis
 import {
   judgeToolDelivery,
   resolveToolInvocationRef,
+  type ToolCallId,
   type ToolDelivery,
 } from '@omne-harness/tool-contract'
+import { backgroundReminder } from './background-reminder.ts'
 import { canonical } from '../testing/canonical.ts'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
 import { subscribePublished } from './published-queue.ts'
@@ -206,14 +208,14 @@ function headEvidence(
   }
 }
 
-function materialRefusal(
+function materialDelivery(
   read: ToolDeliveryReader,
   tenant: TenantId,
   tenantText: string,
   entry: ToolEntry,
   material: Material<ContentBlock>,
   field: string,
-): Answer<never> | null {
+): Answer<ToolDelivery<ContentBlock>> {
   let envelope: ToolDeliveryEnvelope | null
   try {
     envelope = read(material)
@@ -225,7 +227,8 @@ function materialRefusal(
   if (envelope.tenant !== tenantText) return denied()
   const delivery: unknown = envelope.delivery
   if (!object(delivery)) return invalid(field, 'the material holds no Tool delivery')
-  const { key, account } = entry.delivery
+  const { key } = entry.delivery
+  const account = 'account' in entry.delivery ? entry.delivery.account : undefined
   if (delivery.kind !== key.kind) return invalid(field, 'the material holds another delivery kind')
   if (canonical(delivery.key) !== canonical(key))
     return invalid(field, 'the material holds another delivery key')
@@ -243,18 +246,46 @@ function materialRefusal(
   }
   if ('failure' in judged)
     return invalid(field, `the material fails the delivery check: ${judged.failure.reason}`)
-  return null
+  return succeed(envelope.delivery)
 }
 
-function interpretationOf(entry: ToolEntry): SessionEntriesInterpretation[] {
+// The result of a call whose placeholder the channel holds is also its background outcome; Tool
+// releases a placeholder before it pushes the result, so the placeholder comes first.
+function interpretationOf(
+  entry: ToolEntry,
+  delivery: ToolDelivery<ContentBlock>,
+  call: ToolCallId,
+  channel: readonly ToolEntry[],
+): SessionEntriesInterpretation[] {
+  const backgrounded = channel.some(
+    item =>
+      sameText(item.consumption, entry.consumption) && item.delivery.key.kind === 'placeholder',
+  )
   const producer = { kind: 'tool' as const, call: entry.delivery.key.reference }
   const source = entry.material
   const account = { kind: 'account' as const, producer, source }
-  if (entry.delivery.key.kind === 'account') return [account]
-  return [
-    { kind: 'execution', producer, source },
-    ...(entry.delivery.account === null ? [] : [account]),
-  ]
+  switch (delivery.kind) {
+    case 'account':
+      return [account]
+    case 'placeholder':
+      return [{ kind: 'backgrounded', producer, source }]
+    case 'result':
+      return [
+        { kind: 'execution', producer, source },
+        ...(delivery.account === null ? [] : [account]),
+        ...(backgrounded
+          ? [
+              {
+                kind: 'background-outcome' as const,
+                producer,
+                result: delivery.key.result,
+                reminder: backgroundReminder(call, delivery),
+                source,
+              },
+            ]
+          : []),
+      ]
+  }
 }
 
 function createToolLogConsumption(
@@ -273,10 +304,10 @@ function createToolLogConsumption(
     access: SessionAccess<unknown>,
     tenantText: string,
     work: WorkSnapshot,
-    entry: ToolEntry,
-    ordinal: bigint,
+    channel: readonly ToolEntry[],
     at: number,
   ): Promise<Answer<Step>> {
+    const entry = channel[at]!
     const field = `entries[${at}]`
     const { key } = entry.delivery
     const call = resolveToolInvocationRef(key.reference, access.tenant)
@@ -303,7 +334,7 @@ function createToolLogConsumption(
     )
     if ('failure' in read) return read
     if ('failure' in read.ok) return agentFailure('materials.read', read.ok.failure)
-    const refusal = materialRefusal(
+    const delivery = materialDelivery(
       reader,
       access.tenant,
       tenantText,
@@ -311,14 +342,14 @@ function createToolLogConsumption(
       read.ok.ok,
       `${field}.material`,
     )
-    if (refusal !== null) return refusal
+    if ('failure' in delivery) return delivery
     return succeed({
       kind: 'item',
       item: {
-        ordinal: String(ordinal),
+        ordinal: String(at + 1),
         key: canonical(key),
         fact: entry.material,
-        interpretation: interpretationOf(entry),
+        interpretation: interpretationOf(entry, delivery.ok, call.ok.call, channel),
       },
     })
   }
@@ -372,7 +403,7 @@ function createToolLogConsumption(
       saved === undefined ? null : { through: saved.through, interpreted: saved.interpreted }
     const items: SessionEntriesItem[] = []
     for (let at = Number(after); at < channel.length; at += 1) {
-      const step = await translate(access, tenantText, snapshot, channel[at]!, BigInt(at) + 1n, at)
+      const step = await translate(access, tenantText, snapshot, channel, at)
       if ('failure' in step) return step
       if (step.ok.kind === 'unbound') break
       items.push(step.ok.item)

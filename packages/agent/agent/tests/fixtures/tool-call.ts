@@ -217,27 +217,34 @@ export async function associatedTools(assembly: Assembly, count: number) {
 }
 
 export function toolReceiver(assembly: Assembly): AgentToolReceiver<string> {
+  type Target = Readonly<{
+    execution: ReturnType<typeof execution>
+    instance: ReturnType<typeof instance>
+    definition: ExecutionSnapshot['checkpoint']['definition']
+    pending: AssociatedTool
+  }>
+  // Like the Session journal, a binding stays known after the call leaves the checkpoint:
+  // a result that arrives after the batch closed still finds its original position.
+  const bound = new Map<string, Target>()
+  const keyOf = (pending: AssociatedTool) => JSON.stringify([pending.reference, pending.position])
   const targetOf = async (
     snapshot: ExecutionSnapshot,
     match: (pending: AssociatedTool) => boolean,
-  ) => {
-    const pending = [
+  ): Promise<Target | null> => {
+    for (const call of [
       ...snapshot.checkpoint.calls,
       ...(snapshot.checkpoint.batch?.actions ?? []).flatMap(action =>
         action.call === null ? [] : [action.call],
       ),
-    ].find(
-      (call): call is AssociatedTool =>
-        call.kind === 'tool' && call.association === 'associated' && match(call),
-    )
-    return pending === undefined
-      ? null
-      : {
+    ])
+      if (call.kind === 'tool' && call.association === 'associated' && !bound.has(keyOf(call)))
+        bound.set(keyOf(call), {
           execution: execution(),
           instance: instance(),
           definition: snapshot.checkpoint.definition,
-          pending,
-        }
+          pending: call,
+        })
+    return [...bound.values()].find(target => match(target.pending)) ?? null
   }
   const made = createAgentToolReceiver<string>(
     {
@@ -321,6 +328,22 @@ export function toolDelivery(
       attachments: [],
     },
     account: input.account ?? null,
+  }
+}
+
+export function toolPlaceholder(
+  pending: AssociatedTool,
+  source: Extract<ToolDelivery<ContentBlock>, { kind: 'placeholder' }>['source'] = {
+    kind: 'launched',
+  },
+): ToolDelivery<ContentBlock> {
+  return {
+    kind: 'placeholder',
+    key: { kind: 'placeholder', producer: 'tool', reference: pending.reference },
+    consumer: pending.position,
+    delivery: ok(decodeToolDeliveryId('d0')),
+    source,
+    evidence: evidence('tool-placeholder'),
   }
 }
 

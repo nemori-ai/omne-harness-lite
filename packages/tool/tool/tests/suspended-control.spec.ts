@@ -14,7 +14,6 @@ import {
   type Segment,
 } from './checkpoint-values.ts'
 import {
-  admittedCallSnapshot,
   decideStop,
   runningCallSnapshot,
   STOP as STOP_INTENT,
@@ -220,17 +219,18 @@ describe('a stop of a call suspended on its wait', () => {
     await expectInvalidatedAndReleased(built, receipt.state.source)
   })
 
-  it('settles with withdrawn: true on a withdraw of either reach, and refuses to move the asking call to the background', async () => {
+  it('settles with withdrawn: true on a withdraw of either reach, and records a rejected background of the asking call', async () => {
     const built = await suspended()
     const { harness } = built
-    const background = await harness.commands.control({
-      ...ACCESS,
-      operation: operationId('background-c1'),
-      intent: { kind: 'background' },
-    })
-    expect(background).toEqual({
-      failure: { kind: 'invalid', field: 'intent', reason: 'ask-wait-cannot-background' },
-    })
+    const background = ok(
+      await harness.commands.control({
+        ...ACCESS,
+        operation: operationId('background-c1'),
+        intent: { kind: 'background', otherwise: 'reject' },
+      }),
+    )
+    expect(background.progress.kind).toBe('rejected')
+    expect(background.state).toMatchObject({ phase: 'suspended', relation: 'foreground' })
     expect((await harness.state('c1')).phase).toBe('suspended')
 
     const withdrawn = ok(
@@ -420,9 +420,12 @@ describe('decideControl: a stop of a call that is not suspended', () => {
     expect(decision.writes).toHaveLength(3)
   })
 
-  it('records already-ended on the state of a call whose execution ended, and owes no stop duty', async () => {
+  it('records already-ended on the state of a settled call, and owes no stop duty', async () => {
     const snapshot = await runningCallSnapshot()
-    const ended = withState(snapshot, { execution: { kind: 'ended', evidence: evidence('ended') } })
+    const ended = withState(snapshot, {
+      phase: 'settled',
+      execution: { kind: 'ended', evidence: evidence('ended') },
+    })
     const decision = committed(decideStop(ended))
     expect(decision.value.progress).toEqual({
       kind: 'already-ended',
@@ -456,26 +459,6 @@ describe('decideControl: a stop of a call that is not suspended', () => {
     expect(replied(decideStop({ ...snapshot, call: null }))).toEqual(
       invalidOf('call', 'unknown-call'),
     )
-  })
-
-  describe.each([
-    ['background', { kind: 'background' }],
-    ['withdraw', { kind: 'withdraw', reach: 'foreground-and-unadmitted' }],
-  ] as const)('a %s of a live call', (_name, intent) => {
-    it('is unsupported: only a stop reaches a started invocation', async () => {
-      const snapshot = await runningCallSnapshot()
-      expect(replied(decideStop(snapshot, intent))).toEqual({
-        failure: { ...UNSUPPORTED, adoption: adoptionOf(snapshot) },
-      })
-    })
-  })
-
-  it('is unsupported for a stop of a call that has no start record', async () => {
-    const snapshot = await admittedCallSnapshot()
-    expect(callOf(snapshot).start).toBeNull()
-    expect(replied(decideStop(snapshot))).toEqual({
-      failure: { ...UNSUPPORTED, adoption: adoptionOf(snapshot) },
-    })
   })
 
   it.each([
@@ -768,7 +751,7 @@ describe('decideControl: a stop of a call suspended on its wait', () => {
     )
   })
 
-  it('records a withdraw as withdrawn, and refuses to send the asking call to the background', async () => {
+  it('records a withdraw as withdrawn, and records a rejected background of the asking call', async () => {
     const { harness } = await suspendedCall()
     const snapshot = await snapshotOfCall(harness)
     const withdraw = { kind: 'withdraw', reach: 'foreground-and-unadmitted' } as const
@@ -776,9 +759,9 @@ describe('decideControl: a stop of a call suspended on its wait', () => {
     expect(decision.value.state).toMatchObject({
       terminal: { cause: { kind: 'control', withdrawn: true } },
     })
-    expect(replied(decideStop(snapshot, { kind: 'background' }))).toEqual(
-      invalidOf('intent', 'ask-wait-cannot-background'),
-    )
+    const background = committed(decideStop(snapshot, { kind: 'background', otherwise: 'reject' }))
+    expect(background.value.progress.kind).toBe('rejected')
+    expect(background.value.state).toMatchObject({ phase: 'suspended', relation: 'foreground' })
   })
 
   it('answers a resend of a committed stop with its receipt, and another input with a conflict', async () => {

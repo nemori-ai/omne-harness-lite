@@ -142,7 +142,7 @@ describe('J4: stopCall interrupts one call and leaves the rest alone', () => {
     expect(await stop(`j4a-stop-${attempt}`)).toEqual({ ok: receipt })
   })
 
-  it('J4 answers unsupported for a Tool target and leaves the Run alone', async () => {
+  it('J4 answers not-found for a Tool target the session does not hold, the same as a Model target, and leaves the Run alone', async () => {
     const hold = gate()
     const w = await openW2World({
       model: a =>
@@ -155,13 +155,14 @@ describe('J4: stopCall interrupts one call and leaves the rest alone', () => {
     await w.createSession('j4b')
     await w.accept('j4b-in', 'hello')
     await w.until(() => w.toolRequests.length === 1)
-    const refused = await w.intake.work.stopCall({
+    // The bare Tool call id is not the invocation reference the session bound, so nothing is held.
+    const answered = await w.intake.work.stopCall({
       ...intakeAccess,
       operation: operationId('j4b-stop'),
       producer: { kind: 'tool', call: 'tcall_w2_0' },
     })
     hold.resolve()
-    expect(refused).toMatchObject({ failure: { kind: 'unsupported' } })
+    expect(answered).toMatchObject({ ok: { answer: { kind: 'not-found' } } })
     expect((await activeRun(w)).run).toBeDefined()
   })
 })

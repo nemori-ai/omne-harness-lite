@@ -32,6 +32,7 @@ import { createResumptionDriver } from './driver-resumption.ts'
 import { createSuspensionDriver } from './driver-suspension.ts'
 import { isExcludedFailure } from './ledger-exclusion.ts'
 import { resumePreparationOperation } from './ledger-resumption.ts'
+import { awaitsFinal } from './ledger-ending.ts'
 import { LEDGER_REJECTED_DIAGNOSTIC, queueKeyOf } from './ledger-start.ts'
 import type { TenantId } from './ledger-store.ts'
 
@@ -711,7 +712,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       if (task?.kind !== 'queue') return IDLE
       const reason = ledgerRejectedReason(recovery, task.operation)
       if (reason !== null) return settleRejected(step, recovery, reason)
-      return ['suspended', 'lost'].includes(recovery.state.execution.kind)
+      return ['suspended', 'lost', 'not-started'].includes(recovery.state.execution.kind)
         ? releaseSuspended(step, recovery, task)
         : settle(step, recovery, task, cancelled)
     }
@@ -828,7 +829,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       })),
     (step, recovery, cancelled) => {
       const task = recovery.tasks.find(item => item.kind === 'settle')
-      return recovery.state.phase !== 'settled' && task?.kind === 'settle'
+      return awaitsFinal(recovery.state) && task?.kind === 'settle'
         ? [{ key: 'settle', run: () => settle(step, recovery, task, cancelled) }]
         : []
     },

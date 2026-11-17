@@ -12,6 +12,8 @@ const table = {
   'cancel-run': { identity: 'login', effect: 'commit', limit: 'small' },
   'stop-call': { identity: 'login', effect: 'commit', limit: 'small' },
   'retry-run': { identity: 'login', effect: 'commit', limit: 'small' },
+  'background-call': { identity: 'login', effect: 'commit', limit: 'small' },
+  'list-background-calls': { identity: 'login', effect: 'read', limit: 'small' },
 } as const
 
 const outcomes = {
@@ -25,13 +27,15 @@ const outcomes = {
   'cancel-run': ['invalid', 'conflict', 'not-found', 'unknown'],
   'stop-call': ['invalid', 'conflict', 'not-found', 'unknown', 'unsupported'],
   'retry-run': ['invalid', 'archived', 'frozen', 'not-found', 'no-change', 'conflict', 'unknown'],
+  'background-call': ['invalid', 'conflict', 'unknown'],
+  'list-background-calls': ['invalid'],
 } as const
 const always = ['succeeded', 'protocol-rejected', 'basis-unavailable', 'denied']
 
 const operations = sessionProtocol.operations
 
 describe('session/v1', () => {
-  it('is session major 1 with exactly the ten operations and one observation', () => {
+  it('is session major 1 with exactly the twelve operations and one observation', () => {
     expect(sessionProtocol.name).toBe('session')
     expect(sessionProtocol.major).toBe(1)
     expect(Object.keys(operations).sort()).toEqual(Object.keys(table).sort())

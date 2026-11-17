@@ -101,7 +101,10 @@ describe('durable control progression', () => {
       expect(before.controls).toHaveLength(1)
       expect(before.tasks.filter(task => task.kind === 'stop')).toHaveLength(1)
       expect(
-        await f.h.commands.control({ ...input, intent: { kind: 'background' } }),
+        await f.h.commands.control({
+          ...input,
+          intent: { kind: 'background', otherwise: 'reject' },
+        }),
       ).toMatchObject({ failure: { kind: 'conflict' } })
       await f.h.runOnce('controlled', abort.signal)
       const accepted = ok(await f.h.commands.loadRecovery(f.access))

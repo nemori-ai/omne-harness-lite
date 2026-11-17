@@ -152,30 +152,17 @@ describe('stop-call: the Session failure the protocol answers', () => {
     expect(await ops(world)['stop-call'](as(login()), bodyOf(session))).toEqual(expected)
   })
 
-  it.each<[Named, object]>([
-    ['denied', DENIED],
-    ['unavailable', UNAVAILABLE],
-    ['quarantined', UNAVAILABLE],
-    ['invalid', UNSUPPORTED],
-    ['conflict', UNSUPPORTED],
-    ['commitUnknown', UNSUPPORTED],
-    ['notFound', UNSUPPORTED],
-    ['limited', UNSUPPORTED],
-    ['archived', UNSUPPORTED],
-    ['nothingPending', UNSUPPORTED],
-  ])('answers %s of a Tool target as %j', async (name, expected) => {
+  it('a Tool target that Session accepts answers requested, the same as a Model target', async () => {
     const world = createWorld()
     const session = await created(world)
-    world.session.controls.refuseToolTargets(false)
-    world.session.controls.failWith(failures[name])
-    expect(await ops(world)['stop-call'](as(login()), bodyOf(session, 'tool'))).toEqual(expected)
-  })
-
-  it('answers unsupported to a Tool target Session accepted', async () => {
-    const world = createWorld()
-    const session = await created(world)
-    world.session.controls.refuseToolTargets(false)
-    expect(await ops(world)['stop-call'](as(login()), bodyOf(session, 'tool'))).toEqual(UNSUPPORTED)
+    world.session.controls.answerControlWith({
+      kind: 'requested',
+      progress: { operation: OPERATION, state: 'propagating', pending: [] } as never,
+    })
+    expect(await ops(world)['stop-call'](as(login()), bodyOf(session, 'tool'))).toMatchObject({
+      outcome: 'succeeded',
+      body: { kind: 'requested', producer: { kind: 'tool' } },
+    })
   })
 
   it('answers unknown to a Tool target when Session throws after the call began', async () => {
@@ -224,7 +211,6 @@ describe('stop-call: the Session failure the protocol answers', () => {
     async kind => {
       const world = createWorld()
       const session = await created(world)
-      world.session.controls.refuseToolTargets(false)
       const before = world.session.controls.calls().length
       world.breakFacts('undescribed')
       expect(await ops(world)['stop-call'](as(login()), bodyOf(session, kind))).toEqual(UNAVAILABLE)

@@ -79,7 +79,7 @@ export type OperationReceipt =
   | Readonly<{ kind: 'admit'; state: ToolState }>
   | Readonly<{ kind: 'control'; control: ControlReceipt; subject?: DurableEvidence }>
   | Readonly<{ kind: 'record-control'; control: ControlRecord }>
-  | Readonly<{ kind: 'release-delivery'; delivery: ReleasedDelivery }>
+  | Readonly<{ kind: 'release-delivery' | 'release-placeholder'; delivery: ReleasedDelivery }>
   | Readonly<{ kind: 'plan-preparation'; preparation: PreparationRecord }>
   | Readonly<{ kind: 'prepared'; state: ToolState }>
   | Readonly<{ kind: 'enqueue'; state: ToolState }>
@@ -268,7 +268,7 @@ export type QueueCounterRecord = Readonly<{ next: string }>
 export type ReleaseBasis =
   | Readonly<{ kind: 'pre-start-rejection'; exclusion: DurableEvidence }>
   | Readonly<{ kind: 'physical-end'; proof: DurableEvidence }>
-  | Readonly<{ kind: 'ledger-rejected'; result: DurableEvidence }>
+  | Readonly<{ kind: 'ledger-rejected' | 'ended-before-start'; result: DurableEvidence }>
   | Readonly<{
       kind: 'suspended-exclusion'
       checkpoint: DurableEvidence
