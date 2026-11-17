@@ -9,6 +9,23 @@ describe('the config of the model-host row', () => {
     expect(modelHostConfig.safeParse(base).success).toBe(true)
   })
 
+  it('accepts several delays and a jitter between zero and one, and gives the values as they are', () => {
+    const policy = { maxAttempts: 3, maxElapsedMs: 1000, delaysMs: [100, 200], jitter: 0.5 }
+    const parsed = modelHostConfig.safeParse({ ...base, retry: { ...base.retry, policy } })
+    expect(parsed.success).toBe(true)
+    expect(parsed.data?.retry).toEqual({ adoption: base.retry.adoption, policy })
+  })
+
+  it.each(['owner', 'name', 'revision', 'digest'] as const)(
+    'refuses a retry adoption with an empty %s',
+    field => {
+      const adoption = { ...base.retry.adoption, [field]: '' }
+      expect(
+        modelHostConfig.safeParse({ ...base, retry: { ...base.retry, adoption } }).success,
+      ).toBe(false)
+    },
+  )
+
   it('refuses a config without the retry policy', () => {
     const { retry: _retry, ...rest } = base
     expect(modelHostConfig.safeParse(rest).success).toBe(false)

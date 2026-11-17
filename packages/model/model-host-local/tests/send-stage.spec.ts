@@ -465,6 +465,66 @@ it('captures the private channel and installs its materialization and receive re
   expect(events).toEqual(['install', 'install-receive', 'withdraw', 'withdraw-receive', 'close'])
 })
 
+async function stageWithReaders(
+  label: string,
+  installers: Pick<ModelSendStagePluginOptions, 'installMaterialization' | 'installReceive'>,
+) {
+  const scene = sceneOf(REQUEST, label)
+  const ctx = new Context()
+  await ctx.plugin(SpyCredential)
+  await ctx.plugin(commandsServiceOver(scene.memory.dependencies.commands))
+  const events: string[] = []
+  const Stage = sendStagePluginOver({
+    options: optionsOf(scene, installers),
+    assemble: () => ({
+      send: { send: vi.fn() },
+      preparation: { acquire: vi.fn() },
+      materialization: { prove: vi.fn() },
+      receive: { prove: vi.fn() },
+      close: async () => {
+        events.push('close')
+      },
+    }),
+  })
+  return { ctx, Stage, events }
+}
+
+it('withdraws the materialization reader and closes the send path when the receive reader cannot be installed', async () => {
+  const withdrawn: string[] = []
+  const { ctx, Stage, events } = await stageWithReaders('install-fails', {
+    installMaterialization: () => () => {
+      withdrawn.push('materialization')
+    },
+    installReceive: () => {
+      throw new Error('no place for the receive reader')
+    },
+  })
+  const fiber = ctx.plugin(Stage, SETTINGS)
+  await expect(
+    (async () => {
+      await fiber
+    })(),
+  ).rejects.toThrow('no place for the receive reader')
+  expect(withdrawn).toEqual(['materialization'])
+  await vi.waitFor(() => expect(events).toEqual(['close']))
+})
+
+it('a reader withdrawal that throws does not keep the other reader installed or the send path open', async () => {
+  const withdrawn: string[] = []
+  const { ctx, Stage, events } = await stageWithReaders('withdraw-fails', {
+    installMaterialization: () => () => {
+      throw new Error('the withdrawal failed')
+    },
+    installReceive: () => () => {
+      withdrawn.push('receive')
+    },
+  })
+  const fiber = await ctx.plugin(Stage, SETTINGS)
+  await fiber.dispose()
+  expect(withdrawn).toEqual(['receive'])
+  expect(events).toEqual(['close'])
+})
+
 describe('the plugin and its dependencies', () => {
   it('forwards both port operations while held and makes them unavailable before close completes', async () => {
     const scene = sceneOf(REQUEST, 'held-port')

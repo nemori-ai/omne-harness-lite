@@ -259,6 +259,31 @@ it('rejects every missing or invalid numeric setting through the Cordis configur
   }
 })
 
+it('the schema gives the retry settings as they are, and names what is wrong with them', () => {
+  const f = fixture()
+  const validate = (config: unknown) => f.Plugin.Config['~standard'].validate(config)
+  const { adoption, policy } = CONFIG.retry
+  expect(validate(CONFIG)).toMatchObject({ value: { retry: CONFIG.retry } })
+  const unnamed = {
+    issues: [{ message: 'retry.adoption must name owner, name, revision and digest' }],
+  }
+  for (const field of ['owner', 'name', 'revision', 'digest'] as const)
+    for (const value of ['', 1, undefined])
+      expect(
+        validate({ ...CONFIG, retry: { adoption: { ...adoption, [field]: value }, policy } }),
+        `${field}=${String(value)}`,
+      ).toEqual(unnamed)
+  expect(validate({ ...CONFIG, retry: { adoption, policy: { ...policy, delaysMs: [] } } })).toEqual(
+    {
+      issues: [{ message: 'retry.policy: retry policy field delaysMs is missing or out of range' }],
+    },
+  )
+  expect(validate({ ...CONFIG, retry: { adoption, policy: 1 } })).toEqual({
+    issues: [{ message: 'retry.policy: retry policy is not an object' }],
+  })
+  void f.ctx.fiber.dispose()
+})
+
 it('rejects a retry policy out of range and an adoption without a name', async () => {
   const f = fixture()
   await f.services()

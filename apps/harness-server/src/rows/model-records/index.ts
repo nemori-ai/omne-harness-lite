@@ -44,6 +44,7 @@ import { credentialLayerSupplier } from '../../model/credential-layer.ts'
 import { compositeManifestDigest } from '../session-storage/composite.ts'
 import { storageCatalog } from '../storage/catalog.ts'
 import { modelRecordsConfig, type ModelRecordsConfig } from './config.ts'
+import { slot } from './slot.ts'
 
 const INJECT = [
   storageKey,
@@ -91,19 +92,6 @@ function recordsManifestDigest(): string {
   if (manifest.kind === 'invalid')
     throw new Error(`model records combination is not registrable: ${manifest.diagnostic}`)
   return manifest.digest
-}
-
-function slot<T>() {
-  let current: T | undefined
-  return {
-    read: () => current,
-    install(value: T) {
-      current = value
-      return () => {
-        if (current === value) current = undefined
-      }
-    },
-  }
 }
 
 function mountRecords(ctx: Context, config: ModelRecordsConfig): void {

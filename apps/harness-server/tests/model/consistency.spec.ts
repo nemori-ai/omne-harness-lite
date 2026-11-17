@@ -93,6 +93,9 @@ describe('the cross-row equalities of the model rows', () => {
     const host = structuredClone(base.host)
     host.retry.adoption = { ...host.retry.adoption, revision: '2' }
     violating(rows({ 'model-host': host }), 'retry.adoption')
+    violating(rows({ 'model-host': host }), 'model-host')
+    violating(rows({ 'model-host': host }), 'model-records')
+    violating(rows({ 'model-host': host }), 'sendStage.profiles.retryPolicy')
   })
 
   it('a stub in either row of a pair is not checked (a stub has no such field)', () => {
