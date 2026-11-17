@@ -64,6 +64,7 @@ export type {
 } from './values.ts'
 export type {
   AdmittedMessage,
+  DeliveredInputs,
   CommitReceipt,
   CompactionContextRead,
   Completion,
@@ -287,6 +288,7 @@ export {
   sessionInputBytes,
   judgeSessionIntake,
   pendingIntakeCount,
+  inputsToDeliver,
   runStartInputs,
   wakingInputs,
 } from './intake.ts'

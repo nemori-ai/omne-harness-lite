@@ -51,6 +51,18 @@ export function pendingIntakeCount(
   return snapshot.pending.reduce((count, input) => count + Number(!uncounted.has(input)), 0)
 }
 
+/**
+ * The inputs of a taken batch that need a delivery: those the model has not been shown since its
+ * last reply. An input still at the end of the model view is not shown twice.
+ */
+export function inputsToDeliver(
+  snapshot: Pick<WorkSnapshot, 'deliveredTail'>,
+  ordered: readonly InputId[],
+): readonly InputId[] {
+  const shown = new Set(snapshot.deliveredTail ?? [])
+  return ordered.filter(input => !shown.has(input))
+}
+
 /** The input a Run starts from: the first waking one, or none. */
 export function runStartInputs(
   snapshot: Pick<WorkSnapshot, 'pending' | 'quietInputs'> | null | undefined,

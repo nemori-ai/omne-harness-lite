@@ -1,6 +1,7 @@
 import { decidePermissionAssignment } from './permission-state.ts'
 import {
   DEFAULT_SESSION_INTAKE_LIMITS,
+  inputsToDeliver,
   judgeSessionIntake,
   pendingIntakeCount,
   type SessionIntakeLimits,
@@ -21,8 +22,20 @@ import type {
 } from './identity.ts'
 import type { Adoption } from './identity.ts'
 import { tenantEquals, workspaceCodec, type WorkspaceId } from '@omne-harness/legal-identity'
-import type { BoundedClose, RunTerminal, WorkSnapshot, WorkspaceAttachment } from './values.ts'
-import type { HistoryEntry, ProducerFact, SessionFailure, StartAdoption } from './faces.ts'
+import type {
+  BoundedClose,
+  Participation,
+  RunTerminal,
+  WorkSnapshot,
+  WorkspaceAttachment,
+} from './values.ts'
+import type {
+  DeliveredInputs,
+  HistoryEntry,
+  ProducerFact,
+  SessionFailure,
+  StartAdoption,
+} from './faces.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import { encodeEntry } from './entries.ts'
 import {
@@ -349,11 +362,58 @@ function decideStartRun(
   return entries(out)
 }
 
+// A step took a batch: the inputs of it that `inputsToDeliver` names get one delivery each. The
+// model view holds an input from here on, not from its acceptance.
+function decideDelivery(
+  snapshot: WorkSnapshot,
+  participation: Participation,
+  value: DeliveredInputs,
+): Decision {
+  if (participation.joint !== 'delivered')
+    return invalid('participation.joint', 'not the delivery of a taken batch')
+  const judgment = judgeAdvance(snapshot, {
+    kind: 'participation',
+    execution: participation.execution,
+    joint: participation.joint,
+  })
+  if (judgment.kind === 'stale-advance')
+    return invalid('participation.execution', 'not the execution of the active Run')
+  if (judgment.kind !== 'ok') return rejected(judgment)
+  const known = new Set([...snapshot.pending, ...(snapshot.taken ?? [])])
+  const named = value.deliveries.map(delivery => delivery.input)
+  if (named.length === 0 || new Set(named).size !== named.length)
+    return invalid('value.deliveries', 'empty, or an input named twice')
+  if (inputsToDeliver(snapshot, named).length !== named.length)
+    return rejected({ kind: 'changed', revision: snapshot.revision })
+  const out: EncodedEntry[] = []
+  for (const { input, message } of value.deliveries) {
+    if (!known.has(input)) return invalid('value.deliveries', 'not an input this Run can take')
+    if (message.role !== 'user' && message.role !== 'system_reminder')
+      return invalid('value.deliveries', 'not the message of an input')
+    out.push(
+      encodeEntry(
+        {
+          kind: 'message.delivered',
+          input,
+          message,
+          source: value.source,
+          admission: value.admission,
+          consumption: null,
+          participation,
+        },
+        { owner: 'agent', via: 'agent-participant', source: value.source },
+      ),
+    )
+  }
+  return entries(out)
+}
+
 function decideRecordMessage(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'recordMessage' }>,
 ): Decision {
   const { participation, value } = command.input
+  if ('deliveries' in value) return decideDelivery(snapshot, participation, value)
   if (participation.joint !== 'message')
     return invalid('participation.joint', 'not the message hand-over')
   const judgment = judgeAdvance(snapshot, {

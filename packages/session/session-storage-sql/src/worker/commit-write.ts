@@ -25,6 +25,14 @@ function messageOf(entry: HistoryEntry): ViewMessage | null {
   return message ?? null
 }
 
+/**
+ * True for the message of an input as the Session accepted it: the entry before its
+ * `intake.routed`. The model view holds an input from its delivery, not from here.
+ */
+export function isIntakeRecord(entries: readonly HistoryEntry[], index: number): boolean {
+  return entries[index + 1]?.kind === 'intake.routed'
+}
+
 export function maintainModelView(
   port: ParticipantPort,
   tenant: string,
@@ -59,8 +67,8 @@ export function maintainModelView(
     )
     return digest
   }
-  for (const entry of entries) {
-    const message = messageOf(entry)
+  for (const [index, entry] of entries.entries()) {
+    const message = isIntakeRecord(entries, index) ? null : messageOf(entry)
     if (
       message === null ||
       message.role === 'tool_internal' ||

@@ -23,6 +23,7 @@ import {
   guard,
   initializationFixtureFacts,
   initializationFixtureGuard,
+  inputId,
   operationId,
   ordinaryInput,
   sessionId,
@@ -587,6 +588,39 @@ export function startRun(a: SceneApp, name: string) {
       },
     },
     guards: [guard('evidence-bridge', 'login-entry', { session: 'session-1', operation: name })],
+  })
+}
+
+/** Puts accepted inputs into the model view the way a step of the active Run does. */
+export async function deliver(a: SceneApp, name: string, inputs: readonly string[]) {
+  const work = await workOf(a)
+  if (work.run.kind !== 'active') throw new Error('no active Run')
+  return a.port.commit({
+    access: a.access(TENANT_A),
+    command: {
+      kind: 'recordMessage',
+      input: {
+        tenant: TENANT_A,
+        session: sessionId('session-1'),
+        operation: operationId(`deliver-${name}`),
+        participation: {
+          execution: work.run.execution.execution,
+          operation: `agent-deliver-${name}`,
+          joint: 'delivered',
+          written: work.run.execution.revision ?? '0',
+          handover: evidence(`deliver-${name}`),
+        },
+        value: {
+          deliveries: inputs.map(input => ({
+            input: inputId(input),
+            message: ordinaryInput(input).message,
+          })),
+          source: evidence(`agent/step/${name}`),
+          admission: evidence(`agent/step/${name}`),
+        },
+      },
+    },
+    guards: [],
   })
 }
 

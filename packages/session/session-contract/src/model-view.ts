@@ -17,6 +17,17 @@ function messageOf(row: HistoryEntry): Message | null {
   const decoded = decodeEntry(row)
   return 'ok' in decoded && 'message' in decoded.ok ? decoded.ok.message : null
 }
+
+/**
+ * The message an entry gives the model view. An input's message as the Session accepted it (the
+ * entry before its `intake.routed`) is a record for people; the model view holds the input from
+ * its delivery, the moment a step took it.
+ */
+export function viewMessageOf(entries: readonly HistoryEntry[], index: number): Message | null {
+  const entry = entries[index]
+  if (entry === undefined || entries[index + 1]?.kind === 'intake.routed') return null
+  return messageOf(entry)
+}
 export function materializeModelView(
   previous: MaterializedModelView,
   committed: readonly HistoryEntry[],
@@ -24,8 +35,8 @@ export function materializeModelView(
 ): MaterializedModelView {
   let epoch = previous.epoch
   let rows = [...previous.rows]
-  for (const entry of committed) {
-    const message = messageOf(entry)
+  for (const [index, entry] of committed.entries()) {
+    const message = viewMessageOf(committed, index)
     if (
       message === null ||
       message.role === 'tool_internal' ||
@@ -78,7 +89,7 @@ export function compactionReads(
   for (const [index, entry] of entries.entries()) {
     const ref = parseRecordEntryRef(entry.id)
     if (ref === null) return null
-    const row = { ref, message: messageOf(entry) }
+    const row = { ref, message: viewMessageOf(entries, index) }
     ;(index <= end ? covered : after).push(row)
   }
   const previous = covered.filter(row => row.message?.role === 'compaction').at(-1)
@@ -114,14 +125,14 @@ export function compactionReads(
     throw error
   }
   if (required.some(ref => !entries.some(entry => entry.id === ref))) return null
-  const open = entries.flatMap((entry, index) => {
+  const open = entries.flatMap(entry => {
     const decoded = decodeEntry(entry)
     if (!('ok' in decoded)) return []
     const value = decoded.ok
+    // An input that is still alive keeps its delivery in the context.
     const relevant =
       required.includes(entry.id) ||
-      (value.kind === 'intake.routed' &&
-        'input' in value &&
+      (value.kind === 'message.delivered' &&
         (snapshot.pending.includes(value.input) || (snapshot.taken ?? []).includes(value.input))) ||
       (value.kind === 'call.bound' &&
         snapshot.consumptions.some(
@@ -129,14 +140,7 @@ export function compactionReads(
             item.id === value.consumption &&
             item.results.every(result => result.completion === null),
         ))
-    const source =
-      value.kind === 'intake.routed'
-        ? entries
-            .slice(0, index)
-            .reverse()
-            .find(row => row.kind === 'message.user')
-        : entry
-    const ref = source === undefined ? null : parseRecordEntryRef(source.id)
+    const ref = parseRecordEntryRef(entry.id)
     return relevant && ref !== null ? [ref] : []
   })
   return {
