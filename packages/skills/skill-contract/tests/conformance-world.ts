@@ -71,7 +71,6 @@ const declared: DeclaredProjection = {
   name: granted(isSkillName, 'review'),
   description: 'Reviews a change.',
   tools: [],
-  scripts: [],
   settings: [],
 }
 

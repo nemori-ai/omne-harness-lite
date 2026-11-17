@@ -11,6 +11,7 @@ it('exports the skill body port', () => {
     'DESCRIPTION_LIMIT',
     'MANIFEST_PATH',
     'PAGE_LIMIT',
+    'SKILL_PACKAGE_LIMITS',
     'bodyOffsetOf',
     'computeDigest',
     'inferMediaType',
@@ -19,6 +20,7 @@ it('exports the skill body port', () => {
     'isPackageDigest',
     'isPackagePath',
     'isSafeReason',
+    'isSettingCategory',
     'isSkillDescription',
     'isSkillName',
     'parseSkillPackage',
@@ -31,7 +33,12 @@ it('exports the skill body port', () => {
 
 it('exports the snapshot constructor and its guard on the provider entry only', async () => {
   const provider = await import('@omne-harness/skill-contract/provider')
-  expect(Object.keys(provider).sort()).toEqual(['isSealedSnapshot', 'sealSnapshot'])
+  expect(Object.keys(provider).sort()).toEqual([
+    'isSealedSnapshot',
+    'packageEntryOf',
+    'sealEntries',
+    'sealSnapshot',
+  ])
   expect(Object.keys(skill)).not.toContain('sealSnapshot')
   expect(Object.keys(skill)).not.toContain('isSealedSnapshot')
 })
@@ -76,7 +83,7 @@ it('writes the provider entry only as type re-exports and the one runtime re-exp
   const statements = exportStatements(join(src, 'provider.ts'))
   for (const statement of statements)
     expect(statement).toMatch(
-      /^export type \{ [A-Za-z, ]+,? \} from '\.\/[a-z-]+\.ts'$|^export \{ isSealedSnapshot, sealSnapshot \} from '\.\/snapshot\.ts'$/,
+      /^export type \{ [A-Za-z, ]+,? \} from '\.\/[a-z-]+\.ts'$|^export \{ isSealedSnapshot, packageEntryOf, sealEntries, sealSnapshot \} from '\.\/snapshot\.ts'$/,
     )
   const withoutComments = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
   const rest = statements.reduce(
@@ -101,6 +108,8 @@ it('names on the provider entry exactly the types and values that the SPEC gives
     'SnapshotDefect',
     'SourceFailure',
     'isSealedSnapshot',
+    'packageEntryOf',
+    'sealEntries',
     'sealSnapshot',
   ])
 })

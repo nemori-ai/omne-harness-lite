@@ -1,6 +1,6 @@
 # 形式模型与规格、代码的对照
 
-本页对照 `session-contract/verification/models` 下除 `frontier` 以外的七个有限模型：它们检查哪些性质，各配置预期什么，模型动作对应哪段代码。条款在包组规格 [`packages/session/SPEC.md`](../../../SPEC.md)。模型检查只说明有限范围内的设计性质，不证明实现符合模型。每个目录的 `expect.txt` 是配置预期的机器形式：`pass` 表示无反例，性质名表示必须命中这一条。
+本页对照 `session-contract/verification/models` 下除 `frontier` 以外的七个有限模型：它们检查哪些性质，各配置预期什么，模型动作对应哪段代码。条款在包组规格 [`packages/session/SPEC.md`](../../../SPEC.md)。模型检查只说明有限范围内的设计性质，不证明实现符合模型。每个目录的 `expect.txt` 是配置预期的机器形式：`pass` 表示无反例，性质名表示必须命中这一条。`background-calls` 是第八个，登记方式不同：它的配置与预期在 [`../models.json`](../models.json)，由 [`../check.py`](../check.py) 判读，成员内 `pnpm run verify:formal` 运行，见本页最后一节。
 
 ## run-advance
 
@@ -156,3 +156,51 @@
 | `bad-restart`        | 命中 `DurableValue`：重启把持久值改成缺席  |
 
 范围：`MaxRevision` 为 2，读取、捕获任意交错，至多一次重启；归档、授权、组织来源与原动作围栏不在模型内，写入假定调用方已有写资格。
+
+## background-calls
+
+`BackgroundCalls.tla` 检查一个会话里转了后台的工具调用：用户的停止、agent 的停止、结局到达、归档与它们的重放任意先后时，会话里留下什么提醒，哪些提醒能开一轮。模型的每个动作是一次会话提交。
+
+| 性质（模型名）                                                                     | 规格   | 违背后果                         |
+| ---------------------------------------------------------------------------------- | ------ | -------------------------------- |
+| 一次停止至多一条停止提醒（`AtMostOneStopReminder`）                                | SW-I17 | 同一次停止提醒两遍               |
+| 一个结果至多一条结局提醒（`AtMostOneOutcomeReminder`）                             | SW-I13 | 同一结果处理两遍                 |
+| 停止提醒与被停调用的结局不开 Run（`NoPassiveStart`）                               | SW-I16 | 人刚停掉一项，agent 自己又动起来 |
+| 已结算的调用要么成了提醒，要么会话已归档（`SettledHasDestination`）                | SW-I14 | 模型等一个不会来的结果           |
+| 归档之后不受理提醒，待处理为空（`NoReminderAfterArchive`、`ArchivedHasNoPending`） | SW-I18 | 已收起的会话又多出待办           |
+| agent 提的停止不留提醒（`AgentStopSilent`）                                        | SW-I17 | agent 被自己的动作提醒           |
+| 停一项不改变另一项的结局怎样回来（`UnstoppedOutcomeWakes`）                        | SW-I14 | 该叫醒的没叫醒                   |
+| 会话没归档时，受理的提醒在待处理或已交入里（`NoLostReminder`）                     | SW-I16 | 停止提醒永远到不了模型           |
+
+| 配置        | 预期                                   |
+| ----------- | -------------------------------------- |
+| `one-call`  | 无反例：一项后台调用                   |
+| `two-calls` | 无反例：两项后台调用，各自的停止与结局 |
+
+负控是对模型的改动，每个只改一条设计规则，只查它应当命中的那一条性质。清单里的名字与命中的性质：
+
+| 改动                       | 改掉的规则                  | 命中                       |
+| -------------------------- | --------------------------- | -------------------------- |
+| `stop-twice`               | 同一项的第二次停止不认回    | `AtMostOneStopReminder`    |
+| `outcome-twice`            | 同一结果的重投不认回        | `AtMostOneOutcomeReminder` |
+| `stop-reminder-wakes`      | 停止提醒能叫醒              | `NoPassiveStart`           |
+| `stopped-outcome-wakes`    | 被停调用的结局能叫醒        | `NoPassiveStart`           |
+| `start-on-any-input`       | 开 Run 不看输入叫不叫醒     | `NoPassiveStart`           |
+| `stop-swallows-outcome`    | 被停调用的结局只留存        | `SettledHasDestination`    |
+| `outcome-after-archive`    | 归档之后的结局照样受理      | `NoReminderAfterArchive`   |
+| `stop-after-archive`       | 归档之后还受理停止          | `NoReminderAfterArchive`   |
+| `agent-stop-reminds`       | agent 的停止也留提醒        | `AgentStopSilent`          |
+| `archive-keeps-pending`    | 归档不清待处理              | `ArchivedHasNoPending`     |
+| `stop-leaks-to-other-call` | 一项被停，别的项也算被停    | `UnstoppedOutcomeWakes`    |
+| `passive-input-dropped`    | 开 Run 时不交入不叫醒的输入 | `NoLostReminder`           |
+
+范围：一个会话；一项或两项后台调用；每项至多两次用户停止、两次结局投递；一条人的输入；一次归档。agent 的停止只在有未终结的 Run 时发生。待处理输入的先后、取消 Run、自动归档与未结工作的计算、冻结、撤销归档、Tool 一侧的停止与执行的物理收场不在模型里。只查安全性质。
+
+| 模型                                | 代码                                                                 |
+| ----------------------------------- | -------------------------------------------------------------------- |
+| `Backgrounded`                      | `background-outcome.ts` 的 `decideBackgrounded`                      |
+| `StopUser`、`StopAgent`             | 单调用控制的受理；发起主体取自调用方类别                             |
+| `Outcome`、`OutcomeKept`、`Stopped` | `background-outcome.ts` 的 `decideOutcome`、`judgeBackgroundOutcome` |
+| `Admit`                             | 系统来源输入的受理：有未终结的 Run 就交入，否则进待处理              |
+| `StartRun`、`MayStart`              | `judgments.ts` 的 `judgeRunStart`                                    |
+| `Archive`                           | 归档的控制意图：同批取消 Run 与待处理资格                            |

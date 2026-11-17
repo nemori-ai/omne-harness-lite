@@ -1,4 +1,4 @@
-import type { CapabilityId, JsonValue } from '@omne-harness/assets'
+import type { CapabilityId } from '@omne-harness/assets'
 import type { CompatibilityHint } from './hints.ts'
 
 declare const brand: unique symbol
@@ -17,7 +17,7 @@ export type Bytes = Uint8Array
 
 export type SourceLayer = 'official' | 'organization' | 'tenant' | 'workspace'
 
-export type SettingCategory = 'preference' | 'binding' | 'placement-identity' | 'governance'
+export type SettingCategory = 'preference' | 'binding'
 
 export type PackageEntry = Readonly<{
   path: PackagePath
@@ -37,7 +37,7 @@ export type SnapshotShape = Readonly<{
 
 export type PackageLocator =
   | Readonly<{ kind: 'directory'; root: string }>
-  | Readonly<{ kind: 'content-store'; digest: PackageDigest }>
+  | Readonly<{ kind: 'content-store'; digest: PackageDigest; ref: string }>
 
 export type ManifestValue =
   | null
@@ -57,18 +57,10 @@ export type SkillManifest = Readonly<{
   extra: Readonly<Record<string, ManifestValue>>
 }>
 
-export type ScriptDeclaration = Readonly<{
-  entry: PackagePath
-  runKind: string
-  facilities: readonly string[]
-  parameters?: JsonValue
-}>
-
 export type SettingDeclaration = Readonly<{ name: string; category: SettingCategory }>
 
 export type SkillDeclaration = Readonly<{
   dependencies: readonly CapabilityId[]
-  scripts: readonly ScriptDeclaration[]
   settings: readonly SettingDeclaration[]
 }>
 
@@ -83,11 +75,8 @@ export type DeclaredProjection = Readonly<{
   name: SkillName
   description?: string
   tools: readonly CapabilityId[]
-  scripts: readonly ScriptDeclaration[]
   settings: readonly SettingDeclaration[]
 }>
-
-export type ScriptIdentity = Readonly<{ capability: CapabilityId; entry: PackagePath }>
 
 export type SkillMaterialBasis = Readonly<{
   capability: CapabilityId

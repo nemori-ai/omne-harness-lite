@@ -1160,6 +1160,9 @@ importers:
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
       '@omne-harness/settings':
         specifier: workspace:*
         version: link:../settings
@@ -1210,6 +1213,9 @@ importers:
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
       '@omne-harness/settings':
         specifier: workspace:*
         version: link:../settings
@@ -4051,9 +4057,15 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../../assets/assets
       '@omne-harness/kernel-basis':
         specifier: workspace:*
         version: link:../../assembly/kernel-basis
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
@@ -4067,12 +4079,18 @@ importers:
         specifier: workspace:*
         version: link:../skill-cordis-contract
     devDependencies:
-      '@omne-harness/assets':
+      '@omne-harness/assets-local':
         specifier: workspace:*
-        version: link:../../assets/assets
-      '@omne-harness/legal-identity':
+        version: link:../../assets/assets-local
+      '@omne-harness/settings-local':
         specifier: workspace:*
-        version: link:../../common/legal-identity
+        version: link:../../assets/settings-local
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../storage/sqlite-provider
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

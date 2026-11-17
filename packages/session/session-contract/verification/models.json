@@ -1,0 +1,105 @@
+{
+  "member": "session-contract",
+  "model": "models/background-calls/BackgroundCalls.tla",
+  "scope": "finite model BackgroundCalls: one session, one or two backgrounded tool calls, at most two user stops and two outcome deliveries for each call, one human input, one archive. Each action is one session commit; the order of pending inputs, freezing, unarchiving, the Tool side of a stop and the physical end of the execution are not modelled. Safety only. No refinement proof to the implementation.",
+  "workers": 2,
+  "timeoutSeconds": 600,
+  "cases": [
+    {
+      "name": "one-call",
+      "config": "models/background-calls/one-call.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "two-calls",
+      "config": "models/background-calls/two-calls.cfg",
+      "expected": "complete"
+    }
+  ],
+  "mutations": [
+    {
+      "name": "stop-twice",
+      "base": "one-call",
+      "old": "FirstStop(c) == stopBy[c] = \"none\"",
+      "new": "FirstStop(c) == TRUE",
+      "invariant": "AtMostOneStopReminder"
+    },
+    {
+      "name": "outcome-twice",
+      "base": "one-call",
+      "old": "FirstOutcome(c) == call[c] = \"bg\"",
+      "new": "FirstOutcome(c) == TRUE",
+      "invariant": "AtMostOneOutcomeReminder"
+    },
+    {
+      "name": "stop-reminder-wakes",
+      "base": "one-call",
+      "old": "StopReminderWakes == FALSE",
+      "new": "StopReminderWakes == TRUE",
+      "invariant": "NoPassiveStart"
+    },
+    {
+      "name": "stopped-outcome-wakes",
+      "base": "one-call",
+      "old": "StoppedOutcomeWakes == FALSE",
+      "new": "StoppedOutcomeWakes == TRUE",
+      "invariant": "NoPassiveStart"
+    },
+    {
+      "name": "start-on-any-input",
+      "base": "one-call",
+      "old": "MayStart(i) == i.wakes",
+      "new": "MayStart(i) == TRUE",
+      "invariant": "NoPassiveStart"
+    },
+    {
+      "name": "stop-swallows-outcome",
+      "base": "one-call",
+      "old": "OutcomeKept(c) == lifecycle = \"archived\"",
+      "new": "OutcomeKept(c) == lifecycle = \"archived\" \\/ stopBy[c] # \"none\"",
+      "invariant": "SettledHasDestination"
+    },
+    {
+      "name": "outcome-after-archive",
+      "base": "one-call",
+      "old": "OutcomeKept(c) == lifecycle = \"archived\"",
+      "new": "OutcomeKept(c) == FALSE",
+      "invariant": "NoReminderAfterArchive"
+    },
+    {
+      "name": "stop-after-archive",
+      "base": "one-call",
+      "old": "StopAllowed == lifecycle = \"open\"",
+      "new": "StopAllowed == TRUE",
+      "invariant": "NoReminderAfterArchive"
+    },
+    {
+      "name": "agent-stop-reminds",
+      "base": "one-call",
+      "old": "AgentStopReminds == FALSE",
+      "new": "AgentStopReminds == TRUE",
+      "invariant": "AgentStopSilent"
+    },
+    {
+      "name": "archive-keeps-pending",
+      "base": "one-call",
+      "old": "ArchiveClearsPending == TRUE",
+      "new": "ArchiveClearsPending == FALSE",
+      "invariant": "ArchivedHasNoPending"
+    },
+    {
+      "name": "stop-leaks-to-other-call",
+      "base": "two-calls",
+      "old": "Stopped(c) == stopBy[c] # \"none\"",
+      "new": "Stopped(c) == \\E d \\in Calls : stopBy[d] # \"none\"",
+      "invariant": "UnstoppedOutcomeWakes"
+    },
+    {
+      "name": "passive-input-dropped",
+      "base": "one-call",
+      "old": "delivered' = delivered \\cup pending",
+      "new": "delivered' = delivered \\cup {i \\in pending : i.wakes}",
+      "invariant": "NoLostReminder"
+    }
+  ]
+}
