@@ -45,6 +45,8 @@ import {
   type SessionInquiryRead,
   type SessionInteractionRead,
 } from './meta-capabilities.ts'
+import { toolOperatorSettingsKey } from '../rows/tool-host/operator-settings.ts'
+import { toolLimitsOf } from './tool-limits.ts'
 import { releaseOf, type ToolRelease } from './tool-release.ts'
 
 export type ReleaseToolRequests = NonNullable<AgentHostLocalPluginInput['toolRequests']>
@@ -61,6 +63,8 @@ export type ToolRequestPorts = Readonly<{
   ): Promise<Outcome<WorkSnapshot, SessionFailure>> | undefined
   scopeBinding(): ScopeBindingSource | undefined
   release(): ToolRelease
+  /** The operator's values for the settings a release tool declares; undefined when absent. */
+  operatorSettings(tool: string): Readonly<Record<string, unknown>> | undefined
   interaction: SessionInteractionRead
   inquiry: SessionInquiryRead
 }>
@@ -317,10 +321,15 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     } catch {
       return fail({ kind: 'invalid', field: 'original.arguments', reason: 'not-json' })
     }
+    const args = { original, effective: input.effectiveArguments, complete: true } as const
+    const limits = toolLimitsOf({ availability, command, arguments: args }, () =>
+      ports.operatorSettings(availability.definition.name),
+    )
+    if ('failure' in limits) return unavailable(limits.failure)
     const request: ToolInvokeRequest = {
       availability,
       command,
-      arguments: { original, effective: input.effectiveArguments, complete: true },
+      arguments: args,
       label,
       settings: entry.settings,
       context: RELEASE_REQUEST_CONTEXT,
@@ -332,7 +341,7 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
       consumer: input.consumer,
       batchDecision: null,
       mode: modeOf(availability.definition, input.effectiveArguments),
-      limits: { concurrency: null, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
+      limits: { concurrency: null, scopeBudget: null, ...limits.ok },
     }
     return succeed(request)
   }
@@ -352,6 +361,7 @@ export function releaseToolRequestsOf(ctx: Context): ReleaseToolRequests {
     readWork: sessionWorkReaderOf(ctx),
     scopeBinding: () => ctx.get(executionScopeBindingKey),
     release: () => releaseOf(ctx),
+    operatorSettings: tool => ctx.get(toolOperatorSettingsKey)?.read(tool),
     interaction: async access => {
       const ports = publishedViewPortsOf(ctx)
       if (ports === null) return fail('the Session or Runtime Context services are absent')

@@ -1,5 +1,11 @@
 export { createFilesAuthor, filesToolModule } from './files.ts'
-export { createShellAuthor, shellToolModule } from './shell.ts'
+export {
+  SHELL_BACKGROUND_AFTER_DEFAULT_MS,
+  SHELL_BACKGROUND_AFTER_SETTING,
+  SHELL_FOREGROUND_SETTING,
+  createShellAuthor,
+  shellToolModule,
+} from './shell.ts'
 export { createToolsAuthor, toolsToolModule } from './tools.ts'
 export type { FilesAuthorEnvironment, ShellAuthorEnvironment } from './environment.ts'
 export { createTodoItemsAuthor, todoItemsToolModule } from './todo-items.ts'

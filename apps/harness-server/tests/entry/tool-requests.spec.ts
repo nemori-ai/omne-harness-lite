@@ -31,6 +31,7 @@ import {
   type ReleaseToolRequests,
   type ToolRequestPorts,
 } from '../../src/entry/tool-requests.ts'
+import { ToolOperatorSettingsImpl } from '../../src/rows/tool-host/operator-settings.ts'
 import { toolRuntimeHolder } from '../../src/rows/tool-runtime/holder.ts'
 import { runToolScope } from '../../src/rows/tool-runtime/scope.ts'
 import { TEST_CONSTRUCTION, entryOf, releaseFixture, tree } from '../rows/tool-host/support.ts'
@@ -105,6 +106,7 @@ async function world() {
     readWork: async () => succeed(snapshot),
     scopeBinding: () => bindings,
     release: () => releaseOf(fixture.root),
+    operatorSettings: () => ({}),
     interaction: async () => succeed({ humanInteraction: true, requestApproval: true }),
     inquiry: async () => succeed('ask-human' as const),
   }
@@ -240,6 +242,71 @@ describe('the trusted Tool request source', () => {
       tool: 'Shell',
       command: 'info',
       preview: '',
+    })
+  })
+
+  it('reads the time limits from the Shell settings before admission (C6)', async () => {
+    const { ports, principalA } = await world()
+    const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+    const limitsOf = async (args: string, operator = ports.operatorSettings) => {
+      const source = createReleaseToolRequests({ ...ports, operatorSettings: operator })
+      const input = actionInput(principalA, TENANT_A, 'Shell', args)
+      const described = await source.describe(input)
+      if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
+      return source.prepare({ ...input, definition: described.ok.definition, admission })
+    }
+    const once = '{"command":"execute","intent":"build","params":{"script":"pnpm build"}}'
+    const terminal =
+      '{"command":"execute","intent":"build","params":{"script":"pnpm build","terminal":{"id":"t","generation":"g"}}}'
+    const limits = (answer: Awaited<ReturnType<typeof limitsOf>>) =>
+      (okOf(answer, 'prepare') as ToolInvokeRequest).limits
+    expect(limits(await limitsOf(once))).toEqual({
+      concurrency: null,
+      scopeBudget: null,
+      foregroundMs: null,
+      backgroundAfterMs: 60_000,
+    })
+    const lowered = () => ({ backgroundAfterMs: 1500, foregroundMs: 9000 })
+    expect(limits(await limitsOf(once, lowered))).toMatchObject({
+      foregroundMs: 9000,
+      backgroundAfterMs: 1500,
+    })
+    // A call that may not go to the background gets no threshold, only the foreground limit.
+    expect(limits(await limitsOf(terminal, lowered))).toMatchObject({
+      foregroundMs: 9000,
+      backgroundAfterMs: null,
+    })
+    expect(await limitsOf(once, () => undefined)).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+    expect(await limitsOf(once, () => ({ backgroundAfterMs: 'soon' }))).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+    expect(await limitsOf(once, () => ({ nothing: 1 }))).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+  })
+
+  it('does not read operator settings for a tool that declares none', async () => {
+    const { ports, principalA } = await world()
+    const source = createReleaseToolRequests({
+      ...ports,
+      operatorSettings: () => {
+        throw new Error('read')
+      },
+    })
+    const input = actionInput(principalA, TENANT_A, 'Files', '{"command":"list","params":{}}')
+    const described = await source.describe(input)
+    if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
+    const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+    const answer = await source.prepare({
+      ...input,
+      definition: described.ok.definition,
+      admission,
+    })
+    expect((okOf(answer, 'prepare') as ToolInvokeRequest).limits).toMatchObject({
+      foregroundMs: null,
+      backgroundAfterMs: null,
     })
   })
 
@@ -603,6 +670,7 @@ describe('the release composition releaseToolRequestsOf on a real Cordis root (N
     await fixture.root.plugin(recordingSession(snapshot, callers))
     fixture.root.provide(toolCatalogKey, ports.catalog())
     fixture.root.provide(executionScopeBindingKey, ports.scopeBinding())
+    new ToolOperatorSettingsImpl(fixture.root, {})
     toolRuntimeHolder(fixture.root).verifier = ports.verifier
     const request = okOf(
       await preparedBy(releaseToolRequestsOf(fixture.root), principalA),

@@ -54,7 +54,9 @@ export type BackgroundCell =
 const refused = (reason: BackgroundRefusal): BackgroundCell => ({ kind: 'refused', reason })
 
 /** The author's permission for this call: the tool's, narrowed to its command and given parameters. */
-export function backgroundAllowed(request: FixedToolRequest): boolean {
+export function backgroundAllowed(
+  request: Pick<FixedToolRequest, 'availability' | 'command' | 'arguments'>,
+): boolean {
   const { definition } = request.availability
   if (!definition.backgroundAllowed) return false
   if (definition.kind === 'function') return true

@@ -22,6 +22,15 @@ export function waitingCommand(name: string): string {
   })
 }
 
+/** A one-shot Shell execute in the foreground that runs until the file `name` exists. */
+export function foregroundCommand(name: string): string {
+  return JSON.stringify({
+    command: 'execute',
+    intent: `wait for ${name}`,
+    params: { script: `while [ ! -f ${name} ]; do sleep 0.1; done; echo ${name}-done` },
+  })
+}
+
 export function release(tree: ReleaseTree, name: string): void {
   writeFileSync(join(dirname(tree.storageRoot), 'workspace', name), '')
 }

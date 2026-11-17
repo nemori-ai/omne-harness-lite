@@ -68,12 +68,19 @@ export type ScriptedToolCall = Readonly<{ id: string; tool: string; arguments: s
 export function toolCallsThenText(
   pick: (body: string) => readonly ScriptedToolCall[],
 ): GatewayScript {
+  return toolCallsByRequest(body => (body.includes('"role":"tool"') ? [] : pick(body)))
+}
+
+/** A model that answers each request with the calls `pick` gives, or with text when it gives none. */
+export function toolCallsByRequest(
+  pick: (body: string) => readonly ScriptedToolCall[],
+): GatewayScript {
   return ({ body }) => {
     const serving = {
       model: (JSON.parse(body) as { model?: string }).model ?? 'm',
       provider: 'OpenAI',
     }
-    const calls = body.includes('"role":"tool"') ? [] : pick(body)
+    const calls = pick(body)
     return {
       status: 200,
       contentType: 'text/event-stream',
@@ -142,6 +149,20 @@ function withQueueCapacity(layer: unknown, capacity: number | undefined): unknow
         config: { ...config, configuration: { ...config.configuration, queueCapacity: capacity } },
       }
     }),
+  }
+}
+
+/** The operator's values for the settings release tools declare, given on the tool-host row. */
+function withToolSettings(
+  layer: unknown,
+  settings: Readonly<Record<string, Readonly<Record<string, unknown>>>> | undefined,
+): unknown {
+  if (settings === undefined) return layer
+  const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
+  return {
+    ops: ops.map(op =>
+      op.id === 'tool-host' ? { ...op, config: { ...op.config, settings } } : op,
+    ),
   }
 }
 
@@ -403,6 +424,8 @@ export type ReleaseTreeOptions = Readonly<{
   observationPolicy?: Readonly<Record<string, number>>
   /** History kinds read through session/v1 besides the five every tree reads. */
   extraHistoryKinds?: readonly string[]
+  /** The operator's values for the settings release tools declare, by tool name and item id. */
+  toolSettings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
 }>
 
 export async function onReleaseTree(
@@ -500,17 +523,20 @@ async function serveOnce(
   )
   const finished = runServe({
     distribution: releaseDistribution(options),
-    operator: withObservationPolicy(
-      withAgentWaitInterval(
-        withQueueCapacity(
-          withHistoryKinds(
-            operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: state.modelRoute }),
-            options.extraHistoryKinds,
+    operator: withToolSettings(
+      withObservationPolicy(
+        withAgentWaitInterval(
+          withQueueCapacity(
+            withHistoryKinds(
+              operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: state.modelRoute }),
+              options.extraHistoryKinds,
+            ),
+            options.queueCapacity,
           ),
-          options.queueCapacity,
         ),
+        options.observationPolicy,
       ),
-      options.observationPolicy,
+      options.toolSettings,
     ),
     plugins: { ...cordis },
     entryObjects: objects,

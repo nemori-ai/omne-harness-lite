@@ -322,6 +322,7 @@ function requestSource(ctx: Context) {
     readWork: async () => succeed(snapshot),
     scopeBinding: () => ctx.get(executionScopeBindingKey),
     release: () => releaseOf(ctx),
+    operatorSettings: () => ({}),
     interaction: async () => fail('no meta command in this test'),
     inquiry: async () => fail('no meta command in this test'),
   })

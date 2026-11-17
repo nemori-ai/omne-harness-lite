@@ -284,7 +284,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     phase: 'business',
   },
   'tool-host': {
-    provides: ['toolGenerations'],
+    provides: ['toolGenerations', 'toolOperatorSettings'],
     injects: ['toolBindings', 'toolContributionAuthority', 'toolResidencyReader'],
   },
   'tool-residency': {

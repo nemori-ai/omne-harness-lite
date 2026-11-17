@@ -5,7 +5,11 @@ import {
   environmentNeedAdoption,
   type FacilityKey,
 } from '@omne-harness/execution-environment-contract'
-import { type CommandCallEncoding, type CommandTable } from '@omne-harness/tool-contract'
+import {
+  type CommandCallEncoding,
+  type CommandTable,
+  type ToolSettingsDeclaration,
+} from '@omne-harness/tool-contract'
 import {
   commandGuide,
   defineCommandTool,
@@ -42,6 +46,7 @@ export function createAuthor<E>(
     environment: E,
     execution: ToolExecutionContext,
   ) => Promise<string>,
+  settings: ToolSettingsDeclaration | null = null,
 ): ToolImplementation<E, ToolMessageContentBlock> {
   const menu: CommandTable = {
     name,
@@ -127,7 +132,7 @@ export function createAuthor<E>(
         attachments: [],
         inputModalities: ['text'],
         outputModalities: ['text'],
-        settings: null,
+        settings,
       },
     },
     encoding: ENCODING,
