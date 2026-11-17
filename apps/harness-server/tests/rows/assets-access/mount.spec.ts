@@ -101,7 +101,7 @@ describe('assets-access row', () => {
   })
 
   it(
-    'loads on the release tree, assets/v1 appears in availability, and a login sets and reads back a setting',
+    'loads on the release tree, assets/v1 appears in availability, a login sets and reads back a setting, and lists the categories the rows installed',
     { tags: ['slow'], timeout: 180_000 },
     async () => {
       const exitCode = await onReleaseTree({ script: toolCallsThenText(() => []) }, async tree => {
@@ -157,6 +157,23 @@ describe('assets-access row', () => {
           'm-list',
         )
         expect(listed).toMatchObject({ status: 200, json: { outcome: 'succeeded' } })
+
+        const categories = await assets(
+          tree,
+          'list-categories',
+          { after: null, limit: 100 },
+          'm-categories',
+        )
+        expect(categories).toMatchObject({
+          status: 200,
+          json: { outcome: 'succeeded', body: { next: null } },
+        })
+        const page = categories.json as { body: { items: { category: string; title: string }[] } }
+        expect(page.body.items.map(item => [item.category, item.title])).toEqual([
+          ['model-provider', '模型供应商'],
+          ['preference', '偏好'],
+          ['tool', '工具'],
+        ])
 
         const foreign = await assets(
           tree,
