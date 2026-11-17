@@ -545,6 +545,17 @@ function openSnapshotItems(
   return openItems(rule, { results: execution.results, effects: execution.effects, handoffs })
 }
 
+const referenceKeys = new WeakMap<HandoffReference, string>()
+// A handoff reference is kept, never changed in place: its canonical key is computed once.
+function referenceKey(reference: HandoffReference): string {
+  let key = referenceKeys.get(reference)
+  if (key === undefined) {
+    key = canonical(reference)
+    referenceKeys.set(reference, key)
+  }
+  return key
+}
+
 function interruptionsOf(
   effect: EffectIntent,
   controls: readonly ControlRecord[],
@@ -2365,7 +2376,7 @@ export function createJournal<P>(
   ): ReadonlyMap<string, readonly (readonly [AgentOperationId, CustodyAttempt])[]> {
     const groups = new Map<string, (readonly [AgentOperationId, CustodyAttempt])[]>()
     for (const entry of execution.custodyAttempts.entries()) {
-      const key = canonical(entry[1].handoff)
+      const key = referenceKey(entry[1].handoff)
       const group = groups.get(key)
       if (group === undefined) groups.set(key, [entry])
       else group.push(entry)
@@ -2381,7 +2392,7 @@ export function createJournal<P>(
       readonly (readonly [AgentOperationId, CustodyAttempt])[]
     > = custodyGroups(execution),
   ): Exclude<ExecutionHandoff['custody'], null> | null {
-    const attempts = groups.get(canonical(handoff)) ?? []
+    const attempts = groups.get(referenceKey(handoff)) ?? []
     const root = attempts.find(([, attempt]) => attempt.custody === null)
     if (root === undefined) return null
     const stateOf = (operation: AgentOperationId): 'committed' | 'excluded' | undefined => {
