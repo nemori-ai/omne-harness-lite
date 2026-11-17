@@ -22,10 +22,8 @@ const unknown = (): Outcome<RoundCards, Failure> =>
     },
   })
 
-/**
- * Presents a card round once. A round this process opened is presented; any other is looked up
- * by its round and its whole request first, so a lost receipt does not present the cards again.
- */
+// A round this process opened is presented; any other is looked up by its round and whole request
+// first, so a lost receipt does not present the cards again.
 export function createCardDesk<P>(
   ports: Readonly<{ cards: DecisionCards<P> }>,
   access: Access<P>,

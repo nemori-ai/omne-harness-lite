@@ -66,7 +66,7 @@ export type Pass = PassPlace &
 export type PassResult =
   | Readonly<{ kind: 'none' }>
   | Readonly<{ kind: 'cancelled' }>
-  | Readonly<{ kind: 'waiting'; failure: Unavailable; recheck: Recheck }>
+  | Readonly<{ kind: 'waiting'; failure: Unavailable; recheck: Recheck | null }>
   | Readonly<{ kind: 'human'; waits: readonly HumanWait[] }>
   | Readonly<{ kind: 'ended'; effects: readonly PassEffect[]; applied: Saved }>
 
@@ -234,7 +234,7 @@ async function judge<P>(
   if (concluded.kind === 'unresolved') {
     const diagnostic = `${call.id}: ${concluded.diagnostic}`
     const failure: Unavailable = { kind: 'unavailable', owner: 'agentExtensions', diagnostic }
-    return succeed({ kind: 'waiting', failure, recheck: async () => succeed(null) })
+    return succeed({ kind: 'waiting', failure, recheck: null })
   }
   if (concluded.kind === 'ask') {
     const asked = askedRound(call, concluded.conclusion)
@@ -292,7 +292,7 @@ async function presentRounds<P>(
     if ('failure' in settled) return settled
   }
   if (unknown === null) return succeed(null)
-  return succeed({ kind: 'waiting', failure: unknown, recheck: async () => succeed(null) })
+  return succeed({ kind: 'waiting', failure: unknown, recheck: null })
 }
 
 async function readReplies<P>(driver: Driver<P>, node: LoopNode, asking: readonly Open[]): Stepped {
