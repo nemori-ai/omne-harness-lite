@@ -695,6 +695,9 @@ importers:
       '@omne-harness/schedule-protocol':
         specifier: workspace:*
         version: link:../../packages/schedule/schedule-protocol
+      '@omne-harness/schedule-tools':
+        specifier: workspace:*
+        version: link:../../packages/schedule/schedule-tools
       '@omne-harness/schema-provider':
         specifier: workspace:*
         version: link:../../packages/schema/schema-provider
@@ -3519,27 +3522,9 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
-      '@omne-harness/runtime-context-contract':
-        specifier: workspace:*
-        version: link:../../context/runtime-context-contract
-      '@omne-harness/schedule-tools':
-        specifier: workspace:*
-        version: link:../schedule-tools
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider
-      '@omne-harness/tool':
-        specifier: workspace:*
-        version: link:../../tool/tool
-      '@omne-harness/tool-contract':
-        specifier: workspace:*
-        version: link:../../tool/tool-contract
-      '@omne-harness/tool-cordis-contract':
-        specifier: workspace:*
-        version: link:../../tool/tool-cordis-contract
-      '@omne-harness/tool-host-local':
-        specifier: workspace:*
-        version: link:../../tool/tool-host-local
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -3571,9 +3556,9 @@ importers:
 
   packages/schedule/schedule-tools:
     dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 'catalog:'
-        version: 4.0.4
+      '@omne-harness/human-intervention-tool':
+        specifier: workspace:*
+        version: link:../../human-intervention/human-intervention-tool
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
@@ -3583,37 +3568,13 @@ importers:
       '@omne-harness/schedule-contract':
         specifier: workspace:*
         version: link:../schedule-contract
-      '@omne-harness/schedule-cordis-contract':
-        specifier: workspace:*
-        version: link:../schedule-cordis-contract
-      '@omne-harness/schema-provider':
-        specifier: workspace:*
-        version: link:../../schema/schema-provider
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract
-      '@omne-harness/tool-cordis-contract':
-        specifier: workspace:*
-        version: link:../../tool/tool-cordis-contract
-      '@omne-harness/tool-host-local':
-        specifier: workspace:*
-        version: link:../../tool/tool-host-local
-      canonicalize:
-        specifier: 5.1.0
-        version: 5.1.0
       zod:
         specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
-      '@omne-harness/runtime-context-contract':
-        specifier: workspace:*
-        version: link:../../context/runtime-context-contract
-      '@omne-harness/sql-contract':
-        specifier: workspace:*
-        version: link:../../storage/sql-contract
-      '@omne-harness/sqlite-provider':
-        specifier: workspace:*
-        version: link:../../storage/sqlite-provider
       '@omne-harness/tool':
         specifier: workspace:*
         version: link:../../tool/tool

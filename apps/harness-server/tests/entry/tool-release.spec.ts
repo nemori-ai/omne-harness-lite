@@ -222,6 +222,7 @@ describe('the startup snapshot', () => {
     expect(formalManifest().artifacts.map(own => own.package)).toEqual([
       '@omne-harness/tool-definitions',
       '@omne-harness/calendar-tools',
+      '@omne-harness/schedule-tools',
     ])
   })
 

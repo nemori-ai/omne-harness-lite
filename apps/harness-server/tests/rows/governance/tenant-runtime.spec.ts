@@ -716,6 +716,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
     'tool.Ask',
     'tool.Calendar',
     'tool.Files',
+    'tool.Schedules',
     'tool.Shell',
     'tool.TodoItems',
     'tool.Tools',
@@ -737,7 +738,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
   expect(settings.views.map(view => [view.target.policyId, view.target.targetRef])).toEqual([
     ['independent', 'calendar.environment'],
     ['independent', 'schedule.agent-authoring'],
-    ...['Ask', 'Calendar', 'Files', 'Shell', 'TodoItems', 'Tools', 'Web'].map(name => [
+    ...['Ask', 'Calendar', 'Files', 'Schedules', 'Shell', 'TodoItems', 'Tools', 'Web'].map(name => [
       'asset',
       `harness.preinstalled.tool.${name}`,
     ]),

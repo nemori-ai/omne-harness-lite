@@ -52,6 +52,7 @@ describe('the coding entry of the release mapping', () => {
       { capability: { category: 'Tool', name: 'Ask' }, resident: true },
       { capability: { category: 'Tool', name: 'Web' }, resident: true },
       { capability: { category: 'Tool', name: 'Calendar' }, resident: true },
+      { capability: { category: 'Tool', name: 'Schedules' }, resident: true },
     ])
     expect(configured.attributes).toEqual([{ item: 'model' }])
     expect(instructions.map(section => section.id)).toEqual([
@@ -103,14 +104,14 @@ describe('the coding entry of the release mapping', () => {
       expect(mapping.initialModelSelection?.name, mapping.name).toBeTruthy()
   })
 
-  it('the prompt names no model vendor, the seven resident tools, and carries the guardrails and the state words', () => {
+  it('the prompt names no model vendor, the eight resident tools, and carries the guardrails and the state words', () => {
     for (const forbidden of ['Claude', 'Anthropic', 'OpenAI', 'GPT', 'Gemini', 'Codex'])
       expect(fullText, forbidden).not.toContain(forbidden)
     for (const word of ['Verified', 'Partly verified', 'Not verified', 'Failed'])
       expect(fullText).toContain(word)
     for (const word of ['已验证', '部分验证', '未验证', '失败']) expect(fullText).toContain(word)
     expect(fullText).toContain(
-      'You have seven resident tools: Files, Shell, Tools, TodoItems, Ask, Web and Calendar.',
+      'You have eight resident tools: Files, Shell, Tools, TodoItems, Ask, Web, Calendar and Schedules.',
     )
     expect(fullText).toContain('## Web')
     expect(fullText).toContain('exa.apiKey')

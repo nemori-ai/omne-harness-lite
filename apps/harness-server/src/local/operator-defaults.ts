@@ -449,6 +449,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           Ask: { resultMaxBytes: 1_048_576 },
           Web: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, maxSearchResults: 10 },
           Calendar: { resultMaxBytes: 65_536 },
+          Schedules: { resultMaxBytes: 65_536 },
         },
       },
     ],

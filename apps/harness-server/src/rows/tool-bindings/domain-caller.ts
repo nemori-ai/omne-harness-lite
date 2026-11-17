@@ -12,10 +12,8 @@ export type DomainCaller = Readonly<{
   session: string
 }>
 
-/**
- * The caller of a tool call made by a session's agent. Undefined when the principal is not that
- * session's verified work principal of the call's tenant; nothing is taken from the model.
- */
+/** The caller of a session agent's tool call; undefined unless the principal is that session's
+ * verified work principal of the call's tenant. Nothing is taken from the model. */
 export async function domainCallerOf(
   verifier: PrincipalVerifier | undefined,
   principal: unknown,

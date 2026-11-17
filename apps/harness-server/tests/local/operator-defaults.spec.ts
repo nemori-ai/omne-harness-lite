@@ -289,6 +289,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
       'Ask',
       'Calendar',
       'Files',
+      'Schedules',
       'Shell',
       'TodoItems',
       'Tools',
@@ -296,7 +297,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
     ])
     for (const tool of ['Shell', 'Files', 'Web', 'TodoItems', 'Ask'])
       expect(bounds[tool]?.resultMaxBytes, tool).toBeGreaterThan(inline)
-    for (const tool of ['Tools', 'Calendar'])
+    for (const tool of ['Tools', 'Calendar', 'Schedules'])
       expect(bounds[tool]?.resultMaxBytes, tool).toBeLessThanOrEqual(inline)
   })
 

@@ -15,6 +15,7 @@ const PROBES = [
     Ask: { resultMaxBytes: 4096 },
     Web: { resultMaxBytes: 1, maxSearchResults: 1 },
     Calendar: { resultMaxBytes: 16 },
+    Schedules: { resultMaxBytes: 64 },
   },
   {
     Shell: {
@@ -30,6 +31,7 @@ const PROBES = [
     Ask: { resultMaxBytes: 1048576 },
     Web: { resultMaxBytes: 65536, maxSearchResults: 10 },
     Calendar: { resultMaxBytes: 1048576 },
+    Schedules: { resultMaxBytes: 1048576 },
   },
 ]
 

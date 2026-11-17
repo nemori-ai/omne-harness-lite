@@ -122,7 +122,7 @@
       },
       "apps/harness-server/src/rows/tool-hitl/bridge.ts": {
         "count": 1,
-        "longest": 292
+        "longest": 290
       },
       "apps/harness-server/src/rows/tool-runtime/environment.ts": {
         "count": 1,
@@ -520,10 +520,6 @@
         "count": 1,
         "longest": 294
       },
-      "packages/schedule/schedule-tools/src/details.ts": {
-        "count": 1,
-        "longest": 164
-      },
       "packages/session/session-access/src/contribution.ts": {
         "count": 1,
         "longest": 304
@@ -710,7 +706,7 @@
       },
       "packages/tool/tool-host-local/src/executor-binding.ts": {
         "count": 2,
-        "longest": 495
+        "longest": 491
       },
       "packages/tool/tool-host-local/src/invocation-forwarding.ts": {
         "count": 1,

@@ -17,7 +17,7 @@ it('a login principal sets the Shell invoke permission to deny on the release tr
       expect(listed.completeness).toBe('complete')
       const permissions = listed.items.filter(value => value.kind === 'permission')
       expect(permissions.map(value => `${value.asset.name}/${value.item}`).sort()).toEqual(
-        ['Ask', 'Calendar', 'Files', 'Shell', 'TodoItems', 'Tools', 'Web'].map(
+        ['Ask', 'Calendar', 'Files', 'Schedules', 'Shell', 'TodoItems', 'Tools', 'Web'].map(
           name => `${name}/invoke`,
         ),
       )

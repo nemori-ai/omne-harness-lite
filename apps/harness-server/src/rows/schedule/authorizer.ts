@@ -36,8 +36,12 @@ export type ConsentAnswer = Readonly<{
 export type ConsentPorts = Readonly<{
   /** The owner's setting, read at the moment of the decision: auto with its value revision, or draft. */
   mode(tenantRef: string): Promise<ConsentMode>
-  /** The answer a decision reference names; undefined when human intervention cannot read it. */
-  answer(tenantRef: string, decision: string): Promise<ConsentAnswer | null | undefined>
+  /** The answer a decision reference of the call names; undefined when it cannot be read now. */
+  answer(
+    tenantRef: string,
+    decision: string,
+    call: string,
+  ): Promise<ConsentAnswer | null | undefined>
   now(): ScheduleInstant
 }>
 
@@ -123,6 +127,7 @@ function authorOf(context: ScheduleCallContext): ManagementAccess['authority']['
 
 async function confirmationOf(
   ports: ConsentPorts,
+  context: ScheduleCallContext,
   tenantRef: string,
   request: ManagementRequest,
 ): Promise<ConsentConfirmation> {
@@ -130,7 +135,7 @@ async function confirmationOf(
   if (decision === null) return { kind: 'none' }
   let answer: ConsentAnswer | null | undefined
   try {
-    answer = await ports.answer(tenantRef, decision)
+    answer = await ports.answer(tenantRef, decision, context.requestId)
   } catch {
     return { kind: 'unreadable' }
   }
@@ -177,7 +182,7 @@ export function createScheduleAuthorizers(ports: ConsentPorts): Readonly<{
         }
       const confirmation =
         needsMode && mode.kind === 'draft'
-          ? await confirmationOf(ports, tenantRef, request)
+          ? await confirmationOf(ports, context, tenantRef, request)
           : ({ kind: 'none' } as const)
       const decided = decideScheduleConsent({ actor, subject, command, mode, confirmation })
       if (decided.kind !== 'allow')

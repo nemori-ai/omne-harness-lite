@@ -1,5 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { calendarCalculatorKey } from '@omne-harness/calendar-cordis-contract/cordis'
+import {
+  scheduleCommandsKey,
+  scheduleQueriesKey,
+} from '@omne-harness/schedule-cordis-contract/cordis'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import { principalVerifierKey } from '@omne-harness/identity/cordis'
@@ -95,6 +99,8 @@ function environmentInstalled(ctx: Context): boolean {
 /** The domain service each release capability stands for: a capability is there while its service is. */
 const CAPABILITY_SERVICES: Readonly<Record<string, string>> = {
   'calendar.read': calendarCalculatorKey,
+  'schedule.read': scheduleQueriesKey,
+  'schedule.write': scheduleCommandsKey,
 }
 
 function capabilityFacts(ctx: Context, definition: ToolDefinition) {
