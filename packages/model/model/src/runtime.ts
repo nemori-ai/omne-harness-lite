@@ -135,6 +135,7 @@ export function createModelRuntime<P>(
     dependencies.clock,
     configuration,
     interruption.send,
+    dependencies.retry,
   )
   let quiesced = false
   const admitting = new Set<Promise<unknown>>()

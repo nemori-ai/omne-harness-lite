@@ -5,7 +5,11 @@ import {
   decodeModelCallId,
   decodeModelInstanceId,
 } from '@omne-harness/model-contract'
-import type { SendDemand, TransportFact } from '@omne-harness/model-contract/provider'
+import {
+  requestHead,
+  type SendDemand,
+  type TransportFact,
+} from '@omne-harness/model-contract/provider'
 import { OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
 import {
   createReceiveRecord,
@@ -142,7 +146,7 @@ function ask(
     call: demand.call,
     execution: demand.execution,
     consumer: demand.consumer,
-    request: demand.request,
+    request: requestHead(demand.request),
     requestDigest: 'r'.repeat(64),
     dispatch: demand.dispatch,
     window,

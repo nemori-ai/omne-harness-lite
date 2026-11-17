@@ -14,6 +14,7 @@ import {
   type ModelInstanceHost,
   type ModelClock,
   type ModelSendBoundary,
+  type ModelRetryPolicy,
   type SendDemand,
   type Publication,
   type ExecutionRef,
@@ -21,6 +22,7 @@ import {
 import { createObservation } from './observation.ts'
 import { executionFailure, verdictOf } from './commands/execution-write.ts'
 import { createReceiver, newOperation, type TerminalCompetition } from './receive.ts'
+import { createRetryStage } from './retry-stage.ts'
 
 type Prepare = Parameters<ModelCommands<unknown>['prepareDispatch']>[0]
 type Settle = Parameters<ModelCommands<unknown>['settle']>[0]
@@ -36,6 +38,8 @@ type Finishing<P> = {
   receiver: Receiver<P> | null
   termination: Termination | null
   driveFailure: ModelFailure | null
+  // False while the retry policy may still decide how the failed dispatch ends.
+  resolved: boolean
   settlement:
     | { kind: 'ready' }
     | { kind: 'write'; input: Settle; pending: boolean }
@@ -56,13 +60,47 @@ type Activity<P> = {
   view: ReturnType<typeof createObservation<P>>
   publication: Publication
   stage: Stage<P>
+  spent: Receiver<P>[]
 }
+
 const blocked = (diagnostic: string) => ({
   failure: { kind: 'unavailable', dependency: 'model-runtime', diagnostic } as const,
 })
 function generated<T>(value: { ok: T } | { failure: unknown }): T {
   if ('ok' in value) return value.ok
   throw new Error('invalid generated Model identity')
+}
+function requiresOriginalClaim<P>(
+  previous: Activity<P> | undefined,
+  input: ModelDriveInput<P>,
+): boolean {
+  return (
+    previous !== undefined &&
+    previous.stage.kind !== 'idle' &&
+    previous.stage.kind !== 'unsent' &&
+    previous.stage.kind !== 'done' &&
+    previous.stage.kind !== 'failed' &&
+    (previous.claim.operation !== input.operation ||
+      previous.claim.instance !== input.instance ||
+      (['owner', 'record', 'revision', 'digest'] as const).some(
+        field => previous.claim.continuity[field] !== input.continuity[field],
+      ))
+  )
+}
+function ownsOperation<P>(
+  active: Activity<P> | undefined,
+  input: ModelDriveInput<P>,
+  unresolved: Recovery<P>['unresolved'][number],
+): boolean {
+  return (
+    unresolved === input.operation ||
+    (active?.stage.kind === 'prepare' && unresolved === active.stage.input.operation) ||
+    active?.stage.kind === 'send' ||
+    (active?.stage.kind === 'receive' && unresolved === active.stage.receiver.pendingOperation()) ||
+    (active?.stage.kind === 'finish' &&
+      active.stage.settlement.kind === 'write' &&
+      unresolved === active.stage.settlement.input.operation)
+  )
 }
 export function createModelDriver<P>(
   commands: ModelCommands<P>,
@@ -75,11 +113,13 @@ export function createModelDriver<P>(
     outputBatchDelayMs: number
   },
   send: ModelSendBoundary<P>,
+  retry: ModelRetryPolicy<P>,
 ) {
   const activities = new Map<string, Activity<P>>()
   const running = new Set<string>()
   const open = new Set<string>()
   const refreshes = new Map<string, { requested: boolean; completion: Promise<void> }>()
+  const retryStep = createRetryStage({ commands, retry, clock, instances })
   function keyOf(input: Pick<ModelDriveInput<P>, 'tenant' | 'call'>) {
     const tenant = tenantCodec.encode(input.tenant)
     return tenant.ok ? JSON.stringify([tenant.value, input.call]) : null
@@ -248,53 +288,22 @@ export function createModelDriver<P>(
     entry: Finishing<P>,
     competition: TerminalCompetition,
   ): Reply<void> {
-    const releasing = entry.receiver?.release() ?? Promise.resolve({ ok: undefined })
+    const releasing = Promise.all(
+      [...active.spent, entry.receiver].map(receiver => receiver?.release() ?? { ok: undefined }),
+    )
     let result: Awaited<Reply<void>>
     try {
       result = await settle(active, entry, competition)
     } catch {
       result = blocked('settle-unconfirmed')
     }
-    const released = await releasing
+    const unreleased = (await releasing).find(released => 'failure' in released)
     if ('failure' in result) return result
-    if ('failure' in released) return released
+    if (unreleased !== undefined) return unreleased
     active.stage = entry.driveFailure
       ? { kind: 'failed', failure: entry.driveFailure }
       : { kind: 'done' }
     return entry.driveFailure ? { failure: entry.driveFailure } : { ok: undefined }
-  }
-  function requiresOriginalClaim(
-    previous: Activity<P> | undefined,
-    input: ModelDriveInput<P>,
-  ): boolean {
-    return (
-      previous !== undefined &&
-      previous.stage.kind !== 'idle' &&
-      previous.stage.kind !== 'unsent' &&
-      previous.stage.kind !== 'done' &&
-      previous.stage.kind !== 'failed' &&
-      (previous.claim.operation !== input.operation ||
-        previous.claim.instance !== input.instance ||
-        (['owner', 'record', 'revision', 'digest'] as const).some(
-          field => previous.claim.continuity[field] !== input.continuity[field],
-        ))
-    )
-  }
-  function ownsOperation(
-    active: Activity<P> | undefined,
-    input: ModelDriveInput<P>,
-    unresolved: Recovery<P>['unresolved'][number],
-  ): boolean {
-    return (
-      unresolved === input.operation ||
-      (active?.stage.kind === 'prepare' && unresolved === active.stage.input.operation) ||
-      active?.stage.kind === 'send' ||
-      (active?.stage.kind === 'receive' &&
-        unresolved === active.stage.receiver.pendingOperation()) ||
-      (active?.stage.kind === 'finish' &&
-        active.stage.settlement.kind === 'write' &&
-        unresolved === active.stage.settlement.input.operation)
-    )
   }
   async function recoverUnowned(
     active: Activity<P> | undefined,
@@ -324,6 +333,7 @@ export function createModelDriver<P>(
         receiver: null,
         termination: { kind: 'interrupted', control: recovery.state.control.operation },
         driveFailure: null,
+        resolved: true,
         settlement: { kind: 'ready' },
       }
     else
@@ -371,6 +381,7 @@ export function createModelDriver<P>(
       view,
       publication: published.ok,
       stage: hasDispatches ? { kind: 'done' } : { kind: 'idle' },
+      spent: [],
     }
     activities.set(key, active)
     return { ok: active }
@@ -463,6 +474,7 @@ export function createModelDriver<P>(
           receiver: null,
           termination: executionFailure(prepared.failure),
           driveFailure: prepared.failure,
+          resolved: true,
           settlement: { kind: 'ready' },
         }
         return { ok: undefined }
@@ -496,6 +508,7 @@ export function createModelDriver<P>(
       receiver: null,
       termination,
       driveFailure,
+      resolved: driveFailure !== null,
       settlement: { kind: 'ready' },
     })
     refreshProjection(input)
@@ -567,6 +580,7 @@ export function createModelDriver<P>(
       receiver: entry.receiver,
       termination: received.ok.termination,
       driveFailure: received.ok.failure,
+      resolved: received.ok.failure !== null,
       settlement: { kind: 'ready' },
     }
     return { ok: true }
@@ -589,20 +603,37 @@ export function createModelDriver<P>(
     signal: AbortSignal,
     competition: TerminalCompetition,
   ): Reply<void> {
-    if (active.stage.kind === 'prepare') {
-      const prepared = await prepareDispatch(active, active.stage, input, execution, recovery)
-      if ('failure' in prepared) return prepared
+    for (;;) {
+      if (active.stage.kind === 'prepare') {
+        const prepared = await prepareDispatch(active, active.stage, input, execution, recovery)
+        if ('failure' in prepared) return prepared
+      }
+      const sent = await sendOrSettle(active, input, signal)
+      if ('failure' in sent) return sent
+      if (active.stage.kind === 'receive') {
+        const received = await receiveDispatch(active, active.stage, signal, competition)
+        if ('failure' in received) return received
+        if (!received.ok) return { ok: undefined }
+      }
+      if (active.stage.kind === 'failed') return { failure: active.stage.failure }
+      if (active.stage.kind !== 'finish') return { ok: undefined }
+      const entry = active.stage
+      if (entry.resolved || entry.termination === null) return finish(active, entry, competition)
+      const next = await retryStep({ claim: input, execution, termination: entry.termination })
+      if ('failure' in next) return next
+      if (next.ok.kind === 'waiting') return { ok: undefined }
+      if (next.ok.kind === 'settle') {
+        entry.termination = next.ok.termination
+        entry.resolved = true
+        return finish(active, entry, competition)
+      }
+      if (entry.receiver !== null) {
+        await entry.receiver.release()
+        active.spent.push(entry.receiver)
+      }
+      active.stage = { kind: 'prepare', pending: false, input: next.ok.prepare }
+      refreshProjection(input)
     }
-    const sent = await sendOrSettle(active, input, signal)
-    if ('failure' in sent) return sent
-    if (active.stage.kind === 'receive') {
-      const received = await receiveDispatch(active, active.stage, signal, competition)
-      if ('failure' in received) return received
-      if (!received.ok) return { ok: undefined }
-    }
-    if (active.stage.kind === 'finish') return finish(active, active.stage, competition)
-    if (active.stage.kind === 'failed') return { failure: active.stage.failure }
-    return { ok: undefined }
   }
   async function resume(
     input: ModelDriveInput<P>,

@@ -123,11 +123,18 @@ describe('a gateway that stops sending, through the assembled local send path', 
       })
       expect(local.facts.some(fact => fact.kind === 'block-delta')).toBe(false)
 
-      expect(driven).toEqual({
-        failure: { kind: 'invalid', field: 'termination', reason: 'retry-not-decided' },
+      expect(driven).toEqual({ ok: undefined })
+      expect(recovery.state).toMatchObject({
+        phase: 'settled',
+        settlement: {
+          termination: {
+            kind: 'failed',
+            fault: { cause: 'policy-unavailable', diagnostic: 'unavailable', upstreamStatus: null },
+          },
+        },
       })
-      expect(recovery.state).toMatchObject({ phase: 'running', firstContent: 'none-proven' })
       expect(dispatches).toHaveLength(1)
+      expect(dispatches[0]).toMatchObject({ firstContent: 'none-proven' })
       expect(dispatches[0]?.terminal).toEqual(ended[0]?.termination)
     },
   )

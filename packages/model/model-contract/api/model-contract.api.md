@@ -2150,6 +2150,7 @@ export type RecoveryRecord = Readonly<{
     execution: ExecutionRef | null;
     retry: RetryDecision | null;
     retryPosition: RetryPosition | null;
+    retrySource?: DurableEvidence | null;
     unresolved: readonly ModelOperationId[];
     tasks: readonly ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[];
 }>;
@@ -2296,6 +2297,7 @@ export interface ModelInstanceHost<P> {
     schedule(input: Readonly<{
         tenant: TenantId;
         call: ModelCallId;
+        notBefore?: string;
     }>): Reply<Readonly<{
         queued: true;
     }>>;

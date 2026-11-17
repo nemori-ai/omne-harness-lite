@@ -477,7 +477,7 @@
       },
       "packages/model/model/src/commands/commands.ts": {
         "count": 3,
-        "longest": 466
+        "longest": 464
       },
       "packages/model/model/src/commands/initial.ts": {
         "count": 1,
@@ -489,7 +489,7 @@
       },
       "packages/model/model/src/driver.ts": {
         "count": 1,
-        "longest": 603
+        "longest": 596
       },
       "packages/model/model/src/observation.ts": {
         "count": 1,

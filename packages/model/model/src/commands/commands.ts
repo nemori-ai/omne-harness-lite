@@ -65,6 +65,7 @@ import {
   accountFact,
   completesNotSentWindow,
   bump,
+  clearRetryRecord,
   expireReads,
   hasDispatchContent,
   lateTerminal,
@@ -401,6 +402,7 @@ export function recoveryCommands<P>(
               execution: call.execution === null ? null : { ...call.execution },
               retry: structuredClone(call.retry),
               retryPosition: structuredClone(call.retryPosition),
+              retrySource: structuredClone(call.retrySource),
               unresolved: pending,
               tasks: tasks(call, pending),
             },
@@ -680,9 +682,7 @@ export function dispatchCommands<P>(
             hadContent: new Set(),
             diagnostics: [],
           })
-          call.retry = null
-          call.retryPosition = null
-          call.retrySource = null
+          clearRetryRecord(call)
           call.state = {
             ...call.state,
             phase: 'running',
