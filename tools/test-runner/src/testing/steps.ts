@@ -1,3 +1,4 @@
+import { isLegacyDirectory } from '@omne-harness/repo-toolchain/core/check-scope'
 import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -80,14 +81,16 @@ import {
   type MemberSpan,
 } from './run.ts'
 import { buildTargets, pnpmCommand, timestamp } from './support.ts'
+import { describeReadSets, readSetHome, readSetsRequested, recordReadSets } from './read-sets.ts'
 import {
   tierWithRetry,
   writeTestStepReport,
   type FailedFile,
+  type Rerun,
   type RetriedFile,
   type RetryTier,
 } from './test-retry.ts'
-import { rerunInFile, type RerunOutcome } from './triage.ts'
+import { rerunInFile } from './triage.ts'
 import { TIER_TASKS } from './turbo.ts'
 
 export function runCachePolicy(
@@ -272,49 +275,80 @@ export function pythonStep(root: string, file: PlanFile): number {
       )
 }
 
+export function unbuiltMembers(
+  members: readonly WorkspaceMember[],
+  planned: ReadonlySet<string>,
+  built: (memberPath: string) => boolean,
+): WorkspaceMember[] {
+  return members.filter(
+    member =>
+      member.scripts['build'] !== undefined &&
+      !isLegacyDirectory(member.path) &&
+      !planned.has(member.path) &&
+      !built(member.path),
+  )
+}
+
 export function buildStep(root: string, file: PlanFile, budget: Budget, planPath?: string): number {
   const paths = file.plan.build.map(entry => entry.path)
-  if (paths.length === 0) {
-    console.log('构建：跳过——没有被选中的成员')
+  const unbuilt = unbuiltMembers(
+    listWorkspaceMembers(fileTree(root), readTestRunsConfig().affected.excludeRoots),
+    new Set(paths),
+    path => existsSync(join(root, path, 'dist')),
+  )
+  if (paths.length === 0 && unbuilt.length === 0) {
+    console.log('构建：跳过——没有被选中的成员，也没有缺构建产物的成员')
     return 0
   }
   console.log(
     `构建：${paths.length} 个成员及其上游——${paths.join('、')}（同时 ${budget.workers} 个；${describeBudget(budget)}）`,
   )
-  const names = membersAt(root, paths).map(member => member.name)
-  const recordPath = planPath === undefined ? undefined : builtFromPath(planPath)
-  if (recordPath !== undefined) clearBuiltFrom(recordPath)
-  let digests: ReadonlyMap<string, string> | undefined
-  if (recordPath !== undefined) {
-    try {
-      digests = currentDigests({
-        root,
-        targets: paths,
-        config: readTestRunsConfig(),
-        env: process.env,
-      })
-    } catch (error) {
-      console.log(
-        `构建记录：取不到输入摘要，不留记录，后面的测试不写缓存——${error instanceof Error ? error.message : String(error)}`,
-      )
-    }
-  }
+  if (unbuilt.length > 0)
+    console.log(
+      `构建：另有 ${unbuilt.length} 个成员没有构建产物（dist），一并构建——${unbuilt.map(member => member.path).join('、')}`,
+    )
+  const names = [...membersAt(root, paths), ...unbuilt].map(member => member.name)
+  const finish = startBuiltRecord(root, file.head, paths, planPath)
   const code = turboBuild(root, names, admissionRequested(process.env), budget.workers)
-  if (code === 0 && recordPath !== undefined && digests !== undefined)
+  finish(code)
+  return code
+}
+
+function startBuiltRecord(
+  root: string,
+  head: string,
+  paths: readonly string[],
+  planPath: string | undefined,
+): (buildExit: number) => void {
+  if (planPath === undefined) return () => undefined
+  const recordPath = builtFromPath(planPath)
+  clearBuiltFrom(recordPath)
+  const config = readTestRunsConfig()
+  const skip = (what: string, error: unknown) =>
+    console.log(
+      `构建记录：取不到${what}，不留记录，后面的测试不写缓存——${error instanceof Error ? error.message : String(error)}`,
+    )
+  let inputs: ReadonlyMap<string, string>
+  try {
+    inputs = currentDigests({ root, targets: paths, config, env: process.env })
+  } catch (error) {
+    skip('输入摘要', error)
+    return () => undefined
+  }
+  return buildExit => {
+    if (buildExit !== 0) return
     try {
-      const outputs = outputDigests({ root, targets: paths, config: readTestRunsConfig() })
+      const outputs = outputDigests({ root, targets: paths, config })
       const members = new Map<string, Required<BuiltMember>>()
-      for (const [member, input] of digests) {
+      for (const [member, input] of inputs) {
         const output = outputs.get(member)
         if (output !== undefined) members.set(member, { input, output })
       }
-      writeBuiltFrom(recordPath, file.head, members)
+      writeBuiltFrom(recordPath, head, members)
     } catch (error) {
-      console.log(
-        `构建记录：取不到产物摘要，不留记录，后面的测试不写缓存——${error instanceof Error ? error.message : String(error)}`,
-      )
+      skip('产物摘要', error)
     }
-  return code
+  }
 }
 
 function unbuiltReason(read: Exclude<BuiltFromRead, { status: 'ok' }>, head: string): string {
@@ -409,8 +443,29 @@ export interface RecordedOutcome {
   readonly runDir: string
 }
 
+function recordedReadSets(
+  root: string,
+  run: RecordedRun,
+  runDir: string,
+  runs: readonly MemberRun[],
+): string[] {
+  const members = recordReadSets({
+    root,
+    home: readSetHome(run.at.mainRoot, process.env),
+    runDir,
+    tier: run.tier,
+    head: run.at.head,
+    recordedAt: new Date().toISOString(),
+    members: runs.map(member => ({ path: member.member, slug: slugOf(member.member) })),
+  })
+  writeFileSync(join(runDir, 'read-sets.json'), `${JSON.stringify({ members }, null, 1)}\n`)
+  return describeReadSets(members)
+}
+
 export async function recordedRun(root: string, run: RecordedRun): Promise<RecordedOutcome> {
   const { script, tier, targets, tokens } = run
+  const admission = admissionRequested(process.env)
+  const readSets = script === 'test' && readSetsRequested(process.env, admission)
   const config = readTestRunsConfig()
   const runDir = runDirOf(run)
   mkdirSync(runDir, { recursive: true })
@@ -490,7 +545,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
             runDir,
             schedule,
             tier,
-            { build: run.build, admission: admissionRequested(process.env) },
+            { build: run.build, admission, readSets },
             report,
           )
   const wallSeconds = (Date.now() - started) / 1000
@@ -501,7 +556,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
           ledger: runDir,
           head: run.at.head,
           dirty: run.at.dirty,
-          admission: admissionRequested(process.env),
+          admission,
         })
   for (const line of recorded?.skipped ?? []) console.log(`测试缓存：${line}`)
   const cache =
@@ -520,6 +575,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
     summary.push(`对这些失败做隔离重跑：pnpm run test:triage --run ${runDir}`)
   if (lookup !== undefined && recorded !== undefined)
     summary.push(...describeCacheResult(lookup, recorded))
+  if (readSets && runs.length > 0) summary.push(...recordedReadSets(root, run, runDir, runs))
   const file = {
     meta: {
       ...meta,
@@ -674,8 +730,8 @@ export async function testStep(
       `成员测试（接续）：H1 上失败的 ${resumed.files.length} 个文件里 ${alone.length} 个单独各跑一次（其余所在成员已整个跑过），成员串行、每成员 1 个工作进程`,
     )
     for (const failed of alone) {
-      const outcome = await rerun(failed)
-      console.log(`  ${failed.file}（${failed.tier}）→ ${outcome}`)
+      const { outcome, log } = await rerun(failed)
+      console.log(`  ${failed.file}（${failed.tier}）→ ${outcome}，日志 ${log}`)
       if (outcome !== 'passed') {
         code = 1
         report.failures.push(failed)
@@ -699,7 +755,7 @@ async function rerunFailedFile(
   root: string,
   failed: FailedFile,
   tokens: TokenSource,
-): Promise<RerunOutcome> {
+): Promise<Required<Rerun>> {
   const base = join(
     ledgerHome('test', coordinates(root, undefined).mainRoot, process.env),
     'retry',
@@ -707,7 +763,7 @@ async function rerunFailedFile(
   )
   mkdirSync(dirname(base), { recursive: true })
   const { min } = memberDemand(readTestRunsConfig().parallel, failed.member, failed.tier, 1)
-  return runJob(
+  const outcome = await runJob(
     {
       want: min,
       min,
@@ -717,6 +773,7 @@ async function rerunFailedFile(
     },
     tokens,
   )
+  return { outcome, log: `${base}.log` }
 }
 
 export async function fastThenSlow(

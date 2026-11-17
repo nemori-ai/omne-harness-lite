@@ -26,5 +26,5 @@ runner 的注册是主机上的一次性操作，不由仓库脚本代办。
 - 任务跑在自托管 runner 上，标签是 `self-hosted` 与 `linux`。工作流自己安装 Node、pnpm 与 uv，不依赖 runner 用户的登录环境。它不读任何 `.env`，需要付费模型凭据的测试照常跳过。
 - 度量摘要写进任务摘要。四件产物留在 runner 主机的 `$OMNE_METRICS_HOME` 下。它是仓库变量，缺省是 runner 用户的 `~/omne-metrics`。PR 的产物在 `pr-<编号>/<提交>/`，`main` 的在 `<提交>/`，夜间的在 `nightly/<日期>-<提交>/`。这个目录没有自动清理。
 - 耗时账本留在 runner 主机的 `$OMNE_TEST_LEDGER_HOME`，它也是仓库变量。留空时账本落在检出目录的 `tmp/test-ledger/`，随下一次全新检出被清掉。
-- 测试并行度由测试运行器按主机的核数与内存推出来，本地与 CI 用同一份策略，见 `tools/test-runner/SPEC.md`「并行度」。要钉死时设仓库变量 `OMNE_WORKER_BUDGET`、`OMNE_TEST_MEMBER_CONCURRENCY` 与 `OMNE_VITEST_MAX_WORKERS`。留空时用推出的值。
-- `pnpm run check` 的各步自己向令牌池要核。runner 上的任务与同一用户在主机上手工起的全量检查互相排队。
+- 测试并行度由整机的令牌池定，本地与 CI 用同一份策略，见 `tools/test-runner/SPEC.md`「并行度」与「令牌池」。令牌数是主机的核数减 `tools/test-runner/test-runs.config.json` 的 `parallel.reserveCores`。没有钉并行度的仓库变量：`OMNE_TEST_MEMBER_CONCURRENCY` 已经没有代码读，外面设的 `VITEST_MAX_WORKERS` 会被运行器按拿到的令牌覆盖。要让 runner 少用核，改 `reserveCores`。
+- `pnpm run check` 自己不占令牌，各步自己向令牌池要核。runner 上的任务与同一用户在主机上手工起的检查在同一个池里排队。

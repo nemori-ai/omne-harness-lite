@@ -1,6 +1,7 @@
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import {
   belongs,
+  foreign,
   readAsset,
   readDomain,
   readHolding,
@@ -8,7 +9,7 @@ import {
   selectedVersion,
 } from './records.ts'
 import { HANDLER, PROTOCOL, readRequestSchema } from './schema.ts'
-import { canonical, equal, json, scopeRef, withinBudget } from './encoding.ts'
+import { canonical, json, scopeRef, withinBudget } from './encoding.ts'
 const FORBIDDEN = { kind: 'read', output: { kind: 'rejected', reason: 'forbidden' } } as const
 
 type ReadRequest = ReturnType<typeof readRequestSchema.parse>
@@ -29,8 +30,7 @@ function heldCapabilityResult(
 ): ReturnType<ReadHandlerModule['read']> {
   const { lookup, domain } = request
   const current = readDomain(port)
-  if (scopeRef(domain) === null || (current !== null && !equal(current.domain, domain)))
-    return FORBIDDEN
+  if (foreign(current, domain)) return FORBIDDEN
   if (current === null) return { kind: 'read', output: { kind: 'absent' } }
   const row = port.execute(
     "SELECT holding_ref FROM al_holdings WHERE scope_key = ? AND capability_key = ? AND state = 'held' LIMIT 1",
@@ -74,8 +74,7 @@ function assetResult(
 ): ReturnType<ReadHandlerModule['read']> {
   const { domain } = request
   const current = readDomain(port)
-  if (scopeRef(domain) === null || (current !== null && !equal(current.domain, domain)))
-    return { kind: 'read', output: { kind: 'rejected', reason: 'forbidden' } }
+  if (foreign(current, domain)) return FORBIDDEN
   const asset = readAsset(port, domain, request.lookup.assetRef)
   return { kind: 'read', output: json(asset ? { kind: 'asset', asset } : { kind: 'absent' }) }
 }

@@ -9,6 +9,7 @@ import {
 import {
   assetsSqlMaterials,
   createAssetsLocal,
+  tenantLayerSource,
   type AssetsLocal,
   type PackageLocation,
 } from '@omne-harness/assets-local'
@@ -36,9 +37,10 @@ import {
   createContentStoreSource,
   createDirectorySource,
   createSkillDecisions,
-  publishedCandidate,
+  skillInputsFromAssets,
   type SkillCandidate,
   type SkillLayerInput,
+  type VersionBody,
 } from '@omne-harness/skill-host-local'
 
 export type PublishJourneyOptions = Readonly<{
@@ -78,7 +80,7 @@ export async function writeOfficialSample(parent: string): Promise<string> {
   return dir
 }
 
-function directoryReader(source: SkillPackageSource, root: string): PackageReader {
+export function directoryReader(source: SkillPackageSource, root: string): PackageReader {
   const locator: PackageLocator = { kind: 'directory', root }
   return {
     async manifest() {
@@ -105,7 +107,7 @@ function directoryReader(source: SkillPackageSource, root: string): PackageReade
   }
 }
 
-async function openStorage(stateDir: string, tenantRef: string) {
+export async function openStorage(stateDir: string, tenantRef: string) {
   const assets = assetsSqlMaterials()
   const settings = settingsSqlMaterials()
   const materials: SqlMaterialCatalog = {
@@ -140,6 +142,13 @@ async function openStorage(stateDir: string, tenantRef: string) {
   const registered = await created.storage.registerCombination(combination)
   if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
   return { storage: created.storage, control: created.control, domain, combination }
+}
+
+export function versionBodyOf(assets: AssetsLocal): VersionBody {
+  return async candidate => {
+    const read = await assets.readVersion({ assetRef: candidate.asset, version: candidate.version })
+    return read.kind === 'version' ? read.version.body : undefined
+  }
 }
 
 export async function runPublishJourney(options: PublishJourneyOptions): Promise<PublishJourney> {
@@ -207,30 +216,19 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
       }
       return { layer: 'official', state: 'read', candidates: [candidate] }
     }
-    async function tenantLayer(wanted: CapabilityId): Promise<SkillLayerInput> {
-      const read = await assets.readHeldCapability({ capability: wanted })
-      if (read.kind === 'rejected') return { layer: 'tenant', state: 'unavailable' }
-      if (read.kind === 'absent' || read.selected === null)
-        return { layer: 'tenant', state: 'read', candidates: [] }
-      const candidate = publishedCandidate({
-        asset: read.holding.assetRef,
-        version: read.selected.version,
-        body: read.selected.body,
-        disabled: !read.holding.enabled,
-      })
-      if (candidate === undefined) return { layer: 'tenant', state: 'unavailable' }
-      return { layer: 'tenant', state: 'read', candidates: [candidate] }
-    }
+    const fromAssets = skillInputsFromAssets<string, Scope>({
+      sources: [tenantLayerSource(assets)],
+      body: versionBodyOf(assets),
+    })
     const sameTenant = (who: Access<string>) =>
       JSON.stringify(who.tenant) === JSON.stringify(options.reader.tenant)
     const { resolution, readCheck } = createSkillDecisions<string, Scope>({
-      layers: async (_access, _scope, wanted) => [
+      layers: async (who, scope, wanted) => [
         await official(),
-        { layer: 'organization', state: 'not-applicable' },
-        await tenantLayer(wanted),
+        ...(await fromAssets.layers(who, scope, wanted)),
       ],
       eligible: async who => (sameTenant(who) ? 'yes' : 'no'),
-      identities: async () => ({ ok: [capability] }),
+      identities: fromAssets.identities,
       readable: async who => (sameTenant(who) ? { kind: 'granted' } : { kind: 'refused' }),
     })
 

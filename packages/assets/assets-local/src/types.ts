@@ -13,6 +13,8 @@ import type {
   publishMetadataSchema,
   versionResultSchema,
   holdingLookupSchema,
+  listLookupSchema,
+  listResultSchema,
   versionLookupSchema,
 } from './schema.ts'
 export type AssetsLocalOptions = Readonly<{
@@ -36,6 +38,8 @@ export type AssetsOperationResult = AssetsMutationResult | Readonly<{ kind: 'not
 export type AssetsReadResult = z.infer<typeof assetResultSchema>
 export type AssetsHoldingResult = z.infer<typeof holdingResultSchema>
 export type AssetsVersionResult = z.infer<typeof versionResultSchema>
+export type AssetsListRequest = z.input<typeof listLookupSchema>
+export type AssetsListResult = z.infer<typeof listResultSchema>
 export interface AssetsLocal {
   readAsset(input: z.infer<typeof assetLookupSchema>): Promise<AssetsReadResult>
   publish(input: AssetsPublish): Promise<AssetsMutationResult>
@@ -44,6 +48,7 @@ export interface AssetsLocal {
   readHolding(input: z.infer<typeof holdingLookupSchema>): Promise<AssetsHoldingResult>
   readVersion(input: z.infer<typeof versionLookupSchema>): Promise<AssetsVersionResult>
   readHeldCapability(input: { capability: CapabilityId }): Promise<AssetsHoldingResult>
+  listHeld(input: AssetsListRequest): Promise<AssetsListResult>
   readonly packages: LocalPackages
   getOperation(operationId: string): Promise<AssetsOperationResult>
   close(): Promise<void>

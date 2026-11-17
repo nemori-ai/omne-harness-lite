@@ -1,3 +1,4 @@
+// @module-tag slow
 import { afterEach, expect, it } from 'vitest'
 import {
   createGovernanceCollection,

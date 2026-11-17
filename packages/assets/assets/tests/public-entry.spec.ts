@@ -3,12 +3,16 @@ import * as assets from '@omne-harness/assets'
 
 it('exports the registry, identity, and pin operations', () => {
   expect(Object.keys(assets).sort()).toEqual([
+    'ASSET_LAYERS',
+    'MAX_ASSET_PAGE',
     'capabilityId',
+    'collectCandidates',
     'createCategoryRegistry',
     'decideAssetHoldingChange',
     'digestBytes',
     'evaluate',
     'isReadBody',
+    'listAssets',
     'packageDigest',
     'pinBody',
     'projectAssetSettings',
