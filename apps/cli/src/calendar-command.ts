@@ -69,6 +69,35 @@ const QUESTIONS: Readonly<Record<string, Asked>> = {
   },
 }
 const READS = { list: 'list-calendars', environment: 'read-environment' } as const
+type Read = (typeof READS)[keyof typeof READS]
+
+/** What one invocation asks: a read of its own, or a date question. */
+type Request =
+  | Readonly<{ kind: 'read'; operation: Read; values: Option }>
+  | Readonly<{ kind: 'answer'; question: Question; values: Option }>
+
+function requestOf(action: string, rest: readonly string[]): Request | string {
+  const name = `calendar ${action}`
+  if (Object.hasOwn(READS, action)) {
+    const read = readOptions(rest, { accepted: [serverOption], required: [] })
+    return read.kind === 'options'
+      ? { kind: 'read', operation: READS[action as keyof typeof READS], values: read.values }
+      : unrecognized(name)
+  }
+  const asked = QUESTIONS[action]
+  if (!Object.hasOwn(QUESTIONS, action) || asked === undefined) return unrecognized('calendar')
+  const read = readOptions(rest, {
+    accepted: [serverOption, ...asked.options],
+    required: asked.options,
+    ...(asked.switches === undefined ? {} : { switches: asked.switches }),
+  })
+  if (read.kind === 'unrecognized') return unrecognized(name)
+  if (read.kind === 'missing') return missingOption(name, read.option)
+  const question = asked.question(read.values)
+  return question === undefined
+    ? unrecognized(name)
+    : { kind: 'answer', question, values: read.values }
+}
 
 async function runCalendar(
   args: readonly string[],
@@ -77,26 +106,21 @@ async function runCalendar(
 ): Promise<ExitCode> {
   const [action = '', ...rest] = args
   const name = `calendar ${action}`
-  const read = Object.hasOwn(READS, action) ? READS[action as keyof typeof READS] : undefined
-  const asked = Object.hasOwn(QUESTIONS, action) ? QUESTIONS[action] : undefined
-  if (read === undefined && asked === undefined) return usageError(output, unrecognized('calendar'))
-  const options = readOptions(rest, {
-    accepted: [serverOption, ...(asked?.options ?? [])],
-    required: asked?.options ?? [],
-    ...(asked?.switches === undefined ? {} : { switches: asked.switches }),
-  })
-  if (options.kind === 'unrecognized') return usageError(output, unrecognized(name))
-  if (options.kind === 'missing') return usageError(output, missingOption(name, options.option))
-  const question = asked?.question(options.values)
-  if (asked !== undefined && question === undefined) return usageError(output, unrecognized(name))
-  const loaded = loadLogin(options.values, output, environment)
+  const request = requestOf(action, rest)
+  if (typeof request === 'string') return usageError(output, request)
+  const loaded = loadLogin(request.values, output, environment)
   if (loaded.kind === 'exit') return loaded.code
   const messageId = environment.services.newId()
-  const tenant = loaded.tenant
+  const { tenant, link } = loaded
   const result =
-    question === undefined
-      ? await loaded.link.call(calendarProtocol, read ?? 'list-calendars', { tenant }, messageId)
-      : await loaded.link.call(calendarProtocol, 'answer', { tenant, question }, messageId)
+    request.kind === 'read'
+      ? await link.call(calendarProtocol, request.operation, { tenant }, messageId)
+      : await link.call(
+          calendarProtocol,
+          'answer',
+          { tenant, question: request.question },
+          messageId,
+        )
   if (result === undefined) return usageError(output, unrecognized(name))
   return report(name, result, { messageId, tenant: encodeTenantText(tenant) }, output)
 }

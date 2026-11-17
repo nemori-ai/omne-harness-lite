@@ -285,3 +285,98 @@ describe('list-calendars and read-environment', () => {
     ).toEqual({ outcome: 'basis-unavailable' })
   })
 })
+
+const CODES = {
+  unauthenticated: ['denied', 'denied', 'denied'],
+  forbidden: ['denied', 'denied', 'denied'],
+  not_found: ['denied', 'denied', 'denied'],
+  invalid_input: ['basis-unavailable', 'basis-unavailable', 'invalid:input'],
+  invalid_timezone: ['basis-unavailable', 'basis-unavailable', 'invalid:timezone'],
+  missing_environment: ['basis-unavailable', 'unsupported:environment', 'unsupported:environment'],
+  environment_incoherent: [
+    'basis-unavailable',
+    'unsupported:environment',
+    'unsupported:environment',
+  ],
+  unknown_calendar_version: ['basis-unavailable', 'basis-unavailable', 'unsupported:coverage'],
+  coverage_insufficient: ['basis-unavailable', 'basis-unavailable', 'unsupported:coverage'],
+  search_limit: ['basis-unavailable', 'basis-unavailable', 'unsupported:search-limit'],
+  authority_unavailable: ['basis-unavailable', 'basis-unavailable', 'basis-unavailable'],
+  capacity_exceeded: ['basis-unavailable', 'basis-unavailable', 'basis-unavailable'],
+  provider_failure: ['basis-unavailable', 'basis-unavailable', 'basis-unavailable'],
+} as const
+const outcomeOf = (answer: unknown) => {
+  const { outcome, body } = answer as { outcome: string; body?: { reason?: string } }
+  return body?.reason === undefined ? outcome : `${outcome}:${body.reason}`
+}
+
+describe('every domain refusal, per operation', () => {
+  it.each(Object.entries(CODES))('%s', async (code, [list, environment, answer]) => {
+    const { ops } = world({
+      faces: { list: error(code), effective: error(code), answer: error(code) },
+    })
+    expect(outcomeOf(await ops['list-calendars'](call, { tenant: tenantId }))).toBe(list)
+    expect(outcomeOf(await ops['read-environment'](call, { tenant: tenantId }))).toBe(environment)
+    expect(
+      outcomeOf(
+        await ops.answer(call, { tenant: tenantId, question: { kind: 'day', date: '2026-10-11' } }),
+      ),
+    ).toBe(answer)
+  })
+})
+
+describe('each kind of result', () => {
+  const ok = (result: unknown) => ({ kind: 'ok', value: { ...basis, result } })
+  it.each([
+    [
+      {
+        kind: 'count',
+        value: { kind: 'ok', from: '2026-09-28', to: '2026-10-09', count: 5, basis: {} },
+      },
+      { kind: 'count', from: '2026-09-28', to: '2026-10-09', count: 5 },
+    ],
+    [
+      {
+        kind: 'next',
+        value: { kind: 'ok', after: '2026-09-30', dates: ['2026-10-09'], basis: {} },
+      },
+      { kind: 'next', dates: ['2026-10-09'] },
+    ],
+    [
+      { kind: 'nth', value: { kind: 'ok', date: '2026-10-30', basis: {} } },
+      { kind: 'nth', date: '2026-10-30' },
+    ],
+  ])('projects %o', async (domain, projected) => {
+    const { ops } = world({ faces: { answer: ok(domain) } })
+    const answered = await ops.answer(call, {
+      tenant: tenantId,
+      question: { kind: 'day', date: '2026-10-11' },
+    })
+    expect(answered).toMatchObject({ outcome: 'succeeded', body: { result: projected } })
+  })
+
+  it('keeps a forward shift positive and lists one page of a hundred calendars', async () => {
+    const { ops, asked } = world({
+      faces: {
+        answer: ok({ kind: 'shift', value: { kind: 'ok', date: '2026-10-08', basis: {} } }),
+        list: { kind: 'ok', value: { items: [], nextCursor: null, observedAt: 'x' } },
+      },
+    })
+    await ops.answer(call, {
+      tenant: tenantId,
+      question: { kind: 'shift', date: '2026-09-30', direction: 'forward', days: 1 },
+    })
+    await ops['list-calendars'](call, { tenant: tenantId })
+    expect(asked).toEqual([
+      [context, { kind: 'shift', date: '2026-09-30', offset: 1 }],
+      [context, { limit: 100 }],
+    ])
+  })
+
+  it('answers an unavailable basis when reading the environment throws', async () => {
+    const { ops } = world({ faces: { effective: new Error('down') } })
+    expect(await ops['read-environment'](call, { tenant: tenantId })).toEqual({
+      outcome: 'basis-unavailable',
+    })
+  })
+})

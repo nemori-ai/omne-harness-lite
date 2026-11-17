@@ -5,10 +5,7 @@ import {
 } from '@omne-harness/calendar-local'
 import { CALENDAR_AUTHORITY } from './authority.ts'
 
-/**
- * The calendar row writes calendar facts only for its own seed import, so a command that the
- * persistence or the supply store binds here is allowed for that store and denied for the other.
- */
+/** The row writes calendar facts only for its seed: each store's own command is allowed, the other's denied. */
 export default {
   ...CALENDAR_AUTHORITY,
   execute(facts, port) {

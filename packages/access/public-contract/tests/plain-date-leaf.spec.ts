@@ -34,6 +34,10 @@ describe('the plain-date leaf', () => {
     ['an unpadded month', '2026-1-10'],
     ['an instant', '2026-10-10T08:00:00+08:00'],
     ['empty text', ''],
+    ['text before the date', 'x2026-10-10'],
+    ['month thirteen', '2026-13-01'],
+    ['day zero', '2026-10-00'],
+    ['the thirty-first of a thirty-day month', '2026-09-31'],
   ])('rejects %s', (_label, value) => {
     expect(day.read(holding(text(value)), limits)).toEqual({ ok: false })
     expect(day.write({ date: value }, limits)).toEqual({ ok: false })

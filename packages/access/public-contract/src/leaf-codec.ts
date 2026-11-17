@@ -108,11 +108,7 @@ function isPlainDate(value: string): boolean {
   const [year, month, dayOfMonth] = [Number(parts[1]), Number(parts[2]), Number(parts[3])]
   const date = new Date(0)
   date.setUTCFullYear(year, month - 1, dayOfMonth)
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === dayOfMonth
-  )
+  return date.getUTCMonth() === month - 1 && date.getUTCDate() === dayOfMonth
 }
 
 function instant(input: unknown, direction: Direction): Converted | undefined {
