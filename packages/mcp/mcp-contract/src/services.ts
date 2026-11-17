@@ -30,8 +30,6 @@ import type {
   CatalogStore,
   CredentialUse,
   McpClock,
-  ProcessLanding,
-  StopScope,
   UseEligibility,
 } from './ports.ts'
 import type { McpTransportFactory, PeerNotification } from './transport.ts'
@@ -39,7 +37,6 @@ import type { EndpointDefinition, EndpointRef, PeerIdentity } from './values.ts'
 
 export interface EndpointInspection extends BodyContract {
   inspect(body: unknown): Outcome<EndpointDefinition, EndpointBodyRejection>
-  launchesLocalCommand(body: unknown): Outcome<boolean, EndpointBodyRejection>
 }
 
 export type CatalogView =
@@ -142,19 +139,15 @@ export type DegradedReason = 'discover-failed' | 'list-failed'
 export type LostReason =
   | 'preparation-failed'
   | 'discover-failed'
-  | 'close-unconfirmed'
   | 'authorization-required'
-  | 'process-exited'
   | 'stream-broken'
   | 'negotiation-invalid'
   | 'session-ended'
 
-export type Residual = Readonly<{ kind: 'process'; confirmed: StopScope }>
-
 export type ConnectionState =
   | Readonly<{ kind: 'none' | 'preparing' | 'ready' }>
   | Readonly<{ kind: 'degraded'; reason: DegradedReason }>
-  | Readonly<{ kind: 'lost'; reason: LostReason; residual?: readonly Residual[] }>
+  | Readonly<{ kind: 'lost'; reason: LostReason }>
 
 export type EndpointStatusView = Readonly<{
   ref: EndpointRef
@@ -173,9 +166,7 @@ export interface EndpointStatus<P, S> {
   list(access: Access<P>, scope: S): Promise<Outcome<readonly EndpointStatusView[], 'unknown'>>
 }
 
-export type ReleaseReport =
-  | Readonly<{ kind: 'released'; process: StopScope | 'no-process' }>
-  | Readonly<{ kind: 'no-connection' }>
+export type ReleaseReport = Readonly<{ kind: 'released' }> | Readonly<{ kind: 'no-connection' }>
 
 export interface Connections<P> {
   release(
@@ -187,14 +178,13 @@ export interface Connections<P> {
       Extract<Refusal, { kind: 'not-available-to-you' | 'blocked' | 'unknown' }>
     >
   >
-  closeAll(): Promise<readonly Readonly<{ ref: EndpointRef; process: StopScope | 'no-process' }>[]>
+  closeAll(): Promise<readonly Readonly<{ ref: EndpointRef }>[]>
 }
 
 export type McpPorts<P, S> = Readonly<{
   adoption: AdoptionView<P, S>
   eligibility: UseEligibility<P>
   credentials: CredentialUse<P>
-  landing: ProcessLanding<P>
   store: CatalogStore
   transports: McpTransportFactory
   checkOutput: OutputValidator

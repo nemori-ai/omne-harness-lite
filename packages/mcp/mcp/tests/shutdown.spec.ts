@@ -3,18 +3,14 @@ import { only } from './doubles/calls.ts'
 import { manualBounds } from './doubles/bounds.ts'
 import { core } from './doubles/core.ts'
 import { deferred, settled } from './doubles/deferred.ts'
-import { stallingCredentials, stallingLanding, stallingStops } from './doubles/stalls.ts'
+import { stallingCredentials, stallingOpens } from './doubles/stalls.ts'
 import type { PeerIdentity } from '@omne-harness/mcp-contract'
-import { millisOf, peerIdentityOf, endpointRefOf } from '@omne-harness/mcp-contract/testing'
+import { peerIdentityOf, endpointRefOf } from '@omne-harness/mcp-contract/testing'
 import { alice } from './doubles/identities.ts'
-import { VALUE, adoptStdio, usualScript, world, type World } from './doubles/world.ts'
+import { adoptHttp, usualScript, world, type World } from './doubles/world.ts'
 
 const files = endpointRefOf('files')
-const notes = endpointRefOf('notes')
-const WITH_CREDENTIAL = {
-  auth: 'static',
-  env: [{ name: 'TOKEN', source: 'credential' }],
-} as const
+const WITH_CREDENTIAL = { auth: 'static' } as const
 const REFUSED = { failure: { kind: 'connection-unavailable' } }
 const ANONYMOUS_KEY = {
   tenant: alice.tenant,
@@ -26,99 +22,10 @@ function opens(w: World): number {
   return w.transports.calls.filter(call => call.kind === 'open').length
 }
 
-describe('closeAll releases the handles of the landings in flight at once', () => {
-  it('while the close of another entry waits on its transport', async () => {
-    const closing = deferred<'closed'>()
-    const w = world({ script: [...usualScript(), { close: closing }] })
-    adoptStdio(w, files)
-    adoptStdio(w, notes, {
-      ...WITH_CREDENTIAL,
-      settings: { connectTimeout: VALUE(millisOf(50)) },
-    })
-    const stalled = stallingLanding(w.landing, only(2))
-    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
-    expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
-      ok: { kind: 'published' },
-    })
-    expect(await c.discovery.refresh(alice, { ref: notes })).toEqual(REFUSED)
-    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 0 }])
-    const all = c.connections.closeAll()
-    await settled()
-    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
-    closing.resolve('closed')
-    expect(await all).toEqual([
-      { ref: files, process: 'tree-confirmed' },
-      { ref: notes, process: 'unconfirmed' },
-    ])
-  })
-
-  it('for a landing that outlives its bound after the shutdown began; the late process is stopped once', async () => {
-    const w = world({ script: usualScript() })
-    adoptStdio(w, files, {
-      ...WITH_CREDENTIAL,
-      settings: { connectTimeout: VALUE(millisOf(50)) },
-    })
-    const stalled = stallingLanding(w.landing)
-    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
-    const refreshed = c.discovery.refresh(alice, { ref: files })
-    await settled()
-    expect(stalled.calls()).toBe(1)
-    const all = c.connections.closeAll()
-    expect(await refreshed).toEqual(REFUSED)
-    expect(await all).toEqual([{ ref: files, process: 'unconfirmed' }])
-    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
-    stalled.gate.resolve()
-    await settled()
-    expect(w.landing.processes()).toEqual([{ stops: 1 }])
-    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
-  })
-
-  it('for a landing still within its bound: released before the landing answers; the process that lands is stopped and its handle not released again', async () => {
-    const w = world({ script: usualScript() })
-    adoptStdio(w, files, WITH_CREDENTIAL)
-    const bounds = manualBounds()
-    const stalled = stallingLanding(w.landing)
-    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } }, bounds.runtime)
-    const refreshed = c.discovery.refresh(alice, { ref: files })
-    await settled()
-    expect(stalled.calls()).toBe(1)
-    const all = c.connections.closeAll()
-    await settled()
-    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
-    stalled.gate.resolve()
-    expect(await refreshed).toEqual(REFUSED)
-    expect(await all).toEqual([{ ref: files, process: 'tree-confirmed' }])
-    expect(w.landing.processes()).toEqual([{ stops: 1 }])
-    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
-  })
-
-  it('not for a landing that already handed over its process: the handle waits for its stop', async () => {
-    const w = world({ script: usualScript() })
-    adoptStdio(w, files, {
-      ...WITH_CREDENTIAL,
-      settings: { connectTimeout: VALUE(millisOf(50)) },
-    })
-    const stops = stallingStops(w.landing, only(1))
-    const landing = stallingLanding(stops.port)
-    const c = core({ ...w, ports: { ...w.ports, landing: landing.port } })
-    expect(await c.discovery.refresh(alice, { ref: files })).toEqual(REFUSED)
-    landing.gate.resolve()
-    await settled()
-    const all = c.connections.closeAll()
-    await settled()
-    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 0 }])
-    stops.gate.resolve()
-    await all
-    await settled()
-    expect(w.trace).toEqual(['process.stop', 'credential.release'])
-    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
-  })
-})
-
 describe('a build under way when the table shuts goes no further', () => {
-  it('shut while the credential is asked: no process starts, no transport opens, the handle is released once', async () => {
+  it('shut while the credential is asked: no transport opens, the handle is released once', async () => {
     const w = world({ script: usualScript() })
-    adoptStdio(w, files, WITH_CREDENTIAL)
+    adoptHttp(w, files, WITH_CREDENTIAL)
     const credentials = stallingCredentials(w.ports.credentials)
     const c = core({ ...w, ports: { ...w.ports, credentials: credentials.port } })
     const refreshed = c.discovery.refresh(alice, { ref: files })
@@ -127,26 +34,7 @@ describe('a build under way when the table shuts goes no further', () => {
     await settled()
     credentials.gate.resolve()
     expect(await refreshed).toEqual(REFUSED)
-    expect(await all).toEqual([{ ref: files, process: 'no-process' }])
-    expect(w.landing.processes()).toEqual([])
-    expect(opens(w)).toBe(0)
-    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
-  })
-
-  it('shut while the process starts: the process that lands is stopped and no transport opens', async () => {
-    const w = world({ script: usualScript() })
-    adoptStdio(w, files, WITH_CREDENTIAL)
-    const stalled = stallingLanding(w.landing)
-    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
-    const refreshed = c.discovery.refresh(alice, { ref: files })
-    await settled()
-    expect(stalled.calls()).toBe(1)
-    const all = c.connections.closeAll()
-    await settled()
-    stalled.gate.resolve()
-    expect(await refreshed).toEqual(REFUSED)
-    expect(await all).toEqual([{ ref: files, process: 'tree-confirmed' }])
-    expect(w.landing.processes()).toEqual([{ stops: 1 }])
+    expect(await all).toEqual([{ ref: files }])
     expect(opens(w)).toBe(0)
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
   })
@@ -154,7 +42,7 @@ describe('a build under way when the table shuts goes no further', () => {
   it('shut while negotiating: the same refusal as after the shutdown, not a connection about to be torn down', async () => {
     const discover = deferred<PeerIdentity>()
     const w = world({ script: [{ discover }] })
-    adoptStdio(w, files, WITH_CREDENTIAL)
+    adoptHttp(w, files, WITH_CREDENTIAL)
     const c = core(w)
     const refreshed = c.discovery.refresh(alice, { ref: files })
     await settled()
@@ -163,7 +51,7 @@ describe('a build under way when the table shuts goes no further', () => {
     discover.resolve(peerIdentityOf())
     expect(await refreshed).toEqual(REFUSED)
     await all
-    expect(w.trace).toEqual(['transport.close', 'process.stop', 'credential.release'])
+    expect(w.trace).toEqual(['transport.close', 'credential.release'])
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
   })
 })
@@ -171,16 +59,14 @@ describe('a build under way when the table shuts goes no further', () => {
 describe('a build cut off by the shutdown marks nothing', () => {
   it('the catalog keeps its revision: the shutdown is a fact of this instance, not of the endpoint', async () => {
     const w = world({ script: [...usualScript(), ...usualScript()] })
-    adoptStdio(w, files)
-    const stalled = stallingLanding(w.landing, only(2))
-    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
+    adoptHttp(w, files, { auth: 'none' })
+    const stalled = stallingOpens(w.transports, only(2))
+    const c = core({ ...w, ports: { ...w.ports, transports: stalled.port } })
     expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
       ok: { kind: 'published' },
     })
     const published = await w.store.read(ANONYMOUS_KEY)
-    expect(await c.connections.release(alice, files)).toEqual({
-      ok: { kind: 'released', process: 'tree-confirmed' },
-    })
+    expect(await c.connections.release(alice, files)).toEqual({ ok: { kind: 'released' } })
     const refreshed = c.discovery.refresh(alice, { ref: files })
     await settled()
     expect(stalled.calls()).toBe(2)
@@ -188,23 +74,21 @@ describe('a build cut off by the shutdown marks nothing', () => {
     await settled()
     stalled.gate.resolve()
     expect(await refreshed).toEqual(REFUSED)
-    expect(await all).toEqual([{ ref: files, process: 'tree-confirmed' }])
+    expect(await all).toEqual([{ ref: files }])
     expect(await w.store.read(ANONYMOUS_KEY)).toEqual(published)
   })
 
   it('a build that fails after the shutdown began marks nothing either, and answers as after the shutdown', async () => {
     const w = world({ script: [...usualScript(), ...usualScript()] })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const bounds = manualBounds()
-    const stalled = stallingLanding(w.landing, only(2))
-    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } }, bounds.runtime)
+    const stalled = stallingOpens(w.transports, only(2))
+    const c = core({ ...w, ports: { ...w.ports, transports: stalled.port } }, bounds.runtime)
     expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
       ok: { kind: 'published' },
     })
     const published = await w.store.read(ANONYMOUS_KEY)
-    expect(await c.connections.release(alice, files)).toEqual({
-      ok: { kind: 'released', process: 'tree-confirmed' },
-    })
+    expect(await c.connections.release(alice, files)).toEqual({ ok: { kind: 'released' } })
     const refreshed = c.discovery.refresh(alice, { ref: files })
     await settled()
     expect(stalled.calls()).toBe(2)
@@ -212,7 +96,7 @@ describe('a build cut off by the shutdown marks nothing', () => {
     await settled()
     bounds.fire('build', 1)
     expect(await refreshed).toEqual(REFUSED)
-    expect(await all).toEqual([{ ref: files, process: 'unconfirmed' }])
+    expect(await all).toEqual([{ ref: files }])
     expect(await w.store.read(ANONYMOUS_KEY)).toEqual(published)
   })
 })

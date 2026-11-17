@@ -12,19 +12,11 @@ import {
   stallingAdoption,
   stallingCredentials,
   stallingEligibility,
-  stallingLanding,
+  stallingOpens,
 } from './doubles/stalls.ts'
 import { millisOf, peerIdentityOf, endpointRefOf } from '@omne-harness/mcp-contract/testing'
 import { alice } from './doubles/identities.ts'
-import {
-  VALUE,
-  adoptHttp,
-  adoptStdio,
-  page,
-  usualScript,
-  world,
-  type World,
-} from './doubles/world.ts'
+import { VALUE, adoptHttp, page, usualScript, world, type World } from './doubles/world.ts'
 
 const files = endpointRefOf('files')
 const peer = peerIdentityOf()
@@ -57,15 +49,13 @@ describe('publish boundary (B1): the checks sit next to the write', () => {
         { listActions: second },
       ],
     })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const { gate, c } = stalledWorld(w, 2)
     const late = c.discovery.refresh(alice, { ref: files })
     await settled()
     listing.resolve(page(['stale']))
     await settled()
-    expect(await c.connections.release(alice, files)).toEqual({
-      ok: { kind: 'released', process: 'tree-confirmed' },
-    })
+    expect(await c.connections.release(alice, files)).toEqual({ ok: { kind: 'released' } })
     const next = c.discovery.refresh(alice, { ref: files })
     await settled()
     gate.resolve()
@@ -81,7 +71,7 @@ describe('publish boundary (B1): the checks sit next to the write', () => {
 
   it('aborted while the boundary waits on eligibility: kept (cancelled)', async () => {
     const w = world({ script: usualScript() })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const { gate, c } = stalledWorld(w, 2)
     const controller = new AbortController()
     const pending = c.discovery.refresh(alice, { ref: files, signal: controller.signal })
@@ -94,11 +84,11 @@ describe('publish boundary (B1): the checks sit next to the write', () => {
 
   it('the adoption revision changed while the boundary waits on eligibility: kept (superseded)', async () => {
     const w = world({ script: usualScript() })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const { gate, c } = stalledWorld(w, 2)
     const pending = c.discovery.refresh(alice, { ref: files })
     await settled()
-    w.adoption.update(alice.tenant, files, { processEnv: [{ name: 'X', value: '1' }] })
+    w.adoption.update(alice.tenant, files, {})
     gate.resolve()
     expect(await pending).toEqual({ ok: { kind: 'kept', reason: { kind: 'superseded' } } })
     expect(await stored(w)).toBe('absent')
@@ -112,7 +102,7 @@ const GONE: TransportFailure = {
 }
 
 describe('late results (B2): a page from an earlier generation does not touch the new connection', () => {
-  it('keeps the rebuilt connection ready, its transport open and its process running', async () => {
+  it('keeps the rebuilt connection ready and its transport open', async () => {
     const first = deferred<ListingPage | TransportFailure>()
     const w = world({
       script: [
@@ -123,7 +113,7 @@ describe('late results (B2): a page from an earlier generation does not touch th
         { listActions: page(['fresh']) },
       ],
     })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const c = core(w)
     const late = c.discovery.refresh(alice, { ref: files })
     await settled()
@@ -140,7 +130,6 @@ describe('late results (B2): a page from an earlier generation does not touch th
       ok: { connection: { kind: 'ready' } },
     })
     expect(w.transports.calls.filter(call => call.kind === 'close')).toHaveLength(closesBefore)
-    expect(w.landing.processes()).toEqual([{ stops: 1 }, { stops: 0 }])
     const record = await stored(w)
     if (record === 'absent') throw new Error('nothing stored')
     expect(record.actions.map(action => [action.name, action.availability.kind])).toEqual([
@@ -153,7 +142,7 @@ describe('listing bound (B3): reading pages is bounded like the build', () => {
   it('a page that never comes: listing-incomplete (page-failed) at the bound, connection degraded', async () => {
     const never = deferred<ListingPage>()
     const w = world({ script: [{ discover: peer }, { listActions: never }] })
-    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
+    adoptHttp(w, files, { auth: 'none', settings: { connectTimeout: VALUE(millisOf(50)) } })
     const c = core(w)
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
       ok: { kind: 'kept', reason: { kind: 'listing-incomplete', defect: 'page-failed' } },
@@ -167,7 +156,7 @@ describe('listing bound (B3): reading pages is bounded like the build', () => {
   it('aborted while a page is pending: kept (cancelled) at once, the connection untouched', async () => {
     const never = deferred<ListingPage>()
     const w = world({ script: [{ discover: peer }, { listActions: never }] })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const c = core(w)
     const controller = new AbortController()
     const pending = c.discovery.refresh(alice, { ref: files, signal: controller.signal })
@@ -192,7 +181,7 @@ describe('close against ensure (B4): both connections keep an owner', () => {
         ...usualScript(['b']),
       ],
     })
-    adoptStdio(w, files, { auth: 'static', env: [{ name: 'TOKEN', source: 'credential' }] })
+    adoptHttp(w, files, { auth: 'static' })
     const c = core(w)
     expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
       ok: { kind: 'published' },
@@ -202,14 +191,12 @@ describe('close against ensure (B4): both connections keep an owner', () => {
     const refreshing = c.discovery.refresh(alice, { ref: files })
     await settled()
     closing.resolve('closed')
-    expect(await releasing).toEqual({ ok: { kind: 'released', process: 'tree-confirmed' } })
+    expect(await releasing).toEqual({ ok: { kind: 'released' } })
     expect(await refreshing).toMatchObject({ ok: { kind: 'published' } })
     expect(await c.status.inspect(alice, files)).toMatchObject({
       ok: { connection: { kind: 'ready' } },
     })
-    expect(w.landing.processes()).toEqual([{ stops: 1 }, { stops: 0 }])
-    expect(await c.connections.closeAll()).toEqual([{ ref: files, process: 'tree-confirmed' }])
-    expect(w.landing.processes()).toEqual([{ stops: 1 }, { stops: 1 }])
+    expect(await c.connections.closeAll()).toEqual([{ ref: files }])
     expect(w.credentials.handles()).toEqual([
       { acquired: 1, released: 1 },
       { acquired: 1, released: 1 },
@@ -217,19 +204,19 @@ describe('close against ensure (B4): both connections keep an owner', () => {
   })
 })
 
-describe('build bound (B5): credentials and the landing are bounded too', () => {
-  it('a landing that never answers: connection-unavailable at the bound; release returns', async () => {
+describe('build bound (B5): credentials and the open are bounded too', () => {
+  it('an open that never answers: connection-unavailable at the bound; release returns', async () => {
     const w = world({ script: usualScript() })
-    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
-    const stalled = stallingLanding(w.landing)
-    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
+    adoptHttp(w, files, { auth: 'none', settings: { connectTimeout: VALUE(millisOf(50)) } })
+    const stalled = stallingOpens(w.transports)
+    const c = core({ ...w, ports: { ...w.ports, transports: stalled.port } })
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
       failure: { kind: 'connection-unavailable' },
     })
     expect(await c.connections.release(alice, files)).toMatchObject({ ok: {} })
     stalled.gate.resolve()
     await settled()
-    expect(w.landing.processes()).toEqual([{ stops: 1 }])
+    expect(w.trace).toEqual(['transport.close'])
   })
 })
 
@@ -237,13 +224,13 @@ describe('a port that breaches its contract (T9)', () => {
   it('a rejected discover answers effect-unknown (abandoned) and is torn down; the next ensure builds again', async () => {
     const broken = deferred<typeof peer>()
     const w = world({ script: [{ discover: broken }, ...usualScript()] })
-    adoptStdio(w, files, { auth: 'static', env: [{ name: 'TOKEN', source: 'credential' }] })
+    adoptHttp(w, files, { auth: 'static' })
     const c = core(w)
     const first = c.discovery.refresh(alice, { ref: files })
     await settled()
     broken.reject(new Error('transport bug'))
     expect(await first).toEqual({ failure: { kind: 'effect-unknown', cause: 'abandoned' } })
-    expect(w.trace).toEqual(['transport.close', 'process.stop', 'credential.release'])
+    expect(w.trace).toEqual(['transport.close', 'credential.release'])
     expect(await c.status.inspect(alice, files)).toMatchObject({
       ok: { connection: { kind: 'lost', reason: 'preparation-failed' } },
     })
@@ -257,7 +244,7 @@ describe('caller abort during the build', () => {
   it('answers kept (cancelled), marks nothing, and leaves the shared build to the other caller', async () => {
     const discover = deferred<typeof peer>()
     const w = world({ script: [{ discover }, { listActions: page(['a']) }] })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const c = core(w)
     const controller = new AbortController()
     const cancelled = c.discovery.refresh(alice, { ref: files, signal: controller.signal })
@@ -267,18 +254,17 @@ describe('caller abort during the build', () => {
     expect(await cancelled).toEqual({ ok: { kind: 'kept', reason: { kind: 'cancelled' } } })
     discover.resolve(peer)
     expect(await other).toEqual({ ok: { kind: 'published', revision: 1 } })
-    expect(w.landing.processes()).toEqual([{ stops: 0 }])
   })
 })
 
 describe('an old adoption revision', () => {
   it('ensure with a token of an earlier revision answers unknown and leaves the new connection alone', async () => {
     const w = world({ script: [{ discover: peer }, { discover: peer }] })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const table = createConnectionTable(w.ports, w.config)
     const old = await admit(w.ports, alice, files)
     if (old.kind !== 'admitted') throw new Error('not admitted')
-    w.adoption.update(alice.tenant, files, { processEnv: [{ name: 'X', value: '1' }] })
+    w.adoption.update(alice.tenant, files, {})
     const current = await admit(w.ports, alice, files)
     if (current.kind !== 'admitted') throw new Error('not admitted')
     const fresh = await table.ensure(current.endpoint, alice)
@@ -288,14 +274,13 @@ describe('an old adoption revision', () => {
     })
     expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'ready' })
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(1)
-    expect(w.landing.processes()).toEqual([{ stops: 0 }])
   })
 })
 
 describe('the gate the services walk through', () => {
   it('does not ask eligibility for an endpoint that is not adopted', async () => {
     const w = world()
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const c = core(w)
     const nowhere = endpointRefOf('nowhere')
     await c.discovery.refresh(alice, { ref: nowhere })
@@ -307,7 +292,7 @@ describe('the gate the services walk through', () => {
 
   it('another principal without eligibility does not close the connection of the tenant', async () => {
     const w = world({ script: usualScript() })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const c = core(w)
     await c.discovery.refresh(alice, { ref: files })
     const bob = { ...alice, principal: { id: 'bob' } }
@@ -328,7 +313,7 @@ describe('lose shares the close: one teardown per entry, in the close order', ()
     const w = world({
       script: [{ discover: peer }, { listActions: NOT_SENT }, { close: closing }, ...usualScript()],
     })
-    adoptStdio(w, files, { auth: 'static', env: [{ name: 'TOKEN', source: 'credential' }] })
+    adoptHttp(w, files, { auth: 'static' })
     const c = core(w)
     const losing = c.discovery.refresh(alice, { ref: files })
     await settled()
@@ -343,16 +328,15 @@ describe('lose shares the close: one teardown per entry, in the close order', ()
     expect(released).toBe(false)
     expect(w.trace).toEqual([])
     closing.resolve('closed')
-    expect(await releasing).toEqual({ ok: { kind: 'released', process: 'tree-confirmed' } })
+    expect(await releasing).toEqual({ ok: { kind: 'released' } })
     expect(await losing).toEqual({ failure: { kind: 'connection-unavailable' } })
-    expect(w.trace).toEqual(['transport.close', 'process.stop', 'credential.release'])
+    expect(w.trace).toEqual(['transport.close', 'credential.release'])
     expect(await c.status.inspect(alice, files)).toMatchObject({
       ok: { connection: { kind: 'none' } },
     })
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
       ok: { kind: 'published', revision: 1 },
     })
-    expect(w.landing.processes()).toEqual([{ stops: 1 }, { stops: 0 }])
     expect(w.credentials.handles()).toEqual([
       { acquired: 1, released: 1 },
       { acquired: 1, released: 0 },
@@ -364,7 +348,7 @@ describe('lose shares the close: one teardown per entry, in the close order', ()
     const w = world({
       script: [{ discover: peer }, { listActions: NOT_SENT }, { close: closing }, ...usualScript()],
     })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const c = core(w)
     const losing = c.discovery.refresh(alice, { ref: files })
     await settled()
@@ -379,122 +363,14 @@ describe('lose shares the close: one teardown per entry, in the close order', ()
     closing.resolve('closed')
     expect(await losing).toEqual({ failure: { kind: 'connection-unavailable' } })
     expect(await next).toEqual({ ok: { kind: 'published', revision: 1 } })
-    expect(w.trace).toEqual(['transport.close', 'process.stop'])
+    expect(w.trace).toEqual(['transport.close'])
     expect(await c.status.inspect(alice, files)).toMatchObject({
       ok: { connection: { kind: 'ready' } },
     })
-    expect(w.landing.processes()).toEqual([{ stops: 1 }, { stops: 0 }])
   })
 })
 
-describe('a process that lands after the bound', () => {
-  function stalledLanding(w: World) {
-    const stalled = stallingLanding(w.landing)
-    return { gate: stalled.gate, c: core({ ...w, ports: { ...w.ports, landing: stalled.port } }) }
-  }
-
-  it('is stopped on arrival; a stop that is not tree-confirmed is a residual that release and closeAll report', async () => {
-    const w = world({ script: usualScript(), stop: 'unconfirmed' })
-    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
-    const { gate, c } = stalledLanding(w)
-    expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
-      failure: { kind: 'connection-unavailable' },
-    })
-    expect(await c.status.inspect(alice, files)).toEqual({
-      ok: {
-        ref: files,
-        connection: { kind: 'lost', reason: 'preparation-failed' },
-        credential: 'not-required',
-        use: { kind: 'usable' },
-      },
-    })
-    gate.resolve()
-    await settled()
-    expect(w.landing.processes()).toEqual([{ stops: 1 }])
-    expect(await c.status.inspect(alice, files)).toMatchObject({
-      ok: {
-        connection: {
-          kind: 'lost',
-          reason: 'preparation-failed',
-          residual: [{ kind: 'process', confirmed: 'unconfirmed' }],
-        },
-      },
-    })
-    expect(await c.connections.release(alice, files)).toEqual({
-      ok: { kind: 'released', process: 'unconfirmed' },
-    })
-    expect(w.landing.processes()).toEqual([{ stops: 2 }])
-    expect(await c.status.inspect(alice, files)).toMatchObject({
-      ok: {
-        connection: {
-          kind: 'lost',
-          reason: 'close-unconfirmed',
-          residual: [{ kind: 'process', confirmed: 'unconfirmed' }],
-        },
-      },
-    })
-    expect(await c.connections.closeAll()).toEqual([{ ref: files, process: 'unconfirmed' }])
-  })
-
-  it('the process credential handle is released after the late stop() returned', async () => {
-    const w = world({ script: usualScript() })
-    adoptStdio(w, files, {
-      auth: 'static',
-      env: [{ name: 'TOKEN', source: 'credential' }],
-      settings: { connectTimeout: VALUE(millisOf(50)) },
-    })
-    const { gate, c } = stalledLanding(w)
-    expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
-      failure: { kind: 'connection-unavailable' },
-    })
-    expect(w.trace).toEqual([])
-    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 0 }])
-    gate.resolve()
-    await settled()
-    expect(w.trace).toEqual(['process.stop', 'credential.release'])
-    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
-  })
-
-  it('a landing that fails after the bound: no process, the handle released on the answer', async () => {
-    const w = world({ script: usualScript() })
-    adoptStdio(w, files, {
-      auth: 'static',
-      env: [{ name: 'TOKEN', source: 'credential' }],
-      facilities: ['gpu'],
-      settings: { connectTimeout: VALUE(millisOf(50)) },
-    })
-    const { gate, c } = stalledLanding(w)
-    expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
-      failure: { kind: 'connection-unavailable' },
-    })
-    expect(w.trace).toEqual([])
-    gate.resolve()
-    await settled()
-    expect(w.trace).toEqual(['credential.release'])
-    expect(w.landing.processes()).toEqual([])
-  })
-
-  it('a landing that rejects after the bound: no process, the handle released, the entry forgotten', async () => {
-    const w = world({ script: usualScript() })
-    adoptStdio(w, files, {
-      auth: 'static',
-      env: [{ name: 'TOKEN', source: 'credential' }],
-      settings: { connectTimeout: VALUE(millisOf(50)) },
-    })
-    const stalled = stallingLanding({ start: () => Promise.reject(new Error('landing bug')) })
-    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } })
-    expect(await c.discovery.refresh(alice, { ref: files })).toEqual({
-      failure: { kind: 'connection-unavailable' },
-    })
-    expect(await c.connections.release(alice, files)).toEqual({
-      ok: { kind: 'released', process: 'unconfirmed' },
-    })
-    stalled.gate.resolve()
-    await settled()
-    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
-    expect(await c.connections.release(alice, files)).toEqual({ ok: { kind: 'no-connection' } })
-  })
-
+describe('a credential handle that arrives after the bound', () => {
   it('a credential handle that arrives after the bound is released; a release that rejects is dropped, not unhandled', async () => {
     const w = world({ script: usualScript() })
     adoptHttp(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
@@ -526,7 +402,7 @@ describe('a process that lands after the bound', () => {
 describe('the adoption read again in the critical section is bounded', () => {
   it('a re-read that never answers: connection-unavailable at the bound, and the next ensure of the holding answers within its own bound', async () => {
     const w = world({ script: usualScript() })
-    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
+    adoptHttp(w, files, { auth: 'none', settings: { connectTimeout: VALUE(millisOf(50)) } })
     const silent = silentAdoption(w.ports.adoption, between(3, 4))
     const c = core({ ...w, ports: { ...w.ports, adoption: silent.port } })
     const [first, second] = await Promise.all([
@@ -550,12 +426,12 @@ describe('a teardown that does not answer holds no ensure past its bound', () =>
   it('the close of an earlier revision hangs: two refreshes of the new revision answer connection-unavailable, then the close ends on its own', async () => {
     const closing = deferred<'closed'>()
     const w = world({ script: [...usualScript(), { close: closing }, ...usualScript()] })
-    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
+    adoptHttp(w, files, { auth: 'none', settings: { connectTimeout: VALUE(millisOf(50)) } })
     const c = core(w)
     expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
       ok: { kind: 'published' },
     })
-    w.adoption.update(alice.tenant, files, { processEnv: [{ name: 'X', value: '1' }] })
+    w.adoption.update(alice.tenant, files, {})
     const [one, two] = await Promise.all([
       c.discovery.refresh(alice, { ref: files }),
       c.discovery.refresh(alice, { ref: files }),
@@ -565,7 +441,6 @@ describe('a teardown that does not answer holds no ensure past its bound', () =>
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(1)
     closing.resolve('closed')
     await settled()
-    expect(w.landing.processes()).toEqual([{ stops: 1 }])
     expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
       ok: { kind: 'published' },
     })
@@ -574,7 +449,7 @@ describe('a teardown that does not answer holds no ensure past its bound', () =>
   it('a release of the same key still closing the transport: a refresh answers connection-unavailable within its bound', async () => {
     const closing = deferred<'closed'>()
     const w = world({ script: [...usualScript(), { close: closing }, ...usualScript()] })
-    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(50)) } })
+    adoptHttp(w, files, { auth: 'none', settings: { connectTimeout: VALUE(millisOf(50)) } })
     const c = core(w)
     expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
       ok: { kind: 'published' },
@@ -583,7 +458,7 @@ describe('a teardown that does not answer holds no ensure past its bound', () =>
     await settled()
     expect(await c.discovery.refresh(alice, { ref: files })).toEqual(REFUSED)
     closing.resolve('closed')
-    expect(await released).toEqual({ ok: { kind: 'released', process: 'tree-confirmed' } })
+    expect(await released).toEqual({ ok: { kind: 'released' } })
     expect(await c.discovery.refresh(alice, { ref: files })).toMatchObject({
       ok: { kind: 'published' },
     })
@@ -593,7 +468,7 @@ describe('a teardown that does not answer holds no ensure past its bound', () =>
 describe('two tokens of two revisions at the re-read (observation)', () => {
   it('leaves one entry, on the newer revision; the older build is closed, the newer one is not', async () => {
     const w = world({ script: [{ discover: peer }, { discover: peer }] })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const stalled = stallingAdoption(w.ports.adoption, 2)
     const ports = { ...w.ports, adoption: stalled.port }
     const table = createConnectionTable(ports, w.config)
@@ -601,7 +476,7 @@ describe('two tokens of two revisions at the re-read (observation)', () => {
     if (old.kind !== 'admitted') throw new Error('not admitted')
     const first = table.ensure(old.endpoint, alice)
     await settled()
-    w.adoption.update(alice.tenant, files, { processEnv: [{ name: 'X', value: '1' }] })
+    w.adoption.update(alice.tenant, files, {})
     const current = await admit(ports, alice, files)
     if (current.kind !== 'admitted') throw new Error('not admitted')
     const second = table.ensure(current.endpoint, alice)
@@ -624,7 +499,7 @@ describe('each ensure waits at most to its own bounds (SPEC P8 T2)', () => {
 
   it('a call queued behind one that holds the critical section answers at its own bound, and asks no port after', async () => {
     const w = world({ script: usualScript() })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const silent = silentAdoption(w.ports.adoption, between(3, 4))
     const bounds = manualBounds()
     const c = core({ ...w, ports: { ...w.ports, adoption: silent.port } }, bounds.runtime)
@@ -643,10 +518,10 @@ describe('each ensure waits at most to its own bounds (SPEC P8 T2)', () => {
 
   it('a call that joins the build of another answers at its own bound; the build goes on for the call that began it', async () => {
     const w = world({ script: usualScript() })
-    adoptStdio(w, files)
-    const stalled = stallingLanding(w.landing)
+    adoptHttp(w, files, { auth: 'none' })
+    const stalled = stallingOpens(w.transports)
     const bounds = manualBounds()
-    const c = core({ ...w, ports: { ...w.ports, landing: stalled.port } }, bounds.runtime)
+    const c = core({ ...w, ports: { ...w.ports, transports: stalled.port } }, bounds.runtime)
     const first = c.discovery.refresh(alice, { ref: files })
     await settled()
     const second = c.discovery.refresh(alice, { ref: files })
@@ -660,7 +535,7 @@ describe('each ensure waits at most to its own bounds (SPEC P8 T2)', () => {
 
   it('at the table, a call queued past its section bound answers at the settings stage', async () => {
     const w = world({ script: usualScript() })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const silent = silentAdoption(w.ports.adoption, only(2))
     const bounds = manualBounds()
     const ports = { ...w.ports, adoption: silent.port }
@@ -679,10 +554,10 @@ describe('each ensure waits at most to its own bounds (SPEC P8 T2)', () => {
 
   it('at the table, a call that joins past its own bound answers at the connect stage with the mark pending', async () => {
     const w = world({ script: usualScript() })
-    adoptStdio(w, files)
-    const stalled = stallingLanding(w.landing)
+    adoptHttp(w, files, { auth: 'none' })
+    const stalled = stallingOpens(w.transports)
     const bounds = manualBounds()
-    const ports = { ...w.ports, landing: stalled.port }
+    const ports = { ...w.ports, transports: stalled.port }
     const table = createConnectionTable(ports, w.config, bounds.runtime)
     const admitted = await admit(ports, alice, files)
     if (admitted.kind !== 'admitted') throw new Error('not admitted')
@@ -703,7 +578,7 @@ describe('each ensure waits at most to its own bounds (SPEC P8 T2)', () => {
     const w = world({
       script: [{ discover: peerIdentityOf() }, { listActions: deferred<ListingPage>() }],
     })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const bounds = manualBounds()
     const c = core(w, bounds.runtime)
     const refreshing = c.discovery.refresh(alice, { ref: files })

@@ -1,4 +1,4 @@
-// @module-tag slow — every case starts a real MCP server (a Node or Python process, or a local
+// @module-tag slow — every case starts a real MCP server on a local HTTP port and drives it
 import { afterEach, describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -45,8 +45,8 @@ type JourneyStep = Readonly<{
   run(context: Context): Promise<string>
 }>
 
-const ALL: readonly TargetId[] = ['E-stdio', 'E-http', 'E-sse', 'F', 'P']
-const MODERN_EVERYTHING: readonly TargetId[] = ['E-stdio', 'E-http']
+const ALL: readonly TargetId[] = ['E-http', 'E-sse']
+const MODERN_EVERYTHING: readonly TargetId[] = ['E-http']
 
 function ok<T, F>(outcome: Outcome<T, F>, what: string): T {
   if (!('ok' in outcome)) throw new Error(`${what} failed: ${JSON.stringify(outcome)}`)
@@ -234,7 +234,7 @@ const JOURNEY: readonly JourneyStep[] = [
     id: 'S6',
     does: 'cancel after the first progress notification is signalled, and the call ends as unknown (abandoned)',
     expected: 'signalled>unknown:abandoned',
-    applies: ['E-stdio', 'E-http', 'E-sse'],
+    applies: ALL,
     async run(context) {
       const long = callsOf(context).long
       if (long === undefined) throw new Error('the target has no long call')
@@ -267,7 +267,7 @@ const JOURNEY: readonly JourneyStep[] = [
   },
   {
     id: 'S7',
-    does: 'connections.release is released with the confirmed stop range and leaves no process',
+    does: 'connections.release is released',
     expected: 'released',
     applies: ALL,
     async run(context) {
@@ -275,23 +275,17 @@ const JOURNEY: readonly JourneyStep[] = [
         await context.assembly.services.connections.release(ALICE, context.ref),
         'release',
       )
-      if (report.kind !== 'released') return report.kind
-      expect(report.process, 'S7: the confirmed stop range').toBe(context.started.released)
-      if (context.started.released === 'root-only')
-        expect(await leftover(), 'S7: processes left alive after release').toEqual([])
       return report.kind
     },
   },
 ]
-
-const readings = new Map<TargetId, readonly Reading[]>()
 
 async function journey(target: Target): Promise<void> {
   const started = await target.start()
   const assembly = assemble()
   try {
     const ref = endpointRefOf(`e2e-${target.id.toLowerCase()}`)
-    assembly.adopt(ref, started.adoption)
+    assembly.adopt(ref, started.target)
     let counter = 0
     const context: Context = {
       assembly,
@@ -300,7 +294,6 @@ async function journey(target: Target): Promise<void> {
       nextKey: () => correlationKeyOf(`${target.id}-${(counter += 1)}`),
     }
     const taken: Reading[] = []
-    readings.set(target.id, taken)
     for (const step of JOURNEY.filter(candidate => candidate.applies.includes(target.id))) {
       const kind = await step.run(context)
       taken.push({ step: step.id, kind })
@@ -327,27 +320,11 @@ afterEach(async () => {
 })
 
 for (const target of TARGETS) {
-  describe.skipIf(target.unavailable !== undefined)(
-    target.unavailable ?? `${target.id}: ${target.title}`,
-    () => {
-      it(
-        `${target.id}: createMcp on the local transport runs the journey on ${target.title}`,
-        () => journey(target),
-        CASE_TIMEOUT_MS,
-      )
-    },
-  )
-}
-
-describe('the two modern transports', () => {
-  it('E-stdio and E-http answer the same kind of outcome at every step S1 to S7', () => {
-    const stdio = readings.get('E-stdio')
-    const http = readings.get('E-http')
-    expect(stdio, 'E-stdio journey ran').toBeDefined()
-    expect(http, 'E-http journey ran').toBeDefined()
-    expect(stdio?.map(reading => `${reading.step}:${reading.kind}`)).toEqual(
-      http?.map(reading => `${reading.step}:${reading.kind}`),
+  describe(`${target.id}: ${target.title}`, () => {
+    it(
+      `${target.id}: createMcp on the local transport runs the journey on ${target.title}`,
+      () => journey(target),
+      CASE_TIMEOUT_MS,
     )
-    expect(stdio?.map(reading => reading.step)).toEqual(['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'])
   })
-})
+}

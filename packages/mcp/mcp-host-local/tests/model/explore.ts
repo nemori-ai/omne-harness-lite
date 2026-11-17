@@ -2,7 +2,6 @@ import type { Outcome } from '@omne-harness/operation-result'
 import { isConnectionTarget, type PeerAnswer, type PeerIdentity } from '@omne-harness/mcp-contract'
 import type {
   ListingPage,
-  ProcessHandle,
   SentCall,
   TransportFailure,
   TransportMaterial,
@@ -42,19 +41,17 @@ import {
   emptyLedger,
   explorerCredential,
   explorerMetadataFetch,
-  explorerScheduler,
   type Answer,
   type CallDesk,
   type CallRequest,
   type Ledger,
   type PortCall,
   type PortName,
-  type Timer,
 } from './ports.ts'
 
-export type Material = 'stdio' | 'http' | 'http-bare'
+export type Material = 'http' | 'http-bare'
 
-export type LineEnd = 'ended' | 'exited' | 'broken'
+export type LineEnd = 'broken'
 
 export type Scenario = Readonly<{
   name: string
@@ -97,8 +94,6 @@ export class Nondeterminism extends Error {
 
 const REST_STEPS = 100
 
-const PROBE_TIMEOUT_MS = 1000
-
 const VERSIONS = ['2026-07-28'] as const
 
 const target = (() => {
@@ -108,16 +103,6 @@ const target = (() => {
 
 const echo = { action: actionNameOf('echo'), args: jsonOf({}) }
 const taskId = taskIdOf('task-1')
-
-function idleProcess(): ProcessHandle {
-  return {
-    stdin: new WritableStream<Uint8Array>(),
-    stdout: new ReadableStream<Uint8Array>(),
-    stderr: new ReadableStream<string>(),
-    exited: new Promise<void>(() => undefined),
-    stop: () => Promise.resolve('tree-confirmed'),
-  }
-}
 
 function drain(): Promise<void> {
   return new Promise(resolve => setImmediate(resolve))
@@ -232,7 +217,6 @@ class Run implements RunView, CallDesk {
   private readonly hasHandle: boolean
   private calls: PendingCall[] = []
   private readonly hung: PendingCall[] = []
-  private readonly timerList: Timer[] = []
   private readonly delivered = new Set<string>()
   private readonly streamsAnswered = new Set<string>()
   private readonly reported = new Set<string>()
@@ -257,37 +241,24 @@ class Run implements RunView, CallDesk {
       breaches: scenario.breaches,
       wireFaults: scenario.wireFaults,
     }
-    const kind = scenario.material === 'stdio' ? 'stdio' : 'streamable-http'
-    this.line = new ExplorerLine(kind, this, scenario.withGet === true)
-    const generation = generationOf(1)
-    const material: TransportMaterial =
-      kind === 'stdio'
-        ? { kind, process: idleProcess(), generation, instructionsByteLimit: 4096 }
-        : {
-            kind,
-            target,
-            generation,
-            instructionsByteLimit: 4096,
-            ...(this.hasHandle
-              ? { credential: explorerCredential(this, () => this.closeReturned) }
-              : {}),
-          }
+    this.line = new ExplorerLine(this, scenario.withGet === true)
+    const material: TransportMaterial = {
+      kind: 'streamable-http',
+      target,
+      generation: generationOf(1),
+      instructionsByteLimit: 4096,
+      ...(this.hasHandle ? { credential: explorerCredential(this, () => this.closeReturned) } : {}),
+    }
     this.session = new Session(this.line, material, {
       clientInfo: { name: 'explorer', version: '1' },
       versions: VERSIONS,
-      probeTimeoutMs: PROBE_TIMEOUT_MS,
       fetchMetadata: explorerMetadataFetch(this),
-      schedule: explorerScheduler(this.timerList),
       reportDefect: defect => this.rejectedUnhandled(defect),
     })
   }
 
   get pending(): readonly PortCall[] {
     return [...this.calls, ...this.hung].map(item => item.call)
-  }
-
-  get timers(): number {
-    return this.timerList.length
   }
 
   projection(): string {
@@ -314,7 +285,6 @@ class Run implements RunView, CallDesk {
         ([id, stream]) =>
           `${id}:${stream.aborted ? 'aborted' : 'open'}:${this.streamsAnswered.has(id) ? 'answered' : ''}`,
       ),
-      timers: this.timerList.map(timer => timer.name),
       ledger: {
         sent: this.ledger.sent.map(
           item =>
@@ -355,14 +325,13 @@ class Run implements RunView, CallDesk {
     if (this.left.pings > 0 && this.shared) acts.push('ping')
     if (this.left.lineEnd > 0 && this.shared)
       for (const end of this.scenario.lineEnds ?? []) acts.push(`event ${end}`)
-    for (const timer of this.timerList) acts.push(`fire ${timer.name}`)
     for (const [label, pending] of this.labelled())
       for (const answer of this.answersOf(pending.call)) acts.push(`answer ${label} ${answer}`)
     return acts
   }
 
   private get shared(): boolean {
-    return this.line.kind === 'stdio' || this.line.inSseMode
+    return this.line.inSseMode
   }
 
   private answersOf(call: PortCall): readonly Answer[] {
@@ -444,9 +413,6 @@ class Run implements RunView, CallDesk {
         this.left.lineEnd -= 1
         this.event(first)
         break
-      case 'fire':
-        this.fire(first)
-        break
       case 'answer':
         await this.answer(first, second)
         return
@@ -459,9 +425,7 @@ class Run implements RunView, CallDesk {
 
   async rest(): Promise<void> {
     this.resting = true
-    this.log.push('-- driven to rest: every timer fires, no port answers')
-    while (this.timerList[0] !== undefined) await this.fireFirst()
-    this.log.push('-- every port answers lawfully')
+    this.log.push('-- driven to rest: every port answers lawfully')
     await this.settleAll()
     if (!this.closeCalled) {
       this.log.push('-- close')
@@ -651,7 +615,7 @@ class Run implements RunView, CallDesk {
 
   private phaseAtStop(op: Op): Phase {
     if (op.status !== 'waiting' && op.status !== 'sent') return 'none'
-    const lineEnded = this.ledger.events.some(event => event === 'ended' || event === 'broken')
+    const lineEnded = this.ledger.events.some(event => event === 'broken')
     const phase = phaseOf(this.pending, op.name)
     if (lineEnded && phase === 'sent') return 'none'
     return phase === 'authorizing' && this.initialized(op) ? 'none' : phase
@@ -715,14 +679,6 @@ class Run implements RunView, CallDesk {
       if (phase !== 'none') phases.set(op.name, phase)
     }
     switch (end) {
-      case 'ended':
-        this.lineEnd = { cause: 'stream-broken', phases }
-        this.line.push({ kind: 'ended', stdoutEndedAt: 0 })
-        break
-      case 'exited':
-        this.lineEnd = { cause: 'process-exited', phases }
-        this.line.push({ kind: 'ended', stdoutEndedAt: 0, exitedAt: 0 })
-        break
       case 'broken':
         this.lineEnd = { cause: 'stream-broken', phases }
         this.line.push({ kind: 'broken' })
@@ -746,23 +702,6 @@ class Run implements RunView, CallDesk {
       this.account(pending.call, answer)
       pending.settle(answer)
     }
-  }
-
-  private fire(name: string): void {
-    const index = this.timerList.findIndex(timer => timer.name === name)
-    const timer = this.timerList[index]
-    if (timer === undefined) throw new Nondeterminism(`no timer ${name} to fire`)
-    this.timerList.splice(index, 1)
-    if (timer.context === undefined) timer.fire()
-    else contexts.run(timer.context, () => timer.fire())
-  }
-
-  private async fireFirst(): Promise<void> {
-    const name = this.timerList[0]?.name ?? '?'
-    this.log.push(`fire ${name}`)
-    this.fire(name)
-    await drain()
-    this.afterStep()
   }
 
   private async answer(label: string, answer: string): Promise<void> {
@@ -827,8 +766,7 @@ class Run implements RunView, CallDesk {
         const answer = this.lawfulAnswerOf(oldest.call)
         this.log.push(`answer ${oldest.call.port}:${oldest.call.subject} ${answer}`)
         await this.settle(oldest, answer)
-      } else if (this.timerList[0] !== undefined) await this.fireFirst()
-      else return
+      } else return
     }
     this.report([
       {

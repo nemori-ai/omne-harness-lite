@@ -3,14 +3,14 @@ import { describe, expect, it } from 'vitest'
 import { core } from './doubles/core.ts'
 import { endpointRefOf } from '@omne-harness/mcp-contract/testing'
 import { alice, bob, mallory } from './doubles/identities.ts'
-import { INVALID, adoptHttp, adoptStdio, usualScript, world } from './doubles/world.ts'
+import { INVALID, adoptHttp, usualScript, world } from './doubles/world.ts'
 
 const files = endpointRefOf('files')
 const nowhere = endpointRefOf('nowhere')
 
 describe('status.inspect', () => {
   it.each([
-    ['not-required', (w: ReturnType<typeof world>) => adoptStdio(w, files)],
+    ['not-required', (w: ReturnType<typeof world>) => adoptHttp(w, files, { auth: 'none' })],
     ['present', (w: ReturnType<typeof world>) => adoptHttp(w, files)],
     [
       'absent',
@@ -37,21 +37,21 @@ describe('status.inspect', () => {
 
   it('reports use as blocked with the reason for an eligible principal a setting blocks', async () => {
     const { w, status } = core(world())
-    adoptStdio(w, files)
-    w.eligibility.block(alice, files, 'local-command-not-enabled')
+    adoptHttp(w, files, { auth: 'none' })
+    w.eligibility.block(alice, files, 'disabled')
     expect(await status.inspect(alice, files)).toEqual({
       ok: {
         ref: files,
         connection: { kind: 'none' },
         credential: 'not-required',
-        use: { kind: 'blocked', reason: 'local-command-not-enabled' },
+        use: { kind: 'blocked', reason: 'disabled' },
       },
     })
   })
 
   it('reports the connection as ready after a refresh, and opens nothing itself', async () => {
     const { w, status, discovery } = core(world({ script: usualScript() }))
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     expect(await status.inspect(alice, files)).toMatchObject({
       ok: { connection: { kind: 'none' } },
     })
@@ -62,35 +62,15 @@ describe('status.inspect', () => {
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(1)
   })
 
-  it('reports lost with the residual a failed preparation left', async () => {
-    const { w, status, discovery } = core(
-      world({
-        script: [{ discover: { kind: 'not-sent', cause: 'connection-unavailable' } }],
-        stop: 'unconfirmed',
-      }),
-    )
-    adoptStdio(w, files)
-    await discovery.refresh(alice, { ref: files })
-    expect(await status.inspect(alice, files)).toMatchObject({
-      ok: {
-        connection: {
-          kind: 'lost',
-          reason: 'preparation-failed',
-          residual: [{ kind: 'process', confirmed: 'unconfirmed' }],
-        },
-      },
-    })
-  })
-
   it('answers not-available-to-you to a principal without eligibility', async () => {
     const { w, status } = core(world())
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     expect(await status.inspect(bob, files)).toEqual({ failure: { kind: 'not-available-to-you' } })
   })
 
   it('answers an outsider the same for an adopted and a missing endpoint', async () => {
     const { w, status } = core(world())
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const forAdopted = await status.inspect(mallory, files)
     const forMissing = await status.inspect(mallory, nowhere)
     assert.deepStrictEqual(forAdopted, { failure: { kind: 'not-available-to-you' } })
@@ -101,7 +81,7 @@ describe('status.inspect', () => {
 
   it('answers unknown when the adoption or the eligibility cannot be read', async () => {
     const { w, status } = core(world())
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     w.eligibility.setUnreadable(alice, files, true)
     expect(await status.inspect(alice, files)).toEqual({ failure: { kind: 'unknown' } })
     w.adoption.setUnreadable(true)
@@ -110,7 +90,7 @@ describe('status.inspect', () => {
 
   it('closes the connection of an endpoint that is now blocked (invariant 6)', async () => {
     const { w, status, discovery } = core(world({ script: usualScript() }))
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     await discovery.refresh(alice, { ref: files })
     w.eligibility.block(alice, files, 'disabled')
     expect(await status.inspect(alice, files)).toMatchObject({
@@ -119,7 +99,7 @@ describe('status.inspect', () => {
     expect(await status.inspect(alice, files)).toMatchObject({
       ok: { connection: { kind: 'none' } },
     })
-    expect(w.trace).toEqual(['transport.close', 'process.stop'])
+    expect(w.trace).toEqual(['transport.close'])
   })
 })
 
@@ -129,11 +109,11 @@ describe('status.list', () => {
     const shell = endpointRefOf('shell')
     const vault = endpointRefOf('vault')
     const elsewhere = endpointRefOf('elsewhere')
-    adoptStdio(w, files)
-    adoptStdio(w, shell)
+    adoptHttp(w, files, { auth: 'none' })
+    adoptHttp(w, shell, { auth: 'none' })
     adoptHttp(w, vault)
-    adoptStdio(w, elsewhere, { scope: 'other' })
-    w.eligibility.block(alice, shell, 'local-command-not-enabled')
+    adoptHttp(w, elsewhere, { auth: 'none', scope: 'other' })
+    w.eligibility.block(alice, shell, 'disabled')
     w.eligibility.revoke(alice, vault)
     const listed = await status.list(alice, 'ws')
     expect(listed).toEqual({
@@ -148,7 +128,7 @@ describe('status.list', () => {
           ref: shell,
           connection: { kind: 'none' },
           credential: 'not-required',
-          use: { kind: 'blocked', reason: 'local-command-not-enabled' },
+          use: { kind: 'blocked', reason: 'disabled' },
         },
       ],
     })
@@ -157,22 +137,22 @@ describe('status.list', () => {
 
   it('answers unknown for the whole list when any eligibility is unknown', async () => {
     const { w, status } = core(world())
-    adoptStdio(w, files)
-    adoptStdio(w, endpointRefOf('shell'))
+    adoptHttp(w, files, { auth: 'none' })
+    adoptHttp(w, endpointRefOf('shell'), { auth: 'none' })
     w.eligibility.setUnreadable(alice, endpointRefOf('shell'), true)
     expect(await status.list(alice, 'ws')).toEqual({ failure: 'unknown' })
   })
 
   it('answers unknown when the adoption cannot be read', async () => {
     const { w, status } = core(world())
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     w.adoption.setUnreadable(true)
     expect(await status.list(alice, 'ws')).toEqual({ failure: 'unknown' })
   })
 
   it('answers an empty list to an outsider, and opens nothing', async () => {
     const { w, status } = core(world({ script: usualScript() }))
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     expect(await status.list(mallory, 'ws')).toEqual({ ok: [] })
     expect(w.transports.calls).toHaveLength(0)
   })

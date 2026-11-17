@@ -1,0 +1,221 @@
+{
+  "member": "mcp",
+  "model": "models/ConnectionTable.tla",
+  "scope": "finite models: ConnectionTable (the connection table of Streamable HTTP endpoints with a credential: one or two keys, at most two ensure, one release, one closeAll, one lose, one port deviation; bounds fire in creation order; two keys fire no bound) and Calls (the call port over an abstract table: at most four keys, one correlation key, one task). Safety, and P8 T1 and P14 T1 under weak fairness. No refinement proof between the two models or to the implementation; no real transport, peer or storage.",
+  "workers": 2,
+  "timeoutSeconds": 600,
+  "cases": [
+    {
+      "name": "valid-faults",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/valid-faults.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "valid-rebuild",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/valid-rebuild.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "valid-throws",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/valid-throws.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "valid-two-keys",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/valid-two-keys.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "live",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/live.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "calls-valid",
+      "model": "models/Calls.tla",
+      "config": "models/calls-valid.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "calls-valid-twice",
+      "model": "models/Calls.tla",
+      "config": "models/calls-valid-twice.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "calls-valid-continue",
+      "model": "models/Calls.tla",
+      "config": "models/calls-valid-continue.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "calls-valid-task",
+      "model": "models/Calls.tla",
+      "config": "models/calls-valid-task.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "calls-valid-isolation",
+      "model": "models/Calls.tla",
+      "config": "models/calls-valid-isolation.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "calls-live",
+      "model": "models/Calls.tla",
+      "config": "models/calls-live.cfg",
+      "expected": "complete"
+    }
+  ],
+  "controls": [
+    {
+      "name": "bad-no-absorb-close",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-no-absorb-close.cfg",
+      "expected": "P2_NoneHoldsNothing"
+    },
+    {
+      "name": "bad-close-after-build",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-close-after-build.cfg",
+      "expected": "P16_CloseRefusesAtOnce"
+    },
+    {
+      "name": "bad-close-after-build-ok",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-close-after-build-ok.cfg",
+      "expected": "P16_NoOkAfterClose"
+    },
+    {
+      "name": "bad-no-shut",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-no-shut.cfg",
+      "expected": "P4_NoConnectAfterShut"
+    },
+    {
+      "name": "bad-ok-after-shut",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-ok-after-shut.cfg",
+      "expected": "P4_NoOkAfterShut"
+    },
+    {
+      "name": "bad-unbounded-wrap",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-unbounded-wrap.cfg",
+      "expected": "P8_BoundedEnsure"
+    },
+    {
+      "name": "bad-keep-handle",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-keep-handle.cfg",
+      "expected": "P1_AtMostOnce"
+    },
+    {
+      "name": "bad-no-absorb-close-shutdown",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-no-absorb-close-shutdown.cfg",
+      "expected": "P1_ShutdownReleasesAll"
+    },
+    {
+      "name": "bad-late-into-entry",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-late-into-entry.cfg",
+      "expected": "P2_ForgetHoldsNothing"
+    },
+    {
+      "name": "bad-key-blind",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-key-blind.cfg",
+      "expected": "P5_KeyIsolation"
+    },
+    {
+      "name": "bad-late-revive",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-late-revive.cfg",
+      "expected": "P6_LateInvisible"
+    },
+    {
+      "name": "bad-no-join",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/bad-no-join.cfg",
+      "expected": "P7_ErrorsHandled"
+    },
+    {
+      "name": "probe-a1",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/probe-a1.cfg",
+      "expected": "P8_BoundedClose"
+    },
+    {
+      "name": "probe-live-hang",
+      "model": "models/ConnectionTable.tla",
+      "config": "models/probe-live-hang.cfg",
+      "expected": "temporal"
+    },
+    {
+      "name": "calls-bad-send-despite-stop",
+      "model": "models/Calls.tla",
+      "config": "models/calls-bad-send-despite-stop.cfg",
+      "expected": "P9_NotSentNotSent"
+    },
+    {
+      "name": "calls-bad-gate-unstopped",
+      "model": "models/Calls.tla",
+      "config": "models/calls-bad-gate-unstopped.cfg",
+      "expected": "P14_BoundedAfterStop"
+    },
+    {
+      "name": "calls-bad-cancel-twice",
+      "model": "models/Calls.tla",
+      "config": "models/calls-bad-cancel-twice.cfg",
+      "expected": "P10_CancelOnce"
+    },
+    {
+      "name": "calls-bad-no-release",
+      "model": "models/Calls.tla",
+      "config": "models/calls-bad-no-release.cfg",
+      "expected": "P11_ReservationEnded"
+    },
+    {
+      "name": "calls-bad-task-any-account",
+      "model": "models/Calls.tla",
+      "config": "models/calls-bad-task-any-account.cfg",
+      "expected": "P12_Isolation"
+    },
+    {
+      "name": "calls-bad-key-blind",
+      "model": "models/Calls.tla",
+      "config": "models/calls-bad-key-blind.cfg",
+      "expected": "P12_Isolation"
+    },
+    {
+      "name": "calls-bad-task-blind",
+      "model": "models/Calls.tla",
+      "config": "models/calls-bad-task-blind.cfg",
+      "expected": "P12_Isolation"
+    },
+    {
+      "name": "calls-bad-send-after-shut",
+      "model": "models/Calls.tla",
+      "config": "models/calls-bad-send-after-shut.cfg",
+      "expected": "P13_NoSendAfterShut"
+    },
+    {
+      "name": "calls-bad-send-unguarded",
+      "model": "models/Calls.tla",
+      "config": "models/calls-bad-send-unguarded.cfg",
+      "expected": "P16_NoRequestOnRefusing"
+    },
+    {
+      "name": "calls-bad-wait-answer",
+      "model": "models/Calls.tla",
+      "config": "models/calls-bad-wait-answer.cfg",
+      "expected": "temporal"
+    }
+  ]
+}

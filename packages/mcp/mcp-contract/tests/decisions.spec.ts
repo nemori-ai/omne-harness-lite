@@ -5,7 +5,6 @@ import {
   ABANDONED,
   LEGACY_PROTOCOL_VERSIONS,
   OFFERED_LEGACY_VERSION,
-  PROCESS_EXIT_WINDOW_MS,
   authorizationRequiredAnswerOf,
   callAnswerOf,
   callRequestOf,
@@ -18,7 +17,6 @@ import {
   concludeProbe,
   discoverAuthorization,
   discoverWith,
-  endedCauseOf,
   fallbackGetConclusionOf,
   getTaskRequest,
   getTaskResultRequest,
@@ -156,10 +154,9 @@ const HTTP_ANSWER = /^http:(\w+)\+(.+)$/u
 
 function eventOf(cell: TableCell): WireEvent {
   const { request, answer } = cell
-  const stdio = cell.kind === 'stdio'
   const message = (member: object): WireEvent => {
     const text = JSON.stringify({ jsonrpc: '2.0', id: 'r1', ...member })
-    return stdio ? { kind: 'line', text } : { kind: 'http-stream', messages: [text], ended: true }
+    return { kind: 'http-stream', messages: [text], ended: true }
   }
   switch (answer) {
     case 'unsent':
@@ -167,9 +164,7 @@ function eventOf(cell: TableCell): WireEvent {
     case 'silent':
       return { kind: 'nothing' }
     case 'stream-broken':
-      return stdio ? { kind: 'stdio-ended', stdoutEndedAt: 0 } : { kind: 'http-aborted' }
-    case 'process-exited':
-      return { kind: 'stdio-ended', stdoutEndedAt: 0, exitedAt: 20 }
+      return { kind: 'http-aborted' }
     case 'http:2xx':
       return { kind: 'http-stream', messages: [], ended: true }
     case 'http:401':
@@ -206,7 +201,7 @@ function eventOf(cell: TableCell): WireEvent {
 
 function conclusionOf(cell: TableCell): AnswerConclusion {
   const ctx = context(cell.request, { session: cell.answer === 'http:404+session' })
-  return concludeAnswer(classifyWireEvent(eventOf(cell), ctx), ctx, cell.kind)
+  return concludeAnswer(classifyWireEvent(eventOf(cell), ctx), ctx)
 }
 
 function readingOf(request: RequestClass, wire: WireAnswer): Outcome<unknown, TransportFailure> {
@@ -303,68 +298,39 @@ describe('concludeAnswer holds every cell of T8', () => {
       for (const cell of cells) {
         const conclusion = conclusionOf(cell)
         const [expected] = expectedOf(cell, row.conclusion)
-        expect(outcomeOf(cell, conclusion), `${cell.kind} ${cell.request} ${cell.answer}`).toEqual(
-          expected,
-        )
+        expect(outcomeOf(cell, conclusion), `${cell.request} ${cell.answer}`).toEqual(expected)
       }
     })
   }
 
-  it('the rows that end the transport say so: stdio unsent and broken streams, the exit, the ended session', () => {
+  it('the rows that end the transport say so: the ended session', () => {
     const unusableOf = (cell: TableCell) => {
       const conclusion = conclusionOf(cell)
       return conclusion.kind === 'settle' ? conclusion.unusable : conclusion.kind
     }
-    expect(unusableOf({ kind: 'stdio', request: 'tools/list', answer: 'unsent' })).toBe(
-      'stream-broken',
-    )
-    expect(
-      unusableOf({ kind: 'streamable-http', request: 'tools/list', answer: 'unsent' }),
-    ).toBeUndefined()
-    expect(unusableOf({ kind: 'stdio', request: 'tools/call', answer: 'stream-broken' })).toBe(
-      'stream-broken',
-    )
-    expect(unusableOf({ kind: 'stdio', request: 'tools/call', answer: 'process-exited' })).toBe(
-      'process-exited',
-    )
-    expect(
-      unusableOf({ kind: 'streamable-http', request: 'tools/call', answer: 'http:404+session' }),
-    ).toBe('session-ended')
+    expect(unusableOf({ request: 'tools/list', answer: 'unsent' })).toBeUndefined()
+    expect(unusableOf({ request: 'tools/call', answer: 'http:404+session' })).toBe('session-ended')
   })
 
-  it('the answer of a row that ends the transport carries its cause as the mark; the answer of any other row carries no mark (T1, X02, S03, S04, S07)', () => {
+  it('the answer of a row that ends the transport carries its cause as the mark; the answer of any other row carries no mark (T1, S07)', () => {
     const wireOf = (cell: TableCell): WireAnswer => {
       const conclusion = conclusionOf(cell)
       if (conclusion.kind !== 'settle') throw new TypeError(`${cell.answer} does not settle`)
       return conclusion.wire
     }
-    expect(wireOf({ kind: 'stdio', request: 'tools/list', answer: 'unsent' })).toEqual({
-      kind: 'not-sent',
-      failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' },
-    })
-    expect(wireOf({ kind: 'stdio', request: 'tools/call', answer: 'process-exited' })).toEqual({
-      kind: 'no-answer',
-      cause: 'process-exited',
-      resend: false,
-      unusable: 'process-exited',
-    })
-    expect(
-      wireOf({ kind: 'streamable-http', request: 'tools/list', answer: 'http:404+session' }),
-    ).toEqual({
+    expect(wireOf({ request: 'tools/list', answer: 'http:404+session' })).toEqual({
       kind: 'not-sent',
       failure: { kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' },
     })
-    const unsentHttp = wireOf({ kind: 'streamable-http', request: 'tools/list', answer: 'unsent' })
+    const unsentHttp = wireOf({ request: 'tools/list', answer: 'unsent' })
     expect(unsentHttp.kind === 'not-sent' && 'unusable' in unsentHttp.failure).toBe(false)
     const brokenHttp = wireOf({
-      kind: 'streamable-http',
       request: 'tools/call',
       answer: 'stream-broken',
     })
     expect(brokenHttp).toEqual({ kind: 'no-answer', cause: 'stream-broken', resend: false })
     expect('unusable' in brokenHttp).toBe(false)
     const status5xx = wireOf({
-      kind: 'streamable-http',
       request: 'tools/call',
       answer: 'http:5xx+plain',
     })
@@ -380,9 +346,9 @@ describe('concludeAnswer holds every cell of T8', () => {
       kind: 'not-sent',
       failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'session-ended' },
     })
-    expect(unusableAnswerOf(ABANDONED, 'process-exited')).toEqual({
+    expect(unusableAnswerOf(ABANDONED, 'stream-broken')).toEqual({
       ...ABANDONED,
-      unusable: 'process-exited',
+      unusable: 'stream-broken',
     })
     const marked = unusableAnswerOf(ABANDONED, 'stream-broken')
     expect(unusableAnswerOf(marked, 'session-ended')).toEqual({
@@ -393,9 +359,9 @@ describe('concludeAnswer holds every cell of T8', () => {
       kind: 'not-sent',
       failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'stream-broken' },
     }
-    expect(unusableAnswerOf(markedNotSent, 'process-exited')).toEqual({
+    expect(unusableAnswerOf(markedNotSent, 'session-ended')).toEqual({
       kind: 'not-sent',
-      failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'process-exited' },
+      failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable: 'session-ended' },
     })
     const sessionEnded: WireAnswer = {
       kind: 'not-sent',
@@ -419,10 +385,10 @@ describe('concludeAnswer holds every cell of T8', () => {
       cause: 'connection-unavailable',
     })
     expect('unusable' in notSentFailureOf(undefined)).toBe(false)
-    expect(notSentFailureOf('process-exited')).toEqual({
+    expect(notSentFailureOf('stream-broken')).toEqual({
       kind: 'not-sent',
       cause: 'connection-unavailable',
-      unusable: 'process-exited',
+      unusable: 'stream-broken',
     })
   })
 
@@ -453,26 +419,21 @@ describe('concludeAnswer holds every cell of T8', () => {
     expect('unusable' in callAnswerOf(ABANDONED)).toBe(false)
   })
 
-  it('re-sends a read request on Streamable HTTP after a broken stream, not a write, not on stdio, not in the SSE mode', () => {
-    const resend = (
-      request: RequestClass,
-      kind: TableCell['kind'],
-      extra: Partial<WireContext> = {},
-    ) => {
+  it('re-sends a read request after a broken stream, not a write, not in the SSE mode', () => {
+    const resend = (request: RequestClass, extra: Partial<WireContext> = {}) => {
       const ctx = context(request, extra)
-      const conclusion = concludeAnswer(classifyWireEvent({ kind: 'http-aborted' }, ctx), ctx, kind)
+      const conclusion = concludeAnswer(classifyWireEvent({ kind: 'http-aborted' }, ctx), ctx)
       return (
         conclusion.kind === 'settle' &&
         conclusion.wire.kind === 'no-answer' &&
         conclusion.wire.resend
       )
     }
-    expect(resend('tools/list', 'streamable-http')).toBe(true)
-    expect(resend('discover-retry', 'streamable-http')).toBe(true)
-    expect(resend('tasks/update', 'streamable-http')).toBe(false)
-    expect(resend('tools/call', 'streamable-http')).toBe(false)
-    expect(resend('tools/list', 'stdio')).toBe(false)
-    expect(resend('tools/list', 'streamable-http', { mode: 'sse' })).toBe(false)
+    expect(resend('tools/list')).toBe(true)
+    expect(resend('discover-retry')).toBe(true)
+    expect(resend('tasks/update')).toBe(false)
+    expect(resend('tools/call')).toBe(false)
+    expect(resend('tools/list', { mode: 'sse' })).toBe(false)
   })
 
   it('reads the error as written: the error member of a good envelope, the whole message of a bad one (C02)', () => {
@@ -484,11 +445,7 @@ describe('concludeAnswer holds every cell of T8', () => {
     })
     const bad = JSON.stringify({ id: 'r1', error: { code: -32000, message: 'boom' } })
     const wireOf = (text: string) => {
-      const conclusion = concludeAnswer(
-        classifyWireEvent({ kind: 'line', text }, ctx),
-        ctx,
-        'stdio',
-      )
+      const conclusion = concludeAnswer(classifyWireEvent({ kind: 'line', text }, ctx), ctx)
       return conclusion.kind === 'settle' ? conclusion.wire : undefined
     }
     expect(wireOf(good)).toEqual({
@@ -503,7 +460,7 @@ describe('concludeAnswer holds every cell of T8', () => {
     const event: WireEvent = { kind: 'http-status', status: 404, headers: {}, body: 'not found' }
     const wireOf = (extra: Partial<WireContext>) => {
       const ctx = context('initialize', extra)
-      const conclusion = concludeAnswer(classifyWireEvent(event, ctx), ctx, 'streamable-http')
+      const conclusion = concludeAnswer(classifyWireEvent(event, ctx), ctx)
       return conclusion.kind === 'settle' ? conclusion.wire.kind : conclusion.kind
     }
     expect(wireOf({})).toBe('legacy-http')
@@ -513,16 +470,16 @@ describe('concludeAnswer holds every cell of T8', () => {
   it('a result or error class without its message is a defect of the caller, not a fabricated answer', () => {
     const ctx = context('tools/list')
     const bare = (answer: AnswerClass): WireClassification => ({ kind: 'answer', answer })
-    expect(() => concludeAnswer(bare('result'), ctx, 'stdio')).toThrow(TypeError)
-    expect(() => concludeAnswer(bare('error:other'), ctx, 'stdio')).toThrow(TypeError)
-    expect(() => concludeAnswer(bare('http:400+-32602'), ctx, 'streamable-http')).toThrow(TypeError)
-    expect(() => concludeAnswer(bare('http:400+plain'), ctx, 'streamable-http')).not.toThrow()
+    expect(() => concludeAnswer(bare('result'), ctx)).toThrow(TypeError)
+    expect(() => concludeAnswer(bare('error:other'), ctx)).toThrow(TypeError)
+    expect(() => concludeAnswer(bare('http:400+-32602'), ctx)).toThrow(TypeError)
+    expect(() => concludeAnswer(bare('http:400+plain'), ctx)).not.toThrow()
   })
 
   it('an event that is no answer is wait', () => {
     const ctx = context('tools/list')
-    expect(concludeAnswer({ kind: 'other' }, ctx, 'stdio')).toEqual({ kind: 'wait' })
-    expect(concludeAnswer({ kind: 'waiting' }, ctx, 'streamable-http')).toEqual({ kind: 'wait' })
+    expect(concludeAnswer({ kind: 'other' }, ctx)).toEqual({ kind: 'wait' })
+    expect(concludeAnswer({ kind: 'waiting' }, ctx)).toEqual({ kind: 'wait' })
   })
 })
 
@@ -590,9 +547,9 @@ describe('the readings of a settled answer (T2, T6)', () => {
       result: jsonOf(1),
     })
     expect(callAnswerOf(error('unreadable', 'x'))).toEqual({ kind: 'error', error: jsonOf('x') })
-    expect(callAnswerOf({ kind: 'no-answer', cause: 'process-exited', resend: false })).toEqual({
+    expect(callAnswerOf({ kind: 'no-answer', cause: 'stream-broken', resend: false })).toEqual({
       kind: 'no-answer',
-      cause: 'process-exited',
+      cause: 'stream-broken',
     })
     expect(callAnswerOf({ kind: 'not-sent', failure: NOT_SENT })).toStrictEqual(ABANDONED_ANSWER)
     expect(callAnswerOf({ kind: 'legacy-peer' })).toEqual(ABANDONED_ANSWER)
@@ -832,28 +789,25 @@ describe('the rules a transport applies by its connection (T2, T5) and the reque
     expect(isLegacyConnection(http(undefined))).toBe(false)
     expect(isLegacyConnection(http(HIGHEST))).toBe(false)
     expect(isLegacyConnection(http(LEGACY_PROTOCOL_VERSIONS[0]))).toBe(true)
-    expect(isLegacyConnection({ kind: 'stdio', version: LEGACY_PROTOCOL_VERSIONS[1] })).toBe(true)
   })
 
-  it('checks the listing headers on modern Streamable HTTP only; cancels by notification on stdio, legacy and the SSE mode', () => {
+  it('checks the listing headers on the modern revision only; cancels by notification on legacy and the SSE mode', () => {
     expect(checksListingHeaders(http(undefined))).toBe(true)
     expect(checksListingHeaders(http(HIGHEST))).toBe(true)
     expect(checksListingHeaders(http(LEGACY_PROTOCOL_VERSIONS[0]))).toBe(false)
     expect(checksListingHeaders(http(undefined, 'sse'))).toBe(false)
-    expect(checksListingHeaders({ kind: 'stdio', version: HIGHEST })).toBe(false)
     expect(cancelsByNotification(http(undefined))).toBe(false)
     expect(cancelsByNotification(http(HIGHEST))).toBe(false)
     expect(cancelsByNotification(http(LEGACY_PROTOCOL_VERSIONS[0]))).toBe(true)
     expect(cancelsByNotification(http(undefined, 'sse'))).toBe(true)
-    expect(cancelsByNotification({ kind: 'stdio', version: undefined })).toBe(true)
   })
 
   it('a gone stream settles every request with no-answer, no re-send and the cause as the mark; a refusal settles with its discovery', () => {
-    expect(streamGoneAnswerOf('process-exited')).toEqual({
+    expect(streamGoneAnswerOf()).toEqual({
       kind: 'no-answer',
-      cause: 'process-exited',
+      cause: 'stream-broken',
       resend: false,
-      unusable: 'process-exited',
+      unusable: 'stream-broken',
     })
     const discovery = {
       resourceMetadataUrl: 'https://peer.test/.well-known/oauth-protected-resource',
@@ -884,7 +838,7 @@ describe('the rules a transport applies by its connection (T2, T5) and the reque
     )
   })
 
-  it('the line going away settles only the phases that depend on it, marked with the cause: authorizing is not-sent for every cause, sent answers the cause except session-ended, discovery goes on (T8 S01–S04, S07)', () => {
+  it('the line going away settles only the phases that depend on it, marked with the cause: authorizing is not-sent for every cause, sent answers the cause except session-ended, discovery goes on (T8, S07)', () => {
     const notSent = (cause: string) => ({
       kind: 'not-sent',
       failure: { kind: 'not-sent', cause: 'connection-unavailable', unusable: cause },
@@ -896,16 +850,11 @@ describe('the rules a transport applies by its connection (T2, T5) and the reque
       scopes: [],
     } as const
     const discovery = { kind: 'discovery', soFar: () => soFar } as const
-    for (const cause of ['stream-broken', 'process-exited', 'session-ended'] as const) {
+    for (const cause of ['stream-broken', 'session-ended'] as const) {
       expect(lineGoneAnswerOf({ kind: 'authorizing' }, cause), cause).toEqual(notSent(cause))
       expect(lineGoneAnswerOf(discovery, cause), cause).toBeUndefined()
     }
-    expect(lineGoneAnswerOf({ kind: 'sent' }, 'stream-broken')).toEqual(
-      streamGoneAnswerOf('stream-broken'),
-    )
-    expect(lineGoneAnswerOf({ kind: 'sent' }, 'process-exited')).toEqual(
-      streamGoneAnswerOf('process-exited'),
-    )
+    expect(lineGoneAnswerOf({ kind: 'sent' }, 'stream-broken')).toEqual(streamGoneAnswerOf())
     expect(lineGoneAnswerOf({ kind: 'sent' }, 'session-ended')).toBeUndefined()
   })
 
@@ -1028,17 +977,6 @@ describe('the rules a transport applies by its connection (T2, T5) and the reque
     expect(cancel).toMatchObject({ method: 'tasks/cancel', params: { taskId: 't1' } })
     expect(cancel.read({ kind: 'result', result: jsonOf({}) })).toEqual({ ok: 'requested' })
     await Promise.resolve()
-  })
-
-  it('the exit window decides the cause of a stdio end: the exit within the window, else the stream', () => {
-    expect(endedCauseOf({ stdoutEndedAt: 100 })).toBe('stream-broken')
-    expect(endedCauseOf({ exitedAt: 100 })).toBe('process-exited')
-    expect(endedCauseOf({ stdoutEndedAt: 100, exitedAt: 100 + PROCESS_EXIT_WINDOW_MS })).toBe(
-      'process-exited',
-    )
-    expect(endedCauseOf({ stdoutEndedAt: 100, exitedAt: 101 + PROCESS_EXIT_WINDOW_MS })).toBe(
-      'stream-broken',
-    )
   })
 
   it('a discovery in progress reports what was fetched so far, and its end when the loop ended', async () => {

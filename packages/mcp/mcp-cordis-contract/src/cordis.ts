@@ -3,7 +3,6 @@ import type { ActionDiscovery, ActionInvoker, EndpointStatus } from '@omne-harne
 import type {
   AdoptionView,
   CredentialUse,
-  ProcessLanding,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
 
@@ -144,23 +143,6 @@ export abstract class CredentialUseService<P> extends Service implements Credent
 
 export const mcpCredentialUseKey = CredentialUseService.provide
 
-/**
- * The process landing port of MCP as a service, with the same rules as the adoption view port.
- *
- * @owner packages/mcp/mcp-cordis-contract
- */
-export abstract class ProcessLandingService<P> extends Service implements ProcessLanding<P> {
-  static readonly provide = 'mcpProcessLanding'
-  constructor(ctx: Context) {
-    super(ctx, ProcessLandingService.provide)
-  }
-  abstract start(
-    ...args: Parameters<ProcessLanding<P>['start']>
-  ): ReturnType<ProcessLanding<P>['start']>
-}
-
-export const mcpProcessLandingKey = ProcessLandingService.provide
-
 declare module '@deepseek-ai/cordis' {
   interface Context {
     mcpActionDiscovery: ActionDiscoveryService<unknown>
@@ -169,6 +151,5 @@ declare module '@deepseek-ai/cordis' {
     mcpAdoptionView: AdoptionViewService<unknown, unknown>
     mcpUseEligibility: UseEligibilityService<unknown>
     mcpCredentialUse: CredentialUseService<unknown>
-    mcpProcessLanding: ProcessLandingService<unknown>
   }
 }

@@ -7,9 +7,7 @@ import type {
   McpServices,
   OutputValidator,
   SettingValue,
-  StdioLaunch,
 } from '@omne-harness/mcp-contract'
-import type { ProcessHandle, ProcessLanding } from '@omne-harness/mcp-contract/provider'
 import {
   createMemoryAdoptionView,
   createMemoryCatalogStore,
@@ -26,8 +24,6 @@ import {
   type Access,
 } from '@omne-harness/legal-identity'
 import { createLocalTransportFactory } from '@omne-harness/mcp-host-local'
-import { spawnHandle } from '../fixtures/process.ts'
-import { spawnCommand } from './command.ts'
 
 export type Principal = Readonly<{ id: string }>
 
@@ -47,27 +43,12 @@ const CONFIG: McpConfig<Principal> = {
   instructionsByteLimit: 4096,
 }
 
-const landing: ProcessLanding<Principal> = {
-  async start(_access, launch) {
-    const handle: ProcessHandle =
-      launch.command === process.execPath
-        ? spawnHandle(launch.args).handle
-        : spawnCommand(launch.command, launch.args)
-    return { ok: handle }
-  },
-}
-
 export type Assembly = Readonly<{
   services: McpServices<Principal, string>
-  adopt(ref: EndpointRef, endpoint: Adoption): void
+  adopt(ref: EndpointRef, target: ConnectionTarget): void
 }>
 
-export type Adoption =
-  | Readonly<{ transport: 'stdio'; launch: Pick<StdioLaunch, 'command' | 'args'> }>
-  | Readonly<{ transport: 'streamable-http'; target: ConnectionTarget }>
-
 const CONNECT_BOUND_MS = 30_000
-const PROBE_TIMEOUT_MS = 10_000
 
 export function assemble(): Assembly {
   const adoption = createMemoryAdoptionView<Principal, string>({ scopeKey: scope => scope })
@@ -77,37 +58,23 @@ export function assemble(): Assembly {
     adoption,
     eligibility,
     credentials: createMemoryCredentialUse<Principal>(),
-    landing,
     store: createMemoryCatalogStore(),
     transports: createLocalTransportFactory({
       clientInfo: { name: 'omne-harness-e2e', version: '0' },
-      probeTimeoutMs: PROBE_TIMEOUT_MS,
     }),
     checkOutput,
   }
   const absent: SettingValue<never> = { kind: 'absent' }
   return {
     services: createMcp(ports, CONFIG),
-    adopt(ref, endpoint) {
-      const body =
-        endpoint.transport === 'stdio'
-          ? {
-              name: ref.name,
-              transport: 'stdio',
-              auth: 'none',
-              launch: { ...endpoint.launch, env: [], facilities: [] },
-            }
-          : { name: ref.name, transport: 'streamable-http', auth: 'none' }
+    adopt(ref, target) {
       adoption.adopt({
         tenant: ALICE.tenant,
         scope: 'e2e',
         ref,
-        body: jsonOf(body),
+        body: jsonOf({ name: ref.name, transport: 'streamable-http', auth: 'none' }),
         settings: {
-          target:
-            endpoint.transport === 'streamable-http'
-              ? { kind: 'value', value: endpoint.target }
-              : absent,
+          target: { kind: 'value', value: target },
           credential: absent,
           connectTimeout: { kind: 'value', value: millisOf(CONNECT_BOUND_MS) },
         },
