@@ -159,6 +159,9 @@ export function normalizedResult(
   consumption: string,
   result: AgentResult,
 ): { binding: CallBinding; result: ProducedResult; pending: PendingCall } {
+  const producer = result.producer
+  if (producer.kind === 'compaction')
+    unavailable('compaction results belong to their task, not a Model or Tool call binding')
   const matching = pendingCalls(execution).filter(
     pending => pending.consumption === consumption && pending.kind === result.producer.kind,
   )
@@ -182,7 +185,7 @@ export function normalizedResult(
       pending.kind === 'model'
         ? resolveModelInvocationRef(pending.reference, execution.tenant)
         : resolveToolInvocationRef(pending.reference, execution.tenant)
-    return 'ok' in ref && ref.ok.call === result.producer.call
+    return 'ok' in ref && ref.ok.call === producer.call
   })
   if (!pending) unavailable('result original pending and invocation')
   const registered = registration(root, execution, pending)

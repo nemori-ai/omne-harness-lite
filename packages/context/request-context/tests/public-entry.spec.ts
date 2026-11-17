@@ -5,7 +5,6 @@ it('the root entry exports the factories and the initial values of the default s
   expect(Object.keys(root).sort()).toEqual([
     'DEFAULT_COMPACTION_POLICY',
     'DEFAULT_REPRESENTATION_CONFIG',
-    'DEFAULT_TRIM_BYTES',
     'createAbsentConversionResults',
     'createContextAccounting',
     'createContextSourceRegistry',
@@ -13,7 +12,5 @@ it('the root entry exports the factories and the initial values of the default s
     'createDefaultRepresentationPolicy',
   ])
   for (const [name, value] of Object.entries(root))
-    expect(typeof value, name).toBe(
-      name.startsWith('create') ? 'function' : name === 'DEFAULT_TRIM_BYTES' ? 'string' : 'object',
-    )
+    expect(typeof value, name).toBe(name.startsWith('create') ? 'function' : 'object')
 })

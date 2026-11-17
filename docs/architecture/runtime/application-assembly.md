@@ -77,6 +77,7 @@
 | `execution-host` | 同成员的宿主提供者插件工厂（现名 `createHostFilesPlugin(domain)`，加入 `command` 后以交付的导出名为准）所产插件。这是工厂行，见具名偏离 [`HOSTFILE-FACTORY-ROW`](#hostfile-factory-row) | `host_machine` 的 `files` 与 `command` 提供者，不另提供服务键 | `executionEnvironment`（`caller: 'provider'`） | 无 | `drainBoundMs`；`filesRoot`（宿主文件根，不声称隔离）；`stateDirectory`；`listPageLimit`；三项搜索预算；`startBoundMs`、`graceMs`、`stopBoundMs`、`probeRetryMs`；`command` 的缓冲上限、单块上限与等待上界。字段的精确含义归 execution-environment-host-local 的 SPEC，代码里的数值只是初值；责任域是工厂参数，不进配置 |
 | `request-context` | `@omne-harness/request-context-cordis` 的插件（行体以子 fiber 装 `RequestContextProvider`） | `requestContext`、`contextAccountingInbox` | `requestContextTrust`（受信） | `principalVerifier`（受信，账目来源核验）；`contextHolderSources`（读取资格，短租借后转问持有者的 `eligibility`）。两项都按调用现取，不 `inject`。窄采用来源按调用短租借持有者，转问它的 `adopted` 部件。账目四个端口里恢复授权在发行里没有生产来源，由行以具名缺件答不可用，见 [发行应用规格](../../../apps/harness-server/SPEC.md#其他各行) | `limits`（账目收件口上限，运维者层）；可选 `selection`（两个策略的选择，缺省为成员初值） |
 | `agent-context` | Context 一侧的 Agent 适配集成包（[适配方案](../../../packages/context/SPEC.md#适配)） | `agentRequests`、`agentModelContext` | `requestContext`、`contextHolderSources`（K-RQ，`session-ad04`）、`runtimeContextReaderEligibility`（K-RC，`session-ad03`）、`runtimeContext`、`modelRequestPreparation`、`modelPreparationResources`（X-3，同一行提供）、`agentAdoptions`（读所采用定义的 `instructions` 作系统提示词首批段） | `toolCatalog`（第六组按 conditions 的 bindings 经 `inspect` 取完整定义）、`toolContributionAuthority`（读受信发行快照里确认的文本消费者）；两者都不是受信名，缺席时第六组整组失败 | `owner`（采用身份）、可选 `materials`，由运维者层给 |
+| `context-compaction` | Context 的独立压缩提供者。默认实现迁移既有保留与摘要算法 | `agentCompaction`、`compactionModelEvidence`（受信的模型结果处理证明） | `storage`、`agentAccessCheck`、`agentReceivedRecords`、`principalIssuer`、`modelRuntime`、`modelPreparationResources`、`modelRequestPreparation` | 无 | 提供者采用在 Agent 宿主配置中固定。任务、内部摘要意图和处理证明耐久保存。四个消费操作分别授权，默认实现用自己的代租户工作主体调用 Model |
 | `agent-account-outlet` | Context 一侧的 Agent 集成提供者的账目出站插件，继承 `AgentAccountOutletService` | `agentAccountOutlet` | `requestContext`、`contextAccountingInbox`（两键由 `request-context` 行在同一 fiber 提供，见 [request-context-cordis 的 Cordis 页](../../../packages/context/SPEC.md#cordis-装配)） | 无 | `sender`：出站插件作为每条账目事实的发送方给出的采用身份（`owner`、`name`、`revision`、`digest`，都是文本） |
 | `runtime-context` | `@omne-harness/runtime-context-cordis` 的插件 | `runtimeContext` | `runtimeContextTrust`（受信） | 无 | `retention`（初值 64）；`replayCapacity`（初值 10000）；`supplyBoundMs`（初值 30000）；`settleBoundMs`（初值 1000）；`readCacheEntries`（初值 256，0 表示不缓存）；`diagnostics`（诊断级别）。初值由装配给 |
 | `session-observation` | `@omne-harness/session-observation` 的 `./cordis` 插件 `createSessionObservationPlugin` | `sessionObservation`：会话观察的领域面，登录的人以自己的主体对一个会话建立观察，得到状态帧、快照与增量 | `session`（`caller: 'reader'`，只用日志读取面的 `begin`、`next`、`since`）、`modelStreamReferences`、`modelStreamObservation` | 无 | `policy`（刷新策略 `ObservationRefreshPolicy` 的部分字段）与 `locatePages`，都可省，省掉的取成员的默认初值（间隔 1000 ms、退避 1.5、次数 60、累计等待 30 分钟、取流等待 5 s、翻页 4）；发行层不写。唤醒定位的种类集合是 `call.bound`、`run.started`、`run.terminal` 加本部署读历史的种类（运维者层 `LOCAL_HISTORY_KINDS`，与读历史同一个来源）；刷新策略取成员的默认初值。插件在树上只挂一个 `session-cordis-contract/committed` 监听者，按租户与会话分发给各次观察。见[会话观察的 Cordis 页](../../../packages/session/SPEC.md#会话观察) |
@@ -261,7 +262,8 @@ flowchart LR
 | 秘密保管 | `settingsSecretCustody` | `secret-custody` 行；`settings` 行 `inject`，`tool-bindings` 行按调用读取（Web 附着） |
 | 秘密设置项 | `settingsSecretItems` | `settings` 行；`assets-access` 行按调用读取，与 `tenantSettings` 并成 `assets/v1` 的设置端口 |
 | 租户层设置读写面 | `tenantSettings` | `governance` 行；不受信，`assets-access` 行按调用读取 |
-| 接收记录读面 | `agentReceivedRecords` | `agent-journal` 行；只有 `model-records` 行按调用读取，用于 Agent consumer owner 的 ACK 证据核验 |
+| 接收记录读面 | `agentReceivedRecords` | `agent-journal` 行；`model-records` 与 `context-compaction` 行用于各自服务的 Agent 消费者 ACK 核验 |
+| 压缩服务的模型处理证明 | `compactionModelEvidence` | `context-compaction` 行提供；`model-records` 按调用读取，核对原模型调用、消费者与结果在压缩服务中的处理事实 |
 | identity 读口 | `principalVerifier`、`tenantStanding`、`identityGovernance` | 核验器：装配入口；资格读口与治理端口：`identity` 行。`settings` 行按调用读核验器与资格读口做设置管理的准入。四个领域的接入行（`session-access`、`assets-access`、`human-intervention-access`、`session-diagnostics-access`）按调用读资格读口：为目标租户换主体之前，这个租户的成员资格要当前有效。`server-entry` 行不读它：入口管道给 `acting-tenant` 的操作换主体只核账号对得上，成员与资格由主体到达的服务判。入口对象只经 `env.readTrusted` 读取；Tool 运行时组与 Tool 请求来源不在可见表里，由入口对象 `toolClock` 交给 Tool 共享状态的逐次读法读取 |
 
 `tenantDomainLookup` 是正式键，服务定义归 `@omne-harness/sql-contract` 的 `./cordis`。
@@ -313,12 +315,13 @@ flowchart LR
 | `session-call-control` | `sessionWorkPrincipals` |
 | `agent-host` | `sessionModesInstallation` |
 | `agent-journal` | `storage`、`tenantDomainLookup`、`agentReceivedRecords` |
+| `context-compaction` | `storage`、`agentReceivedRecords`、`principalIssuer`、`compactionModelEvidence` |
 | `session-handoff` | `storage`、`tenantDomainLookup`、`sessionWorkPrincipals` |
 | `session-conditions` | `storage`、`tenantDomainLookup`、`definitionMappings` |
 | `model-credential` | `settingsSecretCustody` |
 | `secret-custody` | `settingsSecretCustody` |
 | `settings` | `settingsSecretCustody`、`settingsSecretItems`、`principalVerifier`、`tenantStanding` |
-| `model-records` | `storage`、`tenantDomainLookup`、`principalVerifier`、`tenantStanding`、`agentReceivedRecords` |
+| `model-records` | `storage`、`tenantDomainLookup`、`principalVerifier`、`tenantStanding`、`agentReceivedRecords`、`compactionModelEvidence` |
 | `tool-records` | `storage`、`tenantDomainLookup`、`tenantDomainScannerPrincipal`、`toolInvocationQualification` |
 | `tool-body-sweep` | `storage`、`tenantDomainLookup`、`tenantDomainScannerPrincipal` |
 | `tool-bindings` | `principalVerifier`、`settingsSecretCustody` |

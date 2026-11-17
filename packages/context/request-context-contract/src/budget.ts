@@ -23,7 +23,7 @@ function amount(check: M.BudgetCheck): bigint {
 function exceeds(c: M.BudgetCheck): boolean {
   return amount(c) > BigInt(c.limit)
 }
-function triggerOf(context: M.ContextLimits, policy: CompactionPolicy): bigint {
+export function triggerOf(context: M.ContextLimits, policy: CompactionPolicy): bigint {
   const percent = decimal(policy.triggerPercent ?? context.compactionTriggerPercent)
   const threshold = (BigInt(context.window.provided) * percent.n) / (100n * percent.scale)
   const reserved = BigInt(context.output.provided) + BigInt(policy.headroomTokens ?? '0')

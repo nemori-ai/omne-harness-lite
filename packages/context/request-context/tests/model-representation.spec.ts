@@ -20,13 +20,7 @@ import {
   createDefaultCompactionPolicy,
   createDefaultRepresentationPolicy,
 } from '@omne-harness/request-context'
-import {
-  assistantCall,
-  historyRow,
-  textPart,
-  toolResult,
-  userMessage,
-} from './fixtures/messages.ts'
+import { assistantCall, historyRow, toolResult, userMessage } from './fixtures/messages.ts'
 
 const RECORD = 'openai/gpt-6.1-sol'
 const hex = (name: string) => ({ owner: 'test', name, revision: '1', digest: 'a'.repeat(64) })
@@ -167,34 +161,6 @@ describe('the request representation is the one the profile fixes', () => {
     expect(input?.measurement.kind).toBe('estimate')
     expect(candidate.continuation.projection).toEqual(representation.identity)
     expect(candidate.continuation.projection).not.toEqual(candidate.assembled.representation)
-    expect(f.preparation.outstanding()).toBe(0)
-  })
-  it('the compaction probe, the summary request and the check after it carry the same value', async () => {
-    const f = fixture({
-      compaction: createDefaultCompactionPolicy({
-        config: { retainBudget: { kind: 'tokens', retainTokens: '25' } },
-      }),
-      representation: createDefaultRepresentationPolicy(),
-    })
-    const operations = f.operations()
-    const planned = await operations.planCompaction(f.call)
-    if (planned.kind !== 'planned')
-      throw new Error(`Expected a plan, got ${JSON.stringify(planned)}`)
-    expect(planned.first.assembled.representation).toEqual(profile.definition.representation)
-    expect((await planAndMeasure(planned.first.assembled)).budget.kind).toBe('complete')
-    const step = await operations.deriveStep({
-      call: f.call,
-      plan: planned.plan,
-      progress: planned.progress,
-      material: planned.first.material,
-      step: {
-        kind: 'summary',
-        index: planned.first.index,
-        produced: [textPart('summary', 's0')],
-        consumed: evidence,
-      },
-    })
-    expect(step.kind).toBe('transition')
     expect(f.preparation.outstanding()).toBe(0)
   })
 })

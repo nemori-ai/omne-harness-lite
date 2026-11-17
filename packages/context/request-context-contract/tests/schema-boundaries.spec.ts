@@ -1,46 +1,28 @@
 import { expect, it } from 'vitest'
 import {
-  compactionPlanSchema,
   compactionPolicySchema,
   compactionSettingsSchema,
   windowUsageSchema,
   representationPolicyConfigSchema,
-  planProgressSchema,
 } from '@omne-harness/request-context-contract'
-import { fixture, adoption, evidence, planCompaction } from './fixtures.js'
-const policy = {
-  retainBudget: { kind: 'ratio', retainRatio: '1' },
-  retainPreference: 'newest-first',
-  triggerPercent: '100',
-  headroomTokens: null,
-  trimFirst: true,
-  stepBound: '2',
-}
-it('policy boundaries preserve exact budget and step representations and reject invalid controls', () => {
+import { adoption } from './fixtures.js'
+const policy = { triggerPercent: '100', headroomTokens: null }
+it('trigger boundaries preserve exact numbers and reject invalid or algorithm controls', () => {
   expect(compactionPolicySchema['~standard'].validate(policy)).toEqual({ value: policy })
-  const tokens = {
-    ...policy,
-    retainBudget: { kind: 'tokens', retainTokens: '9007199254740993' },
-    trimFirst: false,
-    stepBound: '1',
-  }
-  expect(compactionPolicySchema['~standard'].validate(tokens)).toEqual({ value: tokens })
+  const headroom = { ...policy, headroomTokens: '9007199254740993' }
+  expect(compactionPolicySchema['~standard'].validate(headroom)).toEqual({ value: headroom })
   for (const change of [
-    { retainBudget: { kind: 'ratio', retainRatio: '1.01' } },
-    { retainBudget: { kind: 'tokens', retainTokens: '1.5' } },
-    { retainBudget: { kind: 'unknown' } },
-    { retainPreference: 'oldest' },
     { triggerPercent: '100.1' },
+    { triggerPercent: '-1' },
+    { triggerPercent: 'NaN' },
     { headroomTokens: '-1' },
-    { stepBound: '0' },
-    { trimFirst: false, stepBound: '0' },
+    { headroomTokens: '1.5' },
+    { retainBudget: { kind: 'ratio', retainRatio: '0.16' } },
+    { stepBound: '3' },
   ])
     expect(compactionPolicySchema['~standard'].validate({ ...policy, ...change })).toHaveProperty(
       'issues',
     )
-  expect(
-    compactionPolicySchema['~standard'].validate({ ...policy, stepBound: '1' }),
-  ).toHaveProperty('value')
 })
 it('required block schemas compose policy validation and keep their own failure diagnostics', () => {
   const settings = { ...policy, policy: adoption }
@@ -107,52 +89,4 @@ it('representation preferences accept ordered duplicates and reject an unknown c
         preferences: { ...preferences, [key]: ['unknown'] },
       }),
     ).toHaveProperty('issues')
-})
-it('progress requires contiguous consumption, durable evidence, and exact completed count', () => {
-  const consumed = [
-    { index: '0', evidence },
-    { index: '1', evidence },
-  ]
-  const value = { planId: 'plan:one', completed: '2', consumed }
-  expect(planProgressSchema['~standard'].validate(value)).toEqual({ value })
-  for (const change of [
-    { completed: '1' },
-    { planId: '' },
-    {
-      consumed: [
-        { index: '1', evidence },
-        { index: '2', evidence },
-      ],
-    },
-    {
-      consumed: [
-        { index: '0', evidence },
-        { index: '1', evidence: { ...evidence, digest: null } },
-      ],
-    },
-    { consumed: [{ index: '-1', evidence }] },
-  ])
-    expect(planProgressSchema['~standard'].validate({ ...value, ...change })).toHaveProperty(
-      'issues',
-    )
-})
-
-it('plan decoding keeps the complete basis and rejects an old plan or a tampered basis', async () => {
-  const f = fixture()
-  const planned = await planCompaction(f.input, f.ports, f.policies)
-  if (planned.kind !== 'planned') throw new Error(planned.kind)
-  const plan = planned.plan
-  expect(compactionPlanSchema['~standard'].validate(plan)).toEqual({ value: plan })
-  const { basis: _basis, ...old } = plan
-  for (const value of [
-    { ...plan, retained: [plan.covers.from, plan.covers.from] },
-    { ...plan, covers: { from: '', to: plan.covers.to } },
-    { ...plan, candidate: '' },
-    { ...plan, bound: '0' },
-    { ...plan, shape: 'summarize' },
-    { ...plan, shape: { kind: 'trim-then-summarize', trimFirst: true } },
-    { ...old, epoch: 'epoch:1', floor: [], after: [] },
-    { ...plan, basis: { ...plan.basis, retainedBudget: '7' } },
-  ])
-    expect(compactionPlanSchema['~standard'].validate(value)).toHaveProperty('issues')
 })

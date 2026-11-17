@@ -60,14 +60,6 @@ const TABLE: Readonly<
       veto: ['observed', 'inject', 'rewrite', 'select_model', 'veto', 'stop', 'ask'],
     },
   },
-  'before_model_call/compaction': {
-    allowed: ['observed', 'veto', 'stop', 'ask'],
-    effective: {
-      observe: ['observed'],
-      rewrite: ['observed'],
-      veto: ['observed', 'veto', 'stop', 'ask'],
-    },
-  },
   'after_model_call/complete_reply': {
     allowed: ['observed', 'inject', 'stop', 'ask'],
     effective: {
@@ -144,12 +136,6 @@ const WHERE: Readonly<Record<PositionOutputKey, Where>> = {
     purpose: 'main',
     trigger: null,
   },
-  'before_model_call/compaction': {
-    position: 'before_model_call',
-    dimension: null,
-    purpose: 'compaction',
-    trigger: null,
-  },
   'after_model_call/complete_reply': {
     position: 'after_model_call',
     dimension: { ending: 'complete_reply' },
@@ -206,7 +192,6 @@ const SUBJECTS: Readonly<Record<PositionOutputKey, Record<string, unknown>>> = {
       },
     },
   },
-  'before_model_call/compaction': { purpose: 'compaction', step: { kind: 'ready' }, progress: {} },
   'after_model_call/complete_reply': { purpose: 'main', call: 'call-1', reply: message },
   'after_model_call/failure': { purpose: 'main', call: 'call-1', fault: { kind: 'fault' } },
   before_action: {
@@ -871,7 +856,7 @@ describe('the seven steps in order', () => {
 })
 
 describe('the purpose of a model call position', () => {
-  it('takes an absent purpose as the stricter compaction row', () => {
+  it('refuses model selection without an explicit main purpose', () => {
     for (const purpose of [null, 'other' as 'main']) {
       const input = inputFor(
         'before_model_call/main',
@@ -885,8 +870,8 @@ describe('the purpose of a model call position', () => {
     }
   })
 
-  it('does not split after_model_call by purpose', () => {
-    for (const purpose of ['main', 'compaction'] as const) {
+  it('accepts after_model_call for the main purpose', () => {
+    for (const purpose of ['main'] as const) {
       const input = inputFor(
         'after_model_call/complete_reply',
         'veto',

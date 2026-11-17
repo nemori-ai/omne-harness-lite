@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AgentAdoptionsService,
   agentAdoptionsKey,
+  agentCompactionInputsKey,
   agentModelContextKey,
   agentRequestsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
@@ -161,6 +162,13 @@ async function providers(w: World) {
           inner.provide(MODEL_PREPARATION_RESOURCES, w.f.preparation)
         },
       }),
+    agentCompactionInputs: (ctx: Context) =>
+      ctx.plugin({
+        name: 'frozen-inputs',
+        apply(inner: Context) {
+          inner.provide(agentCompactionInputsKey, w.compactionInputs)
+        },
+      }),
     agentAdoptions: (ctx: Context) => ctx.plugin(Adoptions),
   }
   return { plugins, holder }
@@ -174,6 +182,7 @@ const KEYS: readonly Key[] = [
   'modelRequestPreparation',
   'modelPreparationResources',
   'agentAdoptions',
+  'agentCompactionInputs',
 ]
 
 async function assembled(
@@ -224,6 +233,7 @@ describe('AgentContextProvider on real Cordis', () => {
         runtimeContextKey,
         runtimeContextReaderEligibilityKey,
         agentAdoptionsKey,
+        agentCompactionInputsKey,
       ].sort(),
     )
     expect(AgentContextProvider.inject[runtimeContextKey]).toEqual({ consumer: 'model' })

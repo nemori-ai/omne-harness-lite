@@ -1,3 +1,5 @@
+import type { TenantId } from '@omne-harness/legal-identity'
+import type { ModelCallId } from '@omne-harness/model-contract'
 import type { ModelCommands } from '@omne-harness/model-contract/provider'
 
 // A Service may keep its methods on its prototype, so the object is not spread:
@@ -27,5 +29,29 @@ export function delegatedCommands(commands: ModelCommands<unknown>): ModelComman
     advanceCleanup: input => commands.advanceCleanup(input),
     query: input => commands.query(input),
     dispatches: input => commands.dispatches(input),
+  }
+}
+
+// The commands of the result push: a committed handoff or settlement, or a handoff whose commit
+// is unknown, wakes the push of that call.
+export function wakingCommands(
+  commands: ModelCommands<unknown>,
+  wake: (target: Readonly<{ tenant: TenantId; call: ModelCallId }>) => void,
+  recordLateFact: ModelCommands<unknown>['recordLateFact'],
+): ModelCommands<unknown> {
+  return {
+    ...delegatedCommands(commands),
+    async handoff(handoff) {
+      const result = await commands.handoff(handoff)
+      if ('ok' in result || result.failure.kind === 'commit-unknown')
+        wake({ tenant: handoff.tenant, call: handoff.call })
+      return result
+    },
+    async settle(settle) {
+      const result = await commands.settle(settle)
+      if ('ok' in result) wake({ tenant: settle.tenant, call: settle.call })
+      return result
+    },
+    recordLateFact,
   }
 }

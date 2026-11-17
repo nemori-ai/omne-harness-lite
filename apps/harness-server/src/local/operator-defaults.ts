@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { pathsOf, type ServerLocations } from './locations.ts'
 import { isSecretName, type ServerSettings, type StorageLimits } from './settings.ts'
+import { DEFAULT_COMPACTION_BINDING } from '../assembly/compaction-provider.ts'
 import { SEARCH_RANKING } from '../entry/search-ranking.ts'
 
 export const DEFAULT_READINESS_TIMEOUT_MS = 30_000
@@ -126,6 +127,11 @@ function modelRecords(combinationVersion: string) {
       {
         consumerOwner: '@omne-harness/agent',
         evidence: { ...ADOPTION, name: 'local-single-user/agent-consumer-evidence' },
+        work: { kind: 'exempt' },
+      },
+      {
+        consumerOwner: '@omne-harness/context-compaction',
+        evidence: { ...ADOPTION, name: 'local-single-user/compaction-consumer-evidence' },
         work: { kind: 'exempt' },
       },
     ],
@@ -344,6 +350,7 @@ function toolRecords(workspace: string, combinationVersion: string) {
 }
 
 const AGENT_HOST = {
+  compactionProvider: DEFAULT_COMPACTION_BINDING,
   observerBufferBytes: 65_536,
   reconciliationDelaysMs: [1000, 1000, 1000, 2000, 2000, 5000, 5000, 10_000, 30_000],
   reconciliationBatchLimit: 8,

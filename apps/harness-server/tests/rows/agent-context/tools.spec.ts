@@ -134,9 +134,10 @@ const conditionsWith = (bindings: readonly Adoption[]): RuntimeConditions => {
 }
 
 describe('agent-context row: the sixth group over the release Catalog', () => {
-  it('hands the Catalog lookup to the plugin factory and keeps the seven injects', () => {
+  it('hands the Catalog lookup to the plugin factory and declares the compaction input dependency', () => {
     const declared = got(rowDeclarationOf(agentContextRow), 'declaration')
-    expect(declared.manifest.injects).toHaveLength(7)
+    expect(declared.manifest.injects).toHaveLength(8)
+    expect(declared.manifest.injects).toContain('agentCompactionInputs')
     expect(declared.manifest.injects).not.toContain(toolCatalogKey)
     expect(agentContextPluginInput).toEqual({ toolLookup: catalogToolLookup })
   })

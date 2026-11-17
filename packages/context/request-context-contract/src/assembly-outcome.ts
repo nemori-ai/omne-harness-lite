@@ -3,8 +3,9 @@ export function assemblyOutcome(
   input: AssemblyInput<unknown>,
   candidate: Omit<RequestCandidate, 'verdict'>,
   verdict: FitVerdict,
+  goals: Extract<AssemblyResult, { kind: 'needs-compaction' }>['goals'],
 ): AssemblyResult {
-  const { coverage, layers } = candidate
+  const { coverage } = candidate
   if (verdict.kind === 'fixed-part-over-limit')
     return {
       kind: 'cannot-fit',
@@ -15,7 +16,7 @@ export function assemblyOutcome(
     }
   if (verdict.kind === 'needs-compaction')
     return (input.previous?.candidate === input.identity.candidate &&
-      input.previous.enteredCompaction !== null) ||
+      input.previous.enteredCompaction) ||
       input.transition !== null
       ? {
           kind: 'cannot-fit',
@@ -24,7 +25,7 @@ export function assemblyOutcome(
           verdict,
           diagnostic: 'Request still exceeds a limit after compaction',
         }
-      : { kind: 'needs-compaction', coverage, verdict, layers }
+      : { kind: 'needs-compaction', candidate: { ...candidate, verdict }, goals }
   return {
     kind: input.beforeModelCall === null ? 'candidate-before-extension' : 'candidate-fixable',
     candidate: { ...candidate, verdict },

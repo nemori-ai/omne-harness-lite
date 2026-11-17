@@ -128,6 +128,7 @@ export type MessageRejection =
   | 'raw'
   | 'json'
   | 'misplaced-part'
+  | 'model-invisible'
   | 'duplicate-id'
   | 'payload'
   | 'pairs'
@@ -351,9 +352,9 @@ function compactionMessage(
   parts: NonEmpty<MessagePart>,
   keys: CompactionKeys,
 ): MessageJudgment {
-  return isContentBlocks(parts)
-    ? admitted({ id, role: 'compaction', blocks: parts, ...keys })
-    : misplaced(standsAsContent, parts)
+  if (!isContentBlocks(parts)) return misplaced(standsAsContent, parts)
+  if (!parts.some(part => part.visibility.toModel)) return { rejected: 'model-invisible' }
+  return admitted({ id, role: 'compaction', blocks: parts, ...keys })
 }
 
 function withParts(

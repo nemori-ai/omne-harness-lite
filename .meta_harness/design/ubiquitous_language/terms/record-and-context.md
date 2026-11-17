@@ -296,7 +296,7 @@
 
 - **形态**：对象
 - **出处**：[PF-009 §4 消息的内容是一串块](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#消息的内容是一串块不是一段文本)（rev 9） ·
-  [模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 4）
+  [模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 5）
 - **别混**：**裸写「块」不作数**——那个词到处都是
 - **注意**：**为什么不能是一段文本**——一条消息里可能既有文字又有图；
   **模型的思考与它的回答是两回事，混在一起就再也分不开**；
@@ -318,7 +318,7 @@
 > The readable text of the same reasoning sits in a thinking block, apart from it.
 
 - **形态**：变体（父：[内容块](#ul-content-block--内容块--content-block)）
-- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 4）
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 5）
 - **别混**：**不是思考块**——思考块装可读的推理文字，可以给人看；推理续接状态装的是读不懂的状态，只给能消费它的模型
 - **注意**：哪些模型能消费它，看它所在回复的[推理回放范围](#ul-reasoning-replay-scope--推理回放范围--reasoning-replay-scope)；形状与受理规则归 [message 成员](../../../../packages/common/SPEC.md#消息)
 
@@ -333,7 +333,7 @@
 > states are carried again.
 
 - **形态**：过程
-- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 4）
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 5）
 - **别混**：**不是 Agent 接续时的[回放](agent-runtime-loop.md#ul-replay--回放--replay)**——那是把挂起中的拓展件按日志重跑到停处；推理回放只决定一次请求带上哪些推理状态。两者都可能简称「回放」，跨 topic 时写全名
 - **注意**：被上游拒绝时略去这次带上的全部推理状态再发一次；原消费者可以对一次请求关闭推理回放。精确规则归 [Model 规格的推理回放](../../../../packages/model/SPEC.md#推理回放)
 
@@ -349,7 +349,7 @@
 > same model at the same recipient.
 
 - **形态**：属性
-- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 4）
+- **出处**：[模型调用：推理状态的续接](../../product/model-invocation/design.md#推理状态的续接)（rev 5）
 - **别混**：**不是[租户](subjects-and-ownership.md#ul-tenant--租户--tenant)或账户的范围**——它只说哪些模型认得这段状态，不授予任何访问资格；凭据换了账户，状态仍可能被上游拒绝
 - **注意**：消息上的键名是 `replay.scope`；档案上的声明归 [Model 规格](../../../../packages/model/SPEC.md#推理回放)
 
@@ -715,14 +715,14 @@
 
 ### UL-request-context · 请求 context · Request Context
 
-> **中**：一次模型请求输入的**派生计算与装入保证**。输入全是别人拥有的事实：历史读取依据、[runtime context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context) 的读取结果、工具定义与绑定、模型档案与限制、[提示词贡献](#ul-prompt-contribution--提示词贡献--prompt-contribution)、当前条件。输出是一份[请求候选](#ul-request-candidate--请求候选--request-candidate)、一个[装入裁定](#ul-fit-verdict--装入裁定--fit-verdict)，必要时一个[压缩计划](#ul-compaction-plan--压缩计划--compaction-plan)。它不拥有事实，不发请求，不固定采用，不写历史。
+> **中**：一次模型请求输入的**派生计算与装入保证**。输入全是别人拥有的事实：历史读取依据、[runtime context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context) 的读取结果、工具定义与绑定、模型档案与限制、[提示词贡献](#ul-prompt-contribution--提示词贡献--prompt-contribution)、当前条件。输出是一份[请求候选](#ul-request-candidate--请求候选--request-candidate)和一个[装入裁定](#ul-fit-verdict--装入裁定--fit-verdict)。它不拥有事实，不发请求，不固定采用，不写历史。
 >
-> **EN**: The **derived computation and fit guarantee** for the input of one model request. Every input is a fact someone else owns: the evidence for reading history, the read result of runtime context, tool definitions and bindings, the model profile and its limits, prompt contributions, and current conditions. The output is one request candidate, one fit verdict and, when needed, one compaction plan. It owns no fact, sends no request, fixes no adoption and writes no history.
+> **EN**: The **derived computation and fit guarantee** for the input of one model request. Every input is a fact someone else owns: the evidence for reading history, the read result of runtime context, tool definitions and bindings, the model profile and its limits, prompt contributions, and current conditions. The output is one request candidate and one fit verdict. It owns no fact, sends no request, fixes no adoption and writes no history.
 
 - **形态**：总称
-- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 5）
+- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 6）
 - **别混 ①**：不是 [runtime context](scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context)——那是被读的块，这是读了之后算出请求的那一步。两者同在一个产品 topic，**正文里不再用「Context」泛指两者**
-- **别混 ②**：不是[上下文组装](#ul-context-assembly--上下文组装--context-assembly)这个过程本身——组装是它做的事之一；它还裁装不装得下、出压缩计划、给覆盖证据
+- **别混 ②**：不是[上下文组装](#ul-context-assembly--上下文组装--context-assembly)这个过程本身——组装是它做的事之一；它还裁装不装得下、给覆盖证据
 - **注意**：中文名沿「运行时 context」的写法，`context` 不译
 
 ### UL-request-candidate · 请求候选 · Request Candidate
@@ -732,7 +732,7 @@
 > **EN**: The model input Request Context computes from one set of assembly inputs: system prompt, tool declarations, history projection, reminders and representation choices are in place, and coverage evidence travels with it. Its identity is the candidate id plus the input digest. Computing the same inputs again yields the same candidate. It lives until the coordinator fixes it as a request, a new candidate replaces it, or it is discarded.
 
 - **形态**：对象
-- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 5）
+- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 6）
 - **别混**：不是固定下来的最终请求。固定与记录归协调者；候选装得下才成立，装不下的不是候选
 
 ### UL-coverage-evidence · 覆盖证据 · Coverage Evidence
@@ -742,7 +742,7 @@
 > **EN**: The list given with a request candidate that records, item by item, which inputs and revisions this assembly used: the history range and anchors, the effective compaction records, the runtime context snapshot revision and snapshot anchor, the source of each prompt section, the profile and parameters, a digest of tool declarations, a digest of representation choices, a digest of the budget report, and why the prefix changed. It makes the history projection and what the model actually saw reconcilable.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 5）
+- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 6）
 - **别混**：不是[压缩覆盖范围](#ul-compacted-range--压缩覆盖范围--compacted-range)。覆盖范围记一次压缩摘要了哪段历史；覆盖证据记一次组装读了哪些输入
 
 ### UL-fit-verdict · 装入裁定 · Fit Verdict
@@ -752,7 +752,7 @@
 > **EN**: The conclusion Request Context reaches after comparing a candidate input with the model's limits, one of four: fits, fixed part over the limit, needs compaction, or limit unknown. Limit unknown is **not a failure**. The candidate stands and the sender judges against real capability.
 
 - **形态**：状态
-- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 5）
+- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 6）
 - **注意**：阈值比较与取整在这里做；计量数字由模型侧报告
 
 ### UL-representation-choice · 表示决定 · Representation Choice
@@ -762,7 +762,7 @@
 > **EN**: The choice made for each content block in a candidate, from the receiving model's input modalities and the conversion results: use the original, use the derived rendering, use the transcript, or mark it deferred until send time. It carries evidence, lives with the candidate, and reads no bytes.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 5）
+- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 6）
 - **别混**：不是[块标注](#ul-block-annotation--块标注--block-annotation)。标注说能不能给模型看；表示决定说给模型看哪一种表示
 
 ### UL-prompt-contribution · 提示词贡献 · Prompt Contribution
@@ -772,7 +772,7 @@
 > **EN**: One item a contributor registers into system-prompt assembly, of exactly two kinds: an **ordered section** (a text and its order) or a **variable** (the value of one template name). Its identity is the name plus the scope. A duplicate name at the same level is rejected, and a scoped contribution shadows a global one. It lives as long as its contributor. Facts that change per request do not go through it. They go through runtime context blocks.
 
 - **形态**：对象
-- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 5）
+- **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 6）
 - **别混**：不是[提示词槽位](capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot)。槽位是提示词里一个恒定的位置；贡献是填进去的一条材料
 - **注意**：它是[拓展贡献](architecture-core-and-extension.md#ul-extension-contribution--拓展贡献--extension-contribution)的一种，放在系统提示词的组装这个拓展点里
 - **弃用**：~~「动态事实段」~~——那一类不存在，动态事实走块
@@ -784,7 +784,7 @@
 > **EN**: The reminder Request Context places in a request after one full read of runtime context: the complete values of every **stable** block the model may read. It goes into the request only, never into the session log. Within the generation of one full read, every request places it at the same snapshot anchor. A new execution, a compaction, or a cursor reset produces a new one.
 
 - **形态**：视图
-- **出处**：[运行感知与一次模型请求 §5.1](../../product/runtime-context/design.md#51-首次注入锚定快照与追加提醒)（rev 5）
+- **出处**：[运行感知与一次模型请求 §5.1](../../product/runtime-context/design.md#51-首次注入锚定快照与追加提醒)（rev 6）
 - **别混**：不是变化提醒。变化提醒由[变化材料](scope-and-resolution.md#ul-change-material--变化材料--change-material)生成、追加进历史；快照不追加、不落日志
 - **注意**：逐请求易变的块不在这里，在[尾部易变提醒](#ul-tail-facts-reminder--尾部易变提醒--tail-facts-reminder)
 
@@ -795,7 +795,7 @@
 > **EN**: The fixed position of the context snapshot reminder in the model-visible history: the tail of the model-visible history at the moment the full read happened. A snapshot given again after a compaction is anchored at the history tail of that moment too. When the compacted range extends to the compaction point, that position is right after the compaction record. It is recorded in coverage evidence, returned with adoption, and reused by the next assembly.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §5.1](../../product/runtime-context/design.md#51-首次注入锚定快照与追加提醒)（rev 5）
+- **出处**：[运行感知与一次模型请求 §5.1](../../product/runtime-context/design.md#51-首次注入锚定快照与追加提醒)（rev 6）
 - **注意**：锚点稳定，前缀才稳定；锚点换新是前缀变化的原因之一
 
 ### UL-tail-facts-reminder · 尾部易变提醒 · Tail Facts Reminder
@@ -805,7 +805,7 @@
 > **EN**: The reminder Request Context places at the **very end** of a request: only blocks declared as changing per request (for example the window usage ratio), recomputed on every request. It never enters history or the snapshot, and it never produces a change reminder.
 
 - **形态**：视图
-- **出处**：[运行感知与一次模型请求 §5.1](../../product/runtime-context/design.md#51-首次注入锚定快照与追加提醒)（rev 5）
+- **出处**：[运行感知与一次模型请求 §5.1](../../product/runtime-context/design.md#51-首次注入锚定快照与追加提醒)（rev 6）
 - **别混**：不是[上下文快照提醒](#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder)。快照放稳定块、位置锚定；它放易变块、永远在最末
 
 ## 压缩
@@ -833,7 +833,7 @@
 - **形态**：过程
 - **出处**：[PF-010 §5.6](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-010-context-management-and-assembly/design.md#56-压缩是一个闭包它的调子是三个联合目标)（rev 8） ·
   [运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作) ·
-  [RC-J07](../../product/runtime-context/design.md#rc-j07-长期工作接近窗口限制保留未完事项再继续)（rev 5）
+  [RC-J07](../../product/runtime-context/design.md#rc-j07-长期工作接近窗口限制保留未完事项再继续)（rev 6）
 - **⚠️ 注意 ①**：**它不回头去翻[块上那一位](#ul-block-annotation--块标注--block-annotation)。**
   那一位由产生这个块的人在落盘那一刻写下，**之后不再变**。
   压缩之后模型看到什么，由块标注和最近一条压缩记录共同算出，见[压缩记录](#ul-compaction-record--压缩记录--compaction-record)
@@ -864,7 +864,7 @@
 
 - **形态**：变体（父：[消息](#ul-message--消息--message)）
 - **出处**：[PF-009 §4 CompactionMessage](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-009-context-message-types/design.md#compactionmessage)（rev 9） ·
-  [运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 5）
+  [运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 6）
 - **⚠️ 注意**：**边界不是一条截断线。**覆盖范围之前仍要原样给模型看的消息，靠保留名单留下，
   所以模型看到的旧消息可能落在压缩记录之前。保留名单以**消息**为单位，在压缩时固定，之后不变
 - **弃用**：~~「排除名单」~~（现在用[保留名单](#ul-retained-set--保留名单--retained-set)表达同一次压缩的结果）
@@ -884,7 +884,7 @@
 > retained messages fall inside the new range.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 5）
+- **出处**：[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 6）
 - **别混**：与 Request Context 覆盖证据里的 `coverage` 不是一回事。`coverage` 记一次组装读了哪些输入，覆盖范围记一次压缩摘要了哪段历史
 
 ### UL-retained-set · 保留名单 · Retained Set
@@ -901,58 +901,55 @@
 
 - **形态**：属性
 - **出处**：[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作) ·
-  [RC-J07](../../product/runtime-context/design.md#rc-j07-长期工作接近窗口限制保留未完事项再继续)（rev 5）
+  [RC-J07](../../product/runtime-context/design.md#rc-j07-长期工作接近窗口限制保留未完事项再继续)（rev 6）
 - **别混**：与[块标注](#ul-block-annotation--块标注--block-annotation)的「给模型看吗」不是一回事。块标注在块落盘时写下，之后不变；保留名单是压缩记录的属性，不改任何块的标注
 - **注意**：未结工作的消息（上一次模型请求之后新来的输入、悬着的东西的占位）是名单的下界：它们在覆盖范围内时必须进名单
 - **弃用**：~~「排除名单」~~
 
 ### UL-compaction-plan · 压缩计划 · Compaction Plan
 
-> **中**：[装入裁定](#ul-fit-verdict--装入裁定--fit-verdict)为「需要压缩」时，Request Context 对一份候选给出的那份计划：计划编号、步数上界、逐步给出的[压缩步请求](#ul-compaction-step-request--压缩步请求--compaction-step-request)。一个候选身份至多一个计划；上界一旦定下不变。它从给出起活到压缩转换提交，或活到宣告装不下。计划归 Request Context，步里的模型调用归协调者发起。
+> **中**：压缩服务提供者内部用来组织一次压缩的计划，由提供者自己的计划身份识别，规定内部步骤及其上界。它不是 Agent 消费的压缩服务契约；提供者可以不使用计划。
 >
-> **EN**: The plan Request Context gives for one candidate when the fit verdict is "needs compaction": a plan id, an upper bound on the number of steps, and compaction step requests issued one at a time. One candidate identity has at most one plan. The bound does not change once set. It lives from issue until the compaction transition is committed, or until it is declared unable to fit. The plan belongs to Request Context. The model calls inside its steps are started by the coordinator.
+> **EN**: A provider-owned plan for one compaction, identified by that provider and defining its internal steps and bounds. It is not the service contract consumed by Agent. A provider need not use a plan.
 
 - **形态**：对象
-- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 5）
-- **别混**：不是[上下文压缩](#ul-context-compaction--上下文压缩--context-compaction)这个过程。压缩是做的事；计划是做之前定下的步数、顺序与每步请求
+- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 6）
 
 ### UL-compaction-plan-progress · 压缩计划进度 · Compaction Plan Progress
 
-> **中**：一份[压缩计划](#ul-compaction-plan--压缩计划--compaction-plan)走到哪一步的记录：计划编号加已完成步数。每步恰加一；已完成步数小于上界时才能继续。它由调用方持久保存，Request Context 每步返回新值。
+> **中**：采用压缩计划的提供者对该计划执行位置的记录，由提供者保管和恢复，不要求调用该服务的 Agent 保存内部步骤。
 >
-> **EN**: Where one compaction plan stands: the plan id plus the number of completed steps. Each step adds exactly one. The plan may continue only while the completed count is below the bound. The caller persists it. Request Context returns a new value after each step.
+> **EN**: The execution position of a provider-owned compaction plan. The provider retains and recovers it. Agent does not have to store the service’s internal steps.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 5）
+- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 6）
 
 ### UL-compaction-step-request · 压缩步请求 · Compaction Step Request
 
-> **中**：[压缩计划](#ul-compaction-plan--压缩计划--compaction-plan)里一步要做的事，由计划编号加序号识别。它是[修剪步](#ul-pruning-step--修剪步--pruning-step)或[摘要步](#ul-summary-step--摘要步--summary-step)之一。摘要步的请求含完整的候选输入，不经过组装，也不递归。
+> **中**：采用压缩计划的提供者对一个内部步骤的请求，由该计划与步骤序号识别。它不是压缩服务向 Agent 发出的待执行请求。
 >
-> **EN**: What one step of a compaction plan must do, identified by the plan id plus a sequence number. It is either a pruning step or a summary step. A summary step's request contains the complete candidate input. It does not go through assembly and it does not recurse.
+> **EN**: A request for an internal step of a provider-owned compaction plan, identified by the plan and step number. It is not a request for Agent to execute on behalf of the service.
 
 - **形态**：属性
-- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 5）
+- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 6）
 
 ### UL-pruning-step · 修剪步 · Pruning Step
 
-> **中**：[压缩步请求](#ul-compaction-step-request--压缩步请求--compaction-step-request)的一种：**不调用模型**，只缩短大的工具结果或媒体占位。计划里修剪步先于摘要步。
+> **中**：压缩提供者内部缩短摘要材料的一步，不调用模型，不改原始历史或模型视图。只有采用修剪的算法才有此步骤。
 >
-> **EN**: One kind of compaction step request: it **calls no model** and only shortens large tool results or media placeholders. In a plan, pruning steps come before summary steps.
+> **EN**: An internal compaction step that shortens material for summarization without calling a model or changing the original history or model view. Only algorithms that use pruning have this step.
 
 - **形态**：状态
-- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 5）
-- **别混**：不是[增量节流](#ul-increment-throttling--增量节流--increment-throttling)。节流发生在到达时；修剪发生在压缩时，且不改原记录
+- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 6）
 
 ### UL-summary-step · 摘要步 · Summary Step
 
-> **中**：[压缩步请求](#ul-compaction-step-request--压缩步请求--compaction-step-request)的另一种：一次内部模型调用，为[压缩覆盖范围](#ul-compacted-range--压缩覆盖范围--compacted-range)生成摘要。调用由协调者发起，结果交回 Request Context 推导下一步或压缩转换。
+> **中**：压缩提供者内部调用模型生成摘要的一步。提供者拥有这次调用、结果、费用与恢复；它的结果不是主流程回复。
 >
-> **EN**: The other kind of compaction step request: one internal model call that produces the summary for the compacted range. The coordinator starts the call. The result goes back to Request Context, which derives the next step or the compaction transition.
+> **EN**: An internal compaction step that calls a model to produce a summary. The provider owns the call, result, cost, and recovery. Its result is not a main-loop reply.
 
 - **形态**：状态
-- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 5）
-- **注意**：摘要调用有自己的调用身份、费用与消费位置，不当作主流程回复。这个身份由发起它的协调者分配并记录，不由 Request Context 分配
+- **出处**：[运行感知与一次模型请求 §7.1](../../product/runtime-context/design.md#71-压缩计划与步骤)（rev 6）
 
 ### UL-business-calendar · 业务日历 · Business Calendar
 

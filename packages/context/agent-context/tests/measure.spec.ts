@@ -1,9 +1,13 @@
+import { decodeCompactionTaskId, decodeConsumptionId } from '@omne-harness/agent-contract'
+import { judgeMessage } from '@omne-harness/message'
 import { describe, expect, it } from 'vitest'
 import type { ContextMeasureEvent } from '@omne-harness/agent-context'
 import {
   authority,
   createWorld,
   meterBy,
+  userMessage,
+  evidence,
   tenantOf,
   type WorldOptions,
 } from './fixtures/context-world.ts'
@@ -34,21 +38,36 @@ describe('the Context segment', () => {
     expect(events[0]?.span).not.toBe(events[2]?.span)
   })
 
-  it('derive and resume emit their own segments; an answer with a failure ends as failure', async () => {
+  it('assessment and resume emit their own segments; an answer with a failure ends as failure', async () => {
     const { w, events } = await observed({ meter: meterBy(500) })
     const context = await w.read()
     const original = await w.requests.prepare(w.prepareInput(context))
     if (!('ok' in original) || original.ok.kind !== 'needs-compaction')
       throw new Error('expected needs-compaction')
     events.length = 0
-    await w.requests.derive({
+    const task = decodeCompactionTaskId('task-measured')
+    const consumption = decodeConsumptionId('consumption-measured')
+    const frozen = w.frozen[0]
+    if ('failure' in task || 'failure' in consumption || frozen === undefined)
+      throw new Error('fixture')
+    const message = judgeMessage({
+      role: 'compaction',
+      id: frozen.outputMessageId,
+      blocks: userMessage(9, 'summary').blocks,
+      covers: { from: frozen.history.origin, to: frozen.history.upper },
+      retained: [],
+      derivation: evidence('wrong-generation'),
+    })
+    if (!('ok' in message) || message.ok.role !== 'compaction') throw new Error('fixture')
+    await w.requests.assessCompaction({
       ...w.access,
       advance: authority(),
       original: original.ok,
-      progress: original.ok.progress,
-      action: original.ok.id,
-      selection: w.selection,
-      result: null,
+      task: { authority: 'test', task: task.ok, requestDigest: 'request' },
+      consumption: consumption.ok,
+      result: { version: '1', evidence: evidence('result'), digest: 'd' },
+      received: evidence('received'),
+      message: message.ok,
     })
     const after = await w.read({ transition: { ...w.selection.evidence } })
     const resumed = await w.requests.resume({
@@ -60,8 +79,8 @@ describe('the Context segment', () => {
       context: after,
     })
     expect(calls(events)).toEqual([
-      'derive:start',
-      'derive:end',
+      'assess-compaction:start',
+      'assess-compaction:end',
       'read:start',
       'read:end',
       'resume:start',

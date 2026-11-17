@@ -550,3 +550,11 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **处置**：词条按三项写，并在「待裁决」指向本条。工作区目录技能的 Skill 材料依据怎样标版本，词表不补。
 - **负责与闭合条件**：Skill 的技术拥有者，涉及产品含义时上交产品负责人。Skill 组设计或 Skill 产品页写明工作区目录技能的 Skill 材料依据中这一项取什么，词条按结论改写后闭合。
 - **状态**：已闭合（2026-11-03）。负责人裁定：Skill 材料依据含能力标识、来源层、资产版本与内容摘要四项。工作区来源的资产版本可以缺省。能力标识、来源层与内容摘要都相同的两个 Skill 材料依据，指同一份材料。[Skill 组设计](../../../docs/domains/skills/architecture.md)按四项写定。词条与索引行已按裁定改写，「待裁决」已去掉。上列来源、差别与处置保留发现时的写法，现行含义以词条为准。
+
+### C-84：压缩计划的公开边界
+
+压缩计划、进度与步骤是[提供者内部概念](terms/record-and-context.md#ul-compaction-plan--压缩计划--compaction-plan)，不构成 Agent 的消费协议。Agent 调用注入的服务并取得完整压缩消息，见[产品规则](../product/runtime-context/design.md#71-压缩计划与步骤)与[消费契约](../../../packages/agent/SPEC.md#上下文压缩服务)。请求计算不要求主 Agent 驱动内部模型调用。
+
+### C-85：请求候选与限额未知
+
+`UL-request-candidate` 的「候选装得下才成立」与 [UL-fit-verdict](terms/record-and-context.md#ul-fit-verdict--装入裁定--fit-verdict) 的「限额未知不是失败，候选照常成立」不一致。限额未知不保证装得下；候选成立与已知装入保证须区分。相关正文归[请求计算](../product/runtime-context/design.md#61-request-context-的派生计算)，词条措辞由该拥有者复核；本条不把未知改成通过。
