@@ -233,6 +233,7 @@
 - `SessionTakenRecord` · `history-values.d.ts`
 - `SessionTodos` · `todos.d.ts`
 - `SessionTransactionPort` · `ports.d.ts`
+- `SessionUninterpretedCall` · `history-values.d.ts`
 - `SessionWaiting` · `values.d.ts`
 - `SessionWork` · `faces.d.ts`
 - `SessionWorkEntryIndex` · `work-entry-values.d.ts`
@@ -305,6 +306,7 @@
 - `sessionIntakeLimits` · `intake.d.ts`
 - `sessionModesBlock` · `block.d.ts`
 - `shortCallId` · `background-calls.d.ts`
+- `uninterpretedCalls` · `uninterpreted-calls.d.ts`
 - `wakingInputs` · `intake.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
@@ -965,9 +967,10 @@ import type { SessionCommand } from './ports.ts';
 import type { WorkSnapshot } from './values.ts';
 import type { Decision } from './judgments.ts';
 import type { HistoryEntry } from './faces.ts';
+import type { SessionHistoryReads } from './history-values.ts';
 export declare function decideProducerFact(snapshot: WorkSnapshot, command: Extract<SessionCommand, {
     kind: 'receive';
-}>, entryOrigin?: HistoryEntry['origin']): Decision;
+}>, entryOrigin?: HistoryEntry['origin'], history?: SessionHistoryReads): Decision;
 ```
 
 ## 声明文件 `decide-results.d.ts`
@@ -977,9 +980,12 @@ import type { ConsumptionId } from './identity.ts';
 import type { WorkSnapshot, ProducedResult } from './values.ts';
 import type { SessionCommand } from './ports.ts';
 import { type Decision } from './judgments.ts';
+import type { SessionHistoryReads, SessionUninterpretedCall } from './history-values.ts';
 export declare const consumptionIdOf: (binding: unknown) => ConsumptionId;
-export declare function resultRefusal(snapshot: WorkSnapshot, consumption: ConsumptionId, result: ProducedResult, operation: SessionCommand['input']['operation']): Decision | null;
-export declare function decideResults(snapshot: WorkSnapshot, command: SessionCommand): Decision;
+export declare function uninterpretedBinding(history: SessionHistoryReads | undefined, matches: (call: SessionUninterpretedCall) => boolean): boolean;
+export declare const NOT_INTERPRETED: Decision;
+export declare function resultRefusal(snapshot: WorkSnapshot, consumption: ConsumptionId, result: ProducedResult, operation: SessionCommand['input']['operation'], history?: SessionHistoryReads): Decision | null;
+export declare function decideResults(snapshot: WorkSnapshot, command: SessionCommand, history?: SessionHistoryReads): Decision;
 ```
 
 ## 声明文件 `decide-retry.d.ts`
@@ -1895,7 +1901,8 @@ export declare function originalBatch(context: HistoryContext, run: RunId, execu
 ```ts
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { AttemptId, DurableEvidence, InputId, RunId, SessionId } from './identity.ts';
-import type { InputBatch } from './values.ts';
+import type { InputBatch, ProducerRef } from './values.ts';
+import type { ConsumptionId } from './identity.ts';
 import type { SessionLogConsequence } from './projection.ts';
 import type { SessionControlOrigin } from './control-normalization.ts';
 export type SessionLogRoot = Readonly<{
@@ -1998,6 +2005,12 @@ export type SessionExecutionPrefix = Readonly<{
     through: string;
     facts: readonly SessionPrefixFact[];
 }>;
+export type SessionUninterpretedCall = Readonly<{
+    execution: string;
+    sequence: string;
+    consumption: ConsumptionId;
+    producer: ProducerRef | null;
+}>;
 export type SessionHistoryReads = Readonly<{
     root: SessionLogRoot;
     scope: SessionInputScope;
@@ -2006,6 +2019,7 @@ export type SessionHistoryReads = Readonly<{
     attempts: readonly SessionAttemptRecord[];
     taken: readonly SessionTakenRecord[];
     controls?: readonly SessionControlOrigin[];
+    uninterpreted: readonly SessionUninterpretedCall[];
 }>;
 ```
 
@@ -2079,7 +2093,8 @@ export { initializationRegistrationCommit } from './initialization-plan.ts';
 export type { InitializationPlanItem } from './initialization-plan.ts';
 export type { InitializationRegistration } from './initialization-registration.ts';
 export type { InitializationRequirement } from './initialization-requirements.ts';
-export type { SessionLogRoot, SessionHistoryIndex, InputAdmissionBoundary, InputAdmissionMember, ExecutionHistoryBoundary, SessionFactBoundary, SessionBatchRecord, SessionAttemptRecord, SessionTakenRecord, SessionHistoryReads, SessionInputScope, InputAdmissionPage, SessionInputAdmission, SessionExecutionPrefix, SessionPrefixFact, } from './history-values.ts';
+export type { SessionLogRoot, SessionHistoryIndex, InputAdmissionBoundary, InputAdmissionMember, ExecutionHistoryBoundary, SessionFactBoundary, SessionBatchRecord, SessionAttemptRecord, SessionTakenRecord, SessionHistoryReads, SessionInputScope, InputAdmissionPage, SessionInputAdmission, SessionExecutionPrefix, SessionPrefixFact, SessionUninterpretedCall, } from './history-values.ts';
+export { uninterpretedCalls } from './uninterpreted-calls.ts';
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts';
 export { readCallRegistration } from './call-registration.ts';
 export type { CallRegistrationView } from './call-registration.ts';
@@ -3261,8 +3276,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:acd799b5ab1ab3594176899cabe8fba6fcecc41fbef845b8163f7cf0a90d6d6a";
-export declare const SESSION_RELEASE_DIGEST = "sha256:acd799b5ab1ab3594176899cabe8fba6fcecc41fbef845b8163f7cf0a90d6d6a";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:ee13156f6b9049ca25f6e8b52879e7c50e4e0b7eb12f06a6bddb1f3db2783628";
+export declare const SESSION_RELEASE_DIGEST = "sha256:ee13156f6b9049ca25f6e8b52879e7c50e4e0b7eb12f06a6bddb1f3db2783628";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -3973,6 +3988,17 @@ export type TodoPage = Readonly<{
 }>;
 export type SessionTodos<P> = Pick<SessionWork<P>, 'addTodo' | 'removeTodo' | 'markTodoComplete' | 'listTodos'>;
 export declare function validTodoText(text: unknown): text is string;
+```
+
+## 声明文件 `uninterpreted-calls.d.ts`
+
+```ts
+import type { SessionLogConsequence } from './projection.ts';
+import type { SessionUninterpretedCall } from './history-values.ts';
+export declare function uninterpretedCalls(execution: string, facts: Iterable<Readonly<{
+    sequence: string;
+    consequences: readonly SessionLogConsequence[];
+}>>): SessionUninterpretedCall[];
 ```
 
 ## 声明文件 `values.d.ts`

@@ -46,14 +46,9 @@ import {
 import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../codec.ts'
 import { runChecks } from './check.ts'
 import { judgeEntries, type EntriesBatch } from './entries.ts'
-import { admittedInputs, commandScope, writeInputs } from './input-rows.ts'
-import {
-  LogGap,
-  NO_FOCUS,
-  readHistory,
-  type HistoryBasis,
-  type SessionHistory,
-} from './history-index.ts'
+import { admittedInputs, writeInputs } from './input-rows.ts'
+import { LogGap, readHistory, type HistoryBasis, type SessionHistory } from './history-index.ts'
+import { commandBasis, commandHistory } from './command-history.ts'
 import { judgeLog, readCoveringHead, type CoveringSnapshot, type LogBatch } from './log.ts'
 import type { SessionWorkReply } from '../participants.ts'
 import { writeSessionList } from './session-list.ts'
@@ -728,6 +723,7 @@ function recallOriginal(
 type CommandBatch = Readonly<{
   prepared: WorkSnapshot | null
   history: SessionHistory | null
+  basis: HistoryBasis | null
   entries: Extract<Decision, { kind: 'entries' }>['entries']
   admitted?: Extract<Decision, { kind: 'entries' }>['admitted']
 }>
@@ -788,7 +784,7 @@ function publishCommand(
   const moved = moveJournal(port, start, { tail, revision, seq, epoch })
   if (moved !== null) return moved
   const work =
-    batch.history === null
+    batch.history === null || batch.basis === null
       ? undefined
       : workOf(port, {
           tenant,
@@ -796,7 +792,7 @@ function publishCommand(
           revision,
           bytes,
           entries,
-          decided: { scope: batch.history.reads.scope, focus: NO_FOCUS },
+          decided: batch.basis,
         })
   return participated(result, false, work, committed)
 }
@@ -837,17 +833,6 @@ function recordOf(command: SessionCommand, start: CommandStart): OperationRecord
       }
 }
 
-function commandHistory(
-  port: ParticipantPort,
-  command: SessionCommand,
-  start: CommandStart,
-): SessionHistory | 'too-many' | null {
-  const { tenant, session, previous } = start
-  return previous === null
-    ? null
-    : readHistory(port, tenant, session, previous, commandScope(command, previous))
-}
-
 function settleDecision(
   port: ParticipantPort,
   received: Received,
@@ -878,7 +863,8 @@ function runCommand(
   if (!isStart(start)) return start
   const reads = commandReads(port, command, start)
   if ('kind' in reads) return reads
-  const history = commandHistory(port, command, start)
+  const basis = commandBasis(command, start.previous)
+  const history = commandHistory(port, start, basis)
   if (history === 'too-many')
     return definite('read-bound', 'the history index of the session exceeds the read bound')
   const { previous } = start
@@ -890,7 +876,7 @@ function runCommand(
     intakeLimits,
     ...(history === null ? {} : { history: history.reads }),
   })
-  return settleDecision(port, received, start, decision, { prepared, history })
+  return settleDecision(port, received, start, decision, { prepared, history, basis })
 }
 
 type SameLogBatch = EntriesBatch | LogBatch
