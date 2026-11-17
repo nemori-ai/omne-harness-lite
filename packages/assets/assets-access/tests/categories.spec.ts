@@ -99,6 +99,10 @@ describe('list-categories', () => {
     expect(wire(second.answer)).toMatchObject({
       body: { items: [{ category: 'tool' }], next: null },
     })
+    const single = await list({ list: () => ALL }, null, 1)
+    expect(wire(single.answer)).toMatchObject({
+      body: { items: [{ category: 'model-provider' }], next: 'model-provider' },
+    })
     const exact = await list({ list: () => ALL }, null, 3)
     expect(wire(exact.answer)).toMatchObject({ body: { next: null } })
   })
