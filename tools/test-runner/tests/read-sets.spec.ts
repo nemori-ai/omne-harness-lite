@@ -23,6 +23,7 @@ import {
   describeReadSets,
   digestKey,
   digests,
+  readRaw,
   readRecord,
   readSetHome,
   readSetsRequested,
@@ -122,6 +123,18 @@ describe('一份用例文件的读集', () => {
     expect(incomplete).toEqual([EXTERNAL_IN_REPO])
   })
 
+  it('不是绝对路径的模块号（vite 的虚拟模块）不记', () => {
+    const root = tree()
+    const { reads } = readsOf(
+      root,
+      raw(root, 'a.spec.ts', {
+        modules: [join(root, 'a.spec.ts'), '\0virtual:setup', 'virtual:entry', 'a.spec.ts'],
+      }),
+      [],
+    )
+    expect(reads).toEqual(['content:a.spec.ts', RUNTIME_KEY])
+  })
+
   it('没有记录器交回的记录时标不全；记录器给的原因原样带上', () => {
     const root = tree()
     const { recorded: _, ...bare } = raw(root, 'a.spec.ts')
@@ -156,6 +169,11 @@ describe('一项读的摘要', () => {
     expect(digestKey(root, 'listing:dir')).not.toBe(before)
     expect(digestKey(root, 'listing:absent')).toBe('missing')
     expect(digestKey(root, 'listing:dir/a.txt')).toBe('file')
+  })
+
+  it('目录列表按名字逐个区分：a 与 bc 两项和 ab 与 c 两项不同', () => {
+    const root = tree({ 'one/a': '', 'one/bc': '', 'two/ab': '', 'two/c': '' })
+    expect(digestKey(root, 'listing:one')).not.toBe(digestKey(root, 'listing:two'))
   })
 
   it('存在与否：文件、目录、没有；内容变了不变', () => {
@@ -248,6 +266,43 @@ describe('对着上一次的记录', () => {
   })
 })
 
+describe('读回存下的东西', () => {
+  const good: ReadSetRecord = { version: 1, head: 'h', recordedAt: 't', tree: {}, files: {} }
+
+  it('记录：形状对才认，没有、不是 JSON、版本不对、树或文件表不是对象的都按没有记录算', () => {
+    const root = tree()
+    const at = (name: string, text: string) => {
+      writeFileSync(join(root, name), text)
+      return join(root, name)
+    }
+    expect(readRecord(at('good.json', JSON.stringify(good)))).toEqual(good)
+    expect(readRecord(join(root, 'absent.json'))).toBeUndefined()
+    expect(readRecord(at('bad.json', '{'))).toBeUndefined()
+    expect(readRecord(at('null.json', 'null'))).toBeUndefined()
+    for (const broken of [
+      { ...good, version: 2 },
+      { ...good, tree: null },
+      { ...good, tree: 'x' },
+      { ...good, files: null },
+      { ...good, files: 'x' },
+      { version: 1, head: 'h', recordedAt: 't', tree: {} },
+    ])
+      expect(readRecord(at('broken.json', JSON.stringify(broken)))).toBeUndefined()
+  })
+
+  it('原始读集：配置与文件都得是数组', () => {
+    const root = tree()
+    const at = (text: unknown) => {
+      writeFileSync(join(root, 'reads.json'), JSON.stringify(text))
+      return join(root, 'reads.json')
+    }
+    expect(readRaw(at({ config: [], files: [] }))).toEqual({ config: [], files: [] })
+    expect(readRaw(at({ config: 'x', files: [] }))).toBeUndefined()
+    expect(readRaw(at({ config: [], files: {} }))).toBeUndefined()
+    expect(readRaw(at({ files: [] }))).toBeUndefined()
+  })
+})
+
 describe('一次运行的记录与报告', () => {
   const at = { head: 'abc', recordedAt: '2026-11-17T00:00:00.000Z' }
 
@@ -307,6 +362,7 @@ describe('一次运行的记录与报告', () => {
     const cells = () => recordReadSets(options)[0]?.outcomes.map(outcome => outcome.cell)
 
     expect(cells()).toEqual(['no-record', 'no-record'])
+    expect(readRecord(recordPath(home, 'pkg', 'fast'))).toMatchObject(at)
     expect(readRecord(recordPath(home, 'pkg', 'fast'))?.files).toHaveProperty([
       'pkg/tests/a.spec.ts',
     ])
