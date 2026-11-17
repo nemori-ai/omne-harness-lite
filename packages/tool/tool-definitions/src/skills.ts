@@ -40,16 +40,18 @@ const DESCRIPTION_SHOWN = 1024
 const HEAD_RESERVE = 8192
 
 const guide = `Skills finds and reads Skills: folders with a SKILL.md entry file and optional scripts, references and templates for one kind of task. search ranks the Skills you may use now by keywords, Chinese and English alike, best match first; an empty query lists every Skill by name; a disabled Skill is listed with its reason. A Skill installed while this session runs appears in the next search. read gives the SKILL.md body; list and read_file give the other files. read, list and read_file show directory=<absolute path> when the files of the Skill are on this machine: to run a script, call Shell with that absolute path, for example node <directory>/scripts/run.mjs. Skills itself never runs anything. A result that does not fit is cut and ends with [more: ...], which gives the offset or cursor to go on with. A name you may not use answers not-found, the same as a name that does not exist. Failures are one line, ERROR: <kind> (<why>): not-found, disabled, file-not-found, not-text, changed, invalid, invalid-cursor, unavailable.`
-const menu: CommandTable = {
-  name: 'Skills',
-  encoding: ENCODING,
-  guide,
-  commands: skillsCommands.map(command => ({
-    name: command.name,
-    summary: command.summary,
-    parameters: { kind: 'declared', value: skillsContract(command.name) },
-    returns,
-  })),
+function skillsMenu(): CommandTable {
+  return {
+    name: 'Skills',
+    encoding: ENCODING,
+    guide,
+    commands: skillsCommands.map(command => ({
+      name: command.name,
+      summary: command.summary,
+      parameters: { kind: 'declared', value: skillsContract(command.name) },
+      returns,
+    })),
+  }
 }
 
 function failureLine(failure: SkillsFailure): string {
@@ -122,6 +124,7 @@ async function execute(
   args: SkillsArguments,
   execution: ToolExecutionContext,
   maximum: number,
+  menu: CommandTable,
 ): Promise<string> {
   if (args.kind === 'help')
     return `done Skills help${args.name === undefined ? '' : ` ${args.name}`}\n${commandGuide(menu, args.name)}`
@@ -167,6 +170,7 @@ export function createSkillsAuthor(
   const parsed = parseConstruction(construction, [resultMaximumField])
   if ('failure' in parsed) return fail({ field: 'construction', reason: parsed.failure.reason })
   const maximum = parsed.ok.number('resultMaxBytes', 0)
+  const menu = skillsMenu()
   const operations: Record<
     string,
     { summary: string; operation: ToolOperation<null, ToolMessageContentBlock> }
@@ -188,7 +192,7 @@ export function createSkillsAuthor(
         waits: [],
         executor: {
           async execute(args, _environment, execution) {
-            return bounded(await execute(args, execution, maximum), maximum)
+            return bounded(await execute(args, execution, maximum, menu), maximum)
           },
         },
         codec: {

@@ -258,6 +258,30 @@ describe('Skills author: search', () => {
     expect(text).not.toContain('说'.repeat(1025))
   })
 
+  it('shows a description of exactly 1024 characters whole and folds its line breaks into spaces', async () => {
+    const test = fixture()
+    const exact = '字'.repeat(1024)
+    const skills = access({
+      search: {
+        ok: {
+          entries: [
+            { kind: 'available', name: 'exact', description: exact },
+            { kind: 'available', name: 'lines', description: 'First line.\n\n  Second\r\nthird' },
+          ],
+          next: null,
+        },
+      },
+    })
+    const text = await test.run('search', { query: '' }, skills)
+    expect(text).toBe(
+      [
+        'done Skills search query="" results=2',
+        `1. exact - ${exact}`,
+        '2. lines - First line. Second third',
+      ].join('\n'),
+    )
+  })
+
   it('rejects a limit that is not a positive integer and a cursor that is not text before the port is asked', () => {
     const test = fixture()
     expect(test.decode('search', { limit: 0 }).parsed).toMatchObject({
@@ -285,8 +309,7 @@ describe('Skills author: read, list and read_file', () => {
       { skill: string; offset: number; maxBytes: number },
     ]
     expect(call[0]).toMatchObject({ skill: 'weekly-report', offset: 0 })
-    expect(call[0].maxBytes).toBeGreaterThan(0)
-    expect(call[0].maxBytes).toBeLessThan(1048576)
+    expect(call[0].maxBytes).toBe(1048576 - 8192)
     expect(text).toBe(
       [
         'done Skills read skill=weekly-report bytes=0-39 total=39',
@@ -306,7 +329,7 @@ describe('Skills author: read, list and read_file', () => {
     const text = await test.run('read', { skill: 'weekly-report', offset: 100 }, skills)
     const call = skills.read.mock.calls[0] as unknown as [{ offset: number; maxBytes: number }]
     expect(call[0].offset).toBe(100)
-    expect(call[0].maxBytes).toBeLessThan(4096)
+    expect(call[0].maxBytes).toBe(2048)
     expect(
       text.startsWith('done Skills read skill=weekly-report bytes=100-2100 total=9000\n'),
     ).toBe(true)
@@ -319,6 +342,14 @@ describe('Skills author: read, list and read_file', () => {
     const skills = access({ read: { ok: { text: 'body', start: 0, end: 4, total: 4 } } })
     expect(await test.run('read', { skill: 'weekly-report' }, skills)).toBe(
       'done Skills read skill=weekly-report bytes=0-4 total=4\nbody',
+    )
+  })
+
+  it('lists the files without a directory line when this assembly keeps no local directory', async () => {
+    const test = fixture()
+    const skills = access({ list: { ok: { files: [{ path: 'a.md', size: 1 }] } } })
+    expect(await test.run('list', { skill: 'weekly-report' }, skills)).toBe(
+      'done Skills list skill=weekly-report files=1\na.md 1 bytes',
     )
   })
 
@@ -440,6 +471,19 @@ describe('Skills author: failures', () => {
       expect(await test.run(command, params)).toBe(
         'ERROR: unavailable (Skills access is not attached to this call)',
       )
+  })
+})
+
+describe('Skills author: output check', () => {
+  it('accepts only text within resultMaxBytes', () => {
+    const test = fixture({ resultMaxBytes: 4 })
+    const { operation, parsed } = test.decode('list', { skill: 's' })
+    if ('failure' in parsed) throw new Error('parsed')
+    expect(operation.output.check({ arguments: parsed.ok, value: 'abcd' })).toHaveProperty('ok')
+    expect(operation.output.check({ arguments: parsed.ok, value: 'abcde' })).toHaveProperty(
+      'failure',
+    )
+    expect(operation.output.check({ arguments: parsed.ok, value: 4 })).toHaveProperty('failure')
   })
 })
 

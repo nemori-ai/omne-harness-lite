@@ -33,9 +33,8 @@ const offsetField = {
     'Byte offset to start from. Omit for 0; to read on, copy the offset a cut result gives.',
 } as const
 
-export const skillsCommands: readonly SkillsCommand[] = [
-  {
-    name: 'help',
+const commandBodies: Readonly<Record<SkillsCommandName, Omit<Command, 'name'>>> = {
+  help: {
     summary: 'Read command usage.',
     fields: [
       {
@@ -46,8 +45,7 @@ export const skillsCommands: readonly SkillsCommand[] = [
       },
     ],
   },
-  {
-    name: 'search',
+  search: {
     summary:
       'Find the Skills you may use by keywords, best match first; an empty query lists every Skill. Returns names and descriptions.',
     fields: [
@@ -70,18 +68,15 @@ export const skillsCommands: readonly SkillsCommand[] = [
       },
     ],
   },
-  {
-    name: 'read',
+  read: {
     summary: 'Read the SKILL.md body of one Skill, with the local directory that holds its files.',
     fields: [skillField, offsetField],
   },
-  {
-    name: 'list',
+  list: {
     summary: 'List the files in the directory of one Skill, with their sizes.',
     fields: [skillField],
   },
-  {
-    name: 'read_file',
+  read_file: {
     summary: 'Read one text file of a Skill by its path inside the Skill directory.',
     fields: [
       skillField,
@@ -94,13 +89,12 @@ export const skillsCommands: readonly SkillsCommand[] = [
       offsetField,
     ],
   },
-]
-
-function skillsCommand(name: SkillsCommandName): Command {
-  const command = skillsCommands.find(candidate => candidate.name === name)
-  if (command === undefined) throw new TypeError(`Skills has no command ${name}`)
-  return command
 }
+
+function skillsCommand(name: SkillsCommandName): SkillsCommand {
+  return { name, ...commandBodies[name] }
+}
+export const skillsCommands: readonly SkillsCommand[] = skillsCommandNames.map(skillsCommand)
 export const skillsContract = (name: SkillsCommandName): ParameterContract =>
   contract(skillsCommand(name))
 
