@@ -1,0 +1,37 @@
+{
+  "name": "@omne-harness/loop-extension",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Loop Extension domain: the view of the extensions a tenant has enabled, the members of a position, and the result of a command run",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@omne-harness/agent-contract": "workspace:*",
+    "@omne-harness/loop-extension-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
