@@ -243,6 +243,7 @@
 - `SessionTakenRecord` · 包 `@omne-harness/session-contract`
 - `SessionTodos` · 包 `@omne-harness/session-contract`
 - `SessionTransactionPort` · 包 `@omne-harness/session-contract`
+- `SessionUninterpretedCall` · 包 `@omne-harness/session-contract`
 - `SessionWaiting` · 包 `@omne-harness/session-contract`
 - `SessionWork` · 包 `@omne-harness/session-contract`
 - `SessionWorkEntryIndex` · 包 `@omne-harness/session-contract`
@@ -316,6 +317,7 @@
 - `sessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `sessionModesBlock` · 包 `@omne-harness/session-contract`
 - `shortCallId` · 包 `@omne-harness/session-contract`
+- `uninterpretedCalls` · 包 `@omne-harness/session-contract`
 - `wakingInputs` · 包 `@omne-harness/session-contract`
 
 ## 入口 `./cordis` · `cordis.d.ts`

@@ -14,18 +14,38 @@ import {
   sourceOf,
 } from './decision-support.ts'
 import { digestOf } from './operations.ts'
+import type { SessionHistoryReads, SessionUninterpretedCall } from './history-values.ts'
 
 export const consumptionIdOf = (binding: unknown): ConsumptionId =>
   `consumption_${digestOf(binding)}` as ConsumptionId
+
+// Until Session reads the Agent records past its interpreted position, it cannot call a binding they carry absent.
+export function uninterpretedBinding(
+  history: SessionHistoryReads | undefined,
+  matches: (call: SessionUninterpretedCall) => boolean,
+): boolean {
+  return history?.uninterpreted.some(matches) ?? false
+}
+
+export const NOT_INTERPRETED: Decision = rejected({
+  kind: 'unavailable',
+  owner: 'session-history',
+  diagnostic: 'the binding of the call is in Agent records Session has not interpreted yet',
+})
 
 export function resultRefusal(
   snapshot: WorkSnapshot,
   consumption: ConsumptionId,
   result: ProducedResult,
   operation: SessionCommand['input']['operation'],
+  history?: SessionHistoryReads,
 ): Decision | null {
   const position = snapshot.consumptions.find(item => item.id === consumption)
-  if (position === undefined || digestOf(position.binding.producer) !== digestOf(result.producer))
+  if (position === undefined)
+    return uninterpretedBinding(history, call => call.consumption === consumption)
+      ? NOT_INTERPRETED
+      : invalid('consumption', 'no matching producer binding')
+  if (digestOf(position.binding.producer) !== digestOf(result.producer))
     return invalid('consumption', 'no matching producer binding')
   validateResult(position.binding, result)
   if (!result.version || !completeEvidence(result.source))
@@ -36,7 +56,11 @@ export function resultRefusal(
   return null
 }
 
-export function decideResults(snapshot: WorkSnapshot, command: SessionCommand): Decision {
+export function decideResults(
+  snapshot: WorkSnapshot,
+  command: SessionCommand,
+  history?: SessionHistoryReads,
+): Decision {
   const source = sourceOf(command.input.operation, command.kind)
   if (command.kind === 'bindExternalCall') {
     if (snapshot.lifecycle === 'archived') return rejected({ kind: 'archived' })
@@ -72,7 +96,7 @@ export function decideResults(snapshot: WorkSnapshot, command: SessionCommand): 
   }
   if (command.kind === 'preserveResult') {
     const { consumption, result, custody, participation } = command.input
-    const refusal = resultRefusal(snapshot, consumption, result, command.input.operation)
+    const refusal = resultRefusal(snapshot, consumption, result, command.input.operation, history)
     if (refusal !== null) return refusal
     if (!completeEvidence(custody) || (participation !== null && participation.joint !== 'custody'))
       return invalid('custody', 'incomplete custody or wrong participation')
@@ -99,6 +123,7 @@ export function decideResults(snapshot: WorkSnapshot, command: SessionCommand): 
       completion.consumption,
       completion.result,
       command.input.operation,
+      history,
     )
     if (refusal !== null) return refusal
     const position = snapshot.consumptions.find(item => item.id === completion.consumption)
