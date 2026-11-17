@@ -11,6 +11,7 @@ import {
 import { assembleLocalModel, type LocalModel, type LocalModelConfig } from '../assembly.ts'
 import { fieldOf, isIntegerAtLeast } from '../fields.ts'
 import type { ModelMaterializationEvidenceReader } from '../materialization-proof.ts'
+import type { ModelReceiveEvidenceReader } from '../receive-evidence.ts'
 
 export type ModelSendStagePluginOptions<P = unknown> = Readonly<
   Omit<
@@ -19,6 +20,7 @@ export type ModelSendStagePluginOptions<P = unknown> = Readonly<
   > & {
     executionChannel?(): ReturnType<ModelInitialExecution<P>['openHost']>
     installMaterialization?(reader: ModelMaterializationEvidenceReader): () => void
+    installReceive?(reader: ModelReceiveEvidenceReader): () => void
   }
 >
 
@@ -60,6 +62,15 @@ function withdrawablePort<P>(service: ModelCredentialService<P>): {
       held = undefined
     },
   }
+}
+
+function withdrawEvidence(ctx: Context, withdrawals: readonly (() => void)[]): void {
+  for (const withdraw of withdrawals)
+    try {
+      withdraw()
+    } catch {
+      ctx.logger.warn('model send stage: evidence reader withdrawal failed')
+    }
 }
 
 export function sendStagePluginOver<P>(
@@ -104,10 +115,15 @@ export function sendStagePluginOver<P>(
             `model send: connect retry (call ${retry.call}, dispatch ${retry.dispatch}, retry ${retry.attempt}, delay ${retry.delayMs} ms, reason ${retry.reason})`,
           ),
       })
-      let withdrawMaterialization: (() => void) | undefined
+      const withdrawals: (() => void)[] = []
       try {
-        withdrawMaterialization = options.installMaterialization?.(local.materialization)
+        for (const withdraw of [
+          options.installMaterialization?.(local.materialization),
+          options.installReceive?.(local.receive),
+        ])
+          if (withdraw !== undefined) withdrawals.push(withdraw)
       } catch (error) {
+        withdrawEvidence(ctx, withdrawals)
         credentials.withdraw()
         void local
           .close()
@@ -117,11 +133,7 @@ export function sendStagePluginOver<P>(
       this.send = (demand, signal) => local.send.send(demand, signal)
       ctx.fiber.effect(() => async () => {
         credentials.withdraw()
-        try {
-          withdrawMaterialization?.()
-        } catch {
-          ctx.logger.warn('model send stage: materialization reader withdrawal failed')
-        }
+        withdrawEvidence(ctx, withdrawals)
         try {
           await local.close()
         } catch {

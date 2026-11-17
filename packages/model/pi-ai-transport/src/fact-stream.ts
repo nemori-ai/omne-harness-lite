@@ -23,6 +23,7 @@ export type SendInput = Readonly<{
   route: CheckedRoute
   limits: PiTransportLimits
   diagnostics: readonly ProviderDiagnostic[]
+  onResponseBody?: (() => void) | undefined
 }>
 
 export function factsOfSend(input: SendInput): AsyncGenerator<TransportFact, void, undefined> {
@@ -79,6 +80,9 @@ async function* decodeSend(
       return _exhaustive
     }
   }
+  try {
+    input.onResponseBody?.()
+  } catch {}
   const body = result.body.claim()
   if (body === undefined) throw new Error('the response body of a new exchange was claimed')
   return yield* decodeBody({

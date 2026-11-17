@@ -253,6 +253,11 @@ function observedFactories(
             failure: { kind: 'unavailable', dependency: 'tests', diagnostic: 'not-used' },
           }),
         },
+        receive: {
+          prove: () => ({
+            failure: { kind: 'unavailable', dependency: 'tests', diagnostic: 'not-used' },
+          }),
+        },
         acquire: async () => ({
           failure: { kind: 'unavailable', dependency: 'tests', diagnostic: 'not-used' },
         }),

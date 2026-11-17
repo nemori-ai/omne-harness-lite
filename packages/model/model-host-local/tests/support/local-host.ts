@@ -16,7 +16,11 @@ import { anthropicTokenizerResources, createAnthropicFamily } from '@omne-harnes
 import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
 import { composeFamilies, type ProxyConfig } from '@omne-harness/pi-ai-transport'
 import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
-import { assembleLocalModel, type LocalModelConfig } from '@omne-harness/model-host-local'
+import {
+  assembleLocalModel,
+  type LocalModelConfig,
+  type ModelReceiveEvidenceReader,
+} from '@omne-harness/model-host-local'
 import { createTestCredentials } from './credentials.ts'
 import { factorySupplier } from './profiles.ts'
 
@@ -152,6 +156,7 @@ export function assembleLocalHost(input: LocalHostInput) {
   const unavailable = (): { failure: ModelFailure } => ({
     failure: { kind: 'unavailable', dependency: 'local-model-test', diagnostic: 'not-supplied' },
   })
+  const receive: { reader: ModelReceiveEvidenceReader | undefined } = { reader: undefined }
   const memory = createTestModelDependencies<typeof principal>({
     start: '2026-10-23T00:00:00.000Z',
     maxWaiters: 32,
@@ -183,14 +188,7 @@ export function assembleLocalHost(input: LocalHostInput) {
             ? { ok: given.source }
             : unavailable(),
         materialization: given => ({ ok: evidence(`${given.call}/${given.dispatch}`) }),
-        receive: given => ({
-          ok: {
-            window: given.window,
-            batchDigest: given.batchDigest,
-            paused: true,
-            noPrefetch: true,
-          },
-        }),
+        receive: given => receive.reader?.prove(given) ?? unavailable(),
         lateFact: unavailable,
         retry: unavailable,
         handoff: given =>
@@ -259,6 +257,7 @@ export function assembleLocalHost(input: LocalHostInput) {
     maxRetainedAttempts: 4,
     preparation: { maxCitedCalls: 8, supplierOf: factorySupplier() },
   })
+  receive.reader = host.receive
   const sent = recording(host.send)
   const provider = createModelRuntime(
     { ...memory.dependencies, send: sent.boundary },

@@ -783,6 +783,7 @@ function channels() {
 function channelSendResources(channel: (call: ModelCallId) => Channel): PiSendResources<unknown> {
   return {
     materialization: { prove: () => unavailable('model-materialization', 'scripted-transport') },
+    receive: { prove: () => unavailable('model-receive-evidence', 'scripted-transport') },
     async acquire(demand) {
       const stream = channel(demand.call)
       stream.acquired.resolve()
