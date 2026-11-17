@@ -93,7 +93,7 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
 }>
 
 export type ToolCallDescription =
-  | Readonly<{ kind: 'tool'; definition: Adoption }>
+  | Readonly<{ kind: 'tool'; definition: T.ToolDefinition }>
   | Readonly<{ kind: 'answered'; text: string }>
 export type ToolCallAnswer = Extract<ToolCallDescription, { kind: 'answered' }>
 

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { ContentBlock } from '@omne-harness/content-block'
+import type { ToolDefinition } from '@omne-harness/tool-contract'
 import type {
   ActionAdmission,
   Adoption,
@@ -70,6 +71,18 @@ export type ScriptedActionAdmission<P> = Readonly<{
   port: ActionAdmission<P>
   admit: ScriptOf<ActionAdmission<P>['admit']>
 }>
+
+/** A tool definition that carries no more than its adoption and its name: enough for a tool request source in a test. */
+export function testToolDefinition(adoption: Adoption, name = adoption.name): ToolDefinition {
+  const definition = {
+    adoption,
+    name,
+    description: '',
+    requiredCapabilities: [],
+    backgroundAllowed: true,
+  }
+  return definition as unknown as ToolDefinition
+}
 
 export function createScriptedActionAdmission<P>(): ScriptedActionAdmission<P> {
   const admit = scriptedMethod<

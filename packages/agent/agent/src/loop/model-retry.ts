@@ -45,6 +45,21 @@ export async function retryModelCall<P>(
   return succeed({ failures, since, notBefore })
 }
 
+/** The retry an extension asked for after a failure before the first content: the same count, the time the plan gives. */
+export async function askedRetry<P>(
+  saved: ModelRetryState | null,
+  plan: Readonly<{ notBefore: string | null }>,
+  clock: LoopPorts<P>['clock'],
+): Promise<Outcome<ModelRetryState, Failure>> {
+  const instant = await clock.now()
+  if ('failure' in instant) return instant
+  return succeed({
+    failures: (saved?.failures ?? 0) + 1,
+    since: saved?.since ?? instant.ok,
+    notBefore: plan.notBefore ?? instant.ok,
+  })
+}
+
 export function modelRetryEntry(
   entry: Readonly<{
     binding: AgentRuntimeBinding

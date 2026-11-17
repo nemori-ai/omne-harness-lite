@@ -148,7 +148,7 @@ async function preparedBy(source: ReleaseToolRequests, principal: unknown, tenan
   if (described.ok.kind === 'answered') throw new Error(`describe answered: ${described.ok.text}`)
   return source.prepare({
     ...input,
-    definition: described.ok.definition,
+    definition: described.ok.definition.adoption,
     admission: { owner: 'test', record: 'admission', revision: '1', digest: 'd' },
   })
 }
@@ -162,7 +162,7 @@ describe('the trusted Tool request source', () => {
       const input = actionInput(principalA, TENANT_A, 'Shell', args)
       const described = await source.describe(input)
       if ('failure' in described || described.ok.kind === 'answered') return described
-      return source.prepare({ ...input, definition: described.ok.definition, admission })
+      return source.prepare({ ...input, definition: described.ok.definition.adoption, admission })
     }
     expect(await request('{"command":"info","params":{}}')).toMatchObject({
       ok: { command: 'info' },
@@ -222,7 +222,7 @@ describe('the trusted Tool request source', () => {
       if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
       const answer = await source.prepare({
         ...input,
-        definition: described.ok.definition,
+        definition: described.ok.definition.adoption,
         admission,
       })
       return (okOf(answer, 'prepare') as ToolInvokeRequest).mode
@@ -426,7 +426,7 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
       const described = await source.describe(input)
       if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
       expect(
-        await source.prepare({ ...input, definition: described.ok.definition, admission }),
+        await source.prepare({ ...input, definition: described.ok.definition.adoption, admission }),
       ).toMatchObject({ ok: { command } })
     }
     expect(reads[0]).toEqual({ principal: principalA, tenant: TENANT_A, session: 'ses-a' })
@@ -475,7 +475,7 @@ describe('the meta-capability host: Ask runs only while the session lets the mod
     if ('failure' in described || described.ok.kind !== 'tool') throw new Error('not a tool')
     open = false
     expect(
-      await source.prepare({ ...input, definition: described.ok.definition, admission }),
+      await source.prepare({ ...input, definition: described.ok.definition.adoption, admission }),
     ).toMatchObject({ failure: { kind: 'unavailable' } })
   })
 

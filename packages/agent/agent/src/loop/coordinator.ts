@@ -12,7 +12,6 @@ import type {
   AgentEvaluator,
   AgentEventBody,
   AgentExecutionId,
-  AgentInstant,
   AgentOperationId,
   Authority,
   CallerCommit,
@@ -43,6 +42,7 @@ import type {
   ModelContextRead,
   OriginalInputAcceptance,
   PendingHandoff,
+  PassageId,
   ModelReplyAdmission,
   Next,
   PendingCall,
@@ -81,7 +81,6 @@ import {
   afterReply,
   chainOf,
   extensionPassages,
-  guidanceOf,
   handBackOf,
   humanWaits,
   needOfAction,
@@ -100,12 +99,20 @@ import {
 } from './admission-read.ts'
 import { successor, type Label, type LoopNode } from './nodes.ts'
 import { attemptWrite, originalJournal, type OriginalWrite } from './original-write.ts'
-import { localFailure, nodeFailureCategory, type NodeFailureCategory } from './node-failure.ts'
+import {
+  cannotFit,
+  localFailure,
+  nodeFailureCategory,
+  type NodeFailureCategory,
+} from './node-failure.ts'
 import { readBatchToolCalls } from './action-source.ts'
 import { answeredByPort, notingPorts } from './port-answers.ts'
-import { createPassRunner } from './extension-positions.ts'
+import { beforeModelCall, eachSubject, preparedBy, stepEnd } from './extension-positions.ts'
+import { createPassRunner, type PassOutcome } from './extension-runner.ts'
+import { createPositionPasses, type Judged } from './position-passes.ts'
+import { createSlotCandidates } from './slot-candidates.ts'
 import { BEFORE_RECORD, recoveryRoute } from './recovery-route.ts'
-import { closedPass } from './extension-pass.ts'
+import { closedPass, type PassEffect } from './extension-pass.ts'
 import {
   consumeModelResult,
   lostIntent,
@@ -116,7 +123,12 @@ import {
   type ModelOutcome,
   type ModelResult,
 } from './model-result.ts'
-import { modelRetryNotDue, retryModelCall, type ModelRetryEntry } from './model-retry.ts'
+import {
+  askedRetry,
+  modelRetryNotDue,
+  retryModelCall,
+  type ModelRetryEntry,
+} from './model-retry.ts'
 import { readModelDeliveryMaterial } from '../receiving-material.ts'
 import {
   advanceAcceptedControl,
@@ -128,25 +140,17 @@ import {
   actionOf,
   admitToolAction,
   candidateDigest,
-  answeredCandidate,
-  deniedCandidate,
-  guidedCandidate,
-  uncheckedCandidate,
-  deniedUnchecked,
   deniedForRefusedAdmission,
   deniedSlot,
   preserveAllowedRequest,
   sentToolRequest,
   toolCallOf,
   toolIntentOf,
-  placeholderCandidate,
   isToolReturnOf,
   passingSlot,
   receivedSlot,
   toolReceivedOf,
   type ReceivedToolDelivery,
-  toolCallAnswerOf,
-  toolResultCandidate,
   openToolCalls,
   slotOf,
   refusedTool,
@@ -340,6 +344,8 @@ type Iteration = {
   lost: DurableEvidence | null
   result: ModelResult | null
   admission: 'new' | 'unknown' | 'accepted'
+  /** The adopted effect of the pass before the model call of this attempt. */
+  before: PassEffect | null
 }
 
 const step = (on: Label, commit: Write | null = {}): Outcome<Step, Failure> =>
@@ -479,24 +485,6 @@ function savedSlotRequest(
       reason: 'the saved candidate does not match the digest of the slot',
     })
   return succeed(request)
-}
-
-function cannotFit(
-  execution: AgentExecutionId,
-  of: StepId,
-  preparation: Extract<Preparation, { kind: 'cannot-fit' }>,
-  at: AgentInstant,
-): Extract<Next, { kind: 'try-finish' }> {
-  const failure: FailureCandidate = {
-    kind: 'cannot-fit',
-    step: of,
-    at,
-    source: preparation.source,
-    reason: preparation.reason,
-    context: preparation.source,
-  }
-  const cause = agentEvidence(`${execution}/${of}/cannot-fit`, failure)
-  return { kind: 'try-finish', conclusion: { kind: 'fail', cause }, failure }
 }
 
 export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): ExecutionCoordinator {
@@ -1346,7 +1334,22 @@ function coordinate<P>(
     handoffOutcome: slotOutcome,
     resolveHandoff: applySlotMessage,
   })
-  const runPass = passRunner.run
+  const candidates = createSlotCandidates<P>({
+    access,
+    execution,
+    materials: ports.materials,
+    batch: () => currentBatch(),
+    passages: () => required(checkpoint, 'checkpoint').passages,
+    received: (action, kinds) => receivedToolDelivery(action, kinds),
+  })
+  const { slotCandidate, computedCandidate } = candidates
+  const positions = createPositionPasses<P>({
+    access,
+    execution,
+    ports,
+    runner: passRunner,
+    checkpoint: () => required(checkpoint, 'checkpoint'),
+  })
 
   const runExecutionNodes = {
     async E0() {
@@ -1437,17 +1440,7 @@ function coordinate<P>(
       return step(to === 'E3' ? 'passage-pending' : `resume-${to}`, null)
     },
     async E3() {
-      const current = required(checkpoint, 'checkpoint')
-      const passed = await runPass('E3', {
-        id: `${current.step}/execution_started`,
-        position: 'execution_started',
-        dimension: null,
-        purpose: null,
-        subject: { execution, conditions: required(facts, 'facts').conditions.source },
-      })
-      if ('failure' in passed) return passed
-      if (passed.ok.kind === 'left') return succeed(passed.ok.step)
-      return step('passed', { checkpoint: passed.ok.applied })
+      return positions.started(required(facts, 'facts').conditions.source)
     },
     async O0() {
       return step('delivered', null)
@@ -1549,17 +1542,21 @@ function coordinate<P>(
       current.result = result
       if (result.kind === 'interrupted') return step('partial', { checkpoint: { calls: [] } })
       if (result.kind === 'unusable') {
-        const retried = await retryModelCall(
-          entry,
-          current.step,
-          result,
-          () => required(checkpoint, 'checkpoint').modelRetry ?? null,
-          ports.clock,
-        )
+        const failed = await failurePass(current, result)
+        if ('failure' in failed) return failed
+        if (failed.ok.kind === 'left') return succeed(failed.ok.step)
+        const saved = () => required(checkpoint, 'checkpoint').modelRetry ?? null
+        const asked = failed.ok.effects?.[0]?.retry ?? null
+        const retried =
+          asked === null
+            ? await retryModelCall(entry, current.step, result, saved, ports.clock)
+            : await askedRetry(saved(), asked.output.plan, ports.clock)
         if ('failure' in retried) return retried
         const lost = lostIntent(required(checkpoint, 'checkpoint'), current)
         if (retried.ok !== null)
-          return step('retry', { checkpoint: { calls: [], modelRetry: retried.ok, ...lost } })
+          return step('retry', {
+            checkpoint: { calls: [], modelRetry: retried.ok, ...lost, ...failed.ok.applied },
+          })
         if (decided?.kind !== 'try-finish' || decided.failure?.kind !== 'no-reply') {
           const instant = await ports.clock.now()
           if ('failure' in instant) return instant
@@ -1641,6 +1638,7 @@ function coordinate<P>(
             actions,
             barrier: { kind: 'closed', judging: actions.map(action => action.id), asked: [] },
             slots: [],
+            beforePass: null,
             batchPass: null,
           },
         },
@@ -1680,7 +1678,7 @@ function coordinate<P>(
         : step(evaluated.ok.on, {
             checkpoint: {
               batch: null,
-              passages: extensionPassages(required(checkpoint, 'checkpoint').passages),
+              ...stepEnd(required(checkpoint, 'checkpoint')),
             },
             state: { kind: 'advancing' },
           })
@@ -1891,65 +1889,6 @@ function coordinate<P>(
       call: toolCallOf(access, required(toolCall(action), 'associated Tool call')),
       result: slot.kind === 'result' ? slot.result : slot.placeholder,
     }
-  }
-
-  async function slotCandidate(
-    action: Action,
-    slot: ActionSlot,
-  ): Promise<Outcome<Message, Failure>> {
-    const computed = await computedCandidate(action, slot)
-    if ('failure' in computed) return computed
-    if (slot.candidateDigest === null || candidateDigest(computed.ok) !== slot.candidateDigest)
-      return fail({
-        kind: 'invalid',
-        field: 'slot.candidateDigest',
-        reason: 'the candidate computed again does not match the digest of the slot',
-      })
-    return computed
-  }
-
-  async function deniedSlotCandidate(action: Action): Promise<Outcome<Message, Failure>> {
-    const answer = action.judgment.kind === 'denied' ? action.judgment.answer : undefined
-    if (answer === undefined) {
-      if (deniedUnchecked(execution, currentBatch(), action))
-        return succeed(uncheckedCandidate(execution, action))
-      const words = guidanceOf(required(checkpoint, 'checkpoint').passages, action.id)
-      return succeed(
-        words === null
-          ? deniedCandidate(execution, action)
-          : guidedCandidate(execution, action, words),
-      )
-    }
-    const material = await ports.materials.read({ ...access, source: answer })
-    if ('failure' in material) return material
-    const text = toolCallAnswerOf(material.ok)
-    if (text === null)
-      return fail({ kind: 'invalid', field: 'judgment.answer', reason: 'not a call answer' })
-    return succeed(answeredCandidate(execution, action, text))
-  }
-
-  async function backgroundCandidate(action: Action): Promise<Outcome<Message, Failure>> {
-    const received = await receivedToolDelivery(action, ['placeholder'])
-    if ('failure' in received) return received
-    if (received.ok === null)
-      return fail(defect('T2: a background slot without its received placeholder'))
-    const call = toolCallOf(access, received.ok.pending)
-    return succeed(placeholderCandidate(execution, action, call, received.ok.delivery.source))
-  }
-
-  async function computedCandidate(
-    action: Action,
-    slot: ActionSlot,
-  ): Promise<Outcome<Message, Failure>> {
-    if (slot.each !== null && slot.each.length > 0)
-      return fail(notYet('T2', 'a single-result passage with conclusions', '#502 stage 5'))
-    if (slot.kind === 'denied') return deniedSlotCandidate(action)
-    if (slot.kind === 'background') return backgroundCandidate(action)
-    if (slot.kind !== 'result') return fail(defect(`T2: no candidate of a ${slot.kind} slot`))
-    const received = await receivedToolDelivery(action, ['result'])
-    if ('failure' in received) return received
-    if (received.ok === null) return fail(defect('T2: a result slot without its received entry'))
-    return succeed(toolResultCandidate(execution, action, received.ok.delivery.value.content))
   }
 
   async function prepareSlotMessage(
@@ -2205,10 +2144,14 @@ function coordinate<P>(
       return step('slotted', { checkpoint: { batch: slotted } })
     },
     async A0() {
-      const batch = currentBatch()
-      const parts = await batchToolCalls(batch)
+      const parts = await batchToolCalls(currentBatch())
       if ('failure' in parts) return parts
-      let passages = required(checkpoint, 'checkpoint').passages
+      const authored = await positions.beforeActions(currentBatch(), parts.ok)
+      if ('failure' in authored) return authored
+      if ('on' in authored.ok) return succeed(authored.ok)
+      const batch = authored.ok
+      const adopted = closedPass(required(checkpoint, 'checkpoint'))
+      let passages = adopted.passages ?? required(checkpoint, 'checkpoint').passages
       const answers: Extract<ToolAdmission, { kind: 'judged' | 'allowed' }>[] = []
       const opened: CardRoundId[] = []
       for (const action of batch.actions) {
@@ -2246,7 +2189,9 @@ function coordinate<P>(
               ),
             )
           const denied = deniedForRefusedAdmission(execution, batch, admitted.ok, answers)
-          return step('judged', { checkpoint: { batch: { ...batch, actions: denied } } })
+          return step('judged', {
+            checkpoint: { ...adopted, batch: { ...batch, actions: denied } },
+          })
         }
         if (chain === null && admitted.ok.kind !== 'asked') {
           answers.push(
@@ -2289,7 +2234,7 @@ function coordinate<P>(
         actions.push(preserved.ok)
       }
       for (const round of opened) unsentRounds.add(round)
-      return step('judged', { checkpoint: { batch: { ...batch, actions }, passages } })
+      return step('judged', { checkpoint: { ...adopted, batch: { ...batch, actions }, passages } })
     },
     async A1() {
       const batch = currentBatch()
@@ -2377,15 +2322,17 @@ function coordinate<P>(
     async T2() {
       const read = await advancing()
       if ('failure' in read) return read
-      let batch = currentBatch()
+      const batch = currentBatch()
+      const judged: Judged[] = []
       for (const action of batch.actions) {
         const passed = passingSlot(slotOf(batch, action.id))
         if (passed === null) continue
         const candidate = await computedCandidate(action, passed)
         if ('failure' in candidate) return candidate
-        batch = replaceSlot(batch, { ...passed, candidateDigest: candidateDigest(candidate.ok) })
+        const subject = eachSubject(action, passed, candidate.ok)
+        judged.push({ slot: passed, candidate: candidate.ok, subject })
       }
-      return step('passed', { checkpoint: { batch } })
+      return positions.afterEach(batch, judged, candidateDigest)
     },
     async T3() {
       const batch = currentBatch()
@@ -2403,7 +2350,7 @@ function coordinate<P>(
       return toolWait('T3', batch)
     },
     async T4() {
-      return step('proceed', { checkpoint: { batch: { ...currentBatch(), batchPass: [] } } })
+      return positions.afterBatch(currentBatch())
     },
     async T5() {
       const read = await advancing()
@@ -2523,20 +2470,29 @@ function coordinate<P>(
       return step(prepared.ok.kind === 'cannot-fit' ? 'try-finish' : 'prepared', write)
     },
     async P0() {
-      return step('proceed')
+      const current = required(iteration, 'iteration')
+      const preparation = required(current.preparation, 'preparation')
+      if (preparation.kind !== 'assembled') return step('proceed')
+      const passed = await positions.beforeModel(current.action, preparation)
+      if ('failure' in passed) return passed
+      current.before = passed.ok.effect
+      return succeed(passed.ok.step)
     },
     async P1() {
       const current = required(iteration, 'iteration')
       const conditions = required(current.conditions, 'conditions')
-      const selected = await select(conditions)
+      const before = beforeModelCall(current.before)
+      const selected = await select(conditions, before.selection)
       if ('failure' in selected)
         return selected.failure.kind === 'unavailable'
-          ? waitFor('P1', selected.failure, () => select(conditions))
+          ? waitFor('P1', selected.failure, () => select(conditions, before.selection))
           : selected
       if (!sameRecipient(selected.ok, required(current.selected, 'selection')))
         return fail(notYet('P1', 'a changed selection', '#502 1.5'))
       const context = required(current.context, 'context')
-      const prepareAgain = () => prepare(conditions, selected.ok, context, current.preparation, [])
+      const previous = preparedBy(current.before, current.preparation)
+      const prepareAgain = () =>
+        prepare(conditions, selected.ok, context, previous, before.passages, before.alterations)
       const prepared = await prepareAgain()
       if ('failure' in prepared)
         return prepared.failure.kind === 'unavailable'
@@ -2549,7 +2505,25 @@ function coordinate<P>(
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
-  function select(conditions: RuntimeConditions) {
+  const callOf = (current: Iteration) =>
+    invocationParts(required(current.pending, 'pending call').reference, access.tenant).call
+
+  // A call that was lost never ran: only a call the Model ended as failed passes the position after it.
+  async function failurePass(current: Iteration, result: ModelResult) {
+    const terminal = result.settlement.termination
+    if (current.lost !== null || terminal.kind !== 'failed')
+      return succeed<PassOutcome>({ kind: 'ran', effects: null, applied: {} })
+    const request = current.ready?.request ?? null
+    return positions.afterFailure(
+      current.action,
+      callOf(current),
+      terminal.fault,
+      request,
+      failure => modelFailure('I3', failure),
+    )
+  }
+
+  function select(conditions: RuntimeConditions, alterations: readonly DurableEvidence[] = []) {
     const current = required(iteration, 'iteration')
     return capabilityResult(
       ports.selection.select({
@@ -2560,7 +2534,7 @@ function coordinate<P>(
         position: current.position,
         history: required(snapshot, 'snapshot').history,
         conditions,
-        alterations: [],
+        alterations,
       }),
     )
   }
@@ -2570,7 +2544,8 @@ function coordinate<P>(
     selection: SelectedModel,
     context: ModelContextRead,
     previous: Preparation | null,
-    beforeModelCall: readonly never[] | null,
+    beforeModelCall: readonly PassageId[] | null,
+    alterations: readonly DurableEvidence[] = [],
   ) {
     const current = required(iteration, 'iteration')
     return capabilityResult(
@@ -2587,7 +2562,7 @@ function coordinate<P>(
         selection,
         context,
         previous,
-        alterations: [],
+        alterations,
         beforeModelCall,
       }),
     )
@@ -2658,6 +2633,7 @@ function coordinate<P>(
       lost: null,
       result: null,
       admission: 'new',
+      before: null,
     }
   }
 
@@ -2689,6 +2665,7 @@ function coordinate<P>(
       const ready = required(current.ready, 'ready preparation')
       return step('recorded', {
         checkpoint: {
+          ...closedPass(required(checkpoint, 'checkpoint')),
           calls: [pending],
           adoptedContext: ready.coverage,
           ...adoptedRequestOf(pending, ready),
@@ -2772,7 +2749,14 @@ function coordinate<P>(
       })
     },
     async M4() {
-      return step('proceed', null)
+      const current = required(iteration, 'iteration')
+      if (current.lost === null && current.result === null) {
+        const restored = await readCompletion(current)
+        if ('failure' in restored) return restored
+        current.result = restored.ok.result
+      }
+      if (current.result?.kind !== 'reply') return step('proceed', null)
+      return positions.afterReply(current.action, callOf(current), current.result)
     },
     async M5() {
       const pending = required(required(iteration, 'iteration').pending, 'pending call')
@@ -3239,7 +3223,8 @@ function coordinate<P>(
         })
         return 'failure' in judged ? refusedSettlement(judged.failure) : step('proceed', null)
       }
-      return step('proceed', { state: { kind: 'settling' } })
+      if (candidate === null) return step('proceed', { state: { kind: 'settling' } })
+      return positions.beforeTerminal(candidate)
     },
     async F3() {
       const before = await load()
@@ -3281,7 +3266,8 @@ function coordinate<P>(
         endReported = true
         entry.ended?.(read.ok.state, read.ok.settlement.candidate?.failure ?? null)
       }
-      return step('observed', null)
+      const observed = await passRunner.observeTerminal(read.ok)
+      return 'failure' in observed ? observed : step('observed', null)
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 

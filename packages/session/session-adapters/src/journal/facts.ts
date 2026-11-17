@@ -118,7 +118,6 @@ export type CursorMembers = Readonly<{
   adoptedContext: DurableEvidence | null
   passages: Ref<PassageIndex>
   chain: Ref<ChainBlock> | null
-  passed: readonly string[]
   batch: Ref | null
   calls: Ref
   schema: Adoption

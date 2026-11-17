@@ -719,6 +719,7 @@ export type ActionBatch = Readonly<{
     actions: readonly Action[];
     barrier: ActionBarrier;
     slots: readonly ActionSlot[];
+    beforePass: readonly PassageId[] | null;
     batchPass: readonly PassageId[] | null;
 }>;
 export type ModelReplyAdmission = Readonly<{
@@ -828,7 +829,6 @@ export type AgentCheckpoint = Readonly<{
     modelRetry?: ModelRetryState | null;
     guard: GuardFact | null;
     chain: ExtensionChain | null;
-    passed: readonly string[];
     priorConditions: DurableEvidence | null;
     currentHandoff: HandoffReference | null;
     replyAdmissionRead: ReplyAdmissionRead;
@@ -2899,6 +2899,7 @@ export type ExtensionChain = Readonly<{
     purpose: 'main' | 'compaction' | null;
     members: readonly ChainMember[];
     basis: DurableEvidence | null;
+    unread?: DurableEvidence;
 }>;
 export type EnabledExtension = Readonly<{
     declaration: LoopExtensionDeclaration;

@@ -197,6 +197,8 @@ export type ActionBatch = Readonly<{
   actions: readonly Action[]
   barrier: ActionBarrier
   slots: readonly ActionSlot[]
+  /** The calls of the pass before the actions; null until that pass is adopted. A batch is judged by it once. */
+  beforePass: readonly PassageId[] | null
   batchPass: readonly PassageId[] | null
 }>
 export type ModelReplyAdmission = Readonly<{
@@ -302,8 +304,6 @@ export type AgentCheckpoint = Readonly<{
   guard: GuardFact | null
   /** The extension chain of the pass that is open, or null. */
   chain: ExtensionChain | null
-  /** The passes of this step that were applied and that no other member records; cleared when the step ends. */
-  passed: readonly string[]
   priorConditions: DurableEvidence | null
   /** The H of the current source position; set by P, cleared or moved only by a Ja, never by Rh. */
   currentHandoff: HandoffReference | null

@@ -39,7 +39,6 @@ describe('initial', () => {
       adoptedRequest: null,
       guard: null,
       chain: null,
-      passed: [],
       priorConditions: null,
       replyAdmissionRead: { kind: 'unverified' },
     })

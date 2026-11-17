@@ -21,7 +21,6 @@ import {
 } from '@omne-harness/agent-contract'
 import { canonical } from '../canonical.ts'
 
-/** One place where a chain runs: a position, with the dimension and the purpose that select its members. */
 export type PassPlace = Readonly<{
   position: Position
   dimension: Dimension | null
@@ -65,7 +64,6 @@ export function callId(pass: string, action: ActionId | null, ordinal: number): 
   return decoded.ok
 }
 
-/** The call of one member of the chain, as it is saved before the member is invoked. */
 export function requestedCall(
   chain: ExtensionChain,
   ordinal: number,
@@ -105,7 +103,6 @@ export function vetoes(conclusion: Conclusion): boolean {
   )
 }
 
-/** The calls of one chain over one subject, in chain order. */
 export function callsOf(
   chain: ExtensionChain,
   passages: readonly Passage[],
@@ -122,9 +119,7 @@ export function callsOf(
 }
 
 export type ChainState =
-  /** This call has no final conclusion: invoke it, or work its card round. */
   | Readonly<{ kind: 'pending'; call: Passage; earlier: readonly Conclusion[] }>
-  /** Every member that started has a final conclusion and no member is left to start. */
   | Readonly<{ kind: 'ended'; conclusions: readonly Conclusion[] }>
 
 export function chainState(calls: readonly Passage[]): ChainState {
@@ -137,7 +132,6 @@ export function chainState(calls: readonly Passage[]): ChainState {
   return { kind: 'ended', conclusions }
 }
 
-/** Whether the member after a call with this final conclusion starts: a veto ends the chain. */
 export function nextOrdinal(chain: ExtensionChain, call: Passage, conclusion: Conclusion) {
   const next = call.ordinal + 1
   return vetoes(conclusion) || next >= chain.members.length ? null : next
@@ -155,7 +149,6 @@ export function closedPass(
   }
 }
 
-/** The subject a member reads: the original one after the rewrites of the members before it, in order. */
 export function effectiveSubject(subject: Subject, earlier: readonly Conclusion[]): Subject {
   return earlier.reduce<Subject>(
     (current, conclusion) =>
@@ -274,9 +267,9 @@ export function concludeCall(
 }
 
 export type PassEffect = Readonly<{
-  /** Where the loop goes when no stop request takes effect. */
   route: 'proceed' | 'vetoed' | 'retry'
   subject: Subject
+  conclusions: readonly Conclusion[]
   veto: Conclusion | null
   stops: readonly With<'stop'>[]
   injects: readonly With<'inject'>[]
@@ -296,6 +289,7 @@ export function reduceChain(subject: Subject, conclusions: readonly Conclusion[]
   return {
     route: veto !== null ? 'vetoed' : retry !== null ? 'retry' : 'proceed',
     subject: effectiveSubject(subject, conclusions),
+    conclusions,
     veto,
     stops: outputs(conclusions, 'stop'),
     injects: outputs(conclusions, 'inject'),

@@ -1,5 +1,4 @@
 import {
-  admissionActionOf,
   decodeReplyAdmissionSequence,
   decodeStepId,
   judgeAdoption,
@@ -54,7 +53,6 @@ function initial(
     adoptedRequest: null,
     guard: null,
     chain: null,
-    passed: [],
     priorConditions: null,
     currentHandoff: null,
     replyAdmissionRead: { kind: 'unverified' },
@@ -130,12 +128,6 @@ function afterIteration(facts: LoopFacts): Outcome<Next, Failure> {
   const { checkpoint } = facts
   const round = toolRound(checkpoint.batch)
   if (round === 'open') return unsupported
-  if (
-    checkpoint.passages.some(
-      passage => admissionActionOf(passage.id) === null && passage.progress.kind !== 'applied',
-    )
-  )
-    return unsupported
   const waiting = producerWaits(facts)
   if (waiting === null) return unsupported
   if (facts.consumption.some(item => item.custody === null && item.completion === null))
@@ -147,6 +139,12 @@ function afterIteration(facts: LoopFacts): Outcome<Next, Failure> {
     facts.conditions.progression.kind === 'continue' ||
     (checkpoint.modelRetry ?? null) !== null
   if (basis) return succeed({ kind: 'take-inputs', position: 'I0' })
+  // A pass that ended in a veto stays open: the vetoed step is neither proposed again nor taken for a completion.
+  if (checkpoint.chain !== null)
+    return succeed({
+      kind: 'wait',
+      waiting: [{ kind: 'dependency', owner: 'agentExtensions', position: 'I8' }],
+    })
   return succeed({ kind: 'try-finish', conclusion: { kind: 'complete' }, failure: null })
 }
 
@@ -198,7 +196,6 @@ const CHECKPOINT_MEMBERS: readonly (keyof AgentCheckpoint)[] = [
   'adoptedContext',
   'guard',
   'chain',
-  'passed',
   'priorConditions',
   'currentHandoff',
   'replyAdmissionRead',

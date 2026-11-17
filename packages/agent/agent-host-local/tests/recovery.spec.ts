@@ -69,7 +69,6 @@ function checkpoint(): AgentCheckpoint {
     adoptedContext: null,
     guard: null,
     chain: null,
-    passed: [],
     priorConditions: null,
     currentHandoff: null,
     replyAdmissionRead: { kind: 'unverified' },

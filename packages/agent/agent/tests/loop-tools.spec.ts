@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { testToolDefinition } from '@omne-harness/agent/testing'
 import { describe, expect, it } from 'vitest'
 import type {
   AgentEventBody,
@@ -443,7 +444,7 @@ describe('tool result round', () => {
         ...d,
         toolRequests: {
           async describe() {
-            return { ok: { kind: 'tool', definition: adoption('read_file') } }
+            return { ok: { kind: 'tool', definition: testToolDefinition(adoption('read_file')) } }
           },
           async prepare(input) {
             return { ok: fixedToolRequest(input.consumer) }
@@ -493,7 +494,7 @@ describe('tool result round', () => {
       ...d,
       toolRequests: {
         async describe() {
-          return { ok: { kind: 'tool', definition: adoption('read_file') } }
+          return { ok: { kind: 'tool', definition: testToolDefinition(adoption('read_file')) } }
         },
         async prepare(input) {
           return { ok: fixedToolRequest(input.consumer) }
@@ -536,7 +537,7 @@ describe('tool result round', () => {
       ...d,
       toolRequests: {
         async describe() {
-          return { ok: { kind: 'tool', definition: adoption('read_file') } }
+          return { ok: { kind: 'tool', definition: testToolDefinition(adoption('read_file')) } }
         },
         async prepare(input) {
           return { ok: fixedToolRequest(input.consumer) }
@@ -713,7 +714,7 @@ describe('tool result round', () => {
         async describe() {
           return port.startsWith('the describe')
             ? failure
-            : { ok: { kind: 'tool', definition: adoption('read_file') } }
+            : { ok: { kind: 'tool', definition: testToolDefinition(adoption('read_file')) } }
         },
         ...(port.startsWith('the prepare') ? { prepare: async () => failure } : {}),
       },
@@ -775,7 +776,7 @@ describe('tool result round', () => {
         async describe(request) {
           return request.original.callId === 'call-a'
             ? { ok: { kind: 'answered', text: answer } }
-            : { ok: { kind: 'tool', definition: adoption('read_file') } }
+            : { ok: { kind: 'tool', definition: testToolDefinition(adoption('read_file')) } }
         },
       },
     )

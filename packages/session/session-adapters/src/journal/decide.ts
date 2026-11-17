@@ -41,7 +41,6 @@ export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState)
     adoptedContext: checkpoint.adoptedContext,
     passages: refOf(passageIndex(checkpoint.passages)),
     chain: checkpoint.chain === null ? null : refOf(chainBlock(checkpoint.chain)),
-    passed: checkpoint.passed,
     batch: checkpoint.batch === null ? null : refOf(checkpoint.batch),
     calls: refOf(checkpoint.calls),
     schema: checkpoint.schema,
@@ -162,7 +161,6 @@ export function checkpointOf(
     adoptedContext: need('adoptedContext'),
     guard: need('guard') === null ? null : held(blobs, need('guard')!, 'guard'),
     chain: chainOf(blobs, need('chain')),
-    passed: need('passed'),
     priorConditions: need('priorConditions'),
     currentHandoff: need('currentHandoff'),
     replyAdmissionRead: (() => {

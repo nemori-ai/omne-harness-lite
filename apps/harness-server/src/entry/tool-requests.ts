@@ -253,7 +253,7 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     return succeed(
       availability.ok.kind === 'answered'
         ? availability.ok
-        : { kind: 'tool', definition: availability.ok.definition.adoption },
+        : { kind: 'tool', definition: availability.ok.definition },
     )
   }
 

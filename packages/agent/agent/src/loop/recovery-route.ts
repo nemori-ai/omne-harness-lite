@@ -68,7 +68,9 @@ function stateRecovery(
   if (read.unresolved.length > 0) return succeed('R0')
   if (read.state.kind === 'settling') return succeed(at.position === 'F3' ? 'F3' : 'F2')
   // An open pass keeps the position of the node it runs on; that node continues it from the saved chain.
-  return at.chain === null ? null : recoveryTarget(at.position)
+  // The pass before the model call judges a preparation that does not outlive the process: prepare again first.
+  if (at.chain === null) return null
+  return BEFORE_RECORD.includes(at.position) ? succeed('I1') : recoveryTarget(at.position)
 }
 
 export function recoveryRoute(

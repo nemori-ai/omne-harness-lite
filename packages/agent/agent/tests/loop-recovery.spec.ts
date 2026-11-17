@@ -210,6 +210,7 @@ describe('E4 recovery routing', () => {
         actions,
         barrier: { kind: barrier, evidence: evidence('barrier') },
         slots,
+        beforePass: null,
         batchPass: null,
       }) as unknown as ActionBatch
     const at = (position: string, saved: ActionBatch) => ({ ...checkpoint(position), batch: saved })

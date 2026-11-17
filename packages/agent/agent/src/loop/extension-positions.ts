@@ -1,250 +1,196 @@
 import type {
-  Access,
+  Action,
+  ActionBatch,
+  ActionSlot,
+  ActionToolCall,
   AgentCheckpoint,
-  AgentExecutionId,
-  AgentOperationId,
-  Authority,
-  CommandReceipt,
+  Conclusion,
   DurableEvidence,
-  EnabledExtension,
-  ExecutionRevision,
-  ExecutionSnapshot,
   Failure,
-  HandoffChange,
-  HandoffOutcome,
-  MessageSource,
-  Next,
-  PendingHandoff,
+  Passage,
+  PassageId,
+  Preparation,
+  Subject,
 } from '@omne-harness/agent-contract'
+import { admissionActionOf } from '@omne-harness/agent-contract'
+import type { Message } from '@omne-harness/message'
+import type { DispatchRecord } from '@omne-harness/model-contract'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
-import { canonical } from '../canonical.ts'
-import { cancellationOf } from '../control.ts'
-import { createPassDriver, type Pass, type PassHost } from './extension-drive.ts'
-import type { PassEffect } from './extension-pass.ts'
-import {
-  AGENT_OWNER,
-  agentEvidence,
-  handoffOperation,
-  handoffStage,
-  journalOperation,
-} from './identities.ts'
-import type { Label, LoopNode } from './nodes.ts'
+import type { ToolDefinition } from '@omne-harness/tool-contract'
+import type { PassSubject } from './extension-drive.ts'
+import { closedPass, type PassEffect } from './extension-pass.ts'
+import { agentEvidence } from './identities.ts'
 
-type Unavailable = Extract<Failure, { kind: 'unavailable' }>
-type Left = Readonly<{ on: Label; commit: null }>
-type Reminder = Extract<MessageSource, { kind: 'reminder' }>
-type SavedHandoff = ExecutionSnapshot['handoffs'][number]
+/** What each position gives its pass to judge and takes back from it. Pure: the node that calls it owns the commit. */
+export const single = (subject: Subject) => subjects([{ action: null, subject }])
 
-export type PassOutcome =
-  /** The pass decided where the loop goes: a wait, a cancellation or a failure candidate. */
-  | Readonly<{ kind: 'left'; step: Left }>
-  /** The chain ended, or no member applies here. The node adopts `effect` and saves `applied` in its own commit. */
-  | Readonly<{
-      kind: 'ran'
-      effect: PassEffect | null
-      applied: Partial<Pick<AgentCheckpoint, 'chain' | 'passages'>>
-    }>
+export const subjects = (items: readonly PassSubject[]) => async () => succeed(items)
 
-/** What the pass runner uses of the coordinator that drives it. */
-export type PassRunnerHost<P> = Pick<PassHost<P>, 'access' | 'execution' | 'ports' | 'checkpoint'> &
-  Readonly<{
-    definition: readonly EnabledExtension[]
-    requestCancel:
-      | ((
-          input: Access<P> &
-            Readonly<{
-              execution: AgentExecutionId
-              operation: AgentOperationId
-              reason: DurableEvidence
-            }>,
-        ) => Promise<Outcome<CommandReceipt, Failure>>)
-      | undefined
-    revision(): ExecutionRevision
-    authority(): Authority
-    snapshot(): ExecutionSnapshot | null
-    load(): Promise<Outcome<ExecutionSnapshot, Failure>>
-    commit(
-      node: LoopNode,
-      to: string,
-      write: Readonly<{
-        checkpoint?: Partial<Omit<AgentCheckpoint, 'position'>>
-        handoff?: HandoffChange
-        operation?: AgentOperationId
-      }>,
-    ): Promise<Outcome<void, Failure>>
-    waitFor(
-      node: LoopNode,
-      failure: Unavailable,
-      recheck: (() => Promise<Outcome<unknown, Failure>>) | null,
-    ): void
-    decide(next: Extract<Next, { kind: 'try-finish' }>): void
-    handoffOutcome(
-      request: PendingHandoff,
-      existing: SavedHandoff | undefined,
-      node: LoopNode,
-    ): Promise<Outcome<HandoffOutcome | 'wait', Failure>>
-    resolveHandoff(
-      request: PendingHandoff,
-      fixed: HandoffOutcome,
-      node: LoopNode,
-    ): Promise<Outcome<void, Failure>>
-  }>
+export const conclusionEvidence = (conclusion: Conclusion): DurableEvidence =>
+  agentEvidence(`${conclusion.passage}/conclusion`, conclusion)
 
-const left = (on: Label): Outcome<PassOutcome, Failure> =>
-  succeed({ kind: 'left', step: { on, commit: null } })
-
-/** Runs the extension chain of a pass and disposes the effects that are the same at every position. */
-export function createPassRunner<P>(host: PassRunnerHost<P>) {
-  const { access, execution } = host
-  const stopped = new AbortController()
-  const cancelled = () => {
-    const snapshot = host.snapshot()
-    return snapshot !== null && cancellationOf(snapshot) !== undefined
+export function beforeModelCall(effect: PassEffect | null) {
+  const conclusions = effect?.conclusions ?? []
+  return {
+    passages: conclusions.map(conclusion => conclusion.passage),
+    alterations: conclusions
+      .filter(conclusion => conclusion.output?.kind === 'rewrite')
+      .map(conclusionEvidence),
+    selection: effect?.model == null ? [] : [conclusionEvidence(effect.model)],
   }
-  const driver = createPassDriver<P>({
-    access,
-    execution,
-    ports: host.ports,
-    definition: host.definition,
-    checkpoint: host.checkpoint,
-    cancelled,
-    save: (node, write) => host.commit(node, host.checkpoint().position, write),
-    signal: () => stopped.signal,
+}
+
+export function preparedBy(effect: PassEffect | null, assembled: Preparation | null) {
+  return effect !== null && 'preparation' in effect.subject ? effect.subject.preparation : assembled
+}
+
+export function stepEnd(at: Pick<AgentCheckpoint, 'chain' | 'passages'>) {
+  const passages = at.passages.filter(passage => admissionActionOf(passage.id) === null)
+  return { passages, ...closedPass({ chain: at.chain, passages }) }
+}
+
+const applied = (call: Passage, transition: DurableEvidence): Passage =>
+  call.progress.kind === 'resolved'
+    ? { ...call, progress: { ...call.progress, kind: 'applied', transition } }
+    : call
+
+const rewrote = (call: Passage): boolean =>
+  (call.progress.kind === 'resolved' || call.progress.kind === 'applied') &&
+  call.progress.conclusion.output?.kind === 'rewrite'
+
+export function closedKeepingRewrites(at: Pick<AgentCheckpoint, 'chain' | 'passages'>) {
+  const { chain } = at
+  if (chain === null) return {}
+  const transition = agentEvidence(`${chain.pass}/adopted`)
+  return {
+    chain: null,
+    passages: at.passages.flatMap(call => {
+      if (!call.id.startsWith(`${chain.pass}/`)) return [call]
+      return rewrote(call) ? [applied(call, transition)] : []
+    }),
+  }
+}
+
+export async function beforeActionSubjects(
+  batch: ActionBatch,
+  originals: ReadonlyMap<string, ActionToolCall>,
+  definitionOf: (
+    action: Action,
+    original: ActionToolCall,
+  ) => Promise<Outcome<ToolDefinition | null, Failure>>,
+): Promise<Outcome<readonly PassSubject[], Failure>> {
+  const ids = batch.actions.map(action => action.id)
+  const found: PassSubject[] = []
+  for (const action of batch.actions) {
+    const original = originals.get(action.original.callId)
+    if (action.judgment.kind !== 'pending' || original === undefined) continue
+    const definition = await definitionOf(action, original)
+    if ('failure' in definition) return definition
+    if (definition.ok === null) continue
+    const { id, effectiveArguments } = action
+    const subject = {
+      action: id,
+      original,
+      effectiveArguments,
+      definition: definition.ok,
+      batch: ids,
+    }
+    found.push({ action: id, subject })
+  }
+  return succeed(found)
+}
+
+export function afterAuthors(
+  batch: ActionBatch,
+  subjects: readonly PassSubject[],
+  effects: readonly PassEffect[] | null,
+): ActionBatch {
+  const effectOf = (action: Action) => {
+    const index = subjects.findIndex(item => item.action === action.id)
+    return index < 0 ? undefined : effects?.[index]
+  }
+  const actions = batch.actions.map((action): Action => {
+    const effect = effectOf(action)
+    if (effect === undefined) return action
+    if (effect.veto !== null)
+      return { ...action, judgment: { kind: 'denied', evidence: conclusionEvidence(effect.veto) } }
+    return 'effectiveArguments' in effect.subject
+      ? { ...action, effectiveArguments: effect.subject.effectiveArguments }
+      : action
   })
+  return { ...batch, actions, beforePass: callsIn(effects) }
+}
 
-  async function run(node: LoopNode, pass: Pass): Promise<Outcome<PassOutcome, Failure>> {
-    const ran = await driver.run(node, pass)
-    if ('failure' in ran) return ran
-    if (ran.ok.kind === 'none') return succeed({ kind: 'ran', effect: null, applied: {} })
-    if (ran.ok.kind === 'cancelled') return left('cancel')
-    if (ran.ok.kind === 'waiting') {
-      host.waitFor(node, ran.ok.failure, ran.ok.recheck)
-      return left('wait')
+export const callsIn = (effects: readonly PassEffect[] | null): readonly PassageId[] =>
+  (effects ?? []).flatMap(effect => effect.conclusions.map(conclusion => conclusion.passage))
+
+export function eachSubject(
+  action: Action,
+  slot: ActionSlot,
+  candidate: Message,
+): PassSubject | null {
+  if (slot.kind === 'denied')
+    return {
+      action: action.id,
+      subject: {
+        action: action.id,
+        candidate,
+        outcome: { kind: 'denied', evidence: slot.evidence },
+      },
     }
-    const { effect, applied } = ran.ok
-    for (const inject of effect.injects) {
-      const admitted = await admitReminder(node, inject)
-      if ('failure' in admitted) return admitted
-      if (admitted.ok === 'wait') return left('wait')
-    }
-    const disposed = await disposeStops(node, effect)
-    if ('failure' in disposed) return disposed
-    if (disposed.ok !== null) return left(disposed.ok)
-    return succeed({ kind: 'ran', effect, applied })
+  if (slot.kind !== 'result') return null
+  const { result, terminal } = slot
+  return {
+    action: action.id,
+    subject: { action: action.id, candidate, outcome: { kind: 'executed', result, terminal } },
   }
+}
 
-  // A cancel request that takes effect has precedence; otherwise the first failed request in chain
-  // order becomes the failure candidate. Null: no stop takes effect.
-  async function disposeStops(
-    node: LoopNode,
-    effect: PassEffect,
-  ): Promise<Outcome<Label | null, Failure>> {
-    for (const stop of effect.stops) {
-      if (stop.output.terminal !== 'cancelled' || host.requestCancel === undefined) continue
-      const requested = await host.requestCancel({
-        ...access,
-        execution,
-        operation: journalOperation(node, `stop/${stop.passage}`, null),
-        reason: agentEvidence(`${stop.passage}/stop`, stop),
-      })
-      if ('failure' in requested) {
-        if (requested.failure.kind === 'denied') continue
-        if (requested.failure.kind !== 'unavailable') return requested
-        host.waitFor(node, requested.failure, null)
-        return succeed('wait')
+export function eachSlot(
+  slot: ActionSlot,
+  candidate: Message,
+  effect: PassEffect | undefined,
+  digest: (candidate: Message) => string,
+): ActionSlot {
+  const left =
+    effect !== undefined && 'candidate' in effect.subject ? effect.subject.candidate : candidate
+  return {
+    ...slot,
+    each: callsIn(effect === undefined ? null : [effect]),
+    candidateDigest: digest(left),
+  }
+}
+
+export function rewrittenCandidate(
+  candidate: Message,
+  calls: readonly PassageId[] | null,
+  passages: readonly Passage[],
+): Message {
+  return (calls ?? []).reduce((current, id) => {
+    const call = passages.find(passage => passage.id === id)
+    const output = call?.progress.kind === 'applied' ? call.progress.conclusion.output : undefined
+    return output?.kind === 'rewrite' && 'candidate' in output.subject
+      ? output.subject.candidate
+      : current
+  }, candidate)
+}
+
+export function batchSubject(batch: ActionBatch): Subject {
+  return {
+    batch: batch.id,
+    outcomes: batch.actions.map(action => {
+      const slot = batch.slots.find(item => item.action === action.id)
+      return {
+        action: action.id,
+        outcome: slot?.kind === 'denied' ? ('denied' as const) : ('executed' as const),
+        terminal: slot?.kind === 'result' ? slot.terminal : null,
       }
-      const latest = await host.load()
-      if ('failure' in latest) return latest
-      if (cancellationOf(latest.ok) !== undefined) return succeed('cancel')
-      // Accepted is not in effect: nothing protected goes on until the intent is established.
-      host.waitFor(
-        node,
-        {
-          kind: 'unavailable',
-          owner: AGENT_OWNER,
-          diagnostic: `the cancel request of ${stop.passage} is accepted and not in effect yet`,
-        },
-        null,
-      )
-      return succeed('wait')
-    }
-    const failed = effect.stops.find(stop => stop.output.terminal !== 'cancelled')
-    if (failed === undefined) return succeed(null)
-    const instant = await host.ports.clock.now()
-    if ('failure' in instant) return instant
-    const source = agentEvidence(`${failed.passage}/stop`, failed)
-    host.decide({
-      kind: 'try-finish',
-      conclusion: { kind: 'fail', cause: source },
-      failure: {
-        kind: 'extension-stop',
-        passage: failed.passage,
-        reason: failed.output.reason,
-        step: host.checkpoint().step,
-        at: instant.ok,
-        source,
-      },
-    })
-    return succeed('try-finish')
+    }),
   }
+}
 
-  /** Hands the reminder of one conclusion to message admission once: a saved handoff is continued, not begun again. */
-  async function admitReminder(
-    node: LoopNode,
-    inject: PassEffect['injects'][number],
-  ): Promise<Outcome<'admitted' | 'rejected' | 'wait', Failure>> {
-    const source: Reminder = { kind: 'reminder', passage: inject.passage }
-    const existing = host
-      .snapshot()
-      ?.handoffs.find(
-        record =>
-          record.request.kind === 'execution' &&
-          canonical(record.request.source) === canonical(source),
-      )
-    if (existing !== undefined && existing.history.kind !== 'pending')
-      return succeed(existing.history.kind === 'committed' ? 'admitted' : 'rejected')
-    const prepared =
-      existing?.request.kind === 'execution'
-        ? succeed(existing.request)
-        : await prepareReminder(node, source, inject.output.message)
-    if ('failure' in prepared) return prepared
-    const fixed = await host.handoffOutcome(prepared.ok, existing, node)
-    if ('failure' in fixed) return fixed
-    if (fixed.ok === 'wait') return succeed('wait')
-    const resolved = await host.resolveHandoff(prepared.ok, fixed.ok, node)
-    if ('failure' in resolved) return resolved
-    return succeed(fixed.ok.decision.kind === 'prepared' ? 'admitted' : 'rejected')
-  }
-
-  async function prepareReminder(
-    node: LoopNode,
-    source: Reminder,
-    candidate: PendingHandoff['candidate'],
-  ): Promise<Outcome<PendingHandoff, Failure>> {
-    const at = host.checkpoint()
-    const predecessor = host.revision()
-    const position = { step: at.step, node, slot: source.passage }
-    const request: PendingHandoff = {
-      kind: 'execution',
-      reference: {
-        kind: 'execution',
-        execution,
-        operation: handoffOperation(source.kind, position, predecessor),
-      },
-      predecessor,
-      position,
-      source,
-      candidate,
-      originalAdvance: host.authority(),
-      predecessorHandoff: null,
-    }
-    const saved = await host.commit(node, at.position, {
-      checkpoint: { currentHandoff: request.reference },
-      handoff: { kind: 'prepare', request },
-      operation: handoffStage(request.reference.operation, 'prepare'),
-    })
-    return 'failure' in saved ? saved : succeed(request)
-  }
-
-  return { run, stop: () => stopped.abort() }
+export function failureTrigger(dispatches: readonly DispatchRecord[]): 'first-content' | 'final' {
+  return dispatches.some(record => record.firstContent !== 'none-proven')
+    ? 'final'
+    : 'first-content'
 }

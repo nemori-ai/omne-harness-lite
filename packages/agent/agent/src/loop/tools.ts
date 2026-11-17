@@ -172,7 +172,7 @@ export async function admitToolAction<P>(
   if ('failure' in described) return notAnswered('agentToolRequests', described.failure)
   if (described.ok.kind === 'answered')
     return answered(ports, access, execution, action, described.ok.text)
-  const { definition } = described.ok
+  const definition = described.ok.definition.adoption
   const admitted = await ports.admission.admit({
     ...input,
     advance,

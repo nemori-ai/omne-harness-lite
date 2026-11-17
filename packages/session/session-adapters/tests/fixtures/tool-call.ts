@@ -67,6 +67,7 @@ export function toolCall(tenant: TenantId, name = 'tool') {
     ],
     barrier: { kind: 'open', evidence: evidence('action-barrier'), approved: [action] },
     slots: [{ kind: 'dispatched', action, each: null, candidateDigest: null, handoff: null }],
+    beforePass: null,
     batchPass: null,
   }
   return {

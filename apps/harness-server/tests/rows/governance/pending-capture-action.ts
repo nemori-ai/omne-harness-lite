@@ -1,4 +1,5 @@
 import { expect } from 'vitest'
+import { testToolDefinition } from '@omne-harness/agent/testing'
 import {
   decodeActionId,
   decodeActionBatchId,
@@ -140,6 +141,7 @@ export async function pendingCaptureAction<P>(
     ],
     barrier: { kind: 'closed', judging: [action], asked: [] },
     slots: [],
+    beforePass: null,
     batchPass: null,
   }
   await commit(batch, 'pending-action')
@@ -152,6 +154,10 @@ export async function pendingCaptureAction<P>(
     definition,
     effectiveArguments: '{}',
   }
-  const toolRequests = { describe: async () => ({ ok: { kind: 'tool' as const, definition } }) }
+  const toolRequests = {
+    describe: async () => ({
+      ok: { kind: 'tool' as const, definition: testToolDefinition(definition) },
+    }),
+  }
   return { request, toolRequests, commit, batch }
 }

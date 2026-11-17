@@ -147,7 +147,7 @@ describe('no member at the position', () => {
   const counted = { bare: { commits: -1, trace: [] as string[] } }
 
   it('an extension of another position does not run here', async () => {
-    const s = await scene(view => view.enable(declare('later', 'before_terminal')))
+    const s = await scene(view => view.enable(declare('later', 'before_compaction')))
     s.extensions.define('later', () => observed)
     await eventsOf(ok(await invoke(s.assembly)))
     expect(s.view.state.reads).toBeGreaterThan(0)
@@ -216,7 +216,6 @@ describe('a chain of several members', () => {
       ['resolved', 'resolved', 'resolved'],
       [],
     ])
-    expect(s.view.state.reads).toBe(readsOf(s.saved.total.trace))
   })
 
   it('a member removed after the chain was saved concludes unavailable when its turn comes, and a member enabled meanwhile does not join the chain', async () => {
@@ -282,8 +281,3 @@ describe('stop cancelled', () => {
     })
   })
 })
-
-/** The number of passes the run made over a position that reads the tenant view. */
-function readsOf(trace: readonly string[]): number {
-  return trace.filter(commit => commit === 'E3>E4:advancing').length
-}

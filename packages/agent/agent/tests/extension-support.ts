@@ -47,7 +47,12 @@ export const observed = output({ kind: 'observed' })
 export function tenantView() {
   let members: EnabledExtension[] = []
   let revision = 0
-  const state = { reads: 0, readable: true }
+  const state = {
+    reads: 0,
+    readable: true,
+    positions: [] as Position[],
+    unreadableAt: [] as Position[],
+  }
   return {
     state,
     enable(declaration: LoopExtensionDeclaration, version = '1') {
@@ -64,7 +69,8 @@ export function tenantView() {
     port: {
       async read(input) {
         state.reads += 1
-        if (!state.readable)
+        state.positions.push(input.position)
+        if (!state.readable || state.unreadableAt.includes(input.position))
           return fail({
             kind: 'unavailable' as const,
             owner: 'runtimeContext',

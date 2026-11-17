@@ -188,7 +188,8 @@ export type ExtensionChain = Readonly<{
   purpose: 'main' | 'compaction' | null
   members: readonly ChainMember[]
   /** What the tenant-enabled members were read from; null when the assembly has no tenant source. */
-  basis: DurableEvidence | null
+  basis: DurableEvidence | null /** Set when the tenant-enabled members could not be read after the terminal: this pass was not observed. */
+  unread?: DurableEvidence
 }>
 export type EnabledExtension = Readonly<{
   declaration: LoopExtensionDeclaration

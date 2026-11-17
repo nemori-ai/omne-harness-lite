@@ -1,4 +1,13 @@
-import type { Failure, FailureCandidate } from '@omne-harness/agent-contract'
+import type {
+  AgentExecutionId,
+  AgentInstant,
+  Failure,
+  FailureCandidate,
+  Next,
+  Preparation,
+  StepId,
+} from '@omne-harness/agent-contract'
+import { agentEvidence } from './identities.ts'
 
 export type NodeFailureCategory = Extract<FailureCandidate, { kind: 'node-failed' }>['category']
 
@@ -46,4 +55,22 @@ export function nodeFailureCategory(failure: Failure): NodeFailureCategory | nul
     default:
       return null
   }
+}
+
+export function cannotFit(
+  execution: AgentExecutionId,
+  of: StepId,
+  preparation: Extract<Preparation, { kind: 'cannot-fit' }>,
+  at: AgentInstant,
+): Extract<Next, { kind: 'try-finish' }> {
+  const failure: FailureCandidate = {
+    kind: 'cannot-fit',
+    step: of,
+    at,
+    source: preparation.source,
+    reason: preparation.reason,
+    context: preparation.source,
+  }
+  const cause = agentEvidence(`${execution}/${of}/cannot-fit`, failure)
+  return { kind: 'try-finish', conclusion: { kind: 'fail', cause }, failure }
 }
