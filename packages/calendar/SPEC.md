@@ -4,16 +4,16 @@
 
 日历包组回答一个问题：一个调用方怎样按明确的日历与版本，得到可指认、可复核的日别与工作日计算；这些版本知识又怎样从权威来源发现、校验、一致地发布与保管，并让人看得见它是否健康。
 
-| 成员                       | 回答的问题                                                                                                                 |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `calendar-contract`        | 日期值、不可变快照、查询与供应服务端口、请求与结果、错误长什么样。纯数据与 schema，不依赖 Cordis 与存储                    |
-| `calendar`                 | 纯日期计算、查询应用、供应的解析与政策、供应应用（种子、校验、刷新、健康、恢复）怎样工作。不依赖 Cordis，不选存储后端      |
-| `calendar-cordis-contract` | 日历在这套系统里以哪三个服务出现：查询服务、计算服务与供应服务的定义与键                                                   |
+| 成员                       | 回答的问题                                                                                                            |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `calendar-contract`        | 日期值、不可变快照、查询与供应服务端口、请求与结果、错误长什么样。纯数据与 schema，不依赖 Cordis 与存储               |
+| `calendar`                 | 纯日期计算、查询应用、供应的解析与政策、供应应用（种子、校验、刷新、健康、恢复）怎样工作。不依赖 Cordis，不选存储后端 |
+| `calendar-cordis-contract` | 日历在这套系统里以哪三个服务出现：查询服务、计算服务与供应服务的定义与键                                              |
 | `calendar-local`           | 本机的发布存储与供应存储、受限的来源获取、发行种子的读取、供应运行器、设置环境投影与设置声明、计算服务，以及 Cordis 提供者 |
-| `calendar-tools`           | 给 agent 的只读工具 `Calendar`：多命令的参数与结果、按调用绑定计算服务并核对租户                                           |
-| `calendar-protocol`        | 公开协议 `calendar/v1` 的协议契约：目录、生效环境与一次日期计算。纯数据                                                    |
-| `calendar-access`          | `calendar/v1` 的接入插件：核对登录与租户、取主体、调日历的服务、映射结果                                                   |
-| `calendar-ui`              | 界面模块：桌面侧栏的「日历」页                                                                                             |
+| `calendar-tools`           | 给 agent 的只读工具 `Calendar`：多命令的参数与结果、按调用绑定计算服务并核对租户                                      |
+| `calendar-protocol`        | 公开协议 `calendar/v1` 的协议契约：目录、生效环境与一次日期计算。纯数据                                               |
+| `calendar-access`          | `calendar/v1` 的接入插件：核对登录与租户、取主体、调日历的服务、映射结果                                              |
+| `calendar-ui`              | 界面模块：桌面侧栏的「日历」页                                                                                        |
 
 依赖只朝契约：`calendar-local` → {`calendar`、`calendar-cordis-contract`、`calendar-contract`、`sql-contract`}；`calendar-tools` → {`calendar-contract`、Tool 的公开作者协议}，不依赖 `calendar` 与 `calendar-local`；`calendar` → `calendar-contract`；`calendar-access` → {`calendar-protocol`、`calendar-cordis-contract`、`calendar-contract`、接入的贡献类型}；`calendar-ui` → {`calendar-protocol`、客户端装配、SDK 的客户端核心、公开契约、`frontend` 这一组}，不依赖日历的任何别的成员。查询应用先核资格，再解析日历与版本，在一份不可变快照里完成计算并带回实际依据。供应应用把来源材料解析、校验之后，经存储的具名参加者把新版本与当前发布事实在一次提交里写入；提交之后的反应经 outbox 交出。查询与供应可以在不同实例里运行，但消费同一份公开契约，不共用进程或数据库作为前提。
 
@@ -37,15 +37,15 @@
 
 本组为别人提供的：
 
-| 提供                                                           | 对方                             | 本组提供什么                                       |
-| -------------------------------------------------------------- | -------------------------------- | -------------------------------------------------- |
-| 查询服务（目录、读取、解析、分类、算术）                       | 日程、独立程序、接入插件         | 按明确依据计算并带回实际身份、版本与观察位置       |
-| 计算服务（按调用方生效的日历回答一个日期问题）                 | 日程、`calendar-tools`、接入插件 | 选择固定为调用方生效的日历与当前版本，带回实际依据 |
-| 供应服务（种子导入、刷新、健康、恢复）                         | 系统管理入口与装配               | 发布新版本、报告健康与未完责任                     |
-| 服务键 `calendarQuery`、`calendarCalculator`、`calendarSupply` | Cordis 装配                      | 唯一的服务定义；提供者继承它                       |
-| 设置声明（时区、生效日历）                                     | 设置与应用装配                   | 两项个人设置的定义与默认值                         |
-| 工具 `Calendar`                                                | Tool 与 agent                    | 只读计算，能力只有 `calendar.read`                 |
-| 公开协议 `calendar/v1`                                         | 接入入口、命令行与界面           | 目录、生效环境与一次日期计算                       |
+| 提供                                             | 对方                             | 本组提供什么                                 |
+| ------------------------------------------------ | -------------------------------- | -------------------------------------------- |
+| 查询服务（目录、读取、解析、分类、算术）         | 日程、独立程序、接入插件         | 按明确依据计算并带回实际身份、版本与观察位置 |
+| 计算服务（按调用方生效的日历回答一个日期问题）   | 日程、`calendar-tools`、接入插件 | 选择固定为调用方生效的日历与当前版本，带回实际依据 |
+| 供应服务（种子导入、刷新、健康、恢复）           | 系统管理入口与装配               | 发布新版本、报告健康与未完责任               |
+| 服务键 `calendarQuery`、`calendarCalculator`、`calendarSupply` | Cordis 装配        | 唯一的服务定义；提供者继承它                 |
+| 设置声明（时区、生效日历）                       | 设置与应用装配                   | 两项个人设置的定义与默认值                   |
+| 工具 `Calendar`                                  | Tool 与 agent                    | 只读计算，能力只有 `calendar.read`           |
+| 公开协议 `calendar/v1`                           | 接入入口、命令行与界面           | 目录、生效环境与一次日期计算                 |
 
 ## 心智模型
 
@@ -161,26 +161,26 @@
 
 ## 不变式
 
-| 编号     | 永远成立的性质                                                                                             | 违反的后果                                       | 由什么守                                                                                                                                            |
-| -------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| INV-CA01 | 每份日历声明适用范围，每次发布有版本、覆盖、知识截至与真实出处；国家名不是身份                             | 范围被扩大，来源关系被藏起                       | `calendar` 的 `supply/*` 用例；`calendar-contract` 的 schema                                                                                        |
-| INV-CA02 | 查询、切换选择、供应配置与发布各自核当前资格；租户含义在缓存、索引与后台传递中保持                         | 越权或跨租户读写                                 | `queries/application` 与 `supply-application/runtime` 用例；`calendar-tools` 的 `author` 用例（绑定一次调用）；跨租户的后台传递只有文字             |
-| INV-CA03 | 单历操作的选择与版本必须明确：由调用方指定，或固定为调用方生效的日历与当前版本；一次计算只用同一份版本     | 代选、藏缺省、混版                               | `queries/application` 用例；`calendar-contract` 的判别结果类型                                                                                      |
-| INV-CA04 | 覆盖内例外优先于星期表，覆盖外分类无定义；半日不升级为全日                                                 | 补班被当休息日；覆盖外被猜成工作日               | `calendar` 的 `public-entry`「public snapshot calculations」用例；模型 `CalendarTotalization`                                                       |
-| INV-CA05 | 增减从起始日之外数、零值返回起始日、计数含两端；越过日期域答覆盖不足并标界                                 | 差一天；跨未知区间的猜测                         | `calendar` 的 `public-entry` 用例（端点、零值、日期域越界、缺覆盖）                                                                                 |
-| INV-CA06 | 缺依据、覆盖不足、合法空、预算用尽、故障与未知分开；`null` 只表示有依据的不存在                            | 把未知或受限读成「没有」                         | 结果的判别联合类型；模型性质 `AbsenceSound`                                                                                                         |
-| INV-CA07 | 计算与预览只读；相同规则、时区与版本得到相同结果                                                           | 查询产生副作用或不可复核                         | `public-entry`（确定且不可变）、`queries/application` 用例                                                                                          |
-| INV-CA08 | 已发布版本不可变，旧版始终可按原样复核                                                                     | 历史计算漂移                                     | `calendar-local` 的 `persistence` 用例                                                                                                              |
-| INV-CA09 | 种子先落地可查询再尽力刷新；重复初始化不重铸、不回退                                                       | 离线不可用；初始化倒退数据                       | `calendar` 的 `application`、`supply-application/runtime`、`seed-overlap` 用例；`calendar-local` 的 `seeds/*` 用例                                  |
-| INV-CA10 | 只有业务校验通过的材料才能发布；退化不替换当前版；无新出处的静默修改待裁                                   | 坏数据成为当前版；静默改写历史                   | `supply/validation`、`supply-application/quality` 用例                                                                                              |
-| INV-CA11 | 版本、出处、指针、代际、回执与 outbox 在一次提交里成立；提交复核代际，并发发布有确定次序                   | 半发布；旧校验覆盖新发布                         | `calendar-local` 的 `persistence`、`crash`、`supply-storage/*` 用例；断电耐久只有文字                                                               |
-| INV-CA12 | 提交之后的反应失败只留下未完责任，不倒写发布事实；重复告知不产生新版本                                     | 通知失败导致重发布或回滚                         | `supply-application/runtime` 用例（投影失败、反应交接）；`persistence` 用例                                                                         |
-| INV-CA13 | 未知按原操作查回，只接续未完部分                                                                           | 重铸版本；把未知写成失败或成功                   | `supply-application/failures`、`runtime` 用例；`calendar-local` 的 `persistence` 用例                                                               |
-| INV-CA14 | 新版本发布不改写已接受的 Job；最终接受、冻结与补跑归日程                                                   | 已接受的工作被静默改期                           | 日程的边界模型 `CalendarScheduleBoundary`；接缝用例归日程                                                                                           |
-| INV-CA15 | 取消只声明实际阻止的效果；已成立的发布不因取消或停止撤回                                                   | 把受理取消当成没有发布                           | `supply-application/failures` 的取消用例；外部效果不可逆只有文字                                                                                    |
-| INV-CA16 | 缓存与投影不成为权威                                                                                       | 陈旧缓存掩盖故障或混版                           | `queries/application` 用例                                                                                                                          |
-| INV-CA17 | 实例换代只撤自己的贡献并保管业务责任；晚到结果回原操作                                                     | 删新实例的资源；丢未完责任                       | `calendar-local` 的 `cordis/lifecycle`、`runner/*` 用例                                                                                             |
-| INV-CA18 | 健康与发行条件可观察，按每份日历的政策判；任一严重条件阻发行，未知不报通过                                 | 带着过期数据发行                                 | `supply-application/failures`（未知政策不报健康）、`runtime` 用例；发行把关只有文字                                                                 |
-| CA-1     | 有界计算终止；找到的序号正确；预算用尽与覆盖不足不伪装成 `null`；足够预算取得已有答案                      | 计算挂起或答错                                   | 模型 `CalendarTotalization` 的 `SuccessSound`、`AbsenceSound`、`Terminates`、`SufficientFuelComplete`；见 `calendar/verification/formal-mapping.md` |
-| INV-CA19 | 计算服务与工具的选择只取调用方生效的日历与当前版本；调用方不能传入别的选择，解析出的所有者属于调用方的租户 | 同一用户在不同入口得到不同的工作日；跨租户读设置 | `calendar-local` 的计算服务用例；`calendar-tools` 的参数与绑定用例                                                                                  |
-| CA-2     | 工具结果编码超过上限明确失败，不以裁剪冒充成功                                                             | 模型拿到不完整的结果却以为完整                   | `calendar-tools` 的 `author` 用例                                                                                                                   |
+| 编号     | 永远成立的性质                                                                           | 违反的后果                         | 由什么守                                                                                                                                            |
+| -------- | ---------------------------------------------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| INV-CA01 | 每份日历声明适用范围，每次发布有版本、覆盖、知识截至与真实出处；国家名不是身份           | 范围被扩大，来源关系被藏起         | `calendar` 的 `supply/*` 用例；`calendar-contract` 的 schema                                                                                        |
+| INV-CA02 | 查询、切换选择、供应配置与发布各自核当前资格；租户含义在缓存、索引与后台传递中保持       | 越权或跨租户读写                   | `queries/application` 与 `supply-application/runtime` 用例；`calendar-tools` 的 `author` 用例（绑定一次调用）；跨租户的后台传递只有文字            |
+| INV-CA03 | 单历操作的选择与版本必须明确：由调用方指定，或固定为调用方生效的日历与当前版本；一次计算只用同一份版本 | 代选、藏缺省、混版                 | `queries/application` 用例；`calendar-contract` 的判别结果类型                                                                                      |
+| INV-CA04 | 覆盖内例外优先于星期表，覆盖外分类无定义；半日不升级为全日                               | 补班被当休息日；覆盖外被猜成工作日 | `calendar` 的 `public-entry`「public snapshot calculations」用例；模型 `CalendarTotalization`                                                       |
+| INV-CA05 | 增减从起始日之外数、零值返回起始日、计数含两端；越过日期域答覆盖不足并标界               | 差一天；跨未知区间的猜测           | `calendar` 的 `public-entry` 用例（端点、零值、日期域越界、缺覆盖）                                                                                 |
+| INV-CA06 | 缺依据、覆盖不足、合法空、预算用尽、故障与未知分开；`null` 只表示有依据的不存在          | 把未知或受限读成「没有」           | 结果的判别联合类型；模型性质 `AbsenceSound`                                                                                                         |
+| INV-CA07 | 计算与预览只读；相同规则、时区与版本得到相同结果                                         | 查询产生副作用或不可复核           | `public-entry`（确定且不可变）、`queries/application` 用例                                                                                          |
+| INV-CA08 | 已发布版本不可变，旧版始终可按原样复核                                                   | 历史计算漂移                       | `calendar-local` 的 `persistence` 用例                                                                                                              |
+| INV-CA09 | 种子先落地可查询再尽力刷新；重复初始化不重铸、不回退                                     | 离线不可用；初始化倒退数据         | `calendar` 的 `application`、`supply-application/runtime`、`seed-overlap` 用例；`calendar-local` 的 `seeds/*` 用例                                  |
+| INV-CA10 | 只有业务校验通过的材料才能发布；退化不替换当前版；无新出处的静默修改待裁                 | 坏数据成为当前版；静默改写历史     | `supply/validation`、`supply-application/quality` 用例                                                                                              |
+| INV-CA11 | 版本、出处、指针、代际、回执与 outbox 在一次提交里成立；提交复核代际，并发发布有确定次序 | 半发布；旧校验覆盖新发布           | `calendar-local` 的 `persistence`、`crash`、`supply-storage/*` 用例；断电耐久只有文字                                                               |
+| INV-CA12 | 提交之后的反应失败只留下未完责任，不倒写发布事实；重复告知不产生新版本                   | 通知失败导致重发布或回滚           | `supply-application/runtime` 用例（投影失败、反应交接）；`persistence` 用例                                                                         |
+| INV-CA13 | 未知按原操作查回，只接续未完部分                                                         | 重铸版本；把未知写成失败或成功     | `supply-application/failures`、`runtime` 用例；`calendar-local` 的 `persistence` 用例                                                               |
+| INV-CA14 | 新版本发布不改写已接受的 Job；最终接受、冻结与补跑归日程                                 | 已接受的工作被静默改期             | 日程的边界模型 `CalendarScheduleBoundary`；接缝用例归日程                                                                                           |
+| INV-CA15 | 取消只声明实际阻止的效果；已成立的发布不因取消或停止撤回                                 | 把受理取消当成没有发布             | `supply-application/failures` 的取消用例；外部效果不可逆只有文字                                                                                    |
+| INV-CA16 | 缓存与投影不成为权威                                                                     | 陈旧缓存掩盖故障或混版             | `queries/application` 用例                                                                                                                          |
+| INV-CA17 | 实例换代只撤自己的贡献并保管业务责任；晚到结果回原操作                                   | 删新实例的资源；丢未完责任         | `calendar-local` 的 `cordis/lifecycle`、`runner/*` 用例                                                                                             |
+| INV-CA18 | 健康与发行条件可观察，按每份日历的政策判；任一严重条件阻发行，未知不报通过               | 带着过期数据发行                   | `supply-application/failures`（未知政策不报健康）、`runtime` 用例；发行把关只有文字                                                                 |
+| CA-1     | 有界计算终止；找到的序号正确；预算用尽与覆盖不足不伪装成 `null`；足够预算取得已有答案    | 计算挂起或答错                     | 模型 `CalendarTotalization` 的 `SuccessSound`、`AbsenceSound`、`Terminates`、`SufficientFuelComplete`；见 `calendar/verification/formal-mapping.md` |
+| INV-CA19 | 计算服务与工具的选择只取调用方生效的日历与当前版本；调用方不能传入别的选择，解析出的所有者属于调用方的租户 | 同一用户在不同入口得到不同的工作日；跨租户读设置 | `calendar-local` 的计算服务用例；`calendar-tools` 的参数与绑定用例 |
+| CA-2     | 工具结果编码超过上限明确失败，不以裁剪冒充成功                                           | 模型拿到不完整的结果却以为完整     | `calendar-tools` 的 `author` 用例                                                                                                                   |
