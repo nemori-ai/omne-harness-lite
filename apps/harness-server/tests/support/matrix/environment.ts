@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url'
 import { DEFAULT_SHUTDOWN_DEADLINE_MS } from '../../../dist/local/operator-defaults.js'
 import { localServeInputs } from '../../../dist/local/serve-local.js'
 import { freePort } from '../listening.ts'
+import { cpuSecondsOf } from './cpu-time.ts'
 
 const memberDir = fileURLToPath(new URL('../../..', import.meta.url))
 const serverBin = join(memberDir, 'dist', 'bin.js')
@@ -288,20 +289,9 @@ export async function createEnvironment(options: {
     cpuPercent: async seconds => {
       const pid = environment.pid()
       if (pid === undefined) return Number.NaN
-      const ticks = () => {
-        const fields =
-          readFileSync(`/proc/${String(pid)}/stat`, 'utf8')
-            .split(') ')[1]
-            ?.split(' ') ?? []
-        return Number(fields[11]) + Number(fields[12])
-      }
-      const before = ticks()
+      const before = cpuSecondsOf(pid)
       await sleep(seconds * 1000)
-      const after = ticks()
-      const hertz = Number(
-        spawnSync('getconf', ['CLK_TCK'], { encoding: 'utf8' }).stdout.trim() || '100',
-      )
-      return ((after - before) * 100) / hertz / seconds
+      return ((cpuSecondsOf(pid) - before) * 100) / seconds
     },
     dispose: async () => {
       await finish('SIGKILL', 30_000)
