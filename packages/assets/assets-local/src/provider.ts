@@ -16,6 +16,9 @@ import {
   domainSchema,
   HANDLER,
   holdSchema,
+  LIST_HANDLER,
+  listLookupSchema,
+  listResultSchema,
   holdingLookupSchema,
   holdingResultSchema,
   mutationSchema,
@@ -136,10 +139,13 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     const parsed = mutationSchema.safeParse(value)
     return parsed.success ? commit(parsed.data) : fail('invalid_input')
   }
-  async function read(kind: 'asset' | 'holding' | 'version' | 'heldCapability', lookup: unknown) {
+  async function read(
+    kind: 'asset' | 'holding' | 'version' | 'heldCapability' | 'list',
+    lookup: unknown,
+  ) {
     const result = await options.storage.read({
       domain: options.domain,
-      handler: HANDLER,
+      handler: kind === 'list' ? LIST_HANDLER : HANDLER,
       protocol: PROTOCOL,
       requestKey: randomUUID(),
       input: json({ kind, domain: options.domain, lookup }),
@@ -205,6 +211,13 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
         })
         return parsed.success
           ? holdingResultSchema.parse(await read('heldCapability', parsed.data))
+          : fail('invalid_input')
+      }),
+    listHeld: input =>
+      run(async () => {
+        const parsed = listLookupSchema.safeParse(input)
+        return parsed.success
+          ? listResultSchema.parse(await read('list', parsed.data))
           : fail('invalid_input')
       }),
     getOperation: operationId =>
