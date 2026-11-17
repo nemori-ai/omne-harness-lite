@@ -171,6 +171,7 @@
 - `pnpm run check` 自己不整程占令牌。步骤图里的每一步各当一件活去要：构建与类型检查要全部令牌、至少 1 个，turbo 的并发等于拿到的个数；pytest 一步最多要 max(2, floor(C ÷ 4)) 个；单进程的静态检查各要 1 个。
 - 成员测试与验收把每个成员的每一层各当一件活去要。最多要 min(`maxWorkersPerMember`, 这一层的用例文件数) × 每个进程的令牌数，至少要一个进程的令牌数。vitest 的进程数 = floor(拿到的令牌数 ÷ 每个进程的令牌数)，至少 1。
 - 每个进程的令牌数缺省是 1。一个 vitest 进程实际不止用一个核的成员在 `parallel.tokensPerWorker` 里按「成员 × 层」写一个数，旁边写明这个数是哪一次量出来的。
+- 构建与类型检查的每个任务只用一个核：运行器起这两种 turbo 时带 `GOMAXPROCS=1`，根 `turbo.json` 的 `build`、`typecheck` 两个任务放行它。TypeScript 7 的 tsc 是 Go 写的，缺省按核数开检查线程，不限的话一个任务用两到三个核，turbo 的并发等于令牌数就超出了令牌数。不改用共用 tsconfig 里的 `singleThreaded`：仓库里还有经 TypeScript 6 读 tsconfig 的工具与用例，它们不认这个选项。
 - 成员的各层按上一次的用时从长到短去排队，没有记录的排最前。上一次的用时取自耗时账本。
 - 已经在令牌之内的命令（`OMNE_TEST_SLOT_HELD` 非空）不再去整机的池子排队，在进程内把 `OMNE_WORKER_BUDGET` 个令牌按同样的规则分给自己的各件活。
 - `VITEST_MAX_WORKERS` 由运行器按拿到的令牌写给每个成员的 vitest。账本的 `meta` 记下并行度、核数与预算的来历。

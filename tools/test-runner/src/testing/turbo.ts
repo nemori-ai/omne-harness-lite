@@ -43,6 +43,12 @@ export function turboEnv(extra: Readonly<Record<string, string>>): NodeJS.Proces
   }
 }
 
+export const ONE_CORE_PER_TASK = { GOMAXPROCS: '1' } as const
+
+export function compileEnv(): NodeJS.ProcessEnv {
+  return turboEnv(ONE_CORE_PER_TASK)
+}
+
 function rootTasks(): Record<string, RootTask> {
   const parsed = JSON.parse(readFileSync(TURBO_CONFIG, 'utf8')) as {
     tasks?: Record<string, RootTask>
@@ -267,7 +273,7 @@ export function turboBuild(
   if (names.length === 0) return 0
   const args = buildArgs(names, admission, concurrency)
   console.log(`$ turbo ${args.join(' ')}`)
-  const run = spawnSync(TURBO_BIN, args, { cwd: root, stdio: 'inherit', env: turboEnv({}) })
+  const run = spawnSync(TURBO_BIN, args, { cwd: root, stdio: 'inherit', env: compileEnv() })
   if (run.error !== undefined) throw run.error
   return run.status ?? 1
 }
@@ -283,7 +289,7 @@ export function turboBuildCaptured(
     cwd: root,
     encoding: 'utf8',
     maxBuffer: 256 * 1024 * 1024,
-    env: turboEnv({}),
+    env: compileEnv(),
   })
   if (run.error !== undefined) throw run.error
   return { status: run.status ?? 1, output: `${run.stdout}${run.stderr}` }
@@ -313,7 +319,7 @@ export function turboTypecheck(
   if (names.length === 0) return 0
   const args = typecheckArgs(names, admission, concurrency)
   console.log(`$ turbo ${args.join(' ')}`)
-  const run = spawnSync(TURBO_BIN, args, { cwd: root, stdio: 'inherit', env: turboEnv({}) })
+  const run = spawnSync(TURBO_BIN, args, { cwd: root, stdio: 'inherit', env: compileEnv() })
   if (run.error !== undefined) throw run.error
   return run.status ?? 1
 }

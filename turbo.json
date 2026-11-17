@@ -13,11 +13,13 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**"],
+      "passThroughEnv": ["GOMAXPROCS"]
     },
     "typecheck": {
       "dependsOn": ["^typecheck"],
-      "outputs": []
+      "outputs": [],
+      "passThroughEnv": ["GOMAXPROCS"]
     },
     "test:fast": {
       "dependsOn": ["build", "^build"],

@@ -34,6 +34,8 @@ import { RUN_TIERS } from '../src/testing/config.ts'
 import { READ_SETS_ENV as RUNNER_READ_SETS_ENV } from '../src/testing/read-sets.ts'
 import {
   buildArgs,
+  compileEnv,
+  ONE_CORE_PER_TASK,
   TEST_REPORT_DIR_ENV,
   TIER_TASKS,
   turboTestCommand,
@@ -381,6 +383,19 @@ describe('运行器交给 turbo 的命令', () => {
     expect(typecheckArgs(['@a/x'], false, 5)).toContain('--cache=local:rw')
     expect(typecheckArgs(['@a/x'], true, 5)).toContain('--cache=local:w')
     expect(typecheckArgs(['@a/x'], true, 5)).toContain('--concurrency=5')
+  })
+
+  it('构建与类型检查的每个任务只用一个核：运行器起 turbo 时带上限，turbo 的这两个任务放行它', () => {
+    const turbo = JSON.parse(readFileSync(join(REPOSITORY, 'turbo.json'), 'utf8')) as {
+      tasks: Record<string, { passThroughEnv?: string[] }>
+    }
+    const env = compileEnv()
+    for (const [name, value] of Object.entries(ONE_CORE_PER_TASK)) {
+      expect(env[name]).toBe(value)
+      for (const task of ['build', 'typecheck'])
+        expect(turbo.tasks[task]?.passThroughEnv).toContain(name)
+    }
+    expect(ONE_CORE_PER_TASK).toEqual({ GOMAXPROCS: '1' })
   })
 
   it('三个测试任务的 env 与 passThroughEnv 各是同一份', () => {
