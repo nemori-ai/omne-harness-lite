@@ -9,7 +9,6 @@ import type {
 import type { RecoveryRecord } from '@omne-harness/model-contract/provider'
 
 export type AfterDispatch =
-  | Readonly<{ kind: 'ended' }>
   | Readonly<{ kind: 'settle'; termination: Termination }>
   | Readonly<{ kind: 'position'; dispatch: DispatchId }>
   | Readonly<{ kind: 'ask-policy'; position: RetryPosition; failure: ModelFault }>
@@ -23,8 +22,8 @@ export function afterDispatch(
   input: Readonly<{ recovery: RetryRecord; termination: Termination; now: string }>,
 ): AfterDispatch {
   const { recovery, termination, now } = input
-  if (recovery.state.phase === 'settled') return { kind: 'ended' }
-  if (termination.kind !== 'failed') return { kind: 'settle', termination }
+  if (recovery.state.phase === 'settled' || termination.kind !== 'failed')
+    return { kind: 'settle', termination }
   if (recovery.retry?.kind === 'stop')
     return { kind: 'settle', termination: { kind: 'failed', fault: recovery.retry.fault } }
   if (recovery.state.control.kind !== 'none') return { kind: 'settle', termination }

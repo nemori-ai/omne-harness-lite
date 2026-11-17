@@ -56,9 +56,10 @@ const step = (recovery: Record, termination: Termination = failed) =>
   afterDispatch({ recovery, termination, now: NOW })
 
 describe('the step of the driver after one dispatch ended', () => {
-  it('a settled call has ended', () => {
+  it('a settled call goes to the settlement, which recognizes it', () => {
     const settled = { ...base, phase: 'settled', settlement: {} } as unknown as CallState
-    expect(step({ state: settled, ...none })).toEqual({ kind: 'ended' })
+    const recovery = { retry: again(NOW), retryPosition: position, retrySource: source }
+    expect(step({ state: settled, ...recovery })).toEqual({ kind: 'settle', termination: failed })
   })
 
   it.each([

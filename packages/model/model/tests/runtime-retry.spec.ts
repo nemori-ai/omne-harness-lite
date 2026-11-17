@@ -128,18 +128,21 @@ describe('a dispatch that failed before any content reaches the retry policy', (
   it.each([
     [
       'answers unavailable',
+      'unavailable',
       (): Answer => ({
         failure: { kind: 'unavailable', dependency: 'policy', diagnostic: 'not-provided' },
       }),
     ],
     [
       'throws',
+      'policy-threw',
       (): Answer => {
         throw new Error('the policy broke')
       },
     ],
     [
       'decides a supplier the request does not allow next',
+      'decision-refused',
       (input: Decide): Answer =>
         decided(input, {
           kind: 'retry',
@@ -148,20 +151,23 @@ describe('a dispatch that failed before any content reaches the retry policy', (
           basis: input.request.retryPolicy,
         }),
     ],
-  ])('a policy that %s settles the call as policy-unavailable', async (_name, decide) => {
-    const { f } = world(decide)
-    try {
-      expect(await run(f, [failed503])).toEqual({ ok: undefined })
-      expect(await termination(f)).toMatchObject({
-        kind: 'failed',
-        fault: { cause: 'policy-unavailable', upstreamStatus: null },
-      })
-      expect(await dispatches(f)).toHaveLength(1)
-      expect(starts(f)).toBe(1)
-    } finally {
-      await f.dispose()
-    }
-  })
+  ])(
+    'a policy that %s settles the call as policy-unavailable',
+    async (_name, diagnostic, decide) => {
+      const { f } = world(decide)
+      try {
+        expect(await run(f, [failed503])).toEqual({ ok: undefined })
+        expect(await termination(f)).toEqual({
+          kind: 'failed',
+          fault: { cause: 'policy-unavailable', diagnostic, upstreamStatus: null },
+        })
+        expect(await dispatches(f)).toHaveLength(1)
+        expect(starts(f)).toBe(1)
+      } finally {
+        await f.dispose()
+      }
+    },
+  )
 
   it('a decision to send again sends once more in the same call, and both dispatches keep their facts', async () => {
     const { f, asked } = world(input => again(input))
@@ -220,8 +226,12 @@ describe('a stop request at the policy point', () => {
   it('after the position was taken: no further dispatch, and the failed dispatch settles the call', async () => {
     const { f } = world(input => ({ ok: { kind: 'pending', position: input.position } }))
     try {
-      expect(await run(f, [failed503, ...answer])).toMatchObject({
-        failure: { kind: 'unavailable' },
+      expect(await run(f, [failed503, ...answer])).toEqual({
+        failure: {
+          kind: 'unavailable',
+          dependency: 'model-retry-policy',
+          diagnostic: 'retry-decision-pending',
+        },
       })
       expect((await state(f)).phase).toBe('retry-decision')
       unbox(await f.provider.runtime.calls.cancel({ ...f.admit, operation: op('stop') }))
@@ -336,4 +346,154 @@ describe('the write of the decision has an unknown answer', () => {
       }
     },
   )
+})
+
+describe('the retry stage keeps the call open when it cannot go on', () => {
+  it.each(['loadRecovery', 'loadRequest', 'dispatches'] as const)(
+    'a %s that fails at the policy point ends the drive with that failure; the next drive goes on',
+    async method => {
+      let armed = false
+      let once = false
+      const offline = {
+        failure: { kind: 'unavailable', dependency: 'store', diagnostic: 'offline' },
+      } as const
+      const { f, asked } = world(input => again(input), {
+        wrap: commands => ({
+          ...commands,
+          preserve: async input => {
+            const saved = await commands.preserve(input)
+            if (!once && input.facts.some(fact => fact.kind === 'ended')) armed = once = true
+            return saved
+          },
+          [method]: async (input: never) => (armed ? offline : commands[method](input)),
+        }),
+      })
+      try {
+        expect(await run(f, [failed503, ...answer])).toEqual(offline)
+        expect(asked).toHaveLength(0)
+        expect(starts(f)).toBe(1)
+        armed = false
+        expect((await state(f)).phase).not.toBe('settled')
+        expect(await f.drive()).toEqual({ ok: undefined })
+        expect(await termination(f)).toEqual({ kind: 'completed', reason: 'stop' })
+        expect(starts(f)).toBe(2)
+      } finally {
+        await f.dispose()
+      }
+    },
+  )
+
+  it('an unknown answer of the position write ends the drive, and the call does not settle', async () => {
+    let controls: F['controls'] | undefined
+    const { f, asked } = world(input => again(input), {
+      wrap: commands => ({
+        ...commands,
+        prepareRetry: async input => {
+          controls?.commands.injectUnknown({
+            tenant: input.tenant,
+            call: input.call,
+            operation: input.operation,
+            method: 'prepareRetry',
+            effect: 'not-applied',
+          })
+          return commands.prepareRetry(input)
+        },
+      }),
+    })
+    controls = f.controls
+    try {
+      expect(await run(f, [failed503, ...answer])).toMatchObject({
+        failure: { kind: 'commit-unknown' },
+      })
+      expect((await state(f)).phase).toBe('running')
+      expect(asked).toHaveLength(0)
+      expect(starts(f)).toBe(1)
+    } finally {
+      await f.dispose()
+    }
+  })
+
+  it('a wake request that the host refuses ends the drive with that failure', async () => {
+    const { f } = world(input => again(input, LATER))
+    const closed = {
+      failure: {
+        kind: 'unavailable',
+        dependency: 'model-instance-host',
+        diagnostic: 'host-closed',
+      },
+    } as const
+    const schedule = f.dependencies.instances.schedule
+    f.dependencies.instances.schedule = async input =>
+      input.notBefore === undefined ? schedule(input) : closed
+    try {
+      expect(await run(f, [failed503, ...answer])).toEqual(closed)
+      expect((await state(f)).phase).toBe('retry-decision')
+    } finally {
+      await f.dispose()
+    }
+  })
+
+  it('does not ask the policy again after it chose to settle and the settlement answer was unknown', async () => {
+    let controls: F['controls'] | undefined
+    let injected = false
+    const { f, asked } = world(
+      () => ({
+        failure: { kind: 'unavailable', dependency: 'policy', diagnostic: 'not-provided' },
+      }),
+      {
+        wrap: commands => ({
+          ...commands,
+          settle: async input => {
+            if (!injected) {
+              injected = true
+              controls?.commands.injectUnknown({
+                tenant: input.tenant,
+                call: input.call,
+                operation: input.operation,
+                method: 'settle',
+                effect: 'not-applied',
+              })
+            }
+            return commands.settle(input)
+          },
+        }),
+      },
+    )
+    controls = f.controls
+    try {
+      const first = (await run(f, [failed503])) as { failure: { operation: string } }
+      expect(first).toMatchObject({ failure: { kind: 'commit-unknown' } })
+      f.controls.commands.reveal({
+        tenant: f.tenant,
+        call: f.admit.call,
+        operation: first.failure.operation as never,
+        result: 'not-committed',
+      })
+      expect(await f.drive()).toEqual({ ok: undefined })
+      expect(await termination(f)).toMatchObject({ fault: { cause: 'policy-unavailable' } })
+      expect(asked).toHaveLength(1)
+    } finally {
+      await f.dispose()
+    }
+  })
+})
+
+describe('the receiver of an earlier dispatch', () => {
+  it('a failed release of it is reported when the call ends, and the call still settles', async () => {
+    const { f } = world(input => again(input))
+    const channel = f.channel(f.admit.call)
+    let releases = 0
+    channel.beforeRelease = async () => {
+      channel.releaseFails = ++releases === 1
+    }
+    try {
+      expect(await run(f, [failed503, ...answer])).toMatchObject({
+        failure: { kind: 'unavailable', diagnostic: 'resource-release-failed' },
+      })
+      expect(await termination(f)).toEqual({ kind: 'completed', reason: 'stop' })
+      expect(channel).toMatchObject({ starts: 2, closes: 2 })
+    } finally {
+      await f.dispose()
+    }
+  })
 })

@@ -165,8 +165,6 @@ export function createRetryStage<P>(deps: Deps<P>) {
     step: AfterDispatch,
   ): Advance<P> {
     switch (step.kind) {
-      case 'ended':
-        return { ok: { kind: 'settle', termination: input.termination } }
       case 'settle':
         return { ok: step }
       case 'wait':
