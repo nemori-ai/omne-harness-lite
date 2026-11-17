@@ -340,6 +340,18 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
     }
   }
 
+  async function heldViews(tenant: TenantId, views: readonly SettingsTargetView[]) {
+    try {
+      const assets = await Promise.all(views.map(view => catalog.assetOf(tenant, view)))
+      return views.flatMap((view, index) => {
+        const asset = assets[index]
+        return asset === undefined ? [] : [{ asset, view }]
+      })
+    } catch {
+      return undefined
+    }
+  }
+
   async function entries(tenant: TenantId) {
     let basis: Awaited<ReturnType<TenantSettingsCatalog['read']>>
     try {
@@ -353,16 +365,10 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
       return undefined
     }
     if ('kind' in basis) return undefined
-    let assets: readonly (TenantSettingsAssetRef | undefined)[]
-    try {
-      assets = await Promise.all(basis.views.map(view => catalog.assetOf(tenant, view)))
-    } catch {
-      return undefined
-    }
+    const held = await heldViews(tenant, basis.views)
+    if (held === undefined) return undefined
     const found: Entry[] = []
-    for (const [index, view] of basis.views.entries()) {
-      const asset = assets[index]
-      if (asset === undefined) continue
+    for (const { asset, view } of held) {
       const evaluated = evaluateSettings({
         definition: view.definition,
         sources: view.state.sources,
