@@ -194,20 +194,36 @@
       "source": "docs/domains/boundaries.md#责任地图"
     },
     {
-      "id": "packages/core/loop-extension",
-      "paths": ["packages/core/loop-extension/src/**"],
-      "layer": "unknown",
+      "id": "packages/loop-extension/loop-extension-contract",
+      "paths": ["packages/loop-extension/loop-extension-contract/src/**"],
+      "layer": "contract",
       "domains": ["agent"],
-      "status": "candidate",
-      "source": "docs/domains/boundaries.md#责任地图"
+      "status": "adopted",
+      "source": "packages/loop-extension/SPEC.md"
     },
     {
-      "id": "packages/agent-loop/loop-extension-runner",
-      "paths": ["packages/agent-loop/loop-extension-runner/src/**"],
+      "id": "packages/loop-extension/loop-extension",
+      "paths": ["packages/loop-extension/loop-extension/src/**"],
       "layer": "unknown",
       "domains": ["agent"],
       "status": "candidate",
-      "source": "docs/domains/boundaries.md#责任地图"
+      "source": "packages/loop-extension/SPEC.md"
+    },
+    {
+      "id": "packages/loop-extension/loop-extension-cordis-contract",
+      "paths": ["packages/loop-extension/loop-extension-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["agent"],
+      "status": "candidate",
+      "source": "packages/loop-extension/SPEC.md"
+    },
+    {
+      "id": "packages/loop-extension/loop-extension-host-local",
+      "paths": ["packages/loop-extension/loop-extension-host-local/src/**"],
+      "layer": "assembly",
+      "domains": ["agent"],
+      "status": "adopted",
+      "source": "packages/loop-extension/SPEC.md"
     },
     {
       "id": "packages/core/model-profile",
@@ -1058,6 +1074,27 @@
       "from": ["packages/mcp/mcp-cordis-contract"],
       "to": ["packages/mcp/mcp", "packages/mcp/mcp-host-local"],
       "source": "packages/mcp/SPEC.md"
+    },
+    {
+      "id": "DIR-LOOP-EXTENSION-PURE",
+      "from": [
+        "packages/loop-extension/loop-extension-contract",
+        "packages/loop-extension/loop-extension"
+      ],
+      "to": [
+        "packages/loop-extension/loop-extension-cordis-contract",
+        "packages/loop-extension/loop-extension-host-local"
+      ],
+      "source": "packages/loop-extension/SPEC.md"
+    },
+    {
+      "id": "DIR-LOOP-EXTENSION-DEFINITION",
+      "from": ["packages/loop-extension/loop-extension-cordis-contract"],
+      "to": [
+        "packages/loop-extension/loop-extension",
+        "packages/loop-extension/loop-extension-host-local"
+      ],
+      "source": "packages/loop-extension/SPEC.md"
     }
   ]
 }
