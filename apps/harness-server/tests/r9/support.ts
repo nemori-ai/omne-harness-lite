@@ -19,6 +19,7 @@ import { COMBINATION_VERSION } from '../../src/rows/agent-journal/config.ts'
 import { LOCAL_TOKENIZERS, LOCAL_TOOL_RESULT_BYTES } from '../../src/local/operator-defaults.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
 import { DEFAULT_COMPACTION_BINDING } from '../../src/assembly/compaction-provider.ts'
+import { SEARCH_RANKING } from '../../src/entry/search-ranking.ts'
 
 export const memberDir = fileURLToPath(new URL('../..', import.meta.url))
 export const serverBin = join(memberDir, 'dist', 'bin.js')
@@ -405,6 +406,14 @@ export function operatorLayer(options: {
         },
       },
       { kind: 'replace', id: 'execution-host', config: tools.host },
+      {
+        kind: 'replace',
+        id: 'skills',
+        config: {
+          packageRoot: join(dirname(options.storageRoot), 'assets'),
+          ranking: SEARCH_RANKING,
+        },
+      },
       {
         kind: 'replace',
         id: 'request-context',
