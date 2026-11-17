@@ -83,7 +83,7 @@ function observing(port: ReturnType<typeof migratedPort>['port']) {
     read: {
       execute(sql: string, params: Parameters<typeof port.execute>[1]) {
         const result = port.execute(sql, params)
-        observed.push({ sql, params, rows: result.rows.length })
+        observed.push({ sql, params: params ?? [], rows: result.rows.length })
         return result
       },
     },

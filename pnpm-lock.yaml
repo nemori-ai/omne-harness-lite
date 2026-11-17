@@ -512,9 +512,6 @@ importers:
 
   apps/harness-server:
     dependencies:
-      '@omne-harness/context-compaction':
-        specifier: workspace:*
-        version: link:../../packages/context/context-compaction
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
@@ -548,6 +545,9 @@ importers:
       '@omne-harness/authorization':
         specifier: workspace:*
         version: link:../../packages/identity/authorization
+      '@omne-harness/context-compaction':
+        specifier: workspace:*
+        version: link:../../packages/context/context-compaction
       '@omne-harness/exchange-refs':
         specifier: workspace:*
         version: link:../../packages/common/exchange-refs
