@@ -27,9 +27,7 @@ it('a login principal sets the Shell invoke permission to deny on the release tr
           'TodoItems',
           'Tools',
           'Web',
-        ].map(
-          name => `${name}/invoke`,
-        ),
+        ].map(name => `${name}/invoke`),
       )
       for (const value of permissions)
         expect(value).toMatchObject({
