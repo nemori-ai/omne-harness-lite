@@ -288,11 +288,11 @@ const ROUTE_ONLY: ReadonlySet<string> = new Set(['preserve'])
 
 function writtenOf(method: string, input: object): Written {
   const value = input as { execution?: unknown; operation?: unknown }
+  const own = !ROUTE_ONLY.has(method)
   return {
     method,
-    execution:
-      typeof value.execution === 'string' && !ROUTE_ONLY.has(method) ? value.execution : null,
-    operation: typeof value.operation === 'string' ? value.operation : null,
+    execution: own && typeof value.execution === 'string' ? value.execution : null,
+    operation: own && typeof value.operation === 'string' ? value.operation : null,
     digest: `sha256:${operationSemantic(input as ExecutionMutation<unknown>)}`,
   }
 }
@@ -554,12 +554,9 @@ const HEX_DIGEST = /^[0-9a-f]{64}$/
 
 function refsIn(value: unknown, into = new Set<string>()): Set<string> {
   if (value === null || typeof value !== 'object') return into
-  if (isTable(value)) {
-    for (const member of value.values()) refsIn(member, into)
-    return into
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) refsIn(item, into)
+  const members = isTable(value) ? value.values() : Array.isArray(value) ? value : null
+  if (members !== null) {
+    for (const member of members) refsIn(member, into)
     return into
   }
   const record = value as Record<string, unknown>

@@ -321,3 +321,15 @@ describe('what the file holds of a record', () => {
     await reopened.close()
   })
 })
+
+describe('an urgent input in the journal (C27)', () => {
+  it('keeps its urgency across a restart; an ordinary one stays without the field', async () => {
+    const first = await openRequestJournal(file)
+    const urgent: QueuedRequest = { ...request('urgent-1', 0), urgent: true }
+    expect(await first.append(enqueued(urgent))).toBe(true)
+    expect(await first.append(enqueued(request('plain-1', 1)))).toBe(true)
+    const again = await openRequestJournal(file)
+    expect(again.pending).toEqual([urgent, request('plain-1', 1)])
+    expect(again.pending[1]).not.toHaveProperty('urgent')
+  })
+})

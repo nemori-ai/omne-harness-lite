@@ -287,6 +287,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
     const bounds = localBounds()
     expect(Object.keys(bounds).sort()).toEqual([
       'Ask',
+      'BkgToolCalls',
       'Calendar',
       'Files',
       'Schedules',
@@ -297,7 +298,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
     ])
     for (const tool of ['Shell', 'Files', 'Web', 'TodoItems', 'Ask'])
       expect(bounds[tool]?.resultMaxBytes, tool).toBeGreaterThan(inline)
-    for (const tool of ['Tools', 'Calendar', 'Schedules'])
+    for (const tool of ['Tools', 'BkgToolCalls', 'Calendar', 'Schedules'])
       expect(bounds[tool]?.resultMaxBytes, tool).toBeLessThanOrEqual(inline)
   })
 

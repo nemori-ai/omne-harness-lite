@@ -240,7 +240,9 @@ function urgentAccepted(rule: Rule, current: ControlProgress): boolean {
   const urgent = current.intent.urgent
   const found = rule.evidence.urgent.find(item => item.input === urgent.input)
   if (found === undefined) return false
-  if (!equalValue(found.message, urgent.message) || !equalValue(found.origin, urgent.origin))
+  // The same submission is the same input with the same message. The source the Agent holds is the
+  // one the advance submitted with, the routing entry, never the origin of the message.
+  if (!equalValue(found.message, urgent.message))
     inconsistent('urgent original submission mismatch')
   return true
 }

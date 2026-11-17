@@ -7,7 +7,6 @@ type Input = Readonly<{
   tenant: string
   after: Key | null
   limit: number
-  includeArchived: boolean
 }>
 type Item = Readonly<{
   session: string
@@ -15,6 +14,8 @@ type Item = Readonly<{
   lastActivityAt: string | null
   lifecycle: string
   title: string | null
+  archivedAt: null
+  archivedBy: null
 }>
 
 const COLUMNS = 'session, created_at, last_activity_at, lifecycle, title'
@@ -58,8 +59,7 @@ export default handler('session.list', (raw, port) => {
     input.tenant === '' ||
     !Number.isInteger(input.limit) ||
     input.limit < 1 ||
-    input.limit > 1000 ||
-    typeof input.includeArchived !== 'boolean'
+    input.limit > 1000
   )
     throw new Error('invalid input')
   const items: Item[] = []
@@ -72,7 +72,7 @@ export default handler('session.list', (raw, port) => {
       return { items, next: last, completeness: full ? 'complete' : 'partial' }
     scanned += 1
     const lifecycle = text(row['lifecycle'])
-    const included = lifecycle !== 'archived' || input.includeArchived
+    const included = lifecycle !== 'archived'
     if (full) {
       if (included) return { items, next: last, completeness: 'complete' }
       continue
@@ -85,6 +85,8 @@ export default handler('session.list', (raw, port) => {
       lastActivityAt: key.at,
       lifecycle,
       title: nullable(row['title']),
+      archivedAt: null,
+      archivedBy: null,
     })
   }
   return { items, next: null, completeness: 'complete' }

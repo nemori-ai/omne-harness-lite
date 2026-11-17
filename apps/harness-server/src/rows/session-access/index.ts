@@ -22,9 +22,12 @@ import {
 import {
   DEFAULT_SESSION_INTAKE_LIMITS,
   type SessionDirectory,
+  type SessionFailure,
   type SessionListItem,
+  type SessionListPage,
 } from '@omne-harness/session-contract'
-import { parseInstant } from '@omne-harness/utc-instant'
+import type { Outcome } from '@omne-harness/operation-result'
+import { encodeInstant, parseInstant, type Instant } from '@omne-harness/utc-instant'
 import { z } from 'zod'
 import {
   modesInitialization,
@@ -94,31 +97,46 @@ function instantOf(text: string | null): SessionListEntry['createdAt'] | undefin
 function entryOf(item: SessionListItem): SessionListEntry | undefined {
   const createdAt = instantOf(item.createdAt)
   const lastActivityAt = instantOf(item.lastActivityAt)
-  if (createdAt === undefined || lastActivityAt === undefined) return undefined
-  return {
-    session: item.session,
-    createdAt,
-    lastActivityAt,
-    lifecycle: item.lifecycle,
-    title: item.title,
+  const archivedAt = instantOf(item.archivedAt)
+  if (createdAt === undefined || lastActivityAt === undefined || archivedAt === undefined)
+    return undefined
+  const { session, lifecycle, title, archivedBy } = item
+  return { session, createdAt, lastActivityAt, lifecycle, title, archivedAt, archivedBy }
+}
+
+// The archive times are the clock's ISO text in milliseconds, so a bound is put in that form; a
+// bound finer than a millisecond is cut to it.
+function boundOf(instant: Instant | null): string | null | undefined {
+  if (instant === null) return null
+  const millis = Date.parse(encodeInstant(instant))
+  return Number.isNaN(millis) ? undefined : new Date(millis).toISOString()
+}
+
+async function pageOf(
+  answer: Promise<Outcome<SessionListPage, SessionFailure>>,
+): ReturnType<SessionListing['list']> {
+  const result = await answer
+  if ('failure' in result) {
+    const { kind } = result.failure
+    return { refused: kind === 'invalid' || kind === 'denied' ? kind : 'basis-unavailable' }
   }
+  const items: SessionListEntry[] = []
+  for (const item of result.ok.items) {
+    const entry = entryOf(item)
+    if (entry === undefined) return { refused: 'basis-unavailable' }
+    items.push(entry)
+  }
+  return { ok: { items, next: result.ok.next, completeness: result.ok.completeness } }
 }
 
 export function sessionListingOf(directory: SessionDirectory<Principal>): SessionListing {
   return {
-    async list(input) {
-      const result = await directory.list(input)
-      if ('failure' in result) {
-        const { kind } = result.failure
-        return { refused: kind === 'invalid' || kind === 'denied' ? kind : 'basis-unavailable' }
-      }
-      const items: SessionListEntry[] = []
-      for (const item of result.ok.items) {
-        const entry = entryOf(item)
-        if (entry === undefined) return { refused: 'basis-unavailable' }
-        items.push(entry)
-      }
-      return { ok: { items, next: result.ok.next, completeness: result.ok.completeness } }
+    list: input => pageOf(directory.list(input)),
+    listArchived: async input => {
+      const from = boundOf(input.from)
+      const to = boundOf(input.to)
+      if (from === undefined || to === undefined) return { refused: 'invalid' }
+      return pageOf(directory.listArchived({ ...input, from, to }))
     },
   }
 }

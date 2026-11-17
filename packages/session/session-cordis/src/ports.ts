@@ -22,6 +22,7 @@ export type CurrentPorts = Pick<
   | 'agentDrive'
   | 'scopeRelease'
   | 'callControl'
+  | 'callStates'
 >
 
 // Use the Context captured at load: in a service method this.ctx is the caller's Context and sees the caller's isolate.
@@ -47,7 +48,8 @@ export function createPorts(ctx: Context, diagnose: Diagnose): CurrentPorts {
       | 'sessionTransactions'
       | 'sessionAgentDrive'
       | 'sessionScopeRelease'
-      | 'sessionCallControl',
+      | 'sessionCallControl'
+      | 'sessionCallStates',
   >(
     key: K,
   ): Current<NonNullable<Context[K]>> => ({ current: () => ctx.get(key) ?? null })
@@ -78,5 +80,6 @@ export function createPorts(ctx: Context, diagnose: Diagnose): CurrentPorts {
     agentDrive: current('sessionAgentDrive'),
     scopeRelease: current('sessionScopeRelease'),
     callControl: current('sessionCallControl'),
+    callStates: current('sessionCallStates'),
   }
 }

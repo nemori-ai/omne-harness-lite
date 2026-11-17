@@ -25,6 +25,7 @@ import { isReleaseToolRequest, isReleaseToolsRequest } from '../../entry/tool-fo
 import { releaseOf } from '../../entry/tool-release.ts'
 import { createReleaseToolsCapability, toolsCapabilityConfig } from './tools-capability.ts'
 import { bindReleaseTodoItems } from './todo-items.ts'
+import { bindReleaseBackgroundCalls } from './background-calls.ts'
 import { bindReleaseWeb, webBindingConfig, type WebBindingConfig } from './web.ts'
 import { bindReleaseCalendar } from './calendar.ts'
 import { bindReleaseSchedules } from './schedules.ts'
@@ -57,10 +58,13 @@ export function releaseCapability(
     const withTodos = isReleaseToolRequest(release, input.request, 'TodoItems')
       ? bindReleaseTodoItems(ctx, input, withTools)
       : withTools
+    const withCalls = isReleaseToolRequest(release, input.request, 'BkgToolCalls')
+      ? bindReleaseBackgroundCalls(ctx, input, withTodos)
+      : withTodos
     const withWeb =
       attachments.web !== null && isReleaseToolRequest(release, input.request, 'Web')
-        ? bindReleaseWeb(input, withTodos, attachments.web, custody)
-        : withTodos
+        ? bindReleaseWeb(input, withCalls, attachments.web, custody)
+        : withCalls
     if (isReleaseToolRequest(release, input.request, 'Calendar'))
       return bindReleaseCalendar(ctx, input, withWeb)
     return isReleaseToolRequest(release, input.request, 'Schedules')

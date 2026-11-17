@@ -53,7 +53,8 @@ const SESSION_GOLDEN = {
   readWork: WORK_ONLY,
   readCurrentScope: WORK_ONLY,
   readWaiting: [M, D, D],
-  readBackgroundCalls: [M, D, D],
+  readBackgroundCalls: [M, M, D],
+  resolveBackgroundCall: [M, M, D],
   readInput: WORK_ONLY,
   queryOperation: BOTH,
   readModelSelection: BOTH,
@@ -145,8 +146,8 @@ compare('Session', SESSION_POLICY, SESSION_GOLDEN)
 compare('Agent', AGENT_POLICY, AGENT_GOLDEN)
 
 describe('the golden itself', () => {
-  it('has the 49 Session rows and 30 Agent rows of the baseline enumerations', () => {
-    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(49)
+  it('has the 50 Session rows and 30 Agent rows of the baseline enumerations', () => {
+    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(50)
     expect(Object.keys(AGENT_GOLDEN)).toHaveLength(30)
   })
 })

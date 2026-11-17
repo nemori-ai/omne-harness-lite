@@ -121,6 +121,39 @@ describe('an urgent input releases the foreground wait of the current step', () 
     expect(assembly.controls.tools.commands.control.calls).toHaveLength(1)
   })
 
+  it('hands each port the access alone: no request of a material or Tool command carries the control operation', async () => {
+    const preserved: object[] = []
+    const assembly = await toolAssembly({}, {}, {}, dependencies => ({
+      ...dependencies,
+      materials: {
+        ...dependencies.materials,
+        preserve: request => {
+          preserved.push(request)
+          return dependencies.materials.preserve(request)
+        },
+      },
+    }))
+    assembly.controls.tools.invoke.always(async () => accepted('call-1'))
+    const handle = ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly)
+    const [pending] = await associatedTools(assembly, 1)
+    if (pending === undefined) throw new Error('no associated Tool call')
+    assembly.controls.tools.commands.control.always(() => acceptedControl(pending, 'release'))
+    const before = preserved.length
+    ok(await handle.input.submit({ ...input, operation: operation('urgent'), value: urgent('u') }))
+    await eventually(async () => assembly.controls.tools.commands.control.calls.length === 1)
+    const [command] = assembly.controls.tools.commands.control.calls
+    expect(Object.keys(command ?? {}).sort()).toEqual([
+      'intent',
+      'principal',
+      'reference',
+      'tenant',
+    ])
+    const stages = preserved.slice(before)
+    expect(stages.length).toBeGreaterThan(0)
+    for (const request of stages) expect(request).not.toHaveProperty('operation')
+  })
+
   it('ends the step on the withdrawn foreground final when Tool cannot move the call', async () => {
     const { assembly, handle, pending } = await waitingOnTool()
     ok(await handle.input.submit({ ...input, operation: operation('urgent'), value: urgent('u') }))

@@ -23,7 +23,9 @@ export type SessionDriverDeps = Readonly<{
 const HISTORY_PAGE_BYTES = '65536'
 
 // The client throws only before anything is sent, so such a call provably did not leave: local unavailable.
-function notSent<T>(call: () => Promise<T>): Promise<T | { readonly outcome: 'unavailable' }> {
+export function notSent<T>(
+  call: () => Promise<T>,
+): Promise<T | { readonly outcome: 'unavailable' }> {
   return Promise.resolve()
     .then(call)
     .catch(() => ({ outcome: 'unavailable' as const }))

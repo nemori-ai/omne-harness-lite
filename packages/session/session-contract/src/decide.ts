@@ -805,22 +805,24 @@ function decideInterrupt(
     return invalid('urgent', 'empty or duplicate input')
   const limited = judgeSessionIntake(pendingIntakeCount(previous), command.input.urgent, limits)
   if (limited !== null) return rejected(limited)
+  const { urgent, decision, operation } = command.input
+  const run = command.input.run ?? (previous.run.kind === 'active' ? previous.run.run : null)
+  if (run === null) {
+    const { tenant, session } = command.input
+    return decideAccept(
+      previous,
+      { kind: 'accept', input: { tenant, session, operation, value: urgent } },
+      limits,
+    )
+  }
   const control = decideControl(
     previous,
-    {
-      kind: 'interrupt',
-      run: command.input.run,
-      urgent: command.input.urgent,
-      decision: command.input.decision,
-    },
-    command.input.operation,
+    { kind: 'interrupt', run, urgent, decision },
+    operation,
     reads,
   )
   return control.kind === 'entries'
-    ? entries([
-        ...acceptedOrdinary(command.input.urgent, 'current-run', command.input.run),
-        ...control.entries,
-      ])
+    ? entries([...acceptedOrdinary(urgent, 'current-run', run), ...control.entries])
     : control
 }
 

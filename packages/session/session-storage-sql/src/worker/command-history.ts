@@ -1,8 +1,4 @@
-import type {
-  SessionCommand,
-  SessionInputScope,
-  WorkSnapshot,
-} from '@omne-harness/session-contract'
+import type { SessionCommand, WorkSnapshot } from '@omne-harness/session-contract'
 import {
   NO_FOCUS,
   readHistory,
@@ -10,15 +6,8 @@ import {
   type HistoryFocus,
   type SessionHistory,
 } from './history-index.ts'
+import { commandScope } from './input-rows.ts'
 import type { Executor } from './support.ts'
-
-function commandScope(command: SessionCommand, previous: WorkSnapshot | null): SessionInputScope {
-  if (command.kind === 'startRun')
-    return { kind: 'selected', inputs: (previous?.pending ?? []).slice(0, 1) }
-  if (command.kind === 'receive' && command.input.fact.kind === 'input-handover')
-    return { kind: 'selected', inputs: [command.input.fact.input] }
-  return { kind: 'pending', inputs: previous?.pending ?? [] }
-}
 
 // A result decision reads the execution it names, so a binding its Agent records carry is visible before Session interprets it.
 function commandFocus(command: SessionCommand, previous: WorkSnapshot): HistoryFocus {

@@ -3,6 +3,7 @@ import type { OrganizationId, TenantId, WorkspaceId } from '@omne-harness/legal-
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { SchemaRef } from '@omne-harness/schema-provider'
 import type { ToolDeclarations } from './authoring.ts'
+import type { ToolCallLabel } from './call-label.ts'
 import type { CommandCallEncoding } from './command-call.ts'
 import type { Adoption, ConsumerRef, DurableEvidence } from './identity.ts'
 
@@ -131,6 +132,8 @@ export type FixedToolRequest = Readonly<{
   invocation: ToolInvocation
   command: string | null
   arguments: ToolArguments
+  /** How a person and the model recognise the call. No admission, permission or approval reads it. */
+  label: ToolCallLabel
   settings: Adoption
   context: Adoption
   workspace: WorkspaceId | null

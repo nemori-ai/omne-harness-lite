@@ -84,7 +84,9 @@ export type {
   SessionFaces,
   SessionFailure,
   SessionHistory,
+  ArchivedBy,
   SessionListItem,
+  SessionListPage,
   SessionManagement,
   SessionReconciliation,
   SessionWork,
@@ -143,6 +145,7 @@ export type {
   ScopeReleasePort,
   ScopeReleaseReadback,
   SessionCallControl,
+  SessionCallStates,
   SessionBlockDeclaration,
   SessionClock,
   SessionCommand,
@@ -286,10 +289,15 @@ export {
   sessionInputBytes,
   judgeSessionIntake,
   pendingIntakeCount,
+  runStartInputs,
+  wakingInputs,
 } from './intake.ts'
 export {
+  archiveCollapse,
   backgroundCalls,
+  controlAnswer,
   controlRoutes,
+  type ArchiveCollapse,
   type ControlRoutes,
   type DirectCallControl,
 } from './call-control.ts'
@@ -317,4 +325,17 @@ export type {
 } from './permission-values.ts'
 
 export { rebuildSessionPermissions, type SessionPermissionHistory } from './permission-history.ts'
+export { backgroundCallView, shortCallId } from './background-calls.ts'
+export type {
+  BackgroundCallLabel,
+  BackgroundCallResolution,
+  BackgroundCallRecord,
+  BackgroundCallSource,
+  BackgroundCallState,
+  BackgroundCallStatus,
+  BackgroundCallStop,
+  BackgroundCallView,
+  StopInitiator,
+  StopView,
+} from './background-calls.ts'
 export { compactionContextForView } from './model-view.ts'

@@ -7,6 +7,8 @@ import {
   type ToolInvokeOutcome,
   type ToolState,
 } from '@omne-harness/tool-contract'
+import { decodeAgentToolDeliveryMaterial } from '@omne-harness/agent'
+import { toolDeliveryMaterial } from '../src/tool-receiving-material.ts'
 import { execution, loadWithEntries, ok } from './journal-support.ts'
 import { alice, eventually, invoke } from './loop-support.ts'
 import {
@@ -143,6 +145,17 @@ describe('a Tool call moved to the background', () => {
           entry.delivery.key.kind === 'result',
       ),
     ).toHaveLength(1)
+  })
+
+  it('keeps the label of the placeholder as given, and the message does not show it (C4)', async () => {
+    const { assembly, pending } = await backgrounded()
+    const placeholder = toolPlaceholder(pending)
+    const kept = decodeAgentToolDeliveryMaterial(toolDeliveryMaterial(alice, placeholder))
+    expect(kept?.delivery).toEqual(placeholder)
+    const broken = { ...placeholder, label: { ...placeholder.label, intent: 'one\ntwo' } }
+    expect(decodeAgentToolDeliveryMaterial(toolDeliveryMaterial(alice, broken))).toBeNull()
+    const [message] = toolMessages(await events(assembly))
+    expect(JSON.stringify(message)).not.toContain('wait for the build')
   })
 
   it('keeps the final result that arrives after the run ended', async () => {

@@ -25,6 +25,7 @@ import {
   decodeToolResultVersion,
   decodeToolWaitId,
   judgeConsumerRef,
+  toolCallLabel,
 } from '@omne-harness/tool-contract/provider'
 import { canonical } from './canonical.ts'
 import { account } from './receiving-material.ts'
@@ -208,6 +209,7 @@ function placeholderDelivery(
     key.kind === 'placeholder' &&
     'ok' in decodeToolDeliveryId(value.delivery) &&
     backgroundSource(value.source) &&
+    'ok' in toolCallLabel(value.label, 'label') &&
     'ok' in judgeEvidence(value.evidence)
   )
 }

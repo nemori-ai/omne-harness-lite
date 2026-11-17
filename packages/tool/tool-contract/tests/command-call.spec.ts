@@ -12,6 +12,7 @@ import {
 import { readToolOperation, readToolRegistration } from '@omne-harness/tool-contract/binding'
 import {
   COMMAND_CALL_ENCODINGS,
+  INTENT_MAX_BYTES,
   commandArguments,
   commandGuide,
   commandExample,
@@ -67,17 +68,19 @@ describe('command call encodings', () => {
         for (const text of PARAMS) {
           const params = json(text)
           if (params.kind !== 'object') throw new Error(text)
-          const call = { command, params }
-          const encoded = encodeCommandCall(encoding, call)
-          expect(decodeCommandCall(encoding, names, encoded)).toEqual({ ok: call })
-          expect(decodeCommandCallText(encoding, names, writeJsonText(encoded))).toEqual({
-            ok: call,
-          })
+          for (const intent of [null, 'read the notes']) {
+            const call = { command, intent, params }
+            const encoded = encodeCommandCall(encoding, call)
+            expect(decodeCommandCall(definition, encoded)).toEqual({ ok: call })
+            expect(decodeCommandCallText(definition, writeJsonText(encoded))).toEqual({
+              ok: call,
+            })
+          }
         }
     })
 
     it(`${encoding}: decode is undefined off the image of encode, with a named rejection`, () => {
-      const reject = (text: string) => decodeCommandCallText(encoding, names, text)
+      const reject = (text: string) => decodeCommandCallText(definition, text)
       expect(reject('[1]')).toEqual({ failure: { kind: 'not-object' } })
       expect(reject('{"params":{}}')).toEqual({ failure: { kind: 'command-missing' } })
       expect(reject('{"command":7}')).toEqual({ failure: { kind: 'command-missing' } })
@@ -93,11 +96,11 @@ describe('command call encodings', () => {
           failure: { kind: 'params-not-object' },
         })
         expect(reject(`{"command":"${names[0]}"}`)).toEqual({
-          ok: { command: names[0], params: { kind: 'object', entries: [] } },
+          ok: { command: names[0], intent: null, params: { kind: 'object', entries: [] } },
         })
       } else {
         expect(reject(`{"command":"${names[0]}","path":"a"}`)).toEqual({
-          ok: { command: names[0], params: json('{"path":"a"}') },
+          ok: { command: names[0], intent: null, params: json('{"path":"a"}') },
         })
       }
     })
@@ -115,7 +118,9 @@ describe('command call encodings', () => {
       for (const command of names)
         expect(
           select(
-            writeJsonText(encodeCommandCall(encoding, { command, params: json('{}') as never })),
+            writeJsonText(
+              encodeCommandCall(encoding, { command, intent: null, params: json('{}') as never }),
+            ),
           ),
         ).toEqual({ ok: command })
     })
@@ -150,7 +155,11 @@ describe('command call encodings', () => {
 
     it(`${encoding}: the codec arguments are the parameters of the admitted command`, () => {
       const call = writeJsonText(
-        encodeCommandCall(encoding, { command: 'read', params: json('{"path":"a.txt"}') as never }),
+        encodeCommandCall(encoding, {
+          command: 'read',
+          intent: null,
+          params: json('{"path":"a.txt"}') as never,
+        }),
       )
       const args = (effective: string, complete = true) => ({
         original: effective,
@@ -410,5 +419,149 @@ describe('the exact texts of a call', () => {
   it('leaves the arguments of a function tool as they are', () => {
     const args = { original: '{"a":1}', effective: '{"a":1}', complete: true }
     expect(commandArguments(functionDefinition(), null, args)).toEqual({ ok: args })
+  })
+})
+
+describe('the intent in the call envelope (design table: intent decoding)', () => {
+  for (const encoding of COMMAND_CALL_ENCODINGS) {
+    const source = withEncoding(encoding)
+    const definition: Commands = {
+      ...source,
+      commands: source.commands.map(command =>
+        command.name === 'shell' ? { ...command, background: { unless: [] } } : command,
+      ),
+    }
+    const decode = (text: string) => decodeCommandCallText(definition, text)
+    const call = (command: string, intent: unknown) =>
+      writeJsonText(
+        json(
+          JSON.stringify(
+            encoding === 'flat'
+              ? { command, ...(intent === undefined ? {} : { intent }) }
+              : { command, ...(intent === undefined ? {} : { intent }), params: {} },
+          ),
+        ),
+      )
+    const long = 'x'.repeat(INTENT_MAX_BYTES + 1)
+    const wide = '意'.repeat(Math.floor(INTENT_MAX_BYTES / 3) + 1)
+
+    it(`${encoding}: a command that may go to the background without an intent is refused with its usage`, () => {
+      expect(decode(call('shell', undefined))).toEqual({
+        failure: { kind: 'intent-missing', command: 'shell' },
+      })
+      const text = describeCommandCallRejection(definition, {
+        kind: 'intent-missing',
+        command: 'shell',
+      })
+      expect(text.split('\n')[0]).toBe(
+        'files: "shell" needs "intent": one line saying why you make this call.',
+      )
+      expect(text).toContain(
+        'Usage: files {"command": "shell", "intent": "<one line: why you make this call>"',
+      )
+    })
+
+    it(`${encoding}: one line within the bound is the intent of either kind of command`, () => {
+      expect(decode(call('shell', 'build the front end'))).toMatchObject({
+        ok: { command: 'shell', intent: 'build the front end' },
+      })
+      expect(decode(call('read', 'look at the notes'))).toMatchObject({
+        ok: { command: 'read', intent: 'look at the notes' },
+      })
+      expect(decode(call('shell', 'x'.repeat(INTENT_MAX_BYTES)))).toMatchObject({
+        ok: { intent: 'x'.repeat(INTENT_MAX_BYTES) },
+      })
+    })
+
+    it(`${encoding}: a command without background permission may leave the intent out`, () => {
+      expect(decode(call('read', undefined))).toMatchObject({
+        ok: { command: 'read', intent: null },
+      })
+    })
+
+    it(`${encoding}: an empty, multi-line, oversized or non-text intent is refused for either kind`, () => {
+      for (const command of ['shell', 'read']) {
+        const refused = (intent: unknown, fault: string) =>
+          expect(decode(call(command, intent))).toEqual({
+            failure: { kind: 'intent-invalid', command, fault },
+          })
+        refused('', 'blank')
+        refused('   ', 'blank')
+        refused('one\ntwo', 'multiline')
+        refused('one\rtwo', 'multiline')
+        refused(long, 'too-long')
+        refused(wide, 'too-long')
+        refused(7, 'not-text')
+        refused(null, 'not-text')
+      }
+      const text = describeCommandCallRejection(definition, {
+        kind: 'intent-invalid',
+        command: 'shell',
+        fault: 'multiline',
+      })
+      expect(text.split('\n')[0]).toBe(
+        `files: "intent" must be one line of text of at most ${INTENT_MAX_BYTES} bytes (multiline).`,
+      )
+      expect(text).toContain('Usage: files {"command": "shell", "intent":')
+    })
+
+    it(`${encoding}: the author never receives the intent`, () => {
+      const text = call('shell', 'build the front end')
+      const cut = commandArguments(definition, 'shell', {
+        original: text,
+        effective: text,
+        complete: true,
+      })
+      expect(cut).toEqual({ ok: { original: text, effective: '{}', complete: true } })
+    })
+  }
+
+  it('a flat command may not declare a field named intent', () => {
+    const flat = withEncoding('flat')
+    const first = flat.commands[0]!
+    if (first.parameters.kind !== 'declared') throw new Error('declared')
+    const clash = {
+      ...flat,
+      commands: [
+        {
+          ...first,
+          parameters: {
+            kind: 'declared' as const,
+            value: {
+              ...first.parameters.value,
+              schema: json('{"type":"object","properties":{"intent":{"type":"string"}}}'),
+            },
+          },
+        },
+      ],
+    }
+    expect(judgeToolDefinition(clash)).toMatchObject({
+      failure: { field: 'commands', reason: `flat-conflict:${first.name}` },
+    })
+  })
+
+  it('the declaration lists intent only for a tool with a command that may go to the background', () => {
+    const plain = withEncoding('wrapped')
+    const mark = (definition: Commands) =>
+      (
+        JSON.parse(writeJsonText(commandCallSchema(definition))) as {
+          properties: Record<string, unknown>
+        }
+      ).properties
+    expect(Object.keys(mark(plain))).not.toContain('intent')
+    const background: Commands = {
+      ...plain,
+      commands: plain.commands.map(command =>
+        command.name === 'shell' ? { ...command, background: { unless: [] } } : command,
+      ),
+    }
+    expect(mark(background).intent).toEqual({
+      type: 'string',
+      description: 'One line saying why you make this call. Required by the commands that say so.',
+    })
+    expect(commandMenu(background)).toContain(
+      'The call also needs "intent": one line saying why you make it.',
+    )
+    expect(commandMenu(plain)).not.toContain('"intent"')
   })
 })

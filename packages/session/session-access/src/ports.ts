@@ -1,4 +1,9 @@
-import type { AnswerOf, LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
+import type {
+  AnswerOf,
+  BodyOf,
+  LoginIdentity,
+  Principal,
+} from '@omne-harness/access-cordis-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   Adoption,
@@ -41,8 +46,9 @@ export interface PrincipalFacts {
   describe(principal: Principal): PrincipalFact | undefined
 }
 
+/** An item of either list; in the list of sessions not archived its archive fields are null. */
 export type SessionListEntry = Extract<
-  AnswerOf<SessionProtocol['operations']['list-sessions']>,
+  AnswerOf<SessionProtocol['operations']['list-archived-sessions']>,
   { outcome: 'succeeded' }
 >['body']['sessions'][number]
 
@@ -52,23 +58,29 @@ export type SessionListPage = Readonly<{
   completeness: 'complete' | 'partial'
 }>
 
+type ListingInput = Readonly<{
+  principal: Principal
+  tenant: TenantId
+  after: string | null
+  limit: number
+}>
+type ArchivedBody = BodyOf<SessionProtocol['operations']['list-archived-sessions']>
+/** The archived list's filters as the protocol reads them; the times are instants, not text. */
+export type ArchiveFilters = Readonly<{
+  [K in 'from' | 'to' | 'by' | 'titleContains']-?: Exclude<ArchivedBody[K], undefined>
+}>
+type ListingAnswer = Promise<
+  | { readonly ok: SessionListPage }
+  | { readonly refused: 'invalid' | 'denied' | 'basis-unavailable' }
+>
+
 export interface SessionListing {
-  list(
-    input: Readonly<{
-      principal: Principal
-      tenant: TenantId
-      after: string | null
-      limit: number
-      includeArchived: boolean
-    }>,
-  ): Promise<
-    | { readonly ok: SessionListPage }
-    | { readonly refused: 'invalid' | 'denied' | 'basis-unavailable' }
-  >
+  list(input: ListingInput): ListingAnswer
+  listArchived(input: ListingInput & ArchiveFilters): ListingAnswer
 }
 
 export type SessionAccessFaces = Readonly<{
-  management: Pick<SessionManagement<Principal>, 'create'>
+  management: Pick<SessionManagement<Principal>, 'create' | 'interrupt'>
   work: Pick<
     SessionWork<Principal>,
     | 'accept'

@@ -14,7 +14,11 @@ import {
   unavailableAt,
 } from './session-validation.ts'
 import { associated, registerCall, registeredWaiting } from './call-state.ts'
-import { applyBackgroundSettled, applyBackgrounded } from './background-outcome.ts'
+import {
+  applyBackgroundSettled,
+  applyBackgroundStop,
+  applyBackgrounded,
+} from './background-outcome.ts'
 
 type Draft = { -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K] }
 
@@ -251,6 +255,7 @@ function applyControlRequested(
   entry: Extract<SessionEntry, { kind: 'control.requested' }>,
 ): string | null {
   requestControl(draft, entry.progress)
+  applyBackgroundStop(draft, entry.progress)
   return null
 }
 

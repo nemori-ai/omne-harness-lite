@@ -14,6 +14,7 @@ import { SESSION_COMMIT_PROTOCOL, type SessionCommitBasis } from '../commit-basi
 import type { SessionPermissionChangeBasis } from '@omne-harness/session-contract'
 import {
   commandDigest,
+  controlAnswer,
   sessionIntakeLimits,
   type SessionIntakeLimits,
   decide,
@@ -33,6 +34,7 @@ import {
   type SessionCommand,
   type SessionFailure,
   type WorkSnapshot,
+  runStartInputs,
 } from '@omne-harness/session-contract'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
@@ -209,7 +211,7 @@ function pendingReasons(snapshot: WorkSnapshot | null): readonly PendingReason[]
   if (snapshot.unresolved.length > 0) reasons.push('unresolved')
   if (snapshot.controls.some(control => control.state === 'propagating')) reasons.push('controls')
   if (snapshot.tasks.length > 0) reasons.push('tasks')
-  if (snapshot.pending.length > 0) reasons.push('inputs')
+  if (runStartInputs(snapshot).length > 0) reasons.push('inputs')
   if (snapshot.run.kind === 'active') reasons.push('run')
   else if (
     snapshot.lifecycle !== 'archived' &&
@@ -307,10 +309,7 @@ export function resultOf(
       }
     case 'control':
     case 'interrupt':
-      return {
-        receipt,
-        progress: snapshot.controls.find(item => item.operation === command.input.operation),
-      }
+      return { receipt, ...controlAnswer(snapshot, command) }
     case 'cancelRun':
     case 'stopCall': {
       const progress = snapshot.controls.find(item => item.operation === command.input.operation)
@@ -606,7 +605,7 @@ function firstInputOf(
   session: string,
   previous: WorkSnapshot,
 ): Pick<Reads, 'firstInput'> {
-  const first = previous.pending[0]
+  const [first] = runStartInputs(previous)
   if (first === undefined) return {}
   const row = oneRow(
     port,
@@ -726,6 +725,7 @@ type CommandBatch = Readonly<{
   history: SessionHistory | null
   basis: HistoryBasis | null
   entries: Extract<Decision, { kind: 'entries' }>['entries']
+  admitted?: Extract<Decision, { kind: 'entries' }>['admitted']
 }>
 
 function publishCommand(
@@ -763,7 +763,7 @@ function publishCommand(
   const { epoch, bytes, batch: committed } = written
   const granted = recordAttemptGrants(port, { tenant, session, entries, receipt })
   if (granted !== null) return granted
-  writeInputs(port, { tenant, session }, admittedInputs(command))
+  writeInputs(port, { tenant, session }, admittedInputs(command, batch.admitted))
   const result = resultOf(command, withIndex(port, command, snapshot), receipt)
   if (result === null)
     return {
@@ -847,7 +847,7 @@ function settleDecision(
   if (decision.kind === 'recovered') return recallOriginal(port, received, start, decision)
   if (decision.entries.length === 0 && command.kind === 'considerAutoArchive' && previous !== null)
     return participated({ result: autoArchiveResult(previous), receipt: null }, false)
-  return publishCommand(port, received, start, { ...judged, entries: decision.entries })
+  return publishCommand(port, received, start, { ...judged, ...decision })
 }
 
 function runCommand(

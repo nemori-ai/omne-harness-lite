@@ -218,6 +218,7 @@ function interpret(
         out.push(...step.entries)
         admitted.push(...step.admitted)
         current = { ...current, backgroundPlaceholders: step.placeholders, controls: step.controls }
+        if (step.ordinal !== undefined) current = { ...current, backgroundOrdinal: step.ordinal }
         return
       }
       const decision = decideProducerFact(

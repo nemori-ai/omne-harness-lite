@@ -322,6 +322,7 @@ function requestSource(ctx: Context) {
     readWork: async () => succeed(snapshot),
     scopeBinding: () => ctx.get(executionScopeBindingKey),
     release: () => releaseOf(ctx),
+    operatorSettings: () => ({}),
     interaction: async () => fail('no meta command in this test'),
     inquiry: async () => fail('no meta command in this test'),
   })
@@ -330,7 +331,7 @@ function requestSource(ctx: Context) {
 let positions = 0
 async function requestFor(ctx: Context, principal: unknown, command: string, params: string) {
   const [name = command, selected] = command.split('.')
-  const args = `{"command":${JSON.stringify(selected)},"params":${params}}`
+  const args = `{"command":${JSON.stringify(selected)},"intent":"test call","params":${params}}`
   const source = requestSource(ctx)
   const position = `step-${++positions}/tool/0`
   const input = {

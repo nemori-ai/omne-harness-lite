@@ -385,10 +385,13 @@ type ControlPorts<P> = Pick<
 
 export async function advanceAcceptedControl<P>(
   ports: ControlPorts<P>,
-  access: Access<P>,
+  given: Access<P>,
   execution: AgentExecutionId,
   operation: AgentOperationId,
 ): Promise<Outcome<void, Failure>> {
+  // A writer hands its whole control request in; each port gets the access alone, so the control's
+  // operation never names a material, a Tool command or a read of its own.
+  const access: Access<P> = { principal: given.principal, tenant: given.tenant }
   const loaded = await ports.journal.load({ ...access, execution })
   if ('failure' in loaded) return loaded
   const control = loaded.ok.controls.find(record => record.operation === operation)

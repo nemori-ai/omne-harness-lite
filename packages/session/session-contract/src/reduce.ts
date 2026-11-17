@@ -17,7 +17,7 @@ import { pendingAfterTerminal } from './input-leases.ts'
 import { SESSION_INTERPRETER, decodeEntries, type SessionEntry } from './entries.ts'
 import type { CommittedBatch, ReduceResult } from './judgments.ts'
 import { advanceEntriesProgress, applyExtended } from './reduce-extended.ts'
-import { pruneBackgroundInputs } from './background-outcome.ts'
+import { pruneInputLists } from './background-outcome.ts'
 import { hasUnansweredCalls, trackCalls } from './run-closure.ts'
 import { scopeBinding } from './decide-management.ts'
 import { batchEvidence } from './batch-evidence.ts'
@@ -128,6 +128,10 @@ function applyIntakeRouted(
   }
   if (draft.pending.includes(entry.input)) return `input ${entry.input} accepted twice`
   draft.pending = [...draft.pending, entry.input]
+  if (entry.wakes === false) {
+    draft.quietInputs = [...(draft.quietInputs ?? []), entry.input]
+    return null
+  }
   draft.idle = null
   delete draft.awaitingPerson
   return null
@@ -447,7 +451,7 @@ function reduceBatch(
         draft.controls.some(control => control.operation === item.operation && unsettled(control)),
       ),
     }
-  pruneBackgroundInputs(draft)
+  pruneInputLists(draft)
   draft.revision = batch.revision
   draft.source = batchEvidence(batch, draft.session)
   draft.lifecycle = lifecycleOf(draft)

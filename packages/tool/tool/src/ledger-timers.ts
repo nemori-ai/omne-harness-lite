@@ -6,7 +6,7 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import type { DurableEvidence, ToolCallId, ToolOperationId } from '@omne-harness/tool-contract'
 import { INITIAL_REVISION, mintEvidence } from './evidence.ts'
-import { instantAfter } from './ledger-body-writer.ts'
+import { instantAfter } from './instant.ts'
 import type { LedgerWrite, TenantId } from './ledger-store.ts'
 
 export type TimerOrigin = 'threshold' | 'foreground-limit'

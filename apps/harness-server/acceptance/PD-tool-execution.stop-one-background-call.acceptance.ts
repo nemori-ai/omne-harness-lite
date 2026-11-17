@@ -1,35 +1,43 @@
 // covers: PD-tool-execution S5
 import assert from 'node:assert/strict'
 import { it } from 'vitest'
-import { onReleaseTree, toolCallsThenText } from '../tests/support/release-tree.ts'
+import { onReleaseTree, toolCallsByRequest } from '../tests/support/release-tree.ts'
 import {
-  LIMIT_MS,
   backgroundCalls,
   callOf,
   factsOf,
   history,
+  LIMIT_MS,
   omne,
   record,
   release,
   textOf,
   until,
+  untilQuiet,
   waitingCommand,
 } from './fixtures/release.ts'
 
 const OPENING = 'start: S5 two long commands'
+const REASON = 'S5 no longer needed'
+
+type Entry = Awaited<ReturnType<typeof history>>[number]
+const count = (entries: readonly Entry[], kind: string) =>
+  entries.filter(entry => entry.kind === kind).length
 
 it(
-  'S5 of two background commands, a stop of one is accepted, then proven; only the other comes back',
+  'S5 a person stops one of two background commands: both sides know, and only the other wakes the agent',
   { timeout: 4 * LIMIT_MS },
   async () => {
-    const script = toolCallsThenText(body =>
-      body.includes(OPENING)
+    const bodies: string[] = []
+    const script = toolCallsByRequest(body => {
+      bodies.push(body)
+      return body.includes(OPENING) && !body.includes('"role":"tool"')
         ? [
             { id: 'call_s5_stop', tool: 'Shell', arguments: waitingCommand('never-s5') },
             { id: 'call_s5_keep', tool: 'Shell', arguments: waitingCommand('go-s5') },
           ]
-        : [],
-    )
+        : []
+    })
     const observed: Record<string, unknown> = {}
     let passed = false
     const exitCode = await onReleaseTree(
@@ -50,7 +58,16 @@ it(
           const kept = listed.find(reference => reference !== target)
           assert.ok(target !== undefined && kept !== undefined)
 
-          const stop = await omne(tree, ['calls', 'stop', '--session', session, '--call', target])
+          const stop = await omne(tree, [
+            'calls',
+            'stop',
+            '--session',
+            session,
+            '--call',
+            target,
+            '--reason',
+            REASON,
+          ])
           observed['stop'] = stop.json
           assert.equal(stop.status, 0)
           assert.deepEqual(
@@ -67,26 +84,50 @@ it(
           assert.match(shown, /^Control \S+: stopped$/mu, 'the control reads stopped once proven')
           assert.doesNotMatch(shown, /: stop accepted$/mu)
 
+          const outcomeOf = (entry: Entry, reference: string) =>
+            entry.kind === 'message.system_reminder' &&
+            textOf(entry).includes(`The background call ${callOf(reference)}`)
+          const quiet = await until(
+            'the outcome of the stopped call to come back',
+            () => history(tree, session),
+            value => value.some(entry => outcomeOf(entry, target)),
+          )
+          const stopReminder = quiet.find(
+            entry =>
+              entry.kind === 'message.system_reminder' &&
+              textOf(entry).includes('The user stopped background call'),
+          )
+          assert.ok(stopReminder !== undefined, 'a stop reminder names the stop')
+          assert.ok(textOf(stopReminder).includes(REASON), 'the stop reminder carries the reason')
+          const stoppedOutcome = quiet.find(entry => outcomeOf(entry, target))
+          assert.ok(
+            stoppedOutcome !== undefined &&
+              textOf(stoppedOutcome).includes(`stopped by the user. Reason: ${REASON}`),
+            'the outcome of the stopped call names who stopped it',
+          )
+          assert.equal(count(quiet, 'run.started'), 1, 'neither reminder starts a turn')
+
           release(tree, 'go-s5')
           const entries = await until(
-            'the other command to come back',
+            'the other command to come back and wake the agent',
             () => history(tree, session),
-            value => {
-              const at = value.findIndex(entry => entry.kind === 'message.system_reminder')
-              return at >= 0 && value.slice(at).some(entry => entry.kind === 'run.terminal')
-            },
+            value => count(value, 'run.terminal') >= 2,
           )
           const reminders = entries.filter(entry => entry.kind === 'message.system_reminder')
           observed['reminders'] = reminders.map(textOf)
-          assert.equal(reminders.length, 1, 'one reminder: the stopped call has none')
+          observed['starts'] = count(entries, 'run.started')
+          assert.equal(reminders.length, 3, 'the stop, the stopped outcome and the other outcome')
+          assert.ok(reminders.some(entry => outcomeOf(entry, kept)))
+          assert.ok(reminders.some(entry => /go-s5-done/u.test(textOf(entry))))
+          assert.equal(count(entries, 'run.started'), 2, 'only the other outcome woke the agent')
+          const woken = bodies.at(-1) ?? ''
           assert.ok(
-            textOf(reminders[0]).includes(callOf(kept)),
-            'the reminder is of the other call',
+            woken.includes('The user stopped background call') && woken.includes(REASON),
+            'the turn the other outcome opened carries the stop reminder to the model',
           )
-          assert.match(textOf(reminders[0]), /go-s5-done/u)
-          assert.ok(!reminders.some(entry => textOf(entry).includes(callOf(target))))
           assert.equal(factsOf(tree, target).starts, 1)
           assert.deepEqual(await backgroundCalls(tree, session), [])
+          await untilQuiet(tree, session, 2)
           passed = true
         } finally {
           record('S5', passed, observed)

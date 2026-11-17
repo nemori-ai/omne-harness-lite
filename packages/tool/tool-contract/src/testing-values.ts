@@ -157,6 +157,7 @@ export function fixedRequest(): FixedToolRequest {
     invocation: { kind: 'direct', source: evidence('entry') },
     command: null,
     arguments: { original: '{"path":"a.txt"}', effective: '{"path":"a.txt"}', complete: true },
+    label: { intent: null, tool: 'read_file', command: null, preview: '' },
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,

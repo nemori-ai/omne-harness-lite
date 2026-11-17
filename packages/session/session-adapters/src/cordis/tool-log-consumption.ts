@@ -224,7 +224,15 @@ function interpretationOf(
     case 'account':
       return [account]
     case 'placeholder':
-      return [{ kind: 'backgrounded', producer, source }]
+      return [
+        {
+          kind: 'backgrounded',
+          producer,
+          source,
+          label: delivery.label,
+          how: delivery.source.kind,
+        },
+      ]
     case 'result':
       return [
         { kind: 'execution', producer, source },

@@ -1,14 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { fail, succeed } from '@omne-harness/operation-result'
-import type {
-  ClockSample,
-  RoutedInput,
-  SessionClock,
-  SessionCommand,
-  SessionDirectory,
-} from '@omne-harness/session-contract'
+import type { RoutedInput, SessionCommand, SessionDirectory } from '@omne-harness/session-contract'
 import {
-  adoption,
   creation,
   evidence,
   operationId,
@@ -18,6 +10,7 @@ import {
 import { sessionStorageMaterials } from '../src/index.ts'
 import migration from '../src/worker/session-list-migration.ts'
 import { app, TENANT_A, TENANT_B, textOf, type App } from './fixtures/app.ts'
+import { clockOf, T } from './fixtures/clock.ts'
 import { FIXTURE_READ_OUTPUT_LIMIT_BYTES } from './fixtures/read-limit.ts'
 
 describe('the materials', () => {
@@ -37,29 +30,6 @@ describe('the materials', () => {
     expect(read?.maxRowsRead).toBe(1001)
   })
 })
-
-type Clock = Pick<SessionClock, 'sample'>
-
-function clockOf(times: readonly (string | null)[]): Clock {
-  let next = 0
-  return {
-    sample: () => {
-      const at = times[next++] ?? null
-      if (at === null)
-        return Promise.resolve(
-          fail({ kind: 'unavailable', owner: 'clock', diagnostic: 'no reading' }),
-        )
-      const sample: ClockSample = {
-        at,
-        protocol: adoption('clock'),
-        source: evidence(`clock/${at}`),
-      }
-      return Promise.resolve(succeed(sample))
-    },
-  }
-}
-
-const T = (second: number) => `2026-11-13T00:00:${String(second).padStart(2, '0')}.000Z`
 
 function rowOf(a: App, session = 'session-1') {
   const rows = a.provider.select(
@@ -223,11 +193,7 @@ function seed(a: App, rows: readonly (readonly [string, string | null, string])[
     )
 }
 
-async function listAll(
-  a: App,
-  limit: number,
-  includeArchived = false,
-): Promise<readonly string[][]> {
+async function listAll(a: App, limit: number): Promise<readonly string[][]> {
   const pages: string[][] = []
   let after: string | null = null
   for (;;) {
@@ -236,7 +202,6 @@ async function listAll(
       tenant: TENANT_A,
       after,
       limit,
-      includeArchived,
     })
     if (!('ok' in page)) throw new Error(JSON.stringify(page))
     pages.push(page.ok.items.map(item => item.session))
@@ -265,19 +230,17 @@ describe('directory.list', () => {
     expect(await listAll(a, 100)).toEqual([['s-b', 's-a', 's-c', 's-d', 's-y', 's-z']])
   })
 
-  it('leaves out archived sessions unless asked, and answers each item whole', async () => {
+  it('leaves out archived sessions, and answers each item whole', async () => {
     const a = await app({ clock: clockOf([T(1), T(2)]) })
     expect(await a.create(TENANT_A)).toHaveProperty('ok')
     expect(await a.accept(TENANT_A, 'session-1', 'input-1')).toHaveProperty('ok')
     seed(a, [['s-old', T(0), 'archived']])
     expect((await listAll(a, 10)).flat()).toEqual(['session-1'])
-    expect((await listAll(a, 10, true)).flat()).toEqual(['session-1', 's-old'])
     const page = await directoryOf(a).list({
       principal: 'tester',
       tenant: TENANT_A,
       after: null,
       limit: 1,
-      includeArchived: false,
     })
     expect(page).toEqual({
       ok: {
@@ -288,6 +251,8 @@ describe('directory.list', () => {
             lastActivityAt: T(2),
             lifecycle: 'dormant',
             title: 'input input-1',
+            archivedAt: null,
+            archivedBy: null,
           },
         ],
         next: null,
@@ -312,7 +277,6 @@ describe('directory.list', () => {
       tenant: TENANT_A,
       after: null,
       limit: 10,
-      includeArchived: false,
     })
     if (!('ok' in first)) throw new Error('first page')
     expect(first.ok).toMatchObject({ items: [], completeness: 'partial' })
@@ -322,7 +286,6 @@ describe('directory.list', () => {
       tenant: TENANT_A,
       after: first.ok.next,
       limit: 10,
-      includeArchived: false,
     })
     expect(second).toMatchObject({
       ok: { items: [{ session: 's-live' }], next: null, completeness: 'complete' },
@@ -345,7 +308,6 @@ describe('directory.list', () => {
         tenant: TENANT_A,
         after: null,
         limit: 10,
-        includeArchived: false,
       }),
     ).toEqual({ failure: { kind: 'denied', action: 'directory.list' } })
   })
@@ -362,7 +324,6 @@ describe('directory.list', () => {
         tenant: TENANT_A,
         after: null,
         limit: 1,
-        includeArchived: false,
         ...input,
       })
     expect(await ask({ limit: 0 })).toMatchObject({ failure: { kind: 'invalid', field: 'limit' } })
@@ -392,7 +353,6 @@ describe('directory.list', () => {
         tenant: TENANT_A,
         after: null,
         limit: 1,
-        includeArchived: false,
       }),
     ).toEqual({ failure: { kind: 'denied', action: 'directory.list' } })
   })
@@ -431,7 +391,6 @@ describe('the migration backfill', () => {
       tenant: TENANT_A,
       after: null,
       limit: 10,
-      includeArchived: false,
     })
     expect(page).toEqual({
       ok: {
@@ -442,6 +401,8 @@ describe('the migration backfill', () => {
             lastActivityAt: null,
             lifecycle: 'dormant',
             title: 'input input-1',
+            archivedAt: null,
+            archivedBy: null,
           },
           {
             session: 'session-2',
@@ -449,6 +410,8 @@ describe('the migration backfill', () => {
             lastActivityAt: null,
             lifecycle: 'dormant',
             title: null,
+            archivedAt: null,
+            archivedBy: null,
           },
         ],
         next: null,

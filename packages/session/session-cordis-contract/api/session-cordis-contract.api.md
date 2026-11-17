@@ -14,9 +14,19 @@
 - `AdvanceRef` · 包 `@omne-harness/session-contract`
 - `AgentDrivePort` · 包 `@omne-harness/session-contract`
 - `AgentInstanceRef` · 包 `@omne-harness/session-contract`
+- `ArchiveCollapse` · 包 `@omne-harness/session-contract`
+- `ArchivedBy` · 包 `@omne-harness/session-contract`
 - `AttemptId` · 包 `@omne-harness/session-contract`
 - `AutoArchivePolicy` · 包 `@omne-harness/session-contract`
 - `BACKGROUND_INPUT_OWNER` · 包 `@omne-harness/session-contract`
+- `BackgroundCallLabel` · 包 `@omne-harness/session-contract`
+- `BackgroundCallRecord` · 包 `@omne-harness/session-contract`
+- `BackgroundCallResolution` · 包 `@omne-harness/session-contract`
+- `BackgroundCallSource` · 包 `@omne-harness/session-contract`
+- `BackgroundCallState` · 包 `@omne-harness/session-contract`
+- `BackgroundCallStatus` · 包 `@omne-harness/session-contract`
+- `BackgroundCallStop` · 包 `@omne-harness/session-contract`
+- `BackgroundCallView` · 包 `@omne-harness/session-contract`
 - `BackgroundDisposition` · 包 `@omne-harness/session-contract`
 - `BackgroundOutcomeJudgment` · 包 `@omne-harness/session-contract`
 - `BatchId` · 包 `@omne-harness/session-contract`
@@ -150,6 +160,7 @@
 - `SessionCallLookup` · 包 `@omne-harness/session-contract`
 - `SessionCallRecord` · 包 `@omne-harness/session-contract`
 - `SessionCallRegistration` · 包 `@omne-harness/session-contract`
+- `SessionCallStates` · 包 `@omne-harness/session-contract`
 - `SessionCallTerminal` · 包 `@omne-harness/session-contract`
 - `SessionCallWait` · 包 `@omne-harness/session-contract`
 - `SessionCallerClass` · 包 `@omne-harness/session-contract`
@@ -202,6 +213,7 @@
 - `SessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `SessionInternalPrincipals` · 包 `@omne-harness/session-contract`
 - `SessionListItem` · 包 `@omne-harness/session-contract`
+- `SessionListPage` · 包 `@omne-harness/session-contract`
 - `SessionLogCommitObservation` · 包 `@omne-harness/session-contract`
 - `SessionLogConsequence` · 包 `@omne-harness/session-contract`
 - `SessionLogObservation` · 包 `@omne-harness/session-contract`
@@ -239,6 +251,8 @@
 - `StartAdoption` · 包 `@omne-harness/session-contract`
 - `StartedRun` · 包 `@omne-harness/session-contract`
 - `StepCommittedBlocks` · `context-facts.d.ts`
+- `StopInitiator` · 包 `@omne-harness/session-contract`
+- `StopView` · 包 `@omne-harness/session-contract`
 - `TodoItem` · 包 `@omne-harness/session-contract`
 - `TodoItemId` · 包 `@omne-harness/session-contract`
 - `TodoMutationReceipt` · 包 `@omne-harness/session-contract`
@@ -248,6 +262,8 @@
 - `Waiting` · 包 `@omne-harness/session-contract`
 - `WorkSnapshot` · 包 `@omne-harness/session-contract`
 - `WorkspaceAttachment` · 包 `@omne-harness/session-contract`
+- `archiveCollapse` · 包 `@omne-harness/session-contract`
+- `backgroundCallView` · 包 `@omne-harness/session-contract`
 - `backgroundCalls` · 包 `@omne-harness/session-contract`
 - `backgroundInputId` · 包 `@omne-harness/session-contract`
 - `batchEvidence` · 包 `@omne-harness/session-contract`
@@ -256,6 +272,7 @@
 - `compactionContextForView` · 包 `@omne-harness/session-contract`
 - `contextScopeOf` · 包 `@omne-harness/session-contract`
 - `contextScopesOf` · 包 `@omne-harness/session-contract`
+- `controlAnswer` · 包 `@omne-harness/session-contract`
 - `controlRoutes` · 包 `@omne-harness/session-contract`
 - `decide` · 包 `@omne-harness/session-contract`
 - `decideCompactionCommit` · 包 `@omne-harness/session-contract`
@@ -295,10 +312,13 @@
 - `resolveOperation` · 包 `@omne-harness/session-contract`
 - `routeInput` · 包 `@omne-harness/session-contract`
 - `runCancelledBy` · 包 `@omne-harness/session-contract`
+- `runStartInputs` · 包 `@omne-harness/session-contract`
 - `sessionInputBytes` · 包 `@omne-harness/session-contract`
 - `sessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `sessionModesBlock` · 包 `@omne-harness/session-contract`
+- `shortCallId` · 包 `@omne-harness/session-contract`
 - `uninterpretedCalls` · 包 `@omne-harness/session-contract`
+- `wakingInputs` · 包 `@omne-harness/session-contract`
 
 ## 入口 `./cordis` · `cordis.d.ts`
 
@@ -308,6 +328,7 @@
 - `SessionAdoptedRequestsService` · `cordis.d.ts`
 - `SessionAdoptionSourceService` · `cordis.d.ts`
 - `SessionCallControlService` · `cordis.d.ts`
+- `SessionCallStatesService` · `cordis.d.ts`
 - `SessionClockService` · `cordis.d.ts`
 - `SessionContextInputService` · `cordis.d.ts`
 - `SessionCursorSigningService` · `cordis.d.ts`
@@ -334,6 +355,7 @@
 - `sessionAdoptionSourceKey` · `cordis.d.ts`
 - `sessionAgentDriveKey` · `cordis.d.ts`
 - `sessionCallControlKey` · `cordis.d.ts`
+- `sessionCallStatesKey` · `cordis.d.ts`
 - `sessionClockKey` · `cordis.d.ts`
 - `sessionContextInputKey` · `cordis.d.ts`
 - `sessionCursorSigningKey` · `cordis.d.ts`
@@ -440,7 +462,7 @@ export interface SessionScopeLookup {
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, SessionDelegatedTransactions, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionWorkPrincipals, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallControl, SessionCallerClass, SessionClock, SessionContextInput, SessionDirectory, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
+import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, SessionDelegatedTransactions, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionWorkPrincipals, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallControl, SessionCallStates, SessionCallerClass, SessionClock, SessionContextInput, SessionDirectory, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
 import type { SessionAdoptedRequests } from './adopted-request.ts';
 import type { SessionCursorSigning } from './cursor-signing.ts';
 import type { SessionReplayFacts, SessionScopeLookup } from './context-facts.ts';
@@ -577,6 +599,12 @@ export declare abstract class SessionCallControlService extends Service implemen
     abstract readonly control: SessionCallControl['control'];
 }
 export declare const sessionCallControlKey = "sessionCallControl";
+export declare abstract class SessionCallStatesService extends Service implements SessionCallStates {
+    static readonly provide = "sessionCallStates";
+    constructor(ctx: Context);
+    abstract readonly read: SessionCallStates['read'];
+}
+export declare const sessionCallStatesKey = "sessionCallStates";
 export type SessionTenantSource = Readonly<{
     enumerate(): Promise<Readonly<{
         ok: readonly TenantId[];
@@ -656,6 +684,7 @@ declare module '@deepseek-ai/cordis' {
         sessionAgentDrive: AgentDrivePortService;
         sessionScopeRelease: ScopeReleasePortService;
         sessionCallControl: SessionCallControlService;
+        sessionCallStates: SessionCallStatesService;
         sessionTenants: SessionTenantSourceService;
         sessionAdoptionSource: SessionAdoptionSourceService<unknown>;
         sessionProductionSource: SessionProductionSourceService;

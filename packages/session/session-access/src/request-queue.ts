@@ -5,6 +5,8 @@ export type RequestCandidate = Readonly<{
   inputId: string
   message: string
   login: string
+  /** Absent: an ordinary input. Present: an urgent one that interrupts the Run there. */
+  urgent?: true
 }>
 
 export type QueuedRequest = RequestCandidate & Readonly<{ seq: number }>
@@ -44,19 +46,29 @@ function sameContent(queued: QueuedRequest, candidate: RequestCandidate): boolea
   return (
     queued.inputId === candidate.inputId &&
     queued.message === candidate.message &&
-    queued.login === candidate.login
+    queued.login === candidate.login &&
+    queued.urgent === candidate.urgent
   )
 }
 
 export function enqueue(queue: RequestQueue, candidate: RequestCandidate, limit: number): Enqueued {
-  const { tenant, session, acceptId, inputId, message, login } = candidate
+  const { tenant, session, acceptId, inputId, message, login, urgent } = candidate
   const lane = laneOf(queue, tenant, session)
   const found = lane.find(request => request.acceptId === acceptId)
   if (found !== undefined)
     return sameContent(found, candidate) ? { kind: 'same', request: found } : { kind: 'conflict' }
   if (lane.length >= limit) return { kind: 'limited' }
   const seq = (lane.at(-1)?.seq ?? -1) + 1
-  const request = { tenant, session, acceptId, inputId, message, login, seq }
+  const request = {
+    tenant,
+    session,
+    acceptId,
+    inputId,
+    message,
+    login,
+    seq,
+    ...(urgent === true ? { urgent } : {}),
+  }
   return { kind: 'appended', request, queue: withLane(queue, tenant, session, [...lane, request]) }
 }
 

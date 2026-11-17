@@ -11,7 +11,7 @@ import {
   type RequestCandidate,
 } from './request-queue.ts'
 
-type Settled = Answer<'send-input'>
+type Settled = Answer<'send-input'> | Answer<'interrupt-input'>
 
 export type Admission = Readonly<{ kind: 'settled'; answer: Settled }> | Readonly<{ kind: 'retry' }>
 
