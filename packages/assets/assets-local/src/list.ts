@@ -37,21 +37,24 @@ export default {
     const { domain, lookup } = parsed.data
     const current = readDomain(port)
     if (foreign(current, domain)) return FORBIDDEN
-    const rows = current === null ? [] : heldRows(port, domain, lookup)
-    const items = []
-    for (const holding of rows.slice(0, lookup.limit)) {
-      const version = listedVersion(port, holding)
-      if (version === undefined) return { kind: 'failed', diagnostic: 'assets_missing_version' }
-      items.push({
-        category: holding.category,
-        name: holding.name,
-        assetRef: holding.assetRef,
-        version,
-        selection: holding.selection.kind,
-        enabled: holding.enabled,
-      })
-    }
-    const next = rows.length > lookup.limit ? (items.at(-1)?.name ?? null) : null
-    return { kind: 'read', output: json({ kind: 'page', items, next }) }
+    return pageOf(port, current === null ? [] : heldRows(port, domain, lookup), lookup.limit)
   },
 } satisfies ReadHandlerModule
+
+function pageOf(port: Port, rows: readonly Holding[], limit: number): Result {
+  const items = []
+  for (const holding of rows.slice(0, limit)) {
+    const version = listedVersion(port, holding)
+    if (version === undefined) return { kind: 'failed', diagnostic: 'assets_missing_version' }
+    items.push({
+      category: holding.category,
+      name: holding.name,
+      assetRef: holding.assetRef,
+      version,
+      selection: holding.selection.kind,
+      enabled: holding.enabled,
+    })
+  }
+  const next = rows.length > limit ? (items.at(-1)?.name ?? null) : null
+  return { kind: 'read', output: json({ kind: 'page', items, next }) }
+}
