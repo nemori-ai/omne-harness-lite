@@ -1,4 +1,4 @@
-const WORDS = /(?<han>\p{Script=Han}+)|(?:(?!\p{Script=Han})[\p{L}\p{N}_])+/gu
+const WORDS = /(\p{Script=Han}+)|(?:(?!\p{Script=Han})[\p{L}\p{N}_])+/gu
 
 function hanTokens(run: string): readonly string[] {
   const characters = [...run]
@@ -20,7 +20,7 @@ function wordTokens(word: string): readonly string[] {
 }
 
 export function tokenize(text: string): readonly string[] {
-  return [...text.normalize('NFKC').matchAll(WORDS)].flatMap(match =>
-    match.groups?.han === undefined ? wordTokens(match[0]) : hanTokens(match.groups.han),
+  return [...text.normalize('NFKC').matchAll(WORDS)].flatMap(([word, han]) =>
+    han === undefined ? wordTokens(word) : hanTokens(han),
   )
 }

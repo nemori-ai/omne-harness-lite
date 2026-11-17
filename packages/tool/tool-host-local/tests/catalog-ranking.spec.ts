@@ -54,5 +54,9 @@ describe('catalog index', () => {
       { maxCachedCorpora: Number.MAX_SAFE_INTEGER + 1 },
     ])
       expect(() => createCatalogRanking({ ...config, ...options })).toThrow(TypeError)
+    expect(createCatalogRanking({ ...config, maxCachedCorpora: 1 })(docs, 'apple').names).toEqual([
+      'alpha',
+      'charlie',
+    ])
   })
 })

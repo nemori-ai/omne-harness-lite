@@ -64,8 +64,10 @@ describe('rank', () => {
   it('agrees with the BM25 formula of the rule on generated corpora, ties included', () => {
     let state = 20261117
     const next = (n: number) => {
-      state = (state * 1103515245 + 12345) % 2147483648
-      return state % n
+      state = (state + 0x6d2b79f5) | 0
+      let t = Math.imul(state ^ (state >>> 15), 1 | state)
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+      return Math.floor((((t ^ (t >>> 14)) >>> 0) / 4294967296) * n)
     }
     const vocabulary = ['apple', 'pear', 'plum', 'fig', 'kiwi', 'lime']
     const words = (most: number) =>
