@@ -278,6 +278,10 @@ describe('the archived list', () => {
       failure: { kind: 'invalid', field: 'titleContains' },
     })
     expect(await sessionsOf(a, { titleContains: '字'.repeat(200) })).toEqual([])
+    expect(await sessionsOf(a, { limit: 1000 })).toHaveLength(5)
+    expect(await archived(a, { limit: 1001 })).toMatchObject({
+      failure: { kind: 'invalid', field: 'limit' },
+    })
     expect(await archived(a, { from: T(5), to: T(5) })).toMatchObject({
       failure: { kind: 'invalid', field: 'to' },
     })

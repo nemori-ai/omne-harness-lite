@@ -85,6 +85,26 @@ describe('archive-session', () => {
     expect(await archive(world, session)).toEqual(answer)
   })
 
+  it.each(['denied', 'basis-unavailable'] as const)(
+    'a refusal of the login for the tenant (%s) is the answer, and nothing is asked of Session',
+    async refusal => {
+      const world = createWorld()
+      const session = await created(world)
+      const before = world.session.controls.calls().length
+      world.refuseTargets(refusal)
+      expect(await archive(world, session)).toEqual({ outcome: refusal })
+      expect(await unarchive(world, session)).toEqual({ outcome: refusal })
+      expect(world.session.controls.calls()).toHaveLength(before)
+    },
+  )
+
+  it('a login that names no caller is basis-unavailable', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    world.breakFacts('undescribed')
+    expect(await archive(world, session)).toEqual({ outcome: 'basis-unavailable' })
+  })
+
   it('a session of another login is denied; a throw is unknown', async () => {
     const world = createWorld()
     const session = await created(world)
@@ -92,6 +112,7 @@ describe('archive-session', () => {
     expect(await archive(world, session, BOB)).toEqual({ outcome: 'denied' })
     world.session.controls.throwOn('control', new Error('lost'))
     expect(await archive(world, session)).toEqual({ outcome: 'unknown' })
+    expect(await unarchive(world, session)).toEqual({ outcome: 'unknown' })
   })
 })
 

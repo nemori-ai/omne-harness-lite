@@ -44,8 +44,12 @@ describe('the account a settlement writes (C14)', () => {
   it('is revision 1, received, with the measured duration when the call has no account yet', () => {
     const account = write([], 'PT2.500S')
     expect(account.event).toBe(SETTLEMENT_EVENT)
-    expect(account.value).toMatchObject({
+    expect(account.value).toEqual({
       subject: { kind: 'tool_execution', id: place.call },
+      usage: [],
+      cost: [],
+      trimmed: { state: 'known', lexeme: '0', unit: 'bytes' },
+      place: expect.any(String),
       duration: 'PT2.500S',
       receipt: 'received',
       revision: '1',
