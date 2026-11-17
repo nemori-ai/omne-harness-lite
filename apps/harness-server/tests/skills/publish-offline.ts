@@ -1,4 +1,4 @@
-import { mkdtemp } from 'node:fs/promises'
+import { mkdtemp, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
@@ -38,7 +38,7 @@ export async function publishOffline(
       },
       packageRoot: join(dirname(storageRoot), 'assets'),
       dir: await writeSampleSkill(
-        await mkdtemp(join(tmpdir(), 'skill-source-')),
+        await realpath(await mkdtemp(join(tmpdir(), 'skill-source-'))),
         name,
         description,
       ),
