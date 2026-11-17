@@ -9,6 +9,8 @@ const LABEL: Readonly<Record<StopFace, string>> = {
   'confirm-stop': '再确认停止',
 }
 
+const STOP_CONSEQUENCE = '停止这一轮。还没答的问题会一起关掉。'
+
 function Glyph({ face }: { readonly face: StopFace }) {
   if (face === 'none') return <SendIcon aria-hidden="true" />
   if (face === 'stopping') return <LoadingIndicator />
@@ -50,7 +52,7 @@ export function ComposerActionSlot({
       size="compact"
       data-action={face}
       disabled={disabled}
-      {...(sending ? {} : { onClick: onStop })}
+      {...(sending ? {} : { onClick: onStop, title: STOP_CONSEQUENCE })}
     >
       <Glyph face={face} />
       {LABEL[face]}

@@ -185,10 +185,34 @@ export function readResult<R extends string>(text: string, allowed: readonly R[]
 
 const LOGIN_STATES: readonly LoginState[] = ['signed-out', 'signing-in', 'signed-in', 'signing-out']
 
-export const writeLoginState = (state: LoginState): string =>
-  writeJsonText(object({ state: string(state) }))
+export const writeLoginState = (state: LoginState, protocols: readonly ProtocolKey[]): string =>
+  writeJsonText(
+    object({
+      state: string(state),
+      protocols: { kind: 'array', items: protocols.map(protocolValue) },
+    }),
+  )
 
 export function readLoginState(text: string): LoginState | undefined {
   const state = textOf(member(read(text), 'state'))
   return LOGIN_STATES.find(item => item === state)
+}
+
+export function readHostProtocols(text: string): readonly ProtocolKey[] | null {
+  const list = member(read(text), 'protocols')
+  if (list?.kind !== 'array') return null
+  return list.items.flatMap(item => {
+    const key = protocolOf(item)
+    return key === undefined ? [] : [key]
+  })
+}
+
+export function missingAtHost(
+  page: readonly ProtocolKey[],
+  host: readonly ProtocolKey[] | null,
+): readonly ProtocolKey[] {
+  if (host === null) return page
+  return page.filter(
+    key => !host.some(known => known.name === key.name && known.major === key.major),
+  )
 }

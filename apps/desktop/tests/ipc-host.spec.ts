@@ -151,11 +151,15 @@ describe('桥在主进程一侧：登录状态', () => {
     expect(await invoke(HOST_IPC.loginState, page)).toEqual({ subscribed: true })
     await invoke(HOST_IPC.login, page, [CREDENTIALS])
     const states = page.events(HOST_IPC.loginStateEvent).map(text => JSON.parse(text as string))
+    const protocols = [
+      { name: 'identity', major: 1 },
+      { name: 'session', major: 1 },
+    ]
     expect(states).toEqual([
-      { state: 'signed-out' },
-      { state: 'signed-out' },
-      { state: 'signing-in' },
-      { state: 'signed-in' },
+      { state: 'signed-out', protocols },
+      { state: 'signed-out', protocols },
+      { state: 'signing-in', protocols },
+      { state: 'signed-in', protocols },
     ])
   })
 

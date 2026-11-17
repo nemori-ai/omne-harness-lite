@@ -10,12 +10,12 @@
 | `schedule`                 | 规则计算与预测、安排的管理决定、只读查询、接受与 Job 的规则。不依赖 Cordis，不选存储后端，不认识 Session 与 Agent           |
 | `schedule-cordis-contract` | 日程在这套系统里以哪些服务出现：命令、查询等服务的定义与键                                                                  |
 | `schedule-local`           | 本机的 SQL 管理后端与原操作恢复、计算工作线程、本地应用组合、日历环境投影、设置声明，以及 Cordis 提供者                     |
-| `schedule-tools`           | 给 agent 的多命令工具 `Schedules`：参数与结果、等人确认的检查点、可信上下文与原操作键的取得、固定结果详情的读取             |
+| `schedule-tools`           | 给 agent 的多命令工具 `Schedules`：参数与结果、等人确认的检查点、按调用绑定日程服务并核对租户             |
 | `schedule-protocol`        | 公开协议 `schedule/v1` 的协议契约：日程的列表、详情、修订、日程表、预览、创建与管理及其认回。纯数据                         |
 | `schedule-access`          | `schedule/v1` 的接入插件：核对登录与租户、取主体、调日程的服务、映射结果                                                    |
 | `schedule-ui`              | 界面模块：桌面侧栏的「日程」页                                                                                              |
 
-依赖只朝契约：`schedule-local` → {`schedule`、`schedule-cordis-contract`、`schedule-contract`、`sql-contract`、`calendar` 的公开契约与服务定义}；`schedule-tools` → {`schedule-cordis-contract`、`schedule-contract`、Tool 的公开作者协议、人工介入的 Tool 等待契约}；`schedule-access` → {`schedule-protocol`、`schedule-cordis-contract`、`schedule-contract`、接入的贡献类型}；`schedule-ui` → {`schedule-protocol`、客户端装配、`frontend` 这一组}；`schedule` → {`schedule-contract`、`calendar-contract`}。管理命令先由纯函数在当前事实上做决定，再由存储参加者在一次提交里写入定义、修订、额度效果、outbox 与回执。预测在固定依据上只读地展开候选；接受在一致的保护边界里重新核对依据、资格、控制、次数与重叠，形成固定的 Job，交给自有的执行端口 `JobExecutor`，由外部适配器去跑程序或交给 Session。
+依赖只朝契约：`schedule-local` → {`schedule`、`schedule-cordis-contract`、`schedule-contract`、`sql-contract`、`calendar` 的公开契约与服务定义}；`schedule-tools` → {`schedule-contract`、Tool 的公开作者协议、人工介入的 Tool 等待契约}；`schedule-access` → {`schedule-protocol`、`schedule-cordis-contract`、`schedule-contract`、接入的贡献类型}；`schedule-ui` → {`schedule-protocol`、客户端装配、SDK 的客户端核心、公开契约、`utc-instant`、`frontend` 这一组}；`schedule` → {`schedule-contract`、`calendar-contract`}。管理命令先由纯函数在当前事实上做决定，再由存储参加者在一次提交里写入定义、修订、额度效果、outbox 与回执。预测在固定依据上只读地展开候选；接受在一致的保护边界里重新核对依据、资格、控制、次数与重叠，形成固定的 Job，交给自有的执行端口 `JobExecutor`，由外部适配器去跑程序或交给 Session。
 
 ## 领域边界
 
@@ -196,14 +196,14 @@
 - 定义参数里没有日历与时区的绑定：工具建的安排跟随 owner 的生效环境，agent 不选日历。预览与详情写明每一次实际采用的日历身份与版本。
 - 管理决定答「要 owner 确认」时，工具是检查点作者：按人工介入的等人契约交一张问询卡，写明动作、规则、接下来几次及其日历依据与来源会话，检查点保存命令、修订号与内容摘要；Tool 收到唯一有效的答复后执行下一段。owner 选择确认时，工具带着这次答复的决定身份按原修订号重提原命令；新建卡另可选「先存草稿」，工具改以草稿新建；选不建、不同意、写原话或跳过时，工具不提交，如实交回。重提遇到修订变化或内容变化时，这张卡作废，工具不再出卡。暂停中被停止时，卡失效，没有提交。
 - 结果保留已提交、无变化、拒绝与未知，写入结果总带原操作的定位；未知不自动重发。工具取消或卸载不代表安排已停止，也不撤销已发生的写入。
-- 参数、完整结果与摘要都有上限，超限明确失败，不再次执行业务来生成摘要；摘要保留身份、原操作、控制状态、依据、总数、完整性与续页。详情只读已产生的那次调用的精确结果版本，每次读取先核当前披露资格，不回退最新，不因本次无权而返回旧缓存；通用的结果与内容读取也必须经过同一守卫。续页绑定固定版本、披露观察、已读页与累计预算，用宿主注入的密钥校验。
+- 参数与结果都有上限，超限明确失败，不再次执行业务来生成结果；结果保留身份、原操作、控制状态、依据与续页。长结果的保管与读回归 Tool：超出内联上限时由 Tool 卸载，经 Tools 按当前资格读回，本组不另做一套详情分页。
 
 ### 协议、接入与界面
 
 - `schedule/v1` 的操作都要代租户行事。读：列表、详情、修订、日程表、预览。写：创建与管理，各配一个按原标识认回的读。日程的操作号由租户与调用方的标识派生，同一标识同内容认回原结果，异内容答冲突。定义经公开契约的 JSON 叶子原样交给服务端，由日程按 schema 校验；客户端不解读它。
 - 答复是给客户端的投影，不转发领域对象；作者分得出人与某个会话里的 agent，生效的安排带采用的同意依据，每一次预测带日历依据。不存在、别的租户与无权对外是同一个拒绝。接入插件按调用现取命令与查询服务，取不到答依据不可用；读里抛出答依据不可用，写里抛出答未知。
 - 人经接入行事时，行事者是人，同意不要求另行确认。
-- 界面模块往外壳的页面位置放一个只读的日程页，打开时读，可以刷新。它只依赖客户端装配、`frontend` 这一组与 `schedule-protocol`；没有租户时不画、不发调用。确认卡不由本组画：它是人工介入的卡，出现在会话与决策池里。
+- 界面模块往外壳的页面位置放一个只读的日程页，打开时读，可以刷新。它只依赖客户端装配、SDK 的客户端核心、公开契约、`utc-instant`、`frontend` 这一组与 `schedule-protocol`；没有租户时不画、不发调用。确认卡不由本组画：它是人工介入的卡，出现在会话与决策池里。
 
 ## 原则与约束
 
@@ -246,4 +246,4 @@
 | SC-1     | 本地操作的完成资格：代际变了失效，过期不因民用时间回拨恢复，关闭后的晚到读取不判为合格 | 过期或失效的结果被当作有效           | 模型 `ScheduleClockBoundary` 的 `NoEpochReuse`、`NoExpiredRead`、`NoClosedRead`；`prediction/budgets` 用例                                        |
 | SC-2     | 存储的未知不改成失败；只有完整否定证据才答没有提交；同一业务地址只有一次业务操作       | 重复写入或把已提交当失败             | `schedule-local` 的 `storage/persistence`、`recovery`、`corruption`、`crash` 用例；`schedule-contract` 的 `operation` 用例                        |
 | INV-SJ25 | agent 让安排生效或改动生效中的安排，要么凭当时有效的全权同意，要么凭 owner 对同一内容的确认；同意在决定时成立，之后改设置不回头改写已生效的安排 | agent 绕过 owner；已生效的安排被追溯作废 | 授权端口的穷举用例；`schedule-tools` 的检查点用例 |
-| SC-3     | 工具结果超限明确失败，不再次执行业务；详情只按当前披露资格读精确版本                   | 截断冒充完整；无权读到旧缓存         | `schedule-tools` 的 `author`、`details`、`details-input` 用例                                                                                     |
+| SC-3     | 工具结果超限明确失败，不再次执行业务；长结果由 Tool 保管，按当前资格读回                 | 截断冒充完整；无权读到旧缓存         | `schedule-tools` 的 `consent` 用例（超限）；Tool 的结果保管用例                                                                                   |

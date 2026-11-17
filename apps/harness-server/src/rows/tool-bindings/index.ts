@@ -28,6 +28,8 @@ import { createReleaseToolsCapability, toolsCapabilityConfig } from './tools-cap
 import { bindReleaseSkills } from './skills.ts'
 import { bindReleaseTodoItems } from './todo-items.ts'
 import { bindReleaseWeb, webBindingConfig, type WebBindingConfig } from './web.ts'
+import { bindReleaseCalendar } from './calendar.ts'
+import { bindReleaseSchedules } from './schedules.ts'
 
 export const toolBindingsConfig = z
   .strictObject({ tools: toolsCapabilityConfig.optional(), web: webBindingConfig.optional() })
@@ -46,9 +48,13 @@ export function releaseCapability(
   const custody = () => ctx.get(settingsSecretCustodyKey)
   return (input, scope) => {
     const release = releaseOf(ctx)
+    const { start } = input
+    // Tools forwards from the first segment only; resumed segments belong to checkpoint authors.
     const withTools =
-      attachments.tools !== null && isReleaseToolsRequest(release, input.request)
-        ? attachments.tools.bind(input, scope)
+      attachments.tools !== null &&
+      start.kind === 'start' &&
+      isReleaseToolsRequest(release, input.request)
+        ? attachments.tools.bind({ ...input, start }, scope)
         : scope
     const withTodos = isReleaseToolRequest(release, input.request, 'TodoItems')
       ? bindReleaseTodoItems(ctx, input, withTools)
@@ -56,9 +62,15 @@ export function releaseCapability(
     const withSkills = isReleaseToolRequest(release, input.request, 'Skills')
       ? bindReleaseSkills(ctx, input, withTodos)
       : withTodos
-    return attachments.web !== null && isReleaseToolRequest(release, input.request, 'Web')
-      ? bindReleaseWeb(input, withSkills, attachments.web, custody)
-      : withSkills
+    const withWeb =
+      attachments.web !== null && isReleaseToolRequest(release, input.request, 'Web')
+        ? bindReleaseWeb(input, withSkills, attachments.web, custody)
+        : withSkills
+    if (isReleaseToolRequest(release, input.request, 'Calendar'))
+      return bindReleaseCalendar(ctx, input, withWeb)
+    return isReleaseToolRequest(release, input.request, 'Schedules')
+      ? bindReleaseSchedules(ctx, input, withWeb)
+      : withWeb
   }
 }
 

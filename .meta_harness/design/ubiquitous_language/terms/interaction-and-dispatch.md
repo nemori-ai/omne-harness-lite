@@ -602,7 +602,7 @@
 - **出处**：[PF-016 §4 交付面](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#交付面) ·
   [§5.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#53-屏上的每一条都指得回日志里的一条) ·
   [§5.4](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#54-人做的每一件事走的都是已有的路)（rev 13） ·
-  [桌面应用「产品需求描述」](../../product/desktop-application/design.md#产品需求描述)（rev 1）
+  [桌面应用「产品需求描述」](../../product/desktop-application/design.md#产品需求描述)（rev 2）
 - **⚠️ 别混**：**不是[会话据点](grounding-and-isolation.md#ul-session-base--会话据点--session-base)。**
   据点是这些会话事实**所在的那一处**，交付面**什么都不持有**；
   同一处据点上**可以同时开着好几处**在用它
@@ -739,6 +739,64 @@
 - **别混**：不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)。
   Loop 拓展点在 agent loop 的运行流程上；界面插入位置在客户端的界面上。
 - **注意**：它是[拓展点](architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)的一种，宿主是界面外壳，放进来的一项来自界面模块。
+
+---
+
+### UL-asset-page · 资产页 · Asset Page
+
+> **中**：**桌面应用里人管理本租户各类资产的那一部分。**
+> 它按资产的类别分开，每一类一个页签。它自己只有页标题与页签；页签下面是那一类的[资产类别页面](#ul-asset-category-page--资产类别页面--asset-category-page)。
+> 一份资产自己的设置在这里改，不在「设置」那一部分。
+>
+> **EN**: **The part of the desktop application where a person manages the assets of the tenant.**
+> It is divided by asset category, one tab for each category. The page itself has only a title
+> and the tabs. Under each tab is the asset category page of that category. A person changes the
+> settings of an asset here, not in the Settings part.
+
+- **形态**：位置
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 2）
+- **别混**：不是「设置」那一部分：设置只放不属于任何一份资产的设置项。
+  不是[界面插入位置](#ul-ui-slot--界面插入位置--ui-slot)：它是资产的界面模块放进外壳「页面」这个位置里的一项。
+
+---
+
+### UL-asset-category-page · 资产类别页面 · Asset Category Page
+
+> **中**：**一类资产在[资产页](#ul-asset-page--资产页--asset-page)里自己的那一页。**
+> 它由这一类资产的[界面模块](#ul-ui-module--界面模块--ui-module)带来，画什么、怎样排由这一类自己定。
+> 这一类没有带来时用通用的页面：按资产分块，列出每一份的设置项。同一类至多一页。简称类别页面。
+>
+> **EN**: **The page that one asset category has inside the asset page.** The UI module of that
+> category brings the page, and the category decides what the page shows and how. When the
+> category brings no page, a general page is used: it lists the setting entries, grouped by
+> asset. One category has at most one page.
+
+- **形态**：视图
+- **出处**：[桌面应用「资产」](../../product/desktop-application/design.md#资产)（rev 2）
+- **别混**：不是资产本身，也不存任何事实：页面上的每个值取自服务端此刻的答复。
+  有没有这一页只说明这次部署装没装这一类的界面，不说明这个人许不许用这一类资产。
+- **注意**：它是放进资产页的[拓展点](architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)的一项[拓展贡献](architecture-core-and-extension.md#ul-extension-contribution--拓展贡献--extension-contribution)。
+
+---
+
+### UL-asset-governance-port · 资产治理口 · Asset Governance Port
+
+> **中**：**资产的界面模块交给一类资产的界面模块的一个口。**
+> 经它拿得到：这一类资产在一个租户下有哪些份，每一份的设置项与它们此刻的值，改与清除这些值的操作，以及现成的默认部件。
+> 类别的界面模块声明自己要的形状，资产的界面模块来适配，应用的装配把它交过去；两个界面模块互不导入。
+>
+> **EN**: **A port that the UI module of assets gives to the UI module of one asset category.**
+> Through it the category gets the assets of that category in one tenant, the setting entries of
+> each asset with their current values, the operations that change or clear those values, and
+> ready-made default parts. The UI module of the category declares the shape that it needs. The
+> assets UI module adapts to that shape, and the application assembly passes the port on. The
+> two UI modules do not import each other.
+
+- **形态**：位置
+- **出处**：[跨系统技术约定「拓展点的共同契约」](../../../../docs/architecture/cross-cutting-concepts.md#拓展点的共同契约)（PanQiWei 2026-11-17 交办定义，卡 #1332）
+- **别混**：不是[公开协议](architecture-core-and-extension.md#ul-public-protocol--公开协议--public-protocol)：它不隔着网络，在客户端的同一棵插件树上。
+  不是[拓展点](architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)：拓展点让贡献流向宿主，它让宿主的能力流向贡献方。
+  规则不由它判：一项能不能改、秘密给不给，都由服务端的答复说。
 
 ---
 

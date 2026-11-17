@@ -65,3 +65,4 @@ export type {
   CalendarSettingsBinding,
   CalendarSettingsEnvironmentOptions,
 } from './settings-environment.ts'
+export { calendarEnvironmentItems, calendarEnvironmentSettings } from './settings-declaration.ts'

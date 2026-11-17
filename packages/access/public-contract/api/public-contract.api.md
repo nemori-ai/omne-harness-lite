@@ -366,6 +366,7 @@ type LeafValues = {
     readonly login: LoginStateId;
     readonly tenant: TenantId;
     readonly instant: Instant;
+    readonly 'plain-date': string;
     readonly 'positive-integer': number;
     readonly count: number;
     readonly 'page-limit': number;
@@ -411,7 +412,7 @@ export {};
 ## 声明文件 `rule.d.ts`
 
 ```ts
-export type LeafKind = 'text' | 'string' | 'boolean' | 'null' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'session' | 'page-bytes' | 'revision' | 'positive-integer' | 'count' | 'page-limit' | 'parameters' | 'json' | 'user-message';
+export type LeafKind = 'text' | 'string' | 'boolean' | 'null' | 'account' | 'organization' | 'login' | 'tenant' | 'instant' | 'plain-date' | 'session' | 'page-bytes' | 'revision' | 'positive-integer' | 'count' | 'page-limit' | 'parameters' | 'json' | 'user-message';
 export type Rule = {
     readonly kind: LeafKind;
 } | {

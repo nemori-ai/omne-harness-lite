@@ -104,6 +104,8 @@ describe('serve: the release tree of doubles', () => {
         'authorization:real',
         'session-storage:real',
         'governance:real',
+        'calendar:real',
+        'schedule:real',
         'session-provider:real',
         'session-ad02:real',
         'session-ad03:real',
@@ -160,6 +162,8 @@ describe('serve: the release tree of doubles', () => {
         'assets-access:real',
         'human-intervention-access:real',
         'session-diagnostics-access:real',
+        'calendar-access:real',
+        'schedule-access:real',
         'tool-access:real',
       ])
       expect(run.of('row-state').every(r => r['state'] === 'ACTIVE')).toBe(true)
@@ -168,9 +172,9 @@ describe('serve: the release tree of doubles', () => {
         scope: 'serving',
         accepting: true,
         outcome: 'ready',
-        enabledRows: 65,
+        enabledRows: 69,
         barrierCalls: 1,
-        implementations: { real: 63, 'contract-double': 0, 's0-double': 2 },
+        implementations: { real: 67, 'contract-double': 0, 's0-double': 2 },
       })
       expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
       expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])

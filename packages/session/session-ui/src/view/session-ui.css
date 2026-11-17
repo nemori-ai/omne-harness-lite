@@ -273,36 +273,6 @@
   font-family: var(--omne-font-mono);
   overflow-wrap: anywhere;
 }
-.omne-ask {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: var(--omne-bubble-padding);
-  border-radius: var(--omne-radius-card);
-  box-shadow: 0 0 0 1px var(--omne-line);
-}
-.omne-ask-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: var(--omne-weight-strong);
-}
-.omne-ask-options {
-  margin: 0;
-  padding-left: 18px;
-}
-.omne-ask-options li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: var(--omne-space-inline);
-}
-.omne-ask-text,
-.omne-ask-hint {
-  color: var(--omne-ink-muted);
-  font-size: var(--omne-text-caption);
-}
-
 .omne-composer {
   display: flex;
   flex-direction: column;

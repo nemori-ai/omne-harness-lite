@@ -15,12 +15,21 @@ it('a login principal sets the Shell invoke permission to deny on the release tr
       const listed = await face.list({ principal, tenant, after: null, limit: 100 })
       if (listed.kind !== 'listed') throw new Error(JSON.stringify(listed))
       expect(listed.completeness).toBe('complete')
-      expect(listed.items.map(value => `${value.asset.name}/${value.item}`).sort()).toEqual(
-        ['Ask', 'Files', 'Shell', 'Skills', 'TodoItems', 'Tools', 'Web'].map(
-          name => `${name}/invoke`,
-        ),
+      const permissions = listed.items.filter(value => value.kind === 'permission')
+      expect(permissions.map(value => `${value.asset.name}/${value.item}`).sort()).toEqual(
+        [
+          'Ask',
+          'Calendar',
+          'Files',
+          'Schedules',
+          'Shell',
+          'Skills',
+          'TodoItems',
+          'Tools',
+          'Web',
+        ].map(name => `${name}/invoke`),
       )
-      for (const value of listed.items)
+      for (const value of permissions)
         expect(value).toMatchObject({
           kind: 'permission',
           revision: '0',

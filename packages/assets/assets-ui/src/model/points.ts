@@ -1,4 +1,10 @@
-import { defineKeyedPoint, type KeyedPoint, type PointCodec } from '@omne-harness/shell-contract'
+import {
+  defineKeyedPoint,
+  definePoint,
+  type KeyedPoint,
+  type Point,
+  type PointCodec,
+} from '@omne-harness/shell-contract'
 
 export type CategorySubject = Readonly<{ category: string }>
 
@@ -24,8 +30,23 @@ const holdingSubject: PointCodec<HoldingSubject> = {
   },
 }
 
+export type AssetsPageSubject = Readonly<Record<never, never>>
+
+const PAGE_SUBJECT = 'assets'
+
+const pageSubject: PointCodec<AssetsPageSubject> = {
+  encode: () => PAGE_SUBJECT,
+  decode: text => (text === PAGE_SUBJECT ? {} : undefined),
+}
+
 export const ASSETS_CATEGORY = 'assets.category'
 export const ASSETS_HOLDING = 'assets.holding'
+export const ASSETS_CATEGORY_PAGE = 'assets.category-page'
+
+export const assetsCategoryPage: Point<AssetsPageSubject> = definePoint({
+  name: ASSETS_CATEGORY_PAGE,
+  subject: pageSubject,
+})
 
 export const assetsCategory: KeyedPoint<CategorySubject> = defineKeyedPoint({
   name: ASSETS_CATEGORY,

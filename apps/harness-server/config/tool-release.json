@@ -1,480 +1,678 @@
 {
-  "format": "omne-harness/tool-release/2",
-  "generation": "sha256:c2d5e66e80e2af18daa8e041486c7fac05bcbd60b47837d689ef340187750748",
-  "artifacts": {
-    "package": "@omne-harness/tool-definitions",
-    "files": [
-      {
-        "path": "dist/ask-protocol.d.ts",
-        "sha256": "c0bc615c2e9c9bc2da69196c64b7f5beecbde55cd347d716b76a1a7dd31d76c3"
-      },
-      {
-        "path": "dist/ask-protocol.d.ts.map",
-        "sha256": "9ac24db6e45bf49002d9b200610ccd78329b5cf83a2b62c30997a9b423f0c603"
-      },
-      {
-        "path": "dist/ask-protocol.js",
-        "sha256": "48d5d0825178b413a0c5a6a5aa37dcac52df4c366fef0593c87a001372838bfd"
-      },
-      {
-        "path": "dist/ask-protocol.js.map",
-        "sha256": "3162b55f4492988c6435328bf9a6cd21d72392e330167c3b8e3a6a6674f646ad"
-      },
-      {
-        "path": "dist/ask-result.d.ts",
-        "sha256": "52bbbca4d00cd31af944d36f47d4102c922c0c6d3c12fa4bd7dad4e2a6f7562a"
-      },
-      {
-        "path": "dist/ask-result.d.ts.map",
-        "sha256": "d5b6dc921e13d4f7ea8aa3310ea9b167371c04ee05351a7d926cd6531805df71"
-      },
-      {
-        "path": "dist/ask-result.js",
-        "sha256": "4f9101a7eb8f4954052a7af2926b51ed21526c4f1e427eb770b48cee7c0c0b08"
-      },
-      {
-        "path": "dist/ask-result.js.map",
-        "sha256": "b36807661140a7ce51a0861e85e16a8da04aff045aef8a3461c06ceed65c88d3"
-      },
-      {
-        "path": "dist/ask.d.ts",
-        "sha256": "d0c3993a25e78c350b04b4bddee5f0a0c0a0957cc1e975e7e1fa3adcc9a6b4da"
-      },
-      {
-        "path": "dist/ask.d.ts.map",
-        "sha256": "89a0a2581acfd71171c4c39405c83fc9b0ad6baf5e65706da3731fed4f89043c"
-      },
-      {
-        "path": "dist/ask.js",
-        "sha256": "90b46b5d84a6c386d97e0f4abe76052d5eab0dbb87b5b94fb393b022e565fee8"
-      },
-      {
-        "path": "dist/ask.js.map",
-        "sha256": "d3b0febaa9b688cc2c2b5d6e95a2f0c27799bd69e0d47ca4e5a3ff71518bb20c"
-      },
-      {
-        "path": "dist/author.d.ts",
-        "sha256": "2b435ceac4f5aa8e61f63e94793a509a461137e5382c35972980d9e3096d6f65"
-      },
-      {
-        "path": "dist/author.d.ts.map",
-        "sha256": "3430c133900c1402cf15add384928d6fb16eed3995fcc12dfc900d89585a69ab"
-      },
-      {
-        "path": "dist/author.js",
-        "sha256": "bae052349e8c5f4d46b50116e998fbea24b970638b0e6990559c531640c28ccb"
-      },
-      {
-        "path": "dist/author.js.map",
-        "sha256": "b44db7f9be3e3414887957127e9045c84510d1a90f0885c80d0bebe3be70c85a"
-      },
-      {
-        "path": "dist/commands.d.ts",
-        "sha256": "cfcda82a29b37e52dee703f237505d19a330718a776f3b8c50c765bb1a6a6a69"
-      },
-      {
-        "path": "dist/commands.d.ts.map",
-        "sha256": "579a69127907288a797826b705b9a007dc901270c2ea3de86372ed408d15e6de"
-      },
-      {
-        "path": "dist/commands.js",
-        "sha256": "915afbab3e70c8c68fc603f86cc7fbed3e3222bc12d948aa9ec9e070ead2a97e"
-      },
-      {
-        "path": "dist/commands.js.map",
-        "sha256": "53908078be00a8ce910de83f81b13d2f91d27fcdabf35b7da9717acb05874501"
-      },
-      {
-        "path": "dist/context-port.d.ts",
-        "sha256": "f8614785ea2a83e592842dd9c99d6810801d9b8f0264a5f9b94dd89a91da69e1"
-      },
-      {
-        "path": "dist/context-port.d.ts.map",
-        "sha256": "d0715c4facba6f4a218bf4e2722972fe275cdbc1a6dee215aa0e334adbd1aaf5"
-      },
-      {
-        "path": "dist/context-port.js",
-        "sha256": "b7c4148b231f572a45d4b06aebdd389dfc43a6a6a58c72548227409ad1201ff8"
-      },
-      {
-        "path": "dist/context-port.js.map",
-        "sha256": "cf824ceba406d7e3db49804e663148d471b6214a0adb48d5d02f0eed83fae9ee"
-      },
-      {
-        "path": "dist/cordis.d.ts",
-        "sha256": "f9c26440c82c8a1308f655efce329cb5c0517eaa081bb00e305d8a4878712c3c"
-      },
-      {
-        "path": "dist/cordis.d.ts.map",
-        "sha256": "175db76a90ec0f707582f431fde22a0f1c7652681d04ec214d1f5af586cf7117"
-      },
-      {
-        "path": "dist/cordis.js",
-        "sha256": "ce126b7d6e364066e11377de3de80e3074c2a5b79a568229921b6f6f7245b17a"
-      },
-      {
-        "path": "dist/cordis.js.map",
-        "sha256": "127832ee1c6f2e3bc14884bad89060a73fa83f18ebd2e53a1ece3ae462c386c0"
-      },
-      {
-        "path": "dist/environment.d.ts",
-        "sha256": "e7945dc99d0f95096ad1b82cb60108ae32642eff16c6b38630766f68132c4695"
-      },
-      {
-        "path": "dist/environment.d.ts.map",
-        "sha256": "4438ce20bec7a8c6b6a1fec5dc918747cb46057de6f9a52e0f3dc18f0d856e25"
-      },
-      {
-        "path": "dist/environment.js",
-        "sha256": "35fe589daa4d61770ac79c3e48cac5147109cfb38dec50e95481bd17d0135e07"
-      },
-      {
-        "path": "dist/environment.js.map",
-        "sha256": "5ab394d9b78e238c5aeb1a025ae675567f8f5ee9f104c22a640e30b2e641e01d"
-      },
-      {
-        "path": "dist/files-edits.d.ts",
-        "sha256": "7035fe8548934314a880c88cf2c2b1b879453e20c4006db0a8f743c9f45ce8bd"
-      },
-      {
-        "path": "dist/files-edits.d.ts.map",
-        "sha256": "2b2ab12e4377f299dc8ed2dc8c42e40d0fbb20bc68ed00ff40314bddad13720c"
-      },
-      {
-        "path": "dist/files-edits.js",
-        "sha256": "e6e379adbfa98f36f389c4a4a35cbd55c6f45d5550cc9f478685c756b131a542"
-      },
-      {
-        "path": "dist/files-edits.js.map",
-        "sha256": "89b8c632fd76a11a8a8a627572ce13cda5693fdb1a40f4d2ed7eabe831002420"
-      },
-      {
-        "path": "dist/files-paths.d.ts",
-        "sha256": "c1c8c720c2b83839c465238021d73e25dec4adc062f7caacd8dbe58333dfc350"
-      },
-      {
-        "path": "dist/files-paths.d.ts.map",
-        "sha256": "4795cc6bb2ce1483a20f98e762e6614f3684d1ba2772e04fd6f00346d5eccd50"
-      },
-      {
-        "path": "dist/files-paths.js",
-        "sha256": "453d7a0c25cf2e26f25c4fbbb4fe4f4497d2a55e249738504a54d6d1510e4cb5"
-      },
-      {
-        "path": "dist/files-paths.js.map",
-        "sha256": "426c2273b67d1ac0b2574af0cbdab8ba47e7159353e3671bf18c21f293fd13a6"
-      },
-      {
-        "path": "dist/files.d.ts",
-        "sha256": "cf8926230cff3e01d4536f50a5ac3f53fed98047378844e65a29c376dcc7c25c"
-      },
-      {
-        "path": "dist/files.d.ts.map",
-        "sha256": "6f3e45520752863db68d3caa5a174497a682f33bf842d9b52ed39b6668a3c5c4"
-      },
-      {
-        "path": "dist/files.js",
-        "sha256": "a11c2e8a8aea178babfc0e20947f7300778a07ae1c5fa5111e2d3e4e7f280dfd"
-      },
-      {
-        "path": "dist/files.js.map",
-        "sha256": "d0584d963d2cba415574dc7672b5689af848306fc5532944fe057cb10ccb19a8"
-      },
-      {
-        "path": "dist/index.d.ts",
-        "sha256": "e43249b4538d15cd1551f2c2c136e911cabe7796b4c031b489da99d1cc4cf163"
-      },
-      {
-        "path": "dist/index.d.ts.map",
-        "sha256": "783fa32a440674e371171bada237117bf74e0037887a2a48ad413579d60bac18"
-      },
-      {
-        "path": "dist/index.js",
-        "sha256": "b5b564cc2d399e515f5daff96a400be70eaf72b2ba53c2a5b176d533e1be629f"
-      },
-      {
-        "path": "dist/index.js.map",
-        "sha256": "f5ef3f95884c083abcd54efdef659a0e8de762e82e6979ff803104dbb6b103d8"
-      },
-      {
-        "path": "dist/protocol.d.ts",
-        "sha256": "7c9d8b402b5b74728db699e1835231aebc0de0f33ceb54cc4b92094021452111"
-      },
-      {
-        "path": "dist/protocol.d.ts.map",
-        "sha256": "d37023c8ef22edf4354ed2d037fa1c607de5a358b599d4516a1c6f0fdccb1af4"
-      },
-      {
-        "path": "dist/protocol.js",
-        "sha256": "de2bca9f2f72eef6171ea268cc66fbbf433277ca7571e640cc681742d975cb0f"
-      },
-      {
-        "path": "dist/protocol.js.map",
-        "sha256": "e91a90a0d6b7167a8f4cef33d90438a84c9bcf20050228cc3805fc82f07750e1"
-      },
-      {
-        "path": "dist/returns.d.ts",
-        "sha256": "0ce038cd334870c7270cd7eae415d0fbad5157e7358b5cb7dfa14ac32135110b"
-      },
-      {
-        "path": "dist/returns.d.ts.map",
-        "sha256": "453d8ecd6991b2e9bbd74ece8e8cba9d8021899aaefb4d59cc173b6b25c93f6c"
-      },
-      {
-        "path": "dist/returns.js",
-        "sha256": "cbdbc8a040531bfc6b04a8b641f2ef7ea42252c4d6c4e52bd50da8bc8f691718"
-      },
-      {
-        "path": "dist/returns.js.map",
-        "sha256": "1ad0c52442fbf5307213f38b8fb79b805fc112ddf0ac5b22038b945af3a5cf14"
-      },
-      {
-        "path": "dist/shell-output.d.ts",
-        "sha256": "3577c79e32a42294b667b19830ef3c2ad64bb6d8119cfb1d5095b9eadbe6a39b"
-      },
-      {
-        "path": "dist/shell-output.d.ts.map",
-        "sha256": "e9306adba7558889a873c3626a8e37bb2470fa7bb37ec05f725e230ceb405e64"
-      },
-      {
-        "path": "dist/shell-output.js",
-        "sha256": "66496a87ec493489b201863dcb18db164ddb4e155e4400acf6a238ce0a4c3672"
-      },
-      {
-        "path": "dist/shell-output.js.map",
-        "sha256": "d5bf65ba51379a04d99ba4a2204e95994919197a53b5c4f932fe48a831ebfe05"
-      },
-      {
-        "path": "dist/shell.d.ts",
-        "sha256": "3bc116316e51688b23f4f710d3a952429475f44d6eefaca55e847f762293c66e"
-      },
-      {
-        "path": "dist/shell.d.ts.map",
-        "sha256": "13c05a6ff26b4bd83d0a171fa83521afeb3fc4c37c9c5d4712678fda300d95db"
-      },
-      {
-        "path": "dist/shell.js",
-        "sha256": "7b2529d0c8e264e8f473884770b460c21ef7ff99724032b47adefbaaa7a7da78"
-      },
-      {
-        "path": "dist/shell.js.map",
-        "sha256": "8fb0624e5545b07615b94ee682512e42f5ca2d88af455b41398442e15847053a"
-      },
-      {
-        "path": "dist/skills-port.d.ts",
-        "sha256": "d7836c7032dde96fcb047b44bff4c7b44e98ec4cc1ae8bb94583678df2f976a7"
-      },
-      {
-        "path": "dist/skills-port.d.ts.map",
-        "sha256": "39d0d77c79c7a548b64fdf0b3ce1bea0b25e13aba4071e8521ddcd44f03f7e1b"
-      },
-      {
-        "path": "dist/skills-port.js",
-        "sha256": "cdf16f87c9071ff3834c2d7f668989d4a7d58ac9ac7e4c377c151225b71e5c60"
-      },
-      {
-        "path": "dist/skills-port.js.map",
-        "sha256": "7333790b6f68856cc8dad450aac3e6f1f502a193d8f04125b5f5655b4dec5435"
-      },
-      {
-        "path": "dist/skills-protocol.d.ts",
-        "sha256": "d35ec67216a64c74a6b8e5679d6a77e6de080da36f94219fa5074f3d4f13ca68"
-      },
-      {
-        "path": "dist/skills-protocol.d.ts.map",
-        "sha256": "6cd65d21994a603af4aa7913b8e2c9c388e20db3371c42e4ba2408c0e28de5cb"
-      },
-      {
-        "path": "dist/skills-protocol.js",
-        "sha256": "77fe3233c103a2fa3479ff31fdada84ef6e27a83222738395c0d44e30c2a8070"
-      },
-      {
-        "path": "dist/skills-protocol.js.map",
-        "sha256": "a45feff994a476798f6d7792ec90689f346904b6fff9b12952090198f4ebcbc9"
-      },
-      {
-        "path": "dist/skills.d.ts",
-        "sha256": "ef5f3c0efd69b448bebf6e734e86fdfaa70d05b00a9a9763c91cdd6fe05b534e"
-      },
-      {
-        "path": "dist/skills.d.ts.map",
-        "sha256": "d63622f8d6f18d6fab2491cde8f8ac27c623f8c44c3d91cb8e1a3036fc090a8e"
-      },
-      {
-        "path": "dist/skills.js",
-        "sha256": "40d5b2ad5abfbe33310b411a0591e89b21fe0b40e2ca5561f743546bef397fb6"
-      },
-      {
-        "path": "dist/skills.js.map",
-        "sha256": "b45491009b93b2a3617eccd9eaafd92678671eb417c0015eaf86324b50d3ca63"
-      },
-      {
-        "path": "dist/text.d.ts",
-        "sha256": "a0017a874c8adf223aba0e3e7cfec7678beaeb92e254d236f87643345982e047"
-      },
-      {
-        "path": "dist/text.d.ts.map",
-        "sha256": "ce2dcf8ac8a959fcdceefb278c91cfae2b3283eb40bb289a401f690a930cd2d4"
-      },
-      {
-        "path": "dist/text.js",
-        "sha256": "2bcabef451a87c6c5e90e2e1ecbdf07aa31ac83e19dbd901c33f9cad09454e50"
-      },
-      {
-        "path": "dist/text.js.map",
-        "sha256": "ca70824b2301a30e929f8b024a282c0d4975e9de64d520940ccc63b9468a786a"
-      },
-      {
-        "path": "dist/todo-items-port.d.ts",
-        "sha256": "37733e53835af21f51b53978e4e136209397ac0fb5eb3078bd1f5d5e08e2bd50"
-      },
-      {
-        "path": "dist/todo-items-port.d.ts.map",
-        "sha256": "b528e99482ccc5c9d6be865dc83e028d761e916c58d69c411718dff10bb3c4bd"
-      },
-      {
-        "path": "dist/todo-items-port.js",
-        "sha256": "5175751685d2424e255b15c9327647f2af2e6ec607f975030fdc0543d223566e"
-      },
-      {
-        "path": "dist/todo-items-port.js.map",
-        "sha256": "b8a03087a2bd562f687c0ad011131d05cd38ca7db25dbc59f7372fcb37868676"
-      },
-      {
-        "path": "dist/todo-items-protocol.d.ts",
-        "sha256": "dbf0e48f368d3a1b7c656cd10ad9f421996f73b7a0b9e487dd7e673a95c30b01"
-      },
-      {
-        "path": "dist/todo-items-protocol.d.ts.map",
-        "sha256": "78fcb6ae65f6c6dce60a052f33d6037464a4cd062681ccc430295809d74594db"
-      },
-      {
-        "path": "dist/todo-items-protocol.js",
-        "sha256": "042781371ccb6a7cc1095d43f147dc79aaade7ea9d173be924932d35d3ca6f15"
-      },
-      {
-        "path": "dist/todo-items-protocol.js.map",
-        "sha256": "612d49f2fc950481a73c44b62a5cc96b0dbdb79d1ac4a0947cebf02c73f968f0"
-      },
-      {
-        "path": "dist/todo-items.d.ts",
-        "sha256": "ae3970b35438f88d5d2154f7022fccd378d508a597b8458ee46428ae222e3a9e"
-      },
-      {
-        "path": "dist/todo-items.d.ts.map",
-        "sha256": "c8faff11368a903698d60051f91602ba96aa4b408855835cb70a87cb288aa5b1"
-      },
-      {
-        "path": "dist/todo-items.js",
-        "sha256": "a7ca0c83298ca6c8cf1c66803125e3478b298002c4d55b16a17c59e1ffccd75a"
-      },
-      {
-        "path": "dist/todo-items.js.map",
-        "sha256": "1d38d45f1985857bd599dd3455e4e083da08e127e10398acecc36d3cccce4f2a"
-      },
-      {
-        "path": "dist/tools-presentation.d.ts",
-        "sha256": "8b1a5d358b81b168db3f662546ed554e818dfc0887750ceeb6d267927d7b769c"
-      },
-      {
-        "path": "dist/tools-presentation.d.ts.map",
-        "sha256": "2a6de14c3ed9d8c51e3461f060542bbef0d73f806fbbef4eac0d119d6ca2f5bc"
-      },
-      {
-        "path": "dist/tools-presentation.js",
-        "sha256": "abe39fef77a2d2069e4270941cbbce7c867b0ea148ada76aaf8b53cf17575226"
-      },
-      {
-        "path": "dist/tools-presentation.js.map",
-        "sha256": "c7f728200822862e8aa5f24c89fbdc2b62f5d4743b3b3b7cb54dea59ed9f44c4"
-      },
-      {
-        "path": "dist/tools-protocol.d.ts",
-        "sha256": "5e897c4bd01c31a77c4e72dcf54b34baadf7bce935b9e0695b7b88ff26a8f9f8"
-      },
-      {
-        "path": "dist/tools-protocol.d.ts.map",
-        "sha256": "d6fdf300974a960454e9f1acd9ced76eb889491c891550e1cb0fd591649dcf3e"
-      },
-      {
-        "path": "dist/tools-protocol.js",
-        "sha256": "9d2dd0f1b04f640e2cb88969f853c40da6fd41c2126d4e615e347c6aa6f010ab"
-      },
-      {
-        "path": "dist/tools-protocol.js.map",
-        "sha256": "8b990815295571a8b286fe485c5ad240dd7fb79ab9311116572eadfca115ca09"
-      },
-      {
-        "path": "dist/tools.d.ts",
-        "sha256": "902bb160f99edd5688680fdae637113472e7f29b331621d7e980ecd4536facbc"
-      },
-      {
-        "path": "dist/tools.d.ts.map",
-        "sha256": "d3c61587ec79e0ed5f433b155c68a1fb9d9f0bcb913e6dce6fee6291236bcaf9"
-      },
-      {
-        "path": "dist/tools.js",
-        "sha256": "548961453d8d08c18cde1004408c64961335a755171f4c7c0fb50bdad423bbc7"
-      },
-      {
-        "path": "dist/tools.js.map",
-        "sha256": "0b645533be2d42f0214b13a6e2cb388d01fc795c91852cb40cd3ecf0a9ae351d"
-      },
-      {
-        "path": "dist/web-port.d.ts",
-        "sha256": "0a5cf7fd368a9b4432f7b1c4b4b1d29c995b3f96c1f0c1caba816148c9031125"
-      },
-      {
-        "path": "dist/web-port.d.ts.map",
-        "sha256": "d04e322ff30342051d5da3795fa5cedb8e230803946fe056156ba92d0f0afa63"
-      },
-      {
-        "path": "dist/web-port.js",
-        "sha256": "f5fc0e52c4407397a3019718039200fc12db90b09ef605b38abaa6d9b9137a6e"
-      },
-      {
-        "path": "dist/web-port.js.map",
-        "sha256": "b0d5b64261a6825a65cb4258341a08e4b78a11878b39e2ecd7e061eb354205ef"
-      },
-      {
-        "path": "dist/web-protocol.d.ts",
-        "sha256": "20112dcc9afe76f6c19f2300d5dbf4f6ae0821d9ec5a733982921b1a3773c992"
-      },
-      {
-        "path": "dist/web-protocol.d.ts.map",
-        "sha256": "a7428e6e919e299a8e92c7da836bb76bdfb9b036331f130a99078d56dced0038"
-      },
-      {
-        "path": "dist/web-protocol.js",
-        "sha256": "f203b927837fe5c73316cd566ef6d61de7bb674b1a2940dd3f1f933e50ebe05d"
-      },
-      {
-        "path": "dist/web-protocol.js.map",
-        "sha256": "6c7890d74b99078ecec20841274f2990317acff0e81a1fbf0d9f6d5b9ab6ff2d"
-      },
-      {
-        "path": "dist/web.d.ts",
-        "sha256": "191cf0b924e48499dd7b854631276f5b00161dab8a3ce8861e7533051bf7ef40"
-      },
-      {
-        "path": "dist/web.d.ts.map",
-        "sha256": "a3e89e4bc23d40a9d2ce1605d448b931ec0941849d2e881482a73fee00e1c9c5"
-      },
-      {
-        "path": "dist/web.js",
-        "sha256": "9b6f2a5d1bcc255868cf15318c7bab18155956189870f54376ed6d1f97d77b76"
-      },
-      {
-        "path": "dist/web.js.map",
-        "sha256": "1ce5106b035abb33822f03f7cea73252360947e2784f5b5abbd4b75f3c9609d3"
-      },
-      {
-        "path": "package.json",
-        "sha256": "2d0d1a427e177ca06ccfc97b55e262bdc53760019c7290ae0ea26d701bfb20a3"
-      }
-    ],
-    "digest": "sha256:83f4a7616d5d197a1b699dd837d89b35571b2f9293f16d60ea0d5d5ac4a64ab9"
-  },
+  "format": "omne-harness/tool-release/3",
+  "generation": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+  "artifacts": [
+    {
+      "package": "@omne-harness/tool-definitions",
+      "files": [
+        {
+          "path": "dist/ask-protocol.d.ts",
+          "sha256": "c0bc615c2e9c9bc2da69196c64b7f5beecbde55cd347d716b76a1a7dd31d76c3"
+        },
+        {
+          "path": "dist/ask-protocol.d.ts.map",
+          "sha256": "9ac24db6e45bf49002d9b200610ccd78329b5cf83a2b62c30997a9b423f0c603"
+        },
+        {
+          "path": "dist/ask-protocol.js",
+          "sha256": "48d5d0825178b413a0c5a6a5aa37dcac52df4c366fef0593c87a001372838bfd"
+        },
+        {
+          "path": "dist/ask-protocol.js.map",
+          "sha256": "3162b55f4492988c6435328bf9a6cd21d72392e330167c3b8e3a6a6674f646ad"
+        },
+        {
+          "path": "dist/ask-result.d.ts",
+          "sha256": "52bbbca4d00cd31af944d36f47d4102c922c0c6d3c12fa4bd7dad4e2a6f7562a"
+        },
+        {
+          "path": "dist/ask-result.d.ts.map",
+          "sha256": "d5b6dc921e13d4f7ea8aa3310ea9b167371c04ee05351a7d926cd6531805df71"
+        },
+        {
+          "path": "dist/ask-result.js",
+          "sha256": "4f9101a7eb8f4954052a7af2926b51ed21526c4f1e427eb770b48cee7c0c0b08"
+        },
+        {
+          "path": "dist/ask-result.js.map",
+          "sha256": "b36807661140a7ce51a0861e85e16a8da04aff045aef8a3461c06ceed65c88d3"
+        },
+        {
+          "path": "dist/ask.d.ts",
+          "sha256": "d0c3993a25e78c350b04b4bddee5f0a0c0a0957cc1e975e7e1fa3adcc9a6b4da"
+        },
+        {
+          "path": "dist/ask.d.ts.map",
+          "sha256": "89a0a2581acfd71171c4c39405c83fc9b0ad6baf5e65706da3731fed4f89043c"
+        },
+        {
+          "path": "dist/ask.js",
+          "sha256": "90b46b5d84a6c386d97e0f4abe76052d5eab0dbb87b5b94fb393b022e565fee8"
+        },
+        {
+          "path": "dist/ask.js.map",
+          "sha256": "d3b0febaa9b688cc2c2b5d6e95a2f0c27799bd69e0d47ca4e5a3ff71518bb20c"
+        },
+        {
+          "path": "dist/author.d.ts",
+          "sha256": "2b435ceac4f5aa8e61f63e94793a509a461137e5382c35972980d9e3096d6f65"
+        },
+        {
+          "path": "dist/author.d.ts.map",
+          "sha256": "3430c133900c1402cf15add384928d6fb16eed3995fcc12dfc900d89585a69ab"
+        },
+        {
+          "path": "dist/author.js",
+          "sha256": "bae052349e8c5f4d46b50116e998fbea24b970638b0e6990559c531640c28ccb"
+        },
+        {
+          "path": "dist/author.js.map",
+          "sha256": "b44db7f9be3e3414887957127e9045c84510d1a90f0885c80d0bebe3be70c85a"
+        },
+        {
+          "path": "dist/commands.d.ts",
+          "sha256": "cfcda82a29b37e52dee703f237505d19a330718a776f3b8c50c765bb1a6a6a69"
+        },
+        {
+          "path": "dist/commands.d.ts.map",
+          "sha256": "579a69127907288a797826b705b9a007dc901270c2ea3de86372ed408d15e6de"
+        },
+        {
+          "path": "dist/commands.js",
+          "sha256": "915afbab3e70c8c68fc603f86cc7fbed3e3222bc12d948aa9ec9e070ead2a97e"
+        },
+        {
+          "path": "dist/commands.js.map",
+          "sha256": "53908078be00a8ce910de83f81b13d2f91d27fcdabf35b7da9717acb05874501"
+        },
+        {
+          "path": "dist/context-port.d.ts",
+          "sha256": "f8614785ea2a83e592842dd9c99d6810801d9b8f0264a5f9b94dd89a91da69e1"
+        },
+        {
+          "path": "dist/context-port.d.ts.map",
+          "sha256": "d0715c4facba6f4a218bf4e2722972fe275cdbc1a6dee215aa0e334adbd1aaf5"
+        },
+        {
+          "path": "dist/context-port.js",
+          "sha256": "b7c4148b231f572a45d4b06aebdd389dfc43a6a6a58c72548227409ad1201ff8"
+        },
+        {
+          "path": "dist/context-port.js.map",
+          "sha256": "cf824ceba406d7e3db49804e663148d471b6214a0adb48d5d02f0eed83fae9ee"
+        },
+        {
+          "path": "dist/cordis.d.ts",
+          "sha256": "f9c26440c82c8a1308f655efce329cb5c0517eaa081bb00e305d8a4878712c3c"
+        },
+        {
+          "path": "dist/cordis.d.ts.map",
+          "sha256": "175db76a90ec0f707582f431fde22a0f1c7652681d04ec214d1f5af586cf7117"
+        },
+        {
+          "path": "dist/cordis.js",
+          "sha256": "ce126b7d6e364066e11377de3de80e3074c2a5b79a568229921b6f6f7245b17a"
+        },
+        {
+          "path": "dist/cordis.js.map",
+          "sha256": "127832ee1c6f2e3bc14884bad89060a73fa83f18ebd2e53a1ece3ae462c386c0"
+        },
+        {
+          "path": "dist/environment.d.ts",
+          "sha256": "e7945dc99d0f95096ad1b82cb60108ae32642eff16c6b38630766f68132c4695"
+        },
+        {
+          "path": "dist/environment.d.ts.map",
+          "sha256": "4438ce20bec7a8c6b6a1fec5dc918747cb46057de6f9a52e0f3dc18f0d856e25"
+        },
+        {
+          "path": "dist/environment.js",
+          "sha256": "35fe589daa4d61770ac79c3e48cac5147109cfb38dec50e95481bd17d0135e07"
+        },
+        {
+          "path": "dist/environment.js.map",
+          "sha256": "5ab394d9b78e238c5aeb1a025ae675567f8f5ee9f104c22a640e30b2e641e01d"
+        },
+        {
+          "path": "dist/files-edits.d.ts",
+          "sha256": "7035fe8548934314a880c88cf2c2b1b879453e20c4006db0a8f743c9f45ce8bd"
+        },
+        {
+          "path": "dist/files-edits.d.ts.map",
+          "sha256": "2b2ab12e4377f299dc8ed2dc8c42e40d0fbb20bc68ed00ff40314bddad13720c"
+        },
+        {
+          "path": "dist/files-edits.js",
+          "sha256": "e6e379adbfa98f36f389c4a4a35cbd55c6f45d5550cc9f478685c756b131a542"
+        },
+        {
+          "path": "dist/files-edits.js.map",
+          "sha256": "89b8c632fd76a11a8a8a627572ce13cda5693fdb1a40f4d2ed7eabe831002420"
+        },
+        {
+          "path": "dist/files-paths.d.ts",
+          "sha256": "c1c8c720c2b83839c465238021d73e25dec4adc062f7caacd8dbe58333dfc350"
+        },
+        {
+          "path": "dist/files-paths.d.ts.map",
+          "sha256": "4795cc6bb2ce1483a20f98e762e6614f3684d1ba2772e04fd6f00346d5eccd50"
+        },
+        {
+          "path": "dist/files-paths.js",
+          "sha256": "453d7a0c25cf2e26f25c4fbbb4fe4f4497d2a55e249738504a54d6d1510e4cb5"
+        },
+        {
+          "path": "dist/files-paths.js.map",
+          "sha256": "426c2273b67d1ac0b2574af0cbdab8ba47e7159353e3671bf18c21f293fd13a6"
+        },
+        {
+          "path": "dist/files.d.ts",
+          "sha256": "cf8926230cff3e01d4536f50a5ac3f53fed98047378844e65a29c376dcc7c25c"
+        },
+        {
+          "path": "dist/files.d.ts.map",
+          "sha256": "6f3e45520752863db68d3caa5a174497a682f33bf842d9b52ed39b6668a3c5c4"
+        },
+        {
+          "path": "dist/files.js",
+          "sha256": "a11c2e8a8aea178babfc0e20947f7300778a07ae1c5fa5111e2d3e4e7f280dfd"
+        },
+        {
+          "path": "dist/files.js.map",
+          "sha256": "d0584d963d2cba415574dc7672b5689af848306fc5532944fe057cb10ccb19a8"
+        },
+        {
+          "path": "dist/index.d.ts",
+          "sha256": "e43249b4538d15cd1551f2c2c136e911cabe7796b4c031b489da99d1cc4cf163"
+        },
+        {
+          "path": "dist/index.d.ts.map",
+          "sha256": "783fa32a440674e371171bada237117bf74e0037887a2a48ad413579d60bac18"
+        },
+        {
+          "path": "dist/index.js",
+          "sha256": "b5b564cc2d399e515f5daff96a400be70eaf72b2ba53c2a5b176d533e1be629f"
+        },
+        {
+          "path": "dist/index.js.map",
+          "sha256": "f5ef3f95884c083abcd54efdef659a0e8de762e82e6979ff803104dbb6b103d8"
+        },
+        {
+          "path": "dist/protocol.d.ts",
+          "sha256": "7c9d8b402b5b74728db699e1835231aebc0de0f33ceb54cc4b92094021452111"
+        },
+        {
+          "path": "dist/protocol.d.ts.map",
+          "sha256": "d37023c8ef22edf4354ed2d037fa1c607de5a358b599d4516a1c6f0fdccb1af4"
+        },
+        {
+          "path": "dist/protocol.js",
+          "sha256": "de2bca9f2f72eef6171ea268cc66fbbf433277ca7571e640cc681742d975cb0f"
+        },
+        {
+          "path": "dist/protocol.js.map",
+          "sha256": "e91a90a0d6b7167a8f4cef33d90438a84c9bcf20050228cc3805fc82f07750e1"
+        },
+        {
+          "path": "dist/returns.d.ts",
+          "sha256": "0ce038cd334870c7270cd7eae415d0fbad5157e7358b5cb7dfa14ac32135110b"
+        },
+        {
+          "path": "dist/returns.d.ts.map",
+          "sha256": "453d8ecd6991b2e9bbd74ece8e8cba9d8021899aaefb4d59cc173b6b25c93f6c"
+        },
+        {
+          "path": "dist/returns.js",
+          "sha256": "cbdbc8a040531bfc6b04a8b641f2ef7ea42252c4d6c4e52bd50da8bc8f691718"
+        },
+        {
+          "path": "dist/returns.js.map",
+          "sha256": "1ad0c52442fbf5307213f38b8fb79b805fc112ddf0ac5b22038b945af3a5cf14"
+        },
+        {
+          "path": "dist/shell-output.d.ts",
+          "sha256": "3577c79e32a42294b667b19830ef3c2ad64bb6d8119cfb1d5095b9eadbe6a39b"
+        },
+        {
+          "path": "dist/shell-output.d.ts.map",
+          "sha256": "e9306adba7558889a873c3626a8e37bb2470fa7bb37ec05f725e230ceb405e64"
+        },
+        {
+          "path": "dist/shell-output.js",
+          "sha256": "66496a87ec493489b201863dcb18db164ddb4e155e4400acf6a238ce0a4c3672"
+        },
+        {
+          "path": "dist/shell-output.js.map",
+          "sha256": "d5bf65ba51379a04d99ba4a2204e95994919197a53b5c4f932fe48a831ebfe05"
+        },
+        {
+          "path": "dist/shell.d.ts",
+          "sha256": "3bc116316e51688b23f4f710d3a952429475f44d6eefaca55e847f762293c66e"
+        },
+        {
+          "path": "dist/shell.d.ts.map",
+          "sha256": "13c05a6ff26b4bd83d0a171fa83521afeb3fc4c37c9c5d4712678fda300d95db"
+        },
+        {
+          "path": "dist/shell.js",
+          "sha256": "7b2529d0c8e264e8f473884770b460c21ef7ff99724032b47adefbaaa7a7da78"
+        },
+        {
+          "path": "dist/shell.js.map",
+          "sha256": "8fb0624e5545b07615b94ee682512e42f5ca2d88af455b41398442e15847053a"
+        },
+        {
+          "path": "dist/skills-port.d.ts",
+          "sha256": "d7836c7032dde96fcb047b44bff4c7b44e98ec4cc1ae8bb94583678df2f976a7"
+        },
+        {
+          "path": "dist/skills-port.d.ts.map",
+          "sha256": "39d0d77c79c7a548b64fdf0b3ce1bea0b25e13aba4071e8521ddcd44f03f7e1b"
+        },
+        {
+          "path": "dist/skills-port.js",
+          "sha256": "cdf16f87c9071ff3834c2d7f668989d4a7d58ac9ac7e4c377c151225b71e5c60"
+        },
+        {
+          "path": "dist/skills-port.js.map",
+          "sha256": "7333790b6f68856cc8dad450aac3e6f1f502a193d8f04125b5f5655b4dec5435"
+        },
+        {
+          "path": "dist/skills-protocol.d.ts",
+          "sha256": "d35ec67216a64c74a6b8e5679d6a77e6de080da36f94219fa5074f3d4f13ca68"
+        },
+        {
+          "path": "dist/skills-protocol.d.ts.map",
+          "sha256": "6cd65d21994a603af4aa7913b8e2c9c388e20db3371c42e4ba2408c0e28de5cb"
+        },
+        {
+          "path": "dist/skills-protocol.js",
+          "sha256": "77fe3233c103a2fa3479ff31fdada84ef6e27a83222738395c0d44e30c2a8070"
+        },
+        {
+          "path": "dist/skills-protocol.js.map",
+          "sha256": "a45feff994a476798f6d7792ec90689f346904b6fff9b12952090198f4ebcbc9"
+        },
+        {
+          "path": "dist/skills.d.ts",
+          "sha256": "ef5f3c0efd69b448bebf6e734e86fdfaa70d05b00a9a9763c91cdd6fe05b534e"
+        },
+        {
+          "path": "dist/skills.d.ts.map",
+          "sha256": "d63622f8d6f18d6fab2491cde8f8ac27c623f8c44c3d91cb8e1a3036fc090a8e"
+        },
+        {
+          "path": "dist/skills.js",
+          "sha256": "40d5b2ad5abfbe33310b411a0591e89b21fe0b40e2ca5561f743546bef397fb6"
+        },
+        {
+          "path": "dist/skills.js.map",
+          "sha256": "b45491009b93b2a3617eccd9eaafd92678671eb417c0015eaf86324b50d3ca63"
+        },
+        {
+          "path": "dist/text.d.ts",
+          "sha256": "a0017a874c8adf223aba0e3e7cfec7678beaeb92e254d236f87643345982e047"
+        },
+        {
+          "path": "dist/text.d.ts.map",
+          "sha256": "ce2dcf8ac8a959fcdceefb278c91cfae2b3283eb40bb289a401f690a930cd2d4"
+        },
+        {
+          "path": "dist/text.js",
+          "sha256": "2bcabef451a87c6c5e90e2e1ecbdf07aa31ac83e19dbd901c33f9cad09454e50"
+        },
+        {
+          "path": "dist/text.js.map",
+          "sha256": "ca70824b2301a30e929f8b024a282c0d4975e9de64d520940ccc63b9468a786a"
+        },
+        {
+          "path": "dist/todo-items-port.d.ts",
+          "sha256": "37733e53835af21f51b53978e4e136209397ac0fb5eb3078bd1f5d5e08e2bd50"
+        },
+        {
+          "path": "dist/todo-items-port.d.ts.map",
+          "sha256": "b528e99482ccc5c9d6be865dc83e028d761e916c58d69c411718dff10bb3c4bd"
+        },
+        {
+          "path": "dist/todo-items-port.js",
+          "sha256": "5175751685d2424e255b15c9327647f2af2e6ec607f975030fdc0543d223566e"
+        },
+        {
+          "path": "dist/todo-items-port.js.map",
+          "sha256": "b8a03087a2bd562f687c0ad011131d05cd38ca7db25dbc59f7372fcb37868676"
+        },
+        {
+          "path": "dist/todo-items-protocol.d.ts",
+          "sha256": "dbf0e48f368d3a1b7c656cd10ad9f421996f73b7a0b9e487dd7e673a95c30b01"
+        },
+        {
+          "path": "dist/todo-items-protocol.d.ts.map",
+          "sha256": "78fcb6ae65f6c6dce60a052f33d6037464a4cd062681ccc430295809d74594db"
+        },
+        {
+          "path": "dist/todo-items-protocol.js",
+          "sha256": "042781371ccb6a7cc1095d43f147dc79aaade7ea9d173be924932d35d3ca6f15"
+        },
+        {
+          "path": "dist/todo-items-protocol.js.map",
+          "sha256": "612d49f2fc950481a73c44b62a5cc96b0dbdb79d1ac4a0947cebf02c73f968f0"
+        },
+        {
+          "path": "dist/todo-items.d.ts",
+          "sha256": "ae3970b35438f88d5d2154f7022fccd378d508a597b8458ee46428ae222e3a9e"
+        },
+        {
+          "path": "dist/todo-items.d.ts.map",
+          "sha256": "c8faff11368a903698d60051f91602ba96aa4b408855835cb70a87cb288aa5b1"
+        },
+        {
+          "path": "dist/todo-items.js",
+          "sha256": "a7ca0c83298ca6c8cf1c66803125e3478b298002c4d55b16a17c59e1ffccd75a"
+        },
+        {
+          "path": "dist/todo-items.js.map",
+          "sha256": "1d38d45f1985857bd599dd3455e4e083da08e127e10398acecc36d3cccce4f2a"
+        },
+        {
+          "path": "dist/tools-presentation.d.ts",
+          "sha256": "8b1a5d358b81b168db3f662546ed554e818dfc0887750ceeb6d267927d7b769c"
+        },
+        {
+          "path": "dist/tools-presentation.d.ts.map",
+          "sha256": "2a6de14c3ed9d8c51e3461f060542bbef0d73f806fbbef4eac0d119d6ca2f5bc"
+        },
+        {
+          "path": "dist/tools-presentation.js",
+          "sha256": "abe39fef77a2d2069e4270941cbbce7c867b0ea148ada76aaf8b53cf17575226"
+        },
+        {
+          "path": "dist/tools-presentation.js.map",
+          "sha256": "c7f728200822862e8aa5f24c89fbdc2b62f5d4743b3b3b7cb54dea59ed9f44c4"
+        },
+        {
+          "path": "dist/tools-protocol.d.ts",
+          "sha256": "5e897c4bd01c31a77c4e72dcf54b34baadf7bce935b9e0695b7b88ff26a8f9f8"
+        },
+        {
+          "path": "dist/tools-protocol.d.ts.map",
+          "sha256": "d6fdf300974a960454e9f1acd9ced76eb889491c891550e1cb0fd591649dcf3e"
+        },
+        {
+          "path": "dist/tools-protocol.js",
+          "sha256": "9d2dd0f1b04f640e2cb88969f853c40da6fd41c2126d4e615e347c6aa6f010ab"
+        },
+        {
+          "path": "dist/tools-protocol.js.map",
+          "sha256": "8b990815295571a8b286fe485c5ad240dd7fb79ab9311116572eadfca115ca09"
+        },
+        {
+          "path": "dist/tools.d.ts",
+          "sha256": "902bb160f99edd5688680fdae637113472e7f29b331621d7e980ecd4536facbc"
+        },
+        {
+          "path": "dist/tools.d.ts.map",
+          "sha256": "d3c61587ec79e0ed5f433b155c68a1fb9d9f0bcb913e6dce6fee6291236bcaf9"
+        },
+        {
+          "path": "dist/tools.js",
+          "sha256": "548961453d8d08c18cde1004408c64961335a755171f4c7c0fb50bdad423bbc7"
+        },
+        {
+          "path": "dist/tools.js.map",
+          "sha256": "0b645533be2d42f0214b13a6e2cb388d01fc795c91852cb40cd3ecf0a9ae351d"
+        },
+        {
+          "path": "dist/web-port.d.ts",
+          "sha256": "0a5cf7fd368a9b4432f7b1c4b4b1d29c995b3f96c1f0c1caba816148c9031125"
+        },
+        {
+          "path": "dist/web-port.d.ts.map",
+          "sha256": "d04e322ff30342051d5da3795fa5cedb8e230803946fe056156ba92d0f0afa63"
+        },
+        {
+          "path": "dist/web-port.js",
+          "sha256": "f5fc0e52c4407397a3019718039200fc12db90b09ef605b38abaa6d9b9137a6e"
+        },
+        {
+          "path": "dist/web-port.js.map",
+          "sha256": "b0d5b64261a6825a65cb4258341a08e4b78a11878b39e2ecd7e061eb354205ef"
+        },
+        {
+          "path": "dist/web-protocol.d.ts",
+          "sha256": "20112dcc9afe76f6c19f2300d5dbf4f6ae0821d9ec5a733982921b1a3773c992"
+        },
+        {
+          "path": "dist/web-protocol.d.ts.map",
+          "sha256": "a7428e6e919e299a8e92c7da836bb76bdfb9b036331f130a99078d56dced0038"
+        },
+        {
+          "path": "dist/web-protocol.js",
+          "sha256": "f203b927837fe5c73316cd566ef6d61de7bb674b1a2940dd3f1f933e50ebe05d"
+        },
+        {
+          "path": "dist/web-protocol.js.map",
+          "sha256": "6c7890d74b99078ecec20841274f2990317acff0e81a1fbf0d9f6d5b9ab6ff2d"
+        },
+        {
+          "path": "dist/web.d.ts",
+          "sha256": "191cf0b924e48499dd7b854631276f5b00161dab8a3ce8861e7533051bf7ef40"
+        },
+        {
+          "path": "dist/web.d.ts.map",
+          "sha256": "a3e89e4bc23d40a9d2ce1605d448b931ec0941849d2e881482a73fee00e1c9c5"
+        },
+        {
+          "path": "dist/web.js",
+          "sha256": "9b6f2a5d1bcc255868cf15318c7bab18155956189870f54376ed6d1f97d77b76"
+        },
+        {
+          "path": "dist/web.js.map",
+          "sha256": "1ce5106b035abb33822f03f7cea73252360947e2784f5b5abbd4b75f3c9609d3"
+        },
+        {
+          "path": "package.json",
+          "sha256": "2d0d1a427e177ca06ccfc97b55e262bdc53760019c7290ae0ea26d701bfb20a3"
+        }
+      ],
+      "digest": "sha256:83f4a7616d5d197a1b699dd837d89b35571b2f9293f16d60ea0d5d5ac4a64ab9"
+    },
+    {
+      "package": "@omne-harness/calendar-tools",
+      "files": [
+        {
+          "path": "dist/author.d.ts",
+          "sha256": "8c6c03de408297cbc7db632d2c5214e01371d29fcbdc21d164a46575400f59be"
+        },
+        {
+          "path": "dist/author.d.ts.map",
+          "sha256": "0c118bcabc3253684d3336fb87797c5565d606d659d707004530a8f46508bb80"
+        },
+        {
+          "path": "dist/author.js",
+          "sha256": "8550f6dd85c3e760840e1c1ed7272dc7246edef4a0e92e3058fb43b8e6dec47e"
+        },
+        {
+          "path": "dist/author.js.map",
+          "sha256": "73cd4f52beea24ee23bf812e2eb5c7540621ee469969ffdb1e8e0feb67894a25"
+        },
+        {
+          "path": "dist/index.d.ts",
+          "sha256": "654f4aac4ea7d1952197567ff0168143b7f298b2b0043646446535675cb15854"
+        },
+        {
+          "path": "dist/index.d.ts.map",
+          "sha256": "365874aa8942793d6a4b461af3de3074a90234659c31e691a868e292141a3d51"
+        },
+        {
+          "path": "dist/index.js",
+          "sha256": "13b3bfd4a370276a74f67cea78c1520ee7493eb3a1cdb4f25d07c3039ab09312"
+        },
+        {
+          "path": "dist/index.js.map",
+          "sha256": "20d70a707800a8e5943dc35b389564916c563b818b7f881bc998fb33d0488e49"
+        },
+        {
+          "path": "dist/port.d.ts",
+          "sha256": "a2b6ce136bc0395f0eedb36ed33c6bf8038fa05479aab7399bd53b4cb4bf1521"
+        },
+        {
+          "path": "dist/port.d.ts.map",
+          "sha256": "635715c09e4edfa20b891a859cbef0616aeca8283d1977c244c43020c8842352"
+        },
+        {
+          "path": "dist/port.js",
+          "sha256": "a8008e509edb0fdef6b0c23537cdae37a130de973e5d8ce28c6754b748bbc1ab"
+        },
+        {
+          "path": "dist/port.js.map",
+          "sha256": "d2647572d8e6f05c293d0a89b4e171620afd391e3c24826422d2ee30cbef6b1f"
+        },
+        {
+          "path": "dist/protocol.d.ts",
+          "sha256": "2087b674e5f1b2871b42dc94ab2bed1fb4f5f70b7873683ce64ea123471a828c"
+        },
+        {
+          "path": "dist/protocol.d.ts.map",
+          "sha256": "84b6a8c4ced1de0271be4b29aa31c70d127f69d333a76fd51ae9a0cd7592cf3c"
+        },
+        {
+          "path": "dist/protocol.js",
+          "sha256": "1ca4dcbde7277eecdc430b040990cfc7e0d73eb72361acbac9fdc93cd85f58dc"
+        },
+        {
+          "path": "dist/protocol.js.map",
+          "sha256": "420495e1b05828ca0506d586ace1451c13c75a25702dca14b300df35ebae97d6"
+        },
+        {
+          "path": "package.json",
+          "sha256": "e3575a67c145e8b2ed9dbda74a38dbf623fcfa034615d6012df7eca29b539ba7"
+        }
+      ],
+      "digest": "sha256:a065f88eabb00957ce1778005f5e72efd8a5e8510ef1a71ca8edf2a217064d03"
+    },
+    {
+      "package": "@omne-harness/schedule-tools",
+      "files": [
+        {
+          "path": "dist/author.d.ts",
+          "sha256": "9af0e58f69e5abe066649de40040cd6a3a8ba951631ed9b7e7fdadd35d160fd6"
+        },
+        {
+          "path": "dist/author.d.ts.map",
+          "sha256": "9c2aa1d6fe2fa3cacdddd293d23b2e4572bb718dd2bfd1f9ea9b62de3f449f34"
+        },
+        {
+          "path": "dist/author.js",
+          "sha256": "ebd9a7dd5f346a1c2ee8637bf5bd8656da73126938b424d5f3491a032e3ad98c"
+        },
+        {
+          "path": "dist/author.js.map",
+          "sha256": "cf0545566bff426ab1ad93f565b74067dabc95f3295732add0e2dfe2efb890cb"
+        },
+        {
+          "path": "dist/calls.d.ts",
+          "sha256": "30be752e23f09602a5047bccf1d3bcb9b021e609b50bd5701fa62aa3e81c1316"
+        },
+        {
+          "path": "dist/calls.d.ts.map",
+          "sha256": "c8e0b300f798e35d139aeee70df4e8b5753ad863f3fefe695f4a5fbfb389512e"
+        },
+        {
+          "path": "dist/calls.js",
+          "sha256": "5217d679efa57862797a19de73f3daab863ff5c4f58d03f7d4ba6f1ebf85d59d"
+        },
+        {
+          "path": "dist/calls.js.map",
+          "sha256": "81daaae361499736ba87b292be377f6c9a88be1d1d335666527516d4b0aef1e3"
+        },
+        {
+          "path": "dist/consent.d.ts",
+          "sha256": "4f52e9d01e06239b4c5d5c25525df974e3a701ff668a330441fae2de95a7dbee"
+        },
+        {
+          "path": "dist/consent.d.ts.map",
+          "sha256": "05ae2f01dc906d2194f8009a295aad577371d0da7cc902730782cc954613ab81"
+        },
+        {
+          "path": "dist/consent.js",
+          "sha256": "e7e587f9591ce9088ba861e9f50ca04b5090be495a77c6c8504d9664e7096548"
+        },
+        {
+          "path": "dist/consent.js.map",
+          "sha256": "99d76d89e390c8d7eeb8bdc1b3c88d8f7684c2f3f5dc42d06813d8b74180db73"
+        },
+        {
+          "path": "dist/index.d.ts",
+          "sha256": "0cd514e870e56a154cc24f7ce0f6d2f2d9b0efa96076aafcf3ab031f352d840f"
+        },
+        {
+          "path": "dist/index.d.ts.map",
+          "sha256": "ad4feeae21aecb9cbee588d3d71d4bb512cf4c6eac142f642f2e08a9670c4f5f"
+        },
+        {
+          "path": "dist/index.js",
+          "sha256": "eee0ca19a8d949e6d90afe1b91061c7cb52ad8a5b6ccceb10a0e4e2f785a71cd"
+        },
+        {
+          "path": "dist/index.js.map",
+          "sha256": "1de098f637d2846927c0e894d20c37a1921b6a44d933fbd424b2d884f547c9a1"
+        },
+        {
+          "path": "dist/port.d.ts",
+          "sha256": "6d283a3d2fd5ca480e2b3e04742ec2daf0af05896389cadb32540ccd179d95b3"
+        },
+        {
+          "path": "dist/port.d.ts.map",
+          "sha256": "e27587d04b3d5c65df632589fe15675d572652f83605848f3a341c499b63f79b"
+        },
+        {
+          "path": "dist/port.js",
+          "sha256": "c458636870655ed5c9bd41a7d1e85fadb1ea5dfc26b33302dd51541252877e1f"
+        },
+        {
+          "path": "dist/port.js.map",
+          "sha256": "8c0d96bbd3dcfc02fc0adc5be3628f622285d793cf8830012abf6c0e49820d6c"
+        },
+        {
+          "path": "dist/protocol.d.ts",
+          "sha256": "86aa12bcfb019c6353c8a6f8b72be1abe45448c62381b346765124effdf8b8b8"
+        },
+        {
+          "path": "dist/protocol.d.ts.map",
+          "sha256": "f3054921a7f1adbbecc2a0cb81c599a62424f8ec95d0da1d8197c4b0aa087447"
+        },
+        {
+          "path": "dist/protocol.js",
+          "sha256": "d3ffc1ed85d47b8b78857ac0693bf1d2b6cccff2483f9b3643e2cb46d9beeb09"
+        },
+        {
+          "path": "dist/protocol.js.map",
+          "sha256": "e91d13f22d2fee152a28bcaa53a62a73dfadc18e7b3f16afdc9132125c72204f"
+        },
+        {
+          "path": "dist/text.d.ts",
+          "sha256": "8ee99b96290536f41d952cd38c7cedb6a33a1b86dd860548c7c5ee6ff1bba389"
+        },
+        {
+          "path": "dist/text.d.ts.map",
+          "sha256": "20ef21441f23163fc5d6ceaa12ddd2b981233dcbf615987788cc92d933798f98"
+        },
+        {
+          "path": "dist/text.js",
+          "sha256": "0aad772adda10dac4426713c91d6b78202fdfd020be704209bae3afd7478cabb"
+        },
+        {
+          "path": "dist/text.js.map",
+          "sha256": "37ac9bff35c9e066f742e70f6df941f4fe06a45fcb4723512cd69c17422ae550"
+        },
+        {
+          "path": "package.json",
+          "sha256": "d6303298b5ba260a478dc2c7053cc6afb6e0be428635c58af493d2e310acf502"
+        }
+      ],
+      "digest": "sha256:a749bdd7f364e54c8b02b275b6d0ea34de572fac2c0f581eb2330106bcd136d4"
+    }
+  ],
   "consumer": {
     "input": [
       "text"
@@ -486,15 +684,15 @@
     "capabilities": {
       "owner": "@omne-harness/harness-server",
       "record": "tool-release.json#consumer/capabilities",
-      "revision": "sha256:c2d5e66e80e2af18daa8e041486c7fac05bcbd60b47837d689ef340187750748",
-      "digest": "sha256:0a2141e27ff3cb9b4fd214a6a8ae5d0b44386aea273872f63cb6b686a1bc1a0c"
+      "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+      "digest": "sha256:3cb6ac41ca2092fde52d557772b34042f40af49a42315c447ddc2f4a2afdcb7c"
     },
     "conversion": null,
     "attachmentAccess": {
       "owner": "@omne-harness/harness-server",
       "record": "tool-release.json#consumer/attachment-access",
-      "revision": "sha256:c2d5e66e80e2af18daa8e041486c7fac05bcbd60b47837d689ef340187750748",
-      "digest": "sha256:beb71fc82b512f90e5119ea345bcbe67224ca2f4e8a85d6eb28749481e64af89"
+      "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+      "digest": "sha256:4a6d5873601b279b05dd8ff7dfe4d2fba96aa1f6950ae4844317a810d9ab3e60"
     }
   },
   "entries": [
@@ -873,14 +1071,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Shell/holding",
-        "revision": "sha256:c2d5e66e80e2af18daa8e041486c7fac05bcbd60b47837d689ef340187750748",
-        "digest": "sha256:3481ecdcb064a14e612a97aec53e71722fa3c2f638671f57494bb0e7f3c30f89"
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:19070dd59a5d6fbcb4ab4a825a562328978300d99412a201aa913ca1dd9562ba"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Shell/publication",
-        "revision": "sha256:c2d5e66e80e2af18daa8e041486c7fac05bcbd60b47837d689ef340187750748",
-        "digest": "sha256:f1bcc05566ec52d2df5a5aebe9ea4de2a86947e4c5bccd56f545c31ef7ad0c22"
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:b072c09fc95093234541293ba2d12c3e9a196ce37f5593b727aa8aedea588c0a"
       }
     },
     {
@@ -1255,14 +1453,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Files/holding",
-        "revision": "sha256:c2d5e66e80e2af18daa8e041486c7fac05bcbd60b47837d689ef340187750748",
-        "digest": "sha256:8adec0227d5cb3a45f5a96d9fd43f1f827ee27f37d41aeafafd30782102e7d29"
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:17dd6b80ccfcaf4eb2e61fad3828225be68620860a2ab7629de1bb24677b780e"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Files/publication",
-        "revision": "sha256:c2d5e66e80e2af18daa8e041486c7fac05bcbd60b47837d689ef340187750748",
-        "digest": "sha256:6b6738f7d8130efb8b2f5867debcf41fb5534b3c8a7054c64b990622e2fb0f89"
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:a0c272f908dbc69a5912b55f87068045ee3a25688f8fc7b3d840fee2eaf14fff"
       }
     },
     {
@@ -1637,14 +1835,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Tools/holding",
-        "revision": "sha256:c2d5e66e80e2af18daa8e041486c7fac05bcbd60b47837d689ef340187750748",
-        "digest": "sha256:46e036a3491054812301ccc9a0d21b7a970bb6fcd717c3bed29cc9a02f35d10a"
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:adb4b05411eb05d969f9a3039ec1a0bf50525b0eb94b020f5e4aff9cfdee2443"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Tools/publication",
-        "revision": "sha256:c2d5e66e80e2af18daa8e041486c7fac05bcbd60b47837d689ef340187750748",
-        "digest": "sha256:ec2d8cb9b361a274a0035a40e1c19968e62b7b0a50cfe998b503b7a48558c7a8"
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:1566587f9a6cccc6f1a199eff0373b71af9c42da3adfdd88e337c59cfc41303d"
       }
     },
     {
@@ -2018,14 +2216,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#TodoItems/holding",
-        "revision": "sha256:c2d5e66e80e2af18daa8e041486c7fac05bcbd60b47837d689ef340187750748",
-        "digest": "sha256:2430170b7ae5347019d54b490fc05104d399eca1819b054e4c92b08e11e3d69e"
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:97eb7973d7bf93040120f9fca44cc2e40e687c4ea327012cb0c9f3df461b713f"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#TodoItems/publication",
-        "revision": "sha256:c2d5e66e80e2af18daa8e041486c7fac05bcbd60b47837d689ef340187750748",
-        "digest": "sha256:abf53a8ea5138ede08878ee0f760f9602af1a8eb6f1f8278c67c233a8039063c"
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:ca8a388329f77f6c76905c60c1f2ed62fb31b6ae0e4cd345beccd2f33a56b59d"
       }
     },
     {
@@ -2399,14 +2597,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Ask/holding",
-        "revision": "sha256:c2d5e66e80e2af18daa8e041486c7fac05bcbd60b47837d689ef340187750748",
-        "digest": "sha256:f1c82c3238a65718ac8d36233c00138ab889fcb8057db8cccc88c6bf62062b08"
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:6d6ad8c6449c10bc3243e98a5a2a7ceef74d10061e2d020b8363b567afe9c519"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Ask/publication",
-        "revision": "sha256:c2d5e66e80e2af18daa8e041486c7fac05bcbd60b47837d689ef340187750748",
-        "digest": "sha256:11a1656bba9a04ba1638ef119510abd6a742267beed618acfd69f66133d07b2a"
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:859d458db30ce28eb9ff45184de9bf6bcbf8ba6898256e1f3d372ad8a4d9719b"
       }
     },
     {
@@ -2781,14 +2979,14 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Web/holding",
-        "revision": "sha256:c2d5e66e80e2af18daa8e041486c7fac05bcbd60b47837d689ef340187750748",
-        "digest": "sha256:a7c92566e545224d517c67cb0020c8410a3cc10d9557d79dd6b88cb7e4e0c524"
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:07a45bc160893d7985b24ab076dc092932b8a82ade607aa6a509f31735db516e"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Web/publication",
-        "revision": "sha256:c2d5e66e80e2af18daa8e041486c7fac05bcbd60b47837d689ef340187750748",
-        "digest": "sha256:0b93f97c8e77efe753471be712d1e30d80d062a966b695c99d7f769373027b67"
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:2d30883a5dbf909a248b708480f9ecd2aba1189a7336650b32ee739c48ada1eb"
       }
     },
     {
@@ -3162,14 +3360,781 @@
       "holding": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Skills/holding",
-        "revision": "sha256:c2d5e66e80e2af18daa8e041486c7fac05bcbd60b47837d689ef340187750748",
-        "digest": "sha256:ed693be47ab59880d832d2bb67d52e24293e4785a07ab87f3ef9ed02d181ab83"
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:e863852a7e70799b189f3cde8c924f3cd54792efee72405dd89ae92b14ef5338"
       },
       "publication": {
         "owner": "@omne-harness/harness-server",
         "record": "tool-release.json#Skills/publication",
-        "revision": "sha256:c2d5e66e80e2af18daa8e041486c7fac05bcbd60b47837d689ef340187750748",
-        "digest": "sha256:8cc6b205635440e23e75527a1c87226dce17e43ab7066e0e3c456c4661b5ddae"
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:80d9bd7a0de2fc83639b1bb24e636d05ed01d5a44fae62b321acc7d665d1380f"
+      }
+    },
+    {
+      "asset": {
+        "name": "Calendar",
+        "adoption": {
+          "owner": "@omne-harness/harness-server",
+          "name": "Calendar",
+          "revision": "0.0.0",
+          "digest": "sha256:e70c450ee990a792c417404281daec2b57886ddc2191a11d027327bb7190a43f"
+        }
+      },
+      "requiredCapabilities": [
+        "calendar.read"
+      ],
+      "module": {
+        "package": "@omne-harness/calendar-tools",
+        "export": "calendarToolModule",
+        "executor": {
+          "owner": "@omne-harness/calendar-tools",
+          "name": "Calendar",
+          "revision": "2",
+          "digest": "sha256:f923c49e3b76b01ed2e01238a9728c151901d02af26feb6d868d03c71e26983f"
+        },
+        "artifacts": "sha256:a065f88eabb00957ce1778005f5e72efd8a5e8510ef1a71ca8edf2a217064d03"
+      },
+      "construction": [
+        "resultMaxBytes"
+      ],
+      "settings": {
+        "owner": "@omne-harness/harness-server",
+        "name": "Calendar.settings",
+        "revision": "0.0.0",
+        "digest": "sha256:f984fbcf71d05640786827c66743f6519415bd735c8ce1cfe977ccc079af11ac"
+      },
+      "definition": "sha256:7635e0a1ae6e3fcca66447d371c556fcf0ee3b3880b459104a9ddae6c33a37f7",
+      "governance": {
+        "declaration": {
+          "reference": {
+            "ownerId": "harness-server.tool-release",
+            "definitionId": "tool.Calendar",
+            "version": "7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56",
+            "digest": "7e4f4e3750a11494b332060515cf3427a1bc9e9190457a7f8585f34565f7d4d0"
+          },
+          "origin": {
+            "kind": "asset",
+            "assetId": "harness.tool.Calendar",
+            "releaseRef": "harness.tool.Calendar/7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56"
+          },
+          "settings": [
+            {
+              "providerId": "harness-server.tool-release",
+              "definitionId": "tool.Calendar.permissions",
+              "version": "7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56",
+              "groups": [
+                {
+                  "id": "tool.Calendar",
+                  "parentId": null,
+                  "title": "Calendar 工具",
+                  "description": "Calendar 调用的权限规则。",
+                  "order": 0
+                }
+              ],
+              "items": [
+                {
+                  "id": "invoke",
+                  "groupId": "tool.Calendar",
+                  "category": "governance",
+                  "presentation": {
+                    "title": "Calendar 调用权限",
+                    "description": "控制 Calendar 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+                    "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+                    "clear": "清除本层挑选与锁界，重新按当前来源求值。",
+                    "adoption": "next-boundary",
+                    "enumLabels": [
+                      {
+                        "value": "deny",
+                        "title": "不允许",
+                        "description": "不启动此工具调用。"
+                      },
+                      {
+                        "value": "ask",
+                        "title": "询问",
+                        "description": "需要取得适用的人工许可。"
+                      },
+                      {
+                        "value": "auto",
+                        "title": "自动",
+                        "description": "本项不要求另行询问。"
+                      }
+                    ]
+                  },
+                  "valueSchema": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "pick",
+                      "allowedSet"
+                    ],
+                    "properties": {
+                      "pick": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "deny",
+                              "ask",
+                              "auto"
+                            ]
+                          }
+                        ]
+                      },
+                      "allowedSet": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "deny",
+                                "ask",
+                                "auto"
+                              ]
+                            },
+                            "uniqueItems": true,
+                            "maxItems": 3
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "default": {
+                    "kind": "value",
+                    "value": {
+                      "pick": "ask",
+                      "allowedSet": null
+                    }
+                  },
+                  "merge": "override",
+                  "sensitivity": "ordinary"
+                }
+              ]
+            }
+          ],
+          "permissions": [
+            {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Calendar",
+                  "releaseRef": "harness.tool.Calendar/7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56"
+                },
+                "itemId": "invoke",
+                "revision": "7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56"
+              },
+              "capabilityId": "tool.Calendar",
+              "enforcementKey": "tool.invoke",
+              "title": "Calendar 调用权限",
+              "description": "控制 Calendar 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "ask",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Calendar.permissions",
+                "version": "7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56",
+                "itemId": "invoke",
+                "groupId": "tool.Calendar",
+                "groupTitle": "Calendar 工具",
+                "groupDescription": "Calendar 调用的权限规则。"
+              }
+            }
+          ],
+          "enforcementBindings": [
+            {
+              "capabilityId": "tool.Calendar",
+              "enforcementKey": "tool.invoke",
+              "implementationRef": "tool/561cc16ce88213cfea39f3af0d6f8c02961b7b696af92bbf84130bc36c7f762b",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            }
+          ]
+        },
+        "interpretations": [
+          {
+            "binding": {
+              "capabilityId": "tool.Calendar",
+              "enforcementKey": "tool.invoke",
+              "implementationRef": "tool/561cc16ce88213cfea39f3af0d6f8c02961b7b696af92bbf84130bc36c7f762b",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            "definition": {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Calendar",
+                  "releaseRef": "harness.tool.Calendar/7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56"
+                },
+                "itemId": "invoke",
+                "revision": "7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56"
+              },
+              "capabilityId": "tool.Calendar",
+              "enforcementKey": "tool.invoke",
+              "title": "Calendar 调用权限",
+              "description": "控制 Calendar 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "ask",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Calendar.permissions",
+                "version": "7feb3b1df5d73ce1e1363909e8c1c2fe1f4ec564ec9cf400e83f7edbb0a08a56",
+                "itemId": "invoke",
+                "groupId": "tool.Calendar",
+                "groupTitle": "Calendar 工具",
+                "groupDescription": "Calendar 调用的权限规则。"
+              }
+            },
+            "effects": [
+              {
+                "value": "deny",
+                "effect": "deny"
+              },
+              {
+                "value": "ask",
+                "effect": "need-decision"
+              },
+              {
+                "value": "auto",
+                "effect": "allow"
+              }
+            ]
+          }
+        ]
+      },
+      "holding": {
+        "owner": "@omne-harness/harness-server",
+        "record": "tool-release.json#Calendar/holding",
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:542c72d1ada6b671f8d88560bcc9e990a9582a53a28ea714df6da37446789cc2"
+      },
+      "publication": {
+        "owner": "@omne-harness/harness-server",
+        "record": "tool-release.json#Calendar/publication",
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:044874cc499ad803dd347ea949d6e50e29f6c18ca712a0562095c8f2ccdcb0c7"
+      }
+    },
+    {
+      "asset": {
+        "name": "Schedules",
+        "adoption": {
+          "owner": "@omne-harness/harness-server",
+          "name": "Schedules",
+          "revision": "0.0.0",
+          "digest": "sha256:3b45bfc2c03b97147ab67d46089d33d5f664fdec3b5b59513e4ab4846ddc2ef0"
+        }
+      },
+      "requiredCapabilities": [
+        "schedule.read",
+        "schedule.write"
+      ],
+      "module": {
+        "package": "@omne-harness/schedule-tools",
+        "export": "schedulesToolModule",
+        "executor": {
+          "owner": "@omne-harness/schedule-tools",
+          "name": "Schedules",
+          "revision": "2",
+          "digest": "sha256:57f336b9b6b5b4b4d1ea90a5cecc6e63016ca1aeeaa59fabc682be787ce7fb33"
+        },
+        "artifacts": "sha256:a749bdd7f364e54c8b02b275b6d0ea34de572fac2c0f581eb2330106bcd136d4"
+      },
+      "construction": [
+        "resultMaxBytes"
+      ],
+      "settings": {
+        "owner": "@omne-harness/harness-server",
+        "name": "Schedules.settings",
+        "revision": "0.0.0",
+        "digest": "sha256:5f0896a3ef52e8ca82d9386eb65113c31e994dfcbfbec5945f4090d447b52bb2"
+      },
+      "definition": "sha256:4656dc8ed51693d24b24eec574b54603b47d220f21f2a195ddefeb1283e4901e",
+      "governance": {
+        "declaration": {
+          "reference": {
+            "ownerId": "harness-server.tool-release",
+            "definitionId": "tool.Schedules",
+            "version": "b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404",
+            "digest": "572d7ab716b271a5b68c8d001f207ad67fcc1048ab0726911c1d2219469d8f1c"
+          },
+          "origin": {
+            "kind": "asset",
+            "assetId": "harness.tool.Schedules",
+            "releaseRef": "harness.tool.Schedules/b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404"
+          },
+          "settings": [
+            {
+              "providerId": "harness-server.tool-release",
+              "definitionId": "tool.Schedules.permissions",
+              "version": "b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404",
+              "groups": [
+                {
+                  "id": "tool.Schedules",
+                  "parentId": null,
+                  "title": "Schedules 工具",
+                  "description": "Schedules 调用的权限规则。",
+                  "order": 0
+                }
+              ],
+              "items": [
+                {
+                  "id": "invoke",
+                  "groupId": "tool.Schedules",
+                  "category": "governance",
+                  "presentation": {
+                    "title": "Schedules 调用权限",
+                    "description": "控制 Schedules 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+                    "impact": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+                    "clear": "清除本层挑选与锁界，重新按当前来源求值。",
+                    "adoption": "next-boundary",
+                    "enumLabels": [
+                      {
+                        "value": "deny",
+                        "title": "不允许",
+                        "description": "不启动此工具调用。"
+                      },
+                      {
+                        "value": "ask",
+                        "title": "询问",
+                        "description": "需要取得适用的人工许可。"
+                      },
+                      {
+                        "value": "auto",
+                        "title": "自动",
+                        "description": "本项不要求另行询问。"
+                      }
+                    ]
+                  },
+                  "valueSchema": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "pick",
+                      "allowedSet"
+                    ],
+                    "properties": {
+                      "pick": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "deny",
+                              "ask",
+                              "auto"
+                            ]
+                          }
+                        ]
+                      },
+                      "allowedSet": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "deny",
+                                "ask",
+                                "auto"
+                              ]
+                            },
+                            "uniqueItems": true,
+                            "maxItems": 3
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "default": {
+                    "kind": "value",
+                    "value": {
+                      "pick": "ask",
+                      "allowedSet": null
+                    }
+                  },
+                  "merge": "override",
+                  "sensitivity": "ordinary"
+                }
+              ]
+            }
+          ],
+          "permissions": [
+            {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Schedules",
+                  "releaseRef": "harness.tool.Schedules/b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404"
+                },
+                "itemId": "invoke",
+                "revision": "b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404"
+              },
+              "capabilityId": "tool.Schedules",
+              "enforcementKey": "tool.invoke",
+              "title": "Schedules 调用权限",
+              "description": "控制 Schedules 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "ask",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Schedules.permissions",
+                "version": "b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404",
+                "itemId": "invoke",
+                "groupId": "tool.Schedules",
+                "groupTitle": "Schedules 工具",
+                "groupDescription": "Schedules 调用的权限规则。"
+              }
+            }
+          ],
+          "enforcementBindings": [
+            {
+              "capabilityId": "tool.Schedules",
+              "enforcementKey": "tool.invoke",
+              "implementationRef": "tool/5becdae3bc29054a4d9a4a6bc8689fc608ce1eaed86b26e213cb1fa98ea4f21c",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            }
+          ]
+        },
+        "interpretations": [
+          {
+            "binding": {
+              "capabilityId": "tool.Schedules",
+              "enforcementKey": "tool.invoke",
+              "implementationRef": "tool/5becdae3bc29054a4d9a4a6bc8689fc608ce1eaed86b26e213cb1fa98ea4f21c",
+              "action": "invoke",
+              "interpretationRef": "harness.permission-rule/1"
+            },
+            "definition": {
+              "reference": {
+                "origin": {
+                  "kind": "asset",
+                  "assetId": "harness.tool.Schedules",
+                  "releaseRef": "harness.tool.Schedules/b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404"
+                },
+                "itemId": "invoke",
+                "revision": "b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404"
+              },
+              "capabilityId": "tool.Schedules",
+              "enforcementKey": "tool.invoke",
+              "title": "Schedules 调用权限",
+              "description": "控制 Schedules 工具的所有命令。允许调用不代表执行环境可用或操作一定成功。",
+              "approvalEffect": "在选定授权范围内允许调用；仍须满足身份、持有、当前规则和执行环境要求。",
+              "supportedScopes": [
+                {
+                  "kind": "one-time-call",
+                  "description": "仅允许原调用及其原参数。"
+                },
+                {
+                  "kind": "session",
+                  "description": "允许原逻辑会话中的适用调用。"
+                },
+                {
+                  "kind": "tenant",
+                  "description": "允许本租户中的适用调用，仍受组织上界限制。"
+                }
+              ],
+              "assignmentLayers": [
+                "organization",
+                "tenant",
+                "session"
+              ],
+              "values": [
+                {
+                  "id": "deny",
+                  "title": "不允许",
+                  "description": "不启动此工具调用。",
+                  "permitsOperation": false
+                },
+                {
+                  "id": "ask",
+                  "title": "询问",
+                  "description": "需要取得适用的人工许可。",
+                  "permitsOperation": true
+                },
+                {
+                  "id": "auto",
+                  "title": "自动",
+                  "description": "本项不要求另行询问。",
+                  "permitsOperation": true
+                }
+              ],
+              "comparison": {
+                "strictOrder": [
+                  "deny",
+                  "ask",
+                  "auto"
+                ],
+                "distances": [
+                  [
+                    0,
+                    1,
+                    2
+                  ],
+                  [
+                    1,
+                    0,
+                    1
+                  ],
+                  [
+                    2,
+                    1,
+                    0
+                  ]
+                ]
+              },
+              "defaultRule": {
+                "pick": "ask",
+                "allowedSet": null
+              },
+              "settings": {
+                "providerId": "harness-server.tool-release",
+                "definitionId": "tool.Schedules.permissions",
+                "version": "b3672fb4e102cbcb6db9127aaaf38bb6012d6205c58de6cd0f89219122b35404",
+                "itemId": "invoke",
+                "groupId": "tool.Schedules",
+                "groupTitle": "Schedules 工具",
+                "groupDescription": "Schedules 调用的权限规则。"
+              }
+            },
+            "effects": [
+              {
+                "value": "deny",
+                "effect": "deny"
+              },
+              {
+                "value": "ask",
+                "effect": "need-decision"
+              },
+              {
+                "value": "auto",
+                "effect": "allow"
+              }
+            ]
+          }
+        ]
+      },
+      "holding": {
+        "owner": "@omne-harness/harness-server",
+        "record": "tool-release.json#Schedules/holding",
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:8dfd4636db79faed7e9b5db1596f7f144d407cabb561beb7c63df4b33b613555"
+      },
+      "publication": {
+        "owner": "@omne-harness/harness-server",
+        "record": "tool-release.json#Schedules/publication",
+        "revision": "sha256:40e318527bc8db6243e164be4691f995086176a970bd422f3c24ab695a023aee",
+        "digest": "sha256:f0984da289d171e0b3fe2f234711c92d59ebc077918baaabe2b8e47713116a29"
       }
     }
   ]

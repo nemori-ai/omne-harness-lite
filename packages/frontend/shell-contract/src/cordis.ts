@@ -1,6 +1,7 @@
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
 import type { ScopeSource, ShellLogin } from './host.ts'
+import type { ServiceKey } from './service-key.ts'
 import type { AttachedLayout, ItemOf, SlotName } from './slots.ts'
 
 /** @owner packages/frontend/shell-contract */
@@ -33,10 +34,12 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
+export type Provide = <T>(key: ServiceKey<T>, value: NoInfer<T>) => void
+
 export type UiModuleDefinition<S extends Record<string, unknown>> = Readonly<{
   name: string
   inject: readonly (keyof S & string)[]
-  apply: (shell: ShellService, services: Readonly<S>) => void
+  apply: (shell: ShellService, services: Readonly<S>, provide: Provide) => void
 }>
 
 export function defineUiModule<S extends Record<string, unknown> = Record<string, unknown>>(
@@ -49,7 +52,10 @@ export function defineUiModule<S extends Record<string, unknown> = Record<string
       const lookup = ctx as unknown as { get(name: string): unknown }
       const services: Record<string, unknown> = {}
       for (const name of definition.inject) services[name] = lookup.get(name)
-      definition.apply(ctx.shell, services as S)
+      const provide: Provide = (key, value) => {
+        ctx.effect(() => ctx.reflect.provide(key, value), 'ui-module.provide')
+      }
+      definition.apply(ctx.shell, services as S, provide)
     },
   }
 }

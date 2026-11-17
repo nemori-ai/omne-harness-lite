@@ -17,7 +17,17 @@ import {
   type ReleaseFixture,
 } from './support.ts'
 
-const CODING = ['Ask', 'Files', 'Shell', 'Skills', 'TodoItems', 'Tools', 'Web'] as const
+const CODING = [
+  'Ask',
+  'Calendar',
+  'Files',
+  'Schedules',
+  'Shell',
+  'Skills',
+  'TodoItems',
+  'Tools',
+  'Web',
+] as const
 const SYSTEM = { scope: 'system' } as const
 const roots: ReleaseFixture[] = []
 afterEach(async () => {
