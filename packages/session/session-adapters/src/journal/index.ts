@@ -43,6 +43,7 @@ export {
   emptySessionView,
   handoffKey,
   openCalls,
+  receivedViews,
   viewDigest,
   viewText,
 } from './view.ts'
@@ -63,6 +64,7 @@ export type {
   PassageView,
   RequestView,
   ResultView,
+  ReceivedView,
   SessionJournalView,
 } from './view.ts'
 export {

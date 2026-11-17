@@ -210,7 +210,7 @@ describe('instances.current (SPEC「current 的回复」)', () => {
     const runtime = createToolRuntime(
       {
         ...base.dependencies,
-        reads: { ...base.dependencies.reads, lookup: async () => unreadable },
+        reads: { ...base.dependencies.reads, state: async () => unreadable },
         instances: {
           ...base.dependencies.instances,
           directory: { connect: async () => noRoute },

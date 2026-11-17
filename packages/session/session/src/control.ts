@@ -1,4 +1,5 @@
 import {
+  controlRoutes,
   deriveDriveOperation,
   runCancelledBy,
   type AgentDrivePort,
@@ -11,6 +12,7 @@ import type { SessionDependencies } from './dependencies.ts'
 import type { Lifecycle } from './lifecycle.ts'
 import type { SchedulingPolicy } from './policy.ts'
 import { sessionKey, type Scheduling, type SessionRef } from './scheduling.ts'
+import { createDirectControl } from './direct-control.ts'
 import type { SessionFaces } from '@omne-harness/session-contract'
 
 export type ControlPropagation = Readonly<{ trigger(ref: SessionRef): void }>
@@ -27,6 +29,24 @@ type Round =
   | Readonly<{ kind: 'call'; port: AgentDrivePort; request: ControlRequest }>
 
 const only = <T>(items: readonly T[]): T | null => (items.length === 1 ? (items[0] ?? null) : null)
+
+const CLOSED = Symbol('closed')
+
+function untilClosed<T>(signal: AbortSignal, work: Promise<T>): Promise<T | typeof CLOSED> {
+  return new Promise((resolve, reject) => {
+    const closed = (): void => resolve(CLOSED)
+    if (signal.aborted) closed()
+    signal.addEventListener('abort', closed, { once: true })
+    const settle = (done: () => void): void => {
+      signal.removeEventListener('abort', closed)
+      done()
+    }
+    work.then(
+      value => settle(() => resolve(value)),
+      (error: unknown) => settle(() => reject(error)),
+    )
+  })
+}
 
 function executionOf(snapshot: WorkSnapshot, run: RunId) {
   const executions = snapshot.executions?.filter(item => item.run === run) ?? []
@@ -92,6 +112,12 @@ export function createControlPropagation<P>(
 ): ControlPropagation {
   const { dependencies, lifecycle, policy, scheduling, coordinator } = input
   const replays = new Map<string, Replay>()
+  const direct = createDirectControl({
+    port: dependencies.callControl,
+    lifecycle,
+    policy,
+    scheduling,
+  })
   const discoveries = new Map<string, { again: boolean }>()
   const read = async (ref: SessionRef): Promise<WorkSnapshot | null> => {
     const principal = await scheduling.principal('coordinator', ref)
@@ -108,21 +134,6 @@ export function createControlPropagation<P>(
   }
   const replayKey = (ref: SessionRef, operation: ControlProgress['operation']): string =>
     `${sessionKey(ref)}\u0000${operation}`
-  const CLOSED = Symbol('closed')
-  const untilClosed = <T>(work: Promise<T>): Promise<T | typeof CLOSED> =>
-    new Promise((resolve, reject) => {
-      const closed = (): void => resolve(CLOSED)
-      if (lifecycle.signal.aborted) closed()
-      lifecycle.signal.addEventListener('abort', closed, { once: true })
-      const settle = (done: () => void): void => {
-        lifecycle.signal.removeEventListener('abort', closed)
-        done()
-      }
-      work.then(
-        value => settle(() => resolve(value)),
-        (error: unknown) => settle(() => reject(error)),
-      )
-    })
   const plan = async (
     ref: SessionRef,
     operation: ControlProgress['operation'],
@@ -136,7 +147,7 @@ export function createControlPropagation<P>(
       if (progress !== undefined) replays.delete(replayKey(ref, operation))
       return stop
     }
-    if (progress.intent.kind !== 'control') return stop
+    if (progress.intent.kind !== 'control' || !controlRoutes(snapshot, progress).agent) return stop
     const execution = originalExecution(snapshot, progress)
     if (execution === null) return stop
     const port = drive()
@@ -159,6 +170,7 @@ export function createControlPropagation<P>(
     if (lifecycle.closed) return 'stop'
     const asked = async (): Promise<Next> => {
       const answer = await untilClosed(
+        lifecycle.signal,
         port.query({
           tenant: request.tenant,
           session: request.session,
@@ -180,7 +192,7 @@ export function createControlPropagation<P>(
     }
     try {
       if (replay.phase === 'query') return await asked()
-      const answer = await untilClosed(port.control(request))
+      const answer = await untilClosed(lifecycle.signal, port.control(request))
       if (answer === CLOSED) return 'stop'
       if ('ok' in answer) return 'wait'
       if (answer.failure.kind === 'commit-unknown') {
@@ -258,8 +270,13 @@ export function createControlPropagation<P>(
             const snapshot = await read(ref)
             if (snapshot !== null)
               for (const progress of snapshot.controls)
-                if (progress.state === 'propagating') launch(ref, progress)
-                else settle(ref, progress)
+                if (progress.state === 'propagating') {
+                  launch(ref, progress)
+                  direct.launch(ref, snapshot, progress)
+                } else {
+                  settle(ref, progress)
+                  direct.forget(ref, progress.operation)
+                }
           } while (discovery.again && !lifecycle.closed)
         } finally {
           discoveries.delete(key)

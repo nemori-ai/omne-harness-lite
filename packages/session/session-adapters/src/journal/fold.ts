@@ -37,6 +37,7 @@ import {
   type RejectionEntry,
   type RequestView,
   type ResultView,
+  type ReceivedView,
   type SessionJournalView,
 } from './view.ts'
 import { foldVoided } from './voided.ts'
@@ -56,6 +57,7 @@ type Draft = {
 } & {
   intents: Map<ActionId, IntentView>
   results: Map<ConsumptionId, ResultView>
+  placeholders: Map<ConsumptionId, ReceivedView>
   handoffs: Map<string, HandoffView>
   batches: Map<ActionBatchId, BatchView>
   passages: Map<PassageId, PassageView>
@@ -79,6 +81,7 @@ function draftOf(view: ExecutionView): Draft {
     cursorMoved: { ...view.cursorMoved },
     intents: new Map(view.intents),
     results: new Map(view.results),
+    placeholders: new Map(view.placeholders),
     handoffs: new Map(view.handoffs),
     batches: new Map(view.batches),
     passages: new Map(view.passages),
@@ -120,10 +123,12 @@ function active(draft: Draft): Authority | null {
   return latest?.status === 'active' ? latest.authority : null
 }
 
+// The writer appends no event after the execution ended (a result received then is kept only),
+// and a control stage it already reached appends none either.
 function eventOf(draft: Draft, fact: FactBody): string | null {
   const kind = eventKindOf(fact)
-  if (kind === null || fact.kind !== 'control.stage' || fact.step !== null) return kind
-  if (draft.finish.ended !== null) return null
+  if (kind === null || draft.finish.ended !== null) return null
+  if (fact.kind !== 'control.stage' || fact.step !== null) return kind
   const current = draft.controls.get(fact.control)?.stages[fact.stage]
   const same =
     current !== undefined &&
@@ -229,18 +234,24 @@ function foldCallAssociated(draft: Draft, fact: FactOf<'call.associated'>): void
 }
 
 function foldResultReceived(draft: Draft, fact: FactOf<'result.received'>, pub: number): void {
+  const received: ReceivedView = {
+    delivery: fact.delivery,
+    consumer: fact.consumer,
+    custody: fact.custody,
+    saved: fact.saved,
+    material: fact.material,
+    pub,
+  }
+  if (fact.result.delivery === 'placeholder') {
+    if (!draft.placeholders.has(fact.consumption))
+      draft.placeholders.set(fact.consumption, received)
+    return
+  }
   const known = draft.results.get(fact.consumption)
   draft.results.set(fact.consumption, {
     consumption: fact.consumption,
     result: known?.result ?? fact.result,
-    received: known?.received ?? {
-      delivery: fact.delivery,
-      consumer: fact.consumer,
-      custody: fact.custody,
-      saved: fact.saved,
-      material: fact.material,
-      pub,
-    },
+    received: known?.received ?? received,
     stages: known?.stages ?? {},
     pub,
   })

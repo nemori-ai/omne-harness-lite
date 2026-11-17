@@ -16,6 +16,7 @@ import { pendingAfterTerminal } from './input-leases.ts'
 import { SESSION_INTERPRETER, decodeEntries, type SessionEntry } from './entries.ts'
 import type { CommittedBatch, ReduceResult } from './judgments.ts'
 import { advanceEntriesProgress, applyExtended } from './reduce-extended.ts'
+import { pruneBackgroundInputs } from './background-outcome.ts'
 import { hasUnansweredCalls, trackCalls } from './run-closure.ts'
 import { scopeBinding } from './decide-management.ts'
 import { digestOf } from './operations.ts'
@@ -449,6 +450,7 @@ function reduceBatch(
         draft.controls.some(control => control.operation === item.operation && unsettled(control)),
       ),
     }
+  pruneBackgroundInputs(draft)
   draft.revision = batch.revision
   draft.source = batchEvidence(batch, draft.session)
   draft.lifecycle = lifecycleOf(draft)

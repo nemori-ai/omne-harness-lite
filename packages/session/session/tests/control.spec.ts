@@ -1,7 +1,11 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { tenantEquals } from '@omne-harness/legal-identity'
-import { deriveDriveOperation, type ConsumptionId } from '@omne-harness/session-contract'
+import {
+  deriveDriveOperation,
+  type ConsumptionId,
+  type SessionCallControl,
+} from '@omne-harness/session-contract'
 import {
   creation,
   evidence,
@@ -619,4 +623,166 @@ it('主体失败不调用 Agent', async () => {
   f.h.bindings.controls.answerNext({ ok: { kind: 'not-bound' } })
   await f.notice()
   expect(f.control).not.toHaveBeenCalled()
+})
+
+async function backgroundedCall(f: Awaited<ReturnType<typeof controlFixture>>) {
+  const [binding] = await f.calls('tool')
+  if (binding === undefined) throw new Error('no binding')
+  const sent = vi.fn<SessionCallControl['control']>(async () => succeed('recorded' as const))
+  f.h.callControl.port = { control: sent }
+  const execution = f.original.execution.execution
+  succeeded(
+    await f.h.backend.transactions.commitEntries({
+      observation: {
+        ...f.h.access(),
+        run: f.original.run,
+        execution,
+        channel: 'tool-received',
+        operation: operationId('entries-placeholder'),
+        after: '0',
+        through: '1',
+        boundary: {
+          execution,
+          channel: 'tool-received',
+          revision: '3',
+          executionEvidence: evidence('agent/head/3'),
+          count: '1',
+        },
+        items: [
+          {
+            ordinal: '1',
+            key: 'placeholder',
+            fact: evidence('agent/entry/placeholder'),
+            interpretation: [
+              { kind: 'backgrounded', producer: binding.producer, source: evidence('t/p') },
+            ],
+          },
+        ],
+      },
+      start: { kind: 'initial' },
+    }),
+    'placeholder',
+  )
+  return { binding, sent }
+}
+
+it('停一个转了后台的调用凭引用直交 Tool，不经 Agent', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  const { binding, sent } = await backgroundedCall(f)
+  succeeded(
+    await f.h.faces('intake').work.stopCall({
+      ...f.h.access(),
+      operation: operationId('stop'),
+      producer: binding.producer,
+    }),
+    'stopCall',
+  )
+  await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(1))
+  expect(sent.mock.calls[0]?.[0]).toEqual({
+    tenant: f.h.access().tenant,
+    session: f.h.access().session,
+    control: operationId('stop'),
+    producer: binding.producer,
+    intent: 'stop',
+  })
+  expect(f.control).not.toHaveBeenCalled()
+})
+
+it('归档对转了后台的调用凭引用送撤回，仍经 Agent 取消它终结的 Run', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  const { binding, sent } = await backgroundedCall(f)
+  succeeded(
+    await f.h.faces('intake').work.control({
+      ...f.h.access(),
+      operation: operationId('archive'),
+      intent: { kind: 'archive' },
+    }),
+    'archive',
+  )
+  await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(1))
+  expect(sent.mock.calls[0]?.[0]).toMatchObject({ producer: binding.producer, intent: 'withdraw' })
+  await vi.waitFor(() => expect(f.control).toHaveBeenCalledTimes(1))
+  expect(f.control.mock.calls[0]?.[0].intent).toEqual({ kind: 'archive' })
+})
+
+it('直交答不可用时按回放间隔再送，答已记下就停', async () => {
+  const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 3 } } })
+  open.push(f.h)
+  const { binding, sent } = await backgroundedCall(f)
+  sent.mockResolvedValueOnce(fail({ kind: 'unavailable', owner: 'tool', diagnostic: 'away' }))
+  succeeded(
+    await f.h.faces('intake').work.stopCall({
+      ...f.h.access(),
+      operation: operationId('stop'),
+      producer: binding.producer,
+    }),
+    'stopCall',
+  )
+  await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(1))
+  f.h.clock.controls.advance(100)
+  await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(2))
+  f.h.clock.controls.advance(100)
+  f.h.clock.controls.advance(100)
+  await new Promise(resolve => setTimeout(resolve, 20))
+  expect(sent).toHaveBeenCalledTimes(2)
+})
+
+it('直交一直不可用时只送到回放上限', async () => {
+  const f = await controlFixture({ policy: { controlReplay: { intervalMs: 100, maxReplays: 3 } } })
+  open.push(f.h)
+  const { binding, sent } = await backgroundedCall(f)
+  sent.mockResolvedValue(fail({ kind: 'unavailable', owner: 'tool', diagnostic: 'away' }))
+  succeeded(
+    await f.h.faces('intake').work.stopCall({
+      ...f.h.access(),
+      operation: operationId('stop'),
+      producer: binding.producer,
+    }),
+    'stopCall',
+  )
+  for (const count of [1, 2, 3]) {
+    await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(count))
+    f.h.clock.controls.advance(100)
+  }
+  f.h.clock.controls.advance(100)
+  await new Promise(resolve => setTimeout(resolve, 20))
+  expect(sent).toHaveBeenCalledTimes(3)
+})
+
+it('已记下的直交不再重送，同一调用的另一条停止按自己的控制送', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  const { binding, sent } = await backgroundedCall(f)
+  const stop = (name: string) =>
+    f.h.faces('intake').work.stopCall({
+      ...f.h.access(),
+      operation: operationId(name),
+      producer: binding.producer,
+    })
+  succeeded(await stop('stop'), 'first stop')
+  await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(1))
+  succeeded(await stop('stop-2'), 'second stop')
+  await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(2))
+  await new Promise(resolve => setTimeout(resolve, 20))
+  expect(sent.mock.calls.map(([input]) => input.control)).toEqual([
+    operationId('stop'),
+    operationId('stop-2'),
+  ])
+})
+
+it('受理入口按引用列出本会话转了后台而没有结算的调用；别的调用方被拒', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  expect(
+    succeeded(await f.h.faces('intake').work.readBackgroundCalls(f.h.access()), 'read'),
+  ).toEqual([])
+  const { binding } = await backgroundedCall(f)
+  expect(
+    succeeded(await f.h.faces('intake').work.readBackgroundCalls(f.h.access()), 'read'),
+  ).toEqual([{ producer: binding.producer }])
+  expect(await f.h.faces('coordinator').work.readBackgroundCalls(f.h.access())).toMatchObject({
+    failure: { kind: 'denied', action: 'readBackgroundCalls' },
+  })
 })

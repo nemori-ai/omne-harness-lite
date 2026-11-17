@@ -159,21 +159,20 @@ describe('one operation table for every form (SL07)', () => {
 })
 
 describe('Tool targets of stopCall', () => {
-  it('unsupported is returned before the identity lookup', async () => {
+  it('a bound Tool call gets a control of that call; a used identity answers conflict', async () => {
     const { s } = await withCall(TOOL)
     succeeded(await change(s, 'X', 'model-b'), 'change')
-    expect(refused(await stop(s, 'X', TOOL), 'stopCall')).toEqual({ kind: 'unsupported' })
-    const revision = (await s.read()).revision
-    expect(refused(await stop(s, 'fresh', TOOL), 'stopCall')).toEqual({ kind: 'unsupported' })
-    expect((await s.read()).revision).toBe(revision)
-    const query = await s.port.queryControlOperation({
-      ...s.access,
-      operation: operationId('fresh'),
+    expect(refused(await stop(s, 'X', TOOL), 'stopCall')).toMatchObject({ kind: 'conflict' })
+    const stopped = succeeded(await stop(s, 'fresh', TOOL), 'stopCall')
+    expect(stopped.answer).toMatchObject({ kind: 'requested' })
+    expect((await s.read()).controls.at(-1)).toMatchObject({
+      target: { kind: 'producer', producer: TOOL },
+      intent: { kind: 'control', value: { kind: 'stop-call', producer: TOOL } },
+      pending: [TOOL],
     })
-    expect(succeeded(query, 'query')).toEqual({ kind: 'unknown' })
   })
 
-  it('answers unsupported before the session is looked up, but only after access', async () => {
+  it('a Tool target on an unknown session is denied, the same as a Model target', async () => {
     const s = scene()
     const ghost = { ...s.base, session: 'ghost' as typeof s.base.session }
     const target = (name: string, producer: ProducerRef) =>
@@ -185,21 +184,12 @@ describe('Tool targets of stopCall', () => {
         },
         guards: [],
       })
-    expect(refused(await target('t', TOOL), 'tool on an unknown session')).toEqual({
-      kind: 'unsupported',
+    expect(refused(await target('t', TOOL), 'tool on an unknown session')).toMatchObject({
+      kind: 'denied',
     })
     expect(refused(await target('m', MODEL), 'model on an unknown session')).toMatchObject({
       kind: 'denied',
     })
-  })
-
-  it('does not accept a Tool target and writes no control', async () => {
-    const { s } = await withCall(TOOL)
-    const before = await s.read()
-    refused(await stop(s, 'X', TOOL), 'stopCall')
-    const after = await s.read()
-    expect(after.controls).toEqual(before.controls)
-    expect(after.revision).toBe(before.revision)
   })
 })
 

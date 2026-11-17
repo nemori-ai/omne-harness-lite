@@ -45,6 +45,7 @@ export type ReceivedDelivery =
       key: Extract<T.ToolDeliveryKey, { kind: 'account' }>
       account: CallAccount
     }>
+  | Readonly<{ producer: 'tool'; key: Extract<T.ToolDeliveryKey, { kind: 'placeholder' }> }>
 
 export type ReceivedEntry = Readonly<{
   kind: 'received'

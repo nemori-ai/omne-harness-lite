@@ -16,7 +16,7 @@ const source = { owner: 'agent', record: 'record-1', revision: '4', digest: 'dig
 
 type Name = Exclude<
   keyof typeof sessionProtocol.operations,
-  'list-sessions' | 'retry-run' | 'read-waiting'
+  'list-sessions' | 'retry-run' | 'read-waiting' | 'background-call' | 'list-background-calls'
 >
 type Samples = Readonly<Record<Name, readonly Record<string, unknown>[]>>
 

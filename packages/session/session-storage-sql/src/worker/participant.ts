@@ -37,6 +37,7 @@ import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../cod
 import { writeEntryText } from '../entry-codec.ts'
 import { runChecks } from './check.ts'
 import { judgeEntries, type EntriesBatch } from './entries.ts'
+import { admittedInputs, writeInputs } from './input-rows.ts'
 import {
   LogGap,
   NO_FOCUS,
@@ -324,14 +325,6 @@ export function resultOf(
     default:
       return receipt
   }
-}
-
-function admittedInput(command: SessionCommand): { input: string } | null {
-  if (command.kind === 'accept' && command.input.value.kind === 'ordinary')
-    return command.input.value
-  if (command.kind === 'create') return command.input.creation.initial ?? null
-  if (command.kind === 'interrupt') return command.input.urgent
-  return null
 }
 
 function autoArchiveResult(snapshot: WorkSnapshot): string {
@@ -802,8 +795,6 @@ function commandStart(
   command: SessionCommand,
   port: ParticipantPort,
 ): CommandStart | ParticipantReply {
-  if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
-    return stopped({ kind: 'unsupported' })
   const tenantText = tenantCodec.encode(command.input.tenant)
   if (!tenantText.ok)
     return stopped({ kind: 'invalid', field: 'tenant', reason: 'not minted by legal-identity' })
@@ -1010,12 +1001,7 @@ function publishCommand(
   const { epoch, bytes, batch: committed } = written
   const granted = recordAttemptGrants(port, { tenant, session, entries, receipt })
   if (granted !== null) return granted
-  const admitted = admittedInput(command)
-  if (admitted !== null)
-    port.execute(
-      'INSERT OR REPLACE INTO sl_input (tenant, session, input, value) VALUES (?, ?, ?, ?)',
-      [tenant, session, admitted.input, JSON.stringify(encodeValue(admitted))],
-    )
+  writeInputs(port, { tenant, session }, admittedInputs(command))
   const result = resultOf(command, withIndex(port, command, snapshot), receipt)
   if (result === null)
     return {
@@ -1167,6 +1153,7 @@ function publishSameLog(
   const { epoch, bytes, batch: committed } = written
   const granted = recordAttemptGrants(port, { tenant, session, entries, receipt })
   if (granted !== null) return granted
+  writeInputs(port, { tenant, session }, 'admitted' in batch ? batch.admitted : [])
   const saved = record(receipt)
   insertOperation(port, {
     tenant,

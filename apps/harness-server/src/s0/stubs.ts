@@ -144,6 +144,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'session',
     ],
   },
+  'session-call-control': { provides: ['sessionCallControl'] },
   'session-ad15': {
     provides: ['sessionScopeRelease'],
     injects: ['executionEnvironment', 'session'],
@@ -331,6 +332,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'assets-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'human-intervention-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'session-diagnostics-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'tool-access': { injects: ['accessRegistry', 'principalIssuer'] },
 }
 
 export const rowManifests: ReadonlyMap<RowId, RowManifest> = new Map(

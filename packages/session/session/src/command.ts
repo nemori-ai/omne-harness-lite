@@ -349,8 +349,6 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
     command: SessionCommand,
     retries: number,
   ): Promise<CommandAnswer> => {
-    if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
-      return commit(view, access, command, [])
     const lookup = await lookUp(view, access, command)
     if ('failure' in lookup) return lookup
     if (lookup.ok.kind === 'held') return recall(view, access, command)

@@ -15,7 +15,8 @@ import type {
 } from '@omne-harness/tool-contract/provider'
 import { owesWork, waitsForPerson } from './call-dormancy.ts'
 import { attachCall } from './call-liveness.ts'
-import { createLostExecutions, type LostExecutionsInput } from './lost-execution.ts'
+import { withTimers } from './foreground-timers.ts'
+import type { LostExecutionsInput } from './lost-execution.ts'
 import { createRecoveryScans } from './recovery-scans.ts'
 import { createLocalToolResultDelivery } from './result-delivery.ts'
 import { createRuntimePublication } from './runtime-publication.ts'
@@ -124,7 +125,7 @@ export function createRuntimeExecutor(input: ExecutorInput) {
     stepsPerRun: settings.configuration.driverStepsPerRun ?? 16,
     retryDelayMs: settings.configuration.driverRetryDelayMs ?? 1000,
   })
-  const lost = createLostExecutions(input, step => driver.later(step))
+  const lost = withTimers(input, step => driver.later(step))
   const keyOf = (wake: Wake) => canonicalDigest([wake.tenant, wake.call])
   // `scans` is built below; `remember` reaches it only when it is called, after construction.
   const remember = (wake: Wake, purpose: RuntimeCallPurpose = 'execute'): boolean => {

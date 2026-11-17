@@ -737,6 +737,51 @@ async function finished(calls: number, options: { reissue?: boolean } = {}) {
   }
 }
 
+describe('a control stage the execution already reached projects no second event', () => {
+  function controlScene() {
+    for (let seed = 1; seed < 400; seed += 1) {
+      const { log } = scene(random(seed), { executions: 1, finish: false, rounds: 3 })
+      const at = log.findIndex(batch =>
+        batch.facts.some(fact => fact.kind === 'control.stage' && fact.step === null),
+      )
+      if (at >= 0) return { prefix: log.slice(0, at + 1), batch: log[at]! }
+    }
+    throw new Error('no seed generated a control stage')
+  }
+
+  it('repeats nothing for the same stage fact, and one event for a changed state or a step', () => {
+    const { prefix, batch } = controlScene()
+    const eventsOf = (facts: PublishedBatch['facts']) => {
+      const view = foldAll([...prefix, { ...batch, pub: prefix.length + 1, facts }])
+      return view.executions.get(batch.execution)?.events.map(event => event.kind) ?? []
+    }
+    const before =
+      foldAll(prefix)
+        .executions.get(batch.execution)
+        ?.events.map(e => e.kind) ?? []
+    const stage = batch.facts.find(fact => fact.kind === 'control.stage')!
+    if (stage.kind !== 'control.stage') throw new Error('control stage expected')
+    expect(eventsOf([stage])).toEqual(before)
+    const flipped = stage.state === 'reached' ? 'unresolved' : 'reached'
+    expect(eventsOf([{ ...stage, state: flipped }])).toEqual([...before, 'control'])
+    expect(eventsOf([{ ...stage, step: 'step-9' as never }])).toEqual([...before, 'control'])
+  })
+})
+
+describe('no event after the execution ended, as the writer appends none', () => {
+  it('a result received after the end folds as kept custody and projects no event', async () => {
+    const { log } = await finished(1)
+    const received = log.find(batch => batch.facts.some(fact => fact.kind === 'result.received'))
+    if (received === undefined) throw new Error('the log has no received result')
+    const late: PublishedBatch = { ...received, pub: log.length + 1 }
+    const before = foldAll(log)
+    const after = foldAll([...log, late])
+    const events = after.executions.get(received.execution)?.events ?? []
+    expect(events.at(-1)?.kind).toBe('ended')
+    expect(events).toEqual(before.executions.get(received.execution)?.events)
+  })
+})
+
 describe('the issue of obligations does not grow with the Tool calls', () => {
   it('after 150 Tool calls prepareFinish succeeds, its batch is the size it is after 1, and the end batch too', async () => {
     const small = await finished(1)

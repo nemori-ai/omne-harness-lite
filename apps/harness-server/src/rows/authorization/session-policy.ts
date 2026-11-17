@@ -166,6 +166,11 @@ export const SESSION_POLICY = Object.freeze({
     deny(NO_SOURCE),
     deny(NO_SYSTEM_READ),
   ),
+  readBackgroundCalls: row(
+    member('`session/v1` 的 `list-background-calls`，packages/session/SPEC.md「协议、接入与界面」'),
+    deny(NO_SOURCE),
+    deny(NO_SYSTEM_READ),
+  ),
   readInput: row(
     deny(NO_SOURCE),
     member('SS:553，AD:446 AD-14 读输入，DA4 §4.1'),

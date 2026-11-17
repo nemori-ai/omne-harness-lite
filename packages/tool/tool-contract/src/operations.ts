@@ -21,6 +21,7 @@ import type { ControlProgress, WaitRecord } from './records.ts'
 import type { ToolInvocationRef, ToolOperationRef } from './reference.ts'
 import type {
   Attachment,
+  DeliveryState,
   ReleasedDelivery,
   OperationResolution,
   Reply,
@@ -34,7 +35,7 @@ import type {
 export type ToolControl =
   | Readonly<{ kind: 'stop' }>
   | Readonly<{ kind: 'withdraw'; reach: 'all' | 'foreground-and-unadmitted' }>
-  | Readonly<{ kind: 'background' }>
+  | Readonly<{ kind: 'background'; otherwise: 'reject' | 'withdraw' | 'stop' }>
 export type ControlReceipt = Readonly<{
   operation: ToolOperationId
   state: ToolState
@@ -47,7 +48,12 @@ export type BackgroundSource =
   | Readonly<{ kind: 'threshold' }>
 export type ForegroundReturn =
   | Readonly<{ kind: 'final'; result: ToolResultVersion }>
-  | Readonly<{ kind: 'background'; call: ToolCallId; source: BackgroundSource }>
+  | Readonly<{
+      kind: 'background'
+      call: ToolCallId
+      source: BackgroundSource
+      delivery: DeliveryState
+    }>
 export type ProcessBlock = Readonly<{
   index: string
   mode: 'append' | 'replace'

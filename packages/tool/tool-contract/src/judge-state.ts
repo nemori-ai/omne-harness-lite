@@ -89,9 +89,24 @@ const backgroundSource: Check<BackgroundSource> = variant('kind', {
   'foreground-limit': record({ kind: literal('foreground-limit') }),
 })
 
+const deliveryState: Check<DeliveryState> = variant('kind', {
+  pending: record({ kind: literal('pending'), delivery, consumer: consumerRef }),
+  released: record({
+    kind: literal('released'),
+    delivery,
+    consumer: consumerRef,
+    evidence: durableEvidence,
+  }),
+})
+
 const foreground: Check<ForegroundReturn> = variant('kind', {
   final: record({ kind: literal('final'), result: resultVersion }),
-  background: record({ kind: literal('background'), call, source: backgroundSource }),
+  background: record({
+    kind: literal('background'),
+    call,
+    source: backgroundSource,
+    delivery: deliveryState,
+  }),
 })
 
 const execution: Check<PhysicalExecution> = variant('kind', {
@@ -135,7 +150,10 @@ const control: Check<ToolControl> = variant('kind', {
     kind: literal('withdraw'),
     reach: literal('all', 'foreground-and-unadmitted'),
   }),
-  background: record({ kind: literal('background') }),
+  background: record({
+    kind: literal('background'),
+    otherwise: literal('reject', 'withdraw', 'stop'),
+  }),
 })
 const evidenced = <K extends string>(kind: K) =>
   record({ kind: literal(kind), evidence: durableEvidence })
@@ -153,16 +171,6 @@ const controlRecord: Check<ControlRecord> = record({
   intent: control,
   source: durableEvidence,
   progress,
-})
-
-const deliveryState: Check<DeliveryState> = variant('kind', {
-  pending: record({ kind: literal('pending'), delivery, consumer: consumerRef }),
-  released: record({
-    kind: literal('released'),
-    delivery,
-    consumer: consumerRef,
-    evidence: durableEvidence,
-  }),
 })
 
 const waitNone = record({ kind: literal('none') })
