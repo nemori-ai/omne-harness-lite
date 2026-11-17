@@ -21,6 +21,7 @@ import {
   type SkillsAccess,
   type SkillsEntry,
   type SkillsFailure,
+  type SkillsPage,
   type SkillsText,
 } from '@omne-harness/tool-definitions'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
@@ -81,6 +82,25 @@ function bindingOf(query: string, entries: readonly CatalogEntry[]): string {
   return createHash('sha256').update(text).digest('hex')
 }
 
+type Cursor = NonNullable<ReturnType<typeof decodeCursor>>
+
+function pageOf(
+  query: string,
+  cursor: Cursor | null,
+  limit: number,
+  found: readonly CatalogEntry[],
+): Outcome<SkillsPage, SkillsFailure> {
+  const binding = bindingOf(query, found)
+  if (cursor !== null && (cursor.binding !== binding || cursor.offset >= found.length))
+    return INVALID_CURSOR
+  const offset = cursor?.offset ?? 0
+  const end = offset + limit
+  return succeed({
+    entries: found.slice(offset, end).map(entryOf),
+    next: end < found.length ? encodeCursor({ binding, offset: end }) : null,
+  })
+}
+
 function textOf(read: ReadResult): Outcome<SkillsText, SkillsFailure> {
   if (read.content.kind !== 'text') return fail({ kind: 'not-text' })
   return succeed({
@@ -117,23 +137,15 @@ export function createBoundSkills(parent: Parent, ports: SkillsBindingPorts): Sk
   })
   return {
     async search(input) {
-      if (input.after !== null && decodeCursor(input.after) === null) return INVALID_CURSOR
+      const cursor = input.after === null ? null : decodeCursor(input.after)
+      if (input.after !== null && cursor === null) return INVALID_CURSOR
       const caller = await who()
       if (!('ok' in caller)) return caller
       const catalog = ports.catalog()
       if (catalog === undefined) return unavailable('the Skill catalog is not available')
       const found = await catalog.search(caller.ok, null, { text: input.query })
       if (!('ok' in found)) return unavailable('the Skill store cannot be read now')
-      const binding = bindingOf(input.query, found.ok)
-      const cursor = input.after === null ? null : decodeCursor(input.after)
-      if (cursor !== null && (cursor.binding !== binding || cursor.offset >= found.ok.length))
-        return INVALID_CURSOR
-      const offset = cursor?.offset ?? 0
-      const end = offset + input.limit
-      return succeed({
-        entries: found.ok.slice(offset, end).map(entryOf),
-        next: end < found.ok.length ? encodeCursor({ binding, offset: end }) : null,
-      })
+      return pageOf(input.query, cursor, input.limit, found.ok)
     },
     async read(input, signal) {
       const target = await skillAccess(input.skill)
