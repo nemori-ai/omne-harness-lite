@@ -605,6 +605,8 @@ export type ExecutionRecordOpenItemsRead = Readonly<{
   session: string
   execution: string
   after: ExecutionItemKey | null
+  /** Only the open items of these families; every family when absent. */
+  families?: readonly string[]
 }>
 export type ExecutionRecordOpenItemsPage =
   | Readonly<{

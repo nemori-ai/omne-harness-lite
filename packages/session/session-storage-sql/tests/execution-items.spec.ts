@@ -228,6 +228,25 @@ describe('the items of an execution', () => {
     ])
   })
 
+  it('reads the open items of the named families only', async () => {
+    const a = await session()
+    await publish(
+      a,
+      nth(1, [opened('exec', ''), opened('attachment', 'att-1'), opened('intent', 'a1')]),
+    )
+    const page = decodeExecutionRecordOpenItems(
+      await read(a, 'execution-record.open-items', {
+        ...scope,
+        after: null,
+        families: ['exec', 'attachment'],
+      }),
+    )
+    expect(page?.kind === 'open' ? page.items.map(item => [item.family, item.item]) : []).toEqual([
+      ['attachment', 'att-1'],
+      ['exec', ''],
+    ])
+  })
+
   it('answers an execution of another session as denied', async () => {
     const a = await session()
     await publish(a, nth(1, [opened('intent', 'a1')]))

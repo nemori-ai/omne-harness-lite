@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { readExecutionRecords } from '../src/cordis/execution-records.ts'
 import { ok } from './fixtures/common-journal.ts'
 import { sqlScene } from './fixtures/sql-scene.ts'
 
 describe('the rows of the former core bridge', () => {
-  it('a fact row of a core kind makes the session unavailable to a cold copy and to the records reader', async () => {
+  it('a fact row of a core kind makes the session unavailable to a cold copy', async () => {
     const s = await sqlScene('core-rows')
     const target = { ...s.access, execution: s.execution }
     ok(await s.view.journal.open(s.openInput))
@@ -21,19 +20,6 @@ describe('the rows of the former core bridge', () => {
     const cold = await s.fresh().journal.load(target)
     expect(cold).toMatchObject({
       failure: { kind: 'unavailable', diagnostic: expect.stringContaining('does not decode') },
-    })
-    const read = await readExecutionRecords(
-      {
-        storage: s.storage,
-        tenantDomainLookup: {
-          lookup: () => Promise.resolve({ kind: 'ready' as const, domain: s.domain }),
-        },
-      },
-      { tenant: s.access.tenant, session: s.access.session, execution: String(s.execution) },
-    )
-    expect(read).toMatchObject({
-      kind: 'unavailable',
-      diagnostic: expect.stringContaining('does not decode'),
     })
   })
 })

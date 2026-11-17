@@ -245,7 +245,9 @@ function historyOf(
 // processed a result without that record is a fact of the step, not a responsibility.
 const responsible = (item: ResultView): boolean => item.stages.recorded !== undefined
 
-export function attachmentsOf(view: ExecutionView): MemoryExecution['attachments'] {
+export function attachmentsOf(
+  view: Pick<ExecutionView, 'attachments'>,
+): MemoryExecution['attachments'] {
   return view.attachments.map(item => ({
     authority: item.authority,
     grant: item.grant,
