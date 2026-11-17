@@ -83,10 +83,10 @@
       "packages/model/model-host-local/src/plugins/runtime.ts": 1001,
       "packages/model/model-storage-sql/src/commit.ts": 1127,
       "packages/model/model/src/commands/commands.ts": 1149,
-      "packages/session/session-adapters/src/cordis/agent-journal.ts": 2125,
+      "packages/session/session-adapters/src/cordis/agent-journal.ts": 2079,
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1168,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1111,
-      "packages/session/session-adapters/src/testing/factory.ts": 1313,
+      "packages/session/session-adapters/src/testing/factory.ts": 1266,
       "packages/session/session-adapters/src/testing/journal-finishing.ts": 1370,
       "packages/session/session-adapters/src/testing/journal.ts": 4918,
       "packages/session/session-adapters/src/testing/session.ts": 1232,
@@ -525,7 +525,7 @@
       },
       "packages/session/session-adapters/src/cordis/agent-journal.ts": {
         "count": 1,
-        "longest": 1375
+        "longest": 1303
       },
       "packages/session/session-adapters/src/cordis/context-holder.ts": {
         "count": 1,
@@ -545,7 +545,7 @@
       },
       "packages/session/session-adapters/src/testing/factory.ts": {
         "count": 3,
-        "longest": 1180
+        "longest": 1134
       },
       "packages/session/session-adapters/src/testing/journal-finishing.ts": {
         "count": 1,

@@ -3,6 +3,7 @@ import { migratedPort } from './fixtures/sqlite-storage.ts'
 import { expect, it } from 'vitest'
 import { parseRecordEntryRef } from '@omne-harness/message'
 import { app, TENANT_A } from './fixtures/app.ts'
+import { deliver, startRun } from './fixtures/real-provider.ts'
 import { evidence, operationId } from '@omne-harness/session-contract/testing'
 
 it('reads current compaction evidence from indices maintained with real Session commits', async () => {
@@ -10,6 +11,8 @@ it('reads current compaction evidence from indices maintained with real Session 
   const created = await a.create(TENANT_A)
   expect(created).toHaveProperty('ok')
   expect(await a.accept(TENANT_A, 'session-1', 'next-input')).toHaveProperty('ok')
+  expect(await startRun(a, 'start')).toHaveProperty('ok')
+  expect(await deliver(a, 'next', ['next-input'])).toHaveProperty('ok')
   const access = a.access(TENANT_A)
   const view = await a.port.history.readModelView({
     ...access,
@@ -52,6 +55,8 @@ it('keeps a call protected until every reported result version is processed', as
   const a = await app()
   expect(await a.create(TENANT_A)).toHaveProperty('ok')
   expect(await a.accept(TENANT_A, 'session-1', 'pending')).toHaveProperty('ok')
+  expect(await startRun(a, 'start')).toHaveProperty('ok')
+  expect(await deliver(a, 'pending', ['pending'])).toHaveProperty('ok')
   const access = a.access(TENANT_A)
   const read = async () => {
     const answer = await a.port.readWork(access)

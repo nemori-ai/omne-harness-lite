@@ -58,6 +58,7 @@
 - `DecideReads` · 包 `@omne-harness/session-contract`
 - `Decision` · 包 `@omne-harness/session-contract`
 - `DeclarationChange` · 包 `@omne-harness/session-contract`
+- `DeliveredInputs` · 包 `@omne-harness/session-contract`
 - `DerivedMessage` · 包 `@omne-harness/session-contract`
 - `DirectCallControl` · 包 `@omne-harness/session-contract`
 - `DriveFailure` · 包 `@omne-harness/session-contract`
@@ -287,6 +288,8 @@
 - `expectedHolds` · 包 `@omne-harness/session-contract`
 - `expectedRevision` · 包 `@omne-harness/session-contract`
 - `initializationRegistrationCommit` · 包 `@omne-harness/session-contract`
+- `inputsToDeliver` · 包 `@omne-harness/session-contract`
+- `isAcceptedInputRecord` · 包 `@omne-harness/session-contract`
 - `isDeferredFact` · 包 `@omne-harness/session-contract`
 - `judgeAdvance` · 包 `@omne-harness/session-contract`
 - `judgeBackgroundOutcome` · 包 `@omne-harness/session-contract`

@@ -106,6 +106,7 @@ function applyMessage(
         | 'message.tool_internal'
         | 'message.system_reminder'
         | 'message.compaction'
+        | 'message.delivered'
     }
   >,
 ): string | null {
@@ -115,7 +116,15 @@ function applyMessage(
   }
   trackCalls(draft, entry.message)
   if (entry.kind === 'message.assistant' && draft.run.kind === 'active') delete draft.unanswered
+  trackDeliveredTail(draft, entry)
   return entry.participation === null ? null : applyParticipation(draft, entry.participation)
+}
+
+// The inputs delivered since the last reply of the model: a reply ends the tail.
+function trackDeliveredTail(draft: Draft, entry: SessionEntry): void {
+  if (entry.kind === 'message.assistant') delete draft.deliveredTail
+  if (entry.kind === 'message.delivered')
+    draft.deliveredTail = [...(draft.deliveredTail ?? []), entry.input]
 }
 
 function applyIntakeRouted(
@@ -255,6 +264,7 @@ function apply(
     case 'message.tool_internal':
     case 'message.system_reminder':
     case 'message.compaction':
+    case 'message.delivered':
       return applyMessage(draft, entry)
     case 'intake.routed':
       return applyIntakeRouted(draft, entry)
