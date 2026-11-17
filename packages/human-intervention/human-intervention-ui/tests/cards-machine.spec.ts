@@ -2,12 +2,16 @@ import { describe, expect, it } from 'vitest'
 import {
   ALREADY_DECIDED,
   CONFIRMING,
+  EMPTY_DRAFT,
   INITIAL,
   NOT_COMMITTED,
   STILL_UNKNOWN,
-  SUBMITTED,
   keyOf,
+  replyOf,
+  sheetOf,
   step,
+  type Draft,
+  type Effect,
   type Event,
   type ReplyAnswer,
   type State,
@@ -15,8 +19,11 @@ import {
 import { approvalItem, page, questionItem } from './fixtures/cards.ts'
 
 const run = (state: State, ...events: Event[]) =>
-  events.reduce<{ state: State; effects: readonly unknown[] }>(
-    (acc, event) => step(acc.state, event),
+  events.reduce<{ state: State; effects: readonly Effect[] }>(
+    (acc, event) => {
+      const next = step(acc.state, event)
+      return { state: next.state, effects: [...acc.effects, ...next.effects] }
+    },
     { state, effects: [] },
   )
 
@@ -25,6 +32,8 @@ const KEY = keyOf(ITEM.card.ref)
 const OTHER = approvalItem()
 const OTHER_KEY = keyOf(OTHER.card.ref)
 const SELECT = { kind: 'selection', optionId: 'main' } as const
+const PICK_MAIN: Draft = { choice: { kind: 'option', optionId: 'main' }, text: '' }
+const PICK_ALLOW: Draft = { choice: { kind: 'option', optionId: 'allow' }, text: '' }
 const SESSION = 'ses_0123456789abcdef'
 
 function listed(items = [ITEM]): State {
@@ -36,7 +45,11 @@ function listed(items = [ITEM]): State {
 }
 
 function submitted(state = listed(), replyId = 'r-1'): State {
-  return step(state, { kind: 'submit', key: KEY, reply: SELECT, replyId }).state
+  return run(
+    state,
+    { kind: 'draft', key: KEY, draft: PICK_MAIN },
+    { kind: 'submit-group', group: SESSION, planned: [{ key: KEY, replyId }] },
+  ).state
 }
 
 const answered = (state: State, answer: ReplyAnswer, replyId = 'r-1') =>
@@ -133,12 +146,11 @@ describe('读列表', () => {
 
   it('M9 重新读：还在列表里的卡留住提交状态；不在了的只留正在提交或结果未知的', () => {
     const refused = answered(submitted(), { outcome: 'denied' }).state
-    const withOther = step(listed([ITEM, OTHER]), {
-      kind: 'submit',
-      key: OTHER_KEY,
-      reply: { kind: 'selection', optionId: 'allow' },
-      replyId: 'r-2',
-    }).state
+    const withOther = run(
+      listed([ITEM, OTHER]),
+      { kind: 'draft', key: OTHER_KEY, draft: PICK_ALLOW },
+      { kind: 'submit-group', group: '', planned: [{ key: OTHER_KEY, replyId: 'r-2' }] },
+    ).state
     const kept = run(
       withOther,
       { kind: 'read-list' },
@@ -163,34 +175,35 @@ describe('读列表', () => {
   })
 })
 
+const group = (state: State, planned: readonly { key: string; replyId: string }[]) =>
+  step(state, { kind: 'submit-group', group: SESSION, planned })
+
 describe('提交', () => {
-  it('S1 提交带上卡的修订号、卡的引用与答复', () => {
-    const next = step(listed(), { kind: 'submit', key: KEY, reply: SELECT, replyId: 'r-1' })
+  it('S1 提交带上卡的修订号、卡的引用与草稿算出的答复', () => {
+    const drafted = step(listed(), { kind: 'draft', key: KEY, draft: PICK_MAIN }).state
+    const next = group(drafted, [{ key: KEY, replyId: 'r-1' }])
     const sent = { card: ITEM.card.ref, expectedRevision: '3', reply: SELECT, replyId: 'r-1' }
     expect(next.effects).toEqual([{ kind: 'submit', key: KEY, sent }])
     expect(submitOf(next.state)).toEqual({ kind: 'submitting', sent })
   })
 
-  it('S2 不认识的卡、正在提交的卡、结果未知的卡都不再提交', () => {
-    const state = listed()
-    expect(step(state, { kind: 'submit', key: 'x', reply: SELECT, replyId: 'r' }).state).toBe(state)
+  it('S2 正在提交的卡、结果未知的卡都不再提交', () => {
     const busy = submitted()
-    expect(step(busy, { kind: 'submit', key: KEY, reply: SELECT, replyId: 'r-2' }).state).toBe(busy)
+    expect(group(busy, [{ key: KEY, replyId: 'r-2' }]).state).toBe(busy)
     const unknown = stillUnknown()
-    expect(step(unknown, { kind: 'submit', key: KEY, reply: SELECT, replyId: 'r-2' }).state).toBe(
-      unknown,
-    )
+    expect(group(unknown, [{ key: KEY, replyId: 'r-2' }]).state).toBe(unknown)
   })
 
-  it('S3 被拒之后可以再提交', () => {
+  it('S3 被拒之后草稿还在，可以再提交', () => {
     const refused = answered(submitted(), { outcome: 'denied' }).state
-    const again = step(refused, { kind: 'submit', key: KEY, reply: SELECT, replyId: 'r-2' })
+    expect(refused.drafts[KEY]).toEqual(PICK_MAIN)
+    const again = group(refused, [{ key: KEY, replyId: 'r-2' }])
     expect(again.effects).toHaveLength(1)
   })
 })
 
 describe('提交的答复', () => {
-  it('R1 决定了：卡去掉，显示「已提交」，重新读列表', () => {
+  it('R1 决定了：卡与草稿去掉，不留被关掉的题，重新读列表', () => {
     const next = answered(submitted(), {
       outcome: 'succeeded',
       body: {
@@ -205,11 +218,13 @@ describe('提交的答复', () => {
       },
     })
     expect(next.state.entries).toEqual([])
-    expect(next.state.last).toEqual({ notice: SUBMITTED, sessionRef: SESSION })
+    expect(next.state.drafts).toEqual({})
+    expect(next.state.closed).toEqual([])
+    expect(next.state.batches).toEqual({})
     expect(next.effects).toEqual([{ kind: 'list', token: 2, cursor: null }])
   })
 
-  it('R2 别人已经决定：卡去掉，照实说，重新读列表', () => {
+  it('R2 已在别处答了：卡变成被关掉的题，留着草稿与原因，重新读列表', () => {
     const next = answered(submitted(), {
       outcome: 'succeeded',
       body: {
@@ -227,39 +242,41 @@ describe('提交的答复', () => {
       },
     })
     expect(next.state.entries).toEqual([])
-    expect(next.state.last).toEqual({ notice: ALREADY_DECIDED, sessionRef: SESSION })
+    expect(next.state.drafts).toEqual({})
+    expect(next.state.closed).toEqual([
+      { key: KEY, item: ITEM, draft: PICK_MAIN, notice: ALREADY_DECIDED },
+    ])
     expect(next.effects).toEqual([{ kind: 'list', token: 2, cursor: null }])
   })
 
-  it('R3 已经作废：卡去掉，说出作废的原因；不认识的原因说一句通用的', () => {
+  it('R3 提问已经关掉：变成被关掉的题，说出原因；不认识的原因说一句通用的', () => {
     const known = answered(submitted(), {
       outcome: 'succeeded',
       body: { kind: 'invalidated', reason: 'archived' },
     })
     expect(known.state.entries).toEqual([])
-    expect(known.state.last).toEqual({
-      notice: { kind: 'done', text: '这张卡已经作废：会话已归档。' },
-      sessionRef: SESSION,
-    })
+    expect(known.state.closed.map(closed => closed.notice)).toEqual([
+      { kind: 'done', text: '这次提问已经关掉：会话已归档。' },
+    ])
     expect(known.effects).toEqual([{ kind: 'list', token: 2, cursor: null }])
     const other = answered(submitted(), {
       outcome: 'succeeded',
       body: { kind: 'invalidated', reason: 'something-new' },
     })
-    expect(other.state.last?.notice).toEqual({ kind: 'done', text: '这张卡已经作废。' })
+    expect(other.state.closed[0]?.notice).toEqual({ kind: 'done', text: '这次提问已经关掉。' })
   })
 
   it('R4 被拒、不可用：显示原因，不重读', () => {
     const denied = answered(submitted(), { outcome: 'denied' })
     expect(submitOf(denied.state)).toEqual({
       kind: 'refused',
-      notice: { kind: 'refused', text: '没有权限，或登录已失效。没有提交。' },
+      notice: { kind: 'refused', text: '没有权限，或登录已失效。这一题没有记上。' },
     })
     expect(denied.effects).toEqual([])
     const lost = answered(submitted(), { outcome: 'unavailable' })
     expect(submitOf(lost.state)).toEqual({
       kind: 'refused',
-      notice: { kind: 'unavailable', text: '没有发出去。' },
+      notice: { kind: 'unavailable', text: '没有发出去，这一题没有记上。' },
     })
   })
 
@@ -267,7 +284,7 @@ describe('提交的答复', () => {
     const next = answered(submitted(), { outcome: 'conflict', body: {} })
     expect(submitOf(next.state)).toEqual({
       kind: 'refused',
-      notice: { kind: 'refused', text: '这张卡在别处变了，没有提交。已重新读取。' },
+      notice: { kind: 'refused', text: '这张卡在别处变了，这一题没有记上。已重新读取。' },
     })
     expect(next.effects).toEqual([{ kind: 'list', token: 2, cursor: null }])
   })
@@ -315,7 +332,7 @@ describe('提交的答复', () => {
       body: { kind: 'invalidated', reason: 'cancelled' },
     })
     expect(next.state.entries).toEqual([])
-    expect(next.state.last?.notice.text).toBe('这张卡已经作废：那一轮被取消了。')
+    expect(next.state.closed[0]?.notice.text).toBe('这次提问已经关掉：那一轮被取消了。')
   })
 
   it('R10 不认识的卡、不在途的提交、别的答复标识：答复不算数', () => {
@@ -538,31 +555,290 @@ describe('跟上变化', () => {
     expect(step(answered, { kind: 'frame', generation: 1 }).state).toBe(answered)
   })
 
-  it('L17 通知带上卡的来源会话；没有会话的卡带 undefined', () => {
-    const decided = {
+  it('L17 被关掉的题归在卡来源的会话那一组；没有会话的卡归在空的那一组', () => {
+    const closedBy = {
       outcome: 'succeeded',
       body: { kind: 'invalidated', reason: 'archived' },
     } as const
-    expect(answered(submitted(), decided).state.last?.sessionRef).toBe(SESSION)
+    const mine = answered(submitted(), closedBy).state
+    expect(sheetOf(mine, SESSION).closed).toHaveLength(1)
+    expect(sheetOf(mine, '').closed).toHaveLength(0)
     const other = run(
       listed([OTHER]),
-      {
-        kind: 'submit',
-        key: OTHER_KEY,
-        reply: { kind: 'selection', optionId: 'allow' },
-        replyId: 'r-2',
-      },
-      { kind: 'reply-answered', key: OTHER_KEY, replyId: 'r-2', answer: decided },
+      { kind: 'draft', key: OTHER_KEY, draft: PICK_ALLOW },
+      { kind: 'submit-group', group: '', planned: [{ key: OTHER_KEY, replyId: 'r-2' }] },
+      { kind: 'reply-answered', key: OTHER_KEY, replyId: 'r-2', answer: closedBy },
     ).state
-    expect(other.last).toEqual({
-      notice: { kind: 'done', text: '这张卡已经作废：会话已归档。' },
-      sessionRef: undefined,
-    })
+    expect(sheetOf(other, '').closed.map(closed => closed.notice.text)).toEqual([
+      '这次提问已经关掉：会话已归档。',
+    ])
   })
 
   it('L18 帧只触发重读：不改任何一张卡的提交状态', () => {
     const state = step(submitted(watchingWith([ITEM])), { kind: 'frame', generation: 1 }).state
     expect(submitOf(state)?.kind).toBe('submitting')
+  })
+})
+
+const A = questionItem('card-a')
+const B = questionItem('card-b')
+const C = questionItem('card-c')
+const [KA, KB, KC] = [A, B, C].map(item => keyOf(item.card.ref)) as [string, string, string]
+const TEXT_DRAFT: Draft = { choice: { kind: 'none' }, text: '用 8080' }
+const DECLINE_DRAFT: Draft = { choice: { kind: 'decline' }, text: '' }
+const DECIDED = {
+  outcome: 'succeeded',
+  body: {
+    kind: 'decided',
+    decisionRef: {
+      card: ITEM.card.ref,
+      decisionId: 'd-1',
+      submission: { tenantRef: 't', actorRef: 'a', operationId: 'o' },
+    },
+    revision: '4',
+    delivery: 'pending',
+  },
+} as const
+const ELSEWHERE = {
+  outcome: 'succeeded',
+  body: {
+    kind: 'already-decided',
+    decision: {
+      ref: {
+        card: ITEM.card.ref,
+        decisionId: 'd-0',
+        submission: { tenantRef: 't', actorRef: 'b', operationId: 'o0' },
+      },
+      reply: { kind: 'decline' },
+      basisRef: 'b',
+      commitReceipt: 'c',
+    },
+  },
+} as const
+const CLOSED_ROUND = {
+  outcome: 'succeeded',
+  body: { kind: 'invalidated', reason: 'cancelled' },
+} as const
+
+function drafted(items = [A, B, C]): State {
+  return run(
+    listed(items),
+    { kind: 'draft', key: KA, draft: PICK_MAIN },
+    { kind: 'draft', key: KB, draft: TEXT_DRAFT },
+    { kind: 'draft', key: KC, draft: DECLINE_DRAFT },
+  ).state
+}
+
+const PLAN = [
+  { key: KA, replyId: 'r-a' },
+  { key: KB, replyId: 'r-b' },
+  { key: KC, replyId: 'r-c' },
+]
+
+const sentKeys = (effects: readonly Effect[]) =>
+  effects.flatMap(effect => (effect.kind === 'submit' ? [effect.key] : []))
+
+const reply = (key: string, replyId: string, answer: ReplyAnswer): Event => ({
+  kind: 'reply-answered',
+  key,
+  replyId,
+  answer,
+})
+
+describe('一组的作答', () => {
+  it('G1 草稿算出答复：选项、不回答、写了字；只写了空白算没答', () => {
+    expect(replyOf(PICK_MAIN)).toEqual(SELECT)
+    expect(replyOf(DECLINE_DRAFT)).toEqual({ kind: 'decline' })
+    expect(replyOf(TEXT_DRAFT)).toEqual({ kind: 'text', text: '用 8080' })
+    expect(replyOf({ choice: { kind: 'none' }, text: '   ' })).toBeNull()
+    expect(replyOf(EMPTY_DRAFT)).toBeNull()
+    expect(replyOf(undefined)).toBeNull()
+  })
+
+  it('G2 没答齐不能提交：还差哪几题按列表的次序列出', () => {
+    const half = step(listed([A, B, C]), { kind: 'draft', key: KB, draft: PICK_MAIN }).state
+    const sheet = sheetOf(half, SESSION)
+    expect(sheet.ready).toBe(false)
+    expect(sheet.missing).toEqual([KA, KC])
+    expect(step(half, { kind: 'submit-group', group: SESSION, planned: PLAN }).state).toBe(half)
+  })
+
+  it('G3 三题一次交：依次发出，前一题有了结局才发下一题；全记下后这一组什么都不剩', () => {
+    const first = step(drafted(), { kind: 'submit-group', group: SESSION, planned: PLAN })
+    expect(sentKeys(first.effects)).toEqual([KA])
+    expect(sheetOf(first.state, SESSION).running).toBe(true)
+    const second = step(first.state, reply(KA, 'r-a', DECIDED))
+    expect(sentKeys(second.effects)).toEqual([KB])
+    const sentB = second.effects.find(effect => effect.kind === 'submit')
+    expect(sentB).toMatchObject({ sent: { reply: { kind: 'text', text: '用 8080' } } })
+    const third = step(second.state, reply(KB, 'r-b', DECIDED))
+    expect(sentKeys(third.effects)).toEqual([KC])
+    expect(third.effects.find(effect => effect.kind === 'submit')).toMatchObject({
+      sent: { reply: { kind: 'decline' } },
+    })
+    const done = step(third.state, reply(KC, 'r-c', DECIDED)).state
+    const sheet = sheetOf(done, SESSION)
+    expect(sheet.entries).toEqual([])
+    expect(sheet.closed).toEqual([])
+    expect(sheet.running).toBe(false)
+    expect(done.drafts).toEqual({})
+  })
+
+  it('G4 一题已在别处答了、一题所在的提问已关掉、一题记下：结局逐题，没记上的留着人填的', () => {
+    const done = run(
+      drafted(),
+      { kind: 'submit-group', group: SESSION, planned: PLAN },
+      reply(KA, 'r-a', ELSEWHERE),
+      reply(KB, 'r-b', CLOSED_ROUND),
+      reply(KC, 'r-c', DECIDED),
+    )
+    expect(sentKeys(done.effects)).toEqual([KA, KB, KC])
+    expect(done.state.closed).toEqual([
+      { key: KA, item: A, draft: PICK_MAIN, notice: ALREADY_DECIDED },
+      {
+        key: KB,
+        item: B,
+        draft: TEXT_DRAFT,
+        notice: { kind: 'done', text: '这次提问已经关掉：那一轮被取消了。' },
+      },
+    ])
+    expect(done.state.entries).toEqual([])
+    expect(done.state.batches).toEqual({})
+  })
+
+  it('G5 一题结果不知道：只那一题用原来的答复编号认回，后面的照常发出', () => {
+    const next = run(
+      drafted(),
+      { kind: 'submit-group', group: SESSION, planned: PLAN },
+      reply(KA, 'r-a', DECIDED),
+      reply(KB, 'r-b', { outcome: 'unknown' }),
+    )
+    const tail = next.effects.slice(-2)
+    expect(tail).toEqual([
+      expect.objectContaining({
+        kind: 'query',
+        key: KB,
+        sent: expect.objectContaining({ replyId: 'r-b' }),
+      }),
+      expect.objectContaining({ kind: 'submit', key: KC }),
+    ])
+    expect(submitOf(next.state, KB)).toMatchObject({ kind: 'unknown', confirming: true })
+    const after = run(next.state, reply(KC, 'r-c', DECIDED), reply(KB, 'r-b', DECIDED))
+    expect(sentKeys(after.effects)).toEqual([])
+    expect(after.state.entries).toEqual([])
+  })
+
+  it('G6 提交中整组不能再改，也不能再提交；新来的卡接在最后，不进这一次', () => {
+    const running = step(drafted(), { kind: 'submit-group', group: SESSION, planned: PLAN }).state
+    expect(step(running, { kind: 'draft', key: KC, draft: PICK_MAIN }).state).toBe(running)
+    expect(step(running, { kind: 'submit-group', group: SESSION, planned: PLAN }).state).toBe(
+      running,
+    )
+    const late = questionItem('card-d')
+    const reread = run(
+      running,
+      { kind: 'read-list' },
+      { kind: 'list-answered', token: 2, answer: page([A, B, C, late]) },
+    ).state
+    expect(reread.entries.map(entry => entry.key)).toEqual([KA, KB, KC, keyOf(late.card.ref)])
+    const finished = run(
+      reread,
+      reply(KA, 'r-a', DECIDED),
+      reply(KB, 'r-b', DECIDED),
+      reply(KC, 'r-c', DECIDED),
+    )
+    expect(sentKeys(finished.effects)).toEqual([KB, KC])
+    expect(finished.state.batches).toEqual({})
+    const lateKey = keyOf(late.card.ref)
+    expect(
+      step(finished.state, { kind: 'draft', key: lateKey, draft: PICK_MAIN }).state.drafts[lateKey],
+    ).toEqual(PICK_MAIN)
+  })
+
+  it('G7 排着队的卡在重读时不在列表里了：留着，轮到它照发，由服务端说出原因', () => {
+    const running = step(drafted(), { kind: 'submit-group', group: SESSION, planned: PLAN }).state
+    const reread = run(
+      running,
+      { kind: 'read-list' },
+      { kind: 'list-answered', token: 2, answer: page([A, B]) },
+    ).state
+    expect(reread.entries.map(entry => entry.key)).toEqual([KA, KB, KC])
+    const next = run(reread, reply(KA, 'r-a', DECIDED), reply(KB, 'r-b', DECIDED))
+    expect(sentKeys(next.effects)).toEqual([KB, KC])
+  })
+
+  it('G8 提交的计划和这一组对不上，或答复编号重复：不提交', () => {
+    const state = drafted()
+    const reordered = [PLAN[1]!, PLAN[0]!, PLAN[2]!]
+    expect(step(state, { kind: 'submit-group', group: SESSION, planned: reordered }).state).toBe(
+      state,
+    )
+    expect(
+      step(state, { kind: 'submit-group', group: SESSION, planned: PLAN.slice(0, 2) }).state,
+    ).toBe(state)
+    const repeated = PLAN.map(item => ({ ...item, replyId: 'same' }))
+    expect(step(state, { kind: 'submit-group', group: SESSION, planned: repeated }).state).toBe(
+      state,
+    )
+    expect(step(state, { kind: 'submit-group', group: 'ses_other', planned: PLAN }).state).toBe(
+      state,
+    )
+  })
+
+  it('G9 被拒的那一题留着草稿；下一次提交只交没记上的', () => {
+    const refused = run(
+      drafted(),
+      { kind: 'submit-group', group: SESSION, planned: PLAN },
+      reply(KA, 'r-a', DECIDED),
+      reply(KB, 'r-b', { outcome: 'denied' }),
+      reply(KC, 'r-c', DECIDED),
+    ).state
+    expect(refused.drafts[KB]).toEqual(TEXT_DRAFT)
+    expect(sheetOf(refused, SESSION)).toMatchObject({ ready: true, missing: [] })
+    const again = step(refused, {
+      kind: 'submit-group',
+      group: SESSION,
+      planned: [{ key: KB, replyId: 'r-b2' }],
+    })
+    expect(sentKeys(again.effects)).toEqual([KB])
+  })
+
+  it('G10 结果不知道的那一题不算还差的，也不进下一次提交', () => {
+    const waiting = run(
+      drafted([A, B]),
+      { kind: 'submit-group', group: SESSION, planned: PLAN.slice(0, 2) },
+      reply(KA, 'r-a', { outcome: 'unknown' }),
+    ).state
+    expect(sheetOf(waiting, SESSION).running).toBe(true)
+    const after = step(waiting, reply(KB, 'r-b', { outcome: 'denied' })).state
+    expect(sheetOf(after, SESSION)).toMatchObject({ running: false, ready: true, missing: [] })
+  })
+
+  it('G11 被关掉的题点「知道了」就去掉；别的键不变', () => {
+    const closed = answered(submitted(), ELSEWHERE).state
+    expect(step(closed, { kind: 'dismiss', key: 'x' }).state).toBe(closed)
+    expect(step(closed, { kind: 'dismiss', key: KEY }).state.closed).toEqual([])
+  })
+
+  it('G12 填草稿：不认识的卡、在途的卡不变；被拒的卡可以改草稿', () => {
+    const state = listed()
+    expect(step(state, { kind: 'draft', key: 'x', draft: PICK_MAIN }).state).toBe(state)
+    const busy = submitted()
+    expect(step(busy, { kind: 'draft', key: KEY, draft: TEXT_DRAFT }).state).toBe(busy)
+    const refused = answered(submitted(), { outcome: 'denied' }).state
+    const edited = step(refused, { kind: 'draft', key: KEY, draft: TEXT_DRAFT }).state
+    expect(edited.drafts[KEY]).toEqual(TEXT_DRAFT)
+    expect(submitOf(edited)?.kind).toBe('refused')
+  })
+
+  it('G13 卡不在列表里了：草稿跟着去掉', () => {
+    const state = step(listed([A, B]), { kind: 'draft', key: KB, draft: PICK_MAIN }).state
+    const gone = run(
+      state,
+      { kind: 'read-list' },
+      { kind: 'list-answered', token: 2, answer: page([A]) },
+    ).state
+    expect(gone.drafts).toEqual({})
   })
 })
 

@@ -3,8 +3,8 @@ import { Button, EmptyState, LoadingState, PageColumn, PageHeader } from '@omne-
 import type { JSX } from 'react'
 import type { CardsDriver } from '../model/cards-driver.ts'
 import type { CardsHub } from '../model/cards-hub.ts'
-import type { Live, State } from '../model/cards-machine.ts'
-import { CardView } from './card-view.tsx'
+import { groupOf, type Live, type State } from '../model/cards-machine.ts'
+import { CardArea } from './card-area.tsx'
 import { NoticeLine } from './notice.tsx'
 import { useCards, useTenant } from './use-cards.ts'
 
@@ -41,7 +41,6 @@ function Decisions({ hub, tenant }: { readonly hub: CardsHub; readonly tenant: T
           </Button>
         }
       />
-      {state.last === null ? null : <NoticeLine notice={state.last.notice} />}
       <LiveLine live={state.live} />
       <Body state={state} driver={driver} />
     </PageColumn>
@@ -63,9 +62,22 @@ function LiveLine({ live }: { readonly live: Live }) {
   return null
 }
 
+const SHOWN_SESSION = 12
+
+function groupTitle(group: string): string {
+  if (group === '') return '不属于会话的问题'
+  return `会话 ${group.length > SHOWN_SESSION ? `${group.slice(0, SHOWN_SESSION)}…` : group}`
+}
+
+/** Groups in the order their first card appears; cards keep the server's order. */
+function groupsOf(state: State): string[] {
+  const order = [...state.entries.map(entry => entry.item), ...state.closed.map(c => c.item)]
+  return [...new Set(order.map(groupOf))]
+}
+
 function Body({ state, driver }: { readonly state: State; readonly driver: CardsDriver }) {
   const read = state.read
-  const entries = state.entries
+  const groups = groupsOf(state)
   return (
     <>
       {read.kind === 'failed' ? (
@@ -79,12 +91,20 @@ function Body({ state, driver }: { readonly state: State; readonly driver: Cards
           notice={{ kind: 'unavailable', text: '列表不全：有的来源暂时读不出，这里没有列全。' }}
         />
       ) : null}
-      {entries.length > 0 ? (
-        <ul className="hitl-cards">
-          {entries.map(entry => (
-            <CardView key={entry.key} entry={entry} driver={driver} origin />
+      {groups.length > 0 ? (
+        <div className="hitl-groups">
+          {groups.map(group => (
+            <section
+              key={group}
+              className="hitl-group"
+              role="region"
+              aria-label={groupTitle(group)}
+            >
+              <h3 className="hitl-group-title">{groupTitle(group)}</h3>
+              <CardArea driver={driver} state={state} group={group} />
+            </section>
           ))}
-        </ul>
+        </div>
       ) : read.kind === 'read' ? (
         <EmptyState title="现在没有要你决定的事" />
       ) : read.kind === 'failed' ? null : (

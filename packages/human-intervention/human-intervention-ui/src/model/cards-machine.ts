@@ -17,8 +17,6 @@ export type Notice = Readonly<{
   text: string
 }>
 
-export type Last = Readonly<{ notice: Notice; sessionRef: string | undefined }>
-
 export type Live =
   | Readonly<{ kind: 'off' }>
   | Readonly<{ kind: 'on'; generation: number; attempt: number }>
@@ -40,6 +38,26 @@ export type Submit =
 
 export type Entry = Readonly<{ key: string; item: HumanInterventionCardItem; submit: Submit }>
 
+export type Choice =
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{ kind: 'option'; optionId: string }>
+  | Readonly<{ kind: 'decline' }>
+
+export type Draft = Readonly<{ choice: Choice; text: string }>
+
+export type Planned = Readonly<{ key: string; replyId: string }>
+
+/** One submission of a group: the first planned card is in flight, the rest wait their turn. */
+export type Batch = Readonly<{ planned: readonly Planned[] }>
+
+/** A card that left the pending list without this person's reply being taken. */
+export type Closed = Readonly<{
+  key: string
+  item: HumanInterventionCardItem
+  draft: Draft
+  notice: Notice
+}>
+
 export type Read =
   | Readonly<{ kind: 'never' }>
   | Readonly<{
@@ -58,15 +76,19 @@ export type State = Readonly<{
   again: boolean
   live: Live
   generations: number
-  last: Last | null
+  drafts: Readonly<Record<string, Draft>>
+  batches: Readonly<Record<string, Batch>>
+  closed: readonly Closed[]
 }>
 
 export type Event =
   | Readonly<{ kind: 'read-list' }>
   | Readonly<{ kind: 'list-answered'; token: number; answer: ListAnswer }>
-  | Readonly<{ kind: 'submit'; key: string; reply: Reply; replyId: string }>
+  | Readonly<{ kind: 'draft'; key: string; draft: Draft }>
+  | Readonly<{ kind: 'submit-group'; group: string; planned: readonly Planned[] }>
   | Readonly<{ kind: 'reply-answered'; key: string; replyId: string; answer: ReplyAnswer }>
   | Readonly<{ kind: 'confirm'; key: string }>
+  | Readonly<{ kind: 'dismiss'; key: string }>
   | Readonly<{ kind: 'watch' }>
   | Readonly<{ kind: 'unwatch' }>
   | Readonly<{ kind: 'frame'; generation: number }>
@@ -83,6 +105,8 @@ export type Effect =
 
 export type Step = Readonly<{ state: State; effects: readonly Effect[] }>
 
+export const EMPTY_DRAFT: Draft = { choice: { kind: 'none' }, text: '' }
+
 export const INITIAL: State = {
   entries: [],
   read: { kind: 'never' },
@@ -90,11 +114,59 @@ export const INITIAL: State = {
   again: false,
   live: { kind: 'off' },
   generations: 0,
-  last: null,
+  drafts: {},
+  batches: {},
+  closed: [],
 }
 
 export const keyOf = (ref: CardRef): string =>
   JSON.stringify([ref.request.tenantRef, ref.request.requestId, ref.cardId])
+
+/** Cards from one session form one group; cards without a session form the group ''. */
+export const groupOf = (item: HumanInterventionCardItem): string => item.origin.sessionRef ?? ''
+
+export function replyOf(draft: Draft | undefined): Reply | null {
+  if (draft === undefined) return null
+  if (draft.choice.kind === 'option') return { kind: 'selection', optionId: draft.choice.optionId }
+  if (draft.choice.kind === 'decline') return { kind: 'decline' }
+  return draft.text.trim() === '' ? null : { kind: 'text', text: draft.text }
+}
+
+export const busy = (submit: Submit): boolean =>
+  submit.kind === 'submitting' || submit.kind === 'unknown'
+
+export type Sheet = Readonly<{
+  entries: readonly Entry[]
+  closed: readonly Closed[]
+  running: boolean
+  missing: readonly string[]
+  ready: boolean
+}>
+
+/** What one group shows and whether its one submit can be pressed. */
+export function sheetOf(state: State, group: string): Sheet {
+  const entries = state.entries.filter(entry => groupOf(entry.item) === group)
+  const open = entries.filter(entry => !busy(entry.submit))
+  const missing = open
+    .filter(entry => replyOf(state.drafts[entry.key]) === null)
+    .map(entry => entry.key)
+  const running = state.batches[group] !== undefined
+  return {
+    entries,
+    closed: state.closed.filter(closed => groupOf(closed.item) === group),
+    running,
+    missing,
+    ready: !running && open.length > 0 && missing.length === 0,
+  }
+}
+
+/** The cards one submit of the group would send, in the order shown. */
+export function submittable(state: State, group: string): readonly string[] {
+  const sheet = sheetOf(state, group)
+  return sheet.ready
+    ? sheet.entries.filter(entry => !busy(entry.submit)).map(entry => entry.key)
+    : []
+}
 
 const same = (state: State): Step => ({ state, effects: [] })
 
@@ -115,29 +187,28 @@ const READ_SENTENCES: Readonly<Record<Refusal, string>> = {
 }
 
 const SUBMIT_SENTENCES: Readonly<Record<Refusal, string>> = {
-  denied: '没有权限，或登录已失效。没有提交。',
-  invalid: '服务端认为这份答复不合这张卡的规定，没有提交。',
-  limited: '答复超出了服务端的上限，没有提交。',
-  conflict: '这张卡在别处变了，没有提交。已重新读取。',
-  'basis-unavailable': '服务端暂时读不出需要的依据，没有提交。稍后再试。',
-  'protocol-rejected': '服务端不认这个请求的格式，没有提交。',
-  unavailable: '没有发出去。',
+  denied: '没有权限，或登录已失效。这一题没有记上。',
+  invalid: '服务端认为这份答复不合这张卡的规定，这一题没有记上。',
+  limited: '答复超出了服务端的上限，这一题没有记上。',
+  conflict: '这张卡在别处变了，这一题没有记上。已重新读取。',
+  'basis-unavailable': '服务端暂时读不出需要的依据，这一题没有记上。稍后再试。',
+  'protocol-rejected': '服务端不认这个请求的格式，这一题没有记上。',
+  unavailable: '没有发出去，这一题没有记上。',
   uncertain: '没有收到可信的答复。',
 }
 
 const INVALIDATED: Readonly<Record<string, string>> = {
-  cancelled: '这张卡已经作废：那一轮被取消了。',
-  archived: '这张卡已经作废：会话已归档。',
-  'origin-terminal': '这张卡已经作废：提问的那一方已经结束。',
-  'continuity-lost': '这张卡已经作废：提问的那一方接不上了。',
+  cancelled: '这次提问已经关掉：那一轮被取消了。',
+  archived: '这次提问已经关掉：会话已归档。',
+  'origin-terminal': '这次提问已经关掉：提问的那一方已经结束。',
+  'continuity-lost': '这次提问已经关掉：提问的那一方接不上了。',
 }
 
-export const SUBMITTED: Notice = { kind: 'done', text: '已提交。' }
 export const ALREADY_DECIDED: Notice = {
   kind: 'done',
-  text: '这张卡已经有了决定，这次的答复没有采用。',
+  text: '已在别处答了，这次的答复没有采用。',
 }
-const INVALIDATED_OTHER = '这张卡已经作废。'
+const INVALIDATED_OTHER = '这次提问已经关掉。'
 export const CONFIRMING: Notice = { kind: 'unknown', text: '结果未知，正在确认。' }
 export const STILL_UNKNOWN: Notice = {
   kind: 'unknown',
@@ -167,17 +238,25 @@ function readList(state: State): Step {
   }
 }
 
-const busy = (submit: Submit): boolean => submit.kind === 'submitting' || submit.kind === 'unknown'
+const planned = (state: State, key: string): boolean =>
+  Object.values(state.batches).some(batch => batch.planned.some(item => item.key === key))
 
-function merge(entries: readonly Entry[], items: readonly HumanInterventionCardItem[]): Entry[] {
-  const known = new Map(entries.map(entry => [entry.key, entry]))
+function merge(state: State, items: readonly HumanInterventionCardItem[]): State {
+  const known = new Map(state.entries.map(entry => [entry.key, entry]))
   const listed = items.map(item => {
     const key = keyOf(item.card.ref)
     return { key, item, submit: known.get(key)?.submit ?? { kind: 'none' as const } }
   })
   const keys = new Set(listed.map(entry => entry.key))
-  const kept = entries.filter(entry => busy(entry.submit) && !keys.has(entry.key))
-  return [...listed, ...kept]
+  const kept = state.entries.filter(
+    entry => !keys.has(entry.key) && (busy(entry.submit) || planned(state, entry.key)),
+  )
+  const entries = [...listed, ...kept]
+  const present = new Set(entries.map(entry => entry.key))
+  const drafts = Object.fromEntries(
+    Object.entries(state.drafts).filter(([key]) => present.has(key)),
+  )
+  return { ...state, entries, drafts }
 }
 
 function readDone(state: State): Step {
@@ -200,11 +279,7 @@ function listAnswered(state: State, token: number, answer: ListAnswer): Step {
       state: { ...state, read: { kind: 'reading', token, collected, partial } },
       effects: [{ kind: 'list', token, cursor: page.next }],
     }
-  return readDone({
-    ...state,
-    entries: merge(state.entries, collected),
-    read: { kind: 'read', partial },
-  })
+  return readDone({ ...merge(state, collected), read: { kind: 'read', partial } })
 }
 
 function put(state: State, entry: Entry, effects: readonly Effect[] = []): Step {
@@ -217,36 +292,101 @@ function put(state: State, entry: Entry, effects: readonly Effect[] = []): Step 
   }
 }
 
-function submit(state: State, key: string, reply: Reply, replyId: string): Step {
-  const entry = state.entries.find(candidate => candidate.key === key)
+const find = (state: State, key: string): Entry | undefined =>
+  state.entries.find(candidate => candidate.key === key)
+
+function draft(state: State, key: string, value: Draft): Step {
+  const entry = find(state, key)
   if (entry === undefined || busy(entry.submit)) return same(state)
-  const sent: Sent = {
-    card: entry.item.card.ref,
-    expectedRevision: entry.item.card.revision,
-    reply,
-    replyId,
-  }
-  return put(state, { ...entry, submit: { kind: 'submitting', sent } }, [
-    { kind: 'submit', key, sent },
-  ])
+  if (state.batches[groupOf(entry.item)] !== undefined) return same(state)
+  return same({ ...state, drafts: { ...state.drafts, [key]: value } })
 }
 
-function settled(state: State, entry: Entry, notice: Notice): Step {
-  const kept = {
+function withoutBatch(state: State, group: string): State {
+  const { [group]: _ended, ...rest } = state.batches
+  return { ...state, batches: rest }
+}
+
+/** Sends the head of the group's batch, skipping cards that can no longer be sent. */
+function launch(state: State, group: string): Step {
+  let current = state
+  for (;;) {
+    const batch = current.batches[group]
+    if (batch === undefined) return same(current)
+    const [head, ...rest] = batch.planned
+    if (head === undefined) return same(withoutBatch(current, group))
+    const entry = find(current, head.key)
+    const reply = replyOf(current.drafts[head.key])
+    if (entry !== undefined && !busy(entry.submit) && reply !== null) {
+      const sent: Sent = {
+        card: entry.item.card.ref,
+        expectedRevision: entry.item.card.revision,
+        reply,
+        replyId: head.replyId,
+      }
+      return put(current, { ...entry, submit: { kind: 'submitting', sent } }, [
+        { kind: 'submit', key: head.key, sent },
+      ])
+    }
+    current = { ...current, batches: { ...current.batches, [group]: { planned: rest } } }
+  }
+}
+
+function submitGroup(state: State, group: string, plan: readonly Planned[]): Step {
+  const expected = submittable(state, group)
+  const matches =
+    expected.length > 0 &&
+    plan.length === expected.length &&
+    plan.every((item, at) => item.key === expected[at]) &&
+    new Set(plan.map(item => item.replyId)).size === plan.length
+  if (!matches) return same(state)
+  return launch({ ...state, batches: { ...state.batches, [group]: { planned: plan } } }, group)
+}
+
+/** Moves the group's batch on once the card in flight has an outcome. */
+function advance(step: Step, group: string, key: string): Step {
+  const batch = step.state.batches[group]
+  if (batch === undefined || batch.planned[0]?.key !== key) return step
+  const entry = find(step.state, key)
+  if (entry !== undefined && entry.submit.kind === 'submitting') return step
+  const moved: State = {
+    ...step.state,
+    batches: { ...step.state.batches, [group]: { planned: batch.planned.slice(1) } },
+  }
+  const next = launch(moved, group)
+  return { state: next.state, effects: [...step.effects, ...next.effects] }
+}
+
+function dropDraft(drafts: Readonly<Record<string, Draft>>, key: string) {
+  const { [key]: _gone, ...rest } = drafts
+  return rest
+}
+
+function settled(state: State, entry: Entry, closedBy: Notice | null): Step {
+  const remaining = state.entries.filter(candidate => candidate.key !== entry.key)
+  const closed =
+    closedBy === null
+      ? state.closed
+      : [
+          ...state.closed.filter(candidate => candidate.key !== entry.key),
+          {
+            key: entry.key,
+            item: entry.item,
+            draft: state.drafts[entry.key] ?? EMPTY_DRAFT,
+            notice: closedBy,
+          },
+        ]
+  return readList({
     ...state,
-    entries: state.entries.filter(candidate => candidate.key !== entry.key),
-    last: { notice, sessionRef: entry.item.origin.sessionRef },
-  }
-  return readList(kept)
+    entries: remaining,
+    drafts: dropDraft(state.drafts, entry.key),
+    closed,
+  })
 }
 
-function replyAnswered(state: State, key: string, replyId: string, answer: ReplyAnswer): Step {
-  const entry = state.entries.find(candidate => candidate.key === key)
-  if (entry === undefined) return same(state)
+function outcomeOf(state: State, entry: Entry, answer: ReplyAnswer): Step {
   const current = entry.submit
-  const inFlight =
-    current.kind === 'submitting' || (current.kind === 'unknown' && current.confirming)
-  if (!inFlight || current.sent.replyId !== replyId) return same(state)
+  if (current.kind !== 'submitting' && current.kind !== 'unknown') return same(state)
   const sent = current.sent
   const recognizing = current.kind === 'unknown'
   const into = (submit: Submit, effects: readonly Effect[] = []): Step =>
@@ -254,7 +394,7 @@ function replyAnswered(state: State, key: string, replyId: string, answer: Reply
   switch (answer.outcome) {
     case 'succeeded': {
       const result = answer.body
-      if (result.kind === 'decided') return settled(state, entry, SUBMITTED)
+      if (result.kind === 'decided') return settled(state, entry, null)
       if (result.kind === 'already-decided') return settled(state, entry, ALREADY_DECIDED)
       return settled(state, entry, {
         kind: 'done',
@@ -268,7 +408,7 @@ function replyAnswered(state: State, key: string, replyId: string, answer: Reply
       if (recognizing)
         return into({ kind: 'unknown', sent, confirming: false, notice: STILL_UNKNOWN })
       return into({ kind: 'unknown', sent, confirming: true, notice: CONFIRMING }, [
-        { kind: 'query', key, sent },
+        { kind: 'query', key: entry.key, sent },
       ])
     default:
       if (recognizing)
@@ -284,14 +424,29 @@ function replyAnswered(state: State, key: string, replyId: string, answer: Reply
   }
 }
 
+function replyAnswered(state: State, key: string, replyId: string, answer: ReplyAnswer): Step {
+  const entry = find(state, key)
+  if (entry === undefined) return same(state)
+  const current = entry.submit
+  const inFlight =
+    current.kind === 'submitting' || (current.kind === 'unknown' && current.confirming)
+  if (!inFlight || current.sent.replyId !== replyId) return same(state)
+  return advance(outcomeOf(state, entry, answer), groupOf(entry.item), key)
+}
+
 function confirm(state: State, key: string): Step {
-  const entry = state.entries.find(candidate => candidate.key === key)
+  const entry = find(state, key)
   if (entry === undefined) return same(state)
   const current = entry.submit
   if (current.kind !== 'unknown' || current.confirming) return same(state)
   return put(state, { ...entry, submit: { ...current, confirming: true, notice: CONFIRMING } }, [
     { kind: 'query', key, sent: current.sent },
   ])
+}
+
+function dismiss(state: State, key: string): Step {
+  if (!state.closed.some(closed => closed.key === key)) return same(state)
+  return same({ ...state, closed: state.closed.filter(closed => closed.key !== key) })
 }
 
 function observe(state: State, attempt: number): Step {
@@ -307,8 +462,11 @@ function observe(state: State, attempt: number): Step {
 function frame(state: State, generation: number): Step {
   const live = state.live
   if (live.kind !== 'on' || live.generation !== generation) return same(state)
-  const settled: State = live.attempt === 0 ? state : { ...state, live: { ...live, attempt: 0 } }
-  return settled.read.kind === 'reading' ? same({ ...settled, again: true }) : readList(settled)
+  const settledLive: State =
+    live.attempt === 0 ? state : { ...state, live: { ...live, attempt: 0 } }
+  return settledLive.read.kind === 'reading'
+    ? same({ ...settledLive, again: true })
+    : readList(settledLive)
 }
 
 const deniedEnd = (end: CardsEnd): boolean =>
@@ -340,12 +498,16 @@ export function step(state: State, event: Event): Step {
       return state.read.kind === 'reading' ? same(state) : readList(state)
     case 'list-answered':
       return listAnswered(state, event.token, event.answer)
-    case 'submit':
-      return submit(state, event.key, event.reply, event.replyId)
+    case 'draft':
+      return draft(state, event.key, event.draft)
+    case 'submit-group':
+      return submitGroup(state, event.group, event.planned)
     case 'reply-answered':
       return replyAnswered(state, event.key, event.replyId, event.answer)
     case 'confirm':
       return confirm(state, event.key)
+    case 'dismiss':
+      return dismiss(state, event.key)
     case 'watch':
       return state.live.kind === 'off' ? observe(state, 0) : same(state)
     case 'unwatch':
