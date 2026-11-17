@@ -48,14 +48,6 @@ export function identityBreak(
 ): string | undefined {
   const ok = okOf(observation)
   if (ok === undefined) return undefined
-  if (request.op === 'describe') {
-    if (!isDeepStrictEqual(field(ok, 'capability'), CAPABILITY[TARGET]))
-      return `describe names ${JSON.stringify(field(ok, 'capability'))}`
-    const material = field(ok, 'material')
-    if (field(material, 'kind') !== 'pinned') return undefined
-    const broken = namesTarget(field(material, 'basis'))
-    return broken === undefined ? undefined : `the described material ${broken}`
-  }
   const broken = namesTarget(field(ok, 'basis'))
   if (broken !== undefined) return `the result basis ${broken}`
   return mixedBreak(world, request, observation)
@@ -122,7 +114,7 @@ export async function exploreIdentity(): Promise<Report> {
                 ledger.break({ world, schedule, who: 'alice', request, detail: broken })
               if (
                 point === undefined &&
-                request.op === 'describe' &&
+                request.op === 'list' &&
                 request.basis === undefined &&
                 okOf(observation) === undefined
               )
@@ -131,7 +123,7 @@ export async function exploreIdentity(): Promise<Report> {
                   schedule,
                   who: 'alice',
                   request,
-                  detail: `a plain describe answered ${JSON.stringify(observation)}`,
+                  detail: `a plain list answered ${JSON.stringify(observation)}`,
                 })
             }
           }

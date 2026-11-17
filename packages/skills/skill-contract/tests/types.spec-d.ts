@@ -2,18 +2,17 @@ import { expectTypeOf, test } from 'vitest'
 import type { AssetLayer } from '@omne-harness/assets'
 import type * as root from '@omne-harness/skill-contract'
 import type {
-  DescribeFailure,
-  ExportFailure,
+  DeclaredProjection,
   ListFailure,
   PackagePath,
   ReadFailure,
+  SkillAccess,
+  SkillDeclaration,
   SkillName,
   SkillPackageSnapshot,
   SourceLayer,
 } from '@omne-harness/skill-contract'
 import type { PackageLocator, SkillRef } from '@omne-harness/skill-contract/provider'
-// @ts-expect-error the root entry does not name the inspection port
-import type { PackageInspection as InspectionOnRoot } from '@omne-harness/skill-contract'
 // @ts-expect-error the root entry does not name the internal reference
 import type { SkillRef as RefOnRoot } from '@omne-harness/skill-contract'
 // @ts-expect-error the root entry does not name the package locator
@@ -34,17 +33,22 @@ test('a snapshot cannot be built from its fields', () => {
 })
 
 test('the root entry names neither the internal reference nor the package locator', () => {
-  expectTypeOf<keyof typeof root>().not.toExtend<
-    'SkillRef' | 'PackageLocator' | 'sealSnapshot' | 'PackageInspection'
-  >()
+  expectTypeOf<keyof typeof root>().not.toExtend<'SkillRef' | 'PackageLocator' | 'sealSnapshot'>()
   expectTypeOf<SkillRef>().toHaveProperty('locator').toEqualTypeOf<PackageLocator>()
-  expectTypeOf<InspectionOnRoot | RefOnRoot | LocatorOnRoot>().toBeAny()
+  expectTypeOf<RefOnRoot | LocatorOnRoot>().toBeAny()
+})
+
+test('the access has only read and list', () => {
+  expectTypeOf<keyof SkillAccess<unknown, unknown>>().toEqualTypeOf<'read' | 'list'>()
+})
+
+test('a declaration and its projection carry no settings', () => {
+  expectTypeOf<keyof SkillDeclaration>().toEqualTypeOf<'dependencies'>()
+  expectTypeOf<keyof DeclaredProjection>().toEqualTypeOf<'name' | 'description' | 'tools'>()
 })
 
 test('each operation names only the failures that it can give', () => {
   type Kind<F extends { kind: string }> = F['kind']
-  expectTypeOf<'adopted-material-changed'>().not.toExtend<Kind<ExportFailure>>()
-  expectTypeOf<'source-unavailable' | 'version-changed'>().not.toExtend<Kind<DescribeFailure>>()
   expectTypeOf<'resource-missing' | 'bad-path'>().not.toExtend<Kind<ListFailure>>()
   expectTypeOf<'outside-package'>().toExtend<Kind<ListFailure>>()
   expectTypeOf<'aborted' | 'version-changed' | 'unsupported'>().toExtend<Kind<ReadFailure>>()

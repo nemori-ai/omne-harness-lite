@@ -53,7 +53,6 @@
     "packages/skills/skill-contract/tests/fixtures/packages/mismatch-before-format/SKILL.md",
     "packages/skills/skill-contract/tests/fixtures/packages/name-mismatch/SKILL.md",
     "packages/skills/skill-contract/tests/fixtures/packages/plain-skill/SKILL.md",
-    "packages/skills/skill-contract/tests/fixtures/packages/setting-category-unknown/SKILL.md",
     "packages/skills/skill-contract/tests/fixtures/packages/tool-before-setting/SKILL.md",
     "packages/skills/skill-contract/tests/fixtures/packages/tool-ref-invalid/SKILL.md",
     "packages/skills/skill-host-local/examples/sample-skill/SKILL.md",
@@ -630,7 +629,7 @@
       },
       "packages/skills/skill-contract/src/testing-access.ts": {
         "count": 1,
-        "longest": 332
+        "longest": 284
       },
       "packages/skills/skill-contract/src/testing-catalog.ts": {
         "count": 1,

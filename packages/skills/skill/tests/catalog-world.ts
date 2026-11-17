@@ -47,14 +47,12 @@ const reviewDeclared: DeclaredProjection = {
   name: granted(isSkillName, 'review'),
   description: 'Reviews a change.',
   tools: [tool('read-file')],
-  settings: [{ name: 'tone', category: 'preference' }],
 }
 
 const secretDeclared: DeclaredProjection = {
   name: granted(isSkillName, 'secret'),
   description: 'Keeps a secret.',
   tools: [],
-  settings: [],
 }
 
 export const reviewEntry: Extract<CatalogEntry, { kind: 'adopted' }> = {

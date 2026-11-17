@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createPackageInspection, createSkillAccess, createSkillCatalog } from '@omne-harness/skill'
+import { createSkillAccess, createSkillCatalog } from '@omne-harness/skill'
 import type {
   CatalogResolution,
   ReadVerdict,
@@ -73,24 +73,22 @@ function cases(...own: readonly Case[]): readonly Case[] {
 
 describe('the read check', () => {
   it.each(cases(['an answer outside the set', { kind: 'exploded' }]))(
-    '%s makes describe, read and the catalog answer unknown',
+    '%s makes read and the catalog answer unknown',
     async (_case, answer) => {
       const { ports } = createWorld()
       const readCheck: SkillReadCheck<Principal, Scope> = { check: answering<ReadVerdict>(answer) }
       const access = createSkillAccess({ ...ports, readCheck })
       const catalog = createSkillCatalog({ ...ports, readCheck })
-      expect(await access.describe(alice, scope, review)).toStrictEqual(UNKNOWN)
       expect(await access.read(alice, scope, body)).toStrictEqual(UNKNOWN)
       expect(await catalog.summaries(alice, scope)).toStrictEqual({ failure: 'unknown' })
     },
   )
 
-  it('a port that throws before it gives a promise makes describe, read and the catalog answer unknown', async () => {
+  it('a port that throws before it gives a promise makes read and the catalog answer unknown', async () => {
     const { ports } = createWorld()
     const readCheck: SkillReadCheck<Principal, Scope> = { check: throwing<ReadVerdict>() }
     const access = createSkillAccess({ ...ports, readCheck })
     const catalog = createSkillCatalog({ ...ports, readCheck })
-    expect(await access.describe(alice, scope, review)).toStrictEqual(UNKNOWN)
     expect(await access.read(alice, scope, body)).toStrictEqual(UNKNOWN)
     expect(await catalog.summaries(alice, scope)).toStrictEqual({ failure: 'unknown' })
   })
@@ -100,7 +98,6 @@ describe('the resolution at resolve', () => {
   async function expectUnknown(world: World, resolve: () => Promise<Resolution>) {
     const resolution: SkillResolution<Principal, Scope> = { ...world.ports.resolution, resolve }
     const access = createSkillAccess({ ...world.ports, resolution })
-    expect(await access.describe(alice, scope, review)).toStrictEqual(UNKNOWN)
     expect(await access.read(alice, scope, body)).toStrictEqual(UNKNOWN)
   }
 
@@ -109,11 +106,11 @@ describe('the resolution at resolve', () => {
       ['an answer that is no object', null],
       ['an answer outside the set', { kind: 'exploded' }],
     ),
-  )('%s makes describe and read answer unknown', async (_case, answer) => {
+  )('%s makes read answer unknown', async (_case, answer) => {
     await expectUnknown(createWorld(), answering(answer))
   })
 
-  it('a port that throws before it gives a promise makes describe and read answer unknown', async () => {
+  it('a port that throws before it gives a promise makes read answer unknown', async () => {
     await expectUnknown(createWorld(), throwing<Resolution>())
   })
 
@@ -151,14 +148,7 @@ describe('the resolution at resolve', () => {
         declared: { ...a.declared, tools: ['read-file'] },
       }),
     ],
-    [
-      'with a setting of a category outside the set',
-      (a: Adopted) => ({
-        ...a,
-        declared: { ...a.declared, settings: [{ name: 'tone', category: 'mood' }] },
-      }),
-    ],
-  ])('an adopted answer %s makes describe and read answer unknown', async (_case, broken) => {
+  ])('an adopted answer %s makes read answer unknown', async (_case, broken) => {
     const world = createWorld()
     const { adopted } = await lawfulAnswers(world)
     await expectUnknown(world, answering(broken(adopted)))
@@ -174,7 +164,7 @@ describe('the resolution at resolve', () => {
       'with a description longer than DESCRIPTION_LIMIT (16384) characters',
       (s: StandIn) => ({ ...s, description: 'x'.repeat(16385) }),
     ],
-  ])('a stand-in answer %s makes describe answer unknown', async (_case, broken) => {
+  ])('a stand-in answer %s makes read answer unknown', async (_case, broken) => {
     const world = createWorld()
     const { standIn } = await lawfulAnswers(world)
     const resolution: SkillResolution<Principal, Scope> = {
@@ -182,7 +172,9 @@ describe('the resolution at resolve', () => {
       resolve: answering(broken(standIn)),
     }
     const access = createSkillAccess({ ...world.ports, resolution })
-    expect(await access.describe(alice, scope, retired)).toStrictEqual(UNKNOWN)
+    expect(
+      await access.read(alice, scope, { capability: retired, part: { kind: 'body' } }),
+    ).toStrictEqual(UNKNOWN)
   })
 
   it('a well-formed answer with extra fields passes without them', async () => {
@@ -193,8 +185,8 @@ describe('the resolution at resolve', () => {
       resolve: answering({ ...adopted, extra: 'ignored', declared: { ...adopted.declared } }),
     }
     const access = createSkillAccess({ ...world.ports, resolution })
-    expect(await access.describe(alice, scope, review)).toStrictEqual(
-      await world.access.describe(alice, scope, review),
+    expect(await access.read(alice, scope, body)).toStrictEqual(
+      await world.access.read(alice, scope, body),
     )
   })
 })
@@ -286,55 +278,32 @@ describe('the source', () => {
     ...OUTSIDE,
     ['an ok that sealSnapshot did not make', 'forged'],
     ['a port that throws before it gives a promise', 'throwing'],
-  ])(
-    '%s at snapshot makes inspect, read, list and export answer source-unavailable',
-    async (_case, answer) => {
-      const world = createWorld()
-      const { ports } = world
-      const real = okOf(await ports.source.snapshot(reviewLocator))
-      const snapshot: SkillPackageSource['snapshot'] =
-        answer === 'forged'
-          ? answering({ ok: { ...real } })
-          : answer === 'throwing'
-            ? throwing()
-            : answering(answer)
-      const source: SkillPackageSource = { ...ports.source, snapshot }
-      const access = createSkillAccess({ ...ports, source })
-      const described = okOf(await world.access.describe(alice, scope, review))
-      if (described.material.kind !== 'pinned') throw new Error('describe did not pin')
-      expect(await createPackageInspection(source).inspect(reviewLocator)).toStrictEqual(
-        SOURCE_UNAVAILABLE,
-      )
-      expect(await access.read(alice, scope, body)).toStrictEqual(SOURCE_UNAVAILABLE)
-      expect(await access.list(alice, scope, review)).toStrictEqual(SOURCE_UNAVAILABLE)
-      expect(await access.export(alice, scope, review, described.material.basis)).toStrictEqual(
-        SOURCE_UNAVAILABLE,
-      )
-    },
-  )
+  ])('%s at snapshot makes read and list answer source-unavailable', async (_case, answer) => {
+    const world = createWorld()
+    const { ports } = world
+    const real = okOf(await ports.source.snapshot(reviewLocator))
+    const snapshot: SkillPackageSource['snapshot'] =
+      answer === 'forged'
+        ? answering({ ok: { ...real } })
+        : answer === 'throwing'
+          ? throwing()
+          : answering(answer)
+    const source: SkillPackageSource = { ...ports.source, snapshot }
+    const access = createSkillAccess({ ...ports, source })
+    expect(await access.read(alice, scope, body)).toStrictEqual(SOURCE_UNAVAILABLE)
+    expect(await access.list(alice, scope, review)).toStrictEqual(SOURCE_UNAVAILABLE)
+  })
 
   it.each<Case>([
     ...OUTSIDE,
     ['an ok that is no bytes', { ok: 'Read the diff.' }],
     ['a port that throws before it gives a promise', 'throwing'],
-  ])(
-    '%s at open makes inspect, read and export answer source-unavailable',
-    async (_case, answer) => {
-      const world = createWorld()
-      const { ports } = world
-      const open: SkillPackageSource['open'] =
-        answer === 'throwing' ? throwing() : answering(answer)
-      const source: SkillPackageSource = { ...ports.source, open }
-      const access = createSkillAccess({ ...ports, source })
-      const described = okOf(await access.describe(alice, scope, review))
-      if (described.material.kind !== 'pinned') throw new Error('describe did not pin')
-      expect(await createPackageInspection(source).inspect(reviewLocator)).toStrictEqual(
-        SOURCE_UNAVAILABLE,
-      )
-      expect(await access.read(alice, scope, body)).toStrictEqual(SOURCE_UNAVAILABLE)
-      expect(await access.export(alice, scope, review, described.material.basis)).toStrictEqual(
-        SOURCE_UNAVAILABLE,
-      )
-    },
-  )
+  ])('%s at open makes read answer source-unavailable', async (_case, answer) => {
+    const world = createWorld()
+    const { ports } = world
+    const open: SkillPackageSource['open'] = answer === 'throwing' ? throwing() : answering(answer)
+    const source: SkillPackageSource = { ...ports.source, open }
+    const access = createSkillAccess({ ...ports, source })
+    expect(await access.read(alice, scope, body)).toStrictEqual(SOURCE_UNAVAILABLE)
+  })
 })
