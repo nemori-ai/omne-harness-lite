@@ -21,7 +21,7 @@ import { alice, type Principal } from './doubles/identities.ts'
 import { completed, listing, peer, services, text, type Peer } from './doubles/peer.ts'
 import { countedReads } from './doubles/ports.ts'
 import { armedEligibility, armedStore, stallingAdoption } from './doubles/stalls.ts'
-import { adoptStdio, storedRecord } from './doubles/world.ts'
+import { adoptHttp, storedRecord } from './doubles/world.ts'
 
 const files = endpointRefOf('files')
 const READ = actionNameOf('read')
@@ -42,7 +42,7 @@ async function arranged(shape: (p: Peer) => Partial<McpPorts<Principal, string>>
     listing: { '': listing([{ name: 'read' }]) },
     calls: { read: [ASKS, completed([text('done')])] },
   })
-  adoptStdio(p, files)
+  adoptHttp(p, files, { auth: 'none' })
   const stored = await storedRecord(p, anonymousKey, ['read'])
   const digest = stored.actions[0]?.definitionDigest
   if (digest === undefined) throw new Error('no digest')
@@ -218,7 +218,7 @@ describe('continueWithInput', () => {
       listing: { '': listing([{ name: 'read' }]) },
       calls: { read: [ASKS, completed([text('done')])] },
     })
-    adoptStdio(p, files)
+    adoptHttp(p, files, { auth: 'none' })
     const stored = await storedRecord(p, anonymousKey, ['read'])
     const digest = stored.actions[0]?.definitionDigest
     if (digest === undefined) throw new Error('no digest')

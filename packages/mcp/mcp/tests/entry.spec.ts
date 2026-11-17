@@ -33,30 +33,23 @@ async function samples() {
     new AbortController().signal,
   )
   if ('failure' in opened) throw new Error('the scripted transport did not open')
-  const started = await w.landing.start(
-    alice,
-    { command: 'mcp-files', args: [], env: [], facilities: [] },
-    { values: [], credentials: [] },
-  )
-  if ('failure' in started) throw new Error(`the memory landing refused: ${started.failure}`)
   w.credentials.store({ tenant: alice.tenant, holding: files.holding, binding: MAIN, secret: 's' })
-  const acquired = await w.credentials.acquire(alice, files.holding, { kind: 'process-env' }, MAIN)
+  const acquired = await w.credentials.acquire(
+    alice,
+    files.holding,
+    { kind: 'http-authorization', target: TARGET },
+    MAIN,
+  )
   if ('failure' in acquired) throw new Error(`the memory credentials refused: ${acquired.failure}`)
-  return { transport: opened.ok, process: started.ok, credential: acquired.ok }
+  return { transport: opened.ok, credential: acquired.ok }
 }
 
 function nothing(): Resources {
-  return {
-    transport: undefined,
-    process: undefined,
-    credential: undefined,
-    lingering: [],
-    landings: [],
-  }
+  return { transport: undefined, credential: undefined }
 }
 
 describe('holdsNothing: the one condition an entry is forgotten on', () => {
-  it('is true with no transport, no process, no handle, no lingering process and no landing in flight', () => {
+  it('is true with no transport and no handle', () => {
     expect(holdsNothing(nothing())).toBe(true)
   })
 
@@ -65,26 +58,9 @@ describe('holdsNothing: the one condition an entry is forgotten on', () => {
     expect(holdsNothing({ ...nothing(), transport })).toBe(false)
   })
 
-  it('is false while the entry holds a process handle', async () => {
-    const { process } = await samples()
-    expect(holdsNothing({ ...nothing(), process })).toBe(false)
-  })
-
   it('is false while the entry holds a credential handle', async () => {
     const { credential } = await samples()
     expect(holdsNothing({ ...nothing(), credential })).toBe(false)
-  })
-
-  it('is false while a process whose stop was not confirmed lingers', async () => {
-    const { process } = await samples()
-    const lingering = [{ handle: process, confirmed: 'unconfirmed' as const }]
-    expect(holdsNothing({ ...nothing(), lingering })).toBe(false)
-  })
-
-  it('is false while a landing is still in flight, even without a handle', () => {
-    expect(
-      holdsNothing({ ...nothing(), landings: [{ credential: undefined, landed: false }] }),
-    ).toBe(false)
   })
 })
 
@@ -97,7 +73,7 @@ describe('forgettable: closed, and holding nothing', () => {
   }
 
   function connection(closed: boolean): Connection {
-    const made = new Connection(key, 'on-attempt')
+    const made = new Connection(key)
     if (closed) made.close()
     return made
   }
@@ -110,13 +86,6 @@ describe('forgettable: closed, and holding nothing', () => {
 
   it('is true for a closed entry that holds nothing', () => {
     expect(forgettable({ ...nothing(), ...idle, connection: connection(true) })).toBe(true)
-  })
-
-  it('is false for a closed entry that still waits on a landing', () => {
-    const landings = [{ credential: undefined, landed: false }]
-    expect(forgettable({ ...nothing(), ...idle, landings, connection: connection(true) })).toBe(
-      false,
-    )
   })
 
   it('is false for a closed entry that holds nothing while its build is in flight', () => {
@@ -152,7 +121,7 @@ describe('ensuredOf: a handle only for a connection that takes requests and has 
   }
 
   function ready(): Connection {
-    const made = new Connection(key, 'on-attempt')
+    const made = new Connection(key)
     made.attempt()
     made.ready(peerIdentityOf())
     return made
@@ -169,7 +138,7 @@ describe('ensuredOf: a handle only for a connection that takes requests and has 
 
   it('answers nothing for a connection that has no peer to use, however it holds a transport', async () => {
     const { transport } = await samples()
-    const preparing = new Connection(key, 'on-attempt')
+    const preparing = new Connection(key)
     preparing.attempt()
     expect(ensuredOf(entryOf(preparing, { transport }))).toBeUndefined()
   })

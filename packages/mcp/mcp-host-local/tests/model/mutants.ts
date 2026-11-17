@@ -8,7 +8,7 @@ export type Mutant = Readonly<{
   name: string
   breaks: string
   defect: string
-  file: 'src/session.ts' | 'src/stdio-line.ts' | 'src/http-line.ts'
+  file: 'src/session.ts' | 'src/http-line.ts'
   replacements: readonly Replacement[]
   spec: string
   mode: 'fast' | 'slow'
@@ -18,8 +18,6 @@ export type Mutant = Readonly<{
 
 const EXPLORER = 'tests/model/session-model.spec.ts'
 const SESSION = 'tests/session.spec.ts'
-const LINES = 'tests/lines.spec.ts'
-const STDIO = 'tests/stdio.spec.ts'
 const HTTP = 'tests/http.spec.ts'
 
 export const MUTANTS: readonly Mutant[] = [
@@ -248,72 +246,6 @@ export const MUTANTS: readonly Mutant[] = [
     mode: 'fast',
     filter: 'is not settled by the shared stream breaking',
     expect: "to be 'pending'",
-  },
-  {
-    name: 'mStdio-close-flushes',
-    breaks: 'SPEC H6',
-    defect:
-      'close() closes the write end instead of aborting it: the bytes a peer never reads have to drain first, so close() waits for the peer',
-    file: 'src/stdio-line.ts',
-    replacements: [
-      {
-        find: "    void this.writer.abort(new Error('the line closed')).catch(() => undefined)\n",
-        replace: '    await this.writer.close().catch(() => undefined)\n',
-      },
-    ],
-    spec: STDIO,
-    mode: 'slow',
-    filter: 'small calls that departed',
-    expect: "expected 'pending' to deeply equal { settled: undefined }",
-  },
-  {
-    name: 'mStdio-no-cross-chunk-bound',
-    breaks: 'SPEC H8',
-    defect:
-      'a line in progress is measured only at a newline: one that never ends grows the read buffer without bound',
-    file: 'src/stdio-line.ts',
-    replacements: [
-      {
-        find: '        if (pendingBytes > BYTE_LIMIT) {\n          broken = true\n          break\n        }\n',
-        replace: '',
-      },
-    ],
-    spec: LINES,
-    mode: 'fast',
-    filter: 'spans many chunks',
-    expect: "expected 'pending' to deeply equal",
-  },
-  {
-    name: 'mStdio-failed-write-sent',
-    breaks: 'T8 X02',
-    defect: 'a write the process rejected is reported as sent',
-    file: 'src/stdio-line.ts',
-    replacements: [
-      {
-        find: "        case 'failed':\n          this.writable = false\n          return { kind: 'unsent' }\n",
-        replace: "        case 'failed':\n          return { kind: 'sent' }\n",
-      },
-    ],
-    spec: LINES,
-    mode: 'fast',
-    filter: 'a write the process rejects is unsent',
-    expect: "expected { kind: 'sent' } to deeply equal { kind: 'unsent' }",
-  },
-  {
-    name: 'mStdio-drops-tail',
-    breaks: 'T2',
-    defect: 'the last line of stdout, ended without a newline, is dropped',
-    file: 'src/stdio-line.ts',
-    replacements: [
-      {
-        find: "      if (!broken && tail !== '') this.deliver(tail)\n",
-        replace: "      if (!broken && tail !== '') void tail\n",
-      },
-    ],
-    spec: LINES,
-    mode: 'fast',
-    filter: 'the last line of stdout is delivered',
-    expect: '-       "text": "{\\"last\\":2}",\n+       "kind": "ended",',
   },
   {
     name: 'mHttp-reset-is-unsent',

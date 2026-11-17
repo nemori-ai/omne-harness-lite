@@ -17,7 +17,6 @@ export type UnavailableReason =
   | 'connection-unavailable'
   | 'authorization-required'
   | 'credential-unavailable'
-  | 'landing-unavailable'
 
 export type Availability =
   | Readonly<{ kind: 'available' }>

@@ -6,7 +6,7 @@ import { admit } from '../src/internal/gate.ts'
 import { loseIfLost, lostOf } from '../src/internal/lost.ts'
 import { createConnectionTable } from '../src/internal/table.ts'
 import { alice } from './doubles/identities.ts'
-import { adoptStdio, world } from './doubles/world.ts'
+import { adoptHttp, world } from './doubles/world.ts'
 
 const files = endpointRefOf('files')
 
@@ -24,7 +24,6 @@ describe('lostOf: what one answer of the transport means for a ready connection'
       'stream-broken',
     ],
     [{ kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }, 'session-ended'],
-    [{ kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }, 'process-exited'],
     [{ kind: 'no-answer', cause: 'abandoned', unusable: 'stream-broken' }, 'stream-broken'],
   ] as const)(
     'rule 1: an answer with the mark (%o) loses the connection for the mark, not the cause (%s), and marks the catalog connection-unavailable',
@@ -43,7 +42,6 @@ describe('lostOf: what one answer of the transport means for a ready connection'
     { kind: 'not-sent', cause: 'connection-unavailable' },
     { kind: 'not-sent', cause: 'session-ended' },
     { kind: 'no-answer', cause: 'stream-broken' },
-    { kind: 'no-answer', cause: 'process-exited' },
     { kind: 'no-answer', cause: 'abandoned' },
     { kind: 'error-answer', code: -32603, message: 'internal' },
     { kind: 'answer-malformed', what: 'tools-missing' },
@@ -57,7 +55,7 @@ describe('lostOf: what one answer of the transport means for a ready connection'
 describe('loseIfLost: the one place a request hands what lostOf found to the table', () => {
   async function readyTable() {
     const w = world({ script: [{ discover: peerIdentityOf() }] })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const table = createConnectionTable(w.ports, w.config)
     const decision = await admit(w.ports, alice, files)
     if (decision.kind !== 'admitted') throw new Error(`not admitted: ${decision.kind}`)
@@ -67,7 +65,7 @@ describe('loseIfLost: the one place a request hands what lostOf found to the tab
   }
 
   it.each<[TransportFailure | PeerAnswer, string]>([
-    [{ kind: 'no-answer', cause: 'abandoned', unusable: 'process-exited' }, 'process-exited'],
+    [{ kind: 'no-answer', cause: 'abandoned', unusable: 'stream-broken' }, 'stream-broken'],
     [
       { kind: 'not-sent', cause: 'authorization-required', discovery: DISCOVERY },
       'authorization-required',

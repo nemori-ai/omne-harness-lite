@@ -4,7 +4,6 @@ import { PortFault, TASK_PORTS, TEARDOWN_PORTS, USABLE_FAILURE } from './ports.t
 export type Property =
   | 'P1'
   | 'P2'
-  | 'P3'
   | 'P4'
   | 'P5'
   | 'P6'
@@ -73,7 +72,6 @@ export interface RunView {
 }
 
 const NONE = '{"kind":"none"}'
-const LOST_UNCONFIRMED_WITH_RESIDUAL = '{"kind":"lost","reason":"close-unconfirmed","residual":['
 
 export const ABANDONED_RESULT = 'sent unknown abandoned'
 const TASK_UNKNOWN_RESULT = 'fail unknown'
@@ -107,8 +105,7 @@ export function internalError(op: OpView, reason: unknown): Found[] {
 }
 
 export function connectsAfterShutdown(view: RunView, call: ScriptedPortCall): Found[] {
-  if (!view.shutAsked || (call.port !== 'landing.start' && call.port !== 'transports.open'))
-    return []
+  if (!view.shutAsked || call.port !== 'transports.open') return []
   return [
     {
       property: 'P4',
@@ -155,17 +152,6 @@ export function foreignTransport(op: OpView, transportKey: string | undefined): 
       detail: `${op.name} answered a transport of key ${transportKey}`,
     },
   ]
-}
-
-export function unstoppedAtShutdown(view: RunView, op: OpView): Found[] {
-  if (op.kind !== 'closeAll') return []
-  return view.ledger.processes
-    .filter(process => process.stops === 0)
-    .map(process => ({
-      property: 'P3',
-      signature: 'P3-not-asked',
-      detail: `${op.name} answered while ${process.name} was never asked to stop`,
-    }))
 }
 
 export function lateChanged(
@@ -479,17 +465,9 @@ function releasedTwice(view: RunView): Found[] {
     }))
 }
 
-function releasedBeforeStop(view: RunView): Found[] {
-  return view.ledger.earlyReleases.splice(0).map(detail => ({
-    property: 'P1',
-    signature: 'P1-released-before-stop',
-    detail,
-  }))
-}
-
 function heldWithoutEntry(view: RunView): Found[] {
   const found: Found[] = []
-  const { handles, processes, transports } = view.ledger
+  const { handles, transports } = view.ledger
   for (const { key, state } of view.observe()) {
     if (state !== NONE) continue
     const busy =
@@ -499,9 +477,6 @@ function heldWithoutEntry(view: RunView): Found[] {
     const held = [
       ...handles.filter(item => item.key === key && item.releases === 0).map(item => item.name),
       ...transports.filter(item => item.key === key && item.closes === 0).map(item => item.name),
-      ...processes
-        .filter(item => item.key === key && item.lastStop !== 'tree-confirmed')
-        .map(item => item.name),
     ]
     if (held.length > 0)
       found.push({
@@ -607,7 +582,7 @@ function taskUnbounded(view: RunView): Found[] {
 function leftAfterShutdown(view: RunView): Found[] {
   const shutdown = view.ops.some(op => op.kind === 'closeAll' && op.status !== 'waiting')
   if (!shutdown || !atRest(view)) return []
-  const { handles, processes, transports } = view.ledger
+  const { handles, transports } = view.ledger
   const found: Found[] = [
     ...handles
       .filter(item => item.releases === 0)
@@ -615,13 +590,6 @@ function leftAfterShutdown(view: RunView): Found[] {
         property: 'P1' as const,
         signature: 'P1-never-released',
         detail: `${item.name} never released after the shutdown`,
-      })),
-    ...processes
-      .filter(item => item.stops === 0)
-      .map(item => ({
-        property: 'P3' as const,
-        signature: 'P3-not-asked',
-        detail: `${item.name} never asked to stop after the shutdown`,
       })),
     ...transports
       .filter(item => item.closes === 0)
@@ -632,7 +600,7 @@ function leftAfterShutdown(view: RunView): Found[] {
       })),
   ]
   for (const { key, state } of view.observe())
-    if (state !== NONE && !state.startsWith(LOST_UNCONFIRMED_WITH_RESIDUAL))
+    if (state !== NONE)
       found.push({
         property: 'P2',
         signature: 'P2-entry-left',
@@ -644,7 +612,6 @@ function leftAfterShutdown(view: RunView): Found[] {
 export function stateViolations(view: RunView): Found[] {
   return [
     ...releasedTwice(view),
-    ...releasedBeforeStop(view),
     ...heldWithoutEntry(view),
     ...ensureUnbounded(view),
     ...callerUnanswered(view),

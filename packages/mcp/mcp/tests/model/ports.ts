@@ -11,7 +11,6 @@ import type {
   McpPorts,
   PeerAnswer,
   PeerIdentity,
-  StopScope,
   TaskReport,
 } from '@omne-harness/mcp-contract'
 import type {
@@ -20,9 +19,6 @@ import type {
   HttpCredentialHandle,
   HttpPurpose,
   McpTransport,
-  ProcessCredentialHandle,
-  ProcessHandle,
-  ProcessPurpose,
   SentCall,
   TaskAnswer,
   TransportFailure,
@@ -37,11 +33,9 @@ export const PORT_ANSWERS = {
   'adoption.endpoint': ['ok', 'fail', 'reject'],
   'eligibility.check': ['ok', 'fail', 'reject'],
   'credentials.acquire': ['ok', 'fail', 'reject'],
-  'landing.start': ['ok', 'fail', 'reject'],
   'transports.open': ['ok', 'fail', 'reject'],
   'transport.discover': ['ok', 'fail', 'reject'],
   'transport.close': ['ok', 'reject'],
-  'process.stop': ['ok', 'unconfirmed', 'reject'],
   'credential.release': ['ok', 'reject'],
   'store.read': ['ok', 'fail', 'reject'],
   'store.write': ['ok', 'fail', 'reject'],
@@ -71,7 +65,6 @@ export const TASK_PORTS: ReadonlySet<PortName> = new Set<PortName>([
 export const BOUNDED_PORTS: ReadonlySet<PortName> = new Set<PortName>([
   'adoption.endpoint',
   'credentials.acquire',
-  'landing.start',
   'transports.open',
   'transport.discover',
   ...TASK_PORTS,
@@ -79,7 +72,6 @@ export const BOUNDED_PORTS: ReadonlySet<PortName> = new Set<PortName>([
 
 export const TEARDOWN_PORTS: ReadonlySet<PortName> = new Set<PortName>([
   'transport.close',
-  'process.stop',
   'credential.release',
 ])
 
@@ -147,14 +139,6 @@ export interface CallDesk {
 
 export type HandleRecord = { readonly name: string; readonly key: string; releases: number }
 
-export type ProcessRecord = {
-  readonly name: string
-  readonly key: string
-  readonly handle: string | undefined
-  stops: number
-  lastStop: StopScope | 'rejected' | 'threw' | undefined
-}
-
 export type TransportRecord = {
   readonly name: string
   readonly key: string
@@ -172,24 +156,20 @@ export type RequestRecord = {
 
 export type Ledger = Readonly<{
   handles: HandleRecord[]
-  processes: ProcessRecord[]
   transports: TransportRecord[]
   requests: RequestRecord[]
   strayCancels: string[]
   crossings: string[]
-  earlyReleases: string[]
   names: WeakMap<object, string>
 }>
 
 export function emptyLedger(): Ledger {
   return {
     handles: [],
-    processes: [],
     transports: [],
     requests: [],
     strayCancels: [],
     crossings: [],
-    earlyReleases: [],
     names: new WeakMap(),
   }
 }
@@ -228,8 +208,9 @@ function replyOf(peer: PeerReply): PeerAnswer {
     : { kind: 'result', result: jsonOf({ resultType: 'complete', content: [] }) }
 }
 
-function stopScopeOf(answer: Exclude<Answer, 'reject'>): StopScope {
-  return answer === 'ok' ? 'tree-confirmed' : 'unconfirmed'
+function targetOf(key: ModelKey): string | undefined {
+  const { target } = key.adopted.settings
+  return target.kind === 'value' ? target.value : undefined
 }
 
 function nameOf(prefix: string, key: ModelKey, records: readonly { key: string }[]): string {
@@ -243,28 +224,24 @@ export function scriptedPorts(
   options: PortOptions = {},
 ): McpPorts<Principal, string> {
   const handleOf = new WeakMap<object, HandleRecord>()
-  const processOf = new WeakMap<object, ProcessRecord>()
   const peer = options.peer ?? 'complete'
 
   const keyOfAccess = (access: Access<Principal>): ModelKey =>
     keys.find(item => item.access === access) ?? notModelled('an access outside the scenario')
 
-  function handleFor(key: ModelKey): ProcessCredentialHandle {
+  function handleFor(key: ModelKey): HttpCredentialHandle {
     const record: HandleRecord = {
       name: nameOf('h', key, ledger.handles),
       key: key.name,
       releases: 0,
     }
     ledger.handles.push(record)
-    const handle: ProcessCredentialHandle = {
-      purpose: 'process-env',
+    const handle: HttpCredentialHandle = {
+      purpose: 'http-authorization',
+      authorize: () => notModelled('the handle authorize'),
+      reportRejection: () => notModelled('the handle reportRejection'),
       release() {
         record.releases += 1
-        for (const process of ledger.processes)
-          if (process.handle === record.name && process.lastStop === undefined)
-            ledger.earlyReleases.push(
-              `${record.name} released before ${process.name} answered stop()`,
-            )
         return desk.open({
           port: 'credential.release',
           key: key.name,
@@ -276,39 +253,6 @@ export function scriptedPorts(
     handleOf.set(handle, record)
     ledger.names.set(handle, record.name)
     return handle
-  }
-
-  function processFor(key: ModelKey, handle: HandleRecord | undefined): ProcessHandle {
-    const record: ProcessRecord = {
-      name: nameOf('p', key, ledger.processes),
-      key: key.name,
-      handle: handle?.name,
-      stops: 0,
-      lastStop: undefined,
-    }
-    ledger.processes.push(record)
-    const process: ProcessHandle = {
-      stdin: new WritableStream<Uint8Array>(),
-      stdout: new ReadableStream<Uint8Array>(),
-      stderr: new ReadableStream<string>(),
-      exited: new Promise<void>(() => undefined),
-      stop() {
-        record.stops += 1
-        return desk.open({
-          port: 'process.stop',
-          key: key.name,
-          subject: record.name,
-          value: stopScopeOf,
-          ended: how => {
-            record.lastStop =
-              how === 'throw' ? 'threw' : how === 'reject' ? 'rejected' : stopScopeOf(how)
-          },
-        })
-      },
-    }
-    processOf.set(process, record)
-    ledger.names.set(process, record.name)
-    return process
   }
 
   function sentCallFor(key: ModelKey, context: Context | undefined): SentCall {
@@ -406,24 +350,12 @@ export function scriptedPorts(
   function acquire(
     access: Access<Principal>,
     holding: EndpointHolding,
-    purpose: ProcessPurpose,
-    binding: CredentialBinding,
-  ): Promise<Outcome<ProcessCredentialHandle, CredentialFailure>>
-  function acquire(
-    access: Access<Principal>,
-    holding: EndpointHolding,
-    purpose: HttpPurpose,
-    binding: CredentialBinding,
-  ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>>
-  function acquire(
-    access: Access<Principal>,
-    holding: EndpointHolding,
-    purpose: ProcessPurpose | HttpPurpose,
-  ): Promise<Outcome<ProcessCredentialHandle | HttpCredentialHandle, CredentialFailure>> {
+    _purpose: HttpPurpose,
+    _binding: CredentialBinding,
+  ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>> {
     const key = keyOfAccess(access)
-    if (purpose.kind !== 'process-env') notModelled('the HTTP credential purpose')
     if (holding !== key.holding) ledger.crossings.push(`acquire for ${key.name} names ${holding}`)
-    return desk.open<Outcome<ProcessCredentialHandle, CredentialFailure>>({
+    return desk.open<Outcome<HttpCredentialHandle, CredentialFailure>>({
       port: 'credentials.acquire',
       key: key.name,
       subject: key.name,
@@ -467,35 +399,19 @@ export function scriptedPorts(
       },
     },
     credentials: { acquire },
-    landing: {
-      start(access, _launch, env) {
-        const key = keyOfAccess(access)
-        const carried = env.credentials.map(item => handleOf.get(item.handle))
-        for (const handle of carried)
-          if (handle?.key !== key.name)
-            ledger.crossings.push(
-              `start for ${key.name} carries ${handle?.name ?? 'a foreign handle'}`,
-            )
-        return desk.open<Outcome<ProcessHandle, 'unknown'>>({
-          port: 'landing.start',
-          key: key.name,
-          subject: key.name,
-          value: answer =>
-            answer === 'ok' ? { ok: processFor(key, carried[0]) } : { failure: 'unknown' },
-        })
-      },
-    },
     transports: {
       open(material: TransportMaterial) {
-        if (material.kind !== 'stdio') return notModelled('the Streamable HTTP transport')
-        const process = processOf.get(material.process)
-        const key = keys.find(item => item.name === process?.key)
-        if (process === undefined || key === undefined)
-          return notModelled('a process the ports did not hand out')
+        const key = keys.find(item => targetOf(item) === material.target)
+        const handle =
+          material.credential === undefined ? undefined : handleOf.get(material.credential)
+        if (key === undefined || handle === undefined)
+          return notModelled('a target or a credential handle the ports did not hand out')
+        if (handle.key !== key.name)
+          ledger.crossings.push(`open for ${key.name} carries ${handle.name}`)
         return desk.open<Outcome<McpTransport, TransportFailure>>({
           port: 'transports.open',
           key: key.name,
-          subject: process.name,
+          subject: handle.name,
           value: (answer, call) =>
             answer === 'ok'
               ? { ok: transportFor(key, material.generation, call.seq) }

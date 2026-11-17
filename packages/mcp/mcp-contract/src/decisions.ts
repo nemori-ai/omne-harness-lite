@@ -8,7 +8,7 @@ import type {
   UnusableCause,
 } from './outcomes.ts'
 import { errorAnswerOf, peerIdentityOf, readDiscoverResult, type IdentityBound } from './readers.ts'
-import type { TransportFailure, TransportMaterial } from './transport.ts'
+import type { TransportFailure } from './transport.ts'
 import type { PeerIdentity } from './values.ts'
 import {
   ERROR_CLASSES,
@@ -136,23 +136,15 @@ export function requestClassOf(method: RequestMethod, retried: boolean): Request
 function exchangeConclusionOf(
   answer: AnswerClass,
   context: WireContext,
-  kind: TransportMaterial['kind'],
 ): AnswerConclusion | undefined {
   switch (answer) {
     case 'unsent':
-      return settle(NOT_SENT, kind === 'stdio' ? 'stream-broken' : undefined)
+      return settle(NOT_SENT)
     case 'silent':
-      return settle(
-        kind === 'stdio' && PROBE_REQUESTS.includes(context.request) ? LEGACY_PEER : ABANDONED,
-      )
+      return settle(ABANDONED)
     case 'stream-broken':
     case 'http:2xx':
-      return settle(
-        brokenStream(resends(context, kind)),
-        kind === 'stdio' ? 'stream-broken' : undefined,
-      )
-    case 'process-exited':
-      return settle({ kind: 'no-answer', cause: 'process-exited', resend: false }, 'process-exited')
+      return settle(brokenStream(resends(context)))
     default:
       return httpStatusConclusionOf(answer)
   }
@@ -172,12 +164,8 @@ function httpStatusConclusionOf(answer: AnswerClass): AnswerConclusion | undefin
   }
 }
 
-function resends(context: WireContext, kind: TransportMaterial['kind']): boolean {
-  return (
-    kind === 'streamable-http' &&
-    context.mode !== 'sse' &&
-    RESENT_REQUESTS.includes(context.request)
-  )
+function resends(context: WireContext): boolean {
+  return context.mode !== 'sse' && RESENT_REQUESTS.includes(context.request)
 }
 
 function isErrorClass(text: string): text is ErrorClass {
@@ -246,10 +234,9 @@ function httpErrorWireOf(
 export function concludeAnswer(
   classified: WireClassification,
   context: WireContext,
-  kind: TransportMaterial['kind'],
 ): AnswerConclusion {
   if (classified.kind !== 'answer') return WAIT
-  const exchange = exchangeConclusionOf(classified.answer, context, kind)
+  const exchange = exchangeConclusionOf(classified.answer, context)
   if (exchange !== undefined) return exchange
   const parts = partsOf(classified.answer)
   switch (parts.kind) {
@@ -363,8 +350,8 @@ export function concludeProbe(
   }
 }
 
-export function streamGoneAnswerOf(cause: Exclude<UnusableCause, 'session-ended'>): WireAnswer {
-  return { kind: 'no-answer', cause, resend: false, unusable: cause }
+export function streamGoneAnswerOf(): WireAnswer {
+  return { kind: 'no-answer', cause: 'stream-broken', resend: false, unusable: 'stream-broken' }
 }
 
 export function authorizationRequiredAnswerOf(discovery: AuthorizationDiscovery): WireAnswer {
@@ -402,7 +389,7 @@ export function lineGoneAnswerOf(
     case 'authorizing':
       return unusableAnswerOf(NOT_SENT, cause)
     case 'sent':
-      return cause === 'session-ended' ? undefined : streamGoneAnswerOf(cause)
+      return cause === 'session-ended' ? undefined : streamGoneAnswerOf()
     case 'discovery':
       return undefined
     default: {
@@ -421,7 +408,6 @@ export function fallbackGetConclusionOf(
   const conclusion = concludeAnswer(
     classifyWireEvent({ kind: 'http-status', status, headers, body }, context),
     context,
-    'streamable-http',
   )
   return conclusion.kind === 'authorization-required'
     ? conclusion
