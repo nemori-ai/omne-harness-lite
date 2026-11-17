@@ -28,7 +28,9 @@
     "@omne-harness/agent-contract": "workspace:*",
     "@omne-harness/assets": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/runtime-context-contract": "workspace:*",
     "@omne-harness/settings": "workspace:*"
   },
   "devDependencies": {

@@ -29,6 +29,21 @@ describe('a loop extension package', () => {
     expect(contract.category).toBe(LOOP_EXTENSION_CATEGORY)
   })
 
+  it('reads the declaration from a body that came back from storage, and reads none from a tree that is not a body', async () => {
+    const body = await bodyOf({ [DECLARATION_PATH]: text(builtin()) })
+    const stored: unknown = JSON.parse(JSON.stringify(body))
+    expect(declarationOf(stored)).toEqual(builtin())
+    expect(contract.judge(stored)).toEqual({ ok: false, rejected: 'incomplete-reference' })
+    for (const broken of [
+      null,
+      'text',
+      { kind: 'object' },
+      { kind: 'object', entries: [{ key: 'declaration', value: { kind: 'array', items: 7 } }] },
+      { kind: 'object', entries: [null] },
+    ])
+      expect(declarationOf(broken)).toBeNull()
+  })
+
   it('a command package carries its entry file, and the body names the interpreter, the entry and the timeout', async () => {
     const body = await bodyOf({
       [DECLARATION_PATH]: text(command()),

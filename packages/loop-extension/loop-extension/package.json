@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@omne-harness/agent-contract": "workspace:*",
+    "@omne-harness/assets": "workspace:*",
     "@omne-harness/loop-extension-contract": "workspace:*",
     "@omne-harness/operation-result": "workspace:*"
   },

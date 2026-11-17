@@ -10,6 +10,8 @@ it('exports the category, the package format, the block and the command protocol
     'MODEL_CALL_NEED',
     'RUN_SETTING',
     'declarationOf',
+    'enabledExtensionsDescriptor',
+    'enabledExtensionsProducer',
     'loopExtensionBodyContract',
   ])
 })

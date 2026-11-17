@@ -1,8 +1,19 @@
 export {
   ENABLED_EXTENSIONS_BLOCK,
+  enabledExtensionsDescriptor,
+  enabledExtensionsProducer,
   type EnabledExtensionsView,
   type EnabledMember,
 } from './block.ts'
+export type {
+  BuiltinExtension,
+  BuiltinExtensions,
+  EnabledExtensionsRead,
+  EnabledExtensionsViews,
+  ExtensionSources,
+  RunSetting,
+  TenantExtensionSources,
+} from './ports.ts'
 export {
   LOOP_EXTENSION_CATEGORY,
   RUN_SETTING,

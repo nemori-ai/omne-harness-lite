@@ -2,7 +2,6 @@ import { POSITIONS, POWERS, type LoopExtensionDeclaration } from '@omne-harness/
 import {
   isReadBody,
   readBodyText,
-  readSnapshot,
   refusal,
   type BodyContract,
   type JsonValue,
@@ -36,35 +35,42 @@ const schemaRead = readBodyText(
 if (schemaRead.kind !== 'ok') throw new TypeError('loop extension schema text is not a document')
 const schema: JsonValue = schemaRead.value
 
-// A version body is a tagged JSON tree; the declaration is read back as plain data.
-function plain(value: JsonValue): unknown {
-  switch (value.kind) {
-    case 'null':
-      return null
-    case 'boolean':
-    case 'string':
-      return value.value
-    case 'number':
-      return Number(value.lexeme)
-    case 'array':
-      return value.items.map(plain)
-    case 'object':
-      return Object.fromEntries(value.entries.map(entry => [entry.key, plain(entry.value)]))
-  }
-}
-
 const record = (value: unknown): Readonly<Record<string, unknown>> | null =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
     ? (value as Readonly<Record<string, unknown>>)
     : null
 
+// A version body is a tagged JSON tree. It is read by shape: a body that came back from storage is no longer the snapshot the inspection made.
+function plain(value: unknown): unknown {
+  const node = record(value)
+  const { items, entries } = node ?? {}
+  switch (node?.['kind']) {
+    case 'null':
+      return null
+    case 'boolean':
+    case 'string':
+      return node['value']
+    case 'number':
+      return Number(node['lexeme'])
+    case 'array':
+      return Array.isArray(items) ? items.map(plain) : undefined
+    case 'object':
+      return Array.isArray(entries)
+        ? Object.fromEntries(
+            entries.map(entry => [record(entry)?.['key'], plain(record(entry)?.['value'])]),
+          )
+        : undefined
+    default:
+      return undefined
+  }
+}
+
 const oneOf = (list: readonly string[], value: unknown): boolean =>
   typeof value === 'string' && list.includes(value)
 
-/** The declaration a version body holds, or null when the body is not one the package inspection made. */
+/** The declaration a version body holds, or null when the tree is not such a body. */
 export function declarationOf(body: unknown): LoopExtensionDeclaration | null {
-  const read = readSnapshot(body)
-  const declaration = read === undefined ? null : record(record(plain(read))?.['declaration'])
+  const declaration = record(record(plain(body))?.['declaration'])
   const kind = record(declaration?.['implementation'])?.['kind']
   if (declaration === null || typeof declaration['name'] !== 'string') return null
   if (!oneOf(POSITIONS, declaration['position']) || !oneOf(POWERS, declaration['power']))

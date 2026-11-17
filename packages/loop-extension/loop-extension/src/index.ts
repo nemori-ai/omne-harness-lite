@@ -6,3 +6,4 @@ export {
   type EnabledViewResult,
   type ExtensionFacts,
 } from './view.ts'
+export { gatherFacts, type DeclarationRead } from './facts.ts'
