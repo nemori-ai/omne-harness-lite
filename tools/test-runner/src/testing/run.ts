@@ -455,6 +455,33 @@ export async function runTurboTests(
   }
 }
 
+function notExecuted(
+  memberDirectory: string,
+  task: string,
+  taken: ReturnType<typeof takeSummary>,
+  where: string,
+): string {
+  if (!hasScript(memberDirectory, task))
+    return `没有 \`${task}\` 脚本：成员要有 test:fast、test:slow 与 test 三个脚本`
+  return 'missing' in taken
+    ? `没有执行记录：${taken.missing}${where}`
+    : `turbo 的运行摘要里没有它的执行记录${where}`
+}
+
+function executedWrongly(
+  memberDirectory: string,
+  report: MemberRun['report'],
+  exitCode: number | null | undefined,
+  slug: string,
+): string | undefined {
+  const archived = archivedReportFiles(memberDirectory, report)
+  if (archived.length > 0)
+    return `跑了嵌套归档目录里的测试（成员配置的 exclude 没有排除它们）：${archived.join('、')}`
+  return report === undefined && exitCode === 0
+    ? `退出码 0 却没有写出报告 ${slug}.json：成员配置没有展开 testTiers，或报告目录没传到 vitest`
+    : undefined
+}
+
 async function runTurboMember(
   root: string,
   member: TestMember,
@@ -479,19 +506,16 @@ async function runTurboMember(
     entry => entry.package === member.name && entry.task === task,
   )?.execution
   const reports = reportsOf(runDir, slug)
-  const archived = archivedReportFiles(join(root, member.path), reports.report)
+  const memberDirectory = join(root, member.path)
   const problem =
     execution === undefined
-      ? !hasScript(join(root, member.path), task)
-        ? `没有 \`${task}\` 脚本：成员要有 test:fast、test:slow 与 test 三个脚本`
-        : 'missing' in taken
-          ? `没有执行记录：${taken.missing}（turbo 退出码 ${turbo.exitCode}），见 ${turboLog}`
-          : `turbo 的运行摘要里没有它的执行记录（turbo 退出码 ${turbo.exitCode}），见 ${turboLog}`
-      : archived.length > 0
-        ? `跑了嵌套归档目录里的测试（成员配置的 exclude 没有排除它们）：${archived.join('、')}`
-        : reports.report === undefined && execution.exitCode === 0
-          ? `退出码 0 却没有写出报告 ${slug}.json：成员配置没有展开 testTiers，或报告目录没传到 vitest`
-          : undefined
+      ? notExecuted(
+          memberDirectory,
+          task,
+          taken,
+          `（turbo 退出码 ${turbo.exitCode}），见 ${turboLog}`,
+        )
+      : executedWrongly(memberDirectory, reports.report, execution.exitCode, slug)
   if (problem !== undefined) lines.push(`test-runner: ${problem}`)
   writeFileSync(join(runDir, `${slug}.log`), `${lines.join('\n')}\n`)
   const exitCode = execution === undefined ? -1 : (execution.exitCode ?? -1)
