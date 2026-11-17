@@ -145,6 +145,13 @@ export function calendarContract(name: CalendarCommandName): ParameterContract {
 
 const strictJson = createDefaultParameterCodec(limits)
 
+function helpOf(asked: unknown) {
+  if (asked === undefined) return succeed<CalendarArguments>({ kind: 'help' })
+  return typeof asked === 'string' && (calendarCommandNames as readonly string[]).includes(asked)
+    ? succeed<CalendarArguments>({ kind: 'help', name: asked })
+    : fail({ kind: 'invalid' as const, reason: 'invalid-field:name' })
+}
+
 /** Parses one command's params: unknown fields, missing fields and malformed dates are invalid. */
 export function calendarParameterCodec(
   name: CalendarCommandName,
@@ -170,14 +177,7 @@ export function calendarParameterCodec(
       const missing = command.required.find(key => params.data[key] === undefined)
       if (missing !== undefined)
         return fail({ kind: 'invalid', reason: `missing-field:${missing}` })
-      if (name === 'help') {
-        const asked = params.data['name']
-        if (asked === undefined) return succeed({ kind: 'help' })
-        return typeof asked === 'string' &&
-          (calendarCommandNames as readonly string[]).includes(asked)
-          ? succeed({ kind: 'help', name: asked })
-          : fail({ kind: 'invalid', reason: 'invalid-field:name' })
-      }
+      if (name === 'help') return helpOf(params.data['name'])
       const question = calendarQuerySchema.safeParse(command.question(params.data))
       return question.success
         ? succeed({ kind: 'question', question: question.data })

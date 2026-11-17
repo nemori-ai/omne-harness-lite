@@ -13,6 +13,17 @@ const parameters = new URL(import.meta.url).searchParams
 const capacity = Number(parameters.get('capacity') ?? '0')
 const same = (left: unknown, right: unknown) => canonicalDigest(left) === canonicalDigest(right)
 
+/** Frees the slot a schedule holds under the named reservation; false when it does not hold it. */
+function freeSlot(port: Pick<ParticipantPort, 'execute'>, id: string, reservation: string) {
+  const held = port.execute(
+    `SELECT reservation, held FROM ${SCHEDULE_QUOTA_TABLE} WHERE schedule_id = ? LIMIT 1`,
+    [id],
+  ).rows[0]
+  if (held?.[0] !== reservation || held[1] !== 1n) return false
+  port.execute(`UPDATE ${SCHEDULE_QUOTA_TABLE} SET held = 0 WHERE schedule_id = ?`, [id])
+  return true
+}
+
 /** Holds one quota slot per schedule that is not terminal, counted per owner and author. */
 export function holdQuota(
   port: Pick<ParticipantPort, 'execute'>,
@@ -22,16 +33,12 @@ export function holdQuota(
   const effect = requirement.quotaEffect
   const holding = requirement.resultingHolding
   if (effect.kind === 'none') return null
-  if (effect.kind === 'release' || effect.kind === 'transfer') {
-    const id = effect.kind === 'release' ? effect.scheduleId : effect.predecessorId
-    const held = port.execute(
-      `SELECT reservation, held FROM ${SCHEDULE_QUOTA_TABLE} WHERE schedule_id = ? LIMIT 1`,
-      [id],
-    ).rows[0]
-    if (held?.[0] !== effect.reservationRef || held[1] !== 1n) return 'stale_basis'
-    port.execute(`UPDATE ${SCHEDULE_QUOTA_TABLE} SET held = 0 WHERE schedule_id = ?`, [id])
-  }
-  if (effect.kind === 'release') return holding?.kind === 'released' ? null : 'stale_basis'
+  if (effect.kind === 'release')
+    return freeSlot(port, effect.scheduleId, effect.reservationRef) && holding?.kind === 'released'
+      ? null
+      : 'stale_basis'
+  if (effect.kind === 'transfer' && !freeSlot(port, effect.predecessorId, effect.reservationRef))
+    return 'stale_basis'
   const bucket = canonicalDigest([effect.owner, effect.author])
   const used = port.execute(
     `SELECT count(*) FROM ${SCHEDULE_QUOTA_TABLE} WHERE bucket = ? AND held = 1 LIMIT 1`,
