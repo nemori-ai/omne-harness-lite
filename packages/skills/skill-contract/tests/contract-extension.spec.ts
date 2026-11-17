@@ -22,10 +22,6 @@ const DIGEST = `sha256:${'ab'.repeat(32)}`
 const full = {
   description: 'Reviews a change.',
   tools: [{ category: 'tool', name: 'read_file' }],
-  settings: [
-    { name: 'api-endpoint', category: 'binding' },
-    { name: 'tone', category: 'preference' },
-  ],
   package: { digest: DIGEST },
 }
 
@@ -36,7 +32,7 @@ describe('the extended skill body', () => {
     expect(port.judge(body(full), { capabilityName: 'review' })).toEqual({ ok: true })
   })
 
-  it.each(['description', 'settings', 'package'])('accepts a body without %s', key => {
+  it.each(['description', 'package'])('accepts a body without %s', key => {
     const rest = Object.fromEntries(Object.entries(full).filter(([name]) => name !== key))
     expect(port.judge(body(rest))).toEqual({ ok: true })
   })
@@ -45,23 +41,6 @@ describe('the extended skill body', () => {
     ['a description that is not text', { description: 3 }, 'malformed'],
     ['an empty description', { description: '' }, 'malformed'],
     ['a description of 16385 characters', { description: 'd'.repeat(16385) }, 'malformed'],
-    ['settings that are not a list', { settings: 'x' }, 'malformed'],
-    [
-      'a setting category that is unknown',
-      { settings: [{ name: 'a', category: 'secret' }] },
-      'setting-category-unknown',
-    ],
-    ['a setting without a name', { settings: [{ category: 'binding' }] }, 'malformed'],
-    [
-      'a repeated setting name',
-      {
-        settings: [
-          { name: 'a', category: 'binding' },
-          { name: 'a', category: 'preference' },
-        ],
-      },
-      'malformed',
-    ],
     ['a package that is not an object', { package: DIGEST }, 'malformed'],
     ['a package without a digest', { package: {} }, 'malformed'],
     [
@@ -111,7 +90,7 @@ describe('the extended skill body', () => {
   })
 
   it('gives the original reasons before the reasons of the extension', () => {
-    const bad = { settings: [{ name: 'a', category: 'secret' }] }
+    const bad = { description: '' }
     expect(port.judge(body({ ...bad, name: 'other' }), { capabilityName: 'review' })).toEqual({
       ok: false,
       rejected: 'name-mismatch',
@@ -121,29 +100,13 @@ describe('the extended skill body', () => {
       rejected: 'incomplete-reference',
     })
   })
-
-  it('gives setting-category-unknown before malformed', () => {
-    const category = { settings: [{ name: 'a', category: 'secret' }] }
-    const malformed = { description: '' }
-    expect(port.judge(body({ ...malformed, ...category }))).toEqual({
-      ok: false,
-      rejected: 'setting-category-unknown',
-    })
-  })
 })
 
 describe('the schema value of the port', () => {
-  it('names every body field and the two setting categories', () => {
+  it('names every body field', () => {
     const schema = JSON.parse(writeJsonText(skillBodyContract().schema))
     expect(schema.kind).toBe('skill-body')
-    expect(Object.keys(schema.properties)).toEqual([
-      'name',
-      'description',
-      'tools',
-      'settings',
-      'package',
-    ])
-    expect(schema.properties.settings.category.split('|')).toEqual(['preference', 'binding'])
+    expect(Object.keys(schema.properties)).toEqual(['name', 'description', 'tools', 'package'])
     expect(schema.properties.tools).toEqual({ category: 'tool', name: 'string' })
     expect(schema.properties.package).toEqual({ digest: 'string' })
   })
@@ -152,16 +115,12 @@ describe('the schema value of the port', () => {
 describe('deriveDeclarations', () => {
   const port = skillBodyContract()
 
-  it('derives one setting:<category>:<name> entry for each setting, in order', () => {
-    expect(port.deriveDeclarations(body(full))).toEqual({
-      entries: ['setting:binding:api-endpoint', 'setting:preference:tone'],
-    })
-  })
-
-  it('derives no entry from dependencies, and none from an original body', () => {
-    const { settings: _dropped, ...rest } = full
-    expect(port.deriveDeclarations(body(rest))).toEqual({ entries: [] })
+  it('derives no entry from an extended body, from an original body, or from a settings field', () => {
+    expect(port.deriveDeclarations(body(full))).toEqual({ entries: [] })
     expect(port.deriveDeclarations(body({ tools: [] }))).toEqual({ entries: [] })
+    const withSettings = body({ ...full, settings: [{ name: 'tone', category: 'preference' }] })
+    expect(port.judge(withSettings)).toEqual({ ok: true })
+    expect(port.deriveDeclarations(withSettings)).toEqual({ entries: [] })
   })
 
   it('still gives the tool references of an extended body', () => {

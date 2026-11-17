@@ -20,11 +20,10 @@ type Kinds<K extends SkillFailure['kind']> = Extract<SkillFailure, { kind: K }>
 
 export type GateFailure = Kinds<'not-available-to-you' | 'unavailable-stand-in' | 'unknown'>
 
-export type DescribeFailure = GateFailure | Kinds<'basis-unavailable'>
-
 export type PinFailure =
-  | DescribeFailure
+  | GateFailure
   | Kinds<
+      | 'basis-unavailable'
       | 'unsupported'
       | 'adopted-material-changed'
       | 'source-unavailable'
@@ -38,17 +37,12 @@ export type ReadFailure =
   | PinFailure
   | Kinds<'bad-path' | 'outside-package' | 'resource-missing' | 'version-changed'>
 
-export type ExportFailure =
-  | Exclude<PinFailure, Kinds<'adopted-material-changed'>>
-  | Kinds<'outside-package' | 'resource-missing' | 'version-changed'>
-
 export const INSPECT_REJECTIONS = [
   'manifest-missing',
   'name-mismatch',
   'declaration-format-unsupported',
   'outside-package',
   'tool-ref-invalid',
-  'setting-category-unknown',
   'malformed',
 ] as const
 

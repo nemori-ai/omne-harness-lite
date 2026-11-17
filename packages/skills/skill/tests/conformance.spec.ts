@@ -16,14 +16,22 @@ const WORLDS = [
 ] as const
 
 describe('the suite', () => {
-  it('has at least 14 cases over the clauses A1 to A14, A12 split in A12a and A12b', () => {
-    expect(cases.length).toBeGreaterThanOrEqual(14)
-    const clauses = new Set(cases.map(item => item.clause))
-    for (let index = 1; index <= 14; index += 1)
-      if (index !== 12) expect(clauses).toContain(`A${index}`)
-    expect(clauses).toContain('A12a')
-    expect(clauses).toContain('A12b')
-    expect(clauses).not.toContain('A12')
+  it('has one case for each of the clauses A1 to A12 and A14', () => {
+    expect(cases.map(item => item.clause)).toStrictEqual([
+      'A1',
+      'A2',
+      'A3',
+      'A4',
+      'A5',
+      'A6',
+      'A7',
+      'A8',
+      'A9',
+      'A10',
+      'A11',
+      'A12',
+      'A14',
+    ])
   })
 })
 

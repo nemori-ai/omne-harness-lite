@@ -4097,30 +4097,18 @@ importers:
 
   packages/skills/skill-host-local:
     dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 'catalog:'
-        version: 4.0.4
       '@omne-harness/assets':
         specifier: workspace:*
         version: link:../../assets/assets
-      '@omne-harness/kernel-basis':
-        specifier: workspace:*
-        version: link:../../assembly/kernel-basis
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
-      '@omne-harness/skill':
-        specifier: workspace:*
-        version: link:../skill
       '@omne-harness/skill-contract':
         specifier: workspace:*
         version: link:../skill-contract
-      '@omne-harness/skill-cordis-contract':
-        specifier: workspace:*
-        version: link:../skill-cordis-contract
     devDependencies:
       '@omne-harness/assets-local':
         specifier: workspace:*
@@ -4128,6 +4116,9 @@ importers:
       '@omne-harness/settings-local':
         specifier: workspace:*
         version: link:../../assets/settings-local
+      '@omne-harness/skill':
+        specifier: workspace:*
+        version: link:../skill
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../storage/sql-contract

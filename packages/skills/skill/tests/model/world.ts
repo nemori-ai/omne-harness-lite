@@ -1,12 +1,7 @@
 import type { CapabilityId } from '@omne-harness/assets'
 import type { Access } from '@omne-harness/legal-identity'
 import { fail } from '@omne-harness/operation-result'
-import {
-  createPackageInspection,
-  createSkillAccess,
-  createSkillCatalog,
-  type SkillPorts,
-} from '@omne-harness/skill'
+import { createSkillAccess, createSkillCatalog, type SkillPorts } from '@omne-harness/skill'
 import {
   isAssetVersion,
   isSafeReason,
@@ -21,7 +16,6 @@ import {
 import {
   sealSnapshot,
   type CatalogResolution,
-  type PackageInspection,
   type Resolution,
   type PackageLocator,
   type ReadVerdict,
@@ -143,7 +137,6 @@ function declaredOf(name: Name): DeclaredProjection {
     name: granted(isSkillName, name),
     description: `${DESCRIPTION_WORD[name]} things.`,
     tools: [tool('read-file')],
-    settings: [{ name: 'tone', category: 'preference' }],
   }
 }
 
@@ -438,7 +431,6 @@ export type Run = Readonly<{
   trace: () => readonly TracedCall[]
   access: SkillAccess<Principal, Scope>
   catalog: SkillCatalog<Principal, Scope>
-  inspection: PackageInspection
 }>
 
 export type CheckGate = (name: Name, answer: () => Promise<unknown>) => Promise<unknown>
@@ -582,7 +574,6 @@ export function runOf(world: WorldSpec, schedule: Schedule = PLAIN, gate?: Check
     trace: () => [...calls],
     access: createSkillAccess(ports),
     catalog: createSkillCatalog(ports),
-    inspection: createPackageInspection(ports.source),
   }
 }
 

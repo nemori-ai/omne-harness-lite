@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "General Skill implementation: the PackageInspection, SkillCatalog, and SkillAccess application services",
+  "description": "General Skill implementation: the SkillCatalog and SkillAccess application services",
   "engines": {
     "node": ">=24"
   },

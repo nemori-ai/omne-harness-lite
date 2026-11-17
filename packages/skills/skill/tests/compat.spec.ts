@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { capabilityId } from '@omne-harness/assets'
-import { createPackageInspection, createSkillAccess, createSkillCatalog } from '@omne-harness/skill'
-import { DESCRIPTION_LIMIT, isAssetVersion } from '@omne-harness/skill-contract'
+import { createSkillAccess, createSkillCatalog } from '@omne-harness/skill'
+import { isAssetVersion, isSkillName } from '@omne-harness/skill-contract'
 import {
   createMemoryReadCheck,
   createMemoryResolution,
@@ -23,11 +23,10 @@ function sourceOf(description: string) {
 }
 
 describe('a description longer than 1024 characters', () => {
-  it('inspects with the hint and is described, read and listed in the catalog', async () => {
+  it('is read and listed in the catalog', async () => {
     const description = 'd'.repeat(1077)
     const source = sourceOf(description)
-    const definition = okOf(await createPackageInspection(source).inspect(locator))
-    expect(definition.compatibilityHints).toStrictEqual(['description-over-limit'])
+    const snapshot = okOf(await source.snapshot(locator))
     const id = capabilityId('skill', 'claude-api')
     if (!id.ok) throw new Error('skill:claude-api is no capability identity')
     const ports = {
@@ -45,33 +44,21 @@ describe('a description longer than 1024 characters', () => {
                 layer: 'tenant',
                 assetVersion: granted(isAssetVersion, 'v1'),
                 locator,
-                digest: definition.snapshot.digest,
+                digest: snapshot.digest,
               },
-              declared: {
-                name: definition.manifest.name,
-                description: definition.manifest.description,
-                tools: [],
-                settings: [],
-              },
+              declared: { name: granted(isSkillName, 'claude-api'), description, tools: [] },
             },
           },
         },
       ]),
     }
     const access = createSkillAccess(ports)
-    expect(okOf(await access.describe(alice, scope, id.id)).material.kind).toBe('pinned')
     const page = okOf(
       await access.read(alice, scope, { capability: id.id, part: { kind: 'body' } }),
     )
     expect(page.content).toStrictEqual({ kind: 'text', text: BODY })
+    expect(page.basis.digest).toBe(snapshot.digest)
     const listed = okOf(await createSkillCatalog(ports).summaries(alice, scope))
     expect(listed).toMatchObject([{ kind: 'adopted', description }])
-  })
-
-  it('is rejected over DESCRIPTION_LIMIT', async () => {
-    const source = sourceOf('d'.repeat(DESCRIPTION_LIMIT + 1))
-    expect(await createPackageInspection(source).inspect(locator)).toMatchObject({
-      failure: { kind: 'rejected', code: 'malformed' },
-    })
   })
 })
