@@ -2,7 +2,9 @@ import {
   cpSync,
   existsSync,
   lstatSync,
+  mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -86,15 +88,32 @@ export function tree(value: unknown): JsonValue {
   return read
 }
 
-// 清理时先单独删掉副本的 `node_modules` 这个链接本身、确认它已不在，再删副本；
-// 递归进链接目标会删掉原包真实的依赖目录。
+// 副本的每个依赖各是一个 junction，指向原包依赖的真实路径。原包里的依赖链接在 Windows 上
+// 可能是相对符号链接，穿过一个指向整个 `node_modules` 的 junction 去解析会落到临时目录旁边。
+// 清理时先逐个删掉这些链接本身、确认都已不在，再删副本；递归进链接目标会删掉原包真实的依赖目录。
+function linkDependencies(from: string, to: string): string[] {
+  mkdirSync(to)
+  const links: string[] = []
+  for (const entry of readdirSync(from, { withFileTypes: true })) {
+    if (entry.name.startsWith('.')) continue
+    const source = join(from, entry.name)
+    if (entry.name.startsWith('@')) {
+      links.push(...linkDependencies(source, join(to, entry.name)))
+      continue
+    }
+    const link = join(to, entry.name)
+    symlinkSync(realpathSync(source), link, 'junction')
+    links.push(link)
+  }
+  return links
+}
+
 export async function packageCopy(tamper: boolean): Promise<{ root: string; remove(): void }> {
   const source = await locateToolDefinitions(MEMBER)
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'tool-release-copy-')))
   cpSync(join(source, 'package.json'), join(root, 'package.json'))
   cpSync(join(source, 'dist'), join(root, 'dist'), { recursive: true })
-  const link = join(root, 'node_modules')
-  symlinkSync(join(source, 'node_modules'), link, 'junction')
+  const links = linkDependencies(join(source, 'node_modules'), join(root, 'node_modules'))
   if (tamper) {
     const file = join(root, 'dist', 'index.js')
     const bytes = readFileSync(file)
@@ -104,9 +123,11 @@ export async function packageCopy(tamper: boolean): Promise<{ root: string; remo
   return {
     root,
     remove: () => {
-      if (lstatSync(link, { throwIfNoEntry: false })?.isSymbolicLink()) unlinkSync(link)
-      if (existsSync(link))
-        throw new Error(`fixture: ${link} is still present; not removing ${root}`)
+      for (const link of links) {
+        if (lstatSync(link, { throwIfNoEntry: false })?.isSymbolicLink()) unlinkSync(link)
+        if (existsSync(link))
+          throw new Error(`fixture: ${link} is still present; not removing ${root}`)
+      }
       rmSync(root, { recursive: true, force: true })
     },
   }

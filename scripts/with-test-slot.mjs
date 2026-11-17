@@ -21,11 +21,12 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const USAGE = [
-  'Usage: with-test-slot [--want <n>] [--min <n>] [--] <command> [args...]',
+  'Usage: with-test-slot [--unless-plan-only] [--want <n>] [--min <n>] [--] <command> [args...]',
   'Runs the command when it holds cores from the machine token pool, in arrival order, and returns its exit code. The command does not run through a shell.',
   'The pool has C = max(1, cores - parallel.reserveCores) tokens (tools/test-runner/test-runs.config.json). Only the head of the queue takes tokens:',
   'it takes min(want, free) tokens when at least min tokens are free, and keeps them until the command ends. Default want is C, default min is 1.',
   'The command gets the number of tokens in OMNE_WORKER_BUDGET. A process that already holds tokens (OMNE_TEST_SLOT_HELD) runs the command at once.',
+  '--unless-plan-only: when the command has a --plan-only argument (it only lists the scope), run it at once without tokens.',
   'Environment:',
   '  OMNE_TEST_SLOT_CAPACITY          tokens on this machine (default from the core count; set the same value for every caller on the machine)',
   '  OMNE_TEST_SLOT_DIR               lock directory (default omne-core-tokens-<user> in the Windows temp directory, shared with WSL; /tmp/omne-core-tokens-<uid> on other POSIX hosts)',
@@ -37,14 +38,16 @@ const USAGE = [
   '',
 ].join('\n')
 
-const request = parseRequest(process.argv.slice(2))
+const unlessPlanOnly = process.argv[2] === '--unless-plan-only'
+const request = parseRequest(process.argv.slice(unlessPlanOnly ? 3 : 2))
 if (request.error !== undefined) {
   process.stderr.write(`with-test-slot: ${request.error}\n${USAGE}`)
   process.exit(2)
 }
 const args = request.command
 
-if (process.env['OMNE_TEST_SLOT_HELD'])
+// 已持有名额，或只列范围（--unless-plan-only 且命令带 --plan-only）：不排队，直接执行命令。
+if (process.env['OMNE_TEST_SLOT_HELD'] || (unlessPlanOnly && args.slice(1).includes('--plan-only')))
   process.exit(await run(args, process.env, false).then(r => r.status))
 
 function parseRequest(argv) {

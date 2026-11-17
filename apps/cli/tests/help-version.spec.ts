@@ -6,6 +6,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -31,10 +32,22 @@ afterEach(() => {
 
 const packageModules = fileURLToPath(new URL('../node_modules', import.meta.url))
 
+// 副本旁的每个依赖各是一个 junction，指向包里那个依赖的真实路径。包里的依赖链接在 Windows 上
+// 可能是相对符号链接，穿过一个指向整个 `node_modules` 的 junction 去解析会落到沙箱旁边。
+function linkDependencies(from: string, to: string): void {
+  mkdirSync(to)
+  for (const entry of readdirSync(from, { withFileTypes: true })) {
+    if (entry.name.startsWith('.')) continue
+    const source = join(from, entry.name)
+    if (entry.name.startsWith('@')) linkDependencies(source, join(to, entry.name))
+    else symlinkSync(realpathSync(source), join(to, entry.name), 'junction')
+  }
+}
+
 function copyDist(): string {
   const copy = join(sandbox.root, 'copied-dist')
   cpSync(builtDist, copy, { recursive: true })
-  symlinkSync(packageModules, join(sandbox.root, 'node_modules'), 'junction')
+  linkDependencies(packageModules, join(sandbox.root, 'node_modules'))
   return copy
 }
 
