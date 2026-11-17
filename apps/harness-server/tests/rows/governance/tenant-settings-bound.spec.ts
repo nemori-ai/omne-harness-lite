@@ -129,7 +129,7 @@ async function world(organization: Rule | null, own: Rule | null = null) {
         completeness: 'complete',
         unavailableProviders: [],
       }),
-      assetOf: () => ({ category: 'tool', name: 'Shell' }),
+      assetOf: async () => ({ category: 'tool', name: 'Shell' }),
     },
     permissions: createTenantSettingsPermissions({
       scope: { deploymentId: 'deployment', logicalServiceId: 'service' },

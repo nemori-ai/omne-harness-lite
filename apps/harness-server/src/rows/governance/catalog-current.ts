@@ -14,7 +14,7 @@ import {
 import type { FactCommandV2, SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import { governanceCurrentParticipant } from './adoption-current.ts'
 import { SUPPORT_PARTICIPANT } from './permission-protocol.ts'
-import { GOVERNED_CAPTURE } from './tool-assets.ts'
+import type { GovernedCapture } from './governed-capture.ts'
 
 export const CATALOG_CURRENT_PARTICIPANT = {
   participant: 'harness.governance-catalog-current',
@@ -41,19 +41,21 @@ export function catalogCapture(binding: GovernanceCatalogBinding) {
   })
 }
 export function governanceCatalogProjection(
-  binding: GovernanceCatalogBinding,
-): readonly FactCommandV2[] {
-  const capture = catalogCapture(binding)
-  return [
-    { participant: 'harness.tool-permission-release', facts: {} },
-    { participant: SUPPORT_PARTICIPANT.participant, facts: {} },
-    assetsPublicationCommand(capture, GOVERNED_CAPTURE),
-    standaloneSettingsPublicationCommand(capture),
-    {
-      participant: CATALOG_CURRENT_PARTICIPANT.participant,
-      facts: { request: z.json().parse({ binding, capture }) },
-    },
-  ]
+  governed: GovernedCapture,
+): (binding: GovernanceCatalogBinding) => readonly FactCommandV2[] {
+  return binding => {
+    const capture = catalogCapture(binding)
+    return [
+      { participant: 'harness.tool-permission-release', facts: {} },
+      { participant: SUPPORT_PARTICIPANT.participant, facts: {} },
+      assetsPublicationCommand(capture, governed()),
+      standaloneSettingsPublicationCommand(capture),
+      {
+        participant: CATALOG_CURRENT_PARTICIPANT.participant,
+        facts: { request: z.json().parse({ binding, capture }) },
+      },
+    ]
+  }
 }
 export function governanceCatalogCurrentParticipant(): SqlMaterialCatalog['participants'][number] {
   const extension = import.meta.url.endsWith('.ts') ? 'ts' : 'js'

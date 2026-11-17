@@ -9,7 +9,7 @@ import {
   type SettingsHoldingRef,
 } from '@omne-harness/settings'
 import { toolAssetBody, type ToolDefinition } from '@omne-harness/tool-contract'
-import { releaseCategories } from './categories.ts'
+import { officialCategories } from './categories.ts'
 
 export type OfficialAsset = Readonly<{
   category: string
@@ -24,7 +24,7 @@ export type OfficialHolding =
   | Readonly<{ kind: 'rejected'; reason: string }>
 
 const SOURCE = 'official'
-const categories = releaseCategories()
+const categories = officialCategories()
 
 export function officialAssetRef(category: string, name: string): string {
   return `${SOURCE}/${category}/${name}`

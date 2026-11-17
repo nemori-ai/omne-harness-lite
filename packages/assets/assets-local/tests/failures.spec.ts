@@ -1,8 +1,9 @@
 import { afterEach, expect, it } from 'vitest'
 import { DatabaseSync } from 'node:sqlite'
 import { join } from 'node:path'
-import { capabilityId, pinBody, readBodyText, createCategoryRegistry } from '@omne-harness/assets'
+import { capabilityId, pinBody, readBodyText } from '@omne-harness/assets'
 import { createAssetsLocal } from '../src/index.ts'
+import { lookupOf } from './lookup.ts'
 import { openWorld, pinned, type World } from './world.ts'
 const worlds: World[] = []
 async function open(options: Parameters<typeof openWorld>[0] = {}) {
@@ -73,7 +74,7 @@ it('derives settings from the fixed category body and ignores injected settings 
     storage: world.storage,
     domain: world.domain,
     ...world.combination,
-    categories: createCategoryRegistry(),
+    categories: lookupOf(),
   })
   expect(
     await owner.publish({
@@ -82,7 +83,7 @@ it('derives settings from the fixed category body and ignores injected settings 
       pinned: pinned(),
       expectedRevision: 0,
     }),
-  ).toEqual({ kind: 'rejected', reason: 'invalid_input' })
+  ).toEqual({ kind: 'rejected', reason: 'unknown_category' })
   await owner.close()
 })
 it('rejects malformed persisted body bytes instead of presenting an available version', async () => {

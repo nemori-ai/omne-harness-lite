@@ -26,6 +26,10 @@ function world() {
         reads.push(`host.settings ${tenantRef}`)
         return undefined
       },
+      async assets(tenantRef) {
+        reads.push(`host.assets ${tenantRef}`)
+        return undefined
+      },
     },
     scope: { deploymentId: 'deployment', logicalServiceId: 'service' },
     storage: {

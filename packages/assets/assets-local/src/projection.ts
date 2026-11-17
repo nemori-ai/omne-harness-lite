@@ -52,12 +52,13 @@ function targetView(
   const current = selectedTarget(port, binding, target)
   return current === null ? null : settingsView(current, target)
 }
-function heldIn(port: ParticipantPort, domain: string, category: string): string[] {
-  const prefix = `[${canonical(category)},`
+function heldOutside(port: ParticipantPort, domain: string, excluded: readonly string[]) {
+  const ranges = excluded.map(category => `[${canonical(category)},`)
+  const outside = ranges.map(() => ' AND NOT (capability_key > ? AND capability_key < ?)').join('')
   return port
     .execute(
-      "SELECT holding_ref FROM al_holdings WHERE scope_key = ? AND state = 'held' AND capability_key > ? AND capability_key < ? ORDER BY holding_ref LIMIT 129",
-      [domain, prefix, `${prefix.slice(0, -1)}-`],
+      `SELECT holding_ref FROM al_holdings WHERE scope_key = ? AND state = 'held'${outside} ORDER BY holding_ref LIMIT 129`,
+      [domain, ...ranges.flatMap(prefix => [prefix, `${prefix.slice(0, -1)}-`])],
     )
     .rows.map(row => String(row[0]))
 }
@@ -65,16 +66,16 @@ function captureTargets(
   port: ParticipantPort,
   binding: SettingsProjectionBinding,
   scope: string,
-  categories: readonly string[],
+  excluded: readonly string[],
 ) {
   const targets = binding.request.targets
   if (targets.length > 0 || binding.request.mode !== 'management')
     return targets.filter(target => target.policyId === 'asset')
-  const domain = canonical(binding.domain)
-  return categories
-    .flatMap(category => heldIn(port, domain, category))
-    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(targetRef => ({ policyId: 'asset', targetRef, scopeRef: scope }))
+  return heldOutside(port, canonical(binding.domain), excluded).map(targetRef => ({
+    policyId: 'asset',
+    targetRef,
+    scopeRef: scope,
+  }))
 }
 function currentViews(
   port: ParticipantPort,
@@ -106,7 +107,7 @@ function currentViews(
 export function capture(
   port: ParticipantPort,
   binding: SettingsProjectionBinding,
-  categories: readonly string[],
+  excluded: readonly string[],
   publication = false,
 ) {
   const fail = (reason: 'forbidden' | 'limit_exceeded' | 'invalid_input') => ({
@@ -122,7 +123,7 @@ export function capture(
   const scope = scopeRef(binding.domain)
   if (scope === null || (current && !equal(current.domain, binding.domain)))
     return fail('forbidden')
-  const selected = captureTargets(port, binding, scope, categories)
+  const selected = captureTargets(port, binding, scope, excluded)
   if (selected.length > 128) return fail('limit_exceeded')
   if (publication) return capturePublications(port, binding, selected)
   const currentTargets = currentViews(port, binding, selected)

@@ -4,6 +4,7 @@ import {
   readSnapshot,
   refusal,
   type BodyContract,
+  type CategoryDisplay,
   type JsonValue,
   type Judgment,
 } from '@omne-harness/assets'
@@ -12,6 +13,11 @@ import { decodeProviderName } from './provider-name.ts'
 import type { ProviderName } from './root.ts'
 
 export const MODEL_PROVIDER_CATEGORY = 'model-provider'
+
+export const modelProviderCategoryDisplay: CategoryDisplay = Object.freeze({
+  title: '模型供应商',
+  summary: '一个模型服务的接入方式与它要的凭据。',
+})
 
 export type CredentialItemDeclaration = Readonly<{
   item: string

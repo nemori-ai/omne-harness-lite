@@ -2,6 +2,7 @@ import { readTenantText, type TenantId } from '@omne-harness/public-contract'
 import type { AttachedEntry, AttachedLayout } from '@omne-harness/shell-contract'
 import { Button, EmptyState, LoadingState, PageColumn, PageHeader } from '@omne-harness/ui-kit'
 import { useEffect, useMemo, useState, useSyncExternalStore, type JSX, type ReactNode } from 'react'
+import type { CategoryNames } from '../model/category-names.ts'
 import type { CategoryGovernance, CategorySnapshot, GovernanceModel } from '../model/governance.ts'
 import type { Holding } from '../model/holdings.ts'
 import { NoticeLine } from './notice.tsx'
@@ -10,7 +11,7 @@ import { RowView } from './setting-row.tsx'
 export type AssetsPageProps = Readonly<{
   governance: GovernanceModel
   tenant: string
-  categoryLabels?: Readonly<Record<string, string>>
+  categoryNames?: CategoryNames
   categorySlot?: (category: string) => ReactNode
   holdingSlot?: (category: string, name: string) => ReactNode
   pages?: (layout: AttachedLayout) => ReactNode
@@ -40,17 +41,34 @@ function useView(
   return view
 }
 
+const NO_NAMES: ReadonlyMap<string, string> = new Map()
+
+function useNames(source: CategoryNames | undefined): ReadonlyMap<string, string> {
+  const [names, setNames] = useState(NO_NAMES)
+  useEffect(() => {
+    if (source === undefined) return
+    let live = true
+    void source.read().then(found => {
+      if (live && found !== undefined) setNames(found)
+    })
+    return () => {
+      live = false
+    }
+  }, [source])
+  return names
+}
+
 export function AssetsPage(props: AssetsPageProps): JSX.Element {
   const tenant = useMemo(() => readTenantText(props.tenant), [props.tenant])
+  const names = useNames(props.categoryNames)
   if (tenant === undefined)
     return (
       <PageColumn className="assets-page">
         <NoticeLine notice={{ kind: 'refused', text: '外壳给的租户读不懂，资产页不能工作。' }} />
       </PageColumn>
     )
-  const labels = props.categoryLabels
   const extras: Extras = {
-    label: category => labels?.[category] ?? category,
+    label: category => names.get(category) ?? category,
     categorySlot: props.categorySlot ?? nothing,
     holdingSlot: props.holdingSlot ?? nothing,
   }

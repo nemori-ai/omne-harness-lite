@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createCategoryRegistry } from '@omne-harness/assets'
+import { createCategoryPoint } from '@omne-harness/assets'
+import { toolCategoryDisplay } from '@omne-harness/tool-contract'
 import {
   assetsPublicationCommand,
   assetsSqlMaterials,
@@ -150,8 +151,11 @@ export async function toolAssetsWorld(
   if (options.initialize) domain.scope.tenant = await options.initialize(made.storage)
   const registered = await made.storage.registerCombination(combination)
   if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
-  const categories = createCategoryRegistry()
-  categories.register(createToolAssetCategory(release))
+  const categories = createCategoryPoint()
+  categories.contribute({
+    contract: createToolAssetCategory(release),
+    display: toolCategoryDisplay,
+  })
   const owner = createAssetsLocal({ ...combination, domain, storage: made.storage, categories })
   const target: SettingsTargetProjection['target'] = toolAssetTarget(entry, domain.scope.tenant)
   let closed = false
@@ -212,7 +216,7 @@ export async function toolAssetsWorld(
               captureId,
               request: { deploymentRef: 'test', mode: 'runtime', targets, selectionRef: null },
             },
-            { categories: ['tool'] },
+            { excluded: [] },
           ),
         ],
       })

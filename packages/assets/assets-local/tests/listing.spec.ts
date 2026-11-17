@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   capabilityId,
-  createCategoryRegistry,
   listAssets,
   pinBody,
   readBodyText,
@@ -9,17 +8,18 @@ import {
 } from '@omne-harness/assets'
 import { tenantLayerSource } from '../src/index.ts'
 import { ownerSources } from './sources.ts'
+import { lookupOf } from './lookup.ts'
 import { grants, openWorld, type World } from './world.ts'
 
-const categories = createCategoryRegistry()
-for (const category of ['service', 'gadget'])
-  categories.register({
+const categories = lookupOf(
+  ...['service', 'gadget'].map(category => ({
     category,
-    schema: { kind: 'null' },
-    judge: () => ({ ok: true }),
+    schema: { kind: 'null' } as const,
+    judge: () => ({ ok: true }) as const,
     deriveDeclarations: () => ({ entries: [] }),
     references: () => [],
-  })
+  })),
+)
 
 const worlds: World[] = []
 afterEach(async () => {

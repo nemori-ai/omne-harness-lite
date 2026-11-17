@@ -25,7 +25,7 @@ import { createBoundSkills } from '../../src/rows/tool-bindings/skills.ts'
 import { productionStorageCatalog } from '../../src/rows/storage/production-catalog.ts'
 import { fixtureEnv, fixtureTenant } from '../entry/support.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
-import { openSkillPublisher, writeSampleSkill } from './support.ts'
+import { openSkillPublisher, skillCategories, writeSampleSkill } from './support.ts'
 
 /** One tenant's Skills on real sqlite, called through the Skills author and its binding. */
 export type SkillsWorld = Readonly<{
@@ -97,7 +97,13 @@ export async function skillsWorld(): Promise<SkillsWorld> {
     domains: { lookup: async () => ({ kind: 'ready', domain }) },
     open: (who, where) =>
       openTenantSkills(
-        { storage: counter.storage, materials, packageRoot, ranking: SEARCH_RANKING },
+        {
+          storage: counter.storage,
+          materials,
+          packageRoot,
+          ranking: SEARCH_RANKING,
+          categories: skillCategories(),
+        },
         who,
         where,
       ),

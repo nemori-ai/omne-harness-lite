@@ -158,11 +158,13 @@ function world(options: Readonly<{ withNote?: boolean; withSession?: boolean }> 
   }
   const calls: string[] = []
   const admitted: string[] = []
+  const assetTenants = new Set<string>()
   const flags = {
     sources: null as readonly SettingsSourceDescriptor[] | null,
     grants: null as SettingsTargetView['grants'] | null,
     reply: null as TenantSettingsWriteResult | null,
     readThrows: false,
+    assetThrows: false,
     catalog: 'ok' as 'ok' | 'unavailable' | 'partial' | 'duplicate' | 'not-held',
     organizationBound: null as readonly string[] | null,
     organizationPick: null as string | null,
@@ -299,12 +301,15 @@ function world(options: Readonly<{ withNote?: boolean; withSession?: boolean }> 
           unavailableProviders: [],
         }
       },
-      assetOf: candidate =>
-        /^tool\.Shell\.copy\d+$/.test(candidate.target.targetRef)
+      assetOf: async (tenant, candidate) => {
+        assetTenants.add(String(tenant))
+        if (flags.assetThrows) throw new Error('the holding cannot be read')
+        return /^tool\.Shell\.copy\d+$/.test(candidate.target.targetRef)
           ? { category: 'tool', name: candidate.target.targetRef }
           : candidate.target.targetRef === 'tool.Shell.copy'
             ? flags.copyAsset
-            : { category: 'tool', name: 'Shell' },
+            : { category: 'tool', name: 'Shell' }
+      },
     },
     permissions,
     writer: {
@@ -358,7 +363,7 @@ function world(options: Readonly<{ withNote?: boolean; withSession?: boolean }> 
       },
     },
   })
-  return { face, calls, admitted, flags, writes, assign, own, state: () => state }
+  return { face, calls, admitted, assetTenants, flags, writes, assign, own, state: () => state }
 }
 
 const SHELL = { category: 'tool', name: 'Shell' }
@@ -722,7 +727,7 @@ describe('list and describe', () => {
         read: async () => {
           throw new Error('must not read')
         },
-        assetOf: () => undefined,
+        assetOf: async () => undefined,
       },
       permissions: {} as TenantSettingsPermissions,
       writer: {
@@ -1352,6 +1357,24 @@ describe('what the face passes on to its ports', () => {
     expect(await w.face.clear({ ...item(), operation: 'c', expectedRevision: '0' })).toEqual({
       kind: 'unavailable',
     })
+    expect(w.calls).not.toContain('writer.write')
+  })
+
+  it('reads the asset of each view for the tenant of the request', async () => {
+    const w = world()
+    expect(
+      await w.face.list({ principal: LOGIN_A, tenant: tenantA, after: null, limit: 10 }),
+    ).toMatchObject({ kind: 'listed' })
+    expect([...w.assetTenants]).toEqual([String(tenantA)])
+  })
+
+  it('an asset of a view that cannot be read makes the list unavailable, not shorter', async () => {
+    const w = world()
+    w.flags.assetThrows = true
+    expect(
+      await w.face.list({ principal: LOGIN_A, tenant: tenantA, after: null, limit: 10 }),
+    ).toEqual({ kind: 'unavailable' })
+    expect(await w.face.describe(item())).toEqual({ kind: 'unavailable' })
     expect(w.calls).not.toContain('writer.write')
   })
 })

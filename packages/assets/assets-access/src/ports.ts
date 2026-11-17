@@ -93,6 +93,13 @@ type ItemInput = Readonly<{
 }>
 type WriteInput = ItemInput & Readonly<{ operation: string; expectedRevision: string }>
 
+export interface CategoriesPort {
+  list(): readonly Readonly<{
+    category: string
+    display: Readonly<{ title: string; summary: string }>
+  }>[]
+}
+
 export interface TenantSettingsPort {
   list(
     input: Readonly<{

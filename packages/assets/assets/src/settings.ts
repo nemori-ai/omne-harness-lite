@@ -1,6 +1,6 @@
 import { defineSettings, type SettingDefinitions } from '@omne-harness/settings'
 import type { PinnedBody } from './adoption.ts'
-import type { CategoryRegistry } from './identity.ts'
+import type { CategoryView } from './category-point.ts'
 import { readSnapshot } from './read-body.ts'
 
 export type AssetSettingsProjection =
@@ -18,12 +18,12 @@ export type AssetSettingsProjection =
     }>
 
 export function projectAssetSettings(
-  registry: CategoryRegistry,
+  categories: Pick<CategoryView, 'lookup'>,
   input: Readonly<{ assetRef: string; pinned: PinnedBody }>,
 ): AssetSettingsProjection {
   if (!input.assetRef || readSnapshot(input.pinned.body) === undefined)
     return { kind: 'rejected', reason: 'invalid_body' }
-  const contract = registry.lookup(input.pinned.identity.category)
+  const contract = categories.lookup(input.pinned.identity.category)
   if (!contract) return { kind: 'rejected', reason: 'unknown_category' }
   try {
     const context = { capabilityName: input.pinned.identity.name, definition: input.pinned.version }

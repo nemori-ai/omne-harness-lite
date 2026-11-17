@@ -1,14 +1,14 @@
 import { expect, it } from 'vitest'
 import {
   capabilityId,
-  createCategoryRegistry,
+  createCategoryPoint,
   isReadBody,
   pinBody,
   readBodyText,
   type JsonLimits,
   type JsonValue,
 } from '@omne-harness/assets'
-import { toolBodyContract } from '@omne-harness/tool-contract'
+import { toolBodyContract, toolCategoryDisplay } from '@omne-harness/tool-contract'
 
 const limits: JsonLimits = {
   maxBytes: 1_000,
@@ -26,17 +26,20 @@ function document(text: string): JsonValue {
 }
 
 it('does not treat a registered schema literal as a read body', () => {
-  const registry = createCategoryRegistry()
+  const registry = createCategoryPoint()
   const schema = {
     kind: 'object' as const,
     entries: [{ key: 'name', value: { kind: 'string' as const, value: 'read_file' } }],
   }
-  registry.register({
-    category: 'literal',
-    schema,
-    judge: () => ({ ok: true }),
-    deriveDeclarations: () => ({ entries: [] }),
-    references: () => [],
+  registry.contribute({
+    display: toolCategoryDisplay,
+    contract: {
+      category: 'literal',
+      schema,
+      judge: () => ({ ok: true }),
+      deriveDeclarations: () => ({ entries: [] }),
+      references: () => [],
+    },
   })
   const stored = registry.lookup('literal')?.schema
   expect(isReadBody(stored)).toBe(false)
@@ -52,9 +55,9 @@ it('does not treat a registered schema literal as a read body', () => {
 })
 
 it('accepts read_file and records skill references without making them required', () => {
-  const registry = createCategoryRegistry()
+  const registry = createCategoryPoint()
   const port = toolBodyContract()
-  registry.register(port)
+  registry.contribute({ contract: port, display: toolCategoryDisplay })
   const body = document('{"name":"read_file","composes":{"skills":["review"]}}')
   expect(port.judge(body, { capabilityName: 'read_file' })).toEqual({ ok: true })
   expect(port.references(body)).toEqual([{ category: 'skill', name: 'review' }])

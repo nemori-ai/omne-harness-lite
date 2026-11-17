@@ -1772,6 +1772,11 @@
               "name": "modelProviderBodyContract",
               "kind": "value",
               "pending": false
+            },
+            {
+              "name": "modelProviderCategoryDisplay",
+              "kind": "value",
+              "pending": false
             }
           ]
         }

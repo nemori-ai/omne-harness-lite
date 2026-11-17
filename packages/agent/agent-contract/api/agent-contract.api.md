@@ -309,6 +309,7 @@
 - `admissionActionOf` · `identity.d.ts`
 - `admissionPassageOf` · `identity.d.ts`
 - `agentBodyContract` · `body-contract.d.ts`
+- `agentDefinitionCategoryDisplay` · `body-contract.d.ts`
 - `cardDraftOf` · `judge-output.d.ts`
 - `cardRequestOf` · `judge-output.d.ts`
 - `compactionGeneration` · `compaction.d.ts`
@@ -425,7 +426,8 @@ export interface AgentActionQualification<P> {
 ## 声明文件 `body-contract.d.ts`
 
 ```ts
-import { type BodyContract } from '@omne-harness/assets';
+import { type BodyContract, type CategoryDisplay } from '@omne-harness/assets';
+export declare const agentDefinitionCategoryDisplay: CategoryDisplay;
 export declare function agentBodyContract(): BodyContract;
 ```
 
@@ -2552,7 +2554,7 @@ export declare function judgeAuthority(value: unknown): Outcome<Authority, Struc
 ## 声明文件 `index.d.ts`
 
 ```ts
-export { agentBodyContract } from './body-contract.ts';
+export { agentBodyContract, agentDefinitionCategoryDisplay } from './body-contract.ts';
 export { obligationCategoryOf } from './finishing.ts';
 export { ATTRIBUTE_ITEMS, INSTRUCTION_LIMITS } from './definition.ts';
 export { ACTION_ADMISSION_DECLARATION, ACTION_ADMISSION_IMPLEMENTATION, POSITIONS, POWERS, } from './extensions.ts';
