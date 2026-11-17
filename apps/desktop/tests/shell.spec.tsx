@@ -11,8 +11,13 @@ import type {
 } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { assetsProtocol } from '@omne-harness/assets-protocol'
-import { assetsCategoryPage, assetsUiModule } from '@omne-harness/assets-ui/cordis'
+import {
+  assetGovernanceKey,
+  assetsCategoryPage,
+  assetsUiModule,
+} from '@omne-harness/assets-ui/cordis'
 import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
+import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import type { ResolvedTheme, ThemeChoice } from '@omne-harness/ui-kit'
 import type { Connectivity } from '../src/page/connectivity.ts'
 import { ITEM_FAILED_TEXT } from '../src/page/shell/item.tsx'
@@ -953,6 +958,137 @@ describe('外壳：读位置的快照', () => {
       await settle()
     })
     expect(renders).toBe(settled)
+  })
+})
+
+describe('资产页：类别带来自己的页面（MCP）', () => {
+  const ASSETS = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
+  const CONTEXT7 = { category: 'mcp', name: 'context7' }
+  const declaration = (title: string) => ({
+    title,
+    purpose: `${title}的用途。`,
+    appliesAt: '下一次连接起生效。',
+    clearEffect: '这一层不再提供这个值。',
+  })
+  const items = [
+    {
+      kind: 'permission',
+      asset: CONTEXT7,
+      item: 'call-actions',
+      revision: '1',
+      declaration: declaration('调用这个接入点的动作'),
+      choices: [
+        { value: 'deny', label: '禁止', description: '不允许调用。', permitsOperation: false },
+        { value: 'ask', label: '询问', description: '每次调用先问人。', permitsOperation: true },
+        { value: 'auto', label: '自动', description: '不需要人批准。', permitsOperation: true },
+      ],
+      default: 'ask',
+      own: null,
+      effective: { kind: 'value', value: 'ask', source: 'default' },
+      bound: null,
+      editable: { kind: 'yes' },
+    },
+    {
+      kind: 'ordinary',
+      asset: CONTEXT7,
+      item: 'target',
+      revision: '1',
+      declaration: declaration('连接目标'),
+      valueSchema: { kind: 'object', entries: [] },
+      default: { kind: 'unset' },
+      own: { kind: 'unset' },
+      effective: { value: { kind: 'unset' }, source: null },
+      lockedBy: null,
+      editable: { kind: 'no', reason: 'locked' },
+    },
+  ]
+  const fakeAssets: Plugin.Object = {
+    name: 'fake-assets',
+    apply: (ctx: Context) =>
+      void ctx.reflect.provide(ASSETS, {
+        'list-settings': async () => ({
+          outcome: 'succeeded',
+          body: { items, next: null, completeness: 'complete' },
+        }),
+      }),
+  }
+  const mcpUiModule = createMcpUiModule({
+    page: assetsCategoryPage,
+    governance: assetGovernanceKey,
+  })
+
+  beforeEach(() => {
+    const animate = Element.prototype.animate
+    Object.assign(Element.prototype, {
+      animate: () => ({ cancel: () => undefined, finished: Promise.resolve() }),
+    })
+    onTestFinished(() => void Object.assign(Element.prototype, { animate }))
+  })
+
+  async function opened(modules: readonly Plugin.Object[]) {
+    const t = await setup({ login: 'signed-in', modules })
+    await act(async () => {
+      t.state.scope.set(TENANT_TEXT)
+      await settle()
+      await settle()
+    })
+    return t
+  }
+
+  const page = () => section('assets')!
+  const tabTexts = () => [...page().querySelectorAll('[role=tab]')].map(tab => tab.textContent)
+  const shownPanel = () => page().querySelector('[role=tabpanel]:not([hidden])')!
+
+  it('MCP 的界面模块在：MCP 这一类画它自己的页面，不画通用的；权限它自己画，别的设置项用默认部件', async () => {
+    await opened([fakeAssets, assetsUiModule, mcpUiModule])
+    expect(tabTexts()).toEqual(['MCP'])
+    const panel = shownPanel()
+    expect(panel.querySelector('.mcp-page')).not.toBeNull()
+    expect(panel.querySelector('.assets-category')).toBeNull()
+    expect(
+      screen
+        .getByRole('group', { name: '调用这个接入点的动作' })
+        .querySelector('[aria-pressed="true"]')?.textContent,
+    ).toBe('询问')
+    expect(
+      [...panel.querySelectorAll('.assets-setting-title')].map(title => title.textContent),
+    ).toEqual(['连接目标'])
+  })
+
+  it('MCP 的界面模块撤下：这一类回到通用的页面；它回来，又画它自己的', async () => {
+    const t = await opened([fakeAssets, assetsUiModule])
+    expect(tabTexts()).toEqual(['mcp'])
+    expect(shownPanel().querySelector('.assets-category')).not.toBeNull()
+    const fiber = t.root.plugin(mcpUiModule)
+    await act(async () => {
+      await fiber
+      await settle()
+    })
+    expect(tabTexts()).toEqual(['MCP'])
+    expect(shownPanel().querySelector('.mcp-page')).not.toBeNull()
+    await act(async () => {
+      await fiber.dispose()
+      await settle()
+    })
+    expect(tabTexts()).toEqual(['mcp'])
+    expect(shownPanel().querySelector('.assets-category')).not.toBeNull()
+    expect(page().querySelector('.mcp-page')).toBeNull()
+  })
+
+  it('资产协议、资产的界面模块、MCP 的界面模块按三种次序加载，资产页逐字相同', async () => {
+    const modules = [fakeAssets, assetsUiModule, mcpUiModule]
+    const markups: string[] = []
+    for (const order of [
+      [0, 1, 2],
+      [2, 1, 0],
+      [1, 2, 0],
+    ]) {
+      await opened(order.map(index => modules[index]!))
+      markups.push(page().outerHTML)
+      cleanup()
+    }
+    expect(markups[0]).toContain('mcp-page')
+    expect(new Set(markups).size).toBe(1)
   })
 })
 
