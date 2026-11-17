@@ -1,7 +1,7 @@
 // @module-tag slow
 import { expect, it } from 'vitest'
 import { loginAccess } from '../../model/public-stream-support.ts'
-import { onReleaseTreeRuns, toolCallsThenText } from '../../support/release-tree.ts'
+import { onReleaseTreeRuns, pollUntil, toolCallsThenText } from '../../support/release-tree.ts'
 import { SHELL, faceOf, settledSession } from '../../governance/tenant-settings-support.ts'
 
 it('a login principal sets the Shell invoke permission to deny on the release tree and reads it back after a restart', async () => {
@@ -24,6 +24,7 @@ it('a login principal sets the Shell invoke permission to deny on the release tr
           'Files',
           'Schedules',
           'Shell',
+          'Skills',
           'TodoItems',
           'Tools',
           'Web',
@@ -68,7 +69,11 @@ it('a login principal sets the Shell invoke permission to deny on the release tr
       const face = faceOf(tree)
       await settledSession(tree, 'again')
       const { principal, tenant } = await loginAccess(tree)
-      const reread = await face.describe({ principal, tenant, asset: SHELL, item: 'invoke' })
+      const reread = await pollUntil(
+        'the tenant settings to open after the restart',
+        () => face.describe({ principal, tenant, asset: SHELL, item: 'invoke' }),
+        value => value.kind !== 'unavailable',
+      )
       expect(reread).toEqual(seen[0])
     },
   ])

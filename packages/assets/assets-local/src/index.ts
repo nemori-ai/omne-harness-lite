@@ -2,6 +2,7 @@ export {
   createAssetsLocal,
   assetsSettingsProjectionCommand,
   assetsPublicationCommand,
+  type CaptureScope,
 } from './provider.ts'
 export { assetsSqlMaterials } from './materials.ts'
 export { tenantLayerSource } from './layer.ts'

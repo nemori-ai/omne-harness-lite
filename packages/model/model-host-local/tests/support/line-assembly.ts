@@ -92,7 +92,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 4096,
   readIdleMs: 1000,
-  retryBackoffMs: 0,
   cleanupRetryMs: 0,
 }
 const HOST_SETTINGS = {

@@ -16,7 +16,6 @@ const EXPECTED: Readonly<Record<string, InspectRejectionCode | 'accepted'>> = {
   'name-mismatch': 'name-mismatch',
   'format-unsupported': 'declaration-format-unsupported',
   'tool-ref-invalid': 'tool-ref-invalid',
-  'setting-category-unknown': 'setting-category-unknown',
   'malformed-duplicate-key': 'malformed',
   'mismatch-before-format': 'name-mismatch',
   'tool-before-setting': 'tool-ref-invalid',
@@ -31,7 +30,6 @@ describe('fixture packages', () => {
       'name-mismatch',
       'declaration-format-unsupported',
       'tool-ref-invalid',
-      'setting-category-unknown',
       'malformed',
     ]
     for (const code of codes) expect(Object.values(EXPECTED)).toContain(code)
@@ -76,22 +74,20 @@ describe('a legal package', () => {
       allowedTools: 'Bash(git:*) Read',
       extra: { 'x-review': { level: 2, tags: ['alpha', 'beta'] } },
     })
-    expect(result.ok.declaration.dependencies).toEqual([{ category: 'tool', name: 'read_file' }])
-    expect(result.ok.declaration.settings).toEqual([
-      { name: 'api-endpoint', category: 'binding' },
-      { name: 'tone', category: 'preference' },
-    ])
+    expect(result.ok.declaration).toEqual({
+      dependencies: [{ category: 'tool', name: 'read_file' }],
+    })
     expect(Object.isFrozen(result.ok)).toBe(true)
     expect(Object.isFrozen(result.ok.manifest)).toBe(true)
   })
 
   it('gives empty declarations when .omne/skill.json is absent or omits a part', () => {
     expect(parse('demo', { 'SKILL.md': demo() })).toMatchObject({
-      ok: { declaration: { dependencies: [], settings: [] } },
+      ok: { declaration: { dependencies: [] } },
     })
     expect(
       parse('demo', { 'SKILL.md': demo(), '.omne/skill.json': '{"formatVersion":1}' }),
-    ).toMatchObject({ ok: { declaration: { dependencies: [], settings: [] } } })
+    ).toMatchObject({ ok: { declaration: { dependencies: [] } } })
   })
 
   it('accepts CRLF line ends and gives the same manifest as LF', () => {
@@ -108,18 +104,6 @@ describe('a legal package', () => {
     expect(codeOf(parse('demo', { 'SKILL.md': '---\nname: demo\ndescription: d\n---' }))).toBe(
       'accepted',
     )
-  })
-
-  it('accepts every setting category', () => {
-    const settings = ['preference', 'binding'].map((category, index) => ({
-      name: `s${index}`,
-      category,
-    }))
-    const result = parse('demo', {
-      'SKILL.md': demo(),
-      '.omne/skill.json': declaration({ formatVersion: 1, settings }),
-    })
-    expect(result).toMatchObject({ ok: { declaration: { settings } } })
   })
 
   it('accepts a name that equals the expected name', () => {
@@ -154,17 +138,6 @@ describe('rejection order', () => {
       '.omne/skill.json': declaration({ formatVersion: 2, dependencies: {} }),
     }
     expect(codeOf(parse('demo', files))).toBe('declaration-format-unsupported')
-  })
-
-  it('gives setting-category-unknown before a malformed manifest', () => {
-    const files = {
-      'SKILL.md': manifestText(['name: demo']),
-      '.omne/skill.json': declaration({
-        formatVersion: 1,
-        settings: [{ name: 'x', category: 'secret' }],
-      }),
-    }
-    expect(codeOf(parse('demo', files))).toBe('setting-category-unknown')
   })
 
   it('gives tool-ref-invalid before a malformed declaration part', () => {

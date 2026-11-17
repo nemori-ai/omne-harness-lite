@@ -14,6 +14,8 @@ import {
   sessionObservationKey,
   type SessionObservationService,
 } from '@omne-harness/session-observation/cordis'
+import { savedTenant } from '../r9/support.ts'
+import { sessionRef, tenantOf } from '../support/protocol-clients.ts'
 import { onReleaseTree, pollUntil, type ReleaseTree } from '../support/release-tree.ts'
 import {
   anotherPerson,
@@ -252,5 +254,94 @@ describe('session observation on the release tree', () => {
       expect(admitted).toEqual({ failure: { kind: 'denied', action: 'admit' } })
       held.release()
     })
+  })
+})
+
+describe('the dispatch progress of the main call on the release tree', () => {
+  it('a supplier that answers 503 once: the state frames go from the first dispatch to the second, with the fault of the first', async () => {
+    const held = heldAnswer('one', ' two')
+    const first = Promise.withResolvers<void>()
+    await onReleaseTree(
+      {
+        script: async request => {
+          if (request.index > 0) return held.script(request)
+          await first.promise
+          return {
+            status: 503,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: { message: 'try again', code: 503 } }),
+          }
+        },
+        observationPolicy: { interval: 200 },
+      },
+      async tree => {
+        const access = await loginAccess(tree)
+        const session = await tree.startSession('say hello')
+        const controller = new AbortController()
+        const opened = await pollUntil(
+          'the observation of the first dispatch',
+          () => open(tree, access, session, controller.signal),
+          answer => answer.kind === 'opened',
+        )
+        if (opened.kind !== 'opened') throw new Error(`open answered ${opened.kind}`)
+        const wire: unknown[] = []
+        const overProtocol = (async () => {
+          const frames = tree.clients.session.observe['observe-session'](
+            { tenant: tenantOf(savedTenant(tree.home)), session: sessionRef(session) },
+            { signal: controller.signal },
+          )
+          for (;;) {
+            const step = await frames.next()
+            if (step.done === true) return
+            if (step.value.kind === 'state' && step.value.attempts !== undefined)
+              wire.push(step.value.attempts)
+          }
+        })()
+        const progress: unknown[] = []
+        const until = async (done: (frame: SessionObservationFrame) => boolean) => {
+          for (;;) {
+            const step = await opened.frames.next()
+            if (step.done === true) throw new Error(`ended: ${String(step.value)}`)
+            if (step.value.kind === 'state') progress.push(step.value.attempts)
+            if (done(step.value)) return
+          }
+        }
+        await until(frame => frame.kind === 'state' && frame.attempts?.made === 1)
+        first.resolve()
+        await until(frame => frame.kind === 'state' && frame.attempts?.made === 2)
+        held.release()
+        await until(frame => frame.kind === 'state' && frame.run === null)
+        await pollUntil(
+          'the second dispatch over the protocol',
+          () => Promise.resolve(wire),
+          seen => seen.some(item => (item as { made: number }).made === 2),
+        )
+        controller.abort()
+        await overProtocol
+        expect(wire.at(-1)).toEqual({
+          allowed: 2,
+          made: 2,
+          last: { cause: 'upstream-unavailable', upstreamStatus: '503' },
+          notBefore: null,
+        })
+
+        type Progress = NonNullable<Extract<SessionObservationFrame, { kind: 'state' }>['attempts']>
+        const seen = progress.filter((item): item is Progress => item !== null)
+        const made = seen.map(item => item.made)
+        expect(made).toEqual([...made].sort((a, b) => a - b))
+        expect(seen.find(item => item.made === 1)).toEqual({
+          allowed: 2,
+          made: 1,
+          last: null,
+          notBefore: null,
+        })
+        expect(seen.at(-1)).toMatchObject({
+          allowed: 2,
+          made: 2,
+          last: { cause: 'upstream-unavailable', upstreamStatus: '503' },
+        })
+        expect(await assistantMessages(tree, access, session)).toHaveLength(1)
+      },
+    )
   })
 })

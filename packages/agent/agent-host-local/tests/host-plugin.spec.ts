@@ -60,10 +60,9 @@ describe('loading', () => {
     ['a loop guard policy without a digest', { ...hostConfig, loopGuardPolicy: { owner: 'a' } }],
     ['a step limit of zero', { ...hostConfig, maxRunSteps: 0 }],
     ['a step limit that is not a whole number', { ...hostConfig, maxRunSteps: 2.5 }],
-    ['no model retry policy', { ...hostConfig, modelRetry: undefined }],
     [
-      'a model retry policy without delays',
-      { ...hostConfig, modelRetry: { ...hostConfig.modelRetry, delaysMs: [] } },
+      'the removed model retry policy',
+      { ...hostConfig, modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 } },
     ],
     ['an empty list of check delays', { ...hostConfig, reconciliationDelaysMs: [] }],
     ['a negative check delay', { ...hostConfig, reconciliationDelaysMs: [1000, -1] }],

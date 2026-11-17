@@ -8,10 +8,40 @@ export interface WorkerTokens {
   readonly why: string
 }
 
+export interface WeightPolicy {
+  readonly floor: number
+  readonly ceiling: number
+  readonly readings: number
+  readonly minProcessSeconds: number
+}
+
 export interface ParallelPolicy {
   readonly maxWorkersPerMember: number
   readonly reserveCores: number
   readonly tokensPerWorker: readonly WorkerTokens[]
+  readonly weight: WeightPolicy
+  readonly batchSeconds: number
+  readonly startupShare: number
+}
+
+export function batchTarget(policy: ParallelPolicy, startupSeconds: number | undefined): number {
+  return startupSeconds === undefined
+    ? policy.batchSeconds
+    : Math.max(policy.batchSeconds, Math.round(startupSeconds / policy.startupShare))
+}
+
+export interface WeightReading {
+  readonly cpuSeconds: number
+  readonly processSeconds: number
+}
+
+export const READING_VERSION = 2
+
+export type WeightSource = 'measured' | 'seed' | 'default'
+
+export interface ProcessWeight {
+  readonly tokens: number
+  readonly source: WeightSource
 }
 
 export const WORKER_BUDGET_ENV = 'OMNE_WORKER_BUDGET'
@@ -40,11 +70,32 @@ export function budgetFor(
   return { workers: machineCapacity(policy, cores), cores, source: 'capacity' }
 }
 
-export function tokensPerWorker(policy: ParallelPolicy, member: string, tier: RunTier): number {
-  return (
-    policy.tokensPerWorker.find(entry => entry.member === member && entry.tier === tier)?.tokens ??
-    1
-  )
+export function processWeight(
+  policy: ParallelPolicy,
+  member: string,
+  tier: RunTier,
+  readings: readonly WeightReading[],
+): ProcessWeight {
+  const { floor, ceiling, minProcessSeconds } = policy.weight
+  const measured = readings
+    .filter(reading => reading.processSeconds >= minProcessSeconds)
+    .slice(0, policy.weight.readings)
+    .map(reading => reading.cpuSeconds / reading.processSeconds)
+  if (measured.length > 0) {
+    const tokens = Math.min(ceiling, Math.max(floor, ...measured))
+    return { tokens: Math.round(tokens * 100) / 100, source: 'measured' }
+  }
+  const seed = policy.tokensPerWorker.find(entry => entry.member === member && entry.tier === tier)
+  return seed === undefined
+    ? { tokens: 1, source: 'default' }
+    : { tokens: seed.tokens, source: 'seed' }
+}
+
+export interface MemberDemand {
+  readonly want: number
+  readonly min: number
+  readonly perWorker: number
+  readonly weightSource: WeightSource
 }
 
 export function memberDemand(
@@ -52,10 +103,16 @@ export function memberDemand(
   member: string,
   tier: RunTier,
   files: number | undefined,
-): { readonly want: number; readonly min: number; readonly perWorker: number } {
-  const perWorker = tokensPerWorker(policy, member, tier)
+  readings: readonly WeightReading[] = [],
+): MemberDemand {
+  const weight = processWeight(policy, member, tier, readings)
   const workers = Math.min(policy.maxWorkersPerMember, Math.max(1, files ?? Infinity))
-  return { want: Math.ceil(workers * perWorker), min: Math.ceil(perWorker), perWorker }
+  return {
+    want: Math.ceil(workers * weight.tokens),
+    min: Math.max(1, Math.round(weight.tokens)),
+    perWorker: weight.tokens,
+    weightSource: weight.source,
+  }
 }
 
 export function workersFor(tokens: number, perWorker: number): number {

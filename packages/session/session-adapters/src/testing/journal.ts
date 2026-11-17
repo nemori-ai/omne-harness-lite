@@ -1166,7 +1166,6 @@ function sameShape(checkpoint: AgentCheckpoint): AgentCheckpoint {
   return {
     ...checkpoint,
     adoptedRequest: checkpoint.adoptedRequest ?? null,
-    modelRetry: checkpoint.modelRetry ?? null,
   }
 }
 

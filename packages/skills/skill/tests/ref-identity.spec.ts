@@ -62,7 +62,6 @@ async function lyingWorld(ref: SkillRef): Promise<Lying> {
 async function expectNoAnswer(lying: Lying, basis?: SkillMaterialBasis): Promise<void> {
   const options = basis === undefined ? {} : { basis }
   const { access } = lying
-  expect(await access.describe(alice, scope, review, options)).toStrictEqual(UNKNOWN)
   expect(
     await access.read(alice, scope, { capability: review, part: { kind: 'body' } }, options),
   ).toStrictEqual(UNKNOWN)
@@ -75,8 +74,6 @@ async function expectNoAnswer(lying: Lying, basis?: SkillMaterialBasis): Promise
     ),
   ).toStrictEqual(UNKNOWN)
   expect(await access.list(alice, scope, review, options)).toStrictEqual(UNKNOWN)
-  if (basis !== undefined)
-    expect(await access.export(alice, scope, review, basis)).toStrictEqual(UNKNOWN)
   expect(lying.calls()).toMatchObject({ snapshot: 0, open: 0 })
 }
 
@@ -112,7 +109,6 @@ describe('a stand-in of another identity is no answer', () => {
       ...world.ports,
       resolution: { ...world.ports.resolution, resolve },
     })
-    expect(await access.describe(alice, scope, review)).toStrictEqual(UNKNOWN)
     expect(
       await access.read(alice, scope, { capability: review, part: { kind: 'body' } }),
     ).toStrictEqual(UNKNOWN)
@@ -167,8 +163,8 @@ describe('a reference that agrees with the request passes', () => {
       layer: 'workspace',
       digest: currentDigest,
     }
-    const description = okOf(await access.describe(alice, scope, workspaceNote, { basis }))
-    expect(description.material).toStrictEqual({ kind: 'pinned', basis })
+    const listing = okOf(await access.list(alice, scope, workspaceNote, { basis }))
+    expect(listing.basis).toStrictEqual(basis)
   })
 })
 
@@ -198,7 +194,6 @@ describe('a resolution that answers one reference with the material of another (
           betaRun.ports.resolution.resolve(who, at, CAPABILITY.beta, options),
       },
     })
-    expect(await access.describe(alice, 'workspace-a', CAPABILITY.alpha)).toStrictEqual(UNKNOWN)
     expect(
       await access.read(alice, 'workspace-a', {
         capability: CAPABILITY.alpha,

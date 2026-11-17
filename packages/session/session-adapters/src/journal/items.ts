@@ -2,9 +2,8 @@ import { SharedMap } from './shared-map.ts'
 import { factKey } from './facts.ts'
 import type { ExecutionView } from './view.ts'
 
-// An execution view is a set of items: each family holds entries under their original key, and the
-// execution itself is one item of its own. The store keeps every item (an open row per open item, a
-// closed row per closed one); the view in memory keeps the open items only.
+// An execution view as items: each family holds entries by original key, the execution is one item.
+// The store keeps every item, open or closed; the view in memory keeps the open ones.
 
 type Entry = unknown
 type Table = Readonly<{ kind: 'table'; of: (view: ExecutionView) => ReadonlyMap<string, Entry> }>
@@ -17,7 +16,6 @@ type List = Readonly<{
 export type ItemFamily = Readonly<{
   family: string
   holder: Table | List
-  // Whether the entry is still open in this view; a closed entry leaves memory and changes no more.
   open: (entry: never, view: ExecutionView) => boolean
 }>
 
@@ -154,7 +152,6 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
   { family: 'obligation', holder: table(view => view.finish.obligations), open: always },
 ]
 
-// The execution's own item: every member of the view that is not a family.
 export function execBody(view: ExecutionView): unknown {
   const { finish } = view
   return {
@@ -194,7 +191,6 @@ function execChanged(before: ExecutionView, after: ExecutionView): boolean {
   )
 }
 
-// The keys a fold wrote into a table: a fold forks every table it may write with tracking.
 function written(
   before: ReadonlyMap<string, Entry> | undefined,
   after: ReadonlyMap<string, Entry>,
@@ -209,7 +205,6 @@ function written(
 
 export type ViewItem = Readonly<{ family: string; item: string; open: boolean; body: unknown }>
 
-// Every item an execution view holds, the execution's own first.
 export function viewItems(view: ExecutionView): ViewItem[] {
   const items: ViewItem[] = [{ family: EXEC_FAMILY, item: '', open: true, body: execBody(view) }]
   for (const family of ITEM_FAMILIES) {
@@ -227,7 +222,6 @@ export function viewItems(view: ExecutionView): ViewItem[] {
   return items
 }
 
-// What one fold changed: every entry it opened or changed, with whether it is still open.
 export function itemChanges(before: ExecutionView | undefined, after: ExecutionView): ItemChange[] {
   const changes: ItemChange[] = []
   if (before === undefined || execChanged(before, after))

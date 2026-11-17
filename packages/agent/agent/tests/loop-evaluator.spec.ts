@@ -6,6 +6,7 @@ import {
   type LoopFacts,
   type Next,
 } from '@omne-harness/agent-contract'
+import type { ModelInvocationRef } from '@omne-harness/model-contract'
 import { LOOP_NODES, successor, type LoopNode } from '../src/loop/nodes.ts'
 import { adoption, evidence, failure, ok } from './journal-support.ts'
 import {
@@ -241,18 +242,12 @@ describe('decode (D5: the checkpoint read position and the exact schema)', () =>
     expect(Object.hasOwn(decoded, 'adoptedRequest')).toBe(false)
   })
 
-  it('keeps the optional retry state of the main call, and an absent or null one as given', () => {
-    const modelRetry = {
-      failures: 2,
-      since: '1970-01-01T00:00:00.000Z',
-      notBefore: '1970-01-01T00:00:05.000Z',
-    }
-    const retrying = { ...saved, modelRetry }
-    expect(ok(agentEvaluator.decode(agentEvaluator.encode(retrying)))).toEqual(retrying)
-    const cleared = { ...saved, modelRetry: null }
-    expect(ok(agentEvaluator.decode(agentEvaluator.encode(cleared)))).toEqual(cleared)
-    const decoded = ok(agentEvaluator.decode(agentEvaluator.encode(saved)))
-    expect(Object.hasOwn(decoded, 'modelRetry')).toBe(false)
+  it('refuses a checkpoint that still carries a retry state of the main call', () => {
+    expect(failure(agentEvaluator.decode(encodedOf({ ...saved, modelRetry: null })))).toEqual({
+      kind: 'invalid',
+      field: 'checkpoint.modelRetry',
+      reason: 'unknown-field',
+    })
   })
 
   const voidedBy = (cause: unknown, kind: string | null = 'model') => ({
@@ -294,24 +289,6 @@ describe('decode (D5: the checkpoint read position and the exact schema)', () =>
       kind: 'invalid',
       field: 'checkpoint.voided.kind',
       reason: 'type',
-    })
-  })
-
-  const since = '1970-01-01T00:00:00.000Z'
-  const notBefore = '1970-01-01T00:00:01.000Z'
-  it.each([
-    ['no failure', { failures: 0, since, notBefore }],
-    ['a fractional count', { failures: 1.5, since, notBefore }],
-    ['a count as text', { failures: '1', since, notBefore }],
-    ['a start that is no instant', { failures: 1, since: 'soon', notBefore }],
-    ['an earliest time that is no text', { failures: 1, since, notBefore: 1 }],
-    ['a missing earliest time', { failures: 1, since }],
-    ['an extra member', { failures: 1, since, notBefore, cause: 'stream-lost' }],
-    ['a list', []],
-  ])('refuses a retry state with %s', (_name, modelRetry) => {
-    expect(failure(agentEvaluator.decode(encodedOf({ ...saved, modelRetry })))).toMatchObject({
-      kind: 'invalid',
-      field: expect.stringMatching(/^checkpoint\.modelRetry/u),
     })
   })
 
@@ -408,38 +385,62 @@ describe('C1 property: next is a pure function whose steps the table can take', 
   })
 })
 
-describe('a retry state of the main call never lets I8 propose completion', () => {
-  const modelRetry = {
-    failures: 1,
-    since: '1970-01-01T00:00:00.000Z',
-    notBefore: '1970-01-01T00:00:01.000Z',
-  }
-  const retrying = (facts: LoopFacts): LoopFacts => ({
+describe('a main call of the current step that lost contact never lets I8 propose completion', () => {
+  const lostAt = (facts: LoopFacts, step = facts.checkpoint.step): LoopFacts => ({
     ...facts,
-    checkpoint: { ...facts.checkpoint, modelRetry },
+    checkpoint: {
+      ...facts.checkpoint,
+      voided: [
+        {
+          kind: 'model',
+          step,
+          action: pendingCall.action,
+          reference: pendingCall.reference as ModelInvocationRef,
+          cause: 'lost',
+          basis: evidence('state-lock'),
+        },
+      ],
+    },
   })
 
   it('I8 with nothing pending and completion to evaluate opens a new iteration instead', () => {
     expect(
       ok(
         agentEvaluator.next(
-          retrying(loopFacts('I8', { consumption: [responsibility('processed')] })),
+          lostAt(loopFacts('I8', { consumption: [responsibility('processed')] })),
         ),
       ),
     ).toEqual({ kind: 'take-inputs', position: 'I0' })
   })
 
-  it('a cleared retry state proposes completion as before', () => {
-    const facts = loopFacts('I8')
-    expect(
-      ok(agentEvaluator.next({ ...facts, checkpoint: { ...facts.checkpoint, modelRetry: null } })),
-    ).toEqual({ kind: 'try-finish', conclusion: { kind: 'complete' }, failure: null })
+  it.each([
+    [
+      'a lost call of an earlier step',
+      (facts: LoopFacts) => lostAt(facts, ok(decodeStepId('step-99'))),
+    ],
+    [
+      'a call of this step that was not accepted',
+      (facts: LoopFacts) => {
+        const lost = lostAt(facts)
+        const voided = lost.checkpoint.voided.map(item => ({
+          ...item,
+          cause: 'not-accepted' as const,
+        }))
+        return { ...lost, checkpoint: { ...lost.checkpoint, voided } }
+      },
+    ],
+  ])('%s proposes completion as before', (_name, change) => {
+    expect(ok(agentEvaluator.next(change(loopFacts('I8'))))).toEqual({
+      kind: 'try-finish',
+      conclusion: { kind: 'complete' },
+      failure: null,
+    })
   })
 
-  it('for 500 seeded facts with a retry state: no answer is a try-finish', () => {
+  it('for 500 seeded facts with a lost main call: no answer is a try-finish', () => {
     const seen = new Set<string>()
     for (let seed = 1; seed <= 500; seed += 1) {
-      const facts = retrying(generatedFacts(randoms(seed)))
+      const facts = lostAt(generatedFacts(randoms(seed)))
       const answer = agentEvaluator.next(facts)
       const kind = 'failure' in answer ? 'unsupported' : answer.ok.kind
       seen.add(kind)

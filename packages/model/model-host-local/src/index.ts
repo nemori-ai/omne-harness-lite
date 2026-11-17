@@ -9,6 +9,7 @@ export type {
   ModelMaterializationEvidenceReader,
   PiMaterializationOptions,
 } from './materialization-proof.ts'
+export type { ModelReceiveEvidenceReader } from './receive-evidence.ts'
 export {
   createPiSendResources,
   SendResourceDefect,

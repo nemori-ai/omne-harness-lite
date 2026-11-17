@@ -40,6 +40,7 @@ export type PiTransportConfig = Readonly<{
   credential: PiCredentialSlot
   limits: PiTransportLimits
   onConnectRetry?: (event: ConnectRetryDiagnostic) => void
+  onResponseBody?: () => void
 }>
 
 export type CheckedRoute = Readonly<{
@@ -56,6 +57,7 @@ export type CheckedConfig = Readonly<{
   credential: PiCredentialSlot
   limits: PiTransportLimits
   onConnectRetry?: ((event: ConnectRetryDiagnostic) => void) | undefined
+  onResponseBody?: (() => void) | undefined
 }>
 
 const JSON_LIMIT_NAMES = [
@@ -74,6 +76,8 @@ export function checkConfig(config: PiTransportConfig): CheckedConfig {
     throw new RangeError('credential must have a read function')
   if (config.onConnectRetry !== undefined && typeof config.onConnectRetry !== 'function')
     throw new RangeError('onConnectRetry must be absent or a function')
+  if (config.onResponseBody !== undefined && typeof config.onResponseBody !== 'function')
+    throw new RangeError('onResponseBody must be absent or a function')
   const network = networkInternalsOf(config.network)
   return {
     network,
@@ -82,6 +86,7 @@ export function checkConfig(config: PiTransportConfig): CheckedConfig {
     credential: config.credential,
     limits: checkLimits(config.limits),
     onConnectRetry: config.onConnectRetry,
+    onResponseBody: config.onResponseBody,
   }
 }
 

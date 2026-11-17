@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { pathsOf, type ServerLocations } from './locations.ts'
 import { isSecretName, type ServerSettings, type StorageLimits } from './settings.ts'
 import { DEFAULT_COMPACTION_BINDING } from '../assembly/compaction-provider.ts'
+import { SEARCH_RANKING } from '../entry/search-ranking.ts'
 
 export const DEFAULT_READINESS_TIMEOUT_MS = 30_000
 export const DEFAULT_SHUTDOWN_DEADLINE_MS = 10_000
@@ -106,8 +107,11 @@ const MODEL_HOST = {
     observerCheckIntervalMs: 25,
     readIdleMs: 1000,
     resultPageTargetBytes: 4096,
-    retryBackoffMs: 0,
     cleanupRetryMs: 1000,
+  },
+  retry: {
+    adoption: PROFILES.retryPolicy,
+    policy: { maxAttempts: 2, maxElapsedMs: 30_000, delaysMs: [1_000], jitter: 0.2 },
   },
   results: {
     maxConcurrentCalls: LOCAL_CONCURRENT_MODEL_CALLS,
@@ -356,12 +360,6 @@ const AGENT_HOST = {
   denialBackoffMs: 1000,
   toolConcurrency: 1,
   loopGuardPolicy: { ...ADOPTION, name: 'local-single-user/loop-guard' },
-  modelRetry: {
-    maxAttempts: 4,
-    maxElapsedMs: 120_000,
-    delaysMs: [1_000, 5_000, 30_000],
-    jitter: 0.2,
-  },
   instanceIdleMs: 60_000,
 } as const
 
@@ -401,7 +399,7 @@ function combinationVersionOf(rows: ReleaseRows): string {
 
 export type LocalOperatorInput = Readonly<{
   distribution: unknown
-  locations: Pick<ServerLocations, 'vaultFile' | 'storageRoot' | 'hostFilesDir'>
+  locations: Pick<ServerLocations, 'vaultFile' | 'storageRoot' | 'hostFilesDir' | 'assetsRoot'>
   settings: ServerSettings
   shutdownDeadlineMs: number
   platform: NodeJS.Platform
@@ -456,6 +454,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           BkgToolCalls: { resultMaxBytes: 65_536 },
           Ask: { resultMaxBytes: 1_048_576 },
           Web: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, maxSearchResults: 10 },
+          Skills: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
           Calendar: { resultMaxBytes: 65_536 },
           Schedules: { resultMaxBytes: 65_536 },
         },
@@ -492,6 +491,9 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
         },
       },
     ],
+    ...(rows.has('skills')
+      ? ([['skills', { packageRoot: locations.assetsRoot, ranking: SEARCH_RANKING }]] as const)
+      : []),
     ['execution-host', { filesRoot: settings.workspace, stateDirectory: locations.hostFilesDir }],
     [
       'request-context',

@@ -282,7 +282,6 @@ export type W2Options = Readonly<{
   root?: string
   storageLimits?: LineWorldOptions['storageLimits']
   maxRunSteps?: number
-  modelRetry?: NonNullable<LineWorldOptions['hostConfig']>['modelRetry']
   progression?: 'evaluate-completion' | 'continue'
   onHandoff?: (input: unknown, answer: unknown) => void
   wrapAgentDependencies?: (dependencies: Dependencies) => Dependencies
@@ -376,7 +375,6 @@ export async function openW2World(options: W2Options) {
     hostConfig: {
       instanceIdleMs: 2_000_000_000,
       ...(options.maxRunSteps === undefined ? {} : { maxRunSteps: options.maxRunSteps }),
-      ...(options.modelRetry === undefined ? {} : { modelRetry: options.modelRetry }),
     },
     ...(options.receiverRecords === undefined ? {} : { receiverRecords: options.receiverRecords }),
     ...(options.root === undefined ? {} : { root: options.root }),

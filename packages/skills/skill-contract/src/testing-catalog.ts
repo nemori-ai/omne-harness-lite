@@ -209,11 +209,10 @@ export function skillCatalogConformance<P, S>(): ConformanceCase<CatalogFixture<
         assert.deepStrictEqual(wide, [f.granted])
       },
     ),
-    conformanceCase('SC6', 'matches only when every word of the query matches', async f => {
-      const words = `${f.granted.name} ${f.granted.name.toUpperCase()}`
-      assert.deepStrictEqual(ok(await searchOf(f, f.reader, words), 'search'), [f.granted])
-      const stray = `${f.granted.name} conformance-word-that-matches-nothing`
-      assert.deepStrictEqual(ok(await searchOf(f, f.reader, stray), 'search'), [])
+    conformanceCase('SC6', 'keeps an identity when any word of the query matches it', async f => {
+      const stray = `${f.granted.name} zqxjvkwq`
+      assert.deepStrictEqual(ok(await searchOf(f, f.reader, stray), 'search'), [f.granted])
+      assert.deepStrictEqual(ok(await searchOf(f, f.reader, 'zqxjvkwq'), 'search'), [])
     }),
     conformanceCase('SC6', 'matches everything for a query without words', async f => {
       const all = ok(await summariesOf(f, f.reader), 'summaries')

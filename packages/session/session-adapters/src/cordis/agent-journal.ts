@@ -1,6 +1,6 @@
 import { isTable } from '../journal/shared-map.ts'
 import { historyCaller } from './history-caller.ts'
-import { sessionEpochOf } from './history-epoch.ts'
+import { jointCommandOf, joinsSession, type JointState } from '../joint-command.ts'
 import { sessionCommitCommands } from '@omne-harness/session-storage-sql/participants'
 import { createHash, randomUUID } from 'node:crypto'
 import type {
@@ -23,10 +23,8 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   commandDigest,
   deriveDriveOperation,
-  deriveSessionOperation,
   judgeCompletion,
   mutationAccessRequest,
-  type ConsumptionId,
   type InputId,
   type SessionAccessCheck,
   type SessionCommand,
@@ -610,12 +608,40 @@ function projectionContext(
   }
 }
 
+function diagnosticOf(error: unknown): string {
+  if (error instanceof HistoryFailure && error.failure.kind === 'unavailable')
+    return error.failure.diagnostic
+  return error instanceof Error ? error.message : 'original result'
+}
+
+function jointState<P>(
+  book: Readonly<{ scratch: Scratch | null }>,
+  cell: JournalCell<P>,
+  input: ExecutionMutation<P>,
+  method: JournalWrite,
+): JointState {
+  const root = cell.state()
+  const execution = [...root.agent.executions.values()].find(item => item.id === input.execution)
+  return {
+    accepted: execution?.inputs,
+    snapshot: book.scratch?.snapshot,
+    resultOf(caller) {
+      if (execution === undefined) return fail({ kind: 'denied', action: method })
+      try {
+        return succeed(normalizedResult(root, execution, caller.consumption, caller.result).result)
+      } catch (error) {
+        return fail(unavailable(diagnosticOf(error)))
+      }
+    },
+  }
+}
+
 function kindsOf(scratch: Scratch): ParticipationKind[] {
   const kinds: ParticipationKind[] = []
   for (const command of scratch.commands)
     switch (command.kind) {
       case 'recordMessage':
-        kinds.push('message')
+        kinds.push('deliveries' in command.input.value ? 'delivered' : 'message')
         break
       case 'commitDerived':
         kinds.push('context-transition')
@@ -814,92 +840,14 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     method: JournalWrite,
     receipt: CommandReceipt,
   ): Outcome<SessionCommand, Failure> | undefined {
-    const caller = historyCaller(input, method)
-    if (caller.kind === 'none') return undefined
-    const operation = deriveSessionOperation({
-      kind: 'participation',
-      execution: input.execution,
-      operation: input.operation,
-      joint: caller.kind,
-    })
-    const common = { tenant: book.tenant, session: book.session, operation }
-    const participation = {
-      execution: input.execution,
-      operation: input.operation,
-      joint: caller.kind,
-      written: receipt.revision,
-      handover: receipt.evidence,
-    }
-    switch (caller.kind) {
-      case 'message':
-        return succeed({
-          kind: 'recordMessage',
-          input: {
-            ...common,
-            participation,
-            value: {
-              message: caller.message,
-              source: caller.source,
-              admission: caller.admission,
-              consumption: null,
-            },
-          },
-        })
-      case 'context-transition':
-        if (caller.value.message.role !== 'compaction')
-          return fail({ kind: 'invalid', field: 'caller.value.message', reason: 'not compaction' })
-        return succeed({
-          kind: 'commitDerived',
-          input: {
-            ...common,
-            participation,
-            value: {
-              kind: 'compaction',
-              message: caller.value.message,
-              epoch: sessionEpochOf(caller.value.epoch),
-            },
-            judgment: caller.admission,
-          },
-        })
-      case 'custody':
-      case 'processed': {
-        const root = cell.state()
-        const execution = [...root.agent.executions.values()].find(
-          item => item.id === input.execution,
-        )
-        if (execution === undefined) return fail({ kind: 'denied', action: method })
-        let result
-        try {
-          result = normalizedResult(root, execution, caller.consumption, caller.result).result
-        } catch (error) {
-          return fail(
-            unavailable(
-              error instanceof HistoryFailure && error.failure.kind === 'unavailable'
-                ? error.failure.diagnostic
-                : error instanceof Error
-                  ? error.message
-                  : 'original result',
-            ),
-          )
-        }
-        const consumption = String(caller.consumption) as ConsumptionId
-        return succeed(
-          caller.kind === 'custody'
-            ? {
-                kind: 'preserveResult',
-                input: { ...common, participation, consumption, result, custody: caller.retained },
-              }
-            : {
-                kind: 'completeConsumption',
-                input: {
-                  ...common,
-                  participation,
-                  completion: { consumption, result, completion: caller.completion },
-                },
-              },
-        )
-      }
-    }
+    return jointCommandOf(
+      book,
+      input,
+      method,
+      receipt,
+      historyCaller(input, method),
+      jointState(book, cell, input, method),
+    )
   }
 
   async function qualify(
@@ -1040,7 +988,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     const core = createJournal<P>(cell, {
       participants: PARTICIPANTS,
       grant: () => true,
-      participates: (input, method) => historyCaller(input, method).kind !== 'none',
+      participates: (input, method) =>
+        joinsSession(
+          input,
+          method,
+          historyCaller(input, method),
+          jointState(book, cell, input, method),
+        ),
       qualifyParticipation: (input, method, receipt) => qualify(book, cell, input, method, receipt),
       terminalParticipant: input => terminalParticipant(book, cell, input.execution, input.control),
       ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),

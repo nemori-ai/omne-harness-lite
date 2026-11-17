@@ -23,6 +23,7 @@ describe('Windows', () => {
       storageRoot: 'C:\\Users\\a\\AppData\\Local\\omne\\state\\storage',
       hostFilesDir: 'C:\\Users\\a\\AppData\\Local\\omne\\state\\host-files',
       defaultWorkspace: 'C:\\Users\\a\\AppData\\Local\\omne\\state\\workspace',
+      assetsRoot: 'C:\\Users\\a\\AppData\\Local\\omne\\state\\assets',
     })
   })
 

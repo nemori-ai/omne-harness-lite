@@ -57,7 +57,6 @@ function candidate(
       name: skillName('weekly-report'),
       description: `From ${asset}.`,
       tools: [],
-      settings: [],
     },
   }
 }
@@ -268,7 +267,6 @@ describe('publishedCandidate', () => {
         name: 'weekly-report',
         description: 'Writes the weekly report.',
         tools: [{ category: 'tool', name: 'Shell' }],
-        settings: [],
       },
     })
   })
@@ -294,13 +292,6 @@ describe('publishedCandidate: bodies of another shape', () => {
     entries: [
       { key: 'category', value: text(category) },
       { key: 'name', value: text(name) },
-    ],
-  })
-  const setting = (name: string, category: string): JsonValue => ({
-    kind: 'object',
-    entries: [
-      { key: 'name', value: text(name) },
-      { key: 'category', value: text(category) },
     ],
   })
   const fields: Record<string, JsonValue> = {
@@ -333,19 +324,7 @@ describe('publishedCandidate: bodies of another shape', () => {
     expect(candidateOf(bodyWith({ description: undefined }))?.declared).toEqual({
       name: 'weekly-report',
       tools: [{ category: 'tool', name: 'Shell' }],
-      settings: [],
     })
-  })
-
-  it('takes the settings of a published Skill, a preference and a binding', () => {
-    const settings: JsonValue = {
-      kind: 'array',
-      items: [setting('tone', 'preference'), setting('calendar', 'binding')],
-    }
-    expect(candidateOf(bodyWith({ settings }))?.declared.settings).toEqual([
-      { name: 'tone', category: 'preference' },
-      { name: 'calendar', category: 'binding' },
-    ])
   })
 
   it.each([
@@ -378,24 +357,6 @@ describe('publishedCandidate: bodies of another shape', () => {
       },
     ],
     ['an empty description', { description: text('') }],
-    ['settings that are no list', { settings: text('tone') }],
-    [
-      'a setting of a category that is neither a preference nor a binding',
-      { settings: { kind: 'array', items: [setting('owner', 'governance')] } as JsonValue },
-    ],
-    [
-      'a setting with an empty name',
-      { settings: { kind: 'array', items: [setting('', 'preference')] } as JsonValue },
-    ],
-    [
-      'a setting without a name',
-      {
-        settings: {
-          kind: 'array',
-          items: [{ kind: 'object', entries: [{ key: 'category', value: text('preference') }] }],
-        } as JsonValue,
-      },
-    ],
     ['no package', { package: undefined }],
     [
       'a package digest of another form',
@@ -441,7 +402,7 @@ describe('the translation: the branches of the winner and of no winner', () => {
       immutable: false,
       replaceLocked: false,
       locator: { kind: 'directory', root: '/skills/weekly-report' },
-      declared: { name: skillName('weekly-report'), tools: [], settings: [] },
+      declared: { name: skillName('weekly-report'), tools: [] },
     }
     const { resolution } = decisions([read('official', official)])
     expect(await resolution.resolve(reader, scope, report)).toStrictEqual({
@@ -458,7 +419,7 @@ describe('the translation: the branches of the winner and of no winner', () => {
   it('a stand-in of a Skill without a description has no description field', async () => {
     const off: SkillCandidate = {
       ...candidate('tenant/weekly-report', { disabled: true }),
-      declared: { name: skillName('weekly-report'), tools: [], settings: [] },
+      declared: { name: skillName('weekly-report'), tools: [] },
     }
     const { resolution } = decisions([read('tenant', off)])
     expect(await resolution.resolve(reader, scope, report)).toStrictEqual({

@@ -282,10 +282,11 @@ export function applyBackgroundSettled(
   return null
 }
 
-/** Background and quiet inputs leave their lists once they leave the pending inputs. */
+/** An input keeps what it was accepted as while it is pending or its bracket is open. */
 export function pruneInputLists(draft: Draft): void {
+  const alive = new Set([...draft.pending, ...(draft.unanswered ?? [])])
   if (draft.backgroundInputs !== undefined)
-    draft.backgroundInputs = draft.backgroundInputs.filter(input => draft.pending.includes(input))
+    draft.backgroundInputs = draft.backgroundInputs.filter(input => alive.has(input))
   if (draft.quietInputs !== undefined)
-    draft.quietInputs = draft.quietInputs.filter(input => draft.pending.includes(input))
+    draft.quietInputs = draft.quietInputs.filter(input => alive.has(input))
 }

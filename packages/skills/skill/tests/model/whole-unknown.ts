@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util'
+import { tokenize } from '@omne-harness/text-search'
 import {
   accessRequests,
   failureKind,
@@ -123,11 +124,9 @@ async function exploreAccess(ledger: Ledger): Promise<void> {
 }
 
 function searchKeeps(text: string, name: Name): boolean {
-  const hay = `${name}\n${DESCRIPTION_WORD[name]} things.`.toLowerCase()
-  return text
-    .toLowerCase()
-    .split(/\s/u)
-    .every(word => hay.includes(word))
+  if (text.trim() === '') return true
+  const words = new Set(tokenize(`${name} ${DESCRIPTION_WORD[name]} things.`))
+  return tokenize(text).some(word => words.has(word))
 }
 
 type Expected = 'unknown' | readonly string[]
@@ -244,42 +243,9 @@ async function exploreCatalog(ledger: Ledger): Promise<void> {
           }
 }
 
-async function exploreInspection(ledger: Ledger): Promise<void> {
-  const points: (FaultPoint | undefined)[] = [
-    undefined,
-    ...SOURCE_FAULTS.map(fault => ({ site: { port: 'snapshot' }, fault }) as const),
-    ...SOURCE_FAULTS.map(fault => ({ site: { port: 'open', path: 'SKILL.md' }, fault }) as const),
-    ...SOURCE_FAULTS.map(
-      fault => ({ site: { port: 'open', path: '.omne/skill.json' }, fault }) as const,
-    ),
-  ]
-  for (const held of [0, 1] as const)
-    for (const point of points) {
-      const world = accessWorld({ kind: 'adopted', current: held }, held)
-      const schedule: Schedule = {
-        addressing: 'digest',
-        ...(point === undefined ? {} : { faults: [point] }),
-      }
-      const request: Request = { op: 'inspect', name: 'alpha' }
-      const run = runOf(world, schedule)
-      const observation = await perform(run, 'alice', request)
-      ledger.count()
-      const broken = wholeUnknownBreak(observation, run.trace())
-      if (broken !== undefined) ledger.break({ world, schedule, request, detail: broken })
-      if (point === undefined && okOf(observation) === undefined)
-        ledger.break({
-          world,
-          schedule,
-          request,
-          detail: `a plain package answered ${JSON.stringify(observation)}`,
-        })
-    }
-}
-
 export async function exploreWholeUnknown(): Promise<Report> {
   const ledger = new Ledger('S2 whole unknown')
   await exploreAccess(ledger)
   await exploreCatalog(ledger)
-  await exploreInspection(ledger)
   return ledger.report()
 }

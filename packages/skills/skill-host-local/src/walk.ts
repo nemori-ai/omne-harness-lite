@@ -70,7 +70,10 @@ export function isWithin(root: string, target: string): boolean {
   return path.length >= base.length && base.every((segment, index) => path[index] === segment)
 }
 
-async function resolveRoot(fs: DirectoryFs, root: string): Promise<Outcome<string, SourceFailure>> {
+export async function resolveRoot(
+  fs: DirectoryFs,
+  root: string,
+): Promise<Outcome<string, SourceFailure>> {
   const resolved = await step(() => fs.realpath(root), ROOT)
   if (!('ok' in resolved)) return resolved
   const real = decode(resolved.ok)

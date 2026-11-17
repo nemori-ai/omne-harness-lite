@@ -171,6 +171,8 @@ describe('session diagnostics over real processes: the two smoke failures', () =
       }
 
       gateway.release(answer504)
+      await until(() => gateway.held() >= 1, 'the second dispatch of the held call', 60_000)
+      gateway.release(answer504)
       const { run, body } = await untilRunEnded(alice, sessions.waiting, RUN_END_TIMEOUT_MS)
       expect(structuredCauseOf(run)).toEqual({
         kind: 'no-reply',
@@ -216,12 +218,12 @@ describe('session diagnostics over real processes: the two smoke failures', () =
       expect(run['calls'], JSON.stringify(run)).toEqual({ registered: '1', projected: '1' })
       expect(typeof call?.['reference'], JSON.stringify(run)).toBe('string')
       expect(call?.['call']).toMatchObject({ kind: 'found', phase: 'settled' })
-      expect(call?.['dispatches']).toEqual([
-        expect.objectContaining({
-          outcome: { kind: 'failed', cause: 'upstream-unavailable', upstreamStatus: '504' },
-          account: { kind: 'unknown', reason: 'not-recorded' },
-        }),
-      ])
+      const failed504 = expect.objectContaining({
+        firstContent: 'none-proven',
+        outcome: { kind: 'failed', cause: 'upstream-unavailable', upstreamStatus: '504' },
+        account: { kind: 'unknown', reason: 'not-recorded' },
+      })
+      expect(call?.['dispatches']).toEqual([failed504, failed504])
       expect(call?.['coverage']).toBe('complete-through-snapshot')
       const text = await bob(['read-session-diagnostics', '--session', sessions.upstream])
       expect(text.status, text.stderr).toBe(0)

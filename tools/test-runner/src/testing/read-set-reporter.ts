@@ -21,12 +21,14 @@ function rawOf(module: TestModule): RawFile {
   const paths = Object.keys(imports)
   const state = module.state()
   const recorded = recordedOf(module)
+  const typecheck = (module.meta() as { typecheck?: unknown }).typecheck === true
   return {
     file: module.moduleId,
     verdict: state === 'skipped' ? 'skipped' : module.ok() ? 'passed' : 'failed',
     modules: paths.filter(path => imports[path]?.external !== true),
     externals: paths.filter(path => imports[path]?.external === true),
     ...(recorded === undefined ? {} : { recorded }),
+    ...(typecheck ? { typecheck } : {}),
   }
 }
 

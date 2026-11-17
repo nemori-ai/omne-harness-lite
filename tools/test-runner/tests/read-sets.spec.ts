@@ -19,6 +19,7 @@ import {
   READ_SETS_ENV,
   READ_SETS_HOME_ENV,
   RUNTIME_KEY,
+  TYPECHECK_ONLY,
   compareRecords,
   describeReadSets,
   digestKey,
@@ -135,10 +136,11 @@ describe('一份用例文件的读集', () => {
     expect(reads).toEqual(['content:a.spec.ts', RUNTIME_KEY])
   })
 
-  it('没有记录器交回的记录时标不全；记录器给的原因原样带上', () => {
+  it('没有记录器交回的记录时标不全；只做类型检查的文件写明是它；记录器给的原因原样带上', () => {
     const root = tree()
     const { recorded: _, ...bare } = raw(root, 'a.spec.ts')
     expect(readsOf(root, bare, []).incomplete).toEqual([NO_RECORDER])
+    expect(readsOf(root, { ...bare, typecheck: true }, []).incomplete).toEqual([TYPECHECK_ONLY])
     expect(
       readsOf(
         root,

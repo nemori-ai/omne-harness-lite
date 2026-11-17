@@ -117,6 +117,34 @@ export function toolCallsByRequest(
   }
 }
 
+/**
+ * A scripted model that, like a real one, has nothing to add when a request ends with its own
+ * finished reply: it answers with an empty reply, and the request is counted in `asked`.
+ * Every other request goes to `script`.
+ */
+export function likeARealModel(script: GatewayScript, asked: { ownReply: number }): GatewayScript {
+  return request => {
+    const body = JSON.parse(request.body) as {
+      model?: string
+      messages?: readonly Readonly<{ role?: string; tool_calls?: readonly unknown[] }>[]
+    }
+    const last = body.messages?.at(-1)
+    if (last?.role !== 'assistant' || (last.tool_calls?.length ?? 0) > 0) return script(request)
+    asked.ownReply += 1
+    return {
+      status: 200,
+      contentType: 'text/event-stream',
+      body: sse([
+        {
+          model: body.model ?? 'm',
+          provider: 'OpenAI',
+          choices: [{ delta: {}, finish_reason: 'stop' }],
+        },
+      ]),
+    }
+  }
+}
+
 function withHistoryKinds(layer: unknown, extra: readonly string[] = []): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
@@ -521,6 +549,8 @@ export type ReleaseTreeOptions = Readonly<{
   compactionTriggerPercent?: string
   /** History kinds read through session/v1 besides the five every tree reads. */
   extraHistoryKinds?: readonly string[]
+  /** Runs while no service is up, before the service of each run starts on the same state. */
+  beforeRun?: (run: number, storageRoot: string) => Promise<void>
   /** The operator's values for the settings release tools declare, by tool name and item id. */
   toolSettings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
 }>
@@ -544,6 +574,7 @@ export async function onReleaseTreeRuns(
   gateway.trustInProcess()
   const exitCodes: (number | undefined)[] = []
   const serve = async (run: number, body: (tree: ReleaseTree) => Promise<void>) => {
+    await options.beforeRun?.(run, dir.storageRoot)
     for (let attempt = 1; ; attempt += 1) {
       const state = { dir, port, home, modelRoute: gateway.url }
       const outcome = await serveOnce(options, state, run === 0, body)
@@ -565,6 +596,12 @@ export async function onReleaseTreeRuns(
 // An idle machine starts the release tree in four to five seconds. The limit stays far above that, so a
 // busy machine does not turn a slow start into a failed one; the test's own timeout is the bound.
 const READINESS_TIMEOUT_MS = 100_000
+const STDERR_TAIL_LINES = 20
+
+const stderrTail = (lines: readonly string[]) =>
+  lines.length === 0
+    ? ''
+    : `\nserver stderr, last ${Math.min(lines.length, STDERR_TAIL_LINES)} of ${lines.length} lines:\n${lines.slice(-STDERR_TAIL_LINES).join('\n')}`
 const SHUTDOWN_DEADLINE_MS = 100_000
 
 // Any socket may take the probed port before the server binds it. Such a start accepted nothing, so it
@@ -668,7 +705,9 @@ async function serveOnce(
       return PORT_TAKEN
     }
     if (started?.['accepting'] !== true)
-      throw new Error(`the server did not start accepting: ${JSON.stringify(started ?? null)}`)
+      throw new Error(
+        `the server did not start accepting: ${JSON.stringify(started ?? null)}${stderrTail(serverErrors)}`,
+      )
     if (
       env === undefined ||
       hitl === undefined ||

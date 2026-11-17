@@ -23,5 +23,5 @@ Session 可以拒绝 Agent 的条件终结。Agent 重读自己的事实后，�
 从仓库根运行以下命令，输出目录须不存在。
 
 ```sh
-scripts/with-test-slot.sh python3 packages/model/tokenizer-tiktoken/verification/run_tlc.py packages/agent/agent/verification/finish-refusal tmp/formal-agent-finish-refusal --jar "$TLA2TOOLS_JAR"
+node scripts/with-test-slot.mjs --want 1 --min 1 python3 packages/model/tokenizer-tiktoken/verification/run_tlc.py packages/agent/agent/verification/finish-refusal tmp/formal-agent-finish-refusal --jar "$TLA2TOOLS_JAR"
 ```

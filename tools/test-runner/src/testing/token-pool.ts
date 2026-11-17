@@ -186,6 +186,10 @@ export interface Job<T> extends TokenRequest {
 export async function runJobs<T>(jobs: readonly Job<T>[], source: TokenSource): Promise<T[]> {
   const running: Promise<T>[] = []
   for (const job of jobs) running.push(started(await source.acquire(job), job))
+  return allOf(running)
+}
+
+async function allOf<T>(running: readonly Promise<T>[]): Promise<T[]> {
   const settled = await Promise.allSettled(running)
   const failure = settled.find(result => result.status === 'rejected')
   if (failure !== undefined) throw failure.reason
@@ -194,6 +198,84 @@ export async function runJobs<T>(jobs: readonly Job<T>[], source: TokenSource): 
 
 export async function runJob<T>(job: Job<T>, source: TokenSource): Promise<T> {
   return started(await source.acquire(job), job)
+}
+
+export type GateState = 'run' | 'skip' | 'wait'
+
+export interface Gate {
+  state(member: string): GateState
+  changed(): Promise<void>
+}
+
+export interface GatedJob<T> extends Job<T> {
+  readonly member: string
+}
+
+export async function runGatedJobs<T, J extends GatedJob<T>>(
+  jobs: readonly J[],
+  source: TokenSource,
+  gate: Gate,
+  skipped: (job: J) => T,
+): Promise<T[]> {
+  const pending = [...jobs]
+  const running: Promise<T>[] = []
+  const take = (job: J) => pending.splice(pending.indexOf(job), 1)
+  while (pending.length > 0) {
+    const changed = gate.changed()
+    for (const job of pending.filter(entry => gate.state(entry.member) === 'skip')) {
+      take(job)
+      running.push(Promise.resolve(skipped(job)))
+    }
+    const next = pending.find(entry => gate.state(entry.member) === 'run')
+    if (next === undefined) {
+      if (pending.length > 0) await changed
+      continue
+    }
+    take(next)
+    const lease = await source.acquire(next)
+    if (gate.state(next.member) === 'skip') {
+      await lease.release()
+      running.push(Promise.resolve(skipped(next)))
+      continue
+    }
+    running.push(started(lease, next))
+  }
+  return allOf(running)
+}
+
+export interface TierGate {
+  readonly gate: Gate
+  done(member: string, exitCode: number): void
+  settle(exitCode: number): void
+}
+
+export function tierGate(): TierGate {
+  const passed = new Set<string>()
+  let settled: number | undefined
+  let wake = Promise.withResolvers<void>()
+  const notify = () => {
+    const woken = wake
+    wake = Promise.withResolvers<void>()
+    woken.resolve()
+  }
+  return {
+    gate: {
+      state: member => {
+        if (settled !== undefined) return settled === 0 ? 'run' : 'skip'
+        return passed.has(member) ? 'run' : 'wait'
+      },
+      changed: () => wake.promise,
+    },
+    done: (member, exitCode) => {
+      if (exitCode !== 0 || passed.has(member)) return
+      passed.add(member)
+      notify()
+    },
+    settle: exitCode => {
+      settled ??= exitCode
+      notify()
+    },
+  }
 }
 
 async function started<T>(lease: Lease, job: Job<T>): Promise<T> {

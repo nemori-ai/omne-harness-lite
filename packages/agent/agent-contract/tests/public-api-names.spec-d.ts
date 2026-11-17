@@ -74,7 +74,6 @@ import type {
   CompactionState,
   SavedPreparation,
   VoidedIntent,
-  ModelRetryState,
   ConsumerRef,
   ConsumptionId,
   ContextContent,
@@ -344,7 +343,6 @@ type Landed = {
   StructureFailure: StructureFailure
   Subject: Subject
   VoidedIntent: VoidedIntent
-  ModelRetryState: ModelRetryState
   Waiting: Waiting
   AcceptedInput: AcceptedInput
   AgentAccessCheck: AgentAccessCheck<string>
@@ -791,14 +789,8 @@ describe('the discriminants of the request chapter', () => {
     expectTypeOf<Of<'tool'>['action']>().toEqualTypeOf<ActionId>()
   })
 
-  it('a checkpoint may hold the retry state of the main model call of its step', () => {
-    expectTypeOf<AgentCheckpoint['modelRetry']>().toEqualTypeOf<
-      ModelRetryState | null | undefined
-    >()
-    expectTypeOf<keyof ModelRetryState>().toEqualTypeOf<'failures' | 'since' | 'notBefore'>()
-    expectTypeOf<ModelRetryState['since']>().toEqualTypeOf<AgentInstant>()
-    expectTypeOf<ModelRetryState['notBefore']>().toEqualTypeOf<AgentInstant>()
-    expectTypeOf<ModelRetryState['failures']>().toEqualTypeOf<number>()
+  it('a checkpoint holds no retry state of the main model call', () => {
+    expectTypeOf<AgentCheckpoint>().not.toHaveProperty('modelRetry')
   })
 
   it('prepare excludes the compaction purpose', () => {
