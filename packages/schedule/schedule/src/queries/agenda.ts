@@ -189,6 +189,36 @@ async function scheduleHistory(
     cursor = page.nextCursor
   }
 }
+const AGENDA_PAGE = 100
+
+/** True when the calendar could not answer for a day after the agenda's range ends. */
+function beyondRange(error: unknown, to: ScheduleAgendaRow['scheduledAt']): boolean {
+  if (!(error instanceof QueryFailure) || error.error.code !== 'coverage_insufficient') return false
+  const date = error.error.details['date']
+  return typeof date === 'string' && date > to.slice(0, 10)
+}
+
+/** Predicts at most `count` occurrences, fewer when the calendar ends after the range; one occurrence
+ * already past the coverage ends the range, since the range needs none of the later ones. */
+async function predictWithin(
+  observation: QueryObservation,
+  record: ScheduleRecord,
+  after: ScheduleAgendaRow['scheduledAt'],
+  count: number,
+  to: ScheduleAgendaRow['scheduledAt'],
+) {
+  for (let asked = count; ; asked = Math.ceil(asked / 2))
+    try {
+      return {
+        prediction: await observation.predict(predictionInput(record, after, asked)),
+        count: asked,
+      }
+    } catch (error) {
+      if (!beyondRange(error, to)) throw error
+      if (asked === 1) return 'past-range' as const
+    }
+}
+
 async function schedulePrediction(
   observation: QueryObservation,
   record: ScheduleRecord,
@@ -205,8 +235,12 @@ async function schedulePrediction(
       .toString({ smallestUnit: 'millisecond' }),
   )
   let after = beforeStart > asOf ? beforeStart : asOf
+  let count = AGENDA_PAGE
   for (;;) {
-    const prediction = await observation.predict(predictionInput(record, after, 100))
+    const predicted = await predictWithin(observation, record, after, count, range.to)
+    if (predicted === 'past-range') return
+    const { prediction } = predicted
+    count = predicted.count
     const previousBasis = state.bases.get(record.view.scheduleId)
     if (previousBasis) requireEqual(observation.context, previousBasis, prediction.basis)
     state.bases.set(record.view.scheduleId, prediction.basis)
@@ -261,7 +295,7 @@ async function schedulePrediction(
     const last = prediction.candidates.at(-1)
     if (
       last === undefined ||
-      prediction.candidates.length < 100 ||
+      prediction.candidates.length < count ||
       last.scheduledAt >= range.to ||
       prediction.observedThrough >= range.to
     )

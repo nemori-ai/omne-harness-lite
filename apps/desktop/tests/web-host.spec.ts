@@ -202,10 +202,14 @@ describe('宿主的通道', () => {
     const states = firstEvents(stream, 3, abort)
     await settle()
     await postText(base, '/bridge/login', { loginIdentifier: 'alice', credential: 'pw' })
+    const protocols = [
+      { name: 'identity', major: 1 },
+      { name: 'session', major: 1 },
+    ]
     expect(await states).toEqual([
-      { state: 'signed-out' },
-      { state: 'signing-in' },
-      { state: 'signed-in' },
+      { state: 'signed-out', protocols },
+      { state: 'signing-in', protocols },
+      { state: 'signed-in', protocols },
     ])
   })
 

@@ -29,6 +29,8 @@ import {
 } from './session-permission-backend-service.ts'
 import { createToolGovernanceDefinitionSource } from './tool-definition-source.ts'
 import { prepareInstalledTenantGovernance } from './tenant-installation.ts'
+import { PREFERENCE_SETTINGS } from './preference-settings.ts'
+import { preferenceSettingsKey, providePreferenceSettings } from './preference-settings-service.ts'
 import { TenantGovernanceHost } from './tenant-host.ts'
 import { tenantDomainRegistrationKey } from './tenant-domain-registration-service.ts'
 import { openOrganizationSettingsSources } from './organization-settings.ts'
@@ -89,6 +91,7 @@ export const governanceRow = defineRow({
       standingDestinationResolverKey,
       currentToolPermissionKey,
       tenantSettingsKey,
+      preferenceSettingsKey,
     ],
     injects: [
       storageKey,
@@ -115,6 +118,9 @@ export const governanceRow = defineRow({
       for (const definition of entry.governance.declaration.settings)
         if (registry.registerContribution(definition).kind !== 'registered')
           throw new Error('governance Settings definition registration failed')
+    for (const definition of PREFERENCE_SETTINGS)
+      if (registry.registerContribution(definition).kind !== 'registered')
+        throw new Error('governance preference Settings definition registration failed')
     const identity = {
       verifier: ctx.principalVerifier,
       standing: ctx.tenantStanding,
@@ -201,6 +207,7 @@ export const governanceRow = defineRow({
       },
       'governance.tenant-settings.active',
     )
+    providePreferenceSettings(ctx, { host, deploymentRef: config.deploymentId })
     provideTenantSettings(ctx, {
       host,
       scope: config,

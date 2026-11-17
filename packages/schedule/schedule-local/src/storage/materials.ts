@@ -6,7 +6,6 @@ import type {
   ReadHandlerDescriptor,
 } from '@omne-harness/sql-contract'
 import {
-  DOMAIN,
   GUARD_FACT,
   HANDLER,
   MIGRATION,
@@ -67,7 +66,6 @@ export function scheduleManagementSqlMaterials(): ScheduleManagementSqlMaterials
   }
 }
 export {
-  DOMAIN as scheduleManagementTransactionDomain,
   PARTICIPANT as scheduleManagementPersistenceParticipant,
   PROTOCOL as scheduleManagementPersistenceProtocol,
   HANDLER as scheduleManagementReadHandler,

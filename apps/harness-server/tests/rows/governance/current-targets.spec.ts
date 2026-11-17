@@ -6,6 +6,7 @@ import {
 } from '../../../src/rows/governance/current-targets.ts'
 import { toolAssetPublication } from '../../../src/rows/governance/tool-assets.ts'
 import { loadProductionRelease } from '../../../src/entry/tool-release.ts'
+import { scheduleAgentAuthoringSettings } from '@omne-harness/schedule-local'
 
 type Input = Parameters<typeof currentGovernanceTargets>[0]
 let baseline: Input
@@ -230,3 +231,33 @@ it.each(['capture', 'duplicate', 'missing-publication'] as const)(
     expect(currentGovernanceCatalog(input)).toBeUndefined()
   },
 )
+
+it('leaves a target without governance items out of the governance catalog', () => {
+  const input = managementInput()
+  const definition = scheduleAgentAuthoringSettings
+  const target = {
+    policyId: 'independent',
+    scopeRef: 'tenant-a',
+    targetRef: 'schedule.agent-authoring',
+  }
+  const definitionRef = {
+    providerId: definition.providerId,
+    definitionId: definition.definitionId,
+    version: definition.version,
+    digest: canonicalDigest(definition).slice(7),
+  }
+  input.standalone.views.push({
+    ...structuredClone(input.assets.views[0]!),
+    target,
+    definition,
+    definitionRef,
+  })
+  input.standalonePublications.views.push({
+    target,
+    definitionRef,
+    ownerRevision: 1,
+    publicationRef: null,
+  })
+  expect(currentGovernanceCatalog(input)).toEqual(currentGovernanceCatalog(managementInput()))
+  expect(currentGovernanceCatalog(input)).toMatchObject({ unavailableOwners: [] })
+})

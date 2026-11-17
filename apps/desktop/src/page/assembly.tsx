@@ -1,10 +1,16 @@
 import type { Plugin } from '@deepseek-ai/cordis'
 import '@omne-harness/assets-ui/assets-ui.css'
-import { createAssetsUiModule } from '@omne-harness/assets-ui/cordis'
+import {
+  assetGovernanceKey,
+  assetsCategoryPage,
+  createAssetsUiModule,
+} from '@omne-harness/assets-ui/cordis'
 import '@omne-harness/human-intervention-ui/human-intervention-ui.css'
 import { createHumanInterventionUiModule } from '@omne-harness/human-intervention-ui/cordis'
 import { identityUiModule } from '@omne-harness/identity-ui/cordis'
 import '@omne-harness/identity-ui/identity-ui.css'
+import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
+import '@omne-harness/mcp-ui/mcp-ui.css'
 import type { ProtocolContract } from '@omne-harness/public-contract'
 import { sessionDock, sessionUiModule } from '@omne-harness/session-ui/cordis'
 import '@omne-harness/session-ui/session-ui.css'
@@ -17,9 +23,9 @@ export type Assembly = Readonly<{
 
 const ASSET_CATEGORY_LABELS = {
   tool: '工具',
-  model: '模型',
+  'model-provider': '模型供应商',
   skill: '技能',
-  agent: '智能体',
+  AgentDefinition: '智能体',
   mcp: 'MCP',
 }
 
@@ -30,5 +36,6 @@ export const assembly: Assembly = {
     sessionUiModule,
     createHumanInterventionUiModule({ sessionDock }),
     createAssetsUiModule({ categoryLabels: ASSET_CATEGORY_LABELS }),
+    createMcpUiModule({ page: assetsCategoryPage, governance: assetGovernanceKey }),
   ],
 }

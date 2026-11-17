@@ -421,6 +421,6 @@
   工作区借「同名替换再禁用」藏不掉租户的资产
 - **别混**：与[当下可用性](reach-and-availability.md#ul-current-availability--当下可用性--current-availability)不是一回事——
   禁用是治理输入；不可用是会话当前求值结果，已知能力因禁用可转为不可用
-- **注意**：**只是这一阵不让用、将来还要开回来 → 用这个**。成员据以知道去申请的是**设置页**，不是 agent 的回答
+- **注意**：**只是这一阵不让用、将来还要开回来 → 用这个**。成员据以知道去申请的是这份资产的设置（在[资产页](interaction-and-dispatch.md#ul-asset-page--资产页--asset-page)里），不是 agent 的回答
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

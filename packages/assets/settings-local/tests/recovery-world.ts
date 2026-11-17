@@ -1,5 +1,6 @@
 import {
-  settingsOrganizationCurrentMaterials,
+  settingsStandaloneCurrentMaterials,
+  type StandaloneCurrentRule,
   type OrganizationCurrentConfiguration,
 } from '../src/preparation.ts'
 import { settingsSqlMaterials } from '../src/materials.ts'
@@ -59,6 +60,7 @@ export async function openRecoveryWorld(
   withTargets = false,
   organizationCurrent?: OrganizationCurrentConfiguration,
   extra: Partial<Pick<SqlMaterialCatalog, 'participants' | 'migrations' | 'readHandlers'>> = {},
+  rule: StandaloneCurrentRule = 'organization',
 ) {
   const base = settingsSqlMaterials()
   const targets = settingsStandaloneMaterials()
@@ -76,7 +78,7 @@ export async function openRecoveryWorld(
     participants: [
       ...own.participants,
       ...(extra.participants ?? []),
-      ...(organizationCurrent ? settingsOrganizationCurrentMaterials(organizationCurrent) : []),
+      ...(organizationCurrent ? settingsStandaloneCurrentMaterials(rule, organizationCurrent) : []),
       {
         participant: 'fixture.commit-current',
         protocol: 'fixture-commit/1',
@@ -157,7 +159,7 @@ export async function openRecoveryWorld(
   const readyParticipants = [
     ...SETTINGS_READY_PARTICIPANTS,
     ...(organizationCurrent
-      ? ['settings.organization-ready-current', 'settings.targets']
+      ? [`settings.${rule}-ready-current`, 'settings.targets']
       : ['fixture.preparation-current']),
     'fixture.recovery-rollback',
   ]
@@ -174,7 +176,7 @@ export async function openRecoveryWorld(
   const commitParticipants = [
     ...SETTINGS_COMMIT_PARTICIPANTS,
     ...(organizationCurrent
-      ? ['settings.organization-commit-current', 'settings.targets']
+      ? [`settings.${rule}-commit-current`, 'settings.targets']
       : ['fixture.commit-current']),
     'fixture.recovery-rollback',
   ]

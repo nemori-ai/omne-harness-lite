@@ -7,6 +7,8 @@
     "authorization",
     "session-storage",
     "governance",
+    "calendar",
+    "schedule",
     "session-provider",
     "session-ad02",
     "session-ad03",
@@ -64,6 +66,8 @@
     "assets-access",
     "human-intervention-access",
     "session-diagnostics-access",
+    "calendar-access",
+    "schedule-access",
     "tool-access"
   ],
   "trusted": [
@@ -101,6 +105,21 @@
         "toolInvocationQualification",
         "currentToolPermission",
         "sessionModesInstallation",
+        "tenantDomainRegistration"
+      ]
+    },
+    {
+      "row": "calendar",
+      "names": [
+        "storage",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "schedule",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
         "tenantDomainRegistration"
       ]
     },
@@ -367,6 +386,20 @@
     },
     {
       "row": "session-diagnostics-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "calendar-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "schedule-access",
       "names": [
         "principalIssuer",
         "tenantStanding"

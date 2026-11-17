@@ -27,6 +27,8 @@ import { z } from 'zod'
 export type ScheduleManagementSqlOptions = Readonly<{
   storage: SqlStorage
   scope: StorageScope
+  /** The assembly's transaction domain of this scope; one backend serves one scope. */
+  transactionDomain: string
   combinationVersion: string
   manifestDigest: string
   guards: ScheduleManagementSqlGuards
@@ -74,7 +76,7 @@ async function commit(
     operationRef: operation.operationRef,
     retryAfterMs: 0,
   }
-  const identity = sqlIdentity(options.scope, operation)
+  const identity = sqlIdentity(options.scope, options.transactionDomain, operation)
   try {
     const original = queryView(
       await options.storage.query(identity),
@@ -144,6 +146,7 @@ async function query(
     else {
       const saved = await readRepository(
         options.storage,
+        options.transactionDomain,
         { kind: 'operation', scope: options.scope, recovery: scope.data, operationRef: ref },
         bindingSchema,
       )
@@ -153,7 +156,7 @@ async function query(
     return {
       kind: 'ok',
       value: queryView(
-        await options.storage.query(sqlIdentity(options.scope, target)),
+        await options.storage.query(sqlIdentity(options.scope, options.transactionDomain, target)),
         receiptOptions(options),
         target,
       ),
@@ -167,6 +170,7 @@ export function createScheduleManagementSqlBackend(
 ): ScheduleManagementSqlBackend {
   const scope = storageScopeSchema.parse(options.scope)
   z.string().min(1).parse(options.combinationVersion)
+  z.string().min(1).parse(options.transactionDomain)
   z.string()
     .regex(/^[a-f0-9]{64}$/)
     .parse(options.manifestDigest)
@@ -178,7 +182,7 @@ export function createScheduleManagementSqlBackend(
     throw new TypeError('A distinct management guard participant is required')
   const bound = { ...options, scope }
   return {
-    store: managementStore(options.storage, scope),
+    store: managementStore(options.storage, scope, options.transactionDomain),
     persistence: { commit: command => commit(bound, command), query: input => query(bound, input) },
   }
 }

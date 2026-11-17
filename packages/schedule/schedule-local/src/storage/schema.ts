@@ -23,7 +23,6 @@ import {
 } from '@omne-harness/schedule-contract'
 import { createScheduleDefinitionRef } from '@omne-harness/schedule'
 
-export const DOMAIN = 'schedule.management'
 export const PARTICIPANT = 'schedule.management.persistence'
 export const PROTOCOL = 'schedule-management-persistence/1'
 export const HANDLER = 'schedule.management.repository'
@@ -58,14 +57,6 @@ export const operationSchema = z.strictObject({
   fingerprint: ScheduleFingerprintSchema,
   operationRef: ScheduleOperationRefSchema,
 })
-export const consentLockSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('clear') }),
-  z.strictObject({
-    kind: z.literal('reconfirmationRequired'),
-    grantRef: ref,
-    revokedGeneration: z.int().nonnegative(),
-  }),
-])
 export const quotaHoldingSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('held'), reservationRef: ref }),
   z.strictObject({ kind: z.literal('released'), releaseRef: ref }),
@@ -79,7 +70,6 @@ export const recordSchema = z
   .strictObject({
     view: ScheduleViewSchema,
     activationExclusive: ScheduleInstantSchema.nullable(),
-    consentLock: consentLockSchema,
     quota: quotaHoldingSchema,
     adoptedBasis: ScheduleAdoptedBasisSchema.nullable(),
     definitionRef: ref,
@@ -121,7 +111,6 @@ const accessSchema = z.strictObject({
   }),
   consent: consentSchema,
   currentStanding: ScheduleStandingSchema,
-  consentLock: consentLockSchema,
 })
 const definitionSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('notNeeded') }),
