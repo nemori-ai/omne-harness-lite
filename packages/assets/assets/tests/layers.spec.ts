@@ -206,7 +206,9 @@ describe('collectCandidates: the layer answer by the layer position', () => {
   it('rejects two sources for the same layer without asking either', async () => {
     const first = answering('tenant', { layer: 'tenant', state: 'read', candidates: [] })
     const second = answering('tenant', { layer: 'tenant', state: 'read', candidates: [] })
-    await expect(collectCandidates([first, second], wanted)).rejects.toThrow(TypeError)
+    await expect(collectCandidates([first, second], wanted)).rejects.toThrow(
+      new TypeError('two sources for the tenant layer'),
+    )
     expect([first.calls.candidates, second.calls.candidates]).toEqual([[], []])
   })
 
@@ -381,6 +383,20 @@ describe('listAssets: the cursor by the layer answer', () => {
     ])
   })
 
+  it('a cursor in the middle of a layer does not carry into the next layer', async () => {
+    const tenantSource = paged('tenant', tenant)
+    const sources = [paged('official', official), tenantSource]
+    const first = await listAssets(sources, request(3))
+    if (first.state !== 'read') throw new Error(JSON.stringify(first))
+    const second = await listAssets(sources, request(3, first.page.next))
+    expect(second.state === 'read' ? second.page.items : []).toEqual([
+      official[3],
+      tenant[0],
+      tenant[1],
+    ])
+    expect(tenantSource.calls.list).toEqual([request(2)])
+  })
+
   it('no sources give an empty, complete last page', async () => {
     expect(await listAssets([], request(10))).toEqual({
       state: 'read',
@@ -391,7 +407,9 @@ describe('listAssets: the cursor by the layer answer', () => {
   it('rejects two sources for the same layer without asking either', async () => {
     const first = paged('tenant', tenant)
     const second = paged('tenant', tenant)
-    await expect(listAssets([first, second], request(2))).rejects.toThrow(TypeError)
+    await expect(listAssets([first, second], request(2))).rejects.toThrow(
+      new TypeError('two sources for the tenant layer'),
+    )
     expect([first.calls.list, second.calls.list]).toEqual([[], []])
   })
 })

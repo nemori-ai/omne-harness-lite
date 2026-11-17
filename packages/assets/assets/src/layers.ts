@@ -115,12 +115,10 @@ function inLayerOrder(sources: readonly AssetLayerSource[]): readonly AssetLayer
   return ASSET_LAYERS.flatMap(layer => byLayer.get(layer) ?? [])
 }
 
-async function settled<T>(ask: () => Promise<T>): Promise<T | undefined> {
-  try {
-    return await ask()
-  } catch {
-    return undefined
-  }
+function settled<T>(ask: () => Promise<T>): Promise<T | undefined> {
+  return Promise.resolve()
+    .then(ask)
+    .catch(() => undefined)
 }
 
 function page({ items, completeness }: Gathered, next: string | null): AssetListing {
@@ -142,7 +140,7 @@ function startOf(
   return index < 0 ? undefined : { index, after: decoded.after }
 }
 
-function decodeCursor(text: string): { layer: string; after: string | null } | undefined {
+function decodeCursor(text: string): { layer: unknown; after: string | null } | undefined {
   let value: unknown
   try {
     value = JSON.parse(text)
@@ -151,7 +149,5 @@ function decodeCursor(text: string): { layer: string; after: string | null } | u
   }
   if (!Array.isArray(value) || value.length !== 2) return undefined
   const [layer, after]: unknown[] = value
-  return typeof layer === 'string' && (after === null || typeof after === 'string')
-    ? { layer, after }
-    : undefined
+  return after === null || typeof after === 'string' ? { layer, after } : undefined
 }
