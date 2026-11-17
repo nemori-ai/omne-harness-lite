@@ -15,6 +15,7 @@ import { readOptions } from './options.ts'
 import { exitCodeOf, report, type RequestEcho } from './report.ts'
 
 const JSON_SWITCH = '--json'
+const VALUE_OPTION = '--value'
 const PAGE_LIMIT = 100
 const MAX_PAGES = 10_000
 
@@ -33,7 +34,7 @@ const WORDS: Readonly<Record<Action, readonly string[]>> = {
   unset: ['<asset>', '<item>'],
 }
 
-const VALUE_OPTIONS: readonly string[] = [serverOption]
+const VALUE_OPTIONS: readonly string[] = [serverOption, VALUE_OPTION]
 
 function split(args: readonly string[]): { words: string[]; options: string[] } {
   const words: string[] = []
@@ -109,7 +110,7 @@ function readInvocation(
 ): Invocation | string {
   const { words, options } = split(rest)
   const read = readOptions(options, {
-    accepted: [serverOption],
+    accepted: action === 'set' ? [serverOption, VALUE_OPTION] : [serverOption],
     required: [],
     ...(action === 'show' ? { switches: [JSON_SWITCH] } : {}),
   })
@@ -209,6 +210,48 @@ async function runList(
   return report(name, { kind: 'response', outcome: 'succeeded', body }, echo, output)
 }
 
+/** The protocol carries a JSON value as a tagged tree; the command line gives it as JSON text. */
+type JsonTree =
+  | { readonly kind: 'null' }
+  | { readonly kind: 'boolean'; readonly value: boolean }
+  | { readonly kind: 'string'; readonly value: string }
+  | { readonly kind: 'number'; readonly lexeme: string }
+  | { readonly kind: 'array'; readonly items: readonly JsonTree[] }
+  | {
+      readonly kind: 'object'
+      readonly entries: readonly { readonly key: string; readonly value: JsonTree }[]
+    }
+
+function treeOf(value: unknown): JsonTree {
+  if (value === null) return { kind: 'null' }
+  if (typeof value === 'boolean') return { kind: 'boolean', value }
+  if (typeof value === 'string') return { kind: 'string', value }
+  if (typeof value === 'number') return { kind: 'number', lexeme: JSON.stringify(value) }
+  if (Array.isArray(value)) return { kind: 'array', items: value.map(treeOf) }
+  return {
+    kind: 'object',
+    entries: Object.entries(value as Record<string, unknown>).map(([key, entry]) => ({
+      key,
+      value: treeOf(entry),
+    })),
+  }
+}
+
+type WriteValue =
+  | Readonly<{ kind: 'ordinary'; value: JsonTree }>
+  | Readonly<{ kind: 'secret'; secret: string }>
+  | null
+
+function ordinaryValueOf(name: string, values: ReadonlyMap<string, string>) {
+  const given = values.get(VALUE_OPTION)
+  if (given === undefined) return undefined
+  try {
+    return { value: treeOf(JSON.parse(given)) }
+  } catch {
+    return `omne ${name}: --value takes a JSON value\n`
+  }
+}
+
 async function runWrite(
   name: string,
   action: 'set' | 'unset',
@@ -221,11 +264,14 @@ async function runWrite(
   const { newId } = environment.services
   const { asset, item } = invocation
   const readId = newId()
-  let secret = ''
-  if (action === 'set') {
+  const ordinary = action === 'set' ? ordinaryValueOf(name, invocation.values) : undefined
+  if (typeof ordinary === 'string') return usageError(output, ordinary)
+  let value: WriteValue = null
+  if (ordinary !== undefined) value = { kind: 'ordinary', value: ordinary.value }
+  else if (action === 'set') {
     const read = await readSecret(output, environment)
     if (typeof read !== 'string') return read
-    secret = read
+    value = { kind: 'secret', secret: read }
   }
   const tenantEcho = encodeTenantText(tenant)
   const described = await link.call(
@@ -237,6 +283,9 @@ async function runWrite(
   if (described === undefined) return usageError(output, unrecognized(name))
   if (described.kind !== 'response' || described.outcome !== 'succeeded')
     return report(name, described, { messageId: readId, tenant: tenantEcho }, output)
+  const describedItem = (described.body as { item?: unknown }).item
+  if (value?.kind === 'ordinary' && text(describedItem, 'kind') === 'secret')
+    return usageError(output, `omne ${name}: a secret is read from the prompt, not from --value\n`)
 
   const messageId = newId()
   const target = {
@@ -244,17 +293,12 @@ async function runWrite(
     asset,
     item,
     operation: newId(),
-    expectedRevision: text((described.body as { item?: unknown }).item, 'revision'),
+    expectedRevision: text(describedItem, 'revision'),
   }
   const result =
-    action === 'set'
-      ? await link.call(
-          assetsProtocol,
-          'set-setting',
-          { ...target, value: { kind: 'secret', secret } },
-          messageId,
-        )
-      : await link.call(assetsProtocol, 'clear-setting', target, messageId)
+    value === null
+      ? await link.call(assetsProtocol, 'clear-setting', target, messageId)
+      : await link.call(assetsProtocol, 'set-setting', { ...target, value }, messageId)
   if (result === undefined) return usageError(output, unrecognized(name))
   // The echo holds the request number and the tenant only: never the body, so never the secret.
   return report(name, result, { messageId, tenant: tenantEcho }, output)
@@ -309,6 +353,7 @@ async function runSetting(
 export const settingCommand: CommandSpec = {
   name: 'setting',
   usage: 'list|set|show|unset',
-  summary: 'List the settings of the acting tenant, or set, show or unset a secret one.',
+  summary:
+    'List the settings of the acting tenant, or set, show or unset one; set reads a secret from the prompt, or takes --value <JSON>.',
   run: runSetting,
 }
