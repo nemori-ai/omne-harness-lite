@@ -13,6 +13,7 @@ const bytes = 100_000
 export const SESSION_ENTRIES: readonly EntryCall[] = [
   { name: 'commit', call: (a, t, s) => a.accept(t, s, 'late') },
   { name: 'readWork', call: (a, t, s) => a.port.readWork(a.access(t, s)) },
+  { name: 'readCurrentScope', call: (a, t, s) => a.port.readCurrentScope(a.access(t, s)) },
   {
     name: 'readInput',
     call: (a, t, s) => a.port.readInput({ ...a.access(t, s), input: 'input-one' as InputId }),

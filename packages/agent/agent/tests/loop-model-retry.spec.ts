@@ -139,6 +139,7 @@ async function scripted(
   const entry = {
     ports: assembly.dependencies,
     binding: options().binding,
+    compactionProvider: options().configuration.compactionProvider,
     evaluator: agentEvaluator,
     access: alice,
     execution: execution(),

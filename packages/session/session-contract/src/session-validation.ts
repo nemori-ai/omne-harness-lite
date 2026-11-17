@@ -45,3 +45,13 @@ export function unique<T>(items: readonly T[], key: (item: T) => string, field: 
   if (!Array.isArray(items)) invalidAt(field, 'expected array')
   if (new Set(items.map(key)).size !== items.length) invalidAt(field, 'duplicate member')
 }
+
+export function annotationTargets(value: unknown): void {
+  if (!Array.isArray(value)) invalidAt('history.targets', 'expected array')
+  const ids: string[] = []
+  for (const target of value) {
+    nonempty(target, 'history.targets')
+    ids.push(target)
+  }
+  unique(ids, id => id, 'history.targets')
+}

@@ -3,7 +3,6 @@ import type {
   Failure,
   InstructionSection,
   ModelRecipient,
-  ProducedResult,
   RuntimeConditions,
   SelectedModel as AgentSelectedModel,
 } from '@omne-harness/agent-contract'
@@ -19,7 +18,6 @@ import type {
   ScopeRef,
   SelectedModel,
   SourceRead,
-  StepInput,
   ToolAdoption,
 } from '@omne-harness/request-context-contract'
 import { canonical, digest } from './records.ts'
@@ -126,17 +124,6 @@ export function definitionContributions(
   }))
   return { contributions, digest: digest(sections), generation: null }
 }
-
-export type StepSummary = Extract<StepInput, { kind: 'summary' }>['produced']
-
-export type StepResultSource<P> = (
-  input: Readonly<{ access: Access<P>; produced: ProducedResult }>,
-) => Promise<SourceRead<StepSummary>>
-
-export const absentStepResults: StepResultSource<unknown> = async () => ({
-  kind: 'unavailable',
-  diagnostic: 'step-result-source-absent',
-})
 
 export function failureOfAssembly(failure: AssemblyFailure | AssemblyUnknown): Failure {
   switch (failure.kind) {

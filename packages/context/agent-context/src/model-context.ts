@@ -23,7 +23,7 @@ import { createContextMeasurer, type ContextMeasure } from './measure.ts'
 import { failureOfRead, recipientText, unavailable } from './translate.ts'
 
 export type AgentModelContextOptions<P> = Readonly<{
-  materials: ContextMaterials<P>
+  materials: ContextMaterials
   parts: Pick<ContextHolderParts<P>, 'resolveHistory' | 'adopted'>
   eligibility: ReaderEligibilityHandoff<P>
   runtimeContext: ReaderOperations

@@ -1,3 +1,4 @@
+import { sessionEpochOf } from '../cordis/history-epoch.ts'
 import { toolReleases } from './result-release.ts'
 import { captureModelSettlement } from './model-settlement.ts'
 import { resultPreparation, preparationOperation } from './result-preparation.ts'
@@ -12,7 +13,6 @@ import {
   type AgentJournal,
   type AgentExecutionId,
   type DurableEvidence,
-  type CallerCommit,
   type ExecutionMutation,
   type Failure,
   type CommandReceipt,
@@ -76,6 +76,7 @@ import {
 import { canonical, digestOf, materializeModelView, rowData } from './session-values.ts'
 import { journalEvidence } from './journal-values.ts'
 import type { SessionDirectory } from './session-directory.ts'
+import { cancelBatchRow, fieldOf, sessionCaller } from './factory-values.ts'
 
 type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
 type AttachInput<P> = Parameters<AgentJournal<P>['attach']>[0]
@@ -232,7 +233,8 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
           )
           if (method === 'recordResult' && execution) {
             const value = input as Parameters<AgentJournal<P>['recordResult']>[0]
-            normalizedResult(root, execution, value.consumption, value.result)
+            if (value.result.producer.kind !== 'compaction')
+              normalizedResult(root, execution, value.consumption, value.result)
           }
           if (execution && run) {
             if (method === 'commit') {
@@ -352,16 +354,14 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     cells.set(key, cell)
     return cell
   }
+
   function jointCommand(
     cell: JournalCell<P>,
     input: ExecutionMutation<P>,
     method: JournalWrite,
     receipt: CommandReceipt,
   ): Outcome<SessionCommand, Failure> | undefined {
-    let caller: CallerCommit = { kind: 'none' }
-    if (method === 'commit') caller = (input as Parameters<AgentJournal<P>['commit']>[0]).caller
-    if (method === 'recordResult')
-      caller = (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
+    const caller = sessionCaller(input, method)
     if (caller.kind === 'none') return undefined
     const operation = deriveSessionOperation({
       kind: 'participation',
@@ -400,7 +400,11 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
           input: {
             ...common,
             participation,
-            value: { kind: 'compaction', message: caller.value.message },
+            value: {
+              kind: 'compaction',
+              message: caller.value.message,
+              epoch: sessionEpochOf(caller.value.epoch),
+            },
             judgment: caller.admission,
           },
         })
@@ -509,22 +513,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     if (!released)
       throw new Error('session double defect: the last attempt before the cancel has no SE16')
     return true
-  }
-
-  function fieldOf(value: unknown, key: string): unknown {
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
-      ? Object.entries(value).find(([name]) => name === key)?.[1]
-      : undefined
-  }
-
-  function cancelBatchRow(root: CommonRoot, terminal: RunTerminal): HistoryEntry {
-    for (const row of root.sources.rowsById.values())
-      if (
-        row.kind === 'run.terminal' &&
-        canonical(row.origin.source) === canonical(terminal.evidence)
-      )
-        return row
-    throw new Error('session double defect: a Run terminal without its SE26 row')
   }
 
   function terminalControl(
@@ -765,6 +753,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
   const frontier = createFrontier<P>(options.budget ?? defaultBudget, interpretEvent)
   const transactions: SessionTransactionPort<P> = {
     readInput: base.readInput,
+    readCurrentScope: base.readCurrentScope,
     queryOperation: base.queryOperation,
     queryControlOperation: base.queryControlOperation,
     readModelSelection: base.readModelSelection,
@@ -847,6 +836,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     let view = views.get(key)
     if (!view) {
       view = createJournal(cell, {
+        participates: (input, method) => sessionCaller(input, method).kind !== 'none',
         prepareResult: resultPreparation(cell, publications, base.commitLog, agentFailure),
         qualifyParticipation: (input, method, receipt) =>
           qualifyJoint(cell, input, method, receipt),
@@ -1119,6 +1109,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             item => item.kind !== 'observed',
           )
           for (const responsibility of execution.results) {
+            if (responsibility.result.producer.kind === 'compaction') continue
             const consumption = String(responsibility.consumption) as ConsumptionId
             const existing = state.snapshot.consumptions.find(item => item.id === consumption)
             if (

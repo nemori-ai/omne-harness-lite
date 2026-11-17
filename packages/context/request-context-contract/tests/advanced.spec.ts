@@ -6,10 +6,7 @@ import {
   declareTools,
   project,
   chooseRepresentations,
-  decodePlanId,
-  compactionPlanSchema,
   coverageSchema,
-  planProgressSchema,
 } from '@omne-harness/request-context-contract'
 import type { ToolAdoption } from '@omne-harness/request-context-contract'
 import { createMemoryHistorySource } from '@omne-harness/request-context-contract/testing'
@@ -19,15 +16,11 @@ import {
   text,
   scope,
   epoch,
-  entry,
   adoption,
   evidence,
-  must,
   target,
   upper,
   assemble,
-  planCompaction,
-  deriveStep,
   adoptedOf,
   operationsFor,
   rowWith,
@@ -331,94 +324,9 @@ it('new prompt and existing-layer extension immediately record prefix break reas
   if (extension.kind === 'candidate-fixable')
     expect(extension.candidate.coverage.prefixBreak).toBe('extension-altered')
 })
-it('policy identity change, plan mismatch, and veto all preserve closed result semantics', async () => {
+
+it('coverage schema preserves complete evidence and rejects missing input facts', async () => {
   const f = fixture()
-  const planned = await planCompaction(f.input, f.ports, f.policies)
-  if (planned.kind !== 'planned') throw new Error(planned.kind)
-  const input = {
-    plan: planned.plan,
-    progress: planned.progress,
-    material: planned.first.material,
-    step: {
-      kind: 'summary' as const,
-      index: '0',
-      produced: [text('summary')] as const,
-      consumed: evidence,
-    },
-  }
-  expect(
-    await deriveStep(f.input, input, f.ports, {
-      ...f.policies,
-      compaction: { ...f.policies.compaction, configDigest: () => 'changed' },
-    }),
-  ).toMatchObject({ kind: 'invalid', reason: 'policy-mismatch' })
-  expect(
-    await deriveStep(
-      f.input,
-      { ...input, progress: { ...input.progress, planId: must(decodePlanId('plan:other')) } },
-      f.ports,
-      f.policies,
-    ),
-  ).toMatchObject({ kind: 'invalid', reason: 'plan-mismatch' })
-  expect(
-    await deriveStep(
-      f.input,
-      { ...input, step: { kind: 'vetoed', index: '0', reason: 'reject', evidence } },
-      f.ports,
-      f.policies,
-    ),
-  ).toMatchObject({ kind: 'cannot-fit', cause: 'step-vetoed', progress: { completed: '1' } })
-  expect(
-    await deriveStep(
-      { ...f.input, selection: { ...f.input.selection, replay: 'off' } },
-      input,
-      f.ports,
-      f.policies,
-    ),
-  ).toMatchObject({ kind: 'invalid', reason: 'plan-mismatch', field: 'model' })
-  expect(
-    await deriveStep(
-      f.input,
-      { ...input, plan: { ...input.plan, basis: { ...input.plan.basis, retainedBudget: '1' } } },
-      f.ports,
-      f.policies,
-    ),
-  ).toMatchObject({ kind: 'invalid', reason: 'plan-mismatch', field: 'plan.basis' })
-})
-it('summary is checked against actual full input budget before transition', async () => {
-  const f = fixture()
-  const planned = await planCompaction(f.input, f.ports, f.policies)
-  if (planned.kind !== 'planned') throw new Error(planned.kind)
-  const p = {
-    ...f.ports,
-    meter: { ...f.ports.meter, measure: async () => ({ ok: f.budget('9999') }) },
-  }
-  const result = await deriveStep(
-    f.input,
-    {
-      plan: planned.plan,
-      progress: { ...planned.progress, completed: '1', consumed: [{ index: '0', evidence }] },
-      material: planned.first.material,
-      step: { kind: 'summary', index: '1', produced: [text('too large')], consumed: evidence },
-    },
-    p,
-    f.policies,
-  )
-  expect(result).toMatchObject({
-    kind: 'cannot-fit',
-    cause: 'bound-exhausted',
-    progress: { completed: '2' },
-  })
-})
-it('durable plan and progress schemas round-trip legal values and reject missing consumption history', async () => {
-  const f = fixture()
-  const plan = await planCompaction(f.input, f.ports, f.policies)
-  if (plan.kind !== 'planned') throw new Error(plan.kind)
-  expect(compactionPlanSchema['~standard'].validate(plan.plan)).toHaveProperty('value')
-  expect(planProgressSchema['~standard'].validate(plan.progress)).toHaveProperty('value')
-  expect(
-    planProgressSchema['~standard'].validate({ planId: plan.plan.planId, completed: '1' }),
-  ).toHaveProperty('issues')
   const result = await assemble(f.input, f.ports, f.policies)
   if (result.kind !== 'candidate-before-extension') throw new Error(result.kind)
   expect(coverageSchema['~standard'].validate(result.candidate.coverage)).toHaveProperty('value')
@@ -460,67 +368,7 @@ it('history chained digest changes all later prefixes when an earlier row change
   expect(a.page.rows[0]?.prefixDigest).not.toBe(b.page.rows[0]?.prefixDigest)
   expect(a.page.rows[1]?.prefixDigest).not.toBe(b.page.rows[1]?.prefixDigest)
 })
-it('compaction cannot split call/result pairing or move the coverage start', async () => {
-  const f = fixture()
-  const call = judgeMessage({
-    role: 'assistant',
-    id: row(0).message.id,
-    blocks: [
-      {
-        kind: 'tool_call',
-        id: 'call',
-        visibility: { toHuman: true, toModel: true },
-        callId: 'c',
-        name: 'tool',
-        arguments: { kind: 'null' },
-      },
-    ],
-  })
-  const answer = judgeMessage({
-    role: 'tool',
-    id: row(1).message.id,
-    blocks: [
-      {
-        kind: 'tool_result',
-        id: 'result',
-        visibility: { toHuman: true, toModel: true },
-        callId: 'c',
-      },
-      text('result'),
-    ],
-  })
-  if ('rejected' in call || 'rejected' in answer) throw new Error('Pair fixture')
-  const history: typeof f.ports.history = {
-    ...f.ports.history,
-    compactionContext: async ({ evidence: current }) => ({
-      kind: 'context' as const,
-      evidence: current,
-      value: {
-        origin: entry('entry:0'),
-        base: { kind: 'initial' as const },
-        covered: [
-          { ref: entry('entry:0'), message: call.ok },
-          { ref: entry('entry:1'), message: answer.ok },
-        ],
-        after: [],
-        open: [],
-      },
-    }),
-  }
-  const policy = {
-    ...f.policies.compaction,
-    plan: async () => ({
-      kind: 'draft' as const,
-      coverTo: entry('entry:1'),
-      retained: [entry('entry:0')],
-      bound: '2',
-      shape: { kind: 'summarize' as const, trimFirst: false },
-    }),
-  }
-  expect(
-    await planCompaction(f.input, { ...f.ports, history }, { ...f.policies, compaction: policy }),
-  ).toMatchObject({ kind: 'unavailable', owner: 'compaction-policy' })
-})
+
 it('runtime refusal distinguishes unauthorized from missing registration, closed, an ended scope and an unfinished replay', async () => {
   const f = fixture()
   for (const reason of [
@@ -581,24 +429,8 @@ it('headroom and fractional token margins are conservative and exact', async () 
     reason: 'fixed-part-over-limit',
   })
 })
-it('new candidate resets compaction allowance while adopted same-candidate contradictory retry is invalid', async () => {
+it('an adopted same-candidate contradictory retry is invalid', async () => {
   const f = fixture()
-  const planned = await planCompaction(
-    {
-      ...f.input,
-      previous: {
-        candidate: must(
-          (await import('@omne-harness/request-context-contract')).decodeCandidateRef(
-            'old-candidate',
-          ),
-        ),
-        enteredCompaction: must(decodePlanId('old-plan')),
-      },
-    },
-    f.ports,
-    f.policies,
-  )
-  expect(planned.kind).toBe('planned')
   const first = await assemble(f.input, f.ports, f.policies)
   if (first.kind !== 'candidate-before-extension') throw new Error(first.kind)
   const result = await assemble(
@@ -608,7 +440,7 @@ it('new candidate resets compaction allowance while adopted same-candidate contr
       conditions: { ...f.input.conditions, revision: '2' },
       previous: {
         candidate: f.input.identity.candidate,
-        enteredCompaction: null,
+        enteredCompaction: false,
         carried: first.candidate,
       },
     },
@@ -628,7 +460,7 @@ it('carried rows are reused only for the same principal key', async () => {
       identity: { ...f.input.identity, access: { ...f.input.identity.access, principal: 'other' } },
       previous: {
         candidate: f.input.identity.candidate,
-        enteredCompaction: null,
+        enteredCompaction: false,
         carried: first.candidate,
       },
     },

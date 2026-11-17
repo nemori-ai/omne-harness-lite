@@ -73,6 +73,7 @@ export abstract class SessionTransactionPortService<P = unknown>
   }
   abstract readonly commit: SessionTransactionPort<P>['commit']
   abstract readonly readWork: SessionTransactionPort<P>['readWork']
+  abstract readonly readCurrentScope: SessionTransactionPort<P>['readCurrentScope']
   abstract readonly readInput: SessionTransactionPort<P>['readInput']
   abstract readonly queryOperation: SessionTransactionPort<P>['queryOperation']
   abstract readonly queryControlOperation: SessionTransactionPort<P>['queryControlOperation']

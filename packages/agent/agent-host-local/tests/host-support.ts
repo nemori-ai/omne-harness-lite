@@ -39,6 +39,8 @@ import {
   ModelSelectionService,
   RegisteredReadsService,
   RequestPreparationService,
+  ContextCompactionService,
+  CompactionInputStoreService,
   agentInstancesPlugin,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { AgentInstanceSlotInput } from '@omne-harness/agent-cordis-contract'
@@ -96,6 +98,10 @@ export const hostConfig: AgentHostConfig = {
   toolConcurrency: 1,
   jointCommits: [],
   coordination: 'standalone',
+  compactionProvider: {
+    authority: 'test-compaction',
+    adoption: { owner: 'test', name: 'compaction', revision: '1', digest: 'd' },
+  },
   loopGuardPolicy: { owner: 'agents', name: 'loop-guard', revision: '1', digest: 'sha256:guard' },
   modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
   instanceIdleMs: IDLE_MS,
@@ -147,6 +153,8 @@ export const INJECTED = [
   'agentAdoptions',
   'agentConditions',
   'agentRequests',
+  'agentCompaction',
+  'agentCompactionInputs',
   'agentModelSelection',
   'agentModelContext',
   'agentMessageHandoff',
@@ -177,6 +185,8 @@ const services: Readonly<Record<Exclude<Injected, 'agentHostPrincipal'>, unknown
   agentAdoptions: AgentAdoptionsService,
   agentConditions: CurrentConditionsService,
   agentRequests: RequestPreparationService,
+  agentCompaction: ContextCompactionService,
+  agentCompactionInputs: CompactionInputStoreService,
   agentModelSelection: ModelSelectionService,
   agentModelContext: ModelContextReaderService,
   agentMessageHandoff: MessageHandoffService,
@@ -412,6 +422,13 @@ export async function openWorld(options: WorldOptions = {}): Promise<World> {
     agentAdoptions: controls.adoptions.port,
     agentConditions: controls.conditions.port,
     agentRequests: controls.requests.port,
+    agentCompaction: dependencies.compaction,
+    agentCompactionInputs: {
+      ...dependencies.compactionInputs,
+      freeze: async () => ({
+        failure: { kind: 'unavailable', owner: 'fixture', diagnostic: 'not scripted' },
+      }),
+    },
     agentModelSelection: controls.selection.port,
     agentModelContext: controls.modelContext.port,
     agentMessageHandoff: controls.handoff.port,

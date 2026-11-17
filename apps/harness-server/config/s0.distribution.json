@@ -276,6 +276,11 @@
       "config": {}
     },
     {
+      "id": "context-compaction",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "agent-account-outlet",
       "plugin": "stubPlugin",
       "config": {}

@@ -120,6 +120,8 @@ const causes = [
   { kind: 'cannot-fit', reason: 'after-compaction' },
   { kind: 'cannot-fit', reason: unknownValue },
   { kind: 'compaction-invalid' },
+  { kind: 'compaction-failed' },
+  { kind: 'cannot-fit', reason: 'protected-floor' },
   { kind: 'message-rejected' },
   { kind: 'extension-stop' },
   { kind: 'guard' },

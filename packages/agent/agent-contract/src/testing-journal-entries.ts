@@ -91,6 +91,7 @@ const sameAttachment = (left: Authority, right: Authority) =>
 
 function deliveryTenantFits(entry: ReceivedEntry, tenant: TenantId): boolean {
   const { delivery } = entry
+  if (delivery.producer === 'compaction') return true
   if (delivery.producer === 'model') {
     return 'ok' in resolveModelInvocationRef(delivery.key.reference, tenant)
   }

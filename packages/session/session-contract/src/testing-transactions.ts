@@ -73,6 +73,7 @@ import { projectSessionLog, type SessionLogObservation } from './projection.ts'
 import { consumptionIdOf } from './decide-results.ts'
 import { judgeIdle } from './judgments.ts'
 import { materializeModelView, compactionReads, type MaterializedModelView } from './model-view.ts'
+import { memoryCompactionContext, memoryModelViewPage } from './testing-model-view-reads.ts'
 import { decodeEntry } from './entries.ts'
 import { reduce } from './reduce.ts'
 import { digestSessionEntries, projectSessionEntries } from './entries-interpretation.ts'
@@ -685,6 +686,7 @@ export function createMemorySessionTransactionPair<P>(
               ...(material === undefined ? {} : { historyIndex: material.index }),
             }
       const decision = decide(prepared, command, input.guards, held?.record ?? null, {
+        ...(store === undefined ? {} : { compactionEpoch: `${key.ok}/${store.modelView.epoch}` }),
         intakeLimits,
         ...(material === undefined ? {} : { history: material.reads }),
         compaction:
@@ -1005,6 +1007,11 @@ export function createMemorySessionTransactionPair<P>(
     }
 
     const history: SessionHistory<P> = {
+      readCompactionContext: async input => {
+        const store = await storeOf(input, 'history.readCompactionContext')
+        if ('failure' in store) return store
+        return memoryCompactionContext(store.ok, keyOf(input.tenant, input.session), input)
+      },
       begin: async input => {
         const store = await storeOf(input, 'history.begin')
         if ('failure' in store) return store
@@ -1071,40 +1078,7 @@ export function createMemorySessionTransactionPair<P>(
       readModelView: async input => {
         const store = await storeOf(input, 'history.readModelView')
         if ('failure' in store) return store
-        if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
-          return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
-        const view = store.ok.modelView
-        const key = keyOf(input.tenant, input.session)
-        if ('failure' in key) return key
-        const current = { epoch: `${key.ok}/${view.epoch}`, upper: String(view.rows.length) }
-        if (input.basis !== null && !input.basis.epoch.startsWith(`${key.ok}/`))
-          return fail({ kind: 'invalid', field: 'basis', reason: 'another session' })
-        if (input.basis !== null && input.basis.epoch !== current.epoch)
-          return succeed({ kind: 'epoch-changed', current })
-        const basis = input.basis ?? current
-        const after = input.after === null ? 0 : Number(input.after)
-        const upper = Number(basis.upper)
-        if (
-          !Number.isInteger(after) ||
-          !Number.isInteger(upper) ||
-          after < 0 ||
-          upper > view.rows.length ||
-          after > upper
-        )
-          return fail({ kind: 'invalid', field: 'basis', reason: 'invalid model view bounds' })
-        const rows = []
-        let bytes = 0
-        for (const row of view.rows.slice(after, upper)) {
-          if (rows.length > 0 && bytes + row.bytes > input.pageBytes) break
-          rows.push(row)
-          bytes += row.bytes
-        }
-        return succeed({
-          kind: 'page',
-          basis,
-          rows,
-          next: after + rows.length < upper ? String(after + rows.length) : null,
-        })
+        return memoryModelViewPage(store.ok.modelView, keyOf(input.tenant, input.session), input)
       },
     }
 
@@ -1121,6 +1095,10 @@ export function createMemorySessionTransactionPair<P>(
           ...store.ok.snapshot,
           ...(material === undefined ? {} : { historyIndex: material.index }),
         })
+      },
+      readCurrentScope: async input => {
+        const store = await storeOf(input, 'readCurrentScope')
+        return 'failure' in store ? store : succeed(store.ok.snapshot.contextScopes?.at(-1) ?? null)
       },
       readInput: async input => {
         const store = await storeOf(input, 'readInput')

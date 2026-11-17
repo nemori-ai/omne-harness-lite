@@ -195,7 +195,7 @@ export function compactionReads(
     origin,
     base:
       previous === undefined
-        ? { kind: 'initial' }
+        ? { kind: 'initial', pairings }
         : { kind: 'previous', record: previous.ref, pairings },
     covered: window,
     after,

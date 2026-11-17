@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { pairingWitnesses } from './fixtures/compaction-pairings.ts'
 import {
   judgeCompaction,
   judgeMessage,
@@ -288,7 +289,7 @@ function entriesOf(cell: CellEntries): CoveredEntry[] {
 function contextOf(cell: ContextCell): CompactionContext {
   const base: CompactionBase =
     cell.base === undefined
-      ? { kind: 'initial' }
+      ? { kind: 'initial', pairings: pairingWitnesses(entriesOf([...cell.covered, ...cell.after])) }
       : {
           kind: 'previous',
           record: entryRef(cell.base.record),

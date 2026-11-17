@@ -4,11 +4,9 @@ import {
   project,
   projectForHuman,
   placeContext,
-  decodePlanId,
   compactionSettingsBlock,
   windowUsageBlock,
   compactionPolicySchema,
-  planProgressSchema,
   coverageSchema,
 } from '@omne-harness/request-context-contract'
 import {
@@ -23,8 +21,6 @@ import {
   epoch,
   assemble,
   resume,
-  planCompaction,
-  deriveStep,
   sourcesFor,
   rowWith,
   type Ports,
@@ -123,7 +119,7 @@ describe('assembly closed outcomes and source boundaries', () => {
             ...f.input,
             previous: {
               candidate: f.input.identity.candidate,
-              enteredCompaction: must(decodePlanId('plan:old')),
+              enteredCompaction: true,
             },
           },
           p,
@@ -191,7 +187,6 @@ describe('assembly closed outcomes and source boundaries', () => {
   it('resume requires full snapshot before reading and counting', async () => {
     const f = fixture()
     const transition = {
-      planId: must(decodePlanId('plan:1')),
       candidate: f.input.identity.candidate,
       committed: evidence,
       epoch,
@@ -347,131 +342,11 @@ describe('projection and compaction plans', () => {
     expect(projectForHuman([rowWith(0, privateMessage)]).entries).toHaveLength(1)
     expect(privateMessage.blocks[0].text).toBe('secret')
   })
-  it('returns planned step and transitions with deterministic required message id', async () => {
-    const f = fixture()
-    const planned = await planCompaction(f.input, f.ports, f.policies)
-    expect(planned.kind).toBe('planned')
-    if (planned.kind !== 'planned') return
-    const input = {
-      plan: planned.plan,
-      progress: planned.progress,
-      material: planned.first.material,
-      step: {
-        kind: 'summary' as const,
-        index: '0',
-        produced: [text('summary')] as const,
-        consumed: evidence,
-      },
-    }
-    const result = await deriveStep(f.input, input, f.ports, f.policies)
-    expect(result.kind).toBe('transition')
-    expect(await deriveStep(f.input, input, f.ports, f.policies)).toEqual(result)
-    if (result.kind === 'transition') {
-      expect(result.progress.completed).toBe('1')
-      expect(result.value.message.id).toMatch(/^msg_/)
-    }
-  })
-  it('trims inside the first summarize step and checks step index against progress', async () => {
-    const f = fixture()
-    const trimmed: unknown[] = []
-    const policies = {
-      ...f.policies,
-      compaction: {
-        ...f.policies.compaction,
-        config: { ...f.policies.compaction.config, trimFirst: true, stepBound: '1' },
-        trim: (material: Parameters<typeof f.policies.compaction.trim>[0]) => {
-          trimmed.push(material)
-          return { ...material, trimmed: [] }
-        },
-        plan: async () => ({
-          kind: 'draft' as const,
-          coverTo: entry('entry:0'),
-          retained: [],
-          bound: '1',
-          shape: { kind: 'summarize' as const, trimFirst: true },
-        }),
-      },
-    }
-    const planned = await planCompaction(f.input, f.ports, policies)
-    if (planned.kind !== 'planned') throw new Error(planned.kind)
-    expect(planned.first).toMatchObject({ kind: 'summarize', index: '0' })
-    expect(planned.progress.completed).toBe('0')
-    expect(trimmed).toHaveLength(1)
-    const summary = {
-      kind: 'summary' as const,
-      produced: [text('summary')] as const,
-      consumed: evidence,
-    }
-    expect(
-      await deriveStep(
-        f.input,
-        {
-          plan: planned.plan,
-          progress: planned.progress,
-          material: planned.first.material,
-          step: { ...summary, index: '1' },
-        },
-        f.ports,
-        policies,
-      ),
-    ).toMatchObject({ kind: 'invalid', reason: 'progress-mismatch' })
-    expect(
-      await deriveStep(
-        f.input,
-        {
-          plan: planned.plan,
-          progress: planned.progress,
-          material: planned.first.material,
-          step: { ...summary, index: '0' },
-        },
-        f.ports,
-        policies,
-      ),
-    ).toMatchObject({ kind: 'transition', progress: { completed: '1' } })
-    expect(trimmed).toHaveLength(1)
-  })
-  it('rejects floor above retention budget and step veto closes the plan', async () => {
-    const f = fixture()
-    const policies = {
-      ...f.policies,
-      compaction: {
-        ...f.policies.compaction,
-        config: {
-          ...f.policies.compaction.config,
-          retainBudget: { kind: 'tokens' as const, retainTokens: '0' },
-        },
-      },
-    }
-    const ports = {
-      ...f.ports,
-      history: {
-        ...f.ports.history,
-        compactionContext: async ({ evidence: current }: { evidence: typeof f.input.history }) => ({
-          kind: 'context' as const,
-          evidence: current,
-          value: {
-            origin: entry('entry:0'),
-            base: { kind: 'initial' as const },
-            covered: [{ ref: entry('entry:0'), message: row().message }],
-            after: [],
-            open: [entry('entry:0')],
-          },
-        }),
-      },
-    }
-    expect(await planCompaction(f.input, ports, policies)).toMatchObject({
-      kind: 'cannot-fit',
-      reason: 'floor-exceeds-budget',
-    })
-  })
 })
 it('required block schemas and durable decoders reject malformed values', () => {
   expect(compactionSettingsBlock.required).toBe(true)
   expect(windowUsageBlock.required).toBe(true)
   expect(compactionPolicySchema['~standard'].validate({})).toHaveProperty('issues')
-  expect(
-    planProgressSchema['~standard'].validate({ planId: 'plan:1', completed: '-1' }),
-  ).toHaveProperty('issues')
   expect(coverageSchema['~standard'].validate({ history: {} })).toHaveProperty('issues')
 })
 it('caller-carried stable layers skip history reads while tail/representation/budget/outcome remain live', async () => {
@@ -484,7 +359,7 @@ it('caller-carried stable layers skip history reads while tail/representation/bu
       ...f.input,
       previous: {
         candidate: f.input.identity.candidate,
-        enteredCompaction: null,
+        enteredCompaction: false,
         carried: first.candidate,
       },
     },
@@ -500,7 +375,7 @@ it('caller-carried stable layers skip history reads while tail/representation/bu
       conditions: { ...f.input.conditions, revision: '2' },
       previous: {
         candidate: f.input.identity.candidate,
-        enteredCompaction: null,
+        enteredCompaction: false,
         carried: first.candidate,
       },
     },

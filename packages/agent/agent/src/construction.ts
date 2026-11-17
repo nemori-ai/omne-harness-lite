@@ -23,6 +23,10 @@ import type {
   AgentRuntime,
   AgentRuntimeControl,
   CallerCommit,
+  ContextCompaction,
+  CompactionInputReader,
+  CompactionProviderBinding,
+  AgentReceivedCommits,
   CurrentConditions,
   DecisionCards,
   DurableEvidence,
@@ -44,6 +48,7 @@ export type AgentRuntimeBinding = Readonly<{
 }>
 
 export type AgentConfiguration = Readonly<{
+  compactionProvider: CompactionProviderBinding
   observerBufferBytes: number
   reconciliationDelaysMs: readonly number[]
   reconciliationBatchLimit: number
@@ -76,6 +81,9 @@ export type AgentDependencies<P, B extends ContentBlock> = Readonly<{
   adoptions: AgentAdoptions<P>
   conditions: CurrentConditions<P>
   requests: RequestPreparation<P>
+  compaction: ContextCompaction<P>
+  compactionInputs: CompactionInputReader<P>
+  received: AgentReceivedCommits<P, B>
   selection: ModelSelection<P>
   modelContext: ModelContextReader<P>
   extensions: ExtensionImplementations<P>

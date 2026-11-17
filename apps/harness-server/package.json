@@ -57,6 +57,7 @@
     "@omne-harness/calendar-local": "workspace:*",
     "@omne-harness/calendar-protocol": "workspace:*",
     "@omne-harness/calendar-tools": "workspace:*",
+    "@omne-harness/context-compaction": "workspace:*",
     "@omne-harness/exchange-refs": "workspace:*",
     "@omne-harness/execution-environment": "workspace:*",
     "@omne-harness/execution-environment-contract": "workspace:*",

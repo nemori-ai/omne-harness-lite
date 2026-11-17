@@ -447,7 +447,17 @@ export function receivedSlot(
   }
   const result = toolProduced(call, delivery)
   const { terminal } = delivery
-  return { slot: { ...common, kind: 'result', result, terminal, custody: entry.material }, result }
+  return {
+    slot: {
+      ...common,
+      kind: 'result',
+      result,
+      terminal,
+      custody: entry.material,
+      completion: null,
+    },
+    result,
+  }
 }
 
 /** A slot that T2 passes with no conclusions, or null when it is not ready to pass. */

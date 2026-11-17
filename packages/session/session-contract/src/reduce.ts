@@ -1,4 +1,5 @@
 import { applyTodo } from './reduce-todos.ts'
+import { judgeMessage } from '@omne-harness/message'
 import { projectWorkEntries, requiredWorkEntries, unsettled } from './work-entry-state.ts'
 import type { SessionHistoryReads } from './history-values.ts'
 import { validateReplayHistory, validateInterpretationEntry } from './frontier-state.ts'
@@ -19,20 +20,12 @@ import { advanceEntriesProgress, applyExtended } from './reduce-extended.ts'
 import { pruneBackgroundInputs } from './background-outcome.ts'
 import { hasUnansweredCalls, trackCalls } from './run-closure.ts'
 import { scopeBinding } from './decide-management.ts'
+import { batchEvidence } from './batch-evidence.ts'
 import { digestOf } from './operations.ts'
 import { applyParticipation } from './result-state.ts'
 import { initializationProjection, validateInitializationBatch } from './reduce-initialization.ts'
 import { sameInitializationValue } from './initialization-plan.ts'
 import { adoption, InitializationInvalid } from './initialization-parse.ts'
-
-export function batchEvidence(batch: CommittedBatch, session: string): DurableEvidence {
-  return {
-    owner: '@omne-harness/session-contract',
-    record: `${session}@${batch.revision}`,
-    revision: batch.revision,
-    digest: `sha256:${digestOf(batch.entries)}`,
-  }
-}
 
 const RUN_LAYER_KINDS: ReadonlySet<string> = new Set([
   'run.started',
@@ -116,6 +109,10 @@ function applyMessage(
     }
   >,
 ): string | null {
+  if (entry.kind === 'message.compaction') {
+    const judged = judgeMessage(entry.message)
+    if (!('ok' in judged) || judged.ok.role !== 'compaction') return 'malformed compaction message'
+  }
   trackCalls(draft, entry.message)
   if (entry.kind === 'message.assistant' && draft.run.kind === 'active') delete draft.unanswered
   return entry.participation === null ? null : applyParticipation(draft, entry.participation)

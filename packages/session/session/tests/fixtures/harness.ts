@@ -134,6 +134,10 @@ export async function harness(options: HarnessOptions) {
           return view.readModelSelection(input)
         },
         history: {
+          readCompactionContext: input => {
+            log('history.readCompactionContext')
+            return view.history.readCompactionContext(input)
+          },
           begin: input => {
             log('history.begin')
             return view.history.begin(input)

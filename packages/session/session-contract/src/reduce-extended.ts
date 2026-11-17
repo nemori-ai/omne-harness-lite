@@ -7,6 +7,7 @@ import { applyResult, applyProducerFact } from './reduce-results.ts'
 import { requestControl, validateControlProgress } from './control-state.ts'
 import {
   decimal,
+  annotationTargets,
   evidenceFields,
   equalValue,
   invalidAt,
@@ -152,6 +153,11 @@ function applyHistoryAnnotated(
   draft: Draft,
   entry: Extract<SessionEntry, { kind: 'history.annotated' }>,
 ): string | null {
+  if ('targets' in entry) {
+    annotationTargets(entry.targets)
+    evidenceFields(entry.source, 'history.source')
+    return null
+  }
   if (!('execution' in entry)) return null
   const old = draft.executions?.find(item => item.run === entry.run)
   if (old === undefined || old.execution.execution !== entry.execution.execution)

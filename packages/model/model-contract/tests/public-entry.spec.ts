@@ -44,7 +44,11 @@ it('the root entry exports exactly the runtime values of the consumer face', asy
       'encodeModelOutputV1',
       'faultIsTransient',
       'judgeModelDelivery',
+      'judgeModelParameters',
+      'judgeToolDeclarations',
+      'profileResolutionValue',
       'projectModelOutputV1',
+      'readProfileResolution',
       'resolveModelInvocationRef',
     ].sort(),
   )

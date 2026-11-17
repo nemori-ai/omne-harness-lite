@@ -34,6 +34,8 @@
 - `AgentReceivedRecordsService` · `cordis.d.ts`
 - `AgentRegistrationInput` · `index.d.ts`
 - `AgentWithdrawalInput` · `index.d.ts`
+- `CompactionInputStoreService` · `cordis.d.ts`
+- `ContextCompactionService` · `cordis.d.ts`
 - `CurrentConditionsService` · `cordis.d.ts`
 - `DecisionCardsService` · `cordis.d.ts`
 - `ExtensionImplementationsService` · `cordis.d.ts`
@@ -49,6 +51,8 @@
 - `agentActionAdmissionKey` · `cordis.d.ts`
 - `agentAdoptionsKey` · `cordis.d.ts`
 - `agentClockKey` · `cordis.d.ts`
+- `agentCompactionInputsKey` · `cordis.d.ts`
+- `agentCompactionKey` · `cordis.d.ts`
 - `agentConditionsKey` · `cordis.d.ts`
 - `agentDecisionCardsKey` · `cordis.d.ts`
 - `agentExecutionControlKey` · `cordis.d.ts`
@@ -88,7 +92,7 @@
 
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
-import { type ActionAdmission, type AgentAccessCheck, type AgentAccountOutlet, type AgentAdoptions, type AgentClock, type AgentDirectory, type AgentExecutionControl, type AgentExecutionRecovery, type AgentInstanceHost, type AgentInstanceId, type AgentJournal, type AgentJournalEntries, type AgentMaterials, type AgentReceivedCommits, type AgentReceivedRecords, type CurrentConditions, type DecisionCards, type ExtensionImplementations, type Failure, type MessageHandoff, type ModelContextReader, type ModelReceptionTargets, type ToolReceptionTargets, type ModelSelection, type RegisteredReads, type Registration, type RequestPreparation, type Reply } from '@omne-harness/agent-contract';
+import { type ActionAdmission, type AgentAccessCheck, type AgentAccountOutlet, type AgentAdoptions, type AgentClock, type AgentDirectory, type AgentExecutionControl, type AgentExecutionRecovery, type AgentInstanceHost, type AgentInstanceId, type AgentJournal, type AgentJournalEntries, type AgentMaterials, type AgentReceivedCommits, type AgentReceivedRecords, type CurrentConditions, type CompactionInputStore, type ContextCompaction, type DecisionCards, type ExtensionImplementations, type Failure, type MessageHandoff, type ModelContextReader, type ModelReceptionTargets, type ToolReceptionTargets, type ModelSelection, type RegisteredReads, type Registration, type RequestPreparation, type Reply } from '@omne-harness/agent-contract';
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type TenantId } from '@omne-harness/legal-identity';
 import { type Outcome } from '@omne-harness/operation-result';
@@ -187,10 +191,26 @@ export declare abstract class RequestPreparationService<P> extends Service imple
     static readonly provide = "agentRequests";
     constructor(ctx: Context);
     abstract readonly prepare: RequestPreparation<P>['prepare'];
-    abstract readonly derive: RequestPreparation<P>['derive'];
+    abstract readonly assessCompaction: RequestPreparation<P>['assessCompaction'];
     abstract readonly resume: RequestPreparation<P>['resume'];
 }
 export declare const agentRequestsKey = "agentRequests";
+export declare abstract class ContextCompactionService<P> extends Service implements ContextCompaction<P> {
+    static readonly provide = "agentCompaction";
+    constructor(ctx: Context);
+    abstract readonly admit: ContextCompaction<P>['admit'];
+    abstract readonly inspect: ContextCompaction<P>['inspect'];
+    abstract readonly cancel: ContextCompaction<P>['cancel'];
+    abstract readonly acknowledge: ContextCompaction<P>['acknowledge'];
+}
+export declare const agentCompactionKey = "agentCompaction";
+export declare abstract class CompactionInputStoreService<P> extends Service implements CompactionInputStore<P> {
+    static readonly provide = "agentCompactionInputs";
+    constructor(ctx: Context);
+    abstract readonly read: CompactionInputStore<P>['read'];
+    abstract readonly freeze: CompactionInputStore<P>['freeze'];
+}
+export declare const agentCompactionInputsKey = "agentCompactionInputs";
 export declare abstract class AgentMaterialsService<P, B extends ContentBlock> extends Service implements AgentMaterials<P, B> {
     static readonly provide = "agentMaterials";
     constructor(ctx: Context);
@@ -334,6 +354,8 @@ declare module '@deepseek-ai/cordis' {
         agentAdoptions: AgentAdoptionsService<unknown>;
         agentConditions: CurrentConditionsService<unknown>;
         agentRequests: RequestPreparationService<unknown>;
+        agentCompaction: ContextCompactionService<unknown>;
+        agentCompactionInputs: CompactionInputStoreService<unknown>;
         agentMaterials: AgentMaterialsService<unknown, ContentBlock>;
         agentReads: RegisteredReadsService<unknown>;
         agentClock: AgentClockService;

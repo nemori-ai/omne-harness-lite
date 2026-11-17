@@ -2,7 +2,7 @@
 id: PD-model-invocation
 title: 模型调用
 status: accepted
-revision: 4
+revision: 5
 relations:
   supersedes: []
   depends-on: []
