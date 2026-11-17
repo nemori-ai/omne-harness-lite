@@ -19,7 +19,8 @@ import type { TestMember } from '@omne-harness/repo-toolchain/core/workspace'
 import { VITEST_MAX_WORKERS_ENV, type Parallelism, type RunScript, type RunTier } from './config.ts'
 import type { MemberRun, VitestJsonReport } from './ledger.ts'
 import type { TimingReport } from './timing-reporter.ts'
-import { workersFor } from './parallelism.ts'
+import { cpuMeterAvailable, meteredArgs, readMeteredCpu } from './cpu-meter.ts'
+import { workersFor, type MemberDemand, type WeightSource } from './parallelism.ts'
 import { pnpmCommand } from './support.ts'
 import { runJob, runJobs, type TokenSource } from './token-pool.ts'
 import {
@@ -195,11 +196,7 @@ async function runMember(
 
 export interface MemberSchedule {
   readonly source: TokenSource
-  readonly demand: (member: TestMember) => {
-    readonly want: number
-    readonly min: number
-    readonly perWorker: number
-  }
+  readonly demand: (member: TestMember) => MemberDemand
 }
 
 export function observedParallelism(spans: readonly MemberSpan[]): Parallelism {
@@ -215,12 +212,30 @@ export function observedParallelism(spans: readonly MemberSpan[]): Parallelism {
   }
 }
 
+export function tokenUse(spans: readonly MemberSpan[]): string | undefined {
+  const measured = spans.filter(span => span.cpuSeconds !== undefined)
+  if (measured.length === 0) return undefined
+  const held = measured.reduce(
+    (sum, span) => sum + (span.tokens * (span.end - span.start)) / 1000,
+    0,
+  )
+  const cpu = measured.reduce((sum, span) => sum + (span.cpuSeconds ?? 0), 0)
+  const perToken = held === 0 ? 0 : cpu / held
+  return (
+    `令牌的用法：量到 CPU 的 ${measured.length} 件活（共 ${spans.length} 件）持有 ${Math.round(held)} 令牌秒，` +
+    `用了 ${Math.round(cpu)} CPU 秒，平均每个令牌 ${perToken.toFixed(2)} 个核`
+  )
+}
+
 export interface MemberSpan {
   readonly member: string
   readonly start: number
   readonly end: number
   readonly tokens: number
   readonly workers: number
+  readonly perWorker: number
+  readonly weightSource: WeightSource
+  readonly cpuSeconds?: number
 }
 
 async function scheduleMembers(
@@ -234,7 +249,7 @@ async function scheduleMembers(
   const spans: MemberSpan[] = []
   const runs = await runJobs(
     members.map(member => {
-      const { want, min, perWorker } = schedule.demand(member)
+      const { want, min, perWorker, weightSource } = schedule.demand(member)
       return {
         want,
         min,
@@ -243,7 +258,16 @@ async function scheduleMembers(
           const start = Date.now()
           const workers = workersFor(tokens, perWorker)
           const done = await run(member, workers)
-          spans.push({ member: member.path, start, end: Date.now(), tokens, workers })
+          spans.push({
+            member: member.path,
+            start,
+            end: Date.now(),
+            tokens,
+            workers,
+            perWorker,
+            weightSource,
+            ...(done.cpuSeconds === undefined ? {} : { cpuSeconds: done.cpuSeconds }),
+          })
           finished += 1
           onDone(done, finished)
           return done
@@ -495,11 +519,14 @@ async function runTurboMember(
   const slug = slugOf(member.path)
   const command = turboTestCommand(member.name, tier, workers, runDir, readSets)
   const turboLog = join(runDir, `turbo-${slug}.log`)
-  const turbo = await spawnLogged(TURBO_BIN, command.args, {
-    cwd: root,
-    env: command.env,
-    logPath: turboLog,
-  })
+  const meterFile = join(runDir, `${slug}.cpu.json`)
+  const metered = cpuMeterAvailable()
+  const turbo = await spawnLogged(
+    metered ? process.execPath : TURBO_BIN,
+    metered ? meteredArgs(meterFile, TURBO_BIN, command.args) : command.args,
+    { cwd: root, env: command.env, logPath: turboLog },
+  )
+  const cpuSeconds = metered ? readMeteredCpu(meterFile) : undefined
   const output = readFileSync(turboLog, 'utf8')
   const taken = takeSummary(root, output, runDir, `turbo-summary-${slug}.json`)
   const summary = 'summary' in taken ? taken.summary : undefined
@@ -527,5 +554,6 @@ async function runTurboMember(
     wallSeconds: execution === undefined ? 0 : (execution.endTime - execution.startTime) / 1000,
     ...reports,
     ...(problem === undefined ? {} : { problem }),
+    ...(cpuSeconds === undefined ? {} : { cpuSeconds }),
   }
 }

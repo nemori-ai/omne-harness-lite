@@ -2,13 +2,27 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import type { RunTier } from './config.ts'
 import type { LedgerFile } from './ledger.ts'
+import type { WeightReading } from './parallelism.ts'
 
 export interface MemberReading {
   readonly seconds: number
   readonly files: number
+  readonly weights: readonly WeightReading[]
 }
 
 const LEDGERS_READ = 20
+
+type LedgerWithJobs = Partial<LedgerFile> & {
+  readonly meta?: { readonly tokens?: { readonly jobs?: readonly unknown[] } }
+}
+
+function cpuOf(ledger: LedgerWithJobs, member: string): number | undefined {
+  for (const job of ledger.meta?.tokens?.jobs ?? []) {
+    const { member: name, cpuSeconds } = (job ?? {}) as { member?: unknown; cpuSeconds?: unknown }
+    if (name === member && typeof cpuSeconds === 'number') return cpuSeconds
+  }
+  return undefined
+}
 
 function tierOf(runName: string): RunTier | undefined {
   const match = /^\d{8}-\d{6}(?:-(fast|slow))?$/u.exec(runName)
@@ -32,9 +46,9 @@ function modifiedAt(path: string): number | undefined {
   }
 }
 
-function ledgerAt(path: string): Partial<LedgerFile> {
+function ledgerAt(path: string): LedgerWithJobs {
   try {
-    return JSON.parse(readFileSync(path, 'utf8')) as Partial<LedgerFile>
+    return JSON.parse(readFileSync(path, 'utf8')) as LedgerWithJobs
   } catch {
     return {}
   }
@@ -50,11 +64,22 @@ export function memberHistory(home: string, tier: RunTier): Map<string, MemberRe
       if (mtime !== undefined) ledgers.push({ path, mtime })
     }
   ledgers.sort((a, b) => b.mtime - a.mtime)
-  const readings = new Map<string, MemberReading>()
-  for (const { path } of ledgers.slice(0, LEDGERS_READ))
-    for (const row of ledgerAt(path).members ?? [])
-      if (!readings.has(row.member) && row.exitCode === 0)
-        readings.set(row.member, { seconds: row.wallSeconds, files: row.files })
+  const readings = new Map<string, { seconds: number; files: number; weights: WeightReading[] }>()
+  for (const { path } of ledgers.slice(0, LEDGERS_READ)) {
+    const ledger = ledgerAt(path)
+    for (const row of ledger.members ?? []) {
+      if (row.exitCode !== 0) continue
+      const reading = readings.get(row.member) ?? {
+        seconds: row.wallSeconds,
+        files: row.files,
+        weights: [],
+      }
+      readings.set(row.member, reading)
+      const cpuSeconds = cpuOf(ledger, row.member)
+      if (cpuSeconds !== undefined)
+        reading.weights.push({ cpuSeconds, fileSeconds: row.fileSeconds })
+    }
+  }
   return readings
 }
 

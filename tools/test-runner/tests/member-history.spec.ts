@@ -44,14 +44,14 @@ describe('成员上一次的读数', () => {
       { member: 'packages/a', wallSeconds: 7, files: 1, exitCode: 0 },
     ])
     expect(Object.fromEntries(memberHistory(root, 'fast'))).toEqual({
-      'packages/a': { seconds: 55, files: 11 },
-      'packages/b': { seconds: 5, files: 2 },
+      'packages/a': { seconds: 55, files: 11, weights: [] },
+      'packages/b': { seconds: 5, files: 2, weights: [] },
     })
     expect(Object.fromEntries(memberHistory(root, 'slow'))).toEqual({
-      'packages/a': { seconds: 900, files: 1 },
+      'packages/a': { seconds: 900, files: 1, weights: [] },
     })
     expect(Object.fromEntries(memberHistory(root, 'all'))).toEqual({
-      'packages/a': { seconds: 7, files: 1 },
+      'packages/a': { seconds: 7, files: 1, weights: [] },
     })
   })
 
@@ -64,9 +64,60 @@ describe('成员上一次的读数', () => {
       { member: 'packages/a', wallSeconds: 3, files: 1, exitCode: 0 },
     ])
     expect(Object.fromEntries(memberHistory(root, 'fast'))).toEqual({
-      'packages/a': { seconds: 3, files: 1 },
+      'packages/a': { seconds: 3, files: 1, weights: [] },
     })
     expect(memberHistory(join(root, 'missing'), 'fast').size).toBe(0)
+  })
+
+  it('实测读数：每份账本里这个成员的 CPU 秒（来自令牌那一节的活）配上它的文件耗时之和，新的在前；失败的、没量到 CPU 的不算', () => {
+    const root = home()
+    const write = (run: string, age: number, body: unknown) => {
+      const dir = join(root, 'abc123def', run)
+      mkdirSync(dir, { recursive: true })
+      const path = join(dir, 'ledger.json')
+      writeFileSync(path, JSON.stringify(body))
+      const at = new Date(Date.now() - age * 1000)
+      utimesSync(path, at, at)
+    }
+    const row = (member: string, fileSeconds: number, exitCode = 0) => ({
+      member,
+      wallSeconds: 10,
+      files: 2,
+      exitCode,
+      fileSeconds,
+    })
+    write('20261116-100000-fast', 300, {
+      members: [row('packages/a', 100), row('packages/b', 50)],
+      meta: {
+        tokens: {
+          jobs: [
+            { member: 'packages/a', cpuSeconds: 70 },
+            { member: 'packages/b', cpuSeconds: 20 },
+          ],
+        },
+      },
+    })
+    write('20261116-110000-fast', 200, {
+      members: [row('packages/a', 80), row('packages/b', 60, 1)],
+      meta: {
+        tokens: {
+          jobs: [
+            { member: 'packages/a', cpuSeconds: 120 },
+            { member: 'packages/b', cpuSeconds: 90 },
+          ],
+        },
+      },
+    })
+    write('20261116-120000-fast', 100, {
+      members: [row('packages/a', 90)],
+      meta: { tokens: { jobs: [{ member: 'packages/a' }] } },
+    })
+    const history = memberHistory(root, 'fast')
+    expect(history.get('packages/a')?.weights).toEqual([
+      { cpuSeconds: 120, fileSeconds: 80 },
+      { cpuSeconds: 70, fileSeconds: 100 },
+    ])
+    expect(history.get('packages/b')?.weights).toEqual([{ cpuSeconds: 20, fileSeconds: 50 }])
   })
 
   it('只翻最近的二十份账本', () => {
@@ -83,9 +134,9 @@ describe('成员上一次的读数', () => {
 
   it('排队次序：上一次用时长的在前，没有读数的排最前，同样长的保持原次序', () => {
     const history = new Map([
-      ['packages/short', { seconds: 2, files: 1 }],
-      ['packages/long', { seconds: 90, files: 1 }],
-      ['packages/same', { seconds: 2, files: 1 }],
+      ['packages/short', { seconds: 2, files: 1, weights: [] }],
+      ['packages/long', { seconds: 90, files: 1, weights: [] }],
+      ['packages/same', { seconds: 2, files: 1, weights: [] }],
     ])
     const members = ['packages/short', 'packages/same', 'packages/new', 'packages/long'].map(
       path => ({ path }),

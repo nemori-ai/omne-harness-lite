@@ -77,7 +77,7 @@ function workspace(members: Readonly<Record<string, FixtureMember>>): {
 /** `tokens` 个令牌，每个成员要 1 个、一个进程：令牌数就是同时跑的成员数。 */
 const pool = (tokens: number): MemberSchedule => ({
   source: localPool(tokens),
-  demand: () => ({ want: 1, min: 1, perWorker: 1 }),
+  demand: () => ({ want: 1, min: 1, perWorker: 1, weightSource: 'default' }),
 })
 const NO_BUILD = { build: false, admission: false }
 

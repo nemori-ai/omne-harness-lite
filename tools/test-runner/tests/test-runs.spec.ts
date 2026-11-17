@@ -168,9 +168,12 @@ const AFFECTED_EMPTY = {
   residentBuild: [],
 }
 
+const WEIGHT = { floor: 0.5, ceiling: 4, readings: 3, minFileSeconds: 5 }
+
 const POLICY = {
   maxWorkersPerMember: 8,
   reserveCores: 2,
+  weight: WEIGHT,
 }
 
 describe('并行度', () => {
@@ -189,6 +192,22 @@ describe('并行度', () => {
       triage: { repeats: 3 },
       cache: CACHE_EMPTY,
     })
+
+  it('实测权重的上下限、看几次、最短的文件耗时之和原样进配置；缺、下限大于上限、不是正数都报错', () => {
+    expect(config.parallel.weight).toEqual(WEIGHT)
+    const withWeight = (weight: unknown) => () =>
+      parseTestRunsConfig({
+        parallel: { ...POLICY, weight },
+        affected: AFFECTED_EMPTY,
+        ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
+        triage: { repeats: 3 },
+        cache: CACHE_EMPTY,
+      })
+    expect(withWeight(undefined)).toThrow('parallel.weight')
+    expect(withWeight({ ...WEIGHT, floor: 5 })).toThrow('floor')
+    expect(withWeight({ ...WEIGHT, readings: 0 })).toThrow('readings')
+    expect(withWeight({ ...WEIGHT, minFileSeconds: -1 })).toThrow('minFileSeconds')
+  })
 
   it('每个进程要的令牌数：不写时为空表；写了的原样进配置', () => {
     expect(config.parallel.tokensPerWorker).toEqual([])

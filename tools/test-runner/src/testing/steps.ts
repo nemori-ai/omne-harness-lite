@@ -77,6 +77,7 @@ import {
   runMembers,
   runTurboTests,
   slugOf,
+  tokenUse,
   type MemberSchedule,
   type MemberSpan,
 } from './run.ts'
@@ -486,8 +487,10 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
   const history = memberHistory(ledgerHome(script, run.at.mainRoot, process.env), tier)
   const schedule: MemberSchedule = {
     source: tokens,
-    demand: member =>
-      memberDemand(config.parallel, member.path, tier, history.get(member.path)?.files),
+    demand: member => {
+      const reading = history.get(member.path)
+      return memberDemand(config.parallel, member.path, tier, reading?.files, reading?.weights)
+    },
   }
 
   const lookup = lookupFor(root, run, config)
@@ -514,7 +517,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
   else
     console.log(
       `跑 ${toRun.length} 个成员的 \`${script}\`${script === 'test' ? `（${TIER_NAMES[tier]}）` : ''}：` +
-        `每个成员当一件活去要令牌（共 ${tokens.capacity} 个），上一次用时长的先要；拿到几个令牌起几个进程（每个进程要的令牌数见 test-runs.config.json 的 parallel.tokensPerWorker）`,
+        `每个成员当一件活去要令牌（共 ${tokens.capacity} 个），上一次用时长的先要；拿到的令牌按这个成员一个进程实测用几个核折成进程数（没有读数时取 test-runs.config.json 的 parallel.tokensPerWorker，再没有按 1）`,
     )
   const started = Date.now()
   let finishedBefore = 0
@@ -571,6 +574,8 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
     runDir,
     ...(hits.size === 0 ? {} : { cachedMembers: hits.size }),
   })
+  const use = tokenUse(spans)
+  if (use !== undefined) summary.push(use)
   if (ledger.failures.length > 0)
     summary.push(`对这些失败做隔离重跑：pnpm run test:triage --run ${runDir}`)
   if (lookup !== undefined && recorded !== undefined)
@@ -624,6 +629,9 @@ function tokenJobs(spans: readonly MemberSpan[], started: number) {
     member: span.member,
     tokens: span.tokens,
     workers: span.workers,
+    perWorker: span.perWorker,
+    weightSource: span.weightSource,
+    ...(span.cpuSeconds === undefined ? {} : { cpuSeconds: span.cpuSeconds }),
     start: Math.round((span.start - started) / 100) / 10,
     end: Math.round((span.end - started) / 100) / 10,
   }))
