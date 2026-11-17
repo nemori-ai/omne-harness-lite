@@ -78,7 +78,7 @@ describe('the evidence a read hands out', () => {
     const w = await createWorld()
     const { coverage, advance } = await adoptedRound(w)
     const restarted = createAgentModelContext<string>({
-      materials: createContextMaterials<string>({ owner, capacity: 8 }),
+      materials: createContextMaterials({ owner, capacity: 8 }),
       parts: w.parts,
       eligibility: { current: async () => ({ kind: 'current', eligibility: w.held }) },
       runtimeContext: { bind: id => w.rc.bind(id, { consumer: 'model' }) },

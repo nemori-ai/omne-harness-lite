@@ -146,6 +146,7 @@ export type DecideReads = Readonly<{
   intakeLimits?: SessionIntakeLimits
   history?: SessionHistoryReads
   compaction: CompactionContext | null
+  compactionEpoch?: string
   children?: readonly SessionId[]
   idleObservation?: IdleObservation
   idleCoverage?: IdleCoverage
@@ -164,7 +165,7 @@ export const OFF_PATH_FAILURE: Extract<SessionFailure, { kind: 'unavailable' }> 
   diagnostic: OFF_PATH_DIAGNOSTIC,
 })
 
-function terminalOf(snapshot: WorkSnapshot): RunTerminal | null {
+function terminalOf(snapshot: Pick<WorkSnapshot, 'run'>): RunTerminal | null {
   return snapshot.run.kind === 'terminal' ? snapshot.run.terminal : null
 }
 
@@ -175,13 +176,16 @@ const RUN_LAYER_EXPECTED: ReadonlySet<MutationName> = new Set([
   'finishRun',
 ])
 
-export function expectedRevision(snapshot: WorkSnapshot, kind: MutationName): SessionRevision {
+export function expectedRevision(
+  snapshot: Pick<WorkSnapshot, 'run' | 'revision'>,
+  kind: MutationName,
+): SessionRevision {
   if (!RUN_LAYER_EXPECTED.has(kind) || snapshot.run.kind !== 'active') return snapshot.revision
   return snapshot.run.revision
 }
 
 export function expectedHolds(
-  snapshot: WorkSnapshot,
+  snapshot: Pick<WorkSnapshot, 'run' | 'revision'>,
   kind: MutationName,
   expected: SessionRevision,
 ): boolean {
@@ -189,7 +193,10 @@ export function expectedHolds(
 }
 
 // Archived, terminal and stale-attempt refusals come before the revision comparison, so a late writer learns the state that replaced it.
-export function judgeAdvance(snapshot: WorkSnapshot, claim: AdvanceClaim): AdvanceJudgment {
+export function judgeAdvance(
+  snapshot: Pick<WorkSnapshot, 'lifecycle' | 'run' | 'revision'>,
+  claim: AdvanceClaim,
+): AdvanceJudgment {
   if (snapshot.lifecycle === 'archived') return { kind: 'archived' }
   const terminal = terminalOf(snapshot)
   if (terminal !== null) return { kind: 'terminal', terminal }

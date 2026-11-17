@@ -1,3 +1,4 @@
+import type { TenantId } from '@omne-harness/legal-identity'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
@@ -55,6 +56,14 @@ type Pause = { reached(source: DurableEvidence): void; released: Promise<void> }
 function writeEntry(state: MemoryExecution, entry: AgentJournalEntry, receipt: CommandReceipt) {
   state.entries.push(entry)
   projectEntryEvent(state, entry, receipt)
+}
+
+function deliveryRef(delivery: ReceivedEntry['delivery'], tenant: TenantId) {
+  return delivery.producer === 'compaction'
+    ? succeed(undefined)
+    : delivery.producer === 'model'
+      ? resolveModelInvocationRef(delivery.key.reference, tenant)
+      : resolveToolInvocationRef(delivery.key.reference, tenant)
 }
 
 export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentBlock>(
@@ -271,11 +280,7 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
       return fail({ kind: 'invalid', field: 'authority', reason: 'mismatch' })
     if (input.entry.kind === 'received') {
       const delivery = input.entry.delivery
-      const resolved =
-        delivery.producer === 'model'
-          ? resolveModelInvocationRef(delivery.key.reference, input.tenant)
-          : resolveToolInvocationRef(delivery.key.reference, input.tenant)
-      if (!('ok' in resolved)) return fail(denied())
+      if (!('ok' in deliveryRef(delivery, input.tenant))) return fail(denied())
     }
     const prior = state.operations.get(input.operation)
     const text = recordText(input.entry, input.authority)

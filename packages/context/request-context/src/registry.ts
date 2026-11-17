@@ -250,14 +250,6 @@ export function createContextSourceRegistry<P>(
       const ofCall = (call: AssemblyCall<P>) => call?.access
       return {
         assemble: borrowed(target, ofCall, (o, call: AssemblyCall<P>) => o.assemble(call)),
-        planCompaction: borrowed(target, ofCall, (o, call: AssemblyCall<P>) =>
-          o.planCompaction(call),
-        ),
-        deriveStep: borrowed(
-          target,
-          (input: Parameters<AssemblyOperations<P>['deriveStep']>[0]) => input?.call?.access,
-          (o, input) => o.deriveStep(input),
-        ),
         resume: borrowed(target, ofCall, (o, call: AssemblyCall<P>) => o.resume(call)),
       }
     },

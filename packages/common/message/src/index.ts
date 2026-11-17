@@ -43,3 +43,5 @@ export type {
   ToolResultPart,
   UnparsedToolCallPart,
 } from './parts.ts'
+
+export { projectMessage } from './projection.ts'

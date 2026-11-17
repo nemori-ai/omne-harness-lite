@@ -4,7 +4,7 @@ import type { Modes, WorkSnapshot, SessionCreation } from './values.ts'
 import type { SessionPermissions } from './permission-values.ts'
 import { decodeEntries, SESSION_INTERPRETER, type SessionEntry } from './entries.ts'
 import { applyPermissionEvent } from './permission-state.ts'
-import { batchEvidence } from './reduce.ts'
+import { batchEvidence } from './batch-evidence.ts'
 import { equalValue } from './session-validation.ts'
 
 const predecessors = new Set([

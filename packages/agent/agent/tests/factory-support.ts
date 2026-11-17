@@ -26,6 +26,7 @@ export function options(configuration: Partial<AgentConfiguration> = {}): AgentR
       definition: adoption('definition'),
     },
     configuration: {
+      compactionProvider: { authority: 'test-compaction', adoption: adoption('compaction') },
       observerBufferBytes: 1024,
       reconciliationDelaysMs: [0],
       reconciliationBatchLimit: 8,

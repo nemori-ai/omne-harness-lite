@@ -6,6 +6,7 @@ import type { MutationName, SessionCommand, SessionTransactionPort } from './por
 export type SessionReadAccessOperation =
   | 'listTodos'
   | 'readWork'
+  | 'readCurrentScope'
   | 'readWaiting'
   | 'readBackgroundCalls'
   | 'readInput'
@@ -18,6 +19,7 @@ export type SessionReadAccessOperation =
   | 'history.next'
   | 'history.since'
   | 'history.readModelView'
+  | 'history.readCompactionContext'
 
 type SessionMutationAccess<P> = {
   readonly [K in MutationName]: Readonly<{

@@ -55,3 +55,5 @@ export {
   materialDigest,
   receivedEntriesOf,
 } from './testing-journal-reads.ts'
+
+export { sampleCompactionInput, sampleCompactionAdoption } from './testing-compaction.ts'

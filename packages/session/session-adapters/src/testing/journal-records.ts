@@ -21,6 +21,7 @@ import {
   batchEvidence,
   checkpointOf,
   receivedViews,
+  type ProducerCall,
   type BlobStore,
   type ExecutionView,
   type Mint,
@@ -122,17 +123,12 @@ function pubOf(evidence: DurableEvidence): number | null {
   return found === null ? null : Number(found[1])
 }
 
-function producedOf(
-  result: Readonly<{
-    producer: 'model' | 'tool'
-    call: string
-    version: string
-    delivery: string | null
-    source: DurableEvidence
-  }>,
-): ResultResponsibility['result'] {
+function producedOf(result: ProducerCall): ResultResponsibility['result'] {
   return {
-    producer: { kind: result.producer, call: result.call } as never,
+    producer:
+      result.producer === 'compaction'
+        ? { kind: 'compaction', task: result.task }
+        : ({ kind: result.producer, call: result.call } as never),
     version: result.version,
     delivery: result.delivery,
     source: result.source,
@@ -269,12 +265,7 @@ export function projectExecution(
     results: [...view.results.values()]
       .filter(item => Object.keys(item.stages).length > 0)
       .map((item): ResultResponsibility => ({
-        result: {
-          producer: { kind: item.result.producer, call: item.result.call } as never,
-          version: item.result.version,
-          delivery: item.result.delivery,
-          source: item.result.source,
-        },
+        result: producedOf(item.result),
         consumption: item.consumption,
         custody: item.stages.custody ?? null,
         completion: item.stages.processed ?? null,
@@ -399,7 +390,7 @@ export function projectExecution(
       const revision = pubs.length === 0 ? undefined : revisionAt(Math.max(...pubs))
       if (revision === undefined) return []
       const key = semanticKey('responsibility', [
-        { kind: item.result.producer, call: item.result.call },
+        producedOf(item.result).producer,
         item.result.version,
         item.consumption,
       ])

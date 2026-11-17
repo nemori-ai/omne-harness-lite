@@ -469,11 +469,11 @@
 | [UL-context-snapshot-reminder](terms/record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder) | 上下文快照提醒 | Context Snapshot Reminder | 完整读取后放进请求的全部稳定块完整值，**只进请求不进日志**，锚定位置 |
 | [UL-snapshot-anchor](terms/record-and-context.md#ul-snapshot-anchor--快照锚点--snapshot-anchor) | 快照锚点 | Snapshot Anchor | 快照提醒在模型可见历史里的固定位置：完整读取时的历史尾部，压缩后在压缩记录之后 |
 | [UL-tail-facts-reminder](terms/record-and-context.md#ul-tail-facts-reminder--尾部易变提醒--tail-facts-reminder) | 尾部易变提醒 | Tail Facts Reminder | 请求**最末**那条只含逐请求变化块的提醒，每次重算，不进历史与快照 |
-| [UL-compaction-plan](terms/record-and-context.md#ul-compaction-plan--压缩计划--compaction-plan) | 压缩计划 | Compaction Plan | 需要压缩时给出的计划：编号、步数上界、逐步请求；**一个候选至多一个** |
-| [UL-compaction-plan-progress](terms/record-and-context.md#ul-compaction-plan-progress--压缩计划进度--compaction-plan-progress) | 压缩计划进度 | Compaction Plan Progress | 计划编号加已完成步数，每步恰加一 |
-| [UL-compaction-step-request](terms/record-and-context.md#ul-compaction-step-request--压缩步请求--compaction-step-request) | 压缩步请求 | Compaction Step Request | 计划里一步要做的事，修剪步或摘要步之一 |
-| [UL-pruning-step](terms/record-and-context.md#ul-pruning-step--修剪步--pruning-step) | 修剪步 | Pruning Step | **不调模型**，只缩短大工具结果或媒体占位；先于摘要步 |
-| [UL-summary-step](terms/record-and-context.md#ul-summary-step--摘要步--summary-step) | 摘要步 | Summary Step | 一次内部模型调用生成覆盖范围的摘要，由协调者发起 |
+| [UL-compaction-plan](terms/record-and-context.md#ul-compaction-plan--压缩计划--compaction-plan) | 压缩计划 | Compaction Plan | 提供者内部的有界计划，不是 Agent 消费协议 |
+| [UL-compaction-plan-progress](terms/record-and-context.md#ul-compaction-plan-progress--压缩计划进度--compaction-plan-progress) | 压缩计划进度 | Compaction Plan Progress | 提供者保管和恢复的内部计划位置 |
+| [UL-compaction-step-request](terms/record-and-context.md#ul-compaction-step-request--压缩步请求--compaction-step-request) | 压缩步请求 | Compaction Step Request | 提供者内部步骤的请求，不交 Agent 驱动 |
+| [UL-pruning-step](terms/record-and-context.md#ul-pruning-step--修剪步--pruning-step) | 修剪步 | Pruning Step | 提供者内部缩短摘要材料，不改原历史 |
+| [UL-summary-step](terms/record-and-context.md#ul-summary-step--摘要步--summary-step) | 摘要步 | Summary Step | 提供者内部模型调用，调用与恢复归提供者 |
 | [UL-business-calendar](terms/record-and-context.md#ul-business-calendar--业务日历--business-calendar) | 业务日历 | Business Calendar | 具有明确适用范围、可被指认与选用的一份日期分类知识，逐日回答工作日、假日等问题，由可追溯的业务日历版本承载。 |
 | [UL-business-calendar-version](terms/record-and-context.md#ul-business-calendar-version--业务日历版本--business-calendar-version) | 业务日历版本 | Business Calendar Version | 某份业务日历经过校验发布的一份不可变数据，带可区分的版本、覆盖范围、信息截至时点与权威出处；修订通过新版本表达。 |
 | [UL-engineering-telemetry](terms/record-and-context.md#ul-engineering-telemetry--工程遥测--engineering-telemetry) | 工程遥测 | Engineering Telemetry | 为工程诊断留下的工程日志、链路与指标的总称；**不是面向用户的观察**，不替代账目、授权依据或恢复事实 |

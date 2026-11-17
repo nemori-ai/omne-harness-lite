@@ -2,21 +2,11 @@ import { tenantEquals } from '@omne-harness/legal-identity'
 import type { ContextTarget, PrincipalKey, SourceGeneration } from './refs.js'
 import type { AssemblyOperations, AssemblyPolicies } from './ports.js'
 import type { ContextSources, PrincipalBinding } from './sources.js'
-import type {
-  AssemblyCall,
-  AssemblyFailure,
-  AssemblyResult,
-  AssemblyUnknown,
-  DeriveInput,
-  PlanResult,
-  StepResult,
-} from './values.js'
+import type { AssemblyCall, AssemblyFailure, AssemblyResult, AssemblyUnknown } from './values.js'
 import type { OperationContext } from './operation-context.js'
-import { readInputs, readModelGroup, sourceFailure } from './input-read.js'
+import { readInputs, sourceFailure } from './input-read.js'
 import { preparationKey } from './preparation.js'
 import { assembleInputs } from './assembly.js'
-import { planInputs } from './plan.js'
-import { deriveFrom } from './compaction-step.js'
 import { resumeInputs } from './resume.js'
 import type { AssemblyReuse } from './reuse.js'
 
@@ -96,7 +86,6 @@ export function createAssemblyOperations<P>(
   })
   const run = async <R>(
     call: AssemblyCall<P>,
-    window: boolean,
     derive: (
       read: Extract<Awaited<ReturnType<typeof readInputs<P>>>, { kind: 'inputs' }>,
       principal: PrincipalKey,
@@ -105,15 +94,13 @@ export function createAssemblyOperations<P>(
     const begun = await begin(call, input)
     if (begun.kind !== 'begun') return begun
     // Only after the call was admitted: the cache answers no question about who may read.
-    const cached = window
-      ? null
-      : (input.reuse?.load({
-          principal: begun.principal,
-          purpose: call.purpose,
-          position: call.position,
-        }) ?? null)
+    const cached =
+      input.reuse?.load({
+        principal: begun.principal,
+        purpose: call.purpose,
+        position: call.position,
+      }) ?? null
     const read = await readInputs(call, input.target, input.sources, {
-      window,
       principal: begun.principal,
       generation: input.generation ?? null,
       cached,
@@ -123,7 +110,7 @@ export function createAssemblyOperations<P>(
   }
   return {
     assemble: (call): Promise<AssemblyResult> =>
-      run(call, false, (read, principal) =>
+      run(call, (read, principal) =>
         assembleInputs(
           read.input,
           preparationKey(
@@ -139,7 +126,7 @@ export function createAssemblyOperations<P>(
         ),
       ),
     resume: (call): Promise<AssemblyResult> =>
-      run(call, false, (read, principal) =>
+      run(call, (read, principal) =>
         resumeInputs(
           read.input,
           preparationKey(
@@ -154,31 +141,5 @@ export function createAssemblyOperations<P>(
           { historyRead: read.historyRead, reuse: input.reuse },
         ),
       ),
-    planCompaction: (call): Promise<PlanResult> =>
-      run(call, true, async (read, principal) =>
-        read.window === null
-          ? { kind: 'invalid', field: 'history.compactionContext', reason: 'missing-input' }
-          : planInputs(
-              read.input,
-              preparationKey(
-                read.input,
-                principal,
-                read.tokens,
-                input.policies,
-                input.generation ?? null,
-              ),
-              read.rows,
-              read.window,
-              contextOf(call),
-            ),
-      ),
-    deriveStep: async (derive: DeriveInput<P>): Promise<StepResult> => {
-      const call = derive?.call
-      const begun = await begin(call, input)
-      if (begun.kind !== 'begun') return begun
-      const model = await readModelGroup(call, input.sources)
-      if (model.kind !== 'stable') return model
-      return publish(call, input, await deriveFrom(derive, model.value, contextOf(call)))
-    },
   }
 }

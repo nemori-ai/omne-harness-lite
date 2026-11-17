@@ -31,7 +31,7 @@ import {
   createModelResultReceiverTable,
   type ModelResultReceiverTable,
 } from '@omne-harness/model-cordis-contract/cordis'
-import { delegatedCommands } from './delegated-commands.ts'
+import { wakingCommands } from './delegated-commands.ts'
 import { createPushAgain } from './push-again.ts'
 import {
   awaitsReceiver,
@@ -376,7 +376,7 @@ function createResultPush(
       }
       const access = { principal: resolved.ok.principal, tenant: target.tenant }
       let record = receive(ledger.read(target) ?? fresh(target))
-      if (record.origin === null || (record.result === null && record.acknowledgement === 'none'))
+      if (record.origin === null || record.acknowledgement !== 'acknowledged')
         record = await freeze(record, access)
       record = await pushResult(record, access)
       record = await acknowledge(record, access)
@@ -434,6 +434,7 @@ function createResultPush(
     const origin = frozen({ reference: reference.ok, consumer: state.consumer })
     if (state.custody.kind === 'acknowledged')
       return save({ ...record, origin, acknowledgement: 'acknowledged' })
+    if (record.result !== null) return record
     const dispatches = await commands.dispatches(call)
     if ('failure' in dispatches) {
       report({ kind: 'freeze-failed', step: 'dispatches' })
@@ -897,15 +898,7 @@ function createResultPush(
     return 'woken'
   }
 
-  const wrapped: ModelCommands<unknown> = {
-    ...delegatedCommands(commands),
-    async settle(settle) {
-      const result = await commands.settle(settle)
-      if ('ok' in result) wake({ tenant: settle.tenant, call: settle.call })
-      return result
-    },
-    recordLateFact,
-  }
+  const wrapped = wakingCommands(commands, wake, recordLateFact)
 
   function receiverAppeared(owner: string): void {
     for (const record of ledger.records())

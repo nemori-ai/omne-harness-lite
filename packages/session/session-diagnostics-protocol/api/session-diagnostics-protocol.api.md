@@ -192,12 +192,14 @@ export declare const sessionDiagnosticsProtocol: {
                                     readonly kind: "request-rejected";
                                 } | {
                                     readonly kind: "cannot-fit";
-                                    readonly reason: "after-compaction" | "fixed" | {
+                                    readonly reason: "after-compaction" | "fixed" | "protected-floor" | {
                                         readonly kind: "unknown";
                                         readonly reason: "denied" | "not-accepted" | "not-found" | "not-recorded" | "retention-expired" | "unavailable" | "unsupported";
                                     };
                                 } | {
                                     readonly kind: "compaction-invalid";
+                                } | {
+                                    readonly kind: "compaction-failed";
                                 } | {
                                     readonly kind: "message-rejected";
                                 } | {

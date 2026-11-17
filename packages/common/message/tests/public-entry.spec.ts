@@ -51,5 +51,6 @@ it('exports exactly the message runtime names, with no mint function and no part
     'messageIdEquals',
     'parseMessageId',
     'parseRecordEntryRef',
+    'projectMessage',
   ])
 })

@@ -395,7 +395,7 @@ describe('a caller of another tenant learns nothing about registrations', () => 
     expect(unknown).toEqual(foreign)
     expect(auth.calls).toEqual(['register'])
   })
-  it.each(['assemble', 'planCompaction', 'resume'] as const)(
+  it.each(['assemble', 'resume'] as const)(
     '%s from another tenant is denied whether or not the target is registered',
     async operation => {
       const f = createAssemblyFixture()
@@ -409,12 +409,7 @@ describe('a caller of another tenant learns nothing about registrations', () => 
       expect(f.sources.sourceReads('control')).toBe(0)
     },
   )
-  it('deriveStep from another tenant is denied before the registration is looked up', async () => {
-    const f = createAssemblyFixture()
-    const registry = registryFor(f)
-    const input = { call: { ...f.call, access: stranger } } as never
-    expect(await registry.assembly(f.target).deriveStep(input)).toMatchObject({ kind: 'denied' })
-  })
+
   it('an operation without access is invalid, not an answer about the registration', async () => {
     const f = createAssemblyFixture()
     const registry = registryFor(f)

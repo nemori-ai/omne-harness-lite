@@ -131,7 +131,7 @@ export function fixtureBudget(amount = '1'): RequestBudget {
       {
         supplier: adoption,
         metric: 'input-tokens',
-        subject: 'whole',
+        subject: 'request',
         measurement: { kind: 'exact', amount, method: adoption },
         limit: '1000',
         constraint: {
@@ -215,23 +215,10 @@ export function fixturePolicies(): AssemblyPolicies {
     compaction: {
       identity: adoption,
       config: {
-        retainBudget: { kind: 'tokens', retainTokens: '100' },
-        retainPreference: 'newest-first',
         triggerPercent: null,
         headroomTokens: null,
-        trimFirst: false,
-        stepBound: '2',
       },
       configDigest: () => 'config:1',
-      plan: async ({ context }) => ({
-        kind: 'draft',
-        coverTo: context.covered.at(-1)?.ref ?? entry('entry:0'),
-        retained: [],
-        bound: '2',
-        shape: { kind: 'summarize', trimFirst: false },
-      }),
-      trim: m => m,
-      summaryInstruction: () => [text('summarize')],
     },
   }
 }

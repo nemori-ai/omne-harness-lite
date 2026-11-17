@@ -10,6 +10,7 @@ import {
   readInput,
   readModelSelection,
   readWork,
+  readCurrentScope,
   references,
   releasedScopes,
 } from './reads.ts'
@@ -18,6 +19,7 @@ export function portOf<P>(context: Context<P>): SessionTransactionPort<P> {
   return {
     commit: (input => commit(context, input)) as SessionTransactionPort<P>['commit'],
     readWork: input => readWork(context, input),
+    readCurrentScope: input => readCurrentScope(context, input),
     readInput: input => readInput(context, input),
     queryOperation: input => queryOperation(context, input),
     queryControlOperation: input => queryControlOperation(context, input),
