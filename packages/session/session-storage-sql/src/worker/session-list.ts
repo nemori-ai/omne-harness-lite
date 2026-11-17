@@ -27,7 +27,44 @@ export function titleOf(entries: Iterable<HistoryEntry>): string | null {
   return null
 }
 
-const nullable = (cell: unknown): string | null => (cell === null ? null : String(cell))
+const nullable = (cell: unknown): string | null =>
+  cell === null || cell === undefined ? null : String(cell)
+
+// How this commit archived the session: the idle rule asks for an auto-archive, a person archives.
+export function howArchived(entries: readonly HistoryEntry[]): 'person' | 'auto' {
+  const automatic = entries.some(entry => {
+    if (entry.kind !== 'control.requested') return false
+    const payload = plainOf(entry.payload) as { progress?: { intent?: { kind?: unknown } } }
+    return payload.progress?.intent?.kind === 'auto-archive'
+  })
+  return automatic ? 'auto' : 'person'
+}
+
+// The archive row moves with the lifecycle: written by the commit that archives, gone on unarchive.
+function writeArchive(
+  port: Executor,
+  scope: Readonly<{ tenant: string; session: string }>,
+  change: Readonly<{
+    previous: Pick<WorkSnapshot, 'lifecycle'> | null
+    snapshot: Pick<WorkSnapshot, 'lifecycle'>
+    at: string | null
+  }>,
+  entries: readonly HistoryEntry[],
+): void {
+  const { tenant, session } = scope
+  const was = change.previous?.lifecycle === 'archived'
+  const is = change.snapshot.lifecycle === 'archived'
+  if (was && !is)
+    port.execute('DELETE FROM sl_session_archive WHERE tenant = ? AND session = ?', [
+      tenant,
+      session,
+    ])
+  if (was || !is) return
+  port.execute(
+    'INSERT OR REPLACE INTO sl_session_archive (tenant, session, archived_at, archived_by) VALUES (?, ?, ?, ?)',
+    [tenant, session, change.at, howArchived(entries)],
+  )
+}
 
 export function writeSessionList(
   port: Executor,
@@ -62,4 +99,5 @@ export function writeSessionList(
     'INSERT OR REPLACE INTO sl_session_list (tenant, session, created_at, last_activity_at, lifecycle, title, version) VALUES (?, ?, ?, ?, ?, ?, ?)',
     [tenant, session, createdAt, lastActivityAt, snapshot.lifecycle, title, SESSION_LIST_VERSION],
   )
+  writeArchive(port, { tenant, session }, { previous, snapshot, at }, entries)
 }

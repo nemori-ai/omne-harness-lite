@@ -946,7 +946,7 @@ describe('L1–L5 会话列表', () => {
   const A = listed('ses_a', '第一个')
   const B = listed('ses_b', '第二个')
   const C = listed('ses_c', '第三个')
-  it('L1 未读：读第一页，cursor 为空，不传 limit 与 includeArchived', () => {
+  it('L1 未读：读第一页，cursor 为空，不传 limit', () => {
     const next = stepList(UNREAD, { kind: 'list-load' })
     expect(next.list).toMatchObject({ kind: 'reading', cursor: null, shown: null })
     expect(next.effects).toEqual([{ kind: 'list-sessions', token: 1, cursor: null }])

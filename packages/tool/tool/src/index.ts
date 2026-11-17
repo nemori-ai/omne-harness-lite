@@ -20,6 +20,7 @@ export {
   type ToolBodyScopeInput,
 } from './body-write-scope.ts'
 export { executeTool, type ExecuteToolFailure } from './execute-tool.ts'
+export { backgroundAllowed } from './ledger-background.ts'
 export { createToolLedger, toolLedgerAdoption, type ToolLedger } from './ledger.ts'
 export { createToolSweep, type CallRemoval, type ToolLedgerSweep } from './ledger-sweep.ts'
 export type { TimerFiring, ToolLedgerTimers } from './ledger-timer-fire.ts'

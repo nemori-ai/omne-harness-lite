@@ -78,6 +78,7 @@ const residentNames = [
   'Shell',
   'Tools',
   'TodoItems',
+  'BkgToolCalls',
   'Ask',
   'Web',
   'Calendar',
@@ -338,7 +339,7 @@ describe('the first create of a tenant over the release rows of the Session path
   )
 
   it(
-    '`create` of coding commits all four residents; J06 projects their release asset adoptions',
+    '`create` of coding commits all its residents; J06 projects their release asset adoptions',
     { timeout: 90_000 },
     async () => {
       const base = makeBase()

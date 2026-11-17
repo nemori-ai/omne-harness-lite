@@ -69,6 +69,8 @@ import stateItemMigration from '../../src/worker/state-item-migration.ts'
 import attemptGrantMigration from '../../src/worker/attempt-grant-migration.ts'
 import scopeIndexMigration from '../../src/worker/scope-index-migration.ts'
 import sessionListMigration from '../../src/worker/session-list-migration.ts'
+import sessionArchiveMigration from '../../src/worker/session-archive-migration.ts'
+import readArchivedSessions from '../../src/worker/read-archived-sessions.ts'
 import readSessionList from '../../src/worker/read-session-list.ts'
 import readScopeOwner from '../../src/worker/read-scope-owner.ts'
 import statePartMigration from '../../src/worker/state-part-migration.ts'
@@ -91,6 +93,7 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readModelView,
   readPending,
   readSessionList,
+  readArchivedSessions,
   readReferences,
   readReleasedScopes,
   readScopeOwner,
@@ -119,6 +122,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   permissionMigration,
   scopeIndexMigration,
   sessionListMigration,
+  sessionArchiveMigration,
   preadmissionMigration,
   admissionAttemptMigration,
   statePartMigration,

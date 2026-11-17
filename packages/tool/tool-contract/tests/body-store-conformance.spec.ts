@@ -29,6 +29,7 @@ describe('ToolBodyStore conformance rejects a store that keeps nothing', () => {
     put: () => Promise.resolve(unavailable),
     seal: () => Promise.resolve(unavailable),
     read: () => Promise.resolve(unavailable),
+    readOpen: () => Promise.resolve(unavailable),
     delete: () => Promise.resolve(unavailable),
   }
   for (const check of cases)

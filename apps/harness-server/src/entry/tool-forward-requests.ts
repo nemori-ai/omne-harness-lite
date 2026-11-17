@@ -2,6 +2,7 @@ import { writeJsonText } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
 import {
+  callLabel,
   type FixedToolRequest,
   type Reply,
   type ToolCatalog,
@@ -12,6 +13,8 @@ import {
 import { encodeCommandCall, type ToolForwardParent } from '@omne-harness/tool-contract/provider'
 import type { LocalToolCatalogViewSource } from '@omne-harness/tool-host-local'
 import { targetResidency } from './tool-target-residency.ts'
+
+const EMPTY_PARAMS = { kind: 'object', entries: [] } as const
 import type { ToolRelease } from './tool-release.ts'
 
 type Trusted = Extract<ToolRelease, { kind: 'trusted' }>
@@ -100,22 +103,29 @@ export function createForwardTargetRequests(ports: ForwardRequestPorts) {
         return invalid('arguments', 'command-parameters-must-be-object')
       if (
         definition.encoding === 'flat' &&
-        intent.arguments.entries.some(item => item.key === 'command')
+        intent.arguments.entries.some(item => item.key === 'command' || item.key === 'intent')
       )
         return invalid('arguments', 'reserved-command-field')
       effective = writeJsonText(
         encodeCommandCall(definition.encoding, {
           command: intent.command,
+          intent: null,
           params: intent.arguments,
         }),
       )
     }
+    const label = callLabel(definition, {
+      command: intent.command,
+      intent: null,
+      params: intent.arguments.kind === 'object' ? intent.arguments : EMPTY_PARAMS,
+    })
     const { context, workspace, resources, scope, requesterScope, limits, mode, consumer } =
       parent.request
     return succeed({
       availability,
       command: intent.command,
       arguments: { original: effective, effective, complete: true },
+      label,
       settings: entry.settings,
       environment: definition.declarations.environment,
       batchDecision: null,

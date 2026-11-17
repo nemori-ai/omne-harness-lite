@@ -14,7 +14,12 @@ import type { BoundedClose, CallBinding, Participation } from './values.ts'
 import type { ProducerFact } from './faces.ts'
 
 export type SessionOperationElements =
-  | Readonly<{ kind: 'todo-tool-call'; tenant: string; session: SessionId; call: string }>
+  | Readonly<{
+      kind: 'todo-tool-call' | 'stop-tool-call'
+      tenant: string
+      session: SessionId
+      call: string
+    }>
   | Readonly<{ kind: 'startRun'; session: SessionId; first: InputId; predecessor: RunId | null }>
   | Readonly<{
       kind: 'participation'
@@ -92,7 +97,7 @@ function factElements(fact: ProducerFact): unknown {
 }
 
 export function deriveSessionOperation(elements: SessionOperationElements): SessionOperationId {
-  if (elements.kind === 'todo-tool-call')
+  if (elements.kind === 'todo-tool-call' || elements.kind === 'stop-tool-call')
     return `sop_${digestOf({
       kind: elements.kind,
       tenant: elements.tenant,

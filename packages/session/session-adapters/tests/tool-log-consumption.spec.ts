@@ -1129,6 +1129,7 @@ describe('a backgrounded call: the placeholder and the outcome', () => {
           consumer: entry.consumer,
           delivery: 'tdel_0',
           source: { kind: 'control', operation: 'top_background' },
+          label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
           evidence: evidence('tool-placeholder'),
         },
       }),
@@ -1171,6 +1172,8 @@ describe('a backgrounded call: the placeholder and the outcome', () => {
         kind: 'backgrounded',
         producer: producerOf(s),
         source: f.commits[0]!.observation.items[0]!.fact,
+        label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
+        how: 'control',
       },
     ])
     const work = ok(await s.backend.transactions.readWork(s.access))

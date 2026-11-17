@@ -1,6 +1,6 @@
 import { ordinaryReturnFixture } from '@omne-harness/tool-contract/testing'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
-import { testingTenant } from '@omne-harness/tool-contract/testing'
+import { testingCallLabel, testingTenant } from '@omne-harness/tool-contract/testing'
 
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -71,7 +71,7 @@ export function evidence(record: string): DurableEvidence {
 }
 
 export function request(overrides: Partial<FixedToolRequest> = {}): FixedToolRequest {
-  return {
+  const made: Omit<FixedToolRequest, 'label'> = {
     availability: {
       kind: 'available',
       layer: { kind: 'official' },
@@ -117,6 +117,10 @@ export function request(overrides: Partial<FixedToolRequest> = {}): FixedToolReq
     mode: 'foreground',
     limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
     ...overrides,
+  }
+  return {
+    ...made,
+    label: overrides.label ?? testingCallLabel(made.availability.definition, made.command),
   }
 }
 

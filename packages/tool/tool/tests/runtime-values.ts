@@ -35,7 +35,7 @@ import {
   type ToolMessageContentBlock,
   type ToolProvider,
 } from '@omne-harness/tool-contract/provider'
-import { testingTenant } from '@omne-harness/tool-contract/testing'
+import { testingCallLabel, testingTenant } from '@omne-harness/tool-contract/testing'
 import {
   createTestInvocationSource,
   createTestToolIdentities,
@@ -152,7 +152,7 @@ export function functionDefinition(overrides: Partial<DefinitionMetadata> = {}):
 }
 
 export function request(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeRequest {
-  return {
+  const made: Omit<ToolInvokeRequest, 'label'> = {
     availability: {
       kind: 'available',
       definition: functionDefinition(),
@@ -173,6 +173,10 @@ export function request(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeR
     mode: 'foreground',
     limits: { concurrency: 1, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
     ...overrides,
+  }
+  return {
+    ...made,
+    label: overrides.label ?? testingCallLabel(made.availability.definition, made.command),
   }
 }
 

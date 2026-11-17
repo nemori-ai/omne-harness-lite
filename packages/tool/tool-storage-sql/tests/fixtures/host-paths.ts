@@ -222,6 +222,7 @@ export function runningCall(input: {
     execution: null,
     state: {
       call: input.call,
+      label: { intent: null, tool: 'read_file', command: null, preview: '' },
       revision: ok(decodeToolRevision('1')),
       source: evidence('state'),
       foreground: null,

@@ -39,6 +39,23 @@ export type ToolBodyPage = BodyPagePosition &
       }>
   )
 
+/** The key of the body an author writes its running output into. */
+export const OUTPUT_BODY_KEY = 'output'
+
+/** Where to read the output body of a call from: after a byte position, at most so many bytes. */
+export type ToolOutputReadRequest = Readonly<{ after: string | null; maxBytes: number }>
+
+/** None written, or one part: byte offsets; `through` starts the next read, `total` is kept. */
+export type CallOutput =
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{
+      kind: 'open' | 'sealed'
+      from: string
+      through: string
+      total: string
+      text: string
+    }>
+
 export interface ToolBodyReader<P> {
   read(input: CallAccess<P> & ToolBodyReadRequest): Reply<ToolBodyPage>
 }

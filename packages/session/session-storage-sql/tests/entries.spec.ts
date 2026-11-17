@@ -276,7 +276,15 @@ describe('commitEntries accepts the outcome of a backgrounded call as an input',
           ordinal: '1',
           key: 'key-placeholder',
           fact: evidence('agent/entry/placeholder'),
-          interpretation: [{ kind: 'backgrounded', producer, source: evidence('t/placeholder') }],
+          interpretation: [
+            {
+              kind: 'backgrounded',
+              producer,
+              source: evidence('t/placeholder'),
+              label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
+              how: 'launched',
+            },
+          ],
         },
       ],
     }

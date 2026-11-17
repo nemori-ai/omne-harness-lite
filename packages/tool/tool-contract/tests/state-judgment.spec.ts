@@ -30,6 +30,7 @@ const placeholder = {
 function running(): ToolState {
   return {
     call,
+    label: { intent: null, tool: 'read_file', command: null, preview: '' },
     revision: decoded(decodeToolRevision('r7')),
     source: evidence('state'),
     foreground: null,

@@ -1,12 +1,17 @@
 import type { SessionFailure } from './faces.ts'
 import type { SessionCommand } from './ports.ts'
-import type { WorkSnapshot } from './values.ts'
+import type { ProducerRef, WorkSnapshot } from './values.ts'
+import type { BackgroundCallRecord } from './background-calls.ts'
 import type { Decision } from './judgments.ts'
 import { resolveControlScope } from './judgments.ts'
 import { decideControl } from './decide-management.ts'
 import { invalid, rejected } from './decision-support.ts'
 import type { DecideReads } from './judgments.ts'
 import { decideRetryRun } from './decide-retry.ts'
+import { backgroundRecordOf, stopReminderEntries } from './background-outcome.ts'
+import { equalValue } from './session-validation.ts'
+
+const REASON_MAX_CHARS = 500
 
 export function decideNamedControl(
   snapshot: WorkSnapshot,
@@ -76,6 +81,51 @@ export function decideCancelRun(
   return decideControl(snapshot, intent, operation, reads)
 }
 
+// The call as the lookup knows it: unknown until the lookup covers this snapshot.
+function lookupStop(snapshot: WorkSnapshot, producer: ProducerRef, reads: DecideReads) {
+  const found = (reads.calls ?? []).filter(
+    item => item.producer.kind === producer.kind && item.producer.call === producer.call,
+  )
+  const [lookup] = found
+  if (found.length !== 1 || lookup === undefined) return unknownLookup('the call lookup')
+  if (lookup.kind === 'absent')
+    return lookup.covered !== snapshot.revision
+      ? unknownLookup('the call lookup')
+      : ({
+          kind: 'control-answer',
+          answer: { kind: 'not-found' },
+          source: snapshot.source,
+        } as const)
+  if (lookup.terminal === null) return null
+  return {
+    kind: 'control-answer',
+    answer: { kind: 'ended', terminal: lookup.terminal },
+    source: lookup.terminal.source,
+  } as const
+}
+
+function reasonFailure(reason: unknown): Decision | null {
+  if (reason === null) return null
+  if (typeof reason !== 'string' || reason.trim() === '')
+    return invalid('reason', 'empty or not text')
+  return [...reason].length > REASON_MAX_CHARS
+    ? invalid('reason', `longer than ${REASON_MAX_CHARS} characters`)
+    : null
+}
+
+// A second stop of a call in the background answers the first one (SW-I17).
+function earlierStop(snapshot: WorkSnapshot, placed: BackgroundCallRecord | null): Decision | null {
+  const earlier = placed?.stop
+  const original = snapshot.controls.find(item => item.operation === earlier?.operation)
+  return original === undefined
+    ? null
+    : {
+        kind: 'control-answer',
+        answer: { kind: 'requested', progress: original },
+        source: snapshot.source,
+      }
+}
+
 export function decideStopCall(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'stopCall' }>,
@@ -86,21 +136,23 @@ export function decideStopCall(
     return invalid('producer.kind', 'not a registered producer kind')
   if (typeof producer.call !== 'string' || producer.call.length === 0)
     return invalid('producer.call', 'empty or not a call identity')
-  const found = (reads.calls ?? []).filter(
-    item => item.producer.kind === producer.kind && item.producer.call === producer.call,
-  )
-  const [lookup] = found
-  if (found.length !== 1 || lookup === undefined) return unknownLookup('the call lookup')
-  if (lookup.kind === 'absent') {
-    if (lookup.covered !== snapshot.revision) return unknownLookup('the call lookup')
-    return { kind: 'control-answer', answer: { kind: 'not-found' }, source: snapshot.source }
+  const known = lookupStop(snapshot, producer, reads)
+  if (known !== null) return known
+  const reason = command.input.reason ?? null
+  const refused = reasonFailure(reason)
+  if (refused !== null) return refused
+  const record = (snapshot.backgroundCalls ?? []).find(item => equalValue(item.producer, producer))
+  const placed = record === undefined ? null : backgroundRecordOf(snapshot, record.consumption)
+  const answered = earlierStop(snapshot, placed)
+  if (answered !== null) return answered
+  const initiator = command.input.initiator ?? 'user'
+  const value = { kind: 'stop-call', producer, initiator, reason } as const
+  const decision = decideControl(snapshot, { kind: 'control', value }, operation, reads)
+  if (decision.kind !== 'entries' || placed === null || initiator !== 'user') return decision
+  const reminder = stopReminderEntries(snapshot, placed, { initiator, reason, operation })
+  return {
+    ...decision,
+    entries: [...decision.entries, ...reminder.entries],
+    admitted: [...(decision.admitted ?? []), reminder.input],
   }
-  if (lookup.terminal !== null)
-    return {
-      kind: 'control-answer',
-      answer: { kind: 'ended', terminal: lookup.terminal },
-      source: lookup.terminal.source,
-    }
-  const intent = { kind: 'control', value: { kind: 'stop-call', producer } } as const
-  return decideControl(snapshot, intent, operation, reads)
 }

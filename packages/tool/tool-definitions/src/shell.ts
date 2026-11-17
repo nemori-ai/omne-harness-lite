@@ -1,5 +1,6 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
+import type { ToolSettingsDeclaration } from '@omne-harness/tool-contract'
 import {
   describedAdoption,
   type ToolExecutionContext,
@@ -10,8 +11,21 @@ import { createAuthor } from './author.ts'
 import { shellCommands } from './commands.ts'
 import type { ShellAuthorEnvironment } from './environment.ts'
 import { resultMaximumField } from './files.ts'
-import { parseConstruction, type Arguments, type Field } from './protocol.ts'
+import {
+  adoption as vocabulary,
+  parseConstruction,
+  tree,
+  type Arguments,
+  type Field,
+} from './protocol.ts'
 import { collectProcess } from './shell-output.ts'
+import {
+  OutputStage,
+  STAGING_BATCH_MS,
+  STAGING_MAX_BYTES,
+  STAGING_START_AFTER_MS,
+} from './shell-staging.ts'
+import { textBody } from './returns.ts'
 import { confirmation } from './text.ts'
 
 const constructionFields: readonly Field[] = [
@@ -41,6 +55,67 @@ const constructionFields: readonly Field[] = [
     description: 'Explicit initial environment. The host environment is never inherited.',
   },
 ]
+/** The setting the request source reads before admission: when a call that may go to the background moves there. */
+export const SHELL_BACKGROUND_AFTER_SETTING = 'backgroundAfterMs'
+/** The setting the request source reads before admission: how long the foreground waits at most. */
+export const SHELL_FOREGROUND_SETTING = 'foregroundMs'
+export const SHELL_BACKGROUND_AFTER_DEFAULT_MS = 60_000
+
+const shellSettings: ToolSettingsDeclaration = {
+  schema: {
+    vocabulary,
+    schema: tree({
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        [SHELL_BACKGROUND_AFTER_SETTING]: { type: 'integer', minimum: 0 },
+        [SHELL_FOREGROUND_SETTING]: { type: 'integer', minimum: 1 },
+      },
+    }),
+    descriptions: [
+      {
+        path: SHELL_BACKGROUND_AFTER_SETTING,
+        text: 'Milliseconds a one-shot execute waits in the foreground before it moves to the background. Only a call that may go to the background moves.',
+      },
+      {
+        path: SHELL_FOREGROUND_SETTING,
+        text: 'Milliseconds the foreground waits for any execute at most. Absent means no limit.',
+      },
+    ],
+  },
+  defaults: tree({ [SHELL_BACKGROUND_AFTER_SETTING]: SHELL_BACKGROUND_AFTER_DEFAULT_MS }),
+  items: [
+    {
+      path: [SHELL_BACKGROUND_AFTER_SETTING],
+      category: 'preference',
+      sensitive: false,
+      presentation: {
+        title: 'Move to background after',
+        description:
+          'How long a one-shot command waits in the foreground before it moves to the background by itself.',
+        impact: 'The next call reads the new value; a call already admitted keeps its own.',
+        clear: 'The default of one minute applies again.',
+        adoption: 'next-read',
+        unit: 'ms',
+      },
+    },
+    {
+      path: [SHELL_FOREGROUND_SETTING],
+      category: 'preference',
+      sensitive: false,
+      presentation: {
+        title: 'Foreground time limit',
+        description:
+          'How long the foreground waits for any Shell execute at most. When it passes, the call that may go to the background moves there; any other call ends as interrupted.',
+        impact: 'The next call reads the new value; a call already admitted keeps its own.',
+        clear: 'The foreground waits without a limit again.',
+        adoption: 'next-read',
+        unit: 'ms',
+      },
+    },
+  ],
+}
+
 const BACKGROUND_LINES = shellCommands
   .flatMap(command =>
     command.background === undefined
@@ -65,9 +140,10 @@ export function createShellAuthor(
       shellCommands,
       ['command', 'terminal'],
       maximum,
-      'Sessions require session retention and a fresh authorized attachment for each call. Invalid or closed terminal references never fall back to one-shot execution. cwd and env execution overrides apply to one call. Only the current ProcessHandle receives stop on cancellation. unconfirmed does not mean stopped. Placement facts come from the injected environment. Facility discards and tool byte truncation are reported separately. A terminal completed means the foreground segment ended; it does not prove shell exit or business success. Process lifetime, one-shot execution: a process left running in the background by a one-shot command (for example cmd &) stays running after the call returns as a retained process; info lists retained processes; it runs until it exits, is stopped explicitly, or the execution environment closes its retention scope; a process is stopped when it cannot be retained; the residue line gives the reason. Background execution: run_in_background=true runs a one-shot execute in the background: the call returns a placeholder at once and the outcome comes back later as a system reminder; a terminal execution cannot run in the background; otherwise a one-shot command waits until the main process exits and output is quiet. Terminals: background tasks in a terminal live as long as the terminal; close_session stops every process in the terminal. Long-running services: a service that must run long and is not managed by this tool belongs to the host service manager (for example systemd-run --user); starting it is an external effect of the command itself.',
+      'Sessions require session retention and a fresh authorized attachment for each call. Invalid or closed terminal references never fall back to one-shot execution. cwd and env execution overrides apply to one call. Only the current ProcessHandle receives stop on cancellation. unconfirmed does not mean stopped. Placement facts come from the injected environment. Facility discards and tool byte truncation are reported separately. A terminal completed means the foreground segment ended; it does not prove shell exit or business success. Process lifetime, one-shot execution: a process left running in the background by a one-shot command (for example cmd &) stays running after the call returns as a retained process; info lists retained processes; it runs until it exits, is stopped explicitly, or the execution environment closes its retention scope; a process is stopped when it cannot be retained; the residue line gives the reason. Intent: every execute call carries intent, one line that says why you run it; it decides nothing and names the call later, and a call without it is refused and does not run. Background execution: run_in_background=true runs a one-shot execute in the background: the call returns a placeholder at once and the outcome comes back later as a system reminder; a terminal execution cannot run in the background; a one-shot execute that runs longer than the backgroundAfterMs setting (one minute by default) moves to the background by itself and returns a placeholder; otherwise a one-shot command waits until the main process exits and output is quiet. Terminals: background tasks in a terminal live as long as the terminal; close_session stops every process in the terminal. Long-running services: a service that must run long and is not managed by this tool belongs to the host service manager (for example systemd-run --user); starting it is an external effect of the command itself.',
       (command, args, environment, execution) =>
         executeShell(command, args, environment, execution, config),
+      shellSettings,
     ),
   )
 }
@@ -191,9 +267,15 @@ async function executeScript(
           ...(args.has('env') ? { env: args.env('env') } : {}),
           ...stdin,
         })
-  return started.kind === 'done'
-    ? collectProcess(started.value, execution.signal, config.number('resultMaxBytes', 0))
-    : confirmation(started, () => '')
+  if (started.kind !== 'done') return confirmation(started, () => '')
+  const stage = new OutputStage({
+    writer: execution.body,
+    representation: textBody,
+    startAfterMs: STAGING_START_AFTER_MS,
+    batchMs: STAGING_BATCH_MS,
+    maxBytes: STAGING_MAX_BYTES,
+  })
+  return collectProcess(started.value, execution.signal, config.number('resultMaxBytes', 0), stage)
 }
 
 async function attachTerminal(

@@ -1,6 +1,7 @@
 import type { SessionPermissions } from './permission-values.ts'
 import type { PermissionDefinitionRef, PermissionRule } from '@omne-harness/permissions'
 import type { TodoItem } from './todos.ts'
+import type { BackgroundCallRecord, StopInitiator } from './background-calls.ts'
 import type { SessionWorkEntryIndex } from './work-entry-values.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { CompactionMessage, Message } from '@omne-harness/message'
@@ -119,7 +120,7 @@ export type Waiting =
   | Readonly<{ kind: 'dependency'; owner: string; position: string }>
 export type BackgroundDisposition =
   | Readonly<{ kind: 'input'; input: InputId }>
-  | Readonly<{ kind: 'kept'; reason: 'archived' | 'stopped' | 'frozen' }>
+  | Readonly<{ kind: 'kept'; reason: 'archived' | 'frozen' }>
 export type ControlTarget =
   | Readonly<{ kind: 'run'; run: RunId }>
   | Readonly<{ kind: 'producer'; producer: ProducerRef }>
@@ -140,7 +141,13 @@ export type RoutedInput =
     }>
 export type Control =
   | Readonly<{ kind: 'cancel-run'; run: RunId; urgency: 'graceful' | 'force' }>
-  | Readonly<{ kind: 'stop-call'; producer: ProducerRef }>
+  | Readonly<{
+      kind: 'stop-call'
+      producer: ProducerRef
+      /** Who asked; Session derives it from the caller class, never from the input. */
+      initiator?: StopInitiator
+      reason?: string | null
+    }>
   | Readonly<{ kind: 'background-tool'; producer: Extract<ProducerRef, { kind: 'tool' }> }>
   | Readonly<{ kind: 'archive' }>
   | Readonly<{ kind: 'unarchive' }>
@@ -385,7 +392,12 @@ export type WorkSnapshot = Readonly<{
   unanswered?: readonly InputId[]
   awaitingPerson?: true
   backgroundPlaceholders?: readonly ConsumptionId[]
+  /** The calls in the background, with their short numbers; the last number given so far. */
+  backgroundCalls?: readonly BackgroundCallRecord[]
+  backgroundOrdinal?: number
   backgroundInputs?: readonly InputId[]
+  /** Pending inputs that cannot start a Run on their own; they go in with the next batch. */
+  quietInputs?: readonly InputId[]
   releasedScopes?: readonly Readonly<{ task: SessionOperationId; scope: string }>[]
   contextScopes?: readonly ContextScopeBinding[]
   contextRecords?: readonly Readonly<{ scope: string; declaration: DeclarationChange }>[]

@@ -5,6 +5,8 @@ import {
   assetsCategoryPage,
   createAssetsUiModule,
 } from '@omne-harness/assets-ui/cordis'
+import '@omne-harness/calendar-ui/calendar-ui.css'
+import { calendarUiModule } from '@omne-harness/calendar-ui/cordis'
 import '@omne-harness/human-intervention-ui/human-intervention-ui.css'
 import { createHumanInterventionUiModule } from '@omne-harness/human-intervention-ui/cordis'
 import { identityUiModule } from '@omne-harness/identity-ui/cordis'
@@ -12,8 +14,11 @@ import '@omne-harness/identity-ui/identity-ui.css'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import '@omne-harness/mcp-ui/mcp-ui.css'
 import type { ProtocolContract } from '@omne-harness/public-contract'
-import { sessionDock, sessionUiModule } from '@omne-harness/session-ui/cordis'
+import '@omne-harness/schedule-ui/schedule-ui.css'
+import { scheduleUiModule } from '@omne-harness/schedule-ui/cordis'
+import { sessionCallDetail, sessionDock, sessionUiModule } from '@omne-harness/session-ui/cordis'
 import '@omne-harness/session-ui/session-ui.css'
+import { createToolUiModule } from '@omne-harness/tool-ui/cordis'
 import { domainProtocols } from '../shared/protocols.ts'
 
 export type Assembly = Readonly<{
@@ -27,6 +32,7 @@ const ASSET_CATEGORY_LABELS = {
   skill: '技能',
   AgentDefinition: '智能体',
   mcp: 'MCP',
+  preference: '偏好',
 }
 
 export const assembly: Assembly = {
@@ -35,7 +41,10 @@ export const assembly: Assembly = {
     identityUiModule,
     sessionUiModule,
     createHumanInterventionUiModule({ sessionDock }),
+    scheduleUiModule,
+    calendarUiModule,
     createAssetsUiModule({ categoryLabels: ASSET_CATEGORY_LABELS }),
     createMcpUiModule({ page: assetsCategoryPage, governance: assetGovernanceKey }),
+    createToolUiModule({ callDetail: sessionCallDetail }),
   ],
 }
