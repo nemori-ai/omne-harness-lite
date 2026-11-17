@@ -204,41 +204,54 @@ async function initial(args: SchedulesArguments, execution: ToolSegmentContext) 
   })
 }
 
+/** What each answer that writes nothing tells the agent. */
+const UNWRITTEN = {
+  declined: () => 'owner_declined reason=the owner declined; nothing was changed',
+  skipped: () => 'owner_skipped reason=the owner did not answer; nothing was changed',
+  replied: (text: string) =>
+    `owner_replied reason=the owner answered in words; nothing was changed text=${JSON.stringify(text)}`,
+} as const
+
+/** The write an answer asks for: the original with the answer as consent, or the create as a draft. */
+function writeOf(
+  state: ConsentState,
+  answer: Readonly<{ kind: 'confirm' | 'draft' }>,
+  bound: BoundSchedules,
+) {
+  const draft = answer.kind === 'draft' && state.args.command === 'create'
+  const write: WriteArguments = draft
+    ? {
+        command: 'create',
+        params: { ...state.args.params, state: 'draft', reason: 'owner 在卡上选了先存草稿' },
+      }
+    : state.args
+  return {
+    write,
+    request: writeRequestOf(write, {
+      operationKey: bound.operationKey(draft ? 'draft' : 'confirmed'),
+      consentRef: draft ? null : bound.consentRef(state.cardId),
+    }),
+  }
+}
+
+const isStale = (result: Awaited<ReturnType<typeof submit>>) =>
+  result.kind === 'rejected' &&
+  (result.error.code === 'revision_conflict' || result.error.code === 'consent_required')
+
 async function resume(
   state: ConsentState,
   decision: Parameters<typeof ownerAnswerOf>[1],
   execution: ToolSegmentContext,
 ) {
   const answer = ownerAnswerOf(state, decision)
-  const { args } = state
-  if (answer.kind === 'declined')
-    return done('owner_declined reason=the owner declined; nothing was changed')
-  if (answer.kind === 'skipped')
-    return done('owner_skipped reason=the owner did not answer; nothing was changed')
-  if (answer.kind === 'replied')
-    return done(
-      `owner_replied reason=the owner answered in words; nothing was changed text=${JSON.stringify(answer.text)}`,
-    )
+  if (answer.kind === 'declined' || answer.kind === 'skipped') return done(UNWRITTEN[answer.kind]())
+  if (answer.kind === 'replied') return done(UNWRITTEN.replied(answer.text))
   const reached = await reach(execution)
   if (typeof reached === 'string') return done(reached)
-  const { bound, faces } = reached
-  const write: WriteArguments =
-    answer.kind === 'draft' && args.command === 'create'
-      ? {
-          command: 'create',
-          params: { ...args.params, state: 'draft', reason: 'owner 在卡上选了先存草稿' },
-        }
-      : args
-  const request = writeRequestOf(write, {
-    operationKey: bound.operationKey(answer.kind === 'draft' ? 'draft' : 'confirmed'),
-    consentRef: answer.kind === 'draft' ? null : bound.consentRef(state.cardId),
-  })
+  const { write, request } = writeOf(state, answer, reached.bound)
   if ('invalid' in request) return done(request.invalid)
-  const result = await submit(faces, request)
-  if (
-    result.kind === 'rejected' &&
-    (result.error.code === 'revision_conflict' || result.error.code === 'consent_required')
-  )
+  const result = await submit(reached.faces, request)
+  if (isStale(result) && result.kind === 'rejected')
     return done(
       `card_stale reason=the schedule or the content changed while the card was open; nothing was changed code=${result.error.code}`,
     )

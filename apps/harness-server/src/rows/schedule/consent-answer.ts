@@ -6,10 +6,8 @@ import type { ConsentAnswer } from './authorizer.ts'
 
 const PREFIX = cardIdOf('')
 
-/**
- * The owner's answer a consent reference names: a card that this very call raised and HITL keeps as
- * decided. HITL takes replies only from the tenant's entry, so a decided card is the owner's answer.
- */
+/** The owner's answer a consent reference names: a decided card this very call raised. HITL takes
+ * replies only from the tenant's entry, so a decided card is the owner's answer. */
 export function readConsentAnswer(ports: {
   live(call: string): LiveCall | undefined
   decidedCards(): ToolHitlBridge['decidedCards'] | null

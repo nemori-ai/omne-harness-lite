@@ -7,7 +7,6 @@ import type {
 } from '@omne-harness/schedule-contract'
 import type { ToolExecutionContext, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
 
-/** What the host knows of one call: its tenant, the schedule services now, and the context it derives. */
 export type ScheduleCallSource = Readonly<{
   tenant: string
   call: string
@@ -23,7 +22,6 @@ export type ScheduleFaces = Readonly<{
   context: ScheduleCallContext
 }>
 
-/** Why a call could not reach the schedule services: absent, or a context of another tenant. */
 export type ScheduleUnreachable = Readonly<{
   kind: 'unreachable'
   reason: 'unavailable' | 'forbidden'
@@ -34,7 +32,6 @@ export type BoundSchedules = Readonly<{
   faces(): Promise<ScheduleFaces | ScheduleUnreachable>
   /** The operation key of one write of this call; the same step of the same call is the same write. */
   operationKey(step: string): string
-  /** The consent reference of a card this call raised. */
   consentRef(cardId: string): string
   now(): ScheduleInstant
 }>

@@ -21,10 +21,8 @@ function now() {
   return ScheduleInstantSchema.parse(instant.text)
 }
 
-/**
- * Attaches the schedule services, read per call, with the context of the session's agent. While the
- * call's scope is open its access is registered, so the consent check can read this call's own card.
- */
+/** Attaches the schedule services per call with the session agent's context; the call's access stays
+ * registered while its scope is open, so the consent check can read this call's own card. */
 export function bindReleaseSchedules(
   ctx: Context,
   parent: Parent,
