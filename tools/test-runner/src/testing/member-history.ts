@@ -85,6 +85,9 @@ function ledgerAt(path: string): LedgerWithJobs {
   }
 }
 
+const reported = (row: { readonly exitCode: number; readonly files: number }) =>
+  row.exitCode === 0 || row.files > 0
+
 function fileTimesOf(ledger: LedgerWithJobs, member: string): FileTime[] {
   const prefix = `${member}/`
   return (ledger.files ?? [])
@@ -105,32 +108,37 @@ export function memberHistory(home: string, tier: RunTier): Map<string, MemberRe
   const readings = new Map<
     string,
     {
-      seconds: number
-      files: number
-      fileTimes: FileTime[]
+      last?: Pick<MemberReading, 'seconds' | 'files' | 'fileTimes'>
       weights: WeightReading[]
-      startupSeconds?: number
+      startupSeconds?: number | undefined
     }
   >()
   for (const { path } of ledgers.slice(0, LEDGERS_READ)) {
     const ledger = ledgerAt(path)
     const jobs = ledger.meta?.tokens?.jobs ?? []
     for (const row of ledger.members ?? []) {
-      if (row.exitCode !== 0) continue
-      const reading = readings.get(row.member) ?? {
-        seconds: row.wallSeconds,
-        files: row.files,
-        fileTimes: fileTimesOf(ledger, row.member),
-        weights: [],
-      }
+      const reading = readings.get(row.member) ?? { weights: [] }
       readings.set(row.member, reading)
+      if (reading.last === undefined && reported(row))
+        reading.last = {
+          seconds: row.wallSeconds,
+          files: row.files,
+          fileTimes: fileTimesOf(ledger, row.member),
+        }
       const weight = readingOf(jobs, row.member)
       if (weight !== undefined) reading.weights.push(weight)
-      const startup = reading.startupSeconds ?? startupOf(jobs, row.member)
-      if (startup !== undefined) reading.startupSeconds = startup
+      reading.startupSeconds ??= startupOf(jobs, row.member)
     }
   }
-  return readings
+  const history = new Map<string, MemberReading>()
+  for (const [member, { last, weights, startupSeconds }] of readings)
+    if (last !== undefined)
+      history.set(member, {
+        ...last,
+        weights,
+        ...(startupSeconds === undefined ? {} : { startupSeconds }),
+      })
+  return history
 }
 
 export function longestFirst<T extends { readonly path: string }>(

@@ -18,17 +18,21 @@ function home(): string {
   return dir
 }
 
-function ledger(root: string, run: string, age: number, members: Row[] | string): void {
+function write(root: string, run: string, age: number, body: unknown): void {
   const dir = join(root, 'abc123def', run)
   mkdirSync(dir, { recursive: true })
   const path = join(dir, 'ledger.json')
-  writeFileSync(path, typeof members === 'string' ? members : JSON.stringify({ members }))
+  writeFileSync(path, typeof body === 'string' ? body : JSON.stringify(body))
   const at = new Date(Date.now() - age * 1000)
   utimesSync(path, at, at)
 }
 
+function ledger(root: string, run: string, age: number, members: Row[] | string): void {
+  write(root, run, age, typeof members === 'string' ? members : { members })
+}
+
 describe('成员上一次的读数', () => {
-  it('取这一层最近一次通过的运行里的用时与文件数；别的层、失败的运行不算', () => {
+  it('取这一层最近一份有报告的运行里的用时与文件数，失败的运行也算；别的层不算', () => {
     const root = home()
     ledger(root, '20261116-100000-fast', 300, [
       { member: 'packages/a', wallSeconds: 40, files: 9, exitCode: 0 },
@@ -46,7 +50,7 @@ describe('成员上一次的读数', () => {
     ])
     expect(Object.fromEntries(memberHistory(root, 'fast'))).toEqual({
       'packages/a': { seconds: 55, files: 11, fileTimes: [], weights: [] },
-      'packages/b': { seconds: 5, files: 2, fileTimes: [], weights: [] },
+      'packages/b': { seconds: 99, files: 3, fileTimes: [], weights: [] },
     })
     expect(Object.fromEntries(memberHistory(root, 'slow'))).toEqual({
       'packages/a': { seconds: 900, files: 1, fileTimes: [], weights: [] },
@@ -72,42 +76,25 @@ describe('成员上一次的读数', () => {
 
   it('启动开销：取最近一份有读数的账本里这个成员各批的平均；没有读数时不带这一项', () => {
     const root = home()
-    const write = (run: string, age: number, jobs: unknown[]) => {
-      const dir = join(root, 'abc123def', run)
-      mkdirSync(dir, { recursive: true })
-      const path = join(dir, 'ledger.json')
-      writeFileSync(
-        path,
-        JSON.stringify({
-          members: [{ member: 'apps/s', wallSeconds: 10, files: 2, exitCode: 0 }],
-          meta: { tokens: { jobs } },
-        }),
-      )
-      const at = new Date(Date.now() - age * 1000)
-      utimesSync(path, at, at)
-    }
-    write('20261116-100000-slow', 300, [{ member: 'apps/s', startupSeconds: 20 }])
-    write('20261116-110000-slow', 200, [
+    const jobsOf = (run: string, age: number, jobs: unknown[]) =>
+      write(root, run, age, {
+        members: [{ member: 'apps/s', wallSeconds: 10, files: 2, exitCode: 0 }],
+        meta: { tokens: { jobs } },
+      })
+    jobsOf('20261116-100000-slow', 300, [{ member: 'apps/s', startupSeconds: 20 }])
+    jobsOf('20261116-110000-slow', 200, [
       { member: 'apps/s', startupSeconds: 6 },
       { member: 'apps/s', startupSeconds: 9 },
       { member: 'apps/other', startupSeconds: 99 },
     ])
-    write('20261116-120000-slow', 100, [{ member: 'apps/s' }])
+    jobsOf('20261116-120000-slow', 100, [{ member: 'apps/s' }])
     expect(memberHistory(root, 'slow').get('apps/s')?.startupSeconds).toBe(7.5)
-    write('20261116-130000-fast', 50, [{ member: 'apps/s' }])
+    jobsOf('20261116-130000-fast', 50, [{ member: 'apps/s' }])
     expect(memberHistory(root, 'fast').get('apps/s')).not.toHaveProperty('startupSeconds')
   })
 
-  it('实测读数：一份账本里这个成员各件活（各批）的 CPU 秒与进程秒（墙钟 × 进程数）相加，新的在前；失败的、没量到 CPU 的、读数版本旧的不算', () => {
+  it('实测读数：一份账本里这个成员各件活（各批）的 CPU 秒与进程秒（墙钟 × 进程数）相加，新的在前，失败的运行也算；没量到 CPU 的、读数版本旧的不算', () => {
     const root = home()
-    const write = (run: string, age: number, body: unknown) => {
-      const dir = join(root, 'abc123def', run)
-      mkdirSync(dir, { recursive: true })
-      const path = join(dir, 'ledger.json')
-      writeFileSync(path, JSON.stringify(body))
-      const at = new Date(Date.now() - age * 1000)
-      utimesSync(path, at, at)
-    }
     const row = (member: string, exitCode = 0) => ({
       member,
       wallSeconds: 10,
@@ -123,11 +110,11 @@ describe('成员上一次的读数', () => {
       end: seconds,
       readingVersion: READING_VERSION,
     })
-    write('20261116-100000-fast', 300, {
+    write(root, '20261116-100000-fast', 300, {
       members: [row('packages/a'), row('packages/b')],
       meta: { tokens: { jobs: [job('packages/a', 70, 50, 2), job('packages/b', 20, 40, 1)] } },
     })
-    write('20261116-110000-fast', 200, {
+    write(root, '20261116-110000-fast', 200, {
       members: [row('packages/a'), row('packages/b', 1)],
       meta: {
         tokens: {
@@ -139,13 +126,13 @@ describe('成员上一次的读数', () => {
         },
       },
     })
-    write('20261116-120000-fast', 100, {
+    write(root, '20261116-120000-fast', 100, {
       members: [row('packages/a')],
       meta: {
         tokens: { jobs: [{ member: 'packages/a', cpuSeconds: 5, workers: 1, start: 0, end: 9 }] },
       },
     })
-    write('20261116-130000-fast', 50, {
+    write(root, '20261116-130000-fast', 50, {
       members: [row('packages/a')],
       meta: {
         tokens: {
@@ -160,10 +147,13 @@ describe('成员上一次的读数', () => {
       { cpuSeconds: 90, processSeconds: 80 },
       { cpuSeconds: 70, processSeconds: 100 },
     ])
-    expect(history.get('packages/b')?.weights).toEqual([{ cpuSeconds: 20, processSeconds: 40 }])
+    expect(history.get('packages/b')?.weights).toEqual([
+      { cpuSeconds: 90, processSeconds: 40 },
+      { cpuSeconds: 20, processSeconds: 40 },
+    ])
   })
 
-  it('各文件的耗时取自这个成员最近一次通过的那份账本，路径改成相对成员目录；别的成员的文件不混进来', () => {
+  it('各文件的耗时取自这个成员最近一份有报告的账本，路径改成相对成员目录；别的成员的文件不混进来', () => {
     const root = home()
     const dir = join(root, 'abc123def', '20261116-100000-slow')
     mkdirSync(dir, { recursive: true })
@@ -184,6 +174,61 @@ describe('成员上一次的读数', () => {
       { file: 'tests/a.spec.ts', seconds: 400 },
       { file: 'tests/b.spec.ts', seconds: 5 },
     ])
+  })
+
+  it('没有报告的运行（退出非 0、零个文件）不给用时、文件数与文件耗时，只给权重与启动读数；失败但有报告的运行照给，失败的文件也算；退出 0、零个文件的成员照算', () => {
+    const root = home()
+    const server = 'apps/server'
+    write(root, '20261116-100000-slow', 300, {
+      members: [{ member: server, wallSeconds: 10, files: 2, exitCode: 0 }],
+      files: [
+        { member: server, file: `${server}/tests/a.spec.ts`, seconds: 180 },
+        { member: server, file: `${server}/tests/b.spec.ts`, seconds: 5 },
+      ],
+    })
+    write(root, '20261116-110000-slow', 200, {
+      members: [{ member: server, wallSeconds: 40, files: 2, exitCode: 1 }],
+      files: [
+        { member: server, file: `${server}/tests/a.spec.ts`, seconds: 320 },
+        { member: server, file: `${server}/tests/b.spec.ts`, seconds: 6 },
+      ],
+      failures: [{ member: server, file: `${server}/tests/a.spec.ts`, test: 'W3-A', message: 'x' }],
+    })
+    write(root, '20261116-120000-slow', 100, {
+      members: [
+        { member: server, wallSeconds: 3, files: 0, exitCode: 1 },
+        { member: 'packages/empty', wallSeconds: 2, files: 0, exitCode: 0 },
+      ],
+      failures: [{ member: server, message: '退出码 1，没有产出报告' }],
+      meta: {
+        tokens: {
+          jobs: [
+            {
+              member: server,
+              cpuSeconds: 6,
+              workers: 1,
+              start: 0,
+              end: 3,
+              readingVersion: READING_VERSION,
+              startupSeconds: 25,
+            },
+          ],
+        },
+      },
+    })
+    expect(Object.fromEntries(memberHistory(root, 'slow'))).toEqual({
+      [server]: {
+        seconds: 40,
+        files: 2,
+        fileTimes: [
+          { file: 'tests/a.spec.ts', seconds: 320 },
+          { file: 'tests/b.spec.ts', seconds: 6 },
+        ],
+        weights: [{ cpuSeconds: 6, processSeconds: 3 }],
+        startupSeconds: 25,
+      },
+      'packages/empty': { seconds: 2, files: 0, fileTimes: [], weights: [] },
+    })
   })
 
   it('只翻最近的二十份账本', () => {
