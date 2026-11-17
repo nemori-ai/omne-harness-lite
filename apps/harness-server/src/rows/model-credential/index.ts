@@ -5,14 +5,13 @@ import {
   modelProviderCategoryPlugin,
   serveModelCredential,
 } from '@omne-harness/model-host-local/cordis'
-import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
 import { credentialProviders } from '../../assets/model-providers.ts'
 import { defineRow } from '../../row.ts'
 import { settingsSecretCustodyKey } from '../secret-custody/index.ts'
 
 const plugin: Plugin.Object = {
   name: 'model-credential',
-  inject: [settingsSecretCustodyKey, assetCategoriesKey],
+  inject: [settingsSecretCustodyKey],
   apply(ctx: Context) {
     const custody = ctx.settingsSecretCustody
     const port = createSecretCredentialPort({
@@ -29,7 +28,7 @@ export const modelCredentialRow = defineRow({
   implementation: 'real',
   manifest: {
     provides: [modelCredentialKey],
-    injects: [settingsSecretCustodyKey, assetCategoriesKey],
+    injects: [settingsSecretCustodyKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'none' },
