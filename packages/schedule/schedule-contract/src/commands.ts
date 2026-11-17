@@ -49,12 +49,6 @@ export const ScheduleCommandSchema = z.discriminatedUnion('action', [
   }),
   z.strictObject({
     ...common,
-    action: z.literal('reconfirmConsent'),
-    newConsentRef: ScheduleRefSchema,
-    reason: ScheduleReasonSchema,
-  }),
-  z.strictObject({
-    ...common,
     action: z.enum(['pause', 'resume', 'stop', 'promote', 'discard']),
     reason: ScheduleReasonSchema.nullable(),
   }),

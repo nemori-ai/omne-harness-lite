@@ -674,6 +674,22 @@
       "source": "packages/calendar/SPEC.md"
     },
     {
+      "id": "packages/calendar/calendar-protocol",
+      "paths": ["packages/calendar/calendar-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["calendar"],
+      "status": "candidate",
+      "source": "packages/calendar/SPEC.md"
+    },
+    {
+      "id": "packages/calendar/calendar-access",
+      "paths": ["packages/calendar/calendar-access/src/**"],
+      "layer": "unknown",
+      "domains": ["calendar"],
+      "status": "candidate",
+      "source": "packages/calendar/SPEC.md"
+    },
+    {
       "id": "packages/calendar/calendar-tools",
       "paths": ["packages/calendar/calendar-tools/src/**"],
       "layer": "interaction",
@@ -711,6 +727,22 @@
       "layer": "assembly",
       "domains": ["schedule"],
       "status": "adopted",
+      "source": "packages/schedule/SPEC.md"
+    },
+    {
+      "id": "packages/schedule/schedule-protocol",
+      "paths": ["packages/schedule/schedule-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["schedule"],
+      "status": "candidate",
+      "source": "packages/schedule/SPEC.md"
+    },
+    {
+      "id": "packages/schedule/schedule-access",
+      "paths": ["packages/schedule/schedule-access/src/**"],
+      "layer": "unknown",
+      "domains": ["schedule"],
+      "status": "candidate",
       "source": "packages/schedule/SPEC.md"
     },
     {

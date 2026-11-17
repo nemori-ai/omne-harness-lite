@@ -1,0 +1,248 @@
+import { defineProtocol, ruleCodec, type Rule } from '@omne-harness/public-contract'
+
+type Fields = Readonly<Record<string, { readonly rule: Rule; readonly optional?: true }>>
+
+const text = { kind: 'text' } as const
+const tenant = { kind: 'tenant' } as const
+const instant = { kind: 'instant' } as const
+const date = { kind: 'plain-date' } as const
+const count = { kind: 'count' } as const
+const positive = { kind: 'positive-integer' } as const
+const pageLimit = { kind: 'page-limit' } as const
+const json = { kind: 'json' } as const
+const boolean = { kind: 'boolean' } as const
+const nothing = { kind: 'null' } as const
+
+const object = <const F extends Fields>(fields: F) => ({ kind: 'object', fields }) as const
+const literal = <const V extends readonly string[]>(...values: V) =>
+  ({ kind: 'literal', values }) as const
+const nullable = <const R extends Rule>(rule: R) =>
+  ({ kind: 'one-of', rules: [rule, nothing] }) as const
+const array = <const R extends Rule>(item: R) => ({ kind: 'array', item }) as const
+const oneOf = <const R extends readonly Rule[]>(...rules: R) => ({ kind: 'one-of', rules }) as const
+
+const control = literal(
+  'draft',
+  'active',
+  'paused',
+  'stopped',
+  'exhausted',
+  'discarded',
+  'superseded',
+)
+const author = oneOf(
+  object({ kind: { rule: literal('human') } }),
+  object({ kind: { rule: literal('agent') }, session: { rule: text } }),
+  object({ kind: { rule: literal('system') } }),
+)
+
+/** One upcoming time, and the calendar and version its working days came from. */
+const upcoming = object({
+  at: { rule: instant },
+  local: { rule: text },
+  calendar: { rule: nullable(text) },
+  version: { rule: nullable(text) },
+})
+
+/** A schedule as a list shows it. */
+const card = object({
+  schedule: { rule: text },
+  label: { rule: nullable(text) },
+  control: { rule: control },
+  standing: { rule: literal('ready', 'blocked', 'terminallyInvalidated') },
+  author: { rule: author },
+  next: { rule: nullable(upcoming) },
+  revision: { rule: count },
+})
+
+/** Why a schedule is in effect: the owner's own act, standing consent, or one answer of the owner. */
+const basis = oneOf(
+  object({ kind: { rule: literal('owner') } }),
+  object({ kind: { rule: literal('blanket') }, generation: { rule: count } }),
+  object({ kind: { rule: literal('granular') }, decision: { rule: text } }),
+  object({ kind: { rule: literal('none') } }),
+)
+
+const detail = object({
+  ...card.fields,
+  basis: { rule: basis },
+  createdAt: { rule: instant },
+  definition: { rule: json },
+})
+
+const revision = object({
+  revision: { rule: count },
+  action: { rule: text },
+  actor: { rule: literal('human', 'agent', 'system') },
+  at: { rule: instant },
+})
+
+const agendaItem = object({
+  schedule: { rule: text },
+  at: { rule: instant },
+  local: { rule: text },
+  kind: { rule: literal('prediction', 'history') },
+})
+
+const page = <const R extends Rule>(item: R) =>
+  object({ items: { rule: array(item) }, next: { rule: nullable(text) } })
+
+const ofTenant = { tenant: { rule: tenant } } as const
+
+const create = object({
+  ...ofTenant,
+  createId: { rule: text },
+  definition: { rule: json },
+  state: { rule: literal('active', 'draft') },
+  reason: { rule: nullable(text) },
+})
+
+const action = oneOf(
+  object({ kind: { rule: literal('rename') }, label: { rule: text } }),
+  object({ kind: { rule: literal('edit') }, instruction: { rule: text } }),
+  object({
+    kind: { rule: literal('revise', 'replace') },
+    definition: { rule: json },
+    reason: { rule: text },
+  }),
+  object({
+    kind: { rule: literal('promote', 'pause', 'resume', 'stop', 'discard') },
+    reason: { rule: nullable(text) },
+  }),
+)
+
+const manage = object({
+  ...ofTenant,
+  actionId: { rule: text },
+  schedule: { rule: text },
+  revision: { rule: count },
+  action: { rule: action },
+})
+
+const refused = {
+  invalid: ruleCodec(object({ code: { rule: text } })),
+  unsupported: ruleCodec(object({ code: { rule: text } })),
+  conflict: ruleCodec(object({ code: { rule: text } })),
+  limited: ruleCodec(object({})),
+  'not-visible': ruleCodec(object({})),
+} as const
+
+const read = { identity: 'login', effect: 'read', limit: 'small', countsAsAccess: true } as const
+const write = { identity: 'login', effect: 'commit', limit: 'small', countsAsAccess: true } as const
+
+export const scheduleProtocol = defineProtocol({
+  name: 'schedule',
+  major: 1,
+  operations: {
+    'list-schedules': {
+      ...read,
+      body: ruleCodec(
+        object({
+          ...ofTenant,
+          control: { rule: nullable(control) },
+          terminal: { rule: boolean },
+          cursor: { rule: nullable(text) },
+          limit: { rule: pageLimit },
+        }),
+      ),
+      outcomes: { succeeded: ruleCodec(page(card)), invalid: refused.invalid },
+    },
+    'read-schedule': {
+      ...read,
+      body: ruleCodec(object({ ...ofTenant, schedule: { rule: text } })),
+      outcomes: { succeeded: ruleCodec(detail), 'not-visible': refused['not-visible'] },
+    },
+    'read-revisions': {
+      ...read,
+      body: ruleCodec(
+        object({
+          ...ofTenant,
+          schedule: { rule: text },
+          cursor: { rule: nullable(text) },
+          limit: { rule: pageLimit },
+        }),
+      ),
+      outcomes: { succeeded: ruleCodec(page(revision)), 'not-visible': refused['not-visible'] },
+    },
+    'read-agenda': {
+      ...read,
+      body: ruleCodec(
+        object({
+          ...ofTenant,
+          from: { rule: date },
+          to: { rule: date },
+          timezone: { rule: text },
+          cursor: { rule: nullable(text) },
+        }),
+      ),
+      outcomes: {
+        succeeded: ruleCodec(page(agendaItem)),
+        invalid: refused.invalid,
+        unsupported: refused.unsupported,
+      },
+    },
+    preview: {
+      ...read,
+      body: ruleCodec(
+        object({
+          ...ofTenant,
+          source: {
+            rule: oneOf(
+              object({ kind: { rule: literal('schedule') }, schedule: { rule: text } }),
+              object({ kind: { rule: literal('definition') }, definition: { rule: json } }),
+            ),
+          },
+          count: { rule: positive },
+        }),
+      ),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({ upcoming: { rule: array(upcoming) }, complete: { rule: boolean } }),
+        ),
+        invalid: refused.invalid,
+        unsupported: refused.unsupported,
+        'not-visible': refused['not-visible'],
+      },
+    },
+    'create-schedule': {
+      ...write,
+      body: ruleCodec(create),
+      outcomes: {
+        succeeded: ruleCodec(detail),
+        invalid: refused.invalid,
+        unsupported: refused.unsupported,
+        conflict: refused.conflict,
+        limited: refused.limited,
+      },
+    },
+    'query-create-schedule': {
+      ...read,
+      body: ruleCodec(create),
+      outcomes: { succeeded: ruleCodec(detail), 'not-committed': ruleCodec(object({})) },
+    },
+    'manage-schedule': {
+      ...write,
+      body: ruleCodec(manage),
+      outcomes: {
+        succeeded: ruleCodec(detail),
+        invalid: refused.invalid,
+        unsupported: refused.unsupported,
+        conflict: refused.conflict,
+        limited: refused.limited,
+        'not-visible': refused['not-visible'],
+      },
+    },
+    'query-manage-schedule': {
+      ...read,
+      body: ruleCodec(manage),
+      outcomes: {
+        succeeded: ruleCodec(detail),
+        'not-committed': ruleCodec(object({})),
+        'not-visible': refused['not-visible'],
+      },
+    },
+  },
+  observations: {},
+})
+
+export type ScheduleProtocol = typeof scheduleProtocol

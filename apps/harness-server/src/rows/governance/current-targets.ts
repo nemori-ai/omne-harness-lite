@@ -108,6 +108,11 @@ function matchTarget(
   return released === undefined ? undefined : targetEvidence(view, publication, released)
 }
 
+/** Governance owns only targets whose definition carries a governance item; preferences are not its. */
+function governed(view: SettingsOwnerProjection['views'][number]): boolean {
+  return view.definition.items.some(item => item.category === 'governance')
+}
+
 export function currentGovernanceCatalog(input: Parameters<typeof currentGovernanceTargets>[0]) {
   const sources = [
     input.assets,
@@ -116,7 +121,8 @@ export function currentGovernanceCatalog(input: Parameters<typeof currentGoverna
     input.standalonePublications,
   ]
   if (sources.some(source => !equal(source.binding, input.capture))) return undefined
-  const all = [...input.assets.views, ...input.standalone.views]
+  const standalone = input.standalone.views.filter(governed)
+  const all = [...input.assets.views, ...standalone]
   const targets: GovernanceAdoptionCurrent['targets'] = []
   const unavailableOwners = new Set<string>()
   const seen = new Set<string>()
@@ -128,9 +134,12 @@ export function currentGovernanceCatalog(input: Parameters<typeof currentGoverna
     if (found === undefined) unavailableOwners.add(unavailableOwner(input, view))
     else targets.push(found)
   }
+  const standalonePublications = input.standalonePublications.views.filter(publication =>
+    standalone.some(view => equal(view.target, publication.target)),
+  )
   if (
     input.assetPublications.views.filter(view => view.definitionRef !== null).length +
-      input.standalonePublications.views.length !==
+      standalonePublications.length !==
     all.length
   )
     return undefined

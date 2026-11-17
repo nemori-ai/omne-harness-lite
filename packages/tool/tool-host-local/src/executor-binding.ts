@@ -70,9 +70,9 @@ export type LocalToolBindingsInput<P, E, B extends ContentBlock> = Readonly<{
     input: CallAccess<P> &
       Readonly<{ start: Start; request: FixedToolRequest; execution: LocalAuthorExecution }>,
   ): ToolExecutionScope
+  /** The call's capabilities: the first segment and every resumed segment of the call get the same. */
   capability?(
-    input: CallAccess<P> &
-      Readonly<{ start: Extract<ToolStartRecord, { kind: 'start' }>; request: FixedToolRequest }>,
+    input: CallAccess<P> & Readonly<{ start: Start; request: FixedToolRequest }>,
     scope: ToolExecutionScope,
   ): ToolExecutionScope
   settle(
@@ -228,12 +228,8 @@ export function createLocalToolBindings<P, E, B extends ContentBlock>(
   const unavailable = (diagnostic: string) =>
     fail({ kind: 'unavailable' as const, dependency: 'toolBindings', diagnostic })
 
-  const withCapability = (input: StartInput<P, E>, scope: ToolExecutionScope) => {
-    const { start } = input
-    return start.kind === 'start'
-      ? (dependencies.capability?.({ ...input, start }, scope) ?? scope)
-      : scope
-  }
+  const withCapability = (input: StartInput<P, E>, scope: ToolExecutionScope) =>
+    dependencies.capability?.(input, scope) ?? scope
 
   const launch = async (
     input: StartInput<P, E>,

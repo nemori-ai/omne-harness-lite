@@ -267,6 +267,88 @@ describe('setting set', () => {
   })
 })
 
+describe('setting set --value', () => {
+  const describedOrdinary = answerFor('describe-setting', {
+    outcome: 'succeeded',
+    body: { item: { ...ordinaryView, revision: '7' } },
+  })
+
+  it('writes an ordinary value given as JSON, reading no secret', async () => {
+    const service = await serve(describedOrdinary)
+    await login(service)
+    const result = await cli(['setting', 'set', 'Web', 'maxResults', '--value', '20'])
+    expect(result.code).toBe(0)
+    expect(result.credentialReads).toBe(0)
+    expect(seenOf(service, 'set-setting')?.body).toEqual({
+      tenant: tenantText,
+      asset: { name: 'Web' },
+      item: 'maxResults',
+      operation: expect.any(String),
+      expectedRevision: '7',
+      value: { kind: 'ordinary', value: 20 },
+    })
+  })
+
+  it('takes a JSON string, so a text value is quoted', async () => {
+    const service = await serve(describedOrdinary)
+    await login(service)
+    const result = await cli(['setting', 'set', 'Web', 'maxResults', '--value', '"Asia/Tokyo"'])
+    expect(result.code).toBe(0)
+    expect(seenOf(service, 'set-setting')?.body).toMatchObject({
+      value: { kind: 'ordinary', value: 'Asia/Tokyo' },
+    })
+  })
+
+  it('carries a structured value whole', async () => {
+    const service = await serve(describedOrdinary)
+    await login(service)
+    const value = { a: [1, true, null, 'x'], b: { c: false } }
+    const result = await cli([
+      'setting',
+      'set',
+      'Web',
+      'maxResults',
+      '--value',
+      JSON.stringify(value),
+    ])
+    expect(result.code).toBe(0)
+    expect(seenOf(service, 'set-setting')?.body).toMatchObject({
+      value: { kind: 'ordinary', value },
+    })
+  })
+
+  it('unset takes no value', async () => {
+    const service = await serve(describedOrdinary)
+    await login(service)
+    const result = await cli(['setting', 'unset', 'Web', 'maxResults', '--value', '1'])
+    expect(result.code).toBe(2)
+    expect(countOf(service, 'clear-setting')).toBe(0)
+  })
+
+  it('a value that is not JSON is a usage error and sends nothing', async () => {
+    const service = await serve(describedOrdinary)
+    await login(service)
+    const result = await cli(['setting', 'set', 'Web', 'maxResults', '--value', 'Asia/Tokyo'])
+    expect(result.code).toBe(2)
+    expect(result.stderr).toBe('omne setting set: --value takes a JSON value\n')
+    expect(countOf(service, 'describe-setting')).toBe(0)
+    expect(seenOf(service, 'set-setting')).toBeUndefined()
+  })
+
+  it('refuses a value for a secret item, sends no write and prints no value', async () => {
+    const service = await serve()
+    await login(service)
+    const result = await cli(['setting', 'set', 'tool:Web', ITEM, '--value', `"${SENTINEL}"`])
+    expect(result.code).toBe(2)
+    expect(result.stderr).toBe(
+      'omne setting set: a secret is read from the prompt, not from --value\n',
+    )
+    expect(result.credentialReads).toBe(0)
+    expect(seenOf(service, 'set-setting')).toBeUndefined()
+    expect(visible(result)).not.toContain(SENTINEL)
+  })
+})
+
 describe('the asset selector', () => {
   it.each([
     ['tool:Web', WEB],

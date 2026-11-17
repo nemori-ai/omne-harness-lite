@@ -5,6 +5,7 @@ import {
   SETTINGS_COMMIT_PARTICIPANTS,
   SETTINGS_READY_PARTICIPANTS,
   SETTINGS_RECOVERY_PARTICIPANTS,
+  standaloneCurrentParticipant,
 } from '@omne-harness/settings-local/preparation'
 import {
   combinationManifest,
@@ -113,6 +114,26 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
       tenantSettingsCurrentParticipant('commit'),
     ],
     tenantSettingsRecovery: [...SETTINGS_RECOVERY_PARTICIPANTS],
+    preferenceTargets: [
+      ...SETTINGS_RECOVERY_PARTICIPANTS.filter(name => name !== 'settings.source-finalization'),
+      'settings.source-snapshot',
+      'settings.targets',
+    ],
+    preferenceCapture: [
+      ...SETTINGS_RECOVERY_PARTICIPANTS,
+      'settings.targets',
+      standaloneCurrentParticipant('tenant', 'capture'),
+    ],
+    preferenceReady: [
+      ...SETTINGS_READY_PARTICIPANTS,
+      'settings.targets',
+      standaloneCurrentParticipant('tenant', 'ready'),
+    ],
+    preferenceCommit: [
+      ...SETTINGS_COMMIT_PARTICIPANTS,
+      'settings.targets',
+      standaloneCurrentParticipant('tenant', 'commit'),
+    ],
   }
   function build(name: keyof typeof definitions) {
     const participants = [...new Set(definitions[name])]
@@ -144,5 +165,9 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
     tenantSettingsReady: build('tenantSettingsReady'),
     tenantSettingsCommit: build('tenantSettingsCommit'),
     tenantSettingsRecovery: build('tenantSettingsRecovery'),
+    preferenceTargets: build('preferenceTargets'),
+    preferenceCapture: build('preferenceCapture'),
+    preferenceReady: build('preferenceReady'),
+    preferenceCommit: build('preferenceCommit'),
   }
 }

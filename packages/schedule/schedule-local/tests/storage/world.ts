@@ -92,6 +92,7 @@ export async function openWorld(
     wrap?: (storage: SqlStorage) => SqlStorage
     configure?: boolean
     context?: ScheduleCallContext
+    transactionDomain?: string
   } = {},
 ) {
   const context = options.context ?? defaultContext
@@ -103,7 +104,7 @@ export async function openWorld(
   if (manifest.kind !== 'manifest') throw new Error(JSON.stringify(manifest))
   const combination = {
     scope,
-    transactionDomain: 'schedule.management',
+    transactionDomain: options.transactionDomain ?? 'tenant/fixture-organization/fixture-account',
     combinationVersion: 'fixture-schedule/1',
     manifestDigest: manifestDigest(manifest.manifest),
     participants,
@@ -135,6 +136,7 @@ export async function openWorld(
   const backend = createScheduleManagementSqlBackend({
     storage,
     scope,
+    transactionDomain: combination.transactionDomain,
     combinationVersion: combination.combinationVersion,
     manifestDigest: combination.manifestDigest,
     guards,
@@ -217,7 +219,6 @@ export async function openWorld(
               'create',
               'update',
               'reviseDraft',
-              'reconfirmConsent',
               'pause',
               'resume',
               'stop',
@@ -248,7 +249,7 @@ export async function openWorld(
       const path = join(
         root,
         'domains',
-        `${Buffer.from('schedule.management').toString('hex')}.sqlite`,
+        `${Buffer.from(combination.transactionDomain).toString('hex')}.sqlite`,
       )
       const db = new DatabaseSync(path, { readOnly: true })
       try {

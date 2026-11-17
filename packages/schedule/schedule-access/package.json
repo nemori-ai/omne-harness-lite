@@ -1,0 +1,47 @@
+{
+  "name": "@omne-harness/schedule-access",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Access plugin of schedule/v1: a tenant's schedules for a person acting for the tenant",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/access-cordis-contract": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/schedule-contract": "workspace:*",
+    "@omne-harness/schedule-protocol": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness/schedule": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
