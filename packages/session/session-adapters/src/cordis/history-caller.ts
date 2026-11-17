@@ -1,9 +1,8 @@
 import type { AgentJournal, CallerCommit, ExecutionMutation } from '@omne-harness/agent-contract'
 import type { JournalWrite } from '../testing/journal.ts'
 
-// The caller a Journal write brings to a joint Session commit. A model reply resolved on a
-// handoff joins as a message. A compaction result joins only through the context transition
-// that adopts it: its custody and processing are Agent facts with no Session command.
+// The caller a Journal write brings to a joint Session commit. A compaction result joins only
+// through the context transition that adopts it, never through its custody or processing.
 export function historyCaller<P>(input: ExecutionMutation<P>, method: JournalWrite): CallerCommit {
   if (method === 'recordResult') {
     const transfer = (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
