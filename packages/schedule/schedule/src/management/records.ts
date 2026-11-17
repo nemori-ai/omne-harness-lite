@@ -22,7 +22,6 @@ export function createManagementRecord(
   return {
     view,
     activationExclusive: view.control === 'draft' ? null : input.now,
-    consentLock: input.access.consentLock,
     quota,
     adoptedBasis: input.definition.kind === 'resolved' ? input.definition.basis : null,
     definitionRef: createScheduleDefinitionRef(view),

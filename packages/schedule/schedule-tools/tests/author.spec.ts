@@ -66,7 +66,6 @@ const readInputs = [
 const commands = [
   { action: 'update', patch: { kind: 'label', label: 'new' } },
   { action: 'reviseDraft', definition, reason: 'revise' },
-  { action: 'reconfirmConsent', newConsentRef: 'consent', reason: 'renew' },
   ...['pause', 'resume', 'stop', 'promote', 'discard'].map(action => ({ action, reason: null })),
   { action: 'replace', successor: definition, reason: 'replace' },
 ].map(command => ({ action: 'execute', input: { ...command, scheduleId, meta: commandMeta } }))
@@ -78,7 +77,7 @@ const create = {
     meta: { expectedRevision: null, consentRef: null },
   },
 }
-it('routes all nine actions and every command variant through the public author using fixed context', async () => {
+it('routes all eight actions and every command variant through the public author using fixed context', async () => {
   const calls: unknown[] = []
   const commandServices = {
     create: vi.fn(services.commands.create),
@@ -125,7 +124,7 @@ it('routes all nine actions and every command variant through the public author 
     expect(method).toHaveBeenCalledOnce()
     expect(method.mock.calls[0]?.[0]).toEqual(context)
   }
-  expect(calls).toHaveLength(17)
+  expect(calls).toHaveLength(16)
 })
 it('rejects forged identity/key, omitted initial and metadata, duplicate JSON, and action/result mismatches', async () => {
   for (const key of ['owner', 'principal', 'actor', 'session', 'operationKey']) {

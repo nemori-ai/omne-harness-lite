@@ -36,14 +36,6 @@ export const ReadAccessSchema = z.strictObject({
 export const RecordSchema = z.strictObject({
   view: ScheduleViewSchema,
   activationExclusive: ScheduleInstantSchema.nullable(),
-  consentLock: z.discriminatedUnion('kind', [
-    z.strictObject({ kind: z.literal('clear') }),
-    z.strictObject({
-      kind: z.literal('reconfirmationRequired'),
-      grantRef: ref,
-      revokedGeneration: z.int().nonnegative(),
-    }),
-  ]),
   quota: z.discriminatedUnion('kind', [
     z.strictObject({ kind: z.literal('held'), reservationRef: ref }),
     z.strictObject({ kind: z.literal('released'), releaseRef: ref }),

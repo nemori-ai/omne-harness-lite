@@ -18,11 +18,10 @@ import {
   type ParameterCodec,
 } from '@omne-harness/tool-contract/provider'
 
-const [update, revise, consent, control, replace] = schedule.ScheduleCommandSchema.options
+const [update, revise, control, replace] = schedule.ScheduleCommandSchema.options
 export const scheduleToolCommandSchema = z.discriminatedUnion('action', [
   update.extend({ meta: update.shape.meta.omit({ operationKey: true }) }),
   revise.extend({ meta: revise.shape.meta.omit({ operationKey: true }) }),
-  consent.extend({ meta: consent.shape.meta.omit({ operationKey: true }) }),
   control.extend({ meta: control.shape.meta.omit({ operationKey: true }) }),
   replace.extend({ meta: replace.shape.meta.omit({ operationKey: true }) }),
 ])

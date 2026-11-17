@@ -89,7 +89,6 @@ export const ScheduleRevisionViewSchema = z.strictObject({
     'create',
     'update',
     'reviseDraft',
-    'reconfirmConsent',
     'pause',
     'resume',
     'stop',
