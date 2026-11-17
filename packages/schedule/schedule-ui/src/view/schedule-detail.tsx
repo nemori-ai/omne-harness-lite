@@ -1,7 +1,8 @@
 import type { TenantId } from '@omne-harness/public-contract'
 import type { ScheduleProtocol } from '@omne-harness/schedule-protocol'
 import type { ClientOf } from '@omne-harness/sdk/core'
-import { FactList, FactRow, Section } from '@omne-harness/ui-kit'
+import { FactList, FactRow, formatInstant, Section } from '@omne-harness/ui-kit'
+import { encodeInstant } from '@omne-harness/utc-instant'
 import type { JSX } from 'react'
 import { useReading } from '../model/reading.ts'
 import {
@@ -57,7 +58,7 @@ function Facts({ detail }: Readonly<{ detail: ScheduleDetail }>): JSX.Element {
       <FactRow term="能否运行">{STANDING_WORDS[detail.standing]}</FactRow>
       <FactRow term="谁建的">{authorText(detail.author)}</FactRow>
       <FactRow term="凭什么生效">{basisText(detail.basis)}</FactRow>
-      <FactRow term="建于">{String(detail.createdAt)}</FactRow>
+      <FactRow term="建于">{formatInstant(encodeInstant(detail.createdAt), 'h23')}</FactRow>
       <FactRow term="修订">{detail.revision}</FactRow>
     </FactList>
   )
@@ -75,7 +76,7 @@ function UpcomingList({ preview }: Readonly<{ preview: Preview }>): JSX.Element 
     <>
       <ol className="schedule-upcoming" aria-label="时间表">
         {preview.upcoming.map(item => (
-          <li key={String(item.at)}>{upcomingText(item)}</li>
+          <li key={encodeInstant(item.at)}>{upcomingText(item)}</li>
         ))}
       </ol>
       {!preview.complete && <p className="schedule-note">只列出了能确定的几次。</p>}

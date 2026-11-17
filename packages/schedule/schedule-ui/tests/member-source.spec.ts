@@ -20,7 +20,7 @@ it('S2 the member styles are layout only: one sheet, no custom property of its o
   for (const { file, text } of styles) expect(text, file).not.toMatch(/^\s*--[\w-]+\s*:/m)
 })
 
-it('S3 the member reads only its own protocol, the client side of access and the frontend group', () => {
+it('S3 the member reads only its own protocol, the client side of access, the frontend group and the instant type', () => {
   const allowed = new Set([
     'react',
     '@omne-harness/schedule-protocol',
@@ -29,6 +29,7 @@ it('S3 the member reads only its own protocol, the client side of access and the
     '@omne-harness/sdk/core',
     '@omne-harness/shell-contract/cordis',
     '@omne-harness/ui-kit',
+    '@omne-harness/utc-instant',
   ])
   const imports = code.flatMap(({ text }) =>
     [...text.matchAll(/(?:from|import)\s+'([^']+)'/g)]

@@ -15,7 +15,7 @@
 | `schedule-access`          | `schedule/v1` 的接入插件：核对登录与租户、取主体、调日程的服务、映射结果                                                    |
 | `schedule-ui`              | 界面模块：桌面侧栏的「日程」页                                                                                              |
 
-依赖只朝契约：`schedule-local` → {`schedule`、`schedule-cordis-contract`、`schedule-contract`、`sql-contract`、`calendar` 的公开契约与服务定义}；`schedule-tools` → {`schedule-contract`、Tool 的公开作者协议、人工介入的 Tool 等待契约}；`schedule-access` → {`schedule-protocol`、`schedule-cordis-contract`、`schedule-contract`、接入的贡献类型}；`schedule-ui` → {`schedule-protocol`、客户端装配、SDK 的客户端核心、公开契约、`frontend` 这一组}；`schedule` → {`schedule-contract`、`calendar-contract`}。管理命令先由纯函数在当前事实上做决定，再由存储参加者在一次提交里写入定义、修订、额度效果、outbox 与回执。预测在固定依据上只读地展开候选；接受在一致的保护边界里重新核对依据、资格、控制、次数与重叠，形成固定的 Job，交给自有的执行端口 `JobExecutor`，由外部适配器去跑程序或交给 Session。
+依赖只朝契约：`schedule-local` → {`schedule`、`schedule-cordis-contract`、`schedule-contract`、`sql-contract`、`calendar` 的公开契约与服务定义}；`schedule-tools` → {`schedule-contract`、Tool 的公开作者协议、人工介入的 Tool 等待契约}；`schedule-access` → {`schedule-protocol`、`schedule-cordis-contract`、`schedule-contract`、接入的贡献类型}；`schedule-ui` → {`schedule-protocol`、客户端装配、SDK 的客户端核心、公开契约、`utc-instant`、`frontend` 这一组}；`schedule` → {`schedule-contract`、`calendar-contract`}。管理命令先由纯函数在当前事实上做决定，再由存储参加者在一次提交里写入定义、修订、额度效果、outbox 与回执。预测在固定依据上只读地展开候选；接受在一致的保护边界里重新核对依据、资格、控制、次数与重叠，形成固定的 Job，交给自有的执行端口 `JobExecutor`，由外部适配器去跑程序或交给 Session。
 
 ## 领域边界
 
@@ -203,7 +203,7 @@
 - `schedule/v1` 的操作都要代租户行事。读：列表、详情、修订、日程表、预览。写：创建与管理，各配一个按原标识认回的读。日程的操作号由租户与调用方的标识派生，同一标识同内容认回原结果，异内容答冲突。定义经公开契约的 JSON 叶子原样交给服务端，由日程按 schema 校验；客户端不解读它。
 - 答复是给客户端的投影，不转发领域对象；作者分得出人与某个会话里的 agent，生效的安排带采用的同意依据，每一次预测带日历依据。不存在、别的租户与无权对外是同一个拒绝。接入插件按调用现取命令与查询服务，取不到答依据不可用；读里抛出答依据不可用，写里抛出答未知。
 - 人经接入行事时，行事者是人，同意不要求另行确认。
-- 界面模块往外壳的页面位置放一个只读的日程页，打开时读，可以刷新。它只依赖客户端装配、SDK 的客户端核心、公开契约、`frontend` 这一组与 `schedule-protocol`；没有租户时不画、不发调用。确认卡不由本组画：它是人工介入的卡，出现在会话与决策池里。
+- 界面模块往外壳的页面位置放一个只读的日程页，打开时读，可以刷新。它只依赖客户端装配、SDK 的客户端核心、公开契约、`utc-instant`、`frontend` 这一组与 `schedule-protocol`；没有租户时不画、不发调用。确认卡不由本组画：它是人工介入的卡，出现在会话与决策池里。
 
 ## 原则与约束
 

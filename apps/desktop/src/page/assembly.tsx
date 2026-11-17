@@ -31,6 +31,7 @@ const ASSET_CATEGORY_LABELS = {
   skill: '技能',
   AgentDefinition: '智能体',
   mcp: 'MCP',
+  preference: '偏好',
 }
 
 export const assembly: Assembly = {

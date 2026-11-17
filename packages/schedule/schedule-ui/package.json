@@ -38,6 +38,7 @@
     "@omne-harness/sdk": "workspace:*",
     "@omne-harness/shell-contract": "workspace:*",
     "@omne-harness/ui-kit": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:"
   },

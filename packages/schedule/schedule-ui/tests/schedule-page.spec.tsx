@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import { scheduleProtocol, type ScheduleProtocol } from '@omne-harness/schedule-protocol'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import { parseInstant, type Instant } from '@omne-harness/utc-instant'
 import { SchedulePage } from '../src/index.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type Call } from './fixtures/fake-client.ts'
@@ -12,9 +13,16 @@ const OPERATIONS = Object.keys(scheduleProtocol.operations)
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
 
+/** The protocol client decodes an instant into an Instant, which has no string form. */
+function instant(text: string): Instant {
+  const parsed = parseInstant(text)
+  if (!parsed.ok) throw new Error(text)
+  return parsed.value
+}
+
 const NEXT = {
-  at: '2026-11-30T09:00:00Z',
-  local: '2026-11-30 17:00',
+  at: instant('2026-11-30T09:00:00Z'),
+  local: '2026-11-30T17:00:00',
   calendar: 'cn-legal-holidays',
   version: '2026.1',
 }
@@ -39,7 +47,7 @@ const WEEKLY = {
 const DETAIL = {
   ...MONTHLY,
   basis: { kind: 'blanket', generation: 7 },
-  createdAt: '2026-11-17T03:00:00Z',
+  createdAt: instant('2026-11-17T03:00:00Z'),
   definition: {},
 }
 
@@ -66,7 +74,8 @@ it('L1 lists each schedule with its name, its control, who made it and its next 
   expect(table).toContain('月报提醒')
   expect(table).toContain('生效')
   expect(table).toContain('agent（会话 ses_1）')
-  expect(table).toContain('2026-11-30 17:00（cn-legal-holidays，版本 2026.1）')
+  expect(table).toContain('2026-11-30 17:00')
+  expect(table).not.toContain('cn-legal-holidays')
   expect(table).toContain('未命名')
   expect(table).toContain('草稿')
   expect(table).toContain('没有下一次')
@@ -115,7 +124,10 @@ it('D1 picking one shows its state, author, the basis it is in effect on, and it
   await answer(preview, {
     outcome: 'succeeded',
     body: {
-      upcoming: [NEXT, { ...NEXT, at: '2026-12-31T09:00:00Z', local: '2026-12-31 17:00' }],
+      upcoming: [
+        NEXT,
+        { ...NEXT, at: instant('2026-12-31T09:00:00Z'), local: '2026-12-31T17:00:00' },
+      ],
       complete: false,
     },
   })

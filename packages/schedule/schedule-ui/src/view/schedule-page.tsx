@@ -18,7 +18,7 @@ import { useReading } from '../model/reading.ts'
 import {
   authorText,
   CONTROL_WORDS,
-  upcomingText,
+  localText,
   type ScheduleCard,
   type Succeeded,
 } from '../model/words.ts'
@@ -166,7 +166,7 @@ function ScheduleTable({
               </StatusPill>
             </TableCell>
             <TableCell>{authorText(item.author)}</TableCell>
-            <TableCell>{item.next === null ? '没有下一次' : upcomingText(item.next)}</TableCell>
+            <TableCell>{item.next === null ? '没有下一次' : localText(item.next.local)}</TableCell>
           </TableRow>
         ))}
       </TableBody>

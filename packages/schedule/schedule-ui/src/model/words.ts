@@ -51,9 +51,14 @@ export function basisText(basis: ScheduleDetail['basis']): string {
   }
 }
 
+/** A local date-time of the tenant's zone, as a person reads it: `2026-11-30 17:00`. */
+export function localText(local: string): string {
+  return local.replace('T', ' ').replace(/:00$/, '')
+}
+
 /** One upcoming time in the tenant's zone, and the calendar and version its working days came from. */
 export function upcomingText(item: Upcoming): string {
   return item.calendar === null
-    ? item.local
-    : `${item.local}（${item.calendar}，版本 ${item.version ?? '未知'}）`
+    ? localText(item.local)
+    : `${localText(item.local)}（${item.calendar}，版本 ${item.version ?? '未知'}）`
 }
