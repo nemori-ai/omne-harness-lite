@@ -47,7 +47,7 @@ export function domainRoot(packageRoot: string, domain: DomainRef): string {
   return join(packageRoot, Buffer.from(domain.transactionDomain, 'utf8').toString('hex'))
 }
 
-function directoryOf(assets: AssetsLocal): PackageDirectoryOf {
+export function directoryOf(assets: Pick<AssetsLocal, 'packages'>): PackageDirectoryOf {
   return async ({ ref, digest }) => {
     const place = await assets.packages.locate({ assetRef: ref, version: digest })
     switch (place.kind) {
@@ -132,7 +132,7 @@ export class TenantSkillsHost {
     const made = this.open(key, tenant)
     this.opening.set(key, made)
     void made.then(set => {
-      if (set === undefined && this.opening.get(key) === made) this.opening.delete(key)
+      if (set === undefined) this.opening.delete(key)
     })
     return made
   }
@@ -155,7 +155,6 @@ export class TenantSkillsHost {
   async close(): Promise<void> {
     this.closed = true
     const sets = await Promise.all(this.opening.values())
-    this.opening.clear()
     await Promise.all(sets.map(set => set?.close()))
   }
 }

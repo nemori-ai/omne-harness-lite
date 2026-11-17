@@ -142,48 +142,49 @@ it('refuses management overflow instead of truncating 129 real holdings into suc
   const explicit = await world.capture({ targets: [{ ...target, targetRef: 'holding-128' }] })
   expect(explicit.kind).toBe('committed')
 }, 30000)
-it('captures only the holdings of the categories the caller names, so other holdings do not count to the limit', async () => {
+async function serviceAndNoteWorld() {
+  const service = categories.lookup('service') ?? fail('service category')
   const registry = createCategoryRegistry()
-  registry.register(categories.lookup('service') ?? fail('service category'))
-  registry.register({
-    category: 'note',
-    schema: { kind: 'null' },
-    judge: () => ({ ok: true }),
-    deriveDeclarations: () => ({ entries: [] }),
-    references: () => [],
-  })
+  registry.register(service)
+  registry.register({ ...service, category: 'note' })
   const world = await openWorld({ categories: registry })
   worlds.push(world)
+  return world
+}
+async function holdOne(world: World, category: 'service' | 'note', name: string) {
+  const assetRef = `${category}-asset-${name}`
+  const published = await world.owner.publish({
+    operationId: `publish-${name}`,
+    assetRef,
+    pinned: category === 'service' ? pinned('1', false, name) : noteBody(name),
+    expectedRevision: 0,
+  })
+  expect(published).toMatchObject({ kind: 'committed' })
+  const held = await world.owner.hold({
+    operationId: `hold-${name}`,
+    assetRef,
+    holdingRef: `holding-${name}`,
+    scopeRef: 'tenant-a',
+    selection: { kind: 'follow' },
+    sources: ownerSources('tenant'),
+    grants,
+  })
+  expect(held).toMatchObject({ kind: 'committed' })
+}
+function capturedRefs(result: Awaited<ReturnType<World['capture']>>): string[] {
+  if (result.kind !== 'committed') throw new Error('capture failed')
+  const views = SettingsOwnerProjectionSchema.parse(result.responses[0]?.reply.response).views
+  return views.map(view => view.target.targetRef)
+}
+it('captures only the holdings of the categories the caller names, so other holdings do not count to the limit', async () => {
+  const world = await serviceAndNoteWorld()
   const holdAll = async (category: 'service' | 'note', count: number) => {
-    for (let index = 0; index < count; index++) {
-      const assetRef = `${category}-asset-${index}`
-      const name = `${category}-${index}`
-      const published = await world.owner.publish({
-        operationId: `publish-${name}`,
-        assetRef,
-        pinned: category === 'service' ? pinned('1', false, name) : noteBody(name),
-        expectedRevision: 0,
-      })
-      expect(published).toMatchObject({ kind: 'committed' })
-      const held = await world.owner.hold({
-        operationId: `hold-${name}`,
-        assetRef,
-        holdingRef: `holding-${name}`,
-        scopeRef: 'tenant-a',
-        selection: { kind: 'follow' },
-        sources: ownerSources('tenant'),
-        grants,
-      })
-      expect(held).toMatchObject({ kind: 'committed' })
-    }
+    for (let index = 0; index < count; index++)
+      await holdOne(world, category, `${category}-${index}`)
   }
   await holdAll('service', 6)
   await holdAll('note', 130)
-  const services = await world.capture()
-  expect(services.kind).toBe('committed')
-  if (services.kind !== 'committed') throw new Error('capture failed')
-  const views = SettingsOwnerProjectionSchema.parse(services.responses[0]?.reply.response).views
-  expect(views.map(view => view.target.targetRef)).toEqual(
+  expect(capturedRefs(await world.capture())).toEqual(
     [0, 1, 2, 3, 4, 5].map(index => `holding-service-${index}`),
   )
   const both = await world.capture({}, { categories: ['service', 'note'] })
@@ -192,6 +193,17 @@ it('captures only the holdings of the categories the caller names, so other hold
   expect(both.responses.at(-1)?.reply).toMatchObject({
     basis: { failure: { kind: 'rejected', reason: 'limit_exceeded' } },
   })
+}, 60000)
+it('orders the holdings of several categories by holding, as one scan of every holding would', async () => {
+  const world = await serviceAndNoteWorld()
+  await holdOne(world, 'service', 'a')
+  await holdOne(world, 'note', 'b')
+  await holdOne(world, 'service', 'c')
+  expect(capturedRefs(await world.capture({}, { categories: ['service', 'note'] }))).toEqual([
+    'holding-a',
+    'holding-b',
+    'holding-c',
+  ])
 }, 60000)
 it('provides only the projection fact and the publication fact', () => {
   expect(assetsSqlMaterials().participants[0]?.providesFacts.map(fact => fact.key)).toEqual([

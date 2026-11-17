@@ -30,7 +30,12 @@ function skill(name: string) {
 }
 
 function entries(...names: string[]): CatalogEntry[] {
-  return names.map(name => ({ kind: 'adopted', ...skill(name), dependencies: [] }))
+  return names.map(name => ({
+    kind: 'adopted',
+    ...skill(name),
+    description: `${name} notes.`,
+    dependencies: [],
+  }))
 }
 
 const basis = {
@@ -45,6 +50,7 @@ async function setup(
     access: SkillAccess<unknown, unknown> | undefined
     verifierAbsent: boolean
     callerTenant: 'a' | 'b'
+    results: CatalogEntry[][]
   }> = {},
 ) {
   const fixture = fixtureEnv([principalIssuerKey])
@@ -63,7 +69,7 @@ async function setup(
     summaries: async () => ({ ok: [] }),
     search: async (...args) => {
       calls.push(['search', ...args])
-      return { ok: entries('alpha', 'beta', 'gamma') }
+      return { ok: overrides.results?.shift() ?? entries('alpha', 'beta', 'gamma') }
     },
   }
   const access: SkillAccess<unknown, unknown> = {
@@ -83,7 +89,22 @@ async function setup(
     },
     list: async (...args) => {
       calls.push(['list', ...args])
-      return { ok: { basis, resources: [], directory: '/skills/weekly-report' } }
+      return {
+        ok: {
+          basis,
+          resources: [
+            { path: 'SKILL.md' as never, encoding: 'text', size: 120, digest: 'd1' as never },
+            {
+              path: 'scripts/collect.mjs' as never,
+              encoding: 'text',
+              size: 40,
+              mediaType: 'text/javascript' as never,
+              digest: 'd2' as never,
+            },
+          ],
+          directory: '/skills/weekly-report',
+        },
+      }
     },
   }
   const ports: SkillsBindingPorts = {
@@ -135,6 +156,14 @@ describe('Skills binding: Skill answers become tool answers (table 2)', () => {
       { kind: 'unavailable', reason: 'the Skill store cannot be read now' },
     ],
     [{ kind: 'unknown' }, { kind: 'unavailable', reason: 'the Skill store cannot be read now' }],
+    [
+      { kind: 'basis-unavailable' },
+      { kind: 'unavailable', reason: 'the Skill store cannot be read now' },
+    ],
+    [
+      { kind: 'unsupported', what: 'no-readable-package' },
+      { kind: 'unavailable', reason: 'the Skill store cannot be read now' },
+    ],
   ]
   it.each(cases)('answers %j as %j for read, read_file and list', async (failure, expected) => {
     const { bound } = await setup({ access: failingRead(failure) })
@@ -166,6 +195,11 @@ describe('Skills binding: Skill answers become tool answers (table 2)', () => {
       await (
         await setup({ callerTenant: 'b' })
       ).bound.read({ skill: 'weekly-report', offset: 0, maxBytes: 100 }, signal),
+    ).toStrictEqual({ failure: { kind: 'not-found' } })
+    expect(
+      await (
+        await setup({ callerTenant: 'b' })
+      ).bound.search({ query: '', after: null, limit: 5 }, signal),
     ).toStrictEqual({ failure: { kind: 'not-found' } })
     expect(
       await (await setup({ verifierAbsent: true })).bound.list({ skill: 'weekly-report' }, signal),
@@ -202,6 +236,15 @@ describe('Skills binding: Skill answers become tool answers (table 2)', () => {
       await bound.read({ skill: 'Weekly Report', offset: 0, maxBytes: 100 }, signal),
     ).toStrictEqual({
       failure: { kind: 'invalid', field: 'skill', reason: 'not a Skill name' },
+    })
+    expect(
+      await bound.readFile(
+        { skill: 'Weekly Report', path: 'a.md', offset: 0, maxBytes: 100 },
+        signal,
+      ),
+    ).toMatchObject({ failure: { kind: 'invalid', field: 'skill' } })
+    expect(await bound.list({ skill: 'Weekly Report' }, signal)).toMatchObject({
+      failure: { kind: 'invalid', field: 'skill' },
     })
     expect(calls).toEqual([])
   })
@@ -250,24 +293,59 @@ describe('Skills binding: Skill answers become tool answers (table 2)', () => {
     ).toStrictEqual({ failure: { kind: 'not-text' } })
   })
 
-  it('lists the files with the directory', async () => {
-    const { bound } = await setup()
+  it('lists the files with the directory, and hands the cancellation signal to the reader', async () => {
+    const { bound, calls } = await setup()
     expect(await bound.list({ skill: 'weekly-report' }, signal)).toStrictEqual({
-      ok: { files: [], directory: '/skills/weekly-report' },
+      ok: {
+        files: [
+          { path: 'SKILL.md', size: 120 },
+          { path: 'scripts/collect.mjs', size: 40, mediaType: 'text/javascript' },
+        ],
+        directory: '/skills/weekly-report',
+      },
+    })
+    expect(calls[0]?.[4]).toStrictEqual({ signal })
+  })
+
+  it('gives no directory when the reader has none', async () => {
+    const { bound } = await setup({
+      access: {
+        read: async () => ({
+          ok: {
+            basis,
+            part: { kind: 'body' },
+            content: { kind: 'text', text: 'body' },
+            range: { start: 0, length: 4 },
+            total: 4,
+            complete: true,
+          },
+        }),
+        list: async () => ({ ok: { basis, resources: [] } }),
+      },
+    })
+    expect(
+      await bound.read({ skill: 'weekly-report', offset: 0, maxBytes: 100 }, signal),
+    ).toStrictEqual({ ok: { text: 'body', start: 0, end: 4, total: 4 } })
+    expect(await bound.list({ skill: 'weekly-report' }, signal)).toStrictEqual({
+      ok: { files: [] },
     })
   })
 })
 
 describe('Skills binding: search pages (table 3)', () => {
-  it('pages with a cursor and gives none after the last page', async () => {
-    const { bound } = await setup()
+  it('pages with a cursor, ignores spaces around the query, and gives none after the last page', async () => {
+    const { bound, calls } = await setup()
     const first = await bound.search({ query: 'notes', after: null, limit: 2 }, signal)
     if (!('ok' in first) || first.ok.next === null) throw new Error(JSON.stringify(first))
     expect(first.ok.entries.map(entry => entry.name)).toEqual(['alpha', 'beta'])
+    expect(calls[0]?.[3]).toStrictEqual({ text: 'notes' })
     expect(
-      await bound.search({ query: 'notes', after: first.ok.next, limit: 2 }, signal),
+      await bound.search({ query: ' notes ', after: first.ok.next, limit: 2 }, signal),
     ).toStrictEqual({
-      ok: { entries: [{ kind: 'available', name: 'gamma' }], next: null },
+      ok: {
+        entries: [{ kind: 'available', name: 'gamma', description: 'gamma notes.' }],
+        next: null,
+      },
     })
     expect(await bound.search({ query: 'notes', after: null, limit: 3 }, signal)).toMatchObject({
       ok: { next: null },
@@ -291,6 +369,17 @@ describe('Skills binding: search pages (table 3)', () => {
     expect(await bound.search({ query: 'notes', after: pastEnd, limit: 2 }, signal)).toStrictEqual(
       invalid,
     )
+  })
+
+  it('refuses a cursor once the results change, though their number stays the same', async () => {
+    const { bound } = await setup({
+      results: [entries('alpha', 'beta', 'gamma'), entries('alpha', 'beta', 'delta')],
+    })
+    const first = await bound.search({ query: 'notes', after: null, limit: 2 }, signal)
+    if (!('ok' in first) || first.ok.next === null) throw new Error(JSON.stringify(first))
+    expect(
+      await bound.search({ query: 'notes', after: first.ok.next, limit: 2 }, signal),
+    ).toStrictEqual({ failure: { kind: 'invalid-cursor' } })
   })
 
   it('marks a disabled Skill with its reason', async () => {

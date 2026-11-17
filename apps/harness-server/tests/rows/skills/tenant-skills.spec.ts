@@ -3,6 +3,7 @@ import { access } from '@omne-harness/legal-identity'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { DomainRef, TenantDomainLookup } from '@omne-harness/sql-contract'
 import {
+  directoryOf,
   routedSkills,
   TenantSkillsHost,
   type TenantSkills,
@@ -181,6 +182,22 @@ describe('one Skill service set per tenant', () => {
     await closing
     expect(await late).toBeUndefined()
     expect(w.closed.sort()).toEqual(['alpha', 'beta'])
+    const looked = w.lookups.length
     expect(await w.host.get(alpha)).toBeUndefined()
+    expect(await w.host.get(fixtureTenant('c'))).toBeUndefined()
+    expect(w.lookups).toHaveLength(looked)
+  })
+
+  it('gives the local directory of a Skill version, none when it has none, and unavailable when the store cannot tell', async () => {
+    const at = (place: object) =>
+      directoryOf({ packages: { locate: async () => place } } as never)({
+        ref: 'tenant/skill/x',
+        digest: 'sha256:0',
+      } as never)
+    expect(await at({ kind: 'local-directory', path: '/skills/x' })).toStrictEqual({
+      ok: '/skills/x',
+    })
+    expect(await at({ kind: 'absent' })).toStrictEqual({ ok: null })
+    expect(await at({ kind: 'unavailable' })).toStrictEqual({ failure: 'unavailable' })
   })
 })

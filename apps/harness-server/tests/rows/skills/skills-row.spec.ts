@@ -1,11 +1,20 @@
 // @module-tag slow
 // Opens a real sqlite store with its worker threads and publishes packages to disk.
-import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
-import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import { access, tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import { capabilityId } from '@omne-harness/assets'
 import type { DomainRef, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { assetsSettingsProjectionCommand } from '@omne-harness/assets-local'
 import { SettingsOwnerProjectionSchema } from '@omne-harness/settings-local'
@@ -18,6 +27,7 @@ import {
   sessionWorkIssuerOf,
 } from '../../../src/entry/principals.ts'
 import {
+  domainRoot,
   openTenantSkills,
   routedSkills,
   TenantSkillsHost,
@@ -149,6 +159,8 @@ async function world() {
       lookupDown = true
     },
     alphaTenant: alpha,
+    alphaRoot: domainRoot(packageRoot, domainOf(alpha, 'tenant-alpha')),
+    routed,
   }
 }
 
@@ -156,6 +168,43 @@ const search = (skills: SkillsAccess, query: string) =>
   skills.search({ query, after: null, limit: 10 }, signal)
 
 describe('the skills row and the Skills binding over a real store', () => {
+  it('finishes a publish that stopped after recording its version when the tenant set opens', async () => {
+    const w = await world()
+    const version = await w.publish('weekly-report')
+    const versions = join(w.alphaRoot, 'skills', 'weekly-report')
+    const [placed] = readdirSync(versions)
+    if (placed === undefined) throw new Error('no version directory')
+    const staging = join(w.alphaRoot, '.staging', 'interrupted')
+    mkdirSync(staging, { recursive: true })
+    renameSync(join(versions, placed), join(staging, 'files'))
+    writeFileSync(
+      join(staging, 'meta.json'),
+      JSON.stringify({
+        category: 'skill',
+        name: 'weekly-report',
+        assetRef: 'tenant/skill/weekly-report',
+        version,
+      }),
+    )
+    const body = await w.alpha.read({ skill: 'weekly-report', offset: 0, maxBytes: 65536 }, signal)
+    expect(body).toMatchObject({ ok: { directory: join(versions, placed) } })
+  })
+
+  it('gives a principal that is not session work of the tenant neither the Skill nor its content', async () => {
+    const w = await world()
+    await w.publish('weekly-report')
+    const outsider = access('governance-reader', w.alphaTenant)
+    const id = capabilityId('skill', 'weekly-report')
+    if (!id.ok) throw new Error('capability')
+    expect(await w.routed.catalog.search(outsider, null, { text: '' })).toStrictEqual({ ok: [] })
+    expect(
+      await w.routed.access.read(outsider, null, {
+        capability: id.id,
+        part: { kind: 'body' },
+      }),
+    ).toMatchObject({ failure: { kind: 'not-available-to-you' } })
+  })
+
   it('lets the tenant that published a Skill find it, read it with its directory, list it and read its script', async () => {
     const w = await world()
     await w.publish('weekly-report')
