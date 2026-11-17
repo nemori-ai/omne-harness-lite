@@ -41,6 +41,8 @@ export {
   decodeAgentOperationId,
   decodeAgentRegistrationId,
   decodeCardRoundId,
+  decodeCompactionOperationId,
+  decodeCompactionTaskId,
   decodeConsumptionId,
   decodeExecutionAttachmentId,
   decodeExecutionRevision,
@@ -56,6 +58,20 @@ export {
   judgeEvidence,
 } from './identity.ts'
 export type * from './evaluation.ts'
+export type * from './compaction.ts'
+export { compactionGeneration, compactionRequestText, compactionInputText } from './compaction.ts'
+export {
+  encodeCompactionRequest,
+  decodeCompactionRequest,
+  encodeCompactionInput,
+  decodeCompactionInput,
+  encodeCompactionTaskState,
+  decodeCompactionTaskState,
+  encodeCompactionTaskRef,
+  decodeCompactionTaskRef,
+  decodeCompactionHandoff,
+  decodeCompactionOutcome,
+} from './compaction-codec.ts'
 export type * from './execution.ts'
 export type * from './extensions.ts'
 export type * from './finishing.ts'

@@ -1,3 +1,4 @@
+import type { PreparedCompactionCommit } from './compaction.ts'
 import type { ToolOperationRef } from '@omne-harness/tool-contract'
 import type { Message } from '@omne-harness/message'
 import type {
@@ -5,7 +6,6 @@ import type {
   InputBatch,
   ModelReplyAdmission,
   PendingCall,
-  PreparedContextTransition,
   ProducedResult,
   Reply,
   ReplyAdmissionFrom,
@@ -60,7 +60,7 @@ export type CallerCommit =
     }>
   | Readonly<{
       kind: 'context-transition'
-      value: PreparedContextTransition
+      value: PreparedCompactionCommit
       admission: DurableEvidence
     }>
   | Readonly<{

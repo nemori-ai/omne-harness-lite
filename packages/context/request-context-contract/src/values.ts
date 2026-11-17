@@ -7,7 +7,6 @@ import type {
   CandidateRef,
   PositionRef,
   PassageRef,
-  PlanId,
   ContextTarget,
   HistorySequence,
   CommitOrder,
@@ -28,12 +27,7 @@ import type {
 } from '@omne-harness/runtime-context-contract'
 import type * as M from '@omne-harness/model-contract'
 import type * as T from '@omne-harness/tool-contract'
-import type {
-  Message,
-  RecordEntryRef,
-  CompactionMessage,
-  MessageContentBlock,
-} from '@omne-harness/message'
+import type { Message, RecordEntryRef } from '@omne-harness/message'
 import type { ContentBlock, BlockId, ContentReference } from '@omne-harness/content-block'
 
 export type RequestPurpose = 'main' | 'extension'
@@ -135,7 +129,7 @@ export type AlterationEvidence = Readonly<{
 }>
 export type PreviousPreparation = Readonly<{
   candidate: CandidateRef
-  enteredCompaction: PlanId | null
+  enteredCompaction: boolean
   carried?: RequestCandidate
 }>
 
@@ -227,7 +221,6 @@ export type AdoptedRequestFact = Readonly<{
 }>
 
 export type TransitionEvidence = Readonly<{
-  planId: PlanId
   candidate: CandidateRef
   committed: DurableEvidence
   epoch: EpochId
@@ -364,85 +357,11 @@ export type RequestCandidate = Readonly<{
   candidate: CandidateRef
   layers: RequestLayers
   coverage: Coverage
-  verdict: Extract<FitVerdict, { kind: 'fits' | 'limit-unknown' }>
+  verdict: Exclude<FitVerdict, { kind: 'fixed-part-over-limit' }>
   representations: readonly RepresentationChoice[]
   assembled: M.AssembledModelInput
   modality: M.ModalityRequirement | null
   continuation: Omit<ContinuationBasis, 'call' | 'fixed'>
-}>
-
-export type RequestFrame = Readonly<{
-  system: M.AssembledModelInput['system']
-  tools: M.AssembledModelInput['tools']
-  snapshotReminder: Message | null
-  tailFacts: Message | null
-}>
-
-export type CompactionBasis = Readonly<{
-  target: ContextTarget
-  history: HistoryEvidence
-  context: import('@omne-harness/message').CompactionContext
-  projected: ProjectedHistory
-  selection: SelectedModel
-  representation: Adoption
-  continuation: ContinuationBasis | null
-  frame: RequestFrame
-  retainedBudget: string
-  digest: string
-}>
-export type CompactionPlan = Readonly<{
-  planId: PlanId
-  candidate: CandidateRef
-  bound: string
-  policy: Readonly<{ identity: Adoption; configDigest: string }>
-  covers: import('@omne-harness/message').CompactedRange
-  retained: readonly RecordEntryRef[]
-  shape: Readonly<{ kind: 'summarize'; trimFirst: boolean }>
-  basis: CompactionBasis
-}>
-export type PlanProgress = Readonly<{
-  planId: PlanId
-  completed: string
-  consumed: readonly Readonly<{ index: string; evidence: DurableEvidence }>[]
-}>
-
-export type SummaryMaterial = Readonly<{
-  covered: readonly import('@omne-harness/message').CoveredEntry[]
-  retained: readonly RecordEntryRef[]
-  trimmed: readonly Readonly<{
-    message: import('@omne-harness/message').MessageId
-    block: BlockId
-    originalBytes: string
-    keptBytes: string
-  }>[]
-}>
-export type StepRequest = Readonly<{
-  planId: PlanId
-  index: string
-  kind: 'summarize'
-  material: SummaryMaterial
-  assembled: M.AssembledModelInput
-}>
-
-export type StepInput =
-  | Readonly<{
-      kind: 'summary'
-      index: string
-      produced: readonly [MessageContentBlock, ...MessageContentBlock[]]
-      consumed: DurableEvidence
-    }>
-  | Readonly<{ kind: 'vetoed'; index: string; reason: string; evidence: DurableEvidence }>
-
-export type ContextTransition = Readonly<{
-  planId: PlanId
-  candidate: CandidateRef
-  message: CompactionMessage
-  derivation: import('@omne-harness/message').CompactionDerivation
-  commitment: Readonly<{
-    preparation: CandidateRef
-    steps: readonly Readonly<{ index: string; consumed: DurableEvidence }>[]
-    digest: string
-  }>
 }>
 
 export type AssemblyFailure =
@@ -474,9 +393,7 @@ export type InvalidReason =
   | 'contradictory-retry'
   | 'contributions-not-accepted'
   | 'cursor-invalidated'
-  | 'plan-mismatch'
-  | 'progress-mismatch'
-  | 'policy-mismatch'
+  | 'transition-mismatch'
   | 'tenant-mismatch'
   | 'unknown-epoch'
   | 'upper-out-of-range'
@@ -507,9 +424,12 @@ export type AssemblyOutcome =
   | Readonly<{ kind: 'candidate-fixable'; candidate: RequestCandidate }>
   | Readonly<{
       kind: 'needs-compaction'
-      coverage: Coverage
-      verdict: Extract<FitVerdict, { kind: 'needs-compaction' }>
-      layers: RequestLayers
+      candidate: RequestCandidate
+      goals: readonly Readonly<{
+        metric: M.BudgetCheck['metric']
+        relation: 'at-most'
+        limit: string
+      }>[]
     }>
   | Readonly<{
       kind: 'cannot-fit'
@@ -520,30 +440,6 @@ export type AssemblyOutcome =
     }>
 export type AssemblyResult = AssemblyOutcome | AssemblyFailure | AssemblyUnknown
 
-export type PlanResult =
-  | Readonly<{ kind: 'planned'; plan: CompactionPlan; progress: PlanProgress; first: StepRequest }>
-  | Readonly<{
-      kind: 'cannot-fit'
-      reason: 'floor-exceeds-budget'
-      floor: readonly RecordEntryRef[]
-      budget: string
-      diagnostic: string
-    }>
-  | AssemblyFailure
-  | AssemblyUnknown
-export type StepResult =
-  | Readonly<{ kind: 'next'; step: StepRequest; progress: PlanProgress }>
-  | Readonly<{ kind: 'transition'; value: ContextTransition; progress: PlanProgress }>
-  | Readonly<{
-      kind: 'cannot-fit'
-      reason: 'after-compaction'
-      cause: 'bound-exhausted' | 'step-vetoed' | 'summary-illegal'
-      progress: PlanProgress
-      diagnostic: string
-    }>
-  | AssemblyFailure
-  | AssemblyUnknown
-
 /** Source-owned group tokens and the principal key; never content hashes or measurements. */
 export type PreparedInputKey = Readonly<{
   generation: SourceGeneration | null
@@ -552,14 +448,6 @@ export type PreparedInputKey = Readonly<{
   tokens: Readonly<Record<Exclude<GroupName, 'identity'>, GroupToken>>
   rules: Readonly<{ compaction: Adoption; configDigest: string; representation: Adoption }>
 }>
-export type DeriveInput<P> = Readonly<{
-  call: AssemblyCall<P>
-  plan: CompactionPlan
-  progress: PlanProgress
-  step: StepInput
-  material: SummaryMaterial
-}>
-
 export type ToolCommandSelection =
   | Readonly<{ kind: 'none' }>
   | Readonly<{

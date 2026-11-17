@@ -1,4 +1,5 @@
-import { readEntryText } from '../entry-codec.ts'
+import { readEntryText, writeEntryText } from '../entry-codec.ts'
+import { readSharedEntry } from './shared-messages.ts'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { big, handler, oneRow, packed, PAGE_ROWS, rowsOf, scopeOf } from './support.ts'
 
@@ -124,7 +125,9 @@ export default handler('session.history', (raw, port) => {
       sample === undefined
         ? null
         : (readEntryText(packed(sample['entry'])).schema as unknown as JsonValue),
-    entries: taken.map(row => packed(row['entry'])),
+    entries: taken.map(row =>
+      writeEntryText(readSharedEntry(port, scope.tenant, packed(row['entry']))),
+    ),
     scannedThrough: String(lastPosition),
     next: exhausted
       ? null

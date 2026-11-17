@@ -18,7 +18,9 @@ export type GatewayAnswer = Readonly<{
   rest?: Readonly<{ after: Promise<void>; body: string }>
 }>
 
-export type GatewayScript = (request: Readonly<{ index: number; body: string }>) => GatewayAnswer
+export type GatewayScript = (
+  request: Readonly<{ index: number; body: string }>,
+) => GatewayAnswer | Promise<GatewayAnswer>
 
 const refusal: GatewayScript = () => ({
   status: 400,
@@ -78,18 +80,25 @@ export async function startModelGateway(answer: GatewayScript = refusal): Promis
     const chunks: Buffer[] = []
     request.on('data', (chunk: Buffer) => chunks.push(chunk))
     request.on('end', () => {
-      const reply = answer({ index, body: Buffer.concat(chunks).toString('utf8') })
-      response.writeHead(reply.status, { 'content-type': reply.contentType })
-      if (reply.rest === undefined) {
-        response.end(reply.body)
-        return
-      }
-      const rest = reply.rest
-      response.write(reply.body)
-      void rest.after.then(
-        () => response.end(rest.body),
-        () => response.end(rest.body),
-      )
+      void Promise.resolve()
+        .then(() => answer({ index, body: Buffer.concat(chunks).toString('utf8') }))
+        .then(reply => {
+          response.writeHead(reply.status, { 'content-type': reply.contentType })
+          if (reply.rest === undefined) {
+            response.end(reply.body)
+            return
+          }
+          const rest = reply.rest
+          response.write(reply.body)
+          void rest.after.then(
+            () => response.end(rest.body),
+            () => response.end(rest.body),
+          )
+        })
+        .catch(() => {
+          if (!response.headersSent) response.writeHead(502, { 'content-type': 'application/json' })
+          response.end(JSON.stringify({ error: { message: 'test gateway script failed' } }))
+        })
     })
   })
   await new Promise<void>((resolve, reject) => {

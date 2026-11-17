@@ -49,6 +49,7 @@
 - `messageIdEquals` · `message.d.ts`
 - `parseMessageId` · `message.d.ts`
 - `parseRecordEntryRef` · `compaction-shape.d.ts`
+- `projectMessage` · `projection.d.ts`
 
 ## 声明文件 `compaction-shape.d.ts`
 
@@ -103,6 +104,7 @@ export type PairingWitness = Readonly<{
 }>;
 export type CompactionBase = Readonly<{
     kind: 'initial';
+    pairings: readonly PairingWitness[];
 }> | Readonly<{
     kind: 'previous';
     record: RecordEntryRef;
@@ -138,6 +140,7 @@ export { judgePart } from './parts.ts';
 export { REASONING_STATE_PAYLOAD_MAX_LENGTH, REPLAY_TAG_MAX_LENGTH, isReplayTag, } from './reasoning.ts';
 export type { ReasoningReplay, ReasoningStatePart } from './reasoning.ts';
 export type { CallPart, IncompleteToolCallPart, MessageContentBlock, MessagePart, ToolCallPart, ToolPart, ToolResultPart, UnparsedToolCallPart, } from './parts.ts';
+export { projectMessage } from './projection.ts';
 ```
 
 ## 声明文件 `message.d.ts`
@@ -220,7 +223,7 @@ type ClosedOver<Roles extends string, Map extends Record<Roles, unknown> & {
     readonly [Extra in Exclude<keyof Map, Roles>]: never;
 }> = Map;
 export type Message = ClosedOver<LogMessageRole, MessageRoleMap>[keyof MessageRoleMap];
-export type MessageRejection = 'shape' | 'missing' | 'null' | 'empty' | 'unknown' | 'extra' | 'prefix' | 'body' | 'callId' | 'name' | 'arguments' | 'partial' | 'raw' | 'json' | 'misplaced-part' | 'duplicate-id' | 'payload' | 'pairs' | 'replay' | CompactionKeyRejection | ContentBlockRejection;
+export type MessageRejection = 'shape' | 'missing' | 'null' | 'empty' | 'unknown' | 'extra' | 'prefix' | 'body' | 'callId' | 'name' | 'arguments' | 'partial' | 'raw' | 'json' | 'misplaced-part' | 'model-invisible' | 'duplicate-id' | 'payload' | 'pairs' | 'replay' | CompactionKeyRejection | ContentBlockRejection;
 export type MessageJudgment = {
     readonly ok: Message;
 } | {
@@ -281,6 +284,17 @@ export type PartJudgment = {
 export declare function isToolPart(part: MessagePart): part is ToolPart;
 export declare function judgePart(value: unknown): PartJudgment;
 export {};
+```
+
+## 声明文件 `projection.d.ts`
+
+```ts
+import type { BlockId } from '@omne-harness/content-block';
+import { type Message } from './message.ts';
+export declare function projectMessage(message: Message, side: 'toHuman' | 'toModel'): {
+    message: Message;
+    dropped: readonly BlockId[];
+} | null;
 ```
 
 ## 声明文件 `reasoning.d.ts`

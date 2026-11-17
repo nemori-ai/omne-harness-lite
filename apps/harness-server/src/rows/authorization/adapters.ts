@@ -377,6 +377,13 @@ function agentPrincipalOf(operation: string, principal: unknown): ReturnType<typ
 function planAgent(input: AgentRequest): Plan {
   const { access, operation, target } = input
   if (typeof operation !== 'string' || !Object.hasOwn(AGENT_POLICY, operation)) return DENIED
+  if (operation.startsWith('compaction.') !== (target.kind === 'compaction')) return DENIED
+  if (
+    operation === 'read-message-handoff' &&
+    target.kind !== 'execution' &&
+    target.kind !== 'input-entry'
+  )
+    return DENIED
   const who = agentPrincipalOf(operation, access.principal)
   if (who === null || !actsFor(who, access.tenant)) return DENIED
   if (

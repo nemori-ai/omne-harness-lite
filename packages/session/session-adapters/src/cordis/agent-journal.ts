@@ -1,3 +1,5 @@
+import { historyCaller } from './history-caller.ts'
+import { sessionEpochOf } from './history-epoch.ts'
 import { sessionCommitCommands } from '@omne-harness/session-storage-sql/participants'
 import { createHash, randomUUID } from 'node:crypto'
 import type {
@@ -5,7 +7,6 @@ import type {
   AgentJournal,
   AgentOperationId,
   AgentReceivedProvider,
-  CallerCommit,
   CommandReceipt,
   DurableEvidence,
   ExecutionMutation,
@@ -264,29 +265,6 @@ const unavailable = (diagnostic: string): Failure => ({
 
 type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
 type AttachInput<P> = Parameters<AgentJournal<P>['attach']>[0]
-
-function historyCaller<P>(input: ExecutionMutation<P>, method: JournalWrite): CallerCommit {
-  if (method === 'recordResult')
-    return (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
-  if (method !== 'commit') return { kind: 'none' }
-  const commit = input as Parameters<AgentJournal<P>['commit']>[0]
-  if (commit.caller.kind !== 'none') return commit.caller
-  const handoff = commit.handoff
-  if (handoff?.kind !== 'resolve') return commit.caller
-  const { request, decision, record } = handoff.outcome
-  if (
-    request.kind !== 'execution' ||
-    request.source.kind !== 'model-reply' ||
-    decision.kind !== 'prepared'
-  )
-    return commit.caller
-  return {
-    kind: 'message',
-    message: decision.message,
-    source: record,
-    admission: decision.admission,
-  }
-}
 
 function storageOperation(execution: string, operation: string): string {
   return `aop_${createHash('sha256')
@@ -748,6 +726,28 @@ function projectionContext(
   }
 }
 
+function kindsOf(scratch: Scratch): ParticipationKind[] {
+  const kinds: ParticipationKind[] = []
+  for (const command of scratch.commands)
+    switch (command.kind) {
+      case 'recordMessage':
+        kinds.push('message')
+        break
+      case 'commitDerived':
+        kinds.push('context-transition')
+        break
+      case 'preserveResult':
+        kinds.push('custody')
+        break
+      case 'completeConsumption':
+        kinds.push('processed')
+        break
+      default:
+        break
+    }
+  return kinds
+}
+
 export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>) {
   const books = new Map<string, Book<P>>()
   const counts = publishedCountsOf(options.storage)
@@ -969,7 +969,11 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           input: {
             ...common,
             participation,
-            value: { kind: 'compaction', message: caller.value.message },
+            value: {
+              kind: 'compaction',
+              message: caller.value.message,
+              epoch: sessionEpochOf(caller.value.epoch),
+            },
             judgment: caller.admission,
           },
         })
@@ -1469,28 +1473,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     blobs: readonly ExecutionBlobRecord[]
     batchBytes: number
   }>
-
-  function kindsOf(scratch: Scratch): ParticipationKind[] {
-    const kinds: ParticipationKind[] = []
-    for (const command of scratch.commands)
-      switch (command.kind) {
-        case 'recordMessage':
-          kinds.push('message')
-          break
-        case 'commitDerived':
-          kinds.push('context-transition')
-          break
-        case 'preserveResult':
-          kinds.push('custody')
-          break
-        case 'completeConsumption':
-          kinds.push('processed')
-          break
-        default:
-          break
-      }
-    return kinds
-  }
 
   function prepare(
     book: Book<P>,

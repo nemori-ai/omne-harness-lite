@@ -77,7 +77,9 @@ describe('takeover of a main Model call whose result is not in the Journal', () 
   })
 
   it('the Model answers lost: one transient failure in the same commit that closes the call', async () => {
-    const run = await takeover([null, replyOf('the second reply')])
+    const run = await takeover([null, replyOf('the second reply')], policy(), d => d, {
+      jointCommits: ['message', 'context-transition', 'custody', 'processed'],
+    })
     const [open] = (await inFlight(run)).checkpoint.calls
     run.assembly.controls.modelContact.always(lostContact)
     const next = await run.rebuild()
@@ -114,6 +116,10 @@ describe('takeover of a main Model call whose result is not in the Journal', () 
       ],
     ])
     expect(run.admitted).toHaveLength(1)
+    // No result of a lost call ever entered custody, so closing it claims no processing.
+    expect(run.assembly.controls.journal.joint().map(item => item.caller?.kind)).not.toContain(
+      'processed',
+    )
   })
 
   it('the Model answers lost: M3 produces no producer event, since no result is handed over', async () => {

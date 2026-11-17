@@ -18,6 +18,10 @@ import { entryObjects } from '../../src/entry/index.ts'
 import { sessionWorkIssuerOf, toolDecisionsIssuerOf } from '../../src/entry/principals.ts'
 import { agentAdoptionsConfig } from '../../src/rows/agent-adoptions/config.ts'
 import {
+  createContextCompactionRow,
+  type ContextCompactionRowInput,
+} from '../../src/rows/context-compaction/index.ts'
+import {
   toolHitlHolder,
   type HitlAudience,
   type ToolHitlHolder,
@@ -119,6 +123,7 @@ function withHistoryKinds(layer: unknown, extra: readonly string[] = []): unknow
                 'message.user',
                 'message.assistant',
                 'message.tool',
+                'message.compaction',
                 'run.started',
                 'run.terminal',
                 ...extra,
@@ -165,6 +170,44 @@ function withAgentWaitInterval(layer: unknown): unknown {
   }
 }
 
+function withCompaction(layer: unknown, options: ReleaseTreeOptions): unknown {
+  const { ops } = layer as {
+    ops: Readonly<{ kind: string; id: string; config?: Record<string, unknown> }>[]
+  }
+  return {
+    ops: ops.map(op => {
+      if (op.id === 'agent-host' && options.compactionProvider !== undefined)
+        return {
+          ...op,
+          config: { ...op.config, compactionProvider: options.compactionProvider.binding },
+        }
+      if (options.compactionTriggerPercent === undefined) return op
+      if (op.id === 'model-profiles')
+        return {
+          ...op,
+          config: { ...op.config, compactionTriggerPercent: options.compactionTriggerPercent },
+        }
+      if (op.id === 'model-records') {
+        const sendStage = op.config?.['sendStage'] as Record<string, unknown>
+        return {
+          ...op,
+          config: {
+            ...op.config,
+            sendStage: {
+              ...sendStage,
+              profiles: {
+                ...(sendStage['profiles'] as object),
+                compactionTriggerPercent: options.compactionTriggerPercent,
+              },
+            },
+          },
+        }
+      }
+      return op
+    }),
+  }
+}
+
 export type Entry = HistoryEntry
 
 export async function history(
@@ -190,6 +233,42 @@ function sqliteFiles(storageRoot: string): string[] {
 }
 
 type LedgerRow = Readonly<{ kind: string; name: string; record: Record<string, unknown> }>
+
+export function executionFailures(storageRoot: string): readonly unknown[] {
+  const failures: unknown[] = []
+  for (const file of sqliteFiles(storageRoot)) {
+    const db = new DatabaseSync(file, { readOnly: true })
+    try {
+      if (
+        db
+          .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'er_fact'")
+          .get() === undefined
+      )
+        continue
+      for (const row of db
+        .prepare('SELECT tenant, body FROM er_fact ORDER BY pub DESC, ord DESC LIMIT 12')
+        .all()) {
+        const text = unpackText(row['body'] as Uint8Array)
+        if (!text.includes('node-failed') && !text.includes('compaction-failed')) continue
+        const fact = JSON.parse(text) as { claim?: { failure?: { detail?: { digest: string } } } }
+        const detail = fact.claim?.failure?.detail
+        if (detail !== undefined) {
+          const digest = detail.digest.startsWith('sha256:')
+            ? detail.digest
+            : `sha256:${detail.digest}`
+          const blob = db
+            .prepare('SELECT payload FROM sl_blob WHERE tenant = ? AND digest = ?')
+            .get(String(row['tenant']), digest)
+          if (blob !== undefined)
+            failures.push(JSON.parse(unpackText(blob['payload'] as Uint8Array)))
+        }
+      }
+    } finally {
+      db.close()
+    }
+  }
+  return failures
+}
 
 function ledgerRows(storageRoot: string): readonly LedgerRow[] {
   const rows: LedgerRow[] = []
@@ -401,6 +480,8 @@ export type ReleaseTreeOptions = Readonly<{
   audience?: (registrar: string) => HitlAudience
   queueCapacity?: number
   observationPolicy?: Readonly<Record<string, number>>
+  compactionProvider?: ContextCompactionRowInput
+  compactionTriggerPercent?: string
   /** History kinds read through session/v1 besides the five every tree reads. */
   extraHistoryKinds?: readonly string[]
 }>
@@ -504,7 +585,10 @@ async function serveOnce(
       withAgentWaitInterval(
         withQueueCapacity(
           withHistoryKinds(
-            operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: state.modelRoute }),
+            withCompaction(
+              operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: state.modelRoute }),
+              options,
+            ),
             options.extraHistoryKinds,
           ),
           options.queueCapacity,
@@ -512,7 +596,14 @@ async function serveOnce(
       ),
       options.observationPolicy,
     ),
-    plugins: { ...cordis },
+    plugins: {
+      ...cordis,
+      ...(options.compactionProvider === undefined
+        ? {}
+        : {
+            contextCompactionRow: createContextCompactionRow(options.compactionProvider),
+          }),
+    },
     entryObjects: objects,
     stateRoot: dir.stateRoot,
     stop: controller.signal,

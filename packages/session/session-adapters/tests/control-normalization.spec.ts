@@ -263,6 +263,7 @@ it('an original completed Tool slot clears direct stopping only after the corres
           result: tool.placeholder,
           terminal: { kind: 'completed' as const },
           custody: evidence('custody'),
+          completion: null,
         },
       ],
     },
@@ -369,6 +370,7 @@ for (const proof of ['no-response', 'placeholder', 'late'] as const)
                 }
               : { kind: 'completed' as const },
           custody: evidence('custody'),
+          completion: null,
         },
       ],
     }

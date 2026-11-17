@@ -4,7 +4,6 @@ import type * as M from '@omne-harness/model-contract'
 import type { HistorySource, CompactionPolicyPort, RepresentationPolicyPort } from '../ports.js'
 import type { AssemblyOperations } from '../ports.js'
 import type { Access } from '../refs.js'
-import { decodePlanId } from '../refs.js'
 import type { HistoryCursor, HistoryEvidence } from '../values.js'
 import type { ConformanceCase } from './case.js'
 import type { HistoryFixture } from './history-source.js'
@@ -12,13 +11,12 @@ import {
   createAssemblyFixture,
   text,
   row,
-  entry,
   evidence,
   fixtureBudget,
   type AssemblyFixture,
   type AssemblyFixtureOptions,
 } from './fixtures.js'
-import { createScriptedCompactionPolicy, createScriptedInputMeter } from './doubles.js'
+import { createScriptedInputMeter } from './doubles.js'
 import { countingBasis } from './fixtures.js'
 export type ConformanceSubject = Readonly<{
   operations(
@@ -91,13 +89,10 @@ function requestContextCases(subject: ConformanceSubject): readonly BoundCase[] 
     }),
     caseOf('resume-full-snapshot-required', 'RQ11-15', async () => {
       const { fixture, o } = await make()
-      const plan = decodePlanId('plan:conformance')
-      if ('failure' in plan) throw new Error('Fixture plan')
       const context = fixture.sources.values().context
       fixture.sources.update('context', {
         contextRead: { ...context.contextRead, read: { kind: 'cursor-invalidated' } },
         transition: {
-          planId: plan.ok,
           candidate: fixture.call.candidate,
           committed: evidence,
           epoch: fixture.sources.values().history.evidence.epoch,
@@ -123,7 +118,7 @@ function requestContextCases(subject: ConformanceSubject): readonly BoundCase[] 
         ...control,
         previous: {
           candidate: fixture.call.candidate,
-          enteredCompaction: null,
+          enteredCompaction: false,
           carried: first.candidate,
         },
       })
@@ -131,96 +126,16 @@ function requestContextCases(subject: ConformanceSubject): readonly BoundCase[] 
       await o.assemble(fixture.call)
       assert.equal(fixture.history.readCount(), before)
     }),
-    caseOf('floor-cannot-be-dropped', 'RQ11-11', async () => {
-      const base = createAssemblyFixture()
-      const policy: CompactionPolicyPort = {
-        ...base.policies.compaction,
-        config: {
-          ...base.policies.compaction.config,
-          retainBudget: { kind: 'tokens', retainTokens: '0' },
-        },
-      }
-      const { fixture, o } = await make({
-        policies: { ...base.policies, compaction: policy },
-        open: [entry('entry:0')],
-      })
-      assert.equal((await o.planCompaction(fixture.call)).kind, 'cannot-fit')
-    }),
-    caseOf('retention-measures-the-whole-set', 'RQ11/J14', async () => {
-      const base = createAssemblyFixture()
-      const policy = createScriptedCompactionPolicy({
-        retainBudget: { kind: 'tokens', retainTokens: '16' },
-        retainPreference: 'newest-first',
-        triggerPercent: null,
-        headroomTokens: null,
-        trimFirst: false,
-        stepBound: '2',
-      })
-      const { fixture, o } = await make({
-        rows: [row(0), row(1)],
-        policies: { ...base.policies, compaction: policy },
-        preparation: scripted(input =>
-          fixtureBudget(['0', '10', '15'][input.assembled.messages.length] ?? '1000'),
-        ),
-      })
-      const planned = await o.planCompaction(fixture.call)
-      assert.equal(planned.kind, 'planned')
-      if (planned.kind === 'planned') assert.equal(planned.plan.retained.length, 2)
-    }),
-    caseOf('plan-progress-and-policy-checked', 'RQ11-17', async () => {
-      const { fixture, o } = await make()
-      const planned = await o.planCompaction(fixture.call)
-      assert.equal(planned.kind, 'planned')
-      if (planned.kind !== 'planned') return
-      const changed = await subject.operations({
-        ...fixture,
-        policies: {
-          ...fixture.policies,
-          compaction: { ...fixture.policies.compaction, configDigest: () => 'changed' },
-        },
-      })
-      const result = await changed.deriveStep({
-        call: fixture.call,
-        plan: planned.plan,
-        progress: planned.progress,
-        material: planned.first.material,
-        step: { kind: 'vetoed', index: '0', reason: 'test', evidence },
-      })
-      assert.equal(result.kind, 'invalid')
-    }),
-    caseOf('trim-is-not-a-step', 'RQ11/J12', async () => {
-      const base = createAssemblyFixture()
-      const policy: CompactionPolicyPort = {
-        ...base.policies.compaction,
-        config: { ...base.policies.compaction.config, trimFirst: true, stepBound: '1' },
-        plan: async ({ context }) => ({
-          kind: 'draft',
-          coverTo: context.covered.at(-1)?.ref ?? entry('entry:0'),
-          retained: [],
-          bound: '1',
-          shape: { kind: 'summarize', trimFirst: true },
-        }),
-      }
-      const { fixture, o } = await make({ policies: { ...base.policies, compaction: policy } })
-      const planned = await o.planCompaction(fixture.call)
-      assert.equal(planned.kind, 'planned')
-      if (planned.kind !== 'planned') return
-      assert.equal(planned.first.kind, 'summarize')
-      assert.equal(planned.first.index, '0')
-      assert.equal(planned.progress.completed, '0')
-    }),
     caseOf('entered-plan-changes-outcome', 'RQ11-20', async () => {
       const { fixture, o } = await make({
         preparation: scripted((_input, n) =>
           n % 2 === 1 ? fixtureBudget('900') : fixtureBudget('1'),
         ),
       })
-      const plan = decodePlanId('plan:previous')
-      assert.ok('ok' in plan)
       const control = fixture.sources.values().control
       fixture.sources.update('control', {
         ...control,
-        previous: { candidate: fixture.call.candidate, enteredCompaction: plan.ok },
+        previous: { candidate: fixture.call.candidate, enteredCompaction: true },
       })
       assert.equal((await o.assemble(fixture.call)).kind, 'cannot-fit')
     }),
@@ -461,12 +376,10 @@ function compactionPolicyCases(
   return [
     caseOf('configuration-stable', 'RQ11-17', async () => {
       assert.equal(subject.policy.configDigest(), subject.policy.configDigest())
-      assert.ok(BigInt(subject.policy.config.stepBound) > 0n)
-    }),
-    caseOf('trim-does-not-mutate', 'RQ11-13', async () => {
-      const material = { covered: [], retained: [], trimmed: [] }
-      subject.policy.trim(material, { maxBlockBytes: '10' })
-      assert.deepEqual(material, { covered: [], retained: [], trimmed: [] })
+      assert.deepEqual(Object.keys(subject.policy.config).sort(), [
+        'headroomTokens',
+        'triggerPercent',
+      ])
     }),
   ]
 }
@@ -516,10 +429,6 @@ export const REQUEST_CONTEXT_OBLIGATIONS = [
   'resume-full-snapshot-required',
   'incremental-material-required',
   'carried-content-reuses-history',
-  'floor-cannot-be-dropped',
-  'retention-measures-the-whole-set',
-  'plan-progress-and-policy-checked',
-  'trim-is-not-a-step',
   'entered-plan-changes-outcome',
   'tail-facts-never-enter-snapshot',
   'pages-share-evidence',
@@ -537,10 +446,7 @@ export const HISTORY_SOURCE_OBLIGATIONS = [
   'prefix-digest-is-chained',
 ] as const
 export type HistorySourceObligation = (typeof HISTORY_SOURCE_OBLIGATIONS)[number]
-export const COMPACTION_POLICY_OBLIGATIONS = [
-  'configuration-stable',
-  'trim-does-not-mutate',
-] as const
+export const COMPACTION_POLICY_OBLIGATIONS = ['configuration-stable'] as const
 export type CompactionPolicyObligation = (typeof COMPACTION_POLICY_OBLIGATIONS)[number]
 export const REPRESENTATION_POLICY_OBLIGATIONS = [
   'text-original-decision',

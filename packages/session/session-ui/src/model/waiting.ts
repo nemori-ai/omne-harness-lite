@@ -127,7 +127,8 @@ export function retryAnswered(
 
 const CAUSES: Readonly<Record<string, string>> = {
   'node-failed': '推进这一轮的一个步骤出了故障。',
-  'cannot-fit': '对话太长，压缩之后也装不进模型的上下文。',
+  'cannot-fit': '当前请求装不进模型的上下文。',
+  'compaction-failed': '压缩前面的对话时，压缩服务执行失败。',
   'compaction-invalid': '压缩前面的对话时得到的结果不能用。',
   'request-rejected': '发给模型的请求不合规定，没有发出。',
   'no-reply': '模型没有给出有效的回复。',

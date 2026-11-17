@@ -3,6 +3,7 @@ import {
   type SessionAgentJournalPluginInput,
 } from '@omne-harness/session-adapters/cordis'
 import {
+  agentCompactionInputsKey,
   agentJournalEntriesKey,
   agentJournalKey,
   agentMaterialsKey,
@@ -27,6 +28,7 @@ export function createAgentJournalRow(input: SessionAgentJournalPluginInput = {}
     implementation: 'real',
     manifest: {
       provides: [
+        agentCompactionInputsKey,
         agentJournalKey,
         agentJournalEntriesKey,
         agentMaterialsKey,

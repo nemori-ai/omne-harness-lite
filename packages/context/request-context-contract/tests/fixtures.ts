@@ -19,7 +19,6 @@ import {
   type AssemblyPolicies,
   type ContextReadEligibility,
   type ConversionResultSource,
-  type DeriveInput,
   type HistoryRow,
   type HistorySequence,
   type HistorySource,
@@ -133,7 +132,7 @@ export function budget(amount = '1'): M.RequestBudget {
       {
         supplier: adoption,
         metric: 'input-tokens',
-        subject: 'whole',
+        subject: 'request',
         measurement: { kind: 'exact', amount, method: adoption },
         limit: '1000',
         constraint: {
@@ -154,23 +153,10 @@ export function policiesFixture(): AssemblyPolicies {
     compaction: {
       identity: adoption,
       config: {
-        retainBudget: { kind: 'tokens', retainTokens: '100' },
-        retainPreference: 'newest-first',
         triggerPercent: null,
         headroomTokens: null,
-        trimFirst: false,
-        stepBound: '2',
       },
       configDigest: () => 'config:1',
-      plan: async ({ context }) => ({
-        kind: 'draft',
-        coverTo: context.covered.at(-1)?.ref ?? entry('entry:0'),
-        retained: [],
-        bound: '2',
-        shape: { kind: 'summarize', trimFirst: false },
-      }),
-      trim: m => m,
-      summaryInstruction: () => [text('summarize')],
     },
   }
 }
@@ -218,7 +204,7 @@ export function fixture() {
           evidence: current,
           value: {
             origin: entry('entry:0'),
-            base: { kind: 'initial' },
+            base: { kind: 'initial', pairings: [] },
             covered: [{ ref: entry('entry:0'), message: row().message }],
             after: [],
             open: [],
@@ -316,15 +302,6 @@ export const assemble = (input: Snapshot, ports: Ports, policies: AssemblyPolici
   operationsFor(input, ports, policies).assemble(input.identity)
 export const resume = (input: Snapshot, ports: Ports, policies: AssemblyPolicies) =>
   operationsFor(input, ports, policies).resume(input.identity)
-export const planCompaction = (input: Snapshot, ports: Ports, policies: AssemblyPolicies) =>
-  operationsFor(input, ports, policies).planCompaction(input.identity)
-export const deriveStep = (
-  input: Snapshot,
-  derive: Omit<DeriveInput<string>, 'call'>,
-  ports: Ports,
-  policies: AssemblyPolicies,
-) => operationsFor(input, ports, policies).deriveStep({ ...derive, call: input.identity })
-
 export function callId(raw = 'one') {
   return must(decodeModelCallId(`mcall_${raw}`))
 }

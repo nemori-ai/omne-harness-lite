@@ -256,6 +256,7 @@ export async function loopAssembly(
 ): Promise<LoopAssembly> {
   const { dependencies, controls } = createTestAgentDependencies<Principal>({
     receivingPrincipal: 'alice',
+    journal: { participants: configuration.jointCommits ?? [] },
   })
   const release = gate()
   controls.adoptions.define(adoption('definition'), {
