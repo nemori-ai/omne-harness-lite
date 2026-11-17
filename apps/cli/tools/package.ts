@@ -11,16 +11,15 @@ const STAGED_ARCHIVE = 'omne-cli.tar.gz'
 
 type Step = { command: string; args: string[]; cwd: string }
 
-// On Windows `pnpm` on PATH is a `pnpm.cmd` shim that Node cannot start without a shell, so pnpm
-// runs as the `node_modules/pnpm/bin/pnpm.cjs` next to it, under this process's Node.
+// On Windows pnpm must be a pnpm.exe on PATH (standalone or mise install): Node cannot start the
+// pnpm.cmd shim without a shell, and the pnpm 12 package has no pnpm.cjs to run instead.
 function commandLine(step: Step): [string, string[]] {
   if (process.platform !== 'win32' || step.command !== 'pnpm') return [step.command, step.args]
   for (const directory of (process.env['PATH'] ?? process.env['Path'] ?? '').split(delimiter)) {
-    const entry = join(directory, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
-    if (directory !== '' && existsSync(join(directory, 'pnpm.cmd')) && existsSync(entry))
-      return [process.execPath, [entry, ...step.args]]
+    const exe = join(directory, 'pnpm.exe')
+    if (directory !== '' && existsSync(exe)) return [exe, step.args]
   }
-  throw new Error('pnpm.cjs not found next to pnpm.cmd on PATH')
+  throw new Error('pnpm.exe not found on PATH: install pnpm 12 standalone or with mise')
 }
 
 // The same steps as the `build` script, output in staging; change both together. No source maps: they would record this machine's paths.

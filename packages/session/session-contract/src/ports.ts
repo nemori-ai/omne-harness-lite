@@ -1,3 +1,4 @@
+import type { ContextScopeBinding } from './values.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -302,6 +303,7 @@ export interface SessionTransactionPort<P> {
     }>,
   ): ReturnType<Mutations[K]>
   readWork(input: SessionAccess<P>): Reply<WorkSnapshot>
+  readCurrentScope(input: SessionAccess<P>): Reply<ContextScopeBinding | null>
   readInput(
     input: SessionAccess<P> & Readonly<{ input: InputId }>,
   ): Reply<Extract<RoutedInput, { kind: 'ordinary' }>>

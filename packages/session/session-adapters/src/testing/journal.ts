@@ -1,3 +1,4 @@
+import { compactionGeneration } from '@omne-harness/agent-contract'
 import { pendingCalls } from './pending.ts'
 import { createHash } from 'node:crypto'
 import { canonical } from './canonical.ts'
@@ -66,7 +67,6 @@ import type {
   LegacyF2Entry,
   LegacyInvocationReturn,
   MigrationRecord,
-  SettlementRequest,
   SettlementResult,
   ObligationDisposition,
   RecoveryContinuation,
@@ -169,6 +169,20 @@ import {
   supersessionOf,
   type RecordedSettlement,
 } from './journal-finishing.ts'
+import {
+  type CandidateRequest,
+  type CustodyRequest,
+  type HandoffApply,
+  copy,
+  custodyTargetFailure,
+  handoffRecord,
+  invalid,
+  preparedHandoff,
+  retiredHandoff,
+  sameEvidence,
+  sameValue,
+  undetermined,
+} from './journal-handoff-checks.ts'
 
 export type JointCommitKind = Exclude<CallerCommit['kind'], 'none'>
 
@@ -510,21 +524,12 @@ const conflict = (operation: AgentOperationId): Extract<Failure, { kind: 'confli
   kind: 'conflict',
   operation,
 })
-const invalid = (field: string, reason: string): Failure => ({ kind: 'invalid', field, reason })
-
-function copy<T>(value: T): T {
-  return structuredClone(value)
-}
 
 function sameResultKey(
   left: ResultResponsibility['result'],
   right: ResultResponsibility['result'],
 ) {
-  return (
-    left.producer.kind === right.producer.kind &&
-    left.producer.call === right.producer.call &&
-    left.version === right.version
-  )
+  return canonical(left.producer) === canonical(right.producer) && left.version === right.version
 }
 
 type ToolControlRecord = Extract<ControlRecord, { toolInvocation: ToolInvocationRef }>
@@ -1204,16 +1209,6 @@ function damagedLedger(
   }
 }
 
-function sameEvidence(left: DurableEvidence | null, right: DurableEvidence | null): boolean {
-  if (left === null || right === null) return left === right
-  return (
-    left.owner === right.owner &&
-    left.record === right.record &&
-    left.revision === right.revision &&
-    left.digest === right.digest
-  )
-}
-
 function sameShape(checkpoint: AgentCheckpoint): AgentCheckpoint {
   return {
     ...checkpoint,
@@ -1224,27 +1219,13 @@ function sameShape(checkpoint: AgentCheckpoint): AgentCheckpoint {
 
 function producerCallOf(result: ProducedResult): ProducerCall {
   return {
-    producer: result.producer.kind,
-    call: String(result.producer.call),
+    ...(result.producer.kind === 'compaction'
+      ? { producer: 'compaction' as const, task: result.producer.task }
+      : { producer: result.producer.kind, call: String(result.producer.call) }),
     version: result.version,
     delivery: result.delivery,
     source: copy(result.source),
   }
-}
-
-function sameValue(left: unknown, right: unknown): boolean {
-  return canonical(left) === canonical(right)
-}
-
-function handoffRecord(
-  execution: Execution,
-  reference: HandoffReference,
-): HandoffRecord | undefined {
-  return execution.handoffs.find(record => sameValue(record.handoff, reference))
-}
-
-function undetermined(record: HandoffRecord): boolean {
-  return record.history.kind === 'pending' && record.retirement === null
 }
 
 function handoffsOf(
@@ -1530,7 +1511,11 @@ export function createJournal<P>(
           return fail(outrunParticipation)
         decision = qualified.ok
       }
-      if (options.prepareResult && (caller.kind === 'custody' || caller.kind === 'processed')) {
+      if (
+        options.prepareResult &&
+        (caller.kind === 'custody' || caller.kind === 'processed') &&
+        caller.result.producer.kind !== 'compaction'
+      ) {
         const refused = beforeRecognition?.()
         if (refused) return fail(refused)
         const preview = prepare()
@@ -2319,8 +2304,6 @@ export function createJournal<P>(
     )
   }
 
-  type HandoffApply = (revision: number, evidence: DurableEvidence) => void
-
   function handoffWrite(
     execution: Execution,
     input: JournalCommit<P>,
@@ -2344,47 +2327,6 @@ export function createJournal<P>(
         return _exhaustive
       }
     }
-  }
-
-  function preparedHandoff(
-    execution: Execution,
-    input: JournalCommit<P>,
-    request: Extract<NonNullable<JournalCommit<P>['handoff']>, { kind: 'prepare' }>['request'],
-  ): Outcome<HandoffApply, Failure> {
-    const reference = request.reference
-    if (reference.execution !== execution.id)
-      return fail(invalid('handoff', 'the request is not of this execution'))
-    if (execution.checkpoint.currentHandoff !== null)
-      return fail(invalid('checkpoint.currentHandoff', 'another H is still the current one'))
-    if (!sameValue(input.checkpoint.currentHandoff, reference))
-      return fail(invalid('checkpoint.currentHandoff', 'P points the checkpoint at its H'))
-    if (request.predecessor !== input.expected)
-      return fail(invalid('handoff', 'the predecessor of P is the expected revision'))
-    if (handoffRecord(execution, reference) !== undefined)
-      return fail(invalid('handoff', 'the H is already prepared'))
-    const occupied = execution.handoffs.find(
-      record =>
-        record.request.kind === 'execution' &&
-        sameValue(record.request.position, request.position) &&
-        undetermined(record),
-    )
-    if (occupied !== undefined)
-      return fail(invalid('handoff', 'the source position has an undetermined handoff'))
-    if (request.predecessorHandoff !== null) {
-      const predecessor = handoffRecord(execution, request.predecessorHandoff)
-      if (predecessor === undefined || predecessor.retirement === null)
-        return fail(invalid('handoff', 'the predecessor handoff is not retired'))
-    }
-    return succeed((_revision, evidence) => {
-      execution.handoffs.push({
-        handoff: copy(reference),
-        request: copy(request),
-        prepared: evidence,
-        resolution: null,
-        history: { kind: 'pending' },
-        retirement: null,
-      })
-    })
   }
 
   function resolvedHandoff(
@@ -2463,45 +2405,6 @@ export function createJournal<P>(
     })
   }
 
-  function retiredHandoff(
-    execution: Execution,
-    input: JournalCommit<P>,
-    change: Extract<NonNullable<JournalCommit<P>['handoff']>, { kind: 'retire' }>,
-  ): Outcome<HandoffApply, Failure> {
-    const request = change.excluded.request
-    if (request.kind !== 'execution')
-      return fail(invalid('handoff', 'a retire applies to an internal request'))
-    const record = handoffRecord(execution, request.reference)
-    if (record === undefined || !sameValue(record.request, request))
-      return fail(invalid('handoff', 'the exclusion does not name the prepared request'))
-    if (!undetermined(record))
-      return fail(invalid('handoff', 'the H already has its history disposition'))
-    if (record.resolution !== null && record.resolution.kind !== 'excluded')
-      return fail(invalid('handoff', 'a recorded H is not retired'))
-    if (!sameValue(execution.checkpoint.currentHandoff, request.reference))
-      return fail(invalid('checkpoint.currentHandoff', 'the H is not the current one'))
-    if (input.checkpoint.currentHandoff !== null)
-      return fail(invalid('checkpoint.currentHandoff', 'a retire clears the pointer'))
-    if (input.checkpoint.position !== request.position.node)
-      return fail(invalid('checkpoint.position', 'a retire keeps the source node'))
-    if (
-      input.events.length > 0 ||
-      input.effects.length > 0 ||
-      input.replyAdmission !== null ||
-      input.caller.kind !== 'none'
-    )
-      return fail(invalid('handoff', 'a retire carries no event, effect, admission or caller'))
-    return succeed(revision => {
-      record.resolution = copy(change.excluded)
-      record.history = { kind: 'not-applicable' }
-      record.retirement = {
-        operation: input.operation,
-        revision: revisionOf(revision),
-        reason: copy(change.reason),
-      }
-    })
-  }
-
   function custodyGroups(
     execution: Execution,
   ): ReadonlyMap<string, readonly (readonly [AgentOperationId, CustodyAttempt])[]> {
@@ -2549,11 +2452,7 @@ export function createJournal<P>(
     return { root: root[0], chain, committed }
   }
 
-  type CandidateVariant = Extract<
-    SettlementRequest<P>,
-    { kind: 'establish-cancellation' | 'migrate-cancellation' | 'judge-cancellation' }
-  >
-  type CustodyVariant = Exclude<SettlementRequest<P>, CandidateVariant>
+  type CandidateVariant = CandidateRequest<P>
   type CancellationRoute = Extract<FinishRoute, { kind: 'cancellation' }>
 
   function recordedBatch(
@@ -2840,54 +2739,9 @@ export function createJournal<P>(
     }
   }
 
-  function custodyTargetFailure(execution: Execution, input: CustodyVariant): Failure | undefined {
-    const finishing = execution.finishing
-    const known = (candidate: AgentOperationId, route: DurableEvidence): Failure | undefined =>
-      candidateOf(finishing, candidate) === undefined
-        ? invalid('candidate', 'not a candidate of this execution')
-        : routeOf(finishing, route) === undefined
-          ? invalid('route', 'not a route of this execution')
-          : undefined
-    switch (input.kind) {
-      case 'record-card-reconciliation': {
-        const passage = execution.checkpoint.passages.find(item => item.id === input.passage)
-        const round =
-          passage?.progress.kind === 'asked'
-            ? passage.progress.rounds.find(item => item.round === input.round)
-            : undefined
-        if (passage === undefined || round === undefined)
-          return invalid('round', 'not a card round of this execution')
-        return known(input.candidate, input.route)
-      }
-      case 'record-legacy-return': {
-        const passage = execution.checkpoint.passages.find(item => item.id === input.passage)
-        if (passage === undefined || passage.position !== 'before_terminal')
-          return invalid('passage', 'not a before-terminal passage of this execution')
-        if (!sameEvidence(passage.input, input.request))
-          return invalid('request', 'not the input record of the passage')
-        return known(input.candidate, input.route)
-      }
-      case 'record-tool-association': {
-        const effect = execution.effects.find(item => item.action === input.intent.action)
-        if (
-          effect === undefined ||
-          effect.pending.kind !== 'tool' ||
-          finishing.effectOperations.get(input.intent.action) !== input.intent.intent ||
-          !sameValue(effect.pending.position, input.intent.position)
-        )
-          return invalid('intent', 'not a Tool intent of this execution')
-        return undefined
-      }
-      default: {
-        const _exhaustive: never = input
-        return _exhaustive
-      }
-    }
-  }
-
   function settleCustody(
     execution: Execution,
-    input: CustodyVariant,
+    input: CustodyRequest<P>,
     key: string,
   ): Attempt<SettlementResult> {
     const finishing = execution.finishing
@@ -3477,6 +3331,76 @@ export function createJournal<P>(
         if (readFailure !== undefined) return answer(fail(readFailure))
         const handoffChange = handoffWrite(execution, input)
         if ('failure' in handoffChange) return answer(handoffChange)
+        const compacted = input.caller.kind === 'context-transition' ? input.caller.value : null
+        const consumed =
+          input.caller.kind === 'processed' && input.caller.result.producer.kind === 'compaction'
+            ? input.caller
+            : compacted === null
+              ? null
+              : {
+                  result: {
+                    producer: { kind: 'compaction' as const, task: compacted.task },
+                    version: compacted.result.version,
+                    delivery: null,
+                    source: compacted.result.evidence,
+                  },
+                  consumption: compacted.consumption,
+                }
+        const resultIndex =
+          consumed === null
+            ? -1
+            : execution.results.findIndex(
+                item =>
+                  sameValue(item.result, consumed.result) &&
+                  item.consumption === consumed.consumption,
+              )
+        const responsibility = execution.results[resultIndex]
+        if (consumed !== null && responsibility === undefined)
+          return answer(
+            fail(invalid('caller', 'the result has no durable consumer responsibility')),
+          )
+        if (compacted !== null) {
+          const task = execution.checkpoint.compaction
+          const preparation = execution.checkpoint.requestPreparation
+          const held = cell.state().receiving.materials.get(canonical(compacted.received))
+          const material = held?.value
+          if (
+            task === null ||
+            !sameValue(task.task, compacted.task) ||
+            task.consumption !== compacted.consumption ||
+            !sameValue(task.result, compacted.result) ||
+            !sameValue(task.received, compacted.received) ||
+            !sameValue(responsibility?.custody, compacted.received) ||
+            preparation?.kind !== 'needs-compaction' ||
+            preparation.id !== compacted.preparation ||
+            !sameValue(preparation.input, task.input) ||
+            !sameValue(compacted.history, task.input.source) ||
+            !sameValue(compacted.message.derivation, compactionGeneration(task.task)) ||
+            responsibility?.completion !== null
+          )
+            return answer(
+              fail(
+                invalid('caller', 'the compaction result is not the current unprocessed result'),
+              ),
+            )
+          if (
+            held?.execution !== execution.id ||
+            material?.kind !== 'compaction' ||
+            !sameValue(material.result, consumed?.result) ||
+            material.outcome.kind !== 'completed' ||
+            !sameValue(material.outcome.message, compacted.message)
+          )
+            return answer(
+              fail(invalid('caller', 'the compaction message is not the durably retained result')),
+            )
+        }
+        if (
+          consumed !== null &&
+          input.caller.kind === 'processed' &&
+          responsibility?.completion !== null &&
+          !sameValue(responsibility?.completion, input.caller.completion)
+        )
+          return answer(fail(conflict(input.operation)))
         if (input.caller.kind !== 'none') {
           const response = responses.get(input.caller.kind)?.shift() ?? 'participate'
           switch (response) {
@@ -3527,6 +3451,16 @@ export function createJournal<P>(
         const caller = input.caller
         const facts: FactBody[] = []
         const blobs: Blob[] = []
+        const completion = caller.kind === 'processed' ? caller.completion : evidence
+        if (consumed !== null)
+          facts.push({
+            kind: 'result.handled',
+            consumption: consumed.consumption,
+            result: producerCallOf(consumed.result),
+            stage: 'processed',
+            evidence: copy(completion),
+            step: null,
+          })
         const view = viewOf(execution.id)
         const taken = input.checkpoint.inputBatch
         if (
@@ -3709,7 +3643,12 @@ export function createJournal<P>(
           kind: 'batch',
           facts,
           blobs,
-          kinds: caller.kind === 'none' ? [] : [caller.kind],
+          kinds:
+            caller.kind === 'none' ||
+            ((caller.kind === 'custody' || caller.kind === 'processed') &&
+              caller.result.producer.kind === 'compaction')
+              ? []
+              : [caller.kind],
           derive: receiptIn,
           project: (_batch, folded) => {
             if (folded.revision !== revision)
@@ -3722,6 +3661,17 @@ export function createJournal<P>(
             )
               throw new TypeError('the folded facts name another checkpoint than the commit')
             execution.checkpoint = checkpoint
+            if (consumed !== null && responsibility !== undefined) {
+              execution.results[resultIndex] = { ...responsibility, completion: copy(completion) }
+              execution.resultRevisions.set(
+                semanticKey('responsibility', [
+                  consumed.result.producer,
+                  consumed.result.version,
+                  consumed.consumption,
+                ]),
+                revision,
+              )
+            }
             receiving.applyBindings(execution, bound)
             execution.state = copy(input.state)
             for (const effect of input.effects) {
@@ -4038,7 +3988,10 @@ export function createJournal<P>(
           kind: 'batch',
           facts,
           blobs: [],
-          kinds: transfer.kind === 'none' ? [] : [transfer.kind],
+          kinds:
+            transfer.kind === 'none' || input.result.producer.kind === 'compaction'
+              ? []
+              : [transfer.kind],
           derive: receiptIn,
           project: (_batch, view) => {
             const index = execution.results.indexOf(known ?? responsibility)

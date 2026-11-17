@@ -56,6 +56,7 @@ export {
 } from './rows/execution-environment/index.ts'
 export { requestContextRow } from './rows/request-context/index.ts'
 export { agentContextRow } from './rows/agent-context/index.ts'
+export { contextCompactionRow } from './rows/context-compaction/default.ts'
 export { sessionAd02Row } from './rows/session-ad02/index.ts'
 export { sessionAd03Row } from './rows/session-ad03/index.ts'
 export { sessionAd04Row } from './rows/session-ad04/index.ts'

@@ -7,6 +7,7 @@ import { modelStorageMaterials } from '@omne-harness/model-storage-sql'
 import { sessionStorageMaterials } from '@omne-harness/session-storage-sql'
 import { toolStorageMaterials } from '@omne-harness/tool-storage-sql'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
+import { compactionSqlCatalog } from '@omne-harness/context-compaction'
 
 export const DISTRIBUTION_SESSION_READ_OUTPUT_LIMIT_BYTES = 20971520
 
@@ -20,6 +21,7 @@ export function storageCatalog(): SqlMaterialCatalog {
     toolStorageMaterials(),
     hitlSqlMaterials(),
     independentWaitSqlMaterials(),
+    compactionSqlCatalog(),
   ]
   return {
     catalogProtocol: 'sql-catalog/1',

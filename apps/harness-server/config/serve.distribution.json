@@ -161,8 +161,8 @@
       "id": "session-handoff",
       "plugin": "sessionHandoffRow",
       "config": {
-        "combinationVersion": "session-composite/13",
-        "manifestDigest": "29f8763a83c3ce6e16e5751043ece88ecaf8d3556a29a74d1f7df19c60fc9a62"
+        "combinationVersion": "session-composite/14",
+        "manifestDigest": "a1f67635c562b46e616b442fedbff74ed7f666add5de43b730bf4f3e61fdd41d"
       }
     },
     {
@@ -174,8 +174,8 @@
       "id": "agent-journal",
       "plugin": "agentJournalRow",
       "config": {
-        "combinationVersion": "session-composite/13",
-        "manifestDigest": "29f8763a83c3ce6e16e5751043ece88ecaf8d3556a29a74d1f7df19c60fc9a62"
+        "combinationVersion": "session-composite/14",
+        "manifestDigest": "a1f67635c562b46e616b442fedbff74ed7f666add5de43b730bf4f3e61fdd41d"
       }
     },
     {
@@ -531,6 +531,11 @@
     {
       "id": "agent-context",
       "plugin": "agentContextRow",
+      "config": {}
+    },
+    {
+      "id": "context-compaction",
+      "plugin": "contextCompactionRow",
       "config": {}
     },
     {

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX_ASSET_PAGE } from '@omne-harness/assets'
 import { bodySchema } from './body.ts'
 import {
   SettingDefinitionsSchema,
@@ -15,6 +16,7 @@ import {
 export const PARTICIPANT = 'assets.settings'
 export const PROTOCOL = 'assets-local/1'
 export const HANDLER = 'assets.read'
+export const LIST_HANDLER = 'assets.list'
 export const MIGRATION = { owner: PARTICIPANT, id: 'assets-local-1' }
 export const TABLES = ['al_domain', 'al_assets', 'al_versions', 'al_holdings']
 export const domainSchema = SettingsProjectionBindingSchema.shape.domain
@@ -209,10 +211,45 @@ export const versionResultSchema = z.union([
   z.strictObject({ kind: z.literal('absent') }),
   failureSchema,
 ])
+export const heldCapabilityLookupSchema = z.strictObject({
+  category: SettingsIdSchema,
+  name: SettingsIdSchema,
+})
+export const listLookupSchema = z.strictObject({
+  category: SettingsIdSchema,
+  after: SettingsIdSchema.nullable(),
+  limit: z.number().int().min(1).max(MAX_ASSET_PAGE),
+})
+export const listRequestSchema = z.strictObject({
+  kind: z.literal('list'),
+  domain: domainSchema,
+  lookup: listLookupSchema,
+})
+export const listedSchema = z.strictObject({
+  category: SettingsIdSchema,
+  name: SettingsIdSchema,
+  assetRef: SettingsReferenceSchema,
+  version: SettingsIdSchema,
+  selection: z.enum(['follow', 'pinned']),
+  enabled: z.boolean(),
+})
+export const listResultSchema = z.union([
+  z.strictObject({
+    kind: z.literal('page'),
+    items: z.array(listedSchema),
+    next: SettingsIdSchema.nullable(),
+  }),
+  failureSchema,
+])
 export const readRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('asset'), domain: domainSchema, lookup: assetLookupSchema }),
   z.strictObject({ kind: z.literal('holding'), domain: domainSchema, lookup: holdingLookupSchema }),
   z.strictObject({ kind: z.literal('version'), domain: domainSchema, lookup: versionLookupSchema }),
+  z.strictObject({
+    kind: z.literal('heldCapability'),
+    domain: domainSchema,
+    lookup: heldCapabilityLookupSchema,
+  }),
 ])
 export type Mutation = z.infer<typeof mutationSchema>
 export type MutationBinding = z.infer<typeof mutationBindingSchema>

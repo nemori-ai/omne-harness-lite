@@ -18,6 +18,7 @@ import { CURSOR_KEY_FILE } from '../../src/entry/cursor-signing.ts'
 import { COMBINATION_VERSION } from '../../src/rows/agent-journal/config.ts'
 import { LOCAL_TOKENIZERS, LOCAL_TOOL_RESULT_BYTES } from '../../src/local/operator-defaults.ts'
 import { providerConfig } from '../rows/storage/fixtures/tree.ts'
+import { DEFAULT_COMPACTION_BINDING } from '../../src/assembly/compaction-provider.ts'
 
 export const memberDir = fileURLToPath(new URL('../..', import.meta.url))
 export const serverBin = join(memberDir, 'dist', 'bin.js')
@@ -127,6 +128,11 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
         evidence: { ...MODEL_TEST_ADOPTION, name: 'agent-consumer-evidence' },
         work: { kind: 'exempt' },
       },
+      {
+        consumerOwner: '@omne-harness/context-compaction',
+        evidence: { ...MODEL_TEST_ADOPTION, name: 'compaction-consumer-evidence' },
+        work: { kind: 'exempt' },
+      },
     ],
     limits: {
       scanPageCalls: 100,
@@ -229,6 +235,7 @@ function agentHostOperatorConfig(): Record<string, unknown> {
   return {
     jointCommits: row.config['jointCommits'],
     coordination: row.config['coordination'],
+    compactionProvider: DEFAULT_COMPACTION_BINDING,
     observerBufferBytes: 65_536,
     reconciliationDelaysMs: [0],
     reconciliationBatchLimit: 8,

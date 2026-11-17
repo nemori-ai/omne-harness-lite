@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { pairingWitnesses } from './fixtures/compaction-pairings.ts'
 import {
   judgeCompaction,
   judgeMessage,
@@ -55,6 +56,32 @@ const answer = (callId: string): Message =>
 type Entries = readonly (readonly [string, Message | null])[]
 const entriesOf = (entries: Entries) => entries.map(([at, message]) => ({ ref: ref(at), message }))
 
+it('uses the original pairing witness in the first compaction even when the call body is not model-visible', () => {
+  const context = {
+    ...history([
+      ['e1', null],
+      ['e2', answer('hidden')],
+    ]),
+    base: { kind: 'initial' as const, pairings: [{ result: ref('e2'), call: ref('e1') }] },
+  }
+  expect(
+    judgeCompaction(compaction({ covers: { from: 'e1', to: 'e2' }, retained: ['e2'] }), context),
+  ).toEqual({ rejected: 'pairing', ref: ref('e2') })
+})
+
+it('requires pairing evidence for every visible result in the first compaction', () => {
+  const context = {
+    ...history([
+      ['e1', null],
+      ['e2', answer('hidden')],
+    ]),
+    base: { kind: 'initial' as const, pairings: [] },
+  }
+  expect(
+    judgeCompaction(compaction({ covers: { from: 'e1', to: 'e2' }, retained: ['e2'] }), context),
+  ).toEqual({ rejected: 'source-evidence', ref: ref('e2') })
+})
+
 function history(
   entries: Entries,
   after: Entries = [],
@@ -62,7 +89,7 @@ function history(
 ): CompactionContext {
   return {
     origin: ref(entries[0]?.[0] ?? 'e1'),
-    base: { kind: 'initial' },
+    base: { kind: 'initial', pairings: pairingWitnesses(entriesOf([...entries, ...after])) },
     covered: entriesOf(entries),
     after: entriesOf(after),
     open: open.map(ref),
@@ -290,6 +317,28 @@ describe('the three compaction keys of judgeMessage', () => {
 })
 
 describe('judgeCompaction', () => {
+  it('refuses an invisible summary even when it retains a model-readable message', () => {
+    const input = compaction({
+      blocks: [{ ...text, visibility: { toHuman: true, toModel: false } }],
+      retained: ['e1'],
+    })
+    expect(judgeMessage(input)).toEqual({ rejected: 'model-invisible' })
+    expect(judgeCompaction(input, history([['e1', user()]]))).toEqual({
+      rejected: 'message',
+      ref: null,
+    })
+  })
+
+  it('admits a summary with both human-only and model-readable content', () => {
+    const input = compaction({
+      blocks: [
+        { ...text, id: 'human', visibility: { toHuman: true, toModel: false } },
+        { ...text, id: 'model', visibility: { toHuman: false, toModel: true } },
+      ],
+    })
+    expect(judgeCompaction(input, history([['e1', user()]]))).toHaveProperty('ok')
+  })
+
   it('returns the judgeMessage value, a frozen copy of the input keys', () => {
     const input = compaction({ retained: ['e2'] })
     const context = history([

@@ -129,13 +129,13 @@ describe('the materials', () => {
     const materials = sessionStorageMaterials({
       readOutputLimitBytes: FIXTURE_READ_OUTPUT_LIMIT_BYTES,
     })
-    const found = materials.migrations.find(item => item.id === '009-session-archive')
+    const found = materials.migrations.find(item => item.id === '010-session-archive')
     expect(found?.requires).toEqual([{ owner: 'session', id: '008-session-list' }])
     const session = materials.participants.find(item => item.participant === 'session')
     expect(session?.ownedTables).toContain('sl_session_archive')
     const read = materials.readHandlers.find(item => item.handler === 'session.list-archived')
     expect(read?.readTables).toEqual(['sl_session_list', 'sl_session_archive'])
-    expect(read?.requiresMigrations).toEqual([{ owner: 'session', id: '009-session-archive' }])
+    expect(read?.requiresMigrations).toEqual([{ owner: 'session', id: '010-session-archive' }])
   })
 })
 

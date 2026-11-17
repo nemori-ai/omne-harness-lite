@@ -1203,6 +1203,14 @@ describe('the values the owners give', () => {
       { kind: 'cannot-fit', reason: 'elsewhere' },
       { kind: 'cannot-fit', reason: { kind: 'unknown', reason: 'unsupported' } },
     ],
+    [
+      { kind: 'cannot-fit', reason: 'protected-floor' },
+      { kind: 'cannot-fit', reason: 'protected-floor' },
+    ],
+    [
+      { kind: 'compaction-failed', diagnostic: 'private-failure-text' },
+      { kind: 'compaction-failed' },
+    ],
     [{ kind: 'guard', diagnostic: 'private-failure-text' }, { kind: 'guard' }],
     [
       { kind: 'request-rejected', diagnostic: 'private-failure-text' },

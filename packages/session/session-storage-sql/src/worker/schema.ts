@@ -140,7 +140,7 @@ export const SESSION_ARCHIVE_TABLES: readonly string[] = ['sl_session_archive']
 
 export const SESSION_ARCHIVE_MIGRATION = Object.freeze({
   owner: 'session',
-  id: '009-session-archive',
+  id: '010-session-archive',
 })
 
 export const ATTEMPT_GRANT_MIGRATION = Object.freeze({

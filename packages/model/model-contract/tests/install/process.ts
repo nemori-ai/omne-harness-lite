@@ -1,7 +1,6 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { delimiter, dirname, join } from 'node:path'
+import { dirname, join } from 'node:path'
 import ts from '@typescript/typescript6'
 
 export function childEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
@@ -15,24 +14,16 @@ export function childEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv 
   return { ...env, ...extra }
 }
 
-function windowsPnpmEntry(): string {
-  const seen: string[] = []
-  for (const directory of (process.env['PATH'] ?? process.env['Path'] ?? '').split(delimiter)) {
-    if (directory === '' || !existsSync(join(directory, 'pnpm.cmd'))) continue
-    const entry = join(directory, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
-    if (existsSync(entry)) return entry
-    seen.push(join(directory, 'pnpm.cmd'))
-  }
-  throw new Error(
-    seen.length === 0
-      ? 'no pnpm.cmd on PATH'
-      : `no node_modules/pnpm/bin/pnpm.cjs next to ${seen.join(', ')}`,
-  )
-}
-
+// pnpm is the one that runs this test (npm_execpath). The consumer pins no pnpm, so a pnpm on PATH
+// would be whatever the machine has; there is no fallback to it.
 function commandLine(command: string, args: readonly string[]): [string, readonly string[]] {
-  if (process.platform !== 'win32' || command !== 'pnpm') return [command, args]
-  return [process.execPath, [windowsPnpmEntry(), ...args]]
+  if (command !== 'pnpm') return [command, args]
+  const entry = process.env['npm_execpath']
+  if (entry === undefined || entry === '')
+    throw new Error(
+      'npm_execpath is not set: run the tests through pnpm (pnpm exec vitest, pnpm run test) so that the pinned pnpm is known',
+    )
+  return /\.[cm]?js$/u.test(entry) ? [process.execPath, [entry, ...args]] : [entry, args]
 }
 
 export function exec(

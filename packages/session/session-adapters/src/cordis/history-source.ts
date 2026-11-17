@@ -1,7 +1,8 @@
+import { contextEpochOf, sessionEpochOf } from './history-epoch.ts'
 import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import { parseRecordEntryRef, type CompactionContext } from '@omne-harness/message'
+import { parseRecordEntryRef } from '@omne-harness/message'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
@@ -19,7 +20,6 @@ import {
   type ContextTarget,
   type Coverage,
   type DurableEvidence,
-  type EpochId,
   type GroupToken,
   type HistoryCursor,
   type HistoryEvidence,
@@ -41,15 +41,13 @@ import type {
 import { ContextHolderSourcesService } from '@omne-harness/request-context-cordis-contract/cordis'
 import { decodeScopeRef, type ScopeRef } from '@omne-harness/runtime-context-contract'
 import type {
-  HistoryEntry,
-  HistoryPage,
   ModelViewBasis,
   ModelViewRead,
   ModelViewRow,
   SessionAccess,
   SessionFailure,
   SessionId,
-  WorkSnapshot,
+  ContextScopeBinding,
 } from '@omne-harness/session-contract'
 import type {
   SessionAdoptedRequest,
@@ -58,7 +56,6 @@ import type {
 } from '@omne-harness/session-cordis-contract'
 import { sessionAdoptedRequestsKey, sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { canonical } from '../testing/canonical.ts'
-import { compactionReads } from '../testing/session-values.ts'
 
 const LOGGER = 'session-adapters/history-source'
 const SCOPE_INDEX_ENTRIES = 4096
@@ -92,7 +89,9 @@ function coverageDigest(coverage: Coverage): string {
 }
 
 interface WorkReads {
-  readWork(access: SessionAccess<unknown>): Promise<Outcome<WorkSnapshot, SessionFailure>>
+  readCurrentScope(
+    access: SessionAccess<unknown>,
+  ): Promise<Outcome<ContextScopeBinding | null, SessionFailure>>
 }
 
 type Shared = {
@@ -137,27 +136,6 @@ function indexKey(tenant: string, scope: ScopeRef): string {
   return `${tenant}\u0000${scope.ref}`
 }
 
-const EPOCH_ESCAPE = /%([0-9a-f]{2})/gu
-
-function epochOf(text: string): EpochId | undefined {
-  let escaped = ''
-  for (const character of text) {
-    const code = character.codePointAt(0) ?? 0
-    escaped +=
-      code <= 0x20 || code === 0x7f || character === '%'
-        ? `%${code.toString(16).padStart(2, '0')}`
-        : character
-  }
-  const decoded = decodeEpochId(escaped)
-  return 'ok' in decoded ? decoded.ok : undefined
-}
-
-function sessionEpochOf(epoch: EpochId): string {
-  return epoch.replace(EPOCH_ESCAPE, (_, hex: string) =>
-    String.fromCharCode(Number.parseInt(hex, 16)),
-  )
-}
-
 function historySeqOf(seq: string): HistorySequence | undefined {
   const decoded = decodeHistorySequence(seq)
   if (!('ok' in decoded) || decoded.ok === '0') return undefined
@@ -187,7 +165,7 @@ function basisOf(evidence: HistoryEvidence): ModelViewBasis {
 }
 
 function evidenceOf(target: ContextTarget, basis: ModelViewBasis): HistoryEvidence | undefined {
-  const epoch = epochOf(basis.epoch)
+  const epoch = contextEpochOf(basis.epoch)
   const upper = upperOf(basis.upper)
   return epoch === undefined || upper === undefined ? undefined : { target, epoch, upper }
 }
@@ -819,16 +797,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     return headTenant === tenant ? { kind: 'head', head, tenant: headTenant } : DENIED
   }
 
-  private scopesOf(bindings: readonly { scope: string }[]): ScopeRef[] | Unavailable {
-    const scopes: ScopeRef[] = []
-    for (const binding of bindings) {
-      const decoded = decodeScopeRef({ ref: binding.scope })
-      if (!('ok' in decoded)) return this.defect(`scope ${binding.scope} is not a scope ref`)
-      scopes.push(decoded.ok)
-    }
-    return scopes
-  }
-
   private async resolve(
     input: Parameters<HistoryEvidenceResolver<unknown>>[0],
   ): Promise<SourceRead<HistoryEvidence>> {
@@ -866,19 +834,14 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     head: SessionHistoryHead,
     headTenant: string,
   ): Promise<Readonly<{ scope: ScopeRef }> | Refusal> {
-    const snapshot = await this.call(() => work.readWork(session))
-    if ('failure' in snapshot) return refusalOf(snapshot.failure, 'evidence')
-    const work0 = snapshot.ok
-    if (tenantText(work0.tenant) !== headTenant || work0.session !== head.session)
-      return this.defect('readWork answered another session')
-    const bindings = work0.contextScopes ?? []
-    const scopes = this.scopesOf(bindings)
-    if (!Array.isArray(scopes)) return scopes
-    const current = bindings.at(-1)
-    const scope = scopes.at(-1)
-    if (current === undefined || scope === undefined)
-      return unavailable('the session has no context scope')
-    for (const each of scopes) this.remember(indexKey(headTenant, each), head)
+    const answer = await this.call(() => work.readCurrentScope(session))
+    if ('failure' in answer) return refusalOf(answer.failure, 'evidence')
+    const current = answer.ok
+    if (current === null) return unavailable('the session has no context scope')
+    const decoded = decodeScopeRef({ ref: current.scope })
+    if (!('ok' in decoded)) return this.defect(`scope ${current.scope} is not a scope ref`)
+    const scope = decoded.ok
+    this.remember(indexKey(headTenant, scope), head)
     if (current.ended !== null) return unavailable('the context scope of the session has ended')
     return { scope }
   }
@@ -895,58 +858,6 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     }
   }
 
-  private async upperRow(
-    located: Located,
-    evidence: HistoryEvidence,
-  ): Promise<
-    | Readonly<{ kind: 'row'; entry: string | null }>
-    | Readonly<{ kind: 'epoch-changed'; current: HistoryEvidence }>
-    | Refusal
-  > {
-    const basis = basisOf(evidence)
-    const view = await this.viewAfter(
-      located,
-      basis,
-      evidence.upper.kind === 'empty' ? 0n : BigInt(basis.upper) - 1n,
-      1,
-      'evidence',
-    )
-    if (view.kind === 'epoch-changed') return this.epochChanged(located, view.current)
-    if (view.kind !== 'page') return view
-    if (evidence.upper.kind === 'empty') return { kind: 'row', entry: null }
-    const row = view.rows[0]
-    if (row === undefined || row.seq !== basis.upper)
-      return this.defect('the model view has no row at the upper bound')
-    return { kind: 'row', entry: row.entry }
-  }
-
-  private async entries(
-    session: SessionAccess<unknown>,
-  ): Promise<Outcome<readonly HistoryEntry[], Refusal>> {
-    const pageBytes = this.shared.input.pageBytes ?? PAGE_BYTES
-    const entries: HistoryEntry[] = []
-    let page = await this.call<HistoryPage>(() =>
-      this.scope[sessionKey].history.begin({
-        ...session,
-        kinds: [],
-        from: null,
-        direction: 'forward',
-        pageBytes,
-      }),
-    )
-    for (let pages = 1; ; pages++) {
-      if ('failure' in page) return { failure: refusalOf(page.failure, 'evidence') }
-      entries.push(...page.ok.entries)
-      if (page.ok.exhausted) return { ok: entries }
-      const cursor = page.ok.next
-      if (cursor === null || pages >= MAX_PAGES)
-        return { failure: unavailable('the history read ended before it was exhausted') }
-      page = await this.call<HistoryPage>(() =>
-        this.scope[sessionKey].history.next({ ...session, cursor }),
-      )
-    }
-  }
-
   private async compactionContext(
     input: Parameters<HistorySource<unknown>['compactionContext']>[0],
   ): Promise<CompactionContextResult> {
@@ -955,42 +866,27 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
     const { evidence } = checked
     const located = this.locate(input.access, evidence.target)
     if (located.kind !== 'located') return located
-    if (typeof input.coverTo !== 'string' || parseRecordEntryRef(input.coverTo) === null)
+    if (
+      input.coverTo !== null &&
+      (typeof input.coverTo !== 'string' || parseRecordEntryRef(input.coverTo) === null)
+    )
       return invalid('coverTo', 'missing-input')
     const work = this.shared.link.work
     if (work === undefined) return unavailable('the lower bound sub-plugin is not running')
 
-    const upper = await this.upperRow(located, evidence)
-    if (upper.kind !== 'row') return upper
-    if (upper.entry === null) return invalid('coverTo', 'upper-out-of-range')
-    const read = await this.entries(located.session)
-    if ('failure' in read) return read.failure
-    const snapshot = await this.call(() => work.readWork(located.session))
-    if ('failure' in snapshot) return refusalOf(snapshot.failure, 'evidence')
-
-    const entries = read.ok
-    const end = entries.findIndex(entry => entry.id === upper.entry)
-    if (end < 0) return this.defect('the history read does not hold the entry of the upper bound')
-    const cover = entries.findIndex(entry => String(entry.id) === String(input.coverTo))
-    if (cover < 0 || cover > end) return invalid('coverTo', 'upper-out-of-range')
-    let window: CompactionContext | null
-    try {
-      window = compactionReads(entries, snapshot.ok, input.coverTo)
-    } catch (cause) {
-      return this.defect(`the compaction window does not translate: ${describe(cause)}`)
+    const answer = await this.call(() =>
+      this.scope[sessionKey].history.readCompactionContext({
+        ...located.session,
+        basis: basisOf(evidence),
+        coverTo: input.coverTo,
+      }),
+    )
+    if ('failure' in answer) {
+      if (answer.failure.kind === 'invalid') return invalid('coverTo', 'upper-out-of-range')
+      return refusalOf(answer.failure, 'evidence')
     }
-    if (window === null)
-      return unavailable('the open work names entries that the history read does not hold')
-    const within = new Set<string>(entries.slice(0, end + 1).map(entry => String(entry.id)))
-    const value: CompactionContext = {
-      ...window,
-      after: window.after.filter(row => within.has(row.ref)),
-      open: window.open.filter(ref => within.has(ref)),
-    }
-
-    const again = await this.upperRow(located, evidence)
-    if (again.kind !== 'row') return again
-    return { kind: 'context', value, evidence }
+    if (answer.ok.kind === 'epoch-changed') return this.epochChanged(located, answer.ok.current)
+    return { kind: 'context', value: answer.ok.value, evidence }
   }
 }
 
@@ -1014,7 +910,9 @@ export function createSessionHistorySource(input: SessionHistorySourceInput) {
       name: 'session-ad04-lower-bound',
       inject: { [sessionKey]: { caller: 'coordinator' as const } },
       apply(ctx: Context) {
-        const reads: WorkReads = { readWork: access => ctx[sessionKey].work.readWork(access) }
+        const reads: WorkReads = {
+          readCurrentScope: access => ctx[sessionKey].work.readCurrentScope(access),
+        }
         shared.link.work = reads
         ctx.effect(
           () => () => {

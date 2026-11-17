@@ -19,6 +19,7 @@ import { parseCLI } from 'vitest/node'
 import {
   ARCHIVE_EXCLUDE,
   FAST_TEST_TIMEOUT_MS,
+  READ_SETS_ENV,
   SLOW_TEST_TIMEOUT_MS,
   SOURCE_TEXT_TAG,
   TEST_REPORT_DIR_ENV as ROOT_REPORT_DIR_ENV,
@@ -30,8 +31,11 @@ import {
   testTiers,
 } from '../../../vitest.tiers.mts'
 import { RUN_TIERS } from '../src/testing/config.ts'
+import { READ_SETS_ENV as RUNNER_READ_SETS_ENV } from '../src/testing/read-sets.ts'
 import {
   buildArgs,
+  compileEnv,
+  ONE_CORE_PER_TASK,
   TEST_REPORT_DIR_ENV,
   TIER_TASKS,
   turboTestCommand,
@@ -96,8 +100,9 @@ async function vitestCliOptions(): Promise<readonly VitestCliOption[]> {
 }
 
 describe('根上的分层定义', () => {
-  it('运行器重抄的报告目录变量名与层名与根定义一致', () => {
+  it('运行器重抄的报告目录变量名、读集开关名与层名与根定义一致', () => {
     expect(TEST_REPORT_DIR_ENV).toBe(ROOT_REPORT_DIR_ENV)
+    expect(RUNNER_READ_SETS_ENV).toBe(READ_SETS_ENV)
     expect(RUN_TIERS.filter(tier => tier !== 'all')).toEqual([...TEST_TIERS])
   })
 
@@ -186,6 +191,7 @@ describe('根上的分层定义', () => {
       exclude: [...VITEST_DEFAULT_EXCLUDE, ARCHIVE_EXCLUDE],
       testTimeout: FAST_TEST_TIMEOUT_MS,
       typecheck: { exclude: [...VITEST_DEFAULT_EXCLUDE, ARCHIVE_EXCLUDE] },
+      setupFiles: [],
     })
     expect(FAST_TEST_TIMEOUT_MS).toBe(15_000)
     expect(testTiers('test', {}, REPOSITORY, PLAIN)).toEqual(tiers)
@@ -285,11 +291,43 @@ describe('根上的分层定义', () => {
         ],
       ],
       outputFile: { json: join('/runs/1', 'packages__common__json-text.json') },
-      env: { [ROOT_REPORT_DIR_ENV]: '' },
+      env: { [ROOT_REPORT_DIR_ENV]: '', [READ_SETS_ENV]: '' },
+      setupFiles: [],
+      experimental: { preParse: true },
     })
+    expect(tiers.reporters).toHaveLength(3)
     expect(testTiers('fast', { [ROOT_REPORT_DIR_ENV]: '' }, member, PLAIN)).not.toHaveProperty(
       'reporters',
     )
+  })
+
+  it('记读集的开关给 1 且设了报告目录：多挂读集报告器与记录器，导入表不设上限；别的值、没有报告目录都不挂', () => {
+    const member = join(REPOSITORY, 'packages/common/json-text')
+    const on = { [ROOT_REPORT_DIR_ENV]: '/runs/1', [READ_SETS_ENV]: '1' }
+    const tiers = testTiers('fast', on, member, PLAIN)
+    expect(tiers.reporters?.at(-1)).toEqual([
+      expect.stringMatching(/read-set-reporter\.ts$/u),
+      { outputFile: join('/runs/1', 'packages__common__json-text.reads.json') },
+    ])
+    expect(tiers.reporters).toHaveLength(4)
+    expect(tiers.setupFiles).toEqual([expect.stringMatching(/read-recorder\.ts$/u)])
+    expect(tiers.experimental).toEqual({ preParse: true, importDurations: { limit: 1_000_000 } })
+    expect(testTiers(undefined, on, member, PLAIN).experimental).toEqual({
+      importDurations: { limit: 1_000_000 },
+    })
+    for (const path of [tiers.setupFiles[0], tiers.reporters?.at(-1)?.[0]])
+      expect(existsSync(path as string)).toBe(true)
+
+    for (const env of [
+      { ...on, [READ_SETS_ENV]: '0' },
+      { ...on, [READ_SETS_ENV]: '' },
+      { [READ_SETS_ENV]: '1' },
+    ]) {
+      const off = testTiers('fast', env, member, PLAIN)
+      expect(off.setupFiles).toEqual([])
+      expect(off.experimental).toEqual({ preParse: true })
+      expect(JSON.stringify(off.reporters ?? [])).not.toContain('read-set-reporter')
+    }
   })
 
   it('成员配置写报告用的文件名与运行器读报告用的一致：每个成员都对得上', () => {
@@ -313,6 +351,8 @@ describe('运行器交给 turbo 的命令', () => {
     )
     expect(command.env[TEST_REPORT_DIR_ENV]).toBe('/runs/2')
     expect(command.env['VITEST_MAX_WORKERS']).toBe('2')
+    expect(command.env[READ_SETS_ENV]).toBe('')
+    expect(turboTestCommand('@a/x', 'slow', 2, '/runs/2', true).env[READ_SETS_ENV]).toBe('1')
   })
 
   it('测试的 turbo 从不构建（几个成员同时起，不能各自构建共同的上游）；测试前的构建按依赖构建，准入模式下缓存只写不读', () => {
@@ -345,6 +385,19 @@ describe('运行器交给 turbo 的命令', () => {
     expect(typecheckArgs(['@a/x'], true, 5)).toContain('--concurrency=5')
   })
 
+  it('构建与类型检查的每个任务只用一个核：运行器起 turbo 时带上限，turbo 的这两个任务放行它', () => {
+    const turbo = JSON.parse(readFileSync(join(REPOSITORY, 'turbo.json'), 'utf8')) as {
+      tasks: Record<string, { passThroughEnv?: string[] }>
+    }
+    const env = compileEnv()
+    for (const [name, value] of Object.entries(ONE_CORE_PER_TASK)) {
+      expect(env[name]).toBe(value)
+      for (const task of ['build', 'typecheck'])
+        expect(turbo.tasks[task]?.passThroughEnv).toContain(name)
+    }
+    expect(ONE_CORE_PER_TASK).toEqual({ GOMAXPROCS: '1' })
+  })
+
   it('三个测试任务的 env 与 passThroughEnv 各是同一份', () => {
     const turbo = JSON.parse(readFileSync(join(REPOSITORY, 'turbo.json'), 'utf8')) as {
       tasks: Record<string, { env?: string[]; passThroughEnv?: string[] }>
@@ -355,13 +408,13 @@ describe('运行器交给 turbo 的命令', () => {
     }
   })
 
-  it('三个测试任务都把这两个变量列进 passThroughEnv：turbo 的 Strict Mode 会滤掉没声明的变量', () => {
+  it('三个测试任务都把这三个变量列进 passThroughEnv：turbo 的 Strict Mode 会滤掉没声明的变量', () => {
     const turbo = JSON.parse(readFileSync(join(REPOSITORY, 'turbo.json'), 'utf8')) as {
       tasks: Record<string, { passThroughEnv?: string[]; cache?: boolean }>
     }
     for (const task of Object.values(TIER_TASKS)) {
       expect(turbo.tasks[task]?.passThroughEnv).toEqual(
-        expect.arrayContaining([TEST_REPORT_DIR_ENV, 'VITEST_MAX_WORKERS']),
+        expect.arrayContaining([TEST_REPORT_DIR_ENV, 'VITEST_MAX_WORKERS', READ_SETS_ENV]),
       )
       expect(turbo.tasks[task]?.cache).toBe(false)
     }
@@ -687,7 +740,7 @@ describe('入口的层参数', { timeout: 60_000 }, () => {
   )
   writeFileSync(
     join(subject, 'package.json'),
-    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@10.28.1" }\n',
+    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@12.18.0" }\n',
   )
   for (const path of [
     'packages/common/legal-identity',

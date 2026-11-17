@@ -56,7 +56,8 @@
     "@omne-harness/message": "workspace:*",
     "@omne-harness/modality": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
-    "@omne-harness/stream-arrival": "workspace:*"
+    "@omne-harness/stream-arrival": "workspace:*",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

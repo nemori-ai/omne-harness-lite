@@ -20,6 +20,7 @@ export type {
   SessionRevision,
   TodoItemId,
 } from './identity.ts'
+export { requiredWorkEntries, compactionCallChangeOf } from './work-entry-state.ts'
 export type {
   AutoArchivePolicy,
   BoundedClose,
@@ -64,6 +65,7 @@ export type {
 export type {
   AdmittedMessage,
   CommitReceipt,
+  CompactionContextRead,
   Completion,
   EntryClass,
   ExternalCompletion,
@@ -190,7 +192,13 @@ export {
 } from './judgments.ts'
 export { decide, commandDigest } from './decide.ts'
 export { runCancelledBy } from './decision-support.ts'
-export { batchEvidence, reduce } from './reduce.ts'
+export { batchEvidence } from './batch-evidence.ts'
+export { reduce } from './reduce.ts'
+export {
+  decideCompactionCommit,
+  projectCompactionCommit,
+  type CompactionCommitState,
+} from './compaction-commit.ts'
 export { expandHistoryEntries } from './entries.ts'
 export {
   CONTEXT_SCOPE_KINDS,
@@ -328,3 +336,4 @@ export type {
   StopInitiator,
   StopView,
 } from './background-calls.ts'
+export { compactionContextForView } from './model-view.ts'

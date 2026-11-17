@@ -663,6 +663,67 @@ describe('agentAccessCheck', () => {
     })
   })
 
+  it('lets the current tenant work principal recover a message handoff after an unavailable preparation', async () => {
+    const w = world()
+    const target = { kind: 'execution', execution }
+    expect(
+      await w.agent.check(agentRequest(w.work(), 'read-message-handoff', target)),
+    ).toHaveProperty('kind', 'allowed')
+    for (const principal of [
+      w.login(),
+      w.work(OWN, B),
+      w.system(AGENT_HOST_COMPONENT),
+      w.foreign(),
+    ])
+      expect(
+        await w.agent.check(agentRequest(principal, 'read-message-handoff', target)),
+      ).toHaveProperty('kind', 'denied')
+    expect(
+      await w.agent.check(agentRequest(w.work(), 'read-message-handoff', scopeOf(OWN))),
+    ).toHaveProperty('kind', 'denied')
+    w.flags.standing = 'not-member'
+    expect(
+      await w.agent.check(agentRequest(w.work(), 'read-message-handoff', target)),
+    ).toHaveProperty('kind', 'denied')
+  })
+
+  it('checks every compaction operation for a current tenant work principal and exact target kind', async () => {
+    const w = world()
+    const target = {
+      kind: 'compaction',
+      task: { authority: 'provider', task: 'task', requestDigest: 'digest' },
+    }
+    for (const operation of [
+      'compaction.admit',
+      'compaction.inspect',
+      'compaction.cancel',
+      'compaction.acknowledge',
+    ] as const) {
+      expect(await w.agent.check(agentRequest(w.work(), operation, target))).toHaveProperty(
+        'kind',
+        'allowed',
+      )
+      expect(await w.agent.check(agentRequest(w.login(), operation, target))).toHaveProperty(
+        'kind',
+        'denied',
+      )
+      expect(await w.agent.check(agentRequest(w.work(OWN, B), operation, target))).toHaveProperty(
+        'kind',
+        'denied',
+      )
+      expect(
+        await w.agent.check(agentRequest(w.system(AGENT_HOST_COMPONENT), operation, target)),
+      ).toHaveProperty('kind', 'denied')
+      expect(
+        await w.agent.check(agentRequest(w.work(), operation, { kind: 'execution', execution })),
+      ).toHaveProperty('kind', 'denied')
+    }
+    expect(await w.agent.check(agentRequest(w.work(), 'invoke', target))).toHaveProperty(
+      'kind',
+      'denied',
+    )
+  })
+
   it('lets the Model host work principal M receive a result for its own tenant only, and nothing else', async () => {
     const w = world()
     const target = { kind: 'execution' as const, execution }

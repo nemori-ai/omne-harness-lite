@@ -49,7 +49,7 @@ const CONTROL_INTENTS = ['control', 'interrupt', 'auto-archive'] as const
 const CONTROL_STATES = ['committed', 'propagating', 'reconciled'] as const
 const CALL_KINDS = ['model', 'tool'] as const
 const REFUSALS = ['denied', 'invalid', 'unsupported', 'capacity'] as const
-const FIT_REASONS = ['fixed', 'after-compaction'] as const
+const FIT_REASONS = ['fixed', 'protected-floor', 'after-compaction'] as const
 const RELEASE_REASONS = ['ended', 'bounded', 'cancelled', 'released', 'superseded'] as const
 
 function member(value: JsonValue | undefined, key: string): JsonValue | undefined {
@@ -327,6 +327,7 @@ function causeOf(finish: RunAnswers['finish']): SessionRunCause {
       }
     case 'request-rejected':
     case 'compaction-invalid':
+    case 'compaction-failed':
     case 'message-rejected':
     case 'extension-stop':
     case 'guard':

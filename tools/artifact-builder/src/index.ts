@@ -5,7 +5,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { spawn } from 'node:child_process'
 
 const nodeVersion = '24.21.0'
-const pnpmVersion = '10.28.1'
+const pnpmVersion = '12.18.0'
 export type Entry =
   | { path: string; kind: 'file'; sha256: string }
   | { path: string; kind: 'link'; target: string }

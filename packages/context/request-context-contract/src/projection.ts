@@ -1,10 +1,8 @@
 import {
-  judgeMessage,
+  projectMessage as filterMessage,
   type Message,
-  type MessagePart,
   type RecordEntryRef,
 } from '@omne-harness/message'
-import type { BlockId } from '@omne-harness/content-block'
 import type { EpochId, HistorySequence } from './refs.js'
 import type { HistoryRow } from './ports.js'
 export type { ProjectedMessage, ProjectedHistory } from './values.js'
@@ -22,33 +20,8 @@ export type HumanProjection = Readonly<{
     summarized: 'retained' | 'summarized' | 'after' | null
   }>[]
 }>
-function filterMessage(
-  message: Message,
-  side: 'toHuman' | 'toModel',
-): { message: Message; dropped: readonly BlockId[] } | null {
-  if (side === 'toModel' && message.role === 'tool_internal') return null
-  const kept: MessagePart[] = message.blocks.filter(
-    block =>
-      block.visibility[side] === true &&
-      !(side === 'toModel' && block.kind === 'tool_call_incomplete'),
-  )
-  const ids = new Set(kept.map(b => b.id))
-  const blocks = kept.map(b =>
-    b.kind === 'reasoning_state' ? { ...b, pairs: b.pairs.filter(id => ids.has(id)) } : b,
-  )
-  if (!blocks.length) return null
-  let raw: unknown = { ...message, blocks }
-  if (message.role === 'assistant' && message.replay !== undefined) {
-    const at = blocks.flatMap((b, i) => (b.kind === 'reasoning_state' ? [i] : []))
-    const { replay, ...base } = message
-    raw =
-      at.length || blocks.some(b => b.kind === 'thinking')
-        ? { ...base, blocks, replay: { ...replay, at } }
-        : { ...base, blocks }
-  }
-  const judged = judgeMessage(raw)
-  if ('rejected' in judged) return null
-  return { message: judged.ok, dropped: message.blocks.filter(b => !ids.has(b.id)).map(b => b.id) }
+export function projectMessageForModel(message: Message): Message | null {
+  return filterMessage(message, 'toModel')?.message ?? null
 }
 export function sourced(message: Message, call: TenantModelCall | undefined): SourcedMessage {
   if (message.role !== 'assistant') return { message }

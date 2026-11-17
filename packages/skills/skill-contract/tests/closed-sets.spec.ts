@@ -32,7 +32,7 @@ const failures = [
   'unknown',
 ] as const
 const unsupported = ['no-readable-package'] as const
-const categories = ['preference', 'binding', 'placement-identity', 'governance'] as const
+const categories = ['preference', 'binding'] as const
 const sourceFailures = [
   'package-not-found',
   'entry-not-found',

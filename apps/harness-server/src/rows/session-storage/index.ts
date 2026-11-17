@@ -190,6 +190,7 @@ function unregisteredTenantIsAbsent<P>(
     ...view,
     commit: commit as SessionTransactionPort<P>['commit'],
     readWork: guard('readWork', view.readWork),
+    readCurrentScope: guard('readCurrentScope', view.readCurrentScope),
     readInput: guard('readInput', view.readInput),
     queryOperation: guard('queryOperation', view.queryOperation),
     queryControlOperation: guard('queryControlOperation', view.queryControlOperation),
@@ -199,6 +200,10 @@ function unregisteredTenantIsAbsent<P>(
       next: guard('history.next', view.history.next),
       since: guard('history.since', view.history.since),
       readModelView: guard('history.readModelView', view.history.readModelView),
+      readCompactionContext: guard(
+        'history.readCompactionContext',
+        view.history.readCompactionContext,
+      ),
     },
   }
 }
@@ -260,6 +265,7 @@ function delegatedView(
 class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
   readonly commit: SessionTransactionPort<unknown>['commit']
   readonly readWork: SessionTransactionPort<unknown>['readWork']
+  readonly readCurrentScope: SessionTransactionPort<unknown>['readCurrentScope']
   readonly readInput: SessionTransactionPort<unknown>['readInput']
   readonly queryOperation: SessionTransactionPort<unknown>['queryOperation']
   readonly queryControlOperation: SessionTransactionPort<unknown>['queryControlOperation']
@@ -276,6 +282,7 @@ class SessionTransactionsImpl extends SessionTransactionPortService<unknown> {
     super(ctx)
     this.commit = port.commit
     this.readWork = port.readWork
+    this.readCurrentScope = port.readCurrentScope
     this.readInput = port.readInput
     this.queryOperation = port.queryOperation
     this.queryControlOperation = port.queryControlOperation

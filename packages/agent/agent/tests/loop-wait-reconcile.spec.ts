@@ -67,6 +67,7 @@ describe('R0 preserves the original conditional operation', () => {
       const c = createExecutionCoordinator({
         ports: assembly.dependencies,
         binding: options().binding,
+        compactionProvider: options().configuration.compactionProvider,
         evaluator: agentEvaluator,
         access: alice,
         execution: execution(),
@@ -218,6 +219,7 @@ describe('W0 rereads the original producer', () => {
     const c = createExecutionCoordinator({
       ports: assembly.dependencies,
       binding: options().binding,
+      compactionProvider: options().configuration.compactionProvider,
       evaluator: agentEvaluator,
       access: alice,
       execution: execution(),
@@ -333,6 +335,7 @@ describe('W0 local ownership', () => {
     const c = createExecutionCoordinator({
       ports: assembly.dependencies,
       binding: options().binding,
+      compactionProvider: options().configuration.compactionProvider,
       evaluator: agentEvaluator,
       access: alice,
       execution: execution(),
@@ -395,6 +398,7 @@ describe('W0 local ownership', () => {
     const c = createExecutionCoordinator({
       ports: assembly.dependencies,
       binding: options().binding,
+      compactionProvider: options().configuration.compactionProvider,
       evaluator: agentEvaluator,
       access: alice,
       execution: execution(),
@@ -436,6 +440,7 @@ it('a zero interval yields to other tasks and does not fabricate a positive dead
   const c = createExecutionCoordinator({
     ports: assembly.dependencies,
     binding: options().binding,
+    compactionProvider: options().configuration.compactionProvider,
     evaluator: agentEvaluator,
     access: alice,
     execution: execution(),
@@ -506,6 +511,7 @@ it('an abort during a pending clock read cannot miss the local stop', async () =
   const c = createExecutionCoordinator({
     ports: assembly.dependencies,
     binding: options().binding,
+    compactionProvider: options().configuration.compactionProvider,
     evaluator: agentEvaluator,
     access: alice,
     execution: execution(),
@@ -560,6 +566,7 @@ it.each(['observer', 'clock'] as const)(
     const c = createExecutionCoordinator({
       ports: assembly.dependencies,
       binding: options().binding,
+      compactionProvider: options().configuration.compactionProvider,
       evaluator: agentEvaluator,
       access: alice,
       execution: execution(),
@@ -622,6 +629,7 @@ it('an input arriving as observation starts is reread before sleeping under the 
   const c = createExecutionCoordinator({
     ports: assembly.dependencies,
     binding: options().binding,
+    compactionProvider: options().configuration.compactionProvider,
     evaluator: agentEvaluator,
     access: alice,
     execution: execution(),
@@ -745,6 +753,7 @@ it('an input racing the waiting commit is reread without abandoning the original
   const c = createExecutionCoordinator({
     ports: assembly.dependencies,
     binding: options().binding,
+    compactionProvider: options().configuration.compactionProvider,
     evaluator: agentEvaluator,
     access: alice,
     execution: execution(),
@@ -831,6 +840,7 @@ describe('review regressions preserve the original wait responsibility', () => {
         createExecutionCoordinator({
           ports: assembly.dependencies,
           binding: options().binding,
+          compactionProvider: options().configuration.compactionProvider,
           evaluator: agentEvaluator,
           access: alice,
           execution: execution(),
@@ -914,6 +924,7 @@ describe('review regressions preserve the original wait responsibility', () => {
     const c = createExecutionCoordinator({
       ports: assembly.dependencies,
       binding: options().binding,
+      compactionProvider: options().configuration.compactionProvider,
       evaluator: agentEvaluator,
       access: alice,
       execution: execution(),
@@ -1039,6 +1050,7 @@ describe('review regressions preserve the original wait responsibility', () => {
       const c = createExecutionCoordinator({
         ports: assembly.dependencies,
         binding: options().binding,
+        compactionProvider: options().configuration.compactionProvider,
         evaluator: agentEvaluator,
         access: alice,
         execution: execution(),

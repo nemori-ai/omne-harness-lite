@@ -1,4 +1,5 @@
 import type { JsonValue } from '@omne-harness/json-text'
+import { canonicalText } from './operations.ts'
 import {
   tenantCodec,
   workspaceCodec,
@@ -350,6 +351,7 @@ export function encodeEntry(
 ): EncodedEntry {
   const { kind, ...body } = entry
   const plain: Record<string, unknown> = { ...body }
+  if (kind === 'message.compaction') plain['message'] = JSON.parse(canonicalText(entry.message))
   if (kind === 'session.created') {
     plain['tenant'] = tenantText(entry.tenant)
     plain['creation'] = { ...entry.creation, workspace: workspaceText(entry.creation.workspace) }

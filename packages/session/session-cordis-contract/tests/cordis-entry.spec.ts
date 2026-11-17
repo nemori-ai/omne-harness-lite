@@ -117,6 +117,8 @@ describe('the ./cordis entry', () => {
         undefined) as unknown as SessionTransactionPortService<string>['commit']
       readonly readWork = (() =>
         undefined) as unknown as SessionTransactionPortService<string>['readWork']
+      readonly readCurrentScope = (() =>
+        undefined) as unknown as SessionTransactionPortService<string>['readCurrentScope']
       readonly readInput = (() =>
         undefined) as unknown as SessionTransactionPortService<string>['readInput']
       readonly queryOperation = (() =>

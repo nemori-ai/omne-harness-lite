@@ -1,4 +1,5 @@
 import { big, handler, oneRow, PAGE_ROWS, rowsOf, scopeOf, text } from './support.ts'
+import { viewMessageText } from './shared-messages.ts'
 
 type Input = Readonly<{
   epoch: string | null
@@ -55,7 +56,7 @@ export default handler('session.model-view', (raw, port) => {
       entry: text(row['entry']),
       bytes: Number(row['bytes']),
       prefixDigest: text(row['prefix_digest']),
-      message: JSON.parse(text(row['message'])),
+      message: JSON.parse(viewMessageText(port, scope.tenant, text(row['message']))),
     })),
     next: lastSeq < upper ? String(lastSeq) : null,
   }

@@ -58,9 +58,8 @@ export function parseSkillPackage(input: ParseInput): Outcome<SkillDefinition, P
   let declaration = EMPTY_DECLARATION
   let findings: readonly Finding[] = []
   if (control.declaration !== undefined) {
-    const paths = new Set<string>(snapshot.entries.map(item => item.path))
     const limits = input.declarationLimits ?? DECLARATION_LIMITS
-    const read = readDeclaration(control.declaration, limits, path => paths.has(path))
+    const read = readDeclaration(control.declaration, limits)
     if (read.kind === 'unsupported')
       return reject('declaration-format-unsupported', 'formatVersion is not 1')
     declaration = read.declaration

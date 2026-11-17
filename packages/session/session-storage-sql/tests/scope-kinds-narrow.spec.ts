@@ -56,6 +56,29 @@ function pagePlan(a: App, from: number): string {
   return rows.map(row => row.detail).join('\n')
 }
 
+describe('the current context scope', () => {
+  it('reads the last binding with an indexed final chunk and preserves ended state', async () => {
+    const a = await cycled()
+    const access = a.access(TENANT_A)
+    const work = await a.port.readWork(access)
+    if (!('ok' in work)) throw new Error('missing work')
+    const from = a.provider.readSql.length
+    expect(await a.port.readCurrentScope(access)).toEqual({ ok: work.ok.contextScopes?.at(-1) })
+    const sql = a.provider.readSql.slice(from)
+    expect(sql).toHaveLength(3)
+    expect(sql.filter(query => /sl_state_item/.test(query))).toEqual([
+      expect.stringMatching(/path = \? ORDER BY seq DESC LIMIT 1/),
+    ])
+    expect(sql.some(query => /sl_entry|SELECT snapshot/.test(query))).toBe(false)
+    expect(kindOf(await control(a, 'archive', 'archive-2'))).toBeUndefined()
+    expect(await a.port.readCurrentScope(access)).toMatchObject({
+      ok: { generation: '2', ended: expect.any(Object) },
+    })
+    a.provider.seed('dom_0', 'UPDATE sl_state SET covered = 0')
+    expect(await a.port.readCurrentScope(access)).toHaveProperty('failure.kind', 'unavailable')
+  })
+})
+
 describe('the scope read of one kind', () => {
   it('asks only the history handler, never the state row, and its page is an index read of that kind', async () => {
     const a = await cycled()

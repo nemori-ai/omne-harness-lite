@@ -33,6 +33,7 @@
 - 影响面规则（`test-runs.config.json` 的 `affected`）与计划文件的形状。
 - 检查步骤图、步骤的调度与失败语义。
 - 成员测试的结果缓存、工作进程预算、耗时账本与失败归因。
+- 准入时每份用例文件的读集记录与命中报告。
 - 准入的文本日志格式、JSON 运行记录的形状、接续准入与证据核对。
 - 准入开始时的环境自检与自愈，预检的步骤与输出。
 - 令牌池的排队规则、锁目录与令牌账本。
@@ -139,6 +140,30 @@
 - 命中只意味着同一台机器上键完全相同的一次完整通过曾经发生过，不意味着这次再跑也会过。
 - 账本的 `meta.members` 列这次覆盖的全部成员，`meta.cache` 记读写模式、命中与来源、写入与跳过。`members`、`failures` 与 `nearTimeout` 只有这次跑了的成员。一层的成员全部命中时这一层算通过。
 
+### 读集
+
+准入模式下，成员测试另外记下每份用例文件实际读到了什么，并对着上一次的记录出一份报告。它只记录、只报告：不改变跑哪些用例，不改变任何裁定，不读也不写结果缓存。
+
+- 单元是「一份用例文件 × 层」。读集有四类项：读过内容的文件（`content`）、列过的目录（`listing`）、判过存在与否的路径（`presence`）、运行时（`runtime`，Node 的版本、平台与架构）。
+- 模块取自 vitest 的导入表：用例文件自己、它导入的源码、别的成员的 `dist` 文件逐个在内。配置文件与它的依赖取自 vite 的配置，记到这个成员每一份用例文件名下。`node_modules` 里的一律记成根锁文件一项。
+- 文件系统的读由记录器记：它是共用配置在准入时挂上的一份 setup 文件，在用例进程里给 `fs` 与 `fs/promises` 读内容、列目录、判存在的入口包一层。模块顶层的读、读不存在的路径也在内。
+- 仓库之外的路径不记。环境变量、时间、网络不记。
+- 读集不全的用例文件带原因，不参加命中的统计。原因有：起了子进程、起了工作线程、用了 `fs.glob`、仓库里有外部化的模块（只知道入口）、没有记录器（成员把共用的 setup 文件盖掉了，或这份文件没有交回记录，例如类型测试）。
+- 记录在主检出的 `tmp/test-read-sets/<成员>.<层>.json`（`OMNE_TEST_READ_SETS_HOME` 可改），每个「成员 × 层」只留最近一次。记录里每一项读都带当时的摘要：内容按字节，目录按名字列表，存在与否按「文件、目录、没有」。
+- 报告对着上一次的记录给每份用例文件一个结局：
+
+  | 结局 | 条件 |
+  | --- | --- |
+  | 没有记录 | 上一次没有记过这份文件，或记录读不出 |
+  | 上一次读集不全 | 上一次的记录带着不全的原因 |
+  | 读集变了 | 上一次读到的某一项现在的摘要不同；列出前五项 |
+  | 命中，裁定相同 | 上一次读到的每一项都没变，这一次的裁定与上一次相同 |
+  | 命中，裁定不同 | 每一项都没变而裁定不同：读集不全或用例不确定的证据，逐份列出 |
+
+- 报告写进运行目录的 `read-sets.json`，摘要的几行写进 `summary.md` 并打印。这一次没有写出读集的成员单列，它上一次的记录不动。记录写不进去只报在这个成员名下，不让检查失败。
+- 记录器自己出错不让用例失败：装不上时这份用例文件按没有记录器算，记某一次读出错时照常把这次读交给原来的函数。`OMNE_TEST_READ_SETS=0` 关掉记录；平常的运行不记。
+- 成员有自己的 setup 文件时写成 `setupFiles: [...tiers.setupFiles, 自己的]`。
+
 ### 并行度
 
 并行度不预先定，由[令牌池](#令牌池)发出的令牌决定。一个令牌是一个核的份额。
@@ -146,6 +171,7 @@
 - `pnpm run check` 自己不整程占令牌。步骤图里的每一步各当一件活去要：构建与类型检查要全部令牌、至少 1 个，turbo 的并发等于拿到的个数；pytest 一步最多要 max(2, floor(C ÷ 4)) 个；单进程的静态检查各要 1 个。
 - 成员测试与验收把每个成员的每一层各当一件活去要。最多要 min(`maxWorkersPerMember`, 这一层的用例文件数) × 每个进程的令牌数，至少要一个进程的令牌数。vitest 的进程数 = floor(拿到的令牌数 ÷ 每个进程的令牌数)，至少 1。
 - 每个进程的令牌数缺省是 1。一个 vitest 进程实际不止用一个核的成员在 `parallel.tokensPerWorker` 里按「成员 × 层」写一个数，旁边写明这个数是哪一次量出来的。
+- 构建与类型检查的每个任务只用一个核：运行器起这两种 turbo 时带 `GOMAXPROCS=1`，根 `turbo.json` 的 `build`、`typecheck` 两个任务放行它。TypeScript 7 的 tsc 是 Go 写的，缺省按核数开检查线程，不限的话一个任务用两到三个核，turbo 的并发等于令牌数就超出了令牌数。不改用共用 tsconfig 里的 `singleThreaded`：仓库里还有经 TypeScript 6 读 tsconfig 的工具与用例，它们不认这个选项。
 - 成员的各层按上一次的用时从长到短去排队，没有记录的排最前。上一次的用时取自耗时账本。
 - 已经在令牌之内的命令（`OMNE_TEST_SLOT_HELD` 非空）不再去整机的池子排队，在进程内把 `OMNE_WORKER_BUDGET` 个令牌按同样的规则分给自己的各件活。
 - `VITEST_MAX_WORKERS` 由运行器按拿到的令牌写给每个成员的 vitest。账本的 `meta` 记下并行度、核数与预算的来历。
@@ -187,9 +213,11 @@
 - 每一步只声明先于它完成的步骤，没有依赖的同时跑。
 - 重步骤（构建、类型检查、成员测试、验收）各自按预算起多进程，所以一次只跑一个。轻步骤同时至多 `max(2, 核数 ÷ 3)` 个。pytest 算一个轻步骤，它的 xdist 进程数取预算的四分之一。
 - 读 `dist/` 的步骤排在类型检查成功之后，因为有成员的类型检查会重建自己的 `dist/`。
+- 构建一步构建计划选中的成员和它们的上游，另把有构建脚本而没有 `dist/` 目录的成员一并构建，日志里写明是哪几个。常驻步骤读整仓的 `dist/`，所以从没构建过的工作树上不用先手工全量构建。归档目录里的成员不算。已有的 `dist/` 是不是这个提交构建的，这一步不判断。
 - 常驻步骤不按计划，对整仓跑。计划为空时成员测试明说「没有要跑的成员」，那不是「跑过了、全绿」。
 - 一步失败：不再起新步骤，正在跑的整棵进程树终止，退出码取第一个失败的那一步，并打印它日志的末尾。`--keep-going` 时其余照跑，依赖失败步骤的不启动，退出码仍取第一个失败。
-- 成员测试一步的例外：一层失败不超过 10 处、都落在测试文件里时，同一次运行内把那些文件各重跑一次（成员串行、每成员一个工作进程）。全过则这一步通过，重跑写进运行记录的 `retried` 与准入日志。仍失败、超过 10 处或有成员一级的失败时照旧失败。断言失败也重跑，分类里分开计。
+- 整次检查被外面终止（收到信号）时，正在跑的步骤记「被终止」。没有任何一步失败而有步骤被终止，这次运行不是通过：以 130 退出，日志写明哪几步没有跑完。运行记录里这些步骤是 `ran: false`，证据核对不接受这份记录。
+- 成员测试一步的例外：一层失败不超过 10 处、都落在测试文件里时，同一次运行内把那些文件各重跑一次（成员串行、每成员一个工作进程）。全过则这一步通过，重跑写进运行记录的 `retried` 与准入日志，两处都带这次重跑的日志路径。仍失败、超过 10 处或有成员一级的失败时照旧失败。断言失败也重跑，分类里分开计。
 - 每步的输出落 `tmp/check-run/<head 短号>/<步骤>.log`，名字里的 `:` 换成 `-`。结束时写逐步耗时表 `steps.tsv`（步骤、退出码、秒数、相对开始的起止秒）与运行记录 `run.json`，并打印实际走过的关键路径。只留最近 5 个头的目录。
 - 严格模式的回路状态不在步骤表里。
 
@@ -204,12 +232,19 @@
 
 ### 环境自检与自愈
 
-准入与预检开始时、读任何现场之前做两件事，只改工作副本与依赖目录，不改提交：
+`scripts/check.sh` 起检查器之前先跑启动段 `scripts/check-bootstrap.mjs`，普通检查、准入与预检都一样。检查器静态导入依赖里的包，依赖缺失时加载不起来，所以启动段只用 Node 标准库。五步固定顺序，前一步失败就以 2 退出、不起检查器，输出写明哪一步、期望、实际与修法：
 
-- `node_modules/.pnpm/lock.yaml` 与 `pnpm-lock.yaml` 逐字节不同或没有时，运行 `pnpm install --offline --frozen-lockfile`。离线安装失败时不跑任何步骤、不写记录，以 2 退出，输出写明联网后手动安装。
+1. 工具链：`packageManager` 与 `devEngines.packageManager` 相同；PATH 上的 Node 满足 `engines`；在仓库根运行的 pnpm 实际版本等于声明。
+2. 依赖：`node_modules/.pnpm/lock.yaml` 与 `pnpm-lock.yaml` 的本体逐字节比（pnpm 12 的锁文件前面另有锁定 pnpm 自身的文档，副本里没有）。不同或没有就 `pnpm install --offline --frozen-lockfile --ignore-scripts`，再 `pnpm run prepare:native` 的同一入口。离线安装失败时给出联网重装的命令，与 CONTRIBUTING.md「准备检出」相同。
+3. 经 pnpm 起的 Node 等于 `devEngines.runtime`。排在依赖之后：`verifyDepsBeforeRun: error` 下依赖过期时 `pnpm exec` 自己就失败。
+4. macOS 上 node-pty 的 `spawn-helper` 是有执行位的 Mach-O，不是就调用准备入口修复。
+5. 结果（一行 JSON）经环境变量 `OMNE_CHECK_BOOTSTRAP` 交给检查器。检查器的 `check` 没有它时以 2 退出，提示改用 `./scripts/check.sh`；`check --list` 除外。
+
+准入与预检开始时、读任何现场之前，检查器再做一件事，只改工作副本，不改提交：
+
 - 已跟踪文件里索引为 LF、工作副本为 CRLF、除换行外与索引相同的，从索引重新检出。有内容改动的不碰，记在 `kept` 里。`core.autocrlf=true` 时不重新检出，写明改法。
 
-做了什么写进运行记录的 `environment` 与准入日志的两行 `环境自检：依赖——…`、`环境自检：换行——…`。一致时写「不动」。
+启动段的依赖结果与换行自愈写进运行记录的 `environment` 与准入日志的两行 `环境自检：依赖（启动段）——…`、`环境自检：换行——…`。进程内直接调用检查函数时依赖一栏是 `not-bootstrapped`。一致时写「不动」。
 
 ### 准入日志
 
@@ -239,7 +274,7 @@
 | `failedStep` | 最早结束的失败步骤，全部通过为 null |
 | `startedAt`、`finishedAt` | 起止时刻 |
 | `environment` | 环境自检的结果，只有准入运行写 |
-| `retried` | 成员测试定向重跑过的文件：`member`、`file`、`tier`、`kind`（`timeout`、`stack-trace`、`startup`、`assertion`）、`firstError`、`retryResult` |
+| `retried` | 成员测试定向重跑过的文件：`member`、`file`、`tier`、`kind`（`timeout`、`stack-trace`、`startup`、`assertion`）、`firstError`、`retryResult`、`retryLog`（这次重跑的日志路径，在耗时账本根目录的 `retry/` 下，同名的 `.json` 是它的报告；旧记录没有这一项） |
 | `testFailures` | 成员测试最终仍失败的文件，形状同 `retried` 去掉 `retryResult`。接续据它收窄 |
 
 - 先写临时名再改名。解析失败、形状不对的文件按「没有记录」处理。
@@ -295,9 +330,9 @@
 
 机器有 C = max(1, 核数 − `parallel.reserveCores`) 个令牌。一件活带两个数来要令牌：`want` 是最多用得上几个，`min` 是至少几个才跑。活按先来先得排队。排在队首的活在空闲的令牌不少于 `min` 时拿 min(`want`, 空闲数) 个，拿到之后个数不再变，跑完全部归还。
 
-`scripts/with-test-slot.sh [--want <n>] [--min <n>] [--] <命令> [参数…]` 拿到令牌才执行命令，把拿到的个数经 `OMNE_WORKER_BUDGET` 交给命令，并原样返回它的退出码。不给 `--want` 时要全部令牌，不给 `--min` 时至少 1 个。`min` 大于 C 时按 C 算。只用得上一两个核的命令要自己给 `--want`：它不给就拿走全部空闲的令牌，它跑完之前别的活只能等。实现在 `scripts/with-test-slot.mjs`，只用 Node 标准库，macOS、Linux 与 Windows 通用。
+`scripts/with-test-slot.sh [--want <n>] [--min <n>] [--] <命令> [参数…]` 拿到令牌才执行命令，把拿到的个数经 `OMNE_WORKER_BUDGET` 交给命令，并原样返回它的退出码。不给 `--want` 时要全部令牌，不给 `--min` 时至少 1 个。`min` 大于 C 时按 C 算。只用得上一两个核的命令要自己给 `--want`：它不给就拿走全部空闲的令牌，它跑完之前别的活只能等。实现在 `scripts/with-test-slot.mjs`，只用 Node 标准库，macOS、Linux 与 Windows 通用。根 `package.json` 的脚本不经 `.sh`，直接运行 `node scripts/with-test-slot.mjs [--unless-plan-only] [--want <n>] [--min <n>] [--] <命令> [参数…]`；`test:tier` 以 `--tier` 结尾，层名由检查器的参数解析核对。
 
-- 整条命令当一件活来要令牌的入口：`test`、`test:gate`、`test:affected`、`test:tier`、`test:triage`、`test:python`、`acceptance`、`metrics --coverage`、`closeout:metrics`、`closeout:mutation`。`test:affected` 与 `closeout:mutation` 带 `--plan-only` 时不要令牌。预检不要令牌。根 `pnpm run check` 与 `admission` 自己不要，它们的各步各自去要，见[并行度](#并行度)。
+- 整条命令当一件活来要令牌的入口：`test`、`test:gate`、`test:affected`、`test:tier`、`test:triage`、`test:python`、`acceptance`、`metrics --coverage`、`closeout:metrics`、`closeout:mutation`。`test:affected` 与 `closeout:mutation` 经 `--unless-plan-only`，带 `--plan-only` 时不要令牌。预检不要令牌。根 `pnpm run check` 与 `admission` 自己不要，它们的各步各自去要，见[并行度](#并行度)。
 - 已经在令牌之内的进程（`OMNE_TEST_SLOT_HELD` 非空）再调用它时直接放行，不重复排队，也不另记账本。`OMNE_TEST_SLOT_HELD` 的值是它持有的第一个令牌的目录。
 - 先来后到：进队时领一张号，号比目录里见过的所有票号都大。只有号码最小的活票去拿令牌。
 - 票是独占创建的文件。队列锁与令牌是目录：持有 = 目录里有自己独占创建的条目，而且目录里只有这一个条目。条目名每次新取，不重用。票与条目记着登记者的进程号、所在侧（`side=<平台>@<主机名>`，WSL 里再加发行版名）与心跳。

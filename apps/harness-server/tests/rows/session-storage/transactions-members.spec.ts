@@ -31,6 +31,7 @@ async function load(): Promise<LoadedTree> {
 const MEMBERS: Readonly<Record<keyof SessionTransactionPort<unknown>, 'function' | 'object'>> = {
   commit: 'function',
   readWork: 'function',
+  readCurrentScope: 'function',
   readInput: 'function',
   queryOperation: 'function',
   readModelSelection: 'function',

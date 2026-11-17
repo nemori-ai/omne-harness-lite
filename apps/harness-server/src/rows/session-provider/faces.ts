@@ -57,8 +57,16 @@ const UNAVAILABLE: SessionFailure = {
 }
 const unimplemented = (): Promise<Result<never>> => Promise.resolve(fail(UNAVAILABLE))
 
+// History reads this double does not serve: it keeps no model view and no compaction context.
+const UNIMPLEMENTED_HISTORY = {
+  since: unimplemented,
+  readModelView: unimplemented,
+  readCompactionContext: unimplemented,
+} as const
+
 const UNIMPLEMENTED_WORK = {
   readWork: unimplemented,
+  readCurrentScope: unimplemented,
   readWaiting: unimplemented,
   readBackgroundCalls: unimplemented,
   resolveBackgroundCall: unimplemented,
@@ -472,8 +480,7 @@ export function createSessionProviderFaces(
       })
     },
 
-    since: unimplemented,
-    readModelView: unimplemented,
+    ...UNIMPLEMENTED_HISTORY,
   }
 
   return {

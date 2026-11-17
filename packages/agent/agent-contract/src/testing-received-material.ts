@@ -14,6 +14,7 @@ import {
   decodeToolWaitId,
 } from '@omne-harness/tool-contract/provider'
 import { z } from 'zod'
+import { decodeCompactionOutcome } from './compaction-codec.ts'
 
 const text = z.string()
 const identity = (decode: (value: string) => object) =>
@@ -177,6 +178,10 @@ const produced = z.object({
   producer: z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('model'), call: identity(decodeModelCallId) }),
     z.object({ kind: z.literal('tool'), call: identity(decodeToolCallId) }),
+    z.object({
+      kind: z.literal('compaction'),
+      task: z.object({ authority: text.min(1), task: text.min(1), requestDigest: text.min(1) }),
+    }),
   ]),
   version: text.min(1),
   delivery: text.min(1).nullable(),
@@ -186,4 +191,14 @@ export const materialShape: z.ZodType<unknown> = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('facts'), schema: adoption, value: json }),
   z.object({ kind: z.literal('model'), result: produced, pages: z.array(modelPage) }),
   z.object({ kind: z.literal('tool'), result: produced, pages: z.array(toolPage) }),
+  z.object({
+    kind: z.literal('compaction'),
+    result: produced,
+    outcome: z
+      .unknown()
+      .refine(
+        value => 'ok' in decodeCompactionOutcome(JSON.stringify(value)),
+        'invalid compaction outcome',
+      ),
+  }),
 ])

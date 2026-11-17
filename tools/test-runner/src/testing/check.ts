@@ -54,7 +54,7 @@ import {
   writePlanFile,
   type PlanFile,
 } from './steps.ts'
-import { describeHealing, healEnvironment, type EnvironmentIo } from './environment.ts'
+import { describeHealing, healEnvironment, type BootstrapResult } from './environment.ts'
 import { readTestStepReport, TEST_STEP_REPORT_FILE } from './test-retry.ts'
 import { timestamp } from './support.ts'
 import { cachePolicy, TEST_CACHE_ENV } from './test-cache.ts'
@@ -168,7 +168,8 @@ export interface CheckOptions {
 
 export interface CheckDependencies {
   readonly steps?: (inputs: StepInputs) => CheckStep[]
-  readonly environment?: EnvironmentIo
+  /** 启动段（scripts/check-bootstrap.mjs）交来的结果；cli.ts 从环境变量读。进程内直接调用时可以没有。 */
+  readonly bootstrap?: BootstrapResult
 }
 
 export const STEP_INPUTS = {
@@ -309,22 +310,48 @@ function runSteps({ root, steps, env, cores, keepGoing, runDir, runDirName, say 
   })
 }
 
+export const INTERRUPTED_EXIT = 130
+
+export interface CheckVerdict {
+  readonly exitCode: number
+  readonly failed: readonly StepResult[]
+  readonly interrupted: readonly string[]
+}
+
+export function checkVerdict(results: readonly StepResult[]): CheckVerdict {
+  const failed = results
+    .filter(result => result.exitCode !== 0 && !result.cancelled)
+    .sort((a, b) => a.endedMs - b.endedMs)
+  const first = failed[0]
+  if (first !== undefined)
+    return { exitCode: first.exitCode > 0 ? first.exitCode : 1, failed, interrupted: [] }
+  const interrupted = results.filter(result => result.cancelled).map(result => result.name)
+  return { exitCode: interrupted.length > 0 ? INTERRUPTED_EXIT : 0, failed, interrupted }
+}
+
 function failureExit(
   root: string,
-  failed: StepResult[],
+  verdict: CheckVerdict,
   skipped: readonly string[],
   admission: boolean,
   say: Say,
 ): number {
-  const first = failed.sort((a, b) => a.endedMs - b.endedMs)[0]
-  if (first === undefined) return 0
+  const { failed, interrupted } = verdict
+  const first = failed[0]
+  if (first === undefined) {
+    if (interrupted.length > 0)
+      say(
+        `被终止：${interrupted.join('、')} 没有跑完，没有步骤失败。这次运行不是通过，以 ${verdict.exitCode} 退出`,
+      )
+    return verdict.exitCode
+  }
   say(
     `失败：${failed.map(result => result.name).join('、')}；没有开始：${skipped.join('、') || '无'}`,
   )
   say(`--- ${first.name} 的日志末尾（${relative(root, first.logPath)}）---`)
   for (const line of tail(first.logPath, 40)) say(line)
   if (admission) say(ADMISSION_NEXT_STEP)
-  return first.exitCode > 0 ? first.exitCode : 1
+  return verdict.exitCode
 }
 
 export async function runCheck(
@@ -349,13 +376,8 @@ export async function runCheck(
   const { admission, env, full } = request
   const caches = cacheStates(env, full)
 
-  // 准入先自检并自愈环境，再读任何现场：CRLF 工作副本与依赖目录不一致，都会让 dirty 判定、构建与测试失真。
-  const healed = admission ? healEnvironment(root, dependencies.environment) : undefined
-  if (healed?.dependencies.status === 'install-failed') {
-    for (const line of describeHealing(healed)) console.error(line)
-    console.error('依赖目录与锁文件不一致且离线安装失败：不跑任何步骤，不写记录')
-    return 2
-  }
+  // 依赖与锁文件的一致由启动段在起检查器之前保证；这里只自愈换行，并把启动段的结果写进记录。
+  const healed = admission ? healEnvironment(root, dependencies.bootstrap) : undefined
 
   const { targetBase, source } = resolveBaseline(root, env['BASELINE'])
   env['BASELINE'] = targetBase
@@ -414,7 +436,6 @@ export async function runCheck(
 
   const table = stepsTable(run.results, run.skipped)
   writeFileSync(join(runDir, 'steps.tsv'), `${table.join('\n')}\n`)
-  const failed = run.results.filter(result => result.exitCode !== 0 && !result.cancelled)
   say(
     `总计 ${seconds(run.wallMs)} 秒；关键路径 ${criticalPath(run.results).join(' → ')}；逐步耗时表 ${runDirName}/steps.tsv`,
   )
@@ -463,7 +484,7 @@ export async function runCheck(
   for (const path of copies) writeAdmissionRun(path, record)
   say(`运行记录：${copies.map(path => relative(root, path).replaceAll('\\', '/')).join('、')}`)
 
-  const exitCode = failureExit(root, failed, run.skipped, admission, say)
+  const exitCode = failureExit(root, checkVerdict(run.results), run.skipped, admission, say)
   if (admissionLog !== undefined) say(`exit=${exitCode}`)
   return exitCode
 }

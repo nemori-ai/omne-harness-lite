@@ -626,7 +626,7 @@
 > **EN**: **The release of a producer's duty to deliver a settled result, where the producer is one model call or one tool execution. It takes effect once the current legitimate consumer has finished processing the result, or has durably saved the content, original identity and processing position that later work needs.** There are two paths: finish processing and save the completion fact, or save the content first and process it later. Reading, displaying, receiving a reference and starting to process are not enough. On the model side the release is the ACK. It also requires the whole call to have truly settled, and it cannot happen while a retry or a retry decision is pending. On the tool side it releases the matching hand-over obligation. Material release follows each component's custody duties and retention period. After the release, continuation proceeds from the data the consumer saved.
 
 - **形态**：过程
-- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 4）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 10）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 5）
+- **出处**：[产品页 模型调用 J-MD06](../../product/model-invocation/design.md#j-md06)（rev 5）；[产品页 工具执行 结果保管、卸载与模型采用](../../product/tool-execution/design.md#结果保管卸载与模型采用)（rev 10）；[产品页 Agent J-AG06](../../product/agent-progression/design.md#j-ag06)（rev 6）
 - **别混 ①**：**不是[执行收场](#ul-execution-outcome--执行收场--execution-outcome)**——收场是一次执行的终局，解除发生在收场之后，由消费侧的保管或处理触发
 - **别混 ②**：**不是读取方对事件流的确认**——Agent 契约的 `acknowledge` 只清理满足保留政策且责任已交清的事件，不证明任何结果已处理，也不证明业务终态，见 [Agent 契约的确认](../../../../packages/agent/SPEC.md#事件与读取)
 - **注意**：产品正文与 Model 契约用 ACK 指模型一侧的解除；本词表的正式名是「交付责任解除」，英文 Delivery Release，ACK 是它在模型一侧的通称。工具一侧的两条路径归 [Tool 契约](../../../../packages/tool/SPEC.md#交付与调用状态的寿命)
@@ -646,7 +646,7 @@
 > attempt, a rebuilt instance or a recovery does not change it.
 
 - **形态**：属性
-- **出处**：[会话与工作：会话治理工作，三个 runtime 分别承担实际运行](../../product/sessions-and-work/design.md#会话治理工作三个-runtime-分别承担实际运行) · [一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 10）；[工具执行：定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 10）；[模型调用：每次真实发出和失败](../../product/model-invocation/design.md#每次真实发出和失败)（rev 4）
+- **出处**：[会话与工作：会话治理工作，三个 runtime 分别承担实际运行](../../product/sessions-and-work/design.md#会话治理工作三个-runtime-分别承担实际运行) · [一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 10）；[工具执行：定义、已知能力与一次执行](../../product/tool-execution/design.md#定义已知能力与一次执行)（rev 10）；[模型调用：每次真实发出和失败](../../product/model-invocation/design.md#每次真实发出和失败)（rev 5）
 - **别混**：不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)。拓展点是设计时穷举的固定位点；消费位置随每次调用产生，指那次调用的接收处
 - **注意**：[交付责任解除](#ul-delivery-release--交付责任解除--delivery-release)要求消费侧保存原身份与处理位置，那个处理位置就是消费位置
 
@@ -699,7 +699,7 @@
 > rejection ends that model call normally, and a new model call starts after back-off.
 
 - **形态**：属性
-- **出处**：[产品页 模型回复与工具结果](../../product/agent-progression/design.md#模型回复与工具结果)（rev 5）；
+- **出处**：[产品页 模型回复与工具结果](../../product/agent-progression/design.md#模型回复与工具结果)（rev 6）；
   原定义见封存 [PF-012 §5.8 否决按消息是谁产生的分三路](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)（rev 25）
 - **别混**：**不是[试尽](#ul-retry-exhaustion--试尽--retry-exhaustion)**——试尽只管故障；被拒收的回复不是故障，不交给重试挂件，也不算试过一家
 - **弃用**：~~连续否决上限~~ ~~Consecutive Veto Limit~~——现行规则没有这项上限，不另起替代词；已接受系统页 [Agent runtime](../../../../docs/architecture/runtime/agent-runtime.md#回复准入与动作处理) 写法相同
@@ -718,7 +718,7 @@
 > outcome is unknown still counts as open.
 
 - **形态**：视图
-- **出处**：[会话与工作：一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用) · [管理主子关系和自动归档](../../product/sessions-and-work/design.md#管理主子关系和自动归档)（rev 10）；[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 5）
+- **出处**：[会话与工作：一次工作可以等待、恢复和并行调用](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用) · [管理主子关系和自动归档](../../product/sessions-and-work/design.md#管理主子关系和自动归档)（rev 10）；[运行感知与一次模型请求 §7](../../product/runtime-context/design.md#7-压缩保留历史与未完工作)（rev 6）
 - **别混**：不是[运行等待态](interaction-and-dispatch.md#ul-run-wait-state--运行等待态--run-wait-state)。运行等待态说一次运行此刻停在哪里；未结工作说整个会话还欠着什么，运行终结后仍在执行的后台工具也算
 - **注意**：同一份未结工作供三处判断：运行能否完成、会话是否连续空闲、压缩时哪些历史条目必须留在[保留名单](record-and-context.md#ul-retained-set--保留名单--retained-set)里或覆盖范围之后
 
@@ -857,7 +857,7 @@
 > **EN**: An identifiable schedule containing its own routine description together with one-off or recurring timing rules, temporal bounds, and catch-up and overlap declarations. Actual work instances are represented by scheduled jobs.
 
 - **形态**：对象
-- **出处**：[日程与作业：安排与单次工作](../../product/schedules-and-jobs/design.md#schedule-job-model)（rev 4）
+- **出处**：[日程与作业：安排与单次工作](../../product/schedules-and-jobs/design.md#schedule-job-model)（rev 5）
 - **别混**：Routine 是它所包含的工作描述；Scheduled Job 是据它开展的某一次工作，不是日程自身。
 
 ### UL-system-schedule · 系统日程 · System Schedule
@@ -867,7 +867,7 @@
 > **EN**: A schedule owned by the system itself for its own predefined mechanical operations. It belongs to no account, organization, or tenant, retains schedule identity and lifecycle semantics, and does not start an agent session for execution.
 
 - **形态**：变体（父：[日程](#ul-schedule--日程--schedule)）
-- **出处**：[日程与作业 J-SJ07](../../product/schedules-and-jobs/design.md#j-sj07-系统按部署条件做机械工作)（rev 4）
+- **出处**：[日程与作业 J-SJ07](../../product/schedules-and-jobs/design.md#j-sj07-系统按部署条件做机械工作)（rev 5）
 - **别混**：系统出厂提供 Routine，不使采用它的租户日程归系统；系统负责调度一份日程也不决定其所有者。
 
 ### UL-job · 作业 · Job
@@ -877,7 +877,7 @@
 > **EN**: One admitted unit of work with its own identity, frozen requirements, creation provenance, and outcomes. A human or agent can request it directly. A scheduler can request it for a schedule occurrence. It performs execution, notification, or both. Execution uses a program or an agent in a new or existing session.
 
 - **形态**：对象
-- **出处**：[日程与作业：安排与单次工作](../../product/schedules-and-jobs/design.md#schedule-job-model)（rev 4）
+- **出处**：[日程与作业：安排与单次工作](../../product/schedules-and-jobs/design.md#schedule-job-model)（rev 5）
 - **别混**：来源会话、执行会话与结果回传目标分别表达。Job 不等于 Session 或 Run，也不要求必须有 Schedule。
 
 ### UL-scheduled-job · 定时作业 · Scheduled Job
@@ -887,7 +887,7 @@
 > **EN**: A job admitted for a valid schedule occurrence. It retains the schedule, occurrence, and schedule author, using the identity and lifecycle of a job.
 
 - **形态**：变体（父：[作业](#ul-job--作业--job)）
-- **出处**：[日程与作业：安排与单次工作](../../product/schedules-and-jobs/design.md#schedule-job-model)（rev 4）
+- **出处**：[日程与作业：安排与单次工作](../../product/schedules-and-jobs/design.md#schedule-job-model)（rev 5）
 - **别混**：调度器是这次 Job 的触发者，不替代安排作者，也不改变工作所有者。
 
 ### UL-scheduled-execution · 定时执行 · Scheduled Execution
@@ -897,7 +897,7 @@
 > **EN**: The process of executing an accepted scheduled job according to its frozen intent, by invoking a registered program or delivering instructions to a new or specified existing agent session.
 
 - **形态**：过程
-- **出处**：[日程与作业：执行意图](../../product/schedules-and-jobs/design.md#execution-modes)（rev 4）
+- **出处**：[日程与作业：执行意图](../../product/schedules-and-jobs/design.md#execution-modes)（rev 5）
 - **别混**：谁创建安排不决定执行路径。输入已受理或会话空闲都不等于本次目标已完成。
 
 ### UL-scheduled-notification · 定时通知 · Scheduled Notification
@@ -907,7 +907,7 @@
 > **EN**: The process of notifying a target tenant as part of scheduled work, either in a notification-only job or combined with execution in the same job. The notification action does not create an additional agent work session.
 
 - **形态**：过程
-- **出处**：[日程与作业：提醒与事件通知](../../product/schedules-and-jobs/design.md#reminder)（rev 4）
+- **出处**：[日程与作业：提醒与事件通知](../../product/schedules-and-jobs/design.md#reminder)（rev 5）
 - **别混**：执行并通知同时承担两部分工作，不等于纯通知，也不拆成两个到期 Job；通知时机与送达判据由产品规则定义。
 
 ### UL-schedule-date-policy · 日程日期处理策略 · Schedule Date Policy
@@ -917,7 +917,7 @@
 > **EN**: A property of a schedule specifying whether a base candidate on a non-working date is retained, skipped, or moved to the preceding or following working date. It is distinct from recurrence rules, explicit excluded dates, and catch-up policy.
 
 - **形态**：属性
-- **出处**：[日程与作业：时间与日期规则](../../product/schedules-and-jobs/design.md#time-rules)（rev 4）
+- **出处**：[日程与作业：时间与日期规则](../../product/schedules-and-jobs/design.md#time-rules)（rev 5）
 - **别混**：它改变未接受候选的日期，不移动已有 Job，也不把未来候选提前接受为工作。
 
 ### UL-schedule-catch-up-policy · 日程补跑策略 · Schedule Catch-up Policy
@@ -927,7 +927,7 @@
 > **EN**: A schedule property specifying whether missed occurrences that have not produced jobs may be caught up and, when enabled, the maximum number of most recent missed occurrences selected relative to the recovery processing time. It does not rerun existing jobs.
 
 - **形态**：属性
-- **出处**：[日程与作业：恢复与补跑](../../product/schedules-and-jobs/design.md#recovery)（rev 4）
+- **出处**：[日程与作业：恢复与补跑](../../product/schedules-and-jobs/design.md#recovery)（rev 5）
 - **别混**：补跑上限不是时间长度，也不是一次分页大小；已经创建但等待执行的 Job 不是漏过时刻。
 
 ### UL-schedule-overlap-policy · 日程重叠策略 · Schedule Overlap Policy
@@ -937,7 +937,7 @@
 > **EN**: A schedule property choosing how new due work interacts with earlier unfinished actions of the same schedule: skip the new occurrence, stop prior work before starting it, run independently in parallel, or wait and execute in order. Job identities and result ownership remain separate.
 
 - **形态**：属性
-- **出处**：[日程与作业 J-SJ05](../../product/schedules-and-jobs/design.md#j-sj05-遇到前序尚未结束的动作)（rev 4）
+- **出处**：[日程与作业 J-SJ05](../../product/schedules-and-jobs/design.md#j-sj05-遇到前序尚未结束的动作)（rev 5）
 - **别混**：并行不合并会话或结果；停止是新增控制事实，不回写先前 Job 的工作要求或撤销已发生外部效果。
 
 ### UL-job-notification-policy · 作业通知策略 · Job Notification Policy
@@ -947,7 +947,7 @@
 > **EN**: A property of the work intent that declares which execution events trigger notifications to the target tenant and the content requirements for each event. Each job retains its creation-time declaration; notification delivery failure does not recursively trigger an execution-failure notification.
 
 - **形态**：属性
-- **出处**：[日程与作业：提醒与事件通知](../../product/schedules-and-jobs/design.md#reminder)（rev 4）
+- **出处**：[日程与作业：提醒与事件通知](../../product/schedules-and-jobs/design.md#reminder)（rev 5）
 - **别混**：纯通知在到期时发送已定义内容；通知事件、发送尝试、送达与已读是不同事实。此属性不另立可管理对象。
 
 
@@ -958,7 +958,7 @@
 > **EN**: An identifiable adoption of a system schedule definition by one owner, retaining the selected version, parameters, management state, and acceptance history. Cancellation prevents new admissions while existing jobs retain their responsibilities.
 
 - **形态**：对象
-- **出处**：[日程与作业：系统功能订阅](../../product/schedules-and-jobs/design.md#subscriptions)（rev 4）
+- **出处**：[日程与作业：系统功能订阅](../../product/schedules-and-jobs/design.md#subscriptions)（rev 5）
 - **别混**：它不是连接件的事件订阅，也不复制或修改系统功能定义。不同订阅者的同刻工作分别去重。
 
 ## 工程遥测的输出怎么换

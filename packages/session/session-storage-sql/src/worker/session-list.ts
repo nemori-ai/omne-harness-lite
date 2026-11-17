@@ -69,8 +69,8 @@ export function writeSessionList(
     session: string
     seq: bigint
     at: string | null
-    previous: WorkSnapshot | null
-    snapshot: WorkSnapshot
+    previous: Pick<WorkSnapshot, 'lifecycle'> | null
+    snapshot: Pick<WorkSnapshot, 'lifecycle'>
     entries: readonly HistoryEntry[]
   }>,
 ): void {
