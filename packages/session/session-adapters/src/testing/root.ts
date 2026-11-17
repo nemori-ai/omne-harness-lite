@@ -252,7 +252,6 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
   let dirty = false
   let gate: string | null = null
   const unreadable = new Set<string>()
-  const originals = new WeakMap<MemoryExecution, MemoryExecution>()
   const listeners = new Map<AgentExecutionId, Set<() => void>>()
   const notifications = new Set<AgentExecutionId>()
   const pauses = new Map<string, { reached(): void; released: Promise<void> }>()
@@ -328,11 +327,7 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
     activeWrite = { input, method }
     const executionKey = JSON.stringify([text.value, input.execution])
     const execution = draft.agent.executions.get(executionKey)
-    if (execution) {
-      const copy = copyExecution(execution)
-      originals.set(copy, execution)
-      draft.agent.executions.set(executionKey, copy)
-    }
+    if (execution) draft.agent.executions.set(executionKey, copyExecution(execution))
     try {
       const answered = action()
       const result = answered.kind === 'rejected' ? fail(answered.failure) : answered.outcome
@@ -374,7 +369,6 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
     advances: hooks.advances,
     participate: hooks.participate,
     committed: hooks.committed,
-    original: (execution: MemoryExecution) => originals.get(execution),
     notify: (execution: AgentExecutionId) => {
       notifications.add(execution)
     },
@@ -457,11 +451,7 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
       return this.mutate(() => {
         const at = JSON.stringify([text.value, execution])
         const existing = state().agent.executions.get(at)
-        if (existing) {
-          const copy = copyExecution(existing)
-          originals.set(copy, existing)
-          state().agent.executions.set(at, copy)
-        }
+        if (existing) state().agent.executions.set(at, copyExecution(existing))
         const value = action()
         touch()
         return value

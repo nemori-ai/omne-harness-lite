@@ -6,13 +6,15 @@ import type { HistoryEntry } from './faces.ts'
 import { encodeEntry } from './entries.ts'
 import { completeEvidence, entries, invalid, originOf, rejected } from './decision-support.ts'
 import { digestOf } from './operations.ts'
-import { resultRefusal } from './decide-results.ts'
+import { NOT_INTERPRETED, resultRefusal, uninterpretedBinding } from './decide-results.ts'
+import type { SessionHistoryReads } from './history-values.ts'
 import { equalValue } from './session-validation.ts'
 
 export function decideProducerFact(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'receive' }>,
   entryOrigin?: HistoryEntry['origin'],
+  history?: SessionHistoryReads,
 ): Decision {
   const { fact } = command.input
   if (fact.kind === 'input-handover') return invalid('fact', 'input handover uses its own decision')
@@ -40,7 +42,12 @@ export function decideProducerFact(
           item => digestOf(item.binding.producer) === digestOf(fact.producer),
         )
       )
-        return invalid('fact.producer', 'no original binding')
+        return uninterpretedBinding(
+          history,
+          call => call.producer !== null && digestOf(call.producer) === digestOf(fact.producer),
+        )
+          ? NOT_INTERPRETED
+          : invalid('fact.producer', 'no original binding')
       return entries([
         encodeEntry(
           { kind: fact.kind === 'account' ? 'account.linked' : 'call.execution-fact', fact },
@@ -59,6 +66,7 @@ export function decideProducerFact(
         fact.consumption,
         fact.result,
         command.input.operation,
+        history,
       )
       if (refusal !== null) return refusal
       const result = snapshot.consumptions
