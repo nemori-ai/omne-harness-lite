@@ -264,7 +264,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
               ])
             const old = root.agent.indexedEvents.get(input.execution) ?? 0
             const batches = [...(root.agent.batches.get(input.execution) ?? [])]
-            for (const event of execution.events.filter(event => Number(event.sequence) > old)) {
+            for (const event of execution.events.slice(old)) {
               try {
                 captureEventOriginal(root, execution, event, receipt)
               } catch (error) {
@@ -277,7 +277,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
                 } as const
               }
             }
-            for (const event of execution.events.filter(event => Number(event.sequence) > old))
+            for (const event of execution.events.slice(old))
               if (event.body.kind === 'input-taken') {
                 const record = {
                   run: run.run,
@@ -302,7 +302,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
                   ])
               }
             root.agent.batches.set(input.execution, batches)
-            root.agent.indexedEvents.set(input.execution, execution.emitted)
+            root.agent.indexedEvents.set(input.execution, execution.events.length)
           }
           if (method === 'open' || method === 'submit') {
             const admitted =

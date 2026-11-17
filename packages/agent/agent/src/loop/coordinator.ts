@@ -173,7 +173,12 @@ import {
   replaceSlot,
   replyPosition,
 } from './coordinator-helpers.ts'
-import { cancelInterrupt, cannotFit } from './coordinator-helpers.ts'
+import {
+  cancelInterrupt,
+  cannotFit,
+  slotSource,
+  type InternalSource,
+} from './coordinator-helpers.ts'
 
 export type LoopPorts<P> = Pick<
   AgentDependencies<P, ContentBlock>,
@@ -266,7 +271,6 @@ export type ResumeEntry<P> = Omit<ExecutionEntry<P>, 'operation' | 'initial' | '
 
 type Invoked = Pick<ExecutionEntry<unknown>, 'operation' | 'initial' | 'grant'>
 
-type InternalSource = Exclude<MessageSource, { kind: 'external-input' }>
 export type { CommitEvent } from './coordinator-steps.ts'
 
 type Movement = Readonly<{ to: LoopNode | null; yielded: boolean }>
@@ -1510,14 +1514,16 @@ function coordinate<P>(
       if ('failure' in restored) return restored
       const result = restored.ok.result
       current.result = result
-      const caller: CallerCommit = (entry.jointCommits ?? []).includes('processed')
-        ? {
-            kind: 'processed',
-            result: result.produced,
-            consumption: required(current.pending, 'pending call').consumption,
-            completion: restored.ok.completion,
-          }
-        : { kind: 'none' }
+      // Processing closes a received result's duty; a lost call never had a result in custody.
+      const caller: CallerCommit =
+        (entry.jointCommits ?? []).includes('processed') && current.lost === null
+          ? {
+              kind: 'processed',
+              result: result.produced,
+              consumption: required(current.pending, 'pending call').consumption,
+              completion: restored.ok.completion,
+            }
+          : { kind: 'none' }
       if (result.kind === 'interrupted')
         return step('partial', { checkpoint: { calls: [] }, caller })
       if (result.kind === 'unusable') {
@@ -1859,19 +1865,6 @@ function coordinate<P>(
     return 'failure' in saved ? saved : succeed({ batch: next, progressed: true })
   }
 
-  function slotSource(action: Action, slot: ActionSlot): InternalSource {
-    if (slot.kind === 'denied')
-      return { kind: 'action-denied', action: action.id, evidence: slot.evidence }
-    if (slot.kind === 'dispatched')
-      throw new Error('coordinator defect: no message of a dispatched slot')
-    return {
-      kind: 'tool-result',
-      action: action.id,
-      call: toolCallOf(access, required(toolCall(action), 'associated Tool call')),
-      result: slot.kind === 'result' ? slot.result : slot.placeholder,
-    }
-  }
-
   async function slotCandidate(
     action: Action,
     slot: ActionSlot,
@@ -2040,7 +2033,7 @@ function coordinate<P>(
     const slot = slotOf(batch, action.id)
     if (slot === undefined) return fail(defect('T5 with an action without a slot'))
     if (slot.kind === 'dispatched') return fail(defect('T5 with a dispatched slot'))
-    const source = slotSource(action, slot)
+    const source = slotSource(access, action, slot)
     const existing = slotHandoff(slot)
     if (existing !== undefined && existing.history.kind !== 'pending')
       return disposedSlot(existing, source)

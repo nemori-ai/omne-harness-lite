@@ -167,10 +167,7 @@ export type ControlView = Readonly<{
   toolOperation: ToolOperationRef | null
   stages: Readonly<
     Partial<
-      Record<
-        ControlStage,
-        Readonly<{ state: 'reached' | 'unresolved'; source: DurableEvidence; pub: number }>
-      >
+      Record<ControlStage, Readonly<{ state: 'reached' | 'unresolved'; source: DurableEvidence }>>
     >
   >
   rejected: readonly DurableEvidence[]
@@ -264,21 +261,10 @@ export type RejectionEntry = Readonly<{
   revision: number
 }>
 
-export type ExecutionSummary = Readonly<{
-  inputs: number
-  requests: number
-  sequence: number
-  totalDenials: number
-  consecutiveDenials: number
-  lastAdmission: DurableEvidence | null
-  admissionBasis: DurableEvidence | null
-}>
-
 export type ExecutionView = Readonly<{
   execution: AgentExecutionId
   revision: number
   head: number
-  summary: ExecutionSummary
   gen: string
   opened: Readonly<{
     definition: Adoption
@@ -324,7 +310,6 @@ export type ExecutionView = Readonly<{
   }>[]
   acknowledged: number
   acknowledgedAt: number
-  acknowledgedPublication: number
   fences: readonly Readonly<{
     operation: string
     guard: Readonly<{
@@ -337,7 +322,6 @@ export type ExecutionView = Readonly<{
     pub: number
   }>[]
   events: readonly EventView[]
-  emitted: number
   bindings: readonly BindingView[]
   materials: ReadonlyMap<
     string,
@@ -368,15 +352,6 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     execution,
     revision: 0,
     head: 0,
-    summary: {
-      inputs: 0,
-      requests: 0,
-      sequence: 0,
-      totalDenials: 0,
-      consecutiveDenials: 0,
-      lastAdmission: null,
-      admissionBasis: null,
-    },
     gen: '0',
     opened: null,
     attachments: [],
@@ -407,10 +382,8 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     observations: [],
     acknowledged: 0,
     acknowledgedAt: 0,
-    acknowledgedPublication: 0,
     fences: [],
     events: [],
-    emitted: 0,
     bindings: [],
     materials: new Map(),
     ops: new Map(),

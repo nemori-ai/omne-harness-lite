@@ -124,7 +124,7 @@ describe('a Ja writes the real history of its source into the Session log', () =
     expect(written(s)).toEqual(['message.tool'])
   })
 
-  it('a rejected main reply writes no history row and checks its advance in the same transaction', async () => {
+  it('a rejected main reply writes no history row and asks no Session participation', async () => {
     const { s, authority } = await opened('history-rejected')
     const request = await prepared(s, authority, 'model-reply')
     const rejected: Decision = {
@@ -134,7 +134,7 @@ describe('a Ja writes the real history of its source into the Session log', () =
     }
     s.commits.length = 0
     ok(await s.view.journal.commit(await applied(s, authority, request, rejected)))
-    expect(s.commits).toEqual([['execution-record', 'session', 'session-ordinary-basis']])
+    expect(s.commits).toEqual([['execution-record']])
     expect(written(s)).toEqual([])
   })
 

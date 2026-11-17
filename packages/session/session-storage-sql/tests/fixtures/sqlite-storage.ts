@@ -1,14 +1,8 @@
-import currentMigration from '../../src/worker/execution-current-migration.ts'
-import readCurrent from '../../src/worker/read-execution-current.ts'
-import readMembers from '../../src/worker/read-execution-members.ts'
-import readOrdered from '../../src/worker/read-execution-ordered.ts'
-import readChanged from '../../src/worker/read-execution-changes.ts'
 import readPermissionMode from '../../src/worker/read-permission-mode.ts'
 import compactionIndexMigration from '../../src/worker/compaction-index-migration.ts'
 import readEntryMessage from '../../src/worker/read-entry-message.ts'
 import readCompactionContext from '../../src/worker/read-compaction-context.ts'
 import readCurrentScope from '../../src/worker/read-current-scope.ts'
-import readCurrentAdvance from '../../src/worker/read-current-advance.ts'
 import checkCompactionInput from '../../src/worker/check-compaction-input.ts'
 import permissionMigration from '../../src/worker/permission-current-migration.ts'
 import readPermissionCurrent from '../../src/worker/read-permission-current.ts'
@@ -80,10 +74,6 @@ import readScopeOwner from '../../src/worker/read-scope-owner.ts'
 import statePartMigration from '../../src/worker/state-part-migration.ts'
 
 const HANDLERS: readonly ReadHandlerModule[] = [
-  readCurrent,
-  readMembers,
-  readOrdered,
-  readChanged,
   checkCompactionInput,
   readCompactionContext,
   readEntryMessage,
@@ -91,7 +81,6 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readPermissionCurrent,
   readWork,
   readCurrentScope,
-  readCurrentAdvance,
   readWorkVersion,
   readBinding,
   readWorkIndex,
@@ -135,7 +124,6 @@ const MIGRATIONS: readonly MigrationModule[] = [
   statePartMigration,
   factBodyMigration,
   factBlobMigration,
-  currentMigration,
   compactionIndexMigration,
 ]
 

@@ -9,8 +9,6 @@ import {
 import { runCompactionCommand } from './compaction-command.ts'
 import { writePermissionCurrent } from './permission-current.ts'
 import { writeCompactionIndex } from './compaction-index.ts'
-import { readCompactionWindow } from './compaction-window.ts'
-import { modelViewPrefix } from '../model-view-identity.ts'
 import { readSessionBasis } from './session-basis.ts'
 import { SESSION_COMMIT_PROTOCOL, type SessionCommitBasis } from '../commit-basis.ts'
 import type { SessionPermissionChangeBasis } from '@omne-harness/session-contract'
@@ -649,36 +647,8 @@ function commandReads(
     command.kind === 'completeInitialization' ? initializationReceipts(port, tenant, session) : []
   if (receipts === null)
     return definite('read-bound', 'the operation receipts of the session exceed the read bound')
-  let compaction: Reads['compaction'] = null
-  const epoch = start.journal === undefined ? undefined : text(start.journal['epoch'])
-  const compactionEpoch =
-    epoch === undefined ? undefined : `${modelViewPrefix(tenant, session)}${epoch}`
-  if (
-    command.kind === 'commitDerived' &&
-    command.input.value.kind === 'compaction' &&
-    epoch !== undefined &&
-    command.input.value.epoch === compactionEpoch
-  ) {
-    const window = readCompactionWindow(port, {
-      tenant,
-      session,
-      epoch,
-      upper: null,
-      coverTo: command.input.value.message.covers.to,
-    })
-    if (window.kind === 'behind')
-      return definite('read-bound', 'the compaction index does not cover the session')
-    if (window.kind === 'invalid-bounds')
-      return stopped({
-        kind: 'invalid',
-        field: 'value.message.covers',
-        reason: 'outside the current compaction window',
-      })
-    if (window.kind === 'context') compaction = window.value
-  }
   return {
-    compaction,
-    ...(compactionEpoch === undefined ? {} : { compactionEpoch }),
+    compaction: null,
     ...(frozen === undefined
       ? {}
       : { frozenReceipt: JSON.parse(packed(frozen['receipt'])) as CommitReceipt }),
@@ -1143,26 +1113,6 @@ function runCommandFacts(
   const intakeLimits = intakeLimitsOf(facts['intakeLimits'])
   if (intakeLimits === null)
     return { kind: 'unsupported', basis: { reason: 'invalid intake limits' } }
-  if (facts['advance'] !== undefined) {
-    const claim = decodeValue(facts['advance']) as Extract<
-      import('../participants.ts').SessionCheck,
-      { kind: 'advance' }
-    >
-    const participation = 'participation' in command.input ? command.input.participation : undefined
-    if (
-      claim.kind !== 'advance' ||
-      claim.session !== command.input.session ||
-      canonicalText(claim.tenant) !== canonicalText(command.input.tenant) ||
-      participation == null ||
-      participation.execution !== claim.execution
-    )
-      return {
-        kind: 'unsupported',
-        basis: { reason: 'advance guard does not belong to the command' },
-      }
-    const guarded = runChecks({ check: facts['advance'] }, port)
-    if (guarded.kind !== 'participated') return guarded
-  }
   const permissionChange =
     basis.kind === 'permission-change' &&
     basis.permissionChange.operation === command.input.operation

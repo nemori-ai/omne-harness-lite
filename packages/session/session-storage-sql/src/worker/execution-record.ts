@@ -56,7 +56,6 @@ type Write = Readonly<{
   operation: string
   digest: string
   facts: readonly Fact[]
-  current: readonly Readonly<{ key: string; value: string | null; active: boolean }>[]
   blobs: readonly Blob[]
   boundaries: readonly Boundary[]
   admissions: readonly Admission[]
@@ -191,25 +190,13 @@ function parseWrite(raw: JsonValue | undefined): Write | null {
   const blobs = listOf(raw['blobs'] ?? [], parseBlob)
   const boundaries = listOf(raw['boundaries'], parseBoundary)
   const admissions = listOf(raw['admissions'], parseAdmission)
-  const current = listOf(raw['current'], item => {
-    const { key, value, active } = item
-    // A canonical evidence key is JSON-escaped once more inside its member path.
-    return typeof active === 'boolean' &&
-      !(active && value === null) &&
-      isText(key) &&
-      utf8(key) <= 2 * EXECUTION_FACT_MAX_BYTES + 64 &&
-      (value === null || (typeof value === 'string' && utf8(value) <= EXECUTION_FACT_MAX_BYTES))
-      ? { key, value, active }
-      : null
-  })
   if (facts === null || blobs === null || boundaries === null || admissions === null) return null
-  if (current === null || new Set(current.map(row => row.key)).size !== current.length) return null
   if (facts.length === 0 || facts.length > EXECUTION_BATCH_MAX_FACTS) return null
   const events = facts.flatMap(fact =>
     fact.event === null ? [] : [JSON.stringify([fact.execution, fact.event.sequence])],
   )
   if (new Set(events).size !== events.length) return null
-  return { ...head, facts, blobs, boundaries, admissions, current }
+  return { ...head, facts, blobs, boundaries, admissions }
 }
 
 const json = (value: JsonValue): string => JSON.stringify(value)
@@ -233,36 +220,6 @@ function appendBatch(port: Executor, write: Write, pub: bigint): void {
       ],
     ),
   )
-  const positions = new Map<string, bigint>()
-  write.facts.forEach((fact, ord) => {
-    const collection =
-      fact.kind === 'result.received' || fact.kind === 'fence.started'
-        ? 'entries'
-        : fact.kind === 'input.accepted'
-          ? 'inputs'
-          : fact.kind === 'reply.judged'
-            ? 'admissions'
-            : null
-    if (collection === null) return
-    const key = JSON.stringify([fact.execution, collection])
-    let position = positions.get(key)
-    if (position === undefined) {
-      const last = oneRow(
-        port,
-        `SELECT position FROM er_ordered
-        WHERE tenant = ? AND execution = ? AND collection = ? ORDER BY position DESC LIMIT 1`,
-        [write.tenant, fact.execution, collection],
-      )
-      position = last === undefined ? 0n : big(last['position'])
-    }
-    position += 1n
-    positions.set(key, position)
-    port.execute(
-      `INSERT INTO er_ordered (tenant, session, execution, collection, position, pub, ord)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [write.tenant, write.session, fact.execution, collection, position, pub, BigInt(ord)],
-    )
-  })
 }
 
 function storeBlobs(port: Executor, tenant: string, blobs: readonly Blob[]): void {
@@ -358,22 +315,6 @@ function publish(port: Executor, write: Write): ParticipantReply {
     [tenant, write.operation, session, execution, write.digest, next],
   )
   writeIndex(port, write)
-  for (const row of write.current) {
-    if (row.value === null)
-      port.execute(
-        'UPDATE er_current SET active = 0 WHERE tenant = ? AND execution = ? AND session = ? AND path = ?',
-        [tenant, execution, session, row.key],
-      )
-    else
-      port.execute(
-        'INSERT OR REPLACE INTO er_current (tenant, session, execution, path, value, active) VALUES (?, ?, ?, ?, ?, ?)',
-        [tenant, session, execution, row.key, packText(row.value), row.active ? 1 : 0],
-      )
-  }
-  port.execute(
-    'INSERT OR REPLACE INTO er_current_head (tenant, session, execution, covered, revision) VALUES (?, ?, ?, ?, ?)',
-    [tenant, session, execution, next, BigInt(write.revision)],
-  )
   port.execute('INSERT OR REPLACE INTO er_root (tenant, session, published) VALUES (?, ?, ?)', [
     tenant,
     session,

@@ -1,4 +1,4 @@
-import { isCount, EXECUTION_BATCH_MAX_FACTS } from '../codec.ts'
+import { isCount } from '../codec.ts'
 import {
   batchesOf,
   FACT_COLUMNS,
@@ -27,18 +27,6 @@ export default handler('execution-record.facts', (input, port) => {
   if (head.kind !== 'held') return head
   const from = BigInt(after)
   const published = String(head.published)
-  if (raw['at'] !== undefined) {
-    if (!isCount(raw['at']) || BigInt(raw['at']) < 1n) throw new Error('invalid publication')
-    const rows = factRows(
-      port,
-      `SELECT ${FACT_COLUMNS} FROM er_fact
-      WHERE tenant = ? AND session = ? AND pub = ? ORDER BY ord LIMIT ?`,
-      [scope.tenant, scope.session, BigInt(raw['at']), EXECUTION_BATCH_MAX_FACTS],
-    )
-    const { batches } = batchesOf(rows, false)
-    if (batches.length !== 1 || !wholeBatches(batches)) return { kind: 'missing', published }
-    return { kind: 'facts', published, batches, next: null }
-  }
   if (from >= head.published) return { kind: 'facts', published, batches: [], next: null }
   const filter = execution === null ? '' : ' AND execution = ?'
   const rows = factRows(

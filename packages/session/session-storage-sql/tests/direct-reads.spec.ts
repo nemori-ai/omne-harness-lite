@@ -47,7 +47,6 @@ describe('only the work cache reads the Session current state from the store', (
       `${PACKAGE}/materials.ts`,
       `${PACKAGE}/worker/check.ts`,
       `${PACKAGE}/worker/compaction-command.ts`,
-      `${PACKAGE}/worker/current-advance.ts`,
       `${PACKAGE}/worker/entries.ts`,
       `${PACKAGE}/worker/log.ts`,
       `${PACKAGE}/worker/participant.ts`,

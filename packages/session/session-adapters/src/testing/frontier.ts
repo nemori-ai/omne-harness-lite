@@ -95,7 +95,7 @@ async function captured(
       item = {
         execution,
         after: cursor(root, id),
-        upper: ended ? Number(ended.sequence) - 1 : execution.emitted,
+        upper: ended ? Number(ended.sequence) - 1 : execution.events.length,
       }
     await remember([id, item.after, item.upper])
     executions.push(item)

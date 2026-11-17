@@ -135,7 +135,7 @@ describe('a fresh commit', () => {
     expect(landed.notices).toHaveLength(1)
   })
 
-  it('a writer that answered recovered: not folded, not told; a Journal commit reads nothing at landing', async () => {
+  it('a writer that answered recovered: not folded, not told; a Journal commit replaces the index', async () => {
     const recovered = fresh({ recovered: true })
     expect(await land({ receipt: receiptOf(recovered), recalled: false })).toEqual({
       notices: [],
@@ -143,7 +143,7 @@ describe('a fresh commit', () => {
     })
     expect(
       await land({ receipt: receiptOf(recovered), recalled: false }, { published: '4' }),
-    ).toEqual({ notices: [], tried: 0 })
+    ).toEqual({ notices: [], tried: 1 })
   })
 
   it('a reply without a batch or work (no entry written): not folded, not told', async () => {
@@ -154,10 +154,10 @@ describe('a fresh commit', () => {
     })
   })
 
-  it('a Journal commit without a Session participation: nothing is read at landing, nothing is told', async () => {
+  it('a Journal commit without a Session participation: the index is replaced, nothing is told', async () => {
     expect(await land({ receipt: receiptOf(null), recalled: false }, { published: '4' })).toEqual({
       notices: [],
-      tried: 0,
+      tried: 1,
     })
   })
 

@@ -151,6 +151,7 @@ export async function takeover(
   script: readonly (Settle | null)[],
   retry: RetryPolicy = policy(),
   wrap: (d: Dependencies) => Dependencies = d => d,
+  change: Partial<ResumeEntry<Principal>> = {},
 ): Promise<Takeover> {
   const admitted: Admitted[] = []
   const retrying: Retrying[] = []
@@ -196,6 +197,7 @@ export async function takeover(
   const entry = resumeEntry(assembly.dependencies, {
     modelRetry: { policy: retry, random: () => 0 },
     modelRetrying: (...event: Retrying) => retrying.push(event),
+    ...change,
   })
   let rebuilds = 0
   return {

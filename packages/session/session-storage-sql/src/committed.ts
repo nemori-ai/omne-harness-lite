@@ -1,7 +1,7 @@
 import type { SessionNotifier } from '@omne-harness/session-contract'
 import type { DomainRef, ReceiptV2, SqlStorage } from '@omne-harness/sql-contract'
 import { SESSION_PARTICIPANT, writtenOf, type SessionCommittedBatch } from './session-reply.ts'
-import { foldCommitted, type WorkCacheBounds } from './work-cache.ts'
+import { foldCommitted, refreshWorkIndex, type WorkCacheBounds } from './work-cache.ts'
 
 const registered = new WeakMap<object, Set<Readonly<{ notifier: SessionNotifier }>>>()
 
@@ -54,9 +54,9 @@ function fold(input: SessionCommitLanding, work: Written['work']): Promise<void>
   if (journal === undefined)
     return work === undefined ? Promise.resolve() : foldCommitted(reach, work)
   if (journal.published === null) return Promise.resolve()
-  // A Journal-only publication changes no Session state. The cache keeps its old
-  // published fence; a later work read validates it before using the history index.
-  return work === undefined ? Promise.resolve() : foldCommitted(reach, work, 'next')
+  return work === undefined
+    ? refreshWorkIndex(reach, journal.published)
+    : foldCommitted(reach, work, 'next')
 }
 
 export async function afterSessionCommit(input: SessionCommitLanding): Promise<void> {

@@ -3,14 +3,12 @@ import type {
   Adoption,
   AgentEvent,
   AgentEventBody,
-  AgentJournalEntry,
   AgentOperationId,
   CommandReceipt,
   ControlRecord,
   DurableEvidence,
   ExecutionState,
   HandoffOutcome,
-  HandoffCustody,
   HandoffResolution,
   PendingCall,
   ReceivedEntry,
@@ -23,10 +21,9 @@ import {
   batchEvidence,
   checkpointOf,
   receivedViews,
-  type BlobStore,
   type ProducerCall,
+  type BlobStore,
   type ExecutionView,
-  type FactBody,
   type Mint,
   type OperationEntry,
   type PublishedBatch,
@@ -59,11 +56,9 @@ export const EXECUTION_FIELDS = [
   'state',
   'checkpoint',
   'attachments',
-  'inputOffset',
   'inputs',
   'inputRevisions',
   'events',
-  'emitted',
   'retainedFrom',
   'acknowledged',
   'acknowledgedAt',
@@ -196,18 +191,6 @@ function blob<T>(blobs: BlobStore, ref: unknown): T {
   return value as T
 }
 
-export function projectJournalEntry(fact: FactBody, blobs: BlobStore): AgentJournalEntry {
-  if (fact.kind === 'result.received') return blob<ReceivedEntry>(blobs, fact.custody)
-  if (fact.kind === 'fence.started')
-    return {
-      kind: 'start-fence',
-      operation: fact.operation as never,
-      guard: fact.guard,
-      fence: fact.fence,
-    }
-  throw new TypeError('the ordered entry is not an entry fact')
-}
-
 function stateOf(view: ExecutionView, blobs: BlobStore): MemoryExecution['state'] {
   const ended = view.finish.ended
   if (ended !== null)
@@ -241,35 +224,6 @@ function stateOf(view: ExecutionView, blobs: BlobStore): MemoryExecution['state'
   }
 }
 
-function entriesOf(
-  view: ExecutionView,
-  blobs: ProjectionContext['blobs'],
-): MemoryExecution['entries'] {
-  return [
-    ...[...view.results.values()].flatMap(result =>
-      result.received === null
-        ? []
-        : [
-            {
-              pub: result.received.pub,
-              value: blob<MemoryExecution['entries'][number]>(blobs, result.received.custody),
-            },
-          ],
-    ),
-    ...view.fences.map(fence => ({
-      pub: fence.pub,
-      value: {
-        kind: 'start-fence' as const,
-        operation: fence.operation as never,
-        guard: fence.guard,
-        fence: fence.fence,
-      },
-    })),
-  ]
-    .sort((left, right) => left.pub - right.pub)
-    .map(item => item.value)
-}
-
 export function projectExecution(
   view: ExecutionView,
   context: ProjectionContext,
@@ -288,7 +242,6 @@ export function projectExecution(
       handoff: item.handoff,
       handoffRevision: item.handoffRevision,
     })),
-    inputOffset: view.summary.inputs - view.inputs.length,
     inputs: view.inputs.map((item): AcceptedInput => ({
       id: item.input,
       content: blob(context.blobs, item.message),
@@ -297,7 +250,6 @@ export function projectExecution(
     })),
     inputRevisions: new Map(view.inputs.map(item => [item.input, item.revision])),
     retainedFrom: 1,
-    emitted: view.emitted,
     acknowledged: view.acknowledged,
     acknowledgedAt: view.acknowledgedAt,
     controls: [...view.controls.values()].map(
@@ -307,12 +259,7 @@ export function projectExecution(
           command: item.command,
           ...(item.toolInvocation === null ? {} : { toolInvocation: item.toolInvocation }),
           ...(item.toolOperation === null ? {} : { toolOperation: item.toolOperation }),
-          stages: Object.fromEntries(
-            Object.entries(item.stages).map(([stage, fact]) => [
-              stage,
-              { state: fact.state, source: fact.source },
-            ]),
-          ),
+          stages: item.stages,
         }) as unknown as ControlRecord,
     ),
     results: [...view.results.values()]
@@ -347,7 +294,7 @@ export function projectExecution(
     stageReceipts: new Map(
       [...view.controls.values()].flatMap(control =>
         Object.entries(control.stages).flatMap(([stage, fact]) => {
-          const pub = fact === undefined ? null : fact.pub
+          const pub = fact === undefined ? null : pubOf(fact.source)
           const found = pub === null ? undefined : receipt(pub)
           return found === undefined
             ? []
@@ -361,7 +308,20 @@ export function projectExecution(
       basis: item.basis,
       present: true,
     })),
-    entries: entriesOf(view, context.blobs),
+    entries: view.events.flatMap(event => {
+      if (event.fact.kind === 'result.received')
+        return [blob<MemoryExecution['entries'][number]>(context.blobs, event.fact.custody)]
+      if (event.fact.kind === 'fence.started')
+        return [
+          {
+            kind: 'start-fence' as const,
+            operation: event.fact.operation as never,
+            guard: event.fact.guard,
+            fence: event.fact.fence,
+          },
+        ]
+      return []
+    }),
   }
   try {
     projected.checkpoint = checkpointOf(view, context.blobs)
@@ -443,25 +403,34 @@ export function projectExecution(
     `${JSON.stringify(parts)}/reply-admission-prefix/0`,
     originRevision,
   )
-  const projection: AdmissionProjection = {
+  let projection: AdmissionProjection = {
     rule: context.admissionRule,
-    consecutive: view.summary.consecutiveDenials,
-    total: view.summary.totalDenials,
-    last: view.summary.lastAdmission,
-    sequence: view.summary.sequence,
-    basis: view.summary.admissionBasis ?? origin,
+    consecutive: 0,
+    total: 0,
+    last: null,
+    sequence: 0,
+    basis: origin,
   }
+  for (const item of view.admissions)
+    projection =
+      item.fact.decision === 'rejected'
+        ? {
+            ...projection,
+            consecutive: projection.consecutive + 1,
+            total: projection.total + 1,
+            sequence: projection.sequence + 1,
+            basis: item.basis,
+          }
+        : {
+            ...projection,
+            consecutive: 0,
+            last: item.fact.source,
+            sequence: projection.sequence + 1,
+            basis: item.basis,
+          }
   const ledger: AdmissionLedger = { origin, retainedFrom: 1, rangesFrom: 0, projection }
   projected.admissionLedger = ledger
   projected.handoffs = [...view.handoffs.values()].flatMap((item): HandoffRecord[] => {
-    const recorded = item.recorded.at(-1)
-    const preserved =
-      recorded === undefined
-        ? null
-        : blob<Extract<HandoffResolution, { kind: 'recorded' | 'excluded' }>>(
-            context.blobs,
-            recorded.outcome,
-          )
     const outcome =
       item.resolved === null ? null : blob<HandoffOutcome>(context.blobs, item.resolved.outcome)
     const excluded =
@@ -474,14 +443,12 @@ export function projectExecution(
     const request =
       item.prepared !== null
         ? blob<HandoffRecord['request']>(context.blobs, item.prepared.request)
-        : (outcome?.request ??
-          excluded?.request ??
-          (preserved?.kind === 'recorded' ? preserved.outcome.request : preserved?.request))
+        : (outcome?.request ?? excluded?.request)
     if (request === undefined) return []
     const resolution: HandoffRecord['resolution'] =
-      outcome !== null ? { kind: 'recorded', outcome } : (excluded ?? preserved)
+      outcome !== null ? { kind: 'recorded', outcome } : excluded
     const history: HandoffRecord['history'] =
-      item.retired !== null || (item.resolved !== null && outcome?.decision.kind !== 'prepared')
+      item.retired !== null
         ? { kind: 'not-applicable' }
         : item.resolved !== null && (item.prepared === null || item.resolved.history !== null)
           ? {
@@ -517,24 +484,11 @@ export function projectExecution(
         {
           handoff: item.handoff,
           original: blob(context.blobs, attempt.outcome),
-          predecessor: attempt.predecessor,
+          custody: attempt.custody === null ? null : blob(context.blobs, attempt.custody),
         },
       ]),
     ),
   )
-  for (const item of view.handoffs.values())
-    for (const attempt of item.recorded) {
-      if (attempt.custody === null) continue
-      const custody = blob<HandoffCustody>(context.blobs, attempt.custody)
-      const original = blob<CustodyAttempt['original']>(context.blobs, attempt.outcome)
-      for (const excluded of custody.priorExcluded)
-        if (!projected.custodyAttempts.has(excluded.operation))
-          projected.custodyAttempts.set(excluded.operation, {
-            handoff: item.handoff,
-            original,
-            predecessor: excluded.predecessor,
-          })
-    }
   projected.serial = view.opened === null ? 0 : view.opened.pub
   return projected
 }
@@ -767,7 +721,7 @@ export function projectFragments(
   const out = emptyFragments()
   const byPub = opsByPub(view)
   const pubOfSequence = new Map(view.events.map(event => [String(event.eseq), event.pub]))
-  out.indexedEvents.set(execution.id, execution.emitted)
+  out.indexedEvents.set(execution.id, execution.events.length)
   for (const event of execution.events) {
     const key = `${execution.id}\0${event.sequence}`
     const pub = pubOfSequence.get(event.sequence)

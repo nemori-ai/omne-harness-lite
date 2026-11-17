@@ -29,11 +29,8 @@ export default handler('execution-record.events', (input, port) => {
   const raw = input as Readonly<Record<string, unknown>>
   const execution = raw['execution']
   const after = raw['after']
-  const limit = raw['limit'] ?? PAGE_ROWS
   if (typeof execution !== 'string' || execution === '' || !isCount(after))
     throw new Error('invalid input')
-  if (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 1 || limit > PAGE_ROWS)
-    throw new Error('invalid event page limit')
   const gate = sessionHead(port, scope)
   if (gate.kind !== 'held') return gate
   const head = oneRow(
@@ -48,9 +45,9 @@ export default handler('execution-record.events', (input, port) => {
     `SELECT ${FACT_COLUMNS} FROM er_fact
       WHERE tenant = ? AND execution = ? AND eseq > ? AND session = ?
       ORDER BY eseq LIMIT ?`,
-    [scope.tenant, execution, BigInt(after), scope.session, limit + 1],
+    [scope.tenant, execution, BigInt(after), scope.session, PAGE_ROWS + 1],
   )
-  const page = rows.slice(0, limit)
+  const page = rows.slice(0, PAGE_ROWS)
   return {
     kind: 'events',
     revision: text(head['revision']),
@@ -58,6 +55,6 @@ export default handler('execution-record.events', (input, port) => {
     emittedThrough: text(head['emitted_through']),
     ended: parse(head['ended']),
     events: page.map(eventOutput),
-    next: rows.length > limit ? String(big(page.at(-1)!['eseq'])) : null,
+    next: rows.length > PAGE_ROWS ? String(big(page.at(-1)!['eseq'])) : null,
   }
 })

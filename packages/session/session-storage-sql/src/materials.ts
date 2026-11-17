@@ -59,10 +59,6 @@ import {
   COMPACTION_INDEX_MIGRATION,
   COMPACTION_INDEX_TABLES,
 } from './worker/compaction-index-migration.ts'
-import {
-  EXECUTION_CURRENT_MIGRATION,
-  EXECUTION_CURRENT_TABLES,
-} from './worker/execution-current-migration.ts'
 
 const extension = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
 
@@ -206,13 +202,6 @@ export const HANDLERS: readonly Handler[] = [
     maxRowsRead: WORK_ROWS_READ,
   },
   {
-    handler: 'session.current-advance',
-    file: 'read-current-advance',
-    tables: ['sl_journal', 'sl_state', ...STATE_ITEM_TABLES, ...ATTEMPT_GRANT_TABLES],
-    migrations: [stateItemMigrationRef, attemptGrantMigrationRef],
-    maxRowsRead: 3,
-  },
-  {
     handler: 'session.current-scope',
     file: 'read-current-scope',
     tables: ['sl_journal', 'sl_state', ...STATE_ITEM_TABLES],
@@ -300,34 +289,6 @@ export const HANDLERS: readonly Handler[] = [
     tables: ['sl_journal', 'er_root', 'er_fact'],
     protocol: EXECUTION_RECORD_PROTOCOL,
     migrations: factMigrations,
-  },
-  {
-    handler: 'execution-record.current',
-    file: 'read-execution-current',
-    tables: ['sl_journal', 'er_root', 'er_fact', 'er_execution', ...EXECUTION_CURRENT_TABLES],
-    protocol: EXECUTION_RECORD_PROTOCOL,
-    migrations: [...factMigrations, EXECUTION_CURRENT_MIGRATION],
-  },
-  {
-    handler: 'execution-record.members',
-    file: 'read-execution-members',
-    tables: ['sl_journal', 'er_root', 'er_fact', 'er_execution', ...EXECUTION_CURRENT_TABLES],
-    protocol: EXECUTION_RECORD_PROTOCOL,
-    migrations: [...factMigrations, EXECUTION_CURRENT_MIGRATION],
-  },
-  {
-    handler: 'execution-record.ordered',
-    file: 'read-execution-ordered',
-    tables: ['sl_journal', 'er_root', 'er_fact', 'er_execution', ...EXECUTION_CURRENT_TABLES],
-    protocol: EXECUTION_RECORD_PROTOCOL,
-    migrations: [...factMigrations, EXECUTION_CURRENT_MIGRATION],
-  },
-  {
-    handler: 'execution-record.changed-executions',
-    file: 'read-execution-changes',
-    tables: ['sl_journal', 'er_root', 'er_fact', 'er_current_head'],
-    protocol: EXECUTION_RECORD_PROTOCOL,
-    migrations: [...factMigrations, EXECUTION_CURRENT_MIGRATION],
   },
   {
     handler: 'execution-record.open-executions',
@@ -428,7 +389,6 @@ export function sessionStorageMaterials(
           ...STATE_PART_TABLES,
           ...FACT_BODY_TABLES,
           ...FACT_BLOB_TABLES,
-          ...EXECUTION_CURRENT_TABLES,
         ],
         readTables: [],
         requiresFacts: [],
@@ -494,9 +454,6 @@ export function sessionStorageMaterials(
         recordMigrationRef,
         statePartMigrationRef,
         factBodyMigrationRef,
-      ]),
-      migrationOf(EXECUTION_CURRENT_MIGRATION, 'execution-current-migration', [
-        factBlobMigrationRef,
       ]),
     ],
     readHandlers: HANDLERS.map(item => {

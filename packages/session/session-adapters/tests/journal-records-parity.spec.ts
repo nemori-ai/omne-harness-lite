@@ -38,7 +38,6 @@ const PROJECTED: readonly ExecutionField[] = [
   'admissions',
   'entries',
   'events',
-  'emitted',
   'finishing',
   'resultRevisions',
   'admissionLedger',
@@ -197,10 +196,6 @@ describe('the reader records projected from the fold', () => {
       },
     }
     const projected = projectExecution(folded, context)
-    expect(
-      projectExecution({ ...folded, events: [] }, context).entries,
-      'output confirmation does not release unclosed custody and fence records',
-    ).toEqual(written.entries)
     const diff = fieldsDiff(written, projected)
     const writtenOps = [...s.view.controls.operations().entries()]
       .filter(([, record]) => record.kind !== 'pending')

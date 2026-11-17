@@ -235,7 +235,6 @@ describe('the custody chain of a recordHandoff whose storage outcome is undecide
         ],
       },
     } as RootHandoff
-    const recorded = await journal.recordHandoff(successor)
-    expect(recorded, JSON.stringify(recorded)).toHaveProperty('ok')
+    expect(await journal.recordHandoff(successor)).toHaveProperty('ok')
   })
 })

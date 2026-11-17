@@ -1,13 +1,7 @@
 import { createHash } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import type { Context } from '@deepseek-ai/cordis'
-import type {
-  AgentExecutionId,
-  AgentJournal,
-  AgentOperationId,
-  Failure as AgentFailure,
-} from '@omne-harness/agent-contract'
-import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
+import type { AgentExecutionId } from '@omne-harness/agent-contract'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
@@ -74,7 +68,6 @@ export type SessionJournalInterpretationInput<P> = Readonly<{
 
 type Ports<P> = Readonly<{
   readWork(access: SessionAccess<P>): Reply<WorkSnapshot>
-  journal: Pick<AgentJournal<P>, 'load' | 'acknowledge'>
   read(
     target: Readonly<{ tenant: TenantId; session: SessionId; execution: string; after: string }>,
   ): Promise<InterpretationRead>
@@ -138,55 +131,6 @@ function createJournalInterpretation<P>(
     return answer
   }
 
-  function acknowledgementFailure(failure: AgentFailure): Answer<never> {
-    if (failure.kind === 'unsupported') return fail({ kind: 'unsupported' })
-    if (failure.kind === 'denied' || failure.kind === 'invalid' || failure.kind === 'unavailable')
-      return fail(failure)
-    if (
-      failure.kind === 'conflict' ||
-      failure.kind === 'terminal' ||
-      failure.kind === 'stale-advance'
-    )
-      return fail({
-        kind: 'invalid',
-        field: 'outputAcknowledgement',
-        reason: JSON.stringify(failure),
-      })
-    return unavailable(`the Agent output acknowledgement is unresolved: ${JSON.stringify(failure)}`)
-  }
-
-  async function acknowledge(
-    access: SessionAccess<P>,
-    target: JournalInterpretationTarget,
-    through: string,
-  ): Promise<Answer<void>> {
-    if (through === '0') return succeed(undefined)
-    const scope = {
-      principal: access.principal,
-      tenant: access.tenant,
-      execution: target.execution,
-    }
-    const loaded = await ports.journal.load(scope)
-    if ('failure' in loaded) return acknowledgementFailure(loaded.failure)
-    if (BigInt(loaded.ok.output.acknowledgedThrough ?? '0') >= BigInt(through))
-      return succeed(undefined)
-    const tenant = tenantCodec.encode(target.tenant)
-    if (!tenant.ok) return fail({ kind: 'denied', action: 'acknowledge-agent-output' })
-    const digest = createHash('sha256')
-      .update(
-        canonical(['ad02/output-ack/1', tenant.value, target.session, target.execution, through]),
-      )
-      .digest('hex')
-    const answer = await ports.journal.acknowledge({
-      ...scope,
-      operation: `ad02_ack_${digest}` as AgentOperationId,
-      through,
-      receipt: null,
-    })
-    if ('failure' in answer) return acknowledgementFailure(answer.failure)
-    return succeed(undefined)
-  }
-
   async function round(
     access: SessionAccess<P>,
     tenantText: string,
@@ -197,21 +141,16 @@ function createJournalInterpretation<P>(
     const progress = progressOf(work.ok, target.execution)
     if (progress === null)
       return unavailable('Session recorded no Run of this execution', 'session-history')
-    const recovered = await acknowledge(access, target, progress.readThrough)
-    if ('failure' in recovered) return recovered
     const read = await ports.read({ ...target, after: progress.readThrough })
     if (read.kind === 'unavailable') return unavailable(read.diagnostic, 'session-log-journal')
     const view = read.execution
     if (view === null) return unavailable('the session holds no Agent records of this execution')
     let readThrough = progress.readThrough
     let committed = 0
-    const completed = async (waiting: number): Promise<Answer<JournalInterpreted>> => {
-      const confirmed = await acknowledge(access, target, readThrough)
-      return 'failure' in confirmed ? confirmed : succeed({ readThrough, committed, waiting })
-    }
     for (const [at, event] of view.events.entries()) {
       const waiting = view.events.length - at
-      if (event.consequences === null && event.control === null) return completed(waiting)
+      if (event.consequences === null && event.control === null)
+        return succeed({ readThrough, committed, waiting })
       if (event.consequences?.every(item => item.kind === 'observed') === true) continue
       if (view.head === null)
         return unavailable('the head of the execution was written by another execution')
@@ -235,7 +174,7 @@ function createJournalInterpretation<P>(
       readThrough = answer.ok.readThrough
       committed += 1
     }
-    return completed(0)
+    return succeed({ readThrough, committed, waiting: 0 })
   }
 
   return async target => {
@@ -283,7 +222,6 @@ export function createSessionJournalInterpretationPlugin<P>(
       name: 'session-ad02',
       inject: {
         [sessionTransactionsKey]: null,
-        [agentJournalKey]: null,
         [storageKey]: null,
         [tenantDomainLookupKey]: null,
         [sessionKey]: { caller: 'coordinator' as const },
@@ -298,7 +236,6 @@ export function createSessionJournalInterpretationPlugin<P>(
         const logger = ctx.logger(OWNER)
         const interpret = createJournalInterpretation<P>(input, {
           readWork: access => session.work.readWork(access),
-          journal: ctx[agentJournalKey],
           read: target => readExecutionInterpretation({ storage, tenantDomainLookup }, target),
           commitLog: value =>
             transactions.commitLog === undefined

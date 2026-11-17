@@ -218,7 +218,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     commit: input => written('commit', input, j => j.commit(input)),
     submit: input => written('submit', input, j => j.submit(input)),
     control: input => written('control', input, j => j.control(input)),
-    acknowledge: input => routed('acknowledge', input, j => j.acknowledge(input)),
+    acknowledge: input => written('acknowledge', input, j => j.acknowledge(input)),
     recordResult: input => written('recordResult', input, j => j.recordResult(input)),
     recordControl: input => written('recordControl', input, j => j.recordControl(input)),
     recordHandoff: input => written('recordHandoff', input, j => j.recordHandoff(input)),

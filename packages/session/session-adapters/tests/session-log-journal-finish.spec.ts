@@ -306,8 +306,7 @@ describe('tryFinish on the production session-log Journal with the pending-input
         await c.dispose()
       }
       expect(kinds(s)).toContain('run.batch-taken')
-      const reconciled = await load(s)
-      const ended = ok(await s.view.journal.tryFinish({ ...finish, expected: reconciled.revision }))
+      const ended = ok(await s.view.journal.tryFinish(finish))
       expect(ended.kind).toBe('ended')
       const after = await load(s)
       expect(after.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })

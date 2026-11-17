@@ -6,11 +6,12 @@ import {
   type ExecutionControl,
   type FailureCandidate,
   type Next,
+  type MessageSource,
   type PendingCall,
   type Preparation,
 } from '@omne-harness/agent-contract'
 import { agentEvidence, invocationParts } from './identities.ts'
-import { toolCallOf } from './tools.ts'
+import { toolCall, toolCallOf } from './tools.ts'
 import type {
   Action,
   ActionBatch,
@@ -24,7 +25,7 @@ import type {
 } from '@omne-harness/agent-contract'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import { localFailure } from './node-failure.ts'
-import { type ModelPendingCall, type ReadyPreparation } from './coordinator-steps.ts'
+import { required, type ModelPendingCall, type ReadyPreparation } from './coordinator-steps.ts'
 
 // Helpers of the execution coordinator that read none of its state.
 
@@ -109,4 +110,19 @@ export function cancelInterrupt<P>(
   if (pending.association !== 'associated') return null
   const call = toolCallOf(access, pending)
   return { stage: `withdraw-tool/${call}`, command: { kind: 'withdraw-tool', call, reason } }
+}
+
+export type InternalSource = Exclude<MessageSource, { kind: 'external-input' }>
+
+export function slotSource<P>(access: Access<P>, action: Action, slot: ActionSlot): InternalSource {
+  if (slot.kind === 'denied')
+    return { kind: 'action-denied', action: action.id, evidence: slot.evidence }
+  if (slot.kind === 'dispatched')
+    throw new Error('coordinator defect: no message of a dispatched slot')
+  return {
+    kind: 'tool-result',
+    action: action.id,
+    call: toolCallOf(access, required(toolCall(action), 'associated Tool call')),
+    result: slot.kind === 'result' ? slot.result : slot.placeholder,
+  }
 }

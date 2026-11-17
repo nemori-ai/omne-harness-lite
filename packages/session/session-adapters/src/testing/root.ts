@@ -5,8 +5,6 @@ import {
   emptySessionSources,
   indexSession,
   withAttemptRecords,
-  withGrantIdentity,
-  type GrantIdentity,
   type SessionSources,
 } from './session-sources.ts'
 import type {
@@ -438,11 +436,6 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
     ) {
       if (!draft) throw new Error('Session attempt records adopted outside common root')
       draft = { ...draft, sources: withAttemptRecords(draft.sources, records) }
-      touch()
-    },
-    adoptGrantIdentity(identity: GrantIdentity) {
-      if (!draft) throw new Error('Session grant identity adopted outside common root')
-      draft = { ...draft, sources: withGrantIdentity(draft.sources, identity) }
       touch()
     },
     mutate<T>(action: () => T): T {

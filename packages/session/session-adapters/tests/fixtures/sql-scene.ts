@@ -121,27 +121,17 @@ export type DoubleControls = Readonly<{
   loseNextReply(): void
   dropNext(): void
   reads: string[]
-  sqlReads: { sql: string; rows: number; bytes: number }[]
-  clearSessionSnapshotCache(): void
   select(sql: string): QueryRows
 }>
 
 async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleControls }> {
   const materials = sessionStorageMaterials({ readOutputLimitBytes: 20971520 })
   const participants = new Map<string, ParticipantModule>()
-  let clearSessionSnapshotCache = () => {}
-  for (const item of materials.participants) {
-    const module = (await import(item.moduleUrl)) as {
-      default: ParticipantModule
-      parsedSnapshots?: { clear(): void }
-    }
-    participants.set(item.participant, module.default)
-    if (item.participant === 'session') {
-      const cache = module.parsedSnapshots
-      if (cache === undefined) throw new Error('Session snapshot cache required')
-      clearSessionSnapshotCache = () => cache.clear()
-    }
-  }
+  for (const item of materials.participants)
+    participants.set(
+      item.participant,
+      ((await import(item.moduleUrl)) as { default: ParticipantModule }).default,
+    )
   const migrations: MigrationModule[] = []
   for (const item of materials.migrations)
     migrations.push(((await import(item.moduleUrl)) as { default: MigrationModule }).default)
@@ -159,21 +149,6 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
   let lose = false
   let drop = false
   const reads: string[] = []
-  const sqlReads: { sql: string; rows: number; bytes: number }[] = []
-  const measuredRows = (sql: string, params: readonly SqlValue[]) => {
-    const result = rowsOf(db, sql, params)
-    if (/^\s*(SELECT|WITH)/i.test(sql))
-      sqlReads.push({
-        sql,
-        rows: result.rows.length,
-        bytes: Buffer.byteLength(
-          JSON.stringify(result.rows, (_key, value: unknown) =>
-            typeof value === 'bigint' ? value.toString() : value,
-          ),
-        ),
-      })
-    return result
-  }
   const key = (identity: SqlIdentity) => JSON.stringify([identity.operation, identity.operationKey])
   const execute = (request: Parameters<SqlStorage['commit']>[0]): ReceiptV2 => {
     const responses: { participant: string; protocol: string; reply: RecordedReply }[] = []
@@ -203,7 +178,7 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
               fault = null
               throw new Error('injected write failure')
             }
-            return measuredRows(sql, params)
+            return rowsOf(db, sql, params)
           },
           requireFact: key => {
             const value = facts.get(JSON.stringify(key))
@@ -287,7 +262,7 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
         execute: (sql, params) => {
           if (!/^\s*SELECT/i.test(sql) || !/\blimit\b/i.test(sql))
             throw new Error('a read handler ran a write or a statement without LIMIT')
-          return measuredRows(sql, params)
+          return rowsOf(db, sql, params)
         },
       })
       return Promise.resolve(
@@ -318,8 +293,6 @@ async function doubleStorage(): Promise<{ storage: SqlStorage; controls: DoubleC
         drop = true
       },
       reads,
-      sqlReads,
-      clearSessionSnapshotCache,
       select: sql => rowsOf(db, sql, []),
     },
   }

@@ -225,64 +225,13 @@ for (const [kind, lane] of [
 }
 
 describe('the SQL provider: the Session snapshot of a write cannot be read', () => {
-  it('rechecks the original grant in the publication transaction after a concurrent claim', async () => {
-    const l = await sqlLane('grant-publication-race')
-    const s = scenes.at(-1) as SqlScene
-    const before = await l.readWork()
-    if (before.run.kind !== 'active') throw new Error('active Run required')
-    const run = before.run
-    const loaded = ok(await l.journal.load({ ...l.access, execution: l.execution }))
-    const commit = s.storage.commit.bind(s.storage)
-    let intercepted = false
-    Object.defineProperty(s.storage, 'commit', {
-      value: async (request: Parameters<typeof commit>[0]) => {
-        if (
-          !intercepted &&
-          request.commands.some(
-            command =>
-              command.participant === 'execution-record' && command.facts['intent'] === 'publish',
-          )
-        ) {
-          intercepted = true
-          ok(
-            await s.port.commit({
-              access: s.sessionAccess,
-              command: {
-                kind: 'claim',
-                input: {
-                  tenant: s.access.tenant,
-                  session: s.access.session,
-                  operation: operationId('racing-claim'),
-                  run: run.run,
-                  instance: { owner: 'agent', id: 'successor' },
-                  continuity: evidence('racing-continuity'),
-                  expected: run.revision,
-                },
-              },
-              guards: [],
-            }),
-          )
-        }
-        return commit(request)
-      },
-    })
-    const answer = await l.journal.commit(
-      commitInput(l, l.authority, 'before-claim', loaded.revision),
-    )
-    expect(intercepted).toBe(true)
-    expect(answer).toMatchObject({ failure: { kind: 'stale-advance' } })
-    expect(ok(await s.fresh().journal.load({ ...s.access, execution: s.execution })).revision).toBe(
-      loaded.revision,
-    )
-  })
-
   it('answers unavailable to the current Authority, not stale-advance; the same commit goes through once the read answers', async () => {
     const l = await sqlLane('grant-unreadable')
     const s = scenes.at(-1) as SqlScene
     const loaded = ok(await l.journal.load({ ...l.access, execution: l.execution }))
     const input = commitInput(l, l.authority, 'during', loaded.revision)
     s.rewriteReads.current = (request, answer) =>
-      request.handler === 'session.current-advance'
+      request.handler.startsWith('session.work')
         ? {
             kind: 'unavailable',
             requestKey: request.requestKey,

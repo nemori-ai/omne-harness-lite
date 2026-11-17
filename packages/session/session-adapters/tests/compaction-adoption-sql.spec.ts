@@ -130,8 +130,6 @@ it.each([
         caller: { ...request.caller, value: { ...retained.value, epoch: 'stale' } },
       })
       expect(stale, JSON.stringify(stale)).toHaveProperty('failure.kind', 'changed')
-      const traceStart = s.controls?.sqlReads.length ?? 0
-      s.controls?.clearSessionSnapshotCache()
       armed = fault !== null
       const first = await journal.commit(request)
       if (fault !== null) {
@@ -139,17 +137,6 @@ it.each([
         expect(first).toHaveProperty('failure.kind', 'commit-unknown')
       }
       const adopted = fault === null ? ok(first) : ok(await s.fresh().journal.commit(request))
-      if (s.controls !== null && s.controls !== undefined) {
-        const reads = s.controls.sqlReads.slice(traceStart)
-        expect(
-          reads.filter(read => /SELECT path, seq, value FROM sl_state_item/.test(read.sql)),
-          'compaction adoption must not assemble all historical Session state',
-        ).toEqual([])
-        expect(
-          reads.filter(read => /SELECT position, revision, entry FROM sl_entry/.test(read.sql)),
-          'compaction adoption must not rebuild the historical input and attempt index',
-        ).toEqual([])
-      }
       const recovered = s.fresh().journal
       expect(ok(await recovered.commit(request))).toEqual(adopted)
       const state = ok(await recovered.load({ ...s.access, execution: s.execution }))
@@ -216,9 +203,6 @@ it.each([
             },
           }),
         )
-        expect(
-          ok(await s.fresh().journal.load({ ...s.access, execution: s.execution })).results,
-        ).toEqual([])
         expect(
           ok(
             await s
