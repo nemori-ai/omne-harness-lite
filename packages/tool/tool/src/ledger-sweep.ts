@@ -8,7 +8,7 @@ import {
 import type { ToolCallId } from '@omne-harness/tool-contract'
 import type { ToolLedgerPorts } from './construction.ts'
 import { INITIAL_REVISION } from './evidence.ts'
-import { instantAfter } from './ledger-body-writer.ts'
+import { instantAfter } from './instant.ts'
 import { put, type Decision, type Snapshot } from './ledger-decider.ts'
 import { timerOriginOf } from './ledger-timers.ts'
 import { createLedgerTransactions } from './ledger-transactions.ts'

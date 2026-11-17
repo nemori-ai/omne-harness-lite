@@ -14,6 +14,7 @@ import type { ToolRelease } from '../../entry/tool-release.ts'
 import { createSettingsGuard } from '../authorization/settings-access.ts'
 import type { TenantGovernanceHost } from './tenant-host.ts'
 import { createTenantSettingsPermissions } from './tenant-settings-permissions.ts'
+import { preferenceAssetOf } from './preference-settings.ts'
 
 type Face = TenantSettings<unknown>
 
@@ -61,11 +62,13 @@ export type TenantSettingsServiceOptions = Readonly<{
 
 const unavailable = { kind: 'rejected', reason: 'unavailable' } as const
 
-export function heldAssetOf(host: Pick<TenantGovernanceHost, 'assets'>) {
+export function settingsAssetOf(host: Pick<TenantGovernanceHost, 'assets'>) {
   return async (
     tenant: TenantId,
     view: SettingsTargetView,
   ): Promise<TenantSettingsAssetRef | undefined> => {
+    const preference = preferenceAssetOf(view.target)
+    if (preference !== undefined) return preference
     if (view.target.policyId !== 'asset') return undefined
     const tenantRef = tenantCodec.encode(tenant)
     const assets = tenantRef.ok ? await host.assets(tenantRef.value) : undefined
@@ -101,7 +104,7 @@ export function createTenantSettingsFace(options: TenantSettingsServiceOptions):
         const settings = await settingsOf(tenant)
         return settings === undefined ? unavailable : settings.read(request)
       },
-      assetOf: heldAssetOf(options.host),
+      assetOf: settingsAssetOf(options.host),
     },
     permissions: createTenantSettingsPermissions(options),
     writer: {

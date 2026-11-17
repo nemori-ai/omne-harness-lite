@@ -19,5 +19,5 @@ export function settleResultBodies(
   if (linked === null && orphanDue === null) return succeed([])
   if (orphanDue === null)
     return invalid('original.source', 'body-settlement-requires-a-settlement-instant')
-  return settleBodyEntries(snapshot, linked, orphanDue)
+  return settleBodyEntries(snapshot, linked, orphanDue, result.result)
 }

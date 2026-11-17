@@ -14,7 +14,6 @@ const listOf = (h: Harness, caller: Parameters<Harness['faces']>[0]) =>
     tenant: h.access().tenant,
     after: null,
     limit: 10,
-    includeArchived: false,
   })
 
 describe('directory.list', () => {

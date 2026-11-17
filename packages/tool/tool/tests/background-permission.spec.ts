@@ -39,7 +39,7 @@ function call(
   definition: ToolDefinition,
   command: string | null,
   params: Record<string, unknown>,
-  effective = JSON.stringify({ command, params }),
+  effective = JSON.stringify({ command, intent: 'run it', params }),
 ): ToolInvokeRequest {
   return request({
     availability: {

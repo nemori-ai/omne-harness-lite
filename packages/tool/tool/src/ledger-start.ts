@@ -28,6 +28,7 @@ import type {
 import { timerSchedules } from './ledger-timers.ts'
 import { executionResultOf, unstartedReleaseBasis } from './ledger-ending.ts'
 import { invalid } from './boundary.ts'
+import { commonOf, type StateBody, type CommonState } from './ledger-state.ts'
 import { mintEvidence, digestOf, sameFactValue } from './evidence.ts'
 import {
   operationRecord,
@@ -360,42 +361,6 @@ export function dropSuspensionContent(snapshot: Snapshot): LedgerWrite[] {
   if (snapshot.waitRequest !== null) writes.push({ kind: 'delete', key: WAIT_REQUEST_KEY })
   if (snapshot.checkpointState !== null) writes.push({ kind: 'delete', key: CHECKPOINT_STATE_KEY })
   return writes
-}
-
-export type CommonState = Pick<
-  ToolState,
-  | 'call'
-  | 'revision'
-  | 'foreground'
-  | 'effect'
-  | 'execution'
-  | 'timing'
-  | 'queue'
-  | 'controls'
-  | 'delivery'
-  | 'supplements'
->
-
-export type StateBody = ToolState extends infer S
-  ? S extends ToolState
-    ? Omit<S, 'source'>
-    : never
-  : never
-
-export function commonOf(state: ToolState): CommonState {
-  const { call, revision, foreground, effect, execution, timing, queue, controls, delivery } = state
-  return {
-    call,
-    revision,
-    foreground,
-    effect,
-    execution,
-    timing,
-    queue,
-    controls,
-    delivery,
-    supplements: state.supplements,
-  }
 }
 
 export function nextState(record: CallRecord, body: StateBody, revision: ToolRevision): ToolState {
@@ -946,7 +911,15 @@ function started(
   return {
     kind: 'commit',
     writes: [
-      put({ kind: 'call', call: { ...record, state, execution: command.execution } }),
+      put({
+        kind: 'call',
+        call: {
+          ...record,
+          state,
+          execution: command.execution,
+          startedAt: command.startedAt ?? null,
+        },
+      }),
       put(operationRecord(command, { kind: 'record-start', state }, mint)),
       ...deleteTasks(snapshot, ['start']),
       ...timerSchedules(record.request, timing, command.startedAt ?? null),

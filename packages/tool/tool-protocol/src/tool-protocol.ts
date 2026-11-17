@@ -57,6 +57,20 @@ const resultPage = object({
   next: { rule: nullable(text) },
 })
 
+const callOutput = {
+  kind: 'one-of',
+  rules: [
+    object({ kind: { rule: literal('none') } }),
+    object({
+      kind: { rule: literal('open', 'sealed') },
+      from: { rule: text },
+      through: { rule: text },
+      total: { rule: text },
+      text: { rule: anyText },
+    }),
+  ],
+} as const
+
 const observeCallFrame = {
   kind: 'one-of',
   rules: [
@@ -90,6 +104,15 @@ export const toolProtocol = defineProtocol({
       outcomes: { succeeded: ruleCodec(resultPage) },
       countsAsAccess: true,
     },
+    // The output body of a call, kept so far: a part after a byte position, or the last part.
+    'read-call-output': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object({ ...target, after: { rule: nullable(text) } })),
+      outcomes: { succeeded: ruleCodec(callOutput) },
+      countsAsAccess: true,
+    },
   },
   observations: {
     'observe-call': {
@@ -106,3 +129,4 @@ export type ToolProtocol = typeof toolProtocol
 export type ToolCallView = RuleValue<typeof call>
 export type ToolCallResultPage = RuleValue<typeof resultPage>
 export type ObserveCallFrame = RuleValue<typeof observeCallFrame>
+export type ToolCallOutputView = RuleValue<typeof callOutput>

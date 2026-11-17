@@ -15,7 +15,7 @@ export interface ToolCallPrincipals {
 
 /** The reads of one call by reference: its state and stream, its result pages, its process. */
 export type ToolCallFaces = Readonly<{
-  queries: Pick<ToolInvocationQueries<Principal, ContentBlock>, 'readResult'>
+  queries: Pick<ToolInvocationQueries<Principal, ContentBlock>, 'readResult' | 'readOutput'>
   instances: ToolStreamReferences<Principal>
   observation: ToolStreamObservation<Principal>
 }>

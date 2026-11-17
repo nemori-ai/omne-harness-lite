@@ -1,3 +1,5 @@
+import type { BackgroundCallResolution, BackgroundCallView } from './background-calls.ts'
+import type { ArchiveCollapse } from './call-control.ts'
 import type { ContextScopeBinding } from './values.ts'
 import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -129,9 +131,12 @@ export interface SessionWork<P> {
   readWork(input: SessionAccess<P>): Reply<WorkSnapshot>
   readCurrentScope(input: SessionAccess<P>): Reply<ContextScopeBinding | null>
   readWaiting(input: SessionAccess<P>): Reply<SessionWaiting | null>
-  readBackgroundCalls(
-    input: SessionAccess<P>,
-  ): Reply<readonly Readonly<{ producer: Extract<ProducerRef, { kind: 'tool' }> }>[]>
+  /** The calls of the session in the background, each with its state asked of Tool now. */
+  readBackgroundCalls(input: SessionAccess<P>): Reply<readonly BackgroundCallView[]>
+  /** A short number of this session; another session's, or none, answers not-found alike. */
+  resolveBackgroundCall(
+    input: SessionAccess<P> & Readonly<{ id: string }>,
+  ): Reply<BackgroundCallResolution>
   readInput(
     input: SessionAccess<P> & Readonly<{ input: InputId }>,
   ): Reply<Extract<RoutedInput, { kind: 'ordinary' }>>
@@ -213,9 +218,13 @@ export interface SessionWork<P> {
     input: Mutation<P> &
       Readonly<{ advance: AdvanceRef; expected: SessionRevision; handover: DurableEvidence }>,
   ): Reply<CommitReceipt>
-  control(
-    input: Mutation<P> & Readonly<{ intent: Control }>,
-  ): Reply<Readonly<{ receipt: CommitReceipt; progress: ControlProgress }>>
+  control(input: Mutation<P> & Readonly<{ intent: Control }>): Reply<
+    Readonly<{
+      receipt: CommitReceipt
+      progress: ControlProgress
+      collapsed?: ArchiveCollapse | null
+    }>
+  >
   finishRun(
     input: Mutation<P> & Readonly<{ run: RunId; expected: SessionRevision; bounded: BoundedClose }>,
   ): Reply<Readonly<{ receipt: CommitReceipt; terminal: RunTerminal }>>
@@ -227,8 +236,9 @@ export interface SessionWork<P> {
   cancelRun(
     input: Mutation<P> & Readonly<{ run: RunId; urgency: 'graceful' | 'force' }>,
   ): Reply<SessionControlReceipt<RunTerminal>>
+  /** Who stops is the caller class, not an input; a second stop of a call answers the first. */
   stopCall(
-    input: Mutation<P> & Readonly<{ producer: ProducerRef }>,
+    input: Mutation<P> & Readonly<{ producer: ProducerRef; reason?: string | null }>,
   ): Reply<SessionControlReceipt<SessionCallTerminal>>
   retryRun(input: Mutation<P> & Readonly<{ run: RunId }>): Reply<CommitReceipt>
   queryControlOperation(
@@ -258,14 +268,15 @@ export interface SessionManagement<P> {
       receipt: CommitReceipt | null
     }>
   >
+  /** With no Run given, the current one; with no Run there, the input is taken as ordinary. */
   interrupt(
     input: Mutation<P> &
       Readonly<{
-        run: RunId
+        run: RunId | null
         urgent: Extract<RoutedInput, { kind: 'ordinary' }>
         decision: DurableEvidence
       }>,
-  ): Reply<Readonly<{ receipt: CommitReceipt; progress: ControlProgress }>>
+  ): Reply<Readonly<{ receipt: CommitReceipt; progress: ControlProgress | null }>>
   freeze(input: Mutation<P> & Readonly<{ verdict: FreezeVerdict }>): Reply<CommitReceipt>
 }
 
@@ -412,29 +423,39 @@ export interface SessionHistory<P> {
       Readonly<{ basis: ModelViewBasis | null; after: string | null; pageBytes: number }>,
   ): Reply<ModelViewRead>
 }
+export type ArchivedBy = 'person' | 'auto' | 'parent'
 export type SessionListItem = Readonly<{
   session: SessionId
   createdAt: string | null
   lastActivityAt: string | null
   lifecycle: WorkSnapshot['lifecycle']
   title: string | null
+  archivedAt: string | null
+  archivedBy: ArchivedBy | null
 }>
+export type SessionListPage = Readonly<{
+  items: readonly SessionListItem[]
+  next: string | null
+  completeness: 'complete' | 'partial'
+}>
+type DirectoryAccess<P> = Readonly<{
+  principal: P
+  tenant: TenantId
+  after: string | null
+  limit: number
+}>
+/** A session is in exactly one of the two lists: the ones not archived, or the archived ones. */
 export interface SessionDirectory<P> {
-  list(
-    input: Readonly<{
-      principal: P
-      tenant: TenantId
-      after: string | null
-      limit: number
-      includeArchived: boolean
-    }>,
-  ): Reply<
-    Readonly<{
-      items: readonly SessionListItem[]
-      next: string | null
-      completeness: 'complete' | 'partial'
-    }>
-  >
+  list(input: DirectoryAccess<P>): Reply<SessionListPage>
+  listArchived(
+    input: DirectoryAccess<P> &
+      Readonly<{
+        from: string | null
+        to: string | null
+        by: ArchivedBy | null
+        titleContains: string | null
+      }>,
+  ): Reply<SessionListPage>
 }
 export type SessionFaces<P> = Readonly<{
   work: SessionWork<P>

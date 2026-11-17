@@ -34,7 +34,12 @@ import type { ToolConfiguration, ToolDependencies } from './construction.ts'
 import { contactCall } from './contact.ts'
 import { createToolDriver } from './driver.ts'
 import { controlIntent } from './control-intent.ts'
-import { invocationInput, operationInput } from './invocation-access.ts'
+import {
+  invocationInput,
+  operationInput,
+  type ReferenceAction,
+  type ResolvedAccess,
+} from './invocation-access.ts'
 import { createStreamFacade } from './stream-facade.ts'
 
 export const toolRuntimeAdoption: Adoption = describedAdoption({
@@ -237,6 +242,16 @@ export function createToolRuntime<P, B extends ContentBlock, E>(
   return Object.freeze(provider)
 }
 
+/** A read by reference: the reference resolves to the call and its admission, or is refused. */
+function byReference<P, T>(
+  input: unknown,
+  action: ReferenceAction,
+  read: (resolved: ResolvedAccess<P>) => Reply<T>,
+): Reply<T> {
+  const resolved = invocationInput<P>(input, action)
+  return 'failure' in resolved ? Promise.resolve(resolved) : read(resolved.ok)
+}
+
 export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
   dependencies: ToolDependencies<P, B, E>,
   configuration: ToolConfiguration,
@@ -295,26 +310,23 @@ export function createToolRuntimeFacade<P, B extends ContentBlock, E>(
         const resolved = invocationInput<P>(input, 'read-process')
         return 'failure' in resolved ? resolved : reads.process({ ...resolved.ok, at: input.at })
       },
-      readWait: async input => {
-        const resolved = invocationInput<P>(input, 'read-wait')
-        return 'failure' in resolved ? resolved : reads.wait({ ...resolved.ok, wait: input.wait })
-      },
-      readDiagnostics: async input => {
-        const resolved = invocationInput<P>(input, 'read-diagnostics')
-        return 'failure' in resolved
-          ? resolved
-          : reads.diagnostics({ ...resolved.ok, after: input.after })
-      },
-      readResult: async input => {
-        const resolved = invocationInput<P>(input, 'read-result')
-        return 'failure' in resolved
-          ? resolved
-          : reads.result({ ...resolved.ok, result: input.result, after: input.after })
-      },
-      account: async input => {
-        const resolved = invocationInput<P>(input, 'account')
-        return 'failure' in resolved ? resolved : reads.account(resolved.ok)
-      },
+      readWait: input =>
+        byReference(input, 'read-wait', (at: ResolvedAccess<P>) =>
+          reads.wait({ ...at, wait: input.wait }),
+        ),
+      readDiagnostics: input =>
+        byReference(input, 'read-diagnostics', (at: ResolvedAccess<P>) =>
+          reads.diagnostics({ ...at, after: input.after }),
+        ),
+      readResult: input =>
+        byReference(input, 'read-result', (at: ResolvedAccess<P>) =>
+          reads.result({ ...at, result: input.result, after: input.after }),
+        ),
+      account: input => byReference(input, 'account', (at: ResolvedAccess<P>) => reads.account(at)),
+      readOutput: input =>
+        byReference(input, 'read-output', (at: ResolvedAccess<P>) =>
+          reads.output({ ...at, after: input.after, maxBytes: input.maxBytes }),
+        ),
     }),
     commands: Object.freeze<ToolInvocationCommands<P>>({
       control: async input => {

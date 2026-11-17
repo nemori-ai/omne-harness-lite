@@ -275,8 +275,11 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
       Tools: { resultMaxBytes: 65536, outputModalities: ['text'] },
       TodoItems: { resultMaxBytes: 1_048_576 },
+      BkgToolCalls: { resultMaxBytes: 65_536 },
       Ask: { resultMaxBytes: 1_048_576 },
       Web: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, maxSearchResults: 10 },
+      Calendar: { resultMaxBytes: 65_536 },
+      Schedules: { resultMaxBytes: 65_536 },
     },
     web: {
       search: {
@@ -359,7 +362,7 @@ export function operatorLayer(options: {
         id: 'storage',
         config: providerConfig(options.storageRoot, {
           closeDeadlineMs: deadline - 1000,
-          maxResponseBytes: 131_072,
+          maxResponseBytes: 1_048_576,
           maxJsonDepth: options.maxJsonDepth ?? releaseMaxJsonDepth(),
         }),
       },

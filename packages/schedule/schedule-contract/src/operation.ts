@@ -16,7 +16,6 @@ export const ScheduleOperationNameSchema = z.enum([
   'schedule.create',
   'schedule.update',
   'schedule.reviseDraft',
-  'schedule.reconfirmConsent',
   'schedule.pause',
   'schedule.resume',
   'schedule.stop',

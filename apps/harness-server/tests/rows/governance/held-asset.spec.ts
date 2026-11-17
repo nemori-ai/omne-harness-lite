@@ -1,7 +1,11 @@
 import { expect, it } from 'vitest'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import type { SettingsTargetView } from '@omne-harness/settings'
-import { heldAssetOf } from '../../../src/rows/governance/tenant-settings-service.ts'
+import {
+  PREFERENCE_SETTINGS,
+  preferenceTarget,
+} from '../../../src/rows/governance/preference-settings.ts'
+import { settingsAssetOf } from '../../../src/rows/governance/tenant-settings-service.ts'
 import type { TenantAssetsAccess } from '../../../src/rows/governance/tenant-runtime.ts'
 import { fixtureTenant } from '../../entry/support.ts'
 
@@ -28,7 +32,7 @@ function holding(state: 'held' | 'removed'): Answer {
 
 function world(answer: Answer | undefined) {
   const reads: unknown[] = []
-  const assetOf = heldAssetOf({
+  const assetOf = settingsAssetOf({
     async assets(tenantRef) {
       reads.push(tenantRef)
       return answer === undefined
@@ -43,6 +47,17 @@ function world(answer: Answer | undefined) {
   })
   return { assetOf, reads }
 }
+
+it('a preference target of the tenant is the preference group, named by its provider, and reads nothing', async () => {
+  const w = world(holding('held'))
+  const definition = PREFERENCE_SETTINGS[0]!
+  const target = preferenceTarget(definition, TENANT)
+  expect(await w.assetOf(A, { target } as unknown as SettingsTargetView)).toEqual({
+    category: 'preference',
+    name: definition.providerId,
+  })
+  expect(w.reads).toEqual([])
+})
 
 it('a target that is not an asset has no asset and reads nothing', async () => {
   const w = world(holding('held'))

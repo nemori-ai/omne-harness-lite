@@ -22,7 +22,6 @@ export function createManagementRecord(
   return {
     view,
     activationExclusive: view.control === 'draft' ? null : input.now,
-    consentLock: input.access.consentLock,
     quota,
     adoptedBasis: input.definition.kind === 'resolved' ? input.definition.basis : null,
     definitionRef: createScheduleDefinitionRef(view),
@@ -50,6 +49,7 @@ function revisionRecord(
     afterRecordRef: createScheduleRecordRef(after.view),
     view: {
       scheduleId: after.view.scheduleId,
+      revision: after.view.revision,
       stateRevision: after.view.stateRevision,
       definitionRevision: after.view.definitionRevision,
       actor: input.operation.scope.actor,

@@ -10,15 +10,23 @@ import { preparationPlanSchema } from './preparation-observation.ts'
 import { domainSchema, failureSchema } from './schema.ts'
 import {
   organizationCurrentConfigurationSchema,
-  organizationCurrentParticipant,
   organizationCurrentPhaseSchema,
   type OrganizationCurrentPhase,
   organizationCurrentRequestSchema,
   type OrganizationCurrentConfiguration,
+  standaloneCurrentParticipant,
+  type StandaloneCurrentRule,
 } from './organization-current-schema.ts'
-import { matchesOrganizationCurrentSource } from './organization-current-material.ts'
+import { matchesStandaloneCurrentSource } from './organization-current-material.ts'
 import { digest, equal, json } from './encoding.ts'
 export function settingsOrganizationCurrentMaterials(
+  configuration: OrganizationCurrentConfiguration,
+): SqlMaterialCatalog['participants'] {
+  return settingsStandaloneCurrentMaterials('organization', configuration)
+}
+/** The current participants of independent targets that an actor tenant writes under one rule. */
+export function settingsStandaloneCurrentMaterials(
+  rule: StandaloneCurrentRule,
   configuration: OrganizationCurrentConfiguration,
 ): SqlMaterialCatalog['participants'] {
   const parsed = organizationCurrentConfigurationSchema.parse(configuration)
@@ -27,10 +35,11 @@ export function settingsOrganizationCurrentMaterials(
   return organizationCurrentPhaseSchema.options.map(phase => {
     const url = new URL(file)
     url.searchParams.set('phase', phase)
+    if (rule !== 'organization') url.searchParams.set('rule', rule)
     url.searchParams.set('configuration', JSON.stringify(parsed))
     return {
-      participant: organizationCurrentParticipant(phase),
-      protocol: `settings-organization-current/1/${phase}/${digest(parsed)}`,
+      participant: standaloneCurrentParticipant(rule, phase),
+      protocol: `settings-${rule}-current/1/${phase}/${digest(parsed)}`,
       moduleUrl: url.href,
       codeDigest: createHash('sha256').update(readFileSync(file)).digest('hex'),
       ownedTables: [],
@@ -47,15 +56,29 @@ type NativeAdapter = Pick<
   SettingsPreparationOptions<ActingForTenantPrincipal>,
   'access' | 'plan' | 'currentCommands'
 >
-export function createOrganizationSettingsCurrent(options: {
+type CurrentOptions = {
   storage: SqlStorage
   domain: DomainRef
   capture: PreparationRegistration
   configuration: OrganizationCurrentConfiguration
-}): NativeAdapter {
+}
+export function createOrganizationSettingsCurrent(options: CurrentOptions): NativeAdapter {
   const domain = domainSchema.parse(options.domain)
   if (domain.scope.kind !== 'system' || domain.transactionDomain !== 'system.settings')
     throw new TypeError('Organization settings require system.settings')
+  return createStandaloneSettingsCurrent('organization', options)
+}
+/** Writes to the independent targets of the actor's own tenant, kept in that tenant's domain. */
+export function createTenantSettingsCurrent(options: CurrentOptions): NativeAdapter {
+  if (domainSchema.parse(options.domain).scope.kind !== 'tenant')
+    throw new TypeError('Tenant settings require a tenant domain')
+  return createStandaloneSettingsCurrent('tenant', options)
+}
+function createStandaloneSettingsCurrent(
+  rule: StandaloneCurrentRule,
+  options: CurrentOptions,
+): NativeAdapter {
+  const domain = domainSchema.parse(options.domain)
   const configuration = organizationCurrentConfigurationSchema.parse(options.configuration)
   const capture = { ...options.capture }
   function actor(
@@ -67,9 +90,13 @@ export function createOrganizationSettingsCurrent(options: {
       !tenant.ok ||
       !equal(identity.domain, domain) ||
       identity.principalRef !== standingPrincipalRef(principal) ||
-      !matchesOrganizationCurrentSource({ domain, target: identity.operation.target }, tenant.value)
+      !matchesStandaloneCurrentSource(
+        rule,
+        { domain, target: identity.operation.target },
+        tenant.value,
+      )
     )
-      throw new Error('Organization settings principal and target mismatch')
+      throw new Error('Standalone settings principal and target mismatch')
     return tenant.value
   }
   function command(
@@ -77,7 +104,7 @@ export function createOrganizationSettingsCurrent(options: {
     request: ReturnType<typeof organizationCurrentRequestSchema.parse>,
   ) {
     return {
-      participant: organizationCurrentParticipant(phase),
+      participant: standaloneCurrentParticipant(rule, phase),
       facts: { request: json(organizationCurrentRequestSchema.parse(request)) },
     }
   }
@@ -88,7 +115,7 @@ export function createOrganizationSettingsCurrent(options: {
         if (
           !tenant.ok ||
           !equal(request.scope, domain.scope) ||
-          !matchesOrganizationCurrentSource({ domain, target: request.target }, tenant.value)
+          !matchesStandaloneCurrentSource(rule, { domain, target: request.target }, tenant.value)
         )
           return { kind: 'rejected', reason: 'forbidden' }
         return {
@@ -104,7 +131,7 @@ export function createOrganizationSettingsCurrent(options: {
       const result = await options.storage.commit({
         identity: {
           ...domain,
-          operation: 'settings.organization-current',
+          operation: `settings.${rule}-current`,
           protocolVersion: '2',
           operationKey: randomUUID(),
         },
@@ -115,7 +142,7 @@ export function createOrganizationSettingsCurrent(options: {
       })
       if (result.kind !== 'committed') return { kind: 'rejected', reason: 'unavailable' }
       const response = result.responses.find(
-        r => r.participant === organizationCurrentParticipant('capture'),
+        r => r.participant === standaloneCurrentParticipant(rule, 'capture'),
       )?.reply.response
       const failure = failureSchema.safeParse(response)
       if (failure.success) return failure.data
@@ -125,7 +152,7 @@ export function createOrganizationSettingsCurrent(options: {
         plan.standing.destination !== configuration.destination ||
         plan.sources.route !== configuration.sourceRoute
       )
-        throw new Error('Organization current configuration mismatch')
+        throw new Error('Standalone current configuration mismatch')
       return plan
     },
     currentCommands(principal, { phase, binding }) {

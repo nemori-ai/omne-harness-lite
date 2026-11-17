@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import type { Message } from '@omne-harness/message'
 import {
   backgroundCalls,
   controlRoutes,
@@ -14,8 +13,6 @@ import type {
   ProducerRef,
   SessionRevision,
   SessionEntriesInterpretation,
-  SessionEntriesItem,
-  SessionEntriesObservation,
   SessionEntriesStart,
   WorkSnapshot,
 } from '@omne-harness/session-contract'
@@ -34,112 +31,21 @@ import { decodeEntry, encodeEntry, type SessionEntry } from '../src/entries.ts'
 import { settledControls } from '../src/call-control.ts'
 import { projectSessionEntries } from '../src/entries-interpretation.ts'
 import { reduce } from '../src/reduce.ts'
-import { open } from './scene.ts'
-
-const CALL = 'call-bg'
-const producer = { kind: 'tool', call: CALL } as const
-const reminder = (text = 'background done'): Message =>
-  ({ ...userMessage(text, 'msg_bgreminder0000000000000'), role: 'system_reminder' }) as Message
-const backgrounded: SessionEntriesInterpretation = {
-  kind: 'backgrounded',
+import {
+  CALL,
+  CALL_FIELDS,
+  backgrounded,
+  bound,
+  commitEntries,
+  entryCount,
+  execution,
+  newEntries,
+  observation,
+  outcome,
   producer,
-  source: evidence('tool/placeholder'),
-}
-const outcome = (result = 'rv-1'): SessionEntriesInterpretation => ({
-  kind: 'background-outcome',
-  producer,
-  result,
-  reminder: reminder(),
-  source: evidence(`tool/result/${result}`),
-})
-const execution: SessionEntriesInterpretation = {
-  kind: 'execution',
-  producer,
-  source: evidence('tool/result/rv-1'),
-}
-
-type Scene = Awaited<ReturnType<typeof bound>>
-
-async function bound(extra: Parameters<typeof open>[0] = {}) {
-  const s = await open(extra)
-  succeeded(
-    await s.commit({
-      kind: 'bindExternalCall',
-      input: {
-        ...s.base,
-        operation: operationId('bind-bg'),
-        expected: (await s.read()).revision,
-        qualification: evidence('qualified'),
-        binding: {
-          producer,
-          action: 'action',
-          consumer: { owner: 'session', work: 'work', position: 'at-bg', purpose: 'action' },
-          request: evidence('request-bg'),
-          initiatingAttempt: null,
-        },
-      },
-    }),
-    'bind',
-  )
-  const first = await s.active()
-  const consumption = (await s.read()).consumptions.find(
-    item => item.binding.producer.call === CALL,
-  )?.id as ConsumptionId
-  return { s, run: first.run.run, execution: first.run.execution.execution, consumption }
-}
-
-function observation(
-  c: Scene,
-  name: string,
-  after: number,
-  parts: readonly (readonly SessionEntriesInterpretation[])[],
-): SessionEntriesObservation {
-  const items: SessionEntriesItem[] = parts.map((interpretation, at) => ({
-    ordinal: String(after + at + 1),
-    key: `${name}-${at}`,
-    fact: evidence(`agent/entry/${name}/${at}`),
-    interpretation,
-  }))
-  const through = String(after + parts.length)
-  return {
-    tenant: c.s.base.tenant,
-    session: c.s.base.session,
-    run: c.run,
-    execution: c.execution,
-    channel: 'tool-received',
-    operation: operationId(`entries-${name}`),
-    after: String(after),
-    through,
-    boundary: {
-      execution: c.execution,
-      channel: 'tool-received',
-      revision: through,
-      executionEvidence: evidence(`agent/head/${through}`),
-      count: through,
-    },
-    items,
-  }
-}
-
-async function commitEntries(c: Scene, value: SessionEntriesObservation) {
-  const snapshot = await c.s.read()
-  const saved = snapshot.entriesProgress?.find(item => item.execution === c.execution)
-  const start: SessionEntriesStart =
-    saved === undefined ? { kind: 'initial' } : { kind: 'saved', progress: saved }
-  return c.s.port.commitEntries({ observation: value, start })
-}
-
-async function newEntries(c: Scene, before: number) {
-  const rows = c.s.port.controls.entriesOf(c.s.base.tenant, c.s.base.session).slice(before)
-  return rows.map(row => {
-    const decoded = decodeEntry(row)
-    if (!('ok' in decoded)) throw new Error(JSON.stringify(decoded))
-    return decoded.ok
-  })
-}
-
-const entryCount = (c: Scene) =>
-  c.s.port.controls.entriesOf(c.s.base.tenant, c.s.base.session).length
+  reminder,
+  type Scene,
+} from './background-scene.ts'
 
 describe('a backgrounded call: the placeholder', () => {
   it('records call.backgrounded and lists the consumption among the placeholders', async () => {
@@ -177,6 +83,84 @@ describe('a backgrounded call: the placeholder', () => {
     expect(await commitEntries(c, observation(c, 'p', 0, [[stray]]))).toMatchObject({
       failure: { kind: 'invalid' },
     })
+  })
+})
+
+describe('the short number of a backgrounded call (I-12, C17)', () => {
+  const OTHER = 'call-bg-second'
+  const other = { kind: 'tool', call: OTHER } as const
+  async function bindOther(c: Scene) {
+    succeeded(
+      await c.s.commit({
+        kind: 'bindExternalCall',
+        input: {
+          ...c.s.base,
+          operation: operationId('bind-second'),
+          expected: (await c.s.read()).revision,
+          qualification: evidence('qualified'),
+          binding: {
+            producer: other,
+            action: 'action-2',
+            consumer: { owner: 'session', work: 'work', position: 'at-second', purpose: 'action' },
+            request: evidence('request-second'),
+            initiatingAttempt: null,
+          },
+        },
+      }),
+      'bind other',
+    )
+  }
+
+  it('records the short number, the label and the source with the call, in the order calls moved', async () => {
+    const c = await bound()
+    await bindOther(c)
+    const second = {
+      ...backgrounded,
+      producer: other,
+      label: { intent: null, tool: 'Shell', command: 'execute', preview: 'sleep 9' },
+      how: 'threshold',
+    } as SessionEntriesInterpretation
+    succeeded(await commitEntries(c, observation(c, 'p', 0, [[backgrounded], [second]])), 'moved')
+    const snapshot = await c.s.read()
+    expect(snapshot.backgroundCalls).toEqual([
+      expect.objectContaining({
+        ordinal: 1,
+        producer,
+        label: CALL_FIELDS.label,
+        source: 'launched',
+      }),
+      expect.objectContaining({ ordinal: 2, producer: other, source: 'threshold' }),
+    ])
+    expect(snapshot.backgroundOrdinal).toBe(2)
+  })
+
+  it('never gives a short number again after its call settles', async () => {
+    const c = await bound()
+    await bindOther(c)
+    succeeded(await commitEntries(c, observation(c, 'p', 0, [[backgrounded]])), 'first moved')
+    succeeded(await commitEntries(c, observation(c, 'r', 1, [[execution, outcome()]])), 'settled')
+    expect((await c.s.read()).backgroundCalls).toEqual([
+      expect.objectContaining({ ordinal: 1, producer, settled: 'input' }),
+    ])
+    const second = { ...backgrounded, producer: other } as SessionEntriesInterpretation
+    succeeded(await commitEntries(c, observation(c, 's', 2, [[second]])), 'second moved')
+    expect((await c.s.read()).backgroundCalls).toEqual([
+      expect.objectContaining({ ordinal: 1, producer, settled: 'input' }),
+      expect.objectContaining({ ordinal: 2, producer: other }),
+    ])
+    expect((await c.s.read()).backgroundCalls?.[1]).not.toHaveProperty('settled')
+  })
+
+  it('keeps the same short numbers when the entries are replayed', async () => {
+    const c = await bound()
+    const before = await c.s.read()
+    const stored = entryCount(c)
+    succeeded(await commitEntries(c, observation(c, 'p', 0, [[backgrounded]])), 'moved')
+    const after = await c.s.read()
+    const entries = c.s.port.controls.entriesOf(c.s.base.tenant, c.s.base.session).slice(stored)
+    const replayed = reduce(before, { revision: after.revision, entries })
+    if (replayed.kind !== 'reduced') throw new Error(replayed.kind)
+    expect(replayed.snapshot.backgroundCalls).toEqual(after.backgroundCalls)
   })
 })
 
@@ -367,48 +351,63 @@ describe('the background outcome totalization', () => {
 
   it('an outcome of a consumption that is not a placeholder is refused', async () => {
     const c = await bound()
-    expect(judgeBackgroundOutcome(await c.s.read(), c.consumption, producer)).toEqual({
+    expect(judgeBackgroundOutcome(await c.s.read(), c.consumption)).toEqual({
       kind: 'refused',
     })
   })
 
   it('an archived session keeps the result and accepts no input', async () => {
     const { c, snapshot } = await placed()
-    expect(
-      judgeBackgroundOutcome({ ...snapshot, lifecycle: 'archived' }, c.consumption, producer),
-    ).toEqual({ kind: 'kept', reason: 'archived' })
+    expect(judgeBackgroundOutcome({ ...snapshot, lifecycle: 'archived' }, c.consumption)).toEqual({
+      kind: 'kept',
+      reason: 'archived',
+    })
   })
 
-  it('a stop of this call keeps the result and accepts no input; a stop of another does not', async () => {
+  it('a stopped call still becomes an input, carrying its stop; a stop of another call does not', async () => {
     const { c, snapshot } = await placed()
-    const stop = (call: string): WorkSnapshot['controls'][number] => ({
-      operation: operationId(`stop-${call}`),
-      target: { kind: 'producer', producer: { kind: 'tool', call } },
-      intent: { kind: 'control', value: { kind: 'stop-call', producer: { kind: 'tool', call } } },
+    const stop = { initiator: 'user', reason: 'too slow', operation: operationId('stop') } as const
+    const stopped = {
+      ...snapshot,
+      backgroundCalls: snapshot.backgroundCalls!.map(item => ({ ...item, stop })),
+    }
+    expect(judgeBackgroundOutcome(stopped, c.consumption)).toEqual({
+      kind: 'input',
+      destination: 'current-run',
+      stop,
+    })
+    expect(judgeBackgroundOutcome({ ...stopped, run: { kind: 'none' } }, c.consumption)).toEqual({
+      kind: 'input',
+      destination: 'next-run',
+      stop,
+    })
+    const control: WorkSnapshot['controls'][number] = {
+      operation: operationId('stop-other'),
+      target: { kind: 'producer', producer: { kind: 'tool', call: 'call-other' } },
+      intent: {
+        kind: 'control',
+        value: { kind: 'stop-call', producer: { kind: 'tool', call: 'call-other' } },
+      },
       state: 'propagating',
       pending: [],
+    }
+    expect(judgeBackgroundOutcome({ ...snapshot, controls: [control] }, c.consumption)).toEqual({
+      kind: 'input',
+      destination: 'current-run',
+      stop: null,
     })
-    expect(
-      judgeBackgroundOutcome({ ...snapshot, controls: [stop(CALL)] }, c.consumption, producer),
-    ).toEqual({ kind: 'kept', reason: 'stopped' })
-    expect(
-      judgeBackgroundOutcome(
-        { ...snapshot, controls: [stop('call-other')] },
-        c.consumption,
-        producer,
-      ),
-    ).toEqual({ kind: 'input', destination: 'current-run' })
   })
 
   it('a frozen session with no Run keeps the result; with an active Run the input goes to it', async () => {
     const { c, snapshot } = await placed()
     const frozen = { ...snapshot, frozen: evidence('frozen') } as unknown as WorkSnapshot
-    expect(judgeBackgroundOutcome(frozen, c.consumption, producer)).toEqual({
+    expect(judgeBackgroundOutcome(frozen, c.consumption)).toEqual({
       kind: 'input',
       destination: 'current-run',
+      stop: null,
     })
     const idle = { ...frozen, run: { kind: 'none' } } as WorkSnapshot
-    expect(judgeBackgroundOutcome(idle, c.consumption, producer)).toEqual({
+    expect(judgeBackgroundOutcome(idle, c.consumption)).toEqual({
       kind: 'kept',
       reason: 'frozen',
     })
@@ -429,9 +428,10 @@ describe('the background outcome totalization', () => {
         },
       ],
     } as WorkSnapshot
-    expect(judgeBackgroundOutcome(cancelled, c.consumption, producer)).toEqual({
+    expect(judgeBackgroundOutcome(cancelled, c.consumption)).toEqual({
       kind: 'input',
       destination: 'next-run',
+      stop: null,
     })
   })
 })
@@ -479,7 +479,7 @@ describe('a control of a backgrounded call goes to Tool, and its outcome reconci
     })
   })
 
-  it('a stop of a backgrounded call goes to Tool alone; its outcome settles kept and reconciles the stop', async () => {
+  it('a stop of a backgrounded call goes to Tool alone; its outcome comes back and reconciles the stop', async () => {
     const c = await placed()
     succeeded(await stopOf(c, 'stop'), 'stop')
     expect(controlRoutes(await c.s.read(), await lastControl(c))).toEqual({
@@ -490,9 +490,9 @@ describe('a control of a backgrounded call goes to Tool, and its outcome reconci
     succeeded(await commitEntries(c, observation(c, 'r', 1, [[execution, outcome()]])), 'outcome')
     const added = await newEntries(c, before)
     expect(added.find(entry => entry.kind === 'call.background-settled')).toMatchObject({
-      disposition: { kind: 'kept', reason: 'stopped' },
+      disposition: { kind: 'input', input: backgroundInputId(producer, 'rv-1') },
     })
-    expect(added.some(entry => entry.kind === 'message.system_reminder')).toBe(false)
+    expect(added.some(entry => entry.kind === 'message.system_reminder')).toBe(true)
     const after = await c.s.read()
     expect(after.controls.at(-1)).toMatchObject({ state: 'reconciled', pending: [] })
     expect(controlRoutes(after, after.controls.at(-1)!)).toEqual({ agent: false, direct: [] })
@@ -627,7 +627,7 @@ describe('the background outcome: what the accepted input is and what a kept out
     expect(decision.entries.map(entry => entry.kind)).not.toContain('intake.routed')
   })
 
-  it('controls other than a stop of this call leave the eligibility', async () => {
+  it('controls other than a stop of this call leave the outcome waking', async () => {
     const c = await placed()
     const snapshot = await c.s.read()
     const control = (operation: string, intent: unknown): WorkSnapshot['controls'][number] =>
@@ -647,9 +647,10 @@ describe('the background outcome: what the accepted input is and what a kept out
       }),
       control('background', { kind: 'control', value: { kind: 'background-tool', producer } }),
     ]
-    expect(judgeBackgroundOutcome({ ...snapshot, controls }, c.consumption, producer)).toEqual({
+    expect(judgeBackgroundOutcome({ ...snapshot, controls }, c.consumption)).toEqual({
       kind: 'input',
       destination: 'current-run',
+      stop: null,
     })
   })
 })
@@ -657,8 +658,8 @@ describe('the background outcome: what the accepted input is and what a kept out
 describe('two backgrounded calls under an archive', () => {
   const OTHER = 'call-bg2'
   const other = { kind: 'tool', call: OTHER } as const
-  const backgroundedOther: SessionEntriesInterpretation = { ...backgrounded, producer: other }
-  const executionOther: SessionEntriesInterpretation = { ...execution, producer: other }
+  const backgroundedOther = { ...backgrounded, producer: other } as SessionEntriesInterpretation
+  const executionOther = { ...execution, producer: other } as SessionEntriesInterpretation
   const outcomeOther: SessionEntriesInterpretation = {
     ...outcome('rv-2'),
     producer: other,
@@ -847,6 +848,7 @@ describe('the reducer refuses a forged background entry', () => {
         kind: 'call.backgrounded',
         consumption: 'unbound' as ConsumptionId,
         producer,
+        ...CALL_FIELDS,
       }),
     ).toBe('quarantined')
     expect(
@@ -854,11 +856,17 @@ describe('the reducer refuses a forged background entry', () => {
         kind: 'call.backgrounded',
         consumption: c.consumption,
         producer: { kind: 'tool', call: 'call-other' },
+        ...CALL_FIELDS,
       }),
     ).toBe('quarantined')
     succeeded(await commitEntries(c, observation(c, 'p', 0, [[backgrounded]])), 'placeholder')
     expect(
-      forged(await c.s.read(), { kind: 'call.backgrounded', consumption: c.consumption, producer }),
+      forged(await c.s.read(), {
+        kind: 'call.backgrounded',
+        consumption: c.consumption,
+        producer,
+        ...CALL_FIELDS,
+      }),
     ).toBe('quarantined')
   })
 })

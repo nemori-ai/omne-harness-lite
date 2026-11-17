@@ -72,6 +72,10 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
   const account = scriptedMethod<In<R['queries']['account']>, Out<R['queries']['account']>>(
     failing(),
   )
+  const readOutput = scriptedMethod<
+    In<R['queries']['readOutput']>,
+    Out<R['queries']['readOutput']>
+  >(failing())
   const control = scriptedMethod<In<R['commands']['control']>, Out<R['commands']['control']>>(
     rejecting(),
   )
@@ -108,6 +112,7 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
         readDiagnostics: readDiagnostics.call,
         readResult: readResult.call,
         account: account.call,
+        readOutput: readOutput.call,
       },
       commands: { control: control.call, releaseDelivery: releaseDelivery.call },
       instances: { current: current.call },
@@ -127,6 +132,7 @@ export function createScriptedToolRuntime<P>(): ScriptedToolRuntime<P> {
       readDiagnostics: readDiagnostics.script,
       readResult: readResult.script,
       account: account.script,
+      readOutput: readOutput.script,
     },
     commands: { control: control.script, releaseDelivery: releaseDelivery.script },
     instances: { current: current.script },

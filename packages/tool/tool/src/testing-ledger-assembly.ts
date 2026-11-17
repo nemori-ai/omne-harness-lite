@@ -103,6 +103,7 @@ function invokeRequest(): ToolInvokeRequest {
     },
     command: null,
     arguments: { original: '{}', effective: '{}', complete: true },
+    label: { intent: null, tool: 'conformance', command: null, preview: '' },
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,

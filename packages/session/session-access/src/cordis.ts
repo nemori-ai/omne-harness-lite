@@ -50,6 +50,7 @@ function facesOf(
   return {
     management: {
       create: creation => management.create(prepare === undefined ? creation : prepare(creation)),
+      interrupt: urgent => management.interrupt(urgent),
     },
     work,
     history,

@@ -1,4 +1,4 @@
-import { sessionIntakeLimits, type SessionIntakeLimits } from './intake.ts'
+import { runStartInputs, sessionIntakeLimits, type SessionIntakeLimits } from './intake.ts'
 import {
   createMemorySessionHistorySource,
   entryEvidence,
@@ -71,6 +71,7 @@ import { type DecideReads, type OperationRecord } from './judgments.ts'
 import { canonicalText, digestOf, deriveSessionOperation } from './operations.ts'
 import { projectSessionLog, type SessionLogObservation } from './projection.ts'
 import { consumptionIdOf } from './decide-results.ts'
+import { controlAnswer } from './call-control.ts'
 import { judgeIdle } from './judgments.ts'
 import { materializeModelView, compactionReads, type MaterializedModelView } from './model-view.ts'
 import { memoryCompactionContext, memoryModelViewPage } from './testing-model-view-reads.ts'
@@ -240,7 +241,7 @@ export function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason
   if (snapshot.unresolved.length > 0) reasons.push('unresolved')
   if (snapshot.controls.some(control => control.state === 'propagating')) reasons.push('controls')
   if (snapshot.tasks.length > 0) reasons.push('tasks')
-  if (snapshot.pending.length > 0) reasons.push('inputs')
+  if (runStartInputs(snapshot).length > 0) reasons.push('inputs')
   if (snapshot.run.kind === 'active') reasons.push('run')
   else if (
     snapshot.lifecycle !== 'archived' &&
@@ -410,10 +411,8 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall | nul
     case 'bindExternalCall':
       return receipt => ({ receipt, consumption: consumptionIdOf(command.input.binding) })
     case 'control':
-    case 'interrupt': {
-      const progress = snapshot.controls.find(item => item.operation === command.input.operation)
-      return receipt => ({ receipt, progress })
-    }
+    case 'interrupt':
+      return receipt => ({ receipt, ...controlAnswer(snapshot, command) })
     case 'cancelRun':
     case 'stopCall': {
       const progress = snapshot.controls.find(item => item.operation === command.input.operation)
@@ -441,7 +440,7 @@ function firstInputRead(
     | undefined,
 ): Pick<DecideReads, 'firstInput'> {
   if (command.kind !== 'startRun' || store === undefined) return {}
-  const first = store.snapshot.pending[0]
+  const [first] = runStartInputs(store.snapshot)
   const stored = first === undefined ? undefined : store.inputs.get(first)
   return stored === undefined ? {} : { firstInput: { input: stored.input, origin: stored.origin } }
 }
@@ -666,7 +665,7 @@ export function createMemorySessionTransactionPair<P>(
             )
       const selected =
         command.kind === 'startRun'
-          ? store?.snapshot.pending.slice(0, 1)
+          ? runStartInputs(store?.snapshot)
           : command.kind === 'receive' && command.input.fact.kind === 'input-handover'
             ? [command.input.fact.input]
             : undefined
@@ -816,7 +815,7 @@ export function createMemorySessionTransactionPair<P>(
           ? { form: 'control' as const }
           : {}),
       })
-      const inputs = withInputs(store?.inputs, admittedInputs(command))
+      const inputs = withInputs(store?.inputs, admittedInputs(command, decision.admitted))
       const target: Store = {
         snapshot: committedSnapshot,
         modelView: materializeModelView(

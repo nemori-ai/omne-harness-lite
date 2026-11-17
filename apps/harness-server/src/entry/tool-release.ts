@@ -22,7 +22,7 @@ import {
   loadToolRelease,
   sameAdoption,
   sameEvidence,
-  locateToolDefinitions,
+  locateReleasePackages,
   type ReleaseModules,
   type ToolReleaseManifest,
   type ToolReleaseSnapshot,
@@ -210,7 +210,7 @@ const MEMBER_DIR = dirname(dirname(dirname(fileURLToPath(import.meta.url))))
 export function productionReleaseInput(): Parameters<typeof loadToolRelease>[0] {
   return {
     manifestPath: fileURLToPath(new URL('../../config/tool-release.json', import.meta.url)),
-    packageRoot: () => locateToolDefinitions(MEMBER_DIR),
+    packageRoots: () => locateReleasePackages(MEMBER_DIR),
     version: async () => {
       const manifest: unknown = JSON.parse(
         await readFile(new URL('../../package.json', import.meta.url), 'utf8'),
