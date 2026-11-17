@@ -62,7 +62,7 @@ describe('the snapshot the Agent loads holds its open work only', () => {
       tool: index => ({ content: [replyText(`tool-${index}`, `the content of file ${index}`)] }),
       defaultDelayMs: 20,
       earlier: 'session',
-      receptionTargets: 'journal',
+      reception: 'routed',
       maxRunSteps: 1000,
       wrapAgentDependencies: dependencies => ({
         ...dependencies,
