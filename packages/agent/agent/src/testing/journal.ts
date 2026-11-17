@@ -96,6 +96,14 @@ import {
 } from './journal-values.ts'
 import { canonical } from '../canonical.ts'
 import {
+  checkedCaller,
+  conflict,
+  copy,
+  invalid,
+  recordCompletion,
+  sameValue,
+} from './journal-compaction-caller.ts'
+import {
   admissionCounters,
   admissionKey,
   admit,
@@ -387,15 +395,6 @@ const PARTICIPANT_PROTOCOL: Adoption = Object.freeze({
   digest: 'memory:terminal-participant',
 })
 const denied = (action: string): Failure => ({ kind: 'denied', action })
-const conflict = (operation: AgentOperationId): Extract<Failure, { kind: 'conflict' }> => ({
-  kind: 'conflict',
-  operation,
-})
-const invalid = (field: string, reason: string): Failure => ({ kind: 'invalid', field, reason })
-
-function copy<T>(value: T): T {
-  return structuredClone(value)
-}
 
 function sameResult(left: ResultResponsibility['result'], right: ResultResponsibility['result']) {
   return canonical(left.producer) === canonical(right.producer) && left.version === right.version
@@ -582,10 +581,6 @@ function sameEvidence(left: DurableEvidence | null, right: DurableEvidence | nul
   )
 }
 
-function sameValue(left: unknown, right: unknown): boolean {
-  return canonical(left) === canonical(right)
-}
-
 function handoffRecord(
   execution: Execution,
   reference: HandoffReference,
@@ -678,6 +673,22 @@ function acceptanceFailure(
   return undefined
 }
 
+function receiptOf(
+  execution: Execution,
+  operation: AgentOperationId,
+  revision: number,
+  evidence: DurableEvidence,
+  state: CommandReceipt['state'],
+): CommandReceipt {
+  return {
+    operation,
+    execution: execution.id,
+    revision: revisionOf(revision),
+    evidence,
+    state,
+  }
+}
+
 export function createMemoryAgentJournal<P>(
   options: MemoryAgentJournalOptions<P>,
 ): MemoryAgentJournal<P> {
@@ -768,22 +779,6 @@ export function createMemoryAgentJournal<P>(
   function nextEvidence(execution: Execution, what: string, revision: number): DurableEvidence {
     execution.serial += 1
     return journalEvidence(`${execution.id}/${what}/${execution.serial}`, revision)
-  }
-
-  function receiptOf(
-    execution: Execution,
-    operation: AgentOperationId,
-    revision: number,
-    evidence: DurableEvidence,
-    state: CommandReceipt['state'],
-  ): CommandReceipt {
-    return {
-      operation,
-      execution: execution.id,
-      revision: revisionOf(revision),
-      evidence,
-      state,
-    }
   }
 
   function latestAttachment(execution: Execution): Attachment | undefined {
@@ -2397,60 +2392,8 @@ export function createMemoryAgentJournal<P>(
         if (readFailure !== undefined) return answer(fail(readFailure))
         const handoffChange = handoffWrite(execution, input)
         if ('failure' in handoffChange) return answer(handoffChange)
-        const caller = input.caller
-        const adopted = caller.kind === 'context-transition' ? caller.value : null
-        const consumed =
-          caller.kind === 'processed' && caller.result.producer.kind === 'compaction'
-            ? caller
-            : adopted === null
-              ? null
-              : {
-                  result: {
-                    producer: { kind: 'compaction' as const, task: adopted.task },
-                    version: adopted.result.version,
-                    delivery: null,
-                    source: adopted.result.evidence,
-                  },
-                  consumption: adopted.consumption,
-                }
-        const resultIndex =
-          consumed === null
-            ? -1
-            : execution.results.findIndex(
-                item =>
-                  sameValue(item.result, consumed.result) &&
-                  item.consumption === consumed.consumption,
-              )
-        const responsibility = execution.results[resultIndex]
-        if (consumed !== null && responsibility === undefined)
-          return answer(
-            fail(invalid('caller', 'the result has no durable consumer responsibility')),
-          )
-        if (adopted !== null) {
-          const task = execution.checkpoint.compaction
-          if (
-            task === null ||
-            !sameValue(task.task, adopted.task) ||
-            task.consumption !== adopted.consumption ||
-            !sameValue(task.result, adopted.result) ||
-            !sameValue(task.received, adopted.received) ||
-            !sameValue(responsibility?.custody, adopted.received) ||
-            execution.checkpoint.requestPreparation?.id !== adopted.preparation ||
-            responsibility?.completion !== null
-          )
-            return answer(
-              fail(
-                invalid('caller', 'the compaction result is not the current unprocessed result'),
-              ),
-            )
-        }
-        if (
-          consumed !== null &&
-          caller.kind === 'processed' &&
-          responsibility?.completion !== null &&
-          !sameValue(responsibility?.completion, caller.completion)
-        )
-          return answer(fail(conflict(input.operation)))
+        const checked = checkedCaller(execution, input)
+        if ('failure' in checked) return answer(checked)
         if (input.caller.kind !== 'none') {
           const refused = participation<CommandReceipt>(input.caller.kind, () =>
             answer(fail({ kind: 'changed' })),
@@ -2488,20 +2431,7 @@ export function createMemoryAgentJournal<P>(
           apply: () => {
             handoffChange.ok(revision, evidence)
             execution.checkpoint = copy(input.checkpoint)
-            if (consumed !== null && responsibility !== undefined) {
-              execution.results[resultIndex] = {
-                ...responsibility,
-                completion: caller.kind === 'processed' ? copy(caller.completion) : evidence,
-              }
-              execution.resultRevisions.set(
-                semanticKey('responsibility', [
-                  consumed.result.producer,
-                  consumed.result.version,
-                  consumed.consumption,
-                ]),
-                revision,
-              )
-            }
+            recordCompletion(execution, checked.ok, input.caller, evidence, revision)
             receiving.remember(execution, input.authority.instance)
             execution.state = copy(input.state)
             for (const effect of input.effects) {
@@ -2557,11 +2487,11 @@ export function createMemoryAgentJournal<P>(
               execution.admissionLedger = admitted.ledger
             }
             admissionStatistics.checkpointWrites += 1
-            if (caller.kind !== 'none') {
+            if (input.caller.kind !== 'none') {
               jointFacts.push({
                 execution: execution.id,
                 operation: input.operation,
-                caller: copy(caller),
+                caller: copy(input.caller),
               })
             }
             execution.revision = revision

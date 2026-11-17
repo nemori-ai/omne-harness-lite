@@ -213,11 +213,8 @@ function cloneRoot(root: CommonRoot): CommonRoot {
   }
 }
 
-export function createCell<P>(tenant: TenantId, session: SessionId, hooks: JournalHooks<P>) {
-  const text = tenantCodec.encode(tenant)
-  if (!text.ok) throw new TypeError('tenant must be minted by legal-identity')
-  const namespace = JSON.stringify([text.value, session])
-  let root: CommonRoot = {
+function emptyCommonRoot(): CommonRoot {
+  return {
     position: 0n,
     session: null,
     sources: emptySessionSources(),
@@ -246,6 +243,13 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
     },
     receiving: emptyReceivingState(),
   }
+}
+
+export function createCell<P>(tenant: TenantId, session: SessionId, hooks: JournalHooks<P>) {
+  const text = tenantCodec.encode(tenant)
+  if (!text.ok) throw new TypeError('tenant must be minted by legal-identity')
+  const namespace = JSON.stringify([text.value, session])
+  let root: CommonRoot = emptyCommonRoot()
   let draft: CommonRoot | null = null
   let dirty = false
   let gate: string | null = null

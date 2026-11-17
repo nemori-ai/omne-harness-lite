@@ -13,7 +13,6 @@ import {
   type AgentJournal,
   type AgentExecutionId,
   type DurableEvidence,
-  type CallerCommit,
   type ExecutionMutation,
   type Failure,
   type CommandReceipt,
@@ -77,6 +76,7 @@ import {
 import { canonical, digestOf, materializeModelView, rowData } from './session-values.ts'
 import { journalEvidence } from './journal-values.ts'
 import type { SessionDirectory } from './session-directory.ts'
+import { cancelBatchRow, fieldOf, sessionCaller } from './factory-values.ts'
 
 type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
 type AttachInput<P> = Parameters<AgentJournal<P>['attach']>[0]
@@ -354,18 +354,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     cells.set(key, cell)
     return cell
   }
-  function sessionCaller(input: ExecutionMutation<P>, method: JournalWrite): CallerCommit {
-    const caller =
-      method === 'commit'
-        ? (input as Parameters<AgentJournal<P>['commit']>[0]).caller
-        : method === 'recordResult'
-          ? (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
-          : { kind: 'none' as const }
-    return (caller.kind === 'custody' || caller.kind === 'processed') &&
-      caller.result.producer.kind === 'compaction'
-      ? { kind: 'none' }
-      : caller
-  }
 
   function jointCommand(
     cell: JournalCell<P>,
@@ -525,22 +513,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     if (!released)
       throw new Error('session double defect: the last attempt before the cancel has no SE16')
     return true
-  }
-
-  function fieldOf(value: unknown, key: string): unknown {
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
-      ? Object.entries(value).find(([name]) => name === key)?.[1]
-      : undefined
-  }
-
-  function cancelBatchRow(root: CommonRoot, terminal: RunTerminal): HistoryEntry {
-    for (const row of root.sources.rowsById.values())
-      if (
-        row.kind === 'run.terminal' &&
-        canonical(row.origin.source) === canonical(terminal.evidence)
-      )
-        return row
-    throw new Error('session double defect: a Run terminal without its SE26 row')
   }
 
   function terminalControl(

@@ -372,31 +372,24 @@ export type SessionStorageMaterials = Readonly<{
   readHandlers: readonly ReadHandlerDescriptor[]
 }>
 
+function migrationOf(
+  ref: Readonly<{ owner: string; id: string }>,
+  file: string,
+  requires: readonly Readonly<{ owner: string; id: string }>[],
+): MigrationDescriptor {
+  const found = module(file)
+  return { ...ref, moduleUrl: found.moduleUrl, checksum: found.digest, requires }
+}
+
 export function sessionStorageMaterials(
   options: SessionStorageMaterialsOptions,
 ): SessionStorageMaterials {
   const readOutputLimitBytes = requireReadOutputLimit(options)
-  const permissionMigration = module('permission-current-migration')
   const permissionGuard = module('permission-current-guard')
   const runLiveGuard = module('run-live-guard')
   const participant = module('participant')
   const ordinaryBasis = module('ordinary-basis')
   const record = module('execution-record')
-  const migration = module('migration')
-  const recordMigration = module('execution-record-migration')
-  const indexMigration = module('execution-index-migration')
-  const evidenceMigration = module('operation-evidence-migration')
-  const stateItemMigration = module('state-item-migration')
-  const attemptGrantMigration = module('attempt-grant-migration')
-  const scopeIndexMigration = module('scope-index-migration')
-  const sessionListMigration = module('session-list-migration')
-  const compactionIndexMigration = module('compaction-index-migration')
-  const preadmissionMigration = module('preadmission-migration')
-  const admissionAttemptMigration = module('admission-attempt-migration')
-  const statePartMigration = module('state-part-migration')
-  const factBodyMigration = module('fact-body-migration')
-  const factBlobMigration = module('fact-blob-migration')
-  const currentMigration = module('execution-current-migration')
   return {
     participants: [
       {
@@ -479,102 +472,32 @@ export function sessionStorageMaterials(
       },
     ],
     migrations: [
-      {
-        ...migrationRef,
-        moduleUrl: migration.moduleUrl,
-        checksum: migration.digest,
-        requires: [],
-      },
-      {
-        ...recordMigrationRef,
-        moduleUrl: recordMigration.moduleUrl,
-        checksum: recordMigration.digest,
-        requires: [],
-      },
-      {
-        ...indexMigrationRef,
-        moduleUrl: indexMigration.moduleUrl,
-        checksum: indexMigration.digest,
-        requires: [migrationRef],
-      },
-      {
-        ...evidenceMigrationRef,
-        moduleUrl: evidenceMigration.moduleUrl,
-        checksum: evidenceMigration.digest,
-        requires: [indexMigrationRef],
-      },
-      {
-        ...stateItemMigrationRef,
-        moduleUrl: stateItemMigration.moduleUrl,
-        checksum: stateItemMigration.digest,
-        requires: [evidenceMigrationRef],
-      },
-      {
-        ...attemptGrantMigrationRef,
-        moduleUrl: attemptGrantMigration.moduleUrl,
-        checksum: attemptGrantMigration.digest,
-        requires: [stateItemMigrationRef],
-      },
-      {
-        ...PERMISSION_CURRENT_MIGRATION,
-        moduleUrl: permissionMigration.moduleUrl,
-        checksum: permissionMigration.digest,
-        requires: [attemptGrantMigrationRef],
-      },
-      {
-        ...scopeIndexMigrationRef,
-        moduleUrl: scopeIndexMigration.moduleUrl,
-        checksum: scopeIndexMigration.digest,
-        requires: [migrationRef],
-      },
-      {
-        ...sessionListMigrationRef,
-        moduleUrl: sessionListMigration.moduleUrl,
-        checksum: sessionListMigration.digest,
-        requires: [stateItemMigrationRef],
-      },
-      {
-        ...COMPACTION_INDEX_MIGRATION,
-        moduleUrl: compactionIndexMigration.moduleUrl,
-        checksum: compactionIndexMigration.digest,
-        requires: [migrationRef],
-      },
-      {
-        ...preadmissionMigrationRef,
-        moduleUrl: preadmissionMigration.moduleUrl,
-        checksum: preadmissionMigration.digest,
-        requires: [recordMigrationRef],
-      },
-      {
-        ...admissionAttemptMigrationRef,
-        moduleUrl: admissionAttemptMigration.moduleUrl,
-        checksum: admissionAttemptMigration.digest,
-        requires: [recordMigrationRef],
-      },
-      {
-        ...statePartMigrationRef,
-        moduleUrl: statePartMigration.moduleUrl,
-        checksum: statePartMigration.digest,
-        requires: [recordMigrationRef],
-      },
-      {
-        ...factBodyMigrationRef,
-        moduleUrl: factBodyMigration.moduleUrl,
-        checksum: factBodyMigration.digest,
-        requires: [recordMigrationRef],
-      },
-      {
-        ...factBlobMigrationRef,
-        moduleUrl: factBlobMigration.moduleUrl,
-        checksum: factBlobMigration.digest,
-        requires: [recordMigrationRef, statePartMigrationRef, factBodyMigrationRef],
-      },
-      {
-        ...EXECUTION_CURRENT_MIGRATION,
-        moduleUrl: currentMigration.moduleUrl,
-        checksum: currentMigration.digest,
-        requires: [factBlobMigrationRef],
-      },
+      migrationOf(migrationRef, 'migration', []),
+      migrationOf(recordMigrationRef, 'execution-record-migration', []),
+      migrationOf(indexMigrationRef, 'execution-index-migration', [migrationRef]),
+      migrationOf(evidenceMigrationRef, 'operation-evidence-migration', [indexMigrationRef]),
+      migrationOf(stateItemMigrationRef, 'state-item-migration', [evidenceMigrationRef]),
+      migrationOf(attemptGrantMigrationRef, 'attempt-grant-migration', [stateItemMigrationRef]),
+      migrationOf(PERMISSION_CURRENT_MIGRATION, 'permission-current-migration', [
+        attemptGrantMigrationRef,
+      ]),
+      migrationOf(scopeIndexMigrationRef, 'scope-index-migration', [migrationRef]),
+      migrationOf(sessionListMigrationRef, 'session-list-migration', [stateItemMigrationRef]),
+      migrationOf(COMPACTION_INDEX_MIGRATION, 'compaction-index-migration', [migrationRef]),
+      migrationOf(preadmissionMigrationRef, 'preadmission-migration', [recordMigrationRef]),
+      migrationOf(admissionAttemptMigrationRef, 'admission-attempt-migration', [
+        recordMigrationRef,
+      ]),
+      migrationOf(statePartMigrationRef, 'state-part-migration', [recordMigrationRef]),
+      migrationOf(factBodyMigrationRef, 'fact-body-migration', [recordMigrationRef]),
+      migrationOf(factBlobMigrationRef, 'fact-blob-migration', [
+        recordMigrationRef,
+        statePartMigrationRef,
+        factBodyMigrationRef,
+      ]),
+      migrationOf(EXECUTION_CURRENT_MIGRATION, 'execution-current-migration', [
+        factBlobMigrationRef,
+      ]),
     ],
     readHandlers: HANDLERS.map(item => {
       const file = module(item.file)

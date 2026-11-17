@@ -80,6 +80,43 @@ const unavailable = (diagnostic: string): Failure => ({
   diagnostic,
 })
 
+async function indexedSession<P>(
+  options: ExecutionRoutedJournalOptions<P>,
+  tenant: string,
+  execution: Scope['execution'],
+  action: string,
+): Promise<Outcome<SessionId, Failure>> {
+  let found
+  try {
+    found = await options.tenantDomainLookup.lookup({ tenant })
+  } catch (error) {
+    return fail(unavailable(`tenant domain lookup threw: ${String(error)}`))
+  }
+  if (found.kind !== 'ready')
+    return fail(
+      unavailable(
+        found.kind === 'unregistered' ? 'the tenant has no transaction domain' : found.diagnostic,
+      ),
+    )
+  let result
+  try {
+    result = await options.storage.read({
+      domain: found.domain,
+      handler: SESSION_EXECUTION_HANDLER,
+      protocol: SESSION_READ_PROTOCOL,
+      requestKey: randomUUID(),
+      input: { tenant, execution },
+    })
+  } catch (error) {
+    return fail(unavailable(`the execution index read threw: ${String(error)}`))
+  }
+  if (result.kind !== 'read') return fail(unavailable('the execution index is not readable'))
+  const indexed = decodeSessionExecution(result.output)
+  if (indexed === 'malformed') return fail(unavailable('the execution index row is malformed'))
+  if (indexed === null) return fail({ kind: 'denied', action })
+  return succeed(indexed.session as SessionId)
+}
+
 export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalOptions<P>) {
   const journals = createSessionLogJournal<P>({
     storage: options.storage,
@@ -112,35 +149,9 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     const cached = routes.get(key)
     if (cached !== undefined) return succeed(cached)
 
-    let found
-    try {
-      found = await options.tenantDomainLookup.lookup({ tenant: tenant.value })
-    } catch (error) {
-      return fail(unavailable(`tenant domain lookup threw: ${String(error)}`))
-    }
-    if (found.kind !== 'ready')
-      return fail(
-        unavailable(
-          found.kind === 'unregistered' ? 'the tenant has no transaction domain' : found.diagnostic,
-        ),
-      )
-    let result
-    try {
-      result = await options.storage.read({
-        domain: found.domain,
-        handler: SESSION_EXECUTION_HANDLER,
-        protocol: SESSION_READ_PROTOCOL,
-        requestKey: randomUUID(),
-        input: { tenant: tenant.value, execution: scope.execution },
-      })
-    } catch (error) {
-      return fail(unavailable(`the execution index read threw: ${String(error)}`))
-    }
-    if (result.kind !== 'read') return fail(unavailable('the execution index is not readable'))
-    const indexed = decodeSessionExecution(result.output)
-    if (indexed === 'malformed') return fail(unavailable('the execution index row is malformed'))
-    if (indexed === null) return fail({ kind: 'denied', action })
-    const session = indexed.session as SessionId
+    const indexed = await indexedSession(options, tenant.value, scope.execution, action)
+    if ('failure' in indexed) return indexed
+    const session = indexed.ok
     const route = { session, view: journals.forSession({ tenant: scope.tenant, session }) }
     remember(key, route)
     return succeed(route)

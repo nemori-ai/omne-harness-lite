@@ -33,7 +33,6 @@ import type {
   WorkSnapshot,
   CommitReceipt,
   HistoryEntry,
-  HistoryPage,
   OperationResolution,
   PendingReason,
   SessionFailure,
@@ -62,7 +61,6 @@ import type { InitializationSource, HistorySource } from './ports.ts'
 import {
   canonical as canonicalText,
   digestOf,
-  decodedRow,
   rowData,
   materializeModelView,
   compactionReads,
@@ -70,7 +68,7 @@ import {
 import type { SessionState } from './root.ts'
 import { admittedInputs, withInputs } from './inputs.ts'
 import type { SessionDirectory } from './session-directory.ts'
-const TESTING_OWNER = '@omne-harness/session-adapters/testing'
+import { TESTING_OWNER, decodeCursor, historyPage } from './session-pages.ts'
 type Recall = (receipt: CommitReceipt) => unknown
 
 type Store = SessionState
@@ -83,16 +81,6 @@ function logReceiptOf(
     ? (answer as SessionLogReceipt)
     : null
 }
-
-type Cursor = Readonly<{
-  tenant: string
-  session: SessionId
-  kinds: readonly string[]
-  direction: 'forward' | 'backward'
-  upper: number
-  scanned: number
-  pageBytes: number
-}>
 
 export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> {
   readonly durability: 'none'
@@ -185,30 +173,6 @@ function keyOf(tenant: TenantId, session: SessionId): Outcome<string, SessionFai
       reason: 'not a tenant that legal-identity minted',
     })
   return succeed(`${text.value}\u0000${session}`)
-}
-
-function entryBytes(entry: HistoryEntry): number {
-  return Buffer.byteLength(canonicalText(entry), 'utf8')
-}
-
-function encodeCursor(cursor: Cursor): string {
-  return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url')
-}
-
-function decodeCursor(text: string): Cursor | null {
-  try {
-    const parsed: unknown = JSON.parse(Buffer.from(text, 'base64url').toString('utf8'))
-    if (typeof parsed !== 'object' || parsed === null) return null
-    const cursor = parsed as Record<string, unknown>
-    if (typeof cursor['tenant'] !== 'string' || typeof cursor['session'] !== 'string') return null
-    if (!Array.isArray(cursor['kinds']) || typeof cursor['upper'] !== 'number') return null
-    if (typeof cursor['scanned'] !== 'number' || typeof cursor['pageBytes'] !== 'number')
-      return null
-    if (cursor['direction'] !== 'forward' && cursor['direction'] !== 'backward') return null
-    return cursor as Cursor
-  } catch {
-    return null
-  }
 }
 
 export function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason[] {
@@ -701,50 +665,6 @@ export function createSessionTransactions<P>(
     return succeed(answer)
   }
 
-  const page = (store: Store, cursor: Cursor): HistoryPage => {
-    const upper = Math.min(cursor.upper, store.entries.length)
-    const forward = cursor.direction === 'forward'
-    const matches = (entry: HistoryEntry): boolean =>
-      cursor.kinds.length === 0 || cursor.kinds.includes(entry.kind)
-    const taken: HistoryEntry[] = []
-    let scanned = cursor.scanned
-    let bytes = 0
-    while (forward ? scanned < upper : scanned < upper) {
-      const index = forward ? scanned : upper - scanned - 1
-      const entry = store.entries[index] as HistoryEntry
-      if (matches(entry)) {
-        const size = entryBytes(entry)
-        if (taken.length > 0 && bytes + size > cursor.pageBytes) break
-        taken.push(entry)
-        bytes += size
-      }
-      scanned += 1
-    }
-    const exhausted = scanned >= upper
-    const next: Cursor = { ...cursor, upper, scanned }
-    const token = encodeCursor(next)
-    if (!exhausted) issuedCursors.add(token)
-    return {
-      source: TESTING_OWNER,
-      interpreter: store.snapshot.interpreter,
-      upper: store.entries[upper - 1]?.revision ?? store.snapshot.revision,
-      entries: taken,
-      scannedThrough: String(scanned),
-      next: exhausted ? null : token,
-      exhausted,
-      annotations: store.entries.slice(0, upper).filter(entry => {
-        const decoded = decodedRow(entry)
-        return (
-          'ok' in decoded &&
-          decoded.ok.kind === 'history.annotated' &&
-          'targets' in decoded.ok &&
-          !taken.includes(entry) &&
-          decoded.ok.targets.some(target => taken.some(row => row.id === target))
-        )
-      }),
-    }
-  }
-
   const history: SessionHistory<P> = {
     readCompactionContext: async input => {
       const store = await storeOf(input, 'history.readCompactionContext')
@@ -785,7 +705,7 @@ export function createSessionTransactions<P>(
         else upper = at
       }
       return succeed(
-        page(store.ok, {
+        historyPage(store.ok, issuedCursors, {
           tenant,
           session: input.session,
           kinds: input.kinds,
@@ -808,7 +728,7 @@ export function createSessionTransactions<P>(
         cursor.session !== input.session
       )
         return fail({ kind: 'invalid', field: 'cursor', reason: 'not a cursor of this session' })
-      return succeed(page(store.ok, cursor))
+      return succeed(historyPage(store.ok, issuedCursors, cursor))
     },
     since: async input => {
       const store = await storeOf(input, 'history.since')
@@ -820,7 +740,7 @@ export function createSessionTransactions<P>(
         return fail({ kind: 'invalid', field: 'after', reason: 'not an entry of this session' })
       const tenant = (tenantCodec.encode(input.tenant) as { ok: true; value: string }).value
       return succeed(
-        page(store.ok, {
+        historyPage(store.ok, issuedCursors, {
           tenant,
           session: input.session,
           kinds: input.kinds,

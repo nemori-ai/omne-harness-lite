@@ -81,127 +81,132 @@ const denied = (): Failure => ({ kind: 'denied', action: 'read-compaction-input'
 
 type Scope = Readonly<{ tenant: string; session: SessionId; domain: DomainRef }>
 
+async function scopeOf<P>(
+  options: SessionCompactionInputsOptions<P>,
+  input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
+): Reply<Scope> {
+  const tenant = tenantCodec.encode(input.tenant)
+  if (!tenant.ok) return fail(denied())
+  const session = await options.sessionOf(input)
+  if ('failure' in session) return session
+  try {
+    const allowed = await options.sessionAccessCheck.check({
+      access: input,
+      operation: 'history.readModelView',
+      target: { kind: 'session', session: session.ok },
+    })
+    if (allowed.kind === 'denied') return fail(denied())
+    if (allowed.kind === 'unavailable') return fail(unavailable(allowed.diagnostic))
+    const domain = await options.tenantDomainLookup.lookup({ tenant: tenant.value })
+    if (domain.kind !== 'ready')
+      return fail(
+        unavailable(
+          domain.kind === 'unregistered'
+            ? 'the tenant has no transaction domain'
+            : domain.diagnostic,
+        ),
+      )
+    return succeed({ tenant: tenant.value, session: session.ok, domain: domain.domain })
+  } catch {
+    return fail(unavailable('the input access or domain check threw'))
+  }
+}
+
+async function blob(storage: SqlStorage, scope: Scope, wanted: string): Reply<string> {
+  const result = await readOutput(storage, {
+    domain: scope.domain,
+    handler: EXECUTION_RECORD_HANDLERS.blob,
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    input: { tenant: scope.tenant, digest: wanted },
+  })
+  if (result.kind === 'unread') return fail(unavailable(result.reason))
+  const decoded = decodeExecutionRecordBlob(result.output)
+  if (decoded === null) return fail(unavailable('the frozen input body is missing'))
+  if (decoded.kind === 'denied') return fail(denied())
+  if (decoded.digest !== wanted || hash(decoded.payload) !== wanted)
+    return fail(invalid('the frozen input body digest differs'))
+  return succeed(decoded.payload)
+}
+
+async function original(
+  storage: SqlStorage,
+  scope: Scope,
+  entry: string,
+  epoch: string | null,
+  wanted: string,
+): Reply<string> {
+  const result = await readOutput(storage, {
+    domain: scope.domain,
+    handler: SESSION_ENTRY_MESSAGE_HANDLER,
+    protocol: SESSION_READ_PROTOCOL,
+    input: { tenant: scope.tenant, session: scope.session, entry, epoch },
+  })
+  if (result.kind === 'unread') return fail(unavailable(result.reason))
+  const decoded = entryMessageSchema.safeParse(result.output)
+  if (!decoded.success) return fail(invalid('the history entry response does not decode'))
+  if (decoded.data.kind === 'changed') return fail({ kind: 'changed' })
+  if (decoded.data.kind === 'absent')
+    return fail(unavailable('the original history message is missing'))
+  const payload = canonical(decoded.data.message)
+  return hash(payload) === wanted
+    ? succeed(payload)
+    : fail(invalid('the original history message differs'))
+}
+
+async function boundSource<P>(
+  options: SessionCompactionInputsOptions<P>,
+  input: Access<P> & Readonly<{ source: DurableEvidence }>,
+) {
+  const tenant = tenantCodec.encode(input.tenant)
+  if (!tenant.ok) return fail(denied())
+  let raw: unknown
+  try {
+    raw = JSON.parse(input.source.record)
+  } catch {
+    return fail(invalid('invalid source record'))
+  }
+  const record = sourceRecord.safeParse(raw)
+  if (!record.success || input.source.owner !== OWNER || input.source.revision !== '1')
+    return fail(invalid('unknown input source'))
+  const [, recordedTenant, executionText, session, rootDigest] = record.data
+  if (recordedTenant !== tenant.value) return fail(denied())
+  if (rootDigest !== input.source.digest) return fail(invalid('source digest differs'))
+  const execution = decodeAgentExecutionId(executionText)
+  if ('failure' in execution) return fail(invalid('invalid execution identity'))
+  const scope = await scopeOf(options, { ...input, execution: execution.ok })
+  if ('failure' in scope) return scope
+  if (scope.ok.session !== session) return fail(denied())
+  const body = await blob(options.storage, scope.ok, rootDigest)
+  if ('failure' in body) return body
+  let root: unknown
+  try {
+    root = JSON.parse(body.ok)
+  } catch {
+    return fail(invalid('invalid source body'))
+  }
+  const parsed = rootSchema.safeParse(root)
+  if (
+    !parsed.success ||
+    parsed.data.tenant !== recordedTenant ||
+    parsed.data.session !== session ||
+    parsed.data.execution !== executionText
+  )
+    return fail(invalid('source ownership differs'))
+  return succeed({
+    scope: scope.ok,
+    manifest: parsed.data.manifest,
+    originals: parsed.data.originals,
+  })
+}
+
 export function createSqlCompactionInputs<P>(
   options: SessionCompactionInputsOptions<P>,
 ): CompactionInputStore<P> {
   const generations = new Map<string, number>()
 
-  async function scopeOf(
-    input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
-  ): Reply<Scope> {
-    const tenant = tenantCodec.encode(input.tenant)
-    if (!tenant.ok) return fail(denied())
-    const session = await options.sessionOf(input)
-    if ('failure' in session) return session
-    try {
-      const allowed = await options.sessionAccessCheck.check({
-        access: input,
-        operation: 'history.readModelView',
-        target: { kind: 'session', session: session.ok },
-      })
-      if (allowed.kind === 'denied') return fail(denied())
-      if (allowed.kind === 'unavailable') return fail(unavailable(allowed.diagnostic))
-      const domain = await options.tenantDomainLookup.lookup({ tenant: tenant.value })
-      if (domain.kind !== 'ready')
-        return fail(
-          unavailable(
-            domain.kind === 'unregistered'
-              ? 'the tenant has no transaction domain'
-              : domain.diagnostic,
-          ),
-        )
-      return succeed({ tenant: tenant.value, session: session.ok, domain: domain.domain })
-    } catch {
-      return fail(unavailable('the input access or domain check threw'))
-    }
-  }
-
-  async function blob(scope: Scope, wanted: string): Reply<string> {
-    const result = await readOutput(options.storage, {
-      domain: scope.domain,
-      handler: EXECUTION_RECORD_HANDLERS.blob,
-      protocol: EXECUTION_RECORD_PROTOCOL,
-      input: { tenant: scope.tenant, digest: wanted },
-    })
-    if (result.kind === 'unread') return fail(unavailable(result.reason))
-    const decoded = decodeExecutionRecordBlob(result.output)
-    if (decoded === null) return fail(unavailable('the frozen input body is missing'))
-    if (decoded.kind === 'denied') return fail(denied())
-    if (decoded.digest !== wanted || hash(decoded.payload) !== wanted)
-      return fail(invalid('the frozen input body digest differs'))
-    return succeed(decoded.payload)
-  }
-
-  async function original(
-    scope: Scope,
-    entry: string,
-    epoch: string | null,
-    wanted: string,
-  ): Reply<string> {
-    const result = await readOutput(options.storage, {
-      domain: scope.domain,
-      handler: SESSION_ENTRY_MESSAGE_HANDLER,
-      protocol: SESSION_READ_PROTOCOL,
-      input: { tenant: scope.tenant, session: scope.session, entry, epoch },
-    })
-    if (result.kind === 'unread') return fail(unavailable(result.reason))
-    const decoded = entryMessageSchema.safeParse(result.output)
-    if (!decoded.success) return fail(invalid('the history entry response does not decode'))
-    if (decoded.data.kind === 'changed') return fail({ kind: 'changed' })
-    if (decoded.data.kind === 'absent')
-      return fail(unavailable('the original history message is missing'))
-    const payload = canonical(decoded.data.message)
-    return hash(payload) === wanted
-      ? succeed(payload)
-      : fail(invalid('the original history message differs'))
-  }
-
-  async function boundSource(input: Access<P> & Readonly<{ source: DurableEvidence }>) {
-    const tenant = tenantCodec.encode(input.tenant)
-    if (!tenant.ok) return fail(denied())
-    let raw: unknown
-    try {
-      raw = JSON.parse(input.source.record)
-    } catch {
-      return fail(invalid('invalid source record'))
-    }
-    const record = sourceRecord.safeParse(raw)
-    if (!record.success || input.source.owner !== OWNER || input.source.revision !== '1')
-      return fail(invalid('unknown input source'))
-    const [, recordedTenant, executionText, session, rootDigest] = record.data
-    if (recordedTenant !== tenant.value) return fail(denied())
-    if (rootDigest !== input.source.digest) return fail(invalid('source digest differs'))
-    const execution = decodeAgentExecutionId(executionText)
-    if ('failure' in execution) return fail(invalid('invalid execution identity'))
-    const scope = await scopeOf({ ...input, execution: execution.ok })
-    if ('failure' in scope) return scope
-    if (scope.ok.session !== session) return fail(denied())
-    const body = await blob(scope.ok, rootDigest)
-    if ('failure' in body) return body
-    let root: unknown
-    try {
-      root = JSON.parse(body.ok)
-    } catch {
-      return fail(invalid('invalid source body'))
-    }
-    const parsed = rootSchema.safeParse(root)
-    if (
-      !parsed.success ||
-      parsed.data.tenant !== recordedTenant ||
-      parsed.data.session !== session ||
-      parsed.data.execution !== executionText
-    )
-      return fail(invalid('source ownership differs'))
-    return succeed({
-      scope: scope.ok,
-      manifest: parsed.data.manifest,
-      originals: parsed.data.originals,
-    })
-  }
-
   return createSessionCompactionInputs({
     async publish(input) {
-      const scope = await scopeOf(input)
+      const scope = await scopeOf(options, input)
       if ('failure' in scope) return scope
       const manifest = input.blobs.find(body => body.digest === input.manifest)
       if (manifest === undefined) return fail(invalid('the frozen input manifest is missing'))
@@ -309,9 +314,9 @@ export function createSqlCompactionInputs<P>(
       )
     },
     async open(input) {
-      const source = await boundSource(input)
+      const source = await boundSource(options, input)
       if ('failure' in source) return source
-      const manifest = await blob(source.ok.scope, source.ok.manifest)
+      const manifest = await blob(options.storage, source.ok.scope, source.ok.manifest)
       if ('failure' in manifest) return manifest
       const originals = new Map(source.ok.originals.map(body => [body.digest, body.entry]))
       return succeed({
@@ -319,8 +324,8 @@ export function createSqlCompactionInputs<P>(
         read: (digest: string) => {
           const entry = originals.get(digest)
           return entry === undefined
-            ? blob(source.ok.scope, digest)
-            : original(source.ok.scope, entry, null, digest)
+            ? blob(options.storage, source.ok.scope, digest)
+            : original(options.storage, source.ok.scope, entry, null, digest)
         },
       })
     },

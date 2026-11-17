@@ -241,6 +241,35 @@ function stateOf(view: ExecutionView, blobs: BlobStore): MemoryExecution['state'
   }
 }
 
+function entriesOf(
+  view: ExecutionView,
+  blobs: ProjectionContext['blobs'],
+): MemoryExecution['entries'] {
+  return [
+    ...[...view.results.values()].flatMap(result =>
+      result.received === null
+        ? []
+        : [
+            {
+              pub: result.received.pub,
+              value: blob<MemoryExecution['entries'][number]>(blobs, result.received.custody),
+            },
+          ],
+    ),
+    ...view.fences.map(fence => ({
+      pub: fence.pub,
+      value: {
+        kind: 'start-fence' as const,
+        operation: fence.operation as never,
+        guard: fence.guard,
+        fence: fence.fence,
+      },
+    })),
+  ]
+    .sort((left, right) => left.pub - right.pub)
+    .map(item => item.value)
+}
+
 export function projectExecution(
   view: ExecutionView,
   context: ProjectionContext,
@@ -332,32 +361,7 @@ export function projectExecution(
       basis: item.basis,
       present: true,
     })),
-    entries: [
-      ...[...view.results.values()].flatMap(result =>
-        result.received === null
-          ? []
-          : [
-              {
-                pub: result.received.pub,
-                value: blob<MemoryExecution['entries'][number]>(
-                  context.blobs,
-                  result.received.custody,
-                ),
-              },
-            ],
-      ),
-      ...view.fences.map(fence => ({
-        pub: fence.pub,
-        value: {
-          kind: 'start-fence' as const,
-          operation: fence.operation as never,
-          guard: fence.guard,
-          fence: fence.fence,
-        },
-      })),
-    ]
-      .sort((left, right) => left.pub - right.pub)
-      .map(item => item.value),
+    entries: entriesOf(view, context.blobs),
   }
   try {
     projected.checkpoint = checkpointOf(view, context.blobs)

@@ -23,6 +23,7 @@ import {
   decodeCardRoundId,
   decodeConsumptionId,
   decodePassageId,
+  type AgentOperationId,
   type DurableEvidence,
 } from './identity.ts'
 import type { HandoffCustody } from './journal.ts'
@@ -244,6 +245,19 @@ function itemOf<K extends FinishObligation['kind']>(
 
 function plannedPassages(plan: readonly LegacyF2Entry[]): readonly (string | null)[] {
   return plan.map(entry => (entry.kind === 'recorded' ? entry.passage.id : entry.passage))
+}
+
+function prepareCancelled<P>(
+  opened: AgentJournalCoreOpened<P>,
+  snapshot: ExecutionSnapshot,
+  control: AgentOperationId,
+) {
+  return ok(
+    opened.journal.prepareFinish(
+      prepareInput(opened, snapshot, 'prepare', cancelAuthorization(snapshot, control)),
+    ),
+    'prepareFinish',
+  )
 }
 
 async function savedToolIntent<P>(opened: AgentJournalCoreOpened<P>, name: string) {
@@ -1053,12 +1067,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         )
         await establish(opened, control)
         const unjudged = await load(opened)
-        await ok(
-          journal.prepareFinish(
-            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
-          ),
-          'prepareFinish',
-        )
+        await prepareCancelled(opened, unjudged, control)
         const issued = await load(opened)
         const blocked = await ok(
           journal.tryFinish(
@@ -1151,12 +1160,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         if (first.judgment.decision.kind !== 'blocked') return
         assert.equal(first.judgment.decision.reasons[0].category, 'custody')
         const blockedAt = await load(opened)
-        await ok(
-          journal.prepareFinish(
-            prepareInput(opened, blockedAt, 'prepare', cancelAuthorization(blockedAt, control)),
-          ),
-          'prepareFinish',
-        )
+        await prepareCancelled(opened, blockedAt, control)
         const issued = await load(opened)
         const blocked = await ok(
           journal.tryFinish(
@@ -1240,12 +1244,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         assert.equal(judged.judgment.decision.questions[0].key, operation('held'))
         assert.equal(judged.judgment.decision.questions[0].reason, 'original-operation-unknown')
         const snapshot = await load(opened)
-        await ok(
-          journal.prepareFinish(
-            prepareInput(opened, snapshot, 'prepare', cancelAuthorization(snapshot, control)),
-          ),
-          'prepareFinish',
-        )
+        await prepareCancelled(opened, snapshot, control)
         const issued = await load(opened)
         await refused(
           journal.tryFinish(
@@ -1777,12 +1776,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         const judged = await judge(opened, control)
         assert.equal(judged.judgment.decision.kind, 'unknown')
         const unjudged = await load(opened)
-        await ok(
-          journal.prepareFinish(
-            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
-          ),
-          'prepareFinish',
-        )
+        await prepareCancelled(opened, unjudged, control)
         const issued = await load(opened)
         assert.equal(itemOf(issued, 'call').disposition.kind, 'unknown')
         await refused(
@@ -1948,12 +1942,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         const judged = await judge(opened, control)
         assert.equal(judged.judgment.decision.kind, 'unknown')
         const unjudged = await load(opened)
-        await ok(
-          journal.prepareFinish(
-            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
-          ),
-          'prepareFinish',
-        )
+        await prepareCancelled(opened, unjudged, control)
         const issued = await load(opened)
         await refused(
           journal.tryFinish(
@@ -2301,12 +2290,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         assert.deepEqual(await load(opened), established, 'the refusal wrote nothing')
         await judge(opened, first)
         const judged = await load(opened)
-        await ok(
-          journal.prepareFinish(
-            prepareInput(opened, judged, 'prepare', cancelAuthorization(judged, first)),
-          ),
-          'prepareFinish',
-        )
+        await prepareCancelled(opened, judged, first)
         const issued = await load(opened)
         const otherEnd = await refused(
           journal.tryFinish(
@@ -2378,12 +2362,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         await ok(journal.commitSettlement(migrating), 'the migration with both qualifications')
         await judge(opened, control)
         const judged = await load(opened)
-        await ok(
-          journal.prepareFinish(
-            prepareInput(opened, judged, 'prepare', cancelAuthorization(judged, control)),
-          ),
-          'prepareFinish',
-        )
+        await prepareCancelled(opened, judged, control)
         const issued = await load(opened)
         opened.qualify(['migrate-cancellation', 'reconcile'])
         await refused(
@@ -2584,12 +2563,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         const judged = await judge(opened, control)
         assert.notEqual(judged.judgment.decision.kind, 'unknown', 'the call is not unknown')
         const unjudged = await load(opened)
-        await ok(
-          journal.prepareFinish(
-            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
-          ),
-          'prepareFinish',
-        )
+        await prepareCancelled(opened, unjudged, control)
         const issued = await load(opened)
         assert.equal(itemOf(issued, 'call').disposition.kind, 'held')
         const finished = await ok(
@@ -2662,12 +2636,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         })
         await ok(record('reconcile-known', known), 'the known result of the same round')
         const unjudged = await load(opened)
-        await ok(
-          journal.prepareFinish(
-            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
-          ),
-          'prepareFinish',
-        )
+        await prepareCancelled(opened, unjudged, control)
         const item = itemOf(await load(opened), 'card-round')
         assert.equal(item.disposition.kind, 'held', 'the known result holds the round')
       },
@@ -2784,12 +2753,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         const judged = await judge(opened, control)
         assert.notEqual(judged.judgment.decision.kind, 'unknown', 'the call is not unknown')
         const unjudged = await load(opened)
-        await ok(
-          journal.prepareFinish(
-            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
-          ),
-          'prepareFinish',
-        )
+        await prepareCancelled(opened, unjudged, control)
         const issued = await load(opened)
         assert.equal(itemOf(issued, 'call').disposition.kind, 'settled')
         const finished = await ok(
@@ -2929,12 +2893,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         await establish(opened, control)
         await judge(opened, control)
         const judged = await load(opened)
-        await ok(
-          journal.prepareFinish(
-            prepareInput(opened, judged, 'prepare', cancelAuthorization(judged, control)),
-          ),
-          'prepareFinish',
-        )
+        await prepareCancelled(opened, judged, control)
         const issued = await load(opened)
         const forged = await refused(
           journal.tryFinish(
@@ -3149,12 +3108,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         const judged = await judge(opened, control)
         assert.notEqual(judged.judgment.decision.kind, 'unknown', 'the call is not unknown')
         const unjudged = await load(opened)
-        await ok(
-          journal.prepareFinish(
-            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
-          ),
-          'prepareFinish',
-        )
+        await prepareCancelled(opened, unjudged, control)
         const issued = await load(opened)
         const item = itemOf(issued, 'call')
         assert.equal(item.disposition.kind, 'held')
@@ -3205,12 +3159,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           'the association of a commit-unknown return',
         )
         const unjudged = await load(opened)
-        await ok(
-          journal.prepareFinish(
-            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
-          ),
-          'prepareFinish',
-        )
+        await prepareCancelled(opened, unjudged, control)
         const item = itemOf(await load(opened), 'call')
         assert.equal(item.disposition.kind, 'unknown')
         if (item.disposition.kind !== 'unknown') return
@@ -3474,12 +3423,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         })
         await ok(record('reconcile-unknown', undetermined), 'the undetermined result of the round')
         const unjudged = await load(opened)
-        await ok(
-          journal.prepareFinish(
-            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
-          ),
-          'prepareFinish',
-        )
+        await prepareCancelled(opened, unjudged, control)
         const item = itemOf(await load(opened), 'card-round')
         assert.equal(item.disposition.kind, 'held', 'the known result holds the round')
         assert.deepEqual(item.lookups, [operation('lookup-m8')])
@@ -3548,12 +3492,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           'the known result of the first round of the first passage',
         )
         const unjudged = await load(opened)
-        await ok(
-          journal.prepareFinish(
-            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
-          ),
-          'prepareFinish',
-        )
+        await prepareCancelled(opened, unjudged, control)
         const rounds = itemsOf(await load(opened)).flatMap(item =>
           item.kind === 'card-round'
             ? [{ passage: item.passage, round: item.round.round, lookups: item.lookups }]
@@ -3593,12 +3532,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         const control = await effectiveCancel(opened)
         const established = await establish(opened, control)
         const unjudged = await load(opened)
-        await ok(
-          journal.prepareFinish(
-            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
-          ),
-          'prepareFinish',
-        )
+        await prepareCancelled(opened, unjudged, control)
         const items = itemsOf(await load(opened)).flatMap(item =>
           item.kind === 'passage'
             ? [
@@ -4126,12 +4060,7 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
         await establish(opened, control)
         await judge(opened, control)
         const preparing = await load(opened)
-        await ok(
-          journal.prepareFinish(
-            prepareInput(opened, preparing, 'prepare', cancelAuthorization(preparing, control)),
-          ),
-          'prepareFinish',
-        )
+        await prepareCancelled(opened, preparing, control)
         const ready = await load(opened)
         const authorization = cancelAuthorization(ready, control)
         const finish = finishInput(opened, ready, 'end', authorization)
