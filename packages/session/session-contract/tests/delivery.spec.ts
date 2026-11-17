@@ -142,4 +142,123 @@ describe('an input enters the model view when a step takes it', () => {
     expect(refused(wrong, 'reply').kind).toBe('invalid')
     expect(await rows(s)).toEqual([])
   })
+
+  it('refuses the whole batch when one of its inputs is unknown or one message is not an input', async () => {
+    const s = await open()
+    await s.accept('second')
+    expect(refused(await deliver(s, 'mixed', ['first', 'nobody']), 'mixed')).toMatchObject({
+      kind: 'invalid',
+      field: 'value.deliveries',
+    })
+    const { run } = await s.active()
+    const reply = { ...ordinaryInput('second').message, role: 'assistant' }
+    const mixed = await s.commit({
+      kind: 'recordMessage',
+      input: {
+        ...s.base,
+        operation: operationId('deliver-mixed-roles'),
+        participation: participation(run.execution.execution, 'delivered'),
+        value: {
+          deliveries: [
+            { input: 'first' as InputId, message: ordinaryInput('first').message },
+            { input: 'second' as InputId, message: reply as never },
+          ],
+          source: evidence('agent/step/mixed'),
+          admission: evidence('agent/step/mixed'),
+        },
+      },
+    })
+    expect(refused(mixed, 'mixed roles').kind).toBe('invalid')
+    expect(await rows(s)).toEqual([])
+  })
+
+  it('refuses a delivery that is not from the execution of the active Run', async () => {
+    const s = await open()
+    const other = await s.commit({
+      kind: 'recordMessage',
+      input: {
+        ...s.base,
+        operation: operationId('deliver-other-execution'),
+        participation: participation('another-execution', 'delivered'),
+        value: {
+          deliveries: [{ input: 'first' as InputId, message: ordinaryInput('first').message }],
+          source: evidence('agent/step/other'),
+          admission: evidence('agent/step/other'),
+        },
+      },
+    })
+    expect(refused(other, 'another execution')).toMatchObject({
+      kind: 'invalid',
+      field: 'participation.execution',
+    })
+    const { run } = await s.active()
+    await s.control('archive')
+    const late = await s.commit({
+      kind: 'recordMessage',
+      input: {
+        ...s.base,
+        operation: operationId('deliver-after-archive'),
+        participation: participation(run.execution.execution, 'delivered'),
+        value: {
+          deliveries: [{ input: 'first' as InputId, message: ordinaryInput('first').message }],
+          source: evidence('agent/step/late'),
+          admission: evidence('agent/step/late'),
+        },
+      },
+    })
+    expect(refused(late, 'after the archive').kind).toBe('archived')
+    expect(await rows(s)).toEqual([])
+  })
+
+  it('delivers a reminder as it delivers the message of a person, and records who wrote it', async () => {
+    const s = await open()
+    const { run } = await s.active()
+    const reminder = { ...ordinaryInput('first').message, role: 'system_reminder' }
+    succeeded(
+      await s.commit({
+        kind: 'recordMessage',
+        input: {
+          ...s.base,
+          operation: operationId('deliver-reminder'),
+          participation: participation(run.execution.execution, 'delivered'),
+          value: {
+            deliveries: [{ input: 'first' as InputId, message: reminder as never }],
+            source: evidence('agent/step/reminder'),
+            admission: evidence('agent/step/reminder'),
+          },
+        },
+      }),
+      'deliver a reminder',
+    )
+    expect((await rows(s)).map(row => row.message.role)).toEqual(['system_reminder'])
+    const written = s.port.controls
+      .entriesOf(s.access.tenant, s.access.session)
+      .find(entry => entry.kind === 'message.delivered')
+    expect(written?.origin).toMatchObject({ owner: 'agent', via: 'agent-participant' })
+  })
+
+  it('an input that is still alive keeps its delivery among the entries a compaction must keep', async () => {
+    const s = await open()
+    succeeded(await deliver(s, 'one', ['first']), 'deliver')
+    const view = succeeded(
+      await s.port.history.readModelView({
+        ...s.access,
+        basis: null,
+        after: null,
+        pageBytes: 100_000,
+      }),
+      'view',
+    )
+    if (view.kind !== 'page') throw new Error('a page of the model view is expected')
+    const context = succeeded(
+      await s.port.history.readCompactionContext({
+        ...s.access,
+        basis: view.basis,
+        coverTo: null,
+      }),
+      'compaction context',
+    )
+    if (context.kind !== 'context') throw new Error('a compaction context is expected')
+    expect(context.value.open).toContain(view.rows[0]!.entry)
+  })
 })
