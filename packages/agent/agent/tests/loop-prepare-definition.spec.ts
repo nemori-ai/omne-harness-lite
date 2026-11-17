@@ -12,6 +12,7 @@ describe('I1 names the adopted definition to the request preparation', () => {
     const current = createExecutionCoordinator({
       ports: assembly.dependencies,
       binding,
+      compactionProvider: options().configuration.compactionProvider,
       evaluator: agentEvaluator,
       access: alice,
       execution: execution(),

@@ -166,11 +166,18 @@ function agentRun(operation: string, column: 'login' | 'work'): Run {
     createAgentAccessCheck(ports).check({
       access: { principal: principals[column], tenant: TENANT },
       operation,
-      target: {
-        kind: 'scope',
-        scope: { owner: 'session', record: OWN, revision: '1', digest: 'd' },
-        definition: { owner: 'o', name: 'n', revision: '1', digest: 'd' },
-      },
+      target: operation.startsWith('compaction.')
+        ? {
+            kind: 'compaction',
+            task: { authority: 'compaction', task: 'task', requestDigest: 'digest' },
+          }
+        : operation === 'read-message-handoff'
+          ? { kind: 'execution', execution: 'execution' }
+          : {
+              kind: 'scope',
+              scope: { owner: 'session', record: OWN, revision: '1', digest: 'd' },
+              definition: { owner: 'o', name: 'n', revision: '1', digest: 'd' },
+            },
     } as unknown as Parameters<ReturnType<typeof createAgentAccessCheck>['check']>[0])
 }
 

@@ -212,7 +212,7 @@ describe('FIXED-FACTS F2: the main M0 records the adopted request', () => {
   it('keeps the main request when the next M0 records a request of another purpose', async () => {
     const commits: Recorded[] = []
     const assembly = await toolRound(commits, action =>
-      action.startsWith('step-2/') ? 'compaction' : 'main',
+      action.startsWith('step-2/') ? 'extension' : 'main',
     )
     ok(await invoke(assembly))
     await deliverToolSuggestion(assembly)

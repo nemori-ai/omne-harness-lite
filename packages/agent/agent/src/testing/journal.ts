@@ -96,6 +96,14 @@ import {
 } from './journal-values.ts'
 import { canonical } from '../canonical.ts'
 import {
+  checkedCaller,
+  conflict,
+  copy,
+  invalid,
+  recordCompletion,
+  sameValue,
+} from './journal-compaction-caller.ts'
+import {
   admissionCounters,
   admissionKey,
   admit,
@@ -387,22 +395,9 @@ const PARTICIPANT_PROTOCOL: Adoption = Object.freeze({
   digest: 'memory:terminal-participant',
 })
 const denied = (action: string): Failure => ({ kind: 'denied', action })
-const conflict = (operation: AgentOperationId): Extract<Failure, { kind: 'conflict' }> => ({
-  kind: 'conflict',
-  operation,
-})
-const invalid = (field: string, reason: string): Failure => ({ kind: 'invalid', field, reason })
-
-function copy<T>(value: T): T {
-  return structuredClone(value)
-}
 
 function sameResult(left: ResultResponsibility['result'], right: ResultResponsibility['result']) {
-  return (
-    left.producer.kind === right.producer.kind &&
-    left.producer.call === right.producer.call &&
-    left.version === right.version
-  )
+  return canonical(left.producer) === canonical(right.producer) && left.version === right.version
 }
 
 type ToolControlRecord = Extract<ControlRecord, { toolInvocation: ToolInvocationRef }>
@@ -586,10 +581,6 @@ function sameEvidence(left: DurableEvidence | null, right: DurableEvidence | nul
   )
 }
 
-function sameValue(left: unknown, right: unknown): boolean {
-  return canonical(left) === canonical(right)
-}
-
 function handoffRecord(
   execution: Execution,
   reference: HandoffReference,
@@ -682,6 +673,22 @@ function acceptanceFailure(
   return undefined
 }
 
+function receiptOf(
+  execution: Execution,
+  operation: AgentOperationId,
+  revision: number,
+  evidence: DurableEvidence,
+  state: CommandReceipt['state'],
+): CommandReceipt {
+  return {
+    operation,
+    execution: execution.id,
+    revision: revisionOf(revision),
+    evidence,
+    state,
+  }
+}
+
 export function createMemoryAgentJournal<P>(
   options: MemoryAgentJournalOptions<P>,
 ): MemoryAgentJournal<P> {
@@ -772,22 +779,6 @@ export function createMemoryAgentJournal<P>(
   function nextEvidence(execution: Execution, what: string, revision: number): DurableEvidence {
     execution.serial += 1
     return journalEvidence(`${execution.id}/${what}/${execution.serial}`, revision)
-  }
-
-  function receiptOf(
-    execution: Execution,
-    operation: AgentOperationId,
-    revision: number,
-    evidence: DurableEvidence,
-    state: CommandReceipt['state'],
-  ): CommandReceipt {
-    return {
-      operation,
-      execution: execution.id,
-      revision: revisionOf(revision),
-      evidence,
-      state,
-    }
   }
 
   function latestAttachment(execution: Execution): Attachment | undefined {
@@ -2401,6 +2392,8 @@ export function createMemoryAgentJournal<P>(
         if (readFailure !== undefined) return answer(fail(readFailure))
         const handoffChange = handoffWrite(execution, input)
         if ('failure' in handoffChange) return answer(handoffChange)
+        const checked = checkedCaller(execution, input)
+        if ('failure' in checked) return answer(checked)
         if (input.caller.kind !== 'none') {
           const refused = participation<CommandReceipt>(input.caller.kind, () =>
             answer(fail({ kind: 'changed' })),
@@ -2431,7 +2424,6 @@ export function createMemoryAgentJournal<P>(
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'commit', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
-        const caller = input.caller
         return {
           kind: 'write',
           value: receipt,
@@ -2439,6 +2431,7 @@ export function createMemoryAgentJournal<P>(
           apply: () => {
             handoffChange.ok(revision, evidence)
             execution.checkpoint = copy(input.checkpoint)
+            recordCompletion(execution, checked.ok, input.caller, evidence, revision)
             receiving.remember(execution, input.authority.instance)
             execution.state = copy(input.state)
             for (const effect of input.effects) {
@@ -2494,11 +2487,11 @@ export function createMemoryAgentJournal<P>(
               execution.admissionLedger = admitted.ledger
             }
             admissionStatistics.checkpointWrites += 1
-            if (caller.kind !== 'none') {
+            if (input.caller.kind !== 'none') {
               jointFacts.push({
                 execution: execution.id,
                 operation: input.operation,
-                caller: copy(caller),
+                caller: copy(input.caller),
               })
             }
             execution.revision = revision

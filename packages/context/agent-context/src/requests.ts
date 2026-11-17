@@ -1,9 +1,7 @@
 import type {
-  CompactionAdvance,
-  CompactionProgress,
+  CompactionInputStore,
   Failure,
   Preparation,
-  PreparedContextTransition,
   RequestPreparation,
 } from '@omne-harness/agent-contract'
 import type * as M from '@omne-harness/model-contract'
@@ -26,42 +24,38 @@ import {
   type ContextTarget,
   type ConversionResultSource,
   type PassageRef,
-  type PlanProgress,
-  type PlanResult,
   type RequestCandidate,
   type SourceSettlement,
-  type StepRequest,
-  type StepResult,
 } from '@omne-harness/request-context-contract'
 import type { ContextHolderParts } from '@omne-harness/request-context-cordis-contract'
 import { createContextMeasurer, type ContextMeasure } from './measure.ts'
 import type { ModelRequestPreparation } from './translate.ts'
-import type { ContextMaterials, Place, PlanMaterial, ReadMaterial } from './materials.ts'
+import type { ContextMaterials, Place, ReadMaterial } from './materials.ts'
 import { canonical, digest, tenantText } from './records.ts'
 import { createStaging, type StagedGroups } from './staging.ts'
+import { createCompactionAssessment, freezeCompaction } from './compaction.ts'
+import { readMemento, saveMemento, type RequestMemento } from './request-memento.ts'
 import {
   absentDefinitions,
   definitionContributions,
   failureOfAssembly,
   failureOfModel,
   failureOfRead,
-  jsonOf,
   selectedModel,
   unavailable,
   type DefinitionSource,
-  type StepResultSource,
   type ToolsSource,
 } from './translate.ts'
 
 export type AgentRequestsOptions<P> = Readonly<{
-  materials: ContextMaterials<P>
+  materials: ContextMaterials
   parts: ContextHolderParts<P>
   requestContext: Pick<ContextSourceRegistry<P>, 'register' | 'assembly'>
   preparation: M.ModelPreparationResources<P>
   conversions: ConversionResultSource<P>
   model: ModelRequestPreparation<P>
   tools: ToolsSource<P>
-  stepResults: StepResultSource<P>
+  compactionInputs: CompactionInputStore<P>
   definitions?: DefinitionSource<P>
   measure?: ContextMeasure
 }>
@@ -73,8 +67,6 @@ export type AgentRequests<P> = RequestPreparation<P> &
 
 type Answer<T> = Readonly<{ ok: T }> | Readonly<{ failure: Failure }>
 type Candidate = Extract<AssemblyResult, { candidate: RequestCandidate }>['candidate']
-type Original = Extract<Preparation, { kind: 'needs-compaction' }>
-type Ready = Extract<Preparation, { kind: 'ready' }>
 type Common = Pick<Preparation, 'id' | 'purpose' | 'position' | 'source' | 'state' | 'schema'>
 
 let generations = 0
@@ -184,16 +176,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
       : { ok: material }
   }
 
-  function planOf(original: Original, tenant: string, action: string): Answer<PlanMaterial<P>> {
-    const key = materials.key(original.progress.plan)
-    if (key === null) return { failure: invalid('original.progress.plan', 'foreign-evidence') }
-    if (key.tenant !== tenant) return { failure: denied(action) }
-    const material = materials.plan(original.progress.plan)
-    return material === undefined
-      ? { failure: unavailable('compaction-plan-lost') }
-      : { ok: material }
-  }
-
   function common(
     input: Readonly<{ action: Preparation['id']; position: Preparation['position'] }>,
     purpose: Preparation['purpose'],
@@ -282,7 +264,9 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
   async function preparationOf(
     outcome: Outcome,
     result: AssemblyResult,
-    compaction: () => Promise<Answer<Preparation>>,
+    compaction: (
+      need: Extract<AssemblyResult, { kind: 'needs-compaction' }>,
+    ) => Promise<Answer<Preparation>>,
   ): Promise<Answer<Preparation>> {
     switch (result.kind) {
       case 'candidate-before-extension':
@@ -290,7 +274,7 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
       case 'candidate-fixable':
         return candidateOf(outcome, result.candidate, true)
       case 'needs-compaction':
-        return compaction()
+        return compaction(result)
       case 'cannot-fit':
         return {
           ok: {
@@ -331,8 +315,18 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
   }
 
   async function groupsOf(
-    input: Parameters<RequestPreparation<P>['prepare']>[0],
-    tenant: string,
+    input: Pick<
+      Parameters<RequestPreparation<P>['prepare']>[0],
+      | 'principal'
+      | 'tenant'
+      | 'inputs'
+      | 'beforeModelCall'
+      | 'previous'
+      | 'definition'
+      | 'selection'
+      | 'conditions'
+      | 'alterations'
+    >,
     read: ReadMaterial,
     history: ReadMaterial['history'],
   ): Promise<Answer<StagedGroups<P>>> {
@@ -359,13 +353,10 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     if (input.previous !== null) {
       const candidate = decodeCandidateRef(input.previous.id)
       if ('failure' in candidate) return { failure: invalid('previous.id', 'candidate') }
-      let entered = null
-      if (input.previous.kind === 'needs-compaction') {
-        const plan = planOf(input.previous, tenant, 'prepare')
-        if ('failure' in plan) return plan
-        entered = plan.ok.plan.planId
+      previous = {
+        candidate: candidate.ok,
+        enteredCompaction: input.previous.kind === 'needs-compaction',
       }
-      previous = { candidate: candidate.ok, enteredCompaction: entered }
     }
     return {
       ok: {
@@ -396,51 +387,6 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     }
   }
 
-  async function enter(
-    outcome: Outcome,
-    operations: AssemblyOperations<P>,
-    call: AssemblyCall<P>,
-    target: ContextTarget,
-    groups: StagedGroups<P>,
-    original: Original['original'],
-  ): Promise<Answer<Preparation>> {
-    const planned: PlanResult = await operations.planCompaction(call)
-    const shared = common(outcome.input, outcome.purpose, outcome.place, { planned: planned.kind })
-    switch (planned.kind) {
-      case 'planned': {
-        const plan = materials.mint('plan', outcome.place, planned.plan)
-        materials.putPlan(plan, {
-          place: outcome.place,
-          target,
-          call: { candidate: call.candidate, position: call.position, purpose: call.purpose },
-          plan: planned.plan,
-          progress: planned.progress,
-          step: planned.first,
-          groups,
-        })
-        return {
-          ok: {
-            ...shared,
-            kind: 'needs-compaction',
-            original,
-            progress: { plan, bound: planned.plan.bound, completed: planned.progress.completed },
-          },
-        }
-      }
-      case 'cannot-fit':
-        return {
-          ok: {
-            ...shared,
-            kind: 'cannot-fit',
-            reason: 'after-compaction',
-            diagnostic: planned.diagnostic,
-          },
-        }
-      default:
-        return { failure: failureOfAssembly(planned) }
-    }
-  }
-
   const prepare: RequestPreparation<P>['prepare'] = async input => {
     if (closed) return fail(unavailable('agent-context-closed'))
     const access: Access<P> = { principal: input.principal, tenant: input.tenant }
@@ -457,7 +403,7 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
     const position = decodePositionRef(`position_${digest(input.position)}`)
     if ('failure' in candidate) return fail(invalid('action', candidate.failure.reason))
     if ('failure' in position) return fail(invalid('position', position.failure.reason))
-    const groups = await groupsOf(input, tenant, read.ok, resolved.value)
+    const groups = await groupsOf(input, read.ok, resolved.value)
     if ('failure' in groups) return fail(groups.failure)
     const call: AssemblyCall<P> = {
       access,
@@ -472,207 +418,107 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
       place: placeOf(tenant, target, input.advance),
       target,
     }
-    const original: Original['original'] = {
-      input: materials.mint('original', outcome.place, {
-        candidate: call.candidate,
-        position: call.position,
-        groups: groups.ok,
-      }),
-      alterations: input.alterations,
-      beforeModelCall: input.beforeModelCall,
+    const memento: RequestMemento = {
+      schema: 'agent-context/original-request/1',
+      scope: target.scope.ref,
+      inputs: input.inputs,
+      conditions: input.conditions,
+      definition: input.definition ?? null,
     }
     const answer = await staged(tenant, access, target, call, groups.ok, async operations =>
-      preparationOf(outcome, await operations.assemble(call), () =>
-        enter(outcome, operations, call, target, groups.ok, original),
-      ),
-    )
-    return 'ok' in answer ? succeed(answer.ok) : fail(answer.failure)
-  }
-
-  function stepped(entry: PlanMaterial<P>, progress: PlanProgress, next: boolean): Failure | null {
-    if (progress.planId !== entry.plan.planId) return invalid('progress.plan', 'plan-mismatch')
-    if (BigInt(progress.completed) !== BigInt(entry.progress.completed) + 1n)
-      return invalid('progress.completed', 'progress-mismatch')
-    if (next && BigInt(progress.completed) >= BigInt(entry.plan.bound))
-      return invalid('progress.completed', 'progress-mismatch')
-    return null
-  }
-
-  async function stepOf(
-    input: Parameters<RequestPreparation<P>['derive']>[0],
-    entry: PlanMaterial<P>,
-    step: StepRequest,
-  ): Promise<Answer<Ready>> {
-    const access: Access<P> = { principal: input.principal, tenant: input.tenant }
-    const evidence = materials.mint('step', entry.place, step)
-    const request = await fix(
-      access,
-      input.selection.resolution.profile,
-      { modalities: ['text'], source: evidence },
-      step.assembled,
-    )
-    if ('failure' in request) return request
-    return {
-      ok: {
-        ...common(
-          { action: input.action, position: input.original.position },
-          'compaction',
-          entry.place,
-          step,
-        ),
-        kind: 'ready',
-        request: request.ok,
-        budget: materials.mint('budget', entry.place, step.assembled),
-        recipient: input.selection.recipient,
-        coverage: evidence,
-      },
-    }
-  }
-
-  async function advanceOf(
-    input: Parameters<RequestPreparation<P>['derive']>[0],
-    entry: PlanMaterial<P>,
-    result: StepResult,
-  ): Promise<Answer<CompactionAdvance>> {
-    const progressOf = (progress: PlanProgress): CompactionProgress => ({
-      plan: input.progress.plan,
-      bound: input.progress.bound,
-      completed: progress.completed,
-    })
-    switch (result.kind) {
-      case 'next': {
-        const wrong = stepped(entry, result.progress, true)
-        if (wrong !== null) return { failure: wrong }
-        materials.putPlan(input.original.progress.plan, {
-          ...entry,
-          progress: result.progress,
-          step: result.step,
-        })
-        const step = await stepOf(input, entry, result.step)
-        if ('failure' in step) return step
-        return {
-          ok: { kind: 'continue', progress: progressOf(result.progress), stepRequest: step.ok },
-        }
-      }
-      case 'transition': {
-        const wrong = stepped(entry, result.progress, false)
-        if (wrong !== null) return { failure: wrong }
-        const { value } = result
-        const value_: PreparedContextTransition = {
-          preparation: input.original.id,
-          message: value.message,
-          source: materials.mint('transition', entry.place, value),
-          derivation: materials.mint('transition', entry.place, value.derivation),
-          commitment: materials.mint('transition', entry.place, value.commitment),
-          candidate: materials.mint('transition', entry.place, value.candidate),
-          plan: input.progress.plan,
-          basis: { schema: owner, value: jsonOf(entry.plan.basis) },
-          epoch: entry.plan.basis.history.epoch,
-        }
-        return {
-          ok: { kind: 'transition', progress: progressOf(result.progress), value: value_ },
-        }
-      }
-      case 'cannot-fit': {
-        const wrong = stepped(entry, result.progress, false)
-        if (wrong !== null) return { failure: wrong }
+      preparationOf(outcome, await operations.assemble(call), async need => {
+        const frozen = await freezeCompaction(
+          input,
+          resolved.value,
+          need,
+          parts.history,
+          options.compactionInputs,
+        )
+        if ('failure' in frozen) return { failure: frozen.failure }
         return {
           ok: {
-            kind: 'cannot-fit',
-            progress: progressOf(result.progress),
-            reason: 'after-compaction',
-            diagnostic: result.diagnostic,
+            ...common(input, input.purpose, outcome.place, frozen.ok),
+            kind: 'needs-compaction',
+            input: frozen.ok,
+            state: saveMemento(memento),
+            original: {
+              input: materials.mint('original', outcome.place, memento),
+              alterations: input.alterations,
+              beforeModelCall: input.beforeModelCall,
+            },
           },
         }
-      }
-      default:
-        return { failure: failureOfAssembly(result) }
-    }
-  }
-
-  const derive: RequestPreparation<P>['derive'] = async input => {
-    if (closed) return fail(unavailable('agent-context-closed'))
-    const access: Access<P> = { principal: input.principal, tenant: input.tenant }
-    const tenant = tenantText(input.tenant)
-    if (tenant === null) return fail(denied('derive'))
-    const entry = planOf(input.original, tenant, 'derive')
-    if ('failure' in entry) return fail(entry.failure)
-    const planned = input.original.progress
-    if (
-      canonical(input.progress.plan) !== canonical(planned.plan) ||
-      input.progress.bound !== planned.bound
-    )
-      return fail(invalid('progress', 'plan-mismatch'))
-    if (input.progress.completed !== entry.ok.progress.completed)
-      return fail(invalid('progress.completed', 'progress-mismatch'))
-    if (input.result === null) {
-      const step = await stepOf(input, entry.ok, entry.ok.step)
-      if ('failure' in step) return fail(step.failure)
-      return succeed({ kind: 'continue', progress: input.progress, stepRequest: step.ok })
-    }
-    const produced = await options.stepResults({ access, produced: input.result.produced })
-    if (produced.kind !== 'value')
-      return fail(failureOfRead(produced, 'model-results', 'read-step-result'))
-    const { call, target, step } = entry.ok
-    const consumed = input.result.consumed
-    const answer = await staged(
-      tenant,
-      access,
-      target,
-      { ...call, access },
-      { ...entry.ok.groups, model: { kind: 'value', value: selectedModel(input.selection) } },
-      async operations =>
-        advanceOf(
-          input,
-          entry.ok,
-          await operations.deriveStep({
-            call: { ...call, access },
-            plan: entry.ok.plan,
-            progress: entry.ok.progress,
-            step: { kind: 'summary', index: step.index, produced: produced.value, consumed },
-            material: step.material,
-          }),
-        ),
+      }),
     )
     return 'ok' in answer ? succeed(answer.ok) : fail(answer.failure)
   }
+
+  const assess = createCompactionAssessment({
+    inputs: options.compactionInputs,
+    preparation: options.preparation,
+  })
+  const assessCompaction: RequestPreparation<P>['assessCompaction'] = input =>
+    closed ? Promise.resolve(fail(unavailable('agent-context-closed'))) : assess(input)
 
   const resume: RequestPreparation<P>['resume'] = async input => {
     if (closed) return fail(unavailable('agent-context-closed'))
     const access: Access<P> = { principal: input.principal, tenant: input.tenant }
     const tenant = tenantText(input.tenant)
     if (tenant === null) return fail(denied('resume'))
-    const entry = planOf(input.original, tenant, 'resume')
-    if ('failure' in entry) return fail(entry.failure)
+    const memento = readMemento(input.original.state)
+    const originalKey = materials.key(input.original.original.input)
+    if (
+      memento === null ||
+      originalKey === null ||
+      canonical(input.original.schema) !== canonical(owner) ||
+      input.original.original.input.digest !== digest(memento)
+    )
+      return fail(invalid('original', 'original-request-invalid'))
+    if (originalKey.tenant !== tenant || originalKey.execution !== input.advance.execution)
+      return fail(denied('resume'))
     const read = readOf(input.context.source, tenant, 'resume')
     if ('failure' in read) return fail(read.failure)
     if (
       read.ok.transition === null ||
       canonical(read.ok.transition) !== canonical(input.transition) ||
-      read.ok.target.scope.ref !== entry.ok.target.scope.ref
+      read.ok.target.scope.ref !== memento.scope ||
+      originalKey.scope !== memento.scope ||
+      input.context.content !== 'full'
     )
       return fail({ kind: 'changed' })
-    const { plan, call, target, groups: before } = entry.ok
+    const candidate = decodeCandidateRef(input.original.id)
+    const position = decodePositionRef(`position_${digest(input.original.position)}`)
+    if ('failure' in candidate || 'failure' in position)
+      return fail(invalid('original', 'call-identity'))
+    const target = read.ok.target
+    const prepared = await groupsOf(
+      {
+        ...access,
+        inputs: memento.inputs,
+        conditions: memento.conditions,
+        selection: input.selection,
+        previous: input.original,
+        alterations: input.original.original.alterations,
+        beforeModelCall: input.original.original.beforeModelCall,
+        ...(memento.definition === null ? {} : { definition: memento.definition }),
+      },
+      read.ok,
+      read.ok.history,
+    )
+    if ('failure' in prepared) return fail(prepared.failure)
     const groups: StagedGroups<P> = {
-      ...before,
-      history:
-        before.history.kind === 'value'
-          ? { kind: 'value', value: { ...before.history.value, evidence: read.ok.history } }
-          : before.history,
+      ...prepared.ok,
       context: {
         kind: 'value',
         value: {
           contextRead: read.ok.group,
           transition: {
-            planId: plan.planId,
-            candidate: plan.candidate,
+            candidate: candidate.ok,
             committed: input.transition,
             epoch: read.ok.history.epoch,
           },
         },
       },
-      model: { kind: 'value', value: selectedModel(input.selection) },
-      tools: await options.tools({ access, conditions: null }),
     }
     const outcome: Outcome = {
       access,
@@ -682,29 +528,42 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
         selection: input.selection,
       },
       purpose: input.original.purpose,
-      place: entry.ok.place,
+      place: placeOf(tenant, target, input.advance),
       target,
     }
-    const resumed = { ...call, access }
-    const answer = await staged(tenant, access, target, resumed, groups, async operations =>
-      preparationOf(outcome, await operations.resume(resumed), async () => ({
+    const call = {
+      access,
+      candidate: candidate.ok,
+      position: position.ok,
+      purpose: input.original.purpose,
+    }
+    const answer = await staged(tenant, access, target, call, groups, async operations =>
+      preparationOf(outcome, await operations.resume(call), async () => ({
         ok: {
           ...common(outcome.input, outcome.purpose, outcome.place, { resumed: 'needs-compaction' }),
-          kind: 'needs-compaction',
-          original: input.original.original,
-          progress: input.original.progress,
+          kind: 'cannot-fit',
+          reason: 'after-compaction',
+          diagnostic: 'request-still-over-limit',
         },
       })),
     )
-    return 'ok' in answer ? succeed(answer.ok) : fail(answer.failure)
+    if ('failure' in answer) return fail(answer.failure)
+    if (answer.ok.kind === 'needs-compaction')
+      return fail(invalid('resume', 'recursive-compaction'))
+    return succeed(answer.ok)
   }
 
   const failed = (answer: object): boolean => 'failure' in answer
   return {
     prepare: input =>
       measurer.segment('prepare', input.advance.execution, () => prepare(input), failed),
-    derive: input =>
-      measurer.segment('derive', input.advance.execution, () => derive(input), failed),
+    assessCompaction: input =>
+      measurer.segment(
+        'assess-compaction',
+        input.advance.execution,
+        () => assessCompaction(input),
+        failed,
+      ),
     resume: input =>
       measurer.segment('resume', input.advance.execution, () => resume(input), failed),
     async close() {

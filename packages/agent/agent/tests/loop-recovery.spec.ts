@@ -56,6 +56,7 @@ function coordinator(assembly: LoopAssembly, change: Partial<ExecutionEntry<Prin
   return createExecutionCoordinator({
     ports: assembly.dependencies,
     binding: options().binding,
+    compactionProvider: options().configuration.compactionProvider,
     evaluator: agentEvaluator,
     access: alice,
     execution: execution(),
@@ -174,25 +175,27 @@ describe('E4 recovery routing', () => {
     expect(ok(route(checkpoint(position), { state: { kind: 'settling', intent } }))).toBe(position)
   })
 
-  it.each(['C0', 'C1', 'C2', 'C3', 'C4'])(
-    'unfinished node %s has a named stage owner',
-    position => {
-      expect(failure(route(checkpoint(position)))).toMatchObject({
-        kind: 'unsupported',
-        node: position,
-        card: expect.stringContaining('#502'),
-      })
-    },
-  )
-
-  it.each(['A0', 'A1', 'A2', 'A3', 'T0', 'T1', 'T2', 'T3', 'T4', 'T5'])(
-    'resumes the implemented tool node %s without resetting its checkpoint',
-    position => {
-      const at = checkpoint(position)
-      expect(ok(route(at))).toBe(position)
-      expect(at.position).toBe(position)
-    },
-  )
+  it.each([
+    'C0',
+    'C1',
+    'C2',
+    'C3',
+    'C4',
+    'A0',
+    'A1',
+    'A2',
+    'A3',
+    'T0',
+    'T1',
+    'T2',
+    'T3',
+    'T4',
+    'T5',
+  ])('resumes the implemented node %s without resetting its checkpoint', position => {
+    const at = checkpoint(position)
+    expect(ok(route(at))).toBe(position)
+    expect(at.position).toBe(position)
+  })
 
   it('routes a saved action batch by its barrier and slots, never past an unslotted action', () => {
     const action = (id: string, judgment: string, call: unknown = null) =>

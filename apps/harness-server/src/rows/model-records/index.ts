@@ -30,6 +30,7 @@ import { currentForReader } from '../../entry/runtime-context-trust.ts'
 import { qualifyingDiagnostics } from './diagnostics.ts'
 import { toolResultDisclosureOf } from '../../model/tool-result-disclosure.ts'
 import { agentCustodyOf, createModelEvidence } from '../../model/evidence.ts'
+import { compactionEvidenceOf } from '../../model/compaction-evidence.ts'
 import { modelRecordsPortOf } from '../../model/ports.ts'
 import { observationTiming } from '../../model/observation.ts'
 import { createModelQualification } from '../../model/qualification.ts'
@@ -82,6 +83,13 @@ function evidenceOf(
   return adapters
 }
 
+function recordsManifestDigest(): string {
+  const manifest = compositeManifestDigest(storageCatalog())
+  if (manifest.kind === 'invalid')
+    throw new Error(`model records combination is not registrable: ${manifest.diagnostic}`)
+  return manifest.digest
+}
+
 function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
   const requestDisclosure = toolResultDisclosureOf(ctx)
   const port = modelRecordsPortOf(ctx)
@@ -89,9 +97,7 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
     throw new Error(
       'model-records: the modelHostAuthority entry object of this release is not installed',
     )
-  const manifest = compositeManifestDigest(storageCatalog())
-  if (manifest.kind === 'invalid')
-    throw new Error(`model records combination is not registrable: ${manifest.diagnostic}`)
+  const manifestDigest = recordsManifestDigest()
   const given = injected(ctx)
   const qualification = createModelQualification({
     verifier: given.principalVerifier,
@@ -118,9 +124,10 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
         initial: () => live.initial,
         reader: () => live.reader,
         custody: () => agentCustodyOf(ctx),
+        compaction: () => compactionEvidenceOf(ctx),
       }),
       clock: given.modelClock,
-      manifestDigest: manifest.digest,
+      manifestDigest,
       sources: officialSendSources({
         profiles: sendStage.profiles,
         current: qualification.sourceCurrent,

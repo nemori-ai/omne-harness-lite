@@ -1,13 +1,13 @@
+import type {
+  CompactionInputRef,
+  CompactionResultIdentity,
+  CompactionTaskIdentity,
+  PreparedCompactionCommit,
+} from './compaction.ts'
+import type { CompactionMessage } from '@omne-harness/message'
 import type { JsonValue } from '@omne-harness/json-text'
 import type * as M from '@omne-harness/model-contract'
-import type {
-  ModelPurpose,
-  PreparedContextTransition,
-  ProducedResult,
-  InputBatch,
-  RuntimeConditions,
-  Reply,
-} from './evaluation.ts'
+import type { ModelPurpose, InputBatch, RuntimeConditions, Reply } from './evaluation.ts'
 import type {
   Access,
   Adoption,
@@ -16,6 +16,7 @@ import type {
   ConsumerRef,
   DurableEvidence,
   PassageId,
+  ConsumptionId,
 } from './identity.ts'
 
 export type ModelRecipient = Readonly<{ route: string; profile: Adoption }>
@@ -60,11 +61,6 @@ export interface ModelContextReader<P> {
       }>,
   ): Reply<ModelContextRead>
 }
-export type CompactionProgress = Readonly<{
-  plan: DurableEvidence
-  bound: string
-  completed: string
-}>
 export type Preparation = Readonly<{
   id: ActionId
   purpose: ModelPurpose
@@ -95,30 +91,26 @@ export type Preparation = Readonly<{
           alterations: readonly DurableEvidence[]
           beforeModelCall: readonly PassageId[] | null
         }>
-        progress: CompactionProgress
+        input: CompactionInputRef
       }>
     | Readonly<{ kind: 'cannot-fit'; reason: 'fixed' | 'after-compaction'; diagnostic: string }>
   )
 export type SavedPreparation = Extract<Preparation, { kind: 'needs-compaction' | 'cannot-fit' }>
-export type CompactionAdvance =
-  | Readonly<{
-      kind: 'continue'
-      progress: CompactionProgress
-      stepRequest: Extract<Preparation, { kind: 'ready' }>
-    }>
-  | Readonly<{ kind: 'transition'; progress: CompactionProgress; value: PreparedContextTransition }>
-  | Readonly<{
-      kind: 'cannot-fit'
-      progress: CompactionProgress
-      reason: 'after-compaction'
-      diagnostic: string
-    }>
 export type CompactionState = Readonly<{
   action: ActionId
-  progress: CompactionProgress
-  initiated: string
+  task: CompactionTaskIdentity
+  provider: Adoption
+  consumer: ConsumerRef
+  input: CompactionInputRef
+  consumption: ConsumptionId
+  result: CompactionResultIdentity | null
+  received: DurableEvidence | null
+  transition: DurableEvidence | null
   ended: 'committed' | 'failed' | null
 }>
+export type CompactionAssessment =
+  | Readonly<{ kind: 'accepted'; value: PreparedCompactionCommit }>
+  | Readonly<{ kind: 'cannot-fit'; diagnostic: string }>
 export type FinalRequest = Readonly<{
   preparation: ActionId
   request: M.FixedModelRequest
@@ -132,7 +124,7 @@ export interface RequestPreparation<P> {
       Readonly<{
         advance: Authority
         action: ActionId
-        purpose: Exclude<ModelPurpose, 'compaction'>
+        purpose: ModelPurpose
         position: ConsumerRef
         history: DurableEvidence
         inputs: InputBatch
@@ -145,17 +137,18 @@ export interface RequestPreparation<P> {
         definition?: Adoption
       }>,
   ): Reply<Preparation>
-  derive(
+  assessCompaction(
     input: Access<P> &
       Readonly<{
         advance: Authority
         original: Extract<Preparation, { kind: 'needs-compaction' }>
-        progress: CompactionProgress
-        action: ActionId
-        selection: SelectedModel
-        result: Readonly<{ produced: ProducedResult; consumed: DurableEvidence }> | null
+        task: CompactionTaskIdentity
+        consumption: ConsumptionId
+        result: CompactionResultIdentity
+        received: DurableEvidence
+        message: CompactionMessage
       }>,
-  ): Reply<CompactionAdvance>
+  ): Reply<CompactionAssessment>
   resume(
     input: Access<P> &
       Readonly<{
@@ -165,7 +158,7 @@ export interface RequestPreparation<P> {
         selection: SelectedModel
         context: ModelContextRead
       }>,
-  ): Reply<Preparation>
+  ): Reply<Exclude<Preparation, { kind: 'needs-compaction' }>>
 }
 export interface CurrentConditions<P> {
   read(

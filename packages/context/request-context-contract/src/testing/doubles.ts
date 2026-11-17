@@ -8,9 +8,7 @@ import type {
   CompactionPolicy,
   RepresentationPolicyConfig,
 } from '../ports.js'
-import type { SummaryMaterial } from '../values.js'
-import type { RecordEntryRef } from '@omne-harness/message'
-import { canonical, digest, textBlock } from '../internal.js'
+import { canonical, digest } from '../internal.js'
 export type MeterScript = (
   input: Parameters<M.ModelInputMeter['measure']>[0],
 ) =>
@@ -136,12 +134,8 @@ export function createMemoryConversionResults<P>(
   }
 }
 export const FIXTURE_COMPACTION_POLICY: CompactionPolicy = Object.freeze({
-  retainBudget: { kind: 'ratio', retainRatio: '0.25' },
-  retainPreference: 'newest-first',
   triggerPercent: null,
   headroomTokens: null,
-  trimFirst: false,
-  stepBound: '2',
 } as const)
 export const FIXTURE_REPRESENTATION_CONFIG: RepresentationPolicyConfig = Object.freeze({
   preferences: {
@@ -164,43 +158,6 @@ export function createScriptedCompactionPolicy(
     identity,
     config,
     configDigest: () => digest(config),
-    async plan({ context, measure, windowTokens }) {
-      const last = context.covered.at(-1)
-      if (last === undefined) throw new Error('Fixture needs covered entries')
-      const floor = context.open.filter(ref => context.covered.some(x => x.ref === ref))
-      const limit =
-        config.retainBudget.kind === 'tokens'
-          ? Number(config.retainBudget.retainTokens)
-          : Number(windowTokens) * Number(config.retainBudget.retainRatio)
-      const tokens = async (refs: readonly RecordEntryRef[]) => {
-        const measured = await measure(refs)
-        return measured.kind === 'measured' ? Number(measured.tokens) : Number.POSITIVE_INFINITY
-      }
-      if ((await tokens(floor)) > limit)
-        return { kind: 'floor-exceeds-budget', floor, budget: String(Math.floor(limit)) }
-      const retained = new Set(floor)
-      const ranked =
-        config.retainPreference === 'newest-first'
-          ? [...context.covered].reverse()
-          : [...context.covered]
-      for (const item of ranked) {
-        if (item.message !== null && (await tokens([...retained, item.ref])) <= limit)
-          retained.add(item.ref)
-      }
-      return {
-        kind: 'draft',
-        coverTo: last.ref,
-        retained: context.covered.filter(x => retained.has(x.ref)).map(x => x.ref),
-        bound: config.stepBound,
-        shape: { kind: 'summarize', trimFirst: config.trimFirst },
-      }
-    },
-    trim: (material: SummaryMaterial) => material,
-    summaryInstruction: material => [
-      textBlock(canonical({ task: 'Summarize covered history', retained: material.retained }), {
-        kind: 'fixture-summary',
-      }),
-    ],
   }
 }
 export function createScriptedRepresentationPolicy(

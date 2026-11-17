@@ -11,6 +11,7 @@ import type {
   Authority,
   ChainMember,
   ConsumerRef,
+  CompactionTaskIdentity,
   ConsumptionId,
   ControlStage,
   DurableEvidence,
@@ -85,13 +86,15 @@ export type AttachmentBasis =
   | Readonly<{ kind: 'open' }>
   | Readonly<{ kind: 'recovery'; recovery: DurableEvidence; takeover: DurableEvidence | null }>
 
-export type ProducerCall = Readonly<{
-  producer: 'model' | 'tool'
-  call: string
-  version: string
-  delivery: string | null
-  source: DurableEvidence
-}>
+export type ProducerCall = (
+  | Readonly<{ producer: 'model' | 'tool'; call: string }>
+  | Readonly<{ producer: 'compaction'; task: CompactionTaskIdentity }>
+) &
+  Readonly<{
+    version: string
+    delivery: string | null
+    source: DurableEvidence
+  }>
 
 /** One extension call, saved as a block of its own; it refers to its declaration and does not embed it. */
 export type PassageBlock = Omit<Passage, 'declaration'> &

@@ -118,3 +118,9 @@ export {
   decodeModelInvocationRef,
   resolveModelInvocationRef,
 } from './reference.ts'
+export {
+  profileResolutionValue,
+  readProfileResolution,
+  judgeModelParameters,
+  judgeToolDeclarations,
+} from './profile-codec.ts'

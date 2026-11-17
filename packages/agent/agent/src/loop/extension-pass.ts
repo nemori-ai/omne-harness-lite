@@ -29,7 +29,7 @@ import { openRound, repeatsAnsweredRound } from './passages.ts'
 export type PassPlace = Readonly<{
   position: Position
   dimension: Dimension | null
-  purpose: 'main' | 'compaction' | null
+  purpose: 'main' | null
 }>
 
 type Output<K extends ExtensionOutput['kind']> = Extract<ExtensionOutput, { kind: K }>

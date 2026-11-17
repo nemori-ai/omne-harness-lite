@@ -29,6 +29,7 @@ function coordinator(assembly: LoopAssembly) {
   return createExecutionCoordinator({
     ports: assembly.dependencies,
     binding: options().binding,
+    compactionProvider: options().configuration.compactionProvider,
     evaluator: agentEvaluator,
     access: alice,
     execution: execution(),
@@ -522,7 +523,7 @@ describe('I1 preparation outcomes', () => {
       )
       expect(finishes[0]?.failure?.source).toEqual(read.checkpoint.requestPreparation?.source)
       expect(assembly.controls.requests.prepare.calls).toHaveLength(1)
-      expect(assembly.controls.requests.derive.calls).toHaveLength(0)
+      expect(assembly.controls.requests.assessCompaction.calls).toHaveLength(0)
     },
   )
 
@@ -679,39 +680,32 @@ describe('I1 preparation outcomes', () => {
     expect((await snapshot(assembly)).state.kind).toBe('ended')
   })
 
-  it('needs-compaction preserves preparation and ends with unsupported-path', async () => {
+  it('needs-compaction waits for the frozen input without starting a model call', async () => {
     let prepared: Preparation | null = null
-    let finalizations = 0
-    const assembly = await loopAssembly([execution()], d => ({
-      ...d,
-      journal: {
-        ...d.journal,
-        tryFinish(input) {
-          finalizations += 1
-          return d.journal.tryFinish(input)
-        },
-      },
-    }))
+    const assembly = await loopAssembly([execution()])
     assembly.controls.requests.prepare.always(input => {
       prepared = {
         ...preparationBase(input),
         kind: 'needs-compaction',
         original: { input: evidence('original-input'), alterations: [], beforeModelCall: null },
-        progress: { plan: evidence('plan'), bound: '2', completed: '0' },
+        input: {
+          source: evidence('frozen-input'),
+          schema: options().configuration.compactionProvider.adoption,
+          digest: 'input',
+        },
       }
       return { ok: prepared }
     })
     ok(await run(assembly))
     const read = await snapshot(assembly)
     expect(read.checkpoint.requestPreparation).toEqual(prepared)
-    expect(read.settlement.candidate?.failure).toMatchObject({
-      kind: 'node-failed',
-      node: 'I1',
-      category: 'unsupported-path',
+    expect(read.state).toMatchObject({
+      kind: 'waiting',
+      waits: [{ kind: 'dependency', position: 'C0' }],
     })
-    expect(finalizations).toBe(1)
-    expect(read.state.kind).toBe('ended')
-    expect(assembly.controls.requests.derive.calls).toHaveLength(0)
+    expect(read.checkpoint.calls).toEqual([])
+    expect(read.settlement.candidate).toBeNull()
+    expect(assembly.controls.requests.assessCompaction.calls).toHaveLength(0)
     expect(assembly.controls.requests.resume.calls).toHaveLength(0)
   })
 })

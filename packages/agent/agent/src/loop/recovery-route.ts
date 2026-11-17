@@ -18,7 +18,6 @@ function recoveryCard(node: string): string {
 
 function recoveryTarget(node: string): Recovery {
   if (
-    node.startsWith('C') ||
     !LOOP_NODES.includes(node as LoopNode) ||
     ['E0', 'E1', 'E2', 'U0', 'Q1', 'R0', 'W0', 'F0', 'H0', 'M2', 'Q5'].includes(node)
   )
@@ -37,8 +36,6 @@ function batchRecovery(position: string, batch: ActionBatch): string {
 }
 
 function callRecovery(position: string, call: PendingCall): Recovery {
-  if (call.purpose === 'compaction')
-    return fail({ kind: 'unsupported', node: 'M1', card: '#502 stage 4' })
   if (call.purpose === 'action') return recoveryTarget('T0')
   if (['M0', 'M6', 'M1', 'M3', 'M4', 'M5', 'I3'].includes(position)) return recoveryTarget(position)
   if (position === 'Q2' || position === 'Q4') return recoveryTarget('I3')
@@ -46,13 +43,23 @@ function callRecovery(position: string, call: PendingCall): Recovery {
 }
 
 function preparationRecovery(at: AgentCheckpoint): Recovery | null {
+  if (at.requestPreparation?.kind === 'cannot-fit') return succeed('F1')
   if (at.compaction !== null) {
     const ended = at.compaction.ended
-    return recoveryTarget(ended === 'committed' ? 'I1' : ended === 'failed' ? 'F1' : 'C1')
+    return recoveryTarget(
+      ended === 'committed'
+        ? 'C4'
+        : ended === 'failed'
+          ? 'F1'
+          : at.currentHandoff !== null
+            ? 'C3'
+            : at.compaction.received !== null
+              ? 'C2'
+              : 'C1',
+    )
   }
   const prepared = at.requestPreparation
   if (prepared === null) return null
-  if (prepared.kind === 'cannot-fit') return succeed('F1')
   return recoveryTarget('C0')
 }
 

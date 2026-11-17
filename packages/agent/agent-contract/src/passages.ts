@@ -1,3 +1,4 @@
+import type { PreparedCompactionCommit, CompactionOutcome } from './compaction.ts'
 import type { Message } from '@omne-harness/message'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -11,7 +12,6 @@ import type {
   PendingCall,
   ProducedResult,
   Reply,
-  PreparedContextTransition,
 } from './evaluation.ts'
 import type { AcceptedInput } from './execution.ts'
 import type {
@@ -41,7 +41,7 @@ import type {
   PassageId,
   StepId,
 } from './identity.ts'
-import type { CompactionProgress, Preparation } from './request.ts'
+import type { Preparation } from './request.ts'
 
 export type CapturedRead = Readonly<{ schema: Adoption; value: JsonValue; source: DurableEvidence }>
 export type NamedCapturedRead = CapturedRead & Readonly<{ need: string }>
@@ -113,7 +113,7 @@ export type Passage = Readonly<{
   id: PassageId
   position: Position
   dimension: Dimension | null
-  purpose: 'main' | 'compaction' | null
+  purpose: 'main' | null
   action: ActionId | null
   ordinal: number
   declaration: LoopExtensionDeclaration
@@ -126,15 +126,10 @@ export type Passage = Readonly<{
 export type Subject =
   | Readonly<{ execution: AgentExecutionId; conditions: DurableEvidence }>
   | Readonly<{ preparation: Extract<Preparation, { kind: 'needs-compaction' }> }>
-  | Readonly<{ transition: PreparedContextTransition }>
+  | Readonly<{ transition: PreparedCompactionCommit }>
   | Readonly<{ purpose: 'main'; preparation: Extract<Preparation, { kind: 'assembled' }> }>
   | Readonly<{
-      purpose: 'compaction'
-      step: Extract<Preparation, { kind: 'ready' }>
-      progress: CompactionProgress
-    }>
-  | Readonly<{
-      purpose: 'main' | 'compaction'
+      purpose: 'main'
       call: M.ModelCallId
       result: ProducedResult
       reply: Message
@@ -142,7 +137,7 @@ export type Subject =
       account: CallAccount | null
     }>
   | Readonly<{
-      purpose: 'main' | 'compaction'
+      purpose: 'main'
       call: M.ModelCallId
       request: M.FixedModelRequest
       fault: M.ModelFault
@@ -185,7 +180,7 @@ export type ExtensionChain = Readonly<{
   pass: string
   position: Position
   dimension: Dimension | null
-  purpose: 'main' | 'compaction' | null
+  purpose: 'main' | null
   members: readonly ChainMember[]
   /** What the tenant-enabled members were read from; null when the assembly has no tenant source. */
   basis: DurableEvidence | null /** Set when the tenant-enabled members could not be read after the terminal: this pass was not observed. */
@@ -203,7 +198,7 @@ export interface EnabledExtensions<P> {
         execution: AgentExecutionId
         position: Position
         dimension: Dimension | null
-        purpose: 'main' | 'compaction' | null
+        purpose: 'main' | null
       }>,
   ): Reply<Readonly<{ members: readonly EnabledExtension[]; basis: DurableEvidence }>>
 }
@@ -283,7 +278,7 @@ export type MessageSource =
   | Readonly<{ kind: 'tool-result'; action: ActionId; call: T.ToolCallId; result: ProducedResult }>
   | Readonly<{ kind: 'action-denied'; action: ActionId; evidence: DurableEvidence }>
   | Readonly<{ kind: 'reminder'; passage: PassageId }>
-  | Readonly<{ kind: 'context-transition'; transition: PreparedContextTransition }>
+  | Readonly<{ kind: 'context-transition'; transition: PreparedCompactionCommit }>
 export type InputEntry =
   | Readonly<{
       kind: 'invoke'
@@ -394,6 +389,7 @@ export type Material<B extends ContentBlock> =
   | Readonly<{ kind: 'model'; result: ProducedResult; pages: readonly M.ResultPage[] }>
   | Readonly<{ kind: 'tool'; result: ProducedResult; pages: readonly T.ResultPage<B>[] }>
   | Readonly<{ kind: 'facts'; schema: Adoption; value: JsonValue }>
+  | Readonly<{ kind: 'compaction'; result: ProducedResult; outcome: CompactionOutcome }>
 export type MaterialDescription = Readonly<{
   digest: string
   size: number

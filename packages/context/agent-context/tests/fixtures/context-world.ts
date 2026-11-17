@@ -1,4 +1,7 @@
+import { digest } from '../../src/records.ts'
 import type {
+  CompactionInput,
+  CompactionInputStore,
   ConsumerRef,
   DurableEvidence,
   ModelContextRead,
@@ -21,7 +24,6 @@ import {
   absentToolLookup,
   type ContextMeasure,
   type DefinitionSource,
-  type StepResultSource,
   toolsSourceOf,
   type ToolsSource,
 } from '@omne-harness/agent-context'
@@ -160,7 +162,7 @@ export type WorldOptions = Readonly<{
   upper?: number
   meter?: MeterScript
   tools?: ToolsSource<string>
-  stepResults?: StepResultSource<string>
+  compactionInputs?: CompactionInputStore<string>
   definitions?: DefinitionSource<string>
   capacity?: number
   measure?: ContextMeasure
@@ -229,9 +231,7 @@ export async function createWorld(options: WorldOptions = {}) {
     tenant,
     rows: allRows,
     policies: {
-      compaction: createDefaultCompactionPolicy({
-        config: { retainBudget: { kind: 'tokens', retainTokens: '600' } },
-      }),
+      compaction: createDefaultCompactionPolicy(),
       representation: createDefaultRepresentationPolicy(),
     },
     ...(options.meter === undefined
@@ -245,8 +245,6 @@ export async function createWorld(options: WorldOptions = {}) {
     bind: 0,
     register: 0,
     assemble: 0,
-    planCompaction: 0,
-    deriveStep: 0,
     resume: 0,
     model: 0,
   }
@@ -363,14 +361,6 @@ export async function createWorld(options: WorldOptions = {}) {
       if ('candidate' in result) candidates.push(result.candidate)
       return result
     },
-    planCompaction: async call => {
-      counts.planCompaction++
-      return real.planCompaction(call)
-    },
-    deriveStep: async input => {
-      counts.deriveStep++
-      return real.deriveStep(input)
-    },
     resume: async call => {
       counts.resume++
       return real.resume(call)
@@ -430,7 +420,26 @@ export async function createWorld(options: WorldOptions = {}) {
     },
   }
 
-  const materials = createContextMaterials<string>({ owner, capacity: options.capacity ?? 8 })
+  const frozen: CompactionInput[] = []
+  const compactionInputs: CompactionInputStore<string> = options.compactionInputs ?? {
+    async freeze(input) {
+      const outputMessageId = parseMessageId('msg_' + 'c'.repeat(22))
+      if (!outputMessageId.ok) throw new Error('fixture message id')
+      const value = structuredClone({ ...input.value, outputMessageId: outputMessageId.value })
+      const hash = digest(value)
+      const source = { ...evidence(`frozen-${frozen.length}`), digest: hash }
+      frozen.push(value)
+      return { ok: { source, schema: owner, digest: hash } }
+    },
+    async read(input) {
+      const value = frozen.find(item => digest(item) === input.reference.digest)
+      return value === undefined
+        ? { failure: { kind: 'unavailable', owner: 'inputs', diagnostic: 'missing' } }
+        : { ok: structuredClone(value) }
+    },
+  }
+
+  const materials = createContextMaterials({ owner, capacity: options.capacity ?? 8 })
   const requests = createAgentRequests<string>({
     materials,
     parts,
@@ -439,7 +448,7 @@ export async function createWorld(options: WorldOptions = {}) {
     conversions: createAbsentConversionResults<string>(),
     model,
     tools: options.tools ?? toolsSourceOf(absentToolLookup),
-    stepResults: options.stepResults ?? (async () => ({ kind: 'unavailable', diagnostic: 'none' })),
+    compactionInputs,
     ...(options.definitions === undefined ? {} : { definitions: options.definitions }),
     ...(options.measure === undefined ? {} : { measure: options.measure }),
   })
@@ -587,6 +596,8 @@ export async function createWorld(options: WorldOptions = {}) {
       planAnswer = next
     },
     materials,
+    compactionInputs,
+    frozen,
     requests,
     reader,
     selection,

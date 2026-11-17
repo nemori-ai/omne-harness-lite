@@ -153,12 +153,6 @@
               "pending": false
             },
             {
-              "name": "PlanId",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
               "name": "EpochId",
               "kind": "type",
               "sameAs": "@omne-harness/request-context-contract",
@@ -249,19 +243,7 @@
               "pending": false
             },
             {
-              "name": "RetainBudget",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
               "name": "CompactionPolicy",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "CompactionPlanDraft",
               "kind": "type",
               "sameAs": "@omne-harness/request-context-contract",
               "pending": false
@@ -495,42 +477,6 @@
               "pending": false
             },
             {
-              "name": "CompactionPlan",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "PlanProgress",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "SummaryMaterial",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "StepRequest",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "StepInput",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "ContextTransition",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
               "name": "AssemblyFailure",
               "kind": "type",
               "sameAs": "@omne-harness/request-context-contract",
@@ -562,24 +508,6 @@
             },
             {
               "name": "AssemblyResult",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "PlanResult",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "StepResult",
-              "kind": "type",
-              "sameAs": "@omne-harness/request-context-contract",
-              "pending": false
-            },
-            {
-              "name": "DeriveInput",
               "kind": "type",
               "sameAs": "@omne-harness/request-context-contract",
               "pending": false
@@ -910,7 +838,9 @@
     {
       "module": "@deepseek-ai/cordis",
       "interface": "Events",
-      "members": ["request-context-cordis-contract/changed"],
+      "members": [
+        "request-context-cordis-contract/changed"
+      ],
       "pending": false
     }
   ]

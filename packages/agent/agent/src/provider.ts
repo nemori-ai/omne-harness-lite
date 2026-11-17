@@ -189,7 +189,12 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   binding: AgentRuntimeBinding
   configuration: Pick<
     AgentConfiguration,
-    'reconciliationDelaysMs' | 'toolConcurrency' | 'jointCommits' | 'maxRunSteps' | 'modelRetry'
+    | 'reconciliationDelaysMs'
+    | 'toolConcurrency'
+    | 'jointCommits'
+    | 'maxRunSteps'
+    | 'modelRetry'
+    | 'compactionProvider'
   >
   guard: AccessGuard<P>
   dependencies: AgentDependencies<P, B>
@@ -199,6 +204,16 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   waiting: AgentRunWaitingReceiver | undefined
   modelRetrying: AgentModelRetryingReceiver | undefined
 }>
+
+/** The parts of a coordinator that every execution of this provider shares. */
+function coordinatorBase<P, B extends ContentBlock>(entry: ProviderEntry<P, B>) {
+  return {
+    ports: entry.dependencies,
+    binding: entry.binding,
+    jointCommits: entry.configuration.jointCommits,
+    compactionProvider: entry.configuration.compactionProvider,
+  }
+}
 
 export function createProvider<P, B extends ContentBlock>(
   entry: ProviderEntry<P, B>,
@@ -406,9 +421,7 @@ export function createProvider<P, B extends ContentBlock>(
     })
     if ('failure' in resolved) return resolved
     return succeed({
-      ports: dependencies,
-      binding,
-      jointCommits: entry.configuration.jointCommits,
+      ...coordinatorBase(entry),
       evaluator: resolved.ok.evaluator,
       extensions: resolved.ok.extensions,
       requestCancel,
@@ -604,9 +617,7 @@ export function createProvider<P, B extends ContentBlock>(
     })
     if ('failure' in resolved) return resolved
     const coordinator = createExecutionCoordinator({
-      ports: dependencies,
-      binding,
-      jointCommits: entry.configuration.jointCommits,
+      ...coordinatorBase(entry),
       evaluator: resolved.ok.evaluator,
       extensions: resolved.ok.extensions,
       requestCancel,

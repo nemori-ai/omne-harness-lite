@@ -1,3 +1,4 @@
+import type { CompactionTaskIdentity, PreparedCompactionCommit } from './compaction.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { Message, ToolCallPart } from '@omne-harness/message'
 import type * as M from '@omne-harness/model-contract'
@@ -23,17 +24,13 @@ import type {
 } from './identity.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ExtensionChain, HandoffReference, MessageSource, Passage } from './passages.ts'
-import type {
-  CompactionProgress,
-  CompactionState,
-  Preparation,
-  SavedPreparation,
-} from './request.ts'
+import type { CompactionState, Preparation, SavedPreparation } from './request.ts'
 
 export type ProducedResult = Readonly<{
   producer:
     | Readonly<{ kind: 'model'; call: M.ModelCallId }>
     | Readonly<{ kind: 'tool'; call: T.ToolCallId }>
+    | Readonly<{ kind: 'compaction'; task: CompactionTaskIdentity }>
   version: string
   delivery: string | null
   source: DurableEvidence
@@ -67,17 +64,22 @@ export type FailureCandidate = Readonly<{
       }>
     | Readonly<{
         kind: 'cannot-fit'
-        reason: 'fixed' | 'after-compaction'
+        reason: 'fixed' | 'protected-floor' | 'after-compaction'
         context: DurableEvidence
         veto?: DurableEvidence
         rejection?: DurableEvidence
-        plan?: CompactionProgress
+        task?: CompactionTaskIdentity
       }>
     | Readonly<{
         kind: 'compaction-invalid'
-        plan: DurableEvidence
-        progress?: Readonly<{ expected: CompactionProgress; returned: CompactionProgress }>
+        task: CompactionTaskIdentity
         transition?: DurableEvidence
+      }>
+    | Readonly<{
+        kind: 'compaction-failed'
+        task: CompactionTaskIdentity
+        reason: string
+        diagnostic: string
       }>
     | Readonly<{
         kind: 'request-rejected'
@@ -103,17 +105,6 @@ export type FailureCandidate = Readonly<{
     | Readonly<{ kind: 'extension-stop'; passage: PassageId; reason: string }>
     | Readonly<{ kind: 'guard'; level: 3; basis: DurableEvidence }>
   )
-export type PreparedContextTransition = Readonly<{
-  preparation: ActionId
-  message: Message
-  source: DurableEvidence
-  derivation: DurableEvidence
-  commitment: DurableEvidence
-  candidate: DurableEvidence
-  plan: DurableEvidence
-  basis: Readonly<{ schema: Adoption; value: JsonValue }>
-  epoch: string
-}>
 export type Failure =
   | Readonly<{ kind: 'denied'; action: string }>
   | Readonly<{ kind: 'invalid'; field: string; reason: string }>
@@ -124,7 +115,7 @@ export type Failure =
   | Readonly<{ kind: 'commit-unknown'; operation: AgentOperationId }>
   | Readonly<{ kind: 'conflict'; operation: AgentOperationId }>
 export type Reply<A> = Promise<Outcome<A, Failure>>
-export type ModelPurpose = 'main' | 'compaction' | 'extension'
+export type ModelPurpose = 'main' | 'extension'
 type PendingCommon = Readonly<{
   action: ActionId
   consumption: ConsumptionId
@@ -188,6 +179,7 @@ export type ActionSlot = Readonly<{
         result: ProducedResult
         terminal: T.ToolTerminal
         custody: DurableEvidence
+        completion: DurableEvidence | null
       }>
     | Readonly<{ kind: 'background'; placeholder: ProducedResult; confirmation: DurableEvidence }>
   )
@@ -371,12 +363,10 @@ export type Next =
   | Readonly<{ kind: 'take-inputs'; position: string }>
   | Readonly<{ kind: 'prepare-request'; step: StepId; previous: Preparation | null }>
   | Readonly<{
-      kind: 'compact-derive'
+      kind: 'compact'
       original: Extract<Preparation, { kind: 'needs-compaction' }>
-      progress: CompactionProgress
-      result: Readonly<{ produced: ProducedResult; consumed: DurableEvidence }> | null
     }>
-  | Readonly<{ kind: 'commit-transition'; value: PreparedContextTransition }>
+  | Readonly<{ kind: 'commit-transition'; value: PreparedCompactionCommit }>
   | Readonly<{
       kind: 'resume-request'
       original: Extract<Preparation, { kind: 'needs-compaction' }>

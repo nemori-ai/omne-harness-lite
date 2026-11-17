@@ -97,7 +97,7 @@ describe('action admission', () => {
 })
 
 describe('request preparation', () => {
-  it('prepare answers ready built from its input; derive and resume answer unsupported', async () => {
+  it('prepare answers ready built from its input; assessment and resume answer unsupported', async () => {
     const requests = createScriptedRequestPreparation<string>()
     type PrepareInput = Parameters<RequestPreparation<string>['prepare']>[0]
     const input = stub<PrepareInput>({
@@ -119,7 +119,7 @@ describe('request preparation', () => {
       recipient: { route: 'route-1' },
       coverage: testEvidence('coverage'),
     })
-    expect(failure(await requests.port.derive(stub({ ...access })))).toEqual({
+    expect(failure(await requests.port.assessCompaction(stub({ ...access })))).toEqual({
       kind: 'unsupported',
     })
     expect(failure(await requests.port.resume(stub({ ...access })))).toEqual({

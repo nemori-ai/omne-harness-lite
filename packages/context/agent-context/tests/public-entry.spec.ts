@@ -6,7 +6,6 @@ it('the root entry exports the factories, the absent sources and the tools sourc
     'DEFINITION_SECTION_PREFIX',
     'absentAccountTarget',
     'absentDefinitions',
-    'absentStepResults',
     'absentToolLookup',
     'createAgentAccountOutlet',
     'createAgentModelContext',
