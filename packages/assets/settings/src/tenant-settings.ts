@@ -329,6 +329,22 @@ function parseWrite(
   }
 }
 
+async function heldViews(
+  catalog: Pick<TenantSettingsCatalog, 'assetOf'>,
+  tenant: TenantId,
+  views: readonly SettingsTargetView[],
+) {
+  try {
+    const assets = await Promise.all(views.map(view => catalog.assetOf(tenant, view)))
+    return views.flatMap((view, index) => {
+      const asset = assets[index]
+      return asset === undefined ? [] : [{ asset, view }]
+    })
+  } catch {
+    return undefined
+  }
+}
+
 export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSettings<P> {
   const { principals, catalog, permissions, writer } = ports
 
@@ -337,18 +353,6 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
       return await principals.admit({ principal, tenant, action })
     } catch {
       return 'unavailable' as const
-    }
-  }
-
-  async function heldViews(tenant: TenantId, views: readonly SettingsTargetView[]) {
-    try {
-      const assets = await Promise.all(views.map(view => catalog.assetOf(tenant, view)))
-      return views.flatMap((view, index) => {
-        const asset = assets[index]
-        return asset === undefined ? [] : [{ asset, view }]
-      })
-    } catch {
-      return undefined
     }
   }
 
@@ -365,7 +369,7 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
       return undefined
     }
     if ('kind' in basis) return undefined
-    const held = await heldViews(tenant, basis.views)
+    const held = await heldViews(catalog, tenant, basis.views)
     if (held === undefined) return undefined
     const found: Entry[] = []
     for (const { asset, view } of held) {
