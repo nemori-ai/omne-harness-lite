@@ -8,23 +8,22 @@ import {
   readdirSync,
   writeFileSync,
   copyFileSync,
-  existsSync,
   rmSync,
 } from 'node:fs'
-import { basename, delimiter, resolve, join } from 'node:path'
+import { basename, resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 
-// On Windows `pnpm` on PATH is a `pnpm.cmd` shim that Node cannot start without a shell; there pnpm
-// runs as `node_modules/pnpm/bin/pnpm.cjs` beside `pnpm.cmd`, with this process's Node.
+// pnpm is the one that runs this test (npm_execpath). The consumer pins no pnpm, so a pnpm on PATH
+// would be whatever the machine has; there is no fallback to it.
 function commandLine(command: string, args: string[]): [string, string[]] {
-  if (process.platform !== 'win32' || command !== 'pnpm') return [command, args]
-  for (const directory of (process.env['PATH'] ?? process.env['Path'] ?? '').split(delimiter)) {
-    const entry = join(directory, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
-    if (directory !== '' && existsSync(join(directory, 'pnpm.cmd')) && existsSync(entry))
-      return [process.execPath, [entry, ...args]]
-  }
-  throw new Error('no pnpm.cmd with node_modules/pnpm/bin/pnpm.cjs next to it on PATH')
+  if (command !== 'pnpm') return [command, args]
+  const entry = process.env['npm_execpath']
+  if (entry === undefined || entry === '')
+    throw new Error(
+      'npm_execpath is not set: run the tests through pnpm (pnpm exec vitest, pnpm run test) so that the pinned pnpm is known',
+    )
+  return /\.[cm]?js$/u.test(entry) ? [process.execPath, [entry, ...args]] : [entry, args]
 }
 
 it('installs only the pure tarball closure and consumes both ends through dist exports', () => {
@@ -118,26 +117,31 @@ it('installs only the pure tarball closure and consumes both ends through dist e
           thirdParty[name] = `file:${tree.path}`
         listing.push(tree)
       }
-    const { packageManager } = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as {
-      packageManager: string
-    }
     writeFileSync(
       join(consumer, 'package.json'),
       JSON.stringify({
         name: 'public-contract-independent-consumer',
         private: true,
         type: 'module',
-        packageManager,
         dependencies,
-        pnpm: { overrides: { ...thirdParty, ...dependencies } },
       }),
     )
+    // pnpm 12 reads overrides only from pnpm-workspace.yaml. The file also makes the consumer its own
+    // workspace root, so pnpm does not adopt the repository's. No packageManager: with an empty
+    // cache and --offline, a pinned pnpm fails with ERR_PNPM_BAD_CONFIG_DEP.
+    writeFileSync(
+      join(consumer, 'pnpm-workspace.yaml'),
+      `packages: []\noverrides:\n${Object.entries({ ...thirdParty, ...dependencies })
+        .map(([name, target]) => `  ${JSON.stringify(name)}: ${JSON.stringify(target)}\n`)
+        .join('')}`,
+    )
+    // The pnpm that installs the consumer, recorded in the evidence: the pinned one (npm_execpath).
+    const pnpmVersion = run('pnpm', ['-v'], consumer).trim()
     const installation = run(
       'pnpm',
       [
         'install',
         '--ignore-scripts',
-        '--ignore-workspace',
         '--offline',
         '--store-dir',
         join(scratch, 'pnpm-store'),
@@ -208,11 +212,7 @@ it('installs only the pure tarball closure and consumes both ends through dist e
       ]),
     )
     for (const location of Object.values(resolutions)) expect(location).toContain('/dist/index.js')
-    const closure = run(
-      'pnpm',
-      ['list', '--prod', '--depth', 'Infinity', '--json', '--ignore-workspace'],
-      consumer,
-    )
+    const closure = run('pnpm', ['list', '--prod', '--depth', 'Infinity', '--json'], consumer)
     type DependencyTree = { dependencies?: Record<string, DependencyTree> }
     const trees = JSON.parse(closure) as DependencyTree[]
     const installed = new Set<string>()
@@ -253,6 +253,7 @@ it('installs only the pure tarball closure and consumes both ends through dist e
       JSON.stringify(
         {
           commandLogs: logs,
+          pnpmVersion,
           installation,
           execution,
           resolved,

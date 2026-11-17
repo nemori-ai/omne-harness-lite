@@ -2,6 +2,7 @@ import {
   equalNodes,
   LockfileSyntaxError,
   parseLockfileYaml,
+  parsePnpmLockfile,
   type YamlMap,
   type YamlNode,
 } from './pnpm-lockfile.ts'
@@ -48,12 +49,17 @@ function sectionOf(root: YamlMap, name: string): ReadonlyMap<string, YamlNode> {
   return section
 }
 
+/** 锁 pnpm 自身的那个文档在顶层比较里用的名字：它不是本体的键，名字只出现在全量的原因里。 */
+export const ENVIRONMENT_DOCUMENT = '开头锁定 pnpm 自身的文档'
+
 function readLockfile(source: string): Lockfile {
-  const root = parseLockfileYaml(source)
+  const { environment, main: root } = parsePnpmLockfile(source)
+  const topLevel = new Map(
+    [...root].filter(([key]) => !SECTION_KEYS.has(key) && !DERIVED_KEYS.has(key)),
+  )
+  if (environment !== undefined) topLevel.set(ENVIRONMENT_DOCUMENT, environment)
   return {
-    topLevel: new Map(
-      [...root].filter(([key]) => !SECTION_KEYS.has(key) && !DERIVED_KEYS.has(key)),
-    ),
+    topLevel,
     importers: sectionOf(root, 'importers'),
     packages: sectionOf(root, 'packages'),
     snapshots: sectionOf(root, 'snapshots'),

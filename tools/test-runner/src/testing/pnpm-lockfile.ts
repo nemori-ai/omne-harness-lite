@@ -214,12 +214,26 @@ function splitEntry(line: Line): { readonly key: string; readonly rest: string }
   return { key: text.slice(0, colon.index), rest: text.slice(colon.index + 1) }
 }
 
+/** 序列项是不是以 `键:` 起头的块映射：带引号的键要后接冒号，不带引号的要有后接空格或行尾的冒号；流式集合不是。 */
+function startsMapEntry(item: string, number: number): boolean {
+  const first = item[0]
+  if (first === undefined || first === '{' || first === '[') return false
+  if (first !== "'" && first !== '"') return /:(?: |$)/u.test(item)
+  try {
+    splitEntry({ number, indent: 0, text: item })
+    return true
+  } catch {
+    return false
+  }
+}
+
 class BlockParser {
   private index = 0
-  private readonly lines: readonly Line[]
+  /** 读到 `- 键: 值` 时，这一行就地换成缩进加 2 的 `键: 值`，所以是可改的副本。 */
+  private readonly lines: Line[]
 
   constructor(lines: readonly Line[]) {
-    this.lines = lines
+    this.lines = [...lines]
   }
 
   parseDocument(): YamlMap {
@@ -250,7 +264,14 @@ class BlockParser {
       if (line.indent > indent) throw new LockfileSyntaxError(line.number, '序列项的缩进对不上')
       if (!line.text.startsWith('- '))
         throw new LockfileSyntaxError(line.number, '序列里混进了非序列项')
-      items.push(new FlowReader(line.text.slice(2), line.number).readWhole())
+      const item = line.text.slice(2).trimStart()
+      if (startsMapEntry(item, line.number)) {
+        // 项本身是块映射：第一个键在 `- ` 之后，即缩进 indent + 2，后面的键与它对齐。
+        this.lines[this.index] = { number: line.number, indent: indent + 2, text: item }
+        items.push(this.parseMap(indent + 2))
+        continue
+      }
+      items.push(new FlowReader(item, line.number).readWhole())
       this.index += 1
     }
   }
@@ -281,6 +302,35 @@ class BlockParser {
 
 export function parseLockfileYaml(source: string): YamlMap {
   return new BlockParser(significantLines(source)).parseDocument()
+}
+
+export interface PnpmLockfile {
+  readonly environment: YamlMap | undefined
+  readonly main: YamlMap
+}
+
+const isDocumentMarker = (line: Line) => line.indent === 0 && line.text === '---'
+
+// pnpm 12 声明了自身版本时，锁文件以 `---` 开头，先是只锁 pnpm 自身的文档，再是本体；安装副本只有本体。
+export function parsePnpmLockfile(source: string): PnpmLockfile {
+  const lines = significantLines(source)
+  const markers = lines.filter(isDocumentMarker)
+  if (markers.length === 0) return { environment: undefined, main: parseLockfileYaml(source) }
+  const [first, second, third] = markers
+  if (first === undefined || lines[0] !== first)
+    throw new LockfileSyntaxError(first?.number ?? 1, '文档分隔 --- 只能出现在开头与两个文档之间')
+  if (second === undefined)
+    throw new LockfileSyntaxError(first.number, '以 --- 开头的锁文件要有两个文档，只有一个')
+  if (third !== undefined) throw new LockfileSyntaxError(third.number, '锁文件至多两个文档')
+  const split = lines.indexOf(second)
+  const environment = lines.slice(1, split)
+  const main = lines.slice(split + 1)
+  if (environment.length === 0) throw new LockfileSyntaxError(second.number, '第一个文档是空的')
+  if (main.length === 0) throw new LockfileSyntaxError(second.number, '第二个文档是空的')
+  return {
+    environment: new BlockParser(environment).parseDocument(),
+    main: new BlockParser(main).parseDocument(),
+  }
 }
 
 const isSequence = (node: YamlNode): node is readonly YamlNode[] => Array.isArray(node)

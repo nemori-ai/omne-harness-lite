@@ -58,14 +58,14 @@ git status --short
 git submodule update --init
 uv sync --locked
 pnpm install --frozen-lockfile --ignore-scripts
-pnpm -r rebuild node-pty
+pnpm run prepare:native
 uv run --locked python .meta_harness/tooling/src/initialize_agents.py --project-root .
 ```
 
 - 外部技能集 pqw-skills 是子模块。新检出与新工作树都先初始化它，否则最后一条生成 agent 投影的命令会失败。
-- 需要 Git、Bash、[uv](https://docs.astral.sh/uv/getting-started/installation/)，以及根 `package.json` 的 `engines` 与 `packageManager` 指定的 Node 与 pnpm。Python 由 uv 管理，不依赖系统里恰好有 `python`。
-- 安装照锁文件进行，禁用依赖脚本；随后只显式构建 node-pty。它由 node-gyp 构建，需要 Make；Node 24 及以上还需要支持 C++20 的编译器。系统编译器太旧时用 `CC`、`CXX` 指定合适的，不改依赖源码，不跳过原生检查。
-- 支持在 macOS、Linux 与 Windows 上开发。检查、格式化脚本与 pre-commit 钩子是 Bash 脚本：Windows 上在 Git Bash 里运行，并先做一次机器级设置 `pnpm config set script-shell "C:\Program Files\Git\bin\bash.exe"`。也可以在 WSL2 里检出，但经 `/mnt/` 访问 NTFS 很慢。
+- 需要 Git、Bash、0.13.x 的 [uv](https://docs.astral.sh/uv/getting-started/installation/)、任意 12.x 的 pnpm 与 24 及以上的 Node。开发用的 pnpm 与 Node 由根 `package.json` 的 `packageManager` 和 `devEngines` 指定：在检出里运行的 pnpm 自己切到 `devEngines.packageManager` 的精确版本，经 pnpm 起的根脚本、成员脚本与 `pnpm exec` 运行在 `devEngines.runtime` 的 Node 上（缺失时下载）；`engines` 只表示产品支持的 Node 下限。`check` 的启动段核对这些版本，不符时第一步失败并给出修法。uv 的版本范围是 `pyproject.toml` 的 `required-version`，Python 版本是根 `.python-version`，由 uv 管理，不依赖系统里恰好有 `python`。
+- 安装照锁文件进行，禁用依赖脚本；随后 `pnpm run prepare:native`（[prepare-native.mjs](scripts/prepare-native.mjs)）只显式构建 `allowBuilds` 放行的 node-pty，并在 macOS 上给 `spawn-helper` 补执行位。凡是重建 `node_modules` 的安装之后都要运行它。它由 node-gyp 构建，需要 Make；Node 24 及以上还需要支持 C++20 的编译器。系统编译器太旧时用 `CC`、`CXX` 指定合适的，不改依赖源码，不跳过原生检查。
+- 支持在 macOS、Linux 与 Windows 上开发。根与成员的 `package.json` 脚本经 pnpm 内置的 shell 模拟器运行（`pnpm-workspace.yaml` 的 `shellEmulator`），Windows 上不需要设置 `script-shell`：安装、`build`、`typecheck`、`check:plan` 与成员的 `build`、`typecheck`、`test*` 在 PowerShell 里也能运行。调用 `./scripts/*.sh` 的根脚本（`check`、`admission`、`preflight`、`format:*`、`test:format`、`check:design`、`metrics`）与 pre-commit 钩子仍在 Git Bash 里运行。Windows 上只支持 PATH 上有 `pnpm.exe` 的装法（独立安装、mise 等）；经 `npm install -g` 装的 pnpm 12 没有验证。也可以在 WSL2 里检出，但经 `/mnt/` 访问 NTFS 很慢。
 - 环境报了看不懂的错时，读 `omne-card` 技能的参考页「检出、投影与宿主的坑」。
 
 ### coding agent 的插件与技能
