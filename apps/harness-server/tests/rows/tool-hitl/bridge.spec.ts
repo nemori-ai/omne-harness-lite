@@ -7,8 +7,9 @@ import type {
 import { hitlCommandBinding } from '@omne-harness/human-intervention-local'
 import { hitlDecisionWait } from '@omne-harness/human-intervention-tool'
 import { inProcessPrincipalAuthority, standingPrincipalRef } from '@omne-harness/identity'
-import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
+import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { succeed } from '@omne-harness/operation-result'
+import { createSchemaProvider, validate } from '@omne-harness/schema-provider'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolCallId, ToolOperationId, ToolWaitId } from '@omne-harness/tool-contract'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
@@ -73,10 +74,12 @@ function world(
     cards?: readonly unknown[]
     consume?: (command: { decisionRef: unknown }) => unknown
     closed?: 'cancelled' | 'terminal' | 'continued' | null
+    tool?: string
+    original?: string
   }> = {},
 ) {
-  const kept =
-    options.digest === undefined ? requestEvidence : { ...requestEvidence, digest: options.digest }
+  const original = options.original ?? ORIGINAL
+  const asked = { ...requestEvidence, digest: options.digest ?? canonicalDigest(original) }
   const calls = {
     prepared: [] as unknown[],
     registered: [] as RegisterRequest[],
@@ -156,14 +159,15 @@ function world(
       succeed({
         request: {
           consumer: { owner: 'agent', work: 'exec-1', position: 'a1', purpose: 'action' },
+          availability: { kind: 'available', definition: { name: options.tool ?? 'Ask' } },
         },
-        waitRequest: options.kept === null ? null : { wait, request: options.kept ?? ORIGINAL },
+        waitRequest: options.kept === null ? null : { wait, request: options.kept ?? original },
         waits: [
           {
             intent: {
               kind: 'ask',
               wait,
-              request: kept,
+              request: asked,
               schemas: { contract: options.contract ?? hitlDecisionWait.adoption },
             },
             ...(options.closed === null
@@ -177,7 +181,7 @@ function world(
             action: 'ensure',
             operation: duty,
             wait,
-            evidence: kept,
+            evidence: asked,
           },
           {
             kind: 'wait-registration',
@@ -198,7 +202,7 @@ function world(
     bridge,
     calls,
     answer,
-    ensure: () => bridge.ensure({ ...access, wait, request: kept }),
+    ensure: () => bridge.ensure({ ...access, wait, request: asked }),
     inspect: (value: unknown, operation: ToolOperationId = duty) => {
       inspected = value
       return bridge.inspectOperation({ ...access, operation })
@@ -233,6 +237,21 @@ const decided = (cardId: string, reply: unknown) => ({
   },
 })
 const plain = (value: JsonValue): unknown => JSON.parse(writeJsonText(value))
+const schemas = createSchemaProvider({
+  maxSnapshots: 4,
+  maxConstructDepth: 16,
+  maxConstructNodes: 512,
+  failureBackoffMs: 0,
+  maxAttempts: 1,
+})
+const ANSWER_READ_LIMITS = {
+  maxBytes: 65536,
+  maxDepth: 8,
+  maxItems: 1024,
+  maxMembers: 16,
+  maxStringLength: 8192,
+  maxNumberLength: 32,
+}
 
 describe('the Tool decision owner over HITL', () => {
   it('registers the kept batch under a tool origin of the call, its session and its Run', async () => {
@@ -249,6 +268,7 @@ describe('the Tool decision owner over HITL', () => {
       wait: { owner: 'tool', waitId: wait },
     })
     expect(registered?.questions).toEqual([card])
+    expect(registered?.displayContext).toBe('Ask')
     expect(w.calls.prepared).toMatchObject([
       {
         kind: 'prepare',
@@ -419,6 +439,56 @@ describe('the Tool decision owner over HITL', () => {
     unwrap(await w.bridge.resolve({ ...w.access, wait, decision: decision! }))
     expect(w.calls.bound[1]).toEqual(w.calls.bound[0])
     expect(w.calls.consumed.slice(3)).toEqual(w.calls.consumed.slice(0, 3))
+  })
+
+  it('a tool other than Ask that waits with the decision wait of human intervention gets its cards under its own name and its answers in the same shape', async () => {
+    const approval = {
+      cardId: 'approval',
+      kind: 'approval',
+      title: 'Delete build/?',
+      description: 'It holds stale artifacts.',
+      options: [
+        { id: 'yes', label: 'Approve', description: 'Delete it now.' },
+        { id: 'no', label: 'Reject', description: 'Keep it.' },
+      ],
+      declineConsequence: 'The directory stays.',
+    }
+    const original = JSON.stringify({ questions: [{ ...card, cardId: 'q2' }, approval] })
+    const w = world({
+      tool: 'Approve',
+      original,
+      register: {
+        kind: 'registered',
+        operationRef: {
+          tenantRef: 't',
+          actorRef: standingPrincipalRef(registrar),
+          operationId: 'x',
+        },
+        requestRef: { tenantRef: 't', requestId: 'request-1' },
+        revision: '0',
+        cards: [cardRef('q2'), cardRef('approval')],
+      } as never,
+      cards: [
+        decided('q2', { kind: 'text', text: 'use 8081' }),
+        decided('approval', { kind: 'selection', optionId: 'yes' }),
+      ],
+    })
+    unwrap(await w.ensure())
+    expect(w.calls.registered[0]?.displayContext).toBe('Approve')
+    expect(w.calls.registered[0]?.questions).toEqual([{ ...card, cardId: 'q2' }, approval])
+    w.committed()
+    const { decision } = unwrap(await w.bridge.inspect({ ...w.access, wait }))
+    const resolved = unwrap(await w.bridge.resolve({ ...w.access, wait, decision: decision! }))
+    const value = (resolved as { value: JsonValue }).value
+    expect(plain(value)).toEqual({
+      answers: [
+        { cardId: 'q2', kind: 'text', text: 'use 8081' },
+        { cardId: 'approval', kind: 'selection', optionId: 'yes' },
+      ],
+    })
+    const read = readJsonText(writeJsonText(value), ANSWER_READ_LIMITS)
+    const verdict = await validate(schemas, hitlDecisionWait.response.ref, read)
+    expect(verdict.kind).toBe('valid')
   })
 
   it('resolve gives no-answer when every card was skipped', async () => {

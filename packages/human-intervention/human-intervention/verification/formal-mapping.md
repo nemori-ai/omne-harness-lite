@@ -39,9 +39,11 @@ Tool 来源的 Ask 用 local 的 WaitOwner，经 Tool 的决策方端口 `ToolDe
 | 模型动作                                           | 实际提交                                                                                                                                                          |
 | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | RegistrationProtocol `Register`                    | Tool 调用域先提交挂起、检查点、等待开启与登记任务；登记任务调用本组的 prepare 与 `registerRequest`，回包未知时按原操作查询；认回后 Tool 提交 `attachRegistration` |
-| HumanDecision `Commit`                             | 本组 `submitReply` 的一笔提交：决定、收件箱与批次判定、按来源冻结的守卫、Identity 保留                                                                            |
+| HumanDecision `Commit`                             | 本组 `submitReply` 的一笔提交：这一张卡的决定与收件箱项、按来源冻结的守卫、Identity 保留；不做批次判定                                                            |
 | HumanDecision `Terminal`                           | Tool 调用域提交终局并关闭等待，同一笔提交生成失效任务；失效任务调用 `invalidateWait`                                                                              |
 | HumanDecision `Consume`、RecoveryRouting `Deliver` | Tool 经 `bindReceiver`、`readInbox`、`consumeDecision` 接手，再提交 `acceptDecision` 固定 ResponseRecord；取消先在调用记录成立时，决定不被当作答案                |
+
+一批卡在哪里判：「是不是都答了」由 Tool 一侧的决策桥读整个请求现算，任一张卡还没有决定就答没有决定（`apps/harness-server/src/rows/tool-hitl/bridge.ts` 的 `decidedBatch`）；「是不是都接手了」由接手时的回执计数推出检查点，回执计数加一等于卡数时置为可继续，由下面的 `ReceiptCountExact` 守。两处都不在答复的那一笔提交里。
 
 ## local 的关系守护
 

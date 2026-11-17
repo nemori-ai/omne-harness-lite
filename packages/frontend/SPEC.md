@@ -80,8 +80,8 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 
 | 入口 | 内容 |
 | --- | --- |
-| `.` | 运行时有五样：常量表 `slots`、错误 `ShellAssemblyError`、存放的工厂 `createSlotStore`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`。其余是类型：存放的类型 `SlotStore`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
-| `./cordis` | 服务 `shell` 的抽象类 `ShellService`、它的键 `shellKey`、界面模块的助手 `defineUiModule` 与它的类型 `UiModuleDefinition`。根入口的源码闭包不含 Cordis 绑定 |
+| `.` | 运行时有七样：常量表 `slots`、错误 `ShellAssemblyError`、存放的工厂 `createSlotStore`、声明带类型的拓展点的两个函数 `definePoint` 与 `defineKeyedPoint`、造带类型的键的 `serviceKey` 与按键取服务的 `serviceOf`。其余是类型：带类型的键 `ServiceKey`，存放的类型 `SlotStore`，四种位置的一项 `GateItem`、`PageItem`、`SidebarItem`、`AttachedItem`，位置名 `SlotName`，按位置取项的类型 `ItemOf`，渲染函数的属性 `GateProps`、`ScopedProps`、`AttachedProps`，宿主排版时拿到的一项 `AttachedEntry` 与排版函数 `AttachedLayout`，带类型的拓展点的类型（见「带类型的拓展点」），外壳一侧读位置的接口 `ShellSlots`，租户的形状 `ScopeSource`，登录的端口 `ShellLogin`、登录状态 `ShellLoginState`、凭据与结果 `LoginCredentials`、`LoginResult`、`LogoutResult` |
+| `./cordis` | 服务 `shell` 的抽象类 `ShellService`、它的键 `shellKey`、界面模块的助手 `defineUiModule` 与它的类型 `UiModuleDefinition`、提供服务的函数类型 `Provide`。根入口的源码闭包不含 Cordis 绑定 |
 
 #### 插入位置
 
@@ -160,6 +160,12 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 `defineUiModule({ name, inject, apply })` 返回一个 Cordis 插件。它依赖 `shell` 与 `inject` 里列的服务；`apply(shell, services)` 里 `services` 以服务名为键，给出这些服务，界面模块在里面调 `shell.contribute` 放东西。`inject` 里的名字与 `services` 的类型由调用方用类型参数声明，协议客户端的服务名由应用的装配处给出，契约不认识它。
 
 加载与卸载都是 Cordis 的依赖注入本来就做的，不另写判断：依赖的服务出现时插件加载，消失时卸载，它放的东西随作用域撤掉；外壳不在时不加载。
+
+界面模块也能在客户端的树上提供一个服务，交给别的界面模块用。`apply` 的第三个参数 `provide(键, 值)` 把值以键为名提供出去，绑在这个界面模块的作用域上：它卸载时服务撤回，注入这个服务的界面模块随之卸载，再提供时再加载。不提供服务的界面模块不用这个参数。
+
+- 键是带类型的键 `ServiceKey<T>`：它就是服务名的文本，类型里另带一个形状 `T`，放在函数返回值的位置上。`serviceKey<T>(名字)` 造一个键。所以给得多的键能当给得少的用（`ServiceKey<多>` 能赋给 `ServiceKey<少>`），反过来编译不过。`provide` 的值必须是键的形状。
+- 提供方从自己的 `./cordis` 入口导出键。使用方不导入提供方：它用自己要的形状写键的类型，由应用的装配把提供方的键交给它；形状对不上时，在应用的装配处编译不过。使用方把键写进 `inject`，在 `apply` 里用 `serviceOf(services, 键)` 取到这个形状的服务。
+- 同一个名字由两个界面模块提供，照 Cordis 自己的规则；契约不另定。一个口只有一个宿主。
 
 ## 原则与约束
 
