@@ -724,6 +724,12 @@ function projectionContext(
   }
 }
 
+function diagnosticOf(error: unknown): string {
+  if (error instanceof HistoryFailure && error.failure.kind === 'unavailable')
+    return error.failure.diagnostic
+  return error instanceof Error ? error.message : 'original result'
+}
+
 function jointState<P>(
   book: Readonly<{ scratch: Scratch | null }>,
   cell: JournalCell<P>,
@@ -740,15 +746,7 @@ function jointState<P>(
       try {
         return succeed(normalizedResult(root, execution, caller.consumption, caller.result).result)
       } catch (error) {
-        return fail(
-          unavailable(
-            error instanceof HistoryFailure && error.failure.kind === 'unavailable'
-              ? error.failure.diagnostic
-              : error instanceof Error
-                ? error.message
-                : 'original result',
-          ),
-        )
+        return fail(unavailable(diagnosticOf(error)))
       }
     },
   }

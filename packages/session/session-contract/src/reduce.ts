@@ -116,10 +116,15 @@ function applyMessage(
   }
   trackCalls(draft, entry.message)
   if (entry.kind === 'message.assistant' && draft.run.kind === 'active') delete draft.unanswered
+  trackDeliveredTail(draft, entry)
+  return entry.participation === null ? null : applyParticipation(draft, entry.participation)
+}
+
+// The inputs delivered since the last reply of the model: a reply ends the tail.
+function trackDeliveredTail(draft: Draft, entry: SessionEntry): void {
   if (entry.kind === 'message.assistant') delete draft.deliveredTail
   if (entry.kind === 'message.delivered')
     draft.deliveredTail = [...(draft.deliveredTail ?? []), entry.input]
-  return entry.participation === null ? null : applyParticipation(draft, entry.participation)
 }
 
 function applyIntakeRouted(

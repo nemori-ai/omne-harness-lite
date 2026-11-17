@@ -23,8 +23,10 @@ type ViewMessage = {
   retained?: unknown[]
 }
 
-function messageOf(entry: HistoryEntry): ViewMessage | null {
-  if (!entry.kind.startsWith('message.')) return null
+function messageOf(entries: readonly HistoryEntry[], index: number): ViewMessage | null {
+  const entry = entries[index]
+  if (entry === undefined || !entry.kind.startsWith('message.')) return null
+  if (isAcceptedInputRecord(entries, index)) return null
   const message = (plainOf(entry.payload) as { message?: ViewMessage } | null)?.message
   return message ?? null
 }
@@ -64,7 +66,7 @@ export function maintainModelView(
     return digest
   }
   for (const [index, entry] of entries.entries()) {
-    const message = isAcceptedInputRecord(entries, index) ? null : messageOf(entry)
+    const message = messageOf(entries, index)
     if (
       message === null ||
       message.role === 'tool_internal' ||

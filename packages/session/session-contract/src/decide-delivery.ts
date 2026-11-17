@@ -22,31 +22,39 @@ export function decideDelivery(
   if (judgment.kind === 'stale-advance')
     return invalid('participation.execution', 'not the execution of the active Run')
   if (judgment.kind !== 'ok') return rejected(judgment)
-  const known = new Set([...snapshot.pending, ...(snapshot.taken ?? [])])
-  const named = value.deliveries.map(delivery => delivery.input)
+  const refused = refusedDeliveries(snapshot, value.deliveries)
+  if (refused !== null) return refused
+  const out: EncodedEntry[] = value.deliveries.map(({ input, message }) =>
+    encodeEntry(
+      {
+        kind: 'message.delivered',
+        input,
+        message,
+        source: value.source,
+        admission: value.admission,
+        consumption: null,
+        participation,
+      },
+      { owner: 'agent', via: 'agent-participant', source: value.source },
+    ),
+  )
+  return entries(out)
+}
+
+function refusedDeliveries(
+  snapshot: WorkSnapshot,
+  deliveries: DeliveredInputs['deliveries'],
+): Decision | null {
+  const named = deliveries.map(delivery => delivery.input)
   if (named.length === 0 || new Set(named).size !== named.length)
     return invalid('value.deliveries', 'empty, or an input named twice')
   if (inputsToDeliver(snapshot, named).length !== named.length)
     return rejected({ kind: 'changed', revision: snapshot.revision })
-  const out: EncodedEntry[] = []
-  for (const { input, message } of value.deliveries) {
-    if (!known.has(input)) return invalid('value.deliveries', 'not an input this Run can take')
-    if (message.role !== 'user' && message.role !== 'system_reminder')
-      return invalid('value.deliveries', 'not the message of an input')
-    out.push(
-      encodeEntry(
-        {
-          kind: 'message.delivered',
-          input,
-          message,
-          source: value.source,
-          admission: value.admission,
-          consumption: null,
-          participation,
-        },
-        { owner: 'agent', via: 'agent-participant', source: value.source },
-      ),
-    )
-  }
-  return entries(out)
+  const known = new Set([...snapshot.pending, ...(snapshot.taken ?? [])])
+  if (!named.every(input => known.has(input)))
+    return invalid('value.deliveries', 'not an input this Run can take')
+  const inputRole = (role: string) => role === 'user' || role === 'system_reminder'
+  return deliveries.every(({ message }) => inputRole(message.role))
+    ? null
+    : invalid('value.deliveries', 'not the message of an input')
 }
