@@ -99,3 +99,6 @@ export const blobDigest = (payload: string): string => `sha256:${sha256(payload)
 export const EXECUTION_BATCH_MAX_FACTS = 256
 
 export const EXECUTION_FACT_MAX_BYTES = 4096
+
+// The value of one journal item: one entry of an execution view, its content held by reference.
+export const EXECUTION_ITEM_MAX_BYTES = 65536

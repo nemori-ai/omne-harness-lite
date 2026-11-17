@@ -13,6 +13,8 @@
 set -u
 SRC=${1:?models directory}
 OUT=${2:?evidence directory}
+# The work below runs in another directory: name the evidence directory absolutely first.
+mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd) || exit 2
 JAR=${TLA2TOOLS_JAR:-/opt/tlaplus/tla2tools.jar}
 BUDGET=${FORMAL_BUDGET_SECONDS:-1200}
 WORKERS=${FORMAL_WORKERS:-8}
@@ -27,6 +29,7 @@ bad-no-closed-index P3_Reachable
 bad-absent-as-never P4_DecisionsTrue
 bad-mix-pages P1_SnapshotIsOpenSet
 bad-unchecked-commit P4_DecisionsTrue
+bad-store-unchecked P6_KeyOpensOnce
 "
 
 WORK=$(mktemp -d "$HOME/journal-open-set.XXXXXX") || exit 2

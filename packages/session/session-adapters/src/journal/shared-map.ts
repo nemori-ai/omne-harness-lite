@@ -97,6 +97,11 @@ export function forkOf<K, V>(map: ReadonlyMap<K, V>): SharedMap<K, V> {
   return map instanceof SharedMap ? (map as SharedMap<K, V>).fork() : new SharedMap(map)
 }
 
+// A fork that remembers the keys it writes; any other map is copied once first.
+export function forkTrackedOf<K, V>(map: ReadonlyMap<K, V>): SharedMap<K, V> {
+  return (map instanceof SharedMap ? (map as SharedMap<K, V>) : new SharedMap(map)).forkTracked()
+}
+
 // Generic walkers treat both kinds of table alike.
 export const isTable = (value: unknown): value is ReadonlyMap<unknown, unknown> =>
   value instanceof Map || value instanceof SharedMap

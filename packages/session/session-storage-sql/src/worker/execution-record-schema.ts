@@ -151,3 +151,21 @@ export const FACT_BLOB_MIGRATION = Object.freeze({
   owner: 'execution-record',
   id: '006-fact-blob',
 })
+
+// One row per item of an execution view by original key: the open rows are what a cold load reads,
+// the closed rows the closed index; a publish opens a key once and changes only an open row.
+export const ITEM_SCHEMA: readonly string[] = [
+  `CREATE TABLE er_item (
+    tenant TEXT NOT NULL, execution TEXT NOT NULL, family TEXT NOT NULL, item TEXT NOT NULL,
+    open INTEGER NOT NULL, pub INTEGER NOT NULL, body BLOB NOT NULL,
+    CHECK (open IN (0, 1) AND pub > 0),
+    PRIMARY KEY (tenant, execution, family, item)) STRICT, WITHOUT ROWID`,
+  'CREATE INDEX er_item_open ON er_item (tenant, execution, family, item) WHERE open = 1',
+]
+
+export const ITEM_TABLES: readonly string[] = ['er_item']
+
+export const ITEM_MIGRATION = Object.freeze({
+  owner: 'execution-record',
+  id: '007-item',
+})

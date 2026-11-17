@@ -37,7 +37,6 @@ import {
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import {
-  EXECUTION_BATCH_MAX_FACTS,
   SESSION_HISTORY_ROOT_HANDLER,
   SESSION_READ_PROTOCOL,
   decodeExecutionRecordReply,
@@ -54,7 +53,6 @@ import {
   type ExecutionAdmissionRecord,
   type ExecutionBlobRecord,
   type ExecutionBoundaryRecord,
-  type ExecutionFactRecord,
   type SessionCheck,
 } from '@omne-harness/session-storage-sql/participants'
 import type {
@@ -73,17 +71,11 @@ import {
 } from '../journal-commit.ts'
 import {
   BATCH_OVERHEAD_BYTES,
-  FACT_MAX_BYTES,
-  batchBytes,
-  contentPath,
   emptySessionView,
   fold,
   receiptOf as batchReceiptOf,
-  type BatchEnvelope,
-  type EventView,
   type ExecutionView,
   type ParticipationKind,
-  type PublishedBatch,
   type RequestView,
   type SessionJournalView,
 } from '../journal/index.ts'
@@ -92,7 +84,6 @@ import {
   participationFailure,
   type ParticipationMethod,
 } from '../participation-mapping.ts'
-import { canonical } from '../testing/canonical.ts'
 import {
   HistoryFailure,
   captureEventOriginal,
@@ -118,13 +109,13 @@ import {
   type CommonRoot,
   type JournalCell,
 } from '../testing/root.ts'
+import { blobRowDigest, factDigestOf, type EventProjection } from './journal-batch.ts'
 import {
-  blobRowDigest,
-  coreBlobRows,
-  factDigestOf,
-  type DerivedFact,
-  type EventProjection,
-} from './journal-batch.ts'
+  JOURNAL_PROVIDER,
+  preparePublication,
+  unavailable,
+  type Prepared,
+} from './journal-publication.ts'
 import {
   projectRecords,
   type ProjectedRecords,
@@ -256,14 +247,8 @@ const READS: ReadonlySet<string> = new Set([
   'toolTargets.forExecution',
   'toolTargets.resolve',
 ])
-const OWNER = 'session-log-journal'
+const OWNER = JOURNAL_PROVIDER
 const BLOBS_WITH_BATCH_BYTES = 256 * 1024
-
-const unavailable = (diagnostic: string): Failure => ({
-  kind: 'unavailable',
-  owner: OWNER,
-  diagnostic,
-})
 const unread = <T>(answer: Outcome<T, Failure> | undefined, what: string): Outcome<T, Failure> =>
   answer ?? fail(unavailable(`the Journal core holds no ${what} read`))
 
@@ -380,13 +365,6 @@ function projectionOf(
     control: projected(control),
     ...(event.body.kind === 'input-taken' ? { batch: projected(event.body.batch) } : {}),
   }
-}
-
-// The events of the appended batches are the tail of the folded view: walk back only over them.
-function eventsFrom(events: readonly EventView[], pub: number): readonly EventView[] {
-  let at = events.length
-  while (at > 0 && events[at - 1]!.pub >= pub) at -= 1
-  return events.slice(at)
 }
 
 function boundariesOf(
@@ -1372,91 +1350,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     ]
   }
 
-  type Prepared = Readonly<{
-    envelope: BatchEnvelope
-    derived: readonly DerivedFact[]
-    records: readonly ExecutionFactRecord[]
-    blobs: readonly ExecutionBlobRecord[]
-    batchBytes: number
-  }>
-
-  function prepare(
-    book: Book<P>,
-    after: CommonRoot,
-    own: MemoryExecution | undefined,
-    appended: readonly PublishedBatch[],
-    written: Written,
-    scratch: Scratch,
-  ): Outcome<Prepared, Failure> {
-    const blobs = new Map<string, ExecutionBlobRecord>()
-    coreBlobRows(after.agent.blobs, after.agent.blobs.written(), row => book.blobs.has(row), blobs)
-    const execution = appended[0]!.execution
-    const events = new Map(
-      eventsFrom(after.agent.view.executions.get(execution)?.events ?? [], appended[0]!.pub).map(
-        event => [`${String(event.pub)}/${String(event.ord)}`, event] as const,
-      ),
-    )
-    const derived: DerivedFact[] = []
-    for (const batch of appended)
-      for (const [index, fact] of batch.facts.entries()) {
-        const folded = events.get(`${String(batch.pub)}/${String(index + 1)}`)
-        if (folded === undefined) {
-          derived.push({ fact, event: null })
-          continue
-        }
-        const event = own?.events[folded.eseq - 1]
-        if (own === undefined || event === undefined || event.body.kind !== folded.kind) {
-          const first = [...events.values()][0]?.eseq ?? folded.eseq
-          const appended = (own?.events ?? []).slice(first - 1).map(item => item.body.kind)
-          const projected = [...events.values()].map(item => item.kind)
-          return fail(
-            unavailable(
-              `the facts of ${written.method} do not name the events it appended (fact ${fact.kind} at ${String(folded.eseq)}; the facts project [${projected.join(', ')}], the write appended [${appended.join(', ')}])`,
-            ),
-          )
-        }
-        derived.push({ fact, event: projectionOf(after, own, event, options.fault) })
-      }
-    for (const [index, item] of derived.entries()) {
-      const found = contentPath(item.fact)
-      if (found !== null)
-        return fail({
-          kind: 'invalid',
-          field: `facts[${String(index)}].${found}`,
-          reason: 'content',
-        })
-      if (Buffer.byteLength(canonical(item.fact), 'utf8') > FACT_MAX_BYTES)
-        return fail({ kind: 'invalid', field: `facts[${String(index)}]`, reason: 'oversize' })
-    }
-    const envelope: BatchEnvelope = { ...appended.at(-1)!.envelope, kinds: kindsOf(scratch) }
-    const records: ExecutionFactRecord[] = [
-      { execution, kind: 'batch', body: envelope as unknown as JsonValue },
-      ...derived.map(item => ({
-        execution,
-        kind: item.fact.kind,
-        body: item.fact as unknown as JsonValue,
-        ...(item.event === null ? {} : { event: item.event }),
-      })),
-    ]
-    if (records.length > EXECUTION_BATCH_MAX_FACTS)
-      return fail(
-        unavailable(
-          `the batch of ${written.method} holds ${String(records.length)} facts, more than ${String(EXECUTION_BATCH_MAX_FACTS)}`,
-        ),
-      )
-    return succeed({
-      envelope,
-      derived,
-      records,
-      blobs: [...blobs.values()],
-      batchBytes: batchBytes({
-        execution: execution as AgentExecutionId,
-        envelope,
-        facts: derived.map(item => item.fact),
-      }),
-    })
-  }
-
   async function storeBlobsFirst(
     book: Book<P>,
     domain: DomainRef,
@@ -1549,7 +1442,17 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     )
     let prepared: Prepared
     try {
-      const made = prepare(book, after, own, appended, written, scratch)
+      const made = preparePublication({
+        view: book.view,
+        published: book.published ?? 0,
+        stored: row => book.blobs.has(row),
+        after,
+        own,
+        appended,
+        method: written.method,
+        kinds: kindsOf(scratch),
+        project: (own, event) => projectionOf(after, own, event, options.fault),
+      })
       if ('failure' in made) return { kind: 'answer', value: made }
       prepared = made.ok
     } catch (error) {
@@ -1577,6 +1480,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         digest: written.digest,
         facts: prepared.records,
         blobs: blobs.ok,
+        items: prepared.items,
         boundaries: boundariesOf(changed, receipt),
         admissions: admissionsOf(written, own, receipt, scratch),
       }),
@@ -1708,14 +1612,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     if (receipt.recalled) return conflicting(job, reply.digest)
     const { book, prepared } = job
     const pub = Number(reply.published)
-    const batch: PublishedBatch = {
-      execution: job.execution as AgentExecutionId,
-      envelope: prepared.envelope,
-      facts: prepared.derived.map(item => item.fact),
-      pub,
-    }
-    book.view = fold(book.view, batch)
-    book.view = { ...book.view, head: Math.max(book.view.head, pub) }
+    // The publication is conditional on the head this write read, so it lands where it was folded.
+    if (pub !== prepared.pub)
+      throw new TypeError(
+        `the batch folded at ${String(prepared.pub)} was published at ${String(pub)}`,
+      )
+    book.view = { ...prepared.view, head: Math.max(prepared.view.head, pub) }
     for (const blob of prepared.blobs) book.blobs.set(blob.digest, blob.payload)
     book.published = pub
     counts.confirm(book.key, pub)
@@ -1744,6 +1646,12 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         return { kind: 'again' }
       case 'operation-conflict':
         return conflicting(job, reply.digest)
+      // The store holds an item this write opens, or no longer holds one it changes open: the write
+      // repeats or touches closed work, as a repeated key in memory would.
+      case 'item-conflict':
+        return job.agentOperation === null
+          ? nameless('an item conflict')
+          : { kind: 'answer', value: fail({ kind: 'conflict', operation: job.agentOperation }) }
       default:
         return {
           kind: 'answer',

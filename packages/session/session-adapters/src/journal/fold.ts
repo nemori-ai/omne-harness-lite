@@ -41,7 +41,8 @@ import {
   type SessionJournalView,
 } from './view.ts'
 import { foldVoided } from './voided.ts'
-import { forkOf } from './shared-map.ts'
+import { forkOf, forkTrackedOf } from './shared-map.ts'
+import { itemChanges, type ItemChange } from './items.ts'
 
 const NO_REVISION: ReadonlySet<string> = new Set([
   'op.recognized',
@@ -80,18 +81,18 @@ function draftOf(view: ExecutionView): Draft {
     ...view,
     cursor: { ...view.cursor },
     cursorMoved: { ...view.cursorMoved },
-    intents: forkOf(view.intents),
-    results: forkOf(view.results),
-    placeholders: forkOf(view.placeholders),
-    handoffs: forkOf(view.handoffs),
-    batches: forkOf(view.batches),
-    passages: forkOf(view.passages),
-    controls: forkOf(view.controls),
-    materials: forkOf(view.materials),
-    ops: forkOf(view.ops),
-    excluded: forkOf(view.excluded),
-    rejections: forkOf(view.rejections),
-    reached: forkOf(view.reached),
+    intents: forkTrackedOf(view.intents),
+    results: forkTrackedOf(view.results),
+    placeholders: forkTrackedOf(view.placeholders),
+    handoffs: forkTrackedOf(view.handoffs),
+    batches: forkTrackedOf(view.batches),
+    passages: forkTrackedOf(view.passages),
+    controls: forkTrackedOf(view.controls),
+    materials: forkTrackedOf(view.materials),
+    ops: forkTrackedOf(view.ops),
+    excluded: forkTrackedOf(view.excluded),
+    rejections: forkTrackedOf(view.rejections),
+    reached: forkTrackedOf(view.reached),
   }
 }
 
@@ -515,7 +516,7 @@ function foldFinishProved(draft: Draft, fact: FactOf<'finish.proved'>): void {
 }
 
 function foldFinishObligation(draft: Draft, fact: FactOf<'finish.obligation'>, pub: number): void {
-  const obligations = forkOf(draft.finish.obligations)
+  const obligations = forkTrackedOf(draft.finish.obligations)
   obligations.set(fact.id, { category: fact.category, item: fact.item, pub })
   draft.finish = { ...draft.finish, obligations }
 }
@@ -528,7 +529,7 @@ function foldFinishObligations(
 ): void {
   const key = listKey(fact.candidate, fact.list)
   if (draft.finish.lists.has(key)) return
-  const lists = forkOf(draft.finish.lists)
+  const lists = forkTrackedOf(draft.finish.lists)
   lists.set(key, {
     candidate: fact.candidate,
     list: fact.list,
@@ -820,6 +821,17 @@ export function fold(view: SessionJournalView, batch: PublishedBatch): SessionJo
   for (const [operation, exclusion] of draft.excluded)
     if (!excluded.has(operation) && !ops.has(operation)) excluded.set(operation, exclusion)
   return { head: batch.pub, executions, ops, excluded }
+}
+
+// A fold of one batch together with the items it opened or changed in its execution.
+export function foldItems(
+  view: SessionJournalView,
+  batch: PublishedBatch,
+): Readonly<{ view: SessionJournalView; changes: readonly ItemChange[] }> {
+  const next = fold(view, batch)
+  const after = next.executions.get(batch.execution)
+  if (next === view || after === undefined) return { view: next, changes: [] }
+  return { view: next, changes: itemChanges(view.executions.get(batch.execution), after) }
 }
 
 export function foldAll(

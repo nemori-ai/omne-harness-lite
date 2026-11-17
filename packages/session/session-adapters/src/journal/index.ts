@@ -37,7 +37,16 @@ export type {
   Ref,
   ResultStage,
 } from './facts.ts'
-export { advances, fold, foldAll } from './fold.ts'
+export { advances, fold, foldAll, foldItems } from './fold.ts'
+export {
+  itemChanges,
+  viewItems,
+  ITEM_FAMILIES,
+  EXEC_FAMILY,
+  type ItemChange,
+  type ItemFamily,
+  type ViewItem,
+} from './items.ts'
 export {
   emptyExecutionView,
   emptySessionView,

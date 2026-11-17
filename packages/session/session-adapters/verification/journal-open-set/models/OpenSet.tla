@@ -20,7 +20,14 @@
 (* The Agent decides about an item from the snapshot; an item absent from   *)
 (* the snapshot is looked up by its original key. A decision is committed  *)
 (* only under the expected revision it was read at (conditional commit).   *)
-(* A producer saves late results without an expected revision.             *)
+(*                                                                         *)
+(* The writer holds only the open set in memory and takes a key absent    *)
+(* from it as new. A write round folds to the head, judges its batch       *)
+(* against the open set, and publishes on the condition that the head did  *)
+(* not move. The store checks the batch inside the publish: a key it opens *)
+(* is neither open nor in the closed index, a key it changes or closes is  *)
+(* open. Another writer (another process) appends legal batches at any     *)
+(* time.                                                                   *)
 (*                                                                         *)
 (* Bug switches make one negative control each; all FALSE is the design.  *)
 (***************************************************************************)
@@ -37,7 +44,8 @@ CONSTANTS
   NoClosedIndex,   \* bug: closing an item removes it from proj, but no closed index entry is written
   AbsentAsNever,   \* bug: the Agent takes an item absent from the snapshot as never opened
   MixPages,        \* bug: a cold load accepts pages that name different heads
-  UncheckedCommit  \* bug: the Agent commits a decision without the expected revision
+  UncheckedCommit, \* bug: the Agent commits a decision without the expected revision
+  StoreUnchecked   \* bug: the store appends a published batch without checking it against proj and the closed index
 
 ASSUME MaxBatches \in Nat /\ MaxBatches >= 1
 
@@ -49,6 +57,7 @@ States == {None} \cup {Open(n) : n \in 0..MaxChanges} \cup {Closed(n) : n \in 0.
 (* A change: open an absent item, change an open one, close an open one. *)
 Changes == [k : Keys, op : {"open", "change", "close"}]
 Idle == [busy |-> FALSE, rev |-> 0, key |-> "k0", saw |-> None]
+NoRound == [busy |-> FALSE, head |-> 0, batch |-> {}, held |-> [k \in {} |-> None]]
 
 VARIABLES
   log,        \* Seq of batches; a batch is a set of changes
@@ -61,9 +70,10 @@ VARIABLES
   restarts,
   crashes,
   agent,      \* the Agent's read in progress: [busy, rev, key, saw]
-  decisions   \* the decisions committed: set of [rev, key, saw]
+  decisions,  \* the decisions committed: set of [rev, key, saw]
+  round       \* the writer's round in progress: [busy, head, batch, held]
 
-vars == <<log, proj, closedIdx, pending, alive, view, load, restarts, crashes, agent, decisions>>
+vars == <<log, proj, closedIdx, pending, alive, view, load, restarts, crashes, agent, decisions, round>>
 
 (* The truth: the state of every key after the first n batches of the log. *)
 Step(st, op) ==
@@ -87,10 +97,11 @@ ClosedPart(f) == [k \in Keys |-> IF IsClosed(f[k]) THEN f[k] ELSE None]
 (* What the projection of the first n batches holds. *)
 ProjOf(n) == [open |-> KeptPart(TruthN(n)), head |-> n]
 
-(* A batch is legal against the current truth: each key changes at most once and the change applies. *)
-Legal(b) ==
+(* A batch is legal against a state of its keys: each key changes at most once and the change applies. *)
+LegalAgainst(b, f) ==
   /\ \A c1, c2 \in b : c1.k = c2.k => c1 = c2
-  /\ \A c \in b : Step(Truth[c.k], c.op) # Truth[c.k]
+  /\ \A c \in b : Step(f[c.k], c.op) # f[c.k]
+Legal(b) == LegalAgainst(b, Truth)
 
 Init ==
   /\ log = <<>>
@@ -104,12 +115,10 @@ Init ==
   /\ crashes = 0
   /\ agent = Idle
   /\ decisions = {}
+  /\ round = NoRound
 
-(* The writer appends one batch. In the design, proj and the closed index change in the same commit. *)
-Commit(b) ==
-  /\ Len(log) < MaxBatches
-  /\ b # {}
-  /\ Legal(b)
+(* Appending one batch. In the design, proj and the closed index change in the same commit. *)
+AppendBatch(b) ==
   /\ log' = Append(log, b)
   /\ LET after == ApplyBatch(Truth, b) IN
        /\ IF ProjectionLags
@@ -117,9 +126,51 @@ Commit(b) ==
             ELSE /\ proj' = [open |-> KeptPart(after), head |-> Len(log) + 1]
                  /\ closedIdx' = IF NoClosedIndex THEN closedIdx ELSE ClosedPart(after)
                  /\ UNCHANGED pending
-  /\ UNCHANGED <<alive, view, load, restarts, crashes, agent, decisions>>
 
-ProducerCommit == \E b \in SUBSET Changes : Cardinality(b) <= 2 /\ Commit(b)
+Batches == {b \in SUBSET Changes : b # {} /\ Cardinality(b) <= 2}
+
+(* Another writer appends a legal batch. *)
+OtherCommit ==
+  /\ Len(log) < MaxBatches
+  /\ \E b \in Batches : Legal(b) /\ AppendBatch(b)
+  /\ UNCHANGED <<alive, view, load, restarts, crashes, agent, decisions, round>>
+
+(* A lookup by original key in the closed index. *)
+Lookup(k) == IF closedIdx[k] # None THEN closedIdx[k] ELSE None
+
+(* What the writer holds about a key: the open set in memory; a key absent from it counts as new. *)
+Held(k) == IF k \in DOMAIN view.open THEN view.open[k] ELSE None
+
+(* What the store accepts in a publish: a key the batch opens is neither open nor closed,
+   a key it changes or closes is open. *)
+StoreAccepts(b) == \A c \in b :
+  IF c.op = "open" THEN c.k \notin DOMAIN proj.open /\ closedIdx[c.k] = None
+  ELSE c.k \in DOMAIN proj.open
+
+(* The writer starts a round: it has folded to the head and judges one change against its open set.
+   A round writes one change: keys are independent here, and a larger batch adds no interleaving. *)
+RoundStart ==
+  /\ alive
+  /\ ~round.busy
+  /\ view.head = Len(log)
+  /\ Len(log) < MaxBatches
+  /\ \E c \in Changes :
+       round' = [busy |-> TRUE, head |-> Len(log), batch |-> {c}, held |-> [k \in {c.k} |-> Held(k)]]
+  /\ UNCHANGED <<log, proj, closedIdx, pending, alive, view, load, restarts, crashes, agent, decisions>>
+
+(* The writer publishes the round: on the condition that the head did not move, a batch legal against
+   what it holds and accepted by the store is appended; otherwise it is refused, and a moved head
+   ends the round for another one. *)
+RoundPublish ==
+  /\ round.busy
+  /\ Len(log) < MaxBatches
+  /\ IF /\ Len(log) = round.head
+        /\ LegalAgainst(round.batch, round.held)
+        /\ StoreUnchecked \/ StoreAccepts(round.batch)
+       THEN AppendBatch(round.batch)
+       ELSE UNCHANGED <<log, proj, closedIdx, pending>>
+  /\ round' = NoRound
+  /\ UNCHANGED <<alive, view, load, restarts, crashes, agent, decisions>>
 
 (* A lagging projection catches up one batch at a time (only with ProjectionLags). *)
 CatchUpProjection ==
@@ -128,14 +179,14 @@ CatchUpProjection ==
        /\ proj' = ProjOf(n)
        /\ closedIdx' = IF NoClosedIndex THEN closedIdx ELSE ClosedPart(TruthN(n))
   /\ pending' = pending - 1
-  /\ UNCHANGED <<log, alive, view, load, restarts, crashes, agent, decisions>>
+  /\ UNCHANGED <<log, alive, view, load, restarts, crashes, agent, decisions, round>>
 
 (* The live writer folds the next batch into its in-memory open set: the open items of the fold. *)
 Fold ==
   /\ alive
   /\ view.head < Len(log)
   /\ view' = [open |-> KeptPart(TruthN(view.head + 1)), head |-> view.head + 1]
-  /\ UNCHANGED <<log, proj, closedIdx, pending, alive, load, restarts, crashes, agent, decisions>>
+  /\ UNCHANGED <<log, proj, closedIdx, pending, alive, load, restarts, crashes, agent, decisions, round>>
 
 Crash ==
   /\ crashes < MaxCrashes
@@ -144,6 +195,7 @@ Crash ==
   /\ view' = [open |-> [k \in {} |-> None], head |-> 0]
   /\ load' = <<>>
   /\ agent' = Idle
+  /\ round' = NoRound
   /\ crashes' = crashes + 1
   /\ UNCHANGED <<log, proj, closedIdx, pending, restarts, decisions>>
 
@@ -155,7 +207,7 @@ StartLoad ==
   /\ ~alive
   /\ load = <<>>
   /\ load' = <<PageOf(Half)>>
-  /\ UNCHANGED <<log, proj, closedIdx, pending, alive, view, restarts, crashes, agent, decisions>>
+  /\ UNCHANGED <<log, proj, closedIdx, pending, alive, view, restarts, crashes, agent, decisions, round>>
 
 SecondPage ==
   /\ Len(load) = 1
@@ -171,10 +223,9 @@ SecondPage ==
           ELSE /\ load' = <<>>
                /\ restarts' = IF restarts < MaxRestarts THEN restarts + 1 ELSE restarts
                /\ UNCHANGED <<alive, view>>
-  /\ UNCHANGED <<log, proj, closedIdx, pending, crashes, agent, decisions>>
+  /\ UNCHANGED <<log, proj, closedIdx, pending, crashes, agent, decisions, round>>
 
 (* The Agent reads one item: from the snapshot when present, else by its original key. *)
-Lookup(k) == IF closedIdx[k] # None THEN closedIdx[k] ELSE None
 AgentRead(k) ==
   /\ alive
   /\ view.head = Len(log)
@@ -182,7 +233,7 @@ AgentRead(k) ==
   /\ LET saw == IF k \in DOMAIN view.open THEN view.open[k]
                 ELSE IF AbsentAsNever THEN None ELSE Lookup(k)
      IN agent' = [busy |-> TRUE, rev |-> view.head, key |-> k, saw |-> saw]
-  /\ UNCHANGED <<log, proj, closedIdx, pending, alive, view, load, restarts, crashes, decisions>>
+  /\ UNCHANGED <<log, proj, closedIdx, pending, alive, view, load, restarts, crashes, decisions, round>>
 
 (* The Agent commits a decision about what it saw. Conditional on the revision it read at. *)
 AgentDecide ==
@@ -191,10 +242,12 @@ AgentDecide ==
        THEN decisions' = decisions \cup {[rev |-> Len(log), key |-> agent.key, saw |-> agent.saw]}
        ELSE UNCHANGED decisions
   /\ agent' = Idle
-  /\ UNCHANGED <<log, proj, closedIdx, pending, alive, view, load, restarts, crashes>>
+  /\ UNCHANGED <<log, proj, closedIdx, pending, alive, view, load, restarts, crashes, round>>
 
 Next ==
-  \/ ProducerCommit
+  \/ OtherCommit
+  \/ RoundStart
+  \/ RoundPublish
   \/ CatchUpProjection
   \/ Fold
   \/ Crash
@@ -229,5 +282,8 @@ P4_DecisionsTrue == \A d \in decisions : d.saw = TruthN(d.rev)[d.key]
 
 (* P5: the snapshot holds open items only: its size is bounded by the open work, not by history. *)
 P5_OpenBound == alive => \A k \in DOMAIN view.open : IsOpen(view.open[k])
+
+(* P6: every logged change applied to the truth before it; in particular a closed key never opens again. *)
+P6_KeyOpensOnce == \A n \in 1..Len(log) : \A c \in log[n] : Step(TruthN(n - 1)[c.k], c.op) # TruthN(n - 1)[c.k]
 
 ====
