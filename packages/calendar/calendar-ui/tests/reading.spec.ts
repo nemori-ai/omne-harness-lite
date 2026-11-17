@@ -43,3 +43,22 @@ describe('readOnce', () => {
     })
   })
 })
+
+describe('UNREADABLE_TEXT', () => {
+  it('every reason a read gives nothing says its own sentence', async () => {
+    const { UNREADABLE_TEXT } = await import('../src/model/reading.ts')
+    const texts = Object.values(UNREADABLE_TEXT)
+    expect(Object.keys(UNREADABLE_TEXT).sort()).toEqual(
+      [
+        'basis-unavailable',
+        'denied',
+        'not-sent',
+        'protocol-rejected',
+        'uncertain',
+        'unavailable',
+      ].sort(),
+    )
+    expect(texts.every(text => text.length > 0)).toBe(true)
+    expect(new Set(texts).size).toBe(texts.length)
+  })
+})

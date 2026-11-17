@@ -64,6 +64,7 @@ async function answer(call: Call, value: unknown): Promise<void> {
 async function listed(items: unknown[], next: string | null = null) {
   const fake = createFakeClient<Client>(OPERATIONS)
   render(<SchedulePage client={fake.client} tenant={TENANT} />)
+  expect(screen.getByRole('status', { name: '读取中' })).toBeTruthy()
   await answer(await fake.next('list-schedules'), { outcome: 'succeeded', body: { items, next } })
   return fake
 }
@@ -173,4 +174,19 @@ it('D4 picking another schedule drops the late answer of the one picked before',
   await answer(late, { outcome: 'succeeded', body: DETAIL })
   expect(late.options?.signal?.aborted).toBe(true)
   expect(screen.queryByText('月报提醒', { selector: 'dd' })).toBeNull()
+})
+
+it('D5 a late answer of the schedule picked before, arriving after the new one, does not replace it', async () => {
+  const fake = await listed([MONTHLY, { ...WEEKLY, label: '周报' }])
+  fireEvent.click(screen.getByRole('button', { name: '月报提醒' }))
+  const late = await fake.next('read-schedule')
+  fireEvent.click(screen.getByRole('button', { name: '周报' }))
+  await answer(await fake.next('read-schedule'), {
+    outcome: 'succeeded',
+    body: { ...DETAIL, schedule: 'sch_weekly', label: '周报', control: 'draft' },
+  })
+  await answer(late, { outcome: 'succeeded', body: DETAIL })
+  const facts = screen.getByLabelText('日程详情').textContent
+  expect(facts).toContain('周报')
+  expect(facts).toContain('草稿')
 })
