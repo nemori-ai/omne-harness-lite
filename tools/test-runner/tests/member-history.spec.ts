@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -12,7 +12,7 @@ afterEach(() => {
 type Row = { member: string; wallSeconds: number; files: number; exitCode: number }
 
 function home(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'member-history-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'member-history-')))
   homes.push(dir)
   return dir
 }
