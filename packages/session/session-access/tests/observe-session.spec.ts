@@ -14,6 +14,7 @@ const FRAMES: readonly SessionObservationFrame[] = [
     run: 'run-1' as RunId,
     revision: '7' as SessionRevision,
     phase: 'streaming',
+    attempts: null,
     target: { projection: 'model-output-v1' },
   },
   { kind: 'snapshot', projection: 'model-output-v1', value: { kind: 'string', value: 'he' } },
@@ -21,6 +22,13 @@ const FRAMES: readonly SessionObservationFrame[] = [
   { kind: 'gap', reason: 'buffer' },
   { kind: 'refreshing' },
 ]
+
+// What the protocol carries for a frame: a state frame without progress has no such field.
+const written = (frame: SessionObservationFrame) => {
+  if (frame.kind !== 'state' || frame.attempts !== null) return frame
+  const { attempts: _none, ...rest } = frame
+  return rest
+}
 
 function source(world: ReturnType<typeof createWorld>) {
   return world.contribution.observations['observe-session']
@@ -42,13 +50,49 @@ const context = (signal = new AbortController().signal) => ({
 })
 
 describe('observe-session', () => {
+  it('sends the dispatch progress of the state frame, and of its last fault the cause and the upstream status only', async () => {
+    const [state] = FRAMES
+    if (state?.kind !== 'state') throw new Error('fixture')
+    const world = createWorld()
+    world.script({
+      kind: 'opened',
+      frames: [
+        {
+          ...state,
+          attempts: {
+            allowed: 2,
+            made: 2,
+            last: { cause: 'upstream-unavailable', upstreamStatus: '503', diagnostic: 'http-503' },
+            notBefore: '2026-11-17T00:00:01.000Z',
+          },
+        },
+      ],
+      end: 'refresh-exhausted',
+    })
+    const opened = await source(world)(context(), open)
+    if (opened.outcome !== 'succeeded') throw new Error(`opened ${opened.outcome}`)
+    const { frames } = await drain(opened.frames)
+    expect(frames).toEqual([
+      {
+        ...state,
+        attempts: {
+          allowed: 2,
+          made: 2,
+          last: { cause: 'upstream-unavailable', upstreamStatus: '503' },
+          notBefore: '2026-11-17T00:00:01.000Z',
+        },
+      },
+    ])
+  })
+
   it('opens with the principal of the target tenant and sends the five frames as they are', async () => {
     const world = createWorld()
     world.script({ kind: 'opened', frames: FRAMES, end: 'refresh-exhausted' })
     const opened = await source(world)(context(), open)
     if (opened.outcome !== 'succeeded') throw new Error(`opened ${opened.outcome}`)
     const { frames, end } = await drain(opened.frames)
-    expect(frames).toEqual(FRAMES)
+    expect(frames).toEqual(FRAMES.map(written))
+    expect(frames[0]).not.toHaveProperty('attempts')
     expect(end).toBe('refresh-exhausted')
     const [access] = world.opens()
     expect(access?.session).toBe(SESSION)
@@ -73,7 +117,7 @@ describe('observe-session', () => {
     const controller = new AbortController()
     const opened = await source(world)(context(controller.signal), open)
     if (opened.outcome !== 'succeeded') throw new Error(`opened ${opened.outcome}`)
-    expect(await opened.frames.next()).toEqual({ done: false, value: FRAMES[0] })
+    expect(await opened.frames.next()).toEqual({ done: false, value: FRAMES.map(written)[0] })
     const pending = opened.frames.next()
     controller.abort()
     expect(await pending).toEqual({ done: true, value: 'unavailable' })
@@ -98,7 +142,7 @@ describe('observe-session', () => {
       const opened = await source(world)(context(), open)
       if (opened.outcome !== 'succeeded') throw new Error(`opened ${opened.outcome}`)
       const [sent] = (await drain(opened.frames)).frames
-      expect(sent).toStrictEqual(frame)
+      expect(sent).toStrictEqual(written(frame))
       expect(sent).not.toBe(frame)
     },
   )

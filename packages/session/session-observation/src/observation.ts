@@ -1,8 +1,10 @@
-import type { CallState, ModelInvocationRef } from '@omne-harness/model-contract'
+import type { ModelInvocationRef } from '@omne-harness/model-contract'
 import type { SessionAccess } from '@omne-harness/session-contract'
 import type { StreamRef } from '@omne-harness/stream-arrival'
 import {
+  callViewOf,
   FrameTranslator,
+  type CallView,
   type SessionObservationEnd,
   type SessionObservationFrame,
 } from './frames.ts'
@@ -33,8 +35,8 @@ type Stream =
   | Readonly<{ kind: 'reobserve'; target: Target }>
 
 type Selection =
-  | Readonly<{ kind: 'stream'; ref: StreamRef; phase: CallState['phase'] }>
-  | Readonly<{ kind: 'none'; phase: CallState['phase'] | null }>
+  | Readonly<{ kind: 'stream'; ref: StreamRef; call: CallView }>
+  | Readonly<{ kind: 'none'; call: CallView }>
   | Readonly<{ kind: 'end'; reason: SessionObservationEnd }>
 
 type Step = Readonly<{ frames: SessionObservationFrame[]; end?: SessionObservationEnd }>
@@ -116,7 +118,7 @@ export function createSessionObservation<P>(
       const translator = new FrameTranslator()
       const viewer = { principal: access.principal, tenant: access.tenant }
       let view: Located = first.view
-      let phase: CallState['phase'] | null = null
+      let call: CallView = { phase: null, attempts: null }
       let closedRef: StreamRef | null = null
 
       function startWait(
@@ -166,7 +168,7 @@ export function createSessionObservation<P>(
         const frame = translator.state({
           run: view.run,
           revision: view.revision,
-          phase,
+          ...call,
           target: stream.kind === 'none' ? null : { projection: 'model-output-v1' },
         })
         return frame === null ? [] : [frame]
@@ -199,19 +201,19 @@ export function createSessionObservation<P>(
         )
         if (answer === 'elapsed') {
           ports.diagnose({ code: 'observation.current-timeout', detail: reference })
-          return { kind: 'none', phase }
+          return { kind: 'none', call }
         }
         if ('failure' in answer) {
           const failure = answer.failure
           if (failure.kind === 'denied') return { kind: 'end', reason: 'denied' }
           if (failure.kind === 'invalid' && failure.reason !== 'not-accepted')
             return { kind: 'end', reason: 'unavailable' }
-          return { kind: 'none', phase }
+          return { kind: 'none', call }
         }
         const current = answer.ok.current
         if (current === null || current.ref === closedRef)
-          return { kind: 'none', phase: answer.ok.state.phase }
-        return { kind: 'stream', ref: current.ref, phase: answer.ok.state.phase }
+          return { kind: 'none', call: callViewOf(answer.ok.state) }
+        return { kind: 'stream', ref: current.ref, call: callViewOf(answer.ok.state) }
       }
 
       async function located(result: LocateResult, cause: Cause): Promise<Step> {
@@ -226,7 +228,7 @@ export function createSessionObservation<P>(
         if (next.mainCall === null || next.mainCall === target?.reference) return quiet(cause)
         const selection = await select(next.mainCall)
         if (selection.kind === 'end') return { frames: [], end: selection.reason }
-        phase = selection.phase
+        call = selection.call
         if (selection.kind === 'stream') {
           dropTarget()
           subscribe({ reference: next.mainCall, ref: selection.ref })
@@ -273,9 +275,9 @@ export function createSessionObservation<P>(
         const value =
           frame.kind === 'snapshot'
             ? translator.snapshot(frame.value)
-            : translator.delta(frame.value, phase ?? frame.value.state.phase)
+            : translator.delta(frame.value, call.phase ?? frame.value.state.phase)
         if (value === null) return { frames: [], end: 'unavailable' }
-        phase = frame.kind === 'snapshot' ? frame.value.value.state.phase : frame.value.state.phase
+        call = callViewOf(frame.kind === 'snapshot' ? frame.value.value.state : frame.value.state)
         budget.reset()
         return { frames: [...state(), value] }
       }
