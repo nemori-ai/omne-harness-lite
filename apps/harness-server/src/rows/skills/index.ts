@@ -22,11 +22,10 @@ type Catalog = SkillCatalog<unknown, unknown>
 type Access = SkillAccess<unknown, unknown>
 
 class TenantSkillCatalog extends SkillCatalogService<unknown, unknown> {
-  constructor(
-    ctx: Context,
-    private readonly routed: Catalog,
-  ) {
+  private readonly routed: Catalog
+  constructor(ctx: Context, routed: Catalog) {
     super(ctx)
+    this.routed = routed
   }
   summaries(...args: Parameters<Catalog['summaries']>) {
     return this.routed.summaries(...args)
@@ -37,11 +36,10 @@ class TenantSkillCatalog extends SkillCatalogService<unknown, unknown> {
 }
 
 class TenantSkillAccess extends SkillAccessService<unknown, unknown> {
-  constructor(
-    ctx: Context,
-    private readonly routed: Access,
-  ) {
+  private readonly routed: Access
+  constructor(ctx: Context, routed: Access) {
     super(ctx)
+    this.routed = routed
   }
   read(...args: Parameters<Access['read']>) {
     return this.routed.read(...args)
