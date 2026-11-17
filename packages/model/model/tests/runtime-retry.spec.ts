@@ -2,7 +2,8 @@ import { judgePart } from '@omne-harness/message'
 import { describe, expect, it } from 'vitest'
 import type { FixedModelRequest, ModelFault, RetryDecision } from '@omne-harness/model-contract'
 import type { ModelRetryPolicy, TransportFact } from '@omne-harness/model-contract/provider'
-import { initialAttempts } from '../src/commands/attempts.ts'
+import { beginAttempt, initialAttempts, recordRetryDecision } from '../src/commands/attempts.ts'
+import type { CallDocument } from '../src/commands/types.ts'
 import { createDefaultRetryPolicy, verifyRetryDecision } from '../src/retry-policy.ts'
 import { eventually, runtimeFixture } from './runtime-fixture.ts'
 import { adoption, op, proof, request, unbox } from './memory-fixture.ts'
@@ -620,6 +621,17 @@ describe('the call state tells how far its dispatches got', () => {
     } finally {
       await f.dispose()
     }
+  })
+
+  it('a decision to stop leaves no next instant, and a call recorded without progress stays without it', () => {
+    const progress = { allowed: 2, made: 1, last: fault503, notBefore: LATER }
+    const call = { state: { attempts: progress }, dispatches: [] } as unknown as CallDocument
+    recordRetryDecision(call, { kind: 'stop', fault: fault503 }, proof('decision', 'retry'))
+    expect(call.state.attempts).toEqual({ ...progress, notBefore: null })
+
+    const old = { state: {}, dispatches: [{}] } as unknown as CallDocument
+    beginAttempt(old)
+    expect(old.state).toEqual({})
   })
 
   it('starts at no dispatch made, and allows one dispatch for each supplier when the request falls back', async () => {

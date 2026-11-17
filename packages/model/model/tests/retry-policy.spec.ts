@@ -157,8 +157,12 @@ describe('the default retry policy', () => {
   })
 
   it('does not keep decisions: inspect answers unavailable', async () => {
-    expect(await policy().inspect({ ...f.admit, position })).toMatchObject({
-      failure: { kind: 'unavailable', dependency: 'model-retry-policy' },
+    expect(await policy().inspect({ ...f.admit, position })).toEqual({
+      failure: {
+        kind: 'unavailable',
+        dependency: 'model-retry-policy',
+        diagnostic: 'decision-kept-in-call-record',
+      },
     })
   })
 })
