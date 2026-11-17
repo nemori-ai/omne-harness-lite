@@ -70,6 +70,34 @@ describe('成员上一次的读数', () => {
     expect(memberHistory(join(root, 'missing'), 'fast').size).toBe(0)
   })
 
+  it('启动开销：取最近一份有读数的账本里这个成员各批的平均；没有读数时不带这一项', () => {
+    const root = home()
+    const write = (run: string, age: number, jobs: unknown[]) => {
+      const dir = join(root, 'abc123def', run)
+      mkdirSync(dir, { recursive: true })
+      const path = join(dir, 'ledger.json')
+      writeFileSync(
+        path,
+        JSON.stringify({
+          members: [{ member: 'apps/s', wallSeconds: 10, files: 2, exitCode: 0 }],
+          meta: { tokens: { jobs } },
+        }),
+      )
+      const at = new Date(Date.now() - age * 1000)
+      utimesSync(path, at, at)
+    }
+    write('20261116-100000-slow', 300, [{ member: 'apps/s', startupSeconds: 20 }])
+    write('20261116-110000-slow', 200, [
+      { member: 'apps/s', startupSeconds: 6 },
+      { member: 'apps/s', startupSeconds: 9 },
+      { member: 'apps/other', startupSeconds: 99 },
+    ])
+    write('20261116-120000-slow', 100, [{ member: 'apps/s' }])
+    expect(memberHistory(root, 'slow').get('apps/s')?.startupSeconds).toBe(7.5)
+    write('20261116-130000-fast', 50, [{ member: 'apps/s' }])
+    expect(memberHistory(root, 'fast').get('apps/s')).not.toHaveProperty('startupSeconds')
+  })
+
   it('实测读数：一份账本里这个成员各件活（各批）的 CPU 秒与进程秒（墙钟 × 进程数）相加，新的在前；失败的、没量到 CPU 的、读数版本旧的不算', () => {
     const root = home()
     const write = (run: string, age: number, body: unknown) => {

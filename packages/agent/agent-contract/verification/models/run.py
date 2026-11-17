@@ -3,9 +3,11 @@
 
 Usage, from the repository root, through the test slot:
 
-    node scripts/with-test-slot.mjs python3 packages/agent/agent-contract/verification/models/run.py [case ...]
-    node scripts/with-test-slot.mjs python3 packages/agent/agent-contract/verification/models/run.py cardrounds
-    node scripts/with-test-slot.mjs python3 packages/agent/agent-contract/verification/models/run.py traces
+    node scripts/with-test-slot.mjs --want 4 --min 4 python3 packages/agent/agent-contract/verification/models/run.py [case ...]
+    node scripts/with-test-slot.mjs --want 4 --min 4 python3 packages/agent/agent-contract/verification/models/run.py cardrounds
+    node scripts/with-test-slot.mjs --want 4 --min 4 python3 packages/agent/agent-contract/verification/models/run.py traces
+
+TLC runs FORMAL_WORKERS workers (default 4); ask for that many tokens.
 
 A case is the name of a configuration file without `.cfg`. Without a case every control and every
 probe runs. `cardrounds` runs only the controls of CardRounds.tla. The exit code is 0 when every

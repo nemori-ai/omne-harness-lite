@@ -158,6 +158,7 @@ export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
       tokensPerWorker?: unknown
       weight?: unknown
       batchSeconds?: unknown
+      startupShare?: unknown
     }
     affected?: Record<string, unknown>
     ledger?: { slowFileSeconds?: unknown; nearTimeoutRatio?: unknown; top?: unknown }
@@ -173,6 +174,7 @@ export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
     tokensPerWorker: parseWorkerTokens(raw.parallel?.tokensPerWorker),
     weight: parseWeight(raw.parallel?.weight),
     batchSeconds: positive(raw.parallel?.batchSeconds, 'parallel.batchSeconds'),
+    startupShare: ratio(raw.parallel?.startupShare, 'parallel.startupShare'),
   }
   return {
     parallel,
