@@ -329,6 +329,7 @@
 | [UL-tool-programmability](terms/execution-and-outcome.md#ul-tool-programmability--工具可编程调用许可--tool-programmability) | 工具可编程调用许可 | Tool Programmability | 工具定义的 `programmable` 属性，只有显式 true 允许 Agent 脚本组合或编排调用 |
 | [UL-tool-execution](terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution) | 工具执行 | Tool Execution | 一次执行，**计算资源，绑会话不绑实例** |
 | [UL-background-execution](terms/execution-and-outcome.md#ul-background-execution--后台执行--background-execution) | 后台执行 | Background Execution | 不占当前这一轮地跑，**不声明就是不能** |
+| [UL-call-intent](terms/execution-and-outcome.md#ul-call-intent--调用意图--call-intent) | 调用意图 | Call Intent | 发起一次工具调用时写的一句「为什么」；**只用来辨认，不参与任何裁决**；可能转后台的调用必须带 |
 | [UL-foreground-time-limit](terms/execution-and-outcome.md#ul-foreground-time-limit--前台上限--foreground-time-limit) | 前台上限 | Foreground Time Limit | 一次执行在前台最多跑多久，**等待态不算**；到点允许后台的转后台、不许的被中断，**不是失败** |
 | [UL-tool-concurrency-limit](terms/execution-and-outcome.md#ul-tool-concurrency-limit--工具并发上限--tool-concurrency-limit) | 工具并发上限 | Tool Concurrency Limit | 同一会话里同一工具同时执行的次数上限，前后台一起算；**超出的排队不拒绝** |
 | [UL-model-call](terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) | 一次模型调用 | Model Call | 发出请求到真实收场；结果确认后清理模型副本，原身份与账保留；**与工具执行是兄弟** |
@@ -348,6 +349,7 @@
 | [UL-mechanical-preview](terms/execution-and-outcome.md#ul-mechanical-preview--机械预览--mechanical-preview) | 机械预览 | Mechanical Preview | 作者无摘要时系统按格式算出的预览：描述头加对齐节选，JSON 文档给大纲；**不给截断的 JSON** |
 | [UL-read-expiry-window](terms/execution-and-outcome.md#ul-read-expiry-window--读回到期窗口--read-expiry-window) | 读回到期窗口 | Read Expiry Window | 到期时间前后各 ε 的时间段，窗口内读回可能成功也可能被拒；**跨过到期答找不到，不答损坏** |
 | [UL-body-entry](terms/execution-and-outcome.md#ul-body-entry--正文条目--body-entry) | 正文条目 | Body Entry | 账本对一份卸载正文的权威记录：意图、封存、关联恰好一个结果、回收；**不存字节，也不存期限** |
+| [UL-output-body](terms/execution-and-outcome.md#ul-output-body--输出正文--output-body) | 输出正文 | Output Body | 一次工具执行运行中写下的输出；**结束前就能按位置读**，结束后是结果的卸载原文 |
 | [UL-body-bytes](terms/execution-and-outcome.md#ul-body-bytes--正文字节--body-bytes) | 正文字节 | Body Bytes | 正文存储保存的一份正文的不可变字节；**存储没有业务状态，有字节不等于可读** |
 | [UL-due-index](terms/execution-and-outcome.md#ul-due-index--到期索引--due-index) | 到期索引 | Due Index | 账本按租户与到期时间为回收排期、撤销排期的原语；**回收唯一的调度来源** |
 | [UL-write-permit](terms/execution-and-outcome.md#ul-write-permit--写入许可--write-permit) | 写入许可 | Write Permit | 正文条目耐久开启后账本签发的有时限写入授权，绑定租户、调用、正文、执行代次与截止时间；**存储自己校验签名和截止时间** |
@@ -397,7 +399,9 @@
 | [UL-session-authorization-context](terms/interaction-and-dispatch.md#ul-session-authorization-context--会话授权上下文--session-authorization-context) | 会话授权上下文 | Session Authorization Context | 会话承载的一次或本会话授权表达，**按序保存**；**是数据不是结论**，归档不丢 |
 | [UL-authorization-expression](terms/interaction-and-dispatch.md#ul-authorization-expression--授权表达--authorization-expression) | 授权表达 | Authorization Expression | 可指认的授权表达：来源 × 方向 × 作用域；一次/本会话追加流水，全局按资格写设置；「决策记录」是弃用说法 |
 | [UL-inbound-arrival](terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) | 入站到达 | Inbound Arrival | 外面送进一个会话、**被受理之后**的那条事实；**不是消息**，**裸写「到达」不作数** |
-| [UL-background-result-eligibility](terms/interaction-and-dispatch.md#ul-background-result-eligibility--后台结果投递资格--background-result-eligibility) | 后台结果投递资格 | Background Result Eligibility | 转了后台的执行，真实结局还能不能作为入站到达进入原会话；归档或单独停止这次调用撤销，取消 Run 不撤销 |
+| [UL-background-result-eligibility](terms/interaction-and-dispatch.md#ul-background-result-eligibility--后台结果投递资格--background-result-eligibility) | 后台结果投递资格 | Background Result Eligibility | 转了后台的执行，真实结局还能不能作为入站到达进入原会话；只有归档撤销，单独停止与取消 Run 都不撤销 |
+| [UL-non-waking-input](terms/interaction-and-dispatch.md#ul-non-waking-input--不叫醒的输入--non-waking-input) | 不叫醒的输入 | Non-waking Input | 已受理、但**不能单独使会话开始一轮**的入站到达；停止提醒与被停调用的结局 |
+| [UL-background-call-number](terms/interaction-and-dispatch.md#ul-background-call-number--后台调用短号--background-call-number) | 后台调用短号 | Background Call Number | 会话给一项后台执行的会话内编号，**不是调用的身份** |
 | [UL-inbound-target](terms/interaction-and-dispatch.md#ul-inbound-target--投递目标--inbound-target) | 投递目标 | Inbound Target | 连接件两种投递方式里 ①「已有会话开口接收」那一路的配置：进哪个会话，**本版只指一个已有的会话**；落点与身份类，**不是交付面** |
 | [UL-business-flow-extension-point](terms/interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point) | 业务流程拓展点 | Business Flow Extension Point | 拦得住请求，**碰不到已经落定的事实**；**与 Loop 拓展点并列的另一类** |
 | [UL-control-command](terms/interaction-and-dispatch.md#ul-control-command--控制指令--control-command) | 控制指令 | Control Command | 对正在发生的事或队列本身的直接处置，**不是内容、不排队** |

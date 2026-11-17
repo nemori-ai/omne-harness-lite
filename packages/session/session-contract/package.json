@@ -28,7 +28,8 @@
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false",
-    "release:recompute": "node scripts/recompute-release.mjs"
+    "release:recompute": "node scripts/recompute-release.mjs",
+    "verify:formal": "python3 verification/check.py"
   },
   "dependencies": {
     "@omne-harness/exchange-refs": "workspace:*",
