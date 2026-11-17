@@ -3,7 +3,8 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { settingsAssetsProjectionFact } from '@omne-harness/settings-local'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
-import { HANDLER, MIGRATION, PARTICIPANT, PROTOCOL, TABLES } from './schema.ts'
+import { MAX_ASSET_PAGE } from '@omne-harness/assets'
+import { HANDLER, LIST_HANDLER, MIGRATION, PARTICIPANT, PROTOCOL, TABLES } from './schema.ts'
 function file(name: string) {
   const extension = import.meta.url.endsWith('.ts') ? 'ts' : 'js'
   const url = new URL(`./${name}.${extension}`, import.meta.url)
@@ -18,7 +19,8 @@ export function assetsSqlMaterials(): Pick<
 > {
   const participant = file('participant'),
     migration = file('migration'),
-    reader = file('read')
+    reader = file('read'),
+    lister = file('list')
   return {
     participants: [
       {
@@ -47,6 +49,17 @@ export function assetsSqlMaterials(): Pick<
         readTables: TABLES,
         requiresMigrations: [MIGRATION],
         maxRowsRead: 5,
+        maxOutputBytes: 2 * 1024 * 1024,
+      },
+      {
+        handler: LIST_HANDLER,
+        protocol: PROTOCOL,
+        moduleUrl: lister.moduleUrl,
+        codeDigest: lister.digest,
+        ordering: 'snapshot',
+        readTables: TABLES,
+        requiresMigrations: [MIGRATION],
+        maxRowsRead: 2 * MAX_ASSET_PAGE + 2,
         maxOutputBytes: 2 * 1024 * 1024,
       },
     ],
