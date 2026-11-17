@@ -1,160 +1,177 @@
-import {
-  Button,
-  LoadingState,
-  RadioGroup,
-  RadioGroupItem,
-  Textarea,
-  ValuePill,
-} from '@omne-harness/ui-kit'
-import { useId, useState, type JSX } from 'react'
+import type { HumanInterventionCardItem } from '@omne-harness/human-intervention-protocol'
+import { Button, LoadingState, RadioGroup, RadioGroupItem, Textarea } from '@omne-harness/ui-kit'
+import { useId, type JSX } from 'react'
 import type { CardsDriver } from '../model/cards-driver.ts'
-import type { Entry, Reply } from '../model/cards-machine.ts'
+import type { Closed, Draft, Entry } from '../model/cards-machine.ts'
 import { NoticeLine } from './notice.tsx'
 
-type Props = { readonly entry: Entry; readonly driver: CardsDriver }
+export type Shown =
+  | Readonly<{ kind: 'pending'; key: string; entry: Entry; draft: Draft }>
+  | Readonly<{ kind: 'closed'; key: string; closed: Closed }>
 
-const SHOWN_SESSION = 12
-const TEXT = 'text'
-const DECLINE = 'decline'
-const OPTION = 'option:'
+export const itemOf = (card: Shown): HumanInterventionCardItem =>
+  card.kind === 'pending' ? card.entry.item : card.closed.item
 
-const KIND: Readonly<Record<string, string>> = {
-  question: '问询',
-  approval: '请示',
-  admission: '放行',
-  extension: '扩展',
+export const draftOfShown = (card: Shown): Draft =>
+  card.kind === 'pending' ? card.draft : card.closed.draft
+
+const WHO: Readonly<Record<string, string>> = {
+  question: 'Agent 在问你',
+  approval: 'Agent 想先问你批不批准',
+  admission: '系统要你放行',
+  extension: '拓展件在问你',
 }
 
 const ORIGIN: Readonly<Record<string, string>> = {
   tool: '工具',
-  'agent-extension': '扩展',
-  admission: '准入',
-  independent: '独立',
+  'agent-extension': '拓展件',
+  admission: '系统放行',
+  independent: '独立的工作',
 }
 
-function Origin({ entry }: { readonly entry: Entry }): JSX.Element {
-  const origin = entry.item.origin
-  const session = origin.sessionRef
-  if (session === undefined)
-    return <span className="hitl-card-origin">{ORIGIN[origin.kind] ?? origin.kind}</span>
+const OPTION = 'option:'
+
+function sourceOf(item: HumanInterventionCardItem): string {
+  const kind = ORIGIN[item.origin.kind] ?? item.origin.kind
+  return item.displayContext === '' ? `来源：${kind}` : `来源：${kind} · ${item.displayContext}`
+}
+
+type Props = Readonly<{
+  card: Shown
+  at: number
+  of: number
+  disabled: boolean
+  driver: CardsDriver
+  onDraft: (draft: Draft, advance: boolean) => void
+}>
+
+export function CardView({ card, at, of, disabled, driver, onDraft }: Props): JSX.Element {
+  const item = itemOf(card)
+  const question = item.card.question
+  const state = card.kind === 'closed' ? 'closed' : card.entry.submit.kind
   return (
-    <span className="hitl-card-origin">
-      会话
-      <ValuePill mono>
-        {session.length > SHOWN_SESSION ? `${session.slice(0, SHOWN_SESSION)}…` : session}
-      </ValuePill>
-    </span>
-  )
-}
-
-function replyOf(pick: string, text: string): Reply | null {
-  if (pick === DECLINE) return { kind: 'decline' }
-  if (pick === TEXT) return text.trim() === '' ? null : { kind: 'text', text }
-  if (pick.startsWith(OPTION)) return { kind: 'selection', optionId: pick.slice(OPTION.length) }
-  return null
-}
-
-export function CardView({
-  entry,
-  driver,
-  origin,
-}: Props & { readonly origin: boolean }): JSX.Element {
-  const question = entry.item.card.question
-  return (
-    <li className="hitl-card" data-kind={question.kind} data-state={entry.submit.kind}>
+    <article
+      className="hitl-card"
+      data-kind={question.kind}
+      data-state={state}
+      aria-label={`第 ${at} 题`}
+    >
       <div className="hitl-card-head">
-        <span className="hitl-card-kind">{KIND[question.kind] ?? question.kind}</span>
-        {origin ? <Origin entry={entry} /> : null}
+        <span className="hitl-card-kind">{WHO[question.kind] ?? question.kind}</span>
+        {of > 1 ? <span className="hitl-card-position">{`第 ${at} 题，共 ${of} 题`}</span> : null}
       </div>
+      <p className="hitl-card-source">{sourceOf(item)}</p>
       <h3 className="hitl-card-title">{question.title}</h3>
       {question.description === '' ? null : (
         <p className="hitl-card-text">{question.description}</p>
       )}
-      {entry.item.displayContext === '' ? null : (
-        <p className="hitl-card-context">{entry.item.displayContext}</p>
-      )}
-      <Answer key={entry.item.card.revision} entry={entry} driver={driver} />
-    </li>
+      <Answer
+        item={item}
+        draft={draftOfShown(card)}
+        disabled={disabled || card.kind === 'closed'}
+        onDraft={onDraft}
+      />
+      <Outcome card={card} driver={driver} />
+    </article>
   )
 }
 
-function Answer({ entry, driver }: Props): JSX.Element {
-  const question = entry.item.card.question
+function Answer({
+  item,
+  draft,
+  disabled,
+  onDraft,
+}: Readonly<{
+  item: HumanInterventionCardItem
+  draft: Draft
+  disabled: boolean
+  onDraft: (draft: Draft, advance: boolean) => void
+}>): JSX.Element {
+  const question = item.card.question
   const group = useId()
-  const [pick, setPick] = useState('')
-  const [text, setText] = useState('')
-  const busy = entry.submit.kind === 'submitting' || entry.submit.kind === 'unknown'
-  const reply = replyOf(pick, text)
+  const words = useId()
+  const picked = draft.choice.kind === 'option' ? `${OPTION}${draft.choice.optionId}` : ''
+  const declined = draft.choice.kind === 'decline'
+  const asking = question.kind === 'question'
   return (
-    <>
-      <fieldset className="hitl-card-choices" disabled={busy}>
-        <legend>选一个，或用自己的话回答</legend>
-        <RadioGroup name={group} value={pick} onValueChange={setPick} disabled={busy}>
-          {question.options.map(option => (
-            <Choice
-              key={option.id}
-              value={`${OPTION}${option.id}`}
-              pick={pick}
-              label={option.label}
-              text={option.description}
-            />
-          ))}
-          <Choice value={TEXT} pick={pick} label="用自己的话回答" text="" />
-          <Choice value={DECLINE} pick={pick} label="跳过" text={question.declineConsequence} />
-        </RadioGroup>
-        {pick === TEXT ? (
-          <Textarea
-            className="hitl-card-words"
-            aria-label="你的回答"
-            value={text}
-            onChange={event => setText(event.target.value)}
-            disabled={busy}
-          />
-        ) : null}
-      </fieldset>
-      <div className="hitl-card-foot">
-        <SubmitLine entry={entry} driver={driver} />
-        <Button
-          className="hitl-card-submit"
-          disabled={busy || reply === null}
-          onClick={() => {
-            if (reply !== null) driver.submit(entry.key, reply)
-          }}
+    <fieldset className="hitl-card-choices" disabled={disabled}>
+      {question.options.length === 0 ? null : (
+        <RadioGroup
+          name={group}
+          value={picked}
+          disabled={disabled}
+          onValueChange={value =>
+            onDraft(
+              {
+                choice: { kind: 'option', optionId: value.slice(OPTION.length) },
+                text: draft.text,
+              },
+              true,
+            )
+          }
         >
-          提交
+          {question.options.map(option => (
+            <label
+              key={option.id}
+              className="hitl-card-choice"
+              data-state={picked === `${OPTION}${option.id}` ? 'checked' : 'unchecked'}
+            >
+              <RadioGroupItem value={`${OPTION}${option.id}`} />
+              <span className="hitl-card-choice-label">{option.label}</span>
+              {option.description === '' ? null : (
+                <span className="hitl-card-choice-text">{option.description}</span>
+              )}
+            </label>
+          ))}
+        </RadioGroup>
+      )}
+      <label className="hitl-card-words-label" htmlFor={words}>
+        {asking ? '或者用你自己的话回答：' : '或者用你自己的话说：'}
+      </label>
+      <Textarea
+        id={words}
+        className="hitl-card-words"
+        value={draft.text}
+        disabled={disabled}
+        onChange={event => onDraft({ choice: { kind: 'none' }, text: event.target.value }, false)}
+      />
+      <div className="hitl-card-decline">
+        <Button
+          variant={declined ? 'secondary' : 'outline'}
+          size="compact"
+          aria-pressed={declined}
+          disabled={disabled}
+          onClick={() =>
+            onDraft(
+              { choice: declined ? { kind: 'none' } : { kind: 'decline' }, text: draft.text },
+              !declined,
+            )
+          }
+        >
+          不回答这一题
         </Button>
+        {question.declineConsequence === '' ? null : (
+          <span className="hitl-card-decline-text">{question.declineConsequence}</span>
+        )}
       </div>
-    </>
+    </fieldset>
   )
 }
 
-function Choice({
-  value,
-  pick,
-  label,
-  text,
-}: {
-  readonly value: string
-  readonly pick: string
-  readonly label: string
-  readonly text: string
-}): JSX.Element {
-  return (
-    <label className="hitl-card-choice" data-state={pick === value ? 'checked' : 'unchecked'}>
-      <RadioGroupItem value={value} />
-      <span className="hitl-card-choice-label">{label}</span>
-      {text === '' ? null : <span className="hitl-card-choice-text">{text}</span>}
-    </label>
-  )
-}
-
-function SubmitLine({ entry, driver }: Props): JSX.Element | null {
-  const submit = entry.submit
+function Outcome({ card, driver }: Readonly<{ card: Shown; driver: CardsDriver }>) {
+  if (card.kind === 'closed')
+    return (
+      <NoticeLine
+        notice={card.closed.notice}
+        action={{ label: '知道了', onClick: () => driver.dismiss(card.key) }}
+      />
+    )
+  const submit = card.entry.submit
   switch (submit.kind) {
     case 'none':
       return null
     case 'submitting':
-      return <LoadingState label="正在提交……" />
+      return <LoadingState label="正在提交这一题……" />
     case 'refused':
       return <NoticeLine notice={submit.notice} />
     case 'unknown':
@@ -164,7 +181,7 @@ function SubmitLine({ entry, driver }: Props): JSX.Element | null {
           action={
             submit.confirming
               ? undefined
-              : { label: '再确认一次', onClick: () => driver.confirm(entry.key) }
+              : { label: '再确认一次', onClick: () => driver.confirm(card.key) }
           }
         />
       )

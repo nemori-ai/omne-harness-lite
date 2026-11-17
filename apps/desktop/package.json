@@ -32,6 +32,7 @@
     "@omne-harness/identity-ui": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/mcp-ui": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",
     "@omne-harness/retry": "workspace:*",
     "@omne-harness/sdk": "workspace:*",

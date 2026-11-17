@@ -21,7 +21,7 @@ export function questionItem(cardId = 'card-1', revision = '3'): HumanInterventi
       },
     },
     origin: { kind: 'tool', sessionRef: 'ses_0123456789abcdef', toolCallRef: 'call-1' },
-    displayContext: '来自工具 Ask',
+    displayContext: 'Ask',
   }
 }
 
