@@ -70,6 +70,7 @@ describe('consumeModelResult sorts a settled main call into reply, interrupted o
     ['stream-lost with part of a text', failed('stream-lost'), [half]],
     ['upstream-unavailable without content', failed('upstream-unavailable'), []],
     ['a refused credential', failed('credential'), []],
+    ['stream-lost after a whole sealed text', failed('stream-lost'), [text]],
   ])('a failed call is unusable, whatever its cause: %s', (_name, termination, parts) => {
     const result = consumed(termination, parts)
     expect(result.kind).toBe('unusable')
