@@ -74,13 +74,13 @@
       "packages/agent/agent-contract/src/testing-journal-finishing.ts": 4160,
       "packages/agent/agent-contract/src/testing-received-conformance.ts": 1055,
       "packages/agent/agent-host-local/src/host.ts": 1041,
-      "packages/agent/agent/src/loop/coordinator.ts": 3468,
+      "packages/agent/agent/src/loop/coordinator.ts": 3428,
       "packages/agent/agent/src/testing/journal.ts": 3606,
       "packages/execution/execution-environment-contract/src/testing/environment-conformance.ts": 1055,
       "packages/execution/execution-environment/src/registry.ts": 1046,
       "packages/identity/identity/src/testing/governance-contract.ts": 2224,
       "packages/mcp/mcp-contract/src/testing-transport.ts": 2360,
-      "packages/model/model-host-local/src/plugins/runtime.ts": 1008,
+      "packages/model/model-host-local/src/plugins/runtime.ts": 1001,
       "packages/model/model-storage-sql/src/commit.ts": 1127,
       "packages/model/model/src/commands/commands.ts": 1149,
       "packages/session/session-adapters/src/cordis/agent-journal.ts": 2143,
@@ -165,7 +165,7 @@
       },
       "packages/agent/agent/src/loop/coordinator.ts": {
         "count": 1,
-        "longest": 2944
+        "longest": 2941
       },
       "packages/agent/agent/src/provider.ts": {
         "count": 1,
@@ -469,7 +469,7 @@
       },
       "packages/model/model-host-local/src/plugins/runtime.ts": {
         "count": 1,
-        "longest": 652
+        "longest": 645
       },
       "packages/model/model-storage-sql/src/commit.ts": {
         "count": 1,

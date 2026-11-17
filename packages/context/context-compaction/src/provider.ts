@@ -149,60 +149,14 @@ export function createContextCompaction<P>(
           field: 'requestDigest',
           reason: 'does not bind the complete request',
         })
-      return options.store.change(request.ref, record => {
-        if (record !== null) return existing(record, request.ref)
-        if (!accepting)
-          return fail({
-            kind: 'unavailable',
-            dependency: options.authority,
-            diagnostic: 'provider is withdrawing',
-          })
-        if (canonical(request.provider) !== canonical(options.adoption))
-          return fail({ kind: 'unsupported', field: 'provider', provider: request.provider })
-        const state: CompactionTaskState = {
-          ref: request.ref,
-          revision: '1',
-          phase: 'pending',
-          knowledge: 'accepted',
-          physical: 'pending',
-        }
-        return succeed({
-          record: {
-            state,
-            request,
-            execution: options.executor.initialState ?? null,
-            cancellation: null,
-            acknowledgment: null,
-          },
-          value: state,
-        })
-      })
+      return options.store.change(request.ref, record =>
+        admittedRecord(options, accepting, request, record),
+      )
     },
     async cancel(input) {
       const allowed = await authorize(input, 'cancel', input.ref)
       if ('failure' in allowed) return allowed
-      return options.store.change(input.ref, record => {
-        if (record !== null && !matches(record, input.ref))
-          return fail({ kind: 'conflict', ref: input.ref })
-        if (record !== null && record.state.phase !== 'pending') return existing(record, input.ref)
-        const outcome: CompactionOutcome = { kind: 'cancelled', operation: input.operation }
-        const state = terminal(
-          input.ref,
-          record === null ? '1' : next(record.state.revision),
-          outcome,
-          record === null ? 'settled' : 'unknown',
-        )
-        return succeed({
-          record: {
-            state,
-            request: record?.request ?? null,
-            execution: record?.execution ?? null,
-            cancellation: input.operation,
-            acknowledgment: null,
-          },
-          value: state,
-        })
-      })
+      return options.store.change(input.ref, record => cancelledRecord(input, record))
     },
     async acknowledge(input) {
       const copied = decodeCompactionHandoff(JSON.stringify(input.handoff))
@@ -222,33 +176,7 @@ export function createContextCompaction<P>(
         consumer: input.handoff.consumer,
       })
       if ('failure' in retained) return retained
-      return options.store.change(input.ref, latest => {
-        if (latest === null) return fail({ kind: 'not-found' })
-        const known = acknowledgment(latest, input)
-        if ('failure' in known) return known
-        if (known.ok !== null) return succeed({ record: latest, value: known.ok })
-        const receipt = taskEvidence(input.ref, 'handoff', {
-          operation: input.operation,
-          result: input.result,
-          handoff: input.handoff,
-        })
-        const state: CompactionTaskState = {
-          ref: input.ref,
-          revision: next(latest.state.revision),
-          physical: latest.state.physical,
-          phase: 'handed-off',
-          result: input.result,
-          receipt,
-        }
-        return succeed({
-          record: {
-            ...latest,
-            state,
-            acknowledgment: { operation: input.operation, handoff: input.handoff },
-          },
-          value: { ref: input.ref, result: input.result, receipt },
-        })
-      })
+      return options.store.change(input.ref, latest => handedOffRecord(input, latest))
     },
   }
 
@@ -275,35 +203,9 @@ export function createContextCompaction<P>(
         : await options.executor.advance(record.request, compactionGeneration(record.request.ref))
     if ('failure' in execution) return execution
     const update = execution.ok
-    return options.store.change(ref, latest => {
-      if (latest === null) return fail({ kind: 'not-found' })
-      if (!matches(latest, ref)) return fail({ kind: 'conflict', ref })
-      if (latest.state.phase !== 'pending') {
-        if (latest.state.revision !== record.state.revision) return existing(latest, ref)
-        const state = {
-          ...latest.state,
-          revision: next(latest.state.revision),
-          physical: update.physical,
-        }
-        return succeed({ record: { ...latest, state }, value: state })
-      }
-      if (update.phase === 'physical') return existing(latest, ref)
-      const state: CompactionTaskState =
-        update.phase === 'pending'
-          ? {
-              ...latest.state,
-              revision: next(latest.state.revision),
-              knowledge: update.knowledge,
-              physical: update.physical,
-            }
-          : terminal(
-              ref,
-              next(latest.state.revision),
-              validatedOutcome(request, update.outcome),
-              update.physical,
-            )
-      return succeed({ record: { ...latest, state }, value: state })
-    })
+    return options.store.change(ref, latest =>
+      reconciledRecord(ref, record, request, update, latest),
+    )
   }
 
   return {
@@ -313,6 +215,143 @@ export function createContextCompaction<P>(
       accepting = false
     },
   }
+}
+
+// The store changes of the provider. Each takes the record it changes and returns the next one.
+type AcknowledgeReceipt = Readonly<{
+  ref: CompactionTaskRef
+  result: CompactionResultIdentity
+  receipt: DurableEvidence
+}>
+type Change<T> = Outcome<Readonly<{ record: CompactionRecord | null; value: T }>, CompactionFailure>
+
+function admittedRecord<P>(
+  options: CompactionProviderOptions<P>,
+  accepting: boolean,
+  request: CompactionRequest,
+  record: CompactionRecord | null,
+): Change<CompactionTaskState> {
+  if (record !== null) return existing(record, request.ref)
+  if (!accepting)
+    return fail({
+      kind: 'unavailable',
+      dependency: options.authority,
+      diagnostic: 'provider is withdrawing',
+    })
+  if (canonical(request.provider) !== canonical(options.adoption))
+    return fail({ kind: 'unsupported', field: 'provider', provider: request.provider })
+  const state: CompactionTaskState = {
+    ref: request.ref,
+    revision: '1',
+    phase: 'pending',
+    knowledge: 'accepted',
+    physical: 'pending',
+  }
+  return succeed({
+    record: {
+      state,
+      request,
+      execution: options.executor.initialState ?? null,
+      cancellation: null,
+      acknowledgment: null,
+    },
+    value: state,
+  })
+}
+
+function cancelledRecord(
+  input: Readonly<{ ref: CompactionTaskRef; operation: CompactionOperationId }>,
+  record: CompactionRecord | null,
+): Change<CompactionTaskState> {
+  if (record !== null && !matches(record, input.ref))
+    return fail({ kind: 'conflict', ref: input.ref })
+  if (record !== null && record.state.phase !== 'pending') return existing(record, input.ref)
+  const outcome: CompactionOutcome = { kind: 'cancelled', operation: input.operation }
+  const state = terminal(
+    input.ref,
+    record === null ? '1' : next(record.state.revision),
+    outcome,
+    record === null ? 'settled' : 'unknown',
+  )
+  return succeed({
+    record: {
+      state,
+      request: record?.request ?? null,
+      execution: record?.execution ?? null,
+      cancellation: input.operation,
+      acknowledgment: null,
+    },
+    value: state,
+  })
+}
+
+function handedOffRecord(
+  input: Parameters<ContextCompaction<unknown>['acknowledge']>[0],
+  latest: CompactionRecord | null,
+): Change<AcknowledgeReceipt> {
+  if (latest === null) return fail({ kind: 'not-found' })
+  const known = acknowledgment(latest, input)
+  if ('failure' in known) return known
+  if (known.ok !== null) return succeed({ record: latest, value: known.ok })
+  const receipt = taskEvidence(input.ref, 'handoff', {
+    operation: input.operation,
+    result: input.result,
+    handoff: input.handoff,
+  })
+  const state: CompactionTaskState = {
+    ref: input.ref,
+    revision: next(latest.state.revision),
+    physical: latest.state.physical,
+    phase: 'handed-off',
+    result: input.result,
+    receipt,
+  }
+  return succeed({
+    record: {
+      ...latest,
+      state,
+      acknowledgment: { operation: input.operation, handoff: input.handoff },
+    },
+    value: { ref: input.ref, result: input.result, receipt },
+  })
+}
+
+function reconciledRecord(
+  ref: CompactionTaskRef,
+  record: CompactionRecord,
+  request: CompactionRequest,
+  update:
+    | CompactionExecution
+    | Readonly<{ phase: 'physical'; physical: 'pending' | 'settled' | 'unknown' }>,
+  latest: CompactionRecord | null,
+): Change<CompactionTaskState> {
+  if (latest === null) return fail({ kind: 'not-found' })
+  if (!matches(latest, ref)) return fail({ kind: 'conflict', ref })
+  if (latest.state.phase !== 'pending') {
+    if (latest.state.revision !== record.state.revision) return existing(latest, ref)
+    const state = {
+      ...latest.state,
+      revision: next(latest.state.revision),
+      physical: update.physical,
+    }
+    return succeed({ record: { ...latest, state }, value: state })
+  }
+  if (update.phase === 'physical') return existing(latest, ref)
+  const state: CompactionTaskState =
+    update.phase === 'pending'
+      ? {
+          ...latest.state,
+          revision: next(latest.state.revision),
+          knowledge: update.knowledge,
+          physical: update.physical,
+        }
+      : terminal(
+          ref,
+          next(latest.state.revision),
+          validatedOutcome(request, update.outcome),
+          update.physical,
+        )
+  return succeed({ record: { ...latest, state }, value: state })
 }
 
 const next = (revision: string) => String(BigInt(revision) + 1n)

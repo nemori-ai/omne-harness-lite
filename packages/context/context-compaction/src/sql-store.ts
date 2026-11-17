@@ -36,51 +36,60 @@ function isRecord(value: JsonValue): value is { readonly [key: string]: JsonValu
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+async function readTaskValue(storage: SqlStorage, input: JsonValue): CompactionReply<JsonValue> {
+  const result = await storage.read({
+    domain: COMPACTION_SQL_DOMAIN,
+    handler: 'context.compaction.tasks.read',
+    protocol: '1',
+    requestKey: randomUUID(),
+    input,
+  })
+  return result.kind === 'read'
+    ? succeed(result.output)
+    : unavailable(`read ${JSON.stringify(result)}`)
+}
+function taskContent(
+  storage: SqlStorage,
+  combination: ReturnType<typeof compactionSqlRegistration>,
+  ref: CompactionTaskRef,
+  tenant: string,
+) {
+  return contentOf(
+    {
+      read: input => readTaskValue(storage, input),
+      async write(facts, key) {
+        const identity = {
+          ...COMPACTION_SQL_DOMAIN,
+          operation: 'context.compaction.content',
+          protocolVersion: '2' as const,
+          operationKey: digest([tenant, key]),
+        }
+        const committed = await storage.commit({
+          identity,
+          combinationVersion: combination.combinationVersion,
+          manifestDigest: combination.manifestDigest,
+          commands: [{ participant: 'context.compaction.tasks', facts }],
+        })
+        const result = committed.kind === 'unknown' ? await storage.query(identity) : committed
+        if (result.kind === 'committed') return succeed(undefined)
+        if (result.kind === 'unknown' || result.kind === 'not_recallable')
+          return fail({ kind: 'commit-unknown', ref, operation: identity.operationKey })
+        return unavailable(`content write ${result.kind}`)
+      },
+    },
+    tenant,
+  )
+}
+
 export async function createCompactionSqlStore(
   storage: SqlStorage,
 ): CompactionReply<CompactionStore> {
   const combination = compactionSqlRegistration()
   const registered = await storage.registerCombination(combination)
   if (registered.kind !== 'registered') return unavailable(`registration ${registered.kind}`)
-  async function readValue(input: JsonValue): CompactionReply<JsonValue> {
-    const result = await storage.read({
-      domain: COMPACTION_SQL_DOMAIN,
-      handler: 'context.compaction.tasks.read',
-      protocol: '1',
-      requestKey: randomUUID(),
-      input,
-    })
-    return result.kind === 'read'
-      ? succeed(result.output)
-      : unavailable(`read ${JSON.stringify(result)}`)
-  }
-  function content(ref: CompactionTaskRef, tenant: string) {
-    return contentOf(
-      {
-        read: readValue,
-        async write(facts, key) {
-          const identity = {
-            ...COMPACTION_SQL_DOMAIN,
-            operation: 'context.compaction.content',
-            protocolVersion: '2' as const,
-            operationKey: digest([tenant, key]),
-          }
-          const committed = await storage.commit({
-            identity,
-            combinationVersion: combination.combinationVersion,
-            manifestDigest: combination.manifestDigest,
-            commands: [{ participant: 'context.compaction.tasks', facts }],
-          })
-          const result = committed.kind === 'unknown' ? await storage.query(identity) : committed
-          if (result.kind === 'committed') return succeed(undefined)
-          if (result.kind === 'unknown' || result.kind === 'not_recallable')
-            return fail({ kind: 'commit-unknown', ref, operation: identity.operationKey })
-          return unavailable(`content write ${result.kind}`)
-        },
-      },
-      tenant,
-    )
-  }
+  const readValue = (input: JsonValue) => readTaskValue(storage, input)
+  const content = (ref: CompactionTaskRef, tenant: string) =>
+    taskContent(storage, combination, ref, tenant)
   type Stored = Readonly<{ record: CompactionRecord | null; manifest: RecordManifest | null }>
   async function readStored(ref: CompactionTaskRef): CompactionReply<Stored> {
     const key = keyOf(ref)
