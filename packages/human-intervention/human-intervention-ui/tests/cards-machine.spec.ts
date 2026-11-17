@@ -10,6 +10,7 @@ import {
   replyOf,
   sheetOf,
   step,
+  submittable,
   type Draft,
   type Effect,
   type Event,
@@ -350,6 +351,8 @@ describe('提交的答复', () => {
     expect(answered(idle, { outcome: 'denied' }).state).toBe(idle)
     const waiting = stillUnknown()
     expect(answered(waiting, { outcome: 'denied' }).state).toBe(waiting)
+    const confirming = unknownOnce()
+    expect(answered(confirming, { outcome: 'denied' }, 'r-other').state).toBe(confirming)
   })
 })
 
@@ -829,6 +832,76 @@ describe('一组的作答', () => {
     const edited = step(refused, { kind: 'draft', key: KEY, draft: TEXT_DRAFT }).state
     expect(edited.drafts[KEY]).toEqual(TEXT_DRAFT)
     expect(submitOf(edited)?.kind).toBe('refused')
+  })
+
+  it('G14 能交的卡：没齐时一张都不交；结果不知道的那一题不在里面', () => {
+    const half = step(listed([A, B]), { kind: 'draft', key: KA, draft: PICK_MAIN }).state
+    expect(submittable(half, SESSION)).toEqual([])
+    expect(submittable(listed([]), SESSION)).toEqual([])
+    const waiting = run(
+      drafted([A, B]),
+      { kind: 'submit-group', group: SESSION, planned: PLAN.slice(0, 2) },
+      reply(KA, 'r-a', { outcome: 'unknown' }),
+      reply(KB, 'r-b', { outcome: 'denied' }),
+    ).state
+    expect(submittable(waiting, SESSION)).toEqual([KB])
+  })
+
+  it('G15 一组没有能交的卡时，空的计划也不提交', () => {
+    const empty = listed([A])
+    expect(step(empty, { kind: 'submit-group', group: 'ses_none', planned: [] }).state).toBe(empty)
+  })
+
+  it('G16 提交中重读：只留排着队的卡；不在这次提交里的卡不在列表里了就去掉', () => {
+    const elsewhere = { ...questionItem('card-z'), origin: { kind: 'tool' as const, sessionRef: 'ses_other' } }
+    const running = step(drafted([A, B, C, elsewhere]), {
+      kind: 'submit-group',
+      group: SESSION,
+      planned: PLAN,
+    }).state
+    const reread = run(
+      running,
+      { kind: 'read-list' },
+      { kind: 'list-answered', token: 2, answer: page([A]) },
+    ).state
+    expect(reread.entries.map(entry => entry.key)).toEqual([KA, KB, KC])
+  })
+
+  it('G17 认回的答复在另一题在途时到了：不推进，在途的那一题有了结局才发下一题', () => {
+    const next = run(
+      drafted(),
+      { kind: 'submit-group', group: SESSION, planned: PLAN },
+      reply(KA, 'r-a', { outcome: 'unknown' }),
+    )
+    expect(sentKeys(next.effects)).toEqual([KA, KB])
+    const recognized = step(next.state, reply(KA, 'r-a', DECIDED))
+    expect(sentKeys(recognized.effects)).toEqual([])
+    expect(submitOf(recognized.state, KB)?.kind).toBe('submitting')
+    expect(sentKeys(step(recognized.state, reply(KB, 'r-b', DECIDED)).effects)).toEqual([KC])
+  })
+
+  it('G18 每种拒绝与每种关掉的原因各有自己的一句', () => {
+    const texts = (['invalid', 'limited', 'protocol-rejected', 'basis-unavailable'] as const).map(
+      outcome => (submitOf(answered(submitted(), { outcome } as ReplyAnswer).state) as { notice: { text: string } })
+        .notice.text,
+    )
+    expect(texts).toEqual([
+      '服务端认为这份答复不合这张卡的规定，这一题没有记上。',
+      '答复超出了服务端的上限，这一题没有记上。',
+      '服务端不认这个请求的格式，这一题没有记上。',
+      '服务端暂时读不出需要的依据，这一题没有记上。稍后再试。',
+    ])
+    const reasons = ['cancelled', 'archived', 'origin-terminal', 'continuity-lost'].map(
+      reason =>
+        answered(submitted(), { outcome: 'succeeded', body: { kind: 'invalidated', reason } } as ReplyAnswer)
+          .state.closed[0]?.notice.text,
+    )
+    expect(reasons).toEqual([
+      '这次提问已经关掉：那一轮被取消了。',
+      '这次提问已经关掉：会话已归档。',
+      '这次提问已经关掉：提问的那一方已经结束。',
+      '这次提问已经关掉：提问的那一方接不上了。',
+    ])
   })
 
   it('G13 卡不在列表里了：草稿跟着去掉', () => {

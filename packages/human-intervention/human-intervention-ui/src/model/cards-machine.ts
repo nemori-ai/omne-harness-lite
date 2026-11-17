@@ -47,8 +47,10 @@ export type Draft = Readonly<{ choice: Choice; text: string }>
 
 export type Planned = Readonly<{ key: string; replyId: string }>
 
-/** One submission of a group: the first planned card is in flight, the rest wait their turn. */
-export type Batch = Readonly<{ planned: readonly Planned[] }>
+export type Queued = Readonly<{ key: string; sent: Sent }>
+
+/** One submission of a group, each card's body fixed when the person pressed submit; the first is in flight. */
+export type Batch = Readonly<{ queue: readonly Queued[] }>
 
 /** A card that left the pending list without this person's reply being taken. */
 export type Closed = Readonly<{
@@ -143,28 +145,32 @@ export type Sheet = Readonly<{
   ready: boolean
 }>
 
+type Sendable = Readonly<{ entry: Entry; reply: Reply | null }>
+
+function sendableOf(state: State, group: string): readonly Sendable[] {
+  return state.entries
+    .filter(entry => groupOf(entry.item) === group && !busy(entry.submit))
+    .map(entry => ({ entry, reply: replyOf(state.drafts[entry.key]) }))
+}
+
 /** What one group shows and whether its one submit can be pressed. */
 export function sheetOf(state: State, group: string): Sheet {
-  const entries = state.entries.filter(entry => groupOf(entry.item) === group)
-  const open = entries.filter(entry => !busy(entry.submit))
-  const missing = open
-    .filter(entry => replyOf(state.drafts[entry.key]) === null)
-    .map(entry => entry.key)
+  const sendable = sendableOf(state, group)
+  const missing = sendable.filter(item => item.reply === null).map(item => item.entry.key)
   const running = state.batches[group] !== undefined
   return {
-    entries,
+    entries: state.entries.filter(entry => groupOf(entry.item) === group),
     closed: state.closed.filter(closed => groupOf(closed.item) === group),
     running,
     missing,
-    ready: !running && open.length > 0 && missing.length === 0,
+    ready: !running && sendable.length > 0 && missing.length === 0,
   }
 }
 
 /** The cards one submit of the group would send, in the order shown. */
 export function submittable(state: State, group: string): readonly string[] {
-  const sheet = sheetOf(state, group)
-  return sheet.ready
-    ? sheet.entries.filter(entry => !busy(entry.submit)).map(entry => entry.key)
+  return sheetOf(state, group).ready
+    ? sendableOf(state, group).map(item => item.entry.key)
     : []
 }
 
@@ -238,8 +244,8 @@ function readList(state: State): Step {
   }
 }
 
-const planned = (state: State, key: string): boolean =>
-  Object.values(state.batches).some(batch => batch.planned.some(item => item.key === key))
+const queued = (state: State, key: string): boolean =>
+  Object.values(state.batches).some(batch => batch.queue.some(item => item.key === key))
 
 function merge(state: State, items: readonly HumanInterventionCardItem[]): State {
   const known = new Map(state.entries.map(entry => [entry.key, entry]))
@@ -249,7 +255,7 @@ function merge(state: State, items: readonly HumanInterventionCardItem[]): State
   })
   const keys = new Set(listed.map(entry => entry.key))
   const kept = state.entries.filter(
-    entry => !keys.has(entry.key) && (busy(entry.submit) || planned(state, entry.key)),
+    entry => !keys.has(entry.key) && (busy(entry.submit) || queued(state, entry.key)),
   )
   const entries = [...listed, ...kept]
   const present = new Set(entries.map(entry => entry.key))
@@ -307,53 +313,46 @@ function withoutBatch(state: State, group: string): State {
   return { ...state, batches: rest }
 }
 
-/** Sends the head of the group's batch, skipping cards that can no longer be sent. */
-function launch(state: State, group: string): Step {
-  let current = state
-  for (;;) {
-    const batch = current.batches[group]
-    if (batch === undefined) return same(current)
-    const [head, ...rest] = batch.planned
-    if (head === undefined) return same(withoutBatch(current, group))
-    const entry = find(current, head.key)
-    const reply = replyOf(current.drafts[head.key])
-    if (entry !== undefined && !busy(entry.submit) && reply !== null) {
-      const sent: Sent = {
-        card: entry.item.card.ref,
-        expectedRevision: entry.item.card.revision,
-        reply,
-        replyId: head.replyId,
-      }
-      return put(current, { ...entry, submit: { kind: 'submitting', sent } }, [
-        { kind: 'submit', key: head.key, sent },
-      ])
-    }
-    current = { ...current, batches: { ...current.batches, [group]: { planned: rest } } }
+/** Sends the first card of the queue and keeps the queue as the group's batch; an empty queue ends it. */
+function proceed(state: State, group: string, queue: readonly Queued[]): Step {
+  const [head] = queue
+  if (head === undefined) return same(withoutBatch(state, group))
+  const submit: Submit = { kind: 'submitting', sent: head.sent }
+  return {
+    state: {
+      ...state,
+      batches: { ...state.batches, [group]: { queue } },
+      entries: state.entries.map(entry => (entry.key === head.key ? { ...entry, submit } : entry)),
+    },
+    effects: [{ kind: 'submit', key: head.key, sent: head.sent }],
   }
 }
 
 function submitGroup(state: State, group: string, plan: readonly Planned[]): Step {
-  const expected = submittable(state, group)
-  const matches =
-    expected.length > 0 &&
-    plan.length === expected.length &&
-    plan.every((item, at) => item.key === expected[at]) &&
-    new Set(plan.map(item => item.replyId)).size === plan.length
-  if (!matches) return same(state)
-  return launch({ ...state, batches: { ...state.batches, [group]: { planned: plan } } }, group)
+  if (!sheetOf(state, group).ready) return same(state)
+  const sendable = sendableOf(state, group)
+  const queue = sendable.flatMap(({ entry, reply }, at) => {
+    const planned = plan[at]
+    if (reply === null || planned?.key !== entry.key) return []
+    const sent: Sent = {
+      card: entry.item.card.ref,
+      expectedRevision: entry.item.card.revision,
+      reply,
+      replyId: planned.replyId,
+    }
+    return [{ key: entry.key, sent }]
+  })
+  const distinct = new Set(plan.map(item => item.replyId)).size === plan.length
+  const exact = queue.length === sendable.length && plan.length === sendable.length
+  if (!exact || !distinct) return same(state)
+  return proceed(state, group, queue)
 }
 
 /** Moves the group's batch on once the card in flight has an outcome. */
 function advance(step: Step, group: string, key: string): Step {
-  const batch = step.state.batches[group]
-  if (batch === undefined || batch.planned[0]?.key !== key) return step
-  const entry = find(step.state, key)
-  if (entry !== undefined && entry.submit.kind === 'submitting') return step
-  const moved: State = {
-    ...step.state,
-    batches: { ...step.state.batches, [group]: { planned: batch.planned.slice(1) } },
-  }
-  const next = launch(moved, group)
+  const queue = step.state.batches[group]?.queue
+  if (queue === undefined || queue[0]?.key !== key) return step
+  const next = proceed(step.state, group, queue.slice(1))
   return { state: next.state, effects: [...step.effects, ...next.effects] }
 }
 
@@ -368,7 +367,7 @@ function settled(state: State, entry: Entry, closedBy: Notice | null): Step {
     closedBy === null
       ? state.closed
       : [
-          ...state.closed.filter(candidate => candidate.key !== entry.key),
+          ...state.closed,
           {
             key: entry.key,
             item: entry.item,
@@ -420,8 +419,9 @@ function inFlightOf(submit: Submit, replyId: string): InFlight | null {
 
 function replyAnswered(state: State, key: string, replyId: string, answer: ReplyAnswer): Step {
   const entry = find(state, key)
-  const flight = entry === undefined ? null : inFlightOf(entry.submit, replyId)
-  if (entry === undefined || flight === null) return same(state)
+  if (entry === undefined) return same(state)
+  const flight = inFlightOf(entry.submit, replyId)
+  if (flight === null) return same(state)
   return advance(outcomeOf(state, entry, flight, answer), groupOf(entry.item), key)
 }
 
