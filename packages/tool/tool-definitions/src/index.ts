@@ -25,12 +25,4 @@ export {
   askToolModule,
   createAskAuthor,
 } from './ask.ts'
-export { askWaitContract } from './ask-protocol.ts'
-export type {
-  AskArguments,
-  AskCard,
-  AskCommand,
-  AskCommandEntry,
-  AskResponse,
-  AskWaitRequest,
-} from './ask-protocol.ts'
+export type { AskArguments, AskCommand, AskCommandEntry } from './ask-protocol.ts'
