@@ -142,7 +142,7 @@ it('U8 给了会话的拓展点：往它里面放一项，展示这个会话的�
   await settle()
   ;(await fake.next('list-cards')).answer(page([questionItem()]))
   await settle()
-  expect(view.getByRole('region', { name: '这个会话在等你决定' })).toBeTruthy()
+  expect(view.getByRole('region', { name: '这个会话待答的问题' })).toBeTruthy()
   const none = render(<>{shell.attached(ANCHOR, 'ses_other')}</>)
   await settle()
   expect(none.container.innerHTML).toBe('')

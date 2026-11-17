@@ -64,6 +64,24 @@
 - **注意 ④**：设置项类别规定允许来源，专有含义及采用时点由功能拥有者维护。
 - **注意 ⑤**：资产替换不转移原资产配值和秘密；持久配值不随运行提供者撤除而删除。
 
+### UL-settings-target · 设置目标 · Settings Target
+
+> **中**：**一组[设置](#ul-setting--设置--setting)配在其上的那个东西。**
+> 有两种：跟着一份[资产持有](circulation-and-entitlement.md#ul-asset-holding--资产持有--asset-holding)的，它的当前事实取自这份持有；
+> 独立的，由受信的拥有者开通与退役，和任何资产无关。
+> 一项设置在界面上归「资产」还是归「设置」，只看它的设置目标是哪一种。
+>
+> **EN**: **The thing that a group of settings is configured on.** There are two kinds. One kind
+> follows an asset holding and takes its current facts from that holding. The other kind is
+> independent: a trusted owner opens it and retires it, and it is not related to an asset.
+> Whether the interface shows a setting entry under Assets or under Settings depends only on
+> the kind of its settings target.
+
+- **形态**：对象
+- **出处**：[资产包组规格「设置：目标拥有者与来源」](../../../../packages/assets/SPEC.md#设置目标拥有者与来源)（PanQiWei 2026-11-17 交办定义，卡 #1332）
+- **别混**：不是设置项：设置项是目标上的一项。不是配值的来源：来源说的是一项的值由哪一层给出。
+- **注意**：一个设置目标由它的完整身份认出，配值与操作历史挂在这个身份上；退役的独立目标不能以同一完整身份再开通。
+
 ### UL-setting-category · 设置项类别 · Setting Category
 
 > **中**：功能拥有者声明一项[设置](#ul-setting--设置--setting)时**必须标上的那个类别**，

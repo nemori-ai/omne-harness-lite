@@ -1,0 +1,51 @@
+.mcp-page {
+  display: grid;
+  gap: var(--omne-space-block);
+  min-width: 0;
+  font-size: var(--omne-text-ui);
+}
+
+.mcp-endpoint {
+  display: grid;
+  gap: var(--omne-space-inline);
+  padding-block: var(--omne-space-block);
+  border-bottom: 1px solid var(--omne-line-subtle);
+}
+
+.mcp-endpoint-title {
+  margin: 0;
+  color: var(--omne-ink-primary);
+  font-family: var(--omne-font-mono, monospace);
+  font-size: var(--omne-text-ui);
+  font-weight: 500;
+}
+
+.mcp-endpoint-settings {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mcp-permission {
+  display: grid;
+  justify-items: start;
+  gap: var(--omne-space-inline);
+}
+
+.mcp-permission-title {
+  margin: 0;
+  color: var(--omne-ink-primary);
+  font-weight: 500;
+}
+
+.mcp-permission-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--omne-space-inline);
+}
+
+.mcp-permission-now,
+.mcp-permission-closed {
+  margin: 0;
+  color: var(--omne-ink-muted);
+}

@@ -1,6 +1,7 @@
 export { createSlotStore, type SlotStore } from './slot-store.ts'
 export { ShellAssemblyError, slots } from './slots.ts'
 export { defineKeyedPoint, definePoint } from './point.ts'
+export { serviceKey, serviceOf, type ServiceKey } from './service-key.ts'
 export type {
   KeyedPoint,
   KeyedPointSink,

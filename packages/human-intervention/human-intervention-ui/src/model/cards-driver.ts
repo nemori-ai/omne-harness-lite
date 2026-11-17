@@ -2,7 +2,15 @@ import { defaultBackoff } from '@omne-harness/client-assembly'
 import type { HumanInterventionProtocol } from '@omne-harness/human-intervention-protocol'
 import type { TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
-import { INITIAL, step, type Effect, type Event, type Reply, type State } from './cards-machine.ts'
+import {
+  INITIAL,
+  step,
+  submittable,
+  type Draft,
+  type Effect,
+  type Event,
+  type State,
+} from './cards-machine.ts'
 
 export type Schedule = (delayMs: number, run: () => void) => () => void
 
@@ -68,12 +76,26 @@ export class CardsDriver {
     this.dispatch({ kind: 'read-list' })
   }
 
-  submit(key: string, reply: Reply): void {
-    this.dispatch({ kind: 'submit', key, reply, replyId: this.#newId() })
+  draft(key: string, draft: Draft): void {
+    this.dispatch({ kind: 'draft', key, draft })
+  }
+
+  submitGroup(group: string): void {
+    const keys = submittable(this.#state, group)
+    if (keys.length === 0) return
+    this.dispatch({
+      kind: 'submit-group',
+      group,
+      planned: keys.map(key => ({ key, replyId: this.#newId() })),
+    })
   }
 
   confirm(key: string): void {
     this.dispatch({ kind: 'confirm', key })
+  }
+
+  dismiss(key: string): void {
+    this.dispatch({ kind: 'dismiss', key })
   }
 
   dispose(): void {
