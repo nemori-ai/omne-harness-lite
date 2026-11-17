@@ -53,6 +53,7 @@ function fixture(maximum = 65536) {
   if ('failure' in implementation) throw new Error(JSON.stringify(implementation.failure))
   const registration = readToolRegistration(implementation.ok)
   if (registration?.kind !== 'commands') throw new Error('commands')
+  const slots = registration.operations
   const definition = deriveDefinition(
     {
       asset: { name: 'BkgToolCalls', adoption: backgroundCallsToolModule.executor },
@@ -61,7 +62,7 @@ function fixture(maximum = 65536) {
     implementation.ok.facts,
   )
   function decode(command: string, params: unknown) {
-    const operation = registration?.operations.find(([name]) => name === command)?.[1]
+    const operation = slots.find(([name]) => name === command)?.[1]
     if (operation === undefined || operation.author.kind !== 'ordinary')
       throw new Error('ordinary command')
     const text = JSON.stringify({ command, params })

@@ -28,7 +28,9 @@ const attached = (root: Context) =>
     .map(item => item.id)
 
 function client(answers: readonly unknown[]) {
-  const read = vi.fn(async () => answers[Math.min(read.mock.calls.length - 1, answers.length - 1)])
+  const read = vi.fn(
+    async (_input: unknown) => answers[Math.min(read.mock.calls.length - 1, answers.length - 1)],
+  )
   return { client: { 'read-call-output': read }, read }
 }
 

@@ -34,7 +34,10 @@ const page = (sessions: readonly ArchivedItem[], next: string | null = null) => 
 })
 
 function clientWith(pages: readonly unknown[]) {
-  const listed = vi.fn(async () => pages[listed.mock.calls.length - 1] ?? page([]))
+  const listed = vi.fn(
+    async (_body: { cursor: string | null; titleContains: string | null }) =>
+      pages[listed.mock.calls.length - 1] ?? page([]),
+  )
   const archive = vi.fn(async () => ({
     outcome: 'succeeded',
     body: { kind: 'archived', controlId: 'c', runs: 1, backgroundCalls: 2 },
