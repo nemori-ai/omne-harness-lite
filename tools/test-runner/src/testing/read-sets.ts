@@ -19,6 +19,7 @@ export const READ_KINDS = ['content', 'listing', 'presence'] as const
 export type ReadKind = (typeof READ_KINDS)[number]
 
 export const NO_RECORDER = '没有记录器'
+export const TYPECHECK_ONLY = '只做类型检查'
 export const EXTERNAL_IN_REPO = '仓库里有外部化的模块'
 export const LOCKFILE_KEY = 'content:pnpm-lock.yaml'
 export const RUNTIME_KEY = 'runtime:node'
@@ -35,6 +36,7 @@ export interface RawFile {
   readonly modules: readonly string[]
   readonly externals: readonly string[]
   readonly recorded?: RecorderMeta
+  readonly typecheck?: boolean
 }
 
 export interface RawReadSets {
@@ -93,7 +95,9 @@ export function readsOf(
   config: readonly string[],
 ): { readonly reads: string[]; readonly incomplete: string[] } {
   const reads = new Set<string>([RUNTIME_KEY])
-  const incomplete = new Set<string>(raw.recorded?.incomplete ?? [NO_RECORDER])
+  const incomplete = new Set<string>(
+    raw.recorded?.incomplete ?? [raw.typecheck === true ? TYPECHECK_ONLY : NO_RECORDER],
+  )
   const add = (kind: ReadKind, path: string): boolean => {
     const inside = inRepo(root, path)
     if (inside === undefined) return false
