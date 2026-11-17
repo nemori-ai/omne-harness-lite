@@ -478,18 +478,18 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
     mkdirSync(scratch, { recursive: true })
     const dir = mkdtempSync(join(scratch, 'core-rules-'))
     try {
+      mkdirSync(join(dir, '.meta_harness/design/product'), { recursive: true })
       const src = join(dir, 'core/content-blocks/src')
       mkdirSync(src, { recursive: true })
       const path = join(src, 'index.ts')
       writeFileSync(path, `import { Context } from '@deepseek-ai/cordis'`)
       expect(runRules(collectSources(dir), RULES).map(v => v.rule)).toContain('core-pure-imports')
       const cli = resolve(root, 'tools/product-checks/src/cli.ts')
+      const subject = { encoding: 'utf8', env: { ...process.env, OMNE_SUBJECT_ROOT: dir } } as const
       const bad = spawnSync(
         process.execPath,
         ['--conditions=source', '--experimental-strip-types', cli, dir],
-        {
-          encoding: 'utf8',
-        },
+        subject,
       )
       expect(bad.status).toBe(1)
       expect(bad.stderr).toContain('[core-pure-imports]')
@@ -497,9 +497,7 @@ export const normalizeDirectory = (path: string) => isAbsolute(path) ? normalize
       const good = spawnSync(
         process.execPath,
         ['--conditions=source', '--experimental-strip-types', cli, dir],
-        {
-          encoding: 'utf8',
-        },
+        subject,
       )
       expect(good.status, good.stderr).toBe(0)
       expect(good.stdout).toContain('PASS:')
