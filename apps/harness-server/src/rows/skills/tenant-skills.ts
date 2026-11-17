@@ -28,12 +28,16 @@ export type TenantSkills = Readonly<{
   close(): Promise<void>
 }>
 
-export type TenantSkillsOptions = Readonly<{
-  domains: TenantDomainLookup
+export type TenantSkillsStore = Readonly<{
   storage: Storage
   materials: SqlMaterialCatalog
   packageRoot: string
   ranking: RankingParameters
+}>
+
+export type TenantSkillsHostOptions = Readonly<{
+  domains: TenantDomainLookup
+  open(tenant: TenantId, domain: DomainRef): Promise<TenantSkills>
 }>
 
 const GRANTED = Object.freeze({ kind: 'granted' } as const)
@@ -57,8 +61,8 @@ function directoryOf(assets: AssetsLocal): PackageDirectoryOf {
   }
 }
 
-async function openTenant(
-  options: TenantSkillsOptions,
+export async function openTenantSkills(
+  options: TenantSkillsStore,
   tenant: TenantId,
   domain: DomainRef,
 ): Promise<TenantSkills> {
@@ -110,11 +114,11 @@ async function openTenant(
 
 /** One Skill service set per tenant, made on first use; a set only reads its own tenant domain. */
 export class TenantSkillsHost {
-  private readonly options: TenantSkillsOptions
+  private readonly options: TenantSkillsHostOptions
   private readonly opening = new Map<string, Promise<TenantSkills | undefined>>()
   private closed = false
 
-  constructor(options: TenantSkillsOptions) {
+  constructor(options: TenantSkillsHostOptions) {
     this.options = options
   }
 
@@ -139,7 +143,7 @@ export class TenantSkillsHost {
       if (found.kind !== 'ready') return undefined
       const { domain } = found
       if (domain.scope.kind !== 'tenant' || domain.scope.tenant !== key) return undefined
-      const set = await openTenant(this.options, tenant, domain)
+      const set = await this.options.open(tenant, domain)
       if (!this.closed) return set
       await set.close()
       return undefined

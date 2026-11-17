@@ -17,7 +17,11 @@ import {
   principalVerifier,
   sessionWorkIssuerOf,
 } from '../../../src/entry/principals.ts'
-import { routedSkills, TenantSkillsHost } from '../../../src/rows/skills/tenant-skills.ts'
+import {
+  openTenantSkills,
+  routedSkills,
+  TenantSkillsHost,
+} from '../../../src/rows/skills/tenant-skills.ts'
 import { createBoundSkills } from '../../../src/rows/tool-bindings/skills.ts'
 import { productionStorageCatalog } from '../../../src/rows/storage/production-catalog.ts'
 import { governanceStorageCombinations } from '../../../src/rows/governance/storage-combinations.ts'
@@ -76,12 +80,10 @@ async function world() {
     },
   }
   const packageRoot = join(root, 'assets')
+  const store = { storage: made.storage, materials, packageRoot, ranking }
   const host = new TenantSkillsHost({
     domains: lookup,
-    storage: made.storage,
-    materials,
-    packageRoot,
-    ranking,
+    open: (tenant, domain) => openTenantSkills(store, tenant, domain),
   })
   cleanups.push(() => host.close())
   const routed = routedSkills(host)

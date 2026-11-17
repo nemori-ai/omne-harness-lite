@@ -11,7 +11,7 @@ import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/co
 import { defineRow } from '../../row.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
-import { routedSkills, TenantSkillsHost } from './tenant-skills.ts'
+import { openTenantSkills, routedSkills, TenantSkillsHost } from './tenant-skills.ts'
 
 export const skillsRowConfig = z.strictObject({
   packageRoot: z.string().min(1),
@@ -61,12 +61,15 @@ export const skillsRow = defineRow({
   async body(ctx, raw) {
     const config = skillsRowConfig.parse(raw)
     const release = releaseOf(ctx)
-    const host = new TenantSkillsHost({
-      domains: ctx.tenantDomainLookup,
+    const store = {
       storage: ctx.storage,
       materials: await productionStorageCatalog(async () => release),
       packageRoot: config.packageRoot,
       ranking: config.ranking,
+    }
+    const host = new TenantSkillsHost({
+      domains: ctx.tenantDomainLookup,
+      open: (tenant, domain) => openTenantSkills(store, tenant, domain),
     })
     const routed = routedSkills(host)
     new TenantSkillCatalog(ctx, routed.catalog)
