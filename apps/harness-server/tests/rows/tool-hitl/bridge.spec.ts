@@ -297,6 +297,19 @@ describe('the Tool decision owner over HITL', () => {
     ])
   })
 
+  it('refuses an ask wait whose request carries no decision cards, without writing to HITL', async () => {
+    const w = world({ tool: 'Elsewhere', original: JSON.stringify({ prompt: 'Which port?' }) })
+    expect(await w.ensure()).toMatchObject({
+      failure: {
+        kind: 'invalid',
+        field: 'request',
+        reason: 'the kept request does not carry decision cards',
+      },
+    })
+    expect(w.calls.prepared).toEqual([])
+    expect(w.calls.registered).toEqual([])
+  })
+
   it('refuses a kept request that the request evidence of the wait does not bind, or a call that keeps none, without writing to HITL', async () => {
     for (const kept of [JSON.stringify({ questions: [] }), null]) {
       const w = world({ kept })
