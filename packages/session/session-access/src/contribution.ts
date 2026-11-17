@@ -34,6 +34,7 @@ import {
 } from './answers.ts'
 import { retryRun } from './retry-run.ts'
 import { backgroundCall, listBackgroundCalls } from './background-calls.ts'
+import { stopCall } from './stop-call.ts'
 import type {
   DefinitionResolver,
   PrincipalFacts,
@@ -365,48 +366,6 @@ export function createSessionContribution(
     }
   }
 
-  async function stopCall(
-    login: LoginIdentity,
-    body: Body<'stop-call'>,
-  ): Promise<Answer<'stop-call'>> {
-    const admitted = await admit(login, body.tenant, body.session)
-    if ('outcome' in admitted) return admitted
-    const { access, tenantText, faces } = admitted
-    const caller = factOf(access.principal)
-    if (caller === undefined) return UNAVAILABLE
-    const { controlId, producer } = body
-    const result = await commitCall(() =>
-      faces.work.stopCall({
-        ...access,
-        operation: controlOperation(caller.login, tenantText, access.session, controlId),
-        producer,
-      }),
-    )
-    if (result === 'unknown') return { outcome: 'unknown' }
-    if ('failure' in result) return refused('stop-call', result.failure)
-    const saved = result.ok.answer
-    switch (saved.kind) {
-      case 'requested':
-        return { outcome: 'succeeded', body: { kind: 'requested', controlId, producer } }
-      case 'ended':
-        return {
-          outcome: 'succeeded',
-          body: {
-            kind: 'ended',
-            controlId,
-            producer,
-            terminal: {
-              version: saved.terminal.version,
-              outcome: saved.terminal.outcome,
-              source: sourceOf(saved.terminal.source),
-            },
-          },
-        }
-      case 'not-found':
-        return { outcome: 'not-found', body: {} }
-    }
-  }
-
   return {
     operations: {
       'create-session': (call, body) => createSession(call.principal, body),
@@ -417,7 +376,7 @@ export function createSessionContribution(
       'read-waiting': (call, body) =>
         readWaiting({ admit, causes: input.causes }, call.principal, body),
       'cancel-run': (call, body) => cancelRun(call.principal, body),
-      'stop-call': (call, body) => stopCall(call.principal, body),
+      'stop-call': (call, body) => stopCall({ admit, factOf }, call.principal, body),
       'retry-run': (call, body) => retryRun({ admit, factOf }, call.principal, body),
       'background-call': (call, body) => backgroundCall({ admit, factOf }, call.principal, body),
       'list-background-calls': (call, body) => listBackgroundCalls({ admit }, call.principal, body),

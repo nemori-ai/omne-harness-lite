@@ -7,6 +7,10 @@ import { decideControl } from './decide-management.ts'
 import { invalid, rejected } from './decision-support.ts'
 import type { DecideReads } from './judgments.ts'
 import { decideRetryRun } from './decide-retry.ts'
+import { backgroundRecordOf, stopReminderEntries } from './background-outcome.ts'
+import { equalValue } from './session-validation.ts'
+
+const REASON_MAX_CHARS = 500
 
 export function decideNamedControl(
   snapshot: WorkSnapshot,
@@ -101,6 +105,34 @@ export function decideStopCall(
       answer: { kind: 'ended', terminal: lookup.terminal },
       source: lookup.terminal.source,
     }
-  const intent = { kind: 'control', value: { kind: 'stop-call', producer } } as const
-  return decideControl(snapshot, intent, operation, reads)
+  const reason = command.input.reason ?? null
+  if (reason !== null && (typeof reason !== 'string' || reason.trim() === ''))
+    return invalid('reason', 'empty or not text')
+  if (reason !== null && [...reason].length > REASON_MAX_CHARS)
+    return invalid('reason', `longer than ${REASON_MAX_CHARS} characters`)
+  const record = (snapshot.backgroundCalls ?? []).find(item => equalValue(item.producer, producer))
+  const placed =
+    record !== undefined && backgroundRecordOf(snapshot, record.consumption) !== null
+      ? record
+      : null
+  const earlier = placed?.stop
+  if (earlier !== undefined) {
+    const original = snapshot.controls.find(item => item.operation === earlier.operation)
+    if (original !== undefined)
+      return {
+        kind: 'control-answer',
+        answer: { kind: 'requested', progress: original },
+        source: snapshot.source,
+      }
+  }
+  const initiator = command.input.initiator ?? 'user'
+  const value = { kind: 'stop-call', producer, initiator, reason } as const
+  const decision = decideControl(snapshot, { kind: 'control', value }, operation, reads)
+  if (decision.kind !== 'entries' || placed === null || initiator !== 'user') return decision
+  const reminder = stopReminderEntries(snapshot, placed, { initiator, reason, operation })
+  return {
+    ...decision,
+    entries: [...decision.entries, ...reminder.entries],
+    admitted: [...(decision.admitted ?? []), reminder.input],
+  }
 }

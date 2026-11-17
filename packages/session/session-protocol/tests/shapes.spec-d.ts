@@ -55,7 +55,11 @@ type SessionRequestBodies = {
     readonly run: string
     readonly urgency: 'graceful' | 'force'
   }
-  'stop-call': Target & { readonly controlId: string; readonly producer: ProducerRef }
+  'stop-call': Target & {
+    readonly controlId: string
+    readonly producer: ProducerRef
+    readonly reason?: string | null
+  }
 }
 
 type SessionSuccessBodies = {
@@ -352,6 +356,11 @@ test('background-call names one Tool call and answers requested or background', 
       }
       readonly source: 'launched' | 'control' | 'threshold' | 'foreground-limit'
       readonly status: 'queued' | 'running' | 'ended-pending' | 'stopping' | 'unknown'
+      readonly stop: {
+        readonly initiator: 'user' | 'agent' | 'system'
+        readonly reason: string | null
+        readonly progress: 'requested' | 'accepted' | 'proven'
+      } | null
       readonly lastLine: string | null
     }[]
   }>()

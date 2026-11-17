@@ -476,6 +476,7 @@ export declare const sessionProtocol: {
                     readonly call: string;
                     readonly kind: "model" | "tool";
                 };
+                readonly reason?: string | null;
                 readonly session: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
@@ -530,6 +531,11 @@ export declare const sessionProtocol: {
                         };
                         readonly source: "control" | "foreground-limit" | "launched" | "threshold";
                         readonly status: "ended-pending" | "queued" | "running" | "stopping" | "unknown";
+                        readonly stop: {
+                            readonly initiator: "agent" | "system" | "user";
+                            readonly progress: "accepted" | "proven" | "requested";
+                            readonly reason: string | null;
+                        } | null;
                     }[];
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{}>;

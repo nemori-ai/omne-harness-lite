@@ -225,8 +225,9 @@ export interface SessionWork<P> {
   cancelRun(
     input: Mutation<P> & Readonly<{ run: RunId; urgency: 'graceful' | 'force' }>,
   ): Reply<SessionControlReceipt<RunTerminal>>
+  /** Who stops is the caller class, not an input; a second stop of a call answers the first. */
   stopCall(
-    input: Mutation<P> & Readonly<{ producer: ProducerRef }>,
+    input: Mutation<P> & Readonly<{ producer: ProducerRef; reason?: string | null }>,
   ): Reply<SessionControlReceipt<SessionCallTerminal>>
   retryRun(input: Mutation<P> & Readonly<{ run: RunId }>): Reply<CommitReceipt>
   queryControlOperation(

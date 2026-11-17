@@ -44,7 +44,7 @@ const ADMITTED: Readonly<Record<FaceOperation, readonly SessionCallerClass[]>> =
   loadRecovery: [C, M],
   readModelSelection: [I, M],
   cancelRun: [I, M],
-  stopCall: [I, M],
+  stopCall: [I, C, M],
   retryRun: [I],
   queryControlOperation: [I, M],
   inspectIdle: [M],

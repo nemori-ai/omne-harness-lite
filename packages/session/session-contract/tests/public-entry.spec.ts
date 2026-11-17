@@ -52,10 +52,12 @@ it('exports exactly the declared root runtime surface', () => {
     'resolveOperation',
     'routeInput',
     'runCancelledBy',
+    'runStartInputs',
     'sessionInputBytes',
     'sessionIntakeLimits',
     'sessionModesBlock',
     'shortCallId',
+    'wakingInputs',
   ])
 })
 

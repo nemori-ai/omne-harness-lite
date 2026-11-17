@@ -22,6 +22,7 @@
 - `BackgroundCallSource` · `background-calls.d.ts`
 - `BackgroundCallState` · `background-calls.d.ts`
 - `BackgroundCallStatus` · `background-calls.d.ts`
+- `BackgroundCallStop` · `background-calls.d.ts`
 - `BackgroundCallView` · `background-calls.d.ts`
 - `BackgroundDisposition` · `values.d.ts`
 - `BackgroundOutcomeJudgment` · `background-outcome.d.ts`
@@ -232,6 +233,8 @@
 - `SessionWorkPrincipals` · `ports.d.ts`
 - `StartAdoption` · `faces.d.ts`
 - `StartedRun` · `faces.d.ts`
+- `StopInitiator` · `background-calls.d.ts`
+- `StopView` · `background-calls.d.ts`
 - `TodoItem` · `todos.d.ts`
 - `TodoItemId` · `identity.d.ts`
 - `TodoMutationReceipt` · `todos.d.ts`
@@ -284,10 +287,12 @@
 - `resolveOperation` · `judgments.d.ts`
 - `routeInput` · `judgments.d.ts`
 - `runCancelledBy` · `decision-support.d.ts`
+- `runStartInputs` · `intake.d.ts`
 - `sessionInputBytes` · `intake.d.ts`
 - `sessionIntakeLimits` · `intake.d.ts`
 - `sessionModesBlock` · `block.d.ts`
 - `shortCallId` · `background-calls.d.ts`
+- `wakingInputs` · `intake.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
 
@@ -468,7 +473,7 @@ export {};
 ## 声明文件 `background-calls.d.ts`
 
 ```ts
-import type { ConsumptionId } from './identity.ts';
+import type { ConsumptionId, SessionOperationId } from './identity.ts';
 import type { ProducerRef } from './values.ts';
 type ToolProducer = Extract<ProducerRef, {
     kind: 'tool';
@@ -480,12 +485,19 @@ export type BackgroundCallLabel = Readonly<{
     preview: string;
 }>;
 export type BackgroundCallSource = 'launched' | 'control' | 'threshold' | 'foreground-limit';
+export type StopInitiator = 'user' | 'agent' | 'system';
+export type BackgroundCallStop = Readonly<{
+    initiator: StopInitiator;
+    reason: string | null;
+    operation: SessionOperationId;
+}>;
 export type BackgroundCallRecord = Readonly<{
     consumption: ConsumptionId;
     producer: ToolProducer;
     ordinal: number;
     label: BackgroundCallLabel;
     source: BackgroundCallSource;
+    stop?: BackgroundCallStop;
 }>;
 export type BackgroundCallState = Readonly<{
     phase: 'queued' | 'running' | 'settled';
@@ -493,12 +505,18 @@ export type BackgroundCallState = Readonly<{
     lastLine: string | null;
 }>;
 export type BackgroundCallStatus = 'queued' | 'running' | 'ended-pending' | 'stopping' | 'unknown';
+export type StopView = Readonly<{
+    initiator: StopInitiator;
+    reason: string | null;
+    progress: 'requested' | 'accepted' | 'proven';
+}>;
 export type BackgroundCallView = Readonly<{
     id: string;
     producer: ToolProducer;
     label: BackgroundCallLabel;
     source: BackgroundCallSource;
     status: BackgroundCallStatus;
+    stop: StopView | null;
     lastLine: string | null;
 }>;
 export declare function shortCallId(ordinal: number): string;
@@ -509,6 +527,7 @@ export {};
 ## 声明文件 `background-outcome.d.ts`
 
 ```ts
+import type { BackgroundCallRecord, BackgroundCallStop } from './background-calls.ts';
 import type { SessionEntry } from './entries.ts';
 import type { HistoryEntry, SessionFailure } from './faces.ts';
 import type { ConsumptionId, InputId } from './identity.ts';
@@ -538,6 +557,7 @@ export type BackgroundOutcomeJudgment = Readonly<{
 }> | Readonly<{
     kind: 'input';
     destination: 'current-run' | 'next-run';
+    stop: BackgroundCallStop | null;
 }>;
 export type BackgroundStep = Readonly<{
     kind: 'entries';
@@ -551,15 +571,21 @@ export type BackgroundStep = Readonly<{
     failure: SessionFailure;
 }>;
 export declare function backgroundInputId(producer: ProducerRef, result: string): InputId;
-export declare function judgeBackgroundOutcome(snapshot: WorkSnapshot, consumption: ConsumptionId, producer: ProducerRef): BackgroundOutcomeJudgment;
+export declare function backgroundRecordOf(snapshot: WorkSnapshot, consumption: ConsumptionId): BackgroundCallRecord | null;
+export declare function judgeBackgroundOutcome(snapshot: WorkSnapshot, consumption: ConsumptionId): BackgroundOutcomeJudgment;
+export declare function stopReminderEntries(snapshot: WorkSnapshot, record: BackgroundCallRecord, stop: BackgroundCallStop): Readonly<{
+    entries: readonly EncodedEntry[];
+    input: Ordinary;
+}>;
 export declare function decideBackground(snapshot: WorkSnapshot, fact: Backgrounded | Outcome, origin: HistoryEntry['origin']): BackgroundStep;
 export declare function applyBackgrounded(draft: Draft, entry: Extract<SessionEntry, {
     kind: 'call.backgrounded';
 }>): string | null;
+export declare function applyBackgroundStop(draft: Draft, progress: ControlProgress): void;
 export declare function applyBackgroundSettled(draft: Draft, entry: Extract<SessionEntry, {
     kind: 'call.background-settled';
 }>): string | null;
-export declare function pruneBackgroundInputs(draft: Draft): void;
+export declare function pruneInputLists(draft: Draft): void;
 export {};
 ```
 
@@ -1067,6 +1093,7 @@ export type SessionEntry = Readonly<{
     destination: 'current-run' | 'next-run';
     run: RunId | null;
     origin: DurableEvidence;
+    wakes?: false;
 }> | Readonly<{
     kind: 'intake.handed-over';
     input: InputId;
@@ -1508,6 +1535,7 @@ export interface SessionWork<P> {
     }>): Reply<SessionControlReceipt<RunTerminal>>;
     stopCall(input: Mutation<P> & Readonly<{
         producer: ProducerRef;
+        reason?: string | null;
     }>): Reply<SessionControlReceipt<SessionCallTerminal>>;
     retryRun(input: Mutation<P> & Readonly<{
         run: RunId;
@@ -1970,7 +1998,7 @@ export { readRunBoundary } from './run-boundary.ts';
 export type { RunBoundaryView } from './run-boundary.ts';
 export type { SessionWorkEntryIndex, SessionCallEntryReferences, SessionControlEntryReferences, } from './work-entry-values.ts';
 export { mutationAccessRequest, readAccessRequest, type SessionAccessCheck, type SessionAccessDecision, type SessionAccessOperation, type SessionAccessRequest, type SessionAccessTarget, type SessionCheckedAccess, type SessionDelegatedTransactions, type SessionReadAccessOperation, } from './access.ts';
-export { DEFAULT_SESSION_INTAKE_LIMITS, sessionIntakeLimits, sessionInputBytes, judgeSessionIntake, pendingIntakeCount, } from './intake.ts';
+export { DEFAULT_SESSION_INTAKE_LIMITS, sessionIntakeLimits, sessionInputBytes, judgeSessionIntake, pendingIntakeCount, runStartInputs, wakingInputs, } from './intake.ts';
 export { backgroundCalls, controlRoutes, type ControlRoutes, type DirectCallControl, } from './call-control.ts';
 export { BACKGROUND_INPUT_OWNER, backgroundInputId, judgeBackgroundOutcome, type BackgroundOutcomeJudgment, } from './background-outcome.ts';
 export type { SessionIntakeLimits } from './intake.ts';
@@ -1978,7 +2006,7 @@ export type { TodoItem, VisibleTodoItem, TodoMutationReceipt, TodoPageCursor, To
 export type { SessionPermissionAssignment, SessionPermissions, SessionPermissionChangeBasis, SessionPermissionWriteQualification, } from './permission-values.ts';
 export { rebuildSessionPermissions, type SessionPermissionHistory } from './permission-history.ts';
 export { backgroundCallView, shortCallId } from './background-calls.ts';
-export type { BackgroundCallLabel, BackgroundCallRecord, BackgroundCallSource, BackgroundCallState, BackgroundCallStatus, BackgroundCallView, } from './background-calls.ts';
+export type { BackgroundCallLabel, BackgroundCallRecord, BackgroundCallSource, BackgroundCallState, BackgroundCallStatus, BackgroundCallStop, BackgroundCallView, StopInitiator, StopView, } from './background-calls.ts';
 ```
 
 ## 声明文件 `initialization-parse.d.ts`
@@ -2101,6 +2129,7 @@ export declare function pendingAfterTerminal(snapshot: Pick<WorkSnapshot, 'pendi
 
 ```ts
 import type { SessionFailure } from './faces.ts';
+import type { InputId } from './identity.ts';
 import type { RoutedInput, WorkSnapshot } from './values.ts';
 export type SessionIntakeLimits = Readonly<{
     maxPendingInputs: number;
@@ -2116,7 +2145,9 @@ export declare function judgeSessionIntake(pending: number, value: Extract<Route
 }>, limits: SessionIntakeLimits): Extract<SessionFailure, {
     kind: 'limited';
 }> | null;
-export declare function pendingIntakeCount(snapshot: Pick<WorkSnapshot, 'pending' | 'handed' | 'backgroundInputs'>): number;
+export declare function pendingIntakeCount(snapshot: Pick<WorkSnapshot, 'pending' | 'handed' | 'backgroundInputs' | 'quietInputs'>): number;
+export declare function runStartInputs(snapshot: Pick<WorkSnapshot, 'pending' | 'quietInputs'> | null | undefined): readonly InputId[];
+export declare function wakingInputs(snapshot: Pick<WorkSnapshot, 'pending' | 'quietInputs'>): readonly InputId[];
 ```
 
 ## 声明文件 `interpretation-values.d.ts`
@@ -2204,7 +2235,7 @@ export type SessionLogReceipt = Readonly<{
 
 ```ts
 import type { SessionPermissionChangeBasis } from './permission-values.ts';
-import type { SessionIntakeLimits } from './intake.ts';
+import { type SessionIntakeLimits } from './intake.ts';
 import type { CompactionContext } from '@omne-harness/message';
 import type { AdvanceRef, InputId, RunId, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
 import type { AutoArchivePolicy, BoundedClose, ControlIntent, IdleCoverage, IdleObservation, Participation, ProducerRef, RecoveryTask, RoutedInput, RunTerminal, SessionWaiting, Waiting, WorkSnapshot } from './values.ts';
@@ -2353,9 +2384,7 @@ export type Decision = Readonly<{
     }>[];
 }> | Readonly<{
     kind: 'control-answer';
-    answer: Exclude<SessionControlAnswer<RunTerminal | SessionCallTerminal>, {
-        kind: 'requested';
-    }>;
+    answer: SessionControlAnswer<RunTerminal | SessionCallTerminal>;
     source: DurableEvidence;
 }> | Readonly<{
     kind: 'recovered';
@@ -2820,6 +2849,8 @@ export type SessionCommand = {
             participation?: import('./values.ts').Participation;
             judgment?: DurableEvidence;
             expected?: SessionRevision;
+        }> : K extends 'stopCall' ? Readonly<{
+            initiator?: import('./background-calls.ts').StopInitiator;
         }> : unknown);
     }>;
 }[MutationName];
@@ -3138,8 +3169,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:412f777cc8f6ae9b15524f3717216d1ff02967ca88d070b31b9086615083ec8d";
-export declare const SESSION_RELEASE_DIGEST = "sha256:412f777cc8f6ae9b15524f3717216d1ff02967ca88d070b31b9086615083ec8d";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:5d9f32362f51d8f5e0216b32e80c276447e58e344b335f30cd7522ba2c316316";
+export declare const SESSION_RELEASE_DIGEST = "sha256:5d9f32362f51d8f5e0216b32e80c276447e58e344b335f30cd7522ba2c316316";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -3219,6 +3250,24 @@ export declare function decimal(value: unknown, field: string): bigint;
 export declare function evidenceFields(value: unknown, field: string): void;
 export declare const equalValue: (left: unknown, right: unknown) => boolean;
 export declare function unique<T>(items: readonly T[], key: (item: T) => string, field: string): void;
+```
+
+## 声明文件 `stop-reminder.d.ts`
+
+```ts
+import type { SystemReminderMessage } from '@omne-harness/message';
+import type { BackgroundCallRecord, BackgroundCallStop } from './background-calls.ts';
+import type { InputId, SessionOperationId } from './identity.ts';
+import type { RoutedInput } from './values.ts';
+type Block = SystemReminderMessage['blocks'][number];
+type Ordinary = Extract<RoutedInput, {
+    kind: 'ordinary';
+}>;
+export declare const STOP_INPUT_OWNER = "background-call-stop";
+export declare function stoppedText(message: string, stop: BackgroundCallStop): Block;
+export declare function stopInputId(record: BackgroundCallRecord, operation: SessionOperationId): InputId;
+export declare function stopReminderInput(record: BackgroundCallRecord, stop: BackgroundCallStop): Ordinary;
+export {};
 ```
 
 ## 声明文件 `testing-access.d.ts`
@@ -3375,7 +3424,7 @@ import type { RoutedInput } from './values.ts';
 type Ordinary = Extract<RoutedInput, {
     kind: 'ordinary';
 }>;
-export declare function admittedInputs(command: SessionCommand): readonly Ordinary[];
+export declare function admittedInputs(command: SessionCommand, decided?: readonly Ordinary[]): readonly Ordinary[];
 export declare function withInputs(kept: ReadonlyMap<InputId, Ordinary> | undefined, added: readonly Ordinary[]): Map<InputId, Ordinary>;
 export {};
 ```
@@ -3694,6 +3743,7 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
         backgroundCalls?: readonly import("./background-calls.ts").BackgroundCallRecord[];
         backgroundOrdinal?: number;
         backgroundInputs?: readonly InputId[];
+        quietInputs?: readonly InputId[];
         releasedScopes?: readonly Readonly<{
             task: SessionOperationId;
             scope: string;
@@ -3818,7 +3868,7 @@ export declare function validTodoText(text: unknown): text is string;
 import type { SessionPermissions } from './permission-values.ts';
 import type { PermissionDefinitionRef, PermissionRule } from '@omne-harness/permissions';
 import type { TodoItem } from './todos.ts';
-import type { BackgroundCallRecord } from './background-calls.ts';
+import type { BackgroundCallRecord, StopInitiator } from './background-calls.ts';
 import type { SessionWorkEntryIndex } from './work-entry-values.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { CompactionMessage, Message } from '@omne-harness/message';
@@ -3938,7 +3988,7 @@ export type BackgroundDisposition = Readonly<{
     input: InputId;
 }> | Readonly<{
     kind: 'kept';
-    reason: 'archived' | 'stopped' | 'frozen';
+    reason: 'archived' | 'frozen';
 }>;
 export type ControlTarget = Readonly<{
     kind: 'run';
@@ -3972,6 +4022,8 @@ export type Control = Readonly<{
 }> | Readonly<{
     kind: 'stop-call';
     producer: ProducerRef;
+    initiator?: StopInitiator;
+    reason?: string | null;
 }> | Readonly<{
     kind: 'background-tool';
     producer: Extract<ProducerRef, {
@@ -4293,6 +4345,7 @@ export type WorkSnapshot = Readonly<{
     backgroundCalls?: readonly BackgroundCallRecord[];
     backgroundOrdinal?: number;
     backgroundInputs?: readonly InputId[];
+    quietInputs?: readonly InputId[];
     releasedScopes?: readonly Readonly<{
         task: SessionOperationId;
         scope: string;

@@ -66,10 +66,23 @@ describe('list-background-calls', () => {
       },
       source: 'threshold',
       status,
+      stop: null,
       lastLine: 'done 3/7',
     })
     expectRoundTrip(list.outcomes.succeeded, {
       calls: [item('b1', 'running'), { ...item('b2', 'unknown'), lastLine: null }],
+    })
+    expectRoundTrip(list.outcomes.succeeded, {
+      calls: [
+        {
+          ...item('b4', 'stopping'),
+          stop: { initiator: 'user', reason: 'not needed', progress: 'accepted' },
+        },
+        {
+          ...item('b5', 'running'),
+          stop: { initiator: 'agent', reason: null, progress: 'requested' },
+        },
+      ],
     })
     expectRoundTrip(list.outcomes.succeeded, {
       calls: [

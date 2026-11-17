@@ -38,6 +38,15 @@ const backgroundCall = object({
   label: { rule: callLabel },
   source: { rule: literal('launched', 'control', 'threshold', 'foreground-limit') },
   status: { rule: literal('queued', 'running', 'ended-pending', 'stopping', 'unknown') },
+  stop: {
+    rule: nullable(
+      object({
+        initiator: { rule: literal('user', 'agent', 'system') },
+        reason: { rule: nullable(anyText) },
+        progress: { rule: literal('requested', 'accepted', 'proven') },
+      }),
+    ),
+  },
   lastLine: { rule: nullable(anyText) },
 })
 const backgroundCalls = object({
@@ -288,7 +297,12 @@ export const sessionProtocol = defineProtocol({
       effect: 'commit',
       limit: 'small',
       body: ruleCodec(
-        object({ ...target, controlId: { rule: text }, producer: { rule: producer } }),
+        object({
+          ...target,
+          controlId: { rule: text },
+          producer: { rule: producer },
+          reason: { rule: nullable(anyText), optional: true },
+        }),
       ),
       outcomes: {
         succeeded: ruleCodec(

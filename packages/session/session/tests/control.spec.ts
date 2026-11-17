@@ -144,7 +144,7 @@ it('单调用控制保持范围', async () => {
       control: operationId('stop'),
     }),
     control: operationId('stop'),
-    intent: { kind: 'stop-call', producer: binding.producer },
+    intent: { kind: 'stop-call', producer: binding.producer, initiator: 'user', reason: null },
   })
   const after = await readControlWork(f.h)
   expect(after.run).toEqual(before.run)
@@ -762,7 +762,7 @@ it('直交一直不可用时只送到回放上限', async () => {
   expect(sent).toHaveBeenCalledTimes(3)
 })
 
-it('已记下的直交不再重送，同一调用的另一条停止按自己的控制送', async () => {
+it('已记下的直交不再重送；同一调用的第二条停止答第一条，不另送（C19）', async () => {
   const f = await controlFixture()
   open.push(f.h)
   const { binding, sent } = await backgroundedCall(f)
@@ -774,14 +774,39 @@ it('已记下的直交不再重送，同一调用的另一条停止按自己的�
     })
   succeeded(await stop('stop'), 'first stop')
   await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(1))
-  succeeded(await stop('stop-2'), 'second stop')
-  await vi.waitFor(() => expect(sent).toHaveBeenCalledTimes(2))
+  const second = succeeded(await stop('stop-2'), 'second stop')
+  expect(second.answer).toMatchObject({
+    kind: 'requested',
+    progress: { operation: operationId('stop') },
+  })
   await new Promise(resolve => setTimeout(resolve, 20))
-  expect(sent.mock.calls.map(([input]) => input.control)).toEqual([
-    operationId('stop'),
-    operationId('stop-2'),
-  ])
+  expect(sent.mock.calls.map(([input]) => input.control)).toEqual([operationId('stop')])
 })
+
+for (const [caller, initiator] of [
+  ['intake', 'user'],
+  ['coordinator', 'agent'],
+  ['maintainer', 'system'],
+] as const)
+  it(`${caller} 停一项时发起者是 ${initiator}：由调用方类别推出，输入里没有它（C19）`, async () => {
+    const f = await controlFixture()
+    open.push(f.h)
+    const { binding } = await backgroundedCall(f)
+    succeeded(
+      await f.h.faces(caller).work.stopCall({
+        ...f.h.access(),
+        operation: operationId('stop'),
+        producer: binding.producer,
+        reason: 'not needed',
+      }),
+      'stop',
+    )
+    const [listed] = succeeded(
+      await f.h.faces('intake').work.readBackgroundCalls(f.h.access()),
+      'read',
+    )
+    expect(listed?.stop).toEqual({ initiator, reason: 'not needed', progress: 'requested' })
+  })
 
 it('受理方与协调方读到同一份后台调用：短号、标签、来源，状态向 Tool 现问（C18）', async () => {
   const f = await controlFixture()
@@ -791,7 +816,7 @@ it('受理方与协调方读到同一份后台调用：短号、标签、来源�
   ).toEqual([])
   const { binding } = await backgroundedCall(f)
   const label = { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' }
-  const unknown = { id: 'b1', producer: binding.producer, label, source: 'launched' }
+  const unknown = { id: 'b1', producer: binding.producer, label, source: 'launched', stop: null }
   expect(
     succeeded(await f.h.faces('intake').work.readBackgroundCalls(f.h.access()), 'read'),
   ).toEqual([{ ...unknown, status: 'unknown', lastLine: null }])

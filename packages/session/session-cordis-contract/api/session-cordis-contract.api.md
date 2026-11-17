@@ -22,6 +22,7 @@
 - `BackgroundCallSource` · 包 `@omne-harness/session-contract`
 - `BackgroundCallState` · 包 `@omne-harness/session-contract`
 - `BackgroundCallStatus` · 包 `@omne-harness/session-contract`
+- `BackgroundCallStop` · 包 `@omne-harness/session-contract`
 - `BackgroundCallView` · 包 `@omne-harness/session-contract`
 - `BackgroundDisposition` · 包 `@omne-harness/session-contract`
 - `BackgroundOutcomeJudgment` · 包 `@omne-harness/session-contract`
@@ -243,6 +244,8 @@
 - `StartAdoption` · 包 `@omne-harness/session-contract`
 - `StartedRun` · 包 `@omne-harness/session-contract`
 - `StepCommittedBlocks` · `context-facts.d.ts`
+- `StopInitiator` · 包 `@omne-harness/session-contract`
+- `StopView` · 包 `@omne-harness/session-contract`
 - `TodoItem` · 包 `@omne-harness/session-contract`
 - `TodoItemId` · 包 `@omne-harness/session-contract`
 - `TodoMutationReceipt` · 包 `@omne-harness/session-contract`
@@ -295,10 +298,12 @@
 - `resolveOperation` · 包 `@omne-harness/session-contract`
 - `routeInput` · 包 `@omne-harness/session-contract`
 - `runCancelledBy` · 包 `@omne-harness/session-contract`
+- `runStartInputs` · 包 `@omne-harness/session-contract`
 - `sessionInputBytes` · 包 `@omne-harness/session-contract`
 - `sessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `sessionModesBlock` · 包 `@omne-harness/session-contract`
 - `shortCallId` · 包 `@omne-harness/session-contract`
+- `wakingInputs` · 包 `@omne-harness/session-contract`
 
 ## 入口 `./cordis` · `cordis.d.ts`
 

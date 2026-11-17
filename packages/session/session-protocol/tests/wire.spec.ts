@@ -30,7 +30,11 @@ const validBodies: Samples = {
     { ...target, cursor: 'opaque-cursor' },
   ],
   'cancel-run': [{ ...target, controlId: 'control', run: 'run-1', urgency: 'graceful' }],
-  'stop-call': [{ ...target, controlId: 'control', producer }],
+  'stop-call': [
+    { ...target, controlId: 'control', producer },
+    { ...target, controlId: 'control', producer, reason: 'not needed' },
+    { ...target, controlId: 'control', producer, reason: null },
+  ],
 }
 
 const invalidBodies: Samples = {
@@ -52,7 +56,10 @@ const invalidBodies: Samples = {
     { ...target, cursor: null, direction: 'forward', pageBytes: '0' },
   ],
   'cancel-run': [{ ...target, controlId: 'control', run: 'run-1', urgency: 'soon' }],
-  'stop-call': [{ ...target, controlId: 'control', producer: { kind: 'agent', call: 'c' } }],
+  'stop-call': [
+    { ...target, controlId: 'control', producer: { kind: 'agent', call: 'c' } },
+    { ...target, controlId: 'control', producer, reason: 7 },
+  ],
 }
 
 const successBodies: Samples = {

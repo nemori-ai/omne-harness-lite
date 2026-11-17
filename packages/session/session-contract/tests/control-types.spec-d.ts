@@ -13,7 +13,7 @@ import type {
 it('exposes the shapes of the contract face', () => {
   expectTypeOf<{ kind: 'unsupported' }>().toMatchTypeOf<SessionFailure>()
   expectTypeOf<Extract<Decision, { kind: 'control-answer' }>['answer']['kind']>().toEqualTypeOf<
-    'ended' | 'not-found'
+    'requested' | 'ended' | 'not-found'
   >()
   expectTypeOf<Extract<Decision, { kind: 'entries' }>>().toHaveProperty('progress')
   expectTypeOf<Extract<Decision, { kind: 'entries' }>>().toHaveProperty('interpreted')

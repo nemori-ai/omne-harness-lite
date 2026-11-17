@@ -239,6 +239,10 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
           label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
           source: 'launched' as const,
           status: 'running' as const,
+          stop:
+            index === 0
+              ? null
+              : { initiator: 'user' as const, reason: 'not needed', progress: 'accepted' as const },
           lastLine: null,
         })),
       )
@@ -300,7 +304,10 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       return succeed({ operation: input.operation, source: outcome.ok.source, answer })
     },
     async stopCall(input) {
-      record('stopCall', input, { producer: input.producer })
+      record('stopCall', input, {
+        producer: input.producer,
+        ...(input.reason === undefined ? {} : { reason: input.reason }),
+      })
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'stopCall' })
       if (existing(input) === undefined) return fail({ kind: 'denied', action: 'stopCall' })
       const outcome = commit('stopCall', input.operation, {

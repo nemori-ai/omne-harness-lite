@@ -277,6 +277,8 @@ export {
   sessionInputBytes,
   judgeSessionIntake,
   pendingIntakeCount,
+  runStartInputs,
+  wakingInputs,
 } from './intake.ts'
 export {
   backgroundCalls,
@@ -315,5 +317,8 @@ export type {
   BackgroundCallSource,
   BackgroundCallState,
   BackgroundCallStatus,
+  BackgroundCallStop,
   BackgroundCallView,
+  StopInitiator,
+  StopView,
 } from './background-calls.ts'

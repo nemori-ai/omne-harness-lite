@@ -68,6 +68,7 @@ describe('calls list, stop and background speak session/v1 for the owner tenant'
     },
     source: 'threshold',
     status: 'running',
+    stop: null,
     lastLine: 'done 3/7',
     ...extra,
   })
@@ -96,6 +97,11 @@ describe('calls list, stop and background speak session/v1 for the owner tenant'
         lastLine: null,
         label: { intent: null, tool: 'Shell', command: 'execute', preview: '' },
       }),
+      listed('b4', {
+        status: 'stopping',
+        stop: { initiator: 'user', reason: 'not needed', progress: 'accepted' },
+      }),
+      listed('b5', { stop: { initiator: 'agent', reason: null, progress: 'proven' } }),
     ]
     await serve(seen =>
       seen.operation === 'list-background-calls'
@@ -106,7 +112,9 @@ describe('calls list, stop and background speak session/v1 for the owner tenant'
       code: 0,
       stdout:
         'b1  running  build the front end  Shell execute · pnpm build  | done 3/7\n' +
-        'b3  unknown  (no intent)  Shell execute\n',
+        'b3  unknown  (no intent)  Shell execute\n' +
+        'b4  stopping  build the front end  Shell execute · pnpm build  [stop accepted by user: not needed]  | done 3/7\n' +
+        'b5  running  build the front end  Shell execute · pnpm build  [stopped by agent]  | done 3/7\n',
     })
     await serve(seen =>
       seen.operation === 'list-background-calls'
@@ -135,6 +143,13 @@ describe('calls list, stop and background speak session/v1 for the owner tenant'
     expect(last(service)).toMatchObject({
       path: '/api/session/v1/stop-call',
       body: { producer: { kind: 'tool', call: `${REFERENCE}-b2` } },
+    })
+    expect(last(service)?.body).not.toHaveProperty('reason')
+    const args = ['stop', ...owned, '--call', 'b2', '--control-id', 'ctl', '--reason', 'not needed']
+    expect((await cli(args)).code).toBe(0)
+    expect(last(service)).toMatchObject({
+      path: '/api/session/v1/stop-call',
+      body: { producer: { kind: 'tool', call: `${REFERENCE}-b2` }, reason: 'not needed' },
     })
     expect((await cli(['output', ...owned, '--call', 'b1'])).code).toBe(0)
     expect(last(service)).toMatchObject({

@@ -126,6 +126,8 @@ export type SessionEntry =
       destination: 'current-run' | 'next-run'
       run: RunId | null
       origin: DurableEvidence
+      /** Absent: the input can start a Run. */
+      wakes?: false
     }>
   | Readonly<{
       kind: 'intake.handed-over'

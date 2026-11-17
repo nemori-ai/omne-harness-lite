@@ -117,11 +117,12 @@ describe('list-background-calls', () => {
       outcome: 'succeeded',
       body: {
         calls: [
-          expect.objectContaining({ id: 'b1', producer, status: 'running' }),
+          expect.objectContaining({ id: 'b1', producer, status: 'running', stop: null }),
           expect.objectContaining({
             id: 'b2',
             producer: { kind: 'tool', call: 'call-10' },
             label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
+            stop: { initiator: 'user', reason: 'not needed', progress: 'accepted' },
           }),
         ],
       },

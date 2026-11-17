@@ -6,6 +6,7 @@ import {
   type MutationName,
   type SessionAccess,
   type SessionCallerClass,
+  type StopInitiator,
   type SessionCommand,
   type SessionDirectory,
   type SessionFaces,
@@ -46,6 +47,24 @@ function readSnapshotOf<P>(
   return reads.session(caller, operation, value, view =>
     readSnapshot(view, accessOf(value), operation),
   )
+}
+
+// Who stops a call is the caller class: a person's client, the agent, or the system (I-4).
+const INITIATORS: Readonly<Record<SessionCallerClass, StopInitiator>> = {
+  intake: 'user',
+  coordinator: 'agent',
+  maintainer: 'system',
+  reader: 'user',
+}
+
+function stopCallOf<P>(handle: CommandHandler<P>, caller: SessionCallerClass) {
+  return (value: Parameters<SessionWork<P>['stopCall']>[0]) => {
+    const { principal, ...rest } = value
+    const input = { ...rest, initiator: INITIATORS[caller] }
+    return handle(caller, { kind: 'stopCall', input }, principal) as ReturnType<
+      SessionWork<P>['stopCall']
+    >
+  }
 }
 
 function readWaitingOf<P>(reads: Reads<P>, caller: SessionCallerClass, value: SessionAccess<P>) {
@@ -159,7 +178,7 @@ export function createFaces<P>(
         view.readModelSelection(accessOf(value)),
       ),
     cancelRun: mutation('cancelRun'),
-    stopCall: mutation('stopCall'),
+    stopCall: stopCallOf(handle, caller),
     retryRun: mutation('retryRun'),
     queryControlOperation: value =>
       reads.session(caller, 'queryControlOperation', value, view =>

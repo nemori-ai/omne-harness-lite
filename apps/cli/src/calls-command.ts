@@ -32,7 +32,7 @@ const RULES: Readonly<
     required: ['--call'],
   },
   stop: {
-    accepted: ['--session', '--call', '--tenant', '--control-id', serverOption],
+    accepted: ['--session', '--call', '--tenant', '--control-id', '--reason', serverOption],
     required: ['--session', '--call'],
   },
   background: {
@@ -156,8 +156,21 @@ type ListedCall = Readonly<{
   producer: Readonly<{ call: string }>
   label: Readonly<{ intent: string | null; tool: string; command: string | null; preview: string }>
   status: string
+  stop: Readonly<{ initiator: string; reason: string | null; progress: string }> | null
   lastLine: string | null
 }>
+
+const STOP_TEXT: Readonly<Record<string, string>> = {
+  requested: 'stop requested',
+  accepted: 'stop accepted',
+  proven: 'stopped',
+}
+
+function stopText(stop: ListedCall['stop']): string {
+  if (stop === null) return ''
+  const why = stop.reason === null ? '' : `: ${stop.reason}`
+  return `  [${STOP_TEXT[stop.progress] ?? stop.progress} by ${stop.initiator}${why}]`
+}
 
 // One line per call: its short number, state, intent, action and the last line of its output.
 export function listText(calls: readonly ListedCall[]): string {
@@ -167,7 +180,7 @@ export function listText(calls: readonly ListedCall[]): string {
       const { intent, tool, command, preview } = call.label
       const action = `${tool}${command === null ? '' : ` ${command}`}${preview === '' ? '' : ` · ${preview}`}`
       const last = call.lastLine === null ? '' : `  | ${call.lastLine}`
-      return `${call.id}  ${call.status}  ${intent ?? '(no intent)'}  ${action}${last}\n`
+      return `${call.id}  ${call.status}  ${intent ?? '(no intent)'}  ${action}${stopText(call.stop)}${last}\n`
     })
     .join('')
 }
@@ -332,9 +345,15 @@ async function runSessionCall(
   const controlId = values.get('--control-id') ?? invocation.newId()
   const producer = { kind: 'tool' as const, call: call.reference }
   const body = { tenant, session, controlId, producer }
+  const reason = values.get('--reason')
   const result =
     action === 'stop'
-      ? await link.call(sessionProtocol, 'stop-call', body, messageId)
+      ? await link.call(
+          sessionProtocol,
+          'stop-call',
+          reason === undefined ? body : { ...body, reason },
+          messageId,
+        )
       : await link.call(sessionProtocol, 'background-call', body, messageId)
   if (result === undefined) return usageError(output, unrecognized(name))
   return report(name, result, echoOf(invocation, messageId, { controlId }), output)
