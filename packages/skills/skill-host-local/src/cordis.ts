@@ -117,3 +117,5 @@ export const skillPlugin = definePlugin({
     new HostSkillAccess(ctx, createSkillAccess({ ...ports, source }))
   },
 })
+
+export { skillCategoryPlugin } from './category.ts'
