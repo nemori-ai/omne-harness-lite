@@ -9,6 +9,7 @@ import type {
   HandoffChange,
   HandoffOutcome,
   PendingHandoff,
+  Preparation,
   RuntimeConditions,
   SelectedModel,
   CompactionProviderBinding,
@@ -40,7 +41,9 @@ export function invalidCompaction(reason: string): Failure {
   return { kind: 'invalid', field: 'compaction', reason }
 }
 
-export function originalCompactionOf(checkpoint: AgentCheckpoint | null) {
+export function originalCompactionOf(
+  checkpoint: AgentCheckpoint | null,
+): Extract<Preparation, { kind: 'needs-compaction' }> {
   const original = required(checkpoint, 'checkpoint').requestPreparation
   if (original?.kind !== 'needs-compaction')
     throw new Error('compaction has no original preparation')
