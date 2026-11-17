@@ -1,4 +1,5 @@
 import { fail, type Outcome } from '@omne-harness/operation-result'
+import { toolCallLabel } from './call-label.ts'
 import {
   decodeToolCallId,
   decodeToolDeliveryId,
@@ -195,6 +196,7 @@ const waitState: Check<WaitState> = variant('kind', {
 
 const common = {
   call,
+  label: toolCallLabel,
   revision,
   source: durableEvidence,
   foreground: nullable(foreground),

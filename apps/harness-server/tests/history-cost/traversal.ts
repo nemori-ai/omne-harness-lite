@@ -139,6 +139,7 @@ export function createTraversal(
           name: 'Shell',
           arguments: {
             command: 'execute',
+            intent: 'test call',
             params: { script: typeof input.script === 'string' ? input.script : input.script() },
           },
         }

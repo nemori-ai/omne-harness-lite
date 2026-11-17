@@ -27,6 +27,7 @@ import { SEARCH_RANKING } from '../../entry/search-ranking.ts'
 import { createReleaseToolsCapability, toolsCapabilityConfig } from './tools-capability.ts'
 import { bindReleaseSkills } from './skills.ts'
 import { bindReleaseTodoItems } from './todo-items.ts'
+import { bindReleaseBackgroundCalls } from './background-calls.ts'
 import { bindReleaseWeb, webBindingConfig, type WebBindingConfig } from './web.ts'
 import { bindReleaseCalendar } from './calendar.ts'
 import { bindReleaseSchedules } from './schedules.ts'
@@ -59,9 +60,12 @@ export function releaseCapability(
     const withTodos = isReleaseToolRequest(release, input.request, 'TodoItems')
       ? bindReleaseTodoItems(ctx, input, withTools)
       : withTools
-    const withSkills = isReleaseToolRequest(release, input.request, 'Skills')
-      ? bindReleaseSkills(ctx, input, withTodos)
+    const withCalls = isReleaseToolRequest(release, input.request, 'BkgToolCalls')
+      ? bindReleaseBackgroundCalls(ctx, input, withTodos)
       : withTodos
+    const withSkills = isReleaseToolRequest(release, input.request, 'Skills')
+      ? bindReleaseSkills(ctx, input, withCalls)
+      : withCalls
     const withWeb =
       attachments.web !== null && isReleaseToolRequest(release, input.request, 'Web')
         ? bindReleaseWeb(input, withSkills, attachments.web, custody)

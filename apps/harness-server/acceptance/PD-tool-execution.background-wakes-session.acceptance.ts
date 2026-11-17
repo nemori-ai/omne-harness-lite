@@ -3,16 +3,17 @@ import assert from 'node:assert/strict'
 import { it } from 'vitest'
 import { onReleaseTree, toolCallsThenText } from '../tests/support/release-tree.ts'
 import {
-  LIMIT_MS,
   backgroundCalls,
   callOf,
   factsOf,
   history,
   kinds,
+  LIMIT_MS,
   record,
   release,
   textOf,
   until,
+  untilQuiet,
   waitingCommand,
 } from './fixtures/release.ts'
 
@@ -82,23 +83,24 @@ it(
           const facts = factsOf(tree, reference)
           observed['starts'] = facts.starts
           assert.equal(facts.starts, 1, 'the process starts once')
-          // Tool keeps an account only for a result it makes itself; a real Shell run has none in
-          // the foreground too. Moving to the background must not add one: the session links what the ledger holds.
+          // A real execution has an account with its measured duration; moving to the background
+          // adds none. The session links the one account the ledger holds.
           const accounts = after.filter(
             entry => entry.kind === 'account.linked' && textOf(entry).includes(callOf(reference)),
           )
-          observed['accounts'] = { ledger: facts.accounts, session: accounts.length }
-          assert.ok(facts.accounts.length <= 1, 'the ledger holds at most one account for the call')
-          assert.equal(
-            accounts.length,
-            facts.accounts.length,
-            'the session links the ledger account once',
-          )
+          observed['accounts'] = { ledger: facts.accounts, durations: facts.durations }
+          assert.equal(facts.accounts.length, 1, 'the ledger holds one account for the call')
+          assert.equal(accounts.length, 1, 'the session links the ledger account once')
+          const [duration] = facts.durations
+          assert.ok(typeof duration === 'string', 'the duration is measured, not unknown')
+          assert.match(duration, /^PT\d+\.\d{3}S$/u)
+          assert.notEqual(duration, 'PT0.000S', 'and it is not zero')
           assert.deepEqual(
             await backgroundCalls(tree, session),
             [],
             'nothing is left in the background',
           )
+          await untilQuiet(tree, session, 2)
           passed = true
         } finally {
           record('S4', passed, observed)

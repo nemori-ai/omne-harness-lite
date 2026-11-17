@@ -282,6 +282,40 @@ export declare const sessionProtocol: {
             }>;
             readonly countsAsAccess: true;
         };
+        readonly 'interrupt-input': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly as: "interrupt" | "ordinary";
+                    readonly recovered: boolean;
+                }>;
+                readonly limited: import("@omne-harness/public-contract").Codec<{
+                    readonly limit: number;
+                    readonly resource: "input-bytes" | "pending-inputs";
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{}>;
+                readonly archived: import("@omne-harness/public-contract").Codec<{}>;
+                readonly frozen: import("@omne-harness/public-contract").Codec<{}>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: "login";
+            readonly effect: "commit";
+            readonly limit: "input";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly acceptId: string;
+                readonly inputId: string;
+                readonly message: {
+                    readonly kind: 'object';
+                    readonly entries: readonly import("@omne-harness/json-text").JsonEntry[];
+                };
+                readonly session: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly countsAsAccess: true;
+        };
         readonly 'query-send-input': {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{}>;
@@ -385,8 +419,92 @@ export declare const sessionProtocol: {
             readonly limit: "small";
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly cursor: string | null;
-                readonly includeArchived?: boolean;
                 readonly limit?: number;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly countsAsAccess: true;
+        };
+        readonly 'list-archived-sessions': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly completeness: "complete" | "partial";
+                    readonly next: string | null;
+                    readonly sessions: readonly {
+                        readonly archivedAt: import("@omne-harness/utc-instant").Instant | null;
+                        readonly archivedBy: "auto" | "parent" | "person" | null;
+                        readonly createdAt: import("@omne-harness/utc-instant").Instant | null;
+                        readonly lastActivityAt: import("@omne-harness/utc-instant").Instant | null;
+                        readonly lifecycle: "active" | "archived" | "dormant" | "frozen" | "initializing";
+                        readonly session: string;
+                        readonly title: string | null;
+                    }[];
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: "login";
+            readonly effect: "read";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly by?: "auto" | "parent" | "person" | null;
+                readonly cursor: string | null;
+                readonly from?: import("@omne-harness/utc-instant").Instant | null;
+                readonly limit?: number;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+                readonly titleContains?: string | null;
+                readonly to?: import("@omne-harness/utc-instant").Instant | null;
+            }>;
+            readonly countsAsAccess: true;
+        };
+        readonly 'archive-session': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly backgroundCalls: number;
+                    readonly controlId: string;
+                    readonly kind: "archived";
+                    readonly runs: number;
+                } | {
+                    readonly controlId: string;
+                    readonly kind: "already-archived";
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{}>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: "login";
+            readonly effect: "commit";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly controlId: string;
+                readonly session: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly countsAsAccess: true;
+        };
+        readonly 'unarchive-session': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly controlId: string;
+                    readonly kind: "not-archived" | "unarchived";
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{}>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: "login";
+            readonly effect: "commit";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly controlId: string;
+                readonly session: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
             readonly countsAsAccess: true;
@@ -476,6 +594,7 @@ export declare const sessionProtocol: {
                     readonly call: string;
                     readonly kind: "model" | "tool";
                 };
+                readonly reason?: string | null;
                 readonly session: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
@@ -516,10 +635,25 @@ export declare const sessionProtocol: {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly calls: readonly {
+                        readonly id: string;
+                        readonly label: {
+                            readonly command: string | null;
+                            readonly intent: string | null;
+                            readonly preview: string;
+                            readonly tool: string;
+                        };
+                        readonly lastLine: string | null;
                         readonly producer: {
                             readonly call: string;
                             readonly kind: "tool";
                         };
+                        readonly source: "control" | "foreground-limit" | "launched" | "threshold";
+                        readonly status: "ended-pending" | "queued" | "running" | "stopping" | "unknown";
+                        readonly stop: {
+                            readonly initiator: "agent" | "system" | "user";
+                            readonly progress: "accepted" | "proven" | "requested";
+                            readonly reason: string | null;
+                        } | null;
                     }[];
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{}>;

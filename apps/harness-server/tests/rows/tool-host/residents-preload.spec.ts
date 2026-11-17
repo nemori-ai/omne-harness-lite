@@ -19,6 +19,7 @@ import {
 
 const CODING = [
   'Ask',
+  'BkgToolCalls',
   'Calendar',
   'Files',
   'Schedules',

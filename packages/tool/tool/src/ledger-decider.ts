@@ -323,6 +323,7 @@ function acceptedState(
   const { tenant, call, request } = command
   const body = {
     call,
+    label: request.label,
     revision,
     foreground: placeholder?.foreground ?? null,
     effect: { kind: 'not-started' },
@@ -602,7 +603,7 @@ function settle(
   const settled = settledReply.ok
   const state = logicalState(
     tenant,
-    call,
+    { call, label: request.label },
     settled.version.version,
     terminal,
     settled.version.delivery,
@@ -640,7 +641,7 @@ export function operationRecord(
 
 function logicalState(
   tenant: TenantId,
-  call: ToolCallId,
+  { call, label }: Pick<ToolState, 'call' | 'label'>,
   version: ToolResultVersion,
   terminal: Extract<ToolTerminal, { kind: 'unavailable' | 'failed' }>,
   delivery: DeliveryState,
@@ -648,6 +649,7 @@ function logicalState(
 ): ToolState {
   const body = {
     call,
+    label,
     revision,
     foreground: { kind: 'final', result: version },
     effect: { kind: 'not-started' },

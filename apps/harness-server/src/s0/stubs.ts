@@ -155,7 +155,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'session',
     ],
   },
-  'session-call-control': { provides: ['sessionCallControl'] },
+  'session-call-control': { provides: ['sessionCallControl', 'sessionCallStates'] },
   'session-ad15': {
     provides: ['sessionScopeRelease'],
     injects: ['executionEnvironment', 'session'],
@@ -303,7 +303,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     phase: 'business',
   },
   'tool-host': {
-    provides: ['toolGenerations'],
+    provides: ['toolGenerations', 'toolOperatorSettings'],
     injects: ['toolBindings', 'toolContributionAuthority', 'toolResidencyReader'],
   },
   'tool-residency': {

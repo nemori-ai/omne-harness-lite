@@ -7,7 +7,7 @@ import {
   historyOf,
   onReleaseTreeRuns,
   pollUntil,
-  scriptedToolCalls,
+  toolCallsByRequest,
   toolResults,
   type ReleaseTree,
   type ScriptedToolCall,
@@ -92,7 +92,7 @@ describe('Skills in a real coding session', () => {
         )
       const exits = await onReleaseTreeRuns(
         {
-          script: scriptedToolCalls(body => {
+          script: toolCallsByRequest(body => {
             const { tools } = JSON.parse(body) as { tools?: { function: { name: string } }[] }
             for (const tool of tools ?? []) declared.add(tool.function.name)
             return step(turnOf(body))

@@ -7,6 +7,7 @@ import type {
   WorkSnapshot,
   SessionFailure,
 } from '@omne-harness/session-contract'
+import { runStartInputs } from '@omne-harness/session-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import { canonical } from './canonical.ts'
 import { executionKey, HistoryFailure, unavailable } from './history.ts'
@@ -23,7 +24,7 @@ export function commandScope(
   command: SessionCommand,
   snapshot: WorkSnapshot,
 ): SessionInputScope | null {
-  if (command.kind === 'startRun') return { kind: 'selected', inputs: snapshot.pending.slice(0, 1) }
+  if (command.kind === 'startRun') return { kind: 'selected', inputs: runStartInputs(snapshot) }
   if (
     command.kind === 'receive' &&
     command.input.fact.kind === 'input-handover' &&
@@ -204,3 +205,5 @@ export function createFrontier<P>(
     },
   }
 }
+
+export { runStartInputs }

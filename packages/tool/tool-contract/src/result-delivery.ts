@@ -10,6 +10,7 @@ import type {
   ToolDeliveryId,
   ToolResultVersion,
 } from './identity.ts'
+import { toolCallLabel, type ToolCallLabel } from './call-label.ts'
 import type { BackgroundSource } from './operations.ts'
 import { resolveToolInvocationRef, type ToolInvocationRef } from './reference.ts'
 import type { Effect, ToolResult, ToolTerminal } from './results.ts'
@@ -56,6 +57,8 @@ export type ToolDelivery<B extends ContentBlock> =
       consumer: ConsumerRef
       delivery: ToolDeliveryId
       source: BackgroundSource
+      /** The label fixed at admission; the consumer keeps it as given and does not read it. */
+      label: ToolCallLabel
       evidence: DurableEvidence
     }>
 
@@ -85,6 +88,7 @@ export type ToolDeliveryRejection =
   | Readonly<{ field: 'key.reference'; reason: 'reference-malformed' }>
   | Readonly<{ field: 'key.revision'; reason: 'revision-mismatch' }>
   | Readonly<{ field: 'account.subject'; reason: 'call-mismatch' }>
+  | Readonly<{ field: 'label'; reason: string }>
 
 export function judgeToolDelivery<B extends ContentBlock>(
   input: Readonly<{ tenant: TenantId; delivery: ToolDelivery<B> }>,
@@ -96,7 +100,12 @@ export function judgeToolDelivery<B extends ContentBlock>(
     return reference.failure.kind === 'malformed'
       ? fail({ field: 'key.reference', reason: 'reference-malformed' })
       : fail({ field: 'tenant', reason: 'identity' })
-  if (delivery.kind === 'placeholder') return succeed(delivery)
+  if (delivery.kind === 'placeholder') {
+    const label = toolCallLabel(delivery.label, 'label')
+    return 'failure' in label
+      ? fail({ field: 'label', reason: label.failure.reason })
+      : succeed(delivery)
+  }
   if (delivery.kind === 'account' && delivery.key.revision !== delivery.account.revision)
     return fail({ field: 'key.revision', reason: 'revision-mismatch' })
   const account = delivery.account

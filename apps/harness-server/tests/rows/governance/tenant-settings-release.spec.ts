@@ -19,6 +19,7 @@ it('a login principal sets the Shell invoke permission to deny on the release tr
       expect(permissions.map(value => `${value.asset.name}/${value.item}`).sort()).toEqual(
         [
           'Ask',
+          'BkgToolCalls',
           'Calendar',
           'Files',
           'Schedules',

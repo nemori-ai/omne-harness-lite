@@ -40,6 +40,7 @@ import {
   type ToolInvokeRequest,
   type ToolResultReceiver,
 } from '@omne-harness/tool-contract'
+import { testingCallLabel } from '@omne-harness/tool-contract/testing'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
 import {
   createHostFilesDomain,
@@ -752,14 +753,14 @@ export async function openWindowsAssembly(evidenceDirectory: string): Promise<Wi
         },
       })
       if ('failure' in availability) throw new Error(JSON.stringify(availability.failure))
+      const label = testingCallLabel(availability.ok.definition, command)
+      const intent = label.intent === null ? {} : { intent: label.intent }
+      const text = JSON.stringify(command === null ? args : { command, ...intent, params: args })
       const request: ToolInvokeRequest = {
         availability: availability.ok,
         command,
-        arguments: {
-          original: JSON.stringify(command === null ? args : { command, params: args }),
-          effective: JSON.stringify(command === null ? args : { command, params: args }),
-          complete: true,
-        },
+        arguments: { original: text, effective: text, complete: true },
+        label,
         settings: authors.settings[tool],
         context: describedAdoption({
           owner: 'windows-composition',

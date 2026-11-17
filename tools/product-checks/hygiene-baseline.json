@@ -89,12 +89,12 @@
       "packages/session/session-adapters/src/testing/journal-finishing.ts": 1370,
       "packages/session/session-adapters/src/testing/journal.ts": 4926,
       "packages/session/session-adapters/src/testing/session.ts": 1232,
-      "packages/session/session-contract/src/testing-transactions.ts": 2536,
-      "packages/session/session-storage-sql/src/worker/participant.ts": 1187,
+      "packages/session/session-contract/src/testing-transactions.ts": 2535,
+      "packages/session/session-storage-sql/src/worker/participant.ts": 1178,
       "packages/tool/tool-contract/src/testing-executor-binding.ts": 1022,
       "packages/tool/tool-cordis-contract/src/testing.ts": 1388,
       "packages/tool/tool-host-local/src/start-coordinator.ts": 1059,
-      "packages/tool/tool/src/ledger.ts": 2014,
+      "packages/tool/tool/src/ledger.ts": 2012,
       "tools/repo-toolchain/src/arch/extract.ts": 1098
     },
     "functions": {
@@ -516,7 +516,7 @@
       },
       "packages/session/session-access/src/contribution.ts": {
         "count": 1,
-        "longest": 304
+        "longest": 232
       },
       "packages/session/session-adapters/src/cordis/agent-journal-provider.ts": {
         "count": 1,
@@ -609,10 +609,6 @@
       "packages/session/session/src/control.ts": {
         "count": 1,
         "longest": 184
-      },
-      "packages/session/session/src/faces.ts": {
-        "count": 1,
-        "longest": 153
       },
       "packages/skills/skill-contract/src/testing-access.ts": {
         "count": 1,
@@ -764,11 +760,11 @@
       },
       "packages/tool/tool/src/ledger.ts": {
         "count": 1,
-        "longest": 1631
+        "longest": 1629
       },
       "packages/tool/tool/src/runtime.ts": {
         "count": 1,
-        "longest": 163
+        "longest": 160
       },
       "packages/tool/tool/src/stream-facade.ts": {
         "count": 1,

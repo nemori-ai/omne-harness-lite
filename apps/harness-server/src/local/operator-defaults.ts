@@ -454,6 +454,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, cwd: settings.workspace },
           Tools: { resultMaxBytes: 65_536, outputModalities: ['text'] },
           TodoItems: { resultMaxBytes: 1_048_576 },
+          BkgToolCalls: { resultMaxBytes: 65_536 },
           Ask: { resultMaxBytes: 1_048_576 },
           Web: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, maxSearchResults: 10 },
           Skills: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },

@@ -38,6 +38,7 @@ const ASK = JSON.stringify({
 })
 const WAIT_FOR_B = JSON.stringify({
   command: 'execute',
+  intent: 'test call',
   params: { script: 'while [ ! -f go-b ]; do sleep 0.1; done; echo go-b-done' },
 })
 const options = {

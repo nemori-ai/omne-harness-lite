@@ -26,6 +26,7 @@ export const shellScript = toolCallsThenText(body => {
           tool: 'Shell',
           arguments: JSON.stringify({
             command: 'execute',
+            intent: 'test call',
             params: { script: `echo ${label}-done` },
           }),
         },

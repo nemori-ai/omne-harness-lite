@@ -136,6 +136,27 @@ describe('judgeToolDelivery', () => {
     })
   })
 
+  it('accepts a placeholder with its label and rejects one whose label is malformed', () => {
+    const placeholder = {
+      kind: 'placeholder' as const,
+      key: { kind: 'placeholder' as const, producer: 'tool' as const, reference: reference(own()) },
+      consumer: { owner: 'agent', work: 'w', position: 'p', purpose: 'action' },
+      delivery: minted(decodeToolDeliveryId('d-placeholder')),
+      source: { kind: 'threshold' as const },
+      label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
+      evidence: evidence('placeholder'),
+    }
+    expect(judgeToolDelivery({ tenant: own(), delivery: placeholder })).toEqual({ ok: placeholder })
+    for (const label of [
+      { ...placeholder.label, intent: 'one\ntwo' },
+      { ...placeholder.label, tool: '' },
+      undefined,
+    ])
+      expect(
+        judgeToolDelivery({ tenant: own(), delivery: { ...placeholder, label } as never }),
+      ).toMatchObject({ failure: { field: 'label' } })
+  })
+
   it('rejects an account of another call, on both branches', () => {
     expect(
       judgeToolDelivery({ tenant: own(), delivery: resultDelivery(own(), 'call-other') }),

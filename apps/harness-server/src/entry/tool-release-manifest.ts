@@ -59,6 +59,13 @@ export const RELEASE_TOOLS = Object.freeze([
     construction: Object.freeze(['resultMaxBytes']),
   }),
   Object.freeze({
+    name: 'BkgToolCalls',
+    package: TOOL_DEFINITIONS_PACKAGE,
+    capabilities: Object.freeze([] as string[]),
+    export: 'backgroundCallsToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
     name: 'Ask',
     package: TOOL_DEFINITIONS_PACKAGE,
     capabilities: Object.freeze([] as string[]),

@@ -714,6 +714,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
   if (catalog.kind !== 'page') throw new Error(JSON.stringify(catalog))
   expect(catalog.items.map(item => item.declaration.reference.definitionId).sort()).toEqual([
     'tool.Ask',
+    'tool.BkgToolCalls',
     'tool.Calendar',
     'tool.Files',
     'tool.Schedules',
@@ -741,6 +742,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
     ['independent', 'schedule.agent-authoring'],
     ...[
       'Ask',
+      'BkgToolCalls',
       'Calendar',
       'Files',
       'Schedules',

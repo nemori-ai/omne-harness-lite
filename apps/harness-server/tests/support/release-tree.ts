@@ -64,7 +64,7 @@ export function releaseDistribution(modes: ReleaseModes = {}): unknown {
 
 type ReleaseModes = Readonly<{ permission?: string; collaboration?: 'co-work' | 'auto-drive' }>
 
-const sse = (events: readonly unknown[]): string =>
+export const sse = (events: readonly unknown[]): string =>
   `${events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')}data: [DONE]\n\n`
 
 export type ScriptedToolCall = Readonly<{ id: string; tool: string; arguments: string }>
@@ -72,10 +72,11 @@ export type ScriptedToolCall = Readonly<{ id: string; tool: string; arguments: s
 export function toolCallsThenText(
   pick: (body: string) => readonly ScriptedToolCall[],
 ): GatewayScript {
-  return scriptedToolCalls(body => (body.includes('"role":"tool"') ? [] : pick(body)))
+  return toolCallsByRequest(body => (body.includes('"role":"tool"') ? [] : pick(body)))
 }
 
-export function scriptedToolCalls(
+/** A model that answers each request with the calls `pick` gives, or with text when it gives none. */
+export function toolCallsByRequest(
   pick: (body: string) => readonly ScriptedToolCall[],
 ): GatewayScript {
   return ({ body }) => {
@@ -153,6 +154,20 @@ function withQueueCapacity(layer: unknown, capacity: number | undefined): unknow
         config: { ...config, configuration: { ...config.configuration, queueCapacity: capacity } },
       }
     }),
+  }
+}
+
+/** The operator's values for the settings release tools declare, given on the tool-host row. */
+function withToolSettings(
+  layer: unknown,
+  settings: Readonly<Record<string, Readonly<Record<string, unknown>>>> | undefined,
+): unknown {
+  if (settings === undefined) return layer
+  const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
+  return {
+    ops: ops.map(op =>
+      op.id === 'tool-host' ? { ...op, config: { ...op.config, settings } } : op,
+    ),
   }
 }
 
@@ -326,6 +341,8 @@ export type ToolCallRow = Readonly<{
   call: string
   tool: string
   phase: string
+  /** Where the result stands with its consumer: `pending`, `released` once the consumer saved it, or null. */
+  delivery: string | null
   entry: Readonly<{
     domain: string
     ordinal: string
@@ -335,14 +352,14 @@ export type ToolCallRow = Readonly<{
 }>
 
 export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
-  const calls = new Map<string, { tool: string; phase: string }>()
+  const calls = new Map<string, { tool: string; phase: string; delivery: string | null }>()
   const entries = new Map<string, NonNullable<ToolCallRow['entry']>>()
   for (const row of ledgerRows(storageRoot)) {
     const record = row.record as {
       kind: string
       call?: {
         call: string
-        state: { phase: string }
+        state: { phase: string; delivery: { kind: string } | null }
         request: { availability: { definition?: { name: string } } }
       }
       entry?: { call: string; ordinal: string; stage: string; scopeBudget: number | null }
@@ -351,6 +368,7 @@ export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
       calls.set(record.call.call, {
         tool: record.call.request.availability.definition?.name ?? '',
         phase: record.call.state.phase,
+        delivery: record.call.state.delivery?.kind ?? null,
       })
     if (record.kind === 'queue-entry' && record.entry !== undefined)
       entries.set(record.entry.call, {
@@ -361,7 +379,7 @@ export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
       })
   }
   return [...calls]
-    .map(([call, { tool, phase }]) => ({ call, tool, phase, entry: entries.get(call) ?? null }))
+    .map(([call, row]) => ({ call, ...row, entry: entries.get(call) ?? null }))
     .sort((left, right) => Number(left.entry?.ordinal ?? 0) - Number(right.entry?.ordinal ?? 0))
 }
 
@@ -369,6 +387,8 @@ export type ToolCallFacts = Readonly<{
   arguments: string
   starts: number
   accounts: readonly string[]
+  /** The duration of each account the ledger holds for the call, as stored. */
+  durations: readonly unknown[]
 }>
 
 /** Per call of the Tool ledger: its admitted effective arguments, its start operations and its account events. */
@@ -376,27 +396,38 @@ export function toolCallFacts(storageRoot: string): ReadonlyMap<string, ToolCall
   const args = new Map<string, string>()
   const starts = new Map<string, number>()
   const accounts = new Map<string, string[]>()
+  const durations = new Map<string, unknown[]>()
   for (const row of ledgerRows(storageRoot)) {
     const record = row.record as {
       kind: string
       call?: { call: string; request: { arguments: { effective: string } } }
       operation?: { call: string; operation: string }
-      account?: { call: string; event: string }
+      account?: { call: string; event: string; value?: { duration?: unknown } }
     }
     if (record.kind === 'call' && record.call !== undefined)
       args.set(record.call.call, record.call.request.arguments.effective)
     if (record.kind === 'operation' && record.operation?.operation.endsWith('/start') === true)
       starts.set(record.operation.call, (starts.get(record.operation.call) ?? 0) + 1)
-    if (record.kind === 'account' && record.account !== undefined)
+    if (record.kind === 'account' && record.account !== undefined) {
       accounts.set(record.account.call, [
         ...(accounts.get(record.account.call) ?? []),
         record.account.event,
       ])
+      durations.set(record.account.call, [
+        ...(durations.get(record.account.call) ?? []),
+        record.account.value?.duration,
+      ])
+    }
   }
   return new Map(
     [...args].map(([call, value]) => [
       call,
-      { arguments: value, starts: starts.get(call) ?? 0, accounts: accounts.get(call) ?? [] },
+      {
+        arguments: value,
+        starts: starts.get(call) ?? 0,
+        accounts: accounts.get(call) ?? [],
+        durations: durations.get(call) ?? [],
+      },
     ]),
   )
 }
@@ -492,6 +523,8 @@ export type ReleaseTreeOptions = Readonly<{
   extraHistoryKinds?: readonly string[]
   /** Runs while no service is up, before the service of each run starts on the same state. */
   beforeRun?: (run: number, storageRoot: string) => Promise<void>
+  /** The operator's values for the settings release tools declare, by tool name and item id. */
+  toolSettings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
 }>
 
 export async function onReleaseTree(
@@ -590,20 +623,23 @@ async function serveOnce(
   )
   const finished = runServe({
     distribution: releaseDistribution(options),
-    operator: withObservationPolicy(
-      withAgentWaitInterval(
-        withQueueCapacity(
-          withHistoryKinds(
-            withCompaction(
-              operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: state.modelRoute }),
-              options,
+    operator: withToolSettings(
+      withObservationPolicy(
+        withAgentWaitInterval(
+          withQueueCapacity(
+            withHistoryKinds(
+              withCompaction(
+                operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: state.modelRoute }),
+                options,
+              ),
+              options.extraHistoryKinds,
             ),
-            options.extraHistoryKinds,
+            options.queueCapacity,
           ),
-          options.queueCapacity,
         ),
+        options.observationPolicy,
       ),
-      options.observationPolicy,
+      options.toolSettings,
     ),
     plugins: {
       ...cordis,

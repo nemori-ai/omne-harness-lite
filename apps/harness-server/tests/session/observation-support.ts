@@ -11,7 +11,11 @@ import type { LoginAccess } from '../model/public-stream-support.ts'
 const sse = (events: readonly unknown[]): string =>
   `${events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')}data: [DONE]\n\n`
 
-const ECHO = JSON.stringify({ command: 'execute', params: { script: 'echo observed' } })
+const ECHO = JSON.stringify({
+  command: 'execute',
+  intent: 'test call',
+  params: { script: 'echo observed' },
+})
 
 export function heldToolTurn(): Readonly<{
   script: GatewayScript

@@ -9,6 +9,8 @@ it('exports exactly the declared root runtime surface', () => {
     'DEFAULT_SESSION_INTAKE_LIMITS',
     'INGRESS_FAMILIES',
     'INITIALIZATION_PROTOCOL',
+    'archiveCollapse',
+    'backgroundCallView',
     'backgroundCalls',
     'backgroundInputId',
     'batchEvidence',
@@ -17,6 +19,7 @@ it('exports exactly the declared root runtime surface', () => {
     'compactionContextForView',
     'contextScopeOf',
     'contextScopesOf',
+    'controlAnswer',
     'controlRoutes',
     'decide',
     'decideCompactionCommit',
@@ -56,9 +59,12 @@ it('exports exactly the declared root runtime surface', () => {
     'resolveOperation',
     'routeInput',
     'runCancelledBy',
+    'runStartInputs',
     'sessionInputBytes',
     'sessionIntakeLimits',
     'sessionModesBlock',
+    'shortCallId',
+    'wakingInputs',
   ])
 })
 

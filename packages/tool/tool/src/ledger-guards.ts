@@ -32,6 +32,7 @@ export type ToolLedgerAction =
   | 'read-diagnostics'
   | 'read-result'
   | 'read-content'
+  | 'read-output'
   | 'release-delivery'
   | 'account'
   | 'recover'

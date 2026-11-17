@@ -1,4 +1,4 @@
-import { commandScope } from './frontier.ts'
+import { commandScope, runStartInputs } from './frontier.ts'
 import { compactionContextForView } from '@omne-harness/session-contract'
 import type { ToolRelease } from './result-release.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -256,7 +256,7 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall {
     case 'control':
     case 'interrupt': {
       const progress = snapshot.controls.find(item => item.operation === command.input.operation)
-      return receipt => ({ receipt, progress })
+      return receipt => ({ receipt, progress: progress ?? null })
     }
     case 'cancelRun':
     case 'stopCall': {
@@ -402,7 +402,7 @@ export function createSessionTransactions<P>(
     }
     const selected =
       command.kind === 'startRun'
-        ? store?.snapshot.pending.slice(0, 1)
+        ? runStartInputs(store?.snapshot)
         : command.kind === 'receive' && command.input.fact.kind === 'input-handover'
           ? [command.input.fact.input]
           : undefined
@@ -445,7 +445,7 @@ export function createSessionTransactions<P>(
         ? { calls: [callLookup(store.snapshot, command.input.producer)] }
         : {}),
       ...(command.kind === 'startRun' && store !== undefined
-        ? firstInputOf(store.inputs, store.snapshot.pending[0])
+        ? firstInputOf(store.inputs, runStartInputs(store.snapshot)[0])
         : {}),
       initializationReceipts: [
         ...(command.kind === 'completeInitialization' ? (store?.operations.values() ?? []) : []),
@@ -556,7 +556,7 @@ export function createSessionTransactions<P>(
         ? { form: 'control' as const }
         : {}),
     })
-    const inputs = withInputs(store?.inputs, admittedInputs(command))
+    const inputs = withInputs(store?.inputs, admittedInputs(command, decision.admitted))
     const target: Store = {
       lastCommit: receipt,
       frozenReceipt: entries.some(entry => entry.kind === 'session.frozen')

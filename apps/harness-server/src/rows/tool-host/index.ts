@@ -11,6 +11,7 @@ import { createLocalToolHostPlugin } from '@omne-harness/tool-host-local/cordis'
 import { registrantOf, releaseOf } from '../../entry/tool-release.ts'
 import { z } from 'zod'
 import { defineRow } from '../../row.ts'
+import { ToolOperatorSettingsImpl, toolOperatorSettingsKey } from './operator-settings.ts'
 import { releaseAuthorInput, type ReleaseAuthorOptions } from './release-author.ts'
 
 const positive = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER)
@@ -29,6 +30,7 @@ export const toolHostConfig = z
           })
           .optional(),
         TodoItems: z.strictObject({ resultMaxBytes: positive }).optional(),
+        BkgToolCalls: z.strictObject({ resultMaxBytes: positive }).optional(),
         Ask: z.strictObject({ resultMaxBytes: positive }).optional(),
         Web: z.strictObject({ resultMaxBytes: positive, maxSearchResults: positive }).optional(),
         Skills: z.strictObject({ resultMaxBytes: positive }).optional(),
@@ -45,6 +47,8 @@ export const toolHostConfig = z
           .optional(),
       })
       .optional(),
+    /** The operator's values for the settings a release tool declares, by tool name and item id. */
+    settings: z.record(z.string(), z.record(z.string(), z.json())).optional(),
   })
   .default({})
 
@@ -111,7 +115,8 @@ export function createToolHostPlugin(
     inject: [toolBindingsKey, toolContributionAuthorityKey, toolResidencyReaderKey],
     Config: toolHostConfig,
     apply(ctx: Context, config: unknown) {
-      const { construction } = toolHostConfig.parse(config)
+      const { construction, settings } = toolHostConfig.parse(config)
+      new ToolOperatorSettingsImpl(ctx, settings ?? {})
       const Host = createLocalToolHostPlugin<unknown, unknown, ToolMessageContentBlock>(
         releaseAuthorInput(ctx, construction ?? {}, options),
       )
@@ -126,7 +131,7 @@ export const toolHostRow = defineRow({
   row: 'tool-host',
   implementation: 'real',
   manifest: {
-    provides: [toolGenerationsKey],
+    provides: [toolGenerationsKey, toolOperatorSettingsKey],
     injects: [toolBindingsKey, toolContributionAuthorityKey, toolResidencyReaderKey],
     sameProviderGroup: null,
   },
