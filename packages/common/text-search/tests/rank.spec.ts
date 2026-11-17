@@ -14,6 +14,15 @@ describe('rank', () => {
     expect(rank(corpus, 'apple pear', params)).toEqual(['charlie', 'bravo', 'alpha'])
     expect(rank(corpus, 'apple apple pear', params)).toEqual(rank(corpus, 'apple pear', params))
   })
+  it('weights a term by idf = ln(1 + (N - df + 0.5) / (df + 0.5))', () => {
+    const corpus = buildCorpus([
+      { name: 'a', fields: ['apple pear plum'] },
+      { name: 'b', fields: ['apple'] },
+      { name: 'c', fields: ['pear'] },
+      { name: 'd', fields: ['apple plum apple'] },
+    ])
+    expect(rank(corpus, 'apple pear', params)).toEqual(['a', 'c', 'b', 'd'])
+  })
   it('breaks ties by the code units of the name', () => {
     const corpus = buildCorpus([
       { name: 'z', fields: ['词'] },
