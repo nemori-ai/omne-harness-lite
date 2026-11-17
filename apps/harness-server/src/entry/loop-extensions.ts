@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { DurableEvidence, EnabledExtensions, Failure } from '@omne-harness/agent-contract'
 import type { PrincipalVerifier } from '@omne-harness/identity'
-import type { TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { membersAt } from '@omne-harness/loop-extension'
 import {
   enabledExtensionsBinding,
@@ -19,21 +19,17 @@ import {
   readCoordinatorNeed,
   type PublishedViewPorts,
 } from '../rows/session-ad03/published-view.ts'
-import { toolRuntimeHolder } from '../rows/tool-runtime/holder.ts'
-import { verifySessionWork } from '../rows/tool-runtime/session-work.ts'
+import { sessionWorkOf, verifySessionWork } from '../rows/tool-runtime/session-work.ts'
 
 const OWNER = 'agentEnabledExtensions'
 
-export type EnabledExtensionsPorts = Readonly<{
-  verifier(): PrincipalVerifier | undefined
-  views(): PublishedViewPorts | null
-}>
+export type EnabledExtensionsPorts = Readonly<{ views(): PublishedViewPorts | null }>
 
 const unavailable = (diagnostic: string): Outcome<never, Failure> =>
   fail({ kind: 'unavailable', owner: OWNER, diagnostic })
 
 async function sessionOf(
-  ports: Pick<EnabledExtensionsPorts, 'verifier'>,
+  ports: Pick<RunLocationPorts, 'verifier'>,
   principal: unknown,
   tenant: TenantId,
 ): Promise<Outcome<SessionId, Failure>> {
@@ -56,21 +52,32 @@ const basisOf = (view: EnabledExtensionsView): DurableEvidence => ({
   digest: contentDigest(view),
 })
 
-/** The Agent port of the tenant-enabled extensions: the coordinator reads the block of the session, the loop-extension rules pick the members of the position. Unreadable is unavailable, never an empty chain. */
+const KNOWN_SCOPES = 4096
+
+/** The Agent port of the tenant-enabled extensions. Unreadable is unavailable, never an empty chain. The session comes from the shape of the principal: the read verifies it. */
 export function createEnabledExtensions(ports: EnabledExtensionsPorts): EnabledExtensions<unknown> {
+  // A hint: the scope the last read of a session used.
+  const scopes = new Map<string, ScopeRef>()
   return {
     async read(input) {
-      const session = await sessionOf(ports, input.principal, input.tenant)
-      if ('failure' in session) return session
+      const work = sessionWorkOf(input.principal, input.tenant)
+      const tenant = tenantCodec.encode(input.tenant)
+      if (work === undefined || !tenant.ok)
+        return fail({ kind: 'denied', action: 'enabled-extensions' })
       const views = ports.views()
       if (views === null) return unavailable('the Session or Runtime Context services are absent')
-      const access = { principal: input.principal, tenant: input.tenant, session: session.ok }
-      const read = await readCoordinatorNeed(views, access, {
-        key: enabledExtensionsBinding.key,
-        need: enabledExtensionsBinding.need.name,
-      })
-      if ('failure' in read) return unavailable(read.failure)
-      const view = viewOf(read.ok)
+      const session = work.session as SessionId
+      const key = `${tenant.value}|${session}`
+      const access = { principal: input.principal, tenant: input.tenant, session }
+      const asked = { key: enabledExtensionsBinding.key, need: enabledExtensionsBinding.need.name }
+      const read = await readCoordinatorNeed(views, access, asked, scopes.get(key))
+      if ('failure' in read) {
+        scopes.delete(key)
+        return unavailable(read.failure)
+      }
+      if (scopes.size >= KNOWN_SCOPES && !scopes.has(key)) scopes.clear()
+      scopes.set(key, read.ok.scope)
+      const view = viewOf(read.ok.value)
       if (view === undefined)
         return unavailable('the block is not a view of the enabled extensions')
       const { position, dimension } = input
@@ -80,22 +87,19 @@ export function createEnabledExtensions(ports: EnabledExtensionsPorts): EnabledE
 }
 
 export function enabledExtensionsOf(ctx: Context): EnabledExtensions<unknown> {
-  return createEnabledExtensions({
-    verifier: () => toolRuntimeHolder(ctx).verifier(),
-    views: () => publishedViewPortsOf(ctx),
-  })
+  return createEnabledExtensions({ views: () => publishedViewPortsOf(ctx) })
 }
 
-export type RunLocationPorts = Pick<EnabledExtensionsPorts, 'verifier'> &
-  Readonly<{
-    /** The current context scope of the session, checked to be bound to this tenant. */
-    scope(
-      tenant: TenantId,
-      principal: unknown,
-      session: SessionId,
-    ): Promise<Outcome<ScopeRef, Failure>>
-    workspace(): string | undefined
-  }>
+export type RunLocationPorts = Readonly<{
+  verifier(): PrincipalVerifier | undefined
+  /** The current context scope of the session, checked to be bound to this tenant. */
+  scope(
+    tenant: TenantId,
+    principal: unknown,
+    session: SessionId,
+  ): Promise<Outcome<ScopeRef, Failure>>
+  workspace(): string | undefined
+}>
 
 /** Where a command implementation runs for one call: the scope is that of the session, the directory is the workspace. */
 export async function runLocationOf(

@@ -107,7 +107,7 @@ export class GovernanceExtensionSources extends ExtensionSourcesService<unknown>
     this.input = input
   }
   // A tenant publishes its versions while the server runs: the catalog learns each definition once, when it is first read.
-  private declare(definition: SettingDefinitions): boolean {
+  private makeKnown(definition: SettingDefinitions): boolean {
     const key = JSON.stringify([definition.providerId, definition.definitionId, definition.version])
     if (this.declared.has(key)) return true
     if (this.input.registry.registerContribution(definition).kind !== 'registered') return false
@@ -125,7 +125,7 @@ export class GovernanceExtensionSources extends ExtensionSourcesService<unknown>
       ...holdings,
       tenantRef: tenant.value,
       deploymentRef: this.input.deploymentRef,
-      declare: definition => this.declare(definition),
+      declare: definition => this.makeKnown(definition),
     })
     this.known.set(tenant.value, { holdings, sources })
     return sources

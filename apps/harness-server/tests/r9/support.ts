@@ -407,6 +407,26 @@ export function operatorLayer(options: {
       { kind: 'replace', id: 'execution-host', config: tools.host },
       {
         kind: 'replace',
+        id: 'governance',
+        config: {
+          ...releaseRowConfig('governance'),
+          assetPackagesRoot: join(options.storageRoot, 'asset-packages'),
+        },
+      },
+      {
+        kind: 'replace',
+        id: 'loop-extension',
+        config: {
+          commands: {
+            interpreters: { node: process.execPath },
+            env: tools.construction.Shell.env,
+            stateDirectory: join(options.storageRoot, 'loop-extension-calls'),
+            workspace: tools.filesRoot,
+          },
+        },
+      },
+      {
+        kind: 'replace',
         id: 'request-context',
         config: { limits: { maxTargets: 64, maxFactsPerTarget: 64, maxRevisionsPerDispatch: 16 } },
       },
