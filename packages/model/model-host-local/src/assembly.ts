@@ -28,6 +28,7 @@ import type {
   ModelMaterializationEvidenceReader,
   PiMaterializationOptions,
 } from './materialization-proof.ts'
+import type { ModelReceiveEvidenceReader } from './receive-evidence.ts'
 
 const ASSEMBLY_CLOSED: ModelFailure = Object.freeze({
   kind: 'unavailable',
@@ -56,6 +57,7 @@ export type LocalModelConfig<P> = Readonly<{
 export type LocalModel<P> = Readonly<{
   send: ModelSendBoundary<P>
   materialization: ModelMaterializationEvidenceReader
+  receive: ModelReceiveEvidenceReader
   preparation: ModelPreparationResources<P>
   close(): Promise<void>
 }>
@@ -157,6 +159,7 @@ export function assembleOver<P, N extends ClosableNetwork>(
   return {
     send,
     materialization: opened.materialization,
+    receive: opened.receive,
     preparation,
     close() {
       closing ??= closeAll()

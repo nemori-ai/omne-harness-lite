@@ -107,7 +107,6 @@ import {
   type ModelOutcome,
   type ModelResult,
 } from './model-result.ts'
-import { modelRetryNotDue, retryModelCall, type ModelRetryEntry } from './model-retry.ts'
 import { readModelDeliveryMaterial } from '../receiving-material.ts'
 import {
   advanceAcceptedControl,
@@ -227,8 +226,7 @@ export type ExecutionEntry<P> = Readonly<{
   toolConcurrency?: number
   maxRunSteps?: number
   report?: (report: ReplyAdmissionReadReport) => void
-}> &
-  ModelRetryEntry
+}>
 
 export type ReplyAdmissionReadReport = Readonly<{
   kind: 'origin-reread'
@@ -1527,18 +1525,9 @@ function coordinate<P>(
       if (result.kind === 'interrupted')
         return step('partial', { checkpoint: { calls: [] }, caller })
       if (result.kind === 'unusable') {
-        const retried = await retryModelCall(
-          entry,
-          current.step,
-          result,
-          () => required(checkpoint, 'checkpoint').modelRetry ?? null,
-          ports.clock,
-        )
-        if ('failure' in retried) return retried
-        const lost = lostIntent(required(checkpoint, 'checkpoint'), current)
-        if (retried.ok !== null)
-          return step('retry', {
-            checkpoint: { calls: [], modelRetry: retried.ok, ...lost },
+        if (current.lost !== null)
+          return step('lost', {
+            checkpoint: { calls: [], ...lostIntent(required(checkpoint, 'checkpoint'), current) },
             caller,
           })
         if (decided?.kind !== 'try-finish' || decided.failure?.kind !== 'no-reply') {
@@ -1605,11 +1594,7 @@ function coordinate<P>(
       pendingHandoff = null
       if (decision !== 'prepared')
         return step('rejected', { checkpoint: { calls: [] }, caller: processed })
-      const retrying = (required(checkpoint, 'checkpoint').modelRetry ?? null) !== null
-      return step('admitted', {
-        checkpoint: { calls: [], ...(retrying ? { modelRetry: null } : {}) },
-        caller: processed,
-      })
+      return step('admitted', { checkpoint: { calls: [] }, caller: processed })
     },
     async I4() {
       const admitted = admittedReply()
@@ -1645,10 +1630,6 @@ function coordinate<P>(
       const current = await readFacts(read.ok)
       if ('failure' in current) return current
       facts = current.ok
-      const retry = required(checkpoint, 'checkpoint').modelRetry ?? null
-      const notDue = await modelRetryNotDue(retry, ports.clock)
-      if ('failure' in notDue) return notDue
-      if (notDue.ok !== null) return waitFor('I8', notDue.ok, null)
       const evaluated = await evaluate('I8', current.ok)
       if ('failure' in evaluated) return evaluated
       if (

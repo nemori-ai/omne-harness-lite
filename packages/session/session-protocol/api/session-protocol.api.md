@@ -85,6 +85,70 @@ declare const observeSessionFrame: {
                         ];
                     };
                 };
+                readonly attempts: {
+                    readonly rule: {
+                        readonly kind: 'object';
+                        readonly fields: {
+                            readonly allowed: {
+                                readonly rule: {
+                                    readonly kind: "count";
+                                };
+                            };
+                            readonly made: {
+                                readonly rule: {
+                                    readonly kind: "count";
+                                };
+                            };
+                            readonly last: {
+                                rule: {
+                                    readonly kind: 'one-of';
+                                    readonly rules: readonly [
+                                        {
+                                            readonly kind: 'object';
+                                            readonly fields: {
+                                                readonly cause: {
+                                                    rule: {
+                                                        readonly kind: 'text';
+                                                    };
+                                                };
+                                                readonly upstreamStatus: {
+                                                    rule: {
+                                                        readonly kind: 'one-of';
+                                                        readonly rules: readonly [
+                                                            {
+                                                                readonly kind: 'text';
+                                                            },
+                                                            {
+                                                                readonly kind: 'null';
+                                                            }
+                                                        ];
+                                                    };
+                                                };
+                                            };
+                                        },
+                                        {
+                                            readonly kind: 'null';
+                                        }
+                                    ];
+                                };
+                            };
+                            readonly notBefore: {
+                                rule: {
+                                    readonly kind: 'one-of';
+                                    readonly rules: readonly [
+                                        {
+                                            readonly kind: 'text';
+                                        },
+                                        {
+                                            readonly kind: 'null';
+                                        }
+                                    ];
+                                };
+                            };
+                        };
+                    };
+                    readonly optional: true;
+                };
                 readonly target: {
                     rule: {
                         readonly kind: 'one-of';
@@ -716,6 +780,15 @@ export declare const sessionProtocol: {
                 readonly projection: "model-output-v1";
                 readonly value: import("@omne-harness/json-text").JsonValue;
             } | {
+                readonly attempts?: {
+                    readonly allowed: number;
+                    readonly last: {
+                        readonly cause: string;
+                        readonly upstreamStatus: string | null;
+                    } | null;
+                    readonly made: number;
+                    readonly notBefore: string | null;
+                };
                 readonly kind: "state";
                 readonly phase: string | null;
                 readonly revision: string;

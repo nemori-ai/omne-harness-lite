@@ -22,7 +22,6 @@ import type {
   InputBatch,
   InputId,
   ModelReplyAdmission,
-  ModelRetryState,
   PassageId,
   PendingCall,
   StepId,
@@ -110,7 +109,6 @@ export type CursorMembers = Readonly<{
   schema: Adoption
   definition: Adoption
   adoptedRequest: Ref | null
-  modelRetry?: ModelRetryState | null
   state: 'reconciling' | 'advancing' | 'waiting' | 'settling' | 'suspended'
 }>
 export type CursorMember = keyof CursorMembers

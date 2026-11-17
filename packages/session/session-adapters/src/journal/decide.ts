@@ -43,7 +43,6 @@ export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState)
       checkpoint.adoptedRequest === null || checkpoint.adoptedRequest === undefined
         ? null
         : refOf(checkpoint.adoptedRequest),
-    ...(checkpoint.modelRetry === undefined ? {} : { modelRetry: checkpoint.modelRetry }),
     state: state.kind,
   }
 }
@@ -130,13 +129,9 @@ export function checkpointOf(
     voided: structuredClone(voided),
   }
   const adopted = need('adoptedRequest')
-  const withAdopted: AgentCheckpoint =
-    adopted === null
-      ? { ...checkpoint, adoptedRequest: null }
-      : { ...checkpoint, adoptedRequest: held(blobs, adopted, 'adoptedRequest') }
-  return cursor.modelRetry === undefined
-    ? withAdopted
-    : { ...withAdopted, modelRetry: structuredClone(cursor.modelRetry) }
+  return adopted === null
+    ? { ...checkpoint, adoptedRequest: null }
+    : { ...checkpoint, adoptedRequest: held(blobs, adopted, 'adoptedRequest') }
 }
 
 export function movedMembers(

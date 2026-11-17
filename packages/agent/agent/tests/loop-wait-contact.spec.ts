@@ -8,7 +8,6 @@ import {
   at,
   contactAnswer,
   lostContact,
-  policy,
   replyOf,
   saved,
   takeover,
@@ -66,12 +65,12 @@ describe('the check time of a wait for the main Model call', () => {
     expect(ok(await waiting)).toBe('ready')
     expect(contact.calls).toHaveLength(1)
     ok(await coordinator.runExecution())
-    expect((await saved(run.assembly)).checkpoint).toMatchObject({
-      position: 'I8',
-      calls: [],
-      modelRetry: { failures: 1 },
-    })
-    expect(run.admitted).toHaveLength(1)
+    const after = await saved(run.assembly)
+    expect(after.checkpoint.voided).toMatchObject([
+      { kind: 'model', step: 'step-1', cause: 'lost' },
+    ])
+    expect(run.admitted).toHaveLength(2)
+    expect(after.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
   })
 
   it('a settled answer wakes the run, which then waits for the result to reach the Journal', async () => {
@@ -104,7 +103,7 @@ describe('the check time of a wait for the main Model call', () => {
 
   it('a result that lands while the wait is being saved is taken at the check time, when the Model answers settled', async () => {
     let landed = false
-    const run: Takeover = await takeover([null], policy(), d => ({
+    const run: Takeover = await takeover([null], d => ({
       ...d,
       journal: {
         ...d.journal,

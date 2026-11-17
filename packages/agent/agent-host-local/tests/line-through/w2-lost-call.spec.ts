@@ -10,7 +10,6 @@ it('closes a main call the Model lost in the Session log Journal, and a new call
   const hold = Promise.withResolvers<void>()
   let lost: ModelInvocationRef | 'next' | null = null
   const w = await openW2World({
-    modelRetry: { maxAttempts: 3, maxElapsedMs: 60_000, delaysMs: [0], jitter: 0 },
     model: a =>
       a.index === 0
         ? { parts: [replyText('late', 'the late reply')], reason: 'stop', hold: hold.promise }
@@ -62,7 +61,7 @@ it('closes a main call the Model lost in the Session log Journal, and a new call
         basis: LOCK,
       }),
     ])
-    expect(ended.checkpoint.modelRetry ?? null).toBeNull()
+    expect(Object.hasOwn(ended.checkpoint, 'modelRetry')).toBe(false)
     expect(w.modelCalls).toHaveLength(2)
     expect(w.endedRuns()).toHaveLength(1)
   } finally {

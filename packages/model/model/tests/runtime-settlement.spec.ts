@@ -425,27 +425,43 @@ it('returns the original settle failure first and reports cached release failure
   }
 })
 
-it('does not infer an interrupted control or silently decide a retry policy', async () => {
-  for (const termination of [
-    { kind: 'interrupted', stop: 'confirmed' },
-    {
+function provenEmpty(f: ReturnType<typeof runtimeFixture>) {
+  const adapter = f.options.evidence[0]
+  if (!adapter) throw new Error('missing evidence adapter')
+  adapter.receive = input => ({
+    ok: { window: input.window, batchDigest: input.batchDigest, paused: true, noPrefetch: true },
+  })
+}
+
+it('does not infer an interrupted control', async () => {
+  const f = runtimeFixture(batching)
+  provenEmpty(f)
+  try {
+    const termination = { kind: 'interrupted', stop: 'confirmed' } as const
+    expect(await finish(f, [end({ kind: 'ended', termination })])).toHaveProperty('failure')
+    expect((await inspect(f)).phase).not.toBe('settled')
+    expect(f.channel(f.admit.call)).toMatchObject({ starts: 1, reads: 1, returns: 1, closes: 1 })
+  } finally {
+    await f.dispose()
+  }
+})
+
+it('does not decide a retry without a policy: the call settles as policy-unavailable', async () => {
+  const f = runtimeFixture(batching)
+  provenEmpty(f)
+  try {
+    const termination = {
       kind: 'failed',
       fault: { cause: 'upstream-unavailable', upstreamStatus: '503', diagnostic: 'try-later' },
-    },
-  ] as const) {
-    const f = runtimeFixture(batching)
-    const adapter = f.options.evidence[0]
-    if (!adapter) throw new Error('missing evidence adapter')
-    adapter.receive = input => ({
-      ok: { window: input.window, batchDigest: input.batchDigest, paused: true, noPrefetch: true },
+    } as const
+    expect(await finish(f, [end({ kind: 'ended', termination })])).toEqual({ ok: undefined })
+    expect((await settlement(f)).termination).toEqual({
+      kind: 'failed',
+      fault: { cause: 'policy-unavailable', upstreamStatus: null, diagnostic: 'unavailable' },
     })
-    try {
-      expect(await finish(f, [end({ kind: 'ended', termination })])).toHaveProperty('failure')
-      expect((await inspect(f)).phase).not.toBe('settled')
-      expect(f.channel(f.admit.call)).toMatchObject({ starts: 1, reads: 1, returns: 1, closes: 1 })
-    } finally {
-      await f.dispose()
-    }
+    expect(f.channel(f.admit.call)).toMatchObject({ starts: 1, reads: 1, returns: 1, closes: 1 })
+  } finally {
+    await f.dispose()
   }
 })
 
