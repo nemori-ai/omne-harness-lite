@@ -10,6 +10,10 @@ import {
   type SessionContextDefinitions,
 } from '@omne-harness/session-adapters/cordis'
 import { SESSION_MODES_PUBLICATION } from '@omne-harness/session-adapters'
+import {
+  ENABLED_EXTENSIONS_PUBLICATION,
+  enabledExtensionsBinding,
+} from '@omne-harness/loop-extension-contract'
 import type { Adoption } from '@omne-harness/session-contract'
 
 export type DeclaredContextBlocks = Readonly<{
@@ -73,6 +77,11 @@ const ADOPTED: readonly DeclaredContextBlocks[] = [
   {
     definition: SESSION_MODES_PUBLICATION,
     bindings: sessionModesBindings,
+    declarations: [],
+  },
+  {
+    definition: ENABLED_EXTENSIONS_PUBLICATION,
+    bindings: [enabledExtensionsBinding],
     declarations: [],
   },
 ]

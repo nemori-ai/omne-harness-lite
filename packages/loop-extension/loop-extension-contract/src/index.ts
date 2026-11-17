@@ -1,5 +1,7 @@
 export {
   ENABLED_EXTENSIONS_BLOCK,
+  ENABLED_EXTENSIONS_PUBLICATION,
+  enabledExtensionsBinding,
   enabledExtensionsDescriptor,
   enabledExtensionsProducer,
   type EnabledExtensionsView,

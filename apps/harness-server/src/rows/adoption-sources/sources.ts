@@ -149,7 +149,7 @@ function initialAdoptionOf(
   mappings: DefinitionMappings,
   entry: DefinitionMappingEntry,
   residents: ResidentAdoption,
-  preparation: ModesPreparationRecord | undefined,
+  preparations: readonly ModesPreparationRecord[] | undefined,
 ): InitialAdoption {
   return {
     definitionName: entry.name,
@@ -162,7 +162,7 @@ function initialAdoptionOf(
       schema: MAPPING_ENTRY_SCHEMA,
       value: jsonOf({
         ...entry,
-        contextPreparations: preparation === undefined ? [] : [canonicalText(preparation)],
+        contextPreparations: (preparations ?? []).map(canonicalText),
       }),
     },
     residentBindings: residents.keys,
@@ -172,7 +172,7 @@ function initialAdoptionOf(
 
 function planOf(
   entry: DefinitionMappingEntry,
-  preparation: ModesPreparationRecord | undefined,
+  preparations: readonly ModesPreparationRecord[] | undefined,
 ): readonly InitializationPlanItem[] {
   const identity: InitializationPlanItem[] = entry.requiredIdentities.map(
     ({ capability, name }) => ({
@@ -183,18 +183,16 @@ function planOf(
       originalInput: jsonOf({ capability, name }),
     }),
   )
-  return preparation === undefined
-    ? identity
-    : [
-        ...identity,
-        {
-          kind: 'context-registration',
-          owner: preparation.source.owner,
-          item: preparation.source.item,
-          protocol: preparation.source.protocol,
-          originalInput: jsonOf(preparation.source.input),
-        },
-      ]
+  return [
+    ...identity,
+    ...(preparations ?? []).map(({ source }): InitializationPlanItem => ({
+      kind: 'context-registration',
+      owner: source.owner,
+      item: source.item,
+      protocol: source.protocol,
+      originalInput: jsonOf(source.input),
+    })),
+  ]
 }
 
 function requirementsOf(
@@ -230,7 +228,7 @@ function initializationGuardOf(
   command: CreateCommand,
   entry: DefinitionMappingEntry,
   residents: ResidentAdoption,
-  preparation: ModesPreparationRecord | undefined,
+  preparations: readonly ModesPreparationRecord[] | undefined,
 ): Prepared {
   const { creation } = command.input
   const tenant = tenantCodec.encode(command.input.tenant)
@@ -238,7 +236,7 @@ function initializationGuardOf(
   const workspace = creation.workspace === null ? null : workspaceCodec.encode(creation.workspace)
   if (workspace !== null && !workspace.ok)
     return invalid('workspace', 'the workspace is not minted by its codec')
-  const plan = planOf(entry, preparation)
+  const plan = planOf(entry, preparations)
   const facts: InitializationGuardFacts = {
     version: 1,
     command: 'create',
@@ -249,13 +247,13 @@ function initializationGuardOf(
       createOperation: command.input.operation,
     },
     input: commandInputOf(command, tenant.value, workspace === null ? null : workspace.value),
-    initialAdoption: initialAdoptionOf(mappings, entry, residents, preparation),
+    initialAdoption: initialAdoptionOf(mappings, entry, residents, preparations),
     requirements: requirementsOf(entry, plan),
     plan,
     results:
-      preparation === undefined
+      preparations === undefined
         ? []
-        : [modesInitialization({ ...command.input, principal: undefined }).outcome],
+        : modesInitialization({ ...command.input, principal: undefined }).outcomes,
   }
   return initializationMaterial(facts)
 }

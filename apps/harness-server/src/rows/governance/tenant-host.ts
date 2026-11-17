@@ -193,6 +193,16 @@ export class TenantGovernanceHost {
     return (await this.entry(tenantRef))?.assembly.settings
   }
 
+  /** The assets and the settings of a tenant whose governance is open; undefined while it is not. */
+  async holdings(tenantRef: string) {
+    if (!(await this.registered(tenantRef))) return undefined
+    if ((await this.runtime(tenantRef)) === undefined) return undefined
+    const assembly = (await this.entry(tenantRef))?.assembly
+    return assembly?.assets === undefined || assembly.settings === undefined
+      ? undefined
+      : { assets: assembly.assets, settings: assembly.settings }
+  }
+
   private async drain(): Promise<StopResult> {
     const entries = await Promise.all(this.entries.values())
     const results = await Promise.all(

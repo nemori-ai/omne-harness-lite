@@ -95,7 +95,21 @@ it('unloading the plugin withdraws its services and leaves the sources', async (
     expect(ctx.get(key)).toBeUndefined()
 })
 
-it('the plugin accepts no configuration', async () => {
+it.each([
+  ['a field it does not know', { anything: 1 }],
+  [
+    'an interpreter path that is not absolute',
+    { commands: { interpreters: { node: 'node' }, env: {}, stateDirectory: '/state' } },
+  ],
+  [
+    'a state directory that is not absolute',
+    { commands: { interpreters: {}, env: {}, stateDirectory: 'state' } },
+  ],
+  [
+    'an environment that is not texts',
+    { commands: { interpreters: {}, env: { A: 1 }, stateDirectory: '/state' } },
+  ],
+])('the plugin refuses a configuration with %s', async (_name, config) => {
   const ctx = new Context()
-  await expect(ctx.plugin(loopExtensionPlugin, { anything: 1 } as never)).rejects.toThrow()
+  await expect(ctx.plugin(loopExtensionPlugin, config as never)).rejects.toThrow()
 })

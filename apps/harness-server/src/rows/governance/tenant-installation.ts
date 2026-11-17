@@ -1,4 +1,7 @@
+import { createHash } from 'node:crypto'
+import { join } from 'node:path'
 import { createCategoryRegistry } from '@omne-harness/assets'
+import { loopExtensionBodyContract } from '@omne-harness/loop-extension-contract'
 import { createAssetsLocal } from '@omne-harness/assets-local'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import type { createStandaloneSettingsOwner } from '@omne-harness/settings-local'
@@ -13,6 +16,8 @@ export type InstalledTenantOptions = Parameters<typeof prepareTenantGovernanceWi
   installationPrincipal: ActingForTenantPrincipal
   release: Extract<ToolRelease, { kind: 'trusted' }>
   organizationTargets: ReturnType<typeof createStandaloneSettingsOwner>
+  /** Where the packages tenants publish are kept, one directory for each tenant. Without it no package can be published. */
+  assetPackagesRoot?: string
 }
 
 export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) {
@@ -23,11 +28,22 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
   }
   const categories = createCategoryRegistry()
   categories.register(createToolAssetCategory(options.release))
+  categories.register(loopExtensionBodyContract())
+  const packages =
+    options.assetPackagesRoot === undefined
+      ? {}
+      : {
+          packageRoot: join(
+            options.assetPackagesRoot,
+            createHash('sha256').update(options.scope.tenantRef).digest('hex').slice(0, 32),
+          ),
+        }
   const assets = createAssetsLocal({
     ...governanceStorageCombinations(options.materials).assets,
     domain: options.domain,
     storage: options.storage,
     categories,
+    ...packages,
   })
   const assembly = prepareTenantGovernanceWithSettings({
     ...options,
@@ -81,5 +97,5 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
         }
   }
   let opening: ReturnType<typeof open> | undefined
-  return { ...assembly, open: () => (opening ??= open()) }
+  return { ...assembly, assets, open: () => (opening ??= open()) }
 }

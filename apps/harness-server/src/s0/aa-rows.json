@@ -55,6 +55,7 @@
     "request-context",
     "agent-context",
     "context-compaction",
+    "loop-extension",
     "agent-account-outlet",
     "runtime-context",
     "session-observation",

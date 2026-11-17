@@ -78,7 +78,7 @@ it('mounts one real producer per tenant through the production authority and wit
       modes.ensure(fixtureTenant('b')),
     ])
     expect(answers).toEqual([{ kind: 'ready' }, { kind: 'ready' }, { kind: 'ready' }])
-    expect(registrations).toHaveBeenCalledTimes(2)
+    expect(registrations).toHaveBeenCalledTimes(4)
     const original = createCommand('alpha')
     const input = { ...original.input, tenant, principal: principals.forTenant(tenant) }
     const initial = modesInitialization(input)
@@ -109,13 +109,14 @@ it('mounts one real producer per tenant through the production authority and wit
     const adoption = createdBody['initialAdoption'] as Record<string, unknown>
     const capabilitiesMaterial = adoption['capabilities'] as Record<string, unknown>
     const capabilities = plainOf(capabilitiesMaterial['value']) as Record<string, unknown>
-    expect(capabilities['contextPreparations']).toEqual([canonicalText(initial.preparation)])
+    expect(capabilities['contextPreparations']).toEqual(initial.preparations.map(canonicalText))
     expect(
-      decision.entries.some(entry => entry.kind === 'session.context-registration-changed'),
-    ).toBe(true)
-    const outcome = decision.entries.find(entry => entry.kind === 'session.initialization-item')
-    if (outcome === undefined) throw new Error('missing initialization result')
-    expect(plainOf(outcome.payload)).toMatchObject({ outcome: initial.outcome })
+      decision.entries.filter(entry => entry.kind === 'session.context-registration-changed'),
+    ).toHaveLength(2)
+    const outcomes = decision.entries.filter(entry => entry.kind === 'session.initialization-item')
+    expect(outcomes.map(entry => plainOf(entry.payload))).toMatchObject(
+      initial.outcomes.map(outcome => ({ outcome })),
+    )
     expect(
       await modes.prepareInitial({ ...input, principal: structuredClone(input.principal) }),
     ).toHaveProperty('failure')

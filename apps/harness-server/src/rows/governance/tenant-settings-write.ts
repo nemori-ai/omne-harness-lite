@@ -201,9 +201,6 @@ export function createTenantSettingsWrite(options: TenantSettingsWriteOptions) {
     },
   }
 
-  return {
-    writer,
-    destination: prepared.control.destination,
-    close: () => prepared.control.close(),
-  }
+  const { changes, destination, close } = prepared.control
+  return { writer, changes, destination, close: () => close() }
 }

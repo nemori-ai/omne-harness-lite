@@ -7,9 +7,12 @@ import type { ActingForTenantPrincipal, StandingDestinationResolver } from '@omn
 import { access, tenantCodec } from '@omne-harness/legal-identity'
 import { GovernanceScopeSchema } from '@omne-harness/governance-contract'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
+import type { AssetsLocal } from '@omne-harness/assets-local'
 import type {
+  ChangeSignal,
   SettingsBasis,
   SettingsFailure,
+  SettingsTarget,
   SettingsViewRequest,
   TenantSettingsWriter,
 } from '@omne-harness/settings'
@@ -168,12 +171,15 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
 export type TenantSettingsAccess = Readonly<{
   read(request: SettingsViewRequest): Promise<SettingsBasis | SettingsFailure>
   writer: TenantSettingsWriter
+  /** One signal after each committed change of a tenant setting. */
+  changes: ChangeSignal<SettingsTarget>
 }>
 
 /** Publish the durable settlement routes before open() can begin historical recovery. */
 export type TenantGovernanceAssembly = Readonly<{
   destination: StandingDestinationResolver
   settings?: TenantSettingsAccess
+  assets?: AssetsLocal
   open(): Promise<
     | Awaited<ReturnType<typeof open>>
     | Readonly<{

@@ -44,13 +44,10 @@ export type CommandStep = 'intended' | 'started' | 'ended'
 export type CommandHostInput<P> = Readonly<{
   sources: ExtensionSources<P>
   locations: RunLocations<P>
-  /** The execution environment now; undefined while it is away. */
   environment(): Environment<P> | undefined
-  /** The interpreters this host runs, by name, each an absolute path. */
   interpreters: Readonly<Record<string, string>>
   /** The whole environment of the child process: nothing of the server process is inherited. */
   env: Readonly<Record<string, string>>
-  /** Where the ledgers are kept, one file for each tenant. */
   directory: string
   /** Stops what an unfinished call may have left running, by its original acquisition. */
   recover?(call: CallRecord): Promise<Exclude<CallStop, 'none'>>
@@ -80,7 +77,6 @@ type Run<P> = Readonly<{
 
 type Seen = Readonly<{ observation: CommandObservation; stop: CallStop; stderrBytes: number }>
 
-// Reads what the process writes: the standard output up to one byte over the limit, the standard error as a count.
 async function drain(handle: ProcessHandle) {
   const chunks: Uint8Array[] = []
   let kept = 0
@@ -165,11 +161,121 @@ async function observe(
   }
 }
 
+type Host<P> = Readonly<{ input: CommandHostInput<P>; closed(): boolean }>
+
+function resources(ledger: CommandLedger, call: CallRecord, closing: AbortSignal): ResourceLedger {
+  const confirmed = async () => (closing.aborted ? ('closed' as const) : ('confirmed' as const))
+  return {
+    closed: closing,
+    async plan(resource) {
+      if (closing.aborted) return 'closed'
+      return ledger.mark(call.key, { at: 'resource', resource })
+    },
+    permit: confirmed,
+    adopt: confirmed,
+    stopped: async () => 'recorded',
+  }
+}
+
+async function launched<P>(
+  host: Host<P>,
+  run: Run<P>,
+  ledger: CommandLedger,
+  call: CallRecord,
+  signal: AbortSignal,
+): Promise<Seen> {
+  const { input } = host
+  const origin = originRef(call.key)
+  const scope = { ref: call.scope } as Parameters<Environment<P>['resolvePlacement']>[1]['scope']
+  const environment = input.environment()
+  const none = (observation: CommandObservation): Seen => ({
+    observation,
+    stop: 'none',
+    stderrBytes: 0,
+  })
+  if (environment === undefined) return none(NOT_ENTERED)
+  const unknown = none({ kind: 'start-unknown', recovery: callEvidence(call) })
+  const placement = await environment.resolvePlacement(run.access, {
+    scope,
+    requirement: REQUIREMENT,
+  })
+  if (placement.kind !== 'placement') return none(NOT_ENTERED)
+  const closing = new AbortController()
+  const guard: FacilityGuard<P> = {
+    authorize: async (facility, operation, request) =>
+      facility === 'command' && operation === 'start' && request.origin === origin && !host.closed()
+        ? 'authorized'
+        : 'notAuthorized',
+  }
+  const acquired = await environment.acquire(run.access, {
+    acquisition: acquisitionRef(call.key),
+    origin,
+    scope,
+    placement,
+    ledger: resources(ledger, call, closing.signal),
+    guard,
+  })
+  if (acquired.kind === 'rejected' || acquired.kind === 'allocationFailed') return none(NOT_ENTERED)
+  if (acquired.kind !== 'acquired') return unknown
+  const { lease } = acquired
+  try {
+    const facility = lease.facility('command')
+    if (facility === undefined) return none(NOT_ENTERED)
+    const started = await facility.start({
+      requestId: `${call.key}/start`,
+      access: run.access,
+      origin,
+      binding: lease.placement.binding,
+      executable: run.interpreter,
+      args: [run.entry],
+      cwd: run.cwd,
+      env: input.env,
+      stdin: run.stdin,
+      outputMode: 'separate',
+    })
+    if (started.kind === 'rejected') return none(NOT_ENTERED)
+    if (started.kind !== 'done') return unknown
+    const handle = started.value
+    await ledger.mark(call.key, { at: 'started', process: handle.process })
+    const running = ledger.get(call.key) ?? call
+    await input.afterStep?.('started', running)
+    return await observe(handle, running, run.timeoutMs, signal)
+  } finally {
+    closing.abort()
+    await lease.release().catch(() => undefined)
+  }
+}
+
+async function prepared<P>(
+  input: CommandHostInput<P>,
+  access: Access<P>,
+  member: Member,
+  command: Command,
+  call: ExtensionInput,
+  mode: ExtensionInvocationMode,
+): Promise<Readonly<{ run: Run<P>; scope: string }> | null> {
+  const timeoutMs = commandTimeoutMs(command.timeout)
+  const interpreter = input.interpreters[command.interpreter]
+  const sources = await input.sources.of(access).catch(() => undefined)
+  const version = { asset: member.assetRef, version: member.version }
+  const directory = await sources?.locate(version).catch(() => undefined)
+  const location = await input.locations
+    .of({ ...access, execution: call.execution, passage: call.passage })
+    .catch(() => undefined)
+  if (timeoutMs === null || interpreter === undefined) return null
+  if (directory?.kind !== 'directory' || location?.kind !== 'location') return null
+  const stdin = new TextEncoder().encode(JSON.stringify(commandRequest(call, mode)))
+  const entry = join(directory.path, command.entry)
+  const run = { access, command, entry, interpreter, cwd: location.cwd, timeoutMs, stdin }
+  return { run, scope: location.scope.ref }
+}
+
 /** Runs command implementations through the command facility of the execution environment, never as a child of this process. */
 export function createCommandHost<P>(input: CommandHostInput<P>) {
   const ledgers = new Map<string, Promise<CommandLedger | 'unavailable'>>()
   let closed = false
   let settled: Promise<void> | undefined
+  const host: Host<P> = { input, closed: () => closed }
 
   function ledgerOf(file: string): Promise<CommandLedger | 'unavailable'> {
     const known = ledgers.get(file)
@@ -198,115 +304,6 @@ export function createCommandHost<P>(input: CommandHostInput<P>) {
 
   const start = (): Promise<void> => (settled ??= settle())
 
-  function resources(
-    ledger: CommandLedger,
-    call: CallRecord,
-    closing: AbortSignal,
-  ): ResourceLedger {
-    const confirmed = async () => (closing.aborted ? ('closed' as const) : ('confirmed' as const))
-    return {
-      closed: closing,
-      async plan(resource) {
-        if (closing.aborted) return 'closed'
-        return ledger.mark(call.key, { at: 'resource', resource })
-      },
-      permit: confirmed,
-      adopt: confirmed,
-      stopped: async () => 'recorded',
-    }
-  }
-
-  async function launched(
-    run: Run<P>,
-    ledger: CommandLedger,
-    call: CallRecord,
-    signal: AbortSignal,
-  ): Promise<Seen> {
-    const origin = originRef(call.key)
-    const scope = { ref: call.scope } as Parameters<Environment<P>['resolvePlacement']>[1]['scope']
-    const environment = input.environment()
-    const none = (observation: CommandObservation): Seen => ({
-      observation,
-      stop: 'none',
-      stderrBytes: 0,
-    })
-    if (environment === undefined) return none(NOT_ENTERED)
-    const unknown = none({ kind: 'start-unknown', recovery: callEvidence(call) })
-    const placement = await environment.resolvePlacement(run.access, {
-      scope,
-      requirement: REQUIREMENT,
-    })
-    if (placement.kind !== 'placement') return none(NOT_ENTERED)
-    const closing = new AbortController()
-    const guard: FacilityGuard<P> = {
-      authorize: async (facility, operation, request) =>
-        facility === 'command' && operation === 'start' && request.origin === origin && !closed
-          ? 'authorized'
-          : 'notAuthorized',
-    }
-    const acquired = await environment.acquire(run.access, {
-      acquisition: acquisitionRef(call.key),
-      origin,
-      scope,
-      placement,
-      ledger: resources(ledger, call, closing.signal),
-      guard,
-    })
-    if (acquired.kind === 'rejected' || acquired.kind === 'allocationFailed')
-      return none(NOT_ENTERED)
-    if (acquired.kind !== 'acquired') return unknown
-    const { lease } = acquired
-    try {
-      const facility = lease.facility('command')
-      if (facility === undefined) return none(NOT_ENTERED)
-      const started = await facility.start({
-        requestId: `${call.key}/start`,
-        access: run.access,
-        origin,
-        binding: lease.placement.binding,
-        executable: run.interpreter,
-        args: [run.entry],
-        cwd: run.cwd,
-        env: input.env,
-        stdin: run.stdin,
-        outputMode: 'separate',
-      })
-      if (started.kind === 'rejected') return none(NOT_ENTERED)
-      if (started.kind !== 'done') return unknown
-      const handle = started.value
-      await ledger.mark(call.key, { at: 'started', process: handle.process })
-      const running = ledger.get(call.key) ?? call
-      await input.afterStep?.('started', running)
-      return await observe(handle, running, run.timeoutMs, signal)
-    } finally {
-      closing.abort()
-      await lease.release().catch(() => undefined)
-    }
-  }
-
-  async function prepared(
-    access: Access<P>,
-    member: Member,
-    command: Command,
-    call: ExtensionInput,
-    mode: ExtensionInvocationMode,
-  ): Promise<Readonly<{ run: Run<P>; scope: string }> | null> {
-    const timeoutMs = commandTimeoutMs(command.timeout)
-    const interpreter = input.interpreters[command.interpreter]
-    const sources = await input.sources.of(access).catch(() => undefined)
-    const version = { asset: member.assetRef, version: member.version }
-    const directory = await sources?.locate(version).catch(() => undefined)
-    const location = await input.locations
-      .of({ ...access, execution: call.execution, passage: call.passage })
-      .catch(() => undefined)
-    if (timeoutMs === null || interpreter === undefined) return null
-    if (directory?.kind !== 'directory' || location?.kind !== 'location') return null
-    const stdin = new TextEncoder().encode(JSON.stringify(commandRequest(call, mode)))
-    const entry = join(directory.path, command.entry)
-    const run = { access, command, entry, interpreter, cwd: location.cwd, timeoutMs, stdin }
-    return { run, scope: location.scope.ref }
-  }
-
   async function invoke(
     access: Access<P>,
     member: Member,
@@ -319,7 +316,7 @@ export function createCommandHost<P>(input: CommandHostInput<P>) {
     if (closed || !tenant.ok || declaration.implementation.kind !== 'command')
       return commandResult(NOT_ENTERED)
     await start()
-    const ready = await prepared(access, member, declaration.implementation, call, mode)
+    const ready = await prepared(input, access, member, declaration.implementation, call, mode)
     const ledger = await ledgerOf(ledgerFile(input.directory, tenant.value))
     if (ready === null || ledger === 'unavailable' || signal.aborted || closed)
       return commandResult(NOT_ENTERED)
@@ -338,7 +335,7 @@ export function createCommandHost<P>(input: CommandHostInput<P>) {
     if (intent === 'unavailable') return commandResult(NOT_ENTERED)
     await input.afterStep?.('intended', intent)
     // After the intent nothing that goes wrong proves the process did not start.
-    const seen = await launched(ready.run, ledger, intent, signal).catch((): Seen => {
+    const seen = await launched(host, ready.run, ledger, intent, signal).catch((): Seen => {
       const now = ledger.get(intent.key) ?? intent
       const recovery = callEvidence(now)
       const observation: CommandObservation =

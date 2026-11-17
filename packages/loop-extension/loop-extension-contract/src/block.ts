@@ -1,5 +1,6 @@
+import { createHash } from 'node:crypto'
 import type { LoopExtensionDeclaration } from '@omne-harness/agent-contract'
-import type { SuppliedBlockDescriptor } from '@omne-harness/runtime-context-contract'
+import type { NeedBinding, SuppliedBlockDescriptor } from '@omne-harness/runtime-context-contract'
 
 /** The key of the block that supplies the extensions a tenant has enabled. Not scoped to a session; read from its producer each time. */
 export const ENABLED_EXTENSIONS_BLOCK = 'loop-extension.enabled'
@@ -69,3 +70,33 @@ export const enabledExtensionsDescriptor = Object.freeze({
   kind: 'supplied',
   recovery: 'recompute',
 } satisfies SuppliedBlockDescriptor<typeof ENABLED_EXTENSIONS_BLOCK, EnabledExtensionsView>)
+
+/** The one need of this block: the coordinator reads the whole view at an extension position. */
+export const enabledExtensionsBinding = Object.freeze({
+  key: ENABLED_EXTENSIONS_BLOCK,
+  need: Object.freeze({
+    name: 'loop-extension.chain',
+    shape: enabledExtensionsDescriptor.schema,
+    consumer: 'coordinator',
+    purpose:
+      'The loop extensions the tenant has enabled, read when a Run reaches an extension position',
+    necessity: 'required',
+  }),
+} satisfies NeedBinding<typeof ENABLED_EXTENSIONS_BLOCK, EnabledExtensionsView>)
+
+const VIEW_SHAPE = {
+  members: [{ capability: 'string', assetRef: 'string', version: 'string', declaration: 'object' }],
+  basis: { assets: 'string', settings: 'string' },
+}
+
+/** The identity under which a scope adopts this block and its need. Its digest covers the key, the need and the shape of the view. */
+export const ENABLED_EXTENSIONS_PUBLICATION = Object.freeze({
+  owner: '@omne-harness/loop-extension-contract',
+  name: 'loop-extension.enabled-publication',
+  revision: '1',
+  digest: `sha256:${createHash('sha256')
+    .update(
+      JSON.stringify([ENABLED_EXTENSIONS_BLOCK, enabledExtensionsBinding.need.name, VIEW_SHAPE]),
+    )
+    .digest('hex')}`,
+})

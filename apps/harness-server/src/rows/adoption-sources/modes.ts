@@ -8,7 +8,7 @@ import type {
 import { canonicalText } from '../agent-adoptions/definition-mappings.ts'
 import {
   modesInitialization,
-  modesPreparationRecord,
+  modesPreparationRecords,
   type ModesPreparationRecord,
 } from '../../assembly/session-modes-initialization.ts'
 import { sessionModesInstallationKey } from '../session-ad03/modes.ts'
@@ -19,7 +19,7 @@ export async function prepareInitialModes<P>(
   ctx: Context,
   command: Create,
   access: SessionAccess<P> | undefined,
-): Promise<Outcome<ModesPreparationRecord | undefined, SessionFailure>> {
+): Promise<Outcome<readonly ModesPreparationRecord[] | undefined, SessionFailure>> {
   if (!command.input.creation.initialization?.sources.length) return succeed(undefined)
   const unavailable = () =>
     fail({
@@ -36,10 +36,13 @@ export async function prepareInitialModes<P>(
   const expected = modesInitialization(input)
   const prepared = await installation.prepareInitial(input)
   if ('failure' in prepared) return prepared
-  const actual = modesPreparationRecord(input, {
-    coverage: prepared.ok.judged.coverage,
-    currentRevision: prepared.ok.currentRevision,
-  })
-  if (canonicalText(actual) !== canonicalText(expected.preparation)) return unavailable()
+  const actual = modesPreparationRecords(
+    input,
+    prepared.ok.map(({ judged, currentRevision }) => ({
+      coverage: judged.coverage,
+      currentRevision,
+    })),
+  )
+  if (canonicalText(actual) !== canonicalText(expected.preparations)) return unavailable()
   return succeed(actual)
 }

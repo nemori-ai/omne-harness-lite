@@ -5,6 +5,7 @@ import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-id
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeScopeRef,
+  type ContextBlockKey,
   type ContextReader,
   type ReaderEligibilityHandoff,
   type ReaderOperations,
@@ -68,12 +69,37 @@ async function selected<V extends Basis>(
     : fail('read: the basis names another session')
 }
 
-export async function readPublishedView<V extends Basis>(
+export function readPublishedView<V extends Basis>(
   ports: PublishedViewPorts,
   input: SessionAccess<unknown>,
   binding: PublishedViewBinding<V>,
 ): Promise<PublishedViewRead<V>> {
   const access = { ...input }
+  return withCoordinatorReader(ports, access, reader => selected(reader, access, binding))
+}
+
+/** The value of one need of the current context scope of a session, read as the coordinator. */
+export function readCoordinatorNeed(
+  ports: PublishedViewPorts,
+  input: SessionAccess<unknown>,
+  asked: Readonly<{ key: ContextBlockKey; need: string }>,
+): Promise<PublishedViewRead<unknown>> {
+  return withCoordinatorReader(ports, { ...input }, async reader => {
+    const result = await reader.read([asked])
+    if (result.kind === 'missing')
+      return fail(`read: missing (${result.items.map(item => item.cause).join(', ')})`)
+    if (result.kind !== 'success') return fail(`read: ${result.kind}`)
+    const item = result.value.length === 1 ? result.value[0]! : undefined
+    if (item === undefined || item.need !== asked.need) return fail('read: not the one asked need')
+    return item.kind === 'value' ? succeed(item.value) : fail(`read: ${item.kind}`)
+  })
+}
+
+async function withCoordinatorReader<T>(
+  ports: PublishedViewPorts,
+  access: SessionAccess<unknown>,
+  read: (reader: ContextReader) => Promise<PublishedViewRead<T>>,
+): Promise<PublishedViewRead<T>> {
   try {
     const scope = await currentScope(ports, access)
     if ('failure' in scope) return scope
@@ -94,7 +120,7 @@ export async function readPublishedView<V extends Basis>(
     try {
       if (bound.reader.consumer !== 'coordinator' || bound.reader.scope.ref !== scope.ok.ref)
         return fail('bind: another consumer or scope')
-      return await selected(bound.reader, access, binding)
+      return await read(bound.reader)
     } finally {
       await bound.reader.end()
     }

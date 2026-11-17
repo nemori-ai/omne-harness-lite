@@ -36,6 +36,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'standingDestinationResolver',
       'currentToolPermission',
       'tenantSettings',
+      'loopExtensionSources',
     ],
     injects: [
       'storage',
@@ -328,6 +329,15 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'modelPreparationResources',
       'modelRequestPreparation',
     ],
+  },
+  'loop-extension': {
+    provides: [
+      'loopExtensionViews',
+      'loopExtensionBuiltins',
+      'loopExtensionRunLocations',
+      'agentExtensions',
+    ],
+    injects: [],
   },
   'agent-account-outlet': {
     provides: ['agentAccountOutlet'],

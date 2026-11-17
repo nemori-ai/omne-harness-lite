@@ -271,6 +271,11 @@
       "config": {}
     },
     {
+      "id": "loop-extension",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "agent-account-outlet",
       "plugin": "stubPlugin",
       "config": {}

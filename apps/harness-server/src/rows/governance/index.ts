@@ -1,3 +1,4 @@
+import { isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { standingPrincipalRef } from '@omne-harness/identity'
@@ -35,6 +36,9 @@ import { openOrganizationSettingsSources } from './organization-settings.ts'
 import { permissionOriginsOf } from './permission-origins.ts'
 import { CurrentPermissionService, currentToolPermissionKey } from './current-permission-service.ts'
 import { provideTenantSettings, tenantSettingsKey } from './tenant-settings-service.ts'
+import { GovernanceExtensionSources } from './extension-sources.ts'
+import { tenantHoldingsHolder } from './tenant-holdings.ts'
+import { loopExtensionSourcesKey } from '@omne-harness/loop-extension-cordis-contract/cordis'
 import { isHitlReservation } from '../tool-hitl/host.ts'
 import { toolHitlHolder } from '../tool-hitl/holder.ts'
 
@@ -43,6 +47,11 @@ const configSchema = z.strictObject({
   logicalServiceId: GovernanceIdSchema,
   recoveryPagesPerPass: z.number().int().min(1),
   closeTimeoutMs: z.number().int().min(0).max(60_000),
+  /** Where the packages tenants publish are kept. Without it no package can be published to a tenant. */
+  assetPackagesRoot: z
+    .string()
+    .refine(value => isAbsolute(value))
+    .optional(),
 })
 
 class SessionBackend extends SessionPermissionBackendService {
@@ -89,6 +98,7 @@ export const governanceRow = defineRow({
       standingDestinationResolverKey,
       currentToolPermissionKey,
       tenantSettingsKey,
+      loopExtensionSourcesKey,
     ],
     injects: [
       storageKey,
@@ -155,6 +165,9 @@ export const governanceRow = defineRow({
           release,
           permissionOrigins: () => permissionOriginsOf(ctx),
           organizationTargets: sources.targets,
+          ...(config.assetPackagesRoot === undefined
+            ? {}
+            : { assetPackagesRoot: config.assetPackagesRoot }),
           scope,
           domain,
           materials,
@@ -186,6 +199,19 @@ export const governanceRow = defineRow({
       },
     })
     new StandingDestination(ctx, host)
+    const holdings = tenantHoldingsHolder(ctx)
+    holdings.of = tenantRef => host.holdings(tenantRef)
+    ctx.effect(
+      () => () => {
+        holdings.of = null
+      },
+      'governance.tenant-holdings.close',
+    )
+    new GovernanceExtensionSources(ctx, {
+      holdings: async tenantRef => holdings.of?.(tenantRef),
+      registry,
+      deploymentRef: config.deploymentId,
+    })
     new SessionBackend(ctx, host)
     new CurrentPermissionService(ctx, {
       identity: {

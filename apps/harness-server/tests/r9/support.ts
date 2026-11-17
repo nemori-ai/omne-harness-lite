@@ -359,7 +359,7 @@ export function operatorLayer(options: {
         id: 'storage',
         config: providerConfig(options.storageRoot, {
           closeDeadlineMs: deadline - 1000,
-          maxResponseBytes: 131_072,
+          maxResponseBytes: 262_144,
           maxJsonDepth: options.maxJsonDepth ?? releaseMaxJsonDepth(),
         }),
       },

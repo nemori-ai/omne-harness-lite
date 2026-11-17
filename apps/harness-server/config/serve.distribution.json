@@ -527,6 +527,11 @@
       "config": {}
     },
     {
+      "id": "loop-extension",
+      "plugin": "loopExtensionRow",
+      "config": {}
+    },
+    {
       "id": "agent-account-outlet",
       "plugin": "agentAccountOutletRow",
       "config": {

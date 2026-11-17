@@ -93,20 +93,15 @@ function originalGuard<P>(
   const preparations = material.value.entries.find(
     entry => entry.key === 'contextPreparations',
   )?.value
-  if (!same(preparations, jsonOf([canonicalText(candidate.preparation)]))) return invalid()
-  const registered = original.registrations.find(item =>
-    same(item.decision, candidate.preparation.decision),
-  )
-  if (
-    registered === undefined ||
-    !same(
-      registered.prepared,
-      candidate.outcome.consequence?.kind === 'context-registration'
-        ? candidate.outcome.consequence.prepared
-        : null,
+  if (!same(preparations, jsonOf(candidate.preparations.map(canonicalText)))) return invalid()
+  for (const [index, preparation] of candidate.preparations.entries()) {
+    const consequence = candidate.outcomes[index]?.consequence
+    const registered = original.registrations.find(item =>
+      same(item.decision, preparation.decision),
     )
-  )
-    return invalid()
+    const prepared = consequence?.kind === 'context-registration' ? consequence.prepared : null
+    if (registered === undefined || !same(registered.prepared, prepared)) return invalid()
+  }
   const outcomes = []
   for (const result of command.input.creation.initialization?.results ?? []) {
     const found = original.results.find(

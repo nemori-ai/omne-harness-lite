@@ -278,15 +278,21 @@ export const agentHostPlugin: AgentHostPlugin = createAgentHostPlugin(
 export type AgentHostLocalPluginInput = Readonly<{
   measure?: AgentMeasure
   toolRequests?: AgentDependencies<unknown, ContentBlock>['toolRequests']
+  /** The tenant source of enabled loop extensions. Without it an extension chain has no tenant members. */
+  enabledExtensions?: AgentDependencies<unknown, ContentBlock>['enabledExtensions']
   lostContact?: LostContact
 }>
 
 export function createAgentHostLocalPlugin(input: AgentHostLocalPluginInput = {}): AgentHostPlugin {
-  const { measure, toolRequests, lostContact } = input
+  const { measure, toolRequests, enabledExtensions, lostContact } = input
+  const supplied = {
+    ...(toolRequests === undefined ? {} : { toolRequests }),
+    ...(enabledExtensions === undefined ? {} : { enabledExtensions }),
+  }
   return createAgentHostPlugin(
     (dependencies, options, extras) =>
       createAgentRuntime(
-        toolRequests === undefined ? dependencies : { ...dependencies, toolRequests },
+        { ...dependencies, ...supplied },
         options,
         measure === undefined ? extras : { ...extras, measure },
       ),

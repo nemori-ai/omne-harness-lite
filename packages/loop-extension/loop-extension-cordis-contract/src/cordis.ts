@@ -3,6 +3,7 @@ import type {
   BuiltinExtensions,
   EnabledExtensionsViews,
   ExtensionSources,
+  RunLocations,
 } from '@omne-harness/loop-extension-contract'
 
 /**
@@ -58,10 +59,26 @@ export abstract class ExtensionSourcesService<P> extends Service implements Exte
 
 export const loopExtensionSourcesKey = ExtensionSourcesService.provide
 
+/**
+ * The port of the run locations, as a service. This group declares it; the assembly provides it.
+ *
+ * @owner packages/loop-extension/loop-extension-cordis-contract
+ */
+export abstract class RunLocationsService<P> extends Service implements RunLocations<P> {
+  static readonly provide = 'loopExtensionRunLocations'
+  constructor(ctx: Context) {
+    super(ctx, RunLocationsService.provide)
+  }
+  abstract of(...args: Parameters<RunLocations<P>['of']>): ReturnType<RunLocations<P>['of']>
+}
+
+export const loopExtensionRunLocationsKey = RunLocationsService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     loopExtensionViews: EnabledExtensionsViewsService<unknown>
     loopExtensionBuiltins: BuiltinExtensionsService
     loopExtensionSources: ExtensionSourcesService<unknown>
+    loopExtensionRunLocations: RunLocationsService<unknown>
   }
 }

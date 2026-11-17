@@ -5,14 +5,23 @@ import {
   prepareContextRegistration,
   sessionModesDescriptor,
   sessionModesProducer,
-  sessionModesBindings,
 } from '@omne-harness/session-adapters/cordis'
 import { createRuntimeContextAuthority } from '../../entry/runtime-context-trust.ts'
 import {
-  modesPreparationRecord,
+  INITIAL_BLOCKS,
+  modesPreparationRecords,
   type ModesCreation,
 } from '../../assembly/session-modes-initialization.ts'
 import { Service, type Context } from '@deepseek-ai/cordis'
+import {
+  ENABLED_EXTENSIONS_BLOCK,
+  enabledExtensionsDescriptor,
+  enabledExtensionsProducer,
+} from '@omne-harness/loop-extension-contract'
+import { loopExtensionViewsKey } from '@omne-harness/loop-extension-cordis-contract/cordis'
+import { createEnabledExtensionsPublisher } from '@omne-harness/loop-extension-host-local'
+import { succeed, type Outcome } from '@omne-harness/operation-result'
+import { runtimeContextKey } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   createSessionModesPlugin,
@@ -40,7 +49,7 @@ declare module '@deepseek-ai/cordis' {
 
 export class SessionModesInstallation extends Service {
   readonly recoverSession: Sources['recoverSession']
-  readonly prepareInitial: (input: ModesCreation) => ReturnType<typeof prepareContextRegistration>
+  readonly prepareInitial: (input: ModesCreation) => Promise<InitialPreparations>
   readonly ensure: (tenant: TenantId) => Promise<{ kind: 'ready' | 'unavailable' }>
   readonly refresh: (tenant: TenantId, session: SessionId) => ReturnType<Producer['refresh']>
 
@@ -48,9 +57,11 @@ export class SessionModesInstallation extends Service {
     super(ctx, sessionModesInstallationKey)
     const producers = new Map<string, Promise<Producer | undefined>>()
     let active = true
-    ctx.effect(() => () => {
+    const closing: (() => Promise<void>)[] = []
+    ctx.effect(() => async () => {
       active = false
       producers.clear()
+      await Promise.all(closing.splice(0).map(close => close()))
     })
     const mount = async (tenant: TenantId): Promise<Producer | undefined> => {
       const principal = sources.principals.forTenant(tenant)
@@ -62,12 +73,20 @@ export class SessionModesInstallation extends Service {
         defaultModes: sources.defaultModes,
       })
       const fiber = ctx.plugin(plugin)
+      const extensions = enabledExtensionsPublisherOf(ctx, tenant, principal)
       try {
         await fiber
-        if (active) return plugin
+        const registered = await extensions.start()
+        if (registered.kind !== 'registered')
+          throw new Error(`extension producer registration answered ${registered.kind}`)
+        if (active) {
+          closing.push(() => extensions.close())
+          return plugin
+        }
       } catch {
-        ctx.logger('session-ad03-modes').warn('tenant mode producer could not start')
+        ctx.logger('session-ad03-modes').warn('tenant context producers could not start')
       }
+      await extensions.close()
       await fiber.dispose()
       return undefined
     }
@@ -119,10 +138,40 @@ export class SessionModesInstallation extends Service {
   }
 }
 
+// The view is asked for on each read: while the loop-extension services are away the block reads as missing.
+function enabledExtensionsPublisherOf(ctx: Context, tenant: TenantId, principal: unknown) {
+  return createEnabledExtensionsPublisher<unknown>({
+    tenant,
+    principal,
+    runtime: {
+      registerProducer: (caller, registration) => {
+        const runtime = ctx.get(runtimeContextKey)
+        return runtime === undefined
+          ? Promise.resolve({ kind: 'rejected' as const, reason: 'closed' as const })
+          : runtime.registerProducer(caller, registration)
+      },
+    },
+    views: {
+      read: async access =>
+        (await ctx.get(loopExtensionViewsKey)?.read(access)) ?? {
+          kind: 'unavailable',
+          diagnostic: 'the loop extension views are away',
+        },
+    },
+  })
+}
+
+type Prepared = Awaited<ReturnType<typeof prepareContextRegistration>>
+type InitialPreparations = Outcome<
+  readonly Extract<Prepared, { ok: unknown }>['ok'][],
+  PreparationFailure
+>
+type PreparationFailure = Extract<Prepared, { failure: unknown }>['failure']
+
 async function prepareInitial(
   input: ModesCreation,
   sources: Sources,
-): ReturnType<typeof prepareContextRegistration> {
+): Promise<InitialPreparations> {
   const unavailable = () => ({
     failure: {
       kind: 'unavailable' as const,
@@ -132,8 +181,10 @@ async function prepareInitial(
   })
   const principal = sources.principals.forTenant(input.tenant)
   if (principal === undefined) return unavailable()
-  const record = modesPreparationRecord(input)
-  const scope = decodeScopeRef({ ref: record.decision.scope })
+  const records = modesPreparationRecords(input)
+  const [first] = records
+  if (first === undefined) return succeed([])
+  const scope = decodeScopeRef({ ref: first.decision.scope })
   if ('failure' in scope) return unavailable()
   const authority = createRuntimeContextAuthority({ verifier: sources.verifier })
   const temporary = createRuntimeContext({
@@ -163,23 +214,39 @@ async function prepareInitial(
       scoped: true,
       supply: async () => ({ kind: 'none' }),
     })
-    if (registered.kind !== 'registered') return unavailable()
-    return await prepareContextRegistration(
-      temporary,
-      input.principal,
-      {
-        kind: 'add',
-        tenant: input.tenant,
-        scope: scope.ok,
-        key: 'session.modes',
-        creating: true,
-        required: true,
-        basedOn: 0,
-        bindings: sessionModesBindings,
-        parameters: undefined,
-      },
-      { commit: record.decision.commit },
-    )
+    const extensions = await temporary.registerProducer(principal, {
+      tenant: input.tenant,
+      key: ENABLED_EXTENSIONS_BLOCK,
+      producer: enabledExtensionsProducer,
+      declaration: enabledExtensionsDescriptor,
+      scoped: false,
+      supply: async () => ({ kind: 'unavailable' }),
+    })
+    if (registered.kind !== 'registered' || extensions.kind !== 'registered') return unavailable()
+    const prepared = []
+    for (const [index, record] of records.entries()) {
+      const block = INITIAL_BLOCKS[index]
+      if (block === undefined) return unavailable()
+      const one = await prepareContextRegistration(
+        temporary,
+        input.principal,
+        {
+          kind: 'add',
+          tenant: input.tenant,
+          scope: scope.ok,
+          key: block.key,
+          creating: true,
+          required: true,
+          basedOn: record.decision.basedOn,
+          bindings: block.bindings,
+          parameters: undefined,
+        },
+        { commit: record.decision.commit },
+      )
+      if ('failure' in one) return one
+      prepared.push(one.ok)
+    }
+    return succeed(prepared)
   } finally {
     await temporary.close()
   }

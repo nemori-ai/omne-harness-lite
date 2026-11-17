@@ -1,5 +1,9 @@
 import type { ActingForTenantPrincipal, PrincipalVerifier } from '@omne-harness/identity'
 import { tenantEquals } from '@omne-harness/legal-identity'
+import {
+  ENABLED_EXTENSIONS_BLOCK,
+  enabledExtensionsProducer,
+} from '@omne-harness/loop-extension-contract'
 import type { AuthorityDecision, ProducerAction } from '@omne-harness/runtime-context-contract'
 import { sessionModesProducer } from '@omne-harness/session-adapters/cordis'
 import type { SessionWorkPrincipals } from '@omne-harness/session-contract'
@@ -39,6 +43,12 @@ async function supplyPrincipal(
   return { kind: 'authorized', principal, current: () => true }
 }
 
+// The blocks this installation produces for a tenant, each with its one producer.
+const PRODUCERS: ReadonlyMap<string, string> = new Map([
+  ['session.modes', sessionModesProducer.producer],
+  [ENABLED_EXTENSIONS_BLOCK, enabledExtensionsProducer.producer],
+])
+
 export async function decideSessionModesProducer(
   sources: SessionModesAuthoritySources,
   principal: ActingForTenantPrincipal,
@@ -49,8 +59,7 @@ export async function decideSessionModesProducer(
     principal.work.owner !== SESSION_MODES_WORK.owner ||
     principal.work.work !== SESSION_MODES_WORK.work ||
     !tenantEquals(principal.tenant, action.tenant) ||
-    action.key !== 'session.modes' ||
-    action.producer.producer !== sessionModesProducer.producer
+    PRODUCERS.get(action.key) !== action.producer.producer
   )
     return { kind: 'refused' }
   if (action.kind === 'register' || action.kind === 'invalidate-tenant')

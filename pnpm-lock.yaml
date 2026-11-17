@@ -602,6 +602,18 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../packages/common/legal-identity
+      '@omne-harness/loop-extension':
+        specifier: workspace:*
+        version: link:../../packages/loop-extension/loop-extension
+      '@omne-harness/loop-extension-contract':
+        specifier: workspace:*
+        version: link:../../packages/loop-extension/loop-extension-contract
+      '@omne-harness/loop-extension-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/loop-extension/loop-extension-cordis-contract
+      '@omne-harness/loop-extension-host-local':
+        specifier: workspace:*
+        version: link:../../packages/loop-extension/loop-extension-host-local
       '@omne-harness/model':
         specifier: workspace:*
         version: link:../../packages/model/model
@@ -2939,6 +2951,9 @@ importers:
       '@omne-harness/execution-environment-contract':
         specifier: workspace:*
         version: link:../../execution/execution-environment-contract
+      '@omne-harness/execution-environment-cordis-contract':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-cordis-contract
       '@omne-harness/kernel-basis':
         specifier: workspace:*
         version: link:../../assembly/kernel-basis
@@ -2964,9 +2979,6 @@ importers:
       '@omne-harness/assets-local':
         specifier: workspace:*
         version: link:../../assets/assets-local
-      '@omne-harness/execution-environment-cordis-contract':
-        specifier: workspace:*
-        version: link:../../execution/execution-environment-cordis-contract
       '@omne-harness/execution-environment-host-local':
         specifier: workspace:*
         version: link:../../execution/execution-environment-host-local

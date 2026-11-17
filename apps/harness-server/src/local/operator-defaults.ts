@@ -490,6 +490,18 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       },
     ],
     ['execution-host', { filesRoot: settings.workspace, stateDirectory: locations.hostFilesDir }],
+    ['governance', { assetPackagesRoot: path.join(locations.storageRoot, 'asset-packages') }],
+    [
+      'loop-extension',
+      {
+        commands: {
+          interpreters: { node: process.execPath },
+          env: shellEnvironment(platform, settings.shellEnvironment, locations.hostFilesDir),
+          stateDirectory: path.join(locations.storageRoot, 'loop-extension-calls'),
+          workspace: settings.workspace,
+        },
+      },
+    ],
     [
       'request-context',
       { limits: { maxTargets: 64, maxFactsPerTarget: 64, maxRevisionsPerDispatch: 16 } },
