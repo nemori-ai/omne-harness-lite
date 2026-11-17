@@ -198,7 +198,6 @@ export function readLoginState(text: string): LoginState | undefined {
   return LOGIN_STATES.find(item => item === state)
 }
 
-/** The protocols the host forwards, or null when the host does not say (a host older than this page). */
 export function readHostProtocols(text: string): readonly ProtocolKey[] | null {
   const list = member(read(text), 'protocols')
   if (list?.kind !== 'array') return null
@@ -208,7 +207,6 @@ export function readHostProtocols(text: string): readonly ProtocolKey[] | null {
   })
 }
 
-/** The page's protocols that the host does not forward; all of them when the host does not say. */
 export function missingAtHost(
   page: readonly ProtocolKey[],
   host: readonly ProtocolKey[] | null,

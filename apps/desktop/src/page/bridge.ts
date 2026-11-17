@@ -26,7 +26,6 @@ import {
 import { sseData } from './sse.ts'
 
 export type PageBridge = HostBridge & {
-  /** The protocols the host said it forwards in its latest login state; null when it did not say. */
   hostProtocols(): readonly ProtocolKey[] | null
   close(): void
 }

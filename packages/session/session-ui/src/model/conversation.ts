@@ -15,7 +15,6 @@ export type Part =
       raw: string | null
       state: 'complete' | 'incomplete' | 'unparsed' | 'generating'
       result: ToolResultView | null
-      /** The call has no result and its round is over. */
       ended: boolean
     }>
   | Readonly<{ kind: 'tool-result'; key: string; callId: string; result: ToolResultView }>
@@ -282,7 +281,6 @@ export function conversationItems(content: Content, runActive: boolean): readonl
   return items.map(item => endCalls(item, walk.endedCalls, runActive))
 }
 
-/** Marks calls that have no result while their round is over; the same for every tool. */
 function endCalls(item: Item, ended: ReadonlySet<string>, runActive: boolean): Item {
   if (item.kind !== 'message' && item.kind !== 'note') return item
   let changed = false

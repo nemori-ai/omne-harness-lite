@@ -779,6 +779,8 @@ describe('一组的作答', () => {
     expect(
       step(state, { kind: 'submit-group', group: SESSION, planned: PLAN.slice(0, 2) }).state,
     ).toBe(state)
+    const extra = [...PLAN, { key: 'x', replyId: 'r-x' }]
+    expect(step(state, { kind: 'submit-group', group: SESSION, planned: extra }).state).toBe(state)
     const repeated = PLAN.map(item => ({ ...item, replyId: 'same' }))
     expect(step(state, { kind: 'submit-group', group: SESSION, planned: repeated }).state).toBe(
       state,
@@ -853,7 +855,10 @@ describe('一组的作答', () => {
   })
 
   it('G16 提交中重读：只留排着队的卡；不在这次提交里的卡不在列表里了就去掉', () => {
-    const elsewhere = { ...questionItem('card-z'), origin: { kind: 'tool' as const, sessionRef: 'ses_other' } }
+    const elsewhere = {
+      ...questionItem('card-z'),
+      origin: { kind: 'tool' as const, sessionRef: 'ses_other' },
+    }
     const running = step(drafted([A, B, C, elsewhere]), {
       kind: 'submit-group',
       group: SESSION,
@@ -882,8 +887,12 @@ describe('一组的作答', () => {
 
   it('G18 每种拒绝与每种关掉的原因各有自己的一句', () => {
     const texts = (['invalid', 'limited', 'protocol-rejected', 'basis-unavailable'] as const).map(
-      outcome => (submitOf(answered(submitted(), { outcome } as ReplyAnswer).state) as { notice: { text: string } })
-        .notice.text,
+      outcome =>
+        (
+          submitOf(answered(submitted(), { outcome } as ReplyAnswer).state) as {
+            notice: { text: string }
+          }
+        ).notice.text,
     )
     expect(texts).toEqual([
       '服务端认为这份答复不合这张卡的规定，这一题没有记上。',
@@ -893,8 +902,10 @@ describe('一组的作答', () => {
     ])
     const reasons = ['cancelled', 'archived', 'origin-terminal', 'continuity-lost'].map(
       reason =>
-        answered(submitted(), { outcome: 'succeeded', body: { kind: 'invalidated', reason } } as ReplyAnswer)
-          .state.closed[0]?.notice.text,
+        answered(submitted(), {
+          outcome: 'succeeded',
+          body: { kind: 'invalidated', reason },
+        } as ReplyAnswer).state.closed[0]?.notice.text,
     )
     expect(reasons).toEqual([
       '这次提问已经关掉：那一轮被取消了。',

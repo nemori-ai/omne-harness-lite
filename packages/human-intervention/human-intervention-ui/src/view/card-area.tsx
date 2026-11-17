@@ -39,7 +39,6 @@ function answerText(card: Shown): string {
   return text.length > SHORT ? `${text.slice(0, SHORT)}…` : text
 }
 
-/** What the number strip says about one card. */
 export function markOf(card: Shown): Readonly<{ state: string; text: string }> {
   if (card.kind === 'closed') return { state: 'closed', text: '被关掉' }
   const submit = card.entry.submit
@@ -59,7 +58,6 @@ const switchesCards = (event: KeyboardEvent<HTMLElement>): boolean => {
   )
 }
 
-/** One group of cards: one card at a time, a number strip, and one submit for all of them. */
 export function CardArea({ driver, state, group }: Props): JSX.Element | null {
   const [viewing, setViewing] = useState<string | null>(null)
   const sheet = sheetOf(state, group)

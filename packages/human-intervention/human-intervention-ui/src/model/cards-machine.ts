@@ -49,10 +49,8 @@ export type Planned = Readonly<{ key: string; replyId: string }>
 
 export type Queued = Readonly<{ key: string; sent: Sent }>
 
-/** One submission of a group, each card's body fixed when the person pressed submit; the first is in flight. */
 export type Batch = Readonly<{ queue: readonly Queued[] }>
 
-/** A card that left the pending list without this person's reply being taken. */
 export type Closed = Readonly<{
   key: string
   item: HumanInterventionCardItem
@@ -124,7 +122,6 @@ export const INITIAL: State = {
 export const keyOf = (ref: CardRef): string =>
   JSON.stringify([ref.request.tenantRef, ref.request.requestId, ref.cardId])
 
-/** Cards from one session form one group; cards without a session form the group ''. */
 export const groupOf = (item: HumanInterventionCardItem): string => item.origin.sessionRef ?? ''
 
 export function replyOf(draft: Draft | undefined): Reply | null {
@@ -153,7 +150,6 @@ function sendableOf(state: State, group: string): readonly Sendable[] {
     .map(entry => ({ entry, reply: replyOf(state.drafts[entry.key]) }))
 }
 
-/** What one group shows and whether its one submit can be pressed. */
 export function sheetOf(state: State, group: string): Sheet {
   const sendable = sendableOf(state, group)
   const missing = sendable.filter(item => item.reply === null).map(item => item.entry.key)
@@ -167,11 +163,8 @@ export function sheetOf(state: State, group: string): Sheet {
   }
 }
 
-/** The cards one submit of the group would send, in the order shown. */
 export function submittable(state: State, group: string): readonly string[] {
-  return sheetOf(state, group).ready
-    ? sendableOf(state, group).map(item => item.entry.key)
-    : []
+  return sheetOf(state, group).ready ? sendableOf(state, group).map(item => item.entry.key) : []
 }
 
 const same = (state: State): Step => ({ state, effects: [] })
@@ -313,7 +306,6 @@ function withoutBatch(state: State, group: string): State {
   return { ...state, batches: rest }
 }
 
-/** Sends the first card of the queue and keeps the queue as the group's batch; an empty queue ends it. */
 function proceed(state: State, group: string, queue: readonly Queued[]): Step {
   const [head] = queue
   if (head === undefined) return same(withoutBatch(state, group))
@@ -348,7 +340,6 @@ function submitGroup(state: State, group: string, plan: readonly Planned[]): Ste
   return proceed(state, group, queue)
 }
 
-/** Moves the group's batch on once the card in flight has an outcome. */
 function advance(step: Step, group: string, key: string): Step {
   const queue = step.state.batches[group]?.queue
   if (queue === undefined || queue[0]?.key !== key) return step
@@ -385,7 +376,6 @@ function settled(state: State, entry: Entry, closedBy: Notice | null): Step {
 
 type Succeeded = Extract<ReplyAnswer, { outcome: 'succeeded' }>['body']
 
-/** Why a card left the pending list without this reply; null when this reply was taken. */
 function closedBy(result: Succeeded): Notice | null {
   if (result.kind === 'decided') return null
   if (result.kind === 'already-decided') return ALREADY_DECIDED
@@ -492,8 +482,7 @@ const HANDLERS: Handlers = {
   'list-answered': (state, event) => listAnswered(state, event.token, event.answer),
   draft: (state, event) => draft(state, event.key, event.draft),
   'submit-group': (state, event) => submitGroup(state, event.group, event.planned),
-  'reply-answered': (state, event) =>
-    replyAnswered(state, event.key, event.replyId, event.answer),
+  'reply-answered': (state, event) => replyAnswered(state, event.key, event.replyId, event.answer),
   confirm: (state, event) => confirm(state, event.key),
   dismiss: (state, event) => dismiss(state, event.key),
   watch: state => (state.live.kind === 'off' ? observe(state, 0) : same(state)),

@@ -69,7 +69,6 @@ function groupTitle(group: string): string {
   return `会话 ${group.length > SHOWN_SESSION ? `${group.slice(0, SHOWN_SESSION)}…` : group}`
 }
 
-/** Groups in the order their first card appears; cards keep the server's order. */
 function groupsOf(state: State): string[] {
   const order = [...state.entries.map(entry => entry.item), ...state.closed.map(c => c.item)]
   return [...new Set(order.map(groupOf))]

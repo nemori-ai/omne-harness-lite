@@ -5,7 +5,6 @@ import type { CardsDriver } from '../model/cards-driver.ts'
 import type { Closed, Draft, Entry } from '../model/cards-machine.ts'
 import { NoticeLine } from './notice.tsx'
 
-/** One card as a group shows it: still waiting for an answer, or closed with a reason. */
 export type Shown =
   | Readonly<{ kind: 'pending'; key: string; entry: Entry; draft: Draft }>
   | Readonly<{ kind: 'closed'; key: string; closed: Closed }>

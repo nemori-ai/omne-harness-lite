@@ -31,7 +31,6 @@ export type LoginSessionOptions = {
 
 export interface LoginSession extends LoginStateSource {
   readonly transport: Transport
-  /** The protocols this host forwards; the page compares them with its own to tell a stale host. */
   readonly protocols: readonly ProtocolKey[]
   login(credentials: LoginCredentials): Promise<LoginResult>
   logout(): Promise<LogoutResult>

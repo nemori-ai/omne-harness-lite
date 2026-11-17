@@ -80,7 +80,6 @@ export class CardsDriver {
     this.dispatch({ kind: 'draft', key, draft })
   }
 
-  /** Sends every card of the group once, one after another, each with a new reply identity. */
   submitGroup(group: string): void {
     const keys = submittable(this.#state, group)
     if (keys.length === 0) return

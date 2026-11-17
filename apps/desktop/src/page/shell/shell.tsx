@@ -31,7 +31,6 @@ export type ShellProps = Readonly<{
   state: ShellState
   connectivity: ConnectivitySource
   theme: ThemeSwitch
-  /** Protocols this page uses that the page host does not forward, as `name/vN`. */
   missingAtHost?: readonly string[]
 }>
 
