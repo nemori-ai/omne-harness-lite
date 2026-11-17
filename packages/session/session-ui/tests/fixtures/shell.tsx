@@ -5,6 +5,7 @@ import type { ClientOf } from '@omne-harness/sdk/core'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
 import {
   createSlotStore,
+  type AttachedLayout,
   type ItemOf,
   type ScopeSource,
   type ShellLogin,
@@ -51,12 +52,41 @@ export class TestShell extends ShellService implements ShellSlots {
       ))
   }
 
+  arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode {
+    return <Arranged shell={this} anchor={anchor} subject={subject} layout={layout} />
+  }
+
   protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
     return this.store.place(slot, item)
   }
 }
 
-function useSlot<K extends 'sidebar' | 'pages'>(shell: TestShell, slot: K): readonly ItemOf<K>[] {
+function Arranged({
+  shell,
+  anchor,
+  subject,
+  layout,
+}: {
+  readonly shell: TestShell
+  readonly anchor: string
+  readonly subject: string
+  readonly layout: AttachedLayout
+}) {
+  const items = useSlot(shell, 'attached').filter(item => item.anchor === anchor)
+  return (
+    <>
+      {layout(
+        items.map(item => ({
+          id: item.id,
+          label: item.label,
+          node: item.render({ scope: shell.scope.get(), subject }),
+        })),
+      )}
+    </>
+  )
+}
+
+function useSlot<K extends SlotName>(shell: TestShell, slot: K): readonly ItemOf<K>[] {
   const [items, setItems] = useState(() => shell.items(slot))
   useEffect(() => {
     setItems(shell.items(slot))

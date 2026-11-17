@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   observe,
+  passRounds,
   startAccessFixture,
   type AccessFixture,
   type AccessFixtureOptions,
@@ -28,7 +29,7 @@ describe('the login check of a running observation, through the entry', () => {
       const client = observe(fixture.port, 'watch-note')
       const feed = await fixture.notes.opened(1)
       fixture.accessIdentity.identifyLogin = { kind }
-      await client.ended
+      await passRounds(fixture, client.ended)
       expect(client.events()).toEqual([{ kind: 'ended', reason: 'unavailable' }])
       await feed.returned
       expect(feed.context.signal.aborted).toBe(true)
@@ -41,7 +42,7 @@ describe('the login check of a running observation, through the entry', () => {
     const client = observe(fixture.port, 'watch-note')
     const feed = await fixture.notes.opened(1)
     const opening = fixture.accessIdentity.calls.length
-    await fixture.accessIdentity.returned('identifyLogin', opening + ROUNDS)
+    await passRounds(fixture, fixture.accessIdentity.returned('identifyLogin', opening + ROUNDS))
     expect(client.events()).toEqual([])
     expect(feed.context.signal.aborted).toBe(false)
 
@@ -51,7 +52,7 @@ describe('the login check of a running observation, through the entry', () => {
     expect(feed.context.signal.aborted).toBe(false)
 
     fixture.accessIdentity.identifyLogin = { kind: 'answer', value: { outcome: 'denied' } }
-    await client.ended
+    await passRounds(fixture, client.ended)
     feed.push({ ...NOTE, title: 'third note' })
     await feed.returned
     expect(client.events()).toEqual([
