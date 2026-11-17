@@ -47,7 +47,7 @@ function forwardTermination(): void {
   for (const signal of ['SIGINT', 'SIGTERM'] as const)
     process.on(signal, () => {
       for (const child of children) child.kill(signal)
-      process.exitCode = 130
+      process.exit(130)
     })
 }
 
