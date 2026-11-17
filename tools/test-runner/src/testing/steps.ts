@@ -613,7 +613,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
     console.log(
       `跑 ${toRun.length} 个成员的 \`${script}\`${script === 'test' ? `（${TIER_NAMES[tier]}）` : ''}：` +
         (script === 'test'
-          ? `每一批当一件活去要令牌（共 ${tokens.capacity} 个）：上一次合计超过 ${config.parallel.batchSeconds} 秒的成员按文件耗时切成几批，没有读数的批先要，其余预计长的先要；`
+          ? `每一批当一件活去要令牌（共 ${tokens.capacity} 个）：上一次合计超过目标时长的成员按文件耗时切成几批（目标时长至少 ${config.parallel.batchSeconds} 秒，启动开销长的成员放大到启动只占一批的 ${Math.round(config.parallel.startupShare * 100)}%），没有读数的批先要，其余预计长的先要；`
           : `每个成员当一件活去要令牌（共 ${tokens.capacity} 个），上一次用时长的先要；`) +
         '拿到的令牌按这个成员一个进程实测用几个核折成进程数（没有读数时取 test-runs.config.json 的 parallel.tokensPerWorker，再没有按 1）',
     )
