@@ -25,6 +25,9 @@ export function decode<T>(schema: z.ZodType<T>, value: unknown): T {
   if (!withinBudget(raw)) throw new TypeError('Assets record exceeds budget')
   return schema.parse(raw)
 }
+export function foreign(current: ReturnType<typeof readDomain>, domain: DomainRef): boolean {
+  return scopeRef(domain) === null || (current !== null && !equal(current.domain, domain))
+}
 export function belongs(port: ReadPort, domain: DomainRef): boolean {
   const record = readDomain(port)
   return record !== null && equal(record.domain, domain) && scopeRef(domain) !== null
@@ -76,12 +79,13 @@ export function readHolding(port: ReadPort, domain: DomainRef, holdingRef: strin
     [canonical(domain), holdingRef],
   ).rows[0]
   if (!row) return null
-  const holding = decode(holdingSchema, row[0])
-  if (
-    !equal(holding.domain, domain) ||
-    holding.holdingRef !== holdingRef ||
-    holding.scopeRef !== scopeRef(domain)
-  )
+  const holding = boundHolding(row[0], domain)
+  if (holding.holdingRef !== holdingRef) throw new TypeError('Misbound holding record')
+  return holding
+}
+export function boundHolding(record: unknown, domain: DomainRef): Holding {
+  const holding = decode(holdingSchema, record)
+  if (!equal(holding.domain, domain) || holding.scopeRef !== scopeRef(domain))
     throw new TypeError('Misbound holding record')
   return holding
 }

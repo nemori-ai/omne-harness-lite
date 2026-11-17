@@ -575,6 +575,9 @@ importers:
       '@omne-harness/human-intervention-local':
         specifier: workspace:*
         version: link:../../packages/human-intervention/human-intervention-local
+      '@omne-harness/human-intervention-tool':
+        specifier: workspace:*
+        version: link:../../packages/human-intervention/human-intervention-tool
       '@omne-harness/identity':
         specifier: workspace:*
         version: link:../../packages/identity/identity
@@ -2487,6 +2490,34 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  packages/human-intervention/human-intervention-tool:
+    dependencies:
+      '@omne-harness/human-intervention':
+        specifier: workspace:*
+        version: link:../human-intervention
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/schema-provider':
+        specifier: workspace:*
+        version: link:../../schema/schema-provider
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
+    devDependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/human-intervention/human-intervention-ui:
     dependencies:
       '@omne-harness/client-assembly':
@@ -4379,6 +4410,9 @@ importers:
       '@omne-harness/execution-environment-contract':
         specifier: workspace:*
         version: link:../../execution/execution-environment-contract
+      '@omne-harness/human-intervention-tool':
+        specifier: workspace:*
+        version: link:../../human-intervention/human-intervention-tool
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
