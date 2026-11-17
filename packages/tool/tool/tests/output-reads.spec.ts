@@ -132,6 +132,30 @@ describe('reading the output body (design table: read the output body)', () => {
     expect(await read(f, '6')).toMatchObject({ ok: { kind: 'sealed', text: 'world' } })
   })
 
+  it('settling links the sealed output body with an expiry, so it is kept and later reclaimed', async () => {
+    const f = await writtenFixture(['hello'], true)
+    ok(await f.preserve())
+    const records = await f.records()
+    const output = records.flatMap(record =>
+      record.kind === 'body-entry' && record.body.key === OUTPUT_BODY_KEY ? [record.body] : [],
+    )
+    expect(output).toHaveLength(1)
+    expect(output[0]?.state.kind).toBe('linked')
+  })
+
+  it('a call whose large result went to a system body still has no output body', async () => {
+    const f = await settlementFixture({
+      value: {
+        content: [text('answer', 'x'.repeat(300_000))],
+        data: { kind: 'none' },
+        original: { kind: 'none' },
+        attachments: [],
+      },
+    })
+    ok(await f.preserve())
+    expect(await read(f, null)).toEqual({ ok: { kind: 'none' } })
+  })
+
   it('an output body left open is gone after the call settles', async () => {
     const f = await writtenFixture(['hello'], false)
     ok(await f.preserve())
@@ -161,6 +185,16 @@ describe('reading the output body (design table: read the output body)', () => {
   it('a malformed position or budget is refused', async () => {
     const f = await writtenFixture(['hello'], false)
     expect(await read(f, '-1')).toMatchObject({ failure: { kind: 'invalid', field: 'after' } })
+    const odd = (after: unknown, maxBytes: unknown) =>
+      f.ledger.reads.output({
+        ...f.access,
+        admission: f.before.admission,
+        after,
+        maxBytes,
+      } as never)
+    expect(await odd(5, 64)).toMatchObject({ failure: { kind: 'invalid', field: 'after' } })
+    expect(await odd(null, '64')).toMatchObject({ failure: { kind: 'invalid', field: 'maxBytes' } })
+    expect(await odd(null, 1.5)).toMatchObject({ failure: { kind: 'invalid', field: 'maxBytes' } })
     expect(await read(f, null, 0)).toMatchObject({
       failure: { kind: 'invalid', field: 'maxBytes' },
     })
