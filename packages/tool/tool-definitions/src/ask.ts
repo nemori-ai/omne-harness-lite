@@ -1,3 +1,4 @@
+import { hitlDecisionWait } from '@omne-harness/human-intervention-tool'
 import type { JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
@@ -9,7 +10,6 @@ import {
   askState,
   askStateAdoption,
   askStateSchema,
-  askWaitContract,
   type AskArguments,
   type AskCommandEntry,
 } from './ask-protocol.ts'
@@ -61,7 +61,7 @@ export const askExecutor: CheckpointedToolExecutor<AskArguments, string, null> =
       wait: {
         kind: 'ask',
         key: args.command,
-        contract: askWaitContract,
+        contract: hitlDecisionWait,
         request: tree({ questions: cards.ok }),
       },
     })
@@ -107,7 +107,7 @@ export function createAskAuthor(
       author: {
         kind: 'ordinary',
         parameters: command.codec,
-        waits: [askWaitContract],
+        waits: [hitlDecisionWait],
         executor: askExecutor,
         codec: {
           adoption: askAdoption,

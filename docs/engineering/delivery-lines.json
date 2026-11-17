@@ -39,7 +39,8 @@
         "packages/tool/tool-cordis-contract",
         "packages/tool/tool-protocol",
         "packages/execution/execution-environment-contract",
-        "packages/execution/execution-environment-cordis-contract"
+        "packages/execution/execution-environment-cordis-contract",
+        "packages/human-intervention/human-intervention-tool"
       ]
     },
     {
