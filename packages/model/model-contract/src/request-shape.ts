@@ -57,7 +57,7 @@ function sequence<T>(
   }
   return succeed(result)
 }
-function adoption(value: unknown, field: string): Checked<Adoption> {
+export function adoption(value: unknown, field: string): Checked<Adoption> {
   const record = closed(value, ['owner', 'name', 'revision', 'digest'], field)
   if ('failure' in record) return record
   const owner = text(record.ok.owner, `${field}/owner`)
@@ -166,7 +166,7 @@ function parameterValue(record: Record<string, unknown>, field: string): Checked
       return rejected(`${field}/kind`, 'value')
   }
 }
-function parameter(value: unknown, field: string): Checked<Parameter> {
+export function parameter(value: unknown, field: string): Checked<Parameter> {
   if (!isRecord(value)) return rejected(field, 'type')
   const record = closed(
     value,
@@ -208,7 +208,7 @@ function parameterAdoption(value: unknown, field: string): Checked<ParameterAdop
         origin: { kind: 'explicit', source: source.ok, requested: requested.ok },
       })
 }
-function tool(value: unknown, field: string): Checked<ToolDeclaration> {
+export function tool(value: unknown, field: string): Checked<ToolDeclaration> {
   const record = closed(value, ['name', 'description', 'argumentsSchema'], field)
   if ('failure' in record) return record
   const name = text(record.ok.name, `${field}/name`)

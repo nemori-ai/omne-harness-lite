@@ -396,6 +396,8 @@ async function assembled(options: { mount?: readonly ('rc' | 'session')[] } = {}
         return succeed(page(key, kinds, offset))
       },
       since: async () => fail({ kind: 'unavailable', owner: 'session', diagnostic: 'not used' }),
+      readCompactionContext: async () =>
+        fail({ kind: 'unavailable', owner: 'session', diagnostic: 'not used' }),
       readModelView: async () =>
         fail({ kind: 'unavailable', owner: 'session', diagnostic: 'not used' }),
     }

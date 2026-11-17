@@ -26,6 +26,35 @@ function unbox<T>(reply: { ok: T } | { failure: unknown }): T {
 const seen = (w: ReturnType<typeof world>, text: string) =>
   w.warnings.filter(warning => warning.includes(text)).length
 
+it.each(['confirmed', 'unknown'] as const)(
+  'cleans an independently acknowledged result while no push receiver is registered (%s)',
+  async response => {
+    const w = world({ share: 1 })
+    await w.services()
+    const fiber = w.load()
+    await fiber
+    try {
+      await w.admit('polled')
+      await until(
+        () => w.record('polled')?.result !== null && w.record('polled')?.result !== undefined,
+        'the settled result awaiting a push receiver',
+      )
+      expect(await w.tryAdmit('next')).toMatchObject({ failure: { dependency: 'model-capacity' } })
+      if (response === 'unknown') w.hooks.handoff = () => 'lost'
+      const acknowledged = await w.acknowledgeDirectly('polled')
+      if (response === 'confirmed') unbox(acknowledged)
+      else expect(acknowledged).toMatchObject({ failure: { kind: 'commit-unknown' } })
+      await until(
+        () => w.record('polled')?.cleanup === 'released',
+        'cleanup after direct acknowledgement',
+      )
+      expect(await w.tryAdmit('next')).toHaveProperty('ok')
+    } finally {
+      await fiber.dispose()
+    }
+  },
+)
+
 it('pushes a settled result once its recovery can be read again, and gives the share back', async () => {
   const { w, scripted } = await started({ share: 1 })
   const load = { readable: false }

@@ -83,9 +83,10 @@ const runCause = {
     object({ kind: { rule: literal('request-rejected') } }),
     object({
       kind: { rule: literal('cannot-fit') },
-      reason: { rule: withUnknown(literal('fixed', 'after-compaction')) },
+      reason: { rule: withUnknown(literal('fixed', 'protected-floor', 'after-compaction')) },
     }),
     object({ kind: { rule: literal('compaction-invalid') } }),
+    object({ kind: { rule: literal('compaction-failed') } }),
     object({ kind: { rule: literal('message-rejected') } }),
     object({ kind: { rule: literal('extension-stop') } }),
     object({ kind: { rule: literal('guard') } }),

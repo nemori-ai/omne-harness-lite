@@ -101,6 +101,7 @@ export async function toolAssembly(
   configuration: Parameters<typeof controlAssembly>[2] = {},
   journal: Parameters<typeof controlAssembly>[0] = {},
   requests: Partial<ToolRequests> | null = {},
+  wrap: Parameters<typeof controlAssembly>[1] = dependencies => dependencies,
 ) {
   const source: ToolRequests = {
     async describe() {
@@ -113,7 +114,8 @@ export async function toolAssembly(
   }
   const assembly = await controlAssembly(
     journal,
-    dependencies => (requests === null ? dependencies : { ...dependencies, toolRequests: source }),
+    dependencies =>
+      wrap(requests === null ? dependencies : { ...dependencies, toolRequests: source }),
     configuration,
   )
   assembly.controls.tools.queries.contact.always(() => ({ ok: { kind: 'holding' } }))

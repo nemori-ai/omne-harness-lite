@@ -155,7 +155,11 @@
 - `encodeModelOutputV1` · `model-output-v1.d.ts`
 - `faultIsTransient` · `result.d.ts`
 - `judgeModelDelivery` · `result-delivery-judge.d.ts`
+- `judgeModelParameters` · `profile-codec.d.ts`
+- `judgeToolDeclarations` · `profile-codec.d.ts`
+- `profileResolutionValue` · `profile-codec.d.ts`
 - `projectModelOutputV1` · `model-output-v1.d.ts`
+- `readProfileResolution` · `profile-codec.d.ts`
 - `resolveModelInvocationRef` · `reference.d.ts`
 
 ## 入口 `./conformance` · `conformance/index.d.ts`
@@ -1286,6 +1290,7 @@ export { MODEL_IDENTITY_MAX_LENGTH, MODEL_IDENTITY_PREFIXES, compareOutputCursor
 export { deriveGuardControlOperation } from './guard-control.ts';
 export type { ModelInvocationParts, ModelInvocationRef, ModelReferenceFailure, ModelReferenceRejection, } from './reference.ts';
 export { MODEL_REFERENCE_MAX_LENGTH, encodeModelInvocationRef, decodeModelInvocationRef, resolveModelInvocationRef, } from './reference.ts';
+export { profileResolutionValue, readProfileResolution, judgeModelParameters, judgeToolDeclarations, } from './profile-codec.ts';
 ```
 
 ## 声明文件 `input-tree.d.ts`
@@ -1511,6 +1516,19 @@ export interface ModelStreamReferences<P> {
         reference: ModelInvocationRef;
     }>): Reply<ModelStreamSelection>;
 }
+```
+
+## 声明文件 `profile-codec.d.ts`
+
+```ts
+import { type Outcome } from '@omne-harness/operation-result';
+import type { ProfileResolution } from './profile.ts';
+import type { Parameter, ToolDeclaration } from './root.ts';
+import type { ModelInputRejection } from './judge-request.ts';
+export declare function profileResolutionValue(value: ProfileResolution): Outcome<unknown, ModelInputRejection>;
+export declare function readProfileResolution(value: unknown): Outcome<ProfileResolution, ModelInputRejection>;
+export declare function judgeModelParameters(value: unknown): Outcome<readonly Parameter[], ModelInputRejection>;
+export declare function judgeToolDeclarations(value: unknown): Outcome<readonly ToolDeclaration[], ModelInputRejection>;
 ```
 
 ## 声明文件 `profile-source.d.ts`
@@ -2390,10 +2408,13 @@ export declare function requestHead(request: FixedModelRequest): FixedRequestHea
 
 ```ts
 import { type Outcome } from '@omne-harness/operation-result';
-import type { ConsumerRef, FixedModelRequest } from './root.ts';
+import type { Adoption, ConsumerRef, FixedModelRequest, Parameter, ToolDeclaration } from './root.ts';
 import type { ModelInputRejection } from './judge-request.ts';
 type Checked<T> = Outcome<T, ModelInputRejection>;
 export declare function closed(value: unknown, keys: readonly string[], field: string, optional?: readonly string[]): Checked<Record<string, unknown>>;
+export declare function adoption(value: unknown, field: string): Checked<Adoption>;
+export declare function parameter(value: unknown, field: string): Checked<Parameter>;
+export declare function tool(value: unknown, field: string): Checked<ToolDeclaration>;
 export declare function requestShape(value: unknown, field: string): Checked<FixedModelRequest>;
 export declare function consumerShape(value: unknown): Checked<ConsumerRef>;
 export {};

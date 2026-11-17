@@ -656,8 +656,11 @@ export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {})
     readonly check = (request: SessionAccessRequest<unknown>): Promise<SessionAccessDecision> =>
       Promise.resolve({ kind: 'allowed', evidence: evidence(`access/${request.operation}`) })
   }
-  const admitted: Readonly<Record<'readWork' | 'readModelSelection', readonly string[]>> = {
+  const admitted: Readonly<
+    Record<'readWork' | 'readCurrentScope' | 'readModelSelection', readonly string[]>
+  > = {
     readWork: ['coordinator', 'maintainer'],
+    readCurrentScope: ['coordinator', 'maintainer'],
     readModelSelection: ['intake', 'maintainer'],
   }
   const faceFor = (caller: unknown) => {
@@ -669,6 +672,7 @@ export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {})
           : read(input)
     return {
       readWork: gate('readWork', s.port.readWork),
+      readCurrentScope: gate('readCurrentScope', s.port.readCurrentScope),
       readModelSelection: gate('readModelSelection', s.port.readModelSelection),
     }
   }
@@ -699,6 +703,7 @@ export async function cordisScene(s: SqlScene, options: CordisSceneOptions = {})
       super(scope, sessionTransactionsKey)
     }
     readonly readWork = port.readWork
+    readonly readCurrentScope = port.readCurrentScope
     readonly commitEntries = port.commitEntries
     readonly commitLog = commitLog
   }

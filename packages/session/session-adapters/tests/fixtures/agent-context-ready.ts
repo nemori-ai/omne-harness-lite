@@ -75,9 +75,7 @@ export async function agentContextReady(tenant: TenantId): Promise<AgentContextR
   const f = createAssemblyFixture({
     tenant,
     policies: {
-      compaction: createDefaultCompactionPolicy({
-        config: { retainBudget: { kind: 'tokens', retainTokens: '600' } },
-      }),
+      compaction: createDefaultCompactionPolicy(),
       representation: createDefaultRepresentationPolicy(),
     },
   })
@@ -174,7 +172,7 @@ export async function agentContextReady(tenant: TenantId): Promise<AgentContextR
     },
   }
 
-  const materials = createContextMaterials<string>({ owner, capacity: 8 })
+  const materials = createContextMaterials({ owner, capacity: 8 })
   const requests = createAgentRequests<string>({
     materials,
     parts,
@@ -186,7 +184,22 @@ export async function agentContextReady(tenant: TenantId): Promise<AgentContextR
     conversions: createAbsentConversionResults<string>(),
     model,
     tools: toolsSourceOf(absentToolLookup),
-    stepResults: async () => ({ kind: 'unavailable', diagnostic: 'none' }),
+    compactionInputs: {
+      freeze: async () => ({
+        failure: {
+          kind: 'unavailable',
+          owner: 'fixture',
+          diagnostic: 'compaction is not available in this ready-request fixture',
+        },
+      }),
+      read: async () => ({
+        failure: {
+          kind: 'unavailable',
+          owner: 'fixture',
+          diagnostic: 'no frozen compaction inputs',
+        },
+      }),
+    },
   })
   const reader = createAgentModelContext<string>({
     materials,

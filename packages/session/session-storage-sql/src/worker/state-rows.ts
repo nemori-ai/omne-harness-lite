@@ -1,5 +1,9 @@
 // Equal head text must mean equal chunk rows: a write of chunk rows outside this module must write a new head.
-import type { WorkSnapshot } from '@omne-harness/session-contract'
+import type {
+  CompactionCommitState,
+  RunExecution,
+  WorkSnapshot,
+} from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { decodeValue, encodeValue, sha256 } from '../codec.ts'
 import { packText } from '@omne-harness/sql-contract/worker'
@@ -115,6 +119,112 @@ export function readMember(
   )
   if (row === undefined) throw new Error(`the member ${member} without its row`)
   return JSON.parse(packed(row['value'])) as JsonValue
+}
+
+export type CompactionStoredState = Readonly<{
+  head: string
+  state: CompactionCommitState
+  execution: Readonly<{ seq: bigint; values: readonly RunExecution[] }> | null
+}>
+
+export function readCompactionState(
+  port: Executor,
+  tenant: string,
+  session: string,
+  tail: bigint,
+): CompactionStoredState | 'behind' {
+  const row = oneRow(
+    port,
+    'SELECT snapshot, covered FROM sl_state WHERE tenant = ? AND session = ? LIMIT 1',
+    [tenant, session],
+  )
+  if (row === undefined || row['snapshot'] === null || big(row['covered']) !== tail) return 'behind'
+  const head = text(row['snapshot'])
+  const fields = [
+    'tenant',
+    'session',
+    'lifecycle',
+    'run',
+    'revision',
+    'source',
+    'interpreter',
+  ] as const
+  const values: Record<string, JsonValue> = {}
+  for (const name of fields) {
+    const value = readMember(port, tenant, session, head, name)
+    if (value === undefined) throw new Error(`missing compaction state member ${name}`)
+    values[name] = value
+  }
+  const state = decodeValue(values) as CompactionCommitState
+  if (state.run.kind !== 'active') return { head, state, execution: null }
+  const last = oneRow(
+    port,
+    'SELECT seq, value FROM sl_state_item WHERE tenant = ? AND session = ? AND path = ? ORDER BY seq DESC LIMIT 1',
+    [tenant, session, 'executions'],
+  )
+  if (last === undefined) throw new Error('the active Run has no execution state')
+  const executions = decodeValue(
+    JSON.parse(packed(last['value'])) as JsonValue,
+  ) as readonly RunExecution[]
+  if (!Array.isArray(executions) || executions.length === 0)
+    throw new Error('the last execution state chunk is empty')
+  return { head, state, execution: { seq: big(last['seq']), values: executions } }
+}
+
+export function writeCompactionState(
+  port: Executor,
+  key: Readonly<{ tenant: string; session: string; covered: bigint }>,
+  previous: CompactionStoredState,
+  next: Readonly<{ state: CompactionCommitState; execution: RunExecution }>,
+): void {
+  const { tenant, session, covered } = key
+  if (previous.execution === null) throw new Error('compaction has no current execution')
+  const head = JSON.parse(previous.head) as Record<string, JsonValue>
+  const changed: unknown[] = []
+  for (const name of ['run', 'revision', 'source'] as const) {
+    const value = encodeValue(next.state[name])
+    const wasRow = (head[name] as Record<string, JsonValue> | null)?.[MEMBER_ROW] === true
+    const textValue = JSON.stringify(value)
+    const isRow = typeof value === 'object' && value !== null && textValue.length > MEMBER_BYTES
+    if (wasRow && !isRow)
+      port.execute(
+        'DELETE FROM sl_state_item WHERE tenant = ? AND session = ? AND path = ? AND seq = 0',
+        [tenant, session, `=${name}`],
+      )
+    if (isRow)
+      port.execute(
+        'INSERT OR REPLACE INTO sl_state_item (tenant, session, path, seq, value) VALUES (?, ?, ?, 0, ?)',
+        [tenant, session, `=${name}`, packText(textValue)],
+      )
+    head[name] = isRow ? { [MEMBER_ROW]: true } : value
+    changed.push([name, value])
+  }
+  const executions = [...previous.execution.values.slice(0, -1), next.execution]
+  const parts = pack(textsOf(executions), 0, executions.length)
+  port.execute(
+    'DELETE FROM sl_state_item WHERE tenant = ? AND session = ? AND path = ? AND seq = ?',
+    [tenant, session, 'executions', previous.execution.seq],
+  )
+  for (const [index, part] of parts.entries())
+    port.execute(
+      'INSERT INTO sl_state_item (tenant, session, path, seq, value) VALUES (?, ?, ?, ?, ?)',
+      [
+        tenant,
+        session,
+        'executions',
+        previous.execution.seq + BigInt(index * STEP),
+        packText(part.text),
+      ],
+    )
+  head[TOKEN] = sha256(
+    JSON.stringify([head[TOKEN], changed, previous.execution.seq.toString(), parts]),
+  )
+  port.execute('UPDATE sl_state SET snapshot = ?, covered = ? WHERE tenant = ? AND session = ?', [
+    JSON.stringify(head),
+    covered,
+    tenant,
+    session,
+  ])
 }
 
 export function assemble(

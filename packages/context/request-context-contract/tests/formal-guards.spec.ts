@@ -7,15 +7,11 @@ import {
   assemble,
   basis,
   budget,
-  deriveStep,
   epoch,
-  evidence,
   fixture,
   message,
-  planCompaction,
   rowWith,
   target,
-  text,
   upper,
   type Ports,
   type Snapshot,
@@ -209,7 +205,7 @@ describe('CF: capacity outcomes are closed and visible', () => {
     ({
       supplier: adoption,
       metric,
-      subject: 'whole',
+      subject: 'request',
       measurement:
         estimate === null
           ? { kind: 'exact', amount, method: adoption }
@@ -259,12 +255,8 @@ describe('CF: capacity outcomes are closed and visible', () => {
         },
         limits: [],
         policy: {
-          retainBudget: { kind: 'tokens', retainTokens: '1' },
-          retainPreference: 'newest-first',
           triggerPercent: null,
           headroomTokens: null,
-          trimFirst: false,
-          stepBound: '1',
         },
       })
       const trigger = Math.min(Math.floor((window * percent) / 100), window - output)
@@ -293,7 +285,7 @@ describe('CF: capacity outcomes are closed and visible', () => {
             ...c.input,
             previous: {
               candidate: c.input.identity.candidate,
-              enteredCompaction: 'plan_x' as never,
+              enteredCompaction: true,
             },
           }
         : c.input
@@ -317,7 +309,7 @@ describe('CF: capacity outcomes are closed and visible', () => {
 })
 
 describe('RA: every Model input takes the representation the profile fixes', () => {
-  it('assemble, planCompaction and deriveStep give rules.plan the profile representation', async () => {
+  it('assemble gives rules.plan the profile representation', async () => {
     const base = fixture().input.selection.profile
     for (let seed = 1; seed <= CASES / 4; seed++) {
       const g = generator(seed)
@@ -336,23 +328,8 @@ describe('RA: every Model input takes the representation the profile fixes', () 
         { profile },
       )
       expect((await assemble(over.input, over.ports, over.policies)).kind).toBe('needs-compaction')
-      const planned = await planCompaction(over.input, over.ports, over.policies)
-      expect(planned.kind, `seed ${seed}`).toBe('planned')
-      if (planned.kind !== 'planned') continue
-      const step = {
-        plan: planned.plan,
-        progress: planned.progress,
-        material: planned.first.material,
-        step: {
-          kind: 'summary' as const,
-          index: '0',
-          produced: [text('s')] as const,
-          consumed: evidence,
-        },
-      }
-      await deriveStep(over.input, step, over.ports, over.policies)
       const seen = [...fits.seen, ...over.seen]
-      expect(seen.length).toBeGreaterThanOrEqual(4)
+      expect(seen.length).toBeGreaterThanOrEqual(2)
       for (const assembled of seen)
         expect(assembled.representation, `seed ${seed}`).toEqual(representation)
     }

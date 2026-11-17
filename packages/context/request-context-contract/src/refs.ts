@@ -7,7 +7,6 @@ declare const brand: unique symbol
 export type RequestContextRef<K extends string> = string & { readonly [brand]: K }
 export type CandidateRef = RequestContextRef<'CandidateRef'>
 export type PositionRef = RequestContextRef<'PositionRef'>
-export type PlanId = RequestContextRef<'PlanId'>
 export type EpochId = RequestContextRef<'EpochId'>
 export type BatchRef = RequestContextRef<'BatchRef'>
 export type PassageRef = RequestContextRef<'PassageRef'>
@@ -23,7 +22,6 @@ export type ContextTarget = Readonly<{ tenant: TenantId; scope: ScopeRef }>
 export type RefKind =
   | 'CandidateRef'
   | 'PositionRef'
-  | 'PlanId'
   | 'EpochId'
   | 'BatchRef'
   | 'PassageRef'
@@ -60,7 +58,6 @@ function decode<K extends RefKind>(
 }
 export const decodeCandidateRef = (v: unknown) => decode(v, 'CandidateRef')
 export const decodePositionRef = (v: unknown) => decode(v, 'PositionRef')
-export const decodePlanId = (v: unknown) => decode(v, 'PlanId')
 export const decodeEpochId = (v: unknown) => decode(v, 'EpochId')
 export const decodeBatchRef = (v: unknown) => decode(v, 'BatchRef')
 export const decodePassageRef = (v: unknown) => decode(v, 'PassageRef')

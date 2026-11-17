@@ -30,6 +30,7 @@ import { deferred, executor } from './fixtures/process.ts'
 
 const entry = () => ({
   binding: options().binding,
+  compactionProvider: options().configuration.compactionProvider,
   access: alice,
   execution: execution(),
   operation: operation('invoke-exec-1'),

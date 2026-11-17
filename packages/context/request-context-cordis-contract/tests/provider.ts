@@ -255,8 +255,6 @@ export class ProbeProvider extends RequestContextService<unknown> {
     }
     return {
       assemble: call => run(o => o.assemble(call)),
-      planCompaction: call => run(o => o.planCompaction(call)),
-      deriveStep: input => run(o => o.deriveStep(input)),
       resume: call => run(o => o.resume(call)),
     }
   }

@@ -98,7 +98,7 @@ describe('the configuration schema', () => {
     expect(refused({ accounting, selection })).toMatch(/selection\.representation names no known/u)
   })
   it('refuses parameters that do not fit the schema instead of correcting them', () => {
-    const config: CompactionPolicy = { ...DEFAULT_COMPACTION_POLICY, stepBound: '0' }
+    const config: CompactionPolicy = { ...DEFAULT_COMPACTION_POLICY, triggerPercent: '101' }
     const selection = { ...initial, compaction: { implementation: 'default', config } }
     expect(refused({ accounting, selection })).toMatch(/selection\.compaction\.config/u)
     const preferences = { ...DEFAULT_REPRESENTATION_CONFIG.preferences, text: ['guess'] }
@@ -166,12 +166,12 @@ describe('loading with a configuration', () => {
       owner,
       sources: f.sources,
     })
-    const planned = await service.assembly(f.target).planCompaction(f.call)
-    if (planned.kind !== 'planned') throw new Error(`Expected a plan, got ${planned.kind}`)
-    expect(planned.plan.bound).toBe(DEFAULT_COMPACTION_POLICY.stepBound)
+    expect((await service.assembly(f.target).assemble(f.call)).kind).toBe(
+      'candidate-before-extension',
+    )
   })
   it('runs the strategy parameters of the selection', async () => {
-    const config: CompactionPolicy = { ...DEFAULT_COMPACTION_POLICY, stepBound: '7' }
+    const config: CompactionPolicy = { ...DEFAULT_COMPACTION_POLICY, triggerPercent: '0' }
     const selection = { ...initial, compaction: { implementation: 'default', config } }
     const { ctx } = await load({ accounting, selection })
     const service = ctx.get(requestContextKey)
@@ -182,8 +182,9 @@ describe('loading with a configuration', () => {
       owner,
       sources: f.sources,
     })
-    const planned = await service.assembly(f.target).planCompaction(f.call)
-    if (planned.kind !== 'planned') throw new Error(`Expected a plan, got ${planned.kind}`)
-    expect(planned.plan.bound).toBe('7')
+    expect(await service.assembly(f.target).assemble(f.call)).toMatchObject({
+      kind: 'needs-compaction',
+      goals: [{ metric: 'input-tokens', relation: 'at-most', limit: '0' }],
+    })
   })
 })

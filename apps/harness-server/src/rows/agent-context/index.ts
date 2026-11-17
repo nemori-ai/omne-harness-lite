@@ -1,5 +1,6 @@
 import {
   agentAdoptionsKey,
+  agentCompactionInputsKey,
   agentModelContextKey,
   agentRequestsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
@@ -63,6 +64,7 @@ export const agentContextRow = defineRow({
       modelRequestPreparationKey,
       MODEL_PREPARATION_RESOURCES,
       agentAdoptionsKey,
+      agentCompactionInputsKey,
     ],
     sameProviderGroup: null,
   },

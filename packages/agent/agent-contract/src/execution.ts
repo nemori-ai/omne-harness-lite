@@ -1,4 +1,5 @@
 import type { Message } from '@omne-harness/message'
+import type { CompactionTaskIdentity } from './compaction.ts'
 import type * as M from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import type * as T from '@omne-harness/tool-contract'
@@ -369,11 +370,16 @@ export type AgentAccessOperation =
   | 'exclude-message-handoff'
   | 'settle'
   | 'migrate-cancellation'
+  | 'compaction.admit'
+  | 'compaction.inspect'
+  | 'compaction.cancel'
+  | 'compaction.acknowledge'
 export type AgentAccessTarget =
   | Readonly<{ kind: 'scope'; scope: DurableEvidence; definition: Adoption }>
   | Readonly<{ kind: 'instance'; instance: AgentInstanceId }>
   | Readonly<{ kind: 'execution'; execution: AgentExecutionId }>
   | Readonly<{ kind: 'input-entry'; execution: AgentExecutionId; operation: AgentOperationId }>
+  | Readonly<{ kind: 'compaction'; task: CompactionTaskIdentity }>
 export type AgentAccessDecision =
   | Readonly<{ kind: 'allowed'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'denied' }>

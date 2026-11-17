@@ -4,8 +4,6 @@ export {
   standardSchema,
   compactionPolicySchema,
   representationPolicyConfigSchema,
-  planProgressSchema,
-  compactionPlanSchema,
   coverageSchema,
 } from './schema.js'
 export type { ToolCommandSelection, ToolRoute, ToolDeclarationSet } from './declare-tools.js'
@@ -13,7 +11,7 @@ export { declareTools } from './declare-tools.js'
 export type { ConversionIndex, RepresentationResult } from './representation.js'
 export { chooseRepresentations } from './representation.js'
 export type { ProjectedMessage, ProjectedHistory, HumanProjection } from './projection.js'
-export { project, projectForHuman } from './projection.js'
+export { project, projectForHuman, projectMessageForModel } from './projection.js'
 export type { CompactionSettingsValue, WindowUsageValue } from './blocks.js'
 export {
   windowRatio,
@@ -33,7 +31,6 @@ export type {
   RequestContextRef,
   CandidateRef,
   PositionRef,
-  PlanId,
   EpochId,
   BatchRef,
   PassageRef,
@@ -53,7 +50,6 @@ export {
   REQUEST_CONTEXT_REF_MAX_LENGTH,
   decodeCandidateRef,
   decodePositionRef,
-  decodePlanId,
   decodeEpochId,
   decodeBatchRef,
   decodePassageRef,
@@ -119,13 +115,10 @@ export type {
   HistorySource,
   ConversionIndexResult,
   ConversionResultSource,
-  RetainBudget,
   CompactionPolicy,
-  CompactionPlanDraft,
   CompactionPolicyPort,
   RepresentationPolicyConfig,
   RepresentationPolicyPort,
-  RetentionMeasurement,
 } from './ports.js'
 export type { BudgetInput } from './budget.js'
 export { judgeBudget } from './budget.js'
@@ -147,7 +140,6 @@ export type {
   SourcedMessage,
   ContinuationBasis,
   AdoptedRequestFact,
-  CompactionBasis,
   HistoryEvidence,
   NewInputBatch,
   BlockMaterial,
@@ -177,22 +169,15 @@ export type {
   TailFacts,
   RequestLayers,
   RequestCandidate,
-  CompactionPlan,
-  PlanProgress,
-  SummaryMaterial,
-  StepRequest,
-  StepInput,
-  ContextTransition,
   AssemblyFailure,
   InvalidReason,
   UnavailableOwner,
   AssemblyUnknown,
   AssemblyOutcome,
   AssemblyResult,
-  PlanResult,
-  StepResult,
 } from './values.js'
 export { LAYER_ORDER, PREFIX_BREAK_REASONS, callIdentity } from './values.js'
-export type { DeriveInput } from './values.js'
 export type { FixedRequestRecord, FixedRequestRecordRejection } from './fixed-request.js'
 export { encodeFixedRequestRecord, decodeFixedRequestRecord, forecastOf } from './fixed-request.js'
+
+export { measureCandidate } from './measurement.js'

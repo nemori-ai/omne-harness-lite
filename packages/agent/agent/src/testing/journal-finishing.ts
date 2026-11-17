@@ -489,7 +489,7 @@ export function buildObligations(
     }
   }
   for (const responsibility of source.results) {
-    const key = `${responsibility.result.producer.kind}/${responsibility.result.producer.call}/${responsibility.result.version}/${responsibility.consumption}`
+    const key = `${canonical(responsibility.result.producer)}/${responsibility.result.version}/${responsibility.consumption}`
     const parameters = { result: responsibility.result, consumption: responsibility.consumption }
     items.push({
       kind: 'result',
