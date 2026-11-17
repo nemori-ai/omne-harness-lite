@@ -30,7 +30,7 @@ import type {
   RoutedInput,
   CommitReceipt,
 } from '@omne-harness/session-contract'
-import type { JointDecision, JournalWrite, MemoryExecution, JointFact } from './journal.ts'
+import type { JointDecision, JournalWrite, MemoryExecution } from './journal.ts'
 import { emptyReceivingState, type ReceivingState } from './journal-receiving.ts'
 import { copyFinishing } from './journal-finishing.ts'
 import { emptySessionView, type PublishedBatch, type SessionJournalView } from '../journal/index.ts'
@@ -80,7 +80,6 @@ export type CommonRoot = Readonly<{
     blobs: SharedMap<string, unknown>
     executions: SharedMap<string, MemoryExecution>
     operations: OperationTable
-    jointFacts: JointFact[]
     originals: SharedMap<string, readonly JournalOriginal[]>
     effectSteps: SharedMap<string, import('@omne-harness/agent-contract').StepId>
     modelSettlements: SharedMap<string, readonly import('./model-settlement.ts').ModelSettlement[]>
@@ -198,7 +197,6 @@ function emptyCommonRoot(): CommonRoot {
       blobs: new SharedMap(),
       executions: new SharedMap(),
       operations: new OperationTable(),
-      jointFacts: [],
       originals: new SharedMap(),
       originalByOperation: new SharedMap(),
       effectSteps: new SharedMap(),

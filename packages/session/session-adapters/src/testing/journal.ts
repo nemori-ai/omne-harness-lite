@@ -224,12 +224,6 @@ export type ParticipantResponse =
   | 'conflict'
   | 'unsupported'
 
-export type JointFact = Readonly<{
-  execution: AgentExecutionId
-  operation: AgentOperationId
-  caller: Exclude<CallerCommit, { kind: 'none' }>
-}>
-
 type Qualification<P, X> = (input: Access<P> & X) => boolean
 
 export type JointDecision = Readonly<{ evidence: DurableEvidence; digest: string }>
@@ -323,8 +317,6 @@ export type MemoryAgentJournal<P> = Readonly<{
     outcome: 'applied' | 'dropped',
     tenant?: TenantId,
   ): boolean
-
-  joint(): readonly JointFact[]
 
   seedLegacyCandidate(
     execution: AgentExecutionId,
@@ -3642,13 +3634,6 @@ export function createJournal<P>(
               execution.admissionLedger = admitted.ledger
             }
             admissionStatistics.checkpointWrites += 1
-            if (caller.kind !== 'none') {
-              state().jointFacts.push({
-                execution: execution.id,
-                operation: input.operation,
-                caller: copy(caller),
-              })
-            }
             execution.revision = revision
             appendEvents(execution, input.events, evidence)
           },
@@ -4736,7 +4721,6 @@ export function createJournal<P>(
         return false
       })
     },
-    joint: () => copy(state().jointFacts),
     seedLegacyCandidate(id, candidate, tenant) {
       return cell.mutateExecution(id, () => {
         const matches = [...state().executions.values()].filter(
