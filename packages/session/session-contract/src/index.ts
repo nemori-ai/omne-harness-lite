@@ -189,7 +189,8 @@ export {
 } from './judgments.ts'
 export { decide, commandDigest } from './decide.ts'
 export { runCancelledBy } from './decision-support.ts'
-export { batchEvidence, reduce } from './reduce.ts'
+export { batchEvidence } from './batch-evidence.ts'
+export { reduce } from './reduce.ts'
 export {
   decideCompactionCommit,
   projectCompactionCommit,

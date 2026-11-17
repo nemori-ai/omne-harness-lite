@@ -53,7 +53,7 @@ import {
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { ModelRuntime } from '@omne-harness/model-contract'
+import type { HostStatics } from './host-statics.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolRuntime } from '@omne-harness/tool-contract'
 import { toolRuntimeKey } from '@omne-harness/tool-cordis-contract/cordis'
@@ -71,22 +71,7 @@ export type HostRuntimeExtras = Required<
   Pick<AgentRuntimeExtras, 'failed' | 'endedFailed' | 'waiting' | 'modelRetrying'>
 >
 
-export type HostStatics = Readonly<{
-  journal: AgentJournal<unknown>
-  entries: AgentDependencies<unknown, ContentBlock>['entries']
-  access: AgentDependencies<unknown, ContentBlock>['access']
-  models: ModelRuntime<unknown>
-  adoptions: AgentDependencies<unknown, ContentBlock>['adoptions']
-  conditions: AgentDependencies<unknown, ContentBlock>['conditions']
-  requests: AgentDependencies<unknown, ContentBlock>['requests']
-  compaction: AgentDependencies<unknown, ContentBlock>['compaction']
-  compactionInputs: AgentDependencies<unknown, ContentBlock>['compactionInputs']
-  received: AgentDependencies<unknown, ContentBlock>['received']
-  selection: AgentDependencies<unknown, ContentBlock>['selection']
-  modelContext: AgentDependencies<unknown, ContentBlock>['modelContext']
-  handoff: AgentDependencies<unknown, ContentBlock>['handoff']
-  clock: AgentDependencies<unknown, ContentBlock>['clock']
-}>
+export type { HostStatics } from './host-statics.ts'
 
 export type HostInput = Readonly<{
   ctx: Context

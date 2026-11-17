@@ -29,7 +29,6 @@ import type {
   ExecutionState,
   Failure,
   FinishResult,
-  HandoffCustody,
   HandoffReference,
   HandoffRequest,
   HandoffResolution,

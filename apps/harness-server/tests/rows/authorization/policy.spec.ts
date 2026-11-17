@@ -53,9 +53,9 @@ describe('sources', () => {
     }
   })
 
-  it('counts 61 allowing cells in the Session table and 18 in the Agent table', () => {
+  it('counts 61 allowing cells in the Session table and 19 in the Agent table', () => {
     expect(auditPolicy().session.allowedCells).toBe(61)
-    expect(auditPolicy().agent.allowedCells).toBe(18)
+    expect(auditPolicy().agent.allowedCells).toBe(19)
   })
 
   it('rejects an empty citation at construction', () => {

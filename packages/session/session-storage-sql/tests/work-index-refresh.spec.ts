@@ -5,11 +5,11 @@ import {
   ordinaryInput,
   sessionId,
 } from '@omne-harness/session-contract/testing'
-import type { DomainRef, ReceiptV2, SqlStorage } from '@omne-harness/sql-contract'
+import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
 import { describe, expect, it } from 'vitest'
 import { canonicalText, encodeValue } from '../src/codec.ts'
 import { createSessionStorage } from '../src/index.ts'
-import { afterSessionCommit } from '../src/participants.ts'
+import { refreshWorkIndex } from '../src/work-cache.ts'
 import { workFoldCounts, type WorkFoldCounts } from '../src/work-cache.ts'
 import { app, textOf, TENANT_A, type App } from './fixtures/app.ts'
 import {
@@ -96,17 +96,10 @@ function publishedOf(a: App): string {
 }
 
 const register = (storage: SqlStorage, published: string): Promise<void> =>
-  afterSessionCommit({
-    storage,
-    domain: DOMAIN,
-    tenant: textOf(TENANT_A),
-    session: SESSION,
-    answer: {
-      receipt: { kind: 'committed', responses: [] } as unknown as ReceiptV2,
-      recalled: false,
-    },
-    journal: { published },
-  })
+  refreshWorkIndex(
+    { storage, domain: DOMAIN, tenant: textOf(TENANT_A), session: SESSION },
+    published,
+  )
 
 async function scene() {
   const a = await app()
@@ -142,6 +135,17 @@ const membersOf = (snapshot: WorkSnapshot): readonly (string | undefined)[] | un
     ?.members.map(item => item.attempt)
 
 describe('the index of the held snapshot is replaced after a publication', () => {
+  it('a Journal publication refreshes nothing at landing: the next read replaces the index and reads no whole snapshot', async () => {
+    const { a, run, admit } = await scene()
+    await readWork(a.port, a)
+    await admit()
+    const from = a.provider.calls.length
+    const held = await readWork(a.port, a)
+    expect(readsOf(a, WHOLE, from)).toBe(0)
+    expect(membersOf(held)).toEqual([run.attempt])
+    sameAnswer(held, await wholeRead(a))
+  })
+
   it('replaces it: the next read reads no whole snapshot, and its answer is a whole read at the count', async () => {
     const { a, run, admit } = await scene()
     await readWork(a.port, a)

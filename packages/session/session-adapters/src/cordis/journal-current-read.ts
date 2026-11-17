@@ -8,7 +8,6 @@ import {
   EXECUTION_RECORD_HANDLERS,
 } from '@omne-harness/session-storage-sql/participants'
 import {
-  currentExecution,
   selectCurrentExecution,
   currentRows,
   executionFromRows,

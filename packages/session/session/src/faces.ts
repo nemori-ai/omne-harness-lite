@@ -68,6 +68,36 @@ function snapshotReads<P>(reads: Reads<P>, caller: SessionCallerClass) {
     readWork: (value: SessionAccess<P>) => readSnapshotOf(reads, caller, 'readWork', value),
     readWaiting: (value: SessionAccess<P>) => readWaitingOf(reads, caller, value),
     readBackgroundCalls: (value: SessionAccess<P>) => readBackgroundCallsOf(reads, caller, value),
+    readCurrentScope: (value: SessionAccess<P>) =>
+      reads.session(caller, 'readCurrentScope', value, view =>
+        view.readCurrentScope(accessOf(value)),
+      ),
+  }
+}
+
+// The history reads of the model view: the current window and the context a compaction is judged in.
+function modelViewReads<P>(
+  reads: Reads<P>,
+  caller: SessionCallerClass,
+): Pick<SessionFaces<P>['history'], 'readCompactionContext' | 'readModelView'> {
+  return {
+    readCompactionContext: value =>
+      reads.session(caller, 'history.readCompactionContext', value, view =>
+        view.history.readCompactionContext({
+          ...accessOf(value),
+          basis: value.basis,
+          coverTo: value.coverTo,
+        }),
+      ),
+    readModelView: value =>
+      reads.session(caller, 'history.readModelView', value, view =>
+        view.history.readModelView({
+          ...accessOf(value),
+          basis: value.basis,
+          after: value.after,
+          pageBytes: value.pageBytes,
+        }),
+      ),
   }
 }
 
@@ -96,10 +126,6 @@ export function createFaces<P>(
     listTodos: value => reads.session(caller, 'listTodos', value, view => listTodos(view, value)),
     accept: mutation('accept'),
     ...snapshotReads(reads, caller),
-    readCurrentScope: value =>
-      reads.session(caller, 'readCurrentScope', value, view =>
-        view.readCurrentScope(accessOf(value)),
-      ),
     readInput: value =>
       reads.session(caller, 'readInput', value, view =>
         view.readInput({ ...accessOf(value), input: value.input }),
@@ -206,23 +232,7 @@ export function createFaces<P>(
           }),
         ),
       ),
-    readCompactionContext: value =>
-      reads.session(caller, 'history.readCompactionContext', value, view =>
-        view.history.readCompactionContext({
-          ...accessOf(value),
-          basis: value.basis,
-          coverTo: value.coverTo,
-        }),
-      ),
-    readModelView: value =>
-      reads.session(caller, 'history.readModelView', value, view =>
-        view.history.readModelView({
-          ...accessOf(value),
-          basis: value.basis,
-          after: value.after,
-          pageBytes: value.pageBytes,
-        }),
-      ),
+    ...modelViewReads(reads, caller),
   }
 
   const directory: SessionDirectory<P> = {

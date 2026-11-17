@@ -20,20 +20,12 @@ import { advanceEntriesProgress, applyExtended } from './reduce-extended.ts'
 import { pruneBackgroundInputs } from './background-outcome.ts'
 import { hasUnansweredCalls, trackCalls } from './run-closure.ts'
 import { scopeBinding } from './decide-management.ts'
+import { batchEvidence } from './batch-evidence.ts'
 import { digestOf } from './operations.ts'
 import { applyParticipation } from './result-state.ts'
 import { initializationProjection, validateInitializationBatch } from './reduce-initialization.ts'
 import { sameInitializationValue } from './initialization-plan.ts'
 import { adoption, InitializationInvalid } from './initialization-parse.ts'
-
-export function batchEvidence(batch: CommittedBatch, session: string): DurableEvidence {
-  return {
-    owner: '@omne-harness/session-contract',
-    record: `${session}@${batch.revision}`,
-    revision: batch.revision,
-    digest: `sha256:${digestOf(batch.entries)}`,
-  }
-}
 
 const RUN_LAYER_KINDS: ReadonlySet<string> = new Set([
   'run.started',

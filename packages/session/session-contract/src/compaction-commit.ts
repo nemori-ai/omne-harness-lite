@@ -6,7 +6,7 @@ import { sameInitializationValue } from './initialization-plan.ts'
 import { judgeAdvance, type CommittedBatch, type DecideReads, type Decision } from './judgments.ts'
 import type { SessionCommand } from './ports.ts'
 import { applyParticipation } from './result-state.ts'
-import { batchEvidence } from './reduce.ts'
+import { batchEvidence } from './batch-evidence.ts'
 import {
   annotationTargets,
   evidenceFields,

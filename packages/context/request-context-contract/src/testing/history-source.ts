@@ -61,6 +61,40 @@ function callIds(message: Message | null, kinds: readonly string[]): string[] {
     kinds.includes(part.kind) && 'callId' in part ? [String(part.callId)] : [],
   )
 }
+/** The compaction context of an epoch's entries up to coverTo, read against the whole log. */
+function windowOf(
+  log: readonly CoveredEntry[],
+  open: CompactionContext['open'],
+  entries: readonly CoveredEntry[],
+  coverTo: RecordEntryRef,
+): CompactionContext | null {
+  const end = entries.findIndex(x => x.ref === coverTo)
+  const origin = log[0]?.ref
+  if (end < 0 || origin === undefined) return null
+  const record = [...entries].reverse().find(x => x.message?.role === 'compaction')
+  const positions = new Map(log.map((x, i) => [x.ref, i] as const))
+  const pairings = entries.flatMap(entry => {
+    if (entry.message?.role !== 'tool') return []
+    const callId = callIds(entry.message, ['tool_result'])[0]
+    const at = positions.get(entry.ref) ?? log.length
+    const call = log
+      .slice(0, at)
+      .reverse()
+      .find(x => callId !== undefined && callIds(x.message, ANSWERABLE).includes(callId))
+    return [{ result: entry.ref, call: call?.ref ?? null }]
+  })
+  return {
+    origin,
+    base:
+      record === undefined
+        ? { kind: 'initial', pairings }
+        : { kind: 'previous', record: record.ref, pairings },
+    covered: entries.slice(0, end + 1),
+    after: entries.slice(end + 1),
+    open,
+  }
+}
+
 export function createMemoryHistorySource<P>(fixture: HistoryFixture): MemoryHistorySource<P> {
   let active = 0,
     calls = 0
@@ -107,36 +141,6 @@ export function createMemoryHistorySource<P>(fixture: HistoryFixture): MemoryHis
     )
       return { kind: 'invalid', field: 'evidence.upper', reason: 'upper-out-of-range' }
     return null
-  }
-  function windowOf(
-    entries: readonly CoveredEntry[],
-    coverTo: RecordEntryRef,
-  ): CompactionContext | null {
-    const end = entries.findIndex(x => x.ref === coverTo)
-    const origin = log[0]?.ref
-    if (end < 0 || origin === undefined) return null
-    const record = [...entries].reverse().find(x => x.message?.role === 'compaction')
-    const positions = new Map(log.map((x, i) => [x.ref, i] as const))
-    const pairings = entries.flatMap(entry => {
-      if (entry.message?.role !== 'tool') return []
-      const callId = callIds(entry.message, ['tool_result'])[0]
-      const at = positions.get(entry.ref) ?? log.length
-      const call = log
-        .slice(0, at)
-        .reverse()
-        .find(x => callId !== undefined && callIds(x.message, ANSWERABLE).includes(callId))
-      return [{ result: entry.ref, call: call?.ref ?? null }]
-    })
-    return {
-      origin,
-      base:
-        record === undefined
-          ? { kind: 'initial', pairings }
-          : { kind: 'previous', record: record.ref, pairings },
-      covered: entries.slice(0, end + 1),
-      after: entries.slice(end + 1),
-      open: epochs[active]?.open ?? [],
-    }
   }
   return {
     durability: 'none',
@@ -244,8 +248,8 @@ export function createMemoryHistorySource<P>(fixture: HistoryFixture): MemoryHis
       if (epoch === undefined) return { kind: 'unavailable', diagnostic: 'No epoch' }
       const selected = new Set(epoch.entries.map(row => row.ref))
       const last = log.findLast(row => selected.has(row.ref))?.ref
-      const window =
-        coverTo === null && last === undefined ? null : windowOf(epoch.entries, coverTo ?? last!)
+      const end = coverTo ?? last
+      const window = end === undefined ? null : windowOf(log, epoch.open, epoch.entries, end)
       if (window === null) return { kind: 'invalid', field: 'coverTo', reason: 'unknown-epoch' }
       return { kind: 'context', evidence: e, value: window }
     },

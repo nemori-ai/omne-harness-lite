@@ -177,6 +177,16 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   modelRetrying: AgentModelRetryingReceiver | undefined
 }>
 
+/** The parts of a coordinator that every execution of this provider shares. */
+function coordinatorBase<P, B extends ContentBlock>(entry: ProviderEntry<P, B>) {
+  return {
+    ports: entry.dependencies,
+    binding: entry.binding,
+    jointCommits: entry.configuration.jointCommits,
+    compactionProvider: entry.configuration.compactionProvider,
+  }
+}
+
 export function createProvider<P, B extends ContentBlock>(
   entry: ProviderEntry<P, B>,
 ): AgentProvider<P> {
@@ -402,10 +412,7 @@ export function createProvider<P, B extends ContentBlock>(
     if (resolved.ok.extensions.length > 0)
       return fail(notImplemented('an adopted loop extension', 'stage 3'))
     return succeed({
-      ports: dependencies,
-      binding,
-      jointCommits: entry.configuration.jointCommits,
-      compactionProvider: entry.configuration.compactionProvider,
+      ...coordinatorBase(entry),
       evaluator: resolved.ok.evaluator,
       access,
       execution,
@@ -599,10 +606,7 @@ export function createProvider<P, B extends ContentBlock>(
     })
     if ('failure' in resolved) return resolved
     const coordinator = createExecutionCoordinator({
-      ports: dependencies,
-      binding,
-      jointCommits: entry.configuration.jointCommits,
-      compactionProvider: entry.configuration.compactionProvider,
+      ...coordinatorBase(entry),
       evaluator: resolved.ok.evaluator,
       access: { principal: input.principal, tenant: input.tenant },
       execution: input.execution,
