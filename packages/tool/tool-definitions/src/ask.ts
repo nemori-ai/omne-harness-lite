@@ -9,11 +9,11 @@ import {
   askState,
   askStateAdoption,
   askStateSchema,
-  askWaitContract,
   type AskArguments,
   type AskCommandEntry,
 } from './ask-protocol.ts'
 import {
+  decisionCardWaitContract,
   defineCommandTool,
   defineToolOperation,
   describedAdoption,
@@ -61,7 +61,7 @@ export const askExecutor: CheckpointedToolExecutor<AskArguments, string, null> =
       wait: {
         kind: 'ask',
         key: args.command,
-        contract: askWaitContract,
+        contract: decisionCardWaitContract,
         request: tree({ questions: cards.ok }),
       },
     })
@@ -107,7 +107,7 @@ export function createAskAuthor(
       author: {
         kind: 'ordinary',
         parameters: command.codec,
-        waits: [askWaitContract],
+        waits: [decisionCardWaitContract],
         executor: askExecutor,
         codec: {
           adoption: askAdoption,

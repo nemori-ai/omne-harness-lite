@@ -6,11 +6,11 @@ import {
   askCommands,
   askExecutor,
   askToolModule,
-  askWaitContract,
   type AskArguments,
   type AskCommand,
 } from '@omne-harness/tool-definitions'
 import type { ToolDecision } from '@omne-harness/tool-contract'
+import { decisionCardWaitContract } from '@omne-harness/tool-contract/provider'
 
 const context = {
   signal: new AbortController().signal,
@@ -81,7 +81,7 @@ describe('ask', () => {
   it('suspends with the whole batch, one question card per question in order', async () => {
     const { request, state, wait } = await suspended(parsed('ask', oneQuestion))
     expect(wait.kind).toBe('ask')
-    expect(wait.contract).toBe(askWaitContract)
+    expect(wait.contract).toBe(decisionCardWaitContract)
     expect(request).toEqual({
       questions: [
         {
@@ -257,7 +257,7 @@ describe('the result for a wait that a control closes', () => {
 describe('request_approval', () => {
   it('suspends with one approval card that has the two fixed options', async () => {
     const { request, state, wait } = await suspended(parsed('request_approval', approval))
-    expect(wait.contract).toBe(askWaitContract)
+    expect(wait.contract).toBe(decisionCardWaitContract)
     expect(request).toEqual({
       questions: [
         {
@@ -305,7 +305,7 @@ describe('request_approval', () => {
 
 describe('wait contract and checkpoint', () => {
   it('forbids expiry, and the cards of both commands pass the declared request schema', async () => {
-    expect(askWaitContract.expiry).toBe('forbidden')
+    expect(decisionCardWaitContract.expiry).toBe('forbidden')
     const provider = createSchemaProvider({
       maxSnapshots: 4,
       maxConstructDepth: 16,
@@ -318,14 +318,16 @@ describe('wait contract and checkpoint', () => {
       if (!('ok' in segment) || segment.ok.kind !== 'suspended') throw new Error('suspend')
       const { wait, state } = segment.ok
       const read = readJsonText(writeJsonText(wait.request), {
-        maxBytes: askWaitContract.request.maxBytes,
+        maxBytes: decisionCardWaitContract.request.maxBytes,
         maxDepth: 8,
         maxItems: 32_768,
         maxMembers: 16,
         maxStringLength: 8192,
         maxNumberLength: 32,
       })
-      expect((await validate(provider, askWaitContract.request.ref, read)).kind).toBe('valid')
+      expect((await validate(provider, decisionCardWaitContract.request.ref, read)).kind).toBe(
+        'valid',
+      )
       expect(state.byteLength).toBeLessThanOrEqual(askExecutor.checkpoint.maxBytes)
     }
   })
@@ -341,7 +343,7 @@ describe('wait contract and checkpoint', () => {
     const check = (value: unknown) =>
       validate(
         provider,
-        askWaitContract.response.ref,
+        decisionCardWaitContract.response.ref,
         readJsonText(JSON.stringify(value), {
           maxBytes: 65536,
           maxDepth: 8,
@@ -503,7 +505,7 @@ describe('the Ask command tool', () => {
     expect([...operations.keys()]).toEqual(['ask', 'request_approval'])
     for (const [, slot] of operations) {
       expect(slot.segments).toBe(askExecutor)
-      expect(slot.author.waits).toEqual([askWaitContract])
+      expect(slot.author.waits).toEqual([decisionCardWaitContract])
     }
   })
 

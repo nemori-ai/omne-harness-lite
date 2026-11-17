@@ -7,10 +7,10 @@ import {
   askCommands,
   askExecutor,
   askToolModule,
-  askWaitContract,
   type AskArguments,
   type AskCommand,
 } from '@omne-harness/tool-definitions'
+import { decisionCardWaitContract } from '@omne-harness/tool-contract/provider'
 import { askStateSchema } from '../src/ask-protocol.ts'
 
 const context = {
@@ -361,12 +361,14 @@ describe('what the declared schemas close', () => {
   it('refuses an extra member in a reply, in one of its answers, and in a state', async () => {
     const answer = { cardId: 'q1', kind: 'selection', optionId: 'o1' }
     const state = { command: 'ask', questions: [{ cardId: 'q1', title: 'T', options: [] }] }
-    expect((await check(askWaitContract.response.ref, { answers: [answer] })).kind).toBe('valid')
-    expect((await check(askWaitContract.response.ref, { answers: [answer], x: 1 })).kind).toBe(
-      'invalid',
+    expect((await check(decisionCardWaitContract.response.ref, { answers: [answer] })).kind).toBe(
+      'valid',
     )
     expect(
-      (await check(askWaitContract.response.ref, { answers: [{ ...answer, x: 1 }] })).kind,
+      (await check(decisionCardWaitContract.response.ref, { answers: [answer], x: 1 })).kind,
+    ).toBe('invalid')
+    expect(
+      (await check(decisionCardWaitContract.response.ref, { answers: [{ ...answer, x: 1 }] })).kind,
     ).toBe('invalid')
     const goodState = {
       command: 'ask',

@@ -1,8 +1,9 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolDecision } from '@omne-harness/tool-contract'
-import { askCommandNames, type AskResponse, type AskState } from './ask-protocol.ts'
+import type { DecisionCardAnswer } from '@omne-harness/tool-contract/provider'
+import { askCommandNames, type AskState } from './ask-protocol.ts'
 
-type Answer = AskResponse['answers'][number]
+type Answer = DecisionCardAnswer
 type Question = AskState['questions'][number]
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

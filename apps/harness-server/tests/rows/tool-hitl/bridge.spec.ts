@@ -70,8 +70,12 @@ function world(
     cards?: readonly unknown[]
     consume?: (command: { decisionRef: unknown }) => unknown
     closed?: 'cancelled' | 'terminal' | 'continued' | null
+    tool?: string
+    original?: string
   }> = {},
 ) {
+  const original = options.original ?? ORIGINAL
+  const asked = { ...requestEvidence, digest: canonicalDigest(original) }
   const calls = {
     prepared: [] as unknown[],
     registered: [] as RegisterRequest[],
@@ -151,11 +155,12 @@ function world(
       succeed({
         request: {
           consumer: { owner: 'agent', work: 'exec-1', position: 'a1', purpose: 'action' },
+          availability: { kind: 'available', definition: { name: options.tool ?? 'Ask' } },
         },
-        waitRequest: options.kept === null ? null : { wait, request: options.kept ?? ORIGINAL },
+        waitRequest: options.kept === null ? null : { wait, request: options.kept ?? original },
         waits: [
           {
-            intent: { kind: 'ask', wait, request: requestEvidence },
+            intent: { kind: 'ask', wait, request: asked },
             ...(options.closed === null
               ? { phase: 'open' }
               : { phase: 'closed', cause: options.closed ?? 'cancelled' }),
@@ -167,7 +172,7 @@ function world(
             action: 'ensure',
             operation: duty,
             wait,
-            evidence: requestEvidence,
+            evidence: asked,
           },
           {
             kind: 'wait-registration',
@@ -188,7 +193,7 @@ function world(
     bridge,
     calls,
     answer,
-    ensure: () => bridge.ensure({ ...access, wait, request: requestEvidence }),
+    ensure: () => bridge.ensure({ ...access, wait, request: asked }),
     inspect: (value: unknown, operation: ToolOperationId = duty) => {
       inspected = value
       return bridge.inspectOperation({ ...access, operation })
@@ -239,6 +244,7 @@ describe('the Tool decision owner over HITL', () => {
       wait: { owner: 'tool', waitId: wait },
     })
     expect(registered?.questions).toEqual([card])
+    expect(registered?.displayContext).toBe('Ask')
     expect(w.calls.prepared).toMatchObject([
       {
         kind: 'prepare',
@@ -390,6 +396,52 @@ describe('the Tool decision owner over HITL', () => {
     unwrap(await w.bridge.resolve({ ...w.access, wait, decision: decision! }))
     expect(w.calls.bound[1]).toEqual(w.calls.bound[0])
     expect(w.calls.consumed.slice(3)).toEqual(w.calls.consumed.slice(0, 3))
+  })
+
+  it('a tool other than Ask that waits with the decision-card contract gets its cards under its own name and its answers in the same shape', async () => {
+    const approval = {
+      cardId: 'approval',
+      kind: 'approval',
+      title: 'Delete build/?',
+      description: 'It holds stale artifacts.',
+      options: [
+        { id: 'yes', label: 'Approve', description: 'Delete it now.' },
+        { id: 'no', label: 'Reject', description: 'Keep it.' },
+      ],
+      declineConsequence: 'The directory stays.',
+    }
+    const original = JSON.stringify({ questions: [{ ...card, cardId: 'q2' }, approval] })
+    const w = world({
+      tool: 'Approve',
+      original,
+      register: {
+        kind: 'registered',
+        operationRef: {
+          tenantRef: 't',
+          actorRef: standingPrincipalRef(registrar),
+          operationId: 'x',
+        },
+        requestRef: { tenantRef: 't', requestId: 'request-1' },
+        revision: '0',
+        cards: [cardRef('q2'), cardRef('approval')],
+      } as never,
+      cards: [
+        decided('q2', { kind: 'text', text: 'use 8081' }),
+        decided('approval', { kind: 'selection', optionId: 'yes' }),
+      ],
+    })
+    unwrap(await w.ensure())
+    expect(w.calls.registered[0]?.displayContext).toBe('Approve')
+    expect(w.calls.registered[0]?.questions).toEqual([{ ...card, cardId: 'q2' }, approval])
+    w.committed()
+    const { decision } = unwrap(await w.bridge.inspect({ ...w.access, wait }))
+    const resolved = unwrap(await w.bridge.resolve({ ...w.access, wait, decision: decision! }))
+    expect(plain((resolved as { value: JsonValue }).value)).toEqual({
+      answers: [
+        { cardId: 'q2', kind: 'text', text: 'use 8081' },
+        { cardId: 'approval', kind: 'selection', optionId: 'yes' },
+      ],
+    })
   })
 
   it('resolve gives no-answer when every card was skipped', async () => {
