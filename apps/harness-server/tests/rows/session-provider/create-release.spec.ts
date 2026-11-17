@@ -73,7 +73,7 @@ import { TENANT_A } from '../storage/fixtures/tree.ts'
 
 type CreateCommand = Extract<SessionCommand, { kind: 'create' }>
 type Distribution = Readonly<{ rows: readonly Readonly<{ id: string; config: unknown }>[] }>
-const residentNames = ['Files', 'Shell', 'Tools', 'TodoItems', 'Ask', 'Web']
+const residentNames = ['Files', 'Shell', 'Tools', 'TodoItems', 'BkgToolCalls', 'Ask', 'Web']
 const releaseDistribution = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
 ) as Distribution
@@ -329,7 +329,7 @@ describe('the first create of a tenant over the release rows of the Session path
   )
 
   it(
-    '`create` of coding commits all four residents; J06 projects their release asset adoptions',
+    '`create` of coding commits all its residents; J06 projects their release asset adoptions',
     { timeout: 90_000 },
     async () => {
       const base = makeBase()

@@ -23,7 +23,7 @@ const TURN = [
   'call.execution-fact, history.annotated',
   'message.assistant',
   'call.bound, extension.passage, history.annotated',
-  'call.execution-fact, entries.interpreted',
+  'call.execution-fact, account.linked, entries.interpreted',
   'call.execution-fact, history.annotated',
   'message.tool',
   'call.bound, extension.passage, history.annotated',

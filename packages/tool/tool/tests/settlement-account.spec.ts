@@ -53,6 +53,21 @@ describe('the account a settlement writes (C14)', () => {
     expect(write([], null).value.duration).toEqual({ state: 'unknown' })
   })
 
+  it('names the call and nothing else of the call record it is given', () => {
+    const record = { ...place, admission: 'admit-1', request: { arguments: 'x'.repeat(1000) } }
+    const put = settlementAccount({ accounts: [] } as unknown as Snapshot, record, null, mint)
+    if (put.kind !== 'put' || put.record.kind !== 'account') throw new Error('not an account')
+    expect(Object.keys(put.record.account).sort()).toEqual([
+      'call',
+      'event',
+      'source',
+      'start',
+      'tenant',
+      'value',
+    ])
+    expect(JSON.stringify(put.record.account)).not.toContain('x'.repeat(100))
+  })
+
   it('is the next revision of the same account, marked late, after an earlier one', () => {
     const first = write([], null)
     const late = write([first], 'PT9.000S')

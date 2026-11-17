@@ -25,10 +25,12 @@ export function settlementAccount(
   duration: string | null,
   mint: Mint,
 ): LedgerWrite {
+  // The caller hands the call record in; the account names the call and nothing else of it.
+  const { tenant, call } = place
   const previous = snapshot.accounts.at(-1)
   const event = previous?.event ?? SETTLEMENT_EVENT
   const value: CallAccount = {
-    subject: { kind: 'tool_execution', id: place.call },
+    subject: { kind: 'tool_execution', id: call },
     usage: [],
     cost: [],
     trimmed: { state: 'known', lexeme: '0', unit: 'bytes' },
@@ -40,9 +42,10 @@ export function settlementAccount(
   return put({
     kind: 'account',
     account: {
-      ...place,
+      tenant,
+      call,
       start: null,
-      source: mintEvidence('account', { ...place, event }, mint.revision, value),
+      source: mintEvidence('account', { tenant, call, event }, mint.revision, value),
       event,
       value,
     },
