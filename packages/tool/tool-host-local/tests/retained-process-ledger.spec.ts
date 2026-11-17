@@ -100,6 +100,7 @@ function callRecord(): CallRecord {
     execution: null,
     state: {
       call: preparation.call,
+      label: { intent: null, tool: 'read_file', command: null, preview: '' },
       revision: revision('1'),
       source: evidence('state'),
       foreground: null,

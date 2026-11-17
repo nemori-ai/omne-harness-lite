@@ -14,6 +14,7 @@ export const LIMIT_MS = 120_000
 export function waitingCommand(name: string): string {
   return JSON.stringify({
     command: 'execute',
+    intent: 'test call',
     params: {
       script: `while [ ! -f ${name} ]; do sleep 0.1; done; echo ${name}-done`,
       run_in_background: true,

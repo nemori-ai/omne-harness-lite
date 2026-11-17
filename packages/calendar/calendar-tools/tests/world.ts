@@ -115,6 +115,7 @@ export async function request(): Promise<FixedToolRequest> {
     },
     invocation: { kind: 'direct', source: evidence('invocation') },
     command: null,
+    label: { intent: null, tool: loaded.definition.name, command: null, preview: '' },
     arguments: argumentsOf({ action: 'list', input: {} }),
     settings: adoption,
     context: adoption,

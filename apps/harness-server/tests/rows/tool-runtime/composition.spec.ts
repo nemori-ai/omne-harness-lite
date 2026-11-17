@@ -330,7 +330,7 @@ function requestSource(ctx: Context) {
 let positions = 0
 async function requestFor(ctx: Context, principal: unknown, command: string, params: string) {
   const [name = command, selected] = command.split('.')
-  const args = `{"command":${JSON.stringify(selected)},"params":${params}}`
+  const args = `{"command":${JSON.stringify(selected)},"intent":"test call","params":${params}}`
   const source = requestSource(ctx)
   const position = `step-${++positions}/tool/0`
   const input = {

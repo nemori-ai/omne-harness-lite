@@ -73,6 +73,7 @@ export async function forwardWorld() {
         source: { owner: 'fixture', record: 'parent', revision: '1', digest: 'fixture' },
       },
       command: 'help',
+      label: { intent: null, tool: definition.name, command: 'help', preview: '' },
       arguments: { original: '{}', effective: '{}', complete: true },
       settings: entry.settings,
       context: RELEASE_REQUEST_CONTEXT,

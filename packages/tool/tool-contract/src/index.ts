@@ -168,8 +168,12 @@ export type {
   CommandCall,
   CommandCallEncoding,
   CommandCallRejection,
+  CommandShape,
   CommandTable,
+  IntentFault,
 } from './command-call.ts'
+export { callLabel } from './call-label.ts'
+export type { ToolCallLabel } from './call-label.ts'
 export { toolsCapabilityOf } from './tools-capability.ts'
 export type { ToolsCapability, ToolsExecuteAnswer } from './tools-capability.ts'
 export type { ToolForwardIntent } from './forwarding.ts'

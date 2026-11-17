@@ -263,7 +263,11 @@ export {
   decodeCommandCall,
   describeCommandArgumentsRejection,
   encodeCommandCall,
+  INTENT_MAX_BYTES,
+  intentFault,
+  needsIntent,
 } from './command-call.ts'
+export { PREVIEW_MAX_CHARS, actionPreview, toolCallLabel } from './call-label.ts'
 export { attachToolsCapability } from './tools-capability.ts'
 export type {
   ToolForwardParent,

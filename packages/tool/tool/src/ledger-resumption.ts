@@ -29,7 +29,6 @@ import {
   type Snapshot,
 } from './ledger-decider.ts'
 import {
-  commonOf,
   deleteTasks,
   gate,
   nextState,
@@ -37,9 +36,9 @@ import {
   waitingInQueue,
   wrongPhase,
   type HoldOutcome,
-  type StateBody,
   type WriteCommand,
 } from './ledger-start.ts'
+import { commonOf, type StateBody } from './ledger-state.ts'
 import type { CallRecord, OperationReceipt, TenantId, WaitLedgerRecord } from './ledger-store.ts'
 
 type Resume = Extract<ToolStartRecord, { kind: 'resume' }>

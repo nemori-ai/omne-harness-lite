@@ -111,7 +111,7 @@ async function world() {
   return { fixture, ports, principalA, principalB, snapshot, definitions }
 }
 
-const EXECUTE = '{"command":"execute","params":{"script":"echo tool-b"}}'
+const EXECUTE = '{"command":"execute","intent":"test call","params":{"script":"echo tool-b"}}'
 
 function actionInput(principal: unknown, tenant = TENANT_A, name = 'Shell', args = EXECUTE) {
   return {
@@ -188,6 +188,61 @@ describe('the trusted Tool request source', () => {
     )
   })
 
+  it('answers an execute without an intent with the usage, and never prepares it (C5)', async () => {
+    const { ports, principalA } = await world()
+    const source = createReleaseToolRequests(ports)
+    const describe = (args: string) =>
+      source.describe(actionInput(principalA, TENANT_A, 'Shell', args))
+    const missing = await describe('{"command":"execute","params":{"script":"pnpm build"}}')
+    expect(missing).toMatchObject({ ok: { kind: 'answered' } })
+    const text = 'ok' in missing && 'text' in missing.ok ? missing.ok.text : ''
+    expect(text.split('\n')[0]).toBe(
+      'Shell: "execute" needs "intent": one line saying why you make this call.',
+    )
+    expect(text).toContain(
+      'Usage: Shell {"command": "execute", "intent": "<one line: why you make this call>", "params": {script',
+    )
+    const multiline = await describe(
+      '{"command":"execute","intent":"one\\ntwo","params":{"script":"pnpm build"}}',
+    )
+    expect(multiline).toMatchObject({
+      ok: { kind: 'answered', text: expect.stringMatching(/^Shell: "intent" must be one line/) },
+    })
+  })
+
+  it('fixes the label of the call from the envelope: intent, tool, command and preview (C2)', async () => {
+    const { ports, principalA } = await world()
+    const source = createReleaseToolRequests(ports)
+    const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+    const labelOf = async (args: string) => {
+      const input = actionInput(principalA, TENANT_A, 'Shell', args)
+      const described = await source.describe(input)
+      if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
+      const answer = await source.prepare({
+        ...input,
+        definition: described.ok.definition,
+        admission,
+      })
+      return (okOf(answer, 'prepare') as ToolInvokeRequest).label
+    }
+    expect(
+      await labelOf(
+        '{"command":"execute","intent":"build the front end","params":{"script":"pnpm build\\nls"}}',
+      ),
+    ).toEqual({
+      intent: 'build the front end',
+      tool: 'Shell',
+      command: 'execute',
+      preview: 'pnpm build',
+    })
+    expect(await labelOf('{"command":"info","params":{}}')).toEqual({
+      intent: null,
+      tool: 'Shell',
+      command: 'info',
+      preview: '',
+    })
+  })
+
   it('prepares the complete request of the admitted action, and it passes the public Tool judgement', async () => {
     const { ports, principalA, definitions } = await world()
     const answer = await prepared(ports, principalA)
@@ -216,7 +271,7 @@ describe('the trusted Tool request source', () => {
     const source = createReleaseToolRequests(ports)
     const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
     const modeOf = async (params: string) => {
-      const args = `{"command":"execute","params":${params}}`
+      const args = `{"command":"execute","intent":"test call","params":${params}}`
       const input = actionInput(principalA, TENANT_A, 'Shell', args)
       const described = await source.describe(input)
       if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')

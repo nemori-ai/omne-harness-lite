@@ -165,6 +165,7 @@ export async function forwardingFixture(
   const permit = ok(await authority.prepare(parent))
   const state: CallRecord['state'] = {
     call: parent.call,
+    label: { intent: null, tool: 'read_file', command: null, preview: '' },
     revision: ok(decodeToolRevision('1')),
     source: evidence('parent-state'),
     foreground: null,

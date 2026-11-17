@@ -15,6 +15,7 @@
 - `CommandCall` · `command-call.d.ts`
 - `CommandCallEncoding` · `command-call.d.ts`
 - `CommandCallRejection` · `command-call.d.ts`
+- `CommandShape` · `command-call.d.ts`
 - `CommandTable` · `command-call.d.ts`
 - `ConsumerRef` · 包 `@omne-harness/exchange-refs`
 - `ContentPage` · `custody.d.ts`
@@ -31,6 +32,7 @@
 - `ForegroundReturn` · `operations.d.ts`
 - `Handoff` · `operations.d.ts`
 - `InspectArguments` · `tools-protocol.d.ts`
+- `IntentFault` · `command-call.d.ts`
 - `InterruptionCause` · `results.d.ts`
 - `InvocationAccess` · `operations.d.ts`
 - `OperationResolution` · `results.d.ts`
@@ -69,6 +71,7 @@
 - `ToolBodyWriterStatus` · `body-writer.d.ts`
 - `ToolCallContact` · `results.d.ts`
 - `ToolCallId` · `identity.d.ts`
+- `ToolCallLabel` · `call-label.d.ts`
 - `ToolCatalog` · `authoring.d.ts`
 - `ToolCatalogSearchEntry` · `authoring.d.ts`
 - `ToolCommandBackground` · `definitions.d.ts`
@@ -153,6 +156,7 @@
 - `WaitState` · `results.d.ts`
 - `backgroundCallsBlock` · `background-calls.d.ts`
 - `backgroundCallsSchema` · `background-calls.d.ts`
+- `callLabel` · `call-label.d.ts`
 - `commandCallSchema` · `command-call.d.ts`
 - `commandMenu` · `command-call.d.ts`
 - `decodeCommandCallText` · `command-call.d.ts`
@@ -208,9 +212,11 @@
 - `FactProgress` · `records.d.ts`
 - `FactReceipt` · `records.d.ts`
 - `FreezeVerdict` · `dynamics.d.ts`
+- `INTENT_MAX_BYTES` · `command-call.d.ts`
 - `IndependentToolScopeInput` · `author-context.d.ts`
 - `Mutation` · `identity.d.ts`
 - `OutputCodec` · `authoring.d.ts`
+- `PREVIEW_MAX_CHARS` · `call-label.d.ts`
 - `ParameterCodec` · `authoring.d.ts`
 - `ParsedToolArguments` · `parameter-codec.d.ts`
 - `PreparationProgress` · `records.d.ts`
@@ -362,6 +368,7 @@
 - `WAIT_REQUEST_MAX_BYTES` · `wait-contract.d.ts`
 - `WAIT_RESPONSE_MAX_BYTES` · `wait-contract.d.ts`
 - `WriteContext` · `execution.d.ts`
+- `actionPreview` · `call-label.d.ts`
 - `attachToolsCapability` · `tools-capability.d.ts`
 - `authorDecision` · `checkpointed-author.d.ts`
 - `commandArguments` · `command-call.d.ts`
@@ -393,6 +400,7 @@
 - `encodeCommandCall` · `command-call.d.ts`
 - `evaluateToolAvailability` · `catalog.d.ts`
 - `foldResident` · `dynamics.d.ts`
+- `intentFault` · `command-call.d.ts`
 - `judgeCommittedToolResult` · `result-policy.d.ts`
 - `judgeConsumerRef` · `judge-release.d.ts`
 - `judgeFixedToolRequest` · `judge-request.d.ts`
@@ -404,6 +412,7 @@
 - `judgeToolInvokeRequest` · `judge-request.d.ts`
 - `judgeToolState` · `judge-state.d.ts`
 - `manifestOf` · `body-store.d.ts`
+- `needsIntent` · `command-call.d.ts`
 - `planAdoption` · `dynamics.d.ts`
 - `presentTool` · `catalog.d.ts`
 - `projectToolBackgroundCalls` · `background-calls-projection.d.ts`
@@ -418,6 +427,7 @@
 - `sha256Hex` · `body-store.d.ts`
 - `shapeOf` · `dynamics.d.ts`
 - `signBodyPermit` · `body-store.d.ts`
+- `toolCallLabel` · `call-label.d.ts`
 - `toolStreamCallCodec` · `reference.d.ts`
 - `verifyBodyPermit` · `body-store.d.ts`
 
@@ -494,6 +504,7 @@
 - `runConformanceCase` · `testing-case.d.ts`
 - `startAuthorityAnswers` · `testing-start-authority.d.ts`
 - `structuredReturnFixture` · `testing-returns.d.ts`
+- `testingCallLabel` · `testing-label.d.ts`
 - `testingTenant` · `testing-values.d.ts`
 - `testingTenantText` · `testing-values.d.ts`
 - `testingWorkspace` · `testing-values.d.ts`
@@ -1306,6 +1317,28 @@ export interface ToolBodyWrites<P> {
 }
 ```
 
+## 声明文件 `call-label.d.ts`
+
+```ts
+import { type CommandCall } from './command-call.ts';
+import type { ParameterContract, ToolDefinition } from './definitions.ts';
+import { type Check } from './shape.ts';
+export type ToolCallLabel = Readonly<{
+    intent: string | null;
+    tool: string;
+    command: string | null;
+    preview: string;
+}>;
+export declare const PREVIEW_MAX_CHARS = 120;
+type CallParts = Pick<CommandCall, 'intent' | 'params'> & Readonly<{
+    command: string | null;
+}>;
+export declare function actionPreview(parameters: ParameterContract | null, params: CallParts['params']): string;
+export declare function callLabel(definition: ToolDefinition, call: CallParts): ToolCallLabel;
+export declare const toolCallLabel: Check<ToolCallLabel>;
+export {};
+```
+
 ## 声明文件 `catalog.d.ts`
 
 ```ts
@@ -1367,16 +1400,24 @@ export declare const COMMAND_CALL_ENCODINGS: readonly [
 export type CommandCallEncoding = (typeof COMMAND_CALL_ENCODINGS)[number];
 export declare const COMMAND_FIELD = "command";
 export declare const PARAMS_FIELD = "params";
+export declare const INTENT_FIELD = "intent";
+export declare const INTENT_MAX_BYTES = 256;
 type JsonObject = Extract<JsonValue, {
     kind: 'object';
 }>;
 export type CommandTable = Pick<Extract<ToolDefinition, {
     kind: 'commands';
 }>, 'name' | 'encoding' | 'commands' | 'guide'>;
+export type CommandShape = Readonly<{
+    encoding: CommandCallEncoding;
+    commands: readonly Pick<ToolCommandDeclaration, 'name' | 'background'>[];
+}>;
 export type CommandCall = Readonly<{
     command: string;
+    intent: string | null;
     params: JsonObject;
 }>;
+export type IntentFault = 'not-text' | 'blank' | 'multiline' | 'too-long';
 export type CommandCallRejection = Readonly<{
     kind: 'unreadable';
     reason: string;
@@ -1396,12 +1437,21 @@ export type CommandCallRejection = Readonly<{
     kind: 'command-mismatch';
     command: string;
     admitted: string | null;
+}> | Readonly<{
+    kind: 'intent-missing';
+    command: string;
+}> | Readonly<{
+    kind: 'intent-invalid';
+    command: string;
+    fault: IntentFault;
 }>;
-export declare function decodeCommandCall(encoding: CommandCallEncoding, commands: readonly string[], value: JsonValue): Outcome<CommandCall, CommandCallRejection>;
+export declare function intentFault(value: unknown): IntentFault | null;
+export declare function needsIntent(shape: CommandShape, command: string | null): boolean;
+export declare function decodeCommandCall(shape: CommandShape, value: JsonValue): Outcome<CommandCall, CommandCallRejection>;
 export declare function selectCommand(commands: readonly string[], value: JsonValue): Outcome<string, CommandCallRejection>;
 export declare function selectCommandText(commands: readonly string[], text: string): Outcome<string, CommandCallRejection>;
 export declare function encodeCommandCall(encoding: CommandCallEncoding, call: CommandCall): JsonObject;
-export declare function decodeCommandCallText(encoding: CommandCallEncoding, commands: readonly string[], text: string): Outcome<CommandCall, CommandCallRejection>;
+export declare function decodeCommandCallText(shape: CommandShape, text: string): Outcome<CommandCall, CommandCallRejection>;
 export declare function commandArguments(definition: ToolDefinition, admitted: string | null, args: ToolArguments): Outcome<ToolArguments, Readonly<{
     kind: 'invalid';
     reason: string;
@@ -1568,6 +1618,7 @@ import type { OrganizationId, TenantId, WorkspaceId } from '@omne-harness/legal-
 import type { ScopeRef } from '@omne-harness/runtime-context-contract';
 import type { SchemaRef } from '@omne-harness/schema-provider';
 import type { ToolDeclarations } from './authoring.ts';
+import type { ToolCallLabel } from './call-label.ts';
 import type { CommandCallEncoding } from './command-call.ts';
 import type { Adoption, ConsumerRef, DurableEvidence } from './identity.ts';
 export type ParameterContract = Readonly<{
@@ -1747,6 +1798,7 @@ export type FixedToolRequest = Readonly<{
     invocation: ToolInvocation;
     command: string | null;
     arguments: ToolArguments;
+    label: ToolCallLabel;
     settings: Adoption;
     context: Adoption;
     workspace: WorkspaceId | null;
@@ -2247,7 +2299,9 @@ export type { ToolBackgroundCallsValue } from './background-calls.ts';
 export { encodeResidentKey, projectResidentReferences, residentToolFacts } from './resident-key.ts';
 export type { ResidentHolderPage, ResidentKeyFailure, ResidentReferencesPage, } from './resident-key.ts';
 export { commandCallSchema, commandMenu, decodeCommandCallText, describeCommandCallRejection, selectCommandText, } from './command-call.ts';
-export type { CommandCall, CommandCallEncoding, CommandCallRejection, CommandTable, } from './command-call.ts';
+export type { CommandCall, CommandCallEncoding, CommandCallRejection, CommandShape, CommandTable, IntentFault, } from './command-call.ts';
+export { callLabel } from './call-label.ts';
+export type { ToolCallLabel } from './call-label.ts';
 export { toolsCapabilityOf } from './tools-capability.ts';
 export type { ToolsCapability, ToolsExecuteAnswer } from './tools-capability.ts';
 export type { ToolForwardIntent } from './forwarding.ts';
@@ -3042,7 +3096,8 @@ export type { AccountScope, ToolAccounts, ToolContentReader, ToolOffloader, Tool
 export type { ChildPosition, ChildReservation, ChildState, ProgramClosure, ProgramEnd, ProgramToolResult, ProgramTools, ToolChildren, } from './program.ts';
 export { projectToolBackgroundCalls } from './background-calls-projection.ts';
 export type { ToolBackgroundCallSource, ToolBackgroundCallsSource, } from './background-calls-projection.ts';
-export { COMMAND_CALL_ENCODINGS, commandArguments, commandExample, commandGuide, commandSignature, decodeCommandCall, describeCommandArgumentsRejection, encodeCommandCall, } from './command-call.ts';
+export { COMMAND_CALL_ENCODINGS, commandArguments, commandExample, commandGuide, commandSignature, decodeCommandCall, describeCommandArgumentsRejection, encodeCommandCall, INTENT_MAX_BYTES, intentFault, needsIntent, } from './command-call.ts';
+export { PREVIEW_MAX_CHARS, actionPreview, toolCallLabel } from './call-label.ts';
 export { attachToolsCapability } from './tools-capability.ts';
 export type { ToolForwardParent, ToolForwardBinding, ToolForwardSourceOutcome, ToolForwardSource, ToolForwardRuntime, } from './forwarding.ts';
 export { returnGuide } from './return-description.ts';
@@ -3659,6 +3714,7 @@ import type { ContentBlock } from '@omne-harness/content-block';
 import { type TenantId } from '@omne-harness/legal-identity';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { Access, ConsumerRef, DurableEvidence, ToolDeliveryId, ToolResultVersion } from './identity.ts';
+import type { ToolCallLabel } from './call-label.ts';
 import type { BackgroundSource } from './operations.ts';
 import { type ToolInvocationRef } from './reference.ts';
 import type { Effect, ToolResult, ToolTerminal } from './results.ts';
@@ -3707,6 +3763,7 @@ export type ToolDelivery<B extends ContentBlock> = Readonly<{
     consumer: ConsumerRef;
     delivery: ToolDeliveryId;
     source: BackgroundSource;
+    label: ToolCallLabel;
     evidence: DurableEvidence;
 }>;
 export type ToolSavedReceipt = Readonly<{
@@ -3833,6 +3890,7 @@ export {};
 import type { ContentBlock, ContentReference, ReferenceContentBlock, TextContentBlock } from '@omne-harness/content-block';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { Outcome } from '@omne-harness/operation-result';
+import type { ToolCallLabel } from './call-label.ts';
 import type { ToolSchemaIdentity } from './definitions.ts';
 import type { Adoption, ConsumerRef, DurableEvidence, ToolBodyId, ToolCallId, ToolDeliveryId, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolRevision, ToolWaitId } from './identity.ts';
 import type { ForegroundReturn } from './operations.ts';
@@ -4004,6 +4062,7 @@ export type ReleasedDelivery = Extract<DeliveryState, {
 }>;
 export type ToolState = Readonly<{
     call: ToolCallId;
+    label: ToolCallLabel;
     revision: ToolRevision;
     source: DurableEvidence;
     foreground: ForegroundReturn | null;
@@ -4715,6 +4774,14 @@ export declare function createOperationLedger(mint: (kind: string, content: unkn
 };
 ```
 
+## 声明文件 `testing-label.d.ts`
+
+```ts
+import type { ToolCallLabel } from './call-label.ts';
+import type { ToolDefinition } from './definitions.ts';
+export declare function testingCallLabel(definition: ToolDefinition, command: string | null): ToolCallLabel;
+```
+
 ## 声明文件 `testing-resource-responses.d.ts`
 
 ```ts
@@ -5030,6 +5097,7 @@ export declare function resourceWait(wait: string, options?: Readonly<{
 ## 声明文件 `testing.d.ts`
 
 ```ts
+export { testingCallLabel } from './testing-label.ts';
 export { ordinaryReturnFixture, structuredReturnFixture } from './testing-returns.ts';
 export { NotApplicable, completionOf, crossTenantAnswers, finalAnswer, isNotApplicable, isProgress, resendRecalls, runConformanceCase, type AnswerModel, type AnswerRow, type CaseVerdict, type Completion, type ConformanceCase, type CrossTenantAnswers, } from './testing-case.ts';
 export { createMemoryToolStartAuthority, memoryToolStartAuthorityFixture, startAuthorityAnswers, toolStartAuthorityConformance, type MemoryToolStartAuthority, type ToolStartAuthorityFixture, } from './testing-start-authority.ts';

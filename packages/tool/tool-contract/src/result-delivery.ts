@@ -10,6 +10,7 @@ import type {
   ToolDeliveryId,
   ToolResultVersion,
 } from './identity.ts'
+import type { ToolCallLabel } from './call-label.ts'
 import type { BackgroundSource } from './operations.ts'
 import { resolveToolInvocationRef, type ToolInvocationRef } from './reference.ts'
 import type { Effect, ToolResult, ToolTerminal } from './results.ts'
@@ -56,6 +57,8 @@ export type ToolDelivery<B extends ContentBlock> =
       consumer: ConsumerRef
       delivery: ToolDeliveryId
       source: BackgroundSource
+      /** The label fixed at admission; the consumer keeps it as given and does not read it. */
+      label: ToolCallLabel
       evidence: DurableEvidence
     }>
 

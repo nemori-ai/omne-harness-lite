@@ -29,12 +29,8 @@ import {
 import { planEnvironmentRelease, processCustodyCovered } from './ledger-environment-release.ts'
 
 import { lateVersionOf, releasedQueue } from './ledger-ending.ts'
-import {
-  dropSuspensionContent,
-  nextState,
-  type StateBody,
-  type WriteCommand,
-} from './ledger-start.ts'
+import { dropSuspensionContent, nextState, type WriteCommand } from './ledger-start.ts'
+import { type StateBody } from './ledger-state.ts'
 import {
   taskKey,
   type CallRecord,
@@ -131,6 +127,7 @@ function settledState<B extends ContentBlock>(
   const current = call.state
   const common = {
     call: call.call,
+    label: current.label,
     revision: mint.revision,
     phase: 'settled',
     result: resultVersion(1),

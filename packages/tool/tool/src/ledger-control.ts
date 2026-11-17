@@ -39,13 +39,8 @@ import {
   type TimingClose,
 } from './ledger-background.ts'
 import { releasedQueue } from './ledger-ending.ts'
-import {
-  commonOf,
-  deleteTasks,
-  dropSuspensionContent,
-  nextState,
-  type StateBody,
-} from './ledger-start.ts'
+import { deleteTasks, dropSuspensionContent, nextState } from './ledger-start.ts'
+import { commonOf, type StateBody } from './ledger-state.ts'
 import {
   taskKey,
   type CallRecord,

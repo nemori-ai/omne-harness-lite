@@ -12,7 +12,7 @@ import {
 import type { ToolTask } from '@omne-harness/tool-contract/provider'
 import { deliveryId, sameFactValue } from './evidence.ts'
 import type { CallRecord } from './ledger-store.ts'
-import type { StateBody } from './ledger-start.ts'
+import { type StateBody } from './ledger-state.ts'
 
 export const PLACEHOLDER_DELIVERY = deliveryId(0)
 
@@ -58,10 +58,9 @@ export function backgroundAllowed(request: FixedToolRequest): boolean {
   const { definition } = request.availability
   if (!definition.backgroundAllowed) return false
   if (definition.kind === 'function') return true
-  const names = definition.commands.map(command => command.name)
   const declared = definition.commands.find(command => command.name === request.command)
   if (declared?.background === undefined) return false
-  const call = decodeCommandCallText(definition.encoding, names, request.arguments.effective)
+  const call = decodeCommandCallText(definition, request.arguments.effective)
   if ('failure' in call || call.ok.command !== request.command) return false
   const given = new Set(call.ok.params.entries.map(entry => entry.key))
   return declared.background.unless.every(name => !given.has(name))

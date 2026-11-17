@@ -42,6 +42,7 @@ async function post(
 
 const WAIT = JSON.stringify({
   command: 'execute',
+  intent: 'test call',
   params: {
     script: 'while [ ! -f go-bg ]; do sleep 0.1; done; echo bg-done',
     run_in_background: true,

@@ -1,3 +1,4 @@
+export { testingCallLabel } from './testing-label.ts'
 export { ordinaryReturnFixture, structuredReturnFixture } from './testing-returns.ts'
 export {
   NotApplicable,

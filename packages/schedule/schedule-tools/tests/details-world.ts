@@ -105,6 +105,7 @@ export async function detailsWorld(options: { bytes?: number; timeout?: number }
     initiator: { owner: 'fixture', subject: 'alice', revision: '1' },
     state: {
       call: access().call,
+      label: { intent: null, tool: 'read_file', command: null, preview: '' },
       revision,
       source: evidence('state'),
       foreground: null,

@@ -6,6 +6,7 @@ import type {
 } from '@omne-harness/content-block'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { Outcome } from '@omne-harness/operation-result'
+import type { ToolCallLabel } from './call-label.ts'
 import type { ToolSchemaIdentity } from './definitions.ts'
 import type {
   Adoption,
@@ -129,6 +130,8 @@ export type DeliveryState =
 export type ReleasedDelivery = Extract<DeliveryState, { kind: 'released' }>
 export type ToolState = Readonly<{
   call: ToolCallId
+  /** Fixed at admission and never changed. */
+  label: ToolCallLabel
   revision: ToolRevision
   source: DurableEvidence
   foreground: ForegroundReturn | null

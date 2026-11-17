@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { onReleaseTree, toolCallsThenText } from '../support/release-tree.ts'
 import { noticeTable, recordNotices, settledLog, tableLines } from './commit-notices-support.ts'
 
-const ECHO = JSON.stringify({ command: 'execute', params: { script: 'echo notices' } })
+const ECHO = JSON.stringify({
+  command: 'execute',
+  intent: 'test call',
+  params: { script: 'echo notices' },
+})
 const script = toolCallsThenText(() => [{ id: 'call_echo', tool: 'Shell', arguments: ECHO }])
 const options = { script, permission: 'bypass-permissions' }
 

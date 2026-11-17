@@ -66,6 +66,7 @@ export function fixedRequest(
     availability,
     invocation: { kind: 'direct', source: evidence('invocation') },
     command: null,
+    label: { intent: null, tool: availability.definition.name, command: null, preview: '' },
     arguments: { complete: true, original: JSON.stringify(args), effective: JSON.stringify(args) },
     settings: adoption,
     context: adoption,

@@ -1,7 +1,11 @@
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { describe, expect, it } from 'vitest'
 import { organizationCodec, workspaceEquals } from '@omne-harness/legal-identity'
-import { type FixedToolRequest, type ToolInvokeRequest } from '@omne-harness/tool-contract'
+import {
+  type FixedToolRequest,
+  type ToolDefinition,
+  type ToolInvokeRequest,
+} from '@omne-harness/tool-contract'
 import { judgeFixedToolRequest, judgeToolInvokeRequest } from '@omne-harness/tool-contract/provider'
 import { testingWorkspace } from '@omne-harness/tool-contract/testing'
 import { adoption, commandsDefinition, evidence, functionDefinition } from './tool-values.ts'
@@ -19,6 +23,7 @@ function request(): FixedToolRequest {
     invocation: { kind: 'direct', source: evidence('source') },
     command: null,
     arguments: { original: '{"path":"a"}', effective: '{"path":"a"}', complete: true },
+    label: { intent: null, tool: functionDefinition().name, command: null, preview: '' },
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
@@ -112,8 +117,65 @@ describe('ordinary invoke request judgment', () => {
   })
 
   it('accepts a declared command through the ordinary invoke entry', () => {
-    const value = { ...commands, command: 'read' }
+    const value = {
+      ...commands,
+      command: 'read',
+      label: { intent: null, tool: 'files', command: 'read', preview: '' },
+    }
     expect(judgeToolInvokeRequest(value)).toEqual({ ok: value })
+  })
+})
+
+describe('the label of a request (TL-50, TL-51)', () => {
+  const shellTool = (): ToolDefinition => {
+    const source = commandsDefinition()
+    if (source.kind !== 'commands') throw new Error('commands')
+    return {
+      ...source,
+      backgroundAllowed: true,
+      commands: source.commands.map(command =>
+        command.name === 'shell' ? { ...command, background: { unless: [] } } : command,
+      ),
+    }
+  }
+  const shell = (intent: string | null): FixedToolRequest => ({
+    ...request(),
+    availability: { ...request().availability, definition: shellTool() } as never,
+    command: 'shell',
+    label: { intent, tool: 'files', command: 'shell', preview: 'sleep 60' },
+  })
+
+  it('a command that may go to the background is refused without an intent', () => {
+    expect(rejection(shell(null))).toEqual({ field: 'label.intent', reason: 'required' })
+    expect(judgeFixedToolRequest(shell('wait a minute'))).toEqual({ ok: shell('wait a minute') })
+  })
+
+  it('a command without background permission is admitted without an intent', () => {
+    const read = {
+      ...shell(null),
+      command: 'read',
+      label: { intent: null, tool: 'files', command: 'read', preview: '' },
+    }
+    expect(judgeFixedToolRequest(read)).toEqual({ ok: read })
+  })
+
+  it('an intent in the label is one line within the bound', () => {
+    expect(rejection(shell('a\nb'))).toEqual({ field: 'label.intent', reason: 'multiline' })
+    expect(
+      rejection({ ...shell('x'), label: { ...shell('x').label, preview: 'p'.repeat(121) } }),
+    ).toEqual({
+      field: 'label.preview',
+      reason: 'too-long',
+    })
+  })
+
+  it('the intent decides nothing: the same request without it differs only in its label', () => {
+    const read = (intent: string | null): FixedToolRequest => ({
+      ...request(),
+      label: { ...request().label, intent },
+    })
+    const judged = [judgeFixedToolRequest(read(null)), judgeFixedToolRequest(read('look'))]
+    expect(judged.map(value => 'ok' in value)).toEqual([true, true])
   })
 })
 
@@ -134,6 +196,7 @@ describe('request judgment', () => {
         reason: 'dependency-unavailable:file-system',
       },
       command: 'read',
+      label: { intent: null, tool: 'files', command: 'read', preview: '' },
     }
     expect(judgeFixedToolRequest(value)).toEqual({ ok: value })
   })

@@ -4,7 +4,7 @@ import type { Failure } from '@omne-harness/agent-contract'
 import type { AgentHostLocalPluginInput } from '@omne-harness/agent-host-local/cordis'
 import { executionScopeBindingKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import type { PrincipalVerifier } from '@omne-harness/identity'
-import { writeJsonText } from '@omne-harness/json-text'
+import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -25,10 +25,12 @@ import {
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { canonicalDigest } from '@omne-harness/tool'
 import {
+  callLabel,
   decodeCommandCallText,
   describeCommandCallRejection,
   selectCommandText,
   type ToolAvailability,
+  type ToolCallLabel,
   type ToolCatalog,
   type ToolConsumerProfile,
   type ToolInvokeRequest,
@@ -69,18 +71,51 @@ const denied = (action: string) => fail<Failure>({ kind: 'denied', action })
 
 type Trusted = Extract<ToolRelease, { kind: 'trusted' }>
 
-function commandOf(
+type JsonObject = Extract<JsonValue, { kind: 'object' }>
+const EMPTY_PARAMS: JsonObject = { kind: 'object', entries: [] }
+const ARGUMENT_LIMITS = {
+  maxBytes: 4194304,
+  maxDepth: 64,
+  maxItems: 65536,
+  maxMembers: 8192,
+  maxStringLength: 4194304,
+  maxNumberLength: 64,
+}
+
+function objectOf(text: string): JsonObject {
+  const read = readJsonText(text, ARGUMENT_LIMITS)
+  return read.kind === 'ok' && read.value.kind === 'object' ? read.value : EMPTY_PARAMS
+}
+
+// A call naming no known command, or lacking a needed intent, is answered here and never runs;
+// other malformed calls are judged when they run, labelled with the intent decoding checked.
+function callOf(
   definition: ToolAvailability['definition'],
   effectiveArguments: string,
-): Readonly<{ command: string | null }> | Readonly<{ answer: string }> {
-  if (definition.kind === 'function') return { command: null }
+): Readonly<{ command: string | null; label: ToolCallLabel }> | Readonly<{ answer: string }> {
+  if (definition.kind === 'function') {
+    const label = callLabel(definition, {
+      command: null,
+      intent: null,
+      params: objectOf(effectiveArguments),
+    })
+    return { command: null, label }
+  }
   const selected = selectCommandText(
     definition.commands.map(command => command.name),
     effectiveArguments,
   )
-  return 'failure' in selected
-    ? { answer: describeCommandCallRejection(definition, selected.failure) }
-    : { command: selected.ok }
+  if ('failure' in selected)
+    return { answer: describeCommandCallRejection(definition, selected.failure) }
+  const command = selected.ok
+  const call = decodeCommandCallText(definition, effectiveArguments)
+  if ('ok' in call) return { command, label: callLabel(definition, call.ok) }
+  const rejection = call.failure
+  if (rejection.kind === 'intent-missing' || rejection.kind === 'intent-invalid')
+    return { answer: describeCommandCallRejection(definition, rejection) }
+  const given = objectOf(effectiveArguments).entries.find(entry => entry.key === 'intent')?.value
+  const intent = given?.kind === 'string' ? given.value : null
+  return { command, label: callLabel(definition, { command, intent, params: EMPTY_PARAMS }) }
 }
 
 // The model asks for the wait mode with run_in_background; admission judges whether this call may.
@@ -89,8 +124,7 @@ function modeOf(
   effectiveArguments: string,
 ): ToolInvokeRequest['mode'] {
   if (definition.kind === 'function') return 'foreground'
-  const names = definition.commands.map(command => command.name)
-  const call = decodeCommandCallText(definition.encoding, names, effectiveArguments)
+  const call = decodeCommandCallText(definition, effectiveArguments)
   if ('failure' in call) return 'foreground'
   const flag = call.ok.params.entries.find(entry => entry.key === 'run_in_background')?.value
   return flag?.kind === 'boolean' && flag.value ? 'background' : 'foreground'
@@ -124,7 +158,10 @@ async function availabilityOf(
   session: SessionId,
 ): Promise<
   Outcome<
-    | (Extract<ToolAvailability, { kind: 'available' }> & { command: string | null })
+    | (Extract<ToolAvailability, { kind: 'available' }> & {
+        command: string | null
+        label: ToolCallLabel
+      })
     | ToolCallAnswer,
     Failure
   >
@@ -153,11 +190,11 @@ async function availabilityOf(
   const availability = answer.ok
   if (availability.kind !== 'available' || availability.layer.kind !== 'official')
     return unavailable(`${name} is not available`)
-  const selected = commandOf(availability.definition, input.effectiveArguments)
+  const selected = callOf(availability.definition, input.effectiveArguments)
   if ('answer' in selected) return succeed({ kind: 'answered', text: selected.answer })
   const closed = await closedBySession(ports, input, session, selected.command)
   if ('failure' in closed) return closed
-  return succeed(closed.ok ?? { ...availability, command: selected.command })
+  return succeed(closed.ok ?? { ...availability, ...selected })
 }
 
 async function closedBySession(
@@ -265,7 +302,7 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
     const found = await availabilityOf(ports, release.ok, input, session.ok)
     if ('failure' in found) return found
     if (found.ok.kind === 'answered') return unavailable('the call is answered, not run')
-    const { command, ...availability } = found.ok
+    const { command, label, ...availability } = found.ok
     if (canonicalDigest(availability.definition.adoption) !== canonicalDigest(input.definition))
       return unavailable('the current definition differs from the described one')
     const entry = release.ok.manifest.entries.find(
@@ -284,6 +321,7 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
       availability,
       command,
       arguments: { original, effective: input.effectiveArguments, complete: true },
+      label,
       settings: entry.settings,
       context: RELEASE_REQUEST_CONTEXT,
       workspace: null,
