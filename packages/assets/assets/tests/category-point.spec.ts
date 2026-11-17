@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createCategoryPoint,
+  isReadBody,
   readBodyText,
   unknownCategory,
   type BodyContract,
@@ -142,7 +143,7 @@ describe('contributions the point refuses', () => {
     const point = createCategoryPoint()
     expect(() =>
       point.contribute({ contract: contract('tool'), display: { title: '', summary: 's' } }),
-    ).toThrow(TypeError)
+    ).toThrow(/category display is incomplete/)
     expect(() =>
       point.contribute({ contract: contract('tool'), display: { title: 't', summary: '' } }),
     ).toThrow(TypeError)
@@ -161,6 +162,7 @@ describe('contributions the point refuses', () => {
       contract: { ...contract('deep'), schema: schema as never },
     })
     expect(point.lookup('deep')?.schema.kind).toBe('array')
+    expect(isReadBody(point.lookup('deep')?.schema)).toBe(false)
     const cycle: { kind: 'array'; items: unknown[] } = { kind: 'array', items: [] }
     cycle.items.push(cycle)
     expect(() =>
