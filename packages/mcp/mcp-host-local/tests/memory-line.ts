@@ -36,7 +36,6 @@ export type Reply =
   | Readonly<{ kind: 'silent' }>
   | Readonly<{ kind: 'unsent' }>
   | Readonly<{ kind: 'aborted' }>
-  | Readonly<{ kind: 'ended'; stdoutEndedAt?: number; exitedAt?: number }>
   | Readonly<{ kind: 'broken' }>
   | Readonly<{ kind: 'hang' }>
   | Readonly<{ kind: 'late-stream' }>
@@ -55,7 +54,6 @@ function isRecord(value: unknown): value is PlainRecord {
 }
 
 export class MemoryLine implements Line {
-  readonly kind: 'stdio' | 'streamable-http'
   readonly sent: Sent[] = []
   readonly aborted: string[] = []
   readonly hungAborted: string[] = []
@@ -71,16 +69,11 @@ export class MemoryLine implements Line {
   private readonly consumed = new Map<string, number>()
   private readonly sseConfig: SseConfig | undefined
 
-  constructor(
-    kind: 'stdio' | 'streamable-http',
-    script: Script,
-    sse?: Readonly<{ entry: SseConfig }>,
-  ) {
-    this.kind = kind
+  constructor(script: Script, sse?: Readonly<{ entry: SseConfig }>) {
     this.script = script
     this.events = this.queue
     this.sseConfig = sse?.entry
-    if (kind === 'streamable-http' && sse !== undefined) this.openGet = this.getStream.bind(this)
+    if (sse !== undefined) this.openGet = this.getStream.bind(this)
   }
 
   openGet: ((headers: Headers, signal: AbortSignal) => Promise<GetOpened>) | undefined
@@ -167,8 +160,8 @@ export class MemoryLine implements Line {
     this.sent.push({ message: parsed, headers, text: outbound.text })
     if (reply?.kind === 'hang' || reply?.kind === 'late-stream')
       return this.hold(reply.kind, typeof method === 'string' ? method : '', signal)
-    if (reply === undefined) return this.kind === 'stdio' ? { kind: 'sent' } : ended({})
-    if (this.kind === 'stdio' || this.sse) return this.onStream(reply, id)
+    if (reply === undefined) return ended({})
+    if (this.sse) return this.onStream(reply, id)
     return this.onHttp(reply, id, signal)
   }
 
@@ -207,13 +200,10 @@ export class MemoryLine implements Line {
   }
 
   private onStream(reply: Reply, id: PlainJson | undefined): Exchange {
-    const sent: Exchange = this.kind === 'stdio' ? { kind: 'sent' } : ended({})
+    const sent: Exchange = ended({})
     switch (reply.kind) {
       case 'message':
         queueMicrotask(() => this.push(answerOf(reply, id)))
-        return sent
-      case 'ended':
-        queueMicrotask(() => this.queue.push({ ...reply }))
         return sent
       case 'broken':
         queueMicrotask(() => this.queue.push({ kind: 'broken' }))
@@ -221,7 +211,6 @@ export class MemoryLine implements Line {
       case 'silent':
         return sent
       case 'status':
-        if (this.kind === 'stdio') throw new TypeError('an HTTP status on stdio')
         return {
           kind: 'status',
           status: reply.status,
@@ -231,7 +220,6 @@ export class MemoryLine implements Line {
       case 'empty':
         return sent
       case 'aborted':
-        if (this.kind === 'stdio') throw new TypeError('an aborted exchange on stdio')
         return { kind: 'aborted' }
       case 'unsent':
         return { kind: 'unsent' }
@@ -282,7 +270,6 @@ export class MemoryLine implements Line {
             this.streamAborted.push(typeof id === 'string' ? id : '')
           },
         }
-      case 'ended':
       case 'broken':
       case 'hang':
       case 'late-stream':

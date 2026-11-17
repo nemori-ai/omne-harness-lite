@@ -32,3 +32,9 @@ export interface LoginTenants {
 }
 
 export type HitlAccessSettings = Readonly<{ locationRef: string }>
+
+export type CardChangeListener = Readonly<{ changed(): void; closed(): void }>
+
+export interface CardChanges {
+  subscribe(tenant: string, listener: CardChangeListener): () => void
+}

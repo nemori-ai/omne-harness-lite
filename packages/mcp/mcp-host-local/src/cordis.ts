@@ -10,13 +10,9 @@ import type {
 import type {
   AdoptionView,
   CredentialFailure,
-  CredentialPurpose,
   CredentialUse,
   HttpCredentialHandle,
   HttpPurpose,
-  ProcessCredentialHandle,
-  ProcessLanding,
-  ProcessPurpose,
   UseEligibility,
 } from '@omne-harness/mcp-contract/provider'
 import {
@@ -25,7 +21,6 @@ import {
   EndpointStatusService,
   mcpAdoptionViewKey,
   mcpCredentialUseKey,
-  mcpProcessLandingKey,
   mcpUseEligibilityKey,
 } from '@omne-harness/mcp-cordis-contract/cordis'
 import {
@@ -56,7 +51,6 @@ const CONFIG_FIELDS: Readonly<Record<keyof McpPluginConfig, true>> = {
   maxListingPages: true,
   maxActions: true,
   instructionsByteLimit: true,
-  probeTimeoutMs: true,
   clientInfo: true,
 }
 const CLIENT_INFO_FIELDS: Readonly<Record<keyof ClientInfo, true>> = { name: true, version: true }
@@ -82,12 +76,11 @@ function fieldsIssue(
 }
 
 function boundsOf(record: Readonly<Record<PropertyKey, unknown>>): Bounds | keyof Bounds {
-  const { maxListingPages, maxActions, instructionsByteLimit, probeTimeoutMs } = record
+  const { maxListingPages, maxActions, instructionsByteLimit } = record
   if (typeof maxListingPages !== 'number') return 'maxListingPages'
   if (typeof maxActions !== 'number') return 'maxActions'
   if (typeof instructionsByteLimit !== 'number') return 'instructionsByteLimit'
-  if (typeof probeTimeoutMs !== 'number') return 'probeTimeoutMs'
-  return { maxListingPages, maxActions, instructionsByteLimit, probeTimeoutMs }
+  return { maxListingPages, maxActions, instructionsByteLimit }
 }
 
 function clientInfoOf(value: unknown): ClientInfo | string {
@@ -150,40 +143,17 @@ function credentialsOf(ctx: Context): CredentialUse<unknown> {
   type Access = Parameters<CredentialUse<unknown>['acquire']>[0]
   type Holding = Parameters<CredentialUse<unknown>['acquire']>[1]
   type Binding = Parameters<CredentialUse<unknown>['acquire']>[3]
-  function acquire(
-    access: Access,
-    holding: Holding,
-    purpose: ProcessPurpose,
-    binding: Binding,
-  ): Promise<Outcome<ProcessCredentialHandle, CredentialFailure>>
-  function acquire(
+  async function acquire(
     access: Access,
     holding: Holding,
     purpose: HttpPurpose,
     binding: Binding,
-  ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>>
-  async function acquire(
-    access: Access,
-    holding: Holding,
-    purpose: CredentialPurpose,
-    binding: Binding,
-  ): Promise<Outcome<ProcessCredentialHandle | HttpCredentialHandle, CredentialFailure>> {
+  ): Promise<Outcome<HttpCredentialHandle, CredentialFailure>> {
     const port = ctx.get(mcpCredentialUseKey)
     if (port === undefined) return fail('unknown')
-    if (purpose.kind === 'process-env') return port.acquire(access, holding, purpose, binding)
     return port.acquire(access, holding, purpose, binding)
   }
   return { acquire }
-}
-
-function landingOf(ctx: Context): ProcessLanding<unknown> {
-  return {
-    async start(...args) {
-      const port = ctx.get(mcpProcessLandingKey)
-      if (port === undefined) return fail('unknown')
-      return port.start(...args)
-    },
-  }
 }
 
 class HostActionDiscovery extends ActionDiscoveryService<unknown> {
@@ -255,11 +225,9 @@ export function createMcpPlugin(parts: McpPluginParts) {
         adoption: adoptionOf(ctx),
         eligibility: eligibilityOf(ctx),
         credentials: credentialsOf(ctx),
-        landing: landingOf(ctx),
         store: createInMemoryCatalogStore(),
         transports: createLocalTransportFactory({
           clientInfo: config.clientInfo,
-          probeTimeoutMs: config.probeTimeoutMs,
           ...(parts.fetch === undefined ? {} : { fetch: parts.fetch }),
         }),
         checkOutput: parts.checkOutput,
@@ -271,13 +239,9 @@ export function createMcpPlugin(parts: McpPluginParts) {
         maxActions: config.maxActions,
         instructionsByteLimit: config.instructionsByteLimit,
       })
-      const logger = ctx.logger('mcp')
       ctx.effect(
         () => async () => {
-          const report = await services.connections.closeAll()
-          for (const closed of report)
-            if (closed.process === 'root-only' || closed.process === 'unconfirmed')
-              logger.warn('the stop of the process was not confirmed', closed.ref, closed.process)
+          await services.connections.closeAll()
         },
         'mcp.closeAll',
       )

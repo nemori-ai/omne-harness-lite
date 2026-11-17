@@ -904,12 +904,13 @@ describe('真实仓库', () => {
       expect(found.has('packages/agent/agent-cordis-contract')).toBe(true)
       expect(found.has('packages/agent/agent-host-local')).toBe(true)
       expect(found.has('tools/test-runner')).toBe(false)
+      expect(found.has('packages/model/model-contract')).toBe(false)
       const two = dependentMembers(ROOT, members, [
         'packages/agent/agent-cordis-contract',
         'packages/common/message',
       ])
       expect(two.has('packages/agent/agent-host-local')).toBe(true)
-      expect(two.has('apps/m2-contract-skeleton')).toBe(true)
+      expect(two.has('packages/model/model-contract')).toBe(true)
     },
   )
 

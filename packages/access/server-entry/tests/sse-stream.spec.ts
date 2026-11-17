@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SseStream } from '../src/observation-hub/sse.ts'
-import { sleep } from './support/entry.ts'
 import { holdResponse, type HeldResponse } from './support/held-response.ts'
+import { manualClock } from './support/manual-clock.ts'
 
 let held: HeldResponse | undefined
 afterEach(async () => {
@@ -16,7 +16,8 @@ describe('SseStream on a disconnected response', () => {
     const { res } = held
     expect(res.destroyed).toBe(true)
     const write = vi.spyOn(res, 'write')
-    const stream = new SseStream(res, 20)
+    const clock = manualClock()
+    const stream = new SseStream(res, 20, clock)
     expect(stream.closed).toBe(true)
     let closeCalls = 0
     stream.onClose(() => {
@@ -26,10 +27,9 @@ describe('SseStream on a disconnected response', () => {
     stream.open(200, '{"first":true}')
     stream.event('{"second":true}')
     stream.end()
-    await expect(
-      Promise.race([stream.finished.then(() => 'finished'), sleep(200).then(() => 'hung')]),
-    ).resolves.toBe('finished')
-    await sleep(80)
+    await stream.finished
+    expect(clock.pending()).toBe(0)
+    clock.advance(200)
     expect(write).not.toHaveBeenCalled()
   })
 })

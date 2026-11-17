@@ -15,6 +15,7 @@
 | `triage` | `pnpm run test:triage` | 失败归因 |
 | `replay` | | 对一段历史逐个提交算计划 |
 | `coverage-parallel` | 由 `scripts/metrics.sh` 调 | 覆盖率的并发度 |
+| `token-ledger` | | 核对令牌账本没有超卖 |
 | `check` | `pnpm run check`、`admission`、`preflight` | 步骤图、准入、接续、预检 |
 | `admission-evidence` | | 核对可采用的全量准入 |
 
@@ -23,7 +24,7 @@
 另有两样随本成员定形，代码在别处：
 
 - 分层定义在仓库根的 `vitest.tiers.mts`，过滤守卫在 `src/testing/filter-guard.ts`。
-- 运行名额由 `scripts/with-test-slot.mjs` 实现。它的承诺写在本规格，因为名额个数与并行度的份数是同一个数。
+- 令牌池由 `scripts/with-test-slot.mjs` 实现。它的承诺写在本规格，因为并行度就是拿到的令牌数。
 
 ## 领域边界
 
@@ -34,7 +35,7 @@
 - 成员测试的结果缓存、工作进程预算、耗时账本与失败归因。
 - 准入的文本日志格式、JSON 运行记录的形状、接续准入与证据核对。
 - 准入开始时的环境自检与自愈，预检的步骤与输出。
-- 运行名额的排队规则、锁目录与名额账本。
+- 令牌池的排队规则、锁目录与令牌账本。
 
 本成员不拥有：
 
@@ -108,6 +109,7 @@
 测试分快慢两层，定义只在 `vitest.tiers.mts` 写一处：一个 `slow` 标签，以及把 vitest 的 mode（`fast`、`slow`，不给为两层）翻成标签过滤。
 
 - 一个测试归慢层：整个文件在开头注释里写 `@module-tag slow`，单条用例写 `{ tags: ['slow'] }`，并写一句为什么慢。
+- 同一处还声明 `source-text` 标签：按源码文本下结论的测试文件在开头注释里写 `@module-tag source-text`。它不改变层，照常在快层跑；差分变异按这个标签把它排除，见 [pqw-adapter 的规格](../pqw-adapter/SPEC.md#mutation)。
 - 时限的先后：用例自己写的，再是慢层标签的（120 秒），再是成员配置的 `testTimeout`，最后是快层时限 15 秒。快层的承诺仍是单条用例不到 5 秒，超过的由账本点名。
 - 成员有三个测试脚本：`test:fast`、`test:slow`（关类型测试，`*.spec-d.ts` 都归快层）、`test`。脚本不先构建。层只经脚本里的 mode 传递，外面的环境变量改不了层。
 - 不带命令行过滤时，一层里一个测试都不剩不算失败。带过滤时，过滤后一个文件都不剩就非零退出。带 `-t` 时还关静态预解析，因为它认不出 `test.each` 生成的名字。
@@ -139,12 +141,15 @@
 
 ### 并行度
 
-- 一次检查的工作进程预算 = floor((核数 − `parallel.reserveCores`) ÷ `parallel.concurrentRuns`)，再按空闲内存 ÷ `parallel.memoryPerWorkerMiB` 封顶，至少 1。
-- 预算不看 CPU 空闲率。按固定份数分，两次检查同时跑时哪一次先起都拿到同样多。空闲率只记进账本。
-- `pnpm run check` 在起任何步骤之前算一次预算，经 `OMNE_WORKER_BUDGET` 交给各重步骤。调用方已设它时原样交下去。
-- 同时成员数 = ceil(预算 ÷ `memberDivisor`)，每成员工作进程数 = ceil(预算 ÷ `workerDivisor`)，两者不低于 `minimum`，后者不高于 `maxWorkersPerMember`。
-- `OMNE_WORKER_BUDGET`、`OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS` 可以临时盖过推出的值。账本的 `meta` 记下并行度、核数与预算的来历。
-- `coverage-parallel` 打印 `<同时成员数>x<每成员工作进程数>`，两数之积不超过预算。`scripts/metrics.sh` 在占到名额之后调它，经 `OMNE_METRICS_COVERAGE_PARALLEL` 交给 repo-toolchain 的 omne-metrics。
+并行度不预先定，由[令牌池](#令牌池)发出的令牌决定。一个令牌是一个核的份额。
+
+- `pnpm run check` 自己不整程占令牌。步骤图里的每一步各当一件活去要：构建与类型检查要全部令牌、至少 1 个，turbo 的并发等于拿到的个数；pytest 一步最多要 max(2, floor(C ÷ 4)) 个；单进程的静态检查各要 1 个。
+- 成员测试与验收把每个成员的每一层各当一件活去要。最多要 min(`maxWorkersPerMember`, 这一层的用例文件数) × 每个进程的令牌数，至少要一个进程的令牌数。vitest 的进程数 = floor(拿到的令牌数 ÷ 每个进程的令牌数)，至少 1。
+- 每个进程的令牌数缺省是 1。一个 vitest 进程实际不止用一个核的成员在 `parallel.tokensPerWorker` 里按「成员 × 层」写一个数，旁边写明这个数是哪一次量出来的。
+- 成员的各层按上一次的用时从长到短去排队，没有记录的排最前。上一次的用时取自耗时账本。
+- 已经在令牌之内的命令（`OMNE_TEST_SLOT_HELD` 非空）不再去整机的池子排队，在进程内把 `OMNE_WORKER_BUDGET` 个令牌按同样的规则分给自己的各件活。
+- `VITEST_MAX_WORKERS` 由运行器按拿到的令牌写给每个成员的 vitest。账本的 `meta` 记下并行度、核数与预算的来历。
+- `coverage-parallel` 打印 `<同时成员数>x<每成员工作进程数>`，两数之积不超过拿到的令牌数。`scripts/metrics.sh` 拿到令牌之后调它，经 `OMNE_METRICS_COVERAGE_PARALLEL` 交给 repo-toolchain 的 omne-metrics。
 
 ### 耗时账本
 
@@ -194,7 +199,7 @@
 
 - 全部同时起，受轻步骤的并发上限约束。失败不终止其余，最后一次列出全部失败：每一步的退出码、日志末尾与一句修法。退出码取第一个失败的那一步，全过退出 0。
 - 开始时同样做环境自检与自愈。
-- 不占运行名额。不写准入日志与运行记录，不是准入证据。日志落 `tmp/preflight/`。
+- 不要令牌。不写准入日志与运行记录，不是准入证据。日志落 `tmp/preflight/`。
 - 不构建。`lint:rules` 读磁盘上 `packages/common/legal-identity` 的 `dist/`，没有就在那一步失败，修法写明先构建它。
 
 ### 环境自检与自愈
@@ -291,33 +296,40 @@
 
 它接受的是「这棵树上跑过一次干净的全量准入」，不是「这次再跑也会过」。记录与日志都在被忽略的 `tmp/` 下，不是跨检出或跨机器的证据。
 
-### 运行名额
+### 令牌池
 
-`scripts/with-test-slot.sh <命令> [参数…]` 拿到名额才执行命令，并原样返回它的退出码。实现在 `scripts/with-test-slot.mjs`，只用 Node 标准库，macOS、Linux 与 Windows 通用。根 `package.json` 的脚本不经 `.sh`，直接运行 `node scripts/with-test-slot.mjs [--unless-plan-only] <命令> [参数…]`；`test:tier` 以 `--tier` 结尾，层名由检查器的参数解析核对，缺层、多给参数或层名不对以 2 退出。
+整台机器的核是一个共有的量，由一个令牌池记账。
 
-- 经它执行的入口：根 `pnpm run check`（整套占一个名额）、`admission`、`test`、`test:gate`、`test:affected`、`test:tier`、`test:triage`、`test:python`、`acceptance`、`metrics --coverage`、`closeout:metrics`、`closeout:mutation`。`test:affected` 与 `closeout:mutation` 经 `--unless-plan-only`，带 `--plan-only` 时不占。预检不占。
-- 已经持有名额的进程（`OMNE_TEST_SLOT_HELD`）再调用它时直接放行，不重复排队，也不另记账本。
-- 先来后到：进队时领一张号，号比目录里见过的所有票号都大。名额空出时只有号码最小的活票去拿。
-- 票、名额与队列锁都是独占创建的文件，记着登记者的进程号、所在侧（`side=<平台>@<主机名>`，WSL 里再加发行版名）与心跳。进程不在了（只在同侧判）或心跳停了超过三个间隔，登记就失效，由下一个看队列的进程删掉。没有完整发布的登记保留，不当作死进程。
-- 名额随持有它的包装进程退出而释放。POSIX 下只杀包装进程时，被包装的命令成孤儿接着跑，名额却已释放，所以要杀整棵进程树。
-- Windows 侧与 WSL 侧共用 Windows 用户临时目录下的 `omne-test-slots-<用户名>`。WSL 里经 interop 解析这个目录，并用探针文件核对两侧看到的是同一个目录。解析失败时回退 `/tmp/omne-test-slots-<uid>`，并在标准错误报「WSL 与 Windows 没有共用名额」。
+机器有 C = max(1, 核数 − `parallel.reserveCores`) 个令牌。一件活带两个数来要令牌：`want` 是最多用得上几个，`min` 是至少几个才跑。活按先来先得排队。排在队首的活在空闲的令牌不少于 `min` 时拿 min(`want`, 空闲数) 个，拿到之后个数不再变，跑完全部归还。
+
+`scripts/with-test-slot.sh [--want <n>] [--min <n>] [--] <命令> [参数…]` 拿到令牌才执行命令，把拿到的个数经 `OMNE_WORKER_BUDGET` 交给命令，并原样返回它的退出码。不给 `--want` 时要全部令牌，不给 `--min` 时至少 1 个。`min` 大于 C 时按 C 算。只用得上一两个核的命令要自己给 `--want`：它不给就拿走全部空闲的令牌，它跑完之前别的活只能等。实现在 `scripts/with-test-slot.mjs`，只用 Node 标准库，macOS、Linux 与 Windows 通用。根 `package.json` 的脚本不经 `.sh`，直接运行 `node scripts/with-test-slot.mjs [--unless-plan-only] [--want <n>] [--min <n>] [--] <命令> [参数…]`；`test:tier` 以 `--tier` 结尾，层名由检查器的参数解析核对。
+
+- 整条命令当一件活来要令牌的入口：`test`、`test:gate`、`test:affected`、`test:tier`、`test:triage`、`test:python`、`acceptance`、`metrics --coverage`、`closeout:metrics`、`closeout:mutation`。`test:affected` 与 `closeout:mutation` 经 `--unless-plan-only`，带 `--plan-only` 时不要令牌。预检不要令牌。根 `pnpm run check` 与 `admission` 自己不要，它们的各步各自去要，见[并行度](#并行度)。
+- 已经在令牌之内的进程（`OMNE_TEST_SLOT_HELD` 非空）再调用它时直接放行，不重复排队，也不另记账本。`OMNE_TEST_SLOT_HELD` 的值是它持有的第一个令牌的目录。
+- 先来后到：进队时领一张号，号比目录里见过的所有票号都大。只有号码最小的活票去拿令牌。
+- 票是独占创建的文件。队列锁与令牌是目录：持有 = 目录里有自己独占创建的条目，而且目录里只有这一个条目。条目名每次新取，不重用。票与条目记着登记者的进程号、所在侧（`side=<平台>@<主机名>`，WSL 里再加发行版名）与心跳。
+- 进程不在了（只在同侧判）或心跳停了超过三个间隔，登记就失效，由下一个看队列的进程清掉。回收只按判定失效的那个确切条目名删条目，再删空目录，从不递归删除，所以删不掉别人刚放进条目的活锁或活令牌。没有完整发布的登记保留，不当作死进程。票与令牌只在队列锁里增删。
+- 令牌随持有它的包装进程退出而全部释放。POSIX 下只杀包装进程时，被包装的命令成孤儿接着跑，令牌却已释放，所以要杀整棵进程树。
+- Windows 侧与 WSL 侧共用 Windows 用户临时目录下的 `omne-core-tokens-<用户名>`。WSL 里经 interop 解析这个目录，并用探针文件核对两侧看到的是同一个目录。解析失败时回退 `/tmp/omne-core-tokens-<uid>`，并在标准错误报「WSL 与 Windows 没有共用令牌池」。
 - Windows 上，命令是 `pnpm` 时按 `PATH` 找能起 pnpm 的目录，命令以 `.sh` 结尾时经 Git for Windows 的 bash 运行，参数逐个加引号原样到达。找不到时以 127 退出。
+
+六条性质由 [TLA+ 模型](verification/formal-mapping.md)核：不超卖、不重复、不漏、先来先得、不让资源闲着、一件活跑起来之后令牌不被收走。
 
 | 环境变量 | 缺省 | 含义 |
 | --- | --- | --- |
-| `OMNE_TEST_SLOTS` | 2 | 同时允许几套在跑。与 `parallel.concurrentRuns` 是同一个数，`tests/parallelism.spec.ts` 核对两处相等 |
+| `OMNE_TEST_SLOT_CAPACITY` | 核数 − `parallel.reserveCores` | 这台机器的令牌数。要改就给机器上每个调用方同一个值 |
 | `OMNE_TEST_SLOT_DIR` | 见上 | 锁目录。同一用户且临时目录相同的全部检出共用 |
 | `OMNE_TEST_SLOT_POLL_SECONDS` | 5 | 没轮到时隔多久再看一次 |
 | `OMNE_TEST_SLOT_MAX_WAIT_SECONDS` | 7200 | 最多等多久。超过以 75 退出，命令没有执行 |
-| `OMNE_TEST_SLOT_LEDGER` | `${XDG_STATE_HOME:-~/.local/state}/omne-test-slots/ledger.jsonl` | 名额账本 |
+| `OMNE_TEST_SLOT_LEDGER` | `${XDG_STATE_HOME:-~/.local/state}/omne-test-slots/ledger.jsonl` | 令牌账本 |
 
-- 排队时在标准错误报前面还有几个、每个名额被什么命令占着，变了再报一次。75 表示「没轮到」，既不是检查失败也不是通过。
-- 每次用完名额或等到超时放弃，往名额账本追加一行 JSON：`event`（`ran` 或 `gave-up`）、`command`（截到 500 字符）、`cwd`、`pid`、`issue` 与 `attempt`（取自工作树的任务上下文，取不到为 null）、`cores`、`slots`、`slot`、`aheadOnArrival`、`arrivedAt`、`acquiredAt`、`endedAt`（RFC 3339，截到秒）、`waitSeconds`、`heldSeconds`（毫秒差向下取整）、`cpuSeconds`（到 0.01 秒）、`loadAtAcquire`、`loadAtEnd`、`exitCode`。放弃时名额相关的栏为 null，`exitCode` 为 75。写不进去只提醒一句，不改退出码。
-- 平均核数落在 (`cpuSeconds` ÷ (`heldSeconds` + 1)，`cpuSeconds` ÷ `heldSeconds`] 区间里。
+- 排队时在标准错误报前面还有几个、令牌被什么命令占着，变了再报一次。75 表示「没轮到」，既不是检查失败也不是通过。
+- 每次用完令牌或等到超时放弃，往令牌账本追加一行 JSON：`event`（`ran` 或 `gave-up`）、`command`（截到 500 字符）、`cwd`、`pid`、`issue` 与 `attempt`（取自工作树的任务上下文，取不到为 null）、`cores`、`pool`（锁目录）、`capacity`、`want`、`min`、`tokens`、`aheadOnArrival`、`arrivedAt`、`acquiredAt`、`endedAt`（RFC 3339，截到秒）、`acquiredMs`、`endedMs`（历元毫秒，拿到令牌之后与归还之前各读一次）、`waitSeconds`、`heldSeconds`（毫秒差向下取整）、`cpuSeconds`（到 0.01 秒）、`loadAtAcquire`、`loadAtEnd`、`exitCode`。放弃时拿到之后才有的栏为 null，`exitCode` 为 75。写不进去只提醒一句，不改退出码。
+- 平均核数落在 (`cpuSeconds` ÷ (`heldSeconds` + 1)，`cpuSeconds` ÷ `heldSeconds`] 区间里。任何时刻账本里正持有的 `tokens` 之和不超过 `capacity`。核对命令：`node --experimental-strip-types tools/test-runner/src/testing/cli.ts token-ledger [--since <时刻>]`。它按行里的 `pool`（锁目录）分开，每个池按 `acquiredMs` 与 `endedMs` 扫一遍，同一毫秒先算归还，报一个池里同时持有的最高值；有超过容量的时刻就逐个列出并退出 1。两个时刻都读在持有期之内，所以它不会把没有重叠的两次持有报成超卖。
 
-名额的已知限制：
+令牌池的已知限制：
 
-- 名额只覆盖经根脚本的入口。成员级 vitest 不占名额，与准入并发时，时序敏感的用例可能变红。
+- 令牌只覆盖经根脚本的入口。成员级 vitest 不要令牌，与准入并发时，时序敏感的用例可能变红。
 - 跨侧判定只看心跳，依赖两侧时钟一致。嵌套放行不跨 interop 边界。
 - 队列锁依赖 30 秒年龄回收，有代际回收的竞态。队列失去独占时，先来后到与互斥都不能无条件保证。
 - 写入者在登记没有完整发布时异常退出，会留下无法判定归属的文件。清理前先确认相关包装进程与命令都已结束。
@@ -340,4 +352,4 @@
 - 带未提交改动的运行记录不被接续，也不被 `admission-evidence` 接受。
 - 只有完整通过、且对这次构建的产物跑出的成员测试才写进缓存。
 - 接续的范围不比 H1 那次的范围宽。
-- 名额没轮到时以 75 退出，命令没有执行。
+- 令牌没轮到时以 75 退出，命令没有执行。

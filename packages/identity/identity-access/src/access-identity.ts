@@ -1,6 +1,7 @@
 import type {
   AccessIdentity,
   ActForResult,
+  LoginIdentity,
   LoginResult,
 } from '@omne-harness/access-cordis-contract'
 import type {
@@ -8,6 +9,7 @@ import type {
   IdentityOperations,
   PrincipalIssuer,
   SystemPrincipal,
+  TenantStandingSource,
 } from '@omne-harness/identity'
 import { accountEquals, tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { callerOf, LOGIN_WORK_OWNER, loginIdentityOf, loginTextOf, principalOf } from './caller.ts'
@@ -18,10 +20,38 @@ export type AccessIdentityDependencies = Readonly<{
   issuer: PrincipalIssuer
 }>
 
+export type MemberActingDependencies = Readonly<{
+  identity: Pick<AccessIdentity, 'actFor'>
+  standing: Pick<TenantStandingSource, 'read'>
+}>
+
 const ENTRY_COMPONENT = 'server-entry'
 
 const DENIED = Object.freeze({ outcome: 'denied' as const })
 const UNAVAILABLE = Object.freeze({ outcome: 'basis-unavailable' as const })
+
+function ownTenant(login: LoginIdentity, tenant: string): TenantId | undefined {
+  const target = tenantCodec.parse(tenant)
+  return target.ok && accountEquals(target.value.account, callerOf(login).account)
+    ? target.value
+    : undefined
+}
+
+export function createMemberActing(deps: MemberActingDependencies): AccessIdentity['actFor'] {
+  const { identity, standing } = deps
+  return async (login, tenant) => {
+    const target = ownTenant(login, tenant)
+    if (target === undefined) return DENIED
+    let reading
+    try {
+      reading = await standing.read({ tenant: target })
+    } catch {
+      return UNAVAILABLE
+    }
+    if (reading.kind === 'unavailable') return UNAVAILABLE
+    return reading.kind === 'member' ? identity.actFor(login, tenant) : DENIED
+  }
+}
 
 export function createAccessIdentity(
   deps: AccessIdentityDependencies,
@@ -73,10 +103,8 @@ export function createAccessIdentity(
     },
 
     async actFor(login, tenant): Promise<ActForResult> {
-      const caller = callerOf(login)
-      const target = tenantCodec.parse(tenant)
-      if (!target.ok || !accountEquals(target.value.account, caller.account)) return DENIED
-      return issueFor(target.value, caller.loginText)
+      const target = ownTenant(login, tenant)
+      return target === undefined ? DENIED : issueFor(target, callerOf(login).loginText)
     },
 
     resume(tenant, loginText): ActForResult {

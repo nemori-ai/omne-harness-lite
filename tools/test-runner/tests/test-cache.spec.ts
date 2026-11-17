@@ -15,6 +15,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { slugOf } from '../src/testing/run.ts'
+import { localPool } from '../src/testing/token-pool.ts'
 import { coordinates } from '@omne-harness/repo-toolchain/core/git'
 import {
   fileTree,
@@ -318,7 +319,6 @@ describe('缓存键', () => {
       VITEST_SEGFAULT_RETRY: '1',
       VITEST_MAX_WORKERS: '8',
       OMNE_WORKER_BUDGET: '16',
-      OMNE_TEST_MEMBER_CONCURRENCY: '4',
       OMNE_TEST_REPORT_DIR: '/runs/1',
       OMNE_TEST_LEDGER_HOME: '/ledgers',
       TMP: '/tmp',
@@ -937,11 +937,7 @@ const builtNow = (root: string, targets: readonly TestMember[]) =>
     ].map(([member, input]) => [member, { input }]),
   )
 
-const BUDGET = {
-  workers: 2,
-  machine: { cores: 2, idleFraction: 1, freeMemoryMiB: 4096 },
-  source: 'env' as const,
-}
+const BUDGET = { workers: 2, cores: 2, source: 'env' as const }
 
 interface LedgerCache {
   readonly meta: {
@@ -986,7 +982,7 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
           at: coordinates(root, undefined),
           base: null,
           plan: null,
-          budget: BUDGET,
+          tokens: localPool(2),
           builtFrom: builtNow(root, targets),
           cache: {
             read,
@@ -1082,7 +1078,7 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
         at: coordinates(root, undefined),
         base: null,
         plan: null,
-        budget: BUDGET,
+        tokens: localPool(2),
         builtFrom: builtNow(root, targets),
         cache: { read: true, reason: '', trustedOnly: false, write: true, writeReason: '' },
       })
@@ -1148,7 +1144,7 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
             at: coordinates(root, undefined),
             base: null,
             plan: null,
-            budget: BUDGET,
+            tokens: localPool(2),
             builtFrom: builtNow(root, targets),
             cache: {
               read: true,

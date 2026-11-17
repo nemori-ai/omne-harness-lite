@@ -2,9 +2,19 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { FAST_VITEST_CONFIG, STRYKER_MODULES, pqwScripts, slugOf } from './locations.ts'
 import type { ChangedMember } from './members.ts'
+import type { Options } from './options.ts'
 import type { Executor, Outcome } from './process.ts'
 
 export const DEFAULT_MAX_LINES = 600
+
+export type StrykerOptions = Pick<Options, 'timeout' | 'timeoutFactor' | 'recheck' | 'recheckLimit'>
+
+const strykerArgs = (options: StrykerOptions): string[] => [
+  ...(options.timeout === undefined ? [] : ['--timeout', options.timeout]),
+  ...(options.timeoutFactor === undefined ? [] : ['--timeout-factor', options.timeoutFactor]),
+  ...(options.recheck ? ['--recheck'] : []),
+  ...(options.recheckLimit === undefined ? [] : ['--recheck-limit', options.recheckLimit]),
+]
 
 export interface MutationCall {
   readonly root: string
@@ -15,6 +25,7 @@ export interface MutationCall {
   readonly json: string
   readonly planOnly: boolean
   readonly workers?: number
+  readonly stryker: StrykerOptions
 }
 
 export function mutationArgs(call: MutationCall): string[] {
@@ -36,6 +47,7 @@ export function mutationArgs(call: MutationCall): string[] {
     '--vitest-config',
     FAST_VITEST_CONFIG,
     ...(call.workers === undefined ? [] : ['--workers', String(call.workers)]),
+    ...strykerArgs(call.stryker),
     '--json',
     call.json,
     ...(call.planOnly ? ['--plan-only'] : []),
@@ -110,6 +122,7 @@ export interface MutationContext {
   readonly files: readonly string[]
   readonly outDir: string
   readonly exec: Executor
+  readonly stryker: StrykerOptions
 }
 
 export async function mutateMember(
@@ -130,6 +143,7 @@ export async function mutateMember(
       scopes: member.scopes,
       files: context.files.filter(file => file.startsWith(`${member.path}/`)),
       json,
+      stryker: context.stryker,
       ...run,
     }),
     cwd: context.root,

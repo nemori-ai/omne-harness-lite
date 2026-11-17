@@ -3,22 +3,17 @@ import { accessRegistryKey } from '@omne-harness/access-cordis-contract/cordis'
 import type { TargetTenantPrincipals, TenantSettingsPort } from '@omne-harness/assets-access'
 import { createAssetsAccessPlugin } from '@omne-harness/assets-access/cordis'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
-import { createAccessIdentity } from '@omne-harness/identity-access'
 import { defineRow } from '../../row.ts'
 import { tenantSettingsKey } from '../governance/tenant-settings-service.ts'
-import { governanceOfCall, identityOfCall } from '../server-entry/identity.ts'
+import { memberActingOfCall } from '../server-entry/identity.ts'
 import { settingsSecretItemsKey } from '../settings/index.ts'
 import { unifySettings } from './settings.ts'
 
 function targetTenantPrincipals(ctx: Context): TargetTenantPrincipals {
-  const identity = createAccessIdentity({
-    operations: identityOfCall(ctx),
-    governance: governanceOfCall(ctx),
-    issuer: ctx.principalIssuer,
-  })
+  const actForMember = memberActingOfCall(ctx)
   return {
     async actingFor(login, tenant) {
-      const issued = await identity.actFor(login, tenant)
+      const issued = await actForMember(login, tenant)
       return issued.outcome === 'issued' ? { ok: issued.principal } : { refused: issued.outcome }
     },
   }

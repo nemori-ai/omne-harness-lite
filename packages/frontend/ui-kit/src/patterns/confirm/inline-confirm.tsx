@@ -97,7 +97,7 @@ export function InlineConfirm({
     <span
       ref={group}
       role="group"
-      className={cn('pe-inline-confirm', className)}
+      className={cn('omne-inline-confirm', className)}
       data-tone={tone}
       data-armed={armed}
       onKeyDown={event => {
@@ -121,7 +121,7 @@ export function InlineConfirm({
       ) : (
         <>
           {consequence !== undefined && (
-            <span className="pe-inline-confirm-consequence">{consequence}</span>
+            <span className="omne-inline-confirm-consequence">{consequence}</span>
           )}
           <Button
             ref={commit}

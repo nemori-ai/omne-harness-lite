@@ -19,11 +19,15 @@ import type { TestMember } from '@omne-harness/repo-toolchain/core/workspace'
 import { VITEST_MAX_WORKERS_ENV, type Parallelism, type RunScript, type RunTier } from './config.ts'
 import type { MemberRun, VitestJsonReport } from './ledger.ts'
 import type { TimingReport } from './timing-reporter.ts'
+import { workersFor } from './parallelism.ts'
 import { pnpmCommand } from './support.ts'
+import { runJob, runJobs, type TokenSource } from './token-pool.ts'
 import {
+  buildArgs,
   checkMemberTurboConfigs,
   TIER_TASKS,
   TURBO_BIN,
+  turboEnv,
   turboTestCommand,
   type TestBuild,
 } from './turbo.ts'
@@ -189,31 +193,83 @@ async function runMember(
   return { member: member.path, ...result, ...reportsOf(runDir, slug) }
 }
 
+export interface MemberSchedule {
+  readonly source: TokenSource
+  readonly demand: (member: TestMember) => {
+    readonly want: number
+    readonly min: number
+    readonly perWorker: number
+  }
+}
+
+export function observedParallelism(spans: readonly MemberSpan[]): Parallelism {
+  let memberConcurrency = 0
+  for (const span of spans)
+    memberConcurrency = Math.max(
+      memberConcurrency,
+      spans.filter(other => other.start <= span.start && span.start < other.end).length,
+    )
+  return {
+    memberConcurrency,
+    vitestMaxWorkers: Math.max(0, ...spans.map(span => span.workers)),
+  }
+}
+
+export interface MemberSpan {
+  readonly member: string
+  readonly start: number
+  readonly end: number
+  readonly tokens: number
+  readonly workers: number
+}
+
+async function scheduleMembers(
+  members: readonly TestMember[],
+  schedule: MemberSchedule,
+  label: string,
+  run: (member: TestMember, workers: number) => Promise<MemberRun>,
+  onDone: (run: MemberRun, finished: number) => void,
+): Promise<{ readonly runs: MemberRun[]; readonly spans: MemberSpan[] }> {
+  let finished = 0
+  const spans: MemberSpan[] = []
+  const runs = await runJobs(
+    members.map(member => {
+      const { want, min, perWorker } = schedule.demand(member)
+      return {
+        want,
+        min,
+        label: `${member.path}:${label}`,
+        run: async (tokens: number) => {
+          const start = Date.now()
+          const workers = workersFor(tokens, perWorker)
+          const done = await run(member, workers)
+          spans.push({ member: member.path, start, end: Date.now(), tokens, workers })
+          finished += 1
+          onDone(done, finished)
+          return done
+        },
+      }
+    }),
+    schedule.source,
+  )
+  return { runs, spans }
+}
+
 export async function runMembers(
   root: string,
   members: readonly TestMember[],
   runDir: string,
-  parallel: Parallelism,
+  schedule: MemberSchedule,
   script: RunScript,
   onDone: (run: MemberRun, finished: number) => void,
-): Promise<MemberRun[]> {
-  const runs = Array.from<MemberRun>({ length: members.length })
-  let next = 0
-  let finished = 0
-  const worker = async () => {
-    for (let index = next++; index < members.length; index = next++) {
-      const member = members[index]
-      if (member === undefined) continue
-      const run = await runMember(root, member, runDir, parallel.vitestMaxWorkers, script)
-      runs[index] = run
-      finished += 1
-      onDone(run, finished)
-    }
-  }
-  await Promise.all(
-    Array.from({ length: Math.min(parallel.memberConcurrency, members.length) }, worker),
+): Promise<{ readonly runs: MemberRun[]; readonly spans: MemberSpan[] }> {
+  return scheduleMembers(
+    members,
+    schedule,
+    script,
+    (member, workers) => runMember(root, member, runDir, workers, script),
+    onDone,
   )
-  return runs
 }
 
 function reportsOf(runDir: string, slug: string): Pick<MemberRun, 'report' | 'timing'> {
@@ -255,12 +311,13 @@ function takeSummary(
   root: string,
   output: string,
   runDir: string,
+  name: string,
 ): { readonly summary: TurboSummary } | { readonly missing: string } {
   const match = SUMMARY_LINE.exec(output)
   if (match?.[1] === undefined) return { missing: 'turbo 的输出里没有 Summary 行' }
   const source = isAbsolute(match[1]) ? match[1] : join(root, match[1])
   if (!existsSync(source)) return { missing: `turbo 说的摘要文件不存在：${source}` }
-  const target = join(runDir, 'turbo-summary.json')
+  const target = join(runDir, name)
   copyFileSync(source, target)
   rmSync(source, { force: true })
   try {
@@ -303,66 +360,146 @@ export function archivedReportFiles(
     .filter(file => file.split(/[\\/]/u).some(segment => segment.endsWith('.legacy')))
 }
 
+interface BuildOutcome {
+  readonly failed: readonly string[]
+  readonly built: ReadonlySet<string>
+  readonly log: string
+}
+
+async function buildForTests(
+  root: string,
+  names: readonly string[],
+  runDir: string,
+  admission: boolean,
+  source: TokenSource,
+): Promise<BuildOutcome> {
+  const log = join(runDir, 'turbo-build.log')
+  return runJob(
+    {
+      want: source.capacity,
+      min: 1,
+      label: 'build',
+      run: async (tokens: number) => {
+        const args = [
+          ...buildArgs(names, admission, tokens),
+          '--continue=dependencies-successful',
+          '--summarize',
+        ]
+        console.log(`$ turbo ${args.join(' ')}（输出写进 ${log}）`)
+        await spawnLogged(TURBO_BIN, args, { cwd: root, env: turboEnv({}), logPath: log })
+        const taken = takeSummary(
+          root,
+          readFileSync(log, 'utf8'),
+          runDir,
+          'turbo-build-summary.json',
+        )
+        const tasks = 'summary' in taken ? taken.summary.tasks : []
+        const builds = tasks.filter(entry => entry.task === 'build')
+        return {
+          failed: builds
+            .filter(entry => (entry.execution?.exitCode ?? 0) !== 0)
+            .map(entry => entry.package),
+          built: new Set(
+            builds.filter(entry => entry.execution?.exitCode === 0).map(entry => entry.package),
+          ),
+          log,
+        }
+      },
+    },
+    source,
+  )
+}
+
 export async function runTurboTests(
   root: string,
   members: readonly TestMember[],
   runDir: string,
-  parallel: Parallelism,
+  schedule: MemberSchedule,
   tier: RunTier,
   build: TestBuild,
   onDone: (run: MemberRun, finished: number) => void,
-): Promise<MemberRun[]> {
+): Promise<{ readonly runs: MemberRun[]; readonly spans: MemberSpan[] }> {
   checkMemberTurboConfigs(root, members)
-  const names = members.map(member => member.name)
+  const built = build.build
+    ? await buildForTests(
+        root,
+        members.map(member => member.name),
+        runDir,
+        build.admission,
+        schedule.source,
+      )
+    : undefined
+  const runnable = members.filter(
+    member => built === undefined || built.failed.length === 0 || built.built.has(member.name),
+  )
+  const byMember = new Map<string, MemberRun>()
+  for (const member of members.filter(each => !runnable.includes(each))) {
+    const problem = `没有运行：构建失败（${built?.failed.join('、') ?? ''}），见 ${built?.log ?? ''}`
+    writeFileSync(join(runDir, `${slugOf(member.path)}.log`), `test-runner: ${problem}\n`)
+    const run = { member: member.path, exitCode: -1, wallSeconds: 0, problem }
+    byMember.set(member.path, run)
+    onDone(run, byMember.size)
+  }
+  const notBuilt = byMember.size
+  const ran = await scheduleMembers(
+    runnable,
+    schedule,
+    TIER_TASKS[tier],
+    (member, workers) => runTurboMember(root, member, runDir, tier, workers),
+    (run, finished) => onDone(run, notBuilt + finished),
+  )
+  for (const run of ran.runs) byMember.set(run.member, run)
+  return {
+    runs: members.flatMap(member => byMember.get(member.path) ?? []),
+    spans: ran.spans,
+  }
+}
+
+async function runTurboMember(
+  root: string,
+  member: TestMember,
+  runDir: string,
+  tier: RunTier,
+  workers: number,
+): Promise<MemberRun> {
   const task = TIER_TASKS[tier]
-  const command = turboTestCommand(names, tier, parallel, runDir, build)
-  const turboLog = join(runDir, 'turbo.log')
-  console.log(`$ turbo ${command.args.join(' ')}（输出写进 ${turboLog}）`)
+  const slug = slugOf(member.path)
+  const command = turboTestCommand(member.name, tier, workers, runDir)
+  const turboLog = join(runDir, `turbo-${slug}.log`)
   const turbo = await spawnLogged(TURBO_BIN, command.args, {
     cwd: root,
     env: command.env,
     logPath: turboLog,
   })
   const output = readFileSync(turboLog, 'utf8')
-  const taken = takeSummary(root, output, runDir)
+  const taken = takeSummary(root, output, runDir, `turbo-summary-${slug}.json`)
   const summary = 'summary' in taken ? taken.summary : undefined
-  const logs = memberLogs(output, names, task)
-  const failedBuilds = (summary?.tasks ?? [])
-    .filter(entry => entry.task === 'build' && (entry.execution?.exitCode ?? 0) !== 0)
-    .map(entry => entry.package)
-  return members.map((member, index) => {
-    const slug = slugOf(member.path)
-    const lines = logs.get(member.name) ?? []
-    const execution = summary?.tasks.find(
-      entry => entry.package === member.name && entry.task === task,
-    )?.execution
-    const reports = reportsOf(runDir, slug)
-    const archived = archivedReportFiles(join(root, member.path), reports.report)
-    const problem =
-      execution === undefined
-        ? failedBuilds.length > 0
-          ? `没有运行：构建失败（${failedBuilds.join('、')}），见 ${turboLog}`
-          : !hasScript(join(root, member.path), task)
-            ? `没有 \`${task}\` 脚本：成员要有 test:fast、test:slow 与 test 三个脚本`
-            : 'missing' in taken
-              ? `没有执行记录：${taken.missing}（turbo 退出码 ${turbo.exitCode}），见 ${turboLog}`
-              : `turbo 的运行摘要里没有它的执行记录（turbo 退出码 ${turbo.exitCode}），见 ${turboLog}`
-        : archived.length > 0
-          ? `跑了嵌套归档目录里的测试（成员配置的 exclude 没有排除它们）：${archived.join('、')}`
-          : reports.report === undefined && execution.exitCode === 0
-            ? `退出码 0 却没有写出报告 ${slug}.json：成员配置没有展开 testTiers，或报告目录没传到 vitest`
-            : undefined
-    if (problem !== undefined) lines.push(`test-runner: ${problem}`)
-    writeFileSync(join(runDir, `${slug}.log`), `${lines.join('\n')}\n`)
-    const exitCode = execution === undefined ? -1 : (execution.exitCode ?? -1)
-    const run: MemberRun = {
-      member: member.path,
-      exitCode: problem !== undefined && exitCode === 0 ? 1 : exitCode,
-      wallSeconds: execution === undefined ? 0 : (execution.endTime - execution.startTime) / 1000,
-      ...reports,
-      ...(problem === undefined ? {} : { problem }),
-    }
-    onDone(run, index + 1)
-    return run
-  })
+  const lines = memberLogs(output, [member.name], task).get(member.name) ?? []
+  const execution = summary?.tasks.find(
+    entry => entry.package === member.name && entry.task === task,
+  )?.execution
+  const reports = reportsOf(runDir, slug)
+  const archived = archivedReportFiles(join(root, member.path), reports.report)
+  const problem =
+    execution === undefined
+      ? !hasScript(join(root, member.path), task)
+        ? `没有 \`${task}\` 脚本：成员要有 test:fast、test:slow 与 test 三个脚本`
+        : 'missing' in taken
+          ? `没有执行记录：${taken.missing}（turbo 退出码 ${turbo.exitCode}），见 ${turboLog}`
+          : `turbo 的运行摘要里没有它的执行记录（turbo 退出码 ${turbo.exitCode}），见 ${turboLog}`
+      : archived.length > 0
+        ? `跑了嵌套归档目录里的测试（成员配置的 exclude 没有排除它们）：${archived.join('、')}`
+        : reports.report === undefined && execution.exitCode === 0
+          ? `退出码 0 却没有写出报告 ${slug}.json：成员配置没有展开 testTiers，或报告目录没传到 vitest`
+          : undefined
+  if (problem !== undefined) lines.push(`test-runner: ${problem}`)
+  writeFileSync(join(runDir, `${slug}.log`), `${lines.join('\n')}\n`)
+  const exitCode = execution === undefined ? -1 : (execution.exitCode ?? -1)
+  return {
+    member: member.path,
+    exitCode: problem !== undefined && exitCode === 0 ? 1 : exitCode,
+    wallSeconds: execution === undefined ? 0 : (execution.endTime - execution.startTime) / 1000,
+    ...reports,
+    ...(problem === undefined ? {} : { problem }),
+  }
 }

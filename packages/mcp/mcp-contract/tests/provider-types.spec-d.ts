@@ -7,7 +7,6 @@ type ProviderTypes = {
   CallRequest: Provider.CallRequest
   CatalogStore: Provider.CatalogStore
   CredentialFailure: Provider.CredentialFailure
-  CredentialPurpose: Provider.CredentialPurpose
   CredentialUse: Provider.CredentialUse<unknown>
   EligibilityVerdict: Provider.EligibilityVerdict
   HttpCredentialHandle: Provider.HttpCredentialHandle
@@ -15,12 +14,6 @@ type ProviderTypes = {
   ListingPage: Provider.ListingPage
   McpTransport: Provider.McpTransport
   McpTransportFactory: Provider.McpTransportFactory
-  ProcessCredentialHandle: Provider.ProcessCredentialHandle
-  ProcessEnvironment: Provider.ProcessEnvironment
-  ProcessHandle: Provider.ProcessHandle
-  ProcessLanding: Provider.ProcessLanding<unknown>
-  ProcessPurpose: Provider.ProcessPurpose
-  ProcessSetting: Provider.ProcessSetting
   SentCall: Provider.SentCall
   TaskAnswer: Provider.TaskAnswer
   TransportFailure: Provider.TransportFailure

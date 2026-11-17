@@ -14,7 +14,7 @@
       "import": "./dist/index.js"
     },
     "./cordis": {
-      "source": "./src/cordis.tsx",
+      "source": "./src/cordis.ts",
       "types": "./dist/cordis.d.ts",
       "import": "./dist/cordis.js"
     },
@@ -29,8 +29,7 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
-    "test:slow": "vitest run --mode slow --typecheck.enabled=false",
-    "demo": "node demo/serve.mjs"
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
@@ -50,7 +49,6 @@
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "esbuild": "catalog:",
     "happy-dom": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

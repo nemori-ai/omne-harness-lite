@@ -5,6 +5,7 @@ import type { ClientOf } from '@omne-harness/sdk/core'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
 import {
   createSlotStore,
+  type AttachedLayout,
   type ItemOf,
   type ScopeSource,
   type ShellLogin,
@@ -12,8 +13,8 @@ import {
   type SlotName,
 } from '@omne-harness/shell-contract'
 import { ShellService } from '@omne-harness/shell-contract/cordis'
-import { StrictMode, useEffect, useState } from 'react'
-import { sessionClientService, sessionUiModule } from '../../src/cordis.tsx'
+import { Fragment, StrictMode, useEffect, useState, type ReactNode } from 'react'
+import { sessionClientService, sessionUiModule } from '../../src/cordis.ts'
 
 export class TestShell extends ShellService implements ShellSlots {
   readonly navigated: string[] = []
@@ -23,8 +24,9 @@ export class TestShell extends ShellService implements ShellSlots {
     login: async () => 'signed-in',
     logout: async () => 'signed-out',
   }
+  tenant: string | undefined = undefined
   readonly scope: ScopeSource = {
-    get: () => undefined,
+    get: () => this.tenant,
     set: () => undefined,
     subscribe: () => () => undefined,
   }
@@ -42,12 +44,49 @@ export class TestShell extends ShellService implements ShellSlots {
     this.navigated.push(pageId)
   }
 
+  attached(anchor: string, subject: string): ReactNode {
+    return this.items('attached')
+      .filter(item => item.anchor === anchor)
+      .map(item => (
+        <Fragment key={item.id}>{item.render({ scope: this.scope.get(), subject })}</Fragment>
+      ))
+  }
+
+  arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode {
+    return <Arranged shell={this} anchor={anchor} subject={subject} layout={layout} />
+  }
+
   protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {
     return this.store.place(slot, item)
   }
 }
 
-function useSlot<K extends 'sidebar' | 'pages'>(shell: TestShell, slot: K): readonly ItemOf<K>[] {
+function Arranged({
+  shell,
+  anchor,
+  subject,
+  layout,
+}: {
+  readonly shell: TestShell
+  readonly anchor: string
+  readonly subject: string
+  readonly layout: AttachedLayout
+}) {
+  const items = useSlot(shell, 'attached').filter(item => item.anchor === anchor)
+  return (
+    <>
+      {layout(
+        items.map(item => ({
+          id: item.id,
+          label: item.label,
+          node: item.render({ scope: shell.scope.get(), subject }),
+        })),
+      )}
+    </>
+  )
+}
+
+function useSlot<K extends SlotName>(shell: TestShell, slot: K): readonly ItemOf<K>[] {
   const [items, setItems] = useState(() => shell.items(slot))
   useEffect(() => {
     setItems(shell.items(slot))
@@ -97,6 +136,7 @@ export async function mountModule(
   const { root, shell } = await startShell()
   const withdraw = root.reflect.provide(sessionClientService, client)
   await root.plugin(sessionUiModule)
+  shell.tenant = scope
   const tree = (next: string | undefined) =>
     options.strict === true ? (
       <StrictMode>
@@ -114,6 +154,9 @@ export async function mountModule(
         await withdraw()
       })
     },
-    rerender: (next: string | undefined) => view.rerender(tree(next)),
+    rerender: (next: string | undefined) => {
+      shell.tenant = next
+      view.rerender(tree(next))
+    },
   }
 }

@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { DatabaseSync } from 'node:sqlite'
 import { unpackText } from '@omne-harness/sql-contract/worker'
-import { expect } from 'vitest'
+import { expect, onTestFailed, onTestFinished } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { ListPoolSchema, type PoolItem } from '@omne-harness/human-intervention'
 import { standingPrincipalRef, type ActingForTenantPrincipal } from '@omne-harness/identity'
@@ -34,7 +34,6 @@ import {
   savedLoginProof,
   savedTenant,
 } from '../r9/support.ts'
-import { connectable, until } from './listening.ts'
 import {
   readHistoryPage,
   savedClients,
@@ -380,21 +379,43 @@ export async function onReleaseTreeRuns(
   bodies: readonly ((tree: ReleaseTree) => Promise<void>)[],
 ): Promise<readonly (number | undefined)[]> {
   const dir = newScratch('release-tree-')
-  const port = await freePort()
+  let port = await freePort()
   const home = join(dir.base, 'home')
   const gateway = await startModelGateway(options.script)
   gateway.trustInProcess()
   const exitCodes: (number | undefined)[] = []
+  const serve = async (run: number, body: (tree: ReleaseTree) => Promise<void>) => {
+    for (let attempt = 1; ; attempt += 1) {
+      const state = { dir, port, home, modelRoute: gateway.url }
+      const outcome = await serveOnce(options, state, run === 0, body)
+      if (outcome !== PORT_TAKEN) return outcome
+      if (attempt === PORT_ATTEMPTS)
+        throw new Error(`port ${String(port)} was taken on ${String(PORT_ATTEMPTS)} starts`)
+      if (run === 0) port = await freePort()
+    }
+  }
   try {
-    for (const [run, body] of bodies.entries())
-      exitCodes.push(
-        await serveOnce(options, { dir, port, home, modelRoute: gateway.url }, run === 0, body),
-      )
+    for (const [run, body] of bodies.entries()) exitCodes.push(await serve(run, body))
   } finally {
     await gateway.close()
     dir.remove()
   }
   return exitCodes
+}
+
+// An idle machine starts the release tree in four to five seconds. The limit stays far above that, so a
+// busy machine does not turn a slow start into a failed one; the test's own timeout is the bound.
+const READINESS_TIMEOUT_MS = 100_000
+const SHUTDOWN_DEADLINE_MS = 100_000
+
+// Any socket may take the probed port before the server binds it. Such a start accepted nothing, so it
+// is started again: the first run on a new port, a later run on the port its saved clients know.
+const PORT_ATTEMPTS = 5
+const PORT_TAKEN = Symbol('port taken')
+
+function lostThePort(started: S0Record | undefined): boolean {
+  const failure = started?.['startFailure'] as { detail?: unknown } | undefined
+  return started?.['outcome'] === 'start-failed' && String(failure?.detail).includes('EADDRINUSE')
 }
 
 type ReleaseState = Readonly<{
@@ -409,10 +430,12 @@ async function serveOnce(
   state: ReleaseState,
   register: boolean,
   body: (tree: ReleaseTree) => Promise<void>,
-): Promise<number | undefined> {
+): Promise<number | undefined | typeof PORT_TAKEN> {
   const { dir, port, home } = state
   const controller = new AbortController()
   const records: S0Record[] = []
+  const serverErrors: string[] = []
+  const startup = Promise.withResolvers<S0Record | undefined>()
   let env: EntryEnv | undefined
   let hitl: ToolHitlHolder | undefined
   let toolRuntime: (() => ReleaseToolRuntime) | undefined
@@ -453,13 +476,26 @@ async function serveOnce(
     entryObjects: objects,
     stateRoot: dir.stateRoot,
     stop: controller.signal,
-    readinessTimeoutMs: 15_000,
-    shutdownDeadlineMs: 5000,
-    write: record => records.push(record),
-    stderr: () => {},
+    readinessTimeoutMs: READINESS_TIMEOUT_MS,
+    shutdownDeadlineMs: SHUTDOWN_DEADLINE_MS,
+    write: record => {
+      records.push(record)
+      if (record.kind === 'startup-result') startup.resolve(record)
+    },
+    stderr: line => serverErrors.push(line),
   })
+  void finished.then(
+    () => startup.resolve(undefined),
+    () => startup.resolve(undefined),
+  )
   try {
-    await until(() => connectable('127.0.0.1', port), 'the server to listen', 20_000)
+    const started = await startup.promise
+    if (lostThePort(started)) {
+      await finished.catch(() => undefined)
+      return PORT_TAKEN
+    }
+    if (started?.['accepting'] !== true)
+      throw new Error(`the server did not start accepting: ${JSON.stringify(started ?? null)}`)
     if (
       env === undefined ||
       hitl === undefined ||
@@ -554,6 +590,10 @@ async function serveOnce(
       cards,
       archive,
     })
+  } catch (error) {
+    if (serverErrors.length > 0)
+      process.stderr.write(`release tree, server stderr:\n${serverErrors.join('\n')}\n`)
+    throw error
   } finally {
     controller.abort('test: stop')
     exitCode = (await finished.catch(() => undefined))?.exitCode
@@ -567,8 +607,17 @@ export async function pollUntil<T>(
   done: (value: T) => boolean,
 ): Promise<T> {
   let value = await read()
-  for (const end = Date.now() + 120_000; !done(value); await sleep(200)) {
-    if (Date.now() > end) throw new Error(`${what} did not happen: ${JSON.stringify(value)}`)
+  let testOver = false
+  onTestFinished(() => {
+    testOver = true
+  })
+  onTestFailed(() => {
+    if (!done(value))
+      process.stderr.write(`release tree: ${what} had not happened: ${JSON.stringify(value)}\n`)
+  })
+  while (!done(value)) {
+    if (testOver) throw new Error(`${what} did not happen: ${JSON.stringify(value)}`)
+    await sleep(200)
     value = await read()
   }
   return value

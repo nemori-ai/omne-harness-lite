@@ -82,14 +82,14 @@ description: 在本项目发卡、开工、进轨道、提升与接受时的步�
 - 仓库全量 `pnpm test`。
 - 全仓的差分变异或 `metrics --coverage`。
 
-原因：准入由派发者排队，同一台机器上同时至多跑两次，各用一半的核。写者的全量运行与准入争用 CPU 和测试名额，让准入里有时限的用例超时，整轮作废。
+原因：准入由派发者起，它的每一步都向整机的令牌池要核。写者的全量运行与准入争用 CPU 和令牌，让准入里有时限的用例超时，整轮作废。
 
-### 长命令与运行名额
+### 长命令与令牌池
 
-- 成员级 vitest 不占运行名额，与名额内的准入并发时，时序敏感的用例可能变红。
-- 互不依赖的检查同时起：各成员的类型检查与测试、各项 lint、文档检查，用后台命令并发运行，再逐个读结果。成员测试直接用 `pnpm exec vitest run …` 跑；经根脚本的测试命令会排运行名额，彼此串行。
+- 成员级 vitest 不要令牌，与准入并发时，时序敏感的用例可能变红。
+- 互不依赖的检查同时起：各成员的类型检查与测试、各项 lint、文档检查，用后台命令并发运行，再逐个读结果。成员测试直接用 `pnpm exec vitest run …` 跑；经根脚本的测试命令要向令牌池排队。
 - 长命令用宿主的后台运行，等完成通知再读结果。不写 `until grep …; sleep` 这类轮询日志的循环。
-- 日志里出现 `with-test-slot: 排队中` 时，读运行名额的锁目录（位置与规则见 `references/admission-evidence.md`「共用的机器」），报告占用者，然后交回，不干等。
+- 日志里出现 `with-test-slot: 排队中` 时，读令牌池的锁目录（位置与规则见 `references/admission-evidence.md`「共用的机器」），报告占用者，然后交回，不干等。
 
 ### 产物位置
 
@@ -130,7 +130,7 @@ description: 在本项目发卡、开工、进轨道、提升与接受时的步�
 ## 进轨道
 
 1. 同步轨道头：先 `git fetch`，在工作分支上用普通的 `git merge` 合并 `origin/integration/mainline`，解决冲突并提交；轨道头有破坏性改动时先读它的 PR。同步由事件触发：开 PR 之前，以及轨道头进了破坏性改动之后；不按日历。
-2. 先跑改动成员的合入检查（接入节那一格），再 `pnpm run preflight`，最后在最终 head 上跑一次 `pnpm run admission`。准入占一个运行名额（一台机器两个）、不读缓存，不是第一道检测器。整跑没有通过时不重排整跑：照 `references/admission-evidence.md`「整跑没有通过时」把每处失败归类，再按类补证。时红时绿的失败不归给机器的负载。没验到的写「没验」与原因，不写成通过。证据要盖住什么、轨道头前进了怎么办、确认说明怎样写、哪些情形必须整跑，都在那一页。
+2. 先跑改动成员的合入检查（接入节那一格），再 `pnpm run preflight`，最后在最终 head 上跑一次 `pnpm run admission`。准入的每一步都向整机的令牌池要核、不读缓存，不是第一道检测器。整跑没有通过时不重排整跑：照 `references/admission-evidence.md`「整跑没有通过时」把每处失败归类，再按类补证。时红时绿的失败不归给机器的负载。没验到的写「没验」与原因，不写成通过。证据要盖住什么、轨道头前进了怎么办、确认说明怎样写、哪些情形必须整跑，都在那一页。
    改动碰到契约成员时，「契约变化」一节照 `references/contract-change.md` 判级别。
 3. 推送个人工作分支，开 PR 进 `integration/mainline`，用 PR 模板 `.github/pull_request_template.md`，写「所含的卡」（只列本卡）与「契约变化」两节。标题与正文按 `CONTRIBUTING.md` 写，标题用具体的 `type(scope)`。PR 标题和正文不加 `Generated with <agent>` 一类的工具署名页脚，宿主自动附加的也删掉。每次上下文压缩之后，重新对照 `CONTRIBUTING.md` 核对这些格式。
 4. gate：派发 `gh workflow run gate-publish.yml --ref github-gate -f pr=<号> -f head=<完整 head>`，参数见 `github-gate` 分支的 `gate/README.md`。

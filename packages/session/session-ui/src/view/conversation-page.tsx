@@ -1,5 +1,12 @@
 import { CopyButton, StatusPill, Textarea, ValuePill } from '@omne-harness/ui-kit'
-import { Fragment, useMemo, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
+import {
+  Fragment,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react'
 import { stopFace } from '../model/composer.ts'
 import { EMPTY_CONTENT } from '../model/content.ts'
 import { conversationItems } from '../model/conversation.ts'
@@ -19,9 +26,11 @@ import { WaitingNotice, waitingAnchor } from './waiting-notice.tsx'
 export type ConversationPageProps = Readonly<{
   workspaces: SessionWorkspaces
   scope: string | undefined
+  dock: (session: string) => ReactNode
+  side: (session: string) => ReactNode
 }>
 
-export function ConversationPage({ workspaces, scope }: ConversationPageProps) {
+export function ConversationPage({ workspaces, scope, dock, side }: ConversationPageProps) {
   const handle = useSession(workspaces, scope)
   switch (handle.kind) {
     case 'waiting':
@@ -35,11 +44,19 @@ export function ConversationPage({ workspaces, scope }: ConversationPageProps) {
         </div>
       )
     case 'ready':
-      return <Page driver={handle.driver} />
+      return <Page driver={handle.driver} dock={dock} side={side} />
   }
 }
 
-function Page({ driver }: { readonly driver: SessionDriver }) {
+function Page({
+  driver,
+  dock,
+  side,
+}: {
+  readonly driver: SessionDriver
+  readonly dock: (session: string) => ReactNode
+  readonly side: (session: string) => ReactNode
+}) {
   const { session: state, list } = useSyncExternalStore(driver.subscribe, driver.getState)
   return (
     <div className="omne-session-page">
@@ -52,8 +69,11 @@ function Page({ driver }: { readonly driver: SessionDriver }) {
         </div>
         <ConnectionBadge state={state} />
       </header>
-      <div className="omne-session-main">
-        <Body state={state} driver={driver} />
+      <div className="omne-session-body">
+        <div className="omne-session-main">
+          <Body state={state} driver={driver} dock={dock} />
+        </div>
+        {state.kind === 'open' ? side(state.session) : null}
       </div>
     </div>
   )
@@ -108,7 +128,15 @@ function ConnectionBadge({ state }: { readonly state: State }) {
   }
 }
 
-function Body({ state, driver }: { readonly state: State; readonly driver: SessionDriver }) {
+function Body({
+  state,
+  driver,
+  dock,
+}: {
+  readonly state: State
+  readonly driver: SessionDriver
+  readonly dock: (session: string) => ReactNode
+}) {
   switch (state.kind) {
     case 'none':
       return (
@@ -149,11 +177,19 @@ function Body({ state, driver }: { readonly state: State; readonly driver: Sessi
         </>
       )
     case 'open':
-      return <OpenSession key={state.session} state={state} driver={driver} />
+      return <OpenSession key={state.session} state={state} driver={driver} dock={dock} />
   }
 }
 
-function OpenSession({ state, driver }: { readonly state: Open; readonly driver: SessionDriver }) {
+function OpenSession({
+  state,
+  driver,
+  dock,
+}: {
+  readonly state: Open
+  readonly driver: SessionDriver
+  readonly dock: (session: string) => ReactNode
+}) {
   return (
     <>
       {state.notice === null ? null : <NoticeLine notice={state.notice} />}
@@ -166,6 +202,7 @@ function OpenSession({ state, driver }: { readonly state: Open; readonly driver:
         waiting={state.waiting}
         driver={driver}
       />
+      <div className="omne-session-dock">{dock(state.session)}</div>
       <Composer state={state} driver={driver} />
     </>
   )

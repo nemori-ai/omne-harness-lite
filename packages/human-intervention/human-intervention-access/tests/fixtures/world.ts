@@ -7,7 +7,8 @@ import {
   type TenantId,
 } from '@omne-harness/legal-identity'
 import { createHitlContribution } from '../../src/contribution.ts'
-import type { HitlEntryPrincipals, HitlFaces, LoginTenants } from '../../src/ports.ts'
+import type { CardChanges, HitlEntryPrincipals, HitlFaces, LoginTenants } from '../../src/ports.ts'
+import { createChangesDouble, type ChangesDouble } from './changes-double.ts'
 import {
   HITL_LOCATION,
   createEntryPrincipalsDouble,
@@ -45,6 +46,8 @@ export type World = Readonly<{
   holder: EntryPrincipalsDouble
   logins: Readonly<{ calls: string[]; down: { value: 'throw' | 'basis-unavailable' | undefined } }>
   faces: { current: HitlFaces | undefined }
+  signals: ChangesDouble
+  changes: { current: CardChanges | undefined }
   contribution: ReturnType<typeof createHitlContribution>
 }>
 
@@ -68,11 +71,14 @@ export function createWorld(
       return target.ok && target.value.account.text === caller.account ? 'admitted' : 'denied'
     },
   }
+  const signals = createChangesDouble()
+  const changes: { current: CardChanges | undefined } = { current: signals.changes }
   const contribution = createHitlContribution({
     faces: () => faces.current,
     entryPrincipals: options.holder ?? holder.holder,
     logins,
+    changes: () => changes.current,
     settings: { locationRef: HITL_LOCATION },
   })
-  return { hitl, holder, logins: { calls, down }, faces, contribution }
+  return { hitl, holder, logins: { calls, down }, faces, signals, changes, contribution }
 }

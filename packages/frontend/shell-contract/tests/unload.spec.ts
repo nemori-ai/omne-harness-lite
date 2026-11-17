@@ -13,6 +13,7 @@ describe('unloading the caller', () => {
       apply(ctx: Context) {
         ctx.shell.contribute('pages', page('a'))
         ctx.shell.contribute('sidebar', { id: 'a', order: 0, render })
+        ctx.shell.contribute('attached', { id: 'a', order: 0, anchor: 'x', render })
       },
     })
     await first
@@ -21,6 +22,7 @@ describe('unloading the caller', () => {
       inject: ['shell'],
       apply(ctx: Context) {
         ctx.shell.contribute('pages', page('b'))
+        ctx.shell.contribute('attached', { id: 'b', order: 1, anchor: 'x', render })
       },
     })
     expect(shell.items('pages').map(item => item.id)).toEqual(['a', 'b'])
@@ -29,6 +31,7 @@ describe('unloading the caller', () => {
     await first.dispose()
     expect(shell.items('pages').map(item => item.id)).toEqual(['b'])
     expect(shell.items('sidebar')).toEqual([])
+    expect(shell.items('attached').map(item => item.id)).toEqual(['b'])
     expect(notified).toBe(1)
   })
 

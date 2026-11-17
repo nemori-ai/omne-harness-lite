@@ -4,13 +4,20 @@ export interface SlotStore extends ShellSlots {
   place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void
 }
 
-type Held = Readonly<{ id: string; order?: number }>
+type Held = Readonly<{ id: string; order?: number; anchor?: string }>
 
 const byOrderThenId = (a: Held, b: Held): number =>
   (a.order ?? 0) - (b.order ?? 0) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 
+const sameSpot = (a: Held, b: Held): boolean => a.id === b.id && a.anchor === b.anchor
+
 export function createSlotStore(): SlotStore {
-  const held: Record<SlotName, Held[]> = { gate: [], pages: [], sidebar: [] }
+  const held: Record<SlotName, Held[]> = {
+    gate: [],
+    pages: [],
+    sidebar: [],
+    attached: [],
+  }
   const listeners = new Set<{ slot: SlotName; listener: () => void }>()
 
   function changed(slot: SlotName): void {
@@ -32,7 +39,7 @@ export function createSlotStore(): SlotStore {
       const list = held[slot]
       if (slots[slot].kind === 'one' && list.length > 0)
         throw new ShellAssemblyError(slot, item.id, 'occupied')
-      if (list.some(other => other.id === item.id))
+      if (list.some(other => sameSpot(other, item)))
         throw new ShellAssemblyError(slot, item.id, 'duplicate')
       list.push(item)
       changed(slot)

@@ -129,7 +129,7 @@ import {
   guidedCandidate,
   uncheckedCandidate,
   deniedUnchecked,
-  deniedForUnavailableAdmission,
+  deniedForRefusedAdmission,
   deniedSlot,
   preserveAllowedRequest,
   sentToolRequest,
@@ -2218,6 +2218,7 @@ function coordinate<P>(
       if ('failure' in parts) return parts
       let passages = required(checkpoint, 'checkpoint').passages
       const answers: Extract<ToolAdmission, { kind: 'judged' | 'allowed' }>[] = []
+      const opened: CardRoundId[] = []
       for (const action of batch.actions) {
         if (needOfAction(passages, action) !== 'judge') {
           answers.push({ kind: 'judged', action })
@@ -2242,7 +2243,8 @@ function coordinate<P>(
           handBack,
         )
         if ('failure' in admitted) return admitted
-        if (admitted.ok.kind === 'unavailable') {
+        if (admitted.ok.kind === 'unavailable') return waitFor('A0', admitted.ok, null)
+        if (admitted.ok.kind === 'refused') {
           if (batch.actions.some(item => OUT_ROUNDS.includes(needOfAction(passages, item))))
             return fail(
               notYet(
@@ -2251,10 +2253,7 @@ function coordinate<P>(
                 CARD_ROUND_CLOSING,
               ),
             )
-          const denied = deniedForUnavailableAdmission(execution, batch, admitted.ok, [
-            ...answers.map(answer => answer.action),
-            ...batch.actions.slice(answers.length),
-          ])
+          const denied = deniedForRefusedAdmission(execution, batch, admitted.ok, answers)
           return step('judged', { checkpoint: { batch: { ...batch, actions: denied } } })
         }
         if (chain === null && admitted.ok.kind !== 'asked') {
@@ -2271,7 +2270,7 @@ function coordinate<P>(
         if ('failure' in judged)
           return fail(defect(`A0: ${judged.failure.step} is not defined here`))
         passages = judged.ok.passages
-        if (judged.opened !== undefined) unsentRounds.add(judged.opened)
+        if (judged.opened !== undefined) opened.push(judged.opened)
         answers.push(
           admitted.ok.kind === 'allowed'
             ? admitted.ok
@@ -2297,6 +2296,7 @@ function coordinate<P>(
         if ('failure' in preserved) return preserved
         actions.push(preserved.ok)
       }
+      for (const round of opened) unsentRounds.add(round)
       return step('judged', { checkpoint: { batch: { ...batch, actions }, passages } })
     },
     async A1() {

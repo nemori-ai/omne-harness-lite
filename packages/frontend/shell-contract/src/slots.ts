@@ -4,6 +4,7 @@ export const slots = {
   gate: { kind: 'one' },
   pages: { kind: 'list' },
   sidebar: { kind: 'list' },
+  attached: { kind: 'list' },
 } as const
 
 export type SlotName = keyof typeof slots
@@ -11,6 +12,8 @@ export type SlotName = keyof typeof slots
 export type GateProps = Readonly<Record<never, never>>
 
 export type ScopedProps = Readonly<{ scope: string | undefined }>
+
+export type AttachedProps = Readonly<{ scope: string | undefined; subject: string }>
 
 export type GateItem = Readonly<{
   id: string
@@ -22,6 +25,7 @@ export type PageItem = Readonly<{
   title: string
   order: number
   icon?: string
+  badge?: (props: ScopedProps) => ReactNode
   render: (props: ScopedProps) => ReactNode
 }>
 
@@ -31,10 +35,23 @@ export type SidebarItem = Readonly<{
   render: (props: ScopedProps) => ReactNode
 }>
 
+export type AttachedItem = Readonly<{
+  id: string
+  order: number
+  anchor: string
+  label?: string
+  render: (props: AttachedProps) => ReactNode
+}>
+
+export type AttachedEntry = Readonly<{ id: string; label: string | undefined; node: ReactNode }>
+
+export type AttachedLayout = (entries: readonly AttachedEntry[]) => ReactNode
+
 export type SlotItems = {
   gate: GateItem
   pages: PageItem
   sidebar: SidebarItem
+  attached: AttachedItem
 }
 
 export type ItemOf<K extends SlotName> = SlotItems[K]

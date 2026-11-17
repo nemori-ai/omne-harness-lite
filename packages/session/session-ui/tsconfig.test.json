@@ -10,6 +10,6 @@
     "customConditions": [],
     "lib": ["ES2024", "DOM", "DOM.Iterable"]
   },
-  "include": ["tests/**/*.ts", "tests/**/*.tsx", "demo/**/*.ts", "demo/**/*.tsx"],
+  "include": ["tests/**/*.ts", "tests/**/*.tsx"],
   "exclude": ["**/*.legacy/**"]
 }

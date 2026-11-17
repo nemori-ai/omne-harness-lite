@@ -23,6 +23,9 @@
 | [UL-plugin-tree-layer](terms/architecture-core-and-extension.md#ul-plugin-tree-layer--插件树层--plugin-tree-layer) | 插件树层 | Plugin Tree Layer | 叠成插件树的一级数据，**本版恰两格：发行层、运维者层**；不是作用域层 |
 | [UL-public-protocol](terms/architecture-core-and-extension.md#ul-public-protocol--公开协议--public-protocol) | 公开协议 | Public Protocol | 一个领域对外的一整套操作与公开观察，有名字和主版本；入口上可被指名的位点，**同名同主版本至多挂一份接入贡献**；弃用 ~~治理位置~~ 这一类「某某位置」的叫法 |
 | [UL-access-contribution](terms/architecture-core-and-extension.md#ul-access-contribution--接入贡献--access-contribution) | 接入贡献 | Access Contribution | 接入插件挂到入口登记表上的那一包：协议契约加处理函数与帧来源；随插件挂上与撤下，**有贡献不等于开放** |
+| [UL-extension-point](terms/architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point) | 拓展点 | Extension Point | 一个领域声明的、别的领域可以往里放东西的具名位点；统称，登记表、界面插入位置、Loop 拓展点各是一种 |
+| [UL-extension-contribution](terms/architecture-core-and-extension.md#ul-extension-contribution--拓展贡献--extension-contribution) | 拓展贡献 | Extension Contribution | 一个领域往一个拓展点里放的一项，随它的 Cordis 作用域挂上与撤下；统称，**有贡献不等于许用** |
+| [UL-extension-contract](terms/architecture-core-and-extension.md#ul-extension-contract--拓展契约--extension-contract) | 拓展契约 | Extension Contract | 一个领域公开的全部拓展点的声明，回答「别的领域怎样拓展它」 |
 
 ## [主体与归属](terms/subjects-and-ownership.md)
 

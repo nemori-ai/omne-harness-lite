@@ -6,29 +6,37 @@ import {
 } from '@omne-harness/schedule-contract'
 import { agendaRequest, context, fixture, listRequest } from './fixtures.ts'
 
-it('caps an actual 10001-schedule scan at 10000 and exposes unknown total', async () => {
-  const f = fixture(10001)
-  const preview = f.dependencies.prediction.preview
-  f.dependencies.prediction.preview = async (context, input) => {
-    const result = await preview(context, input)
-    return result.kind === 'ok' ? { ...result, value: { ...result.value, candidates: [] } } : result
-  }
-  const result = await createScheduleQueryApplication({
-    ...f.dependencies,
-    limits: { ...f.dependencies.limits, maxDependencyCalls: 40000 },
-  }).queries.agenda(context, ScheduleAgendaRequestSchema.parse(agendaRequest))
-  expect(result).toMatchObject({
-    kind: 'ok',
-    value: {
-      scannedScheduleCount: 10000,
-      complete: false,
-      total: { kind: 'unknown', reason: 'budgetExceeded' },
-      nextCursor: null,
-      incompleteReason: 'schedule_limit',
-    },
-  })
-  expect(f.calls.filter(call => call === 'get')).toHaveLength(10000)
-}, 30000)
+it(
+  'caps an actual 10001-schedule scan at 10000 and exposes unknown total',
+  {
+    tags: ['slow'],
+  },
+  async () => {
+    const f = fixture(10001)
+    const preview = f.dependencies.prediction.preview
+    f.dependencies.prediction.preview = async (context, input) => {
+      const result = await preview(context, input)
+      return result.kind === 'ok'
+        ? { ...result, value: { ...result.value, candidates: [] } }
+        : result
+    }
+    const result = await createScheduleQueryApplication({
+      ...f.dependencies,
+      limits: { ...f.dependencies.limits, maxDependencyCalls: 40000 },
+    }).queries.agenda(context, ScheduleAgendaRequestSchema.parse(agendaRequest))
+    expect(result).toMatchObject({
+      kind: 'ok',
+      value: {
+        scannedScheduleCount: 10000,
+        complete: false,
+        total: { kind: 'unknown', reason: 'budgetExceeded' },
+        nextCursor: null,
+        incompleteReason: 'schedule_limit',
+      },
+    })
+    expect(f.calls.filter(call => call === 'get')).toHaveLength(10000)
+  },
+)
 
 it('returns at most 5000 rows and marks the 5001st history row as a budget sentinel', async () => {
   const f = fixture()

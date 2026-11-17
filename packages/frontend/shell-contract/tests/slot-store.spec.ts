@@ -5,16 +5,20 @@ const render = (): null => null
 const gate = (id: string) => ({ id, render })
 const page = (id: string, order = 0) => ({ id, title: id, order, render })
 const side = (id: string, order = 0) => ({ id, order, render })
+const attached = (id: string, anchor: string, order = 0) => ({ id, order, anchor, render })
+const spots = (items: readonly { id: string; anchor: string }[]) =>
+  items.map(item => `${item.anchor}/${item.id}`)
 const ids = (items: readonly { id: string }[]) => items.map(item => item.id)
 
 describe('createSlotStore', () => {
   it('starts empty in every slot', () => {
     const store = createSlotStore()
-    expect([store.items('gate'), store.items('pages'), store.items('sidebar')]).toEqual([
-      [],
-      [],
-      [],
-    ])
+    expect([
+      store.items('gate'),
+      store.items('pages'),
+      store.items('sidebar'),
+      store.items('attached'),
+    ]).toEqual([[], [], [], []])
   })
 
   it('holds one in the gate and refuses a second, whatever its id', () => {
@@ -36,6 +40,26 @@ describe('createSlotStore', () => {
     store.place('sidebar', side('x'))
     expect(ids(store.items('pages'))).toEqual(['x'])
     expect(ids(store.items('sidebar'))).toEqual(['x'])
+  })
+
+  it('allows a repeated id in the attached slot under another anchor and refuses it under the same anchor', () => {
+    const store = createSlotStore()
+    store.place('attached', attached('status', 'a'))
+    store.place('attached', attached('status', 'b'))
+    expect(() => store.place('attached', attached('status', 'a', 5))).toThrow(
+      expect.objectContaining({ slot: 'attached', id: 'status', reason: 'duplicate' }),
+    )
+    expect(spots(store.items('attached'))).toEqual(['a/status', 'b/status'])
+  })
+
+  it('takes down the attached item under its own anchor and leaves the same id under another', () => {
+    const store = createSlotStore()
+    const takeA = store.place('attached', attached('status', 'a'))
+    store.place('attached', attached('status', 'b'))
+    takeA()
+    expect(spots(store.items('attached'))).toEqual(['b/status'])
+    store.place('attached', attached('status', 'a'))
+    expect(spots(store.items('attached'))).toEqual(['b/status', 'a/status'])
   })
 
   it('orders a list by order, and an equal order by id whatever the placing order was', () => {

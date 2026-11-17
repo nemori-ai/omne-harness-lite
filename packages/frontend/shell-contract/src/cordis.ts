@@ -1,6 +1,7 @@
 import { Service, type Context, type Plugin } from '@deepseek-ai/cordis'
+import type { ReactNode } from 'react'
 import type { ScopeSource, ShellLogin } from './host.ts'
-import type { ItemOf, SlotName } from './slots.ts'
+import type { AttachedLayout, ItemOf, SlotName } from './slots.ts'
 
 /** @owner packages/frontend/shell-contract */
 export abstract class ShellService extends Service {
@@ -17,6 +18,10 @@ export abstract class ShellService extends Service {
   }
 
   abstract navigate(pageId: string): void
+
+  abstract attached(anchor: string, subject: string): ReactNode
+
+  abstract arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode
 
   protected abstract place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void
 }

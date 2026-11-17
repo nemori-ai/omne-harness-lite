@@ -98,7 +98,7 @@ function releaseOperator(
         const config = op.config as { budgets: Readonly<Record<string, number>> }
         return { ...op, config: { ...config, budgets: { ...config.budgets, ...options.budgets } } }
       }
-      if (op.id === 'server-entry' && options.runEntries === true)
+      if (op.id === 'session-access' && options.runEntries === true)
         return {
           ...op,
           config: {

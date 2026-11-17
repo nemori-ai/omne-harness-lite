@@ -28,9 +28,11 @@ it('S3 the member imports only what its boundary allows and no Node built-in', (
   const allowed = new Set([
     'react',
     '@omne-harness/human-intervention-protocol',
+    '@omne-harness/client-assembly',
     '@omne-harness/client-assembly/cordis',
     '@omne-harness/public-contract',
     '@omne-harness/sdk/core',
+    '@omne-harness/shell-contract',
     '@omne-harness/shell-contract/cordis',
     '@omne-harness/ui-kit',
   ])

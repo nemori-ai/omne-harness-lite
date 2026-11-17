@@ -41,10 +41,10 @@ function InkDrop({
 }): React.JSX.Element {
   return (
     <g data-turn={turn}>
-      <path className="pe-loading-trace" d={drop.stroke.ink} />
+      <path className="omne-loading-trace" d={drop.stroke.ink} />
       <mask id={mask} maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
         <path
-          className="pe-loading-brush"
+          className="omne-loading-brush"
           d={drop.stroke.trail}
           fill="none"
           stroke="white"
@@ -52,7 +52,7 @@ function InkDrop({
           pathLength={1}
         />
       </mask>
-      <path className="pe-loading-wet" d={drop.stroke.ink} mask={`url(#${mask})`} />
+      <path className="omne-loading-wet" d={drop.stroke.ink} mask={`url(#${mask})`} />
     </g>
   )
 }
@@ -85,14 +85,14 @@ export function LoadingIndicator({
       data-size={size}
       data-active={active}
       data-counted={counted || undefined}
-      className={cn('pe-loading-indicator', className)}
+      className={cn('omne-loading-indicator', className)}
     >
       <svg viewBox="0 0 24 24" fill="currentColor" focusable="false">
         {drops.map(({ drop, turn }) => (
-          <InkDrop key={turn} drop={drop} turn={turn} mask={`pe-loading-${id}-${turn}`} />
+          <InkDrop key={turn} drop={drop} turn={turn} mask={`omne-loading-${id}-${turn}`} />
         ))}
       </svg>
-      {counted && <span className="pe-loading-ordinal tabular-nums">{children}</span>}
+      {counted && <span className="omne-loading-ordinal tabular-nums">{children}</span>}
     </span>
   )
 }
@@ -108,7 +108,7 @@ export function LoadingState({
     <span
       role="status"
       aria-label={typeof label === 'string' ? label : undefined}
-      className={cn('pe-loading-state', className)}
+      className={cn('omne-loading-state', className)}
     >
       <LoadingIndicator />
       <span>{label}</span>

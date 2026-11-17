@@ -97,6 +97,7 @@ describe('C1 the transition table follows the node table on the normal path', ()
       ['F2', 'reconcile', 'R0'],
       ['I4', 'tools', 'A0'],
       ['A0', 'judged', 'A1'],
+      ['A0', 'wait', 'W0'],
       ['A1', 'judge', 'A0'],
       ['A1', 'carded', 'A1'],
       ['A1', 'wait', 'W0'],

@@ -70,6 +70,21 @@ function judgeOutcome(spec: HandlerSpec, outcome: unknown): Settled {
   return { kind: 'read', output: output as JsonValue }
 }
 
+type Material = Pick<HandlerSpec, 'moduleUrl' | 'codeDigest'>
+
+async function handlerOf(state: ReaderState, spec: Material): Promise<ReadHandlerModule | Settled> {
+  try {
+    return await state.modules.load<ReadHandlerModule>(spec.moduleUrl, spec.codeDigest)
+  } catch (error) {
+    return failed(error instanceof MaterialMismatch ? 'material_mismatch' : 'material_unreadable')
+  }
+}
+
+export async function runLoad(state: ReaderState, spec: Material): Promise<ReaderReply> {
+  const loaded = await handlerOf(state, spec)
+  return 'kind' in loaded ? loaded : { kind: 'loaded' }
+}
+
 export async function runRead(
   state: ReaderState,
   spec: HandlerSpec,
@@ -77,12 +92,8 @@ export async function runRead(
 ): Promise<Settled> {
   const db = state.db
   if (db === null) return failed('connection_closed')
-  let module: ReadHandlerModule
-  try {
-    module = await state.modules.load<ReadHandlerModule>(spec.moduleUrl, spec.codeDigest)
-  } catch (error) {
-    return failed(error instanceof MaterialMismatch ? 'material_mismatch' : 'material_unreadable')
-  }
+  const module = await handlerOf(state, spec)
+  if ('kind' in module) return module
   let gateway: SqlGateway | null = null
   let result: Settled
   try {

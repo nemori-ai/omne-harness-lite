@@ -55,7 +55,6 @@ catalog:
   eventsource-parser: 3.1.1
   # 官方参考 MCP 服务端：只作 mcp-host-local 的测试依赖，做生态兼容与回归的真实对端。
   '@modelcontextprotocol/server-everything': 2.1.0
-  '@modelcontextprotocol/server-filesystem': 2.1.0
   '@standard-schema/spec': 1.1.0
   yaml: 2.9.1
   jsonc-parser: 3.3.1

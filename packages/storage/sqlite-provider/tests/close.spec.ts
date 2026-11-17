@@ -1,19 +1,22 @@
 import { appendFile, symlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CommitResultV2, SqlIdentity } from '@omne-harness/sql-contract'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { SqlIdentity, StorageCloseResult } from '@omne-harness/sql-contract'
+import { advance, atLimit, openGates, tick, until } from './gate.ts'
 import {
   buildMaterials,
   command,
   commitRequest,
   createProvider,
+  heldCommit,
   identity,
   kindOf,
   makeWorkspace,
   recordingLeases,
   registration,
   type Built,
+  type HeldCommit,
   type Provider,
   type RecordingLeases,
   type Workspace,
@@ -32,6 +35,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  openGates()
   for (const provider of providers.splice(0))
     await provider.control.close({ initiator: 'disposal' }).catch(() => undefined)
   await workspace.remove()
@@ -45,16 +49,7 @@ async function ready(config = {}, port: RecordingLeases = leases): Promise<Provi
   return provider
 }
 
-const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-
 const keyOf = (key: string): SqlIdentity => identity({ operationKey: key })
-
-function spinning(key: string, ms: number): ReturnType<typeof commitRequest> {
-  return commitRequest(built, {
-    identity: keyOf(key),
-    commands: [command('ledger', { mode: 'spin', ms: String(ms), note: key })],
-  })
-}
 
 const plain = (key: string): ReturnType<typeof commitRequest> =>
   commitRequest(built, {
@@ -62,24 +57,35 @@ const plain = (key: string): ReturnType<typeof commitRequest> =>
     commands: [command('ledger', { note: key })],
   })
 
-async function startSpinning(
+const startHeld = (provider: Provider, key: string): Promise<HeldCommit> =>
+  heldCommit(provider.storage, workspace, built, key)
+
+const closeAtDeadline = (
   provider: Provider,
-  key: string,
-  ms: number,
-): Promise<{ result: Promise<CommitResultV2> }> {
-  const result = provider.storage.commit(spinning(key, ms))
-  await sleep(150)
-  return { result }
+  initiator: 'assembly' | 'disposal',
+  deadlineMs: number,
+): Promise<StorageCloseResult> => atLimit(provider.control.close({ initiator }), deadlineMs)
+
+/** The old write Worker has exited once another provider can write the same file (13.5). */
+async function writerGone(): Promise<void> {
+  const probe = await createProvider(workspace, built, {}, recordingLeases())
+  providers.push(probe)
+  for (let turn = 0; ; turn += 1) {
+    const result = await probe.storage.commit(plain(`probe-${String(turn)}`))
+    if (kindOf(result) === 'committed') return
+    await tick()
+  }
 }
 
 describe('close steps (13.3)', () => {
   it('withdraws unstarted commit, registerCombination and query, and lets the running commit finish', async () => {
     const provider = await ready()
-    const { result: running } = await startSpinning(provider, 'running', 500)
+    const { gate, result: running } = await startHeld(provider, 'running')
     const queuedCommit = provider.storage.commit(plain('queued'))
     const queuedRegister = provider.storage.registerCombination(registration(built))
     const queuedQuery = provider.storage.query(keyOf('queued'))
     const closing = provider.control.close({ initiator: 'disposal' })
+    gate.open()
 
     expect(kindOf(await queuedCommit)).toBe('unknown')
     expect(await queuedCommit).toMatchObject({ diagnostic: 'withdrawn_before_start' })
@@ -99,10 +105,10 @@ describe('close steps (13.3)', () => {
 
   it('maps a commit that the Worker withdrew to unknown/withdrawn_before_start', async () => {
     const provider = await ready()
-    const { result: running } = await startSpinning(provider, 'running', 600)
+    const { gate, result: running } = await startHeld(provider, 'running')
     const sent = provider.storage.commit(plain('sent'))
-    await sleep(150)
     const closing = provider.control.close({ initiator: 'disposal' })
+    gate.open()
 
     const withdrawn = await sent
     expect(kindOf(withdrawn)).toBe('unknown')
@@ -117,10 +123,8 @@ describe('close steps (13.3)', () => {
 
   it('gives incomplete with residuals at the deadline, and reports the in-flight commit as unknown, not rolled back', async () => {
     const provider = await ready({ closeDeadlineMs: 200 })
-    const { result: running } = await startSpinning(provider, 'slow', 900)
-    const started = Date.now()
-    const result = await provider.control.close({ initiator: 'disposal' })
-    expect(Date.now() - started).toBeLessThan(700)
+    const { gate, result: running } = await startHeld(provider, 'slow')
+    const result = await closeAtDeadline(provider, 'disposal', 200)
     expect(result.kind).toBe('incomplete')
     if (result.kind !== 'incomplete') return
     expect(result.residuals).toHaveLength(1)
@@ -132,24 +136,24 @@ describe('close steps (13.3)', () => {
     expect(residual?.leaseName).toBe(leases.admitted[0])
     expect(residual?.inFlight).toEqual([keyOf('slow')])
 
-    const answered = await Promise.race([running, sleep(300).then(() => 'still waiting' as const)])
-    expect(answered).toMatchObject({ kind: 'unknown', diagnostic: 'close_deadline' })
-    await vi.waitFor(() => expect(leases.released).toHaveLength(1), { timeout: 5000 })
+    expect(await running).toMatchObject({ kind: 'unknown', diagnostic: 'close_deadline' })
+    gate.open()
+    await until(() => leases.released.length === 1)
     const next = await createProvider(workspace, built, {}, recordingLeases())
     providers.push(next)
     expect(kindOf(await next.storage.query(keyOf('slow')))).toBe('committed')
-    expect(await running).toMatchObject({ kind: 'unknown', diagnostic: 'close_deadline' })
   })
 
   it('keeps one deadline: a second call does not extend it, and a later call sees closed', async () => {
     const provider = await ready({ closeDeadlineMs: 300 })
-    await startSpinning(provider, 'slow', 900)
-    const first = await provider.control.close({ initiator: 'disposal' })
+    const { gate } = await startHeld(provider, 'slow')
+    const first = await closeAtDeadline(provider, 'disposal', 300)
     expect(first.kind).toBe('incomplete')
-    const again = Date.now()
-    expect((await provider.control.close({ initiator: 'disposal' })).kind).toBe('incomplete')
-    expect(Date.now() - again).toBeLessThan(150)
-    await vi.waitFor(() => expect(leases.released).toHaveLength(1), { timeout: 5000 })
+    const again = provider.control.close({ initiator: 'disposal' })
+    advance(0)
+    expect((await again).kind).toBe('incomplete')
+    gate.open()
+    await until(() => leases.released.length === 1)
     expect(await provider.control.close({ initiator: 'disposal' })).toEqual({ kind: 'closed' })
   })
 })
@@ -185,9 +189,10 @@ describe('a Worker that ends is not a rollback', () => {
 describe('reporting latch (13.4)', () => {
   it('does not release when the Worker exits before the report is settled; releases on settle', async () => {
     const provider = await ready({ closeDeadlineMs: 150 })
-    await startSpinning(provider, 'slow', 500)
-    expect((await provider.control.close({ initiator: 'assembly' })).kind).toBe('incomplete')
-    await sleep(1200)
+    const { gate } = await startHeld(provider, 'slow')
+    expect((await closeAtDeadline(provider, 'assembly', 150)).kind).toBe('incomplete')
+    gate.open()
+    await writerGone()
     expect(leases.released).toEqual([])
     provider.control.assemblyReportSettled()
     expect(leases.released).toEqual([leases.admitted[0]])
@@ -197,26 +202,29 @@ describe('reporting latch (13.4)', () => {
 
   it('releases at the exit when the report was settled first', async () => {
     const provider = await ready({ closeDeadlineMs: 150 })
-    await startSpinning(provider, 'slow', 700)
-    expect((await provider.control.close({ initiator: 'assembly' })).kind).toBe('incomplete')
+    const { gate } = await startHeld(provider, 'slow')
+    expect((await closeAtDeadline(provider, 'assembly', 150)).kind).toBe('incomplete')
     provider.control.assemblyReportSettled()
     expect(leases.released).toEqual([])
-    await vi.waitFor(() => expect(leases.released).toEqual([leases.admitted[0]]), { timeout: 5000 })
+    gate.open()
+    await until(() => leases.released.length === 1)
+    expect(leases.released).toEqual([leases.admitted[0]])
   })
 
   it('sets no latch when only disposal got incomplete', async () => {
     const provider = await ready({ closeDeadlineMs: 150 })
-    await startSpinning(provider, 'slow', 500)
-    expect((await provider.control.close({ initiator: 'disposal' })).kind).toBe('incomplete')
-    await vi.waitFor(() => expect(leases.released).toHaveLength(1), { timeout: 5000 })
+    const { gate } = await startHeld(provider, 'slow')
+    expect((await closeAtDeadline(provider, 'disposal', 150)).kind).toBe('incomplete')
+    gate.open()
+    await until(() => leases.released.length === 1)
   })
 })
 
 describe('one writer per file in the process (13.5)', () => {
   it('does not start a second writer while the old generation Worker is alive', async () => {
     const first = await ready({ closeDeadlineMs: 150 })
-    await startSpinning(first, 'slow', 800)
-    expect((await first.control.close({ initiator: 'disposal' })).kind).toBe('incomplete')
+    const { gate } = await startHeld(first, 'slow')
+    expect((await closeAtDeadline(first, 'disposal', 150)).kind).toBe('incomplete')
 
     const secondLeases = recordingLeases()
     const second = await createProvider(workspace, built, {}, secondLeases)
@@ -225,7 +233,8 @@ describe('one writer per file in the process (13.5)', () => {
     expect(kindOf(blocked)).toBe('rejected_before_accept/domain_unavailable')
     expect(secondLeases.admitted).toEqual([])
 
-    await vi.waitFor(() => expect(leases.released).toHaveLength(1), { timeout: 5000 })
+    gate.open()
+    await until(() => leases.released.length === 1)
     expect(kindOf(await second.storage.commit(plain('other')))).toBe('committed')
     expect(secondLeases.admitted).toHaveLength(1)
   })
@@ -282,7 +291,7 @@ describe('one writer per file in the process (13.5)', () => {
       kind: 'unknown',
       diagnostic: 'write_generation_changed',
     })
-    await vi.waitFor(() => expect(leases.released).toHaveLength(1), { timeout: 5000 })
+    await until(() => leases.released.length === 1)
     expect(kindOf(await provider.storage.query(keyOf('stale')))).toBe('not_committed')
     expect(kindOf(await provider.storage.commit(plain('fresh')))).toBe('committed')
   })

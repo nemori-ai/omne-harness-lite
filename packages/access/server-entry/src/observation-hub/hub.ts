@@ -123,6 +123,7 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
   const records = createObservationRecords<string>({
     limits: { ...settings.limits, cancelRetentionMs: 0 },
     loginCheckIntervalMs: settings.loginCheckIntervalMs,
+    clock: settings.clock,
   })
 
   const drained = async (stream: SseStream, res: ServerResponse): Promise<void> => {
@@ -227,7 +228,7 @@ export function createObservationHub(settings: HubSettings): ObservationHub {
       source.abort()
       return entered.leave()
     }
-    const stream = new SseStream(res, settings.heartbeatMs)
+    const stream = new SseStream(res, settings.heartbeatMs, settings.clock)
     stream.open(200, undefined, { 'omne-message-id': messageId })
     claim.attach(stream)
     const onAbort = (): void => claim.end('unavailable')

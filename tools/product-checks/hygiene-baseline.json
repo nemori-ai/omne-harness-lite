@@ -81,7 +81,7 @@
       "packages/execution/execution-environment-contract/src/testing/environment-conformance.ts": 1055,
       "packages/execution/execution-environment/src/registry.ts": 1046,
       "packages/identity/identity/src/testing/governance-contract.ts": 2224,
-      "packages/mcp/mcp-contract/src/testing-transport.ts": 2537,
+      "packages/mcp/mcp-contract/src/testing-transport.ts": 2360,
       "packages/model/model-host-local/src/plugins/runtime.ts": 1008,
       "packages/model/model-storage-sql/src/commit.ts": 1127,
       "packages/model/model/src/commands/commands.ts": 1149,
@@ -412,8 +412,8 @@
         "longest": 224
       },
       "packages/mcp/mcp-contract/src/testing-transport.ts": {
-        "count": 5,
-        "longest": 395
+        "count": 3,
+        "longest": 368
       },
       "packages/mcp/mcp/src/calls.ts": {
         "count": 1,
@@ -425,11 +425,11 @@
       },
       "packages/mcp/mcp/src/internal/build.ts": {
         "count": 1,
-        "longest": 194
+        "longest": 156
       },
       "packages/mcp/mcp/src/internal/table.ts": {
         "count": 1,
-        "longest": 282
+        "longest": 260
       },
       "packages/model/model-contract/src/conformance/conformance-admission.ts": {
         "count": 1,
@@ -842,10 +842,6 @@
       "tools/repo-toolchain/src/report/matrix.ts": {
         "count": 1,
         "longest": 189
-      },
-      "tools/test-runner/src/testing/check.ts": {
-        "count": 1,
-        "longest": 176
       }
     }
   }

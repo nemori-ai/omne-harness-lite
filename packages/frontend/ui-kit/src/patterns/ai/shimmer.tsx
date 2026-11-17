@@ -12,7 +12,7 @@ export function Shimmer({
 }): React.JSX.Element {
   const element = useLoopPause<HTMLSpanElement>(active)
   return (
-    <span ref={element} className={cn(active && 'pe-shimmer animate-shimmer-text', className)}>
+    <span ref={element} className={cn(active && 'omne-shimmer animate-shimmer-text', className)}>
       {children}
     </span>
   )

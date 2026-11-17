@@ -2,28 +2,11 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { readJsonText } from '@omne-harness/json-text'
 import {
-  launchesLocalCommand,
   mcpEndpointBodyContract,
   parseEndpointBody,
   type EndpointDefinition,
 } from '@omne-harness/mcp-contract'
 import { json, readBody } from './json.ts'
-
-const stdio = {
-  name: 'files',
-  transport: 'stdio',
-  launch: {
-    command: '/usr/bin/files-server',
-    args: ['--root', '.'],
-    cwd: 'work',
-    env: [
-      { name: 'FILES_MODE', source: 'setting' },
-      { name: 'FILES_TOKEN', source: 'credential' },
-    ],
-    facilities: ['network'],
-  },
-  auth: 'static',
-}
 
 const http = { name: 'search', transport: 'streamable-http', auth: 'oauth' }
 
@@ -34,45 +17,6 @@ function definitionOf(body: unknown, capabilityName?: string): EndpointDefinitio
 }
 
 describe('parseEndpointBody', () => {
-  it('reads a stdio body with its launch declaration as written', () => {
-    expect(definitionOf(stdio, 'files')).toEqual({
-      name: 'files',
-      transport: {
-        kind: 'stdio',
-        launch: {
-          command: '/usr/bin/files-server',
-          args: ['--root', '.'],
-          cwd: 'work',
-          env: [
-            { name: 'FILES_MODE', source: 'setting' },
-            { name: 'FILES_TOKEN', source: 'credential' },
-          ],
-          facilities: ['network'],
-        },
-      },
-      auth: 'static',
-    })
-  })
-
-  for (const omitted of ['args', 'cwd', 'env', 'facilities'] as const)
-    it(`accepts a launch that omits ${omitted}`, () => {
-      const { [omitted]: _dropped, ...launch } = stdio.launch
-      expect('ok' in parseEndpointBody(json({ ...stdio, launch }))).toBe(true)
-    })
-
-  it('reads omitted launch lists as empty and leaves an omitted cwd absent', () => {
-    const definition = definitionOf({
-      name: 'files',
-      transport: 'stdio',
-      launch: { command: 'files-server' },
-      auth: 'none',
-    })
-    expect(definition.transport).toEqual({
-      kind: 'stdio',
-      launch: { command: 'files-server', args: [], env: [], facilities: [] },
-    })
-  })
-
   it('reads a Streamable HTTP body without an address', () => {
     expect(definitionOf(http, 'search')).toEqual({
       name: 'search',
@@ -83,7 +27,7 @@ describe('parseEndpointBody', () => {
 
   const rejections: readonly (readonly [string, unknown, string])[] = [
     ['malformed: the body is not an object', ['files'], 'malformed'],
-    ['malformed: the name is missing', { transport: 'stdio', auth: 'none' }, 'malformed'],
+    ['malformed: the name is missing', { transport: 'streamable-http', auth: 'none' }, 'malformed'],
     ['malformed: the name has an upper-case letter', { ...http, name: 'Search' }, 'malformed'],
     ['malformed: the name has 65 characters', { ...http, name: 'a'.repeat(65) }, 'malformed'],
     ['malformed: the name ends with a hyphen', { ...http, name: 'search-' }, 'malformed'],
@@ -94,101 +38,9 @@ describe('parseEndpointBody', () => {
       { name: 'search', transport: 'streamable-http' },
       'malformed',
     ],
-    [
-      'malformed: an empty command',
-      { ...stdio, launch: { ...stdio.launch, command: '' } },
-      'malformed',
-    ],
-    [
-      'malformed: an argument is not text',
-      { ...stdio, launch: { ...stdio.launch, args: [1] } },
-      'malformed',
-    ],
-    ['malformed: an empty cwd', { ...stdio, launch: { ...stdio.launch, cwd: '' } }, 'malformed'],
-    [
-      'malformed: an environment item carries a value',
-      {
-        ...stdio,
-        launch: { ...stdio.launch, env: [{ name: 'TOKEN', source: 'setting', value: 'x' }] },
-      },
-      'malformed',
-    ],
-    [
-      'malformed: an environment source is not setting or credential',
-      { ...stdio, launch: { ...stdio.launch, env: [{ name: 'TOKEN', source: 'literal' }] } },
-      'malformed',
-    ],
-    [
-      'malformed: an environment name is not a variable name',
-      { ...stdio, launch: { ...stdio.launch, env: [{ name: '1TOKEN', source: 'setting' }] } },
-      'malformed',
-    ],
-    [
-      'malformed: an environment name with a hyphen',
-      { ...stdio, launch: { ...stdio.launch, env: [{ name: 'A-b', source: 'setting' }] } },
-      'malformed',
-    ],
-    [
-      'malformed: an environment item without a name',
-      { ...stdio, launch: { ...stdio.launch, env: [{ source: 'setting' }] } },
-      'malformed',
-    ],
-    [
-      'malformed: a launch that is not an object',
-      { ...stdio, launch: 'files-server' },
-      'malformed',
-    ],
-    [
-      'malformed: a launch with an unknown member',
-      { ...stdio, launch: { ...stdio.launch, shell: true } },
-      'malformed',
-    ],
-    ['malformed: a launch without a command', { ...stdio, launch: { args: [] } }, 'malformed'],
-    [
-      'malformed: an environment name repeats',
-      {
-        ...stdio,
-        launch: {
-          ...stdio.launch,
-          env: [
-            { name: 'TOKEN', source: 'setting' },
-            { name: 'TOKEN', source: 'credential' },
-          ],
-        },
-      },
-      'malformed',
-    ],
-    [
-      'malformed: a facility repeats',
-      { ...stdio, launch: { ...stdio.launch, facilities: ['network', 'network'] } },
-      'malformed',
-    ],
-    [
-      'malformed: a facility name with an upper-case letter',
-      { ...stdio, launch: { ...stdio.launch, facilities: ['Network'] } },
-      'malformed',
-    ],
-    [
-      'malformed: a facility name that starts with a digit',
-      { ...stdio, launch: { ...stdio.launch, facilities: ['1net'] } },
-      'malformed',
-    ],
-    [
-      'malformed: a facility name of 33 characters',
-      { ...stdio, launch: { ...stdio.launch, facilities: [`n${'e'.repeat(32)}`] } },
-      'malformed',
-    ],
-    [
-      'malformed: a credential variable without authentication',
-      { ...stdio, name: 'search', auth: 'none' },
-      'malformed',
-    ],
-    ['malformed: stdio with OAuth', { ...stdio, name: 'search', auth: 'oauth' }, 'malformed'],
     ['name-mismatch', { ...http, name: 'other' }, 'name-mismatch'],
     ['transport-unknown', { ...http, transport: 'sse' }, 'transport-unknown'],
     ['auth-unknown', { ...http, auth: 'bearer' }, 'auth-unknown'],
-    ['launch-missing', { name: 'search', transport: 'stdio', auth: 'none' }, 'launch-missing'],
-    ['launch-unexpected', { ...http, launch: stdio.launch }, 'launch-unexpected'],
   ]
 
   for (const [name, body, rejection] of rejections)
@@ -206,25 +58,31 @@ describe('parseEndpointBody', () => {
     })
   })
 
-  it('accepts a facility name of 32 characters with hyphens', () => {
-    const facilities = [`n${'-'.repeat(30)}e`, 'gpu-2']
-    const definition = definitionOf({ ...stdio, launch: { ...stdio.launch, facilities } })
-    expect(definition.transport).toMatchObject({ launch: { facilities } })
-  })
-
   it('checks the name only against a given capability name', () => {
     expect(definitionOf({ ...http, name: 'other' }).name).toBe('other')
   })
 })
 
-describe('launchesLocalCommand', () => {
-  it('answers true for a stdio endpoint', () => {
-    expect(launchesLocalCommand(definitionOf(stdio))).toBe(true)
-  })
+describe('a body that declares a command-type endpoint', () => {
+  const command = { command: 'files-server' }
+  const cases: readonly (readonly [string, unknown, string])[] = [
+    [
+      'stdio without a launch',
+      { name: 'search', transport: 'stdio', auth: 'none' },
+      'transport-unknown',
+    ],
+    [
+      'stdio with a launch',
+      { name: 'search', transport: 'stdio', launch: command, auth: 'none' },
+      'malformed',
+    ],
+    ['Streamable HTTP with a launch', { ...http, launch: command }, 'malformed'],
+  ]
 
-  it('answers false for a Streamable HTTP endpoint', () => {
-    expect(launchesLocalCommand(definitionOf(http))).toBe(false)
-  })
+  for (const [name, body, rejection] of cases)
+    it(`is rejected: ${name} is ${rejection}`, () => {
+      expect(parseEndpointBody(json(body), 'search')).toEqual({ failure: rejection })
+    })
 })
 
 describe('mcpEndpointBodyContract', () => {
@@ -251,39 +109,6 @@ describe('mcpEndpointBodyContract', () => {
   })
 
   const declarations: readonly (readonly [string, unknown, readonly string[]])[] = [
-    [
-      'stdio without authentication or variables',
-      { ...stdio, launch: { command: 'files-server' }, auth: 'none' },
-      ['setting:preference:connect-timeout'],
-    ],
-    [
-      'stdio with a static credential and a setting variable',
-      stdio,
-      [
-        'setting:placement-identity:credential',
-        'setting:placement-identity:env.FILES_MODE',
-        'setting:preference:connect-timeout',
-      ],
-    ],
-    [
-      'stdio with several setting variables, in body order',
-      {
-        ...stdio,
-        launch: {
-          command: 'files-server',
-          env: [
-            { name: 'B_MODE', source: 'setting' },
-            { name: 'A_ROOT', source: 'setting' },
-          ],
-        },
-        auth: 'none',
-      },
-      [
-        'setting:placement-identity:env.B_MODE',
-        'setting:placement-identity:env.A_ROOT',
-        'setting:preference:connect-timeout',
-      ],
-    ],
     [
       'Streamable HTTP without authentication',
       { ...http, auth: 'none' },
@@ -312,7 +137,7 @@ describe('mcpEndpointBodyContract', () => {
   })
 
   it('references no other capability', () => {
-    expect(contract.references(readBody(stdio))).toEqual([])
+    expect(contract.references(readBody(http))).toEqual([])
   })
 
   it('throws instead of answering references for a rejected body', () => {
@@ -330,11 +155,6 @@ describe('schema/endpoint-body.schema.json', () => {
       transport: { enum: string[] }
       auth: { enum: string[] }
     }
-    allOf: { $comment: string }[]
-    $defs: {
-      environment: { properties: { source: { enum: string[] } } }
-      launch: { properties: { facilities: { items: { pattern: string } } } }
-    }
   }
 
   it('is the schema that the category port gives', () => {
@@ -350,36 +170,12 @@ describe('schema/endpoint-body.schema.json', () => {
     if (read.kind === 'ok') expect(mcpEndpointBodyContract().schema).toEqual(read.value)
   })
 
-  it('lists the transports, authentication kinds and environment sources that the parser accepts', () => {
-    expect(file.properties.transport.enum).toEqual(['stdio', 'streamable-http'])
+  it('lists the transports and authentication kinds that the parser accepts', () => {
+    expect(file.properties.transport.enum).toEqual(['streamable-http'])
     expect(file.properties.auth.enum).toEqual(['none', 'static', 'oauth'])
-    expect(file.$defs.environment.properties.source.enum).toEqual(['setting', 'credential'])
-    const settingOnly = { command: 'files-server', env: [{ name: 'MODE', source: 'setting' }] }
     for (const transport of file.properties.transport.enum)
-      for (const auth of file.properties.auth.enum) {
-        const body =
-          transport === 'stdio'
-            ? { ...stdio, launch: settingOnly, auth }
-            : { ...http, transport, auth }
-        const lawful = !(transport === 'stdio' && auth === 'oauth')
-        expect('ok' in parseEndpointBody(json(body))).toBe(lawful)
-      }
-    expect(file.allOf.map(rule => rule.$comment)).toEqual([
-      'stdio requires launch; Streamable HTTP forbids it.',
-      'stdio does not use OAuth.',
-      'Without authentication no variable comes from a credential.',
-    ])
-  })
-
-  it('states the facility lexicon that the parser applies', () => {
-    const pattern = new RegExp(file.$defs.launch.properties.facilities.items.pattern, 'u')
-    for (const facility of ['network', 'gpu-2', 'a', 'Network', '1net', 'n'.repeat(33), ''])
-      expect(pattern.test(facility)).toBe(
-        'ok' in
-          parseEndpointBody(
-            json({ ...stdio, launch: { ...stdio.launch, facilities: [facility] } }),
-          ),
-      )
+      for (const auth of file.properties.auth.enum)
+        expect('ok' in parseEndpointBody(json({ ...http, transport, auth }))).toBe(true)
   })
 
   it('carries format version 1 in its identifier', () => {

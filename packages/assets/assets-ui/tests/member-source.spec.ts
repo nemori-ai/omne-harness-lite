@@ -32,6 +32,7 @@ it('S3 the member imports only what its boundary allows and no Node built-in', (
     '@omne-harness/json-text',
     '@omne-harness/public-contract',
     '@omne-harness/sdk/core',
+    '@omne-harness/shell-contract',
     '@omne-harness/shell-contract/cordis',
     '@omne-harness/ui-kit',
   ])
@@ -41,4 +42,12 @@ it('S3 the member imports only what its boundary allows and no Node built-in', (
       .filter(name => !name.startsWith('.')),
   )
   expect(imports.filter(name => !allowed.has(name))).toEqual([])
+})
+
+it('S4 the member names no asset category: neither a quoted identifier nor a Chinese name', () => {
+  for (const { file, text } of code) {
+    expect(text, file).not.toMatch(/['"`](tool|model|model-provider|skill|agent|mcp)['"`]/)
+    expect(text, file).not.toMatch(/\b(tool|model|skill|agent|mcp)\s*:/)
+    expect(text, file).not.toMatch(/工具|模型|技能|智能体|MCP/)
+  }
 })

@@ -32,9 +32,12 @@ async function answer(
   return call
 }
 
-async function listed(items: readonly SettingView[] = [permissionView()]): Promise<FakeClient> {
+async function listed(
+  items: readonly SettingView[] = [permissionView()],
+  categoryLabels: Readonly<Record<string, string>> = {},
+): Promise<FakeClient> {
   const fake = createFakeClient()
-  render(<SettingsPanel client={fake.client} tenant={TENANT} />)
+  render(<SettingsPanel client={fake.client} tenant={TENANT} categoryLabels={categoryLabels} />)
   await answer(fake, 'list-settings', {
     outcome: 'succeeded',
     body: { items, next: null, completeness: 'complete' },
@@ -196,23 +199,80 @@ it('P9 外壳重新渲染而租户没变：不重读整张列表', async () => {
 })
 
 it('P10 左边一列分组：默认全部，挑一组只留这一组的项，别的组的项不渲染', async () => {
-  await listed([permissionView(), ordinaryView(), secretView()])
+  await listed([permissionView(), ordinaryView(), secretView()], { tool: '工具', model: '模型' })
   const rail = within(screen.getByRole('navigation', { name: '设置分组' }))
   expect(rail.getAllByRole('button').map(button => button.textContent)).toEqual([
     '全部3',
     '工具2',
     '模型1',
   ])
-  expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3)
+  expect(screen.getAllByRole('heading', { level: 4 })).toHaveLength(3)
 
   fireEvent.click(rail.getByRole('button', { name: /模型/ }))
-  expect(screen.getAllByRole('heading', { level: 3 }).map(heading => heading.textContent)).toEqual([
+  expect(screen.getAllByRole('heading', { level: 4 }).map(heading => heading.textContent)).toEqual([
     '模型供应商的密钥',
   ])
   expect(rail.getByRole('button', { name: /模型/ }).getAttribute('aria-current')).toBe('true')
 
   fireEvent.click(rail.getByRole('button', { name: /全部/ }))
-  expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3)
+  expect(screen.getAllByRole('heading', { level: 4 })).toHaveLength(3)
+})
+
+it('P12 名字表里没有的类别显示它的标识；右边的标题同样', async () => {
+  await listed([permissionView(), secretView()], { tool: '工具' })
+  const rail = within(screen.getByRole('navigation', { name: '设置分组' }))
+  expect(rail.getAllByRole('button').map(button => button.textContent)).toEqual([
+    '全部2',
+    '工具1',
+    'model1',
+  ])
+  fireEvent.click(rail.getByRole('button', { name: /model/ }))
+  expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('model')
+  fireEvent.click(rail.getByRole('button', { name: /工具/ }))
+  expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('工具')
+})
+
+it('P13 同一份资产的设置项排在一块，块的标题是资产的名字，块的次序取资产第一次出现的次序', async () => {
+  const second = permissionView({
+    item: 'second-permission',
+    declaration: { ...permissionView().declaration, title: '第二项权限' },
+  })
+  await listed([permissionView(), ordinaryView(), second], { tool: '工具' })
+  expect(screen.getAllByRole('heading', { level: 3 }).map(heading => heading.textContent)).toEqual([
+    'shell',
+    'files',
+  ])
+  const shell = screen.getByRole('heading', { level: 3, name: 'shell' }).closest('section')!
+  expect(
+    within(shell)
+      .getAllByRole('heading', { level: 4 })
+      .map(heading => heading.textContent),
+  ).toEqual(['调用权限', '第二项权限'])
+  const files = screen.getByRole('heading', { level: 3, name: 'files' }).closest('section')!
+  expect(
+    within(files)
+      .getAllByRole('heading', { level: 4 })
+      .map(heading => heading.textContent),
+  ).toEqual(['一次读取的上限'])
+})
+
+it('P14 「全部」下，名字相同而类别不同的两份资产是两块，各带自己的类别名', async () => {
+  const sameName = secretView({ asset: { category: 'model', name: 'shell' } })
+  await listed([permissionView(), sameName], { tool: '工具', model: '模型' })
+  const blocks = screen
+    .getAllByRole('heading', { level: 3, name: 'shell' })
+    .map(heading => heading.closest('section')!)
+  expect(blocks).toHaveLength(2)
+  expect(blocks.map(block => block.querySelector('.assets-holding-category')?.textContent)).toEqual(
+    ['工具', '模型'],
+  )
+  expect(
+    blocks.map(block =>
+      within(block)
+        .getAllByRole('heading', { level: 4 })
+        .map(heading => heading.textContent),
+    ),
+  ).toEqual([['调用权限'], ['模型供应商的密钥']])
 })
 
 it('P11 没有本层的值时清除不可用；秘密项不显示值', async () => {

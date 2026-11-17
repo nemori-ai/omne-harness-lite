@@ -51,6 +51,24 @@ const held = new Promise(resolve => {
 let phase = 'walk'
 const AFTER_RETRY = 'answered after the retry'
 const TOOL_ARGUMENTS = JSON.stringify({ command: 'execute', params: { script: 'echo walk-args' } })
+const ASK_TITLE = 'Which port should the dev server use?'
+const ASK_PICK = '8081 (Recommended)'
+const AFTER_ASK = 'the port is settled'
+const ASK_ARGUMENTS = JSON.stringify({
+  command: 'ask',
+  params: {
+    questions: [
+      {
+        title: ASK_TITLE,
+        description: 'Port 8080 is in use by another process on this machine.',
+        options: [
+          { label: ASK_PICK, description: 'The next free port.' },
+          { label: '3000', description: 'The default port of the framework.' },
+        ],
+      },
+    ],
+  },
+})
 
 const final = (body, content) => `${sse([piece(body, content), STOP])}data: [DONE]\n\n`
 
@@ -63,6 +81,20 @@ function answer({ index, body }) {
       body: JSON.stringify({ error: { message: 'the input is rejected', code: 400 } }),
     }
   if (phase === 'recovered') return { ...reply, body: final(body, AFTER_RETRY) }
+  if (phase === 'asked') return { ...reply, body: final(body, AFTER_ASK) }
+  if (phase === 'ask') {
+    const call = {
+      index: 0,
+      id: 'call_ask_walk',
+      type: 'function',
+      function: { name: 'Ask', arguments: ASK_ARGUMENTS },
+    }
+    const events = [
+      { ...piece(body, undefined), choices: [{ delta: { tool_calls: [call] } }] },
+      { choices: [{ delta: {}, finish_reason: 'tool_calls' }] },
+    ]
+    return { ...reply, body: `${sse(events)}data: [DONE]\n\n` }
+  }
   if (phase === 'tool') {
     if (body.includes('"role":"tool"')) return { ...reply, body: final(body, 'done') }
     const call = {
@@ -448,6 +480,95 @@ async function walk(browser, origin, proofs) {
     if (/[{}"]/.test(list.innerText)) throw new Error('the arguments show raw JSON: ' + list.innerText)
     return { pairs, arguments: list.innerText }`,
   )
+  await step(
+    '卡片展开之后才送达的滚动事件，不让转写区停止跟随',
+    `
+    const scroller = document.querySelector('section[data-page=conversation] .omne-conversation')
+    const gap = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight
+    const before = gap()
+    if (before <= 32) throw new Error('the open card does not push the end out of view, so this step cannot tell: gap ' + before)
+    scroller.dispatchEvent(new Event('scroll'))
+    fill(document.querySelector('textarea[aria-label="输入消息"]'), 'one more message')
+    await press('button[type=submit]', '发送')
+    await wait('the message in the transcript', () => transcript().includes('one more message'))
+    await wait('the reply to the message', () =>
+      transcript().split('one more message').at(-1).includes('done') && byText('button[type=submit]', '发送'))
+    await wait('the end of the transcript in view', () => gap() <= 32)
+    return { before, after: gap() }`,
+  )
+  phase = 'ask'
+  await step(
+    '一轮停在 Ask 上：对话页出现这张卡，导航上有张数',
+    `
+    fill(document.querySelector('textarea[aria-label="输入消息"]'), 'ask me')
+    await press('button[type=submit]', '发送')
+    const dock = await wait('the cards of this session', () =>
+      document.querySelector('section[data-page=conversation] .hitl-session-cards'))
+    const card = await wait('the card', () => dock.querySelector('.hitl-card'))
+    const title = card.querySelector('.hitl-card-title').textContent
+    if (title !== ${JSON.stringify(ASK_TITLE)}) throw new Error('the card asks something else: ' + title)
+    const choices = [...card.querySelectorAll('.hitl-card-choice-label')].map(item => item.textContent)
+    for (const expected of [${JSON.stringify(ASK_PICK)}, '用自己的话回答', '跳过'])
+      if (!choices.includes(expected)) throw new Error('the card does not offer ' + expected + ': ' + JSON.stringify(choices))
+    const badge = await wait('the count in the navigation', () => {
+      const found = document.querySelector('.shell-nav-link[data-page=decisions] .shell-nav-badge')
+      return found && found.textContent.trim() === '1' ? found : undefined
+    })
+    return { title, choices, badge: badge.textContent.trim() }`,
+  )
+  await step(
+    '「待你决定」页是同一张卡',
+    `
+    document.querySelector('.shell-nav-link[data-page=decisions]').click()
+    const page = await wait('the decisions page', () => document.querySelector('.hitl-decisions'))
+    const cards = await wait('the card in the pool', () => {
+      const found = [...page.querySelectorAll('.hitl-card')]
+      return found.length > 0 ? found : undefined
+    })
+    if (cards.length !== 1) throw new Error('the pool lists ' + cards.length + ' cards')
+    const title = cards[0].querySelector('.hitl-card-title').textContent
+    if (title !== ${JSON.stringify(ASK_TITLE)}) throw new Error('the pool shows another card: ' + title)
+    const head = cards[0].querySelector('.hitl-card-head').innerText
+    return { title, head }`,
+  )
+  await step(
+    '在对话页选一个选项提交：两处的卡都消失，这一轮接着走完',
+    () => {
+      phase = 'asked'
+    },
+    `
+    document.querySelector('.shell-nav-link[data-page=conversation]').click()
+    const dock = await wait('the cards of this session', () =>
+      document.querySelector('section[data-page=conversation] .hitl-session-cards'))
+    const asking = await wait('the question in the transcript, in view', () => {
+      const found = [...document.querySelectorAll('section[data-page=conversation] .omne-ask')].at(-1)
+      if (found === undefined) return undefined
+      const box = found.getBoundingClientRect()
+      const scroller = found.closest('.omne-conversation').getBoundingClientRect()
+      return box.bottom <= scroller.bottom + 1 && box.bottom > scroller.top ? found : undefined
+    })
+    if (asking.dataset.status !== 'waiting') throw new Error('the question in the transcript is ' + asking.dataset.status)
+    const choice =[...dock.querySelectorAll('.hitl-card-choice')].find(item =>
+      item.querySelector('.hitl-card-choice-label').textContent === ${JSON.stringify(ASK_PICK)})
+    choice.querySelector('[role=radio]').click()
+    await wait('the choice checked', () => choice.dataset.state === 'checked')
+    const submit = await wait('the submit button', () => {
+      const found = dock.querySelector('.hitl-card-submit')
+      return found && !found.disabled ? found : undefined
+    })
+    submit.click()
+    await wait('the card gone from the conversation', () =>
+      document.querySelector('section[data-page=conversation] .hitl-session-cards') === null)
+    await wait('the reply after the answer', () => transcript().includes(${JSON.stringify(AFTER_ASK)}))
+    await wait('the run to settle', () => byText('button[type=submit]', '发送'))
+    await wait('the count gone', () =>
+      document.querySelector('.shell-nav-link[data-page=decisions] .shell-nav-badge').textContent.trim() === '')
+    await press('.shell-nav-link', '待你决定')
+    const page = await wait('the decisions page', () => document.querySelector('.hitl-decisions'))
+    await wait('the pool empty', () => page.textContent.includes('现在没有要你决定的事'))
+    await press('.shell-nav-link', '对话')
+    return transcript().slice(-160)`,
+  )
 }
 
 const scratch = newScratch('page-walk-')
@@ -500,6 +621,8 @@ try {
   code = 0
 } catch (failure) {
   print(`failed: ${failure instanceof Error ? failure.message : String(failure)}`)
+  const errors = server?.stderr().slice(-2000) ?? ''
+  if (errors !== '') print(`server stderr (tail):\n${errors}`)
 } finally {
   releaseHeld()
   browser?.close()

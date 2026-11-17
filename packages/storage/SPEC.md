@@ -131,6 +131,7 @@
 - 业务只发具名 handler、协议版本与输入，不能传 SQL。`requestKey` 只用来关联与丢弃迟到响应，不是持久身份，重复时不复用旧结果。读不认回提交，有自己的队列与字节预算。
 - 失败都是带原因的 `unavailable`：关闭、请求不能解码、输入超限、没有该 handler、排满、域不可用、缺 handler 需要的迁移标记或索引正在重建、排队超时、运行超时、输出或行数超限、读 Worker 退出、handler 失败或输出不是 JSON。取消是读结果的一种。存储故障不包装成空页或 not-found，提供者不交付截断的结果，不自行发明分页。
 - `snapshot` 读取用空闲、无事务的读连接，`BEGIN` 后首个读取固定快照，同一事务内完成全部读取；快照包含调用之前已答 `committed` 的提交。`domain-serial` 读先取连接再申请域的读屏障，屏障与写共用一个到达顺序，轮到时确认当前组已结束再建快照。
+- 读有两段时限。排队时限 `readQueueTimeoutMs` 管读开始之前的全部准备：等预留、等读连接、起读 Worker、开连接、把 handler 的代码装进这个读 Worker、等屏障。运行时限 `readObservationMs` 只量读本身，从建快照到事务结束。handler 的代码在每个读 Worker 里只装一次；装在申请屏障之前，所以屏障不会因为装代码被占着。
 - 每次成功返回之前，语句已结束、行已物化、事务已结束。读事务不复用，一次 `read` 一个快照。跨多次 `read` 的分页由领域用自己的固定读根与不可变记录保持范围，不能重建时答 gap、changed 或 unavailable，不拼接不同修订。
 - 事务内守卫、`query`、原回执的幂等读，以及可能写入排除记录的读，留在写路径。
 - 读连接为 `query_only`，不开共享缓存，不用 `immutable` 模式，不创建数据库；authorizer 只允许对 `readTables` 的 `SELECT` 与允许清单里的函数。handler 的每条语句写 `LIMIT`，提供者以有界迭代取行，超过 `maxRowsRead` 即结束语句。
@@ -171,7 +172,7 @@
 
 - 同一进程中一个数据库文件只能有一个写 Worker。文件身份是解析链接后的真实路径（win32 上再折叠大小写）。旧代际的写 Worker 退出被观察之前，新代际取不到声明，打开按暂时性故障处理；插件重跑因此不会产生第二个写者。
 - 写在打开时把写代际加一并记下写入的值；每次组提交在 `BEGIN IMMEDIATE` 之后读回，值不同或读不到即本组全部 `unknown`，Worker 回滚并退出。
-- `domain-serial` 读屏障与同域的写共用一个到达顺序：写只在它前面没有屏障时进入；屏障只在它前面没有任何条目时持有。读不饿死写，写也不饿死读。每一处等待都有上界：写等屏障至多 `lockWaitMs`，到期撤下且没有发送；读等屏障计入 `readQueueTimeoutMs`；屏障持有至多 `readObservationMs`。撤下的条目不保留位置。
+- `domain-serial` 读屏障与同域的写共用一个到达顺序：写只在它前面没有屏障时进入；屏障只在它前面没有任何条目时持有。读不饿死写，写也不饿死读。每一处等待都有上界：写等屏障至多 `lockWaitMs`，到期撤下且没有发送；读等屏障计入 `readQueueTimeoutMs`；屏障持有至多 `readObservationMs`，读 Worker 装好 handler 的代码之后才申请屏障。撤下的条目不保留位置。
 - 已发送的 `commit`、`query`、`registerCombination` 的调用方观察上界是 2 × `lockWaitMs`，到期答 `unknown`（`reply_wait_expired`）；它的预留、待决索引项与次序位置保持到 Worker 答复或退出。
 - `query` 与控制消息的等待有界，不被持续到达的写饿死。
 - 读 Worker 的结果消息带 Worker 代际、请求序号与租约令牌，三者都匹配且请求未结算才接收。迟到消息不改结果，不重复释放资源。连接绑定作用域、事务域、模式代次与 Worker 代际，任一项不符即隔离该连接，不改标签复用。读 Worker 崩溃时在途读答 `worker_exited`，调用方重读得到新快照，提供者不拼接部分结果。
@@ -249,3 +250,4 @@
 | ST-18 | 大文本列读回与写入逐字节相等；不认识的格式标记抛错                                               | 文本被静默损坏                                 | `sql-contract` 的 `text-pack` 用例                                                                                                                       |
 | ST-19 | `sql-contract` 的根入口与 `./worker`、提供者的纯工厂不导入 Cordis                                | 纯契约被装配框架绑住                           | `sql-contract` 的 `entries` 用例；依赖检查                                                                                                               |
 | ST-20 | 配置字段之间的关系在构造期成立                                                                   | 有请求永远等不到容量                           | 提供者 `config` 用例                                                                                                                                     |
+| ST-21 | 读的运行时限只量从建快照到事务结束；装 handler 的代码算在排队时限里，装的时候不占读屏障          | 合法的读被判运行超时；同域的写等在装代码后面   | 提供者 `read-pool` 的三条用例：装得慢的 handler 第一次读成功；排队时限到了答排队超时而读 Worker 留下；`domain-serial` 的 handler 在装的时候写照常提交     |

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, expect, it } from 'vitest'
-import { sessionClientService, sessionUiModule } from '../src/cordis.tsx'
+import { sessionClientService, sessionUiModule } from '../src/cordis.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { listed, listPage } from './fixtures/frames.ts'
 import { mountModule, startShell } from './fixtures/shell.tsx'

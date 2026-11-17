@@ -94,6 +94,16 @@ async function denied(assembly: Assembly): Promise<boolean> {
   )
 }
 
+async function waitingOnDependency(assembly: Assembly): Promise<LoadedWithEntries> {
+  await eventually(async () => {
+    const read = await snapshot(assembly)
+    return (
+      read.state.kind === 'waiting' && read.state.waits.some(wait => wait.kind === 'dependency')
+    )
+  })
+  return snapshot(assembly)
+}
+
 async function secondModelCall(assembly: Assembly) {
   await eventually(async () =>
     (await snapshot(assembly)).checkpoint.calls.some(
@@ -575,11 +585,48 @@ describe('tool result round', () => {
     ])
   })
 
-  it('denies the whole batch when the admission answers unavailable, and the run goes on', async () => {
+  it('waits at the admission while it answers unavailable, denies nothing, and asks the same batch again', async () => {
+    const assembly = await toolAssembly()
+    acceptEach(assembly)
+    let readable = false
+    assembly.controls.admission.admit.always(() =>
+      readable
+        ? { ok: { kind: 'allow', evidence: evidence('allowed-after-wait') } }
+        : { ok: { kind: 'unavailable', diagnostic: 'the permission basis could not be read now' } },
+    )
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    const waiting = await waitingOnDependency(assembly)
+    expect(waiting.state).toEqual({
+      kind: 'waiting',
+      waits: [{ kind: 'dependency', owner: 'agentActionAdmission', position: 'A0' }],
+    })
+    expect(waiting.checkpoint.batch?.actions.map(action => action.judgment.kind)).toEqual([
+      'pending',
+      'pending',
+    ])
+    expect(waiting.checkpoint.batch?.slots).toEqual([])
+    expect(waiting.checkpoint.calls.filter(call => call.kind !== 'model')).toEqual([])
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly))).toEqual([])
+
+    readable = true
+    const now = ok(await assembly.dependencies.clock.now())
+    ok(assembly.controls.clock.advanceTo(new Date(Date.parse(now) + 2000).toISOString() as never))
+    expect(await associatedTools(assembly, 2)).toHaveLength(2)
+    const after = await snapshot(assembly)
+    expect(after.checkpoint.batch?.actions.map(action => action.judgment.kind)).toEqual([
+      'allowed',
+      'allowed',
+    ])
+    expect(toolMessages(await events(assembly))).toEqual([])
+  })
+
+  it('denies the whole batch when the admission cannot decide in this deployment, and the run goes on', async () => {
     const assembly = await toolAssembly()
     acceptEach(assembly)
     assembly.controls.admission.admit.always(() => ({
-      ok: { kind: 'unavailable', diagnostic: 'no action rule matches this action' },
+      ok: { kind: 'undecidable', diagnostic: 'no action rule matches this action' },
     }))
     ok(await invoke(assembly))
     await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
@@ -592,7 +639,7 @@ describe('tool result round', () => {
       expect.objectContaining({ callId: 'call-b' }),
     ])
     const unchecked =
-      'The tool call did not run: its permission could not be checked, because the permission basis was unavailable at that moment. No rule and no person refused it. The same call may run when it is made again.'
+      'The tool call did not run: its permission could not be decided in this deployment. No rule and no person refused it. Making the same call again will not change this.'
     expect(
       messages.map(message =>
         message.blocks.flatMap(block => (block.kind === 'text' ? [block.text] : [])),
@@ -616,7 +663,7 @@ describe('tool result round', () => {
     ).toEqual([['The tool call was denied and did not run.']])
   })
 
-  it('does not release an action allowed earlier in a batch whose later admission is unavailable', async () => {
+  it('does not release an action allowed earlier in a batch while a later admission is unavailable', async () => {
     const assembly = await toolAssembly()
     acceptEach(assembly)
     assembly.controls.admission.admit.once(() => ({
@@ -627,12 +674,67 @@ describe('tool result round', () => {
     }))
     ok(await invoke(assembly))
     await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    const waiting = await waitingOnDependency(assembly)
+    expect(waiting.checkpoint.batch?.actions.map(action => action.judgment.kind)).toEqual([
+      'pending',
+      'pending',
+    ])
+    expect(waiting.checkpoint.calls.filter(call => call.kind !== 'model')).toEqual([])
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly))).toEqual([])
+  })
+
+  it('does not release an action allowed earlier in a batch whose later admission is undecidable', async () => {
+    const assembly = await toolAssembly()
+    acceptEach(assembly)
+    assembly.controls.admission.admit.once(() => ({
+      ok: { kind: 'allow', evidence: evidence('allowed-first') },
+    }))
+    assembly.controls.admission.admit.always(() => ({
+      ok: { kind: 'undecidable', diagnostic: 'no action rule matches this action' },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
     await secondModelCall(assembly)
     expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
     expect(toolMessages(await events(assembly))).toHaveLength(2)
   })
 
-  it('reads a denied Failure of the admission port as unavailable and denies the batch', async () => {
+  it.each([
+    ['the admission port', 'agentActionAdmission'],
+    ['the describe of the trusted Tool request source', 'agentToolRequests'],
+    ['the prepare of the trusted Tool request source', 'agentToolRequests'],
+  ] as const)('waits when %s answers an unavailable Failure', async (port, owner) => {
+    const failure = { failure: { kind: 'unavailable' as const, owner, diagnostic: 'down' } }
+    const assembly = await toolAssembly(
+      {},
+      {},
+      {
+        async describe() {
+          return port.startsWith('the describe')
+            ? failure
+            : { ok: { kind: 'tool', definition: adoption('read_file') } }
+        },
+        ...(port.startsWith('the prepare') ? { prepare: async () => failure } : {}),
+      },
+    )
+    acceptEach(assembly)
+    assembly.controls.admission.admit.always(() =>
+      port === 'the admission port'
+        ? failure
+        : { ok: { kind: 'allow', evidence: evidence('allowed') } },
+    )
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    expect((await waitingOnDependency(assembly)).state).toEqual({
+      kind: 'waiting',
+      waits: [{ kind: 'dependency', owner, position: 'A0' }],
+    })
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect(toolMessages(await events(assembly))).toEqual([])
+  })
+
+  it('denies the batch when the admission port refuses the Agent', async () => {
     const assembly = await toolAssembly()
     acceptEach(assembly)
     assembly.controls.admission.admit.always(() => ({
@@ -645,15 +747,13 @@ describe('tool result round', () => {
     expect(toolMessages(await events(assembly))).toHaveLength(1)
   })
 
-  it('denies the batch when the trusted Tool request source cannot describe the action', async () => {
+  it('denies the batch when the trusted Tool request source refuses to describe the action', async () => {
     const assembly = await toolAssembly(
       {},
       {},
       {
         async describe() {
-          return {
-            failure: { kind: 'unavailable', owner: 'agentToolRequests', diagnostic: 'down' },
-          }
+          return { failure: { kind: 'denied', action: 'describe-tool-request' } }
         },
       },
     )

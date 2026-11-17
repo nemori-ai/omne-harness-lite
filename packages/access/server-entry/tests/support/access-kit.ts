@@ -17,7 +17,16 @@ import {
   type ServerEntryAccess,
   type ServerEntryConfig,
 } from '../../src/index.ts'
-import { encoder, openStream, raw, send, startEntry, type Entry, type SseClient } from './entry.ts'
+import {
+  baseConfig,
+  encoder,
+  openStream,
+  raw,
+  send,
+  startEntry,
+  type Entry,
+  type SseClient,
+} from './entry.ts'
 import { manualClock, type ManualClock } from './manual-clock.ts'
 import { pipelineNotesProtocol, type PipelineNotesProtocol } from './test-contribution.ts'
 
@@ -393,6 +402,12 @@ export function accessSide(
 
 export type AccessFixture = Entry &
   Omit<AccessSide, 'access'> & { readonly diagnostics: AccessDiagnostic[] }
+
+/** Heartbeats and login checks run on the access clock: lets their rounds pass until `done` settles. */
+export const passRounds = <T>(
+  fixture: Pick<AccessSide, 'accessClock'>,
+  done: Promise<T>,
+): Promise<T> => fixture.accessClock.flowUntil(done, baseConfig().heartbeatIntervalMs)
 
 export type AccessFixtureOptions = AccessSideOptions &
   Readonly<{ config?: Partial<ServerEntryConfig> }>

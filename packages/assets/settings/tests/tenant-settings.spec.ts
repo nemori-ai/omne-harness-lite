@@ -11,6 +11,7 @@ import {
   type SettingsChange,
   type SettingsFailure,
   type SettingsGrant,
+  type SettingsSourceDescriptor,
   type SettingsState,
   type SettingsTargetView,
   type TenantSettingsPermissions,
@@ -36,7 +37,7 @@ const presentation = {
   clear: 'The outer value applies again',
   adoption: 'next-read' as const,
 }
-function definitionOf(): SettingDefinitions {
+function definitionOf(withNote = false): SettingDefinitions {
   const defined = defineSettings({
     providerId: 'harness',
     definitionId: 'tool.Shell',
@@ -86,6 +87,30 @@ function definitionOf(): SettingDefinitions {
         merge: 'override',
         sensitivity: 'secret',
       },
+      ...(withNote
+        ? [
+            {
+              id: 'note',
+              groupId: 'g',
+              category: 'preference' as const,
+              presentation,
+              valueSchema: { type: 'string' },
+              default: { kind: 'absent' as const },
+              merge: 'override' as const,
+              sensitivity: 'ordinary' as const,
+            },
+            {
+              id: 'free',
+              groupId: 'g',
+              category: 'preference' as const,
+              presentation,
+              valueSchema: {},
+              default: { kind: 'absent' as const },
+              merge: 'override' as const,
+              sensitivity: 'ordinary' as const,
+            },
+          ]
+        : []),
     ],
   })
   if (defined.kind !== 'defined') throw new Error(JSON.stringify(defined))
@@ -95,8 +120,27 @@ const PERMITS: Readonly<Record<string, boolean>> = { deny: false, ask: true, aut
 
 type Value = Readonly<{ pick: string | null; allowedSet: readonly string[] | null }>
 
-function world() {
-  const definition = definitionOf()
+const ORGANIZATION_SOURCE: SettingsSourceDescriptor = {
+  sourceId: 'organization',
+  ownerRef: 'governance',
+  scope: { kind: 'organization', subjectRef: 'org' },
+  authorityRevision: '1',
+}
+const TENANT_SOURCE: SettingsSourceDescriptor = {
+  sourceId: 'tenant',
+  ownerRef: 'governance',
+  scope: { kind: 'tenant', subjectRef: 'tenant-a' },
+  authorityRevision: '1',
+}
+const SESSION_SOURCE: SettingsSourceDescriptor = {
+  sourceId: 'session',
+  ownerRef: 'governance',
+  scope: { kind: 'session', subjectRef: 'session-a' },
+  authorityRevision: '1',
+}
+
+function world(options: Readonly<{ withNote?: boolean; withSession?: boolean }> = {}) {
+  const definition = definitionOf(options.withNote === true)
   const target = { policyId: 'asset', targetRef: 'tool.Shell', scopeRef: 'tenant-a' }
   const definitionRef = {
     providerId: 'harness',
@@ -109,10 +153,16 @@ function world() {
     sources: [
       { id: 'organization', values: [] },
       { id: 'tenant', values: [] },
+      ...(options.withSession === true ? [{ id: 'session', values: [] }] : []),
     ],
   }
   const calls: string[] = []
+  const admitted: string[] = []
   const flags = {
+    sources: null as readonly SettingsSourceDescriptor[] | null,
+    grants: null as SettingsTargetView['grants'] | null,
+    reply: null as TenantSettingsWriteResult | null,
+    readThrows: false,
     catalog: 'ok' as 'ok' | 'unavailable' | 'partial' | 'duplicate' | 'not-held',
     organizationBound: null as readonly string[] | null,
     organizationPick: null as string | null,
@@ -120,7 +170,10 @@ function world() {
     lose: false,
     tenantActions: ['set', 'clear'] as SettingsGrant['actions'],
     reject: null as SettingsFailure['reason'] | null,
-    copyAsset: { category: 'tool', name: 'Shell' } as { category: string; name: string },
+    copyAsset: { category: 'tool', name: 'Shell' } as
+      | { category: string; name: string }
+      | undefined,
+    copies: 0,
     between: null as (() => void) | null,
   }
   const roots = new Map<string, { digest: string; result: TenantSettingsWriteResult }>()
@@ -128,24 +181,15 @@ function world() {
   const view = (): SettingsTargetView => ({
     target,
     enabled: true,
-    sources: [
-      {
-        sourceId: 'organization',
-        ownerRef: 'governance',
-        scope: { kind: 'organization', subjectRef: 'org' },
-        authorityRevision: '1',
-      },
-      {
-        sourceId: 'tenant',
-        ownerRef: 'governance',
-        scope: { kind: 'tenant', subjectRef: 'tenant-a' },
-        authorityRevision: '1',
-      },
+    sources: flags.sources ?? [
+      ORGANIZATION_SOURCE,
+      TENANT_SOURCE,
+      ...(options.withSession === true ? [SESSION_SOURCE] : []),
     ],
     definitionRef,
     definition,
     state,
-    grants: [
+    grants: flags.grants ?? [
       { sourceId: 'organization', actions: ['set', 'clear', 'lock', 'unlock'] },
       { sourceId: 'tenant', actions: flags.tenantActions },
     ],
@@ -223,14 +267,16 @@ function world() {
   const face = createTenantSettings<string>({
     deploymentRef: 'deployment',
     principals: {
-      async admit({ principal, tenant }) {
+      async admit({ principal, tenant, action }) {
         calls.push('principals.admit')
+        admitted.push(action)
         return principal === LOGIN_A && tenant === tenantA ? 'allowed' : 'denied'
       },
     },
     catalog: {
       async read(tenant): Promise<SettingsBasis | SettingsFailure> {
         calls.push('catalog.read')
+        if (flags.readThrows) throw new Error('the catalog is gone')
         if (tenant !== tenantA) return { kind: 'rejected', reason: 'forbidden' }
         if (flags.catalog === 'unavailable') return { kind: 'rejected', reason: 'unavailable' }
         const views =
@@ -238,7 +284,13 @@ function world() {
             ? []
             : flags.catalog === 'duplicate'
               ? [view(), { ...view(), target: { ...target, targetRef: 'tool.Shell.copy' } }]
-              : [view()]
+              : [
+                  view(),
+                  ...Array.from({ length: flags.copies }, (_, index) => ({
+                    ...view(),
+                    target: { ...target, targetRef: `tool.Shell.copy${index}` },
+                  })),
+                ]
         return {
           scopeKey: 'tenant-a',
           revision: String(state.revision),
@@ -248,14 +300,17 @@ function world() {
         }
       },
       assetOf: candidate =>
-        candidate.target.targetRef === 'tool.Shell.copy'
-          ? flags.copyAsset
-          : { category: 'tool', name: 'Shell' },
+        /^tool\.Shell\.copy\d+$/.test(candidate.target.targetRef)
+          ? { category: 'tool', name: candidate.target.targetRef }
+          : candidate.target.targetRef === 'tool.Shell.copy'
+            ? flags.copyAsset
+            : { category: 'tool', name: 'Shell' },
     },
     permissions,
     writer: {
       async write({ command, beforeWrite }) {
         calls.push('writer.write')
+        if (flags.reply !== null) return flags.reply
         if (flags.reject !== null) return { kind: 'rejected', reason: flags.reject }
         const { requestId: _requestId, ...stable } = command
         const digest = canonicalize(stable)!
@@ -303,7 +358,7 @@ function world() {
       },
     },
   })
-  return { face, calls, flags, writes, assign, own, state: () => state }
+  return { face, calls, admitted, flags, writes, assign, own, state: () => state }
 }
 
 const SHELL = { category: 'tool', name: 'Shell' }
@@ -975,4 +1030,396 @@ describe('which asset a query names', () => {
       'Shell/verbose',
     ])
   })
+
+  it('a list across assets orders by category before name', async () => {
+    const w = world()
+    w.flags.catalog = 'duplicate'
+    w.flags.copyAsset = { category: 'alpha', name: 'Zed' }
+    const listed = await w.face.list({
+      principal: LOGIN_A,
+      tenant: tenantA,
+      after: null,
+      limit: 10,
+    })
+    if (listed.kind !== 'listed') throw new Error(JSON.stringify(listed))
+    expect(listed.items.map(value => `${value.asset.category}/${value.asset.name}`)).toEqual([
+      'alpha/Zed',
+      'alpha/Zed',
+      'alpha/Zed',
+      'tool/Shell',
+      'tool/Shell',
+      'tool/Shell',
+    ])
+  })
+
+  it('a holding the catalog cannot name an asset for is not listed and does not make a name ambiguous', async () => {
+    const w = world()
+    w.flags.catalog = 'duplicate'
+    w.flags.copyAsset = undefined
+    const listed = await w.face.list({
+      principal: LOGIN_A,
+      tenant: tenantA,
+      after: null,
+      limit: 10,
+    })
+    if (listed.kind !== 'listed') throw new Error(JSON.stringify(listed))
+    expect(listed.items.map(value => value.item)).toEqual(['apiKey', 'invoke', 'verbose'])
+    expect(await w.face.describe(item())).toMatchObject({ kind: 'described' })
+  })
+})
+
+describe('the tenant source and its grant decide whether the face may write', () => {
+  const setVerbose = (operation: string, expectedRevision = '0') => ({
+    ...item(undefined, undefined, 'verbose'),
+    operation,
+    expectedRevision,
+    value: { kind: 'ordinary' as const, value: true },
+  })
+  const clearVerbose = (operation: string, expectedRevision = '0') => ({
+    ...item(undefined, undefined, 'verbose'),
+    operation,
+    expectedRevision,
+  })
+  const NOT_A_SOURCE = { kind: 'not-writable', reason: 'not-a-source' } as const
+  const ALL_GRANTS = ['set', 'clear', 'lock', 'unlock'] as const
+
+  it('a view with no tenant source: set and clear are not-writable not-a-source, the item is not editable, and the writer is not reached', async () => {
+    const w = world()
+    w.flags.sources = [ORGANIZATION_SOURCE]
+    expect(await w.face.set(setVerbose('s'))).toEqual(NOT_A_SOURCE)
+    expect(await w.face.clear(clearVerbose('c'))).toEqual(NOT_A_SOURCE)
+    expect(await w.face.describe(item(undefined, undefined, 'verbose'))).toMatchObject({
+      item: { own: { kind: 'unset' }, editable: { kind: 'no', reason: 'not-a-source' } },
+    })
+    expect(w.calls).not.toContain('writer.write')
+  })
+
+  it('a view with two tenant sources has no single layer to write: not-writable not-a-source even when both are granted', async () => {
+    const w = world()
+    w.flags.sources = [
+      ORGANIZATION_SOURCE,
+      TENANT_SOURCE,
+      { ...TENANT_SOURCE, sourceId: 'tenant-2' },
+    ]
+    w.flags.grants = [
+      { sourceId: 'organization', actions: ALL_GRANTS },
+      { sourceId: 'tenant', actions: ALL_GRANTS },
+      { sourceId: 'tenant-2', actions: ALL_GRANTS },
+    ]
+    expect(await w.face.set(setVerbose('s'))).toEqual(NOT_A_SOURCE)
+    expect(await w.face.clear(clearVerbose('c'))).toEqual(NOT_A_SOURCE)
+    expect(await w.face.describe(item(undefined, undefined, 'verbose'))).toMatchObject({
+      item: { editable: { kind: 'no', reason: 'not-a-source' } },
+    })
+    expect(w.calls).not.toContain('writer.write')
+  })
+
+  it('a tenant source that has no grant row at all: set and clear are not-writable not-a-source', async () => {
+    const w = world()
+    w.flags.grants = [{ sourceId: 'organization', actions: ALL_GRANTS }]
+    expect(await w.face.set(setVerbose('s'))).toEqual(NOT_A_SOURCE)
+    expect(await w.face.clear(clearVerbose('c'))).toEqual(NOT_A_SOURCE)
+    expect(w.calls).not.toContain('writer.write')
+  })
+
+  it('a tenant source granted lock and unlock only: neither set nor clear is allowed', async () => {
+    const w = world()
+    w.flags.tenantActions = ['lock', 'unlock']
+    expect(await w.face.set(setVerbose('s'))).toEqual(NOT_A_SOURCE)
+    expect(await w.face.clear(clearVerbose('c'))).toEqual(NOT_A_SOURCE)
+  })
+
+  it('a grant of clear alone is enough to clear, a grant of set alone is enough to set', async () => {
+    const w = world()
+    w.assign('tenant', 'verbose', true)
+    w.flags.tenantActions = ['clear']
+    expect(await w.face.clear(clearVerbose('c', '1'))).toEqual({ kind: 'written', revision: '2' })
+    w.flags.tenantActions = ['set']
+    expect(await w.face.set(setVerbose('s', '2'))).toEqual({ kind: 'written', revision: '3' })
+  })
+
+  it('the item locked by the tenant layer itself is still written by the tenant', async () => {
+    const w = world()
+    w.assign('tenant', 'verbose', false, true)
+    expect(await w.face.set(setVerbose('s', '1'))).toEqual({ kind: 'written', revision: '2' })
+    expect(await w.face.describe(item(undefined, undefined, 'verbose'))).toMatchObject({
+      item: { own: { kind: 'set', value: true } },
+    })
+  })
+})
+
+describe('the answer to an aborted, committed or unknown write', () => {
+  const operation = {
+    target: { policyId: 'asset', targetRef: 'tool.Shell', scopeRef: 'tenant-a' },
+    operationId: 'op-deny',
+  }
+  const aborted: readonly (readonly [string, WriteOutcome])[] = [
+    ['forbidden', { kind: 'denied' }],
+    ['revision_conflict', { kind: 'conflict' }],
+    ['definition_changed', { kind: 'conflict' }],
+    ['locked', { kind: 'not-writable', reason: 'locked' }],
+    ['incompatible', { kind: 'invalid' }],
+    ['cancelled', { kind: 'unavailable' }],
+    ['sealed', { kind: 'unavailable' }],
+  ]
+  it.each(aborted)('aborted %s', async (reason, outcome) => {
+    const w = world()
+    w.flags.reply = { kind: 'aborted', operation, reason: reason as never }
+    expect(await w.face.set(pick('deny'))).toEqual(outcome)
+  })
+
+  it('committed with a change: written with the revision of the commit as text', async () => {
+    const w = world()
+    w.flags.reply = { kind: 'committed', operation, revision: 7, changed: true }
+    expect(await w.face.set(pick('deny'))).toEqual({ kind: 'written', revision: '7' })
+  })
+
+  it('committed without a change: no-change', async () => {
+    const w = world()
+    w.flags.reply = { kind: 'committed', operation, revision: 7, changed: false }
+    expect(await w.face.set(pick('deny'))).toEqual({ kind: 'no-change' })
+  })
+
+  it('an unknown answer of the writer is unknown, not a success or a failure', async () => {
+    const w = world()
+    w.flags.reply = { kind: 'unknown', operation }
+    expect(await w.face.set(pick('deny'))).toEqual({ kind: 'unknown' })
+  })
+})
+
+describe('which layer an ordinary item reports', () => {
+  const noteOf = async (w: ReturnType<typeof world>) => {
+    const described = await w.face.describe(item(undefined, undefined, 'note'))
+    if (described.kind !== 'described') throw new Error(JSON.stringify(described))
+    return described.item
+  }
+
+  it('no default and no value in any layer: the default, own and effective are all unset, and no layer supplies it', async () => {
+    const w = world({ withNote: true })
+    expect(await noteOf(w)).toMatchObject({
+      default: { kind: 'unset' },
+      own: { kind: 'unset' },
+      effective: { value: { kind: 'unset' }, source: null },
+      lockedBy: null,
+      editable: { kind: 'yes' },
+    })
+  })
+
+  it('a value of the tenant layer for an item with no default: the tenant supplies it', async () => {
+    const w = world({ withNote: true })
+    w.assign('tenant', 'note', 'hello')
+    expect(await noteOf(w)).toMatchObject({
+      default: { kind: 'unset' },
+      own: { kind: 'set', value: 'hello' },
+      effective: { value: { kind: 'set', value: 'hello' }, source: 'tenant' },
+    })
+  })
+
+  it('a value of a layer that is neither the tenant nor the organization: it is effective but no named layer supplies it, and it locks nothing', async () => {
+    const w = world({ withSession: true })
+    w.assign('session', 'verbose', true)
+    expect(await w.face.describe(item(undefined, undefined, 'verbose'))).toMatchObject({
+      item: {
+        own: { kind: 'unset' },
+        effective: { value: { kind: 'set', value: true }, source: null },
+        lockedBy: null,
+        editable: { kind: 'yes' },
+      },
+    })
+  })
+})
+
+describe('what the face passes on to its ports', () => {
+  it('each method asks admission for its own action', async () => {
+    const w = world()
+    await w.face.list({ principal: LOGIN_A, tenant: tenantA, after: null, limit: 1 })
+    await w.face.describe(item())
+    await w.face.set(pick('deny'))
+    await w.face.clear({ ...item(), operation: 'c', expectedRevision: '1' })
+    expect(w.admitted).toEqual(['list', 'describe', 'set', 'clear'])
+  })
+
+  it('a set hands the writer one command that names the tenant source, the item, the revision as a number and the value', async () => {
+    const w = world()
+    await w.face.set({
+      ...item(undefined, undefined, 'verbose'),
+      operation: 'cmd',
+      expectedRevision: '0',
+      value: { kind: 'ordinary', value: true },
+    })
+    expect(w.writes).toEqual([
+      {
+        protocol: 'settings/1',
+        requestId: 'cmd',
+        operationId: 'cmd',
+        target: { policyId: 'asset', targetRef: 'tool.Shell', scopeRef: 'tenant-a' },
+        definitionRef: {
+          providerId: 'harness',
+          definitionId: 'tool.Shell',
+          version: '1',
+          digest: 'a'.repeat(64),
+        },
+        expectedRevision: 0,
+        sourceId: 'tenant',
+        itemId: 'verbose',
+        action: { kind: 'set', value: true },
+      },
+    ])
+  })
+
+  it('a clear of an ordinary item hands the writer a clear of the tenant source under the given revision', async () => {
+    const w = world()
+    w.assign('tenant', 'verbose', true)
+    await w.face.clear({
+      ...item(undefined, undefined, 'verbose'),
+      operation: 'cmd',
+      expectedRevision: '1',
+    })
+    expect(w.writes).toMatchObject([
+      {
+        operationId: 'cmd',
+        expectedRevision: 1,
+        sourceId: 'tenant',
+        itemId: 'verbose',
+        action: { kind: 'clear' },
+      },
+    ])
+  })
+
+  it.each([
+    ['an operation that is not an id', { operation: 'not an id' }],
+    ['an empty operation', { operation: '' }],
+    ['an item that is not an id', { item: 'not an id' }],
+    ['an empty item', { item: '' }],
+  ])('%s: invalid before anything is read', async (_name, change) => {
+    const w = world()
+    expect(await w.face.set({ ...pick('deny'), ...change })).toEqual({ kind: 'invalid' })
+    expect(
+      await w.face.clear({ ...item(), operation: 'c', expectedRevision: '0', ...change }),
+    ).toEqual({
+      kind: 'invalid',
+    })
+    expect(w.calls.filter(call => call !== 'principals.admit')).toEqual([])
+  })
+
+  it.each(['verbose', 'free'])(
+    'a permission pick for the item %s, which is not a permission item: invalid, nothing written',
+    async itemId => {
+      const w = world({ withNote: true })
+      expect(
+        await w.face.set({
+          ...item(undefined, undefined, itemId),
+          operation: 'wrong-kind',
+          expectedRevision: '0',
+          value: { kind: 'permission', pick: 'auto' },
+        }),
+      ).toEqual({ kind: 'invalid' })
+      expect(w.calls).not.toContain('writer.write')
+    },
+  )
+
+  it('a clear of a secret item is not-writable not-a-source', async () => {
+    const w = world()
+    expect(
+      await w.face.clear({
+        ...item(undefined, undefined, 'apiKey'),
+        operation: 'secret',
+        expectedRevision: '0',
+      }),
+    ).toEqual({ kind: 'not-writable', reason: 'not-a-source' })
+    expect(w.calls).not.toContain('writer.write')
+  })
+
+  it('a basis whose stored values do not fit its definition is unavailable, never a partial answer', async () => {
+    const w = world()
+    w.assign('tenant', 'ghost', true)
+    expect(
+      await w.face.list({ principal: LOGIN_A, tenant: tenantA, after: null, limit: 10 }),
+    ).toEqual({ kind: 'unavailable' })
+    expect(await w.face.describe(item())).toEqual({ kind: 'unavailable' })
+    expect(await w.face.set(pick('deny', 'ghost', '1'))).toEqual({ kind: 'unavailable' })
+    expect(w.calls).not.toContain('writer.write')
+  })
+
+  it('a catalog that throws is unavailable for list, describe, set and clear', async () => {
+    const w = world()
+    w.flags.readThrows = true
+    expect(
+      await w.face.list({ principal: LOGIN_A, tenant: tenantA, after: null, limit: 10 }),
+    ).toEqual({ kind: 'unavailable' })
+    expect(await w.face.describe(item())).toEqual({ kind: 'unavailable' })
+    expect(await w.face.set(pick('deny'))).toEqual({ kind: 'unavailable' })
+    expect(await w.face.clear({ ...item(), operation: 'c', expectedRevision: '0' })).toEqual({
+      kind: 'unavailable',
+    })
+    expect(w.calls).not.toContain('writer.write')
+  })
+})
+
+describe('the page size of a list', () => {
+  const page = async (w: ReturnType<typeof world>, limit: number, after: string | null = null) => {
+    const listed = await w.face.list({ principal: LOGIN_A, tenant: tenantA, after, limit })
+    if (listed.kind !== 'listed') throw new Error(JSON.stringify(listed))
+    return listed
+  }
+
+  it.each([0, -3, Number.NaN])('a limit of %s answers one item', async limit => {
+    const listed = await page(world(), limit)
+    expect(listed.items.map(value => value.item)).toEqual(['apiKey'])
+    expect(listed.next).toBe('1')
+  })
+
+  it('a limit with a fraction counts whole items', async () => {
+    const listed = await page(world(), 2.9)
+    expect(listed.items).toHaveLength(2)
+    expect(listed.next).toBe('2')
+  })
+
+  it('a limit that reaches the end leaves no next', async () => {
+    const listed = await page(world(), 3)
+    expect(listed.items).toHaveLength(3)
+    expect(listed.next).toBeNull()
+  })
+
+  it('a limit above one hundred answers one hundred items and a next that continues after them', async () => {
+    const w = world()
+    w.flags.copies = 40
+    const first = await page(w, 100000)
+    expect(first.items).toHaveLength(100)
+    expect(first.next).toBe('100')
+    const rest = await page(w, 100000, first.next)
+    expect(rest.items).toHaveLength(23)
+    expect(rest.next).toBeNull()
+  })
+
+  it('the cursor 0 is the first page', async () => {
+    const w = world()
+    expect((await page(w, 2, '0')).items.map(value => value.item)).toEqual(['apiKey', 'invoke'])
+  })
+})
+
+describe('the numbers the face accepts are whole strings, more shapes', () => {
+  it.each(['', '+1', '1.5', '1e3', '٣', '0\r', '\t1'])(
+    'expected revision %j: invalid',
+    async revision => {
+      const w = world()
+      expect(await w.face.set(pick('deny', 'bad', revision))).toEqual({ kind: 'invalid' })
+      expect(
+        await w.face.clear({ ...item(), operation: 'bad', expectedRevision: revision }),
+      ).toEqual({
+        kind: 'invalid',
+      })
+      expect(w.calls).not.toContain('writer.write')
+    },
+  )
+
+  it.each(['', '+1', '1.5', '1e3', '٣', '\t1', '0\r'])(
+    'page cursor %j: unavailable',
+    async after => {
+      const w = world()
+      expect(await w.face.list({ principal: LOGIN_A, tenant: tenantA, after, limit: 1 })).toEqual({
+        kind: 'unavailable',
+      })
+    },
+  )
 })

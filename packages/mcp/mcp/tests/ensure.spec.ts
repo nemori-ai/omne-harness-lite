@@ -7,11 +7,7 @@ import {
   type EndpointRef,
   type PeerAccount,
 } from '@omne-harness/mcp-contract'
-import type {
-  AdoptedEndpoint,
-  AdoptionView,
-  ProcessLanding,
-} from '@omne-harness/mcp-contract/provider'
+import type { AdoptedEndpoint, AdoptionView } from '@omne-harness/mcp-contract/provider'
 import { admit, admitWithoutEligibility, type AdmittedEndpoint } from '../src/internal/gate.ts'
 import { Connection } from '../src/internal/connection.ts'
 import { loseOn } from '../src/internal/lost.ts'
@@ -33,7 +29,6 @@ import {
   TARGET,
   VALUE,
   adoptHttp,
-  adoptStdio,
   storedRecord,
   world,
   type World,
@@ -100,7 +95,7 @@ const DISCOVERY: AuthorizationDiscovery = {
 describe('ensure: reuse, rebuild and single flight', () => {
   it('opens one transport and reuses it for a second ensure', async () => {
     const w = world({ script: [{ discover: peer }] })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const table = tableOf(w)
     const token = await admitted(w, files)
     const first = await table.ensure(token, alice)
@@ -109,19 +104,18 @@ describe('ensure: reuse, rebuild and single flight', () => {
     expect(transportOf(second.ok)).toBe(transportOf(first.ok))
     expect(second.ok.generation).toBe(first.ok.generation)
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(1)
-    expect(w.landing.started()).toHaveLength(1)
   })
 
   it('rebuilds a lost connection with the next generation and a new transport', async () => {
     const w = world({ script: [{ discover: peer }, { discover: peer }] })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const table = tableOf(w)
     const token = await admitted(w, files)
     const first = await table.ensure(token, alice)
     if (!('ok' in first)) throw new Error('first ensure failed')
     const lostTransport = transportOf(first.ok)
     expect(
-      await loseOn(table, first.ok, { reason: 'process-exited', mark: 'connection-unavailable' }),
+      await loseOn(table, first.ok, { reason: 'stream-broken', mark: 'connection-unavailable' }),
     ).toBe('not-acquired')
     expect(first.ok.connection.isCurrent(first.ok.generation)).toBe(false)
     expect(first.ok.wire()).toEqual({
@@ -134,13 +128,12 @@ describe('ensure: reuse, rebuild and single flight', () => {
     expect(transportOf(second.ok)).not.toBe(lostTransport)
     expect(second.ok.connection.isCurrent(second.ok.generation)).toBe(true)
     expect(w.transports.calls.filter(call => call.kind === 'open')).toHaveLength(2)
-    expect(w.landing.processes()[0]?.stops).toBe(1)
   })
 
   it('opens once for two concurrent ensures of the same key', async () => {
     const discover = deferred<typeof peer>()
     const w = world({ script: [{ discover }] })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const table = tableOf(w)
     const token = await admitted(w, files)
     const first = table.ensure(token, alice)
@@ -157,7 +150,7 @@ describe('ensure: reuse, rebuild and single flight', () => {
 
   it('refuses a token that did not pass eligibility at the gate', async () => {
     const w = world()
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const table = tableOf(w)
     const adoptedOnly = await admitWithoutEligibility(w.ports, alice, files)
     if (!('ok' in adoptedOnly)) throw new Error('not adopted')
@@ -185,18 +178,13 @@ describe('ensure: setting defects', () => {
     ],
     [
       'connect-timeout missing without a connectBound',
-      w => adoptStdio(w, files, { settings: { connectTimeout: { kind: 'absent' } } }),
+      w => adoptHttp(w, files, { auth: 'none', settings: { connectTimeout: { kind: 'absent' } } }),
       { kind: 'config-missing', item: 'connect-timeout' },
     ],
     [
       'connect-timeout invalid',
-      w => adoptStdio(w, files, { settings: { connectTimeout: INVALID } }),
+      w => adoptHttp(w, files, { auth: 'none', settings: { connectTimeout: INVALID } }),
       { kind: 'config-invalid', item: 'connect-timeout' },
-    ],
-    [
-      'a setting variable missing from processEnv',
-      w => adoptStdio(w, files, { env: [{ name: 'HOME_DIR', source: 'setting' }] }),
-      { kind: 'config-missing', item: 'env.HOME_DIR' },
     ],
   ]
 
@@ -224,7 +212,7 @@ describe('ensure: setting defects', () => {
 
   it('uses the connectBound of the request when the connect-timeout setting is absent', async () => {
     const w = world({ script: [{ discover: peer }] })
-    adoptStdio(w, files, { settings: { connectTimeout: { kind: 'absent' } } })
+    adoptHttp(w, files, { auth: 'none', settings: { connectTimeout: { kind: 'absent' } } })
     const table = tableOf(w)
     const answer = await table.ensure(await admitted(w, files), alice, {
       connectBound: millisOf(5_000),
@@ -234,7 +222,7 @@ describe('ensure: setting defects', () => {
 
   it('does not use the connectBound when the connect-timeout setting is invalid', async () => {
     const w = world({ script: [{ discover: peer }] })
-    adoptStdio(w, files, { settings: { connectTimeout: INVALID } })
+    adoptHttp(w, files, { auth: 'none', settings: { connectTimeout: INVALID } })
     const table = tableOf(w)
     const answer = await table.ensure(await admitted(w, files), alice, {
       connectBound: millisOf(5_000),
@@ -276,10 +264,7 @@ describe('ensure: connection failures mark the catalog and release what was take
 
   it('an error of this package while marking reaches the caller; it is not read as a store breach', async () => {
     const w = world()
-    const adopted = adoptStdio(w, files, {
-      auth: 'static',
-      env: [{ name: 'TOKEN', source: 'credential' }],
-    })
+    const adopted = adoptHttp(w, files, { auth: 'static' })
     w.credentials.reject(alice.tenant, MAIN)
     const record = await storedRecord(w, await keyOf(w, adopted, credentialAccount), ['read'])
     const last = Number.MAX_SAFE_INTEGER
@@ -300,10 +285,7 @@ describe('ensure: connection failures mark the catalog and release what was take
 
   it('an error of this package in a build reaches a call that joined it while it still waits (P7)', async () => {
     const w = world()
-    const adopted = adoptStdio(w, files, {
-      auth: 'static',
-      env: [{ name: 'TOKEN', source: 'credential' }],
-    })
+    const adopted = adoptHttp(w, files, { auth: 'static' })
     w.credentials.reject(alice.tenant, MAIN)
     const record = await storedRecord(w, await keyOf(w, adopted, credentialAccount), ['read'])
     const last = Number.MAX_SAFE_INTEGER
@@ -332,10 +314,7 @@ describe('ensure: connection failures mark the catalog and release what was take
 
   it('credential rejected: credential-unavailable (rejected), actions marked, revision one higher', async () => {
     const w = world()
-    const adopted = adoptStdio(w, files, {
-      auth: 'static',
-      env: [{ name: 'TOKEN', source: 'credential' }],
-    })
+    const adopted = adoptHttp(w, files, { auth: 'static' })
     w.credentials.reject(alice.tenant, MAIN)
     const key = await keyOf(w, adopted, credentialAccount)
     const before = await storedRecord(w, key, ['read', 'write'])
@@ -373,34 +352,6 @@ describe('ensure: connection failures mark the catalog and release what was take
     expect(w.transports.calls).toHaveLength(0)
   })
 
-  it('landing refused: landing-unavailable, the process credential handle released exactly once', async () => {
-    const w = world()
-    const adopted = adoptStdio(w, files, {
-      auth: 'static',
-      env: [{ name: 'TOKEN', source: 'credential' }],
-      facilities: ['gpu'],
-    })
-    const key = await keyOf(w, adopted, credentialAccount)
-    await storedRecord(w, key, ['read'])
-    const table = tableOf(w)
-    const answer = await table.ensure(await admitted(w, files), alice)
-    expect(answer).toEqual({
-      failure: { stage: 'connect', reason: { kind: 'landing-unavailable' }, catalog: 'marked' },
-    })
-    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
-    const after = await w.store.read(key)
-    if (!('ok' in after) || after.ok === 'absent') throw new Error('record missing')
-    expect(after.ok.actions[0]?.availability).toEqual({
-      kind: 'unavailable',
-      reason: 'landing-unavailable',
-    })
-    const token = await admitted(w, files)
-    expect(table.stateOf(alice.tenant, token.ref.holding)).toEqual({
-      kind: 'lost',
-      reason: 'preparation-failed',
-    })
-  })
-
   it('open refused with authorization-required: the discovery is carried, the HTTP handle released once', async () => {
     const w = world({
       script: [
@@ -433,14 +384,11 @@ describe('ensure: connection failures mark the catalog and release what was take
     })
   })
 
-  it('discover refused with connection-unavailable: the process is stopped, the handle released once', async () => {
+  it('discover refused with connection-unavailable: the transport is closed, the handle released once', async () => {
     const w = world({
       script: [{ discover: { kind: 'not-sent', cause: 'connection-unavailable' } }],
     })
-    const adopted = adoptStdio(w, files, {
-      auth: 'static',
-      env: [{ name: 'TOKEN', source: 'credential' }],
-    })
+    const adopted = adoptHttp(w, files, { auth: 'static' })
     const key = await keyOf(w, adopted, credentialAccount)
     await storedRecord(w, key, ['read'])
     const table = tableOf(w)
@@ -448,7 +396,6 @@ describe('ensure: connection failures mark the catalog and release what was take
     expect(answer).toEqual({
       failure: { stage: 'connect', reason: { kind: 'connection-unavailable' }, catalog: 'marked' },
     })
-    expect(w.landing.processes()).toEqual([{ stops: 1 }])
     expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
     expect(w.transports.calls.map(call => call.kind)).toEqual(['open', 'discover', 'close'])
     const after = await w.store.read(key)
@@ -463,7 +410,7 @@ describe('ensure: connection failures mark the catalog and release what was take
     const w = world({
       script: [{ discover: { kind: 'error-answer', code: -32600, message: 'bad request' } }],
     })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const table = tableOf(w)
     const token = await admitted(w, files)
     const answer = await table.ensure(token, alice)
@@ -484,7 +431,7 @@ describe('ensure: connection failures mark the catalog and release what was take
     const w = world({
       script: [{ discover: { kind: 'answer-malformed', what: 'discover-shape' } }],
     })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const table = tableOf(w)
     const token = await admitted(w, files)
     const answer = await table.ensure(token, alice)
@@ -502,7 +449,6 @@ describe('ensure: connection failures mark the catalog and release what was take
   })
 
   it.each([
-    [{ kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }, 'process-exited'],
     [{ kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' }, 'stream-broken'],
     [{ kind: 'no-answer', cause: 'stream-broken', unusable: 'session-ended' }, 'session-ended'],
     [{ kind: 'no-answer', cause: 'stream-broken' }, 'preparation-failed'],
@@ -511,7 +457,7 @@ describe('ensure: connection failures mark the catalog and release what was take
     'discover without an answer (%o): effect-unknown with the cause, lost for the mark, else preparation-failed (%s)',
     async (failure, lost) => {
       const w = world({ script: [{ discover: failure }] })
-      adoptStdio(w, files)
+      adoptHttp(w, files, { auth: 'none' })
       const table = tableOf(w)
       const token = await admitted(w, files)
       const answer = await table.ensure(token, alice)
@@ -526,7 +472,7 @@ describe('ensure: connection failures mark the catalog and release what was take
     },
   )
 
-  it('discover not sent on a line that ended (X02, marked stream-broken): connection-unavailable, lost (stream-broken)', async () => {
+  it('discover not sent, marked stream-broken: connection-unavailable, lost (stream-broken)', async () => {
     const w = world({
       script: [
         {
@@ -538,7 +484,7 @@ describe('ensure: connection failures mark the catalog and release what was take
         },
       ],
     })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const table = tableOf(w)
     const token = await admitted(w, files)
     expect(await table.ensure(token, alice)).toEqual({
@@ -554,20 +500,7 @@ describe('ensure: connection failures mark the catalog and release what was take
     })
   })
 
-  it('a failed stdio attempt still counts a generation; a failed HTTP attempt does not', async () => {
-    const stdio = world({
-      script: [
-        { discover: { kind: 'not-sent', cause: 'connection-unavailable' } },
-        { discover: peer },
-      ],
-    })
-    adoptStdio(stdio, files)
-    const stdioTable = tableOf(stdio)
-    await stdioTable.ensure(await admitted(stdio, files), alice)
-    const recovered = await stdioTable.ensure(await admitted(stdio, files), alice)
-    if (!('ok' in recovered)) throw new Error('stdio rebuild failed')
-    expect(recovered.ok.generation).toBe(2)
-
+  it('a failed attempt does not count a generation', async () => {
     const http = world({
       script: [
         { discover: { kind: 'not-sent', cause: 'connection-unavailable' } },
@@ -612,10 +545,10 @@ describe('ensure: connection failures mark the catalog and release what was take
 })
 
 describe('ensure: the connection bound', () => {
-  it('answers connection-unavailable at the bound with the mark pending; the started process is stopped after', async () => {
+  it('answers connection-unavailable at the bound with the mark pending; the connection is lost', async () => {
     const never = deferred<'opened'>()
     const w = world({ script: [{ open: never }] })
-    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(1)) } })
+    adoptHttp(w, files, { auth: 'none', settings: { connectTimeout: VALUE(millisOf(1)) } })
     const table = tableOf(w)
     const token = await admitted(w, files)
     const answer = await table.ensure(token, alice)
@@ -627,25 +560,9 @@ describe('ensure: the connection bound', () => {
       },
     })
     await settled()
-    expect(w.landing.processes()).toEqual([{ stops: 1 }])
     expect(table.stateOf(alice.tenant, token.ref.holding)).toEqual({
       kind: 'lost',
       reason: 'preparation-failed',
-    })
-  })
-
-  it('records a residual when the stopped process confirms only the root', async () => {
-    const never = deferred<'opened'>()
-    const w = world({ script: [{ open: never }], stop: 'root-only' })
-    adoptStdio(w, files, { settings: { connectTimeout: VALUE(millisOf(1)) } })
-    const table = tableOf(w)
-    const token = await admitted(w, files)
-    await table.ensure(token, alice)
-    await settled()
-    expect(table.stateOf(alice.tenant, token.ref.holding)).toEqual({
-      kind: 'lost',
-      reason: 'preparation-failed',
-      residual: [{ kind: 'process', confirmed: 'root-only' }],
     })
   })
 })
@@ -665,14 +582,14 @@ describe('ensure: the connection key (invariant 1)', () => {
 
   it('does not share a connection between two tenants with the same holding and adoption revision', async () => {
     const w = world({ script: [{ discover: peer }, { discover: peer }] })
-    const { revision } = adoptStdio(w, files)
+    const { revision } = adoptHttp(w, files, { auth: 'none' })
     w.adoption.adopt({
       tenant: away,
       scope: 'ws',
       ref: files,
-      body: jsonOf({ name: 'files', transport: 'stdio', auth: 'none', launch: { command: 'x' } }),
+      body: jsonOf({ name: 'files', transport: 'streamable-http', auth: 'none' }),
       settings: {
-        target: { kind: 'absent' },
+        target: VALUE(TARGET),
         credential: { kind: 'absent' },
         connectTimeout: VALUE(millisOf(1000)),
       },
@@ -714,7 +631,7 @@ describe('ensure: the connection key (invariant 1)', () => {
     expect(ours.wire()).toEqual(refused)
     expect(theirs.wire()).toEqual(refused)
     expect(table.currentOf(alice.tenant, files.holding)).toEqual([])
-    expect(await closing).toEqual({ kind: 'released', process: 'no-process' })
+    expect(await closing).toEqual({ kind: 'released' })
   })
 
   it('a close that raised an error of this package on one connection waits for the others, then rejects with an AggregateError that holds the error (P7)', async () => {
@@ -761,12 +678,12 @@ describe('ensure: the connection key (invariant 1)', () => {
 
   it('closes the connection of an earlier adoption revision before using the new one', async () => {
     const w = world({ script: [{ discover: peer }, { discover: peer }] })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const table = tableOf(w)
     const first = await table.ensure(await admitted(w, files), alice)
     if (!('ok' in first)) throw new Error('ensure failed')
     const earlierTransport = transportOf(first.ok)
-    w.adoption.update(alice.tenant, files, { processEnv: [{ name: 'X', value: '1' }] })
+    w.adoption.update(alice.tenant, files, {})
     const second = await table.ensure(await admitted(w, files), alice)
     if (!('ok' in second)) throw new Error('ensure failed')
     expect(first.ok.connection.isCurrent(first.ok.generation)).toBe(false)
@@ -781,7 +698,6 @@ describe('ensure: the connection key (invariant 1)', () => {
       'open',
       'discover',
     ])
-    expect(w.landing.processes()).toEqual([{ stops: 1 }, { stops: 0 }])
   })
 
   it('carries the target and the HTTP handle in the material of an HTTP connection', async () => {
@@ -791,26 +707,67 @@ describe('ensure: the connection key (invariant 1)', () => {
     await table.ensure(await admitted(w, files), alice)
     const opens = w.transports.calls.flatMap(call => (call.kind === 'open' ? [call.material] : []))
     expect(opens[0]).toMatchObject({ kind: 'streamable-http', target: TARGET, generation: 1 })
-    expect(opens[0]?.kind === 'streamable-http' && opens[0].credential?.purpose).toBe(
-      'http-authorization',
-    )
+    expect(opens[0]?.credential?.purpose).toBe('http-authorization')
   })
 
-  it('carries the process in the material of a stdio connection, with the credential variables', async () => {
+  it('asks the credential port for an HTTP authorization of the target, with the holding and the binding', async () => {
     const w = world({ script: [{ discover: peer }] })
-    adoptStdio(w, files, { auth: 'static', env: [{ name: 'TOKEN', source: 'credential' }] })
+    adoptHttp(w, files, { auth: 'static' })
+    const asked: unknown[][] = []
+    const table = createConnectionTable(
+      {
+        ...w.ports,
+        credentials: {
+          acquire(access, holding, purpose, binding) {
+            asked.push([access, holding, purpose, binding])
+            return w.ports.credentials.acquire(access, holding, purpose, binding)
+          },
+        },
+      },
+      w.config,
+    )
+    await table.ensure(await admitted(w, files), alice)
+    expect(asked).toEqual([
+      [alice, files.holding, { kind: 'http-authorization', target: TARGET }, MAIN],
+    ])
+  })
+
+  it('carries no credential field in the material of a connection without a credential', async () => {
+    const w = world({ script: [{ discover: peer }] })
+    adoptHttp(w, files, { auth: 'none' })
     const table = tableOf(w)
     await table.ensure(await admitted(w, files), alice)
     const opens = w.transports.calls.flatMap(call => (call.kind === 'open' ? [call.material] : []))
-    expect(opens[0]).toMatchObject({ kind: 'stdio', generation: 1, instructionsByteLimit: 4096 })
-    expect(w.landing.started()[0]?.env.credentials.map(item => item.name)).toEqual(['TOKEN'])
+    expect(opens[0]).toMatchObject({ kind: 'streamable-http', target: TARGET, generation: 1 })
+    expect(opens[0]).not.toHaveProperty('credential')
+    expect(w.credentials.handles()).toEqual([])
+  })
+
+  it('reads a credential port that throws as credential-unavailable (unknown)', async () => {
+    const w = world()
+    adoptHttp(w, files, { auth: 'static' })
+    const table = createConnectionTable(
+      {
+        ...w.ports,
+        credentials: {
+          acquire() {
+            throw new Error('the credential port is broken')
+          },
+        },
+      },
+      w.config,
+    )
+    const answer = await table.ensure(await admitted(w, files), alice)
+    expect(answer).toMatchObject({
+      failure: { stage: 'connect', reason: { kind: 'credential-unavailable', cause: 'unknown' } },
+    })
   })
 })
 
 describe('ensure: the adoption is read again before a build', () => {
   it('answers not-available-to-you for a token of an endpoint withdrawn after the gate, and builds nothing', async () => {
     const w = world({ script: [{ discover: peer }] })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const table = tableOf(w)
     const token = await admitted(w, files)
     w.adoption.withdraw(alice.tenant, files)
@@ -818,13 +775,12 @@ describe('ensure: the adoption is read again before a build', () => {
       failure: { stage: 'settings', reason: { kind: 'not-available-to-you' } },
     })
     expect(w.transports.calls).toHaveLength(0)
-    expect(w.landing.started()).toHaveLength(0)
     expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'none' })
   })
 
   it('answers unknown when the adoption cannot be read again, and builds nothing', async () => {
     const w = world({ script: [{ discover: peer }] })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const table = tableOf(w)
     const token = await admitted(w, files)
     w.adoption.setUnreadable(true)
@@ -839,19 +795,18 @@ describe('ensure: the adoption is read again before a build', () => {
 describe('ensure: a close against the build (P16)', () => {
   const STOPPED = { failure: { stage: 'settings', reason: { kind: 'connection-unavailable' } } }
 
-  it('a release after the process started: the build answers the refusal and tears nothing down; the release stops the process once and reports what that stop confirmed', async () => {
+  it('a release after the transport opened: the build answers the refusal and tears nothing down; the release closes the transport once', async () => {
     const discover = deferred<typeof peer>()
     const w = world({ script: [{ discover }] })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const table = tableOf(w)
     const building = table.ensure(await admitted(w, files), alice)
     await settled()
     const releasing = table.close(alice.tenant, files.holding)
     discover.resolve(peer)
     expect(await building).toEqual(STOPPED)
-    expect(await releasing).toEqual({ kind: 'released', process: 'tree-confirmed' })
-    expect(w.landing.processes()).toEqual([{ stops: 1 }])
-    expect(w.trace).toEqual(['transport.close', 'process.stop'])
+    expect(await releasing).toEqual({ kind: 'released' })
+    expect(w.trace).toEqual(['transport.close'])
   })
 
   it('a release while the transport opens: the build asks no discover, and the release closes the transport that opened', async () => {
@@ -865,47 +820,8 @@ describe('ensure: a close against the build (P16)', () => {
     const releasing = table.close(alice.tenant, files.holding)
     open.resolve('opened')
     expect(await building).toEqual(STOPPED)
-    expect(await releasing).toEqual({ kind: 'released', process: 'no-process' })
+    expect(await releasing).toEqual({ kind: 'released' })
     expect(w.transports.calls.map(call => call.kind)).toEqual(['open', 'close'])
-  })
-
-  it('a release while the build stops what the earlier connection left: the build asks no credential', async () => {
-    const w = world({ script: [{ discover: peer }], stop: 'root-only' })
-    adoptStdio(w, files, { auth: 'static', env: [{ name: 'TOKEN', source: 'credential' }] })
-    const second = deferred<void>()
-    let stops = 0
-    const landing: ProcessLanding<Principal> = {
-      async start(access, launch, env) {
-        const answer = await w.landing.start(access, launch, env)
-        if ('failure' in answer) return answer
-        const process = answer.ok
-        return {
-          ok: {
-            ...process,
-            async stop() {
-              stops += 1
-              if (stops === 2) await second.promise
-              return process.stop()
-            },
-          },
-        }
-      },
-    }
-    const table = createConnectionTable({ ...w.ports, landing }, w.config)
-    const endpoint = await admitted(w, files)
-    expect(await table.ensure(endpoint, alice)).toMatchObject({ ok: { generation: 1 } })
-    expect(await table.close(alice.tenant, files.holding)).toEqual({
-      kind: 'released',
-      process: 'root-only',
-    })
-    const building = table.ensure(endpoint, alice)
-    await settled()
-    expect(stops).toBe(2)
-    const releasing = table.close(alice.tenant, files.holding)
-    second.resolve()
-    expect(await building).toEqual(STOPPED)
-    await releasing
-    expect(w.credentials.handles()).toEqual([{ acquired: 1, released: 1 }])
   })
 
   const SWEEPS = [
@@ -916,7 +832,7 @@ describe('ensure: a close against the build (P16)', () => {
   ] as const
 
   it.each(SWEEPS)(
-    'at whichever microtask the $close begins (joined: $joined), an ensure that settles after it hands over no handle of the closed connection; the close stops the process once and reports tree-confirmed',
+    'at whichever microtask the $close begins (joined: $joined), an ensure that settles after it hands over no handle of the closed connection; the close closes the transport once and reports it',
     async ({ close, joined }) => {
       const LIMIT = 40
       const CLOCK_LIMIT = 1000
@@ -925,7 +841,7 @@ describe('ensure: a close against the build (P16)', () => {
       for (let m = 0; m < LIMIT; m += 1) {
         const discover = deferred<typeof peer>()
         const w = world({ script: [{ discover }] })
-        adoptStdio(w, files)
+        adoptHttp(w, files, { auth: 'none' })
         const table = tableOf(w)
         const endpoint = await admitted(w, files)
         const first = table.ensure(endpoint, alice)
@@ -962,11 +878,9 @@ describe('ensure: a close against the build (P16)', () => {
           refused = true
           expect(result, `m=${m}`).toEqual(STOPPED)
         }
-        expect(w.landing.processes(), `m=${m}`).toEqual([{ stops: 1 }])
+        expect(w.trace, `m=${m}`).toEqual(['transport.close'])
         expect(report, `m=${m}`).toEqual(
-          close === 'release'
-            ? { kind: 'released', process: 'tree-confirmed' }
-            : [{ ref: files, process: 'tree-confirmed' }],
+          close === 'release' ? { kind: 'released' } : [{ ref: files }],
         )
       }
       expect({ refused, handed }).toEqual({ refused: true, handed: true })
