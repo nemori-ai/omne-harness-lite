@@ -161,6 +161,7 @@ export const SESSION_POLICY = Object.freeze({
     ),
   ),
   readWork: row(deny(NO_SOURCE), member('SS:552，DA4 §4.1'), deny(NO_SYSTEM_READ)),
+  readCurrentScope: row(deny(NO_SOURCE), member('SS:95，当前作用域窄读'), deny(NO_SYSTEM_READ)),
   readWaiting: row(
     member('`session/v1` 的 `read-waiting`，packages/session/SPEC.md「等人」'),
     deny(NO_SOURCE),
@@ -210,6 +211,11 @@ export const SESSION_POLICY = Object.freeze({
   'history.readModelView': row(
     deny(`模型视图不是用户的阅读面，${NO_SOURCE}`),
     member('SS:654，SCC reader「含 epoch 视图读取 readModelView」，DA4 §4.1'),
+    deny(NO_SYSTEM_READ),
+  ),
+  'history.readCompactionContext': row(
+    deny(`压缩判断窗口不是用户的阅读面，${NO_SOURCE}`),
+    member('SS「压缩采用与有效历史」，SCC reader，DA4 §4.1；当前模型视图、配对与未结工作'),
     deny(NO_SYSTEM_READ),
   ),
   pending: row(

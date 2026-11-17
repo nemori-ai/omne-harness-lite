@@ -68,6 +68,7 @@ describe('original Journal writes after a lost response', () => {
     const c = createExecutionCoordinator({
       ports: assembly.dependencies,
       binding: options().binding,
+      compactionProvider: options().configuration.compactionProvider,
       evaluator: agentEvaluator,
       access: alice,
       execution: execution(),
@@ -400,6 +401,7 @@ describe('independent control write recovery', () => {
       const c = createExecutionCoordinator({
         ports: assembly.dependencies,
         binding: options().binding,
+        compactionProvider: options().configuration.compactionProvider,
         evaluator: agentEvaluator,
         access: alice,
         execution: execution(),
@@ -473,6 +475,7 @@ describe('independent control write recovery', () => {
     const existing = createExecutionCoordinator({
       ports: assembly.dependencies,
       binding: options().binding,
+      compactionProvider: options().configuration.compactionProvider,
       evaluator: agentEvaluator,
       access: alice,
       execution: execution(),

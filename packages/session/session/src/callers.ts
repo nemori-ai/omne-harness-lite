@@ -25,6 +25,7 @@ const ADMITTED: Readonly<Record<FaceOperation, readonly SessionCallerClass[]>> =
   listTodos: [C],
   accept: [I],
   readWork: [C, M],
+  readCurrentScope: [C, M],
   readWaiting: [I],
   readInput: [C, M],
   startRun: [C, M],
@@ -65,6 +66,7 @@ const ADMITTED: Readonly<Record<FaceOperation, readonly SessionCallerClass[]>> =
   'history.next': [R],
   'history.since': [R],
   'history.readModelView': [R],
+  'history.readCompactionContext': [R],
 }
 
 export function admits(caller: SessionCallerClass, operation: FaceOperation): boolean {

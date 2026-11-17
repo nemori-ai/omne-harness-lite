@@ -272,9 +272,11 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
     if (input.entry.kind === 'received') {
       const delivery = input.entry.delivery
       const resolved =
-        delivery.producer === 'model'
-          ? resolveModelInvocationRef(delivery.key.reference, input.tenant)
-          : resolveToolInvocationRef(delivery.key.reference, input.tenant)
+        delivery.producer === 'compaction'
+          ? succeed(undefined)
+          : delivery.producer === 'model'
+            ? resolveModelInvocationRef(delivery.key.reference, input.tenant)
+            : resolveToolInvocationRef(delivery.key.reference, input.tenant)
       if (!('ok' in resolved)) return fail(denied())
     }
     const prior = state.operations.get(input.operation)

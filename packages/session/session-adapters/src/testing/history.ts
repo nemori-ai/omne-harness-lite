@@ -64,12 +64,18 @@ export function authorityAttempt(
   root: CommonRoot,
   execution: string,
   authority: Authority,
-): SessionAttemptRecord {
+): Pick<SessionAttemptRecord, 'attempt'> {
   const own = [...root.agent.executions.values()].find(item => item.id === execution)
   const text = canonical(authority)
   const attachment = own?.attachments.find(item => canonical(item.authority) === text)
   if (attachment === undefined) unavailable('original Authority to grant relationship')
-  return grantAttempt(root, execution, attachment.grant)
+  if (attachment.grant === null) unavailable('original Session grant')
+  const identity =
+    root.sources.grants.get(canonical(attachment.grant)) ??
+    root.sources.grantIdentities.get(canonical(attachment.grant))
+  if (identity === undefined || identity.execution !== execution)
+    unavailable('grant does not identify original SE15')
+  return identity
 }
 export function originalPending(
   root: CommonRoot,
@@ -159,6 +165,9 @@ export function normalizedResult(
   consumption: string,
   result: AgentResult,
 ): { binding: CallBinding; result: ProducedResult; pending: PendingCall } {
+  const producer = result.producer
+  if (producer.kind === 'compaction')
+    unavailable('compaction results belong to their task, not a Model or Tool call binding')
   const matching = pendingCalls(execution).filter(
     pending => pending.consumption === consumption && pending.kind === result.producer.kind,
   )
@@ -182,7 +191,7 @@ export function normalizedResult(
       pending.kind === 'model'
         ? resolveModelInvocationRef(pending.reference, execution.tenant)
         : resolveToolInvocationRef(pending.reference, execution.tenant)
-    return 'ok' in ref && ref.ok.call === result.producer.call
+    return 'ok' in ref && ref.ok.call === producer.call
   })
   if (!pending) unavailable('result original pending and invocation')
   const registered = registration(root, execution, pending)
@@ -464,13 +473,15 @@ export function history<P>(
         : snapshot.executions?.find(item => item.run === run.run)?.execution
     if (!reference) unavailable('original execution reference')
     const upper =
-      through === undefined
-        ? String(execution.events.length)
-        : (through.get(id) ?? reference.readThrough)
+      through === undefined ? String(execution.emitted) : (through.get(id) ?? reference.readThrough)
     if (!cell.historyReadable(id) && BigInt(upper) > BigInt(reference.readThrough))
       unavailable('original history temporarily unreadable')
     const facts = Array.from(
-      execution.events.slice(Number(reference.readThrough), Number(upper)),
+      execution.events.filter(
+        event =>
+          Number(event.sequence) > Number(reference.readThrough) &&
+          Number(event.sequence) <= Number(upper),
+      ),
     ).map(event => {
       if (!event) corrupt('confirmed original event gap')
       return {
@@ -486,7 +497,7 @@ export function history<P>(
       started: run.source,
       revision: String(execution.revision),
       executionEvidence: head.evidence,
-      emittedThrough: String(execution.events.length),
+      emittedThrough: String(execution.emitted),
       readThrough: reference.readThrough,
       interpreted:
         reference.readThrough === '0'

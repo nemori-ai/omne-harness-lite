@@ -92,6 +92,7 @@ export function resumeEntry(
   return {
     ports: dependencies,
     binding: options().binding,
+    compactionProvider: options().configuration.compactionProvider,
     evaluator: agentEvaluator,
     access: alice,
     execution: execution(),

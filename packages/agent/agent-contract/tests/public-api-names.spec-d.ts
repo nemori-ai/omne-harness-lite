@@ -69,8 +69,8 @@ import type {
   CardRoundId,
   CardRoundProgress,
   CommandReceipt,
-  CompactionAdvance,
-  CompactionProgress,
+  CompactionAssessment,
+  CompactionInputRef,
   CompactionState,
   SavedPreparation,
   VoidedIntent,
@@ -189,7 +189,7 @@ import type {
   PassageProgress,
   PendingCall,
   Preparation,
-  PreparedContextTransition,
+  PreparedCompactionCommit,
   ProducedResult,
   ProducerDecisionView,
   ProgressionDirective,
@@ -254,8 +254,8 @@ type Landed = {
   CardRound: CardRound
   CardRoundId: CardRoundId
   CardRoundProgress: CardRoundProgress
-  CompactionAdvance: CompactionAdvance
-  CompactionProgress: CompactionProgress
+  CompactionAssessment: CompactionAssessment
+  CompactionInputRef: CompactionInputRef
   CompactionState: CompactionState
   ConsumerRef: ConsumerRef
   ConsumptionId: ConsumptionId
@@ -320,7 +320,7 @@ type Landed = {
   PassageProgress: PassageProgress
   PendingCall: PendingCall
   Preparation: Preparation
-  PreparedContextTransition: PreparedContextTransition
+  PreparedCompactionCommit: PreparedCompactionCommit
   ProducedResult: ProducedResult
   ProducerDecisionView: ProducerDecisionView
   ProgressionDirective: ProgressionDirective
@@ -486,7 +486,7 @@ describe('the discriminants of the evaluation chapter', () => {
       | 'reconcile'
       | 'take-inputs'
       | 'prepare-request'
-      | 'compact-derive'
+      | 'compact'
       | 'commit-transition'
       | 'resume-request'
       | 'extension'
@@ -553,7 +553,7 @@ describe('the discriminants of the evaluation chapter', () => {
     expectTypeOf(tool.call).toEqualTypeOf<undefined>()
     expectTypeOf(tool.admission).toEqualTypeOf<undefined>()
     expectTypeOf(tool.purpose).toEqualTypeOf<'action'>()
-    expectTypeOf<ModelPurpose>().toEqualTypeOf<'main' | 'compaction' | 'extension'>()
+    expectTypeOf<ModelPurpose>().toEqualTypeOf<'main' | 'extension'>()
     expectTypeOf<PendingCall['position']>().toEqualTypeOf<ConsumerRef>()
   })
 
@@ -571,6 +571,7 @@ describe('the discriminants of the evaluation chapter', () => {
     expectTypeOf<KindOf<FailureCandidate>>().toEqualTypeOf<
       | 'cannot-fit'
       | 'compaction-invalid'
+      | 'compaction-failed'
       | 'request-rejected'
       | 'no-reply'
       | 'model-refused'
@@ -753,18 +754,16 @@ describe('the discriminants of the request chapter', () => {
       Extract<Preparation, { kind: 'assembled' }>['input']
     >().toEqualTypeOf<M.AssembledModelInput>()
     expectTypeOf<
-      Extract<Preparation, { kind: 'needs-compaction' }>['progress']
-    >().toEqualTypeOf<CompactionProgress>()
+      Extract<Preparation, { kind: 'needs-compaction' }>['input']
+    >().toEqualTypeOf<CompactionInputRef>()
     expectTypeOf<Extract<Preparation, { kind: 'cannot-fit' }>['reason']>().toEqualTypeOf<
       'fixed' | 'after-compaction'
     >()
     expectTypeOf<Preparation['purpose']>().toEqualTypeOf<ModelPurpose>()
   })
 
-  it('CompactionAdvance and ContextContent keep their literals', () => {
-    expectTypeOf<KindOf<CompactionAdvance>>().toEqualTypeOf<
-      'continue' | 'transition' | 'cannot-fit'
-    >()
+  it('CompactionAssessment and ContextContent keep their literals', () => {
+    expectTypeOf<KindOf<CompactionAssessment>>().toEqualTypeOf<'accepted' | 'cannot-fit'>()
     expectTypeOf<ContextContent>().toEqualTypeOf<'full' | 'incremental'>()
     expectTypeOf<CompactionState['ended']>().toEqualTypeOf<'committed' | 'failed' | null>()
     expectTypeOf<CompactionState>().not.toHaveProperty('stepRequest')
@@ -815,15 +814,13 @@ describe('the discriminants of the request chapter', () => {
 })
 
 describe('the subject of each position', () => {
-  it('is the union of the twelve shapes of the design page and no other member name', () => {
+  it('is the union of the eleven shapes of the design page and no other member name', () => {
     expectTypeOf<KeysOfUnion<Subject>>().toEqualTypeOf<
       | 'execution'
       | 'conditions'
       | 'preparation'
       | 'transition'
       | 'purpose'
-      | 'step'
-      | 'progress'
       | 'call'
       | 'result'
       | 'reply'
@@ -853,18 +850,13 @@ describe('the subject of each position', () => {
     type BeforeCompaction = Readonly<{
       preparation: Extract<Preparation, { kind: 'needs-compaction' }>
     }>
-    type AfterCompaction = Readonly<{ transition: PreparedContextTransition }>
+    type AfterCompaction = Readonly<{ transition: PreparedCompactionCommit }>
     type BeforeMainCall = Readonly<{
       purpose: 'main'
       preparation: Extract<Preparation, { kind: 'assembled' }>
     }>
-    type BeforeCompactionCall = Readonly<{
-      purpose: 'compaction'
-      step: Extract<Preparation, { kind: 'ready' }>
-      progress: CompactionProgress
-    }>
     type CompleteReply = Readonly<{
-      purpose: 'main' | 'compaction'
+      purpose: 'main'
       call: M.ModelCallId
       result: ProducedResult
       reply: Message
@@ -872,7 +864,7 @@ describe('the subject of each position', () => {
       account: CallAccount | null
     }>
     type CallFailure = Readonly<{
-      purpose: 'main' | 'compaction'
+      purpose: 'main'
       call: M.ModelCallId
       request: M.FixedModelRequest
       fault: M.ModelFault
@@ -908,7 +900,6 @@ describe('the subject of each position', () => {
     expectTypeOf<Extract<Subject, BeforeCompaction>>().toEqualTypeOf<BeforeCompaction>()
     expectTypeOf<Extract<Subject, AfterCompaction>>().toEqualTypeOf<AfterCompaction>()
     expectTypeOf<Extract<Subject, BeforeMainCall>>().toEqualTypeOf<BeforeMainCall>()
-    expectTypeOf<Extract<Subject, BeforeCompactionCall>>().toEqualTypeOf<BeforeCompactionCall>()
     expectTypeOf<Extract<Subject, CompleteReply>>().toEqualTypeOf<CompleteReply>()
     expectTypeOf<Extract<Subject, CallFailure>>().toEqualTypeOf<CallFailure>()
     expectTypeOf<Extract<Subject, BeforeAction>>().toEqualTypeOf<BeforeAction>()
@@ -921,7 +912,6 @@ describe('the subject of each position', () => {
       | BeforeCompaction
       | AfterCompaction
       | BeforeMainCall
-      | BeforeCompactionCall
       | CompleteReply
       | CallFailure
       | BeforeAction
@@ -936,10 +926,9 @@ describe('the subject of each position', () => {
     type Main = Extract<Subject, { purpose: 'main'; preparation: unknown }>
     type Step = Extract<Subject, { purpose: 'compaction'; step: unknown }>
     expectTypeOf<Main['preparation']>().toEqualTypeOf<Extract<Preparation, { kind: 'assembled' }>>()
-    expectTypeOf<Step['step']>().toEqualTypeOf<Extract<Preparation, { kind: 'ready' }>>()
-    expectTypeOf<Step['progress']>().toEqualTypeOf<CompactionProgress>()
+    expectTypeOf<Step>().toBeNever()
     type Reply_ = Extract<Subject, { reply: unknown }>
-    expectTypeOf<Reply_['purpose']>().toEqualTypeOf<'main' | 'compaction'>()
+    expectTypeOf<Reply_['purpose']>().toEqualTypeOf<'main'>()
     expectTypeOf<Reply_['reply']>().toEqualTypeOf<Message>()
     expectTypeOf<Reply_['termination']>().toEqualTypeOf<M.Termination>()
     type Failed = Extract<Subject, { fault: unknown }>
@@ -992,7 +981,7 @@ describe('the discriminants of the passage ledger', () => {
     expectTypeOf<KindOf<CardReply>>().toEqualTypeOf<
       'chosen' | 'declined' | 'remark' | 'pending' | 'invalidated'
     >()
-    expectTypeOf<Passage['purpose']>().toEqualTypeOf<'main' | 'compaction' | null>()
+    expectTypeOf<Passage['purpose']>().toEqualTypeOf<'main' | null>()
   })
 
   it('keep the discriminants of admission, hand-over and material', () => {
@@ -1008,7 +997,9 @@ describe('the discriminants of the passage ledger', () => {
       | 'context-transition'
     >()
     expectTypeOf<KindOf<HandoffDecision>>().toEqualTypeOf<'prepared' | 'rejected'>()
-    expectTypeOf<KindOf<Material<ContentBlock>>>().toEqualTypeOf<'model' | 'tool' | 'facts'>()
+    expectTypeOf<KindOf<Material<ContentBlock>>>().toEqualTypeOf<
+      'model' | 'tool' | 'facts' | 'compaction'
+    >()
   })
 
   it('carry a remark to the original extension and to action admission, never a pending or invalidated reply', () => {
@@ -1206,7 +1197,7 @@ describe('the discriminants of the coordination chapter', () => {
       Extract<AgentAccessDecision, { kind: 'unavailable' }>['diagnostic']
     >().toEqualTypeOf<string>()
     expectTypeOf<KindOf<AgentAccessTarget>>().toEqualTypeOf<
-      'scope' | 'instance' | 'execution' | 'input-entry'
+      'scope' | 'instance' | 'execution' | 'input-entry' | 'compaction'
     >()
     expectTypeOf<Extract<AgentAccessTarget, { kind: 'execution' }>>().toEqualTypeOf<
       Readonly<{ kind: 'execution'; execution: AgentExecutionId }>
@@ -1362,16 +1353,16 @@ describe('the discriminants of the Journal chapter', () => {
     expectTypeOf<HandoffCustody['factSource']>().toEqualTypeOf<HandoffFactSource>()
     expectTypeOf<HandoffCustodyAttempt['state']>().toEqualTypeOf<'committed' | 'excluded'>()
     expectTypeOf<ExecutionHandoff['retirement']>().toEqualTypeOf<HandoffRetirement | null>()
-    expectTypeOf<keyof PreparedContextTransition>().toEqualTypeOf<
+    expectTypeOf<keyof PreparedCompactionCommit>().toEqualTypeOf<
       | 'preparation'
+      | 'task'
+      | 'consumption'
+      | 'result'
+      | 'received'
       | 'message'
-      | 'source'
-      | 'derivation'
-      | 'commitment'
-      | 'candidate'
-      | 'plan'
-      | 'basis'
+      | 'history'
       | 'epoch'
+      | 'admission'
     >()
   })
 

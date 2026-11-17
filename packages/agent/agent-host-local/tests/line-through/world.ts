@@ -458,6 +458,10 @@ const AGENT_HOST_CONFIG: AgentHostConfig = {
   toolConcurrency: 1,
   jointCommits: ['message', 'context-transition', 'custody', 'processed'],
   coordination: 'coordinated',
+  compactionProvider: {
+    authority: 'test-compaction',
+    adoption: { owner: 'test', name: 'compaction', revision: '1', digest: 'd' },
+  },
   loopGuardPolicy: { owner: 'agents', name: 'loop-guard', revision: '1', digest: 'sha256:guard' },
   modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
   instanceIdleMs: 60_000,
@@ -691,7 +695,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     rows: EARLIER.map((text, index) => historyRow(index, text)),
     policies: {
       compaction: createDefaultCompactionPolicy({
-        config: { retainBudget: { kind: 'tokens', retainTokens: '600' } },
+        config: {},
       }),
       representation: createDefaultRepresentationPolicy(),
     },

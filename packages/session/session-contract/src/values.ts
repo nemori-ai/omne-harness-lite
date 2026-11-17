@@ -209,7 +209,7 @@ export type BoundedClose =
       input: InputId | null
     }>
 export type DerivedMessage =
-  | Readonly<{ kind: 'compaction'; message: CompactionMessage }>
+  | Readonly<{ kind: 'compaction'; message: CompactionMessage; epoch: string }>
   | Readonly<{ kind: 'context-reminder'; message: Message; source: DurableEvidence }>
 
 export type Modes = Readonly<{

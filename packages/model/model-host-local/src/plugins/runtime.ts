@@ -376,7 +376,7 @@ function createResultPush(
       }
       const access = { principal: resolved.ok.principal, tenant: target.tenant }
       let record = receive(ledger.read(target) ?? fresh(target))
-      if (record.origin === null || (record.result === null && record.acknowledgement === 'none'))
+      if (record.origin === null || record.acknowledgement !== 'acknowledged')
         record = await freeze(record, access)
       record = await pushResult(record, access)
       record = await acknowledge(record, access)
@@ -434,6 +434,7 @@ function createResultPush(
     const origin = frozen({ reference: reference.ok, consumer: state.consumer })
     if (state.custody.kind === 'acknowledged')
       return save({ ...record, origin, acknowledgement: 'acknowledged' })
+    if (record.result !== null) return record
     const dispatches = await commands.dispatches(call)
     if ('failure' in dispatches) {
       report({ kind: 'freeze-failed', step: 'dispatches' })
@@ -899,6 +900,12 @@ function createResultPush(
 
   const wrapped: ModelCommands<unknown> = {
     ...delegatedCommands(commands),
+    async handoff(handoff) {
+      const result = await commands.handoff(handoff)
+      if ('ok' in result || result.failure.kind === 'commit-unknown')
+        wake({ tenant: handoff.tenant, call: handoff.call })
+      return result
+    },
     async settle(settle) {
       const result = await commands.settle(settle)
       if ('ok' in result) wake({ tenant: settle.tenant, call: settle.call })

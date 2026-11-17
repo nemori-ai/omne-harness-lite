@@ -72,7 +72,12 @@ import { canonicalText, digestOf, deriveSessionOperation } from './operations.ts
 import { projectSessionLog, type SessionLogObservation } from './projection.ts'
 import { consumptionIdOf } from './decide-results.ts'
 import { judgeIdle } from './judgments.ts'
-import { materializeModelView, compactionReads, type MaterializedModelView } from './model-view.ts'
+import {
+  materializeModelView,
+  compactionReads,
+  compactionContextForView,
+  type MaterializedModelView,
+} from './model-view.ts'
 import { decodeEntry } from './entries.ts'
 import { reduce } from './reduce.ts'
 import { digestSessionEntries, projectSessionEntries } from './entries-interpretation.ts'
@@ -694,6 +699,7 @@ export function createMemorySessionTransactionPair<P>(
               ...(material === undefined ? {} : { historyIndex: material.index }),
             }
       const decision = decide(prepared, command, input.guards, held?.record ?? null, {
+        ...(store === undefined ? {} : { compactionEpoch: `${key.ok}/${store.modelView.epoch}` }),
         intakeLimits,
         ...(material === undefined ? {} : { history: material.reads }),
         compaction:
@@ -1015,6 +1021,28 @@ export function createMemorySessionTransactionPair<P>(
     }
 
     const history: SessionHistory<P> = {
+      readCompactionContext: async input => {
+        const store = await storeOf(input, 'history.readCompactionContext')
+        if ('failure' in store) return store
+        const key = keyOf(input.tenant, input.session)
+        if ('failure' in key) return key
+        const view = store.ok.modelView
+        const current = { epoch: `${key.ok}/${view.epoch}`, upper: String(view.rows.length) }
+        if (input.basis.epoch !== current.epoch) return succeed({ kind: 'epoch-changed', current })
+        const upper = Number(input.basis.upper)
+        if (!Number.isInteger(upper) || upper < 1 || upper > view.rows.length)
+          return fail({ kind: 'invalid', field: 'basis', reason: 'invalid model view bounds' })
+        const value = compactionContextForView(
+          store.ok.entries,
+          store.ok.snapshot,
+          view.rows,
+          upper,
+          input.coverTo,
+        )
+        if (value === null)
+          return fail({ kind: 'invalid', field: 'coverTo', reason: 'outside the current window' })
+        return succeed({ kind: 'context', basis: input.basis, value })
+      },
       begin: async input => {
         const store = await storeOf(input, 'history.begin')
         if ('failure' in store) return store
@@ -1131,6 +1159,10 @@ export function createMemorySessionTransactionPair<P>(
           ...store.ok.snapshot,
           ...(material === undefined ? {} : { historyIndex: material.index }),
         })
+      },
+      readCurrentScope: async input => {
+        const store = await storeOf(input, 'readCurrentScope')
+        return 'failure' in store ? store : succeed(store.ok.snapshot.contextScopes?.at(-1) ?? null)
       },
       readInput: async input => {
         const store = await storeOf(input, 'readInput')

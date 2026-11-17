@@ -1,4 +1,10 @@
 export {
+  SESSION_CURRENT_ADVANCE_HANDLER,
+  decodeSessionCurrentAdvance,
+  type SessionCurrentAdvance,
+  type SessionCurrentAdvanceRead,
+} from './current-advance.ts'
+export {
   SESSION_RUN_LIVE_FACT,
   SESSION_RUN_LIVE_GUARD,
   RunLiveSchema,
@@ -53,8 +59,14 @@ export const SESSION_HISTORY_ROOT_HANDLER = 'session.history-root'
 export const SESSION_WORK_HANDLER = 'session.work'
 export const SESSION_INPUT_HANDLER = 'session.input'
 export const SESSION_EXECUTION_HANDLER = 'session.execution'
+export const SESSION_ENTRY_MESSAGE_HANDLER = 'session.entry-message'
+export const SESSION_COMPACTION_INPUT_CHECK_HANDLER = 'session.compaction-input-check'
 export const EXECUTION_RECORD_HANDLERS = {
   facts: 'execution-record.facts',
+  current: 'execution-record.current',
+  members: 'execution-record.members',
+  ordered: 'execution-record.ordered',
+  changedExecutions: 'execution-record.changed-executions',
   openExecutions: 'execution-record.open-executions',
   events: 'execution-record.events',
   operation: 'execution-record.operation',
@@ -67,6 +79,7 @@ export function sessionCommandFacts(
   guards: readonly GuardCommand[],
   intakeLimits?: SessionIntakeLimits,
   at: string | null = null,
+  advance?: Extract<SessionCheck, { kind: 'advance' }>,
 ): FactCommandV2 {
   return {
     participant: SESSION_PARTICIPANT,
@@ -76,6 +89,7 @@ export function sessionCommandFacts(
       guards: encodeValue(guards),
       intakeLimits: encodeValue(sessionIntakeLimits(intakeLimits)),
       ...(at === null ? {} : { at }),
+      ...(advance === undefined ? {} : { advance: encodeValue(advance) }),
     },
   }
 }
@@ -92,6 +106,7 @@ export type SessionCheck =
   | (CheckScope & Readonly<{ kind: 'open'; grant: DurableEvidence; initial: SessionAdmittedInput }>)
   | (CheckScope & Readonly<{ kind: 'submit'; value: SessionAdmittedInput }>)
   | (CheckScope & Readonly<{ kind: 'attach'; grant: DurableEvidence }>)
+  | (CheckScope & Readonly<{ kind: 'advance'; grant: DurableEvidence }>)
   | (CheckScope &
       Readonly<{
         kind: 'finish'
@@ -171,6 +186,7 @@ export type ExecutionRecordWrite = Readonly<{
   operation: string
   digest: string
   facts: readonly ExecutionFactRecord[]
+  current: readonly Readonly<{ key: string; value: string | null; active: boolean }>[]
   blobs: readonly ExecutionBlobRecord[]
   boundaries: readonly ExecutionBoundaryRecord[]
   admissions: readonly ExecutionAdmissionRecord[]

@@ -356,6 +356,9 @@ importers:
 
   apps/harness-server:
     dependencies:
+      '@omne-harness/context-compaction':
+        specifier: workspace:*
+        version: link:../../packages/context/context-compaction
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
@@ -1665,6 +1668,46 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  packages/context/context-compaction:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness/agent-contract':
+        specifier: workspace:*
+        version: link:../../agent/agent-contract
+      '@omne-harness/agent-cordis-contract':
+        specifier: workspace:*
+        version: link:../../agent/agent-cordis-contract
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../common/message
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../model/model-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
+    devDependencies:
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../storage/sqlite-provider
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/context/request-context:
     dependencies:
       '@omne-harness/call-account':
@@ -2807,6 +2850,9 @@ importers:
       '@omne-harness/stream-arrival':
         specifier: workspace:*
         version: link:../../common/stream-arrival
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -3728,6 +3774,9 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../common/message
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result

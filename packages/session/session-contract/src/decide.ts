@@ -42,7 +42,7 @@ import {
   type EncodedEntry,
   type OperationRecord,
 } from './judgments.ts'
-import { judgeCompaction } from '@omne-harness/message'
+import { decideCompactionCommit } from './compaction-commit.ts'
 import { decideManagement, decideControl } from './decide-management.ts'
 import { closeControlFailure, decideNamedControl } from './decide-control.ts'
 import { decideResults } from './decide-results.ts'
@@ -712,53 +712,8 @@ function decideDerived(
 ): Decision {
   const input = command.input
   const source = commandEvidence(input.operation, 'derived')
-  if (input.value.kind === 'compaction') {
-    if (input.participation === undefined || input.judgment === undefined)
-      return invalid('participation', 'context transition materials are required')
-    const judgment = judgeAdvance(snapshot, {
-      kind: 'participation',
-      execution: input.participation.execution,
-      joint: input.participation.joint,
-    })
-    if (judgment.kind !== 'ok') return rejected(judgment)
-    if (input.participation.joint !== 'context-transition')
-      return invalid('participation', 'not a context transition')
-    if (reads.compaction === null)
-      return rejected({
-        kind: 'unavailable',
-        owner: 'session-history',
-        diagnostic: 'compaction transaction reads are missing',
-      })
-    if (
-      requiredWorkEntries(snapshot).some(
-        ref => !reads.compaction?.open.some(entry => String(entry) === ref),
-      )
-    )
-      return invalid('reads.compaction.open', 'missing original unclosed work reference')
-    const compact = judgeCompaction(input.value.message, reads.compaction)
-    if ('rejected' in compact) return invalid('value.message', compact.rejected)
-    return entries([
-      encodeEntry(
-        {
-          kind: 'message.compaction',
-          message: input.value.message,
-          source: input.judgment,
-          admission: input.judgment,
-          consumption: null,
-          participation: input.participation,
-        },
-        sessionOrigin(source),
-      ),
-      encodeEntry(
-        {
-          kind: 'history.annotated',
-          targets: reads.compaction.covered.map(item => item.ref),
-          source: input.judgment,
-        },
-        sessionOrigin(source),
-      ),
-    ])
-  }
+  if (input.value.kind === 'compaction')
+    return decideCompactionCommit(snapshot, command, reads, requiredWorkEntries(snapshot))
   if (snapshot.lifecycle === 'archived') return rejected({ kind: 'archived' })
   if (input.expected !== snapshot.revision)
     return rejected({ kind: 'changed', revision: snapshot.revision })

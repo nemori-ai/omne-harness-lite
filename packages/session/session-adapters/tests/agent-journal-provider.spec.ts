@@ -68,8 +68,11 @@ import {
 } from '@omne-harness/sql-contract'
 import { StorageService, TenantDomainLookupService } from '@omne-harness/sql-contract/cordis'
 import { SESSION_LOG_PARTICIPANTS } from '@omne-harness/session-storage-sql/participants'
-import { createSessionLogJournal, materialSessionOf } from '../src/cordis/agent-journal.ts'
-import { createSessionJournalInterpretationPlugin } from '../src/cordis/journal-interpretation.ts'
+import {
+  createSessionLogJournal,
+  materialSessionOf,
+  readExecutionInterpretation,
+} from '../src/cordis/agent-journal.ts'
 import {
   createExecutionRoutedJournal,
   createSessionAgentJournalPlugin,
@@ -78,7 +81,6 @@ import {
 } from '../src/cordis/agent-journal-provider.ts'
 import { checkpoint, instance, ok, openInput, operation } from './fixtures/common-journal.ts'
 import {
-  cordisScene,
   handed,
   nextRun,
   sqlScene,
@@ -1344,20 +1346,45 @@ const coreFixtureVia = (via: 'plugin' | 'direct'): AgentJournalCoreFixture<strin
       checkpoint: s.checkpoint,
       installation: installation?.installation ?? null,
       acceptInput: async label => {
-        const interpreter = await cordisScene(s)
-        disposers.push(() => interpreter.dispose())
-        const interpretation = createSessionJournalInterpretationPlugin<string>({
-          coordinator: async () => succeed(s.access.principal),
-        })
-        await interpreter.mount(interpretation.plugin)
-        const interpreted = ok(
-          await interpretation.interpret({
-            tenant: s.access.tenant,
-            session: s.access.session,
-            execution: s.execution,
-          }),
+        // Input fixture setup commits Session consequences; it is not another Agent output consumer.
+        const work = ok(await s.port.readWork(s.sessionAccess))
+        const owner =
+          work.run.kind === 'active' && work.run.execution.execution === s.execution
+            ? { run: work.run.run, execution: work.run.execution }
+            : work.executions?.find(item => item.execution.execution === s.execution)
+        if (owner === undefined) throw new Error('the input fixture has no execution owner')
+        const read = await readExecutionInterpretation(
+          {
+            storage: s.storage,
+            tenantDomainLookup: { lookup: async () => ({ kind: 'ready', domain: s.domain }) },
+          },
+          { ...s.access, execution: s.execution, after: owner.execution.readThrough },
         )
-        expect(interpreted.waiting).toBe(0)
+        if (read.kind !== 'read' || read.execution?.head == null)
+          throw new Error('the input fixture has no execution history')
+        for (const event of read.execution.events) {
+          if (event.consequences === null && event.control === null)
+            throw new Error('undecided fixture event')
+          if (event.consequences?.every(item => item.kind === 'observed') === true) continue
+          if (s.port.commitLog === undefined) throw new Error('the Session has no log commit')
+          ok(
+            await s.port.commitLog({
+              observation: {
+                tenant: s.access.tenant,
+                session: s.access.session,
+                run: owner.run,
+                execution: s.execution,
+                sequence: event.sequence,
+                revision: read.execution.revision,
+                executionEvidence: read.execution.head,
+                source: event.source,
+                consequences: event.consequences ?? [],
+                operation: operationId(`fixture-interpret-${event.sequence}`),
+                ...(event.control === null ? {} : { control: event.control }),
+              },
+            }),
+          )
+        }
         const value = ordinaryInput(`input-${label}`)
         const accepted = ok(
           await s.port.commit({

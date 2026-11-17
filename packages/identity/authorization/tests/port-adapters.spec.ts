@@ -69,6 +69,8 @@ function agentTarget(target: AgentAccessTarget): AdmissionTarget {
       return { owner: 'agent', kind: 'instance', key: target.instance }
     case 'execution':
       return { owner: 'agent', kind: 'execution', key: target.execution }
+    case 'compaction':
+      return { owner: 'agent', kind: 'compaction', key: JSON.stringify(target.task) }
     case 'input-entry':
       return { owner: 'agent', kind: 'input-entry', key: `${target.execution}/${target.operation}` }
   }

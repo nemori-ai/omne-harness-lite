@@ -205,6 +205,12 @@ export async function readCachedWork(reach: WorkReach): Promise<WorkRead> {
     }
   }
   if (version === null) return readWhole(reach, cache, key)
+  if (held !== undefined && held.version.tail === version.tail) {
+    await refreshWorkIndex(reach, version.published)
+    const refreshed = cache.get(key)
+    if (refreshed !== undefined && sameVersion(refreshed.version, version))
+      return { kind: 'state', snapshot: refreshed.snapshot }
+  }
   const flight = flightKey(key, version)
   const folded = await afterFold(cache, key, flight, version)
   if (folded !== undefined) return { kind: 'state', snapshot: folded }

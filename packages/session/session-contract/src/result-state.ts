@@ -4,7 +4,8 @@ import type { CallBinding, Participation, WorkSnapshot } from './values.ts'
 import { completeEvidence } from './decision-support.ts'
 import { originalAttempt } from './history-validation.ts'
 
-type Draft = { -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K] }
+type ParticipationState = Pick<WorkSnapshot, 'run' | 'executions'>
+type Draft = { -readonly [K in keyof ParticipationState]: ParticipationState[K] }
 
 export function bindingRun(snapshot: WorkSnapshot, binding: CallBinding): RunId | null {
   return binding.initiatingAttempt === null

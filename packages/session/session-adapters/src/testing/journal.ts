@@ -1,3 +1,4 @@
+import { compactionGeneration } from '@omne-harness/agent-contract'
 import { pendingCalls } from './pending.ts'
 import { createHash } from 'node:crypto'
 import { canonical } from './canonical.ts'
@@ -347,20 +348,25 @@ type Attachment = {
 type Range = Readonly<{ from: number; to: number }>
 
 function takenRange(
-  execution: Readonly<{ id: AgentExecutionId; inputs: readonly Readonly<{ id: InputId }>[] }>,
+  execution: Readonly<{
+    id: AgentExecutionId
+    inputOffset: number
+    inputs: readonly Readonly<{ id: InputId }>[]
+  }>,
   batch: Readonly<{ id: InputBatchId; ordered: readonly InputId[] }>,
 ): Range | undefined {
   const [first] = batch.ordered
   if (first !== undefined) {
-    const from = execution.inputs.findIndex(input => input.id === first)
-    return from < 0 ? undefined : { from, to: from + batch.ordered.length }
+    const index = execution.inputs.findIndex(input => input.id === first)
+    const from = execution.inputOffset + index
+    return index < 0 ? undefined : { from, to: from + batch.ordered.length }
   }
   const named = /\/batch\/(0|[1-9][0-9]*)-(0|[1-9][0-9]*)$/u.exec(String(batch.id))
   if (named === null) return undefined
   const from = Number(named[1])
   const to = Number(named[2])
   return from === to &&
-    to <= execution.inputs.length &&
+    to <= execution.inputOffset + execution.inputs.length &&
     batchIdOf(execution.id, from, to) === batch.id
     ? { from, to }
     : undefined
@@ -387,10 +393,12 @@ export type MemoryExecution = {
   state: JournalCommitState | Extract<ExecutionState, { kind: 'ended' }>
   checkpoint: AgentCheckpoint
   attachments: Attachment[]
+  inputOffset: number
   inputs: AcceptedInput[]
   inputRevisions: Map<InputId, number>
 
   events: AgentEvent[]
+  emitted: number
   retainedFrom: number
   acknowledged: number
   acknowledgedAt: number
@@ -424,7 +432,7 @@ export type HandoffRecord = {
 type CustodyAttempt = Readonly<{
   handoff: HandoffReference
   original: Extract<HandoffResolution, { kind: 'recorded' | 'excluded' }>
-  custody: HandoffCustody | null
+  predecessor: AgentOperationId | null
 }>
 
 type Execution = MemoryExecution
@@ -527,11 +535,7 @@ function sameResultKey(
   left: ResultResponsibility['result'],
   right: ResultResponsibility['result'],
 ) {
-  return (
-    left.producer.kind === right.producer.kind &&
-    left.producer.call === right.producer.call &&
-    left.version === right.version
-  )
+  return canonical(left.producer) === canonical(right.producer) && left.version === right.version
 }
 
 type ToolControlRecord = Extract<ControlRecord, { toolInvocation: ToolInvocationRef }>
@@ -1231,8 +1235,9 @@ function sameShape(checkpoint: AgentCheckpoint): AgentCheckpoint {
 
 function producerCallOf(result: ProducedResult): ProducerCall {
   return {
-    producer: result.producer.kind,
-    call: String(result.producer.call),
+    ...(result.producer.kind === 'compaction'
+      ? { producer: 'compaction' as const, task: result.producer.task }
+      : { producer: result.producer.kind, call: String(result.producer.call) }),
     version: result.version,
     delivery: result.delivery,
     source: copy(result.source),
@@ -1345,11 +1350,10 @@ export function createJournal<P>(
         return value
       }
       value = { batches: new Map(), watermarks: new Map() }
-      for (const event of execution.events)
-        if (event.body.kind === 'input-taken') {
-          const range = takenRange(execution, event.body.batch)
-          if (range !== undefined) value.batches.set(event.body.batch.id, range)
-        }
+      for (const step of state().view.executions.get(execution.id)?.steps ?? []) {
+        const range = takenRange(execution, step.batch)
+        if (range !== undefined) value.batches.set(step.batch.id, range)
+      }
       caches.set(execution, value)
     }
     return value
@@ -1491,9 +1495,10 @@ export function createJournal<P>(
     }
     if (execution.events.at(-1)?.body.kind === 'ended') return
     for (const body of bodies) {
+      execution.emitted += 1
       execution.events.push({
         execution: execution.id,
-        sequence: String(execution.events.length + 1),
+        sequence: String(execution.emitted),
         executionAttachment: attachment.authority.executionAttachment,
         schema: eventSchema,
         cause,
@@ -1537,7 +1542,11 @@ export function createJournal<P>(
           return fail(outrunParticipation)
         decision = qualified.ok
       }
-      if (options.prepareResult && (caller.kind === 'custody' || caller.kind === 'processed')) {
+      if (
+        options.prepareResult &&
+        (caller.kind === 'custody' || caller.kind === 'processed') &&
+        caller.result.producer.kind !== 'compaction'
+      ) {
         const refused = beforeRecognition?.()
         if (refused) return fail(refused)
         const preview = prepare()
@@ -2034,7 +2043,7 @@ export function createJournal<P>(
     if (taken !== null && range === undefined)
       throw new Error('original input batch range is unavailable')
     const from = range?.to ?? 0
-    return { from, to: execution.inputs.length }
+    return { from, to: execution.inputOffset + execution.inputs.length }
   }
 
   function watermarkRange(execution: Execution, record: string): Range | undefined {
@@ -2046,7 +2055,7 @@ export function createJournal<P>(
     if (match === null) return undefined
     const from = Number(match[1])
     const to = Number(match[2])
-    if (to < from || to > execution.inputs.length) return undefined
+    if (to < from || to > execution.inputOffset + execution.inputs.length) return undefined
     if (from !== 0 && ![...cache(execution).batches.values()].some(range => range.to === from))
       return undefined
     const range = { from, to }
@@ -2086,7 +2095,7 @@ export function createJournal<P>(
         unresolved.push(record.operation)
       }
     }
-    const emitted = execution.events.length
+    const emitted = execution.emitted
     const groups = custodyGroups(execution)
     // One-level copy is enough: the core replaces elements and never mutates them in place, so a snapshot keeps what it saw. A deep copy cost every `load` the whole history.
     return succeed<ExecutionSnapshot>({
@@ -2121,7 +2130,7 @@ export function createJournal<P>(
     limit: number,
   ): Outcome<EventPage, Failure> {
     const position = sequenceOf(after)
-    if (position === undefined || position > execution.events.length) {
+    if (position === undefined || position > execution.emitted) {
       return fail(invalid('after', 'not a sequence of this execution'))
     }
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > readLimit) {
@@ -2134,8 +2143,13 @@ export function createJournal<P>(
         recovery: journalEvidence(`${cell.namespace}/${execution.id}/recovery`, execution.revision),
       })
     }
-    const events = execution.events.slice(position, position + limit)
-    if (events.some(event => !event) || Array.from(events).some(event => !event)) {
+    const events = execution.events
+      .filter(event => event !== undefined && Number(event.sequence) > position)
+      .slice(0, limit)
+    if (
+      events.length !== Math.min(limit, execution.emitted - position) ||
+      events.some((event, index) => Number(event.sequence) !== position + index + 1)
+    ) {
       cell.quarantine('confirmed original event gap')
       return fail({
         kind: 'unavailable',
@@ -2148,7 +2162,7 @@ export function createJournal<P>(
       kind: 'page',
       events: copy(events),
       next: String(next),
-      caughtUp: next === execution.events.length,
+      caughtUp: next === execution.emitted,
     })
   }
 
@@ -2216,9 +2230,8 @@ export function createJournal<P>(
     operation: AgentOperationId,
   ): ReturnType<typeof buildObligations> {
     const takenInputs = new Map<InputId, InputBatchId>()
-    for (const event of execution.events)
-      if (event.body.kind === 'input-taken')
-        for (const input of event.body.batch.ordered) takenInputs.set(input, event.body.batch.id)
+    for (const { batch } of state().view.executions.get(execution.id)?.steps ?? [])
+      for (const input of batch.ordered) takenInputs.set(input, batch.id)
     return buildObligations(
       {
         id: execution.id,
@@ -2243,7 +2256,7 @@ export function createJournal<P>(
           const parts = resolveModelInvocationRef(effect.pending.reference, execution.tenant)
           return 'ok' in parts ? parts.ok.call : null
         },
-        emitted: execution.events.length,
+        emitted: execution.emitted,
         acknowledged: execution.acknowledged,
         unpublished: handoffsOf(execution, () => null).filter(
           record => record.history.kind === 'pending',
@@ -2531,7 +2544,7 @@ export function createJournal<P>(
     > = custodyGroups(execution),
   ): Exclude<ExecutionHandoff['custody'], null> | null {
     const attempts = groups.get(canonical(handoff)) ?? []
-    const root = attempts.find(([, attempt]) => attempt.custody === null)
+    const root = attempts.find(([, attempt]) => attempt.predecessor === null)
     if (root === undefined) return null
     const stateOf = (operation: AgentOperationId): 'committed' | 'excluded' | undefined => {
       const at = operationKey(execution.tenant, execution.id, operation)
@@ -2547,9 +2560,7 @@ export function createJournal<P>(
       if (fixed === undefined) break
       chain.push({ operation: current, predecessor, state: fixed })
       if (fixed === 'committed') committed = current
-      const next = attempts.find(
-        ([, attempt]) => attempt.custody?.predecessor.operation === current,
-      )
+      const next = attempts.find(([, attempt]) => attempt.predecessor === current)
       predecessor = current
       current = next?.[0] ?? null
     }
@@ -3239,9 +3250,11 @@ export function createJournal<P>(
                   handoffRevision: 0,
                 },
               ],
+              inputOffset: 0,
               inputs: [copy(initial)],
               inputRevisions: new Map([[initial.id, view.revision]]),
               events: [],
+              emitted: 0,
               retainedFrom: 1,
               acknowledged: 0,
               acknowledgedAt: 0,
@@ -3484,6 +3497,76 @@ export function createJournal<P>(
         if (readFailure !== undefined) return answer(fail(readFailure))
         const handoffChange = handoffWrite(execution, input)
         if ('failure' in handoffChange) return answer(handoffChange)
+        const compacted = input.caller.kind === 'context-transition' ? input.caller.value : null
+        const consumed =
+          input.caller.kind === 'processed' && input.caller.result.producer.kind === 'compaction'
+            ? input.caller
+            : compacted === null
+              ? null
+              : {
+                  result: {
+                    producer: { kind: 'compaction' as const, task: compacted.task },
+                    version: compacted.result.version,
+                    delivery: null,
+                    source: compacted.result.evidence,
+                  },
+                  consumption: compacted.consumption,
+                }
+        const resultIndex =
+          consumed === null
+            ? -1
+            : execution.results.findIndex(
+                item =>
+                  sameValue(item.result, consumed.result) &&
+                  item.consumption === consumed.consumption,
+              )
+        const responsibility = execution.results[resultIndex]
+        if (consumed !== null && responsibility === undefined)
+          return answer(
+            fail(invalid('caller', 'the result has no durable consumer responsibility')),
+          )
+        if (compacted !== null) {
+          const task = execution.checkpoint.compaction
+          const preparation = execution.checkpoint.requestPreparation
+          const held = cell.state().receiving.materials.get(canonical(compacted.received))
+          const material = held?.value
+          if (
+            task === null ||
+            !sameValue(task.task, compacted.task) ||
+            task.consumption !== compacted.consumption ||
+            !sameValue(task.result, compacted.result) ||
+            !sameValue(task.received, compacted.received) ||
+            !sameValue(responsibility?.custody, compacted.received) ||
+            preparation?.kind !== 'needs-compaction' ||
+            preparation.id !== compacted.preparation ||
+            !sameValue(preparation.input, task.input) ||
+            !sameValue(compacted.history, task.input.source) ||
+            !sameValue(compacted.message.derivation, compactionGeneration(task.task)) ||
+            responsibility?.completion !== null
+          )
+            return answer(
+              fail(
+                invalid('caller', 'the compaction result is not the current unprocessed result'),
+              ),
+            )
+          if (
+            held?.execution !== execution.id ||
+            material?.kind !== 'compaction' ||
+            !sameValue(material.result, consumed?.result) ||
+            material.outcome.kind !== 'completed' ||
+            !sameValue(material.outcome.message, compacted.message)
+          )
+            return answer(
+              fail(invalid('caller', 'the compaction message is not the durably retained result')),
+            )
+        }
+        if (
+          consumed !== null &&
+          input.caller.kind === 'processed' &&
+          responsibility?.completion !== null &&
+          !sameValue(responsibility?.completion, input.caller.completion)
+        )
+          return answer(fail(conflict(input.operation)))
         if (input.caller.kind !== 'none') {
           const response = responses.get(input.caller.kind)?.shift() ?? 'participate'
           switch (response) {
@@ -3534,6 +3617,16 @@ export function createJournal<P>(
         const caller = input.caller
         const facts: FactBody[] = []
         const blobs: Blob[] = []
+        const completion = caller.kind === 'processed' ? caller.completion : evidence
+        if (consumed !== null)
+          facts.push({
+            kind: 'result.handled',
+            consumption: consumed.consumption,
+            result: producerCallOf(consumed.result),
+            stage: 'processed',
+            evidence: copy(completion),
+            step: null,
+          })
         const view = viewOf(execution.id)
         const taken = input.checkpoint.inputBatch
         if (
@@ -3716,7 +3809,12 @@ export function createJournal<P>(
           kind: 'batch',
           facts,
           blobs,
-          kinds: caller.kind === 'none' ? [] : [caller.kind],
+          kinds:
+            caller.kind === 'none' ||
+            ((caller.kind === 'custody' || caller.kind === 'processed') &&
+              caller.result.producer.kind === 'compaction')
+              ? []
+              : [caller.kind],
           derive: receiptIn,
           project: (_batch, folded) => {
             if (folded.revision !== revision)
@@ -3729,6 +3827,17 @@ export function createJournal<P>(
             )
               throw new TypeError('the folded facts name another checkpoint than the commit')
             execution.checkpoint = checkpoint
+            if (consumed !== null && responsibility !== undefined) {
+              execution.results[resultIndex] = { ...responsibility, completion: copy(completion) }
+              execution.resultRevisions.set(
+                semanticKey('responsibility', [
+                  consumed.result.producer,
+                  consumed.result.version,
+                  consumed.consumption,
+                ]),
+                revision,
+              )
+            }
             receiving.applyBindings(execution, bound)
             execution.state = copy(input.state)
             for (const effect of input.effects) {
@@ -3925,7 +4034,7 @@ export function createJournal<P>(
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
         const through = sequenceOf(input.through)
-        if (through === undefined || through < 1 || through > execution.events.length) {
+        if (through === undefined || through < 1 || through > execution.emitted) {
           return answer(fail(invalid('through', 'beyond the emitted events')))
         }
         if (through <= execution.acknowledged)
@@ -4045,7 +4154,10 @@ export function createJournal<P>(
           kind: 'batch',
           facts,
           blobs: [],
-          kinds: transfer.kind === 'none' ? [] : [transfer.kind],
+          kinds:
+            transfer.kind === 'none' || input.result.producer.kind === 'compaction'
+              ? []
+              : [transfer.kind],
           derive: receiptIn,
           project: (_batch, view) => {
             const index = execution.results.indexOf(known ?? responsibility)
@@ -4204,7 +4316,7 @@ export function createJournal<P>(
         const attempt: CustodyAttempt = {
           handoff: copy(reference),
           original: copy(input.original),
-          custody: input.custody === null ? null : copy(input.custody),
+          predecessor: input.custody?.predecessor.operation ?? null,
         }
         const chain = custodyOf(execution, reference)
         const custody = input.custody
@@ -4435,7 +4547,11 @@ export function createJournal<P>(
           const closure = obligationsOf(execution, candidate, input.operation).items
           if (projectionOf(closure) !== projectionOf(list.items)) return changed
           const boundary = watermarkRange(execution, candidate.inputWatermark.record)
-          if (boundary === undefined || boundary.to < execution.inputs.length) return changed
+          if (
+            boundary === undefined ||
+            boundary.to < execution.inputOffset + execution.inputs.length
+          )
+            return changed
           const check = blockedReason(execution, candidate, closure, list.items)
           if (check.kind === 'changed') return changed
           if (check.kind === 'blocked') return answer(succeed(copy(check.value)))
@@ -4637,7 +4753,12 @@ export function createJournal<P>(
         return fail(invalid('watermark', 'not a watermark of this execution'))
       const id = batchIdOf(execution.id, range.from, range.to)
       cache(execution).batches.set(id, range)
-      const taken = execution.inputs.slice(range.from, range.to)
+      if (range.from < execution.inputOffset)
+        return fail(damaged('the requested input range is outside the loaded projection'))
+      const taken = execution.inputs.slice(
+        range.from - execution.inputOffset,
+        range.to - execution.inputOffset,
+      )
       return succeed({
         batch: {
           id,

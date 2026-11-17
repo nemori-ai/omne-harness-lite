@@ -7,6 +7,7 @@ import type {
   AgentMaterials,
   AgentReceivedCommits,
   AgentReceivedRecords,
+  CompactionInputStore,
   Failure,
   ModelReceptionTargets,
   ToolReceptionTargets,
@@ -17,6 +18,7 @@ import {
   AgentMaterialsService,
   AgentReceivedCommitsService,
   AgentReceivedRecordsService,
+  CompactionInputStoreService,
   ModelReceptionTargetsService,
   ToolReceptionTargetsService,
 } from '@omne-harness/agent-cordis-contract/cordis'
@@ -47,6 +49,7 @@ import {
   type SessionLogJournalProvider,
 } from './agent-journal.ts'
 import { announcePublished } from './published-queue.ts'
+import { createSqlCompactionInputs } from './compaction-inputs-sql.ts'
 
 const OWNER = 'session-log-journal'
 const LOGGER = 'session-adapters/agent-journal'
@@ -204,7 +207,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     commit: input => written('commit', input, j => j.commit(input)),
     submit: input => written('submit', input, j => j.submit(input)),
     control: input => written('control', input, j => j.control(input)),
-    acknowledge: input => written('acknowledge', input, j => j.acknowledge(input)),
+    acknowledge: input => routed('acknowledge', input, j => j.acknowledge(input)),
     recordResult: input => written('recordResult', input, j => j.recordResult(input)),
     recordControl: input => written('recordControl', input, j => j.recordControl(input)),
     recordHandoff: input => written('recordHandoff', input, j => j.recordHandoff(input)),
@@ -355,6 +358,17 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     },
   }
 
+  const compactionInputs = createSqlCompactionInputs({
+    storage: options.storage,
+    tenantDomainLookup: options.tenantDomainLookup,
+    sessionAccessCheck: options.sessionAccessCheck,
+    combination: options.combination,
+    async sessionOf(input) {
+      const route = await routeOf(input, 'compaction-input')
+      return 'failure' in route ? route : succeed(route.ok.session)
+    },
+  })
+
   return {
     journal,
     entries,
@@ -363,6 +377,7 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     targets,
     toolTargets,
     adoptedRequests,
+    compactionInputs,
     close(): void {
       closed = true
       routes.clear()
@@ -460,6 +475,17 @@ class SessionLogMaterials extends AgentMaterialsService<unknown, ContentBlock> {
     this.preserve = materials.preserve
     this.read = materials.read
     this.describe = materials.describe
+  }
+}
+
+class SessionLogCompactionInputs extends CompactionInputStoreService<unknown> {
+  readonly freeze: CompactionInputStore<unknown>['freeze']
+  readonly read: CompactionInputStore<unknown>['read']
+
+  constructor(ctx: Context, inputs: CompactionInputStore<unknown>) {
+    super(ctx)
+    this.freeze = inputs.freeze
+    this.read = inputs.read
   }
 }
 
@@ -597,6 +623,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     this.output = journal.output
     new SessionLogJournalEntries(ctx, routed.entries)
     new SessionLogMaterials(ctx, routed.materials)
+    new SessionLogCompactionInputs(ctx, routed.compactionInputs)
     new SessionLogReceivedCommits(ctx, routed.received)
     new SessionLogReceivedRecords(ctx, routed.received)
     new SessionLogReceptionTargets(ctx, routed.targets)

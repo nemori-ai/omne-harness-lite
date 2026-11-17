@@ -30,6 +30,7 @@ import { currentForReader } from '../../entry/runtime-context-trust.ts'
 import { qualifyingDiagnostics } from './diagnostics.ts'
 import { toolResultDisclosureOf } from '../../model/tool-result-disclosure.ts'
 import { agentCustodyOf, createModelEvidence } from '../../model/evidence.ts'
+import { compactionEvidenceOf } from '../../model/compaction-evidence.ts'
 import { modelRecordsPortOf } from '../../model/ports.ts'
 import { observationTiming } from '../../model/observation.ts'
 import { createModelQualification } from '../../model/qualification.ts'
@@ -118,6 +119,7 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
         initial: () => live.initial,
         reader: () => live.reader,
         custody: () => agentCustodyOf(ctx),
+        compaction: () => compactionEvidenceOf(ctx),
       }),
       clock: given.modelClock,
       manifestDigest: manifest.digest,

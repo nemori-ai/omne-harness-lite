@@ -316,6 +316,18 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
       run: async () => {
         const opened = await fixture.open('node-input-mixed')
         await takeInputs(opened)
+        const taken = await load(opened)
+        if (taken.output.emittedThrough === null) throw new Error('the take must emit an event')
+        await ok(
+          opened.journal.acknowledge({
+            ...opened.access,
+            execution: opened.execution,
+            operation: operation('ack-taken'),
+            through: taken.output.emittedThrough,
+            receipt: null,
+          }),
+          'acknowledge the output without forgetting the taken inputs',
+        )
         const added = await opened.acceptInput('untaken')
         const submit = newSubmit(opened, 'submit-untaken', added)
         await ok(opened.journal.submit(submit), 'submit the later input')

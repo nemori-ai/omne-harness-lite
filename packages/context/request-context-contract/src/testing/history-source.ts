@@ -131,7 +131,7 @@ export function createMemoryHistorySource<P>(fixture: HistoryFixture): MemoryHis
       origin,
       base:
         record === undefined
-          ? { kind: 'initial' }
+          ? { kind: 'initial', pairings }
           : { kind: 'previous', record: record.ref, pairings },
       covered: entries.slice(0, end + 1),
       after: entries.slice(end + 1),
@@ -242,7 +242,10 @@ export function createMemoryHistorySource<P>(fixture: HistoryFixture): MemoryHis
       if (rejection !== null) return rejection
       const epoch = epochs[active]
       if (epoch === undefined) return { kind: 'unavailable', diagnostic: 'No epoch' }
-      const window = windowOf(epoch.entries, coverTo)
+      const selected = new Set(epoch.entries.map(row => row.ref))
+      const last = log.findLast(row => selected.has(row.ref))?.ref
+      const window =
+        coverTo === null && last === undefined ? null : windowOf(epoch.entries, coverTo ?? last!)
       if (window === null) return { kind: 'invalid', field: 'coverTo', reason: 'unknown-epoch' }
       return { kind: 'context', evidence: e, value: window }
     },

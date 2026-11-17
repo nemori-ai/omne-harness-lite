@@ -9,8 +9,15 @@ const CALLER_UNKNOWN = '调用方主体未写明，见候选 P-4 与输入需求
 const DIRECT_CALLER_UNKNOWN = '直接调用者的主体未写明，见 P-4'
 const RECORD_ADAPTER_UNKNOWN = '长期执行记录适配器的主体未写明，见 P-4'
 const HOST_DUTY = 'AU-12 `agent-instance-*` 行，AGI §3.3 第 4 步、§3.4，候选 P-1 (a)'
+const COMPACTION_DUTY =
+  'packages/agent/SPEC.md#上下文压缩服务：四操作独立核验；会话工作主体代租户调用，采用另核推进资格'
+const COMPACTION = row(deny(NO_SOURCE), member(COMPACTION_DUTY), deny(OUTSIDE_MATRIX))
 
 export const AGENT_POLICY = Object.freeze({
+  'compaction.admit': COMPACTION,
+  'compaction.inspect': COMPACTION,
+  'compaction.cancel': COMPACTION,
+  'compaction.acknowledge': COMPACTION,
   invoke: row(
     deny(NO_SOURCE),
     member('AD:448 与 AD-14 表 `invoke`，AGI §3.6'),
@@ -82,7 +89,13 @@ export const AGENT_POLICY = Object.freeze({
     ),
     deny('AGS:1790 要求推送主体代原租户行事，不用系统主体'),
   ),
-  'read-message-handoff': row(deny(NO_SOURCE), deny(DIRECT_CALLER_UNKNOWN), deny(OUTSIDE_MATRIX)),
+  'read-message-handoff': row(
+    deny(NO_SOURCE),
+    member(
+      'apps/harness-server/SPEC.md#授权政策session-与-agent-的访问检查：会话工作主体沿原消息交接认回；采用另核资格',
+    ),
+    deny(OUTSIDE_MATRIX),
+  ),
   'record-message-handoff': row(deny(NO_SOURCE), deny(DIRECT_CALLER_UNKNOWN), deny(OUTSIDE_MATRIX)),
   'exclude-message-handoff': row(
     deny(NO_SOURCE),

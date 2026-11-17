@@ -55,6 +55,14 @@ import {
   SESSION_LIST_SCAN_ROWS,
   SESSION_LIST_TABLES,
 } from './worker/schema.ts'
+import {
+  COMPACTION_INDEX_MIGRATION,
+  COMPACTION_INDEX_TABLES,
+} from './worker/compaction-index-migration.ts'
+import {
+  EXECUTION_CURRENT_MIGRATION,
+  EXECUTION_CURRENT_TABLES,
+} from './worker/execution-current-migration.ts'
 
 const extension = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
 
@@ -149,6 +157,27 @@ const WORK_ROWS_READ = 4000
 
 export const HANDLERS: readonly Handler[] = [
   {
+    handler: 'session.compaction-input-check',
+    file: 'check-compaction-input',
+    tables: ['sl_journal', 'sl_model_view', 'sl_blob', ...COMPACTION_INDEX_TABLES],
+    migrations: [...factMigrations, COMPACTION_INDEX_MIGRATION],
+    maxRowsRead: 300_010,
+  },
+  {
+    handler: 'session.compaction-context',
+    file: 'read-compaction-context',
+    tables: ['sl_journal', 'sl_model_view', 'sl_blob', ...COMPACTION_INDEX_TABLES],
+    migrations: [...factMigrations, COMPACTION_INDEX_MIGRATION],
+    maxRowsRead: 200_010,
+  },
+  {
+    handler: 'session.entry-message',
+    file: 'read-entry-message',
+    tables: ['sl_journal', 'sl_model_view', 'sl_entry', 'sl_blob'],
+    migrations: [...factMigrations, COMPACTION_INDEX_MIGRATION],
+    maxRowsRead: 8,
+  },
+  {
     handler: 'session.permission-mode',
     file: 'read-permission-mode',
     tables: ['sl_permission_head', 'sl_journal', 'sl_entry'],
@@ -175,6 +204,20 @@ export const HANDLERS: readonly Handler[] = [
     ],
     migrations: [stateItemMigrationRef, ...indexMigrations],
     maxRowsRead: WORK_ROWS_READ,
+  },
+  {
+    handler: 'session.current-advance',
+    file: 'read-current-advance',
+    tables: ['sl_journal', 'sl_state', ...STATE_ITEM_TABLES, ...ATTEMPT_GRANT_TABLES],
+    migrations: [stateItemMigrationRef, attemptGrantMigrationRef],
+    maxRowsRead: 3,
+  },
+  {
+    handler: 'session.current-scope',
+    file: 'read-current-scope',
+    tables: ['sl_journal', 'sl_state', ...STATE_ITEM_TABLES],
+    migrations: [stateItemMigrationRef],
+    maxRowsRead: 3,
   },
   {
     handler: 'session.work-version',
@@ -209,12 +252,14 @@ export const HANDLERS: readonly Handler[] = [
   {
     handler: 'session.history',
     file: 'read-history',
-    tables: ['sl_journal', 'sl_entry', 'sl_annotation_idx'],
+    tables: ['sl_journal', 'sl_entry', 'sl_annotation_idx', 'sl_blob'],
+    migrations: factMigrations,
   },
   {
     handler: 'session.model-view',
     file: 'read-model-view',
-    tables: ['sl_journal', 'sl_model_view'],
+    tables: ['sl_journal', 'sl_model_view', 'sl_blob'],
+    migrations: factMigrations,
   },
   { handler: 'session.pending', file: 'read-pending', tables: ['sl_pending_idx'] },
   {
@@ -255,6 +300,34 @@ export const HANDLERS: readonly Handler[] = [
     tables: ['sl_journal', 'er_root', 'er_fact'],
     protocol: EXECUTION_RECORD_PROTOCOL,
     migrations: factMigrations,
+  },
+  {
+    handler: 'execution-record.current',
+    file: 'read-execution-current',
+    tables: ['sl_journal', 'er_root', 'er_fact', 'er_execution', ...EXECUTION_CURRENT_TABLES],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: [...factMigrations, EXECUTION_CURRENT_MIGRATION],
+  },
+  {
+    handler: 'execution-record.members',
+    file: 'read-execution-members',
+    tables: ['sl_journal', 'er_root', 'er_fact', 'er_execution', ...EXECUTION_CURRENT_TABLES],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: [...factMigrations, EXECUTION_CURRENT_MIGRATION],
+  },
+  {
+    handler: 'execution-record.ordered',
+    file: 'read-execution-ordered',
+    tables: ['sl_journal', 'er_root', 'er_fact', 'er_execution', ...EXECUTION_CURRENT_TABLES],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: [...factMigrations, EXECUTION_CURRENT_MIGRATION],
+  },
+  {
+    handler: 'execution-record.changed-executions',
+    file: 'read-execution-changes',
+    tables: ['sl_journal', 'er_root', 'er_fact', 'er_current_head'],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: [...factMigrations, EXECUTION_CURRENT_MIGRATION],
   },
   {
     handler: 'execution-record.open-executions',
@@ -317,11 +390,13 @@ export function sessionStorageMaterials(
   const attemptGrantMigration = module('attempt-grant-migration')
   const scopeIndexMigration = module('scope-index-migration')
   const sessionListMigration = module('session-list-migration')
+  const compactionIndexMigration = module('compaction-index-migration')
   const preadmissionMigration = module('preadmission-migration')
   const admissionAttemptMigration = module('admission-attempt-migration')
   const statePartMigration = module('state-part-migration')
   const factBodyMigration = module('fact-body-migration')
   const factBlobMigration = module('fact-blob-migration')
+  const currentMigration = module('execution-current-migration')
   return {
     participants: [
       {
@@ -360,6 +435,7 @@ export function sessionStorageMaterials(
           ...STATE_PART_TABLES,
           ...FACT_BODY_TABLES,
           ...FACT_BLOB_TABLES,
+          ...EXECUTION_CURRENT_TABLES,
         ],
         readTables: [],
         requiresFacts: [],
@@ -374,6 +450,7 @@ export function sessionStorageMaterials(
         codeDigest: participant.digest,
         ownedTables: [
           ...SESSION_TABLES,
+          ...COMPACTION_INDEX_TABLES,
           ...PERMISSION_CURRENT_TABLES,
           ...EXECUTION_INDEX_TABLES,
           ...OPERATION_EVIDENCE_TABLES,
@@ -382,7 +459,7 @@ export function sessionStorageMaterials(
           ...SCOPE_INDEX_TABLES,
           ...SESSION_LIST_TABLES,
         ],
-        readTables: EXECUTION_RECORD_INDEX_TABLES,
+        readTables: [...EXECUTION_RECORD_INDEX_TABLES, 'sl_blob'],
         requiresFacts: [SESSION_COMMIT_BASIS],
         providesFacts: [],
         allowedFunctions: [],
@@ -457,6 +534,12 @@ export function sessionStorageMaterials(
         requires: [stateItemMigrationRef],
       },
       {
+        ...COMPACTION_INDEX_MIGRATION,
+        moduleUrl: compactionIndexMigration.moduleUrl,
+        checksum: compactionIndexMigration.digest,
+        requires: [migrationRef],
+      },
+      {
         ...preadmissionMigrationRef,
         moduleUrl: preadmissionMigration.moduleUrl,
         checksum: preadmissionMigration.digest,
@@ -485,6 +568,12 @@ export function sessionStorageMaterials(
         moduleUrl: factBlobMigration.moduleUrl,
         checksum: factBlobMigration.digest,
         requires: [recordMigrationRef, statePartMigrationRef, factBodyMigrationRef],
+      },
+      {
+        ...EXECUTION_CURRENT_MIGRATION,
+        moduleUrl: currentMigration.moduleUrl,
+        checksum: currentMigration.digest,
+        requires: [factBlobMigrationRef],
       },
     ],
     readHandlers: HANDLERS.map(item => {

@@ -14,6 +14,7 @@ import type { SessionAdmittedInput, SessionCheck } from '../participants.ts'
 import { canonicalText, decodeValue, encodeValue, isCount, plainOf, sha256 } from '../codec.ts'
 import { readEntryText } from '../entry-codec.ts'
 import { readState } from './state-rows.ts'
+import { readAdvanceState } from './current-advance.ts'
 import { big, definite, oneRow, packed, rowsOf, text, type Row } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
@@ -252,6 +253,16 @@ function runCheck(port: ParticipantPort, check: SessionCheck): ParticipantReply 
     return stopped({ kind: 'invalid', field: 'tenant', reason: 'not minted by legal-identity' })
   const tenant = encoded.value
   const { session, execution } = check
+  if (check.kind === 'advance') {
+    const current = readAdvanceState(port, { tenant, session })
+    if (current.kind === 'behind')
+      return { kind: 'failed', diagnostic: 'current advance does not cover the tail' }
+    if (current.kind === 'absent') return stopped({ kind: 'denied', action: 'advance' })
+    if (current.kind !== 'advance') return stopped({ kind: 'stale-advance', current: null })
+    return current.value.execution === execution && same(current.value.grant, check.grant)
+      ? checked(current.value.attempt, 'ordinary')
+      : stopped({ kind: 'stale-advance', current: current.current })
+  }
   const state = oneRow(
     port,
     `SELECT s.snapshot AS snapshot, s.covered AS covered, j.tail AS tail
@@ -314,7 +325,7 @@ function runCheck(port: ParticipantPort, check: SessionCheck): ParticipantReply 
   }
 }
 
-const KINDS = new Set(['open', 'submit', 'attach', 'finish'])
+const KINDS = new Set(['open', 'submit', 'attach', 'finish', 'advance'])
 
 export function runChecks(
   facts: Readonly<Record<string, JsonValue>>,

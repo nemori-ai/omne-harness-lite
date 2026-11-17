@@ -22,6 +22,7 @@ import {
   execution,
   ok,
   loadWithEntries,
+  operation,
   type LoadedWithEntries,
 } from './journal-support.ts'
 import { alice, eventually, invoke } from './loop-support.ts'
@@ -155,6 +156,56 @@ describe('tool action dispatch', () => {
 })
 
 describe('tool result round', () => {
+  it.each(['model-reply', 'tool-result'] as const)(
+    'rebuilds an uncommitted %s handoff after a concurrent output acknowledgement',
+    async kind => {
+      const assembly = await toolAssembly()
+      const journal = assembly.dependencies.journal
+      let injected = false
+      assembly.dependencies.journal = {
+        ...journal,
+        async commit(write) {
+          if (
+            !injected &&
+            write.handoff?.kind === 'prepare' &&
+            write.handoff.request.source.kind === kind
+          ) {
+            injected = true
+            const before = ok(await journal.load(input))
+            if (before.output.emittedThrough === null) throw new Error('an input event is required')
+            ok(
+              await journal.acknowledge({
+                ...input,
+                operation: operation('concurrent-ack'),
+                through: before.output.emittedThrough,
+                receipt: evidence('consumer'),
+              }),
+            )
+          }
+          return journal.commit(write)
+        },
+      }
+      acceptEach(assembly)
+      ok(await invoke(assembly))
+      await deliverToolSuggestion(assembly)
+      const [pending] = await associatedTools(assembly, 1)
+      if (pending === undefined) throw new Error('no associated Tool call')
+      expect(
+        await pushToolResult(
+          toolReceiver(assembly),
+          toolDelivery(pending, {
+            name: 'one',
+            content: [textBlock('result', 'blk_result_one')],
+            account: toolAccount(pending, '9'),
+          }),
+        ),
+      ).toHaveProperty('ok')
+      await secondModelCall(assembly)
+      expect(injected).toBe(true)
+      expect(toolMessages(await events(assembly))).toHaveLength(1)
+    },
+  )
+
   it('admits the received result as a tool message and sends the next model request', async () => {
     const assembly = await toolAssembly()
     acceptEach(assembly)

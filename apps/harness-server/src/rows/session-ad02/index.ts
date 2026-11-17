@@ -1,5 +1,6 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { createSessionJournalInterpretationPlugin } from '@omne-harness/session-adapters/cordis'
+import { agentJournalKey } from '@omne-harness/agent-cordis-contract/cordis'
 import {
   sessionKey,
   sessionTransactionsKey,
@@ -10,6 +11,7 @@ import { defineRow } from '../../row.ts'
 import { coordinatorPrincipalsOf } from '../session-adapters/coordinator.ts'
 
 const INJECTS = [
+  agentJournalKey,
   sessionWorkPrincipalsKey,
   sessionKey,
   sessionTransactionsKey,

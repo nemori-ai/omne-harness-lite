@@ -1,4 +1,5 @@
 import { commandScope } from './frontier.ts'
+import { compactionContextForView } from '@omne-harness/session-contract'
 import type { ToolRelease } from './result-release.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
@@ -473,6 +474,7 @@ export function createSessionTransactions<P>(
         ? null
         : { ...store.snapshot, ...(material === undefined ? {} : { historyIndex: material.index }) }
     const decision = decide(prepared, command, input.guards, null, {
+      ...(store === undefined ? {} : { compactionEpoch: `${key.ok}/${store.modelView.epoch}` }),
       ...(material === undefined ? {} : { history: material.reads }),
       compaction:
         command.kind === 'commitDerived' &&
@@ -754,6 +756,28 @@ export function createSessionTransactions<P>(
   }
 
   const history: SessionHistory<P> = {
+    readCompactionContext: async input => {
+      const store = await storeOf(input, 'history.readCompactionContext')
+      if ('failure' in store) return store
+      const key = keyOf(input.tenant, input.session)
+      if ('failure' in key) return key
+      const view = store.ok.modelView
+      const current = { epoch: `${key.ok}/${view.epoch}`, upper: String(view.rows.length) }
+      if (input.basis.epoch !== current.epoch) return succeed({ kind: 'epoch-changed', current })
+      const upper = Number(input.basis.upper)
+      if (!Number.isInteger(upper) || upper < 1 || upper > view.rows.length)
+        return fail({ kind: 'invalid', field: 'basis', reason: 'invalid model view bounds' })
+      const value = compactionContextForView(
+        store.ok.entries,
+        store.ok.snapshot,
+        view.rows,
+        upper,
+        input.coverTo,
+      )
+      return value === null
+        ? fail({ kind: 'invalid', field: 'coverTo', reason: 'outside the current window' })
+        : succeed({ kind: 'context', basis: input.basis, value })
+    },
     begin: async input => {
       const store = await storeOf(input, 'history.begin')
       if ('failure' in store) return store
@@ -879,6 +903,10 @@ export function createSessionTransactions<P>(
         ...store.ok.snapshot,
         ...(material === undefined ? {} : { historyIndex: material.index }),
       })
+    },
+    readCurrentScope: async input => {
+      const store = await storeOf(input, 'readCurrentScope')
+      return 'failure' in store ? store : succeed(store.ok.snapshot.contextScopes?.at(-1) ?? null)
     },
     readInput: async input => {
       const store = await storeOf(input, 'readInput')

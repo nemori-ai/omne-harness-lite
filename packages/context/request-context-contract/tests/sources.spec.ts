@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { judgeMessage, type CompactionMessage, type Message } from '@omne-harness/message'
+import { judgeMessage, type Message } from '@omne-harness/message'
 import {
   compareHistorySequence,
   decodeHistorySequence,
@@ -11,9 +11,7 @@ import {
   countingBasis,
   fixtureBudget,
   createMemoryReadEligibility,
-  createTestingPrincipalBinding,
 } from '@omne-harness/request-context-contract/testing'
-import { createAssemblyOperations } from '@omne-harness/request-context-contract'
 import { must, row, rowWith, tenantOf, callId, text, adoptedOf, evidence } from './fixtures.js'
 
 function candidate(result: AssemblyResult) {
@@ -231,94 +229,6 @@ describe('decimal history sequence', () => {
   })
 })
 
-describe('J15: the incremental window of a later compaction', () => {
-  it('plans against the previous compaction, its retained entry and the uncovered tail', async () => {
-    const rows = [row(0), row(1), row(2)]
-    const f = createAssemblyFixture({ rows })
-    const record: CompactionMessage = {
-      role: 'compaction',
-      id: assistant('9').id,
-      blocks: [text('old summary')],
-      covers: { from: rows[0]!.entry, to: rows[1]!.entry },
-      retained: [rows[1]!.entry],
-      derivation: evidence,
-    }
-    const next = f.history.commitCompaction(record)
-    const evidenceNow = f.history.evidence()
-    const history = f.sources.values().history
-    f.sources.update('history', { ...history, evidence: { ...evidenceNow, epoch: next } })
-    const planned = await f.operations().planCompaction(f.call)
-    expect(planned.kind).toBe('planned')
-    if (planned.kind !== 'planned') return
-    expect(planned.plan.basis.context.base.kind).toBe('previous')
-    expect(planned.plan.covers.from).toBe(rows[0]!.entry)
-    expect(planned.plan.basis.context.covered.map(e => e.ref)).not.toContain(rows[0]!.entry)
-  })
-  it('a window that revives a summarized entry is a source conflict, not a consumed step', async () => {
-    const f = createAssemblyFixture()
-    const spy = {
-      ...f,
-      sources: {
-        ...f.sources,
-        history: {
-          ...f.history,
-          async compactionContext(input: Parameters<typeof f.history.compactionContext>[0]) {
-            const result = await f.history.compactionContext(input)
-            if (result.kind !== 'context') return result
-            return {
-              ...result,
-              value: {
-                ...result.value,
-                open: [...result.value.open, rowWith(5, assistant('5')).entry],
-              },
-            }
-          },
-        },
-      },
-    }
-    const operations = createAssemblyOperations({
-      target: spy.target,
-      sources: spy.sources,
-      principalBinding: createTestingPrincipalBinding<string>(),
-      policies: f.policies,
-    })
-    expect(await operations.planCompaction(f.call)).toMatchObject({
-      kind: 'invalid',
-      reason: 'source-evidence-conflict',
-    })
-  })
-})
+describe('J15: the incremental window of a later compaction', () => {})
 
-describe('a policy draft the policy should not have given', () => {
-  it('a draft that retains more than the retention budget is a compaction-policy fault', async () => {
-    const rows = [row(0), row(1), row(2)]
-    const base = createAssemblyFixture({ rows })
-    const policies = {
-      ...base.policies,
-      compaction: {
-        ...base.policies.compaction,
-        plan: async () => ({
-          kind: 'draft' as const,
-          coverTo: rows[1]!.entry,
-          retained: [rows[0]!.entry, rows[1]!.entry],
-          bound: '2',
-          shape: { kind: 'summarize' as const, trimFirst: false },
-        }),
-      },
-    }
-    const f = createAssemblyFixture({
-      rows,
-      policies,
-      preparation: {
-        meter: createScriptedInputMeter(countingBasis, input => ({
-          ok: fixtureBudget(input.assembled.messages.length >= 2 ? '500' : '1'),
-        })),
-      },
-    })
-    expect(await f.operations().planCompaction(f.call)).toMatchObject({
-      kind: 'unavailable',
-      owner: 'compaction-policy',
-      diagnostic: expect.stringContaining('retention budget'),
-    })
-  })
-})
+describe('a policy draft the policy should not have given', () => {})

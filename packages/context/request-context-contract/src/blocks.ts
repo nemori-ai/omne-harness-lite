@@ -1,18 +1,10 @@
 import type { SuppliedBlockDescriptor } from '@omne-harness/runtime-context-contract'
 import type { Adoption, CandidateRef } from './refs.js'
 import { decodeCandidateRef } from './refs.js'
-import type { RetainBudget, CompactionPolicy } from './ports.js'
+import type { CompactionPolicy } from './ports.js'
 import { compactionPolicySchema } from './schema.js'
 import { standardSchema, record, integer, adoption, type Decoder } from './schema-primitives.js'
-export type CompactionSettingsValue = Readonly<{
-  policy: Adoption
-  retainBudget: RetainBudget
-  retainPreference: CompactionPolicy['retainPreference']
-  triggerPercent: string | null
-  headroomTokens: string | null
-  trimFirst: boolean
-  stepBound: string
-}>
+export type CompactionSettingsValue = CompactionPolicy & Readonly<{ policy: Adoption }>
 export type WindowUsageValue =
   | Readonly<{ kind: 'not-fixed' }>
   | Readonly<{ kind: 'unmeasured'; candidate: CandidateRef; windowTokens: string }>
@@ -30,8 +22,16 @@ declare module '@omne-harness/runtime-context-contract' {
   }
 }
 const decodeCompactionSettings: Decoder<CompactionSettingsValue> = (v, path) => {
-  const policy = compactionPolicySchema['~standard'].validate(v)
-  if (policy instanceof Promise || 'issues' in policy || !record(v) || !adoption(v.policy))
+  const policy = compactionPolicySchema['~standard'].validate(
+    record(v) ? { triggerPercent: v.triggerPercent, headroomTokens: v.headroomTokens } : v,
+  )
+  if (
+    policy instanceof Promise ||
+    'issues' in policy ||
+    !record(v) ||
+    !adoption(v.policy) ||
+    Object.keys(v).some(key => !['policy', 'triggerPercent', 'headroomTokens'].includes(key))
+  )
     return { ok: false, issues: [{ path, message: 'Invalid compaction settings' }] }
   return {
     ok: true,

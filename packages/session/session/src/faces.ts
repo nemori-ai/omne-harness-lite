@@ -74,6 +74,10 @@ export function createFaces<P>(
     listTodos: value => reads.session(caller, 'listTodos', value, view => listTodos(view, value)),
     accept: mutation('accept'),
     readWork: value => readSnapshotOf(reads, caller, 'readWork', value),
+    readCurrentScope: value =>
+      reads.session(caller, 'readCurrentScope', value, view =>
+        view.readCurrentScope(accessOf(value)),
+      ),
     readWaiting: value => readWaitingOf(reads, caller, value),
     readInput: value =>
       reads.session(caller, 'readInput', value, view =>
@@ -180,6 +184,14 @@ export function createFaces<P>(
             pageBytes: value.pageBytes,
           }),
         ),
+      ),
+    readCompactionContext: value =>
+      reads.session(caller, 'history.readCompactionContext', value, view =>
+        view.history.readCompactionContext({
+          ...accessOf(value),
+          basis: value.basis,
+          coverTo: value.coverTo,
+        }),
       ),
     readModelView: value =>
       reads.session(caller, 'history.readModelView', value, view =>

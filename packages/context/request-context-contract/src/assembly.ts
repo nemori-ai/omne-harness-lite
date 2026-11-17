@@ -10,6 +10,7 @@ import { measureLayers } from './assembly-budget.js'
 import { assemblyCoverage } from './assembly-coverage.js'
 import { assemblyOutcome } from './assembly-outcome.js'
 import { continuationFacts } from './model-input.js'
+import { triggerOf } from './budget.js'
 export async function assembleInputs<P>(
   input: AssemblyInput<P>,
   key: PreparedInputKey,
@@ -71,5 +72,14 @@ export async function assembleInputs<P>(
       continuation: facts,
     },
     measured.verdict,
+    [
+      {
+        metric: 'input-tokens',
+        relation: 'at-most',
+        limit: String(
+          triggerOf(input.selection.profile.definition.context, context.policies.compaction.config),
+        ),
+      },
+    ],
   )
 }

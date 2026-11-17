@@ -34,6 +34,7 @@ import type {
   FinishCandidateContent,
   HandoffChange,
   HandoffOutcome,
+  HandoffReference,
   InputBatch,
   InputHandoff,
   InvokeRuntimeContext,
@@ -53,6 +54,10 @@ import type {
   ReceivedEntry,
   ReplyAdmissionPrefix,
   ReplyAdmissionRead,
+  CompactionProviderBinding,
+  CompactionState,
+  CompactionOutcome,
+  ProducedResult,
 } from '@omne-harness/agent-contract'
 import type * as M from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -149,6 +154,7 @@ import {
 } from './tools.ts'
 import { contactMainCall } from './contact.ts'
 import { sameAuthority, sameRecipient } from './same.ts'
+import { beginCompaction, receiveCompaction, cancelCompaction } from './compaction.ts'
 import { contactToolCalls } from './tool-contact.ts'
 import { readToolDeliveryMaterial } from '../tool-receiving-material.ts'
 import type { ToolDelivery } from '@omne-harness/tool-contract'
@@ -169,12 +175,16 @@ export type LoopPorts<P> = Pick<
   | 'toolRequests'
   | 'admission'
   | 'cards'
+  | 'compaction'
+  | 'compactionInputs'
+  | 'received'
 >
 
 export type ExecutionEntry<P> = Readonly<{
   ports: LoopPorts<P>
   binding: AgentRuntimeBinding
   jointCommits?: AgentConfiguration['jointCommits']
+  compactionProvider: CompactionProviderBinding
   evaluator: AgentEvaluator
   access: Access<P>
   execution: AgentExecutionId
@@ -419,7 +429,7 @@ function recoveryCard(node: string): string {
 
 function recoveryTarget(node: string): Recovery {
   if (
-    /^[CX]/u.test(node) ||
+    node.startsWith('X') ||
     !LOOP_NODES.includes(node as LoopNode) ||
     ['E0', 'E1', 'E2', 'U0', 'Q1', 'R0', 'W0', 'F0', 'H0', 'M2', 'Q5'].includes(node)
   )
@@ -438,8 +448,6 @@ function batchRecovery(position: string, batch: ActionBatch): string {
 }
 
 function callRecovery(position: string, call: PendingCall): Recovery {
-  if (call.purpose === 'compaction')
-    return fail({ kind: 'unsupported', node: 'M1', card: '#502 stage 4' })
   if (call.purpose === 'action') return recoveryTarget('T0')
   if (call.purpose === 'extension') return recoveryTarget('X2')
   if (['M0', 'M6', 'M1', 'M3', 'M4', 'M5', 'I3'].includes(position)) return recoveryTarget(position)
@@ -448,13 +456,23 @@ function callRecovery(position: string, call: PendingCall): Recovery {
 }
 
 function preparationRecovery(at: AgentCheckpoint): Recovery | null {
+  if (at.requestPreparation?.kind === 'cannot-fit') return succeed('F1')
   if (at.compaction !== null) {
     const ended = at.compaction.ended
-    return recoveryTarget(ended === 'committed' ? 'I1' : ended === 'failed' ? 'F1' : 'C1')
+    return recoveryTarget(
+      ended === 'committed'
+        ? 'C4'
+        : ended === 'failed'
+          ? 'F1'
+          : at.currentHandoff !== null
+            ? 'C3'
+            : at.compaction.received !== null
+              ? 'C2'
+              : 'C1',
+    )
   }
   const prepared = at.requestPreparation
   if (prepared === null) return null
-  if (prepared.kind === 'cannot-fit') return succeed('F1')
   return recoveryTarget('C0')
 }
 
@@ -508,6 +526,9 @@ const DEPENDENCY_PORTS = [
   'handoff',
   'materials',
   'clock',
+  'compaction',
+  'compactionInputs',
+  'received',
 ] as const satisfies readonly Exclude<keyof LoopPorts<unknown>, 'toolRequests'>[]
 
 export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): ExecutionCoordinator {
@@ -611,7 +632,12 @@ function coordinate<P>(
     })
   }
 
-  async function commit(node: LoopNode, to: string, write: Write): Promise<Outcome<void, Failure>> {
+  async function commit(
+    node: LoopNode,
+    to: string,
+    proposal: Write | (() => Write),
+  ): Promise<Outcome<void, Failure>> {
+    const write = typeof proposal === 'function' ? proposal() : proposal
     const base = required(checkpoint, 'checkpoint')
     const after = required(revision, 'revision')
     const operation = write.operation ?? journalOperation(node, 'commit', after)
@@ -653,7 +679,7 @@ function coordinate<P>(
           return fail({ kind: 'stale-advance' })
         if (canonical(latest.ok.checkpoint) === canonical(base)) {
           revision = latest.ok.revision
-          return commit(node, to, write)
+          return commit(node, to, proposal)
         }
       }
       return committed
@@ -663,6 +689,39 @@ function coordinate<P>(
     checkpoint = next
     state = nextState
     return succeed(undefined)
+  }
+
+  async function saveHandoff(
+    node: LoopNode,
+    to: string,
+    value: Pick<PendingHandoff, 'position' | 'source' | 'candidate'>,
+    checkpointFor: (reference: HandoffReference) => Write['checkpoint'] = () => ({}),
+  ): Promise<Outcome<PendingHandoff, Failure>> {
+    let request: PendingHandoff | null = null
+    const saved = await commit(node, to, () => {
+      const predecessor = required(revision, 'revision')
+      const reference = {
+        kind: 'execution' as const,
+        execution,
+        operation: handoffOperation(value.source.kind, value.position, predecessor),
+      }
+      request = {
+        ...value,
+        kind: 'execution',
+        reference,
+        predecessor,
+        originalAdvance: required(authority, 'authority'),
+        predecessorHandoff: null,
+      }
+      return {
+        checkpoint: { ...checkpointFor(reference), currentHandoff: reference },
+        handoff: { kind: 'prepare', request },
+        operation: handoffStage(reference.operation, 'prepare'),
+      }
+    })
+    return 'failure' in saved
+      ? saved
+      : succeed(required<PendingHandoff>(request, 'saved handoff request'))
   }
 
   async function cancelledAdvance(failure: Failure): Promise<boolean> {
@@ -1156,28 +1215,14 @@ function coordinate<P>(
       if (existing?.request.kind === 'execution') {
         request = existing.request
       } else {
-        const predecessor = required(revision, 'revision')
         const position = replyPosition(current.step)
-        request = {
-          kind: 'execution',
-          reference: {
-            kind: 'execution',
-            execution,
-            operation: handoffOperation('model-reply', position, predecessor),
-          },
-          predecessor,
+        const prepared = await saveHandoff('Q1', 'Q2', {
           position,
           source: subject.source,
           candidate: subject.candidate,
-          originalAdvance: required(authority, 'authority'),
-          predecessorHandoff: null,
-        }
-        const prepared = await commit('Q1', 'Q2', {
-          checkpoint: { currentHandoff: request.reference },
-          handoff: { kind: 'prepare', request },
-          operation: handoffStage(request.reference.operation, 'prepare'),
         })
         if ('failure' in prepared) return prepared
+        request = prepared.ok
       }
       pendingHandoff = request
       const fixed = await prepareHandoff(request)
@@ -1529,7 +1574,16 @@ function coordinate<P>(
       if ('failure' in restored) return restored
       const result = restored.ok.result
       current.result = result
-      if (result.kind === 'interrupted') return step('partial', { checkpoint: { calls: [] } })
+      const caller: CallerCommit = (entry.jointCommits ?? []).includes('processed')
+        ? {
+            kind: 'processed',
+            result: result.produced,
+            consumption: required(current.pending, 'pending call').consumption,
+            completion: restored.ok.completion,
+          }
+        : { kind: 'none' }
+      if (result.kind === 'interrupted')
+        return step('partial', { checkpoint: { calls: [] }, caller })
       if (result.kind === 'unusable') {
         const retried = await retryModelCall(
           entry,
@@ -1541,7 +1595,10 @@ function coordinate<P>(
         if ('failure' in retried) return retried
         const lost = lostIntent(required(checkpoint, 'checkpoint'), current)
         if (retried.ok !== null)
-          return step('retry', { checkpoint: { calls: [], modelRetry: retried.ok, ...lost } })
+          return step('retry', {
+            checkpoint: { calls: [], modelRetry: retried.ok, ...lost },
+            caller,
+          })
         if (decided?.kind !== 'try-finish' || decided.failure?.kind !== 'no-reply') {
           const instant = await ports.clock.now()
           if ('failure' in instant) return instant
@@ -1572,7 +1629,7 @@ function coordinate<P>(
             failure,
           }
         }
-        return step('try-finish', null)
+        return step('try-finish', { caller })
       }
       const pending = required(current.pending, 'pending call')
       const call = invocationParts(pending.reference, access.tenant).call
@@ -1599,13 +1656,17 @@ function coordinate<P>(
         }
       }
       const decision = outcome.decision.kind
+      const processed =
+        caller.kind === 'processed' ? { ...caller, completion: outcome.record } : caller
       outcome = null
       candidate = null
       pendingHandoff = null
-      if (decision !== 'prepared') return step('rejected', { checkpoint: { calls: [] } })
+      if (decision !== 'prepared')
+        return step('rejected', { checkpoint: { calls: [] }, caller: processed })
       const retrying = (required(checkpoint, 'checkpoint').modelRetry ?? null) !== null
       return step('admitted', {
         checkpoint: { calls: [], ...(retrying ? { modelRetry: null } : {}) },
+        caller: processed,
       })
     },
     async I4() {
@@ -1953,31 +2014,10 @@ function coordinate<P>(
   ): Promise<Outcome<PendingHandoff, Failure>> {
     const candidate = await slotCandidate(action, slot)
     if ('failure' in candidate) return candidate
-    const predecessor = required(revision, 'revision')
     const position = { step: required(checkpoint, 'checkpoint').step, node: 'T5', slot: action.id }
-    const request: PendingHandoff = {
-      kind: 'execution',
-      reference: {
-        kind: 'execution',
-        execution,
-        operation: handoffOperation(source.kind, position, predecessor),
-      },
-      predecessor,
-      position,
-      source,
-      candidate: candidate.ok,
-      originalAdvance: required(authority, 'authority'),
-      predecessorHandoff: null,
-    }
-    const prepared = await commit('T5', 'T5', {
-      checkpoint: {
-        currentHandoff: request.reference,
-        batch: replaceSlot(batch, { ...slot, handoff: request.reference }),
-      },
-      handoff: { kind: 'prepare', request },
-      operation: handoffStage(request.reference.operation, 'prepare'),
-    })
-    return 'failure' in prepared ? prepared : succeed(request)
+    return saveHandoff('T5', 'T5', { position, source, candidate: candidate.ok }, reference => ({
+      batch: replaceSlot(batch, { ...slot, handoff: reference }),
+    }))
   }
 
   async function slotOutcome(
@@ -2026,18 +2066,24 @@ function coordinate<P>(
     })
   }
 
-  type SlotAdmission = 'admitted' | 'rejected' | 'wait'
+  type SlotAdmission =
+    | Readonly<{ kind: 'wait' }>
+    | Readonly<{ kind: 'admitted' | 'rejected'; completion: DurableEvidence }>
 
   function disposedSlot(
     existing: ExecutionSnapshot['handoffs'][number],
     source: InternalSource,
   ): Outcome<SlotAdmission, Failure> {
-    if (existing.history.kind === 'committed') return succeed('admitted')
     const recorded = recordedOutcome(existing.resolution)
+    if (existing.history.kind === 'committed')
+      return succeed({
+        kind: 'admitted',
+        completion: required(recorded ?? null, 'committed H outcome').record,
+      })
     if (recorded?.decision.kind !== 'rejected')
       return fail(notYet('T5', 'a retired tool message handoff', '#502 stage 5'))
     rejectedMessage = { source, evidence: recorded.decision.evidence }
-    return succeed('rejected')
+    return succeed({ kind: 'rejected', completion: recorded.record })
   }
 
   function slotHandoff(slot: ActionSlot): ExecutionSnapshot['handoffs'][number] | undefined {
@@ -2082,7 +2128,7 @@ function coordinate<P>(
     const request = prepared.ok
     const fixed = await slotOutcome(request, existing)
     if ('failure' in fixed) return fixed
-    return fixed.ok === 'wait' ? succeed('wait') : admitFixed(request, fixed.ok, source)
+    return fixed.ok === 'wait' ? succeed({ kind: 'wait' }) : admitFixed(request, fixed.ok, source)
   }
 
   async function admitFixed(
@@ -2092,9 +2138,26 @@ function coordinate<P>(
   ): Promise<Outcome<SlotAdmission, Failure>> {
     const applied = await applySlotMessage(request, fixed)
     if ('failure' in applied) return applied
-    if (fixed.decision.kind === 'prepared') return succeed('admitted')
+    if (fixed.decision.kind === 'prepared')
+      return succeed({ kind: 'admitted', completion: fixed.record })
     rejectedMessage = { source, evidence: fixed.decision.evidence }
-    return succeed('rejected')
+    return succeed({ kind: 'rejected', completion: fixed.record })
+  }
+
+  async function completeSlotProcessing(
+    action: Action,
+    completion: DurableEvidence,
+  ): Promise<Outcome<void, Failure>> {
+    const batch = currentBatch()
+    const slot = required(slotOf(batch, action.id) ?? null, 'admitted tool slot')
+    if (slot.kind !== 'result' || slot.completion !== null) return succeed(undefined)
+    const pending = required(toolCall(action), 'associated Tool call')
+    return commit('T5', 'T5', {
+      checkpoint: { batch: replaceSlot(batch, { ...slot, completion }) },
+      caller: (entry.jointCommits ?? []).includes('processed')
+        ? { kind: 'processed', result: slot.result, consumption: pending.consumption, completion }
+        : { kind: 'none' },
+    })
   }
 
   type RoundCards =
@@ -2382,6 +2445,7 @@ function coordinate<P>(
           result,
           terminal: delivery.terminal,
           custody: kept.material,
+          completion: null,
           each: null,
           candidateDigest: null,
           handoff: null,
@@ -2430,8 +2494,10 @@ function coordinate<P>(
       for (const action of currentBatch().actions) {
         const admitted = await admitSlot(action)
         if ('failure' in admitted) return admitted
-        if (admitted.ok === 'wait') return step('wait', null)
-        if (admitted.ok === 'rejected') return step('rejected', null)
+        if (admitted.ok.kind === 'wait') return step('wait', null)
+        const processed = await completeSlotProcessing(action, admitted.ok.completion)
+        if ('failure' in processed) return processed
+        if (admitted.ok.kind === 'rejected') return step('rejected', null)
       }
       return step('admitted')
     },
@@ -2534,10 +2600,7 @@ function coordinate<P>(
         },
       }
       if (prepared.ok.kind === 'needs-compaction') {
-        const saved = await commit('I1', 'I1', write)
-        return 'failure' in saved
-          ? saved
-          : fail(localFailure('unsupported-path', { kind: 'unsupported' as const }))
+        return step('compact', write)
       }
       return step(prepared.ok.kind === 'cannot-fit' ? 'try-finish' : 'prepared', write)
     },
@@ -2561,10 +2624,266 @@ function coordinate<P>(
         return prepared.failure.kind === 'unavailable'
           ? waitFor('P1', prepared.failure, prepareAgain)
           : prepared
+      if (prepared.ok.kind === 'needs-compaction') {
+        if (required(checkpoint, 'checkpoint').compaction !== null)
+          return fail(invalidCompaction('a preparation cannot start another compaction task'))
+        return step('compact', { checkpoint: { requestPreparation: prepared.ok } })
+      }
+      if (prepared.ok.kind === 'cannot-fit')
+        return step('try-finish', { checkpoint: { requestPreparation: prepared.ok } })
       if (prepared.ok.kind !== 'ready')
         return fail(notYet('P1', `a ${prepared.ok.kind} preparation`, '#502 1.5 and stage 4'))
       current.ready = prepared.ok
       return step('ready')
+    },
+  } satisfies Partial<Record<LoopNode, Handler>>
+
+  function invalidCompaction(reason: string): Failure {
+    return { kind: 'invalid', field: 'compaction', reason }
+  }
+
+  function originalCompaction() {
+    const original = required(checkpoint, 'checkpoint').requestPreparation
+    if (original?.kind !== 'needs-compaction')
+      throw new Error('compaction has no original preparation')
+    return original
+  }
+
+  function producedCompaction(task: CompactionState): ProducedResult {
+    const result = required(task.result, 'compaction result')
+    return {
+      producer: { kind: 'compaction', task: task.task },
+      version: result.version,
+      delivery: null,
+      source: result.evidence,
+    }
+  }
+
+  async function compactionMaterial(
+    task: CompactionState,
+  ): Promise<Outcome<CompactionOutcome, Failure>> {
+    const found = await ports.materials.read({
+      ...access,
+      source: required(task.received, 'compaction custody'),
+    })
+    if ('failure' in found) return found
+    return found.ok.kind === 'compaction' &&
+      canonical(found.ok.result) === canonical(producedCompaction(task))
+      ? succeed(found.ok.outcome)
+      : fail(invalidCompaction('received material does not match the task'))
+  }
+
+  async function failedCompaction(
+    task: CompactionState,
+    value: Exclude<CompactionOutcome, { kind: 'completed' }>,
+    handoff?: HandoffChange,
+  ): Promise<Outcome<Step, Failure>> {
+    const instant = await ports.clock.now()
+    if ('failure' in instant) return instant
+    const latest = await advancing()
+    if ('failure' in latest) return latest
+    const conditions = await ports.conditions.read({
+      ...access,
+      advance: required(authority, 'authority'),
+      previous: latest.ok.checkpoint.priorConditions,
+    })
+    if ('failure' in conditions) return conditions
+    const source = required(task.result, 'result').evidence
+    const common = { step: latest.ok.checkpoint.step, at: instant.ok, source, task: task.task }
+    const failure: FailureCandidate =
+      value.kind === 'cannot-fit'
+        ? {
+            ...common,
+            kind: 'cannot-fit',
+            reason: value.reason,
+            context: originalCompaction().source,
+          }
+        : {
+            ...common,
+            kind: 'compaction-failed',
+            reason: value.kind === 'failed' ? value.reason : 'cancelled',
+            diagnostic:
+              value.kind === 'failed' ? value.diagnostic : 'the compaction task was cancelled',
+          }
+    return step('try-finish', {
+      checkpoint: {
+        compaction: { ...task, ended: 'failed' },
+        ...(handoff === undefined ? {} : { currentHandoff: null }),
+      },
+      state: { kind: 'settling' },
+      ...(handoff === undefined ? {} : { handoff }),
+      finish: {
+        origin: latest.ok.history,
+        conclusion: { kind: 'fail', cause: source },
+        failure,
+        inputWatermark: latest.ok.inputWatermark,
+        conditions: conditions.ok.source,
+      },
+      caller: {
+        kind: 'processed',
+        result: producedCompaction(task),
+        consumption: task.consumption,
+        completion: source,
+      },
+    })
+  }
+
+  const compact = {
+    async C0() {
+      const task = await beginCompaction(ports.compactionInputs, {
+        ...access,
+        preparation: originalCompaction(),
+        provider: entry.compactionProvider,
+      })
+      if ('failure' in task) return task
+      return step('recorded', { checkpoint: { compaction: task.ok } })
+    },
+    async C1() {
+      const latest = await advancing()
+      if ('failure' in latest) return latest
+      const task = required(latest.ok.checkpoint.compaction, 'compaction task')
+      const received = await receiveCompaction(ports, {
+        ...access,
+        execution,
+        state: task,
+        preparation: originalCompaction().id,
+      })
+      if ('failure' in received) return received
+      if (received.ok.kind === 'pending')
+        return waitFor(
+          'C1',
+          {
+            kind: 'unavailable',
+            owner: task.task.authority,
+            diagnostic: 'compaction task is pending',
+          },
+          null,
+        )
+      return step('received', {
+        checkpoint: {
+          compaction: { ...task, result: received.ok.result, received: received.ok.received },
+        },
+      })
+    },
+    async C2() {
+      const latest = await advancing()
+      if ('failure' in latest) return latest
+      const task = required(latest.ok.checkpoint.compaction, 'compaction task')
+      const material = await compactionMaterial(task)
+      if ('failure' in material) return material
+      if (material.ok.kind !== 'completed') return failedCompaction(task, material.ok)
+      const assessed = await ports.requests.assessCompaction({
+        ...access,
+        advance: required(authority, 'authority'),
+        original: originalCompaction(),
+        task: task.task,
+        consumption: task.consumption,
+        result: required(task.result, 'result'),
+        received: required(task.received, 'received'),
+        message: material.ok.message,
+      })
+      if ('failure' in assessed) return assessed
+      if (assessed.ok.kind === 'cannot-fit')
+        return failedCompaction(task, {
+          kind: 'cannot-fit',
+          reason: 'after-compaction',
+          diagnostic: assessed.ok.diagnostic,
+        })
+      const position = { step: latest.ok.checkpoint.step, node: 'C3', slot: null }
+      const saved = await saveHandoff('C2', 'C3', {
+        position,
+        source: { kind: 'context-transition', transition: assessed.ok.value },
+        candidate: material.ok.message,
+      })
+      return 'failure' in saved ? saved : step('prepared', null)
+    },
+    async C3() {
+      const latest = await advancing()
+      if ('failure' in latest) return latest
+      const task = required(latest.ok.checkpoint.compaction, 'compaction task')
+      const record = latest.ok.handoffs.find(
+        item => canonical(item.handoff) === canonical(latest.ok.checkpoint.currentHandoff),
+      )
+      if (
+        record?.request.kind !== 'execution' ||
+        record.request.source.kind !== 'context-transition'
+      )
+        return fail(invalidCompaction('the original history handoff is missing'))
+      const request = record.request
+      const known = recordedOutcome(record.resolution)
+      const prepared = known === undefined ? await prepareHandoff(request) : succeed(known)
+      if ('failure' in prepared) return prepared
+      const fixed = prepared.ok
+      if (fixed.decision.kind === 'rejected')
+        return failedCompaction(
+          task,
+          { kind: 'failed', reason: 'invalid-output', diagnostic: fixed.decision.reason },
+          { kind: 'resolve', outcome: fixed },
+        )
+      if (canonical(fixed.decision.message) !== canonical(request.candidate))
+        return fail(invalidCompaction('a complete compaction message cannot be rewritten'))
+      if (!(entry.jointCommits ?? []).includes('context-transition'))
+        return fail(invalidCompaction('atomic context adoption is unavailable'))
+      return step('resolved', {
+        checkpoint: {
+          currentHandoff: null,
+          compaction: { ...task, ended: 'committed', transition: fixed.record },
+        },
+        handoff: { kind: 'resolve', outcome: fixed },
+        caller: historyCaller(entry.jointCommits ?? [], fixed),
+        events: [
+          { kind: 'message', message: fixed.decision.message, source: fixed.decision.admission },
+        ],
+        operation: handoffStage(request.reference.operation, 'resolve'),
+      })
+    },
+    async C4() {
+      const latest = await advancing()
+      if ('failure' in latest) return latest
+      const task = required(latest.ok.checkpoint.compaction, 'compaction task')
+      if (task.ended !== 'committed') return fail(invalidCompaction('history was not adopted'))
+      const restored = restoredIteration(latest.ok.checkpoint)
+      if ('failure' in restored) return restored
+      const current = restored.ok
+      const advance = required(authority, 'authority')
+      const conditions = await ports.conditions.read({
+        ...access,
+        advance,
+        previous: latest.ok.checkpoint.priorConditions,
+      })
+      if ('failure' in conditions) return conditions
+      const selected = await select(conditions.ok)
+      if ('failure' in selected) return selected
+      const context = await ports.modelContext.read({
+        ...access,
+        advance,
+        position: current.position,
+        recipient: selected.ok.recipient,
+        history: latest.ok.history,
+        adopted: null,
+        transition: required(task.transition, 'transition'),
+      })
+      if ('failure' in context) return context
+      const resumed = await ports.requests.resume({
+        ...access,
+        advance,
+        original: originalCompaction(),
+        transition: required(task.transition, 'transition'),
+        selection: selected.ok,
+        context: context.ok,
+      })
+      if ('failure' in resumed) return resumed
+      current.conditions = conditions.ok
+      current.selected = selected.ok
+      current.context = context.ok
+      current.preparation = resumed.ok
+      if (resumed.ok.kind === 'ready') {
+        current.ready = resumed.ok
+        return step('ready')
+      }
+      return resumed.ok.kind === 'cannot-fit'
+        ? step('try-finish', { checkpoint: { requestPreparation: resumed.ok } })
+        : step('prepared')
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
@@ -2710,6 +3029,8 @@ function coordinate<P>(
         checkpoint: {
           calls: [pending],
           adoptedContext: ready.coverage,
+          requestPreparation: null,
+          compaction: null,
           ...adoptedRequestOf(pending, ready),
         },
         effects: [{ action: current.action, pending, authority: required(authority, 'authority') }],
@@ -3145,6 +3466,17 @@ function coordinate<P>(
       if (control === undefined) return fail(defect('F0 without effective cancellation'))
       const revoked = await establishCancellation(journalAt('F0'), access, execution, control)
       if ('failure' in revoked) return revoked
+      const task = read.ok.checkpoint.compaction
+      if (task !== null && task.ended === null) {
+        const cancelled = await cancelCompaction(ports, {
+          ...access,
+          execution,
+          state: task,
+          preparation: originalCompaction().id,
+          completion: control.stages.accepted.source,
+        })
+        if ('failure' in cancelled) return cancelled
+      }
       for (const pending of read.ok.checkpoint.calls) {
         const interrupted = await interruptForCancel(control, pending)
         if ('failure' in interrupted) return interrupted
@@ -3324,6 +3656,7 @@ function coordinate<P>(
     ...runIter,
     ...runTools,
     ...prepareRequest,
+    ...compact,
     ...callModel,
     ...settle,
   }

@@ -59,6 +59,7 @@ const unimplemented = (): Promise<Result<never>> => Promise.resolve(fail(UNAVAIL
 
 const UNIMPLEMENTED_WORK = {
   readWork: unimplemented,
+  readCurrentScope: unimplemented,
   readWaiting: unimplemented,
   readInput: unimplemented,
   startRun: unimplemented,
@@ -472,6 +473,7 @@ export function createSessionProviderFaces(
 
     since: unimplemented,
     readModelView: unimplemented,
+    readCompactionContext: unimplemented,
   }
 
   return {

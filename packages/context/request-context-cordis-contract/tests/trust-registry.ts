@@ -191,8 +191,6 @@ export function createReferenceRegistry(
         }
       return {
         assemble: borrow(o => o.assemble),
-        planCompaction: borrow(o => o.planCompaction),
-        deriveStep: borrow(o => o.deriveStep),
         resume: borrow(o => o.resume),
       } as unknown as AssemblyOperations<string>
     },

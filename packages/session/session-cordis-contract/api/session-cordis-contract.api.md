@@ -24,6 +24,7 @@
 - `ClockSample` · 包 `@omne-harness/session-contract`
 - `CommitReceipt` · 包 `@omne-harness/session-contract`
 - `CommittedBatch` · 包 `@omne-harness/session-contract`
+- `CompactionContextRead` · 包 `@omne-harness/session-contract`
 - `Completion` · 包 `@omne-harness/session-contract`
 - `CompletionJudgment` · 包 `@omne-harness/session-contract`
 - `ConsumerRef` · 包 `@omne-harness/exchange-refs`
@@ -241,6 +242,8 @@
 - `WorkspaceAttachment` · 包 `@omne-harness/session-contract`
 - `batchEvidence` · 包 `@omne-harness/session-contract`
 - `commandDigest` · 包 `@omne-harness/session-contract`
+- `compactionCallChangeOf` · 包 `@omne-harness/session-contract`
+- `compactionContextForView` · 包 `@omne-harness/session-contract`
 - `contextScopeOf` · 包 `@omne-harness/session-contract`
 - `contextScopesOf` · 包 `@omne-harness/session-contract`
 - `decide` · 包 `@omne-harness/session-contract`
@@ -271,6 +274,7 @@
 - `readRunBoundary` · 包 `@omne-harness/session-contract`
 - `rebuildSessionPermissions` · 包 `@omne-harness/session-contract`
 - `reduce` · 包 `@omne-harness/session-contract`
+- `requiredWorkEntries` · 包 `@omne-harness/session-contract`
 - `resolveCascade` · 包 `@omne-harness/session-contract`
 - `resolveControlScope` · 包 `@omne-harness/session-contract`
 - `resolveOperation` · 包 `@omne-harness/session-contract`
@@ -446,6 +450,7 @@ export declare abstract class SessionTransactionPortService<P = unknown> extends
     constructor(ctx: Context);
     abstract readonly commit: SessionTransactionPort<P>['commit'];
     abstract readonly readWork: SessionTransactionPort<P>['readWork'];
+    abstract readonly readCurrentScope: SessionTransactionPort<P>['readCurrentScope'];
     abstract readonly readInput: SessionTransactionPort<P>['readInput'];
     abstract readonly queryOperation: SessionTransactionPort<P>['queryOperation'];
     abstract readonly queryControlOperation: SessionTransactionPort<P>['queryControlOperation'];

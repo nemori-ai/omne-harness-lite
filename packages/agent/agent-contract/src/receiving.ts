@@ -1,3 +1,4 @@
+import type { CompactionTaskIdentity, CompactionResultIdentity } from './compaction.ts'
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type * as M from '@omne-harness/model-contract'
@@ -25,6 +26,14 @@ export type StartFenceEntry = Readonly<{
 }>
 
 export type ReceivedDelivery =
+  | Readonly<{
+      producer: 'compaction'
+      key: Readonly<{
+        kind: 'result'
+        task: CompactionTaskIdentity
+        result: CompactionResultIdentity
+      }>
+    }>
   | Readonly<{
       producer: 'model'
       key: Extract<M.ModelDeliveryKey, { kind: 'result' }>

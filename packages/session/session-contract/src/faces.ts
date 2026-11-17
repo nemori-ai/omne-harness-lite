@@ -1,7 +1,8 @@
+import type { ContextScopeBinding } from './values.ts'
 import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { Message } from '@omne-harness/message'
+import type { CompactionContext, Message, RecordEntryRef } from '@omne-harness/message'
 import type { Outcome } from '@omne-harness/operation-result'
 import type {
   Adoption,
@@ -126,6 +127,7 @@ export interface SessionWork<P> {
   ): Reply<TodoPage>
   accept(input: Mutation<P> & Readonly<{ value: RoutedInput }>): Reply<CommitReceipt>
   readWork(input: SessionAccess<P>): Reply<WorkSnapshot>
+  readCurrentScope(input: SessionAccess<P>): Reply<ContextScopeBinding | null>
   readWaiting(input: SessionAccess<P>): Reply<SessionWaiting | null>
   readInput(
     input: SessionAccess<P> & Readonly<{ input: InputId }>,
@@ -381,7 +383,13 @@ export type ModelViewRead =
       next: string | null
     }>
   | Readonly<{ kind: 'epoch-changed'; current: ModelViewBasis }>
+export type CompactionContextRead =
+  | Readonly<{ kind: 'context'; value: CompactionContext; basis: ModelViewBasis }>
+  | Readonly<{ kind: 'epoch-changed'; current: ModelViewBasis }>
 export interface SessionHistory<P> {
+  readCompactionContext(
+    input: SessionAccess<P> & Readonly<{ basis: ModelViewBasis; coverTo: RecordEntryRef | null }>,
+  ): Reply<CompactionContextRead>
   begin(
     input: SessionAccess<P> &
       Readonly<{

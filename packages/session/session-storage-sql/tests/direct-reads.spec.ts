@@ -46,9 +46,12 @@ describe('only the work cache reads the Session current state from the store', (
     expect(filesNaming('(^|[^[:alnum:]_])sl_state([^[:alnum:]_]|$)')).toEqual([
       `${PACKAGE}/materials.ts`,
       `${PACKAGE}/worker/check.ts`,
+      `${PACKAGE}/worker/compaction-command.ts`,
+      `${PACKAGE}/worker/current-advance.ts`,
       `${PACKAGE}/worker/entries.ts`,
       `${PACKAGE}/worker/log.ts`,
       `${PACKAGE}/worker/participant.ts`,
+      `${PACKAGE}/worker/read-current-scope.ts`,
       `${PACKAGE}/worker/read-model-selection.ts`,
       `${PACKAGE}/worker/run-live-guard.ts`,
       `${PACKAGE}/worker/schema.ts`,

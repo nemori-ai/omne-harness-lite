@@ -175,35 +175,6 @@ export async function readOpenExecutions(read: Reader, scope: Scope): Promise<Op
   return unread('the open executions of the session kept changing while they were read')
 }
 
-export async function readColdStart(read: Reader, scope: Scope) {
-  const open = await readOpenExecutions(read, scope)
-  if (open.kind === 'unavailable') return open
-  const batches = new Map<number, ReadBatch>()
-  for (const execution of open.executions) {
-    const found = await readBatches(read, scope, 0, execution)
-    if (found.kind === 'unavailable') return found
-    for (const batch of found.batches) {
-      const known = batches.get(batch.pub)
-      batches.set(
-        batch.pub,
-        known === undefined
-          ? batch
-          : {
-              pub: batch.pub,
-              batch: known.batch ?? batch.batch,
-              events: [...known.events, ...batch.events],
-            },
-      )
-    }
-  }
-  return {
-    kind: 'read' as const,
-    published: open.published,
-    executions: open.executions,
-    batches: [...batches.values()].sort((left, right) => left.pub - right.pub),
-  }
-}
-
 export type EventsRead =
   | Readonly<{
       kind: 'read'
@@ -221,6 +192,7 @@ export async function readEvents(
   scope: Scope,
   execution: string,
   after: string,
+  limit?: number,
 ): Promise<EventsRead> {
   const unread = (diagnostic: string): EventsRead => ({ kind: 'unavailable', diagnostic })
   for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
@@ -235,6 +207,7 @@ export async function readEvents(
         session: scope.session,
         execution,
         after: from,
+        ...(limit === undefined ? {} : { limit: Math.min(64, limit - events.length) }),
       })
       if (output.kind === 'unread')
         return unread(`the events of the execution are not readable: ${output.reason}`)
@@ -259,9 +232,9 @@ export async function readEvents(
           return unread(`the events of the execution have a gap at sequence ${expected}`)
         events.push(event)
       }
-      if (page.next === null) {
+      if (page.next === null || (limit !== undefined && events.length >= limit)) {
         const through = BigInt(after) + BigInt(events.length)
-        if (through < BigInt(head.emittedThrough))
+        if (through < BigInt(head.emittedThrough) && (limit === undefined || events.length < limit))
           return unread(
             `the events of the execution end at sequence ${String(through)}, before ${head.emittedThrough}`,
           )

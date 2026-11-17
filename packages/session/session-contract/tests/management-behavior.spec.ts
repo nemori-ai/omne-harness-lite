@@ -356,6 +356,16 @@ describe('management and derived history behavior', () => {
         derivation: evidence(name),
       })
       if (!('ok' in candidate) || candidate.ok.role !== 'compaction') throw new Error('bad message')
+      const current = succeeded(
+        await s.port.history.readModelView({
+          ...s.access,
+          basis: null,
+          after: null,
+          pageBytes: 10000,
+        }),
+        'current view',
+      )
+      if (current.kind !== 'page') throw new Error('current page missing')
       return succeeded(
         await s.commit({
           kind: 'commitDerived',
@@ -364,7 +374,7 @@ describe('management and derived history behavior', () => {
             operation: operationId(name),
             participation: participation(run.execution.execution, 'context-transition'),
             judgment: evidence(name),
-            value: { kind: 'compaction', message: candidate.ok },
+            value: { kind: 'compaction', message: candidate.ok, epoch: current.basis.epoch },
           },
         }),
         'compact',

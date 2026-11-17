@@ -168,20 +168,21 @@ function foldInputAccepted(
   pub: number,
   revision: number,
 ): void {
-  if (!draft.inputs.some(item => item.input === fact.input))
-    draft.inputs = [
-      ...draft.inputs,
-      {
-        input: fact.input,
-        entry: fact.entry,
-        message: fact.message,
-        source: fact.source,
-        priority: fact.priority,
-        watermark: fact.watermark,
-        pub,
-        revision,
-      },
-    ]
+  if (draft.inputs.some(item => item.input === fact.input)) return
+  draft.summary = { ...draft.summary, inputs: draft.summary.inputs + 1 }
+  draft.inputs = [
+    ...draft.inputs,
+    {
+      input: fact.input,
+      entry: fact.entry,
+      message: fact.message,
+      source: fact.source,
+      priority: fact.priority,
+      watermark: fact.watermark,
+      pub,
+      revision,
+    },
+  ]
 }
 
 function foldRequestAdopted(draft: Draft, fact: FactOf<'request.adopted'>, pub: number): void {
@@ -198,6 +199,7 @@ function foldRequestAdopted(draft: Draft, fact: FactOf<'request.adopted'>, pub: 
   }
   draft.requests = [...draft.requests, request]
   draft.adopted = request
+  draft.summary = { ...draft.summary, requests: draft.summary.requests + 1 }
 }
 
 function foldCallIntended(draft: Draft, fact: FactOf<'call.intended'>, pub: number): void {
@@ -265,21 +267,32 @@ function foldReplyJudged(
   pub: number,
   revision: number,
 ): void {
-  if (!draft.admissions.some(item => item.sequence === fact.sequence))
-    draft.admissions = [
-      ...draft.admissions,
-      {
-        sequence: fact.sequence,
-        fact: fact.fact,
-        basis: fact.basis,
-        publication: fact.publication,
-        message: fact.message,
-        source: fact.source,
-        history: fact.history,
-        pub,
-        revision,
-      },
-    ]
+  if (draft.admissions.some(item => item.sequence === fact.sequence)) return
+  if (fact.sequence > draft.summary.sequence)
+    draft.summary = {
+      ...draft.summary,
+      sequence: fact.sequence,
+      admissionBasis: fact.basis,
+      totalDenials: draft.summary.totalDenials + (fact.fact.decision === 'rejected' ? 1 : 0),
+      consecutiveDenials:
+        fact.fact.decision === 'rejected' ? draft.summary.consecutiveDenials + 1 : 0,
+      lastAdmission:
+        fact.fact.decision === 'admitted' ? fact.fact.source : draft.summary.lastAdmission,
+    }
+  draft.admissions = [
+    ...draft.admissions,
+    {
+      sequence: fact.sequence,
+      fact: fact.fact,
+      basis: fact.basis,
+      publication: fact.publication,
+      message: fact.message,
+      source: fact.source,
+      history: fact.history,
+      pub,
+      revision,
+    },
+  ]
 }
 
 function foldHandoffPrepared(draft: Draft, fact: FactOf<'handoff.prepared'>, pub: number): void {
@@ -415,11 +428,12 @@ function foldControlStage(draft: Draft, fact: FactOf<'control.stage'>, pub: numb
     -readonly [K in ControlStage]?: Readonly<{
       state: 'reached' | 'unresolved'
       source: DurableEvidence
+      pub: number
     }>
   } = { ...known?.stages }
   const current = stages[fact.stage]
   if (current === undefined || (current.state === 'unresolved' && fact.state === 'reached'))
-    stages[fact.stage] = { state: fact.state, source: fact.source }
+    stages[fact.stage] = { state: fact.state, source: fact.source, pub }
   draft.controls.set(fact.control, {
     control: fact.control,
     command: known?.command ?? fact.command,
@@ -578,10 +592,16 @@ function foldObservationRecorded(
     draft.observations = [...draft.observations, { ...fact, pub }]
 }
 
-function foldAckThrough(draft: Draft, fact: FactOf<'ack.through'>, revision: number): void {
+function foldAckThrough(
+  draft: Draft,
+  fact: FactOf<'ack.through'>,
+  revision: number,
+  pub: number,
+): void {
   if (fact.sequence > draft.acknowledged) {
     draft.acknowledged = fact.sequence
     draft.acknowledgedAt = revision
+    draft.acknowledgedPublication = pub
   }
 }
 
@@ -734,7 +754,7 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
       foldObservationRecorded(draft, fact, pub)
       break
     case 'ack.through':
-      foldAckThrough(draft, fact, revision)
+      foldAckThrough(draft, fact, revision, pub)
       break
     case 'op.recognized':
       break
@@ -755,11 +775,12 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
       return _exhaustive
     }
   }
-  if (event !== null)
+  if (event !== null) {
+    draft.emitted += 1
     draft.events = [
       ...draft.events,
       {
-        eseq: draft.events.length + 1,
+        eseq: draft.emitted,
         kind: event,
         pub,
         ord,
@@ -768,6 +789,7 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
         fact,
       },
     ]
+  }
 }
 
 export function fold(view: SessionJournalView, batch: PublishedBatch): SessionJournalView {

@@ -7,6 +7,8 @@ import {
 } from '@omne-harness/session-contract'
 import type { SessionState } from './root.ts'
 import { digestOf, rowData, canonical } from './session-values.ts'
+export type GrantIdentity = Pick<SessionAttemptRecord, 'execution' | 'attempt'> &
+  Readonly<{ grant: DurableEvidence }>
 export type RunSource = Readonly<{
   run: RunId
   execution: string
@@ -29,6 +31,7 @@ export type SessionSources = Readonly<{
   attemptsByExecution: ReadonlyMap<string, readonly SessionAttemptRecord[]>
   runsByRun: ReadonlyMap<string, RunSource>
   grants: ReadonlyMap<string, SessionAttemptRecord>
+  grantIdentities: ReadonlyMap<string, GrantIdentity>
   grantByAttempt: ReadonlyMap<string, DurableEvidence>
   takenByExecution: ReadonlyMap<string, readonly SessionTakenRecord[]>
   cursors: ReadonlyMap<string, Readonly<{ through: string; commit: DurableEvidence }>>
@@ -44,11 +47,25 @@ export const emptySessionSources = (): SessionSources => ({
   attemptsByExecution: new Map(),
   runsByRun: new Map(),
   grants: new Map(),
+  grantIdentities: new Map(),
   grantByAttempt: new Map(),
   takenByExecution: new Map(),
   cursors: new Map(),
   taken: [],
 })
+export function withGrantIdentity(
+  previous: SessionSources,
+  identity: GrantIdentity,
+): SessionSources {
+  const key = canonical(identity.grant)
+  const known = previous.grantIdentities.get(key) ?? previous.grants.get(key)
+  if (
+    known !== undefined &&
+    (known.execution !== identity.execution || known.attempt !== identity.attempt)
+  )
+    throw new TypeError('a Session grant identifies another original attempt')
+  return { ...previous, grantIdentities: new Map(previous.grantIdentities).set(key, identity) }
+}
 export function withAttemptRecords(
   previous: SessionSources,
   records: readonly SessionAttemptRecord[],
@@ -199,6 +216,7 @@ export function indexSession(
     runsByRun,
     grants,
     grantByAttempt,
+    grantIdentities: previous.grantIdentities,
     takenByExecution,
     cursors,
     taken,

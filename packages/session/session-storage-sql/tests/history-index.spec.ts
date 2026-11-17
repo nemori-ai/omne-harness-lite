@@ -325,6 +325,7 @@ describe('the Agent rows of a decision in its own transaction', () => {
           operation: 'aop_joint_log',
           digest: 'sha256:joint-log',
           blobs: [],
+          current: [],
           boundaries: [
             {
               execution: run.execution,

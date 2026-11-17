@@ -100,7 +100,7 @@ it('the judgment window names its origin, its base and the windowed entries', ()
     }>
   >()
   expectTypeOf<CompactionBase>().toEqualTypeOf<
-    | Readonly<{ kind: 'initial' }>
+    | Readonly<{ kind: 'initial'; pairings: readonly PairingWitness[] }>
     | Readonly<{ kind: 'previous'; record: RecordEntryRef; pairings: readonly PairingWitness[] }>
   >()
   expectTypeOf<PairingWitness>().toEqualTypeOf<

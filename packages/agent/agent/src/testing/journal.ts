@@ -405,11 +405,7 @@ function copy<T>(value: T): T {
 }
 
 function sameResult(left: ResultResponsibility['result'], right: ResultResponsibility['result']) {
-  return (
-    left.producer.kind === right.producer.kind &&
-    left.producer.call === right.producer.call &&
-    left.version === right.version
-  )
+  return canonical(left.producer) === canonical(right.producer) && left.version === right.version
 }
 
 type ToolControlRecord = Extract<ControlRecord, { toolInvocation: ToolInvocationRef }>
@@ -2408,6 +2404,60 @@ export function createMemoryAgentJournal<P>(
         if (readFailure !== undefined) return answer(fail(readFailure))
         const handoffChange = handoffWrite(execution, input)
         if ('failure' in handoffChange) return answer(handoffChange)
+        const caller = input.caller
+        const adopted = caller.kind === 'context-transition' ? caller.value : null
+        const consumed =
+          caller.kind === 'processed' && caller.result.producer.kind === 'compaction'
+            ? caller
+            : adopted === null
+              ? null
+              : {
+                  result: {
+                    producer: { kind: 'compaction' as const, task: adopted.task },
+                    version: adopted.result.version,
+                    delivery: null,
+                    source: adopted.result.evidence,
+                  },
+                  consumption: adopted.consumption,
+                }
+        const resultIndex =
+          consumed === null
+            ? -1
+            : execution.results.findIndex(
+                item =>
+                  sameValue(item.result, consumed.result) &&
+                  item.consumption === consumed.consumption,
+              )
+        const responsibility = execution.results[resultIndex]
+        if (consumed !== null && responsibility === undefined)
+          return answer(
+            fail(invalid('caller', 'the result has no durable consumer responsibility')),
+          )
+        if (adopted !== null) {
+          const task = execution.checkpoint.compaction
+          if (
+            task === null ||
+            !sameValue(task.task, adopted.task) ||
+            task.consumption !== adopted.consumption ||
+            !sameValue(task.result, adopted.result) ||
+            !sameValue(task.received, adopted.received) ||
+            !sameValue(responsibility?.custody, adopted.received) ||
+            execution.checkpoint.requestPreparation?.id !== adopted.preparation ||
+            responsibility?.completion !== null
+          )
+            return answer(
+              fail(
+                invalid('caller', 'the compaction result is not the current unprocessed result'),
+              ),
+            )
+        }
+        if (
+          consumed !== null &&
+          caller.kind === 'processed' &&
+          responsibility?.completion !== null &&
+          !sameValue(responsibility?.completion, caller.completion)
+        )
+          return answer(fail(conflict(input.operation)))
         if (input.caller.kind !== 'none') {
           const refused = participation<CommandReceipt>(input.caller.kind, () =>
             answer(fail({ kind: 'changed' })),
@@ -2438,7 +2488,6 @@ export function createMemoryAgentJournal<P>(
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'commit', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
-        const caller = input.caller
         return {
           kind: 'write',
           value: receipt,
@@ -2446,6 +2495,20 @@ export function createMemoryAgentJournal<P>(
           apply: () => {
             handoffChange.ok(revision, evidence)
             execution.checkpoint = copy(input.checkpoint)
+            if (consumed !== null && responsibility !== undefined) {
+              execution.results[resultIndex] = {
+                ...responsibility,
+                completion: caller.kind === 'processed' ? copy(caller.completion) : evidence,
+              }
+              execution.resultRevisions.set(
+                semanticKey('responsibility', [
+                  consumed.result.producer,
+                  consumed.result.version,
+                  consumed.consumption,
+                ]),
+                revision,
+              )
+            }
             receiving.remember(execution, input.authority.instance)
             execution.state = copy(input.state)
             for (const effect of input.effects) {

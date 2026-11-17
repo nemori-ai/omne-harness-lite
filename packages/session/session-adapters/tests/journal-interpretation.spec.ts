@@ -141,7 +141,16 @@ async function readThrough(s: SqlScene): Promise<string> {
 const settle = () => new Promise<void>(resolve => setTimeout(resolve, 50))
 
 async function reaches(s: SqlScene, through: string) {
-  await vi.waitFor(async () => expect(await readThrough(s)).toBe(through), { timeout: 5000 })
+  await vi.waitFor(
+    async () => {
+      expect(await readThrough(s)).toBe(through)
+      const loaded = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
+      expect(BigInt(loaded.output.acknowledgedThrough ?? '0')).toBeGreaterThanOrEqual(
+        BigInt(through),
+      )
+    },
+    { timeout: 5000 },
+  )
 }
 
 async function submitted(s: SqlScene, journal: AgentJournal<string>, label: string) {
@@ -254,6 +263,57 @@ function logOperations(s: SqlScene): string[] {
 }
 
 describe('an Agent publication is interpreted after its event', () => {
+  it('returns the durably interpreted prefix to Agent without another event', async () => {
+    const f = await interpreted('ad02-ack-recovery', { plugin: 'later' })
+    const journal = f.c.journal()
+    await started(f.s, journal)
+    await f.mountPlugin()
+    ok(await f.interpretation.interpret(f.target))
+    const progress = await readThrough(f.s)
+    const loaded = ok(await journal.load({ ...f.s.access, execution: f.s.execution }))
+    expect(progress).toBe('1')
+    expect(loaded.output.acknowledgedThrough).toBe(progress)
+    const revision = loaded.revision
+    ok(await f.interpretation.interpret(f.target))
+    expect(ok(await journal.load({ ...f.s.access, execution: f.s.execution })).revision).toBe(
+      revision,
+    )
+  })
+
+  it.each([false, true])(
+    'recovers a lost output acknowledgement after remount (applied=%s)',
+    async applied => {
+      const f = await interpreted(`ad02-ack-lost-${applied}`, { plugin: 'later' })
+      const journal = f.c.journal()
+      await started(f.s, journal)
+      const original = journal.acknowledge.bind(journal)
+      const sent: Parameters<typeof original>[0][] = []
+      const spy = vi.spyOn(journal, 'acknowledge').mockImplementation(async input => {
+        sent.push(input)
+        if (applied) ok(await original(input))
+        return fail({ kind: 'commit-unknown', operation: input.operation })
+      })
+      const fiber = await f.mountPlugin()
+      expect(await f.interpretation.interpret(f.target)).toMatchObject({
+        failure: { kind: 'unavailable' },
+      })
+      expect(await readThrough(f.s)).toBe('1')
+      await fiber.dispose()
+      spy.mockRestore()
+      const retry = vi.spyOn(journal, 'acknowledge')
+      await f.mountPlugin()
+      ok(await f.interpretation.interpret(f.target))
+      expect(
+        ok(await journal.load({ ...f.s.access, execution: f.s.execution })).output
+          .acknowledgedThrough,
+      ).toBe('1')
+      if (applied) expect(retry).not.toHaveBeenCalled()
+      else expect(retry.mock.calls[0]?.[0]).toEqual(sent[0])
+      expect(logOperations(f.s)).toHaveLength(1)
+      retry.mockRestore()
+    },
+  )
+
   it('the take publishes input-taken; the plugin commits it and the Session command that reads the history passes', async () => {
     const f = await interpreted('ad02-open')
     const journal = f.c.journal()
@@ -445,6 +505,7 @@ describe('a step that took no input', () => {
     const f = await interpreted('ad02-empty-rebuilt')
     const journal = f.c.journal()
     await started(f.s, journal)
+    await reaches(f.s, '1')
     await takeNothing(f.s, journal, 'take-nothing')
     await committed(f.s, f.s.view.journal, 'other-writer', [
       { kind: 'message', message: assistantMessage('other'), source: evidence('other-writer') },
@@ -628,7 +689,8 @@ describe('the backoff of the event queue and its one retry per execution (#1216 
     await publish()
     await reaches(f.s, '1')
     f.script.push(rollback)
-    await round(f.s, f.c.journal(), 1)
+    const waits = [dependency('one-retry')]
+    await committed(f.s, f.c.journal(), 'one-retry-wait', [{ kind: 'waiting', waits }], waits)
     await vi.waitFor(() => expect(f.sent).toHaveLength(5), { timeout: 5000 })
     await settle()
     expect(retries(f.logged)).toHaveLength(2)
@@ -674,7 +736,12 @@ describe('the backoff of the event queue and its one retry per execution (#1216 
     await reaches(f.s, '1')
     expect(f.logged).toHaveLength(1)
     f.heads.undecided = true
-    await round(f.s, f.c.journal(), 1)
+    await committed(f.s, f.c.journal(), 'undecided-message', [
+      { kind: 'message', message: assistantMessage('undecided'), source: evidence('undecided') },
+    ])
+    await vi.waitFor(() => expect(f.logged).toHaveLength(2), { timeout: 5000 })
+    const waits = [dependency('undecided')]
+    await committed(f.s, f.c.journal(), 'undecided-wait', [{ kind: 'waiting', waits }], waits)
     await vi.waitFor(() => expect(f.logged).toHaveLength(3), { timeout: 5000 })
     expect(f.logged.slice(1)).toEqual([
       `1 events of ${f.s.execution} have no decided consequences`,

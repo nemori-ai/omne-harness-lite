@@ -18,6 +18,6 @@ it('requires the execution of every preserve: the legacy input without it is gon
 it('describes a material by its source alone, without its content', () => {
   expectTypeOf<Parameters<Port['describe']>[0]['source']>().toEqualTypeOf<DurableEvidence>()
   expectTypeOf<MaterialDescription>().toEqualTypeOf<
-    Readonly<{ digest: string; size: number; kind: 'model' | 'tool' | 'facts' }>
+    Readonly<{ digest: string; size: number; kind: 'model' | 'tool' | 'facts' | 'compaction' }>
   >()
 })

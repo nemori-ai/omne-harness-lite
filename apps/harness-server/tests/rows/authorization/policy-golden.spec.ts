@@ -51,6 +51,7 @@ const SESSION_GOLDEN = {
   freeze: WORK_ONLY,
   receive: [D, M, 'matrix scope-release-receive [fact scope-release]'],
   readWork: WORK_ONLY,
+  readCurrentScope: WORK_ONLY,
   readWaiting: [M, D, D],
   readInput: WORK_ONLY,
   queryOperation: BOTH,
@@ -62,6 +63,7 @@ const SESSION_GOLDEN = {
   'history.next': BOTH,
   'history.since': BOTH,
   'history.readModelView': WORK_ONLY,
+  'history.readCompactionContext': WORK_ONLY,
   pending: [D, M, 'matrix pending-sessions'],
   'directory.list': [M, D, D],
   references: [D, D, 'matrix resident-references'],
@@ -90,11 +92,15 @@ const AGENT_GOLDEN = {
   detach: WORK_ONLY,
   'record-terminal-observation': NOT_MEMBER_ROW,
   'receive-result': WORK_ONLY,
-  'read-message-handoff': NOT_MEMBER_ROW,
+  'read-message-handoff': WORK_ONLY,
   'record-message-handoff': NOT_MEMBER_ROW,
   'exclude-message-handoff': NOT_MEMBER_ROW,
   settle: NOT_MEMBER_ROW,
   'migrate-cancellation': NOT_MEMBER_ROW,
+  'compaction.admit': WORK_ONLY,
+  'compaction.inspect': WORK_ONLY,
+  'compaction.cancel': WORK_ONLY,
+  'compaction.acknowledge': WORK_ONLY,
 } as const satisfies Readonly<Record<AgentAccessOperation, Golden>>
 
 function describeCell(cell: PolicyCell): string {
@@ -138,8 +144,8 @@ compare('Session', SESSION_POLICY, SESSION_GOLDEN)
 compare('Agent', AGENT_POLICY, AGENT_GOLDEN)
 
 describe('the golden itself', () => {
-  it('has the 46 Session rows and 26 Agent rows of the baseline enumerations', () => {
-    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(46)
-    expect(Object.keys(AGENT_GOLDEN)).toHaveLength(26)
+  it('has the 48 Session rows and 30 Agent rows of the baseline enumerations', () => {
+    expect(Object.keys(SESSION_GOLDEN)).toHaveLength(48)
+    expect(Object.keys(AGENT_GOLDEN)).toHaveLength(30)
   })
 })

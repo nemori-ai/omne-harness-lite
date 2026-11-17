@@ -161,7 +161,12 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   binding: AgentRuntimeBinding
   configuration: Pick<
     AgentConfiguration,
-    'reconciliationDelaysMs' | 'toolConcurrency' | 'jointCommits' | 'maxRunSteps' | 'modelRetry'
+    | 'reconciliationDelaysMs'
+    | 'toolConcurrency'
+    | 'jointCommits'
+    | 'maxRunSteps'
+    | 'modelRetry'
+    | 'compactionProvider'
   >
   guard: AccessGuard<P>
   dependencies: AgentDependencies<P, B>
@@ -400,6 +405,7 @@ export function createProvider<P, B extends ContentBlock>(
       ports: dependencies,
       binding,
       jointCommits: entry.configuration.jointCommits,
+      compactionProvider: entry.configuration.compactionProvider,
       evaluator: resolved.ok.evaluator,
       access,
       execution,
@@ -596,6 +602,7 @@ export function createProvider<P, B extends ContentBlock>(
       ports: dependencies,
       binding,
       jointCommits: entry.configuration.jointCommits,
+      compactionProvider: entry.configuration.compactionProvider,
       evaluator: resolved.ok.evaluator,
       access: { principal: input.principal, tenant: input.tenant },
       execution: input.execution,

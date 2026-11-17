@@ -37,6 +37,36 @@ import { migratedPort } from './fixtures/sqlite-storage.ts'
 
 const SESSION = 'session-1'
 
+it('shares the complete compaction body across durable custody and handoff blobs', async () => {
+  const a = await session()
+  const message = { role: 'compaction', blocks: [{ kind: 'text', text: 'one stored summary' }] }
+  const payloads = [
+    canonicalText({ outcome: { kind: 'completed', message } }),
+    canonicalText({ request: { candidate: message }, decision: { message } }),
+  ]
+  const committed = await a.provider.storage.commit({
+    identity: identity('shared-compaction'),
+    combinationVersion: 'c1',
+    manifestDigest: 'a'.repeat(64),
+    commands: [
+      executionRecordBlobFacts({ tenant: TENANT_A, blobs: payloads.map(value => block(value)) }),
+    ],
+  })
+  expect(committed.kind).toBe('committed')
+  const stored = a.provider.select('dom_0', 'SELECT digest, payload FROM sl_blob').rows
+  expect(stored).toHaveLength(3)
+  expect(stored.filter(row => unpacked(row[1]).includes('one stored summary'))).toHaveLength(1)
+  for (const payload of payloads) {
+    const result = decodeExecutionRecordBlob(
+      await read(a, 'execution-record.blob', {
+        tenant: textOf(TENANT_A),
+        digest: blobDigest(payload),
+      }),
+    )
+    expect(result).toMatchObject({ kind: 'blob', payload, digest: blobDigest(payload) })
+  }
+})
+
 const block = (payload: string, media = 'application/json'): ExecutionBlobRecord => ({
   digest: blobDigest(payload),
   media,
@@ -75,6 +105,7 @@ function nth(n: number, over: Partial<ExecutionRecordWrite> = {}): ExecutionReco
     digest: `sha256:op-${String(n)}`,
     facts: factsOf(n, execution),
     blobs: [],
+    current: [],
     boundaries: [
       {
         execution,

@@ -1,4 +1,5 @@
 import { applyTodo } from './reduce-todos.ts'
+import { judgeMessage } from '@omne-harness/message'
 import { projectWorkEntries, requiredWorkEntries, unsettled } from './work-entry-state.ts'
 import type { SessionHistoryReads } from './history-values.ts'
 import { validateReplayHistory, validateInterpretationEntry } from './frontier-state.ts'
@@ -115,6 +116,10 @@ function applyMessage(
     }
   >,
 ): string | null {
+  if (entry.kind === 'message.compaction') {
+    const judged = judgeMessage(entry.message)
+    if (!('ok' in judged) || judged.ok.role !== 'compaction') return 'malformed compaction message'
+  }
   trackCalls(draft, entry.message)
   if (entry.kind === 'message.assistant' && draft.run.kind === 'active') delete draft.unanswered
   return entry.participation === null ? null : applyParticipation(draft, entry.participation)

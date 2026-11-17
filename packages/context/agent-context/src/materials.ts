@@ -1,18 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import type {
-  AssemblyCall,
-  CompactionPlan,
   ContextReadGroup,
   ContextTarget,
   HistoryEvidence,
-  PlanProgress,
   SnapshotMaterial,
-  StepRequest,
 } from '@omne-harness/request-context-contract'
 import type { Adoption, DurableEvidence } from '@omne-harness/request-context-contract'
 import type { ContextReader, Cursor, EligibilityId } from '@omne-harness/runtime-context-contract'
 import { canonical, mintRecord, readRecord, type RecordKey, type RecordKind } from './records.ts'
-import type { StagedGroups } from './staging.ts'
 
 export type Place = Readonly<{
   tenant: string
@@ -35,16 +30,6 @@ export type LatestRead = Readonly<{
   cursor: Cursor
   snapshot: SnapshotMaterial
   recipient: string
-}>
-
-export type PlanMaterial<P> = Readonly<{
-  place: Place
-  target: ContextTarget
-  call: Omit<AssemblyCall<P>, 'access'>
-  plan: CompactionPlan
-  progress: PlanProgress
-  step: StepRequest
-  groups: StagedGroups<P>
 }>
 
 class Bounded<V> {
@@ -95,7 +80,7 @@ export type ContextMaterialsOptions = Readonly<{
   capacity: number
 }>
 
-export interface ContextMaterials<P = unknown> {
+export interface ContextMaterials {
   readonly owner: Adoption
   mint(kind: RecordKind, place: Place, content: unknown): DurableEvidence
   key(evidence: DurableEvidence): RecordKey | null
@@ -104,15 +89,13 @@ export interface ContextMaterials<P = unknown> {
   latest(place: Place): LatestRead | undefined
   setLatest(place: Place, latest: LatestRead): void
   dropScope(tenant: string, scope: string): void
-  putPlan(evidence: DurableEvidence, material: PlanMaterial<P>): void
-  plan(evidence: DurableEvidence): PlanMaterial<P> | undefined
   close(): void
 }
 
 const placeKey = (place: Place) => canonical(place)
 const evidenceKey = (evidence: DurableEvidence) => `${evidence.record}\u0000${evidence.digest}`
 
-export function createContextMaterials<P>(options: ContextMaterialsOptions): ContextMaterials<P> {
+export function createContextMaterials(options: ContextMaterialsOptions): ContextMaterials {
   const { owner, capacity } = options
   if (!Number.isSafeInteger(capacity) || capacity < 1)
     throw new RangeError('The material capacity must be a positive safe integer')
@@ -123,7 +106,6 @@ export function createContextMaterials<P>(options: ContextMaterialsOptions): Con
   const latest = new Bounded<LatestRead & { place: Place }>(capacity, (entry, successor) => {
     if (successor?.reader !== entry.reader) void entry.reader.end().catch(() => undefined)
   })
-  const plans = new Bounded<PlanMaterial<P>>(capacity)
   return {
     owner,
     mint: (kind, place, content) =>
@@ -139,12 +121,9 @@ export function createContextMaterials<P>(options: ContextMaterialsOptions): Con
         if (entry?.place.tenant === tenant && entry.place.scope === scope) latest.delete(key)
       }
     },
-    putPlan: (evidence, material) => plans.set(evidenceKey(evidence), material),
-    plan: evidence => plans.get(evidenceKey(evidence)),
     close() {
       latest.clear()
       reads.clear()
-      plans.clear()
     },
   }
 }
