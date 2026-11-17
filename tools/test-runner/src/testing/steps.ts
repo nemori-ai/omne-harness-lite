@@ -4,8 +4,16 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
-import { describeBudget, memberDemand, WORKER_BUDGET_ENV, type Budget } from './parallelism.ts'
-import { longestFirst, memberHistory } from './member-history.ts'
+import { batchQueue } from './batches.ts'
+import {
+  describeBudget,
+  memberDemand,
+  READING_VERSION,
+  WORKER_BUDGET_ENV,
+  type Budget,
+  type ParallelPolicy,
+} from './parallelism.ts'
+import { longestFirst, memberHistory, type MemberReading } from './member-history.ts'
 import { runJob, tokenSource, type TokenSource } from './token-pool.ts'
 import {
   changedFiles,
@@ -463,6 +471,27 @@ function recordedReadSets(
   return describeReadSets(members)
 }
 
+function scheduleOf(
+  policy: ParallelPolicy,
+  tier: RunTier,
+  history: ReadonlyMap<string, MemberReading>,
+  source: TokenSource,
+): MemberSchedule {
+  return {
+    source,
+    demand: (member, files) => {
+      const reading = history.get(member.path)
+      return memberDemand(policy, member.path, tier, files ?? reading?.files, reading?.weights)
+    },
+    batches: members =>
+      batchQueue(
+        members.map(member => member.path),
+        member => history.get(member)?.fileTimes ?? [],
+        policy.batchSeconds,
+      ),
+  }
+}
+
 export async function recordedRun(root: string, run: RecordedRun): Promise<RecordedOutcome> {
   const { script, tier, targets, tokens } = run
   const admission = admissionRequested(process.env)
@@ -485,13 +514,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
   )
     return { exitCode: 1, failures: [], runDir }
   const history = memberHistory(ledgerHome(script, run.at.mainRoot, process.env), tier)
-  const schedule: MemberSchedule = {
-    source: tokens,
-    demand: member => {
-      const reading = history.get(member.path)
-      return memberDemand(config.parallel, member.path, tier, reading?.files, reading?.weights)
-    },
-  }
+  const schedule = scheduleOf(config.parallel, tier, history, tokens)
 
   const lookup = lookupFor(root, run, config)
   const hits = lookup?.hits ?? new Map<string, never>()
@@ -517,7 +540,10 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
   else
     console.log(
       `跑 ${toRun.length} 个成员的 \`${script}\`${script === 'test' ? `（${TIER_NAMES[tier]}）` : ''}：` +
-        `每个成员当一件活去要令牌（共 ${tokens.capacity} 个），上一次用时长的先要；拿到的令牌按这个成员一个进程实测用几个核折成进程数（没有读数时取 test-runs.config.json 的 parallel.tokensPerWorker，再没有按 1）`,
+        (script === 'test'
+          ? `每一批当一件活去要令牌（共 ${tokens.capacity} 个）：上一次合计超过 ${config.parallel.batchSeconds} 秒的成员按文件耗时切成几批，没有读数的批先要，其余预计长的先要；`
+          : `每个成员当一件活去要令牌（共 ${tokens.capacity} 个），上一次用时长的先要；`) +
+        '拿到的令牌按这个成员一个进程实测用几个核折成进程数（没有读数时取 test-runs.config.json 的 parallel.tokensPerWorker，再没有按 1）',
     )
   const started = Date.now()
   let finishedBefore = 0
@@ -627,10 +653,12 @@ function lookupFor(
 function tokenJobs(spans: readonly MemberSpan[], started: number) {
   return spans.map(span => ({
     member: span.member,
+    ...(span.batch === undefined ? {} : { batch: span.batch }),
     tokens: span.tokens,
     workers: span.workers,
     perWorker: span.perWorker,
     weightSource: span.weightSource,
+    readingVersion: READING_VERSION,
     ...(span.cpuSeconds === undefined ? {} : { cpuSeconds: span.cpuSeconds }),
     start: Math.round((span.start - started) / 100) / 10,
     end: Math.round((span.end - started) / 100) / 10,

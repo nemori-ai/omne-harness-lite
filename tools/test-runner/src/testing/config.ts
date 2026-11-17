@@ -146,7 +146,7 @@ function parseWeight(value: unknown): WeightPolicy {
     floor,
     ceiling,
     readings: positiveInteger(raw['readings'], 'parallel.weight.readings'),
-    minFileSeconds: positive(raw['minFileSeconds'], 'parallel.weight.minFileSeconds'),
+    minProcessSeconds: positive(raw['minProcessSeconds'], 'parallel.weight.minProcessSeconds'),
   }
 }
 
@@ -157,6 +157,7 @@ export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
       reserveCores?: unknown
       tokensPerWorker?: unknown
       weight?: unknown
+      batchSeconds?: unknown
     }
     affected?: Record<string, unknown>
     ledger?: { slowFileSeconds?: unknown; nearTimeoutRatio?: unknown; top?: unknown }
@@ -171,6 +172,7 @@ export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
     reserveCores: nonNegativeInteger(raw.parallel?.reserveCores, 'parallel.reserveCores'),
     tokensPerWorker: parseWorkerTokens(raw.parallel?.tokensPerWorker),
     weight: parseWeight(raw.parallel?.weight),
+    batchSeconds: positive(raw.parallel?.batchSeconds, 'parallel.batchSeconds'),
   }
   return {
     parallel,

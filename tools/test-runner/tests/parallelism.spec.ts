@@ -13,10 +13,11 @@ const POLICY: ParallelPolicy = {
   maxWorkersPerMember: 8,
   reserveCores: 2,
   tokensPerWorker: [{ member: 'apps/server', tier: 'slow', tokens: 2, why: '起始值' }],
-  weight: { floor: 0.5, ceiling: 4, readings: 3, minFileSeconds: 5 },
+  weight: { floor: 0.5, ceiling: 4, readings: 3, minProcessSeconds: 5 },
+  batchSeconds: 90,
 }
 
-const reading = (cpuSeconds: number, fileSeconds: number) => ({ cpuSeconds, fileSeconds })
+const reading = (cpuSeconds: number, processSeconds: number) => ({ cpuSeconds, processSeconds })
 
 describe('整机的令牌数', () => {
   it('核数减留下的核，至少 1', () => {
@@ -41,7 +42,7 @@ describe('这一件活的预算', () => {
 })
 
 describe('一个成员一层要多少令牌', () => {
-  it('每个进程的令牌数：有读数时取最近几次里「CPU 秒 ÷ 文件耗时之和」的最大值，夹在上下限之间', () => {
+  it('每个进程的令牌数：有读数时取最近几次里「CPU 秒 ÷ 进程秒（活的墙钟 × 进程数）」的最大值，夹在上下限之间', () => {
     expect(processWeight(POLICY, 'packages/x', 'fast', [reading(30, 60)])).toEqual({
       tokens: 0.5,
       source: 'measured',
@@ -57,7 +58,7 @@ describe('一个成员一层要多少令牌', () => {
     ).toEqual({ tokens: 1.2, source: 'measured' })
   })
 
-  it('每个进程的令牌数：只看最近的几次；文件耗时之和太短的不算读数', () => {
+  it('每个进程的令牌数：只看最近的几次；进程秒太短的不算读数', () => {
     const recent = [reading(80, 100), reading(90, 100), reading(70, 100), reading(300, 100)]
     expect(processWeight(POLICY, 'packages/x', 'fast', recent).tokens).toBe(0.9)
     expect(
@@ -105,6 +106,10 @@ describe('一个成员一层要多少令牌', () => {
       perWorker: 0.5,
       weightSource: 'measured',
     })
+    expect(
+      memberDemand(POLICY, 'a', 'fast', 1, [reading(120, 100)]).min,
+      '一个进程用 1.2 个核：至少要的令牌数四舍五入，不向上取整成 2 个白占',
+    ).toBe(1)
   })
 
   it('拿到的令牌变成进程数：令牌数 ÷ 每个进程要的令牌数，向下取整，至少 1', () => {

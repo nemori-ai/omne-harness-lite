@@ -12,7 +12,7 @@ export interface WeightPolicy {
   readonly floor: number
   readonly ceiling: number
   readonly readings: number
-  readonly minFileSeconds: number
+  readonly minProcessSeconds: number
 }
 
 export interface ParallelPolicy {
@@ -20,12 +20,15 @@ export interface ParallelPolicy {
   readonly reserveCores: number
   readonly tokensPerWorker: readonly WorkerTokens[]
   readonly weight: WeightPolicy
+  readonly batchSeconds: number
 }
 
 export interface WeightReading {
   readonly cpuSeconds: number
-  readonly fileSeconds: number
+  readonly processSeconds: number
 }
+
+export const READING_VERSION = 2
 
 export type WeightSource = 'measured' | 'seed' | 'default'
 
@@ -66,11 +69,11 @@ export function processWeight(
   tier: RunTier,
   readings: readonly WeightReading[],
 ): ProcessWeight {
-  const { floor, ceiling, minFileSeconds } = policy.weight
+  const { floor, ceiling, minProcessSeconds } = policy.weight
   const measured = readings
-    .filter(reading => reading.fileSeconds >= minFileSeconds)
+    .filter(reading => reading.processSeconds >= minProcessSeconds)
     .slice(0, policy.weight.readings)
-    .map(reading => reading.cpuSeconds / reading.fileSeconds)
+    .map(reading => reading.cpuSeconds / reading.processSeconds)
   if (measured.length > 0) {
     const tokens = Math.min(ceiling, Math.max(floor, ...measured))
     return { tokens: Math.round(tokens * 100) / 100, source: 'measured' }
@@ -99,7 +102,7 @@ export function memberDemand(
   const workers = Math.min(policy.maxWorkersPerMember, Math.max(1, files ?? Infinity))
   return {
     want: Math.ceil(workers * weight.tokens),
-    min: Math.ceil(weight.tokens),
+    min: Math.max(1, Math.round(weight.tokens)),
     perWorker: weight.tokens,
     weightSource: weight.source,
   }

@@ -168,12 +168,13 @@ const AFFECTED_EMPTY = {
   residentBuild: [],
 }
 
-const WEIGHT = { floor: 0.5, ceiling: 4, readings: 3, minFileSeconds: 5 }
+const WEIGHT = { floor: 0.5, ceiling: 4, readings: 3, minProcessSeconds: 5 }
 
 const POLICY = {
   maxWorkersPerMember: 8,
   reserveCores: 2,
   weight: WEIGHT,
+  batchSeconds: 90,
 }
 
 describe('并行度', () => {
@@ -206,7 +207,21 @@ describe('并行度', () => {
     expect(withWeight(undefined)).toThrow('parallel.weight')
     expect(withWeight({ ...WEIGHT, floor: 5 })).toThrow('floor')
     expect(withWeight({ ...WEIGHT, readings: 0 })).toThrow('readings')
-    expect(withWeight({ ...WEIGHT, minFileSeconds: -1 })).toThrow('minFileSeconds')
+    expect(withWeight({ ...WEIGHT, minProcessSeconds: -1 })).toThrow('minProcessSeconds')
+  })
+
+  it('一批的目标时长原样进配置；缺、不是正数都报错', () => {
+    expect(config.parallel.batchSeconds).toBe(90)
+    const withBatch = (batchSeconds: unknown) => () =>
+      parseTestRunsConfig({
+        parallel: { ...POLICY, batchSeconds },
+        affected: AFFECTED_EMPTY,
+        ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
+        triage: { repeats: 3 },
+        cache: CACHE_EMPTY,
+      })
+    expect(withBatch(undefined)).toThrow('parallel.batchSeconds')
+    expect(withBatch(0)).toThrow('parallel.batchSeconds')
   })
 
   it('每个进程要的令牌数：不写时为空表；写了的原样进配置', () => {
