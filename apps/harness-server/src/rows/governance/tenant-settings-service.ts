@@ -5,6 +5,7 @@ import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/iden
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   createTenantSettings,
+  type SettingsTargetView,
   type TenantSettings,
   type TenantSettingsAssetRef,
 } from '@omne-harness/settings'
@@ -60,6 +61,27 @@ export type TenantSettingsServiceOptions = Readonly<{
 
 const unavailable = { kind: 'rejected', reason: 'unavailable' } as const
 
+export function heldAssetOf(host: Pick<TenantGovernanceHost, 'assets'>) {
+  return async (
+    tenant: TenantId,
+    view: SettingsTargetView,
+  ): Promise<TenantSettingsAssetRef | undefined> => {
+    if (view.target.policyId !== 'asset') return undefined
+    const tenantRef = tenantCodec.encode(tenant)
+    const assets = tenantRef.ok ? await host.assets(tenantRef.value) : undefined
+    if (assets === undefined) throw new Error('the assets of the tenant are unavailable')
+    const read = await assets.readHolding({
+      holdingRef: view.target.targetRef,
+      scopeRef: view.target.scopeRef,
+    })
+    if (read.kind === 'absent') return undefined
+    if (read.kind !== 'holding') throw new Error(`the holding cannot be read: ${read.reason}`)
+    return read.holding.state === 'held'
+      ? { category: read.holding.category, name: read.holding.name }
+      : undefined
+  }
+}
+
 export function createTenantSettingsFace(options: TenantSettingsServiceOptions): Face {
   const admission = referenceAdmissionCheck({ ...options.identity, permits: null })
   const guard = createSettingsGuard(() => (options.active() ? admission : undefined))
@@ -79,21 +101,7 @@ export function createTenantSettingsFace(options: TenantSettingsServiceOptions):
         const settings = await settingsOf(tenant)
         return settings === undefined ? unavailable : settings.read(request)
       },
-      async assetOf(tenant, view): Promise<TenantSettingsAssetRef | undefined> {
-        if (view.target.policyId !== 'asset') return undefined
-        const tenantRef = tenantCodec.encode(tenant)
-        const assets = tenantRef.ok ? await options.host.assets(tenantRef.value) : undefined
-        if (assets === undefined) throw new Error('the assets of the tenant are unavailable')
-        const read = await assets.readHolding({
-          holdingRef: view.target.targetRef,
-          scopeRef: view.target.scopeRef,
-        })
-        if (read.kind === 'absent') return undefined
-        if (read.kind !== 'holding') throw new Error(`the holding cannot be read: ${read.reason}`)
-        return read.holding.state === 'held'
-          ? { category: read.holding.category, name: read.holding.name }
-          : undefined
-      },
+      assetOf: heldAssetOf(options.host),
     },
     permissions: createTenantSettingsPermissions(options),
     writer: {
