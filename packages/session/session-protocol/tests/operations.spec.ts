@@ -5,6 +5,7 @@ const table = {
   'create-session': { identity: 'acting-tenant', effect: 'commit', limit: 'small' },
   'query-create-session': { identity: 'login', effect: 'read', limit: 'small' },
   'send-input': { identity: 'login', effect: 'commit', limit: 'input' },
+  'interrupt-input': { identity: 'login', effect: 'commit', limit: 'input' },
   'query-send-input': { identity: 'login', effect: 'read', limit: 'small' },
   'read-history': { identity: 'login', effect: 'read', limit: 'small' },
   'read-waiting': { identity: 'login', effect: 'read', limit: 'small' },
@@ -20,6 +21,7 @@ const outcomes = {
   'create-session': ['limited', 'invalid', 'conflict', 'unknown'],
   'query-create-session': ['unknown'],
   'send-input': ['limited', 'invalid', 'archived', 'frozen', 'conflict', 'unknown'],
+  'interrupt-input': ['limited', 'invalid', 'archived', 'frozen', 'conflict', 'unknown'],
   'query-send-input': ['not-committed', 'unknown'],
   'read-history': ['invalid'],
   'read-waiting': ['invalid'],
@@ -35,7 +37,7 @@ const always = ['succeeded', 'protocol-rejected', 'basis-unavailable', 'denied']
 const operations = sessionProtocol.operations
 
 describe('session/v1', () => {
-  it('is session major 1 with exactly the twelve operations and one observation', () => {
+  it('is session major 1 with exactly the thirteen operations and one observation', () => {
     expect(sessionProtocol.name).toBe('session')
     expect(sessionProtocol.major).toBe(1)
     expect(Object.keys(operations).sort()).toEqual(Object.keys(table).sort())
@@ -90,9 +92,9 @@ describe('the query operations', () => {
     }
   })
 
-  it('only send-input takes the input limit', () => {
+  it('only the two inputs take the input limit', () => {
     const input = Object.entries(operations).filter(([, operation]) => operation.limit === 'input')
-    expect(input.map(([name]) => name)).toEqual(['send-input'])
+    expect(input.map(([name]) => name).sort()).toEqual(['interrupt-input', 'send-input'])
   })
 
   it('only create-session needs an acting tenant', () => {

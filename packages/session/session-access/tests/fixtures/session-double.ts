@@ -24,6 +24,7 @@ import type { SessionAccessFaces } from '../../src/ports.ts'
 type P = Principal
 type FaceMethod =
   | 'create'
+  | 'interrupt'
   | 'accept'
   | 'queryOperation'
   | 'cancelRun'
@@ -185,7 +186,7 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     return succeed(receipt)
   }
 
-  const management: Pick<SessionManagement<P>, 'create'> = {
+  const management: Pick<SessionManagement<P>, 'create' | 'interrupt'> = {
     async create(input) {
       record('create', input, input.creation)
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'create' })
@@ -197,6 +198,19 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
         sessions.set(sessionKey(input), { tenant: input.tenant, runs: new Set(), entries: [] })
       if ('failure' in outcome) return outcome
       return succeed({ receipt: outcome.ok, state: {} as never })
+    },
+    async interrupt(input) {
+      record('interrupt', input, input.urgent)
+      if (accessDenied(input)) return fail({ kind: 'denied', action: 'interrupt' })
+      const found = existing(input)
+      if (found === undefined) return fail({ kind: 'denied', action: 'interrupt' })
+      const outcome = commit('interrupt', input.operation, {
+        session: input.session,
+        urgent: input.urgent,
+      })
+      if ('failure' in outcome) return outcome
+      const progress = found.runs.size > 0 ? ({ operation: input.operation } as never) : null
+      return succeed({ receipt: outcome.ok, progress })
     },
   }
 

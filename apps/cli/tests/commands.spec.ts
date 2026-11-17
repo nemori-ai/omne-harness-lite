@@ -256,6 +256,7 @@ describe('session commands', () => {
   const commands: readonly (readonly [string, readonly string[]])[] = [
     ['create-session', ['--definition', 'default']],
     ['send-input', ['--session', sessionId, '--text', 'hello']],
+    ['interrupt-input', ['--session', sessionId, '--text', 'hello']],
     ['cancel-run', ['--session', sessionId, '--run', 'run-7']],
     ['stop-call', ['--session', sessionId, '--producer-kind', 'model', '--call', 'call-3']],
   ]
@@ -459,6 +460,17 @@ describe('session commands', () => {
     })
     expect(body.message.role).toBe('user')
     expect(body.message.blocks.map(block => block.text)).toEqual(['-5 apples'])
+  })
+
+  it('interrupt-input sends the same body as send-input to the urgent operation (C27)', async () => {
+    const service = await serve()
+    await loginOwningSession(service)
+    await cli(['interrupt-input', '--session', sessionId, '--text', 'read this first'])
+    const seen = service.seen.at(-1)
+    expect(seen?.path).toBe('/api/session/v1/interrupt-input')
+    const body = seen?.body as { session: string; message: { blocks: { text: string }[] } }
+    expect(body.session).toBe(sessionId)
+    expect(body.message.blocks.map(block => block.text)).toEqual(['read this first'])
   })
 
   it('send-input sends the same message for the same input id', async () => {

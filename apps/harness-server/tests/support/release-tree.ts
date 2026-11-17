@@ -60,7 +60,7 @@ export function releaseDistribution(modes: ReleaseModes = {}): unknown {
 
 type ReleaseModes = Readonly<{ permission?: string; collaboration?: 'co-work' | 'auto-drive' }>
 
-const sse = (events: readonly unknown[]): string =>
+export const sse = (events: readonly unknown[]): string =>
   `${events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')}data: [DONE]\n\n`
 
 export type ScriptedToolCall = Readonly<{ id: string; tool: string; arguments: string }>

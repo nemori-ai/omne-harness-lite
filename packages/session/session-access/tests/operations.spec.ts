@@ -831,3 +831,51 @@ describe('list-sessions', () => {
     })
   })
 })
+
+describe('interrupt-input (C27)', () => {
+  const bodyOf = (session: string, acceptId = 'urgent-1') => ({
+    tenant: ALICE.tenant,
+    session,
+    acceptId,
+    inputId: 'input-urgent',
+    message: userMessage('stop waiting, read this'),
+  })
+
+  it('interrupts the Run there with the urgent input, under the same identities as send-input', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    world.session.controls.addRun(session as SessionId, 'run-1')
+    const answer = await ops(world)['interrupt-input'](as(login()), bodyOf(session))
+    expect(answer).toEqual({ outcome: 'succeeded', body: { recovered: false, as: 'interrupt' } })
+    const call = world.session.controls.calls()[1]
+    expect(call?.method).toBe('interrupt')
+    expect(call?.operation).toBe(acceptOperation(ALICE.tenantText, session, 'urgent-1'))
+    expect(call?.input).toMatchObject({
+      kind: 'ordinary',
+      input: inputIdentity(ALICE.tenantText, session, 'input-urgent'),
+      origin: loginEntryOrigin(ALICE.account.text, ALICE.loginText),
+    })
+  })
+
+  it('with no Run there, Session takes it as an ordinary input and the answer says so', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    expect(await ops(world)['interrupt-input'](as(login()), bodyOf(session))).toEqual({
+      outcome: 'succeeded',
+      body: { recovered: false, as: 'ordinary' },
+    })
+  })
+
+  it('shares the query of send-input: the same accept id reads committed', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    await ops(world)['interrupt-input'](as(login()), bodyOf(session))
+    expect(
+      await ops(world)['query-send-input'](as(login()), {
+        tenant: ALICE.tenant,
+        session,
+        acceptId: 'urgent-1',
+      }),
+    ).toEqual({ outcome: 'succeeded', body: {} })
+  })
+})

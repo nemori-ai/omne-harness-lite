@@ -24,6 +24,7 @@ const validBodies: Samples = {
   'create-session': [{ createCallId: 'call', definition: 'default', purpose: '' }],
   'query-create-session': [{ tenant, createCallId: 'call' }],
   'send-input': [{ ...target, acceptId: 'accept', inputId: 'input', message: userMessage }],
+  'interrupt-input': [{ ...target, acceptId: 'accept', inputId: 'input', message: userMessage }],
   'query-send-input': [{ ...target, acceptId: 'accept' }],
   'read-history': [
     { ...target, cursor: null, direction: 'backward', pageBytes: '65536' },
@@ -48,6 +49,10 @@ const invalidBodies: Samples = {
     { ...target, acceptId: 'accept', inputId: 'input', message: { role: 'assistant' } },
     { ...target, acceptId: 'accept', message: userMessage },
   ],
+  'interrupt-input': [
+    { ...target, acceptId: 'accept', inputId: 'input', message: { role: 'assistant' } },
+    { ...target, acceptId: 'accept', message: userMessage },
+  ],
   'query-send-input': [{ ...target }, { tenant, session: 'short', acceptId: 'accept' }],
   'read-history': [
     { ...target, cursor: null },
@@ -66,6 +71,10 @@ const successBodies: Samples = {
   'create-session': [{ session, recovered: false }],
   'query-create-session': [{ session }],
   'send-input': [{ recovered: true }],
+  'interrupt-input': [
+    { recovered: false, as: 'interrupt' },
+    { recovered: true, as: 'ordinary' },
+  ],
   'query-send-input': [{}],
   'read-history': [
     {

@@ -308,7 +308,8 @@ export function resultOf(
     case 'interrupt':
       return {
         receipt,
-        progress: snapshot.controls.find(item => item.operation === command.input.operation),
+        progress:
+          snapshot.controls.find(item => item.operation === command.input.operation) ?? null,
       }
     case 'cancelRun':
     case 'stopCall': {

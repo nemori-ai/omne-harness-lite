@@ -144,11 +144,12 @@ type SessionOutcomes = {
     | 'unsupported'
 }
 
-test('the operations are exactly the twelve of session/v1', () => {
+test('the operations are exactly the thirteen of session/v1', () => {
   expectTypeOf<Name>().toEqualTypeOf<
     | 'create-session'
     | 'query-create-session'
     | 'send-input'
+    | 'interrupt-input'
     | 'query-send-input'
     | 'read-history'
     | 'read-waiting'

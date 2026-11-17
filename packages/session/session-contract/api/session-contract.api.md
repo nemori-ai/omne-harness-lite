@@ -1584,14 +1584,14 @@ export interface SessionManagement<P> {
         receipt: CommitReceipt | null;
     }>>;
     interrupt(input: Mutation<P> & Readonly<{
-        run: RunId;
+        run: RunId | null;
         urgent: Extract<RoutedInput, {
             kind: 'ordinary';
         }>;
         decision: DurableEvidence;
     }>): Reply<Readonly<{
         receipt: CommitReceipt;
-        progress: ControlProgress;
+        progress: ControlProgress | null;
     }>>;
     freeze(input: Mutation<P> & Readonly<{
         verdict: FreezeVerdict;
@@ -3178,8 +3178,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:7177e38077c9439e5ec2a48c66b2a83ab41516e57d9b22fb17acbc8fd19bd7bb";
-export declare const SESSION_RELEASE_DIGEST = "sha256:7177e38077c9439e5ec2a48c66b2a83ab41516e57d9b22fb17acbc8fd19bd7bb";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:6815a0e7c14ab20383b171c96fff4de1eff100eeb8a2ae2a352ab15593518ae4";
+export declare const SESSION_RELEASE_DIGEST = "sha256:6815a0e7c14ab20383b171c96fff4de1eff100eeb8a2ae2a352ab15593518ae4";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

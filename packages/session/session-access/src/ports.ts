@@ -68,7 +68,7 @@ export interface SessionListing {
 }
 
 export type SessionAccessFaces = Readonly<{
-  management: Pick<SessionManagement<Principal>, 'create'>
+  management: Pick<SessionManagement<Principal>, 'create' | 'interrupt'>
   work: Pick<
     SessionWork<Principal>,
     | 'accept'

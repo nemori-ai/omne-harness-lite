@@ -11,6 +11,7 @@ Commands
   omne login --login-identifier <id>                                                                              Issue a login and save it in the state directory.
   omne create-session --definition <name>                                                                         Create a session.
   omne send-input --session <id> --text <text>                                                                    Send a user message to a session.
+  omne interrupt-input --session <id> --text <text>                                                               Send an urgent user message: it releases what the run waits for, or is ordinary.
   omne read-history --session <id>                                                                                Read the whole history of a session.
   omne read-session-diagnostics --session <id>                                                                    Read the diagnostics of the runs of a session.
   omne cancel-run --session <id> --run <id>                                                                       Cancel a run.

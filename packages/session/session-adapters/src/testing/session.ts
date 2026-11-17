@@ -291,7 +291,7 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall {
     case 'control':
     case 'interrupt': {
       const progress = snapshot.controls.find(item => item.operation === command.input.operation)
-      return receipt => ({ receipt, progress })
+      return receipt => ({ receipt, progress: progress ?? null })
     }
     case 'cancelRun':
     case 'stopCall': {

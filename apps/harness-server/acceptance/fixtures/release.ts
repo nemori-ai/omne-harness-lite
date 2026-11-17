@@ -57,6 +57,20 @@ export const history = (tree: ReleaseTree, session: string): Promise<readonly En
 
 export const kinds = (entries: readonly Entry[]): string[] => entries.map(entry => entry.kind)
 
+export const count = (entries: readonly Entry[], kind: string): number =>
+  entries.filter(entry => entry.kind === kind).length
+
+/** The Run the last run.started entry names. */
+export function lastRunOf(entries: readonly Entry[]): string {
+  const started = entries.filter(entry => entry.kind === 'run.started').at(-1)
+  return String((started?.payload as { run?: unknown } | undefined)?.run ?? '')
+}
+
+/** Sends an urgent input as a person does; the answer says if it interrupted a Run. */
+export async function interrupt(tree: ReleaseTree, session: string, text: string) {
+  return omne(tree, ['interrupt-input', '--session', session, '--text', text])
+}
+
 export function textOf(entry: Entry | undefined): string {
   return JSON.stringify(entry?.payload ?? null)
 }

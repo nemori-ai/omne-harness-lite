@@ -222,15 +222,18 @@ function targeted(values: Option): Targeted | undefined {
   return { session: values.get('--session') ?? '', tenant, controlId: values.get('--control-id') }
 }
 
-const sendInput: ExistingCommand<
+type InputCommand = ExistingCommand<
   Omit<Targeted, 'controlId'> & {
     text: string
     acceptId: string | undefined
     inputId: string | undefined
   }
-> = {
+>
+
+// An ordinary input and an urgent one share their body, their queue and their query (C27).
+const inputCommand = (name: 'send-input' | 'interrupt-input'): InputCommand => ({
   kind: 'existing',
-  name: 'send-input',
+  name,
   accepted: ['--session', '--text', '--tenant', '--accept-id', '--input-id', serverOption],
   required: ['--session', '--text'],
   parse: values => {
@@ -253,7 +256,7 @@ const sendInput: ExistingCommand<
       send: async link =>
         link.call(
           sessionProtocol,
-          'send-input',
+          name,
           {
             tenant,
             session: parsed.session,
@@ -266,7 +269,10 @@ const sendInput: ExistingCommand<
       echo: { messageId, acceptId, inputId, tenant: encodeTenantText(tenant) },
     }
   },
-}
+})
+
+const sendInput = inputCommand('send-input')
+const interruptInput = inputCommand('interrupt-input')
 
 const cancelRun: ExistingCommand<Targeted & { run: string; urgency: 'graceful' | 'force' }> = {
   kind: 'existing',
@@ -353,6 +359,12 @@ export const productionCommands: readonly CommandSpec[] = [
     usage: '--session <id> --text <text>',
     summary: 'Send a user message to a session.',
     run: (args, output, environment) => runSession(sendInput, args, output, environment),
+  },
+  {
+    name: 'interrupt-input',
+    usage: '--session <id> --text <text>',
+    summary: 'Send an urgent user message: it releases what the run waits for, or is ordinary.',
+    run: (args, output, environment) => runSession(interruptInput, args, output, environment),
   },
   {
     name: 'read-history',

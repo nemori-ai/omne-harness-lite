@@ -47,7 +47,7 @@ import type {
 } from './ports.ts'
 import { readWaiting } from './read-waiting.ts'
 import type { RequestDrain } from './request-drain.ts'
-import { querySendInput, sendInput } from './send-input.ts'
+import { interruptInput, querySendInput, sendInput } from './send-input.ts'
 
 export type SessionContributionInput = Readonly<{
   faces: () => SessionAccessFaces | undefined
@@ -371,6 +371,7 @@ export function createSessionContribution(
       'create-session': (call, body) => createSession(call.principal, body),
       'query-create-session': (call, body) => queryCreateSession(call.principal, body),
       'send-input': (call, body) => sendInput(sending, call.principal, body),
+      'interrupt-input': (call, body) => interruptInput(sending, call.principal, body),
       'query-send-input': (call, body) => querySendInput(sending, call.principal, body),
       'read-history': (call, body) => readHistory(call.principal, body),
       'read-waiting': (call, body) =>

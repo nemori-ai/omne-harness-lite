@@ -86,6 +86,8 @@ export function defaultAnswer(seen: Seen): Answer {
       return { outcome: 'succeeded', body: { session: sessionId, recovered: false } }
     case 'send-input':
       return { outcome: 'succeeded', body: { recovered: false } }
+    case 'interrupt-input':
+      return { outcome: 'succeeded', body: { recovered: false, as: 'interrupt' } }
     case 'cancel-run':
       return {
         outcome: 'succeeded',

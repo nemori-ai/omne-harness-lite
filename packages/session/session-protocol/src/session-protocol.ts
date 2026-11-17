@@ -232,6 +232,31 @@ export const sessionProtocol = defineProtocol({
       },
       countsAsAccess: true,
     },
+    // An urgent input: it releases the foreground wait of the Run there, or is taken as ordinary.
+    'interrupt-input': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'input',
+      body: ruleCodec(
+        object({
+          ...target,
+          acceptId: { rule: text },
+          inputId: { rule: text },
+          message: { rule: { kind: 'user-message' } },
+        }),
+      ),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({ recovered: { rule: boolean }, as: { rule: literal('interrupt', 'ordinary') } }),
+        ),
+        limited,
+        invalid: empty,
+        archived: empty,
+        frozen: empty,
+        conflict: empty,
+      },
+      countsAsAccess: true,
+    },
     'query-send-input': {
       identity: 'login',
       effect: 'read',

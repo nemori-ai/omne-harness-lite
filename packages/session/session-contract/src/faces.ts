@@ -261,14 +261,15 @@ export interface SessionManagement<P> {
       receipt: CommitReceipt | null
     }>
   >
+  /** With no Run given, the current one; with no Run there, the input is taken as ordinary. */
   interrupt(
     input: Mutation<P> &
       Readonly<{
-        run: RunId
+        run: RunId | null
         urgent: Extract<RoutedInput, { kind: 'ordinary' }>
         decision: DurableEvidence
       }>,
-  ): Reply<Readonly<{ receipt: CommitReceipt; progress: ControlProgress }>>
+  ): Reply<Readonly<{ receipt: CommitReceipt; progress: ControlProgress | null }>>
   freeze(input: Mutation<P> & Readonly<{ verdict: FreezeVerdict }>): Reply<CommitReceipt>
 }
 
