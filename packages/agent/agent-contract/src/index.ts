@@ -1,5 +1,5 @@
 export { agentBodyContract } from './body-contract.ts'
-export { obligationCategoryOf } from './finishing.ts'
+export { endsWithUntakenInput, obligationCategoryOf } from './finishing.ts'
 export { ATTRIBUTE_ITEMS, INSTRUCTION_LIMITS } from './definition.ts'
 export {
   ACTION_ADMISSION_DECLARATION,

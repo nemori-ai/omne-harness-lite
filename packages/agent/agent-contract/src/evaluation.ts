@@ -22,7 +22,7 @@ import type {
   StepId,
 } from './identity.ts'
 import type { JsonValue } from '@omne-harness/json-text'
-import type { HandoffReference, MessageSource, Passage } from './passages.ts'
+import type { ExtensionChain, HandoffReference, MessageSource, Passage } from './passages.ts'
 import type {
   CompactionProgress,
   CompactionState,
@@ -300,7 +300,10 @@ export type AgentCheckpoint = Readonly<{
   adoptedRequest?: AdoptedRequest | null
   modelRetry?: ModelRetryState | null
   guard: GuardFact | null
-  completedPassages: readonly PassageId[]
+  /** The extension chain of the pass that is open, or null. */
+  chain: ExtensionChain | null
+  /** The passes of this step that were applied and that no other member records; cleared when the step ends. */
+  passed: readonly string[]
   priorConditions: DurableEvidence | null
   /** The H of the current source position; set by P, cleared or moved only by a Ja, never by Rh. */
   currentHandoff: HandoffReference | null

@@ -46,6 +46,8 @@ import {
   f1Commit,
   f2Commit,
   failedContent,
+  nodeFailedContent,
+  untakenInputContent,
   finishInput,
   foreignDenied,
   handoffOf,
@@ -187,21 +189,6 @@ function noReplyContent(name: string, call: M.ModelCallId): Partial<FinishCandid
   }
 }
 
-function nodeFailedContent(name: string): Partial<FinishCandidateContent> {
-  return {
-    ...failedContent(name),
-    failure: {
-      kind: 'node-failed',
-      node: 'E4',
-      category: 'invariant',
-      failureKind: 'unavailable',
-      step: null,
-      at: '2026-11-06T00:00:00Z',
-      source: evidence(`node-failure/${name}`),
-    },
-  }
-}
-
 function refusedContent(name: string, call: M.ModelCallId): Partial<FinishCandidateContent> {
   return {
     conclusion: { kind: 'fail', cause: evidence(`cause/${name}`) },
@@ -270,8 +257,8 @@ async function savedToolIntent<P>(opened: AgentJournalCoreOpened<P>, name: strin
 
 export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly ConformanceCase[] {
   return [
-    ...(['node-failed', 'ordinary-fail', 'complete'] as const).map(kind => ({
-      name: `node-failed input custody: ${kind} preserves the original untaken input`,
+    ...(['node-failed', 'extension-stop', 'ordinary-fail', 'complete'] as const).map(kind => ({
+      name: `untaken input custody: ${kind} preserves the original untaken input`,
       run: async () => {
         const opened = await fixture.open(`node-input-${kind}`)
         const before = await load(opened)
@@ -281,21 +268,17 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           watermark: before.inputWatermark,
         }
         const original = await ok(opened.journal.inputs(read), 'original input read')
-        const content: Partial<FinishCandidateContent> =
-          kind === 'node-failed'
-            ? nodeFailedContent(kind)
-            : kind === 'ordinary-fail'
-              ? failedContent(kind)
-              : { ...nodeFailedContent(kind), conclusion: { kind: 'complete' } }
+        const held = kind === 'node-failed' || kind === 'extension-stop'
+        const content = untakenInputContent(kind)
         const ready = await prepareOrdinaryEnd(opened, 'node-input', opened.authority, content)
         const item = itemOf(ready, 'accepted-input')
         assert.equal(item.taken, null)
-        assert.equal(item.disposition.kind, kind === 'node-failed' ? 'held' : 'pending')
+        assert.equal(item.disposition.kind, held ? 'held' : 'pending')
         const finished = await ok(
           opened.journal.tryFinish(finishInput(opened, ready, 'node-input/end')),
           'tryFinish with an untaken input',
         )
-        if (kind === 'node-failed') {
+        if (held) {
           assert.equal(finished.kind, 'ended')
           const after = await load(opened)
           assert.deepEqual(itemOf(after, 'accepted-input'), item)

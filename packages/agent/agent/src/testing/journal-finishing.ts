@@ -32,7 +32,7 @@ import type {
   ResponsibilityCoverage,
   ToolAssociationRecord,
 } from '@omne-harness/agent-contract'
-import { obligationCategoryOf } from '@omne-harness/agent-contract'
+import { endsWithUntakenInput, obligationCategoryOf } from '@omne-harness/agent-contract'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import type { MemoryExecution } from './journal.ts'
 import { journalEvidence, JOURNAL_OWNER, revisionOf } from './journal-values.ts'
@@ -246,8 +246,7 @@ export function buildObligations(
   pendingOperations: readonly PendingOperation[],
 ): Readonly<{ items: readonly FinishObligation[]; coverage: ResponsibilityCoverage }> {
   const cancelled = candidate.conclusion.kind === 'cancelled'
-  const nodeFailed =
-    candidate.conclusion.kind === 'fail' && candidate.failure?.kind === 'node-failed'
+  const endsUntaken = endsWithUntakenInput(candidate)
   const complete = candidate.conclusion.kind === 'complete'
   const fixed = (what: string): DurableEvidence =>
     journalEvidence(`${source.id}/obligation/${what}`, 0)
@@ -276,7 +275,7 @@ export function buildObligations(
       disposition:
         taken !== null
           ? settled(fixed(`input/${key}/taken/${taken}`))
-          : cancelled || nodeFailed
+          : cancelled || endsUntaken
             ? held(sourceEvidence, read)
             : pending('input-disposition', read),
       input: input.id,

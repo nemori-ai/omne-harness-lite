@@ -33,6 +33,7 @@ it('exports exactly the judgments, the constants, the identity decoders and the 
     'decodeReplyAdmissionPageCursor',
     'decodeReplyAdmissionSequence',
     'decodeStepId',
+    'endsWithUntakenInput',
     'judgeAccess',
     'judgeAdoption',
     'judgeAgentDefinition',

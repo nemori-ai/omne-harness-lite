@@ -173,6 +173,39 @@ export type Subject =
     }>
   | Readonly<{ proposed: AgentConclusion; basis: DurableEvidence }>
   | Readonly<{ terminal: AgentConclusion; disposition: DurableEvidence }>
+/** Where a member of an extension chain comes from; the chain keeps this order. */
+export type ChainSource = 'definition' | 'tenant' | 'system'
+export type ChainMember = Readonly<{
+  source: ChainSource
+  declaration: LoopExtensionDeclaration
+  implementation: Adoption
+}>
+/** The extension chain of one pass: read once when the pass begins, saved with the first requested call, then fixed. */
+export type ExtensionChain = Readonly<{
+  pass: string
+  position: Position
+  dimension: Dimension | null
+  purpose: 'main' | 'compaction' | null
+  members: readonly ChainMember[]
+  /** What the tenant-enabled members were read from; null when the assembly has no tenant source. */
+  basis: DurableEvidence | null
+}>
+export type EnabledExtension = Readonly<{
+  declaration: LoopExtensionDeclaration
+  implementation: Adoption
+}>
+/** The extensions the tenant has enabled right now, in chain order. Unreadable is a failure, never an empty list. */
+export interface EnabledExtensions<P> {
+  read(
+    input: Access<P> &
+      Readonly<{
+        execution: AgentExecutionId
+        position: Position
+        dimension: Dimension | null
+        purpose: 'main' | 'compaction' | null
+      }>,
+  ): Reply<Readonly<{ members: readonly EnabledExtension[]; basis: DurableEvidence }>>
+}
 export interface ExtensionImplementations<P> {
   resolve(input: Access<P> & Readonly<{ passage: Passage }>): Reply<LoopExtensionImplementation>
 }

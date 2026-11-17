@@ -14,7 +14,7 @@ import {
   type ToolInvokeOutcome,
   type ToolState,
 } from '@omne-harness/tool-contract'
-import { recoveryRoute } from '../src/loop/coordinator.ts'
+import { recoveryRoute } from '../src/loop/recovery-route.ts'
 import { evidence, execution, ok, loadWithEntries } from './journal-support.ts'
 import { alice, eventually, invoke } from './loop-support.ts'
 import { deliverToolSuggestion, toolAssembly, toolCall } from './fixtures/tool-call.ts'

@@ -1,6 +1,7 @@
 import type {
   AgentCheckpoint,
   AgentOperationId,
+  ExtensionChain,
   JournalCommitState,
   Passage,
   VoidedIntent,
@@ -13,10 +14,12 @@ import {
   refOf,
   type Batch,
   type BatchEnvelope,
+  type ChainBlock,
   type CursorMembers,
   type FactBody,
   type PassageBlock,
   type PassageIndex,
+  type Ref,
 } from './facts.ts'
 import type { ExecutionView } from './view.ts'
 
@@ -37,7 +40,8 @@ export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState)
       checkpoint.requestPreparation === null ? null : refOf(checkpoint.requestPreparation),
     adoptedContext: checkpoint.adoptedContext,
     passages: refOf(passageIndex(checkpoint.passages)),
-    completedPassages: checkpoint.completedPassages,
+    chain: checkpoint.chain === null ? null : refOf(chainBlock(checkpoint.chain)),
+    passed: checkpoint.passed,
     batch: checkpoint.batch === null ? null : refOf(checkpoint.batch),
     calls: refOf(checkpoint.calls),
     schema: checkpoint.schema,
@@ -61,6 +65,13 @@ function passageBlock(passage: Passage): PassageBlock {
   return { ...passage, declaration: refOf(passage.declaration) }
 }
 
+function chainBlock(chain: ExtensionChain): ChainBlock {
+  return {
+    ...chain,
+    members: chain.members.map(member => ({ ...member, declaration: refOf(member.declaration) })),
+  }
+}
+
 function passageIndex(passages: readonly Passage[]): PassageIndex {
   return passages.map(passage => refOf(passageBlock(passage)))
 }
@@ -69,6 +80,10 @@ export function blobsOf(checkpoint: AgentCheckpoint): Blob[] {
   const out: Blob[] = [blobOf(passageIndex(checkpoint.passages)), blobOf(checkpoint.calls)]
   for (const passage of checkpoint.passages)
     out.push(blobOf(passageBlock(passage)), blobOf(passage.declaration))
+  if (checkpoint.chain !== null) {
+    out.push(blobOf(chainBlock(checkpoint.chain)))
+    for (const member of checkpoint.chain.members) out.push(blobOf(member.declaration))
+  }
   if (checkpoint.guard !== null) out.push(blobOf(checkpoint.guard))
   if (checkpoint.replyAdmissionRead.kind === 'verified')
     out.push(blobOf(checkpoint.replyAdmissionRead.prefix))
@@ -84,6 +99,18 @@ function held<T>(blobs: BlobStore, ref: Readonly<{ digest: string }>, what: stri
   if (!blobs.has(ref.digest))
     throw new TypeError(`the Journal holds no block for the ${what} the cursor refers to`)
   return structuredClone(blobs.get(ref.digest)) as T
+}
+
+function chainOf(blobs: BlobStore, ref: Ref<ChainBlock> | null): ExtensionChain | null {
+  if (ref === null) return null
+  const block = held<ChainBlock>(blobs, ref, 'chain')
+  return {
+    ...block,
+    members: block.members.map(member => ({
+      ...member,
+      declaration: held(blobs, member.declaration, 'chain declaration'),
+    })),
+  }
 }
 
 export function checkpointOf(
@@ -134,7 +161,8 @@ export function checkpointOf(
     compaction: need('compaction') === null ? null : held(blobs, need('compaction')!, 'compaction'),
     adoptedContext: need('adoptedContext'),
     guard: need('guard') === null ? null : held(blobs, need('guard')!, 'guard'),
-    completedPassages: need('completedPassages'),
+    chain: chainOf(blobs, need('chain')),
+    passed: need('passed'),
     priorConditions: need('priorConditions'),
     currentHandoff: need('currentHandoff'),
     replyAdmissionRead: (() => {

@@ -9,12 +9,14 @@ import type {
   AgentJournalEntry,
   AgentOperationId,
   Authority,
+  ChainMember,
   ConsumerRef,
   ConsumptionId,
   ControlStage,
   DurableEvidence,
   ExecutionAttachmentId,
   ExecutionControl,
+  ExtensionChain,
   FinishCandidateContent,
   FinishRoute,
   HandoffReference,
@@ -94,6 +96,12 @@ export type ProducerCall = Readonly<{
 /** One extension call, saved as a block of its own; it refers to its declaration and does not embed it. */
 export type PassageBlock = Omit<Passage, 'declaration'> &
   Readonly<{ declaration: Ref<LoopExtensionDeclaration> }>
+/** The extension chain of the open pass, saved as one block; each member refers to its declaration. */
+export type ChainBlock = Omit<ExtensionChain, 'members'> &
+  Readonly<{
+    members: readonly (Omit<ChainMember, 'declaration'> &
+      Readonly<{ declaration: Ref<LoopExtensionDeclaration> }>)[]
+  }>
 /** The extension calls a checkpoint holds, in order. A fact has a byte limit, so the cursor names this block and not the calls. */
 export type PassageIndex = readonly Ref<PassageBlock>[]
 
@@ -109,7 +117,8 @@ export type CursorMembers = Readonly<{
   requestPreparation: Ref | null
   adoptedContext: DurableEvidence | null
   passages: Ref<PassageIndex>
-  completedPassages: readonly PassageId[]
+  chain: Ref<ChainBlock> | null
+  passed: readonly string[]
   batch: Ref | null
   calls: Ref
   schema: Adoption

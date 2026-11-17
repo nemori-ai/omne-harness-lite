@@ -40,6 +40,29 @@ export type ModelReceiverFixture = Readonly<{
   sent: AgentAccountHandoff[]
   outlet(next: AgentAccountOutcome): void
 }>
+function receiverCheckpoint<C>(pending: C) {
+  return {
+    schema: testAdoption('checkpoint'),
+    definition: testAdoption('definition'),
+    step: value(decodeStepId('receiver-step')),
+    position: 'M1',
+    calls: [pending],
+    passages: [],
+    batch: null,
+    inputBatch: null,
+    requestPreparation: null,
+    compaction: null,
+    adoptedContext: null,
+    guard: null,
+    chain: null,
+    passed: [],
+    priorConditions: null,
+    currentHandoff: null,
+    replyAdmissionRead: { kind: 'unverified' as const },
+    voided: [],
+  }
+}
+
 export async function assembleModelReceiverFixture(
   tenant: Access<string>['tenant'],
   entry: ReceivedEntry,
@@ -91,25 +114,7 @@ export async function assembleModelReceiverFixture(
     priority: 'ordinary',
   }
   const invokeEntry = { kind: 'invoke' as const, operation: open, execution, initial }
-  const checkpoint = {
-    schema: testAdoption('checkpoint'),
-    definition: testAdoption('definition'),
-    step: value(decodeStepId('receiver-step')),
-    position: 'M1',
-    calls: [pending],
-    passages: [],
-    batch: null,
-    inputBatch: null,
-    requestPreparation: null,
-    compaction: null,
-    adoptedContext: null,
-    guard: null,
-    completedPassages: [],
-    priorConditions: null,
-    currentHandoff: null,
-    replyAdmissionRead: { kind: 'unverified' as const },
-    voided: [],
-  }
+  const checkpoint = receiverCheckpoint(pending)
   const handoff = { kind: 'input' as const, execution, entry: open, input: initial.id }
   const runtime = {
     instance,

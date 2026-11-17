@@ -37,6 +37,7 @@ import type {
   InputBatch,
   InputHandoff,
   InvokeRuntimeContext,
+  LoopExtensionDeclaration,
   LoopFacts,
   MessageSource,
   ModelContextRead,
@@ -97,11 +98,14 @@ import {
   REPLY_ADMISSION_PAGE_LIMIT,
   sentPosition,
 } from './admission-read.ts'
-import { LOOP_NODES, successor, type Label, type LoopNode } from './nodes.ts'
+import { successor, type Label, type LoopNode } from './nodes.ts'
 import { attemptWrite, originalJournal, type OriginalWrite } from './original-write.ts'
 import { localFailure, nodeFailureCategory, type NodeFailureCategory } from './node-failure.ts'
 import { readBatchToolCalls } from './action-source.ts'
 import { answeredByPort, notingPorts } from './port-answers.ts'
+import { createPassRunner } from './extension-positions.ts'
+import { BEFORE_RECORD, recoveryRoute } from './recovery-route.ts'
+import { closedPass } from './extension-pass.ts'
 import {
   consumeModelResult,
   lostIntent,
@@ -172,6 +176,8 @@ export type LoopPorts<P> = Pick<
   | 'toolRequests'
   | 'admission'
   | 'cards'
+  | 'extensions'
+  | 'enabledExtensions'
 >
 
 export type ExecutionEntry<P> = Readonly<{
@@ -199,6 +205,17 @@ export type ExecutionEntry<P> = Readonly<{
   toolConcurrency?: number
   maxRunSteps?: number
   report?: (report: ReplyAdmissionReadReport) => void
+  /** The extensions the adopted definition composed, in their declared order. */
+  extensions?: readonly LoopExtensionDeclaration[]
+  /** Asks to cancel on behalf of an extension, under the control qualification check; absent, every such request is refused. */
+  requestCancel?(
+    input: Access<P> &
+      Readonly<{
+        execution: AgentExecutionId
+        operation: AgentOperationId
+        reason: DurableEvidence
+      }>,
+  ): Promise<Outcome<CommandReceipt, Failure>>
 }> &
   ModelRetryEntry
 
@@ -412,93 +429,6 @@ function required<T>(value: T | null, what: string): T {
   return value
 }
 
-type UnsupportedRecovery = Readonly<{ kind: 'unsupported'; node: string; card: string }>
-type Recovery = Outcome<LoopNode | 'evaluate', UnsupportedRecovery>
-
-function recoveryCard(node: string): string {
-  if (node.startsWith('X')) return '#502 stage 3'
-  if (node.startsWith('C')) return '#502 stage 4'
-  return /^[AT]/u.test(node) ? '#502 stage 2' : '#502 stage 5'
-}
-
-function recoveryTarget(node: string): Recovery {
-  if (
-    /^[CX]/u.test(node) ||
-    !LOOP_NODES.includes(node as LoopNode) ||
-    ['E0', 'E1', 'E2', 'U0', 'Q1', 'R0', 'W0', 'F0', 'H0', 'M2', 'Q5'].includes(node)
-  )
-    return fail({ kind: 'unsupported', node, card: recoveryCard(node) })
-  return succeed(node as LoopNode)
-}
-
-function batchRecovery(position: string, batch: ActionBatch): string {
-  if (batch.barrier.kind === 'closed') return 'A1'
-  if (['T4', 'T5', 'I8'].includes(position)) return position
-  const slotted = (action: Action) => batch.slots.some(slot => slot.action === action.id)
-  if (batch.barrier.kind === 'all-denied') return batch.actions.every(slotted) ? 'T2' : 'A3'
-  const judged = (action: Action) => ['allowed', 'denied'].includes(action.judgment.kind)
-  if (batch.actions.some(action => judged(action) && !slotted(action))) return 'A2'
-  return batch.slots.some(slot => slot.kind === 'dispatched') ? 'T0' : 'T1'
-}
-
-function callRecovery(position: string, call: PendingCall): Recovery {
-  if (call.purpose === 'compaction')
-    return fail({ kind: 'unsupported', node: 'M1', card: '#502 stage 4' })
-  if (call.purpose === 'action') return recoveryTarget('T0')
-  if (call.purpose === 'extension') return recoveryTarget('X2')
-  if (['M0', 'M6', 'M1', 'M3', 'M4', 'M5', 'I3'].includes(position)) return recoveryTarget(position)
-  if (position === 'Q2' || position === 'Q4') return recoveryTarget('I3')
-  return recoveryTarget('M1')
-}
-
-function preparationRecovery(at: AgentCheckpoint): Recovery | null {
-  if (at.compaction !== null) {
-    const ended = at.compaction.ended
-    return recoveryTarget(ended === 'committed' ? 'I1' : ended === 'failed' ? 'F1' : 'C1')
-  }
-  const prepared = at.requestPreparation
-  if (prepared === null) return null
-  if (prepared.kind === 'cannot-fit') return succeed('F1')
-  return recoveryTarget('C0')
-}
-
-/** The positions before the final request record: no fact of them outlives the process. */
-const BEFORE_RECORD: readonly string[] = ['I1', 'P0', 'P1', 'I2']
-
-function stateRecovery(
-  read: Pick<ExecutionSnapshot, 'checkpoint' | 'state' | 'unresolved'>,
-): Recovery | null {
-  const at = read.checkpoint
-  if (read.state.kind === 'ended') return succeed('F4')
-  // A lost receipt must be reconciled before any dependent business continuation can run.
-  if (read.unresolved.length > 0) return succeed('R0')
-  if (read.state.kind === 'settling') return succeed(at.position === 'F3' ? 'F3' : 'F2')
-  const passage = extensionPassages(at.passages).find(item => item.progress.kind !== 'applied')
-  if (passage === undefined) return null
-  const progress = passage.progress.kind
-  return recoveryTarget(progress === 'resolved' ? 'X5' : progress === 'asked' ? 'X4' : 'X2')
-}
-
-export function recoveryRoute(
-  read: Pick<ExecutionSnapshot, 'checkpoint' | 'state' | 'unresolved'>,
-): Recovery {
-  const at = read.checkpoint
-  const settled = stateRecovery(read)
-  if (settled !== null) return settled
-  if (at.batch !== null && at.batch.actions.length > 0)
-    return recoveryTarget(batchRecovery(at.position, at.batch))
-  const call = at.calls[0]
-  if (call !== undefined) return callRecovery(at.position, call)
-  if (at.position === 'F1') return recoveryTarget('I8')
-  if (['I3', 'I4', 'I8', 'F2', 'F3', 'F4', 'O0', 'E9'].includes(at.position))
-    return recoveryTarget(at.position)
-  const preparation = preparationRecovery(at)
-  if (preparation !== null) return preparation
-  if (at.inputBatch !== null || BEFORE_RECORD.includes(at.position)) return succeed('I1')
-  if (['E4', 'I0', 'I8'].includes(at.position)) return succeed('evaluate')
-  return recoveryTarget(at.position)
-}
-
 const DEPENDENCY_PORTS = [
   'journal',
   'entries',
@@ -512,7 +442,62 @@ const DEPENDENCY_PORTS = [
   'handoff',
   'materials',
   'clock',
+  'extensions',
+  'enabledExtensions',
 ] as const satisfies readonly Exclude<keyof LoopPorts<unknown>, 'toolRequests'>[]
+
+function replaceAction(batch: ActionBatch, action: Action): ActionBatch {
+  return {
+    ...batch,
+    actions: batch.actions.map(item => (item.id === action.id ? action : item)),
+  }
+}
+
+function replaceSlot(batch: ActionBatch, slot: ActionSlot): ActionBatch {
+  return {
+    ...batch,
+    slots: batch.slots.some(item => item.action === slot.action)
+      ? batch.slots.map(item => (item.action === slot.action ? slot : item))
+      : [...batch.slots, slot],
+  }
+}
+
+function recordedOutcome(
+  resolution: ExecutionSnapshot['handoffs'][number]['resolution'],
+): HandoffOutcome | undefined {
+  return resolution?.kind === 'recorded' ? resolution.outcome : undefined
+}
+
+function savedSlotRequest(
+  request: PendingHandoff,
+  slot: ActionSlot,
+): Outcome<PendingHandoff, Failure> {
+  if (slot.candidateDigest === null || candidateDigest(request.candidate) !== slot.candidateDigest)
+    return fail({
+      kind: 'invalid',
+      field: 'slot.candidateDigest',
+      reason: 'the saved candidate does not match the digest of the slot',
+    })
+  return succeed(request)
+}
+
+function cannotFit(
+  execution: AgentExecutionId,
+  of: StepId,
+  preparation: Extract<Preparation, { kind: 'cannot-fit' }>,
+  at: AgentInstant,
+): Extract<Next, { kind: 'try-finish' }> {
+  const failure: FailureCandidate = {
+    kind: 'cannot-fit',
+    step: of,
+    at,
+    source: preparation.source,
+    reason: preparation.reason,
+    context: preparation.source,
+  }
+  const cause = agentEvidence(`${execution}/${of}/cannot-fit`, failure)
+  return { kind: 'try-finish', conclusion: { kind: 'fail', cause }, failure }
+}
 
 export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): ExecutionCoordinator {
   return coordinate(entry, entry)
@@ -532,7 +517,10 @@ function coordinate<P>(
     if (key in ports)
       Object.defineProperty(ports, key, {
         enumerable: true,
-        get: () => notingPorts(entry.ports[key]),
+        get: () => {
+          const port = entry.ports[key]
+          return port === undefined ? undefined : notingPorts(port)
+        },
       })
   const access: Access<P> = { principal: entry.access.principal, tenant: entry.access.tenant }
 
@@ -1081,12 +1069,6 @@ function coordinate<P>(
     return succeed({ step: at, reply, produced: record.request.source.result })
   }
 
-  function recordedOutcome(
-    resolution: ExecutionSnapshot['handoffs'][number]['resolution'],
-  ): HandoffOutcome | undefined {
-    return resolution?.kind === 'recorded' ? resolution.outcome : undefined
-  }
-
   function replyApplication(
     request: PendingHandoff,
     fixed: HandoffOutcome,
@@ -1344,6 +1326,28 @@ function coordinate<P>(
     )
   }
 
+  const passRunner = createPassRunner<P>({
+    access,
+    execution,
+    ports,
+    definition: (entry.extensions ?? []).map(declaration => ({
+      declaration,
+      implementation: binding.definition,
+    })),
+    requestCancel: entry.requestCancel,
+    checkpoint: () => required(checkpoint, 'checkpoint'),
+    revision: () => required(revision, 'revision'),
+    authority: () => required(authority, 'authority'),
+    snapshot: () => snapshot,
+    load,
+    commit,
+    waitFor: (node, failure, recheck) => void waitFor(node, failure, recheck),
+    decide: next => void (decided = next),
+    handoffOutcome: slotOutcome,
+    resolveHandoff: applySlotMessage,
+  })
+  const runPass = passRunner.run
+
   const runExecutionNodes = {
     async E0() {
       if (originalOpen === null) {
@@ -1433,7 +1437,17 @@ function coordinate<P>(
       return step(to === 'E3' ? 'passage-pending' : `resume-${to}`, null)
     },
     async E3() {
-      return step('passed')
+      const current = required(checkpoint, 'checkpoint')
+      const passed = await runPass('E3', {
+        id: `${current.step}/execution_started`,
+        position: 'execution_started',
+        dimension: null,
+        purpose: null,
+        subject: { execution, conditions: required(facts, 'facts').conditions.source },
+      })
+      if ('failure' in passed) return passed
+      if (passed.ok.kind === 'left') return succeed(passed.ok.step)
+      return step('passed', { checkpoint: passed.ok.applied })
     },
     async O0() {
       return step('delivered', null)
@@ -1672,22 +1686,6 @@ function coordinate<P>(
           })
     },
   } satisfies Partial<Record<LoopNode, Handler>>
-
-  function replaceAction(batch: ActionBatch, action: Action): ActionBatch {
-    return {
-      ...batch,
-      actions: batch.actions.map(item => (item.id === action.id ? action : item)),
-    }
-  }
-
-  function replaceSlot(batch: ActionBatch, slot: ActionSlot): ActionBatch {
-    return {
-      ...batch,
-      slots: batch.slots.some(item => item.action === slot.action)
-        ? batch.slots.map(item => (item.action === slot.action ? slot : item))
-        : [...batch.slots, slot],
-    }
-  }
 
   async function receivedOfConsumption(
     consumption: ConsumptionId,
@@ -1992,6 +1990,7 @@ function coordinate<P>(
   async function slotOutcome(
     request: PendingHandoff,
     existing: ExecutionSnapshot['handoffs'][number] | undefined,
+    node: LoopNode = 'T5',
   ): Promise<Outcome<HandoffOutcome | 'wait', Failure>> {
     const recorded = existing === undefined ? undefined : recordedOutcome(existing.resolution)
     if (recorded !== undefined) return succeed(recorded)
@@ -2004,7 +2003,7 @@ function coordinate<P>(
       })
       if ('failure' in found) return found
       if (found.ok.kind === 'excluded')
-        return fail(notYet('T5', 'an excluded handoff (retire)', '#502 stage 5'))
+        return fail(notYet(node, 'an excluded handoff (retire)', '#502 stage 5'))
       if (found.ok.kind === 'recorded') return succeed(found.ok.outcome)
     }
     const prepared = await ports.handoff.prepare({
@@ -2014,16 +2013,17 @@ function coordinate<P>(
       advance: required(authority, 'authority'),
     })
     if ('ok' in prepared || prepared.failure.kind !== 'unavailable') return prepared
-    waitFor('T5', prepared.failure, null)
+    waitFor(node, prepared.failure, null)
     return succeed('wait')
   }
 
   async function applySlotMessage(
     request: PendingHandoff,
     fixed: HandoffOutcome,
+    node: LoopNode = 'T5',
   ): Promise<Outcome<void, Failure>> {
     const decision = fixed.decision
-    return commit('T5', 'T5', {
+    return commit(node, required(checkpoint, 'checkpoint').position, {
       checkpoint: { currentHandoff: null },
       events:
         decision.kind === 'prepared'
@@ -2055,22 +2055,6 @@ function coordinate<P>(
     return required(snapshot, 'snapshot').handoffs.find(
       record => canonical(record.handoff) === canonical(handoff),
     )
-  }
-
-  function savedSlotRequest(
-    request: PendingHandoff,
-    slot: ActionSlot,
-  ): Outcome<PendingHandoff, Failure> {
-    if (
-      slot.candidateDigest === null ||
-      candidateDigest(request.candidate) !== slot.candidateDigest
-    )
-      return fail({
-        kind: 'invalid',
-        field: 'slot.candidateDigest',
-        reason: 'the saved candidate does not match the digest of the slot',
-      })
-    return succeed(request)
   }
 
   async function admitSlot(action: Action): Promise<Outcome<SlotAdmission, Failure>> {
@@ -3203,7 +3187,7 @@ function coordinate<P>(
       ) {
         const instant = await ports.clock.now()
         if ('failure' in instant) return instant
-        decided = cannotFit(at.step, preparation, instant.ok)
+        decided = cannotFit(execution, at.step, preparation, instant.ok)
       }
       const next = required(decided, 'decision')
       if (next.kind !== 'try-finish') throw new Error(`coordinator defect: F1 after ${next.kind}`)
@@ -3223,9 +3207,12 @@ function coordinate<P>(
       return step('fixed', {
         state: { kind: 'settling' },
         finish,
-        ...(next.failure?.kind === 'no-reply' || next.failure?.kind === 'model-refused'
-          ? { checkpoint: { calls: [] } }
-          : {}),
+        checkpoint: {
+          ...closedPass(at),
+          ...(next.failure?.kind === 'no-reply' || next.failure?.kind === 'model-refused'
+            ? { calls: [] }
+            : {}),
+        },
       })
     },
     async F2() {
@@ -3297,23 +3284,6 @@ function coordinate<P>(
       return step('observed', null)
     },
   } satisfies Partial<Record<LoopNode, Handler>>
-
-  function cannotFit(
-    of: StepId,
-    preparation: Extract<Preparation, { kind: 'cannot-fit' }>,
-    at: AgentInstant,
-  ): Extract<Next, { kind: 'try-finish' }> {
-    const failure: FailureCandidate = {
-      kind: 'cannot-fit',
-      step: of,
-      at,
-      source: preparation.source,
-      reason: preparation.reason,
-      context: preparation.source,
-    }
-    const cause = agentEvidence(`${execution}/${of}/cannot-fit`, failure)
-    return { kind: 'try-finish', conclusion: { kind: 'fail', cause }, failure }
-  }
 
   const handlers: Partial<Record<LoopNode, Handler>> = {
     ...admitMessage,

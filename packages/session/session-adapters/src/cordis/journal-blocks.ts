@@ -57,10 +57,7 @@ function listedDigests(payload: string): string[] {
 
 type CandidateCursor = Readonly<{ members?: Partial<CursorMembers> }>
 
-/**
- * Reads the blocks the executions name, then the blocks those name, level by level.
- * Answers the row of the first block that is not readable, or null when all are held.
- */
+/** Reads the blocks the executions name, then those they name, level by level; answers the first unreadable row, or null. */
 export async function fetchNamed(
   read: BlockRead,
   executions: Iterable<ExecutionView>,
