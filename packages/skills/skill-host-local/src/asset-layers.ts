@@ -40,8 +40,7 @@ export function skillInputsFromAssets<P, S>(
         })
         if (answer.state !== 'read' || answer.page.completeness === 'partial')
           return fail('unknown')
-        for (const item of answer.page.items)
-          if (!named.has(item.capability.name)) named.set(item.capability.name, item.capability)
+        for (const item of answer.page.items) named.set(item.capability.name, item.capability)
         after = answer.page.next
       } while (after !== null)
       return succeed([...named.values()])
