@@ -41,8 +41,17 @@ import {
 import { readProjection } from '../../../dist/rows/governance/projection-read.js'
 import { createGovernanceAdoptionProjection } from '../../../dist/rows/governance/adoption-current.js'
 import { createToolGovernanceDefinitionSource } from '../../../src/rows/governance/tool-definition-source.ts'
+import { governedCapture } from '../../../src/rows/governance/governed-capture.ts'
+import { createCategoryPoint } from '@omne-harness/assets'
+import { toolBodyContract, toolCategoryDisplay } from '@omne-harness/tool-contract'
 import { toolAssetsWorld } from './tool-assets-world.ts'
 import { releaseIdentityConfig } from '../identity/fixtures.ts'
+
+function toolCategories() {
+  const point = createCategoryPoint()
+  point.contribute({ contract: toolBodyContract(), display: toolCategoryDisplay })
+  return point
+}
 
 export async function governanceAdoptionWorld(
   options: {
@@ -254,7 +263,7 @@ export async function governanceAdoptionWorld(
     },
     current: {
       adoption: createGovernanceAdoptionProjection(w.domain.transactionDomain),
-      catalog: governanceCatalogProjection,
+      catalog: governanceCatalogProjection(governedCapture(toolCategories())),
     },
     recoveryPagesPerPass: 4,
     closeTimeoutMs: 3000,

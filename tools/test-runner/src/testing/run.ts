@@ -20,12 +20,12 @@ import type { TestMember } from '@omne-harness/repo-toolchain/core/workspace'
 import { VITEST_MAX_WORKERS_ENV, type Parallelism, type RunScript, type RunTier } from './config.ts'
 import type { MemberRun, VitestJsonReport } from './ledger.ts'
 import type { TimingReport } from './timing-reporter.ts'
-import { batchArgs, batchLabel, type Batch } from './batches.ts'
+import { batchArgs, batchFiles, batchLabel, type Batch } from './batches.ts'
 import { cpuMeterAvailable, meteredArgs, readMeteredCpu } from './cpu-meter.ts'
 import { readRaw } from './read-sets.ts'
 import { workersFor, type MemberDemand, type WeightSource } from './parallelism.ts'
 import { pnpmCommand } from './support.ts'
-import { runJob, runJobs, type TokenSource } from './token-pool.ts'
+import { runGatedJobs, runJob, runJobs, type Gate, type TokenSource } from './token-pool.ts'
 import {
   buildArgs,
   checkMemberTurboConfigs,
@@ -201,7 +201,11 @@ export interface MemberSchedule {
   readonly source: TokenSource
   readonly demand: (member: TestMember, files?: number) => MemberDemand
   readonly batches?: (members: readonly TestMember[]) => Batch[]
+  readonly cached?: (member: string) => MemberRun | undefined
+  readonly gate?: Gate
 }
+
+export const GATE_SKIPPED = '没有运行：快层没过，这个成员的慢层没有起'
 
 export function observedParallelism(spans: readonly MemberSpan[]): Parallelism {
   let memberConcurrency = 0
@@ -241,6 +245,25 @@ export interface MemberSpan {
   readonly perWorker: number
   readonly weightSource: WeightSource
   readonly cpuSeconds?: number
+  readonly startupSeconds?: number
+}
+
+export function startupUse(spans: readonly MemberSpan[]): string | undefined {
+  const measured = spans.filter(span => span.startupSeconds !== undefined)
+  if (measured.length === 0) return undefined
+  const startup = measured.reduce((sum, span) => sum + (span.startupSeconds ?? 0), 0)
+  const wall = measured.reduce((sum, span) => sum + (span.end - span.start) / 1000, 0)
+  return (
+    `启动开销：${measured.length} 批从起批到第一份文件开跑平均 ${(startup / measured.length).toFixed(1)} 秒，` +
+    `合计 ${Math.round(startup)} 秒，占这些批墙钟的 ${wall === 0 ? '0.0' : ((100 * startup) / wall).toFixed(1)}%`
+  )
+}
+
+export function startupOfRun(run: MemberRun, start: number): number | undefined {
+  const first = Math.min(
+    ...(run.report?.testResults ?? []).map(result => result.startTime).filter(time => time > 0),
+  )
+  return Number.isFinite(first) ? Math.round(Math.max(0, first - start) / 100) / 10 : undefined
 }
 
 async function scheduleMembers(
@@ -477,54 +500,69 @@ export async function runTurboTests(
   for (const batch of queue) remaining.set(batch.member, (remaining.get(batch.member) ?? 0) + 1)
   const parts = new Map<string, { batch: Batch; run: MemberRun }[]>()
   const spans: MemberSpan[] = []
-  await runJobs(
-    queue.map(batch => {
-      const member = byPath.get(batch.member) as TestMember
-      const { want, min, perWorker, weightSource } = schedule.demand(
-        member,
-        batch.kind === 'files' ? batch.files.length : undefined,
-      )
-      return {
-        want,
-        min,
-        label: `${batchLabel(batch)}:${TIER_TASKS[tier]}`,
-        run: async (tokens: number) => {
-          const start = Date.now()
-          const workers = workersFor(tokens, perWorker)
-          const run = await runTurboBatch(
-            root,
-            member,
-            batch,
-            runDir,
-            tier,
-            workers,
-            build.readSets === true,
-          )
-          spans.push({
-            member: member.path,
-            ...(batch.kind === 'whole' ? {} : { batch: batchLabel(batch) }),
-            start,
-            end: Date.now(),
-            tokens,
-            workers,
-            perWorker,
-            weightSource,
-            ...(run.cpuSeconds === undefined ? {} : { cpuSeconds: run.cpuSeconds }),
-          })
-          const done = [...(parts.get(member.path) ?? []), { batch, run }]
-          parts.set(member.path, done)
-          const left = (remaining.get(member.path) ?? 1) - 1
-          remaining.set(member.path, left)
-          if (left > 0) return
-          const merged = batch.kind === 'whole' ? run : mergeBatchRuns(member.path, done)
-          if (batch.kind !== 'whole') writeMerged(runDir, member, done, merged)
-          byMember.set(member.path, merged)
-          onDone(merged, byMember.size)
-        },
-      }
-    }),
-    schedule.source,
-  )
+  const finish = (member: TestMember, batch: Batch, run: MemberRun) => {
+    const done = [...(parts.get(member.path) ?? []), { batch, run }]
+    parts.set(member.path, done)
+    const left = (remaining.get(member.path) ?? 1) - 1
+    remaining.set(member.path, left)
+    if (left > 0) return
+    const cached = schedule.cached?.(member.path)
+    const merged =
+      batch.kind === 'whole' && cached === undefined
+        ? run
+        : mergeBatchRuns(member.path, done, cached)
+    if (batch.kind !== 'whole' || cached !== undefined) writeMerged(runDir, member, done, merged)
+    else if (run.problem === GATE_SKIPPED)
+      writeFileSync(join(runDir, `${slugOf(member.path)}.log`), `test-runner: ${run.problem}\n`)
+    byMember.set(member.path, merged)
+    onDone(merged, byMember.size)
+  }
+  const jobs = queue.map(batch => {
+    const member = byPath.get(batch.member) as TestMember
+    const { want, min, perWorker, weightSource } = schedule.demand(member, batchFiles(batch))
+    return {
+      member: member.path,
+      want,
+      min,
+      label: `${batchLabel(batch)}:${TIER_TASKS[tier]}`,
+      skip: () =>
+        finish(member, batch, {
+          member: member.path,
+          exitCode: -1,
+          wallSeconds: 0,
+          problem: GATE_SKIPPED,
+        }),
+      run: async (tokens: number) => {
+        const start = Date.now()
+        const workers = workersFor(tokens, perWorker)
+        const run = await runTurboBatch(
+          root,
+          member,
+          batch,
+          runDir,
+          tier,
+          workers,
+          build.readSets === true,
+        )
+        const startupSeconds = startupOfRun(run, start)
+        spans.push({
+          member: member.path,
+          ...(batch.kind === 'whole' ? {} : { batch: batchLabel(batch) }),
+          start,
+          end: Date.now(),
+          tokens,
+          workers,
+          perWorker,
+          weightSource,
+          ...(run.cpuSeconds === undefined ? {} : { cpuSeconds: run.cpuSeconds }),
+          ...(startupSeconds === undefined ? {} : { startupSeconds }),
+        })
+        finish(member, batch, run)
+      },
+    }
+  })
+  if (schedule.gate === undefined) await runJobs(jobs, schedule.source)
+  else await runGatedJobs(jobs, schedule.source, schedule.gate, job => job.skip())
   return {
     runs: members.flatMap(member => byMember.get(member.path) ?? []),
     spans,
@@ -631,14 +669,18 @@ async function runTurboBatch(
 export function mergeBatchRuns(
   member: string,
   parts: readonly { readonly batch: Batch; readonly run: MemberRun }[],
+  cached?: MemberRun,
 ): MemberRun {
   const results = new Map<string, VitestJsonReport['testResults'][number]>()
-  for (const { run } of parts)
+  for (const run of [...(cached === undefined ? [] : [cached]), ...parts.map(part => part.run)])
     for (const result of run.report?.testResults ?? []) {
       const seen = results.get(result.name)
       if (seen === undefined || result.status === 'failed') results.set(result.name, result)
     }
-  const timings = parts.flatMap(({ run }) => run.timing?.files ?? [])
+  const timings = [
+    ...(cached?.timing?.files ?? []),
+    ...parts.flatMap(({ run }) => run.timing?.files ?? []),
+  ]
   const failing = parts.find(({ run }) => run.exitCode !== 0)
   const problems = parts.flatMap(({ batch, run }) =>
     run.problem === undefined ? [] : [`${batchLabel(batch)}：${run.problem}`],

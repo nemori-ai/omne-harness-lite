@@ -19,7 +19,13 @@ afterEach(async () => {
 async function open() {
   const categories = createCategoryPoint()
   const w = await openCatalogWorld({
-    assets: { materials: assetsSqlMaterials(), command: assetsSettingsProjectionCommand },
+    assets: {
+      materials: assetsSqlMaterials(),
+      command: binding =>
+        assetsSettingsProjectionCommand(binding, {
+          categories: categories.list().map(listing => listing.category),
+        }),
+    },
   })
   const assets = createAssetsLocal({ ...w.terminalOptions, categories })
   closing.push(async () => {

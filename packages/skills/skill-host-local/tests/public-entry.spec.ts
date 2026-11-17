@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import { expect, it } from 'vitest'
 
 it('the root entry exports the two sources, the decisions and their asset inputs, and nothing else at run time', async () => {
@@ -9,4 +10,13 @@ it('the root entry exports the two sources, the decisions and their asset inputs
     'publishedCandidate',
     'skillInputsFromAssets',
   ])
+})
+
+it('has the root entry as its only entry, with no Cordis entry', async () => {
+  const manifest: unknown = JSON.parse(
+    await readFile(new URL('../package.json', import.meta.url), 'utf8'),
+  )
+  const exports: unknown =
+    typeof manifest === 'object' && manifest !== null ? Reflect.get(manifest, 'exports') : undefined
+  expect(Object.keys(Object(exports))).toEqual(['.'])
 })

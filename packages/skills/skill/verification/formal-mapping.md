@@ -22,10 +22,10 @@
 | ------------------------------- | ----------------------------------------------------------------------------- |
 | `Start`                         | `access/gate.ts` 第一步（依据的能力标识）与第一次检查点；目录的空请求直接作答 |
 | `Check`                         | `access/gate.ts` 的读取判定                                                   |
-| `Resolve`、`ResolveMisdirected` | `access/gate.ts` 的对应解析；`service.ts` 的描述、钉材料与路径校验            |
+| `Resolve`、`ResolveMisdirected` | `access/gate.ts` 的对应解析；`service.ts` 的钉材料与路径校验                  |
 | `Parsed`、`Misnames`            | `port-answer.ts` 的 `parseResolution`：引用身份一致的核对                     |
 | `Snapshot`                      | `access/pin.ts` 与 `mapping.ts` 的快照列；`service.ts` 的列目录与条目查找     |
-| `Open`                          | `access/bytes.ts` 与 `mapping.ts` 的读条目列；导出的逐条循环                  |
+| `Open`                          | `access/bytes.ts` 与 `mapping.ts` 的读条目列                                  |
 | `LawfulSet`、`CompleteCheck`    | `catalog.ts` 的合法集合与读取判定                                             |
 | `undecided`                     | 端口没有作答：判定端口为未知，来源为不可用                                    |
 | `abortAt`、`changeAt`、`smode`  | 探索器日程的 `abortAfter`、`change.after`、`addressing`                       |

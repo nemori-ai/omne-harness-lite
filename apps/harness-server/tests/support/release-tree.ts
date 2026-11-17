@@ -549,6 +549,8 @@ export type ReleaseTreeOptions = Readonly<{
   compactionTriggerPercent?: string
   /** History kinds read through session/v1 besides the five every tree reads. */
   extraHistoryKinds?: readonly string[]
+  /** Runs while no service is up, before the service of each run starts on the same state. */
+  beforeRun?: (run: number, storageRoot: string) => Promise<void>
   /** The operator's values for the settings release tools declare, by tool name and item id. */
   toolSettings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
 }>
@@ -572,6 +574,7 @@ export async function onReleaseTreeRuns(
   gateway.trustInProcess()
   const exitCodes: (number | undefined)[] = []
   const serve = async (run: number, body: (tree: ReleaseTree) => Promise<void>) => {
+    await options.beforeRun?.(run, dir.storageRoot)
     for (let attempt = 1; ; attempt += 1) {
       const state = { dir, port, home, modelRoute: gateway.url }
       const outcome = await serveOnce(options, state, run === 0, body)

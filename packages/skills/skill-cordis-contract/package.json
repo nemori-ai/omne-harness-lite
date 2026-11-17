@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Cordis service definitions of Skill: abstract Services and keys for the three services and the two demand ports",
+  "description": "Cordis service definitions of Skill: abstract Services and keys for the catalog and access services",
   "engines": {
     "node": ">=24"
   },

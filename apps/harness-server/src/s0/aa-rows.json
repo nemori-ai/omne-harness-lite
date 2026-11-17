@@ -45,6 +45,7 @@
     "tool-records",
     "tool-body-sweep",
     "tool-bindings",
+    "skills",
     "tool-runtime",
     "tool-executor",
     "tool-host",
@@ -107,6 +108,13 @@
         "currentToolPermission",
         "sessionModesInstallation",
         "tenantDomainRegistration"
+      ]
+    },
+    {
+      "row": "skills",
+      "names": [
+        "storage",
+        "tenantDomainLookup"
       ]
     },
     {

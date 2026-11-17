@@ -20,12 +20,15 @@ async function capture(w: World, targets = [target]) {
     combinationVersion: w.combination.combinationVersion,
     manifestDigest: w.combination.manifestDigest,
     commands: [
-      assetsPublicationCommand({
-        domain: w.domain,
-        principalRef: 'alice',
-        captureId,
-        request: { deploymentRef: 'test', mode: 'runtime', targets, selectionRef: null },
-      }),
+      assetsPublicationCommand(
+        {
+          domain: w.domain,
+          principalRef: 'alice',
+          captureId,
+          request: { deploymentRef: 'test', mode: 'runtime', targets, selectionRef: null },
+        },
+        { categories: ['service'] },
+      ),
     ],
   })
   return result.kind === 'committed'

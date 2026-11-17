@@ -34,6 +34,7 @@ import {
 import { toolCategoryDisplay } from '@omne-harness/tool-contract'
 import { createAssetsLocal } from '@omne-harness/assets-local'
 import { createToolAssetCategory } from '../../../src/rows/governance/tool-assets.ts'
+import { governedCapture } from '../../../src/rows/governance/governed-capture.ts'
 import { PREFERENCE_SETTINGS } from '../../../src/rows/governance/preference-settings.ts'
 import {
   combinationManifest,
@@ -192,12 +193,18 @@ async function world(extraParticipants: SqlMaterialCatalog['participants'] = [])
   })
   const published = await directory.ensureRegistered(tenantRef)
   if (published.kind !== 'ready') throw new Error(JSON.stringify(published))
+  const toolCategory = createCategoryPoint()
+  toolCategory.contribute({
+    contract: createToolAssetCategory(release),
+    display: toolCategoryDisplay,
+  })
   const options: TenantGovernanceOptions = {
     materials,
     storage: made.storage,
     domain,
     scope,
     catalogPrincipal: principal,
+    capture: governedCapture(toolCategory),
     destination: 'harness.governance',
     identity: {
       verifier: authority.verifier,
@@ -744,6 +751,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
     'tool.Files',
     'tool.Schedules',
     'tool.Shell',
+    'tool.Skills',
     'tool.TodoItems',
     'tool.Tools',
     'tool.Web',
@@ -771,6 +779,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
       'Files',
       'Schedules',
       'Shell',
+      'Skills',
       'TodoItems',
       'Tools',
       'Web',

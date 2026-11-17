@@ -10,6 +10,7 @@ export interface MemberReading {
   readonly files: number
   readonly fileTimes: readonly FileTime[]
   readonly weights: readonly WeightReading[]
+  readonly startupSeconds?: number
 }
 
 const LEDGERS_READ = 20
@@ -21,6 +22,7 @@ interface Job {
   readonly start?: unknown
   readonly end?: unknown
   readonly readingVersion?: unknown
+  readonly startupSeconds?: unknown
 }
 
 type LedgerWithJobs = Partial<LedgerFile> & {
@@ -42,6 +44,15 @@ export function readingOf(jobs: readonly Job[], member: string): WeightReading |
     measured = true
   }
   return measured ? { cpuSeconds, processSeconds } : undefined
+}
+
+export function startupOf(jobs: readonly Job[], member: string): number | undefined {
+  const seconds = jobs.flatMap(job =>
+    job.member === member && isNumber(job.startupSeconds) ? [job.startupSeconds] : [],
+  )
+  return seconds.length === 0
+    ? undefined
+    : Math.round((seconds.reduce((sum, value) => sum + value, 0) / seconds.length) * 10) / 10
 }
 
 function tierOf(runName: string): RunTier | undefined {
@@ -74,6 +85,9 @@ function ledgerAt(path: string): LedgerWithJobs {
   }
 }
 
+const reported = (row: { readonly exitCode: number; readonly files: number }) =>
+  row.exitCode === 0 || row.files > 0
+
 function fileTimesOf(ledger: LedgerWithJobs, member: string): FileTime[] {
   const prefix = `${member}/`
   return (ledger.files ?? [])
@@ -93,24 +107,38 @@ export function memberHistory(home: string, tier: RunTier): Map<string, MemberRe
   ledgers.sort((a, b) => b.mtime - a.mtime)
   const readings = new Map<
     string,
-    { seconds: number; files: number; fileTimes: FileTime[]; weights: WeightReading[] }
+    {
+      last?: Pick<MemberReading, 'seconds' | 'files' | 'fileTimes'>
+      weights: WeightReading[]
+      startupSeconds?: number | undefined
+    }
   >()
   for (const { path } of ledgers.slice(0, LEDGERS_READ)) {
     const ledger = ledgerAt(path)
+    const jobs = ledger.meta?.tokens?.jobs ?? []
     for (const row of ledger.members ?? []) {
-      if (row.exitCode !== 0) continue
-      const reading = readings.get(row.member) ?? {
-        seconds: row.wallSeconds,
-        files: row.files,
-        fileTimes: fileTimesOf(ledger, row.member),
-        weights: [],
-      }
+      const reading = readings.get(row.member) ?? { weights: [] }
       readings.set(row.member, reading)
-      const weight = readingOf(ledger.meta?.tokens?.jobs ?? [], row.member)
+      if (reading.last === undefined && reported(row))
+        reading.last = {
+          seconds: row.wallSeconds,
+          files: row.files,
+          fileTimes: fileTimesOf(ledger, row.member),
+        }
+      const weight = readingOf(jobs, row.member)
       if (weight !== undefined) reading.weights.push(weight)
+      reading.startupSeconds ??= startupOf(jobs, row.member)
     }
   }
-  return readings
+  const history = new Map<string, MemberReading>()
+  for (const [member, { last, weights, startupSeconds }] of readings)
+    if (last !== undefined)
+      history.set(member, {
+        ...last,
+        weights,
+        ...(startupSeconds === undefined ? {} : { startupSeconds }),
+      })
+  return history
 }
 
 export function longestFirst<T extends { readonly path: string }>(

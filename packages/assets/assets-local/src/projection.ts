@@ -52,18 +52,29 @@ function targetView(
   const current = selectedTarget(port, binding, target)
   return current === null ? null : settingsView(current, target)
 }
-function captureTargets(port: ParticipantPort, binding: SettingsProjectionBinding, scope: string) {
+function heldIn(port: ParticipantPort, domain: string, category: string): string[] {
+  const prefix = `[${canonical(category)},`
+  return port
+    .execute(
+      "SELECT holding_ref FROM al_holdings WHERE scope_key = ? AND state = 'held' AND capability_key > ? AND capability_key < ? ORDER BY holding_ref LIMIT 129",
+      [domain, prefix, `${prefix.slice(0, -1)}-`],
+    )
+    .rows.map(row => String(row[0]))
+}
+function captureTargets(
+  port: ParticipantPort,
+  binding: SettingsProjectionBinding,
+  scope: string,
+  categories: readonly string[],
+) {
   const targets = binding.request.targets
-  const selected =
-    targets.length === 0 && binding.request.mode === 'management'
-      ? port
-          .execute(
-            "SELECT holding_ref FROM al_holdings WHERE scope_key = ? AND state = 'held' ORDER BY holding_ref LIMIT 129",
-            [canonical(binding.domain)],
-          )
-          .rows.map(row => ({ policyId: 'asset', targetRef: String(row[0]), scopeRef: scope }))
-      : targets.filter(target => target.policyId === 'asset')
-  return selected
+  if (targets.length > 0 || binding.request.mode !== 'management')
+    return targets.filter(target => target.policyId === 'asset')
+  const domain = canonical(binding.domain)
+  return categories
+    .flatMap(category => heldIn(port, domain, category))
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(targetRef => ({ policyId: 'asset', targetRef, scopeRef: scope }))
 }
 function currentViews(
   port: ParticipantPort,
@@ -95,6 +106,7 @@ function currentViews(
 export function capture(
   port: ParticipantPort,
   binding: SettingsProjectionBinding,
+  categories: readonly string[],
   publication = false,
 ) {
   const fail = (reason: 'forbidden' | 'limit_exceeded' | 'invalid_input') => ({
@@ -110,7 +122,7 @@ export function capture(
   const scope = scopeRef(binding.domain)
   if (scope === null || (current && !equal(current.domain, binding.domain)))
     return fail('forbidden')
-  const selected = captureTargets(port, binding, scope)
+  const selected = captureTargets(port, binding, scope, categories)
   if (selected.length > 128) return fail('limit_exceeded')
   if (publication) return capturePublications(port, binding, selected)
   const currentTargets = currentViews(port, binding, selected)

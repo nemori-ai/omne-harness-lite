@@ -1,7 +1,7 @@
 import type { JsonLimits } from '@omne-harness/assets'
 import { readJsonBytes } from '@omne-harness/json-text'
 import type { SkillDeclaration } from '../values.ts'
-import { fieldsOf, readDependencies, readSettings, unknownKeys, type Finding } from './shape.ts'
+import { fieldsOf, readDependencies, unknownKeys, type Finding } from './shape.ts'
 
 export const DECLARATION_LIMITS: JsonLimits = Object.freeze({
   maxBytes: 65_536,
@@ -14,14 +14,13 @@ export const DECLARATION_LIMITS: JsonLimits = Object.freeze({
 
 export const EMPTY_DECLARATION: SkillDeclaration = Object.freeze({
   dependencies: Object.freeze([]),
-  settings: Object.freeze([]),
 })
 
 export type DeclarationRead =
   | Readonly<{ kind: 'unsupported' }>
   | Readonly<{ kind: 'read'; declaration: SkillDeclaration; findings: readonly Finding[] }>
 
-const FIELDS = ['formatVersion', 'dependencies', 'settings']
+const FIELDS = ['formatVersion', 'dependencies']
 
 function unread(detail: string): DeclarationRead {
   return { kind: 'read', declaration: EMPTY_DECLARATION, findings: [{ code: 'malformed', detail }] }
@@ -36,17 +35,9 @@ export function readDeclaration(bytes: Uint8Array, limits: JsonLimits): Declarat
   if (version === undefined || version.kind !== 'number' || version.lexeme !== '1')
     return { kind: 'unsupported' }
   const dependencies = readDependencies(fields.get('dependencies'))
-  const settings = readSettings(fields.get('settings'))
   return {
     kind: 'read',
-    declaration: Object.freeze({
-      dependencies: Object.freeze(dependencies.value),
-      settings: Object.freeze(settings.value),
-    }),
-    findings: [
-      ...unknownKeys(fields, FIELDS, '.omne/skill.json'),
-      ...dependencies.findings,
-      ...settings.findings,
-    ],
+    declaration: Object.freeze({ dependencies: Object.freeze(dependencies.value) }),
+    findings: [...unknownKeys(fields, FIELDS, '.omne/skill.json'), ...dependencies.findings],
   }
 }

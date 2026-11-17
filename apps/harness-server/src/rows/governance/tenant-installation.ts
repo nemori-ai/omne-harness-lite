@@ -3,17 +3,21 @@ import { createAssetsLocal } from '@omne-harness/assets-local'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { createStandaloneSettingsOwner } from '@omne-harness/settings-local'
 import type { ToolRelease } from '../../entry/tool-release.ts'
+import { governedCapture } from './governed-capture.ts'
 import { installPreferenceTargets } from './preference-settings.ts'
 import { governanceStorageCombinations } from './storage-combinations.ts'
 import { installToolGovernance, toolInstallationGrants } from './tool-installation.ts'
 import type { TenantAssetsAccess, TenantGovernanceAssembly } from './tenant-runtime.ts'
 import { prepareTenantGovernanceWithSettings } from './tenant-settings.ts'
 
-export type InstalledTenantOptions = Parameters<typeof prepareTenantGovernanceWithSettings>[0] & {
+export type InstalledTenantOptions = Omit<
+  Parameters<typeof prepareTenantGovernanceWithSettings>[0],
+  'capture'
+> & {
   installationPrincipal: ActingForTenantPrincipal
   release: Extract<ToolRelease, { kind: 'trusted' }>
   organizationTargets: ReturnType<typeof createStandaloneSettingsOwner>
-  categories: Pick<CategoryView, 'lookup'>
+  categories: Pick<CategoryView, 'list' | 'lookup'>
 }
 
 export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) {
@@ -30,6 +34,7 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
   })
   const assembly = prepareTenantGovernanceWithSettings({
     ...options,
+    capture: governedCapture(options.categories),
     permissionRelease: () => options.release,
     grants: [
       ...options.grants,

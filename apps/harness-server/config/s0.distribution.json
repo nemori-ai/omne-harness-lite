@@ -221,6 +221,11 @@
       "config": {}
     },
     {
+      "id": "skills",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "tool-runtime",
       "plugin": "stubPlugin",
       "config": {}

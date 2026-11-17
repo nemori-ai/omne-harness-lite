@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { pathsOf, type ServerLocations } from './locations.ts'
 import { isSecretName, type ServerSettings, type StorageLimits } from './settings.ts'
 import { DEFAULT_COMPACTION_BINDING } from '../assembly/compaction-provider.ts'
+import { SEARCH_RANKING } from '../entry/search-ranking.ts'
 
 export const DEFAULT_READINESS_TIMEOUT_MS = 30_000
 export const DEFAULT_SHUTDOWN_DEADLINE_MS = 10_000
@@ -401,7 +402,7 @@ function combinationVersionOf(rows: ReleaseRows): string {
 
 export type LocalOperatorInput = Readonly<{
   distribution: unknown
-  locations: Pick<ServerLocations, 'vaultFile' | 'storageRoot' | 'hostFilesDir'>
+  locations: Pick<ServerLocations, 'vaultFile' | 'storageRoot' | 'hostFilesDir' | 'assetsRoot'>
   settings: ServerSettings
   shutdownDeadlineMs: number
   platform: NodeJS.Platform
@@ -456,6 +457,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           BkgToolCalls: { resultMaxBytes: 65_536 },
           Ask: { resultMaxBytes: 1_048_576 },
           Web: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, maxSearchResults: 10 },
+          Skills: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
           Calendar: { resultMaxBytes: 65_536 },
           Schedules: { resultMaxBytes: 65_536 },
         },
@@ -492,6 +494,9 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
         },
       },
     ],
+    ...(rows.has('skills')
+      ? ([['skills', { packageRoot: locations.assetsRoot, ranking: SEARCH_RANKING }]] as const)
+      : []),
     ['execution-host', { filesRoot: settings.workspace, stateDirectory: locations.hostFilesDir }],
     [
       'request-context',

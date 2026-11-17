@@ -172,6 +172,7 @@ describe('assets-access row', () => {
         expect(page.body.items.map(item => [item.category, item.title])).toEqual([
           ['model-provider', '模型供应商'],
           ['preference', '偏好'],
+          ['skill', '技能'],
           ['tool', '工具'],
         ])
 

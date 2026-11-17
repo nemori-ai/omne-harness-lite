@@ -742,6 +742,7 @@ async function walk(browser, origin, proofs) {
 const CATEGORIES = [
   ['model-provider', '模型供应商'],
   ['preference', '偏好'],
+  ['skill', '技能'],
   ['tool', '工具'],
 ]
 

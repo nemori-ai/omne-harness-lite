@@ -15,7 +15,7 @@ async function open() {
   const w = await openCatalogWorld({
     assets: {
       materials: assetsSqlMaterials(),
-      command: assetsSettingsProjectionCommand,
+      command: binding => assetsSettingsProjectionCommand(binding, { categories: ['service'] }),
     },
   })
   const assets = createAssetsLocal({ ...w.terminalOptions, categories })
