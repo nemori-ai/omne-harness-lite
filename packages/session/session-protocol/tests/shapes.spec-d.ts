@@ -323,6 +323,15 @@ test('observe-session opens on a tenant and a session and has five frame kinds',
         readonly run: string | null
         readonly revision: string
         readonly phase: string | null
+        readonly attempts?: {
+          readonly allowed: number
+          readonly made: number
+          readonly last: {
+            readonly cause: string
+            readonly upstreamStatus: string | null
+          } | null
+          readonly notBefore: string | null
+        }
         readonly target: { readonly projection: 'model-output-v1' } | null
       }
     | {

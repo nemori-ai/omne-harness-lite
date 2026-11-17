@@ -111,8 +111,11 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       observerCheckIntervalMs: 25,
       readIdleMs: 1000,
       resultPageTargetBytes: 4096,
-      retryBackoffMs: 0,
       cleanupRetryMs: 1000,
+    },
+    retry: {
+      adoption: profiles.retryPolicy,
+      policy: { maxAttempts: 2, maxElapsedMs: 30_000, delaysMs: [50], jitter: 0 },
     },
     results: {
       maxConcurrentCalls: 4,
@@ -243,7 +246,6 @@ function agentHostOperatorConfig(): Record<string, unknown> {
     denialBackoffMs: 0,
     toolConcurrency: 1,
     loopGuardPolicy: { ...MODEL_TEST_ADOPTION, name: 'loop-guard' },
-    modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
     instanceIdleMs: 60_000,
   }
 }

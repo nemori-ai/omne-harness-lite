@@ -71,7 +71,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 1024,
   readIdleMs: 1000,
-  retryBackoffMs: 0,
   cleanupRetryMs: 0,
 }
 
@@ -260,6 +259,7 @@ function observing() {
       return {
         acquire: input => resources.acquire(input),
         materialization: resources.materialization,
+        receive: resources.receive,
         async close() {
           events.push('resources-close')
           await closeGate
@@ -404,7 +404,7 @@ afterEach(() => {
   SpyCredential.resolves = 0
 })
 
-it('captures the private channel and installs its materialization reader until the send stage exits', async () => {
+it('captures the private channel and installs its materialization and receive readers until the send stage exits', async () => {
   const scene = sceneOf(REQUEST, 'channel-install')
   const ctx = new Context()
   await ctx.plugin(SpyCredential)
@@ -432,8 +432,16 @@ it('captures the private channel and installs its materialization reader until t
       events.push('withdraw')
     }
   })
+  const receive = { prove: vi.fn() }
+  const installReceive = vi.fn(given => {
+    expect(given).toBe(receive)
+    events.push('install-receive')
+    return () => {
+      events.push('withdraw-receive')
+    }
+  })
   const Stage = sendStagePluginOver({
-    options: optionsOf(scene, { executionChannel, installMaterialization }),
+    options: optionsOf(scene, { executionChannel, installMaterialization, installReceive }),
     assemble: config => {
       expect(config.commands === commands).toBe(true)
       expect(config.coordinator).toBe(coordinator)
@@ -442,6 +450,7 @@ it('captures the private channel and installs its materialization reader until t
         send: { send: vi.fn() },
         preparation: { acquire: vi.fn() },
         materialization: reader,
+        receive,
         close: async () => {
           events.push('close')
         },
@@ -452,7 +461,68 @@ it('captures the private channel and installs its materialization reader until t
   expect(executionChannel).toHaveBeenCalledTimes(1)
   expect(installMaterialization).toHaveBeenCalledTimes(1)
   await fiber.dispose()
-  expect(events).toEqual(['install', 'withdraw', 'close'])
+  expect(installReceive).toHaveBeenCalledTimes(1)
+  expect(events).toEqual(['install', 'install-receive', 'withdraw', 'withdraw-receive', 'close'])
+})
+
+async function stageWithReaders(
+  label: string,
+  installers: Pick<ModelSendStagePluginOptions, 'installMaterialization' | 'installReceive'>,
+) {
+  const scene = sceneOf(REQUEST, label)
+  const ctx = new Context()
+  await ctx.plugin(SpyCredential)
+  await ctx.plugin(commandsServiceOver(scene.memory.dependencies.commands))
+  const events: string[] = []
+  const Stage = sendStagePluginOver({
+    options: optionsOf(scene, installers),
+    assemble: () => ({
+      send: { send: vi.fn() },
+      preparation: { acquire: vi.fn() },
+      materialization: { prove: vi.fn() },
+      receive: { prove: vi.fn() },
+      close: async () => {
+        events.push('close')
+      },
+    }),
+  })
+  return { ctx, Stage, events }
+}
+
+it('withdraws the materialization reader and closes the send path when the receive reader cannot be installed', async () => {
+  const withdrawn: string[] = []
+  const { ctx, Stage, events } = await stageWithReaders('install-fails', {
+    installMaterialization: () => () => {
+      withdrawn.push('materialization')
+    },
+    installReceive: () => {
+      throw new Error('no place for the receive reader')
+    },
+  })
+  const fiber = ctx.plugin(Stage, SETTINGS)
+  await expect(
+    (async () => {
+      await fiber
+    })(),
+  ).rejects.toThrow('no place for the receive reader')
+  expect(withdrawn).toEqual(['materialization'])
+  await vi.waitFor(() => expect(events).toEqual(['close']))
+})
+
+it('a reader withdrawal that throws does not keep the other reader installed or the send path open', async () => {
+  const withdrawn: string[] = []
+  const { ctx, Stage, events } = await stageWithReaders('withdraw-fails', {
+    installMaterialization: () => () => {
+      throw new Error('the withdrawal failed')
+    },
+    installReceive: () => () => {
+      withdrawn.push('receive')
+    },
+  })
+  const fiber = await ctx.plugin(Stage, SETTINGS)
+  await fiber.dispose()
+  expect(withdrawn).toEqual(['receive'])
+  expect(events).toEqual(['close'])
 })
 
 describe('the plugin and its dependencies', () => {
@@ -713,6 +783,7 @@ describe('a send through the plugin', () => {
         return {
           acquire: input => resources.acquire(input),
           materialization: resources.materialization,
+          receive: resources.receive,
           async close() {
             await resources.close()
             throw new Error(cause)

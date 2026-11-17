@@ -1,6 +1,6 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
-import { createModelRuntime } from '@omne-harness/model'
-import type { ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider'
+import { createDefaultRetryPolicy, createModelRuntime } from '@omne-harness/model'
+import type { ModelSendBoundary } from '@omne-harness/model-contract/provider'
 import {
   modelClockKey,
   modelCommandsKey,
@@ -32,23 +32,6 @@ export type ConfiguredModelRuntimeLocalPluginClass = {
   readonly Config: typeof configuredModelHostConfigSchema
 }
 
-const unavailableRetry: ModelRetryPolicy<unknown> = {
-  inspect: async () => ({
-    failure: {
-      kind: 'unavailable',
-      dependency: 'model-retry-policy',
-      diagnostic: 'not-configured',
-    },
-  }),
-  decide: async () => ({
-    failure: {
-      kind: 'unavailable',
-      dependency: 'model-retry-policy',
-      diagnostic: 'not-configured',
-    },
-  }),
-}
-
 export function createConfiguredModelRuntimeLocalPlugin(
   options: ConfiguredModelHostOptions,
 ): ConfiguredModelRuntimeLocalPluginClass {
@@ -76,7 +59,7 @@ export function createConfiguredModelRuntimeLocalPlugin(
               clock,
               instances: host,
               send: options.send,
-              retry: unavailableRetry,
+              retry: createDefaultRetryPolicy({ ...settings.retry, clock, random: Math.random }),
             },
             settings.runtime,
           ),

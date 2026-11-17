@@ -4,7 +4,9 @@ import { expectTypeOf, it } from 'vitest'
 import type {
   CallAccess,
   CallState,
+  DispatchProgress,
   MaterializationReceipt,
+  ModelFault,
   ModelHandle,
   ModelRuntime,
   Mutation,
@@ -80,6 +82,12 @@ const state: CallState = {
   custody: { kind: 'producer' },
   phase: 'accepted',
 }
+
+it('DispatchProgress is the optional progress of a call state, with the last fault or none', () => {
+  expectTypeOf<NonNullable<CallState['attempts']>>().toEqualTypeOf<DispatchProgress>()
+  expectTypeOf<DispatchProgress['last']>().toEqualTypeOf<ModelFault | null>()
+  expectTypeOf<DispatchProgress['notBefore']>().toEqualTypeOf<string | null>()
+})
 
 it('TransportFailure is the four failures that a transport can name', () => {
   expectTypeOf<TransportFailure['kind']>().toEqualTypeOf<

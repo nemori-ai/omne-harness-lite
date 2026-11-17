@@ -27,6 +27,7 @@
 - `CredentialLayer` · `root.d.ts`
 - `CustodyState` · `result.d.ts`
 - `DispatchId` · `root.d.ts`
+- `DispatchProgress` · `result.d.ts`
 - `DispatchRecord` · `call-surface.d.ts`
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `FixedModelRequest` · `root.d.ts`
@@ -2150,6 +2151,7 @@ export type RecoveryRecord = Readonly<{
     execution: ExecutionRef | null;
     retry: RetryDecision | null;
     retryPosition: RetryPosition | null;
+    retrySource?: DurableEvidence | null;
     unresolved: readonly ModelOperationId[];
     tasks: readonly ('execute' | 'control' | 'handoff' | 'cleanup' | 'account')[];
 }>;
@@ -2296,6 +2298,7 @@ export interface ModelInstanceHost<P> {
     schedule(input: Readonly<{
         tenant: TenantId;
         call: ModelCallId;
+        notBefore?: string;
     }>): Reply<Readonly<{
         queued: true;
     }>>;
@@ -2621,12 +2624,19 @@ export type CustodyState = Readonly<{
     cleanup: 'pending' | 'running' | 'blocked' | 'released';
     diagnostic: string | null;
 }>;
+export type DispatchProgress = Readonly<{
+    allowed: number;
+    made: number;
+    last: ModelFault | null;
+    notBefore: string | null;
+}>;
 export type CallState = Readonly<{
     call: ModelCallId;
     revision: Revision;
     consumer: ConsumerRef;
     control: ControlState;
     custody: CustodyState;
+    attempts?: DispatchProgress;
 }> & (Readonly<{
     phase: 'accepted';
 }> | Readonly<{

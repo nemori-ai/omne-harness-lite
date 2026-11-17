@@ -70,7 +70,6 @@ export const hostConfig = {
     adoption: { owner: 'test', name: 'compaction', revision: '1', digest: 'd' },
   },
   loopGuardPolicy: { owner: 'agents', name: 'loop-guard', revision: '1', digest: 'sha256:guard' },
-  modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
   instanceIdleMs: 60_000,
 }
 

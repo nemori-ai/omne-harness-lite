@@ -74,6 +74,7 @@ import {
   releaseMaterial,
   type ModelCommandCore,
 } from './state.ts'
+import { beginAttempt, initialAttempts, positionRetry, recordRetryDecision } from './attempts.ts'
 import type { ModelCommandStorage } from './storage.ts'
 import type { Applied, CallDocument, DispatchDocument, Draft } from './types.ts'
 import { initialRunPort, type BoundCommandAccess } from './initial.ts'
@@ -164,6 +165,7 @@ export function callCommands<P>(
                 phase: 'accepted',
                 control: { kind: 'none' },
                 custody: { kind: 'producer' },
+                attempts: initialAttempts(request),
               },
               request: structuredClone(requestHead(request)),
               requestDigest: digest(request),
@@ -401,6 +403,7 @@ export function recoveryCommands<P>(
               execution: call.execution === null ? null : { ...call.execution },
               retry: structuredClone(call.retry),
               retryPosition: structuredClone(call.retryPosition),
+              retrySource: structuredClone(call.retrySource),
               unresolved: pending,
               tasks: tasks(call, pending),
             },
@@ -680,9 +683,7 @@ export function dispatchCommands<P>(
             hadContent: new Set(),
             diagnostics: [],
           })
-          call.retry = null
-          call.retryPosition = null
-          call.retrySource = null
+          beginAttempt(call)
           call.state = {
             ...call.state,
             phase: 'running',
@@ -906,8 +907,7 @@ export function dispatchCommands<P>(
                   purpose: 'model-retry',
                 },
               }
-              call.retryPosition = position
-              call.retry = null
+              positionRetry(call, dispatch, position)
               call.state = { ...call.state, phase: 'retry-decision', dispatch: input.dispatch }
               bump(call)
               return {
@@ -946,8 +946,7 @@ export function dispatchCommands<P>(
             return { kind: 'conflict', operation: input.operation, revision: call.state.revision }
           const choice = retryChoiceFailure(positioned.ok, call.dispatches.length, input.decision)
           if (choice) return choice
-          call.retry = structuredClone(input.decision)
-          call.retrySource = structuredClone(proof.ok)
+          recordRetryDecision(call, input.decision, proof.ok)
           return null
         },
       ),

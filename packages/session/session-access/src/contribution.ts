@@ -114,6 +114,18 @@ async function* framesOf(
   }
 }
 
+type StateFrame = Extract<SessionObservationFrame, { kind: 'state' }>
+
+// Of the last fault the protocol gives the cause and the upstream status, as the diagnostics read does.
+function progressOf(
+  attempts: StateFrame['attempts'],
+): Pick<Extract<FrameOf<ObserveSession>, { kind: 'state' }>, 'attempts'> {
+  if (attempts === null) return {}
+  const { allowed, made, last, notBefore } = attempts
+  const fault = last === null ? null : { cause: last.cause, upstreamStatus: last.upstreamStatus }
+  return { attempts: { allowed, made, last: fault, notBefore } }
+}
+
 function frameOf(frame: SessionObservationFrame): FrameOf<ObserveSession> {
   switch (frame.kind) {
     case 'state':
@@ -122,6 +134,7 @@ function frameOf(frame: SessionObservationFrame): FrameOf<ObserveSession> {
         run: frame.run,
         revision: frame.revision,
         phase: frame.phase,
+        ...progressOf(frame.attempts),
         target: frame.target === null ? null : { projection: frame.target.projection },
       }
     case 'snapshot':

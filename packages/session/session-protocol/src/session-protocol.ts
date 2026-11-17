@@ -186,6 +186,15 @@ const projected = <const K extends string>(kind: K) =>
   object({ kind: { rule: literal(kind) }, projection: modelOutput, value: { rule: json } })
 
 const observeSessionOpen = object(target)
+// How far the real dispatches of the main call got, as the Model states it.
+const dispatchProgress = object({
+  allowed: { rule: { kind: 'count' } },
+  made: { rule: { kind: 'count' } },
+  last: {
+    rule: nullable(object({ cause: { rule: text }, upstreamStatus: { rule: nullable(text) } })),
+  },
+  notBefore: { rule: nullable(text) },
+})
 const observeSessionFrame = {
   kind: 'one-of',
   rules: [
@@ -194,6 +203,7 @@ const observeSessionFrame = {
       run: { rule: nullable(text) },
       revision: { rule: anyText },
       phase: { rule: nullable(text) },
+      attempts: { rule: dispatchProgress, optional: true },
       target: { rule: nullable(object({ projection: modelOutput })) },
     }),
     projected('snapshot'),

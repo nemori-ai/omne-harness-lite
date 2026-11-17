@@ -62,6 +62,22 @@ describe('the contact answer of the local host', () => {
     w.hooks.loadRecovery = () => 'pass'
   })
 
+  it('holds a call that waits for the instant of its next dispatch', async () => {
+    const w = await started()
+    w.hooks.resolve = () => 'refuse'
+    await w.admit('one')
+    await until(
+      () => w.warnings.some(text => text.includes('no trusted input')),
+      'the refused drive',
+    )
+    await quiet()
+    expect(unbox(await w.contact('one'))).toEqual({ kind: 'lost', evidence: lock('mcall_one') })
+
+    const later = new Date(Date.now() + 60_000).toISOString()
+    expect(unbox(await w.wakeNotBefore('one', later))).toEqual({ queued: true })
+    expect(unbox(await w.contact('one'))).toEqual({ kind: 'holding' })
+  })
+
   it('does not hold a call whose drive stopped with nothing to wake it again', async () => {
     const w = await started()
     w.hooks.resolve = () => 'refuse'

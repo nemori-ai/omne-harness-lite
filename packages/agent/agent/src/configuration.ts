@@ -7,7 +7,6 @@ import {
 } from '@omne-harness/agent-contract'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
-import { parseRetryPolicy } from '@omne-harness/retry'
 import type { AgentConfiguration, AgentRuntimeOptions } from './construction.ts'
 
 type JointCommitKind = AgentConfiguration['jointCommits'][number]
@@ -98,11 +97,6 @@ function judgeConfiguration(configuration: AgentConfiguration): Failure | undefi
     return invalid('configuration.maxRunSteps', 'range')
   if (!COORDINATION_MODES.includes(configuration.coordination))
     return invalid('configuration.coordination', 'unknown-mode')
-  try {
-    parseRetryPolicy(configuration.modelRetry)
-  } catch {
-    return invalid('configuration.modelRetry', 'range')
-  }
   return (
     judgeJointCommits(configuration.jointCommits) ??
     structure(

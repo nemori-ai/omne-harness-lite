@@ -7,9 +7,14 @@ import {
 } from '@omne-harness/model'
 import { createTestModelDependencies, type MemoryModelEvidence } from '@omne-harness/model/testing'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
-import { type ModelCallId, type ModelInstanceId } from '@omne-harness/model-contract'
+import {
+  type FixedModelRequest,
+  type ModelCallId,
+  type ModelInstanceId,
+} from '@omne-harness/model-contract'
 import {
   type ModelCommands,
+  type ModelRetryPolicy,
   type Publication,
   type TransportFact,
 } from '@omne-harness/model-contract/provider'
@@ -22,7 +27,6 @@ export const configuration: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 128,
   readIdleMs: 1000,
-  retryBackoffMs: 0,
   cleanupRetryMs: 0,
 }
 function deferred<T>() {
@@ -46,6 +50,8 @@ export function runtimeFixture(
   ) => ModelCommands<ReturnType<typeof fixture>['principal']>,
   handoff?: MemoryModelEvidence['handoff'],
   liveness?: ModelLiveness,
+  retry?: ModelRetryPolicy<ReturnType<typeof fixture>['principal']>,
+  fallbacks: readonly FixedModelRequest['suppliers'][number][] = [],
 ) {
   const f = fixture()
   const assembly = createTestModelDependencies({
@@ -61,16 +67,14 @@ export function runtimeFixture(
         layerOf: () => fail({ kind: 'unavailable' }),
         resolve: () => succeed(new Map([['apiKey', 'synthetic']])),
       },
-      sources: [
-        {
-          profile: f.admit.request.profile,
-          supplier: f.admit.request.suppliers[0].adoption,
-          provider: f.admit.request.suppliers[0].provider,
-          model: f.admit.request.suppliers[0].model,
-          official: true,
-          current: () => ({ ok: { authorized: true } }),
-        },
-      ],
+      sources: [f.admit.request.suppliers[0], ...fallbacks].map(supplier => ({
+        profile: f.admit.request.profile,
+        supplier: supplier.adoption,
+        provider: supplier.provider,
+        model: supplier.model,
+        official: true,
+        current: () => ({ ok: { authorized: true } }),
+      })),
     },
   })
   type Channel = {
@@ -79,6 +83,7 @@ export function runtimeFixture(
     starts: number
     returns: number
     closes: number
+    suppliers: string[]
     releaseFails: boolean
     beforeRelease(): Promise<void>
     finish(): void
@@ -102,6 +107,7 @@ export function runtimeFixture(
         starts: 0,
         returns: 0,
         closes: 0,
+        suppliers: [],
         releaseFails: false,
         beforeRelease: async () => {},
         finish() {
@@ -187,6 +193,7 @@ export function runtimeFixture(
           transport: script.transport,
           startWithCredential() {
             stream.starts++
+            stream.suppliers.push(demand.supplier.adoption.name)
             return stream.iterable
           },
           async release() {
@@ -202,6 +209,7 @@ export function runtimeFixture(
   const publications = new Map<ModelCallId, Publication>()
   const published = new Map<ModelCallId, ReturnType<typeof deferred<void>>>()
   const drives: Promise<unknown>[] = []
+  const scheduled: Parameters<typeof assembly.dependencies.instances.schedule>[0][] = []
   const results = new Map<ModelCallId, unknown>()
   const instances = {
     ...assembly.dependencies.instances,
@@ -214,6 +222,7 @@ export function runtimeFixture(
       return result
     },
     async schedule(input: Parameters<typeof assembly.dependencies.instances.schedule>[0]) {
+      scheduled.push(input)
       const result = await assembly.dependencies.instances.schedule(input)
       if ('failure' in result || published.has(input.call)) return result
       const ready = deferred<void>()
@@ -239,7 +248,13 @@ export function runtimeFixture(
       return result
     },
   }
-  const dependencies = { ...assembly.dependencies, commands: recorded, send, instances }
+  const dependencies = {
+    ...assembly.dependencies,
+    commands: recorded,
+    send,
+    instances,
+    ...(retry === undefined ? {} : { retry }),
+  }
   const provider = createModelRuntime(
     liveness === undefined ? dependencies : { ...dependencies, liveness },
     { ...configuration, ...config },
@@ -254,6 +269,7 @@ export function runtimeFixture(
     openInputs,
     publications,
     results,
+    scheduled,
     drive(call: ModelCallId = f.admit.call) {
       return provider.driver.drive(
         {

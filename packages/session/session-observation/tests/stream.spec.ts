@@ -299,6 +299,119 @@ describe('the result table with the Model', () => {
 })
 
 describe('the stream axis', () => {
+  it('the state frame tells how far the dispatches of the call got, and a new one comes only when that changed', async () => {
+    const fault = { cause: 'upstream-unavailable', upstreamStatus: '503', diagnostic: 'http-503' }
+    const first = { allowed: 2, made: 1, last: null, notBefore: null }
+    const second = { allowed: 2, made: 2, last: fault, notBefore: null }
+    const w = world(new FakeLog())
+    w.log.append(started('run_1'), mainCall('m-1'))
+    w.model.answer('m-1', stream('s1', 'running', first))
+    const frames = await open(w)
+    expect(await take(frames)).toMatchObject({ value: { kind: 'state', attempts: first } })
+    await settle()
+    w.model.stream('s1').push(delta('s1', 2, 'running', first), delta('s1', 3, 'running', second))
+    const steps = await drain(frames, 4)
+    expect(steps.map(step => step.value)).toEqual([
+      expect.objectContaining({ kind: 'delta' }),
+      expect.objectContaining({ kind: 'state', phase: 'running', attempts: second }),
+      expect.objectContaining({ kind: 'delta' }),
+    ])
+    stop()
+  })
+
+  it('the same progress with the same last fault gives no new state frame; another fault does', async () => {
+    const fault = { cause: 'upstream-unavailable', upstreamStatus: '503', diagnostic: 'http-503' }
+    const failed = { allowed: 3, made: 2, last: fault, notBefore: null }
+    const other = { ...failed, last: { ...fault, upstreamStatus: '504', diagnostic: 'http-504' } }
+    const w = world(new FakeLog())
+    w.log.append(started('run_1'), mainCall('m-1'))
+    w.model.answer('m-1', stream('s1', 'running', failed))
+    const frames = await open(w)
+    expect(await take(frames)).toMatchObject({ value: { kind: 'state', attempts: failed } })
+    await settle()
+    w.model
+      .stream('s1')
+      .push(
+        delta('s1', 2, 'running', { ...failed, last: { ...fault } }),
+        delta('s1', 3, 'running', other),
+      )
+    const steps = await drain(frames, 4)
+    expect(steps.map(step => step.value)).toEqual([
+      expect.objectContaining({ kind: 'delta' }),
+      expect.objectContaining({ kind: 'state', attempts: other }),
+      expect.objectContaining({ kind: 'delta' }),
+    ])
+    stop()
+  })
+
+  const fault503 = { cause: 'upstream-unavailable', upstreamStatus: '503', diagnostic: 'http-503' }
+  const plain = { allowed: 2, made: 1, last: null, notBefore: null }
+  const failed = { allowed: 2, made: 2, last: fault503, notBefore: '2026-11-17T00:00:01.000Z' }
+  it.each([
+    ['no progress, then some', undefined, plain, true],
+    ['some progress, then none', plain, undefined, true],
+    ['another allowed count', plain, { ...plain, allowed: 3 }, true],
+    ['another made count', plain, { ...plain, made: 2 }, true],
+    ['another next instant', failed, { ...failed, notBefore: '2026-11-17T00:00:02.000Z' }, true],
+    ['a next instant that went away', failed, { ...failed, notBefore: null }, true],
+    ['a first fault', plain, { ...plain, last: fault503 }, true],
+    ['a fault that went away', failed, { ...failed, last: null }, true],
+    ['another cause', failed, { ...failed, last: { ...fault503, cause: 'stream-lost' } }, true],
+    [
+      'another upstream status',
+      failed,
+      { ...failed, last: { ...fault503, upstreamStatus: '504' } },
+      true,
+    ],
+    [
+      'an upstream status that went away',
+      failed,
+      { ...failed, last: { ...fault503, upstreamStatus: null } },
+      true,
+    ],
+    [
+      'another diagnostic',
+      failed,
+      { ...failed, last: { ...fault503, diagnostic: 'http-5xx' } },
+      true,
+    ],
+    [
+      'the same progress with a fault, as another object',
+      failed,
+      { ...failed, last: { ...fault503 } },
+      false,
+    ],
+    ['the same progress without a fault, as another object', plain, { ...plain }, false],
+    ['no progress twice', undefined, undefined, false],
+  ] as const)(
+    'a delta with %s: a state frame comes first only when the progress differs',
+    async (_name, before, after, differs) => {
+      const w = world(new FakeLog())
+      w.log.append(started('run_1'), mainCall('m-1'))
+      w.model.answer('m-1', stream('s1', 'running', before))
+      const frames = await open(w)
+      expect((await take(frames)).value).toMatchObject({ kind: 'state', attempts: before ?? null })
+      await settle()
+      w.model.stream('s1').push(delta('s1', 2, 'running', after), delta('s1', 3, 'running', after))
+      const steps = await drain(frames, differs ? 4 : 3)
+      const state = expect.objectContaining({ kind: 'state', attempts: after ?? null })
+      const content = expect.objectContaining({ kind: 'delta' })
+      expect(steps.map(step => step.value)).toEqual(
+        differs ? [state, content, content] : [content, content],
+      )
+      stop()
+    },
+  )
+
+  it('a call state without the progress gives a state frame whose progress is null', async () => {
+    const w = world(new FakeLog())
+    w.log.append(started('run_1'), mainCall('m-1'))
+    w.model.answer('m-1', stream('s1'))
+    const frames = await open(w)
+    expect((await take(frames)).value).toMatchObject({ kind: 'state', attempts: null })
+    stop()
+  })
+
   it('stream, observing, delta with a new phase: state first, then the delta; same phase: only the delta', async () => {
     const w = world(new FakeLog())
     const frames = await observing(w)
