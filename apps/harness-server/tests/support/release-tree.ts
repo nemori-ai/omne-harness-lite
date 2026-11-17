@@ -117,6 +117,34 @@ export function toolCallsByRequest(
   }
 }
 
+/**
+ * A scripted model that, like a real one, has nothing to add when a request ends with its own
+ * finished reply: it answers with an empty reply, and the request is counted in `asked`.
+ * Every other request goes to `script`.
+ */
+export function likeARealModel(script: GatewayScript, asked: { ownReply: number }): GatewayScript {
+  return request => {
+    const body = JSON.parse(request.body) as {
+      model?: string
+      messages?: readonly Readonly<{ role?: string; tool_calls?: readonly unknown[] }>[]
+    }
+    const last = body.messages?.at(-1)
+    if (last?.role !== 'assistant' || (last.tool_calls?.length ?? 0) > 0) return script(request)
+    asked.ownReply += 1
+    return {
+      status: 200,
+      contentType: 'text/event-stream',
+      body: sse([
+        {
+          model: body.model ?? 'm',
+          provider: 'OpenAI',
+          choices: [{ delta: {}, finish_reason: 'stop' }],
+        },
+      ]),
+    }
+  }
+}
+
 function withHistoryKinds(layer: unknown, extra: readonly string[] = []): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
