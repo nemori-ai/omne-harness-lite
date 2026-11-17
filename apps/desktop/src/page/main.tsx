@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import type { ShellLogin } from '@omne-harness/shell-contract'
 import { colorSchemeQuery, createThemeController } from '@omne-harness/ui-kit'
 import type { HostBridge, OmneHost } from '../shared/host-bridge.ts'
+import { missingAtHost } from '../shared/wire.ts'
 import { assembly } from './assembly.tsx'
 import { connectPageBridge, httpHostChannel, ipcHostChannel } from './bridge.ts'
 import { watchConnectivity } from './connectivity.ts'
@@ -49,6 +50,9 @@ async function main(): Promise<void> {
     system: colorSchemeQuery(),
   })
   const initial = theme.start()
+  const missing = missingAtHost(assembly.protocols, bridge.hostProtocols()).map(
+    key => `${key.name}/v${key.major}`,
+  )
   createRoot(element).render(
     <StrictMode>
       <Shell
@@ -56,6 +60,7 @@ async function main(): Promise<void> {
         state={state}
         connectivity={watched}
         theme={{ initial, select: choice => theme.select(choice) }}
+        missingAtHost={missing}
       />
     </StrictMode>,
   )

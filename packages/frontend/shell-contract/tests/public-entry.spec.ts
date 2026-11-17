@@ -8,6 +8,8 @@ it('exports the slot store, the assembly error, the slot table and the two point
     'createSlotStore',
     'defineKeyedPoint',
     'definePoint',
+    'serviceKey',
+    'serviceOf',
     'slots',
   ])
 })

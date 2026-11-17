@@ -117,7 +117,7 @@
       },
       "apps/harness-server/src/rows/tool-hitl/bridge.ts": {
         "count": 1,
-        "longest": 290
+        "longest": 289
       },
       "apps/harness-server/src/rows/tool-runtime/environment.ts": {
         "count": 1,

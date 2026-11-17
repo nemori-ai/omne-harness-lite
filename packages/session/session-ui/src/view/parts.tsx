@@ -1,6 +1,6 @@
 import { Disclosure, Prose, Shimmer, StatusPill } from '@omne-harness/ui-kit'
 import { memo, type ReactNode } from 'react'
-import type { AskView, Item, Part, ToolResultView } from '../model/conversation.ts'
+import type { Item, Part } from '../model/conversation.ts'
 import type { Plain } from '../model/plain.ts'
 
 function Expandable({
@@ -49,64 +49,19 @@ function ValueView({ name, value }: { readonly name: string; readonly value: Pla
   )
 }
 
-const ASK_STATUS: Readonly<Record<AskView['status'], string>> = {
-  waiting: '等待答复',
-  answered: '已答复',
-  expired: '已失效',
-}
-
-function AskCard({
-  ask,
-  result,
-}: {
-  readonly ask: AskView
-  readonly result: ToolResultView | null
-}) {
-  return (
-    <section className="omne-ask" data-status={ask.status} aria-label="问题卡">
-      <header className="omne-ask-head">
-        <span>Agent 在问你</span>
-        <StatusPill tone={ask.status === 'waiting' ? 'caution' : 'neutral'}>
-          {ASK_STATUS[ask.status]}
-        </StatusPill>
-      </header>
-      {ask.questions.map((question, at) => (
-        <div className="omne-ask-question" key={at}>
-          <p className="omne-ask-title">{question.title}</p>
-          {question.description === '' ? null : (
-            <p className="omne-ask-text">{question.description}</p>
-          )}
-          <ul className="omne-ask-options">
-            {question.options.map((option, index) => (
-              <li key={index}>
-                <span className="omne-ask-label">{option.label}</span>
-                <span className="omne-ask-text">{option.description}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-      {ask.status === 'waiting' ? (
-        <p className="omne-ask-hint">这一轮在等你答复。也可以点「停止」取消这一轮。</p>
-      ) : null}
-      {ask.status === 'answered' && result !== null ? (
-        <div className="omne-ask-answer">
-          <PartList parts={result.parts} live={false} />
-        </div>
-      ) : null}
-    </section>
-  )
-}
-
 const TOOL_STATE: Readonly<Record<string, string>> = {
   incomplete: '参数没有生成完',
   unparsed: '参数解析不了',
   generating: '参数生成中',
 }
 
+function resultBadge(part: Extract<Part, { kind: 'tool-call' }>): string {
+  if (part.result !== null) return '有结果'
+  return part.ended ? '没有结果' : '等待结果'
+}
+
 function ToolCall({ part }: { readonly part: Extract<Part, { kind: 'tool-call' }> }) {
-  if (part.ask !== null) return <AskCard ask={part.ask} result={part.result} />
-  const badge = TOOL_STATE[part.state] ?? (part.result === null ? '等待结果' : '有结果')
+  const badge = TOOL_STATE[part.state] ?? resultBadge(part)
   return (
     <Expandable
       title={
