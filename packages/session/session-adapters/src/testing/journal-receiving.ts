@@ -1,3 +1,4 @@
+import { SharedMap } from '../journal/shared-map.ts'
 import { pendingCalls } from './pending.ts'
 import { createHash } from 'node:crypto'
 import type {
@@ -205,37 +206,37 @@ function shape<P>(input: Input<P>): Failure | undefined {
 }
 
 export type ReceivingState = {
-  materials: Map<string, Stored>
-  deliveries: Map<string, Kept>
-  aliases: Map<string, Kept>
-  bindings: Map<string, { execution: AgentExecutionId; text: string }>
-  consumerExecutions: Map<string, AgentExecutionId>
-  pendingBindings: Map<
+  materials: SharedMap<string, Stored>
+  deliveries: SharedMap<string, Kept>
+  aliases: SharedMap<string, Kept>
+  bindings: SharedMap<string, { execution: AgentExecutionId; text: string }>
+  consumerExecutions: SharedMap<string, AgentExecutionId>
+  pendingBindings: SharedMap<
     string,
     readonly {
       execution: AgentExecutionId
       pending: import('@omne-harness/agent-contract').PendingCall
     }[]
   >
-  targets: Map<string, ModelReceptionTarget>
-  callTargets: Map<string, ModelReceptionTarget>
-  executionTargets: Map<string, ModelReceptionTarget[]>
-  toolTargets: Map<string, ToolReceptionTarget>
+  targets: SharedMap<string, ModelReceptionTarget>
+  callTargets: SharedMap<string, ModelReceptionTarget>
+  executionTargets: SharedMap<string, ModelReceptionTarget[]>
+  toolTargets: SharedMap<string, ToolReceptionTarget>
 }
 const materialSourceOf = (key: string): DurableEvidence => JSON.parse(key) as DurableEvidence
 
 export function emptyReceivingState(): ReceivingState {
   return {
-    materials: new Map(),
-    deliveries: new Map(),
-    aliases: new Map(),
-    bindings: new Map(),
-    consumerExecutions: new Map(),
-    pendingBindings: new Map(),
-    targets: new Map(),
-    callTargets: new Map(),
-    executionTargets: new Map(),
-    toolTargets: new Map(),
+    materials: new SharedMap(),
+    deliveries: new SharedMap(),
+    aliases: new SharedMap(),
+    bindings: new SharedMap(),
+    consumerExecutions: new SharedMap(),
+    pendingBindings: new SharedMap(),
+    targets: new SharedMap(),
+    callTargets: new SharedMap(),
+    executionTargets: new SharedMap(),
+    toolTargets: new SharedMap(),
   }
 }
 

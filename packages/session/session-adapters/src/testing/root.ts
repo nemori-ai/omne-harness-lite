@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { freezeValue } from './freeze.ts'
+import { SharedMap } from '../journal/shared-map.ts'
 import { canonical } from './canonical.ts'
 import {
   emptySessionSources,
@@ -81,26 +82,26 @@ export type CommonRoot = Readonly<{
   agent: {
     log: readonly PublishedBatch[]
     view: SessionJournalView
-    blobs: Map<string, unknown>
-    executions: Map<string, MemoryExecution>
-    operations: Map<string, OperationRecord>
+    blobs: SharedMap<string, unknown>
+    executions: SharedMap<string, MemoryExecution>
+    operations: SharedMap<string, OperationRecord>
     jointFacts: JointFact[]
-    originals: Map<string, readonly JournalOriginal[]>
-    effectSteps: Map<string, import('@omne-harness/agent-contract').StepId>
-    modelSettlements: Map<string, readonly import('./model-settlement.ts').ModelSettlement[]>
-    originalByOperation: Map<string, JournalOriginal>
-    eventReceipts: Map<string, CommandReceipt>
-    ended: Map<
+    originals: SharedMap<string, readonly JournalOriginal[]>
+    effectSteps: SharedMap<string, import('@omne-harness/agent-contract').StepId>
+    modelSettlements: SharedMap<string, readonly import('./model-settlement.ts').ModelSettlement[]>
+    originalByOperation: SharedMap<string, JournalOriginal>
+    eventReceipts: SharedMap<string, CommandReceipt>
+    ended: SharedMap<
       string,
       Readonly<{
         sequence: string
         source: import('@omne-harness/session-contract').DurableEvidence
       }>
     >
-    background: Map<string, readonly import('./background.ts').BackgroundFragment[]>
-    controls: Map<string, readonly import('@omne-harness/agent-contract').ControlRecord[]>
-    pendingEvents: Map<string, readonly import('@omne-harness/agent-contract').PendingCall[]>
-    callOrigins: Map<
+    background: SharedMap<string, readonly import('./background.ts').BackgroundFragment[]>
+    controls: SharedMap<string, readonly import('@omne-harness/agent-contract').ControlRecord[]>
+    pendingEvents: SharedMap<string, readonly import('@omne-harness/agent-contract').PendingCall[]>
+    callOrigins: SharedMap<
       string,
       Readonly<{
         first: string
@@ -112,14 +113,17 @@ export type CommonRoot = Readonly<{
         }> | null
       }>
     >
-    human: Map<string, readonly import('./human.ts').HumanFragment[]>
-    indexedEvents: Map<string, number>
-    inputBatches: Map<
+    human: SharedMap<string, readonly import('./human.ts').HumanFragment[]>
+    indexedEvents: SharedMap<string, number>
+    inputBatches: SharedMap<
       InputId,
       readonly import('@omne-harness/session-contract').SessionBatchRecord[]
     >
-    batches: Map<string, readonly import('@omne-harness/session-contract').SessionBatchRecord[]>
-    admissions: Map<
+    batches: SharedMap<
+      string,
+      readonly import('@omne-harness/session-contract').SessionBatchRecord[]
+    >
+    admissions: SharedMap<
       InputId,
       readonly import('@omne-harness/session-contract').SessionInputAdmission[]
     >
@@ -171,44 +175,16 @@ function copyExecution(value: MemoryExecution): MemoryExecution {
     finishing: copyFinishing(value.finishing),
   }
 }
+function forked<T extends object>(tables: T): T {
+  const out = { ...tables }
+  for (const [name, value] of Object.entries(out))
+    if (value instanceof SharedMap) (out as Record<string, unknown>)[name] = value.fork()
+  return out
+}
+
+// A fork per table: the draft shares every table with the root until it writes to one.
 function cloneRoot(root: CommonRoot): CommonRoot {
-  return {
-    ...root,
-    agent: {
-      ...root.agent,
-      blobs: new Map(root.agent.blobs),
-      executions: new Map(root.agent.executions),
-      operations: new Map(root.agent.operations),
-      jointFacts: [...root.agent.jointFacts],
-      originals: new Map(root.agent.originals),
-      originalByOperation: new Map(root.agent.originalByOperation),
-      effectSteps: new Map(root.agent.effectSteps),
-      modelSettlements: new Map(root.agent.modelSettlements),
-      eventReceipts: new Map(root.agent.eventReceipts),
-      admissions: new Map(root.agent.admissions),
-      inputBatches: new Map(root.agent.inputBatches),
-      batches: new Map(root.agent.batches),
-      indexedEvents: new Map(root.agent.indexedEvents),
-      human: new Map(root.agent.human),
-      ended: new Map(root.agent.ended),
-      background: new Map(root.agent.background),
-      controls: new Map(root.agent.controls),
-      pendingEvents: new Map(root.agent.pendingEvents),
-      callOrigins: new Map(root.agent.callOrigins),
-    },
-    receiving: {
-      pendingBindings: new Map(root.receiving.pendingBindings),
-      materials: new Map(root.receiving.materials),
-      deliveries: new Map(root.receiving.deliveries),
-      aliases: new Map(root.receiving.aliases),
-      bindings: new Map(root.receiving.bindings),
-      consumerExecutions: new Map(root.receiving.consumerExecutions),
-      targets: new Map(root.receiving.targets),
-      callTargets: new Map(root.receiving.callTargets),
-      executionTargets: new Map(root.receiving.executionTargets),
-      toolTargets: new Map(root.receiving.toolTargets),
-    },
-  }
+  return { ...root, agent: forked(root.agent), receiving: forked(root.receiving) }
 }
 
 function emptyCommonRoot(): CommonRoot {
@@ -219,25 +195,25 @@ function emptyCommonRoot(): CommonRoot {
     agent: {
       log: [],
       view: emptySessionView(),
-      blobs: new Map(),
-      executions: new Map(),
-      operations: new Map(),
+      blobs: new SharedMap(),
+      executions: new SharedMap(),
+      operations: new SharedMap(),
       jointFacts: [],
-      originals: new Map(),
-      originalByOperation: new Map(),
-      effectSteps: new Map(),
-      modelSettlements: new Map(),
-      eventReceipts: new Map(),
-      admissions: new Map(),
-      inputBatches: new Map(),
-      batches: new Map(),
-      indexedEvents: new Map(),
-      human: new Map(),
-      ended: new Map(),
-      background: new Map(),
-      controls: new Map(),
-      pendingEvents: new Map(),
-      callOrigins: new Map(),
+      originals: new SharedMap(),
+      originalByOperation: new SharedMap(),
+      effectSteps: new SharedMap(),
+      modelSettlements: new SharedMap(),
+      eventReceipts: new SharedMap(),
+      admissions: new SharedMap(),
+      inputBatches: new SharedMap(),
+      batches: new SharedMap(),
+      indexedEvents: new SharedMap(),
+      human: new SharedMap(),
+      ended: new SharedMap(),
+      background: new SharedMap(),
+      controls: new SharedMap(),
+      pendingEvents: new SharedMap(),
+      callOrigins: new SharedMap(),
     },
     receiving: emptyReceivingState(),
   }

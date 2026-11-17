@@ -1,3 +1,4 @@
+import { SharedMap, isTable } from './shared-map.ts'
 import type {
   ActionBatchId,
   ActionId,
@@ -343,9 +344,9 @@ export type SessionJournalView = Readonly<{
 
 export const emptySessionView = (): SessionJournalView => ({
   head: 0,
-  executions: new Map(),
-  ops: new Map(),
-  excluded: new Map(),
+  executions: new SharedMap(),
+  ops: new SharedMap(),
+  excluded: new SharedMap(),
 })
 
 export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
@@ -363,19 +364,19 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     requests: [],
     adopted: null,
     voided: [],
-    intents: new Map(),
-    results: new Map(),
-    placeholders: new Map(),
+    intents: new SharedMap(),
+    results: new SharedMap(),
+    placeholders: new SharedMap(),
     admissions: [],
-    handoffs: new Map(),
-    batches: new Map(),
-    passages: new Map(),
-    controls: new Map(),
+    handoffs: new SharedMap(),
+    batches: new SharedMap(),
+    passages: new SharedMap(),
+    controls: new SharedMap(),
     waits: null,
     finish: {
       candidates: [],
-      lists: new Map(),
-      obligations: new Map(),
+      lists: new SharedMap(),
+      obligations: new SharedMap(),
       current: null,
       ended: null,
     },
@@ -386,11 +387,11 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     fences: [],
     events: [],
     bindings: [],
-    materials: new Map(),
-    ops: new Map(),
-    excluded: new Map(),
-    rejections: new Map(),
-    reached: new Map(),
+    materials: new SharedMap(),
+    ops: new SharedMap(),
+    excluded: new SharedMap(),
+    rejections: new SharedMap(),
+    reached: new SharedMap(),
   }
 }
 
@@ -411,7 +412,7 @@ export function openCalls(view: ExecutionView): readonly IntentView[] {
 }
 
 function plain(value: unknown): unknown {
-  if (value instanceof Map)
+  if (isTable(value))
     return Object.fromEntries([...value].map(([key, item]) => [String(key), plain(item)]))
   if (Array.isArray(value)) return value.map(plain)
   if (value !== null && typeof value === 'object')

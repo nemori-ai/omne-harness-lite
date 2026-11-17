@@ -41,6 +41,7 @@ import {
   type SessionJournalView,
 } from './view.ts'
 import { foldVoided } from './voided.ts'
+import { forkOf } from './shared-map.ts'
 
 const NO_REVISION: ReadonlySet<string> = new Set([
   'op.recognized',
@@ -79,18 +80,18 @@ function draftOf(view: ExecutionView): Draft {
     ...view,
     cursor: { ...view.cursor },
     cursorMoved: { ...view.cursorMoved },
-    intents: new Map(view.intents),
-    results: new Map(view.results),
-    placeholders: new Map(view.placeholders),
-    handoffs: new Map(view.handoffs),
-    batches: new Map(view.batches),
-    passages: new Map(view.passages),
-    controls: new Map(view.controls),
-    materials: new Map(view.materials),
-    ops: new Map(view.ops),
-    excluded: new Map(view.excluded),
-    rejections: new Map(view.rejections),
-    reached: new Map(view.reached),
+    intents: forkOf(view.intents),
+    results: forkOf(view.results),
+    placeholders: forkOf(view.placeholders),
+    handoffs: forkOf(view.handoffs),
+    batches: forkOf(view.batches),
+    passages: forkOf(view.passages),
+    controls: forkOf(view.controls),
+    materials: forkOf(view.materials),
+    ops: forkOf(view.ops),
+    excluded: forkOf(view.excluded),
+    rejections: forkOf(view.rejections),
+    reached: forkOf(view.reached),
   }
 }
 
@@ -514,7 +515,7 @@ function foldFinishProved(draft: Draft, fact: FactOf<'finish.proved'>): void {
 }
 
 function foldFinishObligation(draft: Draft, fact: FactOf<'finish.obligation'>, pub: number): void {
-  const obligations = new Map(draft.finish.obligations)
+  const obligations = forkOf(draft.finish.obligations)
   obligations.set(fact.id, { category: fact.category, item: fact.item, pub })
   draft.finish = { ...draft.finish, obligations }
 }
@@ -527,7 +528,7 @@ function foldFinishObligations(
 ): void {
   const key = listKey(fact.candidate, fact.list)
   if (draft.finish.lists.has(key)) return
-  const lists = new Map(draft.finish.lists)
+  const lists = forkOf(draft.finish.lists)
   lists.set(key, {
     candidate: fact.candidate,
     list: fact.list,
@@ -810,12 +811,12 @@ export function fold(view: SessionJournalView, batch: PublishedBatch): SessionJo
   draft.head = batch.pub
   for (const [index, fact] of batch.facts.entries())
     apply(draft, fact, batch.pub, index + 1, revision)
-  const executions = new Map(view.executions)
+  const executions = forkOf(view.executions)
   executions.set(batch.execution, draft)
   const ops = view.ops.has(batch.envelope.op)
     ? view.ops
-    : new Map(view.ops).set(batch.envelope.op, entry)
-  const excluded = new Map(view.excluded)
+    : forkOf(view.ops).set(batch.envelope.op, entry)
+  const excluded = forkOf(view.excluded)
   for (const [operation, exclusion] of draft.excluded)
     if (!excluded.has(operation) && !ops.has(operation)) excluded.set(operation, exclusion)
   return { head: batch.pub, executions, ops, excluded }

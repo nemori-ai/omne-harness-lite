@@ -1,3 +1,4 @@
+import { isTable } from '../journal/shared-map.ts'
 import { historyCaller } from './history-caller.ts'
 import { sessionEpochOf } from './history-epoch.ts'
 import { sessionCommitCommands } from '@omne-harness/session-storage-sql/participants'
@@ -553,7 +554,7 @@ const HEX_DIGEST = /^[0-9a-f]{64}$/
 
 function refsIn(value: unknown, into = new Set<string>()): Set<string> {
   if (value === null || typeof value !== 'object') return into
-  if (value instanceof Map) {
+  if (isTable(value)) {
     for (const member of value.values()) refsIn(member, into)
     return into
   }

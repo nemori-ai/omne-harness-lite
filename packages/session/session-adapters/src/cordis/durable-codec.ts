@@ -1,3 +1,4 @@
+import { isTable } from '../journal/shared-map.ts'
 import { tenantCodec, workspaceCodec } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
 
@@ -25,7 +26,7 @@ export function encodeState(value: unknown): JsonValue {
       throw new TypeError(`a ${typeof value} is not durable data`)
   }
   if (Array.isArray(value)) return value.map(item => encodeState(item))
-  if (value instanceof Map)
+  if (isTable(value))
     return { $map: [...value].map(([key, item]) => [encodeState(key), encodeState(item)]) }
   if (value instanceof Set) return { $set: [...value].map(item => encodeState(item)) }
   const named = (value as { name?: unknown }).name

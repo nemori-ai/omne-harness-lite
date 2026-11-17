@@ -1,3 +1,4 @@
+import { SharedMap, isTable } from '../journal/shared-map.ts'
 import type {
   AcceptedInput,
   Adoption,
@@ -640,7 +641,7 @@ export type FieldsDiff = Readonly<{
 }>
 
 const text = (value: unknown): string =>
-  canonical(value instanceof Map ? [...value.entries()].sort() : value)
+  canonical(isTable(value) ? [...value.entries()].sort() : value)
 
 export function fieldsDiff(
   expected: MemoryExecution,
@@ -675,11 +676,11 @@ export type EventFragments = Pick<
 >
 
 export const emptyFragments = (): EventFragments => ({
-  eventReceipts: new Map(),
-  pendingEvents: new Map(),
-  callOrigins: new Map(),
-  human: new Map(),
-  indexedEvents: new Map(),
+  eventReceipts: new SharedMap(),
+  pendingEvents: new SharedMap(),
+  callOrigins: new SharedMap(),
+  human: new SharedMap(),
+  indexedEvents: new SharedMap(),
 })
 
 function pendingsOf(
