@@ -163,10 +163,12 @@ describe('receive records by dispatch', () => {
   function world() {
     let allowed = true
     const records = receiveRecords({
-      execution: () =>
-        allowed
-          ? { ok: { owner: 'host', subject: 'channel', revision: '1' } }
-          : { failure: { kind: 'denied', action: 'execution-channel' } },
+      execution: reference =>
+        (reference as unknown) === null
+          ? { failure: { kind: 'invalid', field: 'execution', reason: 'asked-without-execution' } }
+          : allowed
+            ? { ok: { owner: 'host', subject: 'channel', revision: '1' } }
+            : { failure: { kind: 'denied', action: 'execution-channel' } },
     })
     return { records, deny: () => (allowed = false) }
   }
@@ -221,6 +223,15 @@ describe('receive records by dispatch', () => {
     expect(records.reader.prove(ask('w1', [failed]))).toEqual(UNPROVEN)
     expect(records.open({}, demand)).not.toBeNull()
   })
+
+  it('opens no record for a demand whose execution is of another tenant', () => {
+    const { records } = world()
+    const foreign = {
+      ...demand,
+      execution: { ...demand.execution, tenant: tenant(other.value, account.value) },
+    }
+    expect(records.open({}, foreign)).toBeNull()
+  })
 })
 
 describe('recording the facts of a stream', () => {
@@ -250,6 +261,32 @@ describe('recording the facts of a stream', () => {
     await iterator.next()
     expect(await iterator.return?.()).toEqual({ done: true, value: undefined })
     expect(log).toEqual(['closed'])
+  })
+
+  function bare(facts: readonly TransportFact[]): AsyncIterable<TransportFact> {
+    const queue = [...facts]
+    return {
+      [Symbol.asyncIterator]: () => ({
+        next: async () => {
+          const value = queue.shift()
+          return value === undefined ? { done: true, value: undefined } : { done: false, value }
+        },
+      }),
+    }
+  }
+
+  it('answers done to an early return when the source has no return', async () => {
+    const iterator = recordingFacts(bare([diagnostic]), createReceiveRecord())[
+      Symbol.asyncIterator
+    ]()
+    expect(await iterator.return?.()).toEqual({ done: true, value: undefined })
+  })
+
+  it('rethrows the error of the consumer when the source has no throw', async () => {
+    const iterator = recordingFacts(bare([diagnostic]), createReceiveRecord())[
+      Symbol.asyncIterator
+    ]()
+    await expect(iterator.throw?.(new Error('consumer closed'))).rejects.toThrow('consumer closed')
   })
 
   it('passes a throw of the consumer to the source', async () => {
