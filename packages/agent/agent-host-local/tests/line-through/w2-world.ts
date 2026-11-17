@@ -518,17 +518,28 @@ export async function openW2World(options: W2Options) {
   })
 
   const warnings: string[] = []
+  // A wait on Session's interpretation ends by time passing, not by a save; the doubles let time pass for it.
+  let historyWait = false
   w.ctx.logger.exporter({
     export: message => {
-      if (message.type === 'warn') warnings.push(message.args.map(String).join(' '))
+      if (message.type !== 'warn') return
+      const text = message.args.map(String).join(' ')
+      warnings.push(text)
+      if (
+        text.includes('agent run waits for a dependency') &&
+        text.includes('owner=session-history')
+      )
+        historyWait = true
     },
   })
 
   let budget = 0
   let releases = 0
+  let historyReleases = 0
   let driving = true
   afterSave = () => {
     budget += RELEASES_PER_SAVE
+    historyWait = false
   }
   const nearWait = (): number | null => {
     const horizon = Date.parse(w.clock.now()) + 60_000
@@ -539,11 +550,18 @@ export async function openW2World(options: W2Options) {
     return instants.length === 0 ? null : Math.min(...instants)
   }
   const driver = (async () => {
+    let lastHistoryRelease = 0
     while (driving) {
-      const at = budget > 0 ? nearWait() : null
+      const history = budget === 0 && historyWait && Date.now() - lastHistoryRelease >= 20
+      const at = budget > 0 || history ? nearWait() : null
       if (at !== null) {
-        budget -= 1
-        releases += 1
+        if (budget > 0) {
+          budget -= 1
+          releases += 1
+        } else {
+          historyReleases += 1
+          lastHistoryRelease = Date.now()
+        }
         w.clock.advanceTo(new Date(at).toISOString())
       }
       await sleep(2)
@@ -830,6 +848,7 @@ export async function openW2World(options: W2Options) {
     warnings,
     consumers,
     releases: () => releases,
+    historyReleases: () => historyReleases,
     roundCompletes: () => roundsComplete,
     lastTerminal,
     lastOutcome,
