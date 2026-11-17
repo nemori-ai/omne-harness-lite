@@ -1157,9 +1157,7 @@ export function createToolLedger<P, B extends ContentBlock>(
                   command,
                   final,
                   committed,
-                  settledAt === null
-                    ? null
-                    : instantAfter(settledAt, configuration.offloading.orphanGraceMs),
+                  { settledAt, graceMs: configuration.offloading.orphanGraceMs },
                   mint,
                 )
           },

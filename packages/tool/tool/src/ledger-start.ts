@@ -911,7 +911,15 @@ function started(
   return {
     kind: 'commit',
     writes: [
-      put({ kind: 'call', call: { ...record, state, execution: command.execution } }),
+      put({
+        kind: 'call',
+        call: {
+          ...record,
+          state,
+          execution: command.execution,
+          startedAt: command.startedAt ?? null,
+        },
+      }),
       put(operationRecord(command, { kind: 'record-start', state }, mint)),
       ...deleteTasks(snapshot, ['start']),
       ...timerSchedules(record.request, timing, command.startedAt ?? null),

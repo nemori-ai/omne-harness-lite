@@ -305,6 +305,8 @@ export type ToolCallFacts = Readonly<{
   arguments: string
   starts: number
   accounts: readonly string[]
+  /** The duration of each account the ledger holds for the call, as stored. */
+  durations: readonly unknown[]
 }>
 
 /** Per call of the Tool ledger: its admitted effective arguments, its start operations and its account events. */
@@ -312,27 +314,38 @@ export function toolCallFacts(storageRoot: string): ReadonlyMap<string, ToolCall
   const args = new Map<string, string>()
   const starts = new Map<string, number>()
   const accounts = new Map<string, string[]>()
+  const durations = new Map<string, unknown[]>()
   for (const row of ledgerRows(storageRoot)) {
     const record = row.record as {
       kind: string
       call?: { call: string; request: { arguments: { effective: string } } }
       operation?: { call: string; operation: string }
-      account?: { call: string; event: string }
+      account?: { call: string; event: string; value?: { duration?: unknown } }
     }
     if (record.kind === 'call' && record.call !== undefined)
       args.set(record.call.call, record.call.request.arguments.effective)
     if (record.kind === 'operation' && record.operation?.operation.endsWith('/start') === true)
       starts.set(record.operation.call, (starts.get(record.operation.call) ?? 0) + 1)
-    if (record.kind === 'account' && record.account !== undefined)
+    if (record.kind === 'account' && record.account !== undefined) {
       accounts.set(record.account.call, [
         ...(accounts.get(record.account.call) ?? []),
         record.account.event,
       ])
+      durations.set(record.account.call, [
+        ...(durations.get(record.account.call) ?? []),
+        record.account.value?.duration,
+      ])
+    }
   }
   return new Map(
     [...args].map(([call, value]) => [
       call,
-      { arguments: value, starts: starts.get(call) ?? 0, accounts: accounts.get(call) ?? [] },
+      {
+        arguments: value,
+        starts: starts.get(call) ?? 0,
+        accounts: accounts.get(call) ?? [],
+        durations: durations.get(call) ?? [],
+      },
     ]),
   )
 }

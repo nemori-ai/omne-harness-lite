@@ -1,26 +1,22 @@
 import type { ToolBodyRepresentation, ToolBodyWriter } from '@omne-harness/tool-contract'
 import { OUTPUT_BODY_KEY } from '@omne-harness/tool-contract/provider'
 
-/** How the running output of one execution goes into its output body. */
+// Writing starts once the execution has run `startAfterMs`, in batches every `batchMs`, up to
+// `maxBytes`; what does not fit is counted, not written.
 export type OutputStaging = Readonly<{
   writer: ToolBodyWriter
   representation: ToolBodyRepresentation
-  /** The output is written only for an execution that runs at least this long. */
   startAfterMs: number
-  /** Output that arrives in between is written together at this interval. */
   batchMs: number
-  /** The output body holds at most this many bytes; the rest is counted, not written. */
   maxBytes: number
 }>
 
-// Author-internal constants: begin after five seconds, write about once a second.
 export const STAGING_START_AFTER_MS = 5_000
 export const STAGING_BATCH_MS = 1_000
 export const STAGING_MAX_BYTES = 8 * 1_048_576
 
 const utf8 = new TextEncoder()
 
-/** Cuts text to at most `bytes` UTF-8 bytes without splitting a character. */
 function fitting(text: string, bytes: number): string {
   if (utf8.encode(text).length <= bytes) return text
   let kept = ''
@@ -34,10 +30,8 @@ function fitting(text: string, bytes: number): string {
   return kept
 }
 
-/**
- * Writes the output of one execution into its output body while it runs. A write that fails ends
- * the staging, never the execution; the result line then says the body is incomplete.
- */
+// Writes the running output into the output body. A failed write ends the staging, never the
+// execution; the result line then says the body is incomplete.
 export class OutputStage {
   private pending = ''
   private written = 0
@@ -56,13 +50,11 @@ export class OutputStage {
     this.start = setTimeout(() => this.begin(), staging.startAfterMs)
   }
 
-  /** Text of the output as it arrives, in order. */
   observe(text: string): void {
     if (text === '' || this.state === 'stopped') return
     this.pending += text
   }
 
-  /** Writes what is left and seals the body; an execution shorter than the start writes nothing. */
   async finish(): Promise<string> {
     clearTimeout(this.start)
     if (this.batch !== null) clearInterval(this.batch)
