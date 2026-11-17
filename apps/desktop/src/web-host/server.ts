@@ -137,8 +137,10 @@ export function createWebHost(options: WebHostOptions): WebHost {
   function loginState(response: ServerResponse): void {
     openStream(response)
     streams.add(response)
-    response.write(event(writeLoginState(session.state())))
-    const unsubscribe = session.subscribe(state => response.write(event(writeLoginState(state))))
+    response.write(event(writeLoginState(session.state(), session.protocols)))
+    const unsubscribe = session.subscribe(state =>
+      response.write(event(writeLoginState(state, session.protocols))),
+    )
     response.on('close', () => {
       unsubscribe()
       streams.delete(response)

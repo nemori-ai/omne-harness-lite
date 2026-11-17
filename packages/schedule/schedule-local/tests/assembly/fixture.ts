@@ -11,6 +11,7 @@ export function localOptions(world: World): ScheduleLocalOptions {
     sql: {
       storage: world.storage,
       scope: world.scope,
+      transactionDomain: world.combination.transactionDomain,
       combinationVersion: world.combination.combinationVersion,
       manifestDigest: world.combination.manifestDigest,
       guards: world.guards,

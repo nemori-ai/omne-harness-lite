@@ -74,7 +74,6 @@ export function access(ctx = context): ManagementAccess {
       since: now,
       observedAt: now,
     },
-    consentLock: { kind: 'clear' },
   }
 }
 export function observation(

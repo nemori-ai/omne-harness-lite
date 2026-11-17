@@ -143,61 +143,47 @@ describe('对话的条目', () => {
       { kind: 'message', role: 'tool', parts: [{ kind: 'tool-result', callId: 'nobody' }] },
     ])
   })
-  it('V3 Ask 的调用是问题卡：没有结果且这一轮在进行是等待答复', () => {
+  it('V3 提问的调用和别的工具调用一样：名字与参数照原样，不另造一份问题卡', () => {
     const ask = {
       command: 'ask',
-      params: {
-        questions: [
-          {
-            title: '选哪个？',
-            description: '会影响部署',
-            options: [
-              { label: 'A（推荐）', description: '快' },
-              { label: 'B', description: '稳' },
-            ],
-          },
-        ],
-      },
+      params: { questions: [{ title: '选哪个？', description: '会影响部署', options: [] }] },
     }
     const content = mergeHistory(EMPTY_CONTENT, [
       messageEntry('1', '1', 'assistant', [toolCallBlock('q1', 'Ask', ask)]),
     ])
-    const card = parts(content, true).find(part => part.kind === 'tool-call')
-    expect(card).toMatchObject({
-      ask: {
-        status: 'waiting',
-        questions: [
-          {
-            title: '选哪个？',
-            options: [
-              { label: 'A（推荐）', description: '快' },
-              { label: 'B', description: '稳' },
-            ],
-          },
-        ],
-      },
-    })
+    const call = parts(content, true).find(part => part.kind === 'tool-call')
+    expect(call).toMatchObject({ name: 'Ask', arguments: ask, result: null, ended: false })
+    expect(Object.keys(call!).sort()).toEqual(
+      ['arguments', 'callId', 'ended', 'key', 'kind', 'name', 'raw', 'result', 'state'].sort(),
+    )
   })
-  it('V4 Ask 有结果是已答复；这一轮结束而没有结果是已失效', () => {
-    const ask = {
-      command: 'ask',
-      params: { questions: [{ title: 'Q', description: 'd', options: [] }] },
+  it('V4 没有结果：这一轮在进行是还在等；这一轮结束了是没有结果；有结果就是有结果，与工具名无关', () => {
+    for (const name of ['Ask', 'Shell']) {
+      const call = messageEntry('1', '1', 'assistant', [toolCallBlock('q1', name, {})])
+      const answered = mergeHistory(EMPTY_CONTENT, [call, toolResultEntry('2', '2', 'q1', '好了')])
+      expect(parts(answered, true).find(part => part.kind === 'tool-call')).toMatchObject({
+        ended: false,
+        result: { parts: [{ text: '好了' }] },
+      })
+      expect(
+        parts(mergeHistory(EMPTY_CONTENT, [call]), true).find(part => part.kind === 'tool-call'),
+      ).toMatchObject({ ended: false, result: null })
+      const ended = mergeHistory(EMPTY_CONTENT, [
+        call,
+        plainEntry('3', '3', 'run.terminal', { terminal: { outcome: 'cancelled' } }),
+      ])
+      expect(parts(ended, true).find(part => part.kind === 'tool-call')).toMatchObject({
+        ended: true,
+      })
+      expect(
+        parts(mergeHistory(EMPTY_CONTENT, [call]), false).find(part => part.kind === 'tool-call'),
+      ).toMatchObject({ ended: true })
+      expect(parts(answered, false).find(part => part.kind === 'tool-call')).toMatchObject({
+        ended: false,
+      })
     }
-    const call = messageEntry('1', '1', 'assistant', [toolCallBlock('q1', 'Ask', ask)])
-    const answered = mergeHistory(EMPTY_CONTENT, [call, toolResultEntry('2', '2', 'q1', '选了 A')])
-    expect(parts(answered, true).find(part => part.kind === 'tool-call')).toMatchObject({
-      ask: { status: 'answered' },
-    })
-    const ended = mergeHistory(EMPTY_CONTENT, [
-      call,
-      plainEntry('3', '3', 'run.terminal', { terminal: { outcome: 'cancelled' } }),
-    ])
-    expect(parts(ended, true).find(part => part.kind === 'tool-call')).toMatchObject({
-      ask: { status: 'expired' },
-    })
-    expect(
-      parts(mergeHistory(EMPTY_CONTENT, [call]), false).find(part => part.kind === 'tool-call'),
-    ).toMatchObject({ ask: { status: 'expired' } })
+    const said = assistantEntry('1', '1', '先查一下')
+    expect(parts(mergeHistory(EMPTY_CONTENT, [said]), false)[0]).not.toHaveProperty('ended')
   })
   it('V5 不认识的条目种类与部件种类：看得见的占位，写明种类名', () => {
     const content = mergeHistory(EMPTY_CONTENT, [

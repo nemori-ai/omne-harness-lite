@@ -17,6 +17,7 @@ function backend(w: World, storage: SqlStorage) {
   return createScheduleManagementSqlBackend({
     storage,
     scope: w.scope,
+    transactionDomain: w.combination.transactionDomain,
     combinationVersion: w.combination.combinationVersion,
     manifestDigest: w.combination.manifestDigest,
     guards: w.guards,

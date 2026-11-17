@@ -149,7 +149,7 @@ export function serveHostIpc(options: IpcHostOptions): void {
   function loginState(page: HostPage): HostSubscribeReply {
     const state = stateOf(page)
     const push = (current: Parameters<typeof writeLoginState>[0]): void =>
-      page.send(HOST_IPC.loginStateEvent, writeLoginState(current))
+      page.send(HOST_IPC.loginStateEvent, writeLoginState(current, session.protocols))
     state.unsubscribe ??= session.subscribe(push)
     push(session.state())
     return { subscribed: true }

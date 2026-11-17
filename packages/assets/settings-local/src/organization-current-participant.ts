@@ -6,14 +6,15 @@ import type {
 import { commitCurrentSchema, COMMIT_CURRENT, businessRefusalSchema } from './commit-current.ts'
 import { preparationCurrentSchema, PREPARATION_CURRENT } from './finalization-schema.ts'
 import {
-  organizationCurrentMaterial,
-  matchesOrganizationCurrentSource,
+  standaloneCurrentMaterial,
+  matchesStandaloneCurrentSource,
 } from './organization-current-material.ts'
 import {
   organizationCurrentConfigurationSchema,
   organizationCurrentPhaseSchema,
   organizationCurrentRequestSchema,
-  organizationCurrentParticipant,
+  standaloneCurrentParticipant,
+  standaloneCurrentRuleSchema,
 } from './organization-current-schema.ts'
 import {
   readStandaloneSettingsRecord,
@@ -26,13 +27,14 @@ import { sourceKey } from './source-retention-records.ts'
 import { digest, equal, json, stateKey, withinBudget } from './encoding.ts'
 const parameters = new URL(import.meta.url).searchParams
 const phase = organizationCurrentPhaseSchema.parse(parameters.get('phase'))
+const rule = standaloneCurrentRuleSchema.parse(parameters.get('rule') ?? 'organization')
 const configuration = organizationCurrentConfigurationSchema.parse(
   JSON.parse(parameters.get('configuration') ?? 'null'),
 )
 type Request = ReturnType<typeof organizationCurrentRequestSchema.parse>
 function current(port: ReadPort, request: Request) {
   const source = { domain: request.identity.domain, target: request.identity.operation.target }
-  if (!matchesOrganizationCurrentSource(source, request.actorTenantRef))
+  if (!matchesStandaloneCurrentSource(rule, source, request.actorTenantRef))
     return { kind: 'rejected' as const, reason: 'forbidden' as const }
   const record = readStandaloneSettingsRecord(port, stateKey(source.domain.scope, source.target))
   if (!record || record.retired) return { kind: 'rejected' as const, reason: 'forbidden' as const }
@@ -42,8 +44,9 @@ function current(port: ReadPort, request: Request) {
       ? projectedRevision(port, source.domain.scope, projection)
       : historicalRevision(port, request)
   if ('kind' in value) return value
-  return organizationCurrentMaterial(
+  return standaloneCurrentMaterial(
     { source, projection, actorTenantRef: request.actorTenantRef, value },
+    rule,
     configuration,
   )
 }
@@ -68,7 +71,7 @@ function historicalRevision(port: ReadPort, request: Request) {
 }
 function capture(request: Request, result: ReturnType<typeof current>) {
   if (request.attempt !== null)
-    throw new Error('Initial organization capture cannot carry an attempt')
+    throw new Error('Initial standalone capture cannot carry an attempt')
   if ('kind' in result) return { kind: 'participated' as const, response: json(result) }
   const { basis, standing, sources, definition } = result
   return {
@@ -79,13 +82,16 @@ function capture(request: Request, result: ReturnType<typeof current>) {
       standing,
       sources,
       secretItems: secretItemsOf(definition),
-      purpose: {
-        kind: 'source-update',
-        sourceKey: sourceKey({
-          domain: request.identity.domain,
-          target: request.identity.operation.target,
-        }),
-      },
+      purpose:
+        rule === 'tenant'
+          ? { kind: 'target-change' }
+          : {
+              kind: 'source-update',
+              sourceKey: sourceKey({
+                domain: request.identity.domain,
+                target: request.identity.operation.target,
+              }),
+            },
     }),
   }
 }
@@ -103,7 +109,7 @@ function publish(request: Request, result: ReturnType<typeof current>, port: Par
     !equal(binding.identity, request.identity) ||
     binding.commandKind !== request.commandKind
   )
-    throw new Error('Organization current attempt mismatch')
+    throw new Error('Standalone current attempt mismatch')
   if (phase === 'ready') {
     if ('kind' in result) return { kind: 'unsupported' as const, basis: json(result) }
     port.provideFact(
@@ -126,11 +132,11 @@ function publish(request: Request, result: ReturnType<typeof current>, port: Par
   return { kind: 'participated' as const, response: null }
 }
 export default {
-  participant: organizationCurrentParticipant(phase),
-  protocol: `settings-organization-current/1/${phase}/${digest(configuration)}`,
+  participant: standaloneCurrentParticipant(rule, phase),
+  protocol: `settings-${rule}-current/1/${phase}/${digest(configuration)}`,
   execute(facts, port) {
     if (!withinBudget(facts))
-      return { kind: 'failed', diagnostic: 'settings_organization_current_limit' }
+      return { kind: 'failed', diagnostic: `settings_${rule}_current_limit` }
     const request = organizationCurrentRequestSchema.parse(facts['request'])
     const result = current(port, request)
     return phase === 'capture' ? capture(request, result) : publish(request, result, port)

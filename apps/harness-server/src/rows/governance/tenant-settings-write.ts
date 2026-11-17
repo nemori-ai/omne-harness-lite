@@ -17,6 +17,8 @@ import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
 import type { GovernanceScope } from '@omne-harness/governance-contract'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import type { ToolReleaseEntry } from '../../entry/tool-release-manifest.ts'
+import { PREFERENCE_SETTINGS_CONFIGURATION, preferenceOf } from './preference-settings.ts'
+import { createPreferenceSettingsPreparation } from './preference-settings-write.ts'
 import { governanceStorageCombinations } from './storage-combinations.ts'
 import {
   TARGET_SNAPSHOT,
@@ -56,6 +58,30 @@ const reference = (value: Registration): Registration => ({
 })
 const failure = (reason: 'forbidden' | 'unavailable' | 'unsupported') =>
   ({ kind: 'rejected', reason }) as const
+
+const unsupported = async () => failure('unsupported')
+
+type Prepared = ReturnType<typeof createIdentityQualifiedSettingsPreparation>
+
+/** Runs one change through a preparation: recall, the caller's last check, prepare, commit. */
+async function writeThrough(
+  service: Prepared['service'],
+  writer: Principal,
+  { command, beforeWrite }: Parameters<TenantSettingsWriter['write']>[0],
+) {
+  const operation = { target: command.target, operationId: command.operationId }
+  const known = await service.getOperation(writer, operation)
+  if (known.kind === 'not_found' || known.kind === 'pending') {
+    const refused = await beforeWrite()
+    if (refused !== null) return { kind: 'refused' as const, outcome: refused }
+  } else if (known.kind === 'rejected') return known
+  const staged = await service.prepareChange(writer, command)
+  if (staged.kind !== 'prepared') return staged
+  return service.commitChange(writer, {
+    requestId: command.requestId,
+    preparation: staged.preparation,
+  })
+}
 
 export function createTenantSettingsWrite(options: TenantSettingsWriteOptions) {
   const scope = structuredClone(options.scope)
@@ -175,35 +201,31 @@ export function createTenantSettingsWrite(options: TenantSettingsWriteOptions) {
             : failure('forbidden')
         },
       },
-      sources: {
-        reserve: async () => failure('unsupported'),
-        settle: async () => failure('unsupported'),
-      },
+      sources: { reserve: unsupported, settle: unsupported },
     },
   })
 
+  const preference = createPreferenceSettingsPreparation({ ...options, domain, combinations })
   const writer: TenantSettingsWriter = {
-    async write({ command, beforeWrite }) {
+    async write(input) {
+      if (preferenceOf(input.command.target) !== undefined)
+        return writeThrough(preference.service, options.writer, input)
       planned = (await options.epoch()) ?? planned
-      const service = prepared.service
-      const operation = { target: command.target, operationId: command.operationId }
-      const known = await service.getOperation(options.writer, operation)
-      if (known.kind === 'not_found' || known.kind === 'pending') {
-        const refused = await beforeWrite()
-        if (refused !== null) return { kind: 'refused', outcome: refused }
-      } else if (known.kind === 'rejected') return known
-      const staged = await service.prepareChange(options.writer, command)
-      if (staged.kind !== 'prepared') return staged
-      return service.commitChange(options.writer, {
-        requestId: command.requestId,
-        preparation: staged.preparation,
-      })
+      return writeThrough(prepared.service, options.writer, input)
     },
   }
 
   return {
     writer,
-    destination: prepared.control.destination,
-    close: () => prepared.control.close(),
+    destination: {
+      seal: (reservation: Parameters<typeof prepared.control.destination.seal>[0]) =>
+        reservation.binding.destination === PREFERENCE_SETTINGS_CONFIGURATION.destination
+          ? preference.control.destination.seal(reservation)
+          : prepared.control.destination.seal(reservation),
+    },
+    close: async () => {
+      await prepared.control.close()
+      await preference.control.close()
+    },
   }
 }

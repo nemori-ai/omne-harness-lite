@@ -7,11 +7,12 @@ import {
 import type { ReadResult, ScheduleManagementStore } from '@omne-harness/schedule'
 import type { SqlStorage, StorageScope } from '@omne-harness/sql-contract'
 import { domainError, json, ownerMatches } from './encoding.ts'
-import { DOMAIN, HANDLER, PROTOCOL, recordSchema } from './schema.ts'
+import { HANDLER, PROTOCOL, recordSchema } from './schema.ts'
 import { readRequestSchema, type RepositoryRequest } from './read-schema.ts'
 
 export async function readRepository<T>(
   storage: SqlStorage,
+  transactionDomain: string,
   request: RepositoryRequest,
   schema: z.ZodType<T>,
 ): Promise<ReadResult<T>> {
@@ -34,7 +35,7 @@ export async function readRepository<T>(
       }
     const requestKey = randomUUID()
     const result = await storage.read({
-      domain: { scope: request.scope, transactionDomain: DOMAIN },
+      domain: { scope: request.scope, transactionDomain },
       handler: HANDLER,
       protocol: PROTOCOL,
       requestKey,
@@ -72,14 +73,18 @@ const snapshotSchema = z.strictObject({
   observationRevision: z.string().min(1),
   value: recordSchema,
 })
-export function managementStore(storage: SqlStorage, scope: StorageScope): ScheduleManagementStore {
+export function managementStore(
+  storage: SqlStorage,
+  scope: StorageScope,
+  transactionDomain: string,
+): ScheduleManagementStore {
+  const read = <T>(request: RepositoryRequest, schema: z.ZodType<T>) =>
+    readRepository(storage, transactionDomain, request, schema)
   return {
-    readSchedule: input =>
-      readRepository(storage, { ...input, kind: 'schedule', scope }, snapshotSchema),
-    getSchedule: input => readRepository(storage, { ...input, kind: 'get', scope }, snapshotSchema),
-    listSchedules: input =>
-      readRepository(storage, { ...input, kind: 'list', scope }, ScheduleListPageSchema),
+    readSchedule: input => read({ ...input, kind: 'schedule', scope }, snapshotSchema),
+    getSchedule: input => read({ ...input, kind: 'get', scope }, snapshotSchema),
+    listSchedules: input => read({ ...input, kind: 'list', scope }, ScheduleListPageSchema),
     readRevisions: input =>
-      readRepository(storage, { ...input, kind: 'revisions', scope }, ScheduleRevisionsPageSchema),
+      read({ ...input, kind: 'revisions', scope }, ScheduleRevisionsPageSchema),
   }
 }

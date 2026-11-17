@@ -873,7 +873,7 @@ describe('the local binding of a checkpointed author: when the end of a segment 
 })
 
 describe('the local binding of a checkpointed author: the scope of a segment and what resolving needs', () => {
-  it('attaches the capability of the assembly to the first start only, never to a resume', async () => {
+  it('attaches the capability of the assembly to the first start and to each resume of the call', async () => {
     const attached: string[] = []
     const { start, resume } = await harness(() => Promise.resolve(suspended()), {
       capability: (input, scope) => {
@@ -888,7 +888,7 @@ describe('the local binding of a checkpointed author: the scope of a segment and
       response: responseOf('start-c1', { kind: 'declined' }),
     }
     await drain(unbox((await resume('start-c1/wait/resume', 'state/start-c1', given)).answer))
-    expect(attached).toEqual(['start'])
+    expect(attached).toEqual(['start', 'resume'])
   })
 
   it('names the fact that continued the wait by the resume and the response it consumed', async () => {

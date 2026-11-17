@@ -6,9 +6,11 @@ import { builtBin, builtDist } from './support/cli-process.ts'
 
 const allowed = [
   '@omne-harness/assets-protocol',
+  '@omne-harness/calendar-protocol',
   '@omne-harness/human-intervention-protocol',
   '@omne-harness/identity-protocol',
   '@omne-harness/public-contract',
+  '@omne-harness/schedule-protocol',
   '@omne-harness/sdk',
   '@omne-harness/session-diagnostics-protocol',
   '@omne-harness/session-protocol',

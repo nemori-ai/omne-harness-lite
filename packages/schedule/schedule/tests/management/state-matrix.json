@@ -57,14 +57,6 @@
   },
   {
     "control": "draft",
-    "action": "reconfirmConsent",
-    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
-    "result": "commit",
-    "controlAfter": "draft",
-    "error": null
-  },
-  {
-    "control": "draft",
     "action": "replace",
     "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
     "result": "rejected",
@@ -122,14 +114,6 @@
   {
     "control": "active",
     "action": "update",
-    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
-    "result": "commit",
-    "controlAfter": "active",
-    "error": null
-  },
-  {
-    "control": "active",
-    "action": "reconfirmConsent",
     "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
     "result": "commit",
     "controlAfter": "active",
@@ -202,14 +186,6 @@
   },
   {
     "control": "paused",
-    "action": "reconfirmConsent",
-    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
-    "result": "commit",
-    "controlAfter": "paused",
-    "error": null
-  },
-  {
-    "control": "paused",
     "action": "replace",
     "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
     "result": "commit",
@@ -275,14 +251,6 @@
   },
   {
     "control": "stopped",
-    "action": "reconfirmConsent",
-    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
-    "result": "rejected",
-    "controlAfter": "stopped",
-    "error": "invalid_transition"
-  },
-  {
-    "control": "stopped",
     "action": "replace",
     "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
     "result": "rejected",
@@ -347,14 +315,6 @@
   },
   {
     "control": "exhausted",
-    "action": "reconfirmConsent",
-    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
-    "result": "rejected",
-    "controlAfter": "exhausted",
-    "error": "invalid_transition"
-  },
-  {
-    "control": "exhausted",
     "action": "replace",
     "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
     "result": "rejected",
@@ -419,14 +379,6 @@
   },
   {
     "control": "discarded",
-    "action": "reconfirmConsent",
-    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
-    "result": "rejected",
-    "controlAfter": "discarded",
-    "error": "invalid_transition"
-  },
-  {
-    "control": "discarded",
     "action": "replace",
     "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
     "result": "rejected",
@@ -484,14 +436,6 @@
   {
     "control": "superseded",
     "action": "update",
-    "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
-    "result": "rejected",
-    "controlAfter": "superseded",
-    "error": "invalid_transition"
-  },
-  {
-    "control": "superseded",
-    "action": "reconfirmConsent",
     "when": "authorized, CAS equal, standing not terminallyInvalidated, required dependencies complete, meaningful payload change",
     "result": "rejected",
     "controlAfter": "superseded",

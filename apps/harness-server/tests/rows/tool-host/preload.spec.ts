@@ -43,7 +43,16 @@ describe('tool-host: the release authors are loaded by the registrant at start',
     async () => {
       const { names } = await loaded(true, TEST_CONSTRUCTION)
       await until(() => names().length === 5)
-      expect(names()).toEqual(['Ask', 'Files', 'Shell', 'TodoItems', 'Tools', 'Web'])
+      expect(names()).toEqual([
+        'Ask',
+        'Calendar',
+        'Files',
+        'Schedules',
+        'Shell',
+        'TodoItems',
+        'Tools',
+        'Web',
+      ])
     },
   )
 
@@ -88,9 +97,11 @@ describe('tool-host: the release authors are loaded by the registrant at start',
         return { failure: { kind: 'unavailable', diagnostic: 'test' } }
       },
     })
-    expect(seen).toHaveLength(6)
+    expect(seen).toHaveLength(8)
     for (const access of seen) expect(access).toBe(registrant)
     expect(results.map(result => result.outcome)).toEqual([
+      'unavailable',
+      'unavailable',
       'unavailable',
       'unavailable',
       'unavailable',

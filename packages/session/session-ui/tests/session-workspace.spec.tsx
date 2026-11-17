@@ -110,6 +110,9 @@ it('主场景：新建会话、发一句话、流式回复、被历史替换、�
   expect(screen.queryByText('正在生成')).toBeNull()
   expect(screen.getByText('正在回答你。')).toBeTruthy()
 
+  expect(screen.getByRole('button', { name: '停止' }).getAttribute('title')).toBe(
+    '停止这一轮。还没答的问题会一起关掉。',
+  )
   fireEvent.click(screen.getByRole('button', { name: '停止' }))
   const cancel = await fake.next('cancel-run')
   expect(cancel.body).toMatchObject({ session: SESSION, run: 'run_1', urgency: 'graceful' })
