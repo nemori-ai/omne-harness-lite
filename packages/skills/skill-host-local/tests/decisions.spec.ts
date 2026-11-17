@@ -185,8 +185,22 @@ describe('the basis and the lawful set', () => {
     expect(await resolution.adopted(reader, scope)).toMatchObject({
       ok: [{ kind: 'adopted', ref: { capability: report } }],
     })
+    const off = decisions([read('tenant', candidate('tenant/weekly-report', { disabled: true }))])
+    expect(await off.resolution.adopted(reader, scope)).toMatchObject({
+      ok: [{ kind: 'known-unavailable', capability: report }],
+    })
     const empty = decisions([read('tenant')])
     expect(await empty.resolution.adopted(reader, scope)).toEqual({ ok: [] })
+  })
+
+  it('answers unknown for the lawful set when the identities cannot be read', async () => {
+    const broken = createSkillDecisions<'reader', Scope>({
+      layers: async () => [],
+      eligible: async () => 'yes',
+      identities: async () => ({ failure: 'unknown' }),
+      readable: async () => ({ kind: 'granted' }),
+    })
+    expect(await broken.resolution.adopted(reader, scope)).toEqual({ failure: 'unknown' })
   })
 
   it('passes the read check on, and a throw answers unknown', async () => {
@@ -352,8 +366,17 @@ describe('publishedCandidate: bodies of another shape', () => {
       { settings: { kind: 'array', items: [setting('owner', 'governance')] } as JsonValue },
     ],
     [
-      'a setting without a name',
+      'a setting with an empty name',
       { settings: { kind: 'array', items: [setting('', 'preference')] } as JsonValue },
+    ],
+    [
+      'a setting without a name',
+      {
+        settings: {
+          kind: 'array',
+          items: [{ kind: 'object', entries: [{ key: 'category', value: text('preference') }] }],
+        } as JsonValue,
+      },
     ],
     ['no package', { package: undefined }],
     [
@@ -403,7 +426,7 @@ describe('the translation: the branches of the winner and of no winner', () => {
       declared: { name: skillName('weekly-report'), tools: [], settings: [] },
     }
     const { resolution } = decisions([read('official', official)])
-    expect(await resolution.resolve(reader, scope, report)).toEqual({
+    expect(await resolution.resolve(reader, scope, report)).toStrictEqual({
       kind: 'adopted',
       ref: {
         capability: report,
@@ -411,6 +434,20 @@ describe('the translation: the branches of the winner and of no winner', () => {
         locator: { kind: 'directory', root: '/skills/weekly-report' },
       },
       declared: official.declared,
+    })
+  })
+
+  it('a stand-in of a Skill without a description has no description field', async () => {
+    const off: SkillCandidate = {
+      ...candidate('tenant/weekly-report', { disabled: true }),
+      declared: { name: skillName('weekly-report'), tools: [], settings: [] },
+    }
+    const { resolution } = decisions([read('tenant', off)])
+    expect(await resolution.resolve(reader, scope, report)).toStrictEqual({
+      kind: 'known-unavailable',
+      capability: report,
+      reason: 'This Skill is disabled.',
+      name: 'weekly-report',
     })
   })
 })

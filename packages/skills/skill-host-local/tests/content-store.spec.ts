@@ -158,6 +158,44 @@ describe('the content-store source over the read port of assets', () => {
     expect(await source.snapshot(locator)).toEqual({ failure: 'unavailable' })
   })
 
+  it.each([
+    ['entry-not-found', 'entry-not-found'],
+    ['material-unavailable', 'bytes-mismatch'],
+    ['package-not-found', 'package-not-found'],
+  ] as const)('answers %s of the read port as %s', async (failure, answer) => {
+    const source = createContentStoreSource({
+      readerOf: readerOf(store({ openFailure: failure })),
+    })
+    expect(await source.snapshot(locator)).toEqual({ failure: answer })
+  })
+
+  it('answers entry-unreadable for a manifest path that is no package path, and opens nothing', async () => {
+    const files = { '../outside.sh': 'echo\n' }
+    const held = store({ packages: new Map([[digestOf(files), files]]) })
+    const source = createContentStoreSource({ readerOf: readerOf(held) })
+    const outside = { ...locator, digest: digestOf(files) }
+    expect(await source.snapshot(outside)).toEqual({ failure: 'entry-unreadable' })
+    expect(held.opened).toEqual([])
+  })
+
+  it('answers entry-unreadable for a manifest that no snapshot can be sealed from', async () => {
+    const files = { a: 'file\n', 'a/b': 'below a file\n' }
+    const held = store({ packages: new Map([[digestOf(files), files]]) })
+    const source = createContentStoreSource({ readerOf: readerOf(held) })
+    expect(await source.snapshot({ ...locator, digest: digestOf(files) })).toEqual({
+      failure: 'entry-unreadable',
+    })
+  })
+
+  it('names no package of a directory locator and does not ask the read port', async () => {
+    const held = store()
+    const source = createContentStoreSource({ readerOf: readerOf(held) })
+    expect(await source.snapshot({ kind: 'directory', root: '/skills/weekly-report' })).toEqual({
+      failure: 'package-not-found',
+    })
+    expect(held.refs).toEqual([])
+  })
+
   it('seals a digest once: a later read opens only the file it reads', async () => {
     const held = store()
     const source = createContentStoreSource({ readerOf: readerOf(held) })
