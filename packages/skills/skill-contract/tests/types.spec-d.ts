@@ -1,4 +1,5 @@
 import { expectTypeOf, test } from 'vitest'
+import type { AssetLayer } from '@omne-harness/assets'
 import type * as root from '@omne-harness/skill-contract'
 import type {
   DescribeFailure,
@@ -8,6 +9,7 @@ import type {
   ReadFailure,
   SkillName,
   SkillPackageSnapshot,
+  SourceLayer,
 } from '@omne-harness/skill-contract'
 import type { PackageLocator, SkillRef } from '@omne-harness/skill-contract/provider'
 // @ts-expect-error the root entry does not name the inspection port
@@ -46,4 +48,8 @@ test('each operation names only the failures that it can give', () => {
   expectTypeOf<'resource-missing' | 'bad-path'>().not.toExtend<Kind<ListFailure>>()
   expectTypeOf<'outside-package'>().toExtend<Kind<ListFailure>>()
   expectTypeOf<'aborted' | 'version-changed' | 'unsupported'>().toExtend<Kind<ReadFailure>>()
+})
+
+test('the Skill source layers are the asset layers, word for word', () => {
+  expectTypeOf<SourceLayer>().toEqualTypeOf<AssetLayer>()
 })

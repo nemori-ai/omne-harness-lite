@@ -16,6 +16,9 @@ import {
   domainSchema,
   HANDLER,
   holdSchema,
+  LIST_HANDLER,
+  listLookupSchema,
+  listResultSchema,
   holdingLookupSchema,
   holdingResultSchema,
   mutationSchema,
@@ -91,6 +94,25 @@ function publishCommand(options: AssetsLocalOptions, input: AssetsPublish) {
   })
   return command.success ? command.data : fail('invalid_input')
 }
+type ReadKind = 'asset' | 'holding' | 'version' | 'heldCapability' | 'list'
+
+function storageRead(options: Pick<AssetsLocalOptions, 'storage' | 'domain'>) {
+  return async (kind: ReadKind, lookup: unknown) => {
+    const result = await options.storage.read({
+      domain: options.domain,
+      handler: kind === 'list' ? LIST_HANDLER : HANDLER,
+      protocol: PROTOCOL,
+      requestKey: randomUUID(),
+      input: json({ kind, domain: options.domain, lookup }),
+    })
+    return result.kind === 'read'
+      ? result.output
+      : fail(
+          result.kind === 'unavailable' && result.reason === 'closing' ? 'closing' : 'unavailable',
+        )
+  }
+}
+
 export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
   const options = { ...input, domain: domainSchema.parse(input.domain) }
   if (options.domain.scope.kind !== 'tenant')
@@ -136,20 +158,7 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     const parsed = mutationSchema.safeParse(value)
     return parsed.success ? commit(parsed.data) : fail('invalid_input')
   }
-  async function read(kind: 'asset' | 'holding' | 'version' | 'heldCapability', lookup: unknown) {
-    const result = await options.storage.read({
-      domain: options.domain,
-      handler: HANDLER,
-      protocol: PROTOCOL,
-      requestKey: randomUUID(),
-      input: json({ kind, domain: options.domain, lookup }),
-    })
-    return result.kind === 'read'
-      ? result.output
-      : fail(
-          result.kind === 'unavailable' && result.reason === 'closing' ? 'closing' : 'unavailable',
-        )
-  }
+  const read = storageRead(options)
   const local: Omit<AssetsLocal, 'packages'> = {
     readAsset: input =>
       run(async () => {
@@ -205,6 +214,13 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
         })
         return parsed.success
           ? holdingResultSchema.parse(await read('heldCapability', parsed.data))
+          : fail('invalid_input')
+      }),
+    listHeld: input =>
+      run(async () => {
+        const parsed = listLookupSchema.safeParse(input)
+        return parsed.success
+          ? listResultSchema.parse(await read('list', parsed.data))
           : fail('invalid_input')
       }),
     getOperation: operationId =>

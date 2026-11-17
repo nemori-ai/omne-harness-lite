@@ -27,6 +27,12 @@ export interface FailedFile {
 
 export interface RetriedFile extends FailedFile {
   readonly retryResult: RerunOutcome
+  readonly retryLog?: string
+}
+
+export interface Rerun {
+  readonly outcome: RerunOutcome
+  readonly log?: string
 }
 
 const TIMEOUT = /timed out|timeout/iu
@@ -76,7 +82,7 @@ export interface TierOutcome {
 export async function tierWithRetry(
   tier: RetryTier,
   run: () => Promise<{ readonly exitCode: number; readonly failures: readonly Failure[] }>,
-  rerun: (file: FailedFile) => Promise<RerunOutcome>,
+  rerun: (file: FailedFile) => Promise<Rerun>,
   note: (line: string) => void,
   limit = RETRY_LIMIT,
 ): Promise<TierOutcome> {
@@ -104,13 +110,15 @@ export async function tierWithRetry(
   )
   const retried: RetriedFile[] = []
   for (const file of grouped.files) {
-    const retryResult = await rerun(file)
-    retried.push({ ...file, retryResult })
-    note(`  ${file.file}（${file.kind}）→ ${retryResult}`)
+    const { outcome: retryResult, log } = await rerun(file)
+    retried.push({ ...file, retryResult, ...(log === undefined ? {} : { retryLog: log }) })
+    note(
+      `  ${file.file}（${file.kind}）→ ${retryResult}${log === undefined ? '' : `，日志 ${log}`}`,
+    )
   }
   const failures = retried
     .filter(entry => entry.retryResult !== 'passed')
-    .map(({ retryResult: _result, ...file }) => file)
+    .map(({ retryResult: _result, retryLog: _log, ...file }) => file)
   if (failures.length === 0) {
     note('定向重跑全部通过：这一层记为通过，重跑写进运行记录的 retried')
     return { exitCode: 0, failures, retried }
@@ -141,10 +149,11 @@ export function parseFailedFile(value: unknown): FailedFile | undefined {
 export function parseRetriedFile(value: unknown): RetriedFile | undefined {
   const file = parseFailedFile(value)
   if (file === undefined || !isRecord(value)) return undefined
-  const { retryResult } = value
+  const { retryResult, retryLog } = value
   if (retryResult !== 'passed' && retryResult !== 'failed' && retryResult !== 'not-run')
     return undefined
-  return { ...file, retryResult }
+  if (retryLog !== undefined && typeof retryLog !== 'string') return undefined
+  return { ...file, retryResult, ...(retryLog === undefined ? {} : { retryLog }) }
 }
 
 function parseAll<T>(value: unknown, parse: (entry: unknown) => T | undefined): T[] | undefined {

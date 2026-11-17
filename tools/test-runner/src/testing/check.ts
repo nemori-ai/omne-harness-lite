@@ -310,22 +310,48 @@ function runSteps({ root, steps, env, cores, keepGoing, runDir, runDirName, say 
   })
 }
 
+export const INTERRUPTED_EXIT = 130
+
+export interface CheckVerdict {
+  readonly exitCode: number
+  readonly failed: readonly StepResult[]
+  readonly interrupted: readonly string[]
+}
+
+export function checkVerdict(results: readonly StepResult[]): CheckVerdict {
+  const failed = results
+    .filter(result => result.exitCode !== 0 && !result.cancelled)
+    .sort((a, b) => a.endedMs - b.endedMs)
+  const first = failed[0]
+  if (first !== undefined)
+    return { exitCode: first.exitCode > 0 ? first.exitCode : 1, failed, interrupted: [] }
+  const interrupted = results.filter(result => result.cancelled).map(result => result.name)
+  return { exitCode: interrupted.length > 0 ? INTERRUPTED_EXIT : 0, failed, interrupted }
+}
+
 function failureExit(
   root: string,
-  failed: StepResult[],
+  verdict: CheckVerdict,
   skipped: readonly string[],
   admission: boolean,
   say: Say,
 ): number {
-  const first = failed.sort((a, b) => a.endedMs - b.endedMs)[0]
-  if (first === undefined) return 0
+  const { failed, interrupted } = verdict
+  const first = failed[0]
+  if (first === undefined) {
+    if (interrupted.length > 0)
+      say(
+        `被终止：${interrupted.join('、')} 没有跑完，没有步骤失败。这次运行不是通过，以 ${verdict.exitCode} 退出`,
+      )
+    return verdict.exitCode
+  }
   say(
     `失败：${failed.map(result => result.name).join('、')}；没有开始：${skipped.join('、') || '无'}`,
   )
   say(`--- ${first.name} 的日志末尾（${relative(root, first.logPath)}）---`)
   for (const line of tail(first.logPath, 40)) say(line)
   if (admission) say(ADMISSION_NEXT_STEP)
-  return first.exitCode > 0 ? first.exitCode : 1
+  return verdict.exitCode
 }
 
 export async function runCheck(
@@ -410,7 +436,6 @@ export async function runCheck(
 
   const table = stepsTable(run.results, run.skipped)
   writeFileSync(join(runDir, 'steps.tsv'), `${table.join('\n')}\n`)
-  const failed = run.results.filter(result => result.exitCode !== 0 && !result.cancelled)
   say(
     `总计 ${seconds(run.wallMs)} 秒；关键路径 ${criticalPath(run.results).join(' → ')}；逐步耗时表 ${runDirName}/steps.tsv`,
   )
@@ -459,7 +484,7 @@ export async function runCheck(
   for (const path of copies) writeAdmissionRun(path, record)
   say(`运行记录：${copies.map(path => relative(root, path).replaceAll('\\', '/')).join('、')}`)
 
-  const exitCode = failureExit(root, failed, run.skipped, admission, say)
+  const exitCode = failureExit(root, checkVerdict(run.results), run.skipped, admission, say)
   if (admissionLog !== undefined) say(`exit=${exitCode}`)
   return exitCode
 }
