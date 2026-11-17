@@ -164,6 +164,7 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
         { capability: { category: 'Tool', name: 'TodoItems' }, resident: true },
         { capability: { category: 'Tool', name: 'Ask' }, resident: true },
         { capability: { category: 'Tool', name: 'Web' }, resident: true },
+        { capability: { category: 'Tool', name: 'Skills' }, resident: true },
       ],
       attributes: [{ item: 'model' }],
     })

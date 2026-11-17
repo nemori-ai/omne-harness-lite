@@ -713,6 +713,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
     'tool.Ask',
     'tool.Files',
     'tool.Shell',
+    'tool.Skills',
     'tool.TodoItems',
     'tool.Tools',
     'tool.Web',
@@ -730,7 +731,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
   })
   expect(settings).toMatchObject({ completeness: 'complete' })
   if ('kind' in settings) throw new Error(JSON.stringify(settings))
-  expect(settings.views).toHaveLength(6)
+  expect(settings.views).toHaveLength(7)
   const tool = w.release.manifest.entries.find(entry => entry.asset.name === 'Shell')!
   const principal = w.workPrincipal('request-session')
   const { ledgerWorld } =

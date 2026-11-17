@@ -14,6 +14,7 @@ const PROBES = [
     TodoItems: { resultMaxBytes: 4096 },
     Ask: { resultMaxBytes: 4096 },
     Web: { resultMaxBytes: 1, maxSearchResults: 1 },
+    Skills: { resultMaxBytes: 4096 },
   },
   {
     Shell: {
@@ -28,6 +29,7 @@ const PROBES = [
     TodoItems: { resultMaxBytes: 1048576 },
     Ask: { resultMaxBytes: 1048576 },
     Web: { resultMaxBytes: 65536, maxSearchResults: 10 },
+    Skills: { resultMaxBytes: 1048576 },
   },
 ]
 

@@ -38,7 +38,12 @@ import { governanceStorageCombinations } from '../../../src/rows/governance/stor
 import { GOVERNED_CAPTURE } from '../../../src/rows/governance/tool-assets.ts'
 import { fixtureEnv, fixtureTenant, okOf } from '../../entry/support.ts'
 import { providerConfig } from '../storage/fixtures/tree.ts'
-import { publishSkill, SAMPLE_LINE, writeSampleSkill } from '../../skills/support.ts'
+import {
+  openSkillPublisher,
+  publishSkill,
+  SAMPLE_LINE,
+  writeSampleSkill,
+} from '../../skills/support.ts'
 
 const ranking = { k1: 1.2, b: 0.75 }
 const signal = new AbortController().signal
@@ -152,6 +157,20 @@ async function world() {
     alpha: bound(alpha, 'session-alpha'),
     beta: bound(beta, 'session-beta'),
     publish: (name: string, enabled = true) => publish(alpha, name, enabled),
+    async publishMany(names: readonly string[]) {
+      const publisher = await openSkillPublisher({
+        storage: made.storage,
+        materials,
+        domain: domainOf(alpha, 'tenant-alpha'),
+        packageRoot,
+      })
+      try {
+        for (const name of names)
+          await publisher.publish(await writeSampleSkill(join(root, 'sources', name), name), name)
+      } finally {
+        await publisher.close()
+      }
+    },
     host,
     storage: made,
     lookups: () => lookups,
@@ -347,7 +366,7 @@ describe('the skills row and the Skills binding over a real store', () => {
 
   it('keeps 130 Skill holdings out of the governance capture and its limit of 128', async () => {
     const w = await world()
-    for (let index = 0; index < 130; index += 1) await w.publish(`skill-${index}`)
+    await w.publishMany(Array.from({ length: 130 }, (_, index) => `skill-${String(index)}`))
     const governed = await w.capture(GOVERNED_CAPTURE.categories)
     expect(governed.kind).toBe('committed')
     const everything = await w.capture([...GOVERNED_CAPTURE.categories, 'skill'])

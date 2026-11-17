@@ -80,6 +80,7 @@ export const TEST_CONSTRUCTION = Object.freeze({
   TodoItems: { resultMaxBytes: 1_048_576 },
   Ask: { resultMaxBytes: 1_048_576 },
   Web: { resultMaxBytes: 4096, maxSearchResults: 10 },
+  Skills: { resultMaxBytes: 4096 },
 })
 
 export function tree(value: unknown): JsonValue {

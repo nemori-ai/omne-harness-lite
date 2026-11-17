@@ -57,66 +57,80 @@ function directoryReader(root: string): PackageReader {
   }
 }
 
-export type PublishInput = Readonly<{
+export type PublishPlace = Readonly<{
   storage: SqlStorage
   materials: SqlMaterialCatalog
   domain: DomainRef
   packageRoot: string
-  dir: string
-  name: string
-  enabled?: boolean
 }>
 
-/** Publishes a Skill directory into a tenant domain and holds it, the way the assets owner does. */
-export async function publishSkill(input: PublishInput): Promise<string> {
-  const combination = governanceStorageCombinations(input.materials).assets
-  const registered = await input.storage.registerCombination({ ...input.domain, ...combination })
+export type PublishInput = PublishPlace & Readonly<{ dir: string; name: string; enabled?: boolean }>
+
+export type SkillPublisher = Readonly<{
+  publish(dir: string, name: string, enabled?: boolean): Promise<string>
+  close(): Promise<void>
+}>
+
+/** Publishes Skill directories into a tenant domain and holds them, the way the assets owner does. */
+export async function openSkillPublisher(place: PublishPlace): Promise<SkillPublisher> {
+  const combination = governanceStorageCombinations(place.materials).assets
+  const registered = await place.storage.registerCombination({ ...place.domain, ...combination })
   if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
   const categories = createCategoryRegistry()
   categories.register(skillBodyContract())
   const assets = createAssetsLocal({
     ...combination,
-    domain: input.domain,
-    storage: input.storage,
+    domain: place.domain,
+    storage: place.storage,
     categories,
-    packageRoot: domainRoot(input.packageRoot, input.domain),
+    packageRoot: domainRoot(place.packageRoot, place.domain),
   })
-  try {
-    const made = capabilityId('skill', input.name)
-    if (!made.ok) throw new Error(`not a Skill name: ${input.name}`)
-    const assetRef = `tenant/skill/${input.name}`
-    const published = await assets.packages.publish({
-      capability: made.id,
-      assetRef,
-      from: directoryReader(input.dir),
-      operationId: `publish-${input.name}-${Date.now()}`,
-    })
-    if (published.kind !== 'published') throw new Error(JSON.stringify(published))
-    const tenant = input.domain.scope.kind === 'tenant' ? input.domain.scope.tenant : 'system'
-    const held = await assets.hold({
-      operationId: `hold-${input.name}-${Date.now()}`,
-      holdingRef: `skill.${input.name}`,
-      scopeRef: tenant,
-      assetRef,
-      selection: { kind: 'follow' },
-      sources: [
-        { sourceId: 'tenant', ownerRef: tenant, scope: { kind: 'owner', subjectRef: 'skills' } },
-      ],
-      grants: [],
-    })
-    if (held.kind !== 'committed') throw new Error(JSON.stringify(held))
-    if (input.enabled === false) {
-      const disabled = await assets.changeHolding({
-        operationId: `disable-${input.name}-${Date.now()}`,
-        holdingRef: `skill.${input.name}`,
-        scopeRef: tenant,
-        expectedRevision: 1,
-        change: { kind: 'setEnabled', enabled: false },
+  const tenant = place.domain.scope.kind === 'tenant' ? place.domain.scope.tenant : 'system'
+  return {
+    async publish(dir, name, enabled = true) {
+      const made = capabilityId('skill', name)
+      if (!made.ok) throw new Error(`not a Skill name: ${name}`)
+      const assetRef = `tenant/skill/${name}`
+      const published = await assets.packages.publish({
+        capability: made.id,
+        assetRef,
+        from: directoryReader(dir),
+        operationId: `publish-${name}-${Date.now()}`,
       })
-      if (disabled.kind !== 'committed') throw new Error(JSON.stringify(disabled))
-    }
-    return published.version
+      if (published.kind !== 'published') throw new Error(JSON.stringify(published))
+      const held = await assets.hold({
+        operationId: `hold-${name}-${Date.now()}`,
+        holdingRef: `skill.${name}`,
+        scopeRef: tenant,
+        assetRef,
+        selection: { kind: 'follow' },
+        sources: [
+          { sourceId: 'tenant', ownerRef: tenant, scope: { kind: 'owner', subjectRef: 'skills' } },
+        ],
+        grants: [],
+      })
+      if (held.kind !== 'committed') throw new Error(JSON.stringify(held))
+      if (!enabled) {
+        const disabled = await assets.changeHolding({
+          operationId: `disable-${name}-${Date.now()}`,
+          holdingRef: `skill.${name}`,
+          scopeRef: tenant,
+          expectedRevision: 1,
+          change: { kind: 'setEnabled', enabled: false },
+        })
+        if (disabled.kind !== 'committed') throw new Error(JSON.stringify(disabled))
+      }
+      return published.version
+    },
+    close: () => assets.close(),
+  }
+}
+
+export async function publishSkill(input: PublishInput): Promise<string> {
+  const publisher = await openSkillPublisher(input)
+  try {
+    return await publisher.publish(input.dir, input.name, input.enabled)
   } finally {
-    await assets.close()
+    await publisher.close()
   }
 }

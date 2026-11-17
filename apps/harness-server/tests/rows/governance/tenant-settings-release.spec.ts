@@ -16,7 +16,9 @@ it('a login principal sets the Shell invoke permission to deny on the release tr
       if (listed.kind !== 'listed') throw new Error(JSON.stringify(listed))
       expect(listed.completeness).toBe('complete')
       expect(listed.items.map(value => `${value.asset.name}/${value.item}`).sort()).toEqual(
-        ['Ask', 'Files', 'Shell', 'TodoItems', 'Tools', 'Web'].map(name => `${name}/invoke`),
+        ['Ask', 'Files', 'Shell', 'Skills', 'TodoItems', 'Tools', 'Web'].map(
+          name => `${name}/invoke`,
+        ),
       )
       for (const value of listed.items)
         expect(value).toMatchObject({

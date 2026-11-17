@@ -72,12 +72,18 @@ export type ScriptedToolCall = Readonly<{ id: string; tool: string; arguments: s
 export function toolCallsThenText(
   pick: (body: string) => readonly ScriptedToolCall[],
 ): GatewayScript {
+  return scriptedToolCalls(body => (body.includes('"role":"tool"') ? [] : pick(body)))
+}
+
+export function scriptedToolCalls(
+  pick: (body: string) => readonly ScriptedToolCall[],
+): GatewayScript {
   return ({ body }) => {
     const serving = {
       model: (JSON.parse(body) as { model?: string }).model ?? 'm',
       provider: 'OpenAI',
     }
-    const calls = body.includes('"role":"tool"') ? [] : pick(body)
+    const calls = pick(body)
     return {
       status: 200,
       contentType: 'text/event-stream',
@@ -484,6 +490,8 @@ export type ReleaseTreeOptions = Readonly<{
   compactionTriggerPercent?: string
   /** History kinds read through session/v1 besides the five every tree reads. */
   extraHistoryKinds?: readonly string[]
+  /** Runs while no service is up, before the service of each run starts on the same state. */
+  beforeRun?: (run: number, storageRoot: string) => Promise<void>
 }>
 
 export async function onReleaseTree(
@@ -505,6 +513,7 @@ export async function onReleaseTreeRuns(
   gateway.trustInProcess()
   const exitCodes: (number | undefined)[] = []
   const serve = async (run: number, body: (tree: ReleaseTree) => Promise<void>) => {
+    await options.beforeRun?.(run, dir.storageRoot)
     for (let attempt = 1; ; attempt += 1) {
       const state = { dir, port, home, modelRoute: gateway.url }
       const outcome = await serveOnce(options, state, run === 0, body)
