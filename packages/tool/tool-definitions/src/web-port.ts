@@ -46,9 +46,6 @@ export function webAccessOf(context: ToolExecutionContext): WebAccess | undefine
   return port.of(context)
 }
 
-export function attachWebAccess(
-  scope: ToolExecutionScope,
-  access: WebAccess,
-): ToolExecutionScope {
+export function attachWebAccess(scope: ToolExecutionScope, access: WebAccess): ToolExecutionScope {
   return port.attach(scope, access)
 }

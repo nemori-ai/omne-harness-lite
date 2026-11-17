@@ -127,7 +127,11 @@ function fixture(construction: object = { resultMaxBytes: 1048576 }) {
     if ('failure' in result) throw new Error(JSON.stringify(result.failure))
     const checked = operation.output.check({ arguments: parsed.ok, value: result.ok })
     if ('failure' in checked) throw new Error(JSON.stringify(checked.failure))
-    const rendered = operation.renderer.render(checked.ok)
+    const bytes = operation.codec.encode(checked.ok)
+    if ('failure' in bytes) throw new Error(JSON.stringify(bytes.failure))
+    const decoded = operation.codec.decode(bytes.ok)
+    if ('failure' in decoded) throw new Error(JSON.stringify(decoded.failure))
+    const rendered = operation.renderer.render(decoded.ok)
     if ('failure' in rendered) throw new Error(JSON.stringify(rendered.failure))
     return rendered.ok
   }
@@ -266,7 +270,11 @@ describe('Skills author: search', () => {
         ok: {
           entries: [
             { kind: 'available', name: 'exact', description: exact },
-            { kind: 'available', name: 'lines', description: 'First line.\n\n  Second\r\nthird' },
+            {
+              kind: 'available',
+              name: 'lines',
+              description: 'First line.\n\n  Second\r\nthird\nfourth',
+            },
           ],
           next: null,
         },
@@ -277,7 +285,7 @@ describe('Skills author: search', () => {
       [
         'done Skills search query="" results=2',
         `1. exact - ${exact}`,
-        '2. lines - First line. Second third',
+        '2. lines - First line. Second third fourth',
       ].join('\n'),
     )
   })
@@ -384,6 +392,13 @@ describe('Skills author: read, list and read_file', () => {
       path: 'scripts/collect.mjs',
       offset: 0,
     })
+    await test.run(
+      'read_file',
+      { skill: 'weekly-report', path: 'scripts/collect.mjs', offset: 7 },
+      skills,
+    )
+    const later = skills.readFile.mock.calls[1] as unknown as [{ offset: number }]
+    expect(later[0].offset).toBe(7)
     expect(text).toBe(
       'done Skills read_file skill=weekly-report path=scripts/collect.mjs bytes=0-25 total=25\nconsole.log("collected")\n',
     )
@@ -480,10 +495,24 @@ describe('Skills author: output check', () => {
     const { operation, parsed } = test.decode('list', { skill: 's' })
     if ('failure' in parsed) throw new Error('parsed')
     expect(operation.output.check({ arguments: parsed.ok, value: 'abcd' })).toHaveProperty('ok')
-    expect(operation.output.check({ arguments: parsed.ok, value: 'abcde' })).toHaveProperty(
-      'failure',
-    )
+    expect(operation.output.check({ arguments: parsed.ok, value: 'abcde' })).toStrictEqual({
+      failure: { reason: 'bounded-text-required' },
+    })
     expect(operation.output.check({ arguments: parsed.ok, value: 4 })).toHaveProperty('failure')
+  })
+})
+
+describe('Skills author: result codec', () => {
+  it('encodes only text and decodes only well-formed UTF-8', () => {
+    const test = fixture()
+    const { operation } = test.decode('list', { skill: 's' })
+    expect(operation.codec.encode(3)).toStrictEqual({ failure: { reason: 'text-required' } })
+    expect(operation.codec.decode(new Uint8Array([0xff, 0xfe]))).toStrictEqual({
+      failure: { reason: 'invalid-utf8' },
+    })
+    const bytes = operation.codec.encode('目录')
+    if ('failure' in bytes) throw new Error('encode')
+    expect(operation.codec.decode(bytes.ok)).toStrictEqual({ ok: '目录' })
   })
 })
 

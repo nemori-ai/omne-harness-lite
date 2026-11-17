@@ -76,7 +76,7 @@ function failureLine(failure: SkillsFailure): string {
 }
 
 function shown(description: string): string {
-  const characters = Array.from(description.replace(/\s*[\r\n]+\s*/gu, ' '))
+  const characters = Array.from(description.replace(/\s*[\r\n]\s*/gu, ' '))
   return characters.length <= DESCRIPTION_SHOWN
     ? characters.join('')
     : `${characters.slice(0, DESCRIPTION_SHOWN).join('')}… (read the Skill for the rest)`
