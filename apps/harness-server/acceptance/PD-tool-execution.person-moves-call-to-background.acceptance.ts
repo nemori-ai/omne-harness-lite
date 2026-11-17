@@ -8,14 +8,15 @@ import {
   toolCallsThenText,
 } from '../tests/support/release-tree.ts'
 import {
-  LIMIT_MS,
   foregroundCommand,
   history,
+  LIMIT_MS,
   omne,
   record,
   release,
   textOf,
   until,
+  untilQuiet,
 } from './fixtures/release.ts'
 
 const OPENING = 'start: S6 a long command in the foreground'
@@ -111,6 +112,7 @@ it(
             1,
             'not restarted',
           )
+          await untilQuiet(tree, session, 2)
           passed = true
         } finally {
           record('S6', passed, observed)

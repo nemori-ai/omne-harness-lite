@@ -3,16 +3,17 @@ import assert from 'node:assert/strict'
 import { it } from 'vitest'
 import { onReleaseTree, toolCallsByRequest } from '../tests/support/release-tree.ts'
 import {
-  LIMIT_MS,
   backgroundCalls,
   callOf,
   factsOf,
   history,
+  LIMIT_MS,
   omne,
   record,
   release,
   textOf,
   until,
+  untilQuiet,
   waitingCommand,
 } from './fixtures/release.ts'
 
@@ -126,6 +127,7 @@ it(
           )
           assert.equal(factsOf(tree, target).starts, 1)
           assert.deepEqual(await backgroundCalls(tree, session), [])
+          await untilQuiet(tree, session, 2)
           passed = true
         } finally {
           record('S5', passed, observed)

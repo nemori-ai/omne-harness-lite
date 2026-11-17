@@ -3,16 +3,17 @@ import assert from 'node:assert/strict'
 import { it } from 'vitest'
 import { onReleaseTree, toolCallsThenText } from '../tests/support/release-tree.ts'
 import {
-  LIMIT_MS,
   backgroundCalls,
   callOf,
   factsOf,
   history,
   kinds,
+  LIMIT_MS,
   record,
   release,
   textOf,
   until,
+  untilQuiet,
   waitingCommand,
 } from './fixtures/release.ts'
 
@@ -99,6 +100,7 @@ it(
             [],
             'nothing is left in the background',
           )
+          await untilQuiet(tree, session, 2)
           passed = true
         } finally {
           record('S4', passed, observed)

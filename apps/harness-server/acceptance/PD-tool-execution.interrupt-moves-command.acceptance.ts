@@ -8,16 +8,17 @@ import {
   toolCallsByRequest,
 } from '../tests/support/release-tree.ts'
 import {
-  LIMIT_MS,
   backgroundCalls,
   count,
   foregroundCommand,
   history,
   interrupt,
+  LIMIT_MS,
   record,
   release,
   textOf,
   until,
+  untilQuiet,
 } from './fixtures/release.ts'
 
 const OPENING = 'start: S9 a long command the agent waits for'
@@ -94,12 +95,8 @@ it(
                   entry.kind === 'message.system_reminder' && /go-s9-done/u.test(textOf(entry)),
               ),
           )
-          await until(
-            'the turn the outcome wakes to end',
-            () => history(tree, session),
-            value => count(value, 'run.terminal') >= 2,
-          )
           assert.equal(toolCallFacts(tree.storageRoot).get(running?.call ?? '')?.starts, 1)
+          await untilQuiet(tree, session, 2)
           passed = true
         } finally {
           record('S9', passed, observed)

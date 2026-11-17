@@ -2,7 +2,16 @@
 import assert from 'node:assert/strict'
 import { it } from 'vitest'
 import { onReleaseTree, toolCalls, toolCallsByRequest } from '../tests/support/release-tree.ts'
-import { LIMIT_MS, count, history, interrupt, record, textOf, until } from './fixtures/release.ts'
+import {
+  count,
+  history,
+  interrupt,
+  LIMIT_MS,
+  record,
+  textOf,
+  until,
+  untilQuiet,
+} from './fixtures/release.ts'
 
 const OPENING = 'start: S10 the agent asks the person and waits'
 const URGENT = 'S10 urgent: never mind the question'
@@ -80,6 +89,7 @@ it(
             ),
             'the turn was not cancelled',
           )
+          await untilQuiet(tree, session, 1)
           passed = true
         } finally {
           record('S10', passed, observed)

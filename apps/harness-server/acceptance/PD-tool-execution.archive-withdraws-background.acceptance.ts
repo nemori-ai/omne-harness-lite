@@ -3,15 +3,16 @@ import assert from 'node:assert/strict'
 import { it } from 'vitest'
 import { onReleaseTree, toolCallsByRequest } from '../tests/support/release-tree.ts'
 import {
-  LIMIT_MS,
   backgroundCalls,
   callOf,
   count,
   history,
+  LIMIT_MS,
   omne,
   record,
   textOf,
   until,
+  untilQuiet,
   waitingCommand,
 } from './fixtures/release.ts'
 
@@ -101,6 +102,7 @@ it(
               relisted.body.sessions.some(item => item.session === session),
             'after unarchiving it is in the plain list again',
           )
+          await untilQuiet(tree, session, 1)
           passed = true
         } finally {
           record('S14', passed, observed)

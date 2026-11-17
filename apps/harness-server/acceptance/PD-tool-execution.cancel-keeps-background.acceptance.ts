@@ -4,16 +4,17 @@ import { it } from 'vitest'
 import type { GatewayScript } from '../tests/fixtures/model-gateway.ts'
 import { onReleaseTree, sse, toolCallFacts, toolCalls } from '../tests/support/release-tree.ts'
 import {
-  LIMIT_MS,
   backgroundCalls,
   count,
   history,
   lastRunOf,
+  LIMIT_MS,
   omne,
   record,
   release,
   textOf,
   until,
+  untilQuiet,
   waitingCommand,
 } from './fixtures/release.ts'
 
@@ -106,6 +107,7 @@ it(
             ),
           )
           assert.equal(toolCallFacts(tree.storageRoot).get(call?.call ?? '')?.starts, 1)
+          await untilQuiet(tree, session, 2)
           passed = true
         } finally {
           held.resolve()

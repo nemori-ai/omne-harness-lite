@@ -4,6 +4,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import {
   historyOf,
   toolCallFacts,
+  toolCalls,
   type Entry,
   type ReleaseTree,
 } from '../../tests/support/release-tree.ts'
@@ -54,6 +55,25 @@ export async function until<T>(
 
 export const history = (tree: ReleaseTree, session: string): Promise<readonly Entry[]> =>
   historyOf(tree, session)
+
+/**
+ * Waits until the work a scenario started is done: its turns ended, and every Tool call settled
+ * with its result handed to its consumer. Only then does a clean stop of the tree say anything.
+ */
+export async function untilQuiet(tree: ReleaseTree, session: string, turns: number): Promise<void> {
+  await until(
+    `${String(turns)} turns to end`,
+    () => history(tree, session),
+    entries =>
+      count(entries, 'run.terminal') >= turns &&
+      count(entries, 'run.started') === count(entries, 'run.terminal'),
+  )
+  await until(
+    'every call to settle and hand its result over',
+    () => toolCalls(tree.storageRoot),
+    calls => calls.every(call => call.phase === 'settled' && call.delivery !== 'pending'),
+  )
+}
 
 export const kinds = (entries: readonly Entry[]): string[] => entries.map(entry => entry.kind)
 

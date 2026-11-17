@@ -8,12 +8,13 @@ import {
   type ScriptedToolCall,
 } from '../tests/support/release-tree.ts'
 import {
-  LIMIT_MS,
   history,
+  LIMIT_MS,
   record,
   release,
   textOf,
   until,
+  untilQuiet,
   waitingCommand,
 } from './fixtures/release.ts'
 
@@ -151,6 +152,7 @@ it(
             target === undefined ? -1 : toolCallFacts(tree.storageRoot).get(target)?.starts,
             1,
           )
+          await untilQuiet(tree, session, 4)
           passed = true
         } finally {
           record('S15', passed, observed)

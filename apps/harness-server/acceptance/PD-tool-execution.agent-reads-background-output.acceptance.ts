@@ -8,14 +8,15 @@ import {
   type ScriptedToolCall,
 } from '../tests/support/release-tree.ts'
 import {
-  LIMIT_MS,
   backgroundCalls,
   history,
+  LIMIT_MS,
   omne,
   record,
   release,
   textOf,
   until,
+  untilQuiet,
 } from './fixtures/release.ts'
 
 const OPENING = 'start: S16 a command that keeps writing'
@@ -155,6 +156,7 @@ it(
           observed['facts'] = facts
           assert.equal(facts?.starts, 1, 'reads start nothing')
           assert.equal(facts?.accounts.length, 1, 'reads add no account')
+          await untilQuiet(tree, session, 4)
           passed = true
         } finally {
           record('S16', passed, observed)

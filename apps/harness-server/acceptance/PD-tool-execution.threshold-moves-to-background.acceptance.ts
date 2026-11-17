@@ -3,17 +3,18 @@ import assert from 'node:assert/strict'
 import { it } from 'vitest'
 import { onReleaseTree, toolCallsThenText } from '../tests/support/release-tree.ts'
 import {
-  LIMIT_MS,
   backgroundCalls,
   callOf,
   factsOf,
   foregroundCommand,
   history,
   kinds,
+  LIMIT_MS,
   record,
   release,
   textOf,
   until,
+  untilQuiet,
 } from './fixtures/release.ts'
 
 const OPENING = 'start: S7 one long command in the foreground'
@@ -77,6 +78,7 @@ it(
           const facts = factsOf(tree, reference)
           observed['starts'] = facts.starts
           assert.equal(facts.starts, 1, 'the process starts once')
+          await untilQuiet(tree, session, 2)
           passed = true
         } finally {
           record('S7', passed, observed)

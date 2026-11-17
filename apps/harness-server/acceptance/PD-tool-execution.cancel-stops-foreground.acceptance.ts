@@ -8,15 +8,16 @@ import {
   toolCallsThenText,
 } from '../tests/support/release-tree.ts'
 import {
-  LIMIT_MS,
   count,
   foregroundCommand,
   history,
   lastRunOf,
+  LIMIT_MS,
   omne,
   record,
   textOf,
   until,
+  untilQuiet,
 } from './fixtures/release.ts'
 
 const OPENING = 'start: S12 a long command in the foreground'
@@ -65,6 +66,7 @@ it(
           assert.equal(count(after, 'run.started'), 1, 'the real end revives no turn')
           assert.equal(count(after, 'run.terminal'), 1)
           assert.equal(toolCallFacts(tree.storageRoot).get(running.call)?.starts, 1)
+          await untilQuiet(tree, session, 1)
           passed = true
         } finally {
           record('S12', passed, observed)
