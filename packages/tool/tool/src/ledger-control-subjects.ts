@@ -18,6 +18,7 @@ import { fixCleanupFields } from './cleanup-boundary.ts'
 import type { ToolControlSubjects, ToolLedgerControls } from './construction.ts'
 import { mintEvidence, sameFactValue } from './evidence.ts'
 import { rejectControl } from './ledger-control.ts'
+import { timerSubject } from './ledger-timers.ts'
 import { reply, type Decision, type Mint, type Snapshot } from './ledger-decider.ts'
 
 import type { CallRecord, LedgerDomain } from './ledger-store.ts'
@@ -95,6 +96,27 @@ function pendingController(
   return subject
 }
 
+// Tool is the controller of its own timers; any other controller is asked again before dispatch.
+async function controllerVerdict<P>(
+  subjects: ToolControlSubjects<P> | undefined,
+  access: Readonly<{ tenant: CallRecord['tenant']; call: CallRecord['call'] }>,
+  pending: Readonly<{ call: CallRecord; original: ControlRecord; subject: DurableEvidence }>,
+  mint: Mint,
+): Promise<Decision<ControlRecord>> {
+  const { call, original, subject } = pending
+  const place = { ...access, operation: original.operation }
+  if (sameFactValue(subject, timerSubject(place))) return reply(succeed(original))
+  if (subjects === undefined) return reply(unavailable('original controller provider is missing'))
+  try {
+    const verdict = await subjects.qualify({ ...access, subject })
+    if (verdict.kind === 'allowed') return reply(succeed(original))
+    if (verdict.kind === 'denied') return rejectControl(call, original, mint)
+    return reply(unavailable(verdict.diagnostic))
+  } catch {
+    return reply(unavailable('original controller provider failed'))
+  }
+}
+
 export function createLedgerControls<P>(
   dependencies: Readonly<{
     subjects: ToolControlSubjects<P> | undefined
@@ -124,20 +146,8 @@ export function createLedgerControls<P>(
           if (original.progress.kind !== 'pending') return reply(succeed(original))
           const subject = pendingController(snapshot, call, original)
           if ('failure' in subject) return reply(subject)
-          if (subjects === undefined)
-            return reply(unavailable('original controller provider is missing'))
-          try {
-            const verdict = await subjects.qualify({
-              tenant: context.ok.tenant,
-              call: context.ok.call,
-              subject: subject.ok,
-            })
-            if (verdict.kind === 'allowed') return reply(succeed(original))
-            if (verdict.kind === 'denied') return rejectControl(call, original, mint)
-            return reply(unavailable(verdict.diagnostic))
-          } catch {
-            return reply(unavailable('original controller provider failed'))
-          }
+          const access = { tenant: context.ok.tenant, call: context.ok.call }
+          return controllerVerdict(subjects, access, { call, original, subject: subject.ok }, mint)
         },
         unavailable('controller rejection commit is unconfirmed; inspect again before dispatch'),
       )

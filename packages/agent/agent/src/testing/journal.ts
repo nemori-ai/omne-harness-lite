@@ -357,25 +357,18 @@ export type Attempt<R> =
       apply: () => void
     }>
 
+const CALL_STAGES: ReadonlySet<ControlStage> = new Set([
+  'intent-established',
+  'producer-confirmed',
+  'physically-stopped',
+  'duty-released',
+])
 const STAGES: Readonly<Record<ExecutionControl['kind'], ReadonlySet<ControlStage>>> = {
-  'interrupt-model': new Set([
-    'intent-established',
-    'producer-confirmed',
-    'physically-stopped',
-    'duty-released',
-  ]),
-  'interrupt-tool': new Set([
-    'intent-established',
-    'producer-confirmed',
-    'physically-stopped',
-    'duty-released',
-  ]),
-  'background-tool': new Set([
-    'intent-established',
-    'producer-confirmed',
-    'physically-stopped',
-    'duty-released',
-  ]),
+  'interrupt-model': CALL_STAGES,
+  'interrupt-tool': CALL_STAGES,
+  'background-tool': CALL_STAGES,
+  'release-tool': CALL_STAGES,
+  'withdraw-tool': CALL_STAGES,
   cancel: new Set([
     'intent-established',
     'qualification-revoked',
@@ -452,7 +445,7 @@ function controlTarget(
 }
 
 function isToolControl(record: ControlRecord): record is ToolControlRecord {
-  return record.command.kind === 'interrupt-tool' || record.command.kind === 'background-tool'
+  return record.command.kind.endsWith('-tool')
 }
 
 // Only for explicitly enabled storage-corruption fixtures, never for minting a valid brand.

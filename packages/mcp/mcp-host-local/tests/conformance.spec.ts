@@ -1,6 +1,5 @@
-// @module-tag slow — every case spawns a scripted peer in a child process or on a local HTTP server.
+// @module-tag slow — every case starts a scripted peer on a local HTTP server.
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
-import { createLocalTransportFactory } from '@omne-harness/mcp-host-local'
 import {
   mcpTransportConformance,
   runConformanceCase,
@@ -8,31 +7,19 @@ import {
   type ScriptSource,
   type ScriptedPeer,
   type TransportFixture,
-  type TransportKind,
 } from '@omne-harness/mcp-contract/testing'
-import { leftover } from './fixtures/scripted/children.ts'
 import { httpPeer, leftoverServers } from './fixtures/scripted/http.ts'
-import { stdioPeer } from './fixtures/scripted/stdio.ts'
 
 const VERSIONS = ['2026-07-28']
 
 const CLIENT = {
   clientInfo: { name: 'omne-harness-test', version: '0' },
-  probeTimeoutMs: 200,
 } as const
 
-const factory = createLocalTransportFactory(CLIENT)
-
-function fixtureOf(kinds: readonly TransportKind[]): TransportFixture {
+function fixtureOf(): TransportFixture {
   return {
-    kinds,
     protocolVersions: VERSIONS,
     async peer(source: ScriptSource, needs: PeerNeeds): Promise<ScriptedPeer> {
-      if (needs.kind === 'stdio') {
-        const script = typeof source === 'function' ? source('https://peer.test/mcp') : source
-        const peer = await stdioPeer(script, needs, VERSIONS)
-        return { factory, material: peer.material, received: peer.received, close: peer.close }
-      }
       const peer = await httpPeer(source, needs, VERSIONS, CLIENT)
       return {
         factory: peer.factory,
@@ -45,19 +32,16 @@ function fixtureOf(kinds: readonly TransportKind[]): TransportFixture {
 }
 
 const NOT_APPLICABLE: Readonly<{ [name: string]: string }> = {
-  'T8 [X02] discover, discover-retry, initialize … (8) × unsent → not-sent (connection-unavailable), unusable':
-    'a stdio process that fails a later request before it leaves',
   'T3 legacy: a ping of the peer gets an empty result and any other request -32601, before initialize is answered and after initialized (item 7)':
     'a channel for the requests of the peer after initialized',
 }
 
 type Counts = { passed: string[]; notApplicable: Map<string, string>; failed: string[] }
 
-function suite(title: string, kinds: readonly TransportKind[], expected: readonly string[]): void {
+function suite(title: string, expected: readonly string[]): void {
   const counts: Counts = { passed: [], notApplicable: new Map(), failed: [] }
   describe(title, () => {
     afterEach(async () => {
-      expect(await leftover(), 'child processes left alive').toEqual([])
       expect(await leftoverServers(), 'servers left listening').toEqual([])
     })
 
@@ -66,7 +50,7 @@ function suite(title: string, kinds: readonly TransportKind[], expected: readonl
       it(name, async () => {
         let verdict
         try {
-          verdict = await runConformanceCase(conformance, fixtureOf(kinds))
+          verdict = await runConformanceCase(conformance, fixtureOf())
         } catch (failure) {
           counts.failed.push(name)
           throw failure
@@ -91,10 +75,4 @@ function suite(title: string, kinds: readonly TransportKind[], expected: readonl
   })
 }
 
-const names = Object.keys(NOT_APPLICABLE)
-suite(
-  'stdio first',
-  ['stdio', 'streamable-http'],
-  names.filter(name => name.includes('[X02]')),
-)
-suite('streamable-http first', ['streamable-http', 'stdio'], names)
+suite('streamable-http', Object.keys(NOT_APPLICABLE))

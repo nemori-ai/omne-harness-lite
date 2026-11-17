@@ -65,6 +65,8 @@ export interface ToolContentReader<P> {
 export interface ToolReads<P, B extends ContentBlock> {
   readonly body: ToolBodyReader<P>
   lookup(input: CallAccess<P> & Readonly<{ admission: ToolOperationId }>): Reply<ToolLookup>
+  /** The state under that admission, read without a write: an admission not accepted is `invalid`. */
+  state(input: CallAccess<P> & Readonly<{ admission: ToolOperationId }>): Reply<ToolState>
   operation(
     input: CallAccess<P> & Readonly<{ operation: ToolOperationId }>,
   ): Reply<OperationResolution>

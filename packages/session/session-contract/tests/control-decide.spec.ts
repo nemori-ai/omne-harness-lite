@@ -143,15 +143,19 @@ describe('stopCall over DecideReads.calls', () => {
     })
   })
 
-  it('refuses a Tool target as unsupported before any other input is read', async () => {
+  it('decides a Tool target over the same call lookup as a Model target', async () => {
     const f = await frame()
+    const producer = { kind: 'tool', call: 't' } as const
     const tool: SessionCommand = {
       kind: 'stopCall',
-      input: { ...f.s.base, operation: operationId('t'), producer: { kind: 'tool', call: 't' } },
+      input: { ...f.s.base, operation: operationId('t'), producer },
     }
-    const unsupported = { kind: 'rejected', failure: { kind: 'unsupported' } }
-    expect(decide(f.snapshot, tool, [], null, base)).toEqual(unsupported)
-    expect(decide(null, tool, [], null, base)).toEqual(unsupported)
+    expect(decide(f.snapshot, tool, [], null, base)).toMatchObject(unavailable)
+    const absent = { kind: 'absent' as const, producer, covered: f.snapshot.revision }
+    expect(decide(f.snapshot, tool, [], null, { ...base, calls: [absent] })).toMatchObject({
+      kind: 'control-answer',
+      answer: { kind: 'not-found' },
+    })
   })
 })
 

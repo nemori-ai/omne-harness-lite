@@ -307,8 +307,6 @@ export async function commit<P, K extends MutationName>(
     return failure({ kind: 'denied', action: command.kind })
   const allowed = await context.access(mutationAccessRequest(access, command))
   if ('failure' in allowed) return allowed
-  if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
-    return failure({ kind: 'unsupported' })
   const domain = await domainOf(context, command.input.tenant)
   if ('failure' in domain) return domain
   let facts: FactCommandV2

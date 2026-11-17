@@ -40,9 +40,9 @@ export const OUTPUT_CHECK_FAILED = 'output-check-failed'
 
 export type OutputValidator = (structured: JsonValue, outputSchema: JsonValue) => OutputCheck
 
-export type NoAnswerCause = 'stream-broken' | 'process-exited' | 'abandoned'
+export type NoAnswerCause = 'stream-broken' | 'abandoned'
 
-export type UnusableCause = 'stream-broken' | 'process-exited' | 'session-ended'
+export type UnusableCause = 'stream-broken' | 'session-ended'
 
 export type PeerAnswer =
   | Readonly<{ kind: 'result'; result: JsonValue }>
@@ -84,7 +84,7 @@ export type TaskHints = Readonly<{
 export type TaskReport = Readonly<{ status: TaskStatus; inputRequests?: Untrusted<JsonValue> }> &
   TaskHints
 
-export type BlockedReason = 'local-command-not-enabled' | 'disabled'
+export type BlockedReason = 'disabled'
 
 export type AuthorizationDiscovery = Readonly<{
   resourceMetadataUrl: string
@@ -94,19 +94,18 @@ export type AuthorizationDiscovery = Readonly<{
   scopes: readonly string[]
 }>
 
-export type ConfigItem = 'connect-timeout' | 'target' | 'credential' | `env.${string}`
+export type ConfigItem = 'connect-timeout' | 'target' | 'credential'
 
 export type Refusal =
   | Readonly<{ kind: 'not-available-to-you' }>
   | Readonly<{ kind: 'blocked'; reason: BlockedReason }>
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'config-missing'; item: ConfigItem }>
-  | Readonly<{ kind: 'config-invalid'; item: Exclude<ConfigItem, `env.${string}`> }>
+  | Readonly<{ kind: 'config-invalid'; item: ConfigItem }>
 
 export type ConnectionFailure =
   | Readonly<{ kind: 'credential-unavailable'; cause: 'missing' | 'rejected' | 'unknown' }>
   | Readonly<{ kind: 'authorization-required'; discovery: AuthorizationDiscovery }>
-  | Readonly<{ kind: 'landing-unavailable' }>
   | Readonly<{ kind: 'connection-unavailable' }>
 
 export type ErrorAnswer = Readonly<{

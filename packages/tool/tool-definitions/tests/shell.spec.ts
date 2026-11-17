@@ -29,13 +29,21 @@ it('declares all Shell commands and explains platform, background and terminal s
   expect(author.facts.implements.commands.every(item => item.parameters.kind === 'declared')).toBe(
     true,
   )
+  expect(author.facts.backgroundAllowed).toBe(true)
+  expect(
+    author.facts.implements.commands.flatMap(item =>
+      item.background === undefined ? [] : [[item.name, item.background]],
+    ),
+  ).toEqual([['execute', { unless: ['terminal'] }]])
   const help = await run(author, 'help', { name: 'execute' }, fixture.environment)
   expect(help).toContain('Usage: Shell {"command": "execute", "params": {script, terminal?')
   expect(help).toContain('JSON Schema')
-  expect(help).toContain('unsupported')
+  expect(help).toContain('run_in_background')
+  expect(help).not.toContain('unsupported')
   const info = await run(author, 'info', {}, fixture.environment)
   expect(info).toContain('fixtureOS')
   expect(info).toContain('shell=["/explicit-shell","-c"] cwd="/initial"')
+  expect(info).toContain('background=execute unless=["terminal"]')
 })
 
 it('states the four lifetime rules in help, one phrase per rule', async () => {
@@ -49,10 +57,12 @@ it('states the four lifetime rules in help, one phrase per rule', async () => {
     'until it exits, is stopped explicitly, or the execution environment closes its retention scope',
   )
   expect(help).toContain('is stopped when it cannot be retained; the residue line gives the reason')
-  expect(help).toContain('run_in_background is not supported now')
+  expect(help).toContain('run_in_background=true runs a one-shot execute in the background')
+  expect(help).toContain('a terminal execution cannot run in the background')
   expect(help).toContain(
     'a one-shot command waits until the main process exits and output is quiet',
   )
+  expect(help).not.toContain('unsupported')
   expect(help).toContain('background tasks in a terminal live as long as the terminal')
   expect(help).toContain('close_session stops every process in the terminal')
   expect(help).toContain('systemd-run --user')
@@ -166,18 +176,13 @@ it('refuses a missing or denied attachment before execute and never creates a re
   expect(fixture.starts).toHaveLength(0)
 })
 
-it('refuses background before either facility starts and drains split UTF-8 with a complete byte bound', async () => {
+it('runs a background script as given, since admission decided the relation, and drains split UTF-8 with a complete byte bound', async () => {
   const fixture = shellFixture('首' + '中文'.repeat(500) + '尾')
   const author = value(createShellAuthor(fixture.smallConfig))
   expect(
-    await run(
-      author,
-      'execute',
-      { script: 'anything', run_in_background: true },
-      fixture.environment,
-    ),
-  ).toContain('unsupported')
-  expect(fixture.starts).toHaveLength(0)
+    await run(author, 'execute', { script: 'print', run_in_background: true }, fixture.environment),
+  ).toContain('尾')
+  expect(fixture.starts).toHaveLength(1)
   const result = await run(author, 'execute', { script: 'print' }, fixture.environment)
   expect(new TextEncoder().encode(result).byteLength).toBeLessThanOrEqual(512)
   expect(result).toContain('首')

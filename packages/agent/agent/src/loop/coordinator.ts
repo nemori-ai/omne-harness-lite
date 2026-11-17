@@ -135,8 +135,12 @@ import {
   sentToolRequest,
   toolCallOf,
   toolIntentOf,
-  toolProduced,
+  placeholderCandidate,
+  isToolReturnOf,
+  passingSlot,
+  receivedSlot,
   toolReceivedOf,
+  type ReceivedToolDelivery,
   toolCallAnswerOf,
   toolResultCandidate,
   openToolCalls,
@@ -151,7 +155,6 @@ import { contactMainCall } from './contact.ts'
 import { sameAuthority, sameRecipient } from './same.ts'
 import { contactToolCalls } from './tool-contact.ts'
 import { readToolDeliveryMaterial } from '../tool-receiving-material.ts'
-import type { ToolDelivery } from '@omne-harness/tool-contract'
 
 export type LoopPorts<P> = Pick<
   AgentDependencies<P, ContentBlock>,
@@ -345,6 +348,7 @@ function heldAfter(
 }
 
 const CARD_ROUND_CLOSING = '#502 stage 3'
+const RETURN_KINDS = ['placeholder', 'result'] as const
 const OUT_ROUNDS: readonly PassageNeed[] = ['present', 'read', 'closed']
 
 function pendingPassage(passages: readonly Passage[]): Failure | null {
@@ -1732,26 +1736,21 @@ function coordinate<P>(
     return read
   }
 
-  type ReceivedToolResult = Readonly<{
-    entry: ReceivedEntry
-    delivery: Extract<ToolDelivery<ContentBlock>, { kind: 'result' }>
-    pending: AssociatedToolCall
-  }>
-
-  async function receivedToolResult(
+  async function receivedToolDelivery<K extends 'result' | 'placeholder'>(
     action: Action,
-  ): Promise<Outcome<ReceivedToolResult | null, Failure>> {
+    kinds: readonly K[],
+  ): Promise<Outcome<ReceivedToolDelivery<K> | null, Failure>> {
     const pending = toolCall(action)
     if (pending === null) return succeed(null)
     const received = await receivedOfConsumption(pending.consumption)
     if ('failure' in received) return received
-    const found = toolReceivedOf(received.ok, pending)
+    const found = toolReceivedOf(received.ok, pending, kinds)
     if (found === undefined) return succeed(null)
     const { material: source, ...expected } = found
     const material = await ports.materials.read({ ...access, source })
     if ('failure' in material) return material
     const delivery = readToolDeliveryMaterial(access, material.ok, expected)
-    if (delivery?.kind !== 'result')
+    if (!isToolReturnOf(delivery, kinds, found))
       return fail({
         kind: 'invalid',
         field: 'received.material',
@@ -1886,13 +1885,13 @@ function coordinate<P>(
   function slotSource(action: Action, slot: ActionSlot): InternalSource {
     if (slot.kind === 'denied')
       return { kind: 'action-denied', action: action.id, evidence: slot.evidence }
-    if (slot.kind !== 'result')
-      throw new Error(`coordinator defect: no message of a ${slot.kind} slot`)
+    if (slot.kind === 'dispatched')
+      throw new Error('coordinator defect: no message of a dispatched slot')
     return {
       kind: 'tool-result',
       action: action.id,
       call: toolCallOf(access, required(toolCall(action), 'associated Tool call')),
-      result: slot.result,
+      result: slot.kind === 'result' ? slot.result : slot.placeholder,
     }
   }
 
@@ -1931,6 +1930,15 @@ function coordinate<P>(
     return succeed(answeredCandidate(execution, action, text))
   }
 
+  async function backgroundCandidate(action: Action): Promise<Outcome<Message, Failure>> {
+    const received = await receivedToolDelivery(action, ['placeholder'])
+    if ('failure' in received) return received
+    if (received.ok === null)
+      return fail(defect('T2: a background slot without its received placeholder'))
+    const call = toolCallOf(access, received.ok.pending)
+    return succeed(placeholderCandidate(execution, action, call, received.ok.delivery.source))
+  }
+
   async function computedCandidate(
     action: Action,
     slot: ActionSlot,
@@ -1938,8 +1946,9 @@ function coordinate<P>(
     if (slot.each !== null && slot.each.length > 0)
       return fail(notYet('T2', 'a single-result passage with conclusions', '#502 stage 5'))
     if (slot.kind === 'denied') return deniedSlotCandidate(action)
+    if (slot.kind === 'background') return backgroundCandidate(action)
     if (slot.kind !== 'result') return fail(defect(`T2: no candidate of a ${slot.kind} slot`))
-    const received = await receivedToolResult(action)
+    const received = await receivedToolDelivery(action, ['result'])
     if ('failure' in received) return received
     if (received.ok === null) return fail(defect('T2: a result slot without its received entry'))
     return succeed(toolResultCandidate(execution, action, received.ok.delivery.value.content))
@@ -2068,8 +2077,7 @@ function coordinate<P>(
     const batch = currentBatch()
     const slot = slotOf(batch, action.id)
     if (slot === undefined) return fail(defect('T5 with an action without a slot'))
-    if (slot.kind === 'background' || slot.kind === 'dispatched')
-      return fail(notYet('T5', 'a background placeholder message', '#502 stage 5'))
+    if (slot.kind === 'dispatched') return fail(defect('T5 with a dispatched slot'))
     const source = slotSource(action, slot)
     const existing = slotHandoff(slot)
     if (existing !== undefined && existing.history.kind !== 'pending')
@@ -2356,7 +2364,7 @@ function coordinate<P>(
         action => slotOf(batch, action.id)?.kind === 'dispatched',
       )
       for (const action of dispatched) {
-        const received = await receivedToolResult(action)
+        const received = await receivedToolDelivery(action, RETURN_KINDS)
         if ('failure' in received) return received
         if (received.ok !== null) return step('received', null)
       }
@@ -2371,21 +2379,12 @@ function coordinate<P>(
       const events: CommitEvent[] = []
       for (const action of batch.actions) {
         if (slotOf(batch, action.id)?.kind !== 'dispatched') continue
-        const received = await receivedToolResult(action)
+        const received = await receivedToolDelivery(action, RETURN_KINDS)
         if ('failure' in received) return received
         if (received.ok === null) continue
-        const { entry: kept, delivery, pending } = received.ok
-        const result = toolProduced(toolCallOf(access, pending), delivery)
-        batch = replaceSlot(batch, {
-          kind: 'result',
-          action: action.id,
-          result,
-          terminal: delivery.terminal,
-          custody: kept.material,
-          each: null,
-          candidateDigest: null,
-          handoff: null,
-        })
+        const { pending } = received.ok
+        const { slot, result } = receivedSlot(action.id, toolCallOf(access, pending), received.ok)
+        batch = replaceSlot(batch, slot)
         calls = calls.filter(call => call.kind !== 'tool' || call.action !== action.id)
         events.push({ kind: 'producer', result, consumption: pending.consumption })
       }
@@ -2396,10 +2395,8 @@ function coordinate<P>(
       if ('failure' in read) return read
       let batch = currentBatch()
       for (const action of batch.actions) {
-        const slot = slotOf(batch, action.id)
-        if (slot === undefined || slot.each !== null) continue
-        if (slot.kind !== 'denied' && slot.kind !== 'result') continue
-        const passed = { ...slot, each: [] }
+        const passed = passingSlot(slotOf(batch, action.id))
+        if (passed === null) continue
         const candidate = await computedCandidate(action, passed)
         if ('failure' in candidate) return candidate
         batch = replaceSlot(batch, { ...passed, candidateDigest: candidateDigest(candidate.ok) })
@@ -3002,7 +2999,7 @@ function coordinate<P>(
     }
     if (pending.association !== 'associated') return null
     const call = toolCallOf(access, pending)
-    return { stage: `interrupt-tool/${call}`, command: { kind: 'interrupt-tool', call, reason } }
+    return { stage: `withdraw-tool/${call}`, command: { kind: 'withdraw-tool', call, reason } }
   }
 
   async function interruptForCancel(

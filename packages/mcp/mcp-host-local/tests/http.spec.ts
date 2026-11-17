@@ -77,8 +77,6 @@ function credential(token = SECRET) {
 }
 
 function targetOf(peer: HttpPeer): ConnectionTarget {
-  if (peer.material.kind !== 'streamable-http')
-    throw new Error('the peer is not on Streamable HTTP')
   return peer.material.target
 }
 
@@ -104,7 +102,7 @@ async function scripted(
   script: PeerScript | ((target: string) => PeerScript),
   options: HttpPeerOptions = {},
 ): Promise<HttpPeer> {
-  return httpPeer(script, { kind: 'streamable-http' }, VERSIONS, CLIENT, options)
+  return httpPeer(script, {}, VERSIONS, CLIENT, options)
 }
 
 const result = (value: PlainJson): PeerReply => ({ kind: 'result', result: value })

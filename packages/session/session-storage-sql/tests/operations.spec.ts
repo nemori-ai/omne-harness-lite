@@ -191,21 +191,18 @@ describe('SL07: an operation identity belongs to one operation, whatever its for
 })
 
 describe('stopCall of a Tool target', () => {
-  it('is unsupported on a fresh identity, a used identity and an unknown session, and writes nothing', async () => {
+  it('takes the path of any call: an unbound call answers not-found with no revision; a used identity is a conflict; an unknown session is denied', async () => {
     const a = await started()
     ok(await a.accept(TENANT_A, 'session-1', 'one'))
-    const before = ok(await a.port.readWork(a.access(TENANT_A)))
-    const mark = a.provider.calls.length
-    expect(kindOf(await stopTool(a, 'fresh'))).toBe('unsupported')
-    expect(kindOf(await stopTool(a, 'accept-one'))).toBe('unsupported')
-    expect(kindOf(await stopTool(a, 'ghost', 'no-such-session'))).toBe('unsupported')
-    expect(a.provider.calls.length).toBe(mark)
-    expect(ok(await a.port.readWork(a.access(TENANT_A)))).toEqual(before)
-    const asked = await a.port.queryControlOperation({
-      ...a.access(TENANT_A),
-      operation: operationId('fresh'),
+    const before = ok<{ revision: string }>(await a.port.readWork(a.access(TENANT_A)))
+    expect(ok<{ answer: unknown }>(await stopTool(a, 'fresh')).answer).toEqual({
+      kind: 'not-found',
     })
-    expect(ok<{ kind: string }>(asked).kind).toBe('unknown')
+    expect(kindOf(await stopTool(a, 'accept-one'))).toBe('conflict')
+    expect(kindOf(await stopTool(a, 'ghost', 'no-such-session'))).toBe('denied')
+    expect(ok<{ revision: string }>(await a.port.readWork(a.access(TENANT_A))).revision).toBe(
+      before.revision,
+    )
   })
 })
 

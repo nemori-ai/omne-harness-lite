@@ -212,6 +212,8 @@ export function keyKnown(view: ExecutionView, key: string): boolean {
       )
     case 'received':
       return view.results.get(name as never)?.received !== null && view.results.has(name as never)
+    case 'placeholder':
+      return view.placeholders.has(name as never)
     case 'reply':
       return view.admissions.some(item => String(item.sequence) === name)
     case 'batch':

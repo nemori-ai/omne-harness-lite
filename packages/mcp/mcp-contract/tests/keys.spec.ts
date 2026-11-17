@@ -46,7 +46,6 @@ function endpoint(adoption: AdoptionRevision): AdoptedEndpoint {
     revision: adoption,
     body: json({ name: 'files', transport: 'streamable-http', auth: 'oauth' }),
     settings: { target: absent, credential: absent, connectTimeout: absent },
-    processEnv: [],
   }
 }
 

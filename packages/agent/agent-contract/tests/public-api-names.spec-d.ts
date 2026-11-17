@@ -1140,15 +1140,21 @@ describe('the discriminants of the coordination chapter', () => {
     expectTypeOf<KindOf<FinishAuthorization>>().toEqualTypeOf<'advancement' | 'cancel'>()
   })
 
-  it('ExecutionControl names the four controls and the call each interrupt targets', () => {
+  it('ExecutionControl names the four controls, the Tool intents and the call each targets', () => {
     expectTypeOf<KindOf<ExecutionControl>>().toEqualTypeOf<
-      'interrupt-model' | 'interrupt-tool' | 'background-tool' | 'cancel' | 'suspend'
+      | 'interrupt-model'
+      | 'interrupt-tool'
+      | 'background-tool'
+      | 'release-tool'
+      | 'withdraw-tool'
+      | 'cancel'
+      | 'suspend'
     >()
     expectTypeOf<
       Extract<ExecutionControl, { kind: 'interrupt-model' }>['call']
     >().toEqualTypeOf<M.ModelCallId>()
     expectTypeOf<Extract<ExecutionControl, { call: T.ToolCallId }>['kind']>().toEqualTypeOf<
-      'interrupt-tool' | 'background-tool'
+      'interrupt-tool' | 'background-tool' | 'release-tool' | 'withdraw-tool'
     >()
     expectTypeOf<ControlStage>().toEqualTypeOf<
       | 'accepted'
@@ -1464,7 +1470,7 @@ describe('Tool association and control references', () => {
   it('requires invocation and nullable operation only for Tool controls', () => {
     type Base = Pick<ControlRecord, 'operation' | 'stages'>
     type Tool = Base & {
-      command: Extract<ExecutionControl, { kind: 'interrupt-tool' | 'background-tool' }>
+      command: Extract<ExecutionControl, { call: T.ToolCallId }>
       toolInvocation: T.ToolInvocationRef
       toolOperation: T.ToolOperationRef | null
     }

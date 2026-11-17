@@ -32,6 +32,8 @@ type FaceMethod =
   | 'history.begin'
   | 'history.next'
   | 'readWaiting'
+  | 'control'
+  | 'readBackgroundCalls'
 
 export type SessionDoubleRecord = Readonly<{
   method: FaceMethod
@@ -55,13 +57,14 @@ export type SessionDoubleControls = Readonly<{
   calls(): readonly SessionDoubleRecord[]
   committed(): ReadonlyMap<SessionOperationId, Committed>
   throwOn(method: FaceMethod, error: unknown): void
-  refuseToolTargets(refuse: boolean): void
   checkExistenceOnQuery(check: boolean): void
   failWith(failure: SessionFailure): void
   failNext(...failures: readonly SessionFailure[]): void
   failQueryWith(failure: SessionFailure | undefined): void
   resolveQueryWith(resolution: OperationResolution | undefined): void
   answerControlWith(answer: ControlAnswer | undefined): void
+  settleBackgroundAt(state: 'propagating' | 'reconciled'): void
+  listBackground(calls: readonly Readonly<{ kind: 'tool'; call: string }>[]): void
   loseAnswers(count: number): void
   restore(): void
   addRun(session: SessionId, run: string): void
@@ -100,13 +103,14 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
   const sessions = new Map<string, SessionRecord>()
   const throwing = new Map<FaceMethod, unknown>()
   let forcedFailure: SessionFailure | undefined
-  let refuseTool = true
   let existenceOnQuery = true
   let commits = 0
   let lostAnswers = 0
   let queryFailure: SessionFailure | undefined
   let queryResolution: OperationResolution | undefined
   let controlAnswer: ControlAnswer | undefined
+  let backgroundState: 'propagating' | 'reconciled' = 'propagating'
+  let backgroundList: readonly Readonly<{ kind: 'tool'; call: string }>[] = []
   const failures: SessionFailure[] = []
   let waitingAnswer: SessionWaiting | null = null
 
@@ -198,8 +202,38 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
 
   const work: Pick<
     SessionWork<P>,
-    'accept' | 'queryOperation' | 'cancelRun' | 'stopCall' | 'retryRun' | 'readWaiting'
+    | 'accept'
+    | 'queryOperation'
+    | 'cancelRun'
+    | 'stopCall'
+    | 'retryRun'
+    | 'readWaiting'
+    | 'control'
+    | 'readBackgroundCalls'
   > = {
+    async control(input) {
+      record('control', input, input.intent)
+      if (accessDenied(input)) return fail({ kind: 'denied', action: 'control' })
+      if (existing(input) === undefined) return fail({ kind: 'denied', action: 'control' })
+      const outcome = commit('control', input.operation, { kind: 'control', intent: input.intent })
+      if ('failure' in outcome) return outcome
+      const progress = {
+        operation: input.operation,
+        target: { kind: 'session' },
+        intent: { kind: 'control', value: input.intent },
+        state: backgroundState,
+        pending: [],
+      } as never
+      return succeed({ receipt: outcome.ok, progress })
+    },
+    async readBackgroundCalls(input) {
+      record('readBackgroundCalls', input, {})
+      if (accessDenied(input)) return fail({ kind: 'denied', action: 'readBackgroundCalls' })
+      if (existing(input) === undefined)
+        return fail({ kind: 'denied', action: 'readBackgroundCalls' })
+      if (forcedFailure !== undefined) return fail(forcedFailure)
+      return succeed(backgroundList.map(producer => ({ producer })))
+    },
     async readWaiting(input) {
       record('readWaiting', input, {})
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'readWaiting' })
@@ -259,7 +293,6 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     async stopCall(input) {
       record('stopCall', input, { producer: input.producer })
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'stopCall' })
-      if (refuseTool && input.producer.kind === 'tool') return fail({ kind: 'unsupported' })
       if (existing(input) === undefined) return fail({ kind: 'denied', action: 'stopCall' })
       const outcome = commit('stopCall', input.operation, {
         kind: 'stopCall',
@@ -329,9 +362,6 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       throwOn: (method: FaceMethod, error: unknown) => {
         throwing.set(method, error)
       },
-      refuseToolTargets: (refuse: boolean) => {
-        refuseTool = refuse
-      },
       checkExistenceOnQuery: (check: boolean) => {
         existenceOnQuery = check
       },
@@ -349,6 +379,12 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       },
       answerControlWith: (answer: ControlAnswer | undefined) => {
         controlAnswer = answer
+      },
+      settleBackgroundAt: (state: 'propagating' | 'reconciled') => {
+        backgroundState = state
+      },
+      listBackground: (list: readonly Readonly<{ kind: 'tool'; call: string }>[]) => {
+        backgroundList = list
       },
       loseAnswers: (count: number) => {
         lostAnswers = count

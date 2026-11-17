@@ -12,7 +12,7 @@ import {
 import { boundInstructions } from './instructions.ts'
 import type { UnusableCause } from './outcomes.ts'
 import type { PlainJson } from './plain.ts'
-import type { HttpCredentialHandle, ProcessHandle } from './ports.ts'
+import type { HttpCredentialHandle } from './ports.ts'
 import { LEGACY_PROTOCOL_VERSIONS, isModernProtocolVersion } from './revisions.ts'
 import {
   TRANSPORT_TABLE,
@@ -28,7 +28,7 @@ import {
   type RequestClass,
   type WireEvent,
 } from './wire.ts'
-import { NotApplicable, conformanceCase, type ConformanceCase } from './testing-case.ts'
+import { conformanceCase, type ConformanceCase } from './testing-case.ts'
 import { actionNameOf, jsonOf } from './testing-values.ts'
 import type {
   CallRequest,
@@ -54,7 +54,6 @@ export type PeerReply =
   | Readonly<{ kind: 'unsent' }>
   | Readonly<{ kind: 'silent' }>
   | Readonly<{ kind: 'stream-breaks' }>
-  | Readonly<{ kind: 'process-exits' }>
   | Readonly<{
       kind: 'http'
       status: number
@@ -106,10 +105,7 @@ export type PeerReceived =
   | Readonly<{ kind: 'stream-aborted'; id: string }>
   | Readonly<{ kind: 'fetch'; url: string }>
 
-export type TransportKind = TransportMaterial['kind']
-
 export type PeerNeeds = Readonly<{
-  kind: TransportKind
   credential?: HttpCredentialHandle
   instructionsByteLimit?: number
 }>
@@ -124,7 +120,6 @@ export type ScriptedPeer = Readonly<{
 export type ScriptSource = PeerScript | ((target: string) => PeerScript)
 
 export type TransportFixture = Readonly<{
-  kinds: readonly TransportKind[]
   protocolVersions: readonly string[]
   peer(script: ScriptSource, needs: PeerNeeds): Promise<ScriptedPeer>
 }>
@@ -172,7 +167,6 @@ function httpError(status: number, code: number, message: string, data?: PlainJs
 
 const SILENT: PeerReply = { kind: 'silent' }
 const STREAM_BREAKS: PeerReply = { kind: 'stream-breaks' }
-const PROCESS_EXITS: PeerReply = { kind: 'process-exits' }
 const METHOD_NOT_FOUND = error(-32601, 'Method not found')
 
 const TOOL = { name: 'echo', inputSchema: { type: 'object' } }
@@ -210,16 +204,12 @@ async function withPeer<T>(
   needs: Partial<PeerNeeds>,
   body: Body<T>,
 ): Promise<T> {
-  const kind = needs.kind ?? fixture.kinds[0]
-  assert.ok(kind !== undefined, 'the fixture names no material kind')
-  if (!fixture.kinds.includes(kind)) throw new NotApplicable(`${kind} material`)
   assert.ok(
     fixture.protocolVersions.every(isModernProtocolVersion),
     'the fixture lists a legacy version; legacy versions are LEGACY_PROTOCOL_VERSIONS',
   )
   const peer = await fixture.peer(withModernDiscover(fixture, script), {
     ...needs,
-    kind,
     instructionsByteLimit: needs.instructionsByteLimit ?? 4096,
   })
   try {
@@ -325,20 +315,19 @@ function assertEnvelopes(peer: ScriptedPeer, received: readonly PeerReceived[]):
         `${entry.method}: a capability is declared on a legacy revision`,
       )
     assert.strictEqual(meta[LOG_LEVEL_KEY], undefined, `${entry.method}: logLevel set`)
-    if (peer.material.kind === 'streamable-http')
-      assert.deepStrictEqual(
-        {
-          'mcp-protocol-version': entry.headers?.['mcp-protocol-version'],
-          'mcp-method': entry.headers?.['mcp-method'],
-          'mcp-name': entry.headers?.['mcp-name'],
-        },
-        {
-          'mcp-protocol-version': version,
-          'mcp-method': entry.method,
-          'mcp-name': entry.kind === 'request' ? mcpNameOf(entry) : undefined,
-        },
-        `${entry.method}: the MCP headers`,
-      )
+    assert.deepStrictEqual(
+      {
+        'mcp-protocol-version': entry.headers?.['mcp-protocol-version'],
+        'mcp-method': entry.headers?.['mcp-method'],
+        'mcp-name': entry.headers?.['mcp-name'],
+      },
+      {
+        'mcp-protocol-version': version,
+        'mcp-method': entry.method,
+        'mcp-name': entry.kind === 'request' ? mcpNameOf(entry) : undefined,
+      },
+      `${entry.method}: the MCP headers`,
+    )
   }
   assert.deepStrictEqual(requests(received, 'logging/setLevel'), [], 'logging/setLevel was sent')
   assert.deepStrictEqual(
@@ -396,45 +385,7 @@ function metadataUrlOf(target: string): string {
 }
 
 function targetOf(peer: ScriptedPeer): string {
-  assert.ok(peer.material.kind === 'streamable-http', 'the case needs streamable-http material')
   return peer.material.target
-}
-
-function observedProcess(process: ProcessHandle, events: string[]): ProcessHandle {
-  const writer = process.stdin.getWriter()
-  const reader = process.stdout.getReader()
-  let cancelled = false
-  return {
-    stdin: new WritableStream<Uint8Array>({
-      write: chunk => writer.write(chunk),
-      async close() {
-        events.push('stdin-closed')
-        await writer.close()
-      },
-      async abort(reason) {
-        events.push('stdin-closed')
-        await writer.abort(reason)
-      },
-    }),
-    stdout: new ReadableStream<Uint8Array>({
-      async pull(controller) {
-        const next = await reader.read()
-        if (cancelled || next.done) return
-        controller.enqueue(next.value)
-      },
-      async cancel(reason) {
-        cancelled = true
-        events.push('stdout-cancelled')
-        await reader.cancel(reason)
-      },
-    }),
-    stderr: process.stderr,
-    exited: process.exited,
-    stop: async () => {
-      events.push('stop')
-      return process.stop()
-    },
-  }
 }
 
 function errorObjects(code: ErrorClass, fixture: TransportFixture): readonly PlainJson[] {
@@ -586,7 +537,6 @@ function repliesOf(cell: TableCell, fixture: TransportFixture): readonly PeerRep
   if (answer === 'unsent') return [{ kind: 'unsent' }]
   if (answer === 'stream-broken') return [STREAM_BREAKS]
   if (answer === 'silent') return [SILENT]
-  if (answer === 'process-exited') return [PROCESS_EXITS]
   if (answer === 'http:401')
     return [{ kind: 'http', status: 401, headers: { 'www-authenticate': bearer('scope="a"') } }]
   if (answer === 'http:403+scope') {
@@ -641,11 +591,10 @@ function repliesOf(cell: TableCell, fixture: TransportFixture): readonly PeerRep
   return resultValues(request, answer, fixture).map(value => result(value))
 }
 
-function eventOf(reply: PeerReply, cell: TableCell): WireEvent {
-  const stdio = cell.kind === 'stdio'
+function eventOf(reply: PeerReply): WireEvent {
   const message = (member: Readonly<{ [key: string]: PlainJson }>): WireEvent => {
     const text = JSON.stringify({ jsonrpc: '2.0', id: 'x', ...member })
-    return stdio ? { kind: 'line', text } : { kind: 'http-stream', messages: [text], ended: true }
+    return { kind: 'http-stream', messages: [text], ended: true }
   }
   switch (reply.kind) {
     case 'result':
@@ -657,9 +606,7 @@ function eventOf(reply: PeerReply, cell: TableCell): WireEvent {
     case 'silent':
       return { kind: 'nothing' }
     case 'stream-breaks':
-      return stdio ? { kind: 'stdio-ended', stdoutEndedAt: 0 } : { kind: 'http-aborted' }
-    case 'process-exits':
-      return { kind: 'stdio-ended', stdoutEndedAt: 0, exitedAt: 20 }
+      return { kind: 'http-aborted' }
     case 'http': {
       if (reply.status >= 200 && reply.status < 300)
         return {
@@ -715,8 +662,7 @@ function lineEndOf(conclusion: TableConclusion): UnusableCause | undefined {
       const failure = conclusion.failure
       if (failure.kind === 'no-answer') return gone(failure.cause)
       if (failure.kind !== 'not-sent') return undefined
-      if (failure.cause === 'session-ended') return 'session-ended'
-      return failure.cause === 'connection-unavailable' ? 'stream-broken' : undefined
+      return failure.cause === 'session-ended' ? 'session-ended' : undefined
     }
     default:
       return undefined
@@ -724,7 +670,7 @@ function lineEndOf(conclusion: TableConclusion): UnusableCause | undefined {
 }
 
 function gone(cause: string): UnusableCause | undefined {
-  return cause === 'stream-broken' || cause === 'process-exited' ? cause : undefined
+  return cause === 'stream-broken' ? cause : undefined
 }
 
 function refusedAfter(conclusion: TableConclusion): TransportFailure {
@@ -863,24 +809,17 @@ async function checkCell(
   reply: PeerReply,
   conclusion: TableConclusion,
 ): Promise<void> {
-  const http = cell.kind === 'streamable-http'
   const run = async (
     script: PeerScript,
     body: (peer: ScriptedPeer, transport: McpTransport) => Promise<void>,
   ) => {
     const credential = countingCredential()
-    await withPeer(
-      fixture,
-      script,
-      http ? { kind: cell.kind, credential } : { kind: cell.kind },
-      body,
+    await withPeer(fixture, script, { credential }, body)
+    assert.strictEqual(
+      credential.rejections(),
+      conclusion.rejection === true ? 1 : 0,
+      'reportRejection was not called as the row says',
     )
-    if (http)
-      assert.strictEqual(
-        credential.rejections(),
-        conclusion.rejection === true ? 1 : 0,
-        'reportRejection was not called as the row says',
-      )
   }
   const afterwards = async (transport: McpTransport) => {
     if (conclusion.unusable === true)
@@ -909,7 +848,7 @@ async function checkCell(
             notifications(await peer.received(), 'notifications/initialized').length,
             1,
           )
-          if (http) ok(await transport.listActions(), 'listActions')
+          ok(await transport.listActions(), 'listActions')
         },
       )
     default:
@@ -1042,7 +981,7 @@ async function checkInitialize(
       unusableCauseOf(conclusion),
     )
     assert.deepStrictEqual(initialized, [])
-    assert.ok(cell.kind === 'stdio' || conclusion.unusable !== true)
+    assert.ok(conclusion.unusable !== true)
     await afterwards(transport)
   })
 }
@@ -1216,12 +1155,10 @@ function tableCases(): readonly Case[] {
       'T8',
       `[${row.id}] ${listed(row.requests)} × ${listed(row.answers)} → ${conclusionText(row.conclusion)}`,
       async fixture => {
-        const cells = cellsOf(row).filter(cell => fixture.kinds.includes(cell.kind))
-        if (cells.length === 0) throw new NotApplicable(`${row.kinds.join(' or ')} material`)
-        for (const cell of cells)
+        for (const cell of cellsOf(row))
           for (const reply of repliesOf(cell, fixture))
             try {
-              const classified = classifyWireEvent(eventOf(reply, cell), {
+              const classified = classifyWireEvent(eventOf(reply), {
                 id: 'x',
                 request: cell.request,
                 session: cell.answer === 'http:404+session',
@@ -1235,7 +1172,7 @@ function tableCases(): readonly Case[] {
               await checkCell(fixture, cell, reply, row.conclusion)
             } catch (error) {
               if (error instanceof assert.AssertionError)
-                error.message = `${cell.kind} ${cell.request} ${cell.answer}: ${error.message}`
+                error.message = `${cell.request} ${cell.answer}: ${error.message}`
               throw error
             }
       },
@@ -1283,7 +1220,7 @@ const t1Cases = (): readonly Case[] => [
           calls: { echo: SILENT },
           listing: { '': { kind: 'http', status: 404 } },
         },
-        { kind: 'streamable-http' },
+        {},
         async (peer, transport) => {
           ok(await transport.discover(), 'discover')
           const sent = ok(await transport.call(echo, never), 'call')
@@ -1310,7 +1247,7 @@ const t1Cases = (): readonly Case[] => [
           calls: { echo: SILENT },
           listing: { '': { kind: 'http', status: 404 } },
         },
-        { kind: 'streamable-http' },
+        {},
         async (peer, transport) => {
           ok(await transport.discover(), 'discover')
           const controller = new AbortController()
@@ -1326,26 +1263,6 @@ const t1Cases = (): readonly Case[] => [
             unusable: 'session-ended',
           })
           await transport.close()
-        },
-      ),
-  ),
-  conformanceCase(
-    'T1',
-    'stdio: close() after the process exited (S02): a later request carries no unusable',
-    async fixture =>
-      withPeer(
-        fixture,
-        { listing: { '': { kind: 'process-exits' } } },
-        { kind: 'stdio' },
-        async (_peer, transport) => {
-          ok(await transport.discover(), 'discover')
-          assert.deepStrictEqual(await transport.listActions(), {
-            failure: { kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' },
-          })
-          await transport.close()
-          assert.deepStrictEqual(await transport.getTask(taskId('t')), {
-            failure: { kind: 'not-sent', cause: 'connection-unavailable' },
-          })
         },
       ),
   ),
@@ -1448,7 +1365,7 @@ const t2Cases = (): readonly Case[] => [
       await withPeer(
         fixture,
         { listing: { '': result({ tools: [bad, good, numeric, counted] }) } },
-        { kind: 'streamable-http' },
+        {},
         async (_peer, transport) => {
           const page = ok(await transport.listActions(), 'listActions')
           assert.deepStrictEqual(page.tools, [jsonOf(good), jsonOf(counted)])
@@ -1478,26 +1395,9 @@ const t2Cases = (): readonly Case[] => [
           initialize: LEGACY,
           listing: { '': result({ tools: [bad] }) },
         },
-        { kind: 'streamable-http' },
+        {},
         async (_peer, transport) => {
           ok(await transport.discover(), 'discover')
-          const page = ok(await transport.listActions(), 'listActions')
-          assert.deepStrictEqual(page.tools, [jsonOf(bad)])
-          assert.strictEqual(page.withheld, undefined)
-        },
-      )
-    },
-  ),
-  conformanceCase(
-    'T2',
-    'stdio: x-mcp-header is not checked and the page is handed over as written (item 8)',
-    async fixture => {
-      const bad = { name: 'bad', inputSchema: { type: 'object', 'x-mcp-header': 'root' } }
-      await withPeer(
-        fixture,
-        { listing: { '': result({ tools: [bad] }) } },
-        { kind: 'stdio' },
-        async (_peer, transport) => {
           const page = ok(await transport.listActions(), 'listActions')
           assert.deepStrictEqual(page.tools, [jsonOf(bad)])
           assert.strictEqual(page.withheld, undefined)
@@ -1547,7 +1447,7 @@ const t3Cases = (): readonly Case[] => [
           listing: { '': result({ tools: [] }) },
           tasks: { t1: { get: result({ taskId: 't1', status: 'working' }) } },
         },
-        { kind: 'streamable-http' },
+        {},
         async (peer, transport) => {
           ok(await transport.discover(), 'discover')
           ok(await transport.listActions(), 'listActions')
@@ -1682,7 +1582,7 @@ const t3Cases = (): readonly Case[] => [
           calls: { echo: result(DONE) },
           listing: { '': result({ tools: [] }) },
         },
-        { kind: 'streamable-http' },
+        {},
         async (peer, transport) => {
           ok(await transport.discover(), 'discover')
           ok(await transport.listActions(), 'listActions')
@@ -1742,33 +1642,6 @@ const t3Cases = (): readonly Case[] => [
             ['tasks/get', lowest],
           ])
           assertEnvelopes(peer, received)
-        },
-      )
-    },
-  ),
-  conformanceCase(
-    'T3, T5',
-    'stdio: after a -32022 retry the cancel notification carries the negotiated version (item 7)',
-    async fixture => {
-      const lowest = fixture.protocolVersions.at(-1)
-      assert.ok(lowest !== undefined)
-      await withPeer(
-        fixture,
-        {
-          discover: [
-            error(-32022, 'unsupported', { supported: [lowest] }),
-            result({ supportedVersions: [lowest], capabilities: {} }),
-          ],
-          calls: { echo: SILENT },
-        },
-        { kind: 'stdio' },
-        async (peer, transport) => {
-          ok(await transport.discover(), 'discover')
-          const sent = ok(await transport.call(echo, never), 'call')
-          await transport.cancelRequest(sent.requestId)
-          const [cancelled] = notifications(await peer.received(), 'notifications/cancelled')
-          assert.ok(cancelled !== undefined, 'notifications/cancelled was not sent')
-          assert.strictEqual(at(cancelled.params, '_meta', PROTOCOL_VERSION_KEY), lowest)
         },
       )
     },
@@ -1944,7 +1817,7 @@ const t4Cases = (): readonly Case[] => {
               [`${METADATA_PATH}${pathOf(target)}`]: metadata(target, 'https://issuer.test'),
             },
           }),
-          { kind: 'streamable-http', credential },
+          { credential },
           async (peer, transport) => {
             const target = targetOf(peer)
             const discovery = authorizationRequired(
@@ -1973,7 +1846,7 @@ const t4Cases = (): readonly Case[] => {
             listing: { '': unauthorized('realm="mcp"') },
             wellKnown: { [METADATA_PATH]: metadata(target, 'https://root.test') },
           }),
-          { kind: 'streamable-http', credential },
+          { credential },
           async (peer, transport) => {
             const discovery = authorizationRequired(
               failure(await transport.listActions(), 'listActions'),
@@ -2002,7 +1875,7 @@ const t4Cases = (): readonly Case[] => {
         await withPeer(
           fixture,
           { calls: { echo: unauthorized('scope="a b"') } },
-          { kind: 'streamable-http', credential },
+          { credential },
           async (_peer, transport) => {
             const discovery = authorizationRequired(
               failure(await transport.call(echo, never), 'call'),
@@ -2030,7 +1903,7 @@ const t4Cases = (): readonly Case[] => {
               [METADATA_PATH]: metadata(target, 'https://root.test'),
             },
           }),
-          { kind: 'streamable-http', credential: countingCredential() },
+          { credential: countingCredential() },
           async (peer, transport) => {
             const discovery = authorizationRequired(
               failure(await transport.call(echo, never), 'call'),
@@ -2051,7 +1924,7 @@ const t4Cases = (): readonly Case[] => {
         await withPeer(
           fixture,
           { discover: unauthorized('scope="files:read"'), initialize: LEGACY },
-          { kind: 'streamable-http', credential },
+          { credential },
           async (peer, transport) => {
             const discovery = authorizationRequired(failure(await transport.discover(), 'discover'))
             assert.deepStrictEqual(discovery.scopes, ['files:read'])
@@ -2069,7 +1942,7 @@ const t4Cases = (): readonly Case[] => {
         await withPeer(
           fixture,
           { calls: { echo: forbidden('error="insufficient_scope", scope="files:write"') } },
-          { kind: 'streamable-http', credential },
+          { credential },
           async (_peer, transport) => {
             const discovery = authorizationRequired(
               failure(await transport.call(echo, never), 'call'),
@@ -2087,7 +1960,7 @@ const t4Cases = (): readonly Case[] => {
         withPeer(
           fixture,
           { discover: unauthorized('realm="mcp"') },
-          { kind: 'streamable-http' },
+          {},
           async (_peer, transport) => {
             authorizationRequired(failure(await transport.discover(), 'discover'))
           },
@@ -2125,7 +1998,7 @@ const t9Cases = (): readonly Case[] => [
         await withPeer(
           fixture,
           { calls: { echo: result(DONE) }, listing: { '': result({ tools: [] }) } },
-          { kind: 'streamable-http', credential: failingCredential(fails) },
+          { credential: failingCredential(fails) },
           async (peer, transport) => {
             assert.deepStrictEqual(await transport.call(echo, never), {
               failure: { kind: 'not-sent', cause: 'connection-unavailable' },
@@ -2155,7 +2028,7 @@ const t9Cases = (): readonly Case[] => [
             },
           },
         },
-        { kind: 'streamable-http', credential: failingCredential('report-rejects') },
+        { credential: failingCredential('report-rejects') },
         async (_peer, transport) => {
           const refused = failure(await transport.call(echo, never), 'call')
           assert.ok(
@@ -2170,42 +2043,19 @@ const t9Cases = (): readonly Case[] => [
 const t5Cases = (): readonly Case[] => [
   conformanceCase(
     'T5',
-    'stdio: cancelRequest sends notifications/cancelled with the request id and the envelope (item 9)',
-    async fixture =>
-      withPeer(fixture, { calls: { echo: SILENT } }, { kind: 'stdio' }, async (peer, transport) => {
-        const sent = ok(await transport.call(echo, never), 'call')
-        await transport.cancelRequest(sent.requestId)
-        const received = await peer.received()
-        const [cancelled] = notifications(received, 'notifications/cancelled')
-        assert.ok(cancelled !== undefined, 'notifications/cancelled was not sent')
-        assert.strictEqual(at(cancelled.params, 'requestId'), sent.requestId)
-        assertEnvelopes(peer, received)
-        assert.deepStrictEqual(
-          received.filter(entry => entry.kind === 'stream-aborted'),
-          [],
-        )
-      }),
-  ),
-  conformanceCase(
-    'T5',
     'streamable-http: cancelRequest ends the answer stream, answer settles no-answer (abandoned), and no notification is sent (item 9)',
     async fixture =>
-      withPeer(
-        fixture,
-        { calls: { echo: SILENT } },
-        { kind: 'streamable-http' },
-        async (peer, transport) => {
-          const sent = ok(await transport.call(echo, never), 'call')
-          await transport.cancelRequest(sent.requestId)
-          assert.deepStrictEqual(await sent.answer, { kind: 'no-answer', cause: 'abandoned' })
-          const received = await peer.received()
-          assert.deepStrictEqual(
-            received.filter(entry => entry.kind === 'stream-aborted'),
-            [{ kind: 'stream-aborted', id: sent.requestId }],
-          )
-          assert.deepStrictEqual(notifications(received, 'notifications/cancelled'), [])
-        },
-      ),
+      withPeer(fixture, { calls: { echo: SILENT } }, {}, async (peer, transport) => {
+        const sent = ok(await transport.call(echo, never), 'call')
+        await transport.cancelRequest(sent.requestId)
+        assert.deepStrictEqual(await sent.answer, { kind: 'no-answer', cause: 'abandoned' })
+        const received = await peer.received()
+        assert.deepStrictEqual(
+          received.filter(entry => entry.kind === 'stream-aborted'),
+          [{ kind: 'stream-aborted', id: sent.requestId }],
+        )
+        assert.deepStrictEqual(notifications(received, 'notifications/cancelled'), [])
+      }),
   ),
   conformanceCase(
     'T5',
@@ -2214,7 +2064,7 @@ const t5Cases = (): readonly Case[] => [
       withPeer(
         fixture,
         { discover: METHOD_NOT_FOUND, initialize: LEGACY, calls: { echo: SILENT } },
-        { kind: 'streamable-http' },
+        {},
         async (peer, transport) => {
           ok(await transport.discover(), 'discover')
           const sent = ok(await transport.call(echo, never), 'call')
@@ -2230,33 +2080,6 @@ const t5Cases = (): readonly Case[] => [
           assertEnvelopes(peer, received)
         },
       ),
-  ),
-  conformanceCase(
-    'T5',
-    'stdio: close() closes stdin, then cancels stdout, and does not stop the process (item 9)',
-    async fixture => {
-      const kind = 'stdio'
-      if (!fixture.kinds.includes(kind)) throw new NotApplicable('stdio material')
-      const events: string[] = []
-      const peer = await fixture.peer(
-        { discover: modern(fixture) },
-        { kind, instructionsByteLimit: 4096 },
-      )
-      try {
-        assert.strictEqual(peer.material.kind, kind)
-        const material: TransportMaterial =
-          peer.material.kind === kind
-            ? { ...peer.material, process: observedProcess(peer.material.process, events) }
-            : peer.material
-        const transport = ok(await peer.factory.open(material, never), 'open')
-        ok(await transport.discover(), 'discover')
-        await transport.close()
-        assert.deepStrictEqual(events, ['stdin-closed', 'stdout-cancelled'])
-        await transport.close()
-      } finally {
-        await peer.close()
-      }
-    },
   ),
   conformanceCase(
     'T5',
@@ -2290,7 +2113,7 @@ const t5Cases = (): readonly Case[] => [
       await withPeer(
         fixture,
         { calls: { echo: result(DONE) } },
-        { kind: 'streamable-http', credential: handle },
+        { credential: handle },
         async (peer, transport) => {
           const pending = transport.call(echo, never)
           await Promise.race([handle.reached, pending])
@@ -2311,7 +2134,7 @@ const t5Cases = (): readonly Case[] => [
       await withPeer(
         fixture,
         { calls: { echo: result(DONE) } },
-        { kind: 'streamable-http', credential: handle },
+        { credential: handle },
         async (peer, transport) => {
           const controller = new AbortController()
           const pending = transport.call(echo, controller.signal)

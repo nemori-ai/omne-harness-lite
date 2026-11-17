@@ -5,6 +5,7 @@ import {
   decodeAgentOperationId,
   decodeInputId,
   judgeEvidence,
+  type AcceptedInput,
   type AgentExecutionHandle,
   type AgentExecutionId,
   type AgentInstanceId,
@@ -254,7 +255,15 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       const prepared = await this.prepare(input)
       if ('failure' in prepared) return prepared
       const { mutation } = prepared.ok
-      const value = await this.accepted(input, mutation.principal, input.input, input.source)
+      const priority = await this.priorityOf(input, mutation.principal, input.input)
+      if ('failure' in priority) return priority
+      const value = await this.accepted(
+        input,
+        mutation.principal,
+        input.input,
+        input.source,
+        priority.ok,
+      )
       if ('failure' in value) return value
       const answer = await kept.handle.input.submit({ ...mutation, value: value.ok })
       return 'ok' in answer
@@ -478,23 +487,35 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
     })
   }
 
+  // The urgent input of an interrupt asks the Agent to release the wait of the current step. The
+  // first input of a Run is never one: an interrupt targets a Run that is already active.
+  private async priorityOf(
+    target: DriveTarget,
+    principal: unknown,
+    input: InputId,
+  ): Promise<Drive<AcceptedInput['priority']>> {
+    const access = { principal, tenant: target.tenant, session: target.session }
+    const work = await this.scope[sessionKey].work.readWork(access)
+    if ('failure' in work) return this.sessionFailure('readWork', work.failure)
+    const urgent = work.ok.controls.some(
+      control => control.intent.kind === 'interrupt' && control.intent.urgent.input === input,
+    )
+    return succeed(urgent ? 'urgent' : 'ordinary')
+  }
+
   private async accepted(
     target: DriveTarget,
     principal: unknown,
     input: InputId,
     source: DurableEvidence,
+    priority: AcceptedInput['priority'] = 'ordinary',
   ) {
     const id = decodeInputId(input)
     if ('failure' in id) return this.defect('input', 'the input is not an Agent identity')
     const access = { principal, tenant: target.tenant, session: target.session }
     const read = await this.scope[sessionKey].work.readInput({ ...access, input })
     if ('failure' in read) return this.sessionFailure('readInput', read.failure)
-    return succeed({
-      id: id.ok,
-      content: read.ok.message,
-      source,
-      priority: 'ordinary' as const,
-    })
+    return succeed({ id: id.ok, content: read.ok.message, source, priority })
   }
 
   private async place(mutation: Mutation, slot: Slot): Promise<Drive<Placed>> {

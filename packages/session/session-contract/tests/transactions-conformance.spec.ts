@@ -42,8 +42,8 @@ const NAMES = {
   finish: 'finishRun with an admission rejection fails the Run and releases the first input',
   offPath: 'archive commits its scope cleanup without pretending physical release',
   oneIdentity: 'an operation identity belongs to one operation, whatever its form',
-  toolUnsupported:
-    'stopCall of a Tool target is unsupported before the identity and the session are read',
+  toolTarget:
+    'stopCall of a Tool target takes the same path as a Model target: an unbound call answers not-found and writes nothing',
   answerOnly: 'an answer-only control writes no revision and replays the original answer',
   malformedControl:
     'a malformed cancelRun or stopCall is refused invalid and saves neither an answer nor an operation',
@@ -108,7 +108,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'a conflict is reported as unavailable',
-    fails: [NAMES.conflict, NAMES.oneIdentity],
+    fails: [NAMES.conflict, NAMES.oneIdentity, NAMES.toolTarget],
     fixture: variant(real => ({
       commit: (async input => {
         const answer = await real.commit(input)
@@ -313,7 +313,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'split-operation-tables: a control keeps an identity table of its own',
-    fails: [NAMES.oneIdentity, NAMES.answerOnly],
+    fails: [NAMES.oneIdentity, NAMES.answerOnly, NAMES.toolTarget],
     fixture: variant(real => ({
       commit: (async input => {
         const command = input.command as SessionCommand
@@ -323,24 +323,6 @@ const variants: readonly Variant<Fixture>[] = [
           input: { ...command.input, operation: `ctl:${command.input.operation}` },
         }
         return real.commit({ ...input, command: renamed } as never)
-      }) as Port['commit'],
-    })),
-  },
-  {
-    name: 'tool-check-after-identity-lookup: a used identity answers conflict before unsupported',
-    fails: [NAMES.toolUnsupported],
-    fixture: variant(real => ({
-      commit: (async input => {
-        const command = input.command as SessionCommand
-        if (command.kind === 'stopCall' && command.input.producer.kind === 'tool') {
-          const known = await real.queryOperation({
-            ...input.access,
-            operation: command.input.operation,
-          })
-          if ('ok' in known && known.ok.kind === 'committed')
-            return fail({ kind: 'conflict' as const, operation: command.input.operation })
-        }
-        return real.commit(input)
       }) as Port['commit'],
     })),
   },

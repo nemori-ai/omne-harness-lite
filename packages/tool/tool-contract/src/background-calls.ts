@@ -83,6 +83,7 @@ const callShape: Check<ToolBackgroundCallsValue['calls'][number]> = record({
       'suspend',
       'wait-registration',
       'deliver',
+      'placeholder',
       'queue',
       'settle',
       'account',
