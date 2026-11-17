@@ -9,6 +9,7 @@ import {
   WAIT_REQUEST_MAX_BYTES,
   WAIT_RESPONSE_MAX_BYTES,
 } from '@omne-harness/tool-contract/provider'
+import { SEARCH_RANKING } from '../../src/entry/search-ranking.ts'
 import { resolveLocations } from '../../src/local/locations.ts'
 import { captureShellEnvironment, isSecretName } from '../../src/local/settings.ts'
 import {
@@ -218,6 +219,20 @@ describe('localOperatorLayer over the bundled distribution', () => {
         maxPendingAccounts: calls,
       },
     })
+  })
+
+  it('gives the skills row the assets root of the state and the shared search parameters, only when the release has the row', () => {
+    expect(configOf(layer, 'skills')).toEqual({
+      packageRoot: input('linux').locations.assetsRoot,
+      ranking: SEARCH_RANKING,
+    })
+    const without = localOperatorLayer({
+      ...input('linux'),
+      distribution: { rows: [{ id: 'session-handoff', config: { combinationVersion: 'v' } }] },
+    })
+    expect(without.ops.map(op => op.id)).toEqual(
+      layer.ops.map(op => op.id).filter(id => id !== 'skills' && id !== 'secret-custody'),
+    )
   })
 
   it('does not overwrite any key that the release gives a replaced row', () => {
