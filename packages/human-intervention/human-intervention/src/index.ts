@@ -1,4 +1,5 @@
 export * from './values.ts'
+export * from './decision.ts'
 export * from './commands.ts'
 export * from './card.ts'
 export * from './queries.ts'
