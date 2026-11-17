@@ -44,7 +44,11 @@ export function howArchived(entries: readonly HistoryEntry[]): 'person' | 'auto'
 function writeArchive(
   port: Executor,
   scope: Readonly<{ tenant: string; session: string }>,
-  change: Readonly<{ previous: WorkSnapshot | null; snapshot: WorkSnapshot; at: string | null }>,
+  change: Readonly<{
+    previous: Pick<WorkSnapshot, 'lifecycle'> | null
+    snapshot: Pick<WorkSnapshot, 'lifecycle'>
+    at: string | null
+  }>,
   entries: readonly HistoryEntry[],
 ): void {
   const { tenant, session } = scope
