@@ -1,5 +1,5 @@
 import { Button, LoadingState } from '@omne-harness/ui-kit'
-import { useState, type JSX, type KeyboardEvent } from 'react'
+import { useState, type JSX, type KeyboardEvent, type ReactNode } from 'react'
 import type { CardsDriver } from '../model/cards-driver.ts'
 import {
   EMPTY_DRAFT,
@@ -58,6 +58,104 @@ const switchesCards = (event: KeyboardEvent<HTMLElement>): boolean => {
   )
 }
 
+function nextMissing(
+  shown: readonly Shown[],
+  index: number,
+  missing: ReadonlySet<string>,
+): string | undefined {
+  return [...shown.slice(index + 1), ...shown.slice(0, index)].find(card => missing.has(card.key))
+    ?.key
+}
+
+type Choose = (key: string) => void
+
+function Strip({
+  shown,
+  index,
+  choose,
+}: {
+  readonly shown: readonly Shown[]
+  readonly index: number
+  readonly choose: Choose
+}): JSX.Element {
+  return (
+    <div className="hitl-strip" role="tablist" aria-label="题号">
+      {shown.map((card, at) => {
+        const mark = markOf(card)
+        return (
+          <Button
+            key={card.key}
+            variant="ghost"
+            size="compact"
+            role="tab"
+            className="hitl-strip-item"
+            data-mark={mark.state}
+            aria-selected={at === index}
+            onClick={() => choose(card.key)}
+          >
+            <span className="hitl-strip-number">{at + 1}</span>
+            <span className="hitl-strip-mark">{mark.text}</span>
+          </Button>
+        )
+      })}
+    </div>
+  )
+}
+
+function Stage({
+  many,
+  index,
+  go,
+  children,
+}: {
+  readonly many: boolean
+  readonly index: number
+  readonly go: (to: number) => void
+  readonly children: ReactNode
+}): JSX.Element {
+  return (
+    <div className="hitl-area-stage">
+      {many ? (
+        <Button variant="ghost" size="icon" aria-label="上一题" onClick={() => go(index - 1)}>
+          ‹
+        </Button>
+      ) : null}
+      {children}
+      {many ? (
+        <Button variant="ghost" size="icon" aria-label="下一题" onClick={() => go(index + 1)}>
+          ›
+        </Button>
+      ) : null}
+    </div>
+  )
+}
+
+function Foot({
+  sheet,
+  choose,
+  submit,
+}: {
+  readonly sheet: Sheet
+  readonly choose: Choose
+  readonly submit: () => void
+}): JSX.Element {
+  const firstMissing = sheet.missing[0]
+  return (
+    <div className="hitl-area-foot">
+      {sheet.running ? (
+        <LoadingState label="正在提交……" />
+      ) : firstMissing === undefined ? null : (
+        <Button variant="link" onClick={() => choose(firstMissing)}>
+          {`还差 ${sheet.missing.length} 题`}
+        </Button>
+      )}
+      <Button className="hitl-area-submit" disabled={!sheet.ready} onClick={submit}>
+        提交
+      </Button>
+    </div>
+  )
+}
+
 export function CardArea({ driver, state, group }: Props): JSX.Element | null {
   const [viewing, setViewing] = useState<string | null>(null)
   const sheet = sheetOf(state, group)
@@ -68,14 +166,11 @@ export function CardArea({ driver, state, group }: Props): JSX.Element | null {
   const current = shown[index]!
   const many = shown.length > 1
   const go = (to: number) => setViewing(shown[(to + shown.length) % shown.length]!.key)
-  const firstMissing = sheet.missing[0]
   const draft = (key: string, value: Draft, advance: boolean) => {
     driver.draft(key, value)
     if (!advance) return
-    const missing = new Set(sheetOf(driver.getState(), group).missing)
-    const order = [...shown.slice(index + 1), ...shown.slice(0, index)]
-    const next = order.find(card => missing.has(card.key))
-    if (next !== undefined) setViewing(next.key)
+    const next = nextMissing(shown, index, new Set(sheetOf(driver.getState(), group).missing))
+    if (next !== undefined) setViewing(next)
   }
   const disabled = sheet.running || (current.kind === 'pending' && busy(current.entry.submit))
   return (
@@ -87,34 +182,8 @@ export function CardArea({ driver, state, group }: Props): JSX.Element | null {
         go(event.key === 'ArrowLeft' ? index - 1 : index + 1)
       }}
     >
-      {many ? (
-        <div className="hitl-strip" role="tablist" aria-label="题号">
-          {shown.map((card, at) => {
-            const mark = markOf(card)
-            return (
-              <Button
-                key={card.key}
-                variant="ghost"
-                size="compact"
-                role="tab"
-                className="hitl-strip-item"
-                data-mark={mark.state}
-                aria-selected={at === index}
-                onClick={() => setViewing(card.key)}
-              >
-                <span className="hitl-strip-number">{at + 1}</span>
-                <span className="hitl-strip-mark">{mark.text}</span>
-              </Button>
-            )
-          })}
-        </div>
-      ) : null}
-      <div className="hitl-area-stage">
-        {many ? (
-          <Button variant="ghost" size="icon" aria-label="上一题" onClick={() => go(index - 1)}>
-            ‹
-          </Button>
-        ) : null}
+      {many ? <Strip shown={shown} index={index} choose={setViewing} /> : null}
+      <Stage many={many} index={index} go={go}>
         <CardView
           key={current.key}
           card={current}
@@ -124,29 +193,9 @@ export function CardArea({ driver, state, group }: Props): JSX.Element | null {
           driver={driver}
           onDraft={(value, advance) => draft(current.key, value, advance)}
         />
-        {many ? (
-          <Button variant="ghost" size="icon" aria-label="下一题" onClick={() => go(index + 1)}>
-            ›
-          </Button>
-        ) : null}
-      </div>
+      </Stage>
       {sheet.entries.length === 0 ? null : (
-        <div className="hitl-area-foot">
-          {sheet.running ? (
-            <LoadingState label="正在提交……" />
-          ) : firstMissing === undefined ? null : (
-            <Button variant="link" onClick={() => setViewing(firstMissing)}>
-              {`还差 ${sheet.missing.length} 题`}
-            </Button>
-          )}
-          <Button
-            className="hitl-area-submit"
-            disabled={!sheet.ready}
-            onClick={() => driver.submitGroup(group)}
-          >
-            提交
-          </Button>
-        </div>
+        <Foot sheet={sheet} choose={setViewing} submit={() => driver.submitGroup(group)} />
       )}
     </div>
   )

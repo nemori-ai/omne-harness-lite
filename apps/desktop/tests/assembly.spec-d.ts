@@ -1,10 +1,13 @@
-import { it } from 'vitest'
+import { expectTypeOf, it } from 'vitest'
 import { assetGovernanceKey, assetsCategoryPage } from '@omne-harness/assets-ui/cordis'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import { serviceKey } from '@omne-harness/shell-contract'
 
 it('the asset governance key fits the port MCP declares', () => {
-  createMcpUiModule({ page: assetsCategoryPage, governance: assetGovernanceKey })
+  expectTypeOf(createMcpUiModule).toBeCallableWith({
+    page: assetsCategoryPage,
+    governance: assetGovernanceKey,
+  })
 })
 
 it('a key for a port of another shape does not compile at the assembly', () => {
