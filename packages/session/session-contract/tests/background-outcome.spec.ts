@@ -110,6 +110,7 @@ function observation(
     operation: operationId(`entries-${name}`),
     after: String(after),
     through,
+    position: through,
     boundary: {
       execution: c.execution,
       channel: 'tool-received',

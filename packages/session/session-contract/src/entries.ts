@@ -272,6 +272,7 @@ export type SessionEntry =
       channel: SessionEntriesChannel
       after: string
       through: string
+      position: string
       boundary: Readonly<{ revision: string; executionEvidence: DurableEvidence; count: string }>
       interpreted: readonly Readonly<{ ordinal: string; key: string }>[]
     }>

@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
   AgentExecutionId,
@@ -6,8 +5,8 @@ import type {
   AgentJournalEntries,
   AgentJournalEntry,
   AgentMaterials,
-  ExecutionSnapshot,
   Failure,
+  JournalEntryItem,
   Material,
   ReceivedEntry,
 } from '@omne-harness/agent-contract'
@@ -30,7 +29,6 @@ import type {
   SessionEntriesStart,
   SessionFailure,
   SessionId,
-  SessionOperationId,
   SessionTransactionPort,
   WorkSnapshot,
 } from '@omne-harness/session-contract'
@@ -44,6 +42,7 @@ import {
 import { backgroundReminder } from './background-reminder.ts'
 import { canonical } from '../testing/canonical.ts'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
+import { entriesAfter, entriesBatch, progressOf, savedProgress } from './entries-window.ts'
 import { subscribePublished } from './published-queue.ts'
 
 const OWNER = 'session-adapters/tool-log'
@@ -85,31 +84,16 @@ export type ToolLogConsumed = Readonly<{
 }>
 
 type Answer<T> = Outcome<T, SessionFailure>
-const ENTRY_PAGE = 256
-
-async function committedEntries<P>(
-  read: AgentJournalEntries<P>['read'],
-  input: Readonly<{ principal: P; tenant: TenantId; execution: AgentExecutionId }>,
-): Promise<Outcome<readonly AgentJournalEntry[], Failure>> {
-  const found: AgentJournalEntry[] = []
-  let after: string | null = null
-  for (;;) {
-    const page = await read({ ...input, after, limit: ENTRY_PAGE })
-    if ('failure' in page) return page
-    found.push(...page.ok.items.map(item => item.entry))
-    if (page.ok.caughtUp) return succeed(found)
-    after = page.ok.next
-  }
-}
-
 type ToolEntry = ReceivedEntry &
   Readonly<{ delivery: Extract<ReceivedEntry['delivery'], { producer: 'tool' }> }>
+type ToolItem = Readonly<{ sequence: string; entry: ToolEntry }>
 type Step = Readonly<{ kind: 'item'; item: SessionEntriesItem }> | Readonly<{ kind: 'unbound' }>
 
 type Ports = Readonly<{
   readWork(access: SessionAccess<unknown>): Reply<WorkSnapshot>
   load: AgentJournal<unknown>['load']
   entries: AgentJournalEntries<unknown>['read']
+  receivedOf: AgentJournalEntries<unknown>['receivedOf']
   read: AgentMaterials<unknown, ContentBlock>['read']
   commitEntries: SessionTransactionPort<unknown>['commitEntries']
   stopped(): boolean
@@ -146,6 +130,8 @@ function isToolReceived(entry: AgentJournalEntry): entry is ToolEntry {
   return entry.kind === 'received' && entry.delivery.producer === 'tool'
 }
 
+const isToolItem = (item: JournalEntryItem): item is ToolItem => isToolReceived(item.entry)
+
 function runOf(work: WorkSnapshot, execution: string): RunId | null {
   if (work.run.kind === 'active' && work.run.execution.execution === execution) return work.run.run
   return work.executions?.find(item => item.execution.execution === execution)?.run ?? null
@@ -181,32 +167,6 @@ async function within<T>(
 
 const pause = (ms: number) =>
   ms === 0 ? Promise.resolve() : new Promise<void>(resolve => setTimeout(resolve, ms))
-
-function operationOf(
-  tenantText: string,
-  observation: Omit<SessionEntriesObservation, 'operation' | 'tenant'>,
-) {
-  const digest = createHash('sha256')
-    .update(canonical(['ad06/1', tenantText, observation]))
-    .digest('hex')
-  return `ad06_${digest}` as SessionOperationId
-}
-
-function headEvidence(
-  tenantText: string,
-  execution: string,
-  revision: string,
-  channel: readonly ToolEntry[],
-): DurableEvidence {
-  return {
-    owner: OWNER,
-    record: execution,
-    revision,
-    digest: createHash('sha256')
-      .update(canonical([tenantText, execution, revision, channel]))
-      .digest('hex'),
-  }
-}
 
 function materialDelivery(
   read: ToolDeliveryReader,
@@ -255,12 +215,8 @@ function interpretationOf(
   entry: ToolEntry,
   delivery: ToolDelivery<ContentBlock>,
   call: ToolCallId,
-  channel: readonly ToolEntry[],
+  backgrounded: boolean,
 ): SessionEntriesInterpretation[] {
-  const backgrounded = channel.some(
-    item =>
-      sameText(item.consumption, entry.consumption) && item.delivery.key.kind === 'placeholder',
-  )
   const producer = { kind: 'tool' as const, call: entry.delivery.key.reference }
   const source = entry.material
   const account = { kind: 'account' as const, producer, source }
@@ -288,6 +244,24 @@ function interpretationOf(
   }
 }
 
+function placeholderOf(
+  receivedOf: AgentJournalEntries<unknown>['receivedOf'],
+  access: SessionAccess<unknown>,
+  item: Readonly<{ execution: AgentExecutionId; entry: ToolEntry }>,
+): Promise<Outcome<boolean, Failure>> {
+  const { principal, tenant } = access
+  const { execution, entry } = item
+  return receivedOf({ principal, tenant, execution, consumption: entry.consumption }).then(found =>
+    'failure' in found
+      ? found
+      : succeed(
+          found.ok.some(
+            item => item.delivery.producer === 'tool' && item.delivery.key.kind === 'placeholder',
+          ),
+        ),
+  )
+}
+
 function createToolLogConsumption(
   given: SessionToolLogConsumptionInput,
   ports: Ports,
@@ -304,11 +278,10 @@ function createToolLogConsumption(
     access: SessionAccess<unknown>,
     tenantText: string,
     work: WorkSnapshot,
-    channel: readonly ToolEntry[],
-    at: number,
+    item: Readonly<{ execution: AgentExecutionId; entry: ToolEntry; ordinal: bigint }>,
   ): Promise<Answer<Step>> {
-    const entry = channel[at]!
-    const field = `entries[${at}]`
+    const { entry, ordinal } = item
+    const field = `entries[${ordinal - 1n}]`
     const { key } = entry.delivery
     const call = resolveToolInvocationRef(key.reference, access.tenant)
     if ('failure' in call)
@@ -343,13 +316,21 @@ function createToolLogConsumption(
       `${field}.material`,
     )
     if ('failure' in delivery) return delivery
+    const backgrounded =
+      delivery.ok.kind === 'result'
+        ? await bounded('agentJournalEntries.receivedOf', () =>
+            placeholderOf(ports.receivedOf, access, item),
+          )
+        : succeed(succeed(false))
+    if ('failure' in backgrounded) return backgrounded
+    if ('failure' in backgrounded.ok) return agentFailure('receivedOf', backgrounded.ok.failure)
     return succeed({
       kind: 'item',
       item: {
-        ordinal: String(at + 1),
+        ordinal: String(ordinal),
         key: canonical(key),
         fact: entry.material,
-        interpretation: interpretationOf(entry, delivery.ok, call.ok.call, channel),
+        interpretation: interpretationOf(entry, delivery.ok, call.ok.call, backgrounded.ok.ok),
       },
     })
   }
@@ -366,73 +347,49 @@ function createToolLogConsumption(
     const run = runOf(snapshot, target.execution)
     if (run === null)
       return unavailable('Session recorded no Run of this execution', 'session-history')
-    const loaded = await bounded('agentJournal.load', () =>
-      ports.load({
-        principal: access.principal,
-        tenant: access.tenant,
-        execution: target.execution,
-      }),
-    )
-    if ('failure' in loaded) return loaded
-    if ('failure' in loaded.ok) return agentFailure('load', loaded.ok.failure)
-    const execution: ExecutionSnapshot = loaded.ok.ok
     const reading = {
       principal: access.principal,
       tenant: access.tenant,
       execution: target.execution,
     }
+    const loaded = await bounded('agentJournal.load', () => ports.load(reading))
+    if ('failure' in loaded) return loaded
+    if ('failure' in loaded.ok) return agentFailure('load', loaded.ok.failure)
+    const { revision } = loaded.ok.ok
+    const saved = savedProgress(snapshot, run, target.execution, CHANNEL)
     const read = await bounded('agentJournalEntries.read', () =>
-      committedEntries(ports.entries, reading),
+      entriesAfter(ports.entries, reading, saved?.position ?? null),
     )
     if ('failure' in read) return read
     if ('failure' in read.ok) return agentFailure('load', read.ok.failure)
     const again = await bounded('agentJournal.load', () => ports.load(reading))
     if ('failure' in again) return again
     if ('failure' in again.ok) return agentFailure('load', again.ok.failure)
-    if (again.ok.ok.revision !== execution.revision)
+    if (again.ok.ok.revision !== revision)
       return unavailable('the execution changed while its entries were read')
-    const channel = read.ok.ok.filter(isToolReceived)
-    const saved = snapshot.entriesProgress?.find(
-      item => item.run === run && item.execution === target.execution && item.channel === CHANNEL,
-    )
+    const window = read.ok.ok.filter(isToolItem)
     const after = BigInt(saved?.through ?? '0')
-    const count = BigInt(channel.length)
-    if (count < after)
-      return unavailable('the saved progress passes the Tool entries of the execution')
-    const progress =
-      saved === undefined ? null : { through: saved.through, interpreted: saved.interpreted }
     const items: SessionEntriesItem[] = []
-    for (let at = Number(after); at < channel.length; at += 1) {
-      const step = await translate(access, tenantText, snapshot, channel, at)
+    for (const [at, { entry }] of window.entries()) {
+      const item = { execution: target.execution, entry, ordinal: after + BigInt(at) + 1n }
+      const step = await translate(access, tenantText, snapshot, item)
       if ('failure' in step) return step
       if (step.ok.kind === 'unbound') break
       items.push(step.ok.item)
     }
-    const waiting = channel.length - Number(after) - items.length
-    if (items.length === 0) return succeed({ progress, committed: false, waiting })
-    const range = {
-      session: target.session,
-      run,
-      execution: target.execution,
+    const waiting = window.length - items.length
+    if (items.length === 0)
+      return succeed({ progress: progressOf(saved), committed: false, waiting })
+    const { tenant, session, execution } = target
+    const batch = { owner: OWNER, tag: 'ad06', tenant, tenantText, session, run, execution }
+    const { observation, start } = entriesBatch({
+      ...batch,
       channel: CHANNEL,
-      after: after.toString(),
-      through: (after + BigInt(items.length)).toString(),
-      boundary: {
-        execution: target.execution,
-        channel: CHANNEL,
-        revision: execution.revision,
-        executionEvidence: headEvidence(tenantText, target.execution, execution.revision, channel),
-        count: count.toString(),
-      },
+      revision,
+      saved,
+      window,
       items,
-    } satisfies Omit<SessionEntriesObservation, 'operation' | 'tenant'>
-    const observation: SessionEntriesObservation = {
-      ...range,
-      tenant: target.tenant,
-      operation: operationOf(tenantText, range),
-    }
-    const start: SessionEntriesStart =
-      saved === undefined ? { kind: 'initial' } : { kind: 'saved', progress: saved }
+    })
     return commit(observation, start, waiting)
   }
 
@@ -532,6 +489,7 @@ export function createSessionToolLogConsumptionPlugin(input: SessionToolLogConsu
             readWork: access => session.work.readWork(access),
             load: value => journal.load(value),
             entries: value => entries.read(value),
+            receivedOf: value => entries.receivedOf(value),
             read: value => materials.read(value),
             commitEntries: value => transactions.commitEntries(value),
             stopped: () => stopped,

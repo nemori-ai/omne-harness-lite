@@ -75,6 +75,7 @@ export function projectSessionEntries(
 function checkForm(observation: SessionEntriesObservation): void {
   decimal(observation.after, 'after')
   decimal(observation.through, 'through')
+  nonempty(observation.position, 'position')
   decimal(observation.boundary.count, 'boundary.count')
   decimal(observation.boundary.revision, 'boundary.revision')
   observation.items.forEach((item, at) => {
@@ -188,8 +189,19 @@ function interpret(
   snapshot: WorkSnapshot,
   observation: SessionEntriesObservation,
 ): EntriesDecision {
-  const { tenant, session, operation, run, execution, channel, after, through, boundary, items } =
-    observation
+  const {
+    tenant,
+    session,
+    operation,
+    run,
+    execution,
+    channel,
+    after,
+    through,
+    position,
+    boundary,
+    items,
+  } = observation
   const out: EncodedEntry[] = []
   const admitted: Extract<RoutedInput, { kind: 'ordinary' }>[] = []
   // A placeholder and the outcome of its call may share one batch, so the background state
@@ -232,6 +244,7 @@ function interpret(
         channel,
         after,
         through,
+        position,
         boundary: {
           revision: boundary.revision,
           executionEvidence: boundary.executionEvidence,

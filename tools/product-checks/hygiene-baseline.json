@@ -539,13 +539,9 @@
         "count": 1,
         "longest": 427
       },
-      "packages/session/session-adapters/src/cordis/model-log-consumption.ts": {
-        "count": 1,
-        "longest": 173
-      },
       "packages/session/session-adapters/src/cordis/tool-log-consumption.ts": {
         "count": 1,
-        "longest": 187
+        "longest": 170
       },
       "packages/session/session-adapters/src/testing/factory.ts": {
         "count": 3,
@@ -585,7 +581,7 @@
       },
       "packages/session/session-contract/src/testing-entries.ts": {
         "count": 1,
-        "longest": 279
+        "longest": 262
       },
       "packages/session/session-contract/src/testing-history-source.ts": {
         "count": 2,

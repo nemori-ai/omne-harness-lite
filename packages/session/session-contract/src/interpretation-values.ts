@@ -41,6 +41,7 @@ export type SessionEntriesObservation = Omit<SessionAccess<never>, 'principal'> 
     operation: SessionOperationId
     after: string
     through: string
+    position: string
     boundary: SessionEntriesBoundary
     items: readonly SessionEntriesItem[]
   }>
@@ -50,6 +51,7 @@ export type SessionEntriesProgress = Readonly<{
   execution: string
   channel: SessionEntriesChannel
   through: string
+  position: string
   interpreted: DurableEvidence
 }>
 

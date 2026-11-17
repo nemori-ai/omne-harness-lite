@@ -94,6 +94,7 @@ async function opened() {
     operation: operationId('entries-1'),
     after: '0',
     through: '2',
+    position: '2',
     boundary: {
       execution,
       channel: 'tool-received',
@@ -270,6 +271,7 @@ describe('commitEntries accepts the outcome of a backgrounded call as an input',
       ...observation,
       operation: operationId('entries-placeholder'),
       through: '1',
+      position: '1',
       boundary: { ...observation.boundary, count: '1' },
       items: [
         {
@@ -290,6 +292,7 @@ describe('commitEntries accepts the outcome of a backgrounded call as an input',
       operation: operationId('entries-outcome'),
       after: '1',
       through: '2',
+      position: '2',
       boundary: { ...observation.boundary, revision: '2', count: '2' },
       items: [
         {

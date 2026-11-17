@@ -148,6 +148,7 @@ describe('the later interpretation commit on the real sqlite-provider', () => {
       operation: operationId(`entries-${after}`),
       after,
       through,
+      position: through,
       boundary: {
         execution: s.execution,
         channel: 'tool-received',
