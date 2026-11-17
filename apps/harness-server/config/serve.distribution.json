@@ -76,6 +76,11 @@
       "config": {}
     },
     {
+      "id": "asset-categories",
+      "plugin": "assetCategoriesRow",
+      "config": {}
+    },
+    {
       "id": "governance",
       "plugin": "governanceRow",
       "config": {

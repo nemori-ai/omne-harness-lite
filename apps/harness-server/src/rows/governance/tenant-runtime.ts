@@ -1,3 +1,4 @@
+import type { AssetsLocal } from '@omne-harness/assets-local'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import { createPermissionBasisRead, type PermissionOrigins } from './permission-basis-read.ts'
 import { GOVERNANCE_PROJECTION_READ } from './storage-materials.ts'
@@ -170,10 +171,13 @@ export type TenantSettingsAccess = Readonly<{
   writer: TenantSettingsWriter
 }>
 
+export type TenantAssetsAccess = Pick<AssetsLocal, 'readHolding'>
+
 /** Publish the durable settlement routes before open() can begin historical recovery. */
 export type TenantGovernanceAssembly = Readonly<{
   destination: StandingDestinationResolver
   settings?: TenantSettingsAccess
+  assets?: TenantAssetsAccess
   open(): Promise<
     | Awaited<ReturnType<typeof open>>
     | Readonly<{

@@ -1,14 +1,18 @@
 import type { Context, Plugin } from '@deepseek-ai/cordis'
 import { modelCredentialKey } from '@omne-harness/model-cordis-contract/cordis'
 import { createSecretCredentialPort } from '@omne-harness/model-host-local'
-import { serveModelCredential } from '@omne-harness/model-host-local/cordis'
+import {
+  modelProviderCategoryPlugin,
+  serveModelCredential,
+} from '@omne-harness/model-host-local/cordis'
+import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
 import { credentialProviders } from '../../assets/model-providers.ts'
 import { defineRow } from '../../row.ts'
 import { settingsSecretCustodyKey } from '../secret-custody/index.ts'
 
 const plugin: Plugin.Object = {
   name: 'model-credential',
-  inject: [settingsSecretCustodyKey],
+  inject: [settingsSecretCustodyKey, assetCategoriesKey],
   apply(ctx: Context) {
     const custody = ctx.settingsSecretCustody
     const port = createSecretCredentialPort({
@@ -16,6 +20,7 @@ const plugin: Plugin.Object = {
       providers: credentialProviders(),
     })
     serveModelCredential(ctx, port)
+    ctx.plugin(modelProviderCategoryPlugin)
   },
 }
 
@@ -24,7 +29,7 @@ export const modelCredentialRow = defineRow({
   implementation: 'real',
   manifest: {
     provides: [modelCredentialKey],
-    injects: [settingsSecretCustodyKey],
+    injects: [settingsSecretCustodyKey, assetCategoriesKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'none' },

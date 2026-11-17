@@ -30,6 +30,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     ],
     injects: ['tenantStanding', 'principalVerifier', 'identityClock', 'identityGovernance'],
   },
+  'asset-categories': { provides: ['assetCategories'] },
   governance: {
     provides: [
       'sessionPermissionBackend',
@@ -47,6 +48,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'governanceInstallationPrincipals',
       'identityGovernance',
       'toolContributionAuthority',
+      'assetCategories',
     ],
     phase: 'composition',
   },
@@ -237,7 +239,10 @@ const TABLE: Readonly<Record<string, Entry>> = {
     provides: ['modelRequestPreparation'],
     injects: ['modelCommands', 'modelTokenizers'],
   },
-  'model-credential': { provides: ['modelCredential'], injects: ['settingsSecretCustody'] },
+  'model-credential': {
+    provides: ['modelCredential'],
+    injects: ['settingsSecretCustody', 'assetCategories'],
+  },
   'secret-custody': { provides: ['settingsSecretCustody'] },
   settings: { provides: ['settingsSecretItems'], injects: ['settingsSecretCustody'] },
   'model-records': {

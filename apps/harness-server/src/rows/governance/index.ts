@@ -12,6 +12,8 @@ import {
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { fail } from '@omne-harness/operation-result'
 import { GovernanceIdSchema } from '@omne-harness/governance-contract'
+import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
+import { toolCategoryDisplay } from '@omne-harness/tool-contract'
 import { createSettingsRegistry } from '@omne-harness/settings'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { toolContributionAuthorityKey } from '@omne-harness/tool-cordis-contract/cordis'
@@ -29,6 +31,7 @@ import {
 } from './session-permission-backend-service.ts'
 import { createToolGovernanceDefinitionSource } from './tool-definition-source.ts'
 import { prepareInstalledTenantGovernance } from './tenant-installation.ts'
+import { createToolAssetCategory } from './tool-assets.ts'
 import { TenantGovernanceHost } from './tenant-host.ts'
 import { tenantDomainRegistrationKey } from './tenant-domain-registration-service.ts'
 import { openOrganizationSettingsSources } from './organization-settings.ts'
@@ -100,6 +103,7 @@ export const governanceRow = defineRow({
       governanceDirectoryPrincipalsKey,
       governanceInstallationPrincipalsKey,
       toolContributionAuthorityKey,
+      assetCategoriesKey,
     ],
     sameProviderGroup: null,
   },
@@ -109,6 +113,11 @@ export const governanceRow = defineRow({
     const release = releaseOf(ctx)
     const materials = await productionStorageCatalog(async () => release)
     if (release.kind !== 'trusted') throw new Error('governance Tool release unavailable')
+    ctx.assetCategories.contribute({
+      contract: createToolAssetCategory(release),
+      display: toolCategoryDisplay,
+    })
+    const categories = ctx.assetCategories.view
     const registry = createSettingsRegistry({ capacity: 1024 })
     ctx.effect(() => () => registry.close(), 'governance.settings-registry.close')
     for (const entry of release.manifest.entries)
@@ -153,6 +162,7 @@ export const governanceRow = defineRow({
           installationPrincipal,
           login: () => ctx.identityGovernance,
           release,
+          categories,
           permissionOrigins: () => permissionOriginsOf(ctx),
           organizationTargets: sources.targets,
           scope,

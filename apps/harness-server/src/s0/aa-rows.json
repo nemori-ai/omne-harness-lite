@@ -6,6 +6,7 @@
     "identity",
     "authorization",
     "session-storage",
+    "asset-categories",
     "governance",
     "session-provider",
     "session-ad02",

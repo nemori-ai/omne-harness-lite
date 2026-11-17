@@ -1,5 +1,5 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
-import { canonicalText, referenceAdmissionCheck } from '@omne-harness/authorization'
+import { referenceAdmissionCheck } from '@omne-harness/authorization'
 import type { GovernanceScope } from '@omne-harness/governance-contract'
 import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -13,7 +13,6 @@ import type { ToolRelease } from '../../entry/tool-release.ts'
 import { createSettingsGuard } from '../authorization/settings-access.ts'
 import type { TenantGovernanceHost } from './tenant-host.ts'
 import { createTenantSettingsPermissions } from './tenant-settings-permissions.ts'
-import { toolAssetTarget } from './tool-installation-assets.ts'
 
 type Face = TenantSettings<unknown>
 
@@ -51,7 +50,7 @@ class TenantSettingsImpl extends TenantSettingsService {
 }
 
 export type TenantSettingsServiceOptions = Readonly<{
-  host: Pick<TenantGovernanceHost, 'settings'>
+  host: Pick<TenantGovernanceHost, 'settings' | 'assets'>
   scope: Pick<GovernanceScope, 'deploymentId' | 'logicalServiceId'>
   storage: Pick<SqlStorage, 'read'>
   release(): ToolRelease | undefined
@@ -80,15 +79,20 @@ export function createTenantSettingsFace(options: TenantSettingsServiceOptions):
         const settings = await settingsOf(tenant)
         return settings === undefined ? unavailable : settings.read(request)
       },
-      assetOf(view): TenantSettingsAssetRef | undefined {
-        const release = options.release()
-        if (release?.kind !== 'trusted') return undefined
-        const entry = release.manifest.entries.find(
-          value =>
-            canonicalText(toolAssetTarget(value, view.target.scopeRef)) ===
-            canonicalText(view.target),
-        )
-        return entry === undefined ? undefined : { category: 'tool', name: entry.asset.name }
+      async assetOf(tenant, view): Promise<TenantSettingsAssetRef | undefined> {
+        if (view.target.policyId !== 'asset') return undefined
+        const tenantRef = tenantCodec.encode(tenant)
+        const assets = tenantRef.ok ? await options.host.assets(tenantRef.value) : undefined
+        if (assets === undefined) throw new Error('the assets of the tenant are unavailable')
+        const read = await assets.readHolding({
+          holdingRef: view.target.targetRef,
+          scopeRef: view.target.scopeRef,
+        })
+        if (read.kind === 'absent') return undefined
+        if (read.kind !== 'holding') throw new Error(`the holding cannot be read: ${read.reason}`)
+        return read.holding.state === 'held'
+          ? { category: read.holding.category, name: read.holding.name }
+          : undefined
       },
     },
     permissions: createTenantSettingsPermissions(options),

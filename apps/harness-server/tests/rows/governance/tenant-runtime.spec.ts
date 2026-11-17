@@ -224,6 +224,17 @@ async function world(extraParticipants: SqlMaterialCatalog['participants'] = [])
       return result.ok
     },
     installationPrincipal: installation.ok,
+    loginPrincipal() {
+      const actor = authority.issuer.issueSystem({ component: 'identity-login-fixture' })
+      if ('failure' in actor) throw new Error('login actor')
+      const result = authority.issuer.issueActingForTenant({
+        actor: actor.ok,
+        tenant: principal.tenant,
+        work: { owner: 'identity-login', work: 'lgn_runtime' },
+      })
+      if ('failure' in result) throw new Error('login principal')
+      return result.ok
+    },
     directory,
     async reopenStorage() {
       await made.control.close({ initiator: 'disposal' })
@@ -678,12 +689,18 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
   if (sources.kind !== 'created') throw new Error(JSON.stringify(sources))
   cleanup.push(sources.close)
   const targets = sources.targets
+  const categories = createCategoryPoint()
+  categories.contribute({
+    contract: createToolAssetCategory(w.release),
+    display: toolCategoryDisplay,
+  })
   function prepare(organizationTargets = targets) {
     const prepared = prepareInstalledTenantGovernance({
       ...w.options,
       installationPrincipal: w.installationPrincipal,
       release: w.release,
       organizationTargets,
+      categories,
       registry,
       clock: { now: () => 1794096000000 },
       cursorLifetimeMs: 60000,
@@ -691,7 +708,7 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
     w.setDestination(prepared.destination)
     return prepared
   }
-  return { w, sources, prepare }
+  return { w, sources, prepare, registry, categories }
 }
 
 it('installs the actual Tool release and adopts its original holdings before exposing the tenant backend', async () => {

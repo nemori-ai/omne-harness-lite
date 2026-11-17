@@ -1,19 +1,18 @@
-import { createCategoryPoint } from '@omne-harness/assets'
+import type { CategoryView } from '@omne-harness/assets'
 import { createAssetsLocal } from '@omne-harness/assets-local'
-import { toolCategoryDisplay } from '@omne-harness/tool-contract'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import type { createStandaloneSettingsOwner } from '@omne-harness/settings-local'
 import type { ToolRelease } from '../../entry/tool-release.ts'
-import { createToolAssetCategory } from './tool-assets.ts'
 import { governanceStorageCombinations } from './storage-combinations.ts'
 import { installToolGovernance, toolInstallationGrants } from './tool-installation.ts'
-import type { TenantGovernanceAssembly } from './tenant-runtime.ts'
+import type { TenantAssetsAccess, TenantGovernanceAssembly } from './tenant-runtime.ts'
 import { prepareTenantGovernanceWithSettings } from './tenant-settings.ts'
 
 export type InstalledTenantOptions = Parameters<typeof prepareTenantGovernanceWithSettings>[0] & {
   installationPrincipal: ActingForTenantPrincipal
   release: Extract<ToolRelease, { kind: 'trusted' }>
   organizationTargets: ReturnType<typeof createStandaloneSettingsOwner>
+  categories: Pick<CategoryView, 'lookup'>
 }
 
 export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) {
@@ -22,16 +21,11 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
     scope: structuredClone(input.scope),
     domain: structuredClone(input.domain),
   }
-  const categories = createCategoryPoint()
-  categories.contribute({
-    contract: createToolAssetCategory(options.release),
-    display: toolCategoryDisplay,
-  })
   const assets = createAssetsLocal({
     ...governanceStorageCombinations(options.materials).assets,
     domain: options.domain,
     storage: options.storage,
-    categories,
+    categories: options.categories,
   })
   const assembly = prepareTenantGovernanceWithSettings({
     ...options,
@@ -85,5 +79,6 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
         }
   }
   let opening: ReturnType<typeof open> | undefined
-  return { ...assembly, open: () => (opening ??= open()) }
+  const holdings: TenantAssetsAccess = { readHolding: input => assets.readHolding(input) }
+  return { ...assembly, assets: holdings, open: () => (opening ??= open()) }
 }

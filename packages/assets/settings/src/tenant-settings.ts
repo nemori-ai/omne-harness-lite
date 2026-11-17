@@ -133,7 +133,7 @@ export interface TenantSettingsPrincipals<P> {
 }
 export type TenantSettingsCatalog = SettingsReadPort<TenantId> &
   Readonly<{
-    assetOf(view: SettingsTargetView): TenantSettingsAssetRef | undefined
+    assetOf(tenant: TenantId, view: SettingsTargetView): Promise<TenantSettingsAssetRef | undefined>
   }>
 export interface TenantSettingsPermissions {
   kindOf(input: Readonly<{ view: SettingsTargetView; itemId: string }>): 'permission' | 'ordinary'
@@ -353,9 +353,15 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
       return undefined
     }
     if ('kind' in basis) return undefined
+    let assets: readonly (TenantSettingsAssetRef | undefined)[]
+    try {
+      assets = await Promise.all(basis.views.map(view => catalog.assetOf(tenant, view)))
+    } catch {
+      return undefined
+    }
     const found: Entry[] = []
-    for (const view of basis.views) {
-      const asset = catalog.assetOf(view)
+    for (const [index, view] of basis.views.entries()) {
+      const asset = assets[index]
       if (asset === undefined) continue
       const evaluated = evaluateSettings({
         definition: view.definition,
