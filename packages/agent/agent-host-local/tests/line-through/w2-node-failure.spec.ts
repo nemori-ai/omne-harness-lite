@@ -16,7 +16,7 @@ it('keeps a cancelled producer callback away from the next Run', async () => {
   const admissions: ModelAdmission[] = []
   const replays: Array<() => Promise<unknown>> = []
   const w = await openW2World({
-    receptionTargets: 'journal',
+    reception: 'routed',
     wrapModelReceiver: receiver => ({
       ...receiver,
       async push(input) {
@@ -229,7 +229,7 @@ it.each([false, true])(
     const firstExecutions: AgentExecutionId[] = []
     let failed = false
     const w = await openW2World({
-      receptionTargets: 'journal',
+      reception: 'routed',
       model: a => ({
         parts: [replyText(`reply-${a.index}`, `answer ${a.index}`)],
         reason: 'stop',

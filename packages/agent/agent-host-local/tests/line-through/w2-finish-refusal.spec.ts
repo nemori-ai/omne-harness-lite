@@ -7,7 +7,7 @@ it('waits on Session pending input without replacing the completion candidate', 
   let injected = false
   const handIn = Promise.withResolvers<void>()
   const w = await openW2World({
-    receptionTargets: 'journal',
+    reception: 'routed',
     model: a => ({ parts: [replyText(`reply-${a.index}`, 'recovered answer')], reason: 'stop' }),
     wrapAgentDependencies: dependencies => ({
       ...dependencies,
