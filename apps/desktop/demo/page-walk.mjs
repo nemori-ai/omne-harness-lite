@@ -11,6 +11,7 @@ import {
   writeOperator,
 } from '../../harness-server/tests/r9/support.ts'
 import { accessProtocol } from '@omne-harness/public-contract'
+import { createClient } from '@omne-harness/sdk/core'
 import { httpServer, memoryCredentialStore, openLoginSession } from '../dist/main-core/index.js'
 import { domainProtocols } from '../dist/shared/protocols.js'
 import { createWebHost } from '../dist/web-host/server.js'
@@ -403,7 +404,10 @@ async function walk(browser, origin, proofs) {
       const found = page.querySelectorAll('[role=tablist][aria-label="资产的类别"] [role=tab]')
       return found.length > 0 ? [...found].map(tab => tab.textContent) : undefined
     })
-    if (!tabs.includes('MCP')) throw new Error('no MCP tab: ' + JSON.stringify(tabs))
+    for (const name of ['工具', '模型供应商', '偏好', 'MCP'])
+      if (!tabs.includes(name)) throw new Error('no ' + name + ' tab: ' + JSON.stringify(tabs))
+    for (const id of ['tool', 'model-provider', 'preference'])
+      if (tabs.includes(id)) throw new Error('the tab ' + id + ' shows its identifier, not the name from the server')
     const order = nav()
     if (!(order.indexOf('待你决定') < order.indexOf('资产') && order.indexOf('资产') < order.indexOf('设置')))
       throw new Error('the asset page is not between the decisions and the settings: ' + JSON.stringify(order))
@@ -735,6 +739,25 @@ async function walk(browser, origin, proofs) {
   )
 }
 
+const CATEGORIES = [
+  ['model-provider', '模型供应商'],
+  ['preference', '偏好'],
+  ['tool', '工具'],
+]
+
+async function listCategories(session) {
+  const assets = domainProtocols.find(protocol => protocol.name === 'assets')
+  const answer = await createClient(assets, session.transport)['list-categories']({
+    after: null,
+    limit: 100,
+  })
+  const page = answer.outcome === 'succeeded' ? answer.body : undefined
+  const listed = page?.items.map(item => [item.category, item.title])
+  if (page?.next !== null || JSON.stringify(listed) !== JSON.stringify(CATEGORIES))
+    throw new Error('list-categories answered ' + JSON.stringify(answer))
+  print(`list-categories: ${JSON.stringify(listed)}`)
+}
+
 const scratch = newScratch('page-walk-')
 const profile = mkdtempSync(join(tmpdir(), 'page-walk-chrome-'))
 let gateway
@@ -782,6 +805,7 @@ try {
   browser = await devtools(chrome.port)
   await walk(browser, `http://127.0.0.1:${hostPort}/`, proofs)
   print(`walk: all steps passed; ${proofs.size} login proof(s) were searched for`)
+  await listCategories(session)
   code = 0
 } catch (failure) {
   print(`failed: ${failure instanceof Error ? failure.message : String(failure)}`)

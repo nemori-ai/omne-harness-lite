@@ -120,6 +120,7 @@ flowchart LR
   storage --> identity
   storage --> session-storage
   storage --> governance
+  asset-categories -->|assetCategories| governance
   identity -->|standingReservations 与 tenantStanding| governance
   session-storage -->|tenantDomainLookup| governance
   governance -. sessionPermissionBackend .-> session-storage
@@ -214,6 +215,7 @@ flowchart LR
   server-entry --> assets-access
   identity -.-> assets-access
   governance -.-> assets-access
+  asset-categories -.-> assets-access
   server-entry --> human-intervention-access
   identity -.-> human-intervention-access
   server-entry --> session-diagnostics-access
