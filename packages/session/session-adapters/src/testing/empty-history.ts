@@ -37,6 +37,14 @@ export function emptyHistory(
   }))
   return {
     index: { root, inputs, executions: [], attempts: [], batches: [], taken: [] },
-    reads: { root, scope, admissions: [], prefixes: [], attempts: [], taken: [] },
+    reads: {
+      root,
+      scope,
+      admissions: [],
+      prefixes: [],
+      attempts: [],
+      taken: [],
+      uninterpreted: [],
+    },
   }
 }
