@@ -238,7 +238,7 @@
 - `WorkspaceAttachment` · `values.d.ts`
 - `backgroundCalls` · `call-control.d.ts`
 - `backgroundInputId` · `background-outcome.d.ts`
-- `batchEvidence` · `reduce.d.ts`
+- `batchEvidence` · `batch-evidence.d.ts`
 - `commandDigest` · `decide.d.ts`
 - `compactionCallChangeOf` · `work-entry-state.d.ts`
 - `compactionContextForView` · `model-view.d.ts`
@@ -517,6 +517,14 @@ export declare function applyBackgroundSettled(draft: Draft, entry: Extract<Sess
 }>): string | null;
 export declare function pruneBackgroundInputs(draft: Draft): void;
 export {};
+```
+
+## 声明文件 `batch-evidence.d.ts`
+
+```ts
+import type { DurableEvidence } from './identity.ts';
+import type { CommittedBatch } from './judgments.ts';
+export declare function batchEvidence(batch: CommittedBatch, session: string): DurableEvidence;
 ```
 
 ## 声明文件 `block.d.ts`
@@ -1933,7 +1941,8 @@ export { sessionModesBlock } from './block.ts';
 export { expectedHolds, expectedRevision, judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, judgeWaiting, openWork, resolveCascade, resolveControlScope, resolveOperation, routeInput, type AdvanceClaim, type AdvanceJudgment, type CommittedBatch, type CompletionJudgment, type ControlScope, type DecideReads, type Decision, type EncodedEntry, type IdleJudgment, type OpenWork, type OperationJudgment, type OperationRecord, type ReduceResult, type RouteJudgment, type RunStartJudgment, } from './judgments.ts';
 export { decide, commandDigest } from './decide.ts';
 export { runCancelledBy } from './decision-support.ts';
-export { batchEvidence, reduce } from './reduce.ts';
+export { batchEvidence } from './batch-evidence.ts';
+export { reduce } from './reduce.ts';
 export { decideCompactionCommit, projectCompactionCommit, type CompactionCommitState, } from './compaction-commit.ts';
 export { expandHistoryEntries } from './entries.ts';
 export { CONTEXT_SCOPE_KINDS, contextScopeOf, contextScopesOf, type SessionContextScope, } from './context-scopes.ts';
@@ -3105,18 +3114,16 @@ export {};
 
 ```ts
 import type { SessionHistoryReads } from './history-values.ts';
-import type { DurableEvidence } from './identity.ts';
 import type { WorkSnapshot } from './values.ts';
 import type { CommittedBatch, ReduceResult } from './judgments.ts';
-export declare function batchEvidence(batch: CommittedBatch, session: string): DurableEvidence;
 export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBatch, reads?: SessionHistoryReads): ReduceResult;
 ```
 
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:64f9b49019a0c848867e71cea112b63c7b38644e8422314d768ba1035f2340c0";
-export declare const SESSION_RELEASE_DIGEST = "sha256:64f9b49019a0c848867e71cea112b63c7b38644e8422314d768ba1035f2340c0";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:af2795969ea4540e4a817d204a32afe35edfdae1ca25346e88e1fa230ae23e1d";
+export declare const SESSION_RELEASE_DIGEST = "sha256:af2795969ea4540e4a817d204a32afe35edfdae1ca25346e88e1fa230ae23e1d";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -3375,6 +3382,25 @@ export interface SessionLogFixture<P> extends SessionTransactionsFixture<P> {
 }
 export declare function sessionLogConformance<P>(): readonly ConformanceCase<SessionLogFixture<P>>[];
 export declare function memorySessionLogFixture(): SessionLogFixture<string>;
+```
+
+## 声明文件 `testing-model-view-reads.d.ts`
+
+```ts
+import { type Outcome } from '@omne-harness/operation-result';
+import { type MaterializedModelView } from './model-view.ts';
+import type { HistoryEntry, SessionFailure, SessionHistory } from './faces.ts';
+import type { WorkSnapshot } from './values.ts';
+type ModelViewInput<P> = Parameters<SessionHistory<P>['readModelView']>[0];
+type CompactionContextInput<P> = Parameters<SessionHistory<P>['readCompactionContext']>[0];
+type Answer<P, K extends 'readModelView' | 'readCompactionContext'> = Awaited<ReturnType<SessionHistory<P>[K]>>;
+export declare function memoryModelViewPage<P>(view: MaterializedModelView, key: Outcome<string, SessionFailure>, input: ModelViewInput<P>): Answer<P, 'readModelView'>;
+export declare function memoryCompactionContext<P>(store: Readonly<{
+    entries: readonly HistoryEntry[];
+    snapshot: WorkSnapshot;
+    modelView: MaterializedModelView;
+}>, key: Outcome<string, SessionFailure>, input: CompactionContextInput<P>): Answer<P, 'readCompactionContext'>;
+export {};
 ```
 
 ## 声明文件 `testing-ports.d.ts`
