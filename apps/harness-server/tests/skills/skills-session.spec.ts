@@ -60,6 +60,7 @@ function step({ user, results }: Turn): readonly ScriptedToolCall[] {
           tool: 'Shell',
           arguments: JSON.stringify({
             command: 'execute',
+            intent: 'run the collector of the weekly-report Skill',
             params: { script: `${process.execPath} ${join(directory, 'scripts', 'collect.mjs')}` },
           }),
         },
@@ -145,6 +146,7 @@ describe('Skills in a real coding session', () => {
       expect(exits).toEqual([0, 0, 0])
       expect([...declared].sort()).toEqual([
         'Ask',
+        'BkgToolCalls',
         'Calendar',
         'Files',
         'Schedules',
