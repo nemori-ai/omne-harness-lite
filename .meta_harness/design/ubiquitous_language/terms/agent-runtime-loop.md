@@ -1017,7 +1017,7 @@
 > **EN**: A session subtype created to execute one job that requests a new session. It retains session identity and lifecycle semantics, with capabilities for reporting that job’s results and checking its objective.
 
 - **形态**：变体（父：[会话](#ul-session--会话--session)）
-- **出处**：[日程与作业：执行意图](../../product/schedules-and-jobs/design.md#execution-modes)（rev 4）
+- **出处**：[日程与作业：执行意图](../../product/schedules-and-jobs/design.md#execution-modes)（rev 5）
 - **别混**：它只对应 agent-new 路径。向已有会话提交 Job 不把该会话转换为作业会话，也不自动建立 parent-child 关系。
 
 返回[统一语言入口](../README.md) · [全部词条索引](../index.md)

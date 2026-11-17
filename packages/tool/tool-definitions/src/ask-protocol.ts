@@ -1,4 +1,9 @@
 import { writeJsonText } from '@omne-harness/json-text'
+import {
+  DECISION_REQUEST_MAX_BYTES,
+  type DecisionQuestion,
+  type DecisionRequest,
+} from '@omne-harness/human-intervention-tool'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { defineSchema, jsonSchemaDefinition } from '@omne-harness/schema-provider'
 import { canonicalDigest } from '@omne-harness/tool'
@@ -6,8 +11,6 @@ import type { ParameterContract } from '@omne-harness/tool-contract'
 import {
   createDefaultParameterCodec,
   describedAdoption,
-  type DecisionCard,
-  type DecisionCardRequest,
   type ParameterCodec,
   type ToolValueSchema,
 } from '@omne-harness/tool-contract/provider'
@@ -56,8 +59,7 @@ const OPTION_LIMIT = 4
 const TITLE_MAX = 256
 const TEXT_MAX = 4096
 const APPROVAL_FIELD_MAX = 1000
-export const ASK_REQUEST_MAX_BYTES = 196_608
-export const ASK_STATE_MAX_BYTES = ASK_REQUEST_MAX_BYTES
+export const ASK_STATE_MAX_BYTES = DECISION_REQUEST_MAX_BYTES
 
 const QUESTION_DECLINE = '跳过此题，不作答'
 const APPROVAL_DECLINE = '不作准驳，这个动作不会执行'
@@ -80,13 +82,13 @@ function questionCard(
   question: AskQuestionInput,
   at: string,
   index: number,
-): Outcome<DecisionCard, string> {
+): Outcome<DecisionQuestion, string> {
   if (!validText(question.title, TITLE_MAX)) return fail(invalidField(`${at}.title`))
   if (!validText(question.description, TEXT_MAX)) return fail(invalidField(`${at}.description`))
   if (question.options.length < OPTION_MIN || question.options.length > OPTION_LIMIT)
     return fail(invalidField(`${at}.options`))
   const labels = new Set<string>()
-  const options: DecisionCard['options'][number][] = []
+  const options: DecisionQuestion['options'][number][] = []
   for (const [position, option] of question.options.entries()) {
     const where = `${at}.options[${position}]`
     if (!validText(option.label, TITLE_MAX) || labels.has(option.label))
@@ -114,7 +116,7 @@ function questionCard(
   })
 }
 
-function approvalCard(input: AskApprovalInput): Outcome<DecisionCard, string> {
+function approvalCard(input: AskApprovalInput): Outcome<DecisionQuestion, string> {
   if (!validText(input.action, TITLE_MAX)) return fail(invalidField('action'))
   for (const field of ['reason', 'impact', 'reversibility', 'fallback'] as const)
     if (!validText(input[field], APPROVAL_FIELD_MAX)) return fail(invalidField(field))
@@ -133,8 +135,8 @@ function approvalCard(input: AskApprovalInput): Outcome<DecisionCard, string> {
   })
 }
 
-export function askCards(args: AskArguments): Outcome<readonly DecisionCard[], string> {
-  let cards: DecisionCard[]
+export function askCards(args: AskArguments): Outcome<readonly DecisionQuestion[], string> {
+  let cards: DecisionQuestion[]
   if (args.command === 'request_approval') {
     const card = approvalCard(args)
     if ('failure' in card) return card
@@ -149,13 +151,13 @@ export function askCards(args: AskArguments): Outcome<readonly DecisionCard[], s
       cards.push(card.ok)
     }
   }
-  const request: DecisionCardRequest = { questions: cards }
-  return encoder.encode(JSON.stringify(request)).byteLength > ASK_REQUEST_MAX_BYTES
+  const request: DecisionRequest = { questions: cards }
+  return encoder.encode(JSON.stringify(request)).byteLength > DECISION_REQUEST_MAX_BYTES
     ? fail('request-too-large')
     : succeed(cards)
 }
 
-export function askState(command: AskCommand, cards: readonly DecisionCard[]): AskState {
+export function askState(command: AskCommand, cards: readonly DecisionQuestion[]): AskState {
   return {
     command,
     questions: cards.map(card => ({
@@ -247,7 +249,7 @@ function shapeOf(command: AskCommand, value: unknown): Shape<AskArguments> {
 }
 
 const json = createDefaultParameterCodec({
-  maxBytes: ASK_REQUEST_MAX_BYTES,
+  maxBytes: DECISION_REQUEST_MAX_BYTES,
   maxDepth: 8,
   maxItems: 32_768,
   maxMembers: 16,

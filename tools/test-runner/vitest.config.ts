@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
         pythonToolingRoot:
           process.env['OMNE_RUNNER_ROOT'] ?? fileURLToPath(new URL('../../', import.meta.url)),
       },
-      setupFiles: ['./tests/setup-environment.ts'],
+      setupFiles: [...tiers.setupFiles, './tests/setup-environment.ts'],
       include: ['tests/**/*.spec.ts'],
       typecheck: {
         ...tiers.typecheck,

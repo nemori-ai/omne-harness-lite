@@ -51,9 +51,19 @@ export const VITEST_DEFAULT_EXCLUDE = ['**/node_modules/**', '**/.git/**'] as co
  */
 export const TEST_REPORT_DIR_ENV = 'OMNE_TEST_REPORT_DIR'
 
+/** 运行器在准入时把它设成 `1`：这一轮的 vitest 记下每份用例文件的读集，写进报告目录的 `<成员>.reads.json`。 */
+export const READ_SETS_ENV = 'OMNE_TEST_READ_SETS'
+
 const REPOSITORY_ROOT = fileURLToPath(new URL('.', import.meta.url))
 const TIMING_REPORTER = join(REPOSITORY_ROOT, 'tools/test-runner/src/testing/timing-reporter.ts')
 const FILTER_GUARD = join(REPOSITORY_ROOT, 'tools/test-runner/src/testing/filter-guard.ts')
+const READ_RECORDER = join(REPOSITORY_ROOT, 'tools/test-runner/src/testing/read-recorder.ts')
+const READ_SET_REPORTER = join(
+  REPOSITORY_ROOT,
+  'tools/test-runner/src/testing/read-set-reporter.ts',
+)
+/** vitest 的导入表缺省只留耗时最长的几项；记读集要全部，上限给一个到不了的数。 */
+const EVERY_IMPORT = 1_000_000
 
 /** vitest 命令行上的过滤：`-t`（`--testNamePattern`）给的用例名，与位置参数给的文件过滤。 */
 export interface CliFilters {
@@ -240,15 +250,17 @@ type ReporterEntry =
   | [string, { outputFile: string }]
   | [string, { testNames: string[]; files: string[] }]
 
-/** 设了报告目录时挂上的报告器、报告路径与测试进程的环境。 */
+/** 设了报告目录时挂上的报告器、报告路径与测试进程的环境；记读集时另有记录器与导入表的上限。 */
 interface Reporting {
   readonly reporters?: ReporterEntry[]
   readonly outputFile?: { readonly json: string }
   readonly env?: Readonly<Record<string, string>>
+  readonly setupFiles?: string[]
+  readonly experimental?: { readonly importDurations: { readonly limit: number } }
 }
 
 /** 成员配置在 `test` 里展开的部分；根目录不依赖 vitest，这里只写结构（数组不标 readonly，vitest 的配置类型要可变数组）。 */
-export interface TestTiers extends Reporting {
+export interface TestTiers extends Omit<Reporting, 'setupFiles' | 'experimental'> {
   readonly tags: {
     readonly name: string
     readonly description: string
@@ -258,9 +270,14 @@ export interface TestTiers extends Reporting {
   readonly testTimeout: number
   readonly exclude: string[]
   readonly typecheck: { readonly exclude: string[] }
+  /** 共用的 setup 文件。成员有自己的 setup 文件时写成 `[...tiers.setupFiles, 自己的]`，不要盖掉它。 */
+  readonly setupFiles: string[]
   readonly tagsFilter?: string[]
   readonly passWithNoTests?: boolean
-  readonly experimental?: { readonly preParse: boolean }
+  readonly experimental?: {
+    readonly preParse?: boolean
+    readonly importDurations?: { readonly limit: number }
+  }
 }
 
 /**
@@ -282,14 +299,31 @@ function guarded(base: Reporting, filters: CliFilters): Reporting {
   }
 }
 
-function reporting(reportDirectory: string | undefined, memberDirectory: string): Reporting {
+function reporting(
+  reportDirectory: string | undefined,
+  memberDirectory: string,
+  readSets: boolean,
+): Reporting {
   if (reportDirectory === undefined || reportDirectory === '') return {}
   const prefix = join(reportDirectory, reportSlug(memberDirectory))
   return {
-    reporters: ['default', 'json', [TIMING_REPORTER, { outputFile: `${prefix}.timing.json` }]],
+    reporters: [
+      'default',
+      'json',
+      [TIMING_REPORTER, { outputFile: `${prefix}.timing.json` }],
+      ...(readSets
+        ? [[READ_SET_REPORTER, { outputFile: `${prefix}.reads.json` }] satisfies ReporterEntry]
+        : []),
+    ],
     outputFile: { json: `${prefix}.json` },
-    // 报告目录只给这一轮的 vitest：测试进程及其子进程里置空，测试起的夹具 vitest 不往这里写报告。
-    env: { [TEST_REPORT_DIR_ENV]: '' },
+    // 报告目录只给这一轮的 vitest：测试进程及其子进程里置空，测试起的夹具 vitest 不往这里写报告、不记读集。
+    env: { [TEST_REPORT_DIR_ENV]: '', [READ_SETS_ENV]: '' },
+    ...(readSets
+      ? {
+          setupFiles: [READ_RECORDER],
+          experimental: { importDurations: { limit: EVERY_IMPORT } },
+        }
+      : {}),
   }
 }
 
@@ -303,6 +337,16 @@ export function testTiers(
     throw new Error(`vitest 的 mode 只能是 ${TEST_TIERS.join('、')} 或不给，现在是 ${mode}`)
   const filters = cliFilters(argv)
   const filtered = filters.testNames.length > 0 || filters.files.length > 0
+  const { experimental: recording, ...reported } = guarded(
+    reporting(env[TEST_REPORT_DIR_ENV], memberDirectory, env[READ_SETS_ENV] === '1'),
+    filters,
+  )
+  // 整个文件都被滤掉时不导入它。它静态地读标签与用例名：标签要写成字面量；按用例名过滤时，
+  // `test.each` 生成的名字与变量给的名字它匹配不到，会把整个文件滤掉（#737），所以带 `-t` 时关掉。
+  const experimental = {
+    ...recording,
+    ...(mode === DEFAULT_MODE ? {} : { preParse: filters.testNames.length === 0 }),
+  }
   return {
     tags: [
       {
@@ -318,7 +362,8 @@ export function testTiers(
     testTimeout: FAST_TEST_TIMEOUT_MS,
     exclude: [...VITEST_DEFAULT_EXCLUDE, ARCHIVE_EXCLUDE],
     typecheck: { exclude: [...VITEST_DEFAULT_EXCLUDE, ARCHIVE_EXCLUDE] },
-    ...guarded(reporting(env[TEST_REPORT_DIR_ENV], memberDirectory), filters),
+    setupFiles: [],
+    ...reported,
     ...(mode === DEFAULT_MODE
       ? {}
       : {
@@ -326,9 +371,7 @@ export function testTiers(
           // 不带过滤时，一层里可能一个测试都不剩（成员没有慢测试，或全是慢测试）：那不是失败。
           // 带了过滤还一个文件都不剩，是过滤没选中：判失败。
           passWithNoTests: !filtered,
-          // 整个文件都被滤掉时不导入它。它静态地读标签与用例名：标签要写成字面量；按用例名过滤时，
-          // `test.each` 生成的名字与变量给的名字它匹配不到，会把整个文件滤掉（#737），所以带 `-t` 时关掉。
-          experimental: { preParse: filters.testNames.length === 0 },
         }),
+    ...(Object.keys(experimental).length === 0 ? {} : { experimental }),
   }
 }

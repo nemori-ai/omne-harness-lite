@@ -1,4 +1,5 @@
 import {
+  DecisionRequestSchema,
   InvalidateWaitSchema,
   OperationRefSchema,
   OriginSchema,
@@ -6,6 +7,7 @@ import {
   RegisterRequestSchema,
   type CommandResult,
   type Decision,
+  type DecisionRequest,
   type InvalidateWait,
   type OperationInspection,
   type RegisterRequest,
@@ -15,6 +17,7 @@ import {
   IndependentCommandSchema,
   type IndependentCommand,
 } from '@omne-harness/human-intervention-local'
+import { hitlDecisionWait } from '@omne-harness/human-intervention-tool'
 import { standingPrincipalRef } from '@omne-harness/identity'
 import { readJsonText } from '@omne-harness/json-text'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -81,15 +84,15 @@ export function runOf(work: WorkSnapshot, execution: string): string | undefined
   return work.executions?.find(item => item.execution.execution === execution)?.run
 }
 
-function questionsOf(original: string): unknown {
+function questionsOf(original: string): Questions | undefined {
+  let value: unknown
   try {
-    const parsed: unknown = JSON.parse(original)
-    return typeof parsed === 'object' && parsed !== null && 'questions' in parsed
-      ? parsed.questions
-      : undefined
+    value = JSON.parse(original)
   } catch {
     return undefined
   }
+  const parsed = DecisionRequestSchema.safeParse(value)
+  return parsed.success ? parsed.data.questions : undefined
 }
 
 type Registration = Readonly<{
@@ -147,6 +150,29 @@ function decisionOf(batch: readonly Decided[]): Outcome<DecisionValue, ToolFailu
 type Access = Readonly<{ principal: unknown; tenant: TenantId; call: ToolCallId }>
 type FindWait = (recovery: Pick<ToolRecovery, 'waits' | 'tasks'>) => ToolWaitId | undefined
 
+type Questions = DecisionRequest['questions']
+type AskIntent = Extract<Recovery['waits'][number]['intent'], { kind: 'ask' }>
+
+function keptQuestions(
+  fixed: Recovery,
+  wait: ToolWaitId,
+  intent: AskIntent,
+  request: DurableEvidence | null,
+): Outcome<Questions, ToolFailure> {
+  if (canonicalDigest(intent.schemas.contract) !== canonicalDigest(hitlDecisionWait.adoption))
+    return invalid('wait', 'the wait is not a decision wait of human intervention')
+  if (request !== null && canonicalDigest(intent.request) !== canonicalDigest(request))
+    return invalid('request', 'the request is not the request of the wait')
+  const kept = fixed.waitRequest
+  if (kept === null || kept.wait !== wait) return invalid('request', 'the wait request is not kept')
+  if (canonicalDigest(kept.request) !== intent.request.digest)
+    return invalid('request', 'the kept request is not the request of the wait')
+  const questions = questionsOf(kept.request)
+  return questions === undefined
+    ? invalid('request', 'the kept request is not a decision request')
+    : succeed(questions)
+}
+
 async function keptCards(
   input: ToolHitlBridgeInput,
   access: Access,
@@ -154,7 +180,7 @@ async function keptCards(
   request: DurableEvidence | null,
 ): Promise<
   Outcome<
-    Readonly<{ fixed: Recovery; cards: { wait: ToolWaitId; questions: unknown; tool: string } }>,
+    Readonly<{ fixed: Recovery; cards: { wait: ToolWaitId; questions: Questions; tool: string } }>,
     ToolFailure
   >
 > {
@@ -164,17 +190,10 @@ async function keptCards(
   const intent = fixed.ok.waits.find(record => record.intent.wait === wait)?.intent
   if (wait === undefined || intent?.kind !== 'ask')
     return invalid('wait', 'no wait of the call asks a person')
-  if (request !== null && canonicalDigest(intent.request) !== canonicalDigest(request))
-    return invalid('request', 'the request is not the request of the wait')
-  const kept = fixed.ok.waitRequest
-  if (kept === null || kept.wait !== wait) return invalid('request', 'the wait request is not kept')
-  if (canonicalDigest(kept.request) !== intent.request.digest)
-    return invalid('request', 'the kept request is not the request of the wait')
-  const questions = questionsOf(kept.request)
-  if (questions === undefined)
-    return invalid('request', 'the kept request does not carry decision cards')
+  const questions = keptQuestions(fixed.ok, wait, intent, request)
+  if ('failure' in questions) return questions
   const tool = fixed.ok.request.availability.definition.name
-  return succeed({ fixed: fixed.ok, cards: { wait, questions, tool } })
+  return succeed({ fixed: fixed.ok, cards: { wait, questions: questions.ok, tool } })
 }
 
 async function sessionRun(
@@ -204,7 +223,7 @@ function commandsOf(
     access: Access
     tenantText: string
     wait: ToolWaitId
-    questions: unknown
+    questions: Questions
     tool: string
     session: SessionId
     run: string

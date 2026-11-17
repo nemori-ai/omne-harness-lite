@@ -5,13 +5,13 @@ import type {
   RegisterRequest,
 } from '@omne-harness/human-intervention'
 import { hitlCommandBinding } from '@omne-harness/human-intervention-local'
+import { hitlDecisionWait } from '@omne-harness/human-intervention-tool'
 import { inProcessPrincipalAuthority, standingPrincipalRef } from '@omne-harness/identity'
 import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { succeed } from '@omne-harness/operation-result'
 import { createSchemaProvider, validate } from '@omne-harness/schema-provider'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolCallId, ToolOperationId, ToolWaitId } from '@omne-harness/tool-contract'
-import { decisionCardWaitContract } from '@omne-harness/tool-contract/provider'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
 import { hitlCardAudience, hitlEntryRef } from '../../../src/entry/hitl-entry-principals.ts'
 import { createToolHitlBridge } from '../../../src/rows/tool-hitl/bridge.ts'
@@ -67,6 +67,8 @@ type Registered = Extract<CommandResult<'registerRequest'>, { kind: 'registered'
 function world(
   options: Readonly<{
     kept?: string | null
+    contract?: unknown
+    digest?: string
     audience?: HitlAudience | undefined
     register?: CommandResult<'registerRequest'>
     cards?: readonly unknown[]
@@ -77,7 +79,7 @@ function world(
   }> = {},
 ) {
   const original = options.original ?? ORIGINAL
-  const asked = { ...requestEvidence, digest: canonicalDigest(original) }
+  const asked = { ...requestEvidence, digest: options.digest ?? canonicalDigest(original) }
   const calls = {
     prepared: [] as unknown[],
     registered: [] as RegisterRequest[],
@@ -162,7 +164,12 @@ function world(
         waitRequest: options.kept === null ? null : { wait, request: options.kept ?? original },
         waits: [
           {
-            intent: { kind: 'ask', wait, request: asked },
+            intent: {
+              kind: 'ask',
+              wait,
+              request: asked,
+              schemas: { contract: options.contract ?? hitlDecisionWait.adoption },
+            },
             ...(options.closed === null
               ? { phase: 'open' }
               : { phase: 'closed', cause: options.closed ?? 'cancelled' }),
@@ -297,24 +304,30 @@ describe('the Tool decision owner over HITL', () => {
     ])
   })
 
-  it('refuses an ask wait whose request carries no decision cards, without writing to HITL', async () => {
-    const w = world({ tool: 'Elsewhere', original: JSON.stringify({ prompt: 'Which port?' }) })
-    expect(await w.ensure()).toMatchObject({
-      failure: {
-        kind: 'invalid',
-        field: 'request',
-        reason: 'the kept request does not carry decision cards',
-      },
-    })
-    expect(w.calls.prepared).toEqual([])
-    expect(w.calls.registered).toEqual([])
-  })
-
   it('refuses a kept request that the request evidence of the wait does not bind, or a call that keeps none, without writing to HITL', async () => {
     for (const kept of [JSON.stringify({ questions: [] }), null]) {
       const w = world({ kept })
       expect(await w.ensure()).toMatchObject({ failure: { kind: 'invalid', field: 'request' } })
       expect(w.calls.prepared).toEqual([])
+      expect(w.calls.registered).toEqual([])
+    }
+  })
+
+  it('refuses an ask wait under another contract, without writing to HITL', async () => {
+    const w = world({ contract: { ...hitlDecisionWait.adoption, owner: 'another-tool' } })
+    expect(await w.ensure()).toMatchObject({ failure: { kind: 'invalid', field: 'wait' } })
+    expect(w.calls.prepared).toEqual([])
+    expect(w.calls.registered).toEqual([])
+  })
+
+  it('refuses a kept request that is not a decision request, without writing to HITL', async () => {
+    for (const kept of [
+      JSON.stringify({ questions: [{ ...card, kind: 'extension' }] }),
+      JSON.stringify({ questions: [card], extra: 1 }),
+      '{not json',
+    ]) {
+      const w = world({ kept, digest: canonicalDigest(kept) })
+      expect(await w.ensure()).toMatchObject({ failure: { kind: 'invalid', field: 'request' } })
       expect(w.calls.registered).toEqual([])
     }
   })
@@ -428,7 +441,7 @@ describe('the Tool decision owner over HITL', () => {
     expect(w.calls.consumed.slice(3)).toEqual(w.calls.consumed.slice(0, 3))
   })
 
-  it('a tool other than Ask that waits with the decision-card contract gets its cards under its own name and its answers in the same shape', async () => {
+  it('a tool other than Ask that waits with the decision wait of human intervention gets its cards under its own name and its answers in the same shape', async () => {
     const approval = {
       cardId: 'approval',
       kind: 'approval',
@@ -474,7 +487,7 @@ describe('the Tool decision owner over HITL', () => {
       ],
     })
     const read = readJsonText(writeJsonText(value), ANSWER_READ_LIMITS)
-    const verdict = await validate(schemas, decisionCardWaitContract.response.ref, read)
+    const verdict = await validate(schemas, hitlDecisionWait.response.ref, read)
     expect(verdict.kind).toBe('valid')
   })
 

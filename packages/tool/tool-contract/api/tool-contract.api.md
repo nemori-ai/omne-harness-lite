@@ -202,10 +202,6 @@
 - `ChildReservation` · `program.d.ts`
 - `ChildState` · `program.d.ts`
 - `ControlDispatch` · `records.d.ts`
-- `DecisionCard` · `decision-card-wait.d.ts`
-- `DecisionCardAnswer` · `decision-card-wait.d.ts`
-- `DecisionCardAnswers` · `decision-card-wait.d.ts`
-- `DecisionCardRequest` · `decision-card-wait.d.ts`
 - `DrainState` · `records.d.ts`
 - `ExternalOperationResolution` · `records.d.ts`
 - `FactBatch` · `records.d.ts`
@@ -373,8 +369,6 @@
 - `commandGuide` · `command-call.d.ts`
 - `commandSignature` · `command-call.d.ts`
 - `createDefaultParameterCodec` · `parameter-codec.d.ts`
-- `decisionCardAdoption` · `decision-card-wait.d.ts`
-- `decisionCardWaitContract` · `decision-card-wait.d.ts`
 - `decodeCommandCall` · `command-call.d.ts`
 - `decodeToolBodyId` · `identity.d.ts`
 - `decodeToolCursor` · `identity.d.ts`
@@ -1564,48 +1558,6 @@ export interface ToolOffloader<P, B extends ContentBlock> {
         originalBytes: string;
     }>>;
 }
-```
-
-## 声明文件 `decision-card-wait.d.ts`
-
-```ts
-import type { ToolWaitContract } from './author-context.ts';
-export type DecisionCard = Readonly<{
-    cardId: string;
-    kind: 'question' | 'approval';
-    title: string;
-    description: string;
-    options: readonly Readonly<{
-        id: string;
-        label: string;
-        description: string;
-    }>[];
-    declineConsequence: string;
-}>;
-export type DecisionCardRequest = Readonly<{
-    questions: readonly DecisionCard[];
-}>;
-export type DecisionCardAnswer = Readonly<{
-    cardId: string;
-}> & (Readonly<{
-    kind: 'selection';
-    optionId: string;
-}> | Readonly<{
-    kind: 'text';
-    text: string;
-}> | Readonly<{
-    kind: 'no-answer';
-}>);
-export type DecisionCardAnswers = Readonly<{
-    answers: readonly DecisionCardAnswer[];
-}>;
-export declare const decisionCardAdoption: Readonly<{
-    owner: string;
-    name: string;
-    revision: string;
-    digest: string;
-}>;
-export declare const decisionCardWaitContract: ToolWaitContract<DecisionCardAnswers, 'ask'>;
 ```
 
 ## 声明文件 `definitions.d.ts`
@@ -3071,8 +3023,6 @@ export { evaluateToolAvailability, presentTool } from './catalog.ts';
 export { TOOL_REFERENCE_MAX_LENGTH, decodeToolInvocationRef, decodeToolOperationRef, readToolInvocationRef, toolStreamCallCodec, } from './reference.ts';
 export { defineCommandTool, defineFunctionTool, defineToolOperation } from './registration.ts';
 export { defineToolWaitContract, WAIT_REQUEST_MAX_BYTES, WAIT_RESPONSE_MAX_BYTES, } from './wait-contract.ts';
-export { decisionCardAdoption, decisionCardWaitContract } from './decision-card-wait.ts';
-export type { DecisionCard, DecisionCardAnswer, DecisionCardAnswers, DecisionCardRequest, } from './decision-card-wait.ts';
 export { createDefaultParameterCodec, judgeToolArguments } from './parameter-codec.ts';
 export type { ParsedToolArguments, ToolArgumentsRejection } from './parameter-codec.ts';
 export { renderToolResult } from './result-rendering.ts';

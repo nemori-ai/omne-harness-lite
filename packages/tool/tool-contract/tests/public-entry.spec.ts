@@ -54,8 +54,6 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'commandGuide',
     'commandSignature',
     'createDefaultParameterCodec',
-    'decisionCardAdoption',
-    'decisionCardWaitContract',
     'decodeCommandCall',
     'decodeToolBodyId',
     'decodeToolCursor',

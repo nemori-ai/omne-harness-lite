@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
     test: {
       ...tiers,
       globalSetup: ['./tests/global-build.ts'],
-      setupFiles: ['./tests/setup-environment.ts'],
+      setupFiles: [...tiers.setupFiles, './tests/setup-environment.ts'],
       include: ['tests/**/*.spec.ts'],
       typecheck: {
         ...tiers.typecheck,

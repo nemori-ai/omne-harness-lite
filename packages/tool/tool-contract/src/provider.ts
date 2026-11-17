@@ -99,13 +99,6 @@ export {
   WAIT_REQUEST_MAX_BYTES,
   WAIT_RESPONSE_MAX_BYTES,
 } from './wait-contract.ts'
-export { decisionCardAdoption, decisionCardWaitContract } from './decision-card-wait.ts'
-export type {
-  DecisionCard,
-  DecisionCardAnswer,
-  DecisionCardAnswers,
-  DecisionCardRequest,
-} from './decision-card-wait.ts'
 export { createDefaultParameterCodec, judgeToolArguments } from './parameter-codec.ts'
 export type { ParsedToolArguments, ToolArgumentsRejection } from './parameter-codec.ts'
 export { renderToolResult } from './result-rendering.ts'

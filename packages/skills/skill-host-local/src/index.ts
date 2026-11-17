@@ -1,3 +1,4 @@
+export { skillInputsFromAssets, type VersionBody } from './asset-layers.ts'
 export { createContentStoreSource, type PackageReaderOf } from './content-store-source.ts'
 export {
   createSkillDecisions,

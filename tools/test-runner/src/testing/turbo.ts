@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { WorkspaceMember } from '@omne-harness/repo-toolchain/core/workspace'
 import { VITEST_MAX_WORKERS_ENV, type RunTier } from './config.ts'
+import { READ_SETS_ENV } from './read-sets.ts'
 import {
   MEMBER_TURBO_ROOT,
   rawProblems,
@@ -40,6 +41,12 @@ export function turboEnv(extra: Readonly<Record<string, string>>): NodeJS.Proces
     TURBO_NO_UPDATE_NOTIFIER: '1',
     ...extra,
   }
+}
+
+export const ONE_CORE_PER_TASK = { GOMAXPROCS: '1' } as const
+
+export function compileEnv(): NodeJS.ProcessEnv {
+  return turboEnv(ONE_CORE_PER_TASK)
 }
 
 function rootTasks(): Record<string, RootTask> {
@@ -266,7 +273,7 @@ export function turboBuild(
   if (names.length === 0) return 0
   const args = buildArgs(names, admission, concurrency)
   console.log(`$ turbo ${args.join(' ')}`)
-  const run = spawnSync(TURBO_BIN, args, { cwd: root, stdio: 'inherit', env: turboEnv({}) })
+  const run = spawnSync(TURBO_BIN, args, { cwd: root, stdio: 'inherit', env: compileEnv() })
   if (run.error !== undefined) throw run.error
   return run.status ?? 1
 }
@@ -282,7 +289,7 @@ export function turboBuildCaptured(
     cwd: root,
     encoding: 'utf8',
     maxBuffer: 256 * 1024 * 1024,
-    env: turboEnv({}),
+    env: compileEnv(),
   })
   if (run.error !== undefined) throw run.error
   return { status: run.status ?? 1, output: `${run.stdout}${run.stderr}` }
@@ -312,7 +319,7 @@ export function turboTypecheck(
   if (names.length === 0) return 0
   const args = typecheckArgs(names, admission, concurrency)
   console.log(`$ turbo ${args.join(' ')}`)
-  const run = spawnSync(TURBO_BIN, args, { cwd: root, stdio: 'inherit', env: turboEnv({}) })
+  const run = spawnSync(TURBO_BIN, args, { cwd: root, stdio: 'inherit', env: compileEnv() })
   if (run.error !== undefined) throw run.error
   return run.status ?? 1
 }
@@ -328,6 +335,7 @@ export const TEST_REPORT_DIR_ENV = 'OMNE_TEST_REPORT_DIR'
 export interface TestBuild {
   readonly build: boolean
   readonly admission: boolean
+  readonly readSets?: boolean
 }
 
 export function turboTestCommand(
@@ -335,6 +343,7 @@ export function turboTestCommand(
   tier: RunTier,
   workers: number,
   reportDirectory: string,
+  readSets = false,
 ): { readonly args: string[]; readonly env: NodeJS.ProcessEnv } {
   return {
     args: [
@@ -351,6 +360,7 @@ export function turboTestCommand(
     env: turboEnv({
       [TEST_REPORT_DIR_ENV]: reportDirectory,
       [VITEST_MAX_WORKERS_ENV]: String(workers),
+      [READ_SETS_ENV]: readSets ? '1' : '',
     }),
   }
 }
