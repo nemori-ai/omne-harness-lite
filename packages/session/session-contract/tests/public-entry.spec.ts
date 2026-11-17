@@ -59,6 +59,7 @@ it('exports exactly the declared root runtime surface', () => {
     'sessionInputBytes',
     'sessionIntakeLimits',
     'sessionModesBlock',
+    'uninterpretedCalls',
   ])
 })
 
