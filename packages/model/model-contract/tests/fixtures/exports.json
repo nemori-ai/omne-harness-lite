@@ -716,6 +716,26 @@
               "name": "CalibrationReport",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "profileResolutionValue",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "readProfileResolution",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "judgeModelParameters",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "judgeToolDeclarations",
+              "kind": "value",
+              "pending": false
             }
           ]
         },

@@ -74,6 +74,20 @@ function judgeJointCommits(value: unknown): Failure | undefined {
 }
 
 function judgeConfiguration(configuration: AgentConfiguration): Failure | undefined {
+  const compaction = configuration.compactionProvider
+  if (
+    typeof compaction !== 'object' ||
+    compaction === null ||
+    typeof compaction.authority !== 'string' ||
+    compaction.authority.length === 0
+  )
+    return invalid('configuration.compactionProvider', 'type')
+  const rejected = structure(
+    'configuration.compactionProvider.adoption',
+    judgeAdoption(compaction.adoption),
+    'Adoption',
+  )
+  if (rejected !== undefined) return rejected
   for (const key of POSITIVE_SAFE)
     if (!isPositiveSafeInteger(configuration[key])) return invalid(`configuration.${key}`, 'range')
   for (const key of NON_NEGATIVE)

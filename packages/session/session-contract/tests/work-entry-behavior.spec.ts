@@ -123,7 +123,7 @@ function compactionCommand(
       operation: operationId('compact'),
       participation: participation(snapshot.run.execution.execution, 'context-transition'),
       judgment: evidence('summary'),
-      value: { kind: 'compaction' as const, message: message.ok },
+      value: { kind: 'compaction' as const, message: message.ok, epoch: 'current' },
     },
   }
 }
@@ -149,7 +149,9 @@ describe('trusted work-entry references', () => {
     const user = rows.find(row => row.kind === 'message.user')!.id
     const reads = compactionReads(rows, snapshot, through)!
     const command = compactionCommand(snapshot, rows[0]!.id, through, [user])
-    expect(decide(snapshot, command, [], null, { compaction: reads }).kind).toBe('entries')
+    expect(
+      decide(snapshot, command, [], null, { compaction: reads, compactionEpoch: 'current' }).kind,
+    ).toBe('entries')
     expect(reads.after.filter(row => required.some(ref => ref === String(row.ref)))).toHaveLength(5)
     expect(
       reads.after
@@ -161,13 +163,16 @@ describe('trusted work-entry references', () => {
       expect(
         decide(snapshot, command, [], null, {
           compaction: { ...reads, open: reads.open.filter(ref => String(ref) !== missing) },
+          compactionEpoch: 'current',
         }),
       ).toMatchObject({
         kind: 'rejected',
         failure: { kind: 'invalid', field: 'reads.compaction.open' },
       })
     const { workEntryIndex: _index, ...missingIndex } = snapshot
-    expect(decide(missingIndex, command, [], null, { compaction: reads })).toMatchObject({
+    expect(
+      decide(missingIndex, command, [], null, { compaction: reads, compactionEpoch: 'current' }),
+    ).toMatchObject({
       kind: 'rejected',
       failure: { kind: 'unavailable', owner: 'session-history' },
     })
@@ -274,7 +279,9 @@ describe('trusted work-entry references', () => {
     const reads = compactionReads(rows, snapshot, rows.at(-1)!.id)!
     for (const retained of [[user], [user, ...required]]) {
       const command = compactionCommand(snapshot, rows[0]!.id, rows.at(-1)!.id, retained)
-      expect(decide(snapshot, command, [], null, { compaction: reads })).toMatchObject({
+      expect(
+        decide(snapshot, command, [], null, { compaction: reads, compactionEpoch: 'current' }),
+      ).toMatchObject({
         kind: 'rejected',
         failure: { kind: 'invalid', field: 'value.message' },
       })

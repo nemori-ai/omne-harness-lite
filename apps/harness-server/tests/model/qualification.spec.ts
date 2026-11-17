@@ -14,7 +14,12 @@ import {
 import type { CommandAction, ModelSendSource } from '@omne-harness/model/commands'
 import type { SendDemand } from '@omne-harness/model-contract/provider'
 import { currentForReader } from '../../src/entry/runtime-context-trust.ts'
-import { MODEL_HOST_COMPONENT, MODEL_WORK_OWNER } from '../../src/model/principals.ts'
+import {
+  COMPACTION_COMPONENT,
+  COMPACTION_WORK_OWNER,
+  MODEL_HOST_COMPONENT,
+  MODEL_WORK_OWNER,
+} from '../../src/model/principals.ts'
 import { ACTOR_OWNER, createModelQualification } from '../../src/model/qualification.ts'
 import { ENTRY_COMPONENTS } from '../../src/entry/principals.ts'
 import { SESSION_WORK_OWNER } from '../../src/rows/authorization/principals.ts'
@@ -93,6 +98,27 @@ const ALL_ACTIONS = [
   'observe',
   'send',
 ] as const satisfies readonly CommandAction[]
+
+it('qualifies the independently issued summary worker without granting Model host authority', async () => {
+  const s = scene()
+  const actor = okOf(s.authority.issuer.issueSystem({ component: COMPACTION_COMPONENT }), 'actor')
+  const principal = okOf(
+    s.authority.issuer.issueActingForTenant({
+      actor,
+      tenant: TENANT,
+      work: { owner: COMPACTION_WORK_OWNER, work: 'compaction-task' },
+    }),
+    'summary principal',
+  )
+  await s.qualification.qualify({ principal, tenant: TENANT }, s.alive)
+  for (const action of ['admit', 'inspect', 'content', 'control', 'handoff'] as const)
+    expect(s.authorize(action, principal)).toHaveProperty('ok')
+  expect(s.authorize('send', principal)).toMatchObject({ failure: { kind: 'denied' } })
+  expect(s.authorize('recovery', principal)).toMatchObject({ failure: { kind: 'denied' } })
+  const forged = { ...principal }
+  await s.qualification.qualify({ principal: forged, tenant: TENANT }, s.alive)
+  expect(s.authorize('admit', forged)).toMatchObject({ failure: { kind: 'denied' } })
+})
 
 type PrincipalClassName = 'login' | 'work' | 'host'
 type Table = Readonly<Record<(typeof ALL_ACTIONS)[number], readonly PrincipalClassName[]>>

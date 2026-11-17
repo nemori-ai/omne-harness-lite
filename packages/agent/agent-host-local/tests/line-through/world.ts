@@ -36,6 +36,7 @@ import {
   AgentAccountOutletService,
   AgentAdoptionsService,
   AgentClockService,
+  ContextCompactionService,
   CurrentConditionsService,
   DecisionCardsService,
   ExtensionImplementationsService,
@@ -312,6 +313,16 @@ function logOf(command: Readonly<{ facts?: unknown }>): SeenCommit['log'] {
 type Constructible = new (ctx: Context) => object
 type AbstractService = abstract new (ctx: Context) => Service
 
+const UNSCRIPTED = {
+  failure: { kind: 'unavailable', dependency: 'line-compaction', diagnostic: 'not scripted' },
+} as const
+const UNSCRIPTED_COMPACTION = {
+  admit: async () => UNSCRIPTED,
+  inspect: async () => UNSCRIPTED,
+  cancel: async () => UNSCRIPTED,
+  acknowledge: async () => UNSCRIPTED,
+}
+
 function serviceOf(Base: AbstractService, port: object, name: string): Constructible {
   const Concrete = class extends (Base as unknown as Constructible) {
     constructor(ctx: Context) {
@@ -458,6 +469,10 @@ const AGENT_HOST_CONFIG: AgentHostConfig = {
   toolConcurrency: 1,
   jointCommits: ['message', 'context-transition', 'custody', 'processed'],
   coordination: 'coordinated',
+  compactionProvider: {
+    authority: 'test-compaction',
+    adoption: { owner: 'test', name: 'compaction', revision: '1', digest: 'd' },
+  },
   loopGuardPolicy: { owner: 'agents', name: 'loop-guard', revision: '1', digest: 'sha256:guard' },
   modelRetry: { maxAttempts: 1, maxElapsedMs: 0, delaysMs: [0], jitter: 0 },
   instanceIdleMs: 60_000,
@@ -691,7 +706,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     rows: EARLIER.map((text, index) => historyRow(index, text)),
     policies: {
       compaction: createDefaultCompactionPolicy({
-        config: { retainBudget: { kind: 'tokens', retainTokens: '600' } },
+        config: {},
       }),
       representation: createDefaultRepresentationPolicy(),
     },
@@ -1002,6 +1017,14 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   await mount(serviceOf(ModelRuntimeService, models, 'ModelRuntime'))
   await mount(
     serviceOf(AgentAccountOutletService as unknown as AbstractService, outlet, 'AccountOutlet'),
+  )
+  // These lines never reach the compaction budget; a scripted provider answers unavailable.
+  await mount(
+    serviceOf(
+      ContextCompactionService as unknown as AbstractService,
+      UNSCRIPTED_COMPACTION,
+      'Compaction',
+    ),
   )
 
   ctx.provide('agentHostPrincipal', 'agent-host-maintainer')

@@ -33,6 +33,7 @@ function stopping(assembly: LoopAssembly, change: Partial<ExecutionEntry<Princip
   return createExecutionCoordinator({
     ports: assembly.dependencies,
     binding: options().binding,
+    compactionProvider: options().configuration.compactionProvider,
     evaluator: {
       ...agentEvaluator,
       initial: () => succeed(checkpoint('I0')),
@@ -130,6 +131,7 @@ async function restartable(
     createExecutionCoordinator({
       ports: assembly.dependencies,
       binding: options().binding,
+      compactionProvider: options().configuration.compactionProvider,
       evaluator: agentEvaluator,
       access: alice,
       execution: execution(),
@@ -208,6 +210,7 @@ describe('the read position rides on ordinary commits only', () => {
     const c = createExecutionCoordinator({
       ports: assembly.dependencies,
       binding: options().binding,
+      compactionProvider: options().configuration.compactionProvider,
       evaluator: agentEvaluator,
       access: alice,
       execution: execution(),
@@ -269,6 +272,7 @@ describe('commit-time missing basis and the origin re-read', () => {
     const c = createExecutionCoordinator({
       ports: assembly.dependencies,
       binding: options().binding,
+      compactionProvider: options().configuration.compactionProvider,
       evaluator: agentEvaluator,
       access: alice,
       execution: execution(),

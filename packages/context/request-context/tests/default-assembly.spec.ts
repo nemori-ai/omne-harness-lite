@@ -12,10 +12,7 @@ import {
   type RequestCandidate,
 } from '@omne-harness/request-context-contract'
 import {
-  countingBasis,
   createAssemblyFixture,
-  createScriptedInputMeter,
-  fixtureBudget,
   type AssemblyFixture,
   type MemoryAdoptedSource,
 } from '@omne-harness/request-context-contract/testing'
@@ -153,30 +150,7 @@ describe('default strategies in a real operation group', () => {
     const second = candidateOf(await f.operations().assemble(f.call))
     expect(second.assembled).toEqual(first.assembled)
   })
-  it('plans a compaction that keeps a call with its result and fits the budget', async () => {
-    const f = createAssemblyFixture({
-      rows: rows(),
-      policies: {
-        ...policies(),
-        compaction: createDefaultCompactionPolicy({
-          config: { retainBudget: { kind: 'tokens', retainTokens: '25' } },
-        }),
-      },
-      preparation: {
-        meter: createScriptedInputMeter(countingBasis, input => ({
-          ok: fixtureBudget(String(input.assembled.messages.length * 10)),
-        })),
-      },
-    })
-    const planned = await f.operations().planCompaction(f.call)
-    if (planned.kind !== 'planned') throw new Error(`Expected a plan, got ${planned.kind}`)
-    const kept = new Set(planned.plan.retained.map(String))
-    expect(kept.has('entry:1')).toBe(kept.has('entry:2'))
-    expect(planned.plan.retained.length * 10).toBeLessThanOrEqual(25)
-    expect(planned.plan.bound).toBe('3')
-    expect(planned.first.kind).toBe('summarize')
-    expect(f.preparation.outstanding()).toBe(0)
-  })
+
   it('declares continues in the second round when the first request was fixed', async () => {
     const f = createAssemblyFixture({ policies: policies(), rows: rows() })
     const first = candidateOf(await f.operations().assemble(f.call))

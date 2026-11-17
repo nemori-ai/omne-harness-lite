@@ -64,6 +64,24 @@
 - **注意 ④**：设置项类别规定允许来源，专有含义及采用时点由功能拥有者维护。
 - **注意 ⑤**：资产替换不转移原资产配值和秘密；持久配值不随运行提供者撤除而删除。
 
+### UL-settings-target · 设置目标 · Settings Target
+
+> **中**：**一组[设置](#ul-setting--设置--setting)配在其上的那个东西。**
+> 有两种：跟着一份[资产持有](circulation-and-entitlement.md#ul-asset-holding--资产持有--asset-holding)的，它的当前事实取自这份持有；
+> 独立的，由受信的拥有者开通与退役，和任何资产无关。
+> 一项设置在界面上归「资产」还是归「设置」，只看它的设置目标是哪一种。
+>
+> **EN**: **The thing that a group of settings is configured on.** There are two kinds. One kind
+> follows an asset holding and takes its current facts from that holding. The other kind is
+> independent: a trusted owner opens it and retires it, and it is not related to an asset.
+> Whether the interface shows a setting entry under Assets or under Settings depends only on
+> the kind of its settings target.
+
+- **形态**：对象
+- **出处**：[资产包组规格「设置：目标拥有者与来源」](../../../../packages/assets/SPEC.md#设置目标拥有者与来源)（PanQiWei 2026-11-17 交办定义，卡 #1332）
+- **别混**：不是设置项：设置项是目标上的一项。不是配值的来源：来源说的是一项的值由哪一层给出。
+- **注意**：一个设置目标由它的完整身份认出，配值与操作历史挂在这个身份上；退役的独立目标不能以同一完整身份再开通。
+
 ### UL-setting-category · 设置项类别 · Setting Category
 
 > **中**：功能拥有者声明一项[设置](#ul-setting--设置--setting)时**必须标上的那个类别**，
@@ -315,7 +333,7 @@
 > **它是 opt-in 的可插拔服务**：不可用（它依赖的服务用不了、它自己起不来）时，**按它的[拓展件不可用处置](agent-runtime-loop.md#ul-extension-unavailability-policy--拓展件不可用处置--extension-unavailability-policy)办**——
 > 租户挂上的默认跳过（视作已卸载，这一次这个位置没有它），注册时可声明为否决；系统自带的由预先声明的指定挂件顶上；哪一种都在日志里看得见。
 > 可用却运行时报错，按它那一类的处置策略办，「可否决挂了当否决」是可否决一档的默认策略。
-> **同一个位置可以挂多个拓展件，各干各的；先后就是它们在装配清单里的顺序。**
+> **同一个位置可以挂多个拓展件，各干各的；先后由[一次经过](agent-runtime-loop.md#ul-extension-point-pass--一次经过--extension-point-pass)开始时确定的那条链决定。**
 >
 > **EN**: **A piece of judgement or action** attached to one loop extension point. It
 > declares **which position it sits at**, **which cases it covers**, and its own
@@ -329,7 +347,7 @@
 > pre-declared fallback extension; either way it is visible in the log. When available but failing
 > at run time, it is handled by the policy for its kind, "a failed veto-capable extension counts as
 > a veto" being that level's default. **Several extensions may sit at the same position, each doing
-> its own thing; their order is their order in the assembly manifest.**
+> its own thing; their order is the order of the chain fixed when one pass begins.**
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
 - **出处**：[PF-002 §4 Loop Extension](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#loop-extension) · [不可用处置是这一件自己的声明](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#不可用处置是这一件自己的声明)（rev 32） ·
@@ -341,6 +359,8 @@
 - **注意 ①**：**干预力是它的[权限](#ul-permission--权限--permission)，不是[设置](#ul-setting--设置--setting)**——
   **装一个拓展件、却只给它「只观察」，是成立的配法**
 - **注意 ②**：**它只能靠改[会话日志](record-and-context.md#ul-session-log--会话日志--session-log)起作用**，不能不留痕地改变下一步
+- **注意 ⑤**：**持有不等于运行**——每件拓展件有一项「运行」设置，缺省为关；这项设置为开且这份持有合法可用时，它才进入该租户的执行，见[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 6）
+- **注意 ⑥**：**租户启用的拓展件不进模型上下文，所以它的变化不等[采用点](agent-runtime-loop.md#ul-adoption-point--采用点--adoption-point)**——从下一次经过起生效；Agent 定义组合的拓展件仍在采用点确定，出处同上
 - **能组合**：**不组合任何资产**（同 [MCP](#ul-mcp--mcp--mcp) 与[连接件](#ul-connector--连接件--connector)）
 
 ### UL-modality-converter · 模态转换件 · Modality Converter
@@ -472,7 +492,7 @@
 - **出处**：[PF-004 §4 能力自动继承](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#能力自动继承)（rev 20）
 - **别混**：不是执行权限，也不是父子会话间的历史继承；声明没有独立身份。
 - **注意 ①**：同名不同类别仍是不同能力；MCP 按接入点资产选择，其动作不因此成为独立资产。
-- **注意 ②**：自动继承在 `0.0.0 → 0.1.0` 阶段不承诺，规则保留为目标，现在没有实现也不交付，见 [Agent 定义与工作推进：额外能力的选择](../../product/agent-progression/design.md#额外能力的选择)（rev 5）。这一阶段能力进会话靠会话执行类型的必需身份集合与 Agent 定义的引用两处叠加。
+- **注意 ②**：自动继承在 `0.0.0 → 0.1.0` 阶段不承诺，规则保留为目标，现在没有实现也不交付，见 [Agent 定义与工作推进：额外能力的选择](../../product/agent-progression/design.md#额外能力的选择)（rev 6）。这一阶段能力进会话靠会话执行类型的必需身份集合与 Agent 定义的引用两处叠加。
 
 ### UL-agent-type · agent 类型 · Agent Type
 
@@ -915,7 +935,7 @@
 - **形态**：属性
 - **出处**：[PF-013 §4 模型档案](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#模型档案) ·
   [§5.12 系统自带一件默认的](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#系统自带一件默认的所以开箱就有重试)（rev 17） ·
-  [模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 4）
+  [模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 5）
 - **注意**：它是[试尽](execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion)这个判断的**输入**，不是试尽的定义
 - **别混**：**列表里的每一项是对一家[模型供应商](#ul-model-provider--模型供应商--model-provider)的引用，不是模型供应商本身**——
   模型供应商是一份资产，档案不是资产、只引用它；[模型凭据](#ul-model-credential--模型凭据--model-credential)按模型供应商与层配置，不挂在档案或这一项上
@@ -954,7 +974,7 @@
 > asset tells one provider apart from another. An official provider counts as held by every legitimate tenant.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 4） ·
+- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 5） ·
   [资产与规则：让共同能力可治理，也让具体资产独立发展](../../product/assets-and-rules/design.md#让共同能力可治理也让具体资产独立发展)（rev 9）
 - **别混 ①**：**不是[允许的供应商](#ul-allowed-providers--允许的供应商--allowed-providers)里的一项**——那一项是档案对它的引用；档案不是资产，模型供应商是
 - **别混 ②**：**不是 [Cordis 服务提供者](architecture-core-and-extension.md#ul-cordis-service-provider--cordis-服务提供者--cordis-service-provider)、
@@ -982,7 +1002,7 @@
 > usable and when it was set, but never the secret value.
 
 - **形态**：属性
-- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 4） ·
+- **出处**：[模型调用：凭据的范围](../../product/model-invocation/design.md#凭据的范围)（rev 5） ·
   [资产与规则：设置组合](../../product/assets-and-rules/design.md#settings-composition)（rev 9）
 - **⚠️ 别混 ①**：**不在档案上**——[档案](#ul-model-profile--模型档案--model-profile)不是资产，自身不存凭据；
   凭据是模型供应商这份资产的设置值，依附对它的持有

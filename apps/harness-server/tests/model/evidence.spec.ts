@@ -9,6 +9,7 @@ import {
 import type { HandoffEvidenceInput } from '@omne-harness/model/commands'
 import { expect, it } from 'vitest'
 import { createModelEvidence } from '../../src/model/evidence.ts'
+import { DEFAULT_COMPACTION_CONSUMER } from '@omne-harness/context-compaction'
 
 function must<T>(outcome: { ok: T } | { failure: unknown }): T {
   if ('ok' in outcome) return outcome.ok
@@ -63,6 +64,24 @@ function evidenceWith(asked: AgentCustodyQuestion<unknown>[]) {
     }),
   })
 }
+
+it('routes the default summary owner to its own durable completion proof', async () => {
+  const evidence = createModelEvidence(ADOPTION, {
+    initial: () => undefined,
+    reader: () => undefined,
+    custody: () => undefined,
+    compaction: () => ({
+      verify: async given => {
+        expect(given.consumer.owner).toBe(DEFAULT_COMPACTION_CONSUMER)
+        return { failure: { kind: 'handoff-invalid', reason: 'unproven-result' } }
+      },
+    }),
+  })
+  const ack = ackOf(DEFAULT_COMPACTION_CONSUMER)
+  expect(await evidence.handoff(ack)).toEqual({
+    failure: { kind: 'handoff-invalid', reason: 'unproven-result' },
+  })
+})
 
 it('routes the ACK of the Agent owner to the Agent custody evidence', async () => {
   const asked: AgentCustodyQuestion<unknown>[] = []

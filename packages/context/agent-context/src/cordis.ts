@@ -5,6 +5,7 @@ import {
   ModelContextReaderService,
   RequestPreparationService,
   agentAdoptionsKey,
+  agentCompactionInputsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ModelPreparationResources } from '@omne-harness/model-contract'
 import { modelRequestPreparationKey } from '@omne-harness/model-cordis-contract/cordis'
@@ -26,7 +27,7 @@ import type { ContextMeasure } from './measure.ts'
 import { createAgentModelContext } from './model-context.ts'
 import { createAgentRequests, type AgentRequests } from './requests.ts'
 import { absentToolLookup, toolsSourceOf, type ToolLookup } from './tools.ts'
-import { absentStepResults, definitionSourceOf, unavailable } from './translate.ts'
+import { definitionSourceOf, unavailable } from './translate.ts'
 
 export const MODEL_PREPARATION_RESOURCES = 'modelPreparationResources'
 
@@ -119,17 +120,18 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
     [modelRequestPreparationKey]: null,
     [MODEL_PREPARATION_RESOURCES]: null,
     [agentAdoptionsKey]: null,
+    [agentCompactionInputsKey]: null,
   }
   static readonly Config = standardSchema(decodeContextConfig)
   readonly prepare: RequestPreparationService<unknown>['prepare']
-  readonly derive: RequestPreparationService<unknown>['derive']
+  readonly assessCompaction: RequestPreparationService<unknown>['assessCompaction']
   readonly resume: RequestPreparationService<unknown>['resume']
 
   constructor(ctx: Context, config: AgentContextConfig, input: AgentContextPluginInput = {}) {
     super(ctx)
     const { measure } = input
     const toolLookup = input.toolLookup?.(ctx) ?? absentToolLookup
-    const materials = createContextMaterials<unknown>({
+    const materials = createContextMaterials({
       owner: config.owner,
       capacity: config.materials ?? DEFAULT_MATERIAL_CAPACITY,
     })
@@ -154,7 +156,7 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
         conversions: createAbsentConversionResults(),
         model: ctx.modelRequestPreparation,
         tools: toolsSourceOf(toolLookup),
-        stepResults: absentStepResults,
+        compactionInputs: ctx.agentCompactionInputs,
         definitions: definitionSourceOf(ctx.agentAdoptions),
         ...(measure === undefined ? {} : { measure }),
       })
@@ -168,7 +170,7 @@ export class AgentContextProvider extends RequestPreparationService<unknown> {
     }
     const live = requests
     this.prepare = async input => (live ? live.prepare(input) : fail(refused))
-    this.derive = async input => (live ? live.derive(input) : fail(refused))
+    this.assessCompaction = async input => (live ? live.assessCompaction(input) : fail(refused))
     this.resume = async input => (live ? live.resume(input) : fail(refused))
     const modelRead = read
     new ModelContextProvider(ctx, async input => (closed ? fail(refused) : modelRead(input)))

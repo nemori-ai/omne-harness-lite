@@ -27,6 +27,8 @@ export type ExecutionRevision = AgentIdentity<'ExecutionRevision'>
 export type InputId = AgentIdentity<'AgentInputId'>
 export type InputBatchId = AgentIdentity<'AgentInputBatchId'>
 export type ConsumptionId = AgentIdentity<'AgentConsumptionId'>
+export type CompactionTaskId = AgentIdentity<'CompactionTaskId'>
+export type CompactionOperationId = AgentIdentity<'CompactionOperationId'>
 export type ReplyAdmissionSequence = AgentIdentity<'ReplyAdmissionSequence'>
 export type ReplyAdmissionPageCursor = AgentIdentity<'ReplyAdmissionPageCursor'>
 export type { Adoption, ConsumerRef, DurableEvidence } from '@omne-harness/exchange-refs'
@@ -117,6 +119,13 @@ export const decodeExecutionRevision = decoderOf<ExecutionRevision, 'ExecutionRe
 export const decodeInputId = decoderOf<InputId, 'InputId'>('InputId')
 export const decodeInputBatchId = decoderOf<InputBatchId, 'InputBatchId'>('InputBatchId')
 export const decodeConsumptionId = decoderOf<ConsumptionId, 'ConsumptionId'>('ConsumptionId')
+export const decodeCompactionTaskId = decoderOf<CompactionTaskId, 'CompactionTaskId'>(
+  'CompactionTaskId',
+)
+export const decodeCompactionOperationId = decoderOf<
+  CompactionOperationId,
+  'CompactionOperationId'
+>('CompactionOperationId')
 export const decodeReplyAdmissionPageCursor = decoderOf<
   ReplyAdmissionPageCursor,
   'ReplyAdmissionPageCursor'

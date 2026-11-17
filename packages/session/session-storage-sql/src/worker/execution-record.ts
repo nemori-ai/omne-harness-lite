@@ -12,6 +12,7 @@ import {
 import { findPreadmission, preadmissionRecord } from './read-preadmission.ts'
 import { packText } from '@omne-harness/sql-contract/worker'
 import { big, oneRow, text, type Executor, type Row } from './support.ts'
+import { storeSharedBlob } from './shared-blobs.ts'
 
 const PROTOCOL = '1'
 
@@ -222,11 +223,7 @@ function appendBatch(port: Executor, write: Write, pub: bigint): void {
 }
 
 function storeBlobs(port: Executor, tenant: string, blobs: readonly Blob[]): void {
-  for (const blob of blobs)
-    port.execute(
-      'INSERT OR IGNORE INTO sl_blob (tenant, digest, media, size, payload) VALUES (?, ?, ?, ?, ?)',
-      [tenant, blob.digest, blob.media, BigInt(utf8(blob.payload)), packText(blob.payload)],
-    )
+  for (const blob of blobs) storeSharedBlob(port, tenant, blob)
 }
 
 function writeIndex(port: Executor, write: Write): void {

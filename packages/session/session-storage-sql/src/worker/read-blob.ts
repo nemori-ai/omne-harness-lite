@@ -1,4 +1,5 @@
-import { big, handler, oneRow, packed, text } from './support.ts'
+import { handler } from './support.ts'
+import { readSharedBlob } from './shared-blobs.ts'
 
 export default handler('execution-record.blob', (input, port) => {
   const value =
@@ -6,18 +7,14 @@ export default handler('execution-record.blob', (input, port) => {
   const { tenant, digest } = value
   if (typeof tenant !== 'string' || tenant === '' || typeof digest !== 'string' || digest === '')
     throw new Error('invalid input')
-  const row = oneRow(
-    port,
-    'SELECT media, size, payload FROM sl_blob WHERE tenant = ? AND digest = ? LIMIT 1',
-    [tenant, digest],
-  )
-  return row === undefined
+  const row = readSharedBlob(port, tenant, digest)
+  return row === null
     ? { kind: 'denied' }
     : {
         kind: 'blob',
         digest,
-        media: text(row['media']),
-        size: String(big(row['size'])),
-        payload: packed(row['payload']),
+        media: row.media,
+        size: String(Buffer.byteLength(row.payload)),
+        payload: row.payload,
       }
 })

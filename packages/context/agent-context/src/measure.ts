@@ -6,7 +6,7 @@ export type ContextSegmentEvent =
       segment: 'context'
       phase: 'start'
       span: number
-      operation: 'prepare' | 'derive' | 'resume' | 'read'
+      operation: 'prepare' | 'assess-compaction' | 'resume' | 'read'
       execution: AgentExecutionId
     }>
   | Readonly<{
@@ -14,7 +14,7 @@ export type ContextSegmentEvent =
       segment: 'context'
       phase: 'end'
       span: number
-      operation: 'prepare' | 'derive' | 'resume' | 'read'
+      operation: 'prepare' | 'assess-compaction' | 'resume' | 'read'
       execution: AgentExecutionId
       outcome: 'ok' | 'failure'
     }>

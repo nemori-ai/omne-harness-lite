@@ -1,3 +1,5 @@
+import { decodeEntry } from './entries.ts'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { SessionEntry } from './entries.ts'
 import type { HistoryEntry } from './faces.ts'
 import type { EntryId } from './identity.ts'
@@ -157,4 +159,47 @@ export function projectWorkEntries(
     }))
   }
   return { calls, controls }
+}
+
+export type CompactionCallChange =
+  | Readonly<{ kind: 'bound'; consumption: string; associated: boolean }>
+  | Readonly<{ kind: 'result'; consumption: string; version: string; processed: boolean }>
+
+export function compactionCallChangeOf(
+  row: HistoryEntry,
+): Outcome<CompactionCallChange | null, string> {
+  if (
+    ![
+      'call.bound',
+      'call.execution-fact',
+      'account.linked',
+      'call.result-preserved',
+      'call.result-processed',
+    ].includes(row.kind)
+  )
+    return succeed(null)
+  const decoded = decodeEntry(row)
+  if (!('ok' in decoded)) return fail('the call protection entry is not decodable')
+  const entry = decoded.ok
+  if (entry.kind === 'call.bound')
+    return succeed({
+      kind: 'bound',
+      consumption: entry.consumption,
+      associated: !('registration' in entry) || entry.registration.kind === 'associated',
+    })
+  if (
+    entry.kind !== 'call.execution-fact' &&
+    entry.kind !== 'account.linked' &&
+    entry.kind !== 'call.result-preserved' &&
+    entry.kind !== 'call.result-processed'
+  )
+    return succeed(null)
+  return entry.consumption === undefined || entry.result == null
+    ? succeed(null)
+    : succeed({
+        kind: 'result',
+        consumption: entry.consumption,
+        version: entry.result.version,
+        processed: entry.kind === 'call.result-processed',
+      })
 }

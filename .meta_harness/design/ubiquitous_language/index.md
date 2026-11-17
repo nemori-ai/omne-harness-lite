@@ -123,6 +123,7 @@
 |---|---|---|---|
 | [UL-asset](terms/capabilities-and-composition.md#ul-asset--资产--asset) | 资产 | Asset | 约束 agent 由什么组装而成、从哪被触达、在哪插手，**恰有八类** |
 | [UL-setting](terms/capabilities-and-composition.md#ul-setting--设置--setting) | 设置 | Setting | 决定功能怎样工作的可配置事项；可独立使用，也可组合进资产定义 |
+| [UL-settings-target](terms/capabilities-and-composition.md#ul-settings-target--设置目标--settings-target) | 设置目标 | Settings Target | 一组设置配在其上的那个东西；跟着资产持有的，或独立的；一项设置归「资产」还是「设置」只看它 |
 | [UL-setting-category](terms/capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category) | 设置项类别 | Setting Category | 每项设置必标的四类之一：偏好 / 绑定 / 落点与身份 / 治理（管别的设置与权限怎么起作用）；决定值能从哪些层来 |
 | [UL-permission](terms/capabilities-and-composition.md#ul-permission--权限--permission) | 权限 | Permission | 资产的一种属性，管「能做什么」 |
 | [UL-skill](terms/capabilities-and-composition.md#ul-skill--技能--skill) | 技能 | Skill | 一段可复用的工作方法 |
@@ -413,6 +414,9 @@
 | [UL-app-shell](terms/interaction-and-dispatch.md#ul-app-shell--界面外壳--app-shell) | 界面外壳 | App Shell | 一种应用形态自己的界面代码：窗口、导航与它声明的界面插入位置；**不含任何领域的代码**；不是 Shell 工具 |
 | [UL-ui-module](terms/interaction-and-dispatch.md#ul-ui-module--界面模块--ui-module) | 界面模块 | UI Module | 一个领域在客户端的界面部分，客户端装配树上的插件；**随它依赖的协议在协议可用性里出现与消失而加载与卸载** |
 | [UL-ui-slot](terms/interaction-and-dispatch.md#ul-ui-slot--界面插入位置--ui-slot) | 界面插入位置 | UI Slot | 界面外壳声明的、界面模块可以往里放东西的具名位点；**设计时列出，不在运行期创建**；只放一个或放一列 |
+| [UL-asset-page](terms/interaction-and-dispatch.md#ul-asset-page--资产页--asset-page) | 资产页 | Asset Page | 桌面应用里人管理本租户各类资产的那一部分；按类别分页签；资产自己的设置在这里改 |
+| [UL-asset-category-page](terms/interaction-and-dispatch.md#ul-asset-category-page--资产类别页面--asset-category-page) | 资产类别页面 | Asset Category Page | 一类资产在资产页里自己的那一页；由这一类的界面模块带来，没带来时用通用的页面；**不存事实** |
+| [UL-asset-governance-port](terms/interaction-and-dispatch.md#ul-asset-governance-port--资产治理口--asset-governance-port) | 资产治理口 | Asset Governance Port | 资产的界面模块交给一类资产的界面模块的口：这一类的资产、设置项与改它们的操作；**规则不由它判** |
 
 ## [记录与上下文](terms/record-and-context.md)
 
@@ -465,11 +469,11 @@
 | [UL-context-snapshot-reminder](terms/record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder) | 上下文快照提醒 | Context Snapshot Reminder | 完整读取后放进请求的全部稳定块完整值，**只进请求不进日志**，锚定位置 |
 | [UL-snapshot-anchor](terms/record-and-context.md#ul-snapshot-anchor--快照锚点--snapshot-anchor) | 快照锚点 | Snapshot Anchor | 快照提醒在模型可见历史里的固定位置：完整读取时的历史尾部，压缩后在压缩记录之后 |
 | [UL-tail-facts-reminder](terms/record-and-context.md#ul-tail-facts-reminder--尾部易变提醒--tail-facts-reminder) | 尾部易变提醒 | Tail Facts Reminder | 请求**最末**那条只含逐请求变化块的提醒，每次重算，不进历史与快照 |
-| [UL-compaction-plan](terms/record-and-context.md#ul-compaction-plan--压缩计划--compaction-plan) | 压缩计划 | Compaction Plan | 需要压缩时给出的计划：编号、步数上界、逐步请求；**一个候选至多一个** |
-| [UL-compaction-plan-progress](terms/record-and-context.md#ul-compaction-plan-progress--压缩计划进度--compaction-plan-progress) | 压缩计划进度 | Compaction Plan Progress | 计划编号加已完成步数，每步恰加一 |
-| [UL-compaction-step-request](terms/record-and-context.md#ul-compaction-step-request--压缩步请求--compaction-step-request) | 压缩步请求 | Compaction Step Request | 计划里一步要做的事，修剪步或摘要步之一 |
-| [UL-pruning-step](terms/record-and-context.md#ul-pruning-step--修剪步--pruning-step) | 修剪步 | Pruning Step | **不调模型**，只缩短大工具结果或媒体占位；先于摘要步 |
-| [UL-summary-step](terms/record-and-context.md#ul-summary-step--摘要步--summary-step) | 摘要步 | Summary Step | 一次内部模型调用生成覆盖范围的摘要，由协调者发起 |
+| [UL-compaction-plan](terms/record-and-context.md#ul-compaction-plan--压缩计划--compaction-plan) | 压缩计划 | Compaction Plan | 提供者内部的有界计划，不是 Agent 消费协议 |
+| [UL-compaction-plan-progress](terms/record-and-context.md#ul-compaction-plan-progress--压缩计划进度--compaction-plan-progress) | 压缩计划进度 | Compaction Plan Progress | 提供者保管和恢复的内部计划位置 |
+| [UL-compaction-step-request](terms/record-and-context.md#ul-compaction-step-request--压缩步请求--compaction-step-request) | 压缩步请求 | Compaction Step Request | 提供者内部步骤的请求，不交 Agent 驱动 |
+| [UL-pruning-step](terms/record-and-context.md#ul-pruning-step--修剪步--pruning-step) | 修剪步 | Pruning Step | 提供者内部缩短摘要材料，不改原历史 |
+| [UL-summary-step](terms/record-and-context.md#ul-summary-step--摘要步--summary-step) | 摘要步 | Summary Step | 提供者内部模型调用，调用与恢复归提供者 |
 | [UL-business-calendar](terms/record-and-context.md#ul-business-calendar--业务日历--business-calendar) | 业务日历 | Business Calendar | 具有明确适用范围、可被指认与选用的一份日期分类知识，逐日回答工作日、假日等问题，由可追溯的业务日历版本承载。 |
 | [UL-business-calendar-version](terms/record-and-context.md#ul-business-calendar-version--业务日历版本--business-calendar-version) | 业务日历版本 | Business Calendar Version | 某份业务日历经过校验发布的一份不可变数据，带可区分的版本、覆盖范围、信息截至时点与权威出处；修订通过新版本表达。 |
 | [UL-engineering-telemetry](terms/record-and-context.md#ul-engineering-telemetry--工程遥测--engineering-telemetry) | 工程遥测 | Engineering Telemetry | 为工程诊断留下的工程日志、链路与指标的总称；**不是面向用户的观察**，不替代账目、授权依据或恢复事实 |

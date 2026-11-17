@@ -34,7 +34,11 @@ export function materializeModelView(
       continue
     if (message.role === 'compaction') {
       const boundary = history.findIndex(row => row.id === String(message.covers.to))
-      const retained = rows.filter(row => message.retained.some(ref => String(ref) === row.entry))
+      const byEntry = new Map(rows.map(row => [row.entry, row]))
+      const retained = message.retained.flatMap(ref => {
+        const row = byEntry.get(String(ref) as HistoryEntry['id'])
+        return row === undefined ? [] : [row]
+      })
       const after = rows.filter(
         row => history.findIndex(entry => entry.id === row.entry) > boundary,
       )
@@ -139,10 +143,42 @@ export function compactionReads(
     origin,
     base:
       previous === undefined
-        ? { kind: 'initial' }
+        ? { kind: 'initial', pairings }
         : { kind: 'previous', record: previous.ref, pairings },
     covered: window,
     after,
     open: [...new Set(open)],
+  }
+}
+
+export function compactionContextForView(
+  entries: readonly HistoryEntry[],
+  snapshot: WorkSnapshot,
+  rows: readonly ModelViewRow[],
+  upper: number,
+  through: string | null,
+): CompactionContext | null {
+  const selected = new Set(rows.slice(0, upper).map(row => String(row.entry)))
+  through ??= entries.findLast(row => selected.has(row.id))?.id ?? null
+  if (through === null) return null
+  const value = compactionReads(entries, snapshot, through)
+  if (value === null) return null
+  const keep = (row: CoveredEntry) =>
+    selected.has(row.ref) ||
+    value.open.includes(row.ref) ||
+    (value.base.kind === 'initial' && row.ref === value.origin)
+  const visible = (row: CoveredEntry): CoveredEntry =>
+    selected.has(row.ref) ? row : { ref: row.ref, message: null }
+  const covered = value.covered.filter(keep).map(visible)
+  const after = value.after.filter(keep).map(visible)
+  if (covered.at(-1)?.ref !== through) return null
+  return {
+    ...value,
+    covered,
+    after,
+    base: {
+      ...value.base,
+      pairings: value.base.pairings.filter(item => selected.has(item.result)),
+    },
   }
 }
