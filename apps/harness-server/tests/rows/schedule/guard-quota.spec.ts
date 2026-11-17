@@ -7,7 +7,7 @@ import migration from '../../../src/rows/schedule/guard-migration.ts'
 import { holdQuota } from '../../../src/rows/schedule/guard-participant.ts'
 
 type Requirement = Pick<ScheduleManagementGuardRequirement, 'quotaEffect' | 'resultingHolding'>
-const owner = { kind: 'tenant', tenantId: 'tenant/o/a', ownerId: 'acc-a' } as never
+const owner = { kind: 'tenant', tenantId: 'tenant/o/a', ownerId: 'acc-a' } as const
 const author = { kind: 'human', actorRef: 'acc-a' } as never
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}` as never
 
@@ -67,6 +67,18 @@ describe('the quota the schedule guard keeps in the same transaction as the sche
       [id(1), 1n],
       [id(2), 1n],
     ])
+  })
+
+  it('counts each owner and author on their own', () => {
+    const p = port()
+    expect(holdQuota(p, reserve(1), 1)).toBeNull()
+    const other = reserve(2)
+    const elsewhere = {
+      ...other,
+      quotaEffect: { ...other.quotaEffect, owner: { ...owner, ownerId: 'acc-b' } },
+    } as Requirement
+    expect(holdQuota(p, elsewhere, 1)).toBeNull()
+    expect(holdQuota(p, reserve(3), 1)).toBe('capacity_exceeded')
   })
 
   it('frees the slot of a released schedule so a new one fits', () => {
