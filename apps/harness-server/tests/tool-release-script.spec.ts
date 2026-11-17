@@ -35,22 +35,22 @@ describe('tool-release.mjs check', () => {
     const run = check(FORMAL)
     expect(run.stderr).toBe('')
     expect(run.status).toBe(0)
-    expect(run.stdout).toMatch(/^tool-release: ok entries=6 artifacts=\d+ generation=sha256:/)
+    expect(run.stdout).toMatch(/^tool-release: ok entries=7 artifacts=\d+ generation=sha256:/)
   })
 
   test('exits 1 and names the artifact when the manifest and the artifacts disagree', () => {
     const path = variant('artifact.json', text => {
       const manifest = JSON.parse(text) as {
-        artifacts: { files: { path: string; sha256: string }[] }
+        artifacts: { package: string; files: { path: string; sha256: string }[] }[]
       }
-      const first = manifest.artifacts.files.find(file => file.path === 'dist/index.js')
+      const first = manifest.artifacts[0]?.files.find(file => file.path === 'dist/index.js')
       if (first === undefined) throw new Error('fixture: no dist/index.js')
       first.sha256 = '0'.repeat(64)
       return `${JSON.stringify(manifest, null, 2)}\n`
     })
     const run = check(path)
     expect(run.status).toBe(1)
-    expect(run.stderr).toContain('artifact dist/index.js')
+    expect(run.stderr).toContain('artifact @omne-harness/tool-definitions/dist/index.js')
   })
 
   test('exits 1 when an entry was edited by hand', () => {

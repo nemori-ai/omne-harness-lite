@@ -35,7 +35,8 @@ import {
 } from '../../../src/entry/tool-release.ts'
 import {
   constructionTree,
-  locateToolDefinitions,
+  locateReleasePackages,
+  TOOL_DEFINITIONS_PACKAGE,
   loadToolRelease,
   type ToolReleaseManifest,
   type ToolReleaseSnapshot,
@@ -80,6 +81,7 @@ export const TEST_CONSTRUCTION = Object.freeze({
   TodoItems: { resultMaxBytes: 1_048_576 },
   Ask: { resultMaxBytes: 1_048_576 },
   Web: { resultMaxBytes: 4096, maxSearchResults: 10 },
+  Calendar: { resultMaxBytes: 4096 },
 })
 
 export function tree(value: unknown): JsonValue {
@@ -109,7 +111,7 @@ function linkDependencies(from: string, to: string): string[] {
 }
 
 export async function packageCopy(tamper: boolean): Promise<{ root: string; remove(): void }> {
-  const source = await locateToolDefinitions(MEMBER)
+  const source = (await locateReleasePackages(MEMBER))[TOOL_DEFINITIONS_PACKAGE]
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'tool-release-copy-')))
   cpSync(join(source, 'package.json'), join(root, 'package.json'))
   cpSync(join(source, 'dist'), join(root, 'dist'), { recursive: true })
@@ -133,8 +135,15 @@ export async function packageCopy(tamper: boolean): Promise<{ root: string; remo
   }
 }
 
+/** The release with its tool-definitions package read from the given root, the others as installed. */
 export const releaseFrom = (packageRoot: string) => (): Promise<ToolReleaseSnapshot> =>
-  loadToolRelease({ ...productionReleaseInput(), packageRoot: async () => packageRoot })
+  loadToolRelease({
+    ...productionReleaseInput(),
+    packageRoots: async () => ({
+      ...(await locateReleasePackages(MEMBER)),
+      [TOOL_DEFINITIONS_PACKAGE]: packageRoot,
+    }),
+  })
 
 class EmptyResidency extends ToolResidencyReaderService {
   readonly referencing: ToolResidencyReaderService['referencing'] = async () =>

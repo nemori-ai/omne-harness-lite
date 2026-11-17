@@ -1,244 +1,297 @@
-import { expect, it, vi } from 'vitest'
-import { createIndependentToolScope } from '@omne-harness/tool'
-import { defaultResultPolicy, renderToolResult } from '@omne-harness/tool-contract/provider'
-import { createLocalTextResults } from '@omne-harness/tool-host-local'
-import { writeJsonText } from '@omne-harness/json-text'
+import { describe, expect, it, vi } from 'vitest'
+import type {
+  CalendarAnswer,
+  CalendarCalculator,
+  CalendarCallContext,
+  CalendarQuestion,
+} from '@omne-harness/calendar-contract'
+import { createIndependentToolScope, executeTool } from '@omne-harness/tool'
+import { readJsonText } from '@omne-harness/json-text'
+import { readToolRegistration } from '@omne-harness/tool-contract/binding'
 import {
-  createCalendarToolModule,
-  type CalendarToolEnvironment,
+  commandArguments,
+  commandGuide,
+  deriveDefinition,
+  judgeToolDefinition,
+} from '@omne-harness/tool-contract/provider'
+import {
+  attachCalendar,
+  bindCalendar,
+  calendarToolModule,
+  createCalendarAuthor,
+  type BoundCalendar,
 } from '@omne-harness/calendar-tools'
-import { calendarResolveResultSchema } from '@omne-harness/calendar-contract'
-import { author, argumentsOf, context, domainError, queries, value } from './world.ts'
 
-export async function run(
-  service: typeof queries,
-  input: unknown,
-  prepared: CalendarToolEnvironment = {
-    calendarContext: { kind: 'ok' as const, value: context() },
+function scope() {
+  const answer = createIndependentToolScope({
+    limits: {
+      authorBufferBytes: 65536,
+      authorBufferItems: 100,
+      authorWaitHistoryBytes: 65536,
+      authorWaitHistoryItems: 100,
+    },
+    signal: new AbortController().signal,
+    process: null,
+    waits: null,
+  })
+  if ('failure' in answer) throw new Error(JSON.stringify(answer.failure))
+  return answer.ok
+}
+const json = (value: unknown) => {
+  const read = readJsonText(JSON.stringify(value), {
+    maxBytes: 65536,
+    maxDepth: 8,
+    maxItems: 64,
+    maxMembers: 16,
+    maxStringLength: 4096,
+    maxNumberLength: 32,
+  })
+  if (read.kind !== 'ok') throw new Error('json')
+  return read.value
+}
+const basis = {
+  calendarId: 'cn-legal-holidays',
+  versionId: 'v-2026-11-06',
+  coverageStart: '2025-01-01',
+  coverageEnd: '2027-12-31',
+}
+const workday = {
+  kind: 'ok',
+  value: {
+    ...basis,
+    result: {
+      kind: 'day',
+      value: { kind: 'ok', value: { classification: 'workingDay', working: true } },
+    },
   },
-) {
-  const { operation } = await author(service)
-  if (operation.author.kind !== 'ordinary') throw new Error('Expected ordinary author')
-  const args = value(operation.author.parameters.parse(argumentsOf(input)))
-  const scope = value(
-    createIndependentToolScope({
-      signal: new AbortController().signal,
-      limits: {
-        authorBufferBytes: 10000,
-        authorBufferItems: 100,
-        authorWaitHistoryBytes: 10000,
-        authorWaitHistoryItems: 100,
-      },
-      process: null,
-      waits: null,
-    }),
+} as unknown as CalendarAnswer
+const refused = (code: string, details = {}): CalendarAnswer =>
+  ({
+    kind: 'error',
+    error: { code, message: code, retryable: false, requestId: 'r', details },
+  }) as CalendarAnswer
+
+function fixture(maximum = 65536) {
+  const created = createCalendarAuthor(json({ resultMaxBytes: maximum }))
+  if ('failure' in created) throw new Error(JSON.stringify(created.failure))
+  const registration = readToolRegistration(created.ok)
+  if (registration?.kind !== 'commands') throw new Error('commands')
+  const operations = registration.operations
+  const definition = deriveDefinition(
+    {
+      asset: { name: 'Calendar', adoption: calendarToolModule.executor },
+      requiredCapabilities: [],
+    },
+    created.ok.facts,
   )
-  const returned = await operation.author.executor.execute(args, prepared, scope.context)
-  value(await scope.finish('returned'))
-  const checked = value(operation.author.output.check({ arguments: args, value: returned }))
-  const rendered = value(
-    renderToolResult(checked, operation.author, createLocalTextResults(), defaultResultPolicy),
-  )
-  return { operation, returned, rendered }
+  function decode(command: string, params: unknown) {
+    const operation = operations.find(([name]) => name === command)?.[1]
+    if (operation === undefined || operation.author.kind !== 'ordinary') throw new Error('ordinary')
+    const text = JSON.stringify({ command, params })
+    const cut = commandArguments(definition, command, {
+      original: text,
+      effective: text,
+      complete: true,
+    })
+    return {
+      operation: operation.author,
+      parsed: 'failure' in cut ? cut : operation.author.parameters.parse(cut.ok),
+    }
+  }
+  async function run(command: string, params: unknown, calendar?: BoundCalendar) {
+    const { operation, parsed } = decode(command, params)
+    if ('failure' in parsed) throw new Error(JSON.stringify(parsed.failure))
+    const execution = calendar === undefined ? scope() : attachCalendar(scope(), calendar)
+    const result = await executeTool(parsed.ok, operation.executor, null, execution)
+    if ('failure' in result) throw new Error(JSON.stringify(result.failure))
+    const checked = operation.output.check({ arguments: parsed.ok, value: result.ok })
+    if ('failure' in checked) throw new Error(JSON.stringify(checked.failure))
+    return String(checked.ok)
+  }
+  return { definition, decode, run }
+}
+const answering = (answer: CalendarAnswer) => {
+  const asked = vi.fn(async () => answer)
+  return { calendar: { answer: asked } satisfies BoundCalendar, asked }
 }
 
-it('routes list/get/effective and all five computations through the minted author', async () => {
-  const calls: unknown[] = []
-  const service = {
-    list: vi.fn(async (...args: Parameters<typeof queries.list>) => {
-      calls.push(args)
-      return domainError()
-    }),
-    get: vi.fn(async (...args: Parameters<typeof queries.get>) => {
-      calls.push(args)
-      return domainError()
-    }),
-    effective: vi.fn(async (...args: Parameters<typeof queries.effective>) => {
-      calls.push(args)
-      return domainError()
-    }),
-    resolve: vi.fn(async (...args: Parameters<typeof queries.resolve>) => {
-      calls.push(args)
-      return domainError()
-    }),
-  }
-  const inputs = [
-    { action: 'list', input: { limit: 3 } },
-    { action: 'get', input: { calendarId: 'test' } },
-    { action: 'effective' },
-    ...[
-      { kind: 'day', date: '2026-01-01' },
-      { kind: 'count', from: '2026-01-01', to: '2026-01-02' },
-      { kind: 'shift', date: '2026-01-01', offset: -1 },
-      { kind: 'next', after: '2026-01-01', count: 5 },
-      { kind: 'nth', periodStart: '2026-01-01', periodEnd: '2026-01-31', ordinal: 'last' },
-    ].map(query => ({
-      action: 'resolve',
-      input: { selection: { kind: 'effective' }, version: { kind: 'latest' }, query },
-    })),
-  ]
-  for (const input of inputs) {
-    const result = await run(service, input)
-    expect(result.returned).toEqual(domainError())
-    expect(result.rendered.content[0]).toHaveProperty('text', JSON.stringify(domainError()))
-  }
-  expect(service.list).toHaveBeenCalledOnce()
-  expect(service.get).toHaveBeenCalledOnce()
-  expect(service.effective).toHaveBeenCalledOnce()
-  expect(service.resolve).toHaveBeenCalledTimes(5)
-  expect(calls).toEqual(
-    inputs.map(input => ('input' in input ? [context(), input.input] : [context()])),
-  )
-})
-
-it('rejects duplicate JSON keys, identity fields and incomplete arguments at the real codec', async () => {
-  const { operation } = await author()
-  for (const text of [
-    '{"action":"list","action":"effective"}',
-    '{"action":"effective","tenant":"other"}',
-    '{"action":"list","input":{"authContext":"forged"}}',
-  ]) {
-    expect(
-      operation.author.parameters.parse({ original: text, effective: text, complete: true }),
-    ).toHaveProperty('failure.kind', 'invalid')
-  }
-  expect(
-    operation.author.parameters.parse({ ...argumentsOf({ action: 'effective' }), complete: false }),
-  ).toHaveProperty('failure.kind', 'incomplete')
-})
-
-it('preserves the complete calculation basis and a long output through the program value and the author codec', async () => {
-  const basis = {
-    calendarId: 'test',
-    versionId: 'v1',
-    publicationGeneration: 1,
-    coverage: { from: '2026-01-01', to: '2026-12-31' },
-    inspectedRange: { from: '2026-01-01', to: '2026-01-01' },
-    knowledgeAsOf: '2026-01-01T00:00:00.000Z',
-    contentHash: 'a'.repeat(64),
-    provenanceRefs: ['source-' + '完整'.repeat(50000)],
-  }
-  const result = calendarResolveResultSchema.parse({
-    kind: 'ok',
-    value: {
-      calendarId: 'test',
-      versionId: 'v1',
-      coverageStart: '2026-01-01',
-      coverageEnd: '2026-12-31',
-      result: {
-        kind: 'day',
-        value: {
-          kind: 'ok',
-          date: '2026-01-01',
-          classification: 'workingDay',
-          working: true,
-          holiday: false,
-          override: false,
-          provenanceRefs: basis.provenanceRefs,
-          basis,
-        },
-      },
-    },
-  })
-  const { rendered, operation, returned } = await run(
-    { ...queries, resolve: async () => result },
-    {
-      action: 'resolve',
-      input: {
-        selection: { kind: 'effective' },
-        version: { kind: 'latest' },
-        query: { kind: 'day', date: '2026-01-01' },
-      },
-    },
-  )
-  expect(rendered.data.kind).toBe('json')
-  if (rendered.data.kind !== 'json') throw new Error('Missing structured result')
-  expect(JSON.parse(writeJsonText(rendered.data.value))).toEqual(result)
-  const bytes = value(operation.author.codec.encode(returned))
-  expect(bytes.byteLength).toBeGreaterThan(100000)
-  expect(value(operation.author.codec.decode(bytes))).toEqual(result)
-  expect(rendered).not.toHaveProperty('detailRef')
-  expect(rendered.original).toEqual({ kind: 'none' })
-})
-
-it('does not turn provider exceptions or invalid return shape into a successful result', async () => {
-  await expect(
-    run(
-      {
-        ...queries,
-        effective: async () => {
-          throw new Error('provider disconnected')
-        },
-      },
-      { action: 'effective' },
-    ),
-  ).rejects.toThrow('provider disconnected')
-  const { operation } = await author()
-  expect(
-    operation.author.output.check({
-      arguments: { action: 'effective' },
-      value: { kind: 'ok', value: [] },
-    }),
-  ).toHaveProperty('failure')
-})
-
-it('keeps denied or missing trusted environment results intact without calling the service', async () => {
-  const effective = vi.fn(queries.effective)
-  for (const code of ['forbidden', 'missing_environment'] as const) {
-    const result = await run(
-      { ...queries, effective },
-      { action: 'effective' },
-      { calendarContext: domainError(code) },
+describe('the Calendar declaration', () => {
+  it('is one wrapped declaration with help and five date questions, without a calendar or version field', async () => {
+    const test = fixture()
+    expect(judgeToolDefinition(test.definition)).toHaveProperty('ok')
+    if (test.definition.kind !== 'commands') throw new Error('commands')
+    expect(test.definition.encoding).toBe('wrapped')
+    expect(test.definition.commands.map(item => item.name)).toEqual([
+      'help',
+      'day',
+      'count',
+      'shift',
+      'next',
+      'nth',
+    ])
+    const declared = JSON.stringify(test.definition)
+    for (const field of ['calendarId', 'calendar_id', 'version', 'selection', 'tenant'])
+      expect(declared).not.toContain(`"${field}"`)
+    expect(await test.run('help', {})).toBe(`done Calendar help\n${commandGuide(test.definition)}`)
+    expect(await test.run('help', { name: 'nth' })).toContain(
+      'Usage: Calendar {"command": "nth", "params": {period_start, period_end, ordinal}}',
     )
-    expect(result.returned).toEqual(domainError(code))
-    expect(result.rendered.content[0]).toHaveProperty('text', JSON.stringify(domainError(code)))
-  }
-  expect(effective).not.toHaveBeenCalled()
-  const { operation } = await author()
-  expect(operation.author.codec.decode(new Uint8Array([255]))).toHaveProperty('failure')
+  })
+
+  it.each([
+    ['day', { date: '2026-10-10', calendar: 'jp-legal-holidays' }],
+    ['day', { date: '2026/10/10' }],
+    ['day', {}],
+    ['count', { from: '2026-10-09', to: '2026-09-28' }],
+    ['shift', { date: '2026-10-10', offset: 1.5 }],
+    ['next', { after: '2026-10-10', count: 367 }],
+    ['nth', { period_start: '2026-10-01', period_end: '2026-10-31', ordinal: 0 }],
+    ['help', { name: 'resolve' }],
+  ])('refuses %s %j before any calendar is asked', (command, params) => {
+    expect(fixture().decode(command, params).parsed).toHaveProperty('failure')
+  })
+
+  it('refuses a construction other than a result bound', () => {
+    for (const construction of [{}, { resultMaxBytes: 4 }, { resultMaxBytes: 1024, extra: 1 }])
+      expect(createCalendarAuthor(json(construction))).toHaveProperty('failure')
+  })
 })
 
-it('rejects construction injection and invalid encoded results through public outcomes', async () => {
-  const module = createCalendarToolModule(queries)
-  for (const construction of [
-    { kind: 'null' },
-    { kind: 'array', items: [] },
-    { kind: 'object', entries: [{ key: 'principal', value: { kind: 'string', value: 'forged' } }] },
-  ] as const) {
-    expect(module.createAuthor(construction)).toMatchObject({
-      failure: {
-        field: 'construction',
-        reason: expect.stringContaining('no construction settings'),
-      },
+describe('the Calendar answers', () => {
+  it.each([
+    ['day', { date: '2026-10-10' }, { kind: 'day', date: '2026-10-10' }],
+    [
+      'count',
+      { from: '2026-09-28', to: '2026-10-09' },
+      { kind: 'count', from: '2026-09-28', to: '2026-10-09' },
+    ],
+    [
+      'shift',
+      { date: '2026-09-30', offset: -2 },
+      { kind: 'shift', date: '2026-09-30', offset: -2 },
+    ],
+    ['next', { after: '2026-09-30', count: 3 }, { kind: 'next', after: '2026-09-30', count: 3 }],
+    [
+      'nth',
+      { period_start: '2026-10-01', period_end: '2026-10-31', ordinal: 'last' },
+      { kind: 'nth', periodStart: '2026-10-01', periodEnd: '2026-10-31', ordinal: 'last' },
+    ],
+  ])(
+    'asks %s as the domain question and names the calendar, version and coverage',
+    async (command, params, question) => {
+      const { calendar, asked } = answering(workday)
+      const text = await fixture().run(command, params, calendar)
+      expect(asked).toHaveBeenCalledWith(question)
+      expect(text.split('\n')[0]).toBe(
+        `done Calendar ${command} calendar=cn-legal-holidays version=v-2026-11-06 coverage=2025-01-01..2027-12-31`,
+      )
+      expect(JSON.parse(text.split('\n')[1]!)).toEqual({
+        kind: 'ok',
+        value: { classification: 'workingDay', working: true },
+      })
+    },
+  )
+
+  it.each([
+    ['coverage_insufficient', 'coverage_insufficient'],
+    ['unknown_calendar_version', 'coverage_insufficient'],
+    ['missing_environment', 'not_configured'],
+    ['forbidden', 'forbidden'],
+    ['invalid_timezone', 'invalid'],
+    ['provider_failure', 'unavailable'],
+    ['capacity_exceeded', 'unavailable'],
+  ])('says %s as %s, one line, never as an answer', async (code, kind) => {
+    const { calendar } = answering(
+      refused(code, code === 'coverage_insufficient' ? { date: '2028-01-03' } : {}),
+    )
+    const text = await fixture().run('day', { date: '2028-01-03' }, calendar)
+    expect(text.startsWith(`${kind} reason=`)).toBe(true)
+    expect(text).toContain(`code=${code}`)
+    expect(text).not.toContain('\n')
+  })
+
+  it('answers unavailable when no calendar is attached to the call', async () => {
+    expect(await fixture().run('day', { date: '2026-10-10' })).toBe(
+      'unavailable reason=the calendar is not attached to this call',
+    )
+  })
+
+  it('fails a result past its bound instead of cutting it', async () => {
+    const { calendar } = answering(workday)
+    const text = await fixture(120).run('day', { date: '2026-10-10' }, calendar)
+    expect(text.startsWith('too-large reason=')).toBe(true)
+    expect(new TextEncoder().encode(text).byteLength).toBeLessThanOrEqual(120)
+    expect(await fixture(16).run('day', { date: '2026-10-10' }, calendar)).toBe('too-large')
+  })
+})
+
+describe('binding one call', () => {
+  const context = (tenantId: string): CalendarCallContext =>
+    ({
+      principalRef: 'p',
+      owner: { kind: 'tenant', tenantId, ownerId: 'acc' },
+      actor: { kind: 'agent', actorRef: 'agent' },
+      authContextRef: 'tool',
+      requestId: 'r',
+      originatingSessionRef: 'session-1',
+    }) as unknown as CalendarCallContext
+  const calculator = (answer: CalendarAnswer | Error) => {
+    const asked = vi.fn(async (): Promise<CalendarAnswer> => {
+      if (answer instanceof Error) throw answer
+      return answer
     })
+    return { calculator: { answer: asked } satisfies CalendarCalculator, asked }
   }
-  const { operation, loaded } = await author()
-  expect(loaded.definition).toMatchObject({
-    backgroundAllowed: false,
-    requiredCapabilities: ['calendar.read'],
-    declarations: { inputModalities: ['text'], outputModalities: ['text'] },
-  })
-  expect(operation.author.codec.encode({ kind: 'ok', value: [] })).toMatchObject({
-    failure: { reason: expect.any(String) },
-  })
-  expect(operation.author.codec.decode(new TextEncoder().encode('{}'))).toMatchObject({
-    failure: { reason: expect.any(String) },
-  })
-  expect(operation.author.codec.decode(new Uint8Array([255]))).toMatchObject({
-    failure: { reason: 'utf8' },
-  })
-  if (operation.author.program.kind !== 'json') throw new Error('JSON schema missing')
-  const definition = await operation.author.program.schema.ref.load()
-  expect(definition).toMatchObject({ engine: 'zod', revision: '1', numbers: 'exact-or-reject' })
-})
+  const question = { kind: 'day', date: '2026-10-10' } as unknown as CalendarQuestion
 
-it('refuses output beyond its declared byte budget without emitting clipped bytes', async () => {
-  const { operation } = await author()
-  if (operation.returns.program.kind !== 'json') throw new Error('Missing result budget')
-  const error = domainError()
-  const oversized = {
-    ...error,
-    error: { ...error.error, message: 'x'.repeat(operation.returns.program.maxBytes) },
-  }
-  expect(operation.author.codec.encode(oversized)).toEqual({ failure: { reason: 'budget' } })
+  it('asks the calculator with the context the host derived for the call tenant', async () => {
+    const c = calculator(workday)
+    const bound = bindCalendar({
+      tenant: 'tenant-a',
+      requestId: 'r',
+      calculator: () => c.calculator,
+      context: async () => context('tenant-a'),
+    })
+    expect(await bound.answer(question)).toBe(workday)
+    expect(c.asked).toHaveBeenCalledWith(context('tenant-a'), question)
+  })
+
+  type Case = readonly [
+    string,
+    () => CalendarCalculator | undefined,
+    () => Promise<CalendarCallContext | undefined>,
+    string,
+  ]
+  it.each<Case>([
+    [
+      'a context of another tenant',
+      () => calculator(workday).calculator,
+      async () => context('tenant-b'),
+      'forbidden',
+    ],
+    ['no calculator', () => undefined, async () => context('tenant-a'), 'provider_failure'],
+    ['no context', () => calculator(workday).calculator, async () => undefined, 'provider_failure'],
+    [
+      'a context that throws',
+      () => calculator(workday).calculator,
+      async () => {
+        throw new Error('down')
+      },
+      'provider_failure',
+    ],
+    [
+      'a calculator that throws',
+      () => calculator(new Error('down')).calculator,
+      async () => context('tenant-a'),
+      'provider_failure',
+    ],
+  ])('refuses %s', async (_, calc, ctx, code) => {
+    const answer = await bindCalendar({
+      tenant: 'tenant-a',
+      requestId: 'r',
+      calculator: calc,
+      context: ctx,
+    }).answer(question)
+    expect(answer).toMatchObject({ kind: 'error', error: { code } })
+  })
 })

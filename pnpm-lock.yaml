@@ -569,6 +569,9 @@ importers:
       '@omne-harness/calendar-protocol':
         specifier: workspace:*
         version: link:../../packages/calendar/calendar-protocol
+      '@omne-harness/calendar-tools':
+        specifier: workspace:*
+        version: link:../../packages/calendar/calendar-tools
       '@omne-harness/exchange-refs':
         specifier: workspace:*
         version: link:../../packages/common/exchange-refs
@@ -1642,33 +1645,18 @@ importers:
 
   packages/calendar/calendar-tools:
     dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 'catalog:'
-        version: 4.0.4
       '@omne-harness/calendar-contract':
         specifier: workspace:*
         version: link:../calendar-contract
-      '@omne-harness/calendar-cordis-contract':
-        specifier: workspace:*
-        version: link:../calendar-cordis-contract
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
-      '@omne-harness/schema-provider':
-        specifier: workspace:*
-        version: link:../../schema/schema-provider
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract
-      '@omne-harness/tool-cordis-contract':
-        specifier: workspace:*
-        version: link:../../tool/tool-cordis-contract
-      '@omne-harness/tool-host-local':
-        specifier: workspace:*
-        version: link:../../tool/tool-host-local
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -3528,9 +3516,6 @@ importers:
       '@omne-harness/calendar-local':
         specifier: workspace:*
         version: link:../../calendar/calendar-local
-      '@omne-harness/calendar-tools':
-        specifier: workspace:*
-        version: link:../../calendar/calendar-tools
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result

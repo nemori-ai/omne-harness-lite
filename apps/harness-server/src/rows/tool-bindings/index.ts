@@ -26,6 +26,7 @@ import { releaseOf } from '../../entry/tool-release.ts'
 import { createReleaseToolsCapability, toolsCapabilityConfig } from './tools-capability.ts'
 import { bindReleaseTodoItems } from './todo-items.ts'
 import { bindReleaseWeb, webBindingConfig, type WebBindingConfig } from './web.ts'
+import { bindReleaseCalendar } from './calendar.ts'
 
 export const toolBindingsConfig = z
   .strictObject({ tools: toolsCapabilityConfig.optional(), web: webBindingConfig.optional() })
@@ -51,9 +52,13 @@ export function releaseCapability(
     const withTodos = isReleaseToolRequest(release, input.request, 'TodoItems')
       ? bindReleaseTodoItems(ctx, input, withTools)
       : withTools
-    return attachments.web !== null && isReleaseToolRequest(release, input.request, 'Web')
-      ? bindReleaseWeb(input, withTodos, attachments.web, custody)
-      : withTodos
+    const withWeb =
+      attachments.web !== null && isReleaseToolRequest(release, input.request, 'Web')
+        ? bindReleaseWeb(input, withTodos, attachments.web, custody)
+        : withTodos
+    return isReleaseToolRequest(release, input.request, 'Calendar')
+      ? bindReleaseCalendar(ctx, input, withWeb)
+      : withWeb
   }
 }
 

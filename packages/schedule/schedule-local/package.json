@@ -49,7 +49,6 @@
     "vitest": "catalog:",
     "@omne-harness/calendar-contract": "workspace:*",
     "@omne-harness/calendar-local": "workspace:*",
-    "@omne-harness/calendar-tools": "workspace:*",
     "@omne-harness/schedule-tools": "workspace:*",
     "@omne-harness/tool": "workspace:*",
     "@omne-harness/tool-contract": "workspace:*",

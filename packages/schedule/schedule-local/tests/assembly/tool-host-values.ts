@@ -19,7 +19,6 @@ import {
 } from '@omne-harness/tool-contract/provider'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { createLocalTextResults } from '@omne-harness/tool-host-local'
-import { calendarToolAdoption } from '@omne-harness/calendar-tools'
 import { scheduleToolAdoption } from '@omne-harness/schedule-tools'
 
 export function value<T>(outcome: Outcome<T, unknown>): T {
@@ -44,13 +43,7 @@ export const access = (id: string) => ({
   tenant: testingTenant(`org_${'a'.repeat(26)}`, `acc_${'1'.repeat(26)}`),
   call: value(decodeToolCallId(id)),
 })
-export const authorities: Record<'Calendar' | 'Schedule', ToolAuthority> = {
-  Calendar: {
-    layer: { kind: 'official' },
-    asset: { name: 'Calendar', adoption: calendarToolAdoption },
-    holding: evidence('Calendar/holding'),
-    publication: evidence('Calendar/publication'),
-  },
+export const authorities: Record<'Schedule', ToolAuthority> = {
   Schedule: {
     layer: { kind: 'official' },
     asset: { name: 'Schedule', adoption: scheduleToolAdoption },

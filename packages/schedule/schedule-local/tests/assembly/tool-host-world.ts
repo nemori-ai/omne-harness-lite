@@ -2,11 +2,6 @@ import { canonicalDigest, createIndependentToolScope } from '@omne-harness/tool'
 import { createMemoryToolBodies, createMemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
-  createCalendarToolEnvironment,
-  type CalendarToolEnvironment,
-} from '@omne-harness/calendar-tools'
-import { createCalendarToolsPlugin } from '@omne-harness/calendar-tools/cordis'
-import {
   createScheduleToolEnvironment,
   scheduleToolAdoption,
   type ScheduleToolEnvironment,
@@ -56,7 +51,7 @@ import {
   value,
 } from './tool-host-values.ts'
 
-type Environment = CalendarToolEnvironment & ScheduleToolEnvironment
+type Environment = ScheduleToolEnvironment
 export type ContextFault = 'none' | 'denied' | 'missing' | 'call' | 'tenant' | 'admission'
 type OriginalContext = Extract<
   Awaited<ReturnType<ScheduleToolContextRecovery<string>['restore']>>,
@@ -157,21 +152,6 @@ export async function openToolHostWorld(
       })
     },
   }
-  const calendarEnvironment = createCalendarToolEnvironment(base, {
-    resolve: async () =>
-      fault === 'none'
-        ? { kind: 'ok', value: world.context }
-        : {
-            kind: 'error',
-            error: {
-              code: fault === 'missing' ? 'missing_environment' : 'forbidden',
-              message: 'Controlled context rejection',
-              retryable: false,
-              requestId: world.context.requestId,
-              details: {},
-            },
-          },
-  })
   const scheduleEnvironment = () =>
     createScheduleToolEnvironment(base, { commands: ledger.commands, contexts })
   const settle: Settle = async call => {
@@ -290,23 +270,15 @@ export async function openToolHostWorld(
       await hostFiber.await()
     }
     if (root.get('toolGenerations') === undefined) throw new Error('Real Tool host is required')
-    const inputFor = (name: 'Calendar' | 'Schedule') => ({
+    const input = {
       access: access('author'),
       asset: {
-        asset: authorities[name].asset,
-        requiredCapabilities:
-          name === 'Calendar' ? ['calendar.read'] : ['schedule.read', 'schedule.write'],
+        asset: authorities.Schedule.asset,
+        requiredCapabilities: ['schedule.read', 'schedule.write'],
       },
       services: {},
-    })
-    const calendarPlugin = root.plugin(createCalendarToolsPlugin(inputFor('Calendar')), {
-      authority: authorities.Calendar,
-      construction,
-      settings: adoption,
-    })
-    disposers.push(() => calendarPlugin.dispose())
-    await calendarPlugin.await()
-    const schedulePlugin = root.plugin(createScheduleToolsPlugin(inputFor('Schedule')), {
+    }
+    const schedulePlugin = root.plugin(createScheduleToolsPlugin(input), {
       authority: authorities.Schedule,
       construction,
       settings: adoption,
@@ -316,11 +288,7 @@ export async function openToolHostWorld(
     const candidate = root.get('toolBindings')
     if (!(candidate instanceof Bindings)) throw new Error('Real Tool bindings are required')
     const bindings = candidate
-    async function prepare(
-      name: 'Calendar' | 'Schedule',
-      args: unknown,
-      id = `tool-call-${++sequence}`,
-    ) {
+    async function prepare(name: 'Schedule', args: unknown, id = `tool-call-${++sequence}`) {
       const current = access(id)
       const availability = value(
         await bindings.inspect({
@@ -364,10 +332,8 @@ export async function openToolHostWorld(
     ): Promise<Environment> {
       const method = inspect ? 'inspectPreparation' : 'prepare'
       const input = { ...call.current, preparation: call.preparation, request: call.request }
-      const calendar = value(await calendarEnvironment[method](input))
       const schedule = value(await scheduleEnvironment()[method](input))
-      if (calendar.kind !== 'prepared' || schedule.kind !== 'prepared')
-        throw new Error('Environment did not prepare')
+      if (schedule.kind !== 'prepared') throw new Error('Environment did not prepare')
       releases.set(call.current.call, {
         ...call.current,
         release: {
@@ -377,11 +343,11 @@ export async function openToolHostWorld(
           adoption: base.adoption,
           inputDigest: canonicalDigest(call.preparation),
           preparation: call.preparation.operation,
-          resource: calendar.environment.evidence,
+          resource: schedule.environment.evidence,
           custody: evidence(`lease-custody/${call.current.call}`),
         },
       })
-      return { ...calendar.environment.value, ...schedule.environment.value }
+      return schedule.environment.value
     }
     async function execute(
       call: Awaited<ReturnType<typeof prepare>>,
@@ -431,7 +397,7 @@ export async function openToolHostWorld(
       }
       throw new Error('Execution ended without a final fact')
     }
-    async function invoke(name: 'Calendar' | 'Schedule', args: unknown, id?: string) {
+    async function invoke(name: 'Schedule', args: unknown, id?: string) {
       return execute(await prepare(name, args, id))
     }
     return {
@@ -457,7 +423,6 @@ export async function openToolHostWorld(
       loadRecovery: (id: string) => ledger.commands.loadRecovery(access(id)),
       withdrawTools: async () => {
         await schedulePlugin.dispose()
-        await calendarPlugin.dispose()
       },
       withdrawDomain: () => world.calendarProvider.dispose(),
       evidenceScope: {
@@ -466,7 +431,7 @@ export async function openToolHostWorld(
           ...world.evidenceScope.real,
           'Tool host/bindings/loader',
           'Tool ledger',
-          'Calendar/Schedule tools Cordis plugins',
+          'Schedule tools Cordis plugin',
         ],
         fixtures: [
           ...world.evidenceScope.fixtures,

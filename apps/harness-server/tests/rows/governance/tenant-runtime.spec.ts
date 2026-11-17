@@ -714,6 +714,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
   if (catalog.kind !== 'page') throw new Error(JSON.stringify(catalog))
   expect(catalog.items.map(item => item.declaration.reference.definitionId).sort()).toEqual([
     'tool.Ask',
+    'tool.Calendar',
     'tool.Files',
     'tool.Shell',
     'tool.TodoItems',
@@ -736,7 +737,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
   expect(settings.views.map(view => [view.target.policyId, view.target.targetRef])).toEqual([
     ['independent', 'calendar.environment'],
     ['independent', 'schedule.agent-authoring'],
-    ...['Ask', 'Files', 'Shell', 'TodoItems', 'Tools', 'Web'].map(name => [
+    ...['Ask', 'Calendar', 'Files', 'Shell', 'TodoItems', 'Tools', 'Web'].map(name => [
       'asset',
       `harness.preinstalled.tool.${name}`,
     ]),

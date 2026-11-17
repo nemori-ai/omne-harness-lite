@@ -205,19 +205,24 @@ describe('the startup snapshot', () => {
 
   it('imports the entry file from the very root whose artifacts it checked', async () => {
     const input = productionReleaseInput()
-    const checked = await input.packageRoot()
-    const roots: string[] = []
+    const checked = await input.packageRoots()
+    const roots: unknown[] = []
     const snapshot = await loadToolRelease({
       ...input,
-      packageRoot: async () => checked,
-      importModules: async root => {
-        roots.push(root)
-        return input.importModules(root)
+      packageRoots: async () => checked,
+      importModules: async given => {
+        roots.push(given)
+        return input.importModules(given)
       },
     })
     expect(snapshot.kind).toBe('trusted')
     expect(roots).toEqual([checked])
-    expect(formalManifest().artifacts.files.map(file => file.path)).toContain(RELEASE_ENTRY_FILE)
+    for (const own of formalManifest().artifacts)
+      expect(own.files.map(file => file.path)).toContain(RELEASE_ENTRY_FILE)
+    expect(formalManifest().artifacts.map(own => own.package)).toEqual([
+      '@omne-harness/tool-definitions',
+      '@omne-harness/calendar-tools',
+    ])
   })
 
   it('is unavailable when the manifest was edited by hand, even with matching artifacts', async () => {

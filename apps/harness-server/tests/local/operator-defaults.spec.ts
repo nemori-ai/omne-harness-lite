@@ -287,6 +287,7 @@ describe('localOperatorLayer over the bundled distribution', () => {
     const bounds = localBounds()
     expect(Object.keys(bounds).sort()).toEqual([
       'Ask',
+      'Calendar',
       'Files',
       'Shell',
       'TodoItems',
@@ -295,7 +296,8 @@ describe('localOperatorLayer over the bundled distribution', () => {
     ])
     for (const tool of ['Shell', 'Files', 'Web', 'TodoItems', 'Ask'])
       expect(bounds[tool]?.resultMaxBytes, tool).toBeGreaterThan(inline)
-    expect(bounds['Tools']?.resultMaxBytes).toBeLessThanOrEqual(inline)
+    for (const tool of ['Tools', 'Calendar'])
+      expect(bounds[tool]?.resultMaxBytes, tool).toBeLessThanOrEqual(inline)
   })
 
   it('gives the test operator layer the tool result bounds of the local profile', () => {

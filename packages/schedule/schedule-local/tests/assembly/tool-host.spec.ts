@@ -1,7 +1,6 @@
 // @module-tag slow
 import { readFile } from 'node:fs/promises'
 import { expect, it } from 'vitest'
-import { calendarResolveSchema, calendarResolveResultSchema } from '@omne-harness/calendar-contract'
 import { SchedulePreviewRequestSchema } from '@omne-harness/schedule-contract'
 import { scheduleToolResultSchema } from '@omne-harness/schedule-tools'
 import { openToolHostWorld } from './tool-host-world.ts'
@@ -17,30 +16,20 @@ const create = {
   },
 }
 
-it('requires the real host and loads both domain Cordis tools through its loader', async () => {
+it('requires the real host and loads the domain Cordis tool through its loader', async () => {
   await expect(openToolHostWorld({ host: false })).rejects.toThrow('Real Tool host is required')
   const world = await openToolHostWorld()
   try {
-    expect(world.registeredNames()).toEqual(['Calendar', 'Schedule'])
-    expect(world.loadedNames.sort()).toEqual(['Calendar', 'Schedule'])
+    expect(world.registeredNames()).toEqual(['Schedule'])
+    expect(world.loadedNames.sort()).toEqual(['Schedule'])
   } finally {
     await world.close()
   }
 })
 
-it('matches direct Calendar resolve and Schedule preview on released 2026 seed dates', async () => {
+it('matches the direct Schedule preview on released 2026 seed dates', async () => {
   const world = await openToolHostWorld()
   try {
-    const input = calendarResolveSchema.parse({
-      selection: { kind: 'explicit', calendarId: 'cn-legal-holidays' },
-      version: { kind: 'latest' },
-      query: { kind: 'day', date: '2026-02-14' },
-    })
-    const calendar = await world.invoke('Calendar', { action: 'resolve', input })
-    expect(calendar.terminal.kind).toBe('completed')
-    expect(calendarResolveResultSchema.parse(calendar.returned)).toEqual(
-      await world.queries.resolve(world.context, input),
-    )
     const preview = SchedulePreviewRequestSchema.parse(
       JSON.parse(
         await readFile(new URL('../../examples/calendar-preview.json', import.meta.url), 'utf8'),
@@ -174,13 +163,6 @@ it.each(['denied', 'missing', 'call', 'tenant', 'admission'] as const)(
     const world = await openToolHostWorld()
     try {
       world.setContextFault(fault)
-      if (fault === 'denied' || fault === 'missing') {
-        const calendar = await world.invoke('Calendar', { action: 'effective' })
-        expect(calendar.returned).toMatchObject({
-          kind: 'error',
-          error: { code: fault === 'missing' ? 'missing_environment' : 'forbidden' },
-        })
-      }
       const result = await world.invoke('Schedule', create)
       expect(result.returned).toMatchObject({
         kind: 'adapterFailure',
@@ -219,7 +201,7 @@ it('releases acquired leases once and leaves a supplied domain world owned by it
   const domain = await seededWorld()
   const world = await openToolHostWorld({ world: domain })
   try {
-    await world.invoke('Calendar', { action: 'effective' })
+    await world.invoke('Schedule', create)
     const closing = world.close()
     expect(world.close()).toBe(closing)
     await closing
