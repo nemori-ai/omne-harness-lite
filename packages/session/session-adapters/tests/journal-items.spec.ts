@@ -36,29 +36,29 @@ function replay(
 }
 
 describe('the items of the journal view', () => {
-  it('the item changes of every fold, replayed into the store, leave exactly the items of the folded view', () => {
+  it('the item changes of every fold, replayed into the store, leave open exactly the items the view holds', () => {
     forAll('items', {
       runs: 60,
       generate: rng => scene(rng),
       check: ({ log }) => {
         const replayed = replay(log)
         if (typeof replayed === 'string') return replayed
-        const expected = new Map<string, Held>()
+        const held = new Map<string, Held>()
         for (const execution of replayed.view.executions.values())
-          for (const item of viewItems(execution))
-            expected.set(JSON.stringify([execution.execution, item.family, item.item]), {
-              open: item.open,
-              body: canonical(item.body),
-            })
-        for (const [key, held] of expected) {
+          for (const item of viewItems(execution)) {
+            const key = JSON.stringify([execution.execution, item.family, item.item])
+            if (!item.open) return `the view holds ${key}, which its family has closed`
+            held.set(key, { open: true, body: canonical(item.body) })
+          }
+        for (const [key, item] of held) {
           const stored = replayed.store.get(key)
           if (stored === undefined) return `the store misses ${key}`
-          if (stored.body !== held.body) return `the store holds another value for ${key}`
-          if (stored.open !== held.open)
-            return `the store holds ${key} ${stored.open ? 'open' : 'closed'}`
+          if (stored.body !== item.body) return `the store holds another value for ${key}`
+          if (!stored.open) return `the store holds ${key} closed`
         }
-        for (const key of replayed.store.keys())
-          if (!expected.has(key)) return `the store holds ${key}, which the view does not`
+        for (const [key, stored] of replayed.store)
+          if (stored.open && !held.has(key))
+            return `the store holds ${key} open, which the view does not`
         return null
       },
     })

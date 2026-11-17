@@ -126,6 +126,7 @@ describe('the batch rules of the command migration, with their negative controls
     })
     const first = published(emptyExecutionView(execution), [
       { kind: 'step.begun', step, batch: batch('b-1') },
+      { kind: 'cursor.moved', step, members: { inputBatch: 'b-1' as never } },
     ])
     const view = fold(
       { head: 0, executions: new Map(), ops: new Map(), excluded: new Map() },

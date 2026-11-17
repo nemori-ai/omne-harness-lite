@@ -202,12 +202,14 @@ function roundBatches(builder: Builder, rng: Random): void {
     reference,
     purpose: 'main',
   }
+  // As the Journal writes it: the batch a step takes is the cursor's batch in the same commit.
+  const taken = minted(decodeInputBatchId(`${builder.execution}/batch/${builder.step}`), 'batch')
   const intend = batch(builder, 'intend', [
     {
       kind: 'step.begun',
       step,
       batch: {
-        id: minted(decodeInputBatchId(`${builder.execution}/batch/${builder.step}`), 'batch'),
+        id: taken,
         watermark: evidence(`${builder.execution}/watermark/${builder.step}`),
         ordered: [],
       },
@@ -233,7 +235,7 @@ function roundBatches(builder: Builder, rng: Random): void {
     {
       kind: 'cursor.moved',
       step,
-      members: { position: 'M0', step, calls: blob([pending]) },
+      members: { position: 'M0', step, inputBatch: taken, calls: blob([pending]) },
     },
   ])
   builder.intends.push(intend)

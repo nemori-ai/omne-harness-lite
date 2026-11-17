@@ -42,7 +42,7 @@ import {
 } from './view.ts'
 import { foldVoided } from './voided.ts'
 import { forkOf, forkTrackedOf } from './shared-map.ts'
-import { itemChanges, type ItemChange } from './items.ts'
+import { closings, evicted, itemChanges, type ItemChange } from './items.ts'
 
 const NO_REVISION: ReadonlySet<string> = new Set([
   'op.recognized',
@@ -784,7 +784,7 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
     ]
 }
 
-export function fold(view: SessionJournalView, batch: PublishedBatch): SessionJournalView {
+function foldAllMembers(view: SessionJournalView, batch: PublishedBatch): SessionJournalView {
   if (batch.pub <= view.head) return view
   const draft = draftOf(view.executions.get(batch.execution) ?? emptyExecutionView(batch.execution))
   // Write the operation index before the facts, so facts that name this batch's op can read it.
@@ -823,15 +823,27 @@ export function fold(view: SessionJournalView, batch: PublishedBatch): SessionJo
   return { head: batch.pub, executions, ops, excluded }
 }
 
-// A fold of one batch together with the items it opened or changed in its execution.
+// A fold of one batch together with the items it opened, changed or closed in its execution. The
+// view it answers holds the open items only: what the batch closed has left it.
 export function foldItems(
   view: SessionJournalView,
   batch: PublishedBatch,
 ): Readonly<{ view: SessionJournalView; changes: readonly ItemChange[] }> {
-  const next = fold(view, batch)
+  const next = foldAllMembers(view, batch)
   const after = next.executions.get(batch.execution)
   if (next === view || after === undefined) return { view: next, changes: [] }
-  return { view: next, changes: itemChanges(view.executions.get(batch.execution), after) }
+  const changed = itemChanges(view.executions.get(batch.execution), after)
+  const changes = [...changed, ...closings(after, changed)]
+  const open = evicted(after, changes)
+  if (open === after) return { view: next, changes }
+  return {
+    view: { ...next, executions: forkOf(next.executions).set(batch.execution, open) },
+    changes,
+  }
+}
+
+export function fold(view: SessionJournalView, batch: PublishedBatch): SessionJournalView {
+  return foldItems(view, batch).view
 }
 
 export function foldAll(
