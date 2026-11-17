@@ -1,5 +1,6 @@
 import type { Outcome } from '@omne-harness/operation-result'
 import type { ToolExecutionContext, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
+import { contextPort } from './context-port.ts'
 
 export type SearchHit = Readonly<{
   title: string
@@ -40,30 +41,14 @@ export interface WebAccess {
   ): Promise<Outcome<FetchedPage, WebFailure>>
 }
 
-const attachments = new WeakMap<ToolExecutionContext, WebAccess>()
+const port = contextPort<WebAccess>()
 export function webAccessOf(context: ToolExecutionContext): WebAccess | undefined {
-  return attachments.get(context)
+  return port.of(context)
 }
 
-/** Attach after other context-producing attachments. Finish removes access before delegation. */
-export function attachWebAccess(scope: ToolExecutionScope, access: WebAccess): ToolExecutionScope {
-  const context = scope.context
-  attachments.set(context, access)
-  let finished: ReturnType<ToolExecutionScope['finish']> | undefined
-  return {
-    context,
-    limits: scope.limits,
-    finish(exit) {
-      if (finished !== undefined) return finished
-      attachments.delete(context)
-      const completion = Promise.withResolvers<Awaited<ReturnType<ToolExecutionScope['finish']>>>()
-      finished = completion.promise
-      try {
-        completion.resolve(scope.finish(exit))
-      } catch (error) {
-        completion.reject(error)
-      }
-      return finished
-    },
-  }
+export function attachWebAccess(
+  scope: ToolExecutionScope,
+  access: WebAccess,
+): ToolExecutionScope {
+  return port.attach(scope, access)
 }

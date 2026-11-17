@@ -1,4 +1,5 @@
 import type { ToolExecutionContext, ToolExecutionScope } from '@omne-harness/tool-contract/provider'
+import { contextPort } from './context-port.ts'
 
 export type TodoAuthorEvidence = Readonly<{
   owner: string
@@ -58,33 +59,14 @@ export interface BoundTodoItems {
   markComplete(input: Readonly<{ item: string }>): Promise<TodoAuthorReply>
   list(input: Readonly<{ after: TodoAuthorCursor | null; limit: number }>): Promise<TodoAuthorReply>
 }
-const attachments = new WeakMap<ToolExecutionContext, BoundTodoItems>()
+const port = contextPort<BoundTodoItems>()
 export function todoItemsOf(context: ToolExecutionContext): BoundTodoItems | undefined {
-  return attachments.get(context)
+  return port.of(context)
 }
 
-/** Attach after other context-producing attachments. Finish removes access before delegation. */
 export function attachTodoItems(
   scope: ToolExecutionScope,
   value: BoundTodoItems,
 ): ToolExecutionScope {
-  const context = scope.context
-  attachments.set(context, value)
-  let finished: ReturnType<ToolExecutionScope['finish']> | undefined
-  return {
-    context,
-    limits: scope.limits,
-    finish(exit) {
-      if (finished !== undefined) return finished
-      attachments.delete(context)
-      const completion = Promise.withResolvers<Awaited<ReturnType<ToolExecutionScope['finish']>>>()
-      finished = completion.promise
-      try {
-        completion.resolve(scope.finish(exit))
-      } catch (error) {
-        completion.reject(error)
-      }
-      return finished
-    },
-  }
+  return port.attach(scope, value)
 }
