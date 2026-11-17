@@ -36,6 +36,7 @@ description: "本项目各领域的心智模型与跨领域协调的模型：每
 | 谁持有一份能力、选哪一版；类别怎样登记；内容存在哪、怎样读、怎样发布 | [references/assets.md](references/assets.md) |
 | 在 Skill 这个领域里：目录、三层披露、`Skills` 入口、脚本由谁运行、提交 | [references/skill.md](references/skill.md) |
 | 在 MCP 这个领域里：接入点、连接、动作清单、动作怎样成为工具条目、认证 | [references/mcp.md](references/mcp.md) |
+| 在拓展件这个领域里：包与声明、租户启用了哪些、实现怎样取得与运行、命令型 | [references/loop-extension.md](references/loop-extension.md) |
 
 还没有写的领域：身份、授权；设置与权限的配值和求值；Model 与 Tool 作为被调用的一方；Request Context；执行环境；人工介入；工作区。碰到它们时读根 `AGENTS.md` 的两张图和跨领域那一份，再读那个领域的正文（`docs/domains/` 下它的目录）。
 

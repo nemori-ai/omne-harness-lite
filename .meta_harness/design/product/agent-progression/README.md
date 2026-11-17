@@ -2,7 +2,7 @@
 id: PD-agent-progression
 title: Agent 定义与工作推进
 status: active
-revision: 5
+revision: 6
 relations:
   supersedes: []
   depends-on: []
