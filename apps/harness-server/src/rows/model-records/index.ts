@@ -13,7 +13,10 @@ import {
   createModelSendStagePlugin,
   type ModelSendStageSettings,
 } from '@omne-harness/model-host-local/cordis'
-import type { ModelMaterializationEvidenceReader } from '@omne-harness/model-host-local'
+import type {
+  ModelMaterializationEvidenceReader,
+  ModelReceiveEvidenceReader,
+} from '@omne-harness/model-host-local'
 import { createSqlModelRecordsPlugin } from '@omne-harness/model-storage-sql/cordis'
 import { createSqlModelDiagnostics } from '@omne-harness/model-storage-sql'
 import {
@@ -90,6 +93,19 @@ function recordsManifestDigest(): string {
   return manifest.digest
 }
 
+function slot<T>() {
+  let current: T | undefined
+  return {
+    read: () => current,
+    install(value: T) {
+      current = value
+      return () => {
+        if (current === value) current = undefined
+      }
+    },
+  }
+}
+
 function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
   const requestDisclosure = toolResultDisclosureOf(ctx)
   const port = modelRecordsPortOf(ctx)
@@ -103,10 +119,9 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
     verifier: given.principalVerifier,
     standing: given.tenantStanding,
   })
-  const live: {
-    initial: ModelInitialExecution<unknown> | undefined
-    reader: ModelMaterializationEvidenceReader | undefined
-  } = { initial: undefined, reader: undefined }
+  const live: { initial: ModelInitialExecution<unknown> | undefined } = { initial: undefined }
+  const materialization = slot<ModelMaterializationEvidenceReader>()
+  const receive = slot<ModelReceiveEvidenceReader>()
   const initialRun = createModelInitialRun<unknown>({
     limits: config.app.initial,
     checkOriginRead: target => port.checkOriginRead(target),
@@ -122,7 +137,8 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
       authority: qualification.authority,
       evidence: evidenceOf(config.member, {
         initial: () => live.initial,
-        reader: () => live.reader,
+        reader: materialization.read,
+        receive: receive.read,
         custody: () => agentCustodyOf(ctx),
         compaction: () => compactionEvidenceOf(ctx),
       }),
@@ -193,12 +209,8 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
           supplierOf: credentialLayerSupplier(() => sendCredential.port),
         },
         executionChannel: () => handle.executionChannel(),
-        installMaterialization: reader => {
-          live.reader = reader
-          return () => {
-            if (live.reader === reader) live.reader = undefined
-          }
-        },
+        installMaterialization: materialization.install,
+        installReceive: receive.install,
       })
       // The child's fiber is captured here, before the stage constructs, so the host can release it.
       const plugin: Plugin.Object = {

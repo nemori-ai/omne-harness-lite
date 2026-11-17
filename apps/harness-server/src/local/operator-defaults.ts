@@ -106,8 +106,11 @@ const MODEL_HOST = {
     observerCheckIntervalMs: 25,
     readIdleMs: 1000,
     resultPageTargetBytes: 4096,
-    retryBackoffMs: 0,
     cleanupRetryMs: 1000,
+  },
+  retry: {
+    adoption: PROFILES.retryPolicy,
+    policy: { maxAttempts: 2, maxElapsedMs: 30_000, delaysMs: [1_000], jitter: 0.2 },
   },
   results: {
     maxConcurrentCalls: LOCAL_CONCURRENT_MODEL_CALLS,

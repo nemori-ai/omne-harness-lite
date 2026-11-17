@@ -1,9 +1,11 @@
 import { judgePart } from '@omne-harness/message'
 import { describe, expect, it } from 'vitest'
-import type { ModelFault, RetryDecision } from '@omne-harness/model-contract'
+import type { FixedModelRequest, ModelFault, RetryDecision } from '@omne-harness/model-contract'
 import type { ModelRetryPolicy, TransportFact } from '@omne-harness/model-contract/provider'
+import { initialAttempts } from '../src/commands/attempts.ts'
+import { createDefaultRetryPolicy, verifyRetryDecision } from '../src/retry-policy.ts'
 import { eventually, runtimeFixture } from './runtime-fixture.ts'
-import { op, proof, unbox } from './memory-fixture.ts'
+import { adoption, op, proof, request, unbox } from './memory-fixture.ts'
 import { invocationReference } from './reference-input.ts'
 
 type F = ReturnType<typeof runtimeFixture>
@@ -495,5 +497,147 @@ describe('the receiver of an earlier dispatch', () => {
     } finally {
       await f.dispose()
     }
+  })
+})
+
+describe('the default policy with fallback over three suppliers', () => {
+  it('sends to each supplier once in the declared order, and the last fault settles the call', async () => {
+    const [first] = request.suppliers
+    const others = ['second', 'third'].map(name => ({
+      ...first,
+      adoption: { ...adoption, name },
+      model: name,
+    }))
+    const policy = createDefaultRetryPolicy<Principal>({
+      adoption: request.retryPolicy,
+      policy: { maxAttempts: 5, maxElapsedMs: 1000, delaysMs: [0], jitter: 0 },
+      clock: { now: () => START },
+      random: () => 0,
+    })
+    const f = runtimeFixture({}, undefined, undefined, undefined, policy, others)
+    const [declaration] = request.declarations
+    const fixed: FixedModelRequest = {
+      ...request,
+      suppliers: [first, ...others],
+      fallback: true,
+      declarations: [declaration, declaration, declaration],
+    }
+    const admit = { ...f.admit, request: fixed }
+    const adapter = f.options.evidence[0]
+    if (!adapter) throw new Error('missing evidence adapter')
+    adapter.receive = input => ({
+      ok: { window: input.window, batchDigest: input.batchDigest, paused: true, noPrefetch: true },
+    })
+    adapter.retry = verifyRetryDecision
+    const fault504: ModelFault = { ...fault503, upstreamStatus: '504', diagnostic: 'http-504' }
+    try {
+      unbox(await f.provider.runtime.calls.admit(admit))
+      await f.start(admit.call)
+      f.channel(admit.call).push([
+        failed503,
+        failed503,
+        { kind: 'ended', termination: { kind: 'failed', fault: fault504 } },
+      ])
+      await eventually(() => f.results.has(admit.call))
+      expect(f.results.get(admit.call)).toEqual({ ok: undefined })
+
+      expect(f.channel(admit.call).suppliers).toEqual(['test', 'second', 'third'])
+      const current = await state(f)
+      expect(current).toMatchObject({
+        phase: 'settled',
+        settlement: { termination: { kind: 'failed', fault: fault504 } },
+        attempts: { allowed: 3, made: 3 },
+      })
+      expect(await dispatches(f)).toHaveLength(3)
+    } finally {
+      await f.dispose()
+    }
+  })
+})
+
+describe('the call state tells how far its dispatches got', () => {
+  it('counts the dispatches the request allows and the ones made, and keeps the last fault and the next instant', async () => {
+    const { f } = world(input => again(input, LATER))
+    try {
+      unbox(await f.provider.runtime.calls.admit(f.admit))
+      expect((await state(f)).attempts).toEqual({
+        allowed: 2,
+        made: 1,
+        last: null,
+        notBefore: null,
+      })
+      await f.start(f.admit.call)
+      f.channel(f.admit.call).push([failed503, ...answer])
+      await eventually(() => f.results.has(f.admit.call))
+      expect((await state(f)).attempts).toEqual({
+        allowed: 2,
+        made: 1,
+        last: fault503,
+        notBefore: LATER,
+      })
+      f.controls.clock.advanceTo(LATER)
+      expect(await f.drive()).toEqual({ ok: undefined })
+      const settled = await state(f)
+      expect(settled.attempts).toEqual({ allowed: 2, made: 2, last: fault503, notBefore: null })
+      expect(settled.attempts?.made).toBe((await dispatches(f)).length)
+    } finally {
+      await f.dispose()
+    }
+  })
+
+  it('shows every change of the progress to an observer of the call', async () => {
+    const { f } = world(input => again(input))
+    try {
+      unbox(await f.provider.runtime.calls.admit(f.admit))
+      const route = unbox(
+        await f.provider.runtime.instances.connect({
+          principal: f.principal,
+          tenant: f.tenant,
+          reference: f.reference,
+        }),
+      )
+      if (route.kind !== 'live') throw new Error('missing live route')
+      const seen: string[] = []
+      const watching = (async () => {
+        const stream = route.handle.observe({ ...f.admit, signal: new AbortController().signal })
+        for await (const item of stream) {
+          if (item.kind === 'ended') break
+          const { attempts, phase } = item.value.state
+          const text = JSON.stringify([attempts?.made, attempts?.last?.cause ?? null])
+          if (seen.at(-1) !== text) seen.push(text)
+          if (phase === 'settled') break
+        }
+      })()
+      await f.start(f.admit.call)
+      f.channel(f.admit.call).push([failed503, ...answer])
+      await eventually(() => f.results.has(f.admit.call))
+      await watching
+      expect(seen).toEqual([
+        JSON.stringify([1, null]),
+        JSON.stringify([1, 'upstream-unavailable']),
+        JSON.stringify([2, 'upstream-unavailable']),
+      ])
+    } finally {
+      await f.dispose()
+    }
+  })
+
+  it('starts at no dispatch made, and allows one dispatch for each supplier when the request falls back', async () => {
+    const { f } = world(input => again(input))
+    try {
+      unbox(await f.dependencies.commands.admit(f.admit))
+      expect((await state(f)).attempts).toEqual({
+        allowed: 2,
+        made: 0,
+        last: null,
+        notBefore: null,
+      })
+    } finally {
+      await f.dispose()
+    }
+    const [supplier] = f.admit.request.suppliers
+    const three = [supplier, supplier, supplier] as const
+    expect(initialAttempts({ fallback: true, suppliers: three }).allowed).toBe(3)
+    expect(initialAttempts({ fallback: false, suppliers: three }).allowed).toBe(2)
   })
 })

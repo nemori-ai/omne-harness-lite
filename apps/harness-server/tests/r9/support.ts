@@ -110,8 +110,11 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
       observerCheckIntervalMs: 25,
       readIdleMs: 1000,
       resultPageTargetBytes: 4096,
-      retryBackoffMs: 0,
       cleanupRetryMs: 1000,
+    },
+    retry: {
+      adoption: profiles.retryPolicy,
+      policy: { maxAttempts: 2, maxElapsedMs: 30_000, delaysMs: [50], jitter: 0 },
     },
     results: {
       maxConcurrentCalls: 4,

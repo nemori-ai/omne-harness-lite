@@ -331,11 +331,6 @@ export function mergeReceiveWindow(
   if (call.state.phase === 'running')
     call.state = { ...call.state, firstContent: dispatch.record.firstContent }
 }
-export function clearRetryRecord(call: CallDocument): void {
-  call.retry = null
-  call.retryPosition = null
-  call.retrySource = null
-}
 export function abandonReceiveWindows(call: CallDocument): void {
   for (const dispatch of call.dispatches)
     for (const [window, state] of dispatch.windows)

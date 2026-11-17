@@ -52,6 +52,7 @@ function evidenceWith(asked: AgentCustodyQuestion<unknown>[]) {
   return createModelEvidence(ADOPTION, {
     initial: () => undefined,
     reader: () => undefined,
+    receive: () => undefined,
     custody: () => ({
       verify: input => {
         asked.push(input)
@@ -69,6 +70,7 @@ it('routes the default summary owner to its own durable completion proof', async
   const evidence = createModelEvidence(ADOPTION, {
     initial: () => undefined,
     reader: () => undefined,
+    receive: () => undefined,
     custody: () => undefined,
     compaction: () => ({
       verify: async given => {

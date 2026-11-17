@@ -518,6 +518,11 @@
               "pending": false
             },
             {
+              "name": "DispatchProgress",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "DispatchRecord",
               "kind": "type",
               "pending": false

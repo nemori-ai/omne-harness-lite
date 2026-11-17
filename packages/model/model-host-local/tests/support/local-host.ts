@@ -1,7 +1,12 @@
 import { testExecutor } from './executor.ts'
 import { join } from 'node:path'
 import { accountCodec, organizationCodec, tenant, tenantEquals } from '@omne-harness/legal-identity'
-import { createModelRuntime, type ModelConfiguration } from '@omne-harness/model'
+import {
+  createDefaultRetryPolicy,
+  createModelRuntime,
+  verifyRetryDecision,
+  type ModelConfiguration,
+} from '@omne-harness/model'
 import { createTestModelDependencies } from '@omne-harness/model/testing'
 import {
   decodeModelCallId,
@@ -16,6 +21,7 @@ import { anthropicTokenizerResources, createAnthropicFamily } from '@omne-harnes
 import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
 import { composeFamilies, type ProxyConfig } from '@omne-harness/pi-ai-transport'
 import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
+import type { RetryPolicy } from '@omne-harness/retry'
 import {
   assembleLocalModel,
   type LocalModelConfig,
@@ -86,7 +92,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 1024,
   readIdleMs: 1000,
-  retryBackoffMs: 0,
   cleanupRetryMs: 0,
 }
 
@@ -131,6 +136,7 @@ export type LocalHostInput = Readonly<{
   label: string
   directory: string
   gateway: Gateway
+  retry?: RetryPolicy
 }>
 
 export type Gateway = Readonly<{
@@ -190,7 +196,7 @@ export function assembleLocalHost(input: LocalHostInput) {
         materialization: given => ({ ok: evidence(`${given.call}/${given.dispatch}`) }),
         receive: given => receive.reader?.prove(given) ?? unavailable(),
         lateFact: unavailable,
-        retry: unavailable,
+        retry: input.retry === undefined ? unavailable : verifyRetryDecision,
         handoff: given =>
           given.call === call &&
           given.evidence.kind === 'processed' &&
@@ -259,8 +265,17 @@ export function assembleLocalHost(input: LocalHostInput) {
   })
   receive.reader = host.receive
   const sent = recording(host.send)
+  const retry =
+    input.retry === undefined
+      ? memory.dependencies.retry
+      : createDefaultRetryPolicy<typeof principal>({
+          adoption: request.retryPolicy,
+          policy: input.retry,
+          clock: memory.dependencies.clock,
+          random: () => 0,
+        })
   const provider = createModelRuntime(
-    { ...memory.dependencies, send: sent.boundary },
+    { ...memory.dependencies, send: sent.boundary, retry },
     CONFIGURATION,
   )
   const access = { principal, tenant: scope }

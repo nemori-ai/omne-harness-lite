@@ -23,7 +23,6 @@ export type ModelConfiguration = Readonly<{
   observerCheckIntervalMs: number
   readIdleMs: number
   resultPageTargetBytes: number
-  retryBackoffMs: number
   cleanupRetryMs: number
 }>
 export type ModelDependencies<P> = Readonly<{
@@ -96,7 +95,6 @@ function validateConfiguration(configuration: unknown): void {
     resultPageTargetBytes: 1,
     readIdleMs: 1,
     outputBatchDelayMs: 0,
-    retryBackoffMs: 0,
     cleanupRetryMs: 0,
   }
   for (const [field, lower] of Object.entries(fields)) {

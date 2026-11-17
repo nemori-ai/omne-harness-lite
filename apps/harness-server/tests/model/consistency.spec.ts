@@ -89,6 +89,12 @@ describe('the cross-row equalities of the model rows', () => {
     violating(rows({ 'model-records': retry }), 'retryPolicy')
   })
 
+  it('5. the retry policy the host provides differs from the one the official profiles adopt: refused', () => {
+    const host = structuredClone(base.host)
+    host.retry.adoption = { ...host.retry.adoption, revision: '2' }
+    violating(rows({ 'model-host': host }), 'retry.adoption')
+  })
+
   it('a stub in either row of a pair is not checked (a stub has no such field)', () => {
     expect(() =>
       checkModelRowConsistency([

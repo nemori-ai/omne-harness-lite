@@ -7,7 +7,11 @@ import {
 } from '@omne-harness/model'
 import { createTestModelDependencies, type MemoryModelEvidence } from '@omne-harness/model/testing'
 import { createScriptedTransport } from '@omne-harness/model-contract/testing'
-import { type ModelCallId, type ModelInstanceId } from '@omne-harness/model-contract'
+import {
+  type FixedModelRequest,
+  type ModelCallId,
+  type ModelInstanceId,
+} from '@omne-harness/model-contract'
 import {
   type ModelCommands,
   type ModelRetryPolicy,
@@ -23,7 +27,6 @@ export const configuration: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 128,
   readIdleMs: 1000,
-  retryBackoffMs: 0,
   cleanupRetryMs: 0,
 }
 function deferred<T>() {
@@ -48,6 +51,7 @@ export function runtimeFixture(
   handoff?: MemoryModelEvidence['handoff'],
   liveness?: ModelLiveness,
   retry?: ModelRetryPolicy<ReturnType<typeof fixture>['principal']>,
+  fallbacks: readonly FixedModelRequest['suppliers'][number][] = [],
 ) {
   const f = fixture()
   const assembly = createTestModelDependencies({
@@ -63,16 +67,14 @@ export function runtimeFixture(
         layerOf: () => fail({ kind: 'unavailable' }),
         resolve: () => succeed(new Map([['apiKey', 'synthetic']])),
       },
-      sources: [
-        {
-          profile: f.admit.request.profile,
-          supplier: f.admit.request.suppliers[0].adoption,
-          provider: f.admit.request.suppliers[0].provider,
-          model: f.admit.request.suppliers[0].model,
-          official: true,
-          current: () => ({ ok: { authorized: true } }),
-        },
-      ],
+      sources: [f.admit.request.suppliers[0], ...fallbacks].map(supplier => ({
+        profile: f.admit.request.profile,
+        supplier: supplier.adoption,
+        provider: supplier.provider,
+        model: supplier.model,
+        official: true,
+        current: () => ({ ok: { authorized: true } }),
+      })),
     },
   })
   type Channel = {
@@ -81,6 +83,7 @@ export function runtimeFixture(
     starts: number
     returns: number
     closes: number
+    suppliers: string[]
     releaseFails: boolean
     beforeRelease(): Promise<void>
     finish(): void
@@ -104,6 +107,7 @@ export function runtimeFixture(
         starts: 0,
         returns: 0,
         closes: 0,
+        suppliers: [],
         releaseFails: false,
         beforeRelease: async () => {},
         finish() {
@@ -189,6 +193,7 @@ export function runtimeFixture(
           transport: script.transport,
           startWithCredential() {
             stream.starts++
+            stream.suppliers.push(demand.supplier.adoption.name)
             return stream.iterable
           },
           async release() {

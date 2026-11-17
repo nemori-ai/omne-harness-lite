@@ -63,6 +63,23 @@ function retryInServerLog(tools: CellTools, mark: number): void {
   )
 }
 
+async function retryInDiagnostics(
+  tools: CellTools,
+  client: ProtocolDriver,
+  session: string,
+): Promise<void> {
+  const calls = await client.modelDispatches(session)
+  const retried = calls.filter(
+    dispatches =>
+      dispatches.length > 1 && CAUSE.test(JSON.stringify(dispatches[0]?.outcome ?? null)),
+  )
+  tools.check(
+    'the retry and its cause are in the diagnostics of the call',
+    retried.length > 0,
+    JSON.stringify(calls).slice(0, 300),
+  )
+}
+
 async function retryWorks(
   tools: CellTools,
   client: ProtocolDriver,
@@ -97,7 +114,6 @@ export const dCells: readonly Cell[] = [
       const by = await bystander(tools, client)
 
       const brief = await client.createSession()
-      const briefMark = tools.env.mark()
       tools.stub.push({ kind: 'refuse' }, { kind: 'refuse' }, { kind: 'refuse' })
       tools.stub.push({ kind: 'reply', text: 'd1-after-retry' })
       tools.check('input accepted', (await client.send(brief, 'd1 hello')) === 'succeeded')
@@ -117,7 +133,7 @@ export const dCells: readonly Cell[] = [
         recovered?.assistants.includes('d1-after-retry') === true && recovered.users.length === 1,
         `${JSON.stringify(recovered?.assistants)}, ${String(recovered?.users.length)} user messages`,
       )
-      retryInServerLog(tools, briefMark)
+      await retryInDiagnostics(tools, client, brief)
 
       const long = await client.createSession()
       const longMark = tools.env.mark()

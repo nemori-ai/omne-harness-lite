@@ -176,6 +176,10 @@ const REQUEST: FixedModelRequest = {
 const SUPPLIER = REQUEST.suppliers[0]
 if (SUPPLIER === undefined) throw new Error('durable assembly: request without a supplier')
 
+const RETRY_SETTINGS = {
+  adoption: ADOPTION,
+  policy: { maxAttempts: 2, maxElapsedMs: 1000, delaysMs: [0], jitter: 0 },
+}
 const HOST_SETTINGS = {
   concurrencyLimit: 8,
   wakeCapacity: 64,
@@ -197,7 +201,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 128,
   readIdleMs: 1000,
-  retryBackoffMs: 0,
   cleanupRetryMs: 0,
 }
 const CORE_LIMITS = {
@@ -1195,7 +1198,12 @@ export async function durableSubject(
             await sendChild.dispose()
           },
         }),
-        { host: HOST_SETTINGS, runtime: CONFIGURATION, results: PUSH_LIMITS },
+        {
+          host: HOST_SETTINGS,
+          runtime: CONFIGURATION,
+          results: PUSH_LIMITS,
+          retry: RETRY_SETTINGS,
+        },
       )
     : root.plugin(LegacyPlugin, HOST_SETTINGS)
   try {
