@@ -71,7 +71,14 @@ export type SessionAccessFaces = Readonly<{
   management: Pick<SessionManagement<Principal>, 'create'>
   work: Pick<
     SessionWork<Principal>,
-    'accept' | 'queryOperation' | 'cancelRun' | 'stopCall' | 'retryRun' | 'readWaiting'
+    | 'accept'
+    | 'queryOperation'
+    | 'cancelRun'
+    | 'stopCall'
+    | 'retryRun'
+    | 'readWaiting'
+    | 'control'
+    | 'readBackgroundCalls'
   >
   history: Pick<SessionHistory<Principal>, 'begin' | 'next'>
 }>

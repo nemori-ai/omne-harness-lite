@@ -72,6 +72,7 @@ describe('command catalog', () => {
       'read-session-diagnostics',
       'cancel-run',
       'stop-call',
+      'calls',
       'list-cards',
       'read-card',
       'submit-reply',

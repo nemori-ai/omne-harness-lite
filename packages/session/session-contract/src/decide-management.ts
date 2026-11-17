@@ -1,5 +1,11 @@
 import type { SessionCommand } from './ports.ts'
-import type { ContextScopeBinding, ControlIntent, ControlProgress, WorkSnapshot } from './values.ts'
+import type {
+  ContextScopeBinding,
+  ControlIntent,
+  ControlProgress,
+  ProducerRef,
+  WorkSnapshot,
+} from './values.ts'
 import type { Decision, DecideReads, EncodedEntry } from './judgments.ts'
 import { judgeIdle, resolveControlScope, resolveCascade } from './judgments.ts'
 import { encodeEntry } from './entries.ts'
@@ -29,6 +35,18 @@ export function scopeBinding(
   }
 }
 
+// Unarchive and retry settle in their own commit. A background-tool control of a call already in
+// the background names nothing to send and nobody to wait on.
+function settlesAtOnce(intent: ControlIntent, pending: readonly ProducerRef[]): boolean {
+  if (intent.kind !== 'control') return false
+  const { kind } = intent.value
+  return (
+    kind === 'unarchive' ||
+    kind === 'retry-run' ||
+    (kind === 'background-tool' && pending.length === 0)
+  )
+}
+
 export function decideControl(
   snapshot: WorkSnapshot,
   intent: ControlIntent,
@@ -42,7 +60,6 @@ export function decideControl(
   const archive =
     intent.kind === 'auto-archive' || (intent.kind === 'control' && intent.value.kind === 'archive')
   const unarchive = intent.kind === 'control' && intent.value.kind === 'unarchive'
-  const retry = intent.kind === 'control' && intent.value.kind === 'retry-run'
   const target: ControlProgress['target'] =
     intent.kind === 'interrupt'
       ? { kind: 'run', run: intent.run }
@@ -57,7 +74,7 @@ export function decideControl(
     operation,
     target,
     intent,
-    state: unarchive || retry ? 'reconciled' : 'propagating',
+    state: settlesAtOnce(intent, scope.producers) ? 'reconciled' : 'propagating',
     pending: scope.producers,
     pendingUnassociatedWaiting: scope.unassociatedWaiting ?? [],
   }

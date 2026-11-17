@@ -28,6 +28,14 @@ const ACTIONS = {
   invalidate: false,
 } satisfies Readonly<Record<Action, boolean>>
 
+// A member acting for the tenant may read a call by reference (tool/v1): its state, its stream and
+// its result pages. Every other action needs the session work of the call.
+const MEMBER_READS: ReadonlySet<Action> = new Set(['lookup', 'read-result'])
+
+function qualifiedColumn(column: 'login' | 'work', action: Action): boolean {
+  return column === 'work' || MEMBER_READS.has(action)
+}
+
 function qualificationRequest(input: Input): AdmissionInput | undefined {
   const { principal, tenant, call, action } = input
   const who = classify(principal)
@@ -35,7 +43,9 @@ function qualificationRequest(input: Input): AdmissionInput | undefined {
     call === null ||
     typeof call !== 'string' ||
     call.length === 0 ||
-    who?.column !== 'work' ||
+    who === null ||
+    who.column === 'system' ||
+    !qualifiedColumn(who.column, action) ||
     !tenantCodec.encode(tenant).ok ||
     !tenantEquals(who.principal.tenant, tenant)
   )

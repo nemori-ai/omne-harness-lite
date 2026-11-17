@@ -53,6 +53,7 @@ export type {
   RunState,
   RunTerminal,
   ScopeReleaseDisposition,
+  BackgroundDisposition,
   SessionCreation,
   SessionFrozen,
   SessionWaiting,
@@ -139,6 +140,7 @@ export type {
   MutationName,
   ScopeReleasePort,
   ScopeReleaseReadback,
+  SessionCallControl,
   SessionBlockDeclaration,
   SessionClock,
   SessionCommand,
@@ -273,7 +275,20 @@ export {
   sessionIntakeLimits,
   sessionInputBytes,
   judgeSessionIntake,
+  pendingIntakeCount,
 } from './intake.ts'
+export {
+  backgroundCalls,
+  controlRoutes,
+  type ControlRoutes,
+  type DirectCallControl,
+} from './call-control.ts'
+export {
+  BACKGROUND_INPUT_OWNER,
+  backgroundInputId,
+  judgeBackgroundOutcome,
+  type BackgroundOutcomeJudgment,
+} from './background-outcome.ts'
 export type { SessionIntakeLimits } from './intake.ts'
 export type {
   TodoItem,

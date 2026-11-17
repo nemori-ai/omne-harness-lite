@@ -6,6 +6,7 @@ import {
   type ToolState,
 } from '@omne-harness/tool-contract'
 import {
+  decodeToolDeliveryId,
   decodeToolInstanceId,
   decodeToolResultVersion,
   decodeToolRevision,
@@ -20,6 +21,11 @@ function decoded<T>(outcome: Outcome<T, unknown>): T {
 }
 
 const call = decoded(decodeToolCallId('call-1'))
+const placeholder = {
+  kind: 'pending',
+  delivery: decoded(decodeToolDeliveryId('d0')),
+  consumer: { owner: 'consumer', work: 'work-1', position: 'position-1', purpose: 'tool-result' },
+} as const
 
 function running(): ToolState {
   return {
@@ -58,7 +64,12 @@ function settledInBackground(): ToolState {
     phase: 'settled',
     relation: 'background',
     wait: { kind: 'none' },
-    foreground: { kind: 'background', call, source: { kind: 'launched' } },
+    foreground: {
+      kind: 'background',
+      call,
+      source: { kind: 'launched' },
+      delivery: placeholder,
+    },
     effect: { kind: 'occurred', evidence: evidence('effect') },
     execution: { kind: 'ended', evidence: evidence('ended') },
     result: decoded(decodeToolResultVersion('result-1')),
@@ -96,7 +107,12 @@ describe('state judgment', () => {
     const state = {
       ...running(),
       relation: 'background',
-      foreground: { kind: 'background', call, source: { kind: 'launched' } },
+      foreground: {
+        kind: 'background',
+        call,
+        source: { kind: 'launched' },
+        delivery: placeholder,
+      },
     }
     expect(rejection(state)).toEqual({ field: 'wait.kind', reason: 'value' })
   })
@@ -121,7 +137,12 @@ describe('state judgment', () => {
     const other = decoded(decodeToolCallId('call-2'))
     const state = {
       ...settledInBackground(),
-      foreground: { kind: 'background', call: other, source: { kind: 'launched' } },
+      foreground: {
+        kind: 'background',
+        call: other,
+        source: { kind: 'launched' },
+        delivery: placeholder,
+      },
     }
     expect(rejection(state)).toEqual({ field: 'foreground.call', reason: 'call-mismatch' })
   })
@@ -173,7 +194,12 @@ describe('state judgment', () => {
       phase: 'accepted',
       relation: 'background',
       wait: { kind: 'none' },
-      foreground: { kind: 'background', call, source: { kind: 'launched' } },
+      foreground: {
+        kind: 'background',
+        call,
+        source: { kind: 'launched' },
+        delivery: placeholder,
+      },
       effect: { kind: 'not-started' },
       execution: { kind: 'not-started' },
       queue: { kind: 'none' },
@@ -212,7 +238,9 @@ describe('state judgment', () => {
       { kind: 'stop' },
       { kind: 'withdraw', reach: 'all' },
       { kind: 'withdraw', reach: 'foreground-and-unadmitted' },
-      { kind: 'background' },
+      { kind: 'background', otherwise: 'reject' },
+      { kind: 'background', otherwise: 'withdraw' },
+      { kind: 'background', otherwise: 'stop' },
     ])
       expect(judgeToolState(withControl(intent))).toEqual({ ok: withControl(intent) })
     expect(rejection(withControl({ kind: 'withdraw' }))).toEqual({
@@ -227,9 +255,19 @@ describe('state judgment', () => {
       field: 'controls[0].intent.reason',
       reason: 'unknown-field',
     })
-    expect(rejection(withControl({ kind: 'background', reason: 'user' }))).toEqual({
+    expect(
+      rejection(withControl({ kind: 'background', otherwise: 'reject', reason: 'user' })),
+    ).toEqual({
       field: 'controls[0].intent.reason',
       reason: 'unknown-field',
+    })
+    expect(rejection(withControl({ kind: 'background' }))).toEqual({
+      field: 'controls[0].intent.otherwise',
+      reason: 'missing',
+    })
+    expect(rejection(withControl({ kind: 'background', otherwise: 'wait' }))).toEqual({
+      field: 'controls[0].intent.otherwise',
+      reason: 'value',
     })
     expect(rejection(withControl({ kind: 'withdraw', reach: 'all', reason: 'x' }))).toEqual({
       field: 'controls[0].intent.reason',
@@ -279,7 +317,7 @@ describe('state judgment', () => {
     const operation = decoded(decodeToolOperationId('control-1'))
     const placed = (source: unknown) => ({
       ...settledInBackground(),
-      foreground: { kind: 'background', call, source },
+      foreground: { kind: 'background', call, source, delivery: placeholder },
     })
     for (const source of [
       { kind: 'launched' },
@@ -299,7 +337,7 @@ describe('state judgment', () => {
     expect(
       rejection({
         ...settledInBackground(),
-        foreground: { kind: 'background', call, reason: 'user' },
+        foreground: { kind: 'background', call, reason: 'user', delivery: placeholder },
       }),
     ).toEqual({ field: 'foreground.source', reason: 'missing' })
   })

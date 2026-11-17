@@ -211,12 +211,28 @@ describe('planning a suspension', () => {
   })
 })
 
+const CONSUMER = {
+  owner: 'consumer',
+  work: 'work-1',
+  position: 'position-1',
+  purpose: 'tool-result',
+} as const
+
 describe('planning a suspension on a call that cannot suspend', () => {
   it('refuses a background call: only a foreground call opens a wait', async () => {
     const f = await waiting()
     await f.withState({
       relation: 'background',
-      foreground: { kind: 'background', call: callId('facts'), source: { kind: 'launched' } },
+      foreground: {
+        kind: 'background',
+        call: callId('facts'),
+        source: { kind: 'launched' },
+        delivery: {
+          kind: 'pending',
+          delivery: 'd0',
+          consumer: CONSUMER,
+        },
+      },
     })
     expect(await f.plan()).toEqual({
       failure: { kind: 'invalid', field: 'call', reason: 'background-cannot-wait' },
@@ -227,7 +243,16 @@ describe('planning a suspension on a call that cannot suspend', () => {
     const f = await waiting(false)
     await f.withState({
       relation: 'background',
-      foreground: { kind: 'background', call: callId('facts'), source: { kind: 'launched' } },
+      foreground: {
+        kind: 'background',
+        call: callId('facts'),
+        source: { kind: 'launched' },
+        delivery: {
+          kind: 'pending',
+          delivery: 'd0',
+          consumer: CONSUMER,
+        },
+      },
     })
     const commits = f.harness.memory.commits
     const answer = await Reflect.apply(f.harness.commands.receiveFacts, null, [

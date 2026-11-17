@@ -117,6 +117,9 @@ export type Waiting =
       members: readonly Readonly<{ card: DurableEvidence; decision: DurableEvidence | null }>[]
     }>
   | Readonly<{ kind: 'dependency'; owner: string; position: string }>
+export type BackgroundDisposition =
+  | Readonly<{ kind: 'input'; input: InputId }>
+  | Readonly<{ kind: 'kept'; reason: 'archived' | 'stopped' | 'frozen' }>
 export type ControlTarget =
   | Readonly<{ kind: 'run'; run: RunId }>
   | Readonly<{ kind: 'producer'; producer: ProducerRef }>
@@ -382,6 +385,7 @@ export type WorkSnapshot = Readonly<{
   unanswered?: readonly InputId[]
   awaitingPerson?: true
   backgroundPlaceholders?: readonly ConsumptionId[]
+  backgroundInputs?: readonly InputId[]
   releasedScopes?: readonly Readonly<{ task: SessionOperationId; scope: string }>[]
   contextScopes?: readonly ContextScopeBinding[]
   contextRecords?: readonly Readonly<{ scope: string; declaration: DeclarationChange }>[]

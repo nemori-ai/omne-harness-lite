@@ -6,9 +6,10 @@ import type {
   SessionEntriesProgress,
   SessionEntriesStart,
 } from './interpretation-values.ts'
-import type { WorkSnapshot } from './values.ts'
+import type { RoutedInput, WorkSnapshot } from './values.ts'
 import { encodeEntry } from './entries.ts'
 import { decideProducerFact } from './decide-receive.ts'
+import { decideBackground } from './background-outcome.ts'
 import { digestOf } from './operations.ts'
 import {
   SessionValidationFailure,
@@ -145,6 +146,20 @@ function checkStart(
     invalidAt('start', 'is ahead of the saved progress or names another commit evidence')
 }
 
+const INTERPRETATION_KINDS: ReadonlySet<string> = new Set([
+  'observed',
+  'execution',
+  'account',
+  'backgrounded',
+  'background-outcome',
+])
+
+function refusedAt(failure: SessionFailure, field: string): never {
+  throw new SessionValidationFailure(
+    failure.kind === 'invalid' ? { ...failure, field: `${field}.${failure.field}` } : failure,
+  )
+}
+
 function checkItems(observation: SessionEntriesObservation): void {
   const after = BigInt(observation.after)
   const { items } = observation
@@ -162,9 +177,7 @@ function checkItems(observation: SessionEntriesObservation): void {
   })
   items.forEach((item, at) => {
     const parts = item.interpretation
-    const known = parts.every(
-      part => part.kind === 'observed' || part.kind === 'execution' || part.kind === 'account',
-    )
+    const known = parts.every(part => INTERPRETATION_KINDS.has(part.kind))
     const observedAlone = !parts.some(part => part.kind === 'observed') || parts.length === 1
     if (parts.length === 0 || !known || !observedAlone)
       invalidAt(`items[${at}].interpretation`, 'expected one observed or only producer facts')
@@ -178,25 +191,30 @@ function interpret(
   const { tenant, session, operation, run, execution, channel, after, through, boundary, items } =
     observation
   const out: EncodedEntry[] = []
+  const admitted: Extract<RoutedInput, { kind: 'ordinary' }>[] = []
+  // A placeholder and the outcome of its call may share one batch, so the background state
+  // advances from item to item; every other judgment reads the snapshot before the batch.
+  let current = snapshot
   items.forEach((item, at) => {
     const origin = { owner: 'agent', via: SAME_LOG_ENTRIES_VIA, source: item.fact }
     item.interpretation.forEach((fact, index) => {
+      const field = `items[${at}].interpretation[${index}]`
       if (fact.kind === 'observed') return
+      if (fact.kind === 'backgrounded' || fact.kind === 'background-outcome') {
+        const step = decideBackground(current, fact, origin)
+        if (step.kind === 'rejected') refusedAt(step.failure, field)
+        out.push(...step.entries)
+        admitted.push(...step.admitted)
+        current = { ...current, backgroundPlaceholders: step.placeholders, controls: step.controls }
+        return
+      }
       const decision = decideProducerFact(
         snapshot,
         { kind: 'receive', input: { tenant, session, operation, fact } },
         origin,
       )
-      if (decision.kind === 'rejected') {
-        const { failure } = decision
-        throw new SessionValidationFailure(
-          failure.kind === 'invalid'
-            ? { ...failure, field: `items[${at}].interpretation[${index}].${failure.field}` }
-            : failure,
-        )
-      }
-      if (decision.kind !== 'entries')
-        invalidAt(`items[${at}].interpretation[${index}]`, 'not a producer fact')
+      if (decision.kind === 'rejected') refusedAt(decision.failure, field)
+      if (decision.kind !== 'entries') invalidAt(field, 'not a producer fact')
       out.push(...decision.entries)
     })
   })
@@ -229,5 +247,6 @@ function interpret(
     entries: out,
     progress: { run, execution, channel, through },
     interpreted,
+    ...(admitted.length === 0 ? {} : { admitted }),
   }
 }

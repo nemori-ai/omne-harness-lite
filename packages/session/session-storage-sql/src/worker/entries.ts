@@ -5,6 +5,7 @@ import {
   type CommitReceipt,
   type HistoryEntry,
   type OperationRecord,
+  type RoutedInput,
   type SessionEntriesObservation,
   type SessionEntriesReceipt,
   type SessionEntriesStart,
@@ -30,6 +31,8 @@ export type EntriesBatch = Readonly<{
   snapshot: WorkSnapshot
   entries: readonly HistoryEntry[]
   answer: SessionEntriesReceipt
+  /** System inputs the interpretation accepted; written to `sl_input` in the same transaction. */
+  admitted: readonly Extract<RoutedInput, { kind: 'ordinary' }>[]
 }>
 
 export type EntriesJudgment =
@@ -152,6 +155,7 @@ export function judgeEntries(
         through: decision.progress.through,
         interpreted: reduced.snapshot.source,
       },
+      admitted: decision.admitted ?? [],
     },
   }
 }

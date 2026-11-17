@@ -183,7 +183,7 @@ it('accepts refreshed B credentials but denies C before comparing the intent', a
     expect(ok(await f.h.commands.control({ ...input, principal: { ...controller } }))).toEqual(
       receipt,
     )
-    for (const intent of [{ kind: 'stop' }, { kind: 'background' }] as const)
+    for (const intent of [{ kind: 'stop' }, { kind: 'background', otherwise: 'reject' }] as const)
       expect(
         await f.h.commands.control({
           ...input,

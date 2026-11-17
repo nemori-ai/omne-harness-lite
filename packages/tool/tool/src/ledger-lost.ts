@@ -21,8 +21,9 @@ import type {
   SyntheticDecider,
   SyntheticDecision,
 } from './ledger-result-preparation.ts'
+import { lateVersionOf, releasedQueue } from './ledger-ending.ts'
 import { commonOf, dropSuspensionContent, nextState, type StateBody } from './ledger-start.ts'
-import { taskKey, type LedgerWrite } from './ledger-store.ts'
+import { taskKey, type CallRecord, type LedgerWrite } from './ledger-store.ts'
 
 type LostCommand = MutationInput<unknown> &
   Readonly<{ inputDigest: string; continuity: DurableEvidence }>
@@ -117,6 +118,34 @@ function waitWrites(
   return succeed(writes)
 }
 
+// A withdrawn call already has its logical terminal; losing its execution only ends the execution
+// and gives back the queue position. No late version will come.
+function lostAfterWithdraw(
+  snapshot: Snapshot,
+  call: CallRecord,
+  command: LostCommand,
+  mint: Mint,
+): SyntheticDecision<ToolState> {
+  const { source: _source, ...current } = call.state
+  const body = {
+    ...current,
+    execution: { kind: 'lost', evidence: command.continuity },
+    controls: endedControls(current.controls, command.continuity),
+    queue: releasedQueue(current.queue, command.continuity),
+  } as StateBody
+  const state = nextState(call, body, mint.revision)
+  return {
+    kind: 'commit',
+    value: state,
+    writes: [
+      put({ kind: 'call', call: { ...call, state } }),
+      ...supersededWrites(snapshot),
+      put(operationRecord(command, { kind: 'settle-lost', state }, mint)),
+      put({ kind: 'task', task: queueTask(command.operation, state.source) }),
+    ],
+  }
+}
+
 export function decideSettleLost(
   snapshot: Snapshot,
   command: LostCommand,
@@ -128,6 +157,7 @@ export function decideSettleLost(
   if (known.ok?.receipt.kind === 'settle-lost') return reply(succeed(known.ok.receipt.state))
   const call = snapshot.call
   if (call === null) return reply(invalid('call', 'unknown-call'))
+  if (lateVersionOf(call.state) !== null) return lostAfterWithdraw(snapshot, call, command, mint)
   if (call.state.phase === 'settled') {
     const settledBy = snapshot.results.get(call.state.result)?.settledBy
     return reply(fail({ kind: 'conflict', operation: settledBy ?? command.operation }))
@@ -150,10 +180,7 @@ export function decideSettleLost(
   if ('failure' in settled) return reply(settled)
   const { version, delivery } = settled.ok.version
   const current = commonOf(call.state)
-  const queue: ToolState['queue'] =
-    current.queue.kind === 'held' || current.queue.kind === 'waiting'
-      ? { ...current.queue, kind: 'released', evidence: command.continuity }
-      : current.queue
+  const queue = releasedQueue(current.queue, command.continuity)
   const shared = {
     ...current,
     phase: 'settled',

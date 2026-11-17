@@ -67,6 +67,7 @@ import {
   compactionReads,
 } from './session-values.ts'
 import type { SessionState } from './root.ts'
+import { admittedInputs, withInputs } from './inputs.ts'
 import type { SessionDirectory } from './session-directory.ts'
 const TESTING_OWNER = '@omne-harness/session-adapters/testing'
 type Recall = (receipt: CommitReceipt) => unknown
@@ -355,14 +356,6 @@ function callLookup(snapshot: WorkSnapshot, producer: ProducerRef): SessionCallL
     : { kind: 'absent', producer, covered: snapshot.revision }
 }
 
-function admittedInput(command: SessionCommand): Extract<RoutedInput, { kind: 'ordinary' }> | null {
-  if (command.kind === 'accept' && command.input.value.kind === 'ordinary')
-    return command.input.value
-  if (command.kind === 'create') return command.input.creation.initial
-  if (command.kind === 'interrupt') return command.input.urgent
-  return null
-}
-
 export type MemorySessionTransactionOptions<P> = Readonly<{
   initialization?: InitializationSource
   history?: HistorySource
@@ -410,8 +403,6 @@ export function createSessionTransactions<P>(
 
   const commit = (input: PreparedCommit): Outcome<unknown, SessionFailure> => {
     const command: SessionCommand = input.command
-    if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
-      return fail({ kind: 'unsupported' })
     const key = keyOf(command.input.tenant, command.input.session)
     if ('failure' in key) return key
     const blocked = stores.gate(key.ok)
@@ -599,9 +590,7 @@ export function createSessionTransactions<P>(
         ? { form: 'control' as const }
         : {}),
     })
-    const inputs = new Map(store?.inputs)
-    const admitted = admittedInput(command)
-    if (admitted !== null) inputs.set(admitted.input, admitted)
+    const inputs = withInputs(store?.inputs, admittedInputs(command))
     const target: Store = {
       lastCommit: receipt,
       frozenReceipt: entries.some(entry => entry.kind === 'session.frozen')
@@ -704,6 +693,7 @@ export function createSessionTransactions<P>(
       lastCommit: receipt,
       entries: [...store.entries, ...entries],
       operations,
+      inputs: withInputs(store.inputs, decision.admitted ?? []),
       modelView: materializeModelView(store.modelView, entries, [...store.entries, ...entries]),
     })
     return succeed(answer)

@@ -42,6 +42,7 @@ import {
   mintEvidence,
   digestOf,
   FIRST_RESULT_VERSION,
+  resultVersion,
 } from './evidence.ts'
 import {
   CALL_DUE_KEY,
@@ -70,6 +71,12 @@ import {
   type WaitLedgerRecord,
   type WaitRequestRecord,
 } from './ledger-store.ts'
+import {
+  backgroundAllowed,
+  backgroundPlaceholder,
+  type BackgroundPlaceholder,
+} from './ledger-background.ts'
+import { TIMERS_OFF } from './ledger-timers.ts'
 
 export type Snapshot = Readonly<{
   bodies: ReadonlyMap<string, BodyEntryRecord>
@@ -261,7 +268,7 @@ export function decideAdmit<B extends ContentBlock>(
   if (snapshot.call !== null) return reply(staleCall(snapshot.call))
   const { request } = command
   const { definition } = request.availability
-  if (request.mode === 'background' && !definition.backgroundAllowed)
+  if (request.mode === 'background' && !backgroundAllowed(request))
     return reply(invalid('request.mode', 'background-not-allowed'))
   if (request.availability.kind === 'known-unavailable')
     return settle(
@@ -297,15 +304,27 @@ function acceptWithinCapacity(command: AdmitCommand, mint: Mint): Decision<Admit
   )
 }
 
-function acceptedState(command: AdmitCommand, revision: ToolRevision): ToolState {
+function launchedPlaceholder(command: AdmitCommand, mint: Mint): BackgroundPlaceholder | null {
+  const { tenant, call, request, operation } = command
+  if (request.mode !== 'background') return null
+  const source = { kind: 'launched' } as const
+  return backgroundPlaceholder(
+    { call, operation, consumer: request.consumer },
+    source,
+    mintEvidence('operation', { tenant, call, operation }, mint.revision, { placeholder: source }),
+  )
+}
+
+function acceptedState(
+  command: AdmitCommand,
+  placeholder: BackgroundPlaceholder | null,
+  revision: ToolRevision,
+): ToolState {
   const { tenant, call, request } = command
   const body = {
     call,
     revision,
-    foreground:
-      request.mode === 'background'
-        ? ({ kind: 'background', call, source: { kind: 'launched' } } as const)
-        : null,
+    foreground: placeholder?.foreground ?? null,
     effect: { kind: 'not-started' },
     execution: { kind: 'not-started' },
     timing: { kind: 'paused', accumulatedMs: '0' },
@@ -321,7 +340,8 @@ function acceptedState(command: AdmitCommand, revision: ToolRevision): ToolState
 }
 
 function accept(command: AdmitCommand, mint: Mint): Decision<Admitted> {
-  const state = acceptedState(command, mint.revision)
+  const placeholder = launchedPlaceholder(command, mint)
+  const state = acceptedState(command, placeholder, mint.revision)
   return {
     kind: 'commit',
     writes: [
@@ -329,6 +349,7 @@ function accept(command: AdmitCommand, mint: Mint): Decision<Admitted> {
       put({ kind: 'call', call: callRecord(command, state) }),
       put(operationRecord(command, { kind: 'admit', state }, mint)),
       put({ kind: 'task', task: queueTask(command.operation, state.source) }),
+      ...(placeholder === null ? [] : [put({ kind: 'task', task: placeholder.task })]),
     ],
     value: { state, recovered: false },
   }
@@ -456,6 +477,11 @@ export type FirstVersion = Readonly<{
   record: ResultRecord
 }>
 
+// A late version keeps the logical terminal of the call and carries the real one as `actual`.
+export type LateVersion = Readonly<{ logical: ToolTerminal }>
+
+export const LATE_RESULT_VERSION = resultVersion(2)
+
 export function firstResultWrites(
   place: Readonly<{ tenant: TenantId; call: ToolCallId; operation: ToolOperationId }>,
   consumer: ConsumerRef,
@@ -464,18 +490,23 @@ export function firstResultWrites(
   value: ResultRecord['value'],
   custody: ResultCustody,
   mint: Mint,
+  late: LateVersion | null = null,
 ): Readonly<{ version: FirstVersion; writes: readonly LedgerWrite[] }> {
   const { tenant, call, operation } = place
-  const version = FIRST_RESULT_VERSION
-  const delivery = { kind: 'pending', delivery: deliveryId(1), consumer } as const
+  const version = late === null ? FIRST_RESULT_VERSION : LATE_RESULT_VERSION
+  const delivery = {
+    kind: 'pending',
+    delivery: deliveryId(late === null ? 1 : 2),
+    consumer,
+  } as const
   const resultPlace = { tenant, call, result: version, delivery: delivery.delivery, operation }
   const record: ResultRecord = {
     tenant,
     call,
     result: version,
-    relation: 'original',
-    terminal,
-    actual: null,
+    relation: late === null ? 'original' : 'late',
+    terminal: late === null ? terminal : late.logical,
+    actual: late === null ? null : terminal,
     effect,
     value,
     delivery,
@@ -494,7 +525,7 @@ export function firstResultWrites(
   }
   return {
     version: { version, delivery, record },
-    writes: [put({ kind: 'result', result: record }), put({ kind: 'task', task })],
+    writes: [put({ kind: 'result', result: record }), put({ kind: 'task', task }), ...TIMERS_OFF],
   }
 }
 
@@ -648,7 +679,7 @@ export type ReleaseCommand = Readonly<{
   inputDigest: string
 }>
 
-function sameConsumer(left: ConsumerRef, right: ConsumerRef): boolean {
+export function sameConsumer(left: ConsumerRef, right: ConsumerRef): boolean {
   return (
     left.owner === right.owner &&
     left.work === right.work &&
@@ -657,7 +688,9 @@ function sameConsumer(left: ConsumerRef, right: ConsumerRef): boolean {
   )
 }
 
-function handoffEvidence(handoff: Handoff): Readonly<{ field: string; value: DurableEvidence }> {
+export function handoffEvidence(
+  handoff: Handoff,
+): Readonly<{ field: string; value: DurableEvidence }> {
   return handoff.kind === 'retained'
     ? { field: 'evidence.custody', value: handoff.custody }
     : { field: 'evidence.completion', value: handoff.completion }

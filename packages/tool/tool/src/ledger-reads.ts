@@ -1,15 +1,17 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type {
-  Adoption,
-  OperationResolution,
-  ResultPage,
-  ToolFailure,
-  ToolLookup,
-  ToolOperationId,
-  ToolResultVersion,
-  ToolStartRecord,
-  ToolResult,
+import {
+  decodeToolOperationId,
+  type Adoption,
+  type OperationResolution,
+  type ResultPage,
+  type ToolFailure,
+  type ToolLookup,
+  type ToolOperationId,
+  type ToolResultVersion,
+  type ToolStartRecord,
+  type ToolState,
+  type ToolResult,
 } from '@omne-harness/tool-contract'
 import type { ToolRecovery } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
@@ -23,6 +25,16 @@ export function lookupCall(snapshot: Snapshot, admission: ToolOperationId): Tool
   const call = snapshot.call
   if (call !== null && call.admission === admission) return { kind: 'found', state: call.state }
   return { kind: 'not-accepted', operation: admission }
+}
+
+/** The state under the admission of the input, read without the fence of `lookup`. */
+export function readState(snapshot: Snapshot, input: unknown): Outcome<ToolState, ToolFailure> {
+  const admission = decodeToolOperationId(Reflect.get(input as object, 'admission'))
+  if ('failure' in admission) return invalid('admission', admission.failure.reason)
+  const found = lookupCall(snapshot, admission.ok)
+  return found.kind === 'found'
+    ? succeed(found.state)
+    : invalid('reference', 'the admission of the reference was not accepted; the call has no state')
 }
 
 export function resolveOperation(

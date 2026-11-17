@@ -25,6 +25,7 @@ import {
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
 import { canonicalDigest } from '@omne-harness/tool'
 import {
+  decodeCommandCallText,
   describeCommandCallRejection,
   selectCommandText,
   type ToolAvailability,
@@ -80,6 +81,19 @@ function commandOf(
   return 'failure' in selected
     ? { answer: describeCommandCallRejection(definition, selected.failure) }
     : { command: selected.ok }
+}
+
+// The model asks for the wait mode with run_in_background; admission judges whether this call may.
+function modeOf(
+  definition: ToolAvailability['definition'],
+  effectiveArguments: string,
+): ToolInvokeRequest['mode'] {
+  if (definition.kind === 'function') return 'foreground'
+  const names = definition.commands.map(command => command.name)
+  const call = decodeCommandCallText(definition.encoding, names, effectiveArguments)
+  if ('failure' in call) return 'foreground'
+  const flag = call.ok.params.entries.find(entry => entry.key === 'run_in_background')?.value
+  return flag?.kind === 'boolean' && flag.value ? 'background' : 'foreground'
 }
 
 async function sessionOf(
@@ -279,7 +293,7 @@ export function createReleaseToolRequests(ports: ToolRequestPorts): ReleaseToolR
       scope: runToolScope(input.tenant, input.consumer),
       consumer: input.consumer,
       batchDecision: null,
-      mode: 'foreground',
+      mode: modeOf(availability.definition, input.effectiveArguments),
       limits: { concurrency: null, scopeBudget: null, foregroundMs: null, backgroundAfterMs: null },
     }
     return succeed(request)

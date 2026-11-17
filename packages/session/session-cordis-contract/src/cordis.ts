@@ -12,6 +12,7 @@ import type {
   DurableEvidence,
   ScopeReleasePort,
   SessionAccessCheck,
+  SessionCallControl,
   SessionCallerClass,
   SessionClock,
   SessionContextInput,
@@ -272,6 +273,16 @@ export abstract class ScopeReleasePortService extends Service implements ScopeRe
 }
 export const sessionScopeReleaseKey = ScopeReleasePortService.provide
 
+/** @owner packages/session/session-contract */
+export abstract class SessionCallControlService extends Service implements SessionCallControl {
+  static readonly provide = 'sessionCallControl'
+  constructor(ctx: Context) {
+    super(ctx, SessionCallControlService.provide)
+  }
+  abstract readonly control: SessionCallControl['control']
+}
+export const sessionCallControlKey = SessionCallControlService.provide
+
 export type SessionTenantSource = Readonly<{
   enumerate(): Promise<
     | Readonly<{ ok: readonly TenantId[] }>
@@ -412,6 +423,7 @@ declare module '@deepseek-ai/cordis' {
     sessionNotifier: SessionNotifierService
     sessionAgentDrive: AgentDrivePortService
     sessionScopeRelease: ScopeReleasePortService
+    sessionCallControl: SessionCallControlService
     sessionTenants: SessionTenantSourceService
     sessionAdoptionSource: SessionAdoptionSourceService<unknown>
     sessionProductionSource: SessionProductionSourceService

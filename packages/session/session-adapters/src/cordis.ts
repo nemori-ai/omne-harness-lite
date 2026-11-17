@@ -79,6 +79,11 @@ export type {
 } from './cordis/history-source.ts'
 export { SessionIdentityBridgeProvider } from './cordis/identity-bridge.ts'
 export {
+  createSessionCallControlPlugin,
+  createToolCallControl,
+  type ToolCallControlInput,
+} from './cordis/tool-call-control.ts'
+export {
   createSessionToolLogConsumptionPlugin,
   type SessionToolLogConsumptionConfig,
   type SessionToolLogConsumptionInput,

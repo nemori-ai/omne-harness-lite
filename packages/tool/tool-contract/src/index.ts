@@ -49,6 +49,7 @@ export type {
   ToolArguments,
   ToolAvailability,
   ToolBodyDeclaration,
+  ToolCommandBackground,
   ToolCommandDeclaration,
   ToolDefinition,
   ToolEnvironmentDeclaration,

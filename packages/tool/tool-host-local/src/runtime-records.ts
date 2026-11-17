@@ -67,6 +67,7 @@ export function publishRuntimeRecords(ctx: Context, records: RuntimeRecords): vo
     acceptDecision = ledger.commands.acceptDecision
     acceptResource = ledger.commands.acceptResource
     releaseDelivery = ledger.commands.releaseDelivery
+    releasePlaceholder = ledger.commands.releasePlaceholder
     scanPending = ledger.commands.scanPending
     loadRecovery = ledger.commands.loadRecovery
     claim = ledger.commands.claim
@@ -100,6 +101,7 @@ export function publishRuntimeRecords(ctx: Context, records: RuntimeRecords): vo
   }
   class Reads extends ToolReadsService<unknown, ToolMessageContentBlock> {
     lookup = ledger.reads.lookup
+    state = ledger.reads.state
     operation = ledger.reads.operation
     result = ledger.reads.result
     process = ledger.reads.process

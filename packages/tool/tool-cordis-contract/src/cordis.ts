@@ -110,6 +110,7 @@ export abstract class ToolCommandsService<P, B extends ContentBlock>
   abstract readonly acceptDecision: ToolCommands<P, B>['acceptDecision']
   abstract readonly acceptResource: ToolCommands<P, B>['acceptResource']
   abstract readonly releaseDelivery: ToolCommands<P, B>['releaseDelivery']
+  abstract readonly releasePlaceholder: ToolCommands<P, B>['releasePlaceholder']
   abstract readonly scanPending: ToolCommands<P, B>['scanPending']
   abstract readonly loadRecovery: ToolCommands<P, B>['loadRecovery']
   abstract readonly claim: ToolCommands<P, B>['claim']
@@ -413,6 +414,7 @@ export abstract class ToolReadsService<P, B extends ContentBlock>
     super(ctx, ToolReadsService.provide)
   }
   abstract readonly lookup: ToolReads<P, B>['lookup']
+  abstract readonly state: ToolReads<P, B>['state']
   abstract readonly operation: ToolReads<P, B>['operation']
   abstract readonly result: ToolReads<P, B>['result']
   abstract readonly process: ToolReads<P, B>['process']
