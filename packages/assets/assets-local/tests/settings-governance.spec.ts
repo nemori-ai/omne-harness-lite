@@ -1,6 +1,6 @@
 import { ownerSources } from './sources.ts'
-import { createCategoryRegistry } from '@omne-harness/assets'
 import { afterEach, expect, it } from 'vitest'
+import { lookupOf } from './lookup.ts'
 const { openCatalogWorld } = (await import(
   new URL('../tests/catalog-world.ts', import.meta.resolve('@omne-harness/settings-local')).href
 )) as typeof import('../../settings-local/tests/catalog-world.ts')
@@ -203,8 +203,7 @@ it('changes the actual selected asset definition and requires explicit re-adopti
 it('omits legitimately undeclared assets from management without denying unrelated settings', async () => {
   const w = await open()
   opened.push(w)
-  const registry = createCategoryRegistry()
-  registry.register({
+  const registry = lookupOf({
     category: 'service',
     schema: { kind: 'null' },
     judge: () => ({ ok: true }),

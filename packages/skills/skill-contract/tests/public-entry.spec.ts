@@ -27,6 +27,7 @@ it('exports the skill body port', () => {
     'projectAssetBody',
     'sameCapability',
     'skillBodyContract',
+    'skillCategoryDisplay',
     'toPackagePath',
   ])
 })

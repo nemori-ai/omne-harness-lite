@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import { projectAssetSettings } from '@omne-harness/assets'
+import { projectAssetSettings, type AssetSettingsProjection } from '@omne-harness/assets'
 import { SettingsIdSchema } from '@omne-harness/settings'
 import {
   SettingsProjectionBindingSchema,
@@ -55,6 +55,15 @@ export function assetsPublicationCommand(binding: SettingsProjectionBinding): Fa
     },
   }
 }
+const PROJECTION_REJECTIONS = {
+  invalid_body: 'invalid_input',
+  invalid_declaration: 'invalid_input',
+  unknown_category: 'unknown_category',
+  provider_unavailable: 'unavailable',
+} as const satisfies Record<
+  Extract<AssetSettingsProjection, { kind: 'rejected' }>['reason'],
+  Failure['reason']
+>
 function publishCommand(options: AssetsLocalOptions, input: AssetsPublish) {
   if (!withinBudget(input)) return fail('limit_exceeded')
   const metadata = publishMetadataSchema.safeParse({
@@ -67,8 +76,7 @@ function publishCommand(options: AssetsLocalOptions, input: AssetsPublish) {
     assetRef: metadata.data.assetRef,
     pinned: input.pinned,
   })
-  if (projection.kind === 'rejected')
-    return fail(projection.reason === 'provider_unavailable' ? 'unavailable' : 'invalid_input')
+  if (projection.kind === 'rejected') return fail(PROJECTION_REJECTIONS[projection.reason])
   const declaration =
     projection.kind === 'none'
       ? projection

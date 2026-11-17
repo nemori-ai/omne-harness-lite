@@ -6,6 +6,7 @@ import {
   readSnapshot,
   type BodyContract,
   type CapabilityId,
+  type CategoryDisplay,
   type JsonValue,
   type JudgeContext,
   type Judgment,
@@ -14,6 +15,11 @@ import { INSTRUCTION_LIMITS, attributeItem, type AttributeItem } from './definit
 import { instructionsProblem } from './judge-definition.ts'
 
 const CATEGORY = 'AgentDefinition'
+
+export const agentDefinitionCategoryDisplay: CategoryDisplay = Object.freeze({
+  title: '智能体',
+  summary: '一个智能体的定义：它的说明、能用的能力与权限上界。',
+})
 
 const schemaRead = readBodyText(
   '{"kind":"agent-definition-body","properties":{"name":"string","references":"[{capability:{category,name},resident?}]","attributes":"[{item}]","instructions?":"[{id,text}]","permissionBounds?":"[{capabilityId,enforcementKey,allowedSet}]"}}',

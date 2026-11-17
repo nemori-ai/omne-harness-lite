@@ -24,7 +24,8 @@ import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
 import { access, organizationCodec } from '@omne-harness/legal-identity'
 import { createSettingsRegistry } from '@omne-harness/settings'
-import { createCategoryRegistry } from '@omne-harness/assets'
+import { createCategoryPoint } from '@omne-harness/assets'
+import { toolCategoryDisplay } from '@omne-harness/tool-contract'
 import { createAssetsLocal } from '@omne-harness/assets-local'
 import { createToolAssetCategory } from '../../../src/rows/governance/tool-assets.ts'
 import {
@@ -814,8 +815,11 @@ it.each([false, true])(
     const original = await prepare().open()
     if (original.kind !== 'created') throw new Error(JSON.stringify(original))
     cleanup.push(original.close)
-    const categories = createCategoryRegistry()
-    categories.register(createToolAssetCategory(w.release))
+    const categories = createCategoryPoint()
+    categories.contribute({
+      contract: createToolAssetCategory(w.release),
+      display: toolCategoryDisplay,
+    })
     const assets = createAssetsLocal({
       ...governanceStorageCombinations(w.options.materials).assets,
       domain: w.options.domain,

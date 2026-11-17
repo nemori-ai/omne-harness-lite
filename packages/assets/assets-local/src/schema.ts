@@ -163,6 +163,7 @@ export const failureSchema = z.strictObject({
     'operation_conflict',
     'closing',
     'unsupported',
+    'unknown_category',
   ]),
 })
 export const committedSchema = z.strictObject({

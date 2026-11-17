@@ -1,5 +1,6 @@
-import { createCategoryRegistry } from '@omne-harness/assets'
+import { createCategoryPoint } from '@omne-harness/assets'
 import { createAssetsLocal } from '@omne-harness/assets-local'
+import { toolCategoryDisplay } from '@omne-harness/tool-contract'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import type { createStandaloneSettingsOwner } from '@omne-harness/settings-local'
 import type { ToolRelease } from '../../entry/tool-release.ts'
@@ -21,8 +22,11 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
     scope: structuredClone(input.scope),
     domain: structuredClone(input.domain),
   }
-  const categories = createCategoryRegistry()
-  categories.register(createToolAssetCategory(options.release))
+  const categories = createCategoryPoint()
+  categories.contribute({
+    contract: createToolAssetCategory(options.release),
+    display: toolCategoryDisplay,
+  })
   const assets = createAssetsLocal({
     ...governanceStorageCombinations(options.materials).assets,
     domain: options.domain,

@@ -1,6 +1,6 @@
 import {
   capabilityId,
-  createCategoryRegistry,
+  createCategoryPoint,
   pinBody,
   projectAssetSettings,
   readBodyText,
@@ -9,6 +9,7 @@ import {
 import {
   MODEL_PROVIDER_CATEGORY,
   modelProviderBodyContract,
+  modelProviderCategoryDisplay,
   parseModelProviderBody,
   readModelProviderBody,
 } from '@omne-harness/model-contract/provider-asset'
@@ -246,8 +247,11 @@ describe('decodeProviderName', () => {
 
 describe('modelProviderBodyContract: settings through projectAssetSettings', () => {
   function project(plain: unknown) {
-    const registry = createCategoryRegistry()
-    registry.register(modelProviderBodyContract())
+    const registry = createCategoryPoint()
+    registry.contribute({
+      contract: modelProviderBodyContract(),
+      display: modelProviderCategoryDisplay,
+    })
     const identity = capabilityId(MODEL_PROVIDER_CATEGORY, 'test-gateway')
     if (!identity.ok) throw new Error('capability id fixture')
     const pinned = pinBody({

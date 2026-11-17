@@ -123,7 +123,7 @@ export type {
   ToolUsage,
 } from './authoring.ts'
 export { toolAssetBody } from './asset-body.ts'
-export { toolBodyContract } from './contract.ts'
+export { toolBodyContract, toolCategoryDisplay } from './contract.ts'
 export type {
   ClockSegment,
   ControlProgress,

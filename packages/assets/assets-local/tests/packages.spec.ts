@@ -11,10 +11,11 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   capabilityId,
-  createCategoryRegistry,
+  createCategoryPoint,
   digestBytes,
   packageDigest,
   type CapabilityId,
+  type CategoryContribution,
   type PackageReader,
 } from '@omne-harness/assets'
 import type { SqlStorage } from '@omne-harness/sql-contract'
@@ -29,9 +30,11 @@ afterEach(async () => {
 
 const encoder = new TextEncoder()
 
-function bundles() {
-  const registry = createCategoryRegistry()
-  registry.register({
+const display = { title: 'Test', summary: 'A category that exists only in these tests.' }
+
+const bundle: CategoryContribution = {
+  display,
+  contract: {
     category: 'bundle',
     schema: { kind: 'null' },
     judge: () => ({ ok: true }),
@@ -59,15 +62,23 @@ function bundles() {
         }
       },
     },
+  },
+}
+
+function bundles() {
+  const categories = createCategoryPoint()
+  const withdrawBundle = categories.contribute(bundle)
+  categories.contribute({
+    display,
+    contract: {
+      category: 'plain',
+      schema: { kind: 'null' },
+      judge: () => ({ ok: true }),
+      deriveDeclarations: () => ({ entries: [] }),
+      references: () => [],
+    },
   })
-  registry.register({
-    category: 'plain',
-    schema: { kind: 'null' },
-    judge: () => ({ ok: true }),
-    deriveDeclarations: () => ({ entries: [] }),
-    references: () => [],
-  })
-  return registry
+  return { categories, withdrawBundle, restoreBundle: () => categories.contribute(bundle) }
 }
 
 function memory(files: Readonly<Record<string, string>>): PackageReader {
@@ -124,9 +135,10 @@ async function world(
   } = {},
 ) {
   const packageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'assets-packages-')))
-  const opened = await openWorld({ categories: bundles(), packageRoot, ...options })
+  const { categories, withdrawBundle, restoreBundle } = bundles()
+  const opened = await openWorld({ categories, packageRoot, ...options })
   worlds.push(opened)
-  return { ...opened, packageRoot }
+  return { ...opened, packageRoot, withdrawBundle, restoreBundle }
 }
 
 async function crashingWorld(step: Step, nth = 1) {
@@ -289,19 +301,30 @@ describe('read: the cells of the totalized table', () => {
 describe('the recovery scan: the cells of the totalized table', () => {
   it('恢复扫描 × 没有：不动', async () => {
     const w = await world()
-    expect(await w.owner.packages.recover()).toEqual({ completed: 0, discarded: 0, mismatched: [] })
+    expect(await w.owner.packages.recover()).toEqual({
+      completed: 0,
+      discarded: 0,
+      deferred: [],
+      mismatched: [],
+    })
     expect(readdirSync(w.packageRoot)).toEqual([])
   })
 
   it('恢复扫描 × 已发布：不动；正式位置摘要对不上的报告它，不动', async () => {
     const w = await world()
     await publish(w, FIRST, 'publish-1')
-    expect(await w.owner.packages.recover()).toEqual({ completed: 0, discarded: 0, mismatched: [] })
+    expect(await w.owner.packages.recover()).toEqual({
+      completed: 0,
+      discarded: 0,
+      deferred: [],
+      mismatched: [],
+    })
     const changed = join(placed(w.packageRoot, versionOf(FIRST)), 'SKILL.md')
     writeFileSync(changed, 'tampered')
     expect(await w.owner.packages.recover()).toEqual({
       completed: 0,
       discarded: 0,
+      deferred: [],
       mismatched: [report],
     })
     expect(readFileSync(changed, 'utf8')).toBe('tampered')
@@ -310,7 +333,12 @@ describe('the recovery scan: the cells of the totalized table', () => {
   it('恢复扫描 × 只有暂存：删掉暂存', async () => {
     const w = await crashingWorld('staged')
     await publish(w, FIRST, 'publish-1')
-    expect(await w.owner.packages.recover()).toEqual({ completed: 0, discarded: 1, mismatched: [] })
+    expect(await w.owner.packages.recover()).toEqual({
+      completed: 0,
+      discarded: 1,
+      deferred: [],
+      mismatched: [],
+    })
     expect(stagingOf(w.packageRoot)).toEqual([])
     expect(existsSync(placed(w.packageRoot, versionOf(FIRST)))).toBe(false)
   })
@@ -318,7 +346,12 @@ describe('the recovery scan: the cells of the totalized table', () => {
   it('恢复扫描 × 记了没换：把暂存换入', async () => {
     const w = await crashingWorld('recorded')
     await publish(w, FIRST, 'publish-1')
-    expect(await w.owner.packages.recover()).toEqual({ completed: 1, discarded: 0, mismatched: [] })
+    expect(await w.owner.packages.recover()).toEqual({
+      completed: 1,
+      discarded: 0,
+      deferred: [],
+      mismatched: [],
+    })
     expect(stagingOf(w.packageRoot)).toEqual([])
     expect(await readAll(w, versionOf(FIRST))).toEqual({ ok: FIRST })
   })
@@ -332,7 +365,12 @@ describe('a crash after a step, then the recovery scan: all old or all new', () 
       kind: 'unknown',
       operationId: 'publish-2',
     })
-    expect(await w.owner.packages.recover()).toEqual({ completed: 0, discarded: 1, mismatched: [] })
+    expect(await w.owner.packages.recover()).toEqual({
+      completed: 0,
+      discarded: 1,
+      deferred: [],
+      mismatched: [],
+    })
     expect(await w.owner.readAsset({ assetRef: 'tenant/report' })).toMatchObject({
       kind: 'asset',
       asset: { latestVersion: versionOf(FIRST) },
@@ -353,8 +391,49 @@ describe('a crash after a step, then the recovery scan: all old or all new', () 
       kind: 'asset',
       asset: { latestVersion: versionOf(SECOND) },
     })
-    expect(await w.owner.packages.recover()).toEqual({ completed: 1, discarded: 0, mismatched: [] })
+    expect(await w.owner.packages.recover()).toEqual({
+      completed: 1,
+      discarded: 0,
+      deferred: [],
+      mismatched: [],
+    })
     expect(await readAll(w, versionOf(SECOND))).toEqual({ ok: SECOND })
+    expect(await readAll(w, versionOf(FIRST))).toEqual({ ok: FIRST })
+  })
+})
+
+describe('while the category is withdrawn', () => {
+  it('读 × 类别不在：答 unavailable；装回之后读到的逐字相同', async () => {
+    const w = await world()
+    await publish(w, FIRST, 'publish-1')
+    w.withdrawBundle()
+    expect(await readAll(w, versionOf(FIRST))).toEqual({ failure: 'unavailable' })
+    expect(
+      await w.owner.packages.locate({ assetRef: 'tenant/report', version: versionOf(FIRST) }),
+    ).toEqual({ kind: 'unavailable' })
+    w.restoreBundle()
+    expect(await readAll(w, versionOf(FIRST))).toEqual({ ok: FIRST })
+  })
+
+  it('恢复扫描 × 类别不在：不动暂存，报进 deferred；装回之后再扫把它换入', async () => {
+    const w = await crashingWorld('recorded')
+    await publish(w, FIRST, 'publish-1')
+    w.withdrawBundle()
+    expect(await w.owner.packages.recover()).toEqual({
+      completed: 0,
+      discarded: 0,
+      deferred: [report],
+      mismatched: [],
+    })
+    expect(stagingOf(w.packageRoot)).toHaveLength(1)
+    w.restoreBundle()
+    expect(await w.owner.packages.recover()).toEqual({
+      completed: 1,
+      discarded: 0,
+      deferred: [],
+      mismatched: [],
+    })
+    expect(stagingOf(w.packageRoot)).toEqual([])
     expect(await readAll(w, versionOf(FIRST))).toEqual({ ok: FIRST })
   })
 })
@@ -553,7 +632,7 @@ describe('a directory that does not pass is rejected and nothing is written', ()
   })
 
   it('没有根目录时这几样不可用', async () => {
-    const w = await openWorld({ categories: bundles() })
+    const w = await openWorld({ categories: bundles().categories })
     worlds.push(w)
     expect(await publish(w, FIRST, 'publish-1')).toEqual({
       kind: 'rejected',

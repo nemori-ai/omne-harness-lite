@@ -8,7 +8,7 @@ import {
   pinBody,
   readBodyText,
   type CapabilityId,
-  type CategoryRegistry,
+  type CategoryView,
   type JsonValue,
   type PackageLayout,
   type PackageManifest,
@@ -59,6 +59,7 @@ export type PackagePublishResult =
 export type PackageRecovery = Readonly<{
   completed: number
   discarded: number
+  deferred: readonly CapabilityId[]
   mismatched: readonly CapabilityId[]
 }>
 
@@ -230,7 +231,7 @@ type Prepared = Readonly<{
 
 type Shared = Readonly<{
   root: string | undefined
-  categories: CategoryRegistry
+  categories: Pick<CategoryView, 'lookup'>
   records: PackageRecords
 }>
 
@@ -453,7 +454,9 @@ async function placeOf(
   const record = await records.readVersionRecord(assetRef, version)
   if (!('ok' in record)) return fail('unavailable')
   if (record.ok === undefined) return fail('package-not-found')
-  const layout = categories.lookup(record.ok.category)?.layout
+  const contract = categories.lookup(record.ok.category)
+  if (contract === undefined) return fail('unavailable')
+  const layout = contract.layout
   const manifest = manifestOf(record.ok.body)
   if (layout === undefined || manifest === undefined) return fail('package-not-found')
   return succeed({ manifest, final: finalOf(root, layout, record.ok.name, version) })
@@ -538,14 +541,19 @@ function packageRecovery(shared: Shared, disk: PackageDisk): () => Promise<Packa
   }
 
   return async () => {
-    if (root === undefined) return { completed: 0, discarded: 0, mismatched: [] }
+    if (root === undefined) return { completed: 0, discarded: 0, deferred: [], mismatched: [] }
     let completed = 0
     let discarded = 0
+    const deferred: CapabilityId[] = []
     for (const staged of await stagingsIn(root)) {
-      if ((await settle(root, staged)) === 'completed') completed += 1
+      const { meta } = staged
+      if (meta !== undefined && categories.lookup(meta.category) === undefined) {
+        const id = capabilityId(meta.category, meta.name)
+        if (id.ok) deferred.push(id.id)
+      } else if ((await settle(root, staged)) === 'completed') completed += 1
       else discarded += 1
     }
-    return { completed, discarded, mismatched: await mismatchedIn(root) }
+    return { completed, discarded, deferred, mismatched: await mismatchedIn(root) }
   }
 }
 
@@ -571,7 +579,7 @@ async function mismatchedIn(root: string): Promise<CapabilityId[]> {
 
 export function createPublishedPackages(input: {
   root: string | undefined
-  categories: CategoryRegistry
+  categories: Pick<CategoryView, 'lookup'>
   records: PackageRecords
   afterStep?: ((step: PackageStep) => void | Promise<void>) | undefined
   durability?: PackageDurability | undefined

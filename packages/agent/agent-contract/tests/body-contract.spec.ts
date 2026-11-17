@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
-  createCategoryRegistry,
+  createCategoryPoint,
   isReadBody,
   readBodyText,
   type JsonLimits,
   type JsonValue,
 } from '@omne-harness/assets'
-import { agentBodyContract, judgeAgentDefinition } from '@omne-harness/agent-contract'
+import {
+  agentBodyContract,
+  agentDefinitionCategoryDisplay,
+  judgeAgentDefinition,
+} from '@omne-harness/agent-contract'
 
 const limits: JsonLimits = {
   maxBytes: 10_000,
@@ -263,9 +267,9 @@ const rows: readonly Row[] = [
 
 describe('agentBodyContract registration', () => {
   it('registers under the category name and is retrieved from the registry', () => {
-    const registry = createCategoryRegistry()
+    const registry = createCategoryPoint()
     const contract = agentBodyContract()
-    registry.register(contract)
+    registry.contribute({ contract, display: agentDefinitionCategoryDisplay })
     const found = registry.lookup('AgentDefinition')
     expect(found).toBeDefined()
     expect(found?.category).toBe('AgentDefinition')
@@ -286,16 +290,27 @@ describe('agentBodyContract registration', () => {
   })
 
   it('refuses a second registration of the category', () => {
-    const registry = createCategoryRegistry()
-    registry.register(agentBodyContract())
-    expect(() => registry.register(agentBodyContract())).toThrow(/already registered/)
+    const registry = createCategoryPoint()
+    registry.contribute({
+      contract: agentBodyContract(),
+      display: agentDefinitionCategoryDisplay,
+    })
+    expect(() =>
+      registry.contribute({
+        contract: agentBodyContract(),
+        display: agentDefinitionCategoryDisplay,
+      }),
+    ).toThrow(/already registered/)
   })
 })
 
 describe('judge agrees with judgeAgentDefinition', () => {
   it.each(rows)('$label', async ({ content, rejected, definitionReason }) => {
-    const registry = createCategoryRegistry()
-    registry.register(agentBodyContract())
+    const registry = createCategoryPoint()
+    registry.contribute({
+      contract: agentBodyContract(),
+      display: agentDefinitionCategoryDisplay,
+    })
     const contract = registry.lookup('AgentDefinition')
     if (contract === undefined) throw new Error('contract missing')
 
