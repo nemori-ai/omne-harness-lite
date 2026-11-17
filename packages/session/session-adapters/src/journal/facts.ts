@@ -450,7 +450,12 @@ export function eventKindOf(fact: FactBody): string | null {
   return kind
 }
 
-export type ParticipationKind = 'message' | 'context-transition' | 'custody' | 'processed'
+export type ParticipationKind =
+  | 'message'
+  | 'delivered'
+  | 'context-transition'
+  | 'custody'
+  | 'processed'
 
 export type BatchEnvelope = Readonly<{
   op: AgentOperationId
@@ -660,6 +665,7 @@ export function encodeBatch(
 const KINDS: ReadonlySet<string> = new Set(FACT_KINDS)
 const PARTICIPATIONS: ReadonlySet<string> = new Set([
   'message',
+  'delivered',
   'context-transition',
   'custody',
   'processed',

@@ -9,6 +9,8 @@ import {
   type ReleaseTree,
 } from '../../tests/support/release-tree.ts'
 
+export { likeARealModel } from '../../tests/support/release-tree.ts'
+
 export const LIMIT_MS = 120_000
 
 /** A one-shot Shell execute that runs in the background until the file `name` exists. */
@@ -51,6 +53,13 @@ export async function until<T>(
     if (/* wall-clock: operation-timing -- the wait gives up at its deadline. */ Date.now() > end)
       throw new Error(`${what} did not happen: ${JSON.stringify(value)}`)
   }
+}
+
+/** The outcome the last run.terminal entry names. */
+export function lastOutcomeOf(entries: readonly Entry[]): string {
+  const ended = entries.filter(entry => entry.kind === 'run.terminal').at(-1)
+  const terminal = (ended?.payload as { terminal?: { outcome?: unknown } } | undefined)?.terminal
+  return String(terminal?.outcome ?? '')
 }
 
 export const history = (tree: ReleaseTree, session: string): Promise<readonly Entry[]> =>

@@ -170,7 +170,7 @@ describe('the agent-host row: declaration and configuration', () => {
   })
 })
 
-describe('the agent-host row: on test stand-ins of its sixteen injects', () => {
+describe('the agent-host row: on test stand-ins of its eighteen injects', () => {
   it('is ACTIVE and provides the faces of the page', { timeout: 60_000 }, async () => {
     const { tree } = await start({ omit: null })
     expect(tree.allActive).toBe(true)

@@ -6,6 +6,7 @@ import {
   type SessionIntakeLimits,
 } from './intake.ts'
 import { decideTodos } from './decide-todos.ts'
+import { decideDelivery } from './decide-delivery.ts'
 import { requiredWorkEntries } from './work-entry-state.ts'
 import { decodeEntries } from './entries.ts'
 import { validateFrontierBatch } from './frontier-state.ts'
@@ -355,6 +356,7 @@ function decideRecordMessage(
   command: Extract<SessionCommand, { kind: 'recordMessage' }>,
 ): Decision {
   const { participation, value } = command.input
+  if ('deliveries' in value) return decideDelivery(snapshot, participation, value)
   if (participation.joint !== 'message')
     return invalid('participation.joint', 'not the message hand-over')
   const judgment = judgeAdvance(snapshot, {
