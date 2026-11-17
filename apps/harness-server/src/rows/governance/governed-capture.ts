@@ -3,14 +3,16 @@ import type { CaptureScope } from '@omne-harness/assets-local'
 
 export type GovernedCapture = () => CaptureScope
 
-export function governedCapture(categories: Pick<CategoryView, 'list' | 'lookup'>): GovernedCapture {
+/** Every holding is a settings candidate, except those of categories whose contract declares no settings. */
+export function governedCapture(
+  categories: Pick<CategoryView, 'list' | 'lookup'>,
+): GovernedCapture {
   return () => ({
-    categories: categories
+    excluded: categories
       .list()
       .map(listing => listing.category)
-      .filter(category => categories.lookup(category)?.settings !== undefined),
+      .filter(category => categories.lookup(category)?.settings === undefined),
   })
 }
 
-/** A capture that names its targets, or reads the runtime view, scans no category. */
-export const NAMED_TARGETS: CaptureScope = Object.freeze({ categories: Object.freeze([]) })
+export const NAMED_TARGETS: CaptureScope = Object.freeze({ excluded: Object.freeze([]) })

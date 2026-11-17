@@ -141,7 +141,7 @@ async function world() {
       enabled,
     })
   }
-  const capture = (categories: readonly string[]) => {
+  const capture = (excluded: readonly string[]) => {
     const domain = domainOf(alpha, 'tenant-alpha')
     const binding = {
       domain,
@@ -163,7 +163,7 @@ async function world() {
       },
       combinationVersion: assets.combinationVersion,
       manifestDigest: assets.manifestDigest,
-      commands: [assetsSettingsProjectionCommand(binding, { categories })],
+      commands: [assetsSettingsProjectionCommand(binding, { excluded })],
     })
   }
   const assets = governanceStorageCombinations(materials).assets
@@ -368,11 +368,11 @@ describe('the skills row and the Skills binding over a real store', () => {
 
   it('leaves the governance capture of a tenant domain unchanged by a published Skill', async () => {
     const w = await world()
-    expect(w.governed().categories).toEqual(['model-provider', 'tool'])
+    expect(w.governed().excluded).toEqual(['preference', 'skill'])
     await w.publish('placeholder-skill')
-    const before = await w.capture(w.governed().categories)
+    const before = await w.capture(w.governed().excluded)
     await w.publish('weekly-report')
-    const after = await w.capture(w.governed().categories)
+    const after = await w.capture(w.governed().excluded)
     expect(before.kind).toBe('committed')
     expect(after.kind).toBe('committed')
     if (before.kind !== 'committed' || after.kind !== 'committed') throw new Error('capture')
@@ -384,9 +384,11 @@ describe('the skills row and the Skills binding over a real store', () => {
   it('keeps 130 Skill holdings out of the governance capture and its limit of 128', async () => {
     const w = await world()
     await w.publishMany(Array.from({ length: 130 }, (_, index) => `skill-${String(index)}`))
-    const governed = await w.capture(w.governed().categories)
+    const governed = await w.capture(w.governed().excluded)
     expect(governed.kind).toBe('committed')
-    const everything = await w.capture([...w.governed().categories, 'skill'])
+    const everything = await w.capture(
+      w.governed().excluded.filter(category => category !== 'skill'),
+    )
     expect(everything.kind).toBe('rolled_back')
     expect(JSON.stringify(everything)).toContain('limit_exceeded')
   })

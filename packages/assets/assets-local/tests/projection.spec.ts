@@ -78,7 +78,7 @@ it('safely rejects removed, nonexistent, cross-scope and cross-domain projection
             selectionRef: null,
           },
         },
-        { categories: ['service'] },
+        { excluded: [] },
       ),
     ],
   })
@@ -178,7 +178,7 @@ function capturedRefs(result: Awaited<ReturnType<World['capture']>>): string[] {
   const views = SettingsOwnerProjectionSchema.parse(result.responses[0]?.reply.response).views
   return views.map(view => view.target.targetRef)
 }
-it('captures only the holdings of the categories the caller names, so other holdings do not count to the limit', async () => {
+it('leaves out the holdings of the categories the caller excludes, so they do not count to the limit', async () => {
   const world = await serviceAndNoteWorld()
   const holdAll = async (category: 'service' | 'note', count: number) => {
     for (let index = 0; index < count; index++)
@@ -186,10 +186,10 @@ it('captures only the holdings of the categories the caller names, so other hold
   }
   await holdAll('service', 6)
   await holdAll('note', 130)
-  expect(capturedRefs(await world.capture())).toEqual(
+  expect(capturedRefs(await world.capture({}, { excluded: ['note'] }))).toEqual(
     [0, 1, 2, 3, 4, 5].map(index => `holding-service-${index}`),
   )
-  const both = await world.capture({}, { categories: ['service', 'note'] })
+  const both = await world.capture()
   expect(both.kind).toBe('rolled_back')
   if (both.kind !== 'rolled_back') throw new Error('expected rejection')
   expect(both.responses.at(-1)?.reply).toMatchObject({
@@ -201,11 +201,7 @@ it('orders the holdings of several categories by holding, as one scan of every h
   await holdOne(world, 'service', 'a')
   await holdOne(world, 'note', 'b')
   await holdOne(world, 'service', 'c')
-  expect(capturedRefs(await world.capture({}, { categories: ['service', 'note'] }))).toEqual([
-    'holding-a',
-    'holding-b',
-    'holding-c',
-  ])
+  expect(capturedRefs(await world.capture())).toEqual(['holding-a', 'holding-b', 'holding-c'])
 }, 60000)
 it('provides only the projection fact and the publication fact', () => {
   expect(assetsSqlMaterials().participants[0]?.providesFacts.map(fact => fact.key)).toEqual([

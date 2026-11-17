@@ -210,7 +210,7 @@ export async function openWorld(
   }
   async function capture(
     overrides: Partial<SettingsProjectionBinding['request']> = {},
-    scope: { categories: readonly string[] } = { categories: ['service'] },
+    scope: { excluded: readonly string[] } = { excluded: [] },
   ) {
     const binding: SettingsProjectionBinding = {
       domain,

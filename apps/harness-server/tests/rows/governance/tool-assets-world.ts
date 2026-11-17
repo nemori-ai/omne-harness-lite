@@ -216,7 +216,7 @@ export async function toolAssetsWorld(
               captureId,
               request: { deploymentRef: 'test', mode: 'runtime', targets, selectionRef: null },
             },
-            { categories: ['tool'] },
+            { excluded: [] },
           ),
         ],
       })

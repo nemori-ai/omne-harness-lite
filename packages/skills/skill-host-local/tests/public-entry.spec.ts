@@ -12,11 +12,14 @@ it('the root entry exports the two sources, the decisions and their asset inputs
   ])
 })
 
-it('has the root entry as its only entry, with no Cordis entry', async () => {
+it('has the root entry and a Cordis entry that carries only the Skill category contribution', async () => {
   const manifest: unknown = JSON.parse(
     await readFile(new URL('../package.json', import.meta.url), 'utf8'),
   )
   const exports: unknown =
     typeof manifest === 'object' && manifest !== null ? Reflect.get(manifest, 'exports') : undefined
-  expect(Object.keys(Object(exports))).toEqual(['.'])
+  expect(Object.keys(Object(exports))).toEqual(['.', './cordis'])
+  expect(Object.keys(await import('@omne-harness/skill-host-local/cordis'))).toEqual([
+    'skillCategoryPlugin',
+  ])
 })

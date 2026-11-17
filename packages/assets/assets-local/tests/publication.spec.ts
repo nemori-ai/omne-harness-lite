@@ -27,7 +27,7 @@ async function capture(w: World, targets = [target]) {
           captureId,
           request: { deploymentRef: 'test', mode: 'runtime', targets, selectionRef: null },
         },
-        { categories: ['service'] },
+        { excluded: [] },
       ),
     ],
   })
