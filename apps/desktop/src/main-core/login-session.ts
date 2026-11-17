@@ -31,6 +31,7 @@ export type LoginSessionOptions = {
 
 export interface LoginSession extends LoginStateSource {
   readonly transport: Transport
+  readonly protocols: readonly ProtocolKey[]
   login(credentials: LoginCredentials): Promise<LoginResult>
   logout(): Promise<LogoutResult>
 }
@@ -205,6 +206,7 @@ export async function openLoginSession(options: LoginSessionOptions): Promise<Lo
 
   return {
     transport,
+    protocols: options.contracts.map(contract => ({ name: contract.name, major: contract.major })),
     state: () => state.kind,
     subscribe(listener) {
       listeners.add(listener)

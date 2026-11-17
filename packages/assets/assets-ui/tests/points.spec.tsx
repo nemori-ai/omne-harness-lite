@@ -50,7 +50,8 @@ async function shown(items: readonly SettingView[], contribute: (ctx: Context) =
 
 const block = (name: string) =>
   screen.getByRole('heading', { level: 3, name }).closest<HTMLElement>('section')!
-const rail = () => within(screen.getByRole('navigation', { name: '设置分组' }))
+const tabs = () => within(screen.getByRole('tablist', { name: '资产的类别' }))
+const showTab = (label: string) => fireEvent.click(tabs().getByRole('tab', { name: label }))
 
 it('两个拓展点的名字：assets.category 与 assets.holding', () => {
   expect(ASSETS_CATEGORY).toBe('assets.category')
@@ -69,10 +70,12 @@ it('往一个类别的 assets.holding 下放的项，出现在这一类每一份
       ),
     }),
   )
+  showTab('工具')
   expect(within(block('shell')).getByText(`tool/shell|${TENANT}`)).toBeTruthy()
   expect(within(block('files')).getByText(`tool/files|${TENANT}`)).toBeTruthy()
-  expect(block('openai').querySelector('[data-holding]')).toBeNull()
   expect(document.querySelectorAll('[data-holding]')).toHaveLength(2)
+  showTab('模型')
+  expect(block('openai').querySelector('[data-holding]')).toBeNull()
 })
 
 it('往一个类别的 assets.category 下放的项，只在选中这一类时出现在这一类的上方，收到类别', async () => {
@@ -83,10 +86,9 @@ it('往一个类别的 assets.category 下放的项，只在选中这一类时�
       render: ({ subject }) => <p data-category-item="">{`新建一个${subject.category}`}</p>,
     }),
   )
+  showTab('工具')
   expect(document.querySelector('[data-category-item]')).toBeNull()
-  fireEvent.click(rail().getByRole('button', { name: /工具/ }))
-  expect(document.querySelector('[data-category-item]')).toBeNull()
-  fireEvent.click(rail().getByRole('button', { name: /模型/ }))
+  showTab('模型')
   const item = document.querySelector<HTMLElement>('[data-category-item]')
   expect(item?.textContent).toBe('新建一个model')
   const firstBlock = block('openai')
@@ -114,10 +116,10 @@ it('贡献可以先于它的类别放进去：列表里没有这一类时它不�
       .sort(),
   ).toEqual(['assets.category:not-installed', 'assets.holding:not-installed'])
   expect(
-    rail()
-      .getAllByRole('button')
-      .map(button => button.textContent),
-  ).toEqual(['全部1', '工具1'])
+    tabs()
+      .getAllByRole('tab')
+      .map(tab => tab.textContent),
+  ).toEqual(['工具'])
   expect(block('shell')).toBeTruthy()
 })
 
@@ -168,7 +170,7 @@ it('对象编成文本再解回来不走样：名字里带冒号与数字也一�
 
 it('没有贡献时，块里与类别上方没有多出来的元素', async () => {
   await shown([permissionView()], () => undefined)
-  fireEvent.click(rail().getByRole('button', { name: /工具/ }))
+  showTab('工具')
   expect(document.querySelector('.assets-category-slot')?.childElementCount).toBe(0)
   expect(block('shell').querySelector('.assets-holding-slot')?.childElementCount).toBe(0)
 })

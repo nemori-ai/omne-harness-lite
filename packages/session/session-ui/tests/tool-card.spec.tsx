@@ -36,6 +36,28 @@ it('参数不是那棵树：原样当普通的值', () => {
   expect(toolCall([entry]).arguments).toEqual({ kind: 'odd' })
 })
 
+it('提问的调用画成普通的工具卡：不能作答，没有选项按钮，不建议点停止；这一轮结束而没有结果写「没有结果」', () => {
+  const ask = messageEntry('1', '1', 'assistant', [
+    {
+      kind: 'tool_call',
+      id: 't',
+      visibility,
+      callId: 'q1',
+      name: 'Ask',
+      arguments: { command: 'ask', params: { questions: [{ title: '选哪个？', options: [] }] } },
+    },
+  ])
+  const items = conversationItems(mergeHistory(EMPTY_CONTENT, [ask]), false)
+  const message = items.find(item => item.kind === 'message')
+  if (message === undefined) throw new Error('no message')
+  render(<ItemView item={message} />)
+  expect(screen.getByRole('button', { name: /工具 Ask/ })).toBeTruthy()
+  expect(screen.getByText('没有结果')).toBeTruthy()
+  expect(screen.queryByRole('region', { name: '问题卡' })).toBeNull()
+  expect(screen.queryByRole('radio')).toBeNull()
+  expect(document.body.textContent).not.toContain('停止')
+})
+
 it('工具卡显示参数名与值，嵌套的值缩进一层，看不到内部的树', () => {
   const items = conversationItems(mergeHistory(EMPTY_CONTENT, [TOOL_CALL_ENTRY]), false)
   const message = items.find(item => item.kind === 'message')
