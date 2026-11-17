@@ -36,6 +36,7 @@ import {
   AgentAccountOutletService,
   AgentAdoptionsService,
   AgentClockService,
+  ContextCompactionService,
   CurrentConditionsService,
   DecisionCardsService,
   ExtensionImplementationsService,
@@ -311,6 +312,16 @@ function logOf(command: Readonly<{ facts?: unknown }>): SeenCommit['log'] {
 
 type Constructible = new (ctx: Context) => object
 type AbstractService = abstract new (ctx: Context) => Service
+
+const UNSCRIPTED = {
+  failure: { kind: 'unavailable', dependency: 'line-compaction', diagnostic: 'not scripted' },
+} as const
+const UNSCRIPTED_COMPACTION = {
+  admit: async () => UNSCRIPTED,
+  inspect: async () => UNSCRIPTED,
+  cancel: async () => UNSCRIPTED,
+  acknowledge: async () => UNSCRIPTED,
+}
 
 function serviceOf(Base: AbstractService, port: object, name: string): Constructible {
   const Concrete = class extends (Base as unknown as Constructible) {
@@ -1006,6 +1017,14 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   await mount(serviceOf(ModelRuntimeService, models, 'ModelRuntime'))
   await mount(
     serviceOf(AgentAccountOutletService as unknown as AbstractService, outlet, 'AccountOutlet'),
+  )
+  // These lines never reach the compaction budget; a scripted provider answers unavailable.
+  await mount(
+    serviceOf(
+      ContextCompactionService as unknown as AbstractService,
+      UNSCRIPTED_COMPACTION,
+      'Compaction',
+    ),
   )
 
   ctx.provide('agentHostPrincipal', 'agent-host-maintainer')
