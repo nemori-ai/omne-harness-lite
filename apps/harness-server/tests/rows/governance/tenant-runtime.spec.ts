@@ -23,8 +23,14 @@ import { IdentitySqlPlugin } from '@omne-harness/identity-sql/cordis'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
 import { access, organizationCodec } from '@omne-harness/legal-identity'
-import { createSettingsRegistry } from '@omne-harness/settings'
-import { createCategoryPoint } from '@omne-harness/assets'
+import { createSettingsRegistry, SettingDefinitionsSchema } from '@omne-harness/settings'
+import {
+  capabilityId,
+  createCategoryPoint,
+  pinBody,
+  readBodyText,
+  type BodyContract,
+} from '@omne-harness/assets'
 import { toolCategoryDisplay } from '@omne-harness/tool-contract'
 import { createAssetsLocal } from '@omne-harness/assets-local'
 import { createToolAssetCategory } from '../../../src/rows/governance/tool-assets.ts'
@@ -60,6 +66,7 @@ import {
 } from '../../../src/rows/session-storage/directory.ts'
 import { prepareTenantDirectory } from '../../../src/rows/session-storage/initialize.ts'
 import { TenantGovernanceHost } from '../../../src/rows/governance/tenant-host.ts'
+import { createTenantSettingsFace } from '../../../src/rows/governance/tenant-settings-service.ts'
 import {
   openOrganizationSettingsSources,
   organizationSettingsSource,
@@ -1149,4 +1156,124 @@ it('preserves a nonempty Settings assignment across default tenant installation 
   const after = await next.readSettings(request)
   if ('kind' in after) throw new Error(JSON.stringify(after))
   expect(after.views).toEqual(before.views)
+})
+
+it('lists the settings of a holding whose category exists only in this test, beside the tools', async () => {
+  const { w, prepare, registry, categories } = await installedWorld()
+  const gadget = SettingDefinitionsSchema.parse({
+    providerId: 'test.gadget',
+    definitionId: 'preferences',
+    version: '1',
+    groups: [{ id: 'general', parentId: null, title: 'General', description: 'Gadget', order: 0 }],
+    items: [
+      {
+        id: 'enabled',
+        groupId: 'general',
+        category: 'preference',
+        presentation: {
+          title: 'Enabled',
+          description: 'Whether the gadget runs',
+          impact: 'Used on next read',
+          clear: 'Use the outer value',
+          adoption: 'next-read',
+        },
+        valueSchema: { type: 'boolean' },
+        default: { kind: 'value', value: false },
+        merge: 'override',
+        sensitivity: 'ordinary',
+      },
+    ],
+  })
+  expect(registry.registerContribution(gadget).kind).toBe('registered')
+  const contract: BodyContract = {
+    category: 'gadget',
+    schema: { kind: 'null' },
+    judge: () => ({ ok: true }),
+    deriveDeclarations: () => ({ entries: [] }),
+    references: () => [],
+    settings: () => gadget,
+  }
+  const display = { title: 'Gadget', summary: 'A category that exists only in this test.' }
+  const withdraw = categories.contribute({ contract, display })
+  const assembly = prepare()
+  const runtime = await assembly.open()
+  if (runtime.kind !== 'created') throw new Error(JSON.stringify(runtime))
+  cleanup.push(runtime.close)
+  const assets = createAssetsLocal({
+    ...governanceStorageCombinations(w.options.materials).assets,
+    domain: w.options.domain,
+    storage: w.options.storage,
+    categories,
+  })
+  cleanup.push(assets.close)
+  const identity = capabilityId('gadget', 'one')
+  const body = readBodyText('{}', {
+    maxBytes: 100,
+    maxDepth: 4,
+    maxItems: 4,
+    maxMembers: 4,
+    maxStringLength: 16,
+    maxNumberLength: 16,
+  })
+  if (!identity.ok || body.kind !== 'ok') throw new Error('gadget fixture')
+  const tenantRef = w.options.scope.tenantRef
+  expect(
+    await assets.publish({
+      operationId: 'gadget-publish',
+      assetRef: 'test/gadget/one',
+      pinned: pinBody({ identity: identity.id, version: '1', source: 'test', body: body.value }),
+      expectedRevision: 0,
+    }),
+  ).toMatchObject({ kind: 'committed' })
+  expect(
+    await assets.hold({
+      operationId: 'gadget-hold',
+      holdingRef: 'test.gadget.one',
+      scopeRef: tenantRef,
+      assetRef: 'test/gadget/one',
+      selection: { kind: 'follow' },
+      sources: [
+        {
+          sourceId: 'tenant',
+          ownerRef: 'test.gadget',
+          scope: { kind: 'tenant', subjectRef: tenantRef },
+        },
+      ],
+      grants: [{ sourceId: 'tenant', actions: ['set', 'clear'] }],
+    }),
+  ).toMatchObject({ kind: 'committed' })
+  const host = new TenantGovernanceHost({ domains: w.directory.lookup, prepare: () => assembly })
+  cleanup.push(async () => {
+    await host.close(monotonicClock.now() + 3000)
+  })
+  const face = createTenantSettingsFace({
+    host,
+    scope: w.options.scope,
+    storage: w.options.storage,
+    release: () => w.release,
+    identity: { verifier: w.options.identity.verifier, standing: w.options.identity.standing },
+    active: () => true,
+  })
+  const login = w.loginPrincipal()
+  async function listed() {
+    const page = await face.list({
+      principal: login,
+      tenant: login.tenant,
+      after: null,
+      limit: 100,
+    })
+    if (page.kind !== 'listed') throw new Error(JSON.stringify(page))
+    return page.items.map(item => `${item.asset.category}/${item.asset.name}/${item.item}`)
+  }
+  const tools = ['Ask', 'Files', 'Shell', 'TodoItems', 'Tools', 'Web'].map(
+    name => `tool/${name}/invoke`,
+  )
+  const first = await listed()
+  expect(first).toEqual(['gadget/one/enabled', ...tools])
+
+  withdraw()
+  expect(await listed()).toEqual(first)
+
+  categories.contribute({ contract, display: { title: 'Renamed', summary: 'Another name.' } })
+  expect(await listed()).toEqual(first)
 })
