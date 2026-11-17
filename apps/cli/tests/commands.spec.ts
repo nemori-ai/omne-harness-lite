@@ -529,6 +529,79 @@ describe('session commands', () => {
     expect(bad).toMatchObject({ code: 2, stderr: commandUnrecognized('cancel-run') })
   })
 
+  it.each(['archive-session', 'unarchive-session'] as const)(
+    '%s sends the session and a control id of its own (C28)',
+    async name => {
+      const service = await serve()
+      await loginOwningSession(service)
+      const result = await cli([name, '--session', sessionId])
+      const request = parsed(result.stdout)['request'] as Record<string, string>
+      expect(service.seen.at(-1)?.path).toBe(`/api/session/v1/${name}`)
+      expect(service.seen.at(-1)?.body).toEqual({
+        tenant: tenantText,
+        session: sessionId,
+        controlId: request['controlId'],
+      })
+      await cli([name, '--session', sessionId, '--control-id', 'again'])
+      expect(service.seen.at(-1)?.body).toMatchObject({ controlId: 'again' })
+    },
+  )
+
+  it('list-archived-sessions reads the login tenant and sends only the filters given (C29)', async () => {
+    const service = await serve()
+    await loginOwningSession(service)
+    await cli(['list-archived-sessions'])
+    expect(service.seen.at(-1)?.path).toBe('/api/session/v1/list-archived-sessions')
+    expect(service.seen.at(-1)?.body).toEqual({
+      tenant: tenantText,
+      cursor: null,
+      from: null,
+      to: null,
+      by: null,
+      titleContains: null,
+    })
+    await cli([
+      'list-archived-sessions',
+      '--since',
+      '2026-11-01T00:00:00Z',
+      '--before',
+      '2026-11-02T00:00:00.5Z',
+      '--by',
+      'auto',
+      '--title',
+      'build',
+      '--limit',
+      '5',
+      '--cursor',
+      'c-1',
+    ])
+    expect(service.seen.at(-1)?.body).toEqual({
+      tenant: tenantText,
+      cursor: 'c-1',
+      limit: 5,
+      from: '2026-11-01T00:00:00Z',
+      to: '2026-11-02T00:00:00.5Z',
+      by: 'auto',
+      titleContains: 'build',
+    })
+  })
+
+  it.each([
+    ['--since', 'yesterday'],
+    ['--by', 'robot'],
+    ['--limit', '0'],
+  ])(
+    'list-archived-sessions refuses %s %s as a usage error and sends nothing',
+    async (option, value) => {
+      const service = await serve()
+      await loginOwningSession(service)
+      const before = service.seen.length
+      const bad = await cli(['list-archived-sessions', option, value])
+      expect(bad).toMatchObject({ code: 2, stderr: commandUnrecognized('list-archived-sessions') })
+      expect(service.seen.length).toBe(before)
+    },
+  )
+
   it('stop-call sends the producer, and a tool target reaches the service', async () => {
     const service = await serve(seen =>
       seen.operation === 'issue-login'

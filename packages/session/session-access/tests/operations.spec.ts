@@ -702,6 +702,8 @@ describe('list-sessions', () => {
     lastActivityAt: '2026-11-13T02:00:00Z' as unknown as SessionListEntry['lastActivityAt'],
     lifecycle: 'dormant',
     title: 'hello',
+    archivedAt: null,
+    archivedBy: null,
     ...over,
   })
 
@@ -726,11 +728,11 @@ describe('list-sessions', () => {
       ...body,
       cursor: 'page-1',
       limit: 2,
-      includeArchived: true,
     })
+    const plain = rows.map(({ archivedAt: _at, archivedBy: _by, ...row }) => row)
     expect(answer).toEqual({
       outcome: 'succeeded',
-      body: { sessions: rows, next: 'page-2', completeness: 'partial' },
+      body: { sessions: plain, next: 'page-2', completeness: 'partial' },
     })
     const [call, ...others] = world.listing.calls()
     expect(others).toEqual([])
@@ -738,7 +740,6 @@ describe('list-sessions', () => {
       tenant: ALICE.tenant,
       after: 'page-1',
       limit: 2,
-      includeArchived: true,
     })
     expect(call?.principal).toMatchObject({ kind: 'acting-for-tenant', tenant: ALICE.tenant })
   })
@@ -751,13 +752,14 @@ describe('list-sessions', () => {
     })
   })
 
-  it('uses the deployment default limit and leaves archived sessions out when the message says nothing', async () => {
+  it('uses the deployment default limit when the message says nothing', async () => {
     const world = createWorld({ defaultListLimit: 20, maxListLimit: 30 })
     await ops(world)['list-sessions'](as(login()), body)
-    expect(world.listing.calls()[0]).toMatchObject({
+    expect(world.listing.calls()[0]).toEqual({
+      principal: expect.anything(),
+      tenant: ALICE.tenant,
       after: null,
       limit: 20,
-      includeArchived: false,
     })
   })
 

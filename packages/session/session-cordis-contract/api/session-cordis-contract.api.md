@@ -14,6 +14,8 @@
 - `AdvanceRef` · 包 `@omne-harness/session-contract`
 - `AgentDrivePort` · 包 `@omne-harness/session-contract`
 - `AgentInstanceRef` · 包 `@omne-harness/session-contract`
+- `ArchiveCollapse` · 包 `@omne-harness/session-contract`
+- `ArchivedBy` · 包 `@omne-harness/session-contract`
 - `AttemptId` · 包 `@omne-harness/session-contract`
 - `AutoArchivePolicy` · 包 `@omne-harness/session-contract`
 - `BACKGROUND_INPUT_OWNER` · 包 `@omne-harness/session-contract`
@@ -209,6 +211,7 @@
 - `SessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `SessionInternalPrincipals` · 包 `@omne-harness/session-contract`
 - `SessionListItem` · 包 `@omne-harness/session-contract`
+- `SessionListPage` · 包 `@omne-harness/session-contract`
 - `SessionLogCommitObservation` · 包 `@omne-harness/session-contract`
 - `SessionLogConsequence` · 包 `@omne-harness/session-contract`
 - `SessionLogObservation` · 包 `@omne-harness/session-contract`
@@ -256,6 +259,7 @@
 - `Waiting` · 包 `@omne-harness/session-contract`
 - `WorkSnapshot` · 包 `@omne-harness/session-contract`
 - `WorkspaceAttachment` · 包 `@omne-harness/session-contract`
+- `archiveCollapse` · 包 `@omne-harness/session-contract`
 - `backgroundCallView` · 包 `@omne-harness/session-contract`
 - `backgroundCalls` · 包 `@omne-harness/session-contract`
 - `backgroundInputId` · 包 `@omne-harness/session-contract`
@@ -263,6 +267,7 @@
 - `commandDigest` · 包 `@omne-harness/session-contract`
 - `contextScopeOf` · 包 `@omne-harness/session-contract`
 - `contextScopesOf` · 包 `@omne-harness/session-contract`
+- `controlAnswer` · 包 `@omne-harness/session-contract`
 - `controlRoutes` · 包 `@omne-harness/session-contract`
 - `decide` · 包 `@omne-harness/session-contract`
 - `decideControlConsequences` · 包 `@omne-harness/session-contract`

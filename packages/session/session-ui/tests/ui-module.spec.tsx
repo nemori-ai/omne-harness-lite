@@ -27,6 +27,7 @@ it('依赖都在：往侧栏区放会话列表（最前），往页面放对话�
   const mounted = await mountModule(fake.client, TENANT)
   expect(mounted.shell.items('sidebar').map(item => [item.id, item.order])).toEqual([
     ['session-list', 0],
+    ['archived-sessions', 1],
   ])
   expect(
     mounted.shell.items('pages').map(item => [item.id, item.title, item.order, item.icon]),

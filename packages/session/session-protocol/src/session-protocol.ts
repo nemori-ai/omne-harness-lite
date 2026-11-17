@@ -82,28 +82,58 @@ const limited = ruleCodec(
   }),
 )
 
-const listSessions = object({
+const instant = { kind: 'instant' } as const
+const page = {
   tenant: { rule: tenant },
   cursor: { rule: nullable(text) },
   limit: { rule: { kind: 'positive-integer' }, optional: true },
-  includeArchived: { rule: boolean, optional: true },
+} as const
+const listSessions = object(page)
+// The archived list narrows by archive time (from inclusive, to exclusive), by how, by title text.
+const listArchivedSessions = object({
+  ...page,
+  from: { rule: nullable(instant), optional: true },
+  to: { rule: nullable(instant), optional: true },
+  by: { rule: nullable(literal('person', 'auto', 'parent')), optional: true },
+  titleContains: { rule: nullable(anyText), optional: true },
 })
 
-const sessionList = object({
-  sessions: {
-    rule: {
-      kind: 'array',
-      item: object({
-        session: { rule: session },
-        createdAt: { rule: nullable({ kind: 'instant' }) },
-        lastActivityAt: { rule: nullable({ kind: 'instant' }) },
-        lifecycle: { rule: literal('initializing', 'dormant', 'active', 'frozen', 'archived') },
-        title: { rule: nullable(anyText) },
-      }),
-    },
-  },
-  next: { rule: nullable(text) },
-  completeness: { rule: literal('complete', 'partial') },
+const sessionItem = {
+  session: { rule: session },
+  createdAt: { rule: nullable(instant) },
+  lastActivityAt: { rule: nullable(instant) },
+  lifecycle: { rule: literal('initializing', 'dormant', 'active', 'frozen', 'archived') },
+  title: { rule: nullable(anyText) },
+} as const
+const listOf = <const F extends Fields>(item: F) =>
+  object({
+    sessions: { rule: { kind: 'array', item: object(item) } },
+    next: { rule: nullable(text) },
+    completeness: { rule: literal('complete', 'partial') },
+  })
+const sessionList = listOf(sessionItem)
+const archivedList = listOf({
+  ...sessionItem,
+  archivedAt: { rule: nullable(instant) },
+  archivedBy: { rule: nullable(literal('person', 'auto', 'parent')) },
+})
+
+// Archiving an archived session, or unarchiving one that is not, answers so; it is not refused.
+const archiveAnswer = {
+  kind: 'one-of',
+  rules: [
+    object({
+      kind: { rule: literal('archived') },
+      controlId: { rule: text },
+      runs: { rule: { kind: 'count' } },
+      backgroundCalls: { rule: { kind: 'count' } },
+    }),
+    object({ kind: { rule: literal('already-archived') }, controlId: { rule: text } }),
+  ],
+} as const
+const unarchiveAnswer = object({
+  kind: { rule: literal('unarchived', 'not-archived') },
+  controlId: { rule: text },
 })
 
 const readHistory = {
@@ -287,6 +317,30 @@ export const sessionProtocol = defineProtocol({
       limit: 'small',
       body: ruleCodec(listSessions),
       outcomes: { succeeded: ruleCodec(sessionList), invalid: empty },
+      countsAsAccess: true,
+    },
+    'list-archived-sessions': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(listArchivedSessions),
+      outcomes: { succeeded: ruleCodec(archivedList), invalid: empty },
+      countsAsAccess: true,
+    },
+    'archive-session': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(object({ ...target, controlId: { rule: text } })),
+      outcomes: { succeeded: ruleCodec(archiveAnswer), invalid: empty, conflict: empty },
+      countsAsAccess: true,
+    },
+    'unarchive-session': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(object({ ...target, controlId: { rule: text } })),
+      outcomes: { succeeded: ruleCodec(unarchiveAnswer), invalid: empty, conflict: empty },
       countsAsAccess: true,
     },
     'cancel-run': {

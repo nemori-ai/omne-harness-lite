@@ -1,4 +1,5 @@
-import type { ControlProgress, ProducerRef, WorkSnapshot } from './values.ts'
+import type { ControlIntent, ControlProgress, ProducerRef, WorkSnapshot } from './values.ts'
+import { sourceOf } from './decision-support.ts'
 import { equalValue } from './session-validation.ts'
 
 type ToolProducer = Extract<ProducerRef, { kind: 'tool' }>
@@ -36,12 +37,38 @@ export function controlRoutes(snapshot: WorkSnapshot, progress: ControlProgress)
       ? { agent: true, direct: [] }
       : { agent: false, direct: direct.map(producer => ({ producer, intent: 'stop' })) }
   }
-  const archive =
-    intent.kind === 'auto-archive' || (intent.kind === 'control' && intent.value.kind === 'archive')
   return {
     agent: true,
-    direct: archive ? background.map(producer => ({ producer, intent: 'withdraw' })) : [],
+    direct: archives(intent) ? background.map(producer => ({ producer, intent: 'withdraw' })) : [],
   }
+}
+
+const archives = (intent: ControlIntent): boolean =>
+  intent.kind === 'auto-archive' || (intent.kind === 'control' && intent.value.kind === 'archive')
+
+export type ArchiveCollapse = Readonly<{ runs: number; backgroundCalls: number }>
+
+export function archiveCollapse(
+  snapshot: WorkSnapshot,
+  progress: ControlProgress,
+): ArchiveCollapse | null {
+  if (!archives(progress.intent)) return null
+  const source = sourceOf(progress.operation, 'control')
+  const ended =
+    snapshot.run.kind === 'terminal' && equalValue(snapshot.run.terminal.evidence, source)
+  return {
+    runs: ended ? 1 : 0,
+    backgroundCalls: backgrounded(snapshot, progress.pending).length,
+  }
+}
+
+export function controlAnswer(
+  snapshot: WorkSnapshot,
+  command: Readonly<{ kind: 'control' | 'interrupt'; input: Readonly<{ operation: string }> }>,
+): Readonly<{ progress: ControlProgress | null; collapsed?: ArchiveCollapse | null }> {
+  const progress = snapshot.controls.find(item => item.operation === command.input.operation)
+  if (command.kind === 'interrupt' || progress === undefined) return { progress: progress ?? null }
+  return { progress, collapsed: archiveCollapse(snapshot, progress) }
 }
 
 // A settled backgrounded call leaves the pending of every control; a stop of that call alone is

@@ -10,6 +10,9 @@ const table = {
   'read-history': { identity: 'login', effect: 'read', limit: 'small' },
   'read-waiting': { identity: 'login', effect: 'read', limit: 'small' },
   'list-sessions': { identity: 'login', effect: 'read', limit: 'small' },
+  'list-archived-sessions': { identity: 'login', effect: 'read', limit: 'small' },
+  'archive-session': { identity: 'login', effect: 'commit', limit: 'small' },
+  'unarchive-session': { identity: 'login', effect: 'commit', limit: 'small' },
   'cancel-run': { identity: 'login', effect: 'commit', limit: 'small' },
   'stop-call': { identity: 'login', effect: 'commit', limit: 'small' },
   'retry-run': { identity: 'login', effect: 'commit', limit: 'small' },
@@ -26,6 +29,9 @@ const outcomes = {
   'read-history': ['invalid'],
   'read-waiting': ['invalid'],
   'list-sessions': ['invalid'],
+  'list-archived-sessions': ['invalid'],
+  'archive-session': ['invalid', 'conflict', 'unknown'],
+  'unarchive-session': ['invalid', 'conflict', 'unknown'],
   'cancel-run': ['invalid', 'conflict', 'not-found', 'unknown'],
   'stop-call': ['invalid', 'conflict', 'not-found', 'unknown', 'unsupported'],
   'retry-run': ['invalid', 'archived', 'frozen', 'not-found', 'no-change', 'conflict', 'unknown'],
@@ -37,7 +43,7 @@ const always = ['succeeded', 'protocol-rejected', 'basis-unavailable', 'denied']
 const operations = sessionProtocol.operations
 
 describe('session/v1', () => {
-  it('is session major 1 with exactly the thirteen operations and one observation', () => {
+  it('is session major 1 with exactly the sixteen operations and one observation', () => {
     expect(sessionProtocol.name).toBe('session')
     expect(sessionProtocol.major).toBe(1)
     expect(Object.keys(operations).sort()).toEqual(Object.keys(table).sort())

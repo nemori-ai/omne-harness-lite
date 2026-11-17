@@ -71,6 +71,7 @@ import { type DecideReads, type OperationRecord } from './judgments.ts'
 import { canonicalText, digestOf, deriveSessionOperation } from './operations.ts'
 import { projectSessionLog, type SessionLogObservation } from './projection.ts'
 import { consumptionIdOf } from './decide-results.ts'
+import { controlAnswer } from './call-control.ts'
 import { judgeIdle } from './judgments.ts'
 import { materializeModelView, compactionReads, type MaterializedModelView } from './model-view.ts'
 import { decodeEntry } from './entries.ts'
@@ -409,10 +410,8 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall | nul
     case 'bindExternalCall':
       return receipt => ({ receipt, consumption: consumptionIdOf(command.input.binding) })
     case 'control':
-    case 'interrupt': {
-      const progress = snapshot.controls.find(item => item.operation === command.input.operation)
-      return receipt => ({ receipt, progress: progress ?? null })
-    }
+    case 'interrupt':
+      return receipt => ({ receipt, ...controlAnswer(snapshot, command) })
     case 'cancelRun':
     case 'stopCall': {
       const progress = snapshot.controls.find(item => item.operation === command.input.operation)

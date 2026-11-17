@@ -145,6 +145,22 @@ function snapshotReads<P>(
   }
 }
 
+// Both lists of the directory are one read of the tenant's sessions (the same access check).
+function directoryOf<P>(reads: Reads<P>, caller: SessionCallerClass): SessionDirectory<P> {
+  const absent = () =>
+    Promise.resolve(fail(unavailable(OWNERS.directory, 'the transaction port offers no directory')))
+  return {
+    list: value =>
+      reads.directory(caller, 'directory.list', value.tenant, port =>
+        port.directory === undefined ? absent() : port.directory.list(value),
+      ),
+    listArchived: value =>
+      reads.directory(caller, 'directory.list', value.tenant, port =>
+        port.directory === undefined ? absent() : port.directory.listArchived(value),
+      ),
+  }
+}
+
 export function createFaces<P>(
   input: Readonly<{
     caller: SessionCallerClass
@@ -287,16 +303,7 @@ export function createFaces<P>(
       ),
   }
 
-  const directory: SessionDirectory<P> = {
-    list: value =>
-      reads.directory(caller, 'directory.list', value.tenant, port =>
-        port.directory === undefined
-          ? Promise.resolve(
-              fail(unavailable(OWNERS.directory, 'the transaction port offers no directory')),
-            )
-          : port.directory.list(value),
-      ),
-  }
+  const directory = directoryOf(reads, caller)
 
   return Object.freeze({
     work: Object.freeze(work),

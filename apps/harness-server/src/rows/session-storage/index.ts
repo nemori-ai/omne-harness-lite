@@ -1,6 +1,6 @@
 import { symbols, type Context } from '@deepseek-ai/cordis'
 import type { SystemActionAuthorization } from '@omne-harness/authorization'
-import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
+import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   mutationAccessRequest,
@@ -9,6 +9,7 @@ import {
   type SessionCheckedAccess,
   type SessionDelegatedTransactions,
   type SessionFailure,
+  type SessionListPage,
   type SessionPrincipalBindingSource,
   type SessionTransactionPort,
 } from '@omne-harness/session-contract'
@@ -208,17 +209,23 @@ function emptyListWhenUnregistered<P>(
 ): SessionTransactionPort<P> {
   const inner = port.directory
   if (inner === undefined) return port
+  const emptyWhenUnregistered =
+    <I extends Readonly<{ tenant: TenantId }>>(
+      read: (input: I) => Promise<Outcome<SessionListPage, SessionFailure>>,
+    ) =>
+    async (input: I) => {
+      const answer = await read(input)
+      if (!('failure' in answer) || answer.failure.kind !== 'unavailable') return answer
+      const text = tenantCodec.encode(input.tenant)
+      return text.ok && !directory.holds(text.value)
+        ? succeed({ items: [], next: null, completeness: 'complete' as const })
+        : answer
+    }
   return {
     ...port,
     directory: {
-      list: async input => {
-        const answer = await inner.list(input)
-        if (!('failure' in answer) || answer.failure.kind !== 'unavailable') return answer
-        const text = tenantCodec.encode(input.tenant)
-        return text.ok && !directory.holds(text.value)
-          ? succeed({ items: [], next: null, completeness: 'complete' as const })
-          : answer
-      },
+      list: emptyWhenUnregistered(inner.list),
+      listArchived: emptyWhenUnregistered(inner.listArchived),
     },
   }
 }

@@ -35,13 +35,13 @@ import {
 import { retryRun } from './retry-run.ts'
 import { backgroundCall, listBackgroundCalls } from './background-calls.ts'
 import { stopCall } from './stop-call.ts'
+import { archiveSession, listArchivedSessions, listSessions, unarchiveSession } from './archive.ts'
 import type {
   DefinitionResolver,
   PrincipalFacts,
   RunFailureCauses,
   SessionAccessFaces,
   SessionAccessSettings,
-  SessionListEntry,
   SessionListing,
   TargetTenantPrincipals,
 } from './ports.ts'
@@ -94,16 +94,6 @@ function pageOf(page: HistoryPage) {
     exhausted: page.exhausted,
     scannedThrough: page.scannedThrough,
     upper: page.upper,
-  }
-}
-
-function summaryOf(item: SessionListEntry) {
-  return {
-    session: item.session,
-    createdAt: item.createdAt,
-    lastActivityAt: item.lastActivityAt,
-    lifecycle: item.lifecycle,
-    title: item.title,
   }
 }
 
@@ -188,6 +178,7 @@ export function createSessionContribution(
 
   const factOf = (principal: Principal) => describedBy(facts, principal)
   const sending = { target, factOf, faces: input.faces, requests: input.requests }
+  const listing = { principalFor, listing: input.listing, settings }
 
   async function createSession(
     principal: Principal,
@@ -288,42 +279,6 @@ export function createSessionContribution(
     return { outcome: 'succeeded', body: pageOf(result.ok) }
   }
 
-  async function listSessions(
-    login: LoginIdentity,
-    body: Body<'list-sessions'>,
-  ): Promise<Answer<'list-sessions'>> {
-    const issued = await principalFor(login, body.tenant)
-    if ('outcome' in issued) return issued
-    const listing = input.listing()
-    if (listing === undefined) return UNAVAILABLE
-    const limit = body.limit ?? settings.defaultListLimit
-    if (limit > settings.maxListLimit) return { outcome: 'invalid', body: {} }
-    const result = await readCall(() =>
-      listing.list({
-        principal: issued.principal,
-        tenant: body.tenant,
-        after: body.cursor,
-        limit,
-        includeArchived: body.includeArchived ?? false,
-      }),
-    )
-    if (result === 'basis-unavailable') return UNAVAILABLE
-    if ('refused' in result) {
-      return result.refused === 'invalid'
-        ? { outcome: 'invalid', body: {} }
-        : { outcome: result.refused }
-    }
-    const { items, next, completeness } = result.ok
-    return {
-      outcome: 'succeeded',
-      body: {
-        sessions: items.map(summaryOf),
-        next,
-        completeness,
-      },
-    }
-  }
-
   async function cancelRun(
     login: LoginIdentity,
     body: Body<'cancel-run'>,
@@ -381,7 +336,11 @@ export function createSessionContribution(
       'retry-run': (call, body) => retryRun({ admit, factOf }, call.principal, body),
       'background-call': (call, body) => backgroundCall({ admit, factOf }, call.principal, body),
       'list-background-calls': (call, body) => listBackgroundCalls({ admit }, call.principal, body),
-      'list-sessions': (call, body) => listSessions(call.principal, body),
+      'list-sessions': (call, body) => listSessions(listing, call.principal, body),
+      'list-archived-sessions': (call, body) => listArchivedSessions(listing, call.principal, body),
+      'archive-session': (call, body) => archiveSession({ admit, factOf }, call.principal, body),
+      'unarchive-session': (call, body) =>
+        unarchiveSession({ admit, factOf }, call.principal, body),
     },
     observations: {
       'observe-session': async (context, open) => {

@@ -144,7 +144,7 @@ type SessionOutcomes = {
     | 'unsupported'
 }
 
-test('the operations are exactly the thirteen of session/v1', () => {
+test('the operations are exactly the sixteen of session/v1', () => {
   expectTypeOf<Name>().toEqualTypeOf<
     | 'create-session'
     | 'query-create-session'
@@ -154,6 +154,9 @@ test('the operations are exactly the thirteen of session/v1', () => {
     | 'read-history'
     | 'read-waiting'
     | 'list-sessions'
+    | 'list-archived-sessions'
+    | 'archive-session'
+    | 'unarchive-session'
     | 'cancel-run'
     | 'stop-call'
     | 'retry-run'
@@ -183,7 +186,6 @@ test('list-sessions has a body and a success body of its own, and `invalid` is e
     readonly tenant: TenantId
     readonly cursor: string | null
     readonly limit?: number
-    readonly includeArchived?: boolean
   }>()
   expectTypeOf<ResultBody<'list-sessions', 'succeeded'>>().toEqualTypeOf<{
     readonly sessions: readonly {

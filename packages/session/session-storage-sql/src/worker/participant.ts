@@ -4,6 +4,7 @@ import { SESSION_COMMIT_PROTOCOL, type SessionCommitBasis } from '../commit-basi
 import type { SessionPermissionChangeBasis } from '@omne-harness/session-contract'
 import {
   commandDigest,
+  controlAnswer,
   sessionIntakeLimits,
   type SessionIntakeLimits,
   decide,
@@ -306,11 +307,7 @@ export function resultOf(
       }
     case 'control':
     case 'interrupt':
-      return {
-        receipt,
-        progress:
-          snapshot.controls.find(item => item.operation === command.input.operation) ?? null,
-      }
+      return { receipt, ...controlAnswer(snapshot, command) }
     case 'cancelRun':
     case 'stopCall': {
       const progress = snapshot.controls.find(item => item.operation === command.input.operation)

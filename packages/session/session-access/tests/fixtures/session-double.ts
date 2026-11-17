@@ -238,7 +238,9 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
         state: backgroundState,
         pending: [],
       } as never
-      return succeed({ receipt: outcome.ok, progress })
+      const collapsed =
+        input.intent.kind === 'archive' ? { runs: 1, backgroundCalls: backgroundList.length } : null
+      return succeed({ receipt: outcome.ok, progress, collapsed })
     },
     async readBackgroundCalls(input) {
       record('readBackgroundCalls', input, {})

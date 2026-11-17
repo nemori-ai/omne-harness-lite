@@ -14,6 +14,8 @@
 - `AdvanceRef` · `identity.d.ts`
 - `AgentDrivePort` · `ports.d.ts`
 - `AgentInstanceRef` · `identity.d.ts`
+- `ArchiveCollapse` · `call-control.d.ts`
+- `ArchivedBy` · `faces.d.ts`
 - `AttemptId` · `identity.d.ts`
 - `AutoArchivePolicy` · `values.d.ts`
 - `BACKGROUND_INPUT_OWNER` · `background-outcome.d.ts`
@@ -202,6 +204,7 @@
 - `SessionIntakeLimits` · `intake.d.ts`
 - `SessionInternalPrincipals` · `ports.d.ts`
 - `SessionListItem` · `faces.d.ts`
+- `SessionListPage` · `faces.d.ts`
 - `SessionLogCommitObservation` · `interpretation-values.d.ts`
 - `SessionLogConsequence` · `projection.d.ts`
 - `SessionLogObservation` · `projection.d.ts`
@@ -245,6 +248,7 @@
 - `Waiting` · `values.d.ts`
 - `WorkSnapshot` · `values.d.ts`
 - `WorkspaceAttachment` · `values.d.ts`
+- `archiveCollapse` · `call-control.d.ts`
 - `backgroundCallView` · `background-calls.d.ts`
 - `backgroundCalls` · `call-control.d.ts`
 - `backgroundInputId` · `background-outcome.d.ts`
@@ -252,6 +256,7 @@
 - `commandDigest` · `decide.d.ts`
 - `contextScopeOf` · `context-scopes.d.ts`
 - `contextScopesOf` · `context-scopes.d.ts`
+- `controlAnswer` · `call-control.d.ts`
 - `controlRoutes` · `call-control.d.ts`
 - `decide` · `decide.d.ts`
 - `decideControlConsequences` · `control-normalization.d.ts`
@@ -619,6 +624,20 @@ export type ControlRoutes = Readonly<{
 }>;
 export declare function backgroundCalls(snapshot: WorkSnapshot): readonly ToolProducer[];
 export declare function controlRoutes(snapshot: WorkSnapshot, progress: ControlProgress): ControlRoutes;
+export type ArchiveCollapse = Readonly<{
+    runs: number;
+    backgroundCalls: number;
+}>;
+export declare function archiveCollapse(snapshot: WorkSnapshot, progress: ControlProgress): ArchiveCollapse | null;
+export declare function controlAnswer(snapshot: WorkSnapshot, command: Readonly<{
+    kind: 'control' | 'interrupt';
+    input: Readonly<{
+        operation: string;
+    }>;
+}>): Readonly<{
+    progress: ControlProgress | null;
+    collapsed?: ArchiveCollapse | null;
+}>;
 export declare function settledControls(controls: readonly ControlProgress[], producer: ProducerRef): readonly ControlProgress[];
 export {};
 ```
@@ -1316,6 +1335,7 @@ export declare function expandHistoryEntries(rows: readonly HistoryEntry[], crea
 
 ```ts
 import type { BackgroundCallResolution, BackgroundCallView } from './background-calls.ts';
+import type { ArchiveCollapse } from './call-control.ts';
 import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { TenantId } from '@omne-harness/legal-identity';
@@ -1524,6 +1544,7 @@ export interface SessionWork<P> {
     }>): Reply<Readonly<{
         receipt: CommitReceipt;
         progress: ControlProgress;
+        collapsed?: ArchiveCollapse | null;
     }>>;
     finishRun(input: Mutation<P> & Readonly<{
         run: RunId;
@@ -1752,25 +1773,35 @@ export interface SessionHistory<P> {
         pageBytes: number;
     }>): Reply<ModelViewRead>;
 }
+export type ArchivedBy = 'person' | 'auto' | 'parent';
 export type SessionListItem = Readonly<{
     session: SessionId;
     createdAt: string | null;
     lastActivityAt: string | null;
     lifecycle: WorkSnapshot['lifecycle'];
     title: string | null;
+    archivedAt: string | null;
+    archivedBy: ArchivedBy | null;
+}>;
+export type SessionListPage = Readonly<{
+    items: readonly SessionListItem[];
+    next: string | null;
+    completeness: 'complete' | 'partial';
+}>;
+type DirectoryAccess<P> = Readonly<{
+    principal: P;
+    tenant: TenantId;
+    after: string | null;
+    limit: number;
 }>;
 export interface SessionDirectory<P> {
-    list(input: Readonly<{
-        principal: P;
-        tenant: TenantId;
-        after: string | null;
-        limit: number;
-        includeArchived: boolean;
-    }>): Reply<Readonly<{
-        items: readonly SessionListItem[];
-        next: string | null;
-        completeness: 'complete' | 'partial';
-    }>>;
+    list(input: DirectoryAccess<P>): Reply<SessionListPage>;
+    listArchived(input: DirectoryAccess<P> & Readonly<{
+        from: string | null;
+        to: string | null;
+        by: ArchivedBy | null;
+        titleContains: string | null;
+    }>): Reply<SessionListPage>;
 }
 export type SessionFaces<P> = Readonly<{
     work: SessionWork<P>;
@@ -1778,6 +1809,7 @@ export type SessionFaces<P> = Readonly<{
     reconciliation: SessionReconciliation<P>;
     history: SessionHistory<P>;
 }>;
+export {};
 ```
 
 ## 声明文件 `frontier-state.d.ts`
@@ -1975,7 +2007,7 @@ export type AdvanceRef = Readonly<{
 ```ts
 export type { Adoption, AdvanceRef, AgentInstanceRef, AttemptId, BatchId, ConsumerRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionCallerClass, SessionId, SessionIdentity, SessionOperationId, SessionRevision, TodoItemId, } from './identity.ts';
 export type { AutoArchivePolicy, BoundedClose, CallBinding, ClockSample, Consumption, ContextMaterial, Control, ControlIntent, ControlProgress, ControlTarget, DeclarationChange, DerivedMessage, ExecutionRef, FreezeVerdict, IdleCoverage, IdleObservation, InitializationResult, InitializationSource, InitializationSources, InputBatch, Modes, Participation, ProducedResult, ProducerRef, RecoveryTask, Relation, ResidentTool, ResultConsumption, RoutedInput, RunState, RunTerminal, ScopeReleaseDisposition, BackgroundDisposition, SessionCreation, SessionFrozen, SessionWaiting, Waiting, WorkSnapshot, WorkspaceAttachment, } from './values.ts';
-export type { AdmittedMessage, CommitReceipt, Completion, EntryClass, ExternalCompletion, HistoryEntry, HistoryPage, ModelViewBasis, ModelViewRead, ModelViewRow, OperationResolution, PendingReason, ProducerFact, ReleasedScope, Reply, ResidentReference, SessionDirectory, SessionFaces, SessionFailure, SessionHistory, SessionListItem, SessionManagement, SessionReconciliation, SessionWork, StartAdoption, StartedRun, } from './faces.ts';
+export type { AdmittedMessage, CommitReceipt, Completion, EntryClass, ExternalCompletion, HistoryEntry, HistoryPage, ModelViewBasis, ModelViewRead, ModelViewRow, OperationResolution, PendingReason, ProducerFact, ReleasedScope, Reply, ResidentReference, SessionDirectory, SessionFaces, SessionFailure, SessionHistory, ArchivedBy, SessionListItem, SessionListPage, SessionManagement, SessionReconciliation, SessionWork, StartAdoption, StartedRun, } from './faces.ts';
 export { INGRESS_FAMILIES, deriveDriveOperation, deriveIngressOperation, deriveSessionOperation, type DriveOperationElements, type IngressFamily, type SessionOperationElements, } from './operations.ts';
 export type { ControlOperationResolution, SavedModelSelection, SessionCallLookup, SessionCallTerminal, SessionControlAnswer, SessionControlReceipt, SessionModelSelection, SessionRunLookup, } from './control-values.ts';
 export type { SessionEntriesBoundary, SessionEntriesChannel, SessionEntriesInterpretation, SessionEntriesItem, SessionEntriesObservation, SessionEntriesProgress, SessionEntriesReceipt, SessionEntriesStart, SessionLogCommitObservation, SessionLogReceipt, } from './interpretation-values.ts';
@@ -2008,7 +2040,7 @@ export type { RunBoundaryView } from './run-boundary.ts';
 export type { SessionWorkEntryIndex, SessionCallEntryReferences, SessionControlEntryReferences, } from './work-entry-values.ts';
 export { mutationAccessRequest, readAccessRequest, type SessionAccessCheck, type SessionAccessDecision, type SessionAccessOperation, type SessionAccessRequest, type SessionAccessTarget, type SessionCheckedAccess, type SessionDelegatedTransactions, type SessionReadAccessOperation, } from './access.ts';
 export { DEFAULT_SESSION_INTAKE_LIMITS, sessionIntakeLimits, sessionInputBytes, judgeSessionIntake, pendingIntakeCount, runStartInputs, wakingInputs, } from './intake.ts';
-export { backgroundCalls, controlRoutes, type ControlRoutes, type DirectCallControl, } from './call-control.ts';
+export { archiveCollapse, backgroundCalls, controlAnswer, controlRoutes, type ArchiveCollapse, type ControlRoutes, type DirectCallControl, } from './call-control.ts';
 export { BACKGROUND_INPUT_OWNER, backgroundInputId, judgeBackgroundOutcome, type BackgroundOutcomeJudgment, } from './background-outcome.ts';
 export type { SessionIntakeLimits } from './intake.ts';
 export type { TodoItem, VisibleTodoItem, TodoMutationReceipt, TodoPageCursor, TodoPage, SessionTodos, } from './todos.ts';
@@ -3178,8 +3210,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:6815a0e7c14ab20383b171c96fff4de1eff100eeb8a2ae2a352ab15593518ae4";
-export declare const SESSION_RELEASE_DIGEST = "sha256:6815a0e7c14ab20383b171c96fff4de1eff100eeb8a2ae2a352ab15593518ae4";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:16e0457c2f61d6d8ec5dff8f8cd7b88db8978e27347a7766832727d98e437b5f";
+export declare const SESSION_RELEASE_DIGEST = "sha256:16e0457c2f61d6d8ec5dff8f8cd7b88db8978e27347a7766832727d98e437b5f";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

@@ -1,6 +1,11 @@
 import { identityProtocol } from '@omne-harness/identity-protocol'
-import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
-import { sessionProtocol, userTextMessage } from '@omne-harness/session-protocol'
+import { encodeTenantText, ruleCodec, type TenantId } from '@omne-harness/public-contract'
+import {
+  sessionProtocol,
+  userTextMessage,
+  type SessionProtocol,
+} from '@omne-harness/session-protocol'
+import type { BodyOf } from '@omne-harness/sdk/core'
 import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
 import {
   loadLogin,
@@ -126,7 +131,16 @@ interface ExistingCommand<Parsed> extends SessionCommandBase<Parsed> {
   readonly build: (parsed: Parsed, context: SessionContext & { owner: TenantId }) => Built
 }
 
-type SessionCommand<Parsed> = CreatingCommand<Parsed> | ExistingCommand<Parsed>
+interface TenantCommand<Parsed> extends SessionCommandBase<Parsed> {
+  readonly kind: 'tenant'
+  readonly tenant: (parsed: Parsed) => TenantId | undefined
+  readonly build: (parsed: Parsed, context: SessionContext & { tenant: TenantId }) => Built
+}
+
+type SessionCommand<Parsed> =
+  | CreatingCommand<Parsed>
+  | ExistingCommand<Parsed>
+  | TenantCommand<Parsed>
 
 async function runSession<Parsed>(
   command: SessionCommand<Parsed>,
@@ -155,6 +169,8 @@ async function runSession<Parsed>(
     if (records.kind === 'failure') return localFailure(output, records.message)
     owners = records.owners
     built = command.build(parsed, { ...context, loginTenant })
+  } else if (command.kind === 'tenant') {
+    built = command.build(parsed, { ...context, tenant: command.tenant(parsed) ?? loginTenant })
   } else {
     const { session, tenant: given } = command.target(parsed)
     const resolved = resolveOwner(name, session, given, directory, output)
@@ -302,6 +318,99 @@ const cancelRun: ExistingCommand<Targeted & { run: string; urgency: 'graceful' |
   },
 }
 
+// Archive and unarchive are controls of the session: a control id makes a retry the same one.
+const sessionControl = (
+  name: 'archive-session' | 'unarchive-session',
+): ExistingCommand<Targeted> => ({
+  kind: 'existing',
+  name,
+  accepted: ['--session', '--tenant', '--control-id', serverOption],
+  required: ['--session'],
+  parse: targeted,
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: (parsed, { owner: tenant, newId }) => {
+    const messageId = newId()
+    const controlId = parsed.controlId ?? newId()
+    return {
+      send: link =>
+        link.call(sessionProtocol, name, { tenant, session: parsed.session, controlId }, messageId),
+      echo: { messageId, controlId, tenant: encodeTenantText(tenant) },
+    }
+  },
+})
+
+type ArchivedFilters = BodyOf<SessionProtocol['operations']['list-archived-sessions']>
+type By = NonNullable<ArchivedFilters['by']>
+const BY = ['person', 'auto', 'parent'] as const
+const LIMIT = /^[1-9][0-9]*$/
+
+type Instant = NonNullable<ArchivedFilters['from']>
+const instantRule = ruleCodec({ kind: 'instant' })
+const LEAF_LIMITS = {
+  maxBytes: 1024,
+  maxDepth: 1,
+  maxItems: 1,
+  maxMembers: 1,
+  maxStringLength: 1024,
+  maxNumberLength: 1,
+}
+
+function instantOption(values: Option, option: string): Instant | null | undefined {
+  const given = values.get(option)
+  if (given === undefined) return null
+  const read = instantRule.read({ kind: 'string', value: given }, LEAF_LIMITS)
+  return read.ok ? (read.value as Instant) : undefined
+}
+
+function archivedFilters(
+  values: Option,
+): (ArchivedFilters & { given: TenantId | undefined }) | undefined {
+  const given = tenantOption(values)
+  const from = instantOption(values, '--since')
+  const to = instantOption(values, '--before')
+  const by = values.get('--by') ?? null
+  const limit = values.get('--limit')
+  if (given === null || from === undefined || to === undefined) return undefined
+  if (by !== null && !BY.includes(by as (typeof BY)[number])) return undefined
+  if (limit !== undefined && !LIMIT.test(limit)) return undefined
+  return {
+    given,
+    tenant: given as TenantId,
+    cursor: values.get('--cursor') ?? null,
+    ...(limit === undefined ? {} : { limit: Number(limit) }),
+    from,
+    to,
+    by: by as By | null,
+    titleContains: values.get('--title') ?? null,
+  }
+}
+
+const listArchivedSessions: TenantCommand<NonNullable<ReturnType<typeof archivedFilters>>> = {
+  kind: 'tenant',
+  name: 'list-archived-sessions',
+  accepted: [
+    '--tenant',
+    '--cursor',
+    '--limit',
+    '--since',
+    '--before',
+    '--by',
+    '--title',
+    serverOption,
+  ],
+  required: [],
+  parse: archivedFilters,
+  tenant: parsed => parsed.given,
+  build: ({ given: _given, ...filters }, { tenant, newId }) => {
+    const messageId = newId()
+    return {
+      send: link =>
+        link.call(sessionProtocol, 'list-archived-sessions', { ...filters, tenant }, messageId),
+      echo: { messageId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
+
 const stopCall: ExistingCommand<Targeted & { kind: 'model' | 'tool'; call: string }> = {
   kind: 'existing',
   name: 'stop-call',
@@ -389,6 +498,26 @@ export const productionCommands: readonly CommandSpec[] = [
     usage: '--session <id> --producer-kind <kind> --call <id>',
     summary: 'Stop a model or tool call.',
     run: (args, output, environment) => runSession(stopCall, args, output, environment),
+  },
+  {
+    name: 'archive-session',
+    usage: '--session <id>',
+    summary: 'Archive a session: its run ends and its background calls are withdrawn.',
+    run: (args, output, environment) =>
+      runSession(sessionControl('archive-session'), args, output, environment),
+  },
+  {
+    name: 'unarchive-session',
+    usage: '--session <id>',
+    summary: 'Take a session back from the archive.',
+    run: (args, output, environment) =>
+      runSession(sessionControl('unarchive-session'), args, output, environment),
+  },
+  {
+    name: 'list-archived-sessions',
+    usage: '[--since <instant>] [--before <instant>] [--by person|auto|parent] [--title <text>]',
+    summary: 'List the archived sessions, the latest archived first.',
+    run: (args, output, environment) => runSession(listArchivedSessions, args, output, environment),
   },
   callsCommand,
   ...hitlCommands,

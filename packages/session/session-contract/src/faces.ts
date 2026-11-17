@@ -1,4 +1,5 @@
 import type { BackgroundCallResolution, BackgroundCallView } from './background-calls.ts'
+import type { ArchiveCollapse } from './call-control.ts'
 import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -215,9 +216,13 @@ export interface SessionWork<P> {
     input: Mutation<P> &
       Readonly<{ advance: AdvanceRef; expected: SessionRevision; handover: DurableEvidence }>,
   ): Reply<CommitReceipt>
-  control(
-    input: Mutation<P> & Readonly<{ intent: Control }>,
-  ): Reply<Readonly<{ receipt: CommitReceipt; progress: ControlProgress }>>
+  control(input: Mutation<P> & Readonly<{ intent: Control }>): Reply<
+    Readonly<{
+      receipt: CommitReceipt
+      progress: ControlProgress
+      collapsed?: ArchiveCollapse | null
+    }>
+  >
   finishRun(
     input: Mutation<P> & Readonly<{ run: RunId; expected: SessionRevision; bounded: BoundedClose }>,
   ): Reply<Readonly<{ receipt: CommitReceipt; terminal: RunTerminal }>>
@@ -410,29 +415,39 @@ export interface SessionHistory<P> {
       Readonly<{ basis: ModelViewBasis | null; after: string | null; pageBytes: number }>,
   ): Reply<ModelViewRead>
 }
+export type ArchivedBy = 'person' | 'auto' | 'parent'
 export type SessionListItem = Readonly<{
   session: SessionId
   createdAt: string | null
   lastActivityAt: string | null
   lifecycle: WorkSnapshot['lifecycle']
   title: string | null
+  archivedAt: string | null
+  archivedBy: ArchivedBy | null
 }>
+export type SessionListPage = Readonly<{
+  items: readonly SessionListItem[]
+  next: string | null
+  completeness: 'complete' | 'partial'
+}>
+type DirectoryAccess<P> = Readonly<{
+  principal: P
+  tenant: TenantId
+  after: string | null
+  limit: number
+}>
+/** A session is in exactly one of the two lists: the ones not archived, or the archived ones. */
 export interface SessionDirectory<P> {
-  list(
-    input: Readonly<{
-      principal: P
-      tenant: TenantId
-      after: string | null
-      limit: number
-      includeArchived: boolean
-    }>,
-  ): Reply<
-    Readonly<{
-      items: readonly SessionListItem[]
-      next: string | null
-      completeness: 'complete' | 'partial'
-    }>
-  >
+  list(input: DirectoryAccess<P>): Reply<SessionListPage>
+  listArchived(
+    input: DirectoryAccess<P> &
+      Readonly<{
+        from: string | null
+        to: string | null
+        by: ArchivedBy | null
+        titleContains: string | null
+      }>,
+  ): Reply<SessionListPage>
 }
 export type SessionFaces<P> = Readonly<{
   work: SessionWork<P>

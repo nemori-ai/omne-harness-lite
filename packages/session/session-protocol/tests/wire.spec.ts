@@ -16,7 +16,12 @@ const source = { owner: 'agent', record: 'record-1', revision: '4', digest: 'dig
 
 type Name = Exclude<
   keyof typeof sessionProtocol.operations,
-  'list-sessions' | 'retry-run' | 'read-waiting' | 'background-call' | 'list-background-calls'
+  | 'list-sessions'
+  | 'list-archived-sessions'
+  | 'retry-run'
+  | 'read-waiting'
+  | 'background-call'
+  | 'list-background-calls'
 >
 type Samples = Readonly<Record<Name, readonly Record<string, unknown>[]>>
 
@@ -31,6 +36,8 @@ const validBodies: Samples = {
     { ...target, cursor: 'opaque-cursor' },
   ],
   'cancel-run': [{ ...target, controlId: 'control', run: 'run-1', urgency: 'graceful' }],
+  'archive-session': [{ ...target, controlId: 'control' }],
+  'unarchive-session': [{ ...target, controlId: 'control' }],
   'stop-call': [
     { ...target, controlId: 'control', producer },
     { ...target, controlId: 'control', producer, reason: 'not needed' },
@@ -61,6 +68,8 @@ const invalidBodies: Samples = {
     { ...target, cursor: null, direction: 'forward', pageBytes: '0' },
   ],
   'cancel-run': [{ ...target, controlId: 'control', run: 'run-1', urgency: 'soon' }],
+  'archive-session': [{ ...target }, { ...target, controlId: 'control', run: 'run-1' }],
+  'unarchive-session': [{ ...target, controlId: '' }],
   'stop-call': [
     { ...target, controlId: 'control', producer: { kind: 'agent', call: 'c' } },
     { ...target, controlId: 'control', producer, reason: 7 },
@@ -85,6 +94,14 @@ const successBodies: Samples = {
       upper: '7',
     },
     { entries: [], next: 'next-cursor', exhausted: false, scannedThrough: '', upper: '7' },
+  ],
+  'archive-session': [
+    { kind: 'archived', controlId: 'control', runs: 1, backgroundCalls: 0 },
+    { kind: 'already-archived', controlId: 'control' },
+  ],
+  'unarchive-session': [
+    { kind: 'unarchived', controlId: 'control' },
+    { kind: 'not-archived', controlId: 'control' },
   ],
   'cancel-run': [
     { kind: 'requested', controlId: 'control', run: 'run-1' },
@@ -202,18 +219,18 @@ describe('list-sessions', () => {
     title: null,
   }
 
-  it.each([
-    [{ tenant, cursor: null }],
-    [{ tenant, cursor: 'opaque-cursor', limit: 20, includeArchived: true }],
-  ])('reads a body and writes it back as it was', sample => {
-    expectRoundTrip(listing.body, sample)
-  })
+  it.each([[{ tenant, cursor: null }], [{ tenant, cursor: 'opaque-cursor', limit: 20 }]])(
+    'reads a body and writes it back as it was',
+    sample => {
+      expectRoundTrip(listing.body, sample)
+    },
+  )
 
   it.each([
     ['without a cursor', { tenant }],
     ['with a limit of zero', { tenant, cursor: null, limit: 0 }],
     ['with a text limit', { tenant, cursor: null, limit: '5' }],
-    ['with a numeric includeArchived', { tenant, cursor: null, includeArchived: 1 }],
+    ['with the old includeArchived', { tenant, cursor: null, includeArchived: true }],
     ['with a tenant that is no tenant', { tenant: 'not-a-tenant', cursor: null }],
     ['with a field it does not have', { tenant, cursor: null, extra: 1 }],
   ])('refuses a body %s', (_label, sample) => {
@@ -256,5 +273,67 @@ describe('list-sessions', () => {
   it('answers invalid with an empty body', () => {
     expect(expectRoundTrip(listing.outcomes.invalid, {})).toEqual({})
     expect(readNew(listing.outcomes.invalid, { reason: 'x' })).toEqual({ ok: false })
+  })
+})
+
+describe('list-archived-sessions', () => {
+  const listing = sessionProtocol.operations['list-archived-sessions']
+  const row = {
+    session,
+    createdAt: null,
+    lastActivityAt: '2026-11-13T01:02:03Z',
+    lifecycle: 'archived',
+    title: 'old work',
+    archivedAt: '2026-11-14T00:00:00Z',
+    archivedBy: 'person',
+  }
+
+  it.each([
+    [{ tenant, cursor: null }],
+    [
+      {
+        tenant,
+        cursor: 'opaque-cursor',
+        limit: 20,
+        from: '2026-11-01T00:00:00Z',
+        to: null,
+        by: 'auto',
+        titleContains: '构建',
+      },
+    ],
+  ])('reads a body and writes it back as it was', sample => {
+    expectRoundTrip(listing.body, sample)
+  })
+
+  it.each([
+    ['with a time that is no instant', { tenant, cursor: null, from: 'yesterday' }],
+    ['with another way of archiving', { tenant, cursor: null, by: 'robot' }],
+    ['with a numeric title part', { tenant, cursor: null, titleContains: 3 }],
+  ])('refuses a body %s', (_label, sample) => {
+    expect(readNew(listing.body, sample)).toEqual({ ok: false })
+  })
+
+  it.each([
+    [{ sessions: [row], next: null, completeness: 'complete' }],
+    [
+      {
+        sessions: [{ ...row, archivedAt: null, archivedBy: null }],
+        next: 'n',
+        completeness: 'partial',
+      },
+    ],
+  ])('reads a succeeded body and writes it back as it was', sample => {
+    expectRoundTrip(listing.outcomes.succeeded, sample)
+  })
+
+  it('refuses an item without the archive fields', () => {
+    const { archivedAt: _at, archivedBy: _by, ...plain } = row
+    expect(
+      readNew(listing.outcomes.succeeded, {
+        sessions: [plain],
+        next: null,
+        completeness: 'complete',
+      }),
+    ).toEqual({ ok: false })
   })
 })

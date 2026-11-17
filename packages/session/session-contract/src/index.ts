@@ -82,7 +82,9 @@ export type {
   SessionFaces,
   SessionFailure,
   SessionHistory,
+  ArchivedBy,
   SessionListItem,
+  SessionListPage,
   SessionManagement,
   SessionReconciliation,
   SessionWork,
@@ -281,8 +283,11 @@ export {
   wakingInputs,
 } from './intake.ts'
 export {
+  archiveCollapse,
   backgroundCalls,
+  controlAnswer,
   controlRoutes,
+  type ArchiveCollapse,
   type ControlRoutes,
   type DirectCallControl,
 } from './call-control.ts'
