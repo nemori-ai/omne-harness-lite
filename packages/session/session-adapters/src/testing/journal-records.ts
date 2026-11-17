@@ -245,6 +245,36 @@ function historyOf(
 // processed a result without that record is a fact of the step, not a responsibility.
 const responsible = (item: ResultView): boolean => item.stages.recorded !== undefined
 
+export function attachmentsOf(view: ExecutionView): MemoryExecution['attachments'] {
+  return view.attachments.map(item => ({
+    authority: item.authority,
+    grant: item.grant,
+    status: item.status,
+    handoff: item.handoff,
+    handoffRevision: item.handoffRevision,
+  }))
+}
+
+// The blocks a handoff's parts live in: what a reader of one handoff must have fetched.
+export function handoffRefs(item: HandoffView): unknown[] {
+  return [item.prepared?.request, item.resolved?.outcome, item.retired?.excluded].filter(
+    ref => ref !== undefined,
+  )
+}
+
+export function handoffParts(item: HandoffView, blobs: BlobStore) {
+  const outcome = item.resolved === null ? null : blob<HandoffOutcome>(blobs, item.resolved.outcome)
+  const excluded =
+    item.retired === null
+      ? null
+      : blob<Extract<HandoffResolution, { kind: 'excluded' }>>(blobs, item.retired.excluded)
+  const request =
+    item.prepared !== null
+      ? blob<HandoffRecord['request']>(blobs, item.prepared.request)
+      : (outcome?.request ?? excluded?.request)
+  return { outcome, excluded, request }
+}
+
 export function projectExecution(
   view: ExecutionView,
   context: ProjectionContext,
@@ -256,13 +286,7 @@ export function projectExecution(
     tenant: context.tenant,
     revision: view.revision,
     state: stateOf(view, context.blobs) as MemoryExecution['state'],
-    attachments: view.attachments.map(item => ({
-      authority: item.authority,
-      grant: item.grant,
-      status: item.status,
-      handoff: item.handoff,
-      handoffRevision: item.handoffRevision,
-    })),
+    attachments: attachmentsOf(view),
     inputs: view.inputs.map((item): AcceptedInput => ({
       id: item.input,
       content: blob(context.blobs, item.message),
@@ -453,19 +477,7 @@ export function projectExecution(
   const ledger: AdmissionLedger = { origin, retainedFrom: 1, rangesFrom: 0, projection }
   projected.admissionLedger = ledger
   projected.handoffs = [...view.handoffs.values()].flatMap((item): HandoffRecord[] => {
-    const outcome =
-      item.resolved === null ? null : blob<HandoffOutcome>(context.blobs, item.resolved.outcome)
-    const excluded =
-      item.retired === null
-        ? null
-        : blob<Extract<HandoffResolution, { kind: 'excluded' }>>(
-            context.blobs,
-            item.retired.excluded,
-          )
-    const request =
-      item.prepared !== null
-        ? blob<HandoffRecord['request']>(context.blobs, item.prepared.request)
-        : (outcome?.request ?? excluded?.request)
+    const { outcome, excluded, request } = handoffParts(item, context.blobs)
     if (request === undefined) return []
     const resolution: HandoffRecord['resolution'] =
       outcome !== null ? { kind: 'recorded', outcome } : excluded

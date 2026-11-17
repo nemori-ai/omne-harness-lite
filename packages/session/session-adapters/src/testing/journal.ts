@@ -2087,6 +2087,12 @@ export function createJournal<P>(
     return { kind: 'settling', intent }
   }
 
+  // A closed effect was bound in the write that recorded it: only the open ones can still need a binding.
+  function openEffectsAt(execution: Execution, checkpoint: AgentCheckpoint): EffectIntent[] {
+    const scope = { state: stateOf(execution), checkpoint, inputOpen: () => true }
+    return [...openItems(scope, { results: [], effects: execution.effects, handoffs: [] }).effects]
+  }
+
   function pendingWrites(execution: Execution, operation: AgentOperationId) {
     const found: { operation: AgentOperationId; method: string }[] = []
     for (const [, record] of state().operations.pendingOf(execution.id)) {
@@ -3583,7 +3589,11 @@ export function createJournal<P>(
           facts.push(moved)
         }
         const bound = receiving.newBindings(
-          { ...execution, checkpoint: input.checkpoint, effects: execution.effects },
+          {
+            ...execution,
+            checkpoint: input.checkpoint,
+            effects: openEffectsAt(execution, input.checkpoint),
+          },
           input.authority.instance,
         )
         facts.push(...bound.facts)

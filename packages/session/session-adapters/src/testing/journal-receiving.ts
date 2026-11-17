@@ -1,4 +1,5 @@
 import { SharedMap } from '../journal/shared-map.ts'
+import { MaterialTable } from './material-table.ts'
 import { pendingCalls } from './pending.ts'
 import { createHash } from 'node:crypto'
 import type {
@@ -48,11 +49,7 @@ import { type Blob, blobOf, refOf, type FactBody, type ProducerCall } from '../j
 
 type Input<P> = ReceivedCommitInput<P, ContentBlock>
 export type Kept = { entry: ReceivedEntry; receipt: CommandReceipt; saved: DurableEvidence | null }
-export type Stored = {
-  tenant: string
-  execution: AgentExecutionId | null
-  value: Material<ContentBlock>
-}
+export type { Stored } from './material-table.ts'
 type Qualification = 'allowed' | 'denied' | 'unavailable'
 export type JournalReceivingControls<P> = ReturnType<typeof createJournalReceiving<P>>['controls']
 export type RecordFault =
@@ -206,7 +203,7 @@ function shape<P>(input: Input<P>): Failure | undefined {
 }
 
 export type ReceivingState = {
-  materials: SharedMap<string, Stored>
+  materials: MaterialTable
   deliveries: SharedMap<string, Kept>
   aliases: SharedMap<string, Kept>
   bindings: SharedMap<string, { execution: AgentExecutionId; text: string }>
@@ -227,7 +224,7 @@ const materialSourceOf = (key: string): DurableEvidence => JSON.parse(key) as Du
 
 export function emptyReceivingState(): ReceivingState {
   return {
-    materials: new SharedMap(),
+    materials: new MaterialTable(),
     deliveries: new SharedMap(),
     aliases: new SharedMap(),
     bindings: new SharedMap(),
@@ -673,14 +670,10 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           if ('failure' in permission) return answer(permission)
         }
         if (old) return answer(succeed(source))
-        const content = canonical(input.value)
-        for (const [kept, record] of hooks.state().materials)
-          if (
-            record.tenant === tenantText(input.tenant) &&
-            record.execution === execution &&
-            canonical(record.value) === content
-          )
-            return answer(succeed(materialSourceOf(kept)))
+        const kept = hooks
+          .state()
+          .materials.sameContent(tenantText(input.tenant), execution, canonical(input.value))
+        if (kept !== undefined) return answer(succeed(materialSourceOf(kept)))
         return {
           kind: 'batch',
           facts: [

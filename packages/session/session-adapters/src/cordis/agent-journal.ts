@@ -14,6 +14,7 @@ import type {
   ExecutionRevision,
   Failure,
   FinishResult,
+  HandoffReference,
   ModelReceptionTargets,
   ToolReceptionTargets,
 } from '@omne-harness/agent-contract'
@@ -79,6 +80,7 @@ import {
   emptySessionView,
   fold,
   receiptOf as batchReceiptOf,
+  handoffKey,
   type BatchEnvelope,
   type EventView,
   type ExecutionView,
@@ -108,6 +110,7 @@ import {
   type JointDecision,
   type JournalWrite,
   type MemoryAgentJournalOptions,
+  type HandoffRecord,
   type MemoryExecution,
 } from '../testing/journal.ts'
 import { JOURNAL_OWNER, revisionOf } from '../testing/journal-values.ts'
@@ -126,7 +129,9 @@ import {
   type EventProjection,
 } from './journal-batch.ts'
 import {
-  projectExecution,
+  attachmentsOf,
+  handoffParts,
+  handoffRefs,
   projectRecords,
   type ProjectedRecords,
   type ProjectionContext,
@@ -554,9 +559,19 @@ async function fetchBlobClosure(
   return null
 }
 
+// What Session's readers of an execution need: its attachments, and the request of one handoff when asked.
+export type ExecutionRecords = Readonly<{
+  attachments: MemoryExecution['attachments']
+  request: HandoffRecord['request'] | null
+}>
 export type ExecutionRecordsRead =
-  | Readonly<{ kind: 'read'; execution: MemoryExecution | null }>
+  | Readonly<{ kind: 'read'; execution: ExecutionRecords | null }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+const refDigest = (ref: unknown): string | null => {
+  const digest = (ref as { digest?: unknown } | null)?.digest
+  return typeof digest === 'string' ? digest : null
+}
 
 const HEX_DIGEST = /^[0-9a-f]{64}$/
 
@@ -680,6 +695,7 @@ function recordsFoldOf(storage: SqlStorage, key: string): RecordsFold {
 export async function readExecutionRecords(
   options: JournalStateSource,
   target: Readonly<{ tenant: TenantId; session: SessionId; execution: string }>,
+  handoff: HandoffReference | null = null,
 ): Promise<ExecutionRecordsRead> {
   const resolved = await resolvedOf(options, target.tenant)
   if ('kind' in resolved) return resolved
@@ -698,15 +714,25 @@ export async function readExecutionRecords(
   kept.executions.add(target.execution)
   const found = kept.view.executions.get(target.execution as AgentExecutionId)
   if (found === undefined || found.opened === null) return { kind: 'read', execution: null }
-  const missing = await fetchNamed(resolved.read, resolved.tenant, [found], kept.blobs)
+  const item = handoff === null ? undefined : found.handoffs.get(handoffKey(handoff))
+  const digests = (item === undefined ? [] : handoffRefs(item)).flatMap(ref => {
+    const digest = refDigest(ref)
+    return digest === null ? [] : [digest]
+  })
+  const missing = await fetchBlobClosure(
+    resolved.read,
+    resolved.tenant,
+    digests.map(blobRowDigest),
+    kept.blobs,
+  )
   if (missing !== null)
     return { kind: 'unavailable', diagnostic: `the content block ${missing} is not readable` }
   try {
-    const execution = projectExecution(
-      found,
-      projectionContext(target.tenant, resolved.tenant, target.session, kept.blobs, kept.parsed),
-    ) as MemoryExecution
-    return { kind: 'read', execution }
+    for (const digest of digests)
+      if (!kept.parsed.has(digest))
+        kept.parsed.set(digest, JSON.parse(kept.blobs.get(blobRowDigest(digest))!) as unknown)
+    const request = item === undefined ? null : (handoffParts(item, kept.parsed).request ?? null)
+    return { kind: 'read', execution: { attachments: attachmentsOf(found), request } }
   } catch (error) {
     return { kind: 'unavailable', diagnostic: `the Agent records do not decode: ${String(error)}` }
   } finally {

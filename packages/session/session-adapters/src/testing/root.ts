@@ -173,8 +173,8 @@ function copyExecution(value: MemoryExecution): MemoryExecution {
 function forked<T extends object>(tables: T): T {
   const out = { ...tables }
   for (const [name, value] of Object.entries(out))
-    if (value instanceof SharedMap || value instanceof OperationTable)
-      (out as Record<string, unknown>)[name] = value.fork()
+    if (typeof (value as { fork?: unknown } | null)?.fork === 'function')
+      (out as Record<string, unknown>)[name] = (value as { fork(): unknown }).fork()
   return out
 }
 
