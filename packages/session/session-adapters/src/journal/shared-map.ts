@@ -4,6 +4,7 @@ import { OrderedMap } from 'immutable'
 // Iteration keeps insertion order, as Map does.
 export class SharedMap<K, V> implements Map<K, V> {
   #map: OrderedMap<K, V>
+  #written: Set<K> | null = null
 
   constructor(entries?: Iterable<readonly [K, V]> | null) {
     this.#map = OrderedMap<K, V>().withMutations(map => {
@@ -19,6 +20,18 @@ export class SharedMap<K, V> implements Map<K, V> {
 
   fork(): SharedMap<K, V> {
     return SharedMap.#over(this.#map)
+  }
+
+  // A fork that remembers the keys it writes, for a caller that needs what one transaction added.
+  forkTracked(): SharedMap<K, V> {
+    const fork = this.fork()
+    fork.#written = new Set()
+    return fork
+  }
+
+  written(): ReadonlySet<K> {
+    if (this.#written === null) throw new Error('an untracked fork does not know what it wrote')
+    return this.#written
   }
 
   sharesWith(other: SharedMap<K, V>): boolean {
@@ -38,12 +51,14 @@ export class SharedMap<K, V> implements Map<K, V> {
   }
 
   set(key: K, value: V): this {
+    this.#written?.add(key)
     this.#map = this.#map.set(key, value)
     return this
   }
 
   delete(key: K): boolean {
     if (!this.#map.has(key)) return false
+    this.#written?.add(key)
     this.#map = this.#map.delete(key)
     return true
   }

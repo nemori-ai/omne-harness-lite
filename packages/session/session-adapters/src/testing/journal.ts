@@ -1864,8 +1864,7 @@ export function createJournal<P>(
       facts.flatMap(fact => (fact.kind === 'op.excluded' ? [fact.operation] : [])),
     )
     const out: FactBody[] = []
-    for (const [at, record] of state().operations) {
-      if (record.kind !== 'excluded' || record.execution !== input.execution) continue
+    for (const [at, record] of state().operations.excludedOf(input.execution)) {
       if (at !== operationKey(input.tenant, input.execution, record.operation)) continue
       if (
         carried.has(record.operation) ||
@@ -1886,7 +1885,7 @@ export function createJournal<P>(
 
   function fencedOperations(execution: Execution): FactBody[] {
     const out: FactBody[] = []
-    for (const record of state().operations.values()) {
+    for (const [, record] of state().operations.pendingOf(execution.id)) {
       if (!pendingOf(record, execution) || record.key.startsWith('received:')) continue
       out.push({
         kind: 'op.excluded',
@@ -1922,7 +1921,7 @@ export function createJournal<P>(
   }
 
   function fence(execution: Execution): void {
-    for (const [key, record] of state().operations) {
+    for (const [key, record] of state().operations.pendingOf(execution.id)) {
       if (!pendingOf(record, execution) || record.key.startsWith('received:')) continue
       state().operations.set(key, {
         kind: 'excluded',
@@ -2005,11 +2004,8 @@ export function createJournal<P>(
     )
     if ('failure' in replyAdmissions) return replyAdmissions
     const unresolved: AgentOperationId[] = []
-    for (const record of state().operations.values()) {
-      if (pendingOf(record, execution)) {
-        unresolved.push(record.operation)
-      }
-    }
+    for (const [, record] of state().operations.pendingOf(execution.id))
+      if (pendingOf(record, execution)) unresolved.push(record.operation)
     const emitted = execution.events.length
     const groups = custodyGroups(execution)
     const shown = stateOf(execution)
@@ -2093,7 +2089,7 @@ export function createJournal<P>(
 
   function pendingWrites(execution: Execution, operation: AgentOperationId) {
     const found: { operation: AgentOperationId; method: string }[] = []
-    for (const record of state().operations.values()) {
+    for (const [, record] of state().operations.pendingOf(execution.id)) {
       if (pendingOf(record, execution) && record.operation !== operation)
         found.push({ operation: record.operation, method: record.key.split(':')[0] ?? '' })
     }
@@ -4722,10 +4718,8 @@ export function createJournal<P>(
         const matches = [...state().executions.values()].filter(value => value.id === execution)
         const owner = tenant ?? (matches.length === 1 ? matches[0]?.tenant : undefined)
         if (owner === undefined && matches.length > 1) return false
-        for (const [key, record] of state().operations) {
+        for (const [key, record] of state().operations.pendingOf(execution)) {
           if (
-            record.kind !== 'pending' ||
-            record.execution !== execution ||
             record.operation !== operation ||
             (owner !== undefined && !tenantEquals(record.tenant, owner))
           ) {

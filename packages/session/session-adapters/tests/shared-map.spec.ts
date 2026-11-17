@@ -89,3 +89,24 @@ describe('SharedMap', () => {
     expect(fork.sharesWith(origin)).toBe(true)
   })
 })
+
+describe('a tracked fork', () => {
+  it('names exactly the keys it set or deleted, and not those of its origin', () => {
+    const origin = new SharedMap<string, number>([
+      ['a', 1],
+      ['b', 2],
+    ])
+    origin.set('before', 0)
+    const fork = origin.forkTracked()
+    fork.set('c', 3)
+    fork.set('a', 10)
+    fork.delete('b')
+    fork.delete('missing')
+    expect([...fork.written()].sort()).toEqual(['a', 'b', 'c'])
+    expect(fork.forkTracked().written().size).toBe(0)
+  })
+
+  it('an untracked fork refuses to name what it wrote, rather than answer none', () => {
+    expect(() => new SharedMap<string, number>().fork().written()).toThrow(/untracked/)
+  })
+})

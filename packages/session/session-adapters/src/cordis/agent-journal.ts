@@ -80,6 +80,7 @@ import {
   fold,
   receiptOf as batchReceiptOf,
   type BatchEnvelope,
+  type EventView,
   type ExecutionView,
   type ParticipationKind,
   type PublishedBatch,
@@ -380,6 +381,13 @@ function projectionOf(
     control: projected(control),
     ...(event.body.kind === 'input-taken' ? { batch: projected(event.body.batch) } : {}),
   }
+}
+
+// The events of the appended batches are the tail of the folded view: walk back only over them.
+function eventsFrom(events: readonly EventView[], pub: number): readonly EventView[] {
+  let at = events.length
+  while (at > 0 && events[at - 1]!.pub >= pub) at -= 1
+  return events.slice(at)
 }
 
 function boundariesOf(
@@ -1484,10 +1492,10 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     scratch: Scratch,
   ): Outcome<Prepared, Failure> {
     const blobs = new Map<string, ExecutionBlobRecord>()
-    coreBlobRows(after.agent.blobs, row => book.blobs.has(row), blobs)
+    coreBlobRows(after.agent.blobs, after.agent.blobs.written(), row => book.blobs.has(row), blobs)
     const execution = appended[0]!.execution
     const events = new Map(
-      (after.agent.view.executions.get(execution)?.events ?? []).map(
+      eventsFrom(after.agent.view.executions.get(execution)?.events ?? [], appended[0]!.pub).map(
         event => [`${String(event.pub)}/${String(event.ord)}`, event] as const,
       ),
     )

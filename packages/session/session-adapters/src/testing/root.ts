@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { freezeValue } from './freeze.ts'
 import { SharedMap } from '../journal/shared-map.ts'
+import { OperationTable } from './operation-table.ts'
 import { canonical } from './canonical.ts'
 import {
   emptySessionSources,
@@ -29,13 +30,7 @@ import type {
   RoutedInput,
   CommitReceipt,
 } from '@omne-harness/session-contract'
-import type {
-  JointDecision,
-  JournalWrite,
-  MemoryExecution,
-  OperationRecord,
-  JointFact,
-} from './journal.ts'
+import type { JointDecision, JournalWrite, MemoryExecution, JointFact } from './journal.ts'
 import { emptyReceivingState, type ReceivingState } from './journal-receiving.ts'
 import { copyFinishing } from './journal-finishing.ts'
 import { emptySessionView, type PublishedBatch, type SessionJournalView } from '../journal/index.ts'
@@ -84,7 +79,7 @@ export type CommonRoot = Readonly<{
     view: SessionJournalView
     blobs: SharedMap<string, unknown>
     executions: SharedMap<string, MemoryExecution>
-    operations: SharedMap<string, OperationRecord>
+    operations: OperationTable
     jointFacts: JointFact[]
     originals: SharedMap<string, readonly JournalOriginal[]>
     effectSteps: SharedMap<string, import('@omne-harness/agent-contract').StepId>
@@ -178,13 +173,18 @@ function copyExecution(value: MemoryExecution): MemoryExecution {
 function forked<T extends object>(tables: T): T {
   const out = { ...tables }
   for (const [name, value] of Object.entries(out))
-    if (value instanceof SharedMap) (out as Record<string, unknown>)[name] = value.fork()
+    if (value instanceof SharedMap || value instanceof OperationTable)
+      (out as Record<string, unknown>)[name] = value.fork()
   return out
 }
 
 // A fork per table: the draft shares every table with the root until it writes to one.
 function cloneRoot(root: CommonRoot): CommonRoot {
-  return { ...root, agent: forked(root.agent), receiving: forked(root.receiving) }
+  return {
+    ...root,
+    agent: { ...forked(root.agent), blobs: root.agent.blobs.forkTracked() },
+    receiving: forked(root.receiving),
+  }
 }
 
 function emptyCommonRoot(): CommonRoot {
@@ -197,7 +197,7 @@ function emptyCommonRoot(): CommonRoot {
       view: emptySessionView(),
       blobs: new SharedMap(),
       executions: new SharedMap(),
-      operations: new SharedMap(),
+      operations: new OperationTable(),
       jointFacts: [],
       originals: new SharedMap(),
       originalByOperation: new SharedMap(),
