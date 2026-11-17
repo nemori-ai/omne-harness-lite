@@ -308,39 +308,47 @@ export function buildStep(root: string, file: PlanFile, budget: Budget, planPath
       `构建：另有 ${unbuilt.length} 个成员没有构建产物（dist），一并构建——${unbuilt.map(member => member.path).join('、')}`,
     )
   const names = [...membersAt(root, paths), ...unbuilt].map(member => member.name)
-  const recordPath = planPath === undefined ? undefined : builtFromPath(planPath)
-  if (recordPath !== undefined) clearBuiltFrom(recordPath)
-  let digests: ReadonlyMap<string, string> | undefined
-  if (recordPath !== undefined) {
-    try {
-      digests = currentDigests({
-        root,
-        targets: paths,
-        config: readTestRunsConfig(),
-        env: process.env,
-      })
-    } catch (error) {
-      console.log(
-        `构建记录：取不到输入摘要，不留记录，后面的测试不写缓存——${error instanceof Error ? error.message : String(error)}`,
-      )
-    }
-  }
+  const finish = startBuiltRecord(root, file.head, paths, planPath)
   const code = turboBuild(root, names, admissionRequested(process.env), budget.workers)
-  if (code === 0 && recordPath !== undefined && digests !== undefined)
+  finish(code)
+  return code
+}
+
+function startBuiltRecord(
+  root: string,
+  head: string,
+  paths: readonly string[],
+  planPath: string | undefined,
+): (buildExit: number) => void {
+  if (planPath === undefined) return () => undefined
+  const recordPath = builtFromPath(planPath)
+  clearBuiltFrom(recordPath)
+  const config = readTestRunsConfig()
+  const skip = (what: string, error: unknown) =>
+    console.log(
+      `构建记录：取不到${what}，不留记录，后面的测试不写缓存——${error instanceof Error ? error.message : String(error)}`,
+    )
+  let inputs: ReadonlyMap<string, string>
+  try {
+    inputs = currentDigests({ root, targets: paths, config, env: process.env })
+  } catch (error) {
+    skip('输入摘要', error)
+    return () => undefined
+  }
+  return buildExit => {
+    if (buildExit !== 0) return
     try {
-      const outputs = outputDigests({ root, targets: paths, config: readTestRunsConfig() })
+      const outputs = outputDigests({ root, targets: paths, config })
       const members = new Map<string, Required<BuiltMember>>()
-      for (const [member, input] of digests) {
+      for (const [member, input] of inputs) {
         const output = outputs.get(member)
         if (output !== undefined) members.set(member, { input, output })
       }
-      writeBuiltFrom(recordPath, file.head, members)
+      writeBuiltFrom(recordPath, head, members)
     } catch (error) {
-      console.log(
-        `构建记录：取不到产物摘要，不留记录，后面的测试不写缓存——${error instanceof Error ? error.message : String(error)}`,
-      )
+      skip('产物摘要', error)
     }
-  return code
+  }
 }
 
 function unbuiltReason(read: Exclude<BuiltFromRead, { status: 'ok' }>, head: string): string {
