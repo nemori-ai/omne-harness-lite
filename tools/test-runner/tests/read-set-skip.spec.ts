@@ -118,6 +118,18 @@ describe('一份用例文件能不能跳过（全化表）', () => {
     ).toBeUndefined()
   })
 
+  it('环境变量只比值，不比写进记录的先后', () => {
+    const both = { A: '1', B: '2' }
+    const recorded = record({ 't.spec.ts': entry('t.spec.ts') }, TREE, { env: { B: '2', A: '1' } })
+    expect(reuse([recorded], same, both)).toBeDefined()
+  })
+
+  it('有的记录里没有这份文件：只看有它的那几份', () => {
+    const other = record({ 'o.spec.ts': entry('o.spec.ts') }, TREE, { head: 'head-other' })
+    const mine = record({ 't.spec.ts': entry('t.spec.ts') }, TREE, { head: 'head-old' })
+    expect(reuse([other, mine])?.from.head).toBe('head-old')
+  })
+
   it('读到的某一项摘要变了，或文件已被删掉：跑', () => {
     const changed = (key: string) => (key === 'content:src/a.ts' ? 'a2' : same(key))
     expect(reuse([record({ 't.spec.ts': entry('t.spec.ts') }, TREE)], changed)).toBeUndefined()
@@ -180,16 +192,23 @@ describe('跳过的底：读集之外也要算进去的输入', () => {
   it('全局文件，加上读集涉及的每个成员的 package.json 与 tsconfig，都并进读集；运行时一项不算成员', () => {
     expect(
       floorReads(
-        ['content:packages/a/src/x.ts', 'listing:apps/server/tests', 'runtime:node'],
+        [
+          'content:packages/a/src/x.ts',
+          'listing:apps/server/tests',
+          'runtime:node',
+          'content:tools/shared.ts',
+        ],
         MEMBERS,
         FLOOR,
       ),
+      '不在任何成员里的读只并它自己',
     ).toEqual([
       'content:apps/server/package.json',
       'content:package.json',
       'content:packages/a/package.json',
       'content:packages/a/src/x.ts',
       'content:pnpm-lock.yaml',
+      'content:tools/shared.ts',
       'glob:apps/server/tsconfig*.json',
       'glob:packages/a/tsconfig*.json',
       'glob:tsconfig*.json',
@@ -251,6 +270,16 @@ describe('跳过的文件并回成员的结果', () => {
     expect(run?.report?.testResults.map(result => result.name)).toEqual(['/new/root/t.spec.ts'])
     expect(run?.timing?.files.map(file => file.file)).toEqual(['/new/root/t.spec.ts'])
     expect(cachedRun('m', '/new/root', new Map())).toBeUndefined()
+  })
+
+  it('记录里的结果没带计时：并回的这一份没有计时，不凭空造一条', () => {
+    const { timing: _dropped, ...bare } = cached('t.spec.ts')
+    const reused = reusableFiles(
+      [record({ 't.spec.ts': entry('t.spec.ts', { cached: bare }) }, TREE)],
+      same,
+      ENV,
+    )
+    expect(cachedRun('m', '/new/root', reused)).not.toHaveProperty('timing')
   })
 })
 
@@ -376,9 +405,11 @@ describe('记录与跳过连起来', () => {
     expect(second.get('pkg')?.get('pkg/tests/a.spec.ts')?.from.head).toBe('h1')
 
     record(run(root, 'run2', []), second as never)
-    expect(
-      readRecord(recordPath(home, 'pkg', 'fast'))?.files['pkg/tests/a.spec.ts']?.cached,
-    ).toBeDefined()
+    const carried = readRecord(recordPath(home, 'pkg', 'fast'))
+    expect(carried?.files['pkg/tests/a.spec.ts']?.cached).toBeDefined()
+    expect(carried?.tree['content:pkg/tests/a.spec.ts'], '带进来的条目连同它读到的摘要').toBe(
+      second.get('pkg')?.get('pkg/tests/a.spec.ts')?.tree['content:pkg/tests/a.spec.ts'],
+    )
     expect(readdirSync(historyDir(home, 'pkg', 'fast'))).toHaveLength(1)
     expect([...skippedOf(plan(), 'pkg')]).toEqual(['tests/a.spec.ts'])
 
