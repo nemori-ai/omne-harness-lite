@@ -506,6 +506,14 @@
       "source": "packages/human-intervention/SPEC.md"
     },
     {
+      "id": "packages/human-intervention/human-intervention-tool",
+      "paths": ["packages/human-intervention/human-intervention-tool/src/**"],
+      "layer": "contract",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/human-intervention/SPEC.md"
+    },
+    {
       "id": "packages/human-intervention/human-intervention-access",
       "paths": ["packages/human-intervention/human-intervention-access/src/**"],
       "layer": "unknown",

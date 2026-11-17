@@ -5,6 +5,7 @@ import type {
   RegisterRequest,
 } from '@omne-harness/human-intervention'
 import { hitlCommandBinding } from '@omne-harness/human-intervention-local'
+import { hitlDecisionWait } from '@omne-harness/human-intervention-tool'
 import { inProcessPrincipalAuthority, standingPrincipalRef } from '@omne-harness/identity'
 import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { succeed } from '@omne-harness/operation-result'
@@ -65,6 +66,8 @@ type Registered = Extract<CommandResult<'registerRequest'>, { kind: 'registered'
 function world(
   options: Readonly<{
     kept?: string | null
+    contract?: unknown
+    digest?: string
     audience?: HitlAudience | undefined
     register?: CommandResult<'registerRequest'>
     cards?: readonly unknown[]
@@ -72,6 +75,8 @@ function world(
     closed?: 'cancelled' | 'terminal' | 'continued' | null
   }> = {},
 ) {
+  const kept =
+    options.digest === undefined ? requestEvidence : { ...requestEvidence, digest: options.digest }
   const calls = {
     prepared: [] as unknown[],
     registered: [] as RegisterRequest[],
@@ -155,7 +160,12 @@ function world(
         waitRequest: options.kept === null ? null : { wait, request: options.kept ?? ORIGINAL },
         waits: [
           {
-            intent: { kind: 'ask', wait, request: requestEvidence },
+            intent: {
+              kind: 'ask',
+              wait,
+              request: kept,
+              schemas: { contract: options.contract ?? hitlDecisionWait.adoption },
+            },
             ...(options.closed === null
               ? { phase: 'open' }
               : { phase: 'closed', cause: options.closed ?? 'cancelled' }),
@@ -167,7 +177,7 @@ function world(
             action: 'ensure',
             operation: duty,
             wait,
-            evidence: requestEvidence,
+            evidence: kept,
           },
           {
             kind: 'wait-registration',
@@ -188,7 +198,7 @@ function world(
     bridge,
     calls,
     answer,
-    ensure: () => bridge.ensure({ ...access, wait, request: requestEvidence }),
+    ensure: () => bridge.ensure({ ...access, wait, request: kept }),
     inspect: (value: unknown, operation: ToolOperationId = duty) => {
       inspected = value
       return bridge.inspectOperation({ ...access, operation })
@@ -279,6 +289,25 @@ describe('the Tool decision owner over HITL', () => {
       const w = world({ kept })
       expect(await w.ensure()).toMatchObject({ failure: { kind: 'invalid', field: 'request' } })
       expect(w.calls.prepared).toEqual([])
+      expect(w.calls.registered).toEqual([])
+    }
+  })
+
+  it('refuses an ask wait under another contract, without writing to HITL', async () => {
+    const w = world({ contract: { ...hitlDecisionWait.adoption, owner: 'another-tool' } })
+    expect(await w.ensure()).toMatchObject({ failure: { kind: 'invalid', field: 'wait' } })
+    expect(w.calls.prepared).toEqual([])
+    expect(w.calls.registered).toEqual([])
+  })
+
+  it('refuses a kept request that is not a decision request, without writing to HITL', async () => {
+    for (const kept of [
+      JSON.stringify({ questions: [{ ...card, kind: 'extension' }] }),
+      JSON.stringify({ questions: [card], extra: 1 }),
+      '{not json',
+    ]) {
+      const w = world({ kept, digest: canonicalDigest(kept) })
+      expect(await w.ensure()).toMatchObject({ failure: { kind: 'invalid', field: 'request' } })
       expect(w.calls.registered).toEqual([])
     }
   })
