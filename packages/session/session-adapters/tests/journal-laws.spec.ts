@@ -903,15 +903,15 @@ describe('the finishing records are the projection of the folded facts', () => {
     const { view, blobs, namespace } = s.view.controls.facts()
     const execution = view.executions.get(s.execution)!
     const projected = finishingOf(execution, blobs, {
-      receipt: (op, pub, revision) => ({
-        operation: op,
+      receipt: stamp => ({
+        operation: stamp.op,
         execution: s.execution,
-        revision: revisionOf(revision),
+        revision: revisionOf(stamp.revision),
         evidence: {
           owner: JOURNAL_OWNER,
-          record: `${namespace}/${s.execution}/pub/${pub}`,
-          revision: String(revision),
-          digest: execution.ops.get(op)!.digest,
+          record: `${namespace}/${s.execution}/pub/${stamp.pub}`,
+          revision: String(stamp.revision),
+          digest: stamp.digest,
         },
         state: 'applied',
       }),

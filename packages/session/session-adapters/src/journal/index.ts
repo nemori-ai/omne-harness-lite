@@ -73,6 +73,7 @@ export type {
   ResultView,
   ReceivedView,
   SessionJournalView,
+  Stamp,
 } from './view.ts'
 export {
   answer,

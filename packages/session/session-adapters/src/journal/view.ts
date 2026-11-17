@@ -38,6 +38,14 @@ import {
   type ResultStage,
 } from './facts.ts'
 
+// The batch that wrote an entry, as its receipt names it: an entry a receipt is read from carries it.
+export type Stamp = Readonly<{
+  op: AgentOperationId
+  digest: string
+  pub: number
+  revision: number
+}>
+
 export type AttachmentView = Readonly<{
   authority: Authority
   grant: DurableEvidence | null
@@ -78,19 +86,22 @@ export type IntentView = Readonly<{
   authority: Authority
   request: Ref | null
   pub: number
+  op: AgentOperationId
 }>
 
 export type ResultView = Readonly<{
   consumption: ConsumptionId
   result: ProducerCall
-  received: Readonly<{
-    delivery: string
-    consumer: ConsumerRef
-    custody: Ref
-    saved: DurableEvidence
-    material: Ref | null
-    pub: number
-  }> | null
+  received:
+    | (Readonly<{
+        delivery: string
+        consumer: ConsumerRef
+        custody: Ref
+        saved: DurableEvidence
+        material: Ref | null
+      }> &
+        Stamp)
+    | null
   stages: Readonly<Partial<Record<ResultStage, DurableEvidence>>>
   pub: number
 }>
@@ -112,19 +123,21 @@ export type AdmissionView = Readonly<{
 export type HandoffView = Readonly<{
   handoff: HandoffReference
   prepared: Readonly<{ request: Ref; prepared: DurableEvidence; pub: number }> | null
-  resolved: Readonly<{
-    resolution: 'recorded' | 'excluded'
-    outcome: Ref
-    history: DurableEvidence | null
-    pub: number
-    revision: number
-  }> | null
-  retired: Readonly<{
-    reason: DurableEvidence
-    excluded: Ref
-    pub: number
-    revision: number
-  }> | null
+  resolved:
+    | (Readonly<{
+        resolution: 'recorded' | 'excluded'
+        outcome: Ref
+        history: DurableEvidence | null
+      }> &
+        Stamp)
+    | null
+  retired:
+    | (Readonly<{
+        reason: DurableEvidence
+        excluded: Ref
+      }> &
+        Stamp)
+    | null
   recorded: readonly Readonly<{
     resolution: 'recorded' | 'excluded'
     outcome: Ref
@@ -143,7 +156,10 @@ export type ControlView = Readonly<{
   toolOperation: ToolOperationRef | null
   stages: Readonly<
     Partial<
-      Record<ControlStage, Readonly<{ state: 'reached' | 'unresolved'; source: DurableEvidence }>>
+      Record<
+        ControlStage,
+        Readonly<{ state: 'reached' | 'unresolved'; source: DurableEvidence }> & Stamp
+      >
     >
   >
   rejected: readonly DurableEvidence[]
@@ -197,12 +213,11 @@ export type FinishView = Readonly<{
 export type EventView = Readonly<{
   eseq: number
   kind: string
-  pub: number
   ord: number
-  revision: number
   attachment: Authority | null
   fact: FactBody
-}>
+}> &
+  Stamp
 
 export type BindingView = Readonly<{
   definition: Adoption
@@ -250,6 +265,7 @@ export type ExecutionView = Readonly<{
     original: Readonly<{ input: InputId; entry: AgentOperationId; handoff: HandoffReference }>
     coordination: 'standalone' | 'coordinated'
     pub: number
+    revision: number
   }> | null
   attachments: readonly AttachmentView[]
   cursor: Readonly<Partial<CursorMembers>>
@@ -268,20 +284,19 @@ export type ExecutionView = Readonly<{
   controls: ReadonlyMap<AgentOperationId, ControlView>
   waits: Readonly<{ step: StepId; waits: Ref<readonly Waiting[]>; pub: number }> | null
   finish: FinishView
-  settlements: readonly Readonly<{
+  settlements: readonly (Readonly<{
     variant: string
     record: Ref
     evidence: DurableEvidence
-    op: AgentOperationId
-    pub: number
-  }>[]
-  observations: readonly Readonly<{
+  }> &
+    Stamp)[]
+  observations: readonly (Readonly<{
     terminal: DurableEvidence
     passage: PassageId
     implementation: Adoption
     observed: DurableEvidence
-    pub: number
-  }>[]
+  }> &
+    Stamp)[]
   acknowledged: number
   acknowledgedAt: number
   fences: readonly Readonly<{

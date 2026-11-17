@@ -3,6 +3,7 @@ import type {
   AcceptedInput,
   Adoption,
   AgentEvent,
+  AgentExecutionId,
   AgentEventBody,
   AgentOperationId,
   CommandReceipt,
@@ -28,6 +29,7 @@ import {
   type Mint,
   type OperationEntry,
   type HandoffView,
+  type Stamp,
   type PublishedBatch,
   type ResultView,
   type SessionJournalView,
@@ -93,31 +95,22 @@ export type ProjectionContext = Readonly<{
 
 type CustodyAttempt = MemoryExecution['custodyAttempts'] extends Map<unknown, infer V> ? V : never
 
-function opsByPub(view: ExecutionView): Map<number, [AgentOperationId, OperationEntry]> {
-  const out = new Map<number, [AgentOperationId, OperationEntry]>()
-  for (const [op, entry] of view.ops) if (entry.target === null) out.set(entry.pub, [op, entry])
-  return out
-}
-
-function receiptAt(
-  view: ExecutionView,
-  byPub: ReadonlyMap<number, [AgentOperationId, OperationEntry]>,
+// The receipt of the batch that wrote an entry, from the entry's own stamp.
+export function stampReceipt(
   mint: Mint,
-  pub: number,
-): CommandReceipt | undefined {
-  const found = byPub.get(pub)
-  if (found === undefined) return undefined
-  const [operation, entry] = found
+  execution: AgentExecutionId,
+  stamp: Stamp,
+): CommandReceipt {
   return {
-    operation,
-    execution: view.execution,
-    revision: revisionOf(entry.revision),
+    operation: stamp.op,
+    execution,
+    revision: revisionOf(stamp.revision),
     evidence: batchEvidence(
       mint,
-      { execution: view.execution, pub, envelope: { digest: entry.digest } } as PublishedBatch,
-      entry.revision,
+      { execution, pub: stamp.pub, envelope: { digest: stamp.digest } } as PublishedBatch,
+      stamp.revision,
     ),
-    state: stateOf2(methodOf(entry.digest)),
+    state: stateOf2(methodOf(stamp.digest)),
   }
 }
 
@@ -228,17 +221,16 @@ function stateOf(view: ExecutionView, blobs: BlobStore): MemoryExecution['state'
 }
 
 // A prepared H whose resolution carries no history was rejected: nothing entered the history.
-function historyOf(
-  item: HandoffView,
-  opAt: (pub: number) => AgentOperationId | undefined,
-  ended: DurableEvidence | null,
-): HandoffRecord['history'] {
+function historyOf(item: HandoffView, ended: DurableEvidence | null): HandoffRecord['history'] {
   if (item.retired !== null) return { kind: 'not-applicable' }
   if (item.resolved === null)
     return ended === null ? { kind: 'pending' } : { kind: 'retained', disposition: ended }
   if (item.prepared !== null && item.resolved.history === null) return { kind: 'not-applicable' }
-  const operation = opAt(item.resolved.pub) as AgentOperationId
-  return { kind: 'committed', operation, revision: revisionOf(item.resolved.revision) }
+  return {
+    kind: 'committed',
+    operation: item.resolved.op,
+    revision: revisionOf(item.resolved.revision),
+  }
 }
 
 // A result is a responsibility of the execution once recordResult took it; a producer event that
@@ -281,8 +273,7 @@ export function projectExecution(
   view: ExecutionView,
   context: ProjectionContext,
 ): Partial<MemoryExecution> {
-  const byPub = opsByPub(view)
-  const receipt = (pub: number) => receiptAt(view, byPub, context.mint, pub)
+  const receipt = (stamp: Stamp) => stampReceipt(context.mint, view.execution, stamp)
   const projected: Partial<MemoryExecution> = {
     id: view.execution,
     tenant: context.tenant,
@@ -307,7 +298,12 @@ export function projectExecution(
           ...(item.modelInvocation === null ? {} : { modelInvocation: item.modelInvocation }),
           ...(item.toolInvocation === null ? {} : { toolInvocation: item.toolInvocation }),
           ...(item.toolOperation === null ? {} : { toolOperation: item.toolOperation }),
-          stages: item.stages,
+          stages: Object.fromEntries(
+            Object.entries(item.stages).map(([stage, fact]) => [
+              stage,
+              { state: fact.state, source: fact.source },
+            ]),
+          ),
         }) as unknown as ControlRecord,
     ),
     results: [...view.results.values()].filter(responsible).map((item): ResultResponsibility => ({
@@ -331,22 +327,15 @@ export function projectExecution(
       implementation: item.implementation,
       observed: item.observed,
     })),
-    observed: new Map(
-      view.observations.flatMap(item => {
-        const found = receipt(item.pub)
-        return found === undefined ? [] : [[item.passage, found]]
-      }),
-    ),
+    observed: new Map(view.observations.map(item => [item.passage, receipt(item)])),
     stageReceipts: new Map(
       [...view.controls.values()].flatMap(control =>
         Object.entries(control.stages).flatMap(([stage, fact]) => {
           // The accepted stage is recognized by its control operation, not by a stage receipt.
-          if (stage === 'accepted') return []
-          const pub = fact === undefined ? null : pubOf(fact.source)
-          const found = pub === null ? undefined : receipt(pub)
-          return found === undefined
-            ? []
-            : [[JSON.stringify([control.control, stage]), found] as [string, CommandReceipt]]
+          if (stage === 'accepted' || fact === undefined) return []
+          return [
+            [JSON.stringify([control.control, stage]), receipt(fact)] as [string, CommandReceipt],
+          ]
         }),
       ),
     ),
@@ -391,12 +380,10 @@ export function projectExecution(
         observed: recorded.get(passage.id)?.observed ?? null,
       }))
   }
-  const revisionAt = (pub: number): number | undefined => byPub.get(pub)?.[1].revision
-  const opAt = (pub: number): AgentOperationId | undefined => byPub.get(pub)?.[0]
   projected.events = view.events.flatMap((event): AgentEvent[] => {
     const body = bodyOf(event.fact, context.blobs)
-    const found = receipt(event.pub)
-    if (body === null || found === undefined) return []
+    const found = receipt(event)
+    if (body === null) return []
     return [
       {
         execution: view.execution,
@@ -409,21 +396,7 @@ export function projectExecution(
     ]
   })
   projected.finishing = finishingOf(view, context.blobs, {
-    receipt: (op, pub, revision) => ({
-      operation: op,
-      execution: view.execution,
-      revision: revisionOf(revision),
-      evidence: batchEvidence(
-        context.mint,
-        {
-          execution: view.execution,
-          pub,
-          envelope: { digest: view.ops.get(op)?.digest ?? '' },
-        } as PublishedBatch,
-        revision,
-      ),
-      state: 'applied',
-    }),
+    receipt: stamp => ({ ...receipt(stamp), state: 'applied' }),
     checkpoint: (candidate, revision) =>
       journalEvidence(
         `${context.mint.session}/${view.execution}/candidate/${candidate}/checkpoint`,
@@ -432,11 +405,12 @@ export function projectExecution(
   })
   projected.resultRevisions = new Map(
     [...view.results.values()].filter(responsible).flatMap(item => {
-      const pubs = Object.values(item.stages).flatMap(stage =>
-        stage === undefined ? [] : [pubOf(stage) ?? 0],
-      )
-      const revision = pubs.length === 0 ? undefined : revisionAt(Math.max(...pubs))
-      if (revision === undefined) return []
+      const latest = Object.values(item.stages)
+        .flatMap(stage => (stage === undefined || pubOf(stage) === null ? [] : [stage]))
+        .sort((left, right) => pubOf(left)! - pubOf(right)!)
+        .at(-1)
+      if (latest === undefined) return []
+      const revision = Number(latest.revision)
       const key = semanticKey('responsibility', [
         producedOf(item.result).producer,
         item.result.version,
@@ -446,7 +420,7 @@ export function projectExecution(
     }),
   )
   const parts = [...(JSON.parse(context.mint.session) as string[]), view.execution]
-  const originRevision = view.opened === null ? 1 : (revisionAt(view.opened.pub) ?? 1)
+  const originRevision = view.opened === null ? 1 : view.opened.revision
   const origin = journalEvidence(
     `${JSON.stringify(parts)}/reply-admission-prefix/0`,
     originRevision,
@@ -489,12 +463,12 @@ export function projectExecution(
         request,
         prepared: item.prepared?.prepared ?? null,
         resolution,
-        history: historyOf(item, opAt, ended?.disposition ?? null),
+        history: historyOf(item, ended?.disposition ?? null),
         retirement:
           item.retired === null
             ? null
             : {
-                operation: opAt(item.retired.pub) as AgentOperationId,
+                operation: item.retired.op,
                 revision: revisionOf(item.retired.revision),
                 reason: item.retired.reason,
               },
@@ -528,7 +502,6 @@ export function projectOperations(
   execution: Partial<MemoryExecution>,
 ): Map<string, OperationRecord> {
   const out = new Map<string, OperationRecord>()
-  const byPub = opsByPub(view)
   const text = tenantCodec.encode(context.tenant)
   const tenantText = text.ok ? text.value : ''
   const keyOf = (op: AgentOperationId) => operationText(tenantText, view.execution, op)
@@ -536,9 +509,8 @@ export function projectOperations(
     const method = methodOf(entry.digest)
     if (entry.target !== null && entry.recalls) {
       const target = view.ops.get(entry.target)
-      const found =
-        target === undefined ? undefined : receiptAt(view, byPub, context.mint, target.pub)
-      if (found !== undefined) return found
+      if (target !== undefined)
+        return stampReceipt(context.mint, view.execution, { ...target, op: entry.target })
     }
     return {
       operation: op,
@@ -743,14 +715,13 @@ export function projectFragments(
   context: ProjectionContext,
 ): EventFragments {
   const out = emptyFragments()
-  const byPub = opsByPub(view)
-  const pubOfSequence = new Map(view.events.map(event => [String(event.eseq), event.pub]))
+  const stampOf = new Map(view.events.map(event => [String(event.eseq), event]))
   out.indexedEvents.set(execution.id, execution.events.length)
   for (const event of execution.events) {
     const key = `${execution.id}\0${event.sequence}`
-    const pub = pubOfSequence.get(event.sequence)
-    const receipt = pub === undefined ? undefined : receiptAt(view, byPub, context.mint, pub)
-    if (receipt === undefined) continue
+    const stamp = stampOf.get(event.sequence)
+    if (stamp === undefined) continue
+    const receipt = stampReceipt(context.mint, execution.id, stamp)
     out.eventReceipts.set(key, receipt)
     const pending = pendingsOf(out.callOrigins, execution, event)
     out.pendingEvents.set(key, pending)
@@ -776,7 +747,6 @@ export function projectReceiving(
   type Item = Readonly<{ pub: number; ord: number; apply(): void }>
   const items: Item[] = []
   for (const { view, execution } of executions) {
-    const byPub = opsByPub(view)
     const keyOf = (op: AgentOperationId) => operationText(tenantText, execution.id, op)
     for (const binding of view.bindings)
       items.push({
@@ -792,15 +762,12 @@ export function projectReceiving(
           ),
       })
     for (const received of receivedViews(view)) {
-      const found = byPub.get(received.pub)
-      const receipt = receiptAt(view, byPub, context.mint, received.pub)
-      if (found === undefined || receipt === undefined) continue
-      const [op, entry] = found
+      const { op } = received
       const value = blob<ReceivedEntry>(context.blobs, received.custody)
       const kept: Kept = {
         entry: value,
-        receipt,
-        saved: methodOf(entry.digest) === 'received' ? received.saved : null,
+        receipt: stampReceipt(context.mint, execution.id, received),
+        saved: methodOf(received.digest) === 'received' ? received.saved : null,
       }
       const delivery = canonical([
         tenantText,

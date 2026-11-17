@@ -86,7 +86,7 @@
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1168,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1111,
       "packages/session/session-adapters/src/testing/factory.ts": 1266,
-      "packages/session/session-adapters/src/testing/journal-finishing.ts": 1370,
+      "packages/session/session-adapters/src/testing/journal-finishing.ts": 1364,
       "packages/session/session-adapters/src/testing/journal.ts": 4853,
       "packages/session/session-adapters/src/testing/session.ts": 1232,
       "packages/session/session-contract/src/testing-transactions.ts": 2535,
@@ -552,7 +552,7 @@
       },
       "packages/session/session-adapters/src/testing/journal-records.ts": {
         "count": 1,
-        "longest": 239
+        "longest": 221
       },
       "packages/session/session-adapters/src/testing/journal.ts": {
         "count": 6,

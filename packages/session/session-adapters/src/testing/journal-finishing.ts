@@ -53,7 +53,7 @@ import {
   type BlobStore,
 } from '../journal/decide.ts'
 import type { CursorMembers, FactBody, FactOf, Ref } from '../journal/facts.ts'
-import type { CandidateView, ExecutionView, ObligationListView } from '../journal/view.ts'
+import type { CandidateView, ExecutionView, ObligationListView, Stamp } from '../journal/view.ts'
 
 export type FinishingRecords = {
   candidates: FinishCandidate[]
@@ -1288,7 +1288,7 @@ export function supersessionOf(
 }
 
 export type FinishingMint = Readonly<{
-  receipt: (op: AgentOperationId, pub: number, revision: number) => CommandReceipt
+  receipt: (stamp: Stamp) => CommandReceipt
   checkpoint: (candidate: AgentOperationId, revision: number) => DurableEvidence
 }>
 
@@ -1298,12 +1298,10 @@ export function finishingOf(
   mint: FinishingMint,
 ): FinishingRecords {
   const records = emptyFinishing()
-  const opOf = new Map<number, AgentOperationId>()
-  for (const [op, entry] of view.ops) if (entry.target === null) opOf.set(entry.pub, op)
   type Step =
     | Readonly<{ pub: number; kind: 'candidate'; view: CandidateView }>
     | Readonly<{ pub: number; kind: 'list'; view: ObligationListView }>
-    | Readonly<{ pub: number; kind: 'settlement'; record: Ref }>
+    | Readonly<{ pub: number; kind: 'settlement'; record: Ref; stamp: Stamp }>
   const steps: Step[] = [
     ...view.finish.candidates.map(item => ({
       pub: item.pub,
@@ -1317,6 +1315,7 @@ export function finishingOf(
       pub: item.pub,
       kind: 'settlement' as const,
       record: item.record,
+      stamp: item,
     })),
   ].sort((left, right) => left.pub - right.pub)
   for (const step of steps) {
@@ -1348,11 +1347,9 @@ export function finishingOf(
         break
       }
       case 'settlement': {
-        const op = recorded(opOf.get(step.pub), `the operation of the settlement at ${step.pub}`)
-        const revision = recorded(view.ops.get(op), `the index entry of ${op}`).revision
         applySettlement(
           records,
-          settlementOfFact(step.record, mint.receipt(op, step.pub, revision), records, blobs),
+          settlementOfFact(step.record, mint.receipt(step.stamp), records, blobs),
         )
         break
       }
@@ -1362,9 +1359,6 @@ export function finishingOf(
       }
     }
   }
-  for (const intent of view.intents.values()) {
-    const op = opOf.get(intent.pub)
-    if (op !== undefined) records.effectOperations.set(intent.action, op)
-  }
+  for (const intent of view.intents.values()) records.effectOperations.set(intent.action, intent.op)
   return records
 }
