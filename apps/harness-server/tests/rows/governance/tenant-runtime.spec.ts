@@ -1285,9 +1285,7 @@ it('lists the settings of a holding whose category exists only in this test, bes
     if (page.kind !== 'listed') throw new Error(JSON.stringify(page))
     return page.items.map(item => `${item.asset.category}/${item.asset.name}/${item.item}`)
   }
-  const tools = ['Ask', 'Files', 'Shell', 'TodoItems', 'Tools', 'Web'].map(
-    name => `tool/${name}/invoke`,
-  )
+  const tools = w.release.manifest.entries.map(entry => `tool/${entry.asset.name}/invoke`).sort()
   const preferences = PREFERENCE_SETTINGS.flatMap(definition =>
     definition.items.map(item => `preference/${definition.providerId}/${item.id}`),
   ).sort()
