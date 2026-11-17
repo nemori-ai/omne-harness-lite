@@ -24,19 +24,37 @@
     "test:fast": {
       "dependsOn": ["build", "^build"],
       "cache": false,
-      "passThroughEnv": ["VITEST_MAX_WORKERS", "OMNE_TEST_REPORT_DIR", "OMNE_TEST_READ_SETS"],
+      "passThroughEnv": [
+        "VITEST_MAX_WORKERS",
+        "OMNE_TEST_REPORT_DIR",
+        "OMNE_TEST_READ_SETS",
+        "OMNE_TEST_BATCH",
+        "GOMAXPROCS"
+      ],
       "env": ["TMPDIR", "TMP", "TEMP", "OMNE_RUNNER_ROOT"]
     },
     "test:slow": {
       "dependsOn": ["build", "^build"],
       "cache": false,
-      "passThroughEnv": ["VITEST_MAX_WORKERS", "OMNE_TEST_REPORT_DIR", "OMNE_TEST_READ_SETS"],
+      "passThroughEnv": [
+        "VITEST_MAX_WORKERS",
+        "OMNE_TEST_REPORT_DIR",
+        "OMNE_TEST_READ_SETS",
+        "OMNE_TEST_BATCH",
+        "GOMAXPROCS"
+      ],
       "env": ["TMPDIR", "TMP", "TEMP", "OMNE_RUNNER_ROOT"]
     },
     "test": {
       "dependsOn": ["build", "^build"],
       "cache": false,
-      "passThroughEnv": ["VITEST_MAX_WORKERS", "OMNE_TEST_REPORT_DIR", "OMNE_TEST_READ_SETS"],
+      "passThroughEnv": [
+        "VITEST_MAX_WORKERS",
+        "OMNE_TEST_REPORT_DIR",
+        "OMNE_TEST_READ_SETS",
+        "OMNE_TEST_BATCH",
+        "GOMAXPROCS"
+      ],
       "env": ["TMPDIR", "TMP", "TEMP", "OMNE_RUNNER_ROOT"]
     }
   }

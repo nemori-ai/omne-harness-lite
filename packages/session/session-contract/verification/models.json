@@ -1,7 +1,7 @@
 {
   "member": "session-contract",
   "model": "models/background-calls/BackgroundCalls.tla",
-  "scope": "finite model BackgroundCalls: one session, one or two backgrounded tool calls, at most two user stops and two outcome deliveries for each call, one human input, one archive. Each action is one session commit; the order of pending inputs, freezing, unarchiving, the Tool side of a stop and the physical end of the execution are not modelled. Safety only. No refinement proof to the implementation.",
+  "scope": "finite model BackgroundCalls: one session, one or two backgrounded tool calls, at most two user stops and two outcome deliveries for each call, one human input, one archive. Each action is one session commit; the order of pending inputs, freezing, unarchiving, the Tool side of a stop and the physical end of the execution are not modelled. Safety only. No refinement proof to the implementation. Finite model InputDelivery: one session, three inputs of which one is a quiet stop reminder, at most three Runs and three model replies. It follows which inputs a model request shows and whether the brackets agree with it; a taking and its delivery are one action, the order of submits is free, cancellation, archive and compaction are not modelled. Safety only. No refinement proof to the implementation.",
   "workers": 2,
   "timeoutSeconds": 600,
   "cases": [
@@ -13,6 +13,18 @@
     {
       "name": "two-calls",
       "config": "models/background-calls/two-calls.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "delivery-design",
+      "model": "models/input-delivery/InputDelivery.tla",
+      "config": "models/input-delivery/design.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "delivery-guard-alone",
+      "model": "models/input-delivery/InputDelivery.tla",
+      "config": "models/input-delivery/guard-alone.cfg",
       "expected": "complete"
     }
   ],
@@ -100,6 +112,50 @@
       "old": "delivered' = delivered \\cup pending",
       "new": "delivered' = delivered \\cup {i \\in pending : i.wakes}",
       "invariant": "NoLostReminder"
+    }
+  ],
+  "controls": [
+    {
+      "name": "delivery-before-shown",
+      "model": "models/input-delivery/InputDelivery.tla",
+      "config": "models/input-delivery/before-shown.cfg",
+      "expected": "ShownTaken"
+    },
+    {
+      "name": "delivery-before-news",
+      "model": "models/input-delivery/InputDelivery.tla",
+      "config": "models/input-delivery/before-news.cfg",
+      "expected": "AskHasNews"
+    },
+    {
+      "name": "delivery-before-quiet",
+      "model": "models/input-delivery/InputDelivery.tla",
+      "config": "models/input-delivery/before-quiet.cfg",
+      "expected": "QuietStable"
+    },
+    {
+      "name": "delivery-before-stuck",
+      "model": "models/input-delivery/InputDelivery.tla",
+      "config": "models/input-delivery/before-stuck.cfg",
+      "expected": "StartEnabled"
+    },
+    {
+      "name": "delivery-before-passive",
+      "model": "models/input-delivery/InputDelivery.tla",
+      "config": "models/input-delivery/before-passive.cfg",
+      "expected": "NoPassiveStart"
+    },
+    {
+      "name": "delivery-late-rows",
+      "model": "models/input-delivery/InputDelivery.tla",
+      "config": "models/input-delivery/late-rows.cfg",
+      "expected": "TakenShown"
+    },
+    {
+      "name": "delivery-first-take-only",
+      "model": "models/input-delivery/InputDelivery.tla",
+      "config": "models/input-delivery/first-take-only.cfg",
+      "expected": "AskHasNews"
     }
   ]
 }

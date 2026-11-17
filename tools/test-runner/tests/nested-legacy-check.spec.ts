@@ -19,7 +19,7 @@ import { localPool } from '../src/testing/token-pool.ts'
 /** 一个令牌、每个成员一个进程：与改成令牌之前的「1 个成员 × 1 个进程」相同。 */
 const one = (): MemberSchedule => ({
   source: localPool(1),
-  demand: () => ({ want: 1, min: 1, perWorker: 1 }),
+  demand: () => ({ want: 1, min: 1, perWorker: 1, weightSource: 'default' }),
 })
 import {
   VITEST_ARCHIVE_ENTRY,

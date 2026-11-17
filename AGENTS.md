@@ -177,7 +177,7 @@ pqw 技能里写「从项目接入点取」的地方都读这一节；没填的�
 | 槽位 | omne 的值 |
 | --- | --- |
 | 类型检查与 lint 命令 | `pnpm run typecheck`；`pnpm run lint:rules`；`pnpm run lint:oxlint`；`pnpm run lint:deps` |
-| 改动成员的合入检查 | `pnpm run preflight`，再在每个改动成员目录 `pnpm exec vitest run --mode fast` 与 `--mode slow`，有 `acceptance/` 的再 `pnpm run acceptance`。准入排在这些之后，在最终的头上只跑一次；没通过就把失败归类后补证，不重排整跑，见 `omne-card` 技能的[准入证据怎样取得](.meta_harness/agents/skills/omne-card/canonical/references/admission-evidence.md) |
+| 改动成员的合入检查 | `pnpm run preflight`，再在每个改动成员目录 `pnpm exec vitest run --mode fast` 与 `--mode slow`，有 `acceptance/` 的再 `pnpm run acceptance`。准入不在切片之间跑，在一程最终的头上只跑一次（见 `omne-card` 的「进轨道」）；没通过就把失败归类后补证，不重排整跑，见 `omne-card` 技能的[准入证据怎样取得](.meta_harness/agents/skills/omne-card/canonical/references/admission-evidence.md) |
 | 结构读数的覆盖率文件、范围与带位线 | `pnpm run closeout:metrics -- --base <起点> [--scope <路径>...]`：按改动成员各出一份 lcov（写到工作树外）、各调一次 pqw `metrics.mjs`，线与断言写法取自 `repo-toolchain.config.json`；切片收口用缺省的快层，一程全量加 `--full`，并另跑 [`loop:status --base <起点>`](docs/clean-loop.md#入口)。行为见 [pqw-adapter 的规格](tools/pqw-adapter/SPEC.md)，参数见命令的帮助 |
 | 差分变异的范围与点名文件 | `pnpm run closeout:mutation -- --base <起点> --scope <关键位置>...`：先 `--plan-only` 看范围，超过上限要给 `--scope` 或 `--files`；按改动成员各调一次 pqw `mutation.mjs`。[风险级别](docs/architecture/assurance.md#按风险选择接受实现的看法)的路径下限：`pnpm run risk -- --base <起点>` |
 | 项目合入检查已按整程改动跑结构读数与差分变异时的命令 | 无 |

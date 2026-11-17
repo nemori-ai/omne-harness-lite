@@ -13,6 +13,7 @@ import {
   operationId,
   evidence,
   inputId,
+  ordinaryInput,
   succeeded,
   refused,
 } from '@omne-harness/session-contract/testing'
@@ -503,12 +504,40 @@ describe('Session governance beyond the first path', () => {
     const s = scene()
     await s.create()
     await s.accept('first')
+    await s.start()
+    const deliver = async (input: string) => {
+      const { run } = await s.active()
+      succeeded(
+        await s.commit({
+          kind: 'recordMessage',
+          input: {
+            ...s.base,
+            operation: operationId(`deliver-${input}`),
+            participation: {
+              execution: run.execution.execution,
+              operation: `agent-deliver-${input}`,
+              joint: 'delivered',
+              written: '0',
+              handover: evidence(`deliver/${input}`),
+            },
+            value: {
+              deliveries: [{ input: input as never, message: ordinaryInput(input).message }],
+              source: evidence(`step/${input}`),
+              admission: evidence(`step/${input}`),
+            },
+          },
+        }),
+        'deliver',
+      )
+    }
+    await deliver('first')
     const first = succeeded(
       await s.port.history.readModelView({ ...s.access, basis: null, after: null, pageBytes: 1 }),
       'view',
     )
     if (first.kind !== 'page') throw new Error('not a page')
     await s.accept('second')
+    await deliver('second')
     const fixed = succeeded(
       await s.port.history.readModelView({
         ...s.access,

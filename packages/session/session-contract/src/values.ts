@@ -45,7 +45,7 @@ export type ExecutionRef = Readonly<{
 export type Participation = Readonly<{
   execution: string
   operation: string
-  joint: 'message' | 'context-transition' | 'custody' | 'processed'
+  joint: 'message' | 'context-transition' | 'custody' | 'processed' | 'delivered'
   written: string
   handover: DurableEvidence
 }>
@@ -398,6 +398,8 @@ export type WorkSnapshot = Readonly<{
   backgroundInputs?: readonly InputId[]
   /** Pending inputs that cannot start a Run on their own; they go in with the next batch. */
   quietInputs?: readonly InputId[]
+  /** Inputs delivered to the model view since the last assistant message. */
+  deliveredTail?: readonly InputId[]
   releasedScopes?: readonly Readonly<{ task: SessionOperationId; scope: string }>[]
   contextScopes?: readonly ContextScopeBinding[]
   contextRecords?: readonly Readonly<{ scope: string; declaration: DeclarationChange }>[]

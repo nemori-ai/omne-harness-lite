@@ -13,7 +13,7 @@ export {
   type RunTier,
 } from '@omne-harness/repo-toolchain/core/test-ledger'
 import { isRunTier } from '@omne-harness/repo-toolchain/core/test-ledger'
-import type { ParallelPolicy, WorkerTokens } from './parallelism.ts'
+import type { ParallelPolicy, WeightPolicy, WorkerTokens } from './parallelism.ts'
 
 export interface AffectedRules {
   readonly excludeRoots: readonly string[]
@@ -136,12 +136,28 @@ function parseWorkerTokens(value: unknown): WorkerTokens[] {
   })
 }
 
+function parseWeight(value: unknown): WeightPolicy {
+  const raw = (value ?? {}) as Record<string, unknown>
+  if (typeof value !== 'object' || value === null) throw new Error('parallel.weight 须为对象')
+  const floor = positive(raw['floor'], 'parallel.weight.floor')
+  const ceiling = positive(raw['ceiling'], 'parallel.weight.ceiling')
+  if (floor > ceiling) throw new Error('parallel.weight.floor 不能大于 ceiling')
+  return {
+    floor,
+    ceiling,
+    readings: positiveInteger(raw['readings'], 'parallel.weight.readings'),
+    minProcessSeconds: positive(raw['minProcessSeconds'], 'parallel.weight.minProcessSeconds'),
+  }
+}
+
 export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
   const raw = parsed as {
     parallel?: {
       maxWorkersPerMember?: unknown
       reserveCores?: unknown
       tokensPerWorker?: unknown
+      weight?: unknown
+      batchSeconds?: unknown
     }
     affected?: Record<string, unknown>
     ledger?: { slowFileSeconds?: unknown; nearTimeoutRatio?: unknown; top?: unknown }
@@ -155,6 +171,8 @@ export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
     ),
     reserveCores: nonNegativeInteger(raw.parallel?.reserveCores, 'parallel.reserveCores'),
     tokensPerWorker: parseWorkerTokens(raw.parallel?.tokensPerWorker),
+    weight: parseWeight(raw.parallel?.weight),
+    batchSeconds: positive(raw.parallel?.batchSeconds, 'parallel.batchSeconds'),
   }
   return {
     parallel,

@@ -54,6 +54,9 @@ export const TEST_REPORT_DIR_ENV = 'OMNE_TEST_REPORT_DIR'
 /** 运行器在准入时把它设成 `1`：这一轮的 vitest 记下每份用例文件的读集，写进报告目录的 `<成员>.reads.json`。 */
 export const READ_SETS_ENV = 'OMNE_TEST_READ_SETS'
 
+/** 运行器把一个成员的一层切成几批跑时设成 `1`：命令行上的文件是运行器排的批，不是人给的过滤，不挂过滤守卫，一批没有用例也不算失败。 */
+export const TEST_BATCH_ENV = 'OMNE_TEST_BATCH'
+
 const REPOSITORY_ROOT = fileURLToPath(new URL('.', import.meta.url))
 const TIMING_REPORTER = join(REPOSITORY_ROOT, 'tools/test-runner/src/testing/timing-reporter.ts')
 const FILTER_GUARD = join(REPOSITORY_ROOT, 'tools/test-runner/src/testing/filter-guard.ts')
@@ -317,7 +320,7 @@ function reporting(
     ],
     outputFile: { json: `${prefix}.json` },
     // 报告目录只给这一轮的 vitest：测试进程及其子进程里置空，测试起的夹具 vitest 不往这里写报告、不记读集。
-    env: { [TEST_REPORT_DIR_ENV]: '', [READ_SETS_ENV]: '' },
+    env: { [TEST_REPORT_DIR_ENV]: '', [READ_SETS_ENV]: '', [TEST_BATCH_ENV]: '' },
     ...(readSets
       ? {
           setupFiles: [READ_RECORDER],
@@ -335,7 +338,8 @@ export function testTiers(
 ): TestTiers {
   if (mode !== DEFAULT_MODE && !(TEST_TIERS as readonly string[]).includes(mode))
     throw new Error(`vitest 的 mode 只能是 ${TEST_TIERS.join('、')} 或不给，现在是 ${mode}`)
-  const filters = cliFilters(argv)
+  const filters: CliFilters =
+    env[TEST_BATCH_ENV] === '1' ? { testNames: [], files: [] } : cliFilters(argv)
   const filtered = filters.testNames.length > 0 || filters.files.length > 0
   const { experimental: recording, ...reported } = guarded(
     reporting(env[TEST_REPORT_DIR_ENV], memberDirectory, env[READ_SETS_ENV] === '1'),
