@@ -85,6 +85,17 @@ describe('observe-session', () => {
     ])
   })
 
+  it('sends a dispatch progress without a last fault as it is', async () => {
+    const [state] = FRAMES
+    if (state?.kind !== 'state') throw new Error('fixture')
+    const attempts = { allowed: 3, made: 1, last: null, notBefore: null }
+    const world = createWorld()
+    world.script({ kind: 'opened', frames: [{ ...state, attempts }], end: 'refresh-exhausted' })
+    const opened = await source(world)(context(), open)
+    if (opened.outcome !== 'succeeded') throw new Error(`opened ${opened.outcome}`)
+    expect((await drain(opened.frames)).frames).toEqual([{ ...state, attempts }])
+  })
+
   it('opens with the principal of the target tenant and sends the five frames as they are', async () => {
     const world = createWorld()
     world.script({ kind: 'opened', frames: FRAMES, end: 'refresh-exhausted' })

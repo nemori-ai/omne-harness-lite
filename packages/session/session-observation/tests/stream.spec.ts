@@ -344,6 +344,65 @@ describe('the stream axis', () => {
     stop()
   })
 
+  const fault503 = { cause: 'upstream-unavailable', upstreamStatus: '503', diagnostic: 'http-503' }
+  const plain = { allowed: 2, made: 1, last: null, notBefore: null }
+  const failed = { allowed: 2, made: 2, last: fault503, notBefore: '2026-11-17T00:00:01.000Z' }
+  it.each([
+    ['no progress, then some', undefined, plain, true],
+    ['some progress, then none', plain, undefined, true],
+    ['another allowed count', plain, { ...plain, allowed: 3 }, true],
+    ['another made count', plain, { ...plain, made: 2 }, true],
+    ['another next instant', failed, { ...failed, notBefore: '2026-11-17T00:00:02.000Z' }, true],
+    ['a next instant that went away', failed, { ...failed, notBefore: null }, true],
+    ['a first fault', plain, { ...plain, last: fault503 }, true],
+    ['a fault that went away', failed, { ...failed, last: null }, true],
+    ['another cause', failed, { ...failed, last: { ...fault503, cause: 'stream-lost' } }, true],
+    [
+      'another upstream status',
+      failed,
+      { ...failed, last: { ...fault503, upstreamStatus: '504' } },
+      true,
+    ],
+    [
+      'an upstream status that went away',
+      failed,
+      { ...failed, last: { ...fault503, upstreamStatus: null } },
+      true,
+    ],
+    [
+      'another diagnostic',
+      failed,
+      { ...failed, last: { ...fault503, diagnostic: 'http-5xx' } },
+      true,
+    ],
+    [
+      'the same progress with a fault, as another object',
+      failed,
+      { ...failed, last: { ...fault503 } },
+      false,
+    ],
+    ['the same progress without a fault, as another object', plain, { ...plain }, false],
+    ['no progress twice', undefined, undefined, false],
+  ] as const)(
+    'a delta with %s: a state frame comes first only when the progress differs',
+    async (_name, before, after, differs) => {
+      const w = world(new FakeLog())
+      w.log.append(started('run_1'), mainCall('m-1'))
+      w.model.answer('m-1', stream('s1', 'running', before))
+      const frames = await open(w)
+      expect((await take(frames)).value).toMatchObject({ kind: 'state', attempts: before ?? null })
+      await settle()
+      w.model.stream('s1').push(delta('s1', 2, 'running', after), delta('s1', 3, 'running', after))
+      const steps = await drain(frames, differs ? 4 : 3)
+      const state = expect.objectContaining({ kind: 'state', attempts: after ?? null })
+      const content = expect.objectContaining({ kind: 'delta' })
+      expect(steps.map(step => step.value)).toEqual(
+        differs ? [state, content, content] : [content, content],
+      )
+      stop()
+    },
+  )
+
   it('a call state without the progress gives a state frame whose progress is null', async () => {
     const w = world(new FakeLog())
     w.log.append(started('run_1'), mainCall('m-1'))
