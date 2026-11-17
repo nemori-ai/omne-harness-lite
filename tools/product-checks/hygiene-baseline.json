@@ -83,7 +83,7 @@
       "packages/model/model-host-local/src/plugins/runtime.ts": 1008,
       "packages/model/model-storage-sql/src/commit.ts": 1127,
       "packages/model/model/src/commands/commands.ts": 1149,
-      "packages/session/session-adapters/src/cordis/agent-journal.ts": 2143,
+      "packages/session/session-adapters/src/cordis/agent-journal.ts": 2063,
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1168,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1111,
       "packages/session/session-adapters/src/cordis/history-source.ts": 1029,
@@ -534,7 +534,7 @@
       },
       "packages/session/session-adapters/src/cordis/agent-journal.ts": {
         "count": 1,
-        "longest": 1393
+        "longest": 1389
       },
       "packages/session/session-adapters/src/cordis/context-holder.ts": {
         "count": 1,

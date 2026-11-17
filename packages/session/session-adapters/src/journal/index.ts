@@ -32,6 +32,8 @@ export type {
   FactRow,
   NoContent,
   ParticipationKind,
+  PassageBlock,
+  PassageIndex,
   ProducerCall,
   PublishedBatch,
   Ref,

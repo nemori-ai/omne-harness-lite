@@ -743,19 +743,13 @@ it('requires an implementation of kind builtin or command with a closed field se
   })
   const command = {
     kind: 'command',
-    host: 'claude_code',
-    dialect: 'claude-hooks',
-    event: 'PreToolUse',
-    command: './check.sh',
+    interpreter: 'node',
+    entry: 'check.mjs',
+    timeout: 'PT30S',
   }
   expect(await judgeOne(declare('before_action', 'veto', { implementation: command }))).toEqual({
     kind: 'accepted',
     value: [declare('before_action', 'veto', { implementation: command })],
-  })
-  const full = { ...command, host: 'codex', matcher: 'Bash', timeout: 'PT30S' }
-  expect(await judgeOne(declare('before_action', 'veto', { implementation: full }))).toEqual({
-    kind: 'accepted',
-    value: [declare('before_action', 'veto', { implementation: full })],
   })
   const malformed: unknown[] = [
     null,
@@ -765,12 +759,12 @@ it('requires an implementation of kind builtin or command with a closed field se
     { kind: 'plugin', name: 'x' },
     { kind: 'builtin' },
     { kind: 'builtin', builtinName: '' },
-    { kind: 'builtin', builtinName: 'format', host: 'codex' },
-    { ...command, host: 'cursor' },
-    { ...command, dialect: '' },
-    { ...command, event: undefined },
-    { ...command, command: '' },
-    { ...command, matcher: '' },
+    { kind: 'builtin', builtinName: 'format', interpreter: 'node' },
+    { ...command, interpreter: '' },
+    { ...command, interpreter: undefined },
+    { ...command, entry: '' },
+    { ...command, entry: undefined },
+    { ...command, timeout: undefined },
     { ...command, builtinName: 'format' },
     { ...command, extra: 1 },
   ]
@@ -782,13 +776,7 @@ it('requires an implementation of kind builtin or command with a closed field se
 })
 
 it('accepts an ISO 8601 timeout text and refuses any other text', async () => {
-  const command = {
-    kind: 'command',
-    host: 'codex',
-    dialect: 'd',
-    event: 'e',
-    command: 'c',
-  }
+  const command = { kind: 'command', interpreter: 'node', entry: 'e.mjs' }
   for (const timeout of ['PT30S', 'PT1H30M', 'P1D', 'P1DT12H', 'P1W', 'PT0.5S', 'P1Y2M3DT4H5M6S']) {
     const judged = await judgeOne(
       declare('before_action', 'veto', { implementation: { ...command, timeout } }),

@@ -1433,12 +1433,9 @@ export type ExtensionImplementationDeclaration = Readonly<{
     builtinName: string;
 }> | Readonly<{
     kind: 'command';
-    host: 'claude_code' | 'codex';
-    dialect: string;
-    event: string;
-    command: string;
-    matcher?: string;
-    timeout?: string;
+    interpreter: string;
+    entry: string;
+    timeout: string;
 }>;
 export type NeedDeclaration = Readonly<{
     name: string;

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { Passage } from '@omne-harness/agent-contract'
 import { EXECUTION_BATCH_MAX_FACTS } from '@omne-harness/session-storage-sql/participants'
 import {
   BATCH_MAX_FACTS,
@@ -627,6 +628,62 @@ describe('cursor.moved carries the changed top-level members only; no new fact, 
     expect(moved.calls).toEqual(refOf([{ kind: 'model' }]))
     expect(bytesOf(moved)).toBeLessThan(256)
   })
+
+  it('each extension call is its own block that refers to its declaration: a change of one call writes the block of that call and the index, and no other call', () => {
+    const declaration = {
+      name: 'observe',
+      position: 'execution_started' as const,
+      power: 'observe' as const,
+      implementation: { kind: 'builtin' as const, builtinName: 'observe-builtin' },
+    }
+    const call = (id: string, ordinal: number) =>
+      ({
+        id,
+        position: 'execution_started',
+        dimension: null,
+        purpose: null,
+        action: null,
+        ordinal,
+        declaration,
+        implementation: sampleCheckpoint().schema,
+        input: evidence(`${id}-input`),
+        effective: evidence(`${id}-effective`),
+        operations: [],
+        progress: { kind: 'requested', mode: { kind: 'fresh' } },
+      }) as never as Passage
+    const first = call('pass/0', 0)
+    const second = call('pass/1', 1)
+    const before = { ...sampleCheckpoint(), passages: [first, second] }
+    const resolved = {
+      ...second,
+      progress: {
+        kind: 'resolved' as const,
+        rounds: [],
+        conclusion: { kind: 'observed' } as never,
+      },
+    }
+    const after = { ...before, passages: [first, resolved] }
+    const held = new Map(blobsOf(before))
+    const written = blobsOf(after).filter(([digest]) => !held.has(digest))
+    const was = cursorOf(before, { kind: 'advancing' })
+    const members = cursorOf(after, { kind: 'advancing' })
+    const calls = written.filter(([digest]) => digest !== members.passages.digest)
+    const index = new Map(written).get(members.passages.digest) as unknown[]
+    expect(index).toHaveLength(2)
+    expect(index[0]).toEqual((held.get(was.passages.digest) as unknown[])[0])
+    expect(calls).toHaveLength(1)
+    expect(calls[0]![1]).toMatchObject({ id: 'pass/1', progress: { kind: 'resolved' } })
+    expect(JSON.stringify(written)).not.toContain('observe-builtin')
+    expect(bytesOf(movedMembers(was, members))).toBeLessThan(256)
+    const read = checkpointOf(
+      { cursor: members, steps: [], requests: [], voided: [], intents: new Map() },
+      new Map([...held, ...written]),
+    )
+    expect(read.passages).toEqual(after.passages)
+    expect(
+      [...held.values()].filter(value => JSON.stringify(value).includes('observe-builtin')),
+    ).toHaveLength(1)
+  })
 })
 
 type JournalScene = Awaited<ReturnType<typeof journalScene>>
@@ -929,7 +986,7 @@ describe('the finishing records are the projection of the folded facts', () => {
     expect(candidate).not.toHaveProperty('checkpoint')
     const cursor = blobs.get(candidate.cursor.digest) as { members: Record<string, unknown> }
     expect(cursor.members['calls']).toEqual(refOf(snapshot.checkpoint.calls))
-    expect(cursor.members['passages']).toEqual(refOf(snapshot.checkpoint.passages))
+    expect(cursor.members['passages']).toEqual(refOf([]))
   })
 })
 

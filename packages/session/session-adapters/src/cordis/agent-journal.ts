@@ -78,7 +78,6 @@ import {
   fold,
   receiptOf as batchReceiptOf,
   type BatchEnvelope,
-  type ExecutionView,
   type ParticipationKind,
   type PublishedBatch,
   type RequestView,
@@ -140,6 +139,7 @@ import {
   type Reader,
 } from './journal-read.ts'
 import { attemptOfAuthority, attemptOfGrant } from './attempt-grant.ts'
+import { blockReadOf, fetchNamed } from './journal-blocks.ts'
 
 export type SessionLogJournalOptions<P> = Readonly<{
   storage: SqlStorage
@@ -549,86 +549,9 @@ export async function readExecutionInterpretation(
   }
 }
 
-async function fetchBlobClosure(
-  read: Reader,
-  tenant: string,
-  digests: Iterable<string>,
-  into: Map<string, string>,
-): Promise<string | null> {
-  for (const digest of digests) {
-    if (into.has(digest)) continue
-    const payload = await readBlob(read, tenant, digest)
-    if (typeof payload !== 'string') return digest
-    into.set(digest, payload)
-  }
-  return null
-}
-
 export type ExecutionRecordsRead =
   | Readonly<{ kind: 'read'; execution: MemoryExecution | null }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-
-const HEX_DIGEST = /^[0-9a-f]{64}$/
-
-function refsIn(value: unknown, into = new Set<string>()): Set<string> {
-  if (value === null || typeof value !== 'object') return into
-  if (value instanceof Map) {
-    for (const member of value.values()) refsIn(member, into)
-    return into
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) refsIn(item, into)
-    return into
-  }
-  const record = value as Record<string, unknown>
-  if (
-    typeof record['digest'] === 'string' &&
-    HEX_DIGEST.test(record['digest']) &&
-    typeof record['size'] === 'number'
-  )
-    into.add(record['digest'])
-  for (const member of Object.values(record)) refsIn(member, into)
-  return into
-}
-
-function listedDigests(payload: string): string[] {
-  const value = JSON.parse(payload) as unknown
-  if (!Array.isArray(value)) return []
-  return value.flatMap(item =>
-    Array.isArray(item) && typeof item[1] === 'string' && HEX_DIGEST.test(item[1]) ? [item[1]] : [],
-  )
-}
-
-async function fetchNamed(
-  read: Reader,
-  tenant: string,
-  executions: Iterable<ExecutionView>,
-  into: Map<string, string>,
-): Promise<string | null> {
-  const named = new Set<string>()
-  const lists: string[] = []
-  const cursors: string[] = []
-  for (const execution of executions) {
-    for (const ref of refsIn(execution)) named.add(blobRowDigest(ref))
-    for (const list of execution.finish.lists.values()) lists.push(list.issued.listed.digest)
-    for (const candidate of execution.finish.candidates) cursors.push(candidate.cursor.digest)
-  }
-  const missing = await fetchBlobClosure(read, tenant, named, into)
-  if (missing !== null) return missing
-  const items = new Set<string>()
-  for (const digest of lists) {
-    const payload = into.get(blobRowDigest(digest))
-    if (payload === undefined) continue
-    for (const item of listedDigests(payload)) items.add(blobRowDigest(item))
-  }
-  // A candidate keeps the cursor of the step it was established on; after later steps only that cursor block names the member blocks of that step.
-  for (const digest of cursors) {
-    const payload = into.get(blobRowDigest(digest))
-    if (payload === undefined) continue
-    for (const ref of refsIn(JSON.parse(payload) as unknown)) items.add(blobRowDigest(ref))
-  }
-  return fetchBlobClosure(read, tenant, items, into)
-}
 
 type RecordsFold = {
   head: number
@@ -711,7 +634,8 @@ export async function readExecutionRecords(
   kept.executions.add(target.execution)
   const found = kept.view.executions.get(target.execution as AgentExecutionId)
   if (found === undefined || found.opened === null) return { kind: 'read', execution: null }
-  const missing = await fetchNamed(resolved.read, resolved.tenant, [found], kept.blobs)
+  const blocks = blockReadOf(resolved.read, resolved.tenant)
+  const missing = await fetchNamed(blocks, [found], kept.blobs)
   if (missing !== null)
     return { kind: 'unavailable', diagnostic: `the content block ${missing} is not readable` }
   try {
@@ -1279,12 +1203,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   }
 
   async function fetchBlobs(book: Book<P>, read: Reader): Promise<Failure | null> {
-    const missing = await fetchNamed(
-      read,
-      book.tenantText,
-      book.view.executions.values(),
-      book.blobs,
-    )
+    const blocks = blockReadOf(read, book.tenantText)
+    const missing = await fetchNamed(blocks, book.view.executions.values(), book.blobs)
     return missing === null
       ? null
       : unavailable(`the content block ${missing} of the Agent records is not readable`)

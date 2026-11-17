@@ -2,6 +2,7 @@ import type {
   AgentCheckpoint,
   AgentOperationId,
   JournalCommitState,
+  Passage,
   VoidedIntent,
 } from '@omne-harness/agent-contract'
 import { canonical } from '../testing/canonical.ts'
@@ -14,6 +15,8 @@ import {
   type BatchEnvelope,
   type CursorMembers,
   type FactBody,
+  type PassageBlock,
+  type PassageIndex,
 } from './facts.ts'
 import type { ExecutionView } from './view.ts'
 
@@ -33,7 +36,7 @@ export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState)
     requestPreparation:
       checkpoint.requestPreparation === null ? null : refOf(checkpoint.requestPreparation),
     adoptedContext: checkpoint.adoptedContext,
-    passages: refOf(checkpoint.passages),
+    passages: refOf(passageIndex(checkpoint.passages)),
     completedPassages: checkpoint.completedPassages,
     batch: checkpoint.batch === null ? null : refOf(checkpoint.batch),
     calls: refOf(checkpoint.calls),
@@ -54,8 +57,18 @@ export type Blob = readonly [digest: string, value: unknown]
 
 export const blobOf = (value: unknown): Blob => [refOf(value).digest, value]
 
+function passageBlock(passage: Passage): PassageBlock {
+  return { ...passage, declaration: refOf(passage.declaration) }
+}
+
+function passageIndex(passages: readonly Passage[]): PassageIndex {
+  return passages.map(passage => refOf(passageBlock(passage)))
+}
+
 export function blobsOf(checkpoint: AgentCheckpoint): Blob[] {
-  const out: Blob[] = [blobOf(checkpoint.passages), blobOf(checkpoint.calls)]
+  const out: Blob[] = [blobOf(passageIndex(checkpoint.passages)), blobOf(checkpoint.calls)]
+  for (const passage of checkpoint.passages)
+    out.push(blobOf(passageBlock(passage)), blobOf(passage.declaration))
   if (checkpoint.guard !== null) out.push(blobOf(checkpoint.guard))
   if (checkpoint.replyAdmissionRead.kind === 'verified')
     out.push(blobOf(checkpoint.replyAdmissionRead.prefix))
@@ -108,7 +121,10 @@ export function checkpointOf(
     step: need('step'),
     position: need('position'),
     calls: held(blobs, need('calls'), 'calls'),
-    passages: held(blobs, need('passages'), 'passages'),
+    passages: held<PassageIndex>(blobs, need('passages'), 'passages').map((ref): Passage => {
+      const block = held<PassageBlock>(blobs, ref, 'passage')
+      return { ...block, declaration: held(blobs, block.declaration, 'passage declaration') }
+    }),
     batch: need('batch') === null ? null : held(blobs, need('batch')!, 'batch'),
     inputBatch: structuredClone(inputBatch),
     requestPreparation:

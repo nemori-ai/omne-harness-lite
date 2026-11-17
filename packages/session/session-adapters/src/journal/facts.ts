@@ -20,8 +20,10 @@ import type {
   HandoffReference,
   InputBatch,
   InputId,
+  LoopExtensionDeclaration,
   ModelReplyAdmission,
   ModelRetryState,
+  Passage,
   PassageId,
   PendingCall,
   StepId,
@@ -89,6 +91,12 @@ export type ProducerCall = Readonly<{
   source: DurableEvidence
 }>
 
+/** One extension call, saved as a block of its own; it refers to its declaration and does not embed it. */
+export type PassageBlock = Omit<Passage, 'declaration'> &
+  Readonly<{ declaration: Ref<LoopExtensionDeclaration> }>
+/** The extension calls a checkpoint holds, in order. A fact has a byte limit, so the cursor names this block and not the calls. */
+export type PassageIndex = readonly Ref<PassageBlock>[]
+
 export type CursorMembers = Readonly<{
   position: string
   step: StepId
@@ -100,7 +108,7 @@ export type CursorMembers = Readonly<{
   compaction: Ref | null
   requestPreparation: Ref | null
   adoptedContext: DurableEvidence | null
-  passages: Ref
+  passages: Ref<PassageIndex>
   completedPassages: readonly PassageId[]
   batch: Ref | null
   calls: Ref
