@@ -53,6 +53,8 @@ export const SESSION_HISTORY_ROOT_HANDLER = 'session.history-root'
 export const SESSION_WORK_HANDLER = 'session.work'
 export const SESSION_INPUT_HANDLER = 'session.input'
 export const SESSION_EXECUTION_HANDLER = 'session.execution'
+export const SESSION_ENTRY_MESSAGE_HANDLER = 'session.entry-message'
+export const SESSION_COMPACTION_INPUT_CHECK_HANDLER = 'session.compaction-input-check'
 export const EXECUTION_RECORD_HANDLERS = {
   facts: 'execution-record.facts',
   openExecutions: 'execution-record.open-executions',

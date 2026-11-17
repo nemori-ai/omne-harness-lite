@@ -22,6 +22,7 @@ import {
   decodeAgentExecutionId,
   decodeAgentOperationId,
   decodeConsumptionId,
+  decodeCompactionOutcome,
 } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -103,6 +104,38 @@ const textOf = <P>(input: Input<P>) =>
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
+function deliveryRef(delivery: ReceivedEntry['delivery'], tenant: TenantId) {
+  return delivery.producer === 'compaction'
+    ? succeed(undefined)
+    : delivery.producer === 'model'
+      ? resolveModelInvocationRef(delivery.key.reference, tenant)
+      : resolveToolInvocationRef(delivery.key.reference, tenant)
+}
+
+function boundCompaction<P>(execution: MemoryExecution, input: Input<P>): Failure | undefined {
+  const task = execution.checkpoint.compaction
+  const delivery = input.entry.delivery
+  return task !== null &&
+    delivery.producer === 'compaction' &&
+    canonical(task.task) === canonical(delivery.key.task) &&
+    task.consumption === input.entry.consumption &&
+    canonical(task.consumer) === canonical(input.entry.consumer)
+    ? undefined
+    : denied()
+}
+
+function boundTarget<P>(
+  target: ModelReceptionTarget | ToolReceptionTarget | undefined,
+  input: Input<P>,
+): Failure | undefined {
+  if (!target) return denied()
+  return target.execution === input.execution &&
+    target.pending.consumption === input.entry.consumption &&
+    canonical(target.pending.position) === canonical(input.entry.consumer)
+    ? undefined
+    : conflict(input)
+}
+
 function shape<P>(input: Input<P>): Failure | undefined {
   if (!tenantCodec.encode(input.tenant).ok) return invalid('tenant')
   if ('failure' in decodeAgentExecutionId(input.execution)) return invalid('execution')
@@ -116,11 +149,8 @@ function shape<P>(input: Input<P>): Failure | undefined {
   if (!object(input.entry.delivery) || !object(input.entry.delivery.key))
     return invalid('entry.delivery')
   const { delivery } = input.entry
-  const resolved =
-    delivery.producer === 'model'
-      ? resolveModelInvocationRef(delivery.key.reference, input.tenant)
-      : resolveToolInvocationRef(delivery.key.reference, input.tenant)
-  if ('failure' in resolved) return invalid('entry.delivery.key.reference')
+  if ('failure' in deliveryRef(delivery, input.tenant))
+    return invalid('entry.delivery.key.reference')
   if (!object(input.material)) return invalid('material')
   if (input.material.kind === 'facts') {
     if (!object(input.material.schema)) return invalid('material.schema')
@@ -128,6 +158,16 @@ function shape<P>(input: Input<P>): Failure | undefined {
       if (typeof input.material.schema[field] !== 'string' || !input.material.schema[field])
         return invalid(`material.schema.${field}`)
     if (!jsonTree(input.material.value)) return invalid('material.value')
+  } else if (input.material.kind === 'compaction') {
+    if (
+      delivery.producer !== 'compaction' ||
+      input.material.result.producer.kind !== 'compaction' ||
+      canonical(input.material.result.producer.task) !== canonical(delivery.key.task) ||
+      input.material.result.version !== delivery.key.result.version ||
+      canonical(input.material.result.source) !== canonical(delivery.key.result.evidence) ||
+      'failure' in decodeCompactionOutcome(JSON.stringify(input.material.outcome))
+    )
+      return invalid('material.compaction')
   } else if (input.material.kind !== 'model' && input.material.kind !== 'tool')
     return invalid('material.kind')
   return undefined
@@ -196,13 +236,11 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       return binding.execution === input.execution && binding.text === textOf(input)
         ? undefined
         : conflict(input)
-    const target = targets.get(targetKey(input, input.entry.delivery.key.reference))
-    if (!target) return denied()
-    return target.execution === input.execution &&
-      target.pending.consumption === input.entry.consumption &&
-      canonical(target.pending.position) === canonical(input.entry.consumer)
-      ? undefined
-      : conflict(input)
+    if (input.entry.delivery.producer === 'compaction') {
+      const execution = qualified(input)
+      return 'failure' in execution ? execution.failure : boundCompaction(execution.ok, input)
+    }
+    return boundTarget(targets.get(targetKey(input, input.entry.delivery.key.reference)), input)
   }
   const alias = (input: ExecutionMutation<P>, key: string, kept: Kept) => {
     aliases.set(operationKey(input), kept)
@@ -368,11 +406,8 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           if (!input.authority || !hooks.holds(execution, input.authority))
             return { kind: 'answer', value: fail({ kind: 'stale-advance' }) }
         } else {
-          const ref =
-            input.entry.delivery.producer === 'model'
-              ? resolveModelInvocationRef(input.entry.delivery.key.reference, input.tenant)
-              : resolveToolInvocationRef(input.entry.delivery.key.reference, input.tenant)
-          if ('failure' in ref) return { kind: 'answer', value: fail(denied()) }
+          if ('failure' in deliveryRef(input.entry.delivery, input.tenant))
+            return { kind: 'answer', value: fail(denied()) }
         }
         const previous = hooks.operations.get(operationKey(input))
         if (previous) {

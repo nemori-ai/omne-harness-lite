@@ -3,7 +3,6 @@ import {
   createAssemblyOperations,
   type AdoptedRequestSource,
   type AssemblyResult,
-  type CompactionContextResult,
   type SourceRead,
 } from '@omne-harness/request-context-contract'
 import {
@@ -36,7 +35,7 @@ function carry(f: AssemblyFixture, first: ReturnType<typeof candidate>) {
   const control = f.sources.values().control
   f.sources.update('control', {
     ...control,
-    previous: { candidate: f.call.candidate, enteredCompaction: null, carried: first },
+    previous: { candidate: f.call.candidate, enteredCompaction: false, carried: first },
   })
 }
 
@@ -194,14 +193,6 @@ describe('carried rows are reused only under the same key', () => {
     await f.operations().assemble(f.call)
     expect(f.history.readCount()).toBeGreaterThan(reads)
   })
-  it('planCompaction always reads the window, never carried rows', async () => {
-    const f = createAssemblyFixture({ rows: [row(0), row(1)] })
-    const first = candidate(await f.operations().assemble(f.call))
-    carry(f, first)
-    const reads = f.history.readCount()
-    await f.operations().planCompaction(f.call)
-    expect(f.history.readCount()).toBeGreaterThan(reads)
-  })
 })
 
 describe('lent reuse never changes the original reads', () => {
@@ -236,84 +227,5 @@ describe('lent reuse never changes the original reads', () => {
       diagnostic: 'unstable-input:history',
     })
     expect(f.sources.sourceReads('history')).toBe(2)
-  })
-})
-
-describe('the judgment window of planCompaction', () => {
-  it('an empty history has no window: invalid, missing input', async () => {
-    const f = createAssemblyFixture({ rows: [] })
-    expect(await f.operations().planCompaction(f.call)).toEqual({
-      kind: 'invalid',
-      field: 'history.evidence.upper',
-      reason: 'missing-input',
-    })
-  })
-  function windowAnswer(f: AssemblyFixture, answer: (real: CompactionContextResult) => unknown) {
-    const real = f.history.compactionContext.bind(f.history)
-    ;(f.sources as unknown as { history: unknown }).history = {
-      ...f.history,
-      read: f.history.read.bind(f.history),
-      async compactionContext(input: Parameters<typeof real>[0]) {
-        return answer(await real(input)) as CompactionContextResult
-      },
-    }
-  }
-  it.each([
-    [{ kind: 'denied' }, { kind: 'denied', action: 'read-history' }],
-    [
-      { kind: 'invalid', field: 'coverTo', reason: 'missing-input' },
-      { kind: 'invalid', field: 'history.compactionContext.coverTo' },
-    ],
-    [{ kind: 'unknown' }, { kind: 'unknown' }],
-    [
-      { kind: 'unavailable', diagnostic: 'holder offline' },
-      { kind: 'unavailable', owner: 'history-source' },
-    ],
-  ])('a window answer %j keeps its class', async (answer, expected) => {
-    const f = createAssemblyFixture({ rows: [row(0), row(1)] })
-    windowAnswer(f, () => answer)
-    expect(await f.operations().planCompaction(f.call)).toMatchObject(expected)
-  })
-  it('a window under another evidence is a source evidence conflict', async () => {
-    const f = createAssemblyFixture({ rows: [row(0), row(1)] })
-    windowAnswer(f, real =>
-      real.kind === 'context'
-        ? { ...real, evidence: { ...real.evidence, upper: { kind: 'empty' } } }
-        : real,
-    )
-    expect(await f.operations().planCompaction(f.call)).toEqual({
-      kind: 'invalid',
-      field: 'history.compactionContext.evidence',
-      reason: 'source-evidence-conflict',
-    })
-  })
-  it('an epoch change while the window is read retries the history group', async () => {
-    const f = createAssemblyFixture({ rows: [row(0), row(1)] })
-    let first = true
-    windowAnswer(f, real => {
-      if (!first) return real
-      first = false
-      return { kind: 'epoch-changed' }
-    })
-    expect((await f.operations().planCompaction(f.call)).kind).toBe('planned')
-    expect(f.sources.sourceReads('history')).toBe(2)
-  })
-})
-
-describe('deriveStep reads the model group stably', () => {
-  it('a model group that keeps moving is unavailable for deriveStep', async () => {
-    const f = createAssemblyFixture({ rows: [row(0), row(1)] })
-    const planned = await f.operations().planCompaction(f.call)
-    if (planned.kind !== 'planned') throw new Error(planned.kind)
-    f.sources.churn('model', true)
-    expect(
-      await f.operations().deriveStep({
-        call: f.call,
-        plan: planned.plan,
-        progress: planned.progress,
-        material: planned.first.material,
-        step: { kind: 'summary', index: '0', produced: [text('summary')], consumed: evidence },
-      }),
-    ).toMatchObject({ kind: 'unavailable', diagnostic: 'unstable-input:model' })
   })
 })

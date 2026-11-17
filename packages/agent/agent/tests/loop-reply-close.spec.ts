@@ -37,6 +37,7 @@ function coordinator(assembly: LoopAssembly) {
   return createExecutionCoordinator({
     ports: assembly.dependencies,
     binding: options().binding,
+    compactionProvider: options().configuration.compactionProvider,
     evaluator: agentEvaluator,
     access: alice,
     execution: execution(),
@@ -439,7 +440,11 @@ describe('#515 reply admission and iteration close', () => {
       ok(await c.runExecution())
       expect(commits.filter(item => item.replyAdmission !== null)).toEqual([])
       expect(commits.some(item => item.operation.startsWith('I4/'))).toBe(false)
-      expect(commits.some(item => item.operation.startsWith('I3/'))).toBe(false)
+      const processed = commits.filter(item => item.operation.startsWith('I3/'))
+      expect(processed).toHaveLength(1)
+      expect(processed[0]?.caller).toEqual({ kind: 'none' })
+      expect(processed[0]?.checkpoint.calls).toMatchObject([{ kind: 'model', purpose: 'main' }])
+      expect(processed[0]?.checkpoint.batch).toBeNull()
       expect(commits.some(item => item.operation.startsWith('I8/'))).toBe(false)
       expect(commits.find(item => item.finish !== null)?.finish).toMatchObject({
         conclusion: { kind: 'fail', cause: { record: `${execution()}/step-1/${reason}` } },

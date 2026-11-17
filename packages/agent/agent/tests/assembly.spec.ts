@@ -4,7 +4,7 @@ import { createTestAgentDependencies } from '@omne-harness/agent/testing'
 import { options, take, watched } from './factory-support.ts'
 import { execution, failure, instance, load, ok, open, tenantA } from './journal-support.ts'
 
-it('assembles all 19 dependencies with registration null', () => {
+it('assembles all 22 dependencies with registration null', () => {
   const { dependencies, durability } = createTestAgentDependencies<string>()
   expect(durability).toBe('none')
   expect(Object.keys(dependencies).sort()).toEqual([
@@ -13,6 +13,8 @@ it('assembles all 19 dependencies with registration null', () => {
     'adoptions',
     'cards',
     'clock',
+    'compaction',
+    'compactionInputs',
     'conditions',
     'entries',
     'extensions',
@@ -23,6 +25,7 @@ it('assembles all 19 dependencies with registration null', () => {
     'models',
     'random',
     'reads',
+    'received',
     'registration',
     'requests',
     'selection',
@@ -63,7 +66,7 @@ it('gives the Journal options to the memory Journal and shares no state between 
 
 it('C1: the factory given the test assembly returns an idle provider and calls no dependency', async () => {
   const { dependencies, calls } = watched(createTestAgentDependencies<string>().dependencies)
-  expect(Object.keys(dependencies)).toHaveLength(19)
+  expect(Object.keys(dependencies)).toHaveLength(22)
   const provider = ok(await createAgentRuntime(dependencies, options()))
   expect(calls).toEqual([])
   expect(provider.runtime.instance).toBe(instance())

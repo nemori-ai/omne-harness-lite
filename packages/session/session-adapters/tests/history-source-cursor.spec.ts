@@ -72,6 +72,7 @@ async function world() {
     get work(): SessionFaces<unknown>['work'] {
       return {
         readWork: (input: SessionAccess<unknown>) => work.readWork(input as never),
+        readCurrentScope: (input: SessionAccess<unknown>) => work.readCurrentScope(input as never),
       } as unknown as SessionFaces<unknown>['work']
     }
     readonly management = {} as SessionFaces<unknown>['management']

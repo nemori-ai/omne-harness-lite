@@ -63,7 +63,7 @@ export function sampleReceivedModelResult(
   tenant: TenantId,
   name: string,
   dispatchRevision = '0',
-): ReceivedEntry {
+): ReceivedEntry & { delivery: Extract<ReceivedEntry['delivery'], { producer: 'model' }> } {
   const call = identity(decodeModelCallId(`mcall_${name}`), name)
   const reference = identity(
     encodeModelInvocationRef({
@@ -119,7 +119,7 @@ export function sampleReceivedModelAccount(
   tenant: TenantId,
   name: string,
   revision = '0',
-): ReceivedEntry {
+): ReceivedEntry & { delivery: Extract<ReceivedEntry['delivery'], { producer: 'model' }> } {
   const { call, reference } = modelReference(tenant, name)
   return {
     kind: 'received',
@@ -141,7 +141,7 @@ export function sampleReceivedToolAccount(
   tenant: TenantId,
   name: string,
   lexeme = '12',
-): ReceivedEntry {
+): ReceivedEntry & { delivery: Extract<ReceivedEntry['delivery'], { producer: 'tool' }> } {
   const call = identity(decodeToolCallId(`tcall_${name}`), name)
   const reference = identity(
     encodeToolInvocationRef({

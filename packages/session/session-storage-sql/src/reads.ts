@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -7,6 +6,7 @@ import {
   type InputId,
   type ModelViewRead,
   type ModelViewBasis,
+  type CompactionContextRead,
   type PendingReason,
   type ReleasedScope,
   type ResidentKey,
@@ -19,6 +19,7 @@ import {
   type SessionId,
   type SessionModelSelection,
   type WorkSnapshot,
+  type ContextScopeBinding,
 } from '@omne-harness/session-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type { JsonValue } from '@omne-harness/sql-contract'
@@ -35,6 +36,7 @@ import {
   type HandlerOutput,
 } from './context.ts'
 import { readCachedWork } from './work-cache.ts'
+import { modelViewPrefix } from './model-view-identity.ts'
 
 type Reply<T> = Promise<Outcome<T, SessionFailure>>
 
@@ -88,6 +90,17 @@ export async function readWork<P>(
   }
 }
 
+export async function readCurrentScope<P>(
+  context: Context<P>,
+  access: SessionAccess<P>,
+): Reply<ContextScopeBinding | null> {
+  const read = await sessionRead(context, access, 'readCurrentScope', 'session.current-scope')
+  if ('failure' in read) return read
+  if (read.ok.out['kind'] !== 'scope' || read.ok.out['value'] === undefined)
+    return failure(unavailable('session.current-scope: invalid response'))
+  return succeed(decodeValue(read.ok.out['value']) as ContextScopeBinding | null)
+}
+
 export async function readInput<P>(
   context: Context<P>,
   access: SessionAccess<P> & Readonly<{ input: InputId }>,
@@ -121,8 +134,6 @@ export async function readModelSelection<P>(
     source: out['source'] as never,
   })
 }
-
-const view = (text: string): string => createHash('sha256').update(text).digest('hex').slice(0, 16)
 
 function page(out: HandlerOutput, next: string | null): Outcome<HistoryPage, SessionFailure> {
   try {
@@ -196,6 +207,42 @@ async function historyRead<P>(
 
 export function historyFace<P>(context: Context<P>): SessionHistory<P> {
   return {
+    readCompactionContext: async input => {
+      const domain = await domainOf(context, input.tenant)
+      if ('failure' in domain) return domain
+      const prefix = modelViewPrefix(domain.ok.text, input.session)
+      if (!input.basis.epoch.startsWith(prefix))
+        return failure({ kind: 'invalid', field: 'basis', reason: 'another session' })
+      const read = await sessionRead(
+        context,
+        input,
+        'history.readCompactionContext',
+        'session.compaction-context',
+        {
+          epoch: input.basis.epoch.slice(prefix.length),
+          upper: input.basis.upper,
+          coverTo: input.coverTo,
+        },
+      )
+      if ('failure' in read) return read
+      const out = read.ok.out
+      if (out['kind'] === 'invalid-bounds')
+        return failure({ kind: 'invalid', field: 'basis', reason: 'invalid compaction bounds' })
+      if (out['kind'] === 'epoch-changed') {
+        const current = out['current'] as { epoch: string; upper: string }
+        return succeed({
+          kind: 'epoch-changed',
+          current: { ...current, epoch: `${prefix}${current.epoch}` },
+        })
+      }
+      if (out['kind'] !== 'context')
+        return failure(unavailable('the compaction window is not readable'))
+      return succeed({
+        kind: 'context',
+        basis: input.basis,
+        value: out['value'] as Extract<CompactionContextRead, { kind: 'context' }>['value'],
+      })
+    },
     begin: input =>
       historyRead(
         context,
@@ -243,7 +290,7 @@ export function historyFace<P>(context: Context<P>): SessionHistory<P> {
       const domain = await domainOf(context, input.tenant)
       if ('failure' in domain) return domain
       const binding = { kind: 'model-view', tenant: domain.ok.text, session: input.session }
-      const prefix = `${view(domain.ok.text)}/${input.session}/`
+      const prefix = modelViewPrefix(domain.ok.text, input.session)
       if (input.basis !== null && !input.basis.epoch.startsWith(prefix))
         return failure({ kind: 'invalid', field: 'basis', reason: 'another session' })
       let after: string | null = null

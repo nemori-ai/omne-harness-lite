@@ -7,7 +7,7 @@ export type CoveredEntry = Readonly<{ ref: RecordEntryRef; message: Message | nu
 export type PairingWitness = Readonly<{ result: RecordEntryRef; call: RecordEntryRef | null }>
 
 export type CompactionBase =
-  | Readonly<{ kind: 'initial' }>
+  | Readonly<{ kind: 'initial'; pairings: readonly PairingWitness[] }>
   | Readonly<{ kind: 'previous'; record: RecordEntryRef; pairings: readonly PairingWitness[] }>
 
 export type CompactionContext = Readonly<{
@@ -78,9 +78,9 @@ function sourceEvidenceFailure(context: CompactionContext): Failure | undefined 
     if (later !== undefined) return fail('source-evidence', later.ref)
     const revived = revivedFailure(covered.slice(0, at), record)
     if (revived !== undefined) return revived
-    const witnessed = witnessFailure([...covered, ...after], base.pairings)
-    if (witnessed !== undefined) return witnessed
   }
+  const witnessed = witnessFailure([...covered, ...after], base.pairings)
+  if (witnessed !== undefined) return witnessed
   const known = new Set([...covered, ...after].map(entry => entry.ref))
   const unknown = open.find(ref => !known.has(ref))
   return unknown === undefined ? undefined : fail('source-evidence', unknown)
@@ -123,14 +123,10 @@ function witnessFailure(
     const callAt = position.get(witness.call)
     if (callAt === undefined) continue
     const call = window[callAt]?.message
+    if (callAt >= at) return fail('source-evidence', entry.ref)
+    if (call === null) continue
     const callId = answeredCallId(entry.message)
-    if (
-      callAt >= at ||
-      call === null ||
-      call === undefined ||
-      callId === undefined ||
-      !callIdsOf(call, ANSWERABLE).includes(callId)
-    )
+    if (call === undefined || callId === undefined || !callIdsOf(call, ANSWERABLE).includes(callId))
       return fail('source-evidence', entry.ref)
   }
   return undefined
@@ -190,20 +186,6 @@ function pairRef(call: ViewEntry | null, answer: ViewEntry): RecordEntryRef {
   return call.covered ? call.ref : answer.ref
 }
 
-function nearestPairingFailure(layout: readonly ViewEntry[]): Failure | undefined {
-  const nearest = new Map<string, ViewEntry>()
-  for (const entry of layout) {
-    for (const callId of callIdsOf(entry.message, ANSWERABLE)) nearest.set(callId, entry)
-    for (const callId of callIdsOf(entry.message, MARKER)) {
-      const call = nearest.get(callId)
-      if (call !== undefined && call.inView !== entry.inView) {
-        return fail('pairing', pairRef(call, entry))
-      }
-    }
-  }
-  return undefined
-}
-
 function witnessedPairingFailure(
   layout: readonly ViewEntry[],
   pairings: readonly PairingWitness[],
@@ -236,15 +218,11 @@ export function judgeCompaction(message: unknown, context: CompactionContext): C
   const admitted = judged.ok
   const retained = new Set<RecordEntryRef>(admitted.retained)
   const layout = layoutHistory(context, retained)
-  const pairing = () =>
-    context.base.kind === 'initial'
-      ? nearestPairingFailure(layout)
-      : witnessedPairingFailure(layout, context.base.pairings)
   return (
     rangeFailure(admitted, context) ??
     sourceEvidenceFailure(context) ??
     retainedFailure(admitted, context.covered) ??
-    pairing() ??
+    witnessedPairingFailure(layout, context.base.pairings) ??
     openWorkFailure(context.covered, context.open, retained) ?? { ok: admitted }
   )
 }

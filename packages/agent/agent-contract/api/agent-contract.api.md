@@ -102,12 +102,32 @@
 - `CardRoundId` · `identity.d.ts`
 - `CardRoundProgress` · `passages.d.ts`
 - `CommandReceipt` · `execution.d.ts`
-- `CompactionAdvance` · `request.d.ts`
-- `CompactionProgress` · `request.d.ts`
+- `CompactionAssessment` · `request.d.ts`
+- `CompactionFailure` · `compaction.d.ts`
+- `CompactionFrame` · `compaction.d.ts`
+- `CompactionHandoff` · `compaction.d.ts`
+- `CompactionHistory` · `compaction.d.ts`
+- `CompactionInput` · `compaction.d.ts`
+- `CompactionInputReader` · `compaction.d.ts`
+- `CompactionInputRef` · `compaction.d.ts`
+- `CompactionInputStore` · `compaction.d.ts`
+- `CompactionOperationId` · `identity.d.ts`
+- `CompactionOutcome` · `compaction.d.ts`
+- `CompactionPhysicalSettlement` · `compaction.d.ts`
+- `CompactionProviderBinding` · `compaction.d.ts`
+- `CompactionReply` · `compaction.d.ts`
+- `CompactionRequest` · `compaction.d.ts`
+- `CompactionResultIdentity` · `compaction.d.ts`
 - `CompactionState` · `request.d.ts`
+- `CompactionTarget` · `compaction.d.ts`
+- `CompactionTaskId` · `identity.d.ts`
+- `CompactionTaskIdentity` · `compaction.d.ts`
+- `CompactionTaskRef` · `compaction.d.ts`
+- `CompactionTaskState` · `compaction.d.ts`
 - `Conclusion` · `extensions.d.ts`
 - `ConsumerRef` · 包 `@omne-harness/exchange-refs`
 - `ConsumptionId` · `identity.d.ts`
+- `ContextCompaction` · `compaction.d.ts`
 - `ContextContent` · `request.d.ts`
 - `Continuation` · `identity.d.ts`
 - `ContinuationRequest` · `finishing.d.ts`
@@ -232,7 +252,7 @@
 - `PositionOutputs` · `judge-output.d.ts`
 - `Power` · `extensions.d.ts`
 - `Preparation` · `request.d.ts`
-- `PreparedContextTransition` · `evaluation.d.ts`
+- `PreparedCompactionCommit` · `compaction.d.ts`
 - `ProducedResult` · `evaluation.d.ts`
 - `ProducerDecisionView` · `evaluation.d.ts`
 - `ProgressionDirective` · `evaluation.d.ts`
@@ -284,6 +304,7 @@
 - `ToolReceptionTargets` · `receiving.d.ts`
 - `UnavailabilityPolicy` · `extensions.d.ts`
 - `UtcInstantText` · `identity.d.ts`
+- `VisibleHistoryEntry` · `compaction.d.ts`
 - `VoidedIntent` · `evaluation.d.ts`
 - `Waiting` · `evaluation.d.ts`
 - `admissionActionOf` · `identity.d.ts`
@@ -291,6 +312,9 @@
 - `agentBodyContract` · `body-contract.d.ts`
 - `cardDraftOf` · `judge-output.d.ts`
 - `cardRequestOf` · `judge-output.d.ts`
+- `compactionGeneration` · `compaction.d.ts`
+- `compactionInputText` · `compaction.d.ts`
+- `compactionRequestText` · `compaction.d.ts`
 - `decodeActionBatchId` · `identity.d.ts`
 - `decodeActionId` · `identity.d.ts`
 - `decodeAgentExecutionId` · `identity.d.ts`
@@ -298,6 +322,14 @@
 - `decodeAgentOperationId` · `identity.d.ts`
 - `decodeAgentRegistrationId` · `identity.d.ts`
 - `decodeCardRoundId` · `identity.d.ts`
+- `decodeCompactionHandoff` · `compaction-codec.d.ts`
+- `decodeCompactionInput` · `compaction-codec.d.ts`
+- `decodeCompactionOperationId` · `identity.d.ts`
+- `decodeCompactionOutcome` · `compaction-codec.d.ts`
+- `decodeCompactionRequest` · `compaction-codec.d.ts`
+- `decodeCompactionTaskId` · `identity.d.ts`
+- `decodeCompactionTaskRef` · `compaction-codec.d.ts`
+- `decodeCompactionTaskState` · `compaction-codec.d.ts`
 - `decodeConsumptionId` · `identity.d.ts`
 - `decodeExecutionAttachmentId` · `identity.d.ts`
 - `decodeExecutionRevision` · `identity.d.ts`
@@ -307,6 +339,10 @@
 - `decodeReplyAdmissionPageCursor` · `identity.d.ts`
 - `decodeReplyAdmissionSequence` · `identity.d.ts`
 - `decodeStepId` · `identity.d.ts`
+- `encodeCompactionInput` · `compaction-codec.d.ts`
+- `encodeCompactionRequest` · `compaction-codec.d.ts`
+- `encodeCompactionTaskRef` · `compaction-codec.d.ts`
+- `encodeCompactionTaskState` · `compaction-codec.d.ts`
 - `judgeAccess` · `identity.d.ts`
 - `judgeAdoption` · `identity.d.ts`
 - `judgeAgentDefinition` · `judge-definition.d.ts`
@@ -360,6 +396,8 @@
 - `receivedEntriesOf` · `testing-journal-reads.d.ts`
 - `replayJournalTrace` · `testing-journal-replay.d.ts`
 - `sampleAccountHandoff` · `testing-account-outlet.d.ts`
+- `sampleCompactionAdoption` · `testing-compaction.d.ts`
+- `sampleCompactionInput` · `testing-compaction.d.ts`
 - `sampleReceivedModelAccount` · `testing-journal-samples.d.ts`
 - `sampleReceivedModelResult` · `testing-journal-samples.d.ts`
 - `sampleReceivedToolAccount` · `testing-journal-samples.d.ts`
@@ -434,6 +472,243 @@ export declare function checkJson<T>(id: string, schema: z.ZodType<T>, value: un
 export {};
 ```
 
+## 声明文件 `compaction-codec.d.ts`
+
+```ts
+import { type Outcome } from '@omne-harness/operation-result';
+import type { CompactionHandoff, CompactionInput, CompactionOutcome, CompactionRequest, CompactionTaskRef, CompactionTaskState } from './compaction.ts';
+import { type StructureFailure } from './identity.ts';
+export declare function encodeCompactionRequest(request: CompactionRequest): Outcome<string, StructureFailure>;
+export declare function decodeCompactionRequest(text: string): Outcome<CompactionRequest, StructureFailure>;
+export declare function encodeCompactionInput(input: CompactionInput): Outcome<string, StructureFailure>;
+export declare function decodeCompactionInput(text: string): Outcome<CompactionInput, StructureFailure>;
+export declare function encodeCompactionTaskState(state: CompactionTaskState): Outcome<string, StructureFailure>;
+export declare function decodeCompactionTaskState(text: string): Outcome<CompactionTaskState, StructureFailure>;
+export declare function encodeCompactionTaskRef(ref: CompactionTaskRef): Outcome<string, StructureFailure>;
+export declare function decodeCompactionTaskRef(text: string): Outcome<CompactionTaskRef, StructureFailure>;
+export declare function decodeCompactionHandoff(text: string): Outcome<CompactionHandoff, StructureFailure>;
+export declare function decodeCompactionOutcome(text: string): Outcome<CompactionOutcome, StructureFailure>;
+```
+
+## 声明文件 `compaction.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { CompactionBase, CompactionMessage, Message, MessageId, RecordEntryRef } from '@omne-harness/message';
+import type * as M from '@omne-harness/model-contract';
+import type { Outcome } from '@omne-harness/operation-result';
+import type { Reply } from './evaluation.ts';
+import type { Access, ActionId, AgentExecutionId, Adoption, CompactionOperationId, CompactionTaskId, ConsumerRef, ConsumptionId, DurableEvidence } from './identity.ts';
+export type CompactionTaskRef = Readonly<{
+    authority: string;
+    tenant: TenantId;
+    task: CompactionTaskId;
+    requestDigest: string;
+}>;
+export declare function compactionGeneration(ref: CompactionTaskIdentity): DurableEvidence;
+export type CompactionTaskIdentity = Omit<CompactionTaskRef, 'tenant'>;
+export type CompactionProviderBinding = Readonly<{
+    authority: string;
+    adoption: Adoption;
+}>;
+export type VisibleHistoryEntry = Readonly<{
+    ref: RecordEntryRef;
+    sequence: string;
+    message: Message;
+    sourceCall?: M.ModelCallId;
+    represented: readonly M.AssembledModelInput['messages'][number][];
+}>;
+export type CompactionHistory = Readonly<{
+    source: DurableEvidence;
+    origin: RecordEntryRef;
+    upper: RecordEntryRef;
+    epoch: string;
+    base: CompactionBase;
+    entries: readonly VisibleHistoryEntry[];
+    logOrder: readonly RecordEntryRef[];
+    barriers: readonly RecordEntryRef[];
+    protected: readonly RecordEntryRef[];
+}>;
+export type CompactionTarget = Readonly<{
+    profile: Extract<M.ProfileResolution, {
+        kind: 'resolved';
+    }> & Readonly<{
+        selectable: true;
+    }>;
+    parameters: readonly M.Parameter[];
+    representation: Adoption;
+    measurement: Adoption;
+    goals: readonly Readonly<{
+        metric: M.LimitMetric | 'context-tokens' | 'input-tokens';
+        relation: 'less-than' | 'at-most';
+        limit: string;
+    }>[];
+}>;
+export type CompactionFrame = Readonly<{
+    system: M.AssembledModelInput['system'];
+    tools: M.AssembledModelInput['tools'];
+    snapshotReminder: Message | null;
+    tailFacts: Message | null;
+}>;
+export type CompactionInput = Readonly<{
+    outputMessageId: MessageId;
+    history: CompactionHistory;
+    frame: CompactionFrame;
+    target: CompactionTarget;
+}>;
+export type CompactionInputRef = Readonly<{
+    source: DurableEvidence;
+    schema: Adoption;
+    digest: string;
+}>;
+export interface CompactionInputReader<P> {
+    read(input: Access<P> & Readonly<{
+        reference: CompactionInputRef;
+    }>): Reply<CompactionInput>;
+}
+export interface CompactionInputStore<P> extends CompactionInputReader<P> {
+    freeze(input: Access<P> & Readonly<{
+        execution: AgentExecutionId;
+        preparation: ActionId;
+        value: Omit<CompactionInput, 'outputMessageId'>;
+    }>): Reply<CompactionInputRef>;
+}
+export type CompactionRequest = Readonly<{
+    ref: CompactionTaskRef;
+    provider: Adoption;
+    consumer: ConsumerRef;
+    preparation: ActionId;
+    input: CompactionInput;
+}>;
+export declare function compactionRequestText(request: Omit<CompactionRequest, 'ref'> & Readonly<{
+    ref: Omit<CompactionTaskRef, 'requestDigest'>;
+}>): string;
+export declare function compactionInputText(input: CompactionInput): string;
+export type CompactionOutcome = Readonly<{
+    kind: 'completed';
+    message: CompactionMessage;
+}> | Readonly<{
+    kind: 'cannot-fit';
+    reason: 'protected-floor' | 'after-compaction';
+    diagnostic: string;
+}> | Readonly<{
+    kind: 'failed';
+    reason: 'execution-failed' | 'execution-limit' | 'invalid-output' | 'source-lost';
+    diagnostic: string;
+}> | Readonly<{
+    kind: 'cancelled';
+    operation: CompactionOperationId;
+}>;
+export type CompactionResultIdentity = Readonly<{
+    version: string;
+    evidence: DurableEvidence;
+    digest: string;
+}>;
+export type CompactionPhysicalSettlement = 'pending' | 'settled' | 'unknown';
+export type CompactionTaskState = Readonly<{
+    ref: CompactionTaskRef;
+    revision: string;
+    physical: CompactionPhysicalSettlement;
+}> & (Readonly<{
+    phase: 'pending';
+    knowledge: 'accepted' | 'uncertain';
+}> | Readonly<{
+    phase: 'terminal';
+    result: CompactionResultIdentity;
+    outcome: CompactionOutcome;
+    custody: 'provider';
+}> | Readonly<{
+    phase: 'handed-off';
+    result: CompactionResultIdentity;
+    receipt: DurableEvidence;
+}>);
+export type CompactionFailure = Readonly<{
+    kind: 'denied';
+    action: string;
+}> | Readonly<{
+    kind: 'invalid';
+    field: string;
+    reason: string;
+}> | Readonly<{
+    kind: 'unsupported';
+    field: string;
+    provider: Adoption;
+}> | Readonly<{
+    kind: 'capacity';
+    diagnostic: string;
+}> | Readonly<{
+    kind: 'unavailable';
+    dependency: string;
+    diagnostic: string;
+}> | Readonly<{
+    kind: 'unknown';
+    ref: CompactionTaskRef;
+}> | Readonly<{
+    kind: 'commit-unknown';
+    ref: CompactionTaskRef;
+    operation: string;
+}> | Readonly<{
+    kind: 'conflict';
+    ref: CompactionTaskRef;
+}> | Readonly<{
+    kind: 'not-terminal';
+}> | Readonly<{
+    kind: 'not-found';
+}> | Readonly<{
+    kind: 'handoff-invalid';
+    reason: string;
+}>;
+export type CompactionReply<T> = Promise<Outcome<T, CompactionFailure>>;
+export type CompactionHandoff = Readonly<{
+    consumer: ConsumerRef;
+}> & (Readonly<{
+    kind: 'retained';
+    custody: DurableEvidence;
+}> | Readonly<{
+    kind: 'processed';
+    disposition: 'adopted' | 'excluded' | 'failed';
+    completion: DurableEvidence;
+}>);
+export interface ContextCompaction<P> {
+    admit(input: Access<P> & Readonly<{
+        request: CompactionRequest;
+    }>): CompactionReply<CompactionTaskState>;
+    inspect(input: Access<P> & Readonly<{
+        ref: CompactionTaskRef;
+    }>): CompactionReply<Readonly<{
+        kind: 'found';
+        state: CompactionTaskState;
+    }> | Readonly<{
+        kind: 'missing';
+    }>>;
+    cancel(input: Access<P> & Readonly<{
+        ref: CompactionTaskRef;
+        operation: CompactionOperationId;
+    }>): CompactionReply<CompactionTaskState>;
+    acknowledge(input: Access<P> & Readonly<{
+        ref: CompactionTaskRef;
+        operation: CompactionOperationId;
+        result: CompactionResultIdentity;
+        handoff: CompactionHandoff;
+    }>): CompactionReply<Readonly<{
+        ref: CompactionTaskRef;
+        result: CompactionResultIdentity;
+        receipt: DurableEvidence;
+    }>>;
+}
+export type PreparedCompactionCommit = Readonly<{
+    preparation: ActionId;
+    task: CompactionTaskIdentity;
+    consumption: ConsumptionId;
+    result: CompactionResultIdentity;
+    received: DurableEvidence;
+    message: CompactionMessage;
+    history: DurableEvidence;
+    epoch: string;
+    admission: DurableEvidence;
+}>;
+```
+
 ## 声明文件 `definition.d.ts`
 
 ```ts
@@ -478,6 +753,7 @@ export declare function attributeItem(text: string | undefined): AttributeItem |
 ## 声明文件 `evaluation.d.ts`
 
 ```ts
+import type { CompactionTaskIdentity, PreparedCompactionCommit } from './compaction.ts';
 import type { Outcome } from '@omne-harness/operation-result';
 import type { Message, ToolCallPart } from '@omne-harness/message';
 import type * as M from '@omne-harness/model-contract';
@@ -486,7 +762,7 @@ import type { ControlRecord, ResultResponsibility } from './execution.ts';
 import type { Adoption, ActionBatchId, ActionId, AgentInstant, AgentOperationId, CardRoundId, ConsumerRef, ConsumptionId, Continuation, DurableEvidence, InputBatchId, InputId, PassageId, ReplyAdmissionPageCursor, ReplyAdmissionSequence, StepId } from './identity.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { HandoffReference, MessageSource, Passage } from './passages.ts';
-import type { CompactionProgress, CompactionState, Preparation, SavedPreparation } from './request.ts';
+import type { CompactionState, Preparation, SavedPreparation } from './request.ts';
 export type ProducedResult = Readonly<{
     producer: Readonly<{
         kind: 'model';
@@ -494,6 +770,9 @@ export type ProducedResult = Readonly<{
     }> | Readonly<{
         kind: 'tool';
         call: T.ToolCallId;
+    }> | Readonly<{
+        kind: 'compaction';
+        task: CompactionTaskIdentity;
     }>;
     version: string;
     delivery: string | null;
@@ -540,19 +819,20 @@ export type FailureCandidate = Readonly<{
     failureKind: Failure['kind'];
 }> | Readonly<{
     kind: 'cannot-fit';
-    reason: 'fixed' | 'after-compaction';
+    reason: 'fixed' | 'protected-floor' | 'after-compaction';
     context: DurableEvidence;
     veto?: DurableEvidence;
     rejection?: DurableEvidence;
-    plan?: CompactionProgress;
+    task?: CompactionTaskIdentity;
 }> | Readonly<{
     kind: 'compaction-invalid';
-    plan: DurableEvidence;
-    progress?: Readonly<{
-        expected: CompactionProgress;
-        returned: CompactionProgress;
-    }>;
+    task: CompactionTaskIdentity;
     transition?: DurableEvidence;
+}> | Readonly<{
+    kind: 'compaction-failed';
+    task: CompactionTaskIdentity;
+    reason: string;
+    diagnostic: string;
 }> | Readonly<{
     kind: 'request-rejected';
     failure: Extract<Failure, {
@@ -584,20 +864,6 @@ export type FailureCandidate = Readonly<{
     level: 3;
     basis: DurableEvidence;
 }>);
-export type PreparedContextTransition = Readonly<{
-    preparation: ActionId;
-    message: Message;
-    source: DurableEvidence;
-    derivation: DurableEvidence;
-    commitment: DurableEvidence;
-    candidate: DurableEvidence;
-    plan: DurableEvidence;
-    basis: Readonly<{
-        schema: Adoption;
-        value: JsonValue;
-    }>;
-    epoch: string;
-}>;
 export type Failure = Readonly<{
     kind: 'denied';
     action: string;
@@ -619,7 +885,7 @@ export type Failure = Readonly<{
     operation: AgentOperationId;
 }>;
 export type Reply<A> = Promise<Outcome<A, Failure>>;
-export type ModelPurpose = 'main' | 'compaction' | 'extension';
+export type ModelPurpose = 'main' | 'extension';
 type PendingCommon = Readonly<{
     action: ActionId;
     consumption: ConsumptionId;
@@ -702,6 +968,7 @@ export type ActionSlot = Readonly<{
     result: ProducedResult;
     terminal: T.ToolTerminal;
     custody: DurableEvidence;
+    completion: DurableEvidence | null;
 }> | Readonly<{
     kind: 'background';
     placeholder: ProducedResult;
@@ -905,18 +1172,13 @@ export type Next = Readonly<{
     step: StepId;
     previous: Preparation | null;
 }> | Readonly<{
-    kind: 'compact-derive';
+    kind: 'compact';
     original: Extract<Preparation, {
         kind: 'needs-compaction';
     }>;
-    progress: CompactionProgress;
-    result: Readonly<{
-        produced: ProducedResult;
-        consumed: DurableEvidence;
-    }> | null;
 }> | Readonly<{
     kind: 'commit-transition';
-    value: PreparedContextTransition;
+    value: PreparedCompactionCommit;
 }> | Readonly<{
     kind: 'resume-request';
     original: Extract<Preparation, {
@@ -969,6 +1231,7 @@ export {};
 
 ```ts
 import type { Message } from '@omne-harness/message';
+import type { CompactionTaskIdentity } from './compaction.ts';
 import type * as M from '@omne-harness/model-contract';
 import type { Outcome } from '@omne-harness/operation-result';
 import type * as T from '@omne-harness/tool-contract';
@@ -1356,7 +1619,7 @@ export interface AgentRuntimeControl<P> {
         reason: DurableEvidence;
     }>): Reply<QuiesceResult>;
 }
-export type AgentAccessOperation = 'invoke' | 'resume' | 'submit' | 'control' | 'read' | 'events' | 'acknowledge' | 'takeover' | 'observe' | 'resolve' | 'connect' | 'reserve' | 'publish' | 'withdraw' | 'quiesce' | 'query' | 'load' | 'reconcile' | 'detach' | 'record-terminal-observation' | 'receive-result' | 'read-message-handoff' | 'record-message-handoff' | 'exclude-message-handoff' | 'settle' | 'migrate-cancellation';
+export type AgentAccessOperation = 'invoke' | 'resume' | 'submit' | 'control' | 'read' | 'events' | 'acknowledge' | 'takeover' | 'observe' | 'resolve' | 'connect' | 'reserve' | 'publish' | 'withdraw' | 'quiesce' | 'query' | 'load' | 'reconcile' | 'detach' | 'record-terminal-observation' | 'receive-result' | 'read-message-handoff' | 'record-message-handoff' | 'exclude-message-handoff' | 'settle' | 'migrate-cancellation' | 'compaction.admit' | 'compaction.inspect' | 'compaction.cancel' | 'compaction.acknowledge';
 export type AgentAccessTarget = Readonly<{
     kind: 'scope';
     scope: DurableEvidence;
@@ -1371,6 +1634,9 @@ export type AgentAccessTarget = Readonly<{
     kind: 'input-entry';
     execution: AgentExecutionId;
     operation: AgentOperationId;
+}> | Readonly<{
+    kind: 'compaction';
+    task: CompactionTaskIdentity;
 }>;
 export type AgentAccessDecision = Readonly<{
     kind: 'allowed';
@@ -2230,6 +2496,8 @@ export type ExecutionRevision = AgentIdentity<'ExecutionRevision'>;
 export type InputId = AgentIdentity<'AgentInputId'>;
 export type InputBatchId = AgentIdentity<'AgentInputBatchId'>;
 export type ConsumptionId = AgentIdentity<'AgentConsumptionId'>;
+export type CompactionTaskId = AgentIdentity<'CompactionTaskId'>;
+export type CompactionOperationId = AgentIdentity<'CompactionOperationId'>;
 export type ReplyAdmissionSequence = AgentIdentity<'ReplyAdmissionSequence'>;
 export type ReplyAdmissionPageCursor = AgentIdentity<'ReplyAdmissionPageCursor'>;
 export type { Adoption, ConsumerRef, DurableEvidence } from '@omne-harness/exchange-refs';
@@ -2278,6 +2546,8 @@ export declare const decodeExecutionRevision: IdentityDecoder<ExecutionRevision,
 export declare const decodeInputId: IdentityDecoder<InputId, "InputId">;
 export declare const decodeInputBatchId: IdentityDecoder<InputBatchId, "InputBatchId">;
 export declare const decodeConsumptionId: IdentityDecoder<ConsumptionId, "ConsumptionId">;
+export declare const decodeCompactionTaskId: IdentityDecoder<CompactionTaskId, "CompactionTaskId">;
+export declare const decodeCompactionOperationId: IdentityDecoder<CompactionOperationId, "CompactionOperationId">;
 export declare const decodeReplyAdmissionPageCursor: IdentityDecoder<ReplyAdmissionPageCursor, "ReplyAdmissionPageCursor">;
 export declare function decodeReplyAdmissionSequence(value: unknown): Outcome<ReplyAdmissionSequence, IdentityFailure<'ReplyAdmissionSequence'>>;
 export declare function judgeAdoption(value: unknown): Outcome<Adoption, StructureFailure>;
@@ -2299,8 +2569,11 @@ export { judgeHandoffPrepare, judgeInputOrigin } from './judge-handoff.ts';
 export { DECISION_CARD_DRAFT_SCHEMA, POSITION_OUTPUTS, cardDraftOf, cardRequestOf, judgeExtensionOutput, } from './judge-output.ts';
 export type { ExtensionOutputJudgeInput, PositionOutputKey, PositionOutputs, } from './judge-output.ts';
 export type { AgentDefinition, AssetReference, AttributeDeclaration, AttributeItem, CapabilityRef, InstructionSection, } from './definition.ts';
-export { AGENT_IDENTITY_MAX_LENGTH, admissionActionOf, admissionPassageOf, decodeActionBatchId, decodeActionId, decodeAgentExecutionId, decodeAgentInstanceId, decodeAgentOperationId, decodeAgentRegistrationId, decodeCardRoundId, decodeConsumptionId, decodeExecutionAttachmentId, decodeExecutionRevision, decodeInputBatchId, decodeInputId, decodePassageId, decodeReplyAdmissionPageCursor, decodeReplyAdmissionSequence, decodeStepId, judgeAccess, judgeAdoption, judgeAuthority, judgeEvidence, } from './identity.ts';
+export { AGENT_IDENTITY_MAX_LENGTH, admissionActionOf, admissionPassageOf, decodeActionBatchId, decodeActionId, decodeAgentExecutionId, decodeAgentInstanceId, decodeAgentOperationId, decodeAgentRegistrationId, decodeCardRoundId, decodeCompactionOperationId, decodeCompactionTaskId, decodeConsumptionId, decodeExecutionAttachmentId, decodeExecutionRevision, decodeInputBatchId, decodeInputId, decodePassageId, decodeReplyAdmissionPageCursor, decodeReplyAdmissionSequence, decodeStepId, judgeAccess, judgeAdoption, judgeAuthority, judgeEvidence, } from './identity.ts';
 export type * from './evaluation.ts';
+export type * from './compaction.ts';
+export { compactionGeneration, compactionRequestText, compactionInputText } from './compaction.ts';
+export { encodeCompactionRequest, decodeCompactionRequest, encodeCompactionInput, decodeCompactionInput, encodeCompactionTaskState, decodeCompactionTaskState, encodeCompactionTaskRef, decodeCompactionTaskRef, decodeCompactionHandoff, decodeCompactionOutcome, } from './compaction-codec.ts';
 export type * from './execution.ts';
 export type * from './extensions.ts';
 export type * from './finishing.ts';
@@ -2317,9 +2590,10 @@ export type * from './tool-qualification.ts';
 ## 声明文件 `journal.d.ts`
 
 ```ts
+import type { PreparedCompactionCommit } from './compaction.ts';
 import type { ToolOperationRef } from '@omne-harness/tool-contract';
 import type { Message } from '@omne-harness/message';
-import type { AgentCheckpoint, InputBatch, ModelReplyAdmission, PendingCall, PreparedContextTransition, ProducedResult, Reply, ReplyAdmissionFrom, ReplyAdmissionPage } from './evaluation.ts';
+import type { AgentCheckpoint, InputBatch, ModelReplyAdmission, PendingCall, ProducedResult, Reply, ReplyAdmissionFrom, ReplyAdmissionPage } from './evaluation.ts';
 import type { HandoffOutcome, HandoffReference, HandoffRequest, HandoffResolution, InputEntry, InvokeRuntimeContext, PendingHandoff } from './passages.ts';
 import type { AgentEventBody, AgentExecutionControl, AgentExecutionEvents, AgentExecutionInput, AgentExecutionRecovery, CommandReceipt, ControlStage, ExecutionMutation, ExecutionSnapshot, ExecutionState, FinishAuthorization, FinishIntent, FinishResult } from './execution.ts';
 import type { Access, ActionId, Adoption, AgentExecutionId, AgentOperationId, Authority, ConsumptionId, DurableEvidence, ExecutionRevision, PassageId, ReplyAdmissionPageCursor } from './identity.ts';
@@ -2333,7 +2607,7 @@ export type CallerCommit = Readonly<{
     admission: DurableEvidence;
 }> | Readonly<{
     kind: 'context-transition';
-    value: PreparedContextTransition;
+    value: PreparedCompactionCommit;
     admission: DurableEvidence;
 }> | Readonly<{
     kind: 'custody';
@@ -2632,7 +2906,7 @@ export declare const POSITION_OUTPUTS: Readonly<Record<PositionOutputKey, Positi
 export type ExtensionOutputJudgeInput = Readonly<{
     position: Position;
     dimension: Dimension | null;
-    purpose: 'main' | 'compaction' | null;
+    purpose: 'main' | null;
     power: Power;
     trigger: 'first-content' | 'final' | null;
     subject: Subject;
@@ -2672,17 +2946,18 @@ export declare function refused<T>(reason: RefusalReason, detail?: string): Judg
 ## 声明文件 `passages.d.ts`
 
 ```ts
+import type { PreparedCompactionCommit, CompactionOutcome } from './compaction.ts';
 import type { Message } from '@omne-harness/message';
 import type { ContentBlock } from '@omne-harness/content-block';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { CallAccount } from '@omne-harness/call-account';
 import type * as M from '@omne-harness/model-contract';
 import type * as T from '@omne-harness/tool-contract';
-import type { ActionToolCall, AgentConclusion, GuardFact, PendingCall, ProducedResult, Reply, PreparedContextTransition } from './evaluation.ts';
+import type { ActionToolCall, AgentConclusion, GuardFact, PendingCall, ProducedResult, Reply } from './evaluation.ts';
 import type { AcceptedInput } from './execution.ts';
 import type { Conclusion, DecisionCardDraft, Dimension, ExtensionInvocationMode, ExtensionOutput, LoopExtensionDeclaration, LoopExtensionImplementation, Position } from './extensions.ts';
 import type { Access, Adoption, ActionBatchId, ActionId, AgentExecutionId, AgentInstanceId, AgentOperationId, Authority, CardRoundId, ConsumerRef, DurableEvidence, ExecutionRevision, InputId, PassageId, StepId } from './identity.ts';
-import type { CompactionProgress, Preparation } from './request.ts';
+import type { Preparation } from './request.ts';
 export type CapturedRead = Readonly<{
     schema: Adoption;
     value: JsonValue;
@@ -2806,7 +3081,7 @@ export type Passage = Readonly<{
     id: PassageId;
     position: Position;
     dimension: Dimension | null;
-    purpose: 'main' | 'compaction' | null;
+    purpose: 'main' | null;
     action: ActionId | null;
     ordinal: number;
     declaration: LoopExtensionDeclaration;
@@ -2824,27 +3099,21 @@ export type Subject = Readonly<{
         kind: 'needs-compaction';
     }>;
 }> | Readonly<{
-    transition: PreparedContextTransition;
+    transition: PreparedCompactionCommit;
 }> | Readonly<{
     purpose: 'main';
     preparation: Extract<Preparation, {
         kind: 'assembled';
     }>;
 }> | Readonly<{
-    purpose: 'compaction';
-    step: Extract<Preparation, {
-        kind: 'ready';
-    }>;
-    progress: CompactionProgress;
-}> | Readonly<{
-    purpose: 'main' | 'compaction';
+    purpose: 'main';
     call: M.ModelCallId;
     result: ProducedResult;
     reply: Message;
     termination: M.Termination;
     account: CallAccount | null;
 }> | Readonly<{
-    purpose: 'main' | 'compaction';
+    purpose: 'main';
     call: M.ModelCallId;
     request: M.FixedModelRequest;
     fault: M.ModelFault;
@@ -2982,7 +3251,7 @@ export type MessageSource = Readonly<{
     passage: PassageId;
 }> | Readonly<{
     kind: 'context-transition';
-    transition: PreparedContextTransition;
+    transition: PreparedCompactionCommit;
 }>;
 export type InputEntry = Readonly<{
     kind: 'invoke';
@@ -3136,6 +3405,10 @@ export type Material<B extends ContentBlock> = Readonly<{
     kind: 'facts';
     schema: Adoption;
     value: JsonValue;
+}> | Readonly<{
+    kind: 'compaction';
+    result: ProducedResult;
+    outcome: CompactionOutcome;
 }>;
 export type MaterialDescription = Readonly<{
     digest: string;
@@ -3189,6 +3462,7 @@ export interface RegisteredReads<P> {
 ## 声明文件 `receiving.d.ts`
 
 ```ts
+import type { CompactionTaskIdentity, CompactionResultIdentity } from './compaction.ts';
 import type { CallAccount } from '@omne-harness/call-account';
 import type { ContentBlock } from '@omne-harness/content-block';
 import type * as M from '@omne-harness/model-contract';
@@ -3210,6 +3484,13 @@ export type StartFenceEntry = Readonly<{
     fence: DurableEvidence;
 }>;
 export type ReceivedDelivery = Readonly<{
+    producer: 'compaction';
+    key: Readonly<{
+        kind: 'result';
+        task: CompactionTaskIdentity;
+        result: CompactionResultIdentity;
+    }>;
+}> | Readonly<{
     producer: 'model';
     key: Extract<M.ModelDeliveryKey, {
         kind: 'result';
@@ -3381,10 +3662,12 @@ export interface AgentAccountOutlet<P> {
 ## 声明文件 `request.d.ts`
 
 ```ts
+import type { CompactionInputRef, CompactionResultIdentity, CompactionTaskIdentity, PreparedCompactionCommit } from './compaction.ts';
+import type { CompactionMessage } from '@omne-harness/message';
 import type { JsonValue } from '@omne-harness/json-text';
 import type * as M from '@omne-harness/model-contract';
-import type { ModelPurpose, PreparedContextTransition, ProducedResult, InputBatch, RuntimeConditions, Reply } from './evaluation.ts';
-import type { Access, Adoption, ActionId, Authority, ConsumerRef, DurableEvidence, PassageId } from './identity.ts';
+import type { ModelPurpose, InputBatch, RuntimeConditions, Reply } from './evaluation.ts';
+import type { Access, Adoption, ActionId, Authority, ConsumerRef, DurableEvidence, PassageId, ConsumptionId } from './identity.ts';
 export type ModelRecipient = Readonly<{
     route: string;
     profile: Adoption;
@@ -3428,11 +3711,6 @@ export interface ModelContextReader<P> {
         transition: DurableEvidence | null;
     }>): Reply<ModelContextRead>;
 }
-export type CompactionProgress = Readonly<{
-    plan: DurableEvidence;
-    bound: string;
-    completed: string;
-}>;
 export type Preparation = Readonly<{
     id: ActionId;
     purpose: ModelPurpose;
@@ -3459,7 +3737,7 @@ export type Preparation = Readonly<{
         alterations: readonly DurableEvidence[];
         beforeModelCall: readonly PassageId[] | null;
     }>;
-    progress: CompactionProgress;
+    input: CompactionInputRef;
 }> | Readonly<{
     kind: 'cannot-fit';
     reason: 'fixed' | 'after-compaction';
@@ -3468,27 +3746,24 @@ export type Preparation = Readonly<{
 export type SavedPreparation = Extract<Preparation, {
     kind: 'needs-compaction' | 'cannot-fit';
 }>;
-export type CompactionAdvance = Readonly<{
-    kind: 'continue';
-    progress: CompactionProgress;
-    stepRequest: Extract<Preparation, {
-        kind: 'ready';
-    }>;
-}> | Readonly<{
-    kind: 'transition';
-    progress: CompactionProgress;
-    value: PreparedContextTransition;
-}> | Readonly<{
-    kind: 'cannot-fit';
-    progress: CompactionProgress;
-    reason: 'after-compaction';
-    diagnostic: string;
-}>;
 export type CompactionState = Readonly<{
     action: ActionId;
-    progress: CompactionProgress;
-    initiated: string;
+    task: CompactionTaskIdentity;
+    provider: Adoption;
+    consumer: ConsumerRef;
+    input: CompactionInputRef;
+    consumption: ConsumptionId;
+    result: CompactionResultIdentity | null;
+    received: DurableEvidence | null;
+    transition: DurableEvidence | null;
     ended: 'committed' | 'failed' | null;
+}>;
+export type CompactionAssessment = Readonly<{
+    kind: 'accepted';
+    value: PreparedCompactionCommit;
+}> | Readonly<{
+    kind: 'cannot-fit';
+    diagnostic: string;
 }>;
 export type FinalRequest = Readonly<{
     preparation: ActionId;
@@ -3501,7 +3776,7 @@ export interface RequestPreparation<P> {
     prepare(input: Access<P> & Readonly<{
         advance: Authority;
         action: ActionId;
-        purpose: Exclude<ModelPurpose, 'compaction'>;
+        purpose: ModelPurpose;
         position: ConsumerRef;
         history: DurableEvidence;
         inputs: InputBatch;
@@ -3513,19 +3788,17 @@ export interface RequestPreparation<P> {
         beforeModelCall: readonly PassageId[] | null;
         definition?: Adoption;
     }>): Reply<Preparation>;
-    derive(input: Access<P> & Readonly<{
+    assessCompaction(input: Access<P> & Readonly<{
         advance: Authority;
         original: Extract<Preparation, {
             kind: 'needs-compaction';
         }>;
-        progress: CompactionProgress;
-        action: ActionId;
-        selection: SelectedModel;
-        result: Readonly<{
-            produced: ProducedResult;
-            consumed: DurableEvidence;
-        }> | null;
-    }>): Reply<CompactionAdvance>;
+        task: CompactionTaskIdentity;
+        consumption: ConsumptionId;
+        result: CompactionResultIdentity;
+        received: DurableEvidence;
+        message: CompactionMessage;
+    }>): Reply<CompactionAssessment>;
     resume(input: Access<P> & Readonly<{
         advance: Authority;
         original: Extract<Preparation, {
@@ -3534,7 +3807,9 @@ export interface RequestPreparation<P> {
         transition: DurableEvidence;
         selection: SelectedModel;
         context: ModelContextRead;
-    }>): Reply<Preparation>;
+    }>): Reply<Exclude<Preparation, {
+        kind: 'needs-compaction';
+    }>>;
 }
 export interface CurrentConditions<P> {
     read(input: Access<P> & Readonly<{
@@ -3671,6 +3946,19 @@ export declare function projectEntryEvent(execution: ProjectingExecution, entry:
 export declare function canonicalText(value: unknown): string;
 export declare function tenantText(tenant: TenantId): string;
 export declare function doubleEvidence(owner: string, record: string, revision: string): DurableEvidence;
+```
+
+## 声明文件 `testing-compaction.d.ts`
+
+```ts
+import type { CompactionInput } from './compaction.ts';
+export declare const sampleCompactionAdoption: {
+    owner: string;
+    name: string;
+    revision: string;
+    digest: string;
+};
+export declare function sampleCompactionInput(): CompactionInput;
 ```
 
 ## 声明文件 `testing-journal-core.d.ts`
@@ -4090,9 +4378,21 @@ export declare const agentJournalViolatingTraces: readonly JournalReplayTrace[];
 import type { TenantId } from '@omne-harness/legal-identity';
 import type { ReceivedEntry, StartFenceEntry } from './receiving.ts';
 export declare function sampleStartFence(name: string): StartFenceEntry;
-export declare function sampleReceivedModelResult(tenant: TenantId, name: string, dispatchRevision?: string): ReceivedEntry;
-export declare function sampleReceivedModelAccount(tenant: TenantId, name: string, revision?: string): ReceivedEntry;
-export declare function sampleReceivedToolAccount(tenant: TenantId, name: string, lexeme?: string): ReceivedEntry;
+export declare function sampleReceivedModelResult(tenant: TenantId, name: string, dispatchRevision?: string): ReceivedEntry & {
+    delivery: Extract<ReceivedEntry['delivery'], {
+        producer: 'model';
+    }>;
+};
+export declare function sampleReceivedModelAccount(tenant: TenantId, name: string, revision?: string): ReceivedEntry & {
+    delivery: Extract<ReceivedEntry['delivery'], {
+        producer: 'model';
+    }>;
+};
+export declare function sampleReceivedToolAccount(tenant: TenantId, name: string, lexeme?: string): ReceivedEntry & {
+    delivery: Extract<ReceivedEntry['delivery'], {
+        producer: 'tool';
+    }>;
+};
 ```
 
 ## 声明文件 `testing-received-conformance.d.ts`
@@ -4166,7 +4466,7 @@ export declare function memoryReceivedCommitFixture<P, B extends ContentBlock = 
 
 ```ts
 import type { ContentBlock } from '@omne-harness/content-block';
-import type { Outcome } from '@omne-harness/operation-result';
+import { type Outcome } from '@omne-harness/operation-result';
 import type { Failure } from './evaluation.ts';
 import type { AgentEvent, CommandReceipt, ExecutionMutation } from './execution.ts';
 import { type Authority, type AgentExecutionId, type DurableEvidence } from './identity.ts';
@@ -4235,6 +4535,7 @@ export { memoryReceivedCommitFixture } from './testing-received-memory.ts';
 export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-received-fixture.ts';
 export { agentJournalReplayConformance, agentJournalReplayTraces, agentJournalViolatingTraces, replayJournalTrace, type JournalReplayState, type JournalReplayStep, type JournalReplayTrace, } from './testing-journal-replay.ts';
 export { describeMaterial, entryPage, materialDigest, receivedEntriesOf, } from './testing-journal-reads.ts';
+export { sampleCompactionInput, sampleCompactionAdoption } from './testing-compaction.ts';
 ```
 
 ## 声明文件 `tool-qualification.d.ts`

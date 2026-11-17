@@ -15,11 +15,9 @@ export { createAgentRequests, type AgentRequests, type AgentRequestsOptions } fr
 export {
   DEFINITION_SECTION_PREFIX,
   absentDefinitions,
-  absentStepResults,
   definitionContributions,
   definitionSourceOf,
   type DefinitionSource,
-  type StepResultSource,
   type ToolsSource,
 } from './translate.ts'
 export {

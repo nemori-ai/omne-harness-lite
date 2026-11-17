@@ -23,6 +23,8 @@ import {
   type AgentReceivedRecords,
   type AgentRegistrationId,
   type CurrentConditions,
+  type CompactionInputStore,
+  type ContextCompaction,
   type DecisionCards,
   type ExtensionImplementations,
   type Failure,
@@ -198,10 +200,37 @@ export abstract class RequestPreparationService<P>
     super(ctx, RequestPreparationService.provide)
   }
   abstract readonly prepare: RequestPreparation<P>['prepare']
-  abstract readonly derive: RequestPreparation<P>['derive']
+  abstract readonly assessCompaction: RequestPreparation<P>['assessCompaction']
   abstract readonly resume: RequestPreparation<P>['resume']
 }
 export const agentRequestsKey = RequestPreparationService.provide
+
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class ContextCompactionService<P> extends Service implements ContextCompaction<P> {
+  static readonly provide = 'agentCompaction'
+  constructor(ctx: Context) {
+    super(ctx, ContextCompactionService.provide)
+  }
+  abstract readonly admit: ContextCompaction<P>['admit']
+  abstract readonly inspect: ContextCompaction<P>['inspect']
+  abstract readonly cancel: ContextCompaction<P>['cancel']
+  abstract readonly acknowledge: ContextCompaction<P>['acknowledge']
+}
+export const agentCompactionKey = ContextCompactionService.provide
+
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class CompactionInputStoreService<P>
+  extends Service
+  implements CompactionInputStore<P>
+{
+  static readonly provide = 'agentCompactionInputs'
+  constructor(ctx: Context) {
+    super(ctx, CompactionInputStoreService.provide)
+  }
+  abstract readonly read: CompactionInputStore<P>['read']
+  abstract readonly freeze: CompactionInputStore<P>['freeze']
+}
+export const agentCompactionInputsKey = CompactionInputStoreService.provide
 
 /** @owner packages/agent/agent-cordis-contract */
 export abstract class AgentMaterialsService<P, B extends ContentBlock>
@@ -840,6 +869,8 @@ declare module '@deepseek-ai/cordis' {
     agentAdoptions: AgentAdoptionsService<unknown>
     agentConditions: CurrentConditionsService<unknown>
     agentRequests: RequestPreparationService<unknown>
+    agentCompaction: ContextCompactionService<unknown>
+    agentCompactionInputs: CompactionInputStoreService<unknown>
     agentMaterials: AgentMaterialsService<unknown, ContentBlock>
     agentReads: RegisteredReadsService<unknown>
     agentClock: AgentClockService

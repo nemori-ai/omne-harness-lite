@@ -1,4 +1,9 @@
 import readPermissionMode from '../../src/worker/read-permission-mode.ts'
+import compactionIndexMigration from '../../src/worker/compaction-index-migration.ts'
+import readEntryMessage from '../../src/worker/read-entry-message.ts'
+import readCompactionContext from '../../src/worker/read-compaction-context.ts'
+import readCurrentScope from '../../src/worker/read-current-scope.ts'
+import checkCompactionInput from '../../src/worker/check-compaction-input.ts'
 import permissionMigration from '../../src/worker/permission-current-migration.ts'
 import readPermissionCurrent from '../../src/worker/read-permission-current.ts'
 import ordinaryBasis from '../../src/worker/ordinary-basis.ts'
@@ -69,9 +74,13 @@ import readScopeOwner from '../../src/worker/read-scope-owner.ts'
 import statePartMigration from '../../src/worker/state-part-migration.ts'
 
 const HANDLERS: readonly ReadHandlerModule[] = [
+  checkCompactionInput,
+  readCompactionContext,
+  readEntryMessage,
   readPermissionMode,
   readPermissionCurrent,
   readWork,
+  readCurrentScope,
   readWorkVersion,
   readBinding,
   readWorkIndex,
@@ -115,6 +124,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   statePartMigration,
   factBodyMigration,
   factBlobMigration,
+  compactionIndexMigration,
 ]
 
 export type StorageCall =
@@ -163,7 +173,7 @@ const textLength = (value: SqlValue): number =>
 function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): QueryRows {
   const statement = db.prepare(sql)
   statement.setReadBigInts(true)
-  if (/^\s*(SELECT|WITH)/i.test(sql)) {
+  if (/^\s*(SELECT|WITH|EXPLAIN)/i.test(sql)) {
     const rows = statement.all(...(params as never[])) as Record<string, SqlCell>[]
     const columns = rows[0] === undefined ? [] : Object.keys(rows[0])
     return {
@@ -432,6 +442,7 @@ export function createSqliteStorage(): SqliteStorage {
 }
 
 export function migratedPort(): Readonly<{
+  db: DatabaseSync
   port: {
     execute(sql: string, params?: readonly SqlValue[]): QueryRows
     requireFact(): null
@@ -445,5 +456,5 @@ export function migratedPort(): Readonly<{
     provideFact: () => undefined,
   }
   for (const module of MIGRATIONS) module.up(port)
-  return { port }
+  return { port, db }
 }

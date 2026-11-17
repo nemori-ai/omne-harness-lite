@@ -54,6 +54,7 @@
     "execution-host",
     "request-context",
     "agent-context",
+    "context-compaction",
     "agent-account-outlet",
     "runtime-context",
     "session-observation",
@@ -214,6 +215,15 @@
       ]
     },
     {
+      "row": "context-compaction",
+      "names": [
+        "storage",
+        "agentReceivedRecords",
+        "principalIssuer",
+        "compactionModelEvidence"
+      ]
+    },
+    {
       "row": "session-handoff",
       "names": [
         "storage",
@@ -257,7 +267,8 @@
         "tenantDomainLookup",
         "principalVerifier",
         "tenantStanding",
-        "agentReceivedRecords"
+        "agentReceivedRecords",
+        "compactionModelEvidence"
       ]
     },
     {

@@ -10,11 +10,14 @@ import type { Adoption, ModelFailure } from '@omne-harness/model-contract'
 import type { ModelMaterializationEvidenceReader } from '@omne-harness/model-host-local'
 import type { ModelCommandsEvidence, ModelInitialExecution } from '@omne-harness/model/commands'
 import { fail } from '@omne-harness/operation-result'
+import { DEFAULT_COMPACTION_CONSUMER } from '@omne-harness/context-compaction'
+import type { CompactionModelEvidence } from './compaction-evidence.ts'
 
 export type EvidenceSources = Readonly<{
   initial(): ModelInitialExecution<unknown> | undefined
   reader(): ModelMaterializationEvidenceReader | undefined
   custody(): AgentCustodyEvidence<unknown> | undefined
+  compaction?(): Pick<CompactionModelEvidence, 'verify'> | undefined
 }>
 
 export function agentCustodyOf(ctx: Context): AgentCustodyEvidence<unknown> | undefined {
@@ -41,6 +44,11 @@ export function createModelEvidence(
     lateFact: () => unavailable('model-late-fact-evidence', 'no-supplier-record-source'),
     retry: () => unavailable('model-retry-policy', 'not-configured'),
     handoff: given => {
+      if (given.consumer.owner === DEFAULT_COMPACTION_CONSUMER)
+        return (
+          sources.compaction?.()?.verify(given) ??
+          unavailable('compaction-evidence', 'provider-not-attached')
+        )
       if (given.consumer.owner !== AGENT_CONSUMER_OWNER)
         return unavailable('consumer-evidence', 'owner-not-wired')
       return (
