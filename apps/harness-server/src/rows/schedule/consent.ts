@@ -4,7 +4,6 @@ export type ConsentActor = 'owner' | 'agent' | 'other'
 export type ConsentSubject = 'new' | 'agentOwn' | 'others'
 /** What the act does: read, change a draft only, or bring a schedule into effect or change one in effect. */
 export type ConsentCommand = 'read' | 'draftLocal' | 'consent'
-/** The owner's setting at the moment of the decision. */
 export type ConsentMode =
   | Readonly<{ kind: 'auto'; generation: number }>
   | Readonly<{ kind: 'draft' }>

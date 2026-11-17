@@ -136,12 +136,10 @@ function commandOf(tenant: string, body: Manage): ScheduleCommand | undefined {
   }
 }
 
-export function createScheduleContribution(
-  input: ScheduleContributionInput,
-): Omit<AccessContribution<ScheduleProtocol>, 'protocol'> {
+/** Steps one to four of every operation: act for the tenant, take the principal and the faces, call. */
+function stepsOf(input: ScheduleContributionInput) {
   const { principals } = input
 
-  /** Steps one to three: the login acts for the tenant, the principal is current, the faces are here. */
   async function prepare(login: LoginIdentity, tenant: TenantId) {
     const tenantText = tenantTextOf(tenant)
     let issued: Awaited<ReturnType<SchedulePrincipals['actingFor']>>
@@ -157,7 +155,6 @@ export function createScheduleContribution(
     return { outcome: null, faces, context, tenantText }
   }
 
-  /** Step four for reads: a throw is an unavailable basis. */
   async function read<T>(call: () => Promise<ScheduleQueryResult<T>>) {
     try {
       return await call()
@@ -182,11 +179,14 @@ export function createScheduleContribution(
     return { outcome: 'succeeded', body: detailOf(result.value) } as const
   }
 
+  /** A recorded rejection committed nothing; resending the same ids answers the refusal itself. */
   function recalled(view: ScheduleOperationView, declared: readonly string[]) {
     if (view.kind === 'committed' || view.kind === 'noChange')
       return { outcome: 'succeeded', body: detailOf(view.result) } as const
-    if (view.kind === 'rejected') return refused(view.error, declared)
-    if (view.kind === 'notCommitted') return { outcome: 'not-committed', body: {} } as const
+    if (view.kind === 'rejected' && refusalOf(view.error).outcome === 'not-visible')
+      return refused(view.error, declared)
+    if (view.kind === 'rejected' || view.kind === 'notCommitted')
+      return { outcome: 'not-committed', body: {} } as const
     return UNAVAILABLE
   }
 
@@ -209,7 +209,18 @@ export function createScheduleContribution(
     return recalled(found.value, declared)
   }
 
-  const handlers: Handlers = {
+  return { prepare, read, commit, recall }
+}
+type Steps = ReturnType<typeof stepsOf>
+
+function readHandlers(
+  { prepare, read }: Steps,
+  input: ScheduleContributionInput,
+): Pick<
+  Handlers,
+  'list-schedules' | 'read-schedule' | 'read-revisions' | 'read-agenda' | 'preview'
+> {
+  return {
     async 'list-schedules'(call, body) {
       const ready = await prepare(call.principal, body.tenant)
       if (ready.outcome !== null) return ready
@@ -335,6 +346,18 @@ export function createScheduleContribution(
         },
       }
     },
+  }
+}
+
+function writeHandlers({
+  prepare,
+  commit,
+  recall,
+}: Steps): Pick<
+  Handlers,
+  'create-schedule' | 'query-create-schedule' | 'manage-schedule' | 'query-manage-schedule'
+> {
+  return {
     async 'create-schedule'(call, body) {
       const ready = await prepare(call.principal, body.tenant)
       if (ready.outcome !== null) return ready
@@ -380,5 +403,14 @@ export function createScheduleContribution(
       )
     },
   }
-  return { operations: handlers, observations: {} }
+}
+
+export function createScheduleContribution(
+  input: ScheduleContributionInput,
+): Omit<AccessContribution<ScheduleProtocol>, 'protocol'> {
+  const steps = stepsOf(input)
+  return {
+    operations: { ...readHandlers(steps, input), ...writeHandlers(steps) },
+    observations: {},
+  }
 }

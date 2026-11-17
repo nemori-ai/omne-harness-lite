@@ -3,9 +3,11 @@ import type { ManagementRequest, ScheduleRecord } from '@omne-harness/schedule'
 import type { ScheduleCallContext, ScheduleInstant } from '@omne-harness/schedule-contract'
 import {
   BLANKET_GRANT,
+  actorOf,
   commandOf,
   consentDigest,
   createScheduleAuthorizers,
+  subjectOf,
   type ConsentAnswer,
 } from '../../../src/rows/schedule/authorizer.ts'
 import type { ConsentMode } from '../../../src/rows/schedule/consent.ts'
@@ -171,5 +173,44 @@ describe('what needs consent', () => {
     ['replace', 'active', 'consent'],
   ])('%s on a %s schedule is %s', (action, control, expected) => {
     expect(commandOf(execute(action), current(control))).toBe(expected)
+  })
+})
+
+describe('whose schedule an agent is acting on', () => {
+  const written = (actorRef: string, session: string | null) =>
+    ({
+      view: {
+        author:
+          session === null
+            ? { kind: 'human', actorRef }
+            : { kind: 'agent', actorRef, originatingSessionRef: session },
+      },
+    }) as unknown as ScheduleRecord
+  it.each([
+    ['a new schedule', null, 'new'],
+    ['its own schedule from the same session', written('agent-1', 'session-1'), 'agentOwn'],
+    ['its schedule from another session', written('agent-1', 'session-2'), 'others'],
+    ["another agent's schedule", written('agent-2', 'session-1'), 'others'],
+    ["the owner's schedule", written('acc-a', null), 'others'],
+  ])('%s is %s', (_, current, expected) => {
+    expect(subjectOf(context('agent'), current)).toBe(expected)
+  })
+
+  it.each([
+    ['the owner', context('human'), 'owner'],
+    ['an agent of a session', context('agent'), 'agent'],
+    ['an agent outside any session', context('agent', null), 'other'],
+    [
+      'a human who is not the owner',
+      { ...context('human'), actor: { kind: 'human', actorRef: 'acc-b' } } as ScheduleCallContext,
+      'other',
+    ],
+    [
+      'any caller on a non-tenant schedule',
+      { ...context('human'), owner: { kind: 'system' } } as unknown as ScheduleCallContext,
+      'other',
+    ],
+  ])('names %s as %s', (_, given, expected) => {
+    expect(actorOf(given)).toBe(expected)
   })
 })

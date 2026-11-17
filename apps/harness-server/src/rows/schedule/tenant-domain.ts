@@ -1,10 +1,8 @@
 import type { DomainRef, TenantDomainLookup } from '@omne-harness/sql-contract'
 import type { TenantDomainRegistration } from '../governance/tenant-domain-registration-service.ts'
 
-/**
- * The tenant's own transaction domain, registered the first time a tenant asks. Undefined when it is
- * not there and cannot be registered now, or when the lookup answers a domain of some other scope.
- */
+/** The tenant's own transaction domain, registered on first ask; undefined when it cannot be had
+ * now or the lookup names another scope. */
 export async function tenantDomainOf(
   ports: Readonly<{
     lookup: TenantDomainLookup

@@ -27,12 +27,10 @@ const OWNER = 'harness-server.schedule'
 /** The standing consent the owner gives by leaving the setting at automatic. */
 export const BLANKET_GRANT = `${OWNER}/agent-schedule-consent`
 
-/** What an owner answered on a card, as human intervention keeps it. */
 export type ConsentAnswer = Readonly<{
   /** The answer came from the tenant's own entry, not from the session that raised the card. */
   fromOwner: boolean
   approved: boolean
-  /** The content digest the card was raised for. */
   digest: string
 }>
 export type ConsentPorts = Readonly<{

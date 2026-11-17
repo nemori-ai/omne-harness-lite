@@ -14,7 +14,11 @@ const capacity = Number(parameters.get('capacity') ?? '0')
 const same = (left: unknown, right: unknown) => canonicalDigest(left) === canonicalDigest(right)
 
 /** Holds one quota slot per schedule that is not terminal, counted per owner and author. */
-function quota(port: ParticipantPort, requirement: ScheduleManagementGuardRequirement) {
+export function holdQuota(
+  port: Pick<ParticipantPort, 'execute'>,
+  requirement: Pick<ScheduleManagementGuardRequirement, 'quotaEffect' | 'resultingHolding'>,
+  capacity: number,
+) {
   const effect = requirement.quotaEffect
   const holding = requirement.resultingHolding
   if (effect.kind === 'none') return null
@@ -46,10 +50,8 @@ function quota(port: ParticipantPort, requirement: ScheduleManagementGuardRequir
   return null
 }
 
-/**
- * The commit re-derives the requirement from the command and keeps quota; it does not read settings
- * again: consent was decided when the authorizer read them.
- */
+/** The commit re-derives the requirement and keeps quota; consent was decided when the
+ * authorizer read the settings, so the commit does not read them again. */
 export default {
   ...SCHEDULE_GUARD,
   execute(facts, port) {
@@ -77,7 +79,7 @@ export default {
       )
     )
       return fail('forbidden')
-    const failure = quota(port, requirement)
+    const failure = holdQuota(port, requirement, capacity)
     if (failure !== null) return fail(failure)
     const fact = JSON.parse(JSON.stringify({ ...requirement, decisionAt: command.input.now }))
     port.provideFact(scheduleManagementGuardsFact, fact)
