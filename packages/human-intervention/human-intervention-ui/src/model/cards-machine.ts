@@ -384,54 +384,45 @@ function settled(state: State, entry: Entry, closedBy: Notice | null): Step {
   })
 }
 
-function outcomeOf(state: State, entry: Entry, answer: ReplyAnswer): Step {
-  const current = entry.submit
-  if (current.kind !== 'submitting' && current.kind !== 'unknown') return same(state)
-  const sent = current.sent
-  const recognizing = current.kind === 'unknown'
+type Succeeded = Extract<ReplyAnswer, { outcome: 'succeeded' }>['body']
+
+/** Why a card left the pending list without this reply; null when this reply was taken. */
+function closedBy(result: Succeeded): Notice | null {
+  if (result.kind === 'decided') return null
+  if (result.kind === 'already-decided') return ALREADY_DECIDED
+  return { kind: 'done', text: INVALIDATED[result.reason] ?? INVALIDATED_OTHER }
+}
+
+type InFlight = Readonly<{ sent: Sent; recognizing: boolean }>
+
+function outcomeOf(state: State, entry: Entry, flight: InFlight, answer: ReplyAnswer): Step {
+  const { sent, recognizing } = flight
   const into = (submit: Submit, effects: readonly Effect[] = []): Step =>
     put(state, { ...entry, submit }, effects)
-  switch (answer.outcome) {
-    case 'succeeded': {
-      const result = answer.body
-      if (result.kind === 'decided') return settled(state, entry, null)
-      if (result.kind === 'already-decided') return settled(state, entry, ALREADY_DECIDED)
-      return settled(state, entry, {
-        kind: 'done',
-        text: INVALIDATED[result.reason] ?? INVALIDATED_OTHER,
-      })
-    }
-    case 'not-committed':
-      return into({ kind: 'refused', notice: NOT_COMMITTED })
-    case 'unknown':
-    case 'uncertain':
-      if (recognizing)
-        return into({ kind: 'unknown', sent, confirming: false, notice: STILL_UNKNOWN })
-      return into({ kind: 'unknown', sent, confirming: true, notice: CONFIRMING }, [
-        { kind: 'query', key: entry.key, sent },
-      ])
-    default:
-      if (recognizing)
-        return into({ kind: 'unknown', sent, confirming: false, notice: STILL_UNKNOWN })
-      if (answer.outcome === 'conflict') {
-        const refused = into({
-          kind: 'refused',
-          notice: refusal('conflict', SUBMIT_SENTENCES),
-        }).state
-        return readList(refused)
-      }
-      return into({ kind: 'refused', notice: refusal(answer.outcome, SUBMIT_SENTENCES) })
-  }
+  if (answer.outcome === 'succeeded') return settled(state, entry, closedBy(answer.body))
+  if (answer.outcome === 'not-committed') return into({ kind: 'refused', notice: NOT_COMMITTED })
+  if (recognizing) return into({ kind: 'unknown', sent, confirming: false, notice: STILL_UNKNOWN })
+  if (answer.outcome === 'unknown' || answer.outcome === 'uncertain')
+    return into({ kind: 'unknown', sent, confirming: true, notice: CONFIRMING }, [
+      { kind: 'query', key: entry.key, sent },
+    ])
+  const refused = into({ kind: 'refused', notice: refusal(answer.outcome, SUBMIT_SENTENCES) })
+  return answer.outcome === 'conflict' ? readList(refused.state) : refused
+}
+
+function inFlightOf(submit: Submit, replyId: string): InFlight | null {
+  if (submit.kind === 'submitting' && submit.sent.replyId === replyId)
+    return { sent: submit.sent, recognizing: false }
+  if (submit.kind === 'unknown' && submit.confirming && submit.sent.replyId === replyId)
+    return { sent: submit.sent, recognizing: true }
+  return null
 }
 
 function replyAnswered(state: State, key: string, replyId: string, answer: ReplyAnswer): Step {
   const entry = find(state, key)
-  if (entry === undefined) return same(state)
-  const current = entry.submit
-  const inFlight =
-    current.kind === 'submitting' || (current.kind === 'unknown' && current.confirming)
-  if (!inFlight || current.sent.replyId !== replyId) return same(state)
-  return advance(outcomeOf(state, entry, answer), groupOf(entry.item), key)
+  const flight = entry === undefined ? null : inFlightOf(entry.submit, replyId)
+  if (entry === undefined || flight === null) return same(state)
+  return advance(outcomeOf(state, entry, flight, answer), groupOf(entry.item), key)
 }
 
 function confirm(state: State, key: string): Step {
@@ -492,33 +483,30 @@ function reconnectDue(state: State, generation: number): Step {
   return observe(state, live.attempt)
 }
 
+type Handlers = {
+  readonly [K in Event['kind']]: (state: State, event: Extract<Event, { kind: K }>) => Step
+}
+
+const HANDLERS: Handlers = {
+  'read-list': state => (state.read.kind === 'reading' ? same(state) : readList(state)),
+  'list-answered': (state, event) => listAnswered(state, event.token, event.answer),
+  draft: (state, event) => draft(state, event.key, event.draft),
+  'submit-group': (state, event) => submitGroup(state, event.group, event.planned),
+  'reply-answered': (state, event) =>
+    replyAnswered(state, event.key, event.replyId, event.answer),
+  confirm: (state, event) => confirm(state, event.key),
+  dismiss: (state, event) => dismiss(state, event.key),
+  watch: state => (state.live.kind === 'off' ? observe(state, 0) : same(state)),
+  unwatch: state =>
+    state.live.kind === 'off'
+      ? same(state)
+      : { state: { ...state, live: { kind: 'off' } }, effects: [{ kind: 'stop-observing' }] },
+  frame: (state, event) => frame(state, event.generation),
+  'observation-ended': (state, event) => observationEnded(state, event.generation, event.end),
+  'reconnect-due': (state, event) => reconnectDue(state, event.generation),
+}
+
 export function step(state: State, event: Event): Step {
-  switch (event.kind) {
-    case 'read-list':
-      return state.read.kind === 'reading' ? same(state) : readList(state)
-    case 'list-answered':
-      return listAnswered(state, event.token, event.answer)
-    case 'draft':
-      return draft(state, event.key, event.draft)
-    case 'submit-group':
-      return submitGroup(state, event.group, event.planned)
-    case 'reply-answered':
-      return replyAnswered(state, event.key, event.replyId, event.answer)
-    case 'confirm':
-      return confirm(state, event.key)
-    case 'dismiss':
-      return dismiss(state, event.key)
-    case 'watch':
-      return state.live.kind === 'off' ? observe(state, 0) : same(state)
-    case 'unwatch':
-      return state.live.kind === 'off'
-        ? same(state)
-        : { state: { ...state, live: { kind: 'off' } }, effects: [{ kind: 'stop-observing' }] }
-    case 'frame':
-      return frame(state, event.generation)
-    case 'observation-ended':
-      return observationEnded(state, event.generation, event.end)
-    case 'reconnect-due':
-      return reconnectDue(state, event.generation)
-  }
+  const handle = HANDLERS[event.kind] as (state: State, event: Event) => Step
+  return handle(state, event)
 }
