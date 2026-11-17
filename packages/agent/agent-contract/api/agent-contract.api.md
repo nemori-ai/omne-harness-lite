@@ -233,6 +233,7 @@
 - `Next` · `evaluation.d.ts`
 - `ObligationCategory` · `finishing.d.ts`
 - `ObligationDisposition` · `finishing.d.ts`
+- `OpenScope` · `snapshot.d.ts`
 - `OriginalInputAcceptance` · `journal.d.ts`
 - `OutputRefusalReason` · `judgment.d.ts`
 - `POSITIONS` · `extensions.d.ts`
@@ -307,6 +308,7 @@
 - `VisibleHistoryEntry` · `compaction.d.ts`
 - `VoidedIntent` · `evaluation.d.ts`
 - `Waiting` · `evaluation.d.ts`
+- `acceptanceIn` · `snapshot.d.ts`
 - `admissionActionOf` · `identity.d.ts`
 - `admissionPassageOf` · `identity.d.ts`
 - `agentBodyContract` · `body-contract.d.ts`
@@ -353,6 +355,7 @@
 - `judgeInputOrigin` · `judge-handoff.d.ts`
 - `judgeLoopExtensions` · `judge-extensions.d.ts`
 - `obligationCategoryOf` · `finishing.d.ts`
+- `openItems` · `snapshot.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
 
@@ -1361,6 +1364,9 @@ export type ControlStageFact = Readonly<{
 type ToolControl = Extract<ExecutionControl, {
     call: T.ToolCallId;
 }>;
+type ModelControl = Extract<ExecutionControl, {
+    kind: 'interrupt-model';
+}>;
 export type ControlRecord = Readonly<{
     operation: AgentOperationId;
     stages: Readonly<{
@@ -1368,10 +1374,17 @@ export type ControlRecord = Readonly<{
     } & Partial<Record<Exclude<ControlStage, 'accepted'>, ControlStageFact>>>;
 }> & (Readonly<{
     command: ToolControl;
+    modelInvocation?: never;
     toolInvocation: T.ToolInvocationRef;
     toolOperation: T.ToolOperationRef | null;
 }> | Readonly<{
-    command: Exclude<ExecutionControl, ToolControl>;
+    command: ModelControl;
+    modelInvocation: M.ModelInvocationRef;
+    toolInvocation?: never;
+    toolOperation?: never;
+}> | Readonly<{
+    command: Exclude<ExecutionControl, ToolControl | ModelControl>;
+    modelInvocation?: never;
     toolInvocation?: never;
     toolOperation?: never;
 }>);
@@ -2573,6 +2586,7 @@ export { AGENT_IDENTITY_MAX_LENGTH, admissionActionOf, admissionPassageOf, decod
 export type * from './evaluation.ts';
 export type * from './compaction.ts';
 export { compactionGeneration, compactionRequestText, compactionInputText } from './compaction.ts';
+export { acceptanceIn, openItems, type OpenScope } from './snapshot.ts';
 export { encodeCompactionRequest, decodeCompactionRequest, encodeCompactionInput, decodeCompactionInput, encodeCompactionTaskState, decodeCompactionTaskState, encodeCompactionTaskRef, decodeCompactionTaskRef, decodeCompactionHandoff, decodeCompactionOutcome, } from './compaction-codec.ts';
 export type * from './execution.ts';
 export type * from './extensions.ts';
@@ -2596,7 +2610,7 @@ import type { Message } from '@omne-harness/message';
 import type { AgentCheckpoint, InputBatch, ModelReplyAdmission, PendingCall, ProducedResult, Reply, ReplyAdmissionFrom, ReplyAdmissionPage } from './evaluation.ts';
 import type { HandoffOutcome, HandoffReference, HandoffRequest, HandoffResolution, InputEntry, InvokeRuntimeContext, PendingHandoff } from './passages.ts';
 import type { AgentEventBody, AgentExecutionControl, AgentExecutionEvents, AgentExecutionInput, AgentExecutionRecovery, CommandReceipt, ControlStage, ExecutionMutation, ExecutionSnapshot, ExecutionState, FinishAuthorization, FinishIntent, FinishResult } from './execution.ts';
-import type { Access, ActionId, Adoption, AgentExecutionId, AgentOperationId, Authority, ConsumptionId, DurableEvidence, ExecutionRevision, PassageId, ReplyAdmissionPageCursor } from './identity.ts';
+import type { Access, ActionId, InputId, Adoption, AgentExecutionId, AgentOperationId, Authority, ConsumptionId, DurableEvidence, ExecutionRevision, PassageId, ReplyAdmissionPageCursor } from './identity.ts';
 import type { FinishCandidateContent, SettlementRequest, SettlementResult } from './finishing.ts';
 export type CallerCommit = Readonly<{
     kind: 'none';
@@ -2835,6 +2849,10 @@ export interface AgentJournalReading<P> {
         limit: number;
     }>): Reply<ReplyAdmissionPage>;
     query(input: ExecutionMutation<P>): ReturnType<AgentExecutionRecovery<P>['query']>;
+    inputAcceptance(input: Access<P> & Readonly<{
+        execution: AgentExecutionId;
+        input: InputId;
+    }>): Reply<OriginalInputAcceptance | null>;
     readFinish?(input: Access<P> & Readonly<{
         execution: AgentExecutionId;
     }>): Reply<FinishIntent | null>;
@@ -3819,6 +3837,31 @@ export interface CurrentConditions<P> {
 }
 ```
 
+## 声明文件 `snapshot.d.ts`
+
+```ts
+import type { AgentCheckpoint } from './evaluation.ts';
+import type { ExecutionSnapshot, ExecutionState, ResultResponsibility } from './execution.ts';
+import type { InputId } from './identity.ts';
+import type { EffectIntent, ExecutionHandoff, OriginalInputAcceptance } from './journal.ts';
+import type { HandoffReference } from './passages.ts';
+type OpenItems = Pick<ExecutionSnapshot, 'results' | 'effects' | 'handoffs'>;
+export type OpenScope = Readonly<{
+    state: ExecutionState;
+    checkpoint: AgentCheckpoint;
+    inputOpen(input: InputId): boolean;
+}>;
+export declare function finishingState(state: ExecutionState): boolean;
+export declare function openResult(result: ResultResponsibility): boolean;
+export declare function openEffect(checkpoint: AgentCheckpoint, effect: EffectIntent): boolean;
+export declare function sameHandoff(left: HandoffReference, right: HandoffReference): boolean;
+export declare function openHandoff(scope: OpenScope, record: ExecutionHandoff): boolean;
+export declare function openItems(scope: OpenScope, items: OpenItems): OpenItems;
+type HandoffFacts = Pick<ExecutionHandoff, 'handoff' | 'request' | 'resolution' | 'history'>;
+export declare function acceptanceIn(records: readonly HandoffFacts[], input: InputId): OriginalInputAcceptance | null;
+export {};
+```
+
 ## 声明文件 `structure.d.ts`
 
 ```ts
@@ -4317,6 +4360,14 @@ export declare function requireOtherAccess<P>(opened: AgentJournalCoreOpened<P>)
 export declare function foreignDenied<P>(opened: AgentJournalCoreOpened<P>, other: Access<P>, method: Parameters<NonNullable<AgentJournalCoreOpened<P>['faultNext']>>[0], id: AgentOperationId, call: (access: Access<P>, execution: AgentExecutionId) => Reply<unknown>): Promise<void>;
 export declare function replyRequest<P>(opened: AgentJournalCoreOpened<P>, snapshot: ExecutionSnapshot, index: number, call?: string): PendingHandoff;
 export declare function admitReply<P>(opened: AgentJournalCoreOpened<P>, index: number, decision?: 'admitted' | 'rejected', call?: string): Promise<CommandReceipt>;
+```
+
+## 声明文件 `testing-journal-open.d.ts`
+
+```ts
+import type { ConformanceCase } from './testing-case.ts';
+import { type AgentJournalCoreFixture } from './testing-journal-helpers.ts';
+export declare function openSnapshotCases<P>(fixture: AgentJournalCoreFixture<P>): readonly ConformanceCase[];
 ```
 
 ## 声明文件 `testing-journal-reads.d.ts`

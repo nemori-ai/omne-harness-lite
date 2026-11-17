@@ -288,12 +288,13 @@ it('a context transition and the original Agent answer publish together and reco
       .filter(row => row.kind === 'message.compaction'),
   ).toHaveLength(1)
   const root = s.view.controls.root()
-  const adopted = ok(await s.view.journal.commit(request))
+  ok(await s.view.journal.commit(request))
   expect(s.view.controls.root()).toBe(root)
   const read = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
-  const results = read.results.filter(item => item.result.producer.kind === 'compaction')
-  expect(results).toHaveLength(1)
-  expect(results[0]?.completion).toEqual(adopted.evidence)
+  expect(
+    read.results.filter(item => item.result.producer.kind === 'compaction'),
+    'the adopted result is processed and released, so it left the snapshot',
+  ).toEqual([])
   expect(
     await s.view.journal.commit({
       ...request,

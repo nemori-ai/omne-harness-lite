@@ -60,6 +60,7 @@ export {
 export type * from './evaluation.ts'
 export type * from './compaction.ts'
 export { compactionGeneration, compactionRequestText, compactionInputText } from './compaction.ts'
+export { acceptanceIn, openItems, type OpenScope } from './snapshot.ts'
 export {
   encodeCompactionRequest,
   decodeCompactionRequest,

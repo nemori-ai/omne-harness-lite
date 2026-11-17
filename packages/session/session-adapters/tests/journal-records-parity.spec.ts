@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import type { PendingCall } from '@omne-harness/agent-contract'
+import type { PendingCall, PendingHandoff } from '@omne-harness/agent-contract'
 import { decodeActionId } from '@omne-harness/agent-contract'
+import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { sampleReceivedModelResult } from '@omne-harness/agent-contract/testing'
-import { evidence } from '@omne-harness/session-contract/testing'
+import { assistantMessage, evidence } from '@omne-harness/session-contract/testing'
 import {
   EXECUTION_FIELDS,
   fieldTexts,
@@ -141,6 +142,84 @@ describe('the reader records projected from the fold', () => {
         entry: committed.value.entry,
       }),
     )
+    const { key } = result.delivery
+    if (key.kind !== 'result') throw new Error('fixture: a Model result key')
+    await commit('processed', {
+      events: [
+        {
+          kind: 'producer',
+          result: {
+            producer: {
+              kind: 'model',
+              call: ok(resolveModelInvocationRef(key.reference, s.access.tenant)).call,
+            },
+            version: key.result,
+            delivery: null,
+            source: evidence('produced'),
+          },
+          consumption: result.consumption,
+        },
+      ],
+    })
+    const replyCall = ok(resolveModelInvocationRef(key.reference, s.access.tenant)).call
+    ok(
+      await journal.control({
+        ...s.access,
+        execution: s.execution,
+        operation: operation('interrupt'),
+        command: { kind: 'interrupt-model', call: replyCall, reason: evidence('interrupt') },
+      }),
+    )
+    const atReply = ok(await journal.load({ ...s.access, execution: s.execution }))
+    const step = atReply.checkpoint.step
+    const request: PendingHandoff = {
+      kind: 'execution',
+      reference: { kind: 'execution', execution: s.execution, operation: operation('reply') },
+      predecessor: atReply.revision,
+      position: { step, node: 'I3', slot: null },
+      source: {
+        kind: 'model-reply',
+        step,
+        action: pending.action,
+        call: replyCall,
+        result: {
+          producer: { kind: 'model', call: replyCall },
+          version: key.result,
+          delivery: null,
+          source: evidence('reply-result'),
+        },
+      },
+      candidate: assistantMessage('a reply the admission rejects'),
+      originalAdvance: authority,
+      predecessorHandoff: null,
+    }
+    await commit('prepare-reply', {
+      checkpoint: { ...atReply.checkpoint, position: 'Q2', currentHandoff: request.reference },
+      handoff: { kind: 'prepare', request },
+    })
+    const beforeJa = ok(await journal.load({ ...s.access, execution: s.execution }))
+    await commit('reject-reply', {
+      checkpoint: { ...beforeJa.checkpoint, position: 'Q4', currentHandoff: null },
+      replyAdmission: {
+        step,
+        action: pending.action,
+        call: replyCall,
+        resultVersion: key.result,
+        decision: 'rejected',
+        source: evidence('rejected'),
+      },
+      handoff: {
+        kind: 'resolve',
+        outcome: {
+          request,
+          origin: null,
+          provider: { owner: 'suite', name: 'handoff', revision: '1', digest: 'suite:handoff' },
+          qualification: evidence('qualification/reply'),
+          record: evidence('record/reply'),
+          decision: { kind: 'rejected', reason: 'malformed', evidence: evidence('rejected') },
+        },
+      },
+    })
     ok(
       await s.view.materials.preserve({
         ...s.access,

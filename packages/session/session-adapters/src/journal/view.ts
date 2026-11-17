@@ -163,6 +163,7 @@ export type PassageView = Readonly<{
 export type ControlView = Readonly<{
   control: AgentOperationId
   command: ExecutionControl
+  modelInvocation: ModelInvocationRef | null
   toolInvocation: ToolInvocationRef | null
   toolOperation: ToolOperationRef | null
   stages: Readonly<

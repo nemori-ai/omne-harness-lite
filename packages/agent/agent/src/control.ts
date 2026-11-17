@@ -34,10 +34,7 @@ import { json } from './receiving-values.ts'
 import { canonical } from './canonical.ts'
 import { attemptWrite, originalJournal, type OriginalWrite } from './loop/original-write.ts'
 
-type ModelControl = Pick<ControlRecord, 'operation' | 'stages'> &
-  Readonly<{
-    command: Extract<ControlRecord['command'], { kind: 'interrupt-model' }>
-  }>
+type ModelControl = Extract<ControlRecord, { command: { kind: 'interrupt-model' } }>
 type Ports<P> = Pick<AgentDependencies<P, ContentBlock>, 'journal' | 'models' | 'materials'>
 
 const observationSchema = {
@@ -161,7 +158,6 @@ async function saveControlStage<P>(
 
 const UNKNOWN_MODEL_ANSWERS: ReadonlySet<string> = new Set(['unavailable', 'commit-unknown'])
 
-type ModelPending = Extract<PendingCall, { kind: 'model' }>
 type ModelControlScope<P> = Readonly<{
   ports: Ports<P>
   access: Access<P>
@@ -171,31 +167,6 @@ type ModelControlScope<P> = Readonly<{
   operation: ModelOperationId
   reference: ModelInvocationRef
 }>
-
-async function modelControlTarget<P>(
-  ports: Ports<P>,
-  access: Access<P>,
-  execution: AgentExecutionId,
-  record: ModelControl,
-): Promise<Outcome<ModelPending, Failure>> {
-  const loaded = await ports.journal.load({ ...access, execution })
-  if ('failure' in loaded) return loaded
-  const pending = [
-    ...loaded.ok.checkpoint.calls,
-    ...loaded.ok.effects.map(effect => effect.pending),
-  ].find(call => {
-    if (call.kind !== 'model') return false
-    const resolved = resolveModelInvocationRef(call.reference, access.tenant)
-    return 'ok' in resolved && resolved.ok.call === record.command.call
-  })
-  if (pending?.kind !== 'model')
-    return fail({
-      kind: 'unavailable',
-      owner: '@omne-harness/agent',
-      diagnostic: 'original model control reference is unavailable',
-    })
-  return succeed(pending)
-}
 
 async function saveModelStage<P>(
   scope: ModelControlScope<P>,
@@ -244,8 +215,6 @@ export async function advanceModelControl<P>(
   execution: AgentExecutionId,
   record: ModelControl,
 ): Promise<Outcome<void, Failure>> {
-  const pending = await modelControlTarget(ports, access, execution, record)
-  if ('failure' in pending) return pending
   const prefix = createHash('sha256')
     .update(JSON.stringify([execution, record.operation]))
     .digest('hex')
@@ -258,7 +227,7 @@ export async function advanceModelControl<P>(
     record,
     prefix,
     operation: operation.ok,
-    reference: pending.ok.reference,
+    reference: record.modelInvocation,
   }
   if (record.stages['intent-established'] === undefined) {
     const saved = await saveModelStage(
@@ -424,8 +393,8 @@ export async function advanceAcceptedControl<P>(
   if ('failure' in loaded) return loaded
   const control = loaded.ok.controls.find(record => record.operation === operation)
   if (control === undefined) return succeed(undefined)
-  if (control.command.kind === 'interrupt-model')
-    return advanceModelControl(ports, access, execution, { ...control, command: control.command })
+  if (control.modelInvocation !== undefined)
+    return advanceModelControl(ports, access, execution, control)
   const tool = toolControlOf(control)
   if (tool !== undefined) return advanceToolControl(ports, access, execution, tool)
   return establishCancellation(ports.journal, access, execution, control)

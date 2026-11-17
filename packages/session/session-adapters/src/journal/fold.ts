@@ -434,6 +434,7 @@ function foldControlStage(draft: Draft, fact: FactOf<'control.stage'>, pub: numb
   draft.controls.set(fact.control, {
     control: fact.control,
     command: known?.command ?? fact.command,
+    modelInvocation: known?.modelInvocation ?? fact.modelInvocation,
     toolInvocation: known?.toolInvocation ?? fact.toolInvocation,
     toolOperation: known?.toolOperation ?? fact.toolOperation,
     stages,

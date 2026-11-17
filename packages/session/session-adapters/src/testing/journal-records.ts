@@ -26,7 +26,9 @@ import {
   type ExecutionView,
   type Mint,
   type OperationEntry,
+  type HandoffView,
   type PublishedBatch,
+  type ResultView,
   type SessionJournalView,
 } from '../journal/index.ts'
 import {
@@ -114,7 +116,7 @@ function receiptAt(
       { execution: view.execution, pub, envelope: { digest: entry.digest } } as PublishedBatch,
       entry.revision,
     ),
-    state: 'applied',
+    state: stateOf2(methodOf(entry.digest)),
   }
 }
 
@@ -224,6 +226,24 @@ function stateOf(view: ExecutionView, blobs: BlobStore): MemoryExecution['state'
   }
 }
 
+// A prepared H whose resolution carries no history was rejected: nothing entered the history.
+function historyOf(
+  item: HandoffView,
+  opAt: (pub: number) => AgentOperationId | undefined,
+  ended: DurableEvidence | null,
+): HandoffRecord['history'] {
+  if (item.retired !== null) return { kind: 'not-applicable' }
+  if (item.resolved === null)
+    return ended === null ? { kind: 'pending' } : { kind: 'retained', disposition: ended }
+  if (item.prepared !== null && item.resolved.history === null) return { kind: 'not-applicable' }
+  const operation = opAt(item.resolved.pub) as AgentOperationId
+  return { kind: 'committed', operation, revision: revisionOf(item.resolved.revision) }
+}
+
+// A result is a responsibility of the execution once recordResult took it; a producer event that
+// processed a result without that record is a fact of the step, not a responsibility.
+const responsible = (item: ResultView): boolean => item.stages.recorded !== undefined
+
 export function projectExecution(
   view: ExecutionView,
   context: ProjectionContext,
@@ -257,23 +277,22 @@ export function projectExecution(
         ({
           operation: item.control,
           command: item.command,
+          ...(item.modelInvocation === null ? {} : { modelInvocation: item.modelInvocation }),
           ...(item.toolInvocation === null ? {} : { toolInvocation: item.toolInvocation }),
           ...(item.toolOperation === null ? {} : { toolOperation: item.toolOperation }),
           stages: item.stages,
         }) as unknown as ControlRecord,
     ),
-    results: [...view.results.values()]
-      .filter(item => Object.keys(item.stages).length > 0)
-      .map((item): ResultResponsibility => ({
-        result: producedOf(item.result),
-        consumption: item.consumption,
-        custody: item.stages.custody ?? null,
-        completion: item.stages.processed ?? null,
-        release:
-          item.stages.released === undefined
-            ? { kind: 'pending' }
-            : { kind: 'confirmed', receipt: item.stages.released },
-      })),
+    results: [...view.results.values()].filter(responsible).map((item): ResultResponsibility => ({
+      result: producedOf(item.result),
+      consumption: item.consumption,
+      custody: item.stages.custody ?? null,
+      completion: item.stages.processed ?? null,
+      release:
+        item.stages.released === undefined
+          ? { kind: 'pending' }
+          : { kind: 'confirmed', receipt: item.stages.released },
+    })),
     effects: [...view.intents.values()].map(item => ({
       action: item.action,
       pending: item.pending,
@@ -294,6 +313,8 @@ export function projectExecution(
     stageReceipts: new Map(
       [...view.controls.values()].flatMap(control =>
         Object.entries(control.stages).flatMap(([stage, fact]) => {
+          // The accepted stage is recognized by its control operation, not by a stage receipt.
+          if (stage === 'accepted') return []
           const pub = fact === undefined ? null : pubOf(fact.source)
           const found = pub === null ? undefined : receipt(pub)
           return found === undefined
@@ -383,7 +404,7 @@ export function projectExecution(
       ),
   })
   projected.resultRevisions = new Map(
-    [...view.results.values()].flatMap(item => {
+    [...view.results.values()].filter(responsible).flatMap(item => {
       const pubs = Object.values(item.stages).flatMap(stage =>
         stage === undefined ? [] : [pubOf(stage) ?? 0],
       )
@@ -447,25 +468,13 @@ export function projectExecution(
     if (request === undefined) return []
     const resolution: HandoffRecord['resolution'] =
       outcome !== null ? { kind: 'recorded', outcome } : excluded
-    const history: HandoffRecord['history'] =
-      item.retired !== null
-        ? { kind: 'not-applicable' }
-        : item.resolved !== null && (item.prepared === null || item.resolved.history !== null)
-          ? {
-              kind: 'committed',
-              operation: opAt(item.resolved.pub) as AgentOperationId,
-              revision: revisionOf(item.resolved.revision),
-            }
-          : ended !== null
-            ? { kind: 'retained', disposition: ended.disposition }
-            : { kind: 'pending' }
     return [
       {
         handoff: item.handoff,
         request,
         prepared: item.prepared?.prepared ?? null,
         resolution,
-        history,
+        history: historyOf(item, opAt, ended?.disposition ?? null),
         retirement:
           item.retired === null
             ? null

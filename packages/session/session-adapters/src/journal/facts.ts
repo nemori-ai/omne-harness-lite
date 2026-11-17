@@ -287,6 +287,7 @@ export type FactBody =
       kind: 'control.stage'
       control: AgentOperationId
       command: ExecutionControl
+      modelInvocation: ModelInvocationRef | null
       toolInvocation: ToolInvocationRef | null
       toolOperation: ToolOperationRef | null
       stage: ControlStage

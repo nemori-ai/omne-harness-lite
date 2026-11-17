@@ -1,5 +1,6 @@
-import { compactionGeneration } from '@omne-harness/agent-contract'
+import { acceptanceIn, compactionGeneration, openItems } from '@omne-harness/agent-contract'
 import { pendingCalls } from './pending.ts'
+import { controlStageOf, controlTarget, type ToolControlRecord } from './journal-controls.ts'
 import { createHash } from 'node:crypto'
 import { canonical } from './canonical.ts'
 import type { JournalCell, TransactionAnswer } from './root.ts'
@@ -38,7 +39,6 @@ import type {
   JournalCommit,
   ModelReplyAdmission,
   OriginalInputAcceptance,
-  PendingCall,
   ReplyAdmissionFrom,
   ReplyAdmissionGapReason,
   ReplyAdmissionItem,
@@ -70,7 +70,6 @@ import type {
   SettlementResult,
   ObligationDisposition,
   RecoveryContinuation,
-  StepId,
   TerminalParticipantFact,
   ToolAssociationRecord,
 } from '@omne-harness/agent-contract'
@@ -532,43 +531,18 @@ function sameResultKey(
   return canonical(left.producer) === canonical(right.producer) && left.version === right.version
 }
 
-type ToolControlRecord = Extract<ControlRecord, { toolInvocation: ToolInvocationRef }>
-type ControlTarget =
-  | Pick<ToolControlRecord, 'command' | 'toolInvocation' | 'toolOperation'>
-  | Pick<Exclude<ControlRecord, ToolControlRecord>, 'command'>
-
-function controlTarget(
-  command: ExecutionControl,
-  calls: readonly PendingCall[],
-  tenant: TenantId,
-): Outcome<ControlTarget, Failure> {
-  if (command.kind === 'cancel' || command.kind === 'suspend') return succeed({ command })
-  if (command.kind === 'interrupt-model') {
-    const matches = calls.some(pending => {
-      if (pending.kind !== 'model') return false
-      const parts = resolveModelInvocationRef(pending.reference, tenant)
-      return 'ok' in parts && parts.ok.call === command.call
-    })
-    return matches
-      ? succeed({ command })
-      : fail(invalid('command.call', 'not a call of this execution'))
+// Inputs are open from the batch the Agent has taken onward (agent-contract snapshot rule).
+function openSnapshotItems(
+  scope: Readonly<{ execution: Execution; shown: ExecutionState; from: number }>,
+  handoffs: readonly ExecutionHandoff[],
+) {
+  const { execution, shown, from } = scope
+  const inputOpen = (input: InputId) => {
+    const index = execution.inputs.findIndex(accepted => accepted.id === input)
+    return index < 0 || index >= from
   }
-  let matched: Extract<PendingCall, { association: 'associated' }> | undefined
-  let admission: ToolOperationParts['admission'] | undefined
-  let ambiguous = false
-  for (const pending of calls) {
-    if (pending.kind !== 'tool' || pending.association !== 'associated') continue
-    const parts = resolveToolInvocationRef(pending.reference, tenant)
-    if ('failure' in parts)
-      return fail(invalid('command.call', 'invalid-tool-invocation-reference'))
-    if (parts.ok.call !== command.call) continue
-    if (matched !== undefined && admission !== parts.ok.admission) ambiguous = true
-    matched = pending
-    admission = parts.ok.admission
-  }
-  if (ambiguous) return fail(invalid('command.call', 'ambiguous-associated-tool-call'))
-  if (matched === undefined) return fail(invalid('command.call', 'no-associated-tool-call'))
-  return succeed({ command, toolInvocation: matched.reference, toolOperation: null })
+  const rule = { state: shown, checkpoint: execution.checkpoint, inputOpen }
+  return openItems(rule, { results: execution.results, effects: execution.effects, handoffs })
 }
 
 function interruptionsOf(
@@ -1791,26 +1765,6 @@ export function createJournal<P>(
     return succeed({ value, receipt, advanced })
   }
 
-  function controlStageOf(
-    record: ControlRecord,
-    stage: ControlStage,
-    state: 'reached' | 'unresolved',
-    source: DurableEvidence,
-    step: StepId | null = null,
-  ): FactBody {
-    return {
-      kind: 'control.stage',
-      control: record.operation,
-      command: copy(record.command),
-      toolInvocation: record.toolInvocation === undefined ? null : copy(record.toolInvocation),
-      toolOperation: record.toolOperation === undefined ? null : copy(record.toolOperation),
-      stage,
-      state,
-      source,
-      step,
-    }
-  }
-
   function recognitionOf<R>(
     target: AgentOperationId | undefined,
     revision: number,
@@ -2066,12 +2020,13 @@ export function createJournal<P>(
     }
     const emitted = execution.events.length
     const groups = custodyGroups(execution)
+    const shown = stateOf(execution)
     // One-level copy is enough: the core replaces elements and never mutates them in place, so a snapshot keeps what it saw. A deep copy cost every `load` the whole history.
     return succeed<ExecutionSnapshot>({
       ...copy({
         execution: execution.id,
         revision: revisionOf(execution.revision),
-        state: stateOf(execution),
+        state: shown,
         checkpoint: execution.checkpoint,
         inputWatermark: watermarkOf(execution),
         history: journalEvidence(`${cell.namespace}/${execution.id}/history`, execution.revision),
@@ -2086,11 +2041,17 @@ export function createJournal<P>(
         },
       }),
       controls: [...execution.controls],
-      results: [...execution.results],
-      effects: [...execution.effects],
       terminalObservations: [...execution.observations],
-      handoffs: handoffsOf(execution, handoff => custodyOf(execution, handoff, groups)),
+      ...openSnapshotItems(
+        { execution, shown, from: takenFrom(execution) },
+        handoffsOf(execution, handoff => custodyOf(execution, handoff, groups)),
+      ),
     })
+  }
+
+  function takenFrom(execution: Execution): number {
+    const taken = execution.checkpoint.inputBatch
+    return taken === null ? 0 : (cache(execution).batches.get(taken.id)?.from ?? 0)
   }
 
   function readPage(
@@ -4547,6 +4508,12 @@ export function createJournal<P>(
       if ('failure' in found) return found
       admissionStatistics.loads += 1
       return snapshotOf(found.ok)
+    },
+
+    async inputAcceptance(input) {
+      const found = owned(input, 'inputAcceptance')
+      if ('failure' in found) return found
+      return succeed(copy(acceptanceIn(found.ok.handoffs, input.input)))
     },
 
     async readFinish(input) {

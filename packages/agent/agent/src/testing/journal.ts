@@ -65,9 +65,11 @@ import type {
 } from '@omne-harness/agent-contract'
 import type { SettlementQualification, TestHostRecord } from './host-record.ts'
 import {
+  acceptanceIn,
   decodeActionId,
   decodeAgentExecutionId,
   decodeAgentOperationId,
+  openItems,
 } from '@omne-harness/agent-contract'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { decodeModelCallId, resolveModelInvocationRef } from '@omne-harness/model-contract'
@@ -401,9 +403,11 @@ function sameResult(left: ResultResponsibility['result'], right: ResultResponsib
 }
 
 type ToolControlRecord = Extract<ControlRecord, { toolInvocation: ToolInvocationRef }>
+type ModelControlRecord = Extract<ControlRecord, { command: { kind: 'interrupt-model' } }>
 type ControlTarget =
   | Pick<ToolControlRecord, 'command' | 'toolInvocation' | 'toolOperation'>
-  | Pick<Exclude<ControlRecord, ToolControlRecord>, 'command'>
+  | Pick<ModelControlRecord, 'command' | 'modelInvocation'>
+  | Pick<Exclude<ControlRecord, ToolControlRecord | ModelControlRecord>, 'command'>
 
 function controlTarget(
   command: ExecutionControl,
@@ -412,13 +416,13 @@ function controlTarget(
 ): Outcome<ControlTarget, Failure> {
   if (command.kind === 'cancel' || command.kind === 'suspend') return succeed({ command })
   if (command.kind === 'interrupt-model') {
-    const matches = calls.some(pending => {
+    const target = calls.find(pending => {
       if (pending.kind !== 'model') return false
       const parts = resolveModelInvocationRef(pending.reference, tenant)
       return 'ok' in parts && parts.ok.call === command.call
     })
-    return matches
-      ? succeed({ command })
+    return target?.kind === 'model'
+      ? succeed({ command, modelInvocation: target.reference })
       : fail(invalid('command.call', 'not a call of this execution'))
   }
   let matched: Extract<PendingCall, { association: 'associated' }> | undefined
@@ -592,40 +596,30 @@ function undetermined(record: HandoffRecord): boolean {
   return record.history.kind === 'pending' && record.retirement === null
 }
 
-function finishing(execution: Execution): boolean {
-  return execution.state.kind === 'settling' || execution.state.kind === 'ended'
-}
-
-function openResult(result: ResultResponsibility): boolean {
-  return result.completion === null || result.release.kind === 'pending'
-}
-
-function openEffect(checkpoint: AgentCheckpoint, effect: EffectIntent): boolean {
-  return (
-    checkpoint.calls.some(call => call.action === effect.action) ||
-    (checkpoint.batch?.actions.some(action => action.id === effect.action) ?? false)
-  )
-}
-
-function openHandoff(execution: Execution, record: ExecutionHandoff): boolean {
-  if (record.history.kind === 'pending') return true
-  if (record.custody !== null && record.custody.committed === null) return true
-  if (finishing(execution)) return true
-  const { checkpoint } = execution
-  const same = (reference: HandoffReference | null) =>
-    reference !== null && canonical(reference) === canonical(record.handoff)
-  if (same(checkpoint.currentHandoff)) return true
-  if (checkpoint.batch?.slots.some(slot => same(slot.handoff)) ?? false) return true
-  if (record.handoff.kind === 'input') return openInput(execution, record.handoff.input)
-  return record.request.kind === 'execution' && record.request.position.step === checkpoint.step
-}
-
 function openInput(execution: Execution, input: InputId): boolean {
   const index = execution.inputs.findIndex(accepted => accepted.id === input)
   if (index < 0) return true
   const taken = execution.checkpoint.inputBatch
   const from = taken === null ? 0 : (execution.batches.get(taken.id)?.from ?? 0)
   return index >= from
+}
+
+function stateOf(execution: Execution): ExecutionState {
+  if (execution.state.kind !== 'settling') return execution.state
+  const intent = intentOf(execution.finishing)
+  if (intent === undefined)
+    throw new Error('memory Journal defect: a settling execution without a candidate')
+  return { kind: 'settling', intent }
+}
+
+function openSnapshotItems(
+  execution: Execution,
+  state: ExecutionState,
+  handoffs: readonly ExecutionHandoff[],
+) {
+  const inputOpen = (input: InputId) => openInput(execution, input)
+  const scope = { state, checkpoint: execution.checkpoint, inputOpen }
+  return openItems(scope, { results: execution.results, effects: execution.effects, handoffs })
 }
 
 function handoffsOf(
@@ -1107,11 +1101,13 @@ export function createMemoryAgentJournal<P>(
       }
     }
     const emitted = execution.events.length
+    const state = stateOf(execution)
+    const handoffs = handoffsOf(execution, handoff => custodyOf(execution, handoff))
     return succeed<ExecutionSnapshot>(
       copy({
         execution: execution.id,
         revision: revisionOf(execution.revision),
-        state: stateOf(execution),
+        state,
         checkpoint: execution.checkpoint,
         inputWatermark: watermarkOf(execution),
         history: journalEvidence(`${execution.id}/history`, execution.revision),
@@ -1119,14 +1115,8 @@ export function createMemoryAgentJournal<P>(
         executionAttachment: activeAttachment(execution)?.authority ?? null,
         unresolved,
         controls: execution.controls,
-        results: execution.results.filter(result => finishing(execution) || openResult(result)),
-        effects: execution.effects.filter(
-          effect => finishing(execution) || openEffect(execution.checkpoint, effect),
-        ),
+        ...openSnapshotItems(execution, state, handoffs),
         terminalObservations: execution.observations,
-        handoffs: handoffsOf(execution, handoff => custodyOf(execution, handoff)).filter(record =>
-          openHandoff(execution, record),
-        ),
         finishObligations: currentObligations(execution.finishing) ?? null,
         settlement: settlementOf(execution.finishing),
         output: {
@@ -1135,14 +1125,6 @@ export function createMemoryAgentJournal<P>(
         },
       }),
     )
-  }
-
-  function stateOf(execution: Execution): ExecutionState {
-    if (execution.state.kind !== 'settling') return execution.state
-    const intent = intentOf(execution.finishing)
-    if (intent === undefined)
-      throw new Error('memory Journal defect: a settling execution without a candidate')
-    return { kind: 'settling', intent }
   }
 
   function pendingOperations(
@@ -3256,6 +3238,14 @@ export function createMemoryAgentJournal<P>(
       if (refused !== undefined) return fail(refused)
       admissionStatistics.loads += 1
       return snapshotOf(found.ok)
+    },
+
+    async inputAcceptance(input) {
+      const found = owned(input, 'inputAcceptance')
+      if ('failure' in found) return found
+      const refused = unreadable(input, 'inputAcceptance')
+      if (refused !== undefined) return fail(refused)
+      return succeed(copy(acceptanceIn(found.ok.handoffs, input.input)))
     },
 
     async inputs(input) {

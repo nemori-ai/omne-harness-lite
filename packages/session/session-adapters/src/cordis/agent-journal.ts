@@ -243,6 +243,7 @@ const READS: ReadonlySet<string> = new Set([
   'inputs',
   'readReplyAdmissions',
   'query',
+  'inputAcceptance',
   'output.read',
   'materials.read',
   'materials.describe',
@@ -262,6 +263,8 @@ const unavailable = (diagnostic: string): Failure => ({
   owner: OWNER,
   diagnostic,
 })
+const unread = <T>(answer: Outcome<T, Failure> | undefined, what: string): Outcome<T, Failure> =>
+  answer ?? fail(unavailable(`the Journal core holds no ${what} read`))
 
 type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
 type AttachInput<P> = Parameters<AgentJournal<P>['attach']>[0]
@@ -2037,25 +2040,22 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       recordTerminalObservation: input =>
         run(input, 'recordTerminalObservation', core => core.port.recordTerminalObservation(input)),
       readCancellationInstallation: input =>
-        run(
-          input,
-          'readCancellationInstallation',
-          async core =>
-            (await core.port.readCancellationInstallation?.(input)) ??
-            fail(unavailable('the Journal core holds no cancellation installation read')),
+        run(input, 'readCancellationInstallation', async core =>
+          unread(
+            await core.port.readCancellationInstallation?.(input),
+            'cancellation installation',
+          ),
         ),
       load: input => run(input, 'load', core => core.port.load(input)),
       inputs: input => run(input, 'inputs', core => core.port.inputs(input)),
       readReplyAdmissions: input =>
         run(input, 'readReplyAdmissions', core => core.port.readReplyAdmissions(input)),
       readFinish: input =>
-        run(
-          input,
-          'readFinish',
-          async core =>
-            (await core.port.readFinish?.(input)) ??
-            fail(unavailable('the Journal core holds no finish read')),
+        run(input, 'readFinish', async core =>
+          unread(await core.port.readFinish?.(input), 'finish'),
         ),
+      inputAcceptance: input =>
+        run(input, 'inputAcceptance', core => core.port.inputAcceptance(input)),
       query: async input => {
         const answer = await run(input, 'query', core => core.port.query(input))
         return book === null ? answer : queryCold(book, input, answer)
