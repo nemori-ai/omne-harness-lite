@@ -1,3 +1,4 @@
+import { isLegacyDirectory } from '@omne-harness/repo-toolchain/core/check-scope'
 import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -85,10 +86,11 @@ import {
   tierWithRetry,
   writeTestStepReport,
   type FailedFile,
+  type Rerun,
   type RetriedFile,
   type RetryTier,
 } from './test-retry.ts'
-import { rerunInFile, type RerunOutcome } from './triage.ts'
+import { rerunInFile } from './triage.ts'
 import { TIER_TASKS } from './turbo.ts'
 
 export function runCachePolicy(
@@ -273,16 +275,39 @@ export function pythonStep(root: string, file: PlanFile): number {
       )
 }
 
+export function unbuiltMembers(
+  members: readonly WorkspaceMember[],
+  planned: ReadonlySet<string>,
+  built: (memberPath: string) => boolean,
+): WorkspaceMember[] {
+  return members.filter(
+    member =>
+      member.scripts['build'] !== undefined &&
+      !isLegacyDirectory(member.path) &&
+      !planned.has(member.path) &&
+      !built(member.path),
+  )
+}
+
 export function buildStep(root: string, file: PlanFile, budget: Budget, planPath?: string): number {
   const paths = file.plan.build.map(entry => entry.path)
-  if (paths.length === 0) {
-    console.log('构建：跳过——没有被选中的成员')
+  const unbuilt = unbuiltMembers(
+    listWorkspaceMembers(fileTree(root), readTestRunsConfig().affected.excludeRoots),
+    new Set(paths),
+    path => existsSync(join(root, path, 'dist')),
+  )
+  if (paths.length === 0 && unbuilt.length === 0) {
+    console.log('构建：跳过——没有被选中的成员，也没有缺构建产物的成员')
     return 0
   }
   console.log(
     `构建：${paths.length} 个成员及其上游——${paths.join('、')}（同时 ${budget.workers} 个；${describeBudget(budget)}）`,
   )
-  const names = membersAt(root, paths).map(member => member.name)
+  if (unbuilt.length > 0)
+    console.log(
+      `构建：另有 ${unbuilt.length} 个成员没有构建产物（dist），一并构建——${unbuilt.map(member => member.path).join('、')}`,
+    )
+  const names = [...membersAt(root, paths), ...unbuilt].map(member => member.name)
   const recordPath = planPath === undefined ? undefined : builtFromPath(planPath)
   if (recordPath !== undefined) clearBuiltFrom(recordPath)
   let digests: ReadonlyMap<string, string> | undefined
@@ -697,8 +722,8 @@ export async function testStep(
       `成员测试（接续）：H1 上失败的 ${resumed.files.length} 个文件里 ${alone.length} 个单独各跑一次（其余所在成员已整个跑过），成员串行、每成员 1 个工作进程`,
     )
     for (const failed of alone) {
-      const outcome = await rerun(failed)
-      console.log(`  ${failed.file}（${failed.tier}）→ ${outcome}`)
+      const { outcome, log } = await rerun(failed)
+      console.log(`  ${failed.file}（${failed.tier}）→ ${outcome}，日志 ${log}`)
       if (outcome !== 'passed') {
         code = 1
         report.failures.push(failed)
@@ -722,7 +747,7 @@ async function rerunFailedFile(
   root: string,
   failed: FailedFile,
   tokens: TokenSource,
-): Promise<RerunOutcome> {
+): Promise<Required<Rerun>> {
   const base = join(
     ledgerHome('test', coordinates(root, undefined).mainRoot, process.env),
     'retry',
@@ -730,7 +755,7 @@ async function rerunFailedFile(
   )
   mkdirSync(dirname(base), { recursive: true })
   const { min } = memberDemand(readTestRunsConfig().parallel, failed.member, failed.tier, 1)
-  return runJob(
+  const outcome = await runJob(
     {
       want: min,
       min,
@@ -740,6 +765,7 @@ async function rerunFailedFile(
     },
     tokens,
   )
+  return { outcome, log: `${base}.log` }
 }
 
 export async function fastThenSlow(
