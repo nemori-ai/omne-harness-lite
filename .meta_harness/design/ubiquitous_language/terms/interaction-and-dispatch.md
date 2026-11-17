@@ -30,7 +30,7 @@
 
 - **控制边界**：派发者可显式撤回 spawn／delegate 的工作；父 Run 停止不自动停止子会话执行，报告结束派发而不决定子 Run 终态。
 - **形态**：过程
-- **出处**：[元能力：派发有三种模式](../../product/meta-capabilities/design.md#三种派发模式)（rev 7）
+- **出处**：[元能力：派发有三种模式](../../product/meta-capabilities/design.md#三种派发模式)（rev 8）
 - **注意 ①**：**两处分水岭，各自只有一条。**`spawn` 与 `delegate` 只差
   「**它带着什么开始干活**」——**一个带副本加交代，一个只带交代**；
   `spawn`/`delegate` 与 `handoff` 只差
@@ -59,7 +59,7 @@
 
 - **形态**：属性
 - **出处**：[元能力：三种派发模式](../../product/meta-capabilities/design.md#三种派发模式) ·
-  [元能力：一次报告与后续消息](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 7）
+  [元能力：一次报告与后续消息](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 8）
 - **别混 ①**：与「**派发出去的 agent**」不是一回事——**后者含 `handoff`，它不含**。
   [规则一](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)管的是前者，范围更大
 - **别混 ②**：**与 [agent 类型](capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type)不是一回事**——
@@ -98,7 +98,7 @@
 
 - **归档边界**：接收会话归档期间拒绝新的任务消息，告知发送方；既有执行的迟到结果和账不丢失，也不作为新任务入队。
 - **形态**：规则
-- **出处**：[元能力：先说谁能给谁发消息](../../product/meta-capabilities/design.md#双向通信与消息失败)（rev 7）
+- **出处**：[元能力：先说谁能给谁发消息](../../product/meta-capabilities/design.md#双向通信与消息失败)（rev 8）
 - **注意 ①**：**规则二那三个条件缺一不可**，「**会话仍活跃**」尤其容易被忽略——
   **一个会话已被归档的 agent，不是「暂时联系不上」，是这条通路不存在了**。
   **「活跃」就是「未被归档」**（[现行词义](../index.md)）——
@@ -129,7 +129,7 @@
 > **a report comes once**, messages any number of times.
 
 - **形态**：对象
-- **出处**：[元能力：报告与消息是两样东西](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 7）
+- **出处**：[元能力：报告与消息是两样东西](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 8）
 - **⚠️ 它终结的是这次派发，不是那个会话。**[子 agent](#ul-subagent--子-agent--subagent) 交回报告之后，
   它的会话不会因此归档，也不据此认定子 Run 终态；后续消息仍须满足[当前通信准入](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)。
   **不点破这一条，就会被做成「报告一到就把那个会话收掉」——而且不报错**
@@ -298,7 +298,7 @@
 > own**. **Several questions may be asked at once.**
 
 - **形态**：过程
-- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 7）
+- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 8）
 - **别混**：与[请示](#ul-approval-request--请示--approval-request)**形状不同**——
   **问询是开放的，拿到之后接着想；请示是封闭的，拿到之后才动手**
 - **注意 ①**：**自由作答这条路由系统保证，不靠 agent 记得留**——**靠自觉总有忘的时候**
@@ -320,7 +320,7 @@
 > setting only when the actor has the required authority.
 
 - **形态**：过程
-- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 7）
+- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 8）
 - **注意 ①**：**先把事做了再请示，那不叫请示，叫通知**——**人拒绝的时候已经晚了**
 - **注意 ②**：**翻不出裁决就不要翻。**人的回答常常不落在准/驳上（「第二封改改语气再发」）——
   **替人合成一个裁决等于伪造签字**
@@ -343,7 +343,7 @@
 > the session's run mode.
 
 - **形态**：对象
-- **出处**：[元能力：会话授权上下文](../../product/meta-capabilities/design.md#会话授权上下文)（rev 7）
+- **出处**：[元能力：会话授权上下文](../../product/meta-capabilities/design.md#会话授权上下文)（rev 8）
 - **注意 ①**：**流水里的每一笔是一次[授权表达](#ul-authorization-expression--授权表达--authorization-expression)**，
   **三个维度**——**来源**（结构化：界面上对着条目操作 / **语义化：用嘴说**）、
   **方向**（给出 / 撤回）、**作用域**（这一次 / 本会话 / **全局，即本租户下未来所有会话**）。
@@ -384,7 +384,7 @@
 > that the setting is effective.
 
 - **形态**：对象
-- **出处**：[元能力：一笔授权表达有三个维度](../../product/meta-capabilities/design.md#会话授权上下文)（rev 7）
+- **出处**：[元能力：一笔授权表达有三个维度](../../product/meta-capabilities/design.md#会话授权上下文)（rev 8）
 - **别混**：**不是[会话授权上下文](#ul-session-authorization-context--会话授权上下文--session-authorization-context)**——
   那是流水**整份**，这是流水里的**一笔**
 - **注意 ①**：**撤回也是一笔**——**不是把先前那笔擦掉**，是往后再记一笔
@@ -426,20 +426,54 @@
 ### UL-background-result-eligibility · 后台结果投递资格 · Background Result Eligibility
 
 > **中**：**一次转了后台的工具执行，它的真实结局还能不能作为一条[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)进入原会话。**
-> 它随原调用成立。**会话被归档，或这一次调用被单独停止**，它就撤销；**取消原来那一轮 Run 不撤销它**。
+> 它随原调用成立。**会话被归档**，它就撤销；**单独停止这一次调用不撤销它，取消原来那一轮 Run 也不撤销它**。
 > 撤销之后，结局照样保存、照样查得到，只是不再成为输入。
 >
 > **EN**: **Whether the real outcome of a backgrounded tool execution can still enter its
 > original session as an inbound arrival.** It starts with the original call. Archiving the
-> session, or stopping that one call, revokes it. Cancelling the original run does not revoke
-> it. After revocation the outcome is still kept and can still be read, but it does not become
-> an input.
+> session revokes it. Stopping that one call does not revoke it, and cancelling the original
+> run does not revoke it. After revocation the outcome is still kept and can still be read,
+> but it does not become an input.
 
 - **形态**：属性
-- **出处**：[会话与工作「一次工作可以等待、恢复和并行调用」](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 9）
+- **出处**：[会话与工作「一次工作可以等待、恢复和并行调用」](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 10）
 - **别混**：**它不是工具结果的交付。**交付是 Tool 把结果推给受理时冻结的消费位置，有没有这项资格都照推；
   这项资格只管结局能不能再进会话，成为一条输入
-- **注意**：裸写「投递资格」只在讲后台结局的一段里作数；跨 topic 引用写正式名
+- **注意 ①**：裸写「投递资格」只在讲后台结局的一段里作数；跨 topic 引用写正式名
+- **注意 ②**：资格在不等于会叫醒。被单独停止过的调用，结局是[不叫醒的输入](#ul-non-waking-input--不叫醒的输入--non-waking-input)
+
+### UL-non-waking-input · 不叫醒的输入 · Non-waking Input
+
+> **中**：**一条已经受理、但不能单独使会话开始一轮工作的[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)。**
+> 会话有未终结的 Run 时，它照常由该 Run 承接；没有时，它留在待处理里，由下一次工作一并承接。
+> 现有两种：用户停止一项后台工具时的停止提醒，与被单独停止过的调用的结局。
+>
+> **EN**: **An inbound arrival that is admitted but cannot, by itself, make the session start
+> a run.** When the session has a run that has not ended, that run takes it as usual. When
+> there is none, it stays pending and the next run takes it with its first batch. There are
+> two kinds now: the stop notice for a background tool that a user stopped, and the outcome
+> of a call that was stopped by itself.
+
+- **形态**：变体（父：[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)）
+- **出处**：[会话与工作「一次工作可以等待、恢复和并行调用」](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 10）
+- **别混**：**它不是被留存的结局。**被留存的结局不成为输入，模型读不到；不叫醒的输入是输入，模型在下一次承接时读到
+
+### UL-background-call-number · 后台调用短号 · Background Call Number
+
+> **中**：**会话给一项[后台执行](execution-and-outcome.md#ul-background-execution--后台执行--background-execution)的会话内编号：`b` 加它在本会话转后台的先后。**
+> 它在这次调用转后台时定下，会话内唯一，不复用，重放之后不变。人和 agent 用它指认一项后台执行；
+> 它不是调用的身份，出了这个会话没有意义。
+>
+> **EN**: **The number that a session gives to one background execution: `b` and the order in
+> which the call moved to the background in this session.** It is fixed when the call moves to
+> the background. It is unique in the session, is not used again, and does not change on
+> replay. People and agents use it to point at one background execution. It is not the
+> identity of the call and has no meaning outside this session.
+
+- **形态**：属性
+- **出处**：[工具执行「前台和后台是等待与交付方式」](../../product/tool-execution/design.md#前台和后台是等待与交付方式)（rev 10）
+- **别混**：**它不是调用引用。**调用引用是 Tool 认得的身份，跨会话有效；短号只在一个会话里指认一项
+
 ### UL-inbound-target · 投递目标 · Inbound Target
 
 > **中**：**[连接件](capabilities-and-composition.md#ul-connector--连接件--connector)的一项[落点与身份类](capabilities-and-composition.md#ul-setting-category--设置项类别--setting-category)设置：它送进来的外部消息进哪个[会话](agent-runtime-loop.md#ul-session--会话--session)。**

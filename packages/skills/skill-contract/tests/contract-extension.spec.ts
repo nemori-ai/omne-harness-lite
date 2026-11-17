@@ -19,16 +19,12 @@ function body(value: Record<string, unknown>): JsonValue {
 }
 
 const DIGEST = `sha256:${'ab'.repeat(32)}`
-const script = { entry: 'scripts/run.sh', runKind: 'shell', facilities: ['network'] }
 const full = {
   description: 'Reviews a change.',
   tools: [{ category: 'tool', name: 'read_file' }],
-  scripts: [{ ...script, parameters: { type: 'object' } }],
   settings: [
     { name: 'api-endpoint', category: 'binding' },
     { name: 'tone', category: 'preference' },
-    { name: 'region', category: 'placement-identity' },
-    { name: 'audit', category: 'governance' },
   ],
   package: { digest: DIGEST },
 }
@@ -40,7 +36,7 @@ describe('the extended skill body', () => {
     expect(port.judge(body(full), { capabilityName: 'review' })).toEqual({ ok: true })
   })
 
-  it.each(['description', 'scripts', 'settings', 'package'])('accepts a body without %s', key => {
+  it.each(['description', 'settings', 'package'])('accepts a body without %s', key => {
     const rest = Object.fromEntries(Object.entries(full).filter(([name]) => name !== key))
     expect(port.judge(body(rest))).toEqual({ ok: true })
   })
@@ -49,28 +45,6 @@ describe('the extended skill body', () => {
     ['a description that is not text', { description: 3 }, 'malformed'],
     ['an empty description', { description: '' }, 'malformed'],
     ['a description of 16385 characters', { description: 'd'.repeat(16385) }, 'malformed'],
-    ['scripts that are not a list', { scripts: {} }, 'malformed'],
-    ['an absolute script entry', { scripts: [{ ...script, entry: '/x.sh' }] }, 'outside-package'],
-    [
-      'a script entry with a .. segment',
-      { scripts: [{ ...script, entry: '../x.sh' }] },
-      'malformed',
-    ],
-    [
-      'a script entry that is not normalized',
-      { scripts: [{ ...script, entry: './scripts/run.sh' }] },
-      'malformed',
-    ],
-    [
-      'a script entry that is a control file',
-      { scripts: [{ ...script, entry: 'SKILL.md' }] },
-      'malformed',
-    ],
-    ['a repeated script entry', { scripts: [script, { ...script, runKind: 'node' }] }, 'malformed'],
-    ['a script entry that is not a path', { scripts: [{ ...script, entry: 'a\\b' }] }, 'malformed'],
-    ['a script without an entry', { scripts: [{ runKind: 'shell', facilities: [] }] }, 'malformed'],
-    ['a run kind outside the lexicon', { scripts: [{ ...script, runKind: 'Shell' }] }, 'malformed'],
-    ['a script with an unknown field', { scripts: [{ ...script, mode: 'x' }] }, 'malformed'],
     ['settings that are not a list', { settings: 'x' }, 'malformed'],
     [
       'a setting category that is unknown',
@@ -83,7 +57,7 @@ describe('the extended skill body', () => {
       {
         settings: [
           { name: 'a', category: 'binding' },
-          { name: 'a', category: 'governance' },
+          { name: 'a', category: 'preference' },
         ],
       },
       'malformed',
@@ -148,14 +122,9 @@ describe('the extended skill body', () => {
     })
   })
 
-  it('gives outside-package before setting-category-unknown before malformed', () => {
-    const outside = { scripts: [{ ...script, entry: '/x.sh' }] }
+  it('gives setting-category-unknown before malformed', () => {
     const category = { settings: [{ name: 'a', category: 'secret' }] }
     const malformed = { description: '' }
-    expect(port.judge(body({ ...malformed, ...category, ...outside }))).toEqual({
-      ok: false,
-      rejected: 'outside-package',
-    })
     expect(port.judge(body({ ...malformed, ...category }))).toEqual({
       ok: false,
       rejected: 'setting-category-unknown',
@@ -164,23 +133,17 @@ describe('the extended skill body', () => {
 })
 
 describe('the schema value of the port', () => {
-  it('names every body field and the four setting categories', () => {
+  it('names every body field and the two setting categories', () => {
     const schema = JSON.parse(writeJsonText(skillBodyContract().schema))
     expect(schema.kind).toBe('skill-body')
     expect(Object.keys(schema.properties)).toEqual([
       'name',
       'description',
       'tools',
-      'scripts',
       'settings',
       'package',
     ])
-    expect(schema.properties.settings.category.split('|')).toEqual([
-      'preference',
-      'binding',
-      'placement-identity',
-      'governance',
-    ])
+    expect(schema.properties.settings.category.split('|')).toEqual(['preference', 'binding'])
     expect(schema.properties.tools).toEqual({ category: 'tool', name: 'string' })
     expect(schema.properties.package).toEqual({ digest: 'string' })
   })
@@ -191,16 +154,11 @@ describe('deriveDeclarations', () => {
 
   it('derives one setting:<category>:<name> entry for each setting, in order', () => {
     expect(port.deriveDeclarations(body(full))).toEqual({
-      entries: [
-        'setting:binding:api-endpoint',
-        'setting:preference:tone',
-        'setting:placement-identity:region',
-        'setting:governance:audit',
-      ],
+      entries: ['setting:binding:api-endpoint', 'setting:preference:tone'],
     })
   })
 
-  it('derives no entry from dependencies or scripts, and none from an original body', () => {
+  it('derives no entry from dependencies, and none from an original body', () => {
     const { settings: _dropped, ...rest } = full
     expect(port.deriveDeclarations(body(rest))).toEqual({ entries: [] })
     expect(port.deriveDeclarations(body({ tools: [] }))).toEqual({ entries: [] })

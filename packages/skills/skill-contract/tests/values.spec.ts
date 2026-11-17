@@ -299,20 +299,12 @@ describe('projectAssetBody', () => {
     return JSON.parse(writeJsonText(body))
   }
 
-  it('projects name, description, tools, scripts, settings and the package digest', () => {
+  it('projects name, description, tools, settings and the package digest', () => {
     const definition = definitionOf('full-skill')
     expect(textOf(projectAssetBody(definition))).toEqual({
       name: 'full-skill',
       description: 'Shows every interpreted field and one field that Skill keeps as it is.',
       tools: [{ category: 'tool', name: 'read_file' }],
-      scripts: [
-        {
-          entry: 'scripts/run.sh',
-          runKind: 'shell',
-          facilities: ['network'],
-          parameters: { type: 'object', required: ['target'] },
-        },
-      ],
       settings: [
         { name: 'api-endpoint', category: 'binding' },
         { name: 'tone', category: 'preference' },
@@ -327,7 +319,6 @@ describe('projectAssetBody', () => {
       name: 'plain-skill',
       description: 'Shows the smallest legal package.',
       tools: [],
-      scripts: [],
       settings: [],
       package: { digest: definition.snapshot.digest },
     })

@@ -67,7 +67,7 @@ describe('a content-store locator', () => {
     const source = createDirectorySource()
     const present = await source.snapshot(directory(root))
     if (!('ok' in present)) throw new Error(present.failure)
-    const locator = { kind: 'content-store', digest: present.ok.digest } as const
+    const locator = { kind: 'content-store', digest: present.ok.digest, ref: 'asset' } as const
     expect(await source.snapshot(locator)).toEqual({ failure: 'package-not-found' })
     const first = present.ok.entries[0]
     if (first === undefined) throw new Error('the sample package has entries')

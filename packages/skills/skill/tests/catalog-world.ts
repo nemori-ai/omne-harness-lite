@@ -47,7 +47,6 @@ const reviewDeclared: DeclaredProjection = {
   name: granted(isSkillName, 'review'),
   description: 'Reviews a change.',
   tools: [tool('read-file')],
-  scripts: [],
   settings: [{ name: 'tone', category: 'preference' }],
 }
 
@@ -55,7 +54,6 @@ const secretDeclared: DeclaredProjection = {
   name: granted(isSkillName, 'secret'),
   description: 'Keeps a secret.',
   tools: [],
-  scripts: [],
   settings: [],
 }
 

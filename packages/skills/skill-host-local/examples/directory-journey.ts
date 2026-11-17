@@ -54,7 +54,6 @@ export function declaredOf(definition: SkillDefinition): DeclaredProjection {
     name: manifest.name,
     description: manifest.description,
     tools: declaration.dependencies,
-    scripts: declaration.scripts,
     settings: declaration.settings,
   }
 }
