@@ -39,15 +39,22 @@ export const callViewOf = (state: Pick<CallState, 'phase' | 'attempts'>): CallVi
   attempts: state.attempts ?? null,
 })
 
+type Fault = DispatchProgress['last']
+
+function sameFault(a: Fault, b: Fault): boolean {
+  if (a === null || b === null) return a === b
+  return (
+    a.cause === b.cause && a.upstreamStatus === b.upstreamStatus && a.diagnostic === b.diagnostic
+  )
+}
+
 function sameProgress(a: DispatchProgress | null, b: DispatchProgress | null): boolean {
   if (a === null || b === null) return a === b
   return (
     a.allowed === b.allowed &&
     a.made === b.made &&
     a.notBefore === b.notBefore &&
-    a.last?.cause === b.last?.cause &&
-    a.last?.upstreamStatus === b.last?.upstreamStatus &&
-    a.last?.diagnostic === b.last?.diagnostic
+    sameFault(a.last, b.last)
   )
 }
 
