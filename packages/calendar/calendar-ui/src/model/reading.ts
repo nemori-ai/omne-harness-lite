@@ -28,7 +28,6 @@ const UNREADABLE: ReadonlySet<string> = new Set([
 
 export const READING: Reading<never> = { kind: 'reading' }
 
-/** The answer of a read operation, as the page shows it. */
 export function readingOf<T>(answer: Answer): Reading<T> {
   if (answer.outcome === 'succeeded') return { kind: 'read', value: answer.body as T }
   if (UNREADABLE.has(answer.outcome))
@@ -54,10 +53,7 @@ export const UNREADABLE_TEXT: Readonly<Record<Unreadable, string>> = {
   'not-sent': '请求没有发出：输入不合规则。',
 }
 
-/**
- * Reads on mount and whenever `key` changes, and again on `reload`. An answer that arrives after the
- * key changed or the page went away is dropped, so one tenant's data is never drawn for another.
- */
+/** Reads when `key` changes or on `reload`; an answer for an earlier key is dropped, never drawn. */
 export function useReading<T>(
   key: string,
   read: (signal: AbortSignal) => Promise<Answer>,
