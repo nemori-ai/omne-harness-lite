@@ -69,6 +69,9 @@ const questionFields = {
   description: text(4096),
   declineConsequence: text(4096),
 }
+function uniqueOptions(question: Readonly<{ options: readonly Readonly<{ id: string }>[] }>) {
+  return new Set(question.options.map(item => item.id)).size === question.options.length
+}
 export const QuestionSchema = z
   .discriminatedUnion('kind', [
     z.strictObject({
@@ -92,10 +95,23 @@ export const QuestionSchema = z
       options: z.array(effectOption.readonly()).max(64).readonly(),
     }),
   ])
-  .refine(
-    question => new Set(question.options.map(item => item.id)).size === question.options.length,
-    { message: 'Option identities must be unique within a card' },
-  )
+  .refine(uniqueOptions, { message: 'Option identities must be unique within a card' })
+  .readonly()
+const decisionFields = { ...questionFields, cardId: HitlIdentifierSchema }
+export const DecisionQuestionSchema = z
+  .discriminatedUnion('kind', [
+    z.strictObject({
+      ...decisionFields,
+      kind: z.literal('question'),
+      options: z.array(option.readonly()).min(1).max(64).readonly(),
+    }),
+    z.strictObject({
+      ...decisionFields,
+      kind: z.literal('approval'),
+      options: z.array(option.readonly()).min(1).max(64).readonly(),
+    }),
+  ])
+  .refine(uniqueOptions, { message: 'Option identities must be unique within a card' })
   .readonly()
 const originFields = {
   originRef: HitlIdentifierSchema,
@@ -154,6 +170,7 @@ export type WaitRef = z.infer<typeof WaitRefSchema>
 export type DecisionRef = z.infer<typeof DecisionRefSchema>
 export type Reply = z.infer<typeof ReplySchema>
 export type Question = z.infer<typeof QuestionSchema>
+export type DecisionQuestion = z.infer<typeof DecisionQuestionSchema>
 export type Origin = z.infer<typeof OriginSchema>
 export type ActionBasis = z.infer<typeof ActionBasisSchema>
 export type ConsumerReceipt = z.infer<typeof ConsumerReceiptSchema>
