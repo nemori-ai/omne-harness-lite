@@ -263,6 +263,11 @@ const TABLE: Readonly<Record<string, Entry>> = {
     provides: ['toolBindings', 'toolCatalog'],
     injects: ['toolContributionAuthority'],
   },
+  skills: {
+    provides: ['skillCatalog', 'skillAccess'],
+    injects: ['storage', 'tenantDomainLookup'],
+    phase: 'composition',
+  },
   'tool-runtime': {
     provides: ['toolRuntime'],
     injects: ['toolCommands', 'toolReads'],

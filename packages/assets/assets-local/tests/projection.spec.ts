@@ -2,7 +2,8 @@ import { ownerSources } from './sources.ts'
 import { afterEach, expect, it } from 'vitest'
 import { SettingsOwnerProjectionSchema } from '@omne-harness/settings-local'
 import { assetsSettingsProjectionCommand, assetsSqlMaterials } from '../src/index.ts'
-import { openWorld, pinned, grants, target, type World } from './world.ts'
+import { createCategoryRegistry } from '@omne-harness/assets'
+import { categories, grants, noteBody, openWorld, pinned, target, type World } from './world.ts'
 const worlds: World[] = []
 async function open(setup = true) {
   const world = await openWorld()
@@ -65,17 +66,20 @@ it('safely rejects removed, nonexistent, cross-scope and cross-domain projection
     combinationVersion: world.combination.combinationVersion,
     manifestDigest: world.combination.manifestDigest,
     commands: [
-      assetsSettingsProjectionCommand({
-        domain: { ...world.domain, scope: { kind: 'tenant', tenant: 'tenant-b' } },
-        principalRef: 'alice',
-        captureId: 'misbound',
-        request: {
-          deploymentRef: 'deployment',
-          mode: 'management',
-          targets: [],
-          selectionRef: null,
+      assetsSettingsProjectionCommand(
+        {
+          domain: { ...world.domain, scope: { kind: 'tenant', tenant: 'tenant-b' } },
+          principalRef: 'alice',
+          captureId: 'misbound',
+          request: {
+            deploymentRef: 'deployment',
+            mode: 'management',
+            targets: [],
+            selectionRef: null,
+          },
         },
-      }),
+        { categories: ['service'] },
+      ),
     ],
   })
   expect(result.kind).toBe('rolled_back')
@@ -138,9 +142,64 @@ it('refuses management overflow instead of truncating 129 real holdings into suc
   const explicit = await world.capture({ targets: [{ ...target, targetRef: 'holding-128' }] })
   expect(explicit.kind).toBe('committed')
 }, 30000)
+it('captures only the holdings of the categories the caller names, so other holdings do not count to the limit', async () => {
+  const registry = createCategoryRegistry()
+  registry.register(categories.lookup('service') ?? fail('service category'))
+  registry.register({
+    category: 'note',
+    schema: { kind: 'null' },
+    judge: () => ({ ok: true }),
+    deriveDeclarations: () => ({ entries: [] }),
+    references: () => [],
+  })
+  const world = await openWorld({ categories: registry })
+  worlds.push(world)
+  const holdAll = async (category: 'service' | 'note', count: number) => {
+    for (let index = 0; index < count; index++) {
+      const assetRef = `${category}-asset-${index}`
+      const name = `${category}-${index}`
+      const published = await world.owner.publish({
+        operationId: `publish-${name}`,
+        assetRef,
+        pinned: category === 'service' ? pinned('1', false, name) : noteBody(name),
+        expectedRevision: 0,
+      })
+      expect(published).toMatchObject({ kind: 'committed' })
+      const held = await world.owner.hold({
+        operationId: `hold-${name}`,
+        assetRef,
+        holdingRef: `holding-${name}`,
+        scopeRef: 'tenant-a',
+        selection: { kind: 'follow' },
+        sources: ownerSources('tenant'),
+        grants,
+      })
+      expect(held).toMatchObject({ kind: 'committed' })
+    }
+  }
+  await holdAll('service', 6)
+  await holdAll('note', 130)
+  const services = await world.capture()
+  expect(services.kind).toBe('committed')
+  if (services.kind !== 'committed') throw new Error('capture failed')
+  const views = SettingsOwnerProjectionSchema.parse(services.responses[0]?.reply.response).views
+  expect(views.map(view => view.target.targetRef)).toEqual(
+    [0, 1, 2, 3, 4, 5].map(index => `holding-service-${index}`),
+  )
+  const both = await world.capture({}, { categories: ['service', 'note'] })
+  expect(both.kind).toBe('rolled_back')
+  if (both.kind !== 'rolled_back') throw new Error('expected rejection')
+  expect(both.responses.at(-1)?.reply).toMatchObject({
+    basis: { failure: { kind: 'rejected', reason: 'limit_exceeded' } },
+  })
+}, 60000)
 it('provides only the projection fact and the publication fact', () => {
   expect(assetsSqlMaterials().participants[0]?.providesFacts.map(fact => fact.key)).toEqual([
     'settings.assets-projection',
     'assets.current-publication',
   ])
 })
+
+function fail(message: string): never {
+  throw new Error(message)
+}

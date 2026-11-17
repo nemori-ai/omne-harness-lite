@@ -134,6 +134,7 @@ async function start(
       storageRoot: base.storageRoot,
       vaultFile: `${base.stateRoot}/vault`,
       hostFilesDir: base.stateRoot,
+      assetsRoot: `${base.stateRoot}/assets`,
     },
     settings: {
       version: 1,

@@ -689,6 +689,18 @@ importers:
       '@omne-harness/settings-local':
         specifier: workspace:*
         version: link:../../packages/assets/settings-local
+      '@omne-harness/skill':
+        specifier: workspace:*
+        version: link:../../packages/skills/skill
+      '@omne-harness/skill-contract':
+        specifier: workspace:*
+        version: link:../../packages/skills/skill-contract
+      '@omne-harness/skill-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/skills/skill-cordis-contract
+      '@omne-harness/skill-host-local':
+        specifier: workspace:*
+        version: link:../../packages/skills/skill-host-local
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../packages/storage/sql-contract
@@ -704,6 +716,9 @@ importers:
       '@omne-harness/telemetry-node':
         specifier: workspace:*
         version: link:../../packages/telemetry/telemetry-node
+      '@omne-harness/text-search':
+        specifier: workspace:*
+        version: link:../../packages/common/text-search
       '@omne-harness/time-source':
         specifier: workspace:*
         version: link:../../packages/assembly/time-source

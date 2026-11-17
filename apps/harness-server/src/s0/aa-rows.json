@@ -42,6 +42,7 @@
     "tool-records",
     "tool-body-sweep",
     "tool-bindings",
+    "skills",
     "tool-runtime",
     "tool-executor",
     "tool-host",
@@ -68,10 +69,7 @@
   "trusted": [
     {
       "row": "storage",
-      "names": [
-        "storage",
-        "storageHost"
-      ]
+      "names": ["storage", "storageHost"]
     },
     {
       "row": "identity",
@@ -102,6 +100,10 @@
         "sessionModesInstallation",
         "tenantDomainRegistration"
       ]
+    },
+    {
+      "row": "skills",
+      "names": ["storage", "tenantDomainLookup"]
     },
     {
       "row": "authorization",
@@ -137,11 +139,7 @@
     },
     {
       "row": "session-ad02",
-      "names": [
-        "storage",
-        "tenantDomainLookup",
-        "sessionWorkPrincipals"
-      ]
+      "names": ["storage", "tenantDomainLookup", "sessionWorkPrincipals"]
     },
     {
       "row": "session-ad03",
@@ -159,87 +157,55 @@
     },
     {
       "row": "session-ad04",
-      "names": [
-        "sessionWorkPrincipals"
-      ]
+      "names": ["sessionWorkPrincipals"]
     },
     {
       "row": "session-ad05",
-      "names": [
-        "sessionWorkPrincipals"
-      ]
+      "names": ["sessionWorkPrincipals"]
     },
     {
       "row": "session-ad06",
-      "names": [
-        "sessionWorkPrincipals"
-      ]
+      "names": ["sessionWorkPrincipals"]
     },
     {
       "row": "session-ad09",
-      "names": [
-        "principalVerifier"
-      ]
+      "names": ["principalVerifier"]
     },
     {
       "row": "session-ad12",
-      "names": [
-        "sessionWorkPrincipals"
-      ]
+      "names": ["sessionWorkPrincipals"]
     },
     {
       "row": "session-ad14",
-      "names": [
-        "sessionWorkPrincipals"
-      ]
+      "names": ["sessionWorkPrincipals"]
     },
     {
       "row": "session-call-control",
-      "names": [
-        "sessionWorkPrincipals"
-      ]
+      "names": ["sessionWorkPrincipals"]
     },
     {
       "row": "agent-host",
-      "names": [
-        "sessionModesInstallation"
-      ]
+      "names": ["sessionModesInstallation"]
     },
     {
       "row": "agent-journal",
-      "names": [
-        "storage",
-        "tenantDomainLookup",
-        "agentReceivedRecords"
-      ]
+      "names": ["storage", "tenantDomainLookup", "agentReceivedRecords"]
     },
     {
       "row": "session-handoff",
-      "names": [
-        "storage",
-        "tenantDomainLookup",
-        "sessionWorkPrincipals"
-      ]
+      "names": ["storage", "tenantDomainLookup", "sessionWorkPrincipals"]
     },
     {
       "row": "session-conditions",
-      "names": [
-        "storage",
-        "tenantDomainLookup",
-        "definitionMappings"
-      ]
+      "names": ["storage", "tenantDomainLookup", "definitionMappings"]
     },
     {
       "row": "model-credential",
-      "names": [
-        "settingsSecretCustody"
-      ]
+      "names": ["settingsSecretCustody"]
     },
     {
       "row": "secret-custody",
-      "names": [
-        "settingsSecretCustody"
-      ]
+      "names": ["settingsSecretCustody"]
     },
     {
       "row": "settings",
@@ -271,102 +237,59 @@
     },
     {
       "row": "tool-body-sweep",
-      "names": [
-        "storage",
-        "tenantDomainLookup",
-        "tenantDomainScannerPrincipal"
-      ]
+      "names": ["storage", "tenantDomainLookup", "tenantDomainScannerPrincipal"]
     },
     {
       "row": "tool-bindings",
-      "names": [
-        "principalVerifier",
-        "settingsSecretCustody"
-      ]
+      "names": ["principalVerifier", "settingsSecretCustody"]
     },
     {
       "row": "agent-adoptions",
-      "names": [
-        "definitionMappings"
-      ]
+      "names": ["definitionMappings"]
     },
     {
       "row": "adoption-sources",
-      "names": [
-        "definitionMappings",
-        "sessionModesInstallation",
-        "sessionWorkPrincipals"
-      ]
+      "names": ["definitionMappings", "sessionModesInstallation", "sessionWorkPrincipals"]
     },
     {
       "row": "agent-model-selection",
-      "names": [
-        "storage",
-        "tenantDomainLookup"
-      ]
+      "names": ["storage", "tenantDomainLookup"]
     },
     {
       "row": "request-context",
-      "names": [
-        "requestContextTrust",
-        "principalVerifier"
-      ]
+      "names": ["requestContextTrust", "principalVerifier"]
     },
     {
       "row": "runtime-context",
-      "names": [
-        "runtimeContextTrust"
-      ]
+      "names": ["runtimeContextTrust"]
     },
     {
       "row": "server-entry",
-      "names": [
-        "principalIssuer",
-        "identityGovernance"
-      ]
+      "names": ["principalIssuer", "identityGovernance"]
     },
     {
       "row": "identity-access",
-      "names": [
-        "identityGovernance"
-      ]
+      "names": ["identityGovernance"]
     },
     {
       "row": "session-access",
-      "names": [
-        "principalIssuer",
-        "tenantStanding",
-        "definitionMappings"
-      ]
+      "names": ["principalIssuer", "tenantStanding", "definitionMappings"]
     },
     {
       "row": "assets-access",
-      "names": [
-        "principalIssuer",
-        "tenantStanding",
-        "settingsSecretItems"
-      ]
+      "names": ["principalIssuer", "tenantStanding", "settingsSecretItems"]
     },
     {
       "row": "human-intervention-access",
-      "names": [
-        "principalIssuer",
-        "tenantStanding"
-      ]
+      "names": ["principalIssuer", "tenantStanding"]
     },
     {
       "row": "session-diagnostics-access",
-      "names": [
-        "principalIssuer",
-        "tenantStanding"
-      ]
+      "names": ["principalIssuer", "tenantStanding"]
     },
     {
       "row": "tool-access",
-      "names": [
-        "principalIssuer",
-        "tenantStanding"
-      ]
+      "names": ["principalIssuer", "tenantStanding"]
     }
   ]
 }

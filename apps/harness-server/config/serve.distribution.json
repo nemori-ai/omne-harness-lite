@@ -460,6 +460,11 @@
       "config": {}
     },
     {
+      "id": "skills",
+      "plugin": "skillsRow",
+      "config": {}
+    },
+    {
       "id": "tool-runtime",
       "plugin": "toolRuntimeRow",
       "config": {}
