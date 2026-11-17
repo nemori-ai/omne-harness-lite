@@ -1,5 +1,5 @@
 import type { AssetsProtocol } from '@omne-harness/assets-protocol'
-import type { TenantId } from '@omne-harness/public-contract'
+import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { holdingsOf, type Holding } from './holdings.ts'
 import { SettingsDriver } from './settings-driver.ts'
@@ -55,10 +55,10 @@ export function snapshotOf(state: State, category: string | null): CategorySnaps
 type Shared = { readonly driver: SettingsDriver; users: number }
 
 export function createGovernance(deps: GovernanceDeps): GovernanceModel {
-  const shared = new Map<TenantId, Shared>()
+  const shared = new Map<string, Shared>()
 
-  function share(tenant: TenantId): Shared {
-    const known = shared.get(tenant)
+  function share(tenant: TenantId, key: string): Shared {
+    const known = shared.get(key)
     if (known !== undefined) return known
     const driver = new SettingsDriver({
       client: deps.client,
@@ -66,13 +66,14 @@ export function createGovernance(deps: GovernanceDeps): GovernanceModel {
       ...(deps.newId === undefined ? {} : { newId: deps.newId }),
     })
     const created: Shared = { driver, users: 0 }
-    shared.set(tenant, created)
+    shared.set(key, created)
     driver.readList()
     return created
   }
 
   function view(tenant: TenantId, category: string | null): CategoryGovernance {
-    const entry = share(tenant)
+    const key = encodeTenantText(tenant)
+    const entry = share(tenant, key)
     entry.users += 1
     const { driver } = entry
     let seen: State | undefined
@@ -97,7 +98,7 @@ export function createGovernance(deps: GovernanceDeps): GovernanceModel {
         entry.users -= 1
         if (entry.users > 0) return
         driver.dispose()
-        shared.delete(tenant)
+        shared.delete(key)
       },
     }
   }

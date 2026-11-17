@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import type { TenantId } from '@omne-harness/public-contract'
+import { readTenantText, type TenantId } from '@omne-harness/public-contract'
 import { createGovernance } from '../src/model/governance.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { permissionView, secretView, SHELL_ASSET } from './fixtures/views.ts'
 
-const TENANT = 'tenant-a' as TenantId
-const OTHER_TENANT = 'tenant-b' as TenantId
+const TENANT_TEXT =
+  '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
+const tenantOf = (text: string): TenantId => {
+  const tenant = readTenantText(text)
+  if (tenant === undefined) throw new Error(`not a tenant: ${text}`)
+  return tenant
+}
+const TENANT = tenantOf(TENANT_TEXT)
+const OTHER_TENANT = tenantOf(
+  TENANT_TEXT.replace('acc_00000000000000000000000001', 'acc_00000000000000000000000002'),
+)
 const MCP_VIEW = permissionView({ asset: { category: 'mcp', name: 'context7' } })
 const SHELL_VIEW = permissionView()
 
@@ -72,6 +81,17 @@ describe('the governance port: one category of one tenant', () => {
       snapshot.kind === 'read' ? snapshot.holdings.map(holding => holding.name) : []
     expect(names(mcp.getSnapshot())).toEqual(['context7'])
     expect(names(tool.getSnapshot())).toEqual([SHELL_ASSET.name])
+  })
+
+  it('the same tenant read from its text twice is one tenant: one read, one state', async () => {
+    const { fake, governance } = setup()
+    const fromPage = governance.openAll(tenantOf(TENANT_TEXT))
+    const fromPort = governance.open(tenantOf(TENANT_TEXT), 'mcp')
+    ;(await fake.next('list-settings')).answer(page([SHELL_VIEW, MCP_VIEW]))
+    await settle()
+    expect(fake.calls.filter(call => call.operation === 'list-settings')).toHaveLength(1)
+    expect(fromPage.getSnapshot()).toMatchObject({ kind: 'read' })
+    expect(fromPort.getSnapshot()).toMatchObject({ kind: 'read' })
   })
 
   it('gives the same snapshot object while nothing changed, and tells subscribers when it does', async () => {
