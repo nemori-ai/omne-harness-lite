@@ -593,6 +593,12 @@ export async function onReleaseTreeRuns(
 // An idle machine starts the release tree in four to five seconds. The limit stays far above that, so a
 // busy machine does not turn a slow start into a failed one; the test's own timeout is the bound.
 const READINESS_TIMEOUT_MS = 100_000
+const STDERR_TAIL_LINES = 20
+
+const stderrTail = (lines: readonly string[]) =>
+  lines.length === 0
+    ? ''
+    : `\nserver stderr, last ${Math.min(lines.length, STDERR_TAIL_LINES)} of ${lines.length} lines:\n${lines.slice(-STDERR_TAIL_LINES).join('\n')}`
 const SHUTDOWN_DEADLINE_MS = 100_000
 
 // Any socket may take the probed port before the server binds it. Such a start accepted nothing, so it
@@ -696,7 +702,9 @@ async function serveOnce(
       return PORT_TAKEN
     }
     if (started?.['accepting'] !== true)
-      throw new Error(`the server did not start accepting: ${JSON.stringify(started ?? null)}`)
+      throw new Error(
+        `the server did not start accepting: ${JSON.stringify(started ?? null)}${stderrTail(serverErrors)}`,
+      )
     if (
       env === undefined ||
       hitl === undefined ||

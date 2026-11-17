@@ -574,6 +574,7 @@ describe('临时目录里造出入口层包：collectSources + CLI 真的会红'
 
   const writeTree = (files: Record<string, string>) => {
     root = realpathSync(mkdtempSync(join(tmpdir(), 'ts-checks-entry-')))
+    mkdirSync(join(root, '.meta_harness/design/product'), { recursive: true })
     for (const [path, text] of Object.entries(files)) {
       const full = join(root, path)
       mkdirSync(dirname(full), { recursive: true })
@@ -584,6 +585,7 @@ describe('临时目录里造出入口层包：collectSources + CLI 真的会红'
   const runCli = (dir: string) =>
     spawnSync(process.execPath, ['--conditions=source', '--experimental-strip-types', cli, dir], {
       encoding: 'utf8',
+      env: { ...process.env, OMNE_SUBJECT_ROOT: dir },
     })
 
   it('违反的包 ⇒ runRules 报出各条、CLI 退出 1 并逐条打印', { tags: ['slow'] }, () => {
