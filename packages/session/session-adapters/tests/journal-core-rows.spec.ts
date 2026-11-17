@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readExecutionRecords } from '../src/cordis/agent-journal.ts'
+import { readExecutionRecords } from '../src/cordis/execution-records.ts'
 import { ok } from './fixtures/common-journal.ts'
 import { sqlScene } from './fixtures/sql-scene.ts'
 

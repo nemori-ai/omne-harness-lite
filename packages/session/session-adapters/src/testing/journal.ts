@@ -1,8 +1,9 @@
-import { acceptanceIn, compactionGeneration, openItems } from '@omne-harness/agent-contract'
+import { acceptanceIn, compactionGeneration } from '@omne-harness/agent-contract'
 import { pendingCalls } from './pending.ts'
 import { controlStageOf, controlTarget, type ToolControlRecord } from './journal-controls.ts'
 import { createHash } from 'node:crypto'
-import { canonical } from './canonical.ts'
+import { canonical, canonicalOfKept } from './canonical.ts'
+import { openEffectsAt, openSnapshotItems } from './execution-open-set.ts'
 import type { JournalCell, TransactionAnswer } from './root.ts'
 import type {
   AcceptedInput,
@@ -529,31 +530,6 @@ function sameResultKey(
   right: ResultResponsibility['result'],
 ) {
   return canonical(left.producer) === canonical(right.producer) && left.version === right.version
-}
-
-// Inputs are open from the batch the Agent has taken onward (agent-contract snapshot rule).
-function openSnapshotItems(
-  scope: Readonly<{ execution: Execution; shown: ExecutionState; from: number }>,
-  handoffs: readonly ExecutionHandoff[],
-) {
-  const { execution, shown, from } = scope
-  const inputOpen = (input: InputId) => {
-    const index = execution.inputs.findIndex(accepted => accepted.id === input)
-    return index < 0 || index >= from
-  }
-  const rule = { state: shown, checkpoint: execution.checkpoint, inputOpen }
-  return openItems(rule, { results: execution.results, effects: execution.effects, handoffs })
-}
-
-const referenceKeys = new WeakMap<HandoffReference, string>()
-// A handoff reference is kept, never changed in place: its canonical key is computed once.
-function referenceKey(reference: HandoffReference): string {
-  let key = referenceKeys.get(reference)
-  if (key === undefined) {
-    key = canonical(reference)
-    referenceKeys.set(reference, key)
-  }
-  return key
 }
 
 function interruptionsOf(
@@ -2098,12 +2074,6 @@ export function createJournal<P>(
     return { kind: 'settling', intent }
   }
 
-  // A closed effect was bound in the write that recorded it: only the open ones can still need a binding.
-  function openEffectsAt(execution: Execution, checkpoint: AgentCheckpoint): EffectIntent[] {
-    const scope = { state: stateOf(execution), checkpoint, inputOpen: () => true }
-    return [...openItems(scope, { results: [], effects: execution.effects, handoffs: [] }).effects]
-  }
-
   function pendingWrites(execution: Execution, operation: AgentOperationId) {
     const found: { operation: AgentOperationId; method: string }[] = []
     for (const [, record] of state().operations.pendingOf(execution.id)) {
@@ -2376,7 +2346,7 @@ export function createJournal<P>(
   ): ReadonlyMap<string, readonly (readonly [AgentOperationId, CustodyAttempt])[]> {
     const groups = new Map<string, (readonly [AgentOperationId, CustodyAttempt])[]>()
     for (const entry of execution.custodyAttempts.entries()) {
-      const key = referenceKey(entry[1].handoff)
+      const key = canonicalOfKept(entry[1].handoff)
       const group = groups.get(key)
       if (group === undefined) groups.set(key, [entry])
       else group.push(entry)
@@ -2392,7 +2362,7 @@ export function createJournal<P>(
       readonly (readonly [AgentOperationId, CustodyAttempt])[]
     > = custodyGroups(execution),
   ): Exclude<ExecutionHandoff['custody'], null> | null {
-    const attempts = groups.get(referenceKey(handoff)) ?? []
+    const attempts = groups.get(canonicalOfKept(handoff)) ?? []
     const root = attempts.find(([, attempt]) => attempt.custody === null)
     if (root === undefined) return null
     const stateOf = (operation: AgentOperationId): 'committed' | 'excluded' | undefined => {
@@ -3603,7 +3573,7 @@ export function createJournal<P>(
           {
             ...execution,
             checkpoint: input.checkpoint,
-            effects: openEffectsAt(execution, input.checkpoint),
+            effects: openEffectsAt(execution, stateOf(execution), input.checkpoint),
           },
           input.authority.instance,
         )

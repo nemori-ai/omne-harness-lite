@@ -56,7 +56,7 @@ import {
 } from '../journal-commit.ts'
 import { canonical } from '../testing/canonical.ts'
 import { type SessionCoordinatorPrincipalFailure, sessionScopeEvidence } from './agent-drive.ts'
-import { readExecutionRecords } from './agent-journal.ts'
+import { readExecutionRecords } from './execution-records.ts'
 import { attemptOfAuthority, type GrantedAttachment } from './attempt-grant.ts'
 import { decodeState, encodeState } from './durable-codec.ts'
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dropFoldsOver } from '../src/cordis/agent-journal.ts'
+import { dropFoldsOver } from '../src/cordis/execution-records.ts'
 
 const fold = (...sizes: number[]) => ({
   blobs: new Map(sizes.map((size, index) => [`digest-${String(index)}`, 'x'.repeat(size)])),
