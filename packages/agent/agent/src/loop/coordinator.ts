@@ -109,11 +109,12 @@ import {
   consumeModelResult,
   lostIntent,
   lostModelResult,
-  noReplyReason,
   unacceptedIntent,
   voidedModelIntents,
   type ModelOutcome,
   type ModelResult,
+  noReplyEnd,
+  type UnusableResult,
 } from './model-result.ts'
 import {
   askedRetry,
@@ -134,7 +135,6 @@ import {
   candidateDigest,
   deniedForRefusedAdmission,
   deniedSlot,
-  preserveAllowedRequest,
   sentToolRequest,
   toolCallOf,
   toolIntentOf,
@@ -149,7 +149,8 @@ import {
   toolCall,
   unsent,
   type AssociatedToolCall,
-  type ToolAdmission,
+  preserveAllowed,
+  type AdmittedAction,
 } from './tools.ts'
 import { contactMainCall } from './contact.ts'
 import { sameAuthority, sameRecipient } from './same.ts'
@@ -1308,6 +1309,38 @@ function coordinate<P>(
     checkpoint: () => required(checkpoint, 'checkpoint'),
   })
 
+  // A model call that gave no usable reply: the failure pass first, then a retry, then the end of the Run.
+  async function unusableReply(
+    current: Iteration,
+    result: UnusableResult,
+    caller: CallerCommit,
+  ): Promise<Outcome<Step, Failure>> {
+    const failed = await failurePass(current, result)
+    if ('failure' in failed) return failed
+    if (failed.ok.kind === 'left') return succeed(failed.ok.step)
+    const saved = () => required(checkpoint, 'checkpoint').modelRetry ?? null
+    const asked = failed.ok.effects?.[0]?.retry ?? null
+    const retried =
+      asked === null
+        ? await retryModelCall(entry, current.step, result, saved, ports.clock)
+        : await askedRetry(saved(), asked.output.plan, ports.clock)
+    if ('failure' in retried) return retried
+    const lost = lostIntent(required(checkpoint, 'checkpoint'), current)
+    if (retried.ok !== null)
+      return step('retry', {
+        checkpoint: { calls: [], modelRetry: retried.ok, ...lost, ...failed.ok.applied },
+        caller,
+      })
+    if (decided?.kind !== 'try-finish' || decided.failure?.kind !== 'no-reply') {
+      const instant = await ports.clock.now()
+      if ('failure' in instant) return instant
+      const { reference } = required(current.pending, 'pending call')
+      const call = invocationParts(reference, access.tenant).call
+      decided = noReplyEnd(execution, current.step, call, result, instant.ok)
+    }
+    return step('try-finish', { caller })
+  }
+
   const runExecutionNodes = {
     async E0() {
       if (originalOpen === null) {
@@ -1509,55 +1542,7 @@ function coordinate<P>(
           : { kind: 'none' }
       if (result.kind === 'interrupted')
         return step('partial', { checkpoint: { calls: [] }, caller })
-      if (result.kind === 'unusable') {
-        const failed = await failurePass(current, result)
-        if ('failure' in failed) return failed
-        if (failed.ok.kind === 'left') return succeed(failed.ok.step)
-        const saved = () => required(checkpoint, 'checkpoint').modelRetry ?? null
-        const asked = failed.ok.effects?.[0]?.retry ?? null
-        const retried =
-          asked === null
-            ? await retryModelCall(entry, current.step, result, saved, ports.clock)
-            : await askedRetry(saved(), asked.output.plan, ports.clock)
-        if ('failure' in retried) return retried
-        const lost = lostIntent(required(checkpoint, 'checkpoint'), current)
-        if (retried.ok !== null)
-          return step('retry', {
-            checkpoint: { calls: [], modelRetry: retried.ok, ...lost, ...failed.ok.applied },
-            caller,
-          })
-        if (decided?.kind !== 'try-finish' || decided.failure?.kind !== 'no-reply') {
-          const instant = await ports.clock.now()
-          if ('failure' in instant) return instant
-          const call = invocationParts(
-            required(current.pending, 'pending call').reference,
-            access.tenant,
-          ).call
-          const failure: FailureCandidate = {
-            kind: 'no-reply',
-            step: current.step,
-            at: instant.ok,
-            source: result.settlement.source,
-            call,
-            result: result.produced,
-            ...(result.settlement.termination.kind === 'failed'
-              ? { fault: result.settlement.termination.fault }
-              : {}),
-          }
-          decided = {
-            kind: 'try-finish',
-            conclusion: {
-              kind: 'fail',
-              cause: agentEvidence(
-                `${execution}/${current.step}/${noReplyReason(result)}`,
-                failure,
-              ),
-            },
-            failure,
-          }
-        }
-        return step('try-finish', { caller })
-      }
+      if (result.kind === 'unusable') return unusableReply(current, result, caller)
       const pending = required(current.pending, 'pending call')
       const call = invocationParts(pending.reference, access.tenant).call
       if (outcome === null) {
@@ -2074,7 +2059,7 @@ function coordinate<P>(
       const batch = authored.ok
       const adopted = closedPass(required(checkpoint, 'checkpoint'))
       let passages = adopted.passages ?? required(checkpoint, 'checkpoint').passages
-      const answers: Extract<ToolAdmission, { kind: 'judged' | 'allowed' }>[] = []
+      const answers: AdmittedAction[] = []
       const opened: CardRoundId[] = []
       for (const action of batch.actions) {
         if (needOfAction(passages, action) !== 'judge') {
@@ -2136,25 +2121,15 @@ function coordinate<P>(
             : { kind: 'judged', action: judged.ok.action },
         )
       }
-      const budget = entry.toolConcurrency
-      const actions: Action[] = []
-      for (const answer of answers) {
-        if (answer.kind === 'judged') {
-          actions.push(answer.action)
-          continue
-        }
-        if (budget === undefined)
-          return fail(
-            localFailure('invariant', {
-              kind: 'unavailable' as const,
-              owner: '@omne-harness/agent',
-              diagnostic: 'toolConcurrency is unavailable',
-            }),
-          )
-        const preserved = await preserveAllowedRequest(ports, access, execution, answer, budget)
-        if ('failure' in preserved) return preserved
-        actions.push(preserved.ok)
-      }
+      const preserved = await preserveAllowed(
+        ports,
+        access,
+        execution,
+        answers,
+        entry.toolConcurrency,
+      )
+      if ('failure' in preserved) return preserved
+      const actions = preserved.ok
       for (const round of opened) desk.opened(round)
       return step('judged', { checkpoint: { ...adopted, batch: { ...batch, actions }, passages } })
     },

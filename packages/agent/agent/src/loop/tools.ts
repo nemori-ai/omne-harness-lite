@@ -39,6 +39,7 @@ import type { AgentDependencies } from '../construction.ts'
 import { canonical } from '../canonical.ts'
 import { json, plain } from '../receiving-values.ts'
 import { agentEvidence, toolConsumption, type Message } from './identities.ts'
+import { localFailure } from './node-failure.ts'
 
 type Ports<P> = Pick<AgentDependencies<P, ContentBlock>, 'admission' | 'toolRequests' | 'materials'>
 
@@ -627,4 +628,35 @@ export function deniedSlot(action: Action, evidence: DurableEvidence) {
 
 export function candidateDigest(message: Message): string {
   return `sha256:${createHash('sha256').update(canonical(message)).digest('hex')}`
+}
+
+export type AdmittedAction = Extract<ToolAdmission, { kind: 'judged' | 'allowed' }>
+
+/** An allowed call keeps its request before the batch is judged; a judged action stays as it is. */
+export async function preserveAllowed<P>(
+  ports: Ports<P>,
+  access: Access<P>,
+  execution: AgentExecutionId,
+  answers: readonly AdmittedAction[],
+  scopeBudget: number | undefined,
+): Promise<Outcome<Action[], Failure>> {
+  const actions: Action[] = []
+  for (const answer of answers) {
+    if (answer.kind === 'judged') {
+      actions.push(answer.action)
+      continue
+    }
+    if (scopeBudget === undefined)
+      return fail(
+        localFailure('invariant', {
+          kind: 'unavailable' as const,
+          owner: '@omne-harness/agent',
+          diagnostic: 'toolConcurrency is unavailable',
+        }),
+      )
+    const preserved = await preserveAllowedRequest(ports, access, execution, answer, scopeBudget)
+    if ('failure' in preserved) return preserved
+    actions.push(preserved.ok)
+  }
+  return succeed(actions)
 }
