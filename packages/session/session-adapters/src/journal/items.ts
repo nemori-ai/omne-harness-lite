@@ -102,8 +102,6 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
     open: always,
   },
   { family: 'handoff', holder: table(at('handoffs')), open: always },
-  { family: 'batch', holder: table(at('batches')), open: always },
-  { family: 'passage', holder: table(at('passages')), open: always },
   { family: 'control', holder: table(at('controls')), open: always },
   {
     family: 'settlement',

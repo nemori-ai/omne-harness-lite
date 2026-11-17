@@ -1,6 +1,5 @@
 import { SharedMap, isTable } from './shared-map.ts'
 import type {
-  ActionBatchId,
   ActionId,
   AgentInstanceId,
   Adoption,
@@ -78,14 +77,6 @@ export type IntentView = Readonly<{
   pending: PendingCall
   authority: Authority
   request: Ref | null
-  association: Readonly<{ reference: ToolInvocationRef; receipt: DurableEvidence }> | null
-  judgment: Readonly<{
-    judgment: 'pending' | 'waiting' | 'denied' | 'allowed'
-    evidence: DurableEvidence | null
-    passage: PassageId | null
-    request: Ref | null
-  }> | null
-  settlement: DurableEvidence | null
   pub: number
 }>
 
@@ -142,23 +133,6 @@ export type HandoffView = Readonly<{
     op: AgentOperationId
     pub: number
   }>[]
-}>
-
-export type BatchView = Readonly<{
-  batch: ActionBatchId
-  step: StepId
-  source: ProducerCall
-  actions: readonly Readonly<{ action: ActionId; callId: string; arguments: Ref }>[]
-  pub: number
-}>
-
-export type PassageView = Readonly<{
-  passage: PassageId
-  subject: Ref
-  declared: DurableEvidence
-  progress: readonly Readonly<{ progress: Ref; round: string | null; pub: number }>[]
-  conclusion: Readonly<{ conclusion: Ref; evidence: DurableEvidence; pub: number }> | null
-  pub: number
 }>
 
 export type ControlView = Readonly<{
@@ -291,8 +265,6 @@ export type ExecutionView = Readonly<{
   placeholders: ReadonlyMap<ConsumptionId, ReceivedView>
   admissions: readonly AdmissionView[]
   handoffs: ReadonlyMap<string, HandoffView>
-  batches: ReadonlyMap<ActionBatchId, BatchView>
-  passages: ReadonlyMap<PassageId, PassageView>
   controls: ReadonlyMap<AgentOperationId, ControlView>
   waits: Readonly<{ step: StepId; waits: Ref<readonly Waiting[]>; pub: number }> | null
   finish: FinishView
@@ -369,8 +341,6 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     placeholders: new SharedMap(),
     admissions: [],
     handoffs: new SharedMap(),
-    batches: new SharedMap(),
-    passages: new SharedMap(),
     controls: new SharedMap(),
     waits: null,
     finish: {

@@ -1,5 +1,4 @@
 import {
-  decodeActionBatchId,
   decodeActionId,
   decodeAgentExecutionId,
   decodeAgentInstanceId,
@@ -8,7 +7,6 @@ import {
   decodeExecutionAttachmentId,
   decodeInputBatchId,
   decodeInputId,
-  decodePassageId,
   decodeStepId,
   type ActionId,
   type AgentExecutionId,
@@ -74,7 +72,6 @@ type Builder = {
   step: number
   action: number
   consumption: number
-  passage: number
   admissions: number
   events: number
   authority: Authority
@@ -316,39 +313,7 @@ function roundBatches(builder: Builder, rng: Random): void {
     },
   ]
   const tool = rng.chance(2, 3)
-  if (tool) {
-    builder.action += 1
-    const toolAction = actionOf(builder, builder.action)
-    const batchId = minted(
-      decodeActionBatchId(`${builder.execution}/batch/${builder.step}`),
-      'action batch',
-    )
-    judge.push(
-      {
-        kind: 'batch.fixed',
-        batch: batchId,
-        step,
-        source: {
-          producer: 'model',
-          call: `call-${builder.step}`,
-          version: '1',
-          delivery: null,
-          source: evidence(`${builder.execution}/result/${builder.step}`),
-        },
-        actions: [
-          { action: toolAction, callId: `call_${builder.step}`, arguments: blob({ a: 1 }) },
-        ],
-      },
-      {
-        kind: 'action.judged',
-        action: toolAction,
-        judgment: 'allowed',
-        evidence: evidence(`${builder.execution}/judged/${builder.step}`),
-        passage: null,
-        request: blob({ tool: 'read', arguments: { path: 'x' } }),
-      },
-    )
-  }
+  if (tool) builder.action += 1
   judge.push({ kind: 'cursor.moved', step, members: { position: tool ? 'A2' : 'Ja' } })
   batch(builder, 'judge', judge, ['message'])
   if (tool) {
@@ -377,14 +342,6 @@ function roundBatches(builder: Builder, rng: Random): void {
         request: blob({ tool: 'read', arguments: { path: 'x' } }),
       },
       { kind: 'cursor.moved', step, members: { position: 'X2', calls: blob([toolPending]) } },
-    ])
-    batch(builder, 'tool-associated', [
-      {
-        kind: 'call.associated',
-        action: toolAction,
-        reference: `tool:${builder.execution}:${builder.step}` as ToolInvocationRef,
-        receipt: evidence(`${builder.execution}/tool-receipt/${builder.step}`),
-      },
     ])
     batch(builder, 'fence', [
       {
@@ -485,37 +442,10 @@ function roundBatches(builder: Builder, rng: Random): void {
           evidence: evidence(`${builder.execution}/tool-processed/${builder.step}`),
           step: stepOf(builder),
         },
-        {
-          kind: 'slot.settled',
-          action: toolAction,
-          settlement: evidence(`${builder.execution}/slot/${builder.step}`),
-        },
         { kind: 'cursor.moved', step, members: { position: 'T5', state: 'advancing' } },
       ],
       ['processed'],
     )
-  }
-  if (rng.chance(1, 5)) {
-    builder.passage += 1
-    const passage = minted(
-      decodePassageId(`${builder.execution}/passage/${builder.passage}`),
-      'passage',
-    )
-    batch(builder, 'passage', [
-      {
-        kind: 'passage.declared',
-        passage,
-        subject: blob({ subject: 'extension' }),
-        declared: evidence(`${builder.execution}/passage/${builder.passage}`),
-      },
-      { kind: 'passage.progressed', passage, progress: blob({ round: 1 }), round: '1' },
-      {
-        kind: 'passage.concluded',
-        passage,
-        conclusion: blob({ conclusion: 'done' }),
-        evidence: evidence(`${builder.execution}/concluded/${builder.passage}`),
-      },
-    ])
   }
   if (rng.chance(1, 6)) {
     batch(builder, 'ack', [{ kind: 'ack.through', sequence: builder.step }])
@@ -613,7 +543,6 @@ export function scene(rng: Random, options: SceneOptions = {}): Scene {
       step: 0,
       action: 0,
       consumption: 0,
-      passage: 0,
       admissions: 0,
       events: 0,
       authority: null as never,

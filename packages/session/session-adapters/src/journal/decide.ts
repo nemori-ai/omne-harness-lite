@@ -201,18 +201,12 @@ export function keyKnown(view: ExecutionView, key: string): boolean {
       return view.steps.some(item => `${item.step}#${item.batch.id}` === name)
     case 'call':
       return view.intents.has(name as never)
-    case 'associated':
-      return (
-        view.intents.get(name as never)?.association !== null && view.intents.has(name as never)
-      )
     case 'received':
       return view.results.get(name as never)?.received !== null && view.results.has(name as never)
     case 'placeholder':
       return view.placeholders.has(name as never)
     case 'reply':
       return view.admissions.some(item => String(item.sequence) === name)
-    case 'batch':
-      return view.batches.has(name as never)
     case 'candidate':
       return view.finish.candidates.some(item => item.candidate === name)
     case 'ended':

@@ -1,5 +1,4 @@
 import type {
-  ActionBatchId,
   ActionId,
   AgentOperationId,
   Authority,
@@ -8,7 +7,6 @@ import type {
   ControlStage,
   DurableEvidence,
   HandoffReference,
-  PassageId,
 } from '@omne-harness/agent-contract'
 import { canonical } from '../testing/canonical.ts'
 import {
@@ -25,7 +23,6 @@ import {
   emptySessionView,
   handoffKey,
   listKey,
-  type BatchView,
   type CandidateView,
   type ControlView,
   type ExclusionEntry,
@@ -33,7 +30,6 @@ import {
   type HandoffView,
   type IntentView,
   type OperationEntry,
-  type PassageView,
   type RejectionEntry,
   type RequestView,
   type ResultView,
@@ -61,8 +57,6 @@ type Draft = {
   results: Map<ConsumptionId, ResultView>
   placeholders: Map<ConsumptionId, ReceivedView>
   handoffs: Map<string, HandoffView>
-  batches: Map<ActionBatchId, BatchView>
-  passages: Map<PassageId, PassageView>
   controls: Map<AgentOperationId, ControlView>
   materials: Map<
     string,
@@ -85,8 +79,6 @@ function draftOf(view: ExecutionView): Draft {
     results: forkTrackedOf(view.results),
     placeholders: forkTrackedOf(view.placeholders),
     handoffs: forkTrackedOf(view.handoffs),
-    batches: forkTrackedOf(view.batches),
-    passages: forkTrackedOf(view.passages),
     controls: forkTrackedOf(view.controls),
     materials: forkTrackedOf(view.materials),
     ops: forkTrackedOf(view.ops),
@@ -215,23 +207,7 @@ function foldCallIntended(draft: Draft, fact: FactOf<'call.intended'>, pub: numb
       pending: fact.pending,
       authority: fact.authority,
       request: fact.request,
-      association: null,
-      judgment: null,
-      settlement: null,
       pub,
-    })
-}
-
-function foldCallAssociated(draft: Draft, fact: FactOf<'call.associated'>): void {
-  const intent = draft.intents.get(fact.action)
-  if (intent !== undefined && intent.association === null)
-    draft.intents.set(fact.action, {
-      ...intent,
-      association: { reference: fact.reference, receipt: fact.receipt },
-      pending:
-        intent.pending.kind === 'tool'
-          ? { ...intent.pending, association: 'associated', reference: fact.reference }
-          : intent.pending,
     })
 }
 
@@ -355,71 +331,6 @@ function foldHandoffRecorded(draft: Draft, fact: FactOf<'handoff.recorded'>, pub
       },
     ],
   })
-}
-
-function foldBatchFixed(draft: Draft, fact: FactOf<'batch.fixed'>, pub: number): void {
-  if (!draft.batches.has(fact.batch))
-    draft.batches.set(fact.batch, {
-      batch: fact.batch,
-      step: fact.step,
-      source: fact.source,
-      actions: fact.actions,
-      pub,
-    })
-}
-
-function foldActionJudged(draft: Draft, fact: FactOf<'action.judged'>): void {
-  const intent = draft.intents.get(fact.action)
-  if (intent !== undefined)
-    draft.intents.set(fact.action, {
-      ...intent,
-      judgment: {
-        judgment: fact.judgment,
-        evidence: fact.evidence,
-        passage: fact.passage,
-        request: fact.request,
-      },
-    })
-}
-
-function foldSlotSettled(draft: Draft, fact: FactOf<'slot.settled'>): void {
-  const intent = draft.intents.get(fact.action)
-  if (intent !== undefined && intent.settlement === null)
-    draft.intents.set(fact.action, { ...intent, settlement: fact.settlement })
-}
-
-function foldPassageDeclared(draft: Draft, fact: FactOf<'passage.declared'>, pub: number): void {
-  if (!draft.passages.has(fact.passage))
-    draft.passages.set(fact.passage, {
-      passage: fact.passage,
-      subject: fact.subject,
-      declared: fact.declared,
-      progress: [],
-      conclusion: null,
-      pub,
-    })
-}
-
-function foldPassageProgressed(
-  draft: Draft,
-  fact: FactOf<'passage.progressed'>,
-  pub: number,
-): void {
-  const passage = draft.passages.get(fact.passage)
-  if (passage !== undefined)
-    draft.passages.set(fact.passage, {
-      ...passage,
-      progress: [...passage.progress, { progress: fact.progress, round: fact.round, pub }],
-    })
-}
-
-function foldPassageConcluded(draft: Draft, fact: FactOf<'passage.concluded'>, pub: number): void {
-  const passage = draft.passages.get(fact.passage)
-  if (passage !== undefined && passage.conclusion === null)
-    draft.passages.set(fact.passage, {
-      ...passage,
-      conclusion: { conclusion: fact.conclusion, evidence: fact.evidence, pub },
-    })
 }
 
 function foldControlStage(draft: Draft, fact: FactOf<'control.stage'>, pub: number): void {
@@ -670,9 +581,6 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
     case 'call.intended':
       foldCallIntended(draft, fact, pub)
       break
-    case 'call.associated':
-      foldCallAssociated(draft, fact)
-      break
     case 'result.received':
       foldResultReceived(draft, fact, pub)
       break
@@ -695,24 +603,6 @@ function apply(draft: Draft, fact: FactBody, pub: number, ord: number, revision:
       break
     case 'handoff.recorded':
       foldHandoffRecorded(draft, fact, pub)
-      break
-    case 'batch.fixed':
-      foldBatchFixed(draft, fact, pub)
-      break
-    case 'action.judged':
-      foldActionJudged(draft, fact)
-      break
-    case 'slot.settled':
-      foldSlotSettled(draft, fact)
-      break
-    case 'passage.declared':
-      foldPassageDeclared(draft, fact, pub)
-      break
-    case 'passage.progressed':
-      foldPassageProgressed(draft, fact, pub)
-      break
-    case 'passage.concluded':
-      foldPassageConcluded(draft, fact, pub)
       break
     case 'control.stage':
       foldControlStage(draft, fact, pub)

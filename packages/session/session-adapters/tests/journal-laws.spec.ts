@@ -170,7 +170,7 @@ describe('F3 incremental equals whole: a cached view plus the missed batches is 
     const broken = (view: SessionJournalView, batch: PublishedBatch): SessionJournalView => {
       seen += 1
       const folded = fold(view, batch)
-      return { ...folded, head: folded.head + (seen % 2) }
+      return { ...folded, head: folded.head + seen }
     }
     const rng = random(7)
     const value = { scene: scene(rng, { rounds: 3, executions: 1 }), cut: 2 }
@@ -296,14 +296,13 @@ describe('F5 no copy: a fact holds references, never the content of another owne
     const { log } = scene(random(9), { rounds: 1, executions: 1 })
     const batch = log[0]!
     const big: FactBody = {
-      kind: 'passage.declared',
-      passage: 'p' as never,
-      subject: { digest: 'x'.repeat(FACT_MAX_BYTES), size: 1 },
-      declared: evidence('big'),
+      kind: 'wait.entered',
+      step: 's' as never,
+      waits: { digest: 'x'.repeat(FACT_MAX_BYTES), size: 1 },
     }
     const encoded = encodeBatch(scope, batch.pub, 0, { ...batch, facts: [...batch.facts, big] })
     expect(encoded).toMatchObject({
-      failure: { kind: 'oversize', factKind: 'passage.declared', ord: batch.facts.length + 1 },
+      failure: { kind: 'oversize', factKind: 'wait.entered', ord: batch.facts.length + 1 },
     })
   })
 
@@ -535,7 +534,7 @@ describe('exclusion is a fact of the log', () => {
 
 describe('the Tool start fence is a fact and an entry event', () => {
   it('fence.started folds into the fences, projects an entry event and survives the rows', () => {
-    const { log } = scene(random(47), { rounds: 3, executions: 1, finish: false })
+    const { log } = scene(random(48), { rounds: 3, executions: 1, finish: false })
     const view = foldAll(log)
     const execution = view.executions.get(log[0]!.execution)!
     expect(execution.fences.length).toBeGreaterThan(0)

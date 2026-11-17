@@ -59,7 +59,6 @@ export {
 export type {
   AdmissionView,
   AttachmentView,
-  BatchView,
   CandidateView,
   ControlView,
   EventView,
@@ -70,7 +69,6 @@ export type {
   InputView,
   IntentView,
   OperationEntry,
-  PassageView,
   RequestView,
   ResultView,
   ReceivedView,

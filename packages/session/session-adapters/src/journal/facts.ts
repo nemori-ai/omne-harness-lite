@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto'
 import type {
-  ActionBatchId,
   ActionId,
   Adoption,
   AgentConclusion,
@@ -181,12 +180,6 @@ export type FactBody =
       request: Ref<ToolInvokeRequest> | null
     }>
   | Readonly<{
-      kind: 'call.associated'
-      action: ActionId
-      reference: ToolInvocationRef
-      receipt: DurableEvidence
-    }>
-  | Readonly<{
       kind: 'result.received'
       consumption: ConsumptionId
       delivery: string
@@ -246,40 +239,6 @@ export type FactBody =
       outcome: Ref
       predecessor: AgentOperationId | null
       custody: Ref | null
-    }>
-  | Readonly<{
-      kind: 'batch.fixed'
-      batch: ActionBatchId
-      step: StepId
-      source: ProducerCall
-      actions: readonly Readonly<{ action: ActionId; callId: string; arguments: Ref }>[]
-    }>
-  | Readonly<{
-      kind: 'action.judged'
-      action: ActionId
-      judgment: 'pending' | 'waiting' | 'denied' | 'allowed'
-      evidence: DurableEvidence | null
-      passage: PassageId | null
-      request: Ref<ToolInvokeRequest> | null
-    }>
-  | Readonly<{ kind: 'slot.settled'; action: ActionId; settlement: DurableEvidence }>
-  | Readonly<{
-      kind: 'passage.declared'
-      passage: PassageId
-      subject: Ref
-      declared: DurableEvidence
-    }>
-  | Readonly<{
-      kind: 'passage.progressed'
-      passage: PassageId
-      progress: Ref
-      round: string | null
-    }>
-  | Readonly<{
-      kind: 'passage.concluded'
-      passage: PassageId
-      conclusion: Ref
-      evidence: DurableEvidence
     }>
   | Readonly<{
       kind: 'control.stage'
@@ -390,7 +349,6 @@ export const FACT_KINDS: readonly FactKind[] = Object.freeze([
   'request.adopted',
   'intent.voided',
   'call.intended',
-  'call.associated',
   'result.received',
   'result.handled',
   'reply.judged',
@@ -399,12 +357,6 @@ export const FACT_KINDS: readonly FactKind[] = Object.freeze([
   'handoff.resolved',
   'handoff.retired',
   'handoff.recorded',
-  'batch.fixed',
-  'action.judged',
-  'slot.settled',
-  'passage.declared',
-  'passage.progressed',
-  'passage.concluded',
   'control.stage',
   'control.rejected',
   'wait.entered',
@@ -547,8 +499,6 @@ export function factKey(fact: FactBody): string {
       return `voided/${fact.step}/${fact.attempt}`
     case 'call.intended':
       return `call/${fact.action}`
-    case 'call.associated':
-      return `associated/${fact.action}`
     case 'result.received':
       if (fact.result.delivery === 'account') return `account/${fact.delivery}`
       if (fact.result.delivery === 'placeholder') return `placeholder/${fact.consumption}`
@@ -564,18 +514,6 @@ export function factKey(fact: FactBody): string {
     case 'handoff.retired':
     case 'handoff.recorded':
       return `${fact.kind}/${canonical(fact.handoff)}`
-    case 'batch.fixed':
-      return `batch/${fact.batch}`
-    case 'action.judged':
-      return `judged/${fact.action}/${fact.judgment}`
-    case 'slot.settled':
-      return `slot/${fact.action}`
-    case 'passage.declared':
-      return `passage/${fact.passage}`
-    case 'passage.progressed':
-      return `progress/${fact.passage}/${fact.progress.digest}`
-    case 'passage.concluded':
-      return `concluded/${fact.passage}`
     case 'control.stage':
       return `control/${fact.control}/${fact.stage}`
     case 'control.rejected':
