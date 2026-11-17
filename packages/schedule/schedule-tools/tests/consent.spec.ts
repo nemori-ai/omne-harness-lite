@@ -1,3 +1,4 @@
+import { writeJsonText } from '@omne-harness/json-text'
 import { describe, expect, it } from 'vitest'
 import { cardIdOf, scheduleConsentRef } from '@omne-harness/schedule-tools'
 import {
@@ -275,5 +276,120 @@ describe('the Schedules declaration and reads', () => {
     expect(String(Reflect.get(await first(parse('preview', {}), execution), 'value'))).toMatch(
       /^invalid reason=preview takes exactly one/,
     )
+  })
+})
+
+describe('what the owner reads on the card', () => {
+  it.each([
+    ['create', createActive, '新建', ['activate', 'draft', 'none']],
+    ['pause', pause, '暂停', ['approve', 'reject']],
+  ] as const)(
+    'names the %s, the schedule, the next times and the session',
+    async (_, args, verb, options) => {
+      const { segment } = await suspend(args(), [askConsent])
+      if (segment.kind !== 'suspended') throw new Error('suspended')
+      const [card] = (JSON.parse(writeJsonText(segment.wait.request)) as { questions: any[] })
+        .questions
+      expect(card).toMatchObject({
+        cardId: CARD,
+        kind: 'question',
+        title: `agent 想${verb}日程「${args === createActive ? '交月报' : '交月报'}」`,
+        declineConsequence: '不做这次改动，日程保持原样。',
+      })
+      expect(card.description.split('\n')).toEqual([
+        `agent 想${verb}日程「交月报」，需要你确认。`,
+        '接下来几次：2026-11-30T17:00:00（cn-legal-holidays v1）',
+        '来自会话 session-1。',
+      ])
+      expect(card.options.map((option: { id: string }) => option.id)).toEqual(options)
+      expect(
+        card.options.every(
+          (option: { label: string; description: string }) => option.label && option.description,
+        ),
+      ).toBe(true)
+    },
+  )
+})
+
+describe('the checkpoint the call keeps', () => {
+  const resumeWith = async (bytes: Uint8Array) => {
+    const { schedulesExecutor } = await import('@omne-harness/schedule-tools')
+    const execution = scope(bound(services([])))
+    return schedulesExecutor.resume({ checkpoint: bytes, response: { kind: 'no-answer' } }, null, {
+      emit: () => undefined,
+      signal: execution.context.signal,
+    } as never)
+  }
+  const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
+  const good = {
+    args: { command: 'pause', params: { schedule: ID, revision: 3 } },
+    digest: DIGEST,
+    cardId: CARD,
+  }
+
+  it('reads back the state it wrote', async () => {
+    expect(await resumeWith(encode(good))).toMatchObject({ ok: { kind: 'completed' } })
+  })
+
+  it.each([
+    ['bytes that are not UTF-8', new Uint8Array([0xff, 0xfe])],
+    ['JSON that is not an object', encode(7)],
+    ['null', encode(null)],
+    ['no digest', encode({ ...good, digest: undefined })],
+    ['no card', encode({ ...good, cardId: undefined })],
+    ['a card of another digest', encode({ ...good, cardId: cardIdOf('b'.repeat(64)) })],
+    [
+      'a command the tool does not have',
+      encode({ ...good, args: { command: 'delete', params: {} } }),
+    ],
+    ['no arguments', encode({ ...good, args: null })],
+  ])('refuses %s', async (_, bytes) => {
+    expect(await resumeWith(bytes)).toMatchObject({
+      failure: { kind: 'invalid', reason: 'consent-state-unreadable' },
+    })
+  })
+})
+
+describe('binding one call', () => {
+  it.each([
+    ['no commands', { commands: () => undefined }, 'unavailable'],
+    ['no queries', { queries: () => undefined }, 'unavailable'],
+    ['no context', { context: async () => undefined }, 'unavailable'],
+    [
+      'a context that throws',
+      {
+        context: async () => {
+          throw new Error('down')
+        },
+      },
+      'unavailable',
+    ],
+    [
+      'a context of another tenant',
+      { context: async () => ({ owner: { kind: 'tenant', tenantId: 'tenant/o/b' } }) },
+      'forbidden',
+    ],
+    [
+      'a context that is not a tenant',
+      { context: async () => ({ owner: { kind: 'system' } }) },
+      'forbidden',
+    ],
+  ] as const)('does not reach the services for %s', async (_, override, reason) => {
+    expect(await bound(services([]), override as never).faces()).toEqual({
+      kind: 'unreachable',
+      reason,
+    })
+  })
+
+  it('keys each step of a call apart and binds the consent reference to the call', () => {
+    const one = bound(services([]))
+    const other = bound(services([]), { call: 'call-2' })
+    expect(one.operationKey('initial')).toMatch(/^tool:[0-9a-f]{48}$/)
+    expect(one.operationKey('initial')).toBe(one.operationKey('initial'))
+    expect(one.operationKey('confirmed')).not.toBe(one.operationKey('initial'))
+    expect(other.operationKey('initial')).not.toBe(one.operationKey('initial'))
+    expect(one.consentRef(CARD)).toMatch(new RegExp(`^tool-call/[0-9a-f]{48}/${CARD}$`))
+    expect(other.consentRef(CARD)).not.toBe(one.consentRef(CARD))
+    expect(one.now()).toBe('2026-11-17T00:00:00.000Z')
   })
 })
