@@ -275,7 +275,7 @@ describe('after_model_call, failure', () => {
         .commits()
         .flatMap(commit => commit.calls.map(call => call.output))
         .filter(Boolean),
-    ).toContain('observed')
+    ).toContain('errored')
   })
 
   it('stop: the run ends with the extension as the cause, not with a retry', async () => {

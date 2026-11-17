@@ -20,7 +20,14 @@ import type {
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import { canonical } from '../canonical.ts'
 import { cancellationOf } from '../control.ts'
-import { createPassDriver, type Pass, type PassDriver, type PassHost } from './extension-drive.ts'
+import {
+  createPassDriver,
+  type CardDesk,
+  type HumanWait,
+  type Pass,
+  type PassDriver,
+  type PassHost,
+} from './extension-drive.ts'
 import type { PassEffect } from './extension-pass.ts'
 import { conclusionEvidence } from './extension-positions.ts'
 import {
@@ -78,6 +85,8 @@ export type PassRunnerHost<P> = Pick<PassHost<P>, 'access' | 'execution' | 'chec
       failure: Unavailable,
       recheck: (() => Promise<Outcome<unknown, Failure>>) | null,
     ): void
+    waitForHuman(node: LoopNode, waits: readonly HumanWait[]): void
+    cards: CardDesk
     decide(next: Extract<Next, { kind: 'try-finish' }>): void
     handoffOutcome(
       request: PendingHandoff,
@@ -107,6 +116,10 @@ async function run<P>(
   if (ran.ok.kind === 'cancelled') return left('cancel')
   if (ran.ok.kind === 'waiting') {
     runner.host.waitFor(node, ran.ok.failure, ran.ok.recheck)
+    return left('wait')
+  }
+  if (ran.ok.kind === 'human') {
+    runner.host.waitForHuman(node, ran.ok.waits)
     return left('wait')
   }
   const { effects, applied } = ran.ok
@@ -278,6 +291,7 @@ export function createPassRunner<P>(host: PassRunnerHost<P>) {
     execution: host.execution,
     ports: host.ports,
     definition: host.definition,
+    cards: host.cards,
     checkpoint: host.checkpoint,
     cancelled,
     save: (node, write) => host.commit(node, host.checkpoint().position, write),

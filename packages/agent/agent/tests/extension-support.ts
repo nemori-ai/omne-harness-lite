@@ -6,6 +6,7 @@ import type {
   ExtensionInput,
   ExtensionInvocationMode,
   ExtensionInvocationResult,
+  ExtensionReplayBinding,
   LoopExtensionDeclaration,
   Position,
 } from '@omne-harness/agent-contract'
@@ -91,8 +92,10 @@ export type TenantView = ReturnType<typeof tenantView>
 export function implementations() {
   const behaviors = new Map<string, Behavior>()
   const invocations: Invocation[] = []
+  const replays: ExtensionReplayBinding[] = []
   return {
     invocations,
+    replays,
     define(name: string, behavior: Behavior) {
       behaviors.set(name, behavior)
     },
@@ -112,6 +115,7 @@ export function implementations() {
         return succeed({
           implementation,
           async invoke(extension, _signal, mode) {
+            if (mode.kind === 'replay') replays.push(mode.binding)
             invocations.push({
               extension: declaration.name,
               version: implementation.name,
@@ -152,8 +156,8 @@ export function recordingPasses(dependencies: Dependencies) {
         state: passage.progress.kind,
         output:
           passage.progress.kind === 'resolved' || passage.progress.kind === 'applied'
-            ? (passage.progress.conclusion.output?.kind ??
-              passage.progress.conclusion.skipped ??
+            ? (passage.progress.conclusion.skipped ??
+              passage.progress.conclusion.output?.kind ??
               null)
             : null,
       }))

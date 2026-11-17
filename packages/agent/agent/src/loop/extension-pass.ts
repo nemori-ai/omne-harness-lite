@@ -1,9 +1,11 @@
 import {
+  cardRequestOf,
   decodePassageId,
   judgeExtensionOutput,
   type ActionId,
   type AgentCheckpoint,
   type AgentInstant,
+  type CardRoundId,
   type ChainMember,
   type ChainSource,
   type Conclusion,
@@ -11,6 +13,7 @@ import {
   type DurableEvidence,
   type EnabledExtension,
   type ExtensionChain,
+  type ExtensionReplayBinding,
   type ExtensionInvocationResult,
   type ExtensionOutput,
   type LoopExtensionDeclaration,
@@ -20,6 +23,8 @@ import {
   type Subject,
 } from '@omne-harness/agent-contract'
 import { canonical } from '../canonical.ts'
+import { cardRequestIdentity, cardRound } from './identities.ts'
+import { openRound, repeatsAnsweredRound } from './passages.ts'
 
 export type PassPlace = Readonly<{
   position: Position
@@ -295,5 +300,39 @@ export function reduceChain(subject: Subject, conclusions: readonly Conclusion[]
     injects: outputs(conclusions, 'inject'),
     model: outputs(conclusions, 'select_model').at(-1) ?? null,
     retry,
+  }
+}
+
+export type Asked =
+  | Readonly<{ kind: 'opened'; call: Passage; round: CardRoundId }>
+  | Readonly<{ kind: 'repeated' }>
+
+export function askedRound(call: Passage, ask: With<'ask'>): Asked {
+  const rounds = call.progress.kind === 'requested' ? 0 : call.progress.rounds.length
+  const round = cardRound(call.id, rounds + 1)
+  const requests = [cardRequestOf(cardRequestIdentity(round, 1), ask.output.card)]
+  if (repeatsAnsweredRound(call, requests)) return { kind: 'repeated' }
+  const opened = openRound(call, round, ask, requests)
+  if ('failure' in opened)
+    throw new Error(`the call ${call.id} cannot open a round in ${opened.failure.state}`)
+  return { kind: 'opened', call: opened.ok, round }
+}
+
+export function replayBinding(call: Passage): ExtensionReplayBinding {
+  const rounds = call.progress.kind === 'requested' ? [] : call.progress.rounds
+  return {
+    passage: call.id,
+    control: 'valid',
+    rounds: rounds.map(round => ({
+      round: round.round,
+      cards: ('cards' in round.progress ? round.progress.cards : []).map(card => ({
+        identity: card.identity,
+        card: card.card,
+        response:
+          card.response === null || card.response.kind === 'invalidated'
+            ? null
+            : { evidence: card.response.evidence, answer: card.response },
+      })),
+    })),
   }
 }

@@ -108,6 +108,7 @@ import {
 import { readBatchToolCalls } from './action-source.ts'
 import { answeredByPort, notingPorts } from './port-answers.ts'
 import { beforeModelCall, eachSubject, preparedBy, stepEnd } from './extension-positions.ts'
+import { createCardDesk } from './card-desk.ts'
 import { createPassRunner, type PassOutcome } from './extension-runner.ts'
 import { createPositionPasses, type Judged } from './position-passes.ts'
 import { createSlotCandidates } from './slot-candidates.ts'
@@ -550,7 +551,7 @@ function coordinate<P>(
   let reissueObligations = false
   let cancellationChanged = false
   let waits: readonly Waiting[] = []
-  const unsentRounds = new Set<CardRoundId>()
+  const desk = createCardDesk<P>(ports, access, execution, () => required(authority, 'authority'))
   let waitingAt: LoopNode = 'E1'
   let yieldedWait = false
   let savedWait = false
@@ -1330,6 +1331,12 @@ function coordinate<P>(
     load,
     commit,
     waitFor: (node, failure, recheck) => void waitFor(node, failure, recheck),
+    waitForHuman(node, human) {
+      recheckDependency = null
+      waits = human
+      waitingAt = node
+    },
+    cards: desk,
     decide: next => void (decided = next),
     handoffOutcome: slotOutcome,
     resolveHandoff: applySlotMessage,
@@ -2028,46 +2035,6 @@ function coordinate<P>(
     return succeed('rejected')
   }
 
-  type RoundCards =
-    | Readonly<{ kind: 'cards'; cards: readonly DurableEvidence[] }>
-    | Readonly<{ kind: 'refused'; failure: DurableEvidence }>
-    | Readonly<{ kind: 'unknown'; failure: Extract<Failure, { kind: 'unavailable' }> }>
-
-  async function roundCards(
-    request: NonNullable<ReturnType<typeof presentRequest>>,
-  ): Promise<Outcome<RoundCards, Failure>> {
-    const unknown = (owner: string, diagnostic: string): Outcome<RoundCards, Failure> =>
-      succeed({ kind: 'unknown', failure: { kind: 'unavailable', owner, diagnostic } })
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      if (unsentRounds.has(request.round)) {
-        unsentRounds.delete(request.round)
-        const presented = await ports.cards.present({
-          ...access,
-          advance: required(authority, 'authority'),
-          ...request,
-        })
-        if ('ok' in presented) return succeed({ kind: 'cards', cards: presented.ok })
-        const { failure } = presented
-        if (failure.kind === 'denied' || failure.kind === 'conflict' || failure.kind === 'invalid')
-          return succeed({
-            kind: 'refused',
-            failure: agentEvidence(`${request.round}/present-failed`, failure),
-          })
-        if (failure.kind !== 'commit-unknown' && failure.kind !== 'unavailable') return presented
-      }
-      const found = await ports.cards.lookup({ ...access, execution, ...request })
-      if ('failure' in found) {
-        if (found.failure.kind !== 'unavailable') return found
-        return succeed({ kind: 'unknown', failure: found.failure })
-      }
-      if (found.ok.kind === 'presented') return succeed({ kind: 'cards', cards: found.ok.cards })
-      if (found.ok.kind === 'unknown')
-        return unknown('agentDecisionCards', 'the result of presenting a card round is unknown')
-      unsentRounds.add(request.round)
-    }
-    return unknown('agentDecisionCards', 'the result of presenting a card round is unknown')
-  }
-
   async function presentRounds(batch: ActionBatch, saved: readonly Passage[]) {
     const instant = await ports.clock.now()
     if ('failure' in instant) return instant
@@ -2081,7 +2048,7 @@ function coordinate<P>(
         actions.push(action)
         continue
       }
-      const cards = await roundCards(request)
+      const cards = await desk.present(request)
       if ('failure' in cards) return cards
       if (cards.ok.kind === 'unknown') {
         unknown = cards.ok.failure
@@ -2233,7 +2200,7 @@ function coordinate<P>(
         if ('failure' in preserved) return preserved
         actions.push(preserved.ok)
       }
-      for (const round of opened) unsentRounds.add(round)
+      for (const round of opened) desk.opened(round)
       return step('judged', { checkpoint: { ...adopted, batch: { ...batch, actions }, passages } })
     },
     async A1() {
