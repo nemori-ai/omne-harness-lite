@@ -27,6 +27,7 @@ import { createSettingsRegistry } from '@omne-harness/settings'
 import { createCategoryRegistry } from '@omne-harness/assets'
 import { createAssetsLocal } from '@omne-harness/assets-local'
 import { createToolAssetCategory } from '../../../src/rows/governance/tool-assets.ts'
+import { PREFERENCE_SETTINGS } from '../../../src/rows/governance/preference-settings.ts'
 import {
   combinationManifest,
   manifestDigest,
@@ -673,6 +674,8 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
   for (const entry of w.release.manifest.entries)
     for (const definition of entry.governance.declaration.settings)
       expect(registry.registerContribution(definition).kind).toBe('registered')
+  for (const definition of PREFERENCE_SETTINGS)
+    expect(registry.registerContribution(definition).kind).toBe('registered')
   const sources = await openOrganizationSettingsSources(w.options)
   if (sources.kind !== 'created') throw new Error(JSON.stringify(sources))
   cleanup.push(sources.close)
@@ -712,7 +715,9 @@ it('installs the actual Tool release and adopts its original holdings before exp
   expect(catalog.items.map(item => item.declaration.reference.definitionId).sort()).toEqual([
     'tool.Ask',
     'tool.BkgToolCalls',
+    'tool.Calendar',
     'tool.Files',
+    'tool.Schedules',
     'tool.Shell',
     'tool.TodoItems',
     'tool.Tools',
@@ -731,7 +736,21 @@ it('installs the actual Tool release and adopts its original holdings before exp
   })
   expect(settings).toMatchObject({ completeness: 'complete' })
   if ('kind' in settings) throw new Error(JSON.stringify(settings))
-  expect(settings.views).toHaveLength(7)
+  expect(settings.views.map(view => [view.target.policyId, view.target.targetRef])).toEqual([
+    ['independent', 'calendar.environment'],
+    ['independent', 'schedule.agent-authoring'],
+    ...[
+      'Ask',
+      'BkgToolCalls',
+      'Calendar',
+      'Files',
+      'Schedules',
+      'Shell',
+      'TodoItems',
+      'Tools',
+      'Web',
+    ].map(name => ['asset', `harness.preinstalled.tool.${name}`]),
+  ])
   const tool = w.release.manifest.entries.find(entry => entry.asset.name === 'Shell')!
   const principal = w.workPrincipal('request-session')
   const { ledgerWorld } =

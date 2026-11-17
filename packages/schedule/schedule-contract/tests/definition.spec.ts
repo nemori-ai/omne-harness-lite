@@ -316,7 +316,6 @@ it('accepts each complete management action while rejecting mixed action fields'
       patch: { kind: 'reminderContent', content: { title: null, body: '提醒' }, label: null },
     },
     { action: 'reviseDraft', definition, reason: '完整修订' },
-    { action: 'reconfirmConsent', newConsentRef: 'grant:2', reason: '重新确认' },
     ...['pause', 'resume', 'stop', 'promote', 'discard'].map(action => ({ action, reason: null })),
     { action: 'replace', successor: definition, reason: '替换定义' },
   ]

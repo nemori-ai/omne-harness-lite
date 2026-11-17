@@ -29,7 +29,10 @@ function file(name: string) {
     digest: createHash('sha256').update(readFileSync(url)).digest('hex'),
   }
 }
-export function calendarSupplySqlMaterials(): CalendarSupplySqlMaterials {
+/** `maxReadBytes` lowers the read bound to what the host admits; a larger material reads as a failure. */
+export function calendarSupplySqlMaterials(
+  options: Readonly<{ maxReadBytes?: number }> = {},
+): CalendarSupplySqlMaterials {
   const participant = file('participant'),
     migration = file('migration'),
     reader = file('read')
@@ -60,7 +63,7 @@ export function calendarSupplySqlMaterials(): CalendarSupplySqlMaterials {
         ordering: 'domain-serial',
         readTables: TABLES,
         requiresMigrations: [MIGRATION],
-        maxOutputBytes: READ_BYTES,
+        maxOutputBytes: Math.min(options.maxReadBytes ?? READ_BYTES, READ_BYTES),
         maxRowsRead: 2 * PAGE_LIMIT + 4,
       },
     ],

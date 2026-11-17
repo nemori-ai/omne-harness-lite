@@ -165,6 +165,8 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
         { capability: { category: 'Tool', name: 'BkgToolCalls' }, resident: true },
         { capability: { category: 'Tool', name: 'Ask' }, resident: true },
         { capability: { category: 'Tool', name: 'Web' }, resident: true },
+        { capability: { category: 'Tool', name: 'Calendar' }, resident: true },
+        { capability: { category: 'Tool', name: 'Schedules' }, resident: true },
       ],
       attributes: [{ item: 'model' }],
     })

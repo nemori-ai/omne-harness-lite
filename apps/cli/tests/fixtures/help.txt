@@ -41,7 +41,9 @@ Commands
   omne query-current-tenant                                                                                          Read the current tenant of this login.
   omne revoke-login                                                                                                  Revoke a login. Without --target-login, log out of this one.
   omne query-own-valid-logins                                                                                        List the valid logins of this account.
-  omne setting list|set|show|unset                                                                                   List the settings of the acting tenant, or set, show or unset a secret one.
+  omne calendar list|environment|day|count|shift|next|nth                                                            Ask a date question on the calendar your settings choose: list the calendars, read the one in effect, or classify, count, shift and list working days.
+  omne schedule list|show|history|agenda|preview|create|<action>                                                     Read, preview and create the schedules of the acting tenant, or change one by an action: rename, edit, revise, replace, promote, pause, resume, stop or discard.
+  omne setting list|set|show|unset                                                                                   List the settings of the acting tenant, or set, show or unset one; set reads a secret from the prompt, or takes --value <JSON>.
 
   --home <directory>    State directory. Overrides OMNE_HOME.
   OMNE_HOME             State directory when --home is absent.

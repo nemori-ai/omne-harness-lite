@@ -23,6 +23,7 @@ test('extra input scope cannot replace the backend scope on any read method', as
   const backend = createScheduleManagementSqlBackend({
     storage: w.raw,
     scope: { kind: 'tenant', tenant: 't2' },
+    transactionDomain: w.combination.transactionDomain,
     combinationVersion: w.combination.combinationVersion,
     manifestDigest: w.combination.manifestDigest,
     guards: w.guards,
@@ -113,6 +114,7 @@ test('the participant rechecks raw SQL commands instead of trusting the control-
       },
     },
     scope: w.scope,
+    transactionDomain: w.combination.transactionDomain,
     combinationVersion: w.combination.combinationVersion,
     manifestDigest: w.combination.manifestDigest,
     guards: w.guards,

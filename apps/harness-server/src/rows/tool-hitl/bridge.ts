@@ -345,7 +345,33 @@ async function recallRegistration({ at, principal, register }: Registration) {
   return { binding, found }
 }
 
-export function createToolHitlBridge(input: ToolHitlBridgeInput): ToolDecisionBridge<unknown> {
+/** Reads the request of a registered wait; null while any of its cards is undecided. */
+async function decidedBatch(
+  at: Registration['at'],
+  principal: ActingForTenantPrincipal,
+  result: Registered,
+): Promise<Outcome<readonly Decided[] | null, ToolFailure>> {
+  const read = await at.application.getRequest(principal, {
+    protocol: 'hitl/1',
+    requestRef: result.requestRef,
+  })
+  if (read.kind !== 'found') return unavailable(`the HITL request read answered ${read.kind}`)
+  const batch: Decided[] = []
+  for (const ref of result.cards) {
+    const card = read.request.cards.find(item => item.ref.cardId === ref.cardId)
+    if (card === undefined) return unavailable('the HITL request lost a registered card')
+    if (card.kind !== 'decided') return succeed(null)
+    batch.push({ cardId: ref.cardId, decision: card.decision })
+  }
+  return succeed(batch)
+}
+
+/** The cards of a call's waits that the owner has decided, with the reply each one got. */
+export type DecidedCard = Readonly<{ cardId: string; reply: Decision['reply'] }>
+export type ToolHitlBridge = ToolDecisionBridge<unknown> &
+  Readonly<{ decidedCards(access: Access): Promise<Outcome<readonly DecidedCard[], ToolFailure>> }>
+
+export function createToolHitlBridge(input: ToolHitlBridgeInput): ToolHitlBridge {
   const registration = async (
     access: Access,
     find: FindWait,
@@ -525,26 +551,6 @@ export function createToolHitlBridge(input: ToolHitlBridgeInput): ToolDecisionBr
     return succeed({ ...built.ok, result: found.result })
   }
 
-  const decidedBatch = async (
-    at: Registration['at'],
-    principal: ActingForTenantPrincipal,
-    result: Registered,
-  ): Promise<Outcome<readonly Decided[] | null, ToolFailure>> => {
-    const read = await at.application.getRequest(principal, {
-      protocol: 'hitl/1',
-      requestRef: result.requestRef,
-    })
-    if (read.kind !== 'found') return unavailable(`the HITL request read answered ${read.kind}`)
-    const batch: Decided[] = []
-    for (const ref of result.cards) {
-      const card = read.request.cards.find(item => item.ref.cardId === ref.cardId)
-      if (card === undefined) return unavailable('the HITL request lost a registered card')
-      if (card.kind !== 'decided') return succeed(null)
-      batch.push({ cardId: ref.cardId, decision: card.decision })
-    }
-    return succeed(batch)
-  }
-
   const inspect: ToolDecisionBridge<unknown>['inspect'] = async request => {
     const original = await registered(request, request.wait)
     if ('failure' in original) return original
@@ -634,5 +640,23 @@ export function createToolHitlBridge(input: ToolHitlBridgeInput): ToolDecisionBr
     }
   }
 
-  return Object.freeze({ ensure, inspectOperation, inspect, invalidate, resolve })
+  /** Reads what HITL keeps for each Ask wait of the call; a wait without a decision adds nothing. */
+  const decidedCards: ToolHitlBridge['decidedCards'] = async access => {
+    const fixed = await input.recoveryOf(access)
+    if ('failure' in fixed) return fixed
+    const cards: DecidedCard[] = []
+    for (const { intent } of fixed.ok.waits) {
+      if (intent.kind !== 'ask') continue
+      const original = await registered(access, intent.wait)
+      if ('failure' in original) return original
+      const { at, principal, result } = original.ok
+      const batch = await decidedBatch(at, principal, result)
+      if ('failure' in batch) return batch
+      for (const item of batch.ok ?? [])
+        cards.push({ cardId: item.cardId, reply: item.decision.reply })
+    }
+    return succeed(cards)
+  }
+
+  return Object.freeze({ ensure, inspectOperation, inspect, invalidate, resolve, decidedCards })
 }

@@ -457,3 +457,51 @@ describe('agenda snapshots and budgets', () => {
     expect(calls).toBe(2)
   })
 })
+
+describe('agenda and calendar coverage', () => {
+  function coverageEndsAt(f: ReturnType<typeof fixture>, date: string) {
+    const original = f.dependencies.prediction.preview
+    const asked: number[] = []
+    const preview: typeof original = async (ctx, input) => {
+      asked.push(input.count)
+      if (input.count > 1)
+        return {
+          kind: 'error',
+          error: {
+            code: 'coverage_insufficient',
+            message: 'coverage_insufficient',
+            retryable: false,
+            requestId: ctx.requestId,
+            details: { date, coverageStart: '2022-12-31', coverageEnd: '2027-12-31' },
+          },
+        }
+      return original(ctx, input)
+    }
+    return { dependencies: { ...f.dependencies, prediction: { preview } }, asked }
+  }
+
+  it('answers a range inside the coverage although later occurrences fall outside it', async () => {
+    const f = fixture()
+    const { dependencies, asked } = coverageEndsAt(f, '2028-01-01')
+    const result = await createScheduleQueryApplication(dependencies).queries.agenda(
+      context,
+      request(),
+    )
+    expect(result).toMatchObject({
+      kind: 'ok',
+      value: { complete: true, items: [{ kind: 'prediction' }] },
+    })
+    expect(asked[0]).toBe(100)
+    expect(asked.at(-1)).toBe(1)
+  })
+
+  it('still refuses when the calendar does not cover the range itself', async () => {
+    const f = fixture()
+    const { dependencies } = coverageEndsAt(f, '2026-11-05')
+    const result = await createScheduleQueryApplication(dependencies).queries.agenda(
+      context,
+      request(),
+    )
+    expect(result).toMatchObject({ kind: 'error', error: { code: 'coverage_insufficient' } })
+  })
+})

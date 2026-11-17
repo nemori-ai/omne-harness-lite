@@ -21,6 +21,7 @@ import {
   parseDirectoryCursor,
 } from './catalog.ts'
 import { resolveCalculation } from './calculate.ts'
+export { createCalendarCalculator } from './calculator.ts'
 
 export type * from './ports.ts'
 export function createCalendarQueries(dependencies: CalendarQueriesDependencies): CalendarQueries {

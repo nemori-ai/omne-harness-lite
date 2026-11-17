@@ -1,8 +1,9 @@
 import { createCategoryRegistry } from '@omne-harness/assets'
 import { createAssetsLocal } from '@omne-harness/assets-local'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
-import type { createStandaloneSettingsOwner } from '@omne-harness/settings-local'
+import { createStandaloneSettingsOwner } from '@omne-harness/settings-local'
 import type { ToolRelease } from '../../entry/tool-release.ts'
+import { installPreferenceTargets } from './preference-settings.ts'
 import { createToolAssetCategory } from './tool-assets.ts'
 import { governanceStorageCombinations } from './storage-combinations.ts'
 import { installToolGovernance, toolInstallationGrants } from './tool-installation.ts'
@@ -41,16 +42,28 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
       }),
     ],
   })
+  const { participants: _participants, ...targetsRegistration } = governanceStorageCombinations(
+    options.materials,
+  ).preferenceTargets
+  const preferenceTargets = createStandaloneSettingsOwner({
+    storage: options.storage,
+    domain: options.domain,
+    ...targetsRegistration,
+  })
   async function open(): ReturnType<TenantGovernanceAssembly['open']> {
     const runtime = await assembly.open()
     if (runtime.kind !== 'created') {
       await assets.close()
+      await preferenceTargets.close()
       return runtime
     }
     const closeRuntime = runtime.close
     async function close() {
       const result = await closeRuntime()
-      if (result.kind === 'closed') await assets.close()
+      if (result.kind === 'closed') {
+        await assets.close()
+        await preferenceTargets.close()
+      }
       return result
     }
     let fault: string | undefined
@@ -65,6 +78,11 @@ export function prepareInstalledTenantGovernance(input: InstalledTenantOptions) 
         organizationTargets: options.organizationTargets,
       })
       fault = installed.kind === 'installed' ? undefined : `tool installation ${installed.phase}`
+      if (
+        fault === undefined &&
+        (await installPreferenceTargets(preferenceTargets, options.scope.tenantRef)) !== 'ready'
+      )
+        fault = 'preference settings installation unavailable'
     } catch {
       fault = 'tool installation threw'
     } finally {
