@@ -1,4 +1,5 @@
 import { fail, succeed } from '@omne-harness/operation-result'
+import { runStartInputs } from '@omne-harness/session-contract'
 import type {
   PendingReason,
   Reply,
@@ -73,7 +74,7 @@ export function createScan<P>(
     const snapshot = await maintainer.work.readWork({ principal: principal.ok, ...ref })
     if ('failure' in snapshot) return
     if (snapshot.ok.controls.some(control => control.state === 'propagating')) controls.trigger(ref)
-    if (snapshot.ok.pending.length > 0) advance.trigger(ref)
+    if (runStartInputs(snapshot.ok).length > 0) advance.trigger(ref)
     if (snapshot.ok.run.kind === 'active') recovery.trigger(ref)
     for (const operation of snapshot.ok.unresolved)
       resolution.watch(ref, operation, () => {

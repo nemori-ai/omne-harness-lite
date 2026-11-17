@@ -35,7 +35,11 @@ export function bodyReadingModel(shellScript: string, final: string) {
       if (index === 0) {
         call = {
           name: 'Shell',
-          arguments: JSON.stringify({ command: 'execute', params: { script: shellScript } }),
+          arguments: JSON.stringify({
+            command: 'execute',
+            intent: 'test call',
+            params: { script: shellScript },
+          }),
         }
       } else {
         const messages = request['messages']

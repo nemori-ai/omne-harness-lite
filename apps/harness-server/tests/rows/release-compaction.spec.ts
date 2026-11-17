@@ -18,6 +18,7 @@ const SUMMARY = 'release-summary-marker: prior investigation completed; finish t
 const LARGE_HISTORY = 'memo '.repeat(12_000)
 const TOOL = JSON.stringify({
   command: 'execute',
+  intent: 'print a marker',
   params: { script: 'printf compaction-tool-complete' },
 })
 const sse = (events: readonly unknown[]) =>

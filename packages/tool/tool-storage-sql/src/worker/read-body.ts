@@ -20,10 +20,12 @@ const handler: ReadHandlerModule = {
       'SELECT chunks, bytes, digest FROM tl_body_manifest WHERE tenant = ? AND call = ? AND body = ? LIMIT 1',
       key,
     )
-    if (manifest === undefined) {
-      const output: BodyReadOutput = { manifest: null, chunks: [] }
-      return { kind: 'read', output }
-    }
+    const held =
+      oneRow(
+        port,
+        'SELECT 1 AS held FROM tl_body_chunk WHERE tenant = ? AND call = ? AND body = ? LIMIT 1',
+        key,
+      ) !== undefined
     const rows = rowsOf(
       port,
       `SELECT seq, data FROM tl_body_chunk WHERE tenant = ? AND call = ? AND body = ?
@@ -31,11 +33,15 @@ const handler: ReadHandlerModule = {
       [...key, BigInt(address.first), BigInt(address.first + address.count), BigInt(address.count)],
     )
     const output: BodyReadOutput = {
-      manifest: {
-        chunks: Number(integer(manifest['chunks'])),
-        bytes: Number(integer(manifest['bytes'])),
-        digest: text(manifest['digest']),
-      },
+      manifest:
+        manifest === undefined
+          ? null
+          : {
+              chunks: Number(integer(manifest['chunks'])),
+              bytes: Number(integer(manifest['bytes'])),
+              digest: text(manifest['digest']),
+            },
+      held,
       chunks: rows.map(row => {
         const data = row['data']
         if (!(data instanceof Uint8Array)) throw new TypeError('a BLOB cell was expected')

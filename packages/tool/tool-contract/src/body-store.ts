@@ -103,6 +103,12 @@ export type ToolBodyReadAnswer =
   | Readonly<{ kind: 'absent' }>
   | ToolBodyStoreUnavailable
 
+/** The chunks kept so far of a body sealed or not, from the first asked; a gap ends them. */
+export type ToolBodyOpenReadAnswer =
+  | Readonly<{ kind: 'found'; chunks: readonly ToolBodyChunk[] }>
+  | Readonly<{ kind: 'absent' }>
+  | ToolBodyStoreUnavailable
+
 export type ToolBodyDeleteAnswer = Readonly<{ kind: 'deleted' }> | ToolBodyStoreUnavailable
 
 export interface ToolBodyStore {
@@ -110,5 +116,6 @@ export interface ToolBodyStore {
   put(permit: ToolBodyPermit, seq: number, bytes: Uint8Array): Promise<ToolBodyPutAnswer>
   seal(permit: ToolBodyPermit, manifest: ToolBodyManifest): Promise<ToolBodySealAnswer>
   read(body: ToolBodyRef, range: ToolBodyRange): Promise<ToolBodyReadAnswer>
+  readOpen(body: ToolBodyRef, range: ToolBodyRange): Promise<ToolBodyOpenReadAnswer>
   delete(body: ToolBodyRef): Promise<ToolBodyDeleteAnswer>
 }

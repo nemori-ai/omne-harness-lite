@@ -1091,6 +1091,7 @@ describe('Tool access qualification', () => {
       'read-diagnostics',
       'read-result',
       'read-content',
+      'read-output',
       'release-delivery',
       'account',
       'recover',
@@ -1137,7 +1138,7 @@ describe('Tool access qualification', () => {
     const w = world()
     const guard = createToolAccessGuard(() => w.ports.admission)
     const input = { principal: w.login(), tenant: A, call: toolCallId('tc_auth') }
-    for (const action of ['lookup', 'read-result'] as const) {
+    for (const action of ['lookup', 'read-result', 'read-output'] as const) {
       expect(await guard.qualify({ ...input, action })).toEqual({ kind: 'allowed' })
       expect(w.seen.admissions.at(-1)).toMatchObject({
         access: { principal: input.principal, tenant: A },
@@ -1163,10 +1164,11 @@ describe('Tool access qualification', () => {
     expect(await guard.qualify({ ...input, tenant: B, action: 'lookup' })).toMatchObject({
       kind: 'denied',
     })
-    expect(
-      await guard.qualify({ ...input, principal: w.foreign(), action: 'read-result' }),
-    ).toMatchObject({ kind: 'denied' })
-    for (const action of ['lookup', 'read-result'] as const)
+    for (const action of ['read-result', 'read-output'] as const)
+      expect(await guard.qualify({ ...input, principal: w.foreign(), action })).toMatchObject({
+        kind: 'denied',
+      })
+    for (const action of ['lookup', 'read-result', 'read-output'] as const)
       expect(
         await guard.qualify({ ...input, principal: w.system('sessionWorkPrincipals'), action }),
       ).toEqual({ kind: 'denied', reason: 'session-work-and-call-required' })

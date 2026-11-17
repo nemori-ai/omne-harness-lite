@@ -12,6 +12,7 @@ import {
   type ToolRuntime,
 } from '@omne-harness/tool-contract'
 import type { SessionCoordinatorPrincipalFailure } from './agent-drive.ts'
+import { createToolCallStates, provideSessionCallStates } from './tool-call-states.ts'
 
 const OWNER = 'session-adapters/tool-call-control'
 
@@ -96,6 +97,7 @@ export function createSessionCallControlPlugin<P>(input: ToolCallControlInput<P>
     name: 'session-call-control',
     apply(ctx: Context) {
       new SessionCallControlProvider(ctx, createToolCallControl(input))
+      provideSessionCallStates(ctx, createToolCallStates(input))
     },
   }
 }

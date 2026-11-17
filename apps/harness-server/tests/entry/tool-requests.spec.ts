@@ -31,6 +31,7 @@ import {
   type ReleaseToolRequests,
   type ToolRequestPorts,
 } from '../../src/entry/tool-requests.ts'
+import { ToolOperatorSettingsImpl } from '../../src/rows/tool-host/operator-settings.ts'
 import { toolRuntimeHolder } from '../../src/rows/tool-runtime/holder.ts'
 import { runToolScope } from '../../src/rows/tool-runtime/scope.ts'
 import { TEST_CONSTRUCTION, entryOf, releaseFixture, tree } from '../rows/tool-host/support.ts'
@@ -105,13 +106,14 @@ async function world() {
     readWork: async () => succeed(snapshot),
     scopeBinding: () => bindings,
     release: () => releaseOf(fixture.root),
+    operatorSettings: () => ({}),
     interaction: async () => succeed({ humanInteraction: true, requestApproval: true }),
     inquiry: async () => succeed('ask-human' as const),
   }
   return { fixture, ports, principalA, principalB, snapshot, definitions }
 }
 
-const EXECUTE = '{"command":"execute","params":{"script":"echo tool-b"}}'
+const EXECUTE = '{"command":"execute","intent":"test call","params":{"script":"echo tool-b"}}'
 
 function actionInput(principal: unknown, tenant = TENANT_A, name = 'Shell', args = EXECUTE) {
   return {
@@ -188,6 +190,126 @@ describe('the trusted Tool request source', () => {
     )
   })
 
+  it('answers an execute without an intent with the usage, and never prepares it (C5)', async () => {
+    const { ports, principalA } = await world()
+    const source = createReleaseToolRequests(ports)
+    const describe = (args: string) =>
+      source.describe(actionInput(principalA, TENANT_A, 'Shell', args))
+    const missing = await describe('{"command":"execute","params":{"script":"pnpm build"}}')
+    expect(missing).toMatchObject({ ok: { kind: 'answered' } })
+    const text = 'ok' in missing && 'text' in missing.ok ? missing.ok.text : ''
+    expect(text.split('\n')[0]).toBe(
+      'Shell: "execute" needs "intent": one line saying why you make this call.',
+    )
+    expect(text).toContain(
+      'Usage: Shell {"command": "execute", "intent": "<one line: why you make this call>", "params": {script',
+    )
+    const multiline = await describe(
+      '{"command":"execute","intent":"one\\ntwo","params":{"script":"pnpm build"}}',
+    )
+    expect(multiline).toMatchObject({
+      ok: { kind: 'answered', text: expect.stringMatching(/^Shell: "intent" must be one line/) },
+    })
+  })
+
+  it('fixes the label of the call from the envelope: intent, tool, command and preview (C2)', async () => {
+    const { ports, principalA } = await world()
+    const source = createReleaseToolRequests(ports)
+    const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+    const labelOf = async (args: string) => {
+      const input = actionInput(principalA, TENANT_A, 'Shell', args)
+      const described = await source.describe(input)
+      if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
+      const answer = await source.prepare({
+        ...input,
+        definition: described.ok.definition,
+        admission,
+      })
+      return (okOf(answer, 'prepare') as ToolInvokeRequest).label
+    }
+    expect(
+      await labelOf(
+        '{"command":"execute","intent":"build the front end","params":{"script":"pnpm build\\nls"}}',
+      ),
+    ).toEqual({
+      intent: 'build the front end',
+      tool: 'Shell',
+      command: 'execute',
+      preview: 'pnpm build',
+    })
+    expect(await labelOf('{"command":"info","params":{}}')).toEqual({
+      intent: null,
+      tool: 'Shell',
+      command: 'info',
+      preview: '',
+    })
+  })
+
+  it('reads the time limits from the Shell settings before admission (C6)', async () => {
+    const { ports, principalA } = await world()
+    const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+    const limitsOf = async (args: string, operator = ports.operatorSettings) => {
+      const source = createReleaseToolRequests({ ...ports, operatorSettings: operator })
+      const input = actionInput(principalA, TENANT_A, 'Shell', args)
+      const described = await source.describe(input)
+      if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
+      return source.prepare({ ...input, definition: described.ok.definition, admission })
+    }
+    const once = '{"command":"execute","intent":"build","params":{"script":"pnpm build"}}'
+    const terminal =
+      '{"command":"execute","intent":"build","params":{"script":"pnpm build","terminal":{"id":"t","generation":"g"}}}'
+    const limits = (answer: Awaited<ReturnType<typeof limitsOf>>) =>
+      (okOf(answer, 'prepare') as ToolInvokeRequest).limits
+    expect(limits(await limitsOf(once))).toEqual({
+      concurrency: null,
+      scopeBudget: null,
+      foregroundMs: null,
+      backgroundAfterMs: 60_000,
+    })
+    const lowered = () => ({ backgroundAfterMs: 1500, foregroundMs: 9000 })
+    expect(limits(await limitsOf(once, lowered))).toMatchObject({
+      foregroundMs: 9000,
+      backgroundAfterMs: 1500,
+    })
+    // A call that may not go to the background gets no threshold, only the foreground limit.
+    expect(limits(await limitsOf(terminal, lowered))).toMatchObject({
+      foregroundMs: 9000,
+      backgroundAfterMs: null,
+    })
+    expect(await limitsOf(once, () => undefined)).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+    expect(await limitsOf(once, () => ({ backgroundAfterMs: 'soon' }))).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+    expect(await limitsOf(once, () => ({ nothing: 1 }))).toMatchObject({
+      failure: { kind: 'unavailable' },
+    })
+  })
+
+  it('does not read operator settings for a tool that declares none', async () => {
+    const { ports, principalA } = await world()
+    const source = createReleaseToolRequests({
+      ...ports,
+      operatorSettings: () => {
+        throw new Error('read')
+      },
+    })
+    const input = actionInput(principalA, TENANT_A, 'Files', '{"command":"list","params":{}}')
+    const described = await source.describe(input)
+    if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
+    const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
+    const answer = await source.prepare({
+      ...input,
+      definition: described.ok.definition,
+      admission,
+    })
+    expect((okOf(answer, 'prepare') as ToolInvokeRequest).limits).toMatchObject({
+      foregroundMs: null,
+      backgroundAfterMs: null,
+    })
+  })
+
   it('prepares the complete request of the admitted action, and it passes the public Tool judgement', async () => {
     const { ports, principalA, definitions } = await world()
     const answer = await prepared(ports, principalA)
@@ -216,7 +338,7 @@ describe('the trusted Tool request source', () => {
     const source = createReleaseToolRequests(ports)
     const admission = { owner: 'test', record: 'admission', revision: '1', digest: 'd' }
     const modeOf = async (params: string) => {
-      const args = `{"command":"execute","params":${params}}`
+      const args = `{"command":"execute","intent":"test call","params":${params}}`
       const input = actionInput(principalA, TENANT_A, 'Shell', args)
       const described = await source.describe(input)
       if ('failure' in described || described.ok.kind === 'answered') throw new Error('describe')
@@ -548,6 +670,7 @@ describe('the release composition releaseToolRequestsOf on a real Cordis root (N
     await fixture.root.plugin(recordingSession(snapshot, callers))
     fixture.root.provide(toolCatalogKey, ports.catalog())
     fixture.root.provide(executionScopeBindingKey, ports.scopeBinding())
+    new ToolOperatorSettingsImpl(fixture.root, {})
     toolRuntimeHolder(fixture.root).verifier = ports.verifier
     const request = okOf(
       await preparedBy(releaseToolRequestsOf(fixture.root), principalA),

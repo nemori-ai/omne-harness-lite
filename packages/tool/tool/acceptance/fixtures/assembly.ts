@@ -275,6 +275,7 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
       effective: '{"manifest":"daily"}',
       complete: true,
     },
+    label: { intent: null, tool: availability.definition.name, command: null, preview: '' },
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,

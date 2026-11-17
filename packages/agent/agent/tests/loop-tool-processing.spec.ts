@@ -76,6 +76,7 @@ it.each(['known', 'applied', 'dropped'] as const)(
         call,
         revision,
         source: evidence('tool-state'),
+        label: { intent: null, tool: 'read_file', command: null, preview: '' },
         phase: 'accepted',
         relation: 'foreground',
         wait: { kind: 'none' },

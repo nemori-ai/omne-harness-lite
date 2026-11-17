@@ -8,6 +8,7 @@ import type {
   ToolBodyPermitKey,
   ToolBodyPutAnswer,
   ToolBodyRange,
+  ToolBodyOpenReadAnswer,
   ToolBodyReadAnswer,
   ToolBodyRef,
   ToolBodySealAnswer,
@@ -96,16 +97,14 @@ function chunkRowsOf(value: JsonValue | undefined): ToolBodyChunk[] | null {
   return chunks
 }
 
-export function createSqlToolBodyStore(options: SqlToolBodyStoreOptions): SqlToolBodyStore {
-  const addressOf = (
-    resolved: Extract<Resolution, { kind: 'ready' }>,
-    body: ToolBodyRef,
-  ): BodyAddress => ({
-    tenant: resolved.at.tenant,
-    call: body.call,
-    body: body.body,
-  })
+function addressOf(
+  resolved: Extract<Resolution, { kind: 'ready' }>,
+  body: ToolBodyRef,
+): BodyAddress {
+  return { tenant: resolved.at.tenant, call: body.call, body: body.body }
+}
 
+export function createSqlToolBodyStore(options: SqlToolBodyStoreOptions): SqlToolBodyStore {
   const permitFault = (permit: ToolBodyPermit) => {
     const verdict = verifyBodyPermit(options.permitKey, permit, options.clock.now())
     if (verdict === 'invalid-signature') return { kind: 'permit-invalid' } as const
@@ -214,6 +213,8 @@ export function createSqlToolBodyStore(options: SqlToolBodyStoreOptions): SqlToo
       : { kind: 'found', manifest, chunks }
   }
 
+  const readOpen = (body: ToolBodyRef, range: ToolBodyRange) => readOpenBody(options, body, range)
+
   const remove = async (body: ToolBodyRef): Promise<ToolBodyDeleteAnswer> => {
     const outcome = await send(
       body,
@@ -226,5 +227,39 @@ export function createSqlToolBodyStore(options: SqlToolBodyStoreOptions): SqlToo
       : unavailable(`body delete stopped: ${outcome.basis.reason}`)
   }
 
-  return { durability: 'durable', put, seal, read, delete: remove }
+  return { durability: 'durable', put, seal, read, readOpen, delete: remove }
+}
+
+// The chunks kept so far of a body sealed or not, from the first asked up to the first gap.
+async function readOpenBody(
+  options: SqlToolBodyStoreOptions,
+  body: ToolBodyRef,
+  range: ToolBodyRange,
+): Promise<ToolBodyOpenReadAnswer> {
+  const resolved = await resolveTenant(options, body.tenant)
+  if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
+  const chunks: ToolBodyChunk[] = []
+  for (let first = range.first; first < range.first + range.count; first += BODY_READ_CHUNKS) {
+    const count = Math.min(BODY_READ_CHUNKS, range.first + range.count - first)
+    const answer = await options.storage.read({
+      domain: resolved.at.domain,
+      handler: BODY_READ_HANDLER,
+      protocol: PROTOCOL,
+      requestKey: randomUUID(),
+      input: { ...addressOf(resolved, body), first, count },
+    })
+    if (answer.kind !== 'read')
+      return unavailable(`body read: ${answer.kind === 'cancelled' ? 'cancelled' : answer.reason}`)
+    const output = isObject(answer.output) ? answer.output : null
+    const part = output === null ? null : chunkRowsOf(output['chunks'])
+    if (output === null || part === null || typeof output['held'] !== 'boolean')
+      return unavailable('body read: invalid stored body')
+    if (!output['held']) return { kind: 'absent' }
+    for (const chunk of part) {
+      if (chunk.seq !== range.first + chunks.length) return { kind: 'found', chunks }
+      chunks.push(chunk)
+    }
+    if (part.length < count) break
+  }
+  return { kind: 'found', chunks }
 }

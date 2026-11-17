@@ -134,6 +134,7 @@ function placeholderDelivery(
     consumer,
     delivery: minted(decodeToolDeliveryId(`${name}/placeholder`), 'placeholder'),
     source,
+    label: { intent: `run ${name}`, tool: 'Shell', command: 'execute', preview: 'sleep 60' },
     evidence: evidence(`placeholder/${name}`),
   }
 }

@@ -169,7 +169,12 @@ export const SESSION_POLICY = Object.freeze({
   ),
   readBackgroundCalls: row(
     member('`session/v1` 的 `list-background-calls`，packages/session/SPEC.md「协议、接入与界面」'),
-    deny(NO_SOURCE),
+    member('BkgToolCalls 的绑定读本会话的后台调用，#1329 C23'),
+    deny(NO_SYSTEM_READ),
+  ),
+  resolveBackgroundCall: row(
+    member('短号解成调用引用，packages/session/SPEC.md「协议、接入与界面」'),
+    member('BkgToolCalls 的绑定按短号认一项，#1329 C23'),
     deny(NO_SYSTEM_READ),
   ),
   readInput: row(

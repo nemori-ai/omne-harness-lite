@@ -17,6 +17,7 @@ it('root entry exports the independent execution functions, the ledger, the runt
   expect(Object.keys(tool).sort()).toEqual([
     'CALL_RECORD_KEY',
     'INITIAL_REVISION',
+    'backgroundAllowed',
     'canonicalDigest',
     'checkToolResultBody',
     'createIndependentToolScope',

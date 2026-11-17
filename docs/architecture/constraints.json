@@ -394,6 +394,14 @@
       "source": "packages/tool/SPEC.md"
     },
     {
+      "id": "packages/tool/tool-ui",
+      "paths": ["packages/tool/tool-ui/src/**"],
+      "layer": "unknown",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/tool/SPEC.md"
+    },
+    {
       "id": "packages/session/session-contract",
       "paths": ["packages/session/session-contract/src/**"],
       "layer": "contract",

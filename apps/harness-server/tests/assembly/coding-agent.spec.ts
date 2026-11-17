@@ -49,6 +49,7 @@ describe('the coding entry of the release mapping', () => {
       { capability: { category: 'Tool', name: 'Shell' }, resident: true },
       { capability: { category: 'Tool', name: 'Tools' }, resident: true },
       { capability: { category: 'Tool', name: 'TodoItems' }, resident: true },
+      { capability: { category: 'Tool', name: 'BkgToolCalls' }, resident: true },
       { capability: { category: 'Tool', name: 'Ask' }, resident: true },
       { capability: { category: 'Tool', name: 'Web' }, resident: true },
       { capability: { category: 'Tool', name: 'Calendar' }, resident: true },
@@ -104,15 +105,17 @@ describe('the coding entry of the release mapping', () => {
       expect(mapping.initialModelSelection?.name, mapping.name).toBeTruthy()
   })
 
-  it('the prompt names no model vendor, the eight resident tools, and carries the guardrails and the state words', () => {
+  it('the prompt names no model vendor, the nine resident tools, and carries the guardrails and the state words', () => {
     for (const forbidden of ['Claude', 'Anthropic', 'OpenAI', 'GPT', 'Gemini', 'Codex'])
       expect(fullText, forbidden).not.toContain(forbidden)
     for (const word of ['Verified', 'Partly verified', 'Not verified', 'Failed'])
       expect(fullText).toContain(word)
     for (const word of ['已验证', '部分验证', '未验证', '失败']) expect(fullText).toContain(word)
     expect(fullText).toContain(
-      'You have eight resident tools: Files, Shell, Tools, TodoItems, Ask, Web, Calendar and Schedules.',
+      'You have nine resident tools: Files, Shell, Tools, TodoItems, BkgToolCalls, Ask, Web, Calendar and Schedules.',
     )
+    expect(fullText).toContain('## BkgToolCalls')
+    expect(fullText).toContain('Do not poll: you are woken when a background call ends.')
     expect(fullText).toContain('## Web')
     expect(fullText).toContain('exa.apiKey')
     expect(fullText).toContain('external data')

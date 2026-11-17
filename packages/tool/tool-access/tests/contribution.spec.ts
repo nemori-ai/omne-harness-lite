@@ -46,6 +46,7 @@ type Scripted = Readonly<{
   acting?: Awaited<ReturnType<ToolCallPrincipals['actingFor']>> | 'throw'
   current?: Awaited<ReturnType<ToolCallFaces['instances']['current']>> | 'throw'
   result?: Awaited<ReturnType<ToolCallFaces['queries']['readResult']>> | 'throw'
+  output?: Awaited<ReturnType<ToolCallFaces['queries']['readOutput']>> | 'throw'
   frames?: readonly unknown[]
   source?: AsyncIterable<unknown>
   faces?: 'absent'
@@ -60,6 +61,10 @@ function world(script: Scripted = {}) {
       readResult: input => {
         calls.push({ kind: 'result', input })
         return answer(script.result, fail({ kind: 'invalid', field: 'result', reason: 'none' }))
+      },
+      readOutput: input => {
+        calls.push({ kind: 'output', input })
+        return answer(script.output, succeed({ kind: 'none' as const }))
       },
     },
     instances: {
@@ -99,6 +104,8 @@ function world(script: Scripted = {}) {
         result: 'tres_1',
         cursor: 'page-2',
       }),
+    readOutput: (after: string | null = null) =>
+      contribution.operations['read-call-output'](context, { tenant, reference, after }),
     observe: () => contribution.observations['observe-call'](context, { tenant, reference }),
   }
 }
@@ -260,6 +267,34 @@ describe('read-call-result', () => {
         result: fail({ kind: 'unavailable', dependency: 'ledger', diagnostic: 'down' }),
       }).readResult(),
     ).toEqual({ outcome: 'basis-unavailable' })
+  })
+})
+
+describe('read-call-output (C12)', () => {
+  it('reads the output body after the position with the issued principal and a bounded part', async () => {
+    const part = { kind: 'open' as const, from: '6', through: '11', total: '11', text: 'world' }
+    const w = world({ output: succeed(part) })
+    expect(await w.readOutput('6')).toEqual({ outcome: 'succeeded', body: part })
+    expect(w.calls.at(-1)).toEqual({
+      kind: 'output',
+      input: { principal, tenant, reference, after: '6', maxBytes: 32_768 },
+    })
+    expect(await world().readOutput()).toEqual({ outcome: 'succeeded', body: { kind: 'none' } })
+  })
+
+  it('answers every refusal of Tool with the same bytes, and its absence as basis-unavailable', async () => {
+    const answers = await Promise.all(
+      [...denials, { kind: 'not-found', target: 'body', reason: 'expired' } as const].map(
+        async failure => JSON.stringify(await world({ output: fail(failure) }).readOutput()),
+      ),
+    )
+    expect(new Set(answers)).toEqual(new Set([JSON.stringify({ outcome: 'denied' })]))
+    expect(await world({ output: 'throw' }).readOutput()).toEqual({
+      outcome: 'basis-unavailable',
+    })
+    expect(await world({ acting: { refused: 'denied' } }).readOutput()).toEqual({
+      outcome: 'denied',
+    })
   })
 })
 

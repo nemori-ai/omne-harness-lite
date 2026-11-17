@@ -7,6 +7,7 @@
 ## 入口 `.` · `index.d.ts`
 
 - `ObserveCallFrame` · `tool-protocol.d.ts`
+- `ToolCallOutputView` · `tool-protocol.d.ts`
 - `ToolCallResultPage` · `tool-protocol.d.ts`
 - `ToolCallView` · `tool-protocol.d.ts`
 - `ToolProtocol` · `tool-protocol.d.ts`
@@ -15,7 +16,7 @@
 ## 声明文件 `index.d.ts`
 
 ```ts
-export { toolProtocol, type ObserveCallFrame, type ToolCallResultPage, type ToolCallView, type ToolProtocol, } from './tool-protocol.ts';
+export { toolProtocol, type ObserveCallFrame, type ToolCallOutputView, type ToolCallResultPage, type ToolCallView, type ToolProtocol, } from './tool-protocol.ts';
 ```
 
 ## 声明文件 `tool-protocol.d.ts`
@@ -223,6 +224,58 @@ declare const resultPage: {
             };
         };
     };
+};
+declare const callOutput: {
+    readonly kind: 'one-of';
+    readonly rules: readonly [
+        {
+            readonly kind: 'object';
+            readonly fields: {
+                readonly kind: {
+                    rule: {
+                        readonly kind: 'literal';
+                        readonly values: readonly [
+                            "none"
+                        ];
+                    };
+                };
+            };
+        },
+        {
+            readonly kind: 'object';
+            readonly fields: {
+                readonly kind: {
+                    rule: {
+                        readonly kind: 'literal';
+                        readonly values: readonly [
+                            "open",
+                            "sealed"
+                        ];
+                    };
+                };
+                readonly from: {
+                    rule: {
+                        readonly kind: 'text';
+                    };
+                };
+                readonly through: {
+                    rule: {
+                        readonly kind: 'text';
+                    };
+                };
+                readonly total: {
+                    rule: {
+                        readonly kind: 'text';
+                    };
+                };
+                readonly text: {
+                    rule: {
+                        readonly kind: 'string';
+                    };
+                };
+            };
+        }
+    ];
 };
 declare const observeCallFrame: {
     readonly kind: 'one-of';
@@ -605,6 +658,31 @@ export declare const toolProtocol: {
             }>;
             readonly countsAsAccess: true;
         };
+        readonly 'read-call-output': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly kind: "none";
+                } | {
+                    readonly from: string;
+                    readonly kind: "open" | "sealed";
+                    readonly text: string;
+                    readonly through: string;
+                    readonly total: string;
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: "login";
+            readonly effect: "read";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly after: string | null;
+                readonly reference: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly countsAsAccess: true;
+        };
     };
     readonly name: "tool";
     readonly major: 1;
@@ -666,5 +744,6 @@ export type ToolProtocol = typeof toolProtocol;
 export type ToolCallView = RuleValue<typeof call>;
 export type ToolCallResultPage = RuleValue<typeof resultPage>;
 export type ObserveCallFrame = RuleValue<typeof observeCallFrame>;
+export type ToolCallOutputView = RuleValue<typeof callOutput>;
 export {};
 ```

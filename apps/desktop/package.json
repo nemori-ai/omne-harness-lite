@@ -43,6 +43,8 @@
     "@omne-harness/session-protocol": "workspace:*",
     "@omne-harness/session-ui": "workspace:*",
     "@omne-harness/shell-contract": "workspace:*",
+    "@omne-harness/tool-protocol": "workspace:*",
+    "@omne-harness/tool-ui": "workspace:*",
     "@omne-harness/ui-kit": "workspace:*",
     "eventsource-parser": "catalog:",
     "react": "catalog:",

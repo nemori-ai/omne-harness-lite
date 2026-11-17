@@ -16,8 +16,9 @@ import '@omne-harness/mcp-ui/mcp-ui.css'
 import type { ProtocolContract } from '@omne-harness/public-contract'
 import '@omne-harness/schedule-ui/schedule-ui.css'
 import { scheduleUiModule } from '@omne-harness/schedule-ui/cordis'
-import { sessionDock, sessionUiModule } from '@omne-harness/session-ui/cordis'
+import { sessionCallDetail, sessionDock, sessionUiModule } from '@omne-harness/session-ui/cordis'
 import '@omne-harness/session-ui/session-ui.css'
+import { createToolUiModule } from '@omne-harness/tool-ui/cordis'
 import { domainProtocols } from '../shared/protocols.ts'
 
 export type Assembly = Readonly<{
@@ -44,5 +45,6 @@ export const assembly: Assembly = {
     calendarUiModule,
     createAssetsUiModule({ categoryLabels: ASSET_CATEGORY_LABELS }),
     createMcpUiModule({ page: assetsCategoryPage, governance: assetGovernanceKey }),
+    createToolUiModule({ callDetail: sessionCallDetail }),
   ],
 }

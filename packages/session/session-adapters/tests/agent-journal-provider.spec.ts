@@ -1725,6 +1725,23 @@ describe('a material to preserve names an execution, and goes to its session', (
     expect(ok(await materials().read({ ...b.access, source }))).toEqual(value)
   })
 
+  it('a preserve carries no operation of its own: one riding along on the request does not name the write', async () => {
+    const s = await scene('k9-named')
+    const { journal, materials } = await assembled(s)
+    ok(await journal().open(s.openInput))
+    const value = factsMaterial('stage')
+    const request = {
+      ...s.access,
+      execution: s.execution,
+      identity: 'stage',
+      consumer: CONSUMER,
+      value,
+      operation: s.openInput.operation,
+    }
+    const source = ok(await materials().preserve(request))
+    expect(ok(await materials().read({ ...s.access, source }))).toEqual(value)
+  })
+
   it('an execution of another tenant and one no Run started are denied and nothing is written', async () => {
     const s = await scene('k9-denied')
     const { journal, materials } = await assembled(s)

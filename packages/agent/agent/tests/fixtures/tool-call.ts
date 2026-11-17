@@ -79,6 +79,7 @@ export function fixedToolRequest(consumer: ToolInvokeRequest['consumer']): ToolI
       },
       command: null,
       arguments: { original: '{}', effective: '{}', complete: true },
+      label: { intent: null, tool: 'read_file', command: null, preview: '' },
       settings: adoption('settings'),
       context: adoption('context'),
       workspace: null,
@@ -339,13 +340,19 @@ export function toolPlaceholder(
   source: Extract<ToolDelivery<ContentBlock>, { kind: 'placeholder' }>['source'] = {
     kind: 'launched',
   },
-): ToolDelivery<ContentBlock> {
+): Extract<ToolDelivery<ContentBlock>, { kind: 'placeholder' }> {
   return {
     kind: 'placeholder',
     key: { kind: 'placeholder', producer: 'tool', reference: pending.reference },
     consumer: pending.position,
     delivery: ok(decodeToolDeliveryId('d0')),
     source,
+    label: {
+      intent: 'wait for the build',
+      tool: 'Shell',
+      command: 'execute',
+      preview: 'pnpm build',
+    },
     evidence: evidence('tool-placeholder'),
   }
 }

@@ -89,7 +89,6 @@ describe('the class selects the face of that caller', () => {
       tenant: a.access().tenant,
       after: null,
       limit: 10,
-      includeArchived: false,
     }
     expect(await intake.session().directory?.list(list)).toEqual({
       failure: { kind: 'denied', action: 'directory.list' },
