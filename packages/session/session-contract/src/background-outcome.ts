@@ -282,10 +282,7 @@ export function applyBackgroundSettled(
   return null
 }
 
-/**
- * What an input was accepted as stays with it while it lives: pending, or taken with its bracket
- * still open. A failed Run gives such an input back as it was.
- */
+/** An input keeps what it was accepted as while it is pending or its bracket is open. */
 export function pruneInputLists(draft: Draft): void {
   const alive = new Set([...draft.pending, ...(draft.unanswered ?? [])])
   if (draft.backgroundInputs !== undefined)

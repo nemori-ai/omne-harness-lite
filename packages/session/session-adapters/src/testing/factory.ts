@@ -1,4 +1,3 @@
-import { sessionEpochOf } from '../cordis/history-epoch.ts'
 import { toolReleases } from './result-release.ts'
 import { captureModelSettlement } from './model-settlement.ts'
 import { resultPreparation, preparationOperation } from './result-preparation.ts'
@@ -24,7 +23,6 @@ import {
   commandDigest,
   decide,
   reduce,
-  deriveSessionOperation,
   judgeCompletion,
   mutationAccessRequest,
   type SessionAccess,
@@ -77,7 +75,7 @@ import { canonical, digestOf, materializeModelView, rowData } from './session-va
 import { journalEvidence } from './journal-values.ts'
 import type { SessionDirectory } from './session-directory.ts'
 import { cancelBatchRow, fieldOf, sessionCaller } from './factory-values.ts'
-import { carriesDelivery, deliveryCommand, takenBatch } from '../delivery.ts'
+import { jointCommandOf, joinsSession, type JointState } from '../joint-command.ts'
 
 type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
 type AttachInput<P> = Parameters<AgentJournal<P>['attach']>[0]
@@ -356,8 +354,21 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     return cell
   }
 
-  function acceptedOf(cell: JournalCell<P>, execution: AgentExecutionId) {
-    return cell.state().agent.executions.get(executionKey(cell.state(), execution))?.inputs
+  function jointState(
+    cell: JournalCell<P>,
+    input: ExecutionMutation<P>,
+    method: JournalWrite,
+  ): JointState {
+    const root = cell.state()
+    const execution = root.agent.executions.get(executionKey(root, input.execution))
+    return {
+      accepted: execution?.inputs,
+      snapshot: root.session?.snapshot,
+      resultOf: caller =>
+        execution
+          ? succeed(normalizedResult(root, execution, caller.consumption, caller.result).result)
+          : fail(denied(method)),
+    }
   }
 
   function jointCommand(
@@ -366,97 +377,14 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     method: JournalWrite,
     receipt: CommandReceipt,
   ): Outcome<SessionCommand, Failure> | undefined {
-    const caller = sessionCaller(input, method)
-    if (caller.kind === 'none')
-      return deliveryCommand(
-        cell,
-        input,
-        method,
-        receipt,
-        acceptedOf(cell, input.execution),
-        cell.state().session?.snapshot,
-      )
-    if (takenBatch(input, method) !== null)
-      return fail({
-        kind: 'unavailable',
-        owner: 'session-qualification',
-        diagnostic: 'a write that takes a batch and joins the Session another way',
-      })
-    const operation = deriveSessionOperation({
-      kind: 'participation',
-      execution: input.execution,
-      operation: input.operation,
-      joint: caller.kind,
-    })
-    const common = { tenant: cell.tenant, session: cell.session, operation }
-    const participation = {
-      execution: input.execution,
-      operation: input.operation,
-      joint: caller.kind,
-      written: receipt.revision,
-      handover: receipt.evidence,
-    }
-    switch (caller.kind) {
-      case 'message':
-        return succeed({
-          kind: 'recordMessage',
-          input: {
-            ...common,
-            participation,
-            value: {
-              message: caller.message,
-              source: caller.source,
-              admission: caller.admission,
-              consumption: null,
-            },
-          },
-        })
-      case 'context-transition':
-        if (caller.value.message.role !== 'compaction')
-          return fail({ kind: 'invalid', field: 'caller.value.message', reason: 'not compaction' })
-        return succeed({
-          kind: 'commitDerived',
-          input: {
-            ...common,
-            participation,
-            value: {
-              kind: 'compaction',
-              message: caller.value.message,
-              epoch: sessionEpochOf(caller.value.epoch),
-            },
-            judgment: caller.admission,
-          },
-        })
-      case 'custody':
-      case 'processed': {
-        const execution = cell
-          .state()
-          .agent.executions.get(executionKey(cell.state(), input.execution))
-        if (!execution) return fail(denied(method))
-        const result = normalizedResult(
-          cell.state(),
-          execution,
-          caller.consumption,
-          caller.result,
-        ).result
-        const consumption = String(caller.consumption) as ConsumptionId
-        return succeed(
-          caller.kind === 'custody'
-            ? {
-                kind: 'preserveResult',
-                input: { ...common, participation, consumption, result, custody: caller.retained },
-              }
-            : {
-                kind: 'completeConsumption',
-                input: {
-                  ...common,
-                  participation,
-                  completion: { consumption, result, completion: caller.completion },
-                },
-              },
-        )
-      }
-    }
+    return jointCommandOf(
+      cell,
+      input,
+      method,
+      receipt,
+      sessionCaller(input, method),
+      jointState(cell, input, method),
+    )
   }
   async function qualifyJoint(
     cell: JournalCell<P>,
@@ -856,12 +784,11 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     if (!view) {
       view = createJournal(cell, {
         participates: (input, method) =>
-          sessionCaller(input, method).kind !== 'none' ||
-          carriesDelivery(
+          joinsSession(
             input,
             method,
-            acceptedOf(cell, input.execution),
-            cell.state().session?.snapshot,
+            sessionCaller(input, method),
+            jointState(cell, input, method),
           ),
         prepareResult: resultPreparation(cell, publications, base.commitLog, agentFailure),
         qualifyParticipation: (input, method, receipt) =>

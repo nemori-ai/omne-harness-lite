@@ -51,10 +51,7 @@ export function pendingIntakeCount(
   return snapshot.pending.reduce((count, input) => count + Number(!uncounted.has(input)), 0)
 }
 
-/**
- * The inputs of a taken batch that need a delivery: those the model has not been shown since its
- * last reply. An input still at the end of the model view is not shown twice.
- */
+/** The inputs of a taken batch the model has not been shown since its last reply. */
 export function inputsToDeliver(
   snapshot: Pick<WorkSnapshot, 'deliveredTail'>,
   ordered: readonly InputId[],

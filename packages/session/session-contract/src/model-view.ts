@@ -18,11 +18,7 @@ function messageOf(row: HistoryEntry): Message | null {
   return 'ok' in decoded && 'message' in decoded.ok ? decoded.ok.message : null
 }
 
-/**
- * True for the message of an input as the Session accepted it: the entry before its
- * `intake.routed`. It is a record for people. The model view holds an input from its delivery,
- * the moment a step took it.
- */
+/** An input's message as accepted, the entry before its `intake.routed`: a record for people. */
 export function isAcceptedInputRecord(
   entries: readonly Pick<HistoryEntry, 'kind'>[],
   index: number,
@@ -30,7 +26,7 @@ export function isAcceptedInputRecord(
   return entries[index + 1]?.kind === 'intake.routed'
 }
 
-/** The message an entry gives the model view. */
+/** The message an entry gives the model view; an input is there from its delivery. */
 export function viewMessageOf(entries: readonly HistoryEntry[], index: number): Message | null {
   const entry = entries[index]
   if (entry === undefined || isAcceptedInputRecord(entries, index)) return null
