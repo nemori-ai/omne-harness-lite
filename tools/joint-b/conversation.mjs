@@ -33,7 +33,7 @@ holdTestSlot(
     '用法：node tools/joint-b/conversation.mjs [--definition <名>] [--model-source real|replay] [--evidence <目录>] [--keep]',
     '联调 B 的对话判据（S2-1 到 S3-3）：发消息等回复、读历史、Model 账目、Journal 条目、修订号连续、三轮递增、回放块。',
     '--definition 是建会话用的定义，缺省 coding。--model-source 标注真实模型或获准的回放；不给时会发消息的步骤记等件。',
-    'OMNE_JOINT_B_REPLY_MS 是单轮回复的等待上限（缺省 90000 毫秒）。先占一个运行名额，经构建产物起进程，产物不在时每步记等件。',
+    'OMNE_JOINT_B_REPLY_MS 是单轮回复的等待上限（缺省 90000 毫秒）。先向令牌池要 2 个令牌，经构建产物起进程，产物不在时每步记等件。',
     '证据缺省写到 tmp/m2-joint-b/conversation/。退出码：全部通过 0，有失败 1，只剩等件 3。',
   ].join('\n'),
 )

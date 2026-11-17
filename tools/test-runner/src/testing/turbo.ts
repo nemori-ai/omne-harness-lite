@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { WorkspaceMember } from '@omne-harness/repo-toolchain/core/workspace'
-import { VITEST_MAX_WORKERS_ENV, type Parallelism, type RunTier } from './config.ts'
+import { VITEST_MAX_WORKERS_ENV, type RunTier } from './config.ts'
 import {
   MEMBER_TURBO_ROOT,
   rawProblems,
@@ -331,29 +331,26 @@ export interface TestBuild {
 }
 
 export function turboTestCommand(
-  names: readonly string[],
+  name: string,
   tier: RunTier,
-  parallel: Parallelism,
+  workers: number,
   reportDirectory: string,
-  build: TestBuild,
 ): { readonly args: string[]; readonly env: NodeJS.ProcessEnv } {
   return {
     args: [
       'run',
       TIER_TASKS[tier],
-      ...names.map(name => `--filter=${name}`),
-      ...(build.build ? [`--cache=${build.admission ? 'local:w' : 'local:rw'}`] : ['--only']),
-      '--continue=dependencies-successful',
-      `--concurrency=${parallel.memberConcurrency}`,
+      `--filter=${name}`,
+      '--only',
+      '--concurrency=1',
       '--summarize',
-      '--log-order=grouped',
       '--log-prefix=task',
       '--output-logs=full',
       '--no-color',
     ],
     env: turboEnv({
       [TEST_REPORT_DIR_ENV]: reportDirectory,
-      [VITEST_MAX_WORKERS_ENV]: String(parallel.vitestMaxWorkers),
+      [VITEST_MAX_WORKERS_ENV]: String(workers),
     }),
   }
 }

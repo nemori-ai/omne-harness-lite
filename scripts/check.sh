@@ -6,11 +6,11 @@ usage_text() {
     cat <<EOF
 Usage: $0 [--admission] [--keep-going] [--resume-from <H1>] | $0 --preflight (optional BASELINE and FULL=1 environment variables)
 Root scripts: pnpm run check runs it without flags, pnpm run admission adds --admission, pnpm run preflight adds --preflight.
-It takes one run slot, then runs the check command of tools/test-runner/src/testing/cli.ts. --preflight takes no slot and no other flag.
+It runs the check command of tools/test-runner/src/testing/cli.ts. Each step, and each tier of each member, takes cores from the machine token pool as its own job. --preflight takes no tokens and no other flag.
 --admission (or OMNE_ADMISSION=1) writes the admission log tmp/admission/<time>-<short head>.log and its .json record.
 --keep-going runs the other steps after a failure. --resume-from <H1> continues a failed admission on H1 and needs --admission.
 BASELINE=<git-ref> sets the baseline. FULL=1 makes the plan full. Step logs are in tmp/check-run/<short head>/.
-The step table, the log format and the run slot are specified in tools/test-runner/SPEC.md.
+The step table, the log format and the token pool are specified in tools/test-runner/SPEC.md.
 EOF
 }
 usage() {
@@ -19,11 +19,9 @@ usage() {
 }
 main() {
 args=("$@")
-preflight=0
 for (( i = 0; i < ${#args[@]}; i++ )); do
     case "${args[i]}" in
-        --admission|--keep-going) ;;
-        --preflight) preflight=1 ;;
+        --admission|--keep-going|--preflight) ;;
         --help) usage_text; exit 0 ;;
         --resume-from)
             # 带一个值：接续的那个头。值缺失或为空就是用法错误，不交给正文去猜。
@@ -37,13 +35,8 @@ done
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd -- "$repo_root"
 
-# 整套检查占一个运行名额：同一台机器上别的全量检查在跑时排队，而不是一起把 CPU 压满。
-# 名额脚本用 Node 起命令，Windows 上起不了 shell 脚本本身，所以显式经 bash 再进来。
-# 预检只起轻步骤（与 check 里同时跑的那些相同），不占运行名额：写者收尾时别排在一次完整准入后面等。
-if [[ -z "${OMNE_TEST_SLOT_HELD:-}" && "$preflight" -eq 0 ]]; then
-    exec ./scripts/with-test-slot.sh bash ./scripts/check.sh "$@"
-fi
-
+# 检查自己不整程占令牌：每一步、每个成员的每一层各当一件活去整机的令牌池（scripts/with-test-slot.mjs）要令牌。
+# 预检只起轻步骤，不要令牌。
 # 正文在测试运行器的 check 命令里：取基线、算计划，再按步骤图跑全部检查（表在 tools/test-runner/src/testing/check-steps.ts：
 # 无依赖的步骤同时跑，构建之后才跑类型检查、成员测试、验收与读 dist 的检查；一步失败其余终止）。
 # --admission 或 OMNE_ADMISSION=1 为准入模式：构建、类型检查与成员测试不读缓存，并写准入日志与运行记录。--keep-going 失败后继续跑其余步骤。

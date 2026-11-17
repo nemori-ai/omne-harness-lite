@@ -1,0 +1,62 @@
+{
+  "member": "test-runner",
+  "model": "models/CoreTokenPool.tla",
+  "scope": "finite model of the core token pool protocol in scripts/with-test-slot.mjs: 3 processes, C = 2 or 3, one request each; stale abstracted to registrant dead; no implementation refinement",
+  "cases": [
+    {
+      "name": "safety-c2-lockcrash",
+      "config": "models/safety-c2-lockcrash.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "negative-no-sole-entry",
+      "config": "models/negative-no-sole-entry.cfg",
+      "expected": "LockExclusive"
+    },
+    {
+      "name": "positive-c2-nolockcrash",
+      "config": "models/positive-c2-nolockcrash.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "safety-c3-nolockcrash",
+      "config": "models/safety-c3-nolockcrash.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "safety-min2-nolockcrash",
+      "config": "models/safety-min2-nolockcrash.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "live-min2-c2-nolockcrash",
+      "config": "models/live-min2-c2-nolockcrash.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "negative-no-lock",
+      "config": "models/negative-no-lock.cfg",
+      "expected": "P2"
+    },
+    {
+      "name": "negative-no-head",
+      "config": "models/negative-no-head.cfg",
+      "expected": "action:P4"
+    },
+    {
+      "name": "negative-no-reap",
+      "config": "models/negative-no-reap.cfg",
+      "expected": "temporal:P3"
+    },
+    {
+      "name": "negative-no-reap-p5",
+      "config": "models/negative-no-reap-p5.cfg",
+      "expected": "temporal:P5"
+    },
+    {
+      "name": "finding-lock-steal-c2",
+      "config": "models/finding-lock-steal-c2.cfg",
+      "expected": "P2"
+    }
+  ]
+}

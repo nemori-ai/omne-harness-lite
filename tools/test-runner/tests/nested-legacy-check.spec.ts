@@ -13,7 +13,14 @@ import { basename, dirname, join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, expect, it } from 'vitest'
 import { checkTypecheckScopes, typecheckScopeProblem } from '../src/testing/typecheck-scope.ts'
-import { runMembers } from '../src/testing/run.ts'
+import { runMembers, type MemberSchedule } from '../src/testing/run.ts'
+import { localPool } from '../src/testing/token-pool.ts'
+
+/** 一个令牌、每个成员一个进程：与改成令牌之前的「1 个成员 × 1 个进程」相同。 */
+const one = (): MemberSchedule => ({
+  source: localPool(1),
+  demand: () => ({ want: 1, min: 1, perWorker: 1 }),
+})
 import {
   VITEST_ARCHIVE_ENTRY,
   scopedProject,
@@ -209,14 +216,7 @@ it(
     }
     const out = join(root, 'evidence')
     mkdirSync(out)
-    const result = await runMembers(
-      root,
-      [target],
-      out,
-      { memberConcurrency: 1, vitestMaxWorkers: 1 },
-      'test',
-      () => {},
-    )
+    const { runs: result } = await runMembers(root, [target], out, one(), 'test', () => {})
     expect(result[0]?.exitCode, readFileSync(join(out, '..log'), 'utf8')).toBe(0)
   },
 )
@@ -265,14 +265,7 @@ it(
     }
     const out = join(root, 'evidence')
     mkdirSync(out)
-    const result = await runMembers(
-      root,
-      [target],
-      out,
-      { memberConcurrency: 1, vitestMaxWorkers: 1 },
-      'test',
-      () => {},
-    )
+    const { runs: result } = await runMembers(root, [target], out, one(), 'test', () => {})
     expect(result[0]?.exitCode, readFileSync(join(out, '..log'), 'utf8')).toBe(0)
   },
 )
@@ -328,16 +321,7 @@ it(
     const run = async (name: string) => {
       const out = join(root, 'evidence', name)
       mkdirSync(out, { recursive: true })
-      return (
-        await runMembers(
-          root,
-          [target],
-          out,
-          { memberConcurrency: 1, vitestMaxWorkers: 1 },
-          'test',
-          () => {},
-        )
-      )[0]
+      return (await runMembers(root, [target], out, one(), 'test', () => {})).runs[0]
     }
     const passed = await run('pass')
     expect(passed?.exitCode, readFileSync(join(root, 'evidence/pass/..log'), 'utf8')).toBe(0)
@@ -389,16 +373,7 @@ it(
     const run = async (name: string) => {
       const out = join(root, 'evidence', name)
       mkdirSync(out, { recursive: true })
-      return (
-        await runMembers(
-          root,
-          [target],
-          out,
-          { memberConcurrency: 1, vitestMaxWorkers: 1 },
-          'test',
-          () => {},
-        )
-      )[0]
+      return (await runMembers(root, [target], out, one(), 'test', () => {})).runs[0]
     }
     const passed = await run('pass')
     expect(passed?.exitCode, readFileSync(join(root, 'evidence/pass/..log'), 'utf8')).toBe(0)

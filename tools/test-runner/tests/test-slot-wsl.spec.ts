@@ -234,14 +234,14 @@ async function holdAcross(
   await new Promise(tick => setTimeout(tick, 2500))
   expect(existsSync(waiterStarted)).toBe(false)
   expect(waiter.stderr()).toMatch(
-    /名额 1\/1 正由「\S*node(\.exe)? -e [^」]*」占着，已 \d+ 秒（[^）]*，(win32|linux)@/u,
+    /1 个令牌正由「\S*node(\.exe)? -e [^」]*」占着，已 \d+ 秒（[^）]*，(win32|linux)@/u,
   )
   writeFileSync(holderRelease, '')
   expect(await holder.exited, holder.stderr()).toBe(0)
   await waitFor(() => existsSync(waiterStarted), '持有者放手后等待者开始')
   writeFileSync(waiterRelease, '')
   expect(await waiter.exited, waiter.stderr()).toBe(0)
-  expect(waiter.stderr()).toMatch(/等了 \d+ 秒，拿到名额 1\/1/u)
+  expect(waiter.stderr()).toMatch(/等了 \d+ 秒，拿到 1 个令牌（共 1 个）/u)
 }
 
 describe('with-test-slot.mjs 跨 WSL 与 Windows', { timeout: 240_000 }, () => {
@@ -308,10 +308,16 @@ while (!fs.existsSync(process.argv[2]) && Date.now() < until) Atomics.wait(new I
     })()
     await waitFor(() => existsSync(held) || holder.child.exitCode !== null, '脚本拿到名额')
     expect(holder.child.exitCode, holder.stderr()).toBeNull()
-    const windowsSlotDir = join(windowsTemp, `omne-test-slots-${userInfo().username}`)
-    expect(readFileSync(held, 'utf8')).toBe(`${toWsl(windowsSlotDir)}/slot-1.lock`)
-    expect(holder.stderr()).not.toContain('没有共用名额')
-    expect(readFileSync(join(windowsSlotDir, 'slot-1.lock'), 'utf8')).toContain('\nside=linux@')
+    const windowsSlotDir = join(windowsTemp, `omne-core-tokens-${userInfo().username}`)
+    expect(readFileSync(held, 'utf8')).toBe(`${toWsl(windowsSlotDir)}/core-1`)
+    expect(holder.stderr()).not.toContain('没有共用令牌池')
+    const tokenEntries = readdirSync(join(windowsSlotDir, 'core-1')).filter(name =>
+      name.startsWith('owner-'),
+    )
+    expect(tokenEntries).toHaveLength(1)
+    expect(readFileSync(join(windowsSlotDir, 'core-1', tokenEntries[0] ?? ''), 'utf8')).toContain(
+      '\nside=linux@',
+    )
     expect(readdirSync(windowsSlotDir).filter(name => name.startsWith('.omne-probe-'))).toEqual([])
     const waiterStarted = join(dir, 'windows.started')
     const strict = join(dir, 'strict-environment.mjs')
@@ -347,7 +353,7 @@ while (!fs.existsSync(process.argv[2]) && Date.now() < until) Atomics.wait(new I
     writeFileSync(release, '')
     expect(await holder.exited, holder.stderr()).toBe(0)
     expect(await waiter.exited, waiter.stderr()).toBe(0)
-    expect(readFileSync(waiterStarted, 'utf8')).toBe(join(windowsSlotDir, 'slot-1.lock'))
+    expect(readFileSync(waiterStarted, 'utf8')).toBe(join(windowsSlotDir, 'core-1'))
     expect(ledgerLines('ledger-wsl.jsonl')).toMatchObject([{ event: 'ran', exitCode: 0 }])
     expect(ledgerLines('ledger-windows.jsonl')).toMatchObject([{ event: 'ran', exitCode: 0 }])
   })
