@@ -22,7 +22,8 @@ export async function readConsentMode(
   const value = evaluated.entries.find(entry => entry.itemId === agentScheduleConsentItem)?.value
   if (value?.kind !== 'value') return { kind: 'unreadable' }
   if (value.value === 'draft') return { kind: 'draft' }
-  return value.value === 'auto'
-    ? { kind: 'auto', generation: Number(view.state.revision) }
+  const generation = Number(view.state.revision)
+  return value.value === 'auto' && Number.isSafeInteger(generation) && generation >= 0
+    ? { kind: 'auto', generation }
     : { kind: 'unreadable' }
 }

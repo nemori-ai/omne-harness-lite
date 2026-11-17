@@ -46,7 +46,7 @@ import { readConsentMode } from './consent-setting.ts'
 import { SCHEDULE_PARTICIPANTS, scheduleGuards } from './guard.ts'
 import { tenantDomainOf } from './tenant-domain.ts'
 import { readConsentAnswer } from './consent-answer.ts'
-import { liveCalls } from '../tool-bindings/live-calls.ts'
+import { liveCallKey, liveCalls } from '../tool-bindings/live-calls.ts'
 import { toolHitlHolder } from '../tool-hitl/holder.ts'
 
 const OWNER = 'harness-server.schedule'
@@ -109,7 +109,7 @@ function createTenantHost(ctx: Context): Host {
     const authorizers = createScheduleAuthorizers({
       mode: tenant => readConsentMode(preferences(), tenant),
       answer: readConsentAnswer({
-        live: call => liveCalls(ctx).get(call),
+        live: (tenantRef, call) => liveCalls(ctx).get(liveCallKey(tenantRef, call)),
         decidedCards: () => toolHitlHolder(ctx).decidedCards,
       }),
       now,

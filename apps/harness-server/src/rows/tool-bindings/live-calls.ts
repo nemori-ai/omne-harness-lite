@@ -7,6 +7,9 @@ export type LiveCall = Readonly<{ principal: unknown; tenant: TenantId; call: To
 
 const registries = new WeakMap<Context, Map<string, LiveCall>>()
 
+/** The key of a call in the registry: the tenant with the call, so calls of two tenants never meet. */
+export const liveCallKey = (tenant: string, call: string) => JSON.stringify([tenant, call])
+
 export function liveCalls(ctx: Context): Map<string, LiveCall> {
   const root = ctx.root
   const found = registries.get(root)

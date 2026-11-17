@@ -23,8 +23,10 @@ const choose = (optionId: string, cardId = CARD): DecidedCard => ({
 
 function reader(cards: readonly DecidedCard[] | 'down' | null, live = true) {
   return readConsentAnswer({
-    live: call =>
-      live && call === CALL ? { principal: 'p', tenant: A, call: CALL as never } : undefined,
+    live: (tenantRef, call) =>
+      live && call === CALL && tenantRef === TENANT
+        ? { principal: 'p', tenant: A, call: CALL as never }
+        : undefined,
     decidedCards: () =>
       cards === null
         ? null
@@ -60,10 +62,10 @@ describe('readConsentAnswer: the owner answer a consent reference names', () => 
     ).toBeNull()
   })
 
-  it('finds nothing for another tenant, and nothing yet for an undecided card', async () => {
+  it('reads nothing as consent for another tenant, and finds nothing yet for an undecided card', async () => {
     expect(
       await reader([choose('approve')])('tenant/other', scheduleConsentRef(CALL, CARD), CALL),
-    ).toBeNull()
+    ).toBeUndefined()
     expect(await reader([])(TENANT, scheduleConsentRef(CALL, CARD), CALL)).toBeNull()
   })
 

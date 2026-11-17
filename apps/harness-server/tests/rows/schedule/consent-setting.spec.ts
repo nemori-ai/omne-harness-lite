@@ -53,6 +53,13 @@ describe("readConsentMode: the owner's agent-authoring setting at the moment of 
     ['no view', { views: [], completeness: 'complete' }],
     ['two views', { views: [view([]), view([])], completeness: 'complete' }],
     [
+      'a value revision that is not a count',
+      {
+        views: [{ ...view([]), state: { sources: [], revision: 'r7' } }],
+        completeness: 'complete',
+      },
+    ],
+    [
       'a value outside the declaration',
       { views: [view([value('later')])], completeness: 'complete' },
     ],

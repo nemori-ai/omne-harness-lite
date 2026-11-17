@@ -11,7 +11,7 @@ import type { CallAccess, ToolExecutionScope } from '@omne-harness/tool-contract
 import { readSystemInstant } from '../../entry/session-clock.ts'
 import { toolRuntimeHolder } from '../tool-runtime/holder.ts'
 import { domainCallerOf } from './domain-caller.ts'
-import { liveCalls } from './live-calls.ts'
+import { liveCallKey, liveCalls } from './live-calls.ts'
 
 type Parent = CallAccess<unknown> & Readonly<{ request: FixedToolRequest }>
 
@@ -31,7 +31,8 @@ export function bindReleaseSchedules(
   const tenant = tenantCodec.encode(parent.tenant)
   const live = liveCalls(ctx)
   const entry = { principal: parent.principal, tenant: parent.tenant, call: parent.call }
-  live.set(parent.call, entry)
+  const key = liveCallKey(tenant.ok ? tenant.value : '', parent.call)
+  live.set(key, entry)
   const schedules = bindSchedules({
     tenant: tenant.ok ? tenant.value : '',
     call: parent.call,
@@ -59,7 +60,7 @@ export function bindReleaseSchedules(
   return {
     ...attached,
     finish(exit) {
-      if (live.get(parent.call) === entry) live.delete(parent.call)
+      if (live.get(key) === entry) live.delete(key)
       return attached.finish(exit)
     },
   }
