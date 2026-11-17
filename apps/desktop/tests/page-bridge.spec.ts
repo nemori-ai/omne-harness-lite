@@ -13,7 +13,7 @@ import {
   type PageBridge,
 } from '../src/page/bridge.ts'
 import type { HostChannel } from '../src/shared/host-bridge.ts'
-import { missingAtHost } from '../src/shared/wire.ts'
+import { missingAtHost, readHostProtocols, writeLoginState } from '../src/shared/wire.ts'
 import { serviceOf, startClientTree, type ClientTree } from '../src/page/tree.ts'
 import { omneHostOver } from './support/ipc.ts'
 import { PROOF_SENTINEL, answered, fakeServer, settle, value } from './support/fake-server.ts'
@@ -47,6 +47,22 @@ async function until(check: () => boolean): Promise<void> {
   for (let i = 0; i < 100 && !check(); i += 1) await new Promise(r => setTimeout(r, 10))
   expect(check()).toBe(true)
 }
+
+describe('页面与宿主的协议清单怎样比', () => {
+  it('同名而主版本不同，算宿主不认得', () => {
+    expect(missingAtHost([{ name: 'session', major: 2 }], [{ name: 'session', major: 1 }])).toEqual(
+      [{ name: 'session', major: 2 }],
+    )
+  })
+
+  it('宿主清单里认不出是协议的一项略过，其余照读', () => {
+    const state = JSON.parse(writeLoginState('signed-out', [{ name: 'session', major: 1 }])) as {
+      protocols: unknown[]
+    }
+    state.protocols.push(42, { name: 'identity' })
+    expect(readHostProtocols(JSON.stringify(state))).toEqual([{ name: 'session', major: 1 }])
+  })
+})
 
 describe.each<Carrier>(['http', 'ipc'])('页面的桥对着真的宿主，经 %s 通道', carrier => {
   it('宿主经登录状态一并说出它转发的协议；页面拿自己的清单比，少了哪几样就是宿主旧了', async () => {

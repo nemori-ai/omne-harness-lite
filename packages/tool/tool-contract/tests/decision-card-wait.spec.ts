@@ -19,6 +19,8 @@ const limits = {
   maxStringLength: 8192,
   maxNumberLength: 32,
 }
+const REQUEST_DIGEST = 'sha256:6fe2b636851b7e97a6d5bab1274ecf42e6ec5e4eb924d89e75b00f87f9bc1066'
+const RESPONSE_DIGEST = 'sha256:3852294302b6d650d437de7ff0171282c9fb205cb44a1a813fbe7e2226b7557f'
 const check = (ref: Parameters<typeof validate>[1], value: unknown) =>
   validate(provider, ref, readJsonText(JSON.stringify(value), limits)).then(result => result.kind)
 
@@ -63,6 +65,18 @@ describe('the one wait contract for asking a person', () => {
     expect(await check(request, { questions: [{ ...question, title: '' }] })).toBe('invalid')
     expect(await check(request, { questions: [{ ...question, description: '' }] })).toBe('invalid')
     expect(await check(request, { questions: [{ ...question, options: [] }] })).toBe('invalid')
+    const { declineConsequence: _dropped, ...noConsequence } = question
+    expect(await check(request, { questions: [noConsequence] })).toBe('invalid')
+  })
+
+  it('checks every option: all three fields, nothing else, no empty text', async () => {
+    const request = decisionCardWaitContract.request.ref
+    const withOption = (option: unknown) => ({ questions: [{ ...question, options: [option] }] })
+    const option = { id: 'o1', label: '8081', description: 'Free.' }
+    expect(await check(request, withOption(option))).toBe('valid')
+    expect(await check(request, withOption({ id: 'o1', label: '8081' }))).toBe('invalid')
+    expect(await check(request, withOption({ ...option, extra: 1 }))).toBe('invalid')
+    expect(await check(request, withOption({ ...option, label: '' }))).toBe('invalid')
   })
 
   it('answers one entry per card: a selection, words, or no answer', async () => {
@@ -76,5 +90,24 @@ describe('the one wait contract for asking a person', () => {
     expect(await check(response, { answers: [] })).toBe('invalid')
     expect(await check(response, { answers: [{ cardId: 'q1', kind: 'maybe' }] })).toBe('invalid')
     expect(await check(response, { answers, more: true })).toBe('invalid')
+    expect(await check(response, { answers: [{ cardId: 'q1', kind: 'selection' }] })).toBe(
+      'invalid',
+    )
+    expect(
+      await check(response, { answers: [{ cardId: 'q1', kind: 'no-answer', why: 'busy' }] }),
+    ).toBe('invalid')
+  })
+
+  it('names both documents by a fixed identity, so a changed document needs a new revision', () => {
+    expect(decisionCardWaitContract.request.identity).toEqual({
+      id: '@omne-harness/tool-contract/decision-card-wait/request',
+      revision: '1',
+      digest: REQUEST_DIGEST,
+    })
+    expect(decisionCardWaitContract.response.identity).toEqual({
+      id: '@omne-harness/tool-contract/decision-card-wait/response',
+      revision: '1',
+      digest: RESPONSE_DIGEST,
+    })
   })
 })

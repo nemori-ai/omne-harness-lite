@@ -178,7 +178,12 @@ describe('对话的条目', () => {
       expect(
         parts(mergeHistory(EMPTY_CONTENT, [call]), false).find(part => part.kind === 'tool-call'),
       ).toMatchObject({ ended: true })
+      expect(parts(answered, false).find(part => part.kind === 'tool-call')).toMatchObject({
+        ended: false,
+      })
     }
+    const said = assistantEntry('1', '1', '先查一下')
+    expect(parts(mergeHistory(EMPTY_CONTENT, [said]), false)[0]).not.toHaveProperty('ended')
   })
   it('V5 不认识的条目种类与部件种类：看得见的占位，写明种类名', () => {
     const content = mergeHistory(EMPTY_CONTENT, [
