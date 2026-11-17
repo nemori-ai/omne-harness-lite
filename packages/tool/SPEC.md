@@ -49,7 +49,7 @@ Tool 为别人实现的端口（它提供的）：
 | `ToolRuntime`                                                         | `packages/agent`；按调用引用的第三方（`packages/session`、`tool-access`） | Tool 提供受理、查询、那一问 `contact`、控制、交付解除、观察、内容读取与目录              |
 | `toolStartFence`                                                      | 外层调用方（`packages/agent`）                                            | Tool 提供使还没受理的启动失效的窄服务，返回失效证据                                      |
 | `tool.background-calls` 供给块                                        | `packages/context`                                                        | Tool 提供一个租户在一个请求者作用域下仍有责任的后台调用列表                              |
-| `toolBodyContract` 与 `toolAssetBody`                                 | `packages/assets`，经应用装配登记                                         | Tool 提供 `tool` 类别的正文判定与设置投影                                                |
+| `toolBodyContract`、`toolAssetBody` 与显示声明 `toolCategoryDisplay` | `packages/assets`：官方持有的投影直接用；租户这一层的工具类别由应用贡献到类别的拓展点 | Tool 提供 `tool` 类别的正文判定、设置投影与这一类的名字 |
 | `encodeResidentKey`、`residentToolFacts`、`projectResidentReferences` | `packages/session` 与应用装配                                             | Tool 提供常驻登记键的唯一文本编码与持有者引用的投影                                      |
 | `planAdoption` 的冻结判定                                             | `packages/session`，经装配协调者                                          | Tool 给出常驻工具在采用点前进、保持、替换或冻结的判定，提交冻结归会话                    |
 | 元工具作者与 `createWebAccess`                                        | 应用装配                                                                  | Tool 提供 Tools、Files、Shell、TodoItems、Ask、Web、BkgToolCalls 的作者与单机 Web 提供者 |
