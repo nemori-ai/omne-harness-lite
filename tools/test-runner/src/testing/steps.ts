@@ -80,6 +80,7 @@ import {
   type MemberSpan,
 } from './run.ts'
 import { buildTargets, pnpmCommand, timestamp } from './support.ts'
+import { describeReadSets, readSetHome, readSetsRequested, recordReadSets } from './read-sets.ts'
 import {
   tierWithRetry,
   writeTestStepReport,
@@ -409,8 +410,29 @@ export interface RecordedOutcome {
   readonly runDir: string
 }
 
+function recordedReadSets(
+  root: string,
+  run: RecordedRun,
+  runDir: string,
+  runs: readonly MemberRun[],
+): string[] {
+  const members = recordReadSets({
+    root,
+    home: readSetHome(run.at.mainRoot, process.env),
+    runDir,
+    tier: run.tier,
+    head: run.at.head,
+    recordedAt: new Date().toISOString(),
+    members: runs.map(member => ({ path: member.member, slug: slugOf(member.member) })),
+  })
+  writeFileSync(join(runDir, 'read-sets.json'), `${JSON.stringify({ members }, null, 1)}\n`)
+  return describeReadSets(members)
+}
+
 export async function recordedRun(root: string, run: RecordedRun): Promise<RecordedOutcome> {
   const { script, tier, targets, tokens } = run
+  const admission = admissionRequested(process.env)
+  const readSets = script === 'test' && readSetsRequested(process.env, admission)
   const config = readTestRunsConfig()
   const runDir = runDirOf(run)
   mkdirSync(runDir, { recursive: true })
@@ -490,7 +512,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
             runDir,
             schedule,
             tier,
-            { build: run.build, admission: admissionRequested(process.env) },
+            { build: run.build, admission, readSets },
             report,
           )
   const wallSeconds = (Date.now() - started) / 1000
@@ -501,7 +523,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
           ledger: runDir,
           head: run.at.head,
           dirty: run.at.dirty,
-          admission: admissionRequested(process.env),
+          admission,
         })
   for (const line of recorded?.skipped ?? []) console.log(`测试缓存：${line}`)
   const cache =
@@ -520,6 +542,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
     summary.push(`对这些失败做隔离重跑：pnpm run test:triage --run ${runDir}`)
   if (lookup !== undefined && recorded !== undefined)
     summary.push(...describeCacheResult(lookup, recorded))
+  if (readSets && runs.length > 0) summary.push(...recordedReadSets(root, run, runDir, runs))
   const file = {
     meta: {
       ...meta,

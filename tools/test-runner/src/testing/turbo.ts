@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { WorkspaceMember } from '@omne-harness/repo-toolchain/core/workspace'
 import { VITEST_MAX_WORKERS_ENV, type RunTier } from './config.ts'
+import { READ_SETS_ENV } from './read-sets.ts'
 import {
   MEMBER_TURBO_ROOT,
   rawProblems,
@@ -328,6 +329,7 @@ export const TEST_REPORT_DIR_ENV = 'OMNE_TEST_REPORT_DIR'
 export interface TestBuild {
   readonly build: boolean
   readonly admission: boolean
+  readonly readSets?: boolean
 }
 
 export function turboTestCommand(
@@ -335,6 +337,7 @@ export function turboTestCommand(
   tier: RunTier,
   workers: number,
   reportDirectory: string,
+  readSets = false,
 ): { readonly args: string[]; readonly env: NodeJS.ProcessEnv } {
   return {
     args: [
@@ -351,6 +354,7 @@ export function turboTestCommand(
     env: turboEnv({
       [TEST_REPORT_DIR_ENV]: reportDirectory,
       [VITEST_MAX_WORKERS_ENV]: String(workers),
+      [READ_SETS_ENV]: readSets ? '1' : '',
     }),
   }
 }
