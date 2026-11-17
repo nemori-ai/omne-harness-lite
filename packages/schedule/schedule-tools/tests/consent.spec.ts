@@ -354,7 +354,7 @@ describe('binding one call', () => {
   it.each([
     ['no commands', { commands: () => undefined }, 'unavailable'],
     ['no queries', { queries: () => undefined }, 'unavailable'],
-    ['no context', { context: async () => undefined }, 'unavailable'],
+    ['no context', { context: async (): Promise<undefined> => undefined }, 'unavailable'],
     [
       'a context that throws',
       {
@@ -391,5 +391,106 @@ describe('binding one call', () => {
     expect(one.consentRef(CARD)).toMatch(new RegExp(`^tool-call/[0-9a-f]{48}/${CARD}$`))
     expect(other.consentRef(CARD)).not.toBe(one.consentRef(CARD))
     expect(one.now()).toBe('2026-11-17T00:00:00.000Z')
+  })
+})
+
+describe('each human change as its domain command', () => {
+  it.each([
+    [
+      'update',
+      { schedule: ID, revision: 2, label: '新名字' },
+      { action: 'update', patch: { kind: 'label', label: '新名字' } },
+    ],
+    [
+      'update',
+      { schedule: ID, revision: 2, instruction: '写周报' },
+      { action: 'update', patch: { kind: 'executionText', instruction: '写周报', label: null } },
+    ],
+    [
+      'revise',
+      { schedule: ID, revision: 2, definition: DEFINITION, reason: '改时间' },
+      { action: 'reviseDraft', reason: '改时间', definition: { label: '交月报' } },
+    ],
+    [
+      'replace',
+      { schedule: ID, revision: 2, definition: DEFINITION, reason: '换规则' },
+      { action: 'replace', reason: '换规则', successor: { label: '交月报' } },
+    ],
+    [
+      'stop',
+      { schedule: ID, revision: 2, reason: '不需要了' },
+      { action: 'stop', reason: '不需要了' },
+    ],
+  ] as const)('%s %j', async (command, params, expected) => {
+    const { service } = await suspend(parse(command, params), [committed(view())])
+    const asked = service.asked
+    expect(asked[0]?.input).toMatchObject({
+      ...expected,
+      scheduleId: ID,
+      meta: { expectedRevision: 2, consentRef: null },
+    })
+  })
+
+  it('refuses a draft without a reason and a definition the schedule refuses, before any write', async () => {
+    const draft = await suspend(parse('create', { definition: DEFINITION, state: 'draft' }), [])
+    expect(String(Reflect.get(draft.segment, 'value'))).toMatch(
+      /^invalid reason=a draft needs a reason/,
+    )
+    const once = {
+      ...DEFINITION,
+      recurrence: { kind: 'once', localAt: '2026-12-01T09:00:00' },
+      limits: { ...DEFINITION.limits, eligibleLimit: 3 },
+    }
+    const bad = await suspend(
+      parse('revise', { schedule: ID, revision: 2, definition: once, reason: 'r' }),
+      [],
+    )
+    expect(String(Reflect.get(bad.segment, 'value'))).toMatch(
+      /^invalid reason=the definition does not form a schedule/,
+    )
+    expect([...draft.service.asked, ...bad.service.asked]).toEqual([])
+  })
+})
+
+describe('recover', () => {
+  const OP = '3f9a1c2e-5b7d-4e8f-9a0b-1c2d3e4f5a6b'
+  it.each([
+    [{ kind: 'ok', value: { kind: 'notCommitted' } }, /^not_committed reason=/],
+    [
+      {
+        kind: 'ok',
+        value: {
+          kind: 'rejected',
+          error: {
+            code: 'revision_conflict',
+            message: 'm',
+            retryable: false,
+            requestId: 'r',
+            details: {},
+          },
+        },
+      },
+      /^conflict reason=/,
+    ],
+    [{ kind: 'ok', value: { kind: 'pending' } }, /^unknown reason=/],
+    [
+      {
+        kind: 'error',
+        error: {
+          code: 'provider_failure',
+          message: 'm',
+          retryable: true,
+          requestId: 'r',
+          details: {},
+        },
+      },
+      /^unavailable reason=/,
+    ],
+  ])('answers %j as one line, never sending the write again', async (answer, line) => {
+    const service = services([])
+    ;(service.commands as any).queryOperation = async () => answer
+    const segment = await first(parse('recover', { operation: OP }), scope(bound(service)))
+    expect(String(Reflect.get(segment, 'value'))).toMatch(line)
+    expect(service.asked).toEqual([])
   })
 })
