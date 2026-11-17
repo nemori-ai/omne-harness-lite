@@ -1,15 +1,6 @@
 import { terminalOf, type Content, type HistoryEntry, type LiveBlock } from './content.ts'
 import { isRecord, listOf, plainOfTree, textOf, type Plain } from './plain.ts'
 
-export type AskOption = Readonly<{ label: string; description: string }>
-export type AskQuestion = Readonly<{
-  title: string
-  description: string
-  options: readonly AskOption[]
-}>
-export type AskStatus = 'waiting' | 'answered' | 'expired'
-export type AskView = Readonly<{ questions: readonly AskQuestion[]; status: AskStatus }>
-
 export type ToolResultView = Readonly<{ parts: readonly Part[] }>
 
 export type Part =
@@ -24,7 +15,8 @@ export type Part =
       raw: string | null
       state: 'complete' | 'incomplete' | 'unparsed' | 'generating'
       result: ToolResultView | null
-      ask: AskView | null
+      /** The call has no result and its round is over. */
+      ended: boolean
     }>
   | Readonly<{ kind: 'tool-result'; key: string; callId: string; result: ToolResultView }>
   | Readonly<{ kind: 'media'; key: string; media: string; detail: string }>
@@ -41,8 +33,6 @@ export type Item =
   | Readonly<{ kind: 'note'; key: string; label: string; parts: readonly Part[] }>
   | Readonly<{ kind: 'marker'; key: string; label: string; failedRun: string | null }>
   | Readonly<{ kind: 'unknown'; key: string; entryKind: string }>
-
-const ASK_TOOL = 'Ask'
 
 type Block = { readonly [key: string]: Plain }
 type PartFrom = (block: Block, key: string, kind: string) => Part
@@ -83,7 +73,7 @@ function toolCall(key: string, block: Block, state: 'complete' | 'incomplete' | 
     raw,
     state,
     result: null,
-    ask: null,
+    ended: false,
   }
 }
 
@@ -144,52 +134,13 @@ function liveParts(blocks: readonly LiveBlock[]): Part[] {
             raw: block.value,
             state: 'generating',
             result: null,
-            ask: null,
+            ended: false,
           },
         ]
       case 'voice':
         return [{ kind: 'media', key, media: 'voice', detail: '' }]
       default:
         return [{ kind: 'unknown', key, partKind: block.content }]
-    }
-  })
-}
-
-function askQuestions(args: Plain): readonly AskQuestion[] | null {
-  if (!isRecord(args)) return null
-  const params = isRecord(args['params']) ? args['params'] : args
-  const command = textOf(args['command'])
-  if (command === 'request_approval') {
-    const action = textOf(params['action']) ?? ''
-    const detail = ['reason', 'impact', 'reversibility', 'fallback']
-      .map(field => textOf(params[field]))
-      .filter((text): text is string => text !== undefined)
-      .join('\n')
-    return [
-      {
-        title: action,
-        description: detail,
-        options: [
-          { label: '同意', description: '同意执行这个动作。' },
-          { label: '不同意', description: '不同意，这个动作不会执行。' },
-        ],
-      },
-    ]
-  }
-  const questions = listOf(params['questions'])
-  if (questions.length === 0) return null
-  return questions.map(question => {
-    const record = isRecord(question) ? question : {}
-    return {
-      title: textOf(record['title']) ?? '',
-      description: textOf(record['description']) ?? '',
-      options: listOf(record['options']).map(option => {
-        const fields = isRecord(option) ? option : {}
-        return {
-          label: textOf(fields['label']) ?? '',
-          description: textOf(fields['description']) ?? '',
-        }
-      }),
     }
   })
 }
@@ -246,13 +197,7 @@ function linkCall(walk: Walk, part: Part): Part {
     walk.openCalls.push(part.callId)
   }
   const result = part.callId === null ? null : (walk.results.get(part.callId) ?? null)
-  const questions = part.name === ASK_TOOL ? askQuestions(part.arguments) : null
-  return {
-    ...part,
-    result,
-    ask:
-      questions === null ? null : { questions, status: result === null ? 'waiting' : 'answered' },
-  }
+  return { ...part, result }
 }
 
 const withResults = (walk: Walk, parts: readonly Part[]): Part[] =>
@@ -334,17 +279,18 @@ export function conversationItems(content: Content, runActive: boolean): readonl
       parts: withResults(walk, liveParts(content.live.blocks)),
       live: true,
     })
-  return items.map(item => expireAsks(item, walk.endedCalls, runActive))
+  return items.map(item => endCalls(item, walk.endedCalls, runActive))
 }
 
-function expireAsks(item: Item, ended: ReadonlySet<string>, runActive: boolean): Item {
+/** Marks calls that have no result while their round is over; the same for every tool. */
+function endCalls(item: Item, ended: ReadonlySet<string>, runActive: boolean): Item {
   if (item.kind !== 'message' && item.kind !== 'note') return item
   let changed = false
   const parts = item.parts.map(part => {
-    if (part.kind !== 'tool-call' || part.ask === null || part.ask.status !== 'waiting') return part
+    if (part.kind !== 'tool-call' || part.result !== null || part.ended) return part
     if (!runActive || (part.callId !== null && ended.has(part.callId))) {
       changed = true
-      return { ...part, ask: { ...part.ask, status: 'expired' as const } }
+      return { ...part, ended: true }
     }
     return part
   })

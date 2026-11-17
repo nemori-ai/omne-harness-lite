@@ -31,6 +31,8 @@ export type ShellProps = Readonly<{
   state: ShellState
   connectivity: ConnectivitySource
   theme: ThemeSwitch
+  /** Protocols this page uses that the page host does not forward, as `name/vN`. */
+  missingAtHost?: readonly string[]
 }>
 
 const CONNECTIVITY_TEXT: Readonly<Record<Connectivity, string>> = {
@@ -60,6 +62,15 @@ function Disconnected(props: { connectivity: Connectivity }) {
   return (
     <InlineNotice tone="danger" role="alert" className="shell-banner" still>
       连不上服务。正在按间隔重新连接……
+    </InlineNotice>
+  )
+}
+
+function StaleHost(props: { missing: readonly string[] }) {
+  if (props.missing.length === 0) return null
+  return (
+    <InlineNotice tone="caution" role="alert" className="shell-banner" still>
+      {`页面宿主的版本旧了，需要重启。它不认得这个页面要用的：${props.missing.join('、')}。`}
     </InlineNotice>
   )
 }
@@ -99,10 +110,12 @@ function Outside(props: {
   state: ShellState
   login: ShellLoginState
   connectivity: Connectivity
+  missing: readonly string[]
 }) {
   return (
     <main className="shell-outside">
       <Disconnected connectivity={props.connectivity} />
+      <StaleHost missing={props.missing} />
       <span className="shell-brand shell-brand-outside">{props.appName}</span>
       {props.login === 'signing-out' ? (
         <LoadingState label="正在退出……" />
@@ -225,6 +238,7 @@ function Workspace(props: {
   state: ShellState
   connectivity: Connectivity
   theme: ThemeSwitch
+  missing: readonly string[]
 }) {
   const pages = useSlot(props.state.slots, 'pages')
   const shown = useWatched(props.state.page)
@@ -234,6 +248,7 @@ function Workspace(props: {
       <Sidebar {...props} shown={shown} pages={pages} />
       <main className="shell-workspace">
         <Disconnected connectivity={props.connectivity} />
+        <StaleHost missing={props.missing} />
         {pages.map(page => (
           <section
             key={page.id}
@@ -253,6 +268,7 @@ function Workspace(props: {
 export function Shell(props: ShellProps) {
   const login = useLoginState(props.state)
   const connectivity = useConnectivity(props.connectivity)
+  const missing = props.missingAtHost ?? []
   return (
     <AppTooltipProvider>
       {login === 'signed-in' ? (
@@ -261,6 +277,7 @@ export function Shell(props: ShellProps) {
           state={props.state}
           connectivity={connectivity}
           theme={props.theme}
+          missing={missing}
         />
       ) : (
         <Outside
@@ -268,6 +285,7 @@ export function Shell(props: ShellProps) {
           state={props.state}
           login={login}
           connectivity={connectivity}
+          missing={missing}
         />
       )}
     </AppTooltipProvider>

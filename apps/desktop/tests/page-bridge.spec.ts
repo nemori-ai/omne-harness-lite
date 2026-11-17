@@ -13,6 +13,7 @@ import {
   type PageBridge,
 } from '../src/page/bridge.ts'
 import type { HostChannel } from '../src/shared/host-bridge.ts'
+import { missingAtHost } from '../src/shared/wire.ts'
 import { serviceOf, startClientTree, type ClientTree } from '../src/page/tree.ts'
 import { omneHostOver } from './support/ipc.ts'
 import { PROOF_SENTINEL, answered, fakeServer, settle, value } from './support/fake-server.ts'
@@ -48,6 +49,22 @@ async function until(check: () => boolean): Promise<void> {
 }
 
 describe.each<Carrier>(['http', 'ipc'])('页面的桥对着真的宿主，经 %s 通道', carrier => {
+  it('宿主经登录状态一并说出它转发的协议；页面拿自己的清单比，少了哪几样就是宿主旧了', async () => {
+    const { bridge } = await start(carrier)
+    expect(bridge.hostProtocols()).toEqual([
+      { name: accessProtocol.name, major: accessProtocol.major },
+      { name: 'identity', major: 1 },
+      { name: 'session', major: 1 },
+    ])
+    expect(missingAtHost([identityProtocol, sessionProtocol], bridge.hostProtocols())).toEqual([])
+    expect(
+      missingAtHost(
+        [sessionProtocol, { name: 'human-intervention', major: 1 }],
+        bridge.hostProtocols(),
+      ),
+    ).toEqual([{ name: 'human-intervention', major: 1 }])
+  })
+
   it('登录、调用、观察与登录状态都经桥走通，登录证明不进页面', async () => {
     const { server, bridge } = await start(carrier)
     expect(bridge.loginState.state()).toBe('signed-out')
@@ -149,6 +166,12 @@ describe('桥的本地答法：不论哪种通道', () => {
   }
 
   const aborted = (): AbortSignal => AbortSignal.abort()
+
+  it('宿主的登录状态里没有协议这一栏（比页面旧的宿主）：页面要用的全算宿主不认得', async () => {
+    const bridge = await over({})
+    expect(bridge.hostProtocols()).toBeNull()
+    expect(missingAtHost([sessionProtocol], bridge.hostProtocols())).toEqual([sessionProtocol])
+  })
 
   it('调用：没发出、不确定、已经取消', async () => {
     const refused = await over({ call: () => Promise.resolve({ refused: true }) })

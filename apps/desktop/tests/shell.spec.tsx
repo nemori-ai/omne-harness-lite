@@ -57,6 +57,7 @@ async function setup(
     modules?: readonly Plugin.Object[]
     logout?: LogoutResult
     connectivity?: Connectivity
+    missingAtHost?: readonly string[]
   } = {},
 ) {
   const login = source<ShellLoginState>(options.login ?? 'signed-out')
@@ -89,7 +90,15 @@ async function setup(
       return choice === 'dark' ? 'dark' : 'light'
     },
   }
-  render(<Shell appName="omne" state={state} connectivity={connectivity} theme={theme} />)
+  render(
+    <Shell
+      appName="omne"
+      state={state}
+      connectivity={connectivity}
+      theme={theme}
+      {...(options.missingAtHost === undefined ? {} : { missingAtHost: options.missingAtHost })}
+    />,
+  )
   const provide = async (name: string) => {
     let withdraw: () => void = () => {}
     await act(async () => {
@@ -173,6 +182,19 @@ describe('外壳：连接', () => {
     act(() => t.connectivity.set('disconnected'))
     expect(screen.getByRole('alert').textContent).toContain('连不上服务。正在按间隔重新连接')
   })
+
+  it.each(['signed-out', 'signed-in'] as const)(
+    '%s 时页面宿主少了页面要用的协议：主区上方写宿主的版本旧了、需要重启，列出少的那几样；不少时不写',
+    async login => {
+      await setup({ login, missingAtHost: ['human-intervention/v1'] })
+      expect(screen.getByRole('alert').textContent).toBe(
+        '页面宿主的版本旧了，需要重启。它不认得这个页面要用的：human-intervention/v1。',
+      )
+      cleanup()
+      await setup({ login, missingAtHost: [] })
+      expect(screen.queryByRole('alert')).toBeNull()
+    },
+  )
 
   it('侧栏显示连接状态', async () => {
     const t = await setup({ login: 'signed-in' })

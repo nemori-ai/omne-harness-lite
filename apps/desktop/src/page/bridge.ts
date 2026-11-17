@@ -1,6 +1,6 @@
 import type { LoginState } from '@omne-harness/client-assembly/cordis'
 import type { JsonValue } from '@omne-harness/json-text'
-import type { CallReport, ObserveEnd, Transport } from '@omne-harness/sdk/core'
+import type { CallReport, ObserveEnd, ProtocolKey, Transport } from '@omne-harness/sdk/core'
 import type {
   HostBridge,
   HostAnswer,
@@ -14,6 +14,7 @@ import type {
 } from '../shared/host-bridge.ts'
 import {
   BRIDGE,
+  readHostProtocols,
   readLoginState,
   readObserveEvent,
   readReport,
@@ -25,6 +26,8 @@ import {
 import { sseData } from './sse.ts'
 
 export type PageBridge = HostBridge & {
+  /** The protocols the host said it forwards in its latest login state; null when it did not say. */
+  hostProtocols(): readonly ProtocolKey[] | null
   close(): void
 }
 
@@ -170,6 +173,7 @@ export function connectPageBridge(channel: HostChannel): Promise<PageBridge> {
   const closed = new AbortController()
   const listeners = new Set<(state: LoginState) => void>()
   let state: LoginState | undefined
+  let hostProtocols: readonly ProtocolKey[] | null = null
   let ready: (bridge: PageBridge) => void = () => {}
 
   const transport: Transport = {
@@ -221,7 +225,10 @@ export function connectPageBridge(channel: HostChannel): Promise<PageBridge> {
       try {
         for await (const data of channel.loginState(closed.signal)) {
           const next = readLoginState(data)
-          if (next !== undefined) enter(next)
+          if (next !== undefined) {
+            hostProtocols = readHostProtocols(data)
+            enter(next)
+          }
           attempt = 0
         }
       } catch {}
@@ -264,6 +271,7 @@ export function connectPageBridge(channel: HostChannel): Promise<PageBridge> {
     },
     login,
     logout,
+    hostProtocols: () => hostProtocols,
     close: () => closed.abort(),
   }
 
