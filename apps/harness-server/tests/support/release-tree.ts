@@ -341,6 +341,8 @@ export type ToolCallRow = Readonly<{
   call: string
   tool: string
   phase: string
+  /** Where the result stands with its consumer: `pending`, `released` once the consumer saved it, or null. */
+  delivery: string | null
   entry: Readonly<{
     domain: string
     ordinal: string
@@ -350,14 +352,14 @@ export type ToolCallRow = Readonly<{
 }>
 
 export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
-  const calls = new Map<string, { tool: string; phase: string }>()
+  const calls = new Map<string, { tool: string; phase: string; delivery: string | null }>()
   const entries = new Map<string, NonNullable<ToolCallRow['entry']>>()
   for (const row of ledgerRows(storageRoot)) {
     const record = row.record as {
       kind: string
       call?: {
         call: string
-        state: { phase: string }
+        state: { phase: string; delivery: { kind: string } | null }
         request: { availability: { definition?: { name: string } } }
       }
       entry?: { call: string; ordinal: string; stage: string; scopeBudget: number | null }
@@ -366,6 +368,7 @@ export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
       calls.set(record.call.call, {
         tool: record.call.request.availability.definition?.name ?? '',
         phase: record.call.state.phase,
+        delivery: record.call.state.delivery?.kind ?? null,
       })
     if (record.kind === 'queue-entry' && record.entry !== undefined)
       entries.set(record.entry.call, {
@@ -376,7 +379,7 @@ export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
       })
   }
   return [...calls]
-    .map(([call, { tool, phase }]) => ({ call, tool, phase, entry: entries.get(call) ?? null }))
+    .map(([call, row]) => ({ call, ...row, entry: entries.get(call) ?? null }))
     .sort((left, right) => Number(left.entry?.ordinal ?? 0) - Number(right.entry?.ordinal ?? 0))
 }
 

@@ -56,9 +56,9 @@ it(
           observed['terminal'] = textOf(terminal).slice(0, 300)
           assert.match(textOf(terminal), /"outcome":"cancelled"/u, 'the turn is cancelled at once')
           const settled = await until(
-            'the command to stop for real',
+            'the command to stop for real and its result to be kept',
             () => toolCalls(tree.storageRoot).find(call => call.call === running.call),
-            call => call?.phase === 'settled',
+            call => call?.phase === 'settled' && call.delivery === 'released',
           )
           observed['call'] = settled
           const after = await history(tree, session)

@@ -94,6 +94,11 @@ it(
                   entry.kind === 'message.system_reminder' && /go-s9-done/u.test(textOf(entry)),
               ),
           )
+          await until(
+            'the turn the outcome wakes to end',
+            () => history(tree, session),
+            value => count(value, 'run.terminal') >= 2,
+          )
           assert.equal(toolCallFacts(tree.storageRoot).get(running?.call ?? '')?.starts, 1)
           passed = true
         } finally {
