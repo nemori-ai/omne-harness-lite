@@ -6,10 +6,12 @@ import type {
 } from '@omne-harness/human-intervention'
 import { hitlCommandBinding } from '@omne-harness/human-intervention-local'
 import { inProcessPrincipalAuthority, standingPrincipalRef } from '@omne-harness/identity'
-import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
+import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { succeed } from '@omne-harness/operation-result'
+import { createSchemaProvider, validate } from '@omne-harness/schema-provider'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { ToolCallId, ToolOperationId, ToolWaitId } from '@omne-harness/tool-contract'
+import { decisionCardWaitContract } from '@omne-harness/tool-contract/provider'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
 import { hitlCardAudience, hitlEntryRef } from '../../../src/entry/hitl-entry-principals.ts'
 import { createToolHitlBridge } from '../../../src/rows/tool-hitl/bridge.ts'
@@ -228,6 +230,21 @@ const decided = (cardId: string, reply: unknown) => ({
   },
 })
 const plain = (value: JsonValue): unknown => JSON.parse(writeJsonText(value))
+const schemas = createSchemaProvider({
+  maxSnapshots: 4,
+  maxConstructDepth: 16,
+  maxConstructNodes: 512,
+  failureBackoffMs: 0,
+  maxAttempts: 1,
+})
+const ANSWER_READ_LIMITS = {
+  maxBytes: 65536,
+  maxDepth: 8,
+  maxItems: 1024,
+  maxMembers: 16,
+  maxStringLength: 8192,
+  maxNumberLength: 32,
+}
 
 describe('the Tool decision owner over HITL', () => {
   it('registers the kept batch under a tool origin of the call, its session and its Run', async () => {
@@ -436,12 +453,16 @@ describe('the Tool decision owner over HITL', () => {
     w.committed()
     const { decision } = unwrap(await w.bridge.inspect({ ...w.access, wait }))
     const resolved = unwrap(await w.bridge.resolve({ ...w.access, wait, decision: decision! }))
-    expect(plain((resolved as { value: JsonValue }).value)).toEqual({
+    const value = (resolved as { value: JsonValue }).value
+    expect(plain(value)).toEqual({
       answers: [
         { cardId: 'q2', kind: 'text', text: 'use 8081' },
         { cardId: 'approval', kind: 'selection', optionId: 'yes' },
       ],
     })
+    const read = readJsonText(writeJsonText(value), ANSWER_READ_LIMITS)
+    const verdict = await validate(schemas, decisionCardWaitContract.response.ref, read)
+    expect(verdict.kind).toBe('valid')
   })
 
   it('resolve gives no-answer when every card was skipped', async () => {
