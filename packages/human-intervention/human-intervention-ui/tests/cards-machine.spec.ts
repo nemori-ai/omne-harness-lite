@@ -558,7 +558,7 @@ describe('跟上变化', () => {
     expect(step(answered, { kind: 'frame', generation: 1 }).state).toBe(answered)
   })
 
-  it('L17 被关掉的题归在卡来源的会话那一组；没有会话的卡归在空的那一组', () => {
+  it('L19 被关掉的题归在卡来源的会话那一组；没有会话的卡归在空的那一组', () => {
     const closedBy = {
       outcome: 'succeeded',
       body: { kind: 'invalidated', reason: 'archived' },
@@ -577,7 +577,7 @@ describe('跟上变化', () => {
     ])
   })
 
-  it('L18 帧只触发重读：不改任何一张卡的提交状态', () => {
+  it('L20 帧只触发重读：不改任何一张卡的提交状态', () => {
     const state = step(submitted(watchingWith([ITEM])), { kind: 'frame', generation: 1 }).state
     expect(submitOf(state)?.kind).toBe('submitting')
   })
