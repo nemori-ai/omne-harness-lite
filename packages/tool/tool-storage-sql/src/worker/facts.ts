@@ -69,6 +69,8 @@ export type BodyReadInput = BodyAddress & Readonly<{ first: number; count: numbe
 
 export type BodyReadOutput = Readonly<{
   manifest: Readonly<{ chunks: number; bytes: number; digest: string }> | null
+  /** Whether the body holds any chunk; a body not sealed yet still answers its chunks. */
+  held: boolean
   chunks: readonly Readonly<{ seq: number; data: string }>[]
 }>
 

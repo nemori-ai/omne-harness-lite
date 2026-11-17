@@ -2,6 +2,7 @@ import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { StreamId, StreamObserver, StreamRef } from '@omne-harness/stream-arrival'
 import type { ToolCatalog, ToolInspection } from './authoring.ts'
+import type { CallOutput, ToolOutputReadRequest } from './body-reads.ts'
 import type { ContentPage, DiagnosticPage, ProcessSnapshot } from './custody.ts'
 import type { FixedToolRequest, ToolAvailability } from './definitions.ts'
 import type {
@@ -148,6 +149,7 @@ export interface ToolInvocationQueries<P, B extends ContentBlock> {
     input: InvocationAccess<P> & Readonly<{ result: ToolResultVersion; after: string | null }>,
   ): Reply<ResultPage<B>>
   account(input: InvocationAccess<P>): Reply<CallAccount>
+  readOutput(input: InvocationAccess<P> & ToolOutputReadRequest): Reply<CallOutput>
 }
 
 export interface ToolInvocationCommands<P> {

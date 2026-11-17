@@ -40,6 +40,7 @@ function fixture(breach: Breach): ToolCredentialsFixture<string, 'selected-secre
       invocation: { kind: 'direct' as const, source: evidence('source') },
       command: null,
       arguments: { original: '{}', effective: '{}', complete: true },
+      label: { intent: null, tool: functionDefinition().name, command: null, preview: '' },
       settings: adoption('settings'),
       context: adoption('context'),
       workspace: null,

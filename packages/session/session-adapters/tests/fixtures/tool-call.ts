@@ -184,6 +184,7 @@ function request(consumer: PendingCall['position']): ToolInvokeRequest {
       executor: adoption('executor'),
     },
     command: null,
+    label: { intent: null, tool: 'test', command: null, preview: '' },
     arguments: { original: '{}', effective: '{}', complete: true },
     settings: adoption('settings'),
     context: adoption('context'),

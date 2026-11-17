@@ -90,6 +90,7 @@ function invokeRequest(body?: ToolBodyDeclaration, argumentsText = '{}'): ToolIn
       },
     },
     command: null,
+    label: { intent: null, tool: 'fixture', command: null, preview: '' },
     arguments: { original: argumentsText, effective: argumentsText, complete: true },
     settings: adoption('settings'),
     context: adoption('context'),

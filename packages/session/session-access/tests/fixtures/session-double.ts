@@ -24,6 +24,7 @@ import type { SessionAccessFaces } from '../../src/ports.ts'
 type P = Principal
 type FaceMethod =
   | 'create'
+  | 'interrupt'
   | 'accept'
   | 'queryOperation'
   | 'cancelRun'
@@ -185,7 +186,7 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     return succeed(receipt)
   }
 
-  const management: Pick<SessionManagement<P>, 'create'> = {
+  const management: Pick<SessionManagement<P>, 'create' | 'interrupt'> = {
     async create(input) {
       record('create', input, input.creation)
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'create' })
@@ -197,6 +198,19 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
         sessions.set(sessionKey(input), { tenant: input.tenant, runs: new Set(), entries: [] })
       if ('failure' in outcome) return outcome
       return succeed({ receipt: outcome.ok, state: {} as never })
+    },
+    async interrupt(input) {
+      record('interrupt', input, input.urgent)
+      if (accessDenied(input)) return fail({ kind: 'denied', action: 'interrupt' })
+      const found = existing(input)
+      if (found === undefined) return fail({ kind: 'denied', action: 'interrupt' })
+      const outcome = commit('interrupt', input.operation, {
+        session: input.session,
+        urgent: input.urgent,
+      })
+      if ('failure' in outcome) return outcome
+      const progress = found.runs.size > 0 ? ({ operation: input.operation } as never) : null
+      return succeed({ receipt: outcome.ok, progress })
     },
   }
 
@@ -224,7 +238,9 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
         state: backgroundState,
         pending: [],
       } as never
-      return succeed({ receipt: outcome.ok, progress })
+      const collapsed =
+        input.intent.kind === 'archive' ? { runs: 1, backgroundCalls: backgroundList.length } : null
+      return succeed({ receipt: outcome.ok, progress, collapsed })
     },
     async readBackgroundCalls(input) {
       record('readBackgroundCalls', input, {})
@@ -232,7 +248,20 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       if (existing(input) === undefined)
         return fail({ kind: 'denied', action: 'readBackgroundCalls' })
       if (forcedFailure !== undefined) return fail(forcedFailure)
-      return succeed(backgroundList.map(producer => ({ producer })))
+      return succeed(
+        backgroundList.map((producer, index) => ({
+          id: `b${index + 1}`,
+          producer,
+          label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
+          source: 'launched' as const,
+          status: 'running' as const,
+          stop:
+            index === 0
+              ? null
+              : { initiator: 'user' as const, reason: 'not needed', progress: 'accepted' as const },
+          lastLine: null,
+        })),
+      )
     },
     async readWaiting(input) {
       record('readWaiting', input, {})
@@ -291,7 +320,10 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       return succeed({ operation: input.operation, source: outcome.ok.source, answer })
     },
     async stopCall(input) {
-      record('stopCall', input, { producer: input.producer })
+      record('stopCall', input, {
+        producer: input.producer,
+        ...(input.reason === undefined ? {} : { reason: input.reason }),
+      })
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'stopCall' })
       if (existing(input) === undefined) return fail({ kind: 'denied', action: 'stopCall' })
       const outcome = commit('stopCall', input.operation, {

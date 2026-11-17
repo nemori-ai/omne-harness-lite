@@ -4,6 +4,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import {
   historyOf,
   toolCallFacts,
+  toolCalls,
   type Entry,
   type ReleaseTree,
 } from '../../tests/support/release-tree.ts'
@@ -14,10 +15,20 @@ export const LIMIT_MS = 120_000
 export function waitingCommand(name: string): string {
   return JSON.stringify({
     command: 'execute',
+    intent: 'test call',
     params: {
       script: `while [ ! -f ${name} ]; do sleep 0.1; done; echo ${name}-done`,
       run_in_background: true,
     },
+  })
+}
+
+/** A one-shot Shell execute in the foreground that runs until the file `name` exists. */
+export function foregroundCommand(name: string): string {
+  return JSON.stringify({
+    command: 'execute',
+    intent: `wait for ${name}`,
+    params: { script: `while [ ! -f ${name} ]; do sleep 0.1; done; echo ${name}-done` },
   })
 }
 
@@ -45,7 +56,40 @@ export async function until<T>(
 export const history = (tree: ReleaseTree, session: string): Promise<readonly Entry[]> =>
   historyOf(tree, session)
 
+/**
+ * Waits until the work a scenario started is done: its turns ended, and every Tool call settled
+ * with its result handed to its consumer. Only then does a clean stop of the tree say anything.
+ */
+export async function untilQuiet(tree: ReleaseTree, session: string, turns: number): Promise<void> {
+  await until(
+    `${String(turns)} turns to end`,
+    () => history(tree, session),
+    entries =>
+      count(entries, 'run.terminal') >= turns &&
+      count(entries, 'run.started') === count(entries, 'run.terminal'),
+  )
+  await until(
+    'every call to settle and hand its result over',
+    () => toolCalls(tree.storageRoot),
+    calls => calls.every(call => call.phase === 'settled' && call.delivery !== 'pending'),
+  )
+}
+
 export const kinds = (entries: readonly Entry[]): string[] => entries.map(entry => entry.kind)
+
+export const count = (entries: readonly Entry[], kind: string): number =>
+  entries.filter(entry => entry.kind === kind).length
+
+/** The Run the last run.started entry names. */
+export function lastRunOf(entries: readonly Entry[]): string {
+  const started = entries.filter(entry => entry.kind === 'run.started').at(-1)
+  return String((started?.payload as { run?: unknown } | undefined)?.run ?? '')
+}
+
+/** Sends an urgent input as a person does; the answer says if it interrupted a Run. */
+export async function interrupt(tree: ReleaseTree, session: string, text: string) {
+  return omne(tree, ['interrupt-input', '--session', session, '--text', text])
+}
 
 export function textOf(entry: Entry | undefined): string {
   return JSON.stringify(entry?.payload ?? null)
@@ -61,7 +105,7 @@ export async function omne(tree: ReleaseTree, args: readonly string[]) {
 
 /** The background calls of the session, as `omne calls list` reads them. */
 export async function backgroundCalls(tree: ReleaseTree, session: string): Promise<string[]> {
-  const listed = await omne(tree, ['calls', 'list', '--session', session])
+  const listed = await omne(tree, ['calls', 'list', '--session', session, '--json'])
   const body = listed.json?.['body'] as { calls?: { producer: { call: string } }[] } | undefined
   return (body?.calls ?? []).map(item => item.producer.call)
 }

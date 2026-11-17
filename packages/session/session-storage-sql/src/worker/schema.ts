@@ -128,6 +128,21 @@ export const SESSION_LIST_MIGRATION = Object.freeze({ owner: 'session', id: '008
 
 export const SESSION_LIST_SCAN_ROWS = 1000
 
+export const SESSION_ARCHIVE_STATEMENTS: readonly string[] = [
+  `CREATE TABLE sl_session_archive (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, archived_at TEXT, archived_by TEXT,
+    PRIMARY KEY (tenant, session)) STRICT`,
+  `CREATE INDEX sl_session_archive_idx
+    ON sl_session_archive (tenant, archived_at DESC, session)`,
+]
+
+export const SESSION_ARCHIVE_TABLES: readonly string[] = ['sl_session_archive']
+
+export const SESSION_ARCHIVE_MIGRATION = Object.freeze({
+  owner: 'session',
+  id: '010-session-archive',
+})
+
 export const ATTEMPT_GRANT_MIGRATION = Object.freeze({
   owner: 'session',
   id: '005-attempt-grant',

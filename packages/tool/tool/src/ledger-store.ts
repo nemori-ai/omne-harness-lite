@@ -72,6 +72,8 @@ export type CallRecord = Readonly<{
   start: ToolStartRecord | null
   startRejection: StartRejection | null
   execution: ToolExecutionRef | null
+  /** When the execution was recorded as started, by the ledger clock; absent on older records. */
+  startedAt?: ToolInstant | null
 }>
 
 export type OperationReceipt =

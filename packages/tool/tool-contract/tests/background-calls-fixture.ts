@@ -59,6 +59,7 @@ export const input = { tenant: tenant(), scope: scope('original-scope'), princip
 export function state(): ToolState {
   return {
     call: callId(),
+    label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
     revision: revision(),
     source: evidence('state'),
     phase: 'accepted',

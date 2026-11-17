@@ -74,6 +74,7 @@ export async function fixture() {
     initiator: { owner: 'test', subject: 'host', revision: '1' },
     state: {
       call: access.call,
+      label: { intent: null, tool: 'read_file', command: null, preview: '' },
       revision: ok(decodeToolRevision('1')),
       source: evidence('state'),
       foreground: { kind: 'final', result: version },

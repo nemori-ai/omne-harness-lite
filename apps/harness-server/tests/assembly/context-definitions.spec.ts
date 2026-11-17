@@ -162,6 +162,7 @@ describe('adoptedContextDefinitions: the definitions the release adopted', () =>
         { capability: { category: 'Tool', name: 'Shell' }, resident: true },
         { capability: { category: 'Tool', name: 'Tools' }, resident: true },
         { capability: { category: 'Tool', name: 'TodoItems' }, resident: true },
+        { capability: { category: 'Tool', name: 'BkgToolCalls' }, resident: true },
         { capability: { category: 'Tool', name: 'Ask' }, resident: true },
         { capability: { category: 'Tool', name: 'Web' }, resident: true },
         { capability: { category: 'Tool', name: 'Calendar' }, resident: true },

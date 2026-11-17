@@ -54,6 +54,8 @@ import {
   SESSION_LIST_MIGRATION,
   SESSION_LIST_SCAN_ROWS,
   SESSION_LIST_TABLES,
+  SESSION_ARCHIVE_MIGRATION,
+  SESSION_ARCHIVE_TABLES,
 } from './worker/schema.ts'
 import {
   COMPACTION_INDEX_MIGRATION,
@@ -94,6 +96,10 @@ const scopeIndexMigrationRef = Object.freeze({
 const sessionListMigrationRef = Object.freeze({
   owner: SESSION_LIST_MIGRATION.owner,
   id: SESSION_LIST_MIGRATION.id,
+})
+const sessionArchiveMigrationRef = Object.freeze({
+  owner: SESSION_ARCHIVE_MIGRATION.owner,
+  id: SESSION_ARCHIVE_MIGRATION.id,
 })
 const recordMigrationRef = Object.freeze({
   owner: EXECUTION_RECORD_MIGRATION.owner,
@@ -258,6 +264,14 @@ export const HANDLERS: readonly Handler[] = [
     migrations: [sessionListMigrationRef],
     maxRowsRead: SESSION_LIST_SCAN_ROWS + 1,
   },
+  {
+    handler: 'session.list-archived',
+    file: 'read-archived-sessions',
+    tables: ['sl_session_list', 'sl_session_archive'],
+    migrations: [sessionArchiveMigrationRef],
+    maxRowsRead: SESSION_LIST_SCAN_ROWS + 1,
+  },
+
   { handler: 'session.references', file: 'read-references', tables: ['sl_resident_idx'] },
   {
     handler: 'session.released-scopes',
@@ -411,6 +425,7 @@ export function sessionStorageMaterials(
           ...ATTEMPT_GRANT_TABLES,
           ...SCOPE_INDEX_TABLES,
           ...SESSION_LIST_TABLES,
+          ...SESSION_ARCHIVE_TABLES,
         ],
         readTables: [...EXECUTION_RECORD_INDEX_TABLES, 'sl_blob'],
         requiresFacts: [SESSION_COMMIT_BASIS],
@@ -444,6 +459,9 @@ export function sessionStorageMaterials(
       migrationOf(scopeIndexMigrationRef, 'scope-index-migration', [migrationRef]),
       migrationOf(sessionListMigrationRef, 'session-list-migration', [stateItemMigrationRef]),
       migrationOf(COMPACTION_INDEX_MIGRATION, 'compaction-index-migration', [migrationRef]),
+      migrationOf(sessionArchiveMigrationRef, 'session-archive-migration', [
+        sessionListMigrationRef,
+      ]),
       migrationOf(preadmissionMigrationRef, 'preadmission-migration', [recordMigrationRef]),
       migrationOf(admissionAttemptMigrationRef, 'admission-attempt-migration', [
         recordMigrationRef,

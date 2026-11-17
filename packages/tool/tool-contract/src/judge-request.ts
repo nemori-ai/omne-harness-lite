@@ -8,6 +8,7 @@ import type {
   ToolInvocation,
 } from './definitions.ts'
 import type { ToolInvokeRequest } from './operations.ts'
+import { toolCallLabel } from './call-label.ts'
 import { canonicalJsonText } from './dynamics.ts'
 import { environmentDeclaration, toolDefinition } from './judge-definition.ts'
 import { toolArguments } from './parameter-codec.ts'
@@ -90,6 +91,7 @@ const callerFields = {
   availability,
   command: nullable(filled),
   arguments: toolArguments,
+  label: toolCallLabel,
   settings: adoption,
   context: adoption,
   workspace: nullable(workspaceId),
@@ -106,7 +108,10 @@ const callerFields = {
 type RequestDefinition = Pick<ToolDefinition, 'declarations'> &
   (
     | Readonly<{ kind: 'function' }>
-    | Readonly<{ kind: 'commands'; commands: readonly Readonly<{ name: string }>[] }>
+    | Readonly<{
+        kind: 'commands'
+        commands: readonly Readonly<{ name: string; background?: unknown }>[]
+      }>
   )
 function commandRule(
   definition: RequestDefinition,
@@ -121,6 +126,22 @@ function commandRule(
   return known ? undefined : { field, reason: 'unknown-command' }
 }
 
+/** A command that may go to the background carries an intent in its label. */
+function labelRule(
+  definition: RequestDefinition,
+  request: Pick<ToolInvokeRequest, 'command' | 'label'>,
+  at: string,
+): ShapeRejection | undefined {
+  const background =
+    definition.kind === 'commands' &&
+    definition.commands.some(
+      entry => entry.name === request.command && entry.background !== undefined,
+    )
+  return background && request.label.intent === null
+    ? { field: member(member(at, 'label'), 'intent'), reason: 'required' }
+    : undefined
+}
+
 function requestRule(
   request: Omit<ToolInvokeRequest, 'availability'> &
     Readonly<{ availability: Readonly<{ definition: RequestDefinition }> }>,
@@ -133,9 +154,9 @@ function requestRule(
       ? declared === fixed
       : sameAdoption(declared.adoption, fixed.adoption) &&
         canonicalJsonText(declared.value) === canonicalJsonText(fixed.value)
-  return matches
-    ? commandRule(request.availability.definition, request.command, at)
-    : { field: member(at, 'environment'), reason: 'definition-mismatch' }
+  if (!matches) return { field: member(at, 'environment'), reason: 'definition-mismatch' }
+  const definition = request.availability.definition
+  return commandRule(definition, request.command, at) ?? labelRule(definition, request, at)
 }
 
 const fixedToolRequest: Check<FixedToolRequest> = refine(

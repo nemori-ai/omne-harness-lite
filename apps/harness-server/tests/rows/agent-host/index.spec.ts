@@ -321,6 +321,7 @@ function fixedRequest(consumer: ToolInvokeRequest['consumer']): ToolInvokeReques
     },
     command: null,
     arguments: { original: '{}', effective: '{}', complete: true },
+    label: { intent: null, tool: 'read_file', command: null, preview: '' },
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,

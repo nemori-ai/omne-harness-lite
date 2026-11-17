@@ -22,7 +22,8 @@ import type {
   SyntheticDecision,
 } from './ledger-result-preparation.ts'
 import { lateVersionOf, releasedQueue } from './ledger-ending.ts'
-import { commonOf, dropSuspensionContent, nextState, type StateBody } from './ledger-start.ts'
+import { dropSuspensionContent, nextState } from './ledger-start.ts'
+import { commonOf, type StateBody } from './ledger-state.ts'
 import { taskKey, type CallRecord, type LedgerWrite } from './ledger-store.ts'
 
 type LostCommand = MutationInput<unknown> &

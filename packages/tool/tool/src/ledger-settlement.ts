@@ -14,6 +14,8 @@ import type {
 import type { ToolFinalEnvelope, ToolTask } from '@omne-harness/tool-contract/provider'
 import { invalid } from './boundary.ts'
 import { mintEvidence, resultVersion, sameFactValue } from './evidence.ts'
+import { instantAfter } from './instant.ts'
+import { measuredDuration, settlementAccount } from './ledger-account.ts'
 import {
   firstResultWrites,
   operationRecord,
@@ -29,12 +31,8 @@ import {
 import { planEnvironmentRelease, processCustodyCovered } from './ledger-environment-release.ts'
 
 import { lateVersionOf, releasedQueue } from './ledger-ending.ts'
-import {
-  dropSuspensionContent,
-  nextState,
-  type StateBody,
-  type WriteCommand,
-} from './ledger-start.ts'
+import { dropSuspensionContent, nextState, type WriteCommand } from './ledger-start.ts'
+import { type StateBody } from './ledger-state.ts'
 import {
   taskKey,
   type CallRecord,
@@ -131,6 +129,7 @@ function settledState<B extends ContentBlock>(
   const current = call.state
   const common = {
     call: call.call,
+    label: current.label,
     revision: mint.revision,
     phase: 'settled',
     result: resultVersion(1),
@@ -195,9 +194,11 @@ export function decidePreserveResult<B extends ContentBlock>(
   command: PreserveCommand,
   final: Final<B>,
   value: ResultValue,
-  orphanDue: ToolInstant | null,
+  clocked: Readonly<{ settledAt: ToolInstant | null; graceMs: number }>,
   mint: Mint,
 ): Decision<ToolState> {
+  const { settledAt, graceMs } = clocked
+  const orphanDue = settledAt === null ? null : instantAfter(settledAt, graceMs)
   const checked = checkSettlement(snapshot, command)
   if ('failure' in checked) return reply(checked)
   if (checked.ok.kind === 'recalled') return reply(succeed(checked.ok.state))
@@ -267,6 +268,7 @@ export function decidePreserveResult<B extends ContentBlock>(
   const writes: LedgerWrite[] = [
     put({ kind: 'call', call: { ...call, state: state.ok } }),
     ...first.writes,
+    settlementAccount(snapshot, call, measuredDuration(call.startedAt, settledAt), mint),
     ...uses.ok,
     ...dropSuspensionContent(snapshot),
     put(operationRecord(command, { kind: 'preserve-result', state: state.ok }, mint)),
