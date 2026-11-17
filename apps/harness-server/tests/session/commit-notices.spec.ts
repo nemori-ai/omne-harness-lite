@@ -22,14 +22,17 @@ const TURN = [
   'call.execution-fact, account.linked, entries.interpreted',
   'call.execution-fact, history.annotated',
   'message.assistant',
+  'call.result-processed',
   'call.bound, extension.passage, history.annotated',
   'call.execution-fact, account.linked, entries.interpreted',
   'call.execution-fact, history.annotated',
   'message.tool',
+  'call.result-processed',
   'call.bound, extension.passage, history.annotated',
   'call.execution-fact, account.linked, entries.interpreted',
   'call.execution-fact, history.annotated',
   'message.assistant',
+  'call.result-processed',
   'run.attempt-released, run.terminal, history.annotated',
 ]
 
