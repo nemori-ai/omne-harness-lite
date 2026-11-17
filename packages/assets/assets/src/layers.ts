@@ -70,29 +70,40 @@ export async function listAssets(
   request: AssetListRequest,
 ): Promise<AssetListing> {
   const { category, limit } = request
-  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_ASSET_PAGE) return INVALID
+  if (!isPageLimit(limit)) return INVALID
   const layers = inLayerOrder(sources)
   const start = startOf(layers, request.after)
   if (start === undefined) return INVALID
-  const items: AssetEntry[] = []
-  let completeness: AssetPage['completeness'] = 'complete'
-  for (const [index, source] of layers.entries()) {
-    if (index < start.index) continue
-    if (items.length >= limit) return page(items, cursor(source.layer, null), completeness)
-    const after = index === start.index ? start.after : null
+  const gathered: Gathered = { items: [], completeness: 'complete' }
+  for (const [index, source] of layers.slice(start.index).entries()) {
+    if (gathered.items.length >= limit) return page(gathered, cursor(source.layer, null))
+    const after = index === 0 ? start.after : null
     const answer = await settled(() =>
-      source.list({ category, after, limit: limit - items.length }),
+      source.list({ category, after, limit: limit - gathered.items.length }),
     )
-    if (answer === undefined || answer.state === 'unavailable')
-      return { state: 'unavailable', layer: source.layer }
-    if (answer.state === 'invalid') return INVALID
-    if (answer.state === 'not-applicable') continue
-    items.push(...answer.page.items)
-    if (answer.page.completeness === 'partial') completeness = 'partial'
-    if (answer.page.next !== null)
-      return page(items, cursor(source.layer, answer.page.next), completeness)
+    const stop = absorb(gathered, source.layer, answer)
+    if (stop !== undefined) return stop
   }
-  return page(items, null, completeness)
+  return page(gathered, null)
+}
+
+type Gathered = { items: AssetEntry[]; completeness: AssetPage['completeness'] }
+
+function isPageLimit(limit: number): boolean {
+  return Number.isInteger(limit) && limit >= 1 && limit <= MAX_ASSET_PAGE
+}
+
+function absorb(
+  gathered: Gathered,
+  layer: AssetLayer,
+  answer: AssetLayerListing | AssetListInvalid | undefined,
+): AssetListing | undefined {
+  if (answer === undefined || answer.state === 'unavailable') return { state: 'unavailable', layer }
+  if (answer.state === 'invalid') return INVALID
+  if (answer.state === 'not-applicable') return undefined
+  gathered.items.push(...answer.page.items)
+  if (answer.page.completeness === 'partial') gathered.completeness = 'partial'
+  return answer.page.next === null ? undefined : page(gathered, cursor(layer, answer.page.next))
 }
 
 function inLayerOrder(sources: readonly AssetLayerSource[]): readonly AssetLayerSource[] {
@@ -112,11 +123,7 @@ async function settled<T>(ask: () => Promise<T>): Promise<T | undefined> {
   }
 }
 
-function page(
-  items: readonly AssetEntry[],
-  next: string | null,
-  completeness: AssetPage['completeness'],
-): AssetListing {
+function page({ items, completeness }: Gathered, next: string | null): AssetListing {
   return { state: 'read', page: { items, next, completeness } }
 }
 
