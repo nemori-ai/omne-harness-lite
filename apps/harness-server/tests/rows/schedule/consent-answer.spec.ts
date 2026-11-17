@@ -77,3 +77,12 @@ describe('readConsentAnswer: the owner answer a consent reference names', () => 
     expect(await reader(cards, live)(TENANT, scheduleConsentRef(CALL, CARD), CALL)).toBeUndefined()
   })
 })
+
+describe('the registry of open calls', () => {
+  it('keeps the calls of two tenants apart even with the same call id', async () => {
+    const { liveCallKey } = await import('../../../src/rows/tool-bindings/live-calls.ts')
+    expect(liveCallKey('tenant/a', 'call-1')).not.toBe(liveCallKey('tenant/b', 'call-1'))
+    expect(liveCallKey('tenant/a', 'call-1')).not.toBe(liveCallKey('tenant/a', 'call-2'))
+    expect(liveCallKey('tenant/a', 'call-1')).toBe(liveCallKey('tenant/a', 'call-1'))
+  })
+})
