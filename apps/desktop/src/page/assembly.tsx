@@ -5,6 +5,8 @@ import {
   assetsCategoryPage,
   createAssetsUiModule,
 } from '@omne-harness/assets-ui/cordis'
+import '@omne-harness/calendar-ui/calendar-ui.css'
+import { calendarUiModule } from '@omne-harness/calendar-ui/cordis'
 import '@omne-harness/human-intervention-ui/human-intervention-ui.css'
 import { createHumanInterventionUiModule } from '@omne-harness/human-intervention-ui/cordis'
 import { identityUiModule } from '@omne-harness/identity-ui/cordis'
@@ -12,6 +14,8 @@ import '@omne-harness/identity-ui/identity-ui.css'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import '@omne-harness/mcp-ui/mcp-ui.css'
 import type { ProtocolContract } from '@omne-harness/public-contract'
+import '@omne-harness/schedule-ui/schedule-ui.css'
+import { scheduleUiModule } from '@omne-harness/schedule-ui/cordis'
 import { sessionDock, sessionUiModule } from '@omne-harness/session-ui/cordis'
 import '@omne-harness/session-ui/session-ui.css'
 import { domainProtocols } from '../shared/protocols.ts'
@@ -35,6 +39,8 @@ export const assembly: Assembly = {
     identityUiModule,
     sessionUiModule,
     createHumanInterventionUiModule({ sessionDock }),
+    scheduleUiModule,
+    calendarUiModule,
     createAssetsUiModule({ categoryLabels: ASSET_CATEGORY_LABELS }),
     createMcpUiModule({ page: assetsCategoryPage, governance: assetGovernanceKey }),
   ],
