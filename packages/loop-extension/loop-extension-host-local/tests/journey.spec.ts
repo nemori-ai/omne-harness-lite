@@ -161,7 +161,10 @@ describe('a source that cannot be read', () => {
     await world.publish(probe('probe'))
     await world.hold('probe')
     world.setRun('probe', { kind: 'unavailable' })
-    expect(await views.read(reader(tenantA))).toMatchObject({ kind: 'unavailable' })
+    expect(await views.read(reader(tenantA))).toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the extension probe cannot be read',
+    })
     world.setRun('probe', on)
     world.broken.basis = true
     expect(await views.read(reader(tenantA))).toMatchObject({ kind: 'unavailable' })

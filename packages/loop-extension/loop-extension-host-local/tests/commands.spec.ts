@@ -1,4 +1,12 @@
-import { mkdtempSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -9,6 +17,7 @@ import type {
   FacilityGuard,
   OutputChunk,
   ProcessHandle,
+  ResourceLedger,
 } from '@omne-harness/execution-environment-contract'
 import { commandRequest } from '@omne-harness/loop-extension-contract'
 import {
@@ -36,6 +45,10 @@ afterEach(async () => {
 })
 
 type ProcessStart = (request: {
+  requestId: string
+  binding: unknown
+  outputMode: string
+  access: unknown
   executable: string
   args: readonly string[]
   cwd: string
@@ -55,13 +68,16 @@ function processOf(
   script: Partial<{
     stdout: string
     stderr: string
+    chunks: readonly OutputChunk[]
     end: CommandOutcome | 'never'
     graceful: 'confirmed' | 'unconfirmed'
     forcedEnds: boolean
+    stopFails: boolean
   }> = {},
 ) {
   const stops: string[] = []
   const ended = Promise.withResolvers<CommandOutcome>()
+  const reading = Promise.withResolvers<void>()
   const exit = (code: number): CommandOutcome => ({
     kind: 'completed',
     exit: { kind: 'code', code },
@@ -70,6 +86,8 @@ function processOf(
   })
   if (script.end !== 'never') ended.resolve(script.end ?? exit(0))
   async function* output(): AsyncGenerator<OutputChunk> {
+    reading.resolve()
+    yield* script.chunks ?? []
     if (script.stdout !== undefined)
       yield { stream: 'stdout', data: bytes(script.stdout), observedOffset: 0 }
     if (script.stderr !== undefined)
@@ -84,6 +102,7 @@ function processOf(
     result: ended.promise,
     async stop(mode) {
       stops.push(mode)
+      if (script.stopFails === true) throw new Error('the environment is gone')
       const confirmed = mode === 'graceful' ? script.graceful !== 'unconfirmed' : true
       if (confirmed && (mode === 'graceful' || script.forcedEnds !== false))
         ended.resolve({
@@ -95,15 +114,16 @@ function processOf(
       return confirmed ? 'confirmed' : 'unconfirmed'
     },
   }
-  return { handle, stops, exit }
+  return { handle, stops, exit, reading: reading.promise }
 }
 
 type Script = Partial<{
   placement: 'rejected' | 'unknown'
-  acquire: 'rejected' | 'unknown' | 'throws'
+  acquire: 'rejected' | 'unknown' | 'throws' | 'allocationFailed'
+  facility: 'absent'
   start: 'rejected' | 'unknown'
   process: ReturnType<typeof processOf>
-  onStart: () => void
+  onStart: (ledger: ResourceLedger) => unknown
 }>
 
 /** An execution environment that does what the test scripts and remembers what it was asked. */
@@ -113,9 +133,13 @@ function environmentOf(script: Script = {}) {
     guards: [] as FacilityGuard<string>[],
     releases: 0,
     acquisitions: [] as string[],
+    placements: [] as unknown[],
+    acquires: [] as Record<string, unknown>[],
+    ledgers: [] as ResourceLedger[],
   }
   const environment = {
     async resolvePlacement(_access: unknown, input: { requirement: unknown }) {
+      seen.placements.push(input)
       if (script.placement === 'rejected') return { kind: 'rejected', reason: 'unavailable' }
       if (script.placement === 'unknown') return { kind: 'unknown', cause: 'provider' }
       return {
@@ -126,18 +150,27 @@ function environmentOf(script: Script = {}) {
     },
     async acquire(
       _access: unknown,
-      input: { acquisition: string; guard: FacilityGuard<string>; placement: unknown },
+      input: {
+        acquisition: string
+        guard: FacilityGuard<string>
+        placement: unknown
+        ledger: ResourceLedger
+      },
     ) {
       seen.acquisitions.push(input.acquisition)
       seen.guards.push(input.guard)
+      seen.ledgers.push(input.ledger)
+      seen.acquires.push(input as unknown as Record<string, unknown>)
+      if (script.acquire === 'allocationFailed')
+        return { kind: 'allocationFailed', acquisition: input.acquisition }
       if (script.acquire === 'throws') throw new Error('the provider is gone')
       if (script.acquire === 'rejected') return { kind: 'rejected', reason: 'capacity' }
       if (script.acquire === 'unknown')
         return { kind: 'unknown', acquisition: input.acquisition, phase: 'allocation' }
       const command = {
-        async start(request: Parameters<ProcessStart>[0] & { requestId: string }) {
+        async start(request: Parameters<ProcessStart>[0]) {
           seen.starts.push(request)
-          script.onStart?.()
+          await script.onStart?.(input.ledger)
           const { requestId } = request
           if (script.start === 'rejected')
             return { kind: 'rejected', requestId, reason: 'unavailable' }
@@ -147,7 +180,8 @@ function environmentOf(script: Script = {}) {
       }
       const lease = {
         placement: input.placement,
-        facility: (key: string) => (key === 'command' ? command : undefined),
+        facility: (key: string) =>
+          key === 'command' && script.facility !== 'absent' ? command : undefined,
         async release() {
           seen.releases += 1
           return { kind: 'released' }
@@ -288,6 +322,18 @@ describe('one call of a command implementation', () => {
       'intended',
     ],
     [
+      'the allocation fails',
+      { acquire: 'allocationFailed' },
+      { kind: 'notStartedUnavailable' },
+      'ended',
+    ],
+    [
+      'the lease has no command facility',
+      { facility: 'absent' },
+      { kind: 'notStartedUnavailable' },
+      'ended',
+    ],
+    [
       'the acquisition throws',
       { acquire: 'throws' },
       { kind: 'invocationUnresolved', start: { kind: 'unknown' } },
@@ -366,9 +412,39 @@ describe('one call of a command implementation', () => {
     const aborting = new AbortController()
     const running = a.invoke(a.host(), fresh, aborting.signal)
     while (a.seen.starts.length === 0) await new Promise(resolve => setTimeout(resolve, 5))
+    await process.reading
     aborting.abort()
-    await running
+    expect(await running).toMatchObject({ kind: 'errored', classification: 'nonzero_exit' })
     expect(process.stops).toEqual(['graceful'])
+    expect(a.lines().at(-1)?.end).toEqual({ outcome: 'exit:-1', stop: 'confirmed', stderrBytes: 0 })
+  })
+
+  it('stops the process when the advance stopped being valid before the host began to watch it', async () => {
+    const process = processOf({ end: 'never' })
+    const a = await arranged({ process })
+    const aborting = new AbortController()
+    const host = a.host({
+      afterStep(step) {
+        if (step === 'started') aborting.abort()
+      },
+    })
+    expect(await a.invoke(host, fresh, aborting.signal)).toMatchObject({
+      kind: 'errored',
+      classification: 'nonzero_exit',
+    })
+    expect(process.stops).toEqual(['graceful'])
+  })
+
+  it('records an unconfirmed stop when the environment cannot be asked to stop the process', async () => {
+    const process = processOf({ end: 'never', stopFails: true })
+    const a = await arranged({ process }, { timeout: 'PT0.05S' })
+    expect(await a.invoke(a.host())).toMatchObject({ kind: 'errored', classification: 'timeout' })
+    expect(process.stops).toEqual(['graceful', 'forced'])
+    expect(a.lines().at(-1)?.end).toEqual({
+      outcome: 'timed-out',
+      stop: 'unconfirmed',
+      stderrBytes: 0,
+    })
   })
 
   it.each([
@@ -395,6 +471,315 @@ describe('one call of a command implementation', () => {
       'notAuthorized',
     )
     expect(await guard?.authorize('files', 'read', own)).toBe('notAuthorized')
+    expect(await guard?.authorize('files', 'start' as never, own)).toBe('notAuthorized')
+    expect(await guard?.authorize('command', 'stop' as never, own)).toBe('notAuthorized')
+  })
+
+  it('authorizes nothing once the host is closed', async () => {
+    const a = await arranged()
+    const host = a.host()
+    await a.invoke(host)
+    await host.close()
+    const own = { origin: a.seen.acquisitions[0] } as never
+    expect(await a.seen.guards[0]?.authorize('command', 'start', own)).toBe('notAuthorized')
+  })
+})
+
+describe('what the host asks of the execution environment', () => {
+  it('asks for a command on the host machine in the scope of the run, and starts it under the key of the call', async () => {
+    const a = await arranged()
+    await a.invoke(a.host())
+    const key = 'pass-1/call/1#1'
+    const requirement = {
+      allowedBindings: [{ kind: 'host_machine' }],
+      facilities: ['command'],
+      isolation: [],
+    }
+    expect(a.seen.placements).toEqual([{ scope: { ref: 'scope-1' }, requirement }])
+    const [acquire] = a.seen.acquires
+    expect(acquire).toMatchObject({ scope: { ref: 'scope-1' }, placement: { kind: 'placement' } })
+    expect(String(acquire?.['acquisition'])).toContain(key)
+    const [start] = a.seen.starts
+    expect(start).toMatchObject({
+      requestId: `${key}/start`,
+      origin: acquire?.['origin'],
+      binding: { kind: 'host_machine' },
+      outputMode: 'separate',
+      access: reader(tenantA),
+    })
+  })
+
+  it('writes the resources the environment plans into the record of the call, and answers closed once the run is over', async () => {
+    const answers: unknown[] = []
+    const resource = { kind: 'process', ref: 'p-1' } as never
+    const a = await arranged({
+      async onStart(ledger) {
+        answers.push(
+          await ledger.plan(resource),
+          await ledger.permit('p-1'),
+          await ledger.adopt('p-1'),
+        )
+        answers.push(ledger.closed.aborted, await ledger.stopped('p-1', 'confirmed'))
+      },
+    })
+    await a.invoke(a.host())
+    expect(answers).toEqual(['recorded', 'confirmed', 'confirmed', false, 'recorded'])
+    expect(a.lines().map(line => line.at)).toEqual(['intended', 'resource', 'started', 'ended'])
+    const [ledger] = a.seen.ledgers
+    expect(ledger?.closed.aborted).toBe(true)
+    expect([
+      await ledger?.plan(resource),
+      await ledger?.permit('p-1'),
+      await ledger?.adopt('p-1'),
+    ]).toEqual(['closed', 'closed', 'closed'])
+    expect(a.lines().map(line => line.at)).toEqual(['intended', 'resource', 'started', 'ended'])
+  })
+
+  it('tells each step with the record as it stands after that step', async () => {
+    const steps: unknown[] = []
+    const a = await arranged()
+    await a.invoke(a.host({ afterStep: (step, call) => void steps.push([step, call.state]) }))
+    expect(steps).toEqual([
+      ['intended', 'intended'],
+      ['started', 'started'],
+      ['ended', 'ended'],
+    ])
+  })
+})
+
+describe('the standard output of a run', () => {
+  const chunk = (text: string, observedOffset: number): OutputChunk => ({
+    stream: 'stdout',
+    data: bytes(text),
+    observedOffset,
+  })
+  const OVER = {
+    kind: 'errored',
+    classification: 'bad_output',
+    error: 'the output is over the limit',
+  }
+  const observedOf = (length: number) =>
+    `{"kind":"observed","pad":"${'x'.repeat(length - '{"kind":"observed","pad":""}'.length)}"}`
+  const signalled: CommandOutcome = {
+    kind: 'completed',
+    exit: { kind: 'signal', signal: 'SIGKILL' },
+    durationMs: 1,
+    output: summary,
+  }
+  const discarded: CommandOutcome = {
+    kind: 'completed',
+    exit: { kind: 'code', code: 0 },
+    durationMs: 1,
+    output: { mode: 'separate', stdout: count(5), stderr: count(0) },
+  }
+
+  it.each([
+    [
+      'chunks that follow each other are one output',
+      { chunks: [chunk('{"kind":', 0), chunk('"observed"}', 8)] },
+      { kind: 'output', value: { kind: 'observed' } },
+    ],
+    [
+      'a gap between two chunks is a bad output',
+      { chunks: [chunk('{"kind":', 0), chunk('"observed"}', 9)] },
+      OVER,
+    ],
+    [
+      'an output of exactly the limit is read whole',
+      { stdout: observedOf(64 * 1024) },
+      { kind: 'output', value: { kind: 'observed' } },
+    ],
+    [
+      'an output one byte over the limit is a bad output',
+      { stdout: observedOf(64 * 1024 + 1) },
+      OVER,
+    ],
+    [
+      'an output over the limit in many chunks is a bad output',
+      { chunks: [chunk('x'.repeat(40_000), 0), chunk('x'.repeat(40_000), 40_000)] },
+      OVER,
+    ],
+    [
+      'bytes the environment discarded make a bad output',
+      { stdout: '{"kind":"observed"}', end: discarded },
+      OVER,
+    ],
+    [
+      'an exit by a signal is a nonzero exit',
+      { stdout: '{"kind":"observed"}', end: signalled },
+      { kind: 'errored', classification: 'nonzero_exit', error: 'the command exited with code -1' },
+    ],
+  ] as const)('%s', async (_name, script, result) => {
+    const a = await arranged({ process: processOf(script as Parameters<typeof processOf>[0]) })
+    expect(await a.invoke(a.host())).toMatchObject(result)
+  })
+
+  it('counts the bytes of every chunk of the standard error, and keeps none of them', async () => {
+    const noise = (text: string): OutputChunk => ({
+      stream: 'stderr',
+      data: bytes(text),
+      observedOffset: 0,
+    })
+    const a = await arranged({
+      process: processOf({
+        chunks: [noise('abc'), chunk('{"kind":"observed"}', 0), noise('defg')],
+      }),
+    })
+    await a.invoke(a.host())
+    expect(a.lines().at(-1)?.end).toEqual({ outcome: 'exit:0', stop: 'none', stderrBytes: 7 })
+  })
+})
+
+describe('a call the host does not enter', () => {
+  const command = {
+    kind: 'command',
+    interpreter: 'node',
+    entry: 'check.mjs',
+    timeout: 'PT5S',
+  } as const
+  const NOT_ENTERED = { kind: 'notStartedUnavailable' }
+
+  async function direct(
+    change: Partial<CommandHostInput<string>> = {},
+    asked: Partial<{ access: unknown; member: unknown; declaration: unknown }> = {},
+  ) {
+    const a = await arranged()
+    const host = a.host(change)
+    const made = await host.implementations({
+      access: reader(tenantA),
+      member: a.member,
+      declaration: probe('script', { implementation: command }),
+      ...asked,
+    } as never)
+    if (!('ok' in made)) throw new Error(JSON.stringify(made))
+    return { a, host, call: () => made.ok(input, signal(), fresh) }
+  }
+
+  it.each([
+    [
+      'the sources of the tenant are away',
+      { sources: { of: (): Promise<undefined> => Promise.resolve(undefined) } },
+      {},
+    ],
+    [
+      'the sources of the tenant fail',
+      { sources: { of: (): Promise<undefined> => Promise.reject(new Error('away')) } },
+      {},
+    ],
+    [
+      'the run location cannot be asked',
+      { locations: { of: (): Promise<never> => Promise.reject(new Error('away')) } },
+      {},
+    ],
+    [
+      'the package of the version is not there',
+      {},
+      { member: { capability: 'script', assetRef: 'asset/none', version: 'v0' } },
+    ],
+    ['the declaration is not a command', {}, { declaration: probe('script') }],
+    ['the tenant is not a tenant', {}, { access: { principal: 'reader', tenant: {} } }],
+  ] as const)(
+    'answers that it did not start when %s, and writes no intent',
+    async (_name, change, asked) => {
+      const { a, call } = await direct(change as Partial<CommandHostInput<string>>, asked)
+      expect(await call()).toEqual(NOT_ENTERED)
+      expect(a.seen.starts).toEqual([])
+      expect(a.lines()).toEqual([])
+    },
+  )
+
+  it('answers that it did not start once the host is closed', async () => {
+    const { a, host, call } = await direct()
+    await host.close()
+    expect(await call()).toEqual(NOT_ENTERED)
+    expect(a.lines()).toEqual([])
+  })
+
+  it('asks the run location with the execution and the passage of the call', async () => {
+    const asked: unknown[] = []
+    const { a, call } = await direct({
+      locations: {
+        async of(input) {
+          asked.push(input)
+          return { kind: 'unavailable' }
+        },
+      },
+    })
+    await call()
+    expect(asked).toEqual([
+      { ...reader(tenantA), execution: 'execution-1', passage: 'pass-1/call/1' },
+    ])
+    expect(a.seen.starts).toEqual([])
+  })
+
+  it('does not start while its ledger cannot be written, and starts once it can', async () => {
+    const parent = realpathSync(mkdtempSync(join(tmpdir(), 'loop-extension-ledger-')))
+    const directory = join(parent, 'ledger')
+    writeFileSync(directory, '')
+    const a = await arranged({}, { directory })
+    const host = a.host()
+    expect(await a.invoke(host)).toEqual(NOT_ENTERED)
+    expect(a.seen.starts).toEqual([])
+    rmSync(directory)
+    await a.invoke(host)
+    expect(a.seen.starts).toHaveLength(1)
+    expect(a.lines()[0]?.at).toBe('intended')
+  })
+})
+
+describe('the files of the ledger', () => {
+  it('keeps one file for the tenant, named by a digest of the tenant, with the identity of the call in the intent', async () => {
+    const a = await arranged()
+    await a.invoke(a.host())
+    expect(readdirSync(a.directory)).toEqual([expect.stringMatching(/^[0-9a-f]{32}\.jsonl$/u)])
+    expect(a.lines()[0]?.record).toMatchObject({
+      key: 'pass-1/call/1#1',
+      passage: 'pass-1/call/1',
+      mode: 'fresh',
+      scope: 'scope-1',
+      implementation: {
+        owner: 'loop-extension',
+        name: 'script',
+        revision: a.member.version,
+        digest: a.member.assetRef,
+      },
+    })
+  })
+
+  it('settles only the calls of its own files, and an unfinished call it cannot stop stays unconfirmed', async () => {
+    const a = await arranged({ start: 'unknown' })
+    await a.invoke(a.host())
+    const stray = join(a.directory, 'notes.txt')
+    writeFileSync(stray, `${JSON.stringify(a.lines()[0])}\n`)
+    const next = a.host({ recover: () => Promise.reject(new Error('the environment is gone')) })
+    await next.start()
+    expect(readFileSync(stray, 'utf8').split('\n').filter(Boolean)).toHaveLength(1)
+    const [file] = readdirSync(a.directory).filter(name => name.endsWith('.jsonl'))
+    const written = readFileSync(join(a.directory, file!), 'utf8').split('\n').filter(Boolean)
+    expect(written.map(line => JSON.parse(line) as { at: string; stop?: string })).toMatchObject([
+      { at: 'intended' },
+      { at: 'settled', stop: 'unconfirmed' },
+    ])
+  })
+
+  it('records a start that was refused as a call that ended without a stop', async () => {
+    const a = await arranged({ start: 'rejected' })
+    await a.invoke(a.host())
+    expect(a.lines().at(-1)?.end).toEqual({ outcome: 'not-entered', stop: 'none', stderrBytes: 0 })
+  })
+
+  it('starts over a ledger file it cannot open, and still takes the calls of the tenant', async () => {
+    const a = await arranged()
+    mkdirSync(join(a.directory, 'broken.jsonl'))
+    const host = a.host()
+    await host.start()
+    await a.invoke(host)
+    expect(a.seen.starts).toHaveLength(1)
+  })
+
+  it('closes a host that never started', async () => {
+    const a = await arranged()
+    await expect(a.host().close()).resolves.toBeUndefined()
   })
 })
 

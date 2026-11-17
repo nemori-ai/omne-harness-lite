@@ -1,12 +1,21 @@
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import type { TenantId } from '@omne-harness/legal-identity'
-import { ENABLED_EXTENSIONS_BLOCK } from '@omne-harness/loop-extension-contract'
+import {
+  ENABLED_EXTENSIONS_BLOCK,
+  type EnabledExtensionsRead,
+} from '@omne-harness/loop-extension-contract'
 import {
   createEnabledExtensionsPublisher,
   createEnabledExtensionsViews,
 } from '@omne-harness/loop-extension-host-local'
 import { createRuntimeContext } from '@omne-harness/runtime-context'
-import { decodeScopeRef, type ScopeRef } from '@omne-harness/runtime-context-contract'
+import {
+  decodeScopeRef,
+  type ProducerHandle,
+  type ProducerRegistration,
+  type RegisterProducerResult,
+  type ScopeRef,
+} from '@omne-harness/runtime-context-contract'
 import { createTestAuthorityPorts } from '@omne-harness/runtime-context-contract/testing'
 import { openTenant, probe, sourcesOf, tenantA, tenantB, type TenantWorld } from './world.ts'
 
@@ -157,4 +166,102 @@ it('the producer of one tenant refuses a read for another tenant', async () => {
   })
   await publisher.start()
   expect(supplied).toMatchObject([{ kind: 'refused' }, { kind: 'value' }])
+})
+
+describe('the producer, by itself', () => {
+  type Key = typeof ENABLED_EXTENSIONS_BLOCK
+  type Registration = RegisterProducerResult<Key>
+  const view = { members: [], basis: { assets: '1', settings: '1' } }
+  const readable: EnabledExtensionsRead = { kind: 'view', view }
+  const asked = (tenant: TenantId) => ({
+    scope: scopeOf('session/unit'),
+    tenant,
+    principal: 'reader',
+  })
+
+  function arranged(answer?: Promise<Registration>) {
+    const seen = { registrations: [] as ProducerRegistration<Key, string>[], disposed: 0 }
+    const handle = {
+      async dispose() {
+        seen.disposed += 1
+      },
+    } as unknown as ProducerHandle<Key>
+    const state = { read: readable }
+    const publisher = createEnabledExtensionsPublisher<string>({
+      tenant: tenantA,
+      principal: 'producer',
+      runtime: {
+        async registerProducer(_principal, registration) {
+          seen.registrations.push(registration)
+          return answer ?? { kind: 'registered', handle }
+        },
+      },
+      views: { read: async () => state.read },
+    })
+    return { publisher, seen, state, handle }
+  }
+
+  it('registers once for the tenant, not for a scope, and answers each read from the view of that moment', async () => {
+    const a = arranged()
+    expect(await a.publisher.start()).toEqual({ kind: 'registered', handle: a.handle })
+    await a.publisher.start()
+    expect(a.seen.registrations).toHaveLength(1)
+    const [registration] = a.seen.registrations
+    expect(registration).toMatchObject({
+      key: ENABLED_EXTENSIONS_BLOCK,
+      tenant: tenantA,
+      scoped: false,
+    })
+    const supply = registration?.supply as (input: unknown) => Promise<unknown>
+    expect(await supply(asked(tenantA))).toEqual({ kind: 'value', value: view })
+    a.state.read = { kind: 'unavailable', diagnostic: 'away' }
+    expect(await supply(asked(tenantA))).toEqual({ kind: 'unavailable' })
+    expect(await supply(asked(tenantB))).toEqual({ kind: 'refused' })
+    a.state.read = readable
+    await a.publisher.close()
+    expect(a.seen.disposed).toBe(1)
+    expect(await supply(asked(tenantA))).toEqual({ kind: 'unavailable' })
+  })
+
+  it('gives the answer of a registration that was not taken, and then has nothing to dispose', async () => {
+    const rejected: Registration = { kind: 'rejected', reason: 'other-producer' }
+    const a = arranged(Promise.resolve(rejected))
+    expect(await a.publisher.start()).toEqual(rejected)
+    await a.publisher.close()
+    expect(a.seen.disposed).toBe(0)
+  })
+
+  it('closes without a start, and is closed to a start after that', async () => {
+    const a = arranged()
+    await a.publisher.close()
+    expect(await a.publisher.start()).toEqual({ kind: 'rejected', reason: 'closed' })
+    expect(a.seen.registrations).toEqual([])
+  })
+
+  it.each([
+    [
+      'taken',
+      (handle: ProducerHandle<Key>): Registration => ({ kind: 'registered', handle }),
+      { kind: 'rejected', reason: 'closed' },
+      1,
+    ],
+    [
+      'not taken',
+      (): Registration => ({ kind: 'rejected', reason: 'other-producer' }),
+      { kind: 'rejected', reason: 'other-producer' },
+      0,
+    ],
+  ] as const)(
+    'a close that arrives while it registers leaves no producer behind when the registration is %s',
+    async (_name, answer, expected, disposed) => {
+      const pending = Promise.withResolvers<Registration>()
+      const a = arranged(pending.promise)
+      const starting = a.publisher.start()
+      const closing = a.publisher.close()
+      pending.resolve(answer(a.handle))
+      expect(await starting).toEqual(expected)
+      await closing
+      expect(a.seen.disposed).toBe(disposed)
+    },
+  )
 })
