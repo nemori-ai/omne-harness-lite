@@ -129,8 +129,6 @@ function permittedControl(action: string, control: ScheduleControl): boolean {
       return control === 'active' || control === 'paused'
     case 'stop':
       return control === 'active' || control === 'paused' || control === 'stopped'
-    case 'reconfirmConsent':
-      return control === 'draft' || control === 'active' || control === 'paused'
     default:
       return false
   }
@@ -149,17 +147,9 @@ function standingMeaning(standing: ScheduleStanding) {
 
 function observedRecord(input: ManagementDecisionInput, current: ScheduleRecord): ScheduleRecord {
   const observed = input.access.currentStanding
-  const consentLock =
-    current.consentLock.kind === 'reconfirmationRequired'
-      ? current.consentLock
-      : input.access.consentLock
   const standing =
-    current.view.standing.kind === 'terminallyInvalidated'
-      ? current.view.standing
-      : observed.kind !== 'ready' || consentLock.kind === 'clear'
-        ? observed
-        : current.view.standing
-  return { ...current, consentLock, view: { ...current.view, standing } }
+    current.view.standing.kind === 'terminallyInvalidated' ? current.view.standing : observed
+  return { ...current, view: { ...current.view, standing } }
 }
 
 function finalizeUpdate(
@@ -174,8 +164,7 @@ function finalizeUpdate(
   const stateChanged =
     before.control !== after.control ||
     !managementValueEqual(standingMeaning(before.standing), standingMeaning(after.standing)) ||
-    !managementValueEqual(before.consentAdoption, after.consentAdoption) ||
-    !managementValueEqual(current.consentLock, candidate.consentLock)
+    !managementValueEqual(before.consentAdoption, after.consentAdoption)
   if (!definitionChanged && !stateChanged)
     return savedDecision(
       input,
@@ -254,8 +243,6 @@ function decideExisting(
       if (failure !== null) return failure
       if (input.definition.kind !== 'resolved')
         return rejected(input, 'dependency_blocked', 'Definition is unavailable')
-      if (next.consentLock.kind !== 'clear')
-        return rejected(input, 'consent_required', 'Explicit consent reconfirmation is required')
       return finalizeUpdate(input, current, {
         ...next,
         activationExclusive: input.now,
@@ -313,28 +300,6 @@ function decideExisting(
         quota,
       )
     }
-    case 'reconfirmConsent': {
-      if (input.access.authority.role !== 'owner')
-        return rejected(input, 'forbidden', 'Only the owner can reconfirm consent')
-      if (
-        input.access.consent.kind !== 'adopt' ||
-        input.access.consent.adoption.grantRef !== command.newConsentRef
-      )
-        return rejected(
-          input,
-          'consent_required',
-          'Reconfirmation requires the named current grant',
-        )
-      return finalizeUpdate(input, current, {
-        ...next,
-        consentLock: { kind: 'clear' },
-        view: {
-          ...view,
-          standing: input.access.currentStanding,
-          consentAdoption: input.access.consent.adoption,
-        },
-      })
-    }
     case 'replace':
       return decideReplace(input, current)
   }
@@ -377,8 +342,6 @@ function decideReplace(
       'dependency_blocked',
       'Replacement requires a new identity and a quota transfer',
     )
-  if (current.consentLock.kind !== 'clear' || input.access.consentLock.kind !== 'clear')
-    return rejected(input, 'consent_required', 'Replacement cannot bypass consent reconfirmation')
   const successor = createManagementRecord(
     input,
     { ...view, predecessorId: current.view.scheduleId },

@@ -17,7 +17,7 @@ beforeAll(async () => {
 })
 
 it('publishes complete permission and Settings declarations from the actual verified release', () => {
-  expect(release.manifest.format).toBe('omne-harness/tool-release/2')
+  expect(release.manifest.format).toBe('omne-harness/tool-release/3')
   for (const entry of release.manifest.entries) {
     const { declaration, interpretations } = entry.governance
     expect(declaration.origin).toMatchObject({

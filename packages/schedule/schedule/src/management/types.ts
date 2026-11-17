@@ -42,9 +42,6 @@ export type OperationIdentity = Readonly<{
   fingerprint: ScheduleFingerprint
   operationRef: ScheduleOperationRef
 }>
-export type ConsentLock =
-  | Readonly<{ kind: 'clear' }>
-  | Readonly<{ kind: 'reconfirmationRequired'; grantRef: Ref; revokedGeneration: number }>
 export type QuotaHolding =
   | Readonly<{ kind: 'transferred'; reservationRef: Ref; successorId: ScheduleId }>
   | Readonly<{ kind: 'held'; reservationRef: Ref }>
@@ -52,7 +49,6 @@ export type QuotaHolding =
 export type ScheduleRecord = Readonly<{
   view: ScheduleView
   activationExclusive: ScheduleInstant | null
-  consentLock: ConsentLock
   quota: QuotaHolding
   adoptedBasis: ScheduleAdoptedBasis | null
   definitionRef: Ref
@@ -89,7 +85,6 @@ export type ManagementAccess = Readonly<{
   authority: ManagementAuthority
   consent: ConsentObservation
   currentStanding: ScheduleStanding
-  consentLock: ConsentLock
 }>
 export interface ManagementAuthorizer {
   authorize(

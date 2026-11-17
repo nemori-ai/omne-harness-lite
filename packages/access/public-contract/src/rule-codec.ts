@@ -26,6 +26,7 @@ type LeafValues = {
   readonly login: LoginStateId
   readonly tenant: TenantId
   readonly instant: Instant
+  readonly 'plain-date': string
   readonly 'positive-integer': number
   readonly count: number
   readonly 'page-limit': number

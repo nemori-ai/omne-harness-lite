@@ -12,7 +12,6 @@ import {
   type OperationIdentity,
 } from '@omne-harness/schedule'
 import type { JsonValue, SqlIdentity, StorageScope } from '@omne-harness/sql-contract'
-import { DOMAIN } from './schema.ts'
 
 export function json(value: unknown): JsonValue {
   return ScheduleJsonValueSchema.parse(value)
@@ -32,11 +31,12 @@ export function digest(value: unknown) {
 }
 export function sqlIdentity(
   scope: StorageScope,
+  transactionDomain: string,
   operation: Pick<OperationIdentity, 'scope' | 'address'>,
 ): SqlIdentity {
   return {
     scope,
-    transactionDomain: DOMAIN,
+    transactionDomain,
     operation: `schedule.management.${operation.address.operation}`,
     protocolVersion: '2',
     operationKey: digest([

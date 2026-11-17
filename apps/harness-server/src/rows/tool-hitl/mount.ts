@@ -51,10 +51,12 @@ export function mountToolHitl(
   })
   hitl.host = host
   hitl.bridge = bridge
+  hitl.decidedCards = bridge.decidedCards
   ctx.effect(
     () => () => {
       if (hitl.host === host) hitl.host = null
       if (hitl.bridge === bridge) hitl.bridge = null
+      if (hitl.decidedCards === bridge.decidedCards) hitl.decidedCards = null
       void host.close()
     },
     'tool-records.hitl',

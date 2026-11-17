@@ -1,8 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { ActingForTenantPrincipal, StandingReservations } from '@omne-harness/identity'
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { ToolDecisionBridge } from '@omne-harness/tool-contract/provider'
 import type { HitlAudience } from '../../entry/hitl-entry-principals.ts'
+import type { ToolDecisionBridge } from '@omne-harness/tool-contract/provider'
+import type { ToolHitlBridge } from './bridge.ts'
 import type { ToolHitlHost } from './host.ts'
 
 export type { HitlAudience }
@@ -13,6 +14,8 @@ export type ToolHitlHolder = {
   audience: HitlAudience | undefined
   host: ToolHitlHost | null
   bridge: ToolDecisionBridge<unknown> | null
+  /** The decided cards of a call's waits, from the bridge this tree mounted. */
+  decidedCards: ToolHitlBridge['decidedCards'] | null
 }
 
 const holders = new WeakMap<Context, ToolHitlHolder>()
@@ -27,6 +30,7 @@ export function toolHitlHolder(ctx: Context): ToolHitlHolder {
     audience: undefined,
     host: null,
     bridge: null,
+    decidedCards: null,
   }
   holders.set(root, created)
   return created

@@ -34,17 +34,7 @@ function decide(input: ReturnType<typeof decisionInput>) {
 describe('management state matrix', () => {
   it.each(matrix)('$control / $action produces $result', row => {
     const action = (
-      [
-        'update',
-        'reviseDraft',
-        'promote',
-        'discard',
-        'pause',
-        'resume',
-        'stop',
-        'replace',
-        'reconfirmConsent',
-      ] as const
+      ['update', 'reviseDraft', 'promote', 'discard', 'pause', 'resume', 'stop', 'replace'] as const
     ).find(value => value === row.action)
     if (action === undefined) throw new Error('Unknown matrix action')
     const input = decisionInput(action, ScheduleControlSchema.parse(row.control))
@@ -232,61 +222,13 @@ it('adopts confirmed ordinary dependency recovery on resume', () => {
     }),
   ).toMatchObject({
     kind: 'save',
-    mutation: { kind: 'update', next: { consentLock: { kind: 'clear' } } },
+    mutation: { kind: 'update' },
     result: {
       control: 'active',
       standing: recovered,
       stateRevision: current.view.stateRevision + 1,
       definitionRevision: current.view.definitionRevision,
       timeRuleRevision: current.view.timeRuleRevision,
-    },
-  })
-})
-
-it('consent regrant does not clear a lock on resume; reconfirm keeps unrelated blockers and pause', () => {
-  const input = decisionInput('resume', 'paused')
-  const current = record('paused')
-  const blocked = {
-    ...current.view.standing,
-    kind: 'blocked',
-    reasons: ['consent_revoked', 'calendar_missing'],
-  } as const
-  const locked = {
-    ...current,
-    consentLock: { kind: 'reconfirmationRequired', grantRef: 'old', revokedGeneration: 1 } as const,
-    view: { ...current.view, standing: { ...blocked, reasons: [...blocked.reasons] } },
-  }
-  expect(
-    decide({
-      ...input,
-      current: locked,
-      access: {
-        ...input.access,
-        currentStanding: { ...input.access.currentStanding, generation: 2 },
-      },
-    }),
-  ).toMatchObject({
-    kind: 'save',
-    mutation: { next: { consentLock: locked.consentLock } },
-    result: { standing: { kind: 'blocked' } },
-  })
-  const reconfirm = decisionInput('reconfirmConsent', 'paused')
-  expect(
-    decide({
-      ...reconfirm,
-      current: locked,
-      access: {
-        ...reconfirm.access,
-        currentStanding: { ...blocked, reasons: ['calendar_missing'] },
-      },
-    }),
-  ).toMatchObject({
-    kind: 'save',
-    mutation: { next: { consentLock: { kind: 'clear' } } },
-    result: {
-      control: 'paused',
-      standing: { reasons: ['calendar_missing'] },
-      consentAdoption: { grantRef: 'grant:new' },
     },
   })
 })
@@ -305,7 +247,7 @@ it('terminal standing permits only owner stop and never releases quota twice', (
       },
     },
   }
-  for (const action of ['pause', 'resume', 'update', 'replace', 'reconfirmConsent'] as const)
+  for (const action of ['pause', 'resume', 'update', 'replace'] as const)
     expect(decide({ ...decisionInput(action), current: invalidated })).toMatchObject({
       kind: 'rejected',
       error: { code: 'invalid_transition' },
@@ -411,22 +353,6 @@ it('promotion sets the first activation boundary without a second reservation', 
     kind: 'save',
     mutation: { next: { activationExclusive: resume.current?.activationExclusive } },
   })
-})
-
-it('reconfirmation requires owner authority and the exact authorized grant', () => {
-  const input = decisionInput('reconfirmConsent', 'paused')
-  expect(
-    decide({
-      ...input,
-      access: { ...input.access, authority: { ...input.access.authority, role: 'author' } },
-    }),
-  ).toMatchObject({ kind: 'rejected', error: { code: 'forbidden' } })
-  expect(
-    decide({
-      ...input,
-      access: { ...input.access, consent: { kind: 'notRequired', guardRef: 'none' } },
-    }),
-  ).toMatchObject({ kind: 'rejected', error: { code: 'consent_required' } })
 })
 
 it('executionText only edits an agent instruction and preserves the original work binding', () => {
