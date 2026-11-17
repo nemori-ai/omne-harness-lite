@@ -14,9 +14,12 @@ import {
   deriveDefinition,
   judgeToolDefinition,
 } from '@omne-harness/tool-contract/provider'
+import { writeJsonText } from '@omne-harness/json-text'
 import {
   attachCalendar,
   bindCalendar,
+  calendarContract,
+  calendarOf,
   calendarToolModule,
   createCalendarAuthor,
   type BoundCalendar,
@@ -148,7 +151,40 @@ describe('the Calendar declaration', () => {
     ['nth', { period_start: '2026-10-01', period_end: '2026-10-31', ordinal: 0 }],
     ['help', { name: 'resolve' }],
   ])('refuses %s %j before any calendar is asked', (command, params) => {
-    expect(fixture().decode(command, params).parsed).toHaveProperty('failure')
+    expect(fixture().decode(command, params).parsed).toMatchObject({
+      failure: { kind: 'invalid', reason: expect.any(String) },
+    })
+  })
+
+  it('publishes each command contract the parser enforces', () => {
+    const date = { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }
+    expect(JSON.parse(writeJsonText(calendarContract('day').schema))).toEqual({
+      type: 'object',
+      additionalProperties: false,
+      properties: { date },
+      required: ['date'],
+    })
+    expect(JSON.parse(writeJsonText(calendarContract('next').schema))).toMatchObject({
+      properties: { after: date, count: { type: 'integer', minimum: 1, maximum: 366 } },
+      required: ['after', 'count'],
+    })
+    expect(JSON.parse(writeJsonText(calendarContract('nth').schema))).toMatchObject({
+      properties: {
+        period_start: date,
+        period_end: date,
+        ordinal: { oneOf: [{ type: 'integer', minimum: 1 }, { const: 'last' }] },
+      },
+      required: ['period_start', 'period_end', 'ordinal'],
+    })
+    expect(JSON.parse(writeJsonText(calendarContract('shift').schema))).toMatchObject({
+      properties: { date, offset: { type: 'integer' } },
+      required: ['date', 'offset'],
+    })
+    expect(JSON.parse(writeJsonText(calendarContract('count').schema))).toMatchObject({
+      required: ['from', 'to'],
+    })
+    for (const name of ['day', 'count', 'shift', 'next', 'nth'] as const)
+      expect(calendarContract(name).descriptions.length).toBeGreaterThan(0)
   })
 
   it('refuses a construction other than a result bound', () => {
@@ -244,6 +280,16 @@ describe('binding one call', () => {
   }
   const question = { kind: 'day', date: '2026-10-10' } as unknown as CalendarQuestion
 
+  it('detaches the calendar when the call scope finishes, once', async () => {
+    const execution = scope()
+    const attached = attachCalendar(execution, answering(workday).calendar)
+    expect(calendarOf(attached.context)).toBeDefined()
+    const first = attached.finish('returned')
+    expect(attached.finish('returned')).toBe(first)
+    await first
+    expect(calendarOf(attached.context)).toBeUndefined()
+  })
+
   it('asks the calculator with the context the host derived for the call tenant', async () => {
     const c = calculator(workday)
     const bound = bindCalendar({
@@ -292,6 +338,9 @@ describe('binding one call', () => {
       calculator: calc,
       context: ctx,
     }).answer(question)
-    expect(answer).toMatchObject({ kind: 'error', error: { code } })
+    expect(answer).toMatchObject({
+      kind: 'error',
+      error: { code, retryable: code === 'provider_failure', message: expect.stringMatching(/\S/) },
+    })
   })
 })
