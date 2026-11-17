@@ -21,19 +21,7 @@ export type EndpointRef = Readonly<{ name: EndpointName; holding: EndpointHoldin
 
 export type AuthKind = 'none' | 'static' | 'oauth'
 
-export type EnvironmentBinding = Readonly<{ name: string; source: 'setting' | 'credential' }>
-
-export type StdioLaunch = Readonly<{
-  command: string
-  args: readonly string[]
-  cwd?: string
-  env: readonly EnvironmentBinding[]
-  facilities: readonly string[]
-}>
-
-export type TransportDeclaration =
-  | Readonly<{ kind: 'stdio'; launch: StdioLaunch }>
-  | Readonly<{ kind: 'streamable-http' }>
+export type TransportDeclaration = Readonly<{ kind: 'streamable-http' }>
 
 export type EndpointDefinition = Readonly<{
   name: EndpointName

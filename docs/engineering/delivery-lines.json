@@ -37,6 +37,7 @@
       "contracts": [
         "packages/tool/tool-contract",
         "packages/tool/tool-cordis-contract",
+        "packages/tool/tool-protocol",
         "packages/execution/execution-environment-contract",
         "packages/execution/execution-environment-cordis-contract"
       ]

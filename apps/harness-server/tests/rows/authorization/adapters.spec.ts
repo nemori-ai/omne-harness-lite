@@ -1133,6 +1133,45 @@ describe('Tool access qualification', () => {
     expect(failure).toMatchObject({ kind: 'unavailable' })
     expect(JSON.stringify(failure)).not.toContain('SECRET')
   })
+  it('lets a member acting for the tenant read a call of that tenant, and only read it (tool/v1)', async () => {
+    const w = world()
+    const guard = createToolAccessGuard(() => w.ports.admission)
+    const input = { principal: w.login(), tenant: A, call: toolCallId('tc_auth') }
+    for (const action of ['lookup', 'read-result'] as const) {
+      expect(await guard.qualify({ ...input, action })).toEqual({ kind: 'allowed' })
+      expect(w.seen.admissions.at(-1)).toMatchObject({
+        access: { principal: input.principal, tenant: A },
+        operation: { owner: 'tool', name: action },
+      })
+    }
+    const before = w.seen.admissions.length
+    for (const action of [
+      'admit',
+      'query-operation',
+      'control',
+      'read-content',
+      'release-delivery',
+      'account',
+      'recover',
+      'write',
+      'start',
+    ] as const)
+      expect(await guard.qualify({ ...input, action })).toEqual({
+        kind: 'denied',
+        reason: 'session-work-and-call-required',
+      })
+    expect(await guard.qualify({ ...input, tenant: B, action: 'lookup' })).toMatchObject({
+      kind: 'denied',
+    })
+    expect(
+      await guard.qualify({ ...input, principal: w.foreign(), action: 'read-result' }),
+    ).toMatchObject({ kind: 'denied' })
+    for (const action of ['lookup', 'read-result'] as const)
+      expect(
+        await guard.qualify({ ...input, principal: w.system('sessionWorkPrincipals'), action }),
+      ).toEqual({ kind: 'denied', reason: 'session-work-and-call-required' })
+    expect(w.seen.admissions).toHaveLength(before)
+  })
 })
 
 describe('the row', () => {

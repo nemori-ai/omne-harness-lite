@@ -45,7 +45,8 @@ export type Report = {
   workspaceRoot: string
   consumerDirectory: string
   closure: { workspace: string[]; external: string[] }
-  install: { mode: 'offline' | 'network'; allowNetwork: boolean }
+  /** `pnpm`: the output of `pnpm -v` in the consumer project. */
+  install: { mode: 'offline' | 'network'; allowNetwork: boolean; pnpm?: string }
   installed: string[]
   forbidden: Violation[]
   tarballs: { name: string; file: string; files: string[] }[]
@@ -92,14 +93,9 @@ function exists(path: string): boolean {
   }
 }
 
-function listed(directory: string, standalone = false): Listing {
-  // The consumer lives below the repository, so pnpm would otherwise adopt the workspace root.
-  const flags = standalone ? ['--ignore-workspace'] : []
-  const result = exec(
-    'pnpm',
-    ['ls', ...flags, '--prod', '--depth', 'Infinity', '--json'],
-    directory,
-  )
+function listed(directory: string): Listing {
+  // The consumer has its own pnpm-workspace.yaml, so pnpm does not adopt the repository's workspace.
+  const result = exec('pnpm', ['ls', '--prod', '--depth', 'Infinity', '--json'], directory)
   if (result.status !== 0) throw new Error(`pnpm ls failed in ${directory}: ${tail(result.stderr)}`)
   const found: Listing = { versions: new Map(), directories: new Map() }
   const visit = (dependencies: Readonly<Record<string, Tree>> | undefined): void => {
@@ -134,7 +130,6 @@ export function installDependencies(
 ): InstallResult {
   const flags = [
     'install',
-    '--ignore-workspace',
     '--ignore-scripts',
     '--store-dir',
     options.storeDirectory,
@@ -321,14 +316,24 @@ function install(run: Run, declared: Declared, packed: Packed): boolean {
         version: '0.0.0',
         private: true,
         type: 'module',
-        packageManager: readManifest(options.workspaceRoot).packageManager,
         dependencies,
-        pnpm: { overrides: overridesOf(run, closure, packed) },
       },
       null,
       2,
     )}\n`,
   )
+  // pnpm 12 reads overrides only from pnpm-workspace.yaml. The file also makes the consumer its own
+  // workspace root, so pnpm does not adopt the repository's. No packageManager: with an empty cache
+  // and --offline, a pinned pnpm fails with ERR_PNPM_BAD_CONFIG_DEP.
+  writeFileSync(
+    join(packed.project, 'pnpm-workspace.yaml'),
+    `packages: []\noverrides:\n${Object.entries(overridesOf(run, closure, packed))
+      .map(([name, target]) => `  ${JSON.stringify(name)}: ${JSON.stringify(target)}\n`)
+      .join('')}`,
+  )
+  const version = exec('pnpm', ['-v'], packed.project)
+  report.install.pnpm =
+    version.status === 0 ? version.stdout.trim() : `pnpm -v failed: ${tail(version.stderr)}`
   const cacheDirectory = join(options.consumerDirectory, 'pnpm-cache')
   mkdirSync(cacheDirectory, { recursive: true })
   const result = installDependencies(packed.project, {
@@ -345,7 +350,7 @@ function install(run: Run, declared: Declared, packed: Packed): boolean {
     residue.join(' | ') || 'consumer lockfile has no workspace or link specifier',
   )
 
-  report.installed = [...listed(packed.project, true).versions.keys()].sort()
+  report.installed = [...listed(packed.project).versions.keys()].sort()
   const wanted = plan.fixture?.dependencies ?? [
     manifest.name,
     ...closure.external.map(item => item.name),

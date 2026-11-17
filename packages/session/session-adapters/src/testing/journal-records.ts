@@ -22,6 +22,7 @@ import { canonical } from './canonical.ts'
 import {
   batchEvidence,
   checkpointOf,
+  receivedViews,
   type BlobStore,
   type ProducerCall,
   type ExecutionView,
@@ -616,14 +617,14 @@ export function projectOperations(
         }
       }
       case 'received': {
-        const received = [...view.results.values()].find(item => item.received?.pub === at)
-        if (received?.received === null || received === undefined) return undefined
+        const received = receivedViews(view).find(item => item.pub === at)
+        if (received === undefined) return undefined
         return {
           kind: 'committed',
           value: {
-            entry: blob(context.blobs, received.received.custody),
+            entry: blob(context.blobs, received.custody),
             receipt,
-            saved: received.received.saved,
+            saved: received.saved,
           },
         }
       }
@@ -808,9 +809,7 @@ export function projectReceiving(
             blob(context.blobs, binding.pending),
           ),
       })
-    for (const result of view.results.values()) {
-      const received = result.received
-      if (received === null) continue
+    for (const received of receivedViews(view)) {
       const found = byPub.get(received.pub)
       const receipt = receiptAt(view, byPub, context.mint, received.pub)
       if (found === undefined || receipt === undefined) continue

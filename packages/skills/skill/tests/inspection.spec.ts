@@ -52,7 +52,7 @@ describe('a legal package', () => {
     const inspection = createPackageInspection(demoSource({ 'SKILL.md': manifest }))
     const result = await inspection.inspect(locator)
     if (!('ok' in result)) throw new Error(JSON.stringify(result.failure))
-    expect(result.ok.declaration).toStrictEqual({ dependencies: [], scripts: [], settings: [] })
+    expect(result.ok.declaration).toStrictEqual({ dependencies: [], settings: [] })
   })
 
   it('passes the expected name to the package rules', async () => {

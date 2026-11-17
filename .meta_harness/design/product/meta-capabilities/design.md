@@ -33,7 +33,7 @@ Agent 需要发现和调用工具、读取技能、操作执行环境、与人�
 | [Computer()](#meta-computer) | 按像素操作图形界面 | 基础、精细、窗口和应用动作，及 help | 图形界面设施 |
 | [Agents()](#meta-agents) | 派发工作及与其他 Agent 通信 | spawn、delegate、handoff、message、withdraw、status、list_targets、list_dispatched | 目标可用、派发或通信资格成立 |
 | [TodoItems()](#meta-todo) | 维护本会话的待办条目 | add、remove、mark_complete、list | 本会话范围 |
-| [BkgJobs()](#meta-background) | 观察和控制本会话的后台执行 | list、output、terminate | 原执行及控制资格 |
+| [BkgToolCalls()](#meta-background) | 观察和控制本会话的后台工具调用 | list、output、terminate | 原执行及控制资格 |
 | [Ask()](#meta-ask) | 向人提问或请示 | ask、request_approval | 会话协作模式、命令可用性与答复资格 |
 | [Cordis()](#meta-cordis) | 只读检视自身装配与公开契约 | list、query | 获准检视范围与实际检视提供者 |
 | [Engram()](#meta-engram) | 知识结构的元能力定位 | 仅占位，不定命令集 | 未设计 |
@@ -171,7 +171,7 @@ execute 表达在哪个终端会话执行、从哪个目录开始、携带哪些
 
 终端会话随其执行环境销毁而失去，数量与寿命受资源条件约束，调用方须获知原会话已经不可用。环境故障不授权把同一命令在新会话中自动重做。
 
-run_in_background 表达发起时的等待方式，不能覆盖工具作者的后台许可。直接后台与执行中转后台保持各自触发原因，同属原 Tool Execution 的交付关系，之后可经 BkgJobs 观察和控制。自动转后台阈值与前台时限沿 Tool 规则分别处理。
+run_in_background 表达发起时的等待方式，不能覆盖工具作者的后台许可。直接后台与执行中转后台保持各自触发原因，同属原 Tool Execution 的交付关系，之后可经 BkgToolCalls 观察和控制。自动转后台阈值与前台时限沿 Tool 规则分别处理。
 
 <a id="meta-web"></a>
 ### Web() 网络内容
@@ -272,11 +272,13 @@ add 新建一条，remove 移除一条，mark_complete 将一条标为完成，l
 待办是 Agent 用于组织工作的清单，不是系统自动执行的任务。加入条目不触发执行。待办归当前 Session，不跨会话继承；Run 结束或 Agent 替换不能凭空更换会话范围。跨会话工作对象不由此入口补造。
 
 <a id="meta-background"></a>
-### BkgJobs() 后台执行
+### BkgToolCalls() 后台执行
 
-list 列出本 Session 的后台执行，output 读取原执行的可见状态及合法结果内容，terminate 请求中断自己有权控制的执行。人用过程帧只供人观察，不因通过 output 就进入模型上下文；模型可读的中间输出范围及读取协议仍须明确，不在此扩展。后台跨轮存在仍可观察，不能因 Agent runtime 换代就失去原身份。该入口不显示其他 Session 的执行，也不以查不到暂时状态认定执行已经丢失。
+list 列出本 Session 的后台工具调用：每一项有会话内的短号、发起时写的一句意图、实际动作与当前状态，被请求停止的写明谁停的与进度。output 读取一项的状态；这次调用写了输出正文时，同时给出其中的一段，并给出下次续读的位置。terminate 请求中断自己有权控制的一项，须带原因。
 
-Agent 主动中断与用户叫停均须保留发起者及原因。中断不记成普通失败，也不授权自动重试；实际停止是否成立与外部效果分别核实。Session 归档沿 Tool 的业务取消和控制传播规则处理，历史、真实结果和账目不因入口停止接受新动作而删除。
+模型可读的中间输出就是工具写进输出正文的内容，见[返回、过程与账目](../tool-execution/design.md#返回过程与账目)。它只在 output 被调用时进入模型上下文，按位置分页，有字节上限；读取不改变执行与结果。工具没有写输出正文时，output 说明没有，不给空内容。人用过程帧只供人观察，不因 output 进入模型上下文。后台跨轮存在仍可观察，不能因 Agent runtime 换代就失去原身份。该入口不显示其他 Session 的执行，也不以查不到暂时状态认定执行已经丢失。
+
+Agent 主动中断与用户叫停均须保留发起者及原因。terminate 的答复是已请求，不是已停止；用户叫停一项时，Agent 从会话里的提醒得知，见[控制、取消、恢复与外部效果](../tool-execution/design.md#控制取消恢复与外部效果)。中断不记成普通失败，也不授权自动重试；实际停止是否成立与外部效果分别核实。Session 归档沿 Tool 的业务取消和控制传播规则处理，历史、真实结果和账目不因入口停止接受新动作而删除。
 
 <a id="meta-ask"></a>
 ### Ask() 提问与请示
@@ -489,7 +491,7 @@ Run 取消触发的 Code 中断须保留原取消原因，只沿 Run 原有传�
 | CAP-META-08 | Computer 的分层动作、批量执行、观察与截图预算 | [Computer](#meta-computer)、MX-J06 | 无 |
 | CAP-META-09 | Agents 的三种派发、通信、报告、控制、外部派发和成本归属 | [Agents](#meta-agents)、MX-J07 | META-T02 |
 | CAP-META-10 | TodoItems 的逐条管理、会话范围与非执行属性 | [TodoItems](#meta-todo)、MX-J08 | 无 |
-| CAP-META-11 | BkgJobs 的本会话观察与有身份的中断控制 | [BkgJobs](#meta-background)、MX-J05、MX-J08 | 无 |
+| CAP-META-11 | BkgToolCalls 的本会话观察与有身份的中断控制 | [BkgToolCalls](#meta-background)、MX-J05、MX-J08 | 无 |
 | CAP-META-12 | Ask 的提问与请示、模式约束、有效答复及无默认答案 | [Ask](#meta-ask)、MX-J09 | 无 |
 | CAP-META-13 | 授权表达、作用域与撤回、当前放行与独立环境准入 | [授权](#会话授权上下文)、MX-J10 | 无 |
 | CAP-META-14 | Cordis 的动态检视、完整局部契约和只读隔离边界 | [Cordis](#meta-cordis)、MX-J11 | 无 |
@@ -504,7 +506,7 @@ Run 取消触发的 Code 中断须保留原取消原因，只沿 Run 原有传�
 | [META-P03](#meta-p03) | 来源分歧与产品选择 | handoff 创建成功后 status 查询创建结果还是目标工作进展，或不提供该模式查询，须由元能力产品负责人明确 |
 | META-T01 | 技术承接 | 各入口的公开契约、提供者、装配及持续验证尚须由相应能力拥有者明确；不因此创建统一元工具运行时或空源码包 |
 | META-T02 | 派发等待 | spawn/delegate 的报告等待须在 Tool 的前台需答复边界内明确协议，Tool、Agent 与 Session 拥有者承接 |
-| META-T03 | 动作与资源协议 | Files 提交未知及恢复、Shell 终端资源、Computer 批量进展、外部派发控制、BkgJobs 模型可读中间输出边界及 Cordis 检视注册均须具名技术契约与验证；分别由文件、执行环境、派发和装配拥有者承接 |
+| META-T03 | 动作与资源协议 | Files 提交未知及恢复、Shell 终端资源、Computer 批量进展、外部派发控制、Cordis 检视注册均须具名技术契约与验证；分别由文件、执行环境、派发和装配拥有者承接 |
 
 <a id="meta-t02"></a>
 ### 派发等待与既有边界

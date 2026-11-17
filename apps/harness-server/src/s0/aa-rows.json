@@ -18,6 +18,7 @@
     "session-ad11",
     "session-ad12",
     "session-ad14",
+    "session-call-control",
     "session-ad15",
     "session-handoff",
     "session-conditions",
@@ -62,7 +63,8 @@
     "session-access",
     "assets-access",
     "human-intervention-access",
-    "session-diagnostics-access"
+    "session-diagnostics-access",
+    "tool-access"
   ],
   "trusted": [
     {
@@ -188,6 +190,12 @@
     },
     {
       "row": "session-ad14",
+      "names": [
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
+      "row": "session-call-control",
       "names": [
         "sessionWorkPrincipals"
       ]
@@ -359,6 +367,13 @@
     },
     {
       "row": "session-diagnostics-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "tool-access",
       "names": [
         "principalIssuer",
         "tenantStanding"

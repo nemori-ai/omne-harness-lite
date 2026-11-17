@@ -159,32 +159,37 @@ describe('tool result round', () => {
   it.each(['model-reply', 'tool-result'] as const)(
     'rebuilds an uncommitted %s handoff after a concurrent output acknowledgement',
     async kind => {
-      const assembly = await toolAssembly()
-      const journal = assembly.dependencies.journal
       let injected = false
-      assembly.dependencies.journal = {
-        ...journal,
-        async commit(write) {
-          if (
-            !injected &&
-            write.handoff?.kind === 'prepare' &&
-            write.handoff.request.source.kind === kind
-          ) {
-            injected = true
-            const before = ok(await journal.load(input))
-            if (before.output.emittedThrough === null) throw new Error('an input event is required')
-            ok(
-              await journal.acknowledge({
-                ...input,
-                operation: operation('concurrent-ack'),
-                through: before.output.emittedThrough,
-                receipt: evidence('consumer'),
-              }),
-            )
-          }
-          return journal.commit(write)
-        },
-      }
+      const assembly = await toolAssembly({}, {}, {}, dependencies => {
+        const journal = dependencies.journal
+        return {
+          ...dependencies,
+          journal: {
+            ...journal,
+            async commit(write) {
+              if (
+                !injected &&
+                write.handoff?.kind === 'prepare' &&
+                write.handoff.request.source.kind === kind
+              ) {
+                injected = true
+                const before = ok(await journal.load(input))
+                if (before.output.emittedThrough === null)
+                  throw new Error('an input event is required')
+                ok(
+                  await journal.acknowledge({
+                    ...input,
+                    operation: operation('concurrent-ack'),
+                    through: before.output.emittedThrough,
+                    receipt: evidence('consumer'),
+                  }),
+                )
+              }
+              return journal.commit(write)
+            },
+          },
+        }
+      })
       acceptEach(assembly)
       ok(await invoke(assembly))
       await deliverToolSuggestion(assembly)

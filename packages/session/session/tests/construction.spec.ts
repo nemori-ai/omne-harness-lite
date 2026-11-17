@@ -30,6 +30,7 @@ function countedDependencies(): { dependencies: SessionDependencies<string>; cal
     context: port,
     agentDrive: current,
     scopeRelease: current,
+    callControl: current,
     principals: { coordinator: 'system:coordinator', maintainer: 'system:maintainer' },
     admission: { current: () => [] },
   } as unknown as SessionDependencies<string>

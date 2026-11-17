@@ -25,12 +25,6 @@ export {
   type MemoryCredentialUse,
 } from './testing-credentials.ts'
 export {
-  createMemoryProcessLanding,
-  mcpProcessLandingConformance,
-  type MemoryProcessLanding,
-  type ProcessLandingFixture,
-} from './testing-landing.ts'
-export {
   createMemoryCatalogStore,
   mcpCatalogStoreConformance,
   type CatalogStoreFixture,
@@ -69,7 +63,6 @@ export {
   type ScriptedPeer,
   type TaskScript,
   type TransportFixture,
-  type TransportKind,
 } from './testing-transport.ts'
 export {
   TRANSPORT_TABLE,
@@ -81,7 +74,6 @@ export {
   type RequestClass,
   type TableCell,
   type TableConclusion,
-  type TableKind,
   type TableRow,
 } from './testing-transport-table.ts'
 export {

@@ -86,6 +86,11 @@
       "config": {}
     },
     {
+      "id": "session-call-control",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "session-ad15",
       "plugin": "stubPlugin",
       "config": {}
@@ -307,6 +312,11 @@
     },
     {
       "id": "session-diagnostics-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "tool-access",
       "plugin": "stubPlugin",
       "config": {}
     }

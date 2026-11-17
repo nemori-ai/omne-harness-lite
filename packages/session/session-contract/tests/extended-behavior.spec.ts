@@ -347,6 +347,11 @@ describe('Session governance beyond the first path', () => {
     expect(state.contextScopes?.[0]?.ended).not.toBeNull()
     expect(state.contextScopes?.[1]?.scope).not.toBe(task.scope)
     expect(state.pending).toEqual([])
+    expect(state.controls.at(-1)).toMatchObject({
+      intent: { kind: 'control', value: { kind: 'unarchive' } },
+      state: 'reconciled',
+      pending: [],
+    })
   })
   it('routed business and HITL replies create recoverable work without ordinary input eligibility', async () => {
     const s = scene()

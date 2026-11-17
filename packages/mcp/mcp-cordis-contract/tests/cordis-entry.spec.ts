@@ -6,14 +6,12 @@ import {
   AdoptionViewService,
   CredentialUseService,
   EndpointStatusService,
-  ProcessLandingService,
   UseEligibilityService,
   mcpActionDiscoveryKey,
   mcpActionInvokerKey,
   mcpAdoptionViewKey,
   mcpCredentialUseKey,
   mcpEndpointStatusKey,
-  mcpProcessLandingKey,
   mcpUseEligibilityKey,
 } from '@omne-harness/mcp-cordis-contract/cordis'
 
@@ -24,7 +22,6 @@ const KEYS = [
   [AdoptionViewService, mcpAdoptionViewKey, 'mcpAdoptionView'],
   [UseEligibilityService, mcpUseEligibilityKey, 'mcpUseEligibility'],
   [CredentialUseService, mcpCredentialUseKey, 'mcpCredentialUse'],
-  [ProcessLandingService, mcpProcessLandingKey, 'mcpProcessLanding'],
 ] as const
 
 it('writes each service key once, on its abstract Service, and exports a constant equal to it', () => {
@@ -34,11 +31,11 @@ it('writes each service key once, on its abstract Service, and exports a constan
   }
 })
 
-it('gives the seven services seven different keys', () => {
-  expect(new Set(KEYS.map(([, key]) => key)).size).toBe(7)
+it('gives the six services six different keys', () => {
+  expect(new Set(KEYS.map(([, key]) => key)).size).toBe(6)
 })
 
-it('exports exactly the seven abstract Service classes and the seven key constants', async () => {
+it('exports exactly the six abstract Service classes and the six key constants', async () => {
   const cordis: Record<string, unknown> = await import('@omne-harness/mcp-cordis-contract/cordis')
   expect(Object.keys(cordis).sort()).toEqual([
     'ActionDiscoveryService',
@@ -46,14 +43,12 @@ it('exports exactly the seven abstract Service classes and the seven key constan
     'AdoptionViewService',
     'CredentialUseService',
     'EndpointStatusService',
-    'ProcessLandingService',
     'UseEligibilityService',
     'mcpActionDiscoveryKey',
     'mcpActionInvokerKey',
     'mcpAdoptionViewKey',
     'mcpCredentialUseKey',
     'mcpEndpointStatusKey',
-    'mcpProcessLandingKey',
     'mcpUseEligibilityKey',
   ])
 })
@@ -120,11 +115,6 @@ class Eligibility extends UseEligibilityService<unknown> {
 class Credentials extends CredentialUseService<unknown> {
   readonly acquire: CredentialUseService<unknown>['acquire'] = notCalled
 }
-class Landing extends ProcessLandingService<unknown> {
-  start() {
-    return notCalled()
-  }
-}
 
 const LOADABLE = [
   ['ActionDiscoveryService', Discovery, mcpActionDiscoveryKey],
@@ -133,7 +123,6 @@ const LOADABLE = [
   ['AdoptionViewService', Adoption, mcpAdoptionViewKey],
   ['UseEligibilityService', Eligibility, mcpUseEligibilityKey],
   ['CredentialUseService', Credentials, mcpCredentialUseKey],
-  ['ProcessLandingService', Landing, mcpProcessLandingKey],
 ] as const
 
 it.each(LOADABLE)(

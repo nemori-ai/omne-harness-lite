@@ -36,9 +36,11 @@ import type {
   ContextScopeBinding,
   CallBinding,
   ProducedResult,
+  ProducerRef,
   InputBatch,
   Waiting,
   ExecutionRef,
+  BackgroundDisposition,
 } from './values.ts'
 import type { EntryClass, HistoryEntry } from './faces.ts'
 import type { EncodedEntry } from './judgments.ts'
@@ -232,6 +234,13 @@ export type SessionEntry =
       completion: DurableEvidence
       participation: Participation | null
       position: string | null
+    }>
+  | Readonly<{ kind: 'call.backgrounded'; consumption: ConsumptionId; producer: ProducerRef }>
+  | Readonly<{
+      kind: 'call.background-settled'
+      consumption: ConsumptionId
+      result: string
+      disposition: BackgroundDisposition
     }>
   | Readonly<{ kind: 'extension.passage'; run: RunId; waiting: readonly Waiting[] }>
   | Readonly<{
@@ -518,6 +527,8 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'account.linked',
   'call.result-preserved',
   'call.result-processed',
+  'call.backgrounded',
+  'call.background-settled',
   'extension.passage',
   'control.requested',
   'control.progress',

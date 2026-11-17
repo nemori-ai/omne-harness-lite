@@ -409,19 +409,15 @@ describe('step 5: the commit', () => {
     })
   })
 
-  it('stopCall of a Tool target is unsupported, with no lookup and no material (contract 控制与模型选择)', async () => {
+  it('stopCall of a Tool target takes the path of any call: an unbound call answers not-found', async () => {
     const h = await service()
     await h.create()
-    const asked = h.identity.controls.asked().length
-    h.view.reset()
     const answer = await h.faces('intake').work.stopCall({
       ...h.access(),
       operation: operationId('stop-tool'),
       producer: { kind: 'tool', call: 'call-1' } as never,
     })
-    expect(failureOf(answer)).toEqual({ kind: 'unsupported' })
-    expect(h.view.calls().map(call => call.method)).toEqual(['commit'])
-    expect(h.identity.controls.asked().length).toBe(asked)
+    expect(answer).toMatchObject({ ok: { answer: { kind: 'not-found' } } })
   })
 })
 

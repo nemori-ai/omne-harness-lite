@@ -27,9 +27,10 @@ export type ConversationPageProps = Readonly<{
   workspaces: SessionWorkspaces
   scope: string | undefined
   dock: (session: string) => ReactNode
+  side: (session: string) => ReactNode
 }>
 
-export function ConversationPage({ workspaces, scope, dock }: ConversationPageProps) {
+export function ConversationPage({ workspaces, scope, dock, side }: ConversationPageProps) {
   const handle = useSession(workspaces, scope)
   switch (handle.kind) {
     case 'waiting':
@@ -43,16 +44,18 @@ export function ConversationPage({ workspaces, scope, dock }: ConversationPagePr
         </div>
       )
     case 'ready':
-      return <Page driver={handle.driver} dock={dock} />
+      return <Page driver={handle.driver} dock={dock} side={side} />
   }
 }
 
 function Page({
   driver,
   dock,
+  side,
 }: {
   readonly driver: SessionDriver
   readonly dock: (session: string) => ReactNode
+  readonly side: (session: string) => ReactNode
 }) {
   const { session: state, list } = useSyncExternalStore(driver.subscribe, driver.getState)
   return (
@@ -66,8 +69,11 @@ function Page({
         </div>
         <ConnectionBadge state={state} />
       </header>
-      <div className="omne-session-main">
-        <Body state={state} driver={driver} dock={dock} />
+      <div className="omne-session-body">
+        <div className="omne-session-main">
+          <Body state={state} driver={driver} dock={dock} />
+        </div>
+        {state.kind === 'open' ? side(state.session) : null}
       </div>
     </div>
   )

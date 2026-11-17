@@ -15,7 +15,8 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { TestMember } from '@omne-harness/repo-toolchain/core/workspace'
-import { archivedReportFiles, runTurboTests } from '../src/testing/run.ts'
+import { archivedReportFiles, runTurboTests, type MemberSchedule } from '../src/testing/run.ts'
+import { localPool } from '../src/testing/token-pool.ts'
 import { rawProblems, resolvedProblems } from '../src/testing/member-turbo.ts'
 
 const roots: string[] = []
@@ -57,7 +58,7 @@ function workspace(members: Readonly<Record<string, FixtureMember>>): {
   put(
     root,
     'package.json',
-    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@10.28.1" }\n',
+    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@12.18.0" }\n',
   )
   put(root, 'pnpm-workspace.yaml', 'packages:\n  - members/*\n  - apps/*\n  - packages/*\n')
   put(root, 'fake-vitest.mjs', FAKE_VITEST)
@@ -73,7 +74,11 @@ function workspace(members: Readonly<Record<string, FixtureMember>>): {
   return { root, targets }
 }
 
-const ONCE = { memberConcurrency: 1, vitestMaxWorkers: 1 }
+/** `tokens` 个令牌，每个成员要 1 个、一个进程：令牌数就是同时跑的成员数。 */
+const pool = (tokens: number): MemberSchedule => ({
+  source: localPool(tokens),
+  demand: () => ({ want: 1, min: 1, perWorker: 1 }),
+})
 const NO_BUILD = { build: false, admission: false }
 
 async function run(
@@ -83,7 +88,8 @@ async function run(
 ) {
   const runDir = join(root, 'run')
   mkdirSync(runDir, { recursive: true })
-  return { runDir, runs: await runTurboTests(root, targets, runDir, ONCE, 'fast', build, () => {}) }
+  const { runs } = await runTurboTests(root, targets, runDir, pool(1), 'fast', build, () => {})
+  return { runDir, runs }
 }
 
 describe('用 turbo 跑成员测试', { timeout: 60_000 }, () => {
@@ -95,16 +101,18 @@ describe('用 turbo 跑成员测试', { timeout: 60_000 }, () => {
     const runDir = join(root, 'run')
     mkdirSync(runDir)
     const done: string[] = []
-    const runs = await runTurboTests(
+    const { runs } = await runTurboTests(
       root,
       targets,
       runDir,
-      { memberConcurrency: 2, vitestMaxWorkers: 1 },
+      pool(2),
       'fast',
       { build: false, admission: false },
       run => done.push(run.member),
     )
-    const turboLog = readFileSync(join(runDir, 'turbo.log'), 'utf8')
+    const turboLog = ['members__good', 'members__bad']
+      .map(slug => readFileSync(join(runDir, `turbo-${slug}.log`), 'utf8'))
+      .join('\n')
     expect(
       runs.map(run => [run.member, run.exitCode]),
       turboLog,
@@ -112,14 +120,16 @@ describe('用 turbo 跑成员测试', { timeout: 60_000 }, () => {
       ['members/good', 0],
       ['members/bad', 3],
     ])
-    expect(done).toEqual(['members/good', 'members/bad'])
+    // 两个成员同时跑，谁先跑完不定：每个成员恰好报一次。
+    expect([...done].sort()).toEqual(['members/bad', 'members/good'])
     expect(runs[0]?.report?.testResults[0]?.name).toBe(join(root, 'members/good/tests/a.spec.ts'))
     expect(runs.every(run => run.wallSeconds > 0 && run.problem === undefined)).toBe(true)
     const goodLog = readFileSync(join(runDir, 'members__good.log'), 'utf8')
     expect(goodLog).toContain('ran members__good')
     expect(goodLog).not.toContain('members__bad')
     expect(readFileSync(join(runDir, 'members__bad.log'), 'utf8')).toContain('ran members__bad')
-    expect(existsSync(join(runDir, 'turbo-summary.json'))).toBe(true)
+    for (const slug of ['members__good', 'members__bad'])
+      expect(existsSync(join(runDir, `turbo-summary-${slug}.json`))).toBe(true)
     expect(
       existsSync(join(root, '.turbo/runs')) ? readdirSync(join(root, '.turbo/runs')) : [],
     ).toEqual([])
@@ -129,11 +139,13 @@ describe('用 turbo 跑成员测试', { timeout: 60_000 }, () => {
     const { root, targets } = workspace({ old: { file: 'src/archive.legacy/x.spec.ts', code: 0 } })
     const runDir = join(root, 'run')
     mkdirSync(runDir)
-    const [run] = await runTurboTests(
+    const {
+      runs: [run],
+    } = await runTurboTests(
       root,
       targets,
       runDir,
-      { memberConcurrency: 1, vitestMaxWorkers: 1 },
+      pool(1),
       'fast',
       { build: false, admission: false },
       () => {},
@@ -167,23 +179,37 @@ describe('看不出跑了什么就判失败', { timeout: 60_000 }, () => {
 })
 
 describe('要构建时由 turbo 先构建', { timeout: 60_000 }, () => {
-  it('不带 --only：构建与测试在同一次运行里；构建失败的成员不跑测试，并点名失败的构建', async () => {
+  it('测试前先按依赖构建全部成员；构建失败的成员不跑测试，并点名失败的构建，别的照跑', async () => {
     const { root, targets } = workspace({
       built: { file: 'tests/a.spec.ts', code: 0, build: 0 },
       broken: { file: 'tests/b.spec.ts', code: 0, build: 4 },
     })
     const { runDir, runs } = await run(root, targets, { build: true, admission: false })
-    const turboLog = readFileSync(join(runDir, 'turbo.log'), 'utf8')
-    expect(turboLog).toContain('built built')
+    const turboLog = readFileSync(join(runDir, 'turbo-build.log'), 'utf8')
+    // 构建只打出错的输出（--output-logs=errors-only）：成功构建的证据在挪进运行目录的构建摘要里。
+    const builds = (
+      JSON.parse(readFileSync(join(runDir, 'turbo-build-summary.json'), 'utf8')) as {
+        tasks: { taskId: string; execution?: { exitCode: number | null } }[]
+      }
+    ).tasks.map(task => [task.taskId, task.execution?.exitCode])
+    expect(builds, turboLog).toEqual(
+      expect.arrayContaining([
+        ['@fixture/built#build', 0],
+        ['@fixture/broken#build', 4],
+      ]),
+    )
     expect(runs[0]?.exitCode, turboLog).toBe(0)
     expect(runs[1]?.exitCode).toBe(-1)
     expect(runs[1]?.problem).toContain('构建失败（@fixture/broken）')
   })
 
-  it('带 --only 时不构建', async () => {
+  it('不要构建时不构建：成员的 turbo 带 --only，构建脚本没有跑', async () => {
     const { root, targets } = workspace({ built: { file: 'tests/a.spec.ts', code: 0, build: 4 } })
     const { runDir, runs } = await run(root, targets)
-    expect(readFileSync(join(runDir, 'turbo.log'), 'utf8')).not.toContain('built built')
+    expect(existsSync(join(runDir, 'turbo-build.log'))).toBe(false)
+    expect(readFileSync(join(runDir, 'turbo-members__built.log'), 'utf8')).not.toContain(
+      'built built',
+    )
     expect(runs[0]?.exitCode).toBe(0)
   })
 })

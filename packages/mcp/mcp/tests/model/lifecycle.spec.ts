@@ -44,7 +44,7 @@ describe('rebuild: one key, two ensure, closeAll, lawful ports that may hang or 
   )
 })
 
-describe('faults: one key, ensure, release, lose, closeAll, one port failing, rejecting or unconfirmed', () => {
+describe('faults: one key, ensure, release, lose, closeAll, one port failing or rejecting', () => {
   it(
     'P1–P8 hold',
     async () => {

@@ -11,6 +11,7 @@ import type {
   ToolOperationSpec,
 } from './authoring.ts'
 import type {
+  ToolCommandBackground,
   ToolImplementationFacts,
   ToolImplementationShape,
   ToolProgramDeclaration,
@@ -25,6 +26,7 @@ import {
   returnDeclaration,
 } from './judge-definition.ts'
 import {
+  filled,
   inheritedSlot,
   judgeUnknown,
   list,
@@ -317,8 +319,14 @@ export function defineFunctionTool<E, B extends ContentBlock>(
   )
 }
 
-const commandEntry = record({ summary: commandSummary, operation: operationHandle })
-type CommandEntry = readonly [string, Readonly<{ summary: string; operation: ToolOperationSlot }>]
+const commandEntry = record(
+  { summary: commandSummary, operation: operationHandle },
+  { background: record({ unless: list(filled) }) },
+)
+type CommandEntry = readonly [
+  string,
+  Readonly<{ summary: string; operation: ToolOperationSlot; background?: ToolCommandBackground }>,
+]
 
 const commandTable: Check<readonly CommandEntry[]> = (value, at) => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return reject(at, 'type')
@@ -345,7 +353,14 @@ export function defineCommandTool<E, B extends ContentBlock>(
     encoding: CommandCallEncoding
     guide?: string
     commands: Readonly<
-      Record<string, Readonly<{ summary: string; operation: ToolOperation<E, B> }>>
+      Record<
+        string,
+        Readonly<{
+          summary: string
+          operation: ToolOperation<E, B>
+          background?: ToolCommandBackground
+        }>
+      >
     >
   }>,
 ): Outcome<ToolImplementation<E, B>, Rejection> {
@@ -369,7 +384,7 @@ export function defineCommandTool<E, B extends ContentBlock>(
       kind: 'commands',
       encoding,
       ...(guide === undefined ? {} : { guide }),
-      commands: commands.map(([name, { summary, operation }]) => ({
+      commands: commands.map(([name, { summary, operation, background }]) => ({
         name,
         summary,
         parameters:
@@ -377,6 +392,7 @@ export function defineCommandTool<E, B extends ContentBlock>(
             ? { kind: 'declared', value: operation.parameters.value }
             : { kind: 'executor-owned' },
         returns: operation.returns,
+        ...(background === undefined ? {} : { background }),
       })),
     },
     {

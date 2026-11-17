@@ -10,37 +10,18 @@ import {
 import { judgeJsonValue, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { ENDPOINT_BODY_SCHEMA } from './endpoint-schema.ts'
-import { hasOnly, isObject, itemsOf, member, textOf, type JsonObject } from './json.ts'
+import { hasOnly, isObject, member, textOf } from './json.ts'
 import { isEndpointName } from './brands.ts'
-import type {
-  AuthKind,
-  EndpointDefinition,
-  EnvironmentBinding,
-  StdioLaunch,
-  TransportDeclaration,
-} from './values.ts'
+import type { AuthKind, EndpointDefinition } from './values.ts'
 
 export type EndpointBodyRejection =
   | 'malformed'
   | 'name-mismatch'
   | 'transport-unknown'
   | 'auth-unknown'
-  | 'launch-missing'
-  | 'launch-unexpected'
 
-const BODY_MEMBERS = ['name', 'transport', 'auth', 'launch'] as const
-const LAUNCH_MEMBERS = ['command', 'args', 'cwd', 'env', 'facilities'] as const
-const ENVIRONMENT_MEMBERS = ['name', 'source'] as const
-const VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/u
-const FACILITY = /^[a-z][a-z0-9-]{0,31}$/u
-const TRANSPORTS = ['stdio', 'streamable-http'] as const
+const BODY_MEMBERS = ['name', 'transport', 'auth'] as const
 const AUTH_KINDS: readonly AuthKind[] = ['none', 'static', 'oauth']
-
-type Transport = (typeof TRANSPORTS)[number]
-
-function isTransport(value: string): value is Transport {
-  return TRANSPORTS.some(known => known === value)
-}
 
 function isAuthKind(value: string): value is AuthKind {
   return AUTH_KINDS.some(known => known === value)
@@ -59,125 +40,18 @@ export function parseEndpointBody(
   const auth = textOf(member(document, 'auth'))
   if (!isEndpointName(name) || transport === undefined || auth === undefined)
     return fail('malformed')
-  const launchValue = member(document, 'launch')
-  const launch = launchValue === undefined ? undefined : launchOf(launchValue)
-  if (launch === 'malformed') return fail('malformed')
   if (capabilityName !== undefined && name !== capabilityName) return fail('name-mismatch')
-  if (!isTransport(transport)) return fail('transport-unknown')
+  if (transport !== 'streamable-http') return fail('transport-unknown')
   if (!isAuthKind(auth)) return fail('auth-unknown')
-  if (!isLawfulCombination(transport, auth, launch)) return fail('malformed')
-  const declaration = transportOf(transport, launch)
-  if (declaration === 'launch-missing' || declaration === 'launch-unexpected')
-    return fail(declaration)
-  return succeed({ name, transport: declaration, auth })
-}
-
-function isLawfulCombination(
-  transport: Transport,
-  auth: AuthKind,
-  launch: StdioLaunch | undefined,
-): boolean {
-  if (transport === 'stdio' && auth === 'oauth') return false
-  return auth !== 'none' || launch === undefined || launch.env.every(isSettingSourced)
-}
-
-function isSettingSourced(binding: EnvironmentBinding): boolean {
-  return binding.source === 'setting'
-}
-
-function transportOf(
-  transport: Transport,
-  launch: StdioLaunch | undefined,
-): TransportDeclaration | 'launch-missing' | 'launch-unexpected' {
-  if (transport === 'streamable-http')
-    return launch === undefined ? { kind: 'streamable-http' } : 'launch-unexpected'
-  return launch === undefined ? 'launch-missing' : { kind: 'stdio', launch }
-}
-
-function launchOf(value: JsonValue): StdioLaunch | 'malformed' {
-  if (!isObject(value) || !hasOnly(value, LAUNCH_MEMBERS)) return 'malformed'
-  const command = textOf(member(value, 'command'))
-  const args = textsOf(member(value, 'args'))
-  const cwd = optionalNonEmptyText(member(value, 'cwd'))
-  const env = environmentOf(member(value, 'env'))
-  const facilities = facilitiesOf(member(value, 'facilities'))
-  if (command === undefined || command === '' || cwd === 'malformed') return 'malformed'
-  if (args === undefined || env === undefined || facilities === undefined) return 'malformed'
-  return cwd === undefined
-    ? { command, args, env, facilities }
-    : { command, args, cwd, env, facilities }
-}
-
-function optionalNonEmptyText(value: JsonValue | undefined): string | 'malformed' | undefined {
-  if (value === undefined) return undefined
-  const text = textOf(value)
-  return text === undefined || text === '' ? 'malformed' : text
-}
-
-function facilitiesOf(value: JsonValue | undefined): readonly string[] | undefined {
-  const names = textsOf(value)
-  if (names === undefined || !names.every(name => FACILITY.test(name))) return undefined
-  return new Set(names).size === names.length ? names : undefined
-}
-
-function textsOf(value: JsonValue | undefined): readonly string[] | undefined {
-  if (value === undefined) return []
-  const items = itemsOf(value)
-  if (items === undefined) return undefined
-  const texts: string[] = []
-  for (const item of items) {
-    const text = textOf(item)
-    if (text === undefined) return undefined
-    texts.push(text)
-  }
-  return texts
-}
-
-function environmentOf(value: JsonValue | undefined): readonly EnvironmentBinding[] | undefined {
-  if (value === undefined) return []
-  const items = itemsOf(value)
-  if (items === undefined) return undefined
-  const bindings: EnvironmentBinding[] = []
-  for (const item of items) {
-    const binding = isObject(item) ? bindingOf(item) : undefined
-    if (binding === undefined || bindings.some(known => known.name === binding.name))
-      return undefined
-    bindings.push(binding)
-  }
-  return bindings
-}
-
-function bindingOf(item: JsonObject): EnvironmentBinding | undefined {
-  if (!hasOnly(item, ENVIRONMENT_MEMBERS)) return undefined
-  const name = textOf(member(item, 'name'))
-  const source = textOf(member(item, 'source'))
-  if (name === undefined || !VARIABLE_NAME.test(name)) return undefined
-  if (source !== 'setting' && source !== 'credential') return undefined
-  return { name, source }
-}
-
-export function launchesLocalCommand(definition: EndpointDefinition): boolean {
-  return definition.transport.kind === 'stdio'
+  return succeed({ name, transport: { kind: 'streamable-http' }, auth })
 }
 
 const TARGET = 'setting:placement-identity:target'
 const CREDENTIAL = 'setting:placement-identity:credential'
 const CONNECT_TIMEOUT = 'setting:preference:connect-timeout'
-const ENV_PREFIX = 'setting:placement-identity:env.'
 
 function declarationsOf(definition: EndpointDefinition): readonly string[] {
-  const env =
-    definition.transport.kind === 'stdio'
-      ? definition.transport.launch.env
-          .filter(binding => binding.source === 'setting')
-          .map(binding => `${ENV_PREFIX}${binding.name}`)
-      : []
-  return [
-    ...(definition.transport.kind === 'streamable-http' ? [TARGET] : []),
-    ...(definition.auth === 'none' ? [] : [CREDENTIAL]),
-    ...env,
-    CONNECT_TIMEOUT,
-  ]
+  return [TARGET, ...(definition.auth === 'none' ? [] : [CREDENTIAL]), CONNECT_TIMEOUT]
 }
 
 const SCHEMA_LIMITS = {

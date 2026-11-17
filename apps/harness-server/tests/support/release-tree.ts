@@ -110,7 +110,7 @@ export function toolCallsThenText(
   }
 }
 
-function withHistoryKinds(layer: unknown): unknown {
+function withHistoryKinds(layer: unknown, extra: readonly string[] = []): unknown {
   const { ops } = layer as { ops: Readonly<{ kind: string; id: string; config?: object }>[] }
   return {
     ops: ops.map(op =>
@@ -126,6 +126,7 @@ function withHistoryKinds(layer: unknown): unknown {
                 'message.compaction',
                 'run.started',
                 'run.terminal',
+                ...extra,
               ],
             },
           }
@@ -358,6 +359,42 @@ export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
     .sort((left, right) => Number(left.entry?.ordinal ?? 0) - Number(right.entry?.ordinal ?? 0))
 }
 
+export type ToolCallFacts = Readonly<{
+  arguments: string
+  starts: number
+  accounts: readonly string[]
+}>
+
+/** Per call of the Tool ledger: its admitted effective arguments, its start operations and its account events. */
+export function toolCallFacts(storageRoot: string): ReadonlyMap<string, ToolCallFacts> {
+  const args = new Map<string, string>()
+  const starts = new Map<string, number>()
+  const accounts = new Map<string, string[]>()
+  for (const row of ledgerRows(storageRoot)) {
+    const record = row.record as {
+      kind: string
+      call?: { call: string; request: { arguments: { effective: string } } }
+      operation?: { call: string; operation: string }
+      account?: { call: string; event: string }
+    }
+    if (record.kind === 'call' && record.call !== undefined)
+      args.set(record.call.call, record.call.request.arguments.effective)
+    if (record.kind === 'operation' && record.operation?.operation.endsWith('/start') === true)
+      starts.set(record.operation.call, (starts.get(record.operation.call) ?? 0) + 1)
+    if (record.kind === 'account' && record.account !== undefined)
+      accounts.set(record.account.call, [
+        ...(accounts.get(record.account.call) ?? []),
+        record.account.event,
+      ])
+  }
+  return new Map(
+    [...args].map(([call, value]) => [
+      call,
+      { arguments: value, starts: starts.get(call) ?? 0, accounts: accounts.get(call) ?? [] },
+    ]),
+  )
+}
+
 export type ToolCallLedger = Readonly<{
   call: string
   tool: string
@@ -445,6 +482,8 @@ export type ReleaseTreeOptions = Readonly<{
   observationPolicy?: Readonly<Record<string, number>>
   compactionProvider?: ContextCompactionRowInput
   compactionTriggerPercent?: string
+  /** History kinds read through session/v1 besides the five every tree reads. */
+  extraHistoryKinds?: readonly string[]
 }>
 
 export async function onReleaseTree(
@@ -460,16 +499,23 @@ export async function onReleaseTreeRuns(
   bodies: readonly ((tree: ReleaseTree) => Promise<void>)[],
 ): Promise<readonly (number | undefined)[]> {
   const dir = newScratch('release-tree-')
-  const port = await freePort()
+  let port = await freePort()
   const home = join(dir.base, 'home')
   const gateway = await startModelGateway(options.script)
   gateway.trustInProcess()
   const exitCodes: (number | undefined)[] = []
+  const serve = async (run: number, body: (tree: ReleaseTree) => Promise<void>) => {
+    for (let attempt = 1; ; attempt += 1) {
+      const state = { dir, port, home, modelRoute: gateway.url }
+      const outcome = await serveOnce(options, state, run === 0, body)
+      if (outcome !== PORT_TAKEN) return outcome
+      if (attempt === PORT_ATTEMPTS)
+        throw new Error(`port ${String(port)} was taken on ${String(PORT_ATTEMPTS)} starts`)
+      if (run === 0) port = await freePort()
+    }
+  }
   try {
-    for (const [run, body] of bodies.entries())
-      exitCodes.push(
-        await serveOnce(options, { dir, port, home, modelRoute: gateway.url }, run === 0, body),
-      )
+    for (const [run, body] of bodies.entries()) exitCodes.push(await serve(run, body))
   } finally {
     await gateway.close()
     dir.remove()
@@ -480,6 +526,17 @@ export async function onReleaseTreeRuns(
 // An idle machine starts the release tree in four to five seconds. The limit stays far above that, so a
 // busy machine does not turn a slow start into a failed one; the test's own timeout is the bound.
 const READINESS_TIMEOUT_MS = 100_000
+const SHUTDOWN_DEADLINE_MS = 100_000
+
+// Any socket may take the probed port before the server binds it. Such a start accepted nothing, so it
+// is started again: the first run on a new port, a later run on the port its saved clients know.
+const PORT_ATTEMPTS = 5
+const PORT_TAKEN = Symbol('port taken')
+
+function lostThePort(started: S0Record | undefined): boolean {
+  const failure = started?.['startFailure'] as { detail?: unknown } | undefined
+  return started?.['outcome'] === 'start-failed' && String(failure?.detail).includes('EADDRINUSE')
+}
 
 type ReleaseState = Readonly<{
   dir: ReturnType<typeof newScratch>
@@ -493,7 +550,7 @@ async function serveOnce(
   state: ReleaseState,
   register: boolean,
   body: (tree: ReleaseTree) => Promise<void>,
-): Promise<number | undefined> {
+): Promise<number | undefined | typeof PORT_TAKEN> {
   const { dir, port, home } = state
   const controller = new AbortController()
   const records: S0Record[] = []
@@ -532,6 +589,7 @@ async function serveOnce(
               operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: state.modelRoute }),
               options,
             ),
+            options.extraHistoryKinds,
           ),
           options.queueCapacity,
         ),
@@ -550,7 +608,7 @@ async function serveOnce(
     stateRoot: dir.stateRoot,
     stop: controller.signal,
     readinessTimeoutMs: READINESS_TIMEOUT_MS,
-    shutdownDeadlineMs: 5000,
+    shutdownDeadlineMs: SHUTDOWN_DEADLINE_MS,
     write: record => {
       records.push(record)
       if (record.kind === 'startup-result') startup.resolve(record)
@@ -563,6 +621,10 @@ async function serveOnce(
   )
   try {
     const started = await startup.promise
+    if (lostThePort(started)) {
+      await finished.catch(() => undefined)
+      return PORT_TAKEN
+    }
     if (started?.['accepting'] !== true)
       throw new Error(`the server did not start accepting: ${JSON.stringify(started ?? null)}`)
     if (

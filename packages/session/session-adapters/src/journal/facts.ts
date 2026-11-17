@@ -546,9 +546,9 @@ export function factKey(fact: FactBody): string {
     case 'call.associated':
       return `associated/${fact.action}`
     case 'result.received':
-      return fact.result.delivery === 'account'
-        ? `account/${fact.delivery}`
-        : `received/${fact.consumption}`
+      if (fact.result.delivery === 'account') return `account/${fact.delivery}`
+      if (fact.result.delivery === 'placeholder') return `placeholder/${fact.consumption}`
+      return `received/${fact.consumption}`
     case 'result.handled':
       return `handled/${fact.consumption}/${fact.stage}`
     case 'reply.judged':

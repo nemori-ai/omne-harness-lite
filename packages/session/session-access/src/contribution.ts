@@ -33,6 +33,7 @@ import {
   type Target,
 } from './answers.ts'
 import { retryRun } from './retry-run.ts'
+import { backgroundCall, listBackgroundCalls } from './background-calls.ts'
 import type {
   DefinitionResolver,
   PrincipalFacts,
@@ -382,14 +383,6 @@ export function createSessionContribution(
       }),
     )
     if (result === 'unknown') return { outcome: 'unknown' }
-    if (producer.kind === 'tool') {
-      if ('failure' in result) {
-        const { kind } = result.failure
-        if (kind === 'denied') return { outcome: 'denied' }
-        if (kind === 'unavailable' || kind === 'quarantined') return UNAVAILABLE
-      }
-      return { outcome: 'unsupported', body: {} }
-    }
     if ('failure' in result) return refused('stop-call', result.failure)
     const saved = result.ok.answer
     switch (saved.kind) {
@@ -426,6 +419,8 @@ export function createSessionContribution(
       'cancel-run': (call, body) => cancelRun(call.principal, body),
       'stop-call': (call, body) => stopCall(call.principal, body),
       'retry-run': (call, body) => retryRun({ admit, factOf }, call.principal, body),
+      'background-call': (call, body) => backgroundCall({ admit, factOf }, call.principal, body),
+      'list-background-calls': (call, body) => listBackgroundCalls({ admit }, call.principal, body),
       'list-sessions': (call, body) => listSessions(call.principal, body),
     },
     observations: {

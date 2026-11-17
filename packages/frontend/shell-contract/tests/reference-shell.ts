@@ -2,6 +2,7 @@ import { Context, type Fiber } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
 import {
   createSlotStore,
+  type AttachedLayout,
   type ItemOf,
   type ScopeSource,
   type ShellLogin,
@@ -41,6 +42,18 @@ export class ReferenceShell extends ShellService implements ShellSlots {
     return this.items('attached')
       .filter(item => item.anchor === anchor)
       .map(item => item.render({ scope: this.scope.get(), subject }))
+  }
+
+  arranged(anchor: string, subject: string, layout: AttachedLayout): ReactNode {
+    return layout(
+      this.items('attached')
+        .filter(item => item.anchor === anchor)
+        .map(item => ({
+          id: item.id,
+          label: item.label,
+          node: item.render({ scope: this.scope.get(), subject }),
+        })),
+    )
   }
 
   protected place<K extends SlotName>(slot: K, item: ItemOf<K>): () => void {

@@ -18,6 +18,7 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { SessionFaces, SessionTransactionPort } from '@omne-harness/session-contract'
 import { memoryOtherAccess } from '@omne-harness/session-contract/testing'
+import { backgroundInputId } from '@omne-harness/session-contract'
 import {
   SessionService,
   sessionTransactionsKey,
@@ -77,7 +78,8 @@ function textOf(tenant: TenantId): string {
 
 function deliveryOf(draft: Draft): Record<string, unknown> {
   const { delivery } = draft
-  if (delivery.producer !== 'tool') throw new Error('fixture: a Tool entry')
+  if (delivery.producer !== 'tool' || !('account' in delivery))
+    throw new Error('fixture: a Tool entry with an account')
   return delivery.key.kind === 'result'
     ? {
         kind: 'result',
@@ -115,7 +117,11 @@ const reader: ToolDeliveryReader = material => {
 }
 
 function resultEntry(account: ReceivedEntry, reported = true): ReceivedEntry {
-  if (account.delivery.producer !== 'tool' || account.delivery.key.kind !== 'account')
+  if (
+    account.delivery.producer !== 'tool' ||
+    account.delivery.key.kind !== 'account' ||
+    !('account' in account.delivery)
+  )
     throw new Error('fixture: a Tool account entry')
   return {
     ...account,
@@ -165,7 +171,14 @@ async function toolScene(name: string, bind = true) {
       }),
     )
   if (bind) await bindCall()
-  return { ...s, name, account: tool.entry, result: resultEntry(tool.entry), bindCall }
+  return {
+    ...s,
+    name,
+    account: tool.entry,
+    result: resultEntry(tool.entry),
+    call: tool.call,
+    bindCall,
+  }
 }
 type ToolScene = Awaited<ReturnType<typeof toolScene>>
 
@@ -740,7 +753,7 @@ describe('the material check: what the entry does not name is never an execution
       (s: ToolScene) => s.result,
       (entry: ReceivedEntry): ReceivedEntry => {
         const { delivery } = entry
-        if (delivery.producer !== 'tool' || delivery.account === null)
+        if (delivery.producer !== 'tool' || !('account' in delivery) || delivery.account === null)
           throw new Error('fixture: a Tool delivery with an account')
         const subject = { ...delivery.account.subject, id: 'tcall_other' }
         return { ...entry, delivery: { ...delivery, account: { ...delivery.account, subject } } }
@@ -752,7 +765,12 @@ describe('the material check: what the entry does not name is never an execution
       (s: ToolScene) => s.account,
       (entry: ReceivedEntry): ReceivedEntry => {
         const { delivery } = entry
-        if (delivery.producer !== 'tool' || delivery.key.kind !== 'account' || !delivery.account)
+        if (
+          delivery.producer !== 'tool' ||
+          delivery.key.kind !== 'account' ||
+          !('account' in delivery) ||
+          !delivery.account
+        )
           throw new Error('fixture: a Tool account delivery')
         const key = { ...delivery.key, revision: '1' }
         return { ...entry, delivery: { producer: 'tool', key, account: delivery.account } }
@@ -1083,5 +1101,128 @@ describe('loading and stopping on real Cordis 4.0.4', () => {
     })
     expect(f.commits).toHaveLength(1)
     expect(await progressOf(s)).toMatchObject({ through: '1' })
+  })
+})
+
+describe('a backgrounded call: the placeholder and the outcome', () => {
+  const VISIBLE = { toHuman: true, toModel: true }
+  const CONTENT = { kind: 'text', id: 'blk_bg_out', visibility: VISIBLE, text: 'done' }
+
+  function placeholderEntry(s: ToolScene): ReceivedEntry {
+    if (s.account.delivery.producer !== 'tool') throw new Error('fixture: a Tool entry')
+    const { reference } = s.account.delivery.key
+    return {
+      ...s.account,
+      delivery: { producer: 'tool', key: { kind: 'placeholder', producer: 'tool', reference } },
+    }
+  }
+
+  function placeholderMaterial(s: ToolScene, entry: ReceivedEntry): Material<ContentBlock> {
+    return {
+      kind: 'facts',
+      schema: SCHEMA,
+      value: json({
+        tenant: textOf(s.access.tenant),
+        delivery: {
+          kind: 'placeholder',
+          key: entry.delivery.key,
+          consumer: entry.consumer,
+          delivery: 'tdel_0',
+          source: { kind: 'control', operation: 'top_background' },
+          evidence: evidence('tool-placeholder'),
+        },
+      }),
+    }
+  }
+
+  const resultMaterial = (s: ToolScene) =>
+    materialOf(s.access.tenant, s.result, value => ({
+      ...value,
+      delivery: {
+        ...(value.delivery as Record<string, unknown>),
+        value: {
+          content: [CONTENT],
+          data: { kind: 'none' },
+          original: { kind: 'none' },
+          attachments: [],
+        },
+      },
+    }))
+
+  const producerOf = (s: ToolScene) => ({
+    kind: 'tool' as const,
+    call: s.account.delivery.key.reference,
+  })
+
+  async function placed(name: string) {
+    const s = await toolScene(name)
+    const entry = placeholderEntry(s)
+    await receive(s, entry, 'placeholder', placeholderMaterial(s, entry))
+    return s
+  }
+
+  it('a placeholder commits call.backgrounded and lists the consumption among the placeholders', async () => {
+    const s = await placed('bg-placeholder')
+    const f = await assembled(s)
+    expect(ok(await f.consume())).toMatchObject({ committed: true, progress: { through: '1' } })
+    expect(entriesKinds(s)).toEqual(['call.backgrounded', 'entries.interpreted'])
+    expect(f.commits[0]!.observation.items[0]!.interpretation).toEqual([
+      {
+        kind: 'backgrounded',
+        producer: producerOf(s),
+        source: f.commits[0]!.observation.items[0]!.fact,
+      },
+    ])
+    const work = ok(await s.backend.transactions.readWork(s.access))
+    expect(work.backgroundPlaceholders).toEqual([s.account.consumption])
+  })
+
+  it('the outcome settles and accepts one system reminder in one commit; a replay adds nothing', async () => {
+    const s = await placed('bg-outcome')
+    const f = await assembled(s)
+    ok(await f.consume())
+    await receive(s, s.result, 'result', resultMaterial(s))
+    const before = s.backend.controls.entriesOf(s.access.tenant, s.access.session).length
+    expect(ok(await f.consume())).toMatchObject({ committed: true, progress: { through: '2' } })
+    const added = s.backend.controls.entriesOf(s.access.tenant, s.access.session).slice(before)
+    expect(added.map(entry => entry.kind)).toEqual([
+      'call.execution-fact',
+      'account.linked',
+      'call.background-settled',
+      'message.system_reminder',
+      'intake.routed',
+      'entries.interpreted',
+    ])
+    expect(new Set(added.map(entry => entry.revision)).size).toBe(1)
+    const input = backgroundInputId(producerOf(s), 'tres_1')
+    const work = ok(await s.backend.transactions.readWork(s.access))
+    expect(work.backgroundPlaceholders).toEqual([])
+    expect(work.pending.filter(item => item === input)).toHaveLength(1)
+    const stored = ok(await s.backend.transactions.readInput({ ...s.access, input }))
+    expect(stored.message.role).toBe('system_reminder')
+    const [head, ...rest] = stored.message.blocks
+    expect(head).toMatchObject({ kind: 'text' })
+    expect((head as { text: string }).text).toContain(`The background call ${s.call} completed`)
+    expect(rest).toEqual([CONTENT])
+
+    expect(ok(await f.consume())).toMatchObject({ committed: false })
+    const again = ok(await s.backend.transactions.readWork(s.access))
+    expect(again.pending.filter(item => item === input)).toHaveLength(1)
+    expect(s.backend.controls.entriesOf(s.access.tenant, s.access.session)).toHaveLength(
+      before + added.length,
+    )
+  })
+
+  it('a placeholder and the outcome read in one range commit together', async () => {
+    const s = await placed('bg-range')
+    await receive(s, s.result, 'result', resultMaterial(s))
+    const f = await assembled(s)
+    ok(await f.consume())
+    expect(f.commits).toHaveLength(1)
+    expect(
+      f.commits[0]!.observation.items.map(item => item.interpretation.map(part => part.kind)),
+    ).toEqual([['backgrounded'], ['execution', 'account', 'background-outcome']])
+    const work = ok(await s.backend.transactions.readWork(s.access))
+    expect(work.pending).toContain(backgroundInputId(producerOf(s), 'tres_1'))
   })
 })

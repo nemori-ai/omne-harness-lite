@@ -9,13 +9,13 @@ import {
   type Judgment,
 } from '@omne-harness/assets'
 import { isPackageDigest } from './digest.ts'
+import { skillLayout } from './layout.ts'
 import { isSkillName } from './names.ts'
 import {
   DESCRIPTION_LIMIT,
   fieldsOf,
   firstFinding,
   isSkillDescription,
-  readScripts,
   readSettings,
   unknownKeys,
   type Finding,
@@ -30,8 +30,7 @@ const schemaRead = readBodyText(
       name: 'string',
       description: 'string',
       tools: { category: 'tool', name: 'string' },
-      scripts: { entry: 'string', runKind: 'string', facilities: 'string[]', parameters: 'json' },
-      settings: { name: 'string', category: 'preference|binding|placement-identity|governance' },
+      settings: { name: 'string', category: 'preference|binding' },
       package: { digest: 'string' },
     },
   }),
@@ -51,6 +50,7 @@ export function skillBodyContract(): BodyContract {
   return {
     category: 'skill',
     schema,
+    layout: skillLayout,
     judge,
     deriveDeclarations(body, context) {
       const decision = judge(body, context)
@@ -99,9 +99,8 @@ function extensionOf(body: unknown): Read<readonly SettingDeclaration[]> {
       code: 'malformed',
       detail: `description is not text of 1 to ${DESCRIPTION_LIMIT} characters`,
     })
-  const scripts = readScripts(field(body, 'scripts'), { normalized: true })
   const settings = readSettings(field(body, 'settings'))
-  findings.push(...scripts.findings, ...settings.findings)
+  findings.push(...settings.findings)
   const pack = field(body, 'package')
   if (pack !== undefined) {
     const fields = fieldsOf(pack)

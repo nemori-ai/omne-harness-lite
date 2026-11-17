@@ -16,7 +16,7 @@ import { createConnectionTable } from '../src/internal/table.ts'
 import { countedAdoption, countedEligibility } from './doubles/ports.ts'
 import { jsonOf, peerIdentityOf, endpointRefOf } from '@omne-harness/mcp-contract/testing'
 import { alice, bob, home, mallory } from './doubles/identities.ts'
-import { TIMEOUT, VALUE, adoptStdio, settingsOf, world } from './doubles/world.ts'
+import { TIMEOUT, VALUE, adoptHttp, settingsOf, world } from './doubles/world.ts'
 
 const files = endpointRefOf('files')
 const nowhere = endpointRefOf('nowhere')
@@ -37,17 +37,17 @@ function gateOf(w = world({ script: [{ discover: peerIdentityOf() }] })) {
 describe('admitForUse: the six answers', () => {
   it('admits an adopted endpoint that the principal is eligible for', async () => {
     const { w, gate } = gateOf()
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const admitted = await admitForUse(gate, alice, files)
     if (!('ok' in admitted)) throw new Error('not admitted')
     expect(admitted.ok.ref).toEqual(files)
-    expect(admitted.ok.definition.transport.kind).toBe('stdio')
+    expect(admitted.ok.definition.transport.kind).toBe('streamable-http')
     expect(() => assertAdmitted(admitted.ok)).not.toThrow()
   })
 
   it('answers not-available-to-you for an endpoint that is not adopted, without asking eligibility', async () => {
     const { w, gate } = gateOf()
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     w.eligibility.grant(alice, nowhere)
     expect(await admitForUse(gate, alice, nowhere)).toEqual({
       failure: { kind: 'not-available-to-you' },
@@ -57,7 +57,7 @@ describe('admitForUse: the six answers', () => {
 
   it('answers unknown when the adoption cannot be read, before asking eligibility', async () => {
     const { w, gate } = gateOf()
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     w.adoption.setUnreadable(true)
     expect(await admitForUse(gate, alice, files)).toEqual({ failure: { kind: 'unknown' } })
     expect(w.eligibility.calls()).toBe(0)
@@ -72,7 +72,7 @@ describe('admitForUse: the six answers', () => {
 
   it('answers not-available-to-you to a principal without eligibility', async () => {
     const { w, gate } = gateOf()
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     expect(await admitForUse(gate, bob, files)).toEqual({
       failure: { kind: 'not-available-to-you' },
     })
@@ -80,18 +80,18 @@ describe('admitForUse: the six answers', () => {
 
   it('answers the same to an outsider for an adopted and a missing endpoint', async () => {
     const { w, gate } = gateOf()
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const forAdopted = await admitForUse(gate, mallory, files)
     const forMissing = await admitForUse(gate, mallory, nowhere)
     expect(forAdopted).toEqual({ failure: { kind: 'not-available-to-you' } })
     expect(forMissing).toEqual(forAdopted)
   })
 
-  it.each(['local-command-not-enabled', 'disabled'] as const)(
+  it.each(['disabled'] as const)(
     'answers blocked with %s to an eligible principal a setting blocks',
     async reason => {
       const { w, gate } = gateOf()
-      adoptStdio(w, files)
+      adoptHttp(w, files, { auth: 'none' })
       w.eligibility.block(alice, files, reason)
       expect(await admitForUse(gate, alice, files)).toEqual({
         failure: { kind: 'blocked', reason },
@@ -101,14 +101,14 @@ describe('admitForUse: the six answers', () => {
 
   it('answers unknown when eligibility cannot be decided', async () => {
     const { w, gate } = gateOf()
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     w.eligibility.setUnreadable(alice, files, true)
     expect(await admitForUse(gate, alice, files)).toEqual({ failure: { kind: 'unknown' } })
   })
 
   it('asks the adoption once and eligibility once for an admitted endpoint', async () => {
     const { w, gate } = gateOf()
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     await admitForUse(gate, alice, files)
     expect(w.adoption.calls()).toBe(1)
     expect(w.eligibility.calls()).toBe(1)
@@ -118,7 +118,7 @@ describe('admitForUse: the six answers', () => {
 describe('admitForUse: the close of invariant 6', () => {
   async function connected() {
     const { w, gate, table } = gateOf()
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const admitted = await admitForUse(gate, alice, files)
     if (!('ok' in admitted)) throw new Error('not admitted')
     const ensured = await table.ensure(admitted.ok, alice)
@@ -133,7 +133,7 @@ describe('admitForUse: the close of invariant 6', () => {
       failure: { kind: 'blocked', reason: 'disabled' },
     })
     expect(table.stateOf(alice.tenant, files.holding)).toEqual({ kind: 'none' })
-    expect(w.trace).toEqual(['transport.close', 'process.stop'])
+    expect(w.trace).toEqual(['transport.close'])
   })
 
   it('closes the connection of an endpoint that was withdrawn', async () => {
@@ -160,9 +160,9 @@ describe('admitForUse: the close of invariant 6', () => {
 describe('stillAdmitted: the gate at the publish boundary', () => {
   it('is admitted on the same revision, superseded on a newer one, refused like the gate', async () => {
     const { w, gate } = gateOf()
-    const adopted = adoptStdio(w, files)
+    const adopted = adoptHttp(w, files, { auth: 'none' })
     expect(await stillAdmitted(gate, alice, files, adopted.revision)).toEqual({ ok: 'admitted' })
-    const updated = w.adoption.update(home, files, { processEnv: [{ name: 'X', value: '1' }] })
+    const updated = w.adoption.update(home, files, {})
     expect(await stillAdmitted(gate, alice, files, adopted.revision)).toEqual({ ok: 'superseded' })
     expect(await stillAdmitted(gate, alice, files, updated.revision)).toEqual({ ok: 'admitted' })
     w.eligibility.revoke(alice, files)
@@ -241,18 +241,13 @@ describe('AdmittedEndpoint', () => {
 describe('judge: only a token this gate handed out', () => {
   it('throws TypeError for a copy of an adopted-only token with another definition, and starts nothing', async () => {
     const w = world({ script: [{ discover: peerIdentityOf() }] })
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const shell = endpointRefOf('shell')
     w.adoption.adopt({
       tenant: home,
       scope: 'ws',
       ref: shell,
-      body: jsonOf({
-        name: 'shell',
-        transport: 'stdio',
-        auth: 'none',
-        launch: { command: 'not-the-adopted-command' },
-      }),
+      body: jsonOf({ name: 'shell', transport: 'streamable-http', auth: 'static' }),
       settings: settingsOf({ connectTimeout: VALUE(TIMEOUT) }),
     })
     const own = await adopted(w.ports, alice, files)
@@ -263,7 +258,7 @@ describe('judge: only a token this gate handed out', () => {
       definition: other.ok.definition,
     }) as AdoptedOnly
     await expect(judge(w.ports, alice, forged)).rejects.toThrow(TypeError)
-    expect(w.landing.started()).toEqual([])
+    expect(w.transports.calls).toEqual([])
     expect(w.eligibility.calls()).toBe(0)
   })
 

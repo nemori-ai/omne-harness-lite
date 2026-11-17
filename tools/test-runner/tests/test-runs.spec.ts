@@ -20,13 +20,7 @@ import {
   ownerOf,
   workspacePatterns,
 } from '@omne-harness/repo-toolchain/core/workspace'
-import {
-  effectiveParallelism,
-  ledgerHome,
-  parseTestRunsConfig,
-  readTestRunsConfig,
-  workerCountOverride,
-} from '../src/testing/config.ts'
+import { ledgerHome, parseTestRunsConfig, readTestRunsConfig } from '../src/testing/config.ts'
 import { buildLedger, ledgerSummary, type MemberRun } from '../src/testing/ledger.ts'
 import { readLoopConfig } from '@omne-harness/repo-toolchain/loop/config'
 import type { TimingReport } from '../src/testing/timing-reporter.ts'
@@ -175,14 +169,8 @@ const AFFECTED_EMPTY = {
 }
 
 const POLICY = {
-  memberDivisor: 3,
-  workerDivisor: 4,
   maxWorkersPerMember: 8,
-  minimum: 2,
-  memoryPerWorkerMiB: 512,
-  sampleMs: 0,
   reserveCores: 2,
-  concurrentRuns: 2,
 }
 
 describe('并行度', () => {
@@ -193,33 +181,28 @@ describe('并行度', () => {
     triage: { repeats: 3 },
     cache: CACHE_EMPTY,
   })
-  const budget = {
-    workers: 20,
-    machine: { cores: 24, idleFraction: 0.85, freeMemoryMiB: 65536 },
-    source: 'sampled' as const,
-  }
-
-  it('预算按策略推出并行度，环境变量覆盖', () => {
-    expect(effectiveParallelism(config, {}, budget)).toEqual({
-      memberConcurrency: 7,
-      vitestMaxWorkers: 5,
+  const withTokens = (tokensPerWorker: unknown) =>
+    parseTestRunsConfig({
+      parallel: { ...POLICY, tokensPerWorker },
+      affected: AFFECTED_EMPTY,
+      ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
+      triage: { repeats: 3 },
+      cache: CACHE_EMPTY,
     })
-    expect(
-      effectiveParallelism(
-        config,
-        { OMNE_TEST_MEMBER_CONCURRENCY: '1', VITEST_MAX_WORKERS: '8' },
-        budget,
-      ),
-    ).toEqual({ memberConcurrency: 1, vitestMaxWorkers: 8 })
+
+  it('每个进程要的令牌数：不写时为空表；写了的原样进配置', () => {
+    expect(config.parallel.tokensPerWorker).toEqual([])
+    const entry = { member: 'apps/a', tier: 'slow', tokens: 1.5, why: '量过' }
+    expect(withTokens([entry]).parallel.tokensPerWorker).toEqual([entry])
   })
 
-  it('环境变量不是正整数就报错，不悄悄回落', () => {
-    expect(() =>
-      effectiveParallelism(config, { OMNE_TEST_MEMBER_CONCURRENCY: '0' }, budget),
-    ).toThrow('OMNE_TEST_MEMBER_CONCURRENCY')
-    expect(() => effectiveParallelism(config, { VITEST_MAX_WORKERS: '50%' }, budget)).toThrow(
-      'VITEST_MAX_WORKERS',
-    )
+  it('每个进程要的令牌数：不是 0.5 的倍数、层名不对、成员与层重复、缺来历都报错', () => {
+    const entry = { member: 'apps/a', tier: 'slow', tokens: 2, why: '量过' }
+    expect(() => withTokens([{ ...entry, tokens: 1.2 }])).toThrow('0.5 的倍数')
+    expect(() => withTokens([{ ...entry, tokens: 0 }])).toThrow('tokens')
+    expect(() => withTokens([{ ...entry, tier: 'medium' }])).toThrow('tier')
+    expect(() => withTokens([entry, { ...entry, tokens: 3 }])).toThrow('重复')
+    expect(() => withTokens([{ ...entry, why: '' }])).toThrow('why')
   })
 
   it('triage.repeats 原样进配置；缺 triage 段、缺这一项或不是正整数时按名字报错', () => {
@@ -238,13 +221,13 @@ describe('并行度', () => {
     expect(() => parseTestRunsConfig({})).toThrow()
     expect(() =>
       parseTestRunsConfig({
-        parallel: { ...POLICY, memberDivisor: 0 },
+        parallel: { ...POLICY, maxWorkersPerMember: 0 },
         affected: AFFECTED_EMPTY,
         ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
         triage: { repeats: 3 },
         cache: CACHE_EMPTY,
       }),
-    ).toThrow('parallel.memberDivisor')
+    ).toThrow('parallel.maxWorkersPerMember')
     expect(() =>
       parseTestRunsConfig({
         parallel: { memberConcurrency: 2, vitestMaxWorkers: 4 },
@@ -253,31 +236,34 @@ describe('并行度', () => {
         triage: { repeats: 3 },
         cache: CACHE_EMPTY,
       }),
-    ).toThrow('parallel.memberDivisor')
+    ).toThrow('parallel.maxWorkersPerMember')
     expect(() =>
       parseTestRunsConfig({
-        parallel: { ...POLICY, minimum: 9, maxWorkersPerMember: 8 },
+        parallel: { ...POLICY, reserveCores: -1 },
         affected: AFFECTED_EMPTY,
         ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
         triage: { repeats: 3 },
         cache: CACHE_EMPTY,
       }),
-    ).toThrow('parallel.minimum 不能大于')
+    ).toThrow('parallel.reserveCores')
   })
 
-  it('Stryker 的进程数：VITEST_MAX_WORKERS 已设时以它为准，否则取给的预算', () => {
-    expect(workerCountOverride({}, 19)).toBe(19)
-    expect(workerCountOverride({ VITEST_MAX_WORKERS: '1' }, 19)).toBe(1)
-    expect(() => workerCountOverride({ VITEST_MAX_WORKERS: 'x' }, 19)).toThrow('VITEST_MAX_WORKERS')
-  })
-
-  it('仓库里的配置：策略不含任何一台机器的核数，上下限齐全', () => {
+  it('仓库里的配置：策略不含任何一台机器的核数，上下限齐全；退役的常数不再出现', () => {
     const { parallel } = readTestRunsConfig()
-    expect(parallel.memberDivisor).toBeGreaterThan(1)
-    expect(parallel.workerDivisor).toBeGreaterThan(1)
-    expect(parallel.minimum).toBeGreaterThanOrEqual(1)
-    expect(parallel.maxWorkersPerMember).toBeGreaterThanOrEqual(parallel.minimum)
-    expect(parallel.memoryPerWorkerMiB).toBeGreaterThan(0)
+    expect(parallel.maxWorkersPerMember).toBeGreaterThanOrEqual(1)
+    expect(parallel.reserveCores).toBeGreaterThanOrEqual(0)
+    const raw = JSON.parse(
+      readFileSync(join(ROOT, 'tools/test-runner/test-runs.config.json'), 'utf8'),
+    ) as { parallel: Record<string, unknown> }
+    for (const retired of [
+      'memberDivisor',
+      'workerDivisor',
+      'minimum',
+      'memoryPerWorkerMiB',
+      'sampleMs',
+      'concurrentRuns',
+    ])
+      expect(Object.keys(raw.parallel)).not.toContain(retired)
   })
 })
 

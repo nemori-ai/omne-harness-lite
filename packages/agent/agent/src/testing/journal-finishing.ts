@@ -629,7 +629,7 @@ function interruptionsOf(effect: EffectIntent, source: ObligationSource): AgentO
       const command = control.command
       if (command.kind === 'interrupt-model')
         return pending.kind === 'model' && callOfModel(pending.reference, source) === command.call
-      if (command.kind === 'interrupt-tool' || command.kind === 'background-tool')
+      if (command.kind.endsWith('-tool'))
         return (
           pending.kind === 'tool' &&
           pending.association === 'associated' &&

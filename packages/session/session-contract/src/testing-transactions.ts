@@ -81,6 +81,7 @@ import {
 import { decodeEntry } from './entries.ts'
 import { reduce } from './reduce.ts'
 import { digestSessionEntries, projectSessionEntries } from './entries-interpretation.ts'
+import { admittedInputs, withInputs } from './testing-inputs.ts'
 import { digestSessionLog, executionReadThrough } from './log-interpretation.ts'
 import type {
   SessionEntriesObservation,
@@ -449,14 +450,6 @@ function firstInputRead(
   return stored === undefined ? {} : { firstInput: { input: stored.input, origin: stored.origin } }
 }
 
-function admittedInput(command: SessionCommand): Extract<RoutedInput, { kind: 'ordinary' }> | null {
-  if (command.kind === 'accept' && command.input.value.kind === 'ordinary')
-    return command.input.value
-  if (command.kind === 'create') return command.input.creation.initial
-  if (command.kind === 'interrupt') return command.input.urgent
-  return null
-}
-
 function sameProducer(left: ProducerRef, right: ProducerRef): boolean {
   return left.kind === right.kind && left.call === right.call
 }
@@ -639,8 +632,6 @@ export function createMemorySessionTransactionPair<P>(
       const qualification = await qualify(mutationAccessRequest(input.access, command))
       if ('failure' in qualification) return fail(qualification.failure)
       const accessEvidence = qualification.ok
-      if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
-        return fail({ kind: 'unsupported' })
       const key = keyOf(command.input.tenant, command.input.session)
       if ('failure' in key) return key
       const store = stores.get(key.ok)
@@ -829,9 +820,7 @@ export function createMemorySessionTransactionPair<P>(
           ? { form: 'control' as const }
           : {}),
       })
-      const inputs = new Map(store?.inputs)
-      const admitted = admittedInput(command)
-      if (admitted !== null) inputs.set(admitted.input, admitted)
+      const inputs = withInputs(store?.inputs, admittedInputs(command))
       const target: Store = {
         snapshot: committedSnapshot,
         modelView: materializeModelView(
@@ -925,6 +914,7 @@ export function createMemorySessionTransactionPair<P>(
         modelView: materializeModelView(store.modelView, entries, committedEntries),
         entries: committedEntries,
         operations,
+        inputs: withInputs(store.inputs, decision.admitted ?? []),
       })
       return succeed(answer)
     }
@@ -2315,7 +2305,7 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
 
     conformanceCase(
       'XC-INTERRUPT',
-      'stopCall of a Tool target is unsupported before the identity and the session are read',
+      'stopCall of a Tool target takes the same path as a Model target: an unbound call answers not-found and writes nothing',
       async fixture => {
         const s = scene(fixture)
         await s.openRun()
@@ -2342,21 +2332,21 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
             },
             guards: [],
           })
-        expectKind(refused(await stop(used), 'stopCall on a used identity'), 'unsupported', 'used')
-        expectKind(
-          refused(await stop(fixture.operation('fresh')), 'stopCall on a fresh identity'),
-          'unsupported',
-          'fresh',
+        expectKind(refused(await stop(used), 'stopCall on a used identity'), 'conflict', 'used')
+        const fresh = succeeded(
+          await stop(fixture.operation('fresh')),
+          'stopCall of an unbound call',
         )
+        assert.deepEqual(fresh.answer, { kind: 'not-found' }, 'an unbound Tool call is not found')
         expectKind(
           refused(
             await stop(fixture.operation('ghost'), sessionId(`${fixture.access.session}-ghost`)),
             'stopCall on an unknown session',
           ),
-          'unsupported',
+          'denied',
           'unknown session',
         )
-        assert.deepEqual(await s.readWork(), before, 'a refusal writes nothing')
+        assert.equal((await s.readWork()).revision, before.revision, 'no revision advanced')
       },
     ),
 

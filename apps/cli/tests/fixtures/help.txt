@@ -15,6 +15,7 @@ Commands
   omne read-session-diagnostics --session <id>                                                                    Read the diagnostics of the runs of a session.
   omne cancel-run --session <id> --run <id>                                                                       Cancel a run.
   omne stop-call --session <id> --producer-kind <kind> --call <id>                                                Stop a model or tool call.
+  omne calls list|show|output|stop|background                                                                     List the background tool calls of a session, read one, or stop or background it.
   omne list-cards                                                                                                 List the cards that wait for a person.
   omne read-card --request <id> --card <id>                                                                       Read one card.
   omne submit-reply --request <id> --card <id> --revision <name>                                                  Reply to a card with an option, a text or a decline.

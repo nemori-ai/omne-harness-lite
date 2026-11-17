@@ -61,6 +61,7 @@ const UNIMPLEMENTED_WORK = {
   readWork: unimplemented,
   readCurrentScope: unimplemented,
   readWaiting: unimplemented,
+  readBackgroundCalls: unimplemented,
   readInput: unimplemented,
   startRun: unimplemented,
   claim: unimplemented,

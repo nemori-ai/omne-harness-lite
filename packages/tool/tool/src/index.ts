@@ -22,6 +22,7 @@ export {
 export { executeTool, type ExecuteToolFailure } from './execute-tool.ts'
 export { createToolLedger, toolLedgerAdoption, type ToolLedger } from './ledger.ts'
 export { createToolSweep, type CallRemoval, type ToolLedgerSweep } from './ledger-sweep.ts'
+export type { TimerFiring, ToolLedgerTimers } from './ledger-timer-fire.ts'
 export {
   observeToolLedgerCommit,
   type ToolLifecycleObservation,

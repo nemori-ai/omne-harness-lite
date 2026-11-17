@@ -103,6 +103,8 @@ export type ResultView = Readonly<{
   pub: number
 }>
 
+export type ReceivedView = NonNullable<ResultView['received']>
+
 export type AdmissionView = Readonly<{
   sequence: number
   fact: ModelReplyAdmission
@@ -297,6 +299,8 @@ export type ExecutionView = Readonly<{
   voided: readonly FactOf<'intent.voided'>[]
   intents: ReadonlyMap<ActionId, IntentView>
   results: ReadonlyMap<ConsumptionId, ResultView>
+  /** The placeholder a call that went to the background delivered; at most one per call. */
+  placeholders: ReadonlyMap<ConsumptionId, ReceivedView>
   admissions: readonly AdmissionView[]
   handoffs: ReadonlyMap<string, HandoffView>
   batches: ReadonlyMap<ActionBatchId, BatchView>
@@ -385,6 +389,7 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     voided: [],
     intents: new Map(),
     results: new Map(),
+    placeholders: new Map(),
     admissions: [],
     handoffs: new Map(),
     batches: new Map(),
@@ -416,6 +421,14 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
 }
 
 export const handoffKey = (reference: HandoffReference): string => canonical(reference)
+
+/** Every received delivery that holds custody of an entry: results and placeholders. */
+export function receivedViews(view: ExecutionView): readonly ReceivedView[] {
+  return [
+    ...[...view.results.values()].flatMap(item => (item.received === null ? [] : [item.received])),
+    ...view.placeholders.values(),
+  ]
+}
 
 export function openCalls(view: ExecutionView): readonly IntentView[] {
   return [...view.intents.values()].filter(

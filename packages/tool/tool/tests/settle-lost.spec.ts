@@ -403,9 +403,14 @@ describe('decideSettleLost: the records of the lost execution after the commit',
     const { writes } = committed(decideLost(withTasks))
     const key = (owed: Readonly<{ kind: string; operation: string }>) =>
       `task:${owed.kind}:${owed.operation}`
-    expect(writes.filter(write => write.kind !== 'put')).toEqual(
+    // The settlement also drops the foreground timers of the call.
+    expect(writes.filter(write => write.kind === 'delete')).toEqual(
       [...snapshot.tasks, ...superseded, ensure].map(owed => ({ kind: 'delete', key: key(owed) })),
     )
+    expect(writes.filter(write => write.kind === 'unschedule')).toEqual([
+      { kind: 'unschedule', key: 'timer:threshold' },
+      { kind: 'unschedule', key: 'timer:foreground-limit' },
+    ])
   })
 
   it('a wait that is already closed is left as it was: no wait is written and no invalidation is owed', async () => {

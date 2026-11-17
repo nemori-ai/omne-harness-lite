@@ -31,6 +31,7 @@ import {
 } from '../../../vitest.tiers.mts'
 import { RUN_TIERS } from '../src/testing/config.ts'
 import {
+  buildArgs,
   TEST_REPORT_DIR_ENV,
   TIER_TASKS,
   turboTestCommand,
@@ -299,36 +300,29 @@ describe('根上的分层定义', () => {
 })
 
 describe('运行器交给 turbo 的命令', () => {
-  const parallel = { memberConcurrency: 3, vitestMaxWorkers: 2 }
-
   it('每层一个任务，与成员脚本同名', () => {
     expect(TIER_TASKS).toEqual({ fast: 'test:fast', slow: 'test:slow', all: 'test' })
   })
 
-  it('不构建时只跑点名成员的这一层（--only），一个失败不拦其余的；报告目录与工作进程数经环境变量传下去', () => {
-    const command = turboTestCommand(['@a/x', '@a/y'], 'slow', parallel, '/runs/2', {
-      build: false,
-      admission: false,
-    })
-    expect(command.args.slice(0, 4)).toEqual(['run', 'test:slow', '--filter=@a/x', '--filter=@a/y'])
+  it('一个成员一次 turbo，只跑它的这一层（--only），一次一个任务；报告目录与工作进程数经环境变量传下去', () => {
+    const command = turboTestCommand('@a/x', 'slow', 2, '/runs/2')
+    expect(command.args.slice(0, 3)).toEqual(['run', 'test:slow', '--filter=@a/x'])
+    expect(command.args.filter(arg => arg.startsWith('--filter='))).toEqual(['--filter=@a/x'])
     expect(command.args).toEqual(
-      expect.arrayContaining([
-        '--only',
-        '--continue=dependencies-successful',
-        '--concurrency=3',
-        '--summarize',
-      ]),
+      expect.arrayContaining(['--only', '--concurrency=1', '--summarize']),
     )
     expect(command.env[TEST_REPORT_DIR_ENV]).toBe('/runs/2')
     expect(command.env['VITEST_MAX_WORKERS']).toBe('2')
   })
 
-  it('要构建时不带 --only，由 turbo 按依赖构建；准入模式下构建缓存只写不读', () => {
-    const args = (admission: boolean) =>
-      turboTestCommand(['@a/x'], 'fast', parallel, '/runs/3', { build: true, admission }).args
-    expect(args(false)).not.toContain('--only')
-    expect(args(false)).toContain('--cache=local:rw')
-    expect(args(true)).toContain('--cache=local:w')
+  it('测试的 turbo 从不构建（几个成员同时起，不能各自构建共同的上游）；测试前的构建按依赖构建，准入模式下缓存只写不读', () => {
+    for (const tier of RUN_TIERS)
+      expect(turboTestCommand('@a/x', tier, 1, '/runs/3').args).toContain('--only')
+    expect(buildArgs(['@a/x'], false, 4)).toEqual(
+      expect.arrayContaining(['build', '--filter=@a/x', '--concurrency=4', '--cache=local:rw']),
+    )
+    expect(buildArgs(['@a/x'], false, 4)).not.toContain('--only')
+    expect(buildArgs(['@a/x'], true, 4)).toContain('--cache=local:w')
   })
 
   it('类型检查按输入缓存：依赖上游的 typecheck，成员目录外经相对路径读到的文件在全局依赖里；准入模式下缓存只写不读', () => {
@@ -693,7 +687,7 @@ describe('入口的层参数', { timeout: 60_000 }, () => {
   )
   writeFileSync(
     join(subject, 'package.json'),
-    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@10.28.1" }\n',
+    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@12.18.0" }\n',
   )
   for (const path of [
     'packages/common/legal-identity',

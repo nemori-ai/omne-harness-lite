@@ -490,25 +490,18 @@ export type Attempt<R> =
       project: (batch: PublishedBatch, view: ExecutionView) => void
     }>
 
+const CALL_STAGES: ReadonlySet<ControlStage> = new Set([
+  'intent-established',
+  'producer-confirmed',
+  'physically-stopped',
+  'duty-released',
+])
 const STAGES: Readonly<Record<ExecutionControl['kind'], ReadonlySet<ControlStage>>> = {
-  'interrupt-model': new Set([
-    'intent-established',
-    'producer-confirmed',
-    'physically-stopped',
-    'duty-released',
-  ]),
-  'interrupt-tool': new Set([
-    'intent-established',
-    'producer-confirmed',
-    'physically-stopped',
-    'duty-released',
-  ]),
-  'background-tool': new Set([
-    'intent-established',
-    'producer-confirmed',
-    'physically-stopped',
-    'duty-released',
-  ]),
+  'interrupt-model': CALL_STAGES,
+  'interrupt-tool': CALL_STAGES,
+  'background-tool': CALL_STAGES,
+  'release-tool': CALL_STAGES,
+  'withdraw-tool': CALL_STAGES,
   cancel: new Set([
     'intent-established',
     'qualification-revoked',
@@ -603,7 +596,7 @@ function interruptionsOf(
 }
 
 function isToolControl(record: ControlRecord): record is ToolControlRecord {
-  return record.command.kind === 'interrupt-tool' || record.command.kind === 'background-tool'
+  return record.command.kind.endsWith('-tool')
 }
 const MALFORMED_RETAINED_TOOL_INVOCATION =
   'memory-journal:malformed-retained-tool-invocation' as ToolInvocationRef

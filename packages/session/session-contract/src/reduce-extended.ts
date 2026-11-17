@@ -14,6 +14,7 @@ import {
   unavailableAt,
 } from './session-validation.ts'
 import { associated, registerCall, registeredWaiting } from './call-state.ts'
+import { applyBackgroundSettled, applyBackgrounded } from './background-outcome.ts'
 
 type Draft = { -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K] }
 
@@ -371,6 +372,10 @@ export function applyExtended(
     case 'call.execution-fact':
     case 'account.linked':
       return applyProducerFact(draft, entry)
+    case 'call.backgrounded':
+      return applyBackgrounded(draft, entry)
+    case 'call.background-settled':
+      return applyBackgroundSettled(draft, entry)
     case 'extension.passage':
       return applyExtensionPassage(draft, entry)
     case 'control.requested':

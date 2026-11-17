@@ -31,10 +31,6 @@ const migration: MigrationModule = {
       [],
     )
     port.execute(
-      'CREATE INDEX er_current_source ON er_current (tenant, session, path, execution)',
-      [],
-    )
-    port.execute(
       `CREATE TABLE er_ordered (
       tenant TEXT NOT NULL, session TEXT NOT NULL, execution TEXT NOT NULL,
       collection TEXT NOT NULL, position INTEGER NOT NULL, pub INTEGER NOT NULL, ord INTEGER NOT NULL,
@@ -44,10 +40,10 @@ const migration: MigrationModule = {
   },
   verify(port) {
     const found = port.execute(
-      "SELECT name FROM sqlite_schema WHERE name IN ('er_current_head', 'er_current', 'er_current_active', 'er_current_changed', 'er_current_source', 'er_ordered')",
+      "SELECT name FROM sqlite_schema WHERE name IN ('er_current_head', 'er_current', 'er_current_active', 'er_current_changed', 'er_ordered')",
       [],
     )
-    return found.rows.length === 6
+    return found.rows.length === 5
       ? { kind: 'verified' }
       : { kind: 'failed', diagnostic: 'missing current execution projection tables' }
   },

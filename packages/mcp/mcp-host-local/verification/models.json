@@ -1,0 +1,232 @@
+{
+  "member": "mcp-host-local",
+  "model": "models/TransportSession.tla",
+  "scope": "finite model of the request lifecycle of one Session over one line: at most two requests, two sends each, with or without a credential handle; ports may hang; the line may go away and the session may end. Safety only. No refinement proof to src/session.ts; the line, the peer and the protocol are abstracted to the answers the session concludes from.",
+  "workers": 2,
+  "timeoutSeconds": 600,
+  "cases": [
+    {
+      "name": "valid-close",
+      "config": "models/valid-close.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "valid-signal",
+      "config": "models/valid-signal.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "valid-no-handle",
+      "config": "models/valid-no-handle.cfg",
+      "expected": "complete"
+    }
+  ],
+  "controls": [
+    {
+      "name": "bad-resettle",
+      "config": "models/bad-resettle.cfg",
+      "expected": "V1_SettleOnce"
+    },
+    {
+      "name": "bad-cred-after-close",
+      "config": "models/bad-cred-after-close.cfg",
+      "expected": "V2_NoCredentialAfterClose"
+    },
+    {
+      "name": "bad-report-twice",
+      "config": "models/bad-report-twice.cfg",
+      "expected": "V3_RejectAtMostOnce"
+    },
+    {
+      "name": "bad-signal-dead",
+      "config": "models/bad-signal-dead.cfg",
+      "expected": "V4_SignalBounded"
+    },
+    {
+      "name": "bad-close-settles-after-line",
+      "config": "models/bad-close-settles-after-line.cfg",
+      "expected": "V4_CloseBounded"
+    },
+    {
+      "name": "bad-caller-waits-workflow-close",
+      "config": "models/bad-caller-waits-workflow-close.cfg",
+      "expected": "V4_CloseBounded"
+    },
+    {
+      "name": "bad-caller-waits-workflow-signal",
+      "config": "models/bad-caller-waits-workflow-signal.cfg",
+      "expected": "V4_SignalBounded"
+    },
+    {
+      "name": "bad-resend",
+      "config": "models/bad-resend.cfg",
+      "expected": "V5_NoResendForCaller"
+    },
+    {
+      "name": "bad-close-not-sent",
+      "config": "models/bad-close-not-sent.cfg",
+      "expected": "V6_ByPhase"
+    },
+    {
+      "name": "bad-ended-sends-authorizing",
+      "config": "models/bad-ended-sends-authorizing.cfg",
+      "expected": "V2_NoWireAfterDead"
+    }
+  ],
+  "mutations": [
+    {
+      "name": "V1-close-resettles-done",
+      "base": "valid-close",
+      "invariant": "V1_SettleOnce",
+      "old": "LET InFlight == {r \\in Reqs : st[r] \\in InFlightPhases}",
+      "new": "LET InFlight == {r \\in Reqs : st[r] \\in InFlightPhases \\cup {\"done\"}}"
+    },
+    {
+      "name": "V1-late-answer-resettles",
+      "base": "valid-close",
+      "invariant": "V1_SettleOnce",
+      "old": "IF st[r] = \"sent\" \\/ \"resettle\" \\in Bugs",
+      "new": "IF TRUE"
+    },
+    {
+      "name": "V2-begin-ignores-closed",
+      "base": "valid-close",
+      "invariant": "V2_NoCredentialAfterClose",
+      "old": "IF closed \\/ r \\in signalled",
+      "new": "IF r \\in signalled"
+    },
+    {
+      "name": "V2-late-refusal-reports",
+      "base": "valid-close",
+      "invariant": "V2_NoCredentialAfterClose",
+      "old": "/\\ UNCHANGED <<st, refusals, cred>>",
+      "new": "/\\ cred' = [cred EXCEPT !.report = @ + 1]\n            /\\ UNCHANGED <<st, refusals>>"
+    },
+    {
+      "name": "V3-discovery-reports-again",
+      "base": "valid-close",
+      "invariant": "V3_RejectAtMostOnce",
+      "old": "THEN Settle(r, \"authReq\")\n       ELSE NoSettle\n  /\\ UNCHANGED <<sends, cutAt, signalled, refusals, cred,",
+      "new": "THEN Settle(r, \"authReq\")\n       ELSE NoSettle\n  /\\ cred' = [cred EXCEPT !.report = @ + 1]\n  /\\ UNCHANGED <<sends, cutAt, signalled, refusals,"
+    },
+    {
+      "name": "V3-report-without-handle",
+      "base": "valid-no-handle",
+      "invariant": "V3_RejectAtMostOnce",
+      "old": "/\\ cred' = IF HasHandle\n                         THEN [cred EXCEPT !.report = @ + (IF \"report-twice\" \\in Bugs THEN 2 ELSE 1)]\n                         ELSE cred",
+      "new": "/\\ cred' = [cred EXCEPT !.report = @ + (IF \"report-twice\" \\in Bugs THEN 2 ELSE 1)]"
+    },
+    {
+      "name": "V4-close-keeps-caller",
+      "base": "valid-close",
+      "invariant": "V4_CloseBounded",
+      "old": "/\\ cw' = IF CallerFollows THEN cw\n           ELSE [r \\in Reqs |-> IF r \\in InFlight THEN \"answered\" ELSE cw[r]]",
+      "new": "/\\ cw' = cw"
+    },
+    {
+      "name": "V4-close-waits-discovery",
+      "base": "valid-close",
+      "invariant": "V4_CloseBounded",
+      "old": "LET InFlight == {r \\in Reqs : st[r] \\in InFlightPhases}",
+      "new": "LET InFlight == {r \\in Reqs : st[r] \\in {\"auth\", \"sent\"}}"
+    },
+    {
+      "name": "V4-signal-leaves-discovery",
+      "base": "valid-close",
+      "invariant": "V4_SignalBounded",
+      "old": "IF st[r] \\in InFlightPhases /\\ \"signal-dead\" \\notin Bugs",
+      "new": "IF st[r] \\in {\"auth\", \"sent\"} /\\ \"signal-dead\" \\notin Bugs"
+    },
+    {
+      "name": "V5-write-resends",
+      "base": "valid-close",
+      "invariant": "V5_NoResendForCaller",
+      "old": "CanResend(r) == (r \\notin Writes \\/ \"resend-any\" \\in Bugs) /\\ sends[r] < MaxSends",
+      "new": "CanResend(r) == sends[r] < MaxSends"
+    },
+    {
+      "name": "V5-read-resends-twice",
+      "base": "valid-signal",
+      "invariant": "V5_NoResendForCaller",
+      "old": "CanResend(r) == (r \\notin Writes \\/ \"resend-any\" \\in Bugs) /\\ sends[r] < MaxSends",
+      "new": "CanResend(r) == (r \\notin Writes \\/ \"resend-any\" \\in Bugs) /\\ sends[r] =< MaxSends"
+    },
+    {
+      "name": "V6-close-auth-abandoned",
+      "base": "valid-close",
+      "invariant": "V6_ByPhase",
+      "old": "CASE st[r] = \"auth\" -> \"notSent\"\n                     [] st[r] = \"sent\" -> (IF \"close-not-sent\"",
+      "new": "CASE st[r] = \"auth\" -> \"abandoned\"\n                     [] st[r] = \"sent\" -> (IF \"close-not-sent\""
+    },
+    {
+      "name": "V6-close-disc-not-sent",
+      "base": "valid-close",
+      "invariant": "V6_ByPhase",
+      "old": "[] st[r] = \"disc\" -> \"authReq\"\n                     [] OTHER -> out[r]]",
+      "new": "[] st[r] = \"disc\" -> \"notSent\"\n                     [] OTHER -> out[r]]"
+    },
+    {
+      "name": "V6-signal-sent-not-sent",
+      "base": "valid-close",
+      "invariant": "V6_ByPhase",
+      "old": "[] st[r] = \"sent\" -> \"abandoned\"\n                           [] st[r] = \"disc\" -> \"authReq\")",
+      "new": "[] st[r] = \"sent\" -> \"notSent\"\n                           [] st[r] = \"disc\" -> \"authReq\")"
+    },
+    {
+      "name": "V2-begin-ignores-dead",
+      "base": "valid-close",
+      "invariant": "V2_NoWireAfterDead",
+      "old": "r \\in signalled \\/ Dead",
+      "new": "r \\in signalled"
+    },
+    {
+      "name": "V2-dead-read-resends",
+      "base": "valid-close",
+      "invariant": "V2_NoWireAfterDead",
+      "old": "THEN IF CanResend(r) /\\ Dead",
+      "new": "THEN IF FALSE"
+    },
+    {
+      "name": "V4-ended-leaves-authorizing",
+      "base": "valid-close",
+      "invariant": "V4_DeadBounded",
+      "old": "THEN {\"sent\", \"disc\"} ELSE InFlightPhases",
+      "new": "THEN {\"sent\", \"disc\"} ELSE {\"sent\", \"disc\"}"
+    },
+    {
+      "name": "V4-dead-keeps-caller",
+      "base": "valid-close",
+      "invariant": "V4_DeadBounded",
+      "old": "IF r \\in own \\/ (r \\in stops /\\ ~CallerFollows)",
+      "new": "IF r \\in own"
+    },
+    {
+      "name": "V6-dead-settles-discovery",
+      "base": "valid-close",
+      "invariant": "V6_ByPhase",
+      "old": "ELSE IF st[r] = \"disc\" THEN \"none\"",
+      "new": "ELSE IF st[r] = \"disc\" THEN \"authReq\""
+    },
+    {
+      "name": "V6-gone-auth-broken",
+      "base": "valid-close",
+      "invariant": "V6_ByPhase",
+      "old": "ELSE IF st[r] = \"auth\" THEN \"notSent\"",
+      "new": "ELSE IF st[r] = \"auth\" THEN sentAnswer"
+    },
+    {
+      "name": "V6-gone-sent-abandoned",
+      "base": "valid-close",
+      "invariant": "V6_ByPhase",
+      "old": "\"gone\", \"broken\")",
+      "new": "\"gone\", \"abandoned\")"
+    },
+    {
+      "name": "V6-ended-abandons-sent",
+      "base": "valid-close",
+      "invariant": "V6_ByPhase",
+      "old": "\"ended\", \"none\")",
+      "new": "\"ended\", \"abandoned\")"
+    }
+  ]
+}

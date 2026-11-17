@@ -2,6 +2,7 @@ import type { SessionPermissionChangeBasis } from './permission-values.ts'
 import type { SessionIntakeLimits } from './intake.ts'
 import { originalAttempt } from './history-validation.ts'
 import { waitKey } from './call-state.ts'
+import { backgroundCalls } from './call-control.ts'
 import { digestOf } from './operations.ts'
 import { deriveSessionOperation } from './operations.ts'
 import type { CompactionContext } from '@omne-harness/message'
@@ -128,6 +129,7 @@ export type Decision =
         through: string
       }>
       interpreted?: readonly Readonly<{ ordinal: string; key: string }>[]
+      admitted?: readonly Extract<RoutedInput, { kind: 'ordinary' }>[]
     }>
   | Readonly<{
       kind: 'control-answer'
@@ -415,7 +417,12 @@ function runScope(
   }
 }
 
-function producerScope(snapshot: WorkSnapshot, producer: ProducerRef): ControlScope {
+// A background control of a call already in the background has nothing to send: its scope is empty.
+function producerScope(
+  snapshot: WorkSnapshot,
+  producer: ProducerRef,
+  kind: 'stop-call' | 'background-tool',
+): ControlScope {
   if (snapshot.lifecycle === 'archived')
     return { kind: 'invalid', reason: 'the session is archived' }
   if (!snapshot.consumptions.some(item => digestOf(item.binding.producer) === digestOf(producer)))
@@ -423,7 +430,11 @@ function producerScope(snapshot: WorkSnapshot, producer: ProducerRef): ControlSc
   return {
     kind: 'scope',
     unassociatedWaiting: [],
-    producers: [producer],
+    producers:
+      kind === 'background-tool' &&
+      backgroundCalls(snapshot).some(item => digestOf(item) === digestOf(producer))
+        ? []
+        : [producer],
     revokes: [],
     cancelsRun: null,
     cascade: [],
@@ -445,7 +456,7 @@ export function resolveControlScope(snapshot: WorkSnapshot, intent: ControlInten
       return runScope(snapshot, control.run, 'cancel-run')
     case 'stop-call':
     case 'background-tool':
-      return producerScope(snapshot, control.producer)
+      return producerScope(snapshot, control.producer, control.kind)
   }
 }
 

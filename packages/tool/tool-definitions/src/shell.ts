@@ -41,6 +41,14 @@ const constructionFields: readonly Field[] = [
     description: 'Explicit initial environment. The host environment is never inherited.',
   },
 ]
+const BACKGROUND_LINES = shellCommands
+  .flatMap(command =>
+    command.background === undefined
+      ? []
+      : [`background=${command.name} unless=${JSON.stringify(command.background.unless)}\n`],
+  )
+  .join('')
+
 export function createShellAuthor(
   construction: JsonValue,
 ): ReturnType<
@@ -57,7 +65,7 @@ export function createShellAuthor(
       shellCommands,
       ['command', 'terminal'],
       maximum,
-      'run_in_background=true is unsupported and starts nothing. Sessions require session retention and a fresh authorized attachment for each call. Invalid or closed terminal references never fall back to one-shot execution. cwd and env execution overrides apply to one call. Only the current ProcessHandle receives stop on cancellation. unconfirmed does not mean stopped. Placement facts come from the injected environment. Facility discards and tool byte truncation are reported separately. A terminal completed means the foreground segment ended; it does not prove shell exit or business success. Process lifetime, one-shot execution: a process left running in the background by a one-shot command (for example cmd &) stays running after the call returns as a retained process; info lists retained processes; it runs until it exits, is stopped explicitly, or the execution environment closes its retention scope; a process is stopped when it cannot be retained; the residue line gives the reason. Background execution: run_in_background is not supported now: a one-shot command waits until the main process exits and output is quiet. Terminals: background tasks in a terminal live as long as the terminal; close_session stops every process in the terminal. Long-running services: a service that must run long and is not managed by this tool belongs to the host service manager (for example systemd-run --user); starting it is an external effect of the command itself.',
+      'Sessions require session retention and a fresh authorized attachment for each call. Invalid or closed terminal references never fall back to one-shot execution. cwd and env execution overrides apply to one call. Only the current ProcessHandle receives stop on cancellation. unconfirmed does not mean stopped. Placement facts come from the injected environment. Facility discards and tool byte truncation are reported separately. A terminal completed means the foreground segment ended; it does not prove shell exit or business success. Process lifetime, one-shot execution: a process left running in the background by a one-shot command (for example cmd &) stays running after the call returns as a retained process; info lists retained processes; it runs until it exits, is stopped explicitly, or the execution environment closes its retention scope; a process is stopped when it cannot be retained; the residue line gives the reason. Background execution: run_in_background=true runs a one-shot execute in the background: the call returns a placeholder at once and the outcome comes back later as a system reminder; a terminal execution cannot run in the background; otherwise a one-shot command waits until the main process exits and output is quiet. Terminals: background tasks in a terminal live as long as the terminal; close_session stops every process in the terminal. Long-running services: a service that must run long and is not managed by this tool belongs to the host service manager (for example systemd-run --user); starting it is an external effect of the command itself.',
       (command, args, environment, execution) =>
         executeShell(command, args, environment, execution, config),
     ),
@@ -90,7 +98,7 @@ async function executeShell(
   const terminal = args.terminal()
   switch (command) {
     case 'info':
-      return `done placement\nos=${JSON.stringify(environment.facts.os)} release=${JSON.stringify(environment.facts.release)} architecture=${JSON.stringify(environment.facts.architecture)} facilities=${JSON.stringify(environment.facts.facilities)}\nshell=${JSON.stringify([config.text('executable'), ...config.strings('argsPrefix')])} cwd=${JSON.stringify(config.text('cwd'))}\nprocess_containment=${environment.command.containment ?? 'undeclared'}\n${await terminalLines(environment)}${await retainedProcessLines(environment)}`
+      return `done placement\nos=${JSON.stringify(environment.facts.os)} release=${JSON.stringify(environment.facts.release)} architecture=${JSON.stringify(environment.facts.architecture)} facilities=${JSON.stringify(environment.facts.facilities)}\nshell=${JSON.stringify([config.text('executable'), ...config.strings('argsPrefix')])} cwd=${JSON.stringify(config.text('cwd'))}\nprocess_containment=${environment.command.containment ?? 'undeclared'}\n${BACKGROUND_LINES}${await terminalLines(environment)}${await retainedProcessLines(environment)}`
     case 'create_session': {
       if (environment.terminal.retention === undefined)
         return 'rejected reason=unavailable session retention unavailable zero starts'
@@ -159,8 +167,6 @@ async function executeScript(
   config: Arguments,
 ): Promise<string> {
   const terminal = args.terminal()
-  if (args.flag('run_in_background'))
-    return 'rejected reason=unsupported background execution starts nothing'
   if (terminal !== undefined) {
     const denied = await attachTerminal(environment, terminal)
     if (denied !== undefined) return denied

@@ -6,10 +6,7 @@ import {
   type Generation,
   type LostReason,
   type PeerIdentity,
-  type Residual,
 } from '@omne-harness/mcp-contract'
-
-export type GenerationPolicy = 'on-attempt' | 'on-negotiation'
 
 export type AggregateState = ConnectionState | Readonly<{ kind: 'closed' }>
 
@@ -24,23 +21,17 @@ const ZERO = generationOf(0)
 
 export class Connection {
   readonly #key: ConnectionKey
-  readonly #policy: GenerationPolicy
   #generation: Generation
   #state: AggregateState = { kind: 'none' }
   #peer: PeerIdentity | undefined
 
-  constructor(key: ConnectionKey, policy: GenerationPolicy, generation: Generation = ZERO) {
+  constructor(key: ConnectionKey, generation: Generation = ZERO) {
     this.#key = key
-    this.#policy = policy
     this.#generation = generation
   }
 
   get key(): ConnectionKey {
     return this.#key
-  }
-
-  get policy(): GenerationPolicy {
-    return this.#policy
   }
 
   get state(): AggregateState {
@@ -67,15 +58,13 @@ export class Connection {
   attempt(): Generation {
     this.#expect('attempt', ['none', 'lost'])
     const next = generationOf(this.#generation + 1)
-    if (this.#policy === 'on-attempt') this.#generation = next
     this.#state = { kind: 'preparing' }
     return next
   }
 
   ready(peer: PeerIdentity): Generation {
     const from = this.#expect('ready', ['preparing', 'degraded'])
-    if (from === 'preparing' && this.#policy === 'on-negotiation')
-      this.#generation = generationOf(this.#generation + 1)
+    if (from === 'preparing') this.#generation = generationOf(this.#generation + 1)
     this.#peer = peer
     this.#state = { kind: 'ready' }
     return this.#generation
@@ -86,10 +75,9 @@ export class Connection {
     this.#state = { kind: 'degraded', reason }
   }
 
-  lose(reason: LostReason, residual?: readonly Residual[]): void {
+  lose(reason: LostReason): void {
     this.#expect('lose', ['preparing', 'ready', 'degraded'])
-    this.#state =
-      residual === undefined ? { kind: 'lost', reason } : { kind: 'lost', reason, residual }
+    this.#state = { kind: 'lost', reason }
   }
 
   close(): void {

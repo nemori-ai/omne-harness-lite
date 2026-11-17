@@ -1,3 +1,4 @@
+import type { ToolLedgerTimers } from './ledger-timer-fire.ts'
 import type { JsonLimits, JsonRead } from '@omne-harness/json-text'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type {
@@ -127,6 +128,7 @@ export type ToolDependencies<P, B extends ContentBlock, E> = Readonly<{
   children: ToolChildren<P>
   operationIdentities: ToolOperationIdentities
   sourceIssuer: ToolInvocationSourceIssuer<P>
+  timers?: ToolLedgerTimers<P>
 }>
 
 export type ToolLedgerRecovery = Readonly<{

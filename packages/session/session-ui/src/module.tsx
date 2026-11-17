@@ -2,9 +2,12 @@ import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { sessionProtocol, type SessionProtocol } from '@omne-harness/session-protocol'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
+import { Fragment } from 'react'
 import { SessionWorkspaces } from './model/session-workspaces.ts'
+import { sessionDock, sessionSide } from './points.ts'
 import { ConversationPage } from './view/conversation-page.tsx'
 import { SessionListPanel } from './view/session-list-panel.tsx'
+import { SidePanel } from './view/side-panel.tsx'
 
 export const sessionClientService = protocolServiceName({
   name: sessionProtocol.name,
@@ -13,7 +16,6 @@ export const sessionClientService = protocolServiceName({
 
 export const CONVERSATION_PAGE = 'conversation'
 export const SESSION_LIST = 'session-list'
-export const SESSION_DOCK = 'session.dock'
 
 export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionProtocol>>>({
   name: 'session-ui',
@@ -40,7 +42,14 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
         <ConversationPage
           workspaces={workspaces}
           scope={scope}
-          dock={session => shell.attached(SESSION_DOCK, session)}
+          dock={session =>
+            sessionDock.slot(shell, { session }, entries =>
+              entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>),
+            )
+          }
+          side={session =>
+            sessionSide.slot(shell, { session }, entries => <SidePanel entries={entries} />)
+          }
         />
       ),
     })

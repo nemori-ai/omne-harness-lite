@@ -139,7 +139,25 @@ done
     executable(
       join(bin, 'node'),
       `#!/usr/bin/env bash
+# 根脚本直接起 node scripts/with-test-slot.mjs：替身同 with-test-slot.sh 的替身，记下命令、打上已持有标记再执行；
+# --unless-plan-only 且命令带 --plan-only 时不占名额，不记 slot。
+if [[ "$1" == scripts/with-test-slot.mjs ]]; then
+  shift
+  if [[ "$1" == --unless-plan-only ]]; then
+    shift
+    if [[ " $* " == *" --plan-only "* ]]; then exec "$@"; fi
+  fi
+  if [[ -n "\${OMNE_TEST_SLOT_HELD:-}" ]]; then echo "with-test-slot 替身在名额已持有时被重入：$*" >&2; exit 97; fi
+  printf "slot|%s\\n" "$*" >> "$TRACE"
+  OMNE_TEST_SLOT_HELD=stub exec "$@"
+fi
 printf 'node|%s\\n' "$*" >> "$TRACE"
+# 启动段：FAIL_BOOTSTRAP 给出它的退出码，否则在标准输出写一份结果；检查器的 check 另记下它收到的那份结果。
+if [[ "$1" == scripts/check-bootstrap.mjs ]]; then
+  [[ -n "\${FAIL_BOOTSTRAP:-}" ]] && { echo "启动段：工具链失败" >&2; exit "$FAIL_BOOTSTRAP"; }
+  echo '{"stub":"bootstrap"}'; exit 0
+fi
+if [[ " $* " == *"/cli.ts check "* ]]; then printf 'bootstrap-env|%s\\n' "\${OMNE_CHECK_BOOTSTRAP-unset}" >> "$TRACE"; fi
 if [[ -n "\${HANG_NODE:-}" ]]; then
   winpid() { cat "/proc/$1/winpid" 2>/dev/null || echo "$1"; }
   sleep 600 &
@@ -227,9 +245,9 @@ fi
   const runLine = (line: string, env: Record<string, string> = {}): Promise<Ran> =>
     launch(['-c', line], env, RUN_TIMEOUT_MS, root)
   const occupySlot = () => {
-    mkdirSync(join(home, 'locks'), { recursive: true })
+    mkdirSync(join(home, 'locks', 'core-1'), { recursive: true })
     writeFileSync(
-      join(home, 'locks', 'slot-1.lock'),
+      join(home, 'locks', 'core-1', `owner-${process.pid}-0a`),
       `pid=${process.pid}\nsince=${Math.floor(Date.now() / 1000)}\ncwd=${home}\ncmd=占着的\nbeat=5\n`,
     )
   }
@@ -326,6 +344,37 @@ describe('slot-unless-plan-only.sh', () => {
   })
 })
 
+describe('根脚本不经过 .sh 转发壳', () => {
+  it('test:affected：实际运行时占名额；带 --plan-only 时不占', async () => {
+    const { runLine } = fixture()
+    const line = rootScript('test:affected')
+    expect(line).not.toMatch(/\.sh\b/u)
+    const ran = await runLine(line)
+    expect(ran.status, ran.stderr).toBe(0)
+    expect(ran.lines[0]).toMatch(/^slot\|node .*testing\/cli\.ts run$/u)
+    const planned = await runLine(`${line} --plan-only`)
+    expect(planned.status, planned.stderr).toBe(0)
+    expect(planned.lines).toEqual([
+      'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts run --plan-only',
+    ])
+  })
+
+  it('test:tier：给了层就占名额、先构建、跑全部成员的这一层；缺层、多给参数由检查器的参数解析以 2 拒绝', async () => {
+    const { runLine } = fixture()
+    const line = rootScript('test:tier')
+    expect(line).not.toMatch(/\.sh\b/u)
+    const ran = await runLine(`${line} slow`)
+    expect(ran.status, ran.stderr).toBe(0)
+    expect(ran.lines[0]).toMatch(/^slot\|node .*testing\/cli\.ts run --all --build --tier slow$/u)
+  })
+
+  it('根 package.json 的 scripts 不再出现三个转发壳', () => {
+    const manifest = readFileSync(new URL('../../../package.json', import.meta.url), 'utf8')
+    for (const name of ['with-test-slot.sh', 'slot-unless-plan-only.sh', 'test-tier.sh'])
+      expect(manifest).not.toContain(name)
+  })
+})
+
 describe('test-tier.sh', () => {
   it('缺层或多给参数退出 2；给了层就占名额、先构建、跑全部成员的这一层', async () => {
     const { run } = fixture()
@@ -366,11 +415,11 @@ describe('package.json 的 test:python', () => {
     ])
   })
 
-  it('只有一个名额、它被占着且最多等 0 秒：以 75 退出，不起 pytest', async () => {
+  it('只有一个令牌、它被占着且最多等 0 秒：以 75 退出，不起 pytest', async () => {
     const { runLine, occupySlot } = fixture({ realSlot: true })
     occupySlot()
     const refused = await runLine(line, {
-      OMNE_TEST_SLOTS: '1',
+      OMNE_TEST_SLOT_CAPACITY: '1',
       OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '0',
     })
     expect(refused.status).toBe(75)
@@ -386,15 +435,21 @@ describe('check.sh', () => {
     const ran = await run('check.sh', ['--admission', '--resume-from', 'abc123'], held)
     expect(ran.status, ran.stderr).toBe(0)
     expect(ran.lines).toEqual([
+      'node|scripts/check-bootstrap.mjs',
       'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts check --admission --resume-from abc123',
+      'bootstrap-env|{"stub":"bootstrap"}',
     ])
     expect((await run('check.sh', ['--keep-going'], held)).lines).toEqual([
+      'node|scripts/check-bootstrap.mjs',
       'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts check --keep-going',
+      'bootstrap-env|{"stub":"bootstrap"}',
     ])
     const preflight = await run('check.sh', ['--preflight'])
     expect(preflight.status, preflight.stderr).toBe(0)
     expect(preflight.lines).toEqual([
+      'node|scripts/check-bootstrap.mjs',
       'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts check --preflight',
+      'bootstrap-env|{"stub":"bootstrap"}',
     ])
     for (const args of [['--resume-from'], ['--resume-from', ''], ['--bogus'], ['abc']]) {
       const refused = await run('check.sh', args, held)
@@ -404,13 +459,24 @@ describe('check.sh', () => {
     }
   })
 
-  it('没拿到名额：经名额脚本占一次，再带着它给的标记起运行器，不再重入名额脚本', async () => {
+  it('启动段失败：以它的退出码停下，不起检查器', async () => {
+    const { run } = fixture()
+    for (const args of [['--preflight'], ['--admission']]) {
+      const ran = await run('check.sh', args, { OMNE_TEST_SLOT_HELD: '1', FAIL_BOOTSTRAP: '2' })
+      expect(ran.status, args.join(' ')).toBe(2)
+      expect(ran.lines).toEqual(['node|scripts/check-bootstrap.mjs'])
+      expect(ran.stderr).toContain('启动段：工具链失败')
+    }
+  })
+
+  it('检查自己不整程占令牌：不经令牌池脚本，先跑启动段，再直接起运行器（各步在运行器里各自要令牌）', async () => {
     const { run } = fixture()
     const ran = await run('check.sh', ['--keep-going'])
     expect(ran.status, ran.stderr).toBe(0)
     expect(ran.lines).toEqual([
-      'slot|bash ./scripts/check.sh --keep-going',
+      'node|scripts/check-bootstrap.mjs',
       'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts check --keep-going',
+      'bootstrap-env|{"stub":"bootstrap"}',
     ])
   })
 })
@@ -429,7 +495,9 @@ describe('夹具：起脚本的时限与进程树', () => {
     expect(ran.timedOut).toBe(true)
     expect(ran.status).toBeNull()
     expect(ran.lines).toEqual([
+      'node|scripts/check-bootstrap.mjs',
       'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts check --keep-going',
+      'bootstrap-env|{"stub":"bootstrap"}',
     ])
     const recorded = readFileSync(pidsFile, 'utf8').split('\n').filter(Boolean).map(Number)
     expect(recorded, '替身应在时限内到达挂住点并记下两个进程号').toHaveLength(2)

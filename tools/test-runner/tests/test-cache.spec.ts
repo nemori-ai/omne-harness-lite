@@ -15,6 +15,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { slugOf } from '../src/testing/run.ts'
+import { localPool } from '../src/testing/token-pool.ts'
 import { coordinates } from '@omne-harness/repo-toolchain/core/git'
 import {
   fileTree,
@@ -318,7 +319,6 @@ describe('缓存键', () => {
       VITEST_SEGFAULT_RETRY: '1',
       VITEST_MAX_WORKERS: '8',
       OMNE_WORKER_BUDGET: '16',
-      OMNE_TEST_MEMBER_CONCURRENCY: '4',
       OMNE_TEST_REPORT_DIR: '/runs/1',
       OMNE_TEST_LEDGER_HOME: '/ledgers',
       TMP: '/tmp',
@@ -896,11 +896,12 @@ function workspace(names: readonly string[] = ['good', 'bad']): {
   }
   put(
     'package.json',
-    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@10.28.1" }\n',
+    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@12.18.0" }\n',
   )
   put('pnpm-workspace.yaml', 'packages:\n  - members/*\n')
   put('fake-vitest.mjs', FAKE_VITEST)
-  put('.gitignore', 'ran.txt\nrun-*/\n')
+  // pnpm 12 在声明了 packageManager 的目录里运行时写出锁定它自身的 pnpm-lock.yaml；锁文件进键，夹具里忽略它。
+  put('.gitignore', 'ran.txt\nrun-*/\npnpm-lock.yaml\n')
   const targets = names.map(name => {
     const code = name.startsWith('bad') ? 3 : 0
     const script = `node ../../fake-vitest.mjs members__${name} ${code}`
@@ -936,11 +937,7 @@ const builtNow = (root: string, targets: readonly TestMember[]) =>
     ].map(([member, input]) => [member, { input }]),
   )
 
-const BUDGET = {
-  workers: 2,
-  machine: { cores: 2, idleFraction: 1, freeMemoryMiB: 4096 },
-  source: 'env' as const,
-}
+const BUDGET = { workers: 2, cores: 2, source: 'env' as const }
 
 interface LedgerCache {
   readonly meta: {
@@ -985,7 +982,7 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
           at: coordinates(root, undefined),
           base: null,
           plan: null,
-          budget: BUDGET,
+          tokens: localPool(2),
           builtFrom: builtNow(root, targets),
           cache: {
             read,
@@ -1081,7 +1078,7 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
         at: coordinates(root, undefined),
         base: null,
         plan: null,
-        budget: BUDGET,
+        tokens: localPool(2),
         builtFrom: builtNow(root, targets),
         cache: { read: true, reason: '', trustedOnly: false, write: true, writeReason: '' },
       })
@@ -1147,7 +1144,7 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
             at: coordinates(root, undefined),
             base: null,
             plan: null,
-            budget: BUDGET,
+            tokens: localPool(2),
             builtFrom: builtNow(root, targets),
             cache: {
               read: true,
@@ -1278,10 +1275,11 @@ function distWorkspace(
   }
   put(
     'package.json',
-    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@10.28.1" }\n',
+    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@12.18.0" }\n',
   )
   put('pnpm-workspace.yaml', 'packages:\n  - members/*\n')
-  put('.gitignore', 'run-*/\ndist/\ntmp/\n.turbo/\nnode_modules/\n')
+  // pnpm 12 在声明了 packageManager 的目录里运行时写出锁定它自身的 pnpm-lock.yaml；锁文件进键，夹具里忽略它。
+  put('.gitignore', 'run-*/\ndist/\ntmp/\n.turbo/\nnode_modules/\npnpm-lock.yaml\n')
   put('check-dist.mjs', CHECK_DIST)
   put(
     'members/alpha/package.json',

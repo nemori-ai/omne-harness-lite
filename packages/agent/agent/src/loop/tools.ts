@@ -28,6 +28,7 @@ import {
 import type { BlockId, ContentBlock } from '@omne-harness/content-block'
 import {
   resolveToolInvocationRef,
+  type BackgroundSource,
   type ToolCallId,
   type ToolInvokeRequest,
   type ToolDelivery,
@@ -387,18 +388,83 @@ export function toolCallOf<P>(access: Access<P>, pending: AssociatedToolCall): T
   return minted(resolveToolInvocationRef(pending.reference, access.tenant)).call
 }
 
+type ReturnKind = 'result' | 'placeholder'
+type ToolReturn<K extends ReturnKind> = Extract<ToolDelivery<ContentBlock>, { kind: K }>
+
+export type ReceivedToolDelivery<K extends ReturnKind> = Readonly<{
+  entry: ReceivedEntry
+  delivery: ToolReturn<K>
+  pending: AssociatedToolCall
+}>
+
+/** The first kept entry of the call, trying the kinds in order: a placeholder before a result. */
 export function toolReceivedOf(
   received: readonly ReceivedEntry[],
   pending: AssociatedToolCall,
+  kinds: readonly ReturnKind[],
 ): ReceivedEntry | undefined {
-  return received.find(
-    entry =>
-      entry.delivery.producer === 'tool' &&
-      entry.delivery.key.kind === 'result' &&
-      entry.delivery.key.reference === pending.reference &&
-      entry.consumption === pending.consumption &&
-      canonical(entry.consumer) === canonical(pending.position),
+  const of = (kind: ReturnKind) =>
+    received.find(
+      entry =>
+        entry.delivery.producer === 'tool' &&
+        entry.delivery.key.kind === kind &&
+        entry.delivery.key.reference === pending.reference &&
+        entry.consumption === pending.consumption &&
+        canonical(entry.consumer) === canonical(pending.position),
+    )
+  return kinds.map(of).find(entry => entry !== undefined)
+}
+
+/** Whether the material holds a delivery of the kind its entry names, and one of the kinds. */
+export function isToolReturnOf<K extends ReturnKind>(
+  delivery: ToolDelivery<ContentBlock> | null | undefined,
+  kinds: readonly K[],
+  entry: ReceivedEntry,
+): delivery is ToolReturn<K> {
+  return (
+    delivery != null &&
+    delivery.kind === entry.delivery.key.kind &&
+    (kinds as readonly string[]).includes(delivery.kind)
   )
+}
+
+/** The slot a kept placeholder or result fills, and the produced result it records. */
+export function receivedSlot(
+  action: ActionId,
+  call: ToolCallId,
+  { entry, delivery }: ReceivedToolDelivery<ReturnKind>,
+): Readonly<{ slot: ActionSlot; result: ProducedResult }> {
+  const common = { action, each: null, candidateDigest: null, handoff: null }
+  if (delivery.kind === 'placeholder') {
+    const result = toolPlaceholderProduced(call, delivery)
+    const slot = {
+      ...common,
+      kind: 'background',
+      placeholder: result,
+      confirmation: entry.material,
+    }
+    return { slot: slot as ActionSlot, result }
+  }
+  const result = toolProduced(call, delivery)
+  const { terminal } = delivery
+  return {
+    slot: {
+      ...common,
+      kind: 'result',
+      result,
+      terminal,
+      custody: entry.material,
+      completion: null,
+    },
+    result,
+  }
+}
+
+/** A slot that T2 passes with no conclusions, or null when it is not ready to pass. */
+export function passingSlot(slot: ActionSlot | undefined): ActionSlot | null {
+  if (slot?.kind === 'background') return slot.candidateDigest === null ? slot : null
+  if (slot === undefined || slot.each !== null) return null
+  return slot.kind === 'denied' || slot.kind === 'result' ? { ...slot, each: [] } : null
 }
 
 export function toolProduced(
@@ -411,6 +477,27 @@ export function toolProduced(
     delivery: delivery.delivery,
     source: delivery.source,
   }
+}
+
+export const PLACEHOLDER_VERSION = 'placeholder'
+
+export function toolPlaceholderProduced(
+  call: ToolCallId,
+  delivery: Extract<ToolDelivery<ContentBlock>, { kind: 'placeholder' }>,
+): ProducedResult {
+  return {
+    producer: { kind: 'tool', call },
+    version: PLACEHOLDER_VERSION,
+    delivery: delivery.delivery,
+    source: delivery.evidence,
+  }
+}
+
+const PLACEHOLDER_REASONS: Readonly<Record<BackgroundSource['kind'], string>> = {
+  launched: 'started in the background',
+  control: 'moved to the background on request',
+  threshold: 'moved to the background after its foreground threshold',
+  'foreground-limit': 'moved to the background at its foreground time limit',
 }
 
 type MessageBlock = Exclude<ContentBlock, Readonly<{ kind: 'thinking' }>>
@@ -447,6 +534,24 @@ export function toolResultCandidate(
     action,
     content.filter((block): block is MessageBlock => block.kind !== 'thinking'),
   )
+}
+
+export function placeholderCandidate(
+  execution: AgentExecutionId,
+  action: Action,
+  call: ToolCallId,
+  source: BackgroundSource,
+): Message {
+  return toolMessage(execution, action, [
+    {
+      kind: 'text',
+      id: `${action.id}/placeholder` as BlockId,
+      visibility: VISIBLE,
+      text:
+        `The call ${call} ${PLACEHOLDER_REASONS[source.kind]}. It is still running, and this message is not its result. ` +
+        `Its outcome will arrive later as a system reminder that names call ${call}. Do not call it again to get the outcome.`,
+    },
+  ])
 }
 
 export function uncheckedCandidate(execution: AgentExecutionId, action: Action): Message {

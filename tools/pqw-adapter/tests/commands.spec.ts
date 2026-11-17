@@ -4,6 +4,7 @@ import {
   closeoutMetrics,
   closeoutMutation,
   COMMANDS,
+  cpusFor,
   isCommandName,
   risk,
   runCommand,
@@ -276,6 +277,14 @@ it('turns usage errors into exit 2 and lets other errors through', async () => {
       d,
     ),
   ).rejects.toThrow('boom')
+})
+
+it('takes the tokens it was given as its CPU count, and the cores of the machine when it has none', () => {
+  expect(cpusFor({ OMNE_WORKER_BUDGET: '3' }, 8)).toBe(3)
+  expect(cpusFor({ OMNE_WORKER_BUDGET: '12' }, 8)).toBe(12)
+  expect(cpusFor({}, 8)).toBe(8)
+  for (const bad of ['', '0', 'x', '03', '3x', '-3', '3.5'])
+    expect(cpusFor({ OMNE_WORKER_BUDGET: bad }, 8)).toBe(8)
 })
 
 it('knows its three commands by name, and a missing or unknown name is no command', () => {

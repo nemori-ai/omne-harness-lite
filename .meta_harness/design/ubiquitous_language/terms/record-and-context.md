@@ -598,7 +598,7 @@
 > go and do it.**
 
 - **形态**：对象
-- **出处**：[元能力：`TodoItems()`](../../product/meta-capabilities/design.md#meta-todo)（rev 7）·
+- **出处**：[元能力：`TodoItems()`](../../product/meta-capabilities/design.md#meta-todo)（rev 8）·
   [PF-015 §5.6 第 13 项](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)（rev 21）
 - **别混**：**与「目标」不是一回事**——那是**跨会话**的东西，
   [元能力：明写它不装在这扇门后面，而设计链里还没有它的家](../../product/meta-capabilities/design.md#meta-todo)
@@ -774,6 +774,7 @@
 - **形态**：对象
 - **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 6）
 - **别混**：不是[提示词槽位](capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot)。槽位是提示词里一个恒定的位置；贡献是填进去的一条材料
+- **注意**：它是[拓展贡献](architecture-core-and-extension.md#ul-extension-contribution--拓展贡献--extension-contribution)的一种，放在系统提示词的组装这个拓展点里
 - **弃用**：~~「动态事实段」~~——那一类不存在，动态事实走块
 
 ### UL-context-snapshot-reminder · 上下文快照提醒 · Context Snapshot Reminder
@@ -957,7 +958,7 @@
 > **EN**: An identifiable and selectable body of date-classification knowledge with a stated applicability scope, supplied through traceable versions to answer questions such as whether a date is a working day or holiday.
 
 - **形态**：对象
-- **出处**：[日历：身份与不可变版本](../../product/calendars/design.md#calendar-model)（rev 3）
+- **出处**：[日历：身份与不可变版本](../../product/calendars/design.md#calendar-model)（rev 4）
 - **别混**：一个国家可有不同适用范围的日历；美国联邦假日不等于全国统一放假。
 
 ### UL-business-calendar-version · 业务日历版本 · Business Calendar Version
@@ -967,7 +968,7 @@
 > **EN**: An immutable, distinguishable publication of validated business-calendar data, carrying its coverage interval, knowledge-as-of time and authoritative provenance. Corrections are expressed as new versions.
 
 - **形态**：对象
-- **出处**：[日历：身份与不可变版本](../../product/calendars/design.md#calendar-model)（rev 3）
+- **出处**：[日历：身份与不可变版本](../../product/calendars/design.md#calendar-model)（rev 4）
 - **别混**：覆盖日期与信息截至时点是两个不同维度，更新失败不产生有效的新版本。
 
 ## 工程遥测留下的记录

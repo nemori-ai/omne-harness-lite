@@ -68,7 +68,6 @@ export type AnswerClass =
   | 'unsent'
   | 'stream-broken'
   | 'silent'
-  | 'process-exited'
   | 'http:401'
   | 'http:403+scope'
   | 'http:403'
@@ -76,13 +75,10 @@ export type AnswerClass =
   | 'http:404+session'
   | `http:${HttpStatusClass}+${BodyClass}`
 
-export const PROCESS_EXIT_WINDOW_MS = 100
-
 export type WireEvent =
   | Readonly<{ kind: 'unsent' }>
   | Readonly<{ kind: 'nothing' }>
   | Readonly<{ kind: 'line'; text: string }>
-  | Readonly<{ kind: 'stdio-ended'; stdoutEndedAt?: number; exitedAt?: number }>
   | Readonly<{ kind: 'http-aborted' }>
   | Readonly<{
       kind: 'http-status'
@@ -290,16 +286,6 @@ function httpStatusOf(
   return answer(`http:${statusClassOf(status)}+${read.body}`, read.message)
 }
 
-export function endedCauseOf(
-  event: Readonly<{ stdoutEndedAt?: number; exitedAt?: number }>,
-): 'process-exited' | 'stream-broken' {
-  const { stdoutEndedAt, exitedAt } = event
-  if (exitedAt === undefined) return 'stream-broken'
-  const exitFirst =
-    stdoutEndedAt === undefined || exitedAt - stdoutEndedAt <= PROCESS_EXIT_WINDOW_MS
-  return exitFirst ? 'process-exited' : 'stream-broken'
-}
-
 function lineOf(
   event: Extract<WireEvent, { kind: 'line' }>,
   context: WireContext,
@@ -329,8 +315,6 @@ export function classifyWireEvent(event: WireEvent, context: WireContext): WireC
       return answer('silent')
     case 'line':
       return lineOf(event, context)
-    case 'stdio-ended':
-      return answer(endedCauseOf(event))
     case 'http-aborted':
       return answer('stream-broken')
     case 'http-status':

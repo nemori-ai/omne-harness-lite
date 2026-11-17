@@ -14,7 +14,6 @@ import { armedStore } from './doubles/stalls.ts'
 import {
   MAIN,
   adoptHttp,
-  adoptStdio,
   page,
   storedRecord,
   usualScript,
@@ -51,7 +50,7 @@ const DISCOVERY: AuthorizationDiscovery = {
 describe('refresh publishes', () => {
   it('connects, lists one page and publishes revision 1 with the whole listing', async () => {
     const { w, discovery } = core(world({ script: usualScript(['read', 'write']) }))
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     expect(await discovery.refresh(alice, { ref: files })).toEqual({
       ok: { kind: 'published', revision: 1 },
     })
@@ -80,7 +79,7 @@ describe('refresh publishes', () => {
         ],
       }),
     )
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     expect(await discovery.refresh(alice, { ref: files })).toEqual({
       ok: { kind: 'published', revision: 1 },
     })
@@ -102,7 +101,7 @@ describe('refresh publishes', () => {
         ],
       }),
     )
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     await discovery.refresh(alice, { ref: files })
     expect(await discovery.refresh(alice, { ref: files })).toEqual({
       ok: { kind: 'published', revision: 2 },
@@ -121,7 +120,7 @@ describe('refresh keeps the earlier adoption', () => {
   it('superseded: another writer published between the read and the write', async () => {
     const listing = deferred<ListingPage>()
     const { w, discovery } = core(world({ script: [{ discover: peer }, { listActions: listing }] }))
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const pending = discovery.refresh(alice, { ref: files })
     await settled()
     const other = await storedRecord(w, anonymousKey, ['other'])
@@ -143,12 +142,10 @@ describe('refresh keeps the earlier adoption', () => {
         ],
       }),
     )
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const late = discovery.refresh(alice, { ref: files })
     await settled()
-    expect(await connections.release(alice, files)).toEqual({
-      ok: { kind: 'released', process: 'tree-confirmed' },
-    })
+    expect(await connections.release(alice, files)).toEqual({ ok: { kind: 'released' } })
     const next = discovery.refresh(alice, { ref: files })
     await settled()
     listing.resolve(page(['stale']))
@@ -165,7 +162,7 @@ describe('refresh keeps the earlier adoption', () => {
   it('cancelled: the refresh was aborted before the publish boundary', async () => {
     const listing = deferred<ListingPage>()
     const { w, discovery } = core(world({ script: [{ discover: peer }, { listActions: listing }] }))
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const controller = new AbortController()
     const pending = discovery.refresh(alice, { ref: files, signal: controller.signal })
     await settled()
@@ -193,7 +190,7 @@ describe('refresh keeps the earlier adoption', () => {
       const { w, discovery, status } = core(
         world({ script: [{ discover: peer }, ...steps], config: { maxActions: 2 } }),
       )
-      adoptStdio(w, files)
+      adoptHttp(w, files, { auth: 'none' })
       expect(await discovery.refresh(alice, { ref: files })).toEqual({
         ok: { kind: 'kept', reason: { kind: 'listing-incomplete', defect } },
       })
@@ -223,7 +220,7 @@ describe('refresh keeps the earlier adoption', () => {
           ],
         }),
       )
-      adoptStdio(w, files)
+      adoptHttp(w, files, { auth: 'none' })
       const before = await storedRecord(w, anonymousKey, ['old'])
       expect(await discovery.refresh(alice, { ref: files })).toEqual({
         ok: { kind: 'kept', reason: { kind: 'listing-incomplete', defect: 'page-failed' } },
@@ -249,7 +246,6 @@ describe('refresh fails', () => {
       'stream-broken',
     ],
     [{ kind: 'not-sent', cause: 'session-ended', unusable: 'session-ended' }, 'session-ended'],
-    [{ kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' }, 'process-exited'],
   ] as const)(
     'a page answered %o, with the mark: connection-unavailable, the connection lost for %s and the record marked (T1)',
     async (failure, reason) => {
@@ -258,7 +254,7 @@ describe('refresh fails', () => {
           script: [{ discover: peer }, { listActions: failure }],
         }),
       )
-      adoptStdio(w, files)
+      adoptHttp(w, files, { auth: 'none' })
       const before = await storedRecord(w, anonymousKey, ['old'])
       expect(await discovery.refresh(alice, { ref: files })).toEqual({
         failure: { kind: 'connection-unavailable' },
@@ -279,7 +275,6 @@ describe('refresh fails', () => {
         'listActions',
         'close',
       ])
-      expect(w.landing.processes()).toEqual([{ stops: 1 }])
     },
   )
 
@@ -322,7 +317,7 @@ describe('refresh fails', () => {
         ],
       }),
     )
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     await storedRecord(w, anonymousKey, ['old'])
     const conflicting = {
       ...w,
@@ -356,7 +351,7 @@ describe('refresh fails', () => {
         ],
       }),
     )
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     await storedRecord(w, anonymousKey, ['old'])
     w.store.setUnavailable(true)
     expect(await discovery.refresh(alice, { ref: files })).toEqual({ failure: { kind: 'unknown' } })
@@ -364,8 +359,8 @@ describe('refresh fails', () => {
 
   it.each([
     [
-      { kind: 'no-answer', cause: 'process-exited', unusable: 'process-exited' },
-      { kind: 'effect-unknown', cause: 'process-exited' },
+      { kind: 'no-answer', cause: 'stream-broken', unusable: 'stream-broken' },
+      { kind: 'effect-unknown', cause: 'stream-broken' },
     ],
     [{ kind: 'error-answer', code: -32600, message: 'bad' }, { kind: 'connection-unavailable' }],
     [{ kind: 'answer-malformed', what: 'discover-shape' }, { kind: 'connection-unavailable' }],
@@ -405,7 +400,7 @@ describe('refresh fails', () => {
     'a discover that fails during the build with %o fails the build, with or without the mark: refresh answers %o, the connection is lost for the mark, else by the build rule (%s)',
     async (failure, expected, reason) => {
       const { w, discovery, status } = core(world({ script: [{ discover: failure }] }))
-      adoptStdio(w, files)
+      adoptHttp(w, files, { auth: 'none' })
       expect(await discovery.refresh(alice, { ref: files })).toEqual({ failure: expected })
       expect(await status.inspect(alice, files)).toMatchObject({
         ok: { connection: { kind: 'lost', reason } },
@@ -416,7 +411,7 @@ describe('refresh fails', () => {
 
   it('the store cannot be read: unknown, and no page is asked for', async () => {
     const { w, discovery } = core(world({ script: usualScript() }))
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     w.store.setUnavailable(true)
     expect(await discovery.refresh(alice, { ref: files })).toEqual({ failure: { kind: 'unknown' } })
     expect(w.transports.calls.filter(call => call.kind === 'listActions')).toHaveLength(0)
@@ -425,7 +420,7 @@ describe('refresh fails', () => {
   it('the store cannot be written: unknown, no revision reported', async () => {
     const listing = deferred<ListingPage>()
     const { w, discovery } = core(world({ script: [{ discover: peer }, { listActions: listing }] }))
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const pending = discovery.refresh(alice, { ref: files })
     await settled()
     w.store.setUnavailable(true)
@@ -435,7 +430,7 @@ describe('refresh fails', () => {
 
   it('a caller that stopped before the refresh answered is told cancelled, whatever a step refused, as the exit of a call (MC-7, contract decision 31)', async () => {
     const { w, discovery } = core(world({ script: usualScript() }))
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const controller = new AbortController()
     controller.abort()
     expect(await discovery.refresh(bob, { ref: files, signal: controller.signal })).toEqual({
@@ -446,7 +441,7 @@ describe('refresh fails', () => {
 
   it('the refusals of the gate and of the settings come first, without a transport', async () => {
     const { w, discovery } = core(world({ script: usualScript() }))
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     expect(await discovery.refresh(bob, { ref: files })).toEqual({
       failure: { kind: 'not-available-to-you' },
     })
@@ -473,7 +468,7 @@ describe('refresh fails', () => {
 
   it('closeAll while the refresh waits on the store before the listing: connection-unavailable, as a refresh that starts after closeAll; no page is asked after it, nothing is published (MC-7)', async () => {
     const base = world({ script: usualScript() })
-    adoptStdio(base, files)
+    adoptHttp(base, files, { auth: 'none' })
     const store = armedStore(base.store)
     const { w, discovery, connections } = core({
       ...base,
@@ -492,7 +487,7 @@ describe('refresh fails', () => {
 
   it('a release while the refresh waits on the store before the listing: no page is asked on the released connection; the listing is incomplete and nothing is published (MC-7)', async () => {
     const base = world({ script: usualScript() })
-    adoptStdio(base, files)
+    adoptHttp(base, files, { auth: 'none' })
     const store = armedStore(base.store)
     const { w, discovery, connections } = core({
       ...base,
@@ -516,7 +511,7 @@ describe('refresh fails', () => {
     const { w, discovery, connections } = core(
       world({ script: [{ discover: peer }, { listActions: listing }] }),
     )
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const pending = discovery.refresh(alice, { ref: files })
     await settled()
     expect(w.transports.calls.filter(call => call.kind === 'listActions')).toHaveLength(1)
@@ -531,7 +526,7 @@ describe('refresh fails', () => {
     let publishedBefore = false
     for (let k = 0; k < LIMIT && !publishedBefore; k += 1) {
       const base = world({ script: usualScript() })
-      adoptStdio(base, files)
+      adoptHttp(base, files, { auth: 'none' })
       const late: string[] = []
       let shut = (): boolean => false
       const begins = new Set(['adoption.endpoint#1', 'adoption.endpoint#2', 'adoption.endpoint#3'])
@@ -598,7 +593,7 @@ describe('refresh fails', () => {
     const { w, discovery, connections } = core(
       world({ script: [{ discover: peer }, { listActions: listing }] }),
     )
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const stop = new AbortController()
     const pending = discovery.refresh(alice, { ref: files, signal: stop.signal })
     await settled()
@@ -611,7 +606,7 @@ describe('refresh fails', () => {
 
   it('closeAll while the store writes the listing: the refresh that published stays published', async () => {
     const base = world({ script: usualScript() })
-    adoptStdio(base, files)
+    adoptHttp(base, files, { auth: 'none' })
     const reached = deferred<void>()
     const held = deferred<void>()
     const store: CatalogStore = {
@@ -635,7 +630,7 @@ describe('refresh publish boundary: eligibility', () => {
   it('revoked while listing: not-available-to-you, nothing published', async () => {
     const listing = deferred<ListingPage>()
     const { w, discovery } = core(world({ script: [{ discover: peer }, { listActions: listing }] }))
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const pending = discovery.refresh(alice, { ref: files })
     await settled()
     w.eligibility.revoke(alice, files)
@@ -649,7 +644,7 @@ describe('refresh publish boundary: eligibility', () => {
     const { w, discovery, status } = core(
       world({ script: [{ discover: peer }, { listActions: listing }] }),
     )
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const pending = discovery.refresh(alice, { ref: files })
     await settled()
     w.eligibility.block(alice, files, 'disabled')
@@ -669,7 +664,7 @@ describe('refresh: two concurrent refreshes', () => {
     const { w, discovery } = core(
       world({ script: [{ discover: peer }, { listActions: first }, { listActions: second }] }),
     )
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     const a = discovery.refresh(alice, { ref: files })
     const b = discovery.refresh(alice, { ref: files })
     await settled()
@@ -706,7 +701,7 @@ describe('refresh: two concurrent refreshes', () => {
 describe('current and peer do not connect', () => {
   it('current: not-acquired before any refresh, with no transport opened', async () => {
     const { w, discovery } = core(world({ script: usualScript() }))
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     expect(await discovery.current(alice, files)).toEqual({ ok: { kind: 'not-acquired' } })
     expect(await discovery.peer(alice, files)).toEqual({ failure: { kind: 'not-connected' } })
     expect(w.transports.calls).toHaveLength(0)
@@ -714,7 +709,7 @@ describe('current and peer do not connect', () => {
 
   it('current: basisCurrent is no-connection, then matches, then differs', async () => {
     const { w, discovery } = core(world({ script: usualScript(['read']) }))
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     await storedRecord(w, anonymousKey, ['read'])
     expect(await discovery.current(alice, files)).toMatchObject({
       ok: { kind: 'acquired', revision: 1, basisCurrent: 'no-connection' },
@@ -751,7 +746,7 @@ describe('current and peer do not connect', () => {
 
   it('peer: the negotiated facts and the generation once connected', async () => {
     const { w, discovery } = core(world({ script: usualScript() }))
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     await discovery.refresh(alice, { ref: files })
     expect(await discovery.peer(alice, files)).toEqual({ ok: { peer, generation: 1 } })
   })
@@ -769,14 +764,14 @@ describe('current and peer do not connect', () => {
 
   it('current: an unavailable store is unknown, not not-acquired', async () => {
     const { w, discovery } = core(world())
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     w.store.setUnavailable(true)
     expect(await discovery.current(alice, files)).toEqual({ failure: { kind: 'unknown' } })
   })
 
   it('current and peer: the gate answers first', async () => {
     const { w, discovery } = core(world())
-    adoptStdio(w, files)
+    adoptHttp(w, files, { auth: 'none' })
     expect(await discovery.current(mallory, files)).toEqual({
       failure: { kind: 'not-available-to-you' },
     })

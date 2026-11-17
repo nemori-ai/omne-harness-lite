@@ -209,7 +209,7 @@ function withTelemetry(layer: unknown): unknown {
 
 describe('the serve process with the release', () => {
   it(
-    'the release answers the availability with a snapshot of the six protocols it mounts, and never asks its identity port',
+    'the release answers the availability with a snapshot of the seven protocols it mounts, and never asks its identity port',
     { tags: ['slow'] },
     async () => {
       const base = realpathSync(mkdtempSync(join(tmpdir(), 'access-serve-')))
@@ -276,6 +276,7 @@ describe('the serve process with the release', () => {
         'identity/v1',
         'session-diagnostics/v1',
         'session/v1',
+        'tool/v1',
       ])
       const records = stdout
         .trim()

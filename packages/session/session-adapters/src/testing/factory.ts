@@ -822,8 +822,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         guards: input.guards,
         decision: qualification.ok,
       }
-      if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
-        return fail<SessionFailure>({ kind: 'unsupported' })
       const cell = cellOf(command.input.tenant, command.input.session)
       try {
         const held = cell.current().session

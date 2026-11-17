@@ -1,6 +1,7 @@
 import { listTodos } from './todos.ts'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
+  backgroundCalls,
   judgeWaiting,
   type MutationName,
   type SessionAccess,
@@ -49,6 +50,27 @@ function readWaitingOf<P>(reads: Reads<P>, caller: SessionCallerClass, value: Se
   })
 }
 
+function readBackgroundCallsOf<P>(
+  reads: Reads<P>,
+  caller: SessionCallerClass,
+  value: SessionAccess<P>,
+) {
+  return reads.session(caller, 'readBackgroundCalls', value, async view => {
+    const snapshot = await readSnapshot(view, accessOf(value), 'readBackgroundCalls')
+    if ('failure' in snapshot) return snapshot
+    return succeed(backgroundCalls(snapshot.ok).map(producer => ({ producer })))
+  })
+}
+
+// The reads that answer from one snapshot of the session.
+function snapshotReads<P>(reads: Reads<P>, caller: SessionCallerClass) {
+  return {
+    readWork: (value: SessionAccess<P>) => readSnapshotOf(reads, caller, 'readWork', value),
+    readWaiting: (value: SessionAccess<P>) => readWaitingOf(reads, caller, value),
+    readBackgroundCalls: (value: SessionAccess<P>) => readBackgroundCallsOf(reads, caller, value),
+  }
+}
+
 export function createFaces<P>(
   input: Readonly<{
     caller: SessionCallerClass
@@ -73,12 +95,11 @@ export function createFaces<P>(
     markTodoComplete: mutation('markTodoComplete'),
     listTodos: value => reads.session(caller, 'listTodos', value, view => listTodos(view, value)),
     accept: mutation('accept'),
-    readWork: value => readSnapshotOf(reads, caller, 'readWork', value),
+    ...snapshotReads(reads, caller),
     readCurrentScope: value =>
       reads.session(caller, 'readCurrentScope', value, view =>
         view.readCurrentScope(accessOf(value)),
       ),
-    readWaiting: value => readWaitingOf(reads, caller, value),
     readInput: value =>
       reads.session(caller, 'readInput', value, view =>
         view.readInput({ ...accessOf(value), input: value.input }),

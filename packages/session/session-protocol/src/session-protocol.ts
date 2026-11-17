@@ -19,6 +19,15 @@ const nullable = <const R extends Rule>(rule: R) =>
 const target = { tenant: { rule: tenant }, session: { rule: session } } as const
 
 const producer = object({ kind: { rule: literal('model', 'tool') }, call: { rule: text } })
+const toolCall = object({ kind: { rule: literal('tool') }, call: { rule: text } })
+const backgroundAnswer = object({
+  kind: { rule: literal('requested', 'background') },
+  controlId: { rule: text },
+  producer: { rule: toolCall },
+})
+const backgroundCalls = object({
+  calls: { rule: { kind: 'array', item: object({ producer: { rule: toolCall } }) } },
+})
 const terminalSource = object({
   owner: { rule: text },
   record: { rule: text },
@@ -284,6 +293,24 @@ export const sessionProtocol = defineProtocol({
         'not-found': empty,
         unsupported: empty,
       },
+      countsAsAccess: true,
+    },
+    'background-call': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(
+        object({ ...target, controlId: { rule: text }, producer: { rule: toolCall } }),
+      ),
+      outcomes: { succeeded: ruleCodec(backgroundAnswer), invalid: empty, conflict: empty },
+      countsAsAccess: true,
+    },
+    'list-background-calls': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object(target)),
+      outcomes: { succeeded: ruleCodec(backgroundCalls), invalid: empty },
       countsAsAccess: true,
     },
     'retry-run': {

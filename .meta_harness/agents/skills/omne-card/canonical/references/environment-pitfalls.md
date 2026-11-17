@@ -8,7 +8,8 @@
 
 - 新工作树没有 agent 投影时，`pnpm run check` 报缺少生成目录。先 `git submodule update --init`，再生成投影。
 - umask 让投影文件带组写权限时，`check:agents` 报权限不符。对报错的文件 `chmod g-w`。
-- 合并目标分支或换到新树之后，锁文件可能带来新依赖。不重装就跑准入，构建报模块无法解析。合并之后、准入之前，在这棵树运行 `pnpm install --offline --frozen-lockfile`，再 `git update-index --refresh`，然后确认 `git status --short` 为空。先装依赖再合并时，合并之后还要再装一次。
+- 合并目标分支或换到新树之后，锁文件可能带来新依赖。不重装就跑准入，构建报模块无法解析。`pnpm-workspace.yaml` 设了 `verifyDepsBeforeRun: error`：依赖过期时 `pnpm run …`（含 `check`、`admission`、`preflight`）在起脚本之前就以 `ERR_PNPM_VERIFY_DEPS_BEFORE_RUN` 失败，不自己安装。这时在这棵树运行 `pnpm install --frozen-lockfile --ignore-scripts` 与 `pnpm run prepare:native`，再 `git update-index --refresh`，然后确认 `git status --short` 为空。直接运行 `./scripts/check.sh`（带同样的参数）时，启动段自己离线重装并准备原生依赖。
+- 工具链换到 pnpm 12 与 Node 26.13.1（#1269）之后，已有的检出都要重装一次：pnpm 12 换了 store 目录。删掉 `node_modules` 后按 CONTRIBUTING.md「准备检出」重装；离线重装报 `ERR_PNPM_NO_OFFLINE_TARBALL` 时联网再装。
 - 合并基线之后先跑 `pnpm run preflight`：它一次列出轻步骤的全部失败与修法。
 - git 版本太旧时（实测 2.25），turbo 的 `ls --affected` 报 `Unable to query SCM`。把新版 git 放到 PATH 前面。
 
@@ -33,6 +34,6 @@
 ## Windows 与 WSL
 
 - Windows 上已跟踪文件的工作副本可能是 CRLF，而索引是 LF，`format:check` 因此失败。用 `git ls-files --eol | grep 'i/lf.*w/crlf'` 找出这些文件。只是工作副本的换行不同时，删掉工作副本再 `git checkout -- <文件>`。改动本身带 CRLF 时，改成 LF 再提交。
-- 对经运行名额的后台长链（`bash → node → turbo → pnpm.cmd`）或它的兄弟任务用宿主的停止工具，会关掉这一批进程共用的控制台。之后同一棵进程树里新起的 `cmd.exe`、`pnpm.cmd` 立即以 `-1073741502`（`0xC0000142`）失败，看起来像全部成员 0 秒失败。这时不改 turbo 或测试。要停这类长链，用 `taskkill //PID <pid> //T //F` 结束整棵进程树，再读名额目录，确认被结束的进程已经不占名额。
+- 对经令牌池的后台长链（`bash → node → turbo → pnpm.cmd`）或它的兄弟任务用宿主的停止工具，会关掉这一批进程共用的控制台。之后同一棵进程树里新起的 `cmd.exe`、`pnpm.cmd` 立即以 `-1073741502`（`0xC0000142`）失败，看起来像全部成员 0 秒失败。这时不改 turbo 或测试。要停这类长链，用 `taskkill //PID <pid> //T //F` 结束整棵进程树，再读名额目录，确认被结束的进程已经不占名额。
 - Git Bash 的 `/tmp` 与 Windows 版 Python、Node 看到的不是同一个目录。给这些程序传临时文件路径时先用 `cygpath -w` 转换，否则报找不到文件。
 - WSL 的 `/tmp` 在 WSL 重启之后清空。要留作证据的复现材料放在主检出的 `tmp/` 下。

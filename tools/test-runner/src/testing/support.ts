@@ -18,6 +18,8 @@ export function parseFlags(
   const seen = new Set<string>()
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index] ?? ''
+    // pnpm run <脚本> -- <参数> 把 -- 原样传进来；这里没有位置参数要它分隔。
+    if (arg === '--') continue
     if (switches.includes(arg)) seen.add(arg)
     else if (valued.includes(arg)) {
       const value = argv[index + 1]

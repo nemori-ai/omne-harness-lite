@@ -5,6 +5,7 @@ import type {
   RoutedInput,
   ScopeReleasePort,
   SessionAccessCheck,
+  SessionCallControl,
   SessionClock,
   SessionContextInput,
   SessionDelegatedTransactions,
@@ -45,6 +46,7 @@ export type SessionDependencies<P> = Readonly<{
   context: SessionContextInput<P>
   agentDrive: Current<AgentDrivePort>
   scopeRelease: Current<ScopeReleasePort>
+  callControl: Current<SessionCallControl>
   principals: SessionInternalPrincipals<P>
   admission: Current<readonly BeforeAdmitSlot[]>
 }>

@@ -47,6 +47,7 @@ import { decideManagement, decideControl } from './decide-management.ts'
 import { closeControlFailure, decideNamedControl } from './decide-control.ts'
 import { decideResults } from './decide-results.ts'
 import { decideProducerFact } from './decide-receive.ts'
+import { BACKGROUND_INPUT_OWNER } from './background-outcome.ts'
 import { residentEntries, completeEvidence } from './decision-support.ts'
 import { closingEntries } from './run-closure.ts'
 import { pendingAfterTerminal } from './input-leases.ts'
@@ -284,7 +285,11 @@ function adoptionEntries(
 
 function loggedIn(reads: DecideReads, first: InputId): boolean {
   const stored = reads.firstInput
-  return stored !== undefined && stored.input === first && stored.origin.owner === LOGIN_ENTRY_OWNER
+  return (
+    stored !== undefined &&
+    stored.input === first &&
+    (stored.origin.owner === LOGIN_ENTRY_OWNER || stored.origin.owner === BACKGROUND_INPUT_OWNER)
+  )
 }
 
 function decideStartRun(
@@ -840,8 +845,6 @@ function decideCommand(
   record: OperationRecord | null,
   reads: DecideReads,
 ): Decision {
-  if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
-    return rejected({ kind: 'unsupported' })
   if (
     previous !== null &&
     (previous.session !== command.input.session ||

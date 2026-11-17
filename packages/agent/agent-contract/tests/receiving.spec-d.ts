@@ -60,6 +60,9 @@ describe('the receiving entries', () => {
     expectTypeOf<
       Extract<Tool, { key: { kind: 'account' } }>['account']
     >().toEqualTypeOf<CallAccount>()
+    expectTypeOf<keyof Extract<Tool, { key: { kind: 'placeholder' } }>>().toEqualTypeOf<
+      'producer' | 'key'
+    >()
     expectTypeOf<ReceivedEntry['kind']>().toEqualTypeOf<'received'>()
   })
 

@@ -3,17 +3,10 @@ export type {
   AdoptionView,
   CatalogStore,
   CredentialFailure,
-  CredentialPurpose,
   CredentialUse,
   EligibilityVerdict,
   HttpCredentialHandle,
   HttpPurpose,
-  ProcessCredentialHandle,
-  ProcessEnvironment,
-  ProcessHandle,
-  ProcessLanding,
-  ProcessPurpose,
-  ProcessSetting,
   UseEligibility,
 } from './ports.ts'
 export type {

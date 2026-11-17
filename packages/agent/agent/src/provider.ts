@@ -39,7 +39,7 @@ import {
 import { agentEvidence } from './loop/identities.ts'
 import { modelRetryEntry } from './loop/model-retry.ts'
 import { reconciliationPacer } from './loop/reconciliation.ts'
-import { createControlWriter } from './control.ts'
+import { createControlWriter, releaseForeground } from './control.ts'
 import type { AgentMeasurer } from './measure.ts'
 import type {
   AgentModelRetryingReceiver,
@@ -280,7 +280,7 @@ export function createProvider<P, B extends ContentBlock>(
           if (input.execution !== execution) return fail(foreign)
           const answer = await submitInput(dependencies, input)
           if ('ok' in answer) hint(execution)
-          return answer
+          return releaseForeground(dependencies, input, answer)
         },
       },
       control: {

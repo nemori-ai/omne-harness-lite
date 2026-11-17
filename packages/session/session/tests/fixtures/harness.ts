@@ -11,6 +11,7 @@ import type {
   SessionFaces,
   SessionFailure,
   SessionTransactionPort,
+  SessionCallControl,
 } from '@omne-harness/session-contract'
 import {
   createMemoryAgentDrive,
@@ -209,6 +210,7 @@ export async function harness(options: HarnessOptions) {
   let directoryPresent = true
   let admission = options.admission === undefined ? [] : options.admission
   let drivePresent = options.drive ?? true
+  const callControl: { port: SessionCallControl | null } = { port: null }
 
   const dependencies: SessionDependencies<string> = {
     accessCheck: checks,
@@ -227,6 +229,7 @@ export async function harness(options: HarnessOptions) {
     context,
     agentDrive: { current: () => (drivePresent ? drive : null) },
     scopeRelease: { current: () => scopeRelease },
+    callControl: { current: () => callControl.port },
     principals: { coordinator: 'system:coordinator', maintainer: 'system:maintainer' },
     admission: { current: () => admission },
   }
@@ -276,6 +279,7 @@ export async function harness(options: HarnessOptions) {
     instance,
     dependencies,
     backend,
+    callControl,
     diagnostics: (): readonly SessionDiagnostic[] => [...diagnostics],
     checks: {
       asked: () => checks.controls.asked(),

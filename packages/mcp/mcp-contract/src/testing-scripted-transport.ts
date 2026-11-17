@@ -68,7 +68,6 @@ import { classifyWireEvent, type RequestClass, type WireContext, type WireEvent 
 export type ScriptedTransportOptions = Readonly<{
   protocolVersions?: readonly string[]
   clientInfo?: Readonly<{ name: string; version: string }>
-  probeTimeoutMs?: number
   pace?: (received: PeerReceived) => Promise<void> | void
 }>
 
@@ -92,8 +91,6 @@ function plainRecordOf(text: string): PlainRecord {
 function isList(value: Replies): value is readonly PeerReply[] {
   return Array.isArray(value)
 }
-
-const SILENT: PeerReply = { kind: 'silent' }
 
 class ScriptedPeer {
   readonly log: PeerReceived[] = []
@@ -165,11 +162,6 @@ class ScriptedPeer {
   peerRequests(at: 'initialize' | 'initialized'): readonly Readonly<{ method: string }>[] {
     return (this.script.peerRequests ?? []).filter(request => (request.at ?? 'initialized') === at)
   }
-
-  notificationReply(method: string): PeerReply | undefined {
-    const replies = this.script.notifications
-    return replies === undefined ? undefined : this.pick(`notification:${method}`, replies, SILENT)
-  }
 }
 
 type Answered = Readonly<{ wire: WireAnswer; headers?: Headers }>
@@ -178,7 +170,7 @@ const NOT_SENT: Answered = { wire: { kind: 'not-sent', failure: NOT_SENT_FAILURE
 
 type Phase =
   | Readonly<{ kind: 'authorizing' }>
-  | Readonly<{ kind: 'sent'; cancelProbe(): void }>
+  | Readonly<{ kind: 'sent' }>
   | Readonly<{
       kind: 'discovery'
       headers: Headers
@@ -187,6 +179,7 @@ type Phase =
     }>
 
 const AUTHORIZING: Phase = { kind: 'authorizing' }
+const SENT: Phase = { kind: 'sent' }
 
 type Pending = {
   readonly id: string
@@ -205,7 +198,6 @@ type Dispatch = Readonly<{
   observe?: (notification: PeerNotification) => void
   version?: string
   request?: RequestClass
-  probeTimeoutMs?: number
   values?: Readonly<{ [key: string]: JsonValue }>
 }>
 
@@ -215,10 +207,10 @@ function lowerCased(headers: Headers | undefined): Headers {
   )
 }
 
-function eventOf(reply: PeerReply, id: string, stdio: boolean): WireEvent | undefined {
+function eventOf(reply: PeerReply, id: string): WireEvent | undefined {
   const message = (member: Readonly<{ [key: string]: PlainJson }>): WireEvent => {
     const text = JSON.stringify({ jsonrpc: '2.0', id, ...member })
-    return stdio ? { kind: 'line', text } : { kind: 'http-stream', messages: [text], ended: true }
+    return { kind: 'http-stream', messages: [text], ended: true }
   }
   switch (reply.kind) {
     case 'result':
@@ -226,9 +218,7 @@ function eventOf(reply: PeerReply, id: string, stdio: boolean): WireEvent | unde
     case 'error':
       return message({ error: reply.error })
     case 'stream-breaks':
-      return stdio ? { kind: 'stdio-ended', stdoutEndedAt: 0 } : { kind: 'http-aborted' }
-    case 'process-exits':
-      return { kind: 'stdio-ended', stdoutEndedAt: 0, exitedAt: 0 }
+      return { kind: 'http-aborted' }
     case 'http':
       return httpEventOf(reply)
     case 'silent':
@@ -291,10 +281,6 @@ class ScriptedTransport implements McpTransport {
     this.generation = material.generation
   }
 
-  private get stdio(): boolean {
-    return this.material.kind === 'stdio'
-  }
-
   private get clientInfo(): ClientInfo {
     return this.options.clientInfo ?? DEFAULT_CLIENT_INFO
   }
@@ -315,13 +301,11 @@ class ScriptedTransport implements McpTransport {
   }
 
   private get credential(): HttpCredentialHandle | undefined {
-    return this.material.kind === 'streamable-http' ? this.material.credential : undefined
+    return this.material.credential
   }
 
   private get connection(): ConnectionView {
-    return this.material.kind === 'stdio'
-      ? { kind: 'stdio', version: this.version }
-      : { kind: 'streamable-http', version: this.version, mode: 'streamable' }
+    return { kind: 'streamable-http', version: this.version, mode: 'streamable' }
   }
 
   private reserveId(): string {
@@ -330,9 +314,7 @@ class ScriptedTransport implements McpTransport {
   }
 
   private headersOf(method: string, params: PlainRecord, version: string) {
-    return this.material.kind === 'streamable-http'
-      ? { headers: mcpRequestHeadersOf(method, params, version, this.session) }
-      : {}
+    return { headers: mcpRequestHeadersOf(method, params, version, this.session) }
   }
 
   private handedOver(answered: Answered): Answered {
@@ -346,7 +328,6 @@ class ScriptedTransport implements McpTransport {
 
   private settle(entry: Pending, answered: Answered): void {
     if (!this.pending.delete(entry.id)) return
-    if (entry.phase.kind === 'sent') entry.phase.cancelProbe()
     entry.resolve(this.handedOver(answered))
   }
 
@@ -449,65 +430,31 @@ class ScriptedTransport implements McpTransport {
       ...this.headersOf(method, params, version),
     }
     const reply = this.peer.reply(method, sent)
-    this.validate(reply, method)
-    entry.phase = { kind: 'sent', cancelProbe: () => undefined }
+    entry.phase = SENT
     if (reply.kind === 'unsent') {
       return this.apply(
         entry,
-        concludeAnswer(
-          classifyWireEvent({ kind: 'unsent' }, entry.context),
-          entry.context,
-          this.material.kind,
-        ),
+        concludeAnswer(classifyWireEvent({ kind: 'unsent' }, entry.context), entry.context),
         {},
       )
     }
     this.peer.log.push(request)
     if (departs(reply)) entry.depart()
-    void this.deliver(request, reply, entry, how.probeTimeoutMs)
+    void this.deliver(request, reply, entry)
   }
 
-  private validate(reply: PeerReply, method: string): void {
-    if (reply.kind === 'http' && this.stdio)
-      throw new TypeError(`script: an http reply to ${method} on stdio material`)
-    if (reply.kind === 'process-exits' && !this.stdio)
-      throw new TypeError(`script: a process-exits reply to ${method} on streamable-http material`)
-  }
-
-  private startProbe(entry: Pending, milliseconds: number): void {
-    const probe = setTimeout(() => {
-      const conclusion = concludeAnswer(
-        classifyWireEvent({ kind: 'nothing' }, entry.context),
-        entry.context,
-        this.material.kind,
-      )
-      this.apply(entry, conclusion, {})
-    }, milliseconds)
-    entry.phase = { kind: 'sent', cancelProbe: () => clearTimeout(probe) }
-  }
-
-  private async deliver(
-    request: Request,
-    reply: PeerReply,
-    entry: Pending,
-    probeTimeoutMs: number | undefined,
-  ): Promise<void> {
+  private async deliver(request: Request, reply: PeerReply, entry: Pending): Promise<void> {
     try {
       await this.options.pace?.(request)
       if (!this.pending.has(request.id)) return
-      if (probeTimeoutMs !== undefined) this.startProbe(entry, probeTimeoutMs)
       if (reply.kind === 'result')
         for (const notification of reply.notifications ?? []) this.notify(notification, entry)
-      const event = eventOf(reply, request.id, this.stdio)
+      const event = eventOf(reply, request.id)
       if (event === undefined) return
       const headers = lowerCased(
         reply.kind === 'http' || reply.kind === 'result' ? reply.headers : undefined,
       )
-      const conclusion = concludeAnswer(
-        classifyWireEvent(event, entry.context),
-        entry.context,
-        this.material.kind,
-      )
+      const conclusion = concludeAnswer(classifyWireEvent(event, entry.context), entry.context)
       this.apply(entry, conclusion, headers)
     } catch (defect) {
       this.pending.delete(entry.id)
@@ -547,9 +494,7 @@ class ScriptedTransport implements McpTransport {
   }
 
   private enterDiscovery(entry: Pending, headers: Headers): void {
-    const target = this.material.kind === 'streamable-http' ? this.material.target : undefined
-    if (target === undefined)
-      throw new TypeError('script: a refused authorization on stdio material')
+    const { target } = this.material
     const credential = this.credential
     const reported =
       credential !== undefined && this.authorized.has(entry.id)
@@ -599,11 +544,7 @@ class ScriptedTransport implements McpTransport {
   }
 
   private once(method: RequestMethod, params: PlainRecord, how: Dispatch): Promise<Answered> {
-    const probe = method === 'server/discover' && this.stdio
-    const entry = this.begin(method, params, {
-      ...how,
-      ...(probe ? { probeTimeoutMs: this.options.probeTimeoutMs ?? 0 } : {}),
-    })
+    const entry = this.begin(method, params, how)
     return entry === undefined
       ? Promise.resolve({ wire: { kind: 'not-sent', failure: this.refused } })
       : entry.answered
@@ -620,10 +561,6 @@ class ScriptedTransport implements McpTransport {
       params: written['params'] ?? {},
       ...this.headersOf(method, params, version),
     })
-    const reply = this.peer.notificationReply(method)
-    if (reply === undefined || !this.stdio) return
-    if (reply.kind === 'stream-breaks') this.unusable('stream-broken')
-    if (reply.kind === 'process-exits') this.unusable('process-exited')
   }
 
   async discover(): Promise<Outcome<PeerIdentity, TransportFailure>> {
@@ -666,8 +603,7 @@ class ScriptedTransport implements McpTransport {
     const read = legacyIdentityOf(answered.wire, this.bound)
     if ('failure' in read) return read
     this.version = read.ok.protocolVersion
-    if (this.material.kind === 'streamable-http')
-      this.session = answered.headers?.['mcp-session-id']
+    this.session = answered.headers?.['mcp-session-id']
     this.sendNotification('notifications/initialized', {})
     this.answerPeerRequests('initialized')
     return read
@@ -735,10 +671,6 @@ class ScriptedTransport implements McpTransport {
     if (this.closed) return
     this.closed = true
     for (const entry of this.pending.values()) this.stop(entry)
-    if (this.material.kind !== 'stdio') return
-    const { stdin, stdout } = this.material.process
-    await stdin.close().catch(() => undefined)
-    await stdout.cancel().catch(() => undefined)
   }
 }
 
