@@ -118,6 +118,13 @@ export type AdmittedMessage = Readonly<{
   consumption: ConsumptionId | null
 }>
 
+/** The inputs a step of the Agent took, with their messages, in the order of the batch. */
+export type DeliveredInputs = Readonly<{
+  deliveries: readonly Readonly<{ input: InputId; message: Message }>[]
+  source: DurableEvidence
+  admission: DurableEvidence
+}>
+
 export type StartAdoption = ResidentAdoption & Readonly<{ verdict?: FreezeVerdict }>
 
 export interface SessionWork<P> {
@@ -170,7 +177,8 @@ export interface SessionWork<P> {
       }>,
   ): Reply<Readonly<{ receipt: CommitReceipt; advance: AdvanceRef }>>
   recordMessage(
-    input: Mutation<P> & Readonly<{ participation: Participation; value: AdmittedMessage }>,
+    input: Mutation<P> &
+      Readonly<{ participation: Participation; value: AdmittedMessage | DeliveredInputs }>,
   ): Reply<CommitReceipt>
   preserveResult(
     input: Mutation<P> &

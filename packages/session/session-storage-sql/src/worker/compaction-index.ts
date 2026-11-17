@@ -1,5 +1,6 @@
 import { indexCompactionCall, openCompactionCalls } from './compaction-calls.ts'
 import {
+  isAcceptedInputRecord,
   requiredWorkEntries,
   type HistoryEntry,
   type WorkSnapshot,
@@ -31,11 +32,11 @@ export function writeCompactionIndex(
   if (origin === undefined) throw new Error('the compaction index has no origin')
   let lastUser =
     old?.['last_user'] === undefined || old['last_user'] === null ? null : text(old['last_user'])
-  for (const entry of entries) {
+  for (const [index, entry] of entries.entries()) {
     indexCompactionCall(port, { tenant, session }, entry)
     const body = plainOf(entry.payload) as Record<string, unknown> | null
     if (body === null) throw new Error('the indexed entry has no payload')
-    if (entry.kind.startsWith('message.')) {
+    if (entry.kind.startsWith('message.') && !isAcceptedInputRecord(entries, index)) {
       const message = body['message'] as Message
       if (message.role === 'user') lastUser = entry.id
       if (message.role === 'assistant')
@@ -62,12 +63,13 @@ export function writeCompactionIndex(
         )
       }
     }
-    if (entry.kind === 'intake.routed') {
-      if (typeof body['input'] !== 'string')
-        throw new Error('the input route has no input identity')
+    // An input is in the model view from its delivery; the latest one is what stays protected.
+    if (entry.kind === 'message.delivered') {
+      if (typeof body['input'] !== 'string') throw new Error('the delivery has no input identity')
       port.execute(
-        'INSERT INTO sl_compaction_input (tenant, session, input, entry) VALUES (?, ?, ?, ?)',
-        [...scope, body['input'], lastUser ?? entry.id],
+        `INSERT INTO sl_compaction_input (tenant, session, input, entry) VALUES (?, ?, ?, ?)
+        ON CONFLICT (tenant, session, input) DO UPDATE SET entry = excluded.entry`,
+        [...scope, body['input'], entry.id],
       )
     }
   }
@@ -78,8 +80,7 @@ export function writeCompactionIndex(
       'SELECT entry FROM sl_compaction_input WHERE tenant = ? AND session = ? AND input = ? LIMIT 1',
       [...scope, id],
     )
-    if (row === undefined) throw new Error('the pending input has no original history reference')
-    open.add(text(row['entry']))
+    if (row !== undefined) open.add(text(row['entry']))
   }
   for (const entry of openCompactionCalls(port, { tenant, session })) open.add(entry)
   port.execute(

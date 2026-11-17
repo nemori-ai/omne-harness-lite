@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { judgeRunStart, reduce } from '@omne-harness/session-contract'
+import { expectedRevision, judgeRunStart, reduce } from '@omne-harness/session-contract'
 import { judgeRetryRun } from '../src/judgments.ts'
 import type {
   InputId,
@@ -15,6 +15,7 @@ import {
   succeeded,
 } from '@omne-harness/session-contract/testing'
 import { backgroundInputId } from '../src/background-outcome.ts'
+import { pendingIntakeCount } from '../src/intake.ts'
 import { encodeEntry, type SessionEntry } from '../src/entries.ts'
 import {
   CALL,
@@ -352,5 +353,156 @@ describe('only a waking input opens a Run (C20)', () => {
       [2, 'input'],
     ])
     expect(snapshot.backgroundOrdinal).toBe(2)
+  })
+})
+
+// N3: quiet or not is fixed when the input is accepted; a Run that takes it and fails gives it
+// back as it was (model InputDelivery, QuietStable and StartEnabled).
+describe('a returned input keeps what it was accepted as', () => {
+  // The Run answers the person input, then takes the stop reminder and the outcome of the
+  // stopped call and fails: only those two come back.
+  async function failedWithQuietTaken() {
+    const { c, after } = await idle()
+    succeeded(await stopOf(c, 'stop'), 'stop')
+    succeeded(
+      await commitEntries(c, observation(c, 'r', after, [[execution, outcome()]])),
+      'outcome',
+    )
+    const quiet = (await c.s.read()).quietInputs!
+    const next = ordinaryInput('next')
+    succeeded(
+      await c.s.commit({
+        kind: 'accept',
+        input: { ...c.s.base, operation: operationId('accept-next'), value: next },
+      }),
+      'accept',
+    )
+    await c.s.start('start-next')
+    const { run } = await c.s.active()
+    const at = run.execution.execution
+    const take = async (sequence: string, inputs: readonly InputId[]) => {
+      for (const input of inputs)
+        succeeded(
+          await c.s.commit({
+            kind: 'receive',
+            input: {
+              ...c.s.base,
+              operation: operationId(`hand-${input}`),
+              fact: {
+                kind: 'input-handover',
+                execution: at,
+                input,
+                result: { kind: 'accepted', receipt: evidence(`accepted/${input}`) },
+              },
+            },
+          }),
+          'hand over',
+        )
+      succeeded(
+        await c.s.project(
+          {
+            ...c.s.base,
+            run: run.run,
+            execution: at,
+            sequence,
+            revision: String(Number(sequence) + 1),
+            source: evidence(`event/next/${sequence}`),
+            consequences: [
+              {
+                kind: 'input-taken',
+                batch: {
+                  id: `batch-next-${sequence}` as never,
+                  ordered: inputs,
+                  watermark: evidence(`watermark/next/${sequence}`),
+                },
+              },
+            ],
+          },
+          operationId(`take-next-${sequence}`),
+        ),
+        'take',
+      )
+    }
+    await take('1', [next.input])
+    succeeded(
+      await c.s.commit({
+        kind: 'recordMessage',
+        input: {
+          ...c.s.base,
+          operation: operationId('message-next'),
+          participation: {
+            execution: at,
+            operation: 'agent-message-next',
+            joint: 'message',
+            written: '2',
+            handover: evidence('agent/message/next'),
+          },
+          value: {
+            message: {
+              id: 'msg_assistant000000000000next',
+              role: 'assistant',
+              blocks: [
+                {
+                  kind: 'text',
+                  id: 'next/text',
+                  visibility: { toHuman: true, toModel: true },
+                  text: 'an answer',
+                },
+              ],
+            } as never,
+            source: evidence('agent/source/next'),
+            admission: evidence('agent/admission/next'),
+            consumption: null,
+          },
+        },
+      }),
+      'assistant message',
+    )
+    await take('2', quiet)
+    const active = await c.s.read()
+    succeeded(
+      await c.s.commit({
+        kind: 'finishRun',
+        input: {
+          ...c.s.base,
+          operation: operationId('fail-next'),
+          run: run.run,
+          expected: expectedRevision(active, 'finishRun'),
+          bounded: { kind: 'uninterpretable', evidence: evidence('agent/uninterpretable') },
+        },
+      }),
+      'fail',
+    )
+    return { c, quiet }
+  }
+
+  it('the quiet reminder is pending again, still quiet, and nothing can be retried (QuietStable)', async () => {
+    const { c, quiet } = await failedWithQuietTaken()
+    const failed = await c.s.read()
+    expect(failed.run).toMatchObject({ kind: 'terminal', terminal: { outcome: 'failed' } })
+    expect(failed.pending).toEqual(quiet)
+    expect(failed.quietInputs).toEqual(quiet)
+    expect(failed.backgroundInputs).toEqual([backgroundInputId(producer, 'rv-1')])
+    expect(pendingIntakeCount(failed)).toBe(0)
+    const run = failed.run.kind === 'terminal' ? failed.run.terminal.run : c.run
+    expect(judgeRetryRun(failed, run)).toBe('nothing-pending')
+  })
+
+  it('after the failure a new person input opens the next Run (StartEnabled)', async () => {
+    const { c, quiet } = await failedWithQuietTaken()
+    const later = ordinaryInput('later')
+    succeeded(
+      await c.s.commit({
+        kind: 'accept',
+        input: { ...c.s.base, operation: operationId('accept-later'), value: later },
+      }),
+      'accept later',
+    )
+    const waiting = await c.s.read()
+    expect(waiting.awaitingPerson).toBeUndefined()
+    expect(waiting.pending).toEqual([...quiet, later.input])
+    expect(judgeRunStart(waiting, 'interactive')).toEqual({ kind: 'eligible', first: later.input })
+    await c.s.start('start-later')
+    expect((await c.s.read()).run.kind).toBe('active')
   })
 })

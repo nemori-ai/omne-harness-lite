@@ -22,6 +22,7 @@ import {
   READ_SETS_ENV,
   SLOW_TEST_TIMEOUT_MS,
   SOURCE_TEXT_TAG,
+  TEST_BATCH_ENV as ROOT_TEST_BATCH_ENV,
   TEST_REPORT_DIR_ENV as ROOT_REPORT_DIR_ENV,
   TEST_TIERS,
   VITEST_DEFAULT_EXCLUDE,
@@ -36,6 +37,7 @@ import {
   buildArgs,
   compileEnv,
   ONE_CORE_PER_TASK,
+  TEST_BATCH_ENV,
   TEST_REPORT_DIR_ENV,
   TIER_TASKS,
   turboTestCommand,
@@ -100,9 +102,10 @@ async function vitestCliOptions(): Promise<readonly VitestCliOption[]> {
 }
 
 describe('根上的分层定义', () => {
-  it('运行器重抄的报告目录变量名、读集开关名与层名与根定义一致', () => {
+  it('运行器重抄的报告目录变量名、读集开关名、分批开关名与层名与根定义一致', () => {
     expect(TEST_REPORT_DIR_ENV).toBe(ROOT_REPORT_DIR_ENV)
     expect(RUNNER_READ_SETS_ENV).toBe(READ_SETS_ENV)
+    expect(TEST_BATCH_ENV).toBe(ROOT_TEST_BATCH_ENV)
     expect(RUN_TIERS.filter(tier => tier !== 'all')).toEqual([...TEST_TIERS])
   })
 
@@ -273,6 +276,19 @@ describe('根上的分层定义', () => {
     ])
   })
 
+  it('运行器分批跑时，命令行上的文件是运行器列的一批：不挂过滤守卫，一个文件都不剩不判失败', () => {
+    const batch = ['node', '/r/vitest.mjs', 'run', '--mode', 'slow', 'tests/a.spec.ts']
+    const tiers = testTiers(
+      'slow',
+      { [ROOT_REPORT_DIR_ENV]: '/runs/1', [ROOT_TEST_BATCH_ENV]: '1' },
+      REPOSITORY,
+      batch,
+    )
+    expect(tiers.passWithNoTests).toBe(true)
+    expect(tiers.reporters).toHaveLength(3)
+    expect(JSON.stringify(tiers.reporters)).not.toContain('filter-guard')
+  })
+
   it('认不出的 mode 报错，不悄悄全跑', () => {
     expect(() => testTiers('medium', {})).toThrow('medium')
   })
@@ -291,7 +307,7 @@ describe('根上的分层定义', () => {
         ],
       ],
       outputFile: { json: join('/runs/1', 'packages__common__json-text.json') },
-      env: { [ROOT_REPORT_DIR_ENV]: '', [READ_SETS_ENV]: '' },
+      env: { [ROOT_REPORT_DIR_ENV]: '', [READ_SETS_ENV]: '', [ROOT_TEST_BATCH_ENV]: '' },
       setupFiles: [],
       experimental: { preParse: true },
     })
@@ -355,6 +371,24 @@ describe('运行器交给 turbo 的命令', () => {
     expect(turboTestCommand('@a/x', 'slow', 2, '/runs/2', true).env[READ_SETS_ENV]).toBe('1')
   })
 
+  it('分批时把这一批的参数接在 -- 之后交给 vitest，带 --passWithNoTests，并告诉层配置这是运行器列的批；不分批时都不带', () => {
+    const whole = turboTestCommand('@a/x', 'slow', 2, '/runs/2')
+    expect(whole.args).not.toContain('--')
+    expect(whole.args).not.toContain('--passWithNoTests')
+    expect(whole.env[TEST_BATCH_ENV]).toBe('')
+    const rest = turboTestCommand('@a/x', 'slow', 2, '/runs/2', false, [
+      '--exclude',
+      'tests/a.spec.ts',
+    ])
+    expect(rest.args.slice(rest.args.indexOf('--'))).toEqual([
+      '--',
+      '--passWithNoTests',
+      '--exclude',
+      'tests/a.spec.ts',
+    ])
+    expect(rest.env[TEST_BATCH_ENV]).toBe('1')
+  })
+
   it('测试的 turbo 从不构建（几个成员同时起，不能各自构建共同的上游）；测试前的构建按依赖构建，准入模式下缓存只写不读', () => {
     for (const tier of RUN_TIERS)
       expect(turboTestCommand('@a/x', tier, 1, '/runs/3').args).toContain('--only')
@@ -385,14 +419,16 @@ describe('运行器交给 turbo 的命令', () => {
     expect(typecheckArgs(['@a/x'], true, 5)).toContain('--concurrency=5')
   })
 
-  it('构建与类型检查的每个任务只用一个核：运行器起 turbo 时带上限，turbo 的这两个任务放行它', () => {
+  it('构建、类型检查与测试的每个任务只用一个核：运行器起 turbo 时带上限，turbo 的这些任务放行它', () => {
     const turbo = JSON.parse(readFileSync(join(REPOSITORY, 'turbo.json'), 'utf8')) as {
       tasks: Record<string, { passThroughEnv?: string[] }>
     }
     const env = compileEnv()
+    const test = turboTestCommand('@a/x', 'fast', 1, '/runs/1').env
     for (const [name, value] of Object.entries(ONE_CORE_PER_TASK)) {
       expect(env[name]).toBe(value)
-      for (const task of ['build', 'typecheck'])
+      expect(test[name]).toBe(value)
+      for (const task of ['build', 'typecheck', ...Object.values(TIER_TASKS)])
         expect(turbo.tasks[task]?.passThroughEnv).toContain(name)
     }
     expect(ONE_CORE_PER_TASK).toEqual({ GOMAXPROCS: '1' })
@@ -408,13 +444,18 @@ describe('运行器交给 turbo 的命令', () => {
     }
   })
 
-  it('三个测试任务都把这三个变量列进 passThroughEnv：turbo 的 Strict Mode 会滤掉没声明的变量', () => {
+  it('三个测试任务都把运行器传的变量列进 passThroughEnv：turbo 的 Strict Mode 会滤掉没声明的变量', () => {
     const turbo = JSON.parse(readFileSync(join(REPOSITORY, 'turbo.json'), 'utf8')) as {
       tasks: Record<string, { passThroughEnv?: string[]; cache?: boolean }>
     }
     for (const task of Object.values(TIER_TASKS)) {
       expect(turbo.tasks[task]?.passThroughEnv).toEqual(
-        expect.arrayContaining([TEST_REPORT_DIR_ENV, 'VITEST_MAX_WORKERS', READ_SETS_ENV]),
+        expect.arrayContaining([
+          TEST_REPORT_DIR_ENV,
+          'VITEST_MAX_WORKERS',
+          READ_SETS_ENV,
+          TEST_BATCH_ENV,
+        ]),
       )
       expect(turbo.tasks[task]?.cache).toBe(false)
     }

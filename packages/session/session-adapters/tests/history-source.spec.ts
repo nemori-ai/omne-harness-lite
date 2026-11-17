@@ -42,6 +42,7 @@ import {
 import { createSessionHistorySource } from '../src/cordis/history-source.ts'
 import { invocation, m0Checkpoint, type FixedValues } from './fixtures/adopted-request.ts'
 import { ok, scene, type SceneQualification } from './fixtures/common-journal.ts'
+import { take } from './fixtures/progression.ts'
 
 type Call = Readonly<{ method: string; caller: unknown; principal: unknown }>
 type Faults = {
@@ -71,6 +72,8 @@ async function world(
     session: true,
   }
   const s = await scene(`history-session-${++sessions}`, undefined, qualification)
+  // The first step takes the input the Run began with: the model view holds it from here.
+  await take(s)
   const port = s.backend.transactions
   const calls: Call[] = []
   const faults: Faults = { epochChangedAt: null }
@@ -441,7 +444,7 @@ describe('the history read translates the Session model view', () => {
     })
     if (first.kind !== 'page') throw new Error('not a page')
     const [row] = first.page.rows
-    expect(row).toMatchObject({ seq: '0', entry: '3', message: { role: 'user' } })
+    expect(row).toMatchObject({ seq: '0', entry: '7', message: { role: 'user' } })
     expect(typeof row?.bytes).toBe('string')
     expect(row).not.toHaveProperty('sourceCall')
     expect(first.page.next).toEqual({ evidence: ev, after: '0' })
@@ -686,14 +689,14 @@ describe('the compaction window', () => {
     const answer = await parts.history.compactionContext({
       access: w.access,
       evidence: ev,
-      coverTo: '7' as never,
+      coverTo: '8' as never,
     })
     if (answer.kind !== 'context') throw new Error(JSON.stringify(answer))
     expect(answer.evidence).toEqual(ev)
     expect(answer.value.base).toEqual({ kind: 'initial', pairings: [] })
-    expect(answer.value.covered.map(row => row.ref)).toEqual(['1', '3', '7'])
-    expect(answer.value.after.map(row => row.ref)).toEqual(['8', '9'])
-    for (const ref of answer.value.open) expect(Number(ref)).toBeLessThanOrEqual(9)
+    expect(answer.value.covered.map(row => row.ref)).toEqual(['1', '7', '8'])
+    expect(answer.value.after.map(row => row.ref)).toEqual(['9', '10'])
+    for (const ref of answer.value.open) expect(Number(ref)).toBeLessThanOrEqual(10)
     expect(w.calls.filter(c => c.method === 'work.readCurrentScope').at(-1)?.caller).toEqual({
       caller: 'coordinator',
     })
@@ -709,14 +712,14 @@ describe('the compaction window', () => {
       await parts.history.compactionContext({
         access: w.access,
         evidence: ev,
-        coverTo: '8' as never,
+        coverTo: '9' as never,
       }),
     ).toEqual({ kind: 'invalid', field: 'coverTo', reason: 'upper-out-of-range' })
     w.faults.compactionEpochChanged = true
     const changed = await parts.history.compactionContext({
       access: w.access,
       evidence: ev,
-      coverTo: '7' as never,
+      coverTo: '8' as never,
     })
     expect(changed.kind).toBe('epoch-changed')
   })

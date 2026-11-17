@@ -53,10 +53,7 @@ describe('J3: cancelling the Run stops new Model requests and Tool actions', () 
         record => record.command.kind === 'cancel',
       )
     await w
-      .until(
-        async () => (await cancelControl())?.stages['intent-established']?.state === 'reached',
-        5000,
-      )
+      .until(async () => (await cancelControl())?.stages['intent-established']?.state === 'reached')
       .catch(() => undefined)
     expect((await cancelControl())?.stages['intent-established']).toMatchObject({
       state: 'reached',
@@ -72,7 +69,7 @@ describe('J3: cancelling the Run stops new Model requests and Tool actions', () 
       w.outlet
         .received(TENANT)
         .some(kept => kept.account.cost.some(cost => 'lexeme' in cost && cost.lexeme === '0.25'))
-    await w.until(reported, 5000).catch(() => undefined)
+    await w.until(reported).catch(() => undefined)
     const accounts = w.outlet.received(TENANT)
     expect(accounts.map(kept => kept.account.cost)).toContainEqual([
       expect.objectContaining({ lexeme: '0.25' }),

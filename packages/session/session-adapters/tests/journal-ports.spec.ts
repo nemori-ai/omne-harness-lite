@@ -211,7 +211,8 @@ it('a context transition and the original Agent answer publish together and reco
       },
     ],
     covers: { from: rows[0]!.id, to: rows[last]!.id },
-    retained: rows.filter(row => row.kind.startsWith('message.')).map(row => row.id),
+    // The accepted input is not in the model view before a step takes it.
+    retained: [],
     derivation: compactionFixtureGeneration,
   })
   if (!('ok' in judged) || judged.ok.role !== 'compaction')
