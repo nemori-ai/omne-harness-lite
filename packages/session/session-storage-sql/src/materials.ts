@@ -263,7 +263,8 @@ export const HANDLERS: readonly Handler[] = [
     tables: ['sl_session_list'],
     migrations: [sessionListMigrationRef],
     maxRowsRead: SESSION_LIST_SCAN_ROWS + 1,
-  },  {
+  },
+  {
     handler: 'session.list-archived',
     file: 'read-archived-sessions',
     tables: ['sl_session_list', 'sl_session_archive'],
