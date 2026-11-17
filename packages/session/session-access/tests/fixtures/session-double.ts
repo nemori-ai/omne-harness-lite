@@ -232,7 +232,16 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       if (existing(input) === undefined)
         return fail({ kind: 'denied', action: 'readBackgroundCalls' })
       if (forcedFailure !== undefined) return fail(forcedFailure)
-      return succeed(backgroundList.map(producer => ({ producer })))
+      return succeed(
+        backgroundList.map((producer, index) => ({
+          id: `b${index + 1}`,
+          producer,
+          label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
+          source: 'launched' as const,
+          status: 'running' as const,
+          lastLine: null,
+        })),
+      )
     },
     async readWaiting(input) {
       record('readWaiting', input, {})

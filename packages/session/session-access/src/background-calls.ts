@@ -54,5 +54,13 @@ export async function listBackgroundCalls(
   const result = await readCall(() => faces.work.readBackgroundCalls(access))
   if (result === 'basis-unavailable') return UNAVAILABLE
   if ('failure' in result) return refused('list-background-calls', result.failure)
-  return { outcome: 'succeeded', body: { calls: result.ok.map(({ producer }) => ({ producer })) } }
+  const calls = result.ok.map(({ id, producer, label, source, status, lastLine }) => ({
+    id,
+    producer,
+    label,
+    source,
+    status,
+    lastLine,
+  }))
+  return { outcome: 'succeeded', body: { calls } }
 }

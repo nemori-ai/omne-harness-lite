@@ -44,7 +44,14 @@ const backgrounded: SessionEntriesInterpretation = {
   kind: 'backgrounded',
   producer,
   source: evidence('tool/placeholder'),
+  label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
+  how: 'launched',
 }
+const CALL_FIELDS = {
+  ordinal: 1,
+  label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
+  source: 'launched',
+} as const
 const outcome = (result = 'rv-1'): SessionEntriesInterpretation => ({
   kind: 'background-outcome',
   producer,
@@ -177,6 +184,80 @@ describe('a backgrounded call: the placeholder', () => {
     expect(await commitEntries(c, observation(c, 'p', 0, [[stray]]))).toMatchObject({
       failure: { kind: 'invalid' },
     })
+  })
+})
+
+describe('the short number of a backgrounded call (I-12, C17)', () => {
+  const OTHER = 'call-bg-second'
+  const other = { kind: 'tool', call: OTHER } as const
+  async function bindOther(c: Scene) {
+    succeeded(
+      await c.s.commit({
+        kind: 'bindExternalCall',
+        input: {
+          ...c.s.base,
+          operation: operationId('bind-second'),
+          expected: (await c.s.read()).revision,
+          qualification: evidence('qualified'),
+          binding: {
+            producer: other,
+            action: 'action-2',
+            consumer: { owner: 'session', work: 'work', position: 'at-second', purpose: 'action' },
+            request: evidence('request-second'),
+            initiatingAttempt: null,
+          },
+        },
+      }),
+      'bind other',
+    )
+  }
+
+  it('records the short number, the label and the source with the call, in the order calls moved', async () => {
+    const c = await bound()
+    await bindOther(c)
+    const second = {
+      ...backgrounded,
+      producer: other,
+      label: { intent: null, tool: 'Shell', command: 'execute', preview: 'sleep 9' },
+      how: 'threshold',
+    } as SessionEntriesInterpretation
+    succeeded(await commitEntries(c, observation(c, 'p', 0, [[backgrounded], [second]])), 'moved')
+    const snapshot = await c.s.read()
+    expect(snapshot.backgroundCalls).toEqual([
+      expect.objectContaining({
+        ordinal: 1,
+        producer,
+        label: CALL_FIELDS.label,
+        source: 'launched',
+      }),
+      expect.objectContaining({ ordinal: 2, producer: other, source: 'threshold' }),
+    ])
+    expect(snapshot.backgroundOrdinal).toBe(2)
+  })
+
+  it('never gives a short number again after its call settles', async () => {
+    const c = await bound()
+    await bindOther(c)
+    succeeded(await commitEntries(c, observation(c, 'p', 0, [[backgrounded]])), 'first moved')
+    succeeded(await commitEntries(c, observation(c, 'r', 1, [[execution, outcome()]])), 'settled')
+    expect((await c.s.read()).backgroundCalls).toEqual([])
+    const second = { ...backgrounded, producer: other } as SessionEntriesInterpretation
+    succeeded(await commitEntries(c, observation(c, 's', 2, [[second]])), 'second moved')
+    expect((await c.s.read()).backgroundCalls).toEqual([
+      expect.objectContaining({ ordinal: 2, producer: other }),
+    ])
+  })
+
+  it('keeps the same short numbers when the entries are replayed', async () => {
+    const c = await bound()
+    const before = await c.s.read()
+    const stored = entryCount(c)
+    succeeded(await commitEntries(c, observation(c, 'p', 0, [[backgrounded]])), 'moved')
+    const after = await c.s.read()
+    const entries = c.s.port.controls.entriesOf(c.s.base.tenant, c.s.base.session).slice(stored)
+    const replayed = reduce(before, { revision: after.revision, entries })
+    if (replayed.kind !== 'reduced') throw new Error(replayed.kind)
+    expect(replayed.snapshot.backgroundCalls).toEqual(after.backgroundCalls)
   })
 })
 
@@ -847,6 +928,7 @@ describe('the reducer refuses a forged background entry', () => {
         kind: 'call.backgrounded',
         consumption: 'unbound' as ConsumptionId,
         producer,
+        ...CALL_FIELDS,
       }),
     ).toBe('quarantined')
     expect(
@@ -854,11 +936,17 @@ describe('the reducer refuses a forged background entry', () => {
         kind: 'call.backgrounded',
         consumption: c.consumption,
         producer: { kind: 'tool', call: 'call-other' },
+        ...CALL_FIELDS,
       }),
     ).toBe('quarantined')
     succeeded(await commitEntries(c, observation(c, 'p', 0, [[backgrounded]])), 'placeholder')
     expect(
-      forged(await c.s.read(), { kind: 'call.backgrounded', consumption: c.consumption, producer }),
+      forged(await c.s.read(), {
+        kind: 'call.backgrounded',
+        consumption: c.consumption,
+        producer,
+        ...CALL_FIELDS,
+      }),
     ).toBe('quarantined')
   })
 })

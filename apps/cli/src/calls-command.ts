@@ -151,6 +151,58 @@ function stopOf(what: string, result: CallResult): Stop {
   return { reason: `${what} was answered ${result.outcome}`, code }
 }
 
+type ListedCall = Readonly<{
+  id: string
+  producer: Readonly<{ call: string }>
+  label: Readonly<{ intent: string | null; tool: string; command: string | null; preview: string }>
+  status: string
+  lastLine: string | null
+}>
+
+// One line per call: its short number, state, intent, action and the last line of its output.
+export function listText(calls: readonly ListedCall[]): string {
+  if (calls.length === 0) return 'No calls in the background.\n'
+  return calls
+    .map(call => {
+      const { intent, tool, command, preview } = call.label
+      const action = `${tool}${command === null ? '' : ` ${command}`}${preview === '' ? '' : ` · ${preview}`}`
+      const last = call.lastLine === null ? '' : `  | ${call.lastLine}`
+      return `${call.id}  ${call.status}  ${intent ?? '(no intent)'}  ${action}${last}\n`
+    })
+    .join('')
+}
+
+const SHORT_ID = /^b[1-9][0-9]*$/u
+
+async function referenceOf(
+  invocation: Invocation,
+): Promise<Readonly<{ reference: string }> | Readonly<{ stop: Stop }>> {
+  const given = invocation.values.get('--call') ?? ''
+  if (!SHORT_ID.test(given)) return { reference: given }
+  const session = invocation.values.get('--session')
+  if (session === undefined)
+    return { stop: { reason: `${given} is a short number: add --session <session>`, code: 2 } }
+  const result = await invocation.link.call(
+    sessionProtocol,
+    'list-background-calls',
+    { tenant: invocation.owner, session },
+    invocation.newId(),
+  )
+  if (result === undefined || result.kind !== 'response' || result.outcome !== 'succeeded')
+    return {
+      stop: stopOf(
+        'the list of background calls',
+        result ?? ({ kind: 'unavailable' } as CallResult),
+      ),
+    }
+  const found = (result.body as { calls: readonly ListedCall[] }).calls.find(
+    call => call.id === given,
+  )
+  return found === undefined
+    ? { stop: { reason: `no call ${given} is in the background of this session`, code: 3 } }
+    : { reference: found.producer.call }
+}
+
 type Version = Readonly<{ version: string }> | Readonly<{ running: true }> | Stop | 'usage'
 
 async function resultVersion(invocation: Invocation): Promise<Version> {
@@ -225,8 +277,13 @@ async function readPages(invocation: Invocation, version: string): Promise<Pages
 }
 
 // A paged read: what was read goes to standard output, and why it stopped goes to standard error.
-async function runOutput(invocation: Invocation, output: CliOutput): Promise<ExitCode> {
-  const { name } = invocation
+async function runOutput(given: Invocation, output: CliOutput): Promise<ExitCode> {
+  const { name } = given
+  const call = await referenceOf(given)
+  if ('stop' in call) return written(name, '', call.stop.code, output, call.stop.reason)
+  const values = new Map(given.values)
+  values.set('--call', call.reference)
+  const invocation = { ...given, values }
   const after = invocation.values.get('--after')
   if (after !== undefined) return runOutputBody(invocation, after, output)
   const version = await resultVersion(invocation)
@@ -254,10 +311,26 @@ async function runSessionCall(
       messageId,
     )
     if (result === undefined) return usageError(output, unrecognized(name))
-    return report(name, result, echoOf(invocation, messageId), output)
+    if (values.has(JSON_SWITCH)) return report(name, result, echoOf(invocation, messageId), output)
+    const code = exitCodeOf(result)
+    if (result.kind !== 'response' || result.outcome !== 'succeeded')
+      return written(
+        name,
+        `Result: ${result.kind === 'response' ? result.outcome : result.kind}\n`,
+        code,
+        output,
+      )
+    return written(
+      name,
+      listText((result.body as { calls: readonly ListedCall[] }).calls),
+      code,
+      output,
+    )
   }
+  const call = await referenceOf(invocation)
+  if ('stop' in call) return written(name, '', call.stop.code, output, call.stop.reason)
   const controlId = values.get('--control-id') ?? invocation.newId()
-  const producer = { kind: 'tool' as const, call: values.get('--call') ?? '' }
+  const producer = { kind: 'tool' as const, call: call.reference }
   const body = { tenant, session, controlId, producer }
   const result =
     action === 'stop'
@@ -290,7 +363,7 @@ async function runCalls(
   const name = `calls ${action}`
   const read = readOptions(rest, {
     ...RULES[action],
-    ...(action === 'show' ? { switches: [JSON_SWITCH] } : {}),
+    ...(action === 'show' || action === 'list' ? { switches: [JSON_SWITCH] } : {}),
   })
   if (read.kind === 'unrecognized') return usageError(output, unrecognized(name))
   if (read.kind === 'missing') return usageError(output, missingOption(name, read.option))

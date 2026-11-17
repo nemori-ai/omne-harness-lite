@@ -25,8 +25,23 @@ const backgroundAnswer = object({
   controlId: { rule: text },
   producer: { rule: toolCall },
 })
+const callLabel = object({
+  intent: { rule: nullable(anyText) },
+  tool: { rule: text },
+  command: { rule: nullable(text) },
+  preview: { rule: anyText },
+})
+// One call in the background as every reader sees it: its short number, label and state now.
+const backgroundCall = object({
+  id: { rule: text },
+  producer: { rule: toolCall },
+  label: { rule: callLabel },
+  source: { rule: literal('launched', 'control', 'threshold', 'foreground-limit') },
+  status: { rule: literal('queued', 'running', 'ended-pending', 'stopping', 'unknown') },
+  lastLine: { rule: nullable(anyText) },
+})
 const backgroundCalls = object({
-  calls: { rule: { kind: 'array', item: object({ producer: { rule: toolCall } }) } },
+  calls: { rule: { kind: 'array', item: backgroundCall } },
 })
 const terminalSource = object({
   owner: { rule: text },

@@ -144,7 +144,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'session',
     ],
   },
-  'session-call-control': { provides: ['sessionCallControl'] },
+  'session-call-control': { provides: ['sessionCallControl', 'sessionCallStates'] },
   'session-ad15': {
     provides: ['sessionScopeRelease'],
     injects: ['executionEnvironment', 'session'],

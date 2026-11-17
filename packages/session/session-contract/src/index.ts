@@ -141,6 +141,7 @@ export type {
   ScopeReleasePort,
   ScopeReleaseReadback,
   SessionCallControl,
+  SessionCallStates,
   SessionBlockDeclaration,
   SessionClock,
   SessionCommand,
@@ -307,3 +308,12 @@ export type {
 } from './permission-values.ts'
 
 export { rebuildSessionPermissions, type SessionPermissionHistory } from './permission-history.ts'
+export { backgroundCallView, shortCallId } from './background-calls.ts'
+export type {
+  BackgroundCallLabel,
+  BackgroundCallRecord,
+  BackgroundCallSource,
+  BackgroundCallState,
+  BackgroundCallStatus,
+  BackgroundCallView,
+} from './background-calls.ts'

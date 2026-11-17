@@ -1,3 +1,4 @@
+import type { BackgroundCallView } from './background-calls.ts'
 import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -127,9 +128,8 @@ export interface SessionWork<P> {
   accept(input: Mutation<P> & Readonly<{ value: RoutedInput }>): Reply<CommitReceipt>
   readWork(input: SessionAccess<P>): Reply<WorkSnapshot>
   readWaiting(input: SessionAccess<P>): Reply<SessionWaiting | null>
-  readBackgroundCalls(
-    input: SessionAccess<P>,
-  ): Reply<readonly Readonly<{ producer: Extract<ProducerRef, { kind: 'tool' }> }>[]>
+  /** The calls of the session in the background, each with its state asked of Tool now. */
+  readBackgroundCalls(input: SessionAccess<P>): Reply<readonly BackgroundCallView[]>
   readInput(
     input: SessionAccess<P> & Readonly<{ input: InputId }>,
   ): Reply<Extract<RoutedInput, { kind: 'ordinary' }>>

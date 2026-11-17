@@ -55,9 +55,35 @@ describe('list-background-calls', () => {
   it('reads a session and answers the backgrounded calls by their references', () => {
     expectRoundTrip(list.body, { tenant, session })
     expectRoundTrip(list.outcomes.succeeded, { calls: [] })
-    expectRoundTrip(list.outcomes.succeeded, { calls: [{ producer }, { producer }] })
-    expect(
-      readSample(list.outcomes.succeeded, { calls: [{ producer: { kind: 'model', call: 'm' } }] }),
-    ).toEqual({ ok: false })
+    const item = (id: string, status: string) => ({
+      id,
+      producer,
+      label: {
+        intent: 'build the front end',
+        tool: 'Shell',
+        command: 'execute',
+        preview: 'pnpm build',
+      },
+      source: 'threshold',
+      status,
+      lastLine: 'done 3/7',
+    })
+    expectRoundTrip(list.outcomes.succeeded, {
+      calls: [item('b1', 'running'), { ...item('b2', 'unknown'), lastLine: null }],
+    })
+    expectRoundTrip(list.outcomes.succeeded, {
+      calls: [
+        {
+          ...item('b3', 'queued'),
+          label: { intent: null, tool: 'Shell', command: null, preview: '' },
+        },
+      ],
+    })
+    for (const wrong of [
+      { ...item('b1', 'running'), producer: { kind: 'model', call: 'm' } },
+      { ...item('b1', 'stopped') },
+      { ...item('b1', 'running'), source: 'nowhere' },
+    ])
+      expect(readSample(list.outcomes.succeeded, { calls: [wrong] })).toEqual({ ok: false })
   })
 })

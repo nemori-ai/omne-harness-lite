@@ -516,10 +516,20 @@ export declare const sessionProtocol: {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly calls: readonly {
+                        readonly id: string;
+                        readonly label: {
+                            readonly command: string | null;
+                            readonly intent: string | null;
+                            readonly preview: string;
+                            readonly tool: string;
+                        };
+                        readonly lastLine: string | null;
                         readonly producer: {
                             readonly call: string;
                             readonly kind: "tool";
                         };
+                        readonly source: "control" | "foreground-limit" | "launched" | "threshold";
+                        readonly status: "ended-pending" | "queued" | "running" | "stopping" | "unknown";
                     }[];
                 }>;
                 readonly invalid: import("@omne-harness/public-contract").Codec<{}>;

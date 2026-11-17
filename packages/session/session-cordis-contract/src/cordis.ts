@@ -13,6 +13,7 @@ import type {
   ScopeReleasePort,
   SessionAccessCheck,
   SessionCallControl,
+  SessionCallStates,
   SessionCallerClass,
   SessionClock,
   SessionContextInput,
@@ -283,6 +284,16 @@ export abstract class SessionCallControlService extends Service implements Sessi
 }
 export const sessionCallControlKey = SessionCallControlService.provide
 
+/** @owner packages/session/session-contract */
+export abstract class SessionCallStatesService extends Service implements SessionCallStates {
+  static readonly provide = 'sessionCallStates'
+  constructor(ctx: Context) {
+    super(ctx, SessionCallStatesService.provide)
+  }
+  abstract readonly read: SessionCallStates['read']
+}
+export const sessionCallStatesKey = SessionCallStatesService.provide
+
 export type SessionTenantSource = Readonly<{
   enumerate(): Promise<
     | Readonly<{ ok: readonly TenantId[] }>
@@ -424,6 +435,7 @@ declare module '@deepseek-ai/cordis' {
     sessionAgentDrive: AgentDrivePortService
     sessionScopeRelease: ScopeReleasePortService
     sessionCallControl: SessionCallControlService
+    sessionCallStates: SessionCallStatesService
     sessionTenants: SessionTenantSourceService
     sessionAdoptionSource: SessionAdoptionSourceService<unknown>
     sessionProductionSource: SessionProductionSourceService

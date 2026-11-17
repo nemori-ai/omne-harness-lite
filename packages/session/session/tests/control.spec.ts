@@ -654,7 +654,18 @@ async function backgroundedCall(f: Awaited<ReturnType<typeof controlFixture>>) {
             key: 'placeholder',
             fact: evidence('agent/entry/placeholder'),
             interpretation: [
-              { kind: 'backgrounded', producer: binding.producer, source: evidence('t/p') },
+              {
+                kind: 'backgrounded',
+                producer: binding.producer,
+                source: evidence('t/p'),
+                label: {
+                  intent: 'build',
+                  tool: 'Shell',
+                  command: 'execute',
+                  preview: 'pnpm build',
+                },
+                how: 'launched',
+              },
             ],
           },
         ],
@@ -772,17 +783,57 @@ it('已记下的直交不再重送，同一调用的另一条停止按自己的�
   ])
 })
 
-it('受理入口按引用列出本会话转了后台而没有结算的调用；别的调用方被拒', async () => {
+it('受理方与协调方读到同一份后台调用：短号、标签、来源，状态向 Tool 现问（C18）', async () => {
   const f = await controlFixture()
   open.push(f.h)
   expect(
     succeeded(await f.h.faces('intake').work.readBackgroundCalls(f.h.access()), 'read'),
   ).toEqual([])
   const { binding } = await backgroundedCall(f)
+  const label = { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' }
+  const unknown = { id: 'b1', producer: binding.producer, label, source: 'launched' }
   expect(
     succeeded(await f.h.faces('intake').work.readBackgroundCalls(f.h.access()), 'read'),
-  ).toEqual([{ producer: binding.producer }])
-  expect(await f.h.faces('coordinator').work.readBackgroundCalls(f.h.access())).toMatchObject({
+  ).toEqual([{ ...unknown, status: 'unknown', lastLine: null }])
+  const asked: unknown[] = []
+  f.h.callStates.port = {
+    read: async input => {
+      asked.push(input)
+      return succeed({ phase: 'running', stop: null, lastLine: 'step 3/7' })
+    },
+  }
+  const intake = succeeded(await f.h.faces('intake').work.readBackgroundCalls(f.h.access()), 'read')
+  const coordinator = succeeded(
+    await f.h.faces('coordinator').work.readBackgroundCalls(f.h.access()),
+    'read',
+  )
+  expect(intake).toEqual([{ ...unknown, status: 'running', lastLine: 'step 3/7' }])
+  expect(coordinator).toEqual(intake)
+  expect(asked[0]).toMatchObject({ producer: binding.producer })
+  for (const [state, status] of [
+    [{ phase: 'queued', stop: null, lastLine: null }, 'queued'],
+    [{ phase: 'running', stop: 'accepted', lastLine: null }, 'stopping'],
+    [{ phase: 'settled', stop: 'stopped', lastLine: null }, 'ended-pending'],
+  ] as const) {
+    f.h.callStates.port = { read: async () => succeed(state) }
+    expect(
+      succeeded(await f.h.faces('intake').work.readBackgroundCalls(f.h.access()), 'read'),
+    ).toMatchObject([{ status }])
+  }
+  for (const failing of [
+    { read: async () => fail({ kind: 'unavailable', owner: 'tool', diagnostic: 'away' }) },
+    {
+      read: async () => {
+        throw new Error('down')
+      },
+    },
+  ] as const) {
+    f.h.callStates.port = failing as never
+    expect(
+      succeeded(await f.h.faces('intake').work.readBackgroundCalls(f.h.access()), 'read'),
+    ).toEqual([{ ...unknown, status: 'unknown', lastLine: null }])
+  }
+  expect(await f.h.faces('maintainer').work.readBackgroundCalls(f.h.access())).toMatchObject({
     failure: { kind: 'denied', action: 'readBackgroundCalls' },
   })
 })

@@ -341,6 +341,18 @@ test('background-call names one Tool call and answers requested or background', 
     readonly producer: ToolCall
   }>()
   expectTypeOf<ResultBody<'list-background-calls', 'succeeded'>>().toEqualTypeOf<{
-    readonly calls: readonly { readonly producer: ToolCall }[]
+    readonly calls: readonly {
+      readonly id: string
+      readonly producer: ToolCall
+      readonly label: {
+        readonly intent: string | null
+        readonly tool: string
+        readonly command: string | null
+        readonly preview: string
+      }
+      readonly source: 'launched' | 'control' | 'threshold' | 'foreground-limit'
+      readonly status: 'queued' | 'running' | 'ended-pending' | 'stopping' | 'unknown'
+      readonly lastLine: string | null
+    }[]
   }>()
 })

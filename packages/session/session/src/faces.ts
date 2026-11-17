@@ -1,7 +1,7 @@
 import { listTodos } from './todos.ts'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
-  backgroundCalls,
+  backgroundCallView,
   judgeWaiting,
   type MutationName,
   type SessionAccess,
@@ -12,9 +12,14 @@ import {
   type SessionManagement,
   type SessionReconciliation,
   type SessionWork,
+  type BackgroundCallRecord,
+  type BackgroundCallState,
+  type BackgroundCallView,
+  type Reply,
+  type SessionCallStates,
 } from '@omne-harness/session-contract'
 import type { CommandHandler } from './command.ts'
-import type { SessionDependencies } from './dependencies.ts'
+import type { Current, SessionDependencies } from './dependencies.ts'
 import { guarded, OWNERS, unavailable } from './failures.ts'
 import { createHistoryPages } from './history-pages.ts'
 import { readSnapshot } from './qualify.ts'
@@ -50,24 +55,56 @@ function readWaitingOf<P>(reads: Reads<P>, caller: SessionCallerClass, value: Se
   })
 }
 
-function readBackgroundCallsOf<P>(
+// The state of one call as Tool answers it now; an absent or failing port is an unknown state.
+async function stateOf<P>(
+  port: SessionCallStates | null,
+  value: SessionAccess<P>,
+  record: BackgroundCallRecord,
+): Promise<BackgroundCallState | null> {
+  if (port === null) return null
+  try {
+    const read = await port.read({
+      tenant: value.tenant,
+      session: value.session,
+      producer: record.producer,
+    })
+    return 'ok' in read ? read.ok : null
+  } catch {
+    return null
+  }
+}
+
+async function readBackgroundCallsOf<P>(
   reads: Reads<P>,
   caller: SessionCallerClass,
   value: SessionAccess<P>,
-) {
-  return reads.session(caller, 'readBackgroundCalls', value, async view => {
+  states: Current<SessionCallStates>,
+): Reply<readonly BackgroundCallView[]> {
+  const records = await reads.session(caller, 'readBackgroundCalls', value, async view => {
     const snapshot = await readSnapshot(view, accessOf(value), 'readBackgroundCalls')
     if ('failure' in snapshot) return snapshot
-    return succeed(backgroundCalls(snapshot.ok).map(producer => ({ producer })))
+    const calls = [...(snapshot.ok.backgroundCalls ?? [])]
+    return succeed(calls.sort((left, right) => left.ordinal - right.ordinal))
   })
+  if ('failure' in records) return records
+  const port = states.current()
+  const views = await Promise.all(
+    records.ok.map(async record => backgroundCallView(record, await stateOf(port, value, record))),
+  )
+  return succeed(views)
 }
 
 // The reads that answer from one snapshot of the session.
-function snapshotReads<P>(reads: Reads<P>, caller: SessionCallerClass) {
+function snapshotReads<P>(
+  reads: Reads<P>,
+  caller: SessionCallerClass,
+  states: Current<SessionCallStates>,
+) {
   return {
     readWork: (value: SessionAccess<P>) => readSnapshotOf(reads, caller, 'readWork', value),
     readWaiting: (value: SessionAccess<P>) => readWaitingOf(reads, caller, value),
-    readBackgroundCalls: (value: SessionAccess<P>) => readBackgroundCallsOf(reads, caller, value),
+    readBackgroundCalls: (value: SessionAccess<P>) =>
+      readBackgroundCallsOf(reads, caller, value, states),
   }
 }
 
@@ -95,7 +132,7 @@ export function createFaces<P>(
     markTodoComplete: mutation('markTodoComplete'),
     listTodos: value => reads.session(caller, 'listTodos', value, view => listTodos(view, value)),
     accept: mutation('accept'),
-    ...snapshotReads(reads, caller),
+    ...snapshotReads(reads, caller, dependencies.callStates),
     readInput: value =>
       reads.session(caller, 'readInput', value, view =>
         view.readInput({ ...accessOf(value), input: value.input }),

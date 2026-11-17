@@ -28,6 +28,7 @@ const documentedPairs = {
   sessionAgentDriveKey: 'AgentDrivePortService',
   sessionScopeReleaseKey: 'ScopeReleasePortService',
   sessionCallControlKey: 'SessionCallControlService',
+  sessionCallStatesKey: 'SessionCallStatesService',
   sessionTenantsKey: 'SessionTenantSourceService',
   sessionAdoptionSourceKey: 'SessionAdoptionSourceService',
   sessionProductionSourceKey: 'SessionProductionSourceService',
@@ -56,6 +57,7 @@ const documentedKeys = {
   sessionAgentDriveKey: 'sessionAgentDrive',
   sessionScopeReleaseKey: 'sessionScopeRelease',
   sessionCallControlKey: 'sessionCallControl',
+  sessionCallStatesKey: 'sessionCallStates',
   sessionTenantsKey: 'sessionTenants',
   sessionAdoptionSourceKey: 'sessionAdoptionSource',
   sessionProductionSourceKey: 'sessionProductionSource',
@@ -67,7 +69,7 @@ const documentedKeys = {
 } as const
 
 describe('the ./cordis entry', () => {
-  it('exports exactly the twenty-three classes and their keys', () => {
+  it('exports exactly the twenty-four classes and their keys', () => {
     expect(Object.keys(cordis).sort()).toEqual(
       [...Object.keys(documentedPairs), ...Object.values(documentedPairs)].sort(),
     )

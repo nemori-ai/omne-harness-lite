@@ -71,7 +71,7 @@ export async function omne(tree: ReleaseTree, args: readonly string[]) {
 
 /** The background calls of the session, as `omne calls list` reads them. */
 export async function backgroundCalls(tree: ReleaseTree, session: string): Promise<string[]> {
-  const listed = await omne(tree, ['calls', 'list', '--session', session])
+  const listed = await omne(tree, ['calls', 'list', '--session', session, '--json'])
   const body = listed.json?.['body'] as { calls?: { producer: { call: string } }[] } | undefined
   return (body?.calls ?? []).map(item => item.producer.call)
 }

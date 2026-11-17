@@ -56,6 +56,7 @@ import { SESSION_RELEASE_DIGEST } from './release-digests.ts'
 import { member } from './payload-members.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
 import type { SessionEntriesChannel } from './interpretation-values.ts'
+import type { BackgroundCallLabel, BackgroundCallSource } from './background-calls.ts'
 
 export const SESSION_INTERPRETER: Adoption = Object.freeze({
   owner: '@omne-harness/session-contract',
@@ -234,7 +235,14 @@ export type SessionEntry =
       participation: Participation | null
       position: string | null
     }>
-  | Readonly<{ kind: 'call.backgrounded'; consumption: ConsumptionId; producer: ProducerRef }>
+  | Readonly<{
+      kind: 'call.backgrounded'
+      consumption: ConsumptionId
+      producer: ProducerRef
+      ordinal: number
+      label: BackgroundCallLabel
+      source: BackgroundCallSource
+    }>
   | Readonly<{
       kind: 'call.background-settled'
       consumption: ConsumptionId

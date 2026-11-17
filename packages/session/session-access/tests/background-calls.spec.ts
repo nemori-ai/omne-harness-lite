@@ -115,7 +115,16 @@ describe('list-background-calls', () => {
     world.session.controls.listBackground([producer, { kind: 'tool', call: 'call-10' }])
     expect(await list(world, session)).toEqual({
       outcome: 'succeeded',
-      body: { calls: [{ producer }, { producer: { kind: 'tool', call: 'call-10' } }] },
+      body: {
+        calls: [
+          expect.objectContaining({ id: 'b1', producer, status: 'running' }),
+          expect.objectContaining({
+            id: 'b2',
+            producer: { kind: 'tool', call: 'call-10' },
+            label: { intent: 'build', tool: 'Shell', command: 'execute', preview: 'pnpm build' },
+          }),
+        ],
+      },
     })
   })
 

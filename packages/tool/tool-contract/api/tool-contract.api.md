@@ -3745,7 +3745,7 @@ import type { ContentBlock } from '@omne-harness/content-block';
 import { type TenantId } from '@omne-harness/legal-identity';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { Access, ConsumerRef, DurableEvidence, ToolDeliveryId, ToolResultVersion } from './identity.ts';
-import type { ToolCallLabel } from './call-label.ts';
+import { type ToolCallLabel } from './call-label.ts';
 import type { BackgroundSource } from './operations.ts';
 import { type ToolInvocationRef } from './reference.ts';
 import type { Effect, ToolResult, ToolTerminal } from './results.ts';
@@ -3839,6 +3839,9 @@ export type ToolDeliveryRejection = Readonly<{
 }> | Readonly<{
     field: 'account.subject';
     reason: 'call-mismatch';
+}> | Readonly<{
+    field: 'label';
+    reason: string;
 }>;
 export declare function judgeToolDelivery<B extends ContentBlock>(input: Readonly<{
     tenant: TenantId;

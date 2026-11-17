@@ -35,6 +35,8 @@ export type BackgroundStep =
       admitted: readonly Ordinary[]
       placeholders: readonly ConsumptionId[]
       controls: readonly ControlProgress[]
+      /** The last short number given, this step's included. */
+      ordinal?: number
     }>
   | Readonly<{ kind: 'rejected'; failure: SessionFailure }>
 
@@ -86,14 +88,20 @@ function decideBackgrounded(
   const placeholders = snapshot.backgroundPlaceholders ?? []
   if (placeholders.includes(consumption))
     return invalid('producer', 'the call is already backgrounded')
+  const ordinal = (snapshot.backgroundOrdinal ?? 0) + 1
+  const { producer, label, how: source } = fact
   return {
     kind: 'entries',
     entries: [
-      encodeEntry({ kind: 'call.backgrounded', consumption, producer: fact.producer }, origin),
+      encodeEntry(
+        { kind: 'call.backgrounded', consumption, producer, ordinal, label, source },
+        origin,
+      ),
     ],
     admitted: [],
     placeholders: [...placeholders, consumption],
     controls: snapshot.controls,
+    ordinal,
   }
 }
 
@@ -199,7 +207,12 @@ export function applyBackgrounded(
     return 'a placeholder of a call that is not bound to the consumption'
   const placeholders = draft.backgroundPlaceholders ?? []
   if (placeholders.includes(entry.consumption)) return 'a call backgrounded twice'
+  if (bound.binding.producer.kind !== 'tool') return 'a placeholder of a call that is not a tool'
   draft.backgroundPlaceholders = [...placeholders, entry.consumption]
+  const { consumption, ordinal, label, source } = entry
+  const record = { consumption, producer: bound.binding.producer, ordinal, label, source }
+  draft.backgroundCalls = [...(draft.backgroundCalls ?? []), record]
+  draft.backgroundOrdinal = Math.max(draft.backgroundOrdinal ?? 0, ordinal)
   return null
 }
 
@@ -210,6 +223,9 @@ export function applyBackgroundSettled(
   const placeholders = draft.backgroundPlaceholders ?? []
   if (!placeholders.includes(entry.consumption)) return 'a settlement of a call not in background'
   draft.backgroundPlaceholders = placeholders.filter(item => item !== entry.consumption)
+  draft.backgroundCalls = (draft.backgroundCalls ?? []).filter(
+    item => item.consumption !== entry.consumption,
+  )
   if (entry.disposition.kind === 'input')
     draft.backgroundInputs = [...(draft.backgroundInputs ?? []), entry.disposition.input]
   return null

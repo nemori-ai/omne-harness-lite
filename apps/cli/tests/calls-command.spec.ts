@@ -57,20 +57,94 @@ const parsed = (text: string) => JSON.parse(text) as Record<string, unknown>
 const owned = ['--session', sessionId, '--tenant', tenantText]
 
 describe('calls list, stop and background speak session/v1 for the owner tenant', () => {
-  it('list reads the background calls of the session', async () => {
-    const calls = [{ producer: { kind: 'tool', call: REFERENCE } }]
+  const listed = (id: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    producer: { kind: 'tool', call: `${REFERENCE}-${id}` },
+    label: {
+      intent: 'build the front end',
+      tool: 'Shell',
+      command: 'execute',
+      preview: 'pnpm build',
+    },
+    source: 'threshold',
+    status: 'running',
+    lastLine: 'done 3/7',
+    ...extra,
+  })
+
+  it('list reads the background calls of the session; --json gives the whole answer', async () => {
+    const calls = [listed('b1')]
     const service = await serve(seen =>
       seen.operation === 'list-background-calls'
         ? { outcome: 'succeeded', body: { calls } }
         : undefined,
     )
-    const result = await cli(['list', ...owned])
+    const result = await cli(['list', ...owned, '--json'])
     expect(last(service)).toMatchObject({
       path: '/api/session/v1/list-background-calls',
       body: { tenant: tenantText, session: sessionId },
     })
     expect(result.code).toBe(0)
     expect(parsed(result.stdout)).toMatchObject({ outcome: 'succeeded', body: { calls } })
+  })
+
+  it('list shows one line per call: short number, state, intent, action and last line (C25)', async () => {
+    const calls = [
+      listed('b1'),
+      listed('b3', {
+        status: 'unknown',
+        lastLine: null,
+        label: { intent: null, tool: 'Shell', command: 'execute', preview: '' },
+      }),
+    ]
+    await serve(seen =>
+      seen.operation === 'list-background-calls'
+        ? { outcome: 'succeeded', body: { calls } }
+        : undefined,
+    )
+    expect(await cli(['list', ...owned])).toMatchObject({
+      code: 0,
+      stdout:
+        'b1  running  build the front end  Shell execute · pnpm build  | done 3/7\n' +
+        'b3  unknown  (no intent)  Shell execute\n',
+    })
+    await serve(seen =>
+      seen.operation === 'list-background-calls'
+        ? { outcome: 'succeeded', body: { calls: [] } }
+        : undefined,
+    )
+    expect((await cli(['list', ...owned])).stdout).toBe('No calls in the background.\n')
+  })
+
+  it('stop and output take a short number of the session and resolve it by the list', async () => {
+    const service = await serve(seen => {
+      if (seen.operation === 'list-background-calls')
+        return { outcome: 'succeeded', body: { calls: [listed('b1'), listed('b2')] } }
+      if (seen.operation === 'stop-call')
+        return {
+          outcome: 'succeeded',
+          body: { kind: 'requested', controlId: 'ctl', producer: seen.body['producer'] },
+        }
+      if (seen.operation === 'read-call')
+        return { outcome: 'succeeded', body: { call: { ...call, result: null } } }
+      if (seen.operation === 'read-call-output')
+        return { outcome: 'succeeded', body: { kind: 'none' } }
+      return undefined
+    })
+    expect((await cli(['stop', ...owned, '--call', 'b2', '--control-id', 'ctl'])).code).toBe(0)
+    expect(last(service)).toMatchObject({
+      path: '/api/session/v1/stop-call',
+      body: { producer: { kind: 'tool', call: `${REFERENCE}-b2` } },
+    })
+    expect((await cli(['output', ...owned, '--call', 'b1'])).code).toBe(0)
+    expect(last(service)).toMatchObject({
+      path: '/api/tool/v1/read-call-output',
+      body: { reference: `${REFERENCE}-b1` },
+    })
+    expect(await cli(['stop', ...owned, '--call', 'b9'])).toMatchObject({
+      code: 3,
+      stderr: expect.stringContaining('no call b9 is in the background of this session'),
+    })
   })
 
   it.each([
@@ -427,7 +501,6 @@ describe('usage', () => {
     const service = await serve()
     const before = service.seen.length
     for (const argv of [
-      ['list', ...owned, '--json'],
       ['show', '--call', REFERENCE, '--bogus', 'x'],
       ['show', '--call', REFERENCE, '--tenant', 'not-a-tenant'],
     ])

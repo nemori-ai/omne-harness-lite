@@ -1,6 +1,7 @@
 import type { SessionPermissions } from './permission-values.ts'
 import type { PermissionDefinitionRef, PermissionRule } from '@omne-harness/permissions'
 import type { TodoItem } from './todos.ts'
+import type { BackgroundCallRecord } from './background-calls.ts'
 import type { SessionWorkEntryIndex } from './work-entry-values.ts'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { CompactionMessage, Message } from '@omne-harness/message'
@@ -385,6 +386,9 @@ export type WorkSnapshot = Readonly<{
   unanswered?: readonly InputId[]
   awaitingPerson?: true
   backgroundPlaceholders?: readonly ConsumptionId[]
+  /** The calls in the background, with their short numbers; the last number given so far. */
+  backgroundCalls?: readonly BackgroundCallRecord[]
+  backgroundOrdinal?: number
   backgroundInputs?: readonly InputId[]
   releasedScopes?: readonly Readonly<{ task: SessionOperationId; scope: string }>[]
   contextScopes?: readonly ContextScopeBinding[]
