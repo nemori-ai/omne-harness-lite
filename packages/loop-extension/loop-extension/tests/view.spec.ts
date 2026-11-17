@@ -3,6 +3,7 @@ import type { LoopExtensionDeclaration } from '@omne-harness/agent-contract'
 import {
   enabledView,
   implementationOf,
+  memberOfImplementation,
   membersAt,
   type ExtensionFacts,
 } from '@omne-harness/loop-extension'
@@ -139,5 +140,11 @@ describe('the members of a position', () => {
       name: 'later',
       revision: 'v2',
     })
+  })
+
+  it('reads a member back from the implementation it gave, and none from an implementation of another owner', () => {
+    const member = { capability: 'later', assetRef: 'asset/later', version: 'v2' }
+    expect(memberOfImplementation(implementationOf(member))).toEqual(member)
+    expect(memberOfImplementation({ ...implementationOf(member), owner: 'tool' })).toBeNull()
   })
 })
