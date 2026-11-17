@@ -109,12 +109,21 @@ export type CustodyState =
       cleanup: 'pending' | 'running' | 'blocked' | 'released'
       diagnostic: string | null
     }>
+// How far the real dispatches of one call got: how many the fixed request allows, how many were
+// prepared, the fault of the last one that failed, and the instant of a decided next one.
+export type DispatchProgress = Readonly<{
+  allowed: number
+  made: number
+  last: ModelFault | null
+  notBefore: string | null
+}>
 export type CallState = Readonly<{
   call: ModelCallId
   revision: Revision
   consumer: ConsumerRef
   control: ControlState
   custody: CustodyState
+  attempts?: DispatchProgress
 }> &
   (
     | Readonly<{ phase: 'accepted' }>

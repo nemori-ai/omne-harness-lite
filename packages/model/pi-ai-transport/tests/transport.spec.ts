@@ -312,6 +312,17 @@ describe('constructing the transport', () => {
     expect(() => createPiTransport(configWith({ onConnectRetry }))).toThrow(RangeError)
   })
 
+  it('refuses an onResponseBody that is not a function, and accepts a function or none', () => {
+    const onResponseBody = 'not a function' as unknown as NonNullable<
+      PiTransportConfig['onResponseBody']
+    >
+    expect(() => createPiTransport(configWith({ onResponseBody }))).toThrow(
+      new RangeError('onResponseBody must be absent or a function'),
+    )
+    expect(() => createPiTransport(configWith({ onResponseBody: () => {} }))).not.toThrow()
+    expect(() => createPiTransport(configWith({}))).not.toThrow()
+  })
+
   it('accepts the retry backoff list, an empty one, and no retry configuration', () => {
     for (const connectRetry of [{ backoffMs: [500, 1000] }, { backoffMs: [] }, undefined])
       expect(() =>

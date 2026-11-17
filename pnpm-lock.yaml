@@ -692,6 +692,9 @@ importers:
       '@omne-harness/request-context-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/context/request-context-cordis-contract
+      '@omne-harness/retry':
+        specifier: workspace:*
+        version: link:../../packages/common/retry
       '@omne-harness/runtime-context':
         specifier: workspace:*
         version: link:../../packages/context/runtime-context
@@ -989,9 +992,6 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
-      '@omne-harness/retry':
-        specifier: workspace:*
-        version: link:../../common/retry
       '@omne-harness/telemetry-contract':
         specifier: workspace:*
         version: link:../../telemetry/telemetry-contract
@@ -1139,9 +1139,6 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
-      '@omne-harness/retry':
-        specifier: workspace:*
-        version: link:../../common/retry
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract
@@ -3251,6 +3248,9 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
+      '@omne-harness/retry':
+        specifier: workspace:*
+        version: link:../../common/retry
       '@omne-harness/stream-arrival':
         specifier: workspace:*
         version: link:../../common/stream-arrival
@@ -3380,6 +3380,9 @@ importers:
       '@omne-harness/pi-ai-transport':
         specifier: workspace:*
         version: link:../pi-ai-transport
+      '@omne-harness/retry':
+        specifier: workspace:*
+        version: link:../../common/retry
       '@omne-harness/settings':
         specifier: workspace:*
         version: link:../../assets/settings

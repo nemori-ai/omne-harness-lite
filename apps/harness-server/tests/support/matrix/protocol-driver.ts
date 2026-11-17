@@ -31,6 +31,8 @@ export type HistoryRead = Readonly<{
 
 export type RecordedFrame = Readonly<{ at: number; frame: ObserveSessionFrame }>
 
+export type ModelDispatch = Readonly<{ firstContent: string; outcome: unknown }>
+
 export type Observation = Readonly<{
   frames(): readonly RecordedFrame[]
   end(): Promise<string>
@@ -61,6 +63,8 @@ export type ProtocolDriver = Readonly<{
     run: string,
     controlId: string,
   ): Promise<{ outcome: string; recovered: boolean | null }>
+  /** The dispatches of every Model call of the session, as the diagnostics read gives them. */
+  modelDispatches(session: string): Promise<readonly (readonly ModelDispatch[])[]>
   observe(session: string): Observation
   currentRun(session: string, timeoutMs: number): Promise<string | null>
   rawOutcome(call: 'list-sessions' | 'read-history', session?: string): Promise<string>
@@ -83,7 +87,7 @@ export function createProtocolDriver(origin: string, account?: Account): Protoco
     credential: `pw-${randomUUID()}`,
   }
   const transport = protocolTransport(origin, (): Credentials => credentials)
-  const { identity, session } = clientsOver(transport)
+  const { identity, session, sessionDiagnostics } = clientsOver(transport)
   let reasks = 0
   const asShipped: SessionClient = clientsOver(transport, {
     session: {
@@ -214,6 +218,16 @@ export function createProtocolDriver(origin: string, account?: Account): Protoco
         urgency: 'graceful',
       })
       return answer.outcome
+    },
+    modelDispatches: async id => {
+      const answer = await sessionDiagnostics['read-session-diagnostics']({
+        ...target(id),
+        cursor: null,
+        run: null,
+        pageBytes: String(DEFAULT_PAGE_BYTES),
+      } as Parameters<(typeof sessionDiagnostics)['read-session-diagnostics']>[0])
+      if (answer.outcome !== 'succeeded') return []
+      return answer.body.runs.flatMap(run => run.modelCalls.map(call => call.dispatches))
     },
     retryRun: async (id, run, controlId) => {
       const answer = await session['retry-run']({ ...target(id), run, controlId })

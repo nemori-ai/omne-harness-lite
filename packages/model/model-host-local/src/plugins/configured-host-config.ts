@@ -1,4 +1,6 @@
 import type { ModelConfiguration } from '@omne-harness/model'
+import type { Adoption } from '@omne-harness/model-contract'
+import { parseRetryPolicy, type RetryPolicy } from '@omne-harness/retry'
 import { fieldOf, isRecord } from '../fields.ts'
 import { modelHostConfigSchema, type ModelHostSettings } from './config.ts'
 import type { ResultPushLimits } from './runtime.ts'
@@ -7,6 +9,7 @@ export type ConfiguredModelHostSettings = Readonly<{
   host: ModelHostSettings
   runtime: ModelConfiguration
   results: ResultPushLimits
+  retry: Readonly<{ adoption: Adoption; policy: RetryPolicy }>
 }>
 
 type Parsed<T> = Readonly<{ value: T }> | Readonly<{ issues: { message: string }[] }>
@@ -19,7 +22,6 @@ const RUNTIME_BOUNDS = {
   observerCheckIntervalMs: { minimum: 1, safe: true },
   readIdleMs: { minimum: 1, safe: false },
   resultPageTargetBytes: { minimum: 1, safe: false },
-  retryBackoffMs: { minimum: 0, safe: false },
   cleanupRetryMs: { minimum: 0, safe: false },
 } satisfies Record<keyof ModelConfiguration, Bound>
 const RESULT_BOUNDS = {
@@ -58,6 +60,25 @@ function parseNumbers<K extends string>(
   return { value: numbers as Readonly<Record<K, number>> }
 }
 
+const named = (value: unknown): value is string => typeof value === 'string' && value !== ''
+
+function parseRetry(value: unknown): Parsed<ConfiguredModelHostSettings['retry']> {
+  const adoption = fieldOf(value, 'adoption')
+  const owner = fieldOf(adoption, 'owner')
+  const name = fieldOf(adoption, 'name')
+  const revision = fieldOf(adoption, 'revision')
+  const digest = fieldOf(adoption, 'digest')
+  if (!named(owner) || !named(name) || !named(revision) || !named(digest))
+    return { issues: [{ message: 'retry.adoption must name owner, name, revision and digest' }] }
+  try {
+    const policy = parseRetryPolicy(fieldOf(value, 'policy'))
+    return { value: { adoption: { owner, name, revision, digest }, policy } }
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : 'not a retry policy'
+    return { issues: [{ message: `retry.policy: ${reason}` }] }
+  }
+}
+
 function parseConfig(value: unknown): Parsed<ConfiguredModelHostSettings> {
   const host = modelHostConfigSchema['~standard'].validate(fieldOf(value, 'host'))
   if ('issues' in host) return host
@@ -65,7 +86,11 @@ function parseConfig(value: unknown): Parsed<ConfiguredModelHostSettings> {
   if ('issues' in runtime) return runtime
   const results = parseNumbers(fieldOf(value, 'results'), 'results', RESULT_BOUNDS)
   if ('issues' in results) return results
-  return { value: { host: host.value, runtime: runtime.value, results: results.value } }
+  const retry = parseRetry(fieldOf(value, 'retry'))
+  if ('issues' in retry) return retry
+  return {
+    value: { host: host.value, runtime: runtime.value, results: results.value, retry: retry.value },
+  }
 }
 
 export const configuredModelHostConfigSchema = {

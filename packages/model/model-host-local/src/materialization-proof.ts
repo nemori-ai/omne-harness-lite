@@ -34,7 +34,7 @@ type ProvenMaterialization = Readonly<{
   description: Description
 }>
 
-function key(
+export function dispatchKey(
   input: Pick<MaterializationProofInput, 'tenant' | 'call' | 'dispatch' | 'execution'>,
 ): string | null {
   const tenant = tenantCodec.encode(input.tenant)
@@ -70,7 +70,7 @@ export function materializationRecords(options: PiMaterializationOptions) {
       if (input.execution === null) return { failure: SOURCE_UNAVAILABLE }
       const qualification = options.execution(input.execution)
       if ('failure' in qualification) return qualification
-      const id = key(input)
+      const id = dispatchKey(input)
       const record = id === null ? undefined : records.get(id)
       if (record === undefined) return { failure: SOURCE_UNAVAILABLE }
       try {
@@ -90,7 +90,7 @@ export function materializationRecords(options: PiMaterializationOptions) {
   return {
     reader,
     reserve(owner: object, demand: SendDemand<unknown>): ModelFailure | null {
-      if (key(demand) === null) return BINDING
+      if (dispatchKey(demand) === null) return BINDING
       if (reservations.size >= options.maxRecords)
         return {
           kind: 'unavailable',
@@ -105,7 +105,7 @@ export function materializationRecords(options: PiMaterializationOptions) {
       demand: SendDemand<unknown>,
       receipt: MaterializationProofInput['receipt'],
     ): TransportFailure | null {
-      const id = key(demand)
+      const id = dispatchKey(demand)
       if (id === null || !reservations.has(owner)) return SOURCE_UNAVAILABLE
       const previous = records.get(id)
       if (previous !== undefined && previous.owner !== owner) return BINDING
@@ -130,7 +130,7 @@ export function materializationRecords(options: PiMaterializationOptions) {
       }
     },
     release(owner: object, demand: SendDemand<unknown>): void {
-      const id = key(demand)
+      const id = dispatchKey(demand)
       if (id !== null && records.get(id)?.owner === owner) records.delete(id)
       reservations.delete(owner)
     },

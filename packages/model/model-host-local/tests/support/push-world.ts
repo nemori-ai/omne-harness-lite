@@ -78,7 +78,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 4096,
   readIdleMs: 1000,
-  retryBackoffMs: 0,
   cleanupRetryMs: 0,
 }
 
@@ -468,6 +467,9 @@ export function world(
     controls: memory.controls,
     Plugin,
     provided,
+    wakeNotBefore(name: string, notBefore: string) {
+      return ctx.modelInstanceHost.schedule({ tenant: TENANT, call: callOf(name), notBefore })
+    },
     contact(name: string) {
       return ctx.modelRuntime.calls.contact({
         principal: PRINCIPAL,
