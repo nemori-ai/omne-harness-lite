@@ -102,6 +102,39 @@ function ownsOperation<P>(
       unresolved === active.stage.settlement.input.operation)
   )
 }
+function beginActivity<P>(
+  active: Activity<P>,
+  execution: ExecutionRef,
+  recovery: Recovery<P>,
+): void {
+  if (recovery.state.control.kind === 'requested')
+    active.stage = {
+      kind: 'finish',
+      execution,
+      receiver: null,
+      termination: { kind: 'interrupted', control: recovery.state.control.operation },
+      driveFailure: null,
+      resolved: true,
+      settlement: { kind: 'ready' },
+    }
+  else
+    active.stage = {
+      kind: 'prepare',
+      pending: false,
+      input: {
+        ...execution,
+        expected: recovery.state.revision,
+        operation: newOperation(),
+        dispatch: generated(decodeDispatchId(`mdisp_${randomUUID()}`)),
+        supplier: structuredClone(recovery.request.suppliers[0]),
+        policyDecision: null,
+      },
+    }
+}
+function keyOf<P>(input: Pick<ModelDriveInput<P>, 'tenant' | 'call'>) {
+  const tenant = tenantCodec.encode(input.tenant)
+  return tenant.ok ? JSON.stringify([tenant.value, input.call]) : null
+}
 export function createModelDriver<P>(
   commands: ModelCommands<P>,
   instances: ModelInstanceHost<P>,
@@ -120,10 +153,6 @@ export function createModelDriver<P>(
   const open = new Set<string>()
   const refreshes = new Map<string, { requested: boolean; completion: Promise<void> }>()
   const retryStep = createRetryStage({ commands, retry, clock, instances })
-  function keyOf(input: Pick<ModelDriveInput<P>, 'tenant' | 'call'>) {
-    const tenant = tenantCodec.encode(input.tenant)
-    return tenant.ok ? JSON.stringify([tenant.value, input.call]) : null
-  }
   function admitted(input: Pick<ModelDriveInput<P>, 'tenant' | 'call'>) {
     const key = keyOf(input)
     if (key) open.add(key)
@@ -320,35 +349,6 @@ export function createModelDriver<P>(
       return blocked('unresolved-operation-without-original-input')
     }
     return { ok: undefined }
-  }
-  function beginActivity(
-    active: Activity<P>,
-    execution: ExecutionRef,
-    recovery: Recovery<P>,
-  ): void {
-    if (recovery.state.control.kind === 'requested')
-      active.stage = {
-        kind: 'finish',
-        execution,
-        receiver: null,
-        termination: { kind: 'interrupted', control: recovery.state.control.operation },
-        driveFailure: null,
-        resolved: true,
-        settlement: { kind: 'ready' },
-      }
-    else
-      active.stage = {
-        kind: 'prepare',
-        pending: false,
-        input: {
-          ...execution,
-          expected: recovery.state.revision,
-          operation: newOperation(),
-          dispatch: generated(decodeDispatchId(`mdisp_${randomUUID()}`)),
-          supplier: structuredClone(recovery.request.suppliers[0]),
-          policyDecision: null,
-        },
-      }
   }
   async function publishActivity(
     key: string,
@@ -595,6 +595,59 @@ export function createModelDriver<P>(
     if (active.stage.kind === 'not-sent') return settleNotSent(active, active.stage, input)
     return { ok: undefined }
   }
+  async function redispatch(
+    active: Activity<P>,
+    entry: Finishing<P>,
+    input: ModelDriveInput<P>,
+    prepare: Prepare,
+  ): Reply<boolean> {
+    if (entry.receiver !== null) active.spent.push(entry.receiver)
+    await entry.receiver?.release()
+    active.stage = { kind: 'prepare', pending: false, input: prepare }
+    refreshProjection(input)
+    return { ok: true }
+  }
+  // True: the retry policy decided another dispatch, and its prepare stage is set.
+  async function conclude(
+    active: Activity<P>,
+    entry: Finishing<P>,
+    input: ModelDriveInput<P>,
+    execution: ExecutionRef,
+    competition: TerminalCompetition,
+  ): Reply<boolean> {
+    if (!entry.resolved && entry.termination !== null) {
+      const next = await retryStep({ claim: input, execution, termination: entry.termination })
+      if ('failure' in next) return next
+      if (next.ok.kind === 'waiting') return { ok: false }
+      if (next.ok.kind === 'again') return redispatch(active, entry, input, next.ok.prepare)
+      entry.termination = next.ok.termination
+      entry.resolved = true
+    }
+    const finished = await finish(active, entry, competition)
+    return 'failure' in finished ? finished : { ok: false }
+  }
+  // The stage after one dispatch is 'finish' when the dispatch ended; anything else ends the drive.
+  async function runDispatch(
+    active: Activity<P>,
+    input: ModelDriveInput<P>,
+    execution: ExecutionRef,
+    recovery: Recovery<P>,
+    signal: AbortSignal,
+    competition: TerminalCompetition,
+  ): Reply<Finishing<P> | null> {
+    if (active.stage.kind === 'prepare') {
+      const prepared = await prepareDispatch(active, active.stage, input, execution, recovery)
+      if ('failure' in prepared) return prepared
+    }
+    const sent = await sendOrSettle(active, input, signal)
+    if ('failure' in sent) return sent
+    if (active.stage.kind === 'receive') {
+      const received = await receiveDispatch(active, active.stage, signal, competition)
+      if ('failure' in received) return received
+    }
+    if (active.stage.kind === 'failed') return { failure: active.stage.failure }
+    return { ok: active.stage.kind === 'finish' ? active.stage : null }
+  }
   async function runStages(
     active: Activity<P>,
     input: ModelDriveInput<P>,
@@ -604,35 +657,12 @@ export function createModelDriver<P>(
     competition: TerminalCompetition,
   ): Reply<void> {
     for (;;) {
-      if (active.stage.kind === 'prepare') {
-        const prepared = await prepareDispatch(active, active.stage, input, execution, recovery)
-        if ('failure' in prepared) return prepared
-      }
-      const sent = await sendOrSettle(active, input, signal)
-      if ('failure' in sent) return sent
-      if (active.stage.kind === 'receive') {
-        const received = await receiveDispatch(active, active.stage, signal, competition)
-        if ('failure' in received) return received
-        if (!received.ok) return { ok: undefined }
-      }
-      if (active.stage.kind === 'failed') return { failure: active.stage.failure }
-      if (active.stage.kind !== 'finish') return { ok: undefined }
-      const entry = active.stage
-      if (entry.resolved || entry.termination === null) return finish(active, entry, competition)
-      const next = await retryStep({ claim: input, execution, termination: entry.termination })
-      if ('failure' in next) return next
-      if (next.ok.kind === 'waiting') return { ok: undefined }
-      if (next.ok.kind === 'settle') {
-        entry.termination = next.ok.termination
-        entry.resolved = true
-        return finish(active, entry, competition)
-      }
-      if (entry.receiver !== null) {
-        await entry.receiver.release()
-        active.spent.push(entry.receiver)
-      }
-      active.stage = { kind: 'prepare', pending: false, input: next.ok.prepare }
-      refreshProjection(input)
+      const ended = await runDispatch(active, input, execution, recovery, signal, competition)
+      if ('failure' in ended) return ended
+      if (ended.ok === null) return { ok: undefined }
+      const again = await conclude(active, ended.ok, input, execution, competition)
+      if ('failure' in again) return again
+      if (!again.ok) return { ok: undefined }
     }
   }
   async function resume(

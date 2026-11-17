@@ -16,28 +16,35 @@ export type AfterDispatch =
   | Readonly<{ kind: 'wait'; until: string }>
   | Readonly<{ kind: 'redispatch'; supplier: Supplier; decision: DurableEvidence }>
 
+type RetryRecord = Pick<RecoveryRecord, 'state' | 'retry' | 'retryPosition' | 'retrySource'>
+type Failed = Extract<Termination, { kind: 'failed' }>
+
 export function afterDispatch(
-  input: Readonly<{
-    recovery: Pick<RecoveryRecord, 'state' | 'retry' | 'retryPosition' | 'retrySource'>
-    termination: Termination
-    now: string
-  }>,
+  input: Readonly<{ recovery: RetryRecord; termination: Termination; now: string }>,
 ): AfterDispatch {
-  const { state, retry, retryPosition } = input.recovery
-  const retrySource = input.recovery.retrySource ?? null
-  const settle = { kind: 'settle', termination: input.termination } as const
-  if (state.phase === 'settled') return { kind: 'ended' }
-  if (input.termination.kind !== 'failed') return settle
-  if (retry?.kind === 'stop')
-    return { kind: 'settle', termination: { kind: 'failed', fault: retry.fault } }
-  if (state.control.kind !== 'none') return settle
-  if (retry?.kind === 'retry' && retrySource !== null)
-    return Date.parse(input.now) < Date.parse(retry.notBefore)
-      ? { kind: 'wait', until: retry.notBefore }
-      : { kind: 'redispatch', supplier: retry.supplier, decision: retrySource }
+  const { recovery, termination, now } = input
+  if (recovery.state.phase === 'settled') return { kind: 'ended' }
+  if (termination.kind !== 'failed') return { kind: 'settle', termination }
+  if (recovery.retry?.kind === 'stop')
+    return { kind: 'settle', termination: { kind: 'failed', fault: recovery.retry.fault } }
+  if (recovery.state.control.kind !== 'none') return { kind: 'settle', termination }
+  return decidedDispatch(recovery, now) ?? undecided(recovery, termination)
+}
+
+function decidedDispatch(recovery: RetryRecord, now: string): AfterDispatch | null {
+  const { retry } = recovery
+  const decision = recovery.retrySource ?? null
+  if (retry?.kind !== 'retry' || decision === null) return null
+  return Date.parse(now) < Date.parse(retry.notBefore)
+    ? { kind: 'wait', until: retry.notBefore }
+    : { kind: 'redispatch', supplier: retry.supplier, decision }
+}
+
+function undecided(recovery: RetryRecord, termination: Failed): AfterDispatch {
+  const { state, retryPosition } = recovery
   if (retryPosition !== null)
-    return { kind: 'ask-policy', position: retryPosition, failure: input.termination.fault }
+    return { kind: 'ask-policy', position: retryPosition, failure: termination.fault }
   if (state.phase === 'running' && state.firstContent === 'none-proven')
     return { kind: 'position', dispatch: state.dispatch }
-  return settle
+  return { kind: 'settle', termination }
 }
