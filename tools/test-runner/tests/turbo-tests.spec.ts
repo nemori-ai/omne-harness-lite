@@ -58,7 +58,7 @@ function workspace(members: Readonly<Record<string, FixtureMember>>): {
   put(
     root,
     'package.json',
-    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@10.28.1" }\n',
+    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@12.18.0" }\n',
   )
   put(root, 'pnpm-workspace.yaml', 'packages:\n  - members/*\n  - apps/*\n  - packages/*\n')
   put(root, 'fake-vitest.mjs', FAKE_VITEST)

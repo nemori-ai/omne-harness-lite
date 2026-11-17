@@ -11,14 +11,14 @@ Claude Code 不从检出读取环境文件。setup 脚本保存在云端环境�
 脚本做这些事：
 
 1. 安装 rsync。
-2. 安装 Node 26.12.0 到 `/opt/node26`，核对 SHASUMS256。再用 npm 安装 pnpm 10.28.1。
+2. 安装 Node 26.13.1 到 `/opt/node26`，核对 SHASUMS256。再用 npm 安装 pnpm 12.18.0。
 3. 改写 `/etc/profile.d/nodejs.sh`，并在 `/root/.bashrc` 加一行，让 Node 26 排在镜像自带的 Node 22 之前。
 4. 安装 uv 0.13.0 到 `/root/.local/bin`，替换镜像自带的旧版。
 5. 从 GitHub 添加 `michael-denyer/pstack-claude` 与 `mattpocock/skills` 两个 marketplace，在 user 作用域安装 `pstack` 与 `mattpocock-skills`。再把 `unclebob/ub-mode` 默认分支 `master` 的 `SKILL.md` 下载到 `~/.claude/skills/ub-mode/`。下载完整且文件含 `name: ub-mode` 一行才替换旧文件。否则只输出诊断并保留旧文件，setup 继续。
 6. 在 `~/.claude/settings.json` 登记 SessionStart 钩子。钩子运行检出里的 `session-start.sh`。
 7. 检出已存在时，执行[准备检出](../../../../CONTRIBUTING.md#准备检出)的三条依赖命令，再生成 agent 投影。
 
-`NODE_VERSION` 必须满足根 `package.json` 的 `engines`。`PNPM_VERSION` 必须等于 `packageManager`。更换其中之一时，同步修改本脚本和 [Cursor 源](../cursor/README.md) 的 Dockerfile。
+`NODE_VERSION` 必须等于根 `package.json` 的 `devEngines.runtime`。`PNPM_VERSION` 必须等于 `devEngines.packageManager`（与 `packageManager` 相同）。更换其中之一时，同步修改本脚本和 [Cursor 源](../cursor/README.md) 的 Dockerfile。
 
 脚本不运行 `setup-matt-pocock-skills`。该命令会在仓库写入第二份词表。
 

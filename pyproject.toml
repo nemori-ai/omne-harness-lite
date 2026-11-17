@@ -7,6 +7,8 @@ dependencies = []
 
 [tool.uv]
 package = false
+# uv 不自己切换版本，范围外直接拒绝运行；经 mise 或 Homebrew 装的 uv 不能 self update，所以写范围不写精确版本。
+required-version = ">=0.13.0,<0.14"
 
 [tool.uv.workspace]
 members = ["tools/spec-tools"]

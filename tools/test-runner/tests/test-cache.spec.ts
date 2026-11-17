@@ -896,11 +896,12 @@ function workspace(names: readonly string[] = ['good', 'bad']): {
   }
   put(
     'package.json',
-    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@10.28.1" }\n',
+    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@12.18.0" }\n',
   )
   put('pnpm-workspace.yaml', 'packages:\n  - members/*\n')
   put('fake-vitest.mjs', FAKE_VITEST)
-  put('.gitignore', 'ran.txt\nrun-*/\n')
+  // pnpm 12 在声明了 packageManager 的目录里运行时写出锁定它自身的 pnpm-lock.yaml；锁文件进键，夹具里忽略它。
+  put('.gitignore', 'ran.txt\nrun-*/\npnpm-lock.yaml\n')
   const targets = names.map(name => {
     const code = name.startsWith('bad') ? 3 : 0
     const script = `node ../../fake-vitest.mjs members__${name} ${code}`
@@ -1274,10 +1275,11 @@ function distWorkspace(
   }
   put(
     'package.json',
-    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@10.28.1" }\n',
+    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@12.18.0" }\n',
   )
   put('pnpm-workspace.yaml', 'packages:\n  - members/*\n')
-  put('.gitignore', 'run-*/\ndist/\ntmp/\n.turbo/\nnode_modules/\n')
+  // pnpm 12 在声明了 packageManager 的目录里运行时写出锁定它自身的 pnpm-lock.yaml；锁文件进键，夹具里忽略它。
+  put('.gitignore', 'run-*/\ndist/\ntmp/\n.turbo/\nnode_modules/\npnpm-lock.yaml\n')
   put('check-dist.mjs', CHECK_DIST)
   put(
     'members/alpha/package.json',

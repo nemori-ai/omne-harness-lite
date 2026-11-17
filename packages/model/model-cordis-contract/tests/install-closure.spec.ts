@@ -152,7 +152,8 @@ describe('install-closure CLI does not fall back to the network by itself', () =
     const parsed = report()
     expect(status).toBe(1)
     expect(parsed.ok).toBe(false)
-    expect(parsed.install).toEqual({ mode: 'offline', allowNetwork: false })
+    // `pnpm` is the version that ran the install; this case judges only the mode.
+    expect(parsed.install).toMatchObject({ mode: 'offline', allowNetwork: false })
     const install = parsed.checks.find(check => check.id === 'install')
     expect(install?.ok).toBe(false)
     expect(install?.detail).toContain('network is not allowed')

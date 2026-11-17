@@ -14,7 +14,7 @@ git submodule update --init
 
 uv sync --locked
 pnpm install --frozen-lockfile --ignore-scripts
-pnpm -r rebuild node-pty
+pnpm run prepare:native
 
 # Agent compiler output is gitignored. pnpm run check:agents compares it with the source.
 PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/compile_agents.py \

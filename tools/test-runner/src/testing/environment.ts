@@ -1,27 +1,38 @@
-import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { git, nulSeparated } from '@omne-harness/repo-toolchain/core/git'
-import { pnpmCommand } from './support.ts'
 
-export const LOCKFILE = 'pnpm-lock.yaml'
-export const INSTALLED_LOCKFILE = 'node_modules/.pnpm/lock.yaml'
-export const INSTALL_ARGS = ['install', '--offline', '--frozen-lockfile'] as const
+export const BOOTSTRAP_ENV = 'OMNE_CHECK_BOOTSTRAP'
 
-export type DependencyStatus = 'in-sync' | 'reinstalled' | 'install-failed' | 'no-lockfile'
+// `not-bootstrapped`：进程内直接调用检查函数，没经过启动段。`install-failed` 只出现在启动段之前的旧记录里。
+export type DependencyStatus =
+  | 'in-sync'
+  | 'reinstalled'
+  | 'no-lockfile'
+  | 'not-bootstrapped'
+  | 'install-failed'
 export const DEPENDENCY_STATUSES: readonly DependencyStatus[] = [
   'in-sync',
   'reinstalled',
-  'install-failed',
   'no-lockfile',
+  'not-bootstrapped',
+  'install-failed',
 ]
 
+export interface DependencyCheck {
+  readonly status: DependencyStatus
+  readonly detail: string
+}
+
+export interface BootstrapResult {
+  readonly toolchain: { readonly pnpm: string; readonly node: string; readonly runtime: string }
+  readonly dependencies: DependencyCheck
+  readonly native: { readonly status: 'ok' | 'repaired'; readonly detail: string }
+}
+
 export interface EnvironmentHealing {
-  readonly dependencies: {
-    readonly status: DependencyStatus
-    readonly detail: string
-  }
+  readonly dependencies: DependencyCheck
   readonly lineEndings: {
     readonly restored: readonly string[]
     readonly kept: readonly string[]
@@ -29,61 +40,42 @@ export interface EnvironmentHealing {
   }
 }
 
-export interface EnvironmentIo {
-  readonly install: (root: string) => { readonly status: number; readonly output: string }
+export const NOT_BOOTSTRAPPED: DependencyCheck = {
+  status: 'not-bootstrapped',
+  detail: '没有经过启动段（进程内直接调用检查函数），不核对依赖',
 }
 
-const TAIL_LINES = 8
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every(entry => typeof entry === 'string')
+const START_STATUSES: readonly unknown[] = ['in-sync', 'reinstalled', 'no-lockfile']
 
-export const defaultEnvironmentIo: EnvironmentIo = {
-  install: root => {
-    const pnpm = pnpmCommand()
-    const run = spawnSync(pnpm.command, [...pnpm.args, ...INSTALL_ARGS], {
-      cwd: root,
-      encoding: 'utf8',
-      maxBuffer: 64 * 1024 * 1024,
-    })
-    if (run.error !== undefined) return { status: -1, output: run.error.message }
-    return { status: run.status ?? -1, output: `${run.stdout}${run.stderr}` }
-  },
-}
-
-function readOrUndefined(path: string): string | undefined {
+export function parseBootstrap(text: string | undefined): BootstrapResult | undefined {
+  if (text === undefined || text.trim() === '') return undefined
+  let value: unknown
   try {
-    return readFileSync(path, 'utf8')
+    value = JSON.parse(text)
   } catch {
     return undefined
   }
-}
-
-const tail = (text: string) =>
-  text
-    .trimEnd()
-    .split('\n')
-    .slice(-TAIL_LINES)
-    .map(line => line.trimEnd())
-    .join('\n')
-
-function healDependencies(root: string, io: EnvironmentIo): EnvironmentHealing['dependencies'] {
-  const lockfile = readOrUndefined(join(root, LOCKFILE))
-  if (lockfile === undefined)
-    return { status: 'no-lockfile', detail: `没有 ${LOCKFILE}，不核对依赖` }
-  const installed = readOrUndefined(join(root, INSTALLED_LOCKFILE))
-  if (installed === lockfile)
-    return { status: 'in-sync', detail: `${INSTALLED_LOCKFILE} 与 ${LOCKFILE} 相同` }
-  const why =
-    installed === undefined
-      ? `没有 ${INSTALLED_LOCKFILE}`
-      : `${INSTALLED_LOCKFILE} 与 ${LOCKFILE} 不同`
-  const command = `pnpm ${INSTALL_ARGS.join(' ')}`
-  const run = io.install(root)
-  if (run.status === 0 && readOrUndefined(join(root, INSTALLED_LOCKFILE)) === lockfile)
-    return { status: 'reinstalled', detail: `${why}，已 ${command}` }
+  if (!isRecord(value)) return undefined
+  const { toolchain, dependencies, native } = value
+  if (!isRecord(toolchain) || !isRecord(dependencies) || !isRecord(native)) return undefined
+  const { pnpm, node, runtime } = toolchain
+  if (typeof pnpm !== 'string' || typeof node !== 'string' || typeof runtime !== 'string')
+    return undefined
+  if (!START_STATUSES.includes(dependencies['status'])) return undefined
+  if (typeof dependencies['detail'] !== 'string') return undefined
+  if (native['status'] !== 'ok' && native['status'] !== 'repaired') return undefined
+  if (typeof native['detail'] !== 'string') return undefined
   return {
-    status: 'install-failed',
-    detail:
-      `${why}，${command} ${run.status === 0 ? '退出 0 但副本仍不同' : `退出 ${run.status}`}：\n${tail(run.output)}\n` +
-      '联网后手动 pnpm install --frozen-lockfile',
+    toolchain: { pnpm, node, runtime },
+    dependencies: {
+      status: dependencies['status'] as DependencyStatus,
+      detail: dependencies['detail'],
+    },
+    native: { status: native['status'], detail: native['detail'] },
   }
 }
 
@@ -148,23 +140,19 @@ function healLineEndings(root: string): EnvironmentHealing['lineEndings'] {
 
 export function healEnvironment(
   root: string,
-  io: EnvironmentIo = defaultEnvironmentIo,
+  bootstrap: BootstrapResult | undefined,
 ): EnvironmentHealing {
-  return { dependencies: healDependencies(root, io), lineEndings: healLineEndings(root) }
+  return {
+    dependencies: bootstrap?.dependencies ?? NOT_BOOTSTRAPPED,
+    lineEndings: healLineEndings(root),
+  }
 }
 
 export function describeHealing(healing: EnvironmentHealing): string[] {
   const { dependencies, lineEndings } = healing
   const lines = [
-    `环境自检：依赖——${dependencies.detail.split('\n')[0] ?? ''}${dependencies.status === 'in-sync' || dependencies.status === 'no-lockfile' ? '，不动' : ''}`,
+    `环境自检：依赖（启动段）——${dependencies.detail}${dependencies.status === 'reinstalled' ? '' : '，不动'}`,
   ]
-  if (dependencies.status === 'install-failed')
-    lines.push(
-      ...dependencies.detail
-        .split('\n')
-        .slice(1)
-        .map(line => `  ${line}`),
-    )
   if (lineEndings.blocked !== undefined) lines.push(`环境自检：换行——${lineEndings.blocked}`)
   else if (lineEndings.restored.length === 0 && lineEndings.kept.length === 0)
     lines.push('环境自检：换行——没有索引 LF、工作副本 CRLF 的已跟踪文件，不动')
@@ -178,11 +166,6 @@ export function describeHealing(healing: EnvironmentHealing): string[] {
     )
   return lines
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-const isStringArray = (value: unknown): value is string[] =>
-  Array.isArray(value) && value.every(entry => typeof entry === 'string')
 
 export function parseEnvironmentHealing(value: unknown): EnvironmentHealing | undefined {
   if (!isRecord(value) || !isRecord(value['dependencies']) || !isRecord(value['lineEndings']))
