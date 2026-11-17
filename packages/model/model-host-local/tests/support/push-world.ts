@@ -467,6 +467,9 @@ export function world(
     controls: memory.controls,
     Plugin,
     provided,
+    wakeNotBefore(name: string, notBefore: string) {
+      return ctx.modelInstanceHost.schedule({ tenant: TENANT, call: callOf(name), notBefore })
+    },
     contact(name: string) {
       return ctx.modelRuntime.calls.contact({
         principal: PRINCIPAL,
