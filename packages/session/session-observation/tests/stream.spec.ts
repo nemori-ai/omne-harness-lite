@@ -319,6 +319,31 @@ describe('the stream axis', () => {
     stop()
   })
 
+  it('the same progress with the same last fault gives no new state frame; another fault does', async () => {
+    const fault = { cause: 'upstream-unavailable', upstreamStatus: '503', diagnostic: 'http-503' }
+    const failed = { allowed: 3, made: 2, last: fault, notBefore: null }
+    const other = { ...failed, last: { ...fault, upstreamStatus: '504', diagnostic: 'http-504' } }
+    const w = world(new FakeLog())
+    w.log.append(started('run_1'), mainCall('m-1'))
+    w.model.answer('m-1', stream('s1', 'running', failed))
+    const frames = await open(w)
+    expect(await take(frames)).toMatchObject({ value: { kind: 'state', attempts: failed } })
+    await settle()
+    w.model
+      .stream('s1')
+      .push(
+        delta('s1', 2, 'running', { ...failed, last: { ...fault } }),
+        delta('s1', 3, 'running', other),
+      )
+    const steps = await drain(frames, 4)
+    expect(steps.map(step => step.value)).toEqual([
+      expect.objectContaining({ kind: 'delta' }),
+      expect.objectContaining({ kind: 'state', attempts: other }),
+      expect.objectContaining({ kind: 'delta' }),
+    ])
+    stop()
+  })
+
   it('a call state without the progress gives a state frame whose progress is null', async () => {
     const w = world(new FakeLog())
     w.log.append(started('run_1'), mainCall('m-1'))
