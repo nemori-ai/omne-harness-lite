@@ -359,6 +359,24 @@ describe('publishedCandidate: bodies of another shape', () => {
       { tools: { kind: 'array', items: [tool('', 'Shell')] } as JsonValue },
     ],
     ['a tool that is no object', { tools: { kind: 'array', items: [text('Shell')] } as JsonValue }],
+    [
+      'a tool without a category',
+      {
+        tools: {
+          kind: 'array',
+          items: [{ kind: 'object', entries: [{ key: 'name', value: text('Shell') }] }],
+        } as JsonValue,
+      },
+    ],
+    [
+      'a tool without a name',
+      {
+        tools: {
+          kind: 'array',
+          items: [{ kind: 'object', entries: [{ key: 'category', value: text('tool') }] }],
+        } as JsonValue,
+      },
+    ],
     ['an empty description', { description: text('') }],
     ['settings that are no list', { settings: text('tone') }],
     [
