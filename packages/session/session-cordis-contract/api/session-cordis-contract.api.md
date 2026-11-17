@@ -19,6 +19,7 @@
 - `BACKGROUND_INPUT_OWNER` · 包 `@omne-harness/session-contract`
 - `BackgroundCallLabel` · 包 `@omne-harness/session-contract`
 - `BackgroundCallRecord` · 包 `@omne-harness/session-contract`
+- `BackgroundCallResolution` · 包 `@omne-harness/session-contract`
 - `BackgroundCallSource` · 包 `@omne-harness/session-contract`
 - `BackgroundCallState` · 包 `@omne-harness/session-contract`
 - `BackgroundCallStatus` · 包 `@omne-harness/session-contract`

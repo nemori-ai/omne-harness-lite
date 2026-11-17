@@ -19,6 +19,7 @@
 - `BACKGROUND_INPUT_OWNER` · `background-outcome.d.ts`
 - `BackgroundCallLabel` · `background-calls.d.ts`
 - `BackgroundCallRecord` · `background-calls.d.ts`
+- `BackgroundCallResolution` · `background-calls.d.ts`
 - `BackgroundCallSource` · `background-calls.d.ts`
 - `BackgroundCallState` · `background-calls.d.ts`
 - `BackgroundCallStatus` · `background-calls.d.ts`
@@ -387,7 +388,7 @@ import type { SessionPermissionWriteQualification } from './permission-values.ts
 import type { Access, TenantId } from '@omne-harness/legal-identity';
 import type { DurableEvidence, ResidentKey, SessionAccess, SessionId } from './identity.ts';
 import type { MutationName, SessionCommand, SessionTransactionPort } from './ports.ts';
-export type SessionReadAccessOperation = 'listTodos' | 'readWork' | 'readWaiting' | 'readBackgroundCalls' | 'readInput' | 'queryOperation' | 'readModelSelection' | 'queryControlOperation' | 'loadRecovery' | 'inspectIdle' | 'history.begin' | 'history.next' | 'history.since' | 'history.readModelView';
+export type SessionReadAccessOperation = 'listTodos' | 'readWork' | 'readWaiting' | 'readBackgroundCalls' | 'resolveBackgroundCall' | 'readInput' | 'queryOperation' | 'readModelSelection' | 'queryControlOperation' | 'loadRecovery' | 'inspectIdle' | 'history.begin' | 'history.next' | 'history.since' | 'history.readModelView';
 type SessionMutationAccess<P> = {
     readonly [K in MutationName]: Readonly<{
         access: Access<P>;
@@ -498,6 +499,11 @@ export type BackgroundCallRecord = Readonly<{
     label: BackgroundCallLabel;
     source: BackgroundCallSource;
     stop?: BackgroundCallStop;
+    settled?: 'input' | 'kept';
+}>;
+export type BackgroundCallResolution = Readonly<{
+    producer: ToolProducer;
+    settled: 'input' | 'kept' | null;
 }>;
 export type BackgroundCallState = Readonly<{
     phase: 'queued' | 'running' | 'settled';
@@ -1309,7 +1315,7 @@ export declare function expandHistoryEntries(rows: readonly HistoryEntry[], crea
 ## 声明文件 `faces.d.ts`
 
 ```ts
-import type { BackgroundCallView } from './background-calls.ts';
+import type { BackgroundCallResolution, BackgroundCallView } from './background-calls.ts';
 import type { TodoMutationReceipt, TodoPage, TodoPageCursor } from './todos.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { TenantId } from '@omne-harness/legal-identity';
@@ -1433,6 +1439,9 @@ export interface SessionWork<P> {
     readWork(input: SessionAccess<P>): Reply<WorkSnapshot>;
     readWaiting(input: SessionAccess<P>): Reply<SessionWaiting | null>;
     readBackgroundCalls(input: SessionAccess<P>): Reply<readonly BackgroundCallView[]>;
+    resolveBackgroundCall(input: SessionAccess<P> & Readonly<{
+        id: string;
+    }>): Reply<BackgroundCallResolution>;
     readInput(input: SessionAccess<P> & Readonly<{
         input: InputId;
     }>): Reply<Extract<RoutedInput, {
@@ -2006,7 +2015,7 @@ export type { TodoItem, VisibleTodoItem, TodoMutationReceipt, TodoPageCursor, To
 export type { SessionPermissionAssignment, SessionPermissions, SessionPermissionChangeBasis, SessionPermissionWriteQualification, } from './permission-values.ts';
 export { rebuildSessionPermissions, type SessionPermissionHistory } from './permission-history.ts';
 export { backgroundCallView, shortCallId } from './background-calls.ts';
-export type { BackgroundCallLabel, BackgroundCallRecord, BackgroundCallSource, BackgroundCallState, BackgroundCallStatus, BackgroundCallStop, BackgroundCallView, StopInitiator, StopView, } from './background-calls.ts';
+export type { BackgroundCallLabel, BackgroundCallResolution, BackgroundCallRecord, BackgroundCallSource, BackgroundCallState, BackgroundCallStatus, BackgroundCallStop, BackgroundCallView, StopInitiator, StopView, } from './background-calls.ts';
 ```
 
 ## 声明文件 `initialization-parse.d.ts`
@@ -2503,7 +2512,7 @@ import type { Adoption, AdvanceRef, AgentInstanceRef, ConsumptionId, DurableEvid
 import type { BoundedClose, CallBinding, Participation } from './values.ts';
 import type { ProducerFact } from './faces.ts';
 export type SessionOperationElements = Readonly<{
-    kind: 'todo-tool-call';
+    kind: 'todo-tool-call' | 'stop-tool-call';
     tenant: string;
     session: SessionId;
     call: string;
@@ -3169,8 +3178,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:5d9f32362f51d8f5e0216b32e80c276447e58e344b335f30cd7522ba2c316316";
-export declare const SESSION_RELEASE_DIGEST = "sha256:5d9f32362f51d8f5e0216b32e80c276447e58e344b335f30cd7522ba2c316316";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:7177e38077c9439e5ec2a48c66b2a83ab41516e57d9b22fb17acbc8fd19bd7bb";
+export declare const SESSION_RELEASE_DIGEST = "sha256:7177e38077c9439e5ec2a48c66b2a83ab41516e57d9b22fb17acbc8fd19bd7bb";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

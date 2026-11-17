@@ -25,6 +25,7 @@ import { isReleaseToolRequest, isReleaseToolsRequest } from '../../entry/tool-fo
 import { releaseOf } from '../../entry/tool-release.ts'
 import { createReleaseToolsCapability, toolsCapabilityConfig } from './tools-capability.ts'
 import { bindReleaseTodoItems } from './todo-items.ts'
+import { bindReleaseBackgroundCalls } from './background-calls.ts'
 import { bindReleaseWeb, webBindingConfig, type WebBindingConfig } from './web.ts'
 
 export const toolBindingsConfig = z
@@ -51,9 +52,12 @@ export function releaseCapability(
     const withTodos = isReleaseToolRequest(release, input.request, 'TodoItems')
       ? bindReleaseTodoItems(ctx, input, withTools)
       : withTools
-    return attachments.web !== null && isReleaseToolRequest(release, input.request, 'Web')
-      ? bindReleaseWeb(input, withTodos, attachments.web, custody)
+    const withCalls = isReleaseToolRequest(release, input.request, 'BkgToolCalls')
+      ? bindReleaseBackgroundCalls(ctx, input, withTodos)
       : withTodos
+    return attachments.web !== null && isReleaseToolRequest(release, input.request, 'Web')
+      ? bindReleaseWeb(input, withCalls, attachments.web, custody)
+      : withCalls
   }
 }
 

@@ -862,3 +862,21 @@ it('受理方与协调方读到同一份后台调用：短号、标签、来源�
     failure: { kind: 'denied', action: 'readBackgroundCalls' },
   })
 })
+
+it('受理方与协调方按短号认一项：本会话的认得出，别的会话的与不存在的同答 not-found（C17）', async () => {
+  const f = await controlFixture()
+  open.push(f.h)
+  const { binding } = await backgroundedCall(f)
+  for (const caller of ['intake', 'coordinator'] as const) {
+    expect(
+      await f.h.faces(caller).work.resolveBackgroundCall({ ...f.h.access(), id: 'b1' }),
+    ).toEqual({ ok: { producer: binding.producer, settled: null } })
+    for (const id of ['b2', 'b0', 'x1'])
+      expect(await f.h.faces(caller).work.resolveBackgroundCall({ ...f.h.access(), id })).toEqual({
+        failure: { kind: 'not-found' },
+      })
+  }
+  expect(
+    await f.h.faces('maintainer').work.resolveBackgroundCall({ ...f.h.access(), id: 'b1' }),
+  ).toMatchObject({ failure: { kind: 'denied' } })
+})

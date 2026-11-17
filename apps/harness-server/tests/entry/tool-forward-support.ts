@@ -46,13 +46,15 @@ export async function forwardWorld() {
     const module =
       name === 'TodoItems'
         ? release.modules.todoItemsToolModule
-        : name === 'Web'
-          ? release.modules.webToolModule
-          : name === 'Tools'
-            ? release.modules.toolsToolModule
-            : name === 'Shell' || name === 'ToyEcho'
-              ? release.modules.shellToolModule
-              : release.modules.filesToolModule
+        : name === 'BkgToolCalls'
+          ? release.modules.backgroundCallsToolModule
+          : name === 'Web'
+            ? release.modules.webToolModule
+            : name === 'Tools'
+              ? release.modules.toolsToolModule
+              : name === 'Shell' || name === 'ToyEcho'
+                ? release.modules.shellToolModule
+                : release.modules.filesToolModule
     const author = okOf(
       module.createAuthor(tree(TEST_CONSTRUCTION[name === 'ToyEcho' ? 'Shell' : name])),
       'author',

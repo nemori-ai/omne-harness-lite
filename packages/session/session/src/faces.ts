@@ -3,6 +3,7 @@ import { fail, succeed } from '@omne-harness/operation-result'
 import {
   backgroundCallView,
   judgeWaiting,
+  shortCallId,
   type MutationName,
   type SessionAccess,
   type SessionCallerClass,
@@ -14,6 +15,7 @@ import {
   type SessionReconciliation,
   type SessionWork,
   type BackgroundCallRecord,
+  type BackgroundCallResolution,
   type BackgroundCallState,
   type BackgroundCallView,
   type Reply,
@@ -102,8 +104,8 @@ async function readBackgroundCallsOf<P>(
   const records = await reads.session(caller, 'readBackgroundCalls', value, async view => {
     const snapshot = await readSnapshot(view, accessOf(value), 'readBackgroundCalls')
     if ('failure' in snapshot) return snapshot
-    const calls = [...(snapshot.ok.backgroundCalls ?? [])]
-    return succeed(calls.sort((left, right) => left.ordinal - right.ordinal))
+    const calls = (snapshot.ok.backgroundCalls ?? []).filter(item => item.settled === undefined)
+    return succeed([...calls].sort((left, right) => left.ordinal - right.ordinal))
   })
   if ('failure' in records) return records
   const port = states.current()
@@ -111,6 +113,20 @@ async function readBackgroundCallsOf<P>(
     records.ok.map(async record => backgroundCallView(record, await stateOf(port, value, record))),
   )
   return succeed(views)
+}
+
+function resolveBackgroundCallOf<P>(
+  reads: Reads<P>,
+  caller: SessionCallerClass,
+  value: SessionAccess<P> & Readonly<{ id: string }>,
+): Reply<BackgroundCallResolution> {
+  return reads.session(caller, 'resolveBackgroundCall', value, async view => {
+    const snapshot = await readSnapshot(view, accessOf(value), 'resolveBackgroundCall')
+    if ('failure' in snapshot) return snapshot
+    const record = snapshot.ok.backgroundCalls?.find(item => shortCallId(item.ordinal) === value.id)
+    if (record === undefined) return fail({ kind: 'not-found' })
+    return succeed({ producer: record.producer, settled: record.settled ?? null })
+  })
 }
 
 // The reads that answer from one snapshot of the session.
@@ -124,6 +140,8 @@ function snapshotReads<P>(
     readWaiting: (value: SessionAccess<P>) => readWaitingOf(reads, caller, value),
     readBackgroundCalls: (value: SessionAccess<P>) =>
       readBackgroundCallsOf(reads, caller, value, states),
+    resolveBackgroundCall: (value: SessionAccess<P> & Readonly<{ id: string }>) =>
+      resolveBackgroundCallOf(reads, caller, value),
   }
 }
 

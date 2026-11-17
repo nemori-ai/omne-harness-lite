@@ -57,6 +57,7 @@ export function backgroundRecordOf(
   snapshot: WorkSnapshot,
   consumption: ConsumptionId,
 ): BackgroundCallRecord | null {
+  if (!(snapshot.backgroundPlaceholders ?? []).includes(consumption)) return null
   return (snapshot.backgroundCalls ?? []).find(item => item.consumption === consumption) ?? null
 }
 
@@ -272,8 +273,9 @@ export function applyBackgroundSettled(
   const placeholders = draft.backgroundPlaceholders ?? []
   if (!placeholders.includes(entry.consumption)) return 'a settlement of a call not in background'
   draft.backgroundPlaceholders = placeholders.filter(item => item !== entry.consumption)
-  draft.backgroundCalls = (draft.backgroundCalls ?? []).filter(
-    item => item.consumption !== entry.consumption,
+  const settled = entry.disposition.kind
+  draft.backgroundCalls = (draft.backgroundCalls ?? []).map(item =>
+    item.consumption === entry.consumption ? { ...item, settled } : item,
   )
   if (entry.disposition.kind === 'input')
     draft.backgroundInputs = [...(draft.backgroundInputs ?? []), entry.disposition.input]

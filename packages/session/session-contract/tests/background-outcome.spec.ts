@@ -139,12 +139,16 @@ describe('the short number of a backgrounded call (I-12, C17)', () => {
     await bindOther(c)
     succeeded(await commitEntries(c, observation(c, 'p', 0, [[backgrounded]])), 'first moved')
     succeeded(await commitEntries(c, observation(c, 'r', 1, [[execution, outcome()]])), 'settled')
-    expect((await c.s.read()).backgroundCalls).toEqual([])
+    expect((await c.s.read()).backgroundCalls).toEqual([
+      expect.objectContaining({ ordinal: 1, producer, settled: 'input' }),
+    ])
     const second = { ...backgrounded, producer: other } as SessionEntriesInterpretation
     succeeded(await commitEntries(c, observation(c, 's', 2, [[second]])), 'second moved')
     expect((await c.s.read()).backgroundCalls).toEqual([
+      expect.objectContaining({ ordinal: 1, producer, settled: 'input' }),
       expect.objectContaining({ ordinal: 2, producer: other }),
     ])
+    expect((await c.s.read()).backgroundCalls?.[1]).not.toHaveProperty('settled')
   })
 
   it('keeps the same short numbers when the entries are replayed', async () => {

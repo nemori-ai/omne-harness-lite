@@ -27,6 +27,7 @@ const ADMITTED: Readonly<Record<FaceOperation, readonly SessionCallerClass[]>> =
   readWork: [C, M],
   readWaiting: [I],
   readBackgroundCalls: [I, C],
+  resolveBackgroundCall: [I, C],
   readInput: [C, M],
   startRun: [C, M],
   claim: [C, M],

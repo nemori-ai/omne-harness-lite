@@ -21,8 +21,8 @@ function cells(table: Readonly<Record<string, PolicyRow>>) {
 const allows = (cell: PolicyCell) => cell.verdict === 'member' || cell.verdict === 'matrix'
 
 describe('row coverage', () => {
-  it('has the 46 Session rows and the 26 Agent rows of the baseline enumerations', () => {
-    expect(Object.keys(SESSION_POLICY)).toHaveLength(47)
+  it('has the 48 Session rows and the 26 Agent rows of the baseline enumerations', () => {
+    expect(Object.keys(SESSION_POLICY)).toHaveLength(48)
     expect(Object.keys(AGENT_POLICY)).toHaveLength(26)
   })
 
@@ -36,7 +36,7 @@ describe('row coverage', () => {
   it('passes the audit with no findings', () => {
     const audit = auditPolicy()
     expect(audit.findings).toEqual([])
-    expect(audit.session.rows).toBe(47)
+    expect(audit.session.rows).toBe(48)
     expect(audit.agent.rows).toBe(26)
   })
 })
@@ -53,8 +53,8 @@ describe('sources', () => {
     }
   })
 
-  it('counts 59 allowing cells in the Session table and 14 in the Agent table', () => {
-    expect(auditPolicy().session.allowedCells).toBe(59)
+  it('counts 62 allowing cells in the Session table and 14 in the Agent table', () => {
+    expect(auditPolicy().session.allowedCells).toBe(62)
     expect(auditPolicy().agent.allowedCells).toBe(14)
   })
 

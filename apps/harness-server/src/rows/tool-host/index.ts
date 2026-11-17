@@ -30,6 +30,7 @@ export const toolHostConfig = z
           })
           .optional(),
         TodoItems: z.strictObject({ resultMaxBytes: positive }).optional(),
+        BkgToolCalls: z.strictObject({ resultMaxBytes: positive }).optional(),
         Ask: z.strictObject({ resultMaxBytes: positive }).optional(),
         Web: z.strictObject({ resultMaxBytes: positive, maxSearchResults: positive }).optional(),
         Tools: z

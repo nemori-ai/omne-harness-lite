@@ -268,6 +268,7 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
       Files: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
       Tools: { resultMaxBytes: 65536, outputModalities: ['text'] },
       TodoItems: { resultMaxBytes: 1_048_576 },
+      BkgToolCalls: { resultMaxBytes: 65_536 },
       Ask: { resultMaxBytes: 1_048_576 },
       Web: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES, maxSearchResults: 10 },
     },

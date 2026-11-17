@@ -28,6 +28,13 @@ export type BackgroundCallRecord = Readonly<{
   label: BackgroundCallLabel
   source: BackgroundCallSource
   stop?: BackgroundCallStop
+  settled?: 'input' | 'kept'
+}>
+
+/** What a short number of the session names, settled or not. */
+export type BackgroundCallResolution = Readonly<{
+  producer: ToolProducer
+  settled: 'input' | 'kept' | null
 }>
 
 /** What Tool answers about one call now; Session keeps none of it. */

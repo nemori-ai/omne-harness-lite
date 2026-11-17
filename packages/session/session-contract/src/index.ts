@@ -313,6 +313,7 @@ export { rebuildSessionPermissions, type SessionPermissionHistory } from './perm
 export { backgroundCallView, shortCallId } from './background-calls.ts'
 export type {
   BackgroundCallLabel,
+  BackgroundCallResolution,
   BackgroundCallRecord,
   BackgroundCallSource,
   BackgroundCallState,

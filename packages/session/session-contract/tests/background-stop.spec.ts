@@ -347,7 +347,10 @@ describe('only a waking input opens a Run (C20)', () => {
       'batch',
     )
     const snapshot = await c.s.read()
-    expect(snapshot.backgroundCalls?.map(item => item.ordinal)).toEqual([1])
+    expect(snapshot.backgroundCalls?.map(item => [item.ordinal, item.settled ?? null])).toEqual([
+      [1, null],
+      [2, 'input'],
+    ])
     expect(snapshot.backgroundOrdinal).toBe(2)
   })
 })

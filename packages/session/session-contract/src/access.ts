@@ -8,6 +8,7 @@ export type SessionReadAccessOperation =
   | 'readWork'
   | 'readWaiting'
   | 'readBackgroundCalls'
+  | 'resolveBackgroundCall'
   | 'readInput'
   | 'queryOperation'
   | 'readModelSelection'
