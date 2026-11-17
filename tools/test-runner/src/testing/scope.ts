@@ -3,6 +3,7 @@ import type { AffectedRules } from './config.ts'
 import type { FailedFile } from './test-retry.ts'
 import type { LockfileAffectedMember, LockfileImpact } from './lockfile-impact.ts'
 import { ownerOf, type WorkspaceMember } from '@omne-harness/repo-toolchain/core/workspace'
+import { patternToRegExp } from './path-pattern.ts'
 
 export const LOCKFILE_PATH = 'pnpm-lock.yaml'
 export const WORKSPACE_PATH = 'pnpm-workspace.yaml'
@@ -10,17 +11,6 @@ const DEPENDENCY_MANIFESTS: ReadonlySet<string> = new Set([LOCKFILE_PATH, WORKSP
 export const ENGINE_MEMBER = 'tools/test-runner'
 
 export type LockfileJudge = () => LockfileImpact
-
-export function patternToRegExp(pattern: string): RegExp {
-  const escaped = pattern
-    .replaceAll(/[.+?^${}()|[\]\\]/gu, '\\$&')
-    .replaceAll('**/', '\u0001')
-    .replaceAll('**', '\u0000')
-    .replaceAll('*', '[^/]*')
-    .replaceAll('\u0001', '(?:.*/)?')
-    .replaceAll('\u0000', '.*')
-  return new RegExp(`^${escaped}$`, 'u')
-}
 
 const firstMatch = (path: string, patterns: readonly string[]) =>
   patterns.find(pattern => patternToRegExp(pattern).test(path))

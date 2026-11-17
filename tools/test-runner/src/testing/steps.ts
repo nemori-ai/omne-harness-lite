@@ -489,7 +489,7 @@ function recordedReadSets(
 ): string[] {
   const config = readTestRunsConfig()
   const home = readSetHome(run.at.mainRoot, process.env)
-  const floor = floorOf(root, config.affected.globalPaths)
+  const floor = floorOf(config.affected.globalPaths)
   const workspace = listWorkspaceMembers(fileTree(root), config.affected.excludeRoots).map(
     member => member.path,
   )

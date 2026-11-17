@@ -1,4 +1,6 @@
+import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
+import { repositoryEnv } from '@omne-harness/repo-toolchain/core/git-environment'
 import {
   existsSync,
   mkdirSync,
@@ -11,6 +13,7 @@ import {
 import { dirname, isAbsolute, join, relative } from 'node:path'
 import type { RunTier } from './config.ts'
 import type { VitestJsonReport } from './ledger.ts'
+import { patternToRegExp } from './path-pattern.ts'
 import type { TimingReport } from './timing-reporter.ts'
 
 export const READ_SETS_ENV = 'OMNE_TEST_READ_SETS'
@@ -62,7 +65,7 @@ export interface RecordedFile {
 }
 
 export interface ReadSetRecord {
-  readonly version: 1
+  readonly version: 2
   readonly head: string
   readonly recordedAt: string
   readonly tree: Readonly<Record<string, string>>
@@ -124,10 +127,47 @@ export function readsOf(
 
 const sha = (data: string | Buffer) => createHash('sha256').update(data).digest('hex').slice(0, 32)
 
-export function digestKey(root: string, key: string): string {
+type Listing = () => readonly string[] | undefined
+
+function repositoryFiles(root: string): string[] | undefined {
+  try {
+    const listed = execFileSync(
+      'git',
+      ['ls-files', '--cached', '--others', '--exclude-standard', '-z'],
+      {
+        cwd: root,
+        env: repositoryEnv(process.env),
+        encoding: 'utf8',
+        maxBuffer: 64 * 1024 * 1024,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      },
+    )
+    return [...new Set(listed.split('\0').filter(path => path !== ''))]
+  } catch {
+    return undefined
+  }
+}
+
+export function digestKey(
+  root: string,
+  key: string,
+  files: Listing = () => repositoryFiles(root),
+): string {
   const at = key.indexOf(':')
   const kind = key.slice(0, at)
   if (kind === 'runtime') return `${process.version} ${process.platform} ${process.arch}`
+  if (kind === 'glob') {
+    const listed = files()
+    if (listed === undefined) return 'unreadable'
+    const pattern = patternToRegExp(key.slice(at + 1))
+    return sha(
+      listed
+        .filter(path => pattern.test(path))
+        .sort()
+        .map(path => `${path}\0${digestKey(root, `content:${path}`)}`)
+        .join('\n'),
+    )
+  }
   const path = join(root, key.slice(at + 1))
   try {
     const stat = statSync(path, { throwIfNoEntry: false })
@@ -148,11 +188,13 @@ export interface DigestMemo {
 
 export function digestMemo(root: string): DigestMemo {
   const known = new Map<string, string>()
+  let listing: { readonly files: readonly string[] | undefined } | undefined
+  const files = () => (listing ??= { files: repositoryFiles(root) }).files
   return {
     digest: key => {
       const seen = known.get(key)
       if (seen !== undefined) return seen
-      const digest = digestKey(root, key)
+      const digest = digestKey(root, key, files)
       known.set(key, digest)
       return digest
     },
@@ -202,7 +244,7 @@ export function recordOf(
       ...(cached === undefined ? {} : { cached }),
     }
   }
-  return { version: 1, ...at, tree, files, ...(extra.env === undefined ? {} : { env: extra.env }) }
+  return { version: 2, ...at, tree, files, ...(extra.env === undefined ? {} : { env: extra.env }) }
 }
 
 export function cachedResults(
@@ -315,7 +357,7 @@ function isRecord(value: unknown): value is ReadSetRecord {
   if (typeof value !== 'object' || value === null) return false
   const { version, tree, files } = value as Partial<ReadSetRecord>
   return (
-    version === 1 &&
+    version === 2 &&
     typeof tree === 'object' &&
     tree !== null &&
     typeof files === 'object' &&

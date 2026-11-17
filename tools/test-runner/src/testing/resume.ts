@@ -4,7 +4,8 @@ import type { AdmissionRun, CacheStates, ResumeOrigin } from './admission-run.ts
 import type { FailedFile } from './test-retry.ts'
 import { latestResumeOrigin } from './admission-run.ts'
 import type { CheckStep } from './check-graph.ts'
-import { patternToRegExp, sample, type CheckPlan } from './scope.ts'
+import { patternToRegExp } from './path-pattern.ts'
+import { sample, type CheckPlan } from './scope.ts'
 
 export type OriginScope =
   | { readonly mode: 'full' }

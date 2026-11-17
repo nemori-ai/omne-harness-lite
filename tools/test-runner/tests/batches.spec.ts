@@ -5,6 +5,7 @@ import {
   batchFiles,
   batchLabel,
   batchQueue,
+  isTypecheckFile,
   memberBatches,
   type Batch,
 } from '../src/testing/batches.ts'
@@ -29,6 +30,33 @@ describe('一个成员的一层切成几批', () => {
     expect(memberBatches('a', [at('tests/x.spec.ts', 400)], 90)).toEqual([
       { member: 'a', kind: 'whole', seconds: 400 },
     ])
+    expect(
+      memberBatches('a', [at('tests/x.spec.ts', 50), at('tests/y.spec.ts', 40)], 90),
+      '合计恰好等于目标也不切',
+    ).toEqual([{ member: 'a', kind: 'whole', seconds: 90 }])
+  })
+
+  it('装箱前先按耗时从长到短排，不按读数里的次序', () => {
+    const known = [at('tests/a.spec.ts', 5), at('tests/b.spec.ts', 6), at('tests/c.spec.ts', 4)]
+    const files = memberBatches('m', known, 10).filter(batch => batch.kind === 'files')
+    expect(files.map(batch => [batch.files, batch.seconds])).toEqual([
+      [['tests/b.spec.ts', 'tests/c.spec.ts'], 10],
+      [['tests/a.spec.ts'], 5],
+    ])
+    expect(files.map(batch => batchFiles(batch))).toEqual([2, 1])
+  })
+
+  it('只做类型检查的文件认 .ts、.mts、.cts、.tsx 与 .js 一类的扩展名，名字要以它结尾', () => {
+    for (const file of [
+      'a.spec-d.ts',
+      'a.test-d.mts',
+      'a.spec-d.cts',
+      'a.spec-d.tsx',
+      'a.test-d.js',
+    ])
+      expect(isTypecheckFile(file), file).toBe(true)
+    for (const file of ['a.spec-d.ts.snap', 'a.spec.ts'])
+      expect(isTypecheckFile(file), file).toBe(false)
   })
 
   it('切开时按耗时从长到短装箱，每批不超过目标时长；比目标还长的文件自己一批', () => {
@@ -133,6 +161,23 @@ describe('一个成员的一层切成几批', () => {
       batch => batch.kind === 'files' && batch.files.includes('tests/a.spec.ts'),
     )
     expect(together?.kind === 'files' ? together.files : []).toContain('tests/a.spec.tsx')
+    expect(runFiles(batches).sort(), '每份文件只落在一批里').toEqual([
+      'tests/a.spec.ts',
+      'tests/a.spec.tsx',
+      'tests/b.spec.ts',
+    ])
+  })
+
+  it('连着的包含也并成一组：后来的文件只和组里的某一份重叠也并进来', () => {
+    const known = [
+      at('tests/x.spec.ts', 80),
+      at('pkg/tests/x.spec.ts', 80),
+      at('tests/x.spec.tsx', 80),
+    ]
+    const files = memberBatches('m', known, 90).filter(batch => batch.kind === 'files')
+    expect(files.map(batch => [batch.files, batch.seconds])).toEqual([
+      [['pkg/tests/x.spec.ts', 'tests/x.spec.ts', 'tests/x.spec.tsx'], 240],
+    ])
   })
 })
 

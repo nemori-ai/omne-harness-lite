@@ -64,6 +64,8 @@ describe('成员上一次的读数', () => {
     const root = home()
     ledger(root, '20261116-100000-fast', 50, '{ not json')
     ledger(root, 'scratch', 40, [{ member: 'packages/x', wallSeconds: 1, files: 1, exitCode: 0 }])
+    for (const name of ['old-20261116-100000-fast', '20261116-100000-fast-copy'])
+      ledger(root, name, 30, [{ member: 'packages/x', wallSeconds: 1, files: 1, exitCode: 0 }])
     mkdirSync(join(root, 'abc123def', '20261116-110000-fast'), { recursive: true })
     ledger(root, '20261116-090000-fast', 500, [
       { member: 'packages/a', wallSeconds: 3, files: 1, exitCode: 0 },
@@ -142,7 +144,27 @@ describe('成员上一次的读数', () => {
         },
       },
     })
+    write(root, '20261116-140000-fast', 40, {
+      members: [row('packages/c')],
+      meta: {
+        tokens: {
+          jobs: [
+            {
+              member: 'packages/c',
+              cpuSeconds: 50,
+              workers: 2,
+              start: 100,
+              end: 140,
+              readingVersion: READING_VERSION,
+            },
+          ],
+        },
+      },
+    })
     const history = memberHistory(root, 'fast')
+    expect(history.get('packages/c')?.weights, '墙钟是起止之差').toEqual([
+      { cpuSeconds: 50, processSeconds: 80 },
+    ])
     expect(history.get('packages/a')?.weights).toEqual([
       { cpuSeconds: 90, processSeconds: 80 },
       { cpuSeconds: 70, processSeconds: 100 },
@@ -176,7 +198,7 @@ describe('成员上一次的读数', () => {
     ])
   })
 
-  it('没有报告的运行（退出非 0、零个文件）不给用时、文件数与文件耗时，只给权重与启动读数；失败但有报告的运行照给，失败的文件也算；退出 0、零个文件的成员照算', () => {
+  it('没有报告的运行（退出非 0、零个文件）不给用时、文件数与文件耗时，只给权重与启动读数；只有这种运行的成员不出现；失败但有报告的运行照给，失败的文件也算；退出 0、零个文件的成员照算；账本的 meta 里没有令牌一节也照读', () => {
     const root = home()
     const server = 'apps/server'
     write(root, '20261116-100000-slow', 300, {
@@ -215,6 +237,10 @@ describe('成员上一次的读数', () => {
           ],
         },
       },
+    })
+    write(root, '20261116-130000-slow', 50, {
+      members: [{ member: 'packages/crashed', wallSeconds: 1, files: 0, exitCode: 1 }],
+      meta: {},
     })
     expect(Object.fromEntries(memberHistory(root, 'slow'))).toEqual({
       [server]: {

@@ -148,6 +148,29 @@ describe('令牌从哪来', () => {
     expect(tokenSource('/r', { OMNE_TEST_SLOT_HELD: '/x' }, 2, 8).capacity).toBe(6)
     expect(tokenSource('/r', {}, 2, 8).capacity).toBe(6)
     expect(tokenSource('/r', { OMNE_TEST_SLOT_CAPACITY: '3' }, 2, 8).capacity).toBe(3)
+    expect(
+      tokenSource('/r', { OMNE_WORKER_BUDGET: '3', OMNE_TEST_SLOT_CAPACITY: '5' }, 2, 8).capacity,
+      '没有持有标记时不看 OMNE_WORKER_BUDGET',
+    ).toBe(5)
+  })
+
+  it('环境变量只认正整数，多位数照认；认不出的回到整机的算法；持有标记是空串等于没有', () => {
+    const held = (budget: string) =>
+      tokenSource('/r', { OMNE_TEST_SLOT_HELD: '/x', OMNE_WORKER_BUDGET: budget }, 2, 8).capacity
+    expect(held('12')).toBe(12)
+    for (const bad of ['3x', 'x3']) expect(held(bad), bad).toBe(6)
+    const machine = (capacity: string) =>
+      tokenSource('/r', { OMNE_TEST_SLOT_CAPACITY: capacity }, 2, 8).capacity
+    expect(machine('12')).toBe(12)
+    for (const bad of ['5x', 'x5']) expect(machine(bad), bad).toBe(6)
+    expect(
+      tokenSource(
+        '/r',
+        { OMNE_TEST_SLOT_HELD: '', OMNE_WORKER_BUDGET: '3', OMNE_TEST_SLOT_CAPACITY: '5' },
+        2,
+        8,
+      ).capacity,
+    ).toBe(5)
   })
 })
 
