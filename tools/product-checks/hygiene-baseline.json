@@ -839,10 +839,6 @@
       "tools/repo-toolchain/src/report/matrix.ts": {
         "count": 1,
         "longest": 189
-      },
-      "tools/test-runner/src/testing/check.ts": {
-        "count": 1,
-        "longest": 181
       }
     }
   }

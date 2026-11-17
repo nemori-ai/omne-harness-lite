@@ -1,108 +1,70 @@
-import { availableParallelism, cpus, freemem } from 'node:os'
-import type { Parallelism } from '@omne-harness/repo-toolchain/core/test-ledger'
+import { availableParallelism } from 'node:os'
+import type { RunTier } from '@omne-harness/repo-toolchain/core/test-ledger'
+
+export interface WorkerTokens {
+  readonly member: string
+  readonly tier: RunTier
+  readonly tokens: number
+  readonly why: string
+}
 
 export interface ParallelPolicy {
-  readonly memberDivisor: number
-  readonly workerDivisor: number
   readonly maxWorkersPerMember: number
-  readonly minimum: number
-  readonly memoryPerWorkerMiB: number
-  readonly sampleMs: number
   readonly reserveCores: number
-  readonly concurrentRuns: number
-}
-
-export interface Machine {
-  readonly cores: number
-  readonly idleFraction: number
-  readonly freeMemoryMiB: number
-}
-
-export interface Budget {
-  readonly workers: number
-  readonly machine: Machine
-  readonly source: 'sampled' | 'env'
+  readonly tokensPerWorker: readonly WorkerTokens[]
 }
 
 export const WORKER_BUDGET_ENV = 'OMNE_WORKER_BUDGET'
 
-export type CpuSample = readonly { readonly times: Readonly<Record<string, number>> }[]
-
-export function idleBetween(before: CpuSample, after: CpuSample): number {
-  let idle = 0
-  let total = 0
-  for (const [index, core] of after.entries()) {
-    const previous = before[index]
-    if (previous === undefined) continue
-    for (const [key, value] of Object.entries(core.times)) {
-      const delta = value - (previous.times[key] ?? 0)
-      total += delta
-      if (key === 'idle') idle += delta
-    }
-  }
-  return total > 0 ? idle / total : 1
+export function machineCapacity(policy: ParallelPolicy, cores: number = availableParallelism()) {
+  return Math.max(1, cores - policy.reserveCores)
 }
 
-export async function observeMachine(sampleMs: number): Promise<Machine> {
-  const before = cpus()
-  await new Promise(resolve => setTimeout(resolve, sampleMs))
-  return {
-    cores: availableParallelism(),
-    idleFraction: idleBetween(before, cpus()),
-    freeMemoryMiB: Math.floor(freemem() / (1024 * 1024)),
-  }
+export interface Budget {
+  readonly workers: number
+  readonly cores: number
+  readonly source: 'env' | 'capacity'
 }
 
-export async function observeMachineSettled(sampleMs: number): Promise<Machine> {
-  await new Promise(resolve => setTimeout(resolve, sampleMs))
-  return observeMachine(sampleMs)
-}
-
-const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), high)
-
-export function workerBudget(machine: Machine, policy: ParallelPolicy): Budget {
-  const pool = Math.max(1, machine.cores - policy.reserveCores)
-  const byCpu = Math.floor(pool / policy.concurrentRuns)
-  const byMemory =
-    machine.freeMemoryMiB > 0
-      ? Math.floor(machine.freeMemoryMiB / policy.memoryPerWorkerMiB)
-      : Number.POSITIVE_INFINITY
-  return { workers: clamp(Math.min(byCpu, byMemory), 1, machine.cores), machine, source: 'sampled' }
-}
-
-export async function budgetFor(
+export function budgetFor(
   policy: ParallelPolicy,
   env: Readonly<Record<string, string | undefined>> = process.env,
-): Promise<Budget> {
+  cores: number = availableParallelism(),
+): Budget {
   const given = env[WORKER_BUDGET_ENV]
   if (given !== undefined && given !== '') {
     if (!/^[1-9]\d*$/u.test(given))
       throw new Error(`环境变量 ${WORKER_BUDGET_ENV} 须为正整数，现在是 ${given}`)
-    const machine = await observeMachine(0)
-    return { workers: Math.min(Number(given), machine.cores), machine, source: 'env' }
+    return { workers: Math.min(Number(given), cores), cores, source: 'env' }
   }
-  return workerBudget(await observeMachineSettled(policy.sampleMs), policy)
+  return { workers: machineCapacity(policy, cores), cores, source: 'capacity' }
 }
 
-export function deriveParallelism(budget: Budget, policy: ParallelPolicy): Parallelism {
-  const { workers } = budget
-  return {
-    memberConcurrency: Math.max(policy.minimum, Math.ceil(workers / policy.memberDivisor)),
-    vitestMaxWorkers: clamp(
-      Math.ceil(workers / policy.workerDivisor),
-      policy.minimum,
-      Math.max(policy.minimum, policy.maxWorkersPerMember),
-    ),
-  }
+export function tokensPerWorker(policy: ParallelPolicy, member: string, tier: RunTier): number {
+  return (
+    policy.tokensPerWorker.find(entry => entry.member === member && entry.tier === tier)?.tokens ??
+    1
+  )
+}
+
+export function memberDemand(
+  policy: ParallelPolicy,
+  member: string,
+  tier: RunTier,
+  files: number | undefined,
+): { readonly want: number; readonly min: number; readonly perWorker: number } {
+  const perWorker = tokensPerWorker(policy, member, tier)
+  const workers = Math.min(policy.maxWorkersPerMember, Math.max(1, files ?? Infinity))
+  return { want: Math.ceil(workers * perWorker), min: Math.ceil(perWorker), perWorker }
+}
+
+export function workersFor(tokens: number, perWorker: number): number {
+  return Math.max(1, Math.floor(tokens / perWorker))
 }
 
 export function describeBudget(budget: Budget): string {
-  const { workers, machine } = budget
+  const { workers, cores } = budget
   if (budget.source === 'env')
-    return `预算 ${workers} 个进程：由 ${WORKER_BUDGET_ENV} 给定；本机 ${machine.cores} 核`
-  return (
-    `预算 ${workers} 个进程：本机 ${machine.cores} 核，池子按同机几次检查平分` +
-    `（当时空闲 ${Math.round(machine.idleFraction * 100)}%，不进预算）` +
-    `、空闲内存 ${Math.round(machine.freeMemoryMiB / 1024)} GiB`
-  )
+    return `预算 ${workers} 个进程：拿到 ${workers} 个令牌（${WORKER_BUDGET_ENV}）；本机 ${cores} 核`
+  return `预算 ${workers} 个进程：不在令牌之内，按整机容量（核数减留下的核）；本机 ${cores} 核`
 }

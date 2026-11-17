@@ -2,7 +2,6 @@ import { observeToolResults, resultsReleased } from './release-material-observat
 // @module-tag slow
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { setTimeout as sleep } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
 import * as cordis from '../../../src/cordis.ts'
 import { runServe, type S0Record } from '../../../src/run.ts'
@@ -22,7 +21,7 @@ import {
   savedClients,
   type ProtocolClients,
 } from '../../support/protocol-clients.ts'
-import { connectable, until } from '../../support/listening.ts'
+import { pollUntil } from '../../support/release-tree.ts'
 import { bodyReadingModel } from './body-reading-model.ts'
 import { toolRuntimeConfigSchema } from '../../../src/rows/tool-runtime/config.ts'
 
@@ -154,6 +153,19 @@ const blocksOf = (entry: Entry | undefined): readonly Record<string, unknown>[] 
   ((entry?.payload['message'] as { blocks?: Record<string, unknown>[] } | undefined)?.blocks ??
     []) as readonly Record<string, unknown>[]
 
+// The waits below wait for an event. These bounds only stop a server that never starts or never stops.
+const BOUND_MS = 100_000
+
+async function accepting(records: readonly S0Record[], from: number, what: string): Promise<void> {
+  const started = await pollUntil(
+    `${what} to report its startup`,
+    () => records.slice(from).find(record => record.kind === 'startup-result'),
+    record => record !== undefined,
+  )
+  if (started?.['accepting'] !== true)
+    throw new Error(`${what} did not start accepting: ${JSON.stringify(started)}`)
+}
+
 async function turnOnRelease(
   script: GatewayScript,
   shellResultMaxBytes?: number,
@@ -185,15 +197,15 @@ async function turnOnRelease(
       plugins: cordis,
       stateRoot: dir.stateRoot,
       stop: controller.signal,
-      readinessTimeoutMs: 15_000,
-      shutdownDeadlineMs: 5000,
+      readinessTimeoutMs: BOUND_MS,
+      shutdownDeadlineMs: BOUND_MS,
       write: record => records.push(record),
       stderr: line => stderr.push(line),
     })
   let finished = start()
   let stopped = false
   try {
-    await until(() => connectable('127.0.0.1', port), 'the server to listen', 20_000)
+    await accepting(records, 0, 'the server')
     const cli = (args: readonly string[], credential?: string) =>
       runOmne({
         args: [...args],
@@ -212,14 +224,11 @@ async function turnOnRelease(
     expect(sent.status, sent.stderr).toBe(0)
     const clients = savedClients(port, home)
     const readAll = () => allHistory(clients, savedTenant(home), session)
-    let history = await readAll()
-    for (
-      const end = Date.now() + 120_000;
-      Date.now() < end &&
-      !(history.outcome === 'succeeded' && history.entries.some(e => e.kind === 'run.terminal'));
-      await sleep(500)
+    const history = await pollUntil(
+      'the Run to reach a terminal',
+      readAll,
+      read => read.outcome === 'succeeded' && read.entries.some(e => e.kind === 'run.terminal'),
     )
-      history = await readAll()
     expect(history.outcome, JSON.stringify(history)).toBe('succeeded')
     if (!history.entries.some(entry => entry.kind === 'run.terminal')) {
       const diagnostics = await cli(['read-session-diagnostics', '--session', session])
@@ -230,13 +239,11 @@ async function turnOnRelease(
     const modelRequests = gateway.requests()
     if (checkRelease !== null) {
       const offloaded = checkRelease === 'offloaded' ? 1 : 0
-      let physical = observeToolResults(dir.storageRoot)
-      for (
-        const end = Date.now() + 15_000;
-        !resultsReleased(physical, offloaded) && Date.now() < end;
-        await sleep(100)
+      const physical = await pollUntil(
+        'the Tool results to be released',
+        () => observeToolResults(dir.storageRoot),
+        observed => resultsReleased(observed, offloaded),
       )
-        physical = observeToolResults(dir.storageRoot)
       expect(resultsReleased(physical, offloaded), JSON.stringify(physical)).toBe(true)
       console.info('W3-RELEASE', JSON.stringify(physical))
       const reread = await readAll()
@@ -255,8 +262,9 @@ async function turnOnRelease(
     if (reopenLimit !== undefined) {
       controller = new AbortController()
       stopped = false
+      const before = records.length
       finished = start(reopenLimit)
-      await until(() => connectable('127.0.0.1', port), 'the reopened server to listen', 20_000)
+      await accepting(records, before, 'the reopened server')
       const next = await cli([
         'send-input',
         '--session',
@@ -265,14 +273,11 @@ async function turnOnRelease(
         'continue from the saved result',
       ])
       expect(next.status, next.stderr).toBe(0)
-      let reread = await readAll()
-      for (
-        const end = Date.now() + 120_000;
-        Date.now() < end &&
-        reread.entries.filter(entry => entry.kind === 'run.terminal').length < 2;
-        await sleep(500)
+      const reread = await pollUntil(
+        'the second Run to reach a terminal',
+        readAll,
+        read => read.entries.filter(entry => entry.kind === 'run.terminal').length >= 2,
       )
-        reread = await readAll()
       expect(reread.outcome, JSON.stringify(reread)).toBe('succeeded')
       reopenedEntries = [...reread.entries]
       expect(reopenedEntries.filter(entry => entry.kind === 'run.terminal')).toHaveLength(2)

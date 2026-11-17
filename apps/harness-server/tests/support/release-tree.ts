@@ -418,16 +418,23 @@ export async function onReleaseTreeRuns(
   bodies: readonly ((tree: ReleaseTree) => Promise<void>)[],
 ): Promise<readonly (number | undefined)[]> {
   const dir = newScratch('release-tree-')
-  const port = await freePort()
+  let port = await freePort()
   const home = join(dir.base, 'home')
   const gateway = await startModelGateway(options.script)
   gateway.trustInProcess()
   const exitCodes: (number | undefined)[] = []
+  const serve = async (run: number, body: (tree: ReleaseTree) => Promise<void>) => {
+    for (let attempt = 1; ; attempt += 1) {
+      const state = { dir, port, home, modelRoute: gateway.url }
+      const outcome = await serveOnce(options, state, run === 0, body)
+      if (outcome !== PORT_TAKEN) return outcome
+      if (attempt === PORT_ATTEMPTS)
+        throw new Error(`port ${String(port)} was taken on ${String(PORT_ATTEMPTS)} starts`)
+      if (run === 0) port = await freePort()
+    }
+  }
   try {
-    for (const [run, body] of bodies.entries())
-      exitCodes.push(
-        await serveOnce(options, { dir, port, home, modelRoute: gateway.url }, run === 0, body),
-      )
+    for (const [run, body] of bodies.entries()) exitCodes.push(await serve(run, body))
   } finally {
     await gateway.close()
     dir.remove()
@@ -438,6 +445,17 @@ export async function onReleaseTreeRuns(
 // An idle machine starts the release tree in four to five seconds. The limit stays far above that, so a
 // busy machine does not turn a slow start into a failed one; the test's own timeout is the bound.
 const READINESS_TIMEOUT_MS = 100_000
+const SHUTDOWN_DEADLINE_MS = 100_000
+
+// Any socket may take the probed port before the server binds it. Such a start accepted nothing, so it
+// is started again: the first run on a new port, a later run on the port its saved clients know.
+const PORT_ATTEMPTS = 5
+const PORT_TAKEN = Symbol('port taken')
+
+function lostThePort(started: S0Record | undefined): boolean {
+  const failure = started?.['startFailure'] as { detail?: unknown } | undefined
+  return started?.['outcome'] === 'start-failed' && String(failure?.detail).includes('EADDRINUSE')
+}
 
 type ReleaseState = Readonly<{
   dir: ReturnType<typeof newScratch>
@@ -451,7 +469,7 @@ async function serveOnce(
   state: ReleaseState,
   register: boolean,
   body: (tree: ReleaseTree) => Promise<void>,
-): Promise<number | undefined> {
+): Promise<number | undefined | typeof PORT_TAKEN> {
   const { dir, port, home } = state
   const controller = new AbortController()
   const records: S0Record[] = []
@@ -499,7 +517,7 @@ async function serveOnce(
     stateRoot: dir.stateRoot,
     stop: controller.signal,
     readinessTimeoutMs: READINESS_TIMEOUT_MS,
-    shutdownDeadlineMs: 5000,
+    shutdownDeadlineMs: SHUTDOWN_DEADLINE_MS,
     write: record => {
       records.push(record)
       if (record.kind === 'startup-result') startup.resolve(record)
@@ -512,6 +530,10 @@ async function serveOnce(
   )
   try {
     const started = await startup.promise
+    if (lostThePort(started)) {
+      await finished.catch(() => undefined)
+      return PORT_TAKEN
+    }
     if (started?.['accepting'] !== true)
       throw new Error(`the server did not start accepting: ${JSON.stringify(started ?? null)}`)
     if (

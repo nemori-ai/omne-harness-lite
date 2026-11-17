@@ -15,7 +15,7 @@ async function queuedRun(waitMs, maxWait, check, cancel = false) {
     OMNE_TEST_SLOT_HELD: '',
     OMNE_TEST_SLOT_DIR: join(directory, 'slots'),
     OMNE_TEST_SLOT_LEDGER: join(directory, 'ledger.jsonl'),
-    OMNE_TEST_SLOTS: '1',
+    OMNE_TEST_SLOT_CAPACITY: '1',
     OMNE_TEST_SLOT_POLL_SECONDS: '1',
     OMNE_TEST_SLOT_MAX_WAIT_SECONDS: String(maxWait),
   }

@@ -31,6 +31,11 @@ export interface Deps {
 
 const USAGE = 2
 
+export function cpusFor(env: Readonly<Record<string, string | undefined>>, cores: number): number {
+  const tokens = env['OMNE_WORKER_BUDGET']
+  return tokens !== undefined && /^[1-9]\d*$/u.test(tokens) ? Number(tokens) : cores
+}
+
 function requireBase(options: Options): string {
   if (options.base === undefined) throw new UsageError('要给 --base <起点>')
   return options.base

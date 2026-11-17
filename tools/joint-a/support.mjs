@@ -34,6 +34,9 @@ export function holdTestSlot(scriptUrl, usage) {
     process.execPath,
     [
       join(repoRoot, 'scripts', 'with-test-slot.mjs'),
+      '--want',
+      '2',
+      '--',
       process.execPath,
       fileURLToPath(scriptUrl),
       ...process.argv.slice(2),

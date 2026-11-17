@@ -14,7 +14,7 @@ import {
   realpathSync,
 } from 'node:fs'
 import { hostname, tmpdir, userInfo } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -75,7 +75,7 @@ function slotEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   delete cleared['OMNE_TEST_SLOT_HELD']
   return {
     ...cleared,
-    OMNE_TEST_SLOTS: '1',
+    OMNE_TEST_SLOT_CAPACITY: '1',
     OMNE_TEST_SLOT_DIR: join(dir, 'locks'),
     OMNE_TEST_SLOT_LEDGER: join(dir, 'ledger.jsonl'),
     ...env,
@@ -88,7 +88,7 @@ function publicationEnv(actor: string, scenario = 'publication'): Record<string,
     SLOT_PUBLICATION_CONTROL: dir,
     SLOT_PUBLICATION_ACTOR: actor,
     SLOT_PUBLICATION_CASE: scenario,
-    OMNE_TEST_SLOTS: '1',
+    OMNE_TEST_SLOT_CAPACITY: '1',
   }
 }
 
@@ -109,7 +109,7 @@ if (owned) fs.rmSync(sentinel);
 fs.writeFileSync(path.join(control, actor + '.ended'), '');`
 
 describe('登记发布与队列所有权', { timeout: 20_000 }, () => {
-  it('owner 与 slot 尚未写完时不回收：等待者只在持有者结束后运行', async () => {
+  it('队列锁条目与令牌条目尚未写完时不回收：等待者只在持有者结束后运行', async () => {
     const release = (name: string) => writeFileSync(join(dir, `${name}.continue`), '')
     const seen = (name: string) => existsSync(join(dir, name))
     const holder = queue(
@@ -164,10 +164,10 @@ describe('登记发布与队列所有权', { timeout: 20_000 }, () => {
     }
   })
 
-  it.each(['empty', 'invalid-pid', 'partial'])('不完整 slot %s 不代表进程已死', state => {
+  it.each(['empty', 'invalid-pid', 'partial'])('不完整的令牌条目 %s 不代表进程已死', state => {
     const raw =
       state === 'empty' ? '' : state === 'invalid-pid' ? 'pid=' : `pid=${deadPid()}\nside=${SIDE}\n`
-    const path = join(dir, 'locks', 'slot-1.lock')
+    const path = join(dir, 'locks', tokenEntryName(1, 1))
     mkdirSync(dirname(path), { recursive: true })
     writeFileSync(path, raw)
     const result = slot([process.execPath, '-e', 'console.log("ran")'], {
@@ -178,20 +178,18 @@ describe('登记发布与队列所有权', { timeout: 20_000 }, () => {
     expect(readFileSync(path, 'utf8')).toBe(raw)
   })
 
-  it.each(['empty', 'partial'])('不完整 owner %s 不授予队列所有权', async state => {
+  it.each(['empty', 'partial'])('不完整的队列锁条目 %s 不授予队列所有权', async state => {
     const raw = state === 'empty' ? '' : `version=2\npid=${deadPid()}\nside=${SIDE}\n`
-    const lock = placeQueueLock(raw)
+    const entry = placeQueueLock(raw)
     const waiter = queue(
       [process.execPath, '-e', 'console.log("ran")'],
       publicationEnv('B', 'owner-observation'),
     )
-    await waitFor(() => existsSync(join(dir, 'B-owner-read.ready')), '等待者读取 owner')
+    await waitFor(() => existsSync(join(dir, 'B-owner-read.ready')), '等待者读取队列锁条目')
     await new Promise(tick => setTimeout(tick, 250))
     const stolen = existsSync(join(dir, 'B-queue-acquisitions'))
-    const before = existsSync(join(lock, 'owner'))
-      ? readFileSync(join(lock, 'owner'), 'utf8')
-      : undefined
-    rmSync(lock, { recursive: true, force: true })
+    const before = existsSync(entry) ? readFileSync(entry, 'utf8') : undefined
+    rmSync(dirname(entry), { recursive: true, force: true })
     expect(await waiter.exited, waiter.stderr()).toBe(0)
     expect(stolen).toBe(false)
     expect(before).toBe(raw)
@@ -199,7 +197,7 @@ describe('登记发布与队列所有权', { timeout: 20_000 }, () => {
   })
 
   it.each(['owner-exists', 'owner-replaced'])(
-    'owner 发布失败或丢锁 %s 时不进入队列工作，障碍释放后重新取得队列',
+    '队列锁目录里还有别人的条目（%s：建目录之后、或放好自己的条目之后出现）时不进入队列工作，障碍释放后重新取得队列',
     async scenario => {
       const started = join(dir, 'started')
       const waiter = queue(
@@ -221,7 +219,7 @@ describe('登记发布与队列所有权', { timeout: 20_000 }, () => {
     },
   )
 
-  it('owner 发布前目录丢失时必须重新独占取得队列', async () => {
+  it('放条目之前队列锁目录丢失时必须重新独占取得队列', async () => {
     const result = slot(
       [
         process.execPath,
@@ -245,8 +243,10 @@ interface LedgerLine {
   readonly attempt: string | null
   readonly cwd: string
   readonly cores: number
-  readonly slots: number
-  readonly slot: number | null
+  readonly capacity: number
+  readonly want: number
+  readonly min: number
+  readonly tokens: number | null
   readonly aheadOnArrival: number
   readonly waitSeconds: number
   readonly heldSeconds: number | null
@@ -254,7 +254,9 @@ interface LedgerLine {
   readonly exitCode: number
   readonly arrivedAt: string
   readonly acquiredAt: string | null
+  readonly acquiredMs: number | null
   readonly endedAt: string
+  readonly endedMs: number
   readonly loadAtAcquire: readonly number[] | null
   readonly loadAtEnd: readonly number[]
 }
@@ -367,7 +369,7 @@ cp.spawnSync = (file, args, options) => {
   }
   if (/powershell\\.exe$/iu.test(program)) {
     if (mode === 'broken') return reply(1, '', 'interop 关着\\n')
-    const windows = 'C:\\\\Temp\\\\omne-test-slots-tester'
+    const windows = 'C:\\\\Temp\\\\omne-core-tokens-tester'
     if (mode === 'ok') {
       const linux = toLinux(windows)
       mkdirSync(linux, { recursive: true })
@@ -427,13 +429,36 @@ function register(
   return path
 }
 
-function placeQueueLock(owner: string, age = 0): string {
+const entryName = (pid: number) => `owner-${pid}-0abc`
+
+const tokenEntryName = (index: number, pid: number) => join(`core-${index}`, entryName(pid))
+
+const tokenDir = (index: number) => join(dir, 'locks', `core-${index}`)
+
+function tokenEntry(index: number): string {
+  const names = readdirSync(tokenDir(index)).filter(name => name.startsWith('owner-'))
+  expect(names, `core-${index} 里的条目`).toHaveLength(1)
+  return join(tokenDir(index), names[0] ?? '')
+}
+
+function placeQueueLock(
+  owner: string | { readonly pid: number; readonly side: string },
+  age = 0,
+): string {
   const lock = join(dir, 'locks', 'queue.lock')
   mkdirSync(lock, { recursive: true })
-  writeFileSync(join(lock, 'owner'), owner)
+  const pid = typeof owner === 'string' ? 1 : owner.pid
+  const entry = join(lock, entryName(pid))
+  writeFileSync(
+    entry,
+    typeof owner === 'string'
+      ? owner
+      : `version=2\npid=${owner.pid}\nside=${owner.side}\nsince=${Math.floor(Date.now() / 1000)}\ncwd=${dir}\ncmd=手写的锁\nbeat=5\n`,
+  )
   const at = new Date(Date.now() - age * 1000)
+  utimesSync(entry, at, at)
   utimesSync(lock, at, at)
-  return lock
+  return entry
 }
 
 function deadPid(): number {
@@ -591,7 +616,7 @@ const timer = setInterval(() => {
             TMP: temp,
             OMNE_TEST_SLOT_DIR: '',
             WSL_DISTRO_NAME: '',
-            OMNE_TEST_SLOTS: '1',
+            OMNE_TEST_SLOT_CAPACITY: '1',
             OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '15',
           },
           [process.execPath, SCRIPT.replace(/\.sh$/u, '.mjs')],
@@ -621,7 +646,7 @@ const timer = setInterval(() => {
         readFileSync(join(dir, 'first.started'), 'utf8'),
       )
       expect(readFileSync(join(dir, 'first.started'), 'utf8')).toBe(
-        join(temp, `omne-test-slots-${userInfo().username}`, 'slot-1.lock'),
+        join(temp, `omne-core-tokens-${userInfo().username}`, 'core-1'),
       )
       const [, firstEnd] = readFileSync(join(dir, 'first.interval'), 'utf8').split(' ').map(Number)
       const [secondStart] = readFileSync(join(dir, 'second.interval'), 'utf8')
@@ -655,7 +680,7 @@ const timer = setInterval(() => {
   it('命令能看到自己持有名额，嵌套调用直接放行', () => {
     const result = slot([...LAUNCH, 'bash', '-c', 'echo "$OMNE_TEST_SLOT_HELD"'])
     expect(result.status).toBe(0)
-    expect(result.stdout.trim()).toBe(join(dir, 'locks', 'slot-1.lock'))
+    expect(result.stdout.trim()).toBe(tokenDir(1))
     expect(result.stderr).toBe('')
     expect(ledger().map(line => line.command)).toEqual([
       `${LAUNCH.join(' ')} bash -c echo "$OMNE_TEST_SLOT_HELD"`,
@@ -684,8 +709,10 @@ const timer = setInterval(() => {
       event: 'ran',
       command: args.join(' '),
       cwd: process.cwd(),
-      slots: 1,
-      slot: 1,
+      capacity: 1,
+      want: 1,
+      min: 1,
+      tokens: 1,
       aheadOnArrival: 0,
       waitSeconds: 0,
       exitCode: 3,
@@ -736,6 +763,13 @@ const timer = setInterval(() => {
         heldSeconds: 1,
       }),
     ])
+    const [line] = ledger()
+    const acquired = line?.acquiredMs ?? 0
+    const ended = line?.endedMs ?? 0
+    expect(Math.floor(acquired / 1000)).toBe(CLOCK_SECOND / 1000)
+    expect(acquired).toBeGreaterThanOrEqual(CLOCK_SECOND + 900)
+    expect(Math.floor(ended / 1000)).toBe(CLOCK_SECOND / 1000 + 2)
+    expect(ended - acquired).toBeGreaterThanOrEqual(1600)
   })
 
   it('运行账本：工作树有 task context 时记下最后一项任务的卡号与 attempt', () => {
@@ -790,7 +824,7 @@ const timer = setInterval(() => {
     try {
       await waiter.until('排队中')
       const result = slot(['bash', '-c', 'echo 嵌套'], {
-        OMNE_TEST_SLOT_HELD: join(dir, 'locks', 'slot-1.lock'),
+        OMNE_TEST_SLOT_HELD: tokenDir(1),
       })
       expect(result.status).toBe(0)
       expect(result.stdout).toBe('嵌套\n')
@@ -821,8 +855,9 @@ const timer = setInterval(() => {
         event: 'gave-up',
         command: `touch ${marker}`,
         aheadOnArrival: 0,
-        slot: null,
+        tokens: null,
         acquiredAt: null,
+        acquiredMs: null,
         heldSeconds: null,
         cpuSeconds: null,
         loadAtAcquire: null,
@@ -868,7 +903,7 @@ const timer = setInterval(() => {
     await holder.release()
     expect(await waiter.exited).toBe(0)
     expect(waiter.stdout()).toBe('轮到了\n')
-    expect(waiter.stderr()).toContain('拿到名额 1/1')
+    expect(waiter.stderr()).toContain('拿到 1 个令牌（共 1 个）')
     expect(ledger().find(line => line.command === 'bash -c echo 轮到了')?.heldSeconds).toBe(0)
   })
 
@@ -926,7 +961,7 @@ const timer = setInterval(() => {
 
   it('排队时报出前面还有几个、谁占着名额、占了多久，位置变了再报', async () => {
     const heldBy = (name: string) =>
-      new RegExp(`名额 1/1 正由「env SLOT_TEST=${name} [^」]*」占着，已 \\d+ 秒`, 'u')
+      new RegExp(`1 个令牌正由「env SLOT_TEST=${name} [^」]*」占着，已 \\d+ 秒`, 'u')
     const holder = await hold()
     const first = blocker('first')
     await first.queued.until('排队中')
@@ -946,43 +981,35 @@ const timer = setInterval(() => {
     expect(await second.exited).toBe(0)
   })
 
-  it('两个名额：一个被占时另一个仍可用，不排队', async () => {
+  it('两个令牌：一个被占时另一个仍可用，不排队；拿到的个数经 OMNE_WORKER_BUDGET 交给命令', async () => {
     const holder = await hold()
     try {
-      const result = slot(['bash', '-c', 'echo "$OMNE_TEST_SLOT_HELD"'], { OMNE_TEST_SLOTS: '2' })
+      const result = slot(['bash', '-c', 'echo "$OMNE_TEST_SLOT_HELD $OMNE_WORKER_BUDGET"'], {
+        OMNE_TEST_SLOT_CAPACITY: '2',
+      })
       expect(result.status).toBe(0)
-      expect(result.stdout.trim()).toBe(join(dir, 'locks', 'slot-2.lock'))
+      expect(result.stdout.trim()).toBe(`${tokenDir(2)} 1`)
       expect(result.stderr).toBe('')
     } finally {
       await holder.release()
     }
   })
 
-  it('不设 OMNE_TEST_SLOTS：缺省两个名额，一个被占时直接拿到第二个', async () => {
-    const holder = await hold()
-    try {
-      const env = slotEnv({})
-      delete env['OMNE_TEST_SLOTS']
-      const result = spawnSync(...launch(['bash', '-c', 'echo "$OMNE_TEST_SLOT_HELD"']), {
-        encoding: 'utf8',
-        env,
-      })
-      expect(result.status).toBe(0)
-      expect(result.stdout.trim()).toBe(join(dir, 'locks', 'slot-2.lock'))
-    } finally {
-      await holder.release()
-    }
-  })
-
-  it('没给命令或策略值不是整数：以 2 退出', () => {
+  it('没给命令、策略值不是整数、--want 与 --min 不是正整数或 min 大于 want：以 2 退出，命令不执行', () => {
     expect(slot([]).status).toBe(2)
-    expect(slot(['true'], { OMNE_TEST_SLOTS: '两个' }).status).toBe(2)
-    expect(slot(['true'], { OMNE_TEST_SLOTS: '0' }).status).toBe(2)
+    expect(slot(['--want', '2']).status).toBe(2)
+    expect(slot(['true'], { OMNE_TEST_SLOT_CAPACITY: '两个' }).status).toBe(2)
+    expect(slot(['true'], { OMNE_TEST_SLOT_CAPACITY: '0' }).status).toBe(2)
+    expect(slot(['--want', '0', 'true']).status).toBe(2)
+    expect(slot(['--min', 'x', 'true']).status).toBe(2)
+    const inverted = slot(['--want', '1', '--min', '2', '--', 'true'])
+    expect(inverted.status).toBe(2)
+    expect(inverted.stderr).toContain('--min 2 大于 --want 1')
   })
 
   it('登记带 side 行：平台@主机名，给了 WSL_DISTRO_NAME 再加发行版名；排队提示里报出持有者的侧', async () => {
     const holder = await hold()
-    expect(readFileSync(join(dir, 'locks', 'slot-1.lock'), 'utf8')).toContain(`\nside=${SIDE}\n`)
+    expect(readFileSync(tokenEntry(1), 'utf8')).toContain(`\nside=${SIDE}\n`)
     const waiter = queue(['true'], { WSL_DISTRO_NAME: 'Fedora' })
     await waiter.until(`，${SIDE}）`)
     const [ticket] = tickets()
@@ -994,7 +1021,8 @@ const timer = setInterval(() => {
   })
 
   it('对侧的登记：心跳新鲜时排队不删（名额与票都算数），心跳停过阈值才回收并拿到', () => {
-    const held = register('slot-1.lock', { pid: deadPid(), side: OTHER_SIDE, beat: 5 })
+    const otherPid = deadPid()
+    const held = register(tokenEntryName(1, otherPid), { pid: otherPid, side: OTHER_SIDE, beat: 5 })
     const before = readFileSync(held, 'utf8')
     const refused = slot(['bash', '-c', 'echo 跑了'], { OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '0' })
     expect(refused.status, refused.stderr).toBe(75)
@@ -1017,22 +1045,24 @@ const timer = setInterval(() => {
   })
 
   it('同侧的登记：进程不在了立刻回收（没有 side 行的旧版登记同样）；进程在而心跳停了，过了阈值加一次轮询内回收', async () => {
-    register('slot-1.lock', { pid: deadPid(), side: SIDE, beat: 5 })
+    const samePid = deadPid()
+    register(tokenEntryName(1, samePid), { pid: samePid, side: SIDE, beat: 5 })
     const immediate = slot(['bash', '-c', 'echo 跑了'], { OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '0' })
     expect(immediate.status, immediate.stderr).toBe(0)
     expect(immediate.stderr).toBe('')
-    register('slot-1.lock', { pid: deadPid(), beat: 5 })
+    const noSidePid = deadPid()
+    register(tokenEntryName(1, noSidePid), { pid: noSidePid, beat: 5 })
     const legacy = slot(['bash', '-c', 'echo 跑了'], { OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '0' })
     expect(legacy.status, legacy.stderr).toBe(0)
     expect(legacy.stdout).toBe('跑了\n')
-    register('slot-1.lock', { pid: process.pid, side: SIDE, beat: 1, age: 5 })
-    const waiter = queue(['bash', '-c', 'echo 轮到了'])
+    register(tokenEntryName(1, process.pid), { pid: process.pid, side: SIDE, beat: 1, age: 5 })
+    const waiter = queue(['bash', '-c', 'echo 轮到了'], clockEnv(Date.now()))
     await waiter.until('排队中')
+    writeFileSync(clockShift(), '4000')
     expect(await waiter.exited).toBe(0)
     expect(waiter.stdout()).toBe('轮到了\n')
-    const waited = Number(/等了 (\d+) 秒，拿到名额/u.exec(waiter.stderr())?.[1])
-    expect(waited).toBeGreaterThanOrEqual(2)
-    expect(waited).toBeLessThanOrEqual(8)
+    const waited = Number(/等了 (\d+) 秒，拿到 \d+ 个令牌/u.exec(waiter.stderr())?.[1])
+    expect(waited).toBe(4)
   })
 
   it('票号单调：票被回收后新号比它大；先到者发现票没了就提示并重新排队，最终拿到名额', async () => {
@@ -1052,7 +1082,7 @@ const timer = setInterval(() => {
     expect(tickets()).toEqual([])
   })
 
-  it('旧版脚本的登记没有 side 行，按同侧处理：与新版混跑仍互斥', async () => {
+  it('旧版运行名额脚本与令牌池互不排斥（过渡期的已知限制）：一边持有时另一边照常拿到，同一个锁目录里也不互删', async () => {
     const legacy = legacyLaunch()
     const legacyEnv = WINDOWS
       ? {
@@ -1061,23 +1091,25 @@ const timer = setInterval(() => {
       : {}
     const legacyHolder = blocker('legacy', legacyEnv, legacy)
     await legacyHolder.started()
-    expect(readFileSync(join(dir, 'locks', 'slot-1.lock'), 'utf8')).not.toContain('side=')
+    const legacySlot = join(dir, 'locks', 'slot-1.lock')
+    expect(readFileSync(legacySlot, 'utf8')).not.toContain('side=')
     const waiter = appendOrder('new')
-    await waiter.until('排队中')
-    expect(existsSync(join(dir, 'order'))).toBe(false)
-    await legacyHolder.release()
     expect(await waiter.exited).toBe(0)
+    expect(waiter.stderr()).not.toContain('排队中')
+    expect(order()).toEqual(['new'])
+    expect(existsSync(legacySlot)).toBe(true)
+    await legacyHolder.release()
+    expect(await legacyHolder.queued.exited).toBe(0)
     const holder = await hold()
     const legacyWaiter = queue(
       ['bash', '-c', `echo legacy >> "${join(dir, 'order')}"`],
       legacyEnv,
       legacy,
     )
-    await legacyWaiter.until('排队中')
-    expect(order()).toEqual(['new'])
-    await holder.release()
     expect(await legacyWaiter.exited).toBe(0)
     expect(order()).toEqual(['new', 'legacy'])
+    expect(tokenEntry(1)).toContain('owner-')
+    await holder.release()
   })
 
   describe('WSL 里的默认目录', () => {
@@ -1085,8 +1117,8 @@ const timer = setInterval(() => {
       const root = join(dir, 'windows')
       const uid = randomInt(0x4000_0000, 0x7fff_ffff)
       const fallback = WINDOWS
-        ? join(dir, `omne-test-slots-${userInfo().username}`)
-        : `/tmp/omne-test-slots-${uid}`
+        ? join(dir, `omne-core-tokens-${userInfo().username}`)
+        : `/tmp/omne-core-tokens-${uid}`
       if (!WINDOWS) {
         mkdirSync(fallback)
         fallbackDirectories.push(fallback)
@@ -1115,9 +1147,9 @@ const timer = setInterval(() => {
 
     it('有 interop：解析到 Windows 临时目录下的同一个目录，探针用完即删，不提示', () => {
       const result = resolveDefault('ok')
-      const shared = join(result.root, 'Temp', 'omne-test-slots-tester')
+      const shared = join(result.root, 'Temp', 'omne-core-tokens-tester')
       expect(result.status, result.stderr).toBe(0)
-      expect(result.stdout).toBe(join(shared, 'slot-1.lock'))
+      expect(result.stdout).toBe(join(shared, 'core-1'))
       expect(result.stderr).toBe('')
       expect(readdirSync(shared).filter(name => name.startsWith('.omne-probe-'))).toEqual([])
     })
@@ -1125,40 +1157,40 @@ const timer = setInterval(() => {
     it('interop 起不来：回退到本侧目录，并在标准错误提示没有共用名额', () => {
       const result = resolveDefault('broken')
       expect(result.status, result.stderr).toBe(0)
-      expect(result.stdout).toBe(join(result.fallback, 'slot-1.lock'))
-      expect(result.stderr).toContain('WSL 与 Windows 没有共用名额')
+      expect(result.stdout).toBe(join(result.fallback, 'core-1'))
+      expect(result.stderr).toContain('WSL 与 Windows 没有共用令牌池')
       expect(result.stderr).toContain(result.fallback)
     })
 
     it('解析出了路径，但 Windows 建的文件在那里看不见：同目录判定不成立，回退并提示', () => {
       const result = resolveDefault('unshared')
       expect(result.status, result.stderr).toBe(0)
-      expect(result.stdout).toBe(join(result.fallback, 'slot-1.lock'))
-      expect(result.stderr).toContain('WSL 与 Windows 没有共用名额')
+      expect(result.stdout).toBe(join(result.fallback, 'core-1'))
+      expect(result.stderr).toContain('WSL 与 Windows 没有共用令牌池')
       expect(result.stderr).toContain('看不见')
     })
   })
 
-  it('对侧的队列锁：年龄不到 30 秒不删、等着；过了 30 秒才删。同侧进程不在了立刻删', async () => {
-    const lock = placeQueueLock(`pid=${deadPid()}\nside=${OTHER_SIDE}\n`)
+  it('对侧的队列锁：条目年龄不到 30 秒不删、等着；过了 30 秒才删。同侧进程不在了立刻删', async () => {
+    const entry = placeQueueLock({ pid: deadPid(), side: OTHER_SIDE })
     const waiter = appendOrder('A')
     await new Promise(tick => setTimeout(tick, 2000))
     expect(existsSync(join(dir, 'order'))).toBe(false)
-    expect(readFileSync(join(lock, 'owner'), 'utf8')).toContain(`side=${OTHER_SIDE}`)
-    rmSync(lock, { recursive: true, force: true })
+    expect(readFileSync(entry, 'utf8')).toContain(`side=${OTHER_SIDE}`)
+    rmSync(dirname(entry), { recursive: true, force: true })
     expect(await waiter.exited).toBe(0)
     expect(order()).toEqual(['A'])
-    placeQueueLock(`pid=${deadPid()}\nside=${OTHER_SIDE}\n`, 40)
+    placeQueueLock({ pid: deadPid(), side: OTHER_SIDE }, 40)
     const aged = slot(['bash', '-c', 'echo 过期'])
     expect(aged.status, aged.stderr).toBe(0)
     expect(aged.stdout).toBe('过期\n')
-    placeQueueLock(`pid=${deadPid()}\nside=${SIDE}\n`)
+    placeQueueLock({ pid: deadPid(), side: SIDE })
     const same = slot(['bash', '-c', 'echo 同侧'])
     expect(same.status, same.stderr).toBe(0)
     expect(same.stdout).toBe('同侧\n')
   })
 
-  it('结束时只删自己的队列锁：锁被别人重建过就不动它', async () => {
+  it('结束时只删自己的队列锁条目：自己的条目已被当作失效删掉、别人放了条目时，不动别人的条目与目录', async () => {
     const gate = join(dir, 'ledger.gate')
     const proceed = join(dir, 'command.proceed')
     const holder = queue(['bash', '-c', `until [ -e "${proceed}" ]; do sleep 0.1; done`], {
@@ -1166,26 +1198,65 @@ const timer = setInterval(() => {
       SLOT_TEST_GATED_LEDGER: join(dir, 'ledger.jsonl'),
       SLOT_TEST_LEDGER_GATE: gate,
     })
-    const slotFile = join(dir, 'locks', 'slot-1.lock')
-    const owner = join(dir, 'locks', 'queue.lock', 'owner')
-    await waitFor(() => existsSync(slotFile), '拿到名额')
+    const lock = join(dir, 'locks', 'queue.lock')
+    const ownEntries = () =>
+      existsSync(lock) ? readdirSync(lock).filter(name => name.startsWith('owner-')) : []
+    await waitFor(() => existsSync(tokenDir(1)), '拿到令牌')
     writeFileSync(proceed, '')
-    await waitFor(() => !existsSync(slotFile) && existsSync(owner), '收尾时持有队列锁')
-    expect(readFileSync(owner, 'utf8')).toContain(`side=${SIDE}`)
-    const foreign = `pid=${deadPid()}\nside=${OTHER_SIDE}\n`
-    rmSync(dirname(owner), { recursive: true, force: true })
-    placeQueueLock(foreign)
+    await waitFor(() => !existsSync(tokenDir(1)) && ownEntries().length === 1, '收尾时持有队列锁')
+    const own = join(lock, ownEntries()[0] ?? '')
+    expect(readFileSync(own, 'utf8')).toContain(`side=${SIDE}`)
+    rmSync(own)
+    const foreign = placeQueueLock({ pid: deadPid(), side: OTHER_SIDE })
+    const foreignText = readFileSync(foreign, 'utf8')
     writeFileSync(gate, '')
     expect(await holder.exited).toBe(0)
-    expect(readFileSync(owner, 'utf8')).toBe(foreign)
+    expect(readFileSync(foreign, 'utf8')).toBe(foreignText)
+    expect(ownEntries()).toEqual([basename(foreign)])
     expect(ledger()).toMatchObject([{ event: 'ran', exitCode: 0 }])
   })
 
-  it('持有者发现名额文件被删：标准错误报一句，命令照常跑完', async () => {
+  it('两个等待者同时判队列锁的持有者已死：只删那个确切的条目，谁也删不掉别人的活锁', async () => {
+    placeQueueLock({ pid: deadPid(), side: SIDE })
+    const runs = ['A', 'B', 'C'].map(actor =>
+      queue([process.execPath, '-e', PUBLICATION_COMMAND, dir, actor], {
+        OMNE_TEST_SLOT_POLL_SECONDS: '1',
+      }),
+    )
+    writeFileSync(join(dir, 'C.release'), '')
+    expect(await Promise.all(runs.map(run => run.exited))).toEqual([0, 0, 0])
+    for (const actor of ['A', 'B', 'C']) {
+      expect(existsSync(join(dir, `${actor}.collision`)), `${actor} 撞上了别人的哨兵`).toBe(false)
+      expect(existsSync(join(dir, `${actor}.ended`))).toBe(true)
+    }
+    expect(ledger()).toHaveLength(3)
+  })
+
+  it('判死之后锁已被别人回收、重新拿到：回收只删判死的那个条目，删不掉别人的活锁（模型 finding-lock-steal-c2 的那一步）', async () => {
+    const dead = placeQueueLock({ pid: deadPid(), side: SIDE })
+    const waiter = queue(['bash', '-c', 'echo ran'], publicationEnv('B', 'reap-pause'))
+    try {
+      await waitFor(() => existsSync(join(dir, 'B-judged.ready')), '等待者读到已死的条目、还没删')
+      rmSync(dead)
+      rmSync(dirname(dead), { recursive: true })
+      const live = placeQueueLock({ pid: process.pid, side: SIDE })
+      writeFileSync(join(dir, 'B-judged.continue'), '')
+      await new Promise(tick => setTimeout(tick, 500))
+      expect(existsSync(live), '活锁的条目被等待者删掉了').toBe(true)
+      expect(waiter.stdout()).toBe('')
+      rmSync(dirname(live), { recursive: true })
+      expect(await waiter.exited, waiter.stderr()).toBe(0)
+      expect(waiter.stdout()).toBe('ran\n')
+    } finally {
+      writeFileSync(join(dir, 'B-judged.continue'), '')
+    }
+  })
+
+  it('持有者发现令牌条目被删：标准错误报一句，命令照常跑完', async () => {
     const holder = blocker('holder')
     await holder.started()
-    rmSync(join(dir, 'locks', 'slot-1.lock'))
-    await holder.queued.until('名额文件被删')
+    rmSync(tokenEntry(1))
+    await holder.queued.until('令牌文件被删')
     await holder.release()
     expect(await holder.queued.exited).toBe(0)
     expect(ledger()).toMatchObject([{ event: 'ran', exitCode: 0 }])
@@ -1197,7 +1268,7 @@ const timer = setInterval(() => {
     const reader = queue(['bash', '-c', 'echo 抢到了; sleep 8'], clockEnv(Date.now() + 25_000))
     await waitFor(() => reader.stdout().includes('抢到了'), '读者拿到名额')
     expect(reader.stderr()).not.toContain('排队中')
-    await holder.queued.until('名额文件被删')
+    await holder.queued.until('令牌文件被删')
     expect(reader.child.exitCode).toBeNull()
     expect(await reader.exited).toBe(0)
     await holder.release()

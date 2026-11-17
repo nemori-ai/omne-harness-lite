@@ -12,8 +12,8 @@ export {
   type RunScript,
   type RunTier,
 } from '@omne-harness/repo-toolchain/core/test-ledger'
-import type { Parallelism } from '@omne-harness/repo-toolchain/core/test-ledger'
-import { deriveParallelism, type Budget, type ParallelPolicy } from './parallelism.ts'
+import { isRunTier } from '@omne-harness/repo-toolchain/core/test-ledger'
+import type { ParallelPolicy, WorkerTokens } from './parallelism.ts'
 
 export interface AffectedRules {
   readonly excludeRoots: readonly string[]
@@ -120,38 +120,42 @@ function parseAffected(raw: Record<string, unknown> | undefined): AffectedRules 
   }
 }
 
+function parseWorkerTokens(value: unknown): WorkerTokens[] {
+  if (value === undefined) return []
+  const seen = new Set<string>()
+  return records(value, 'parallel.tokensPerWorker').map((entry, index) => {
+    const name = `parallel.tokensPerWorker[${index}]`
+    const member = text(entry['member'], `${name}.member`)
+    const tier = entry['tier']
+    if (!isRunTier(tier)) throw new Error(`${name}.tier 须为 fast、slow 或 all`)
+    const tokens = positive(entry['tokens'], `${name}.tokens`)
+    if (!Number.isInteger(tokens * 2)) throw new Error(`${name}.tokens 须为 0.5 的倍数`)
+    if (seen.has(`${member}\0${tier}`)) throw new Error(`${name} 与前面的项重复：${member} ${tier}`)
+    seen.add(`${member}\0${tier}`)
+    return { member, tier, tokens, why: text(entry['why'], `${name}.why`) }
+  })
+}
+
 export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
   const raw = parsed as {
     parallel?: {
-      memberDivisor?: unknown
-      workerDivisor?: unknown
       maxWorkersPerMember?: unknown
-      minimum?: unknown
-      memoryPerWorkerMiB?: unknown
-      sampleMs?: unknown
       reserveCores?: unknown
-      concurrentRuns?: unknown
+      tokensPerWorker?: unknown
     }
     affected?: Record<string, unknown>
     ledger?: { slowFileSeconds?: unknown; nearTimeoutRatio?: unknown; top?: unknown }
     triage?: { repeats?: unknown }
     cache?: { env?: unknown; ignoreEnv?: unknown }
   }
-  const parallel = {
-    memberDivisor: positive(raw.parallel?.memberDivisor, 'parallel.memberDivisor'),
-    workerDivisor: positive(raw.parallel?.workerDivisor, 'parallel.workerDivisor'),
+  const parallel: ParallelPolicy = {
     maxWorkersPerMember: positiveInteger(
       raw.parallel?.maxWorkersPerMember,
       'parallel.maxWorkersPerMember',
     ),
-    minimum: positiveInteger(raw.parallel?.minimum, 'parallel.minimum'),
-    memoryPerWorkerMiB: positive(raw.parallel?.memoryPerWorkerMiB, 'parallel.memoryPerWorkerMiB'),
-    sampleMs: nonNegativeInteger(raw.parallel?.sampleMs, 'parallel.sampleMs'),
     reserveCores: nonNegativeInteger(raw.parallel?.reserveCores, 'parallel.reserveCores'),
-    concurrentRuns: positiveInteger(raw.parallel?.concurrentRuns, 'parallel.concurrentRuns'),
+    tokensPerWorker: parseWorkerTokens(raw.parallel?.tokensPerWorker),
   }
-  if (parallel.minimum > parallel.maxWorkersPerMember)
-    throw new Error('parallel.minimum 不能大于 parallel.maxWorkersPerMember')
   return {
     parallel,
     affected: parseAffected(raw.affected),
@@ -178,39 +182,4 @@ export function readTestRunsConfig(): TestRunsConfig {
   }
 }
 
-export const MEMBER_CONCURRENCY_ENV = 'OMNE_TEST_MEMBER_CONCURRENCY'
 export const VITEST_MAX_WORKERS_ENV = 'VITEST_MAX_WORKERS'
-
-function positiveIntegerOverride(
-  env: Readonly<Record<string, string | undefined>>,
-  name: string,
-  fallback: number,
-): number {
-  const value = env[name]
-  if (value === undefined || value === '') return fallback
-  if (!/^[1-9]\d*$/u.test(value)) throw new Error(`环境变量 ${name} 须为正整数，现在是 ${value}`)
-  return Number(value)
-}
-
-export function workerCountOverride(
-  env: Readonly<Record<string, string | undefined>>,
-  fallback: number,
-): number {
-  return positiveIntegerOverride(env, VITEST_MAX_WORKERS_ENV, fallback)
-}
-
-export function effectiveParallelism(
-  config: TestRunsConfig,
-  env: Readonly<Record<string, string | undefined>>,
-  budget: Budget,
-): Parallelism {
-  const derived = deriveParallelism(budget, config.parallel)
-  return {
-    memberConcurrency: positiveIntegerOverride(
-      env,
-      MEMBER_CONCURRENCY_ENV,
-      derived.memberConcurrency,
-    ),
-    vitestMaxWorkers: workerCountOverride(env, derived.vitestMaxWorkers),
-  }
-}

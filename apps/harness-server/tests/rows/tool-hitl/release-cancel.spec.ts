@@ -361,6 +361,11 @@ describe('a lost answer of HITL on the release tree is recalled by the original 
           () => askOf(world),
           ask => ask?.phase === 'suspended' && stageOf(world, 'Ask') === 'parked',
         )
+        await pollUntil(
+          'the recalled registration',
+          () => recalls.length,
+          count => count === 1,
+        )
         expect(ensured).toHaveLength(1)
         const receipt = (ensured[0] as { ok: unknown }).ok
         expect(receipt).toMatchObject({ record: expect.stringMatching(/^hitl-request\//) })

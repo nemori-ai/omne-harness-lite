@@ -1,4 +1,3 @@
-import math
 import os
 import sys
 from pathlib import Path
@@ -13,15 +12,13 @@ for key in set(os.environ) - env.keys():
     del os.environ[key]
 
 # pytest-xdist 的工作进程数，只在 `-n auto` 时由这里给（`pnpm run test:python` 带的就是它）。
-# 次序：OMNE_PYTEST_WORKERS 明给的数（0 即不分进程，与单进程相同）；`pnpm run check` 交下来的预算
-# OMNE_WORKER_BUDGET 的四分之一，与成员测试每个成员的份额相同（test-runs.config.json 的 workerDivisor），
-# 因为 python 步与重步骤同时跑，不能两边都吃满；都没有时取逻辑核的一半：用例多半起 git 或 node 子进程，
-# 24 核上实测 12 个与 24 个一样快。
+# 次序：OMNE_PYTEST_WORKERS 明给的数（0 即不分进程，与单进程相同）；令牌池交下来的 OMNE_WORKER_BUDGET，
+# 拿到几个令牌就起几个进程（python 步要多少令牌由 tools/test-runner 的步骤表定）；都没有时取逻辑核的一半：
+# 用例多半起 git 或 node 子进程，24 核上实测 12 个与 24 个一样快。
 # 本文件没被加载时（只跑别的测试根，或别的检出借用 test:python），由 test:python 设的
 # PYTEST_XDIST_AUTO_NUM_WORKERS=0 让 xdist 退回单进程，不按核数起一堆进程去跑几条用例。
 WORKERS_ENV = "OMNE_PYTEST_WORKERS"
 BUDGET_ENV = "OMNE_WORKER_BUDGET"
-BUDGET_DIVISOR = 4
 MINIMUM = 2
 
 
@@ -37,7 +34,7 @@ def workers(environ: dict[str, str], cores: int) -> int:
         return _count(WORKERS_ENV, given, 0)
     budget = environ.get(BUDGET_ENV, "")
     if budget:
-        return max(MINIMUM, math.ceil(_count(BUDGET_ENV, budget, 1) / BUDGET_DIVISOR))
+        return _count(BUDGET_ENV, budget, 1)
     return max(MINIMUM, cores // 2)
 
 
