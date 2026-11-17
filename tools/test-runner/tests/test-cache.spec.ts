@@ -28,13 +28,14 @@ import type { MemberRun } from '../src/testing/ledger.ts'
 import { classify } from '../src/testing/scope.ts'
 import {
   buildStep,
-  fastThenSlow,
+  fastWithSlow,
   recordedRun,
   runCachePolicy,
   stepTestCache,
   testStep,
   writePlanFile,
   type PlanFile,
+  type TierHooks,
 } from '../src/testing/steps.ts'
 import {
   cacheable,
@@ -1065,11 +1066,12 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
 
   const runner = (root: string, targets: TestMember[]) => {
     let count = 0
-    return async (tier: RunTier) => {
+    return async (tier: RunTier, hooks: TierHooks = {}) => {
       count += 1
       const out = join(root, `run-${count}`)
       writeFileSync(join(root, 'ran.txt'), '')
       const { exitCode } = await recordedRun(root, {
+        ...hooks,
         script: 'test',
         tier,
         targets,
@@ -1221,10 +1223,13 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
 
       const tiers: string[] = []
       const notes: string[] = []
-      const code = await fastThenSlow(
-        async tier => {
-          const result = await run(tier)
-          tiers.push(`${tier}: ${result.ran.join(' ')}`)
+      const code = await fastWithSlow(
+        async (tier, hooks) => {
+          const result = await run(tier, hooks)
+          const hit = new Set(result.ledger.meta.cache.hits.map(entry => entry.member))
+          tiers.push(
+            `${tier}: ${result.ledger.meta.members.filter(member => !hit.has(member)).join(' ')}`,
+          )
           if (tier === 'fast') expect(result.ledger.meta.cache.hits).toHaveLength(2)
           return result.exitCode
         },
@@ -1232,7 +1237,7 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
       )
       expect(code).toBe(0)
       expect(notes).toEqual([])
-      expect(tiers).toEqual(['fast: ', 'slow: members__alpha members__beta'])
+      expect(tiers.sort()).toEqual(['fast: ', 'slow: members/alpha members/beta'])
     }),
   )
 })

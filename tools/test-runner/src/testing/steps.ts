@@ -14,7 +14,7 @@ import {
   type ParallelPolicy,
 } from './parallelism.ts'
 import { longestFirst, memberHistory, type MemberReading } from './member-history.ts'
-import { runJob, tokenSource, type TokenSource } from './token-pool.ts'
+import { runJob, tierGate, tokenSource, type Gate, type TokenSource } from './token-pool.ts'
 import {
   changedFiles,
   coordinates,
@@ -454,6 +454,8 @@ export interface RecordedRun {
   readonly tokens: TokenSource
   readonly builtFrom?: ReadonlyMap<string, BuiltMember>
   readonly cache?: CachePolicy
+  readonly gate?: Gate
+  readonly onMember?: (member: string, exitCode: number) => void
 }
 
 function runDirOf(run: RecordedRun): string {
@@ -511,6 +513,27 @@ function recordedReadSets(
   return describeReadSets(members)
 }
 
+function reuseFor(
+  root: string,
+  run: RecordedRun,
+  config: TestRunsConfig,
+  toRun: readonly TestMember[],
+  memo: DigestMemo,
+): Map<string, Map<string, Reuse>> {
+  if (run.script !== 'test' || run.cache?.read !== true) return new Map()
+  const reuse = planReuse({
+    root,
+    home: readSetHome(run.at.mainRoot, process.env),
+    tier: run.tier,
+    members: toRun.map(member => member.path),
+    slug: slugOf,
+    env: keyEnvironment(process.env, config.cache),
+    digest: memo.digest,
+  })
+  for (const line of describeReuse(reuse)) console.log(line)
+  return reuse
+}
+
 function scheduleOf(
   policy: ParallelPolicy,
   tier: RunTier,
@@ -564,20 +587,11 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
   if (lookup !== undefined)
     for (const line of describeLookup(lookup, targets.length)) console.log(line)
   const memo = digestMemo(root)
-  const reuse =
-    script === 'test' && run.cache?.read === true
-      ? planReuse({
-          root,
-          home: readSetHome(run.at.mainRoot, process.env),
-          tier,
-          members: toRun.map(member => member.path),
-          slug: slugOf,
-          env: keyEnvironment(process.env, config.cache),
-          digest: memo.digest,
-        })
-      : new Map<string, Map<string, Reuse>>()
-  for (const line of describeReuse(reuse)) console.log(line)
-  const schedule = scheduleOf(config.parallel, tier, history, tokens, root, reuse)
+  const reuse = reuseFor(root, run, config, toRun, memo)
+  const schedule = {
+    ...scheduleOf(config.parallel, tier, history, tokens, root, reuse),
+    ...(run.gate === undefined ? {} : { gate: run.gate }),
+  }
 
   const meta = {
     script,
@@ -604,16 +618,19 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
     )
   const started = Date.now()
   let finishedBefore = 0
+  const layer = script === 'test' ? `${TIER_NAMES[tier]} ` : ''
   for (const [member, entry] of hits) {
     finishedBefore += 1
+    run.onMember?.(member, 0)
     console.log(
-      `[${finishedBefore}/${targets.length}] ✓ ${member} 缓存命中，${entry.tests} 条用例，取自 ${entry.head.slice(0, 9)} 在 ${entry.recordedAt} 的运行，来源 ${entry.ledger}`,
+      `[${layer}${finishedBefore}/${targets.length}] ✓ ${member} 缓存命中，${entry.tests} 条用例，取自 ${entry.head.slice(0, 9)} 在 ${entry.recordedAt} 的运行，来源 ${entry.ledger}`,
     )
   }
   const report = (done: MemberRun, finished: number) => {
+    run.onMember?.(done.member, done.exitCode)
     const tests = done.report === undefined ? undefined : testCount(done.report)
     console.log(
-      `[${finishedBefore + finished}/${targets.length}] ${done.exitCode === 0 ? '✓' : '✗'} ${done.member} ${Math.round(done.wallSeconds)} 秒` +
+      `[${layer}${finishedBefore + finished}/${targets.length}] ${done.exitCode === 0 ? '✓' : '✗'} ${done.member} ${Math.round(done.wallSeconds)} 秒` +
         (tests === undefined ? '' : `，${tests} 条用例`) +
         (done.exitCode === 0
           ? ''
@@ -805,16 +822,16 @@ export async function testStep(
   let code = 0
   if (targets.length > 0) {
     console.log(
-      `成员测试：${file.plan.mode === 'full' ? '全部' : resumed === undefined ? '按影响面' : '按 H1..HEAD 影响面'} ${targets.length} 个成员的快层，快层通过再跑慢层`,
+      `成员测试：${file.plan.mode === 'full' ? '全部' : resumed === undefined ? '按影响面' : '按 H1..HEAD 影响面'} ${targets.length} 个成员，快慢两层同时起：一个成员的快层过了，它的慢层就排队；快层最终没过时不再起新的慢层批`,
     )
-    code = await fastThenSlow(async tier => {
+    code = await fastWithSlow(async (tier, hooks) => {
       const outcome = await tierWithRetry(
         tier,
-        async () => recordedRun(root, { ...common, tier, cache, tokens }),
+        async () => recordedRun(root, { ...common, tier, cache, tokens, ...hooks }),
         rerun,
         console.log,
       )
-      report.failures = [...outcome.failures]
+      report.failures = [...report.failures, ...outcome.failures]
       report.retried = [...report.retried, ...outcome.retried]
       return outcome.exitCode
     }, console.log)
@@ -872,15 +889,34 @@ async function rerunFailedFile(
   return { outcome, log: `${base}.log` }
 }
 
-export async function fastThenSlow(
-  run: (tier: RetryTier) => Promise<number>,
+export interface TierHooks {
+  readonly gate?: Gate
+  readonly onMember?: (member: string, exitCode: number) => void
+}
+
+export async function fastWithSlow(
+  run: (tier: RetryTier, hooks: TierHooks) => Promise<number>,
   note: (text: string) => void,
 ): Promise<number> {
-  if ((await run('fast')) !== 0) {
-    note('快层未通过：慢层没有跑，这一步失败')
+  const gate = tierGate()
+  const fast = run('fast', { onMember: gate.done })
+  const slow = run('slow', { gate: gate.gate })
+  slow.catch(() => undefined)
+  let fastCode: number
+  try {
+    fastCode = await fast
+  } catch (error) {
+    gate.settle(1)
+    await slow.catch(() => undefined)
+    throw error
+  }
+  gate.settle(fastCode)
+  const slowCode = await slow
+  if (fastCode !== 0) {
+    note('快层未通过：没有再起新的慢层批，这一步失败')
     return 1
   }
-  return (await run('slow')) === 0 ? 0 : 1
+  return slowCode === 0 ? 0 : 1
 }
 
 export function recordSkippedAcceptance(

@@ -25,7 +25,7 @@ import { cpuMeterAvailable, meteredArgs, readMeteredCpu } from './cpu-meter.ts'
 import { readRaw } from './read-sets.ts'
 import { workersFor, type MemberDemand, type WeightSource } from './parallelism.ts'
 import { pnpmCommand } from './support.ts'
-import { runJob, runJobs, type TokenSource } from './token-pool.ts'
+import { runGatedJobs, runJob, runJobs, type Gate, type TokenSource } from './token-pool.ts'
 import {
   buildArgs,
   checkMemberTurboConfigs,
@@ -202,7 +202,10 @@ export interface MemberSchedule {
   readonly demand: (member: TestMember, files?: number) => MemberDemand
   readonly batches?: (members: readonly TestMember[]) => Batch[]
   readonly cached?: (member: string) => MemberRun | undefined
+  readonly gate?: Gate
 }
+
+export const GATE_SKIPPED = '没有运行：快层没过，这个成员的慢层没有起'
 
 export function observedParallelism(spans: readonly MemberSpan[]): Parallelism {
   let memberConcurrency = 0
@@ -478,56 +481,67 @@ export async function runTurboTests(
   for (const batch of queue) remaining.set(batch.member, (remaining.get(batch.member) ?? 0) + 1)
   const parts = new Map<string, { batch: Batch; run: MemberRun }[]>()
   const spans: MemberSpan[] = []
-  await runJobs(
-    queue.map(batch => {
-      const member = byPath.get(batch.member) as TestMember
-      const { want, min, perWorker, weightSource } = schedule.demand(member, batchFiles(batch))
-      return {
-        want,
-        min,
-        label: `${batchLabel(batch)}:${TIER_TASKS[tier]}`,
-        run: async (tokens: number) => {
-          const start = Date.now()
-          const workers = workersFor(tokens, perWorker)
-          const run = await runTurboBatch(
-            root,
-            member,
-            batch,
-            runDir,
-            tier,
-            workers,
-            build.readSets === true,
-          )
-          spans.push({
-            member: member.path,
-            ...(batch.kind === 'whole' ? {} : { batch: batchLabel(batch) }),
-            start,
-            end: Date.now(),
-            tokens,
-            workers,
-            perWorker,
-            weightSource,
-            ...(run.cpuSeconds === undefined ? {} : { cpuSeconds: run.cpuSeconds }),
-          })
-          const done = [...(parts.get(member.path) ?? []), { batch, run }]
-          parts.set(member.path, done)
-          const left = (remaining.get(member.path) ?? 1) - 1
-          remaining.set(member.path, left)
-          if (left > 0) return
-          const cached = schedule.cached?.(member.path)
-          const merged =
-            batch.kind === 'whole' && cached === undefined
-              ? run
-              : mergeBatchRuns(member.path, done, cached)
-          if (batch.kind !== 'whole' || cached !== undefined)
-            writeMerged(runDir, member, done, merged)
-          byMember.set(member.path, merged)
-          onDone(merged, byMember.size)
-        },
-      }
-    }),
-    schedule.source,
-  )
+  const finish = (member: TestMember, batch: Batch, run: MemberRun) => {
+    const done = [...(parts.get(member.path) ?? []), { batch, run }]
+    parts.set(member.path, done)
+    const left = (remaining.get(member.path) ?? 1) - 1
+    remaining.set(member.path, left)
+    if (left > 0) return
+    const cached = schedule.cached?.(member.path)
+    const merged =
+      batch.kind === 'whole' && cached === undefined
+        ? run
+        : mergeBatchRuns(member.path, done, cached)
+    if (batch.kind !== 'whole' || cached !== undefined) writeMerged(runDir, member, done, merged)
+    else if (run.problem === GATE_SKIPPED)
+      writeFileSync(join(runDir, `${slugOf(member.path)}.log`), `test-runner: ${run.problem}\n`)
+    byMember.set(member.path, merged)
+    onDone(merged, byMember.size)
+  }
+  const jobs = queue.map(batch => {
+    const member = byPath.get(batch.member) as TestMember
+    const { want, min, perWorker, weightSource } = schedule.demand(member, batchFiles(batch))
+    return {
+      member: member.path,
+      want,
+      min,
+      label: `${batchLabel(batch)}:${TIER_TASKS[tier]}`,
+      skip: () =>
+        finish(member, batch, {
+          member: member.path,
+          exitCode: -1,
+          wallSeconds: 0,
+          problem: GATE_SKIPPED,
+        }),
+      run: async (tokens: number) => {
+        const start = Date.now()
+        const workers = workersFor(tokens, perWorker)
+        const run = await runTurboBatch(
+          root,
+          member,
+          batch,
+          runDir,
+          tier,
+          workers,
+          build.readSets === true,
+        )
+        spans.push({
+          member: member.path,
+          ...(batch.kind === 'whole' ? {} : { batch: batchLabel(batch) }),
+          start,
+          end: Date.now(),
+          tokens,
+          workers,
+          perWorker,
+          weightSource,
+          ...(run.cpuSeconds === undefined ? {} : { cpuSeconds: run.cpuSeconds }),
+        })
+        finish(member, batch, run)
+      },
+    }
+  })
+  if (schedule.gate === undefined) await runJobs(jobs, schedule.source)
+  else await runGatedJobs(jobs, schedule.source, schedule.gate, job => job.skip())
   return {
     runs: members.flatMap(member => byMember.get(member.path) ?? []),
     spans,
