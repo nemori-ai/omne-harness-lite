@@ -4,8 +4,10 @@ import { expect, it } from 'vitest'
 import { agentEvaluator } from '@omne-harness/agent'
 import { createTestAgentDependencies, readyPreparation } from '@omne-harness/agent/testing'
 import type {
+  CompactionOutcome,
   CompactionRequest,
   CompactionTaskState,
+  FinishIntent,
   Preparation,
   ContextCompaction,
 } from '@omne-harness/agent-contract'
@@ -30,7 +32,10 @@ import {
 } from './fixtures/compaction-input.ts'
 import { rebuilt } from './loop-takeover-support.ts'
 
-async function fixture(lose?: 'admit' | 'acknowledge') {
+async function fixture(
+  lose?: Parameters<typeof serializedCompaction>[1],
+  ended?: Exclude<CompactionOutcome, { kind: 'completed' }>,
+) {
   const f = createTestAgentDependencies<Principal>({
     journal: { participants: ['context-transition', 'processed'] },
   })
@@ -52,7 +57,7 @@ async function fixture(lose?: 'admit' | 'acknowledge') {
   })
   if (!('ok' in message) || message.ok.role !== 'compaction')
     throw new Error('invalid summary fixture')
-  const outcome = { kind: 'completed', message: message.ok } as const
+  const outcome: CompactionOutcome = ended ?? { kind: 'completed', message: message.ok }
   const result = {
     version: '1',
     evidence: evidence('service-result'),
@@ -135,8 +140,16 @@ async function fixture(lose?: 'admit' | 'acknowledge') {
     },
   }
   const transport = lose === undefined ? null : serializedCompaction(service, lose)
+  const finishes: FinishIntent[] = []
   const dependencies = {
     ...f.dependencies,
+    journal: {
+      ...f.dependencies.journal,
+      tryFinish(input: Parameters<typeof f.dependencies.journal.tryFinish>[0]) {
+        finishes.push(structuredClone(input.intent))
+        return f.dependencies.journal.tryFinish(input)
+      },
+    },
     compactionInputs: { read: async () => succeed(frozen) },
     compaction: transport?.remote ?? service,
   }
@@ -169,6 +182,7 @@ async function fixture(lose?: 'admit' | 'acknowledge') {
     message: message.ok,
     result,
     transport,
+    finishes,
   }
 }
 
@@ -189,6 +203,51 @@ it('adopts the complete service message atomically and resumes the original main
   expect(read.checkpoint.compaction).toBeNull()
   expect(read.results.filter(item => item.result.producer.kind === 'compaction')).toEqual([])
 })
+
+it.each([
+  [
+    'cannot-fit',
+    {
+      kind: 'cannot-fit',
+      reason: 'protected-floor',
+      diagnostic: 'the protected history is over the budget',
+    },
+  ],
+  [
+    'cannot-fit',
+    {
+      kind: 'cannot-fit',
+      reason: 'after-compaction',
+      diagnostic: 'the summary still does not fit',
+    },
+  ],
+  [
+    'compaction-failed',
+    {
+      kind: 'failed',
+      reason: 'execution-limit',
+      diagnostic: 'the summary request is over its limit',
+    },
+  ],
+] as const)(
+  'ends the Run as a named %s from the one task and sends no further main request',
+  async (kind, ended) => {
+    const f = await fixture(undefined, ended)
+    ok(await f.current.runExecution())
+    const read = ok(await f.dependencies.journal.load({ ...alice, execution: execution() }))
+    expect(f.requests).toHaveLength(1)
+    expect(f.controls.requests.prepare.calls).toHaveLength(1)
+    expect(f.controls.requests.assessCompaction.calls).toHaveLength(0)
+    expect(f.controls.requests.resume.calls).toHaveLength(0)
+    expect(f.controls.journal.joint().map(item => item.caller?.kind)).not.toContain(
+      'context-transition',
+    )
+    expect(read.checkpoint.calls).toEqual([])
+    expect(read.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'fail' } })
+    expect(f.finishes).toHaveLength(1)
+    expect(f.finishes[0]?.failure).toMatchObject({ kind, reason: ended.reason })
+  },
+)
 
 it('rebuilds an uncommitted compaction handoff after a concurrent output acknowledgement', async () => {
   const f = await fixture()
@@ -274,8 +333,8 @@ it.each(['applied', 'dropped'] as const)(
   },
 )
 
-it.each(['admit', 'acknowledge'] as const)(
-  'resumes across serialized delayed RPC and a lost %s reply',
+it.each(['admit', 'acknowledge', 'admit-unapplied', 'acknowledge-unapplied'] as const)(
+  'resumes across serialized delayed RPC and a broken %s link under the original task',
   async lost => {
     const f = await fixture(lost)
     const first = await f.current.runExecution()

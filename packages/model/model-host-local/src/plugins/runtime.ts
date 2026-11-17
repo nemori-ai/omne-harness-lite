@@ -31,7 +31,7 @@ import {
   createModelResultReceiverTable,
   type ModelResultReceiverTable,
 } from '@omne-harness/model-cordis-contract/cordis'
-import { delegatedCommands } from './delegated-commands.ts'
+import { wakingCommands } from './delegated-commands.ts'
 import { createPushAgain } from './push-again.ts'
 import {
   awaitsReceiver,
@@ -898,21 +898,7 @@ function createResultPush(
     return 'woken'
   }
 
-  const wrapped: ModelCommands<unknown> = {
-    ...delegatedCommands(commands),
-    async handoff(handoff) {
-      const result = await commands.handoff(handoff)
-      if ('ok' in result || result.failure.kind === 'commit-unknown')
-        wake({ tenant: handoff.tenant, call: handoff.call })
-      return result
-    },
-    async settle(settle) {
-      const result = await commands.settle(settle)
-      if ('ok' in result) wake({ tenant: settle.tenant, call: settle.call })
-      return result
-    },
-    recordLateFact,
-  }
+  const wrapped = wakingCommands(commands, wake, recordLateFact)
 
   function receiverAppeared(owner: string): void {
     for (const record of ledger.records())

@@ -15,7 +15,8 @@ import { ok } from '../journal-support.ts'
 
 export function serializedCompaction(
   service: ContextCompaction<string>,
-  lose: 'admit' | 'acknowledge',
+  // A lost reply: the service applied the call. An unapplied call: the link broke before it.
+  lose: 'admit' | 'acknowledge' | 'admit-unapplied' | 'acknowledge-unapplied',
 ) {
   const calls: { method: string; bytes: number }[] = []
   let disconnected = false
@@ -47,6 +48,14 @@ export function serializedCompaction(
     ok(decodeCompactionTaskState(await round('state', ok(encodeCompactionTaskState(value)))))
   const remote: ContextCompaction<string> = {
     async admit(input) {
+      if (lose === 'admit-unapplied' && !disconnected) {
+        disconnected = true
+        return fail({
+          kind: 'commit-unknown',
+          ref: input.request.ref,
+          operation: 'remote-admission',
+        })
+      }
       const request = ok(
         decodeCompactionRequest(await round('admit', ok(encodeCompactionRequest(input.request)))),
       )
@@ -83,6 +92,10 @@ export function serializedCompaction(
       return 'failure' in answer ? answer : succeed(await state(answer.ok))
     },
     async acknowledge(input) {
+      if (lose === 'acknowledge-unapplied' && !disconnected) {
+        disconnected = true
+        return fail({ kind: 'commit-unknown', ref: input.ref, operation: input.operation })
+      }
       const ref = ok(
         decodeCompactionTaskRef(await round('acknowledge', ok(encodeCompactionTaskRef(input.ref)))),
       )
