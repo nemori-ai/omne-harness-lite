@@ -4,9 +4,15 @@ import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import { assetsProtocol } from '@omne-harness/assets-protocol'
 import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
-import { serviceOf } from '@omne-harness/shell-contract'
+import { serviceOf, ShellAssemblyError } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
-import { assetGovernanceKey, assetsUiModule, type AssetGovernance } from '../src/cordis.tsx'
+import {
+  ASSETS_CATEGORY_PAGE,
+  assetGovernanceKey,
+  assetsCategoryPage,
+  assetsUiModule,
+  type AssetGovernance,
+} from '../src/cordis.tsx'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { startShell } from './fixtures/reference-shell.ts'
@@ -104,6 +110,39 @@ it('U6 the module provides the governance port: another module injects it, reads
   unprovide()
   await new Promise(resolve => setTimeout(resolve, 0))
   expect(lookup.get(assetGovernanceKey)).toBeUndefined()
+})
+
+it('U7 a category page put into assets.category-page: one per category; a second for the same category is an assembly error and the first stays', async () => {
+  const { root, shell } = await startShell()
+  root.reflect.provide(SERVICE, createFakeClient().client)
+  await root.plugin(assetsUiModule)
+  assetsCategoryPage.contribute(shell, { id: 'mcp', order: 0, label: 'MCP', render: () => 'first' })
+  expect(() =>
+    assetsCategoryPage.contribute(shell, { id: 'mcp', order: 0, render: () => 'second' }),
+  ).toThrow(ShellAssemblyError)
+  expect(shell.items('attached').map(item => [item.anchor, item.id, item.label])).toEqual([
+    [ASSETS_CATEGORY_PAGE, 'mcp', 'MCP'],
+  ])
+})
+
+it('U8 the tabs of contributed pages follow order and identifier, not the order they were put in', async () => {
+  const orders = async (first: string, second: string) => {
+    const { root, shell } = await startShell()
+    root.reflect.provide(SERVICE, createFakeClient().client)
+    await root.plugin(assetsUiModule)
+    const order = (id: string) => (id === 'skill' ? 1 : 0)
+    for (const id of [first, second])
+      assetsCategoryPage.contribute(shell, { id, order: order(id), render: () => id })
+    let ids: readonly string[] = []
+    assetsCategoryPage.slot(shell, {}, entries => {
+      ids = entries.map(item => item.id)
+      return null
+    })
+    return ids
+  }
+  expect(await orders('skill', 'mcp')).toEqual(['mcp', 'skill'])
+  expect(await orders('mcp', 'skill')).toEqual(['mcp', 'skill'])
+  expect(await orders('mcp', 'b-cat')).toEqual(['b-cat', 'mcp'])
 })
 
 it('U5 without the protocol client the module does not load', async () => {

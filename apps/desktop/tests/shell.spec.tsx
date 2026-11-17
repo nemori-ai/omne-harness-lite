@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import type { ReactNode } from 'react'
@@ -10,6 +10,9 @@ import type {
   ShellLoginState,
 } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
+import { assetsProtocol } from '@omne-harness/assets-protocol'
+import { assetsCategoryPage, assetsUiModule } from '@omne-harness/assets-ui/cordis'
+import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
 import type { ResolvedTheme, ThemeChoice } from '@omne-harness/ui-kit'
 import type { Connectivity } from '../src/page/connectivity.ts'
 import { ITEM_FAILED_TEXT } from '../src/page/shell/item.tsx'
@@ -50,6 +53,8 @@ function source<T>(initial: T) {
 }
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0))
+const TENANT_TEXT =
+  '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
 
 async function setup(
   options: {
@@ -716,6 +721,57 @@ describe('外壳：一项坏了只坏这一项', () => {
     expect(section('fine')?.querySelector('[data-fine]')).not.toBeNull()
     expect(document.querySelector('[data-placeholder="侧栏占位"]')).not.toBeNull()
     expect(failed()).toHaveLength(1)
+  })
+
+  it('资产页上一个类别的页面抛出：只有它那一页读不出，页签、别的类别的页面与设置页照常', async () => {
+    const animate = Element.prototype.animate
+    Object.assign(Element.prototype, {
+      animate: () => ({ cancel: () => undefined, finished: Promise.resolve() }),
+    })
+    onTestFinished(() => void Object.assign(Element.prototype, { animate }))
+    const assets = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
+    const client = {
+      'list-settings': async () => ({
+        outcome: 'succeeded',
+        body: { items: [], next: null, completeness: 'complete' },
+      }),
+    }
+    const categoryPage = (id: string, order: number, render: () => ReactNode) =>
+      defineUiModule({
+        name: `category-${id}`,
+        inject: [],
+        apply(shell) {
+          assetsCategoryPage.contribute(shell, { id, order, label: id, render })
+        },
+      })
+    const t = await setup({
+      login: 'signed-in',
+      modules: [
+        { name: 'fake-assets', apply: (ctx: Context) => void ctx.reflect.provide(assets, client) },
+        assetsUiModule,
+        categoryPage('bad', 0, boom),
+        categoryPage('good', 1, () => <p data-category="good">好的类别</p>),
+      ],
+    })
+    await act(async () => {
+      t.state.scope.set(TENANT_TEXT)
+      await settle()
+    })
+    expect(navTitles()).toEqual(['资产', '设置'])
+    const page = section('assets')!
+    expect([...page.querySelectorAll('[role=tab]')].map(tab => tab.textContent)).toEqual([
+      'bad',
+      'good',
+    ])
+    expect(failed().map(node => node.textContent)).toEqual([ITEM_FAILED_TEXT])
+    expect(page.querySelector('[role=tabpanel]:not([hidden]) .shell-item-failed')).not.toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: 'good' }))
+    expect(
+      page.querySelector('[role=tabpanel]:not([hidden]) [data-category="good"]'),
+    ).not.toBeNull()
+    expect(failed()).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: '设置' }))
+    expect(section('settings')?.textContent).toContain('资产自己的设置都在「资产」页里')
   })
 
   it('侧栏区的一项抛出：只有它读不出，别的侧栏项与页面照常', async () => {
