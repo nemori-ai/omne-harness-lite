@@ -8,6 +8,7 @@ export type LeafKind =
   | 'login'
   | 'tenant'
   | 'instant'
+  | 'plain-date'
   | 'session'
   | 'page-bytes'
   | 'revision'

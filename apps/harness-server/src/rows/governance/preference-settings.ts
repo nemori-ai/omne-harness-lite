@@ -102,3 +102,13 @@ export async function installPreferenceTargets(
     if ((await installOne(owner, tenantRef, definition)) !== 'ready') return 'unavailable'
   return 'ready'
 }
+
+/** The reference the settings catalog gives a declaration: its version and the digest of its text. */
+export function preferenceDefinitionRef(definition: SettingDefinitions) {
+  return {
+    providerId: definition.providerId,
+    definitionId: definition.definitionId,
+    version: definition.version,
+    digest: canonicalDigest(definition).slice('sha256:'.length),
+  }
+}

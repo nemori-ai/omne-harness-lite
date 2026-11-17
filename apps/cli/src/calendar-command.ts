@@ -1,0 +1,110 @@
+import { calendarProtocol, type CalendarProtocol } from '@omne-harness/calendar-protocol'
+import { encodeTenantText } from '@omne-harness/public-contract'
+import type { BodyOf } from '@omne-harness/sdk/core'
+import type { CliOutput, CommandEnvironment, CommandSpec, ExitCode } from './cli-types.ts'
+import {
+  loadLogin,
+  missingOption,
+  serverOption,
+  unrecognized,
+  usageError,
+  type Option,
+} from './command-support.ts'
+import { readOptions } from './options.ts'
+import { report } from './report.ts'
+
+type Question = BodyOf<CalendarProtocol['operations']['answer']>['question']
+
+const COUNT = /^(0|[1-9][0-9]*)$/
+const POSITIVE = /^[1-9][0-9]*$/
+
+type Asked = Readonly<{
+  options: readonly string[]
+  switches?: readonly string[]
+  question: (values: Option) => Question | undefined
+}>
+
+const text = (values: Option, name: string) => values.get(name) ?? ''
+const count = (value: string, pattern: RegExp) =>
+  pattern.test(value) && Number.isSafeInteger(Number(value)) ? Number(value) : undefined
+
+/** Each question names its dates; none names a calendar: the settings of the tenant choose it. */
+const QUESTIONS: Readonly<Record<string, Asked>> = {
+  day: { options: ['--date'], question: v => ({ kind: 'day', date: text(v, '--date') }) },
+  count: {
+    options: ['--start', '--end'],
+    question: v => ({ kind: 'count', from: text(v, '--start'), to: text(v, '--end') }),
+  },
+  shift: {
+    options: ['--date', '--days'],
+    switches: ['--backward'],
+    question: v => {
+      const days = count(text(v, '--days'), COUNT)
+      return days === undefined
+        ? undefined
+        : {
+            kind: 'shift',
+            date: text(v, '--date'),
+            direction: v.has('--backward') ? 'backward' : 'forward',
+            days,
+          }
+    },
+  },
+  next: {
+    options: ['--after', '--count'],
+    question: v => {
+      const n = count(text(v, '--count'), POSITIVE)
+      return n === undefined ? undefined : { kind: 'next', after: text(v, '--after'), count: n }
+    },
+  },
+  nth: {
+    options: ['--start', '--end', '--ordinal'],
+    question: v => {
+      const given = text(v, '--ordinal')
+      const ordinal = given === 'last' ? 'last' : count(given, POSITIVE)
+      return ordinal === undefined
+        ? undefined
+        : { kind: 'nth', periodStart: text(v, '--start'), periodEnd: text(v, '--end'), ordinal }
+    },
+  },
+}
+const READS = { list: 'list-calendars', environment: 'read-environment' } as const
+
+async function runCalendar(
+  args: readonly string[],
+  output: CliOutput,
+  environment: CommandEnvironment,
+): Promise<ExitCode> {
+  const [action = '', ...rest] = args
+  const name = `calendar ${action}`
+  const read = Object.hasOwn(READS, action) ? READS[action as keyof typeof READS] : undefined
+  const asked = Object.hasOwn(QUESTIONS, action) ? QUESTIONS[action] : undefined
+  if (read === undefined && asked === undefined) return usageError(output, unrecognized('calendar'))
+  const options = readOptions(rest, {
+    accepted: [serverOption, ...(asked?.options ?? [])],
+    required: asked?.options ?? [],
+    ...(asked?.switches === undefined ? {} : { switches: asked.switches }),
+  })
+  if (options.kind === 'unrecognized') return usageError(output, unrecognized(name))
+  if (options.kind === 'missing') return usageError(output, missingOption(name, options.option))
+  const question = asked?.question(options.values)
+  if (asked !== undefined && question === undefined) return usageError(output, unrecognized(name))
+  const loaded = loadLogin(options.values, output, environment)
+  if (loaded.kind === 'exit') return loaded.code
+  const messageId = environment.services.newId()
+  const tenant = loaded.tenant
+  const result =
+    question === undefined
+      ? await loaded.link.call(calendarProtocol, read ?? 'list-calendars', { tenant }, messageId)
+      : await loaded.link.call(calendarProtocol, 'answer', { tenant, question }, messageId)
+  if (result === undefined) return usageError(output, unrecognized(name))
+  return report(name, result, { messageId, tenant: encodeTenantText(tenant) }, output)
+}
+
+export const calendarCommand: CommandSpec = {
+  name: 'calendar',
+  usage: 'list|environment|day|count|shift|next|nth',
+  summary:
+    'Ask a date question on the calendar your settings choose: list the calendars, read the one in effect, or classify, count, shift and list working days.',
+  run: runCalendar,
+}

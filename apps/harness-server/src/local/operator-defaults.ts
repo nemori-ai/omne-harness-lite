@@ -199,7 +199,7 @@ function storage(storageRoot: string, shutdownDeadlineMs: number, limits: Storag
     maxRequestBytes: 4_194_304,
     globalInFlightWriteBytes: 67_108_864,
     maxJsonMembers: 65_536,
-    maxResponseBytes: 262_144,
+    maxResponseBytes: 1_048_576,
     maxOperationResponseBytes: 1_048_576,
     globalWriteResponseBytes: 33_554_432,
     maxDiagnosticBytes: 4096,

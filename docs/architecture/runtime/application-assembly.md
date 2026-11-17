@@ -28,7 +28,8 @@
 | `identity` | `@omne-harness/identity-sql` 的 `./cordis` 插件 | `identityOperations`（注册激活、签发登录、识别登录）；`tenantStanding`（受信）；`identityGovernance`（ID-18 治理端口，受信）。三项出自同一个提供者实例、同一份 identity 记录，治理端口的撤销与切换对登录识别生效；`standingReservations`（原资格保留与结算） | `storage`、`identityClock` | 无 | 登录期限与空闲期限；访问刷新粒度 `accessRefreshGranularity`（必须短于空闲期限，发行层初值 1 小时）；邀请默认时长 `invitationDefaultDuration` 与最长时长 `invitationMaxDuration`（发行层初值 7 天与 30 天）。迁移 `identity/002-governance` 与读 handler `identity.governance`（输出上限 1 MiB，不超过 `storage` 行的 `maxReadResultBytes`）随本行材料进入发行目录；已有的发行数据库在本行 `registerCombination` 时执行 002 |
 | `authorization` | 应用成员的授权适配插件 | Session 身份桥使用的准入裁定；`agentAccessCheck`、`sessionAccessCheck`（含作用域释放恢复的三项系统请求：`scope-release-receive`、`scope-release-load` 与 `scope-release-query`）；`agentActionAdmission`；`systemActionAuthorization`（系统动作授权，受信，见[系统动作授权](#system-action-authorization)） | `tenantStanding`（受信）、`principalVerifier`（受信）、`identityGovernance`（受信，核对会话权限配值的原登录当前有效性）、`identityClock`（维护授予到期的判定时钟，每次判断到期时重新读取） | 无 | `actionRules`；`maintenanceGrants`：运维者对随版本内置的维护授予表只能收回某项（`revoked: true`）或设到期（`expiresAt`），不能新增；表外授予项、改用途、主体或范围的配置让本行启动失败。收回与到期对本行的三个访问裁定和 `systemActionAuthorization` 同样生效。发行层写空对象 |
 | `session-storage` | 应用成员的会话存储组合插件：在同一插件体内构造租户到事务域的目录与 `@omne-harness/session-storage-sql` 根入口的纯提供者，目录的存储构造能力只经闭包交给后者 | `sessionTransactions`；`sessionDelegatedTransactions`（会话委派事务，受信）；`tenantDomains`（只含部署枚举 `enumerate`）；`tenantDomainLookup`（已发布快照的只读查找，受信）；`sessionPrincipalBindings`（会话归属读口，受信）；`sessionScopeOwners`（作用域归属读口：铸作用域的提交写下的归属，受信）；`tenantDomainRegistration`（确保租户的事务域已登记，受信，适配 governance 行声明的端口） | `storage`、`sessionAccessCheck`、`assemblyLifecycle` | `sessionPermissionBackend`（受信；权限配值委派提交按调用现取，缺席返回不可用，普通命令不消费）；`sessionCursorSigning`；`systemActionAuthorization`（受信；部署枚举每次调用都经它判断，缺席或答 `unavailable` 时枚举答 `unavailable`，不放行；本行不持有授予表）；`sessionNotifier`（本行在发布服务之前登记在存储上的提交通知接口每一批现取它，在时转交同一份载荷） | 事务域推导规则；组合版本；登记表的文件位置（在存储根目录下）；介质（与 `storage` 行相同的 SQLite）；`pageBytes` 上限；`maxScanPerPage`；`maxRegistrationRetries`；快照重建方式。其余字段取 Session SQL 纯工厂配置的初值。见[租户到事务域的目录](#租户到事务域的目录) |
-| `governance` | 应用租户治理装配，复用 Governance 本地提供者 | `sessionPermissionBackend`、`standingDestinationResolver`（均受信）、`currentToolPermission`、`tenantSettings`（本应用的服务键，见[租户层设置读写面](#tenant-settings)） | `storage`、`tenantDomainLookup`、`principalVerifier`、`identityGovernance`、`tenantStanding`、`standingReservations`、`governanceDirectoryPrincipals`、`governanceInstallationPrincipals`、`toolContributionAuthority` | `tenantDomainRegistration`（受信；只在租户层设置读写面准入调用者之后按调用现取，缺席时只开启已登记租户）；`composition`，行体承载 | `deploymentId`、`logicalServiceId`、`recoveryPagesPerPass`、`closeTimeoutMs`。只开启已登记租户，配置身份不由会话推导 |
+| `governance` | 应用租户治理装配，复用 Governance 本地提供者 | `sessionPermissionBackend`、`standingDestinationResolver`（均受信）、`currentToolPermission`、`tenantSettings`（本应用的服务键，见[租户层设置读写面](#tenant-settings)）、`preferenceSettings`（本应用的服务键，见[领域偏好的读取](#preference-settings)） | `storage`、`tenantDomainLookup`、`principalVerifier`、`identityGovernance`、`tenantStanding`、`standingReservations`、`governanceDirectoryPrincipals`、`governanceInstallationPrincipals`、`toolContributionAuthority` | `tenantDomainRegistration`（受信；只在租户层设置读写面准入调用者之后按调用现取，缺席时只开启已登记租户）；`composition`，行体承载 | `deploymentId`、`logicalServiceId`、`recoveryPagesPerPass`、`closeTimeoutMs`。只开启已登记租户，配置身份不由会话推导 |
+| `calendar` | 应用成员的日历组合：`@omne-harness/calendar` 的查询、计算服务与供应应用，`@omne-harness/calendar-local` 的系统范围存储与发行种子 | `calendarQuery`、`calendarCalculator` | `storage`、`tenantStanding`、`preferenceSettings` | 无；`composition`，行体承载。行体登记 `system.calendar` 组合（日历存储、供应存储与本应用的日历授权参加者），以系统归属导入发行种子一次（幂等，失败只记告警；种子材料随供应存储的答复返回，`storage` 行的单个参加者答复上限 `maxResponseBytes` 要不小于 1048576，本机缺省即此值），不建供应运行器与来源适配器，运行期间不发对外请求。查询资格是调用方所属租户的成员资格；生效环境经 `preferenceSettings` 读这个租户的日历偏好 | 无 |
 | `session-provider` | `@omne-harness/session-cordis` 的插件 | `session`（四个面）；协调器与调度器，含推进触发调度器 S1 | `sessionAccessCheck`、`sessionDelegatedTransactions`（受信）、`sessionPrincipals`、`sessionWorkPrincipals`（受信）、`assemblyLifecycle`、`telemetry`（行体在它上面构造 Session 遥测 facade，把 `measure` 与 `diagnose` 交给插件；记录按访问的租户作用域）、`tenantDomains`、`tenantDomainScannerPrincipal`（受信；行体以部署扫描主体调用 `tenantDomains.enumerate`，在只对插件可见的子作用域里提供 `sessionTenants`，插件在有序启动时据此给每个租户绑定扫描者） | `sessionIdentity`、`sessionEvidence`、`sessionContextInput`、`sessionIdleInput`、`sessionAgentDrive`、`sessionScopeRelease`、`sessionClock`、`sessionTransactions`（只服务 `pending`、`references`、`releasedScopes` 三项目录读取） | `admission: 'none'`（本部署没有命令域与 hooks） |
 | `session-ad02` | AD-02 Agent 同日志解释（session-adapters 的 `createSessionJournalInterpretationPlugin`） | 无 | `session`（`'coordinator'`）、`sessionTransactions`（`commitLog` 所在的端口，日志解释的写口，与 AD-05 同构）；`storage`、`tenantDomainLookup`（受信，只读该 execution 的执行记录分区）；`sessionWorkPrincipals`（受信，取协调者主体） | 协调者主体来源（经受信 `sessionWorkPrincipals` 的 `forSession` 构造） | 无：插件不取配置 |
 | `session-ad03` | AD-03 持有者、回放、事实及按租户装配的模式生产者。注册成功后刷新；提交事件仅唤醒原来源重读 | `runtimeContextReaderEligibility`、`sessionReplayFacts`、`sessionScopeLookup`、`sessionModesInstallation` | `runtimeContext`、`session`、`sessionWorkPrincipals`、`sessionModesPrincipals`、`principalVerifier`、`storage`、`tenantDomainLookup`、`definitionMappings` | 协调者主体及模式租户主体；共享精确采用定义表；`sessionModesInstallation` 是应用装配口，不授予权限 | `scopeIndexEntries`、`pageBytes` |
@@ -85,6 +86,7 @@
 | `assets-access` | `@omne-harness/assets-access` 的 `./cordis` 插件 `createAssetsAccessPlugin`：`assets/v1` 的接入插件。装上这一行，新地址才开放 `assets/v1` | 无。插件把 `assets/v1` 的贡献（设置的 4 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createAccessIdentity` 与 `createMemberActing`，为目标租户换主体只经后者；资格读口缺席时换不出，调用答 `basis-unavailable`） | `settingsSecretItems`（受信，[秘密设置项](#settings-secret-items)）与 `tenantSettings`（[租户层设置读写面](#tenant-settings)），本行并成一个设置端口。需要问到的那一个缺席时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `human-intervention-access` | `@omne-harness/human-intervention-access` 的 `./cordis` 插件 `createHitlAccessPlugin`：`human-intervention/v1` 的接入插件。装上这一行，新地址才开放 `human-intervention/v1` | 无。插件把 `human-intervention/v1` 的贡献（列卡、读卡、提交答复、认回提交 4 个操作与观察 `observe-cards`）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createAccessIdentity` 与 `createMemberActing`，只经后者核对登录可为目标租户行事；资格读口缺席时核不出，调用与建立观察答 `basis-unavailable`；入口主体经 `createHitlEntryPrincipals` 签发） | HITL 入口面与卡有变化的信号（都取自工具人工介入宿主的 `holder`）。取不到时调用与建立观察答 `basis-unavailable`，协议不撤下 | `locationRef`：HITL 位置引用，缺省为 HITL 宿主的位置 |
 | `session-diagnostics-access` | `@omne-harness/session-diagnostics-access` 的 `./cordis` 插件 `createSessionDiagnosticsAccessPlugin`：`session-diagnostics/v1` 的接入插件。装上这一行，新地址才开放 `session-diagnostics/v1` | 无。插件把 `session-diagnostics/v1` 的贡献（读会话诊断页 1 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createAccessIdentity` 与 `createMemberActing`，把登录换成为目标租户行事的主体只经后者；资格读口缺席时换不出，调用答 `basis-unavailable`） | 会话的读者面（`session`，调用者 `reader`）；`agentJournal`、`modelRuntime`、`modelDiagnostics`、`toolRuntime` 四个只读来源。取不到时调用答 `basis-unavailable`，协议不撤下 | `maxPageBytes`：一页的字节上限，缺省 1048576；`diagnosticsKinds`、`maxRuns`、`maxCallsPerRun`：投影的范围，三项一起给或都不给 |
+| `calendar-access` | `@omne-harness/calendar-access` 的 `./cordis` 插件 `createCalendarAccessPlugin`：`calendar/v1` 的接入插件。装上这一行，新地址才开放 `calendar/v1` | 无。插件把 `calendar/v1` 的贡献（列日历、读生效环境、答日期问题 3 个操作）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，同 `session-diagnostics-access`：经 `createMemberActing` 把登录换成为目标租户行事的主体） | `calendarQuery`、`calendarCalculator`。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 | `tool-access` | `@omne-harness/tool-access` 的 `./cordis` 插件 `createToolAccessPlugin`：`tool/v1` 的接入插件。装上这一行，新地址才开放 `tool/v1` | 无。插件把 `tool/v1` 的贡献（按调用引用读一次调用与读结果 2 个操作、观察 `observe-call`）挂上 `accessRegistry` | `accessRegistry`；`principalIssuer`（受信，本行用它与按调用读的 `identityOperations`、`tenantStanding`（受信）构造身份的 `createMemberActing`，把登录换成为目标租户行事的主体；资格读口缺席时换不出，调用答 `basis-unavailable`） | `toolRuntime` 的查询、实例与观察。取不到时调用答 `basis-unavailable`，协议不撤下 | 无 |
 
 每行装一个插件（[IC-16](../cordis-integration-conventions.md#ic-16)）；插件自己的子插件随父插件装载。`session-ad*` 各行的 `inject` 以 [session-adapters 的 Cordis 页](../../../packages/session/SPEC.md#领域边界)为准，运维者可以按行 id 单独替换其中一行。
@@ -119,6 +121,9 @@ flowchart LR
   governance -. sessionPermissionBackend .-> session-storage
   session-storage -. tenantDomainRegistration .-> governance
   governance -. standingDestinationResolver .-> identity
+  storage --> calendar
+  identity -->|tenantStanding| calendar
+  governance -->|preferenceSettings| calendar
   authorization --> session-storage
   session-storage ---|同日志提交状态| agent-journal
   identity --> authorization
@@ -206,6 +211,9 @@ flowchart LR
   server-entry --> session-diagnostics-access
   identity -.-> session-diagnostics-access
   session-provider -.-> session-diagnostics-access
+  server-entry --> calendar-access
+  identity -.-> calendar-access
+  calendar -.-> calendar-access
   server-entry --> tool-access
   identity -.-> tool-access
   tool-runtime -.-> tool-access
@@ -292,11 +300,14 @@ flowchart LR
 - `assets-access` 行每次调用现取它与 `settingsSecretItems`，在 `apps/harness-server/src/rows/assets-access/settings.ts`（`unifySettings`）并成 `assets/v1` 的设置端口：查看与清除先问秘密面，秘密面看不见再问本面；秘密值只写秘密面，别的值只写本面，送错了答 `invalid`；列表秘密项在前，游标分 `s:<位置>` 与 `c:<本面游标>` 两段。一个来源缺席时，需要问到它的那一步答 `basis-unavailable`。本应用以外的成员需要这个键时，按 [IC-4](../cordis-integration-conventions.md#ic-4) 移到届时拥有它的成员的 `./cordis`，键名与形状不变。
 - 还没建过会话的租户，本面照常答得出：本面准入调用者之后，治理宿主先经 `tenantDomainRegistration` 确保这个租户的事务域已登记，再打开它的治理运行时。没准入的调用不登记。端口缺席、登记答不可用或抛出时，本面答 `basis-unavailable`，列设置因此整体答 `basis-unavailable`，查看、设置、清除秘密项照常。
 
+<a id="preference-settings"></a>`preferenceSettings` 是本应用自己定义的第五个服务键，服务定义在 `apps/harness-server/src/rows/governance/preference-settings-service.ts`：`governance` 行提供，给要按租户偏好做决定的行（`calendar` 行读生效日历与时区）读这个租户的偏好目标，读者是这个租户的目录主体。它不授予任何人写，也不替人读；人读写偏好仍经 `tenantSettings`。
+
 | 行 id | 可见的受信名 |
 | --- | --- |
 | `storage` | `storage`、`storageHost` |
 | `identity` | `storage`、`tenantStanding`、`identityGovernance`、`standingReservations`、`standingDestinationResolver`、`principalVerifier` |
 | `governance` | `storage`、`tenantDomainLookup`、`principalVerifier`、`identityGovernance`、`tenantStanding`、`standingReservations`、`governanceDirectoryPrincipals`、`governanceInstallationPrincipals`、`sessionPermissionBackend`、`standingDestinationResolver`、`toolInvocationQualification`、`currentToolPermission`、`sessionModesInstallation`、`tenantDomainRegistration` |
+| `calendar` | `storage`、`tenantStanding` |
 | `authorization`         | `principalVerifier`、`tenantStanding`、`identityGovernance`、`systemActionAuthorization`、`currentToolPermission`、`sessionModesInstallation` |
 | `session-storage`       | `storage`、`tenantDomainLookup`、`sessionPrincipalBindings`、`sessionScopeOwners`、`sessionDelegatedTransactions`、`systemActionAuthorization`、`sessionPermissionBackend`、`tenantDomainRegistration` |
 | `session-provider`      | `sessionWorkPrincipals`、`sessionDelegatedTransactions`、`tenantDomainScannerPrincipal`                                   |
@@ -331,6 +342,7 @@ flowchart LR
 | `assets-access` | `principalIssuer`、`tenantStanding`、`settingsSecretItems` |
 | `human-intervention-access` | `principalIssuer`、`tenantStanding` |
 | `session-diagnostics-access` | `principalIssuer`、`tenantStanding` |
+| `calendar-access` | `principalIssuer`、`tenantStanding` |
 | `tool-access` | `principalIssuer`、`tenantStanding` |
 
 表中未列的行可见集合为空。受信子树内的行提供的其他服务名不受隔离，根上的行照常 `inject`。

@@ -86,6 +86,11 @@
       }
     },
     {
+      "id": "calendar",
+      "plugin": "calendarRow",
+      "config": {}
+    },
+    {
       "id": "session-provider",
       "plugin": "sessionProviderRow",
       "config": {
@@ -573,6 +578,11 @@
     {
       "id": "session-diagnostics-access",
       "plugin": "sessionDiagnosticsAccessRow",
+      "config": {}
+    },
+    {
+      "id": "calendar-access",
+      "plugin": "calendarAccessRow",
       "config": {}
     },
     {

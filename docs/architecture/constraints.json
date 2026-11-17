@@ -674,6 +674,22 @@
       "source": "packages/calendar/SPEC.md"
     },
     {
+      "id": "packages/calendar/calendar-protocol",
+      "paths": ["packages/calendar/calendar-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["calendar"],
+      "status": "candidate",
+      "source": "packages/calendar/SPEC.md"
+    },
+    {
+      "id": "packages/calendar/calendar-access",
+      "paths": ["packages/calendar/calendar-access/src/**"],
+      "layer": "unknown",
+      "domains": ["calendar"],
+      "status": "candidate",
+      "source": "packages/calendar/SPEC.md"
+    },
+    {
       "id": "packages/calendar/calendar-tools",
       "paths": ["packages/calendar/calendar-tools/src/**"],
       "layer": "interaction",

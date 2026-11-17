@@ -272,6 +272,7 @@ describe('the serve process with the release', () => {
       expect(event.frame.protocols.map(key => `${key.name}/v${key.major}`).sort()).toStrictEqual([
         'access/v1',
         'assets/v1',
+        'calendar/v1',
         'human-intervention/v1',
         'identity/v1',
         'session-diagnostics/v1',

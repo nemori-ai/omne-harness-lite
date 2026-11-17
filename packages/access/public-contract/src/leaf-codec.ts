@@ -101,6 +101,20 @@ function identity<T>(
   return encoded.ok ? { local: input, wire: stringWire(encoded.value) } : undefined
 }
 
+/** A calendar day without a time or a zone, `YYYY-MM-DD` in the proleptic Gregorian calendar. */
+function isPlainDate(value: string): boolean {
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (parts === null) return false
+  const [year, month, dayOfMonth] = [Number(parts[1]), Number(parts[2]), Number(parts[3])]
+  const date = new Date(0)
+  date.setUTCFullYear(year, month - 1, dayOfMonth)
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === dayOfMonth
+  )
+}
+
 function instant(input: unknown, direction: Direction): Converted | undefined {
   if (direction === 'decode') {
     if (typeof input !== 'string') return undefined
@@ -305,6 +319,7 @@ const leaves: { readonly [K in LeafKind]: Leaf } = {
   login: identityLeaf(loginStateCodec),
   tenant: onPrimitive(tenant),
   instant: onPrimitive(instant),
+  'plain-date': textLeaf(isPlainDate),
   parameters: tree('parameters'),
   json: tree('json'),
   'user-message': tree('user-message'),

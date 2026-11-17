@@ -28,6 +28,7 @@ import { readOptions } from './options.ts'
 import { report, type RequestEcho } from './report.ts'
 import { readSessionOwners, writeSessionOwners } from './session-owners.ts'
 import { settingCommand } from './setting-command.ts'
+import { calendarCommand } from './calendar-command.ts'
 import { callsCommand } from './calls-command.ts'
 
 async function runAccount(
@@ -381,5 +382,6 @@ export const productionCommands: readonly CommandSpec[] = [
   callsCommand,
   ...hitlCommands,
   ...governanceCommands,
+  calendarCommand,
   settingCommand,
 ]
