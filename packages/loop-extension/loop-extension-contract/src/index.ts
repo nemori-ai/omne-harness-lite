@@ -11,6 +11,9 @@ export type {
   EnabledExtensionsRead,
   EnabledExtensionsViews,
   ExtensionSources,
+  PackageDirectory,
+  RunLocation,
+  RunLocations,
   RunSetting,
   TenantExtensionSources,
 } from './ports.ts'
@@ -21,3 +24,10 @@ export {
   loopExtensionBodyContract,
 } from './contract.ts'
 export { DECLARATION_PATH, LOOP_EXTENSION_PACKAGE_LIMITS, MODEL_CALL_NEED } from './package.ts'
+export {
+  COMMAND_OUTPUT_LIMIT_BYTES,
+  COMMAND_PROTOCOL,
+  commandRequest,
+  commandTimeoutMs,
+  type CommandRequest,
+} from './command.ts'

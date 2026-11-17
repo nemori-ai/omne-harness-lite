@@ -7,3 +7,4 @@ export {
   type ExtensionFacts,
 } from './view.ts'
 export { gatherFacts, type DeclarationRead } from './facts.ts'
+export { commandResult, type CommandObservation } from './command.ts'

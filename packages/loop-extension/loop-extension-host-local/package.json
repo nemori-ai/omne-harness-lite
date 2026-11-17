@@ -34,6 +34,7 @@
     "@omne-harness/agent-contract": "workspace:*",
     "@omne-harness/agent-cordis-contract": "workspace:*",
     "@omne-harness/assets": "workspace:*",
+    "@omne-harness/execution-environment-contract": "workspace:*",
     "@omne-harness/kernel-basis": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/loop-extension": "workspace:*",
@@ -44,6 +45,8 @@
   },
   "devDependencies": {
     "@omne-harness/assets-local": "workspace:*",
+    "@omne-harness/execution-environment-cordis-contract": "workspace:*",
+    "@omne-harness/execution-environment-host-local": "workspace:*",
     "@omne-harness/runtime-context": "workspace:*",
     "@omne-harness/settings-local": "workspace:*",
     "@omne-harness/sql-contract": "workspace:*",

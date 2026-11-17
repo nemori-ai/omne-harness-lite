@@ -221,6 +221,10 @@ export async function openTenant(tenant: TenantId) {
       const read = await assets.readVersion({ assetRef: asset, version })
       return read.kind === 'version' ? read.version.body : undefined
     },
+    async locate({ asset, version }) {
+      const found = await assets.packages.locate({ assetRef: asset, version })
+      return found.kind === 'local-directory' ? { kind: 'directory', path: found.path } : found
+    },
     async run({ capability }) {
       return runs.get(capability.name) ?? { kind: 'absent' }
     },

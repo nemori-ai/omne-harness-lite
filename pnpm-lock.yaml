@@ -2936,6 +2936,9 @@ importers:
       '@omne-harness/assets':
         specifier: workspace:*
         version: link:../../assets/assets
+      '@omne-harness/execution-environment-contract':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-contract
       '@omne-harness/kernel-basis':
         specifier: workspace:*
         version: link:../../assembly/kernel-basis
@@ -2961,6 +2964,12 @@ importers:
       '@omne-harness/assets-local':
         specifier: workspace:*
         version: link:../../assets/assets-local
+      '@omne-harness/execution-environment-cordis-contract':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-cordis-contract
+      '@omne-harness/execution-environment-host-local':
+        specifier: workspace:*
+        version: link:../../execution/execution-environment-host-local
       '@omne-harness/runtime-context':
         specifier: workspace:*
         version: link:../../context/runtime-context

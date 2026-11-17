@@ -1,23 +1,31 @@
-import type { LoopExtensionImplementation } from '@omne-harness/agent-contract'
+import type {
+  AgentExecutionId,
+  LoopExtensionImplementation,
+  PassageId,
+} from '@omne-harness/agent-contract'
 import type { AssetLayerSource, Candidate, CapabilityId } from '@omne-harness/assets'
 import type { Access } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
+import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { EnabledExtensionsView } from './block.ts'
+
+export type PackageDirectory =
+  | Readonly<{ kind: 'directory'; path: string }>
+  | Readonly<{ kind: 'absent' }>
+  | Readonly<{ kind: 'unavailable' }>
 
 export type RunSetting =
   | Readonly<{ kind: 'value'; value: boolean }>
   | Readonly<{ kind: 'absent' }>
   | Readonly<{ kind: 'unavailable' }>
 
-/** What the assets and the settings of one tenant give this group. An answer it cannot give is unavailable, never empty. */
+/** What the assets and the settings of one tenant give this group. `body` and `basis` answer undefined when they cannot read; `changes` calls after each committed change. Unreadable is never empty. */
 export type TenantExtensionSources = Readonly<{
   layers: readonly AssetLayerSource[]
-  /** The body of one exact version; undefined when it cannot be read. */
   body(version: Pick<Candidate, 'asset' | 'version'>): Promise<unknown>
   run(held: Readonly<{ capability: CapabilityId; asset: string }>): Promise<RunSetting>
-  /** The revisions of the assets and the settings now; undefined when either cannot be read. */
+  locate(version: Pick<Candidate, 'asset' | 'version'>): Promise<PackageDirectory>
   basis(): Promise<EnabledExtensionsView['basis'] | undefined>
-  /** Calls the listener after each committed change of the assets or the settings of this tenant. */
   changes: Readonly<{ subscribe(listener: () => void): () => void }>
 }>
 
@@ -40,4 +48,15 @@ export type BuiltinExtension = LoopExtensionImplementation['invoke']
 export interface BuiltinExtensions {
   register(name: string, invoke: BuiltinExtension): Outcome<() => void, 'taken'>
   get(name: string): BuiltinExtension | undefined
+}
+
+export type RunLocation =
+  | Readonly<{ kind: 'location'; scope: ScopeRef; cwd: string }>
+  | Readonly<{ kind: 'unavailable' }>
+
+/** Where one call of a command implementation runs. The assembly answers it; this group does not know a session. */
+export interface RunLocations<P> {
+  of(
+    input: Access<P> & Readonly<{ execution: AgentExecutionId; passage: PassageId }>,
+  ): Promise<RunLocation>
 }
