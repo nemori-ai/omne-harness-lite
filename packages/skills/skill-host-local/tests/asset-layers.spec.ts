@@ -149,7 +149,6 @@ describe('skillInputsFromAssets: layers, the layer answer by the candidate trans
               name: 'weekly-report',
               description: 'Writes the weekly report.',
               tools: [],
-              settings: [],
             },
           },
         ],

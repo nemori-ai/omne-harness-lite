@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  batchTarget,
   budgetFor,
   machineCapacity,
   memberDemand,
@@ -7,7 +8,7 @@ import {
   workersFor,
   type ParallelPolicy,
 } from '../src/testing/parallelism.ts'
-import { tokenUse, type MemberSpan } from '../src/testing/run.ts'
+import { startupOfRun, startupUse, tokenUse, type MemberSpan } from '../src/testing/run.ts'
 
 const POLICY: ParallelPolicy = {
   maxWorkersPerMember: 8,
@@ -15,6 +16,7 @@ const POLICY: ParallelPolicy = {
   tokensPerWorker: [{ member: 'apps/server', tier: 'slow', tokens: 2, why: '起始值' }],
   weight: { floor: 0.5, ceiling: 4, readings: 3, minProcessSeconds: 5 },
   batchSeconds: 90,
+  startupShare: 0.05,
 }
 
 const reading = (cpuSeconds: number, processSeconds: number) => ({ cpuSeconds, processSeconds })
@@ -119,6 +121,55 @@ describe('一个成员一层要多少令牌', () => {
     expect(workersFor(1, 2)).toBe(1)
     expect(workersFor(3, 0.5)).toBe(6)
     expect(workersFor(4, 1.3)).toBe(3)
+  })
+})
+
+describe('一批切多大', () => {
+  it('没有启动开销的读数取配置的目标时长；有读数时按「启动不超过一批的这个份额」算，不小于目标时长', () => {
+    expect(batchTarget(POLICY, undefined)).toBe(90)
+    expect(batchTarget(POLICY, 2.5)).toBe(90)
+    expect(batchTarget(POLICY, 10)).toBe(200)
+    expect(batchTarget(POLICY, 6.2)).toBe(124)
+  })
+})
+
+describe('一次运行的启动开销', () => {
+  const span = (seconds: number, startupSeconds?: number): MemberSpan => ({
+    member: 'packages/x',
+    start: 0,
+    end: seconds * 1000,
+    tokens: 1,
+    workers: 1,
+    perWorker: 1,
+    weightSource: 'default',
+    ...(startupSeconds === undefined ? {} : { startupSeconds }),
+  })
+
+  it('只算量到的批：平均、合计、占这些批墙钟的份额；一批都没量到时不写这一行', () => {
+    expect(startupUse([span(100, 4), span(50, 6), span(10)])).toBe(
+      '启动开销：2 批从起批到第一份文件开跑平均 5.0 秒，合计 10 秒，占这些批墙钟的 6.7%',
+    )
+    expect(startupUse([span(10)])).toBeUndefined()
+  })
+
+  it('一批的启动开销：起批到报告里最早开跑的文件；没有开跑时刻的不算', () => {
+    const run = (times: number[]) => ({
+      member: 'm',
+      exitCode: 0,
+      wallSeconds: 1,
+      report: {
+        testResults: times.map((startTime, index) => ({
+          name: `f${index}`,
+          status: 'passed',
+          startTime,
+          endTime: startTime + 1,
+          assertionResults: [],
+        })),
+      },
+    })
+    expect(startupOfRun(run([5300, 4200, 0]), 1000)).toBe(3.2)
+    expect(startupOfRun(run([0]), 1000)).toBeUndefined()
+    expect(startupOfRun({ member: 'm', exitCode: 1, wallSeconds: 0 }, 1000)).toBeUndefined()
   })
 })
 

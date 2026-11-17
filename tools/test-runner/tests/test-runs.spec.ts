@@ -175,6 +175,7 @@ const POLICY = {
   reserveCores: 2,
   weight: WEIGHT,
   batchSeconds: 90,
+  startupShare: 0.05,
 }
 
 describe('并行度', () => {
@@ -222,6 +223,21 @@ describe('并行度', () => {
       })
     expect(withBatch(undefined)).toThrow('parallel.batchSeconds')
     expect(withBatch(0)).toThrow('parallel.batchSeconds')
+  })
+
+  it('启动开销占一批的上限原样进配置；缺、不在 (0, 1] 都报错', () => {
+    expect(config.parallel.startupShare).toBe(0.05)
+    const withShare = (startupShare: unknown) => () =>
+      parseTestRunsConfig({
+        parallel: { ...POLICY, startupShare },
+        affected: AFFECTED_EMPTY,
+        ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
+        triage: { repeats: 3 },
+        cache: CACHE_EMPTY,
+      })
+    expect(withShare(undefined)).toThrow('parallel.startupShare')
+    expect(withShare(0)).toThrow('parallel.startupShare')
+    expect(withShare(1.5)).toThrow('parallel.startupShare')
   })
 
   it('每个进程要的令牌数：不写时为空表；写了的原样进配置', () => {

@@ -14,6 +14,7 @@ import {
 import type { FactCommandV2, SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import { governanceCurrentParticipant } from './adoption-current.ts'
 import { SUPPORT_PARTICIPANT } from './permission-protocol.ts'
+import { GOVERNED_CAPTURE } from './tool-assets.ts'
 
 export const CATALOG_CURRENT_PARTICIPANT = {
   participant: 'harness.governance-catalog-current',
@@ -46,7 +47,7 @@ export function governanceCatalogProjection(
   return [
     { participant: 'harness.tool-permission-release', facts: {} },
     { participant: SUPPORT_PARTICIPANT.participant, facts: {} },
-    assetsPublicationCommand(capture),
+    assetsPublicationCommand(capture, GOVERNED_CAPTURE),
     standaloneSettingsPublicationCommand(capture),
     {
       participant: CATALOG_CURRENT_PARTICIPANT.participant,

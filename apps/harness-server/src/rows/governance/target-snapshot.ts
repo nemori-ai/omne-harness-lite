@@ -24,6 +24,7 @@ import {
 import type { FactCommandV2, SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import { governanceCurrentParticipant } from './adoption-current.ts'
 import { SUPPORT_PARTICIPANT } from './permission-protocol.ts'
+import { GOVERNED_CAPTURE } from './tool-assets.ts'
 
 export const TARGET_SNAPSHOT = { participant: 'harness.governance-target-snapshot', protocol: '3' }
 export const targetSnapshotFact = { key: 'harness.governance-target-snapshot', protocol: '3' }
@@ -60,7 +61,7 @@ export function targetSnapshotCommands(binding: GovernanceTargetBinding): readon
   return [
     { participant: 'harness.tool-permission-release', facts: {} },
     { participant: SUPPORT_PARTICIPANT.participant, facts: {} },
-    assetsPublicationCommand(capture),
+    assetsPublicationCommand(capture, GOVERNED_CAPTURE),
     standaloneSettingsPublicationCommand(capture),
     governanceTargetProjectionCommand(binding),
     settingsValueProjectionCommand(capture),

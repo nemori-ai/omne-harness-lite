@@ -83,6 +83,7 @@ const residentNames = [
   'Web',
   'Calendar',
   'Schedules',
+  'Skills',
 ]
 const releaseDistribution = JSON.parse(
   readFileSync(new URL('../../../config/serve.distribution.json', import.meta.url), 'utf8'),
@@ -144,6 +145,7 @@ async function start(
       storageRoot: base.storageRoot,
       vaultFile: `${base.stateRoot}/vault`,
       hostFilesDir: base.stateRoot,
+      assetsRoot: `${base.stateRoot}/assets`,
     },
     settings: {
       version: 1,

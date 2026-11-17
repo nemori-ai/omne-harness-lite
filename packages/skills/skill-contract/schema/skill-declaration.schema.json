@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:omne-harness:skill-contract:skill-declaration:1",
   "title": ".omne/skill.json",
-  "description": "The declarations of a Skill package, format version 1. The behavior owner is SPEC.md of @omne-harness/skill-contract. Lengths count Unicode code points. The parser rejects these documents, and this schema does not express the rule: a formatVersion written as 1.0 or 1e0 (the lexeme must be 1); a text with a lone surrogate; a repeated key; a byte order mark; bytes that are not UTF-8; a document over the JSON budget; setting names that repeat.",
+  "description": "The declarations of a Skill package, format version 1. The behavior owner is SPEC.md of @omne-harness/skill-contract. Lengths count Unicode code points. The parser rejects these documents, and this schema does not express the rule: a formatVersion written as 1.0 or 1e0 (the lexeme must be 1); a text with a lone surrogate; a repeated key; a byte order mark; bytes that are not UTF-8; a document over the JSON budget.",
   "type": "object",
   "additionalProperties": false,
   "required": ["formatVersion"],
@@ -27,24 +27,6 @@
           "name": {
             "type": "string",
             "minLength": 1
-          }
-        }
-      }
-    },
-    "settings": {
-      "description": "Setting declarations: names and categories, never values. An absent list is an empty list.",
-      "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["name", "category"],
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1
-          },
-          "category": {
-            "enum": ["preference", "binding"]
           }
         }
       }

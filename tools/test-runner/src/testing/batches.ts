@@ -10,6 +10,7 @@ export type Batch =
       readonly kind: 'files'
       readonly index: number
       readonly files: readonly string[]
+      readonly exclude: readonly string[]
       readonly seconds: number
     }
   | {
@@ -17,6 +18,7 @@ export type Batch =
       readonly kind: 'rest'
       readonly exclude: readonly string[]
       readonly seconds: number
+      readonly expected: number
     }
 
 const TYPECHECK_FILE = /\.(?:spec|test)-d\.[cm]?[jt]sx?$/u
@@ -42,14 +44,29 @@ const total = (files: readonly FileTime[]) => files.reduce((sum, file) => sum + 
 
 export function memberBatches(
   member: string,
-  known: readonly FileTime[],
+  history: readonly FileTime[],
   targetSeconds: number,
+  skipped: ReadonlySet<string> = new Set(),
 ): Batch[] {
-  if (known.length === 0) return [{ member, kind: 'whole', seconds: UNKNOWN_FIRST }]
+  const known = history.filter(file => !skipped.has(file.file))
+  const typecheck = known.filter(file => isTypecheckFile(file.file))
+  const rest = (exclude: readonly string[], seconds: number): Batch => ({
+    member,
+    kind: 'rest',
+    exclude: [...new Set([...exclude, ...skipped])].sort(),
+    seconds,
+    expected: Math.max(1, typecheck.length),
+  })
+  if (history.length === 0)
+    return [
+      skipped.size === 0
+        ? { member, kind: 'whole', seconds: UNKNOWN_FIRST }
+        : rest([], UNKNOWN_FIRST),
+    ]
   const runtime = known.filter(file => !isTypecheckFile(file.file))
   const sum = total(known)
   if (runtime.length <= 1 || total(runtime) <= targetSeconds)
-    return [{ member, kind: 'whole', seconds: sum }]
+    return [skipped.size === 0 ? { member, kind: 'whole', seconds: sum } : rest([], sum)]
   const groups = groupsOf(runtime).sort((a, b) => total(b) - total(a))
   const bins: FileTime[][] = []
   for (const group of groups) {
@@ -62,24 +79,26 @@ export function memberBatches(
     kind: 'files',
     index: index + 1,
     files: bin.map(file => file.file).sort(),
+    exclude: [...skipped].sort(),
     seconds: total(bin),
   }))
-  batches.push({
-    member,
-    kind: 'rest',
-    exclude: runtime.map(file => file.file).sort(),
-    seconds: total(known.filter(file => isTypecheckFile(file.file))),
-  })
+  batches.push(
+    rest(
+      runtime.map(file => file.file),
+      total(typecheck),
+    ),
+  )
   return batches
 }
 
 export function batchQueue(
   members: readonly string[],
   known: (member: string) => readonly FileTime[],
-  targetSeconds: number,
+  target: (member: string) => number,
+  skipped: (member: string) => ReadonlySet<string> = () => new Set(),
 ): Batch[] {
   return members
-    .flatMap(member => memberBatches(member, known(member), targetSeconds))
+    .flatMap(member => memberBatches(member, known(member), target(member), skipped(member)))
     .map((batch, order) => ({ batch, order }))
     .sort((a, b) => b.batch.seconds - a.batch.seconds || a.order - b.order)
     .map(({ batch }) => batch)
@@ -93,6 +112,11 @@ export function batchLabel(batch: Batch): string {
 
 export function batchArgs(batch: Batch): string[] {
   if (batch.kind === 'whole') return []
-  if (batch.kind === 'files') return [...batch.files]
-  return batch.exclude.flatMap(file => ['--exclude', file])
+  const exclude = batch.exclude.flatMap(file => ['--exclude', file])
+  return batch.kind === 'files' ? [...batch.files, ...exclude] : exclude
+}
+
+export function batchFiles(batch: Batch): number | undefined {
+  if (batch.kind === 'files') return batch.files.length
+  return batch.kind === 'rest' ? batch.expected : undefined
 }

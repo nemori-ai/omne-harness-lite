@@ -82,6 +82,7 @@ export const TEST_CONSTRUCTION = Object.freeze({
   BkgToolCalls: { resultMaxBytes: 65_536 },
   Ask: { resultMaxBytes: 1_048_576 },
   Web: { resultMaxBytes: 4096, maxSearchResults: 10 },
+  Skills: { resultMaxBytes: 4096 },
   Calendar: { resultMaxBytes: 4096 },
   Schedules: { resultMaxBytes: 4096 },
 })
