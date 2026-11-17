@@ -101,7 +101,7 @@ async function registered(storage: SqlStorage) {
 }
 
 /** A tenant's calendar environment is its own preference target; the reader reads as the tenant. */
-function environmentOf(preferences: PreferenceSettingsService) {
+export function environmentOf(preferences: PreferenceSettingsService) {
   const settings: SettingsReadPort<string> = {
     read: async (tenantRef, request) =>
       (await preferences.read(tenantRef, request)) ?? { kind: 'rejected', reason: 'unavailable' },

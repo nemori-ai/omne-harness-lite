@@ -10,6 +10,7 @@ const allowed = [
   '@omne-harness/human-intervention-protocol',
   '@omne-harness/identity-protocol',
   '@omne-harness/public-contract',
+  '@omne-harness/schedule-protocol',
   '@omne-harness/sdk',
   '@omne-harness/session-diagnostics-protocol',
   '@omne-harness/session-protocol',

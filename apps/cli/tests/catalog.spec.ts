@@ -62,7 +62,7 @@ describe('command catalog', () => {
     expect(renderHelp(empty)).toBe(expectedEmptyHelp)
   })
 
-  it('registers exactly the commands of the spec, the HITL, governance and calendar commands, then setting last', () => {
+  it('registers exactly the commands of the spec, the HITL, governance, calendar and schedule commands, then setting last', () => {
     expect(productionCatalog.commands.map(command => command.name)).toEqual([
       'register',
       'login',
@@ -95,6 +95,7 @@ describe('command catalog', () => {
       'revoke-login',
       'query-own-valid-logins',
       'calendar',
+      'schedule',
       'setting',
     ])
   })

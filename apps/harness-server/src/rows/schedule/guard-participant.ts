@@ -1,0 +1,86 @@
+import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
+import { createScheduleManagementIdentity } from '@omne-harness/schedule'
+import {
+  ScheduleManagementGuardRequirementSchema,
+  scheduleManagementGuardRequirement,
+  scheduleManagementGuardsFact,
+  type ScheduleManagementGuardRequirement,
+} from '@omne-harness/schedule-local'
+import { canonicalDigest } from '@omne-harness/tool'
+import { SCHEDULE_GUARD, SCHEDULE_QUOTA_TABLE } from './guard.ts'
+
+const parameters = new URL(import.meta.url).searchParams
+const capacity = Number(parameters.get('capacity') ?? '0')
+const same = (left: unknown, right: unknown) => canonicalDigest(left) === canonicalDigest(right)
+
+/** Holds one quota slot per schedule that is not terminal, counted per owner and author. */
+function quota(port: ParticipantPort, requirement: ScheduleManagementGuardRequirement) {
+  const effect = requirement.quotaEffect
+  const holding = requirement.resultingHolding
+  if (effect.kind === 'none') return null
+  if (effect.kind === 'release' || effect.kind === 'transfer') {
+    const id = effect.kind === 'release' ? effect.scheduleId : effect.predecessorId
+    const held = port.execute(
+      `SELECT reservation, held FROM ${SCHEDULE_QUOTA_TABLE} WHERE schedule_id = ? LIMIT 1`,
+      [id],
+    ).rows[0]
+    if (held?.[0] !== effect.reservationRef || held[1] !== 1n) return 'stale_basis'
+    port.execute(`UPDATE ${SCHEDULE_QUOTA_TABLE} SET held = 0 WHERE schedule_id = ?`, [id])
+  }
+  if (effect.kind === 'release') return holding?.kind === 'released' ? null : 'stale_basis'
+  const bucket = canonicalDigest([effect.owner, effect.author])
+  const used = port.execute(
+    `SELECT count(*) FROM ${SCHEDULE_QUOTA_TABLE} WHERE bucket = ? AND held = 1 LIMIT 1`,
+    [bucket],
+  ).rows[0]?.[0]
+  if (typeof used !== 'bigint' || used >= BigInt(capacity)) return 'capacity_exceeded'
+  if (holding?.kind !== 'held') return 'stale_basis'
+  port.execute(
+    `INSERT INTO ${SCHEDULE_QUOTA_TABLE} (schedule_id, bucket, reservation, held) VALUES (?, ?, ?, 1)`,
+    [
+      effect.kind === 'reserve' ? effect.scheduleId : effect.successorId,
+      bucket,
+      holding.reservationRef,
+    ],
+  )
+  return null
+}
+
+/**
+ * The commit re-derives the requirement from the command and keeps quota; it does not read settings
+ * again: consent was decided when the authorizer read them.
+ */
+export default {
+  ...SCHEDULE_GUARD,
+  execute(facts, port) {
+    const requirement = ScheduleManagementGuardRequirementSchema.parse(facts['requirement'])
+    const { binding } = requirement
+    const { command } = binding
+    const fail = (code: 'forbidden' | 'stale_basis' | 'capacity_exceeded') => ({
+      kind: 'conflict' as const,
+      basis: {
+        binding,
+        error: {
+          code,
+          message: `schedule guard: ${code}`,
+          retryable: code === 'stale_basis',
+          requestId: command.input.requestId,
+          details: {},
+        },
+      },
+    })
+    if (
+      !same(requirement, scheduleManagementGuardRequirement(binding.scope, command)) ||
+      !same(
+        binding.operation,
+        createScheduleManagementIdentity(binding.operation.scope, command.input.request),
+      )
+    )
+      return fail('forbidden')
+    const failure = quota(port, requirement)
+    if (failure !== null) return fail(failure)
+    const fact = JSON.parse(JSON.stringify({ ...requirement, decisionAt: command.input.now }))
+    port.provideFact(scheduleManagementGuardsFact, fact)
+    return { kind: 'participated', response: fact }
+  },
+} satisfies ParticipantModule

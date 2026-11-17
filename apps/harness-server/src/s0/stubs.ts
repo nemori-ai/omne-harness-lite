@@ -56,6 +56,11 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['storage', 'tenantStanding', 'preferenceSettings'],
     phase: 'composition',
   },
+  schedule: {
+    provides: ['scheduleCommands', 'scheduleQueries'],
+    injects: ['storage', 'tenantDomainLookup', 'calendarQuery', 'preferenceSettings'],
+    phase: 'composition',
+  },
   'session-storage': {
     provides: [
       'sessionTransactions',
@@ -339,6 +344,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'human-intervention-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'session-diagnostics-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'calendar-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'schedule-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'tool-access': { injects: ['accessRegistry', 'principalIssuer'] },
 }
 

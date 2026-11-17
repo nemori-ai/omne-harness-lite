@@ -91,6 +91,11 @@
       "config": {}
     },
     {
+      "id": "schedule",
+      "plugin": "scheduleRow",
+      "config": {}
+    },
+    {
       "id": "session-provider",
       "plugin": "sessionProviderRow",
       "config": {
@@ -583,6 +588,11 @@
     {
       "id": "calendar-access",
       "plugin": "calendarAccessRow",
+      "config": {}
+    },
+    {
+      "id": "schedule-access",
+      "plugin": "scheduleAccessRow",
       "config": {}
     },
     {

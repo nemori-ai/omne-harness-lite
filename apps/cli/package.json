@@ -33,6 +33,7 @@
     "@omne-harness/human-intervention-protocol": "workspace:*",
     "@omne-harness/identity-protocol": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",
+    "@omne-harness/schedule-protocol": "workspace:*",
     "@omne-harness/sdk": "workspace:*",
     "@omne-harness/session-diagnostics-protocol": "workspace:*",
     "@omne-harness/session-protocol": "workspace:*",

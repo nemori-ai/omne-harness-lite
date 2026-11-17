@@ -82,6 +82,7 @@ export const ScheduleViewSchema = z.strictObject({
 })
 export const ScheduleRevisionViewSchema = z.strictObject({
   scheduleId: ScheduleIdSchema,
+  revision: ScheduleRevisionSchema,
   stateRevision: ScheduleRevisionSchema,
   definitionRevision: ScheduleRevisionSchema,
   actor: ScheduleCallContextSchema.unwrap().shape.actor,

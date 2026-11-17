@@ -49,6 +49,7 @@ function revisionRecord(
     afterRecordRef: createScheduleRecordRef(after.view),
     view: {
       scheduleId: after.view.scheduleId,
+      revision: after.view.revision,
       stateRevision: after.view.stateRevision,
       definitionRevision: after.view.definitionRevision,
       actor: input.operation.scope.actor,

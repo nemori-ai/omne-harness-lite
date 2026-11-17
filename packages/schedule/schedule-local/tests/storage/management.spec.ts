@@ -93,6 +93,7 @@ test('draft revision, promotion, discard and active controls persist immutable r
   })
   if (firstPage.kind !== 'ok') throw new Error(JSON.stringify(firstPage))
   expect(firstPage.value.items.map(item => item.action)).toEqual(['create', 'reviseDraft'])
+  expect(firstPage.value.items.map(item => item.revision)).toEqual([1, 2])
   const nextPage = await w.store.readRevisions({
     access: readAccess(),
     request: { scheduleId: draft.scheduleId, cursor: firstPage.value.nextCursor, limit: 2 },

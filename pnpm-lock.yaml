@@ -390,6 +390,9 @@ importers:
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../packages/access/public-contract
+      '@omne-harness/schedule-protocol':
+        specifier: workspace:*
+        version: link:../../packages/schedule/schedule-protocol
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../packages/access/sdk
@@ -671,9 +674,24 @@ importers:
       '@omne-harness/runtime-context-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/context/runtime-context-cordis-contract
+      '@omne-harness/schedule':
+        specifier: workspace:*
+        version: link:../../packages/schedule/schedule
+      '@omne-harness/schedule-access':
+        specifier: workspace:*
+        version: link:../../packages/schedule/schedule-access
+      '@omne-harness/schedule-contract':
+        specifier: workspace:*
+        version: link:../../packages/schedule/schedule-contract
+      '@omne-harness/schedule-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/schedule/schedule-cordis-contract
       '@omne-harness/schedule-local':
         specifier: workspace:*
         version: link:../../packages/schedule/schedule-local
+      '@omne-harness/schedule-protocol':
+        specifier: workspace:*
+        version: link:../../packages/schedule/schedule-protocol
       '@omne-harness/schema-provider':
         specifier: workspace:*
         version: link:../../packages/schema/schema-provider
@@ -3387,6 +3405,43 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  packages/schedule/schedule-access:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness/access-cordis-contract':
+        specifier: workspace:*
+        version: link:../../access/access-cordis-contract
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/schedule-contract':
+        specifier: workspace:*
+        version: link:../schedule-contract
+      '@omne-harness/schedule-protocol':
+        specifier: workspace:*
+        version: link:../schedule-protocol
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
+    devDependencies:
+      '@omne-harness/schedule':
+        specifier: workspace:*
+        version: link:../schedule
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/schedule/schedule-contract:
     dependencies:
       '@js-temporal/polyfill':
@@ -3500,6 +3555,25 @@ importers:
       '@omne-harness/tool-host-local':
         specifier: workspace:*
         version: link:../../tool/tool-host-local
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/schedule/schedule-protocol:
+    dependencies:
+      '@omne-harness/public-contract':
+        specifier: workspace:*
+        version: link:../../access/public-contract
+    devDependencies:
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
