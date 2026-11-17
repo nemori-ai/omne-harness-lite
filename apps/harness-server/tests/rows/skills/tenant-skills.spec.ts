@@ -189,15 +189,21 @@ describe('one Skill service set per tenant', () => {
   })
 
   it('gives the local directory of a Skill version, none when it has none, and unavailable when the store cannot tell', async () => {
+    const asked: unknown[] = []
     const at = (place: object) =>
-      directoryOf({ packages: { locate: async () => place } } as never)({
-        ref: 'tenant/skill/x',
-        digest: 'sha256:0',
-      } as never)
+      directoryOf({
+        packages: {
+          locate: async (request: unknown) => {
+            asked.push(request)
+            return place
+          },
+        },
+      } as never)({ ref: 'tenant/skill/x', digest: 'sha256:0' } as never)
     expect(await at({ kind: 'local-directory', path: '/skills/x' })).toStrictEqual({
       ok: '/skills/x',
     })
     expect(await at({ kind: 'absent' })).toStrictEqual({ ok: null })
     expect(await at({ kind: 'unavailable' })).toStrictEqual({ failure: 'unavailable' })
+    expect(asked[0]).toStrictEqual({ assetRef: 'tenant/skill/x', version: 'sha256:0' })
   })
 })
