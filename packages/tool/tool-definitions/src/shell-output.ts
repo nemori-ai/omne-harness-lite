@@ -5,6 +5,7 @@ import type {
   ProcessHandle,
   ResidueReport,
 } from '@omne-harness/execution-environment-contract'
+import type { OutputStage } from './shell-staging.ts'
 import { bounded, TextWindow, utf8Length } from './text.ts'
 
 type Stream = OutputChunk['stream']
@@ -19,6 +20,7 @@ export async function collectProcess(
   handle: ProcessHandle,
   signal: AbortSignal,
   maximum: number,
+  stage: OutputStage | null = null,
 ): Promise<string> {
   const result = handle.result.catch(() => undefined)
   const streams = new Map<Stream, StreamState>()
@@ -29,12 +31,13 @@ export async function collectProcess(
   signal.addEventListener('abort', cancel, { once: true })
   if (signal.aborted) cancel()
   try {
-    const readFailure = await drainOutput(handle, streams, maximum)
+    const readFailure = await drainOutput(handle, streams, maximum, stage)
     const outcome = await result
     const stopped = stop === undefined ? 'not-requested' : await stop
+    const staged = stage === null ? '' : await stage.finish()
     const status =
       outcome?.kind === 'completed' && !readFailure && !signal.aborted ? 'done' : 'unknown'
-    const metadata = `${status} process=${JSON.stringify(handle.process)} output_mode=${handle.outputMode} stop=${stopped}\n${outcomeText(outcome)}${readFailure ? '\noutput_reader=unknown' : ''}\n`
+    const metadata = `${status} process=${JSON.stringify(handle.process)} output_mode=${handle.outputMode} stop=${stopped}\n${outcomeText(outcome)}${readFailure ? '\noutput_reader=unknown' : ''}\n${staged}`
     const allowance = Math.max(0, maximum - utf8Length(metadata))
     const sections = [...streams.entries()]
     const between = betweenOf(outcome)
@@ -56,16 +59,26 @@ async function drainOutput(
   handle: ProcessHandle,
   streams: Map<Stream, StreamState>,
   maximum: number,
+  stage: OutputStage | null,
 ): Promise<boolean> {
   try {
-    for await (const chunk of handle.output) appendChunk(streams, chunk, maximum)
-    for (const state of streams.values()) state.text.append(state.decoder.decode())
+    for await (const chunk of handle.output) stage?.observe(appendChunk(streams, chunk, maximum))
+    for (const state of streams.values()) {
+      const rest = state.decoder.decode()
+      state.text.append(rest)
+      stage?.observe(rest)
+    }
     return false
   } catch {
     return true
   }
 }
-function appendChunk(streams: Map<Stream, StreamState>, chunk: OutputChunk, maximum: number): void {
+/** Keeps a chunk in its stream window and gives back its decoded text. */
+function appendChunk(
+  streams: Map<Stream, StreamState>,
+  chunk: OutputChunk,
+  maximum: number,
+): string {
   let state = streams.get(chunk.stream)
   if (state === undefined) {
     state = {
@@ -82,8 +95,10 @@ function appendChunk(streams: Map<Stream, StreamState>, chunk: OutputChunk, maxi
     state.discarded += Math.max(0, chunk.observedOffset - state.next)
     state.decoder = new TextDecoder('utf-8', { ignoreBOM: true })
   }
-  state.text.append(state.decoder.decode(chunk.data, { stream: true }))
+  const text = state.decoder.decode(chunk.data, { stream: true })
+  state.text.append(text)
   state.next = chunk.observedOffset + chunk.data.byteLength
+  return text
 }
 function outcomeText(outcome: CommandOutcome | undefined): string {
   if (outcome === undefined) return 'outcome=unknown'

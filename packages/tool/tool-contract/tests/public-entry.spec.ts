@@ -45,6 +45,7 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'CLOSED_RESULT_MAX_BYTES',
     'COMMAND_CALL_ENCODINGS',
     'INTENT_MAX_BYTES',
+    'OUTPUT_BODY_KEY',
     'PREVIEW_MAX_CHARS',
     'TOOL_IDENTITY_MAX_LENGTH',
     'TOOL_REFERENCE_MAX_LENGTH',

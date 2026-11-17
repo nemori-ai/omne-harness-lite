@@ -21,11 +21,8 @@ function milliseconds(
   return value?.kind === 'value' && typeof value.value === 'number' ? value.value : null
 }
 
-/**
- * The limits of one call, read from the settings the tool declares before admission. The
- * threshold applies only to a call that may go to the background; the foreground limit to any.
- * Settings that cannot be read are a failure: the call is not admitted with a guessed value.
- */
+// The limits of one call, read before admission: the threshold only for a call that may go to
+// the background, the foreground limit for any. Unreadable settings admit nothing.
 export function toolLimitsOf(
   request: Pick<ToolInvokeRequest, 'availability' | 'command' | 'arguments'>,
   operator: () => Readonly<Record<string, unknown>> | undefined,

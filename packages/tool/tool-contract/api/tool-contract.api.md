@@ -11,6 +11,7 @@
 - `Adoption` · 包 `@omne-harness/exchange-refs`
 - `Attachment` · `results.d.ts`
 - `BackgroundSource` · `operations.d.ts`
+- `CallOutput` · `body-reads.d.ts`
 - `ClockSegment` · `records.d.ts`
 - `CommandCall` · `command-call.d.ts`
 - `CommandCallEncoding` · `command-call.d.ts`
@@ -116,6 +117,7 @@
 - `ToolOperationLocation` · `reference.d.ts`
 - `ToolOperationParts` · `reference.d.ts`
 - `ToolOperationRef` · `reference.d.ts`
+- `ToolOutputReadRequest` · `body-reads.d.ts`
 - `ToolProgramDeclaration` · `definitions.d.ts`
 - `ToolPublishedSchema` · `definitions.d.ts`
 - `ToolReferenceFailure` · `reference.d.ts`
@@ -215,6 +217,7 @@
 - `INTENT_MAX_BYTES` · `command-call.d.ts`
 - `IndependentToolScopeInput` · `author-context.d.ts`
 - `Mutation` · `identity.d.ts`
+- `OUTPUT_BODY_KEY` · `body-reads.d.ts`
 - `OutputCodec` · `authoring.d.ts`
 - `PREVIEW_MAX_CHARS` · `call-label.d.ts`
 - `ParameterCodec` · `authoring.d.ts`
@@ -265,6 +268,7 @@
 - `ToolBodyChunk` · `body-store.d.ts`
 - `ToolBodyDeleteAnswer` · `body-store.d.ts`
 - `ToolBodyManifest` · `body-store.d.ts`
+- `ToolBodyOpenReadAnswer` · `body-store.d.ts`
 - `ToolBodyPermit` · `body-store.d.ts`
 - `ToolBodyPermitClaims` · `body-store.d.ts`
 - `ToolBodyPermitKey` · `body-store.d.ts`
@@ -1129,6 +1133,20 @@ export type ToolBodyPage = BodyPagePosition & (Readonly<{
     }>;
     records: readonly JsonValue[];
 }>);
+export declare const OUTPUT_BODY_KEY = "output";
+export type ToolOutputReadRequest = Readonly<{
+    after: string | null;
+    maxBytes: number;
+}>;
+export type CallOutput = Readonly<{
+    kind: 'none';
+}> | Readonly<{
+    kind: 'open' | 'sealed';
+    from: string;
+    through: string;
+    total: string;
+    text: string;
+}>;
 export interface ToolBodyReader<P> {
     read(input: CallAccess<P> & ToolBodyReadRequest): Reply<ToolBodyPage>;
 }
@@ -1218,6 +1236,12 @@ export type ToolBodyReadAnswer = Readonly<{
 }> | Readonly<{
     kind: 'absent';
 }> | ToolBodyStoreUnavailable;
+export type ToolBodyOpenReadAnswer = Readonly<{
+    kind: 'found';
+    chunks: readonly ToolBodyChunk[];
+}> | Readonly<{
+    kind: 'absent';
+}> | ToolBodyStoreUnavailable;
 export type ToolBodyDeleteAnswer = Readonly<{
     kind: 'deleted';
 }> | ToolBodyStoreUnavailable;
@@ -1226,6 +1250,7 @@ export interface ToolBodyStore {
     put(permit: ToolBodyPermit, seq: number, bytes: Uint8Array): Promise<ToolBodyPutAnswer>;
     seal(permit: ToolBodyPermit, manifest: ToolBodyManifest): Promise<ToolBodySealAnswer>;
     read(body: ToolBodyRef, range: ToolBodyRange): Promise<ToolBodyReadAnswer>;
+    readOpen(body: ToolBodyRef, range: ToolBodyRange): Promise<ToolBodyOpenReadAnswer>;
     delete(body: ToolBodyRef): Promise<ToolBodyDeleteAnswer>;
 }
 ```
@@ -1504,7 +1529,7 @@ export interface ToolCredentials<P, C> {
 
 ```ts
 import type { CallAccount } from '@omne-harness/call-account';
-import type { ToolBodyReader } from './body-reads.ts';
+import type { CallOutput, ToolBodyReader, ToolOutputReadRequest } from './body-reads.ts';
 import type { ContentBlock } from '@omne-harness/content-block';
 import type { OrganizationId, TenantId } from '@omne-harness/legal-identity';
 import type { Adoption, CallAccess, DurableEvidence, Mutation, ToolCallId, ToolCursor, ToolOperationId, ToolResultVersion, ToolWaitId } from './identity.ts';
@@ -1571,6 +1596,9 @@ export interface ToolReads<P, B extends ContentBlock> {
     }>): Reply<DiagnosticPage>;
     account(input: CallAccess<P>): Reply<CallAccount>;
     readonly content: ToolContentReader<P>;
+    output(input: CallAccess<P> & Readonly<{
+        admission: ToolOperationId;
+    }> & ToolOutputReadRequest): Reply<CallOutput>;
 }
 export type AccountScope = Readonly<{
     kind: 'tenant';
@@ -2277,7 +2305,7 @@ export declare function decodeToolRevision(text: unknown): Outcome<ToolRevision,
 ```ts
 export type { ToolBodyFrame, ToolBodyWriter, ToolBodyWriterStatus, ToolBodyBeginReceipt, ToolBodyAppendReceipt, } from './body-writer.ts';
 export { decodeToolCallId, decodeToolOperationId } from './identity.ts';
-export type { ToolBodyReadRequest, ToolBodyPage, ToolInvocationBodyReader } from './body-reads.ts';
+export type { CallOutput, ToolBodyReadRequest, ToolBodyPage, ToolInvocationBodyReader, ToolOutputReadRequest, } from './body-reads.ts';
 export type { Access, Adoption, ConsumerRef, DurableEvidence, ToolBodyId, ToolCallId, ToolCursor, ToolDeliveryId, ToolIdentity, ToolIdentityRejection, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolRevision, ToolWaitId, } from './identity.ts';
 export { encodeToolInvocationRef, encodeToolOperationRef, readToolOperationRef, resolveToolInvocationRef, resolveToolOperationRef, } from './reference.ts';
 export type { ToolInvocationLocation, ToolInvocationParts, ToolInvocationRef, ToolOperationLocation, ToolOperationParts, ToolOperationRef, ToolReferenceFailure, ToolReferenceRejection, } from './reference.ts';
@@ -2448,6 +2476,7 @@ import type { CallAccount } from '@omne-harness/call-account';
 import type { ContentBlock } from '@omne-harness/content-block';
 import type { StreamId, StreamObserver, StreamRef } from '@omne-harness/stream-arrival';
 import type { ToolCatalog, ToolInspection } from './authoring.ts';
+import type { CallOutput, ToolOutputReadRequest } from './body-reads.ts';
 import type { ContentPage, DiagnosticPage, ProcessSnapshot } from './custody.ts';
 import type { FixedToolRequest, ToolAvailability } from './definitions.ts';
 import type { Access, CallAccess, ConsumerRef, DurableEvidence, ToolCallId, ToolCursor, ToolDeliveryId, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolWaitId } from './identity.ts';
@@ -2609,6 +2638,7 @@ export interface ToolInvocationQueries<P, B extends ContentBlock> {
         after: string | null;
     }>): Reply<ResultPage<B>>;
     account(input: InvocationAccess<P>): Reply<CallAccount>;
+    readOutput(input: InvocationAccess<P> & ToolOutputReadRequest): Reply<CallOutput>;
 }
 export interface ToolInvocationCommands<P> {
     control(input: InvocationAccess<P> & Readonly<{
@@ -3058,7 +3088,8 @@ export interface ProgramTools<B extends ContentBlock> {
 ```ts
 export type { ToolBodyWrites, ToolBodyWriteInput, ToolBodyWriteFailure, ToolBodyWriteReply, SealedToolBody, } from './body-writer.ts';
 export type { ToolBodyReader } from './body-reads.ts';
-export { decodeToolInstant, manifestOf, sha256Hex, signBodyPermit, verifyBodyPermit, type ToolBodyChunk, type ToolBodyDeleteAnswer, type ToolBodyManifest, type ToolBodyPermit, type ToolBodyPermitClaims, type ToolBodyPermitKey, type ToolBodyPermitVerdict, type ToolBodyPutAnswer, type ToolBodyRange, type ToolBodyReadAnswer, type ToolBodyRef, type ToolBodySealAnswer, type ToolBodyStore, type ToolBodyStoreUnavailable, type ToolInstant, type ToolInstantClock, } from './body-store.ts';
+export { OUTPUT_BODY_KEY } from './body-reads.ts';
+export { decodeToolInstant, manifestOf, sha256Hex, signBodyPermit, verifyBodyPermit, type ToolBodyChunk, type ToolBodyDeleteAnswer, type ToolBodyManifest, type ToolBodyPermit, type ToolBodyPermitClaims, type ToolBodyPermitKey, type ToolBodyPermitVerdict, type ToolBodyPutAnswer, type ToolBodyRange, type ToolBodyOpenReadAnswer, type ToolBodyReadAnswer, type ToolBodyRef, type ToolBodySealAnswer, type ToolBodyStore, type ToolBodyStoreUnavailable, type ToolInstant, type ToolInstantClock, } from './body-store.ts';
 export type { ToolCanonicalFingerprint, ToolFinalEnvelope, ToolPlannedFinal, ToolFinalPlanner, } from './materials.ts';
 export { describedAdoption } from './adoption.ts';
 export type { AdoptionRules } from './adoption.ts';

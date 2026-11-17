@@ -1,5 +1,5 @@
 import type { CallAccount } from '@omne-harness/call-account'
-import type { ToolBodyReader } from './body-reads.ts'
+import type { CallOutput, ToolBodyReader, ToolOutputReadRequest } from './body-reads.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { OrganizationId, TenantId } from '@omne-harness/legal-identity'
 import type {
@@ -78,6 +78,10 @@ export interface ToolReads<P, B extends ContentBlock> {
   diagnostics(input: CallAccess<P> & Readonly<{ after: string | null }>): Reply<DiagnosticPage>
   account(input: CallAccess<P>): Reply<CallAccount>
   readonly content: ToolContentReader<P>
+  /** The output body of the call under that admission; reading it changes nothing about the call. */
+  output(
+    input: CallAccess<P> & Readonly<{ admission: ToolOperationId }> & ToolOutputReadRequest,
+  ): Reply<CallOutput>
 }
 export type AccountScope =
   | Readonly<{ kind: 'tenant'; tenant: TenantId }>

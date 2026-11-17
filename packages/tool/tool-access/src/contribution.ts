@@ -30,6 +30,8 @@ type Frame = StreamFrame<ToolStreamSnapshot, ToolStreamDelta, ToolStreamEnd>
 type Refusal = Readonly<{ outcome: 'denied' | 'basis-unavailable' }>
 type Reading = Readonly<{ access: Access<Principal>; faces: ToolCallFaces }>
 
+/** One read of the output body answers at most this many bytes. */
+const OUTPUT_PART_BYTES = 32_768
 const DENIED: Refusal = Object.freeze({ outcome: 'denied' })
 const UNAVAILABLE: Refusal = Object.freeze({ outcome: 'basis-unavailable' })
 
@@ -159,6 +161,22 @@ export function createToolAccessContribution(input: ToolAccessContributionInput)
     return { outcome: 'succeeded', body: resultView(page.ok) }
   }
 
+  const readCallOutput: Contribution['operations']['read-call-output'] = async (call, body) => {
+    const reading = await readingOf(input, call.principal, body.tenant)
+    if ('outcome' in reading) return reading
+    const output = await guarded(() =>
+      reading.faces.queries.readOutput({
+        ...reading.access,
+        reference: body.reference as ToolInvocationRef,
+        after: body.after,
+        maxBytes: OUTPUT_PART_BYTES,
+      }),
+    )
+    if ('outcome' in output) return output
+    if ('failure' in output) return refusalOf(output.failure)
+    return { outcome: 'succeeded', body: output.ok }
+  }
+
   const observeCall: Contribution['observations']['observe-call'] = async (context, open) => {
     const reading = await readingOf(input, context.principal, open.tenant)
     if ('outcome' in reading) return reading
@@ -182,7 +200,11 @@ export function createToolAccessContribution(input: ToolAccessContributionInput)
   }
 
   return {
-    operations: { 'read-call': readCall, 'read-call-result': readCallResult },
+    operations: {
+      'read-call': readCall,
+      'read-call-result': readCallResult,
+      'read-call-output': readCallOutput,
+    },
     observations: { 'observe-call': observeCall },
   }
 }

@@ -6,7 +6,13 @@ export type {
   ToolBodyAppendReceipt,
 } from './body-writer.ts'
 export { decodeToolCallId, decodeToolOperationId } from './identity.ts'
-export type { ToolBodyReadRequest, ToolBodyPage, ToolInvocationBodyReader } from './body-reads.ts'
+export type {
+  CallOutput,
+  ToolBodyReadRequest,
+  ToolBodyPage,
+  ToolInvocationBodyReader,
+  ToolOutputReadRequest,
+} from './body-reads.ts'
 export type {
   Access,
   Adoption,

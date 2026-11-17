@@ -228,14 +228,40 @@ describe('calls output reads the result of the call page by page', () => {
     })
   })
 
-  it('says the call has no result yet while it runs, and reads nothing more', async () => {
-    const service = await serve(seen =>
-      seen.operation === 'read-call' ? { outcome: 'succeeded', body: { call } } : undefined,
-    )
+  it('reads the output body of a call that has not ended, and where to read on (C13)', async () => {
+    const part = { kind: 'open', from: '0', through: '11', total: '11', text: 'hello world' }
+    const service = await serve(seen => {
+      if (seen.operation === 'read-call') return { outcome: 'succeeded', body: { call } }
+      if (seen.operation === 'read-call-output') return { outcome: 'succeeded', body: part }
+      return undefined
+    })
     const result = await cli(['output', '--call', REFERENCE])
-    expect(result).toMatchObject({ code: 3, stdout: '' })
-    expect(result.stderr).toContain('has no result yet')
+    expect(result).toMatchObject({
+      code: 0,
+      stdout: 'hello world',
+      stderr: 'omne calls output: open output; read on with --after 11\n',
+    })
     expect(service.seen.some(seen => seen.operation === 'read-call-result')).toBe(false)
+    const next = await cli(['output', '--call', REFERENCE, '--after', '11'])
+    expect(next.code).toBe(0)
+    expect(
+      service.seen.filter(seen => seen.operation === 'read-call-output').map(seen => seen.body),
+    ).toEqual([
+      { tenant: tenantText, reference: REFERENCE, after: null },
+      { tenant: tenantText, reference: REFERENCE, after: '11' },
+    ])
+  })
+
+  it('says so when the call has no output body', async () => {
+    await serve(seen => {
+      if (seen.operation === 'read-call') return { outcome: 'succeeded', body: { call } }
+      if (seen.operation === 'read-call-output')
+        return { outcome: 'succeeded', body: { kind: 'none' } }
+      return undefined
+    })
+    const result = await cli(['output', '--call', REFERENCE])
+    expect(result).toMatchObject({ code: 0, stdout: '' })
+    expect(result.stderr).toContain('has no output body')
   })
 })
 

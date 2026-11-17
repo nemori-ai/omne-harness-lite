@@ -19,6 +19,13 @@ import {
   type Field,
 } from './protocol.ts'
 import { collectProcess } from './shell-output.ts'
+import {
+  OutputStage,
+  STAGING_BATCH_MS,
+  STAGING_MAX_BYTES,
+  STAGING_START_AFTER_MS,
+} from './shell-staging.ts'
+import { textBody } from './returns.ts'
 import { confirmation } from './text.ts'
 
 const constructionFields: readonly Field[] = [
@@ -260,9 +267,15 @@ async function executeScript(
           ...(args.has('env') ? { env: args.env('env') } : {}),
           ...stdin,
         })
-  return started.kind === 'done'
-    ? collectProcess(started.value, execution.signal, config.number('resultMaxBytes', 0))
-    : confirmation(started, () => '')
+  if (started.kind !== 'done') return confirmation(started, () => '')
+  const stage = new OutputStage({
+    writer: execution.body,
+    representation: textBody,
+    startAfterMs: STAGING_START_AFTER_MS,
+    batchMs: STAGING_BATCH_MS,
+    maxBytes: STAGING_MAX_BYTES,
+  })
+  return collectProcess(started.value, execution.signal, config.number('resultMaxBytes', 0), stage)
 }
 
 async function attachTerminal(

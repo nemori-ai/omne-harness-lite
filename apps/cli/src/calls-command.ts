@@ -28,7 +28,7 @@ const RULES: Readonly<
   list: { accepted: ['--session', '--tenant', serverOption], required: ['--session'] },
   show: { accepted: ['--call', '--session', '--tenant', serverOption], required: ['--call'] },
   output: {
-    accepted: ['--call', '--result', '--session', '--tenant', serverOption],
+    accepted: ['--call', '--result', '--after', '--session', '--tenant', serverOption],
     required: ['--call'],
   },
   stop: {
@@ -151,7 +151,7 @@ function stopOf(what: string, result: CallResult): Stop {
   return { reason: `${what} was answered ${result.outcome}`, code }
 }
 
-type Version = Readonly<{ version: string }> | Stop | 'usage'
+type Version = Readonly<{ version: string }> | Readonly<{ running: true }> | Stop | 'usage'
 
 async function resultVersion(invocation: Invocation): Promise<Version> {
   const given = invocation.values.get('--result')
@@ -161,9 +161,41 @@ async function resultVersion(invocation: Invocation): Promise<Version> {
   if (result.kind !== 'response' || result.outcome !== 'succeeded')
     return stopOf('the call read', result)
   const version = (result.body as { call: CallView }).call.result
-  return version === null
-    ? { reason: 'the call has not ended, so it has no result yet', code: 3 }
-    : { version }
+  return version === null ? { running: true } : { version }
+}
+
+type OutputPart =
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{ kind: 'open' | 'sealed'; through: string; text: string }>
+
+// The output body of a call that has not ended: the part goes to standard output, and where the
+// next read starts goes to standard error.
+async function runOutputBody(
+  invocation: Invocation,
+  after: string | null,
+  output: CliOutput,
+): Promise<ExitCode> {
+  const { name } = invocation
+  const reference = invocation.values.get('--call') ?? ''
+  const result = await invocation.link.call(
+    toolProtocol,
+    'read-call-output',
+    { tenant: invocation.owner, reference, after },
+    invocation.newId(),
+  )
+  if (result === undefined) return usageError(output, unrecognized(name))
+  if (result.kind !== 'response' || result.outcome !== 'succeeded') {
+    const stop = stopOf('the output read', result)
+    return written(name, '', stop.code, output, stop.reason)
+  }
+  const part = result.body as OutputPart
+  if (part.kind === 'none') {
+    output.stderr(`omne ${name}: the call has no output body: it wrote none so far\n`)
+    return written(name, '', 0, output)
+  }
+  const code = written(name, part.text, 0, output)
+  output.stderr(`omne ${name}: ${part.kind} output; read on with --after ${part.through}\n`)
+  return code
 }
 
 type Pages = Readonly<{ text: string; stop: Stop | null }> | 'usage'
@@ -195,8 +227,11 @@ async function readPages(invocation: Invocation, version: string): Promise<Pages
 // A paged read: what was read goes to standard output, and why it stopped goes to standard error.
 async function runOutput(invocation: Invocation, output: CliOutput): Promise<ExitCode> {
   const { name } = invocation
+  const after = invocation.values.get('--after')
+  if (after !== undefined) return runOutputBody(invocation, after, output)
   const version = await resultVersion(invocation)
   if (version === 'usage') return usageError(output, unrecognized(name))
+  if ('running' in version) return runOutputBody(invocation, null, output)
   const read = 'version' in version ? await readPages(invocation, version.version) : null
   if (read === 'usage') return usageError(output, unrecognized(name))
   const stop = read === null ? (version as Stop) : read.stop

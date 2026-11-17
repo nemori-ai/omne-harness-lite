@@ -14,10 +14,14 @@ const call = {
 }
 
 describe('tool/v1', () => {
-  it('is tool major 1 with two login reads and one observation, each counted as access', () => {
+  it('is tool major 1 with three login reads and one observation, each counted as access', () => {
     expect(toolProtocol.name).toBe('tool')
     expect(toolProtocol.major).toBe(1)
-    expect(Object.keys(toolProtocol.operations).sort()).toEqual(['read-call', 'read-call-result'])
+    expect(Object.keys(toolProtocol.operations).sort()).toEqual([
+      'read-call',
+      'read-call-output',
+      'read-call-result',
+    ])
     expect(Object.keys(toolProtocol.observations)).toEqual(['observe-call'])
     for (const operation of Object.values(toolProtocol.operations)) {
       expect([operation.identity, operation.effect, operation.limit]).toEqual([

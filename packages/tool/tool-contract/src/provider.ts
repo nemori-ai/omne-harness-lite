@@ -6,6 +6,7 @@ export type {
   SealedToolBody,
 } from './body-writer.ts'
 export type { ToolBodyReader } from './body-reads.ts'
+export { OUTPUT_BODY_KEY } from './body-reads.ts'
 export {
   decodeToolInstant,
   manifestOf,
@@ -21,6 +22,7 @@ export {
   type ToolBodyPermitVerdict,
   type ToolBodyPutAnswer,
   type ToolBodyRange,
+  type ToolBodyOpenReadAnswer,
   type ToolBodyReadAnswer,
   type ToolBodyRef,
   type ToolBodySealAnswer,

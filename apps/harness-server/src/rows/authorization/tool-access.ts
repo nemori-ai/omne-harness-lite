@@ -20,6 +20,7 @@ const ACTIONS = {
   'read-diagnostics': true,
   'read-result': true,
   'read-content': true,
+  'read-output': true,
   'release-delivery': true,
   account: true,
   recover: true,
@@ -28,9 +29,9 @@ const ACTIONS = {
   invalidate: false,
 } satisfies Readonly<Record<Action, boolean>>
 
-// A member acting for the tenant may read a call by reference (tool/v1): its state, its stream and
-// its result pages. Every other action needs the session work of the call.
-const MEMBER_READS: ReadonlySet<Action> = new Set(['lookup', 'read-result'])
+// A member acting for the tenant may read a call by reference (tool/v1): its state, its stream,
+// its result pages and its output body. Every other action needs the session work of the call.
+const MEMBER_READS: ReadonlySet<Action> = new Set(['lookup', 'read-result', 'read-output'])
 
 function qualifiedColumn(column: 'login' | 'work', action: Action): boolean {
   return column === 'work' || MEMBER_READS.has(action)
