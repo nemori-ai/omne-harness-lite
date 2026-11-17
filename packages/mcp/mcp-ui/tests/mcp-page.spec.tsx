@@ -40,6 +40,15 @@ it('M1 opens the mcp category of the tenant the shell gives, and closes it when 
   expect(fake.calls).toEqual(['close'])
 })
 
+it('M17 another tenant: the old view is closed and the new tenant opened', () => {
+  const fake = fakeGovernance({ kind: 'reading' })
+  const other = TENANT.replace('acc_00000000000000000000000001', 'acc_00000000000000000000000002')
+  const view = render(<McpPage governance={fake.governance} tenant={TENANT} />)
+  view.rerender(<McpPage governance={fake.governance} tenant={other} />)
+  expect(fake.opened).toEqual([`mcp ${TENANT}`, `mcp ${other}`])
+  expect(fake.calls).toEqual(['close'])
+})
+
 it('M2 still reading: says so', () => {
   const fake = fakeGovernance({ kind: 'reading' })
   render(<McpPage governance={fake.governance} tenant={TENANT} />)
@@ -53,7 +62,7 @@ it('M3 the port cannot read: the reason as given, and a retry that reads again',
     notice: { kind: 'unavailable', text: '资产的依据暂时取不到。' },
   })
   render(<McpPage governance={fake.governance} tenant={TENANT} />)
-  expect(screen.getByText('资产的依据暂时取不到。')).toBeTruthy()
+  expect(screen.getByRole('alert').textContent).toContain('资产的依据暂时取不到。')
   expect(screen.queryByText(EMPTY)).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: '重试' }))
   expect(fake.calls).toEqual(['read'])
@@ -129,7 +138,7 @@ it('M8 a write in flight: nothing can be picked or cleared', () => {
 it('M9 the result is unknown: the reason, no picking, and a confirm that asks about the same write', () => {
   const notice = { kind: 'unknown', text: '没等到结果，这次改动可能已经生效。' } as const
   const fake = shown([permissionRow({ write: { kind: 'unknown', confirming: false, notice } })])
-  expect(screen.getByText(notice.text)).toBeTruthy()
+  expect(screen.getByRole('status').textContent).toContain(notice.text)
   expect((choice('自动') as HTMLButtonElement).disabled).toBe(true)
   fireEvent.click(screen.getByRole('button', { name: '再确认' }))
   expect(fake.calls).toEqual(['confirm permission'])
@@ -182,7 +191,9 @@ it('M15 the list is partial: says so above the endpoints; with none read, it doe
   const partial = '接入点不全：有的来源暂时读不出，这里没有列全。'
   const fake = fakeGovernance({ ...readOf(endpoint('context7', [permissionRow()])), partial: true })
   render(<McpPage governance={fake.governance} tenant={TENANT} />)
-  expect(screen.getByText(partial)).toBeTruthy()
+  const notice = screen.getByRole('alert')
+  expect(notice.textContent).toContain(partial)
+  expect(notice.closest<HTMLElement>('[data-inline-notice]')?.dataset['tone']).toBe('caution')
   expect(screen.getByRole('heading', { level: 3, name: 'context7' })).toBeTruthy()
   cleanup()
   const none = fakeGovernance({ ...readOf(), partial: true })

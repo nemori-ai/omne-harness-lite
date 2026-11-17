@@ -13,6 +13,7 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./mcp-ui.css": "./src/mcp-ui.css",
     "./cordis": {
       "source": "./src/cordis.ts",
       "types": "./dist/cordis.d.ts",
@@ -20,7 +21,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "src/mcp-ui.css"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",

@@ -126,7 +126,11 @@ it('U6 the module provides the governance port: another module injects it, reads
   view.unmount()
   mcp.close()
   const broken = seen[0]!.open('not-a-tenant', 'mcp')
-  expect(broken.getSnapshot()).toMatchObject({ kind: 'unreadable' })
+  expect(broken.getSnapshot()).toEqual({
+    kind: 'unreadable',
+    notice: { kind: 'refused', text: '外壳给的租户读不懂，读不出这一类的资产。' },
+  })
+  expect(() => broken.subscribe(() => undefined)()).not.toThrow()
   expect(fake.calls.filter(call => call.operation === 'list-settings')).toHaveLength(1)
   const lookup = root as unknown as { get(name: string): unknown }
   unprovide()
