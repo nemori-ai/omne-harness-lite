@@ -13,28 +13,30 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**"],
+      "passThroughEnv": ["GOMAXPROCS"]
     },
     "typecheck": {
       "dependsOn": ["^typecheck"],
-      "outputs": []
+      "outputs": [],
+      "passThroughEnv": ["GOMAXPROCS"]
     },
     "test:fast": {
       "dependsOn": ["build", "^build"],
       "cache": false,
-      "passThroughEnv": ["VITEST_MAX_WORKERS", "OMNE_TEST_REPORT_DIR"],
+      "passThroughEnv": ["VITEST_MAX_WORKERS", "OMNE_TEST_REPORT_DIR", "OMNE_TEST_READ_SETS"],
       "env": ["TMPDIR", "TMP", "TEMP", "OMNE_RUNNER_ROOT"]
     },
     "test:slow": {
       "dependsOn": ["build", "^build"],
       "cache": false,
-      "passThroughEnv": ["VITEST_MAX_WORKERS", "OMNE_TEST_REPORT_DIR"],
+      "passThroughEnv": ["VITEST_MAX_WORKERS", "OMNE_TEST_REPORT_DIR", "OMNE_TEST_READ_SETS"],
       "env": ["TMPDIR", "TMP", "TEMP", "OMNE_RUNNER_ROOT"]
     },
     "test": {
       "dependsOn": ["build", "^build"],
       "cache": false,
-      "passThroughEnv": ["VITEST_MAX_WORKERS", "OMNE_TEST_REPORT_DIR"],
+      "passThroughEnv": ["VITEST_MAX_WORKERS", "OMNE_TEST_REPORT_DIR", "OMNE_TEST_READ_SETS"],
       "env": ["TMPDIR", "TMP", "TEMP", "OMNE_RUNNER_ROOT"]
     }
   }

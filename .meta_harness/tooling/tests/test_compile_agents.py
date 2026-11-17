@@ -280,6 +280,33 @@ def test_executable_resource_is_preserved_and_mode_drift_detected(source, tmp_pa
     assert compiler.main(args + ["--check"]) == 1
 
 
+def test_an_output_whose_mode_cannot_be_read_is_compared_by_its_bytes_only(source, tmp_path, monkeypatch):
+    """On a file system without permission bits a generated output is in no Git index, so its
+    mode cannot be read back: the check must not report it as drift, and still sees its bytes."""
+    script = source / "skills/evidence-reading/canonical/run.sh"
+    script.write_text("#!/bin/sh\nprintf 'resource works\\n'\n", encoding="utf-8")
+    script.chmod(0o755)
+    output = tmp_path / "preview"
+    args = ["--source", str(source), "--output", str(output), "--host", "codex"]
+    assert compiler.main(args) == 0
+    target = output / ".agents/skills/evidence-reading/run.sh"
+    monkeypatch.setattr(compiler, "readable_mode", lambda path: None)
+    assert compiler.main(args + ["--check"]) == 0
+    target.write_text("#!/bin/sh\nprintf 'edited\\n'\n", encoding="utf-8")
+    assert compiler.main(args + ["--check"]) == 1
+
+
+def test_a_file_no_checkout_tracks_has_no_readable_mode_where_the_file_system_keeps_none(tmp_path, monkeypatch):
+    import projection
+    file = tmp_path / "generated.sh"
+    file.write_text("#!/bin/sh\n", encoding="utf-8")
+    file.chmod(0o755)
+    assert projection.readable_mode(file) == 0o755
+    monkeypatch.setattr(projection, "_mode_on_disk", lambda: False)
+    assert projection.readable_mode(file) is None
+    assert projection.file_mode(file) == 0o644
+
+
 def test_generated_collection_cannot_contain_source(tmp_path):
     source = tmp_path / ".agents/skills/source"
     (source / "skills").mkdir(parents=True)

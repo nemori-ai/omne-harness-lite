@@ -445,7 +445,8 @@ export async function runTurboTests(
     runnable,
     schedule,
     TIER_TASKS[tier],
-    (member, workers) => runTurboMember(root, member, runDir, tier, workers),
+    (member, workers) =>
+      runTurboMember(root, member, runDir, tier, workers, build.readSets === true),
     (run, finished) => onDone(run, notBuilt + finished),
   )
   for (const run of ran.runs) byMember.set(run.member, run)
@@ -488,10 +489,11 @@ async function runTurboMember(
   runDir: string,
   tier: RunTier,
   workers: number,
+  readSets: boolean,
 ): Promise<MemberRun> {
   const task = TIER_TASKS[tier]
   const slug = slugOf(member.path)
-  const command = turboTestCommand(member.name, tier, workers, runDir)
+  const command = turboTestCommand(member.name, tier, workers, runDir, readSets)
   const turboLog = join(runDir, `turbo-${slug}.log`)
   const turbo = await spawnLogged(TURBO_BIN, command.args, {
     cwd: root,

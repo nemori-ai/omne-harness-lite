@@ -36,6 +36,16 @@ const PATH_LOADED: readonly PathLoaded[] = [
     loader: '根 vitest.tiers.mts 的 TIMING_REPORTER：运行器设了报告目录时挂成计时报告器',
     why: '写每个成员的计时报告（文件导入耗时、用例时限与标签），账本与慢文件判断读它；run.ts 也类型导入它，本身已在闭包里',
   },
+  {
+    path: `${MEMBER}/src/testing/read-recorder.ts`,
+    loader: '根 vitest.tiers.mts 的 READ_RECORDER：准入记读集时挂成每个成员 vitest 的 setup 文件',
+    why: '它在每个成员的用例进程里给 fs 的读入口包一层；改了它，所有成员的用例都在另一份记录器下跑',
+  },
+  {
+    path: `${MEMBER}/src/testing/read-set-reporter.ts`,
+    loader: '根 vitest.tiers.mts 的 READ_SET_REPORTER：准入记读集时挂成每个成员 vitest 的报告器',
+    why: '写每个成员的读集原始记录；它挂在每个成员的 vitest 上，出错会让所有成员的运行受影响',
+  },
 ]
 
 const STATEMENT =
