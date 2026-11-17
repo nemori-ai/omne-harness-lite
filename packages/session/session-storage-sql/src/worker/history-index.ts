@@ -1,5 +1,6 @@
 import {
   executionReadThrough,
+  uninterpretedCalls,
   type DurableEvidence,
   type ExecutionHistoryBoundary,
   type HistoryEntry,
@@ -17,8 +18,10 @@ import {
   type SessionInputScope,
   type SessionControlOrigin,
   type SessionFactKind,
+  type SessionLogConsequence,
   type SessionLogRoot,
   type SessionOperationId,
+  type SessionUninterpretedCall,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import type { JsonValue } from '@omne-harness/sql-contract'
@@ -570,7 +573,11 @@ function focusedSequence(context: Context, execution: string): bigint {
 function boundaryOf(
   context: Context,
   execution: string,
-): Readonly<{ boundary: ExecutionHistoryBoundary; batches: SessionBatchRecord[] }> | null {
+): Readonly<{
+  boundary: ExecutionHistoryBoundary
+  batches: SessionBatchRecord[]
+  calls: SessionUninterpretedCall[]
+}> | null {
   const { read, scope, snapshot } = context
   const start = context.starts.get(execution)
   if (start === undefined) return null
@@ -616,7 +623,26 @@ function boundaryOf(
       facts,
     },
     batches: batchesOf(events, start.run, execution),
+    calls: callsOf(events, execution, readThrough),
   }
+}
+
+function callsOf(
+  rows: readonly Row[],
+  execution: string,
+  readThrough: string,
+): SessionUninterpretedCall[] {
+  const after = BigInt(readThrough)
+  return uninterpretedCalls(
+    execution,
+    rows.flatMap(row => {
+      const sequence = text(row['sequence'])
+      const consequences = projectionOf(row)?.['consequences']
+      return BigInt(sequence) > after && Array.isArray(consequences)
+        ? [{ sequence, consequences: consequences as SessionLogConsequence[] }]
+        : []
+    }),
+  )
 }
 
 function batchesOf(events: readonly Row[], run: RunId, execution: string): SessionBatchRecord[] {
@@ -642,11 +668,12 @@ type Closure = {
   admissions: Map<string, Row[]>
   executions: Map<string, ExecutionHistoryBoundary | null>
   batches: SessionBatchRecord[]
+  calls: SessionUninterpretedCall[]
 }
 
 function closeOver(context: Context, inputs: readonly string[]): Closure {
   const { read, scope } = context
-  const closure: Closure = { admissions: new Map(), executions: new Map(), batches: [] }
+  const closure: Closure = { admissions: new Map(), executions: new Map(), batches: [], calls: [] }
   const pendingInputs = [...inputs]
   const pendingExecutions = [...context.focus.executions]
   while (pendingInputs.length > 0 || pendingExecutions.length > 0) {
@@ -677,6 +704,7 @@ function closeOver(context: Context, inputs: readonly string[]): Closure {
     if (found === null) continue
     const { batches } = found
     closure.batches.push(...batches)
+    closure.calls.push(...found.calls)
     for (const batch of batches) pendingInputs.push(...batch.batch.ordered)
   }
   return closure
@@ -869,7 +897,16 @@ export function readHistory(
     })
     return {
       index: { root, inputs, executions, attempts, batches: closure.batches, taken: [] },
-      reads: { root, scope, admissions, prefixes, attempts, taken: [], controls },
+      reads: {
+        root,
+        scope,
+        admissions,
+        prefixes,
+        attempts,
+        taken: [],
+        controls,
+        uninterpreted: closure.calls,
+      },
     }
   } catch (error) {
     if (error instanceof TooMany) return 'too-many'

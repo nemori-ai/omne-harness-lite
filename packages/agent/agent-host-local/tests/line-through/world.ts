@@ -21,11 +21,13 @@ import {
   decodeAgentExecutionId,
   type AgentExecutionId,
   type AgentJournal,
+  type AgentReceivedProvider,
   type DurableEvidence,
   type RuntimeConditions,
   type SelectedModel,
 } from '@omne-harness/agent-contract'
 import { createMemoryAgentAccountOutlet } from '@omne-harness/agent-contract/testing'
+import type { ContentBlock } from '@omne-harness/content-block'
 import {
   AgentContextProvider,
   MODEL_PREPARATION_RESOURCES,
@@ -44,8 +46,11 @@ import {
   ModelSelectionService,
   RegisteredReadsService,
   agentInstancesPlugin,
+  agentJournalEntriesKey,
   agentJournalKey,
+  agentMaterialsKey,
   agentModelReceptionTargetsKey,
+  agentReceivedCommitsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -427,7 +432,8 @@ export type LineWorldOptions = Readonly<{
   wrapTransactions?: (port: SessionTransactionPort<string>) => SessionTransactionPort<string>
   wrapProvider?: <T extends object>(provider: T) => T
   wrapModelReceiver?: (receiver: AgentModelReceiver<unknown>) => AgentModelReceiver<unknown>
-  receptionTargets?: 'journal'
+  // 'routed': the receivers find their targets and write their results through the Cordis-routed journal, as agent-host does in production.
+  reception?: 'routed'
   journalReport?: (report: JournalPublicationReport) => void
 }>
 
@@ -661,6 +667,19 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     combination,
     ...(options.journalReport === undefined ? {} : { report: options.journalReport }),
   }).forSession({ tenant: TENANT, session: sessionId(SESSION) as SessionId })
+
+  const routedProvider = (): AgentReceivedProvider<unknown, ContentBlock> => {
+    const [journal, entries, materials, received] = [
+      ctx.get(agentJournalKey),
+      ctx.get(agentJournalEntriesKey),
+      ctx.get(agentMaterialsKey),
+      ctx.get(agentReceivedCommitsKey),
+    ]
+    if (!journal || !entries || !materials || !received)
+      throw new Error('the routed Agent journal services are not provided')
+    return { journal, entries, materials, received } as AgentReceivedProvider<unknown, ContentBlock>
+  }
+  const receivedProvider = options.reception === 'routed' ? routedProvider() : sessionLog
 
   const probeLog = createSessionLogJournal<unknown>({
     storage: seeing,
@@ -924,10 +943,10 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
   }
   const reception = createLocalModelReceiver<unknown>(
     {
-      provider: options.wrapProvider?.(sessionLog) ?? sessionLog,
+      provider: options.wrapProvider?.(receivedProvider) ?? receivedProvider,
       access: access.port,
       targets:
-        options.receptionTargets === 'journal'
+        options.reception === 'routed'
           ? {
               forExecution(input) {
                 const targets = ctx.get(agentModelReceptionTargetsKey)
@@ -1095,6 +1114,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     mount,
     storage,
     sessionLog,
+    receivedProvider,
     access,
     tools,
     outlet,
