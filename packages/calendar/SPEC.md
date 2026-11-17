@@ -15,7 +15,7 @@
 | `calendar-access`          | `calendar/v1` 的接入插件：核对登录与租户、取主体、调日历的服务、映射结果                                              |
 | `calendar-ui`              | 界面模块：桌面侧栏的「日历」页                                                                                        |
 
-依赖只朝契约：`calendar-local` → {`calendar`、`calendar-cordis-contract`、`calendar-contract`、`sql-contract`}；`calendar-tools` → {`calendar-contract`、Tool 的公开作者协议}，不依赖 `calendar` 与 `calendar-local`；`calendar` → `calendar-contract`；`calendar-access` → {`calendar-protocol`、`calendar-cordis-contract`、`calendar-contract`、接入的贡献类型}；`calendar-ui` → {`calendar-protocol`、客户端装配、`frontend` 这一组}，不依赖日历的任何别的成员。查询应用先核资格，再解析日历与版本，在一份不可变快照里完成计算并带回实际依据。供应应用把来源材料解析、校验之后，经存储的具名参加者把新版本与当前发布事实在一次提交里写入；提交之后的反应经 outbox 交出。查询与供应可以在不同实例里运行，但消费同一份公开契约，不共用进程或数据库作为前提。
+依赖只朝契约：`calendar-local` → {`calendar`、`calendar-cordis-contract`、`calendar-contract`、`sql-contract`}；`calendar-tools` → {`calendar-contract`、Tool 的公开作者协议}，不依赖 `calendar` 与 `calendar-local`；`calendar` → `calendar-contract`；`calendar-access` → {`calendar-protocol`、`calendar-cordis-contract`、`calendar-contract`、接入的贡献类型}；`calendar-ui` → {`calendar-protocol`、客户端装配、SDK 的客户端核心、公开契约、`frontend` 这一组}，不依赖日历的任何别的成员。查询应用先核资格，再解析日历与版本，在一份不可变快照里完成计算并带回实际依据。供应应用把来源材料解析、校验之后，经存储的具名参加者把新版本与当前发布事实在一次提交里写入；提交之后的反应经 outbox 交出。查询与供应可以在不同实例里运行，但消费同一份公开契约，不共用进程或数据库作为前提。
 
 ## 领域边界
 
@@ -147,7 +147,7 @@
 
 - `calendar/v1` 的操作都要代租户行事、都是读：列出目录、读生效环境、回答一个日期问题。日期用公开契约的日期叶子。答复是给客户端的投影，不转发领域对象；计算的答复带实际依据，生效环境的答复带读取时的设置修订；值来自默认还是用户设置，看设置的读写面。
 - 接入插件按调用现取查询服务与计算服务，取不到答依据不可用；领域抛出时答依据不可用。不存在、别的租户与无权对外是同一个拒绝。
-- 界面模块往外壳的页面位置放一个只读的日历页，改生效的日历与时区要去设置。它只依赖客户端装配、`frontend` 这一组与 `calendar-protocol`；没有租户时不画、不发调用。
+- 界面模块往外壳的页面位置放一个只读的日历页：生效的日历、时区与版本，供应的日历与覆盖，查一天。改生效的日历与时区在资产页的偏好类别里。它只依赖客户端装配、SDK 的客户端核心、公开契约、`frontend` 这一组与 `calendar-protocol`；没有租户时不画、不发调用。
 
 ## 原则与约束
 
