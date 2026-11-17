@@ -10,6 +10,8 @@ import {
 } from 'node:fs'
 import { dirname, isAbsolute, join, relative } from 'node:path'
 import type { RunTier } from './config.ts'
+import type { VitestJsonReport } from './ledger.ts'
+import type { TimingReport } from './timing-reporter.ts'
 
 export const READ_SETS_ENV = 'OMNE_TEST_READ_SETS'
 export const READ_SETS_HOME_ENV = 'OMNE_TEST_READ_SETS_HOME'
@@ -44,10 +46,19 @@ export interface RawReadSets {
   readonly files: readonly RawFile[]
 }
 
+export type FileResult = VitestJsonReport['testResults'][number]
+export type FileTiming = TimingReport['files'][number]
+
+export interface CachedResult {
+  readonly result: FileResult
+  readonly timing?: FileTiming
+}
+
 export interface RecordedFile {
   readonly verdict: Verdict
   readonly incomplete: readonly string[]
   readonly reads: readonly string[]
+  readonly cached?: CachedResult
 }
 
 export interface ReadSetRecord {
@@ -56,6 +67,7 @@ export interface ReadSetRecord {
   readonly recordedAt: string
   readonly tree: Readonly<Record<string, string>>
   readonly files: Readonly<Record<string, RecordedFile>>
+  readonly env?: Readonly<Record<string, string>>
 }
 
 export type Digest = (key: string) => string
@@ -129,15 +141,36 @@ export function digestKey(root: string, key: string): string {
   }
 }
 
-export function digests(root: string): Digest {
+export interface DigestMemo {
+  readonly digest: Digest
+  readonly peek: (key: string) => string | undefined
+}
+
+export function digestMemo(root: string): DigestMemo {
   const known = new Map<string, string>()
-  return key => {
-    const seen = known.get(key)
-    if (seen !== undefined) return seen
-    const digest = digestKey(root, key)
-    known.set(key, digest)
-    return digest
+  return {
+    digest: key => {
+      const seen = known.get(key)
+      if (seen !== undefined) return seen
+      const digest = digestKey(root, key)
+      known.set(key, digest)
+      return digest
+    },
+    peek: key => known.get(key),
   }
+}
+
+export function digests(root: string): Digest {
+  return digestMemo(root).digest
+}
+
+export const CHANGED_DURING_RUN = '运行中途变了'
+
+export interface RecordExtras {
+  readonly floor?: (reads: readonly string[]) => readonly string[]
+  readonly cached?: ReadonlyMap<string, CachedResult>
+  readonly env?: Readonly<Record<string, string>>
+  readonly before?: (key: string) => string | undefined
 }
 
 export function recordOf(
@@ -145,17 +178,57 @@ export function recordOf(
   raw: RawReadSets,
   digest: Digest,
   at: { readonly head: string; readonly recordedAt: string },
+  extra: RecordExtras = {},
 ): ReadSetRecord {
   const tree: Record<string, string> = {}
   const files: Record<string, RecordedFile> = {}
   for (const file of raw.files) {
     const inside = inRepo(root, file.file)
     if (inside === undefined || file.verdict === 'skipped') continue
-    const { reads, incomplete } = readsOf(root, file, raw.config)
-    for (const key of reads) tree[key] = digest(key)
-    files[inside] = { verdict: file.verdict, incomplete, reads }
+    const own = readsOf(root, file, raw.config)
+    const reads = extra.floor === undefined ? own.reads : [...extra.floor(own.reads)]
+    const incomplete = new Set(own.incomplete)
+    for (const key of reads) {
+      const now = digest(key)
+      tree[key] = now
+      const was = extra.before?.(key)
+      if (was !== undefined && was !== now) incomplete.add(CHANGED_DURING_RUN)
+    }
+    const cached = file.verdict === 'passed' ? extra.cached?.get(inside) : undefined
+    files[inside] = {
+      verdict: file.verdict,
+      incomplete: [...incomplete].sort(),
+      reads,
+      ...(cached === undefined ? {} : { cached }),
+    }
   }
-  return { version: 1, ...at, tree, files }
+  return { version: 1, ...at, tree, files, ...(extra.env === undefined ? {} : { env: extra.env }) }
+}
+
+export function cachedResults(
+  root: string,
+  runDir: string,
+  slug: string,
+): Map<string, CachedResult> {
+  const report = readJson(join(runDir, `${slug}.json`)) as VitestJsonReport | undefined
+  const timing = readJson(join(runDir, `${slug}.timing.json`)) as TimingReport | undefined
+  const timings = new Map(
+    (Array.isArray(timing?.files) ? timing.files : []).flatMap(entry => {
+      const inside = inRepo(root, entry.file)
+      return inside === undefined ? [] : [[inside, { ...entry, file: inside }] as const]
+    }),
+  )
+  const results = new Map<string, CachedResult>()
+  for (const result of Array.isArray(report?.testResults) ? report.testResults : []) {
+    const inside = inRepo(root, result.name)
+    if (inside === undefined || result.status !== 'passed') continue
+    const fileTiming = timings.get(inside)
+    results.set(inside, {
+      result: { ...result, name: inside },
+      ...(fileTiming === undefined ? {} : { timing: fileTiming }),
+    })
+  }
+  return results
 }
 
 export type Cell = 'no-record' | 'incomplete' | 'changed' | 'hit-same' | 'hit-different'
@@ -286,6 +359,9 @@ export interface RecordOptions {
   readonly head: string
   readonly recordedAt: string
   readonly members: readonly { readonly path: string; readonly slug: string }[]
+  readonly extras?: (member: string, slug: string) => RecordExtras
+  readonly carry?: (member: string) => Pick<ReadSetRecord, 'files' | 'tree'> | undefined
+  readonly archive?: (slug: string) => void
 }
 
 export function recordReadSets(options: RecordOptions): MemberReadSets[] {
@@ -293,12 +369,28 @@ export function recordReadSets(options: RecordOptions): MemberReadSets[] {
   const digest = digests(root)
   return options.members.map(({ path: member, slug }) => {
     const raw = readRaw(join(runDir, `${slug}.reads.json`))
-    if (raw === undefined)
+    const carried = options.carry?.(member)
+    if (raw === undefined && carried === undefined)
       return { member, outcomes: [], incompleteNow: {}, problem: '这次运行没有写出读集' }
     try {
-      const record = recordOf(root, raw, digest, { head, recordedAt })
+      const fresh = recordOf(
+        root,
+        raw ?? { config: [], files: [] },
+        digest,
+        { head, recordedAt },
+        options.extras?.(member, slug),
+      )
+      const record =
+        carried === undefined
+          ? fresh
+          : {
+              ...fresh,
+              tree: { ...carried.tree, ...fresh.tree },
+              files: { ...carried.files, ...fresh.files },
+            }
       const target = recordPath(home, slug, tier)
       const outcomes = compareRecords(readRecord(target), record, digest)
+      options.archive?.(slug)
       writeRecord(target, record)
       return { member, outcomes, incompleteNow: incompleteCounts(record) }
     } catch (error) {

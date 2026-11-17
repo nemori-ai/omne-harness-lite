@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   UNKNOWN_FIRST,
   batchArgs,
+  batchFiles,
   batchLabel,
   batchQueue,
   memberBatches,
@@ -69,9 +70,60 @@ describe('一个成员的一层切成几批', () => {
       kind: 'rest',
       exclude: ['tests/a.spec.ts', 'tests/b.spec.ts', 'tests/c.spec.ts', 'tests/d.spec.ts'],
       seconds: 15,
+      expected: 1,
     })
     for (const batch of batches)
       if (batch.kind === 'files') expect(batch.seconds).toBeLessThanOrEqual(90)
+  })
+
+  it('剩下那一批要令牌时按它预计跑的文件数算：只做类型检查的文件数，至少 1', () => {
+    const known = [
+      at('tests/a.spec.ts', 80),
+      at('tests/b.spec.ts', 70),
+      at('tests/t1.spec-d.ts', 5),
+      at('tests/t2.test-d.ts', 5),
+    ]
+    expect(batchFiles(memberBatches('m', known, 90).at(-1) as Batch)).toBe(2)
+    expect(
+      batchFiles(
+        memberBatches('m', [at('tests/a.spec.ts', 80), at('tests/b.spec.ts', 70)], 90).at(
+          -1,
+        ) as Batch,
+      ),
+    ).toBe(1)
+    expect(batchFiles({ member: 'm', kind: 'whole', seconds: 1 })).toBeUndefined()
+  })
+
+  it('按读集跳过的文件不进任何一批；每一批都另外排除它们；剩下那一批也排除它们', () => {
+    const known = [
+      at('tests/a.spec.ts', 80),
+      at('tests/b.spec.ts', 70),
+      at('tests/c.spec.ts', 60),
+      at('tests/skip.spec.ts', 500),
+    ]
+    const batches = memberBatches('m', known, 90, new Set(['tests/skip.spec.ts']))
+    expect(runFiles(batches)).not.toContain('tests/skip.spec.ts')
+    for (const batch of batches)
+      if (batch.kind !== 'whole') expect(batch.exclude).toContain('tests/skip.spec.ts')
+    expect(batches.map(batch => batch.kind)).toEqual(['files', 'files', 'files', 'rest'])
+  })
+
+  it('跳过之后剩下的放得进一批，或这个成员没有耗时记录：只起剩下那一批，排除跳过的文件', () => {
+    const skip = new Set(['tests/b.spec.ts'])
+    expect(
+      memberBatches('m', [at('tests/a.spec.ts', 80), at('tests/b.spec.ts', 70)], 90, skip),
+    ).toEqual([
+      { member: 'm', kind: 'rest', exclude: ['tests/b.spec.ts'], seconds: 80, expected: 1 },
+    ])
+    expect(memberBatches('m', [], 90, skip)).toEqual([
+      {
+        member: 'm',
+        kind: 'rest',
+        exclude: ['tests/b.spec.ts'],
+        seconds: UNKNOWN_FIRST,
+        expected: 1,
+      },
+    ])
   })
 
   it('一个文件名是另一个的一部分（会被同一个过滤词选中）时放进同一批', () => {
@@ -109,9 +161,16 @@ describe('一个成员各批的结果并成一份', () => {
     kind: 'files',
     index: 1,
     files: ['tests/a.spec.ts'],
+    exclude: [],
     seconds: 1,
   }
-  const rest: Batch = { member: 'm', kind: 'rest', exclude: ['tests/a.spec.ts'], seconds: 0 }
+  const rest: Batch = {
+    member: 'm',
+    kind: 'rest',
+    exclude: ['tests/a.spec.ts'],
+    seconds: 0,
+    expected: 1,
+  }
 
   it('报告首尾相接，计时报告相接，墙钟与 CPU 秒相加；同一份文件出现两次时留失败的那份', () => {
     const merged = mergeBatchRuns('m', [
@@ -173,20 +232,66 @@ describe('一个成员各批的结果并成一份', () => {
     expect(merged.report?.testResults).toHaveLength(1)
     expect(merged.problem).toBe('m#rest：坏了')
   })
+
+  it('按读集跳过的结果排在前面一起并进来，不算墙钟、不影响 CPU 秒；同名的文件真跑了没过，留没过的那份', () => {
+    const merged = mergeBatchRuns(
+      'm',
+      [
+        {
+          batch: rest,
+          run: {
+            member: 'm',
+            exitCode: 1,
+            wallSeconds: 4,
+            cpuSeconds: 3,
+            report: { testResults: [result('/r/m/tests/dup.spec.ts', 'failed')] },
+          },
+        },
+      ],
+      {
+        member: 'm',
+        exitCode: 0,
+        wallSeconds: 0,
+        report: {
+          testResults: [
+            result('/r/m/tests/cached.spec.ts', 'passed'),
+            result('/r/m/tests/dup.spec.ts', 'passed'),
+          ],
+        },
+        timing: { files: [{ file: '/r/m/tests/cached.spec.ts', collectSeconds: 1, tests: [] }] },
+      },
+    )
+    expect(merged.report?.testResults.map(item => [item.name, item.status])).toEqual([
+      ['/r/m/tests/cached.spec.ts', 'passed'],
+      ['/r/m/tests/dup.spec.ts', 'failed'],
+    ])
+    expect(merged.timing?.files.map(file => file.file)).toEqual(['/r/m/tests/cached.spec.ts'])
+    expect(merged.wallSeconds).toBe(4)
+    expect(merged.cpuSeconds).toBe(3)
+    expect(merged.exitCode).toBe(1)
+  })
 })
 
 describe('一批交给 vitest 的参数', () => {
-  it('整个跑不带参数；列了文件的批给出文件；剩下的那批逐个排除', () => {
+  it('整个跑不带参数；列了文件的批给出文件，再排除跳过的；剩下的那批逐个排除', () => {
     expect(batchArgs({ member: 'a', kind: 'whole', seconds: 1 })).toEqual([])
     expect(
-      batchArgs({ member: 'a', kind: 'files', index: 1, files: ['tests/x.spec.ts'], seconds: 1 }),
-    ).toEqual(['tests/x.spec.ts'])
+      batchArgs({
+        member: 'a',
+        kind: 'files',
+        index: 1,
+        files: ['tests/x.spec.ts'],
+        exclude: ['tests/x.spec.tsx'],
+        seconds: 1,
+      }),
+    ).toEqual(['tests/x.spec.ts', '--exclude', 'tests/x.spec.tsx'])
     expect(
       batchArgs({
         member: 'a',
         kind: 'rest',
         exclude: ['tests/x.spec.ts', 'tests/y.spec.ts'],
         seconds: 0,
+        expected: 1,
       }),
     ).toEqual(['--exclude', 'tests/x.spec.ts', '--exclude', 'tests/y.spec.ts'])
   })

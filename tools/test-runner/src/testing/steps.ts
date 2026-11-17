@@ -62,6 +62,7 @@ import {
   cachePolicy,
   clearBuiltFrom,
   currentDigests,
+  keyEnvironment,
   outputDigests,
   readBuiltFrom,
   lookupCache,
@@ -90,7 +91,27 @@ import {
   type MemberSpan,
 } from './run.ts'
 import { buildTargets, pnpmCommand, timestamp } from './support.ts'
-import { describeReadSets, readSetHome, readSetsRequested, recordReadSets } from './read-sets.ts'
+import {
+  cachedResults,
+  describeReadSets,
+  digestMemo,
+  readSetHome,
+  readSetsRequested,
+  recordReadSets,
+  type DigestMemo,
+} from './read-sets.ts'
+import {
+  archiveLatest,
+  cachedRun,
+  carriedOf,
+  describeReuse,
+  floorOf,
+  floorReads,
+  planReuse,
+  reuseMeta,
+  skippedOf,
+  type Reuse,
+} from './read-set-skip.ts'
 import {
   tierWithRetry,
   writeTestStepReport,
@@ -457,15 +478,34 @@ function recordedReadSets(
   run: RecordedRun,
   runDir: string,
   runs: readonly MemberRun[],
+  reuse: {
+    readonly plan: ReadonlyMap<string, ReadonlyMap<string, Reuse>>
+    readonly memo: DigestMemo
+  },
 ): string[] {
+  const config = readTestRunsConfig()
+  const home = readSetHome(run.at.mainRoot, process.env)
+  const floor = floorOf(root, config.affected.globalPaths)
+  const workspace = listWorkspaceMembers(fileTree(root), config.affected.excludeRoots).map(
+    member => member.path,
+  )
+  const env = keyEnvironment(process.env, config.cache)
   const members = recordReadSets({
     root,
-    home: readSetHome(run.at.mainRoot, process.env),
+    home,
     runDir,
     tier: run.tier,
     head: run.at.head,
     recordedAt: new Date().toISOString(),
     members: runs.map(member => ({ path: member.member, slug: slugOf(member.member) })),
+    extras: (_member, slug) => ({
+      floor: reads => floorReads(reads, workspace, floor),
+      cached: cachedResults(root, runDir, slug),
+      env,
+      before: reuse.memo.peek,
+    }),
+    carry: member => carriedOf(reuse.plan, member),
+    archive: slug => archiveLatest(home, slug, run.tier),
   })
   writeFileSync(join(runDir, 'read-sets.json'), `${JSON.stringify({ members }, null, 1)}\n`)
   return describeReadSets(members)
@@ -476,6 +516,8 @@ function scheduleOf(
   tier: RunTier,
   history: ReadonlyMap<string, MemberReading>,
   source: TokenSource,
+  root: string,
+  reuse: ReadonlyMap<string, ReadonlyMap<string, Reuse>>,
 ): MemberSchedule {
   return {
     source,
@@ -488,7 +530,9 @@ function scheduleOf(
         members.map(member => member.path),
         member => history.get(member)?.fileTimes ?? [],
         policy.batchSeconds,
+        member => skippedOf(reuse, member),
       ),
+    cached: member => cachedRun(member, root, reuse.get(member) ?? new Map()),
   }
 }
 
@@ -514,13 +558,26 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
   )
     return { exitCode: 1, failures: [], runDir }
   const history = memberHistory(ledgerHome(script, run.at.mainRoot, process.env), tier)
-  const schedule = scheduleOf(config.parallel, tier, history, tokens)
-
   const lookup = lookupFor(root, run, config)
   const hits = lookup?.hits ?? new Map<string, never>()
   const toRun = targets.filter(member => !hits.has(member.path))
   if (lookup !== undefined)
     for (const line of describeLookup(lookup, targets.length)) console.log(line)
+  const memo = digestMemo(root)
+  const reuse =
+    script === 'test' && run.cache?.read === true
+      ? planReuse({
+          root,
+          home: readSetHome(run.at.mainRoot, process.env),
+          tier,
+          members: toRun.map(member => member.path),
+          slug: slugOf,
+          env: keyEnvironment(process.env, config.cache),
+          digest: memo.digest,
+        })
+      : new Map<string, Map<string, Reuse>>()
+  for (const line of describeReuse(reuse)) console.log(line)
+  const schedule = scheduleOf(config.parallel, tier, history, tokens, root, reuse)
 
   const meta = {
     script,
@@ -606,13 +663,16 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<Recor
     summary.push(`对这些失败做隔离重跑：pnpm run test:triage --run ${runDir}`)
   if (lookup !== undefined && recorded !== undefined)
     summary.push(...describeCacheResult(lookup, recorded))
-  if (readSets && runs.length > 0) summary.push(...recordedReadSets(root, run, runDir, runs))
+  summary.push(...describeReuse(reuse))
+  if (readSets && runs.length > 0)
+    summary.push(...recordedReadSets(root, run, runDir, runs, { plan: reuse, memo }))
   const file = {
     meta: {
       ...meta,
       parallel: observedParallelism(spans),
       wallSeconds: Math.round(wallSeconds),
       ...cache,
+      ...(reuse.size === 0 ? {} : { readSetReuse: reuseMeta(reuse) }),
       tokens: { capacity: tokens.capacity, jobs: tokenJobs(spans, started) },
     },
     ...ledger,

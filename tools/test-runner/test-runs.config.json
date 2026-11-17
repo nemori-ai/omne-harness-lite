@@ -45,6 +45,7 @@
       "tools/test-runner/src/testing/parallelism.ts",
       "tools/test-runner/src/testing/cpu-meter.ts",
       "tools/test-runner/src/testing/batches.ts",
+      "tools/test-runner/src/testing/read-set-skip.ts",
       "tools/test-runner/src/testing/token-pool.ts",
       "tools/test-runner/src/testing/token-ledger.ts",
       "tools/test-runner/src/testing/member-history.ts",

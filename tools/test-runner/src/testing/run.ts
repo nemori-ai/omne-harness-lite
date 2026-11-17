@@ -20,7 +20,7 @@ import type { TestMember } from '@omne-harness/repo-toolchain/core/workspace'
 import { VITEST_MAX_WORKERS_ENV, type Parallelism, type RunScript, type RunTier } from './config.ts'
 import type { MemberRun, VitestJsonReport } from './ledger.ts'
 import type { TimingReport } from './timing-reporter.ts'
-import { batchArgs, batchLabel, type Batch } from './batches.ts'
+import { batchArgs, batchFiles, batchLabel, type Batch } from './batches.ts'
 import { cpuMeterAvailable, meteredArgs, readMeteredCpu } from './cpu-meter.ts'
 import { readRaw } from './read-sets.ts'
 import { workersFor, type MemberDemand, type WeightSource } from './parallelism.ts'
@@ -201,6 +201,7 @@ export interface MemberSchedule {
   readonly source: TokenSource
   readonly demand: (member: TestMember, files?: number) => MemberDemand
   readonly batches?: (members: readonly TestMember[]) => Batch[]
+  readonly cached?: (member: string) => MemberRun | undefined
 }
 
 export function observedParallelism(spans: readonly MemberSpan[]): Parallelism {
@@ -480,10 +481,7 @@ export async function runTurboTests(
   await runJobs(
     queue.map(batch => {
       const member = byPath.get(batch.member) as TestMember
-      const { want, min, perWorker, weightSource } = schedule.demand(
-        member,
-        batch.kind === 'files' ? batch.files.length : undefined,
-      )
+      const { want, min, perWorker, weightSource } = schedule.demand(member, batchFiles(batch))
       return {
         want,
         min,
@@ -516,8 +514,13 @@ export async function runTurboTests(
           const left = (remaining.get(member.path) ?? 1) - 1
           remaining.set(member.path, left)
           if (left > 0) return
-          const merged = batch.kind === 'whole' ? run : mergeBatchRuns(member.path, done)
-          if (batch.kind !== 'whole') writeMerged(runDir, member, done, merged)
+          const cached = schedule.cached?.(member.path)
+          const merged =
+            batch.kind === 'whole' && cached === undefined
+              ? run
+              : mergeBatchRuns(member.path, done, cached)
+          if (batch.kind !== 'whole' || cached !== undefined)
+            writeMerged(runDir, member, done, merged)
           byMember.set(member.path, merged)
           onDone(merged, byMember.size)
         },
@@ -631,14 +634,18 @@ async function runTurboBatch(
 export function mergeBatchRuns(
   member: string,
   parts: readonly { readonly batch: Batch; readonly run: MemberRun }[],
+  cached?: MemberRun,
 ): MemberRun {
   const results = new Map<string, VitestJsonReport['testResults'][number]>()
-  for (const { run } of parts)
+  for (const run of [...(cached === undefined ? [] : [cached]), ...parts.map(part => part.run)])
     for (const result of run.report?.testResults ?? []) {
       const seen = results.get(result.name)
       if (seen === undefined || result.status === 'failed') results.set(result.name, result)
     }
-  const timings = parts.flatMap(({ run }) => run.timing?.files ?? [])
+  const timings = [
+    ...(cached?.timing?.files ?? []),
+    ...parts.flatMap(({ run }) => run.timing?.files ?? []),
+  ]
   const failing = parts.find(({ run }) => run.exitCode !== 0)
   const problems = parts.flatMap(({ batch, run }) =>
     run.problem === undefined ? [] : [`${batchLabel(batch)}：${run.problem}`],
