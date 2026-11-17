@@ -30,6 +30,7 @@ export type ItemChange = Readonly<{
   change: 'opened' | 'changed'
   open: boolean
   body: unknown
+  before?: unknown
 }>
 
 const always = (): boolean => true
@@ -226,7 +227,14 @@ export function closings(after: ExecutionView, changed: readonly ItemChange[]): 
     const open = family.open as (entry: Entry, view: ExecutionView) => boolean
     for (const [item, entry] of entriesOf(family, after))
       if (!touched.has(`${family.family}\0${item}`) && !open(entry, after))
-        closing.push({ family: family.family, item, change: 'changed', open: false, body: entry })
+        closing.push({
+          family: family.family,
+          item,
+          change: 'changed',
+          open: false,
+          body: entry,
+          before: entry,
+        })
   }
   return closing
 }
@@ -271,6 +279,7 @@ export function itemChanges(before: ExecutionView | undefined, after: ExecutionV
       change: before === undefined ? 'opened' : 'changed',
       open: true,
       body: execBody(after),
+      ...(before === undefined ? {} : { before: execBody(before) }),
     })
   for (const family of ITEM_FAMILIES) {
     const open = family.open as (entry: Entry, view: ExecutionView) => boolean
@@ -287,6 +296,7 @@ export function itemChanges(before: ExecutionView | undefined, after: ExecutionV
           change: prior?.get(key) === undefined ? 'opened' : 'changed',
           open: open(entry, after),
           body: entry,
+          ...(prior?.get(key) === undefined ? {} : { before: prior.get(key) }),
         })
       }
       continue
@@ -306,6 +316,7 @@ export function itemChanges(before: ExecutionView | undefined, after: ExecutionV
         change: was === undefined ? 'opened' : 'changed',
         open: open(entry, after),
         body: entry,
+        ...(was === undefined ? {} : { before: was }),
       })
     }
   }

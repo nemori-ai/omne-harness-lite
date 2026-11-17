@@ -1,4 +1,3 @@
-import { isTable } from '../journal/shared-map.ts'
 import { historyCaller } from './history-caller.ts'
 import { jointCommandOf, joinsSession, type JointState } from '../joint-command.ts'
 import { sessionCommitCommands } from '@omne-harness/session-storage-sql/participants'
@@ -74,6 +73,7 @@ import {
   receiptOf as batchReceiptOf,
   type ExecutionView,
   type ParticipationKind,
+  type PublishedBatch,
   type RequestView,
   type SessionJournalView,
 } from '../journal/index.ts'
@@ -108,6 +108,7 @@ import {
   type JournalCell,
 } from '../testing/root.ts'
 import { blobRowDigest, factDigestOf, type EventProjection } from './journal-batch.ts'
+import { ContentRefs, keepNamed, listedDigests, refsIn, releaseBlocks } from './content-refs.ts'
 import {
   JOURNAL_PROVIDER,
   preparePublication,
@@ -223,6 +224,8 @@ type Book<P> = {
   queue: Promise<void>
   users: number
   readonly held: Map<string, Held>
+  // How many open items name each block of blobs and parsed: a block no open item names leaves both.
+  readonly refs: ContentRefs
 }
 
 const PARTICIPANTS = ['message', 'context-transition', 'custody', 'processed'] as const
@@ -529,34 +532,6 @@ export async function fetchBlobClosure(
   return null
 }
 
-const HEX_DIGEST = /^[0-9a-f]{64}$/
-
-function refsIn(value: unknown, into = new Set<string>()): Set<string> {
-  if (value === null || typeof value !== 'object') return into
-  const members = isTable(value) ? value.values() : Array.isArray(value) ? value : null
-  if (members !== null) {
-    for (const member of members) refsIn(member, into)
-    return into
-  }
-  const record = value as Record<string, unknown>
-  if (
-    typeof record['digest'] === 'string' &&
-    HEX_DIGEST.test(record['digest']) &&
-    typeof record['size'] === 'number'
-  )
-    into.add(record['digest'])
-  for (const member of Object.values(record)) refsIn(member, into)
-  return into
-}
-
-function listedDigests(payload: string): string[] {
-  const value = JSON.parse(payload) as unknown
-  if (!Array.isArray(value)) return []
-  return value.flatMap(item =>
-    Array.isArray(item) && typeof item[1] === 'string' && HEX_DIGEST.test(item[1]) ? [item[1]] : [],
-  )
-}
-
 async function fetchNamed(
   read: Reader,
   tenant: string,
@@ -636,6 +611,32 @@ function jointState<P>(
   }
 }
 
+// The batch a write publishes, prepared against what the book has published.
+function publicationOf<P>(
+  book: Book<P>,
+  write: Readonly<{
+    after: CommonRoot
+    own: MemoryExecution | undefined
+    appended: readonly PublishedBatch[]
+    written: Written
+    scratch: Scratch
+  }>,
+  fault: Fault | undefined,
+) {
+  const { after, own, appended, written, scratch } = write
+  return preparePublication({
+    view: book.view,
+    published: book.published ?? 0,
+    stored: row => book.blobs.has(row),
+    after,
+    own,
+    appended,
+    method: written.method,
+    kinds: kindsOf(scratch),
+    project: (owner, event) => projectionOf(after, owner, event, fault),
+  })
+}
+
 function kindsOf(scratch: Scratch): ParticipationKind[] {
   const kinds: ParticipationKind[] = []
   for (const command of scratch.commands)
@@ -688,6 +689,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         queue: Promise.resolve(),
         users: 0,
         held: new Map(),
+        refs: new ContentRefs(),
       }
       books.set(key, book)
     }
@@ -954,6 +956,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   }
 
   function build(book: Book<P>): Copy<P> {
+    keepNamed(book.refs, book.view, book)
     const cell: JournalCell<P> = createCell<P>(book.tenant, book.session, {
       authorize: () => undefined,
       advances(execution, authority): boolean {
@@ -1396,17 +1399,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     )
     let prepared: Prepared
     try {
-      const made = preparePublication({
-        view: book.view,
-        published: book.published ?? 0,
-        stored: row => book.blobs.has(row),
-        after,
-        own,
-        appended,
-        method: written.method,
-        kinds: kindsOf(scratch),
-        project: (own, event) => projectionOf(after, own, event, options.fault),
-      })
+      const made = publicationOf(book, { after, own, appended, written, scratch }, options.fault)
       if ('failure' in made) return { kind: 'answer', value: made }
       prepared = made.ok
     } catch (error) {
@@ -1573,6 +1566,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       )
     book.view = { ...prepared.view, head: Math.max(prepared.view.head, pub) }
     for (const blob of prepared.blobs) book.blobs.set(blob.digest, blob.payload)
+    const released = releaseBlocks(book.refs, prepared.changes, book)
     book.published = pub
     counts.confirm(book.key, pub)
     job.copy.cell.mutate(() => {
@@ -1582,6 +1576,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       job.copy.cell.touch()
       for (const blob of prepared.blobs)
         root.agent.blobs.set(factDigestOf(blob.digest), JSON.parse(blob.payload) as unknown)
+      for (const digest of released) root.agent.blobs.delete(digest)
     })
     book.copy = job.copy
     for (const at of book.held.keys()) {

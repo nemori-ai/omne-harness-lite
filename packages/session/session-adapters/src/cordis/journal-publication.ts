@@ -13,6 +13,7 @@ import {
   contentPath,
   foldItems,
   type BatchEnvelope,
+  type ItemChange,
   type EventView,
   type ParticipationKind,
   type PublishedBatch,
@@ -61,6 +62,7 @@ export type Prepared = Readonly<{
   pub: number
   view: SessionJournalView
   items: readonly ExecutionItemRecord[]
+  changes: readonly ItemChange[]
 }>
 
 // The batch one write publishes: its envelope, its facts with their event projections, the blocks
@@ -137,7 +139,14 @@ export function preparePublication(input: PublicationInput): Outcome<Prepared, F
     blobs: [...blobs.values()],
     pub,
     view: landed.view,
-    items: landed.changes.map(change => ({ ...change, body: change.body as JsonValue })),
+    items: landed.changes.map(({ family, item, change, open, body }) => ({
+      family,
+      item,
+      change,
+      open,
+      body: body as JsonValue,
+    })),
+    changes: landed.changes,
     batchBytes: batchBytes({
       execution: execution as AgentExecutionId,
       envelope,
