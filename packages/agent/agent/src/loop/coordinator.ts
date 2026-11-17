@@ -1292,7 +1292,7 @@ function coordinate<P>(
     handoffOutcome: slotOutcome,
     resolveHandoff: applySlotMessage,
   })
-  const candidates = createSlotCandidates<P>({
+  const { slotCandidate, computedCandidate } = createSlotCandidates<P>({
     access,
     execution,
     materials: ports.materials,
@@ -1300,7 +1300,6 @@ function coordinate<P>(
     passages: () => required(checkpoint, 'checkpoint').passages,
     received: (action, kinds) => receivedToolDelivery(action, kinds),
   })
-  const { slotCandidate, computedCandidate } = candidates
   const positions = createPositionPasses<P>({
     access,
     execution,
@@ -2457,6 +2456,7 @@ function coordinate<P>(
     prepareHandoff,
     select,
     restoredIteration,
+    positions,
   })
 
   function select(conditions: RuntimeConditions, alterations: readonly DurableEvidence[] = []) {

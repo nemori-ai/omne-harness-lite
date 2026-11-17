@@ -10,6 +10,7 @@ import type {
   Failure,
   FinishCandidate,
   JournalCommitState,
+  PreparedCompactionCommit,
   Preparation,
   ProducedResult,
 } from '@omne-harness/agent-contract'
@@ -52,6 +53,8 @@ export type PositionHost<P> = Readonly<{
   runner: PassRunner
   checkpoint(): AgentCheckpoint
 }>
+
+export type PositionPasses = ReturnType<typeof createPositionPasses>
 
 export type Judged = Readonly<{ slot: ActionSlot; candidate: Message; subject: PassSubject | null }>
 
@@ -272,6 +275,50 @@ async function beforeTerminal<P>(host: PositionHost<P>, candidate: FinishCandida
   })
 }
 
+async function beforeCompaction<P>(
+  host: PositionHost<P>,
+  preparation: Extract<Preparation, { kind: 'needs-compaction' }>,
+): Promise<Outcome<PositionStep | Saved, Failure>> {
+  const passed = await host.runner.run('C0', {
+    id: `${preparation.id}/before_compaction`,
+    position: 'before_compaction',
+    dimension: null,
+    purpose: null,
+    subjects: single({ preparation }),
+  })
+  if ('failure' in passed) return passed
+  if (passed.ok.kind === 'left') return succeed(passed.ok.step)
+  const veto = passed.ok.effects?.[0]?.veto ?? null
+  if (veto === null) return succeed(passed.ok.applied)
+  const { id, purpose, position, source, state, schema } = preparation
+  const reason = veto.output?.kind === 'veto' ? veto.output.reason : (veto.skipped ?? 'veto')
+  const diagnostic = `compaction was vetoed by ${veto.extension}: ${reason}`
+  const vetoed = { id, purpose, position, source, state, schema, kind: 'cannot-fit' as const }
+  return succeed(
+    go('try-finish', {
+      ...passed.ok.applied,
+      requestPreparation: { ...vetoed, reason: 'after-compaction', diagnostic },
+    }),
+  )
+}
+
+async function afterCompaction<P>(
+  host: PositionHost<P>,
+  transition: PreparedCompactionCommit,
+): Promise<Outcome<PositionStep | Saved, Failure>> {
+  const passed = await host.runner.run('C4', {
+    id: `${transition.preparation}/after_compaction`,
+    position: 'after_compaction',
+    dimension: null,
+    purpose: null,
+    subjects: single({ transition }),
+  })
+  if ('failure' in passed) return passed
+  return succeed(passed.ok.kind === 'left' ? passed.ok.step : passed.ok.applied)
+}
+
+export const leaves = (answer: PositionStep | Saved): answer is PositionStep => 'on' in answer
+
 type Tail<F> = F extends (host: never, ...rest: infer R) => unknown ? R : never
 
 export function createPositionPasses<P>(host: PositionHost<P>) {
@@ -284,5 +331,8 @@ export function createPositionPasses<P>(host: PositionHost<P>) {
     afterEach: (...rest: Tail<typeof afterEach<P>>) => afterEach(host, ...rest),
     afterBatch: (...rest: Tail<typeof afterBatch<P>>) => afterBatch(host, ...rest),
     beforeTerminal: (...rest: Tail<typeof beforeTerminal<P>>) => beforeTerminal(host, ...rest),
+    beforeCompaction: (...rest: Tail<typeof beforeCompaction<P>>) =>
+      beforeCompaction(host, ...rest),
+    afterCompaction: (...rest: Tail<typeof afterCompaction<P>>) => afterCompaction(host, ...rest),
   }
 }
