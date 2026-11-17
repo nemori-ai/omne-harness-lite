@@ -299,6 +299,32 @@ describe('setting set --value', () => {
     })
   })
 
+  it('carries a structured value whole', async () => {
+    const service = await serve(describedOrdinary)
+    await login(service)
+    const value = { a: [1, true, null, 'x'], b: { c: false } }
+    const result = await cli([
+      'setting',
+      'set',
+      'Web',
+      'maxResults',
+      '--value',
+      JSON.stringify(value),
+    ])
+    expect(result.code).toBe(0)
+    expect(seenOf(service, 'set-setting')?.body).toMatchObject({
+      value: { kind: 'ordinary', value },
+    })
+  })
+
+  it('unset takes no value', async () => {
+    const service = await serve(describedOrdinary)
+    await login(service)
+    const result = await cli(['setting', 'unset', 'Web', 'maxResults', '--value', '1'])
+    expect(result.code).toBe(2)
+    expect(countOf(service, 'clear-setting')).toBe(0)
+  })
+
   it('a value that is not JSON is a usage error and sends nothing', async () => {
     const service = await serve(describedOrdinary)
     await login(service)

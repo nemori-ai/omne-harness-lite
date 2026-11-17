@@ -36,6 +36,15 @@ const WORDS: Readonly<Record<Action, readonly string[]>> = {
 
 const VALUE_OPTIONS: readonly string[] = [serverOption, VALUE_OPTION]
 
+const OPTION_RULES: Readonly<
+  Record<Action, Readonly<{ accepted: readonly string[]; switches?: readonly string[] }>>
+> = {
+  list: { accepted: [serverOption] },
+  set: { accepted: [serverOption, VALUE_OPTION] },
+  show: { accepted: [serverOption], switches: [JSON_SWITCH] },
+  unset: { accepted: [serverOption] },
+}
+
 function split(args: readonly string[]): { words: string[]; options: string[] } {
   const words: string[] = []
   const options: string[] = []
@@ -109,11 +118,7 @@ function readInvocation(
   name: string,
 ): Invocation | string {
   const { words, options } = split(rest)
-  const read = readOptions(options, {
-    accepted: action === 'set' ? [serverOption, VALUE_OPTION] : [serverOption],
-    required: [],
-    ...(action === 'show' ? { switches: [JSON_SWITCH] } : {}),
-  })
+  const read = readOptions(options, { ...OPTION_RULES[action], required: [] })
   if (read.kind === 'unrecognized') return unrecognized(name)
   if (read.kind === 'missing') return missingOption(name, read.option)
   const expected = WORDS[action]
