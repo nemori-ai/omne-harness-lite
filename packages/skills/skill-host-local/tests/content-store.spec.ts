@@ -260,3 +260,44 @@ describe('SkillPackageSource conformance: content-store source over a read port 
       if (conformance.clause !== 'PS8') expect(answer).toEqual({ kind: 'passed' })
     })
 })
+
+describe('the content-store source names the local directory through the assembly', () => {
+  it('answers what the assembly gives for the package ref and digest', async () => {
+    const asked: unknown[] = []
+    const source = createContentStoreSource({
+      readerOf: readerOf(store()),
+      directoryOf: async place => {
+        asked.push(place)
+        return { ok: '/state/assets/skills/weekly-report/sha256-x' }
+      },
+    })
+    expect(await source.directory?.(locator, DIGEST)).toStrictEqual({
+      ok: '/state/assets/skills/weekly-report/sha256-x',
+    })
+    expect(asked).toStrictEqual([{ ref: locator.ref, digest: DIGEST }])
+  })
+
+  it('passes on that this assembly keeps no local directory, and that it cannot tell now', async () => {
+    const none = createContentStoreSource({
+      readerOf: readerOf(store()),
+      directoryOf: async () => ({ ok: null }),
+    })
+    expect(await none.directory?.(locator, DIGEST)).toStrictEqual({ ok: null })
+    const down = createContentStoreSource({
+      readerOf: readerOf(store()),
+      directoryOf: async () => ({ failure: 'unavailable' }),
+    })
+    expect(await down.directory?.(locator, DIGEST)).toStrictEqual({ failure: 'unavailable' })
+  })
+
+  it('names no directory without the assembly function, or for a package it does not hold', async () => {
+    expect(createContentStoreSource({ readerOf: readerOf(store()) }).directory).toBeUndefined()
+    const source = createContentStoreSource({
+      readerOf: readerOf(store()),
+      directoryOf: async () => ({ ok: '/somewhere' }),
+    })
+    expect(await source.directory?.({ kind: 'directory', root: '/x' }, DIGEST)).toStrictEqual({
+      ok: null,
+    })
+  })
+})

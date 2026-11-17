@@ -205,12 +205,15 @@ export async function toolAssetsWorld(
         combinationVersion: combination.combinationVersion,
         manifestDigest: combination.manifestDigest,
         commands: [
-          assetsPublicationCommand({
-            domain,
-            principalRef: 'alice',
-            captureId,
-            request: { deploymentRef: 'test', mode: 'runtime', targets, selectionRef: null },
-          }),
+          assetsPublicationCommand(
+            {
+              domain,
+              principalRef: 'alice',
+              captureId,
+              request: { deploymentRef: 'test', mode: 'runtime', targets, selectionRef: null },
+            },
+            { categories: ['tool'] },
+          ),
         ],
       })
       return reply.kind === 'committed'

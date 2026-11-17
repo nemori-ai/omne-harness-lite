@@ -2,7 +2,7 @@
 id: PD-skills
 title: Skill
 status: draft
-revision: 4
+revision: 5
 relations:
   supersedes: []
   depends-on: []

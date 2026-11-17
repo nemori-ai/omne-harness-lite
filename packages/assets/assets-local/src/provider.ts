@@ -11,6 +11,7 @@ import { digest, equal, identity, json, withinBudget } from './encoding.ts'
 import {
   assetLookupSchema,
   assetResultSchema,
+  captureCategoriesSchema,
   heldCapabilityLookupSchema,
   changeHoldingSchema,
   domainSchema,
@@ -40,20 +41,34 @@ import type {
 } from './types.ts'
 const fail = (reason: Failure['reason']): Failure => ({ kind: 'rejected', reason })
 
-export function assetsSettingsProjectionCommand(binding: SettingsProjectionBinding): FactCommandV2 {
-  return {
-    participant: PARTICIPANT,
-    facts: { kind: 'capture', binding: json(SettingsProjectionBindingSchema.parse(binding)) },
-  }
-}
-export function assetsPublicationCommand(binding: SettingsProjectionBinding): FactCommandV2 {
+export type CaptureScope = Readonly<{ categories: readonly string[] }>
+
+function captureFacts(
+  kind: 'capture' | 'capturePublication',
+  binding: SettingsProjectionBinding,
+  scope: CaptureScope,
+): FactCommandV2 {
   return {
     participant: PARTICIPANT,
     facts: {
-      kind: 'capturePublication',
+      kind,
       binding: json(SettingsProjectionBindingSchema.parse(binding)),
+      categories: json(captureCategoriesSchema.parse([...new Set(scope.categories)].sort())),
     },
   }
+}
+/** A management view without named targets captures the holdings of `scope.categories` only. */
+export function assetsSettingsProjectionCommand(
+  binding: SettingsProjectionBinding,
+  scope: CaptureScope,
+): FactCommandV2 {
+  return captureFacts('capture', binding, scope)
+}
+export function assetsPublicationCommand(
+  binding: SettingsProjectionBinding,
+  scope: CaptureScope,
+): FactCommandV2 {
+  return captureFacts('capturePublication', binding, scope)
 }
 function publishCommand(options: AssetsLocalOptions, input: AssetsPublish) {
   if (!withinBudget(input)) return fail('limit_exceeded')

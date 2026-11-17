@@ -4,16 +4,16 @@
 
 Tool 回答一件事：一次工具调用怎样被受理、执行、等待、控制和收场，它的结果、效果与费用怎样保管并交给原消费者。包组有八个成员：
 
-| 成员                   | 回答的问题                                                                                                      |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `tool-contract`        | 一次调用有哪些事实、操作与端口，边界上怎样判。纯数据与纯函数，不依赖 Cordis、存储或任何 Tool 实现               |
-| `tool-cordis-contract` | 在这套系统里 Tool 以哪些服务键、事件和登记协议出现。不含实现                                                    |
-| `tool`                 | 一次调用怎样一步步推进：独立执行、账本、推进协程、正文管线与清扫。不依赖 Cordis，离开这套系统也能单独用、单独测 |
-| `tool-host-local`      | 在一台机器上把账本、启动排序域、时钟、绑定登记表、目录、作者装载与邻域端口接起来，并给出 Cordis 插件            |
-| `tool-storage-sql`     | 在 SQL 存储契约上兑现耐久的记录仓、正文存储与到期索引                                                           |
-| `tool-definitions`     | 发行自带的几个工具作者（Tools、Files、Shell、TodoItems、Ask、Web、BkgToolCalls）：参数、操作映射与结果文本      |
-| `tool-protocol`        | 一个登录的人按调用引用读一次调用时，有哪些操作与观察：协议契约 `tool/v1`，纯数据                                |
-| `tool-access`          | `tool/v1` 的接入插件：把三个读口接到 `ToolRuntime` 的查询、内容与观察上                                         |
+| 成员                   | 回答的问题                                                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `tool-contract`        | 一次调用有哪些事实、操作与端口，边界上怎样判。纯数据与纯函数，不依赖 Cordis、存储或任何 Tool 实现                  |
+| `tool-cordis-contract` | 在这套系统里 Tool 以哪些服务键、事件和登记协议出现。不含实现                                                       |
+| `tool`                 | 一次调用怎样一步步推进：独立执行、账本、推进协程、正文管线与清扫。不依赖 Cordis，离开这套系统也能单独用、单独测    |
+| `tool-host-local`      | 在一台机器上把账本、启动排序域、时钟、绑定登记表、目录、作者装载与邻域端口接起来，并给出 Cordis 插件               |
+| `tool-storage-sql`     | 在 SQL 存储契约上兑现耐久的记录仓、正文存储与到期索引                                                              |
+| `tool-definitions`     | 发行自带的几个工具作者（Tools、Files、Shell、TodoItems、Ask、Web、Skills、BkgToolCalls）：参数、操作映射与结果文本 |
+| `tool-protocol`        | 一个登录的人按调用引用读一次调用时，有哪些操作与观察：协议契约 `tool/v1`，纯数据                                   |
+| `tool-access`          | `tool/v1` 的接入插件：把三个读口接到 `ToolRuntime` 的查询、内容与观察上                                            |
 
 依赖只朝内：`tool-host-local` 依赖 `tool` 与 `tool-cordis-contract`，它们依赖 `tool-contract`；`tool-storage-sql` 依赖 `tool`、`tool-contract` 与 SQL 存储契约。别的领域的生产代码只依赖 `tool-contract`，写 Cordis 插件时另加 `tool-cordis-contract`。`tool-protocol` 不依赖任何 Tool 成员以外的领域；`tool-access` 依赖 `tool-protocol`、`tool-contract` 与 `tool-cordis-contract`，按 `packages/access/SPEC.md` 的规则装配。
 
@@ -27,32 +27,32 @@ Tool 不拥有：资产的持有、版本与治理；身份、授权与许可的
 
 Tool 向外声明的端口（它需要别人做的）：
 
-| 端口                                                     | 对方                                                                | 一句话                                                                          |
-| -------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `ToolEnvironment`                                        | `packages/execution`，由 `tool-host-local` 适配                     | Tool 需要为一次准备取得、查询和释放符合原环境采用的资源，并按原获取认回         |
-| `ToolDecisionBridge`                                     | `packages/human-intervention`，经应用装配适配                       | Tool 需要为一个等人决定的等待登记、查询、取回唯一有效决定，并在等待关闭时让登记失效  |
-| 资格守卫、来源核验、并发范围授予、启动许可需求与请求策略 | `packages/identity`，经应用装配                                     | Tool 需要每次调用时问当前主体许不许、来源真不真、许可要不要                     |
-| `ToolCredentials` 的秘密保管                             | `packages/assets`（settings）                                       | Tool 需要按租户、组织、官方的次序解析凭据引用，并取得只在一次使用期间有效的能力 |
-| `ToolResultReceiver`                                     | 冻结在调用里的消费拥有者（如 `packages/agent`、`packages/session`） | Tool 需要把一个结果版本或一份占位推给原消费位置，取得 saved 回执                |
-| `ToolResidencyReader`                                    | 应用装配，桥接 `packages/session` 的 references                     | Tool 需要读出一个登记键的全部持有者引用，读不到就答不可用                       |
-| `ToolLedgerStore`、`ToolBodyStore` 的 SQL 后端           | `packages/storage`                                                  | Tool 需要按租户事务域做条件提交与按键读取                                       |
-| schema 校验                                              | `packages/schema`                                                   | Tool 需要按精确修订校验等待请求、答复与正文                                     |
-| 公共流观察、内容块、模态、调用账目、身份编解码           | `packages/common`                                                   | Tool 消费这些共用契约，不改它们                                                 |
-| `ToolChildren`、`ToolResourceResponses`、`ProgramTools`  | 程序执行方与资源应答方                                              | Tool 需要它们登记子调用、核资源回应；没有提供者时这些端口答不可用               |
-| 执行环境维护面的 `recoverResources`                      | `packages/execution`                                                | Tool 需要按原资源身份停掉一次执行名下的受管资源，并确认它们已经停下             |
-| 失联判断来源                                             | 应用装配（单机上是状态目录的独占锁）                                | Tool 需要一份证据，说明此刻没有别的进程可能在推进一次由别的实例开始的执行       |
+| 端口                                                     | 对方                                                                | 一句话                                                                              |
+| -------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `ToolEnvironment`                                        | `packages/execution`，由 `tool-host-local` 适配                     | Tool 需要为一次准备取得、查询和释放符合原环境采用的资源，并按原获取认回             |
+| `ToolDecisionBridge`                                     | `packages/human-intervention`，经应用装配适配                       | Tool 需要为一个等人决定的等待登记、查询、取回唯一有效决定，并在等待关闭时让登记失效 |
+| 资格守卫、来源核验、并发范围授予、启动许可需求与请求策略 | `packages/identity`，经应用装配                                     | Tool 需要每次调用时问当前主体许不许、来源真不真、许可要不要                         |
+| `ToolCredentials` 的秘密保管                             | `packages/assets`（settings）                                       | Tool 需要按租户、组织、官方的次序解析凭据引用，并取得只在一次使用期间有效的能力     |
+| `ToolResultReceiver`                                     | 冻结在调用里的消费拥有者（如 `packages/agent`、`packages/session`） | Tool 需要把一个结果版本或一份占位推给原消费位置，取得 saved 回执                    |
+| `ToolResidencyReader`                                    | 应用装配，桥接 `packages/session` 的 references                     | Tool 需要读出一个登记键的全部持有者引用，读不到就答不可用                           |
+| `ToolLedgerStore`、`ToolBodyStore` 的 SQL 后端           | `packages/storage`                                                  | Tool 需要按租户事务域做条件提交与按键读取                                           |
+| schema 校验                                              | `packages/schema`                                                   | Tool 需要按精确修订校验等待请求、答复与正文                                         |
+| 公共流观察、内容块、模态、调用账目、身份编解码           | `packages/common`                                                   | Tool 消费这些共用契约，不改它们                                                     |
+| `ToolChildren`、`ToolResourceResponses`、`ProgramTools`  | 程序执行方与资源应答方                                              | Tool 需要它们登记子调用、核资源回应；没有提供者时这些端口答不可用                   |
+| 执行环境维护面的 `recoverResources`                      | `packages/execution`                                                | Tool 需要按原资源身份停掉一次执行名下的受管资源，并确认它们已经停下                 |
+| 失联判断来源                                             | 应用装配（单机上是状态目录的独占锁）                                | Tool 需要一份证据，说明此刻没有别的进程可能在推进一次由别的实例开始的执行           |
 
 Tool 为别人实现的端口（它提供的）：
 
-| 端口                                                                  | 对方                                                                      | 一句话                                                                                   |
-| --------------------------------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `ToolRuntime`                                                         | `packages/agent`；按调用引用的第三方（`packages/session`、`tool-access`） | Tool 提供受理、查询、那一问 `contact`、控制、交付解除、观察、内容读取与目录              |
-| `toolStartFence`                                                      | 外层调用方（`packages/agent`）                                            | Tool 提供使还没受理的启动失效的窄服务，返回失效证据                                      |
-| `tool.background-calls` 供给块                                        | `packages/context`                                                        | Tool 提供一个租户在一个请求者作用域下仍有责任的后台调用列表                              |
-| `toolBodyContract` 与 `toolAssetBody`                                 | `packages/assets`，经应用装配登记                                         | Tool 提供 `tool` 类别的正文判定与设置投影                                                |
-| `encodeResidentKey`、`residentToolFacts`、`projectResidentReferences` | `packages/session` 与应用装配                                             | Tool 提供常驻登记键的唯一文本编码与持有者引用的投影                                      |
-| `planAdoption` 的冻结判定                                             | `packages/session`，经装配协调者                                          | Tool 给出常驻工具在采用点前进、保持、替换或冻结的判定，提交冻结归会话                    |
-| 元工具作者与 `createWebAccess`                                        | 应用装配                                                                  | Tool 提供 Tools、Files、Shell、TodoItems、Ask、Web、BkgToolCalls 的作者与单机 Web 提供者 |
+| 端口                                                                  | 对方                                                                      | 一句话                                                                                           |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `ToolRuntime`                                                         | `packages/agent`；按调用引用的第三方（`packages/session`、`tool-access`） | Tool 提供受理、查询、那一问 `contact`、控制、交付解除、观察、内容读取与目录                      |
+| `toolStartFence`                                                      | 外层调用方（`packages/agent`）                                            | Tool 提供使还没受理的启动失效的窄服务，返回失效证据                                              |
+| `tool.background-calls` 供给块                                        | `packages/context`                                                        | Tool 提供一个租户在一个请求者作用域下仍有责任的后台调用列表                                      |
+| `toolBodyContract` 与 `toolAssetBody`                                 | `packages/assets`，经应用装配登记                                         | Tool 提供 `tool` 类别的正文判定与设置投影                                                        |
+| `encodeResidentKey`、`residentToolFacts`、`projectResidentReferences` | `packages/session` 与应用装配                                             | Tool 提供常驻登记键的唯一文本编码与持有者引用的投影                                              |
+| `planAdoption` 的冻结判定                                             | `packages/session`，经装配协调者                                          | Tool 给出常驻工具在采用点前进、保持、替换或冻结的判定，提交冻结归会话                            |
+| 元工具作者与 `createWebAccess`                                        | 应用装配                                                                  | Tool 提供 Tools、Files、Shell、TodoItems、Ask、Web、Skills、BkgToolCalls 的作者与单机 Web 提供者 |
 
 ## 心智模型
 

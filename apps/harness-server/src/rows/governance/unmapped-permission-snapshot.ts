@@ -11,6 +11,7 @@ import type { FactCommandV2, SqlMaterialCatalog } from '@omne-harness/sql-contra
 import { targetCapture, targetSnapshotFact, targetSnapshotSchema } from './target-snapshot.ts'
 import { GOVERNANCE_PUBLICATIONS } from './current-publications.ts'
 import { PERMISSION_SUPPORT, SUPPORT_PARTICIPANT } from './permission-protocol.ts'
+import { GOVERNED_CAPTURE } from './tool-assets.ts'
 
 export const UNMAPPED_PERMISSION_SNAPSHOT = {
   participant: 'harness.permission-unmapped-snapshot',
@@ -36,7 +37,7 @@ export function unmappedPermissionSnapshotCommands(
   return [
     { participant: 'harness.tool-permission-release', facts: {} },
     { participant: SUPPORT_PARTICIPANT.participant, facts: {} },
-    assetsPublicationCommand(targetCapture(binding)),
+    assetsPublicationCommand(targetCapture(binding), GOVERNED_CAPTURE),
     governanceSelectedDefinitionCommand(selectedDefinitionBinding(binding)),
     {
       participant: UNMAPPED_PERMISSION_SNAPSHOT.participant,

@@ -2,7 +2,7 @@ import type { Access } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { sameCapability, type CatalogEntry, type SkillCatalog } from '@omne-harness/skill-contract'
 import type { CatalogResolution } from '@omne-harness/skill-contract/provider'
-import { matches } from './match.ts'
+import { buildCorpus, rank, type RankingParameters } from '@omne-harness/text-search'
 import { answered, parseLawfulSet, parseVerdict } from './port-answer.ts'
 import type { SkillPorts } from './ports.ts'
 
@@ -82,29 +82,51 @@ async function grantedOf<P, S>(
   return succeed(entries.filter((_, index) => verdicts[index] === 'granted'))
 }
 
+function documentsOf(entries: readonly CatalogEntry[]) {
+  return entries.map(entry => ({
+    name: entry.capability.name,
+    fields: entry.description === undefined ? [entry.name] : [entry.name, entry.description],
+  }))
+}
+
+function ranked(
+  entries: readonly CatalogEntry[],
+  text: string,
+  ranking: RankingParameters,
+): readonly CatalogEntry[] {
+  const order = rank(buildCorpus(documentsOf(entries)), text, ranking)
+  return order.flatMap(name => entries.filter(entry => entry.capability.name === name))
+}
+
 export function createSkillCatalog<P, S>(
   ports: Pick<SkillPorts<P, S>, 'readCheck' | 'resolution'>,
+  options: Readonly<{ ranking: RankingParameters }>,
 ): SkillCatalog<P, S> {
+  const ranking = Object.freeze({ ...options.ranking })
+  rank(buildCorpus([]), '', ranking)
   const listing = async (
     access: Access<P>,
     scope: S,
-    keep: (entry: CatalogEntry) => boolean,
+    keep: (lawful: readonly CatalogEntry[]) => readonly CatalogEntry[],
   ): Promise<Listing> => {
     const lawful = await lawfulEntries(ports, access, scope)
     if (!('ok' in lawful)) return fail(lawful.failure)
-    return grantedOf(ports, access, scope, lawful.ok.filter(keep))
+    return grantedOf(ports, access, scope, keep(lawful.ok))
   }
   return {
     async summaries(access, scope, capabilities) {
       if (capabilities?.length === 0) return succeed([])
-      return listing(access, scope, entry =>
+      return listing(access, scope, lawful =>
         capabilities === undefined
-          ? true
-          : capabilities.some(item => sameCapability(item, entry.capability)),
+          ? lawful
+          : lawful.filter(entry =>
+              capabilities.some(item => sameCapability(item, entry.capability)),
+            ),
       )
     },
-    search(access, scope, query) {
-      return listing(access, scope, entry => matches(query.text, entry.name, entry.description))
+    async search(access, scope, query) {
+      const granted = await listing(access, scope, lawful => ranked(lawful, query.text, ranking))
+      return 'ok' in granted ? succeed(ranked(granted.ok, query.text, ranking)) : granted
     },
   }
 }
