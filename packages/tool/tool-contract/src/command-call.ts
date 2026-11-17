@@ -76,10 +76,9 @@ function intentIn(
   const given = value.entries.find(entry => entry.key === INTENT_FIELD)?.value
   if (given === undefined)
     return needsIntent(shape, command) ? fail({ kind: 'intent-missing', command }) : succeed(null)
-  const fault = intentFault(given.kind === 'string' ? given.value : given)
-  return fault === null && given.kind === 'string'
-    ? succeed(given.value)
-    : fail({ kind: 'intent-invalid', command, fault: fault ?? 'not-text' })
+  if (given.kind !== 'string') return fail({ kind: 'intent-invalid', command, fault: 'not-text' })
+  const fault = intentFault(given.value)
+  return fault === null ? succeed(given.value) : fail({ kind: 'intent-invalid', command, fault })
 }
 
 export function decodeCommandCall(

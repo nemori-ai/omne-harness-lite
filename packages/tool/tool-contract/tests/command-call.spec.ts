@@ -494,6 +494,15 @@ describe('the intent in the call envelope (design table: intent decoding)', () =
         refused(7, 'not-text')
         refused(null, 'not-text')
       }
+      const text = describeCommandCallRejection(definition, {
+        kind: 'intent-invalid',
+        command: 'shell',
+        fault: 'multiline',
+      })
+      expect(text.split('\n')[0]).toBe(
+        `files: "intent" must be one line of text of at most ${INTENT_MAX_BYTES} bytes (multiline).`,
+      )
+      expect(text).toContain('Usage: files {"command": "shell", "intent":')
     })
 
     it(`${encoding}: the author never receives the intent`, () => {
@@ -546,7 +555,10 @@ describe('the intent in the call envelope (design table: intent decoding)', () =
         command.name === 'shell' ? { ...command, background: { unless: [] } } : command,
       ),
     }
-    expect(Object.keys(mark(background))).toContain('intent')
+    expect(mark(background).intent).toEqual({
+      type: 'string',
+      description: 'One line saying why you make this call. Required by the commands that say so.',
+    })
     expect(commandMenu(background)).toContain(
       'The call also needs "intent": one line saying why you make it.',
     )

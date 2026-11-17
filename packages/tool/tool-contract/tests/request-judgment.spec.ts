@@ -161,6 +161,8 @@ describe('the label of a request (TL-50, TL-51)', () => {
 
   it('an intent in the label is one line within the bound', () => {
     expect(rejection(shell('a\nb'))).toEqual({ field: 'label.intent', reason: 'multiline' })
+    const exact = { ...shell('x'), label: { ...shell('x').label, preview: 'p'.repeat(120) } }
+    expect(judgeFixedToolRequest(exact)).toEqual({ ok: exact })
     expect(
       rejection({ ...shell('x'), label: { ...shell('x').label, preview: 'p'.repeat(121) } }),
     ).toEqual({
