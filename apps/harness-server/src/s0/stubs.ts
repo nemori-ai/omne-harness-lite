@@ -36,6 +36,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'standingDestinationResolver',
       'currentToolPermission',
       'tenantSettings',
+      'preferenceSettings',
     ],
     injects: [
       'storage',
@@ -48,6 +49,16 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'identityGovernance',
       'toolContributionAuthority',
     ],
+    phase: 'composition',
+  },
+  calendar: {
+    provides: ['calendarQuery', 'calendarCalculator'],
+    injects: ['storage', 'tenantStanding', 'preferenceSettings'],
+    phase: 'composition',
+  },
+  schedule: {
+    provides: ['scheduleCommands', 'scheduleQueries'],
+    injects: ['storage', 'tenantDomainLookup', 'calendarQuery', 'preferenceSettings'],
     phase: 'composition',
   },
   'session-storage': {
@@ -348,6 +359,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'assets-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'human-intervention-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'session-diagnostics-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'calendar-access': { injects: ['accessRegistry', 'principalIssuer'] },
+  'schedule-access': { injects: ['accessRegistry', 'principalIssuer'] },
   'tool-access': { injects: ['accessRegistry', 'principalIssuer'] },
 }
 

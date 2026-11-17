@@ -231,3 +231,10 @@ export interface CalendarQueries {
     input: CalendarResolve,
   ): Promise<z.infer<typeof calendarResolveResultSchema>>
 }
+
+export type CalendarQuestion = z.infer<typeof calendarQuerySchema>
+export type CalendarAnswer = z.infer<typeof calendarResolveResultSchema>
+/** Answers a date question on the caller's effective calendar at its current version, and names it. */
+export interface CalendarCalculator {
+  answer(ctx: CalendarCallContext, question: CalendarQuestion): Promise<CalendarAnswer>
+}

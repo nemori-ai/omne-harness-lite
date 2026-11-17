@@ -24,6 +24,7 @@ export type RecoveryTarget = Pick<OperationIdentity, 'scope' | 'address'> & {
 }
 export type ReceiptOptions = Readonly<{
   scope: StorageScope
+  transactionDomain: string
   combinationVersion: string
   manifestDigest: string
   guardParticipant: string
@@ -82,7 +83,7 @@ function receiptView(
 ): ScheduleOperationView {
   const unknown = unknownView(createScheduleManagementOperationRef(target.scope, target.address))
   if (
-    !equal(receipt.identity, sqlIdentity(options.scope, target)) ||
+    !equal(receipt.identity, sqlIdentity(options.scope, options.transactionDomain, target)) ||
     receipt.combinationVersion !== options.combinationVersion ||
     receipt.manifestDigest !== options.manifestDigest ||
     !/^[a-f0-9]{64}$/.test(receipt.inputDigest)
@@ -172,7 +173,8 @@ export function queryView(
 ): ScheduleOperationView {
   const unknown = unknownView(createScheduleManagementOperationRef(target.scope, target.address))
   try {
-    if (!equal(result.identity, sqlIdentity(options.scope, target))) return unknown
+    if (!equal(result.identity, sqlIdentity(options.scope, options.transactionDomain, target)))
+      return unknown
     if (result.kind === 'committed' || result.kind === 'rolled_back')
       return receiptView(result, options, target)
     if (result.kind !== 'not_committed') return unknown

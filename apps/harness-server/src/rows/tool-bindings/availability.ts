@@ -1,4 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis'
+import { calendarCalculatorKey } from '@omne-harness/calendar-cordis-contract/cordis'
+import {
+  scheduleCommandsKey,
+  scheduleQueriesKey,
+} from '@omne-harness/schedule-cordis-contract/cordis'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import { principalVerifierKey } from '@omne-harness/identity/cordis'
@@ -91,10 +96,25 @@ function environmentInstalled(ctx: Context): boolean {
   )
 }
 
+/** The domain service each release capability stands for: a capability is there while its service is. */
+const CAPABILITY_SERVICES: Readonly<Record<string, string>> = {
+  'calendar.read': calendarCalculatorKey,
+  'schedule.read': scheduleQueriesKey,
+  'schedule.write': scheduleCommandsKey,
+}
+
+function capabilityFacts(ctx: Context, definition: ToolDefinition) {
+  return definition.requiredCapabilities.map(name => {
+    const service = CAPABILITY_SERVICES[name]
+    return { name, available: service !== undefined && ctx.get(service) !== undefined }
+  })
+}
+
 function allowedFacts(
   definition: ToolDefinition,
   confirmed: ToolReleaseManifest['consumer'],
   installed: boolean,
+  capabilities: ReturnType<typeof capabilityFacts>,
 ) {
   const facilities = declaredFacilities(definition)
   if (facilities === undefined) return unavailable('environment declaration is unreadable')
@@ -103,7 +123,10 @@ function allowedFacts(
   const consumerWrites = new Set<string>(confirmed.output)
   return succeed({
     qualification: 'allowed' as const,
-    dependencies: facilities.map(name => ({ name: `facility:${name}`, available: installed })),
+    dependencies: [
+      ...facilities.map(name => ({ name: `facility:${name}`, available: installed })),
+      ...capabilities,
+    ],
     inputCompatible: declarations.inputModalities.every(m => consumerWrites.has(m)),
     outputCompatible: declarations.outputModalities.every(m => consumerReads.has(m)),
     attachmentsReadable: declarations.attachments.length === 0,
@@ -119,7 +142,12 @@ async function judgeRelease(ctx: Context, input: JudgeInput): ReturnType<Judge> 
   const confirmed = release.manifest.consumer
   if (!confirmedTextConsumer(input.consumer, confirmed))
     return unavailable('consumer material is not a confirmed text consumer')
-  return allowedFacts(input.definition, confirmed, environmentInstalled(ctx))
+  return allowedFacts(
+    input.definition,
+    confirmed,
+    environmentInstalled(ctx),
+    capabilityFacts(ctx, input.definition),
+  )
 }
 
 export function createReleaseAvailability(ctx: Context): LocalToolAvailabilitySource<unknown> {

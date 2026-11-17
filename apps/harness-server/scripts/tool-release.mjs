@@ -14,6 +14,8 @@ const PROBES = [
     TodoItems: { resultMaxBytes: 4096 },
     Ask: { resultMaxBytes: 4096 },
     Web: { resultMaxBytes: 1, maxSearchResults: 1 },
+    Calendar: { resultMaxBytes: 16 },
+    Schedules: { resultMaxBytes: 64 },
   },
   {
     Shell: {
@@ -28,6 +30,8 @@ const PROBES = [
     TodoItems: { resultMaxBytes: 1048576 },
     Ask: { resultMaxBytes: 1048576 },
     Web: { resultMaxBytes: 65536, maxSearchResults: 10 },
+    Calendar: { resultMaxBytes: 1048576 },
+    Schedules: { resultMaxBytes: 1048576 },
   },
 ]
 
@@ -43,9 +47,9 @@ function parseArgs(argv) {
 
 async function compute() {
   const release = await import('../src/entry/tool-release-manifest.ts')
-  const root = await release.locateToolDefinitions(memberDir)
-  const modules = await release.importReleaseModules(root)
-  const artifacts = await release.scanArtifacts(root)
+  const roots = await release.locateReleasePackages(memberDir)
+  const modules = await release.importReleaseModules(roots)
+  const artifacts = await release.scanArtifacts(roots)
   const version = JSON.parse(readFileSync(join(memberDir, 'package.json'), 'utf8')).version
   const tree = value => {
     const read = release.constructionTree(value)
@@ -77,11 +81,15 @@ function diff(expected, committed) {
   const out = []
   if (committed?.generation !== expected.generation) out.push('generation')
   if (JSON.stringify(committed?.artifacts) !== JSON.stringify(expected.artifacts)) {
-    const was = new Map((committed?.artifacts?.files ?? []).map(f => [f.path, f.sha256]))
-    for (const file of expected.artifacts.files)
-      if (was.get(file.path) !== file.sha256) out.push(`artifact ${file.path}`)
+    const files = artifacts =>
+      (Array.isArray(artifacts) ? artifacts : []).flatMap(own =>
+        (own?.files ?? []).map(f => [`${own.package}/${f.path}`, f.sha256]),
+      )
+    const was = new Map(files(committed?.artifacts))
+    const now = files(expected.artifacts)
+    for (const [path, sha] of now) if (was.get(path) !== sha) out.push(`artifact ${path}`)
     for (const path of was.keys())
-      if (!expected.artifacts.files.some(file => file.path === path)) out.push(`-artifact ${path}`)
+      if (!now.some(([other]) => other === path)) out.push(`-artifact ${path}`)
   }
   for (const entry of expected.entries) {
     const other = (committed?.entries ?? []).find(e => e?.asset?.name === entry.asset.name)
@@ -102,7 +110,7 @@ async function main(argv) {
   const committed = readFileSync(manifestPath, 'utf8')
   if (committed === text) {
     console.log(
-      `tool-release: ok entries=${manifest.entries.length} artifacts=${manifest.artifacts.files.length} generation=${manifest.generation}`,
+      `tool-release: ok entries=${manifest.entries.length} artifacts=${manifest.artifacts.reduce((n, own) => n + own.files.length, 0)} generation=${manifest.generation}`,
     )
     return 0
   }

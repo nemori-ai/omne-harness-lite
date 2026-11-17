@@ -13,6 +13,7 @@ import type { ToolRelease } from '../../entry/tool-release.ts'
 import { createSettingsGuard } from '../authorization/settings-access.ts'
 import type { TenantGovernanceHost } from './tenant-host.ts'
 import { createTenantSettingsPermissions } from './tenant-settings-permissions.ts'
+import { preferenceAssetOf } from './preference-settings.ts'
 import { toolAssetTarget } from './tool-installation-assets.ts'
 
 type Face = TenantSettings<unknown>
@@ -81,6 +82,8 @@ export function createTenantSettingsFace(options: TenantSettingsServiceOptions):
         return settings === undefined ? unavailable : settings.read(request)
       },
       assetOf(view): TenantSettingsAssetRef | undefined {
+        const preference = preferenceAssetOf(view.target)
+        if (preference !== undefined) return preference
         const release = options.release()
         if (release?.kind !== 'trusted') return undefined
         const entry = release.manifest.entries.find(

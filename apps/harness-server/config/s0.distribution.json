@@ -31,6 +31,16 @@
       "config": {}
     },
     {
+      "id": "calendar",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "schedule",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "session-provider",
       "plugin": "stubPlugin",
       "config": {}
@@ -312,6 +322,16 @@
     },
     {
       "id": "session-diagnostics-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "calendar-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "schedule-access",
       "plugin": "stubPlugin",
       "config": {}
     },

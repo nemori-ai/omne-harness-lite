@@ -55,7 +55,9 @@
         "packages/identity/identity-protocol",
         "packages/identity/authorization",
         "packages/assets/assets-protocol",
-        "packages/human-intervention/human-intervention-protocol"
+        "packages/human-intervention/human-intervention-protocol",
+        "packages/calendar/calendar-protocol",
+        "packages/schedule/schedule-protocol"
       ]
     },
     {
