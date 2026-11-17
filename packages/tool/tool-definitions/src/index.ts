@@ -1,5 +1,16 @@
 export { createFilesAuthor, filesToolModule } from './files.ts'
 export { createShellAuthor, shellToolModule } from './shell.ts'
+export { createSkillsAuthor, skillsToolModule } from './skills.ts'
+export { attachSkillsAccess, skillsAccessOf } from './skills-port.ts'
+export type {
+  SkillsAccess,
+  SkillsEntry,
+  SkillsFailure,
+  SkillsFile,
+  SkillsListing,
+  SkillsPage,
+  SkillsText,
+} from './skills-port.ts'
 export { createToolsAuthor, toolsToolModule } from './tools.ts'
 export type { FilesAuthorEnvironment, ShellAuthorEnvironment } from './environment.ts'
 export { createTodoItemsAuthor, todoItemsToolModule } from './todo-items.ts'
