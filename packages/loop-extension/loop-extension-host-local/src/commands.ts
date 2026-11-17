@@ -105,17 +105,37 @@ async function stopped(handle: ProcessHandle): Promise<CallStop> {
   return handle.stop('forced').catch(() => 'unconfirmed' as const)
 }
 
+type Ended = Awaited<ProcessHandle['result']>
+
+function observed(
+  call: CallRecord,
+  outcome: Ended | null,
+  output: Awaited<ReturnType<typeof drain>> | null,
+): CommandObservation {
+  const evidence = callEvidence(call)
+  if (
+    outcome === null ||
+    output === null ||
+    outcome.kind === 'failed' ||
+    outcome.exit.kind === 'unknown'
+  )
+    return { kind: 'lost', started: evidence, recovery: evidence }
+  const { exit } = outcome
+  const discarded = outcome.output.mode === 'separate' && outcome.output.stdout.discardedBytes > 0
+  return {
+    kind: 'exited',
+    code: exit.kind === 'code' ? exit.code : -1,
+    stdout: output.stdout,
+    dropped: output.dropped || discarded,
+  }
+}
+
 async function observe(
   handle: ProcessHandle,
   call: CallRecord,
   timeoutMs: number,
   signal: AbortSignal,
 ): Promise<Seen> {
-  const lost = (): CommandObservation => ({
-    kind: 'lost',
-    started: callEvidence(call),
-    recovery: callEvidence(call),
-  })
   let stop: Promise<CallStop> | undefined
   let timedOut = false
   let grace: ReturnType<typeof setTimeout> | undefined
@@ -137,22 +157,12 @@ async function observe(
     const outcome = await Promise.race([handle.result.catch(() => null), gaveUp.promise])
     const state = stop === undefined ? 'none' : await stop
     if (timedOut) return { observation: { kind: 'timed-out' }, stop: state, stderrBytes: 0 }
+    const ended = outcome === 'stopped' ? null : outcome
     const output = outcome === 'stopped' ? null : await read
-    if (outcome === null || outcome === 'stopped' || output === null || outcome.kind === 'failed')
-      return { observation: lost(), stop: state, stderrBytes: output?.stderrBytes ?? 0 }
-    const { exit } = outcome
-    if (exit.kind === 'unknown')
-      return { observation: lost(), stop: state, stderrBytes: output.stderrBytes }
-    const discarded = outcome.output.mode === 'separate' && outcome.output.stdout.discardedBytes > 0
     return {
-      observation: {
-        kind: 'exited',
-        code: exit.kind === 'code' ? exit.code : -1,
-        stdout: output.stdout,
-        dropped: output.dropped || discarded,
-      },
+      observation: observed(call, ended, output),
       stop: state,
-      stderrBytes: output.stderrBytes,
+      stderrBytes: output?.stderrBytes ?? 0,
     }
   } finally {
     clearTimeout(timer)
@@ -270,6 +280,29 @@ async function prepared<P>(
   return { run, scope: location.scope.ref }
 }
 
+// After the intent nothing that goes wrong proves the process did not start.
+function unseen(ledger: CommandLedger, intent: CallRecord): Seen {
+  const now = ledger.get(intent.key) ?? intent
+  const recovery = callEvidence(now)
+  const observation: CommandObservation =
+    now.state === 'started'
+      ? { kind: 'lost', started: recovery, recovery }
+      : { kind: 'start-unknown', recovery }
+  return { observation, stop: 'none', stderrBytes: 0 }
+}
+
+async function ended<P>(
+  input: CommandHostInput<P>,
+  ledger: CommandLedger,
+  intent: CallRecord,
+  { observation, stop, stderrBytes }: Seen,
+): Promise<void> {
+  if (observation.kind === 'start-unknown' || observation.kind === 'lost') return
+  const outcome = observation.kind === 'exited' ? `exit:${observation.code}` : observation.kind
+  await ledger.mark(intent.key, { at: 'ended', end: { outcome, stop, stderrBytes } })
+  await input.afterStep?.('ended', ledger.get(intent.key) ?? intent)
+}
+
 /** Runs command implementations through the command facility of the execution environment, never as a child of this process. */
 export function createCommandHost<P>(input: CommandHostInput<P>) {
   const ledgers = new Map<string, Promise<CommandLedger | 'unavailable'>>()
@@ -334,23 +367,11 @@ export function createCommandHost<P>(input: CommandHostInput<P>) {
     })
     if (intent === 'unavailable') return commandResult(NOT_ENTERED)
     await input.afterStep?.('intended', intent)
-    // After the intent nothing that goes wrong proves the process did not start.
-    const seen = await launched(host, ready.run, ledger, intent, signal).catch((): Seen => {
-      const now = ledger.get(intent.key) ?? intent
-      const recovery = callEvidence(now)
-      const observation: CommandObservation =
-        now.state === 'started'
-          ? { kind: 'lost', started: recovery, recovery }
-          : { kind: 'start-unknown', recovery }
-      return { observation, stop: 'none', stderrBytes: 0 }
-    })
-    const { observation, stop, stderrBytes } = seen
-    if (observation.kind !== 'start-unknown' && observation.kind !== 'lost') {
-      const outcome = observation.kind === 'exited' ? `exit:${observation.code}` : observation.kind
-      await ledger.mark(intent.key, { at: 'ended', end: { outcome, stop, stderrBytes } })
-      await input.afterStep?.('ended', ledger.get(intent.key) ?? intent)
-    }
-    return commandResult(observation)
+    const seen = await launched(host, ready.run, ledger, intent, signal).catch(() =>
+      unseen(ledger, intent),
+    )
+    await ended(input, ledger, intent, seen)
+    return commandResult(seen.observation)
   }
 
   const implementations: CommandImplementations<P> = async ({ access, member, declaration }) =>

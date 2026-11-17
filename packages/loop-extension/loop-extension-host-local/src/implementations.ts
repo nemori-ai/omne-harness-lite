@@ -67,7 +67,7 @@ export function createExtensionImplementations<P>(
     const body = await sources
       .body({ asset: member.assetRef, version: member.version })
       .catch(() => undefined)
-    const declaration = body === undefined ? null : declarationOf(body)
+    const declaration = declarationOf(body)
     if (declaration === null || declaration.name !== member.capability)
       return fail(unavailable('the declaration of the recorded version cannot be read'))
     if (declaration.implementation.kind === 'command')

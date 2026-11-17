@@ -26,9 +26,9 @@ async function compute(entry: Entry): Promise<EnabledExtensionsRead> {
   for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
     const { generation } = entry
     const basis = await entry.sources.basis().catch(() => undefined)
-    const facts = basis === undefined ? 'unavailable' : await gatherFacts(entry.sources)
-    if (entry.generation !== generation) continue
     if (basis === undefined) return unavailable('the revisions of the sources cannot be read')
+    const facts = await gatherFacts(entry.sources)
+    if (entry.generation !== generation) continue
     if (facts === 'unavailable') return unavailable('the holdings cannot be read')
     const view = enabledView(facts, basis)
     return view.kind === 'view'
@@ -84,7 +84,6 @@ export function createEnabledExtensionsViews<P>(
     close() {
       closed = true
       for (const entry of entries.values()) entry.leave()
-      entries.clear()
     },
   }
 }
