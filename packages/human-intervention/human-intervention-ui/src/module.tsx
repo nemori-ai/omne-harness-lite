@@ -4,6 +4,7 @@ import {
   type HumanInterventionProtocol,
 } from '@omne-harness/human-intervention-protocol'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import type { PointSink } from '@omne-harness/shell-contract'
 import {
   shellKey,
   type defineUiModule,
@@ -23,7 +24,9 @@ export const PAGE_ID = 'decisions'
 export const PAGE_ORDER = 10
 const IN_SESSION_ID = 'decisions-in-session'
 
-export type HumanInterventionUiOptions = Readonly<{ sessionAnchor?: string }>
+export type HumanInterventionUiOptions = Readonly<{
+  sessionDock?: PointSink<{ readonly session: string }>
+}>
 
 type UiModule = ReturnType<typeof defineUiModule>
 type Lookup = { get(name: string): unknown }
@@ -37,14 +40,13 @@ function contribute(shell: ShellService, hub: CardsHub, options: HumanInterventi
     render: ({ scope }) =>
       scope === undefined ? null : <DecisionsPage hub={hub} tenant={scope} />,
   })
-  const anchor = options.sessionAnchor
-  if (anchor === undefined) return
-  shell.contribute('attached', {
+  options.sessionDock?.contribute(shell, {
     id: IN_SESSION_ID,
     order: 0,
-    anchor,
     render: ({ scope, subject }) =>
-      scope === undefined ? null : <SessionCards hub={hub} tenant={scope} session={subject} />,
+      scope === undefined ? null : (
+        <SessionCards hub={hub} tenant={scope} session={subject.session} />
+      ),
   })
 }
 

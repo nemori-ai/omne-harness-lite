@@ -108,14 +108,11 @@ describe('contribute', () => {
       expect(shell.items('attached')).toHaveLength(1)
     })
 
-    it('throws on the same id even when the anchors differ', async () => {
+    it('places the same id when the anchors differ', async () => {
       const { root, shell } = await startShell()
       await place(root, 'a', ctx => ctx.shell.contribute('attached', attached('card', 'chat')))
-      const error = await failure(root, ctx =>
-        ctx.shell.contribute('attached', attached('card', 'other')),
-      )
-      expect(error).toMatchObject({ slot: 'attached', id: 'card', reason: 'duplicate' })
-      expect(shell.items('attached').map(item => item.anchor)).toEqual(['chat'])
+      await place(root, 'b', ctx => ctx.shell.contribute('attached', attached('card', 'other')))
+      expect(shell.items('attached').map(item => item.anchor)).toEqual(['chat', 'other'])
     })
   })
 
