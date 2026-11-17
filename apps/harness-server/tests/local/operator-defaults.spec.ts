@@ -143,14 +143,10 @@ describe('localOperatorLayer over the bundled distribution', () => {
     })
   })
 
-  it('gives the Agent the retry budget of a failed main model call', () => {
-    expect(configOf(layer, 'agent-host')).toMatchObject({
-      modelRetry: {
-        maxAttempts: 4,
-        maxElapsedMs: 120_000,
-        delaysMs: [1_000, 5_000, 30_000],
-        jitter: 0.2,
-      },
+  it('gives the retry values to the Model host, and none to the Agent', () => {
+    expect(configOf(layer, 'agent-host')).not.toHaveProperty('modelRetry')
+    expect(configOf(layer, 'model-host')).toMatchObject({
+      retry: { policy: { maxAttempts: 2, maxElapsedMs: 30_000, delaysMs: [1_000], jitter: 0.2 } },
     })
   })
 

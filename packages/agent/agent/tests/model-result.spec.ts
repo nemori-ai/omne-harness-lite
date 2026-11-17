@@ -66,36 +66,25 @@ describe('consumeModelResult sorts a settled main call into reply, interrupted o
     expect(consumed(interrupted, parts)).toMatchObject({ kind: 'interrupted' })
   })
 
-  it('a failed call that delivered part of a text is unusable and transient for stream-lost', () => {
-    expect(consumed(failed('stream-lost'), [half])).toMatchObject({
-      kind: 'unusable',
-      nature: 'transient',
-    })
+  it.each([
+    ['stream-lost with part of a text', failed('stream-lost'), [half]],
+    ['upstream-unavailable without content', failed('upstream-unavailable'), []],
+    ['a refused credential', failed('credential'), []],
+  ])('a failed call is unusable, whatever its cause: %s', (_name, termination, parts) => {
+    const result = consumed(termination, parts)
+    expect(result.kind).toBe('unusable')
+    expect(Object.hasOwn(result, 'nature')).toBe(false)
   })
 
-  it('a failed call without content is unusable and transient for upstream-unavailable', () => {
-    expect(consumed(failed('upstream-unavailable'), [])).toMatchObject({
-      kind: 'unusable',
-      nature: 'transient',
-    })
-  })
-
-  it('a failed call for a credential is unusable and permanent', () => {
-    expect(consumed(failed('credential'), [])).toMatchObject({
-      kind: 'unusable',
-      nature: 'permanent',
-    })
-  })
-
-  it('a completed call that holds a partial part was cut short: unusable and permanent', () => {
+  it('a completed call that holds a partial part was cut short: unusable', () => {
     const result = consumed(completed, [text, half])
-    expect(result).toMatchObject({ kind: 'unusable', nature: 'permanent' })
+    expect(result).toMatchObject({ kind: 'unusable' })
     expect(noReplyReason(result)).toBe('model-truncated')
   })
 
-  it('a completed call without content is unusable and permanent', () => {
+  it('a completed call without content is unusable', () => {
     const result = consumed(completed, [])
-    expect(result).toMatchObject({ kind: 'unusable', nature: 'permanent' })
+    expect(result).toMatchObject({ kind: 'unusable' })
     expect(noReplyReason(result)).toBe('no-reply')
   })
 })

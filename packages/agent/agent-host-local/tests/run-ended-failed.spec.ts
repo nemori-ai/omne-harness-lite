@@ -21,16 +21,7 @@ import {
   type Termination,
 } from '@omne-harness/model-contract'
 import { afterEach, describe, expect, it } from 'vitest'
-import {
-  caller,
-  definitions,
-  hostConfig,
-  ok,
-  openWorld,
-  slotOf,
-  turns,
-  type World,
-} from './host-support.ts'
+import { caller, definitions, ok, openWorld, slotOf, turns, type World } from './host-support.ts'
 
 const opened: World[] = []
 afterEach(async () => {
@@ -178,30 +169,18 @@ describe('a run that ends with a failure', () => {
     expect(host.warnings.filter(text => text.startsWith('agent run stopped'))).toEqual([])
   })
 
-  it('a transient failure within the retry budget: one warn names the step, attempt, fault and time', async () => {
-    const retrying = (host: World) =>
-      host.warnings.filter(text => text.startsWith('agent run retries the model'))
-    const { host, instance } = await ending(
-      {
-        kind: 'failed',
-        fault: { cause: 'stream-lost', diagnostic: 'response-body-lost', upstreamStatus: null },
-      },
-      {
-        config: {
-          ...hostConfig,
-          modelRetry: { maxAttempts: 2, maxElapsedMs: 60_000, delaysMs: [5_000], jitter: 0 },
-        },
-        until: host => retrying(host).length > 0 || endedFailed(host).length > 0,
-      },
-    )
-    const [record, ...more] = retrying(host)
+  it('a transient failure ends the run at once: one warn with the fault, and no warn of a retry', async () => {
+    const { host } = await ending({
+      kind: 'failed',
+      fault: { cause: 'stream-lost', diagnostic: 'response-body-lost', upstreamStatus: null },
+    })
+    const [record, ...more] = endedFailed(host)
     expect(more).toEqual([])
-    expect(record).toContain(`instance=${instance} execution=${EXECUTION} `)
+    expect(record).toContain('fault=stream-lost diagnostic=response-body-lost ')
     expect(record).toContain(
-      'step=step-1 attempt=2 fault=stream-lost diagnostic=response-body-lost ' +
-        'notBefore=1970-01-01T00:00:05.000Z',
+      `cause=${EXECUTION}/step-1/model-failed/stream-lost/response-body-lost`,
     )
-    expect(endedFailed(host)).toEqual([])
+    expect(host.warnings.filter(text => text.includes('retries the model'))).toEqual([])
   })
 
   it('negative control: a call that completed without content warns with no-reply', async () => {

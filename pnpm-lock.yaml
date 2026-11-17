@@ -971,9 +971,6 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
-      '@omne-harness/retry':
-        specifier: workspace:*
-        version: link:../../common/retry
       '@omne-harness/telemetry-contract':
         specifier: workspace:*
         version: link:../../telemetry/telemetry-contract
@@ -1118,9 +1115,6 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
-      '@omne-harness/retry':
-        specifier: workspace:*
-        version: link:../../common/retry
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract

@@ -147,7 +147,7 @@ it('accepts the retry decision of the default policy, and refuses the same sourc
     dispatch: 'mdisp_one',
     policy: ADOPTION,
     consumer: { owner: 'policy', work: call, position: 'mdisp_one', purpose: 'model-retry' },
-  } as RetryInput['position']
+  } as unknown as RetryInput['position']
   const supplier = { adoption: ADOPTION } as RetryInput['request']['suppliers'][number]
   const request = {
     retryPolicy: ADOPTION,

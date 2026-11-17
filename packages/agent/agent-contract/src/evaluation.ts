@@ -272,11 +272,6 @@ export type VoidedIntent =
       cause: 'not-accepted'
       basis: DurableEvidence
     }>
-export type ModelRetryState = Readonly<{
-  failures: number
-  since: AgentInstant
-  notBefore: AgentInstant
-}>
 export type AgentCheckpoint = Readonly<{
   schema: Adoption
   definition: Adoption
@@ -290,7 +285,6 @@ export type AgentCheckpoint = Readonly<{
   compaction: CompactionState | null
   adoptedContext: DurableEvidence | null
   adoptedRequest?: AdoptedRequest | null
-  modelRetry?: ModelRetryState | null
   guard: GuardFact | null
   completedPassages: readonly PassageId[]
   priorConditions: DurableEvidence | null
