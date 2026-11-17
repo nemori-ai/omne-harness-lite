@@ -77,6 +77,7 @@ import { canonical, digestOf, materializeModelView, rowData } from './session-va
 import { journalEvidence } from './journal-values.ts'
 import type { SessionDirectory } from './session-directory.ts'
 import { cancelBatchRow, fieldOf, sessionCaller } from './factory-values.ts'
+import { carriesDelivery, deliveryCommand, takenBatch } from '../delivery.ts'
 
 type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
 type AttachInput<P> = Parameters<AgentJournal<P>['attach']>[0]
@@ -355,6 +356,10 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     return cell
   }
 
+  function acceptedOf(cell: JournalCell<P>, execution: AgentExecutionId) {
+    return cell.state().agent.executions.get(executionKey(cell.state(), execution))?.inputs
+  }
+
   function jointCommand(
     cell: JournalCell<P>,
     input: ExecutionMutation<P>,
@@ -362,7 +367,21 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     receipt: CommandReceipt,
   ): Outcome<SessionCommand, Failure> | undefined {
     const caller = sessionCaller(input, method)
-    if (caller.kind === 'none') return undefined
+    if (caller.kind === 'none')
+      return deliveryCommand(
+        cell,
+        input,
+        method,
+        receipt,
+        acceptedOf(cell, input.execution),
+        cell.state().session?.snapshot,
+      )
+    if (takenBatch(input, method) !== null)
+      return fail({
+        kind: 'unavailable',
+        owner: 'session-qualification',
+        diagnostic: 'a write that takes a batch and joins the Session another way',
+      })
     const operation = deriveSessionOperation({
       kind: 'participation',
       execution: input.execution,
@@ -836,7 +855,14 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     let view = views.get(key)
     if (!view) {
       view = createJournal(cell, {
-        participates: (input, method) => sessionCaller(input, method).kind !== 'none',
+        participates: (input, method) =>
+          sessionCaller(input, method).kind !== 'none' ||
+          carriesDelivery(
+            input,
+            method,
+            acceptedOf(cell, input.execution),
+            cell.state().session?.snapshot,
+          ),
         prepareResult: resultPreparation(cell, publications, base.commitLog, agentFailure),
         qualifyParticipation: (input, method, receipt) =>
           qualifyJoint(cell, input, method, receipt),

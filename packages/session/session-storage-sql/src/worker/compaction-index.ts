@@ -1,12 +1,12 @@
 import { indexCompactionCall, openCompactionCalls } from './compaction-calls.ts'
 import {
+  isAcceptedInputRecord,
   requiredWorkEntries,
   type HistoryEntry,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import type { Message } from '@omne-harness/message'
 import { plainOf } from '../codec.ts'
-import { isIntakeRecord } from './commit-write.ts'
 import { big, oneRow, text, type Executor } from './support.ts'
 
 export function writeCompactionIndex(
@@ -36,7 +36,7 @@ export function writeCompactionIndex(
     indexCompactionCall(port, { tenant, session }, entry)
     const body = plainOf(entry.payload) as Record<string, unknown> | null
     if (body === null) throw new Error('the indexed entry has no payload')
-    if (entry.kind.startsWith('message.') && !isIntakeRecord(entries, index)) {
+    if (entry.kind.startsWith('message.') && !isAcceptedInputRecord(entries, index)) {
       const message = body['message'] as Message
       if (message.role === 'user') lastUser = entry.id
       if (message.role === 'assistant')

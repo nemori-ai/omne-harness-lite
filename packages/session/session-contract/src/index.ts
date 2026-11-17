@@ -338,4 +338,4 @@ export type {
   StopInitiator,
   StopView,
 } from './background-calls.ts'
-export { compactionContextForView } from './model-view.ts'
+export { compactionContextForView, isAcceptedInputRecord } from './model-view.ts'

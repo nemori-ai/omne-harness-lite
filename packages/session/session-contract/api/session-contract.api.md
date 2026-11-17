@@ -277,6 +277,7 @@
 - `expectedRevision` · `judgments.d.ts`
 - `initializationRegistrationCommit` · `initialization-plan.d.ts`
 - `inputsToDeliver` · `intake.d.ts`
+- `isAcceptedInputRecord` · `model-view.d.ts`
 - `isDeferredFact` · `history-values.d.ts`
 - `judgeAdvance` · `judgments.d.ts`
 - `judgeBackgroundOutcome` · `background-outcome.d.ts`
@@ -2114,7 +2115,7 @@ export type { SessionPermissionAssignment, SessionPermissions, SessionPermission
 export { rebuildSessionPermissions, type SessionPermissionHistory } from './permission-history.ts';
 export { backgroundCallView, shortCallId } from './background-calls.ts';
 export type { BackgroundCallLabel, BackgroundCallResolution, BackgroundCallRecord, BackgroundCallSource, BackgroundCallState, BackgroundCallStatus, BackgroundCallStop, BackgroundCallView, StopInitiator, StopView, } from './background-calls.ts';
-export { compactionContextForView } from './model-view.ts';
+export { compactionContextForView, isAcceptedInputRecord } from './model-view.ts';
 ```
 
 ## 声明文件 `initialization-parse.d.ts`
@@ -2564,6 +2565,7 @@ export type MaterializedModelView = Readonly<{
     epoch: string;
     rows: readonly ModelViewRow[];
 }>;
+export declare function isAcceptedInputRecord(entries: readonly Pick<HistoryEntry, 'kind'>[], index: number): boolean;
 export declare function viewMessageOf(entries: readonly HistoryEntry[], index: number): Message | null;
 export declare function materializeModelView(previous: MaterializedModelView, committed: readonly HistoryEntry[], history: readonly HistoryEntry[]): MaterializedModelView;
 export declare function compactionReads(entries: readonly HistoryEntry[], snapshot: WorkSnapshot, through: string): CompactionContext | null;
@@ -3281,8 +3283,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:84b67efe843e471b0d9d37af4ed2c26a9ca86b3d782b5510cf7cdb25af75f060";
-export declare const SESSION_RELEASE_DIGEST = "sha256:84b67efe843e471b0d9d37af4ed2c26a9ca86b3d782b5510cf7cdb25af75f060";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:177cf0e2f04e712dcb423935408477072fc6c34804178ef7003ce8b74efad732";
+export declare const SESSION_RELEASE_DIGEST = "sha256:177cf0e2f04e712dcb423935408477072fc6c34804178ef7003ce8b74efad732";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

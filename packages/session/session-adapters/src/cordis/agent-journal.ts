@@ -1,4 +1,5 @@
 import { historyCaller } from './history-caller.ts'
+import { carriesDelivery, deliveryCommand, takenBatch } from '../delivery.ts'
 import { sessionEpochOf } from './history-epoch.ts'
 import { sessionCommitCommands } from '@omne-harness/session-storage-sql/participants'
 import { createHash, randomUUID } from 'node:crypto'
@@ -726,12 +727,16 @@ function projectionContext(
   }
 }
 
+function acceptedOf<P>(cell: JournalCell<P>, execution: AgentExecutionId) {
+  return [...cell.state().agent.executions.values()].find(item => item.id === execution)?.inputs
+}
+
 function kindsOf(scratch: Scratch): ParticipationKind[] {
   const kinds: ParticipationKind[] = []
   for (const command of scratch.commands)
     switch (command.kind) {
       case 'recordMessage':
-        kinds.push('message')
+        kinds.push('deliveries' in command.input.value ? 'delivered' : 'message')
         break
       case 'commitDerived':
         kinds.push('context-transition')
@@ -931,7 +936,17 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     receipt: CommandReceipt,
   ): Outcome<SessionCommand, Failure> | undefined {
     const caller = historyCaller(input, method)
-    if (caller.kind === 'none') return undefined
+    if (caller.kind === 'none')
+      return deliveryCommand(
+        book,
+        input,
+        method,
+        receipt,
+        acceptedOf(cell, input.execution),
+        book.scratch?.snapshot,
+      )
+    if (takenBatch(input, method) !== null)
+      return fail(unavailable('a write that takes a batch and joins the Session another way'))
     const operation = deriveSessionOperation({
       kind: 'participation',
       execution: input.execution,
@@ -1156,7 +1171,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     const core = createJournal<P>(cell, {
       participants: PARTICIPANTS,
       grant: () => true,
-      participates: (input, method) => historyCaller(input, method).kind !== 'none',
+      participates: (input, method) =>
+        historyCaller(input, method).kind !== 'none' ||
+        carriesDelivery(input, method, acceptedOf(cell, input.execution), book.scratch?.snapshot),
       qualifyParticipation: (input, method, receipt) => qualify(book, cell, input, method, receipt),
       terminalParticipant: input => terminalParticipant(book, cell, input.execution, input.control),
       ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),

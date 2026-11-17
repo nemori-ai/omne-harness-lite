@@ -1,4 +1,8 @@
-import type { CommitReceipt, HistoryEntry } from '@omne-harness/session-contract'
+import {
+  isAcceptedInputRecord,
+  type CommitReceipt,
+  type HistoryEntry,
+} from '@omne-harness/session-contract'
 import {
   packText,
   type ParticipantPort,
@@ -23,14 +27,6 @@ function messageOf(entry: HistoryEntry): ViewMessage | null {
   if (!entry.kind.startsWith('message.')) return null
   const message = (plainOf(entry.payload) as { message?: ViewMessage } | null)?.message
   return message ?? null
-}
-
-/**
- * True for the message of an input as the Session accepted it: the entry before its
- * `intake.routed`. The model view holds an input from its delivery, not from here.
- */
-export function isIntakeRecord(entries: readonly HistoryEntry[], index: number): boolean {
-  return entries[index + 1]?.kind === 'intake.routed'
 }
 
 export function maintainModelView(
@@ -68,7 +64,7 @@ export function maintainModelView(
     return digest
   }
   for (const [index, entry] of entries.entries()) {
-    const message = isIntakeRecord(entries, index) ? null : messageOf(entry)
+    const message = isAcceptedInputRecord(entries, index) ? null : messageOf(entry)
     if (
       message === null ||
       message.role === 'tool_internal' ||

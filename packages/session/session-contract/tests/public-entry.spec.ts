@@ -35,6 +35,7 @@ it('exports exactly the declared root runtime surface', () => {
     'expectedRevision',
     'initializationRegistrationCommit',
     'inputsToDeliver',
+    'isAcceptedInputRecord',
     'isDeferredFact',
     'judgeAdvance',
     'judgeBackgroundOutcome',

@@ -288,6 +288,7 @@
 - `expectedRevision` · 包 `@omne-harness/session-contract`
 - `initializationRegistrationCommit` · 包 `@omne-harness/session-contract`
 - `inputsToDeliver` · 包 `@omne-harness/session-contract`
+- `isAcceptedInputRecord` · 包 `@omne-harness/session-contract`
 - `isDeferredFact` · 包 `@omne-harness/session-contract`
 - `judgeAdvance` · 包 `@omne-harness/session-contract`
 - `judgeBackgroundOutcome` · 包 `@omne-harness/session-contract`

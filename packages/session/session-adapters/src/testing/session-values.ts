@@ -7,6 +7,7 @@ import {
   type CoveredEntry,
 } from '@omne-harness/message'
 import {
+  isAcceptedInputRecord,
   openWork,
   type HistoryEntry,
   type ModelViewRow,
@@ -65,8 +66,8 @@ export function materializeModelView(
 ): MaterializedModelView {
   let epoch = previous.epoch
   let rows = [...previous.rows]
-  for (const entry of committed) {
-    const message = messageOf(entry)
+  for (const [index, entry] of committed.entries()) {
+    const message = isAcceptedInputRecord(committed, index) ? null : messageOf(entry)
     if (
       message === null ||
       message.role === 'tool_internal' ||
@@ -110,7 +111,8 @@ export function compactionReads(
   for (const [index, entry] of entries.entries()) {
     const ref = parseRecordEntryRef(entry.id)
     if (ref === null) return null
-    ;(index <= end ? covered : after).push({ ref, message: messageOf(entry) })
+    const message = isAcceptedInputRecord(entries, index) ? null : messageOf(entry)
+    ;(index <= end ? covered : after).push({ ref, message })
   }
   const previous = covered.filter(row => row.message?.role === 'compaction').at(-1)
   let window = covered
@@ -168,11 +170,12 @@ export function compactionReads(
     }
   }
   if ([...required].some(ref => !entries.some(entry => entry.id === ref))) return null
-  const open = entries.flatMap((entry, index) => {
+  const open = entries.flatMap(entry => {
     const value = rowData(entry)
+    // An input that is still alive keeps its delivery in the context.
     const relevant =
       required.has(entry.id) ||
-      (entry.kind === 'intake.routed' &&
+      (entry.kind === 'message.delivered' &&
         typeof value['input'] === 'string' &&
         [...snapshot.pending, ...(snapshot.taken ?? [])].some(input => input === value['input'])) ||
       (entry.kind === 'call.bound' &&
@@ -181,14 +184,7 @@ export function compactionReads(
             item.id === value['consumption'] &&
             item.results.every(result => result.completion === null),
         ))
-    const source =
-      entry.kind === 'intake.routed'
-        ? entries
-            .slice(0, index)
-            .reverse()
-            .find(row => row.kind === 'message.user')
-        : entry
-    const ref = source ? parseRecordEntryRef(source.id) : null
+    const ref = parseRecordEntryRef(entry.id)
     return relevant && ref !== null ? [ref] : []
   })
   return {

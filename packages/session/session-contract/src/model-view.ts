@@ -19,13 +19,21 @@ function messageOf(row: HistoryEntry): Message | null {
 }
 
 /**
- * The message an entry gives the model view. An input's message as the Session accepted it (the
- * entry before its `intake.routed`) is a record for people; the model view holds the input from
- * its delivery, the moment a step took it.
+ * True for the message of an input as the Session accepted it: the entry before its
+ * `intake.routed`. It is a record for people. The model view holds an input from its delivery,
+ * the moment a step took it.
  */
+export function isAcceptedInputRecord(
+  entries: readonly Pick<HistoryEntry, 'kind'>[],
+  index: number,
+): boolean {
+  return entries[index + 1]?.kind === 'intake.routed'
+}
+
+/** The message an entry gives the model view. */
 export function viewMessageOf(entries: readonly HistoryEntry[], index: number): Message | null {
   const entry = entries[index]
-  if (entry === undefined || entries[index + 1]?.kind === 'intake.routed') return null
+  if (entry === undefined || isAcceptedInputRecord(entries, index)) return null
   return messageOf(entry)
 }
 export function materializeModelView(

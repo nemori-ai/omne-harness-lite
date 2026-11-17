@@ -543,6 +543,40 @@ export function handed(s: SqlScene, id: string, receipt: DurableEvidence) {
   })
 }
 
+/**
+ * Takes the inputs the execution holds, the way the first commit of a step does. The Session
+ * delivers them to the model view in the same commit.
+ */
+export async function takeInputs(
+  s: Pick<SqlScene, 'access' | 'execution'>,
+  journal: AgentJournal<string>,
+  name = 'take',
+) {
+  const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
+  const authority = loaded.executionAttachment
+  if (authority === null) throw new Error('an active attachment is expected')
+  const page = ok(
+    await journal.inputs({ ...s.access, execution: s.execution, watermark: loaded.inputWatermark }),
+  )
+  return ok(
+    await journal.commit({
+      ...s.access,
+      execution: s.execution,
+      operation: operation(name),
+      authority,
+      expected: loaded.revision,
+      checkpoint: { ...loaded.checkpoint, inputBatch: page.batch },
+      state: { kind: 'advancing' },
+      events: [{ kind: 'input-taken', batch: page.batch }],
+      effects: [],
+      caller: { kind: 'none' },
+      replyAdmission: null,
+      handoff: null,
+      finish: null,
+    }),
+  )
+}
+
 export async function nextRun(s: SqlScene, n: number): Promise<SqlScene> {
   const snapshot = ok(await s.port.readWork(s.sessionAccess))
   if (snapshot.run.kind !== 'active') throw new Error('an active Run is expected')
