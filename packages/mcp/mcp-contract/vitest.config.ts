@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
   return {
     test: {
       ...tiers,
-      setupFiles: ['./tests/unhandled.ts'],
+      setupFiles: [...tiers.setupFiles, './tests/unhandled.ts'],
       include: ['tests/**/*.spec.ts'],
       typecheck: {
         ...tiers.typecheck,
