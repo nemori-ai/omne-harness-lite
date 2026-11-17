@@ -268,64 +268,70 @@ it('limits serialized command and execution bytes before saving oversized custod
   )
 })
 
-it('counts online items once per definition and returns capacity after the final supporting lease exits', async () => {
-  const w = await open()
-  function fullBundle(index: number, operationId = 'items-' + index) {
-    const input = command(operationId)
-    if (input.request.owner !== 'contribute') throw new Error('test request')
-    input.request.command.declaration = {
-      ...bundle,
-      reference: { ...bundle.reference, version: String(index) },
-      settings: [
-        {
-          providerId: 'example',
-          definitionId: 'features',
-          version: String(index),
-          groups: [
-            {
-              id: 'general',
-              parentId: null,
-              title: 'General',
-              description: 'Feature switches',
-              order: 0,
-            },
-          ],
-          items: Array.from({ length: 128 }, (_, n) => ({
-            id: 'feature-' + n,
-            groupId: 'general',
-            category: 'preference' as const,
-            presentation: {
-              title: 'Feature ' + n,
-              description: 'Enable this feature',
-              impact: 'Used on next read',
-              clear: 'Inherit outer value',
-              adoption: 'next-read' as const,
-            },
-            valueSchema: { type: 'boolean' },
-            default: { kind: 'value' as const, value: false },
-            merge: 'override' as const,
-            sensitivity: 'ordinary' as const,
-          })),
-        },
-      ],
+it(
+  'counts online items once per definition and returns capacity after the final supporting lease exits',
+  {
+    tags: ['slow'],
+  },
+  async () => {
+    const w = await open()
+    function fullBundle(index: number, operationId = 'items-' + index) {
+      const input = command(operationId)
+      if (input.request.owner !== 'contribute') throw new Error('test request')
+      input.request.command.declaration = {
+        ...bundle,
+        reference: { ...bundle.reference, version: String(index) },
+        settings: [
+          {
+            providerId: 'example',
+            definitionId: 'features',
+            version: String(index),
+            groups: [
+              {
+                id: 'general',
+                parentId: null,
+                title: 'General',
+                description: 'Feature switches',
+                order: 0,
+              },
+            ],
+            items: Array.from({ length: 128 }, (_, n) => ({
+              id: 'feature-' + n,
+              groupId: 'general',
+              category: 'preference' as const,
+              presentation: {
+                title: 'Feature ' + n,
+                description: 'Enable this feature',
+                impact: 'Used on next read',
+                clear: 'Inherit outer value',
+                adoption: 'next-read' as const,
+              },
+              valueSchema: { type: 'boolean' },
+              default: { kind: 'value' as const, value: false },
+              merge: 'override' as const,
+              sensitivity: 'ordinary' as const,
+            })),
+          },
+        ],
+      }
+      return input
     }
-    return input
-  }
-  let first = await run(w, fullBundle(1))
-  for (let i = 2; i <= 8; i++) expect((await run(w, fullBundle(i))).state).toBe('committed')
-  expect(await run(w, fullBundle(9))).toMatchObject({
-    state: 'aborted',
-    result: { kind: 'limited', resource: 'active-items' },
-  })
-  expect((await run(w, fullBundle(8, 'sibling'))).state).toBe('committed')
-  const ref = registration.parse(first.result).contribution
-  await run(w, {
-    ...command(),
-    request: {
-      owner: 'withdraw',
-      command: { operationId: 'free-items', contribution: { ...ref, scope } },
-    },
-  })
-  first = await run(w, fullBundle(9, 'replacement'))
-  expect(first.state).toBe('committed')
-}, 20000)
+    let first = await run(w, fullBundle(1))
+    for (let i = 2; i <= 8; i++) expect((await run(w, fullBundle(i))).state).toBe('committed')
+    expect(await run(w, fullBundle(9))).toMatchObject({
+      state: 'aborted',
+      result: { kind: 'limited', resource: 'active-items' },
+    })
+    expect((await run(w, fullBundle(8, 'sibling'))).state).toBe('committed')
+    const ref = registration.parse(first.result).contribution
+    await run(w, {
+      ...command(),
+      request: {
+        owner: 'withdraw',
+        command: { operationId: 'free-items', contribution: { ...ref, scope } },
+      },
+    })
+    first = await run(w, fullBundle(9, 'replacement'))
+    expect(first.state).toBe('committed')
+  },
+)
