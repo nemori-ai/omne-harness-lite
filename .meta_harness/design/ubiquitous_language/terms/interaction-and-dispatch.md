@@ -469,6 +469,7 @@
   **请求就地返回给发起方，到此为止**；用户若再来，那是**全新的一次请求**
 - **注意 ②**：**因此「一直不确认」没有后果**——没有待办、没有草稿、没有超时，什么都没留下
 - **注意 ③**：**这一类拓展点归会话一侧拥有**：消息持久化归会话，所以消息持久化前后对输入的处理，例如斜杠命令的展开、脱敏与否决，挂在这一类拓展点上，不挂在 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)上。已有实例是[会话跑题的提醒](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)。归属的裁定见 [C-61](../conflicts.md#c-61斜杠命令受理依赖已移除的位置)
+- **注意 ④**：它是[拓展点](architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)的一种，宿主是会话
 
 ### UL-control-command · 控制指令 · Control Command
 
@@ -684,7 +685,8 @@
 - **出处**：[RFC-0015「概念」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#1-概念) ·
   [「外壳与界面模块」](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/docs/rfcs/RFC-0015-access-dynamic-registration.md#外壳与界面模块)（revision 1，PanQiWei 2026-11-12 采用）
 - **别混**：不是 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)。
-  拓展点在 agent loop 的运行流程上；界面插入位置在客户端的界面上。
+  Loop 拓展点在 agent loop 的运行流程上；界面插入位置在客户端的界面上。
+- **注意**：它是[拓展点](architecture-core-and-extension.md#ul-extension-point--拓展点--extension-point)的一种，宿主是界面外壳，放进来的一项来自界面模块。
 
 ---
 

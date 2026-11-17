@@ -15,28 +15,25 @@ import {
   type ReleaseReport,
 } from '@omne-harness/mcp-contract'
 import { createBuilder, type Losing } from './build.ts'
-import { Connection, type GenerationPolicy } from './connection.ts'
+import { Connection } from './connection.ts'
 import {
   CONNECTION_UNAVAILABLE,
-  adoptLingering,
   ensuredOf,
   forgettable,
   isSettled,
-  residualOf,
   viewOf,
   type ConnectionView,
   type Ensured,
   type EnsureFailure,
   type EnsureRefusal,
   type Entry,
-  type StopRange,
   type UnavailableMark,
 } from './entry.ts'
 import { admitWithoutEligibility, assertAdmitted, type AdmittedEndpoint } from './gate.ts'
 import { startTimeout, waitAtMost, within, type StartBound } from './port.ts'
 import { createTaskScope, type Spawn } from './scope.ts'
 import { prepareSettings, type PreparedSettings } from './settings.ts'
-import { abandonLandings, narrowest, teardown } from './teardown.ts'
+import { teardown } from './teardown.ts'
 import { connectionKeyTextOf, tenantTextOf } from './text.ts'
 import { createTurns } from './turns.ts'
 
@@ -62,7 +59,7 @@ export type TableRuntime = Readonly<{
 
 export type SharedRuntime = Readonly<{ scope: Spawn; startBound: StartBound }>
 
-export type ClosedEndpoint = Readonly<{ ref: EndpointRef; process: StopRange }>
+export type ClosedEndpoint = Readonly<{ ref: EndpointRef }>
 
 export interface ConnectionTable<P> {
   ensure(
@@ -113,10 +110,6 @@ function settledAnswer(answer: Outcome<Ensured, EnsureFailure>): Outcome<Ensured
 
 const UNKNOWN: EnsureRefusal = { kind: 'unknown' }
 
-function policyOf(prepared: PreparedSettings): GenerationPolicy {
-  return prepared.transport.kind === 'stdio' ? 'on-attempt' : 'on-negotiation'
-}
-
 function holdingTextOf(tenantText: string, holding: EndpointHolding): string {
   return JSON.stringify([tenantText, holding])
 }
@@ -150,7 +143,7 @@ export function createConnectionTable<P, S>(
   const lastGeneration = new Map<string, Generation>()
   const turns = createTurns()
   let shut = false
-  const builder = createBuilder(ports, config, { afterLanding: forget, scope, startBound })
+  const builder = createBuilder(ports, config, { scope, startBound })
 
   const entriesOf = (tenantText: string, holding: EndpointHolding): Entry[] =>
     [...entries.values()].filter(
@@ -166,14 +159,13 @@ export function createConnectionTable<P, S>(
     entries.delete(entry.keyText)
   }
 
-  function closeEntry(entry: Entry): Promise<StopRange> {
+  function closeEntry(entry: Entry): Promise<void> {
     if (entry.closing !== undefined) return entry.closing
     if (!entry.connection.closed) entry.connection.close()
     const closing = (async () => {
       while (entry.pending !== undefined) await entry.pending.catch(() => undefined)
-      const range = await teardown(entry)
+      await teardown(entry)
       forget(entry)
-      return range
     })()
     entry.closing = closing
     return closing.finally(() => {
@@ -189,9 +181,8 @@ export function createConnectionTable<P, S>(
     key: ConnectionKey,
     keyText: string,
   ): Entry {
-    const policy = policyOf(prepared)
     if (existing === undefined) {
-      const connection = new Connection(key, policy, lastGeneration.get(keyText))
+      const connection = new Connection(key, lastGeneration.get(keyText))
       return {
         ref: admitted.ref,
         tenantText: tenantTextOf(access.tenant),
@@ -202,10 +193,7 @@ export function createConnectionTable<P, S>(
         connection,
         view: viewOf(connection),
         transport: undefined,
-        process: undefined,
         credential: undefined,
-        lingering: [],
-        landings: [],
         pending: undefined,
         tearing: undefined,
         closing: undefined,
@@ -213,7 +201,7 @@ export function createConnectionTable<P, S>(
     }
     if (existing.connection.closed) {
       const from = later(existing.connection.generation, lastGeneration.get(keyText))
-      existing.connection = new Connection(key, policy, from)
+      existing.connection = new Connection(key, from)
       existing.view = viewOf(existing.connection)
     }
     return existing
@@ -230,19 +218,12 @@ export function createConnectionTable<P, S>(
     return read.value.ok.revision === admitted.revision ? 'current' : UNKNOWN
   }
 
-  function inheritLingering(entry: Entry, settled: readonly Entry[]): void {
-    for (const other of settled) {
-      adoptLingering(entry, other)
-      forget(other)
-    }
-  }
-
   function blockingOf(
     tenantText: string,
     holding: EndpointHolding,
     keyText: string,
     ofOtherRevision: (entry: Entry) => boolean,
-  ): Readonly<{ work: Promise<StopRange>; owned: boolean }> | undefined {
+  ): Readonly<{ work: Promise<void>; owned: boolean }> | undefined {
     const other = entriesOf(tenantText, holding).find(
       entry => ofOtherRevision(entry) && !isSettled(entry),
     )
@@ -282,7 +263,6 @@ export function createConnectionTable<P, S>(
       const reused = existing === undefined ? undefined : reuseOf(existing)
       if (reused !== undefined) return reused
       const entry = entryOf(existing, admitted, access, prepared, key, keyText)
-      inheritLingering(entry, entriesOf(tenantText, holding).filter(ofOtherRevision))
       entries.set(keyText, entry)
       byView.set(entry.view, entry)
       const pending = builder.build(entry, access, prepared)
@@ -370,38 +350,29 @@ export function createConnectionTable<P, S>(
     const live = found.find(entry => !entry.connection.closed) ?? found[0]
     if (live === undefined) return { kind: 'none' }
     const state = live.connection.state
-    const residual = residualOf(found)
-    if (state.kind === 'closed')
-      return residual === undefined
-        ? { kind: 'none' }
-        : { kind: 'lost', reason: 'close-unconfirmed', residual }
-    if (state.kind === 'lost')
-      return residual === undefined
-        ? { kind: 'lost', reason: state.reason }
-        : { kind: 'lost', reason: state.reason, residual }
-    return state
+    return state.kind === 'closed' ? { kind: 'none' } : state
   }
 
   async function close(tenant: TenantId, holding: EndpointHolding): Promise<ReleaseReport> {
     const found = entriesOf(tenantTextOf(tenant), holding)
     if (found.length === 0) return { kind: 'no-connection' }
-    const { values: ranges, defects } = sortOut(await Promise.allSettled(found.map(closeEntry)))
+    const { defects } = sortOut(await Promise.allSettled(found.map(closeEntry)))
     if (defects.length > 0)
       throw new AggregateError(defects, 'the MCP connections of the holding did not close cleanly')
-    return { kind: 'released', process: ranges.reduce<StopRange>(narrowest, 'no-process') }
+    return { kind: 'released' }
   }
 
   async function closeAll(): Promise<readonly ClosedEndpoint[]> {
     shut = true
     const all = [...entries.values()]
-    const [abandoned, closing] = await Promise.all([
-      Promise.allSettled(all.map(abandonLandings)),
-      Promise.allSettled(
-        all.map(async entry => ({ ref: entry.ref, process: await closeEntry(entry) })),
-      ),
-    ])
+    const closing = await Promise.allSettled(
+      all.map(async entry => {
+        await closeEntry(entry)
+        return { ref: entry.ref }
+      }),
+    )
     const closed = sortOut(closing)
-    const defects = [...sortOut(abandoned).defects, ...closed.defects, ...scope.exit()]
+    const defects = [...closed.defects, ...scope.exit()]
     if (defects.length > 0)
       throw new AggregateError(defects, 'the MCP connection table did not close cleanly')
     return closed.values

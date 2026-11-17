@@ -14,28 +14,23 @@ import {
 } from '@omne-harness/mcp-contract'
 import type {
   CredentialFailure,
+  HttpCredentialHandle,
   McpTransport,
-  ProcessEnvironment,
-  ProcessHandle,
   TransportFailure,
   TransportMaterial,
 } from '@omne-harness/mcp-contract/provider'
 import {
   CONNECTION_UNAVAILABLE,
-  handOverToLanding,
   handleOf,
-  takeBackFromLanding,
   type CatalogMark,
-  type CredentialHandle,
   type Ensured,
   type EnsureFailure,
   type Entry,
-  type Landing,
   type UnavailableMark,
 } from './entry.ts'
-import { closeArrived, landArrived, releaseArrived, type LandingFailure } from './late.ts'
+import { closeArrived, releaseArrived } from './late.ts'
 import { connectionFailureOf, lostOf } from './lost.ts'
-import { ask, within, type Settle, type StartBound } from './port.ts'
+import { ask, within, type StartBound } from './port.ts'
 import type { Spawn } from './scope.ts'
 import type { PreparedSettings } from './settings.ts'
 import { teardown } from './teardown.ts'
@@ -54,7 +49,6 @@ export type Builder<P> = Readonly<{
 export type Losing = Readonly<{ done: Promise<CatalogMark> }>
 
 export type BuilderDependencies = Readonly<{
-  afterLanding(entry: Entry): void
   scope: Spawn
   startBound: StartBound
 }>
@@ -77,7 +71,6 @@ const STOPPED: Outcome<never, EnsureFailure> = fail({
 })
 
 const CREDENTIAL_BREACH = fail<CredentialFailure>('unknown')
-const LANDING_BREACH = fail<LandingFailure>('unknown')
 const OPEN_BREACH = fail<TransportFailure>(NOT_SENT_FAILURE)
 const DISCOVER_BREACH = fail<TransportFailure>({ kind: 'no-answer', cause: 'abandoned' })
 
@@ -180,19 +173,17 @@ export function createBuilder<P, S>(
     prepared: PreparedSettings,
     bound: AbortSignal,
   ): Promise<Outcome<void, Failed>> {
-    const { credential, transport } = prepared
+    const { credential, target } = prepared
     if (credential.auth === 'none') return succeed(undefined)
     const holding = entry.ref.holding
-    const asked = ask<Outcome<CredentialHandle, CredentialFailure>>(
+    const asked = ask<Outcome<HttpCredentialHandle, CredentialFailure>>(
       () =>
-        transport.kind === 'stdio'
-          ? ports.credentials.acquire(access, holding, { kind: 'process-env' }, credential.binding)
-          : ports.credentials.acquire(
-              access,
-              holding,
-              { kind: 'http-authorization', target: transport.target },
-              credential.binding,
-            ),
+        ports.credentials.acquire(
+          access,
+          holding,
+          { kind: 'http-authorization', target },
+          credential.binding,
+        ),
       CREDENTIAL_BREACH,
     )
     const acquired = await within(asked, bound, scope, () => releaseArrived)
@@ -207,55 +198,19 @@ export function createBuilder<P, S>(
     return succeed(undefined)
   }
 
-  function landingOutlived(
-    entry: Entry,
-    landing: Landing,
-  ): Settle<Outcome<ProcessHandle, LandingFailure>> {
-    const arrived = landArrived(entry, landing)
-    return async started => {
-      await arrived(started)
-      deps.afterLanding(entry)
-    }
-  }
-
   async function materialOf(
     entry: Entry,
-    access: Access<P>,
     prepared: PreparedSettings,
     generation: Generation,
-    bound: AbortSignal,
   ): Promise<Outcome<TransportMaterial, Failed>> {
-    const { transport } = prepared
+    const { target } = prepared
     const { instructionsByteLimit } = config
     const credential = entry.credential
-    if (transport.kind === 'streamable-http') {
-      const { target } = transport
-      return succeed(
-        credential?.purpose === 'http-authorization'
-          ? { kind: 'streamable-http', target, credential, generation, instructionsByteLimit }
-          : { kind: 'streamable-http', target, generation, instructionsByteLimit },
-      )
-    }
-    const env: ProcessEnvironment = {
-      values: transport.values,
-      credentials:
-        credential?.purpose === 'process-env'
-          ? transport.credentialVariables.map(name => ({ name, handle: credential }))
-          : [],
-    }
-    const landing = handOverToLanding(entry)
-    const asked = ask(() => ports.landing.start(access, transport.launch, env), LANDING_BREACH)
-    const started = await within(asked, bound, scope, () => landingOutlived(entry, landing))
-    if (started.kind === 'expired') return fail(PREPARATION_FAILED)
-    takeBackFromLanding(entry, landing)
-    if ('failure' in started.value)
-      return fail({
-        reason: { kind: 'landing-unavailable' },
-        lost: 'preparation-failed',
-        mark: 'landing-unavailable',
-      })
-    entry.process = started.value.ok
-    return succeed({ kind: 'stdio', process: started.value.ok, generation, instructionsByteLimit })
+    return succeed(
+      credential === undefined
+        ? { kind: 'streamable-http', target, generation, instructionsByteLimit }
+        : { kind: 'streamable-http', target, credential, generation, instructionsByteLimit },
+    )
   }
 
   async function opened(
@@ -297,7 +252,7 @@ export function createBuilder<P, S>(
       if ('failure' in leftovers) return await ended(entry, leftovers.failure, bound)
       const credential = guarded(entry, await acquireCredential(entry, access, prepared, bound))
       if ('failure' in credential) return await ended(entry, credential.failure, bound)
-      const material = guarded(entry, await materialOf(entry, access, prepared, generation, bound))
+      const material = guarded(entry, await materialOf(entry, prepared, generation))
       if ('failure' in material) return await ended(entry, material.failure, bound)
       const transport = guarded(entry, await opened(entry, material.ok, bound))
       if ('failure' in transport) return await ended(entry, transport.failure, bound)

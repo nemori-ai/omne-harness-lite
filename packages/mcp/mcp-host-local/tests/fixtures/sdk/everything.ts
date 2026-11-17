@@ -2,8 +2,6 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { connect } from 'node:net'
 import { fileURLToPath } from 'node:url'
 import { isConnectionTarget, type ConnectionTarget } from '@omne-harness/mcp-contract'
-import type { ProcessHandle } from '@omne-harness/mcp-contract/provider'
-import { spawnHandle } from '../process.ts'
 import { track } from '../scripted/children.ts'
 
 const BIN = fileURLToPath(
@@ -12,16 +10,6 @@ const BIN = fileURLToPath(
     import.meta.url,
   ),
 )
-
-export function everythingStdio(): Readonly<{ handle: ProcessHandle; close(): Promise<void> }> {
-  const spawned = spawnHandle([BIN, 'stdio'])
-  return {
-    handle: spawned.handle,
-    async close() {
-      await spawned.handle.stop()
-    },
-  }
-}
 
 async function freePort(): Promise<number> {
   for (;;) {

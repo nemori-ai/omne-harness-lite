@@ -1,6 +1,6 @@
 import { getEventListeners } from 'node:events'
 import type { Outcome } from '@omne-harness/operation-result'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   LEGACY_PROTOCOL_VERSIONS,
   isConnectionTarget,
@@ -12,7 +12,6 @@ import {
 import type {
   HttpCredentialHandle,
   McpTransport,
-  ProcessHandle,
   TransportFailure,
   TransportMaterial,
 } from '@omne-harness/mcp-contract/provider'
@@ -33,11 +32,6 @@ import { AsyncQueue } from '../src/queue.ts'
 import { Session, type SessionOptions } from '../src/session.ts'
 import { settledWithin } from './fixtures/settle.ts'
 import { MemoryLine, type Reply, type Script, type SseConfig } from './memory-line.ts'
-
-const schedule: SessionOptions['schedule'] = (delayMs, fire) => {
-  const timer = setTimeout(fire, delayMs)
-  return () => clearTimeout(timer)
-}
 
 const reportDefect: SessionOptions['reportDefect'] = defect => {
   queueMicrotask(() => {
@@ -63,16 +57,6 @@ const notSentAfter = (unusable: UnusableCause): TransportFailure => ({
   unusable,
 })
 const STREAM_BROKEN: TransportFailure = { kind: 'no-answer', cause: 'stream-broken' }
-
-function idleProcess(): ProcessHandle {
-  return {
-    stdin: new WritableStream<Uint8Array>(),
-    stdout: new ReadableStream<Uint8Array>(),
-    stderr: new ReadableStream<string>(),
-    exited: new Promise<void>(() => undefined),
-    stop: async () => 'tree-confirmed',
-  }
-}
 
 type Gate = (authorization: number) => Promise<void> | undefined
 
@@ -114,29 +98,28 @@ type Opened = Readonly<{
 const metadata = new Map<string, PlainJson>()
 
 function open(
-  kind: TransportMaterial['kind'],
   script: Script,
   options: Partial<SessionOptions> & Readonly<{ sse?: SseConfig; gate?: Gate }> = {},
 ): Opened {
   const credential = countingCredential(options.gate)
   const line = new MemoryLine(
-    kind,
     script,
     options.sse === undefined ? undefined : { entry: options.sse },
   )
-  const material: TransportMaterial =
-    kind === 'stdio'
-      ? { kind, process: idleProcess(), generation: generationOf(1), instructionsByteLimit: 4096 }
-      : { kind, target, credential, generation: generationOf(1), instructionsByteLimit: 4096 }
+  const material: TransportMaterial = {
+    kind: 'streamable-http',
+    target,
+    credential,
+    generation: generationOf(1),
+    instructionsByteLimit: 4096,
+  }
   const transport = new Session(line, material, {
     clientInfo: { name: 'host', version: '1' },
     versions: VERSIONS,
-    probeTimeoutMs: 50,
     fetchMetadata: async url => {
       const document = metadata.get(url)
       return document === undefined ? undefined : jsonOf(document)
     },
-    schedule,
     reportDefect,
     ...options,
   })
@@ -242,16 +225,13 @@ const HTTP_ANSWER = /^http:(\w+)\+(.+)$/u
 
 function replyOf(cell: TableCell): Reply {
   const { request, answer } = cell
-  const stdio = cell.kind === 'stdio'
   switch (answer) {
     case 'unsent':
       return { kind: 'unsent' }
     case 'silent':
       return { kind: 'silent' }
     case 'stream-broken':
-      return stdio ? { kind: 'ended', stdoutEndedAt: 0 } : { kind: 'aborted' }
-    case 'process-exited':
-      return { kind: 'ended', stdoutEndedAt: 0, exitedAt: 20 }
+      return { kind: 'aborted' }
     case 'http:2xx':
       return { kind: 'empty' }
     case 'http:401':
@@ -318,9 +298,7 @@ function unusableCauseOf(conclusion: TableConclusion): UnusableCause | undefined
             ? conclusion.failure.cause
             : undefined
         : undefined
-  if (ended === 'stream-broken' || ended === 'process-exited' || ended === 'session-ended')
-    return ended
-  if (ended === 'connection-unavailable') return 'stream-broken'
+  if (ended === 'stream-broken' || ended === 'session-ended') return ended
   throw new TypeError(`a row that ends the transport concludes ${JSON.stringify(conclusion)}`)
 }
 
@@ -459,16 +437,15 @@ async function run(
   script: Script,
   body: Body,
 ): Promise<void> {
-  const opened = open(cell.kind, script)
+  const opened = open(script)
   try {
     await body(opened)
   } finally {
     await opened.transport.close()
   }
-  if (cell.kind === 'streamable-http')
-    expect(opened.credential.rejections(), 'reportRejection calls').toBe(
-      conclusion.rejection === true ? 1 : 0,
-    )
+  expect(opened.credential.rejections(), 'reportRejection calls').toBe(
+    conclusion.rejection === true ? 1 : 0,
+  )
 }
 
 async function afterwards(opened: Opened, conclusion: TableConclusion): Promise<void> {
@@ -677,7 +654,7 @@ async function checkNotification(
     expect(conclusion.kind).toBe('ignored')
     ok(await transport.discover(), 'discover')
     expect(line.requests('notifications/initialized')).toHaveLength(reply.kind === 'unsent' ? 0 : 1)
-    if (cell.kind === 'streamable-http') ok(await transport.listActions(), 'listActions')
+    ok(await transport.listActions(), 'listActions')
   })
 }
 
@@ -764,7 +741,7 @@ describe('the session holds every row of T8 on a memory line', () => {
           await checkCell(cell, row.conclusion)
         } catch (failure) {
           throw new Error(
-            `${cell.kind} ${cell.request} ${cell.answer}: ${failure instanceof Error ? failure.message : String(failure)}`,
+            `${cell.request} ${cell.answer}: ${failure instanceof Error ? failure.message : String(failure)}`,
           )
         }
       }
@@ -772,35 +749,9 @@ describe('the session holds every row of T8 on a memory line', () => {
   }
 })
 
-describe('the stdio probe time (T3) and close() during a probe (T5)', () => {
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it('falls back to initialize when the probe time runs out, and drops the late discover answer', async () => {
-    const { line, transport } = open('stdio', {
-      'server/discover': [{ kind: 'silent' }],
-      initialize: [LEGACY],
-      'tools/list': [result({ tools: [] })],
-    })
-    const pending = transport.discover()
-    await untilSent(line, 'server/discover')
-    await new Promise(resolve => setTimeout(resolve, 70))
-    const identity = ok(await pending, 'discover')
-    expect(identity.protocolVersion).toBe(OFFERED_LEGACY_VERSION)
-    const probe = line.requests('server/discover')[0]?.message['id']
-    line.push({
-      jsonrpc: '2.0',
-      id: probe ?? null,
-      result: { supportedVersions: VERSIONS, capabilities: {} },
-    })
-    await tick()
-    expect(ok(await transport.listActions(), 'listActions')).toEqual({ tools: [] })
-    await transport.close()
-  })
-
+describe('close() during a probe (T5)', () => {
   it('close() while the probe is in flight answers no-answer (abandoned) and sends no initialize (F5)', async () => {
-    const { line, transport } = open('stdio', {
+    const { line, transport } = open({
       'server/discover': [{ kind: 'silent' }],
       initialize: [LEGACY],
     })
@@ -811,17 +762,11 @@ describe('the stdio probe time (T3) and close() during a probe (T5)', () => {
     expect(line.requests('initialize')).toEqual([])
     expect(line.closeCount).toBe(1)
   })
-
-  it('a probe answer that comes before the time ran out clears it', async () => {
-    const { transport } = open('stdio', {}, { probeTimeoutMs: 10_000 })
-    expect(ok(await transport.discover(), 'discover').protocolVersion).toBe(HIGHEST)
-    await transport.close()
-  })
 })
 
 describe('the requests and notifications of the peer (T3)', () => {
   it('answers ping with an empty result and any other request with -32601, with the version header', async () => {
-    const { line, transport } = open('streamable-http', {})
+    const { line, transport } = open({})
     ok(await transport.discover(), 'discover')
     line.sse = false
     line.push({ jsonrpc: '2.0', id: 9, method: 'ping' })
@@ -838,7 +783,7 @@ describe('the requests and notifications of the peer (T3)', () => {
   })
 
   it('routes a progress notification to the observer of the call whose token it carries, untrusted as written', async () => {
-    const { line, transport } = open('stdio', { 'tools/call': [{ kind: 'silent' }] })
+    const { line, transport } = open({ 'tools/call': [{ kind: 'silent' }] })
     const seen: unknown[] = []
     const sent = ok(
       await transport.call(echo, never, notification => seen.push(notification)),
@@ -866,7 +811,7 @@ describe('the requests and notifications of the peer (T3)', () => {
   })
 
   it('an observer that throws does not change the outcome', async () => {
-    const { line, transport } = open('stdio', { 'tools/call': [{ kind: 'silent' }] })
+    const { line, transport } = open({ 'tools/call': [{ kind: 'silent' }] })
     const sent = ok(
       await transport.call(echo, never, () => {
         throw new Error('observer broke')
@@ -883,11 +828,11 @@ describe('the requests and notifications of the peer (T3)', () => {
     await transport.close()
   })
 
-  it('drops a stdio line that is not JSON and the answer still arrives (F4)', async () => {
-    const { line, transport } = open('stdio', { 'tools/list': [{ kind: 'silent' }] })
+  it('drops a line of the shared stream that is not JSON and the answer still arrives (F4)', async () => {
+    const { line, transport } = open({ 'tools/list': [{ kind: 'silent' }] })
     const pending = transport.listActions()
     await untilSent(line, 'tools/list')
-    line.pushText('Listening on stdio')
+    line.pushText('Listening on 8080')
     line.pushText('')
     const id = line.requests('tools/list')[0]?.message['id']
     line.push({ jsonrpc: '2.0', id: id ?? null, result: { tools: [] } })
@@ -903,7 +848,7 @@ describe('the legacy HTTP+SSE mode (T3)', () => {
   }
 
   it('after initialize is answered 4xx+plain, enters the SSE mode, sends initialize again, and reads the answer from the stream', async () => {
-    const { line, transport, credential } = open('streamable-http', sseScript, {
+    const { line, transport, credential } = open(sseScript, {
       sse: { kind: 'entered' },
     })
     const identity = ok(await transport.discover(), 'discover')
@@ -920,7 +865,6 @@ describe('the legacy HTTP+SSE mode (T3)', () => {
 
   it('in the SSE mode a 2xx POST without an answer waits for the stream; the stream breaking fails every request in flight, no re-send, unusable', async () => {
     const { line, transport } = open(
-      'streamable-http',
       { ...sseScript, 'tools/list': [{ kind: 'silent' }] },
       { sse: { kind: 'entered' } },
     )
@@ -941,7 +885,6 @@ describe('the legacy HTTP+SSE mode (T3)', () => {
 
   it('in the SSE mode a 404 to a request after initialize ends the session (S07); initialize itself carries no session', async () => {
     const { line, transport } = open(
-      'streamable-http',
       { ...sseScript, 'tools/list': [status(404, 'gone')] },
       { sse: { kind: 'entered' } },
     )
@@ -958,7 +901,6 @@ describe('the legacy HTTP+SSE mode (T3)', () => {
 
   it('in the SSE mode cancelRequest sends notifications/cancelled', async () => {
     const { line, transport } = open(
-      'streamable-http',
       { ...sseScript, 'tools/call': [{ kind: 'silent' }] },
       { sse: { kind: 'entered' } },
     )
@@ -974,7 +916,7 @@ describe('the legacy HTTP+SSE mode (T3)', () => {
   })
 
   it('the GET answered 401 is authorization-required with reportRejection once; another 403 is connection-unavailable', async () => {
-    const refused = open('streamable-http', sseScript, {
+    const refused = open(sseScript, {
       sse: {
         kind: 'status',
         status: 401,
@@ -991,7 +933,7 @@ describe('the legacy HTTP+SSE mode (T3)', () => {
     expect(refused.credential.rejections()).toBe(1)
     await refused.transport.close()
 
-    const forbidden = open('streamable-http', sseScript, {
+    const forbidden = open(sseScript, {
       sse: { kind: 'status', status: 403, headers: {}, body: 'no' },
     })
     expect(await forbidden.transport.discover()).toEqual({ failure: NOT_SENT })
@@ -1005,7 +947,7 @@ describe('the legacy HTTP+SSE mode (T3)', () => {
       { kind: 'unsent' },
       { kind: 'status', status: 500, headers: {}, body: '' },
     ] as const) {
-      const { line, transport } = open('streamable-http', sseScript, { sse: entry })
+      const { line, transport } = open(sseScript, { sse: entry })
       expect(await transport.discover()).toEqual({ failure: NOT_SENT })
       expect(line.requests('initialize')).toHaveLength(1)
       expect(line.sseAttempts).toHaveLength(1)
@@ -1042,7 +984,7 @@ describe('the legacy HTTP+SSE mode (T3)', () => {
       },
     ]
     for (const entry of streams) {
-      const { line, transport } = open('streamable-http', sseScript, { sse: entry })
+      const { line, transport } = open(sseScript, { sse: entry })
       expect(await transport.discover(), JSON.stringify(entry)).toEqual({ failure: NOT_SENT })
       expect(line.discarded, JSON.stringify(entry)).toBe(1)
       expect(line.sse, JSON.stringify(entry)).toBe(false)
@@ -1061,7 +1003,6 @@ describe('the legacy HTTP+SSE mode (T3)', () => {
       ),
     ]) {
       const { line, transport } = open(
-        'streamable-http',
         { 'server/discover': [METHOD_NOT_FOUND], initialize: [reply] },
         { sse: { kind: 'entered' } },
       )
@@ -1074,7 +1015,7 @@ describe('the legacy HTTP+SSE mode (T3)', () => {
 
 describe("the contract's classes decide, not a second reading (T2, T8 D05, D11, O03, C02)", () => {
   it('a -32022 whose supported list names a modern-looking text that is no date: answer-malformed (discover-shape), no legacy path (D05)', async () => {
-    const { line, transport } = open('streamable-http', {
+    const { line, transport } = open({
       'server/discover': [error(-32022, 'Unsupported', { supported: ['2027-01-01x'] })],
       initialize: [LEGACY],
     })
@@ -1087,7 +1028,7 @@ describe("the contract's classes decide, not a second reading (T2, T8 D05, D11, 
 
   it('a -32022 without the jsonrpc member is an unreadable error: the legacy path, no second probe, error-shape when the legacy path fails too (D11)', async () => {
     const supported = { supported: [HIGHEST] }
-    const first = open('streamable-http', {
+    const first = open({
       'server/discover': [bareError(-32022, 'Unsupported', supported)],
       initialize: [LEGACY],
     })
@@ -1097,7 +1038,7 @@ describe("the contract's classes decide, not a second reading (T2, T8 D05, D11, 
     expect(first.line.requests('server/discover')).toHaveLength(1)
     await first.transport.close()
 
-    const second = open('streamable-http', {
+    const second = open({
       'server/discover': [bareError(-32022, 'Unsupported', supported)],
       initialize: [LEGACY_BROKE],
     })
@@ -1109,7 +1050,7 @@ describe("the contract's classes decide, not a second reading (T2, T8 D05, D11, 
   })
 
   it('tools/list answered an error without the jsonrpc member: answer-malformed (error-shape) (O03)', async () => {
-    const { transport } = open('stdio', { 'tools/list': [bareError(-32000, 'boom')] })
+    const { transport } = open({ 'tools/list': [bareError(-32000, 'boom')] })
     expect(await transport.listActions()).toEqual({
       failure: { kind: 'answer-malformed', what: 'error-shape' },
     })
@@ -1117,7 +1058,7 @@ describe("the contract's classes decide, not a second reading (T2, T8 D05, D11, 
   })
 
   it('a call answered an error without the jsonrpc member: the whole message is the error (C02)', async () => {
-    const { transport } = open('stdio', { 'tools/call': [bareError(-32000, 'boom')] })
+    const { transport } = open({ 'tools/call': [bareError(-32000, 'boom')] })
     const sent = ok(await transport.call(echo, never), 'call')
     expect(await sent.answer).toEqual({
       kind: 'error',
@@ -1129,7 +1070,7 @@ describe("the contract's classes decide, not a second reading (T2, T8 D05, D11, 
 
 describe('what goes on the wire keeps its lexemes (T3)', () => {
   it("writes the caller's values and the peer's request id as they are: an integer beyond 2^53 keeps its digits", async () => {
-    const { line, transport } = open('stdio', {
+    const { line, transport } = open({
       'tools/call': [{ kind: 'silent' }],
       'tasks/update': [result({})],
     })
@@ -1155,7 +1096,7 @@ describe('what goes on the wire keeps its lexemes (T3)', () => {
 
 describe('closing and the credential handle (T5, T9)', () => {
   it('answers a request of a protected peer with the credential on the response (T9)', async () => {
-    const { line, transport, credential } = open('streamable-http', {})
+    const { line, transport, credential } = open({})
     ok(await transport.discover(), 'discover')
     line.push({ jsonrpc: '2.0', id: 9, method: 'ping' })
     await tick()
@@ -1172,7 +1113,6 @@ describe('closing and the credential handle (T5, T9)', () => {
       fetching = resolve
     })
     const { transport, credential } = open(
-      'streamable-http',
       { 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
       {
         fetchMetadata: (_url, signal) =>
@@ -1212,7 +1152,6 @@ describe('closing and the credential handle (T5, T9)', () => {
       fetching = resolve
     })
     const { transport, credential } = open(
-      'streamable-http',
       { 'tools/call': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
       {
         fetchMetadata: (_url, signal) =>
@@ -1254,7 +1193,7 @@ describe('closing and the credential handle (T5, T9)', () => {
       async reportRejection() {},
       async release() {},
     }
-    const line = new MemoryLine('streamable-http', {})
+    const line = new MemoryLine({})
     const transport = new Session(
       line,
       {
@@ -1267,9 +1206,7 @@ describe('closing and the credential handle (T5, T9)', () => {
       {
         clientInfo: { name: 'host', version: '1' },
         versions: VERSIONS,
-        probeTimeoutMs: 50,
         fetchMetadata: async () => undefined,
-        schedule,
         reportDefect,
       },
     )
@@ -1289,7 +1226,7 @@ describe('closing and the credential handle (T5, T9)', () => {
       async reportRejection() {},
       async release() {},
     }
-    const line = new MemoryLine('streamable-http', {})
+    const line = new MemoryLine({})
     const transport = new Session(
       line,
       {
@@ -1302,9 +1239,7 @@ describe('closing and the credential handle (T5, T9)', () => {
       {
         clientInfo: { name: 'host', version: '1' },
         versions: VERSIONS,
-        probeTimeoutMs: 50,
         fetchMetadata: async () => undefined,
-        schedule,
         reportDefect,
       },
     )
@@ -1314,7 +1249,7 @@ describe('closing and the credential handle (T5, T9)', () => {
   })
 
   it('a modern Streamable HTTP cancelRequest aborts the answer stream and sends no notification', async () => {
-    const { line, transport } = open('streamable-http', { 'tools/call': [{ kind: 'silent' }] })
+    const { line, transport } = open({ 'tools/call': [{ kind: 'silent' }] })
     const sent = ok(await transport.call(echo, never), 'call')
     await transport.cancelRequest(sent.requestId)
     expect(await sent.answer).toEqual({ kind: 'no-answer', cause: 'abandoned' })
@@ -1329,7 +1264,7 @@ describe('closing and the credential handle (T5, T9)', () => {
     metadata.clear()
     metadata.set(root, { authorization_servers: ['https://issuer.test'], scopes_supported: ['s'] })
     metadata.set(path, 'not an object')
-    const { transport } = open('streamable-http', {
+    const { transport } = open({
       'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })],
     })
     const failed = await transport.listActions()
@@ -1379,7 +1314,7 @@ function holdAfter(
 
 describe('what the signal of a call and close() end (T5)', () => {
   it('ends the write of a request whose answer head has not come, and the answer is abandoned', async () => {
-    const closed = open('streamable-http', { 'tools/call': [{ kind: 'hang' }] })
+    const closed = open({ 'tools/call': [{ kind: 'hang' }] })
     const calling = closed.transport.call(echo, never)
     await untilSent(closed.line, 'tools/call')
     await closed.transport.close()
@@ -1389,7 +1324,7 @@ describe('what the signal of a call and close() end (T5)', () => {
       cause: 'abandoned',
     })
 
-    const signalled = open('streamable-http', { 'tools/call': [{ kind: 'hang' }] })
+    const signalled = open({ 'tools/call': [{ kind: 'hang' }] })
     const controller = new AbortController()
     const pending = signalled.transport.call(echo, controller.signal)
     await untilSent(signalled.line, 'tools/call')
@@ -1403,13 +1338,13 @@ describe('what the signal of a call and close() end (T5)', () => {
   })
 
   it('ends the answer stream of a request through the stream, whether the line watches the signal or not', async () => {
-    const closing = open('streamable-http', { 'tools/call': [{ kind: 'deaf' }] })
+    const closing = open({ 'tools/call': [{ kind: 'deaf' }] })
     const first = ok(await closing.transport.call(echo, never), 'call')
     await closing.transport.close()
     expect(closing.line.streamAborted).toEqual([first.requestId])
     expect(await first.answer).toEqual({ kind: 'no-answer', cause: 'abandoned' })
 
-    const signalled = open('streamable-http', { 'tools/call': [{ kind: 'deaf' }] })
+    const signalled = open({ 'tools/call': [{ kind: 'deaf' }] })
     const controller = new AbortController()
     const second = ok(await signalled.transport.call(echo, controller.signal), 'call')
     controller.abort()
@@ -1419,7 +1354,7 @@ describe('what the signal of a call and close() end (T5)', () => {
   })
 
   it('reads to its end the answer of a request that was abandoned while its write was in flight', async () => {
-    const { line, transport } = open('streamable-http', { 'tools/call': [{ kind: 'late-stream' }] })
+    const { line, transport } = open({ 'tools/call': [{ kind: 'late-stream' }] })
     const controller = new AbortController()
     const calling = transport.call(echo, controller.signal)
     await untilSent(line, 'tools/call')
@@ -1434,13 +1369,13 @@ describe('what the signal of a call and close() end (T5)', () => {
   })
 
   it('does not send a call whose signal fired before it began; one that fires while it is authorized is not-sent, no SentCall (T5)', async () => {
-    const early = open('streamable-http', {})
+    const early = open({})
     expect(await early.transport.call(echo, AbortSignal.abort())).toEqual({ failure: NOT_SENT })
     expect(early.line.sent).toEqual([])
     await early.transport.close()
 
     const held = holdAfter(0)
-    const { line, transport } = open('streamable-http', {}, { gate: held.gate })
+    const { line, transport } = open({}, { gate: held.gate })
     const controller = new AbortController()
     const calling = transport.call(echo, controller.signal)
     controller.abort()
@@ -1452,7 +1387,7 @@ describe('what the signal of a call and close() end (T5)', () => {
   })
 
   it('leaves no listener on the signal of a call once the call has its answer', async () => {
-    const { transport } = open('streamable-http', { 'tools/call': [result({ content: [] })] })
+    const { transport } = open({ 'tools/call': [result({ content: [] })] })
     const controller = new AbortController()
     const sent = ok(await transport.call(echo, controller.signal), 'call')
     await sent.answer
@@ -1462,7 +1397,7 @@ describe('what the signal of a call and close() end (T5)', () => {
   })
 
   it('closes the line once however often close() runs', async () => {
-    const { line, transport } = open('stdio', {})
+    const { line, transport } = open({})
     await transport.close()
     await transport.close()
     expect(line.closeCount).toBe(1)
@@ -1470,7 +1405,6 @@ describe('what the signal of a call and close() end (T5)', () => {
 
   it('ends a notification that is still being written when close() runs', async () => {
     const { line, transport } = open(
-      'streamable-http',
       {
         'server/discover': [METHOD_NOT_FOUND],
         initialize: [LEGACY],
@@ -1493,7 +1427,6 @@ describe('what the signal of a call and close() end (T5)', () => {
     const fetching = deferred()
     const metadataEnded = deferred()
     const { line, transport } = open(
-      'streamable-http',
       { 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
       {
         fetchMetadata: (_url, signal) =>
@@ -1539,25 +1472,23 @@ describe('a session that cannot be used any more sends nothing and asks no crede
   }
 
   it('does not send a request after close(), whichever request it is', async () => {
-    for (const kind of ['stdio', 'streamable-http'] as const) {
-      const { line, transport, credential } = open(kind, {})
-      ok(await transport.discover(), 'discover')
-      await transport.close()
-      const sentBefore = line.sent.length
-      const authorizedBefore = credential.authorizations()
-      expect(await transport.call(echo, never), kind).toEqual({ failure: NOT_SENT })
-      expect(await transport.listActions(), kind).toEqual({ failure: NOT_SENT })
-      expect(await transport.getTask(taskIdOf('t')), kind).toEqual({ failure: NOT_SENT })
-      expect(await transport.cancelTask(taskIdOf('t')), kind).toEqual({ failure: NOT_SENT })
-      expect(await transport.discover(), kind).toEqual({ failure: NOT_SENT })
-      await transport.cancelRequest('r1')
-      expect(line.sent.length, kind).toBe(sentBefore)
-      expect(credential.authorizations(), kind).toBe(authorizedBefore)
-    }
+    const { line, transport, credential } = open({})
+    ok(await transport.discover(), 'discover')
+    await transport.close()
+    const sentBefore = line.sent.length
+    const authorizedBefore = credential.authorizations()
+    expect(await transport.call(echo, never)).toEqual({ failure: NOT_SENT })
+    expect(await transport.listActions()).toEqual({ failure: NOT_SENT })
+    expect(await transport.getTask(taskIdOf('t'))).toEqual({ failure: NOT_SENT })
+    expect(await transport.cancelTask(taskIdOf('t'))).toEqual({ failure: NOT_SENT })
+    expect(await transport.discover()).toEqual({ failure: NOT_SENT })
+    await transport.cancelRequest('r1')
+    expect(line.sent.length).toBe(sentBefore)
+    expect(credential.authorizations()).toBe(authorizedBefore)
   })
 
   it('does not answer the peer or notify it once the shared stream is gone, and does not ask the credential', async () => {
-    const { line, transport, credential } = open('streamable-http', scripts, {
+    const { line, transport, credential } = open(scripts, {
       sse: { kind: 'entered' },
     })
     ok(await transport.discover(), 'discover')
@@ -1581,7 +1512,7 @@ describe('a session that cannot be used any more sends nothing and asks no crede
 
   it('writes no answer to the peer and no notification when the stream is gone while the credential is being asked', async () => {
     const held = holdAfter(6)
-    const { line, transport } = open('streamable-http', scripts, {
+    const { line, transport } = open(scripts, {
       sse: { kind: 'entered' },
       gate: held.gate,
     })
@@ -1602,7 +1533,7 @@ describe('a session that cannot be used any more sends nothing and asks no crede
 
   it('answers a request that was being authorized when the stream died with not-sent, and never sends it', async () => {
     const held = holdAfter(5)
-    const { line, transport } = open('streamable-http', scripts, {
+    const { line, transport } = open(scripts, {
       sse: { kind: 'entered' },
       gate: held.gate,
     })
@@ -1620,7 +1551,6 @@ describe('a session that cannot be used any more sends nothing and asks no crede
   it('does not open the fallback stream when close() ran while its authorization was being asked', async () => {
     const held = holdAfter(2)
     const { line, transport } = open(
-      'streamable-http',
       { 'server/discover': [METHOD_NOT_FOUND], initialize: [status(404, 'gone'), LEGACY] },
       { sse: { kind: 'entered' }, gate: held.gate },
     )
@@ -1640,7 +1570,6 @@ describe('a session that cannot be used any more sends nothing and asks no crede
       release = resolve
     })
     const { line, transport } = open(
-      'streamable-http',
       { 'server/discover': [METHOD_NOT_FOUND], initialize: [status(404, 'gone'), LEGACY] },
       { sse: { kind: 'entered', gate } },
     )
@@ -1661,7 +1590,6 @@ describe('a session that cannot be used any more sends nothing and asks no crede
       release = resolve
     })
     const { line, transport } = open(
-      'streamable-http',
       { 'server/discover': [METHOD_NOT_FOUND], initialize: [status(404, 'gone'), LEGACY] },
       { sse: { kind: 'entered', gate }, reportDefect: defect => seen.push(defect) },
     )
@@ -1678,7 +1606,6 @@ describe('a session that cannot be used any more sends nothing and asks no crede
 
   it('leaves another request of the session in flight when one is told the session ended (S07); after close() no answer carries the mark (T1)', async () => {
     const { line, transport } = open(
-      'streamable-http',
       { ...scripts, 'tools/list': [status(404, 'gone')] },
       { sse: { kind: 'entered' } },
     )
@@ -1696,7 +1623,6 @@ describe('a session that cannot be used any more sends nothing and asks no crede
 
   it('a request in flight that settles after the session ended carries the mark, whatever settles it (T1, S07)', async () => {
     const { transport } = open(
-      'streamable-http',
       { ...scripts, 'tools/list': [status(404, 'gone')] },
       { sse: { kind: 'entered' } },
     )
@@ -1717,7 +1643,6 @@ describe('a session that cannot be used any more sends nothing and asks no crede
 
   it('a second break: a request in flight after the session ended settles for the shared stream breaking, with its own cause and the mark the transport recorded first (T1, T8)', async () => {
     const { line, transport } = open(
-      'streamable-http',
       { ...scripts, 'tools/list': [status(404, 'gone')] },
       { sse: { kind: 'entered' }, reportDefect: () => undefined },
     )
@@ -1740,7 +1665,7 @@ const HANG: Gate = () => new Promise<void>(() => undefined)
 
 describe('the caller waits on the settlement, never on a port (T5): hung credential handle and metadata', () => {
   it("authorize never answers: the call's signal settles call() with not-sent, and nothing reaches the line", async () => {
-    const { line, transport } = open('streamable-http', {}, { gate: HANG })
+    const { line, transport } = open({}, { gate: HANG })
     const controller = new AbortController()
     const calling = transport.call(echo, controller.signal)
     await tick()
@@ -1751,7 +1676,7 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
   })
 
   it('authorize never answers: close() settles listActions() with not-sent and returns', async () => {
-    const { line, transport, credential } = open('streamable-http', {}, { gate: HANG })
+    const { line, transport, credential } = open({}, { gate: HANG })
     const listing = transport.listActions()
     await tick()
     expect(credential.authorizations()).toBe(1)
@@ -1769,7 +1694,7 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
         return new Promise<void>(() => undefined)
       },
     }
-    const line = new MemoryLine('streamable-http', {
+    const line = new MemoryLine({
       'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })],
     })
     const transport = new Session(
@@ -1784,9 +1709,7 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
       {
         clientInfo: { name: 'host', version: '1' },
         versions: VERSIONS,
-        probeTimeoutMs: 50,
         fetchMetadata: async () => undefined,
-        schedule,
         reportDefect,
       },
     )
@@ -1819,7 +1742,7 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
         return new Promise<void>(() => undefined)
       },
     }
-    const line = new MemoryLine('streamable-http', {
+    const line = new MemoryLine({
       'tools/call': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })],
     })
     const transport = new Session(
@@ -1834,9 +1757,7 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
       {
         clientInfo: { name: 'host', version: '1' },
         versions: VERSIONS,
-        probeTimeoutMs: 50,
         fetchMetadata: async () => undefined,
-        schedule,
         reportDefect,
       },
     )
@@ -1854,7 +1775,6 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
   it('authorize never answers: cancelRequest on a legacy Streamable HTTP connection returns at once', async () => {
     const held = holdAfter(4)
     const { line, transport } = open(
-      'streamable-http',
       {
         'server/discover': [METHOD_NOT_FOUND],
         initialize: [LEGACY],
@@ -1875,7 +1795,6 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
   it('authorize never answers: close() settles a discover that waits to authorize the fallback GET', async () => {
     const held = holdAfter(2)
     const { line, transport } = open(
-      'streamable-http',
       {
         'server/discover': [METHOD_NOT_FOUND],
         initialize: [status(404, '<html>not found</html>')],
@@ -1892,7 +1811,6 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
 
   it('a metadata fetch that throws at every address counts as nothing fetched: authorization-required with the metadata unavailable, reportRejection once', async () => {
     const { transport, credential } = open(
-      'streamable-http',
       { 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
       {
         fetchMetadata: () => {
@@ -1919,7 +1837,7 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
   })
 
   it('two callers closing at once both return after the line closed, from the one close', async () => {
-    const { line, transport } = open('stdio', {})
+    const { line, transport } = open({})
     let release = (): void => undefined
     const gate = new Promise<void>(resolve => {
       release = resolve
@@ -1940,65 +1858,24 @@ describe('the caller waits on the settlement, never on a port (T5): hung credent
   })
 })
 
-describe('cancelling a request, and the probe timer (T3, T5)', () => {
-  it('sends notifications/cancelled on stdio and on a legacy Streamable HTTP connection and leaves the request waiting for its answer', async () => {
-    for (const kind of ['stdio', 'streamable-http'] as const) {
-      const { line, transport } = open(kind, {
-        'server/discover': [METHOD_NOT_FOUND],
-        initialize: [LEGACY],
-        'tools/call': [{ kind: 'silent' }],
-      })
-      ok(await transport.discover(), 'discover')
-      const sent = ok(await transport.call(echo, never), 'call')
-      await transport.cancelRequest(sent.requestId)
-      await untilSent(line, 'notifications/cancelled')
-      expect(line.requests('notifications/cancelled')[0]?.message['params'], kind).toMatchObject({
-        requestId: sent.requestId,
-      })
-      expect(await settledWithin(sent.answer, 30), kind).toBe('pending')
-      expect(line.aborted, kind).toEqual([])
-      await transport.close()
-      expect(await sent.answer, kind).toEqual({ kind: 'no-answer', cause: 'abandoned' })
-    }
-  })
-
-  it('sends notifications/cancelled on stdio on the modern revision too, with the _meta of the revision', async () => {
-    const { line, transport } = open('stdio', { 'tools/call': [{ kind: 'silent' }] })
+describe('cancelling a request (T3, T5)', () => {
+  it('sends notifications/cancelled on a legacy Streamable HTTP connection and leaves the request waiting for its answer', async () => {
+    const { line, transport } = open({
+      'server/discover': [METHOD_NOT_FOUND],
+      initialize: [LEGACY],
+      'tools/call': [{ kind: 'silent' }],
+    })
     ok(await transport.discover(), 'discover')
     const sent = ok(await transport.call(echo, never), 'call')
     await transport.cancelRequest(sent.requestId)
     await untilSent(line, 'notifications/cancelled')
     expect(line.requests('notifications/cancelled')[0]?.message['params']).toMatchObject({
       requestId: sent.requestId,
-      _meta: { 'io.modelcontextprotocol/protocolVersion': HIGHEST },
     })
     expect(await settledWithin(sent.answer, 30)).toBe('pending')
+    expect(line.aborted).toEqual([])
     await transport.close()
-  })
-
-  it('starts a probe timer for the probe only, and clears it when the probe is answered', async () => {
-    const timers: { delayMs: number; cleared: boolean }[] = []
-    const { line, transport } = open(
-      'stdio',
-      { 'tools/call': [{ kind: 'silent' }] },
-      {
-        probeTimeoutMs: 777,
-        schedule: delayMs => {
-          const timer = { delayMs, cleared: false }
-          timers.push(timer)
-          return () => {
-            timer.cleared = true
-          }
-        },
-      },
-    )
-    ok(await transport.discover(), 'discover')
-    expect(timers).toEqual([{ delayMs: 777, cleared: true }])
-    const sent = ok(await transport.call(echo, never), 'call')
-    await untilSent(line, 'tools/call')
-    expect(timers).toHaveLength(1)
-    await transport.cancelRequest(sent.requestId)
-    await transport.close()
+    expect(await sent.answer).toEqual({ kind: 'no-answer', cause: 'abandoned' })
   })
 })
 
@@ -2007,7 +1884,7 @@ function deferred<T = void>(): Readonly<{ promise: Promise<T>; resolve: (value: 
   return { promise, resolve }
 }
 
-describe('the line going away settles a request by its phase (T8 S01–S04, S07, the SSE mode)', () => {
+describe('the line going away settles a request by its phase (T8 S07, the SSE mode)', () => {
   const sseScripts: Script = {
     'server/discover': [METHOD_NOT_FOUND],
     initialize: [status(404, '<html>not found</html>'), LEGACY],
@@ -2017,7 +1894,6 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
   it('a request still being authorized when the session ended (S07) is not-sent and never reaches the line', async () => {
     const held = holdAfter(4)
     const { line, transport } = open(
-      'streamable-http',
       {
         ...SESSION_SCRIPT,
         'tools/list': [status(404, 'gone')],
@@ -2043,31 +1919,9 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
     await transport.close()
   })
 
-  it('the process exiting settles a request still being authorized with not-sent, and never sends it', async () => {
-    const held = holdAfter(5)
-    const { line, transport } = open('streamable-http', sseScripts, {
-      sse: { kind: 'entered' },
-      gate: held.gate,
-    })
-    ok(await transport.discover(), 'discover')
-    const calling = transport.call(echo, never)
-    await held.reached
-    line.queue.push({ kind: 'ended', stdoutEndedAt: 0, exitedAt: 0 })
-    await tick()
-    held.release()
-    expect(await settledWithin(calling)).toEqual({
-      settled: { failure: notSentAfter('process-exited') },
-    })
-    expect(line.requests('tools/call')).toEqual([])
-    expect(await transport.listActions()).toStrictEqual({
-      failure: notSentAfter('process-exited'),
-    })
-    await transport.close()
-  })
-
   it('the shared stream of the SSE mode breaking settles a request still being authorized with not-sent, and never sends it', async () => {
     const held = holdAfter(5)
-    const { line, transport } = open('streamable-http', sseScripts, {
+    const { line, transport } = open(sseScripts, {
       sse: { kind: 'entered' },
       gate: held.gate,
     })
@@ -2090,7 +1944,7 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
   it('the events of the line rejecting is a broken stream: a sent call answers stream-broken, one still being authorized is not-sent, and the reason goes to the defect outlet', async () => {
     const seen: unknown[] = []
     const held = holdAfter(6)
-    const { line, transport } = open('streamable-http', sseScripts, {
+    const { line, transport } = open(sseScripts, {
       sse: { kind: 'entered' },
       gate: held.gate,
       reportDefect: defect => seen.push(defect),
@@ -2120,7 +1974,6 @@ describe('the line going away settles a request by its phase (T8 S01–S04, S07,
     const fetching = deferred<string>()
     const found = deferred<PlainJson | undefined>()
     const { line, transport, credential } = open(
-      'streamable-http',
       { ...sseScripts, 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer' })] },
       {
         sse: { kind: 'entered' },
@@ -2165,7 +2018,6 @@ describe('an answer on the shared stream reaches a request only once it was hand
   it('an answer for a request number that was not written yet does not settle it: the request goes out and waits for its own answer', async () => {
     const held = holdAfter(5)
     const { line, transport } = open(
-      'streamable-http',
       { ...sseScripts, 'tools/call': [{ kind: 'silent' }] },
       { sse: { kind: 'entered' }, gate: held.gate },
     )
@@ -2190,7 +2042,6 @@ describe('an answer on the shared stream reaches a request only once it was hand
     const fetching = deferred<string>()
     const found = deferred<undefined>()
     const { line, transport, credential } = open(
-      'streamable-http',
       { ...sseScripts, 'tools/list': [status(401, '', { 'www-authenticate': 'Bearer' })] },
       {
         sse: { kind: 'entered' },
@@ -2225,7 +2076,7 @@ describe('the metadata fetch of a refused authorization (T9)', () => {
 
   it('a fetch that throws at one address counts as nothing fetched there; the next address is tried', async () => {
     const fetched: string[] = []
-    const { transport } = open('streamable-http', refused, {
+    const { transport } = open(refused, {
       fetchMetadata: url => {
         fetched.push(url)
         if (url === path) throw new Error('the fetch port broke')
@@ -2254,7 +2105,6 @@ describe('the metadata fetch of a refused authorization (T9)', () => {
     const started = deferred()
     const ended = deferred()
     const { transport } = open(
-      'streamable-http',
       { 'tools/call': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
       {
         fetchMetadata: (url, signal) => {
@@ -2298,7 +2148,6 @@ describe('the metadata fetch of a refused authorization (T9)', () => {
     const started = deferred()
     const ended = deferred()
     const { transport } = open(
-      'streamable-http',
       { 'tools/call': [status(401, '', { 'www-authenticate': 'Bearer realm="x"' })] },
       {
         fetchMetadata: (url, signal) => {
@@ -2339,31 +2188,10 @@ describe('a defect of the session goes to the defect outlet: the request settles
     return { seen, reportDefect: defect => seen.push(defect) }
   }
 
-  it('a scheduler that throws: the probe it was armed for is abandoned, discover reports no-answer, and the throw is reported once', async () => {
-    const outlet = defects()
-    const { line, transport } = open(
-      'stdio',
-      { 'server/discover': [{ kind: 'silent' }] },
-      {
-        reportDefect: outlet.reportDefect,
-        schedule: () => {
-          throw new Error('the timer port broke')
-        },
-      },
-    )
-    expect(await settledWithin(transport.discover())).toEqual({
-      settled: { failure: { kind: 'no-answer', cause: 'abandoned' } },
-    })
-    expect(line.requests('server/discover')).toHaveLength(1)
-    expect(outlet.seen.map(describeDefect)).toEqual(['Error: the timer port broke'])
-    await transport.close()
-  })
-
   it('a 2xx body that yields something that is not a message: the request is abandoned, not re-sent as a broken stream, and the throw is reported', async () => {
     const outlet = defects()
     const sent: string[] = []
     const line: Line = {
-      kind: 'streamable-http',
       events: new AsyncQueue<LineEvent>(),
       async send(outbound) {
         sent.push(outbound.text)
@@ -2375,18 +2203,11 @@ describe('a defect of the session goes to the defect outlet: the request settles
     }
     const transport = new Session(
       line,
-      {
-        kind: 'stdio',
-        process: idleProcess(),
-        generation: generationOf(1),
-        instructionsByteLimit: 4096,
-      },
+      { kind: 'streamable-http', target, generation: generationOf(1), instructionsByteLimit: 4096 },
       {
         clientInfo: { name: 'host', version: '1' },
         versions: VERSIONS,
-        probeTimeoutMs: 50,
         fetchMetadata: async () => undefined,
-        schedule,
         reportDefect: outlet.reportDefect,
       },
     )
@@ -2402,7 +2223,6 @@ describe('a defect of the session goes to the defect outlet: the request settles
     const outlet = defects()
     let aborts = 0
     const line: Line = {
-      kind: 'streamable-http',
       events: new AsyncQueue<LineEvent>(),
       async send() {
         const messages = new AsyncQueue<string>()
@@ -2421,18 +2241,11 @@ describe('a defect of the session goes to the defect outlet: the request settles
     }
     const transport = new Session(
       line,
-      {
-        kind: 'stdio',
-        process: idleProcess(),
-        generation: generationOf(1),
-        instructionsByteLimit: 4096,
-      },
+      { kind: 'streamable-http', target, generation: generationOf(1), instructionsByteLimit: 4096 },
       {
         clientInfo: { name: 'host', version: '1' },
         versions: VERSIONS,
-        probeTimeoutMs: 50,
         fetchMetadata: async () => undefined,
-        schedule,
         reportDefect: outlet.reportDefect,
       },
     )
@@ -2449,7 +2262,6 @@ describe('a defect of the session goes to the defect outlet: the request settles
   it('an event of the shared stream that is not a text: the throw is reported, the reading goes on, and the next line still answers', async () => {
     const outlet = defects()
     const { line, transport } = open(
-      'stdio',
       { 'tools/list': [{ kind: 'silent' }] },
       { reportDefect: outlet.reportDefect },
     )

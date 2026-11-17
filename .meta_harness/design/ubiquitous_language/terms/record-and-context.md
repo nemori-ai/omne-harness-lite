@@ -774,6 +774,7 @@
 - **形态**：对象
 - **出处**：[运行感知与一次模型请求 §6.1](../../product/runtime-context/design.md#61-request-context-的派生计算)（rev 5）
 - **别混**：不是[提示词槽位](capabilities-and-composition.md#ul-prompt-slot--提示词槽位--prompt-slot)。槽位是提示词里一个恒定的位置；贡献是填进去的一条材料
+- **注意**：它是[拓展贡献](architecture-core-and-extension.md#ul-extension-contribution--拓展贡献--extension-contribution)的一种，放在系统提示词的组装这个拓展点里
 - **弃用**：~~「动态事实段」~~——那一类不存在，动态事实走块
 
 ### UL-context-snapshot-reminder · 上下文快照提醒 · Context Snapshot Reminder

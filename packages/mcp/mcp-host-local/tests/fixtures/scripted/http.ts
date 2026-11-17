@@ -422,7 +422,6 @@ class Peer {
         return
       case 'silent':
       case 'unsent':
-      case 'process-exits':
         if (this.options.holdHeads === true) return
         response.writeHead(200, { 'content-type': 'text/event-stream' })
         response.flushHeaders()

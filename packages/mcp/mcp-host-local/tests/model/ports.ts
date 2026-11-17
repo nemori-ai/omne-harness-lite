@@ -5,7 +5,6 @@ import type { MetadataFetch } from '@omne-harness/mcp-contract'
 import type { HttpCredentialHandle } from '@omne-harness/mcp-contract/provider'
 import type { Exchange, GetOpened, Line, LineEvent, Outbound } from '../../src/line.ts'
 import { AsyncQueue } from '../../src/queue.ts'
-import type { Scheduler } from '../../src/session.ts'
 
 export const PORT_ANSWERS = {
   'line.send': [
@@ -227,7 +226,6 @@ class ExplorerStream implements AsyncIterable<string> {
 }
 
 export class ExplorerLine implements Line {
-  readonly kind: 'stdio' | 'streamable-http'
   readonly events: AsyncIterable<LineEvent>
   readonly queue = new AsyncQueue<LineEvent>()
   readonly openGet: ((headers: Headers, signal: AbortSignal) => Promise<GetOpened>) | undefined
@@ -236,11 +234,10 @@ export class ExplorerLine implements Line {
   private sse = false
   private closed = false
 
-  constructor(kind: 'stdio' | 'streamable-http', desk: CallDesk, withGet: boolean) {
-    this.kind = kind
+  constructor(desk: CallDesk, withGet: boolean) {
     this.desk = desk
     this.events = this.queue
-    this.openGet = kind === 'streamable-http' && withGet ? this.getStream.bind(this) : undefined
+    this.openGet = withGet ? this.getStream.bind(this) : undefined
   }
 
   get inSseMode(): boolean {
@@ -293,16 +290,15 @@ export class ExplorerLine implements Line {
   }
 
   private exchangeOf(answer: Answer, id: string, method: string): Exchange {
-    const shared = this.kind === 'stdio' || this.sse
     switch (answer) {
       case 'answer':
-        if (shared) {
+        if (this.sse) {
           queueMicrotask(() => this.pushAnswerText(id, method))
-          return { kind: 'sent' }
+          return endedStream([])
         }
         return endedStream([resultTextOf(id, method)])
       case 'sent':
-        return { kind: 'sent' }
+        return endedStream([])
       case 'stream': {
         const stream = new ExplorerStream(this.desk, id, method)
         this.streams.set(id, stream)
@@ -431,18 +427,4 @@ export function explorerMetadataFetch(desk: CallDesk): MetadataFetch {
       signal,
       value: answer => (answer === 'ok' ? METADATA : undefined),
     })
-}
-
-export type Timer = Readonly<{ name: string; fire: () => void; context: Context | undefined }>
-
-export function explorerScheduler(timers: Timer[]): Scheduler {
-  return (_delayMs, fire) => {
-    const context = contexts.getStore()
-    const timer: Timer = { name: `T(${context?.request ?? '?'})`, fire, context }
-    timers.push(timer)
-    return () => {
-      const index = timers.indexOf(timer)
-      if (index >= 0) timers.splice(index, 1)
-    }
-  }
 }

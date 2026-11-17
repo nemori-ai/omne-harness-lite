@@ -36,6 +36,7 @@ import { createTasks } from '../../src/tasks.ts'
 import { CONFIG, VALUE, settingsOf } from '../doubles/world.ts'
 import {
   actionNameOf,
+  connectionTargetOf,
   correlationKeyOf,
   credentialBindingOf,
   generationOf,
@@ -73,7 +74,6 @@ import {
   stoppedForeignCall,
   taskAnsweredForeign,
   unhandledRejection,
-  unstoppedAtShutdown,
   type Found,
   type KeyObservation,
   type OpKind,
@@ -210,17 +210,9 @@ export async function modelKeys(
       tenant: owner.tenant,
       scope: 'ws',
       ref: endpoint,
-      body: jsonOf({
-        name: endpoint.name,
-        transport: 'stdio',
-        auth: 'static',
-        launch: {
-          command: 'mcp-files',
-          env: [{ name: 'TOKEN', source: 'credential' }],
-          facilities: [],
-        },
-      }),
+      body: jsonOf({ name: endpoint.name, transport: 'streamable-http', auth: 'static' }),
       settings: settingsOf({
+        target: VALUE(connectionTargetOf(`https://${name.toLowerCase()}.example.test/mcp`)),
         credential: VALUE(credentialBindingOf(owner.credential)),
         connectTimeout: VALUE(BOUND),
       }),
@@ -291,8 +283,7 @@ function generationText(key: string, generation: number): string {
 }
 
 function coreOf(state: ConnectionState): string {
-  if (state.kind === 'lost' && state.reason === 'close-unconfirmed') return '{"kind":"none"}'
-  return JSON.stringify(state, (name, value: unknown) => (name === 'residual' ? undefined : value))
+  return JSON.stringify(state)
 }
 
 function summarizeInvoke(result: InvokeResult): string {
@@ -522,7 +513,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
   }
 
   projection(): string {
-    const { handles, processes, transports, requests } = this.ledger
+    const { handles, transports, requests } = this.ledger
     return JSON.stringify({
       ops: this.ops.map(op =>
         [
@@ -555,7 +546,6 @@ class Run implements RunView, CallDesk, ReservationDesk {
         .sort(),
       timers: this.timers.map(timer => timer.name),
       handles: handles.map(item => `${item.name}:${Math.min(item.releases, 2)}`),
-      processes: processes.map(item => `${item.name}:${Math.min(item.stops, 1)}:${item.lastStop}`),
       transports: transports.map(
         item => `${item.name}:${Math.min(item.closes, 1)}:${this.refuses(item.name) ? 'r' : ''}`,
       ),
@@ -917,7 +907,6 @@ class Run implements RunView, CallDesk, ReservationDesk {
       value => {
         op.status = 'answered'
         op.result = summary(value)
-        this.report(unstoppedAtShutdown(this, op))
       },
       (error: unknown) => {
         op.status = 'rejected'
@@ -1006,7 +995,7 @@ class Run implements RunView, CallDesk, ReservationDesk {
       this.newOp('closeAll', undefined),
       this.keys,
       () => this.table.closeAll(),
-      (closed: readonly ClosedEndpoint[]) => JSON.stringify(closed.map(item => item.process)),
+      (closed: readonly ClosedEndpoint[]) => JSON.stringify(closed.map(item => item.ref.name)),
     )
   }
 

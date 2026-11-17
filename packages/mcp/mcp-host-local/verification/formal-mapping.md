@@ -1,6 +1,6 @@
 # 传输会话：性质、模型与实现的对应
 
-[TransportSession.tla](models/TransportSession.tla) 是传输会话请求生命周期的行为模型，[run.py](models/run.py) 按下表的预期判读每份配置。对真实 `Session` 的有界穷举探索器在 `tests/model/`（`session-model.spec.ts`），负控变异在 `tests/model/mutants.ts`。性质归[包组规格](../../SPEC.md#不变式)。模型与探索器之间没有精化证明；有限检查的通过不等于实现符合。
+[TransportSession.tla](models/TransportSession.tla) 是传输会话请求生命周期的行为模型。[models.json](models.json) 登记每份配置、每个变异与它的预期，[check.py](check.py) 按预期判读；成员内 `pnpm run verify:formal` 一次跑完正控、负控与变异。对真实 `Session` 的有界穷举探索器在 `tests/model/`（`session-model.spec.ts`），负控变异在 `tests/model/mutants.ts`。性质归[包组规格](../../SPEC.md#不变式)。模型与探索器之间没有精化证明；有限检查的通过不等于实现符合。
 
 模型把一个请求分成在途项（相：未登记、授权中、已交给线路、授权发现中、已结算）与会话拥有的后台工作流（等凭据句柄、等线路、等元数据取回）。结算只放开在途项；工作流在结算之后到达的答复被丢弃。中止信号与 `close()` 按相当场结算；两种断开（`LineGone` 与 `SessionEnded`）只结算依赖线路的两相。`cancelRequest` 当即返回，在模型的抽象之外。
 
@@ -11,7 +11,7 @@
 | V1         | `V1_SettleOnce`                                         | `src/session.ts` 在途表的唯一结算；探索器            |
 | V2         | `V2_NoCredentialAfterClose`、`V2_NoWireAfterDead`       | 句柄调用入口的关闭核对；`session` 用例               |
 | V3         | `V3_RejectAtMostOnce`                                   | 授权拒绝的后台工作流；探索器                         |
-| V4         | `V4_SignalBounded`、`V4_CloseBounded`、`V4_DeadBounded` | 按相结算的 `stopAnswerOf`；`stdio` 真实子进程用例    |
+| V4         | `V4_SignalBounded`、`V4_CloseBounded`、`V4_DeadBounded` | 按相结算的 `stopAnswerOf`；`session` 用例            |
 | MC-22      | `V5_NoResendForCaller`                                  | 契约的 `withOneResend` 只对读类成立；`http` 用例     |
 | V6         | `V6_ByPhase`                                            | `stopAnswerOf` 与 `lineGoneAnswerOf`；`session` 用例 |
 
@@ -48,7 +48,7 @@
 | `bad-close-not-sent`               | 负控 | `V6_ByPhase` 违反                |
 | `bad-ended-sends-authorizing`      | 负控 | `V2_NoWireAfterDead` 违反        |
 
-`run.py` 的 `MUTATIONS` 另把有效动作的原文换成缺陷，在模块副本上只查目标不变式；每个变异须让它变红：
+`models.json` 的 `mutations` 另把有效动作的原文换成缺陷，在模块副本上只查目标不变式；每个变异须让它变红：
 
 | 变异                                                                                                                                                                                   | 须违反的不变式              |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
