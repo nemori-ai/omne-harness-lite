@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util'
+import { tokenize } from '@omne-harness/text-search'
 import {
   accessRequests,
   failureKind,
@@ -123,11 +124,9 @@ async function exploreAccess(ledger: Ledger): Promise<void> {
 }
 
 function searchKeeps(text: string, name: Name): boolean {
-  const hay = `${name}\n${DESCRIPTION_WORD[name]} things.`.toLowerCase()
-  return text
-    .toLowerCase()
-    .split(/\s/u)
-    .every(word => hay.includes(word))
+  if (text.trim() === '') return true
+  const words = new Set(tokenize(`${name} ${DESCRIPTION_WORD[name]} things.`))
+  return tokenize(text).some(word => words.has(word))
 }
 
 type Expected = 'unknown' | readonly string[]

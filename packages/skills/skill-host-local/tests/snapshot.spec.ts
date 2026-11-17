@@ -1,3 +1,4 @@
+import { symlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { isPackageDigest } from '@omne-harness/skill-contract'
@@ -72,5 +73,33 @@ describe('a content-store locator', () => {
     const first = present.ok.entries[0]
     if (first === undefined) throw new Error('the sample package has entries')
     expect(await source.open(locator, digest, first.path)).toEqual({ failure: 'package-not-found' })
+  })
+})
+
+describe('the directory source names the real root as the local directory', () => {
+  it('answers the root after realpath', async () => {
+    const base = await scratch()
+    const root = join(base, 'pkg')
+    await writeTree(root, SAMPLE)
+    const link = join(base, 'link')
+    await symlink(root, link)
+    expect(
+      await createDirectorySource().directory?.(directory(link), 'sha256-x' as never),
+    ).toStrictEqual({
+      ok: root,
+    })
+  })
+
+  it('answers unavailable when the root cannot be resolved, and no directory for another kind of package', async () => {
+    const source = createDirectorySource()
+    expect(
+      await source.directory?.(directory(join(await scratch(), 'missing')), 'sha256-x' as never),
+    ).toStrictEqual({ failure: 'unavailable' })
+    expect(
+      await source.directory?.(
+        { kind: 'content-store', digest: 'sha256-x' as never, ref: 'r' },
+        'sha256-x' as never,
+      ),
+    ).toStrictEqual({ ok: null })
   })
 })

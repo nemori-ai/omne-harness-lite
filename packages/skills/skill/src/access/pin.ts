@@ -8,6 +8,8 @@ import type {
 import { isSealedSnapshot, type PackageLocator } from '@omne-harness/skill-contract/provider'
 import { sourceFailureTo } from '../mapping.ts'
 import type { SkillPorts } from '../ports.ts'
+import { has } from '../answer-values.ts'
+import { answered } from '../port-answer.ts'
 import { sourceAnswer } from '../source-answer.ts'
 import { checkpoint } from './checkpoint.ts'
 import type { Gated } from './gate.ts'
@@ -18,6 +20,8 @@ export type Unsupported = Extract<PinStageFailure, { kind: 'unsupported' }>
 export const ADOPTED_MATERIAL_CHANGED = Object.freeze({ kind: 'adopted-material-changed' } as const)
 export const BASIS_UNAVAILABLE = Object.freeze({ kind: 'basis-unavailable' } as const)
 const ABORTED = Object.freeze({ kind: 'aborted' } as const)
+const SOURCE_UNAVAILABLE = Object.freeze({ kind: 'source-unavailable' } as const)
+const NO_DIRECTORY = Object.freeze({ ok: null })
 const UNSUPPORTED = Object.freeze({ kind: 'unsupported', what: 'no-readable-package' } as const)
 
 export type MovedFailure = typeof ADOPTED_MATERIAL_CHANGED | typeof BASIS_UNAVAILABLE
@@ -32,6 +36,7 @@ export type Pinned = Readonly<{
   basis: SkillMaterialBasis
   byBasis: boolean
   snapshot: SkillPackageSnapshot
+  directory?: string
 }>
 
 export function materialOf(gated: Gated): Outcome<SkillMaterialBasis, Unsupported> {
@@ -60,5 +65,24 @@ export async function pin<P, S, F extends MovedFailure>(
   if (checkpoint(signal) === 'aborted') return fail(ABORTED)
   if (!('ok' in taken)) return fail(sourceFailureTo('snapshot', taken.failure, byBasis))
   if (taken.ok.digest !== material.digest) return fail(moved)
-  return succeed({ locator, basis: material, byBasis, snapshot: taken.ok })
+  const { directory } = ports.source
+  const told =
+    directory === undefined
+      ? NO_DIRECTORY
+      : await answered(() => directory.call(ports.source, locator, material.digest), directoryOf)
+  if (checkpoint(signal) === 'aborted') return fail(ABORTED)
+  if (told === undefined) return fail(SOURCE_UNAVAILABLE)
+  return succeed({
+    locator,
+    basis: material,
+    byBasis,
+    snapshot: taken.ok,
+    ...(told.ok === null ? {} : { directory: told.ok }),
+  })
+}
+
+function directoryOf(answer: unknown): Readonly<{ ok: string | null }> | undefined {
+  if (!has(answer, 'ok')) return undefined
+  const { ok } = answer
+  return typeof ok === 'string' || ok === null ? { ok } : undefined
 }

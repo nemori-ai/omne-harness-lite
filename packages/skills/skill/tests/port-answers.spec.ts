@@ -19,6 +19,7 @@ import {
   type Principal,
   type Scope,
   type World,
+  ranking,
 } from './access-world.ts'
 
 type Adopted = Extract<Resolution, { kind: 'adopted' }>
@@ -78,7 +79,7 @@ describe('the read check', () => {
       const { ports } = createWorld()
       const readCheck: SkillReadCheck<Principal, Scope> = { check: answering<ReadVerdict>(answer) }
       const access = createSkillAccess({ ...ports, readCheck })
-      const catalog = createSkillCatalog({ ...ports, readCheck })
+      const catalog = createSkillCatalog({ ...ports, readCheck }, { ranking })
       expect(await access.read(alice, scope, body)).toStrictEqual(UNKNOWN)
       expect(await catalog.summaries(alice, scope)).toStrictEqual({ failure: 'unknown' })
     },
@@ -88,7 +89,7 @@ describe('the read check', () => {
     const { ports } = createWorld()
     const readCheck: SkillReadCheck<Principal, Scope> = { check: throwing<ReadVerdict>() }
     const access = createSkillAccess({ ...ports, readCheck })
-    const catalog = createSkillCatalog({ ...ports, readCheck })
+    const catalog = createSkillCatalog({ ...ports, readCheck }, { ranking })
     expect(await access.read(alice, scope, body)).toStrictEqual(UNKNOWN)
     expect(await catalog.summaries(alice, scope)).toStrictEqual({ failure: 'unknown' })
   })
@@ -197,7 +198,7 @@ describe('the resolution at adopted', () => {
       ...world.ports.resolution,
       adopted: answering<{ ok: readonly CatalogResolution[] }>(answer),
     }
-    const catalog = createSkillCatalog({ ...world.ports, resolution })
+    const catalog = createSkillCatalog({ ...world.ports, resolution }, { ranking })
     expect(await catalog.summaries(alice, scope)).toStrictEqual({ failure: 'unknown' })
     expect(await catalog.search(alice, scope, { text: '' })).toStrictEqual({ failure: 'unknown' })
   }
@@ -219,7 +220,7 @@ describe('the resolution at adopted', () => {
       ...world.ports.resolution,
       adopted: throwing(),
     }
-    const catalog = createSkillCatalog({ ...world.ports, resolution })
+    const catalog = createSkillCatalog({ ...world.ports, resolution }, { ranking })
     expect(await catalog.summaries(alice, scope)).toStrictEqual({ failure: 'unknown' })
   })
 

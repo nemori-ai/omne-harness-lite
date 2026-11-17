@@ -31,6 +31,11 @@ export interface SkillPackageSource {
     digest: PackageDigest,
     path: PackagePath,
   ): Promise<Outcome<Bytes, SourceFailure>>
+  /** `null`: this assembly keeps no local directory for the package. */
+  directory?(
+    locator: PackageLocator,
+    digest: PackageDigest,
+  ): Promise<Outcome<string | null, 'unavailable'>>
 }
 
 export type Resolution =

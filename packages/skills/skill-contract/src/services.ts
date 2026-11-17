@@ -62,11 +62,13 @@ export type ReadResult = Readonly<{
   range: ByteRange
   total: number
   complete: boolean
+  directory?: string
 }>
 
 export type ResourceListing = Readonly<{
   basis: SkillMaterialBasis
   resources: readonly PackageEntry[]
+  directory?: string
 }>
 
 export interface SkillAccess<P, S> {

@@ -4037,6 +4037,9 @@ importers:
       '@omne-harness/skill-contract':
         specifier: workspace:*
         version: link:../skill-contract
+      '@omne-harness/text-search':
+        specifier: workspace:*
+        version: link:../../common/text-search
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

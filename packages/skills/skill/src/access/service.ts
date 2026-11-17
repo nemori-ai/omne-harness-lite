@@ -20,6 +20,7 @@ import {
   materialOf,
   pin,
   type MovedFailure,
+  type Pinned,
 } from './pin.ts'
 import { assertByteRange, sliceRange } from './range.ts'
 
@@ -44,6 +45,10 @@ function entryAt(snapshot: SkillPackageSnapshot, path: string): PackageEntry | u
 
 function mediaTypeOf(entry: PackageEntry): Readonly<{ mediaType?: MediaType }> {
   return entry.mediaType === undefined ? {} : { mediaType: entry.mediaType }
+}
+
+function directoryOf(pinned: Pinned): Readonly<{ directory?: string }> {
+  return pinned.directory === undefined ? {} : { directory: pinned.directory }
 }
 
 export function createSkillAccess<P, S>(ports: SkillPorts<P, S>): SkillAccess<P, S> {
@@ -73,6 +78,7 @@ export function createSkillAccess<P, S>(ports: SkillPorts<P, S>): SkillAccess<P,
         part: part.ok,
         ...mediaTypeOf(entry),
         ...sliceRange(bytes.ok, entry.encoding, options?.range, bodyOffset),
+        ...directoryOf(pinned.ok),
       })
     },
 
@@ -87,6 +93,7 @@ export function createSkillAccess<P, S>(ports: SkillPorts<P, S>): SkillAccess<P,
       return succeed({
         basis: pinned.ok.basis,
         resources: pinned.ok.snapshot.entries.filter(entry => !isControlFile(entry.path)),
+        ...directoryOf(pinned.ok),
       })
     },
   }

@@ -35,6 +35,8 @@ import {
   type MemoryPackage,
 } from '@omne-harness/skill-contract/testing'
 
+export const ranking = Object.freeze({ k1: 1.2, b: 0.75 })
+
 export type Principal = 'alice' | 'mallory'
 export type Scope = 'workspace-a'
 

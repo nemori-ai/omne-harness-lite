@@ -7,7 +7,7 @@ import {
   createMemoryResolution,
   createMemorySource,
 } from '@omne-harness/skill-contract/testing'
-import { alice, granted, okOf, scope } from './access-world.ts'
+import { alice, granted, okOf, scope, ranking } from './access-world.ts'
 
 const locator = { kind: 'directory', root: '/skills/claude-api' } as const
 const BODY = 'Use the API.\n'
@@ -58,7 +58,7 @@ describe('a description longer than 1024 characters', () => {
     )
     expect(page.content).toStrictEqual({ kind: 'text', text: BODY })
     expect(page.basis.digest).toBe(snapshot.digest)
-    const listed = okOf(await createSkillCatalog(ports).summaries(alice, scope))
+    const listed = okOf(await createSkillCatalog(ports, { ranking }).summaries(alice, scope))
     expect(listed).toMatchObject([{ kind: 'adopted', description }])
   })
 })

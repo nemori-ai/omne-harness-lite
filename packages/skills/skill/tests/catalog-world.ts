@@ -32,6 +32,7 @@ import {
   tool,
   type Principal,
   type Scope,
+  ranking,
 } from './access-world.ts'
 
 export { missing, retired, review }
@@ -152,7 +153,7 @@ export function createCatalogWorld(): CatalogWorld {
   }
   return {
     ports,
-    catalog: createSkillCatalog(ports),
+    catalog: createSkillCatalog(ports, { ranking }),
     controls: {
       lawfulSetUnknown() {
         setUnknown = true

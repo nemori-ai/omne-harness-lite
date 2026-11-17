@@ -40,6 +40,7 @@ import {
   tool,
   type Principal,
   type Scope,
+  ranking,
 } from '../access-world.ts'
 
 export { alice, mallory, scope, type Principal, type Scope }
@@ -573,7 +574,7 @@ export function runOf(world: WorldSpec, schedule: Schedule = PLAIN, gate?: Check
     signal: controller.signal,
     trace: () => [...calls],
     access: createSkillAccess(ports),
-    catalog: createSkillCatalog(ports),
+    catalog: createSkillCatalog(ports, { ranking }),
   }
 }
 
