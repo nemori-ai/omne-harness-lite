@@ -32,12 +32,10 @@ export function catalogDocument(definition: ToolDefinition): SearchDocument {
   }
 }
 
-const emptyCorpus = buildCorpus([])
-
 function validateConfiguration(config: LocalToolCatalogSearchConfiguration): void {
   if (!Number.isSafeInteger(config.maxCachedCorpora) || config.maxCachedCorpora < 1)
     throw new TypeError('invalid catalog search configuration')
-  rank(emptyCorpus, '', config)
+  rank(buildCorpus([]), '', config)
 }
 
 export function createCatalogRanking(

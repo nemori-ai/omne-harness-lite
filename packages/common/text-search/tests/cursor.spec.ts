@@ -8,6 +8,7 @@ describe('cursor', () => {
     const text = encodeCursor({ binding, offset: 3 })
     expect(Buffer.from(text, 'base64url').toString('utf8')).toBe(`[2,"${binding}",3]`)
     expect(decodeCursor(text)).toEqual({ binding, offset: 3 })
+    expect(decodeCursor(encodeCursor({ binding, offset: 1 }))).toEqual({ binding, offset: 1 })
   })
   it('refuses text that is too long or not base64url', () => {
     expect(decodeCursor('A'.repeat(193))).toBeNull()
@@ -23,6 +24,9 @@ describe('cursor', () => {
       [1, binding, 3],
       [2, binding.toUpperCase(), 3],
       [2, 'ab', 3],
+      [2, `x${binding}`, 3],
+      [2, `${binding}0`, 3],
+      [2, [binding], 3],
       [2, binding, 0],
       [2, binding, 1.5],
       [2, binding, '3'],
