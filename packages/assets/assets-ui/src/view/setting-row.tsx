@@ -9,12 +9,20 @@ import {
   RadioGroupItem,
 } from '@omne-harness/ui-kit'
 import { useId, useState, type JSX } from 'react'
+import type { CategoryGovernance } from '../model/governance.ts'
 import type { SettingsDriver } from '../model/settings-driver.ts'
 import type { Row } from '../model/settings-machine.ts'
 import { NoticeLine } from './notice.tsx'
 import { Facts, hasOwn } from './setting-facts.tsx'
 
-type Props = { readonly row: Row; readonly driver: SettingsDriver }
+type RowActions = Pick<SettingsDriver, 'set' | 'setSecret' | 'clear' | 'confirm' | 'retryRow'>
+type Props = { readonly row: Row; readonly driver: RowActions }
+
+export type SettingRowProps = Readonly<{ row: Row; governance: CategoryGovernance }>
+
+export function SettingRow({ row, governance }: SettingRowProps): JSX.Element {
+  return <RowView row={row} driver={governance} />
+}
 type Permission = Extract<SettingView, { kind: 'permission' }>
 
 export function RowView({ row, driver }: Props): JSX.Element {

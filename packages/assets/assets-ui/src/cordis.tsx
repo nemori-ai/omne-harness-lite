@@ -4,7 +4,10 @@ import type { AttachedLayout } from '@omne-harness/shell-contract'
 import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { Fragment } from 'react'
+import { assetGovernanceKey } from './governance-port.ts'
+import { createGovernance } from './model/governance.ts'
 import { assetsCategory, assetsHolding } from './model/points.ts'
+import { SettingRow } from './view/setting-row.tsx'
 import { SettingsPanel } from './view/settings-panel.tsx'
 
 const ASSETS = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
@@ -19,8 +22,10 @@ export function createAssetsUiModule(options: AssetsUiOptions = {}) {
   return defineUiModule<Record<string, ClientOf<AssetsProtocol>>>({
     name: 'assets-ui',
     inject: [ASSETS],
-    apply(shell, services) {
+    apply(shell, services, provide) {
       const client = services[ASSETS]!
+      const governance = createGovernance({ client })
+      provide(assetGovernanceKey, { open: governance.open, SettingRow })
       shell.contribute('pages', {
         id: 'settings',
         title: '设置',
@@ -44,6 +49,10 @@ export function createAssetsUiModule(options: AssetsUiOptions = {}) {
 
 export const assetsUiModule = createAssetsUiModule()
 
+export { assetGovernanceKey, type AssetGovernance } from './governance-port.ts'
+export type { CategoryGovernance, CategorySnapshot } from './model/governance.ts'
+export type { Holding } from './model/holdings.ts'
+export type { SettingRowProps } from './view/setting-row.tsx'
 export {
   ASSETS_CATEGORY,
   ASSETS_HOLDING,

@@ -4,7 +4,9 @@ import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeAll, expect, it } from 'vitest'
 import { assetsProtocol } from '@omne-harness/assets-protocol'
 import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
-import { assetsUiModule } from '../src/cordis.tsx'
+import { serviceOf } from '@omne-harness/shell-contract'
+import { defineUiModule } from '@omne-harness/shell-contract/cordis'
+import { assetGovernanceKey, assetsUiModule, type AssetGovernance } from '../src/cordis.tsx'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
 import { startShell } from './fixtures/reference-shell.ts'
@@ -75,6 +77,33 @@ it('U4 the protocol client withdrawn: the module unloads and its page is removed
   root.reflect.provide(SERVICE, fake.client)
   await new Promise(resolve => setTimeout(resolve, 0))
   expect(pageIds(root)).toEqual(['settings'])
+})
+
+it('U6 the module provides the governance port: another module injects it, reads one category through it, and loses it with the module', async () => {
+  const { root } = await startShell()
+  const fake = createFakeClient()
+  const unprovide = root.reflect.provide(SERVICE, fake.client)
+  await root.plugin(assetsUiModule)
+  const seen: AssetGovernance[] = []
+  await root.plugin(
+    defineUiModule({
+      name: 'category-ui',
+      inject: [assetGovernanceKey],
+      apply(_shell, services) {
+        seen.push(serviceOf(services, assetGovernanceKey))
+      },
+    }),
+  )
+  expect(seen).toHaveLength(1)
+  const mcp = seen[0]!.open(TENANT, 'mcp')
+  expect(mcp.getSnapshot()).toEqual({ kind: 'reading' })
+  expect((await fake.next('list-settings')).body).toMatchObject({ tenant: TENANT })
+  mcp.close()
+  expect(typeof seen[0]!.SettingRow).toBe('function')
+  const lookup = root as unknown as { get(name: string): unknown }
+  unprovide()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  expect(lookup.get(assetGovernanceKey)).toBeUndefined()
 })
 
 it('U5 without the protocol client the module does not load', async () => {
