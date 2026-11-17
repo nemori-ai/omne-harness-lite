@@ -44,7 +44,7 @@ it('static application description controls member selection and the published m
       format: 'test-build/1',
       version: 'test-version',
       node: '24.21.0',
-      pnpm: '10.28.1',
+      pnpm: '12.18.0',
     })
     expect(await readFile(join(unpack, 'app/README.md'), 'utf8')).toBe(definition.readme)
     await expect(runPackaging(root, [], definition)).rejects.toThrow(

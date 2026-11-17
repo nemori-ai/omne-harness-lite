@@ -20,6 +20,8 @@
       "tsconfig*.json",
       "vitest.tiers.mts",
       "scripts/check.sh",
+      "scripts/check-bootstrap.mjs",
+      "scripts/prepare-native.mjs",
       "scripts/check-design.sh",
       "scripts/metrics.sh",
       "scripts/slot-unless-plan-only.sh",

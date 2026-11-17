@@ -725,7 +725,7 @@ describe('入口的层参数', { timeout: 60_000 }, () => {
   )
   writeFileSync(
     join(subject, 'package.json'),
-    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@10.28.1" }\n',
+    '{ "name": "fixture-root", "private": true, "packageManager": "pnpm@12.18.0" }\n',
   )
   for (const path of [
     'packages/common/legal-identity',

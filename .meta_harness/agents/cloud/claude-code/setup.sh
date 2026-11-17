@@ -5,12 +5,12 @@
 # environment's Setup script field. It runs as root before Claude Code starts,
 # and the platform snapshots the result, so later sessions skip it. Work for every
 # session start belongs to session-start.sh, which this script registers as a hook.
-# NODE_VERSION must satisfy the root package.json engines range (>=24).
-# PNPM_VERSION must match the root package.json packageManager field.
+# NODE_VERSION must equal the root package.json devEngines.runtime version.
+# PNPM_VERSION must equal the root package.json devEngines.packageManager version (and packageManager).
 set -euo pipefail
 
-NODE_VERSION=26.12.0
-PNPM_VERSION=10.28.1
+NODE_VERSION=26.13.1
+PNPM_VERSION=12.18.0
 UV_VERSION=0.13.0
 NODE_ROOT=/opt/node26
 REPOSITORY=/home/user/omne-harness-lite
@@ -101,7 +101,7 @@ if [ -f "$REPOSITORY/.meta_harness/tooling/src/initialize_agents.py" ]; then
         cd "$REPOSITORY"
         /root/.local/bin/uv sync --locked
         pnpm install --frozen-lockfile --ignore-scripts
-        pnpm -r rebuild node-pty
+        pnpm run prepare:native
         PYTHONDONTWRITEBYTECODE=1 /root/.local/bin/uv run --locked python \
             .meta_harness/tooling/src/initialize_agents.py --project-root .
     )

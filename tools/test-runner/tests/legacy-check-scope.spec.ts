@@ -100,7 +100,7 @@ describe('legacy check boundaries', () => {
       'package.json',
       JSON.stringify({
         private: true,
-        packageManager: 'pnpm@10.28.1',
+        packageManager: 'pnpm@12.18.0',
         scripts: { typecheck: "node -e \"require('fs').writeFileSync('root-shortcut', 'wrong')\"" },
       }),
     )

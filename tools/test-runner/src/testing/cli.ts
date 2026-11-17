@@ -40,6 +40,7 @@ import { auditTokenUses, describeAudit, tokenLedgerPath, tokenUses } from './tok
 import { tokenSource } from './token-pool.ts'
 import { runCheck } from './check.ts'
 import { runPreflight } from './preflight.ts'
+import { BOOTSTRAP_ENV, parseBootstrap } from './environment.ts'
 import { TEST_STEP_REPORT_FILE } from './test-retry.ts'
 import { ADMISSION_EVIDENCE_USAGE, admissionEvidenceCommand } from './admission-evidence.ts'
 
@@ -353,20 +354,33 @@ async function main(): Promise<void> {
       ['--resume-from'],
       ['--admission', '--keep-going', '--list', '--no-cache', '--preflight'],
     )
+    // 除了只打印步骤表，check 只在经过启动段时运行：启动段核对工具链与依赖，检查器自己在依赖缺失时加载不起来。
+    const bootstrap = parseBootstrap(process.env[BOOTSTRAP_ENV])
+    if (bootstrap === undefined && !flags.switches.has('--list')) {
+      console.error(
+        `check 要经 ./scripts/check.sh 运行（根脚本 pnpm run check、admission、preflight）：没有启动段的结果（环境变量 ${BOOTSTRAP_ENV}），不跑任何步骤`,
+      )
+      process.exitCode = 2
+      return
+    }
     if (flags.switches.has('--preflight')) {
       if (flags.switches.size > 1 || flags.values.size > 0)
         throw new Error(`--preflight 不与别的 check 开关同给\n${USAGE}`)
-      process.exitCode = await runPreflight(ROOT)
+      process.exitCode = await runPreflight(ROOT, bootstrap === undefined ? {} : { bootstrap })
       return
     }
     const resumeFrom = flags.values.get('--resume-from')
-    process.exitCode = await runCheck(ROOT, {
-      admission: flags.switches.has('--admission'),
-      keepGoing: flags.switches.has('--keep-going'),
-      list: flags.switches.has('--list'),
-      ...(resumeFrom === undefined ? {} : { resumeFrom }),
-      noCache: flags.switches.has('--no-cache'),
-    })
+    process.exitCode = await runCheck(
+      ROOT,
+      {
+        admission: flags.switches.has('--admission'),
+        keepGoing: flags.switches.has('--keep-going'),
+        list: flags.switches.has('--list'),
+        ...(resumeFrom === undefined ? {} : { resumeFrom }),
+        noCache: flags.switches.has('--no-cache'),
+      },
+      bootstrap === undefined ? {} : { bootstrap },
+    )
   } else if (command === 'admission-evidence')
     process.exitCode = admissionEvidenceCommand(ROOT, rest)
   else throw new Error(`未知命令 ${String(command)}\n${USAGE}`)

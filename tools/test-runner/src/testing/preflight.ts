@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { lightConcurrency } from './check.ts'
 import { runGraph, type CheckStep } from './check-graph.ts'
 import { PREFLIGHT_FIXES, preflightSteps } from './check-steps.ts'
-import { describeHealing, healEnvironment, type EnvironmentIo } from './environment.ts'
+import { describeHealing, healEnvironment, type BootstrapResult } from './environment.ts'
 
 export const PREFLIGHT_LOG_DIR = 'tmp/preflight'
 const TAIL_LINES = 20
@@ -23,7 +23,8 @@ const GIT_ENV = [
 export interface PreflightDependencies {
   readonly steps?: () => CheckStep[]
   readonly fixes?: Readonly<Record<string, string>>
-  readonly environment?: EnvironmentIo
+  /** 启动段（scripts/check-bootstrap.mjs）交来的结果；cli.ts 从环境变量读。进程内直接调用时可以没有。 */
+  readonly bootstrap?: BootstrapResult
   readonly cores?: number
 }
 
@@ -42,13 +43,7 @@ export async function runPreflight(
   dependencies: PreflightDependencies = {},
 ): Promise<number> {
   const say = (line: string) => console.log(line)
-  const healed = healEnvironment(root, dependencies.environment)
-  if (healed.dependencies.status === 'install-failed') {
-    for (const line of describeHealing(healed)) console.error(line)
-    console.error('依赖目录与锁文件不一致且离线安装失败：预检不跑任何步骤')
-    return 2
-  }
-  for (const line of describeHealing(healed)) say(line)
+  for (const line of describeHealing(healEnvironment(root, dependencies.bootstrap))) say(line)
 
   const env: NodeJS.ProcessEnv = { ...process.env }
   for (const name of GIT_ENV) delete env[name]

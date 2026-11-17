@@ -43,6 +43,7 @@ node() {
   local script=
   for argument in "$@"; do case "$argument" in --*) ;; *) script=$argument; break ;; esac; done
   case "$script" in
+    *check-bootstrap.mjs) record bootstrap && echo '{"stub":"bootstrap"}' ;;
     */testing/cli.ts)
       case "$3" in
         check) record check "$@" ;;
@@ -102,7 +103,8 @@ it('the check wrapper forwards to the runner inside its slot even when a subject
   })
   expect(result.status, result.stdout + result.stderr).toBe(0)
   const trace = readFileSync(f.trace, 'utf8')
-  expect(trace.trim().split('\n')).toHaveLength(1)
+  expect(trace.trim().split('\n')).toHaveLength(2)
+  expect(trace).toMatch(/^bootstrap\|held\|/u)
   expect(trace).toMatch(/^check\|held\|.*testing\/cli\.ts check --admission$/mu)
   expect(trace).not.toContain('pnpm')
   expect(trace).not.toContain('--scope engineering')

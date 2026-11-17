@@ -231,12 +231,19 @@
 
 ### 环境自检与自愈
 
-准入与预检开始时、读任何现场之前做两件事，只改工作副本与依赖目录，不改提交：
+`scripts/check.sh` 起检查器之前先跑启动段 `scripts/check-bootstrap.mjs`，普通检查、准入与预检都一样。检查器静态导入依赖里的包，依赖缺失时加载不起来，所以启动段只用 Node 标准库。五步固定顺序，前一步失败就以 2 退出、不起检查器，输出写明哪一步、期望、实际与修法：
 
-- `node_modules/.pnpm/lock.yaml` 与 `pnpm-lock.yaml` 逐字节不同或没有时，运行 `pnpm install --offline --frozen-lockfile`。离线安装失败时不跑任何步骤、不写记录，以 2 退出，输出写明联网后手动安装。
+1. 工具链：`packageManager` 与 `devEngines.packageManager` 相同；PATH 上的 Node 满足 `engines`；在仓库根运行的 pnpm 实际版本等于声明。
+2. 依赖：`node_modules/.pnpm/lock.yaml` 与 `pnpm-lock.yaml` 的本体逐字节比（pnpm 12 的锁文件前面另有锁定 pnpm 自身的文档，副本里没有）。不同或没有就 `pnpm install --offline --frozen-lockfile --ignore-scripts`，再 `pnpm run prepare:native` 的同一入口。离线安装失败时给出联网重装的命令，与 CONTRIBUTING.md「准备检出」相同。
+3. 经 pnpm 起的 Node 等于 `devEngines.runtime`。排在依赖之后：`verifyDepsBeforeRun: error` 下依赖过期时 `pnpm exec` 自己就失败。
+4. macOS 上 node-pty 的 `spawn-helper` 是有执行位的 Mach-O，不是就调用准备入口修复。
+5. 结果（一行 JSON）经环境变量 `OMNE_CHECK_BOOTSTRAP` 交给检查器。检查器的 `check` 没有它时以 2 退出，提示改用 `./scripts/check.sh`；`check --list` 除外。
+
+准入与预检开始时、读任何现场之前，检查器再做一件事，只改工作副本，不改提交：
+
 - 已跟踪文件里索引为 LF、工作副本为 CRLF、除换行外与索引相同的，从索引重新检出。有内容改动的不碰，记在 `kept` 里。`core.autocrlf=true` 时不重新检出，写明改法。
 
-做了什么写进运行记录的 `environment` 与准入日志的两行 `环境自检：依赖——…`、`环境自检：换行——…`。一致时写「不动」。
+启动段的依赖结果与换行自愈写进运行记录的 `environment` 与准入日志的两行 `环境自检：依赖（启动段）——…`、`环境自检：换行——…`。进程内直接调用检查函数时依赖一栏是 `not-bootstrapped`。一致时写「不动」。
 
 ### 准入日志
 
@@ -322,9 +329,9 @@
 
 机器有 C = max(1, 核数 − `parallel.reserveCores`) 个令牌。一件活带两个数来要令牌：`want` 是最多用得上几个，`min` 是至少几个才跑。活按先来先得排队。排在队首的活在空闲的令牌不少于 `min` 时拿 min(`want`, 空闲数) 个，拿到之后个数不再变，跑完全部归还。
 
-`scripts/with-test-slot.sh [--want <n>] [--min <n>] [--] <命令> [参数…]` 拿到令牌才执行命令，把拿到的个数经 `OMNE_WORKER_BUDGET` 交给命令，并原样返回它的退出码。不给 `--want` 时要全部令牌，不给 `--min` 时至少 1 个。`min` 大于 C 时按 C 算。只用得上一两个核的命令要自己给 `--want`：它不给就拿走全部空闲的令牌，它跑完之前别的活只能等。实现在 `scripts/with-test-slot.mjs`，只用 Node 标准库，macOS、Linux 与 Windows 通用。
+`scripts/with-test-slot.sh [--want <n>] [--min <n>] [--] <命令> [参数…]` 拿到令牌才执行命令，把拿到的个数经 `OMNE_WORKER_BUDGET` 交给命令，并原样返回它的退出码。不给 `--want` 时要全部令牌，不给 `--min` 时至少 1 个。`min` 大于 C 时按 C 算。只用得上一两个核的命令要自己给 `--want`：它不给就拿走全部空闲的令牌，它跑完之前别的活只能等。实现在 `scripts/with-test-slot.mjs`，只用 Node 标准库，macOS、Linux 与 Windows 通用。根 `package.json` 的脚本不经 `.sh`，直接运行 `node scripts/with-test-slot.mjs [--unless-plan-only] [--want <n>] [--min <n>] [--] <命令> [参数…]`；`test:tier` 以 `--tier` 结尾，层名由检查器的参数解析核对。
 
-- 整条命令当一件活来要令牌的入口：`test`、`test:gate`、`test:affected`、`test:tier`、`test:triage`、`test:python`、`acceptance`、`metrics --coverage`、`closeout:metrics`、`closeout:mutation`。`test:affected` 与 `closeout:mutation` 带 `--plan-only` 时不要令牌。预检不要令牌。根 `pnpm run check` 与 `admission` 自己不要，它们的各步各自去要，见[并行度](#并行度)。
+- 整条命令当一件活来要令牌的入口：`test`、`test:gate`、`test:affected`、`test:tier`、`test:triage`、`test:python`、`acceptance`、`metrics --coverage`、`closeout:metrics`、`closeout:mutation`。`test:affected` 与 `closeout:mutation` 经 `--unless-plan-only`，带 `--plan-only` 时不要令牌。预检不要令牌。根 `pnpm run check` 与 `admission` 自己不要，它们的各步各自去要，见[并行度](#并行度)。
 - 已经在令牌之内的进程（`OMNE_TEST_SLOT_HELD` 非空）再调用它时直接放行，不重复排队，也不另记账本。`OMNE_TEST_SLOT_HELD` 的值是它持有的第一个令牌的目录。
 - 先来后到：进队时领一张号，号比目录里见过的所有票号都大。只有号码最小的活票去拿令牌。
 - 票是独占创建的文件。队列锁与令牌是目录：持有 = 目录里有自己独占创建的条目，而且目录里只有这一个条目。条目名每次新取，不重用。票与条目记着登记者的进程号、所在侧（`side=<平台>@<主机名>`，WSL 里再加发行版名）与心跳。
