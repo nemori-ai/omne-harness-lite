@@ -1,4 +1,4 @@
-import { Context } from '@deepseek-ai/cordis'
+import { Context, type EffectMeta } from '@deepseek-ai/cordis'
 import type { BodyContract, CategoryContribution } from '@omne-harness/assets'
 import {
   AssetCategoriesService,
@@ -25,6 +25,10 @@ function contribution(category: string, title: string): CategoryContribution {
   return { contract: contract(category), display: { title, summary: `${title}.` } }
 }
 
+function labels(effects: readonly EffectMeta[]): string[] {
+  return effects.flatMap(effect => [effect.label, ...labels(effect.children)])
+}
+
 async function categories() {
   const root = new Context()
   await root.plugin(assetCategoriesPlugin)
@@ -38,6 +42,7 @@ describe('the categories service on a real Cordis root', () => {
       categoryContributionPlugin('gadget-category', contribution('gadget', 'Gadget')),
     )
     await fiber.await()
+    expect(labels(fiber.getEffects())).toContain('assetCategories.contribute')
     expect(service.view.lookup('gadget')?.category).toBe('gadget')
     expect(service.view.list()).toEqual([
       { category: 'gadget', display: { title: 'Gadget', summary: 'Gadget.' } },
@@ -76,6 +81,10 @@ describe('the categories service on a real Cordis root', () => {
     ])
     await second.dispose()
     expect(service.view.list().map(listing => listing.display.title)).toEqual(['First'])
+  })
+
+  it('names the plugin that provides the service after the extension point', () => {
+    expect(assetCategoriesPlugin.name).toBe('asset-categories')
   })
 
   it('gives readers a view that cannot contribute', async () => {
