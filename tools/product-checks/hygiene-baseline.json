@@ -83,15 +83,15 @@
       "packages/model/model-host-local/src/plugins/runtime.ts": 1001,
       "packages/model/model-storage-sql/src/commit.ts": 1127,
       "packages/model/model/src/commands/commands.ts": 1149,
-      "packages/session/session-adapters/src/cordis/agent-journal.ts": 2125,
+      "packages/session/session-adapters/src/cordis/agent-journal.ts": 2079,
       "packages/session/session-adapters/src/cordis/context-holder.ts": 1168,
       "packages/session/session-adapters/src/cordis/context-input.ts": 1111,
-      "packages/session/session-adapters/src/testing/factory.ts": 1313,
+      "packages/session/session-adapters/src/testing/factory.ts": 1266,
       "packages/session/session-adapters/src/testing/journal-finishing.ts": 1370,
-      "packages/session/session-adapters/src/testing/journal.ts": 4926,
+      "packages/session/session-adapters/src/testing/journal.ts": 4918,
       "packages/session/session-adapters/src/testing/session.ts": 1232,
       "packages/session/session-contract/src/testing-transactions.ts": 2535,
-      "packages/session/session-storage-sql/src/worker/participant.ts": 1178,
+      "packages/session/session-storage-sql/src/worker/participant.ts": 1164,
       "packages/tool/tool-contract/src/testing-executor-binding.ts": 1022,
       "packages/tool/tool-cordis-contract/src/testing.ts": 1388,
       "packages/tool/tool-host-local/src/start-coordinator.ts": 1059,
@@ -525,7 +525,7 @@
       },
       "packages/session/session-adapters/src/cordis/agent-journal.ts": {
         "count": 1,
-        "longest": 1375
+        "longest": 1303
       },
       "packages/session/session-adapters/src/cordis/context-holder.ts": {
         "count": 1,
@@ -545,7 +545,7 @@
       },
       "packages/session/session-adapters/src/testing/factory.ts": {
         "count": 3,
-        "longest": 1180
+        "longest": 1134
       },
       "packages/session/session-adapters/src/testing/journal-finishing.ts": {
         "count": 1,
@@ -561,11 +561,11 @@
       },
       "packages/session/session-adapters/src/testing/journal.ts": {
         "count": 6,
-        "longest": 3639
+        "longest": 3631
       },
       "packages/session/session-adapters/src/testing/root.ts": {
         "count": 1,
-        "longest": 256
+        "longest": 246
       },
       "packages/session/session-adapters/src/testing/session.ts": {
         "count": 2,

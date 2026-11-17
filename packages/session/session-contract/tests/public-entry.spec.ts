@@ -34,6 +34,8 @@ it('exports exactly the declared root runtime surface', () => {
     'expectedHolds',
     'expectedRevision',
     'initializationRegistrationCommit',
+    'inputsToDeliver',
+    'isAcceptedInputRecord',
     'isDeferredFact',
     'judgeAdvance',
     'judgeBackgroundOutcome',
@@ -64,6 +66,7 @@ it('exports exactly the declared root runtime surface', () => {
     'sessionIntakeLimits',
     'sessionModesBlock',
     'shortCallId',
+    'uninterpretedCalls',
     'wakingInputs',
   ])
 })

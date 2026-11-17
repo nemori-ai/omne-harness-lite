@@ -58,6 +58,7 @@
 - `DecideReads` · 包 `@omne-harness/session-contract`
 - `Decision` · 包 `@omne-harness/session-contract`
 - `DeclarationChange` · 包 `@omne-harness/session-contract`
+- `DeliveredInputs` · 包 `@omne-harness/session-contract`
 - `DerivedMessage` · 包 `@omne-harness/session-contract`
 - `DirectCallControl` · 包 `@omne-harness/session-contract`
 - `DriveFailure` · 包 `@omne-harness/session-contract`
@@ -243,6 +244,7 @@
 - `SessionTakenRecord` · 包 `@omne-harness/session-contract`
 - `SessionTodos` · 包 `@omne-harness/session-contract`
 - `SessionTransactionPort` · 包 `@omne-harness/session-contract`
+- `SessionUninterpretedCall` · 包 `@omne-harness/session-contract`
 - `SessionWaiting` · 包 `@omne-harness/session-contract`
 - `SessionWork` · 包 `@omne-harness/session-contract`
 - `SessionWorkEntryIndex` · 包 `@omne-harness/session-contract`
@@ -286,6 +288,8 @@
 - `expectedHolds` · 包 `@omne-harness/session-contract`
 - `expectedRevision` · 包 `@omne-harness/session-contract`
 - `initializationRegistrationCommit` · 包 `@omne-harness/session-contract`
+- `inputsToDeliver` · 包 `@omne-harness/session-contract`
+- `isAcceptedInputRecord` · 包 `@omne-harness/session-contract`
 - `isDeferredFact` · 包 `@omne-harness/session-contract`
 - `judgeAdvance` · 包 `@omne-harness/session-contract`
 - `judgeBackgroundOutcome` · 包 `@omne-harness/session-contract`
@@ -316,6 +320,7 @@
 - `sessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `sessionModesBlock` · 包 `@omne-harness/session-contract`
 - `shortCallId` · 包 `@omne-harness/session-contract`
+- `uninterpretedCalls` · 包 `@omne-harness/session-contract`
 - `wakingInputs` · 包 `@omne-harness/session-contract`
 
 ## 入口 `./cordis` · `cordis.d.ts`

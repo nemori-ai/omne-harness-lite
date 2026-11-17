@@ -17,6 +17,21 @@ function messageOf(row: HistoryEntry): Message | null {
   const decoded = decodeEntry(row)
   return 'ok' in decoded && 'message' in decoded.ok ? decoded.ok.message : null
 }
+
+/** An input's message as accepted, the entry before its `intake.routed`: a record for people. */
+export function isAcceptedInputRecord(
+  entries: readonly Pick<HistoryEntry, 'kind'>[],
+  index: number,
+): boolean {
+  return entries[index + 1]?.kind === 'intake.routed'
+}
+
+/** The message an entry gives the model view; an input is there from its delivery. */
+export function viewMessageOf(entries: readonly HistoryEntry[], index: number): Message | null {
+  const entry = entries[index]
+  if (entry === undefined || isAcceptedInputRecord(entries, index)) return null
+  return messageOf(entry)
+}
 export function materializeModelView(
   previous: MaterializedModelView,
   committed: readonly HistoryEntry[],
@@ -24,8 +39,8 @@ export function materializeModelView(
 ): MaterializedModelView {
   let epoch = previous.epoch
   let rows = [...previous.rows]
-  for (const entry of committed) {
-    const message = messageOf(entry)
+  for (const [index, entry] of committed.entries()) {
+    const message = viewMessageOf(committed, index)
     if (
       message === null ||
       message.role === 'tool_internal' ||
@@ -78,7 +93,7 @@ export function compactionReads(
   for (const [index, entry] of entries.entries()) {
     const ref = parseRecordEntryRef(entry.id)
     if (ref === null) return null
-    const row = { ref, message: messageOf(entry) }
+    const row = { ref, message: viewMessageOf(entries, index) }
     ;(index <= end ? covered : after).push(row)
   }
   const previous = covered.filter(row => row.message?.role === 'compaction').at(-1)
@@ -114,14 +129,14 @@ export function compactionReads(
     throw error
   }
   if (required.some(ref => !entries.some(entry => entry.id === ref))) return null
-  const open = entries.flatMap((entry, index) => {
+  const open = entries.flatMap(entry => {
     const decoded = decodeEntry(entry)
     if (!('ok' in decoded)) return []
     const value = decoded.ok
+    // An input that is still alive keeps its delivery in the context.
     const relevant =
       required.includes(entry.id) ||
-      (value.kind === 'intake.routed' &&
-        'input' in value &&
+      (value.kind === 'message.delivered' &&
         (snapshot.pending.includes(value.input) || (snapshot.taken ?? []).includes(value.input))) ||
       (value.kind === 'call.bound' &&
         snapshot.consumptions.some(
@@ -129,14 +144,7 @@ export function compactionReads(
             item.id === value.consumption &&
             item.results.every(result => result.completion === null),
         ))
-    const source =
-      value.kind === 'intake.routed'
-        ? entries
-            .slice(0, index)
-            .reverse()
-            .find(row => row.kind === 'message.user')
-        : entry
-    const ref = source === undefined ? null : parseRecordEntryRef(source.id)
+    const ref = parseRecordEntryRef(entry.id)
     return relevant && ref !== null ? [ref] : []
   })
   return {
