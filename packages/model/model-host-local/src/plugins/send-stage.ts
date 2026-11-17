@@ -73,6 +73,18 @@ function withdrawEvidence(ctx: Context, withdrawals: readonly (() => void)[]): v
     }
 }
 
+// Fills `withdrawals` as it goes, so a reader installed before a later one throws is still withdrawn.
+function installEvidence<P>(
+  options: Pick<ModelSendStagePluginOptions<P>, 'installMaterialization' | 'installReceive'>,
+  local: Pick<LocalModel<P>, 'materialization' | 'receive'>,
+  withdrawals: (() => void)[],
+): void {
+  const materialization = options.installMaterialization?.(local.materialization)
+  if (materialization !== undefined) withdrawals.push(materialization)
+  const receive = options.installReceive?.(local.receive)
+  if (receive !== undefined) withdrawals.push(receive)
+}
+
 export function sendStagePluginOver<P>(
   input: Readonly<{
     options: ModelSendStagePluginOptions<P>
@@ -117,11 +129,7 @@ export function sendStagePluginOver<P>(
       })
       const withdrawals: (() => void)[] = []
       try {
-        for (const withdraw of [
-          options.installMaterialization?.(local.materialization),
-          options.installReceive?.(local.receive),
-        ])
-          if (withdraw !== undefined) withdrawals.push(withdraw)
+        installEvidence(options, local, withdrawals)
       } catch (error) {
         withdrawEvidence(ctx, withdrawals)
         credentials.withdraw()

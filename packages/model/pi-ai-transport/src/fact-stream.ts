@@ -58,6 +58,13 @@ async function* readSend(input: SendInput): AsyncGenerator<TransportFact, void, 
   yield { kind: 'ended', termination: terminationOf(end) }
 }
 
+// A listener that throws must not change what the transport does with the body.
+function beforeBody(input: Pick<SendInput, 'onResponseBody'>): void {
+  try {
+    input.onResponseBody?.()
+  } catch {}
+}
+
 async function* decodeSend(
   input: SendInput,
   progress: Progress,
@@ -80,9 +87,7 @@ async function* decodeSend(
       return _exhaustive
     }
   }
-  try {
-    input.onResponseBody?.()
-  } catch {}
+  beforeBody(input)
   const body = result.body.claim()
   if (body === undefined) throw new Error('the response body of a new exchange was claimed')
   return yield* decodeBody({
