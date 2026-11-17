@@ -85,6 +85,19 @@ export function pinned(version = '1', enabled = false, name = 'example') {
   if (!id.ok || body.kind !== 'ok') throw new Error('invalid fixture')
   return pinBody({ identity: id.id, version, source: 'owner-source', body: body.value })
 }
+export function noteBody(name: string) {
+  const id = capabilityId('note', name)
+  const body = readBodyText('null', {
+    maxBytes: 100,
+    maxDepth: 2,
+    maxItems: 1,
+    maxMembers: 1,
+    maxStringLength: 10,
+    maxNumberLength: 10,
+  })
+  if (!id.ok || body.kind !== 'ok') throw new Error('invalid fixture')
+  return pinBody({ identity: id.id, version: '1', source: 'owner-source', body: body.value })
+}
 export function definitionRef(version = '1', enabled = false) {
   return {
     providerId: 'service',
@@ -184,7 +197,10 @@ export async function openWorld(
     if (published.kind !== 'committed' || held.kind !== 'committed')
       throw new Error(JSON.stringify({ published, held }))
   }
-  async function capture(overrides: Partial<SettingsProjectionBinding['request']> = {}) {
+  async function capture(
+    overrides: Partial<SettingsProjectionBinding['request']> = {},
+    scope: { categories: readonly string[] } = { categories: ['service'] },
+  ) {
     const binding: SettingsProjectionBinding = {
       domain,
       principalRef: 'alice',
@@ -206,7 +222,7 @@ export async function openWorld(
       },
       combinationVersion: combination.combinationVersion,
       manifestDigest: combination.manifestDigest,
-      commands: [assetsSettingsProjectionCommand(binding)],
+      commands: [assetsSettingsProjectionCommand(binding, scope)],
     })
   }
   let closing: Promise<void> | undefined

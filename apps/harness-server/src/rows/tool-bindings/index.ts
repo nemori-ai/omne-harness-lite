@@ -23,7 +23,9 @@ import { releaseCatalogViewOf } from './catalog-view.ts'
 import { z } from 'zod'
 import { isReleaseToolRequest, isReleaseToolsRequest } from '../../entry/tool-forward-requests.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
+import { SEARCH_RANKING } from '../../entry/search-ranking.ts'
 import { createReleaseToolsCapability, toolsCapabilityConfig } from './tools-capability.ts'
+import { bindReleaseSkills } from './skills.ts'
 import { bindReleaseTodoItems } from './todo-items.ts'
 import { bindReleaseBackgroundCalls } from './background-calls.ts'
 import { bindReleaseWeb, webBindingConfig, type WebBindingConfig } from './web.ts'
@@ -61,10 +63,13 @@ export function releaseCapability(
     const withCalls = isReleaseToolRequest(release, input.request, 'BkgToolCalls')
       ? bindReleaseBackgroundCalls(ctx, input, withTodos)
       : withTodos
+    const withSkills = isReleaseToolRequest(release, input.request, 'Skills')
+      ? bindReleaseSkills(ctx, input, withCalls)
+      : withCalls
     const withWeb =
       attachments.web !== null && isReleaseToolRequest(release, input.request, 'Web')
-        ? bindReleaseWeb(input, withCalls, attachments.web, custody)
-        : withCalls
+        ? bindReleaseWeb(input, withSkills, attachments.web, custody)
+        : withSkills
     if (isReleaseToolRequest(release, input.request, 'Calendar'))
       return bindReleaseCalendar(ctx, input, withWeb)
     return isReleaseToolRequest(release, input.request, 'Schedules')
@@ -146,7 +151,7 @@ const bindingsPlugin: Plugin.Object = {
     const Bindings = createLocalToolBindingsPlugin<unknown, unknown, ToolMessageContentBlock>({
       availability: createReleaseAvailability(ctx),
       view: releaseCatalogViewOf(ctx),
-      search: { k1: 1.2, b: 0.75, maxCachedCorpora: 16 },
+      search: { ...SEARCH_RANKING, maxCachedCorpora: 16 },
       authority: startAuthorityProxy(ctx),
       scope: bundleScope(ctx),
       settle: bundleSettle(ctx),

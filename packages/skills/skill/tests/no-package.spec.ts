@@ -1,25 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { ReadTarget } from '@omne-harness/skill-contract'
-import {
-  alice,
-  createWorld,
-  currentDigest,
-  failureOf,
-  noPackage,
-  okOf,
-  scope,
-} from './access-world.ts'
+import { alice, createWorld, currentDigest, failureOf, noPackage, scope } from './access-world.ts'
 
 const basis = { capability: noPackage, layer: 'workspace' as const, digest: currentDigest }
 
 describe('material without a readable package, with a basis (PR3)', () => {
-  it('describe gives the basis as the pinned material and takes no snapshot', async () => {
-    const { access, controls } = createWorld()
-    const description = okOf(await access.describe(alice, scope, noPackage, { basis }))
-    expect(description.material).toStrictEqual({ kind: 'pinned', basis })
-    expect(controls.calls().snapshot).toBe(0)
-  })
-
   it.each([
     [
       'read',
@@ -29,10 +14,6 @@ describe('material without a readable package, with a basis (PR3)', () => {
     [
       'list',
       (w: ReturnType<typeof createWorld>) => w.access.list(alice, scope, noPackage, { basis }),
-    ],
-    [
-      'export',
-      (w: ReturnType<typeof createWorld>) => w.access.export(alice, scope, noPackage, basis),
     ],
   ])(
     '%s takes the snapshot where the reference points, finds no package and answers basis-unavailable',

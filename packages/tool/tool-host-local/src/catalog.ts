@@ -1,4 +1,5 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { encodeCursor } from '@omne-harness/text-search'
 import type {
   Access,
   Adoption,
@@ -17,7 +18,7 @@ import {
   type ToolBindingKey,
 } from '@omne-harness/tool-contract/provider'
 import type { ToolListing, ToolListingSource } from './bindings.ts'
-import { catalogWindow, encodeCatalogCursor } from './catalog-cursor.ts'
+import { catalogWindow } from './catalog-cursor.ts'
 import {
   byCodeUnits,
   catalogDigest,
@@ -339,7 +340,7 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
         entries: Object.freeze(page),
         next:
           offset + page.length < ranked.names.length
-            ? encodeCatalogCursor({ binding, offset: offset + page.length })
+            ? encodeCursor({ binding, offset: offset + page.length })
             : null,
       })
     },

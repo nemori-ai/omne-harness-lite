@@ -1,4 +1,4 @@
-import { fail } from '@omne-harness/operation-result'
+import { fail, succeed } from '@omne-harness/operation-result'
 import {
   sealSnapshot,
   type SkillPackageSource,
@@ -6,7 +6,7 @@ import {
   type SourceFailure,
 } from '@omne-harness/skill-contract/provider'
 import { nodeFs, type DirectoryFs } from './fs.ts'
-import { collect, readEntry } from './walk.ts'
+import { collect, readEntry, resolveRoot } from './walk.ts'
 
 function failureOf(defect: SnapshotDefect): SourceFailure {
   switch (defect.kind) {
@@ -33,6 +33,11 @@ export function createDirectorySource(
     async open(locator, _digest, path) {
       if (locator.kind !== 'directory') return fail('package-not-found')
       return readEntry(fs, locator.root, path)
+    },
+    async directory(locator) {
+      if (locator.kind !== 'directory') return succeed(null)
+      const real = await resolveRoot(fs, locator.root)
+      return 'ok' in real ? real : fail('unavailable')
     },
   }
 }

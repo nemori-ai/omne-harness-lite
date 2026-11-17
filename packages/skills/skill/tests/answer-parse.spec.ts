@@ -18,7 +18,6 @@ const ADOPTED = {
     name: 'review',
     description: 'Reviews a change.',
     tools: [{ category: 'tool', name: 'read-file' }],
-    settings: [{ name: 'tone', category: 'preference' }],
   },
 }
 
@@ -120,7 +119,6 @@ describe('parseResolution: adopted', () => {
     ['each source layer: official', ['ref', 'layer'], 'official'],
     ['each source layer: organization', ['ref', 'layer'], 'organization'],
     ['each source layer: workspace', ['ref', 'layer'], 'workspace'],
-    ['each setting category: binding', ['declared', 'settings', 0, 'category'], 'binding'],
     [
       'a content-store locator',
       ['ref', 'locator'],
@@ -212,14 +210,6 @@ describe('parseResolution: adopted', () => {
     ['a tool that is no object', ['declared', 'tools', 0], 'read-file'],
     ['a tool without a name', ['declared', 'tools', 0, 'name'], MISSING],
     ['a tool with an empty name', ['declared', 'tools', 0, 'name'], ''],
-    ['no settings', ['declared', 'settings'], MISSING],
-    ['settings that are an empty text', ['declared', 'settings'], ''],
-    ['a setting that is no object', ['declared', 'settings', 0], 'tone'],
-    ['a setting without a name', ['declared', 'settings', 0, 'name'], MISSING],
-    ['a setting name that is no text', ['declared', 'settings', 0, 'name'], 5],
-    ['a setting without a category', ['declared', 'settings', 0, 'category'], MISSING],
-    ['a setting category that is no text', ['declared', 'settings', 0, 'category'], 5],
-    ['a setting category outside the set', ['declared', 'settings', 0, 'category'], 'mood'],
   ])('gives no answer for %s', (_case, path, field) => {
     expect(aboutReview(withField(ADOPTED, path, field))).toBeUndefined()
   })

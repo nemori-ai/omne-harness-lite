@@ -1,7 +1,7 @@
 ------------------------------ MODULE ReadGate ------------------------------
 (***************************************************************************)
-(* The read gate of @omne-harness/skill: the four SkillAccess operations  *)
-(* (steps 1-11 of the group page "读取") and the SkillCatalog listing, as *)
+(* The read gate of @omne-harness/skill: the two SkillAccess operations,  *)
+(* read and list (the group page "读取"), and the SkillCatalog listing, as *)
 (* runs against three ports. Two runs `1` and `2` share one request and   *)
 (* one schedule of port faults, aborts and source changes. That is the    *)
 (* self-composition: in Mode "twin" the two runs see two worlds that      *)
@@ -70,7 +70,7 @@ Bases == IF Mode = "twin"
             ELSE {NoBasis, [id |-> Other, mat |-> 0], [id |-> Other, mat |-> 1],
                   [id |-> Hidden, mat |-> 0]}
 Parts == {"body", "res", "new", "bad"}
-AccessOps == {"describe", "read", "list", "export"}
+AccessOps == {"read", "list"}
 Ops == IF Mode = "same" THEN {"catalog"} ELSE AccessOps \cup {"catalog"}
 
 AccessRequests ==
@@ -81,7 +81,6 @@ CatalogRequests ==
         a \in BOOLEAN, k \in SUBSET Ids}
 Valid(r) ==
     /\ r.op = "read" \/ r.part = "body"          \* only read has a part
-    /\ r.op = "export" => r.basis # NoBasis      \* export takes a basis
     /\ r.all => r.keep = {}                      \* all: no capabilities given
 Requests == {r \in AccessRequests \cup CatalogRequests : Valid(r)}
 
@@ -214,7 +213,7 @@ OpenFailure(r, k) ==
 (***************************************************************************)
 (* One run.                                                                *)
 (***************************************************************************)
-Abortable == req.op \in {"read", "list", "export"}
+Abortable == req.op \in AccessOps
 AbortedAt(n) == Abortable /\ n >= abortAt         \* the signal after n port answers
 
 Finish(r, o) == /\ pc' = [pc EXCEPT ![r] = "done"]
@@ -269,9 +268,6 @@ Resolved(r, given) ==
               [] a.kind = "none" -> Finish(r, Out("not-available-to-you")) /\ keep
               [] a.kind = "standin" -> Finish(r, Out("unavailable-stand-in")) /\ keep
               [] a.kind = "basisNotLawful" -> Finish(r, Out("basis-unavailable")) /\ keep
-              [] req.op = "describe" ->
-                    Finish(r, [Out("ok") EXCEPT !.id = a.id, !.mat = IF a.dig THEN mat ELSE -1])
-                    /\ keep
               [] ~a.dig -> Finish(r, Out("unsupported")) /\ keep
               [] req.op = "read" /\ req.part = "bad" -> Finish(r, Out("bad-path")) /\ keep
               [] OTHER -> /\ pc' = [pc EXCEPT ![r] = "snapshot"]
@@ -312,11 +308,8 @@ Snapshot(r) ==
                         /\ UNCHANGED todo
                   [] req.op = "read" /\ PathOf(req.part) \notin Entries(s.mat) ->
                         Finish(r, Out("resource-missing")) /\ UNCHANGED todo
-                  [] req.op = "read" ->
-                        /\ todo' = [todo EXCEPT ![r] = <<PathOf(req.part)>>]
-                        /\ pc' = [pc EXCEPT ![r] = "open"] /\ UNCHANGED out
                   [] OTHER ->
-                        /\ todo' = [todo EXCEPT ![r] = EntrySeq(s.mat)]
+                        /\ todo' = [todo EXCEPT ![r] = <<PathOf(req.part)>>]
                         /\ pc' = [pc EXCEPT ![r] = "open"] /\ UNCHANGED out
     /\ UNCHANGED <<shared, pinned, byBasis, content, at, pending, checked, verdict, order>>
 
@@ -338,10 +331,8 @@ Open(r) ==
            ELSE LET got == content[r] \cup {<<at[r], a.mat, p>>} IN
                 /\ content' = [content EXCEPT ![r] = got]
                 /\ todo' = [todo EXCEPT ![r] = Tail(@)]
-                /\ IF Len(todo[r]) = 1
-                    THEN Finish(r, [Out("ok") EXCEPT !.id = pinned[r].id, !.mat = pinned[r].mat,
-                                    !.content = got])
-                    ELSE UNCHANGED <<pc, out>>
+                /\ Finish(r, [Out("ok") EXCEPT !.id = pinned[r].id, !.mat = pinned[r].mat,
+                              !.content = got])
     /\ UNCHANGED <<shared, pinned, byBasis, at, pending, checked, verdict, order>>
 
 (* SkillCatalog: the lawful set, then the read checks of the kept identities,
@@ -448,14 +439,13 @@ WholeUnknown ==
                         THEN "unknown" ELSE "source-unavailable"
 
 (* S3: every delivered piece has the bytes of the pinned material; list gives the
-   entries of that material only; export gives every entry or nothing. *)
+   entries of that material only. *)
 NoMixedVersion ==
-    \A r \in Runs : (Finished(r) /\ out[r].kind = "ok" /\ req.op \in {"read", "list", "export"}) =>
+    \A r \in Runs : (Finished(r) /\ out[r].kind = "ok" /\ req.op \in AccessOps) =>
         /\ out[r].mat = Pinned
         /\ \A c \in out[r].content :
                 EntryDigest(c[1], c[2], c[3]) = EntryDigest(req.target, Pinned, c[3])
         /\ req.op = "list" => \A c \in out[r].content : c[2] = Pinned
-        /\ req.op = "export" => {c[3] : c \in out[r].content} = Entries(Pinned)
 NoContentOnFailure ==
     \A r \in Runs : (Finished(r) /\ out[r].kind # "ok") => out[r].content = {} /\ out[r].entries = <<>>
 

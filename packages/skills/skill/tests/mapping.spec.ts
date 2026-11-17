@@ -1,29 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { sourceFailureTo } from '../src/mapping.ts'
 
-describe('sourceFailureTo for inspect, by call', () => {
-  it.each([
-    ['package-not-found', { kind: 'source-unavailable' }, { kind: 'source-unavailable' }],
-    ['entry-not-found', { kind: 'source-unavailable' }, { kind: 'source-unavailable' }],
-    ['unavailable', { kind: 'source-unavailable' }, { kind: 'source-unavailable' }],
-    ['bytes-mismatch', { kind: 'source-unavailable' }, { kind: 'version-changed' }],
-    [
-      'entry-unreadable',
-      { kind: 'rejected', code: 'malformed' },
-      { kind: 'rejected', code: 'malformed' },
-    ],
-    [
-      'outside-package',
-      { kind: 'rejected', code: 'outside-package' },
-      { kind: 'rejected', code: 'outside-package' },
-    ],
-  ] as const)('%s → %j at snapshot, %j at open', (failure, atSnapshot, atOpen) => {
-    expect(sourceFailureTo('inspect', failure, 'snapshot')).toMatchObject(atSnapshot)
-    expect(sourceFailureTo('inspect', failure, 'open')).toMatchObject(atOpen)
-  })
-})
-
-describe('sourceFailureTo for the snapshot of read, list and export', () => {
+describe('sourceFailureTo for the snapshot of read and list', () => {
   it.each([
     ['unavailable', { kind: 'source-unavailable' }],
     ['entry-unreadable', { kind: 'source-unavailable' }],
@@ -45,7 +23,7 @@ describe('sourceFailureTo for the snapshot of read, list and export', () => {
   })
 })
 
-describe('sourceFailureTo for the open of read and export', () => {
+describe('sourceFailureTo for the open of read', () => {
   it.each([
     ['entry-not-found', { kind: 'resource-missing' }],
     ['unavailable', { kind: 'source-unavailable' }],
