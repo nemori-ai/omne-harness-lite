@@ -186,6 +186,10 @@ export interface Job<T> extends TokenRequest {
 export async function runJobs<T>(jobs: readonly Job<T>[], source: TokenSource): Promise<T[]> {
   const running: Promise<T>[] = []
   for (const job of jobs) running.push(started(await source.acquire(job), job))
+  return allOf(running)
+}
+
+async function allOf<T>(running: readonly Promise<T>[]): Promise<T[]> {
   const settled = await Promise.allSettled(running)
   const failure = settled.find(result => result.status === 'rejected')
   if (failure !== undefined) throw failure.reason
@@ -236,10 +240,7 @@ export async function runGatedJobs<T, J extends GatedJob<T>>(
     }
     running.push(started(lease, next))
   }
-  const settled = await Promise.allSettled(running)
-  const failure = settled.find(result => result.status === 'rejected')
-  if (failure !== undefined) throw failure.reason
-  return settled.map(result => (result as PromiseFulfilledResult<T>).value)
+  return allOf(running)
 }
 
 export interface TierGate {
@@ -259,14 +260,10 @@ export function tierGate(): TierGate {
   }
   return {
     gate: {
-      state: member =>
-        settled !== undefined
-          ? settled === 0
-            ? 'run'
-            : 'skip'
-          : passed.has(member)
-            ? 'run'
-            : 'wait',
+      state: member => {
+        if (settled !== undefined) return settled === 0 ? 'run' : 'skip'
+        return passed.has(member) ? 'run' : 'wait'
+      },
       changed: () => wake.promise,
     },
     done: (member, exitCode) => {

@@ -524,7 +524,6 @@ function reuseFor(
 ): Map<string, Map<string, Reuse>> {
   if (run.script !== 'test' || run.cache?.read !== true) return new Map()
   const reuse = planReuse({
-    root,
     home: readSetHome(run.at.mainRoot, process.env),
     tier: run.tier,
     members: toRun.map(member => member.path),

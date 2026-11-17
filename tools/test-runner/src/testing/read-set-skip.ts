@@ -154,7 +154,6 @@ export function floorOf(root: string, globalPaths: readonly string[]): Floor {
 }
 
 export interface ReuseContext {
-  readonly root: string
   readonly home: string
   readonly tier: RunTier
   readonly members: readonly string[]
@@ -188,10 +187,7 @@ export function carriedOf(
   if (reused === undefined) return undefined
   return {
     files: Object.fromEntries([...reused].map(([file, { entry }]) => [file, entry])),
-    tree: Object.assign({}, ...[...reused.values()].map(({ tree }) => tree)) as Record<
-      string,
-      string
-    >,
+    tree: Object.fromEntries([...reused.values()].flatMap(({ tree }) => Object.entries(tree))),
   }
 }
 

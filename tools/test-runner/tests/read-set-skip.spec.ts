@@ -347,7 +347,6 @@ describe('记录与跳过连起来', () => {
       })
     const plan = (env = ENV) =>
       planReuse({
-        root,
         home,
         tier: 'fast',
         members: ['pkg'],
