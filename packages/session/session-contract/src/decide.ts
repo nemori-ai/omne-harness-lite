@@ -22,12 +22,7 @@ import type {
 } from './identity.ts'
 import type { Adoption } from './identity.ts'
 import { tenantEquals, workspaceCodec, type WorkspaceId } from '@omne-harness/legal-identity'
-import type {
-  BoundedClose,
-  RunTerminal,
-  WorkSnapshot,
-  WorkspaceAttachment,
-} from './values.ts'
+import type { BoundedClose, RunTerminal, WorkSnapshot, WorkspaceAttachment } from './values.ts'
 import type { HistoryEntry, ProducerFact, SessionFailure, StartAdoption } from './faces.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import { encodeEntry } from './entries.ts'
