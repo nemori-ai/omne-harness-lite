@@ -1,5 +1,5 @@
 import type { CapabilityId, JsonValue } from '@omne-harness/assets'
-import type { ScriptDeclaration, SettingDeclaration, SkillDefinition } from './values.ts'
+import type { SettingDeclaration, SkillDefinition } from './values.ts'
 
 const text = (value: string): JsonValue => ({ kind: 'string', value })
 const list = (items: readonly JsonValue[]): JsonValue => ({ kind: 'array', items })
@@ -15,16 +15,6 @@ function tool(id: CapabilityId): JsonValue {
   ])
 }
 
-function script(declaration: ScriptDeclaration): JsonValue {
-  const fields: [string, JsonValue][] = [
-    ['entry', text(declaration.entry)],
-    ['runKind', text(declaration.runKind)],
-    ['facilities', list(declaration.facilities.map(text))],
-  ]
-  if (declaration.parameters !== undefined) fields.push(['parameters', declaration.parameters])
-  return object(fields)
-}
-
 function setting(declaration: SettingDeclaration): JsonValue {
   return object([
     ['name', text(declaration.name)],
@@ -38,7 +28,6 @@ export function projectAssetBody(definition: SkillDefinition): JsonValue {
     ['name', text(manifest.name)],
     ['description', text(manifest.description)],
     ['tools', list(declaration.dependencies.map(tool))],
-    ['scripts', list(declaration.scripts.map(script))],
     ['settings', list(declaration.settings.map(setting))],
     ['package', object([['digest', text(snapshot.digest)]])],
   ])

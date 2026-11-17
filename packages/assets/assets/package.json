@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/settings": "workspace:*"
   },
   "devDependencies": {

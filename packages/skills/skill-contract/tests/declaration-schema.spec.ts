@@ -54,8 +54,6 @@ function verdictOfText(text: string): string {
       : result.failure.kind
 }
 
-const script = { entry: 'run.sh', runKind: 'shell', facilities: [] }
-
 describe('skill-declaration.schema.json', () => {
   it('fixes the format version to 1 and closes the top-level object', () => {
     expect(schema.required).toEqual(['formatVersion'])
@@ -63,7 +61,7 @@ describe('skill-declaration.schema.json', () => {
     expect(node('formatVersion').type).toBe('integer')
     expect(schema.additionalProperties).toBe(false)
     expect(Object.keys(schema.properties).sort()).toEqual(
-      ['dependencies', 'formatVersion', 'scripts', 'settings'].sort(),
+      ['dependencies', 'formatVersion', 'settings'].sort(),
     )
     expect(verdict({ formatVersion: 1, other: [] })).toBe('malformed')
   })
@@ -73,8 +71,7 @@ describe('skill-declaration.schema.json', () => {
       expect(schema.description).toContain(lexeme)
       expect(verdictOfText(`{"formatVersion": ${lexeme}}`)).toBe('declaration-format-unsupported')
     }
-    expect(schema.description).toContain('. segments only')
-    expect(verdict({ formatVersion: 1, scripts: [{ ...script, entry: './.' }] })).toBe('malformed')
+    expect(schema.description).toContain('setting names that repeat')
     expect(schema.description).toContain('lone surrogate')
     expect(schema.description).toContain('code points')
     expect(schema.description).toContain('repeated key')
@@ -84,7 +81,7 @@ describe('skill-declaration.schema.json', () => {
 
   it('lists exactly the setting categories that the parser accepts', () => {
     const categories = node('settings', 'items', 'category').enum ?? []
-    expect(categories).toHaveLength(4)
+    expect(categories).toEqual(['preference', 'binding'])
     for (const category of categories)
       expect(verdict({ formatVersion: 1, settings: [{ name: 'a', category }] })).toBe('accepted')
     expect(verdict({ formatVersion: 1, settings: [{ name: 'a', category: 'secret' }] })).toBe(
@@ -94,7 +91,6 @@ describe('skill-declaration.schema.json', () => {
 
   it.each([
     ['dependencies', { category: 'tool', name: 'a' }],
-    ['scripts', script],
     ['settings', { name: 'a', category: 'binding' }],
   ] as const)('closes each %s item and requires the same fields as the parser', (part, item) => {
     const items = node(part, 'items')
@@ -107,53 +103,12 @@ describe('skill-declaration.schema.json', () => {
     const optional = Object.keys(items.properties ?? {}).filter(
       key => !(items.required ?? []).includes(key),
     )
-    expect(optional).toEqual(part === 'scripts' ? ['parameters'] : [])
+    expect(optional).toEqual([])
   })
 
-  it.each([
-    'shell',
-    'a',
-    `a${'b'.repeat(31)}`,
-    'run-kind-2',
-    'Shell',
-    '1a',
-    '',
-    `a${'b'.repeat(32)}`,
-    'a_b',
-  ])('agrees with the parser on the run kind and facility name %j', word => {
-    const pattern = new RegExp(node('scripts', 'items', 'runKind').pattern ?? '', 'u')
-    const facility = new RegExp(node('scripts', 'items', 'facilities', 'items').pattern ?? '', 'u')
-    const parsed = verdict({ formatVersion: 1, scripts: [{ ...script, runKind: word }] })
-    expect(pattern.test(word)).toBe(parsed === 'accepted')
-    const withFacility = verdict({ formatVersion: 1, scripts: [{ ...script, facilities: [word] }] })
-    expect(facility.test(word)).toBe(withFacility === 'accepted')
-  })
-
-  it.each([
-    'run.sh',
-    './run.sh',
-    '/run.sh',
-    '../run.sh',
-    'a/../run.sh',
-    'a\\run.sh',
-    'a//run.sh',
-    'a\u2028//run.sh',
-    'a\u2029/../run.sh',
-    'a/',
-    'run.sh\n',
-  ])('agrees with the parser on the form of the script entry %j', entry => {
-    const pattern = new RegExp(node('scripts', 'items', 'entry').pattern ?? '', 'u')
-    const parsed = verdict({ formatVersion: 1, scripts: [{ ...script, entry }] })
-    expect(pattern.test(entry)).toBe(parsed === 'accepted')
-  })
-
-  it('asks for unique dependencies and facilities as the parser does', () => {
+  it('asks for unique dependencies as the parser does', () => {
     expect(node('dependencies').uniqueItems).toBe(true)
-    expect(node('scripts', 'items', 'facilities').uniqueItems).toBe(true)
     const tool = { category: 'tool', name: 'a' }
     expect(verdict({ formatVersion: 1, dependencies: [tool, tool] })).toBe('malformed')
-    expect(verdict({ formatVersion: 1, scripts: [{ ...script, facilities: ['n', 'n'] }] })).toBe(
-      'malformed',
-    )
   })
 })

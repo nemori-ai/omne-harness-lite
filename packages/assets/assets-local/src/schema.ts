@@ -209,10 +209,19 @@ export const versionResultSchema = z.union([
   z.strictObject({ kind: z.literal('absent') }),
   failureSchema,
 ])
+export const heldCapabilityLookupSchema = z.strictObject({
+  category: SettingsIdSchema,
+  name: SettingsIdSchema,
+})
 export const readRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('asset'), domain: domainSchema, lookup: assetLookupSchema }),
   z.strictObject({ kind: z.literal('holding'), domain: domainSchema, lookup: holdingLookupSchema }),
   z.strictObject({ kind: z.literal('version'), domain: domainSchema, lookup: versionLookupSchema }),
+  z.strictObject({
+    kind: z.literal('heldCapability'),
+    domain: domainSchema,
+    lookup: heldCapabilityLookupSchema,
+  }),
 ])
 export type Mutation = z.infer<typeof mutationSchema>
 export type MutationBinding = z.infer<typeof mutationBindingSchema>
