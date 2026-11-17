@@ -40,7 +40,7 @@ export function instantOf(text: string): Instant {
 export function upcomingOf(candidate: ScheduleCandidate) {
   return {
     at: instantOf(candidate.scheduledAt),
-    local: candidate.adjustedLocal,
+    local: candidate.adjustedLocal as string,
     calendar: candidate.basis.calendarId,
     version: candidate.basis.calendarVersionId,
   }
@@ -55,7 +55,7 @@ function authorOf(view: ScheduleView) {
 
 export function cardOf(view: ScheduleView) {
   return {
-    schedule: view.scheduleId,
+    schedule: view.scheduleId as string,
     label: view.definition.label,
     control: view.control,
     standing: view.standing.kind,
