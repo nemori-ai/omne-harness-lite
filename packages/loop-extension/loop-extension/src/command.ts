@@ -20,12 +20,8 @@ function outputOf(stdout: Uint8Array, dropped: boolean): ExtensionInvocationResu
   } catch {
     return { ...BAD_OUTPUT, error: 'the output is not a JSON document' }
   }
-  const isOutput =
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    typeof (value as { kind?: unknown }).kind === 'string'
-  return isOutput
+  const kind = (value as { kind?: unknown } | null)?.kind
+  return typeof kind === 'string'
     ? { kind: 'output', value }
     : { ...BAD_OUTPUT, error: 'the output is not an extension output' }
 }

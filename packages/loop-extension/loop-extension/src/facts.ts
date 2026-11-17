@@ -58,12 +58,11 @@ async function factsOf(
   const run = await sources
     .run({ capability, asset })
     .catch((): ExtensionFacts['run'] => ({ kind: 'unavailable' }))
-  const declaration = body === undefined ? null : declarationOf(body)
   return {
     capability: capability.name,
     assetRef: asset,
     holding: 'enabled',
-    winner: { kind: 'version', version, declaration },
+    winner: { kind: 'version', version, declaration: declarationOf(body) },
     run,
   }
 }

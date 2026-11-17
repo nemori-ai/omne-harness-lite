@@ -28,8 +28,8 @@ const BODY_LIMITS = {
 const invalid = (reason: string): Outcome<never, PackageRejection> =>
   fail({ kind: 'invalid-package', reason })
 
-async function declarationText(pkg: PackageReader, paths: ReadonlySet<string>, digest: string) {
-  if (!paths.has(DECLARATION_PATH)) return invalid('declaration-missing')
+async function declarationText(pkg: PackageReader, digest: string | undefined) {
+  if (digest === undefined) return invalid('declaration-missing')
   const opened = await pkg.open(DECLARATION_PATH, digest)
   if ('failure' in opened)
     return fail<PackageRejection>({ kind: 'source-failed', failure: opened.failure })
@@ -38,7 +38,7 @@ async function declarationText(pkg: PackageReader, paths: ReadonlySet<string>, d
 
 function commandRefusal(
   declaration: LoopExtensionDeclaration,
-  paths: ReadonlySet<string>,
+  paths: ReadonlyMap<string, string>,
 ): string | null {
   const { implementation } = declaration
   if (implementation.kind !== 'command') return null
@@ -54,8 +54,7 @@ async function inspect(pkg: PackageReader): Promise<Outcome<JsonValue, PackageRe
   const manifest = await pkg.manifest()
   if ('failure' in manifest) return fail({ kind: 'source-failed', failure: manifest.failure })
   const digests = new Map(manifest.ok.entries.map(entry => [entry.path, entry.digest]))
-  const paths = new Set(digests.keys())
-  const text = await declarationText(pkg, paths, digests.get(DECLARATION_PATH) ?? '')
+  const text = await declarationText(pkg, digests.get(DECLARATION_PATH))
   if ('failure' in text) return text
   let parsed: unknown
   try {
@@ -67,7 +66,7 @@ async function inspect(pkg: PackageReader): Promise<Outcome<JsonValue, PackageRe
   if (judged.kind === 'refused') return invalid(`declaration-refused: ${judged.reason}`)
   const declaration = judged.value[0]
   if (declaration === undefined) return invalid('declaration-missing')
-  const refusal = commandRefusal(declaration, paths)
+  const refusal = commandRefusal(declaration, digests)
   if (refusal !== null) return invalid(refusal)
   const body = readBodyText(JSON.stringify({ declaration }), BODY_LIMITS)
   return body.kind === 'ok' ? succeed(body.value) : invalid('declaration-too-large')

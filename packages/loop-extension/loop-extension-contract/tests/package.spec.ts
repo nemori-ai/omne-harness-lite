@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   DECLARATION_PATH,
   LOOP_EXTENSION_CATEGORY,
+  LOOP_EXTENSION_PACKAGE_LIMITS,
   RUN_SETTING,
   declarationOf,
   loopExtensionBodyContract,
 } from '@omne-harness/loop-extension-contract'
-import type { JsonValue } from '@omne-harness/assets'
+import type { JsonValue, PackageReader } from '@omne-harness/assets'
+import { fail } from '@omne-harness/operation-result'
 import { builtin, command, packageOf, text } from './support.ts'
 
 const contract = loopExtensionBodyContract()
@@ -21,7 +23,62 @@ const bodyOf = async (files: Record<string, string>): Promise<JsonValue> => {
   return inspected.ok
 }
 
+const need = (name: string) => ({
+  name,
+  schema: { owner: 'o', name: 'n', revision: '1', digest: 'd' },
+  required: true,
+})
+
 describe('a loop extension package', () => {
+  it('lives in its own namespace, with its declaration at a fixed path and fixed limits', () => {
+    expect(DECLARATION_PATH).toBe('extension.json')
+    expect(contract.layout?.namespace).toBe('loop-extensions')
+    expect(contract.layout?.limits).toEqual({
+      files: 64,
+      fileBytes: 1_048_576,
+      totalBytes: 4_194_304,
+    })
+    expect(contract.layout?.limits).toBe(LOOP_EXTENSION_PACKAGE_LIMITS)
+  })
+
+  it('opens the declaration by the digest the manifest gives it', async () => {
+    const files = packageOf({ [DECLARATION_PATH]: text(builtin()) })
+    const opened: string[] = []
+    const inspected = await contract.layout!.inspect({
+      manifest: () => files.manifest(),
+      open(path, expected) {
+        opened.push(`${path}@${expected}`)
+        return files.open(path, expected)
+      },
+    })
+    const manifest = await files.manifest()
+    if ('failure' in manifest) throw new Error('the manifest is readable')
+    expect('ok' in inspected).toBe(true)
+    expect(opened).toEqual([`${DECLARATION_PATH}@${manifest.ok.entries[0]?.digest}`])
+  })
+
+  it.each([
+    ['its manifest', { manifest: async () => fail('unavailable' as const) }],
+    ['its declaration file', { open: async () => fail('unavailable' as const) }],
+  ] as const)(
+    'reports a source that fails to give %s as a source failure',
+    async (_name, broken) => {
+      const files = packageOf({ [DECLARATION_PATH]: text(builtin()) })
+      const reader = { ...files, ...broken } as PackageReader
+      expect(await contract.layout!.inspect(reader)).toEqual({
+        failure: { kind: 'source-failed', failure: 'unavailable' },
+      })
+    },
+  )
+
+  it('a command may declare a need that is not a model call', async () => {
+    const body = await bodyOf({
+      [DECLARATION_PATH]: text(command({ needs: [need('workspace')] })),
+      'check.mjs': '',
+    })
+    expect(declarationOf(body)?.needs?.map(item => item.name)).toEqual(['workspace'])
+  })
+
   it('a builtin package is its declaration file alone, and its body is the judged declaration', async () => {
     const body = await bodyOf({ [DECLARATION_PATH]: text(builtin()) })
     expect(declarationOf(body)).toEqual(builtin())
@@ -94,22 +151,44 @@ describe('a loop extension package', () => {
       'entry-missing',
     ],
     [
-      'a command that declares the need of a model call',
+      'a command whose entry is the declaration file',
       {
         [DECLARATION_PATH]: text(
           command({
-            needs: [
-              {
-                name: 'model',
-                schema: { owner: 'o', name: 'n', revision: '1', digest: 'd' },
-                required: true,
-              },
-            ],
+            implementation: {
+              kind: 'command',
+              interpreter: 'node',
+              entry: DECLARATION_PATH,
+              timeout: 'PT1S',
+            },
           }),
         ),
+      },
+      'entry-missing',
+    ],
+    [
+      'a command that declares the need of a model call',
+      { [DECLARATION_PATH]: text(command({ needs: [need('model')] })), 'check.mjs': '' },
+      'command-needs-model',
+    ],
+    [
+      'a command that declares the need of a model call among other needs',
+      {
+        [DECLARATION_PATH]: text(command({ needs: [need('workspace'), need('model')] })),
         'check.mjs': '',
       },
       'command-needs-model',
+    ],
+    [
+      'a declaration the Agent contract takes and that is too large to be the body of a version',
+      {
+        [DECLARATION_PATH]: text(
+          builtin({
+            needs: Array.from({ length: 10 }, (_, index) => need(`${index}-${'n'.repeat(7000)}`)),
+          }),
+        ),
+      },
+      'declaration-too-large',
     ],
   ])('refuses %s', async (_name, files, reason) => {
     const refusal = await rejected(files as Record<string, string>)

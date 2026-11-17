@@ -86,45 +86,51 @@ describe('the extensions a tenant has enabled', () => {
 })
 
 describe('the members of a position', () => {
-  const view = enabledView(
-    [
-      facts('zeta'),
-      facts('alpha'),
-      facts('later', {
-        winner: {
-          kind: 'version',
-          version: 'v2',
-          declaration: declaration('later', { position: 'before_terminal' }),
-        },
-      }),
-      facts('each', {
-        winner: {
-          kind: 'version',
-          version: 'v1',
-          declaration: declaration('each', {
-            position: 'after_action',
-            dimension: { scope: 'each' },
-          }),
-        },
-      }),
-    ],
-    basis,
-  )
-  if (view.kind !== 'view') throw new Error('the view is not available')
-
-  it('are those of the position and the dimension, in ascending order of the capability name', () => {
-    const at = membersAt(view.view, { position: 'before_action', dimension: null })
-    expect(at.map(member => member.declaration.name)).toEqual(['alpha', 'zeta'])
-    expect(
-      membersAt(view.view, { position: 'after_action', dimension: { scope: 'each' } }),
-    ).toHaveLength(1)
-    expect(
-      membersAt(view.view, { position: 'after_action', dimension: { scope: 'batch' } }),
-    ).toEqual([])
+  const later = facts('later', {
+    winner: {
+      kind: 'version',
+      version: 'v2',
+      declaration: declaration('later', { position: 'before_terminal' }),
+    },
   })
+  const each = facts('each', {
+    winner: {
+      kind: 'version',
+      version: 'v1',
+      declaration: declaration('each', {
+        position: 'after_action',
+        dimension: { scope: 'each' },
+      }),
+    },
+  })
+  const viewOf = (names: readonly string[]) => {
+    const view = enabledView([...names.map(name => facts(name)), later, each], basis)
+    expect(view.kind).toBe('view')
+    return (view as Extract<typeof view, { kind: 'view' }>).view
+  }
+
+  it.each([
+    [['zeta', 'alpha', 'mid']],
+    [['mid', 'zeta', 'alpha']],
+    [['alpha', 'mid', 'zeta']],
+    [['zeta', 'mid', 'alpha']],
+  ] as const)(
+    'are those of the position and the dimension, in ascending order of the capability name: %j',
+    held => {
+      const view = viewOf(held)
+      const at = membersAt(view, { position: 'before_action', dimension: null })
+      expect(at.map(member => member.declaration.name)).toEqual(['alpha', 'mid', 'zeta'])
+      expect(
+        membersAt(view, { position: 'after_action', dimension: { scope: 'each' } }),
+      ).toHaveLength(1)
+      expect(membersAt(view, { position: 'after_action', dimension: { scope: 'batch' } })).toEqual(
+        [],
+      )
+    },
+  )
 
   it('carry the exact version as the implementation the Agent records and asks for', () => {
-    const [member] = membersAt(view.view, { position: 'before_terminal', dimension: null })
+    const [member] = membersAt(viewOf(['alpha']), { position: 'before_terminal', dimension: null })
     expect(member?.implementation).toEqual(
       implementationOf({ capability: 'later', assetRef: 'asset/later', version: 'v2' }),
     )

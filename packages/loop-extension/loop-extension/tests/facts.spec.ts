@@ -120,6 +120,40 @@ describe('the facts of the extensions a tenant holds', () => {
     expect(reads).toEqual(['list:'])
   })
 
+  it('reads on when one of the holdings of a name is enabled', async () => {
+    const { given } = sources([
+      { name: 'both', version: 'v1', enabled: false },
+      { name: 'both', version: 'v2', enabled: true },
+    ])
+    expect(await gatherFacts(given, plain)).toEqual([
+      {
+        capability: 'both',
+        assetRef: 'asset/both',
+        holding: 'enabled',
+        winner: { kind: 'version', version: 'v2', declaration: declaration('both') },
+        run: { kind: 'value', value: true },
+      },
+    ])
+  })
+
+  it('keeps a failing read of the body or of the run setting as a fact, not as a failure of the whole', async () => {
+    const { given } = sources([{ name: 'a', version: 'v1', enabled: true }])
+    const failing = {
+      ...given,
+      body: async () => Promise.reject(new Error('the store is away')),
+      run: async () => Promise.reject(new Error('the settings are away')),
+    }
+    expect(await gatherFacts(failing, plain)).toEqual([
+      {
+        capability: 'a',
+        assetRef: 'asset/a',
+        holding: 'enabled',
+        winner: { kind: 'version', version: 'v1', declaration: null },
+        run: { kind: 'unavailable' },
+      },
+    ])
+  })
+
   it.each(['unavailable', 'partial', 'throws'] as const)(
     'answers unavailable when the list of the holdings is %s',
     async list => {
@@ -141,6 +175,7 @@ describe('the facts of the extensions a tenant holds', () => {
     })
     const facts = await gatherFacts(given, plain)
     if (facts === 'unavailable') throw new Error('the list was readable')
+    expect(facts.map(item => item.holding)).toEqual(['enabled', 'enabled', 'enabled', 'enabled'])
     expect(facts.map(item => [item.capability, item.winner, item.run])).toEqual([
       ['layer', { kind: 'unavailable' }, { kind: 'absent' }],
       [

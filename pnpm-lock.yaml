@@ -3011,9 +3011,6 @@ importers:
       '@omne-harness/loop-extension-contract':
         specifier: workspace:*
         version: link:../loop-extension-contract
-      '@omne-harness/operation-result':
-        specifier: workspace:*
-        version: link:../../common/operation-result
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -3033,9 +3030,6 @@ importers:
       '@omne-harness/assets':
         specifier: workspace:*
         version: link:../../assets/assets
-      '@omne-harness/json-text':
-        specifier: workspace:*
-        version: link:../../common/json-text
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -3064,9 +3058,6 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
-      '@omne-harness/agent-contract':
-        specifier: workspace:*
-        version: link:../../agent/agent-contract
       '@omne-harness/loop-extension-contract':
         specifier: workspace:*
         version: link:../loop-extension-contract

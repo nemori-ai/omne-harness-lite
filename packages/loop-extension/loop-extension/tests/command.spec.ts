@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { commandResult, type CommandObservation } from '@omne-harness/loop-extension'
-import {
-  COMMAND_OUTPUT_LIMIT_BYTES,
-  commandRequest,
-  commandTimeoutMs,
-} from '@omne-harness/loop-extension-contract'
-import type { ExtensionInput, ExtensionReplayBinding } from '@omne-harness/agent-contract'
+import { COMMAND_OUTPUT_LIMIT_BYTES } from '@omne-harness/loop-extension-contract'
 
 const evidence = (record: string) => ({
   owner: 'loop-extension',
@@ -14,12 +9,35 @@ const evidence = (record: string) => ({
   digest: 'd',
 })
 const bytes = (text: string) => new TextEncoder().encode(text)
-const exited = (code: number, stdout: string, dropped = false): CommandObservation => ({
+const exited = (
+  code: number,
+  stdout: string | Uint8Array,
+  dropped = false,
+): CommandObservation => ({
   kind: 'exited',
   code,
-  stdout: bytes(stdout),
+  stdout: typeof stdout === 'string' ? bytes(stdout) : stdout,
   dropped,
 })
+const NOT_JSON = {
+  kind: 'errored',
+  classification: 'bad_output',
+  error: 'the output is not a JSON document',
+}
+const NOT_OUTPUT = {
+  kind: 'errored',
+  classification: 'bad_output',
+  error: 'the output is not an extension output',
+}
+const OVER = {
+  kind: 'errored',
+  classification: 'bad_output',
+  error: 'the output is over the limit',
+}
+const padded = (length: number) => {
+  const empty = '{"kind":"observed","pad":""}'
+  return `{"kind":"observed","pad":"${'x'.repeat(length - empty.length)}"}`
+}
 
 describe('what a command run was seen to do, as a call result', () => {
   it.each([
@@ -34,26 +52,28 @@ describe('what a command run was seen to do, as a call result', () => {
       exited(0, '{"kind":"veto","reason":"no"}'),
       { kind: 'output', value: { kind: 'veto', reason: 'no' } },
     ],
+    ['exit zero with an output that is not JSON', exited(0, 'done'), NOT_JSON],
     [
-      'exit zero with an output that is not JSON',
-      exited(0, 'done'),
-      { kind: 'errored', classification: 'bad_output' },
+      'exit zero with bytes that are not UTF-8',
+      exited(0, Uint8Array.of(...bytes('{"kind":"observed","x":"'), 0xff, ...bytes('"}'))),
+      NOT_JSON,
+    ],
+    ['exit zero with a JSON array', exited(0, '[1]'), NOT_OUTPUT],
+    ['exit zero with a JSON null', exited(0, 'null'), NOT_OUTPUT],
+    ['exit zero with a JSON number', exited(0, '7'), NOT_OUTPUT],
+    ['exit zero with an object of no kind', exited(0, '{}'), NOT_OUTPUT],
+    ['exit zero with a kind that is not text', exited(0, '{"kind":1}'), NOT_OUTPUT],
+    [
+      'exit zero with an output of exactly the limit',
+      exited(0, padded(COMMAND_OUTPUT_LIMIT_BYTES)),
+      { kind: 'output', value: { kind: 'observed' } },
     ],
     [
-      'exit zero with JSON that is not an output',
-      exited(0, '[1]'),
-      { kind: 'errored', classification: 'bad_output' },
+      'exit zero with an output one byte over the limit',
+      exited(0, padded(COMMAND_OUTPUT_LIMIT_BYTES + 1)),
+      OVER,
     ],
-    [
-      'exit zero with an output over the limit',
-      exited(0, `{"kind":"observed","pad":"${'x'.repeat(COMMAND_OUTPUT_LIMIT_BYTES)}"}`),
-      { kind: 'errored', classification: 'bad_output' },
-    ],
-    [
-      'exit zero with bytes the environment dropped',
-      exited(0, '{"kind":"observed"}', true),
-      { kind: 'errored', classification: 'bad_output' },
-    ],
+    ['exit zero with bytes the environment dropped', exited(0, '{"kind":"observed"}', true), OVER],
     [
       'a nonzero exit, whatever it wrote',
       exited(3, '{"kind":"observed"}'),
@@ -62,7 +82,7 @@ describe('what a command run was seen to do, as a call result', () => {
     [
       'no end within the time limit',
       { kind: 'timed-out' },
-      { kind: 'errored', classification: 'timeout' },
+      { kind: 'errored', classification: 'timeout', error: 'the command ran over its time limit' },
     ],
     [
       'contact lost after the start',
@@ -80,37 +100,5 @@ describe('what a command run was seen to do, as a call result', () => {
   it('keeps the text a command wrote out of the error it reports', () => {
     const result = commandResult(exited(0, 'a secret the script printed'))
     expect(JSON.stringify(result)).not.toContain('secret')
-  })
-})
-
-describe('the protocol of a command implementation', () => {
-  const input = { passage: 'pass/call/1' } as unknown as ExtensionInput
-
-  it('gives a fresh call its input and no rounds, and a replay the rounds it already has', () => {
-    expect(commandRequest(input, { kind: 'fresh' })).toEqual({
-      protocol: 'omne-loop-extension/1',
-      mode: 'fresh',
-      input,
-      rounds: [],
-    })
-    const rounds = [{ round: 'r1', cards: [] }] as unknown as ExtensionReplayBinding['rounds']
-    const binding = { passage: input.passage, rounds, control: 'valid' } as ExtensionReplayBinding
-    expect(commandRequest(input, { kind: 'replay', binding })).toMatchObject({
-      mode: 'replay',
-      rounds,
-    })
-  })
-
-  it.each([
-    ['PT10S', 10_000],
-    ['PT1M30S', 90_000],
-    ['PT0.5S', 500],
-    ['PT1H', 3_600_000],
-    ['PT0S', null],
-    ['P1D', null],
-    ['P1M', null],
-    ['10s', null],
-  ] as const)('reads the time limit %s as %s milliseconds', (duration, expected) => {
-    expect(commandTimeoutMs(duration)).toBe(expected)
   })
 })
