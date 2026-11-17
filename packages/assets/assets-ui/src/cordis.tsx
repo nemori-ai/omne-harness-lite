@@ -6,13 +6,17 @@ import type { ClientOf } from '@omne-harness/sdk/core'
 import { Fragment } from 'react'
 import { assetGovernanceKey } from './governance-port.ts'
 import { createGovernance } from './model/governance.ts'
-import { assetsCategory, assetsHolding } from './model/points.ts'
+import { assetsCategory, assetsCategoryPage, assetsHolding } from './model/points.ts'
+import { AssetsPage } from './view/assets-page.tsx'
 import { SettingRow } from './view/setting-row.tsx'
-import { SettingsPanel } from './view/settings-panel.tsx'
+import { SettingsNote } from './view/settings-note.tsx'
 
 const ASSETS = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
 
 export type AssetsUiOptions = Readonly<{ categoryLabels?: Readonly<Record<string, string>> }>
+
+export const ASSETS_PAGE_ORDER = 15
+export const SETTINGS_PAGE_ORDER = 20
 
 const inOrder: AttachedLayout = entries =>
   entries.map(entry => <Fragment key={entry.id}>{entry.node}</Fragment>)
@@ -27,21 +31,28 @@ export function createAssetsUiModule(options: AssetsUiOptions = {}) {
       const governance = createGovernance({ client })
       provide(assetGovernanceKey, { open: governance.open, SettingRow })
       shell.contribute('pages', {
-        id: 'settings',
-        title: '设置',
-        order: 20,
+        id: 'assets',
+        title: '资产',
+        order: ASSETS_PAGE_ORDER,
         render: ({ scope }) =>
           scope === undefined ? null : (
-            <SettingsPanel
-              client={client}
+            <AssetsPage
+              governance={governance}
               tenant={scope}
               categoryLabels={categoryLabels}
               categorySlot={category => assetsCategory.slot(shell, category, { category }, inOrder)}
               holdingSlot={(category, name) =>
                 assetsHolding.slot(shell, category, { category, name }, inOrder)
               }
+              pages={layout => assetsCategoryPage.slot(shell, {}, layout)}
             />
           ),
+      })
+      shell.contribute('pages', {
+        id: 'settings',
+        title: '设置',
+        order: SETTINGS_PAGE_ORDER,
+        render: () => <SettingsNote />,
       })
     },
   })
@@ -55,9 +66,12 @@ export type { Holding } from './model/holdings.ts'
 export type { SettingRowProps } from './view/setting-row.tsx'
 export {
   ASSETS_CATEGORY,
+  ASSETS_CATEGORY_PAGE,
   ASSETS_HOLDING,
   assetsCategory,
+  assetsCategoryPage,
   assetsHolding,
+  type AssetsPageSubject,
   type CategorySubject,
   type HoldingSubject,
 } from './model/points.ts'

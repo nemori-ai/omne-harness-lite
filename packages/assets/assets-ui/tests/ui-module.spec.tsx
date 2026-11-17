@@ -24,14 +24,14 @@ const pageIds = (root: Context) =>
     .items('pages')
     .map(item => item.id)
 
-it('U1 the assets protocol client present: the settings page is placed after the conversation page', async () => {
+it('U1 the assets protocol client present: the assets page and then the settings page, both after the decisions page', async () => {
   const { root, shell } = await startShell()
   const fake = createFakeClient()
   root.reflect.provide(SERVICE, fake.client)
   await root.plugin(assetsUiModule)
-  const [page] = shell.items('pages')
-  expect(page).toMatchObject({ id: 'settings', title: '设置' })
-  expect(page!.order).toBeGreaterThan(0)
+  const [assets, settings] = shell.items('pages')
+  expect(assets).toMatchObject({ id: 'assets', title: '资产', order: 15 })
+  expect(settings).toMatchObject({ id: 'settings', title: '设置', order: 20 })
   expect(shell.items('sidebar')).toEqual([])
   expect(shell.items('gate')).toEqual([])
 })
@@ -70,13 +70,13 @@ it('U4 the protocol client withdrawn: the module unloads and its page is removed
   const fake = createFakeClient()
   const unprovide = root.reflect.provide(SERVICE, fake.client)
   await root.plugin(assetsUiModule)
-  expect(pageIds(root)).toEqual(['settings'])
+  expect(pageIds(root)).toEqual(['assets', 'settings'])
   unprovide()
   await new Promise(resolve => setTimeout(resolve, 0))
   expect(pageIds(root)).toEqual([])
   root.reflect.provide(SERVICE, fake.client)
   await new Promise(resolve => setTimeout(resolve, 0))
-  expect(pageIds(root)).toEqual(['settings'])
+  expect(pageIds(root)).toEqual(['assets', 'settings'])
 })
 
 it('U6 the module provides the governance port: another module injects it, reads one category through it, and loses it with the module', async () => {

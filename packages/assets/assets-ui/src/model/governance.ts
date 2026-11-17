@@ -24,6 +24,7 @@ export type CategoryGovernance = Readonly<{
 
 export type GovernanceModel = Readonly<{
   open: (tenant: TenantId, category: string) => CategoryGovernance
+  openAll: (tenant: TenantId) => CategoryGovernance
 }>
 
 export type GovernanceDeps = Readonly<{
@@ -33,7 +34,7 @@ export type GovernanceDeps = Readonly<{
 
 const READING: CategorySnapshot = { kind: 'reading' }
 
-export function snapshotOf(state: State, category: string): CategorySnapshot {
+export function snapshotOf(state: State, category: string | null): CategorySnapshot {
   const list = state.list
   switch (list.kind) {
     case 'unread':
@@ -42,7 +43,10 @@ export function snapshotOf(state: State, category: string): CategorySnapshot {
     case 'failed':
       return { kind: 'unreadable', notice: list.notice }
     case 'read': {
-      const rows = list.rows.filter(row => row.view.asset.category === category)
+      const rows =
+        category === null
+          ? list.rows
+          : list.rows.filter(row => row.view.asset.category === category)
       return { kind: 'read', holdings: holdingsOf(rows), partial: list.partial }
     }
   }
@@ -67,36 +71,39 @@ export function createGovernance(deps: GovernanceDeps): GovernanceModel {
     return created
   }
 
+  function view(tenant: TenantId, category: string | null): CategoryGovernance {
+    const entry = share(tenant)
+    entry.users += 1
+    const { driver } = entry
+    let seen: State | undefined
+    let snapshot = READING
+    return {
+      subscribe: driver.subscribe,
+      getSnapshot() {
+        const state = driver.getState()
+        if (state !== seen) {
+          seen = state
+          snapshot = snapshotOf(state, category)
+        }
+        return snapshot
+      },
+      read: () => driver.readList(),
+      set: (key, pick) => driver.set(key, pick),
+      setSecret: (key, secret) => driver.setSecret(key, secret),
+      clear: key => driver.clear(key),
+      confirm: key => driver.confirm(key),
+      retryRow: key => driver.retryRow(key),
+      close() {
+        entry.users -= 1
+        if (entry.users > 0) return
+        driver.dispose()
+        shared.delete(tenant)
+      },
+    }
+  }
+
   return {
-    open(tenant, category) {
-      const entry = share(tenant)
-      entry.users += 1
-      const { driver } = entry
-      let seen: State | undefined
-      let snapshot = READING
-      return {
-        subscribe: driver.subscribe,
-        getSnapshot() {
-          const state = driver.getState()
-          if (state !== seen) {
-            seen = state
-            snapshot = snapshotOf(state, category)
-          }
-          return snapshot
-        },
-        read: () => driver.readList(),
-        set: (key, pick) => driver.set(key, pick),
-        setSecret: (key, secret) => driver.setSecret(key, secret),
-        clear: key => driver.clear(key),
-        confirm: key => driver.confirm(key),
-        retryRow: key => driver.retryRow(key),
-        close() {
-          entry.users -= 1
-          if (entry.users > 0) return
-          driver.dispose()
-          shared.delete(tenant)
-        },
-      }
-    },
+    open: (tenant, category) => view(tenant, category),
+    openAll: tenant => view(tenant, null),
   }
 }
