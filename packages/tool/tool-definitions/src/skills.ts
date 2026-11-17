@@ -1,5 +1,5 @@
 import type { JsonValue } from '@omne-harness/json-text'
-import { fail, succeed } from '@omne-harness/operation-result'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { CommandTable } from '@omne-harness/tool-contract'
 import {
   commandGuide,
@@ -114,6 +114,10 @@ function listText(skill: string, listing: SkillsListing): string {
   ].join('\n')
 }
 
+function rendered<T>(answer: Outcome<T, SkillsFailure>, render: (value: T) => string): string {
+  return 'failure' in answer ? failureLine(answer.failure) : render(answer.ok)
+}
+
 async function execute(
   args: SkillsArguments,
   execution: ToolExecutionContext,
@@ -128,32 +132,32 @@ async function execute(
       reason: 'Skills access is not attached to this call',
     })
   const maxBytes = Math.max(1, maximum - Math.min(Math.floor(maximum / 2), HEAD_RESERVE))
-  const signal = execution.signal
+  const { signal } = execution
   switch (args.kind) {
     case 'search': {
       const limit = Math.min(args.limit ?? DEFAULT_LIMIT, MAX_LIMIT)
-      const answer = await access.search({ query: args.query, after: args.after, limit }, signal)
-      return 'failure' in answer ? failureLine(answer.failure) : searchText(args.query, answer.ok)
-    }
-    case 'read': {
-      const answer = await access.read({ skill: args.skill, offset: args.offset, maxBytes }, signal)
-      return 'failure' in answer
-        ? failureLine(answer.failure)
-        : textResult(`read skill=${args.skill}`, answer.ok)
-    }
-    case 'list': {
-      const answer = await access.list({ skill: args.skill }, signal)
-      return 'failure' in answer ? failureLine(answer.failure) : listText(args.skill, answer.ok)
-    }
-    case 'read_file': {
-      const answer = await access.readFile(
-        { skill: args.skill, path: args.path, offset: args.offset, maxBytes },
-        signal,
+      return rendered(
+        await access.search({ query: args.query, after: args.after, limit }, signal),
+        page => searchText(args.query, page),
       )
-      return 'failure' in answer
-        ? failureLine(answer.failure)
-        : textResult(`read_file skill=${args.skill} path=${args.path}`, answer.ok)
     }
+    case 'read':
+      return rendered(
+        await access.read({ skill: args.skill, offset: args.offset, maxBytes }, signal),
+        read => textResult(`read skill=${args.skill}`, read),
+      )
+    case 'list':
+      return rendered(await access.list({ skill: args.skill }, signal), listing =>
+        listText(args.skill, listing),
+      )
+    case 'read_file':
+      return rendered(
+        await access.readFile(
+          { skill: args.skill, path: args.path, offset: args.offset, maxBytes },
+          signal,
+        ),
+        read => textResult(`read_file skill=${args.skill} path=${args.path}`, read),
+      )
   }
 }
 
