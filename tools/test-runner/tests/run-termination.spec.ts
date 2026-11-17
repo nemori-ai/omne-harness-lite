@@ -1,6 +1,6 @@
 // 测试一步收到终止信号：转给在跑的批，不再派下一批，以 130 退出。
 import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
@@ -31,7 +31,7 @@ const alive = (pid: number) => {
 }
 
 it('收到 SIGTERM：在跑的批被停掉，排在后面的批不再起，以 130 退出', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'run-termination-'))
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'run-termination-')))
   dirs.push(dir)
   const script = join(dir, 'queue.mts')
   writeFileSync(
