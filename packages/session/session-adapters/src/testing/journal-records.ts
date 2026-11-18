@@ -6,7 +6,6 @@ import type {
   AgentEventBody,
   AgentOperationId,
   CommandReceipt,
-  ControlRecord,
   DurableEvidence,
   ExecutionState,
   HandoffOutcome,
@@ -35,6 +34,7 @@ import type { AdmissionLedger, AdmissionProjection, AdmissionRecord } from './re
 import { finishingOf } from './journal-finishing.ts'
 import { emptyReceivingState, type ReceivingState } from './journal-receiving.ts'
 import { bindTarget } from './binding-targets.ts'
+import { controlRecordOf } from './journal-controls.ts'
 import { journalEvidence, operationText, revisionOf, semanticKey } from './journal-values.ts'
 import { captureHuman } from './human.ts'
 import { receivedRecord, stampReceipt } from './received-records.ts'
@@ -257,22 +257,7 @@ export function projectExecution(
     retainedFrom: 1,
     acknowledged: view.acknowledged,
     acknowledgedAt: view.acknowledgedAt,
-    controls: [...view.controls.values()].map(
-      item =>
-        ({
-          operation: item.control,
-          command: item.command,
-          ...(item.modelInvocation === null ? {} : { modelInvocation: item.modelInvocation }),
-          ...(item.toolInvocation === null ? {} : { toolInvocation: item.toolInvocation }),
-          ...(item.toolOperation === null ? {} : { toolOperation: item.toolOperation }),
-          stages: Object.fromEntries(
-            Object.entries(item.stages).map(([stage, fact]) => [
-              stage,
-              { state: fact.state, source: fact.source },
-            ]),
-          ),
-        }) as unknown as ControlRecord,
-    ),
+    controls: [...view.controls.values()].map(controlRecordOf),
     results: [...view.results.values()].filter(responsible).map((item): ResultResponsibility => ({
       result: producedOf(item.result),
       consumption: item.consumption,
