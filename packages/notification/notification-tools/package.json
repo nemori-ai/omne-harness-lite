@@ -1,0 +1,42 @@
+{
+  "name": "@omne-harness/notification-tools",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Notifications tool: an agent posts for people, reads and disposes its own inbox, and subscribes with the owner's consent",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@omne-harness/human-intervention-tool": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/notification-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/tool-contract": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@omne-harness/notification": "workspace:*",
+    "@omne-harness/tool": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

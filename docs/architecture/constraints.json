@@ -687,6 +687,14 @@
       "source": "packages/notification/SPEC.md"
     },
     {
+      "id": "packages/notification/notification-tools",
+      "paths": ["packages/notification/notification-tools/src/**"],
+      "layer": "unknown",
+      "domains": ["notification"],
+      "status": "candidate",
+      "source": "packages/notification/SPEC.md"
+    },
+    {
       "id": "packages/notification/notification-protocol",
       "paths": ["packages/notification/notification-protocol/src/**"],
       "layer": "contract",
