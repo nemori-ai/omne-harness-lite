@@ -24,6 +24,8 @@ import {
   type ModelCommandsEvidence,
   type ModelInitialExecution,
 } from '@omne-harness/model/commands'
+import { anthropicTokenizerResources, createAnthropicFamily } from '@omne-harness/pi-ai-anthropic'
+import type { TiktokenExecutor } from '@omne-harness/tokenizer-tiktoken'
 import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import { modelTokenizersKey, type ModelTokenizers } from '@omne-harness/tokenizer-tiktoken/cordis'
@@ -160,19 +162,26 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
         live.initial = undefined
         handle.detach()
       })
+      const executor: Pick<TiktokenExecutor, 'acquire'> = {
+        acquire: (definition, signal) =>
+          sendTokenizers.port?.acquire(definition, signal) ?? {
+            failure: { kind: 'unavailable', diagnostic: 'tokenizer-provider-unavailable' },
+          },
+      }
       const Stage = createModelSendStagePlugin<unknown>({
         requestDisclosure,
         families: composeFamilies([
           createOpenAiFamily({
             tokenizer: openAiTokenizerResources(),
-            executor: {
-              acquire: (definition, signal) =>
-                sendTokenizers.port?.acquire(definition, signal) ?? {
-                  failure: { kind: 'unavailable', diagnostic: 'tokenizer-provider-unavailable' },
-                },
-            },
+            executor,
             limits: sendStage.preparation.openai.limits,
             margin: sendStage.preparation.openai.margin,
+          }),
+          createAnthropicFamily({
+            tokenizer: anthropicTokenizerResources(),
+            executor,
+            limits: sendStage.preparation.anthropic.limits,
+            margin: sendStage.preparation.anthropic.margin,
           }),
         ]),
         coordinator,

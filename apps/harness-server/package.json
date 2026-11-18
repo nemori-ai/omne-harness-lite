@@ -83,6 +83,7 @@
     "@omne-harness/model-storage-sql": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/permissions": "workspace:*",
+    "@omne-harness/pi-ai-anthropic": "workspace:*",
     "@omne-harness/pi-ai-openai": "workspace:*",
     "@omne-harness/pi-ai-transport": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",

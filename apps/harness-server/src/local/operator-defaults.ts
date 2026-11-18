@@ -68,24 +68,28 @@ export const LOCAL_TOKENIZERS = {
   cancellationGraceMs: 1_000,
 } as const
 
+// The limits of decoding tool arguments and reasoning text, and the input margin, of one family.
+const FAMILY = {
+  limits: {
+    toolArguments: {
+      maxBytes: 65_536,
+      maxDepth: 32,
+      maxItems: 1_024,
+      maxMembers: 256,
+      maxStringLength: 65_536,
+      maxNumberLength: 64,
+    },
+    maxReasoningText: 65_536,
+  },
+  margin: { percent: '10', source: ADOPTION },
+} as const
+
 const PREPARATION = {
   // A reply that carries reasoning state cites the call that produced it, and a request cites
   // every such reply it carries; the bound guards one preparation against an unbounded read.
   maxCitedCalls: 1_024,
-  openai: {
-    limits: {
-      toolArguments: {
-        maxBytes: 65_536,
-        maxDepth: 32,
-        maxItems: 1_024,
-        maxMembers: 256,
-        maxStringLength: 65_536,
-        maxNumberLength: 64,
-      },
-      maxReasoningText: 65_536,
-    },
-    margin: { percent: '10', source: ADOPTION },
-  },
+  openai: FAMILY,
+  anthropic: FAMILY,
 } as const
 
 export const LOCAL_CONCURRENT_MODEL_CALLS = 20

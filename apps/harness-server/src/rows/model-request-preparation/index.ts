@@ -5,6 +5,7 @@ import {
   modelRequestPreparationKey,
 } from '@omne-harness/model-cordis-contract/cordis'
 import { createModelRequestPreparationPlugin } from '@omne-harness/model-host-local/cordis'
+import { anthropicTokenizerResources, createAnthropicFamily } from '@omne-harness/pi-ai-anthropic'
 import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
 import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import { modelTokenizersKey } from '@omne-harness/tokenizer-tiktoken/cordis'
@@ -27,6 +28,12 @@ const plugin: Plugin.Object = {
         executor,
         limits: config.openai.limits,
         margin: config.openai.margin,
+      }),
+      createAnthropicFamily({
+        tokenizer: anthropicTokenizerResources(),
+        executor,
+        limits: config.anthropic.limits,
+        margin: config.anthropic.margin,
       }),
     ])
     const readers = modelReadersPortOf(ctx)

@@ -85,22 +85,24 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     compactionTriggerPercent: '80',
     updatedAt: '2026-11-02T00:00:00Z',
   }
+  const family = {
+    limits: {
+      toolArguments: {
+        maxBytes: 65_536,
+        maxDepth: 32,
+        maxItems: 1_024,
+        maxMembers: 256,
+        maxStringLength: 65_536,
+        maxNumberLength: 64,
+      },
+      maxReasoningText: 65_536,
+    },
+    margin: { percent: '10', source: MODEL_TEST_ADOPTION },
+  }
   const preparation = {
     maxCitedCalls: 1_024,
-    openai: {
-      limits: {
-        toolArguments: {
-          maxBytes: 65_536,
-          maxDepth: 32,
-          maxItems: 1_024,
-          maxMembers: 256,
-          maxStringLength: 65_536,
-          maxNumberLength: 64,
-        },
-        maxReasoningText: 65_536,
-      },
-      margin: { percent: '10', source: MODEL_TEST_ADOPTION },
-    },
+    openai: family,
+    anthropic: structuredClone(family),
   }
   const host = {
     host: { concurrencyLimit: 4, wakeCapacity: 64, scanBatchSize: 10, scanIntervalMs: 1000 },

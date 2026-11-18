@@ -49,7 +49,12 @@ export function releaseDistribution(modes: ReleaseModes = {}): unknown {
   const distribution = JSON.parse(
     readFileSync(new URL('../../config/serve.distribution.json', import.meta.url), 'utf8'),
   ) as { rows: Array<{ id: string; config: unknown }> }
-  if (modes.permission === undefined && modes.collaboration === undefined) return distribution
+  if (
+    modes.permission === undefined &&
+    modes.collaboration === undefined &&
+    modes.model === undefined
+  )
+    return distribution
   const adoptionRow = distribution.rows.find(row => row.id === 'agent-adoptions')
   if (adoptionRow === undefined) throw new Error('No Agent mappings')
   const mappings = agentAdoptionsConfig.parse(adoptionRow.config)
@@ -58,11 +63,20 @@ export function releaseDistribution(modes: ReleaseModes = {}): unknown {
   if (modes.permission !== undefined)
     coding.modes.permission = modes.permission as typeof coding.modes.permission
   if (modes.collaboration !== undefined) coding.modes.collaboration = modes.collaboration
+  if (modes.model !== undefined) {
+    if (coding.initialModelSelection === undefined) throw new Error('No coding model selection')
+    coding.initialModelSelection.name = modes.model
+  }
   adoptionRow.config = mappings
   return distribution
 }
 
-type ReleaseModes = Readonly<{ permission?: string; collaboration?: 'co-work' | 'auto-drive' }>
+type ReleaseModes = Readonly<{
+  permission?: string
+  collaboration?: 'co-work' | 'auto-drive'
+  /** The model a coding session starts on, in place of the distribution's. */
+  model?: string
+}>
 
 export const sse = (events: readonly unknown[]): string =>
   `${events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')}data: [DONE]\n\n`
@@ -542,6 +556,7 @@ export type ReleaseTreeOptions = Readonly<{
   script: GatewayScript
   permission?: string
   collaboration?: 'co-work' | 'auto-drive'
+  model?: string
   audience?: (registrar: string) => HitlAudience
   queueCapacity?: number
   observationPolicy?: Readonly<Record<string, number>>
