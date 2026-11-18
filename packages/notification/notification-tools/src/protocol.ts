@@ -128,8 +128,13 @@ export const notificationsSummaries: Readonly<Record<NotificationsCommandName, s
   unsubscribe: 'Return one subscription to the default of its event type.',
 }
 
+/** The contract's values are immutable, which zod writes as `readOnly`: in a schema that means "do not send". */
+const sendable = (ctx: { jsonSchema: { readOnly?: boolean } }) => {
+  delete ctx.jsonSchema.readOnly
+}
+
 export function notificationsContract(name: NotificationsCommandName): ParameterContract {
-  const document = z.toJSONSchema(shapes[name])
+  const document = z.toJSONSchema(shapes[name], { override: sendable })
   const { $schema: _dialect, ...schema } = document as Record<string, unknown>
   return { schema: tree(schema), vocabulary, descriptions: [] }
 }

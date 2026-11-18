@@ -1,8 +1,10 @@
 import { commandMenu } from '@omne-harness/tool-contract'
 import { describe, expect, it } from 'vitest'
+import { writeJsonText } from '@omne-harness/json-text'
 import {
   createNotificationsAuthor,
   notificationsAdoption,
+  notificationsCommandNames,
   notificationsContract,
   notificationsExecutor,
   notificationsParameterCodec,
@@ -136,6 +138,19 @@ describe('the author of Notifications', () => {
         },
       }
     `)
+  })
+})
+
+describe('the schema of a command', () => {
+  it('never marks a field read-only: a model is to send scope, term and locator', () => {
+    for (const name of notificationsCommandNames) {
+      const schema = writeJsonText(notificationsContract(name).schema)
+      expect(schema, name).not.toContain('readOnly')
+    }
+    const subscribe = JSON.parse(writeJsonText(notificationsContract('subscribe').schema))
+    expect(subscribe.properties.scope.oneOf).toHaveLength(3)
+    expect(subscribe.properties.term.oneOf[2].properties.at).toMatchObject({ type: 'string' })
+    expect(subscribe).not.toHaveProperty('$schema')
   })
 })
 
