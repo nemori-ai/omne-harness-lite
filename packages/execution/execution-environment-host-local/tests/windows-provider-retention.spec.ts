@@ -18,7 +18,7 @@ it('attaches a retained native shell through a fresh acquisition and inherits it
     const directory = join(f.root, 'continued')
     await mkdir(directory)
     const terminal = value(
-      await a.terminal.create({ ...a.call, cwd: f.root, env: f.identity.env, retain: 'session' }),
+      await a.terminal.create({ ...a.call, cwd: f.root, env: f.identity.env, retain: 'scope' }),
     ).terminal
     const first = value(
       await a.terminal.execute({
@@ -89,7 +89,7 @@ it('shares the domain bound between ordinary, retained and successor providers',
     const a = await f.acquire()
     const request = { ...a.call, cwd: f.root, env: f.identity.env }
     expect(await a.terminal.create(request)).toMatchObject({ reason: 'capacity' })
-    expect(await a.terminal.create({ ...request, retain: 'session' })).toMatchObject({
+    expect(await a.terminal.create({ ...request, retain: 'scope' })).toMatchObject({
       reason: 'unavailable',
     })
     const b = await successor.acquire({
@@ -102,7 +102,7 @@ it('shares the domain bound between ordinary, retained and successor providers',
       reason: 'capacity',
     })
     expect(
-      await b.lease.facility('terminal')?.create({ ...request, retain: 'session' }),
+      await b.lease.facility('terminal')?.create({ ...request, retain: 'scope' }),
     ).toMatchObject({ reason: 'unavailable' })
     expect(f.plans).toEqual([])
     expect(await b.lease.release()).toEqual({ kind: 'released' })

@@ -241,7 +241,7 @@ export function createRetainedTerminalIndex() {
         request: CreateRequest,
       ): Promise<FacilityResult<{ terminal: TerminalRef }>> => {
         if (closed()) return reject(request.requestId, 'closed')
-        if (request.retain !== 'session') return ordinary.facility.create(request)
+        if (request.retain !== 'scope') return ordinary.facility.create(request)
         if (retention === undefined || key === undefined)
           return reject(request.requestId, 'unsupported')
         const count = [...entries.values()].filter(entry => entry.state !== 'closed').length

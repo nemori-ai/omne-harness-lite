@@ -150,7 +150,7 @@ it('reserves retained identity before start and gates native startup with its re
   const f = terminalFixture(root)
   const factory = createWindowsRetainedTerminalFactory(f.input)
   const backend = factory({
-    request: { ...f.request, retain: 'session' },
+    request: { ...f.request, retain: 'scope' },
     ledger: f.input.ledger,
     scope: f.input.scope,
     closed: () => false,

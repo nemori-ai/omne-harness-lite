@@ -3739,9 +3739,9 @@ export type ResidentKeyFailure = Readonly<{
     reason: 'type' | 'empty' | 'identity';
 }>;
 export type ResidentReferencesPage = Readonly<{
-    sessions: readonly Readonly<{
+    references: readonly Readonly<{
         tenant: TenantId;
-        session: string;
+        holder: string;
         capability: string;
         shape: JsonValue;
     }>[];
