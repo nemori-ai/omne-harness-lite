@@ -73,7 +73,7 @@
       "packages/agent/agent-contract/src/testing-journal-finishing.ts": 4101,
       "packages/agent/agent-contract/src/testing-received-conformance.ts": 1055,
       "packages/agent/agent-host-local/src/host.ts": 1037,
-      "packages/agent/agent/src/loop/coordinator.ts": 3402,
+      "packages/agent/agent/src/loop/coordinator.ts": 3347,
       "packages/agent/agent/src/testing/journal.ts": 3589,
       "packages/execution/execution-environment-contract/src/testing/environment-conformance.ts": 1055,
       "packages/execution/execution-environment/src/registry.ts": 1046,
@@ -93,7 +93,7 @@
       "packages/session/session-storage-sql/src/worker/participant.ts": 1164,
       "packages/tool/tool-contract/src/testing-executor-binding.ts": 1022,
       "packages/tool/tool-cordis-contract/src/testing.ts": 1388,
-      "packages/tool/tool-host-local/src/start-coordinator.ts": 1059,
+      "packages/tool/tool-host-local/src/start-coordinator.ts": 1055,
       "packages/tool/tool/src/ledger.ts": 2012,
       "tools/repo-toolchain/src/arch/extract.ts": 1098
     },
@@ -164,7 +164,7 @@
       },
       "packages/agent/agent/src/loop/coordinator.ts": {
         "count": 1,
-        "longest": 2913
+        "longest": 2868
       },
       "packages/agent/agent/src/provider.ts": {
         "count": 1,
@@ -516,7 +516,7 @@
       },
       "packages/session/session-access/src/contribution.ts": {
         "count": 1,
-        "longest": 232
+        "longest": 191
       },
       "packages/session/session-adapters/src/cordis/agent-journal-provider.ts": {
         "count": 1,
@@ -724,7 +724,7 @@
       },
       "packages/tool/tool-host-local/src/start-coordinator.ts": {
         "count": 1,
-        "longest": 492
+        "longest": 486
       },
       "packages/tool/tool-host-local/src/tool-forwarding.ts": {
         "count": 2,

@@ -87,6 +87,7 @@ const commandKinds = {
   receive: true,
 } satisfies Record<MutationName, true>
 const declarationKinds = {
+  'authorization-expression': true,
   'permission-mode': true,
   'collaboration-mode': true,
   'environment-mode': true,

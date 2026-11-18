@@ -1,4 +1,4 @@
-import { isItemKey, itemOutput, itemScope } from './item-rows.ts'
+import { isItemKey, itemOutput, itemScope, pageLength } from './item-rows.ts'
 import { handler, PAGE_ROWS, rowsOf } from './support.ts'
 
 const MAX_FAMILIES = 8
@@ -50,14 +50,14 @@ export default handler('execution-record.open-items', (input, port) => {
       PAGE_ROWS + 1,
     ],
   )
-  const page = rows.slice(0, PAGE_ROWS)
+  const page = rows.slice(0, pageLength(rows, PAGE_ROWS))
   const last = page.at(-1)
   return {
     kind: 'open',
     published: String(published),
     items: page.map(itemOutput),
     next:
-      rows.length > PAGE_ROWS && last !== undefined
+      rows.length > page.length && last !== undefined
         ? { family: String(last['family']), item: String(last['item']) }
         : null,
   }

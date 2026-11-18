@@ -93,7 +93,7 @@ function objectOf(text: string): JsonObject {
 
 // A call naming no known command, or lacking a needed intent, is answered here and never runs;
 // other malformed calls are judged when they run, labelled with the intent decoding checked.
-function callOf(
+export function callOf(
   definition: ToolAvailability['definition'],
   effectiveArguments: string,
 ): Readonly<{ command: string | null; label: ToolCallLabel }> | Readonly<{ answer: string }> {

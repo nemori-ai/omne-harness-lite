@@ -75,6 +75,7 @@ async function probeCell(
     },
     systemActions: { check: input => systemActions.check(input) },
     login: { queryCurrentTenant: () => Promise.reject(new Error('no login source')) },
+    cards: () => ({ read: async () => ({ ok: ANSWERED }) }) as never,
   }
   const actor = okOf(authority.issuer.issueSystem({ component: 'sessionWorkPrincipals' }), 'actor')
   const acting = (owner: string, work: string) =>
@@ -96,6 +97,23 @@ const scopeReleaseFact = {
     scope: 'scope_1',
     dispositions: ['released'],
     source: 'e',
+  },
+}
+const SAID = { owner: 'cards', record: 'answer', revision: '1', digest: 'a' }
+const ANSWERED = { kind: 'chosen', option: 'allow-once', value: null, evidence: SAID }
+// What the Run writes after a person released one call on a card.
+const AUTHORIZED = {
+  kind: 'authorization-expression',
+  authorization: { owner: 'cards', record: 'card', revision: '1', digest: 'c' },
+  expression: {
+    scope: {
+      kind: 'once',
+      consumer: { owner: '@omne-harness/agent', work: 'execution', position: 'action' },
+      target: 'Shell',
+      argumentsDigest: 'd',
+    },
+    direction: 'grant',
+    source: SAID,
   },
 }
 const ordinary = { value: { kind: 'ordinary', input: 'i', message: 'm', origin: 'o' } }
@@ -139,8 +157,17 @@ function extraFor(
 ): Record<string, unknown> {
   if (operation === 'accept') return cell.when?.kinds.includes('business') ? business : ordinary
   if (operation === 'receive') return scopeReleaseFact
+  if (operation === 'change' && cell.when?.kinds.includes('authorization-expression'))
+    return { declaration: AUTHORIZED }
   if (operation === 'change')
-    return { declaration: { kind: 'permission-mode', value: 'never', authorization: evidence } }
+    return {
+      declaration: {
+        kind: 'permission-mode',
+        value: 'never',
+        expectedRevision: '0',
+        authorization: evidence,
+      },
+    }
   return {}
 }
 

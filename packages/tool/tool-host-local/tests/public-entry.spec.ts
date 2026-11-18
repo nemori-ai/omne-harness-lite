@@ -40,6 +40,7 @@ it('root entry exports the local start coordinator, the host clock, the registry
     'createLocalToolLoader',
     'createLocalToolResultDelivery',
     'createRetainedTerminalLedger',
+    'forwardIntentOfCall',
     'localArgumentLimits',
     'retentionHostDomain',
     'startCoordinatorAdoption',

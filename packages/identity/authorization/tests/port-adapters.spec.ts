@@ -108,7 +108,12 @@ function toAgentAdmissionDecision(decision: AdmissionDecision): AgentAdmissionDe
     case 'allowed':
       return { kind: 'allow', evidence: decision.evidence }
     case 'denied':
-      return { kind: 'deny', reason: decision.reason, evidence: decision.evidence }
+      return {
+        kind: 'deny',
+        category: 'rule',
+        reason: decision.reason,
+        evidence: decision.evidence,
+      }
     case 'unavailable':
       return { kind: 'unavailable', diagnostic: decision.diagnostic }
   }
@@ -117,6 +122,7 @@ function toAgentAdmissionDecision(decision: AdmissionDecision): AgentAdmissionDe
 function denyHumanGuidance(card: DurableEvidence, answer: DurableEvidence): AgentAdmissionDecision {
   return {
     kind: 'deny',
+    category: 'guidance',
     reason: 'human-guidance',
     evidence: decisionEvidence('admission/agent/admit-action', answer.revision, {
       kind: 'denied',
@@ -737,9 +743,19 @@ describe('SessionAccessCheck through the admission check', () => {
   })
 
   it.each([
-    { kind: 'permission-mode', value: 'never', authorization: EVIDENCE },
-    { kind: 'permission-mode', value: 'auto_permission', authorization: EVIDENCE },
-    { kind: 'permission-mode', value: 'bypass-permissions', authorization: EVIDENCE },
+    { kind: 'permission-mode', value: 'never', expectedRevision: '0', authorization: EVIDENCE },
+    {
+      kind: 'permission-mode',
+      value: 'auto_permission',
+      expectedRevision: '0',
+      authorization: EVIDENCE,
+    },
+    {
+      kind: 'permission-mode',
+      value: 'bypass-permissions',
+      expectedRevision: '0',
+      authorization: EVIDENCE,
+    },
     { kind: 'collaboration-mode', value: 'co-work', authorization: EVIDENCE },
     { kind: 'collaboration-mode', value: 'auto-drive', authorization: EVIDENCE },
     {

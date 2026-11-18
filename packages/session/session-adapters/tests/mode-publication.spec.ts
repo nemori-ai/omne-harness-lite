@@ -66,7 +66,12 @@ async function change(scene: SqlScene, value: 'never' | 'auto_permission') {
         tenant: scene.sessionAccess.tenant,
         session: scene.sessionAccess.session,
         operation: operationId(`mode-${value}`),
-        declaration: { kind: 'permission-mode', value, authorization: evidence('mode-change') },
+        declaration: {
+          kind: 'permission-mode',
+          value,
+          expectedRevision: '0',
+          authorization: evidence('mode-change'),
+        },
       },
     },
   })

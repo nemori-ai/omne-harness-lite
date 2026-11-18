@@ -50,7 +50,13 @@ export function releaseDistribution(modes: ReleaseModes = {}): unknown {
   const distribution = JSON.parse(
     readFileSync(new URL('../../config/serve.distribution.json', import.meta.url), 'utf8'),
   ) as { rows: Array<{ id: string; config: unknown }> }
-  if (modes.permission === undefined && modes.collaboration === undefined) return distribution
+  const nonresident = modes.nonresident ?? []
+  if (
+    modes.permission === undefined &&
+    modes.collaboration === undefined &&
+    nonresident.length === 0
+  )
+    return distribution
   const adoptionRow = distribution.rows.find(row => row.id === 'agent-adoptions')
   if (adoptionRow === undefined) throw new Error('No Agent mappings')
   const mappings = agentAdoptionsConfig.parse(adoptionRow.config)
@@ -59,11 +65,22 @@ export function releaseDistribution(modes: ReleaseModes = {}): unknown {
   if (modes.permission !== undefined)
     coding.modes.permission = modes.permission as typeof coding.modes.permission
   if (modes.collaboration !== undefined) coding.modes.collaboration = modes.collaboration
+  const references = coding.definition['references'] as {
+    capability: { name: string }
+    resident: boolean
+  }[]
+  for (const reference of references)
+    if (nonresident.includes(reference.capability.name)) reference.resident = false
   adoptionRow.config = mappings
   return distribution
 }
 
-type ReleaseModes = Readonly<{ permission?: string; collaboration?: 'co-work' | 'auto-drive' }>
+type ReleaseModes = Readonly<{
+  permission?: string
+  collaboration?: 'co-work' | 'auto-drive'
+  /** Release tools the coding Agent reaches only through Tools in this tree. */
+  nonresident?: readonly string[]
+}>
 
 export const sse = (events: readonly unknown[]): string =>
   `${events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')}data: [DONE]\n\n`
@@ -389,6 +406,25 @@ export type ToolCallRow = Readonly<{
   }> | null
 }>
 
+/** What the local Tool host recorded: permits, acceptances, rejections and the rest, as stored. */
+export function hostRecords(storageRoot: string): readonly Readonly<Record<string, unknown>>[] {
+  return ledgerRows(storageRoot).flatMap(row => {
+    const record = row.record as {
+      kind?: string
+      host?: { value?: Record<string, unknown> | null }
+    }
+    const value = record.host?.value
+    return record.kind === 'host' && value != null ? [value] : []
+  })
+}
+
+/** The acceptance records of Tool starts: each start has one, with what it consumed. */
+export function startAcceptances(
+  storageRoot: string,
+): readonly Readonly<Record<string, unknown>>[] {
+  return hostRecords(storageRoot).filter(value => value['kind'] === 'acceptance')
+}
+
 export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
   const calls = new Map<string, { tool: string; phase: string; delivery: string | null }>()
   const entries = new Map<string, NonNullable<ToolCallRow['entry']>>()
@@ -552,6 +588,7 @@ export type ReleaseTreeOptions = Readonly<{
   script: GatewayScript
   permission?: string
   collaboration?: 'co-work' | 'auto-drive'
+  nonresident?: readonly string[]
   audience?: (registrar: string) => HitlAudience
   queueCapacity?: number
   observationPolicy?: Readonly<Record<string, number>>

@@ -11,7 +11,14 @@ it('qualifies the original pending Agent action from its actual loop, received m
   const held = gate()
   assembly.controls.admission.admit.always(async () => {
     await held.opened
-    return { ok: { kind: 'deny', reason: 'fixture complete', evidence: evidence('done') } }
+    return {
+      ok: {
+        kind: 'deny',
+        category: 'rule',
+        reason: 'fixture complete',
+        evidence: evidence('done'),
+      },
+    }
   })
   try {
     ok(await invoke(assembly))

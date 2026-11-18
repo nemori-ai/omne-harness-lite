@@ -52,6 +52,21 @@ export function controlOperation(
   ])
 }
 
+export function modeOperation(
+  loginText: string,
+  tenantText: string,
+  sessionText: string,
+  wanted: Readonly<{ mode: string; expectedRevision: string }>,
+): SessionOperationId {
+  return deriveIngressOperation(INGRESS_FAMILIES.mode, [
+    loginText,
+    tenantText,
+    sessionText,
+    wanted.expectedRevision,
+    wanted.mode,
+  ])
+}
+
 export function loginEntryOrigin(accountText: string, loginText: string): DurableEvidence {
   return {
     owner: 'login-entry',

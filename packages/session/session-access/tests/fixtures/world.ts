@@ -18,6 +18,7 @@ import type { SessionAccess } from '@omne-harness/session-contract'
 import { createSessionContribution } from '../../src/contribution.ts'
 import type {
   DefinitionResolver,
+  PermissionModeReading,
   PrincipalFacts,
   RequestJournal,
   ResolvedDefinition,
@@ -26,6 +27,7 @@ import type {
   SessionAccessSettings,
   SessionListing,
   SessionListPage,
+  SessionPermissionModes,
   TargetTenantPrincipals,
 } from '../../src/ports.ts'
 import { createRequestDrain, type RequestDrain } from '../../src/request-drain.ts'
@@ -106,6 +108,8 @@ export type CauseScript = RunFailureReading | 'throw'
 
 export type CauseCall = Parameters<RunFailureCauses['read']>[0]
 
+export type ModeScript = PermissionModeReading | 'throw'
+
 export type ObservationScript =
   | Readonly<{
       kind: 'opened'
@@ -115,6 +119,8 @@ export type ObservationScript =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable' }>
 
+type Port = 'faces' | 'observation' | 'definitions' | 'listing' | 'causes' | 'permissionModes'
+
 export type World = Readonly<{
   session: SessionDouble
   issue(login: FixtureLogin, target?: TenantId): Principal
@@ -123,8 +129,8 @@ export type World = Readonly<{
   breakFacts(fault: 'throw' | 'undescribed' | undefined): void
   useDefinitions(resolver: DefinitionResolver): void
   resumes(): readonly Readonly<{ tenant: string; login: string }>[]
-  remove(port: 'faces' | 'observation' | 'definitions' | 'listing' | 'causes'): void
-  put(port: 'faces' | 'observation' | 'definitions' | 'listing' | 'causes'): void
+  remove(port: Port): void
+  put(port: Port): void
   journal: JournalDouble
   requests: RequestDrain
   admissions(): readonly QueuedRequest[]
@@ -136,6 +142,10 @@ export type World = Readonly<{
   causes: Readonly<{
     calls(): readonly CauseCall[]
     answer(script: CauseScript): void
+  }>
+  modes: Readonly<{
+    calls(): readonly SessionAccess<Principal>[]
+    answer(script: ModeScript): void
   }>
   script(script: ObservationScript): void
   opens(): readonly SessionAccess<Principal>[]
@@ -252,6 +262,16 @@ export function createWorld(
     },
   }
 
+  const modeCalls: SessionAccess<Principal>[] = []
+  let moded: ModeScript = { kind: 'read', mode: 'bypass-permissions', revision: '0' }
+  const permissionModes: SessionPermissionModes = {
+    async read(access) {
+      modeCalls.push(access)
+      if (moded === 'throw') throw new Error('modes fault')
+      return moded
+    },
+  }
+
   const faces = () => (removed.has('faces') ? undefined : session.faces)
   const complete: SessionAccessSettings = {
     maxPageBytes: 65536,
@@ -279,6 +299,7 @@ export function createWorld(
       definitions: () => (removed.has('definitions') ? undefined : resolver),
       listing: () => (removed.has('listing') ? undefined : listing),
       causes: () => (removed.has('causes') ? undefined : causes),
+      permissionModes: () => (removed.has('permissionModes') ? undefined : permissionModes),
       principals,
       facts,
       settings: complete,
@@ -329,6 +350,12 @@ export function createWorld(
       calls: () => [...causeCalls],
       answer: next => {
         caused = next
+      },
+    },
+    modes: {
+      calls: () => [...modeCalls],
+      answer: next => {
+        moded = next
       },
     },
     script: next => {

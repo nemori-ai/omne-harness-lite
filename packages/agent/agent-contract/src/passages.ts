@@ -201,6 +201,7 @@ export interface DecisionCards<P> {
     input: Access<P> &
       Readonly<{
         operation: AgentOperationId
+        execution: AgentExecutionId
         passage: PassageId
         round: CardRoundId
         cards: readonly DurableEvidence[]
@@ -210,9 +211,15 @@ export interface DecisionCards<P> {
     readonly Readonly<{ card: DurableEvidence; reply: Exclude<CardReply, { kind: 'pending' }> }>[]
   >
 }
+export type DenialCategory = 'rule' | 'not-released' | 'prohibited' | 'card-closed' | 'guidance'
 export type AdmissionDecision =
   | Readonly<{ kind: 'allow'; evidence: DurableEvidence }>
-  | Readonly<{ kind: 'deny'; reason: string; evidence: DurableEvidence }>
+  | Readonly<{
+      kind: 'deny'
+      category: DenialCategory
+      reason: string
+      evidence: DurableEvidence
+    }>
   | Readonly<{ kind: 'need-decision'; card: DecisionCardDraft; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
   | Readonly<{ kind: 'undecidable'; diagnostic: string }>
@@ -229,6 +236,8 @@ export interface ActionAdmission<P> {
         definition: Adoption
         permissions: readonly NamedCapturedRead[]
         decision: Readonly<{ card: DurableEvidence; answer: CardAnswer | CardRemark }> | null
+        /** The batch this action is judged with, and this pass over it; one pass reads each fact once. */
+        batch?: Readonly<{ id: ActionBatchId; pass: string }>
       }>,
   ): Reply<AdmissionDecision>
 }

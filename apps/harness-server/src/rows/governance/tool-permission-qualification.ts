@@ -1,3 +1,4 @@
+import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
 import { capturedInquirySchema } from './permission-inquiry.ts'
 import { canonicalText } from '@omne-harness/authorization'
 import { standingPrincipalRef, type ActingForTenantPrincipal } from '@omne-harness/identity'
@@ -10,10 +11,9 @@ import type {
   InvocationQualification,
   LocalInvocationQualifier,
 } from '@omne-harness/tool-host-local'
-import type { ToolRelease } from '../../entry/tool-release.ts'
 import { sameAdoption } from '../../entry/tool-release-manifest.ts'
 import {
-  releasedToolPermission,
+  declaredPermission,
   toolPermissionRequestMatches,
   type ToolPermissionAction,
   type ToolPermissionContext,
@@ -58,7 +58,7 @@ export async function qualifyToolPermission(
   input: Readonly<{
     action: ToolPermissionContext
     permission: PermissionBasisRequest
-    release: ToolRelease
+    declarations: readonly PermissionDeclaration[]
     qualifier: LocalInvocationQualifier<ActingForTenantPrincipal>
     readSession: SessionPermissionCaptureReader
     agent?: ToolAgentPermissionSource | undefined
@@ -78,7 +78,7 @@ export async function qualifyToolPermission(
     }
     const permission = PermissionBasisRequestSchema.parse(input.permission)
     if (!originalCallMatches(action)) return { kind: 'denied' }
-    const available = releasedToolPermission(input.release, action)
+    const available = declaredPermission(input.declarations, action)
     if (available === undefined) return unavailable()
     const released = structuredClone(available)
     if (!toolPermissionRequestMatches(action, permission, released.interpretation))
@@ -96,8 +96,14 @@ export async function qualifyToolPermission(
       return result.failure.kind === 'denied' ? { kind: 'denied' } : unavailable()
     const original = result.ok
     if (!answersGivenCall(original, given, permission)) return unavailable()
-    const session = await readBoundSessionPermission(input.readSession, permission, action.inquiry)
-    if (session === undefined) return unavailable()
+    // A call Tools forwards is taken where the call that carries it was: its origin names that place.
+    const { owner, work, position } = original.origin.request.consumer
+    const bound = await readBoundSessionPermission(input.readSession, permission, action.inquiry, {
+      owner,
+      work,
+      position,
+    })
+    if (bound === undefined) return unavailable()
     const agent = await qualifyOriginalToolAgent({
       principal,
       tenant,
@@ -113,7 +119,9 @@ export async function qualifyToolPermission(
         configuration: released.interpretation.definition.settings === null ? 'unmapped' : 'mapped',
         principalRef: standingPrincipalRef(principal),
         definition,
-        session,
+        session: bound.current,
+        consumer: bound.consumer,
+        authorizations: bound.authorizations,
         constraints: agent.ok === null ? [] : [agent.ok],
       },
     }

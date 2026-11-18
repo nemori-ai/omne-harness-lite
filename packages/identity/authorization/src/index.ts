@@ -1,6 +1,21 @@
 export { decideAdmission } from './admission.ts'
-export { decideInquiry } from './inquiry.ts'
-export type { InquiryPolicy, InquiryRequirement, InquiryDisposition } from './inquiry.ts'
+export { decideRelease } from './release.ts'
+export { RELEASE_ARGUMENTS_LIMIT, RELEASE_OPTIONS, releaseCard } from './release-card.ts'
+export type {
+  ReleaseCard,
+  ReleaseCardAction,
+  ReleaseCardOption,
+  ReleaseOffer,
+  ReleaseOption,
+} from './release-card.ts'
+export type {
+  GateVerdict,
+  ReleaseBasis,
+  ReleaseDecision,
+  ReleaseFacts,
+  SessionFacts,
+} from './release.ts'
+export type { InquiryPolicy } from './inquiry.ts'
 export type {
   AdmissionBasis,
   AdmissionCheck,

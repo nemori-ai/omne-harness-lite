@@ -135,6 +135,7 @@ describe('Session permission assignments through decide and reduce', () => {
         operation: operationId('mode-change'),
         declaration: {
           kind: 'permission-mode',
+          expectedRevision: '0',
           value: 'never',
           authorization: evidence('mode-authority'),
         },

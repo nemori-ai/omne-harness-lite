@@ -58,6 +58,7 @@ import { member } from './payload-members.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
 import type { SessionEntriesChannel } from './interpretation-values.ts'
 import type { BackgroundCallLabel, BackgroundCallSource } from './background-calls.ts'
+import type { AuthorizationExpression } from './authorizations.ts'
 
 export const SESSION_INTERPRETER: Adoption = Object.freeze({
   owner: '@omne-harness/session-contract',
@@ -77,6 +78,11 @@ export type SessionEntry =
       declaration: Extract<DeclarationChange, { kind: 'permission-assignment' }>
       previousRevision: string
       revision: string
+      authority: DurableEvidence
+    }>
+  | Readonly<{
+      kind: 'session.authorization-expressed'
+      expression: AuthorizationExpression
       authority: DurableEvidence
     }>
   | Readonly<{ kind: 'session.todo-added'; item: TodoItemId; text: string }>
@@ -533,6 +539,7 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'session.model-selected',
   'session.declaration-adopted',
   'session.permission-assigned',
+  'session.authorization-expressed',
   'session.context-registration-changed',
   'session.recovery-input-adopted',
   'session.workspace-changed',

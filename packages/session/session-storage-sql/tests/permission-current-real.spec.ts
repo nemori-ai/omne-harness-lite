@@ -43,6 +43,7 @@ it('backfills original Session rows in a real migration Worker and retains the q
           operation: operationId('mode-before-worker-upgrade'),
           declaration: {
             kind: 'permission-mode',
+            expectedRevision: '0',
             value: 'never',
             authorization: evidence('mode-fixture'),
           },

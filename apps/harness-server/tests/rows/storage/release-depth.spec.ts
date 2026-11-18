@@ -351,7 +351,8 @@ async function toolRound(
               .at(-1)
               ?.filter(message => message.role === 'tool')
               .at(-1)?.content,
-          )?.includes('The tool call was denied and did not run.') === true,
+          )?.includes('The tool call was denied by a rule or a prohibition and did not run.') ===
+            true,
         'the permission denial reaching the next Model request',
         60_000,
       )

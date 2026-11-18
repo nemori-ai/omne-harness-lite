@@ -28,9 +28,10 @@ describe('Session current permission relation', () => {
         revision: '0',
         assignment: null,
         mode: { override: null },
+        authorizations: { revision: '0', once: null, session: null },
       },
     })
-    expect(a.provider.readSql).toHaveLength(2)
+    expect(a.provider.readSql).toHaveLength(3)
     expect(a.provider.readSql.every(sql => !/\bsl_(state|state_item|entry)\b/.test(sql))).toBe(true)
   })
 
@@ -60,6 +61,7 @@ describe('Session current permission relation', () => {
         operation: operationId('permission-mode-change'),
         declaration: {
           kind: 'permission-mode' as const,
+          expectedRevision: '0',
           value: 'never' as const,
           authorization: evidence('mode-policy-fixture'),
         },
@@ -95,6 +97,7 @@ describe('Session current permission relation', () => {
         operation: operationId('failed-mode-change'),
         declaration: {
           kind: 'permission-mode' as const,
+          expectedRevision: '0',
           value: 'never' as const,
           authorization: evidence('mode-policy-fixture'),
         },

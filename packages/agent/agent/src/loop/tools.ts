@@ -7,6 +7,7 @@ import {
   type ActionBatch,
   type ActionId,
   type ActionSlot,
+  type ActionBatchId,
   type ActionToolCall,
   type AdmissionDecision,
   type Adoption,
@@ -17,6 +18,7 @@ import {
   type CardRemark,
   type ConsumerRef,
   type DecisionCardDraft,
+  type DenialCategory,
   type DurableEvidence,
   type Failure,
   type Material,
@@ -95,7 +97,7 @@ export function toolConsumer(execution: AgentExecutionId, action: Action): Consu
 
 export type ToolAdmission =
   | Readonly<{ kind: 'judged'; action: Action }>
-  | Readonly<{ kind: 'denied'; action: Action; reason: string }>
+  | Readonly<{ kind: 'denied'; action: Action; category: DenialCategory }>
   | Readonly<{
       kind: 'allowed'
       action: Action
@@ -129,7 +131,7 @@ function notAllowed(
     return succeed({
       kind: 'denied',
       action: { ...action, judgment: { kind: 'denied', evidence: decision.evidence } },
-      reason: decision.reason,
+      category: decision.category,
     })
   if (decision.kind === 'unavailable')
     return unavailableAdmission('agentActionAdmission', decision.diagnostic)
@@ -150,6 +152,7 @@ export async function admitToolAction<P>(
   action: Action,
   original: ActionToolCall,
   handBack: HandBack | null,
+  batch?: Readonly<{ id: ActionBatchId; pass: string }>,
 ): Promise<Outcome<ToolAdmission, Failure>> {
   if (action.judgment.kind !== 'pending') return judged(action)
   if (original.callId !== action.original.callId)
@@ -180,6 +183,7 @@ export async function admitToolAction<P>(
     definition,
     permissions: [],
     decision: handBack,
+    ...(batch === undefined ? {} : { batch }),
   })
   if ('failure' in admitted) return notAnswered('agentActionAdmission', admitted.failure)
   if (admitted.ok.kind !== 'allow') return notAllowed(action, admitted.ok)
@@ -565,30 +569,42 @@ export function uncheckedCandidate(execution: AgentExecutionId, action: Action):
   ])
 }
 
-export function deniedCandidate(execution: AgentExecutionId, action: Action): Message {
-  return toolMessage(execution, action, [
-    {
-      kind: 'text',
-      id: `${action.id}/denied` as BlockId,
-      visibility: VISIBLE,
-      text: 'The tool call was denied and did not run.',
-    },
-  ])
+const DENIALS: Readonly<Record<DenialCategory, string>> = {
+  rule: 'The tool call was denied by a rule or a prohibition and did not run.',
+  'not-released': 'The tool call did not run: the person did not allow it this time.',
+  prohibited:
+    'The tool call did not run: the person prohibited this capability, so later calls to it are denied too.',
+  'card-closed':
+    'The tool call did not run: its approval card was closed before the person answered.',
+  guidance:
+    'The tool call did not run. The person answered the approval card with guidance instead of a decision. Their words follow.',
 }
 
-export function guidedCandidate(
+/** The fixed message of a denial category; the person's own words follow only guidance. */
+export function deniedCandidate(
   execution: AgentExecutionId,
   action: Action,
-  words: string,
+  denial: Readonly<{ category: DenialCategory; words: string | null }>,
 ): Message {
+  const words =
+    denial.words !== null
+      ? [
+          {
+            kind: 'text' as const,
+            id: `${action.id}/guidance` as BlockId,
+            visibility: VISIBLE,
+            text: denial.words,
+          },
+        ]
+      : []
   return toolMessage(execution, action, [
     {
       kind: 'text',
       id: `${action.id}/denied` as BlockId,
       visibility: VISIBLE,
-      text: 'The tool call was denied and did not run. The person answered the approval card with guidance instead of a decision. Their words follow.',
+      text: DENIALS[denial.category],
     },
-    { kind: 'text', id: `${action.id}/guidance` as BlockId, visibility: VISIBLE, text: words },
+    ...words,
   ])
 }
 

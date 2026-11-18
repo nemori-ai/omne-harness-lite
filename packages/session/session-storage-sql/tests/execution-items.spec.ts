@@ -159,7 +159,37 @@ describe('the items of an execution', () => {
       kind: 'items',
       published: '2',
       items: [{ family: 'intent', item: 'a1', open: false, pub: '2', body: { closed: true } }],
+      rest: [],
     })
+  })
+
+  it('takes an item of any size its publication carries, and reads it back whole', async () => {
+    const a = await session()
+    const text = 'x'.repeat(200_000)
+    expect(await publish(a, nth(1, [opened('answer', 'judge', { text })]))).toMatchObject({
+      kind: 'committed',
+    })
+    const found = await itemsOf(a, [{ family: 'answer', item: 'judge' }])
+    expect(found?.kind === 'items' ? found.items[0]?.body : null).toEqual({ text })
+  })
+
+  it('gives a page the items that fit its bytes, always the first, and names the rest', async () => {
+    const a = await session()
+    const big = (item: string) => opened('answer', item, { text: 'x'.repeat(2_200_000) })
+    await publish(a, nth(1, [big('a'), big('b'), big('c')]))
+    const keys = ['a', 'b', 'c', 'never'].map(item => ({ family: 'answer', item }))
+    const first = await itemsOf(a, keys)
+    if (first?.kind !== 'items') throw new Error('no page')
+    expect(first.items.map(item => item.item)).toEqual(['a', 'b'])
+    expect(first.rest).toEqual(keys.slice(2))
+    const second = await itemsOf(a, first.rest)
+    expect(second).toMatchObject({ kind: 'items', items: [{ item: 'c' }], rest: [] })
+
+    const page = await openItems(a)
+    if (page?.kind !== 'open') throw new Error('no page')
+    expect(page.items.map(item => item.item)).toEqual(['a', 'b'])
+    expect(page.next).toEqual({ family: 'answer', item: 'b' })
+    expect(await openItems(a, page.next)).toMatchObject({ items: [{ item: 'c' }], next: null })
   })
 
   it('refuses the whole publication when it opens a key the execution already holds, open or closed', async () => {
