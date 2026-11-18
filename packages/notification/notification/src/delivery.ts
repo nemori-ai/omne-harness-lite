@@ -4,6 +4,7 @@ import {
   planBeat,
   planStrong,
   recipientKey,
+  sameRecipient,
   selectRecipients,
   type Beat,
   type BoxEntry,
@@ -46,7 +47,6 @@ export type DeliveryDependencies = Readonly<{
   config: DeliveryConfig
 }>
 
-/** Pushes what is in the inboxes to the destinations. Driven by wake-ups, decided by the store. */
 export interface NotificationDelivery {
   /** Does everything that is due for one tenant now. Calls for one tenant never overlap. */
   advance(tenant: TenantId): Promise<void>
@@ -73,28 +73,74 @@ function attempt(
   })
 }
 
+type Reminder = Readonly<{ recipient: RecipientRef; item: StandingItem }>
+
 type Standing = Readonly<{
   /** Items of a recipient that were open at an instant, or null when they could not be read. */
   openAt(recipient: RecipientRef, instant: Instant): number | null
-  /** The items each recipient is to be reminded of at once. */
-  strong: readonly Readonly<{ recipient: RecipientRef; item: StandingItem }>[]
+  strong: readonly Reminder[]
 }>
 
 const UNREADABLE: Standing = { openAt: () => null, strong: [] }
 const minutesOf = (beat: Beat, fallback: number | null) =>
   beat.kind === 'every' ? beat.minutes : beat.kind === 'off' ? null : fallback
+const startOf = (slot: number, minutes: number) =>
+  new Date(slot * minutes * 60_000).toISOString() as Instant
+
+type Pass = Readonly<{
+  tenant: TenantId
+  now: Instant
+  recipients: readonly RecipientRef[]
+  destinations: readonly Destination[]
+  beatMinutes(recipient: RecipientRef): number | null
+  /** The unresolved notifications of a recipient, or null when they cannot be read. Read at most once. */
+  box(recipient: RecipientRef): Promise<readonly BoxEntry[] | null>
+}>
 
 export function createDelivery(deps: DeliveryDependencies): NotificationDelivery {
-  const { store, channels, config } = deps
+  const { store, channels, config, defaults } = deps
 
-  async function deliver(tenant: TenantId, unit: DeliveryUnit, destination: Destination | null) {
-    const record = (result: DeliveryResult) =>
-      store.recordDelivery(tenant, {
-        unit: unit.id,
-        result,
-        policy: config.retry,
-        now: deps.clock.now(),
-      })
+  function passOf(tenant: TenantId, now: Instant, state: DeliveryState): Pass {
+    const boxes = new Map<string, Promise<readonly BoxEntry[] | null>>()
+    const beats = new Map(state.beats.map(entry => [recipientKey(entry.recipient), entry.beat]))
+    const recipients = state.beats.map(entry => entry.recipient)
+    const own = (recipient: RecipientRef) =>
+      state.destinations.filter(entry => sameRecipient(entry.recipient, recipient))
+    return {
+      tenant,
+      now,
+      recipients,
+      destinations: recipients.flatMap(recipient =>
+        withBuiltin(recipient, own(recipient), defaults),
+      ),
+      beatMinutes: recipient =>
+        minutesOf(
+          beats.get(recipientKey(recipient)) ?? { kind: 'default' },
+          config.defaultBeatMinutes,
+        ),
+      box(recipient) {
+        const key = recipientKey(recipient)
+        const read = async () => {
+          const box = await store.unresolved(tenant, recipient)
+          return box.kind === 'read' ? box.value : null
+        }
+        if (!boxes.has(key)) boxes.set(key, read())
+        return boxes.get(key)!
+      },
+    }
+  }
+
+  const destinationOf = (pass: Pass, ref: DeliveryUnit['destination']) =>
+    pass.destinations.find(
+      entry => entry.id === ref.id && sameRecipient(entry.recipient, ref.recipient),
+    ) ?? null
+
+  async function deliver(pass: Pass, unit: DeliveryUnit): Promise<void> {
+    const destination = destinationOf(pass, unit.destination)
+    const record = (result: DeliveryResult) => {
+      const command = { unit: unit.id, result, policy: config.retry, now: deps.clock.now() }
+      return store.recordDelivery(pass.tenant, command)
+    }
     if (destination === null) {
       await record({ kind: 'failed', reason: 'destination-removed', retryable: false })
       return
@@ -102,111 +148,98 @@ export function createDelivery(deps: DeliveryDependencies): NotificationDelivery
     const channel = channels.lookup(destination.channel)
     if (!destination.enabled || channel.kind !== 'registered') return
     const { recipient, address } = destination
-    const result = await attempt(
-      channel.channel,
-      { recipient, address, unit },
-      config.deliverTimeoutMs,
-    )
-    const answer = await record(result)
-    if (answer.kind === 'committed' && answer.value.kind === 'recorded') {
-      const { plan } = answer.value
-      if (plan.kind === 'retry') deps.hints.wakeAt(tenant, plan.at)
-    }
+    const delivery = { recipient, address, unit }
+    const answer = await record(await attempt(channel.channel, delivery, config.deliverTimeoutMs))
+    if (answer.kind !== 'committed' || answer.value.kind !== 'recorded') return
+    const { plan } = answer.value
+    if (plan.kind === 'retry') deps.hints.wakeAt(pass.tenant, plan.at)
   }
 
-  async function formed(
-    tenant: TenantId,
-    destination: Destination,
-    answer: StoreAnswer<FormResult>,
-  ) {
+  async function formed(pass: Pass, answer: StoreAnswer<FormResult>): Promise<void> {
     if (answer.kind !== 'committed') return
-    if (answer.value.kind === 'wait') deps.hints.wakeAt(tenant, answer.value.until)
-    if (answer.value.kind === 'formed') await deliver(tenant, answer.value.unit, destination)
+    if (answer.value.kind === 'wait') deps.hints.wakeAt(pass.tenant, answer.value.until)
+    if (answer.value.kind === 'formed') await deliver(pass, answer.value.unit)
   }
 
   async function disclosureFor(
-    tenant: TenantId,
+    pass: Pass,
     destination: Destination,
     channel: ChannelContribution,
   ): Promise<Disclosure | 'unavailable'> {
     if (!channel.leavesSystem) return { kind: 'full' }
     try {
-      return await deps.authority.disclosure(tenant, destination)
+      return await deps.authority.disclosure(pass.tenant, destination)
     } catch {
       return 'unavailable'
     }
   }
 
-  async function strong(
-    tenant: TenantId,
-    destination: Destination,
-    channel: ChannelContribution,
-    now: Instant,
-  ) {
-    const pending = await store.pendingStrong(tenant, destination)
+  async function strong(pass: Pass, destination: Destination, channel: ChannelContribution) {
+    const pending = await store.pendingStrong(pass.tenant, destination)
     if (pending.kind === 'unavailable') return
     const minIntervalMs = channel.defaultMinIntervalMs
     const facts = { ...destination, channelPresent: true, minIntervalMs }
-    const plan = planStrong(now, facts, pending.value)
-    if (plan.kind === 'wait') deps.hints.wakeAt(tenant, plan.until)
+    const plan = planStrong(pass.now, facts, pending.value)
+    if (plan.kind === 'wait') deps.hints.wakeAt(pass.tenant, plan.until)
     if (plan.kind !== 'form') return
-    const disclosure = await disclosureFor(tenant, destination, channel)
+    const disclosure = await disclosureFor(pass, destination, channel)
     if (disclosure === 'unavailable') return
-    const { listLimit } = config
-    const { defaults } = deps
-    const command = { destination, now, minIntervalMs, listLimit, disclosure, defaults }
-    await formed(tenant, destination, await store.formStrong(tenant, command))
+    const { now } = pass
+    const command = {
+      destination,
+      now,
+      minIntervalMs,
+      listLimit: config.listLimit,
+      disclosure,
+      defaults,
+    }
+    await formed(pass, await store.formStrong(pass.tenant, command))
   }
 
-  async function beat(
-    tenant: TenantId,
-    destination: Destination,
-    minutes: number,
-    box: readonly BoxEntry[],
-    standingOpen: number | null,
-    now: Instant,
-  ) {
-    const slot = beatSlot(now, minutes)
+  async function beat(pass: Pass, destination: Destination, standing: Standing) {
+    const minutes = pass.beatMinutes(destination.recipient)
+    if (minutes === null || destination.minLevel !== 'weak') return
+    const slot = beatSlot(pass.now, minutes)
+    deps.hints.wakeAt(pass.tenant, startOf(slot.index + 1, minutes))
+    const box = await pass.box(destination.recipient)
+    if (box === null) return
+    const standingOpen = standing.openAt(destination.recipient, slot.start)
     const facts = { ...destination, channelPresent: true, minIntervalMs: 0 }
     if (planBeat(slot, facts, box, standingOpen).kind !== 'form') return
-    const { listLimit } = config
-    const command = { destination, slot, now, listLimit, standingOpen, defaults: deps.defaults }
-    await formed(tenant, destination, await store.formBeat(tenant, command))
+    const { now } = pass
+    const command = { destination, slot, now, listLimit: config.listLimit, standingOpen, defaults }
+    await formed(pass, await store.formBeat(pass.tenant, command))
   }
 
-  async function readStanding(
-    tenant: TenantId,
-    state: DeliveryState,
-    now: Instant,
-  ): Promise<Standing> {
+  /** Who a standing item is for. Null: it cannot be decided now. */
+  async function addressees(pass: Pass, item: StandingItem) {
+    const source = deps.sources.lookup(item.source)
+    const declared =
+      source.kind === 'registered' ? findEventType(source.declaration, item.type) : null
+    if (declared?.kind.kind !== 'standing') return []
+    const subscriptions = await store.subscriptionsFor(pass.tenant, item.source, item.type)
+    if (subscriptions.kind === 'unavailable') return null
+    const addressing = { subject: item.subject, named: [], origin: null }
+    return selectRecipients(addressing, declared, pass.recipients, subscriptions.value, pass.now)
+  }
+
+  async function readStanding(pass: Pass): Promise<Standing> {
     let read: StandingRead
     try {
-      read = await deps.standing.read(tenant)
+      read = await deps.standing.read(pass.tenant)
     } catch {
       return UNREADABLE
     }
     if (read.kind !== 'ok') return UNREADABLE
     const open = new Map<string, Instant[]>()
-    const strongItems: { recipient: RecipientRef; item: StandingItem }[] = []
-    const recipients = state.beats.map(entry => entry.recipient)
+    const strongItems: Reminder[] = []
     for (const item of read.items) {
-      const source = deps.sources.lookup(item.source)
-      const declared =
-        source.kind === 'registered' ? findEventType(source.declaration, item.type) : null
-      if (declared === null || declared.kind.kind !== 'standing') continue
-      const subscriptions = await store.subscriptionsFor(tenant, item.source, item.type)
-      if (subscriptions.kind === 'unavailable') return UNREADABLE
-      const addressing = { subject: item.subject, named: [], origin: null }
-      for (const selected of selectRecipients(
-        addressing,
-        declared,
-        recipients,
-        subscriptions.value,
-        now,
-      )) {
-        const key = recipientKey(selected.recipient)
+      const selected = await addressees(pass, item)
+      if (selected === null) return UNREADABLE
+      for (const { recipient, level } of selected) {
+        const key = recipientKey(recipient)
         open.set(key, [...(open.get(key) ?? []), item.since])
-        if (selected.level === 'strong') strongItems.push({ recipient: selected.recipient, item })
+        if (level === 'strong') strongItems.push({ recipient, item })
       }
     }
     const openAt = (recipient: RecipientRef, instant: Instant) =>
@@ -214,62 +247,28 @@ export function createDelivery(deps: DeliveryDependencies): NotificationDelivery
     return { openAt, strong: strongItems }
   }
 
-  async function remind(
-    tenant: TenantId,
-    destinations: readonly Destination[],
-    standing: Standing,
-    now: Instant,
-  ) {
-    const done = new Map<string, readonly string[] | null>()
-    for (const { recipient, item } of standing.strong) {
-      const key = recipientKey(recipient)
-      if (!done.has(key)) {
-        const read = await store.reminded(tenant, recipient)
-        done.set(key, read.kind === 'read' ? read.value : null)
-      }
-      const reminded = done.get(key)
-      if (reminded === null || reminded === undefined || reminded.includes(item.id)) continue
-      const answer = await store.remind(tenant, { recipient, item, defaults: deps.defaults, now })
-      if (answer.kind !== 'committed') continue
-      for (const unit of answer.value)
-        await deliver(tenant, unit, find(destinations, unit.destination))
-    }
+  async function remind(pass: Pass, { recipient, item }: Reminder): Promise<void> {
+    const reminded = await store.reminded(pass.tenant, recipient)
+    if (reminded.kind === 'unavailable' || reminded.value.includes(item.id)) return
+    const answer = await store.remind(pass.tenant, { recipient, item, defaults, now: pass.now })
+    if (answer.kind !== 'committed') return
+    for (const unit of answer.value) await deliver(pass, unit)
   }
 
   async function run(tenant: TenantId): Promise<void> {
     const now = deps.clock.now()
     const read = await store.delivery(tenant, now)
     if (read.kind === 'unavailable') return
-    const state = read.value
-    const destinations = state.beats.flatMap(({ recipient }) => {
-      const key = recipientKey(recipient)
-      const own = state.destinations.filter(entry => recipientKey(entry.recipient) === key)
-      return withBuiltin(recipient, own, deps.defaults)
-    })
-    for (const due of state.due)
-      await deliver(tenant, unitOf(due), find(destinations, due.destination))
-    const standing = await readStanding(tenant, state, now)
-    const boxes = new Map<string, readonly BoxEntry[] | null>()
-    for (const destination of destinations) {
+    const pass = passOf(tenant, now, read.value)
+    for (const due of read.value.due) await deliver(pass, unitOf(due))
+    const standing = await readStanding(pass)
+    for (const destination of pass.destinations) {
       const channel = channels.lookup(destination.channel)
       if (!destination.enabled || channel.kind !== 'registered') continue
-      await strong(tenant, destination, channel.channel, now)
-      const key = recipientKey(destination.recipient)
-      const own = state.beats.find(entry => recipientKey(entry.recipient) === key)
-      const minutes = minutesOf(own?.beat ?? { kind: 'default' }, config.defaultBeatMinutes)
-      if (minutes === null || destination.minLevel !== 'weak') continue
-      const next = beatSlot(now, minutes).index + 1
-      deps.hints.wakeAt(tenant, new Date(next * minutes * 60_000).toISOString() as Instant)
-      if (!boxes.has(key)) {
-        const box = await store.unresolved(tenant, destination.recipient)
-        boxes.set(key, box.kind === 'read' ? box.value : null)
-      }
-      const box = boxes.get(key)
-      if (box === null || box === undefined) continue
-      const open = standing.openAt(destination.recipient, beatSlot(now, minutes).start)
-      await beat(tenant, destination, minutes, box, open, now)
+      await strong(pass, destination, channel.channel)
+      await beat(pass, destination, standing)
     }
-    await remind(tenant, destinations, standing, now)
+    for (const reminder of standing.strong) await remind(pass, reminder)
   }
 
   const running = new Map<TenantId, { again: boolean; done: Promise<void> }>()
@@ -295,17 +294,4 @@ export function createDelivery(deps: DeliveryDependencies): NotificationDelivery
       return turn.done
     },
   }
-}
-
-function find(
-  destinations: readonly Destination[],
-  ref: DeliveryUnit['destination'],
-): Destination | null {
-  return (
-    destinations.find(
-      destination =>
-        destination.id === ref.id &&
-        recipientKey(destination.recipient) === recipientKey(ref.recipient),
-    ) ?? null
-  )
 }

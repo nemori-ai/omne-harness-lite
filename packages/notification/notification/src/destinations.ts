@@ -3,10 +3,13 @@ import {
   parseWith,
   recipientRefSchema,
   type CallContext,
+  type ChannelName,
   type Destination,
   type DestinationRef,
   type DestinationRefusal,
   type DestinationView,
+  type MinLevel,
+  type NewDestination,
   type NotificationDestinations,
   type Outcome,
   type RecipientRef,
@@ -43,6 +46,22 @@ function validPatch(patch: Readonly<{ minLevel?: unknown; enabled?: unknown }>):
   return enabled === undefined || typeof enabled === 'boolean'
 }
 
+type NewTarget = Readonly<{
+  recipient: RecipientRef
+  channel: ChannelName
+  address: string
+  minLevel: MinLevel
+}>
+
+function parseNew(input: NewDestination): NewTarget | null {
+  const recipient = parseWith(recipientRefSchema, input?.recipient)
+  const channel = channelNameSchema.safeParse(input?.channel)
+  if (!('ok' in recipient) || !channel.success) return null
+  if (typeof input.address !== 'string' || !LEVELS.includes(input.minLevel)) return null
+  const { address, minLevel } = input
+  return { recipient: recipient.ok, channel: channel.data, address, minLevel }
+}
+
 export function createDestinations(deps: DestinationsDependencies): NotificationDestinations {
   function view(destination: Destination): DestinationView {
     const { recipient, id, channel, address, minLevel, builtin, blocked, enabled } = destination
@@ -77,6 +96,17 @@ export function createDestinations(deps: DestinationsDependencies): Notification
     return written(await deps.store.destination(ctx.tenant, command))
   }
 
+  /** Whether the channel takes this address. A channel that is absent or cannot answer: unavailable. */
+  function addressAccepted(name: ChannelName, address: string): boolean | 'unavailable' {
+    const channel = deps.channels.lookup(name)
+    if (channel.kind !== 'registered') return 'unavailable'
+    try {
+      return channel.channel.address.accepts(address)
+    } catch {
+      return 'unavailable'
+    }
+  }
+
   function parseDestinationRef(ref: DestinationRef): DestinationRef | null {
     const recipient = parseWith(recipientRefSchema, ref?.recipient)
     const named = typeof ref?.id === 'string' && ref.id.length > 0
@@ -85,23 +115,13 @@ export function createDestinations(deps: DestinationsDependencies): Notification
 
   return {
     async add(ctx, input) {
-      const recipient = parseWith(recipientRefSchema, input?.recipient)
-      const name = channelNameSchema.safeParse(input?.channel)
-      const shaped = typeof input?.address === 'string' && LEVELS.includes(input?.minLevel)
-      if (!('ok' in recipient) || !name.success || !shaped) return refuse('invalid-request')
-      const blocked = await gate(ctx, 'manage-destinations', recipient.ok)
+      const target = parseNew(input)
+      if (target === null) return refuse('invalid-request')
+      const blocked = await gate(ctx, 'manage-destinations', target.recipient)
       if (blocked !== null) return blocked
-      const channel = deps.channels.lookup(name.data)
-      if (channel.kind !== 'registered') return UNAVAILABLE
-      let accepted
-      try {
-        accepted = channel.channel.address.accepts(input.address)
-      } catch {
-        return UNAVAILABLE
-      }
+      const accepted = addressAccepted(target.channel, target.address)
+      if (accepted === 'unavailable') return UNAVAILABLE
       if (!accepted) return refuse('invalid-address')
-      const { address, minLevel } = input
-      const target = { recipient: recipient.ok, channel: name.data, address, minLevel }
       return write(ctx, { kind: 'add', ...target, defaults: deps.defaults })
     },
 
