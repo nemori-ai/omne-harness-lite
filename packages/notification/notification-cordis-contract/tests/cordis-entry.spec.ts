@@ -18,6 +18,7 @@ const services = [
   [entry.NotificationCatalogService, entry.notificationCatalogKey, 'notificationCatalog'],
   [entry.NotificationSourcesService, entry.notificationSourcesKey, 'notificationSources'],
   [entry.NotificationChannelsService, entry.notificationChannelsKey, 'notificationChannels'],
+  [entry.NotificationChangesService, entry.notificationChangesKey, 'notificationChanges'],
 ] as const
 
 it('gives each face and each extension point one service identity', () => {

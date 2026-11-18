@@ -21,7 +21,7 @@ import {
   type ExecutionFactRecord,
   type ExecutionRecordWrite,
 } from '../src/participants.ts'
-import { canonicalText } from '../src/codec.ts'
+import { canonicalText, EXECUTION_ITEM_MAX_BYTES } from '../src/codec.ts'
 import { sessionStorageMaterials } from '../src/materials.ts'
 import factBlobMigration from '../src/worker/fact-blob-migration.ts'
 import executionRecord from '../src/worker/execution-record.ts'
@@ -314,7 +314,7 @@ describe('one publication appends one batch', () => {
   })
 
   it.each([
-    ['no fact', { facts: [] }],
+    ['no fact', { facts: [] }, 'no fact'],
     [
       'more facts than a batch holds',
       {
@@ -323,22 +323,47 @@ describe('one publication appends one batch', () => {
           body: index,
         })),
       },
+      `${String(EXECUTION_BATCH_MAX_FACTS + 1)} facts in one batch`,
     ],
     [
       'a body past the bound',
       { facts: [{ kind: 'batch', body: 'x'.repeat(EXECUTION_FACT_MAX_BYTES) }] },
+      'a fact',
     ],
     [
       'two events of one sequence',
       { facts: [...factsOf(1, 'exe_1'), ...factsOf(1, 'exe_1').slice(1)] },
+      'two facts emit one event',
     ],
-    ['a block whose digest is not its payload', { blobs: [{ ...block('a'), payload: 'b' }] }],
-  ] satisfies readonly (readonly [string, Partial<ExecutionRecordWrite>])[])(
-    'refuses %s as unsupported and writes nothing',
-    async (_, over) => {
+    [
+      'an item past the bound',
+      {
+        items: [
+          {
+            family: 'answer',
+            item: 'op-1',
+            change: 'opened',
+            open: false,
+            body: 'x'.repeat(EXECUTION_ITEM_MAX_BYTES),
+          },
+        ],
+      },
+      `the item answer/op-1 of ${String(EXECUTION_ITEM_MAX_BYTES + 2)} bytes`,
+    ],
+    [
+      'a block whose digest is not its payload',
+      { blobs: [{ ...block('a'), payload: 'b' }] },
+      'a blob',
+    ],
+  ] satisfies readonly (readonly [string, Partial<ExecutionRecordWrite>, string])[])(
+    'refuses %s as unsupported, names the rule it breaks, and writes nothing',
+    async (_, over, rule) => {
       const a = await session()
       const result = await commit(a, nth(1, over))
-      expect(result).toMatchObject({ kind: 'rolled_back', reply: { kind: 'unsupported' } })
+      expect(result).toMatchObject({
+        kind: 'rolled_back',
+        reply: { kind: 'unsupported', reason: `the publication is malformed: ${rule}` },
+      })
       expect(agentRows(a)).toEqual({ facts: 0, blobs: 0, operations: 0, roots: 0, heads: 0 })
     },
   )

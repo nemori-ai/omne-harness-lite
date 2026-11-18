@@ -155,7 +155,7 @@ describe('R9 release tree, in process: the principal that reaches the Session fa
     expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
     expect(run.of('startup-result')[0]).toMatchObject({
       accepting: true,
-      implementations: { real: 68, 'contract-double': 1, 's0-double': 2 },
+      implementations: { real: 70, 'contract-double': 1, 's0-double': 2 },
     })
     expect(value.arrivals).toEqual([
       {

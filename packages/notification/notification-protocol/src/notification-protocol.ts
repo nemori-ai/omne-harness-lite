@@ -18,6 +18,8 @@ const literal = <const V extends readonly string[]>(...values: V) =>
 const nullable = <const R extends Rule>(rule: R) =>
   ({ kind: 'one-of', rules: [rule, nothing] }) as const
 const array = <const R extends Rule>(item: R) => ({ kind: 'array', item }) as const
+const atMost = <const R extends Rule>(max: number, item: R) =>
+  ({ kind: 'array', item, max }) as const
 const oneOf = <const R extends readonly Rule[]>(...rules: R) => ({ kind: 'one-of', rules }) as const
 const kind = <const K extends string>(value: K) => ({ rule: literal(value) })
 
@@ -68,13 +70,15 @@ const summaryFields = {
   marks: { rule: marks },
 } as const
 const summary = object(summaryFields)
+const locator = nullable(object({ kind: { rule: text }, ref: { rule: text } }))
 const view = object({
   ...summaryFields,
   subject: { rule: nullable(text) },
   at: { rule: instant },
   body: { rule: string },
-  locator: { rule: nullable(object({ kind: { rule: text }, ref: { rule: text } })) },
+  locator: { rule: locator },
 })
+const received = ruleCodec(object({ recipients: { rule: array(recipient) } }))
 const subscriptionKey = {
   recipient: { rule: recipient },
   source: { rule: text },
@@ -159,6 +163,38 @@ export const notificationProtocol = defineProtocol({
   name: 'notification',
   major: 1,
   operations: {
+    /** The owner hands one event over under a source. When it happened is the server's time, not the body's. */
+    send: {
+      ...commit,
+      limit: 'input',
+      body: ruleCodec(
+        object({
+          ...ofTenant,
+          ...sendRef,
+          type: { rule: text },
+          subject: { rule: nullable(text) },
+          title: { rule: text },
+          body: { rule: string },
+          locator: { rule: locator },
+          replaceKey: { rule: nullable(text) },
+          renotify: { rule: boolean },
+          named: { rule: atMost(16, recipient) },
+        }),
+      ),
+      outcomes: {
+        succeeded: received,
+        'no-change': received,
+        invalid: invalid(
+          'too-large',
+          'unknown-event-type',
+          'standing-type',
+          'invalid-subject',
+          'naming-not-allowed',
+          'recipient-not-admissible',
+        ),
+        conflict: reasons('different-content'),
+      },
+    },
     'list-inbox': {
       ...read,
       body: ruleCodec(

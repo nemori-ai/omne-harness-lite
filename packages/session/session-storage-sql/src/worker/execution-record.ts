@@ -210,24 +210,40 @@ function parseHead(raw: Json): Head | null {
   return { tenant, session, execution, expected, revision, published, operation, digest }
 }
 
-function parseWrite(raw: JsonValue | undefined): Write | null {
-  if (!isJson(raw)) return null
+function brokenItem(raw: JsonValue | undefined, execution: string): string {
+  if (!Array.isArray(raw)) return 'the items are not a list'
+  const parse = parseItem(execution)
+  const found = (raw as readonly JsonValue[]).find(item => !isJson(item) || parse(item) === null)
+  if (!isJson(found)) return 'an item is not an object'
+  const bytes = utf8(JSON.stringify(found['body'] ?? null))
+  return `the item ${String(found['family'])}/${String(found['item'])} of ${String(bytes)} bytes`
+}
+
+// A publication, or the first rule it breaks: a refusal that does not name its rule cannot be told
+// from any other.
+function parseWrite(raw: JsonValue | undefined): Write | string {
+  if (!isJson(raw)) return 'not an object'
   const head = parseHead(raw)
-  if (head === null) return null
+  if (head === null) return 'the head'
   const facts = listOf(raw['facts'], parseFact(head.execution))
   const blobs = listOf(raw['blobs'] ?? [], parseBlob)
   const items = listOf(raw['items'] ?? [], parseItem(head.execution))
   const boundaries = listOf(raw['boundaries'], parseBoundary)
   const admissions = listOf(raw['admissions'], parseAdmission)
-  if (facts === null || blobs === null || items === null) return null
-  if (boundaries === null || admissions === null) return null
-  if (facts.length === 0 || facts.length > EXECUTION_BATCH_MAX_FACTS) return null
+  if (facts === null) return 'a fact'
+  if (blobs === null) return 'a blob'
+  if (items === null) return brokenItem(raw['items'], head.execution)
+  if (boundaries === null) return 'a boundary'
+  if (admissions === null) return 'an admission'
+  if (facts.length === 0) return 'no fact'
+  if (facts.length > EXECUTION_BATCH_MAX_FACTS) return `${String(facts.length)} facts in one batch`
   const events = facts.flatMap(fact =>
     fact.event === null ? [] : [JSON.stringify([fact.execution, fact.event.sequence])],
   )
-  if (new Set(events).size !== events.length) return null
+  if (new Set(events).size !== events.length) return 'two facts emit one event'
   const keys = items.map(item => JSON.stringify([item.execution, item.family, item.item]))
-  if (new Set(keys).size !== keys.length) return null
+  const twice = keys.find((key, at) => keys.indexOf(key) !== at)
+  if (twice !== undefined) return `the item ${twice} is written twice`
   return { ...head, facts, blobs, items, boundaries, admissions }
 }
 
@@ -545,7 +561,7 @@ const participant: ParticipantModule = {
     if (facts['intent'] !== 'publish')
       return unsupported('the facts are neither a publication, blocks nor a preadmission')
     const write = parseWrite(facts['write'])
-    if (write === null) return unsupported('the publication is malformed')
+    if (typeof write === 'string') return unsupported(`the publication is malformed: ${write}`)
     return publish(port, write)
   },
 }
