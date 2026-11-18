@@ -67,6 +67,16 @@ export function ranRecords(reports: readonly string[]): string[] {
   )
 }
 
+/** Writes beside each report the records of the files its tier ran, and answers those paths. */
+function writeRanRecords(lcovs: readonly string[]): string[] {
+  const ran = ranRecords(lcovs.map(path => readFileSync(path, 'utf8')))
+  return lcovs.map((path, at) => {
+    const own = join(dirname(path), 'lcov.ran.info')
+    writeFileSync(own, ran[at] ?? '')
+    return own
+  })
+}
+
 export interface MetricsCall {
   readonly root: string
   readonly base: string
@@ -168,12 +178,7 @@ export async function measureMember(
       if (outcome.code !== 0) failedTiers.push(`${tier} 退出 ${outcome.code ?? '信号'}`)
       if (existsSync(join(reports, 'lcov.info'))) lcovs.push(join(reports, 'lcov.info'))
     }
-  const ran = ranRecords(lcovs.map(path => readFileSync(path, 'utf8')))
-  const given = lcovs.map((path, at) => {
-    const own = join(dirname(path), 'lcov.ran.info')
-    writeFileSync(own, ran[at] ?? '')
-    return own
-  })
+  const given = writeRanRecords(lcovs)
   const json = join(context.outDir, `${slug}.metrics.json`)
   const outcome = await context.exec({
     command: process.execPath,

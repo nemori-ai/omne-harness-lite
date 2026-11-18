@@ -225,6 +225,13 @@ describe('projectResidentReferences', () => {
     expect(sameShape(result.ok.items[1]?.shape as ToolShape, commandsShape)).toBe(true)
   })
 
+  it('refuses a page that is no record or whose references are no list, naming the member', () => {
+    const refused = { failure: { field: 'references', reason: 'type' } }
+    expect(projectResidentReferences(null as never)).toEqual(refused)
+    expect(projectResidentReferences({ references: 'none', next: null } as never)).toEqual(refused)
+    expect(projectResidentReferences({ next: null } as never)).toEqual(refused)
+  })
+
   it('keeps a null next and an empty page', () => {
     expect(projectResidentReferences({ references: [], next: null })).toEqual({
       ok: { items: [], next: null },
