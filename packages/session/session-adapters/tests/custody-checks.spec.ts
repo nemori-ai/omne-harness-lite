@@ -57,7 +57,13 @@ const excluded = (...operations: string[]) => ({
 
 describe('a root custody attempt', () => {
   it('is refused when the hand-off has no record, or another request stands on the record', () => {
-    const missing = { failure: expect.objectContaining({ kind: 'invalid', field: 'original' }) }
+    const missing = {
+      failure: expect.objectContaining({
+        kind: 'invalid',
+        field: 'original',
+        reason: 'the request is not on the authoritative record',
+      }),
+    }
     expect(validatedCustody(basisOf(undefined), root('rh-1'), REQUEST, null)).toEqual(missing)
     const another = { ...(REQUEST as object), candidate: 'another' } as never
     expect(validatedCustody(basisOf(record()), root('rh-1'), another, null)).toEqual(missing)
@@ -75,7 +81,10 @@ describe('a root custody attempt', () => {
   it('is refused when another root stands, and taken again when it is the root that stands', () => {
     const standing = excluded()
     expect(validatedCustody(basisOf(record()), root('rh-other'), REQUEST, standing)).toEqual({
-      failure: expect.objectContaining({ reason: 'the H already has its custody root' }),
+      failure: expect.objectContaining({
+        field: 'operation',
+        reason: 'the H already has its custody root',
+      }),
     })
     expect(validatedCustody(basisOf(record()), root('rh-1'), REQUEST, standing)).toHaveProperty(
       'ok',
@@ -88,7 +97,10 @@ describe('a successor custody attempt', () => {
 
   it('is refused without a chain, or under another root', () => {
     const refused = {
-      failure: expect.objectContaining({ reason: 'the custody root is not the root of this H' }),
+      failure: expect.objectContaining({
+        field: 'operation',
+        reason: 'the custody root is not the root of this H',
+      }),
     }
     const next = successor('rh-2', 'rh-1', ['rh-1'])
     expect(validatedCustody(basisOf(record(), held), next, REQUEST, null)).toEqual(refused)
@@ -111,7 +123,10 @@ describe('a successor custody attempt', () => {
     expect(
       validatedCustody(basisOf(record(), held), next, REQUEST, excluded('rh-1', 'rh-2')),
     ).toEqual({
-      failure: expect.objectContaining({ reason: 'the predecessor is not the last attempt' }),
+      failure: expect.objectContaining({
+        field: 'operation',
+        reason: 'the predecessor is not the last attempt',
+      }),
     })
     expect(validatedCustody(basisOf(record(), held), next, REQUEST, excluded())).toEqual({
       failure: expect.objectContaining({ reason: 'the predecessor is not the last attempt' }),
@@ -129,7 +144,10 @@ describe('a successor custody attempt', () => {
         committed,
       ),
     ).toEqual({
-      failure: expect.objectContaining({ reason: 'the predecessor is not permanently excluded' }),
+      failure: expect.objectContaining({
+        field: 'operation',
+        reason: 'the predecessor is not permanently excluded',
+      }),
     })
   })
 
@@ -137,6 +155,52 @@ describe('a successor custody attempt', () => {
     const next = successor('rh-2', 'rh-1', ['rh-1'])
     expect(
       validatedCustody(basisOf(record(), held), next, REQUEST, excluded('rh-1')),
+    ).toHaveProperty('ok')
+    const third = successor('rh-3', 'rh-2', ['rh-1', 'rh-2'])
+    expect(
+      validatedCustody(basisOf(record(), held), third, REQUEST, excluded('rh-1', 'rh-2')),
+    ).toHaveProperty('ok')
+  })
+
+  it('must name the excluded chain of the root, attempt by attempt and link by link', () => {
+    const refused = {
+      failure: expect.objectContaining({
+        field: 'operation',
+        reason: 'the exclusion chain is not the chain of the root',
+      }),
+    }
+    const chain = excluded('rh-1', 'rh-2')
+    const naming = (prior: readonly (readonly [string, string | null])[]) => {
+      const next = successor('rh-3', 'rh-2', []) as { custody: object }
+      const priorExcluded = prior.map(([operation, predecessor]) => ({ operation, predecessor }))
+      return { ...next, custody: { ...next.custody, priorExcluded } } as never
+    }
+    const checked = (prior: readonly (readonly [string, string | null])[]) =>
+      validatedCustody(basisOf(record(), held), naming(prior), REQUEST, chain)
+    expect(checked([['rh-1', null]])).toEqual(refused)
+    expect(
+      checked([
+        ['rh-1', null],
+        ['rh-x', 'rh-1'],
+      ]),
+    ).toEqual(refused)
+    expect(
+      checked([
+        ['rh-1', 'rh-0'],
+        ['rh-2', 'rh-1'],
+      ]),
+    ).toEqual(refused)
+    expect(
+      checked([
+        ['rh-1', null],
+        ['rh-2', null],
+      ]),
+    ).toEqual(refused)
+    expect(
+      checked([
+        ['rh-1', null],
+        ['rh-2', 'rh-1'],
+      ]),
     ).toHaveProperty('ok')
   })
 })
@@ -210,6 +274,11 @@ describe('what a custody attempt is checked against', () => {
       'rh-2',
       'rh-held',
     ])
+  })
+
+  it('for a closed hand-off that must be known and a core that holds no attempt: the ones read back, and no other', () => {
+    const basis = custodyBasis(tableOf(), executionOf([]), H, true)
+    expect(basis.groups.get(canonicalOfKept(H))?.map(([op]) => op)).toEqual(['rh-1', 'rh-2'])
   })
 
   it('for a closed hand-off that need not be known: nothing is read back', () => {
