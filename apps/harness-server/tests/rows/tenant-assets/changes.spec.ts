@@ -29,6 +29,27 @@ describe('the change feed of the tenant assets row', () => {
     expect(log).toEqual([])
   })
 
+  it('releasing one listener of a tenant leaves the others hearing', () => {
+    const feed = createAssetChangeFeed()
+    const log: string[] = []
+    const release = feed.subscribe('tenant-a', listener(log, 'a1'))
+    feed.subscribe('tenant-a', listener(log, 'a2'))
+    release()
+    feed.changed('tenant-a')
+    expect(log).toEqual(['a2 changed'])
+  })
+
+  it('a stale release after the tenant subscribed again leaves the new listener hearing', () => {
+    const feed = createAssetChangeFeed()
+    const log: string[] = []
+    const release = feed.subscribe('tenant-a', listener(log, 'old'))
+    release()
+    feed.subscribe('tenant-a', listener(log, 'new'))
+    release()
+    feed.changed('tenant-a')
+    expect(log).toEqual(['new changed'])
+  })
+
   it('a listener that throws does not keep the others from hearing', () => {
     const feed = createAssetChangeFeed()
     const log: string[] = []

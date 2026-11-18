@@ -396,13 +396,14 @@ describe('recalling an operation', () => {
     expect(s.published).toEqual([])
   })
 
-  it('a creation without a receipt was not committed', async () => {
-    const s = setup()
+  it('a creation without a receipt was not committed, whatever is staged under its operation', async () => {
+    const s = setup({ reader: { kind: 'absent' } })
     expect(
       await s.management.recall(recall({ kind: 'create', capability: id('note', 'a') })),
     ).toEqual({
       kind: 'not-committed',
     })
+    expect(s.calls).toEqual(['recall op-1'])
   })
 
   it.each([

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { assetsSettingsProjectionCommand } from '@omne-harness/assets-local'
 import { SettingDefinitionsSchema } from '@omne-harness/settings'
 import {
   SettingsProjectionBindingSchema,
@@ -123,17 +124,27 @@ describe('the current facts of an asset target that no release governs', () => {
     expect(second?.basis.declaration.revision).not.toBe(first?.basis.declaration.revision)
   })
 
+  it('belong to their own target: another holding is another subject', () => {
+    const other = { ...TARGET, holdingRef: 'held-2' }
+    const bound = capture()
+    const boundOther = capture([other])
+    const first = heldSettingsCurrentMaterial(values(bound), bound, HELD_SETTINGS_CONFIGURATION)
+    const second = heldSettingsCurrentMaterial(
+      values(boundOther, [{ view: view({ target: other }), presence: 'present' }]),
+      boundOther,
+      HELD_SETTINGS_CONFIGURATION,
+    )
+    expect(first?.basis.declaration.subjectRef).toBeDefined()
+    expect(second?.basis.declaration.subjectRef).not.toBe(first?.basis.declaration.subjectRef)
+  })
+
   it.each([
     [
-      'values captured for another binding',
+      'values captured for another binding of the same target',
       () => {
         const bound = capture()
-        return [
-          values(capture([{ ...TARGET, holdingRef: 'held-2' }]), [
-            { view: view({ target: { ...TARGET, holdingRef: 'held-2' } }), presence: 'present' },
-          ]),
-          bound,
-        ] as const
+        const another = SettingsProjectionBindingSchema.parse({ ...bound, captureId: 'capture-2' })
+        return [values(another), bound] as const
       },
     ],
     [
@@ -227,5 +238,8 @@ describe('the current facts of an asset target that no release governs', () => {
       'settings.target-projection',
       'settings.value-projection',
     ])
+    expect(heldSettingsCommands(capture())[0]).toEqual(
+      assetsSettingsProjectionCommand(capture(), { excluded: [] }),
+    )
   })
 })

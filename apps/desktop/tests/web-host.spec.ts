@@ -1,4 +1,7 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { request } from 'node:http'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { identityProtocol } from '@omne-harness/identity-protocol'
 import { sessionProtocol } from '@omne-harness/session-protocol'
@@ -23,14 +26,23 @@ afterEach(async () => {
   for (const host of hosts.splice(0)) await host.close()
 })
 
-async function start(): Promise<{ base: string; server: FakeServer }> {
+async function start(
+  options: { log?: string[]; pageRoot?: string } = {},
+): Promise<{ base: string; server: FakeServer }> {
   const server = fakeServer()
   const session = await openLoginSession({
     connect: server.connect,
     store: memoryCredentialStore(),
     contracts: [identityProtocol, sessionProtocol],
   })
-  const { host, port } = await listenFetchable(() => createWebHost({ session }))
+  const { log, pageRoot } = options
+  const { host, port } = await listenFetchable(() =>
+    createWebHost({
+      session,
+      ...(log === undefined ? {} : { log: (line: string) => void log.push(line) }),
+      ...(pageRoot === undefined ? {} : { pageRoot }),
+    }),
+  )
   hosts.push(host)
   return { base: `http://127.0.0.1:${port}`, server }
 }
@@ -342,5 +354,148 @@ describe('宿主的通道', () => {
     expect(server.seen.some(item => item.credentials.proof === PROOF_SENTINEL)).toBe(true)
     expect(seenByPage.length).toBeGreaterThan(10)
     for (const text of seenByPage) expect(text).not.toContain(PROOF_SENTINEL)
+  })
+})
+
+describe('宿主的通道：一页一条事件流的边界', () => {
+  const until = async (check: () => Promise<boolean> | boolean) => {
+    for (let i = 0; i < 100; i += 1) {
+      if (await check()) return true
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }
+    return false
+  }
+  const observeStatus = async (base: string, page: string, id = 'o-x') =>
+    (await post(base, '/bridge/observe', { page, id, request: JSON.stringify(OBSERVE) })).status
+
+  /** Each observation yields one frame and then waits; `aborted()` counts the ones the host stopped. */
+  function held(server: FakeServer) {
+    let aborted = 0
+    server.stream('session/v1 observe-session', async function* (request) {
+      yield value({ kind: 'state' })
+      await new Promise(resolve => request.signal.addEventListener('abort', resolve))
+      aborted += 1
+      return { kind: 'aborted' }
+    })
+    return () => aborted
+  }
+
+  it('事件流要说是哪一页：没给或给空都答 400', async () => {
+    const { base } = await start()
+    expect((await fetch(`${base}/bridge/events`)).status).toBe(400)
+    expect((await fetch(`${base}/bridge/events?page=`)).status).toBe(400)
+  })
+
+  it('同一页再开一条事件流就换成新的；旧的断开不带走新的，新的断开之后这一页没有事件流', async () => {
+    const { base, server } = await start()
+    held(server)
+    const old = await pageEvents(base, 'p')
+    const fresh = await pageEvents(base, 'p')
+    expect(await old.next(1)).toEqual([])
+    expect((await fresh.attach('o-1')).status).toBe(200)
+    expect(await fresh.next(1)).toEqual([
+      { id: 'o-1', event: { kind: 'frame', frame: { kind: 'state' } } },
+    ])
+    fresh.close()
+    expect(await until(async () => (await observeStatus(base, 'p')) === 409)).toBe(true)
+  })
+
+  it('事件流断开时，只把还挂着的观察记一行；自己结束了的不算', async () => {
+    const log: string[] = []
+    const { base, server } = await start({ log })
+    server.stream('session/v1 observe-session', async function* () {
+      yield value({ kind: 'state' })
+      return { kind: 'ended', reason: 'refresh-exhausted' }
+    })
+    const ended = await pageEvents(base, 'ended')
+    await ended.attach('o-1')
+    await ended.next(2)
+    ended.close()
+    const empty = await pageEvents(base, 'empty')
+    empty.close()
+    held(server)
+    const live = await pageEvents(base, 'live')
+    await live.attach('o-1')
+    await live.next(1)
+    live.close()
+    expect(await until(() => log.some(line => line.startsWith('page stream closed')))).toBe(true)
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(log.filter(line => line.startsWith('page stream closed'))).toEqual([
+      'page stream closed with 1 observation(s) on it',
+    ])
+  })
+
+  it('同一标识再挂一次就换成新的；停这个标识停的是新的，停下的观察不记作结束', async () => {
+    const log: string[] = []
+    const { base, server } = await start({ log })
+    const aborted = held(server)
+    const page = await pageEvents(base)
+    expect(await (await page.attach('o-1')).text()).toBe('{}')
+    await page.next(1)
+    await page.attach('o-1')
+    await page.next(1)
+    expect(await until(() => aborted() === 1)).toBe(true)
+    const stop = await post(base, '/bridge/unobserve', { page: page.page, id: 'o-1' })
+    expect(await stop.text()).toBe('{}')
+    expect(await until(() => aborted() === 2)).toBe(true)
+    page.close()
+    expect(log.filter(line => line.includes('ended'))).toEqual([])
+  })
+
+  it('读不出的观察与停止答 400；停一页没有的观察照答成功；没有事件流的观察记一行', async () => {
+    const log: string[] = []
+    const { base } = await start({ log })
+    expect((await post(base, '/bridge/observe', { page: 'p' })).status).toBe(400)
+    expect((await post(base, '/bridge/unobserve', { page: 'p' })).status).toBe(400)
+    const stop = await post(base, '/bridge/unobserve', { page: 'nobody', id: 'o-1' })
+    expect([stop.status, await stop.text()]).toEqual([200, '{}'])
+    const page = await pageEvents(base, 'p')
+    const unknown = await post(base, '/bridge/unobserve', { page: 'p', id: 'o-unknown' })
+    expect([unknown.status, await unknown.text()]).toEqual([200, '{}'])
+    page.close()
+    const refused = await post(base, '/bridge/observe', {
+      page: 'nobody',
+      id: 'o-1',
+      request: JSON.stringify(OBSERVE),
+    })
+    expect([refused.status, await refused.text()]).toEqual([409, 'no event stream'])
+    expect(log).toEqual(['observation refused: the page has no event stream'])
+  })
+
+  it('GET 不在桥下的路径给页面文件，桥下没有的路径与别的方法答 404', async () => {
+    const pageRoot = mkdtempSync(join(tmpdir(), 'web-host-page-'))
+    writeFileSync(join(pageRoot, 'index.html'), '<p>page</p>')
+    mkdirSync(join(pageRoot, 'bridge'))
+    writeFileSync(join(pageRoot, 'bridge', 'shadow.html'), '<p>shadow</p>')
+    try {
+      const { base } = await start({ pageRoot })
+      const index = await fetch(`${base}/`)
+      expect([index.status, await index.text()]).toEqual([200, '<p>page</p>'])
+      expect((await fetch(`${base}/bridge/shadow.html`)).status).toBe(404)
+      const posted = await fetch(`${base}/index.html`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{}',
+      })
+      expect(posted.status).toBe(404)
+    } finally {
+      rmSync(pageRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('拒绝时记一行：方法、路径，以及请求带来的 Host 与 Origin', async () => {
+    const log: string[] = []
+    const { base } = await start({ log })
+    const host = new URL(base).host
+    await fetch(`${base}/bridge/logout`, { method: 'POST', body: '{}' })
+    await fetch(`${base}/bridge/logout`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: 'http://evil.example' },
+      body: '{}',
+    })
+    expect(log).toEqual([
+      `refused POST /bridge/logout: host=${host} origin=`,
+      `refused POST /bridge/logout: host=${host} origin=http://evil.example`,
+    ])
   })
 })
