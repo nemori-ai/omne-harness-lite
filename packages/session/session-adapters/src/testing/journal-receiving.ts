@@ -57,6 +57,7 @@ import {
 type Input<P> = ReceivedCommitInput<P, ContentBlock>
 import {
   deliveryOf,
+  keyVersion,
   receivedMaterialSource,
   sourceNames,
   type Kept,
@@ -93,10 +94,10 @@ type Hooks<P> = {
     input: Access<P> & { execution: AgentExecutionId },
     reference: string,
   ): ClosedBinding | undefined
-  // The received result of a consumption this core no longer holds open.
+  // A received result this core no longer holds open.
   closedResult(
     input: Access<P> & { execution: AgentExecutionId },
-    consumption: ConsumptionId,
+    result: Readonly<{ consumption: ConsumptionId; version: string }>,
     need: boolean,
   ): ReceivedRecord | undefined
   state(): ReceivingState
@@ -168,7 +169,7 @@ function receivedCall(entry: ReceivedEntry): ProducerCall {
   return {
     producer: entry.delivery.producer,
     call: String(key.reference),
-    version: key.kind === 'result' ? String(key.result) : refOf(key).digest,
+    version: keyVersion(key),
     delivery: key.kind,
     source: structuredClone(entry.material),
   }
@@ -352,16 +353,17 @@ function delivered<P>(
   const text = deliveryText(input, entry)
   const held = hooks.state().deliveries.get(text)
   if (held !== undefined) return held
-  const closed = hooks.closedResult(input, entry.consumption, false)
+  const result = { consumption: entry.consumption, version: keyVersion(entry.delivery.key) }
+  const closed = hooks.closedResult(input, result, false)
   return closed?.delivery === text ? closed.kept : undefined
 }
 
-// The material of a closed result, by the execution and consumption its source names.
+// The material of a closed result, by the execution, consumption and version its source names.
 function closedMaterial<P>(hooks: Hooks<P>, access: Access<P>, source: DurableEvidence) {
   const named = sourceNames(hooks.namespace, source)
   if (named === null || named.tenant !== tenantText(access.tenant)) return undefined
   const execution = { ...access, execution: named.execution }
-  const closed = hooks.closedResult(execution, named.consumption, true)
+  const closed = hooks.closedResult(execution, named, true)
   return closed !== undefined && canonical(closed.kept.entry.material) === canonical(source)
     ? (closed.material ?? undefined)
     : undefined

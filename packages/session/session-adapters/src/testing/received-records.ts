@@ -9,6 +9,8 @@ import type {
 import type { ContentBlock } from '@omne-harness/content-block'
 import {
   batchEvidence,
+  refOf,
+  resultKey,
   type BlobStore,
   type Mint,
   type PublishedBatch,
@@ -96,16 +98,28 @@ export const receivedMaterialSource = (
     1,
   )
 
+// The version a delivery key names: a result version, or the digest of the key of another delivery.
+export function keyVersion(key: ReceivedEntry['delivery']['key']): string {
+  if (key.kind !== 'result') return refOf(key).digest
+  return typeof key.result === 'string' ? key.result : key.result.version
+}
+
 export function sourceNames(
   namespace: string,
   source: DurableEvidence,
-): Readonly<{ tenant: string; execution: AgentExecutionId; consumption: ConsumptionId }> | null {
+): Readonly<{
+  tenant: string
+  execution: AgentExecutionId
+  consumption: ConsumptionId
+  version: string
+}> | null {
   try {
     const parts = JSON.parse(source.record) as unknown
     if (!Array.isArray(parts) || parts[0] !== namespace || parts[1] !== RECEIVED_MATERIAL)
       return null
     const [tenant, execution] = JSON.parse(String(parts[2])) as [string, AgentExecutionId]
-    return { tenant, execution, consumption: parts[5] as ConsumptionId }
+    const version = keyVersion(parts[3] as ReceivedEntry['delivery']['key'])
+    return { tenant, execution, consumption: parts[5] as ConsumptionId, version }
   } catch {
     return null
   }
@@ -138,17 +152,18 @@ export function receivedRecord(scope: RecordScope, received: ReceivedView): Rece
   }
 }
 
-// A result the core no longer holds open, read back by its consumption; a read that must know asks
-// with need.
+// A result the core no longer holds open, read back by its consumption and version; a read that
+// must know asks with need.
 export function closedReceived(
   table: ClosedTable & Readonly<{ blobs: BlobStore }>,
   mint: Mint,
   input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>,
-  consumption: ConsumptionId,
+  result: Readonly<{ consumption: ConsumptionId; version: string }>,
   need: boolean,
 ): ReceivedRecord | undefined {
   const scope = scopeOf(input.tenant, input.execution, mint, table.blobs)
-  const ref = { execution: scope.execution, family: 'result', item: consumption }
+  const item = resultKey(result.consumption, result.version)
+  const ref = { execution: scope.execution, family: 'result', item }
   const body = (need ? needClosed(table, ref) : peekClosed(table, ref)) as ResultView | null
   if (body === null || body.received === null) return undefined
   return receivedRecord(scope, body.received)

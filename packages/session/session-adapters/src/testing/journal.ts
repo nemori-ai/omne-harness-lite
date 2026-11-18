@@ -4056,8 +4056,7 @@ export function createJournal<P>(
     operations: () => state().operations,
     answered: (input, need) => operationAnswer(state(), input, need),
     closedBinding: (input, reference) => closedBindingOf(state(), input.execution, reference),
-    closedResult: (input, consumption, need) =>
-      closedReceived(state(), mint, input, consumption, need),
+    closedResult: (input, result, need) => closedReceived(state(), mint, input, result, need),
     authorize: cell.authorize,
     gate: cell.gate,
     state: () => cell.state().receiving,

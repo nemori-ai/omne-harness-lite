@@ -17,6 +17,7 @@ import {
   type BatchEnvelope,
   type CursorMembers,
   type FactBody,
+  type ResultKey,
 } from './facts.ts'
 import { handoffKey, type ExecutionView } from './view.ts'
 
@@ -73,7 +74,10 @@ function heldBy(checkpoint: AgentCheckpoint): CursorMembers['holds'] {
       ...checkpoint.calls.map(call => call.action),
       ...(checkpoint.batch?.actions.map(action => action.id) ?? []),
     ],
-    consumptions: checkpointCalls(checkpoint).map(call => call.consumption),
+    consumptions: [
+      ...checkpointCalls(checkpoint).map(call => call.consumption),
+      ...(checkpoint.compaction === null ? [] : [checkpoint.compaction.consumption]),
+    ],
     handoffs: (checkpoint.batch?.slots ?? []).flatMap(slot =>
       slot.handoff === null ? [] : [handoffKey(slot.handoff)],
     ),
@@ -238,7 +242,7 @@ export function keyKnown(view: ExecutionView, key: string): boolean {
     case 'call':
       return view.intents.has(name as never)
     case 'received':
-      return view.results.get(name as never)?.received !== null && view.results.has(name as never)
+      return (view.results.get(name as ResultKey)?.received ?? null) !== null
     case 'placeholder':
       return view.placeholders.has(name as never)
     case 'reply':
