@@ -185,6 +185,7 @@ describe('the records a book puts back into a cold core', () => {
       agent.human.get('k'),
       agent.indexedEvents.get('k'),
       agent.closedComplete,
+      agent.log,
     ]).toEqual([
       'block',
       'execution',
@@ -196,6 +197,7 @@ describe('the records a book puts back into a cold core', () => {
       'human',
       7,
       false,
+      [],
     ])
   })
 })

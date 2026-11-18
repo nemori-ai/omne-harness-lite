@@ -871,8 +871,21 @@ async function serveOnce(
   } finally {
     controller.abort('test: stop')
     exitCode = (await finished.catch(() => undefined))?.exitCode
+    if (exitCode !== undefined && exitCode !== 0)
+      process.stderr.write(`release tree, server exit ${String(exitCode)}: ${unsettled(records)}\n`)
   }
   return exitCode
+}
+
+// What a shutdown left unsettled, row by row: a server that exits non-zero names its own cause.
+function unsettled(records: readonly S0Record[]): string {
+  const result = records.findLast(record => record['kind'] === 'shutdown-result')
+  if (result === undefined) return 'no shutdown result was written'
+  const outcomes = result['outcomes'] as readonly Readonly<{ result: { kind: string } }>[]
+  return JSON.stringify({
+    ...result,
+    outcomes: outcomes.filter(outcome => outcome.result.kind !== 'settled'),
+  })
 }
 
 export async function pollUntil<T>(

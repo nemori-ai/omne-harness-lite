@@ -112,6 +112,8 @@ describe('a successor custody attempt', () => {
     const conflict = { failure: { kind: 'conflict', operation: 'rh-2' } }
     const next = successor('rh-2', 'rh-1', ['rh-1'])
     expect(validatedCustody(basisOf(record()), next, REQUEST, excluded('rh-1'))).toEqual(conflict)
+    const noGroup = { record: record(), groups: new Map() } as never
+    expect(validatedCustody(noGroup, next, REQUEST, excluded('rh-1'))).toEqual(conflict)
     const otherwise = [['rh-1', attemptOf(OTHER, null)]] as const
     expect(validatedCustody(basisOf(record(), otherwise), next, REQUEST, excluded('rh-1'))).toEqual(
       conflict,
