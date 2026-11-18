@@ -584,7 +584,7 @@ export type MemoryToolResidencyReader = Readonly<{
     reader: ToolResidencyReader;
     set(key: ToolBindingKey, holders: readonly Readonly<{
         tenant: TenantId;
-        session: string;
+        holder: string;
         shape: ToolShape;
     }>[]): void;
     interrupt(diagnostic?: string): void;
@@ -613,7 +613,7 @@ export interface ResidentKeyRoundTripFixture {
     writeRaw?(input: Readonly<{
         tenant: TenantId;
         key: ToolBindingKey;
-        shape: ResidentReferencesPage['sessions'][number]['shape'];
+        shape: ResidentReferencesPage['references'][number]['shape'];
     }>): Promise<void>;
 }
 export type ResidentKeyCaseDependencies = Readonly<{

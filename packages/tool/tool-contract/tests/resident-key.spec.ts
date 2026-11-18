@@ -77,9 +77,9 @@ function stored(shape: ToolShape, at: ToolBindingKey = key({ kind: 'official' })
 
 function page(...shapes: readonly JsonValue[]): ResidentReferencesPage {
   return {
-    sessions: shapes.map((shape, index) => ({
+    references: shapes.map((shape, index) => ({
       tenant: index % 2 === 0 ? tenantA() : tenantB(),
-      session: 'session-1',
+      holder: 'holder-1',
       capability: 'read_file',
       shape,
     })),
@@ -218,7 +218,7 @@ describe('projectResidentReferences', () => {
     const result = projectResidentReferences(page(stored(functionShape), stored(commandsShape)))
     if ('failure' in result) throw new Error(JSON.stringify(result.failure))
     expect(result.ok.next).toBe('opaque-next')
-    expect(result.ok.items.map(item => item.holder)).toEqual(['session-1', 'session-1'])
+    expect(result.ok.items.map(item => item.holder)).toEqual(['holder-1', 'holder-1'])
     expect(result.ok.items[0]?.tenant).toEqual(tenantA())
     expect(result.ok.items[1]?.tenant).toEqual(tenantB())
     expect(sameShape(result.ok.items[0]?.shape as ToolShape, functionShape)).toBe(true)
@@ -226,7 +226,7 @@ describe('projectResidentReferences', () => {
   })
 
   it('keeps a null next and an empty page', () => {
-    expect(projectResidentReferences({ sessions: [], next: null })).toEqual({
+    expect(projectResidentReferences({ references: [], next: null })).toEqual({
       ok: { items: [], next: null },
     })
   })
@@ -347,7 +347,7 @@ describe('projectResidentReferences', () => {
   for (const [name, bad, field, reason] of refusals)
     it(`fails the whole page on ${name}, naming the reference`, () => {
       expect(projectResidentReferences(page(stored(functionShape), bad))).toEqual({
-        failure: { field: `sessions[1].${field}`, reason },
+        failure: { field: `references[1].${field}`, reason },
       })
     })
 })

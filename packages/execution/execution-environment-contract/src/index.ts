@@ -74,7 +74,7 @@ export type {
   ResourceLedger,
   RetainedProcessLedger,
   RetainedTerminalLedger,
-  SessionTerminalRetention,
+  ScopeTerminalRetention,
 } from './ports.ts'
 
 export type {
