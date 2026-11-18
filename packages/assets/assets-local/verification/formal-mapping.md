@@ -11,7 +11,7 @@
 | HeldInPlace | 读者沿持有读到的版本，它的目录一定在 | `packages.ts` 的 `swapIn` 在 `records.publishAndHold` 之前 | `packages` 的「崩在暂存之后」「崩在换入之后」「提交的回执丢了」 |
 | RecordedInPlace | 记下的版本，它的目录一定在 | 同上；`mutations.ts` 的 `publishAndHold` 一次写版本与持有 | `packages` 的「已移除：同成同败」 |
 | AtMostOnce | 同一操作标识至多提交一次 | `provider.ts` 的 `publishAndHold` 先按操作标识认回 | `packages` 的「提交的回执丢了」「同一个操作标识再发一次」 |
-| NoLostFiles | 发布不会停在错误里丢下记下的内容 | 换入时版本目录已在就当作完成 | `package-failures` 的「另一次发布先换入」 |
+| NoLostFiles | 发布不会停在错误里丢下记下的内容 | 换入时版本目录已在就当作完成 | `package-failures` 的「takes a version directory that another publish put in place first」 |
 
 | 配置 | 次序 | 预期 |
 | --- | --- | --- |
@@ -20,4 +20,4 @@
 | `negative-record-first` | 暂存、一次提交、换入 | `HeldInPlace` 违反：提交之后、换入之前持有指向还没就位的内容 |
 | `negative-sweep` | 换入在前，另有一个不经恢复的清扫 | `HeldInPlace` 违反：换入、被扫掉、提交 |
 
-`negative-sweep` 由一条源码检查守着：删版本目录只在 `packageRecovery` 里（`packages` 的「删版本目录只在恢复扫描里」）。
+`negative-sweep` 由一条源码检查守着：删版本目录只在 `packageRecovery` 里（`package-sweep` 的「a version directory is deleted only in the recovery scan」）。
