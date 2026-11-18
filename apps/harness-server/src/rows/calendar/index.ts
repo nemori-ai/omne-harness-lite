@@ -28,6 +28,7 @@ import {
   createShippedCalendarSeedRegistry,
   shippedCalendarSeedRelease,
 } from '@omne-harness/calendar-local'
+import { calendarEnvironmentSettingsPlugin } from '@omne-harness/calendar-local/cordis'
 import type { TenantStandingSource } from '@omne-harness/identity'
 import { tenantStandingKey } from '@omne-harness/identity/cordis'
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -37,9 +38,9 @@ import { storageKey } from '@omne-harness/sql-contract/cordis'
 import { epochMillisOf, readSystemInstant } from '../../entry/session-clock.ts'
 import { defineRow } from '../../row.ts'
 import {
-  preferenceSettingsKey,
-  type PreferenceSettingsService,
-} from '../governance/preference-settings-service.ts'
+  tenantIndependentSettingsKey,
+  type TenantIndependentSettingsService,
+} from '../governance/independent-settings-service.ts'
 import { productionStorageCatalog } from '../storage/production-catalog.ts'
 import { CALENDAR_DOMAIN, CALENDAR_PARTICIPANTS, calendarAuthority } from './authority.ts'
 
@@ -101,10 +102,10 @@ async function registered(storage: SqlStorage) {
 }
 
 /** A tenant's calendar environment is its own preference target; the reader reads as the tenant. */
-export function environmentOf(preferences: PreferenceSettingsService) {
+export function environmentOf(independent: TenantIndependentSettingsService) {
   const settings: SettingsReadPort<string> = {
     read: async (tenantRef, request) =>
-      (await preferences.read(tenantRef, request)) ?? { kind: 'rejected', reason: 'unavailable' },
+      (await independent.read(tenantRef, request)) ?? { kind: 'rejected', reason: 'unavailable' },
   }
   return createCalendarSettingsEnvironment<string>({
     settings,
@@ -113,7 +114,7 @@ export function environmentOf(preferences: PreferenceSettingsService) {
       return {
         principal: context.owner.tenantId,
         owner: context.owner,
-        ...preferences.bindingOf(context.owner.tenantId, calendarEnvironmentSettings),
+        ...independent.bindingOf(context.owner.tenantId, calendarEnvironmentSettings),
         timezoneItemId: calendarEnvironmentItems.timezone,
         calendarItemId: calendarEnvironmentItems.calendar,
       }
@@ -149,11 +150,12 @@ export const calendarRow = defineRow({
   implementation: 'real',
   manifest: {
     provides: [calendarQueryKey, calendarCalculatorKey],
-    injects: [storageKey, tenantStandingKey, preferenceSettingsKey],
+    injects: [storageKey, tenantStandingKey, tenantIndependentSettingsKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'body', phase: 'composition' },
   async body(ctx) {
+    ctx.plugin(calendarEnvironmentSettingsPlugin)
     const storage = ctx.get(storageKey) as SqlStorage
     const combination = await registered(storage)
     const stores = {
@@ -194,7 +196,9 @@ export const calendarRow = defineRow({
         .warn(`calendar seed import answered ${imported.error.code}: ${imported.error.message}`)
     const queries = createCalendarQueries({
       repository: stores.repository,
-      environment: environmentOf(ctx.get(preferenceSettingsKey) as PreferenceSettingsService),
+      environment: environmentOf(
+        ctx.get(tenantIndependentSettingsKey) as TenantIndependentSettingsService,
+      ),
       authority: authorityOf(ctx.get(tenantStandingKey) as TenantStandingSource),
       clock: { now },
       catalog: shippedCalendarSupplyPolicies.map(({ calendarId, timezone, semanticBoundary }) => ({

@@ -97,7 +97,7 @@ it('rejects another epoch, full definition digest, target and tenant even after 
   const cases: [Partial<GovernanceTargetBinding>, string][] = [
     [{ epoch: 'old-epoch' }, 'scope'],
     [{ definition: { ...w.declaration.reference, digest: 'f'.repeat(64) } }, 'definition'],
-    [{ target: { ...w.target, targetRef: 'another-holding' } }, 'selection'],
+    [{ target: { ...w.target, holdingRef: 'another-holding' } }, 'selection'],
     [
       {
         scope: {
@@ -143,7 +143,7 @@ it('combines adopted Governance, native publication, actual Settings values and 
   expect(
     await w.owner.changeHolding({
       operationId: 'disable-snapshot',
-      holdingRef: w.target.targetRef,
+      holdingRef: w.target.holdingRef,
       scopeRef: w.target.scopeRef,
       expectedRevision: 1,
       change: { kind: 'setEnabled', enabled: false },

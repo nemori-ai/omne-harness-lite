@@ -396,7 +396,12 @@ export async function openSettingsComposition(
     cleanup.push(() => registry.close())
     const registration = registry.registerContribution(definition)
     if (registration.kind !== 'registered') throw new Error(JSON.stringify(registration))
-    const target = { policyId: 'independent', targetRef: 'calendar-environment', scopeRef }
+    const target = {
+      kind: 'independent' as const,
+      providerId: 'calendar',
+      definitionId: 'environment',
+      scopeRef,
+    }
     const project = (binding: SettingsProjectionBinding) => [
       standaloneSettingsProjectionCommand(binding),
       settingsWithoutAssetsProjectionCommand(binding),

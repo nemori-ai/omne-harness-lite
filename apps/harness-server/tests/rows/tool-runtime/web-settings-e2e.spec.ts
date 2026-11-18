@@ -340,7 +340,7 @@ const unconfiguredLine =
   'unconfigured reason=no search key is configured; set the Web setting exa.apiKey'
 
 const exaView = (own: string, official: string) => ({
-  asset: { category: 'tool', name: WEB_ASSET },
+  owner: { kind: 'asset', category: 'tool', name: WEB_ASSET },
   item: EXA_KEY_ITEM,
   revision: '0',
   declaration: {
@@ -348,6 +348,7 @@ const exaView = (own: string, official: string) => ({
     purpose: expect.any(String),
     appliesAt: expect.any(String),
     clearEffect: expect.any(String),
+    group: { id: 'tool', title: 'Tool settings', description: expect.any(String) },
   },
   kind: 'secret',
   own,

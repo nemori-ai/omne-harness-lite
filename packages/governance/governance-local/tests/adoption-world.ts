@@ -14,8 +14,9 @@ import { command, binding, scope, execution, openOperations } from './operation-
 import { declaration } from './definition-fixture.ts'
 
 export const target = (id: string): SettingsTarget => ({
-  policyId: 'independent',
-  targetRef: id,
+  kind: 'independent',
+  providerId: 'governance',
+  definitionId: id,
   scopeRef: scope.tenantRef,
 })
 export const found = z.object({ kind: z.literal('found'), record: recordSchema })

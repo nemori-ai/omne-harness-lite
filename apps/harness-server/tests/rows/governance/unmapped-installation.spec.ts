@@ -40,7 +40,7 @@ it('installs and adopts a real asset without inventing an organization Settings 
   expect(reads).not.toHaveBeenCalled()
   const target = toolAssetTarget(w.entry, w.scope.tenantRef)
   expect(
-    await w.owner.readHolding({ holdingRef: target.targetRef, scopeRef: target.scopeRef }),
+    await w.owner.readHolding({ holdingRef: target.holdingRef, scopeRef: target.scopeRef }),
   ).toMatchObject({
     kind: 'holding',
     holding: { state: 'held', enabled: true, revision: 1 },

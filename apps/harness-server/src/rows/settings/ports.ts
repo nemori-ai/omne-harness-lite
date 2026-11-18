@@ -7,11 +7,15 @@ export type SettingView = Extract<
   { kind: 'described' }
 >['item']
 export type SecretView = Extract<SettingView, { kind: 'secret' }>
+type AssetQuery = Readonly<{ category?: string; name: string }>
+/** Secrets are held for assets only, so the secret face is addressed by asset. */
 export type SecretItemInput = Pick<
   Parameters<Port['describe']>[0],
-  'principal' | 'tenant' | 'asset' | 'item'
->
-export type SecretListInput = Pick<Parameters<Port['list']>[0], 'principal' | 'tenant' | 'asset'>
+  'principal' | 'tenant' | 'item'
+> &
+  Readonly<{ asset: AssetQuery }>
+export type SecretListInput = Pick<Parameters<Port['list']>[0], 'principal' | 'tenant'> &
+  Readonly<{ asset?: AssetQuery }>
 
 type Refusal<K extends string> = Readonly<{ kind: K }>
 type Written = Readonly<{ kind: 'written'; revision: '0' }>

@@ -119,7 +119,7 @@ export function definitionRef(version = '1', enabled = false) {
       .digest('hex'),
   }
 }
-export const target = { policyId: 'asset', targetRef: 'holding-a', scopeRef: 'tenant-a' }
+export const target = { kind: 'asset' as const, holdingRef: 'holding-a', scopeRef: 'tenant-a' }
 export const grants = [
   {
     sourceId: 'tenant',
@@ -198,7 +198,7 @@ export async function openWorld(
     })
     const held = await owner.hold({
       operationId: 'hold-1',
-      holdingRef: target.targetRef,
+      holdingRef: target.holdingRef,
       scopeRef: target.scopeRef,
       assetRef: 'asset-a',
       selection: { kind: 'follow' },

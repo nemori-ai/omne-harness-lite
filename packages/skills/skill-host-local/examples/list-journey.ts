@@ -1,7 +1,12 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { capabilityId, createCategoryPoint } from '@omne-harness/assets'
-import { createAssetsLocal, tenantLayerSource, type AssetsLocal } from '@omne-harness/assets-local'
+import {
+  createAssetsLocal,
+  publishedRef,
+  tenantLayerSource,
+  type AssetsLocal,
+} from '@omne-harness/assets-local'
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import { skillBodyContract, skillCategoryDisplay } from '@omne-harness/skill-contract'
 import type { Resolution } from '@omne-harness/skill-contract/provider'
@@ -57,28 +62,19 @@ async function publishAndHold(
 ): Promise<string> {
   const made = capabilityId(skillBodyContract().category, name)
   if (!made.ok) throw new Error('not a capability identity')
-  const assetRef = `tenant/skill/${name}`
   const published = await assets.packages.publish({
     capability: made.id,
-    assetRef,
     from: directoryReader(createDirectorySource(), dir),
     operationId: `publish-${name}`,
+    holding: {
+      sources: [
+        { sourceId: 'tenant', ownerRef: tenantRef, scope: { kind: 'owner', subjectRef: 'skills' } },
+      ],
+      grants: [],
+    },
   })
   if (published.kind !== 'published') throw new Error(JSON.stringify(published))
-  const holdingRef = `skill.${name}`
-  const held = await assets.hold({
-    operationId: `hold-${name}`,
-    holdingRef,
-    scopeRef: tenantRef,
-    assetRef,
-    selection: { kind: 'follow' },
-    sources: [
-      { sourceId: 'tenant', ownerRef: tenantRef, scope: { kind: 'owner', subjectRef: 'skills' } },
-    ],
-    grants: [],
-  })
-  if (held.kind !== 'committed') throw new Error(JSON.stringify(held))
-  return holdingRef
+  return publishedRef(made.id)
 }
 
 async function changeHolding(

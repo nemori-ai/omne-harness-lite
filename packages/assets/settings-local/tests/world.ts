@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto'
 import canonicalize from 'canonicalize'
-import { SettingDefinitionsSchema, type SettingsChange } from '@omne-harness/settings'
+import {
+  SettingDefinitionsSchema,
+  type SettingsChange,
+  type SettingsTarget,
+} from '@omne-harness/settings'
 
 export const definition = SettingDefinitionsSchema.parse({
   providerId: 'example',
@@ -53,12 +57,21 @@ export const secretDefinitionRef = {
   ...definitionRef,
   digest: createHash('sha256').update(canonicalize(secretDefinition)!).digest('hex'),
 }
+export function sibling(target: SettingsTarget, definitionId: string): SettingsTarget {
+  if (target.kind !== 'independent') throw new Error('Expected an independent target')
+  return { ...target, definitionId }
+}
 export function command(overrides: Partial<SettingsChange> = {}): SettingsChange {
   return {
     protocol: 'settings/1',
     requestId: 'request-1',
     operationId: 'operation-1',
-    target: { policyId: 'independent', targetRef: 'preferences', scopeRef: 'tenant-a' },
+    target: {
+      kind: 'independent',
+      providerId: 'example',
+      definitionId: 'preferences',
+      scopeRef: 'tenant-a',
+    },
     definitionRef,
     expectedRevision: 0,
     sourceId: 'tenant',

@@ -13,6 +13,7 @@ import {
 export const skillCategoryDisplay: CategoryDisplay = Object.freeze({
   title: '技能',
   summary: '一份说明加配套文件，代理需要时读取。',
+  creation: '一个目录，根下有 SKILL.md，配套文件放在它旁边。',
 })
 import { isPackageDigest } from './digest.ts'
 import { skillLayout } from './layout.ts'

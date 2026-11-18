@@ -12,7 +12,12 @@ const context = calendarCallContextSchema.parse({
   requestId: 'query:1',
   originatingSessionRef: null,
 })
-const target = { policyId: 'preferences', targetRef: 'environment:alice', scopeRef: 'tenant:1' }
+const target = {
+  kind: 'independent' as const,
+  providerId: 'preferences',
+  definitionId: 'environment',
+  scopeRef: 'tenant:1',
+}
 const definitionRef = {
   providerId: 'preferences',
   definitionId: 'environment',
@@ -205,7 +210,7 @@ test.each([
         : [
             {
               ...view,
-              ...(fault === 'target' ? { target: { ...target, targetRef: 'other' } } : {}),
+              ...(fault === 'target' ? { target: { ...target, definitionId: 'other' } } : {}),
               ...(fault === 'definition'
                 ? { definitionRef: { ...definitionRef, version: '2' } }
                 : {}),
@@ -302,7 +307,7 @@ test.each(['targets', 'target', 'items'])(
       ...(fault === 'targets'
         ? { request: { ...binding.request, targets: [target, target] } }
         : {}),
-      ...(fault === 'target' ? { target: { ...target, targetRef: 'other' } } : {}),
+      ...(fault === 'target' ? { target: { ...target, definitionId: 'other' } } : {}),
       ...(fault === 'items' ? { calendarItemId: binding.timezoneItemId } : {}),
     })
     expect(await environment.read(context)).toEqual({ kind: 'unavailable' })
