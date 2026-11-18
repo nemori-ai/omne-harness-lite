@@ -37,7 +37,7 @@ export function createTenantBindings(ports: TenantBindingPorts) {
     if (domain === undefined) return null
     const pending = (combination ??= ports.combination())
     const fixed = await pending.catch(error => {
-      if (combination === pending) combination = undefined
+      combination = undefined
       throw error
     })
     const { scope, transactionDomain } = domain
@@ -57,7 +57,7 @@ export function createTenantBindings(ports: TenantBindingPorts) {
       const opening = open(tenant)
         .catch(() => null)
         .then(binding => {
-          if (binding === null && bound.get(tenant) === opening) bound.delete(tenant)
+          if (binding === null) bound.delete(tenant)
           return binding
         })
       bound.set(tenant, opening)

@@ -73,6 +73,12 @@ describe('the Notifications binding of the release', () => {
     expect(bound?.causalDepth()).toBe(0)
     expect(bound?.now()).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
     const reached = await bound?.reach()
+    expect(Object.keys((reached as { faces: object }).faces).sort()).toEqual([
+      'catalog',
+      'inbox',
+      'sending',
+      'subscriptions',
+    ])
     expect(reached).toMatchObject({
       context: {
         tenant: textOf(A),

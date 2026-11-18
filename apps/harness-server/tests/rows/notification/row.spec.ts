@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { combinationManifest, manifestDigest } from '@omne-harness/sql-contract'
 import { rowDeclarationOf } from '../../../src/row.ts'
 import {
+  CONFIRM_EACH,
+  NO_STANDING_SOURCES,
   notificationCombination,
   notificationConfig,
   notificationRow,
@@ -81,17 +83,34 @@ describe('the notification row', () => {
   })
 })
 
+describe('the two ports this tree answers the same way every time', () => {
+  it('has the owner confirm each subscription of an agent', async () => {
+    expect(await CONFIRM_EACH.mode({} as never)).toEqual({ kind: 'per-request' })
+  })
+
+  it('reads the standing items and finds none', async () => {
+    expect(await NO_STANDING_SOURCES.read('tenant/o/a' as never)).toEqual({ kind: 'ok', items: [] })
+  })
+})
+
 describe('the source the owner sends as', () => {
   it('names only the person, lets no agent subscribe, and is strong for the person by default', () => {
-    expect(OWNER_POSTS.name).toBe('owner.posts')
-    expect(OWNER_POSTS.types).toHaveLength(1)
-    expect(OWNER_POSTS.types[0]).toMatchObject({
-      name: 'post',
-      kind: { kind: 'event' },
-      nameable: ['person'],
-      subscribable: ['person'],
-      defaults: { person: 'strong', agent: 'off' },
-      external: false,
+    expect(OWNER_POSTS).toEqual({
+      name: 'owner.posts',
+      label: '自己写的',
+      types: [
+        {
+          name: 'post',
+          label: '自己写的一条',
+          description: '租户的 owner 自己写给自己的一条。',
+          kind: { kind: 'event' },
+          subject: { presence: 'optional', hint: '这一条关于什么，可以不写' },
+          nameable: ['person'],
+          subscribable: ['person'],
+          defaults: { person: 'strong', agent: 'off' },
+          external: false,
+        },
+      ],
     })
   })
 })

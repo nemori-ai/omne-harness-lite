@@ -40,10 +40,12 @@ import { OWNER_POSTS } from './owner-source.ts'
 export const notificationConfig = z.strictObject({ policy: notificationPolicySchema })
 
 /** The owner confirms each subscription an agent asks for. A setting that lets them stand comes with the agent's half. */
-const CONFIRM_EACH: ConsentModes = { mode: async () => ({ kind: 'per-request' }) }
+export const CONFIRM_EACH: ConsentModes = { mode: async () => ({ kind: 'per-request' }) }
 
 /** No source publishes standing items into this tree yet: the read succeeds and finds none. */
-const NO_STANDING_SOURCES: StandingItems = { read: async () => ({ kind: 'ok', items: [] }) }
+export const NO_STANDING_SOURCES: StandingItems = {
+  read: async () => ({ kind: 'ok', items: [] }),
+}
 
 function now(): Instant {
   const instant = readSystemInstant()

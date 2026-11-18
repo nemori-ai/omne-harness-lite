@@ -119,8 +119,12 @@ async function stranger(tree: ReleaseTree): Promise<Client> {
 describe('notification and notification-access rows', () => {
   it('declares the manifest of the stub table', () => {
     const declared = rowDeclarationOf(notificationAccessRow)
-    expect(declared?.row).toBe('notification-access')
-    expect(declared?.manifest.injects).toEqual(['accessRegistry', 'principalIssuer'])
+    expect(declared).toMatchObject({
+      row: 'notification-access',
+      implementation: 'real',
+      lifecycle: { kind: 'none' },
+      manifest: { provides: [], injects: ['accessRegistry', 'principalIssuer'] },
+    })
     expect(rowManifests.get(declared!.row)?.injects).toEqual([
       's0.accessRegistry',
       's0.principalIssuer',
