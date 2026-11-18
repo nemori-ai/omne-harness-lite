@@ -111,8 +111,8 @@ function releaseOf(
   draft: DecisionCardDraft,
 ): Readonly<Record<string, unknown> & { kind: 'release' }> | null {
   if (draft.detail?.kind !== 'object') return null
-  const body: unknown = JSON.parse(writeJsonText(draft.detail))
-  return typeof body === 'object' && body !== null && 'kind' in body && body.kind === 'release'
+  const body = JSON.parse(writeJsonText(draft.detail)) as Readonly<Record<string, unknown>>
+  return body['kind'] === 'release'
     ? (body as Readonly<Record<string, unknown> & { kind: 'release' }>)
     : null
 }

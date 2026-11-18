@@ -150,6 +150,16 @@ describe('a round of card requests as HITL questions', () => {
           entries: [{ key: 'kind', value: { kind: 'string' as const, value: 'release' } }],
         },
       }
+      const other = {
+        ...released,
+        detail: {
+          kind: 'object' as const,
+          entries: [{ key: 'kind', value: { kind: 'string' as const, value: 'survey' } }],
+        },
+      }
+      const unknown = roundCards(admission, [cardRequestOf('one', other)])
+      if ('failure' in unknown) throw new Error('no round')
+      expect(unknown.ok.questions[0]).toMatchObject({ kind: 'admission' })
       const plain = roundCards(admission, [cardRequestOf('one', broken)])
       const shapeless = roundCards(admission, [cardRequestOf('one', kindOnly)])
       if ('failure' in plain || 'failure' in shapeless) throw new Error('no round')

@@ -282,3 +282,148 @@ describe('the label a person reads on a release card', () => {
     }
   })
 })
+
+describe('a Tools call whose carrier or target cannot be resolved now', () => {
+  type Ports = Parameters<typeof createToolActionResolution>[0]
+  const tools = (world: World) => {
+    const read = world.request('Tools').availability
+    if (read.kind !== 'available') throw new Error('fixture Tools unavailable')
+    return read
+  }
+  const inspecting =
+    (world: World, answer: (read: ReturnType<typeof tools>) => unknown) =>
+    (): ToolCatalog<unknown> => ({
+      ...world.catalog,
+      inspect: async input =>
+        input.name === 'Tools' ? (answer(tools(world)) as never) : world.catalog.inspect(input),
+    })
+  const cases: readonly (readonly [
+    string,
+    (world: World) => Partial<Ports>,
+    Readonly<Record<string, unknown>>,
+  ])[] = [
+    [
+      'no trusted release',
+      () => ({ release: () => ({ kind: 'untrusted' }) as never }),
+      { kind: 'unavailable' },
+    ],
+    ['no catalog', () => ({ catalog: () => undefined }), { kind: 'unavailable' }],
+    [
+      'a catalog that fails to inspect Tools',
+      world => ({
+        catalog: inspecting(world, () => ({ failure: { kind: 'denied', action: 'inspect' } })),
+      }),
+      { kind: 'denied' },
+    ],
+    [
+      'a Tools that is not the released one',
+      world => ({
+        catalog: inspecting(world, read => ({
+          ok: {
+            ...read,
+            definition: {
+              ...read.definition,
+              adoption: { ...read.definition.adoption, digest: 'other' },
+            },
+          },
+        })),
+      }),
+      { kind: 'unavailable' },
+    ],
+    [
+      'a Tools from another layer',
+      world => ({
+        catalog: inspecting(world, read => ({ ok: { ...read, layer: { kind: 'tenant' } } })),
+      }),
+      { kind: 'unavailable' },
+    ],
+  ]
+
+  it.each(cases)(
+    'answers %s with its failure, never as an action of its own',
+    async (_name, change, failure) => {
+      const world = await forwardWorld()
+      try {
+        const resolution = createToolActionResolution({
+          release: () => world.release,
+          catalog: () => world.catalog,
+          view: () => world.view,
+          ...change(world),
+        })
+        expect(
+          await resolution.resolve({
+            principal: world.principal,
+            tenant: world.tenant,
+            name: 'Tools',
+            effectiveArguments: toolsCall(world, {
+              name: 'ToyEcho',
+              command: 'info',
+              arguments: {},
+            }),
+          }),
+        ).toMatchObject({ failure })
+      } finally {
+        await world.close()
+      }
+    },
+  )
+
+  it('answers invalid for a Tools command that does not exist, and for execute arguments of no target', async () => {
+    const world = await forwardWorld()
+    try {
+      const resolution = createToolActionResolution({
+        release: () => world.release,
+        catalog: () => world.catalog,
+        view: () => world.view,
+      })
+      const resolve = (effectiveArguments: string) =>
+        resolution.resolve({
+          principal: world.principal,
+          tenant: world.tenant,
+          name: 'Tools',
+          effectiveArguments,
+        })
+      expect(await resolve('{"command":"nope","params":{}}')).toMatchObject({
+        failure: { kind: 'invalid', field: 'command', reason: 'unknown-command' },
+      })
+      expect(await resolve(toolsCall(world, { command: 'info' }))).toMatchObject({
+        failure: { kind: 'invalid', field: 'arguments', reason: 'tools-execute-arguments' },
+      })
+      expect(
+        await resolve(
+          toolsCall(world, { name: 'Shell', command: 'execute', arguments: { script: 'ls' } }),
+        ),
+      ).toMatchObject({ failure: { kind: 'invalid', field: 'name', reason: 'target-refused' } })
+    } finally {
+      await world.close()
+    }
+  })
+
+  it('reads no label with no catalog, a failed inspect, or a tool not available', async () => {
+    const world = await forwardWorld()
+    try {
+      const echo = world.request('ToyEcho').availability
+      if (echo.kind !== 'available') throw new Error('fixture ToyEcho unavailable')
+      const label = (catalog: () => ToolCatalog<unknown> | undefined) =>
+        createToolCallLabeling({
+          release: () => world.release,
+          catalog,
+          view: () => world.view,
+        }).label({
+          principal: world.principal,
+          tenant: world.tenant,
+          definition: echo.definition.adoption,
+          effectiveArguments: '{"command":"info","params":{}}',
+        })
+      const answering = (answer: unknown) => () => ({
+        ...world.catalog,
+        inspect: async () => answer as never,
+      })
+      expect(await label(() => undefined)).toBeUndefined()
+      expect(await label(answering({ failure: { kind: 'unavailable' } }))).toBeUndefined()
+      expect(await label(answering({ ok: { kind: 'unavailable' } }))).toBeUndefined()
+    } finally {
+      await world.close()
+    }
+  })
+})

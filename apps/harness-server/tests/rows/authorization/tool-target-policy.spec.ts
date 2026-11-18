@@ -73,6 +73,18 @@ describe('current target rules of the authorization row', () => {
           request: world.request('Tools'),
         }),
       ).toMatchObject({ kind: 'unavailable' })
+      // The fence only guards: a call a person has yet to release does not start.
+      const asking = createToolTargetPolicy(
+        rules,
+        () => identity,
+        () => ({
+          check: async () => ({ kind: 'ask', evidence: decisionEvidence('ask-fixture', '1', {}) }),
+        }),
+      )
+      expect(await asking.qualify({ ...access, request: world.request('Tools') })).toEqual({
+        kind: 'denied',
+        reason: 'decision-required',
+      })
       expect(await policy.qualify({ ...access, request: world.request('Tools') })).toEqual({
         kind: 'allowed',
         condition: { basis: 'fixture' },
