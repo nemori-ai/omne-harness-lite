@@ -1,5 +1,6 @@
 import {
   sameSend,
+  sameSubscriptionKey,
   selectRecipients,
   supersede,
   UNMARKED,
@@ -8,7 +9,6 @@ import {
   type RecipientRef,
   type Selected,
   type SendRequest,
-  type Subscription,
 } from '@omne-harness/notification-contract'
 import type { NotificationTxn } from '../txn.ts'
 
@@ -20,10 +20,6 @@ export type AcceptResult =
   | Readonly<{ kind: 'conflict' }>
 
 const PERSON: RecipientRef = { kind: 'person' }
-
-function sameKey(a: Subscription, b: NonNullable<Selected['hit']>): boolean {
-  return JSON.stringify([a.recipient, a.scope]) === JSON.stringify([b.recipient, b.scope])
-}
 
 /** Puts one recipient's notification in its inbox and applies what the event replaces. */
 function box(txn: NotificationTxn, command: AcceptCommand, entry: Selected): void {
@@ -71,7 +67,7 @@ export function acceptSend(txn: NotificationTxn, command: AcceptCommand): Accept
     box(txn, command, entry)
     const hit = entry.hit
     if (hit === null) continue
-    const subscription = subscriptions.find(candidate => sameKey(candidate, hit))
+    const subscription = subscriptions.find(candidate => sameSubscriptionKey(candidate, hit))
     if (subscription?.term.kind === 'once') txn.expireSubscription(hit)
   }
   const recipients = selected.map(entry => entry.recipient)

@@ -4,12 +4,18 @@
  * answer is not the expected one.
  */
 import assert from 'node:assert/strict'
-import { createInbox, createSending, createSourceRegistry } from '@omne-harness/notification'
+import {
+  createInbox,
+  createSending,
+  createSourceRegistry,
+  createSubscriptions,
+} from '@omne-harness/notification'
 import {
   context,
   createMemoryStore,
   fakeAuthority,
   fakeClock,
+  fakeConsent,
 } from '@omne-harness/notification/testing'
 import {
   eventTypeNameSchema,
@@ -30,6 +36,15 @@ const sending = createSending({
   limits: { bodyLength: 4000, causalDepth: 3 },
 })
 const inbox = createInbox({ authority, store, clock, pageLimit: 50 })
+const consent = fakeConsent()
+const subscriptions = createSubscriptions({
+  authority,
+  store,
+  sources,
+  consent,
+  clock,
+  beatRange: { min: 5, max: 1440 },
+})
 const owner = context('tenant-demo')
 const person: RecipientRef = { kind: 'person' }
 
@@ -72,7 +87,7 @@ sources.register({
     },
   ],
 })
-console.log('通知走查：发送、入箱、处置')
+console.log('通知走查：发送、入箱、处置、订阅')
 console.log('来源 demo.builds 已登记，事件类型 finished 对人的缺省是弱。')
 
 // 发送
@@ -127,5 +142,73 @@ assert.equal(empty.kind === 'done' && empty.value.entries.length, 0)
 const other = await inbox.read(context('tenant-other'), ref)
 show('另一个租户来读这一条：和不存在是同一个拒绝', 'tenant-other', other)
 assert.deepEqual(other, { kind: 'refused', reason: 'not-found' })
+
+// 订阅
+const strongForRepo = {
+  recipient: person,
+  source: 'demo.builds',
+  type: 'finished',
+  scope: { kind: 'subject-prefix', prefix: 'repo/' },
+  level: 'strong',
+  note: null,
+  term: { kind: 'standing' },
+} as const
+const ownerSet = await subscriptions.set(owner, strongForRepo)
+show('订阅：owner 把 repo/ 开头的构建结果设成强', strongForRepo, ownerSet)
+assert.equal(ownerSet.kind === 'done' && ownerSet.value.basis.kind, 'owner')
+
+await sending.send(owner, request('build-42', '构建 42 失败'))
+const afterSubscription = await inbox.read(owner, {
+  recipient: person,
+  identity: { ...request('build-42', '').identity } as never,
+})
+show('之后的发送按订阅算：强，缘由是命中的那条订阅', 'build-42', afterSubscription)
+assert.equal(afterSubscription.kind === 'done' && afterSubscription.value.level, 'strong')
+assert.equal(
+  afterSubscription.kind === 'done' && afterSubscription.value.cause.kind,
+  'subscription',
+)
+
+const earlier = await inbox.read(owner, ref)
+show('订阅之前入箱的那条不变：仍是弱', 'build-41', earlier)
+assert.equal(earlier.kind === 'done' && earlier.value.level, 'weak')
+
+const triager: RecipientRef = { kind: 'agent', ref: 'session-triage' }
+const asTriager = context('tenant-demo', { kind: 'agent', recipient: triager })
+const agentChange = { ...strongForRepo, recipient: triager, note: '失败了就开一张卡' } as const
+const asked = await subscriptions.set(asTriager, agentChange)
+show('受托的 agent 给自己订：owner 的方式是逐条确认，答「要 owner 确认」', agentChange, asked)
+assert.equal(asked.kind, 'needs-confirmation')
+const content = asked.kind === 'needs-confirmation' ? asked.request.content : ''
+
+const wrong = await subscriptions.set(
+  asTriager,
+  { ...agentChange, note: '失败了就直接回滚' },
+  {
+    decision: 'card-17',
+    content,
+    approved: true,
+  },
+)
+show('拿 owner 对另一份内容的同意来订：拒绝', '备注改成「失败了就直接回滚」', wrong)
+assert.deepEqual(wrong, { kind: 'refused', reason: 'confirmation-mismatch' })
+
+const agreed = await subscriptions.set(asTriager, agentChange, {
+  decision: 'card-17',
+  content,
+  approved: true,
+})
+show('带着 owner 对同一份内容的同意重提：成立，依据是这次答复', 'card-17', agreed)
+assert.deepEqual(agreed.kind === 'done' && agreed.value.basis, {
+  kind: 'granular',
+  decision: 'card-17',
+})
+
+const lowered = await subscriptions.set(asTriager, { ...agentChange, level: 'weak' })
+show('agent 自己调低：不要同意，依据不变', '强改弱', lowered)
+assert.deepEqual(lowered.kind === 'done' && lowered.value.basis, {
+  kind: 'granular',
+  decision: 'card-17',
+})
 
 console.log(`\n走查通过：${step} 步。`)

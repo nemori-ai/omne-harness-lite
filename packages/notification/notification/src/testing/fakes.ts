@@ -4,9 +4,10 @@ import {
   type Actor,
   type AuthorityAnswer,
   type CallContext,
+  type ConsentMode,
   type Instant,
 } from '@omne-harness/notification-contract'
-import type { AuthorityAction, Clock, NotificationAuthority } from '../ports.ts'
+import type { AuthorityAction, Clock, ConsentModes, NotificationAuthority } from '../ports.ts'
 
 export type FakeAuthority = NotificationAuthority &
   Readonly<{
@@ -51,4 +52,21 @@ export function fakeClock(start = '2026-11-18T06:00:00.000Z'): FakeClock {
 
 export function context(tenant = 't1', actor: Actor = { kind: 'owner' }): CallContext {
   return { tenant: tenantIdSchema.parse(tenant), subject: { test: tenant }, actor }
+}
+
+export type FakeConsent = ConsentModes &
+  Readonly<{ set(mode: ConsentMode | 'unavailable' | 'throw'): void }>
+
+/** The owner's consent mode. The default is per-request. */
+export function fakeConsent(): FakeConsent {
+  let current: ConsentMode | 'unavailable' | 'throw' = { kind: 'per-request' }
+  return {
+    set(mode) {
+      current = mode
+    },
+    async mode() {
+      if (current === 'throw') throw new Error('settings are down')
+      return current
+    },
+  }
 }

@@ -1,5 +1,6 @@
 import {
   recipientKey,
+  type Beat,
   type InboxPage,
   type InboxQuery,
   type Marks,
@@ -16,6 +17,7 @@ import {
 import type { NotificationStore, StoreAnswer, StoreRead } from '../store.ts'
 import { acceptSend } from '../transactions/accept.ts'
 import { markNotification } from '../transactions/mark.ts'
+import { writeBeat, writeSubscription } from '../transactions/subscribe.ts'
 import type { NotificationTxn, SendRecord } from '../txn.ts'
 
 /** One tenant's facts. Plain data, so a transaction is a copy that replaces the original. */
@@ -24,6 +26,7 @@ export type TenantFacts = {
   notifications: Map<string, NotificationRecord>
   recipients: Map<string, RecipientRef>
   subscriptions: Map<string, Subscription>
+  beats: Map<string, Beat>
   sequence: number
 }
 
@@ -32,6 +35,7 @@ const emptyFacts = (): TenantFacts => ({
   notifications: new Map(),
   recipients: new Map([['person', { kind: 'person' }]]),
   subscriptions: new Map(),
+  beats: new Map(),
   sequence: 0,
 })
 
@@ -64,6 +68,21 @@ export function memoryTxn(facts: TenantFacts): NotificationTxn {
       const current = facts.subscriptions.get(subscriptionKey(key))
       if (current !== undefined)
         facts.subscriptions.set(subscriptionKey(key), { ...current, expired: true })
+    },
+    subscription: key => facts.subscriptions.get(subscriptionKey(key)) ?? null,
+    subscriptionsOf: recipient =>
+      [...facts.subscriptions.values()].filter(
+        subscription => recipientKey(subscription.recipient) === recipientKey(recipient),
+      ),
+    putSubscription(subscription) {
+      facts.subscriptions.set(subscriptionKey(subscription), subscription)
+    },
+    deleteSubscription(key) {
+      facts.subscriptions.delete(subscriptionKey(key))
+    },
+    beat: recipient => facts.beats.get(recipientKey(recipient)) ?? { kind: 'default' },
+    setBeat(recipient, beat) {
+      facts.beats.set(recipientKey(recipient), beat)
     },
     nextSequence: () => ++facts.sequence,
     notification: (recipient, identity) =>
@@ -163,6 +182,17 @@ export function createMemoryStore(): MemoryStore {
     facts: factsOf,
     accept: (tenant, command) => commit(tenant, txn => acceptSend(txn, command)),
     mark: (tenant, command) => commit(tenant, txn => markNotification(txn, command)),
+    subscribe: (tenant, command) => commit(tenant, txn => writeSubscription(txn, command)),
+    setBeat: (tenant, command) =>
+      commit(tenant, txn => {
+        writeBeat(txn, command)
+        return null
+      }),
+    subscription: async (tenant, key) =>
+      read(tenant, facts => facts.subscriptions.get(subscriptionKey(key)) ?? null),
+    subscriptions: async (tenant, recipient) =>
+      read(tenant, facts => memoryTxn(facts).subscriptionsOf(recipient)),
+    beat: async (tenant, recipient) => read(tenant, facts => memoryTxn(facts).beat(recipient)),
     send: async (tenant, identity) =>
       read(tenant, facts => {
         const record = facts.sends.get(sendKey(identity.source, identity.eventId))

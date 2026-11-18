@@ -1,6 +1,7 @@
 import type {
   AuthorityAnswer,
   CallContext,
+  ConsentMode,
   Instant,
   RecipientRef,
   SourceName,
@@ -36,4 +37,10 @@ export async function ask(
   } catch {
     return 'unavailable'
   }
+}
+
+/** Declared here, implemented by the assembly from the owner's settings. */
+export interface ConsentModes {
+  /** How this tenant's owner lets agents subscribe right now. */
+  mode(ctx: CallContext): Promise<ConsentMode | 'unavailable'>
 }

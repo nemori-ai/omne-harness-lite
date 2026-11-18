@@ -7,12 +7,18 @@ import {
   type SourceDeclaration,
   type TenantId,
 } from '@omne-harness/notification-contract'
-import { createInbox, createSending, createSourceRegistry } from '@omne-harness/notification'
+import {
+  createInbox,
+  createSending,
+  createSourceRegistry,
+  createSubscriptions,
+} from '@omne-harness/notification'
 import {
   context,
   createMemoryStore,
   fakeAuthority,
   fakeClock,
+  fakeConsent,
 } from '@omne-harness/notification/testing'
 
 export const person: RecipientRef = { kind: 'person' }
@@ -78,6 +84,15 @@ export function world(...types: EventTypeDeclaration[]) {
     accepted: tenant => wakes.push(tenant),
   })
   const inbox = createInbox({ authority, store, clock, pageLimit: 50 })
+  const consent = fakeConsent()
+  const subscriptions = createSubscriptions({
+    authority,
+    store,
+    sources,
+    consent,
+    clock,
+    beatRange: { min: 5, max: 1440 },
+  })
   const ctx = context()
   const ref = (eventId: string, recipient: RecipientRef = person) => ({
     recipient,
@@ -88,5 +103,21 @@ export function world(...types: EventTypeDeclaration[]) {
     if (page.kind !== 'done') throw new Error(`list answered ${page.kind}`)
     return page.value.entries
   }
-  return { store, authority, clock, sources, unregister, wakes, sending, inbox, ctx, ref, list }
+  const as = (ref: string) => context('t1', { kind: 'agent', recipient: { kind: 'agent', ref } })
+  return {
+    store,
+    authority,
+    clock,
+    sources,
+    unregister,
+    wakes,
+    sending,
+    inbox,
+    consent,
+    subscriptions,
+    ctx,
+    as,
+    ref,
+    list,
+  }
 }

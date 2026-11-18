@@ -17,6 +17,14 @@ import type {
   sendRequestSchema,
 } from './values.ts'
 import type { MarkOperation } from './decide-mark.ts'
+import type {
+  Confirmation,
+  SubscriptionChange,
+  SubscriptionRefusal,
+  subscriptionChangeSchema,
+  subscriptionKeySchema,
+} from './decide-subscription.ts'
+import type { Subscription } from './model.ts'
 
 export type Actor =
   | Readonly<{ kind: 'owner' }>
@@ -91,4 +99,40 @@ export interface NotificationInbox {
     ref: NotificationRef,
     operation: MarkOperation,
   ): Promise<Outcome<Marks, InboxRefusal>>
+}
+
+export type SubscriptionChangeInput = z.input<typeof subscriptionChangeSchema>
+export type SubscriptionKeyInput = z.input<typeof subscriptionKeySchema>
+
+/** What the owner is asked to confirm. The tool member turns it into a card. */
+export type ConfirmationRequest = Readonly<{ content: string; change: SubscriptionChange }>
+
+export type SubscriptionOutcome =
+  | Outcome<Subscription, SubscriptionRefusal>
+  | Readonly<{ kind: 'needs-confirmation'; request: ConfirmationRequest }>
+
+/** How often a recipient is reminded of what waits: the default, never, or every so many minutes. */
+export type Beat =
+  | Readonly<{ kind: 'default' }>
+  | Readonly<{ kind: 'off' }>
+  | Readonly<{ kind: 'every'; minutes: number }>
+
+export interface NotificationSubscriptions {
+  /** Sets one subscription. It affects sends accepted afterwards, never what is in an inbox. */
+  set(
+    ctx: CallContext,
+    change: SubscriptionChangeInput,
+    confirmation?: Confirmation | null,
+  ): Promise<SubscriptionOutcome>
+  /** Returns the key to the default of its event type. Not the same as setting it to `off`. */
+  remove(ctx: CallContext, key: SubscriptionKeyInput): Promise<Outcome<null, SubscriptionRefusal>>
+  list(
+    ctx: CallContext,
+    recipient: RecipientRef,
+  ): Promise<Outcome<readonly Subscription[], SubscriptionRefusal>>
+  setBeat(
+    ctx: CallContext,
+    recipient: RecipientRef,
+    beat: Beat,
+  ): Promise<Outcome<Beat, SubscriptionRefusal>>
 }

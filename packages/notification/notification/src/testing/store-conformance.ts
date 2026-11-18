@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict'
 import {
   eventFactsSchema,
+  eventTypeNameSchema,
   instantSchema,
   sendIdentitySchema,
+  sourceNameSchema,
   tenantIdSchema,
   UNMARKED,
   type EventFacts,
   type RecipientRef,
   type SendRequest,
+  type SubscriptionKey,
 } from '@omne-harness/notification-contract'
 import type { NotificationStore, StoreAnswer } from '../store.ts'
 import type { AcceptCommand } from '../transactions/accept.ts'
@@ -52,6 +55,13 @@ const command = (
   request: request(eventId, event),
   type: { defaults: { person: 'weak', agent: 'off' } },
   now: at(minute),
+})
+
+const subscriptionOf = (ref: string): SubscriptionKey => ({
+  recipient: { kind: 'agent', ref },
+  source: sourceNameSchema.parse('demo.things'),
+  type: eventTypeNameSchema.parse('changed'),
+  scope: { kind: 'all' },
 })
 
 function committed<T>(answer: StoreAnswer<T>): T {
@@ -219,6 +229,96 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
         await store.mark(T1, { ref: old, operation: 'restore', now: at(4) }),
       )
       assert.deepEqual(restore, { kind: 'refused', reason: 'superseded' })
+    },
+  },
+  {
+    name: 'a subscription is written only against the one the decision was made on',
+    async run(create) {
+      const store = await create()
+      const key = subscriptionOf('a1')
+      const first = {
+        ...key,
+        level: 'strong',
+        note: null,
+        term: { kind: 'standing' },
+        basis: { kind: 'owner' },
+        expired: false,
+      } as const
+      assert.deepEqual(committed(await store.subscribe(T1, { key, expected: null, next: first })), {
+        kind: 'written',
+      })
+      const weak = { ...first, level: 'weak' } as const
+      assert.deepEqual(committed(await store.subscribe(T1, { key, expected: null, next: weak })), {
+        kind: 'stale',
+      })
+      assert.deepEqual(value(await store.subscription(T1, key)), first)
+      assert.deepEqual(committed(await store.subscribe(T1, { key, expected: first, next: weak })), {
+        kind: 'written',
+      })
+      assert.deepEqual(value(await store.subscriptions(T1, key.recipient)), [weak])
+      assert.deepEqual(value(await store.subscriptions(T2, key.recipient)), [])
+      assert.deepEqual(committed(await store.subscribe(T1, { key, expected: first, next: null })), {
+        kind: 'stale',
+      })
+      assert.deepEqual(committed(await store.subscribe(T1, { key, expected: weak, next: null })), {
+        kind: 'written',
+      })
+      assert.equal(value(await store.subscription(T1, key)), null)
+    },
+  },
+  {
+    name: 'one send reaches forty subscribed recipients in one commit',
+    async run(create) {
+      const store = await create()
+      const refs = Array.from(
+        { length: 40 },
+        (_, index) => `agent-${String(index).padStart(2, '0')}`,
+      )
+      for (const ref of refs) {
+        const key = subscriptionOf(ref)
+        const next = {
+          ...key,
+          level: 'strong',
+          note: null,
+          term: { kind: 'standing' },
+          basis: { kind: 'owner' },
+          expired: false,
+        } as const
+        committed(await store.subscribe(T1, { key, expected: null, next }))
+      }
+      const result = committed(await store.accept(T1, command('big')))
+      assert.equal(result.kind, 'accepted')
+      const view = value(await store.send(T1, command('big').request.identity))
+      assert.equal(view?.notifications.length, 41)
+      for (const ref of refs) {
+        const page = value(
+          await store.box(T1, {
+            recipient: { kind: 'agent', ref },
+            filter: 'all',
+            after: null,
+            limit: 5,
+          }),
+        )
+        assert.deepEqual(
+          page.entries.map(entry => [entry.level, entry.cause.kind]),
+          [['strong', 'subscription']],
+        )
+      }
+    },
+  },
+  {
+    name: 'a beat is kept per recipient and per tenant',
+    async run(create) {
+      const store = await create()
+      assert.deepEqual(value(await store.beat(T1, PERSON)), { kind: 'default' })
+      committed(
+        await store.setBeat(T1, { recipient: PERSON, beat: { kind: 'every', minutes: 30 } }),
+      )
+      assert.deepEqual(value(await store.beat(T1, PERSON)), { kind: 'every', minutes: 30 })
+      assert.deepEqual(value(await store.beat(T1, { kind: 'agent', ref: 'a1' })), {
+        kind: 'default',
+      })
+      assert.deepEqual(value(await store.beat(T2, PERSON)), { kind: 'default' })
     },
   },
 ]

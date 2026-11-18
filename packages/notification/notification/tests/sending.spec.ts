@@ -76,6 +76,33 @@ describe('accepting a send', () => {
     expect((await w.list(agent('a'))).map(entry => entry.identity.eventId)).toEqual(['e1'])
   })
 
+  it('expires only the once subscription that set the level, not another of the recipient', async () => {
+    const w = world()
+    const standing = {
+      recipient: agent('a'),
+      source: 'demo.things',
+      type: 'changed',
+      level: 'weak',
+      note: null,
+    } as const
+    await w.subscriptions.set(w.ctx, {
+      ...standing,
+      scope: { kind: 'all' },
+      term: { kind: 'standing' },
+    })
+    await w.subscriptions.set(w.ctx, {
+      ...standing,
+      scope: { kind: 'subject-prefix', prefix: 'repo/' },
+      level: 'strong',
+      term: { kind: 'once' },
+    })
+    await w.sending.send(w.ctx, request('e1'))
+    await w.sending.send(w.ctx, request('e2'))
+    expect((await w.list(agent('a'))).map(entry => entry.level)).toEqual(['strong', 'weak'])
+    const listed = await w.subscriptions.list(w.ctx, agent('a'))
+    expect(listed).toMatchObject({ value: [{ expired: false }, { expired: true }] })
+  })
+
   it('does not deliver the event to the recipient that emitted it', async () => {
     const w = world(declared({ defaults: { person: 'weak', agent: 'weak' } }))
     w.store.facts(w.ctx.tenant).recipients.set('agent:a', agent('a'))

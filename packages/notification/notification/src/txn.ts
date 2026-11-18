@@ -1,4 +1,5 @@
 import type {
+  Beat,
   EventFacts,
   EventTypeName,
   Instant,
@@ -30,6 +31,12 @@ export interface NotificationTxn {
 
   subscriptionsFor(source: SourceName, type: EventTypeName): readonly Subscription[]
   expireSubscription(key: SubscriptionKey): void
+  subscription(key: SubscriptionKey): Subscription | null
+  subscriptionsOf(recipient: RecipientRef): readonly Subscription[]
+  putSubscription(subscription: Subscription): void
+  deleteSubscription(key: SubscriptionKey): void
+  beat(recipient: RecipientRef): Beat
+  setBeat(recipient: RecipientRef, beat: Beat): void
 
   /** The next position in the tenant's inboxes. Strictly increasing. */
   nextSequence(): number
