@@ -60,6 +60,44 @@ function cacheable(item: Item): item is CachedItem {
   return item.kind === 'value' || item.kind === 'none' || item.kind === 'missing'
 }
 
+const FENCED = (key: ContextBlockKey) =>
+  ({ key, kind: 'missing', cause: 'source-unavailable' }) as const
+
+/** One hop into an ancestor: its tenant, its binding and its replay fence, each time (CX-20, CX-24). */
+async function hop<P>(
+  world: World<P>,
+  s: ScopeState,
+  e: Eligibility<P>,
+): Promise<'open' | 'closed' | 'foreign'> {
+  if (!tenantEquals(s.tenant, e.tenant)) return 'foreign'
+  if (await world.bound(s.scope, e.tenant)) return 'foreign'
+  return s.fence === 'open' ? 'open' : 'closed'
+}
+
+// The value of a block: the reader's own scope first, then one ancestor at a time.
+async function inheritedValue<P>(
+  world: World<P>,
+  found: Found,
+  key: ContextBlockKey,
+  d: Descriptor,
+  e: Eligibility<P>,
+): Promise<Readonly<{ found: Found; stored: Stored | undefined }> | 'fenced'> {
+  const stored = found.s.values.get(key)
+  if (d.volatility === 'per-request') return { found, stored }
+  let parent = found.s.scope.parent
+  while (!stored?.present && parent) {
+    const candidate = world.registration(parent, key)
+    if (!candidate) break
+    const crossing = await hop(world, candidate.s, e)
+    if (crossing === 'closed') return 'fenced'
+    if (crossing === 'foreign') break
+    const value = candidate.s.values.get(key)
+    if (value?.present) return { found: candidate, stored: value }
+    parent = candidate.s.scope.parent
+  }
+  return { found, stored }
+}
+
 export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
   function allowed(e: Eligibility<P>, key: ContextBlockKey) {
     const d = world.descriptors.get(key)
@@ -88,26 +126,6 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     if (refusal || !s) return refusal ?? { kind: 'refused', reason: 'replay-incomplete' }
     if (!tenantEquals(s.tenant, e.tenant)) return { kind: 'refused', reason: 'unauthorized' }
     return { kind: 'checked', e, s, gate: decided }
-  }
-
-  async function inheritedValue(
-    found: Found,
-    key: ContextBlockKey,
-    d: Descriptor,
-    e: Eligibility<P>,
-  ) {
-    let stored = found.s.values.get(key)
-    if (d.volatility === 'per-request') return { found, stored }
-    let parent = found.s.scope.parent
-    while (!stored?.present && parent) {
-      const candidate = world.registration(parent, key)
-      if (!candidate || !tenantEquals(candidate.s.tenant, e.tenant)) break
-      if (await world.bound(candidate.s.scope, e.tenant)) break
-      const value = candidate.s.values.get(key)
-      if (value?.present) return { found: candidate, stored: value }
-      parent = candidate.s.scope.parent
-    }
-    return { found, stored }
   }
 
   function fromOutcome(
@@ -224,12 +242,18 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     const d = world.descriptors.get(key)
     if (!found || !d || world.incompatible.has(found.s.scope.ref + '\0' + key))
       return { key, kind: 'missing', cause: 'no-value' }
-    if (!tenantEquals(found.s.tenant, e.tenant)) return { key, kind: 'missing', cause: 'no-value' }
+    // The registration may be an ancestor's: that is a hop too. A replaying ancestor discloses
+    // nothing, so the block is missing: not empty, and not the value it held before.
+    const crossing = found.s.scope.ref === e.scope.ref ? 'open' : await hop(world, found.s, e)
+    if (crossing === 'closed') return FENCED(key)
+    if (crossing === 'foreign' || !tenantEquals(found.s.tenant, e.tenant))
+      return { key, kind: 'missing', cause: 'no-value' }
     if (d.kind === 'supplied' && d.volatility !== 'per-request') {
       const refreshed = await refresh(found, key, d)
       if (refreshed) return refreshed
     }
-    const inherited = await inheritedValue(found, key, d, e)
+    const inherited = await inheritedValue(world, found, key, d, e)
+    if (inherited === 'fenced') return FENCED(key)
     found = inherited.found
     let stored = inherited.stored
     if (stored?.refused) return { kind: 'refused', reason: 'unauthorized' }
