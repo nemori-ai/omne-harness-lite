@@ -1,6 +1,8 @@
 import type { z } from 'zod'
 import type { CapabilityId, CategoryView, PinnedBody } from '@omne-harness/assets'
 import type { LocalPackages, PackageDurability, PackageStep } from './packages.ts'
+import type { PublicationRecall } from './results.ts'
+import type { LocalUploads, UploadPolicy } from './uploads.ts'
 import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
 import type {
   assetLookupSchema,
@@ -28,6 +30,9 @@ export type AssetsLocalOptions = Readonly<{
   packageRoot?: string
   afterPackageStep?: (step: PackageStep) => void | Promise<void>
   packageDurability?: PackageDurability
+  /** Without a policy, or without a package root, uploads answer unavailable. */
+  uploads?: UploadPolicy
+  clock?: () => number
 }>
 export type AssetsPublish = Readonly<z.infer<typeof publishMetadataSchema> & { pinned: PinnedBody }>
 export type AssetsPublishAndHold = Readonly<
@@ -59,7 +64,10 @@ export interface AssetsLocal {
   /** The asset summary stored with one version; a version is never rewritten, so neither is it. */
   readSummary(input: z.infer<typeof versionLookupSchema>): Promise<AssetsSummaryResult>
   readonly packages: LocalPackages
+  readonly uploads: LocalUploads
   getOperation(operationId: string): Promise<AssetsOperationResult>
+  /** The outcome of the publication made under this operation, as the publisher answered it. */
+  recallPublication(operationId: string): Promise<PublicationRecall>
   /** The receipt of an earlier change of this holding; a receipt for another change is a conflict. */
   recallChange(
     input: Readonly<{

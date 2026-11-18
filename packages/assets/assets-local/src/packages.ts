@@ -133,7 +133,9 @@ function isSafePath(path: string): boolean {
   return path.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..')
 }
 
-function pathRejection(manifest: PackageManifest): PackageRejection | undefined {
+type Declared = Readonly<{ entries: readonly Readonly<{ path: string; bytes: number }>[] }>
+
+function pathRejection(manifest: Declared): PackageRejection | undefined {
   const paths = new Set<string>()
   for (const entry of manifest.entries) {
     if (!isSafePath(entry.path) || paths.has(entry.path))
@@ -150,7 +152,7 @@ function pathRejection(manifest: PackageManifest): PackageRejection | undefined 
 }
 
 function limitRejection(
-  manifest: PackageManifest,
+  manifest: Declared,
   limits: PackageLayout['limits'],
 ): PackageRejection | undefined {
   if (manifest.entries.length > limits.files) return { kind: 'limit-exceeded', limit: 'files' }
@@ -159,6 +161,14 @@ function limitRejection(
   const total = manifest.entries.reduce((sum, entry) => sum + entry.bytes, 0)
   if (total > limits.totalBytes) return { kind: 'limit-exceeded', limit: 'totalBytes' }
   return undefined
+}
+
+/** The path rules and the category limits a package is held to, judged on its file list alone. */
+export function declarationRejection(
+  declared: Declared,
+  limits: PackageLayout['limits'],
+): PackageRejection | undefined {
+  return pathRejection(declared) ?? limitRejection(declared, limits)
 }
 
 const text = (value: string): JsonValue => ({ kind: 'string', value })
@@ -345,7 +355,7 @@ function packagePublisher(
     const listed = await from.manifest()
     if (!('ok' in listed)) return fail({ kind: 'source-failed', failure: listed.failure })
     const manifest = listed.ok
-    const invalid = pathRejection(manifest) ?? limitRejection(manifest, layout.limits)
+    const invalid = declarationRejection(manifest, layout.limits)
     if (invalid !== undefined) return fail(invalid)
     const inspected = await layout.inspect(from)
     if (!('ok' in inspected)) return inspected

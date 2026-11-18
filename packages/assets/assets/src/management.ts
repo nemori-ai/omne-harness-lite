@@ -3,10 +3,16 @@ import { evaluate, type Evaluation } from './evaluate.ts'
 import type { CapabilityId, JsonValue } from './identity.ts'
 import { collectCandidates, type AssetEntry, type AssetLayerSource } from './layers.ts'
 import { MAX_ASSET_PAGE } from './layers.ts'
-import type { TenantActing } from './publishing.ts'
+import type { PackageReader } from './package.ts'
+import {
+  creationRefusal,
+  type PublishContent,
+  type TenantActing,
+  type TenantPublishing,
+  type TenantPublishOutcome,
+} from './publishing.ts'
 import type { AssetSummary } from './summary.ts'
 
-/** Where a holding came from: a tenant publication is customized, a deployment's is official. */
 export type AssetOrigin = 'customized' | 'official'
 
 export type AssetRow = AssetEntry &
@@ -53,13 +59,84 @@ export type HoldingOutcome =
   | Readonly<{ kind: 'not-writable'; reason: 'official' | 'removed' }>
   | Readonly<{ kind: 'unknown'; operationId: string }>
 
-/** What the store answers for a change it was given, or for the receipt of an operation. */
+export type UploadEntry = Readonly<{ path: string; bytes: number }>
+
+export type UploadBegin =
+  | Readonly<{ kind: 'accepted'; partBytes: number; received: readonly UploadEntry[] }>
+  | Readonly<{
+      kind: 'denied' | 'unavailable' | 'unknown-category' | 'operation-conflict' | 'busy'
+    }>
+  | Readonly<{ kind: 'invalid'; reason: string }>
+
+export type UploadAppend =
+  | Readonly<{ kind: 'received'; bytes: number }>
+  | Readonly<{ kind: 'absent' | 'denied' | 'unavailable' }>
+  | Readonly<{ kind: 'invalid'; reason: string }>
+
+export type UploadCommit =
+  | TenantPublishOutcome
+  | Readonly<{ kind: 'absent' }>
+  | Readonly<{ kind: 'incomplete'; missing: readonly string[] }>
+
+export type ManagedRequest =
+  | Readonly<{ kind: 'create'; capability: CapabilityId }>
+  | Readonly<{ kind: 'begin'; capability: CapabilityId; entries: readonly UploadEntry[] }>
+  | Readonly<{ kind: 'commit' }>
+  | Readonly<{ kind: 'setEnabled'; holding: string; enabled: boolean }>
+  | Readonly<{ kind: 'remove'; holding: string }>
+
+export type RecallOutcome =
+  | UploadBegin
+  | UploadCommit
+  | HoldingOutcome
+  | Readonly<{ kind: 'not-committed' }>
+
+export type StorePublication =
+  | Readonly<{
+      kind: 'published'
+      capability: CapabilityId
+      version: string
+      holdingRef: string
+      changed: boolean
+    }>
+  | Exclude<TenantPublishOutcome, Readonly<{ kind: 'published' }>>
+  | Readonly<{ kind: 'not-found' }>
+
+type UploadRequest = Readonly<{
+  operationId: string
+  capability: CapabilityId
+  entries: readonly UploadEntry[]
+}>
+
+export type StoreUploads = Readonly<{
+  begin(input: UploadRequest): Promise<Exclude<UploadBegin, Readonly<{ kind: 'denied' }>>>
+  /** `begin` without making anything: an upload that is not there answers absent. */
+  resume(
+    input: UploadRequest,
+  ): Promise<
+    | Readonly<{ kind: 'accepted'; partBytes: number; received: readonly UploadEntry[] }>
+    | Readonly<{ kind: 'operation-conflict' }>
+    | Readonly<{ kind: 'unavailable' }>
+    | Readonly<{ kind: 'absent' }>
+  >
+  append(
+    input: Readonly<{ operationId: string; path: string; offset: number; bytes: Uint8Array }>,
+  ): Promise<Exclude<UploadAppend, Readonly<{ kind: 'denied' }>>>
+  reader(
+    operationId: string,
+  ): Promise<
+    | Readonly<{ kind: 'ready'; capability: CapabilityId; from: PackageReader }>
+    | Readonly<{ kind: 'incomplete'; missing: readonly string[] }>
+    | Readonly<{ kind: 'absent' | 'unavailable' }>
+  >
+  discard(operationId: string): Promise<void>
+}>
+
 export type StoreChange =
   | Readonly<{ kind: 'committed'; changed: boolean }>
   | Readonly<{ kind: 'conflict' | 'operation-conflict' | 'unavailable' }>
   | Readonly<{ kind: 'unknown' }>
 
-/** The tenant layer as the management service needs it; a local store adapts its records. */
 export type TenantLayerStore = Readonly<{
   list(
     request: Readonly<{ category: string; after: string | null; limit: number }>,
@@ -99,6 +176,8 @@ export type TenantLayerStore = Readonly<{
   recall(
     input: Readonly<{ operationId: string; holdingRef: string; change: HoldingChange }>,
   ): Promise<StoreChange | Readonly<{ kind: 'not-found' }>>
+  recallPublication(operationId: string): Promise<StorePublication>
+  uploads: StoreUploads
   layer: AssetLayerSource
 }>
 
@@ -115,9 +194,37 @@ export type TenantManagement<P> = Readonly<{
   remove(
     input: Scope<P> & Readonly<{ operationId: string; holding: string }>,
   ): Promise<HoldingOutcome>
+  createFromData(
+    input: Scope<P> & Readonly<{ operationId: string; capability: CapabilityId; body: JsonValue }>,
+  ): Promise<TenantPublishOutcome>
+  beginUpload(input: Scope<P> & UploadRequest): Promise<UploadBegin>
+  appendUpload(
+    input: Scope<P> &
+      Readonly<{ operationId: string; path: string; offset: number; bytes: Uint8Array }>,
+  ): Promise<UploadAppend>
+  createFromUpload(input: Scope<P> & Readonly<{ operationId: string }>): Promise<UploadCommit>
+  /** The outcome of an earlier committing request under this operation, without making it again. */
+  recall(
+    input: Scope<P> & Readonly<{ operationId: string; request: ManagedRequest }>,
+  ): Promise<RecallOutcome>
 }>
 
+type Ports<P> = Readonly<{
+  acting: TenantActing<P>
+  categories: Pick<CategoryView, 'describe'>
+  publishing: TenantPublishing<P>
+  storeOf(tenant: string): Promise<TenantLayerStore | undefined>
+}>
+type StoreFor<P> = (
+  scope: Scope<P>,
+) => Promise<TenantLayerStore | Readonly<{ kind: 'denied' | 'unavailable' }>>
+type Publish<P> = (
+  scope: Scope<P> & Readonly<{ operationId: string; capability: CapabilityId }>,
+  content: PublishContent,
+) => Promise<TenantPublishOutcome>
+
 const UNAVAILABLE = Object.freeze({ kind: 'unavailable' } as const)
+const NOT_COMMITTED = Object.freeze({ kind: 'not-committed' } as const)
 
 function standingOf(evaluation: Evaluation): AssetStanding {
   if (evaluation.kind === 'winner') return { kind: 'selected' }
@@ -155,23 +262,22 @@ function decided(
   return undefined
 }
 
-export function createTenantManagement<P>(ports: {
-  acting: TenantActing<P>
-  categories: Pick<CategoryView, 'describe'>
-  storeOf(tenant: string): Promise<TenantLayerStore | undefined>
-}): TenantManagement<P> {
-  async function admitted(scope: Scope<P>) {
+function publicationOutcome(
+  found: Exclude<StorePublication, Readonly<{ kind: 'not-found' }>>,
+): TenantPublishOutcome {
+  if (found.kind !== 'published') return found
+  const { version, holdingRef, changed } = found
+  return { kind: 'published', version, holdingRef, changed }
+}
+
+function storeForOf<P>(ports: Ports<P>): StoreFor<P> {
+  return async scope => {
+    let answer: 'admitted' | 'denied' | 'unavailable'
     try {
-      return await ports.acting.admit({ principal: scope.principal, tenant: scope.tenant })
+      answer = await ports.acting.admit({ principal: scope.principal, tenant: scope.tenant })
     } catch {
-      return 'unavailable' as const
+      return UNAVAILABLE
     }
-  }
-  /** The store of a tenant whose principal may act for it, or the refusal to answer instead. */
-  async function storeFor(
-    scope: Scope<P>,
-  ): Promise<TenantLayerStore | Readonly<{ kind: 'denied' | 'unavailable' }>> {
-    const answer = await admitted(scope)
     if (answer !== 'admitted') return { kind: answer }
     try {
       return (await ports.storeOf(scope.tenant)) ?? UNAVAILABLE
@@ -179,63 +285,215 @@ export function createTenantManagement<P>(ports: {
       return UNAVAILABLE
     }
   }
-  async function changeHolding(
-    scope: Scope<P> & Readonly<{ operationId: string; holding: string }>,
-    change: HoldingChange,
-  ): Promise<HoldingOutcome> {
-    const store = await storeFor(scope)
-    if ('kind' in store) return store
-    const { operationId, holding: holdingRef } = scope
-    let expectedRevision: number
+}
+
+function publisherOf<P>(ports: Ports<P>): Publish<P> {
+  return async (scope, content) => {
+    const { tenant, principal, operationId, capability } = scope
     try {
-      const recalled = await store.recall({ operationId, holdingRef, change })
-      if (recalled.kind !== 'not-found') return storeOutcome(recalled, operationId)
-      const holding = await store.holding(holdingRef)
-      if (holding.kind !== 'holding') return { kind: holding.kind }
-      const refused = decided(holding, change)
-      if (refused !== undefined) return refused
-      expectedRevision = holding.revision
-    } catch {
-      return UNAVAILABLE
-    }
-    try {
-      const answer = await store.change({ operationId, holdingRef, expectedRevision, change })
-      return storeOutcome(answer, operationId)
+      return await ports.publishing.publish({ tenant, principal, operationId, capability, content })
     } catch {
       return { kind: 'unknown', operationId }
     }
   }
+}
+
+async function list<P>(
+  storeFor: StoreFor<P>,
+  categories: Ports<P>['categories'],
+  input: Parameters<TenantManagement<P>['list']>[0],
+): Promise<ManagedList> {
+  const store = await storeFor(input)
+  if ('kind' in store) return store
+  if (categories.describe(input.category) === undefined) return { kind: 'unknown-category' }
+  if (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > MAX_ASSET_PAGE)
+    return { kind: 'invalid' }
+  try {
+    const { category, after, limit } = input
+    const read = await store.list({ category, after, limit })
+    return read.kind === 'page' ? { ...read, completeness: 'complete' } : read
+  } catch {
+    return UNAVAILABLE
+  }
+}
+
+async function describe<P>(
+  storeFor: StoreFor<P>,
+  input: Parameters<TenantManagement<P>['describe']>[0],
+): Promise<ManagedAsset> {
+  const store = await storeFor(input)
+  if ('kind' in store) return store
+  try {
+    const held = await store.held(input.capability)
+    if (held.kind !== 'held') return held
+    const layers = await collectCandidates([store.layer], input.capability)
+    const standing = standingOf(evaluate({ layers, eligible: () => 'yes' }))
+    const { row, revision, content, settings } = held
+    return { kind: 'asset', row, revision, content, standing, settings }
+  } catch {
+    return UNAVAILABLE
+  }
+}
+
+async function changeHolding<P>(
+  storeFor: StoreFor<P>,
+  scope: Scope<P> & Readonly<{ operationId: string; holding: string }>,
+  change: HoldingChange,
+): Promise<HoldingOutcome> {
+  const store = await storeFor(scope)
+  if ('kind' in store) return store
+  const { operationId, holding: holdingRef } = scope
+  let expectedRevision: number
+  try {
+    const recalled = await store.recall({ operationId, holdingRef, change })
+    if (recalled.kind !== 'not-found') return storeOutcome(recalled, operationId)
+    const holding = await store.holding(holdingRef)
+    if (holding.kind !== 'holding') return { kind: holding.kind }
+    const refused = decided(holding, change)
+    if (refused !== undefined) return refused
+    expectedRevision = holding.revision
+  } catch {
+    return UNAVAILABLE
+  }
+  try {
+    const answer = await store.change({ operationId, holdingRef, expectedRevision, change })
+    return storeOutcome(answer, operationId)
+  } catch {
+    return { kind: 'unknown', operationId }
+  }
+}
+
+async function beginUpload<P>(
+  storeFor: StoreFor<P>,
+  categories: Ports<P>['categories'],
+  input: Scope<P> & UploadRequest,
+): Promise<UploadBegin> {
+  const store = await storeFor(input)
+  if ('kind' in store) return store
+  const listing = categories.describe(input.capability.category)
+  if (listing === undefined) return { kind: 'unknown-category' }
+  const refused = creationRefusal(listing.creation, 'directory')
+  if (refused !== undefined) return { kind: 'invalid', reason: refused }
+  const { operationId, capability, entries } = input
+  try {
+    return await store.uploads.begin({ operationId, capability, entries })
+  } catch {
+    return UNAVAILABLE
+  }
+}
+
+async function appendUpload<P>(
+  storeFor: StoreFor<P>,
+  input: Parameters<TenantManagement<P>['appendUpload']>[0],
+): Promise<UploadAppend> {
+  const store = await storeFor(input)
+  if ('kind' in store) return store
+  const { operationId, path, offset, bytes } = input
+  try {
+    return await store.uploads.append({ operationId, path, offset, bytes })
+  } catch {
+    return UNAVAILABLE
+  }
+}
+
+/** Table one, commit: the receipt first, then the staged files, then the publication. */
+async function createFromUpload<P>(
+  storeFor: StoreFor<P>,
+  publish: Publish<P>,
+  input: Scope<P> & Readonly<{ operationId: string }>,
+): Promise<UploadCommit> {
+  const store = await storeFor(input)
+  if ('kind' in store) return store
+  let ready: Readonly<{ capability: CapabilityId; from: PackageReader }>
+  try {
+    const found = await store.recallPublication(input.operationId)
+    if (found.kind !== 'not-found') return publicationOutcome(found)
+    const staged = await store.uploads.reader(input.operationId)
+    if (staged.kind !== 'ready') return staged
+    ready = staged
+  } catch {
+    return UNAVAILABLE
+  }
+  const outcome = await publish(
+    { ...input, capability: ready.capability },
+    { kind: 'directory', from: ready.from },
+  )
+  if (outcome.kind === 'published') await store.uploads.discard(input.operationId).catch(() => {})
+  return outcome
+}
+
+async function recallPublished(
+  store: TenantLayerStore,
+  operationId: string,
+  request: Extract<ManagedRequest, Readonly<{ kind: 'create' | 'commit' }>>,
+): Promise<RecallOutcome> {
+  const found = await store.recallPublication(operationId)
+  if (found.kind !== 'not-found') {
+    const other =
+      request.kind === 'create' &&
+      found.kind === 'published' &&
+      (found.capability.category !== request.capability.category ||
+        found.capability.name !== request.capability.name)
+    return other ? { kind: 'operation-conflict' } : publicationOutcome(found)
+  }
+  if (request.kind === 'create') return NOT_COMMITTED
+  const staged = await store.uploads.reader(operationId)
+  if (staged.kind === 'unavailable') return staged
+  return staged.kind === 'absent' ? { kind: 'absent' } : NOT_COMMITTED
+}
+
+async function recallIn(
+  store: TenantLayerStore,
+  operationId: string,
+  request: ManagedRequest,
+): Promise<RecallOutcome> {
+  switch (request.kind) {
+    case 'create':
+    case 'commit':
+      return recallPublished(store, operationId, request)
+    case 'begin': {
+      const { capability, entries } = request
+      const resumed = await store.uploads.resume({ operationId, capability, entries })
+      return resumed.kind === 'absent' ? NOT_COMMITTED : resumed
+    }
+    case 'setEnabled':
+    case 'remove': {
+      const change: HoldingChange =
+        request.kind === 'remove'
+          ? { kind: 'remove' }
+          : { kind: 'setEnabled', enabled: request.enabled }
+      const found = await store.recall({ operationId, holdingRef: request.holding, change })
+      return found.kind === 'not-found' ? NOT_COMMITTED : storeOutcome(found, operationId)
+    }
+  }
+}
+
+async function recall<P>(
+  storeFor: StoreFor<P>,
+  input: Parameters<TenantManagement<P>['recall']>[0],
+): Promise<RecallOutcome> {
+  const store = await storeFor(input)
+  if ('kind' in store) return store
+  try {
+    return await recallIn(store, input.operationId, input.request)
+  } catch {
+    return UNAVAILABLE
+  }
+}
+
+export function createTenantManagement<P>(ports: Ports<P>): TenantManagement<P> {
+  const storeFor = storeForOf(ports)
+  const publish = publisherOf(ports)
   return Object.freeze({
-    async list(input) {
-      const store = await storeFor(input)
-      if ('kind' in store) return store
-      if (ports.categories.describe(input.category) === undefined)
-        return { kind: 'unknown-category' }
-      if (!Number.isInteger(input.limit) || input.limit < 1 || input.limit > MAX_ASSET_PAGE)
-        return { kind: 'invalid' }
-      try {
-        const { category, after, limit } = input
-        const read = await store.list({ category, after, limit })
-        return read.kind === 'page' ? { ...read, completeness: 'complete' } : read
-      } catch {
-        return UNAVAILABLE
-      }
-    },
-    async describe(input) {
-      const store = await storeFor(input)
-      if ('kind' in store) return store
-      try {
-        const held = await store.held(input.capability)
-        if (held.kind !== 'held') return held
-        const layers = await collectCandidates([store.layer], input.capability)
-        const standing = standingOf(evaluate({ layers, eligible: () => 'yes' }))
-        const { row, revision, content, settings } = held
-        return { kind: 'asset', row, revision, content, standing, settings }
-      } catch {
-        return UNAVAILABLE
-      }
-    },
-    setEnabled: input => changeHolding(input, { kind: 'setEnabled', enabled: input.enabled }),
-    remove: input => changeHolding(input, { kind: 'remove' }),
+    list: input => list(storeFor, ports.categories, input),
+    describe: input => describe(storeFor, input),
+    setEnabled: input =>
+      changeHolding(storeFor, input, { kind: 'setEnabled', enabled: input.enabled }),
+    remove: input => changeHolding(storeFor, input, { kind: 'remove' }),
+    createFromData: input => publish(input, { kind: 'data', body: input.body }),
+    beginUpload: input => beginUpload(storeFor, ports.categories, input),
+    appendUpload: input => appendUpload(storeFor, input),
+    createFromUpload: input => createFromUpload(storeFor, publish, input),
+    recall: input => recall(storeFor, input),
   })
 }

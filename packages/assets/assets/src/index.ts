@@ -83,9 +83,17 @@ export {
   type HoldingOutcome,
   type ManagedAsset,
   type ManagedList,
+  type ManagedRequest,
+  type RecallOutcome,
   type StoreChange,
+  type StorePublication,
+  type StoreUploads,
   type TenantLayerStore,
   type TenantManagement,
+  type UploadAppend,
+  type UploadBegin,
+  type UploadCommit,
+  type UploadEntry,
 } from './management.ts'
 export {
   decideAssetHoldingChange,

@@ -117,6 +117,14 @@ function setup(
       if (options.recall === 'throws') throw new Error('the receipts cannot be read')
       return options.recall ?? { kind: 'not-found' }
     },
+    recallPublication: async () => ({ kind: 'not-found' }),
+    uploads: {
+      begin: async () => ({ kind: 'unavailable' }),
+      resume: async () => ({ kind: 'absent' }),
+      append: async () => ({ kind: 'absent' }),
+      reader: async () => ({ kind: 'absent' }),
+      discard: async () => {},
+    },
     layer: layer(),
     ...(typeof options.store === 'object' ? options.store : {}),
   }
@@ -130,6 +138,7 @@ function setup(
         }),
     },
     categories,
+    publishing: { publish: async () => ({ kind: 'unavailable' }) },
     async storeOf() {
       if (options.store === 'throws') throw new Error('the tenant set does not open')
       return options.store === 'missing' ? undefined : store

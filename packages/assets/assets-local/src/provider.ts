@@ -37,7 +37,8 @@ import {
   type Mutation,
 } from './schema.ts'
 import { createPublishedPackages, type PackageRecords } from './packages.ts'
-import { receiptResult, type SameOperation } from './results.ts'
+import { publicationRecall, receiptResult, type SameOperation } from './results.ts'
+import { createLocalUploads } from './uploads.ts'
 import type {
   AssetsLocal,
   AssetsLocalOptions,
@@ -227,7 +228,7 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     return parsed.success ? commit(parsed.data) : fail('invalid_input')
   }
   const read = storageRead(options)
-  const local: Omit<AssetsLocal, 'packages'> = {
+  const local: Omit<AssetsLocal, 'packages' | 'uploads'> = {
     readAsset: input =>
       run(async () => {
         const parsed = assetLookupSchema.safeParse(input)
@@ -309,6 +310,16 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
         if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
         return recallOperation(options, operationId)
       }),
+    recallPublication: operationId =>
+      run(async () => {
+        if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
+        try {
+          const queried = await options.storage.query(identity(options.domain, operationId))
+          return publicationRecall(queried, options.domain, operationId)
+        } catch {
+          return { kind: 'unknown' as const, operationId }
+        }
+      }),
     recallChange: ({ operationId, holdingRef, change }) =>
       run(async () => {
         if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
@@ -333,10 +344,16 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     durability: options.packageDurability,
     records: packageRecordsOf(local),
   })
-  return { ...local, packages }
+  const uploads = createLocalUploads({
+    root: options.uploads === undefined ? undefined : options.packageRoot,
+    categories: options.categories,
+    policy: options.uploads ?? { idleMs: 0, maxOpen: 0, partBytes: 0 },
+    clock: options.clock,
+  })
+  return { ...local, packages, uploads }
 }
 
-function packageRecordsOf(local: Omit<AssetsLocal, 'packages'>): PackageRecords {
+function packageRecordsOf(local: Omit<AssetsLocal, 'packages' | 'uploads'>): PackageRecords {
   return {
     publishAndHold: local.publishAndHold,
     async readAssetRevision(assetRef) {

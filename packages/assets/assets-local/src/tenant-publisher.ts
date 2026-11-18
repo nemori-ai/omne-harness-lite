@@ -16,11 +16,13 @@ import { publishedAssetRef, type PackageHolding, type PackagePublishResult } fro
 import type { Failure } from './schema.ts'
 import type { AssetsLocal, AssetsMutationResult } from './types.ts'
 
+type Refused = Exclude<TenantPublishOutcome, Readonly<{ kind: 'published' }>>
+
 const UNAVAILABLE = Object.freeze({ kind: 'unavailable' } as const)
 const CONFLICT = Object.freeze({ kind: 'conflict' } as const)
-const invalid = (reason: string): TenantPublishOutcome => Object.freeze({ kind: 'invalid', reason })
+const invalid = (reason: string): Refused => Object.freeze({ kind: 'invalid', reason })
 
-const REJECTIONS: Readonly<Record<Failure['reason'], TenantPublishOutcome>> = Object.freeze({
+const REJECTIONS: Readonly<Record<Failure['reason'], Refused>> = Object.freeze({
   invalid_input: invalid('invalid-input'),
   limit_exceeded: invalid('limit-exceeded'),
   forbidden: Object.freeze({ kind: 'denied' }),
@@ -38,9 +40,11 @@ const REJECTIONS: Readonly<Record<Failure['reason'], TenantPublishOutcome>> = Ob
   unknown_category: Object.freeze({ kind: 'unknown-category' }),
 })
 
-function rejected(reason: string): TenantPublishOutcome {
+/** What a publication refused by the store answers, by the store's reason. */
+export function publishRejected(reason: string): Refused {
   return Object.hasOwn(REJECTIONS, reason) ? REJECTIONS[reason as Failure['reason']] : UNAVAILABLE
 }
+const rejected = publishRejected
 
 function packageRejected(rejection: PackageRejection): TenantPublishOutcome {
   switch (rejection.kind) {

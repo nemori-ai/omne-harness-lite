@@ -5,11 +5,14 @@ import {
   type CategoryView,
   type JsonValue,
   type StoreChange,
+  type StorePublication,
   type TenantLayerStore,
 } from '@omne-harness/assets'
 import { tenantLayerSource } from './layer.ts'
 import { originOf } from './origin.ts'
 import { manifestOf } from './packages.ts'
+import type { PublicationRecall } from './results.ts'
+import { publishRejected } from './tenant-publisher.ts'
 import type { Failure } from './schema.ts'
 import type { AssetsListResult, AssetsLocal, AssetsOperationResult } from './types.ts'
 
@@ -49,6 +52,23 @@ const CHANGE_REJECTIONS: Partial<Record<Failure['reason'], StoreChange>> = {
   holding_removed: { kind: 'conflict' },
   missing_definition: { kind: 'conflict' },
   operation_conflict: { kind: 'operation-conflict' },
+}
+
+function publicationOf(recalled: PublicationRecall): StorePublication {
+  switch (recalled.kind) {
+    case 'published': {
+      const capability = capabilityId(recalled.category, recalled.name)
+      if (!capability.ok) return UNAVAILABLE
+      const { version, holdingRef, changed } = recalled
+      return { kind: 'published', capability: capability.id, version, holdingRef, changed }
+    }
+    case 'not_found':
+      return { kind: 'not-found' }
+    case 'unknown':
+      return recalled
+    case 'rejected':
+      return publishRejected(recalled.reason)
+  }
 }
 
 function changeOf(result: AssetsOperationResult): StoreChange | Readonly<{ kind: 'not-found' }> {
@@ -127,6 +147,10 @@ export function createTenantLayerStore(
     async recall(input) {
       return changeOf(await local.recallChange(input))
     },
+    async recallPublication(operationId) {
+      return publicationOf(await local.recallPublication(operationId))
+    },
+    uploads: local.uploads,
     layer: tenantLayerSource(local),
   } satisfies TenantLayerStore)
 }

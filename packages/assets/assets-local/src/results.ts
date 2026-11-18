@@ -39,6 +39,41 @@ export function receiptResult(
       return terminalReceipt(result, domain, operationId, same)
   }
 }
+export type PublicationRecall =
+  | Readonly<{
+      kind: 'published'
+      category: string
+      name: string
+      version: string
+      holdingRef: string
+      changed: boolean
+    }>
+  | Exclude<AssetsOperationResult, Readonly<{ kind: 'committed' }>>
+
+/** The outcome of a publication by its operation; another kind of command under it is a conflict. */
+export function publicationRecall(
+  result: QueryResultV2,
+  domain: DomainRef,
+  operationId: string,
+): PublicationRecall {
+  let recorded: Mutation | undefined
+  const answer = receiptResult(result, domain, operationId, command => {
+    recorded = command
+    return command.kind === 'publishAndHold'
+  })
+  if (answer.kind !== 'committed') return answer
+  if (recorded?.kind !== 'publishAndHold') return { kind: 'unknown', operationId }
+  const { category, name, version, holding } = recorded
+  return {
+    kind: 'published',
+    category,
+    name,
+    version,
+    holdingRef: holding.holdingRef,
+    changed: answer.changed,
+  }
+}
+
 function terminalReceipt(
   result: ReceiptV2,
   domain: DomainRef,

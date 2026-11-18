@@ -40,7 +40,10 @@ export type TenantPublishing<P> = Readonly<{
 
 const UNAVAILABLE = Object.freeze({ kind: 'unavailable' } as const)
 
-function creationRefusal(mode: CreationMode, content: PublishContent['kind']): string | undefined {
+export function creationRefusal(
+  mode: CreationMode,
+  content: PublishContent['kind'],
+): string | undefined {
   if (mode === 'none') return 'creation-closed'
   if (mode === 'data' && content === 'directory') return 'not-a-directory-category'
   if (mode === 'directory' && content === 'data') return 'a-directory-category'

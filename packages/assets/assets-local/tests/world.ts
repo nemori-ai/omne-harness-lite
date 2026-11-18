@@ -135,6 +135,8 @@ export async function openWorld(
     packageRoot?: string
     afterPackageStep?: Parameters<typeof createAssetsLocal>[0]['afterPackageStep']
     packageDurability?: Parameters<typeof createAssetsLocal>[0]['packageDurability']
+    uploads?: Parameters<typeof createAssetsLocal>[0]['uploads']
+    clock?: () => number
   } = {},
 ) {
   const parent = fileURLToPath(
@@ -188,6 +190,8 @@ export async function openWorld(
     ...(options.packageDurability === undefined
       ? {}
       : { packageDurability: options.packageDurability }),
+    ...(options.uploads === undefined ? {} : { uploads: options.uploads }),
+    ...(options.clock === undefined ? {} : { clock: options.clock }),
   })
   async function setup() {
     const published = await owner.publish({

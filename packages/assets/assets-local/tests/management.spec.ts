@@ -1,4 +1,4 @@
-import { mkdtempSync, realpathSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -6,6 +6,7 @@ import {
   capabilityId,
   createCategoryPoint,
   createTenantManagement,
+  createTenantPublishing,
   digestBytes,
   pinBody,
   readBodyText,
@@ -13,6 +14,7 @@ import {
   type CapabilityId,
   type JsonValue,
   type PackageReader,
+  type TenantActing,
 } from '@omne-harness/assets'
 import { createTenantLayerStore } from '../src/layer-store.ts'
 import { createTenantPublisher } from '../src/tenant-publisher.ts'
@@ -94,14 +96,31 @@ async function world() {
   categories.contribute({ contract: category('note', false), display })
   categories.contribute({ contract: category('bundle', true), display })
   const packageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'assets-management-')))
-  const opened = await openWorld({ categories, packageRoot })
+  const opened = await openWorld({
+    categories,
+    packageRoot,
+    uploads: { idleMs: 60_000, maxOpen: 4, partBytes: 8 },
+  })
   worlds.push(opened)
   const publisher = createTenantPublisher(opened.owner, 'tenant-a')
-  const management = createTenantManagement<Principal>({
-    acting: {
-      admit: async ({ principal, tenant }) => (principal.tenant === tenant ? 'admitted' : 'denied'),
-    },
+  const acting: TenantActing<Principal> = {
+    admit: async ({ principal, tenant }) => (principal.tenant === tenant ? 'admitted' : 'denied'),
+  }
+  const publishing = createTenantPublishing<Principal>({
+    acting,
     categories,
+    publisherOf: async tenant => (tenant === 'tenant-a' ? publisher : undefined),
+  })
+  const beforePublish: { run?: () => void } = {}
+  const management = createTenantManagement<Principal>({
+    acting,
+    categories,
+    publishing: {
+      async publish(request) {
+        beforePublish.run?.()
+        return publishing.publish(request)
+      },
+    },
     storeOf: async tenant =>
       tenant === 'tenant-a'
         ? createTenantLayerStore(opened.owner, 'tenant-a', categories)
@@ -125,7 +144,7 @@ async function world() {
     if (page.kind !== 'page') throw new Error(JSON.stringify(page))
     return page.items.map(item => `${item.capability.name}:${item.enabled ? 'on' : 'off'}`)
   }
-  return { ...opened, publisher, management, publish, names }
+  return { ...opened, packageRoot, publisher, management, publish, names, beforePublish }
 }
 
 describe('the management service over the local assets of a tenant', () => {
@@ -341,5 +360,170 @@ describe('the management service over the local assets of a tenant', () => {
     expect(await w.management.list({ ...ALICE, category: 'note', after: '', limit: 10 })).toEqual({
       kind: 'invalid',
     })
+  })
+})
+
+describe('creating assets through the management service over the local assets of a tenant', () => {
+  const DOCS = id('bundle', 'docs')
+  const LONG = 'a file longer than one part'
+  const ENTRIES = [
+    { path: 'README.md', bytes: LONG.length },
+    { path: 'lib/a.txt', bytes: 3 },
+  ]
+  const begin = (operationId = 'up-1') =>
+    ({ ...ALICE, operationId, capability: DOCS, entries: ENTRIES }) as const
+
+  async function send(
+    w: Awaited<ReturnType<typeof world>>,
+    path: string,
+    text: string,
+    operationId = 'up-1',
+  ) {
+    const bytes = encoder.encode(text)
+    let offset = 0
+    while (offset < bytes.length) {
+      const sent = await w.management.appendUpload({
+        ...ALICE,
+        operationId,
+        path,
+        offset,
+        bytes: bytes.subarray(offset, offset + 8),
+      })
+      if (sent.kind !== 'received') throw new Error(JSON.stringify(sent))
+      offset = sent.bytes
+    }
+  }
+
+  async function nothingVisible(w: Awaited<ReturnType<typeof world>>) {
+    expect(await w.names('bundle')).toEqual([])
+    expect(await w.management.describe({ ...ALICE, capability: DOCS })).toEqual({ kind: 'absent' })
+    expect(await w.owner.readHeldCapability({ capability: DOCS })).toEqual({ kind: 'absent' })
+    expect(
+      await w.management.list({
+        tenant: 'tenant-a',
+        principal: { tenant: 'tenant-b' },
+        category: 'bundle',
+        after: null,
+        limit: 10,
+      }),
+    ).toEqual({ kind: 'denied' })
+  }
+
+  it('a directory sent in parts is published on commit, held, listed, and its upload is gone', async () => {
+    const w = await world()
+    expect(await w.management.beginUpload(begin())).toMatchObject({
+      kind: 'accepted',
+      partBytes: 8,
+    })
+    await send(w, 'README.md', LONG)
+    await send(w, 'lib/a.txt', 'abc')
+    const outcome = await w.management.createFromUpload({ ...ALICE, operationId: 'up-1' })
+    expect(outcome).toMatchObject({ kind: 'published', changed: true })
+    expect(await w.names('bundle')).toEqual(['docs:on'])
+    const described = await w.management.describe({ ...ALICE, capability: DOCS })
+    expect(described.kind === 'asset' && described.content).toEqual({
+      kind: 'directory',
+      entries: ENTRIES,
+    })
+    expect(await w.owner.uploads.reader('up-1')).toEqual({ kind: 'absent' })
+  })
+
+  it('half an upload is visible to nobody: after begin, with half received, and collected before commit', async () => {
+    const w = await world()
+    await w.management.beginUpload(begin())
+    await nothingVisible(w)
+    await send(w, 'README.md', LONG)
+    await nothingVisible(w)
+    await send(w, 'lib/a.txt', 'abc')
+    await nothingVisible(w)
+  })
+
+  it('a commit before everything arrived names the missing paths and publishes nothing', async () => {
+    const w = await world()
+    await w.management.beginUpload(begin())
+    await send(w, 'README.md', LONG)
+    expect(await w.management.createFromUpload({ ...ALICE, operationId: 'up-1' })).toEqual({
+      kind: 'incomplete',
+      missing: ['lib/a.txt'],
+    })
+    expect(await w.names('bundle')).toEqual([])
+  })
+
+  it('after a commit has published and dropped the upload, the same commit and its recall answer the same outcome', async () => {
+    const w = await world()
+    await w.management.beginUpload(begin())
+    await send(w, 'README.md', LONG)
+    await send(w, 'lib/a.txt', 'abc')
+    const first = await w.management.createFromUpload({ ...ALICE, operationId: 'up-1' })
+    expect(first.kind).toBe('published')
+    expect(await w.management.createFromUpload({ ...ALICE, operationId: 'up-1' })).toEqual(first)
+    expect(
+      await w.management.recall({ ...ALICE, operationId: 'up-1', request: { kind: 'commit' } }),
+    ).toEqual(first)
+  })
+
+  it('an upload swept while it is committed publishes nothing and leaves no version', async () => {
+    const w = await world()
+    await w.management.beginUpload(begin())
+    await send(w, 'README.md', LONG)
+    await send(w, 'lib/a.txt', 'abc')
+    w.beforePublish.run = () =>
+      rmSync(join(w.packageRoot, '.uploads'), { recursive: true, force: true })
+    expect(await w.management.createFromUpload({ ...ALICE, operationId: 'up-1' })).toEqual({
+      kind: 'invalid',
+      reason: 'source-failed:material-unavailable',
+    })
+    expect(await w.names('bundle')).toEqual([])
+    expect(await w.owner.readAsset({ assetRef: 'bundle/docs' })).toEqual({ kind: 'absent' })
+    expect(
+      await w.management.recall({ ...ALICE, operationId: 'up-1', request: { kind: 'commit' } }),
+    ).toEqual({ kind: 'absent' })
+  })
+
+  it('a begin on a data category is invalid; one over the limits says which limit', async () => {
+    const w = await world()
+    expect(await w.management.beginUpload({ ...begin(), capability: id('note', 'a') })).toEqual({
+      kind: 'invalid',
+      reason: 'not-a-directory-category',
+    })
+    expect(
+      await w.management.beginUpload({
+        ...begin(),
+        entries: ['a', 'b', 'c', 'd', 'e'].map(path => ({ path, bytes: 1 })),
+      }),
+    ).toEqual({ kind: 'invalid', reason: 'limit-exceeded:files' })
+  })
+
+  it('a data asset is created through the service, and its recall answers the same; another capability conflicts', async () => {
+    const w = await world()
+    const outcome = await w.management.createFromData({
+      ...ALICE,
+      operationId: 'make-a',
+      capability: id('note', 'a'),
+      body: read('{"a":1}'),
+    })
+    expect(outcome).toMatchObject({ kind: 'published', changed: true })
+    expect(await w.names()).toEqual(['a:on'])
+    expect(
+      await w.management.recall({
+        ...ALICE,
+        operationId: 'make-a',
+        request: { kind: 'create', capability: id('note', 'a') },
+      }),
+    ).toEqual(outcome)
+    expect(
+      await w.management.recall({
+        ...ALICE,
+        operationId: 'make-a',
+        request: { kind: 'create', capability: id('note', 'b') },
+      }),
+    ).toEqual({ kind: 'operation-conflict' })
+    expect(
+      await w.management.recall({
+        ...ALICE,
+        operationId: 'never',
+        request: { kind: 'create', capability: id('note', 'a') },
+      }),
+    ).toEqual({ kind: 'not-committed' })
   })
 })
