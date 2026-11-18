@@ -8,6 +8,7 @@ export type NotificationAccessPluginInput = Readonly<{
   principals: (ctx: Context) => NotificationPrincipals
   faces: (ctx: Context) => NotificationFaces | undefined
   changes: (ctx: Context) => NotificationChangeFeed | undefined
+  now: () => string
 }>
 
 const NOTIFICATION_ACCESS_PLUGIN = 'notification-access'
@@ -28,6 +29,7 @@ export function createNotificationAccessPlugin(
               principals: input.principals(ctx),
               faces: () => input.faces(ctx),
               changes: () => input.changes(ctx),
+              now: input.now,
             }),
         }),
       )

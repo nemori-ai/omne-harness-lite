@@ -21,11 +21,13 @@ export const TOOL_RELEASE_OWNER = '@omne-harness/harness-server'
 export const TOOL_DEFINITIONS_PACKAGE = '@omne-harness/tool-definitions' as const
 export const CALENDAR_TOOLS_PACKAGE = '@omne-harness/calendar-tools' as const
 export const SCHEDULE_TOOLS_PACKAGE = '@omne-harness/schedule-tools' as const
+export const NOTIFICATION_TOOLS_PACKAGE = '@omne-harness/notification-tools' as const
 /** The packages a release tool may come from; each is checked by the digest of its own artifacts. */
 export const RELEASE_PACKAGES = Object.freeze([
   TOOL_DEFINITIONS_PACKAGE,
   CALENDAR_TOOLS_PACKAGE,
   SCHEDULE_TOOLS_PACKAGE,
+  NOTIFICATION_TOOLS_PACKAGE,
 ] as const)
 export type ReleasePackage = (typeof RELEASE_PACKAGES)[number]
 
@@ -98,6 +100,13 @@ export const RELEASE_TOOLS = Object.freeze([
     package: SCHEDULE_TOOLS_PACKAGE,
     capabilities: Object.freeze(['schedule.read', 'schedule.write']),
     export: 'schedulesToolModule',
+    construction: Object.freeze(['resultMaxBytes']),
+  }),
+  Object.freeze({
+    name: 'Notifications',
+    package: NOTIFICATION_TOOLS_PACKAGE,
+    capabilities: Object.freeze(['notification.read', 'notification.write']),
+    export: 'notificationsToolModule',
     construction: Object.freeze(['resultMaxBytes']),
   }),
 ] as const)

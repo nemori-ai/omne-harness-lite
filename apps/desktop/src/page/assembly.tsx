@@ -13,6 +13,8 @@ import { identityUiModule } from '@omne-harness/identity-ui/cordis'
 import '@omne-harness/identity-ui/identity-ui.css'
 import { createMcpUiModule } from '@omne-harness/mcp-ui/cordis'
 import '@omne-harness/mcp-ui/mcp-ui.css'
+import { notificationUiModule } from '@omne-harness/notification-ui/cordis'
+import '@omne-harness/notification-ui/notification-ui.css'
 import type { ProtocolContract } from '@omne-harness/public-contract'
 import '@omne-harness/schedule-ui/schedule-ui.css'
 import { scheduleUiModule } from '@omne-harness/schedule-ui/cordis'
@@ -32,6 +34,7 @@ export const assembly: Assembly = {
     identityUiModule,
     sessionUiModule,
     createHumanInterventionUiModule({ sessionDock }),
+    notificationUiModule,
     scheduleUiModule,
     calendarUiModule,
     assetsUiModule,

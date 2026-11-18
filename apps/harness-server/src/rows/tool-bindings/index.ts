@@ -31,12 +31,20 @@ import { bindReleaseBackgroundCalls } from './background-calls.ts'
 import { bindReleaseWeb, webBindingConfig, type WebBindingConfig } from './web.ts'
 import { bindReleaseCalendar } from './calendar.ts'
 import { bindReleaseSchedules } from './schedules.ts'
+import { bindReleaseNotifications } from './notifications.ts'
 
 export const toolBindingsConfig = z
   .strictObject({ tools: toolsCapabilityConfig.optional(), web: webBindingConfig.optional() })
   .default({})
 
 type Input = LocalToolBindingsPluginInput<unknown, unknown, ToolMessageContentBlock>
+
+/** The tools a domain brings: each call of one gets that domain's services attached, read per call. */
+const DOMAIN_TOOLS = [
+  ['Calendar', bindReleaseCalendar],
+  ['Schedules', bindReleaseSchedules],
+  ['Notifications', bindReleaseNotifications],
+] as const
 type Attachments = Readonly<{
   tools: ReturnType<typeof createReleaseToolsCapability> | null
   web: WebBindingConfig | null
@@ -70,11 +78,8 @@ export function releaseCapability(
       attachments.web !== null && isReleaseToolRequest(release, input.request, 'Web')
         ? bindReleaseWeb(input, withSkills, attachments.web, custody)
         : withSkills
-    if (isReleaseToolRequest(release, input.request, 'Calendar'))
-      return bindReleaseCalendar(ctx, input, withWeb)
-    return isReleaseToolRequest(release, input.request, 'Schedules')
-      ? bindReleaseSchedules(ctx, input, withWeb)
-      : withWeb
+    const domain = DOMAIN_TOOLS.find(([name]) => isReleaseToolRequest(release, input.request, name))
+    return domain === undefined ? withWeb : domain[1](ctx, input, withWeb)
   }
 }
 
