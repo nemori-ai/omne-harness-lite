@@ -511,6 +511,17 @@ function isCount(value: unknown): boolean {
 function isText(value: unknown): boolean {
   return typeof value === 'string' && value.length > 0
 }
+function replayOmittedWellFormed(
+  diagnostic: Extract<ProviderDiagnostic, { kind: 'replay-omitted' }>,
+): boolean {
+  return (
+    parseMessageId(diagnostic.message).ok &&
+    isText(diagnostic.scope) &&
+    isText(diagnostic.format) &&
+    isCount(diagnostic.omittedParts) &&
+    REPLAY_OMISSIONS.has(diagnostic.reason)
+  )
+}
 export function wellFormed(diagnostic: ProviderDiagnostic): boolean {
   const fields: readonly string[] | undefined = Object.hasOwn(DIAGNOSTIC_FIELDS, diagnostic.kind)
     ? DIAGNOSTIC_FIELDS[diagnostic.kind]
@@ -520,13 +531,7 @@ export function wellFormed(diagnostic: ProviderDiagnostic): boolean {
   if (!keys.every(key => fields.includes(key))) return false
   switch (diagnostic.kind) {
     case 'replay-omitted':
-      return (
-        parseMessageId(diagnostic.message).ok &&
-        isText(diagnostic.scope) &&
-        isText(diagnostic.format) &&
-        isCount(diagnostic.omittedParts) &&
-        REPLAY_OMISSIONS.has(diagnostic.reason)
-      )
+      return replayOmittedWellFormed(diagnostic)
     case 'reasoning-disabled':
       return diagnostic.reason === 'foreign-prefix'
     case 'reasoning-state-dropped':
