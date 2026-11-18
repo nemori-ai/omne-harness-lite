@@ -53,15 +53,33 @@ it('a delivery of a result that has closed is recognized from the store, by a co
       events: [{ kind: 'waiting', waits }],
       effects: [{ action: pending.action, pending, authority }],
     })
+    const { material: _material, ...draft } = result
+    const commitReceived = async (name: string, view = s.view) => {
+      const answer = ok(
+        await view.received!.commit({
+          ...s.access,
+          execution: s.execution,
+          operation: operation(name),
+          entry: draft,
+          material: {
+            kind: 'facts',
+            schema: { owner: 'suite', name: 'payload', revision: '1', digest: 'fixture' },
+            value: { kind: 'string', value: 'delivered' },
+          },
+        }),
+      )
+      if (answer.kind !== 'committed') throw new Error(`received ${answer.kind}`)
+      return answer.value
+    }
+    const first = await commitReceived('received')
     const record = (name: string, view = s.view) =>
       view.entries.record({
         ...s.access,
         execution: s.execution,
         operation: operation(name),
         authority: null,
-        entry: result,
+        entry: first.entry,
       })
-    const first = ok(await record('received'))
     // The step is done with the call: once processed, its intent and result close.
     await commit('processed', {
       checkpoint: { ...(await load()).checkpoint, calls: [] },
@@ -81,14 +99,24 @@ it('a delivery of a result that has closed is recognized from the store, by a co
         },
       ],
     })
-    const open = s.controls?.select(
-      `SELECT open FROM er_item WHERE family = 'result' AND item = '${result.consumption}'`,
-    ).rows
-    expect(open?.map(row => Number(row[0]))).toEqual([0])
+    const open = (family: string, item: string) =>
+      s.controls
+        ?.select(`SELECT open FROM er_item WHERE family = '${family}' AND item = '${item}'`)
+        .rows.map(row => Number(row[0]))
+    // The result is processed and the call is no longer held: result and binding are closed.
+    expect(open('result', result.consumption)).toEqual([0])
+    expect(open('binding', key.reference)).toEqual([0])
 
-    expect(ok(await record('again'))).toEqual(first)
-    const cold = { ...s.view, entries: s.fresh().entries }
-    expect(ok(await record('again-cold', cold))).toEqual(first)
+    expect(await commitReceived('again')).toEqual(first)
+    expect(ok(await record('again-recorded'))).toEqual(first.receipt)
+    const cold = s.fresh()
+    expect(await commitReceived('again-cold', cold)).toEqual(first)
+    const query = { access: s.access, consumer: result.consumer, reference: key.reference }
+    const target = ok(await s.view.targets.resolve({ ...query, execution: s.execution }))
+    expect(target).toMatchObject({ execution: s.execution, pending })
+    expect(ok(await s.fresh().targets.resolve({ ...query, execution: s.execution }))).toEqual(
+      target,
+    )
   } finally {
     await s.close()
   }

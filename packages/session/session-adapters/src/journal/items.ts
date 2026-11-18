@@ -3,6 +3,7 @@ import { factKey } from './facts.ts'
 import type { AgentExecutionId } from '@omne-harness/agent-contract'
 import {
   emptyExecutionView,
+  type BindingView,
   type ExecutionView,
   type IntentView,
   type ObligationView,
@@ -201,8 +202,11 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
   },
   {
     family: 'binding',
-    holder: list(at('bindings'), item => `${item.reference}/${item.pending.digest}`, byPubOrd),
-    open: always,
+    holder: list(at('bindings'), item => item.reference, byPubOrd),
+    open: (item: BindingView, view: ExecutionView) => {
+      const result = view.results.get(item.consumption)
+      return result === undefined || resultOpen(result, view)
+    },
   },
   { family: 'material', holder: table(at('materials')), open: always },
   { family: 'op', holder: table(at('ops')), open: closedAtBirth, apart: true },

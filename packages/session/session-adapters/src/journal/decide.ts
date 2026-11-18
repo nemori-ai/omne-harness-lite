@@ -2,6 +2,7 @@ import type {
   AgentCheckpoint,
   AgentOperationId,
   JournalCommitState,
+  PendingCall,
   VoidedIntent,
 } from '@omne-harness/agent-contract'
 import { canonical } from '../testing/canonical.ts'
@@ -16,6 +17,19 @@ import {
   type FactBody,
 } from './facts.ts'
 import { handoffKey, type ExecutionView } from './view.ts'
+
+// The calls a checkpoint still waits on: its calls, those of its batch, those of its passages.
+export function checkpointCalls(checkpoint: AgentCheckpoint): PendingCall[] {
+  return [
+    ...checkpoint.calls,
+    ...(checkpoint.batch?.actions.flatMap(action => (action.call ? [action.call] : [])) ?? []),
+    ...checkpoint.passages.flatMap(passage =>
+      passage.operations.flatMap(operation =>
+        'pending' in operation && operation.pending ? [operation.pending] : [],
+      ),
+    ),
+  ]
+}
 
 export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState): CursorMembers {
   return {
@@ -49,7 +63,7 @@ export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState)
         ...checkpoint.calls.map(call => call.action),
         ...(checkpoint.batch?.actions.map(action => action.id) ?? []),
       ],
-      consumptions: checkpoint.calls.map(call => call.consumption),
+      consumptions: checkpointCalls(checkpoint).map(call => call.consumption),
       handoffs: (checkpoint.batch?.slots ?? []).flatMap(slot =>
         slot.handoff === null ? [] : [handoffKey(slot.handoff)],
       ),

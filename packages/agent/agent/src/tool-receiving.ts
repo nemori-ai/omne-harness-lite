@@ -467,9 +467,9 @@ export function createAgentToolReceiver<P>(
     if ('failure' in found)
       return found.failure.kind === 'denied' ? receiveDenied() : maintenanceFailure('association')
     const targets = structuredClone(found.ok)
-    if (targets.length === 0 || targets.some(target => target.execution !== input.execution))
-      return receiveDenied()
+    if (targets.some(target => target.execution !== input.execution)) return receiveDenied()
     const scope = new Set(targets.map(target => binding(input.access, target)))
+    if (targets.length === 0) return succeed(report(scope))
     const allowed = await checkTargets(input, targets)
     if (allowed) return allowed
     const replayed = recover ? await replayJournal(input, targets) : null

@@ -141,11 +141,13 @@ export function receivedRecord(scope: RecordScope, received: ReceivedView): Rece
 // A result the core no longer holds open, read back by its consumption; a read that must know asks
 // with need.
 export function closedReceived(
-  table: ClosedTable,
-  scope: RecordScope,
+  table: ClosedTable & Readonly<{ blobs: BlobStore }>,
+  mint: Mint,
+  input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>,
   consumption: ConsumptionId,
   need: boolean,
 ): ReceivedRecord | undefined {
+  const scope = scopeOf(input.tenant, input.execution, mint, table.blobs)
   const ref = { execution: scope.execution, family: 'result', item: consumption }
   const body = (need ? needClosed(table, ref) : peekClosed(table, ref)) as ResultView | null
   if (body === null || body.received === null) return undefined

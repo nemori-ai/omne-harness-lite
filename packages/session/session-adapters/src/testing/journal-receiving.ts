@@ -62,7 +62,14 @@ import {
   type Kept,
   type ReceivedRecord,
 } from './received-records.ts'
-import { bindTarget } from './binding-targets.ts'
+import {
+  bindTarget,
+  closedPendings,
+  modelTarget,
+  targetKey,
+  toolTarget,
+  type ClosedBinding,
+} from './binding-targets.ts'
 export type { Kept } from './received-records.ts'
 export type { Stored } from './material-table.ts'
 type Qualification = 'allowed' | 'denied' | 'unavailable'
@@ -81,6 +88,11 @@ type Hooks<P> = {
   operations(): Map<string, OperationRecord>
   // What an operation answered when this core no longer holds its record.
   answered(input: ExecutionMutation<P>, need?: boolean): OperationRecord | undefined
+  // The binding of a call reference this core no longer holds open.
+  closedBinding(
+    input: Access<P> & { execution: AgentExecutionId },
+    reference: string,
+  ): ClosedBinding | undefined
   // The received result of a consumption this core no longer holds open.
   closedResult(
     input: Access<P> & { execution: AgentExecutionId },
@@ -133,8 +145,6 @@ const tenantText = (tenant: TenantId) => {
   return encoded.ok ? encoded.value : ''
 }
 
-const targetKey = <P>(access: Pick<Access<P>, 'tenant'>, reference: string) =>
-  canonical([tenantText(access.tenant), reference])
 const executionText = <P>(input: Access<P> & { execution: AgentExecutionId }) =>
   canonical([tenantText(input.tenant), input.execution])
 const deliveryText = <P>(
@@ -421,10 +431,9 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       const execution = qualified(input)
       return 'failure' in execution ? execution.failure : boundCompaction(execution.ok, input)
     }
-    return boundPending(
-      hooks.state().pendingBindings.get(targetKey(input, input.entry.delivery.key.reference)) ?? [],
-      input,
-    )
+    const { reference } = input.entry.delivery.key
+    const held = hooks.state().pendingBindings.get(targetKey(input, reference))
+    return boundPending(held ?? closedPendings(hooks, input, reference), input)
   }
   const sourceOf = (input: Input<P>) =>
     receivedMaterialSource(hooks.namespace, tenantText(input.tenant), input.execution, input.entry)
@@ -869,7 +878,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     async resolve(input) {
       const requested = resolveModelInvocationRef(input.reference, input.access.tenant)
       if ('failure' in requested) return fail(denied())
-      const found = hooks.state().callTargets.get(targetKey(input.access, requested.ok.call))
+      const found = modelTarget(hooks, input, requested.ok.call)
       if (!found || (input.execution !== undefined && input.execution !== found.execution))
         return fail(denied())
       const permission = qualified({ ...input.access, execution: found.execution })
@@ -894,7 +903,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     async resolve(input) {
       if ('failure' in resolveToolInvocationRef(input.reference, input.access.tenant))
         return fail(denied())
-      const found = hooks.state().toolTargets.get(targetKey(input.access, input.reference))
+      const found = toolTarget(hooks, input)
       const route = input.execution ?? found?.execution
       if (route === undefined) return fail(denied())
       const permission = qualified({ ...input.access, execution: route })

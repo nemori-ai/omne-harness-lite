@@ -6,9 +6,10 @@ import { canonical, canonicalOfKept } from './canonical.ts'
 import { openEffectsAt, openSnapshotItems } from './execution-open-set.ts'
 import type { JournalCell, TransactionAnswer } from './root.ts'
 import { closedObligations, landClosed } from './closed-items.ts'
+import { closedBindingOf } from './binding-targets.ts'
 import { createInputRanges } from './input-ranges.ts'
 import { issueFacts, LEDGER_KINDS, obligationChanges, touchedBy } from './obligation-ledger.ts'
-import { closedReceived, scopeOf } from './received-records.ts'
+import { closedReceived } from './received-records.ts'
 import {
   fixAnswer,
   operationAnswer,
@@ -1637,8 +1638,6 @@ export function createJournal<P>(
   }
 
   const mint = { owner: JOURNAL_OWNER, session: cell.namespace }
-  const recordScope = (tenant: TenantId, execution: AgentExecutionId) =>
-    scopeOf(tenant, execution, mint, state().blobs)
 
   function viewOf(execution: AgentExecutionId): ExecutionView {
     return state().view.executions.get(execution) ?? emptyExecutionView(execution)
@@ -4532,8 +4531,9 @@ export function createJournal<P>(
     owned,
     operations: () => state().operations,
     answered: (input, need) => operationAnswer(state(), input, need),
+    closedBinding: (input, reference) => closedBindingOf(state(), input.execution, reference),
     closedResult: (input, consumption, need) =>
-      closedReceived(state(), recordScope(input.tenant, input.execution), consumption, need),
+      closedReceived(state(), mint, input, consumption, need),
     authorize: cell.authorize,
     gate: cell.gate,
     state: () => cell.state().receiving,
