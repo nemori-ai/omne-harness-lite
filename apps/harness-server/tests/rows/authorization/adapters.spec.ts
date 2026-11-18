@@ -406,6 +406,65 @@ describe('sessionAccessCheck: members and branches', () => {
       })
     })
 
+    it('lets a once release stand on the answer of a card that also hands back its gate', async () => {
+      const { w, check } = answering({ ...handingBack(gate), option: 'allow-once' })
+      expect((await check.check(mutate(w.work(), 'change', once()))).kind).toBe('allowed')
+    })
+
+    it('denies words that carry the same option and evidence: only a choice stands', async () => {
+      const remark = { kind: 'remark', text: 'go on', option: 'allow-once', evidence: said }
+      const { w, check } = answering(remark)
+      expect(await check.check(mutate(w.work(), 'change', once()))).toEqual({ kind: 'denied' })
+    })
+
+    it('denies an expression no option of a card stands for, and reads no card for it', async () => {
+      const declared = once()
+      const revoked = {
+        declaration: {
+          ...declared.declaration,
+          expression: { ...declared.declaration.expression, direction: 'revoke' },
+        },
+      }
+      const { w, read, check } = answering(chosen('allow-once'))
+      expect(await check.check(mutate(w.work(), 'change', revoked))).toEqual({ kind: 'denied' })
+      expect(read).toEqual([])
+    })
+
+    it('reads the card as the work of the session, in its tenant, and only once the member check allows', async () => {
+      const { w, read, check } = answering(chosen('allow-once'))
+      const principal = w.work()
+      await check.check(mutate(principal, 'change', once()))
+      expect(read).toEqual([{ principal, tenant: A, card }])
+      const refusing = createSessionAccessCheck({
+        ...w.ports,
+        admission: {
+          check: async () => ({ kind: 'denied', reason: 'x', evidence: card }),
+        } as never,
+        cards: () =>
+          ({
+            read: async (input: unknown) => {
+              read.push(input)
+              return { ok: chosen('allow-once') }
+            },
+          }) as never,
+      })
+      expect(await refusing.check(mutate(principal, 'change', once()))).toMatchObject({
+        kind: 'denied',
+      })
+      expect(read).toHaveLength(1)
+    })
+
+    it('denies a command that names another session than the one it is sent to', async () => {
+      const { w, check } = answering(chosen('allow-once'))
+      const sent = { tenant: A, session: OTHER, ...once() }
+      const request = sessionRequest({
+        access: { principal: w.work(), tenant: A },
+        operation: 'change',
+        target: { kind: 'session', session: OWN, command: { kind: 'change', input: sent } },
+      })
+      expect(await check.check(request)).toEqual({ kind: 'denied' })
+    })
+
     it('lets a once release stand on an answer for always, whose setting could not be written', async () => {
       const { w, check } = answering(chosen('allow-always'))
       expect((await check.check(mutate(w.work(), 'change', once()))).kind).toBe('allowed')

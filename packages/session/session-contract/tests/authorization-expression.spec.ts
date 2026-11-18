@@ -41,6 +41,13 @@ const session = (gate: string, basis: string, direction: 'grant' | 'revoke' = 'g
     source: evidence(`card-decision/${gate}`),
   }) as const
 
+const sessionWith = (
+  blank: Partial<Record<'capabilityId' | 'enforcementKey' | 'basis', string>>,
+) => {
+  const whole = session('Shell', 'rev-1')
+  return { ...whole, scope: { ...whole.scope, ...blank } }
+}
+
 function expressing(snapshot: WorkSnapshot, expression: AuthorizationExpression, name = 'grant') {
   return {
     kind: 'change',
@@ -109,6 +116,48 @@ describe('an authorization expression in the session log', () => {
     })
   })
 
+  it.each([
+    ['a direction that is neither grant nor revoke', { ...once(), direction: 'lend' }, 'direction'],
+    ['a session scope with no capability', sessionWith({ capabilityId: '' }), 'scope'],
+    ['a session scope with no gate key', sessionWith({ enforcementKey: '' }), 'scope'],
+    ['a session scope with no basis', sessionWith({ basis: '' }), 'scope'],
+    [
+      'a once scope whose consumer has no work',
+      once({ consumer: { ...consumer, work: '' } }),
+      'scope',
+    ],
+    ['a once scope whose digest is not text', once({ argumentsDigest: 7 as never }), 'scope'],
+  ] as const)('is refused with %s', (_what, expression, field) => {
+    const before = initializationScenario().preview()
+    const decision = decide(before, expressing(before, expression as never), [], null, reads)
+    expect(decision).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: `declaration.expression.${field}` },
+    })
+  })
+
+  it('takes a revoke as it takes a grant', () => {
+    const before = initializationScenario().preview()
+    const revoke = expressing(before, session('Shell', 'rev-1', 'revoke'))
+    expect(decide(before, revoke, [], null, reads)).toMatchObject({ kind: 'entries' })
+  })
+
+  it('is refused when the qualification it stands on is incomplete', () => {
+    const before = initializationScenario().preview()
+    const command = expressing(before, once())
+    const blank = { ...evidence('authorization-expression-policy'), record: '' }
+    const unqualified = {
+      ...command,
+      input: {
+        ...command.input,
+        declaration: { ...command.input.declaration, authorization: blank },
+      },
+    }
+    expect(decide(before, unqualified as never, [], null, reads)).toMatchObject({
+      kind: 'rejected',
+    })
+  })
+
   it('is refused when its scope or source is incomplete', () => {
     const before = initializationScenario().preview()
     const blankTarget = expressing(before, once({ target: '' }))
@@ -165,6 +214,33 @@ describe('the session authorization context', () => {
         source: evidence('card-decision/Files'),
       },
     ])
+  })
+
+  it.each([
+    ['owner', { ...consumer, owner: '@omne-harness/tool' }],
+    ['work', { ...consumer, work: 'run_2/execution' }],
+    ['position', { ...consumer, position: 'step-1/tool/1' }],
+  ] as const)('tells two consumers apart by their %s alone', (_field, other) => {
+    const both = [once(), once({ consumer: other, target: 'Files#1' })].reduce(
+      reduceAuthorizations,
+      EMPTY_AUTHORIZATIONS,
+    )
+    expect(both.once).toHaveLength(2)
+    expect(onceAuthorizationOf(both, consumer)?.target).toBe('Shell#1')
+    expect(onceAuthorizationOf(both, other)?.target).toBe('Files#1')
+    expect(reduceAuthorizations(both, once({ consumer: other }, 'revoke')).once).toEqual([
+      expect.objectContaining({ consumer }),
+    ])
+  })
+
+  it('keeps the session authorizations of two gates of one capability apart', () => {
+    const invoke = session('Shell', 'rev-1')
+    const other = {
+      ...invoke,
+      scope: { ...invoke.scope, enforcementKey: 'tool.other' },
+    } as const
+    const both = [invoke, other].reduce(reduceAuthorizations, EMPTY_AUTHORIZATIONS)
+    expect(both.session.map(item => item.enforcementKey)).toEqual(['tool.invoke', 'tool.other'])
   })
 
   it('lets go of every once authorization when the Run ends, and keeps the session ones', () => {

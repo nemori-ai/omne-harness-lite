@@ -8,6 +8,23 @@ type Asked = Readonly<{ capabilityId: string; enforcementKey: string; consumer: 
 const gateOf = (capabilityId: string, enforcementKey: string): string =>
   JSON.stringify([capabilityId, enforcementKey])
 
+// The once authorization of one action, by its key; a read that names no action asks for none.
+function onceOf(port: Executor, where: readonly [string, string], consumer: Consumer) {
+  const row = oneRow(
+    port,
+    'SELECT target, arguments, source FROM sl_authorization_once WHERE tenant = ? AND session = ? AND owner = ? AND work = ? AND position = ? LIMIT 1',
+    [...where, consumer.owner, consumer.work, consumer.position],
+  )
+  return row === undefined
+    ? null
+    : {
+        consumer,
+        target: text(row['target']),
+        argumentsDigest: text(row['arguments']),
+        source: JSON.parse(text(row['source'])),
+      }
+}
+
 /** The authorizations in force for one gate and one action, each read by its key. */
 export function readAuthorizations(
   port: Executor,
@@ -22,14 +39,6 @@ export function readAuthorizations(
   )
   if (head === undefined) return { revision: '0', once: null, session: null }
   const { consumer } = asked
-  const once =
-    consumer === null
-      ? undefined
-      : oneRow(
-          port,
-          'SELECT target, arguments, source FROM sl_authorization_once WHERE tenant = ? AND session = ? AND owner = ? AND work = ? AND position = ? LIMIT 1',
-          [...where, consumer.owner, consumer.work, consumer.position],
-        )
   const session = oneRow(
     port,
     'SELECT basis, source FROM sl_authorization_session WHERE tenant = ? AND session = ? AND gate = ? LIMIT 1',
@@ -37,15 +46,7 @@ export function readAuthorizations(
   )
   return {
     revision: String(big(head['revision'])),
-    once:
-      once === undefined || consumer === null
-        ? null
-        : {
-            consumer,
-            target: text(once['target']),
-            argumentsDigest: text(once['arguments']),
-            source: JSON.parse(text(once['source'])),
-          },
+    once: consumer === null ? null : onceOf(port, where, consumer),
     session:
       session === undefined
         ? null

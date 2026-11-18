@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { decisionEvidence } from '@omne-harness/authorization'
 import { writeJsonText } from '@omne-harness/json-text'
-import { answerEffect, askedDecision } from '../../../src/rows/authorization/release-asking.ts'
+import {
+  answerEffect,
+  askedDecision,
+  gateOfAnswer,
+  refusal,
+} from '../../../src/rows/authorization/release-asking.ts'
 
 const evidence = decisionEvidence('release-asking-test', '1', {})
 const card = { owner: 'hitl', record: 'card-1', revision: '1', digest: 'd' }
@@ -66,6 +71,30 @@ describe('a person who answers for every session of the tenant', () => {
   })
 })
 
+describe('the refusal an answer leads to', () => {
+  it('keeps the card, the answer and the reason as its evidence, so two answers differ', () => {
+    const one = refusal({ card, source: said }, 'not-released', 'deny-once')
+    const other = refusal(
+      { card, source: { ...said, record: 'answer-2' } },
+      'not-released',
+      'deny-once',
+    )
+    const reasoned = refusal({ card, source: said }, 'not-released', 'declined')
+    if (one.kind !== 'deny' || other.kind !== 'deny' || reasoned.kind !== 'deny')
+      throw new Error('kind')
+    expect(one).toMatchObject({ category: 'not-released', reason: 'deny-once' })
+    expect(one.evidence.digest).not.toBe(other.evidence.digest)
+    expect(one.evidence.digest).not.toBe(reasoned.evidence.digest)
+    const recarded = refusal(
+      { card: { ...card, record: 'card-2' }, source: said },
+      'not-released',
+      'deny-once',
+    )
+    if (recarded.kind !== 'deny') throw new Error('kind')
+    expect(one.evidence.digest).not.toBe(recarded.evidence.digest)
+  })
+})
+
 describe('a person who releases this one call', () => {
   it('grants a once authorization on the card answer, to be judged again', () => {
     const answer = { kind: 'chosen', option: 'allow-once', value: null, evidence: said } as const
@@ -105,6 +134,44 @@ describe('a person who releases the tool for this session', () => {
       kind: 'decided',
       decision: { kind: 'undecidable' },
     })
+  })
+})
+
+describe('the gate a release card hands back with the chosen option', () => {
+  const gate = { capabilityId: 'tool/Shell', enforcementKey: 'tool.invoke', basis: 'verdict-7' }
+  const text = (value: string) => ({ kind: 'string', value }) as const
+  const object = (fields: Readonly<Record<string, unknown>>) =>
+    ({
+      kind: 'object',
+      entries: Object.entries(fields).map(([key, value]) => ({ key, value })),
+    }) as never
+
+  it('is read whole from the three text fields', () => {
+    const whole = object({
+      capabilityId: text(gate.capabilityId),
+      enforcementKey: text(gate.enforcementKey),
+      basis: text(gate.basis),
+      extra: text('ignored'),
+    })
+    expect(gateOfAnswer(whole)).toEqual(gate)
+  })
+
+  const fields = { capabilityId: text('c'), enforcementKey: text('k'), basis: text('b') }
+  const broken: (readonly [string, unknown])[] = [
+    ['no value', null],
+    ['a text', text('tool/Shell')],
+    ['an empty object', object({})],
+  ]
+  for (const missing of ['capabilityId', 'enforcementKey', 'basis'] as const) {
+    const { [missing]: _dropped, ...rest } = fields
+    broken.push(
+      [`no ${missing}`, object(rest)],
+      [`an empty ${missing}`, object({ ...fields, [missing]: text('') })],
+      [`a ${missing} that is not a text`, object({ ...fields, [missing]: { kind: 'null' } })],
+    )
+  }
+  it.each(broken)('is none for %s', (_what, value) => {
+    expect(gateOfAnswer(value as never)).toBeNull()
   })
 })
 

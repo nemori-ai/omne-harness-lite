@@ -109,6 +109,16 @@ describe('the authorizations the permission read answers with', () => {
     expect(a.provider.readSql.every(sql => !/\bsl_(state|state_item|entry)\b/.test(sql))).toBe(true)
   })
 
+  it('reads no once row for a read that names no action: one statement less', async () => {
+    const a = await app()
+    expect(await a.create(TENANT_A)).toHaveProperty('ok')
+    await express(a, once('step-1/tool/0'), 'grant-once')
+    a.provider.readSql.length = 0
+    expect(await authorizations(a)).toMatchObject({ revision: '1', once: null })
+    expect(a.provider.readSql).toHaveLength(4)
+    expect(a.provider.readSql.some(sql => sql.includes('sl_authorization_once'))).toBe(false)
+  })
+
   it('answers only the action and the gate the read names', async () => {
     const a = await app()
     expect(await a.create(TENANT_A)).toHaveProperty('ok')

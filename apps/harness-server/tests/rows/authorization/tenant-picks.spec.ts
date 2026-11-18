@@ -104,6 +104,78 @@ describe('which lasting picks the tenant setting of a gate can take', () => {
   })
 })
 
+describe('the setting item and the values a gate declares', () => {
+  const declared = (change: (entry: (typeof declarations)[number]) => unknown) =>
+    declarations.map(entry => (entry === shell ? (change(entry) as typeof entry) : entry))
+  const picksOver = (list: typeof declarations, described: Described = view()) => {
+    const sets: Parameters<Face['set']>[0][] = []
+    const settings = {
+      describe: async () => described,
+      set: async (input: Parameters<Face['set']>[0]) => {
+        sets.push(input)
+        return { kind: 'written', revision: '8' }
+      },
+    } as unknown as Face
+    return {
+      sets,
+      picks: createTenantPicks({ declarations: () => list, settings: () => settings }),
+    }
+  }
+  const interpretationOf = (entry: (typeof declarations)[number]) =>
+    entry.governance.interpretations[0]!
+
+  it('offers nothing for a gate whose permission has no setting item', async () => {
+    const unmapped = declared(entry => {
+      const interpretation = interpretationOf(entry)
+      return {
+        ...entry,
+        governance: {
+          ...entry.governance,
+          interpretations: [
+            { ...interpretation, definition: { ...interpretation.definition, settings: null } },
+          ],
+        },
+      }
+    })
+    const w = picksOver(unmapped)
+    expect(await w.picks.writable(gate)).toEqual({ allow: false, deny: false })
+    expect(await w.picks.write(answer('allow'))).toBe('not-writable')
+    expect(w.sets).toEqual([])
+  })
+
+  it('offers only the effect exactly one value stands for', async () => {
+    const twoAllowing = declared(entry => {
+      const interpretation = interpretationOf(entry)
+      return {
+        ...entry,
+        governance: {
+          ...entry.governance,
+          interpretations: [
+            {
+              ...interpretation,
+              effects: interpretation.effects.map(effect =>
+                effect.effect === 'need-decision' ? { ...effect, effect: 'allow' } : effect,
+              ),
+            },
+          ],
+        },
+      }
+    })
+    const w = picksOver(twoAllowing)
+    expect(await w.picks.writable(gate)).toEqual({ allow: false, deny: true })
+    expect(await w.picks.write(answer('allow'))).toBe('not-writable')
+    expect(await w.picks.write(answer('deny'))).toBe('written')
+    expect(w.sets).toHaveLength(1)
+  })
+
+  it('offers nothing for an item that is not a permission', async () => {
+    const ordinary = { kind: 'described', item: { kind: 'ordinary', editable: { kind: 'yes' } } }
+    const w = picksOver(declarations, ordinary as never)
+    expect(await w.picks.writable(gate)).toEqual({ allow: false, deny: false })
+    expect(await w.picks.write(answer('allow'))).toBe('not-writable')
+  })
+})
+
 describe('writing the lasting pick on a card answer', () => {
   it('sets the value of the effect at the revision it read, standing on the answer of the card', async () => {
     const w = world(view())

@@ -26,7 +26,7 @@ const consumptions: z.ZodType<readonly ToolPermitConsumption[]> = z
   )
   .readonly()
 // What the provider answered is read as data: a shape it does not have answers unavailable.
-const answered = z.discriminatedUnion('kind', [
+const answered = z.union([
   z.object({
     kind: z.literal('allowed'),
     condition: z.custom<StartCondition | null>(value => typeof value === 'object'),
