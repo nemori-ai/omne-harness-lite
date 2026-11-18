@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { linesArgument, type ReadingConfig } from './config.ts'
-import { pqwScripts, slugOf } from './locations.ts'
+import { EXACT_BUILD, pqwScripts, slugOf } from './locations.ts'
 import type { ChangedMember, Grouping } from './members.ts'
 import type { Executor, Outcome } from './process.ts'
 
@@ -10,14 +10,7 @@ export type Tier = 'fast' | 'slow'
 export const tiersOf = (full: boolean): readonly Tier[] => (full ? ['fast', 'slow'] : ['fast'])
 
 export function buildArgs(names: readonly string[]): string[] {
-  return [
-    'exec',
-    'turbo',
-    'run',
-    'build',
-    '--output-logs=errors-only',
-    ...names.map(name => `--filter=${name}...`),
-  ]
+  return [...EXACT_BUILD, '--output-logs=errors-only', ...names.map(name => `--filter=${name}...`)]
 }
 
 export function coverageArgs(tier: Tier, reportsDirectory: string, workers: number): string[] {
@@ -40,6 +33,38 @@ export function coverageArgs(tier: Tier, reportsDirectory: string, workers: numb
     '--hookTimeout=120000',
     `--maxWorkers=${workers}`,
   ]
+}
+
+type LcovRecord = Readonly<{ file: string | null; ran: boolean; text: string }>
+
+function recordsOf(report: string): LcovRecord[] {
+  return report
+    .split(/(?<=^end_of_record\n)/mu)
+    .filter(text => text !== '')
+    .map(text => ({
+      file: /^SF:(.*)$/mu.exec(text)?.[1] ?? null,
+      ran: /^DA:\d+,[1-9]/mu.test(text),
+      text,
+    }))
+}
+
+// A tier's record of a file it never ran only adds branches nobody can hit: it stays out when
+// another tier ran the file; a file no tier ran keeps its first record. See SPEC.md.
+export function ranRecords(reports: readonly string[]): string[] {
+  const tiers = reports.map(recordsOf)
+  const ran = new Set(tiers.flatMap(tier => tier.filter(item => item.ran).map(item => item.file)))
+  const kept = new Set<string | null>()
+  return tiers.map(tier =>
+    tier
+      .filter(item => {
+        if (item.ran || item.file === null) return true
+        if (ran.has(item.file) || kept.has(item.file)) return false
+        kept.add(item.file)
+        return true
+      })
+      .map(item => item.text)
+      .join(''),
+  )
 }
 
 export interface MetricsCall {
@@ -143,13 +168,19 @@ export async function measureMember(
       if (outcome.code !== 0) failedTiers.push(`${tier} 退出 ${outcome.code ?? '信号'}`)
       if (existsSync(join(reports, 'lcov.info'))) lcovs.push(join(reports, 'lcov.info'))
     }
+  const ran = ranRecords(lcovs.map(path => readFileSync(path, 'utf8')))
+  const given = lcovs.map((path, at) => {
+    const own = join(dirname(path), 'lcov.ran.info')
+    writeFileSync(own, ran[at] ?? '')
+    return own
+  })
   const json = join(context.outDir, `${slug}.metrics.json`)
   const outcome = await context.exec({
     command: process.execPath,
     args: metricsArgs({
       root: context.root,
       base: context.base,
-      lcovs,
+      lcovs: given,
       scopes: member.scopes,
       config: context.config,
       json,
