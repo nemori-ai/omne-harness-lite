@@ -7,6 +7,7 @@ import {
   assembleLocalHost,
   decoded,
   MESSAGES_PATH,
+  RESPONSES_PATH,
   ROUTE_PATH,
   type Gateway,
 } from './local-host.ts'
@@ -56,7 +57,7 @@ export async function recordRound(input: RecordInput): Promise<RecordOutcome> {
   // Checked before the send, so a run that cannot write costs nothing.
   if (existsSync(directory)) return refused({ kind: 'recording-exists', directory })
   const tap = tapResponseBodies(
-    [ROUTE_PATH, MESSAGES_PATH].map(path => new URL(path, input.gateway.url)),
+    [ROUTE_PATH, MESSAGES_PATH, RESPONSES_PATH].map(path => new URL(path, input.gateway.url)),
   )
   const local = assembleLocalHost({
     request: input.request,

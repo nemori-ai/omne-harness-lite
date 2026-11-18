@@ -33,17 +33,19 @@ import { factorySupplier } from './profiles.ts'
 export const PLACEHOLDER = 'placeholder-factory-credential'
 export const ROUTE_PATH = '/api/v1/chat/completions'
 export const MESSAGES_PATH = '/api/v1/messages'
+export const RESPONSES_PATH = '/api/v1/responses'
 
-/** Whether a request went to an interface of the test gateway: chat completions or messages. */
+/** Whether a request went to an interface of the test gateway. */
 export function isGatewayPath(path: string | undefined): boolean {
-  return path === ROUTE_PATH || path === MESSAGES_PATH
+  return path === ROUTE_PATH || path === MESSAGES_PATH || path === RESPONSES_PATH
 }
 
-/** The test gateway's route: both interfaces at one origin. */
+/** The test gateway's route: the three interfaces at one origin. */
 export function gatewayEndpoints(origin: string | URL) {
   return {
     'chat-completions': { url: new URL(ROUTE_PATH, origin).href, endMarker: GATEWAY_END_MARKER },
     messages: { url: new URL(MESSAGES_PATH, origin).href, endMarker: null },
+    responses: { url: new URL(RESPONSES_PATH, origin).href, endMarker: GATEWAY_END_MARKER },
   }
 }
 

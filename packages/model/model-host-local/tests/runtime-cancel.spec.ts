@@ -61,21 +61,56 @@ if (record === undefined) throw new Error('no record openai/gpt-6-sol')
 const { request } = readRecordFixture('pi-ai-openai', record)
 
 const sse = (value: unknown) => `data: ${JSON.stringify(value)}\n\n`
-const HEAD = sse({
-  model: 'openai/gpt-6-sol',
-  provider: 'OpenAI',
-  choices: [{ delta: { content: 'partial answer' } }],
-})
+// The record speaks the Responses interface: a text item opens, then the stream is held.
+const ITEM = { id: 'msg_1', type: 'message', role: 'assistant', phase: 'final_answer' }
+const PART = { type: 'output_text', text: '', annotations: [] }
+const HEAD = [
+  { type: 'response.created', response: { id: 'resp_1', model: 'openai/gpt-6-sol', output: [] } },
+  { type: 'response.output_item.added', output_index: 0, item: { ...ITEM, content: [] } },
+  { type: 'response.content_part.added', output_index: 0, content_index: 0, part: PART },
+  {
+    type: 'response.output_text.delta',
+    output_index: 0,
+    content_index: 0,
+    delta: 'partial answer',
+  },
+]
+  .map(sse)
+  .join('')
+const DONE_PART = { ...PART, text: 'partial answer' }
 const TAIL =
-  sse({
-    choices: [{ delta: {}, finish_reason: 'stop' }],
-    usage: {
-      prompt_tokens: 12,
-      completion_tokens: 3,
-      prompt_tokens_details: { cached_tokens: 0, cache_write_tokens: 0 },
-      cost: 0.000042,
+  [
+    {
+      type: 'response.output_text.done',
+      output_index: 0,
+      content_index: 0,
+      text: 'partial answer',
     },
-  }) + 'data: [DONE]\n\n'
+    { type: 'response.content_part.done', output_index: 0, content_index: 0, part: DONE_PART },
+    {
+      type: 'response.output_item.done',
+      output_index: 0,
+      item: { ...ITEM, status: 'completed', content: [DONE_PART] },
+    },
+    {
+      type: 'response.completed',
+      response: {
+        id: 'resp_1',
+        model: 'openai/gpt-6-sol',
+        status: 'completed',
+        output: [{ ...ITEM, status: 'completed', content: [DONE_PART] }],
+        usage: {
+          input_tokens: 12,
+          input_tokens_details: { cached_tokens: 0 },
+          output_tokens: 3,
+          output_tokens_details: { reasoning_tokens: 0 },
+          cost: 0.000042,
+        },
+      },
+    },
+  ]
+    .map(sse)
+    .join('') + 'data: [DONE]\n\n'
 
 type Held = Readonly<{
   closed: Promise<void>

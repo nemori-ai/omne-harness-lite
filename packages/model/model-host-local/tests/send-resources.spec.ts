@@ -60,6 +60,7 @@ const ROUTES = {
         url: 'https://gateway.invalid/api/v1/chat/completions',
         endMarker: '[DONE]',
       },
+      responses: { url: 'https://gateway.invalid/api/v1/responses', endMarker: '[DONE]' },
     },
     accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
     auth: { kind: 'bearer' as const, item: 'apiKey' },
@@ -461,6 +462,10 @@ describe('the ownership of a materialized transport', () => {
           endpoints: {
             'chat-completions': {
               url: ROUTES.openrouter.endpoints['chat-completions'].url,
+              endMarker: GATEWAY_END_MARKER,
+            },
+            responses: {
+              url: ROUTES.openrouter.endpoints.responses.url,
               endMarker: GATEWAY_END_MARKER,
             },
           },

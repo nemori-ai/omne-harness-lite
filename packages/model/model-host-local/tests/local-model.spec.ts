@@ -23,9 +23,10 @@ const CASES: readonly Case[] = [
   {
     family: 'pi-ai-openai',
     name: 'openai/gpt-6-sol',
-    payable: '0.000123456789123456789',
-    reasoning: false,
-    format: 'openai-responses-v1',
+    // The cost the recorded Responses stream of this record reports.
+    payable: '0.000802',
+    reasoning: true,
+    format: 'openai-responses-items-v1',
   },
   {
     family: 'pi-ai-openai',
