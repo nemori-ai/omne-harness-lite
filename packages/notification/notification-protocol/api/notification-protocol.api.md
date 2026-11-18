@@ -1108,6 +1108,61 @@ declare const channel: {
 };
 export declare const notificationProtocol: {
     readonly operations: {
+        readonly send: {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly recipients: readonly ({
+                        readonly kind: "person";
+                    } | {
+                        readonly kind: "agent";
+                        readonly ref: string;
+                    })[];
+                }>;
+                readonly 'no-change': import("@omne-harness/public-contract").Codec<{
+                    readonly recipients: readonly ({
+                        readonly kind: "person";
+                    } | {
+                        readonly kind: "agent";
+                        readonly ref: string;
+                    })[];
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{
+                    readonly reason: "invalid-subject" | "naming-not-allowed" | "recipient-not-admissible" | "request" | "standing-type" | "too-large" | "unknown-event-type";
+                }>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{
+                    readonly reason: "different-content";
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: 'login';
+            readonly effect: 'commit';
+            readonly countsAsAccess: true;
+            readonly limit: "input";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly body: string;
+                readonly event: string;
+                readonly locator: {
+                    readonly kind: string;
+                    readonly ref: string;
+                } | null;
+                readonly named: readonly ({
+                    readonly kind: "person";
+                } | {
+                    readonly kind: "agent";
+                    readonly ref: string;
+                })[];
+                readonly renotify: boolean;
+                readonly replaceKey: string | null;
+                readonly source: string;
+                readonly subject: string | null;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+                readonly title: string;
+                readonly type: string;
+            }>;
+        };
         readonly 'list-inbox': {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{

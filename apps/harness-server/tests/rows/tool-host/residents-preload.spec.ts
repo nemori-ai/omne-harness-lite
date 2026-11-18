@@ -22,6 +22,7 @@ const CODING = [
   'BkgToolCalls',
   'Calendar',
   'Files',
+  'Notifications',
   'Schedules',
   'Shell',
   'Skills',

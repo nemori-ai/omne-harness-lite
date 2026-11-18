@@ -4,6 +4,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { expect, it } from 'vitest'
 import {
   notificationCatalogKey,
+  notificationChangesKey,
   notificationChannelsKey,
   notificationDestinationsKey,
   notificationInboxKey,
@@ -42,6 +43,7 @@ const KEYS = [
   notificationCatalogKey,
   notificationSourcesKey,
   notificationChannelsKey,
+  notificationChangesKey,
 ]
 
 async function configuration(world: Awaited<ReturnType<typeof openSqlWorld>>) {
@@ -61,12 +63,19 @@ it('starts when the storage is there, binds every face and extension point, and 
     await local.await()
     for (const key of KEYS) expect(ctx.get(key)).toBeDefined()
 
+    const heard: unknown[] = []
+    const unsubscribe = ctx.get(notificationChangesKey)?.subscribe({
+      changed: change => void heard.push(change),
+      closed: () => void heard.push('closed'),
+    })
     const contributor = ctx.inject([notificationSourcesKey, notificationSendingKey], child => {
       child.effect(() => child.notificationSources.register(builds), 'demo-builds-source')
     })
     await contributor.await()
     const sending = ctx.get(notificationSendingKey)
+    expect(heard).toEqual([{ kind: 'catalog' }])
     expect(await sending?.send(owner(), request('b1'))).toMatchObject({ kind: 'done' })
+    expect(heard).toContainEqual({ kind: 'inbox', tenant: T1, recipient: null })
     await contributor.dispose()
     expect(ctx.get(notificationSourcesKey)?.lookup(builds.name)).toEqual({ kind: 'absent' })
     expect(await sending?.send(owner(), request('b2'))).toEqual({ kind: 'basis-unavailable' })
@@ -76,6 +85,8 @@ it('starts when the storage is there, binds every face and extension point, and 
     })
 
     await local.dispose()
+    expect(heard.at(-1)).toBe('closed')
+    unsubscribe?.()
     for (const key of KEYS) expect(ctx.get(key)).toBeUndefined()
     expect(await sending?.send(owner(), request('b1'))).toEqual({ kind: 'basis-unavailable' })
   } finally {

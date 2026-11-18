@@ -61,7 +61,7 @@ describe('the inbox page', () => {
     expect(screen.queryByText('正在读取……')).toBeNull()
   })
 
-  it('lists what is unresolved, newest first, with source, level and state', async () => {
+  it('lists what is unresolved, newest first, with source, event type, level and state', async () => {
     await shown([
       entry('e1', 1, { level: 'strong' }),
       entry('e2', 2, { marks: seen, source: 'agent.posts' }),
@@ -74,9 +74,9 @@ describe('the inbox page', () => {
       'Title e1',
     ])
     const meta = (row: HTMLElement) => row.querySelector('.notification-meta')!.textContent
-    expect(meta(rows[0]!)).toMatch(/^agent\.posts · 弱提醒 · \S.*[^l]$/)
+    expect(meta(rows[0]!)).toMatch(/^agent\.posts · changed · 弱提醒 · \S.*[^l]$/)
     expect(meta(rows[0]!)).not.toMatch(/未读|null|undefined/)
-    expect(meta(rows[1]!)).toMatch(/^demo\.things · 强提醒 · .* · 未读$/)
+    expect(meta(rows[1]!)).toMatch(/^demo\.things · changed · 强提醒 · .* · 未读$/)
     expect(screen.queryByRole('region', { name: '已了结' })).toBeNull()
     for (const role of ['alert', 'status']) expect(screen.queryByRole(role)).toBeNull()
     expect(screen.queryByText(/读不出|没有列全|没有未了结的通知|收件箱是空的/)).toBeNull()
@@ -192,10 +192,36 @@ describe('the inbox page', () => {
     expect(row.getByText(/Line one/).textContent).toBe('Line one\nLine two')
     expect(row.getByText('对象：repo/a')).toBeTruthy()
     expect(row.getByText('去处：session s-1')).toBeTruthy()
+    expect(row.getByText('缘由：这类事件缺省发给你')).toBeTruthy()
     expect(screen.queryByText(/未读/)).toBeNull()
     await click(title)
     expect(screen.queryByText(/Line one/)).toBeNull()
     expect(title.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it.each([
+    ['named', { kind: 'named' }, '缘由：点名发给你'],
+    [
+      'a subscription to everything',
+      { kind: 'subscription', scope: { kind: 'all' }, note: null },
+      '缘由：命中了你的订阅（这一类的全部）',
+    ],
+    [
+      'a subscription to one subject, with its note',
+      { kind: 'subscription', scope: { kind: 'subject', equals: 'repo/a' }, note: '失败了叫我' },
+      '缘由：命中了你的订阅（对象是 repo/a）。备注：失败了叫我',
+    ],
+    [
+      'a subscription to a subject prefix',
+      { kind: 'subscription', scope: { kind: 'subject-prefix', prefix: 'repo/' }, note: null },
+      '缘由：命中了你的订阅（对象以 repo/ 开头）',
+    ],
+  ] as const)('says why a notification came: %s', async (_label, cause, text) => {
+    const item = entry('e1', 1, { marks: seen, cause })
+    const { fake } = await shown([item])
+    await click(screen.getByRole('button', { name: 'Title e1' }))
+    await answer(fake, 'read-notification', { outcome: 'succeeded', body: view(item) })
+    expect(rowOf('Title e1').getByText(text)).toBeTruthy()
   })
 
   /** A title holds no instant: an instant has no JSON form, and a reporter writes titles as JSON. */
@@ -214,6 +240,7 @@ describe('the inbox page', () => {
     expect(rowOf('Title e1').getByText(text)).toBeTruthy()
     expect(screen.queryByText(/^对象：/)).toBeNull()
     expect(screen.queryByText(/^去处：/)).toBeNull()
+    if (text !== '这一条没有正文。') expect(screen.queryByText(/^缘由：/)).toBeNull()
   })
 
   it('switches to everything and back, and reads again each time', async () => {

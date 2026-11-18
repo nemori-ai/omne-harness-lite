@@ -30,6 +30,7 @@ async function mount(present: boolean) {
       },
       faces: () => (present ? w.real : undefined),
       changes: () => (present ? w.feed : undefined),
+      now: () => w.clock.now(),
     }),
   )
   const registry = root.get('accessRegistry') as unknown as RecordingRegistry

@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {
   NotificationCatalog,
+  NotificationChangeFeed,
   NotificationDestinations,
   NotificationInbox,
   NotificationSending,
@@ -9,6 +10,7 @@ import type {
 import type { NotificationChannels, NotificationSources } from '@omne-harness/notification'
 import {
   NotificationCatalogService,
+  NotificationChangesService,
   NotificationChannelsService,
   NotificationDestinationsService,
   NotificationInboxService,
@@ -105,6 +107,14 @@ class LocalChannels extends NotificationChannelsService {
   }
 }
 
+class LocalChanges extends NotificationChangesService {
+  readonly subscribe: NotificationChangeFeed['subscribe']
+  constructor(ctx: Context, feed: NotificationChangeFeed) {
+    super(ctx)
+    this.subscribe = feed.subscribe
+  }
+}
+
 export function createNotificationLocalPlugin() {
   return {
     name: 'notification-local',
@@ -123,6 +133,7 @@ export function createNotificationLocalPlugin() {
           ctx.plugin(LocalCatalog, application.catalog),
           ctx.plugin(LocalSources, application.sources),
           ctx.plugin(LocalChannels, application.channels),
+          ctx.plugin(LocalChanges, application.changes),
         ]
         ctx.effect(() => () => application.close(), 'notification-local-drain')
         await Promise.all(bound.map(fiber => fiber.await()))

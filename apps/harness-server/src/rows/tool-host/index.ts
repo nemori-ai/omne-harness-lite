@@ -36,6 +36,7 @@ export const toolHostConfig = z
         Skills: z.strictObject({ resultMaxBytes: positive }).optional(),
         Calendar: z.strictObject({ resultMaxBytes: positive }).optional(),
         Schedules: z.strictObject({ resultMaxBytes: positive }).optional(),
+        Notifications: z.strictObject({ resultMaxBytes: positive }).optional(),
         Tools: z
           .strictObject({
             resultMaxBytes: positive,

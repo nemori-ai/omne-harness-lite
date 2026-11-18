@@ -553,7 +553,14 @@ export type ReleaseTreeOptions = Readonly<{
   beforeRun?: (run: number, storageRoot: string) => Promise<void>
   /** The operator's values for the settings release tools declare, by tool name and item id. */
   toolSettings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
+  /** Rows left out of the release, together with the operator's values for them. */
+  withoutRows?: readonly string[]
 }>
+
+function withoutRows<T>(layered: T, key: 'rows' | 'ops', left: readonly string[] = []): T {
+  const list = (layered as Record<string, readonly { id: string }[]>)[key] ?? []
+  return { ...layered, [key]: list.filter(entry => !left.includes(entry.id)) }
+}
 
 export async function onReleaseTree(
   options: ReleaseTreeOptions,
@@ -656,24 +663,32 @@ async function serveOnce(
       : object,
   )
   const finished = runServe({
-    distribution: releaseDistribution(options),
-    operator: withToolSettings(
-      withObservationPolicy(
-        withAgentWaitInterval(
-          withQueueCapacity(
-            withHistoryKinds(
-              withCompaction(
-                operatorLayer({ storageRoot: dir.storageRoot, port, modelRoute: state.modelRoute }),
-                options,
+    distribution: withoutRows(releaseDistribution(options), 'rows', options.withoutRows),
+    operator: withoutRows(
+      withToolSettings(
+        withObservationPolicy(
+          withAgentWaitInterval(
+            withQueueCapacity(
+              withHistoryKinds(
+                withCompaction(
+                  operatorLayer({
+                    storageRoot: dir.storageRoot,
+                    port,
+                    modelRoute: state.modelRoute,
+                  }),
+                  options,
+                ),
+                options.extraHistoryKinds,
               ),
-              options.extraHistoryKinds,
+              options.queueCapacity,
             ),
-            options.queueCapacity,
           ),
+          options.observationPolicy,
         ),
-        options.observationPolicy,
+        options.toolSettings,
       ),
-      options.toolSettings,
+      'ops',
+      options.withoutRows,
     ),
     plugins: {
       ...cordis,
