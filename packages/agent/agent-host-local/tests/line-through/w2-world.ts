@@ -145,6 +145,8 @@ export type ToolStep = Readonly<{
   content: readonly ContentBlock[]
   delayMs?: number
   hold?: Promise<unknown>
+  /** The call moves to the background: its placeholder is pushed first, its result after `hold`. */
+  background?: true
 }>
 export type ToolScript = (index: number, request: ToolInvokeRequest) => ToolStep
 
@@ -654,6 +656,33 @@ export async function openW2World(options: W2Options) {
     const definedDelay = step.delayMs ?? delay
     const actualStart = performance.now()
     await sleep(definedDelay)
+    const pushed = async (delivery: ToolDelivery<ContentBlock>) => {
+      let answer: Awaited<ReturnType<typeof toolReceiver.push>> | null = null
+      for (let attempt = 0; attempt < 200; attempt += 1) {
+        answer = await toolReceiver.push({
+          access: agentAccess,
+          delivery,
+          signal: new AbortController().signal,
+        })
+        if ('ok' in answer) break
+        await sleep(20)
+      }
+      return answer
+    }
+    if (step.background === true) {
+      const placed = await pushed({
+        kind: 'placeholder',
+        key: { kind: 'placeholder', producer: 'tool', reference },
+        consumer: request.consumer,
+        delivery: ok(decodeToolDeliveryId(`placeholder-w2-${index}`)),
+        source: { kind: 'launched' },
+        label: { intent: 'wait', tool: 'read_file', command: null, preview: '' },
+        evidence: evidenceOf(`w2/tool/placeholder/${index}`),
+      })
+      if (placed === null || !('ok' in placed))
+        throw new Error(`the placeholder was not saved: ${JSON.stringify(placed)}`)
+      afterSave()
+    }
     if (step.hold !== undefined) await step.hold
     const delivery: ToolDelivery<ContentBlock> = {
       kind: 'result',
@@ -678,16 +707,7 @@ export async function openW2World(options: W2Options) {
       },
       account: null,
     }
-    let answer: Awaited<ReturnType<typeof toolReceiver.push>> | null = null
-    for (let attempt = 0; attempt < 200; attempt += 1) {
-      answer = await toolReceiver.push({
-        access: agentAccess,
-        delivery,
-        signal: new AbortController().signal,
-      })
-      if ('ok' in answer) break
-      await sleep(20)
-    }
+    const answer = await pushed(delivery)
     if (answer !== null && 'ok' in answer) {
       counters.receive('tool')
       afterSave()

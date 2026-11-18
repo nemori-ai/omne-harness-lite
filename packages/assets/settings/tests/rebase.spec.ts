@@ -49,7 +49,12 @@ const command = {
   protocol: 'settings-rebase/1',
   requestId: 'r',
   operationId: 'o',
-  target: { policyId: 'independent', targetRef: 'service', scopeRef: 'tenant' },
+  target: {
+    kind: 'independent',
+    providerId: 'service',
+    definitionId: 'preferences',
+    scopeRef: 'tenant',
+  },
   from: previousDefinition,
   to: nextDefinition,
   expectedRevision: 1,

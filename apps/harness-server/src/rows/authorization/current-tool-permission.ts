@@ -80,7 +80,6 @@ export function agentPermissionOperation(
 type Decision = Exclude<AdmissionDecision, { kind: 'need-decision' }>
 /** The gate that asks, and the revision of its verdict: what a release for the session rests on. */
 export type AskedGate = Readonly<{ capabilityId: string; enforcementKey: string; basis: string }>
-/** Asking is not a decision of the gate: only the Agent's admission turns it into a card. */
 export type ToolPermissionDecision =
   | (Extract<Decision, { kind: 'allow' }> &
       Readonly<{
@@ -184,7 +183,6 @@ export const onceTarget = (definition: Adoption): string => canonicalText(defini
 const sameConsumer = (a: AuthorizationConsumer, b: AuthorizationConsumer | null): boolean =>
   b !== null && a.owner === b.owner && a.work === b.work && a.position === b.position
 
-// A once authorization counts for exactly the action it names: its place, target and arguments.
 function onceAuthorizationFor(
   input: ToolPermissionAction,
   { authorizations = null, consumer = null }: CurrentPermissionRead,

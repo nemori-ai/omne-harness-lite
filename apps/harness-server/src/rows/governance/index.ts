@@ -13,9 +13,10 @@ import {
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { fail } from '@omne-harness/operation-result'
 import { GovernanceIdSchema } from '@omne-harness/governance-contract'
-import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
+import { assetCategoriesKey, independentSettingsKey } from '@omne-harness/assets-cordis-contract'
+import { IndependentSettingsService } from '@omne-harness/assets-cordis-contract/cordis'
 import { toolCategoryDisplay } from '@omne-harness/tool-contract'
-import { createSettingsRegistry } from '@omne-harness/settings'
+import { createIndependentSettingsPoint, createSettingsRegistry } from '@omne-harness/settings'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { toolContributionAuthorityKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { defineRow } from '../../row.ts'
@@ -33,9 +34,12 @@ import {
 import { createToolGovernanceDefinitionSource } from './tool-definition-source.ts'
 import { prepareInstalledTenantGovernance } from './tenant-installation.ts'
 import { createToolAssetCategory } from './tool-assets.ts'
-import { PREFERENCE_SETTINGS, preferenceCategory } from './preference-settings.ts'
-import { preferenceSettingsKey, providePreferenceSettings } from './preference-settings-service.ts'
+import {
+  provideTenantIndependentSettings,
+  tenantIndependentSettingsKey,
+} from './independent-settings-service.ts'
 import { TenantGovernanceHost } from './tenant-host.ts'
+import { tenantAssetsKey } from '../tenant-assets/service.ts'
 import { tenantDomainRegistrationKey } from './tenant-domain-registration-service.ts'
 import { openOrganizationSettingsSources } from './organization-settings.ts'
 import { permissionOriginsOf } from './permission-origins.ts'
@@ -95,7 +99,8 @@ export const governanceRow = defineRow({
       standingDestinationResolverKey,
       currentToolPermissionKey,
       tenantSettingsKey,
-      preferenceSettingsKey,
+      independentSettingsKey,
+      tenantIndependentSettingsKey,
     ],
     injects: [
       storageKey,
@@ -108,6 +113,7 @@ export const governanceRow = defineRow({
       governanceInstallationPrincipalsKey,
       toolContributionAuthorityKey,
       assetCategoriesKey,
+      tenantAssetsKey,
     ],
     sameProviderGroup: null,
   },
@@ -121,7 +127,6 @@ export const governanceRow = defineRow({
       contract: createToolAssetCategory(release),
       display: toolCategoryDisplay,
     })
-    ctx.assetCategories.contribute(preferenceCategory)
     const categories = ctx.assetCategories.view
     const registry = createSettingsRegistry({ capacity: 1024 })
     ctx.effect(() => () => registry.close(), 'governance.settings-registry.close')
@@ -129,9 +134,8 @@ export const governanceRow = defineRow({
       for (const definition of entry.governance.declaration.settings)
         if (registry.registerContribution(definition).kind !== 'registered')
           throw new Error('governance Settings definition registration failed')
-    for (const definition of PREFERENCE_SETTINGS)
-      if (registry.registerContribution(definition).kind !== 'registered')
-        throw new Error('governance preference Settings definition registration failed')
+    const independent = createIndependentSettingsPoint(registry)
+    new IndependentSettingsService(ctx, independent)
     const identity = {
       verifier: ctx.principalVerifier,
       standing: ctx.tenantStanding,
@@ -171,6 +175,8 @@ export const governanceRow = defineRow({
           login: () => ctx.identityGovernance,
           release,
           categories,
+          tenantAssets: () => ctx.tenantAssets.open(tenantRef),
+          independentSettings: () => independent.list(),
           permissionOrigins: () => permissionOriginsOf(ctx),
           permissionDeclarations: () => permissionDeclarationsOf(ctx),
           organizationTargets: sources.targets,
@@ -220,7 +226,7 @@ export const governanceRow = defineRow({
       },
       'governance.tenant-settings.active',
     )
-    providePreferenceSettings(ctx, { host, deploymentRef: config.deploymentId })
+    provideTenantIndependentSettings(ctx, { host, deploymentRef: config.deploymentId })
     provideTenantSettings(ctx, {
       host,
       scope: config,

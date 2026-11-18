@@ -35,6 +35,7 @@ import {
   type ParticipationKind,
   type ProducerCall,
   type Ref,
+  type ResultKey,
   type ResultStage,
 } from './facts.ts'
 
@@ -296,7 +297,7 @@ export type ExecutionView = Readonly<{
   adopted: RequestView | null
   voided: readonly VoidedView[]
   intents: ReadonlyMap<ActionId, IntentView>
-  results: ReadonlyMap<ConsumptionId, ResultView>
+  results: ReadonlyMap<ResultKey, ResultView>
   /** The placeholder a call that went to the background delivered; at most one per call. */
   placeholders: ReadonlyMap<ConsumptionId, ReceivedView>
   admissions: readonly AdmissionView[]

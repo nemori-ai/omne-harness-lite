@@ -23,6 +23,7 @@ const unreadableTenant: CategoryGovernance = {
   getSnapshot: () => UNREADABLE_TENANT,
   read: nothing,
   set: nothing,
+  setValue: nothing,
   setSecret: nothing,
   clear: nothing,
   confirm: nothing,

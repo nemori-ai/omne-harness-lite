@@ -2,7 +2,7 @@ import type { OperationBinding } from './schema.ts'
 import { operationKey } from './encoding.ts'
 
 export function terminalKey(
-  binding: Pick<OperationBinding, 'principalRef' | 'target' | 'operationId'>,
+  binding: Pick<OperationBinding, 'principalRef' | 'subject' | 'operationId'>,
 ) {
-  return operationKey(binding.principalRef, binding.target, binding.operationId)
+  return operationKey(binding.principalRef, binding.subject, binding.operationId)
 }

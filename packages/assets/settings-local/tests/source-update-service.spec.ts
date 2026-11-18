@@ -1,4 +1,5 @@
 import { afterEach, expect, it } from 'vitest'
+import { targetSortKey } from '@omne-harness/settings'
 import { combinationManifest, manifestDigest } from '@omne-harness/sql-contract'
 import { createStandaloneSettingsOwner } from '../src/index.ts'
 import { createSettingsSourceReservations, type SettingsSourceRequest } from '../src/preparation.ts'
@@ -53,7 +54,7 @@ async function open() {
     expect(
       await owner.mutate({
         kind: 'provision',
-        operationId: `provision-${selected.target.targetRef}`,
+        operationId: `provision-${targetSortKey(selected.target).at(-1)}`,
         expectedRevision: null,
         record: {
           target: selected.target,
@@ -168,7 +169,7 @@ it('keeps the original source update pending instead of sealing it while a desti
 
 it('recovers only the selected source and leaves another source able to commit', async () => {
   const w = await open()
-  const other = { ...w.source, target: { ...w.source.target, targetRef: 'unrelated-source' } }
+  const other = { ...w.source, target: { ...w.source.target, definitionId: 'unrelated-source' } }
   await w.provision(other)
   const target2 = await w.connect(other)
   const first = await w.target.service.prepareChange(w.target.context, w.target.command)

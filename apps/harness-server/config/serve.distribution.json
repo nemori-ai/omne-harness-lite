@@ -101,6 +101,11 @@
       "config": {}
     },
     {
+      "id": "tenant-assets",
+      "plugin": "tenantAssetsRow",
+      "config": {}
+    },
+    {
       "id": "governance",
       "plugin": "governanceRow",
       "config": {

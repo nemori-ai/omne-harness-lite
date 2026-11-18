@@ -207,7 +207,7 @@ for (const [name, change] of [
     'other selected capture',
     f => (f['governance.selected-definition'].binding.captureId = 'other'),
   ],
-  ['other target', f => (f['assets.current-publication'].views[0].target.targetRef = 'other')],
+  ['other target', f => (f['assets.current-publication'].views[0].target.holdingRef = 'other')],
   [
     'other release version',
     f => (f['assets.current-publication'].views[0].publicationRef.version = 'other'),

@@ -23,7 +23,7 @@ export function projectStandaloneSettingsRecord(
 }
 
 export function isIndependentTargetInDomain(domain: DomainRef, target: SettingsTarget) {
-  if (target.policyId !== 'independent') return false
+  if (target.kind !== 'independent') return false
   return domain.scope.kind === 'tenant'
     ? target.scopeRef === domain.scope.tenant
     : domain.transactionDomain === 'system.settings' && organizationCodec.parse(target.scopeRef).ok

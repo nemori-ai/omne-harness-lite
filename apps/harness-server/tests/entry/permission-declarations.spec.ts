@@ -11,11 +11,11 @@ it('a released tool declares its permission under its preinstalled settings targ
   expect(declaration).toEqual({
     asset,
     governance,
-    targetRef: 'harness.preinstalled.tool.Shell',
+    holdingRef: 'harness.preinstalled.tool.Shell',
   })
   expect(declarationTarget(declaration, 'tenant-1')).toEqual({
-    policyId: 'asset',
+    kind: 'asset',
     scopeRef: 'tenant-1',
-    targetRef: 'harness.preinstalled.tool.Shell',
+    holdingRef: 'harness.preinstalled.tool.Shell',
   })
 })

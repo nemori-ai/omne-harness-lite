@@ -1,11 +1,11 @@
 // @module-tag slow
 // Opens a real sqlite store with its worker threads and publishes packages to disk.
 import {
+  cpSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   realpathSync,
-  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
@@ -22,7 +22,7 @@ import {
 import { skillBodyContract, skillCategoryDisplay } from '@omne-harness/skill-contract'
 import { toolBodyContract, toolCategoryDisplay } from '@omne-harness/tool-contract'
 import type { DomainRef, TenantDomainLookup } from '@omne-harness/sql-contract'
-import { assetsSettingsProjectionCommand } from '@omne-harness/assets-local'
+import { assetsSettingsProjectionCommand, createTenantPublisher } from '@omne-harness/assets-local'
 import { SettingsOwnerProjectionSchema } from '@omne-harness/settings-local'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
@@ -33,19 +33,23 @@ import {
   sessionWorkIssuerOf,
 } from '../../../src/entry/principals.ts'
 import {
-  domainRoot,
-  openTenantSkills,
   routedSkills,
+  tenantSkills,
   TenantSkillsHost,
 } from '../../../src/rows/skills/tenant-skills.ts'
+import {
+  domainRoot,
+  openTenantAssets,
+  TenantAssetsHost,
+} from '../../../src/rows/tenant-assets/host.ts'
 import { createBoundSkills } from '../../../src/rows/tool-bindings/skills.ts'
 import { productionStorageCatalog } from '../../../src/rows/storage/production-catalog.ts'
 import { governanceStorageCombinations } from '../../../src/rows/governance/storage-combinations.ts'
 import { governedCapture } from '../../../src/rows/governance/governed-capture.ts'
-import { preferenceCategory } from '../../../src/rows/governance/preference-settings.ts'
 import { fixtureEnv, fixtureTenant, okOf } from '../../entry/support.ts'
 import { providerConfig } from '../storage/fixtures/tree.ts'
 import {
+  directoryReader,
   openSkillPublisher,
   publishSkill,
   SAMPLE_LINE,
@@ -108,12 +112,18 @@ async function world() {
     contract: modelProviderBodyContract(),
     display: modelProviderCategoryDisplay,
   })
-  categories.contribute(preferenceCategory)
   categories.contribute({ contract: skillBodyContract(), display: skillCategoryDisplay })
-  const store = { storage: made.storage, materials, packageRoot, ranking, categories }
-  const host = new TenantSkillsHost({
+  const store = { storage: made.storage, materials, packageRoot, categories }
+  const tenantAssets = new TenantAssetsHost({
     domains: lookup,
-    open: (tenant, domain) => openTenantSkills(store, tenant, domain),
+    open: domain => openTenantAssets(store, domain),
+  })
+  cleanups.push(() => tenantAssets.close())
+  const host = new TenantSkillsHost({
+    async open(tenant, tenantRef) {
+      const assets = await tenantAssets.open(tenantRef)
+      return assets === undefined ? undefined : tenantSkills(assets, tenant, ranking)
+    },
   })
   cleanups.push(() => host.close())
   const routed = routedSkills(host)
@@ -187,6 +197,21 @@ async function world() {
         await publisher.close()
       }
     },
+    async publishThroughTenantAssets(name: string) {
+      const dir = await writeSampleSkill(join(root, 'sources', name), name)
+      const encoded = tenantCodec.encode(alpha)
+      if (!encoded.ok) throw new Error('tenant')
+      const tenantRef = encoded.value
+      const assets = await tenantAssets.open(tenantRef)
+      if (assets === undefined) throw new Error('the local assets of alpha did not open')
+      const made = capabilityId('skill', name)
+      if (!made.ok) throw new Error('capability')
+      return createTenantPublisher(assets, tenantRef).publish({
+        operationId: `publish-${name}`,
+        capability: made.id,
+        content: { kind: 'directory', from: directoryReader(dir) },
+      })
+    },
     host,
     storage: made,
     lookups: () => lookups,
@@ -203,26 +228,35 @@ const search = (skills: SkillsAccess, query: string) =>
   skills.search({ query, after: null, limit: 10 }, signal)
 
 describe('the skills row and the Skills binding over a real store', () => {
-  it('finishes a publish that stopped after recording its version when the tenant set opens', async () => {
+  it('publishes a Skill directory into the one local assets of the tenant, and Skills reads it', async () => {
     const w = await world()
-    const version = await w.publish('weekly-report')
+    expect(await w.publishThroughTenantAssets('weekly-report')).toMatchObject({
+      kind: 'published',
+      holdingRef: 'skill/weekly-report',
+      changed: true,
+    })
+    expect(await search(w.alpha, '出周报')).toMatchObject({
+      ok: { entries: [{ kind: 'available', name: 'weekly-report' }] },
+    })
+    const body = await w.alpha.read({ skill: 'weekly-report', offset: 0, maxBytes: 65536 }, signal)
+    expect(body).toMatchObject({ ok: { text: expect.stringContaining('scripts/collect.mjs') } })
+  })
+
+  it('cleans what an interrupted publish left when the tenant set opens, and keeps what was recorded', async () => {
+    const w = await world()
+    await w.publish('weekly-report')
     const versions = join(w.alphaRoot, 'skills', 'weekly-report')
     const [placed] = readdirSync(versions)
     if (placed === undefined) throw new Error('no version directory')
-    const staging = join(w.alphaRoot, '.staging', 'interrupted')
+    const unrecorded = join(versions, `sha256-${'0'.repeat(64)}`)
+    cpSync(join(versions, placed), unrecorded, { recursive: true })
+    const staging = join(w.alphaRoot, '.staging', 'interrupted', 'files')
     mkdirSync(staging, { recursive: true })
-    renameSync(join(versions, placed), join(staging, 'files'))
-    writeFileSync(
-      join(staging, 'meta.json'),
-      JSON.stringify({
-        category: 'skill',
-        name: 'weekly-report',
-        assetRef: 'tenant/skill/weekly-report',
-        version,
-      }),
-    )
+    writeFileSync(join(staging, 'SKILL.md'), 'half')
     const body = await w.alpha.read({ skill: 'weekly-report', offset: 0, maxBytes: 65536 }, signal)
     expect(body).toMatchObject({ ok: { directory: join(versions, placed) } })
+    expect(readdirSync(versions)).toEqual([placed])
+    expect(readdirSync(join(w.alphaRoot, '.staging'))).toEqual([])
   })
 
   it('gives a principal that is not session work of the tenant neither the Skill nor its content', async () => {
@@ -368,7 +402,7 @@ describe('the skills row and the Skills binding over a real store', () => {
 
   it('leaves the governance capture of a tenant domain unchanged by a published Skill', async () => {
     const w = await world()
-    expect(w.governed().excluded).toEqual(['preference', 'skill'])
+    expect(w.governed().excluded).toEqual(['skill'])
     await w.publish('placeholder-skill')
     const before = await w.capture(w.governed().excluded)
     await w.publish('weekly-report')

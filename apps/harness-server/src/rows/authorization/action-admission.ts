@@ -47,7 +47,6 @@ type Readers = Readonly<{
   readAuthorizations?: () => AuthorizationWriter | undefined
   readPermission: ToolPermissionReader
   readResolution: ResolutionReader
-  /** Absent when no labeling is installed: an action a person must release then waits. */
   readLabeling?: () => ToolCallLabeling | undefined
 }>
 
@@ -170,7 +169,6 @@ async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecis
 type Granting = Extract<AnswerEffect, { kind: 'grant' }>
 type Scoped = Readonly<{ scope: AuthorizationExpression['scope'] }>
 
-// What the person released: this very action, or its gate for the session as the gate stands now.
 async function scopeOf(
   judging: Judging,
   gate: Judged,

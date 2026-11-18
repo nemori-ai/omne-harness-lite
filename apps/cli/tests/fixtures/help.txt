@@ -45,7 +45,7 @@ Commands
   omne query-own-valid-logins                                                                                        List the valid logins of this account.
   omne calendar list|environment|day|count|shift|next|nth                                                            Ask a date question on the calendar your settings choose: list the calendars, read the one in effect, or classify, count, shift and list working days.
   omne schedule list|show|history|agenda|preview|create|<action>                                                     Read, preview and create the schedules of the acting tenant, or change one by an action: rename, edit, revise, replace, promote, pause, resume, stop or discard.
-  omne setting list|set|show|unset                                                                                   List the settings of the acting tenant, or set, show or unset one; set reads a secret from the prompt, or takes --value <JSON>.
+  omne setting list|set|show|unset [--independent]                                                                   List the asset settings of the acting tenant, or with --independent its independent settings (named <provider>/<definition>); set, show or unset one; set reads a secret from the prompt, or takes --value <JSON>.
 
   --home <directory>    State directory. Overrides OMNE_HOME.
   OMNE_HOME             State directory when --home is absent.

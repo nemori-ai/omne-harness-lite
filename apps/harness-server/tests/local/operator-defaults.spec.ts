@@ -217,17 +217,19 @@ describe('localOperatorLayer over the bundled distribution', () => {
     })
   })
 
-  it('gives the skills row the assets root of the state and the shared search parameters, only when the release has the row', () => {
-    expect(configOf(layer, 'skills')).toEqual({
+  it('gives the tenant-assets row the assets root of the state and the skills row the shared search parameters, only when the release has the rows', () => {
+    expect(configOf(layer, 'tenant-assets')).toEqual({
       packageRoot: input('linux').locations.assetsRoot,
-      ranking: SEARCH_RANKING,
     })
+    expect(configOf(layer, 'skills')).toEqual({ ranking: SEARCH_RANKING })
     const without = localOperatorLayer({
       ...input('linux'),
       distribution: { rows: [{ id: 'session-handoff', config: { combinationVersion: 'v' } }] },
     })
     expect(without.ops.map(op => op.id)).toEqual(
-      layer.ops.map(op => op.id).filter(id => id !== 'skills' && id !== 'secret-custody'),
+      layer.ops
+        .map(op => op.id)
+        .filter(id => id !== 'tenant-assets' && id !== 'skills' && id !== 'secret-custody'),
     )
   })
 

@@ -106,17 +106,23 @@ export function createWorld(): World {
   }
 }
 
-export const ASSET = { category: 'tool', name: 'shell' } as const
+export const ASSET = { kind: 'asset', category: 'tool', name: 'shell' } as const
+export const INDEPENDENT = {
+  kind: 'independent',
+  providerId: 'calendar',
+  definitionId: 'environment',
+} as const
 const declaration = {
   title: 'Invoke',
   purpose: 'Whether Shell may run',
   appliesAt: 'Applies from the next call.',
   clearEffect: 'The organization value applies.',
+  group: { id: 'shell', title: 'Shell', description: 'Shell settings' },
 }
 
 export const VIEWS = {
   ordinary: {
-    asset: ASSET,
+    owner: ASSET,
     item: 'depth',
     revision: '7',
     declaration,
@@ -129,7 +135,7 @@ export const VIEWS = {
     editable: { kind: 'yes' },
   },
   permission: {
-    asset: ASSET,
+    owner: ASSET,
     item: 'invoke',
     revision: '12',
     declaration,
@@ -146,7 +152,7 @@ export const VIEWS = {
     editable: { kind: 'yes' },
   },
   secret: {
-    asset: { category: 'model', name: 'provider' },
+    owner: { kind: 'asset', category: 'model', name: 'provider' },
     item: 'key',
     revision: '0',
     declaration,

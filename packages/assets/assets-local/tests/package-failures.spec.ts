@@ -100,11 +100,8 @@ function reader(
 
 function records(overrides: Partial<PackageRecords> = {}): PackageRecords {
   return {
-    async publish(input) {
+    async publishAndHold(input) {
       return { kind: 'committed', operationId: input.operationId, revision: 1, changed: true }
-    },
-    async getOperation() {
-      return { kind: 'not_found' }
     },
     async readAssetRevision() {
       return { ok: 0 }
@@ -132,6 +129,7 @@ function setup(
   const root = 'root' in options ? options.root : scratch()
   const packages = createPublishedPackages({
     root,
+    holdingScope: 'tenant-a',
     categories: categories(options.declaration, options.judged),
     records: records(options.records),
     afterStep: options.afterStep,
@@ -143,7 +141,8 @@ const publish = (
   packages: ReturnType<typeof setup>['packages'],
   from: PackageReader = reader(),
   operationId = 'publish-1',
-) => packages.publish({ capability: report, assetRef: 'tenant/report', from, operationId })
+) =>
+  packages.publish({ capability: report, from, operationId, holding: { sources: [], grants: [] } })
 
 const placeOf = (root: string, version = VERSION) =>
   join(root, 'bundles', 'report', versionDirectoryName(version))
@@ -298,12 +297,15 @@ describe('publish while it stages and records', () => {
     })
   })
 
-  it('an unknown record answers unknown and keeps the staging', async () => {
+  it('an unknown record answers unknown; the swapped version directory stays for the recovery scan', async () => {
     const { root, packages } = setup({
-      records: { publish: async input => ({ kind: 'unknown', operationId: input.operationId }) },
+      records: {
+        publishAndHold: async input => ({ kind: 'unknown', operationId: input.operationId }),
+      },
     })
     expect(await publish(packages)).toEqual({ kind: 'unknown', operationId: 'publish-1' })
-    expect(stagingOf(root)).toHaveLength(1)
+    expect(stagingOf(root)).toEqual([])
+    expect(existsSync(placeOf(root))).toBe(true)
   })
 
   it.each([
@@ -313,64 +315,69 @@ describe('publish while it stages and records', () => {
       'forbidden',
       { kind: 'rejected', rejection: { kind: 'record-rejected', reason: 'forbidden' } },
     ],
-  ] as const)('a record rejected for %s clears the staging', async (reason, answer) => {
-    const { root, packages } = setup({
-      records: { publish: async () => ({ kind: 'rejected', reason }) },
-    })
-    expect(await publish(packages)).toEqual(answer)
-    expect(stagingOf(root)).toEqual([])
-  })
-})
+  ] as const)(
+    'a record rejected for %s leaves no staging and no record',
+    async (reason, answer) => {
+      const { root, packages } = setup({
+        records: { publishAndHold: async () => ({ kind: 'rejected', reason }) },
+      })
+      expect(await publish(packages)).toEqual(answer)
+      expect(stagingOf(root)).toEqual([])
+    },
+  )
 
-describe('publish of an operation that was asked before', () => {
-  it.each([
-    ['unknown', { kind: 'unknown', operationId: 'publish-1' }],
-    ['rejected for a revision conflict', { kind: 'conflict' }],
-  ] as const)('a receipt that is %s answers as the receipt does', async (_case, answer) => {
-    const receipt =
-      answer.kind === 'unknown'
-        ? ({ kind: 'unknown', operationId: 'publish-1' } as const)
-        : ({ kind: 'rejected', reason: 'revision_conflict' } as const)
-    const { packages } = setup({ records: { getOperation: async () => receipt } })
-    expect(await publish(packages)).toEqual(answer)
-  })
-
-  it('a version record that cannot be read rejects the record', async () => {
+  it('asks the records with the revision read before staging, and with the holding of the capability', async () => {
+    const asked: unknown[] = []
+    let revisionRead = false
     const { packages } = setup({
-      records: { readVersionRecord: async () => ({ failure: 'unavailable' }) },
-    })
-    expect(await publish(packages)).toEqual({
-      kind: 'rejected',
-      rejection: { kind: 'record-rejected', reason: 'unavailable' },
-    })
-  })
-
-  it('a committed receipt with neither files nor its own staging answers unknown', async () => {
-    const { root, packages } = setup({
       records: {
-        getOperation: async () => ({
-          kind: 'committed',
-          operationId: 'publish-1',
-          revision: 1,
-          changed: true,
-        }),
+        async readAssetRevision(assetRef) {
+          revisionRead = true
+          asked.push(assetRef)
+          return { ok: 4 }
+        },
+        async publishAndHold(input) {
+          asked.push(input)
+          return { kind: 'committed', operationId: input.operationId, revision: 5, changed: true }
+        },
+      },
+      afterStep(step) {
+        if (step === 'staged') expect(revisionRead).toBe(true)
       },
     })
-    const decoy = join(root, '.staging', 'decoy')
-    writeTree(join(decoy, 'files'), { 'SKILL.md': 'decoy' })
-    const meta = { category: 'bundle', name: 'report', assetRef: 'tenant/report', version: 'v0' }
-    writeFileSync(join(decoy, 'meta.json'), JSON.stringify(meta))
-    expect(await publish(packages)).toEqual({ kind: 'unknown', operationId: 'publish-1' })
-    expect(existsSync(placeOf(root))).toBe(false)
+    expect(await publish(packages)).toEqual({ kind: 'published', version: VERSION, changed: true })
+    expect(asked[0]).toBe('bundle/report')
+    expect(asked[1]).toMatchObject({
+      operationId: 'publish-1',
+      assetRef: 'bundle/report',
+      expectedRevision: 4,
+      holding: { holdingRef: 'bundle/report', scopeRef: 'tenant-a', sources: [], grants: [] },
+    })
   })
 })
 
 describe('the swap meets a place that is already there', () => {
+  it('a version directory that is already there is the same content: no staging, straight to the commit', async () => {
+    const { root, packages } = setup()
+    writeTree(placeOf(root), FILES)
+    const from = reader(undefined, {
+      open: async () => {
+        throw new Error('staging must not read the files again')
+      },
+    })
+    expect(await publish(packages, from)).toEqual({
+      kind: 'published',
+      version: VERSION,
+      changed: true,
+    })
+    expect(stagingOf(root)).toEqual([])
+  })
+
   it('takes a version directory that another publish put in place first', async () => {
     let root = ''
     const made = setup({
       afterStep(step) {
-        if (step === 'recorded') writeTree(placeOf(root), FILES)
+        if (step === 'staged') writeTree(placeOf(root), FILES)
       },
     })
     root = made.root
@@ -386,7 +393,7 @@ describe('the swap meets a place that is already there', () => {
     let root = ''
     const made = setup({
       afterStep(step) {
-        if (step !== 'recorded') return
+        if (step !== 'staged') return
         mkdirSync(join(placeOf(root), '..'), { recursive: true })
         writeFileSync(placeOf(root), 'not a directory')
       },
@@ -462,46 +469,99 @@ describe('the read port and locate', () => {
 describe('the recovery scan', () => {
   it('finds nothing without a root, or with a root that is not there yet', async () => {
     expect(await setup({ root: undefined }).packages.recover()).toEqual({
-      completed: 0,
       discarded: 0,
       deferred: [],
       mismatched: [],
     })
     const missing = join(scratch(), 'not-yet')
     expect(await setup({ root: missing }).packages.recover()).toEqual({
-      completed: 0,
       discarded: 0,
       deferred: [],
       mismatched: [],
     })
   })
 
-  it('discards a staging without meta.json', async () => {
+  it('discards every staging, whatever is in it', async () => {
     const { root, packages } = setup()
     writeTree(join(root, '.staging', 'half', 'files'), { 'SKILL.md': 'half' })
-    expect(await packages.recover()).toEqual({
-      completed: 0,
-      discarded: 1,
-      deferred: [],
-      mismatched: [],
-    })
+    writeTree(join(root, '.staging', 'whole', 'files'), FILES)
+    expect(await packages.recover()).toEqual({ discarded: 2, deferred: [], mismatched: [] })
     expect(stagingOf(root)).toEqual([])
   })
 
-  it('throws when the record of a staging cannot be read', async () => {
+  it('throws when the record of a version directory cannot be read, and deletes nothing', async () => {
+    const asked: string[] = []
     const { root, packages } = setup({
-      records: { readVersionRecord: async () => ({ failure: 'unavailable' }) },
+      records: {
+        async readVersionRecord(assetRef, version) {
+          asked.push(`${assetRef} ${version}`)
+          return { failure: 'unavailable' }
+        },
+      },
     })
-    const staging = join(root, '.staging', 'one')
-    writeTree(join(staging, 'files'), FILES)
-    const meta = { category: 'bundle', name: 'report', assetRef: 'tenant/report', version: VERSION }
-    writeFileSync(join(staging, 'meta.json'), JSON.stringify(meta))
+    mkdirSync(join(root, 'bundles'), { recursive: true })
+    writeFileSync(join(root, 'bundles', '.category'), 'bundle')
+    writeTree(placeOf(root), FILES)
     await expect(packages.recover()).rejects.toThrow('unavailable')
-    expect(stagingOf(root)).toEqual(['one'])
+    expect(asked).toEqual([`bundle/report ${VERSION}`])
+    expect(existsSync(placeOf(root))).toBe(true)
+  })
+
+  it('never takes a directory whose name is no version for an unrecorded version', async () => {
+    const asked: string[] = []
+    const { root, packages } = setup({
+      records: {
+        async readVersionRecord(_assetRef, version) {
+          asked.push(version)
+          return { ok: undefined }
+        },
+      },
+    })
+    mkdirSync(join(root, 'bundles'), { recursive: true })
+    writeFileSync(join(root, 'bundles', '.category'), 'bundle')
+    const hex = '0'.repeat(64)
+    const names = [
+      'loose',
+      'sha256',
+      'a-b-c',
+      'sha256-0',
+      `sha512-${hex}`,
+      `xsha256-${hex}`,
+      `sha256-${hex}x`,
+    ]
+    for (const name of names) writeTree(join(root, 'bundles', 'report', name), FILES)
+    expect(await packages.recover()).toMatchObject({ discarded: 0, deferred: [] })
+    expect(asked).toEqual([])
+    expect(readdirSync(join(root, 'bundles', 'report')).sort()).toEqual([...names].sort())
+  })
+
+  it('reports each capability of a withdrawn category once in deferred', async () => {
+    const { root, packages } = setup()
+    mkdirSync(join(root, 'gones'), { recursive: true })
+    writeFileSync(join(root, 'gones', '.category'), 'gone')
+    const versions = [`sha256-${'0'.repeat(64)}`, `sha256-${'1'.repeat(64)}`]
+    for (const name of ['first', 'second'])
+      for (const version of versions) writeTree(join(root, 'gones', name, version), FILES)
+    const { deferred, discarded } = await packages.recover()
+    expect(discarded).toBe(0)
+    expect(deferred).toHaveLength(2)
+    expect(deferred).toEqual(expect.arrayContaining([id('gone', 'first'), id('gone', 'second')]))
+    expect(readdirSync(join(root, 'gones', 'first')).sort()).toEqual(versions)
+  })
+
+  it('keeps a recorded version directory and a directory whose name is no version', async () => {
+    const { root, packages } = setup({ records: { readVersionRecord: async () => recordOf() } })
+    mkdirSync(join(root, 'bundles'), { recursive: true })
+    writeFileSync(join(root, 'bundles', '.category'), 'bundle')
+    writeTree(placeOf(root), FILES)
+    writeTree(join(root, 'bundles', 'report', 'loose'), FILES)
+    expect(await packages.recover()).toEqual({ discarded: 0, deferred: [], mismatched: [report] })
+    expect(existsSync(placeOf(root))).toBe(true)
+    expect(existsSync(join(root, 'bundles', 'report', 'loose'))).toBe(true)
   })
 
   it('reports each mismatched identity once and skips what it cannot name', async () => {
-    const { root, packages } = setup()
+    const { root, packages } = setup({ records: { readVersionRecord: async () => recordOf() } })
     mkdirSync(join(root, 'bundles'), { recursive: true })
     writeFileSync(join(root, 'bundles', '.category'), 'bundle')
     writeTree(join(root, 'bundles', 'report', 'sha256-0'), { a: '1' })
@@ -514,6 +574,18 @@ describe('the recovery scan', () => {
     const { mismatched } = await packages.recover()
     expect(mismatched).toHaveLength(2)
     expect(mismatched).toEqual(expect.arrayContaining([report, id('bundle', 'other')]))
+  })
+
+  it('throws when the stagings cannot be listed, and keeps them', async () => {
+    const { root, packages } = setup()
+    writeTree(join(root, '.staging', 'one', 'files'), FILES)
+    chmodSync(join(root, '.staging'), 0o000)
+    try {
+      await expect(packages.recover()).rejects.toThrow()
+    } finally {
+      chmodSync(join(root, '.staging'), 0o755)
+    }
+    expect(stagingOf(root)).toEqual(['one'])
   })
 
   it('throws when the versions of a name cannot be listed', async () => {

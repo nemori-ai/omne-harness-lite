@@ -4,6 +4,7 @@ import { sampleReceivedModelResult } from '@omne-harness/agent-contract/testing'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { evidence } from '@omne-harness/session-contract/testing'
 import { readExecutionInterpretation } from '../src/cordis/agent-journal.ts'
+import { resultKey } from '../src/journal/index.ts'
 import { ok, operation } from './fixtures/common-journal.ts'
 import { sqlScene } from './fixtures/sql-scene.ts'
 
@@ -115,7 +116,7 @@ it('a delivery of a result that has closed is recognized from the store, by a co
         ?.select(`SELECT open FROM er_item WHERE family = '${family}' AND item = '${item}'`)
         .rows.map(row => Number(row[0]))
     // The result is processed and the call is no longer held: result and binding are closed.
-    expect(open('result', result.consumption)).toEqual([0])
+    expect(open('result', resultKey(result.consumption, String(key.result)))).toEqual([0])
     expect(open('binding', key.reference)).toEqual([0])
 
     expect(await commitReceived('again')).toEqual(first)

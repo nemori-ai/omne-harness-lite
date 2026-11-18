@@ -10,7 +10,13 @@ export {
   type SettingResolution,
 } from './evaluation.ts'
 export {
+  AssetTargetSchema,
+  IndependentTargetSchema,
   SettingsTargetSchema,
+  sameTarget,
+  targetSortKey,
+  type AssetTarget,
+  type IndependentTarget,
   SettingsDefinitionRefSchema,
   SettingsActionSchema,
   SettingsChangeSchema,
@@ -38,6 +44,11 @@ export {
   type SettingsRegistrationResult,
   type SettingsRegistrySnapshot,
 } from './registry.ts'
+export {
+  createIndependentSettingsPoint,
+  type IndependentSettingsPoint,
+  type IndependentSettingsView,
+} from './independent-point.ts'
 export { SettingsRebaseSchema, decideSettingsRebase, type SettingsRebase } from './rebase.ts'
 export {
   SettingInputSchema,
@@ -51,6 +62,9 @@ export {
   type SecretState,
   type SettingInput,
   type SettingJson,
+  type SettingListScope,
+  type SettingOwner,
+  type SettingOwnerQuery,
   type SettingView,
   type TenantSettings,
   type TenantSettingsAction,

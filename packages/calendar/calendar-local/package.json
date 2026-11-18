@@ -38,7 +38,8 @@
     "@omne-harness/sql-contract": "workspace:*",
     "canonicalize": "5.1.0",
     "zod": "catalog:",
-    "@omne-harness/settings": "workspace:*"
+    "@omne-harness/settings": "workspace:*",
+    "@omne-harness/assets-cordis-contract": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

@@ -32,7 +32,7 @@ function captureRecords(
         )
         .rows.map(r => StandaloneRecordSchema.parse(JSON.parse(z.string().parse(r[0]))))
     : binding.request.targets
-        .filter(t => t.policyId === 'independent')
+        .filter(t => t.kind === 'independent')
         .map(t => row(port, stateKey(binding.domain.scope, t)))
   if (!enumerate && records.some(r => r === null || r.retired)) return undefined
   return records.filter(r => r !== null).filter(r => !r.retired)

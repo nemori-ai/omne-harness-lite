@@ -12,10 +12,14 @@ import { useId, useState, useSyncExternalStore, type ComponentType, type JSX } f
 import type { CategoryGovernance } from '../model/governance.ts'
 import type { SettingsDriver } from '../model/settings-driver.ts'
 import type { Row } from '../model/settings-machine.ts'
+import { controlOf, type ValueControl } from '../model/value-control.ts'
 import { NoticeLine } from './notice.tsx'
 import { Facts, hasOwn } from './setting-facts.tsx'
 
-type RowActions = Pick<SettingsDriver, 'set' | 'setSecret' | 'clear' | 'confirm' | 'retryRow'>
+type RowActions = Pick<
+  SettingsDriver,
+  'set' | 'setValue' | 'setSecret' | 'clear' | 'confirm' | 'retryRow'
+>
 type Props = { readonly row: Row; readonly driver: RowActions }
 
 export function boundRow(view: CategoryGovernance): ComponentType<{ rowKey: string }> {
@@ -26,7 +30,24 @@ export function boundRow(view: CategoryGovernance): ComponentType<{ rowKey: stri
     return row === undefined ? null : <RowView row={row} driver={view} />
   }
 }
-type Permission = Extract<SettingView, { kind: 'permission' }>
+type Choice = Readonly<{ value: string; label: string; description?: string }>
+
+const NO_CONTROL: ValueControl = { kind: 'none' }
+
+function controlFor(view: SettingView): ValueControl {
+  return view.kind === 'ordinary' ? controlOf(view.valueSchema) : NO_CONTROL
+}
+
+function choicesOf(view: SettingView, control: ValueControl): readonly Choice[] | null {
+  if (view.kind === 'permission') return view.choices
+  return control.kind === 'pick' ? control.values.map(value => ({ value, label: value })) : null
+}
+
+function ownText(view: SettingView): string | null {
+  if (view.kind === 'permission') return view.own
+  if (view.kind !== 'ordinary' || view.own.kind !== 'set') return null
+  return view.own.value.kind === 'string' ? view.own.value.value : null
+}
 
 export function RowView({ row, driver }: Props): JSX.Element {
   const view = row.view
@@ -65,12 +86,14 @@ export function RowView({ row, driver }: Props): JSX.Element {
 }
 
 function Choices({
-  view,
+  title,
+  choices,
   pick,
   onPick,
   busy,
 }: {
-  readonly view: Permission
+  readonly title: string
+  readonly choices: readonly Choice[]
   readonly pick: string | null
   readonly onPick: (value: string) => void
   readonly busy: boolean
@@ -78,17 +101,53 @@ function Choices({
   const group = useId()
   return (
     <fieldset className="assets-setting-choices" disabled={busy}>
-      <legend>{view.declaration.title}：挑一档</legend>
+      <legend>{title}：挑一档</legend>
       <RadioGroup name={group} value={pick ?? ''} onValueChange={onPick} disabled={busy}>
-        {view.choices.map(choice => (
+        {choices.map(choice => (
           <label key={choice.value} className="assets-setting-choice">
-            <RadioGroupItem value={choice.value} />
+            <RadioGroupItem value={choice.value} aria-label={choice.label} />
             <span className="assets-setting-choice-label">{choice.label}</span>
-            <span className="assets-setting-choice-text">{choice.description}</span>
+            {choice.description === undefined ? null : (
+              <span className="assets-setting-choice-text">{choice.description}</span>
+            )}
           </label>
         ))}
       </RadioGroup>
     </fieldset>
+  )
+}
+
+function TextValue({
+  title,
+  own,
+  busy,
+  onSubmit,
+}: {
+  readonly title: string
+  readonly own: string | null
+  readonly busy: boolean
+  readonly onSubmit: (text: string) => void
+}): JSX.Element {
+  const [typed, setTyped] = useState(own ?? '')
+  const unchanged = typed === '' || typed === own
+  return (
+    <form
+      className="assets-setting-value"
+      onSubmit={event => {
+        event.preventDefault()
+        if (!busy && !unchanged) onSubmit(typed)
+      }}
+    >
+      <Input
+        aria-label={`${title}：填一个值`}
+        value={typed}
+        disabled={busy}
+        onChange={event => setTyped(event.target.value)}
+      />
+      <Button type="submit" disabled={busy || unchanged}>
+        设置
+      </Button>
+    </form>
   )
 }
 
@@ -131,33 +190,49 @@ function SecretInput({
 
 function Controls({ row, driver }: Props): JSX.Element | null {
   const view = row.view
-  const [pick, setPick] = useState<string | null>(view.kind === 'permission' ? view.own : null)
+  const own = ownText(view)
+  const control = controlFor(view)
+  const choices = choicesOf(view, control)
+  const [pick, setPick] = useState<string | null>(choices === null ? null : own)
   if (view.editable.kind !== 'yes') return null
+  const title = view.declaration.title
   const busy =
     row.read.kind !== 'read' || row.write.kind === 'submitting' || row.write.kind === 'unknown'
+  const submitPick = (value: string) =>
+    view.kind === 'permission'
+      ? driver.set(row.key, value)
+      : driver.setValue(row.key, { kind: 'string', value })
   return (
     <>
-      {view.kind === 'permission' ? (
-        <Choices view={view} pick={pick} onPick={setPick} busy={busy} />
+      {choices === null ? null : (
+        <Choices title={title} choices={choices} pick={pick} onPick={setPick} busy={busy} />
+      )}
+      {control.kind === 'text' ? (
+        <TextValue
+          title={title}
+          own={own}
+          busy={busy}
+          onSubmit={text => driver.setValue(row.key, { kind: 'string', value: text })}
+        />
       ) : null}
       {view.kind === 'secret' ? (
         <SecretInput
-          title={view.declaration.title}
+          title={title}
           busy={busy}
           onSubmit={secret => driver.setSecret(row.key, secret)}
         />
       ) : null}
       <div className="assets-setting-actions">
-        {view.kind === 'permission' ? (
+        {choices === null ? null : (
           <Button
-            disabled={busy || pick === null || pick === view.own}
+            disabled={busy || pick === null || pick === own}
             onClick={() => {
-              if (pick !== null) driver.set(row.key, pick)
+              if (pick !== null) submitPick(pick)
             }}
           >
             设置
           </Button>
-        ) : null}
+        )}
         <Button
           variant="outline"
           disabled={busy || !hasOwn(view)}

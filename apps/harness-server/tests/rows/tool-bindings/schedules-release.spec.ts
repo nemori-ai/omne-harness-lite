@@ -73,7 +73,8 @@ describe('the Schedules tool on the release tree', () => {
         const set = await tree.cli([
           'setting',
           'set',
-          'preference:schedule',
+          '--independent',
+          'schedule/agent-authoring',
           'agentScheduleConsent',
           '--value',
           '"draft"',

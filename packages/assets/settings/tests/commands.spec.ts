@@ -42,7 +42,12 @@ const command = {
   protocol: 'settings/1',
   requestId: 'r1',
   operationId: 'o1',
-  target: { policyId: 'independent', targetRef: 'service', scopeRef: 'tenant-a' },
+  target: {
+    kind: 'independent',
+    providerId: 'example',
+    definitionId: 'preferences',
+    scopeRef: 'tenant-a',
+  },
   definitionRef,
   expectedRevision: 0,
   sourceId: 'tenant',

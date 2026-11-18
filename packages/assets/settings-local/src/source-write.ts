@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SettingsTargetSchema } from '@omne-harness/settings'
 import type { DomainRef, FactCommandV2 } from '@omne-harness/sql-contract'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { operationBindingSchema } from './schema.ts'
@@ -12,7 +13,7 @@ export const SOURCE_WRITE_FACT = {
 }
 export const sourceWriteBindingSchema = z.strictObject({
   kind: z.literal('target'),
-  operation: operationBindingSchema,
+  operation: operationBindingSchema.extend({ subject: SettingsTargetSchema }),
 })
 export const sourceWriteObservationSchema = z.strictObject({
   kind: z.literal('write'),
@@ -39,7 +40,7 @@ export function sourceTargetWriteBinding(
     operation: {
       domain,
       principalRef: 'capability/settings.targets',
-      target: command.kind === 'provision' ? command.record.target : command.target,
+      subject: command.kind === 'provision' ? command.record.target : command.target,
       operationId: command.operationId,
       commandDigest: digest(command),
     },

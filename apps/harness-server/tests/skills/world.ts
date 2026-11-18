@@ -17,10 +17,11 @@ import {
   sessionWorkIssuerOf,
 } from '../../src/entry/principals.ts'
 import {
-  openTenantSkills,
   routedSkills,
+  tenantSkills,
   TenantSkillsHost,
 } from '../../src/rows/skills/tenant-skills.ts'
+import { openTenantAssets, TenantAssetsHost } from '../../src/rows/tenant-assets/host.ts'
 import { createBoundSkills } from '../../src/rows/tool-bindings/skills.ts'
 import { productionStorageCatalog } from '../../src/rows/storage/production-catalog.ts'
 import { fixtureEnv, fixtureTenant } from '../entry/support.ts'
@@ -93,20 +94,19 @@ export async function skillsWorld(): Promise<SkillsWorld> {
     packageRoot,
   })
   const counter = counted(made.storage)
-  const host = new TenantSkillsHost({
+  const tenantAssets = new TenantAssetsHost({
     domains: { lookup: async () => ({ kind: 'ready', domain }) },
-    open: (who, where) =>
-      openTenantSkills(
-        {
-          storage: counter.storage,
-          materials,
-          packageRoot,
-          ranking: SEARCH_RANKING,
-          categories: skillCategories(),
-        },
-        who,
+    open: where =>
+      openTenantAssets(
+        { storage: counter.storage, materials, packageRoot, categories: skillCategories() },
         where,
       ),
+  })
+  const host = new TenantSkillsHost({
+    async open(who, tenantRef) {
+      const assets = await tenantAssets.open(tenantRef)
+      return assets === undefined ? undefined : tenantSkills(assets, who, SEARCH_RANKING)
+    },
   })
 
   const fixture = fixtureEnv([principalIssuerKey])
@@ -173,7 +173,8 @@ export async function skillsWorld(): Promise<SkillsWorld> {
     reads: counter.reads,
     async close() {
       await publisher.close()
-      await host.close()
+      host.close()
+      await tenantAssets.close()
       await made.control.close({ initiator: 'disposal' })
       rmSync(root, { recursive: true, force: true })
     },

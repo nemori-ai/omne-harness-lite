@@ -1,4 +1,3 @@
-import { canonicalDigest } from '@omne-harness/tool'
 import { createStandaloneSettingsOwner } from '@omne-harness/settings-local'
 import { SettingsSourceReferenceSchema } from '@omne-harness/settings-local/preparation'
 import type { SettingDefinitions } from '@omne-harness/settings'
@@ -14,12 +13,10 @@ export function organizationSettingsSource(input: {
   return SettingsSourceReferenceSchema.parse({
     domain,
     target: {
-      policyId: 'independent',
+      kind: 'independent',
+      providerId: input.definition.providerId,
+      definitionId: input.definition.definitionId,
       scopeRef: input.organizationId,
-      targetRef: canonicalDigest({
-        providerId: input.definition.providerId,
-        definitionId: input.definition.definitionId,
-      }),
     },
   })
 }

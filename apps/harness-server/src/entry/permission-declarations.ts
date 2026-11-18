@@ -7,7 +7,7 @@ import { releaseOf } from './tool-release.ts'
 export type PermissionDeclaration = Readonly<{
   asset: ToolReleaseEntry['asset']
   governance: ToolReleaseEntry['governance']
-  targetRef: string
+  holdingRef: string
 }>
 
 const registered = new WeakMap<Context, Set<PermissionDeclaration>>()
@@ -30,7 +30,7 @@ export function releasedDeclaration(entry: ToolReleaseEntry): PermissionDeclarat
   return {
     asset: entry.asset,
     governance: entry.governance,
-    targetRef: `harness.preinstalled.tool.${entry.asset.name}`,
+    holdingRef: `harness.preinstalled.tool.${entry.asset.name}`,
   }
 }
 
@@ -45,5 +45,5 @@ export function declarationTarget(
   declaration: PermissionDeclaration,
   tenantRef: string,
 ): SettingsTarget {
-  return { policyId: 'asset', scopeRef: tenantRef, targetRef: declaration.targetRef }
+  return { kind: 'asset', holdingRef: declaration.holdingRef, scopeRef: tenantRef }
 }

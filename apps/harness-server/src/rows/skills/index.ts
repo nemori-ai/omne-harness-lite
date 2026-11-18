@@ -9,14 +9,11 @@ import {
   skillAccessKey,
   skillCatalogKey,
 } from '@omne-harness/skill-cordis-contract/cordis'
-import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { defineRow } from '../../row.ts'
-import { releaseOf } from '../../entry/tool-release.ts'
-import { productionStorageCatalog } from '../storage/production-catalog.ts'
-import { openTenantSkills, routedSkills, TenantSkillsHost } from './tenant-skills.ts'
+import { tenantAssetsKey } from '../tenant-assets/service.ts'
+import { routedSkills, tenantSkills, TenantSkillsHost } from './tenant-skills.ts'
 
 export const skillsRowConfig = z.strictObject({
-  packageRoot: z.string().min(1),
   ranking: z.strictObject({ k1: z.number().positive(), b: z.number().min(0).max(1) }),
 })
 
@@ -56,37 +53,26 @@ export const skillsRow = defineRow({
   implementation: 'real',
   manifest: {
     provides: [skillCatalogKey, skillAccessKey],
-    injects: [storageKey, tenantDomainLookupKey, assetCategoriesKey],
+    injects: [tenantAssetsKey, assetCategoriesKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'body', phase: 'composition' },
   async body(ctx, raw) {
     const config = skillsRowConfig.parse(raw)
-    const release = releaseOf(ctx)
     ctx.plugin(skillCategoryPlugin)
-    const store = {
-      storage: ctx.storage,
-      materials: await productionStorageCatalog(async () => release),
-      packageRoot: config.packageRoot,
-      ranking: config.ranking,
-      categories: ctx.assetCategories.view,
-    }
     const host = new TenantSkillsHost({
-      domains: ctx.tenantDomainLookup,
-      open: (tenant, domain) => openTenantSkills(store, tenant, domain),
+      async open(tenant, tenantRef) {
+        const assets = await ctx.tenantAssets.open(tenantRef)
+        return assets === undefined ? undefined : tenantSkills(assets, tenant, config.ranking)
+      },
     })
     const routed = routedSkills(host)
     new TenantSkillCatalog(ctx, routed.catalog)
     new TenantSkillAccess(ctx, routed.access)
-    ctx.effect(
-      () => () => {
-        void host.close()
-      },
-      'skills.close',
-    )
+    ctx.effect(() => () => host.close(), 'skills.close')
     return {
       async stop() {
-        await host.close()
+        host.close()
         return { kind: 'settled' }
       },
     }

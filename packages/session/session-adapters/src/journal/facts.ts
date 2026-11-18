@@ -110,7 +110,8 @@ export type CursorMembers = Readonly<{
   adoptedRequest: Ref | null
   state: 'reconciling' | 'advancing' | 'waiting' | 'settling' | 'suspended'
   // What the checkpoint holds open that its blocks name: the fold reads it without the blocks.
-  holds: Readonly<{
+  // null: it names more than a fact carries, so every item is held until the checkpoint shrinks.
+  holds: null | Readonly<{
     actions: readonly ActionId[]
     consumptions: readonly ConsumptionId[]
     handoffs: readonly string[]
@@ -121,6 +122,12 @@ export type CursorMembers = Readonly<{
 export type CursorMember = keyof CursorMembers
 
 export type ResultStage = 'recorded' | 'custody' | 'processed' | 'released'
+
+// A result is one produced version under one consumption: a late one changes none before it.
+export type ResultKey = string & { readonly resultKey: unique symbol }
+
+export const resultKey = (consumption: ConsumptionId, version: string): ResultKey =>
+  JSON.stringify([consumption, version]) as ResultKey
 
 export type FactBody =
   | Readonly<{
@@ -521,9 +528,9 @@ export function factKey(fact: FactBody): string {
     case 'result.received':
       if (fact.result.delivery === 'account') return `account/${fact.delivery}`
       if (fact.result.delivery === 'placeholder') return `placeholder/${fact.consumption}`
-      return `received/${fact.consumption}`
+      return `received/${resultKey(fact.consumption, fact.result.version)}`
     case 'result.handled':
-      return `handled/${fact.consumption}/${fact.stage}`
+      return `handled/${resultKey(fact.consumption, fact.result.version)}/${fact.stage}`
     case 'reply.judged':
       return `reply/${fact.sequence}`
     case 'message.published':

@@ -66,7 +66,7 @@ it('keeps a pending zero-hold gate visible after reopen and isolates another tar
       ...original.identity,
       operation: {
         ...original.identity.operation,
-        target: { ...original.identity.operation.target, targetRef: 'other' },
+        target: { ...original.identity.operation.target, definitionId: 'other' },
       },
     },
   }

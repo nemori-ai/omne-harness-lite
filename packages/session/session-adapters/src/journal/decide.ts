@@ -9,12 +9,15 @@ import { canonical } from '../testing/canonical.ts'
 import {
   REVIVABLE_EXCLUSIONS,
   BATCH_MAX_FACTS,
+  FACT_MAX_BYTES,
+  bytesOf,
   factKey,
   refOf,
   type Batch,
   type BatchEnvelope,
   type CursorMembers,
   type FactBody,
+  type ResultKey,
 } from './facts.ts'
 import { handoffKey, type ExecutionView } from './view.ts'
 
@@ -58,21 +61,32 @@ export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState)
         ? null
         : refOf(checkpoint.adoptedRequest),
     state: state.kind,
-    holds: {
-      actions: [
-        ...checkpoint.calls.map(call => call.action),
-        ...(checkpoint.batch?.actions.map(action => action.id) ?? []),
-      ],
-      consumptions: checkpointCalls(checkpoint).map(call => call.consumption),
-      handoffs: (checkpoint.batch?.slots ?? []).flatMap(slot =>
-        slot.handoff === null ? [] : [handoffKey(slot.handoff)],
-      ),
-      admissionsFrom:
-        checkpoint.replyAdmissionRead.kind === 'verified'
-          ? Number(checkpoint.replyAdmissionRead.prefix.sequence)
-          : 0,
-    },
+    holds: heldBy(checkpoint),
   }
+}
+
+// Half a fact at most: the cursor's other members share it.
+const HOLDS_MAX_BYTES = FACT_MAX_BYTES / 2
+
+function heldBy(checkpoint: AgentCheckpoint): CursorMembers['holds'] {
+  const holds = {
+    actions: [
+      ...checkpoint.calls.map(call => call.action),
+      ...(checkpoint.batch?.actions.map(action => action.id) ?? []),
+    ],
+    consumptions: [
+      ...checkpointCalls(checkpoint).map(call => call.consumption),
+      ...(checkpoint.compaction === null ? [] : [checkpoint.compaction.consumption]),
+    ],
+    handoffs: (checkpoint.batch?.slots ?? []).flatMap(slot =>
+      slot.handoff === null ? [] : [handoffKey(slot.handoff)],
+    ),
+    admissionsFrom:
+      checkpoint.replyAdmissionRead.kind === 'verified'
+        ? Number(checkpoint.replyAdmissionRead.prefix.sequence)
+        : 0,
+  }
+  return bytesOf(holds) > HOLDS_MAX_BYTES ? null : holds
 }
 
 export type BlobStore = ReadonlyMap<string, unknown>
@@ -228,7 +242,7 @@ export function keyKnown(view: ExecutionView, key: string): boolean {
     case 'call':
       return view.intents.has(name as never)
     case 'received':
-      return view.results.get(name as never)?.received !== null && view.results.has(name as never)
+      return (view.results.get(name as ResultKey)?.received ?? null) !== null
     case 'placeholder':
       return view.placeholders.has(name as never)
     case 'reply':
