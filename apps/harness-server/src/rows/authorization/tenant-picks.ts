@@ -28,6 +28,14 @@ export type TenantPickPorts = Readonly<{
 }>
 
 const NONE = Object.freeze({ allow: false, deny: false })
+// A set that changed nothing stands; one whose end is not known is asked again with the same answer.
+const SET_ANSWER: Readonly<Record<string, 'written' | 'unavailable'>> = {
+  written: 'written',
+  'no-change': 'written',
+  unknown: 'unavailable',
+  unavailable: 'unavailable',
+  conflict: 'unavailable',
+}
 
 // The item and the value of each effect come from the gate's own declaration.
 function itemOf(declarations: readonly PermissionDeclaration[], gate: Gate) {
@@ -97,17 +105,7 @@ export function createTenantPicks(ports: TenantPickPorts): TenantPicks {
         expectedRevision: found.view.revision,
         value: { kind: 'permission', pick },
       })
-      switch (written.kind) {
-        case 'written':
-        case 'no-change':
-          return 'written'
-        case 'unknown':
-        case 'unavailable':
-        case 'conflict':
-          return 'unavailable'
-        default:
-          return 'not-writable'
-      }
+      return SET_ANSWER[written.kind] ?? 'not-writable'
     },
   })
 }

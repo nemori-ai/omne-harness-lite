@@ -116,6 +116,7 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
   let advanceAfterQualification = false
   let advanced: { before: string; after: string } | undefined
   let commits = 0
+  let sessionReads = 0
   let standingReads = 0
   let standing: TenantStandingReading | undefined
   await withLiveTree(config, async ({ agent }) => {
@@ -128,6 +129,10 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
         commit: (...args) => {
           commits += 1
           return w.storage.commit(...args)
+        },
+        read: input => {
+          if (input.handler === 'session.permission-current') sessionReads += 1
+          return w.storage.read(input)
         },
       },
       domain: w.domain,
@@ -214,6 +219,17 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
       origin: { ...inPass.origin, kind: 'agent-action', pass: 'batch-1/pass-1' },
     } as ToolPermissionContext)
     expect(current(passed.reading).evaluation).toEqual(basis.evaluation)
+    // A second action of the same pass and gate reads the session's rows no more.
+    const readsOfPass = sessionReads
+    const second = await read.readCurrent({
+      ...inPass,
+      origin: { ...inPass.origin, kind: 'agent-action', pass: 'batch-1/pass-1' },
+    } as ToolPermissionContext)
+    expect(current(second.reading).evaluation).toEqual(basis.evaluation)
+    expect(sessionReads).toBe(readsOfPass)
+    // An action outside a pass reads for itself: its own once authorization may be there.
+    await read.readCurrent(action())
+    expect(sessionReads).toBe(readsOfPass + 1)
 
     const published = inquiry
     inquiry = { ...inquiry, basis: { ...inquiry.basis, permissionRevision: '999' } }
@@ -238,6 +254,8 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
       request: null,
       reading: { kind: 'denied' },
       condition: null,
+      authorizations: null,
+      consumer: null,
     })
     standing = { kind: 'unavailable', diagnostic: 'fixture' }
     expect(await read.readCurrent(action(CHANGED))).toMatchObject({

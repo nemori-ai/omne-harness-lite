@@ -58,6 +58,48 @@ async function carries(
   return resolved.ok.kind === 'carried'
 }
 
+type Asked = Parameters<ToolTargetPolicy['qualify']>[0]
+type Who = NonNullable<ReturnType<typeof sessionWorkOf>>
+
+function actionOf(who: Who, input: Asked, carrier: boolean): ToolPermissionAction {
+  return {
+    principal: who.principal,
+    tenant: input.tenant,
+    operation: { owner: 'tool', operationId: input.call },
+    definition: { ...input.request.availability.definition.adoption },
+    effectiveArguments: input.request.arguments.effective,
+    ...(carrier ? { carrier: true as const } : {}),
+    origin: {
+      kind: 'tool-call',
+      call: input.call,
+      admission: input.admission,
+      request: structuredClone(input.request),
+    },
+  }
+}
+
+// The identity check and the action rule of the call: null lets its current permission be judged.
+async function ruled(
+  admission: NonNullable<ReturnType<AdmissionReader>>,
+  rules: ActionRules,
+  who: Who,
+  input: Asked,
+  action: ToolPermissionAction,
+) {
+  const rule = toolActionRule(rules, action.definition)
+  const identity = await admission.check({
+    access: { principal: who.principal, tenant: input.tenant },
+    operation: { owner: 'tool', name: 'admit' },
+    target: { owner: 'tool', kind: 'call', key: input.call },
+    arguments: effectiveArgumentsOf(input.request.arguments.effective),
+    requires: [],
+    permit: null,
+  })
+  if (identity.kind === 'denied') return { kind: 'denied' as const, reason: identity.reason }
+  if (identity.kind !== 'allowed' || rule === undefined) return unavailable()
+  return rule.effect === 'deny' ? { kind: 'denied' as const, reason: `rule/${rule.id}` } : null
+}
+
 export function createToolTargetPolicy(
   rules: ActionRules | undefined,
   read: AdmissionReader,
@@ -73,36 +115,12 @@ export function createToolTargetPolicy(
         if (rules === undefined || admission === undefined) return unavailable()
         const carrier = await carries(readResolution, who.principal, input)
         if (carrier === undefined) return unavailable()
-        const permissionAction: ToolPermissionAction = {
-          principal: who.principal,
-          tenant: input.tenant,
-          operation: { owner: 'tool', operationId: input.call },
-          definition: { ...input.request.availability.definition.adoption },
-          effectiveArguments: input.request.arguments.effective,
-          ...(carrier ? { carrier: true as const } : {}),
-          origin: {
-            kind: 'tool-call',
-            call: input.call,
-            admission: input.admission,
-            request: structuredClone(input.request),
-          },
-        }
-        const rule = toolActionRule(rules, permissionAction.definition)
-        const identity = await admission.check({
-          access: { principal: who.principal, tenant: input.tenant },
-          operation: { owner: 'tool', name: 'admit' },
-          target: { owner: 'tool', kind: 'call', key: input.call },
-          arguments: effectiveArgumentsOf(input.request.arguments.effective),
-          requires: [],
-          permit: null,
-        })
-        if (identity.kind === 'denied') return { kind: 'denied', reason: identity.reason }
-        if (identity.kind !== 'allowed') return unavailable()
-        if (rule === undefined) return unavailable()
-        if (rule.effect === 'deny') return { kind: 'denied', reason: `rule/${rule.id}` }
+        const action = actionOf(who, input, carrier)
+        const refused = await ruled(admission, rules, who, input, action)
+        if (refused !== null) return refused
         const permission = readPermission()
         if (permission === undefined) return unavailable()
-        return permissionVerdict(await permission.check(permissionAction), input.tenant)
+        return permissionVerdict(await permission.check(action), input.tenant)
       } catch {
         return unavailable()
       }

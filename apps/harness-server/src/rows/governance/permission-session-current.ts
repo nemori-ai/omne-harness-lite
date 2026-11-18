@@ -35,22 +35,23 @@ const sessionPermissionReadSchema = z.json().transform((value, ctx) => {
   return z.NEVER
 })
 
+/** A null consumer reads no once authorization: the gate's rows alone, the same for every action. */
 export type SessionPermissionCaptureReader = (
   request: PermissionBasisRequest,
-  consumer: AuthorizationConsumer,
+  consumer: AuthorizationConsumer | null,
 ) => Promise<SessionPermissionCurrentRead | Readonly<{ kind: 'not-ready' }> | undefined>
 /** The session's permission row, and apart from it the authorizations in force where the action is taken. */
 export type BoundSessionPermission = Readonly<{
   current: SessionPermissionCurrent
   authorizations: SessionAuthorizations
-  consumer: AuthorizationConsumer
+  consumer: AuthorizationConsumer | null
 }>
 
 export async function readSessionPermissionForCapture(
   storage: SqlStorage,
   domain: DomainRef,
   request: PermissionBasisRequest,
-  consumer: AuthorizationConsumer,
+  consumer: AuthorizationConsumer | null,
 ): ReturnType<SessionPermissionCaptureReader> {
   const { scope, capabilityId, enforcementKey } = request
   if (
@@ -93,7 +94,7 @@ export async function readBoundSessionPermission(
   reader: SessionPermissionCaptureReader,
   request: PermissionBasisRequest,
   inquiry: SessionInquiryView | null,
-  consumer: AuthorizationConsumer,
+  consumer: AuthorizationConsumer | null,
 ): Promise<BoundSessionPermission | undefined> {
   const parsed = sessionPermissionReadSchema.safeParse(await reader(request, consumer))
   if (!parsed.success) return undefined

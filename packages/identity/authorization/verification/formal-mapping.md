@@ -17,6 +17,20 @@
 | 「人工决定与询问处理」：一个动作被问的次数不超过一加依据变化的次数      | `AskedBounded`                 | 无                                                                            |
 | Agent 规格「动作与工具」：卡片轮次总有收场，每个动作都有结局            | `EveryActionSettles`           | `bad-cancel-leaves-card-open`                                                 |
 
+## 守着每条性质的用例
+
+模型只在它的有限范围内说话；实现守不守得住，靠下面这些用例。路径从仓库根算起，发行树用例在慢层。
+
+| 模型性质 | 纯函数与成员用例 | 发行树用例 |
+| --- | --- | --- |
+| `NoUnjustStart` | `packages/identity/authorization/tests/release.spec.ts`（四步的次序，禁止在先）；`apps/harness-server/tests/rows/authorization/current-tool-permission.spec.ts`（单次与本会话授权怎样被采用）；`apps/harness-server/tests/rows/authorization/tool-target-policy.spec.ts`（启动处现读、载体只看禁止）；`packages/tool/tool-host-local/tests/request-access.spec.ts`（条件与受理同一笔提交） | `apps/harness-server/tests/rows/authorization/release-changed.spec.ts`（放行后设置改成禁止，不启动）；`release-session.spec.ts`（依据变了重新问）；`release-always.spec.ts`（始终禁止之后任何会话不启动） |
+| `PermitBound` | `apps/harness-server/tests/rows/authorization/once-grant.spec.ts`（单次授权绑定动作、目标与参数摘要）；`packages/session/session-contract/tests/authorization-expression.spec.ts`（按消费方登记与退出） | `release-card-flow.spec.ts`（本次放行只执行这一次，再调仍出卡；直接调与经 `Tools` 调各一条） |
+| `HumanNoNeverRuns` | `apps/harness-server/tests/rows/authorization/release-asking.spec.ts`（不放行、原话、跳过各自的拒绝类别）；`answer-effects.spec.ts`（写不成的始终禁止只拒这一次） | `release-card-flow.spec.ts`（三种不放行的答法都不执行） |
+| `BarrierHolds` | `packages/agent/agent/tests/loop-admission.spec.ts`、`loop-cards.spec.ts`（一批全部有结论之前不发起） | `release-session.spec.ts`、`release-always.spec.ts`（一批三次调用只答一次） |
+| `ApprovalNotLost` | `packages/session/session-storage-sql/tests/authorization-context.spec.ts`（授权上下文随会话日志提交并可重建） | `release-restart.spec.ts`（三处重启后授权还在、不再问人、至多启动一次） |
+| `AskedBounded` | `packages/agent/agent/tests/loop-cards-rejudge.spec.ts`（同批重判只作废不再出卡）；`apps/harness-server/tests/rows/authorization/pass-memory.spec.ts` | `release-session.spec.ts`（本会话放行后不再出卡；设置变了才重新出卡） |
+| `EveryActionSettles` | `packages/agent/agent/tests/loop-cards.spec.ts`（卡开着时取消、整批被拒的收场） | `apps/harness-server/tests/rows/authorization/release-card-flow.spec.ts`（卡开着时取消，之后同一会话接着用） |
+
 ## 动作
 
 | 模型动作                                                           | 规格里的步骤                                                                   |

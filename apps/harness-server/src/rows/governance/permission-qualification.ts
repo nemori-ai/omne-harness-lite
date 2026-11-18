@@ -12,7 +12,7 @@ export type QualifiedOrigin = Readonly<{
   definition: GovernanceDefinitionRef
   session: SessionPermissionCurrent
   /** Where the action is taken, as its original owner recognizes it: the Agent's action. */
-  consumer: AuthorizationConsumer
+  consumer: AuthorizationConsumer | null
   /** Read with the session row for that place; never part of the permission basis. */
   authorizations: SessionAuthorizations
   constraints: readonly PermissionConstraint[]

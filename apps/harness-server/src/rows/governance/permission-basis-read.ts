@@ -99,28 +99,42 @@ const missingOrganization = (): PermissionSource => ({
   sourceRef: 'settings.organization',
 })
 
+type SessionRead = ReturnType<typeof readSessionPermissionForCapture>
+type PassKey = (...parts: unknown[]) => string | undefined
+
 async function qualified(
   options: PermissionBasisReadOptions,
   context: ToolPermissionContext,
   request: PermissionBasisRequest,
+  shared: Readonly<{
+    passKey: PassKey
+    sessionOnce: ReturnType<typeof passMemory<Awaited<SessionRead>>>
+  }>,
 ) {
   const origins = options.origins()
   if (origins === undefined) return unavailable('harness.permission-origin')
-  const shared = {
+  const { passKey, sessionOnce } = shared
+  const given = {
     action: context,
     permission: request,
     declarations: options.declarations(),
-    readSession: (value: PermissionBasisRequest, consumer: AuthorizationConsumer) =>
-      readSessionPermissionForCapture(options.storage, options.domain, value, consumer),
+    // The rows of one gate are the same for every action of a pass; a once authorization is not shared.
+    readSession: (value: PermissionBasisRequest, consumer: AuthorizationConsumer | null) =>
+      sessionOnce(
+        consumer === null
+          ? passKey('session', value.capabilityId, value.enforcementKey)
+          : undefined,
+        () => readSessionPermissionForCapture(options.storage, options.domain, value, consumer),
+      ),
   }
   return context.origin.kind === 'agent-action'
     ? qualifyAgentPermission({
-        ...shared,
+        ...given,
         qualifier: origins.action,
         adoptions: origins.adoptions,
       })
     : qualifyToolPermission({
-        ...shared,
+        ...given,
         qualifier: origins.tool,
         agent: { qualifier: origins.toolAgent, adoptions: origins.adoptions },
       })
@@ -132,6 +146,7 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
   const gateOnce = passMemory<
     Readonly<{ basis: PermissionBasis; organization: PermissionSource }> | undefined
   >()
+  const sessionOnce = passMemory<Awaited<SessionRead>>()
 
   const matchesScope = (principal: Principal) => {
     const tenant = tenantCodec.encode(principal.tenant)
@@ -194,7 +209,7 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
     const mapped = await map(context)
     if (mapped === undefined) return without(unavailable('harness.permission-target'))
     const request = mapped.permission
-    const qualification = await qualified(options, context, request)
+    const qualification = await qualified(options, context, request, { passKey, sessionOnce })
     if (qualification.kind !== 'qualified') return without(qualification, request)
     const { origin } = qualification
     const commands = permissionBasisCommands(

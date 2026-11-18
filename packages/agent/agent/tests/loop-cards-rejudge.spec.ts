@@ -71,6 +71,21 @@ describe('an answer in a batch judges the actions still waiting again', () => {
     expect((await toolMessages(assembly)).length).toBe(0)
   })
 
+  it('asks the waiting actions again in a pass of their own, after the pass that carried the answer', async () => {
+    const assembly = await answeredOnce(() => allow)
+    const { calls } = assembly.controls.admission.admit
+    const before = calls.length
+    await answerFirst(assembly)
+    await eventually(async () => assembly.controls.tools.invoke.calls.length === 3)
+    const asked = calls.slice(before)
+    const carried = asked.filter(call => call.decision !== null).map(call => call.batch?.pass)
+    const again = asked.filter(call => call.decision === null).map(call => call.batch?.pass)
+    expect(carried).toEqual([expect.any(String)])
+    expect(again).toHaveLength(2)
+    expect(new Set(again).size).toBe(1)
+    expect(again[0]).not.toBe(carried[0])
+  })
+
   it('withdraws their cards and runs none once the capability is prohibited', async () => {
     const assembly = await answeredOnce(() => deny('prohibited'))
     await answerFirst(assembly)

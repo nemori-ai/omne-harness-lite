@@ -50,7 +50,7 @@ export async function qualifyAgentPermission(
     if (available === undefined) return unavailable()
     const released = structuredClone(available)
     // The judging pass only shares reads; the Agent's journal knows the call, not the pass.
-    const { kind: _kind, carrier, pass: _pass, ...position } = action.origin
+    const { kind: _kind, carrier, pass, ...position } = action.origin
     const expectedOperation = agentPermissionOperation(position)
     if (
       canonicalText(action.operation) !== canonicalText(expectedOperation) ||
@@ -72,7 +72,8 @@ export async function qualifyAgentPermission(
       input.readSession,
       permission,
       action.inquiry,
-      agentActionConsumer(position),
+      // Only an action a person answered can hold a once authorization; a pass asks for none.
+      pass === undefined ? agentActionConsumer(position) : null,
     )
     if (bound === undefined) return unavailable()
     const constraint = await readAgentPermissionConstraint({

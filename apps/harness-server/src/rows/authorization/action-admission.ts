@@ -11,7 +11,7 @@ import type { ToolActionResolution } from '@omne-harness/tool-contract'
 import type { ToolCallLabeling } from '../../entry/tool-action-resolution.ts'
 import { actionRulesSchema, toolActionRule, type ActionRules } from './action-rules.ts'
 import { applyAnswer, type AuthorizationWriter } from './answer-effects.ts'
-import { answerEffect, askedDecision } from './release-asking.ts'
+import { answerEffect, askedDecision, type AnswerEffect } from './release-asking.ts'
 import type { TenantPicks } from './tenant-picks.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 import {
@@ -111,7 +111,8 @@ function permissionAction(judging: Judging, gate: Judged): ToolPermissionAction 
       advance: structuredClone(input.advance),
       original: structuredClone(input.original),
       ...(gate.carried === undefined ? {} : { carrier: structuredClone(gate.carried) }),
-      ...(input.batch === undefined
+      // An action that comes with a person's answer reads what the answer wrote, not what the pass read.
+      ...(input.batch === undefined || input.decision !== null
         ? {}
         : { pass: canonicalText([input.batch.id, input.batch.pass]) }),
     },
@@ -120,7 +121,6 @@ function permissionAction(judging: Judging, gate: Judged): ToolPermissionAction 
 
 const NO_LASTING = Object.freeze({ allow: false, deny: false })
 
-// Which lasting options the card gives: the ones the tenant's setting of this gate can take now.
 function lastingOf(judging: Judging, gate: Judged) {
   if (judging.picks === undefined) return NO_LASTING
   const { principal, input } = judging
@@ -218,20 +218,32 @@ async function decide(
     labeling: readers.readLabeling?.(),
     picks: readers.readPicks?.(),
   }
-  if (effect !== null) {
-    const answered = {
-      principal: who.principal,
-      tenant: input.tenant,
-      session: who.session,
-      consumer: agentActionConsumer(input),
-      gate: gates[gates.length - 1]!,
-    }
-    const applied = await applyAnswer(answered, effect, {
-      authorizations: readers.readAuthorizations?.(),
-      picks: judging.picks,
-    })
-    if (applied !== null) return applied
+  const applied = effect === null ? null : await answered(judging, gates, effect, readers)
+  return applied ?? judgeGates(judging, gates)
+}
+
+// The answer's effect comes first, so judging again reads what it wrote.
+function answered(
+  judging: Judging,
+  gates: Gates,
+  effect: Exclude<AnswerEffect, { kind: 'decided' }>,
+  readers: Readers,
+): Promise<AdmissionDecision | null> {
+  const { input } = judging
+  const action = {
+    principal: judging.principal,
+    tenant: input.tenant,
+    session: judging.session,
+    consumer: agentActionConsumer(input),
+    gate: gates[gates.length - 1]!,
   }
+  return applyAnswer(action, effect, {
+    authorizations: readers.readAuthorizations?.(),
+    picks: judging.picks,
+  })
+}
+
+async function judgeGates(judging: Judging, gates: Gates): Promise<AdmissionDecision> {
   const [first, ...rest] = gates
   let answer = await judgeGate(judging, first)
   for (const gate of rest) {

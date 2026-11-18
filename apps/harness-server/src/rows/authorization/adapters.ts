@@ -307,27 +307,55 @@ function cardDecisionOf(target: SessionAccessRequest<unknown>['target']): CardDe
   return { card: declaration.authorization, source, options, gate }
 }
 
+type SessionTarget = SessionAccessRequest<unknown>['target']
+
+function factsOf(
+  operation: keyof typeof SESSION_POLICY,
+  target: SessionTarget,
+  tenant: TenantId | null,
+): CommandFacts | null {
+  if (!('command' in target)) return isMutation(operation) ? null : NO_COMMAND
+  const { command } = target
+  const names =
+    isMutation(operation) &&
+    command.kind === operation &&
+    tenant !== null &&
+    tenantEquals(command.input.tenant, tenant) &&
+    command.input.session === target.session
+  return names ? commandFacts(command) : null
+}
+
+// Two declarations need more than the cell: each carries the qualification its write stands on.
+function qualifiedWrite(
+  planned: Plan,
+  target: SessionTarget,
+  who: NonNullable<ReturnType<typeof classify>>,
+): Plan {
+  if (planned.kind !== 'member' || !('command' in target) || target.command.kind !== 'change')
+    return planned
+  switch (target.command.input.declaration.kind) {
+    case 'authorization-expression': {
+      const cardDecision = cardDecisionOf(target)
+      return cardDecision === null ? DENIED : { ...planned, cardDecision }
+    }
+    case 'permission-assignment': {
+      if (who.column !== 'login') return DENIED
+      const permissionWrite = preparePermissionWrite(target.command, who.principal)
+      return permissionWrite === null ? DENIED : { ...planned, permissionWrite }
+    }
+    default:
+      return planned
+  }
+}
+
 function planSession(input: SessionAccessRequest<unknown>): Plan {
   const { access, operation, target } = input
   if (typeof operation !== 'string' || !Object.hasOwn(SESSION_POLICY, operation)) return DENIED
   const tenant = 'tenant' in access ? access.tenant : null
   if (target.kind !== targetKindOf(operation)) return DENIED
 
-  let facts = NO_COMMAND
-  if ('command' in target) {
-    const { command } = target
-    if (
-      !isMutation(operation) ||
-      command.kind !== operation ||
-      tenant === null ||
-      !tenantEquals(command.input.tenant, tenant) ||
-      command.input.session !== target.session
-    )
-      return DENIED
-    facts = commandFacts(command)
-  } else if (isMutation(operation)) {
-    return DENIED
-  }
+  const facts = factsOf(operation, target, tenant)
+  if (facts === null) return DENIED
   if (target.kind === 'tenant' && (tenant === null || !tenantEquals(target.tenant, tenant)))
     return DENIED
 
@@ -356,22 +384,7 @@ function planSession(input: SessionAccessRequest<unknown>): Plan {
     },
     matrix: (purpose, principal) => sessionMatrixRequest(purpose, principal, target, tenant, facts),
   })
-  if (planned.kind !== 'member' || !('command' in target) || target.command.kind !== 'change')
-    return planned
-  // Two declarations need more than the cell: each carries the qualification its write stands on.
-  switch (target.command.input.declaration.kind) {
-    case 'authorization-expression': {
-      const cardDecision = cardDecisionOf(target)
-      return cardDecision === null ? DENIED : { ...planned, cardDecision }
-    }
-    case 'permission-assignment': {
-      if (who.column !== 'login') return DENIED
-      const permissionWrite = preparePermissionWrite(target.command, who.principal)
-      return permissionWrite === null ? DENIED : { ...planned, permissionWrite }
-    }
-    default:
-      return planned
-  }
+  return qualifiedWrite(planned, target, who)
 }
 
 function sessionResource(

@@ -63,17 +63,16 @@ const wait = (owner: string, diagnostic: string): BatchJudgment => ({
   failure: { kind: 'unavailable', owner, diagnostic },
 })
 
-// One pass over a batch: what it has judged so far, and the cards it opened.
 type Pass<P> = Readonly<{
   judging: Judging<P>
   batch: ActionBatch
   originals: ReadonlyMap<string, ActionToolCall>
-  mark: Readonly<{ id: ActionBatch['id']; pass: string }>
   answers: Answer[]
   opened: CardRoundId[]
-}> & { passages: readonly Passage[] }
+}> & { passages: readonly Passage[]; mark: Readonly<{ id: ActionBatch['id']; pass: string }> }
 /** Null lets the pass go on; anything else is what the whole batch came to. */
-type Step = Outcome<Exclude<BatchJudgment, { kind: 'answered' }> | null, Failure>
+type Halt = Exclude<BatchJudgment, { kind: 'answered' }>
+type Step = Outcome<Halt | null, Failure>
 const GO_ON: Step = succeed(null)
 
 async function ask<P>(
@@ -107,7 +106,6 @@ async function ask<P>(
   return 'failure' in ended ? ended : succeed({ kind: 'ended', checkpoint: ended.ok })
 }
 
-// The verdict of an action enters its admission chain, opening a card where a person must decide.
 async function record<P>(
   pass: Pass<P>,
   verdict: Verdict,
@@ -157,7 +155,31 @@ async function judge<P>(pass: Pass<P>, action: Action): Promise<Step> {
   return asked.ok.kind === 'verdict' ? record(pass, asked.ok.verdict, chain) : succeed(asked.ok)
 }
 
-// An action still waiting for the person is asked again; one that no longer needs asking leaves its card.
+// An action that no longer needs asking leaves its card and takes the verdict, unless the person spoke first.
+async function supersede<P>(
+  pass: Pass<P>,
+  index: number,
+  action: Action,
+  chain: NonNullable<ReturnType<typeof chainOf>>,
+  verdict: Extract<Verdict, { kind: 'allowed' | 'denied' }>,
+): Promise<Step> {
+  const { closing } = pass.judging
+  const settled = await closing.endSuperseded(pass.batch, action, chain, pass.passages, verdict)
+  if ('failure' in settled) {
+    const { failure } = settled
+    return failure.kind === 'unavailable'
+      ? succeed(wait(failure.owner, failure.diagnostic) as Halt)
+      : settled
+  }
+  pass.passages = settled.ok.passages
+  pass.answers[index] =
+    verdict.kind === 'allowed' && !settled.ok.heard
+      ? verdict
+      : { kind: 'judged', action: settled.ok.action }
+  return GO_ON
+}
+
+// An action still waiting for the person is asked again, without its card.
 async function judgeAgain<P>(pass: Pass<P>, index: number, action: Action): Promise<Step> {
   const again = judgedAgain(pass.passages, action)
   const chain = chainOf(pass.passages, action)
@@ -167,23 +189,9 @@ async function judgeAgain<P>(pass: Pass<P>, index: number, action: Action): Prom
   if ('failure' in asked) return asked
   if (asked.ok.kind !== 'verdict') return succeed(asked.ok)
   const { verdict } = asked.ok
-  if (verdict.kind !== 'allowed' && verdict.kind !== 'denied') return GO_ON
-  const { closing } = pass.judging
-  const settled = await closing.endSuperseded(pass.batch, action, chain, pass.passages, verdict)
-  if ('failure' in settled) {
-    const { failure } = settled
-    return failure.kind === 'unavailable'
-      ? succeed(
-          wait(failure.owner, failure.diagnostic) as Exclude<BatchJudgment, { kind: 'answered' }>,
-        )
-      : settled
-  }
-  pass.passages = settled.ok.passages
-  pass.answers[index] =
-    verdict.kind === 'allowed' && !settled.ok.heard
-      ? verdict
-      : { kind: 'judged', action: settled.ok.action }
-  return GO_ON
+  return verdict.kind === 'allowed' || verdict.kind === 'denied'
+    ? supersede(pass, index, action, chain, verdict)
+    : GO_ON
 }
 
 export async function judgeBatch<P>(
@@ -206,7 +214,8 @@ export async function judgeBatch<P>(
     if ('failure' in step) return step
     if (step.ok !== null) return succeed(step.ok)
   }
-  // What this pass judged may have changed what the session allows, so the waiting actions come again.
+  // The waiting actions come again as a pass of their own: it reads what the first one wrote.
+  pass.mark = { id: batch.id, pass: globalThis.crypto.randomUUID() }
   for (const [index, action] of batch.actions.entries()) {
     const step = await judgeAgain(pass, index, action)
     if ('failure' in step) return step

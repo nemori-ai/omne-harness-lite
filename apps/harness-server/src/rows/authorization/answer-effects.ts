@@ -58,7 +58,6 @@ async function express(
     : unavailable('the authorization could not be written now')
 }
 
-// This very action, bound to its target and arguments.
 function onceScope(answered: Answered): Scope {
   return {
     kind: 'once',
