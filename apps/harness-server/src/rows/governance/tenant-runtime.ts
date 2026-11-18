@@ -8,7 +8,7 @@ import type { SessionPermissionLogin } from '../authorization/session-permission
 import type { ActingForTenantPrincipal, StandingDestinationResolver } from '@omne-harness/identity'
 import { access, tenantCodec } from '@omne-harness/legal-identity'
 import { GovernanceScopeSchema } from '@omne-harness/governance-contract'
-import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
+import type { ReadUnavailableReason, SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import type {
   SettingsBasis,
   SettingsFailure,
@@ -97,6 +97,7 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
     const handler = options.materials.readHandlers.find(
       item => item.handler === GOVERNANCE_PROJECTION_READ,
     )
+    let refused: ReadUnavailableReason | null = null
     const runtime = await createGovernanceLocal({
       ...options,
       metadata: reference(combinations.metadata),
@@ -108,6 +109,7 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
         read: async commands => {
           if (handler === undefined) return { kind: 'unavailable' }
           const read = await readProjection(options.storage, options.domain, handler, commands)
+          refused = read.kind === 'unavailable' ? read.reason : null
           return read.kind === 'completed' ? read : { kind: 'unavailable' }
         },
       },
@@ -160,6 +162,8 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
           mapped: reference(combinations.sessionMapped),
         },
       }),
+      /** Why the store refused the latest projection read; null when it answered. */
+      readRefusal: () => refused,
       close: () => {
         closed = true
         return runtime.close()
