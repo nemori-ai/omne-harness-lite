@@ -18,6 +18,7 @@ export type AuthorityAction =
   | Readonly<{ kind: 'subscribe-for'; recipient: RecipientRef }>
   | Readonly<{ kind: 'manage-destinations'; recipient: RecipientRef }>
   | Readonly<{ kind: 'list-catalog' }>
+  | Readonly<{ kind: 'know-source'; source: SourceName }>
   | Readonly<{ kind: 'be-recipient'; recipient: RecipientRef }>
 
 export interface NotificationAuthority {

@@ -125,5 +125,8 @@ describe('NotificationHandoff', () => {
     expect(identities(w.session.deliveries)).toEqual([['e1'], ['e2', 'e3']])
     const [first, second] = w.session.deliveries.map(delivery => Date.parse(delivery.unit.formedAt))
     expect(second! - first!).toBeGreaterThanOrEqual(10 * MINUTE)
+    w.clock.set('2026-11-18T06:25:00.000Z')
+    await w.advance()
+    expect(w.session.deliveries).toHaveLength(2)
   })
 })

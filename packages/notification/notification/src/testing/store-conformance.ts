@@ -10,12 +10,18 @@ import {
   UNMARKED,
   type EventFacts,
   type RecipientRef,
+  unitId,
+  type DestinationRef,
   type SendRequest,
   type SubscriptionKey,
 } from '@omne-harness/notification-contract'
 import type { NotificationStore, StoreAnswer } from '../store.ts'
 import type { AcceptCommand } from '../transactions/accept.ts'
-import type { RecipientDefaults } from '../transactions/destinations.ts'
+import {
+  BUILTIN_ID,
+  type DestinationCommand,
+  type RecipientDefaults,
+} from '../transactions/destinations.ts'
 
 /** Every implementation of the repository passes these cases, each on a store of its own. */
 export type StoreConformanceCase = Readonly<{
@@ -70,6 +76,29 @@ const subscriptionOf = (ref: string): SubscriptionKey => ({
   source: sourceNameSchema.parse('demo.things'),
   type: eventTypeNameSchema.parse('changed'),
   scope: { kind: 'all' },
+})
+
+const MINUTE = 60_000
+const INBOX: DestinationRef = { recipient: PERSON, id: BUILTIN_ID }
+const MAIL = channelNameSchema.parse('mail')
+const SOURCE = sourceNameSchema.parse('demo.things')
+const TYPE = eventTypeNameSchema.parse('changed')
+const FORM = {
+  destination: INBOX,
+  minIntervalMs: 0,
+  listLimit: 3,
+  disclosure: { kind: 'full' },
+  defaults: DEFAULTS,
+} as const
+type DestinationInput = DestinationCommand extends infer C
+  ? C extends unknown
+    ? Omit<C, 'defaults'>
+    : never
+  : never
+
+const strong = (eventId: string, minute = 1): AcceptCommand => ({
+  ...command(eventId, {}, minute),
+  type: { defaults: { person: 'strong', agent: 'off' }, external: false },
 })
 
 function committed<T>(answer: StoreAnswer<T>): T {
@@ -352,6 +381,226 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
         kind: 'default',
       })
       assert.deepEqual(value(await store.beat(T2, PERSON)), { kind: 'default' })
+    },
+  },
+  {
+    name: 'a strong unit takes everything pending once and never the same notification twice',
+    async run(create) {
+      const store = await create()
+      const form = (minute: number, destination = INBOX) =>
+        store.formStrong(T1, { ...FORM, destination, now: at(minute), minIntervalMs: 10 * MINUTE })
+      committed(await store.accept(T1, strong('s1')))
+      committed(await store.accept(T1, strong('s2')))
+      const first = committed(await form(2))
+      assert.equal(first.kind, 'formed')
+      if (first.kind !== 'formed') return
+      assert.equal(first.unit.id, unitId(INBOX, 'strong', 1))
+      assert.equal(first.unit.kind, 'strong')
+      assert.deepEqual(
+        first.unit.members.map(member => member.eventId),
+        ['s1', 's2'],
+      )
+      assert.equal(first.unit.body.kind, 'digest')
+      const due = value(await store.delivery(T1, at(2))).due
+      assert.deepEqual(
+        due.map(unit => [unit.id, unit.state, unit.attempts]),
+        [[first.unit.id, 'pending', 0]],
+      )
+      const [inbox] = value(await store.destinations(T1, PERSON))
+      assert.deepEqual(
+        [inbox?.builtin, inbox?.enabled, inbox?.blocked, inbox?.lastStrongAt, inbox?.strongUnits],
+        [true, true, false, at(2), 1],
+      )
+      assert.deepEqual(committed(await form(3)), { kind: 'nothing' })
+      committed(await store.accept(T1, strong('s3', 4)))
+      assert.deepEqual(committed(await form(5)), { kind: 'wait', until: at(12) })
+      const second = committed(await form(12))
+      assert.deepEqual(
+        second.kind === 'formed' && second.unit.members.map(member => member.eventId),
+        ['s3'],
+      )
+      assert.deepEqual(second.kind === 'formed' && second.unit.body.kind, 'single')
+      assert.deepEqual(committed(await form(40)), { kind: 'nothing' })
+      assert.deepEqual(committed(await form(40, { recipient: PERSON, id: 'nope' })), {
+        kind: 'nothing',
+      })
+    },
+  },
+  {
+    name: 'a beat unit is formed once per slot and never empty',
+    async run(create) {
+      const store = await create()
+      const form = (index: number, minute: number, destination = INBOX) =>
+        store.formBeat(T1, {
+          destination,
+          slot: { index, start: at(minute) },
+          now: at(minute),
+          listLimit: 3,
+          standingOpen: 0,
+          defaults: DEFAULTS,
+        })
+      committed(await store.accept(T1, command('w1')))
+      const first = committed(await form(7, 30))
+      assert.equal(first.kind, 'formed')
+      if (first.kind !== 'formed') return
+      assert.deepEqual([first.unit.kind, first.unit.id], ['beat', unitId(INBOX, 'beat', 7)])
+      assert.deepEqual(
+        first.unit.members.map(member => member.eventId),
+        ['w1'],
+      )
+      assert.deepEqual(committed(await form(7, 31)), { kind: 'recalled', unit: first.unit })
+      const ref = { recipient: PERSON, identity: command('w1').request.identity }
+      committed(await store.mark(T1, { ref, operation: 'seen', now: at(32) }))
+      assert.deepEqual(committed(await form(8, 60)), { kind: 'nothing' })
+      assert.deepEqual(committed(await form(9, 90, { recipient: PERSON, id: 'nope' })), {
+        kind: 'nothing',
+      })
+      assert.equal(value(await store.delivery(T1, at(90))).due.length, 1)
+    },
+  },
+  {
+    name: 'a standing item is reminded of once, at every enabled destination',
+    async run(create) {
+      const store = await create()
+      const mail = { recipient: PERSON, channel: MAIL, address: 'a', minLevel: 'strong' } as const
+      const added = committed(
+        await store.destination(T1, { kind: 'add', ...mail, defaults: DEFAULTS }),
+      )
+      assert.equal(added.kind, 'written')
+      if (added.kind !== 'written') return
+      const ref = { recipient: PERSON, id: added.destination.id }
+      committed(
+        await store.destination(T1, {
+          kind: 'change',
+          ref,
+          patch: { enabled: false },
+          defaults: DEFAULTS,
+        }),
+      )
+      const item = {
+        id: 'i1',
+        source: SOURCE,
+        type: TYPE,
+        subject: null,
+        title: 'Open',
+        locator: null,
+        since: at(0),
+      }
+      const units = committed(
+        await store.remind(T1, { recipient: PERSON, item, defaults: DEFAULTS, now: at(1) }),
+      )
+      assert.deepEqual(
+        units.map(unit => [unit.kind, unit.destination.id, unit.members.length, unit.id]),
+        [['standing', 'default', 0, unitId(INBOX, 'standing', 'i1')]],
+      )
+      assert.deepEqual(units[0]?.body, { kind: 'standing', item })
+      assert.deepEqual(value(await store.reminded(T1, PERSON)), ['i1'])
+      assert.deepEqual(
+        committed(
+          await store.remind(T1, { recipient: PERSON, item, defaults: DEFAULTS, now: at(2) }),
+        ),
+        [],
+      )
+      assert.deepEqual(value(await store.reminded(T1, { kind: 'agent', ref: 'a1' })), [])
+      assert.deepEqual(value(await store.reminded(T2, PERSON)), [])
+    },
+  },
+  {
+    name: 'a delivery result settles, retries or stops a unit, and blocks or unblocks its destination',
+    async run(create) {
+      const store = await create()
+      const policy = { maxAttempts: 2, backoffMs: [MINUTE] }
+      const record = (unit: string, kind: 'unknown' | 'delivered', minute: number) =>
+        store.recordDelivery(T1, { unit, result: { kind }, policy, now: at(minute) })
+      const blocked = async () => value(await store.destinations(T1, PERSON))[0]?.blocked
+      const dueAt = async (minute: number) =>
+        value(await store.delivery(T1, at(minute))).due.map(unit => [unit.id, unit.attempts])
+      committed(await store.accept(T1, strong('s1')))
+      const formed = committed(await store.formStrong(T1, { ...FORM, now: at(2) }))
+      if (formed.kind !== 'formed') throw new Error(formed.kind)
+      const unit = formed.unit.id
+      assert.deepEqual(committed(await record('nope', 'unknown', 2)), { kind: 'not-found' })
+      assert.deepEqual(committed(await record(unit, 'unknown', 2)), {
+        kind: 'recorded',
+        plan: { kind: 'retry', at: at(3) },
+      })
+      assert.deepEqual(await dueAt(2), [])
+      assert.deepEqual(await dueAt(3), [[unit, 1]])
+      assert.equal(await blocked(), false)
+      assert.deepEqual(committed(await record(unit, 'unknown', 3)), {
+        kind: 'recorded',
+        plan: { kind: 'stop' },
+      })
+      assert.deepEqual(await dueAt(60), [])
+      assert.equal(await blocked(), true)
+      committed(await store.accept(T1, strong('s2', 20)))
+      const next = committed(await store.formStrong(T1, { ...FORM, now: at(21) }))
+      if (next.kind !== 'formed') throw new Error(next.kind)
+      committed(await record(next.unit.id, 'unknown', 21))
+      assert.equal(await blocked(), true)
+      assert.deepEqual(committed(await record(next.unit.id, 'delivered', 22)), {
+        kind: 'recorded',
+        plan: { kind: 'settled' },
+      })
+      assert.equal(await blocked(), false)
+      assert.deepEqual(committed(await record(next.unit.id, 'unknown', 23)), {
+        kind: 'settled-before',
+      })
+      assert.deepEqual(await dueAt(60), [])
+      assert.equal(await blocked(), false)
+    },
+  },
+  {
+    name: 'a destination exists once per channel and address, and the builtin one cannot be removed',
+    async run(create) {
+      const store = await create()
+      const write = async (command: DestinationInput) =>
+        committed(
+          await store.destination(T1, { ...command, defaults: DEFAULTS } as DestinationCommand),
+        )
+      const mail = {
+        kind: 'add',
+        recipient: PERSON,
+        channel: MAIL,
+        address: 'a',
+        minLevel: 'strong',
+      } as const
+      const added = await write(mail)
+      if (added.kind !== 'written') throw new Error(added.kind)
+      const { id, builtin, enabled, blocked, minLevel, strongCursor } = added.destination
+      assert.deepEqual(
+        [builtin, enabled, blocked, minLevel, strongCursor],
+        [false, true, false, 'strong', 0],
+      )
+      assert.deepEqual(await write({ ...mail, minLevel: 'weak' }), {
+        kind: 'recalled',
+        destination: added.destination,
+      })
+      const pager = await write({ ...mail, channel: channelNameSchema.parse('pager') })
+      assert.equal(pager.kind, 'written')
+      assert.notEqual(pager.kind === 'written' && pager.destination.id, id)
+      const ref = { recipient: PERSON, id }
+      const changed = await write({ kind: 'change', ref, patch: { minLevel: 'weak' } })
+      assert.deepEqual(changed.kind === 'written' && changed.destination.minLevel, 'weak')
+      assert.equal(
+        (await write({ kind: 'change', ref, patch: { minLevel: 'weak' } })).kind,
+        'recalled',
+      )
+      const nope = { recipient: PERSON, id: 'nope' }
+      assert.deepEqual(await write({ kind: 'change', ref: nope, patch: { enabled: false } }), {
+        kind: 'not-found',
+      })
+      assert.deepEqual(await write({ kind: 'remove', ref: INBOX }), { kind: 'builtin' })
+      assert.deepEqual(await write({ kind: 'remove', ref }), { kind: 'removed' })
+      assert.deepEqual(await write({ kind: 'remove', ref }), {
+        kind: 'recalled',
+        destination: null,
+      })
+      const left = value(await store.destinations(T1, PERSON)).map(
+        destination => destination.channel,
+      )
+      assert.deepEqual(left, ['in-app', 'pager'])
+      assert.deepEqual(value(await store.destinations(T2, PERSON)), [])
     },
   },
 ]

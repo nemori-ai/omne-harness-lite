@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { fakeChannel } from '@omne-harness/notification/testing'
 import type { StandingItem } from '@omne-harness/notification-contract'
 import { agent, declared, MINUTE, person, request, world } from './world.ts'
@@ -440,5 +440,329 @@ describe('standing items', () => {
     w.clock.set('2026-11-18T07:00:00.000Z')
     await w.advance()
     expect(w.inApp.deliveries[1]?.unit.body).toMatchObject({ count: 1, standingOpen: null })
+  })
+})
+
+/** Replaces one method of the store for the rest of a test and counts its calls. */
+function intercept<K extends keyof ReturnType<typeof world>['store']>(
+  w: ReturnType<typeof world>,
+  method: K,
+  replacement?: (
+    original: ReturnType<typeof world>['store'][K],
+  ) => ReturnType<typeof world>['store'][K],
+) {
+  const original = w.store[method]
+  const calls = { count: 0 }
+  const next = replacement === undefined ? original : replacement(original)
+  const counted = (...args: unknown[]) => {
+    calls.count += 1
+    return (next as (...all: unknown[]) => unknown)(...args)
+  }
+  Object.assign(w.store, { [method]: counted })
+  return calls
+}
+const unavailableRead = () => async () => ({ kind: 'unavailable' }) as never
+const bodies = (channel: { deliveries: readonly { unit: { body: unknown } }[] }) =>
+  channel.deliveries.map(delivery => delivery.unit.body)
+
+describe('each recipient gets its own', () => {
+  it('pushes a strong notification once to each recipient at its own destination', async () => {
+    const w = strongWorld(declared({ defaults: { person: 'strong', agent: 'strong' } }))
+    w.store.facts(w.ctx.tenant).recipients.set('agent:a', agent('a'))
+    await w.sending.send(w.ctx, request('e1', { named: [agent('a')] }))
+    await w.advance()
+    expect(members(w.inApp.deliveries)).toEqual([['e1']])
+    expect(members(w.session.deliveries)).toEqual([['e1']])
+    expect(w.session.deliveries[0]?.recipient).toEqual(agent('a'))
+  })
+})
+
+describe('a pass that finds nothing to do', () => {
+  it('commits nothing and asks only for real instants', async () => {
+    const blocked = declared({
+      name: 'blocked' as never,
+      kind: { kind: 'standing', binding: 'demo.blocked' },
+      defaults: { person: 'strong', agent: 'off' },
+    })
+    const w = strongWorld(declared({ defaults: { person: 'weak', agent: 'off' } }), blocked)
+    const item = {
+      id: 'i1',
+      source: 'demo.things',
+      type: 'blocked',
+      subject: null,
+      title: 'Open',
+      locator: null,
+      since: '2026-11-18T06:00:30.000Z',
+    }
+    w.standing.set({ kind: 'ok', items: [item as never] })
+    await w.sending.send(w.ctx, request('e1'))
+    await w.inbox.mark(w.ctx, w.ref('e1'), 'seen')
+    await w.advance()
+    const commits = (['formStrong', 'formBeat', 'remind', 'recordDelivery'] as const).map(name =>
+      intercept(w, name),
+    )
+    await w.advance()
+    expect(commits.map(calls => calls.count)).toEqual([0, 0, 0, 0])
+    expect(w.hints.wakes.every(wake => typeof wake.at === 'string')).toBe(true)
+  })
+
+  it('does not ask to be woken for a beat when no destination takes one', async () => {
+    const w = world()
+    await w.destinations.change(w.ctx, { recipient: person, id: 'default' }, { minLevel: 'strong' })
+    await w.advance()
+    expect(w.hints.wakes).toEqual([])
+  })
+})
+
+describe('what a pass cannot read', () => {
+  it('forms no beat while the inbox cannot be read, and reads an inbox once for all its destinations', async () => {
+    const w = world()
+    w.channels.register(fakeChannel('mail'))
+    await w.destinations.add(w.ctx, {
+      recipient: person,
+      channel: 'mail',
+      address: 'me@x',
+      minLevel: 'weak',
+    })
+    await w.sending.send(w.ctx, request('e1'))
+    w.clock.set('2026-11-18T06:30:00.000Z')
+    const original = w.store.unresolved
+    Object.assign(w.store, { unresolved: unavailableRead() })
+    await w.advance()
+    expect(w.inApp.deliveries).toEqual([])
+    Object.assign(w.store, { unresolved: original })
+    const reads = intercept(w, 'unresolved')
+    await w.advance()
+    expect(reads.count).toBe(1)
+    expect(w.inApp.deliveries).toHaveLength(1)
+  })
+
+  it('forms no strong unit while what is pending cannot be read', async () => {
+    const w = strongWorld()
+    await w.sending.send(w.ctx, request('e1'))
+    const original = w.store.pendingStrong
+    Object.assign(w.store, { pendingStrong: unavailableRead() })
+    await w.advance()
+    expect(w.inApp.deliveries).toEqual([])
+    Object.assign(w.store, { pendingStrong: original })
+    await w.advance()
+    expect(w.inApp.deliveries).toHaveLength(1)
+  })
+
+  it('treats standing items as unknown when their subscriptions or reminders cannot be read', async () => {
+    const blocked = declared({
+      name: 'blocked' as never,
+      kind: { kind: 'standing', binding: 'demo.blocked' },
+      defaults: { person: 'strong', agent: 'off' },
+    })
+    const w = world(declared(), blocked)
+    const item = {
+      id: 'i1',
+      source: 'demo.things',
+      type: 'blocked',
+      subject: null,
+      title: 'Open',
+      locator: null,
+      since: '2026-11-18T06:00:00.000Z',
+    }
+    const stray = { ...item, id: 'i0', source: 'gone.away' }
+    w.standing.set({ kind: 'ok', items: [stray as never, item as never] })
+    const subscriptions = w.store.subscriptionsFor
+    Object.assign(w.store, { subscriptionsFor: unavailableRead() })
+    await w.sending.send(w.ctx, request('e1'))
+    await w.advance()
+    expect(bodies(w.inApp)).toEqual([
+      expect.objectContaining({ kind: 'digest', count: 1, standingOpen: null }),
+    ])
+    Object.assign(w.store, { subscriptionsFor: subscriptions })
+    const reminded = w.store.reminded
+    Object.assign(w.store, { reminded: unavailableRead() })
+    const reminders = intercept(w, 'remind')
+    await w.advance()
+    expect(reminders.count).toBe(0)
+    Object.assign(w.store, { reminded })
+    w.store.fail('rolled-back')
+    await w.advance()
+    await w.advance()
+    expect(
+      bodies(w.inApp).filter(body => (body as { kind: string }).kind === 'standing'),
+    ).toHaveLength(1)
+    w.clock.set('2026-11-18T06:30:00.000Z')
+    await w.advance()
+    expect(bodies(w.inApp).at(-1)).toMatchObject({ kind: 'digest', standingOpen: 1 })
+  })
+})
+
+describe('a unit that waits for another try', () => {
+  async function waiting() {
+    const w = strongWorld()
+    w.inApp.answer('throw')
+    await w.sending.send(w.ctx, request('e1'))
+    await w.advance()
+    w.clock.advance(MINUTE)
+    return w
+  }
+
+  it('records what came of each try', async () => {
+    const w = await waiting()
+    const [unit] = [...w.store.facts(w.ctx.tenant).units.values()]
+    expect(unit).toMatchObject({ attempts: 1, state: 'pending', last: { kind: 'unknown' } })
+  })
+
+  it('stays pending while its destination is disabled or its channel is gone', async () => {
+    const w = await waiting()
+    await w.destinations.change(w.ctx, { recipient: person, id: 'default' }, { enabled: false })
+    await w.advance()
+    await w.destinations.change(w.ctx, { recipient: person, id: 'default' }, { enabled: true })
+    w.removeInApp()
+    await w.advance()
+    expect(w.inApp.deliveries).toHaveLength(1)
+    w.channels.register(w.inApp)
+    await w.advance()
+    expect(w.inApp.deliveries).toHaveLength(2)
+  })
+
+  it('is delivered once when two wake-ups overlap', async () => {
+    const w = await waiting()
+    await Promise.all([w.advance(), w.advance()])
+    expect(w.inApp.deliveries).toHaveLength(2)
+  })
+
+  it('is settled with its reason when its destination was removed', async () => {
+    const w = strongWorld()
+    const mail = fakeChannel('mail')
+    w.channels.register(mail)
+    const added = await w.destinations.add(w.ctx, {
+      recipient: person,
+      channel: 'mail',
+      address: 'me@x',
+      minLevel: 'strong',
+    })
+    if (added.kind !== 'done') throw new Error(added.kind)
+    mail.answer({ kind: 'unknown' })
+    await w.sending.send(w.ctx, request('e1'))
+    await w.advance()
+    await w.destinations.remove(w.ctx, { recipient: person, id: added.value.id })
+    w.clock.advance(MINUTE)
+    await w.advance()
+    const stopped = [...w.store.facts(w.ctx.tenant).units.values()].find(
+      unit => unit.state === 'stopped',
+    )
+    expect(stopped?.last).toEqual({
+      kind: 'failed',
+      reason: 'destination-removed',
+      retryable: false,
+    })
+  })
+
+  it('tolerates a record that the store says was settled before', async () => {
+    const w = await waiting()
+    intercept(
+      w,
+      'recordDelivery',
+      () => async () => ({ kind: 'committed', value: { kind: 'settled-before' } }) as never,
+    )
+    await w.advance()
+    expect(w.hints.wakes.every(wake => typeof wake.at === 'string')).toBe(true)
+  })
+})
+
+describe('forming a unit when the store answers otherwise', () => {
+  it('delivers nothing when the commit is rolled back, and once when it is written but unknown', async () => {
+    const w = strongWorld()
+    await w.sending.send(w.ctx, request('e1'))
+    w.store.fail('rolled-back')
+    await w.advance()
+    expect(w.inApp.deliveries).toEqual([])
+    w.store.fail('unknown-applied')
+    await w.advance()
+    expect(w.inApp.deliveries).toEqual([])
+    await w.advance()
+    await w.advance()
+    expect(members(w.inApp.deliveries)).toEqual([['e1']])
+  })
+
+  it('asks to be woken when the store says the interval has not passed', async () => {
+    const w = strongWorld(declared({ defaults: { person: 'off', agent: 'strong' } }))
+    w.store.facts(w.ctx.tenant).recipients.set('agent:a', agent('a'))
+    await w.sending.send(w.ctx, request('e1', { named: [agent('a')] }))
+    await w.advance()
+    await w.sending.send(w.ctx, request('e2'))
+    intercept(w, 'delivery', original => async (...args) => {
+      const read = await original(...args)
+      if (read.kind !== 'read') return read
+      const stale = read.value.destinations.map(entry => ({ ...entry, lastStrongAt: null }))
+      return { kind: 'read', value: { ...read.value, destinations: stale } }
+    })
+    w.hints.wakes.length = 0
+    await w.advance()
+    expect(w.session.deliveries).toHaveLength(1)
+    expect(w.hints.wakes).toContainEqual({ tenant: w.ctx.tenant, at: '2026-11-18T06:11:00.000Z' })
+  })
+})
+
+describe('wake-ups for one tenant', () => {
+  it('run again when one arrives during a pass, so nothing accepted meanwhile is left behind', async () => {
+    const w = strongWorld()
+    let release: (() => void) | undefined
+    const gate = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const deliver = w.inApp.deliver
+    let held = false
+    Object.assign(w.inApp, {
+      deliver: async (delivery: Parameters<typeof deliver>[0]) => {
+        if (!held) {
+          held = true
+          await gate
+        }
+        return deliver(delivery)
+      },
+    })
+    await w.sending.send(w.ctx, request('e1'))
+    const first = w.advance()
+    await vi.waitFor(() => expect(held).toBe(true))
+    await w.sending.send(w.ctx, request('e2'))
+    const second = w.advance()
+    release?.()
+    await Promise.all([first, second])
+    expect(members(w.inApp.deliveries)).toEqual([['e1'], ['e2']])
+  })
+
+  it('leave no timer behind after a delivery', async () => {
+    vi.useFakeTimers()
+    try {
+      const w = strongWorld()
+      await w.sending.send(w.ctx, request('e1'))
+      await w.advance()
+      expect(w.inApp.deliveries).toHaveLength(1)
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('a standing item at the edge of a slot', () => {
+  it('counts when it opened exactly at the start of the slot', async () => {
+    const blocked = declared({
+      name: 'blocked' as never,
+      kind: { kind: 'standing', binding: 'demo.blocked' },
+      defaults: { person: 'weak', agent: 'off' },
+    })
+    const w = world(declared(), blocked)
+    const item = {
+      id: 'i1',
+      source: 'demo.things',
+      type: 'blocked',
+      subject: null,
+      title: 'Open',
+      locator: null,
+      since: '2026-11-18T06:30:00.000Z',
+    }
+    w.standing.set({ kind: 'ok', items: [item as never] })
+    w.clock.set('2026-11-18T06:30:00.000Z')
+    await w.advance()
+    expect(bodies(w.inApp)).toEqual([{ kind: 'digest', count: 0, listed: [], standingOpen: 1 }])
   })
 })

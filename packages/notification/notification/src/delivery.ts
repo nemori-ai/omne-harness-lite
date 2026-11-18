@@ -56,21 +56,28 @@ const UNKNOWN: DeliveryResult = { kind: 'unknown' }
 const RESULT_KINDS = ['delivered', 'failed', 'unknown']
 
 /** Asks a channel once. A throw, a timeout or an answer of no known kind is `unknown`. */
-function attempt(
+async function attempt(
   channel: ChannelContribution,
   delivery: Parameters<ChannelContribution['deliver']>[0],
   timeoutMs: number,
 ): Promise<DeliveryResult> {
-  return new Promise(resolve => {
-    const timer = setTimeout(() => resolve(UNKNOWN), timeoutMs)
-    Promise.resolve()
-      .then(() => channel.deliver(delivery))
-      .then(
-        result => resolve(RESULT_KINDS.includes(result?.kind) ? result : UNKNOWN),
-        () => resolve(UNKNOWN),
-      )
-      .finally(() => clearTimeout(timer))
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<DeliveryResult>(resolve => {
+    timer = setTimeout(() => resolve(UNKNOWN), timeoutMs)
   })
+  const answer = async (): Promise<DeliveryResult> => {
+    try {
+      const result = await channel.deliver(delivery)
+      return RESULT_KINDS.includes(result?.kind) ? result : UNKNOWN
+    } catch {
+      return UNKNOWN
+    }
+  }
+  try {
+    return await Promise.race([answer(), timeout])
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 type Reminder = Readonly<{ recipient: RecipientRef; item: StandingItem }>
@@ -105,7 +112,12 @@ function passOf(
 ): Pass {
   const { store, config, defaults } = deps
   const boxes = new Map<string, Promise<readonly BoxEntry[] | null>>()
-  const beats = new Map(state.beats.map(entry => [recipientKey(entry.recipient), entry.beat]))
+  const minutes = new Map(
+    state.beats.map(entry => [
+      recipientKey(entry.recipient),
+      minutesOf(entry.beat, config.defaultBeatMinutes),
+    ]),
+  )
   const recipients = state.beats.map(entry => entry.recipient)
   const own = (recipient: RecipientRef) =>
     state.destinations.filter(entry => sameRecipient(entry.recipient, recipient))
@@ -114,19 +126,16 @@ function passOf(
     now,
     recipients,
     destinations: recipients.flatMap(recipient => withBuiltin(recipient, own(recipient), defaults)),
-    beatMinutes: recipient =>
-      minutesOf(
-        beats.get(recipientKey(recipient)) ?? { kind: 'default' },
-        config.defaultBeatMinutes,
-      ),
+    beatMinutes: recipient => minutes.get(recipientKey(recipient)) ?? null,
     box(recipient) {
       const key = recipientKey(recipient)
-      const read = async () => {
-        const box = await store.unresolved(tenant, recipient)
-        return box.kind === 'read' ? box.value : null
-      }
-      if (!boxes.has(key)) boxes.set(key, read())
-      return boxes.get(key)!
+      const cached = boxes.get(key)
+      if (cached !== undefined) return cached
+      const read = store
+        .unresolved(tenant, recipient)
+        .then(box => (box.kind === 'read' ? box.value : null))
+      boxes.set(key, read)
+      return read
     },
   }
 }

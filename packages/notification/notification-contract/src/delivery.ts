@@ -10,7 +10,7 @@ import type {
   UnitEntry,
   UnitKind,
 } from './delivery-model.ts'
-import type { Instant } from './values.ts'
+import { recipientKey, type Instant } from './values.ts'
 
 export type DestinationFacts = Pick<Destination, 'enabled' | 'minLevel' | 'lastStrongAt'> &
   Readonly<{ channelPresent: boolean; minIntervalMs: number }>
@@ -83,8 +83,8 @@ export function composeBody(
   listLimit: number,
   standingOpen: number | null,
 ): UnitBody {
-  const [only] = members
-  if (kind === 'strong' && members.length === 1 && only !== undefined) {
+  const [only, ...rest] = members
+  if (kind === 'strong' && only !== undefined && rest.length === 0) {
     const { body, locator, cause, external } = only
     return { kind: 'single', entry: { ...entryOf(only), body, locator, cause, external } }
   }
@@ -113,7 +113,5 @@ export function redact(body: UnitBody, disclosure: Disclosure): UnitBody {
 }
 
 export function unitId(destination: DestinationRef, kind: UnitKind, key: string | number): string {
-  const recipient = destination.recipient
-  const owner = recipient.kind === 'person' ? 'person' : `agent:${recipient.ref}`
-  return JSON.stringify([owner, destination.id, kind, String(key)])
+  return JSON.stringify([recipientKey(destination.recipient), destination.id, kind, String(key)])
 }

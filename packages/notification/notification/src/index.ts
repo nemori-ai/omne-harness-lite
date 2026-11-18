@@ -17,3 +17,4 @@ export {
   type DeliveryDependencies,
   type NotificationDelivery,
 } from './delivery.ts'
+export { createCatalog, type CatalogDependencies } from './catalog.ts'

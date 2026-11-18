@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { context, fakeChannel } from '@omne-harness/notification/testing'
-import { createChannelRegistry, NotificationRegistrationError } from '@omne-harness/notification'
-import { agent, person, request, world } from './world.ts'
+import {
+  createChannelRegistry,
+  createDestinations,
+  NotificationRegistrationError,
+} from '@omne-harness/notification'
+import { agent, defaults, person, request, world } from './world.ts'
 
 const unavailable = { kind: 'basis-unavailable' }
 const refused = (reason: string) => ({ kind: 'refused', reason })
@@ -125,6 +129,36 @@ describe('the destinations of a recipient', () => {
     w.removeMail()
     expect(await w.destinations.list(w.ctx, person)).toMatchObject({
       value: [{ state: 'enabled' }, { channel: 'mail', state: 'channel-absent' }],
+    })
+  })
+
+  it('tell two channels with the same address apart, and start unblocked', async () => {
+    const w = withMail()
+    w.channels.register(fakeChannel('pager'))
+    await w.destinations.add(w.ctx, mailTo('same'))
+    const pager = await w.destinations.add(w.ctx, { ...mailTo('same'), channel: 'pager' })
+    expect(pager).toMatchObject({
+      kind: 'done',
+      recalled: false,
+      value: { channel: 'pager', blocked: false },
+    })
+    expect(await w.destinations.list(w.ctx, person)).toMatchObject({
+      value: [{}, { channel: 'mail' }, { channel: 'pager' }],
+    })
+  })
+
+  it('are none for a kind of recipient that starts without a destination', async () => {
+    const w = withMail()
+    const withoutAgentDefault = createDestinations({
+      authority: w.authority,
+      store: w.store,
+      channels: w.channels,
+      defaults: { ...defaults, agent: null },
+    })
+    expect(await withoutAgentDefault.list(w.ctx, agent('a'))).toEqual({
+      kind: 'done',
+      recalled: false,
+      value: [],
     })
   })
 

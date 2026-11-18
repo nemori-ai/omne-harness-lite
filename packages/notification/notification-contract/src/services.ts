@@ -1,5 +1,6 @@
 import type { z } from 'zod'
 import type { SendRefusal } from './decide-send.ts'
+import type { ChannelContribution, EventTypeDeclaration } from './declarations.ts'
 import type {
   BoxedLevel,
   Cause,
@@ -174,4 +175,27 @@ export interface NotificationDestinations {
     ctx: CallContext,
     recipient: RecipientRef,
   ): Promise<Outcome<readonly DestinationView[], DestinationRefusal>>
+}
+
+export type CatalogEventType = Pick<
+  EventTypeDeclaration,
+  'name' | 'label' | 'description' | 'subscribable' | 'nameable' | 'defaults' | 'external'
+> &
+  Readonly<{
+    kind: 'event' | 'standing'
+    subject: Pick<EventTypeDeclaration['subject'], 'presence' | 'hint'>
+  }>
+
+export type CatalogSource = Readonly<{
+  name: SourceName
+  label: string
+  types: readonly CatalogEventType[]
+}>
+
+export type CatalogChannel = Pick<ChannelContribution, 'name' | 'label' | 'leavesSystem'> &
+  Readonly<{ addressHint: string }>
+
+export interface NotificationCatalog {
+  sources(ctx: CallContext): Promise<Outcome<readonly CatalogSource[], 'not-permitted'>>
+  channels(ctx: CallContext): Promise<Outcome<readonly CatalogChannel[], 'not-permitted'>>
 }

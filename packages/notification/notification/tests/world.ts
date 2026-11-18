@@ -9,6 +9,7 @@ import {
   type TenantId,
 } from '@omne-harness/notification-contract'
 import {
+  createCatalog,
   createChannelRegistry,
   createDelivery,
   createDestinations,
@@ -116,6 +117,7 @@ export function world(...types: EventTypeDeclaration[]) {
   const removeInApp = channels.register(inApp)
   channels.register(session)
   const destinations = createDestinations({ authority, store, channels, defaults })
+  const catalog = createCatalog({ authority, sources, channels })
   const standing = fakeStanding()
   const hints = fakeHints()
   const delivery = createDelivery({
@@ -161,6 +163,7 @@ export function world(...types: EventTypeDeclaration[]) {
     session,
     removeInApp,
     destinations,
+    catalog,
     standing,
     hints,
     delivery,
