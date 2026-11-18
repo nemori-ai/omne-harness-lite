@@ -1,4 +1,4 @@
-import { canonical } from './canonical.ts'
+import { canonical, canonicalOfKept } from './canonical.ts'
 import {
   acceptanceIn,
   type AcceptedInput,
@@ -17,7 +17,12 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { revisionOf } from './journal-values.ts'
 import { candidateOf, routeOf } from './journal-finishing.ts'
 import type { HandoffRecord, MemoryExecution } from './journal.ts'
-import { closedHandoffRecord, closedInput, inputRecord } from './journal-records.ts'
+import {
+  closedCustodyAttempts,
+  closedHandoffRecord,
+  closedInput,
+  inputRecord,
+} from './journal-records.ts'
 import type { ExecutionView } from '../journal/index.ts'
 type Execution = MemoryExecution
 
@@ -198,15 +203,51 @@ type CustodyInput<P> = Parameters<AgentJournal<P>['recordHandoff']>[0]
 type CustodyAttempt = MemoryExecution['custodyAttempts'] extends Map<unknown, infer V> ? V : never
 type CustodyChain = Exclude<ExecutionHandoff['custody'], null> | null
 
+type Attempts = readonly (readonly [AgentOperationId, CustodyAttempt])[]
+type CustodyBasis = Readonly<{
+  record: HandoffRecord | undefined
+  groups: ReadonlyMap<string, Attempts>
+}>
+
+export function custodyGroups(execution: Execution): ReadonlyMap<string, Attempts> {
+  const groups = new Map<string, (readonly [AgentOperationId, CustodyAttempt])[]>()
+  for (const entry of execution.custodyAttempts.entries()) {
+    const key = canonicalOfKept(entry[1].handoff)
+    const group = groups.get(key)
+    if (group === undefined) groups.set(key, [entry])
+    else group.push(entry)
+  }
+  return groups
+}
+
+export function custodyBasis(
+  table: Parameters<typeof closedHandoffRecord>[0],
+  execution: Execution,
+  reference: HandoffReference,
+  need: boolean,
+): CustodyBasis {
+  const groups = custodyGroups(execution)
+  const open = handoffRecord(execution, reference)
+  if (open !== undefined || !need) return { record: open, groups }
+  const key = canonicalOfKept(reference)
+  const read = closedCustodyAttempts(table, execution.id, reference)
+  const known = new Set(read.map(([operation]) => operation))
+  const kept = (groups.get(key) ?? []).filter(([operation]) => !known.has(operation))
+  return {
+    record: closedHandoffRecord(table, execution, reference),
+    groups: new Map([[key, [...read, ...kept]]]),
+  }
+}
+
 // A recordHandoff attempt, checked against the record of its H and the custody chain it extends.
 export function validatedCustody<P>(
-  execution: Execution,
+  basis: CustodyBasis,
   input: CustodyInput<P>,
   request: HandoffRecord['request'],
   chain: CustodyChain,
 ): Outcome<CustodyAttempt, Failure> {
   const reference = request.reference
-  const record = handoffRecord(execution, reference)
+  const { record } = basis
   if (record === undefined || !sameValue(record.request, request))
     return fail(invalid('original', 'the request is not on the authoritative record'))
   if (record.resolution !== null && !sameValue(record.resolution, input.original))
@@ -224,7 +265,8 @@ export function validatedCustody<P>(
   }
   if (chain === null || custody.custodyRoot !== chain.root)
     return fail(invalid('operation', 'the custody root is not the root of this H'))
-  const rootAttempt = execution.custodyAttempts.get(chain.root)
+  const attempts = basis.groups.get(canonicalOfKept(reference)) ?? []
+  const rootAttempt = attempts.find(([operation]) => operation === chain.root)?.[1]
   if (rootAttempt === undefined || !sameValue(rootAttempt.original, input.original))
     return fail({ kind: 'conflict', operation: input.operation })
   const last = chain.chain.at(-1)

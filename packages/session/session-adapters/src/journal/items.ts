@@ -5,6 +5,7 @@ import { inputOpen } from './inputs.ts'
 import {
   emptyExecutionView,
   handoffKey,
+  type CustodyView,
   type HandoffView,
   type HoldView,
   type AdmissionView,
@@ -107,6 +108,14 @@ function openIn(family: ItemFamily, entry: Entry, view: ExecutionView, item: str
   return (family.open as Open)(entry, view, item)
 }
 
+const handoffOpen = (item: HandoffView, view: ExecutionView, key: string): boolean =>
+  (item.resolved === null && item.retired === null) ||
+  (view.cursor.currentHandoff != null && key === handoffKey(view.cursor.currentHandoff)) ||
+  held(view, 'handoff', key) ||
+  (item.handoff.kind === 'input'
+    ? inputOpen(item.handoff.input, view)
+    : item.prepared?.step === view.cursor.step)
+
 const fallbackRequest = (view: ExecutionView): RequestView | undefined =>
   view.requests.findLast(item => item.step !== view.cursor.step && item.voided === null)
 
@@ -201,16 +210,15 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
     open: (item: AdmissionView, view: ExecutionView) =>
       item.sequence >= (view.cursor.admissionsFrom ?? 0),
   },
+  { family: 'handoff', holder: table(at('handoffs')), open: handoffOpen },
   {
-    family: 'handoff',
-    holder: table(at('handoffs')),
-    open: (item: HandoffView, view: ExecutionView, key: string) =>
-      (item.resolved === null && item.retired === null) ||
-      (view.cursor.currentHandoff != null && key === handoffKey(view.cursor.currentHandoff)) ||
-      held(view, 'handoff', key) ||
-      (item.handoff.kind === 'input'
-        ? inputOpen(item.handoff.input, view)
-        : item.prepared?.step === view.cursor.step),
+    family: 'custody',
+    holder: table(at('custodies')),
+    open: (item: CustodyView, view: ExecutionView) => {
+      const key = handoffKey(item.handoff)
+      const handoff = view.handoffs.get(key)
+      return handoff !== undefined && handoffOpen(handoff, view, key)
+    },
   },
   {
     family: 'hold',

@@ -244,7 +244,7 @@ type Book<P> = {
 }
 
 const PARTICIPANTS = ['message', 'context-transition', 'custody', 'processed'] as const
-const ROUNDS = 4
+const LOST_RACES = 4
 const READS: ReadonlySet<string> = new Set([
   'load',
   'readCancellationInstallation',
@@ -1594,7 +1594,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       const domain = await domainOf(book)
       if ('failure' in domain) return domain
       const named = (input as { execution?: unknown }).execution
-      for (let round = 0; round < ROUNDS; round += 1) {
+      for (let lost = 0; lost < LOST_RACES;) {
         let synced = await sync(book, domain.ok)
         if ('failure' in synced) return synced
         if (
@@ -1620,27 +1620,27 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           book.scratch = null
           const after = copy.cell.current()
           if (after === before) return answer
-          const written = writtenOf(method, input)
           settled = await publish(
             book,
             domain.ok,
             copy,
             before,
             after,
-            written,
+            writtenOf(method, input),
             input,
             scratch,
             answer,
           )
         } catch (error) {
-          // A read of the round needs closed items the call has not read: read them, run again.
+          // The round needs closed items the call has not read: read them, run again. Not a lost race.
           if (!(error instanceof NeedItems)) throw error
           settled = { kind: 'fetch', refs: error.refs }
         } finally {
           book.scratch = null
         }
         if (settled.kind === 'answer') return settled.value
-        if (settled.kind === 'fetch') {
+        if (settled.kind === 'again') lost += 1
+        else {
           const unread = await fetchClosed(readerOf(options.storage, domain.ok), book, settled.refs)
           if (unread !== null) return fail(unavailable(unread))
         }

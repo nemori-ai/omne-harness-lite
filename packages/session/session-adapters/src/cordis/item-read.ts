@@ -98,8 +98,12 @@ type Lender = Readonly<{
 export async function fetchClosed(
   read: Reader,
   lender: Lender,
-  refs: readonly ItemRef[],
+  asked: readonly ItemRef[],
 ): Promise<string | null> {
+  const alreadyRead = (ref: ItemRef) =>
+    lender.fetched.has(ref.under === true ? underText(ref) : itemText(ref))
+  const refs = asked.filter(ref => !alreadyRead(ref))
+  if (refs.length === 0) return 'a round needs closed items the call has already read'
   const byExecution = Map.groupBy(refs, ref => ref.execution)
   for (const [execution, wanted] of byExecution) {
     const scope = { tenant: lender.tenantText, session: lender.session, execution }

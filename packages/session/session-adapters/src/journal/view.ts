@@ -160,14 +160,16 @@ export type HandoffView = Readonly<{
       }> &
         Stamp)
     | null
-  recorded: readonly Readonly<{
-    resolution: 'recorded' | 'excluded'
-    outcome: Ref
-    predecessor: AgentOperationId | null
-    custody: Ref | null
-    op: AgentOperationId
-    pub: number
-  }>[]
+}>
+
+export type CustodyView = Readonly<{
+  handoff: HandoffReference
+  resolution: 'recorded' | 'excluded'
+  outcome: Ref
+  predecessor: AgentOperationId | null
+  custody: Ref | null
+  op: AgentOperationId
+  pub: number
 }>
 
 export type HoldView = Readonly<{
@@ -321,6 +323,7 @@ export type ExecutionView = Readonly<{
   results: ReadonlyMap<ResultKey, ResultView>
   admissions: readonly AdmissionView[]
   handoffs: ReadonlyMap<string, HandoffView>
+  custodies: ReadonlyMap<string, CustodyView>
   controls: ReadonlyMap<AgentOperationId, ControlView>
   waits: Readonly<{ step: StepId; waits: Ref<readonly Waiting[]>; pub: number }> | null
   finish: FinishView
@@ -396,6 +399,7 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     results: new SharedMap(),
     admissions: [],
     handoffs: new SharedMap(),
+    custodies: new SharedMap(),
     controls: new SharedMap(),
     waits: null,
     finish: {
@@ -425,6 +429,10 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
 }
 
 export const handoffKey = (reference: HandoffReference): string => canonical(reference)
+
+export const custodiesUnder = (reference: HandoffReference): string => `${handoffKey(reference)}/`
+export const custodyKey = (reference: HandoffReference, attempt: AgentOperationId): string =>
+  `${custodiesUnder(reference)}${attempt}`
 
 /** The deliveries each consumption received, in the order they came. */
 export function receivedBy(view: ExecutionView): Map<ConsumptionId, ReceivedView[]> {

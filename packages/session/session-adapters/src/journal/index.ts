@@ -59,6 +59,8 @@ export {
 } from './items.ts'
 export {
   emptyExecutionView,
+  custodiesUnder,
+  custodyKey,
   emptySessionView,
   handoffKey,
   receivedBy,
@@ -75,6 +77,7 @@ export type {
   ExclusionEntry,
   ExecutionView,
   FinishView,
+  CustodyView,
   HandoffView,
   InputView,
   IntentView,

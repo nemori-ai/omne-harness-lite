@@ -201,6 +201,8 @@ import {
   type HandoffApply,
   copy,
   custodyTargetFailure,
+  custodyBasis,
+  custodyGroups,
   handoffRecord,
   heldHandoff,
   acceptedInput,
@@ -1705,19 +1707,6 @@ export function createJournal<P>(
           ? { kind: 'committed', operation: input.operation, revision: revisionOf(revision) }
           : { kind: 'not-applicable' }
     })
-  }
-
-  function custodyGroups(
-    execution: Execution,
-  ): ReadonlyMap<string, readonly (readonly [AgentOperationId, CustodyAttempt])[]> {
-    const groups = new Map<string, (readonly [AgentOperationId, CustodyAttempt])[]>()
-    for (const entry of execution.custodyAttempts.entries()) {
-      const key = canonicalOfKept(entry[1].handoff)
-      const group = groups.get(key)
-      if (group === undefined) groups.set(key, [entry])
-      else group.push(entry)
-    }
-    return groups
   }
 
   function custodyOf(
@@ -3451,8 +3440,11 @@ export function createJournal<P>(
       const request =
         input.original.kind === 'recorded' ? input.original.outcome.request : input.original.request
       const reference = request.reference
-      const validated = (execution: Execution) =>
-        validatedCustody(execution, input, request, custodyOf(execution, reference))
+      const validated = (execution: Execution, need: boolean) => {
+        const basis = custodyBasis(state(), execution, reference, need)
+        const chain = custodyOf(execution, reference, basis.groups)
+        return { record: basis.record, checked: validatedCustody(basis, input, request, chain) }
+      }
       const prepare = (): Attempt<CommandReceipt> => {
         const found = owned(input, 'recordHandoff')
         if ('failure' in found) return answer(found)
@@ -3463,9 +3455,8 @@ export function createJournal<P>(
         const fixed = at === undefined ? undefined : state().operations.get(at)
         if (fixed?.kind === 'excluded')
           return answer(fail(invalid('operation', 'operation-permanently-excluded')))
-        const checked = validated(execution)
+        const { record, checked } = validated(execution, true)
         if ('failure' in checked) return answer(checked)
-        const record = handoffRecord(execution, reference)
         if (record === undefined) throw new Error('recordHandoff: the validated record is missing')
         execution.custodyAttempts.set(input.operation, checked.ok)
         const custody = input.custody
@@ -3508,7 +3499,7 @@ export function createJournal<P>(
         if ('failure' in found) return
         const execution = found.ok
         if (execution.custodyAttempts.has(input.operation)) return
-        const checked = validated(execution)
+        const { checked } = validated(execution, false)
         if (!('failure' in checked)) execution.custodyAttempts.set(input.operation, checked.ok)
       }
       return write('recordHandoff', input, key, prepare, undefined, dropped)

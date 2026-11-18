@@ -145,6 +145,58 @@ describe('the items of the journal view', () => {
     })
   })
 
+  it('a custody attempt recorded after its hand-off closed changes no closed item', () => {
+    const execution = 'exe_custody' as never
+    const handoff = { kind: 'execution' as const, execution, operation: 'h-1' as never }
+    const ref = { digest: 'c'.repeat(64), size: 2 }
+    const batch = (pub: number, facts: PublishedBatch['facts']): PublishedBatch => ({
+      execution,
+      envelope: {
+        op: `op-${String(pub)}` as never,
+        digest: `d-${String(pub)}`,
+        rev: 0,
+        gen: '1',
+        kinds: [],
+      },
+      facts,
+      pub,
+    })
+    const at = (n: number) => `step-${String(n)}` as never
+    const log = [
+      batch(1, [
+        { kind: 'cursor.moved', step: at(1), members: { step: at(1), currentHandoff: handoff } },
+        { kind: 'handoff.prepared', handoff, step: at(1), request: ref, prepared: evidence('p') },
+      ]),
+      batch(2, [
+        {
+          kind: 'handoff.resolved',
+          handoff,
+          resolution: 'recorded',
+          outcome: ref,
+          history: evidence('history'),
+        },
+        { kind: 'cursor.moved', step: at(2), members: { step: at(2), currentHandoff: null } },
+      ]),
+      // The step moved on: the hand-off is closed. Its custody may still be recorded.
+      batch(3, [
+        {
+          kind: 'handoff.recorded',
+          handoff,
+          resolution: 'recorded',
+          outcome: ref,
+          predecessor: null,
+          custody: null,
+        },
+      ]),
+    ]
+    const closed = replay(log.slice(0, 2))
+    if (typeof closed === 'string') throw new Error(closed)
+    expect([...closed.store].filter(([key]) => key.includes('"handoff"'))).toEqual([
+      [expect.any(String), expect.objectContaining({ open: false })],
+    ])
+    expect(replay(log)).toEqual(expect.objectContaining({ store: expect.any(Map) }))
+  })
+
   it('a later step that takes the same batch closes the earlier one', () => {
     const batch = { id: 'b-1' as never, watermark: evidence('watermark/b-1'), ordered: [] }
     const step = (n: number, pub: number): PublishedBatch => ({

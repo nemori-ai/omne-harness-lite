@@ -20,11 +20,13 @@ import {
 } from './facts.ts'
 import {
   emptyExecutionView,
+  custodyKey,
   emptySessionView,
   handoffKey,
   listKey,
   type CandidateView,
   type ControlView,
+  type CustodyView,
   type ExclusionEntry,
   type ExecutionView,
   type HandoffView,
@@ -64,6 +66,7 @@ type Draft = {
   intents: Map<ActionId, IntentView>
   results: Map<ResultKey, ResultView>
   handoffs: Map<string, HandoffView>
+  custodies: Map<string, CustodyView>
   controls: Map<AgentOperationId, ControlView>
   materials: Map<string, MaterialView>
   ops: Map<AgentOperationId, OperationEntry>
@@ -82,6 +85,7 @@ function draftOf(view: ExecutionView): Draft {
     intents: forkTrackedOf(view.intents),
     results: forkTrackedOf(view.results),
     handoffs: forkTrackedOf(view.handoffs),
+    custodies: forkTrackedOf(view.custodies),
     controls: forkTrackedOf(view.controls),
     materials: forkTrackedOf(view.materials),
     ops: forkTrackedOf(view.ops),
@@ -104,7 +108,6 @@ function handoffOf(draft: Draft, reference: HandoffReference): HandoffView {
       prepared: null,
       resolved: null,
       retired: null,
-      recorded: [],
     }
   )
 }
@@ -319,21 +322,15 @@ function foldHandoffRetired(draft: Draft, fact: FactOf<'handoff.retired'>, stamp
 }
 
 function foldHandoffRecorded(draft: Draft, fact: FactOf<'handoff.recorded'>, stamp: Stamp): void {
-  const handoff = handoffOf(draft, fact.handoff)
-  const { op, pub } = stamp
-  draft.handoffs.set(handoffKey(fact.handoff), {
-    ...handoff,
-    recorded: [
-      ...handoff.recorded,
-      {
-        resolution: fact.resolution,
-        outcome: fact.outcome,
-        predecessor: fact.predecessor,
-        custody: fact.custody,
-        op: op as AgentOperationId,
-        pub,
-      },
-    ],
+  const op = stamp.op as AgentOperationId
+  draft.custodies.set(custodyKey(fact.handoff, op), {
+    handoff: fact.handoff,
+    resolution: fact.resolution,
+    outcome: fact.outcome,
+    predecessor: fact.predecessor,
+    custody: fact.custody,
+    op,
+    pub: stamp.pub,
   })
 }
 

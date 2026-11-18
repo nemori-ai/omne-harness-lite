@@ -20,10 +20,12 @@ import type {
 } from '@omne-harness/agent-contract'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { canonical } from './canonical.ts'
-import { needClosed, peekClosed, type ClosedTable } from './closed-items.ts'
+import { needClosed, needUnder, peekClosed, type ClosedTable } from './closed-items.ts'
 import {
   checkpointOf,
+  custodiesUnder,
   handoffKey,
+  type CustodyView,
   receivedBy,
   receivedViews,
   type ProducerCall,
@@ -293,6 +295,24 @@ export function handoffRecordOf(
   }
 }
 
+export const custodyAttemptOf = (item: CustodyView, blobs: BlobStore): CustodyAttempt => ({
+  handoff: item.handoff,
+  original: blob(blobs, item.outcome),
+  custody: item.custody === null ? null : blob(blobs, item.custody),
+})
+
+export function closedCustodyAttempts(
+  table: ClosedTable & Readonly<{ blobs: BlobStore }>,
+  execution: AgentExecutionId,
+  reference: HandoffReference,
+): (readonly [AgentOperationId, CustodyAttempt])[] {
+  const under = { execution, family: 'custody', item: custodiesUnder(reference) }
+  return [...needUnder(table, under).values()]
+    .map(body => body as CustodyView)
+    .sort((left, right) => left.pub - right.pub)
+    .map(item => [item.op, custodyAttemptOf(item, table.blobs)] as const)
+}
+
 // A handoff the core no longer holds open, read back by its reference.
 export function closedHandoffRecord(
   table: ClosedTable & Readonly<{ blobs: BlobStore }>,
@@ -482,16 +502,7 @@ export function projectExecution(
     return record === undefined ? [] : [record]
   })
   projected.custodyAttempts = new Map(
-    [...view.handoffs.values()].flatMap(item =>
-      item.recorded.map((attempt): [AgentOperationId, CustodyAttempt] => [
-        attempt.op,
-        {
-          handoff: item.handoff,
-          original: blob(context.blobs, attempt.outcome),
-          custody: attempt.custody === null ? null : blob(context.blobs, attempt.custody),
-        },
-      ]),
-    ),
+    [...view.custodies.values()].map(item => [item.op, custodyAttemptOf(item, context.blobs)]),
   )
   projected.serial = view.opened === null ? 0 : view.opened.pub
   return projected
