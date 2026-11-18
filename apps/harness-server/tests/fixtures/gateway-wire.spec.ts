@@ -20,9 +20,11 @@ import {
 import { bindMessages } from '@omne-harness/pi-ai-transport/messages'
 import { bindResponses } from '@omne-harness/pi-ai-transport/responses'
 import { replayStream } from '@omne-harness/pi-ai-transport/testing'
+import { request as httpsRequest } from 'node:https'
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { renderReply } from './gateway-wire.ts'
-import type { GatewayAnswer } from './model-gateway.ts'
+import { chatRequestOf, interfacePath, renderReply } from './gateway-wire.ts'
+import { startModelGateway, type GatewayAnswer, type GatewayScript } from './model-gateway.ts'
 
 const RESPONSES = '/api/v1/responses'
 const MESSAGES = '/api/v1/messages'
@@ -527,3 +529,292 @@ describe('renderReply: what goes out as written', () => {
     expect(renderReply(path, json)).toBe(json)
   })
 })
+
+// Requests as the release sends them on Responses (taken from the slow cases of the release
+// tree, with the system prompt, the reminder and the tool guide shortened).
+const SYSTEM = '# Role and goal\n\nYou are the coding agent of OMNE Harness.'
+const REMINDER =
+  'Runtime context: the current values.\n<block key="session.modes" revision="1">{}</block>'
+const ASK_GUIDE = 'Ask: there is no command "no-such-command".'
+const RESPONSES_TOP = {
+  include: ['reasoning.encrypted_content'],
+  model: 'openai/gpt-6.1-sol',
+  prompt_cache_key: 'a'.repeat(64),
+  prompt_cache_options: { mode: 'explicit', ttl: '30m' },
+  provider: { allow_fallbacks: false, order: ['openai'] },
+  reasoning: { effort: 'high', summary: 'auto' },
+  store: false,
+  stream: true,
+  tool_choice: 'auto',
+}
+const said = (role: string, text: string, breakpoint = false) => ({
+  content: [
+    {
+      ...(breakpoint ? { prompt_cache_breakpoint: { mode: 'explicit' } } : {}),
+      text,
+      type: 'input_text',
+    },
+  ],
+  role,
+  type: 'message',
+})
+const answered = (text: string) => ({
+  content: [{ annotations: [], text, type: 'output_text' }],
+  id: 'msg_0',
+  phase: 'final_answer',
+  role: 'assistant',
+  status: 'completed',
+  type: 'message',
+})
+const called = (callId: string) => ({
+  arguments: '{"command":"no-such-command","params":{}}',
+  call_id: callId,
+  id: 'fc_1',
+  name: 'Ask',
+  status: 'completed',
+  type: 'function_call',
+})
+const ASK_TOOL = {
+  description: 'Ask the person a question or request approval, and wait for the answer.',
+  name: 'Ask',
+  parameters: {
+    properties: { command: { type: 'string' } },
+    required: ['command'],
+    type: 'object',
+  },
+  type: 'function',
+}
+const OPENING = [
+  said('developer', SYSTEM),
+  said('developer', REMINDER),
+  said('user', 'Use a tool.'),
+]
+const FOLLOWING = [
+  {
+    encrypted_content: 'ENCRYPTED-STEP-ONE',
+    format: 'openai-responses-v1',
+    id: 'rs_1',
+    summary: [],
+    type: 'reasoning',
+  },
+  answered('step 1'),
+  called('call_1'),
+  { call_id: 'call_1', output: ASK_GUIDE, type: 'function_call_output' },
+]
+const CHAT_OPENING = [
+  { content: SYSTEM, role: 'system' },
+  { content: REMINDER, role: 'developer' },
+  { content: 'Use a tool.', role: 'user' },
+]
+
+const chatOf = (path: string, body: object): unknown =>
+  JSON.parse(chatRequestOf(path, JSON.stringify(body)))
+
+describe('chatRequestOf: a Responses request, read as the chat request equal to it', () => {
+  it('one user message', () => {
+    const raw = JSON.stringify({ ...RESPONSES_TOP, input: [said('user', 'Say hello.', true)] })
+    expect(chatRequestOf(RESPONSES, raw)).toBe(
+      '{"messages":[{"content":"Say hello.","role":"user"}],"model":"openai/gpt-6.1-sol",' +
+        '"reasoning":{"effort":"high"},"stream":true}',
+    )
+  })
+
+  it('the system prompt, a reminder and the tools', () => {
+    expect(chatOf(RESPONSES, { ...RESPONSES_TOP, input: OPENING, tools: [ASK_TOOL] })).toEqual({
+      messages: CHAT_OPENING,
+      model: 'openai/gpt-6.1-sol',
+      reasoning: { effort: 'high' },
+      stream: true,
+      tools: [
+        {
+          function: {
+            description: ASK_TOOL.description,
+            name: 'Ask',
+            parameters: ASK_TOOL.parameters,
+          },
+          type: 'function',
+        },
+      ],
+    })
+  })
+
+  it('a later step: the reasoning, the text and the call of a reply are one assistant message, its result a tool message', () => {
+    const body = { ...RESPONSES_TOP, input: [...OPENING, ...FOLLOWING], tools: [ASK_TOOL] }
+    expect(chatOf(RESPONSES, body)).toMatchObject({
+      messages: [
+        ...CHAT_OPENING,
+        {
+          content: 'step 1',
+          reasoning_details: [
+            {
+              data: 'ENCRYPTED-STEP-ONE',
+              format: 'openai-responses-v1',
+              id: 'rs_1',
+              type: 'reasoning.encrypted',
+            },
+          ],
+          role: 'assistant',
+          tool_calls: [
+            {
+              function: { arguments: '{"command":"no-such-command","params":{}}', name: 'Ask' },
+              id: 'call_1',
+              type: 'function',
+            },
+          ],
+        },
+        { content: ASK_GUIDE, role: 'tool', tool_call_id: 'call_1' },
+      ],
+    })
+  })
+
+  it('a later request starts with the messages of the earlier one, though the cache breakpoint moved', () => {
+    const earlier = { ...RESPONSES_TOP, input: [...OPENING.slice(0, 2), said('user', 'Go.', true)] }
+    const later = {
+      ...RESPONSES_TOP,
+      input: [...OPENING.slice(0, 2), said('user', 'Go.'), ...FOLLOWING],
+    }
+    const before = chatRequestOf(RESPONSES, JSON.stringify(earlier))
+    const after = chatRequestOf(RESPONSES, JSON.stringify(later))
+    const messages = (text: string) => (JSON.parse(text) as { messages: unknown[] }).messages
+    const kept = messages(after).slice(0, messages(before).length)
+    expect(JSON.stringify(kept)).toBe(JSON.stringify(messages(before)))
+    expect(after).toContain('"role":"tool"')
+  })
+
+  it('without the system prompt, a developer message that does not open the input stays a developer message', () => {
+    const input = [said('user', 'Hi.'), answered('Hello.'), said('developer', REMINDER)]
+    expect(chatOf(RESPONSES, { input, model: 'm' })).toEqual({
+      messages: [
+        { content: 'Hi.', role: 'user' },
+        { content: 'Hello.', role: 'assistant' },
+        { content: REMINDER, role: 'developer' },
+      ],
+      model: 'm',
+    })
+  })
+})
+
+describe('chatRequestOf: a Messages request, read as the chat request equal to it', () => {
+  it('the system prompt, a signed thinking block, a call and its result', () => {
+    const body = {
+      max_tokens: 1024,
+      model: 'anthropic/claude-opus-5.5',
+      stream: true,
+      system: [{ text: SYSTEM, type: 'text' }],
+      messages: [
+        { content: [{ text: 'Use a tool.', type: 'text' }], role: 'user' },
+        {
+          content: [
+            { signature: 'SIGNED-ONE', thinking: '', type: 'thinking' },
+            { text: 'step 1', type: 'text' },
+            { id: 'toolu_1', input: { command: 'info' }, name: 'Shell', type: 'tool_use' },
+          ],
+          role: 'assistant',
+        },
+        {
+          content: [
+            {
+              content: [{ text: 'ok', type: 'text' }],
+              tool_use_id: 'toolu_1',
+              type: 'tool_result',
+            },
+          ],
+          role: 'user',
+        },
+      ],
+      tools: [{ description: 'Run a command.', input_schema: { type: 'object' }, name: 'Shell' }],
+      output_config: { effort: 'high' },
+    }
+    expect(chatOf(MESSAGES, body)).toEqual({
+      messages: [
+        { content: SYSTEM, role: 'system' },
+        { content: 'Use a tool.', role: 'user' },
+        {
+          content: 'step 1',
+          reasoning_details: [{ data: 'SIGNED-ONE', type: 'reasoning.encrypted' }],
+          role: 'assistant',
+          tool_calls: [
+            {
+              function: { arguments: '{"command":"info"}', name: 'Shell' },
+              id: 'toolu_1',
+              type: 'function',
+            },
+          ],
+        },
+        { content: 'ok', role: 'tool', tool_call_id: 'toolu_1' },
+      ],
+      model: 'anthropic/claude-opus-5.5',
+      reasoning: { effort: 'high' },
+      stream: true,
+      tools: [
+        {
+          function: {
+            description: 'Run a command.',
+            name: 'Shell',
+            parameters: { type: 'object' },
+          },
+          type: 'function',
+        },
+      ],
+    })
+  })
+})
+
+describe('chatRequestOf and interfacePath: what a request says about its interface', () => {
+  const responsesBody = JSON.stringify({ ...RESPONSES_TOP, input: OPENING })
+  const chatBody = JSON.stringify({ messages: CHAT_OPENING, model: 'm', stream: true })
+
+  it('a chat-completions request is given as sent', () => {
+    expect(chatRequestOf(CHAT, chatBody)).toBe(chatBody)
+  })
+
+  it('a Responses body on the chat-completions path speaks Responses', () => {
+    expect(interfacePath(CHAT, responsesBody)).toBe(RESPONSES)
+  })
+
+  it.each([
+    ['a chat-completions body', CHAT, chatBody, CHAT],
+    ['a path that names its interface', MESSAGES, responsesBody, MESSAGES],
+    ['a body that is not JSON', CHAT, 'not json', CHAT],
+  ])('%s keeps its path', (_case, path, body, expected) => {
+    expect(interfacePath(path, body)).toBe(expected)
+  })
+})
+
+describe('startModelGateway: the script reads chat, the release gets the interface it sent', () => {
+  it('a Responses request on the gateway address: chat body, raw bytes, path, and a Responses reply', async () => {
+    const seen: Parameters<GatewayScript>[0][] = []
+    const gateway = await startModelGateway(request => {
+      seen.push(request)
+      return stream(sse(TEXT_ONLY))
+    })
+    try {
+      const raw = JSON.stringify({ ...RESPONSES_TOP, input: OPENING })
+      const reply = await post(gateway.url, gateway.certPath, raw)
+      expect(seen).toEqual([
+        {
+          index: 0,
+          body: chatRequestOf(RESPONSES, raw),
+          rawBody: raw,
+          path: '/api/v1/chat/completions',
+        },
+      ])
+      expect((await decode(RESPONSES, reply)).texts).toEqual(['Oslo is further north.'])
+    } finally {
+      await gateway.close()
+    }
+  })
+})
+
+function post(url: string, certPath: string, body: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const sent = httpsRequest(url, { method: 'POST', ca: readFileSync(certPath) }, response => {
+      const chunks: Buffer[] = []
+      response.on('data', (chunk: Buffer) => chunks.push(chunk))
+      response.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+      response.on('error', reject)
+    })
+    sent.on('error', reject)
+    sent.end(body)
+  })
+}

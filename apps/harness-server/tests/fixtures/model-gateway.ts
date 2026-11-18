@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { getCACertificates, setDefaultCACertificates } from 'node:tls'
-import { renderReply } from './gateway-wire.ts'
+import { chatRequestOf, interfacePath, renderReply } from './gateway-wire.ts'
 
 export const GATEWAY_PATH = '/api/v1/chat/completions'
 export const GATEWAY_REFUSAL = JSON.stringify({
@@ -19,9 +19,13 @@ export type GatewayAnswer = Readonly<{
   rest?: Readonly<{ after: Promise<void>; body: string }>
 }>
 
-/** A script answers in chat-completions frames; `path` is the path of the request line. */
+/**
+ * A script reads the request and answers in chat-completions terms, whatever interface the request
+ * was sent on: `body` is the chat request equal to the one sent, `rawBody` the bytes as sent, and
+ * `path` the path of the request line.
+ */
 export type GatewayScript = (
-  request: Readonly<{ index: number; body: string; path: string }>,
+  request: Readonly<{ index: number; body: string; rawBody: string; path: string }>,
 ) => GatewayAnswer | Promise<GatewayAnswer>
 
 const refusal: GatewayScript = () => ({
@@ -84,8 +88,12 @@ export async function startModelGateway(answer: GatewayScript = refusal): Promis
     request.on('data', (chunk: Buffer) => chunks.push(chunk))
     request.on('end', () => {
       void Promise.resolve()
-        .then(() => answer({ index, body: Buffer.concat(chunks).toString('utf8'), path }))
-        .then(reply => renderReply(path, reply))
+        .then(async () => {
+          const rawBody = Buffer.concat(chunks).toString('utf8')
+          const spoken = interfacePath(path, rawBody)
+          const body = chatRequestOf(spoken, rawBody)
+          return renderReply(spoken, await answer({ index, body, rawBody, path }))
+        })
         .then(reply => {
           response.writeHead(reply.status, { 'content-type': reply.contentType })
           if (reply.rest === undefined) {

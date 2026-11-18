@@ -66,19 +66,40 @@ type Writer = Readonly<{
   endMarker: string
 }>
 
+type Wire = 'responses' | 'messages'
+
+function wireOf(path: string): Wire | null {
+  if (path.endsWith('/responses')) return 'responses'
+  return path.endsWith('/messages') ? 'messages' : null
+}
+
+/**
+ * The path of the interface a request speaks. An operator address replaces the address of every
+ * endpoint of the release, so a Responses request can arrive on the chat-completions path; its
+ * body tells it: `input` and no `messages`, which no chat-completions request has.
+ */
+export function interfacePath(path: string, raw: string): string {
+  if (wireOf(path) !== null) return path
+  let body: unknown
+  try {
+    body = JSON.parse(raw)
+  } catch {
+    return path
+  }
+  const responses =
+    typeof body === 'object' && body !== null && 'input' in body && !('messages' in body)
+  return responses ? '/api/v1/responses' : path
+}
+
 /**
  * Writes the chat answer of a script in the interface of the request path. A reply that is not a
  * stream, or not a success, goes out as written; so does any reply on the chat-completions path.
  */
 export function renderReply(path: string, reply: GatewayAnswer): GatewayAnswer {
-  const writer = path.endsWith('/responses')
-    ? responsesWriter()
-    : path.endsWith('/messages')
-      ? messagesWriter()
-      : null
-  if (writer === null || reply.status !== 200 || reply.contentType !== 'text/event-stream')
+  const wire = wireOf(path)
+  if (wire === null || reply.status !== 200 || reply.contentType !== 'text/event-stream')
     return reply
-  const translate = translator(writer)
+  const translate = translator(wire === 'responses' ? responsesWriter() : messagesWriter())
   const body = translate(reply.body)
   if (reply.rest === undefined) return { ...reply, body }
   return { ...reply, body, rest: { after: reply.rest.after, body: translate(reply.rest.body) } }
@@ -369,13 +390,264 @@ function messagesWriter(): Writer {
 
 function messagesUsage(usage: ChatUsage | undefined): object {
   if (usage === undefined) return {}
+  const cached = usage.prompt_tokens_details?.cached_tokens ?? 0
   return {
-    input_tokens: usage.prompt_tokens - (usage.prompt_tokens_details?.cached_tokens ?? 0),
-    cache_read_input_tokens: usage.prompt_tokens_details?.cached_tokens ?? 0,
+    input_tokens: usage.prompt_tokens === undefined ? undefined : usage.prompt_tokens - cached,
+    cache_read_input_tokens: cached,
     output_tokens: usage.completion_tokens,
     output_tokens_details: {
       thinking_tokens: usage.completion_tokens_details?.reasoning_tokens ?? 0,
     },
     cost: usage.cost,
+  }
+}
+
+// The request half, as OpenRouter does it the other way: the gateway gives a script the chat
+// request equal to the one sent, so a script reads every request in chat-completions terms.
+
+type ChatPart =
+  | Readonly<{ type: 'text'; text: string }>
+  | Readonly<{
+      type: 'image_url'
+      image_url: Readonly<{ url: string; detail?: string | undefined }>
+    }>
+
+type ChatToolCall = Readonly<{
+  id: string | undefined
+  type: 'function'
+  function: Readonly<{ name: string | undefined; arguments: string | undefined }>
+}>
+
+/** The items of one assistant turn, which chat writes as one assistant message. */
+type Turn = { parts: ChatPart[]; details: object[]; calls: ChatToolCall[] }
+
+/**
+ * The chat-completions body equal to a request sent on `path`, written as the chat engine writes
+ * one: members in key order, no spaces. A chat-completions request is given as sent.
+ */
+export function chatRequestOf(path: string, raw: string): string {
+  const wire = wireOf(path)
+  if (wire === null) return raw
+  const chat = wire === 'responses' ? fromResponses(JSON.parse(raw)) : fromMessages(JSON.parse(raw))
+  return JSON.stringify(keyOrdered(chat))
+}
+
+function keyOrdered(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(keyOrdered)
+  if (typeof value !== 'object' || value === null) return value
+  const entries = Object.entries(value).filter(([, member]) => member !== undefined)
+  return Object.fromEntries(
+    entries
+      .toSorted(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+      .map(([key, member]) => [key, keyOrdered(member)]),
+  )
+}
+
+/** One text part is written as its text, no part as an empty text, as the chat engine writes. */
+function compact(parts: readonly ChatPart[]): string | readonly ChatPart[] {
+  const [only] = parts
+  if (parts.length === 1 && only?.type === 'text') return only.text
+  return parts.length === 0 ? '' : parts
+}
+
+function assistantOf(turn: Turn): object {
+  return {
+    role: 'assistant',
+    content: compact(turn.parts),
+    tool_calls: turn.calls.length === 0 ? undefined : turn.calls,
+    reasoning_details: turn.details.length === 0 ? undefined : turn.details,
+  }
+}
+
+/** Collects chat messages; assistant items in a row become one assistant message. */
+function conversation() {
+  const messages: object[] = []
+  let turn: Turn | null = null
+  const flush = (): void => {
+    if (turn !== null) messages.push(assistantOf(turn))
+    turn = null
+  }
+  return {
+    turn: (): Turn => (turn ??= { parts: [], details: [], calls: [] }),
+    push: (message: object): void => {
+      flush()
+      messages.push(message)
+    },
+    done: (): readonly object[] => {
+      flush()
+      return messages
+    },
+  }
+}
+
+type ResponsesPart = Readonly<{ type: string; text?: string; image_url?: string; detail?: string }>
+
+type ResponsesItem = Readonly<{
+  type?: string
+  role?: string
+  content?: string | readonly ResponsesPart[]
+  id?: string
+  encrypted_content?: string
+  format?: string
+  call_id?: string
+  name?: string
+  arguments?: string
+  output?: string
+}>
+
+type ResponsesRequest = Readonly<{
+  model?: string
+  stream?: boolean
+  instructions?: string
+  input?: string | readonly ResponsesItem[]
+  tools?: readonly Readonly<{ name: string; description?: string; parameters?: unknown }>[]
+  reasoning?: Readonly<{ effort?: string }>
+}>
+
+function responsesParts(content: ResponsesItem['content']): readonly ChatPart[] {
+  if (content === undefined) return []
+  if (typeof content === 'string') return [{ type: 'text', text: content }]
+  return content.map(part => {
+    if ((part.type === 'input_text' || part.type === 'output_text') && part.text !== undefined)
+      return { type: 'text', text: part.text }
+    if (part.type === 'input_image' && part.image_url !== undefined)
+      return { type: 'image_url', image_url: { url: part.image_url, detail: part.detail } }
+    throw new Error(`gateway-wire: a content part of type ${part.type} is not covered`)
+  })
+}
+
+// The system prompt is `instructions`, or the developer message that opens the input; a later
+// developer message is a reminder, which the chat records of OpenAI write as `developer`.
+function fromResponses(request: ResponsesRequest): object {
+  const chat = conversation()
+  if (request.instructions !== undefined)
+    chat.push({ role: 'system', content: request.instructions })
+  const input =
+    typeof request.input === 'string' ? [{ role: 'user', content: request.input }] : request.input
+  for (const [at, item] of (input ?? []).entries()) {
+    const type = item.type ?? 'message'
+    if (type === 'reasoning')
+      chat.turn().details.push({
+        type: 'reasoning.encrypted',
+        id: item.id,
+        data: item.encrypted_content,
+        format: item.format,
+      })
+    else if (type === 'function_call')
+      chat.turn().calls.push({
+        id: item.call_id,
+        type: 'function',
+        function: { name: item.name, arguments: item.arguments },
+      })
+    else if (type === 'function_call_output')
+      chat.push({ role: 'tool', tool_call_id: item.call_id, content: item.output ?? '' })
+    else if (type === 'message' && item.role === 'assistant')
+      chat.turn().parts.push(...responsesParts(item.content))
+    else if (type === 'message' && item.role !== undefined) {
+      const opens = at === 0 && item.role === 'developer' && request.instructions === undefined
+      chat.push({
+        role: opens ? 'system' : item.role,
+        content: compact(responsesParts(item.content)),
+      })
+    } else throw new Error(`gateway-wire: an input item of type ${type} is not covered`)
+  }
+  return {
+    model: request.model,
+    stream: request.stream,
+    messages: chat.done(),
+    tools: request.tools?.map(tool => ({
+      type: 'function',
+      function: { name: tool.name, description: tool.description, parameters: tool.parameters },
+    })),
+    reasoning:
+      request.reasoning?.effort === undefined ? undefined : { effort: request.reasoning.effort },
+  }
+}
+
+type MessagesBlock = Readonly<{
+  type: string
+  text?: string
+  signature?: string
+  data?: string
+  id?: string
+  name?: string
+  input?: unknown
+  tool_use_id?: string
+  content?: string | readonly MessagesBlock[]
+  source?: Readonly<{ media_type?: string; data?: string }>
+}>
+
+type MessagesRequest = Readonly<{
+  model?: string
+  stream?: boolean
+  system?: string | readonly MessagesBlock[]
+  messages?: readonly Readonly<{ role: string; content: string | readonly MessagesBlock[] }>[]
+  tools?: readonly Readonly<{ name: string; description?: string; input_schema?: unknown }>[]
+  output_config?: Readonly<{ effort?: string }>
+}>
+
+function blocksOf(
+  content: string | readonly MessagesBlock[] | undefined,
+): readonly MessagesBlock[] {
+  if (content === undefined) return []
+  return typeof content === 'string' ? [{ type: 'text', text: content }] : content
+}
+
+function messagesPart(block: MessagesBlock): ChatPart {
+  if (block.type === 'text' && block.text !== undefined) return { type: 'text', text: block.text }
+  if (block.type === 'image' && block.source?.data !== undefined)
+    return {
+      type: 'image_url',
+      image_url: { url: `data:${block.source.media_type ?? ''};base64,${block.source.data}` },
+    }
+  throw new Error(`gateway-wire: a content block of type ${block.type} is not covered`)
+}
+
+// Tool results open the user turn that carries them; the rest of the turn follows as a user message.
+function fromMessages(request: MessagesRequest): object {
+  const chat = conversation()
+  const system = blocksOf(request.system)
+  if (system.length > 0) chat.push({ role: 'system', content: compact(system.map(messagesPart)) })
+  for (const message of request.messages ?? []) {
+    const blocks = blocksOf(message.content)
+    if (message.role === 'assistant') {
+      const turn = chat.turn()
+      for (const block of blocks)
+        if (block.type === 'thinking' || block.type === 'redacted_thinking')
+          turn.details.push({
+            type: 'reasoning.encrypted',
+            data: block.type === 'thinking' ? block.signature : block.data,
+          })
+        else if (block.type === 'tool_use')
+          turn.calls.push({
+            id: block.id,
+            type: 'function',
+            function: { name: block.name, arguments: JSON.stringify(block.input ?? {}) },
+          })
+        else turn.parts.push(messagesPart(block))
+      continue
+    }
+    for (const block of blocks)
+      if (block.type === 'tool_result')
+        chat.push({
+          role: 'tool',
+          tool_call_id: block.tool_use_id,
+          content: compact(blocksOf(block.content).map(messagesPart)),
+        })
+    const rest = blocks.filter(block => block.type !== 'tool_result').map(messagesPart)
+    if (rest.length > 0) chat.push({ role: message.role, content: compact(rest) })
+  }
+  return {
+    model: request.model,
+    stream: request.stream,
+    messages: chat.done(),
+    tools: request.tools?.map(tool => ({
+      type: 'function',
+      function: { name: tool.name, description: tool.description, parameters: tool.input_schema },
+    })),
+    reasoning:
+      request.output_config?.effort === undefined
+        ? undefined
+        : { effort: request.output_config.effort },
   }
 }
