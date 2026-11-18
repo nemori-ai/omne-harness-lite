@@ -156,10 +156,11 @@ function copyExecution(value: MemoryExecution): MemoryExecution {
   return {
     ...value,
     attachments: value.attachments.map(item => ({ ...item })),
-    inputs: [...value.inputs],
+    inputs: value.inputs.slice(),
     inputRevisions: new Map(value.inputRevisions),
     resultRevisions: new Map(value.resultRevisions),
-    events: [...value.events],
+    // slice keeps the holes of the closed places: a spread would fill them.
+    events: value.events.slice(),
     controls: [...value.controls],
     results: [...value.results],
     effects: [...value.effects],
@@ -167,7 +168,8 @@ function copyExecution(value: MemoryExecution): MemoryExecution {
     stageReceipts: new Map(value.stageReceipts),
     observed: new Map(value.observed),
     admissions: [...value.admissions],
-    entries: [...value.entries],
+    entries: value.entries.slice(),
+    deliveries: new Map(value.deliveries),
     handoffs: value.handoffs.map(item => ({ ...item })),
     custodyAttempts: new Map(value.custodyAttempts),
     finishing: copyFinishing(value.finishing),

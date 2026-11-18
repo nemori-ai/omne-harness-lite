@@ -6,7 +6,7 @@ import { emptyExecutionView, viewItems, type ExecutionView } from '../src/journa
 import { SharedMap } from '../src/journal/shared-map.ts'
 
 const EXECUTION = 'run_1/execution' as AgentExecutionId
-const holds = { actions: [], consumptions: [], handoffs: [], admissionsFrom: 0 }
+const holds = { actions: [], consumptions: [], handoffs: [], materials: [], admissionsFrom: 0 }
 
 const rows = (view: ExecutionView, closed: readonly string[] = []) =>
   viewItems(view).map(item => ({

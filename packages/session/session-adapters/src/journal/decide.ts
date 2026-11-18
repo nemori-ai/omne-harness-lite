@@ -12,6 +12,7 @@ import {
   FACT_MAX_BYTES,
   bytesOf,
   factKey,
+  materialHold,
   refOf,
   type Batch,
   type BatchEnvelope,
@@ -81,12 +82,27 @@ function heldBy(checkpoint: AgentCheckpoint): CursorMembers['holds'] {
     handoffs: (checkpoint.batch?.slots ?? []).flatMap(slot =>
       slot.handoff === null ? [] : [handoffKey(slot.handoff)],
     ),
+    materials: heldMaterials(checkpoint),
     admissionsFrom:
       checkpoint.replyAdmissionRead.kind === 'verified'
         ? Number(checkpoint.replyAdmissionRead.prefix.sequence)
         : 0,
   }
   return bytesOf(holds) > HOLDS_MAX_BYTES ? null : holds
+}
+
+// The sources a checkpoint still reads: the request or answer each batch action was judged with,
+// and the request every call was fixed on.
+function heldMaterials(checkpoint: AgentCheckpoint): string[] {
+  const sources = (checkpoint.batch?.actions ?? []).flatMap(({ judgment }) =>
+    judgment.kind === 'allowed'
+      ? [judgment.request]
+      : judgment.kind === 'denied' && judgment.answer !== undefined
+        ? [judgment.answer]
+        : [],
+  )
+  for (const call of checkpointCalls(checkpoint)) sources.push(call.fixed)
+  return [...new Set(sources.map(source => materialHold(canonical(source))))]
 }
 
 export type BlobStore = ReadonlyMap<string, unknown>
@@ -243,8 +259,6 @@ export function keyKnown(view: ExecutionView, key: string): boolean {
       return view.intents.has(name as never)
     case 'received':
       return (view.results.get(name as ResultKey)?.received ?? null) !== null
-    case 'placeholder':
-      return view.placeholders.has(name as never)
     case 'reply':
       return view.admissions.some(item => String(item.sequence) === name)
     case 'candidate':

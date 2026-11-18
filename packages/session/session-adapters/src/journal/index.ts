@@ -16,6 +16,7 @@ export {
   factKey,
   refOf,
   resultKey,
+  resultsUnder,
 } from './facts.ts'
 export type {
   Attempt,
@@ -41,6 +42,7 @@ export type {
 } from './facts.ts'
 export { advances, fold, foldAll, foldItems } from './fold.ts'
 export {
+  callHeld,
   finishing,
   sourceOpen,
   itemChanges,
@@ -56,6 +58,7 @@ export {
   emptyExecutionView,
   emptySessionView,
   handoffKey,
+  receivedBy,
   receivedViews,
   viewDigest,
   viewText,
@@ -73,6 +76,7 @@ export type {
   InputView,
   IntentView,
   OperationEntry,
+  MaterialView,
   RequestView,
   ResultView,
   ReceivedView,

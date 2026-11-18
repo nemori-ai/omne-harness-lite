@@ -13,7 +13,6 @@ import type {
   AgentMaterials,
   AgentReceivedCommits,
   CommandReceipt,
-  ConsumptionId,
   DurableEvidence,
   ExecutionMutation,
   Failure,
@@ -42,11 +41,13 @@ import type {
   ToolReceptionTargets,
 } from './reception-targets.ts'
 import { canonical } from './canonical.ts'
+import { entriesFrom } from './closed-rows.ts'
 import { jsonTree } from './material-value.ts'
 import type { Attempt, JournalWrite, MemoryExecution, OperationRecord } from './journal.ts'
-import { journalEvidence, semanticKey } from './journal-values.ts'
+import { JOURNAL_OWNER, semanticKey } from './journal-values.ts'
 import {
   type Blob,
+  type ExecutionView,
   blobOf,
   refOf,
   stampOfReceipt,
@@ -56,12 +57,14 @@ import {
 
 type Input<P> = ReceivedCommitInput<P, ContentBlock>
 import {
+  closedMaterial,
+  closedReceived,
+  receivedEntries,
   deliveryOf,
   keyVersion,
+  preservedSource,
   receivedMaterialSource,
-  sourceNames,
   type Kept,
-  type ReceivedRecord,
 } from './received-records.ts'
 import {
   bindTarget,
@@ -94,12 +97,9 @@ type Hooks<P> = {
     input: Access<P> & { execution: AgentExecutionId },
     reference: string,
   ): ClosedBinding | undefined
-  // A received result this core no longer holds open.
-  closedResult(
-    input: Access<P> & { execution: AgentExecutionId },
-    result: Readonly<{ consumption: ConsumptionId; version: string }>,
-    need: boolean,
-  ): ReceivedRecord | undefined
+  // The closed items this core read back, and the open view of an execution.
+  closed(): Parameters<typeof closedReceived>[0]
+  viewOf(execution: AgentExecutionId): ExecutionView
   state(): ReceivingState
   mutate<T>(action: () => T): T
   touch(): void
@@ -354,20 +354,16 @@ function delivered<P>(
   const held = hooks.state().deliveries.get(text)
   if (held !== undefined) return held
   const result = { consumption: entry.consumption, version: keyVersion(entry.delivery.key) }
-  const closed = hooks.closedResult(input, result, false)
+  const closed = closedReceived(hooks.closed(), mintOf(hooks), input, result, false)
   return closed?.delivery === text ? closed.kept : undefined
 }
 
-// The material of a closed result, by the execution, consumption and version its source names.
-function closedMaterial<P>(hooks: Hooks<P>, access: Access<P>, source: DurableEvidence) {
-  const named = sourceNames(hooks.namespace, source)
-  if (named === null || named.tenant !== tenantText(access.tenant)) return undefined
-  const execution = { ...access, execution: named.execution }
-  const closed = hooks.closedResult(execution, named, true)
-  return closed !== undefined && canonical(closed.kept.entry.material) === canonical(source)
-    ? (closed.material ?? undefined)
-    : undefined
-}
+const mintOf = <P>(hooks: Hooks<P>) => ({ owner: JOURNAL_OWNER, session: hooks.namespace })
+
+// A material by its source: the one this core holds, else the closed one read back (or peeked).
+const materialOf = <P>(hooks: Hooks<P>, access: Access<P>, source: DurableEvidence, need = true) =>
+  hooks.state().materials.get(canonical(source)) ??
+  closedMaterial(hooks.closed(), mintOf(hooks), access.tenant, source, need)
 
 export function createJournalReceiving<P>(hooks: Hooks<P>) {
   const qualifications = new Map<string, Map<P, Qualification>>()
@@ -396,8 +392,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
   ): Outcome<Material<ContentBlock>, Failure> => {
     const refusal = hooks.authorize(access, 'materials.read')
     if (refusal) return fail(refusal)
-    const stored =
-      hooks.state().materials.get(canonical(source)) ?? closedMaterial(hooks, access, source)
+    const stored = materialOf(hooks, access, source)
     if (!stored || stored.tenant !== tenantText(access.tenant))
       return fail(unavailable('material-unreadable'))
     if (stored.execution !== null) {
@@ -674,7 +669,9 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         (input.after !== null && (!/^(0|[1-9][0-9]*)$/.test(input.after) || from > list.length))
       )
         return fail({ kind: 'invalid', field: 'after', reason: 'not a position of the entries' })
-      const items = list.slice(from, from + input.limit).map((entry, index) => ({
+      const read = entriesFrom(hooks.closed(), found.ok, from, input.limit)
+      if (read === null) return fail(unavailable('an entry of the execution is not readable'))
+      const items = read.map((entry, index) => ({
         sequence: String(from + index + 1),
         entry: structuredClone(entry),
       }))
@@ -687,28 +684,19 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     receivedOf: async input => {
       const found = qualified(input, false)
       if ('failure' in found) return found
-      return succeed(
-        found.ok.entries
-          .filter(
-            (entry): entry is ReceivedEntry =>
-              entry.kind === 'received' && entry.consumption === input.consumption,
-          )
-          .map(entry => structuredClone(entry)),
-      )
+      const view = hooks.viewOf(found.ok.id)
+      return succeed(structuredClone(receivedEntries(hooks.closed(), view, input.consumption)))
     },
   }
   const materialPort: AgentMaterials<P, ContentBlock> = {
     async preserve(input) {
       if (!tenantCodec.encode(input.tenant).ok) return fail(denied())
-      const source = journalEvidence(
-        canonical([
-          hooks.namespace,
-          'material',
-          tenantText(input.tenant),
-          input.identity,
-          input.consumer,
-        ]),
-        1,
+      const source = preservedSource(
+        hooks.namespace,
+        tenantText(input.tenant),
+        input.execution,
+        input.identity,
+        input.consumer,
       )
       const operation = `preserve:${createHash('sha256')
         .update(source.record)
@@ -730,7 +718,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           kind: 'answer',
           value,
         })
-        const old = hooks.state().materials.get(canonical(source))
+        const old = materialOf(hooks, input, source, false)
         if (old && canonical(old.value) !== canonical(input.value))
           return answer(fail(invalid('identity')))
         const execution =
@@ -745,7 +733,8 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         const kept = hooks
           .state()
           .materials.sameContent(tenantText(input.tenant), execution, canonical(input.value))
-        if (kept !== undefined) return answer(succeed(materialSourceOf(kept)))
+        if (kept !== undefined && hooks.viewOf(input.execution).materials.has(kept))
+          return answer(succeed(materialSourceOf(kept)))
         return {
           kind: 'batch',
           facts: [
@@ -754,6 +743,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
               source,
               value: refOf(input.value),
               consumer: structuredClone(input.consumer),
+              qualifier: execution,
             },
           ],
           blobs: [blobOf(input.value)],

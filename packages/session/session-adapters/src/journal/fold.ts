@@ -2,8 +2,6 @@ import type {
   ActionId,
   AgentOperationId,
   Authority,
-  ConsumerRef,
-  ConsumptionId,
   ControlStage,
   DurableEvidence,
   HandoffReference,
@@ -16,7 +14,6 @@ import {
   type FactBody,
   type FactOf,
   type PublishedBatch,
-  type Ref,
   type ResultKey,
   type ResultStage,
 } from './facts.ts'
@@ -31,6 +28,7 @@ import {
   type ExecutionView,
   type HandoffView,
   type IntentView,
+  type MaterialView,
   type ObligationListView,
   type ObligationView,
   type OperationEntry,
@@ -64,13 +62,9 @@ type Draft = {
   }
   intents: Map<ActionId, IntentView>
   results: Map<ResultKey, ResultView>
-  placeholders: Map<ConsumptionId, ReceivedView>
   handoffs: Map<string, HandoffView>
   controls: Map<AgentOperationId, ControlView>
-  materials: Map<
-    string,
-    Readonly<{ source: DurableEvidence; value: Ref; consumer: ConsumerRef; pub: number }>
-  >
+  materials: Map<string, MaterialView>
   ops: Map<AgentOperationId, OperationEntry>
   excluded: Map<AgentOperationId, ExclusionEntry>
   rejections: Map<AgentOperationId, RejectionEntry>
@@ -86,7 +80,6 @@ function draftOf(view: ExecutionView): Draft {
     cursorMoved: { ...view.cursorMoved },
     intents: forkTrackedOf(view.intents),
     results: forkTrackedOf(view.results),
-    placeholders: forkTrackedOf(view.placeholders),
     handoffs: forkTrackedOf(view.handoffs),
     controls: forkTrackedOf(view.controls),
     materials: forkTrackedOf(view.materials),
@@ -182,20 +175,22 @@ function foldInputAccepted(
   pub: number,
   revision: number,
 ): void {
-  if (!draft.inputs.some(item => item.input === fact.input))
-    draft.inputs = [
-      ...draft.inputs,
-      {
-        input: fact.input,
-        entry: fact.entry,
-        message: fact.message,
-        source: fact.source,
-        priority: fact.priority,
-        watermark: fact.watermark,
-        pub,
-        revision,
-      },
-    ]
+  if (draft.inputs.some(item => item.input === fact.input)) return
+  draft.accepted += 1
+  draft.inputs = [
+    ...draft.inputs,
+    {
+      input: fact.input,
+      place: draft.accepted - 1,
+      entry: fact.entry,
+      message: fact.message,
+      source: fact.source,
+      priority: fact.priority,
+      watermark: fact.watermark,
+      pub,
+      revision,
+    },
+  ]
 }
 
 function foldRequestAdopted(draft: Draft, fact: FactOf<'request.adopted'>, pub: number): void {
@@ -235,11 +230,6 @@ function foldResultReceived(draft: Draft, fact: FactOf<'result.received'>, stamp
     saved: fact.saved,
     material: fact.material,
     ...stamp,
-  }
-  if (fact.result.delivery === 'placeholder') {
-    if (!draft.placeholders.has(fact.consumption))
-      draft.placeholders.set(fact.consumption, received)
-    return
   }
   const key = resultKey(fact.consumption, fact.result.version)
   const known = draft.results.get(key)
@@ -300,7 +290,7 @@ function foldHandoffPrepared(draft: Draft, fact: FactOf<'handoff.prepared'>, pub
   if (handoff.prepared === null)
     draft.handoffs.set(handoffKey(fact.handoff), {
       ...handoff,
-      prepared: { request: fact.request, prepared: fact.prepared, pub },
+      prepared: { request: fact.request, prepared: fact.prepared, pub, step: fact.step },
     })
 }
 
@@ -531,6 +521,7 @@ function foldMaterialPreserved(
       source: fact.source,
       value: fact.value,
       consumer: fact.consumer,
+      qualifier: fact.qualifier,
       pub,
     })
 }
@@ -675,11 +666,15 @@ function apply(draft: Draft, fact: FactBody, stamp: Stamp, ord: number): void {
       return _exhaustive
     }
   }
-  if (event !== null)
+  if (event !== null) {
+    const entry = fact.kind === 'result.received' || fact.kind === 'fence.started'
+    draft.emitted += 1
+    if (entry) draft.entries += 1
     draft.events = [
       ...draft.events,
       {
-        eseq: draft.events.length + 1,
+        eseq: draft.emitted,
+        entry: entry ? draft.entries : null,
         kind: event,
         ord,
         attachment: active(draft),
@@ -687,6 +682,7 @@ function apply(draft: Draft, fact: FactBody, stamp: Stamp, ord: number): void {
         ...stamp,
       },
     ]
+  }
 }
 
 function foldAllMembers(view: SessionJournalView, batch: PublishedBatch): SessionJournalView {

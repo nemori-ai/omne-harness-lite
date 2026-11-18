@@ -41,6 +41,9 @@ import { EXECUTION_BATCH_MAX_FACTS } from '@omne-harness/session-storage-sql/par
 import { canonical } from '../testing/canonical.ts'
 
 export const FACT_MAX_BYTES = 4096
+
+export const materialHold = (key: string): string =>
+  createHash('sha256').update(key).digest('hex').slice(0, 16)
 export const BATCH_OVERHEAD_BYTES = 512
 export const BATCH_MAX_FACTS = EXECUTION_BATCH_MAX_FACTS - 1
 
@@ -115,6 +118,7 @@ export type CursorMembers = Readonly<{
     actions: readonly ActionId[]
     consumptions: readonly ConsumptionId[]
     handoffs: readonly string[]
+    materials: readonly string[]
     // The sequence of the reply admission prefix the checkpoint has verified (0: none).
     admissionsFrom: number
   }>
@@ -128,6 +132,9 @@ export type ResultKey = string & { readonly resultKey: unique symbol }
 
 export const resultKey = (consumption: ConsumptionId, version: string): ResultKey =>
   JSON.stringify([consumption, version]) as ResultKey
+
+export const resultsUnder = (consumption: ConsumptionId): string =>
+  `${JSON.stringify([consumption]).slice(0, -1)},`
 
 export type FactBody =
   | Readonly<{
@@ -233,6 +240,8 @@ export type FactBody =
   | Readonly<{
       kind: 'handoff.prepared'
       handoff: HandoffReference
+      // The step of the position it hands back to: the step still reads it.
+      step: StepId
       request: Ref
       prepared: DurableEvidence
     }>
@@ -342,6 +351,7 @@ export type FactBody =
       source: DurableEvidence
       value: Ref
       consumer: ConsumerRef
+      qualifier: AgentExecutionId | null
     }>
   | Readonly<{
       kind: 'op.excluded'
@@ -527,7 +537,6 @@ export function factKey(fact: FactBody): string {
       return `call/${fact.action}`
     case 'result.received':
       if (fact.result.delivery === 'account') return `account/${fact.delivery}`
-      if (fact.result.delivery === 'placeholder') return `placeholder/${fact.consumption}`
       return `received/${resultKey(fact.consumption, fact.result.version)}`
     case 'result.handled':
       return `handled/${resultKey(fact.consumption, fact.result.version)}/${fact.stage}`

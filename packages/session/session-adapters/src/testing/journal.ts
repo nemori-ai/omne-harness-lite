@@ -1,10 +1,12 @@
-import { acceptanceIn, compactionGeneration } from '@omne-harness/agent-contract'
+import { compactionGeneration } from '@omne-harness/agent-contract'
 import { pendingCalls } from './pending.ts'
 import { controlStageOf, controlTarget, type ToolControlRecord } from './journal-controls.ts'
 import { canonical, canonicalOfKept } from './canonical.ts'
 import { openEffectsAt, openSnapshotItems } from './execution-open-set.ts'
 import type { JournalCell, TransactionAnswer } from './root.ts'
 import { closedObligations, landClosed } from './closed-items.ts'
+import { landEntry } from './closed-rows.ts'
+import { eventPage } from './event-pages.ts'
 import {
   admissionCounters,
   admissionProjectionOf,
@@ -26,7 +28,6 @@ import {
 import { closedBindingOf } from './binding-targets.ts'
 import { createInputRanges } from './input-ranges.ts'
 import { issueFacts, LEDGER_KINDS, obligationChanges, touchedBy } from './obligation-ledger.ts'
-import { closedReceived } from './received-records.ts'
 import {
   fixAnswer,
   keptAnswer,
@@ -52,10 +53,11 @@ import type {
   CallerCommit,
   CommandReceipt,
   ConsumerRef,
+  ConsumptionId,
   ControlRecord,
   ControlStage,
   EffectIntent,
-  EventPage,
+  ReceivedEntry,
   DurableEvidence,
   ExecutionControl,
   ExecutionHandoff,
@@ -199,12 +201,16 @@ import {
   copy,
   custodyTargetFailure,
   handoffRecord,
+  heldHandoff,
+  acceptedInput,
+  inputAcceptanceOf,
   invalid,
   preparedHandoff,
   retiredHandoff,
   sameEvidence,
   sameValue,
   undetermined,
+  validatedCustody,
 } from './journal-handoff-checks.ts'
 
 export type JointCommitKind = Exclude<CallerCommit['kind'], 'none'>
@@ -413,6 +419,8 @@ export type MemoryExecution = {
   admissions: (AdmissionRecord | undefined)[]
   admissionLedger: AdmissionLedger
   entries: AgentJournalEntry[]
+  // Every entry each consumption it still holds received, in order.
+  deliveries: Map<ConsumptionId, readonly ReceivedEntry[]>
   handoffs: HandoffRecord[]
   custodyAttempts: Map<AgentOperationId, CustodyAttempt>
   finishing: FinishingRecords
@@ -1413,42 +1421,14 @@ export function createJournal<P>(
     })
   }
 
-  function readPage(
-    execution: Execution,
-    after: string | null,
-    limit: number,
-  ): Outcome<EventPage, Failure> {
-    const position = sequenceOf(after)
-    if (position === undefined || position > execution.events.length) {
-      return fail(invalid('after', 'not a sequence of this execution'))
-    }
-    if (!Number.isSafeInteger(limit) || limit < 1 || limit > readLimit) {
-      return fail(invalid('limit', `not a positive integer up to ${readLimit}`))
-    }
-    if (position + 1 < execution.retainedFrom) {
-      return succeed({
-        kind: 'gap',
-        retainedFrom: String(execution.retainedFrom),
-        recovery: journalEvidence(`${cell.namespace}/${execution.id}/recovery`, execution.revision),
-      })
-    }
-    const events = execution.events.slice(position, position + limit)
-    if (events.some(event => !event) || Array.from(events).some(event => !event)) {
-      cell.quarantine('confirmed original event gap')
-      return fail({
-        kind: 'unavailable',
-        owner: 'session-history',
-        diagnostic: 'confirmed original event gap',
-      })
-    }
-    const next = position + events.length
-    return succeed({
-      kind: 'page',
-      events: copy(events),
-      next: String(next),
-      caughtUp: next === execution.events.length,
-    })
-  }
+  const readPage = (execution: Execution, after: string | null, limit: number) =>
+    eventPage(
+      { table: state(), namespace: cell.namespace, readLimit, mint, eventSchema },
+      execution,
+      after,
+      limit,
+      () => cell.quarantine('confirmed original event gap'),
+    )
 
   function stateOf(execution: Execution): ExecutionState {
     if (execution.state.kind !== 'settling') return execution.state
@@ -1474,7 +1454,7 @@ export function createJournal<P>(
       revision: execution.revision,
       checkpoint: execution.checkpoint,
       results: execution.results,
-      entries: execution.entries,
+      entries: [...execution.deliveries.values()].flatMap(list => list.slice(0, 1)),
       effects: execution.effects,
       interruptionsOf: (effect: EffectIntent) =>
         interruptionsOf(effect, execution.controls, execution.tenant),
@@ -1534,7 +1514,7 @@ export function createJournal<P>(
         },
         controls: execution.controls,
         results: execution.results,
-        entries: execution.entries,
+        entries: [...execution.deliveries.values()].flatMap(list => list.slice(0, 1)),
         effects: execution.effects,
         interruptionsOf: effect => interruptionsOf(effect, execution.controls, execution.tenant),
         modelCallOf: effect => {
@@ -1638,7 +1618,7 @@ export function createJournal<P>(
     }
     switch (change.kind) {
       case 'prepare':
-        return preparedHandoff(execution, input, change.request)
+        return preparedHandoff(execution, input, change.request, state())
       case 'resolve':
         return resolvedHandoff(execution, input, change.outcome)
       case 'retire':
@@ -2439,6 +2419,7 @@ export function createJournal<P>(
                 view.revision,
               ),
               entries: [],
+              deliveries: new Map(),
               handoffs: [inputHandoff(acceptance, input.operation, view.revision)],
               custodyAttempts: new Map(),
               finishing: emptyFinishing(),
@@ -2899,6 +2880,7 @@ export function createJournal<P>(
           facts.push({
             kind: 'handoff.prepared',
             handoff: copy(handoff.request.reference),
+            step: handoff.request.position.step,
             request: refOf(handoff.request),
             prepared: evidence,
           })
@@ -3068,7 +3050,8 @@ export function createJournal<P>(
           return answer(fail(invalid('lineage', 'a recognizing operation is not the original one')))
         }
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
-        const known = execution.inputs.find(accepted => accepted.id === input.value.id)
+        const accepted = acceptedInput(state(), execution, input.value.id, lineage.kind)
+        const known = accepted?.value
         if (lineage.kind === 'recognize-input') {
           const entry = lineage.original.entry
           const record = operationAnswer(state(), { ...input, operation: entry.operation }, true)
@@ -3083,7 +3066,7 @@ export function createJournal<P>(
             )
           if (semanticKey('input', known) !== semanticKey('input', input.value))
             return answer(fail(conflict(input.operation)))
-          const stored = handoffRecord(execution, lineage.original.handoff)
+          const stored = heldHandoff(state(), execution, lineage.original.handoff)
           if (
             stored === undefined ||
             !sameValue(stored.request, lineage.original.outcome.request) ||
@@ -3091,9 +3074,7 @@ export function createJournal<P>(
             !sameValue(stored.resolution.outcome.origin, lineage.original.outcome.origin)
           )
             return answer(fail(invalid('lineage', 'the original lineage is not the one on record')))
-          const at = execution.inputRevisions.get(known.id)
-          if (at === undefined)
-            throw new Error('session Journal defect: an accepted input has no revision')
+          const at = accepted!.revision
           const reached = reachedStamp(state(), execution.id, at)
           return recognitionBatch(
             reached?.op === entry.operation ? reached : undefined,
@@ -3473,46 +3454,8 @@ export function createJournal<P>(
       const request =
         input.original.kind === 'recorded' ? input.original.outcome.request : input.original.request
       const reference = request.reference
-      const validated = (execution: Execution): Outcome<CustodyAttempt, Failure> => {
-        const record = handoffRecord(execution, reference)
-        if (record === undefined || !sameValue(record.request, request))
-          return fail(invalid('original', 'the request is not on the authoritative record'))
-        if (record.resolution !== null && !sameValue(record.resolution, input.original))
-          return fail(conflict(input.operation))
-        const attempt: CustodyAttempt = {
-          handoff: copy(reference),
-          original: copy(input.original),
-          custody: input.custody === null ? null : copy(input.custody),
-        }
-        const chain = custodyOf(execution, reference)
-        const custody = input.custody
-        if (custody === null) {
-          if (chain !== null && chain.root !== input.operation)
-            return fail(invalid('operation', 'the H already has its custody root'))
-          return succeed(attempt)
-        }
-        if (chain === null || custody.custodyRoot !== chain.root)
-          return fail(invalid('operation', 'the custody root is not the root of this H'))
-        const rootAttempt = execution.custodyAttempts.get(chain.root)
-        if (rootAttempt === undefined || !sameValue(rootAttempt.original, input.original))
-          return fail(conflict(input.operation))
-        const last = chain.chain.at(-1)
-        if (last === undefined || last.operation !== custody.predecessor.operation)
-          return fail(invalid('operation', 'the predecessor is not the last attempt'))
-        if (last.state !== 'excluded')
-          return fail(invalid('operation', 'the predecessor is not permanently excluded'))
-        const excludedChain = chain.chain.map(item => item.operation)
-        if (
-          custody.priorExcluded.length !== excludedChain.length ||
-          custody.priorExcluded.some(
-            (item, index) =>
-              item.operation !== excludedChain[index] ||
-              item.predecessor !== (index === 0 ? null : excludedChain[index - 1]),
-          )
-        )
-          return fail(invalid('operation', 'the exclusion chain is not the chain of the root'))
-        return succeed(attempt)
-      }
+      const validated = (execution: Execution) =>
+        validatedCustody(execution, input, request, custodyOf(execution, reference))
       const prepare = (): Attempt<CommandReceipt> => {
         const found = owned(input, 'recordHandoff')
         if ('failure' in found) return answer(found)
@@ -3892,7 +3835,7 @@ export function createJournal<P>(
     async inputAcceptance(input) {
       const found = owned(input, 'inputAcceptance')
       if ('failure' in found) return found
-      return succeed(copy(acceptanceIn(found.ok.handoffs, input.input)))
+      return succeed(copy(inputAcceptanceOf(state(), found.ok, viewOf(found.ok.id), input.input)))
     },
 
     async readFinish(input) {
@@ -4045,7 +3988,8 @@ export function createJournal<P>(
     operations: () => state().operations,
     answered: (input, need) => operationAnswer(state(), input, need),
     closedBinding: (input, reference) => closedBindingOf(state(), input.execution, reference),
-    closedResult: (input, result, need) => closedReceived(state(), mint, input, result, need),
+    closed: state,
+    viewOf,
     authorize: cell.authorize,
     gate: cell.gate,
     state: () => cell.state().receiving,
@@ -4057,8 +4001,10 @@ export function createJournal<P>(
     holds,
     receiptOf,
     ownEvidence,
-    projectEntry: (execution, entry, cause) =>
-      appendEvents(execution, [{ kind: 'entry', entry }], cause),
+    projectEntry: (execution, entry, cause) => {
+      appendEvents(execution, [{ kind: 'entry', entry }], cause)
+      landEntry(state(), execution, entry)
+    },
     ...(options.custodian === undefined ? {} : { custodian: options.custodian }),
   })
   return {

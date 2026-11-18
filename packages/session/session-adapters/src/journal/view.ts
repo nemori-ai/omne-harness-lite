@@ -62,6 +62,7 @@ export type AttachmentView = Readonly<{
 
 export type InputView = Readonly<{
   input: InputId
+  place: number
   entry: AgentOperationId
   message: Ref
   source: DurableEvidence | null
@@ -69,6 +70,14 @@ export type InputView = Readonly<{
   watermark: DurableEvidence
   pub: number
   revision: number
+}>
+
+export type MaterialView = Readonly<{
+  source: DurableEvidence
+  value: Ref
+  consumer: ConsumerRef
+  qualifier: AgentExecutionId | null
+  pub: number
 }>
 
 export type RequestView = Readonly<{
@@ -134,7 +143,7 @@ export type AdmissionView = Readonly<{
 
 export type HandoffView = Readonly<{
   handoff: HandoffReference
-  prepared: Readonly<{ request: Ref; prepared: DurableEvidence; pub: number }> | null
+  prepared: Readonly<{ request: Ref; prepared: DurableEvidence; pub: number; step: StepId }> | null
   resolved:
     | (Readonly<{
         resolution: 'recorded' | 'excluded'
@@ -229,6 +238,7 @@ export type FinishView = Readonly<{
 
 export type EventView = Readonly<{
   eseq: number
+  entry: number | null
   kind: string
   ord: number
   attachment: Authority | null
@@ -298,8 +308,6 @@ export type ExecutionView = Readonly<{
   voided: readonly VoidedView[]
   intents: ReadonlyMap<ActionId, IntentView>
   results: ReadonlyMap<ResultKey, ResultView>
-  /** The placeholder a call that went to the background delivered; at most one per call. */
-  placeholders: ReadonlyMap<ConsumptionId, ReceivedView>
   admissions: readonly AdmissionView[]
   handoffs: ReadonlyMap<string, HandoffView>
   controls: ReadonlyMap<AgentOperationId, ControlView>
@@ -320,6 +328,9 @@ export type ExecutionView = Readonly<{
     Stamp)[]
   acknowledged: number
   acknowledgedAt: number
+  emitted: number
+  entries: number
+  accepted: number
   /** The reply admission ledger the admissions fold into: the open ones are only its tail. */
   admitted: AdmittedView
   fences: readonly Readonly<{
@@ -336,10 +347,7 @@ export type ExecutionView = Readonly<{
   }>[]
   events: readonly EventView[]
   bindings: readonly BindingView[]
-  materials: ReadonlyMap<
-    string,
-    Readonly<{ source: DurableEvidence; value: Ref; consumer: ConsumerRef; pub: number }>
-  >
+  materials: ReadonlyMap<string, MaterialView>
   ops: ReadonlyMap<AgentOperationId, OperationEntry>
   excluded: ReadonlyMap<AgentOperationId, ExclusionEntry>
   rejections: ReadonlyMap<AgentOperationId, RejectionEntry>
@@ -373,7 +381,6 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     voided: [],
     intents: new SharedMap(),
     results: new SharedMap(),
-    placeholders: new SharedMap(),
     admissions: [],
     handoffs: new SharedMap(),
     controls: new SharedMap(),
@@ -389,6 +396,9 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     observations: [],
     acknowledged: 0,
     acknowledgedAt: 0,
+    emitted: 0,
+    accepted: 0,
+    entries: 0,
     admitted: { consecutive: 0, total: 0, last: null, sequence: 0, basis: null },
     fences: [],
     events: [],
@@ -403,12 +413,20 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
 
 export const handoffKey = (reference: HandoffReference): string => canonical(reference)
 
-/** Every received delivery that holds custody of an entry: results and placeholders. */
+/** The deliveries each consumption received, in the order they came. */
+export function receivedBy(view: ExecutionView): Map<ConsumptionId, ReceivedView[]> {
+  const by = new Map<ConsumptionId, ReceivedView[]>()
+  const add = (consumption: ConsumptionId, received: ReceivedView | null) => {
+    if (received !== null) by.set(consumption, [...(by.get(consumption) ?? []), received])
+  }
+  for (const item of view.results.values()) add(item.consumption, item.received)
+  for (const list of by.values()) list.sort((left, right) => left.pub - right.pub)
+  return by
+}
+
+/** Every received delivery that holds custody of an entry. */
 export function receivedViews(view: ExecutionView): readonly ReceivedView[] {
-  return [
-    ...[...view.results.values()].flatMap(item => (item.received === null ? [] : [item.received])),
-    ...view.placeholders.values(),
-  ]
+  return [...view.results.values()].flatMap(item => (item.received === null ? [] : [item.received]))
 }
 
 function plain(value: unknown): unknown {

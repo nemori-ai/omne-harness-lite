@@ -4,32 +4,41 @@ import type {
   Adoption,
   AgentEvent,
   AgentEventBody,
+  AgentExecutionId,
   AgentOperationId,
   CommandReceipt,
   DurableEvidence,
   ExecutionState,
   HandoffOutcome,
+  HandoffReference,
   HandoffResolution,
+  InputId,
   PendingCall,
+  ReceivedEntry,
   ResultResponsibility,
   TerminalObservation,
 } from '@omne-harness/agent-contract'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { canonical } from './canonical.ts'
+import { needClosed, peekClosed, type ClosedTable } from './closed-items.ts'
 import {
   checkpointOf,
+  handoffKey,
+  receivedBy,
   receivedViews,
   type ProducerCall,
   type BlobStore,
   type AdmissionView,
+  type EventView,
   type ExecutionView,
   type Mint,
   type HandoffView,
+  type InputView,
   type Stamp,
   type ResultView,
   type SessionJournalView,
 } from '../journal/index.ts'
-import { type HandoffRecord, type MemoryExecution, type OperationRecord } from './journal.ts'
+import type { HandoffRecord, MemoryExecution, OperationRecord } from './journal.ts'
 import type { AdmissionLedger, AdmissionProjection, AdmissionRecord } from './reply-admissions.ts'
 import { finishingOf } from './journal-finishing.ts'
 import { emptyReceivingState, type ReceivingState } from './journal-receiving.ts'
@@ -204,6 +213,30 @@ function historyOf(item: HandoffView, ended: DurableEvidence | null): HandoffRec
 // processed a result without that record is a fact of the step, not a responsibility.
 const responsible = (item: ResultView): boolean => item.stages.recorded !== undefined
 
+export const inputRecord = (item: InputView, blobs: BlobStore): AcceptedInput => ({
+  id: item.input,
+  content: blob(blobs, item.message),
+  source: item.source,
+  priority: item.priority,
+})
+
+export function closedInput(
+  table: ClosedTable,
+  execution: AgentExecutionId,
+  input: InputId,
+  need: boolean,
+): InputView | undefined {
+  const ref = { execution, family: 'input', item: input }
+  return ((need ? needClosed(table, ref) : peekClosed(table, ref)) as InputView | null) ?? undefined
+}
+
+function inputRecords(view: ExecutionView, blobs: BlobStore): AcceptedInput[] {
+  const records = Array.from<AcceptedInput>({ length: 0 })
+  records.length = view.accepted
+  for (const item of view.inputs) records[item.place] = inputRecord(item, blobs)
+  return records
+}
+
 export function attachmentsOf(
   view: Pick<ExecutionView, 'attachments'>,
 ): MemoryExecution['attachments'] {
@@ -236,6 +269,96 @@ export function handoffParts(item: HandoffView, blobs: BlobStore) {
   return { outcome, excluded, request }
 }
 
+export function handoffRecordOf(
+  item: HandoffView,
+  blobs: BlobStore,
+  ended: DurableEvidence | null,
+): HandoffRecord | undefined {
+  const { outcome, excluded, request } = handoffParts(item, blobs)
+  if (request === undefined) return undefined
+  return {
+    handoff: item.handoff,
+    request,
+    prepared: item.prepared?.prepared ?? null,
+    resolution: outcome !== null ? { kind: 'recorded', outcome } : excluded,
+    history: historyOf(item, ended),
+    retirement:
+      item.retired === null
+        ? null
+        : {
+            operation: item.retired.op,
+            revision: revisionOf(item.retired.revision),
+            reason: item.retired.reason,
+          },
+  }
+}
+
+// A handoff the core no longer holds open, read back by its reference.
+export function closedHandoffRecord(
+  table: ClosedTable & Readonly<{ blobs: BlobStore }>,
+  execution: Pick<MemoryExecution, 'id' | 'state'>,
+  reference: HandoffReference,
+): HandoffRecord | undefined {
+  const ref = { execution: execution.id, family: 'handoff', item: handoffKey(reference) }
+  const body = needClosed(table, ref) as HandoffView | null
+  const ended = execution.state.kind === 'ended' ? execution.state.disposition : null
+  return body === null ? undefined : handoffRecordOf(body, table.blobs, ended)
+}
+
+export function eventRecord(
+  execution: AgentExecutionId,
+  event: EventView,
+  context: Pick<ProjectionContext, 'blobs' | 'mint' | 'eventSchema'>,
+): AgentEvent | null {
+  const body = bodyOf(event.fact, context.blobs)
+  if (body === null) return null
+  return {
+    execution,
+    sequence: String(event.eseq),
+    executionAttachment: (event.attachment?.executionAttachment ?? '') as never,
+    schema: context.eventSchema,
+    cause:
+      event.fact.kind === 'finish.ended'
+        ? event.fact.disposition
+        : stampReceipt(context.mint, execution, event).evidence,
+    body,
+  }
+}
+
+export function entryRecord(
+  event: EventView,
+  blobs: BlobStore,
+): MemoryExecution['entries'][number] | null {
+  if (event.fact.kind === 'result.received') return blob(blobs, event.fact.custody)
+  if (event.fact.kind !== 'fence.started') return null
+  return {
+    kind: 'start-fence' as const,
+    operation: event.fact.operation as never,
+    guard: event.fact.guard,
+    fence: event.fact.fence,
+  }
+}
+
+function eventRecords(view: ExecutionView, context: ProjectionContext): AgentEvent[] {
+  const out: AgentEvent[] = []
+  out.length = view.emitted
+  for (const event of view.events) {
+    const record = eventRecord(view.execution, event, context)
+    if (record !== null) out[event.eseq - 1] = record
+  }
+  return out
+}
+
+function entryRecords(view: ExecutionView, blobs: BlobStore): MemoryExecution['entries'] {
+  const out: MemoryExecution['entries'] = []
+  out.length = view.entries
+  for (const event of view.events) {
+    const record = event.entry === null ? null : entryRecord(event, blobs)
+    if (record !== null && event.entry !== null) out[event.entry - 1] = record
+  }
+  return out
+}
+
 export function projectExecution(
   view: ExecutionView,
   context: ProjectionContext,
@@ -247,12 +370,7 @@ export function projectExecution(
     revision: view.revision,
     state: stateOf(view, context.blobs) as MemoryExecution['state'],
     attachments: attachmentsOf(view),
-    inputs: view.inputs.map((item): AcceptedInput => ({
-      id: item.input,
-      content: blob(context.blobs, item.message),
-      source: item.source,
-      priority: item.priority,
-    })),
+    inputs: inputRecords(view, context.blobs),
     inputRevisions: new Map(view.inputs.map(item => [item.input, item.revision])),
     retainedFrom: 1,
     acknowledged: view.acknowledged,
@@ -292,20 +410,13 @@ export function projectExecution(
       ),
     ),
     admissions: admissionRecords(view),
-    entries: view.events.flatMap(event => {
-      if (event.fact.kind === 'result.received')
-        return [blob<MemoryExecution['entries'][number]>(context.blobs, event.fact.custody)]
-      if (event.fact.kind === 'fence.started')
-        return [
-          {
-            kind: 'start-fence' as const,
-            operation: event.fact.operation as never,
-            guard: event.fact.guard,
-            fence: event.fact.fence,
-          },
-        ]
-      return []
-    }),
+    entries: entryRecords(view, context.blobs),
+    deliveries: new Map(
+      [...receivedBy(view)].map(([consumption, list]) => [
+        consumption,
+        list.map(item => blob<ReceivedEntry>(context.blobs, item.custody)),
+      ]),
+    ),
   }
   try {
     projected.checkpoint = checkpointOf(view, context.blobs)
@@ -327,21 +438,7 @@ export function projectExecution(
         observed: recorded.get(passage.id)?.observed ?? null,
       }))
   }
-  projected.events = view.events.flatMap((event): AgentEvent[] => {
-    const body = bodyOf(event.fact, context.blobs)
-    const found = receipt(event)
-    if (body === null) return []
-    return [
-      {
-        execution: view.execution,
-        sequence: String(event.eseq),
-        executionAttachment: (event.attachment?.executionAttachment ?? '') as never,
-        schema: context.eventSchema,
-        cause: event.fact.kind === 'finish.ended' ? event.fact.disposition : found.evidence,
-        body,
-      },
-    ]
-  })
+  projected.events = eventRecords(view, context)
   projected.finishing = finishingOf(view, context.blobs, {
     receipt: stamp => ({ ...receipt(stamp), state: 'applied' }),
     checkpoint: (candidate, revision) =>
@@ -380,28 +477,9 @@ export function projectExecution(
   }
   const ledger: AdmissionLedger = { origin, retainedFrom: 1, rangesFrom: 0, projection }
   projected.admissionLedger = ledger
-  projected.handoffs = [...view.handoffs.values()].flatMap((item): HandoffRecord[] => {
-    const { outcome, excluded, request } = handoffParts(item, context.blobs)
-    if (request === undefined) return []
-    const resolution: HandoffRecord['resolution'] =
-      outcome !== null ? { kind: 'recorded', outcome } : excluded
-    return [
-      {
-        handoff: item.handoff,
-        request,
-        prepared: item.prepared?.prepared ?? null,
-        resolution,
-        history: historyOf(item, ended?.disposition ?? null),
-        retirement:
-          item.retired === null
-            ? null
-            : {
-                operation: item.retired.op,
-                revision: revisionOf(item.retired.revision),
-                reason: item.retired.reason,
-              },
-      },
-    ]
+  projected.handoffs = [...view.handoffs.values()].flatMap(item => {
+    const record = handoffRecordOf(item, context.blobs, ended?.disposition ?? null)
+    return record === undefined ? [] : [record]
   })
   projected.custodyAttempts = new Map(
     [...view.handoffs.values()].flatMap(item =>
@@ -547,12 +625,11 @@ export function projectFragments(
   context: ProjectionContext,
 ): EventFragments {
   const out = emptyFragments()
-  const stampOf = new Map(view.events.map(event => [String(event.eseq), event]))
   out.indexedEvents.set(execution.id, execution.events.length)
-  for (const event of execution.events) {
+  for (const stamp of view.events) {
+    const event = execution.events[stamp.eseq - 1]
+    if (event === undefined) continue
     const key = `${execution.id}\0${event.sequence}`
-    const stamp = stampOf.get(event.sequence)
-    if (stamp === undefined) continue
     const receipt = stampReceipt(context.mint, execution.id, stamp)
     out.eventReceipts.set(key, receipt)
     const pending = pendingsOf(out.callOrigins, execution, event)
@@ -615,8 +692,7 @@ export function projectReceiving(
           if (state.materials.has(key)) return
           state.materials.set(key, {
             tenant: tenantText,
-            execution:
-              state.consumerExecutions.get(canonical([tenantText, material.consumer])) ?? null,
+            execution: material.qualifier,
             value: blob(context.blobs, material.value),
           })
         },

@@ -1,12 +1,16 @@
 import { SharedMap, forkOf } from './shared-map.ts'
-import { factKey, resultKey } from './facts.ts'
+import { factKey, materialHold, resultKey } from './facts.ts'
 import type { AgentExecutionId, ConsumptionId } from '@omne-harness/agent-contract'
+import { inputOpen } from './inputs.ts'
 import {
   emptyExecutionView,
+  handoffKey,
+  type HandoffView,
   type AdmissionView,
   type BindingView,
   type ExecutionView,
   type IntentView,
+  type MaterialView,
   type ObligationView,
   type RequestView,
   type ResultView,
@@ -108,7 +112,7 @@ const fallbackRequest = (view: ExecutionView): RequestView | undefined =>
 const intentHeld = (item: IntentView, view: ExecutionView): boolean =>
   view.cursor.holds?.actions.includes(item.action) ?? true
 
-function callHeld(consumption: string, view: ExecutionView): boolean {
+export function callHeld(consumption: string, view: ExecutionView): boolean {
   if (view.cursor.holds?.consumptions.includes(consumption as never) ?? true) return true
   for (const intent of view.intents.values())
     if (intent.pending.consumption === consumption && intentHeld(intent, view)) return true
@@ -144,7 +148,8 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
   {
     family: 'input',
     holder: list(at('inputs'), item => item.input, byPub),
-    open: always,
+    open: (item: ExecutionView['inputs'][number], view: ExecutionView) =>
+      inputOpen(item.input, view),
   },
   {
     family: 'step',
@@ -172,7 +177,6 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
     holder: table(at('results')),
     open: resultOpen,
   },
-  { family: 'placeholder', holder: table(at('placeholders')), open: always },
   {
     family: 'admission',
     holder: list(
@@ -183,7 +187,17 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
     open: (item: AdmissionView, view: ExecutionView) =>
       item.sequence >= (view.cursor.holds?.admissionsFrom ?? 0),
   },
-  { family: 'handoff', holder: table(at('handoffs')), open: always },
+  {
+    family: 'handoff',
+    holder: table(at('handoffs')),
+    open: (item: HandoffView, view: ExecutionView, key: string) =>
+      (item.resolved === null && item.retired === null) ||
+      (view.cursor.currentHandoff != null && key === handoffKey(view.cursor.currentHandoff)) ||
+      (view.cursor.holds?.handoffs.includes(key) ?? true) ||
+      (item.handoff.kind === 'input'
+        ? inputOpen(item.handoff.input, view)
+        : item.prepared?.step === view.cursor.step),
+  },
   { family: 'control', holder: table(at('controls')), open: always },
   {
     family: 'settlement',
@@ -198,7 +212,7 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
   {
     family: 'fence',
     holder: list(at('fences'), item => item.operation, byPubOrd),
-    open: always,
+    open: closedAtBirth,
   },
   {
     family: 'event',
@@ -207,7 +221,7 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
       item => String(item.eseq),
       item => [item.eseq],
     ),
-    open: always,
+    open: closedAtBirth,
   },
   {
     family: 'binding',
@@ -222,7 +236,13 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
       return !any
     },
   },
-  { family: 'material', holder: table(at('materials')), open: always },
+  {
+    family: 'material',
+    holder: table(at('materials')),
+    open: (item: MaterialView, view: ExecutionView, key: string) =>
+      (view.cursor.holds?.materials.includes(materialHold(key)) ?? true) ||
+      item.pub > (view.cursorMoved.holds ?? 0),
+  },
   { family: 'op', holder: table(at('ops')), open: closedAtBirth, apart: true },
   {
     family: 'exclusion',
@@ -258,6 +278,9 @@ const EXEC_MEMBERS = [
   'waits',
   'acknowledged',
   'acknowledgedAt',
+  'emitted',
+  'entries',
+  'accepted',
   'admitted',
 ] as const
 
@@ -278,6 +301,9 @@ export function execBody(view: ExecutionView): ExecBody {
     waits: view.waits,
     acknowledged: view.acknowledged,
     acknowledgedAt: view.acknowledgedAt,
+    emitted: view.emitted,
+    entries: view.entries,
+    accepted: view.accepted,
     admitted: view.admitted,
     finish: { current: finish.current, ended: finish.ended },
   }

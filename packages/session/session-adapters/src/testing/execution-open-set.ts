@@ -17,7 +17,9 @@ export function openSnapshotItems(
 ) {
   const { execution, shown, from } = scope
   const inputOpen = (input: InputId) => {
-    const index = execution.inputs.findIndex(accepted => accepted.id === input)
+    const index = execution.inputs.findIndex(
+      accepted => (accepted as typeof accepted | undefined)?.id === input,
+    )
     return index < 0 || index >= from
   }
   const rule = { state: shown, checkpoint: execution.checkpoint, inputOpen }
