@@ -238,7 +238,7 @@ it('requires a current source and never turns ask or missing constraints into al
   const w = world(),
     check = createCurrentToolPermission(w.ports)
   w.current.evaluation.sources.tenant.rule.pick = 'ask'
-  expect(await check.check(w.input)).toMatchObject({ kind: 'undecidable' })
+  expect(await check.check(w.input)).toMatchObject({ kind: 'ask' })
   w.current.evaluation.sources.tenant.rule.pick = 'auto'
   w.set({
     ...w.current,
@@ -362,7 +362,7 @@ it('carries the original owner context and the unchanged issued principal to the
 
 it.each([
   ['deny', 'deny'],
-  ['ask-human', 'undecidable'],
+  ['ask-human', 'ask'],
   ['skip-ask', 'allow'],
 ] as const)(
   'consumes published %s only for a structurally permitted inquiry',

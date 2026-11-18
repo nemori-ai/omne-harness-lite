@@ -48,7 +48,8 @@ export async function qualifyAgentPermission(
     const available = declaredPermission(input.declarations, action)
     if (available === undefined) return unavailable()
     const released = structuredClone(available)
-    const { kind: _kind, carrier, ...position } = action.origin
+    // The judging pass only shares reads; the Agent's journal knows the call, not the pass.
+    const { kind: _kind, carrier, pass: _pass, ...position } = action.origin
     const expectedOperation = agentPermissionOperation(position)
     if (
       canonicalText(action.operation) !== canonicalText(expectedOperation) ||

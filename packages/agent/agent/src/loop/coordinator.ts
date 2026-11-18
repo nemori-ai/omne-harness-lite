@@ -74,8 +74,8 @@ import {
   afterPresented,
   afterReply,
   chainOf,
+  denialOf,
   extensionPassages,
-  guidanceOf,
   handBackOf,
   humanWaits,
   needOfAction,
@@ -120,7 +120,6 @@ import {
   candidateDigest,
   answeredCandidate,
   deniedCandidate,
-  guidedCandidate,
   uncheckedCandidate,
   deniedUnchecked,
   deniedForRefusedAdmission,
@@ -1866,12 +1865,8 @@ function coordinate<P>(
     if (answer === undefined) {
       if (deniedUnchecked(execution, currentBatch(), action))
         return succeed(uncheckedCandidate(execution, action))
-      const words = guidanceOf(required(checkpoint, 'checkpoint').passages, action.id)
-      return succeed(
-        words === null
-          ? deniedCandidate(execution, action)
-          : guidedCandidate(execution, action, words),
-      )
+      const denial = denialOf(required(checkpoint, 'checkpoint').passages, action.id)
+      return succeed(deniedCandidate(execution, action, denial))
     }
     const material = await ports.materials.read({ ...access, source: answer })
     if ('failure' in material) return material

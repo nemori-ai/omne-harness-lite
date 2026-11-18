@@ -201,6 +201,7 @@ export interface DecisionCards<P> {
     input: Access<P> &
       Readonly<{
         operation: AgentOperationId
+        execution: AgentExecutionId
         passage: PassageId
         round: CardRoundId
         cards: readonly DurableEvidence[]
@@ -210,9 +211,15 @@ export interface DecisionCards<P> {
     readonly Readonly<{ card: DurableEvidence; reply: Exclude<CardReply, { kind: 'pending' }> }>[]
   >
 }
+export type DenialCategory = 'rule' | 'not-released' | 'prohibited' | 'card-closed' | 'guidance'
 export type AdmissionDecision =
   | Readonly<{ kind: 'allow'; evidence: DurableEvidence }>
-  | Readonly<{ kind: 'deny'; reason: string; evidence: DurableEvidence }>
+  | Readonly<{
+      kind: 'deny'
+      category: DenialCategory
+      reason: string
+      evidence: DurableEvidence
+    }>
   | Readonly<{ kind: 'need-decision'; card: DecisionCardDraft; evidence: DurableEvidence }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
   | Readonly<{ kind: 'undecidable'; diagnostic: string }>

@@ -40,7 +40,10 @@ import { authorizationConfig } from './action-rules.ts'
 import { createToolTargetPolicy, installToolTargetPolicy } from './tool-target-policy.ts'
 import { currentPermissionOf } from './current-permission.ts'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
-import { createToolActionResolution } from '../../entry/tool-action-resolution.ts'
+import {
+  createToolActionResolution,
+  createToolCallLabeling,
+} from '../../entry/tool-action-resolution.ts'
 import { releaseOf } from '../../entry/tool-release.ts'
 import { releaseCatalogViewOf } from '../tool-bindings/catalog-view.ts'
 
@@ -115,11 +118,13 @@ const plugin: Plugin.Object = {
     )
     const ports = portsOf(ctx, grants)
     const permission = currentPermissionOf(ctx)
-    const resolution = createToolActionResolution({
+    const forwarding = {
       release: () => releaseOf(ctx),
       catalog: () => ctx.get(toolCatalogKey, false),
       view: () => releaseCatalogViewOf(ctx),
-    })
+    }
+    const resolution = createToolActionResolution(forwarding)
+    const labeling = createToolCallLabeling(forwarding)
     const readPermission = () => (active ? permission : undefined)
     installToolTargetPolicy(
       ctx,
@@ -139,6 +144,7 @@ const plugin: Plugin.Object = {
         readAdmission: () => (active ? ports.admission : undefined),
         readPermission,
         readResolution: () => (active ? resolution : undefined),
+        readLabeling: () => (active ? labeling : undefined),
       }),
     )
   },

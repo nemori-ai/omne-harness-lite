@@ -6,6 +6,8 @@ it('publishes the authorization shapes: the decision, the system action decision
     [
       'noArguments',
       'PERMIT_ID_MAX_LENGTH',
+      'RELEASE_ARGUMENTS_LIMIT',
+      'RELEASE_OPTIONS',
       'SYSTEM_ACTION_MATRIX',
       'canonicalText',
       'decideAdmission',
@@ -18,6 +20,7 @@ it('publishes the authorization shapes: the decision, the system action decision
       'inMemoryPermitLedger',
       'operationEquals',
       'referenceAdmissionCheck',
+      'releaseCard',
       'referenceSystemActionAuthorization',
       'targetEquals',
     ].sort(),

@@ -32,6 +32,29 @@ const asking = {
   kind: 'question',
   options: [{ id: 'a', label: 'A', description: 'The first' }],
 }
+const release = {
+  ...question,
+  kind: 'release',
+  target: { tool: 'Shell', command: null, preview: '' },
+  arguments: { text: '{"cmd":"ls"}', truncated: false, digest: 'digest-1' },
+  origin: { session: 'ses-1', agent: 'exe-1' },
+  options: [
+    {
+      id: 'deny-once',
+      label: 'No',
+      description: 'This call does not run',
+      offered: true,
+      lasting: false,
+    },
+    {
+      id: 'allow-once',
+      label: 'Yes',
+      description: 'This call runs once',
+      offered: false,
+      lasting: false,
+    },
+  ],
+}
 const submissionRef = { tenantRef: tenant, actorRef: 'actor-1', operationId: 'operation-1' }
 const decisionRef = { card: cardRef, decisionId: 'decision-1', submission: submissionRef }
 const decision = { ref: decisionRef, reply: pick, basisRef: 'basis-1', commitReceipt: 'receipt-1' }
@@ -130,7 +153,11 @@ const successBodies: Readonly<Record<Name, readonly object[]>> = {
       completeness: 'partial',
     },
   ],
-  'read-card': [{ item: item(pending) }, { item: item({ ...pending, question: asking }) }],
+  'read-card': [
+    { item: item(pending) },
+    { item: item({ ...pending, question: asking }) },
+    { item: item({ ...pending, question: release }) },
+  ],
   'submit-reply': replyResults,
   'query-submit-reply': replyResults,
 }
@@ -150,6 +177,12 @@ const invalidSuccess: Readonly<Record<Name, readonly object[]>> = {
     { item: item(pending, { kind: 'person' }) },
     { item: item({ ...pending, revision: 'three' }) },
     { item: { card: pending, origin } },
+    {
+      item: item({
+        ...pending,
+        question: { ...release, options: [{ id: 'deny-once', label: 'No', description: 'No' }] },
+      }),
+    },
   ],
   'submit-reply': [
     { kind: 'decided', decisionRef, revision: '4', delivery: 'superseded' },

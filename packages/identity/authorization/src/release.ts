@@ -1,11 +1,9 @@
 import type { InquiryPolicy } from './inquiry.ts'
 
-/** The structured verdict of the action's gate in its tenant, with the revision it was read at. */
 export type GateVerdict =
   | Readonly<{ kind: 'prohibited' | 'allowed' | 'decision-required'; revision: string }>
   | Readonly<{ kind: 'unavailable' }>
 
-/** What the session holds for this action: its inquiry policy and the authorizations a person gave. */
 export type SessionFacts =
   | Readonly<{
       kind: 'read'
@@ -25,7 +23,6 @@ export type ReleaseFacts = Readonly<{
   session: SessionFacts
 }>
 
-/** The revisions a decision used; a consumer holds them to see whether the decision is still current. */
 export type ReleaseBasis = Readonly<{ verdict: string; session: string | null }>
 
 export type ReleaseDecision =

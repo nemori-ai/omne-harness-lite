@@ -1,6 +1,6 @@
 import { fail, succeed } from '@omne-harness/operation-result'
 import { canonicalDigest } from '@omne-harness/tool'
-import type { ToolActionResolution } from '@omne-harness/tool-contract'
+import type { Adoption, ToolActionResolution, ToolCallLabel } from '@omne-harness/tool-contract'
 import { forwardIntentOfCall } from '@omne-harness/tool-host-local'
 import {
   releaseToolConsumer,
@@ -39,6 +39,38 @@ async function releasedTools(ports: ForwardRequestPorts, input: Input) {
   )
     return unavailable('Tools is not available as released')
   return succeed(availability.definition)
+}
+
+// A release card's label, from the very definition admission judged; never the model's intent.
+export type ToolCallLabeling = Readonly<{
+  label(
+    input: Omit<Input, 'name'> & Readonly<{ definition: Adoption }>,
+  ): Promise<Omit<ToolCallLabel, 'intent'> | undefined>
+}>
+
+export function createToolCallLabeling(ports: ForwardRequestPorts): ToolCallLabeling {
+  return {
+    async label(input) {
+      const release = ports.release()
+      const catalog = ports.catalog()
+      if (release.kind !== 'trusted' || catalog === undefined) return undefined
+      const inspected = await catalog.inspect({
+        principal: input.principal,
+        tenant: input.tenant,
+        name: input.definition.name,
+        command: null,
+        consumer: releaseToolConsumer(release),
+      })
+      if ('failure' in inspected || inspected.ok.kind !== 'available') return undefined
+      const { definition } = inspected.ok
+      if (canonicalDigest(definition.adoption) !== canonicalDigest(input.definition))
+        return undefined
+      const called = callOf(definition, input.effectiveArguments)
+      if ('answer' in called) return undefined
+      const { tool, command, preview } = called.label
+      return { tool, command, preview }
+    },
+  }
 }
 
 // Only a `Tools` execute call carries another action; every other call is its own, read nothing for it.

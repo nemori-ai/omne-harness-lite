@@ -139,6 +139,7 @@
 - `DECISION_CARD_DRAFT_SCHEMA` · `judge-output.d.ts`
 - `DecisionCardDraft` · `extensions.d.ts`
 - `DecisionCards` · `passages.d.ts`
+- `DenialCategory` · `passages.d.ts`
 - `Dimension` · `extensions.d.ts`
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `EffectIntent` · `journal.d.ts`
@@ -1775,6 +1776,7 @@ export type DecisionCardDraft = Readonly<{
         option: CardOption['id'];
         effectiveArguments: string;
     }>;
+    detail?: JsonValue;
 }>;
 export type CardOption = Readonly<{
     id: string;
@@ -3178,6 +3180,7 @@ export interface DecisionCards<P> {
     }>): Reply<CardReply>;
     invalidate(input: Access<P> & Readonly<{
         operation: AgentOperationId;
+        execution: AgentExecutionId;
         passage: PassageId;
         round: CardRoundId;
         cards: readonly DurableEvidence[];
@@ -3189,11 +3192,13 @@ export interface DecisionCards<P> {
         }>;
     }>[]>;
 }
+export type DenialCategory = 'rule' | 'not-released' | 'prohibited' | 'card-closed' | 'guidance';
 export type AdmissionDecision = Readonly<{
     kind: 'allow';
     evidence: DurableEvidence;
 }> | Readonly<{
     kind: 'deny';
+    category: DenialCategory;
     reason: string;
     evidence: DurableEvidence;
 }> | Readonly<{

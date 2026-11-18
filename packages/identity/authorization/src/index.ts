@@ -1,5 +1,13 @@
 export { decideAdmission } from './admission.ts'
 export { decideRelease } from './release.ts'
+export { RELEASE_ARGUMENTS_LIMIT, RELEASE_OPTIONS, releaseCard } from './release-card.ts'
+export type {
+  ReleaseCard,
+  ReleaseCardAction,
+  ReleaseCardOption,
+  ReleaseOffer,
+  ReleaseOption,
+} from './release-card.ts'
 export type {
   GateVerdict,
   ReleaseBasis,

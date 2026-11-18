@@ -12,6 +12,7 @@ import {
   type CardRoundId,
   type CardRequest,
   type Conclusion,
+  type DenialCategory,
   type DurableEvidence,
   type ExtensionOutput,
   type Passage,
@@ -156,21 +157,36 @@ export function afterAdmission(
       resolve(before, concluded(action, before.id, at, { kind: 'observed' }), answer.evidence),
     )
   if (action.judgment.kind !== 'denied') return succeed({ action, passages })
-  const reason = answer.kind === 'denied' ? answer.reason : 'denied'
+  // The chain's veto reason is the closed denial category; the message is read back from it.
+  const reason: DenialCategory = answer.kind === 'denied' ? answer.category : 'rule'
   const denial = concluded(action, before.id, at, { kind: 'veto', reason })
   return stepped(action, passages, resolve(before, denial, action.judgment.evidence))
 }
 
-const HUMAN_GUIDANCE = 'human-guidance'
+const CATEGORIES: ReadonlySet<string> = new Set<DenialCategory>([
+  'rule',
+  'not-released',
+  'prohibited',
+  'card-closed',
+  'guidance',
+])
 
-export function guidanceOf(passages: readonly Passage[], action: ActionId): string | null {
+/** Why the action was denied, read from its chain: a denial with no chain is a rule's. */
+export function denialOf(
+  passages: readonly Passage[],
+  action: ActionId,
+): Readonly<{ category: DenialCategory; words: string | null }> {
   const progress = passages.find(passage => admissionActionOf(passage.id) === action)?.progress
-  if (progress?.kind !== 'resolved' && progress?.kind !== 'applied') return null
+  if (progress?.kind !== 'resolved' && progress?.kind !== 'applied')
+    return { category: 'rule', words: null }
   const { output } = progress.conclusion
-  if (output?.kind !== 'veto' || output.reason !== HUMAN_GUIDANCE) return null
+  const category =
+    output?.kind === 'veto' && CATEGORIES.has(output.reason)
+      ? (output.reason as DenialCategory)
+      : 'rule'
   const last = progress.rounds.at(-1)?.progress
   const response = last?.kind === 'processed' ? last.cards[0]?.response : undefined
-  return response?.kind === 'remark' ? response.text : null
+  return { category, words: response?.kind === 'remark' ? response.text : null }
 }
 
 export function presentRequest(chain: Passage): Readonly<{

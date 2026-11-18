@@ -23,6 +23,8 @@ function permissionVerdict(
   decision: Awaited<ReturnType<ToolPermissionCheck['check']>>,
 ): RequestAccessVerdict {
   if (decision.kind === 'deny') return { kind: 'denied', reason: decision.reason }
+  // The fence only guards: a call a person has yet to release does not start.
+  if (decision.kind === 'ask') return { kind: 'denied', reason: 'decision-required' }
   return decision.kind === 'allow'
     ? { kind: 'allowed', condition: decision.condition }
     : unavailable()

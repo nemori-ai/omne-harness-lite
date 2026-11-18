@@ -89,6 +89,33 @@ const missingOrganization = (): PermissionSource => ({
   sourceRef: 'settings.organization',
 })
 
+async function qualified(
+  options: PermissionBasisReadOptions,
+  context: ToolPermissionContext,
+  request: PermissionBasisRequest,
+) {
+  const origins = options.origins()
+  if (origins === undefined) return unavailable('harness.permission-origin')
+  const shared = {
+    action: context,
+    permission: request,
+    declarations: options.declarations(),
+    readSession: (value: PermissionBasisRequest) =>
+      readSessionPermissionForCapture(options.storage, options.domain, value),
+  }
+  return context.origin.kind === 'agent-action'
+    ? qualifyAgentPermission({
+        ...shared,
+        qualifier: origins.action,
+        adoptions: origins.adoptions,
+      })
+    : qualifyToolPermission({
+        ...shared,
+        qualifier: origins.tool,
+        agent: { qualifier: origins.toolAgent, adoptions: origins.adoptions },
+      })
+}
+
 export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
   const map = createPermissionReadMapping(options)
   const standingOnce = passMemory<Awaited<ReturnType<typeof member>>>()
@@ -140,29 +167,6 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
       : missingOrganization()
   }
 
-  async function qualified(context: ToolPermissionContext, request: PermissionBasisRequest) {
-    const origins = options.origins()
-    if (origins === undefined) return unavailable('harness.permission-origin')
-    const shared = {
-      action: context,
-      permission: request,
-      declarations: options.declarations(),
-      readSession: (value: PermissionBasisRequest) =>
-        readSessionPermissionForCapture(options.storage, options.domain, value),
-    }
-    return context.origin.kind === 'agent-action'
-      ? qualifyAgentPermission({
-          ...shared,
-          qualifier: origins.action,
-          adoptions: origins.adoptions,
-        })
-      : qualifyToolPermission({
-          ...shared,
-          qualifier: origins.tool,
-          agent: { qualifier: origins.toolAgent, adoptions: origins.adoptions },
-        })
-  }
-
   async function read(raw: ToolPermissionContext): Promise<CurrentPermissionRead> {
     const context = {
       ...raw,
@@ -180,7 +184,7 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
     const mapped = await map(context)
     if (mapped === undefined) return without(unavailable('harness.permission-target'))
     const request = mapped.permission
-    const qualification = await qualified(context, request)
+    const qualification = await qualified(options, context, request)
     if (qualification.kind !== 'qualified') return without(qualification, request)
     const { origin } = qualification
     const commands = permissionBasisCommands(

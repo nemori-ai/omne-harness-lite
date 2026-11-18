@@ -31,7 +31,7 @@ it('a deny pick of the tenant layer stops the next Shell call at its start, and 
     const stopped = await shellRound(tree, 'stopped')
     expect(stopped).toMatchObject({
       started: false,
-      result: 'The tool call was denied and did not run.',
+      result: 'The tool call was denied by a rule or a prohibition and did not run.',
       calls: [],
     })
 

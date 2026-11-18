@@ -8,7 +8,9 @@ import {
 } from '@omne-harness/authorization'
 import { succeed } from '@omne-harness/operation-result'
 import type { ToolActionResolution } from '@omne-harness/tool-contract'
+import type { ToolCallLabeling } from '../../entry/tool-action-resolution.ts'
 import { actionRulesSchema, toolActionRule, type ActionRules } from './action-rules.ts'
+import { answeredDecision, askedDecision } from './release-asking.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 import {
   agentPermissionOperation,
@@ -20,6 +22,13 @@ type Request = Parameters<ActionAdmission<unknown>['admit']>[0]
 export type AdmissionReader = () => AdmissionCheck | undefined
 export type ToolPermissionReader = () => ToolPermissionCheck | undefined
 export type ResolutionReader = () => ToolActionResolution<unknown> | undefined
+type Readers = Readonly<{
+  readAdmission: AdmissionReader
+  readPermission: ToolPermissionReader
+  readResolution: ResolutionReader
+  /** Absent when no labeling is installed: an action a person must release then waits. */
+  readLabeling?: () => ToolCallLabeling | undefined
+}>
 
 function unavailable(diagnostic: string): AdmissionDecision {
   return { kind: 'unavailable', diagnostic }
@@ -70,10 +79,12 @@ type Judging = Readonly<{
   input: Request
   rules: ActionRules
   principal: ToolPermissionAction['principal']
+  session: string
   identity: Awaited<ReturnType<AdmissionCheck['check']>>
   target: AdmissionInput['target']
   argumentsDigest: AdmissionInput['arguments']
   permission: ToolPermissionCheck | undefined
+  labeling: ToolCallLabeling | undefined
 }>
 
 function permissionAction(judging: Judging, gate: Judged): ToolPermissionAction {
@@ -116,6 +127,15 @@ async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecis
   if (judging.permission === undefined)
     return unavailable('the current permission dependency is unavailable')
   const current = await judging.permission.check(permissionAction(judging, gate))
+  if (current.kind === 'ask')
+    return askedDecision(judging.labeling, {
+      input: judging.input,
+      principal: judging.principal,
+      session: judging.session,
+      definition: gate.definition,
+      effectiveArguments: gate.effectiveArguments,
+      evidence: current.evidence,
+    })
   if (current.kind !== 'allow') return current
   return {
     kind: 'allow',
@@ -129,14 +149,12 @@ async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecis
 async function decide(
   input: Request,
   rules: ActionRules | undefined,
-  read: AdmissionReader,
-  readPermission: ToolPermissionReader,
-  readResolution: ResolutionReader,
+  readers: Readers,
 ): Promise<AdmissionDecision> {
   if (rules === undefined)
     return undecidable('no action rule source is installed in this deployment')
-  if (input.permissions.length !== 0 || input.decision !== null)
-    return undecidable('permission and decision interpreters are not installed')
+  if (input.permissions.length !== 0)
+    return undecidable('permission interpreters are not installed')
   const who = sessionWorkOf(input.principal, input.tenant)
   const target = {
     owner: 'agent',
@@ -147,11 +165,13 @@ async function decide(
   if (who === undefined) {
     return {
       kind: 'deny',
+      category: 'rule',
       reason: 'session-work-required',
       evidence: decisionEvidence('action-principal', '0', { target, arguments: argumentsDigest }),
     }
   }
-  const admission = read()
+  if (input.decision !== null) return answeredDecision(input.decision)
+  const admission = readers.readAdmission()
   if (admission === undefined) return unavailable('the action admission dependency is unavailable')
   const identity = await admission.check({
     access: { principal: who.principal, tenant: input.tenant },
@@ -161,16 +181,18 @@ async function decide(
     requires: [],
     permit: null,
   })
-  const gates = await judgedOf(input, who.principal, readResolution)
+  const gates = await judgedOf(input, who.principal, readers.readResolution)
   if ('kind' in gates) return gates
   const judging = {
     input,
     rules,
     principal: who.principal,
+    session: who.session,
     identity,
     target,
     argumentsDigest,
-    permission: readPermission(),
+    permission: readers.readPermission(),
+    labeling: readers.readLabeling?.(),
   }
   const [first, ...rest] = gates
   let answer = await judgeGate(judging, first)
@@ -191,7 +213,7 @@ function actionDecision(
   if (identity.kind === 'unavailable')
     return unavailable('the action identity check is unavailable')
   if (identity.kind === 'denied')
-    return { kind: 'deny', reason: identity.reason, evidence: identity.evidence }
+    return { kind: 'deny', category: 'rule', reason: identity.reason, evidence: identity.evidence }
   if (identity.kind !== 'allowed')
     return undecidable('the action identity check answered outside its contract')
   if (rule === undefined) return undecidable('no action rule matches this action')
@@ -202,25 +224,19 @@ function actionDecision(
     identity: identity.evidence,
   })
   return rule.effect === 'deny'
-    ? { kind: 'deny', reason: `rule/${rule.id}`, evidence }
+    ? { kind: 'deny', category: 'rule', reason: `rule/${rule.id}`, evidence }
     : { kind: 'allow', evidence }
 }
 
 export function createActionAdmission(
-  options: Readonly<{
-    actionRules?: unknown
-    readAdmission: AdmissionReader
-    readPermission: ToolPermissionReader
-    readResolution: ResolutionReader
-  }>,
+  options: Readonly<{ actionRules?: unknown }> & Readers,
 ): ActionAdmission<unknown> {
   const rules =
     options.actionRules === undefined ? undefined : actionRulesSchema.parse(options.actionRules)
-  const { readAdmission: read, readPermission, readResolution } = options
   return Object.freeze({
     admit: async (input: Request) => {
       try {
-        return succeed(await decide(input, rules, read, readPermission, readResolution))
+        return succeed(await decide(input, rules, options))
       } catch {
         return succeed(
           undecidable(

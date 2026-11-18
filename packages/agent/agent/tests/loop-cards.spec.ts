@@ -5,6 +5,7 @@ import {
   type AgentEventBody,
   type CardReply,
   type DecisionCardDraft,
+  type DenialCategory,
   type EventPage,
 } from '@omne-harness/agent-contract'
 import {
@@ -173,7 +174,14 @@ describe('an admission that asks a person', () => {
     assembly.controls.admission.admit.always(async call =>
       call.decision === null
         ? ask()
-        : { ok: { kind: 'deny', reason: 'declined', evidence: evidence('deny-after-answer') } },
+        : {
+            ok: {
+              kind: 'deny',
+              category: 'not-released',
+              reason: 'declined',
+              evidence: evidence('deny-after-answer'),
+            },
+          },
     )
     assembly.controls.cards.read.always(async () => ({ ok: declined }))
     ok(await invoke(assembly))
@@ -187,16 +195,23 @@ describe('an admission that asks a person', () => {
     expect((await snapshot(assembly)).checkpoint.passages).toEqual([])
   })
 
-  describe('a remark of the person that the admission denies (rule 11)', () => {
+  describe('the message of a denial after the person answered, fixed by its category', () => {
     const WORDS = 'Use port 8081, not 8080.'
     const remark: CardReply = { kind: 'remark', text: WORDS, evidence: evidence('remark') }
 
-    async function denialTexts(reason: string, reply: CardReply = remark) {
+    async function denialTexts(category: DenialCategory, reply: CardReply = remark) {
       const assembly = await cardAssembly()
       assembly.controls.admission.admit.always(async call =>
         call.decision === null
           ? ask()
-          : { ok: { kind: 'deny', reason, evidence: evidence('deny-after-remark') } },
+          : {
+              ok: {
+                kind: 'deny',
+                category,
+                reason: 'fixture',
+                evidence: evidence('deny-after-remark'),
+              },
+            },
       )
       assembly.controls.cards.read.always(async () => ({ ok: reply }))
       ok(await invoke(assembly))
@@ -209,23 +224,30 @@ describe('an admission that asks a person', () => {
       return message?.blocks.flatMap(block => (block.kind === 'text' ? [block.text] : []))
     }
 
-    it('carries the words in the denial message when the reason is human-guidance', async () => {
-      expect(await denialTexts('human-guidance')).toEqual([
-        'The tool call was denied and did not run. The person answered the approval card with guidance instead of a decision. Their words follow.',
+    it('carries the words of the person after the guidance message', async () => {
+      expect(await denialTexts('guidance')).toEqual([
+        'The tool call did not run. The person answered the approval card with guidance instead of a decision. Their words follow.',
         WORDS,
       ])
     })
 
-    it('keeps the plain denial for another reason: the words are not guidance then', async () => {
-      expect(await denialTexts('policy')).toEqual(['The tool call was denied and did not run.'])
-    })
-
-    it('keeps the plain denial when the answer of the person was not a remark', async () => {
-      const declined: CardReply = { kind: 'declined', evidence: evidence('declined') }
-      expect(await denialTexts('human-guidance', declined)).toEqual([
-        'The tool call was denied and did not run.',
-      ])
-    })
+    it.each([
+      ['rule', 'The tool call was denied by a rule or a prohibition and did not run.'],
+      ['not-released', 'The tool call did not run: the person did not allow it this time.'],
+      [
+        'prohibited',
+        'The tool call did not run: the person prohibited this capability, so later calls to it are denied too.',
+      ],
+      [
+        'card-closed',
+        'The tool call did not run: its approval card was closed before the person answered.',
+      ],
+    ] as const)(
+      'gives %s its own message, and the words are not guidance then',
+      async (category, text) => {
+        expect(await denialTexts(category)).toEqual([text])
+      },
+    )
   })
 
   it('changes the effective arguments when the person chooses the option bound to the rewrite', async () => {

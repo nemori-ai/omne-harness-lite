@@ -36,10 +36,17 @@
 - `PermitLookup` · `permit.d.ts`
 - `PermitRef` · `permit.d.ts`
 - `PermitState` · `permit.d.ts`
+- `RELEASE_ARGUMENTS_LIMIT` · `release-card.d.ts`
+- `RELEASE_OPTIONS` · `release-card.d.ts`
 - `ReferenceAdmissionDependencies` · `reference.d.ts`
 - `ReleaseBasis` · `release.d.ts`
+- `ReleaseCard` · `release-card.d.ts`
+- `ReleaseCardAction` · `release-card.d.ts`
+- `ReleaseCardOption` · `release-card.d.ts`
 - `ReleaseDecision` · `release.d.ts`
 - `ReleaseFacts` · `release.d.ts`
+- `ReleaseOffer` · `release-card.d.ts`
+- `ReleaseOption` · `release-card.d.ts`
 - `SYSTEM_ACTION_MATRIX` · `system-matrix.d.ts`
 - `SessionFacts` · `release.d.ts`
 - `StandingBasis` · `admission.d.ts`
@@ -66,6 +73,7 @@
 - `operationEquals` · `operation.d.ts`
 - `referenceAdmissionCheck` · `reference.d.ts`
 - `referenceSystemActionAuthorization` · `system-reference.d.ts`
+- `releaseCard` · `release-card.d.ts`
 - `targetEquals` · `operation.d.ts`
 
 ## 入口 `./testing` · `testing/index.d.ts`
@@ -153,6 +161,8 @@ export declare function decisionEvidence(record: string, revision: string, conte
 ```ts
 export { decideAdmission } from './admission.ts';
 export { decideRelease } from './release.ts';
+export { RELEASE_ARGUMENTS_LIMIT, RELEASE_OPTIONS, releaseCard } from './release-card.ts';
+export type { ReleaseCard, ReleaseCardAction, ReleaseCardOption, ReleaseOffer, ReleaseOption, } from './release-card.ts';
 export type { GateVerdict, ReleaseBasis, ReleaseDecision, ReleaseFacts, SessionFacts, } from './release.ts';
 export type { InquiryPolicy } from './inquiry.ts';
 export type { AdmissionBasis, AdmissionCheck, AdmissionDecision, AdmissionFacts, AdmissionInput, DenialReason, StandingBasis, } from './admission.ts';
@@ -306,6 +316,58 @@ export type ReferenceAdmissionDependencies = Readonly<{
     permits: PermitLedger | null;
 }>;
 export declare function referenceAdmissionCheck(deps: ReferenceAdmissionDependencies): AdmissionCheck;
+```
+
+## 声明文件 `release-card.d.ts`
+
+```ts
+export declare const RELEASE_OPTIONS: readonly [
+    'deny-once',
+    'allow-once',
+    'allow-session',
+    'allow-always',
+    'deny-always'
+];
+export type ReleaseOption = (typeof RELEASE_OPTIONS)[number];
+export type ReleaseCardAction = Readonly<{
+    tool: string;
+    command: string | null;
+    preview: string;
+    effectiveArguments: string;
+    session: string;
+    agent: string;
+}>;
+export type ReleaseOffer = Readonly<Record<ReleaseOption, boolean>>;
+export type ReleaseCardOption = Readonly<{
+    id: ReleaseOption;
+    label: string;
+    scope: string;
+    offered: boolean;
+    lasting: boolean;
+}>;
+export type ReleaseCard = Readonly<{
+    title: string;
+    target: Readonly<{
+        tool: string;
+        command: string | null;
+        preview: string;
+    }>;
+    arguments: Readonly<{
+        text: string;
+        truncated: boolean;
+        digest: string;
+    }>;
+    origin: Readonly<{
+        session: string;
+        agent: string;
+    }>;
+    options: readonly [
+        ReleaseCardOption,
+        ...ReleaseCardOption[]
+    ];
+}>;
+export declare const RELEASE_ARGUMENTS_LIMIT = 4096;
+export declare function releaseCard(action: ReleaseCardAction, offer: ReleaseOffer): ReleaseCard;
 ```
 
 ## 声明文件 `release.d.ts`

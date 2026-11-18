@@ -1,7 +1,4 @@
-/**
- * Reads made for one judging pass over an Agent's batch are made once and shared by its actions.
- * A call without a pass reads every time; a new pass reads again; the oldest passes are dropped.
- */
+// One judging pass reads each fact once; a call with no pass reads every time.
 export function passMemory<V>(limit = 128) {
   const memory = new Map<string, Promise<V>>()
   return (key: string | undefined, read: () => Promise<V>): Promise<V> => {

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import {
   admissionActionOf,
   cardDraftOf,
+  type AgentExecutionId,
   type CardReply,
   type CardRequest,
   type CardRoundId,
@@ -10,6 +11,7 @@ import {
   type PassageId,
 } from '@omne-harness/agent-contract'
 import type { Card, CardRef } from '@omne-harness/human-intervention'
+import { writeJsonText } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 
 export const AGENT_CARDS_OWNER = '@omne-harness/harness-server/agent-cards'
@@ -19,8 +21,13 @@ const TITLE_LIMIT = 256
 const digestOf = (parts: readonly string[]): string =>
   createHash('sha256').update(JSON.stringify(parts)).digest('hex')
 
-export function roundKey(passage: PassageId, round: CardRoundId): string {
-  return digestOf([passage, round])
+// Passage and round identities repeat in every execution, so the round is keyed within its execution.
+export function roundKey(
+  execution: AgentExecutionId,
+  passage: PassageId,
+  round: CardRoundId,
+): string {
+  return digestOf([execution, passage, round])
 }
 
 export function roundWait(key: string, destination: string) {
@@ -31,14 +38,17 @@ export function roundOperation(key: string, step: string): string {
   return `agent-cards/${key}/${step}`
 }
 
-type Question = Readonly<{
-  kind: 'admission' | 'extension'
-  cardId: string
-  title: string
-  description: string
-  declineConsequence: string
-  options: readonly Readonly<{ id: string; label: string; description: string }>[]
-}>
+type Question =
+  | Readonly<{
+      kind: 'admission' | 'extension'
+      cardId: string
+      title: string
+      description: string
+      declineConsequence: string
+      options: readonly Readonly<{ id: string; label: string; description: string }>[]
+    }>
+  // Its body is the draft's detail as the admission filled it; registration checks its shape.
+  | Readonly<Record<string, unknown> & { kind: 'release'; cardId: string }>
 
 export type RoundCards = Readonly<{
   kind: 'admission' | 'agent-extension'
@@ -76,19 +86,35 @@ export function roundCards(
       : 'agent-extension'
   return succeed({
     kind,
-    questions: drafts.map((draft, index) => ({
-      kind: kind === 'admission' ? 'admission' : 'extension',
-      cardId: `c${String(index + 1)}`,
-      title: titleOf(draft.explanation),
-      description: draft.explanation,
-      declineConsequence: DECLINE[kind],
-      options: draft.options.map(option => ({
-        id: option.id,
-        label: option.label,
-        description: option.label,
-      })),
-    })),
+    questions: drafts.map((draft, index): Question => {
+      const cardId = `c${String(index + 1)}`
+      const release = kind === 'admission' ? releaseOf(draft) : null
+      if (release !== null) return { ...release, cardId }
+      return {
+        kind: kind === 'admission' ? 'admission' : 'extension',
+        cardId,
+        title: titleOf(draft.explanation),
+        description: draft.explanation,
+        declineConsequence: DECLINE[kind],
+        options: draft.options.map(option => ({
+          id: option.id,
+          label: option.label,
+          description: option.label,
+        })),
+      }
+    }),
   })
+}
+
+// Only an admission's own chain carries a release card; an extension's draft never becomes one.
+function releaseOf(
+  draft: DecisionCardDraft,
+): Readonly<Record<string, unknown> & { kind: 'release' }> | null {
+  if (draft.detail?.kind !== 'object') return null
+  const body: unknown = JSON.parse(writeJsonText(draft.detail))
+  return typeof body === 'object' && body !== null && 'kind' in body && body.kind === 'release'
+    ? (body as Readonly<Record<string, unknown> & { kind: 'release' }>)
+    : null
 }
 
 const CARD_RECORD = 'hitl-card/'

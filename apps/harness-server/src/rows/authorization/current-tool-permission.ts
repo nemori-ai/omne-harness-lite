@@ -75,8 +75,10 @@ export function agentPermissionOperation(
 }
 
 type Decision = Exclude<AdmissionDecision, { kind: 'need-decision' }>
+/** Asking is not a decision of the gate: only the Agent's admission turns it into a card. */
 export type ToolPermissionDecision =
   | (Extract<Decision, { kind: 'allow' }> & Readonly<{ condition: StartCondition | null }>)
+  | Readonly<{ kind: 'ask'; evidence: DecisionEvidence }>
   | Exclude<Decision, { kind: 'allow' }>
 export type ToolPermissionCheck = Readonly<{
   check(input: ToolPermissionAction): Promise<ToolPermissionDecision>
@@ -174,7 +176,7 @@ function interpretReading(
     inquiry,
   })
   if (reading.kind === 'denied')
-    return { kind: 'deny', reason: 'permission-source-denied', evidence }
+    return { kind: 'deny', category: 'rule', reason: 'permission-source-denied', evidence }
   if (reading.kind !== 'current' || canonicalText(reading.request) !== canonicalText(request))
     return undecidable('The permission reading does not answer this request.')
   const decision = interpretPermission({
@@ -235,11 +237,12 @@ function releaseDecision(
     case 'refuse':
       return {
         kind: 'deny',
+        category: 'rule',
         reason: decided.reason === 'prohibited' ? 'permission-policy' : 'inquiry-policy',
         evidence,
       }
     case 'ask':
-      return undecidable('The permission needs a decision and asking is not installed.')
+      return { kind: 'ask', evidence }
     case 'unavailable':
       return unavailable('The session inquiry policy could not be read now.')
   }

@@ -89,7 +89,9 @@ export function decideReply({
   const reply = command.reply
   if (
     reply.kind === 'selection' &&
-    !card.question.options.some(option => option.id === reply.optionId)
+    !card.question.options.some(
+      option => option.id === reply.optionId && (!('offered' in option) || option.offered),
+    )
   ) {
     return { kind: 'invalid-input', reason: 'unknown-option' }
   }

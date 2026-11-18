@@ -208,6 +208,12 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
       { id: 'agent-definition', kind: 'available', effect: { kind: 'bound', allowedSet: [] } },
     ])
     expect(first.condition).toMatchObject(condition)
+    const inPass = action()
+    const passed = await read.readCurrent({
+      ...inPass,
+      origin: { ...inPass.origin, kind: 'agent-action', pass: 'batch-1/pass-1' },
+    } as ToolPermissionContext)
+    expect(current(passed.reading).evaluation).toEqual(basis.evaluation)
 
     const published = inquiry
     inquiry = { ...inquiry, basis: { ...inquiry.basis, permissionRevision: '999' } }

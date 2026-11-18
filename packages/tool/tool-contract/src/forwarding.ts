@@ -27,10 +27,6 @@ export type ToolActionTarget = Readonly<{
   command: string | null
   effectiveArguments: string
 }>
-/**
- * A call is its own action (the tool it names, as described before admission), or it carries the
- * action of a target it names; the carrier is then kept.
- */
 export type ToolCallAction =
   | Readonly<{ kind: 'own' }>
   | Readonly<{
@@ -38,11 +34,7 @@ export type ToolCallAction =
       carrier: Readonly<{ name: string; definition: Adoption }>
       target: ToolActionTarget
     }>
-/**
- * Which action a call performs, answered by Tool before the call is made. A carried call naming a
- * target that is not there, a command the target lacks or arguments of the wrong shape answers
- * `invalid`.
- */
+/** Answered before the call is made; only a carried call naming no valid target answers `invalid`. */
 export interface ToolActionResolution<P> {
   resolve(
     input: Access<P> & Readonly<{ name: string; effectiveArguments: string }>,
