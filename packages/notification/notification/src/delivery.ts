@@ -97,38 +97,78 @@ type Pass = Readonly<{
   box(recipient: RecipientRef): Promise<readonly BoxEntry[] | null>
 }>
 
-export function createDelivery(deps: DeliveryDependencies): NotificationDelivery {
-  const { store, channels, config, defaults } = deps
-
-  function passOf(tenant: TenantId, now: Instant, state: DeliveryState): Pass {
-    const boxes = new Map<string, Promise<readonly BoxEntry[] | null>>()
-    const beats = new Map(state.beats.map(entry => [recipientKey(entry.recipient), entry.beat]))
-    const recipients = state.beats.map(entry => entry.recipient)
-    const own = (recipient: RecipientRef) =>
-      state.destinations.filter(entry => sameRecipient(entry.recipient, recipient))
-    return {
-      tenant,
-      now,
-      recipients,
-      destinations: recipients.flatMap(recipient =>
-        withBuiltin(recipient, own(recipient), defaults),
+function passOf(
+  deps: DeliveryDependencies,
+  tenant: TenantId,
+  now: Instant,
+  state: DeliveryState,
+): Pass {
+  const { store, config, defaults } = deps
+  const boxes = new Map<string, Promise<readonly BoxEntry[] | null>>()
+  const beats = new Map(state.beats.map(entry => [recipientKey(entry.recipient), entry.beat]))
+  const recipients = state.beats.map(entry => entry.recipient)
+  const own = (recipient: RecipientRef) =>
+    state.destinations.filter(entry => sameRecipient(entry.recipient, recipient))
+  return {
+    tenant,
+    now,
+    recipients,
+    destinations: recipients.flatMap(recipient => withBuiltin(recipient, own(recipient), defaults)),
+    beatMinutes: recipient =>
+      minutesOf(
+        beats.get(recipientKey(recipient)) ?? { kind: 'default' },
+        config.defaultBeatMinutes,
       ),
-      beatMinutes: recipient =>
-        minutesOf(
-          beats.get(recipientKey(recipient)) ?? { kind: 'default' },
-          config.defaultBeatMinutes,
-        ),
-      box(recipient) {
-        const key = recipientKey(recipient)
-        const read = async () => {
-          const box = await store.unresolved(tenant, recipient)
-          return box.kind === 'read' ? box.value : null
-        }
-        if (!boxes.has(key)) boxes.set(key, read())
-        return boxes.get(key)!
-      },
+    box(recipient) {
+      const key = recipientKey(recipient)
+      const read = async () => {
+        const box = await store.unresolved(tenant, recipient)
+        return box.kind === 'read' ? box.value : null
+      }
+      if (!boxes.has(key)) boxes.set(key, read())
+      return boxes.get(key)!
+    },
+  }
+}
+
+/** Who a standing item is for. Null: it cannot be decided now. */
+async function addressees(deps: DeliveryDependencies, pass: Pass, item: StandingItem) {
+  const source = deps.sources.lookup(item.source)
+  const declared =
+    source.kind === 'registered' ? findEventType(source.declaration, item.type) : null
+  if (declared?.kind.kind !== 'standing') return []
+  const subscriptions = await deps.store.subscriptionsFor(pass.tenant, item.source, item.type)
+  if (subscriptions.kind === 'unavailable') return null
+  const addressing = { subject: item.subject, named: [], origin: null }
+  return selectRecipients(addressing, declared, pass.recipients, subscriptions.value, pass.now)
+}
+
+async function readStanding(deps: DeliveryDependencies, pass: Pass): Promise<Standing> {
+  let read: StandingRead
+  try {
+    read = await deps.standing.read(pass.tenant)
+  } catch {
+    return UNREADABLE
+  }
+  if (read.kind !== 'ok') return UNREADABLE
+  const open = new Map<string, Instant[]>()
+  const strongItems: Reminder[] = []
+  for (const item of read.items) {
+    const selected = await addressees(deps, pass, item)
+    if (selected === null) return UNREADABLE
+    for (const { recipient, level } of selected) {
+      const key = recipientKey(recipient)
+      open.set(key, [...(open.get(key) ?? []), item.since])
+      if (level === 'strong') strongItems.push({ recipient, item })
     }
   }
+  const openAt = (recipient: RecipientRef, instant: Instant) =>
+    (open.get(recipientKey(recipient)) ?? []).filter(since => since <= instant).length
+  return { openAt, strong: strongItems }
+}
+
+export function createDelivery(deps: DeliveryDependencies): NotificationDelivery {
+  const { store, channels, config, defaults } = deps
 
   const destinationOf = (pass: Pass, ref: DeliveryUnit['destination']) =>
     pass.destinations.find(
@@ -211,42 +251,6 @@ export function createDelivery(deps: DeliveryDependencies): NotificationDelivery
     await formed(pass, await store.formBeat(pass.tenant, command))
   }
 
-  /** Who a standing item is for. Null: it cannot be decided now. */
-  async function addressees(pass: Pass, item: StandingItem) {
-    const source = deps.sources.lookup(item.source)
-    const declared =
-      source.kind === 'registered' ? findEventType(source.declaration, item.type) : null
-    if (declared?.kind.kind !== 'standing') return []
-    const subscriptions = await store.subscriptionsFor(pass.tenant, item.source, item.type)
-    if (subscriptions.kind === 'unavailable') return null
-    const addressing = { subject: item.subject, named: [], origin: null }
-    return selectRecipients(addressing, declared, pass.recipients, subscriptions.value, pass.now)
-  }
-
-  async function readStanding(pass: Pass): Promise<Standing> {
-    let read: StandingRead
-    try {
-      read = await deps.standing.read(pass.tenant)
-    } catch {
-      return UNREADABLE
-    }
-    if (read.kind !== 'ok') return UNREADABLE
-    const open = new Map<string, Instant[]>()
-    const strongItems: Reminder[] = []
-    for (const item of read.items) {
-      const selected = await addressees(pass, item)
-      if (selected === null) return UNREADABLE
-      for (const { recipient, level } of selected) {
-        const key = recipientKey(recipient)
-        open.set(key, [...(open.get(key) ?? []), item.since])
-        if (level === 'strong') strongItems.push({ recipient, item })
-      }
-    }
-    const openAt = (recipient: RecipientRef, instant: Instant) =>
-      (open.get(recipientKey(recipient)) ?? []).filter(since => since <= instant).length
-    return { openAt, strong: strongItems }
-  }
-
   async function remind(pass: Pass, { recipient, item }: Reminder): Promise<void> {
     const reminded = await store.reminded(pass.tenant, recipient)
     if (reminded.kind === 'unavailable' || reminded.value.includes(item.id)) return
@@ -259,9 +263,9 @@ export function createDelivery(deps: DeliveryDependencies): NotificationDelivery
     const now = deps.clock.now()
     const read = await store.delivery(tenant, now)
     if (read.kind === 'unavailable') return
-    const pass = passOf(tenant, now, read.value)
+    const pass = passOf(deps, tenant, now, read.value)
     for (const due of read.value.due) await deliver(pass, unitOf(due))
-    const standing = await readStanding(pass)
+    const standing = await readStanding(deps, pass)
     for (const destination of pass.destinations) {
       const channel = channels.lookup(destination.channel)
       if (!destination.enabled || channel.kind !== 'registered') continue

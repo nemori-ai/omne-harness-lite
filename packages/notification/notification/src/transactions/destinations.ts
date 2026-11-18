@@ -93,46 +93,56 @@ function find(txn: NotificationTxn, ref: DestinationRef): Destination | null {
   return txn.destinations(ref.recipient).find(destination => destination.id === ref.id) ?? null
 }
 
+type Add = Extract<DestinationCommand, { kind: 'add' }>
+type Change = Extract<DestinationCommand, { kind: 'change' }>
+
+function add(txn: NotificationTxn, command: Add): DestinationResult {
+  const { recipient, channel, address, minLevel } = command
+  const same = txn
+    .destinations(recipient)
+    .find(destination => destination.channel === channel && destination.address === address)
+  if (same !== undefined) return { kind: 'recalled', destination: same }
+  const destination: Destination = {
+    recipient,
+    id: destinationId(channel, address),
+    channel,
+    address,
+    minLevel,
+    enabled: true,
+    builtin: false,
+    lastStrongAt: null,
+    strongCursor: txn.currentSequence(),
+    strongUnits: 0,
+    blocked: false,
+  }
+  txn.putDestination(destination)
+  return { kind: 'written', destination }
+}
+
+function change(txn: NotificationTxn, command: Change): DestinationResult {
+  const current = find(txn, command.ref)
+  if (current === null) return { kind: 'not-found' }
+  const destination = { ...current, ...command.patch }
+  if (destination.minLevel === current.minLevel && destination.enabled === current.enabled)
+    return { kind: 'recalled', destination: current }
+  txn.putDestination(destination)
+  return { kind: 'written', destination }
+}
+
+function remove(txn: NotificationTxn, ref: DestinationRef): DestinationResult {
+  const current = find(txn, ref)
+  if (current === null) return { kind: 'recalled', destination: null }
+  if (current.builtin) return { kind: 'builtin' }
+  txn.deleteDestination(ref)
+  return { kind: 'removed' }
+}
+
 export function writeDestination(
   txn: NotificationTxn,
   command: DestinationCommand,
 ): DestinationResult {
   const recipient = command.kind === 'add' ? command.recipient : command.ref.recipient
   ensureRecipient(txn, recipient, command.defaults)
-  if (command.kind === 'add') {
-    const { channel, address, minLevel } = command
-    const same = txn
-      .destinations(recipient)
-      .find(destination => destination.channel === channel && destination.address === address)
-    if (same !== undefined) return { kind: 'recalled', destination: same }
-    const destination: Destination = {
-      recipient,
-      id: destinationId(channel, address),
-      channel,
-      address,
-      minLevel,
-      enabled: true,
-      builtin: false,
-      lastStrongAt: null,
-      strongCursor: txn.currentSequence(),
-      strongUnits: 0,
-      blocked: false,
-    }
-    txn.putDestination(destination)
-    return { kind: 'written', destination }
-  }
-  const current = find(txn, command.ref)
-  if (command.kind === 'remove') {
-    if (current === null) return { kind: 'recalled', destination: null }
-    if (current.builtin) return { kind: 'builtin' }
-    txn.deleteDestination(command.ref)
-    return { kind: 'removed' }
-  }
-  if (current === null) return { kind: 'not-found' }
-  const destination = { ...current, ...command.patch }
-  const unchanged =
-    destination.minLevel === current.minLevel && destination.enabled === current.enabled
-  if (unchanged) return { kind: 'recalled', destination: current }
-  txn.putDestination(destination)
-  return { kind: 'written', destination }
+  if (command.kind === 'add') return add(txn, command)
+  return command.kind === 'change' ? change(txn, command) : remove(txn, command.ref)
 }
