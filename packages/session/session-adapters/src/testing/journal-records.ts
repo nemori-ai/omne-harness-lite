@@ -650,8 +650,7 @@ export function projectReceiving(
           if (state.materials.has(key)) return
           state.materials.set(key, {
             tenant: tenantText,
-            execution:
-              state.consumerExecutions.get(canonical([tenantText, material.consumer])) ?? null,
+            execution: material.qualifier,
             value: blob(context.blobs, material.value),
           })
         },

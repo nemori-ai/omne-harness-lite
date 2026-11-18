@@ -41,6 +41,10 @@ import { EXECUTION_BATCH_MAX_FACTS } from '@omne-harness/session-storage-sql/par
 import { canonical } from '../testing/canonical.ts'
 
 export const FACT_MAX_BYTES = 4096
+
+// How a cursor names a material it holds: a short digest of the item key, bounded whatever the source.
+export const materialHold = (key: string): string =>
+  createHash('sha256').update(key).digest('hex').slice(0, 16)
 export const BATCH_OVERHEAD_BYTES = 512
 export const BATCH_MAX_FACTS = EXECUTION_BATCH_MAX_FACTS - 1
 
@@ -110,10 +114,12 @@ export type CursorMembers = Readonly<{
   adoptedRequest: Ref | null
   state: 'reconciling' | 'advancing' | 'waiting' | 'settling' | 'suspended'
   // What the checkpoint holds open that its blocks name: the fold reads it without the blocks.
-  holds: Readonly<{
+  // null: it names more than a fact carries, so every item is held until the checkpoint shrinks.
+  holds: null | Readonly<{
     actions: readonly ActionId[]
     consumptions: readonly ConsumptionId[]
     handoffs: readonly string[]
+    materials: readonly string[]
     // The sequence of the reply admission prefix the checkpoint has verified (0: none).
     admissionsFrom: number
   }>
@@ -337,6 +343,7 @@ export type FactBody =
       source: DurableEvidence
       value: Ref
       consumer: ConsumerRef
+      qualifier: AgentExecutionId | null
     }>
   | Readonly<{
       kind: 'op.excluded'

@@ -9,7 +9,10 @@ import { canonical } from '../testing/canonical.ts'
 import {
   REVIVABLE_EXCLUSIONS,
   BATCH_MAX_FACTS,
+  FACT_MAX_BYTES,
+  bytesOf,
   factKey,
+  materialHold,
   refOf,
   type Batch,
   type BatchEnvelope,
@@ -58,21 +61,44 @@ export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState)
         ? null
         : refOf(checkpoint.adoptedRequest),
     state: state.kind,
-    holds: {
-      actions: [
-        ...checkpoint.calls.map(call => call.action),
-        ...(checkpoint.batch?.actions.map(action => action.id) ?? []),
-      ],
-      consumptions: checkpointCalls(checkpoint).map(call => call.consumption),
-      handoffs: (checkpoint.batch?.slots ?? []).flatMap(slot =>
-        slot.handoff === null ? [] : [handoffKey(slot.handoff)],
-      ),
-      admissionsFrom:
-        checkpoint.replyAdmissionRead.kind === 'verified'
-          ? Number(checkpoint.replyAdmissionRead.prefix.sequence)
-          : 0,
-    },
+    holds: heldBy(checkpoint),
   }
+}
+
+// Half a fact at most: the cursor's other members share it.
+const HOLDS_MAX_BYTES = FACT_MAX_BYTES / 2
+
+function heldBy(checkpoint: AgentCheckpoint): CursorMembers['holds'] {
+  const holds = {
+    actions: [
+      ...checkpoint.calls.map(call => call.action),
+      ...(checkpoint.batch?.actions.map(action => action.id) ?? []),
+    ],
+    consumptions: checkpointCalls(checkpoint).map(call => call.consumption),
+    handoffs: (checkpoint.batch?.slots ?? []).flatMap(slot =>
+      slot.handoff === null ? [] : [handoffKey(slot.handoff)],
+    ),
+    materials: heldMaterials(checkpoint),
+    admissionsFrom:
+      checkpoint.replyAdmissionRead.kind === 'verified'
+        ? Number(checkpoint.replyAdmissionRead.prefix.sequence)
+        : 0,
+  }
+  return bytesOf(holds) > HOLDS_MAX_BYTES ? null : holds
+}
+
+// The sources a checkpoint still reads: the request or answer each batch action was judged with,
+// and the request every call was fixed on.
+function heldMaterials(checkpoint: AgentCheckpoint): string[] {
+  const sources = (checkpoint.batch?.actions ?? []).flatMap(({ judgment }) =>
+    judgment.kind === 'allowed'
+      ? [judgment.request]
+      : judgment.kind === 'denied' && judgment.answer !== undefined
+        ? [judgment.answer]
+        : [],
+  )
+  for (const call of checkpointCalls(checkpoint)) sources.push(call.fixed)
+  return [...new Set(sources.map(source => materialHold(canonical(source))))]
 }
 
 export type BlobStore = ReadonlyMap<string, unknown>

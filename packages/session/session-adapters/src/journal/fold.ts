@@ -29,6 +29,7 @@ import {
   type ExecutionView,
   type HandoffView,
   type IntentView,
+  type MaterialView,
   type OperationEntry,
   type RejectionEntry,
   type RequestView,
@@ -59,10 +60,7 @@ type Draft = {
   placeholders: Map<ConsumptionId, ReceivedView>
   handoffs: Map<string, HandoffView>
   controls: Map<AgentOperationId, ControlView>
-  materials: Map<
-    string,
-    Readonly<{ source: DurableEvidence; value: Ref; consumer: ConsumerRef; pub: number }>
-  >
+  materials: Map<string, MaterialView>
   ops: Map<AgentOperationId, OperationEntry>
   excluded: Map<AgentOperationId, ExclusionEntry>
   rejections: Map<AgentOperationId, RejectionEntry>
@@ -519,6 +517,7 @@ function foldMaterialPreserved(
       source: fact.source,
       value: fact.value,
       consumer: fact.consumer,
+      qualifier: fact.qualifier,
       pub,
     })
 }

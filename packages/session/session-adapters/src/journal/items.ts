@@ -1,5 +1,5 @@
 import { SharedMap, forkOf } from './shared-map.ts'
-import { factKey } from './facts.ts'
+import { factKey, materialHold } from './facts.ts'
 import type { AgentExecutionId } from '@omne-harness/agent-contract'
 import { inputOpen } from './inputs.ts'
 import {
@@ -10,6 +10,7 @@ import {
   type BindingView,
   type ExecutionView,
   type IntentView,
+  type MaterialView,
   type ObligationView,
   type RequestView,
   type ResultView,
@@ -228,7 +229,13 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
       return result === undefined || resultOpen(result, view)
     },
   },
-  { family: 'material', holder: table(at('materials')), open: always },
+  {
+    family: 'material',
+    holder: table(at('materials')),
+    open: (item: MaterialView, view: ExecutionView, key: string) =>
+      (view.cursor.holds?.materials.includes(materialHold(key)) ?? true) ||
+      item.pub > (view.cursorMoved.holds ?? 0),
+  },
   { family: 'op', holder: table(at('ops')), open: closedAtBirth, apart: true },
   {
     family: 'exclusion',

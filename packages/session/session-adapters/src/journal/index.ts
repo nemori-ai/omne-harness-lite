@@ -71,6 +71,7 @@ export type {
   InputView,
   IntentView,
   OperationEntry,
+  MaterialView,
   RequestView,
   ResultView,
   ReceivedView,

@@ -13,6 +13,7 @@ import {
   type Mint,
   type PublishedBatch,
   type ReceivedView,
+  type MaterialView,
   type ResultView,
   type Stamp,
 } from '../journal/index.ts'
@@ -77,7 +78,7 @@ function block<T>(blobs: BlobStore, ref: Readonly<{ digest: string }>): T {
 
 const RECEIVED_MATERIAL = 'received-material'
 
-// Where a received entry's material is kept: the source names the execution and the consumption.
+// A material source names the execution that keeps it; a received one names its consumption too.
 export const receivedMaterialSource = (
   namespace: string,
   tenantText: string,
@@ -96,16 +97,41 @@ export const receivedMaterialSource = (
     1,
   )
 
-export function sourceNames(
+const PRESERVED_MATERIAL = 'material'
+
+export const preservedSource = (
+  namespace: string,
+  tenantText: string,
+  execution: AgentExecutionId,
+  identity: unknown,
+  consumer: unknown,
+): DurableEvidence =>
+  journalEvidence(
+    canonical([
+      namespace,
+      PRESERVED_MATERIAL,
+      canonical([tenantText, execution]),
+      identity,
+      consumer,
+    ]),
+    1,
+  )
+
+function sourceNames(
   namespace: string,
   source: DurableEvidence,
-): Readonly<{ tenant: string; execution: AgentExecutionId; consumption: ConsumptionId }> | null {
+): Readonly<{
+  tenant: string
+  execution: AgentExecutionId
+  consumption: ConsumptionId | null
+}> | null {
   try {
     const parts = JSON.parse(source.record) as unknown
-    if (!Array.isArray(parts) || parts[0] !== namespace || parts[1] !== RECEIVED_MATERIAL)
-      return null
+    if (!Array.isArray(parts) || parts[0] !== namespace) return null
+    if (parts[1] !== RECEIVED_MATERIAL && parts[1] !== PRESERVED_MATERIAL) return null
     const [tenant, execution] = JSON.parse(String(parts[2])) as [string, AgentExecutionId]
-    return { tenant, execution, consumption: parts[5] as ConsumptionId }
+    const consumption = parts[1] === RECEIVED_MATERIAL ? (parts[5] as ConsumptionId) : null
+    return { tenant, execution, consumption }
   } catch {
     return null
   }
@@ -138,8 +164,7 @@ export function receivedRecord(scope: RecordScope, received: ReceivedView): Rece
   }
 }
 
-// A result the core no longer holds open, read back by its consumption; a read that must know asks
-// with need.
+// A result the core no longer holds open, by its consumption; a read that must know asks with need.
 export function closedReceived(
   table: ClosedTable & Readonly<{ blobs: BlobStore }>,
   mint: Mint,
@@ -152,4 +177,32 @@ export function closedReceived(
   const body = (need ? needClosed(table, ref) : peekClosed(table, ref)) as ResultView | null
   if (body === null || body.received === null) return undefined
   return receivedRecord(scope, body.received)
+}
+
+// A material the core no longer holds open: a preserved one by its source, else with its result.
+export function closedMaterial(
+  table: ClosedTable & Readonly<{ blobs: BlobStore }>,
+  mint: Mint,
+  tenant: TenantId,
+  source: DurableEvidence,
+  need: boolean,
+): Stored | undefined {
+  const named = sourceNames(mint.session, source)
+  const encoded = tenantCodec.encode(tenant)
+  if (named === null || !encoded.ok || named.tenant !== encoded.value) return undefined
+  if (named.consumption === null) {
+    const ref = { execution: named.execution, family: 'material', item: canonical(source) }
+    const body = (need ? needClosed(table, ref) : peekClosed(table, ref)) as MaterialView | null
+    if (body === null) return undefined
+    return {
+      tenant: named.tenant,
+      execution: body.qualifier,
+      value: block(table.blobs, body.value),
+    }
+  }
+  const input = { tenant, execution: named.execution }
+  const closed = closedReceived(table, mint, input, named.consumption, need)
+  return closed !== undefined && canonical(closed.kept.entry.material) === canonical(source)
+    ? (closed.material ?? undefined)
+    : undefined
 }

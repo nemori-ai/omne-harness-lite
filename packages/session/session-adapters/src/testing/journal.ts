@@ -26,7 +26,6 @@ import {
 import { closedBindingOf } from './binding-targets.ts'
 import { createInputRanges } from './input-ranges.ts'
 import { issueFacts, LEDGER_KINDS, obligationChanges, touchedBy } from './obligation-ledger.ts'
-import { closedReceived } from './received-records.ts'
 import {
   fixAnswer,
   operationAnswer,
@@ -4022,8 +4021,8 @@ export function createJournal<P>(
     operations: () => state().operations,
     answered: (input, need) => operationAnswer(state(), input, need),
     closedBinding: (input, reference) => closedBindingOf(state(), input.execution, reference),
-    closedResult: (input, consumption, need) =>
-      closedReceived(state(), mint, input, consumption, need),
+    closed: state,
+    viewOf,
     authorize: cell.authorize,
     gate: cell.gate,
     state: () => cell.state().receiving,

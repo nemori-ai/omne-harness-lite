@@ -70,6 +70,14 @@ export type InputView = Readonly<{
   revision: number
 }>
 
+export type MaterialView = Readonly<{
+  source: DurableEvidence
+  value: Ref
+  consumer: ConsumerRef
+  qualifier: AgentExecutionId | null
+  pub: number
+}>
+
 export type RequestView = Readonly<{
   step: StepId
   attempt: Attempt
@@ -335,10 +343,7 @@ export type ExecutionView = Readonly<{
   }>[]
   events: readonly EventView[]
   bindings: readonly BindingView[]
-  materials: ReadonlyMap<
-    string,
-    Readonly<{ source: DurableEvidence; value: Ref; consumer: ConsumerRef; pub: number }>
-  >
+  materials: ReadonlyMap<string, MaterialView>
   ops: ReadonlyMap<AgentOperationId, OperationEntry>
   excluded: ReadonlyMap<AgentOperationId, ExclusionEntry>
   rejections: ReadonlyMap<AgentOperationId, RejectionEntry>
