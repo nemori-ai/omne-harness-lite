@@ -82,7 +82,7 @@ import {
   presentRequest,
   withChosenRewrite,
 } from './admission-chain.ts'
-import type { PassageNeed } from './passages.ts'
+import { cardClosing } from './card-closing.ts'
 import { canonical } from '../canonical.ts'
 import { waitForExecutionChange, type HeldPosition, type ReconciliationPacer } from './wait.ts'
 import { diagnosticOf } from './diagnostic.ts'
@@ -122,7 +122,6 @@ import {
   deniedCandidate,
   uncheckedCandidate,
   deniedUnchecked,
-  deniedForRefusedAdmission,
   deniedSlot,
   preserveAllowedRequest,
   sentToolRequest,
@@ -305,16 +304,12 @@ function heldAfter(
   return { revision, emittedThrough: emitted === 0n ? null : String(emitted) }
 }
 
-const CARD_ROUND_CLOSING = '#502 stage 3'
 const RETURN_KINDS = ['placeholder', 'result'] as const
-const OUT_ROUNDS: readonly PassageNeed[] = ['present', 'read', 'closed']
 
+// An admission chain still asking ends with the Run once its cards are withdrawn; an extension's does not.
 function pendingPassage(passages: readonly Passage[]): Failure | null {
-  const pending = passages.find(passage => passage.progress.kind !== 'applied')
-  if (pending === undefined) return null
-  return extensionPassages([pending]).length === 0
-    ? notYet('R0', 'an admission passage with an open card round', CARD_ROUND_CLOSING)
-    : notYet('R0', 'a pending passage', '#502 stage 3')
+  const pending = extensionPassages(passages).some(passage => passage.progress.kind !== 'applied')
+  return pending ? notYet('R0', 'a pending passage', '#502 stage 3') : null
 }
 
 function notYet(node: LoopNode, what: string, card: string): Failure {
@@ -539,6 +534,7 @@ function coordinate<P>(
   let cancellationChanged = false
   let waits: readonly Waiting[] = []
   const unsentRounds = new Set<CardRoundId>()
+  const closing = cardClosing(ports, access, execution, unsentRounds)
   let waitingAt: LoopNode = 'E1'
   let yieldedWait = false
   let savedWait = false
@@ -1286,7 +1282,7 @@ function coordinate<P>(
     return step('wait', null)
   }
 
-  function refusedFinishRoute(read: LoopFacts): Outcome<Step, Failure> {
+  async function refusedFinishRoute(read: LoopFacts): Promise<Outcome<Step, Failure>> {
     finishRefused = false
     if (finishUnavailable !== null) {
       const failure = finishUnavailable
@@ -1297,6 +1293,8 @@ function coordinate<P>(
     const latest = required(snapshot, 'snapshot')
     if (latest.controls.length > 0)
       return fail(notYet('R0', 'a terminal control responsibility', '#502 stage 5'))
+    const withdrawn = await closing.withdrawOpen(latest.checkpoint, 'R0/finish', decided)
+    if ('failure' in withdrawn) return withdrawn
     const pending = pendingPassage(latest.checkpoint.passages)
     if (pending !== null) return fail(pending)
     if (
@@ -1471,6 +1469,8 @@ function coordinate<P>(
       if (advancementOf(snapshot).kind !== 'current') return step('reconciled', null)
       if (cancellationOf(snapshot) !== undefined) return cancelledReconcile()
       if (fault !== null) {
+        const withdrawn = await closing.withdrawOpen(snapshot.checkpoint, 'R0/fault', fault)
+        if ('failure' in withdrawn) return withdrawn
         const pending = pendingPassage(snapshot.checkpoint.passages)
         if (pending !== null) return fail(pending)
         if (reissueObligations) {
@@ -1486,7 +1486,7 @@ function coordinate<P>(
         return waitFor('R0', read.failure, readFacts)
       }
       facts = read.ok
-      return finishRefused ? refusedFinishRoute(read.ok) : step('reconciled', null)
+      return finishRefused ? await refusedFinishRoute(read.ok) : step('reconciled', null)
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
@@ -2203,16 +2203,8 @@ function coordinate<P>(
         if ('failure' in admitted) return admitted
         if (admitted.ok.kind === 'unavailable') return waitFor('A0', admitted.ok, null)
         if (admitted.ok.kind === 'refused') {
-          if (batch.actions.some(item => OUT_ROUNDS.includes(needOfAction(passages, item))))
-            return fail(
-              notYet(
-                'A0',
-                'closing the card rounds of a batch that is denied as a whole',
-                CARD_ROUND_CLOSING,
-              ),
-            )
-          const denied = deniedForRefusedAdmission(execution, batch, admitted.ok, answers)
-          return step('judged', { checkpoint: { batch: { ...batch, actions: denied } } })
+          const ended = await closing.endRefused(batch, answers, passages, opened, admitted.ok)
+          return 'failure' in ended ? ended : step('judged', { checkpoint: ended.ok })
         }
         if (chain === null && admitted.ok.kind !== 'asked') {
           answers.push(
@@ -2262,10 +2254,10 @@ function coordinate<P>(
       const passages = required(checkpoint, 'checkpoint').passages
       const needs = batch.actions.map(action => needOfAction(passages, action))
       if (needs.includes('judge')) return step('judge', null)
-      if (needs.includes('closed'))
-        return fail(
-          notYet('A1', 'a card round that was closed without an answer', CARD_ROUND_CLOSING),
-        )
+      if (needs.includes('closed')) {
+        const ended = await closing.endAnswerless(batch, passages)
+        return 'failure' in ended ? ended : step('carded', { checkpoint: ended.ok })
+      }
       if (needs.includes('present')) return presentRounds(batch, passages)
       if (needs.includes('read')) return readCards(batch, passages)
       const approved = batch.actions
@@ -3093,6 +3085,8 @@ function coordinate<P>(
         const interrupted = await interruptForCancel(control, pending)
         if ('failure' in interrupted) return interrupted
       }
+      const withdrawn = await closing.withdrawOpen(read.ok.checkpoint, 'F0/cancel', control)
+      if ('failure' in withdrawn) return withdrawn
       return step('cancelled', null)
     },
     async F1() {

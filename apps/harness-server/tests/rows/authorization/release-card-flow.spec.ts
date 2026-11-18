@@ -90,6 +90,37 @@ it('a call through Tools naming a resident tool ends the Run without starting th
   expect(exit).toBe(0)
 })
 
+it('cancelling the Run while its release card is open withdraws the card and ends the Run', async () => {
+  const exit = await onReleaseTree(
+    { script: shellScript, permission: 'auto_permission' },
+    async tree => {
+      const session = await tree.startSession('start: echo cancelled')
+      await pollUntil(
+        'the release card of the Run',
+        () => tree.cards({ sessionRef: session, states: ['pending'] }),
+        cards => cards.length === 1,
+      )
+      const started = (await historyOf(tree, session)).find(entry => entry.kind === 'run.started')
+      const run = (started?.payload as { run?: string } | undefined)?.run
+      if (run === undefined) throw new Error('no Run started')
+      const cancelled = await tree.cli(['cancel-run', '--session', session, '--run', run])
+      expect(cancelled.status, cancelled.stderr).toBe(0)
+      await pollUntil(
+        'the cancelled Run to end',
+        () => historyOf(tree, session),
+        value => value.some(entry => entry.kind === 'run.terminal'),
+      )
+      await pollUntil(
+        'the card to leave the pending list',
+        () => tree.cards({ sessionRef: session, states: ['pending'] }),
+        cards => cards.length === 0,
+      )
+      expect(toolCalls(tree.storageRoot).some(row => row.tool === 'Shell')).toBe(false)
+    },
+  )
+  expect(exit).toBe(0)
+})
+
 it('a release card the person does not release never starts the call, whatever the answer', async () => {
   const exit = await onReleaseTree(
     { script: shellScript, permission: 'auto_permission' },

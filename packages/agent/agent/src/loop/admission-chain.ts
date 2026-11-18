@@ -24,6 +24,7 @@ import { agentEvidence, cardRequestIdentity, cardRound } from './identities.ts'
 import {
   answeredRound,
   apply,
+  close,
   failPresent,
   markPresented,
   needOf,
@@ -161,6 +162,19 @@ export function afterAdmission(
   const reason: DenialCategory = answer.kind === 'denied' ? answer.category : 'rule'
   const denial = concluded(action, before.id, at, { kind: 'veto', reason })
   return stepped(action, passages, resolve(before, denial, action.judgment.evidence))
+}
+
+/** A card round that ends with no answer refuses the action; it is not the person's no. */
+export function afterClosed(
+  passages: readonly Passage[],
+  action: Action,
+  chain: Passage,
+  evidence: DurableEvidence,
+  at: AgentInstant,
+): Step {
+  const denial = concluded(action, chain.id, at, { kind: 'veto', reason: 'card-closed' })
+  const denied: Action = { ...action, judgment: { kind: 'denied', evidence } }
+  return stepped(denied, passages, close(chain, denial))
 }
 
 // The categories a chain names; any other denial, with a chain or without, is a rule's.

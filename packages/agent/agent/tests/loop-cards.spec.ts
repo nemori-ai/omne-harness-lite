@@ -487,3 +487,78 @@ describe('an admission that asks again', () => {
     expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
   })
 })
+
+describe('a card round always ends (Agent rule: card rounds always settle)', () => {
+  const CLOSED =
+    'The tool call did not run: its approval card was closed before the person answered.'
+  const withdrawn = (assembly: Assembly) =>
+    assembly.controls.cards.invalidate.always(async call => ({
+      ok: call.cards.map(card => ({
+        card,
+        reply: { kind: 'invalidated', evidence: evidence('withdrawn') } as const,
+      })),
+    }))
+
+  it('denies the action as card-closed when its card closes unanswered, and the Run goes on', async () => {
+    const assembly = await cardAssembly()
+    withdrawn(assembly)
+    assembly.controls.admission.admit.always(async () => ask())
+    assembly.controls.cards.read.always(async () => ({
+      ok: { kind: 'invalidated', evidence: evidence('closed') },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    await secondModelCall(assembly)
+    expect(assembly.controls.admission.admit.calls).toHaveLength(1)
+    expect(assembly.controls.cards.invalidate.calls).toHaveLength(0)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    const [message] = await toolMessages(assembly)
+    expect(message?.blocks.map(block => (block.kind === 'text' ? block.text : block.kind))).toEqual(
+      ['tool_result', CLOSED],
+    )
+  })
+
+  it('withdraws the cards still open when the batch is denied as a whole', async () => {
+    const assembly = await cardAssembly()
+    withdrawn(assembly)
+    assembly.controls.admission.admit.always(async call =>
+      call.original.callId === 'call-a' && call.decision !== null
+        ? { ok: { kind: 'undecidable', diagnostic: 'judging fails now' } }
+        : ask(),
+    )
+    assembly.controls.cards.read.always(async call => ({
+      ok: call.card.record.includes('tool/0') ? chosen : { kind: 'pending' },
+    }))
+    ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
+    await secondModelCall(assembly)
+    const { calls } = assembly.controls.cards.invalidate
+    expect(calls).toHaveLength(1)
+    expect(calls[0]?.round).toContain('tool/1')
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+    expect((await snapshot(assembly)).checkpoint.passages).toEqual([])
+  })
+
+  it('withdraws the open card when the Run is cancelled, and the Run ends cancelled', async () => {
+    const assembly = await cardAssembly()
+    withdrawn(assembly)
+    assembly.controls.admission.admit.always(async () => ask())
+    const handle = ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    await waitingForPerson(assembly)
+    ok(
+      await handle.control.control({
+        ...input,
+        operation: ok(decodeAgentOperationId('cancel-the-run')),
+        command: { kind: 'cancel', reason: evidence('cancel') },
+      }),
+    )
+    await eventually(async () => (await snapshot(assembly)).state.kind === 'ended')
+    expect((await snapshot(assembly)).state).toMatchObject({
+      kind: 'ended',
+      conclusion: { kind: 'cancelled' },
+    })
+    expect(assembly.controls.cards.invalidate.calls).toHaveLength(1)
+    expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+  })
+})
