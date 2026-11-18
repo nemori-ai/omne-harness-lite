@@ -39,6 +39,34 @@ function stateOf(entry: Entry): string | null {
   return entry.marks.seenAt === null ? '未读' : null
 }
 
+type Cause = Entry['cause']
+type Scope = Extract<Cause, { kind: 'subscription' }>['scope']
+
+function scopeText(scope: Scope): string {
+  switch (scope.kind) {
+    case 'all':
+      return '这一类的全部'
+    case 'subject':
+      return `对象是 ${scope.equals}`
+    case 'subject-prefix':
+      return `对象以 ${scope.prefix} 开头`
+  }
+}
+
+/** Why a notification reached the person, as it was decided when the send was accepted. */
+function causeText(cause: Cause): string {
+  switch (cause.kind) {
+    case 'named':
+      return '点名发给你'
+    case 'type-default':
+      return '这类事件缺省发给你'
+    case 'subscription': {
+      const matched = `命中了你的订阅（${scopeText(cause.scope)}）`
+      return cause.note === null ? matched : `${matched}。备注：${cause.note}`
+    }
+  }
+}
+
 function Detail({ opened }: { readonly opened: Opened }): JSX.Element {
   const { view } = opened
   if (view === 'reading') return <LoadingState label="正在读取……" />
@@ -67,6 +95,7 @@ function Detail({ opened }: { readonly opened: Opened }): JSX.Element {
           去处：{view.locator.kind} {view.locator.ref}
         </p>
       )}
+      <p className="notification-meta">缘由：{causeText(view.cause)}</p>
     </div>
   )
 }
@@ -90,7 +119,8 @@ export function EntryRow({ entry, state, driver }: EntryRowProps): JSX.Element {
           {entry.title}
         </Button>
         <span className="notification-meta">
-          {entry.source} · {LEVEL[entry.level]} · <Ago at={encodeInstant(entry.acceptedAt)} />
+          {entry.source} · {entry.type} · {LEVEL[entry.level]} ·{' '}
+          <Ago at={encodeInstant(entry.acceptedAt)} />
           {label === null ? null : ` · ${label}`}
         </span>
         <span className="notification-actions">
