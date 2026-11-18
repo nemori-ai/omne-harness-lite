@@ -10,7 +10,13 @@ export {
   type SettingResolution,
 } from './evaluation.ts'
 export {
+  AssetTargetSchema,
+  IndependentTargetSchema,
   SettingsTargetSchema,
+  sameTarget,
+  targetSortKey,
+  type AssetTarget,
+  type IndependentTarget,
   SettingsDefinitionRefSchema,
   SettingsActionSchema,
   SettingsChangeSchema,

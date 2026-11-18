@@ -30,13 +30,17 @@ async function open() {
     await w.close()
   })
   w.registry.registerContribution(definition())
-  const target = { policyId: 'asset', targetRef: 'holding-1', scopeRef: w.change.target.scopeRef }
+  const target = {
+    kind: 'asset' as const,
+    holdingRef: 'holding-1',
+    scopeRef: w.change.target.scopeRef,
+  }
   const publish = (operationId: string, version = '1', expectedRevision = 0) =>
     assets.publish({ operationId, assetRef: 'asset-1', pinned: pinned(version), expectedRevision })
   const hold = () =>
     assets.hold({
       operationId: 'hold',
-      holdingRef: target.targetRef,
+      holdingRef: target.holdingRef,
       scopeRef: target.scopeRef,
       assetRef: 'asset-1',
       selection: { kind: 'follow' },
@@ -84,7 +88,7 @@ it('withdrawing the category leaves holdings, versions and setting values as the
     asset: await w.assets.readAsset({ assetRef: 'asset-1' }),
     version: await w.assets.readVersion({ assetRef: 'asset-1', version: '1' }),
     holding: await w.assets.readHolding({
-      holdingRef: w.target.targetRef,
+      holdingRef: w.target.holdingRef,
       scopeRef: w.target.scopeRef,
     }),
     catalog: await w.catalog(),

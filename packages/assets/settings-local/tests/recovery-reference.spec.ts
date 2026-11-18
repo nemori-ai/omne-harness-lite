@@ -9,7 +9,7 @@ import {
   type SettingsRecoveryReference,
 } from '../src/recovery-reference.ts'
 
-const target = { policyId: 'catalog', targetRef: 'example', scopeRef: 'tenant/one' }
+const target = { kind: 'asset', holdingRef: 'example', scopeRef: 'tenant/one' } as const
 const capture: SettingsRecoveryReference = {
   version: 'settings-recovery/1',
   kind: 'capture',
@@ -75,7 +75,7 @@ describe('Settings recovery references', () => {
   it('bounds UTF-8 bytes to the Identity routing limit', () => {
     const oversized = {
       ...capture,
-      target: { ...target, scopeRef: '界'.repeat(4096), targetRef: '界'.repeat(4096) },
+      target: { ...target, scopeRef: '界'.repeat(4096), holdingRef: '界'.repeat(4096) },
     }
     expect(canonical(oversized).length).toBeLessThan(16384)
     expect(Buffer.byteLength(canonical(oversized))).toBeGreaterThan(16384)
@@ -86,10 +86,13 @@ describe('Settings recovery references', () => {
   it('accepts the byte limit and rejects its adjacent value', () => {
     const base = { ...capture, target: { ...target, scopeRef: '界'.repeat(4096) } }
     const room = 16384 - Buffer.byteLength(canonical(base))
-    const exact = { ...base, target: { ...base.target, targetRef: 'example' + 'x'.repeat(room) } }
+    const exact = { ...base, target: { ...base.target, holdingRef: 'example' + 'x'.repeat(room) } }
     expect(Buffer.byteLength(canonical(exact))).toBe(16384)
     expect(decodeSettingsRecoveryReference(encodeSettingsRecoveryReference(exact))).toEqual(exact)
-    const over = { ...exact, target: { ...exact.target, targetRef: exact.target.targetRef + 'x' } }
+    const over = {
+      ...exact,
+      target: { ...exact.target, holdingRef: exact.target.holdingRef + 'x' },
+    }
     expect(encodeSettingsRecoveryReference(over)).toBeUndefined()
     expect(decodeSettingsRecoveryReference(canonical(over))).toBeUndefined()
   })

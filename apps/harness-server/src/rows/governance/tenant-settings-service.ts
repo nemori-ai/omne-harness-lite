@@ -69,12 +69,12 @@ export function settingsAssetOf(host: Pick<TenantGovernanceHost, 'assets'>) {
   ): Promise<TenantSettingsAssetRef | undefined> => {
     const preference = preferenceAssetOf(view.target)
     if (preference !== undefined) return preference
-    if (view.target.policyId !== 'asset') return undefined
+    if (view.target.kind !== 'asset') return undefined
     const tenantRef = tenantCodec.encode(tenant)
     const assets = tenantRef.ok ? await host.assets(tenantRef.value) : undefined
     if (assets === undefined) throw new Error('the assets of the tenant are unavailable')
     const read = await assets.readHolding({
-      holdingRef: view.target.targetRef,
+      holdingRef: view.target.holdingRef,
       scopeRef: view.target.scopeRef,
     })
     if (read.kind === 'absent') return undefined

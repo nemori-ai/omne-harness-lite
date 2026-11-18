@@ -16,10 +16,12 @@ const TENANT = encoded.value
 
 type Answer = Awaited<ReturnType<TenantAssetsAccess['readHolding']>>
 
-function view(policyId = 'asset'): SettingsTargetView {
-  return {
-    target: { policyId, targetRef: 'test.gadget.one', scopeRef: TENANT },
-  } as unknown as SettingsTargetView
+function view(kind: SettingsTargetView['target']['kind'] = 'asset'): SettingsTargetView {
+  const target =
+    kind === 'asset'
+      ? { kind, holdingRef: 'test.gadget.one', scopeRef: TENANT }
+      : { kind, providerId: 'test', definitionId: 'gadget', scopeRef: TENANT }
+  return { target } as unknown as SettingsTargetView
 }
 
 function holding(state: 'held' | 'removed'): Answer {

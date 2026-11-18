@@ -28,8 +28,9 @@ export function preferenceTarget(
   tenantRef: string,
 ): SettingsTarget {
   return {
-    policyId: 'independent',
-    targetRef: `${definition.providerId}.${definition.definitionId}`,
+    kind: 'independent',
+    providerId: definition.providerId,
+    definitionId: definition.definitionId,
     scopeRef: tenantRef,
   }
 }

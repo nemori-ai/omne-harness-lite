@@ -24,7 +24,11 @@ import { IdentitySqlPlugin } from '@omne-harness/identity-sql/cordis'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
 import { access, organizationCodec } from '@omne-harness/legal-identity'
-import { createSettingsRegistry, SettingDefinitionsSchema } from '@omne-harness/settings'
+import {
+  createSettingsRegistry,
+  SettingDefinitionsSchema,
+  targetSortKey,
+} from '@omne-harness/settings'
 import {
   capabilityId,
   createCategoryPoint,
@@ -780,9 +784,9 @@ it('installs the actual Tool release and adopts its original holdings before exp
   })
   expect(settings).toMatchObject({ completeness: 'complete' })
   if ('kind' in settings) throw new Error(JSON.stringify(settings))
-  expect(settings.views.map(view => [view.target.policyId, view.target.targetRef])).toEqual([
-    ['independent', 'calendar.environment'],
-    ['independent', 'schedule.agent-authoring'],
+  expect(settings.views.map(view => targetSortKey(view.target).slice(1))).toEqual([
+    ['independent', 'calendar', 'environment'],
+    ['independent', 'schedule', 'agent-authoring'],
     ...[
       'Ask',
       'BkgToolCalls',
@@ -1035,8 +1039,8 @@ it('preserves a nonempty Settings assignment across default tenant installation 
   const entry = w.release.manifest.entries.find(value => value.asset.name === 'Shell')
   if (!entry) throw new Error('Shell release absent')
   const target = {
-    policyId: 'asset',
-    targetRef: 'harness.preinstalled.tool.Shell',
+    kind: 'asset' as const,
+    holdingRef: 'harness.preinstalled.tool.Shell',
     scopeRef: w.options.scope.tenantRef,
   }
   const request = {

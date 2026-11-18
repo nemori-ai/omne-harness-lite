@@ -183,7 +183,7 @@ export async function toolAssetsWorld(
       const held = await owner.hold({
         operationId: 'hold-shell',
         assetRef: publication.assetRef,
-        holdingRef: target.targetRef,
+        holdingRef: target.holdingRef,
         scopeRef: target.scopeRef,
         selection: { kind: 'pinned', version: publication.pinned.version },
         sources: [

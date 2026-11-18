@@ -16,7 +16,7 @@ function matchesOrganization(principal: ActingForTenantPrincipal, request: Sourc
     tenant.ok &&
     organization.ok &&
     request.source.target.scopeRef === organization.value &&
-    request.source.target.policyId === 'independent' &&
+    request.source.target.kind === 'independent' &&
     destination.domain.scope.kind === 'tenant' &&
     destination.domain.scope.tenant === tenant.value &&
     destination.principalRef === standingPrincipalRef(principal)

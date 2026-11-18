@@ -141,7 +141,7 @@ const SESSION_SOURCE: SettingsSourceDescriptor = {
 
 function world(options: Readonly<{ withNote?: boolean; withSession?: boolean }> = {}) {
   const definition = definitionOf(options.withNote === true)
-  const target = { policyId: 'asset', targetRef: 'tool.Shell', scopeRef: 'tenant-a' }
+  const target = { kind: 'asset', holdingRef: 'tool.Shell', scopeRef: 'tenant-a' } as const
   const definitionRef = {
     providerId: 'harness',
     definitionId: 'tool.Shell',
@@ -285,12 +285,12 @@ function world(options: Readonly<{ withNote?: boolean; withSession?: boolean }> 
           flags.catalog === 'not-held'
             ? []
             : flags.catalog === 'duplicate'
-              ? [view(), { ...view(), target: { ...target, targetRef: 'tool.Shell.copy' } }]
+              ? [view(), { ...view(), target: { ...target, holdingRef: 'tool.Shell.copy' } }]
               : [
                   view(),
                   ...Array.from({ length: flags.copies }, (_, index) => ({
                     ...view(),
-                    target: { ...target, targetRef: `tool.Shell.copy${index}` },
+                    target: { ...target, holdingRef: `tool.Shell.copy${index}` },
                   })),
                 ]
         return {
@@ -304,9 +304,10 @@ function world(options: Readonly<{ withNote?: boolean; withSession?: boolean }> 
       assetOf: async (tenant, candidate) => {
         assetTenants.add(String(tenant))
         if (flags.assetThrows) throw new Error('the holding cannot be read')
-        return /^tool\.Shell\.copy\d+$/.test(candidate.target.targetRef)
-          ? { category: 'tool', name: candidate.target.targetRef }
-          : candidate.target.targetRef === 'tool.Shell.copy'
+        const held = candidate.target.kind === 'asset' ? candidate.target.holdingRef : ''
+        return /^tool\.Shell\.copy\d+$/.test(held)
+          ? { category: 'tool', name: held }
+          : held === 'tool.Shell.copy'
             ? flags.copyAsset
             : { category: 'tool', name: 'Shell' }
       },
@@ -1155,7 +1156,7 @@ describe('the tenant source and its grant decide whether the face may write', ()
 
 describe('the answer to an aborted, committed or unknown write', () => {
   const operation = {
-    target: { policyId: 'asset', targetRef: 'tool.Shell', scopeRef: 'tenant-a' },
+    target: { kind: 'asset', holdingRef: 'tool.Shell', scopeRef: 'tenant-a' } as const,
     operationId: 'op-deny',
   }
   const aborted: readonly (readonly [string, WriteOutcome])[] = [
@@ -1257,7 +1258,7 @@ describe('what the face passes on to its ports', () => {
         protocol: 'settings/1',
         requestId: 'cmd',
         operationId: 'cmd',
-        target: { policyId: 'asset', targetRef: 'tool.Shell', scopeRef: 'tenant-a' },
+        target: { kind: 'asset', holdingRef: 'tool.Shell', scopeRef: 'tenant-a' },
         definitionRef: {
           providerId: 'harness',
           definitionId: 'tool.Shell',

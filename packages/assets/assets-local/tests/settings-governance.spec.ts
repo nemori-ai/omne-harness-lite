@@ -27,11 +27,15 @@ async function open() {
       expectedRevision: 0,
     }),
   ).toMatchObject({ kind: 'committed' })
-  const target = { policyId: 'asset', targetRef: 'holding-1', scopeRef: w.change.target.scopeRef }
+  const target = {
+    kind: 'asset' as const,
+    holdingRef: 'holding-1',
+    scopeRef: w.change.target.scopeRef,
+  }
   expect(
     await assets.hold({
       operationId: 'hold',
-      holdingRef: target.targetRef,
+      holdingRef: target.holdingRef,
       scopeRef: target.scopeRef,
       assetRef: 'asset-1',
       selection: { kind: 'follow' },
@@ -66,7 +70,7 @@ it('uses one public application for standalone and real asset targets with real 
   expect(page).toMatchObject({
     kind: 'catalog',
     completeness: 'complete',
-    entries: [{ target: { policyId: 'asset' } }, { target: { policyId: 'independent' } }],
+    entries: [{ target: { kind: 'asset' } }, { target: { kind: 'independent' } }],
   })
   const command = {
     ...w.change,
@@ -85,7 +89,7 @@ it('uses one public application for standalone and real asset targets with real 
   expect(
     await w.assets.changeHolding({
       operationId: 'remove',
-      holdingRef: w.target.targetRef,
+      holdingRef: w.target.holdingRef,
       scopeRef: w.target.scopeRef,
       expectedRevision: 1,
       change: { kind: 'remove' },
@@ -128,7 +132,7 @@ it('keeps the value of a disabled holding for management and still writes it', a
   expect(
     await w.assets.changeHolding({
       operationId: 'disable',
-      holdingRef: w.target.targetRef,
+      holdingRef: w.target.holdingRef,
       scopeRef: w.target.scopeRef,
       expectedRevision: 1,
       change: { kind: 'setEnabled', enabled: false },
@@ -150,13 +154,18 @@ it('refuses a holding that does not exist and the same reference under another p
   const w = await open()
   opened.push(w)
   for (const wrong of [
-    { ...w.target, targetRef: 'missing' },
-    { ...w.target, policyId: 'independent' },
+    { ...w.target, holdingRef: 'missing' },
+    {
+      kind: 'independent' as const,
+      providerId: 'example',
+      definitionId: w.target.holdingRef,
+      scopeRef: w.target.scopeRef,
+    },
   ])
     expect(
       await w.write(w.principal, {
         ...w.change,
-        operationId: `wrong-${wrong.policyId}`,
+        operationId: `wrong-${wrong.kind}`,
         target: wrong,
         definitionRef: definitionRef(),
       }),
@@ -243,7 +252,7 @@ it('omits legitimately undeclared assets from management without denying unrelat
     expect(
       await w.service.queries.evaluate(w.principal, {
         ...w.view,
-        targets: [{ ...w.target, targetRef: 'plain' }],
+        targets: [{ ...w.target, holdingRef: 'plain' }],
       }),
     ).toEqual({ kind: 'rejected', reason: 'forbidden' })
   } finally {
@@ -265,7 +274,7 @@ it('shows disabled asset settings through the public catalog but refuses runtime
   expect(
     await w.assets.changeHolding({
       operationId: 'disable',
-      holdingRef: w.target.targetRef,
+      holdingRef: w.target.holdingRef,
       scopeRef: w.target.scopeRef,
       expectedRevision: 1,
       change: { kind: 'setEnabled', enabled: false },
@@ -296,7 +305,7 @@ it('shows disabled asset settings through the public catalog but refuses runtime
   expect(
     await w.assets.changeHolding({
       operationId: 'enable',
-      holdingRef: w.target.targetRef,
+      holdingRef: w.target.holdingRef,
       scopeRef: w.target.scopeRef,
       expectedRevision: 2,
       change: { kind: 'setEnabled', enabled: true },
@@ -323,7 +332,7 @@ it('blocks old assignments when the same asset source id belongs to a different 
   expect(
     await w.assets.changeHolding({
       operationId: 'replace-source-owner',
-      holdingRef: w.target.targetRef,
+      holdingRef: w.target.holdingRef,
       scopeRef: w.target.scopeRef,
       expectedRevision: 1,
       change: {

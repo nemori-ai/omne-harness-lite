@@ -14,7 +14,12 @@ const authority = {
 }
 const basis: SettingsCurrentBasis = {
   protocol: 'settings-current-basis/1',
-  target: { policyId: 'standalone', targetRef: 'settings-1', scopeRef: 'tenant-1' },
+  target: {
+    kind: 'independent',
+    providerId: 'provider',
+    definitionId: 'settings',
+    scopeRef: 'tenant-1',
+  },
   definitionRef: {
     providerId: 'provider',
     definitionId: 'settings',
