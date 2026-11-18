@@ -3,7 +3,8 @@ import type { SystemReminderMessage } from '@omne-harness/message'
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import type { ModelReminders } from '@omne-harness/session-adapters/cordis'
 import { createSessionLogJournal } from '../src/cordis/agent-journal.ts'
-import { evidence, ok } from './fixtures/common-journal.ts'
+import { evidence, ok, operation } from './fixtures/common-journal.ts'
+import { assistantMessage } from '@omne-harness/session-contract/testing'
 import { sqlScene, takeInputs, type SqlScene } from './fixtures/sql-scene.ts'
 
 function told(text: string): SystemReminderMessage {
@@ -87,6 +88,45 @@ describe('the journal tells the model before a step takes its inputs (C4, C7)', 
       expect(await modelView(s)).toEqual(['system_reminder', 'user'])
       expect(calls.filter(call => call === 'advance')).toHaveLength(2)
       expect(calls[0]).toMatch(/^prepare@/)
+    } finally {
+      await s.close()
+    }
+  })
+
+  it('a write that begins no step tells the model nothing', async () => {
+    const s = await sqlScene('reminders-only-steps')
+    try {
+      ok(await s.view.journal.open(s.openInput))
+      const { reminders, calls } = scripted()
+      const journal = journalOf(s, reminders)
+      await takeInputs(s, journal)
+      const prepared = calls.filter(call => call.startsWith('prepare')).length
+      const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
+      const message = assistantMessage('reply')
+      ok(
+        await journal.commit({
+          ...s.access,
+          execution: s.execution,
+          operation: operation('reply'),
+          authority: loaded.executionAttachment!,
+          expected: loaded.revision,
+          checkpoint: loaded.checkpoint,
+          state: { kind: 'advancing' },
+          events: [{ kind: 'message', message, source: evidence('reply-admission') }],
+          effects: [],
+          caller: {
+            kind: 'message',
+            message,
+            source: evidence('reply-source'),
+            admission: evidence('reply-admission'),
+          },
+          replyAdmission: null,
+          handoff: null,
+          finish: null,
+        }),
+      )
+      expect(calls.filter(call => call.startsWith('prepare'))).toHaveLength(prepared)
+      expect(await modelView(s)).toEqual(['system_reminder', 'user', 'assistant'])
     } finally {
       await s.close()
     }

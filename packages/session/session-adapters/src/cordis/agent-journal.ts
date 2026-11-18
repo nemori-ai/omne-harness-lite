@@ -21,7 +21,6 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   commandDigest,
-  contextScopeOf,
   deriveDriveOperation,
   judgeCompletion,
   mutationAccessRequest,
@@ -143,7 +142,12 @@ import {
 } from './journal-read.ts'
 import { attemptOfAuthority, attemptOfGrant } from './attempt-grant.ts'
 import type { ModelReminders } from './model-reminders.ts'
-import { reminderCommand, reminderOutcome, reminderReadFailure } from './model-reminder-commit.ts'
+import {
+  openContextScope,
+  reminderCommand,
+  reminderOutcome,
+  reminderReadFailure,
+} from './model-reminder-commit.ts'
 
 export type SessionLogJournalOptions<P> = Readonly<{
   storage: SqlStorage
@@ -1575,12 +1579,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   }
 
   function modelScope(book: Book<P>, snapshot: WorkSnapshot): ScopeRef | null {
-    const scopes = snapshot.contextScopes
-    const open =
-      scopes === undefined
-        ? contextScopeOf({ tenant: book.tenant, session: book.session, generation: '1' })
-        : scopes.findLast(item => item.ended === null)?.scope
-    return open === undefined ? null : ({ ref: open } as ScopeRef)
+    return openContextScope({ tenant: book.tenant, session: book.session, snapshot })
   }
 
   function forgetTold(book: Book<P>, snapshot: WorkSnapshot | null): void {

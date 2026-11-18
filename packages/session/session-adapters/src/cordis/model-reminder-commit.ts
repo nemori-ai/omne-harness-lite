@@ -4,11 +4,13 @@ import type { TenantId } from '@omne-harness/legal-identity'
 import type { SystemReminderMessage } from '@omne-harness/message'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import {
+  contextScopeOf,
   deriveSessionOperation,
   type SessionCommand,
   type SessionFailure,
   type SessionId,
   type SessionRevision,
+  type WorkSnapshot,
 } from '@omne-harness/session-contract'
 import { decodeSessionReply } from '@omne-harness/session-storage-sql/participants'
 import { refusalFailure, type JournalCommitResult } from '../journal-commit.ts'
@@ -75,4 +77,16 @@ export function reminderOutcome(outcome: JournalCommitResult): 'told' | 'changed
     case 'refused':
       return refusalFailure(outcome.reason)
   }
+}
+
+/** The context scope the model is told in: the latest one not ended; none when all have ended. */
+export function openContextScope(
+  input: Readonly<{ tenant: TenantId; session: SessionId; snapshot: WorkSnapshot }>,
+): ScopeRef | null {
+  const scopes = input.snapshot.contextScopes
+  const open =
+    scopes === undefined
+      ? contextScopeOf({ tenant: input.tenant, session: input.session, generation: '1' })
+      : scopes.findLast(item => item.ended === null)?.scope
+  return open === undefined ? null : ({ ref: open } as ScopeRef)
 }
