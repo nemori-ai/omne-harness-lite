@@ -31,6 +31,8 @@ import {
   type ExecutionView,
   type HandoffView,
   type IntentView,
+  type ObligationListView,
+  type ObligationView,
   type OperationEntry,
   type RejectionEntry,
   type RequestView,
@@ -56,6 +58,10 @@ export function advances(batch: PublishedBatch): boolean {
 type Draft = {
   -readonly [K in keyof ExecutionView]: ExecutionView[K]
 } & {
+  finish: Omit<ExecutionView['finish'], 'obligations' | 'lists'> & {
+    obligations: Map<string, ObligationView>
+    lists: Map<string, ObligationListView>
+  }
   intents: Map<ActionId, IntentView>
   results: Map<ResultKey, ResultView>
   placeholders: Map<ConsumptionId, ReceivedView>
@@ -88,6 +94,12 @@ function draftOf(view: ExecutionView): Draft {
     excluded: forkTrackedOf(view.excluded),
     rejections: forkTrackedOf(view.rejections),
     reached: forkTrackedOf(view.reached),
+    // Forked once for the batch: a fork made per fact would forget what the facts before it wrote.
+    finish: {
+      ...view.finish,
+      obligations: forkTrackedOf(view.finish.obligations),
+      lists: forkTrackedOf(view.finish.lists),
+    },
   }
 }
 
@@ -431,14 +443,12 @@ function foldFinishProved(draft: Draft, fact: FactOf<'finish.proved'>): void {
 }
 
 function foldFinishObligation(draft: Draft, fact: FactOf<'finish.obligation'>, pub: number): void {
-  const obligations = forkTrackedOf(draft.finish.obligations)
-  obligations.set(fact.id, {
+  draft.finish.obligations.set(fact.id, {
     category: fact.category,
     item: fact.item,
     settled: fact.settled,
     pub,
   })
-  draft.finish = { ...draft.finish, obligations }
 }
 
 function foldFinishObligations(
@@ -449,8 +459,7 @@ function foldFinishObligations(
   const { op, pub, revision } = stamp
   const key = listKey(fact.candidate, fact.list)
   if (draft.finish.lists.has(key)) return
-  const lists = forkTrackedOf(draft.finish.lists)
-  lists.set(key, {
+  draft.finish.lists.set(key, {
     candidate: fact.candidate,
     list: fact.list,
     issued: {
@@ -463,7 +472,6 @@ function foldFinishObligations(
       revision,
     },
   })
-  draft.finish = { ...draft.finish, lists }
 }
 
 function foldFinishEnded(

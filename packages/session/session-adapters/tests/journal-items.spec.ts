@@ -3,6 +3,7 @@ import { canonical } from '../src/testing/canonical.ts'
 import {
   emptySessionView,
   foldItems,
+  refOf,
   viewItems,
   viewOfItems,
   viewText,
@@ -10,7 +11,7 @@ import {
   type SessionJournalView,
 } from '../src/journal/index.ts'
 import { evidence, scene } from './fixtures/journal-facts.ts'
-import { forAll } from './fixtures/property.ts'
+import { forAll, random } from './fixtures/property.ts'
 
 type Held = { open: boolean; body: string }
 
@@ -64,6 +65,49 @@ describe('the items of the journal view', () => {
         return null
       },
     })
+  })
+
+  it('a batch that writes two obligations and two lists reports each of them', () => {
+    const { log } = scene(random(7), { rounds: 2, executions: 1, finish: false })
+    const last = log.at(-1)!
+    const evidenceOf = (name: string) => evidence(`${last.execution}/${name}`)
+    const batch: PublishedBatch = {
+      ...last,
+      pub: last.pub + 1,
+      envelope: { ...last.envelope, op: 'two-obligations' as never, kinds: [] },
+      facts: [
+        {
+          kind: 'finish.obligation',
+          id: 'call/first',
+          category: 'call',
+          item: null,
+          settled: false,
+        },
+        {
+          kind: 'finish.obligation',
+          id: 'call/second',
+          category: 'call',
+          item: null,
+          settled: false,
+        },
+        ...[1, 2].map(list => ({
+          kind: 'finish.obligations' as const,
+          candidate: 'candidate' as never,
+          list,
+          count: 0,
+          evidence: evidenceOf(`list-${String(list)}`),
+          coverage: refOf({ coverage: list }),
+          listed: refOf({ listed: list }),
+        })),
+      ],
+    }
+    const replayed = replay(log)
+    if (typeof replayed === 'string') throw new Error(replayed)
+    const { changes } = foldItems(replayed.view, batch)
+    const opened = (family: string) =>
+      changes.filter(change => change.family === family).map(change => change.item)
+    expect(opened('obligation')).toEqual(['call/first', 'call/second'])
+    expect(opened('list')).toHaveLength(2)
   })
 
   it('the open rows of the store rebuild the view the fold holds, execution by execution', () => {

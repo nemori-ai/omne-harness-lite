@@ -266,7 +266,7 @@ async function journalTree(base: ReturnType<typeof makeBase>) {
         directoryFile: base.directoryFile,
         domainRule: 'organization-account/1',
       }),
-      declared(agentJournalRow, combination),
+      declared(agentJournalRow, { combinationVersion: combination.combinationVersion }),
       declared(probe),
     ],
   })
