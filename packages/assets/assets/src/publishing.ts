@@ -17,13 +17,7 @@ export type TenantPublishRequest<P> = Readonly<{
 export type TenantPublishOutcome =
   | Readonly<{ kind: 'published'; version: string; holdingRef: string; changed: boolean }>
   | Readonly<{
-      kind:
-        | 'denied'
-        | 'unavailable'
-        | 'unknown-category'
-        | 'conflict'
-        | 'operation-conflict'
-        | 'removed'
+      kind: 'denied' | 'unavailable' | 'unknown-category' | 'conflict' | 'operation-conflict'
     }>
   | Readonly<{ kind: 'invalid'; reason: string }>
   | Readonly<{ kind: 'unknown'; operationId: string }>

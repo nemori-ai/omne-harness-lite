@@ -142,7 +142,12 @@ const publish = (
   from: PackageReader = reader(),
   operationId = 'publish-1',
 ) =>
-  packages.publish({ capability: report, from, operationId, holding: { sources: [], grants: [] } })
+  packages.publish({
+    capability: report,
+    from,
+    operationId,
+    holding: { holdingRef: 'held-report', sources: [], grants: [] },
+  })
 
 const placeOf = (root: string, version = VERSION) =>
   join(root, 'bundles', 'report', versionDirectoryName(version))
@@ -351,7 +356,7 @@ describe('publish while it stages and records', () => {
       operationId: 'publish-1',
       assetRef: 'bundle/report',
       expectedRevision: 4,
-      holding: { holdingRef: 'bundle/report', scopeRef: 'tenant-a', sources: [], grants: [] },
+      holding: { holdingRef: 'held-report', scopeRef: 'tenant-a', sources: [], grants: [] },
     })
   })
 })

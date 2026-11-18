@@ -214,7 +214,6 @@ describe('the publish service: the cells of table three', () => {
     [{ kind: 'published', version: 'sha256:1', holdingRef: 'note/a', changed: false }],
     [{ kind: 'conflict' }],
     [{ kind: 'operation-conflict' }],
-    [{ kind: 'removed' }],
     [{ kind: 'invalid', reason: 'invalid-input' }],
     [{ kind: 'unknown', operationId: 'publish-1' }],
   ] as const)('本机资产的结局原样交出：%o', async answer => {
