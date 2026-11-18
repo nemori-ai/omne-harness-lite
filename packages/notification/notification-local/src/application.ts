@@ -1,5 +1,6 @@
 import {
   type NotificationCatalog,
+  type NotificationChangeFeed,
   type NotificationDestinations,
   type NotificationInbox,
   type NotificationSending,
@@ -23,7 +24,7 @@ import {
   type NotificationSources,
   type StandingItems,
 } from '@omne-harness/notification'
-import { createChanges, inAppChannel, observed, type NotificationChanges } from './changes.ts'
+import { createChanges, inAppChannel, observed } from './changes.ts'
 import { createWakeUps, realTimers, type Timers } from './hints.ts'
 import { parsePolicy } from './policy.ts'
 import { AGENT_POSTS, blockedItems, NOTIFICATION_SYSTEM } from './sources.ts'
@@ -59,7 +60,7 @@ export type NotificationLocalApplication = NotificationFaces &
   Readonly<{
     sources: NotificationSources
     channels: NotificationChannels
-    changes: Pick<NotificationChanges, 'subscribe'>
+    changes: NotificationChangeFeed
     /** The standing items this group publishes about itself for one tenant: its blocked destinations. */
     blocked(tenant: TenantId): Promise<StandingRead>
     /** Does what is due for every tenant. Runs at start and on an interval, so a lost wake-up is made up. */

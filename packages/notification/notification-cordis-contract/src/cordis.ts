@@ -4,6 +4,7 @@ import type {
   ChannelLookup,
   ChannelName,
   NotificationCatalog,
+  NotificationChangeFeed,
   NotificationDestinations,
   NotificationInbox,
   NotificationSending,
@@ -115,6 +116,18 @@ export abstract class NotificationChannelsService extends Service {
 }
 export const notificationChannelsKey = NotificationChannelsService.provide
 
+/** @owner packages/notification/notification-cordis-contract */
+export abstract class NotificationChangesService extends Service implements NotificationChangeFeed {
+  static readonly provide = 'notificationChanges'
+
+  constructor(ctx: Context) {
+    super(ctx, NotificationChangesService.provide)
+  }
+
+  abstract readonly subscribe: NotificationChangeFeed['subscribe']
+}
+export const notificationChangesKey = NotificationChangesService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     notificationSending: NotificationSendingService
@@ -123,6 +136,7 @@ declare module '@deepseek-ai/cordis' {
     notificationDestinations: NotificationDestinationsService
     notificationCatalog: NotificationCatalogService
     notificationSources: NotificationSourcesService
+    notificationChanges: NotificationChangesService
     notificationChannels: NotificationChannelsService
   }
 }

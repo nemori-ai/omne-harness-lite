@@ -1,28 +1,15 @@
 import {
   channelNameSchema,
   type ChannelContribution,
-  type RecipientRef,
+  type NotificationChange,
+  type NotificationChangeFeed,
+  type NotificationChangeListener,
   type TenantId,
 } from '@omne-harness/notification-contract'
 import type { NotificationStore, StoreAnswer } from '@omne-harness/notification'
 
-/** What an observer is told: something may have changed, never what. The observer reads again. */
-export type NotificationChange =
-  | Readonly<{ kind: 'inbox'; tenant: TenantId; recipient: RecipientRef | null }>
-  | Readonly<{ kind: 'catalog' }>
-
-export type NotificationChangeListener = Readonly<{
-  changed(change: NotificationChange): void
-  /** The feed is gone and nothing more arrives. */
-  closed(): void
-}>
-
-export type NotificationChanges = Readonly<{
-  /** A listener that subscribes after the feed closed is told so at once. */
-  subscribe(listener: NotificationChangeListener): () => void
-  emit(change: NotificationChange): void
-  close(): void
-}>
+export type NotificationChanges = NotificationChangeFeed &
+  Readonly<{ emit(change: NotificationChange): void; close(): void }>
 
 export function createChanges(report: (error: unknown) => void): NotificationChanges {
   const listeners = new Set<NotificationChangeListener>()
