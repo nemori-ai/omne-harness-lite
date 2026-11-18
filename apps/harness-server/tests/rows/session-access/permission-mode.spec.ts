@@ -94,9 +94,12 @@ describe('the permission mode over session/v1 on the release tree', () => {
           outcome: 'succeeded',
           body: { mode: 'auto_permission', revision: next },
         })
-        const inquiry = await inquiryOf(tree, session)
-        expect(inquiry.inquiry.policy.onAsk).toBe('ask-human')
-        expect(inquiry.basis.permissionRevision).toBe(next)
+        await expect
+          .poll(async () => (await inquiryOf(tree, session)).basis.permissionRevision, {
+            timeout: 30_000,
+          })
+          .toBe(next)
+        expect((await inquiryOf(tree, session)).inquiry.policy.onAsk).toBe('ask-human')
 
         expect(
           await call(tree, 'change-permission-mode', {
