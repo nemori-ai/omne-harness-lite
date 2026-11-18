@@ -24,6 +24,7 @@ const CODING = [
   'Files',
   'Schedules',
   'Shell',
+  'Skills',
   'TodoItems',
   'Tools',
   'Web',
@@ -76,7 +77,7 @@ async function treeWith(preload: boolean, construction: unknown) {
 
 describe('the resident tools of a coding create follow the start load', () => {
   it(
-    'after the start load, the planner gives the five release tools as residents',
+    'after the start load, the planner gives the release tools as residents',
     { timeout: 20_000 },
     async () => {
       const { live, plan } = await treeWith(true, TEST_CONSTRUCTION)

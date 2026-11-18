@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto'
 import type {
-  ActionBatchId,
   ActionId,
   Adoption,
   AgentConclusion,
@@ -25,7 +24,6 @@ import type {
   InputId,
   LoopExtensionDeclaration,
   ModelReplyAdmission,
-  ModelRetryState,
   Passage,
   PassageId,
   PendingCall,
@@ -126,12 +124,26 @@ export type CursorMembers = Readonly<{
   schema: Adoption
   definition: Adoption
   adoptedRequest: Ref | null
-  modelRetry?: ModelRetryState | null
   state: 'reconciling' | 'advancing' | 'waiting' | 'settling' | 'suspended'
+  // What the checkpoint holds open that its blocks name: the fold reads it without the blocks.
+  // null: it names more than a fact carries, so every item is held until the checkpoint shrinks.
+  holds: null | Readonly<{
+    actions: readonly ActionId[]
+    consumptions: readonly ConsumptionId[]
+    handoffs: readonly string[]
+    // The sequence of the reply admission prefix the checkpoint has verified (0: none).
+    admissionsFrom: number
+  }>
 }>
 export type CursorMember = keyof CursorMembers
 
 export type ResultStage = 'recorded' | 'custody' | 'processed' | 'released'
+
+// A result is one produced version under one consumption: a late one changes none before it.
+export type ResultKey = string & { readonly resultKey: unique symbol }
+
+export const resultKey = (consumption: ConsumptionId, version: string): ResultKey =>
+  JSON.stringify([consumption, version]) as ResultKey
 
 export type FactBody =
   | Readonly<{
@@ -179,6 +191,8 @@ export type FactBody =
       intent: 'model'
       step: StepId
       attempt: Attempt
+      action: ActionId
+      reference: ModelInvocationRef
       cause: 'not-accepted' | 'lost'
       basis: DurableEvidence
     }>
@@ -197,12 +211,6 @@ export type FactBody =
       pending: PendingCall
       authority: Authority
       request: Ref<ToolInvokeRequest> | null
-    }>
-  | Readonly<{
-      kind: 'call.associated'
-      action: ActionId
-      reference: ToolInvocationRef
-      receipt: DurableEvidence
     }>
   | Readonly<{
       kind: 'result.received'
@@ -266,43 +274,10 @@ export type FactBody =
       custody: Ref | null
     }>
   | Readonly<{
-      kind: 'batch.fixed'
-      batch: ActionBatchId
-      step: StepId
-      source: ProducerCall
-      actions: readonly Readonly<{ action: ActionId; callId: string; arguments: Ref }>[]
-    }>
-  | Readonly<{
-      kind: 'action.judged'
-      action: ActionId
-      judgment: 'pending' | 'waiting' | 'denied' | 'allowed'
-      evidence: DurableEvidence | null
-      passage: PassageId | null
-      request: Ref<ToolInvokeRequest> | null
-    }>
-  | Readonly<{ kind: 'slot.settled'; action: ActionId; settlement: DurableEvidence }>
-  | Readonly<{
-      kind: 'passage.declared'
-      passage: PassageId
-      subject: Ref
-      declared: DurableEvidence
-    }>
-  | Readonly<{
-      kind: 'passage.progressed'
-      passage: PassageId
-      progress: Ref
-      round: string | null
-    }>
-  | Readonly<{
-      kind: 'passage.concluded'
-      passage: PassageId
-      conclusion: Ref
-      evidence: DurableEvidence
-    }>
-  | Readonly<{
       kind: 'control.stage'
       control: AgentOperationId
       command: ExecutionControl
+      modelInvocation: ModelInvocationRef | null
       toolInvocation: ToolInvocationRef | null
       toolOperation: ToolOperationRef | null
       stage: ControlStage
@@ -320,6 +295,7 @@ export type FactBody =
       kind: 'target.bound'
       reference: string
       pending: Ref<PendingCall>
+      consumption: ConsumptionId
       instance: AgentInstanceId
     }>
   | Readonly<{
@@ -338,6 +314,8 @@ export type FactBody =
       id: string
       category: string
       item: Ref | null
+      // Whether the obligation is settled: the ledger keeps an unsettled one open.
+      settled: boolean
     }>
   | Readonly<{
       kind: 'finish.obligations'
@@ -368,7 +346,13 @@ export type FactBody =
       observed: DurableEvidence
     }>
   | Readonly<{ kind: 'ack.through'; sequence: number }>
-  | Readonly<{ kind: 'op.recognized'; target: AgentOperationId; recalls?: true }>
+  // A recognition names the batch of the operation it recognizes: that operation has left memory.
+  | Readonly<{
+      kind: 'op.recognized'
+      target: AgentOperationId
+      at: Readonly<{ pub: number; digest: string; revision: number }>
+      recalls?: true
+    }>
   | Readonly<{
       kind: 'material.preserved'
       source: DurableEvidence
@@ -407,7 +391,6 @@ export const FACT_KINDS: readonly FactKind[] = Object.freeze([
   'request.adopted',
   'intent.voided',
   'call.intended',
-  'call.associated',
   'result.received',
   'result.handled',
   'reply.judged',
@@ -416,12 +399,6 @@ export const FACT_KINDS: readonly FactKind[] = Object.freeze([
   'handoff.resolved',
   'handoff.retired',
   'handoff.recorded',
-  'batch.fixed',
-  'action.judged',
-  'slot.settled',
-  'passage.declared',
-  'passage.progressed',
-  'passage.concluded',
   'control.stage',
   'control.rejected',
   'wait.entered',
@@ -468,7 +445,12 @@ export function eventKindOf(fact: FactBody): string | null {
   return kind
 }
 
-export type ParticipationKind = 'message' | 'context-transition' | 'custody' | 'processed'
+export type ParticipationKind =
+  | 'message'
+  | 'delivered'
+  | 'context-transition'
+  | 'custody'
+  | 'processed'
 
 export type BatchEnvelope = Readonly<{
   op: AgentOperationId
@@ -559,14 +541,12 @@ export function factKey(fact: FactBody): string {
       return `voided/${fact.step}/${fact.attempt}`
     case 'call.intended':
       return `call/${fact.action}`
-    case 'call.associated':
-      return `associated/${fact.action}`
     case 'result.received':
       if (fact.result.delivery === 'account') return `account/${fact.delivery}`
       if (fact.result.delivery === 'placeholder') return `placeholder/${fact.consumption}`
-      return `received/${fact.consumption}`
+      return `received/${resultKey(fact.consumption, fact.result.version)}`
     case 'result.handled':
-      return `handled/${fact.consumption}/${fact.stage}`
+      return `handled/${resultKey(fact.consumption, fact.result.version)}/${fact.stage}`
     case 'reply.judged':
       return `reply/${fact.sequence}`
     case 'message.published':
@@ -576,18 +556,6 @@ export function factKey(fact: FactBody): string {
     case 'handoff.retired':
     case 'handoff.recorded':
       return `${fact.kind}/${canonical(fact.handoff)}`
-    case 'batch.fixed':
-      return `batch/${fact.batch}`
-    case 'action.judged':
-      return `judged/${fact.action}/${fact.judgment}`
-    case 'slot.settled':
-      return `slot/${fact.action}`
-    case 'passage.declared':
-      return `passage/${fact.passage}`
-    case 'passage.progressed':
-      return `progress/${fact.passage}/${fact.progress.digest}`
-    case 'passage.concluded':
-      return `concluded/${fact.passage}`
     case 'control.stage':
       return `control/${fact.control}/${fact.stage}`
     case 'control.rejected':
@@ -678,6 +646,7 @@ export function encodeBatch(
 const KINDS: ReadonlySet<string> = new Set(FACT_KINDS)
 const PARTICIPATIONS: ReadonlySet<string> = new Set([
   'message',
+  'delivered',
   'context-transition',
   'custody',
   'processed',

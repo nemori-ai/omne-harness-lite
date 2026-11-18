@@ -528,7 +528,7 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 ### C-81：Skill 的脚本由谁执行
 
 - **类型**：定义打架。2026-11-12 产品负责人裁定 Skill 的脚本由 Shell 执行之后发现。
-- **来源**：旧说法在 [Skill 产品](../product/skills/design.md)、[元能力 Skills()](../product/meta-capabilities/design.md#meta-skills)、Skill 领域页与成员说明里：`Skills` 有六个命令，其中 `exec_script` 经脚本桥接运行 Skill 自带的脚本；脚本执行权按这个 Skill 判，只能运行包内脚本；落点、身份、秘密类设置只交给脚本；依赖或脚本设施不足时正文读不读得到待 Q-SK08 裁定。[依赖声明](terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)的注意按封存 PF-006 rev 24 写「带脚本的技能同样要声明它需要什么设施」。现行说法在 [Skill J-SK05](../product/skills/design.md#j-sk05-运行方法携带的脚本)、[J-SK03](../product/skills/design.md#j-sk03-按需读取正文或指定资源)、[J-SK04](../product/skills/design.md#j-sk04-让配置到达正确的消费者)（rev 3）与[元能力 Skills()](../product/meta-capabilities/design.md#meta-skills)（rev 7）。
+- **来源**：旧说法在 [Skill 产品](../product/skills/design.md)、[元能力 Skills()](../product/meta-capabilities/design.md#meta-skills)、Skill 领域页与成员说明里：`Skills` 有六个命令，其中 `exec_script` 经脚本桥接运行 Skill 自带的脚本；脚本执行权按这个 Skill 判，只能运行包内脚本；落点、身份、秘密类设置只交给脚本；依赖或脚本设施不足时正文读不读得到待 Q-SK08 裁定。[依赖声明](terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)的注意按封存 PF-006 rev 24 写「带脚本的技能同样要声明它需要什么设施」。现行说法在 [Skill J-SK05](../product/skills/design.md#j-sk05-运行方法携带的脚本)、[J-SK03](../product/skills/design.md#j-sk03-按需读取正文或指定资源)、[J-SK04](../product/skills/design.md#j-sk04-做法的差异写在方法里)（rev 3）与[元能力 Skills()](../product/meta-capabilities/design.md#meta-skills)（rev 7）。
 - **差别**：按旧说法，Skill 持有一条执行通道和一份按 Skill 判的执行许可，还要管脚本的运行设施与设置供给。按现行说法，`Skills` 有五个命令：`search`、`read`、`read_file`、`list` 只读，`submit` 是提交，没有执行命令。脚本是第三层的文件，用 `read_file` 读。运行归 Shell：资产先加载到本地，单机装配下 agent 从 `Skills` 的读取结果知道目录在本机的位置，用 Shell 直接运行，这是一次普通的 Shell 工具调用。Skill 不持有执行权，不向 Shell 里的进程注入任何值。必需依赖缺席不挡读取，正文照常返回并写明缺项。防护与隔离不在这一阶段。
 - **处置**：以现行说法为准，依据是产品负责人 PanQiWei 2026-11-12 的裁定。依赖声明的那条注意改成「技能的依赖声明不管脚本的运行设施」。[包的读口](terms/capabilities-and-composition.md#ul-package-reader--包的读口--package-reader)加一条注意：它不给路径这一条不变，目录加载到本机之后在哪是另一件事。产品正文、领域页、成员说明与心智模型里的旧说法已一并改掉，Q-SK04 退出，Q-SK08 已裁定。
 - **状态**：已裁，词条已改。
@@ -558,3 +558,16 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 ### C-85：请求候选与限额未知
 
 `UL-request-candidate` 的「候选装得下才成立」与 [UL-fit-verdict](terms/record-and-context.md#ul-fit-verdict--装入裁定--fit-verdict) 的「限额未知不是失败，候选照常成立」不一致。限额未知不保证装得下；候选成立与已知装入保证须区分。相关正文归[请求计算](../product/runtime-context/design.md#61-request-context-的派生计算)，词条措辞由该拥有者复核；本条不把未知改成通过。
+
+### C-86：作业通知策略与通知订阅
+
+[UL-job-notification-policy](terms/execution-and-outcome.md#ul-job-notification-policy--作业通知策略--job-notification-policy) 说工作意图自己声明哪些执行事件要通知。[通知产品正文](../product/notifications/design.md#j-no03)（rev 3）说来源只交事件，要不要提醒归收件人的[通知订阅](terms/interaction-and-dispatch.md#ul-notification-subscription--通知订阅--notification-subscription)。两处定义打架。产品负责人 2026-11-18 认可了后一种。日程与作业的正文还没有改写，见通知正文的 Q-NO05。处置归日程与作业 topic 的维护者：改写 J-SJ08、J-SJ14 之后，这个词条退出，本项闭合。
+
+### C-87：连接件的投递方式与投递去处
+
+[UL-connector](terms/capabilities-and-composition.md#ul-connector--连接件--connector) 的条件性定义说外部事件有两种投递方式：已有的会话开口接收（配置是投递目标），或事件开一个新会话。通知产品正文说外面的事经[通知来源](terms/interaction-and-dispatch.md#ul-notification-source--通知来源--notification-source)进来，给谁由通知订阅定，推到哪由[投递去处](terms/interaction-and-dispatch.md#ul-delivery-destination--投递去处--delivery-destination)定。连接件的产品状态是搁置，两处现在不同时生效。连接件恢复时由产品负责人裁：它的两种投递方式是不是改用通知订阅与投递去处来表达。
+
+### C-88：「通知」与「收件箱」在别处的用法
+
+同名不同义，两处都是本系统自己的设计。会话的包组规格用「通知」「通知者」指提交之后的唤醒；人工介入的包组规格用「原等待的收件箱」指决定交到原等待的交接位置。它们不是[通知](terms/interaction-and-dispatch.md#ul-notification--通知--notification)与[收件箱](terms/interaction-and-dispatch.md#ul-notification-inbox--收件箱--notification-inbox)。处置：这两个词裸用时指通知领域的对象；会话与人工介入的规格各自改用「叫醒」与别的名字，由它们的维护者在下一次修订时改，改完本项闭合。改名会牵到源码里的名字，不在通知的落盘里做。
+

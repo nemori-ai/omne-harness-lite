@@ -2,12 +2,15 @@ import type { SettingView } from '@omne-harness/assets-protocol'
 
 type Permission = Extract<SettingView, { kind: 'permission' }>
 
-export const SHELL_ASSET = { category: 'tool', name: 'shell' } as const
+export const SHELL_ASSET = { kind: 'asset', category: 'tool', name: 'shell' } as const
+
+export const assetOwner = (category: string, name: string) =>
+  ({ kind: 'asset', category, name }) as const
 
 export function permissionView(overrides: Partial<Permission> = {}): Permission {
   return {
     kind: 'permission',
-    asset: SHELL_ASSET,
+    owner: SHELL_ASSET,
     item: 'call-permission',
     revision: '1',
     declaration: {
@@ -15,6 +18,7 @@ export function permissionView(overrides: Partial<Permission> = {}): Permission 
       purpose: 'Shell 工具每次调用要不要人批准。',
       appliesAt: '下一次工具调用起生效，正在进行的那一次不变。',
       clearEffect: '这一层不再有挑选，按外层求值。',
+      group: { id: 'shell', title: 'Shell', description: 'Shell 工具的设置' },
     },
     choices: [
       { value: 'deny', label: '拒绝', description: '不允许调用。', permitsOperation: false },
@@ -35,7 +39,7 @@ const LIMIT = { kind: 'number', lexeme: '65536' } as const
 export function ordinaryView(): SettingView {
   return {
     kind: 'ordinary',
-    asset: { category: 'tool', name: 'files' },
+    owner: assetOwner('tool', 'files'),
     item: 'max-read-bytes',
     revision: '4',
     declaration: {
@@ -43,6 +47,7 @@ export function ordinaryView(): SettingView {
       purpose: '读文件时一次最多读多少字节。',
       appliesAt: '下一次读取起生效。',
       clearEffect: '这一层不再提供这个值。',
+      group: { id: 'files', title: 'Files', description: 'Files 工具的设置' },
     },
     valueSchema: {
       kind: 'object',
@@ -61,7 +66,7 @@ export function secretView(
 ): SettingView {
   return {
     kind: 'secret',
-    asset: { category: 'model', name: 'openai' },
+    owner: assetOwner('model', 'openai'),
     item: 'api-key',
     revision: '2',
     declaration: {
@@ -69,6 +74,7 @@ export function secretView(
       purpose: '调用模型时用的密钥。',
       appliesAt: '下一次模型请求起生效。',
       clearEffect: '清掉这一层的密钥。',
+      group: { id: 'openai', title: 'OpenAI', description: '模型供应商的设置' },
     },
     own: 'unset',
     official: 'available',

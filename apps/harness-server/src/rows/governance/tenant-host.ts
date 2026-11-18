@@ -5,7 +5,11 @@ import { pauseAfterFailures } from '../../retry-pause.ts'
 import { monotonicClock } from '../../shutdown.ts'
 import type { StopResult } from '../../types.ts'
 import type { TenantDomainRegistration } from './tenant-domain-registration-service.ts'
-import type { TenantGovernanceAssembly, TenantSettingsAccess } from './tenant-runtime.ts'
+import type {
+  TenantAssetsAccess,
+  TenantGovernanceAssembly,
+  TenantSettingsAccess,
+} from './tenant-runtime.ts'
 
 type Opened = Awaited<ReturnType<TenantGovernanceAssembly['open']>>
 type Runtime = Extract<Opened, { kind: 'created' }>
@@ -188,19 +192,17 @@ export class TenantGovernanceHost {
   }
 
   async settings(tenantRef: string): Promise<TenantSettingsAccess | undefined> {
-    if (!(await this.registered(tenantRef))) return undefined
-    if ((await this.runtime(tenantRef)) === undefined) return undefined
-    return (await this.entry(tenantRef))?.assembly.settings
+    return (await this.opened(tenantRef))?.assembly.settings
   }
 
-  /** The assets and the settings of a tenant whose governance is open; undefined while it is not. */
-  async holdings(tenantRef: string) {
+  async assets(tenantRef: string): Promise<TenantAssetsAccess | undefined> {
+    return (await this.opened(tenantRef))?.assembly.assets
+  }
+
+  private async opened(tenantRef: string): Promise<Entry | undefined> {
     if (!(await this.registered(tenantRef))) return undefined
     if ((await this.runtime(tenantRef)) === undefined) return undefined
-    const assembly = (await this.entry(tenantRef))?.assembly
-    return assembly?.assets === undefined || assembly.settings === undefined
-      ? undefined
-      : { assets: assembly.assets, settings: assembly.settings }
+    return this.entry(tenantRef)
   }
 
   private async drain(): Promise<StopResult> {

@@ -1,0 +1,37 @@
+import { Context } from '@deepseek-ai/cordis'
+import { agentDefinitionCategoryPlugin } from '@omne-harness/agent-host-local/cordis'
+import {
+  assetCategoriesPlugin,
+  categoryContributionPlugin,
+} from '@omne-harness/assets-cordis-contract/cordis'
+import { mcpCategoryPlugin } from '@omne-harness/mcp-host-local/cordis'
+import { modelProviderCategoryPlugin } from '@omne-harness/model-host-local/cordis'
+import { skillCategoryPlugin } from '@omne-harness/skill-host-local/cordis'
+import { toolBodyContract, toolCategoryDisplay } from '@omne-harness/tool-contract'
+import { expect, it } from 'vitest'
+
+it('five domains contribute into one extension point, each with the name it declares', async () => {
+  const root = new Context()
+  await root.plugin(assetCategoriesPlugin)
+  await root.plugin(skillCategoryPlugin)
+  await root.plugin(mcpCategoryPlugin)
+  await root.plugin(agentDefinitionCategoryPlugin)
+  await root.plugin(modelProviderCategoryPlugin)
+  await root.plugin(
+    categoryContributionPlugin('tool-category', {
+      contract: toolBodyContract(),
+      display: toolCategoryDisplay,
+    }),
+  )
+  expect(
+    root.assetCategories.view.list().map(listing => [listing.category, listing.display.title]),
+  ).toEqual([
+    ['AgentDefinition', '智能体'],
+    ['mcp', 'MCP'],
+    ['model-provider', '模型供应商'],
+    ['skill', '技能'],
+    ['tool', '工具'],
+  ])
+  for (const listing of root.assetCategories.view.list())
+    expect(root.assetCategories.view.lookup(listing.category)?.category).toBe(listing.category)
+})

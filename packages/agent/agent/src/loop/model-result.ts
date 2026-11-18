@@ -10,7 +10,6 @@ import type {
   StepId,
   VoidedIntent,
 } from '@omne-harness/agent-contract'
-import { faultIsTransient } from '@omne-harness/model-contract'
 import type * as M from '@omne-harness/model-contract'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import { agentEvidence, replyMessageId } from './identities.ts'
@@ -23,7 +22,7 @@ export type ModelOutcome = Readonly<{
   (
     | Readonly<{ kind: 'reply'; reply: Extract<Message, { role: 'assistant' }> }>
     | Readonly<{ kind: 'interrupted' }>
-    | Readonly<{ kind: 'unusable'; nature: 'transient' | 'permanent' }>
+    | Readonly<{ kind: 'unusable' }>
   )
 export type ModelResult = ModelOutcome &
   Readonly<{
@@ -48,19 +47,13 @@ export function consumeModelResult(
   const content = value.parts.filter(part => !sealedReasoning(part))
   const terminal = value.settlement.termination
   if (terminal.kind === 'interrupted') return succeed({ ...value, kind: 'interrupted' })
-  if (terminal.kind === 'failed')
-    return succeed({
-      ...value,
-      kind: 'unusable',
-      nature: faultIsTransient(terminal.fault.cause) ? 'transient' : 'permanent',
-    })
+  if (terminal.kind === 'failed') return succeed({ ...value, kind: 'unusable' })
   const blocks: M.ModelBlock[] = []
   for (const part of content) {
     if (part.kind === 'sealed') blocks.push(part.block)
   }
   const [first, ...rest] = blocks
-  if (first === undefined || truncated(content))
-    return succeed({ ...value, kind: 'unusable', nature: 'permanent' })
+  if (first === undefined || truncated(content)) return succeed({ ...value, kind: 'unusable' })
   return succeed({
     ...value,
     kind: 'reply',
@@ -78,7 +71,6 @@ export function lostModelResult(call: M.ModelCallId, evidence: DurableEvidence):
   }
   return {
     kind: 'unusable',
-    nature: faultIsTransient(fault.cause) ? 'transient' : 'permanent',
     produced: {
       producer: { kind: 'model', call },
       version: LOST_CONTACT,

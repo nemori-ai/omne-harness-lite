@@ -21,21 +21,57 @@ declare const settingView: {
         {
             readonly kind: 'object';
             readonly fields: {
-                readonly asset: {
+                readonly owner: {
                     readonly rule: {
-                        readonly kind: 'object';
-                        readonly fields: {
-                            readonly category: {
-                                rule: {
-                                    readonly kind: 'text';
+                        readonly kind: 'one-of';
+                        readonly rules: readonly [
+                            {
+                                readonly kind: 'object';
+                                readonly fields: {
+                                    readonly kind: {
+                                        rule: {
+                                            readonly kind: 'literal';
+                                            readonly values: readonly [
+                                                "asset"
+                                            ];
+                                        };
+                                    };
+                                    readonly category: {
+                                        rule: {
+                                            readonly kind: 'text';
+                                        };
+                                    };
+                                    readonly name: {
+                                        rule: {
+                                            readonly kind: 'text';
+                                        };
+                                    };
                                 };
-                            };
-                            readonly name: {
-                                rule: {
-                                    readonly kind: 'text';
+                            },
+                            {
+                                readonly kind: 'object';
+                                readonly fields: {
+                                    readonly kind: {
+                                        readonly rule: {
+                                            readonly kind: 'literal';
+                                            readonly values: readonly [
+                                                "independent"
+                                            ];
+                                        };
+                                    };
+                                    readonly providerId: {
+                                        readonly rule: {
+                                            readonly kind: 'text';
+                                        };
+                                    };
+                                    readonly definitionId: {
+                                        readonly rule: {
+                                            readonly kind: 'text';
+                                        };
+                                    };
                                 };
-                            };
-                        };
+                            }
+                        ];
                     };
                 };
                 readonly item: {
@@ -70,6 +106,28 @@ declare const settingView: {
                             readonly clearEffect: {
                                 rule: {
                                     readonly kind: 'string';
+                                };
+                            };
+                            readonly group: {
+                                rule: {
+                                    readonly kind: 'object';
+                                    readonly fields: {
+                                        readonly id: {
+                                            rule: {
+                                                readonly kind: 'text';
+                                            };
+                                        };
+                                        readonly title: {
+                                            rule: {
+                                                readonly kind: 'string';
+                                            };
+                                        };
+                                        readonly description: {
+                                            rule: {
+                                                readonly kind: 'string';
+                                            };
+                                        };
+                                    };
                                 };
                             };
                         };
@@ -291,21 +349,57 @@ declare const settingView: {
         {
             readonly kind: 'object';
             readonly fields: {
-                readonly asset: {
+                readonly owner: {
                     readonly rule: {
-                        readonly kind: 'object';
-                        readonly fields: {
-                            readonly category: {
-                                rule: {
-                                    readonly kind: 'text';
+                        readonly kind: 'one-of';
+                        readonly rules: readonly [
+                            {
+                                readonly kind: 'object';
+                                readonly fields: {
+                                    readonly kind: {
+                                        rule: {
+                                            readonly kind: 'literal';
+                                            readonly values: readonly [
+                                                "asset"
+                                            ];
+                                        };
+                                    };
+                                    readonly category: {
+                                        rule: {
+                                            readonly kind: 'text';
+                                        };
+                                    };
+                                    readonly name: {
+                                        rule: {
+                                            readonly kind: 'text';
+                                        };
+                                    };
                                 };
-                            };
-                            readonly name: {
-                                rule: {
-                                    readonly kind: 'text';
+                            },
+                            {
+                                readonly kind: 'object';
+                                readonly fields: {
+                                    readonly kind: {
+                                        readonly rule: {
+                                            readonly kind: 'literal';
+                                            readonly values: readonly [
+                                                "independent"
+                                            ];
+                                        };
+                                    };
+                                    readonly providerId: {
+                                        readonly rule: {
+                                            readonly kind: 'text';
+                                        };
+                                    };
+                                    readonly definitionId: {
+                                        readonly rule: {
+                                            readonly kind: 'text';
+                                        };
+                                    };
                                 };
-                            };
-                        };
+                            }
+                        ];
                     };
                 };
                 readonly item: {
@@ -340,6 +434,28 @@ declare const settingView: {
                             readonly clearEffect: {
                                 rule: {
                                     readonly kind: 'string';
+                                };
+                            };
+                            readonly group: {
+                                rule: {
+                                    readonly kind: 'object';
+                                    readonly fields: {
+                                        readonly id: {
+                                            rule: {
+                                                readonly kind: 'text';
+                                            };
+                                        };
+                                        readonly title: {
+                                            rule: {
+                                                readonly kind: 'string';
+                                            };
+                                        };
+                                        readonly description: {
+                                            rule: {
+                                                readonly kind: 'string';
+                                            };
+                                        };
+                                    };
                                 };
                             };
                         };
@@ -535,21 +651,57 @@ declare const settingView: {
         {
             readonly kind: 'object';
             readonly fields: {
-                readonly asset: {
+                readonly owner: {
                     readonly rule: {
-                        readonly kind: 'object';
-                        readonly fields: {
-                            readonly category: {
-                                rule: {
-                                    readonly kind: 'text';
+                        readonly kind: 'one-of';
+                        readonly rules: readonly [
+                            {
+                                readonly kind: 'object';
+                                readonly fields: {
+                                    readonly kind: {
+                                        rule: {
+                                            readonly kind: 'literal';
+                                            readonly values: readonly [
+                                                "asset"
+                                            ];
+                                        };
+                                    };
+                                    readonly category: {
+                                        rule: {
+                                            readonly kind: 'text';
+                                        };
+                                    };
+                                    readonly name: {
+                                        rule: {
+                                            readonly kind: 'text';
+                                        };
+                                    };
                                 };
-                            };
-                            readonly name: {
-                                rule: {
-                                    readonly kind: 'text';
+                            },
+                            {
+                                readonly kind: 'object';
+                                readonly fields: {
+                                    readonly kind: {
+                                        readonly rule: {
+                                            readonly kind: 'literal';
+                                            readonly values: readonly [
+                                                "independent"
+                                            ];
+                                        };
+                                    };
+                                    readonly providerId: {
+                                        readonly rule: {
+                                            readonly kind: 'text';
+                                        };
+                                    };
+                                    readonly definitionId: {
+                                        readonly rule: {
+                                            readonly kind: 'text';
+                                        };
+                                    };
                                 };
-                            };
-                        };
+                            }
+                        ];
                     };
                 };
                 readonly item: {
@@ -584,6 +736,28 @@ declare const settingView: {
                             readonly clearEffect: {
                                 rule: {
                                     readonly kind: 'string';
+                                };
+                            };
+                            readonly group: {
+                                rule: {
+                                    readonly kind: 'object';
+                                    readonly fields: {
+                                        readonly id: {
+                                            rule: {
+                                                readonly kind: 'text';
+                                            };
+                                        };
+                                        readonly title: {
+                                            rule: {
+                                                readonly kind: 'string';
+                                            };
+                                        };
+                                        readonly description: {
+                                            rule: {
+                                                readonly kind: 'string';
+                                            };
+                                        };
+                                    };
                                 };
                             };
                         };
@@ -734,13 +908,14 @@ export declare const assetsProtocol: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly completeness: "complete" | "partial";
                     readonly items: readonly ({
-                        readonly asset: {
-                            readonly category: string;
-                            readonly name: string;
-                        };
                         readonly declaration: {
                             readonly appliesAt: string;
                             readonly clearEffect: string;
+                            readonly group: {
+                                readonly description: string;
+                                readonly id: string;
+                                readonly title: string;
+                            };
                             readonly purpose: string;
                             readonly title: string;
                         };
@@ -774,13 +949,18 @@ export declare const assetsProtocol: {
                             readonly kind: "set";
                             readonly value: import("@omne-harness/json-text").JsonValue;
                         };
+                        readonly owner: {
+                            readonly definitionId: string;
+                            readonly kind: "independent";
+                            readonly providerId: string;
+                        } | {
+                            readonly category: string;
+                            readonly kind: "asset";
+                            readonly name: string;
+                        };
                         readonly revision: string;
                         readonly valueSchema: import("@omne-harness/json-text").JsonValue;
                     } | {
-                        readonly asset: {
-                            readonly category: string;
-                            readonly name: string;
-                        };
                         readonly bound: readonly string[] | null;
                         readonly choices: readonly {
                             readonly description: string;
@@ -791,6 +971,11 @@ export declare const assetsProtocol: {
                         readonly declaration: {
                             readonly appliesAt: string;
                             readonly clearEffect: string;
+                            readonly group: {
+                                readonly description: string;
+                                readonly id: string;
+                                readonly title: string;
+                            };
                             readonly purpose: string;
                             readonly title: string;
                         };
@@ -814,15 +999,25 @@ export declare const assetsProtocol: {
                         readonly item: string;
                         readonly kind: "permission";
                         readonly own: string | null;
-                        readonly revision: string;
-                    } | {
-                        readonly asset: {
+                        readonly owner: {
+                            readonly definitionId: string;
+                            readonly kind: "independent";
+                            readonly providerId: string;
+                        } | {
                             readonly category: string;
+                            readonly kind: "asset";
                             readonly name: string;
                         };
+                        readonly revision: string;
+                    } | {
                         readonly declaration: {
                             readonly appliesAt: string;
                             readonly clearEffect: string;
+                            readonly group: {
+                                readonly description: string;
+                                readonly id: string;
+                                readonly title: string;
+                            };
                             readonly purpose: string;
                             readonly title: string;
                         };
@@ -836,6 +1031,15 @@ export declare const assetsProtocol: {
                         readonly kind: "secret";
                         readonly official: "available" | "revoked" | "unreadable" | "unset";
                         readonly own: "available" | "revoked" | "unreadable" | "unset";
+                        readonly owner: {
+                            readonly definitionId: string;
+                            readonly kind: "independent";
+                            readonly providerId: string;
+                        } | {
+                            readonly category: string;
+                            readonly kind: "asset";
+                            readonly name: string;
+                        };
                         readonly revision: string;
                     })[];
                     readonly next: string | null;
@@ -851,11 +1055,16 @@ export declare const assetsProtocol: {
             readonly limit: "small";
             readonly body: import("@omne-harness/public-contract").Codec<{
                 readonly after: string | null;
-                readonly asset?: {
-                    readonly category?: string;
-                    readonly name: string;
-                };
                 readonly limit: number;
+                readonly scope: {
+                    readonly asset?: {
+                        readonly category?: string;
+                        readonly name: string;
+                    };
+                    readonly kind: "asset";
+                } | {
+                    readonly kind: "independent";
+                };
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
         };
@@ -863,13 +1072,14 @@ export declare const assetsProtocol: {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{
                     readonly item: {
-                        readonly asset: {
-                            readonly category: string;
-                            readonly name: string;
-                        };
                         readonly declaration: {
                             readonly appliesAt: string;
                             readonly clearEffect: string;
+                            readonly group: {
+                                readonly description: string;
+                                readonly id: string;
+                                readonly title: string;
+                            };
                             readonly purpose: string;
                             readonly title: string;
                         };
@@ -903,13 +1113,18 @@ export declare const assetsProtocol: {
                             readonly kind: "set";
                             readonly value: import("@omne-harness/json-text").JsonValue;
                         };
+                        readonly owner: {
+                            readonly definitionId: string;
+                            readonly kind: "independent";
+                            readonly providerId: string;
+                        } | {
+                            readonly category: string;
+                            readonly kind: "asset";
+                            readonly name: string;
+                        };
                         readonly revision: string;
                         readonly valueSchema: import("@omne-harness/json-text").JsonValue;
                     } | {
-                        readonly asset: {
-                            readonly category: string;
-                            readonly name: string;
-                        };
                         readonly bound: readonly string[] | null;
                         readonly choices: readonly {
                             readonly description: string;
@@ -920,6 +1135,11 @@ export declare const assetsProtocol: {
                         readonly declaration: {
                             readonly appliesAt: string;
                             readonly clearEffect: string;
+                            readonly group: {
+                                readonly description: string;
+                                readonly id: string;
+                                readonly title: string;
+                            };
                             readonly purpose: string;
                             readonly title: string;
                         };
@@ -943,15 +1163,25 @@ export declare const assetsProtocol: {
                         readonly item: string;
                         readonly kind: "permission";
                         readonly own: string | null;
-                        readonly revision: string;
-                    } | {
-                        readonly asset: {
+                        readonly owner: {
+                            readonly definitionId: string;
+                            readonly kind: "independent";
+                            readonly providerId: string;
+                        } | {
                             readonly category: string;
+                            readonly kind: "asset";
                             readonly name: string;
                         };
+                        readonly revision: string;
+                    } | {
                         readonly declaration: {
                             readonly appliesAt: string;
                             readonly clearEffect: string;
+                            readonly group: {
+                                readonly description: string;
+                                readonly id: string;
+                                readonly title: string;
+                            };
                             readonly purpose: string;
                             readonly title: string;
                         };
@@ -965,6 +1195,15 @@ export declare const assetsProtocol: {
                         readonly kind: "secret";
                         readonly official: "available" | "revoked" | "unreadable" | "unset";
                         readonly own: "available" | "revoked" | "unreadable" | "unset";
+                        readonly owner: {
+                            readonly definitionId: string;
+                            readonly kind: "independent";
+                            readonly providerId: string;
+                        } | {
+                            readonly category: string;
+                            readonly kind: "asset";
+                            readonly name: string;
+                        };
                         readonly revision: string;
                     };
                 }>;
@@ -978,11 +1217,16 @@ export declare const assetsProtocol: {
             readonly effect: "read";
             readonly limit: "small";
             readonly body: import("@omne-harness/public-contract").Codec<{
-                readonly asset: {
+                readonly item: string;
+                readonly owner: {
+                    readonly definitionId: string;
+                    readonly kind: "independent";
+                    readonly providerId: string;
+                } | {
                     readonly category?: string;
+                    readonly kind: "asset";
                     readonly name: string;
                 };
-                readonly item: string;
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
         };
@@ -1007,13 +1251,18 @@ export declare const assetsProtocol: {
             readonly effect: "commit";
             readonly limit: "small";
             readonly body: import("@omne-harness/public-contract").Codec<{
-                readonly asset: {
-                    readonly category?: string;
-                    readonly name: string;
-                };
                 readonly expectedRevision: string;
                 readonly item: string;
                 readonly operation: string;
+                readonly owner: {
+                    readonly definitionId: string;
+                    readonly kind: "independent";
+                    readonly providerId: string;
+                } | {
+                    readonly category?: string;
+                    readonly kind: "asset";
+                    readonly name: string;
+                };
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
                 readonly value: {
                     readonly kind: "ordinary";
@@ -1048,14 +1297,41 @@ export declare const assetsProtocol: {
             readonly effect: "commit";
             readonly limit: "small";
             readonly body: import("@omne-harness/public-contract").Codec<{
-                readonly asset: {
-                    readonly category?: string;
-                    readonly name: string;
-                };
                 readonly expectedRevision: string;
                 readonly item: string;
                 readonly operation: string;
+                readonly owner: {
+                    readonly definitionId: string;
+                    readonly kind: "independent";
+                    readonly providerId: string;
+                } | {
+                    readonly category?: string;
+                    readonly kind: "asset";
+                    readonly name: string;
+                };
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+        };
+        readonly 'list-categories': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly items: readonly {
+                        readonly category: string;
+                        readonly summary: string;
+                        readonly title: string;
+                    }[];
+                    readonly next: string | null;
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: "login";
+            readonly effect: "read";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly after: string | null;
+                readonly limit: number;
             }>;
         };
     };

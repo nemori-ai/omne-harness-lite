@@ -518,6 +518,11 @@
               "pending": false
             },
             {
+              "name": "DispatchProgress",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "DispatchRecord",
               "kind": "type",
               "pending": false
@@ -1765,6 +1770,11 @@
             },
             {
               "name": "modelProviderBodyContract",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "modelProviderCategoryDisplay",
               "kind": "value",
               "pending": false
             }

@@ -251,3 +251,5 @@ export function createMcpPlugin(parts: McpPluginParts) {
     },
   })
 }
+
+export { mcpCategoryPlugin } from './category.ts'

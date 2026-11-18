@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import type { WriteOutcome } from '../src/ports.ts'
 import {
   ASSET,
+  INDEPENDENT,
   READ_REFUSALS,
   VIEWS,
   createWorld,
@@ -61,12 +62,17 @@ function body<K extends Name>(name: K, sample: Record<string, unknown>) {
   if (!read.ok) throw new Error(`${name} sample did not read`)
   return read.value as never
 }
-const WRITE = { asset: ASSET, item: 'invoke', operation: 'op-1', expectedRevision: '12' }
+const WRITE = { owner: ASSET, item: 'invoke', operation: 'op-1', expectedRevision: '12' }
 const bodies = (login: FixtureLogin) => ({
-  'list-settings': body('list-settings', { tenant: login.tenantText, after: null, limit: 20 }),
+  'list-settings': body('list-settings', {
+    tenant: login.tenantText,
+    scope: { kind: 'asset' },
+    after: null,
+    limit: 20,
+  }),
   'describe-setting': body('describe-setting', {
     tenant: login.tenantText,
-    asset: ASSET,
+    owner: ASSET,
     item: 'invoke',
   }),
   'set-setting': body('set-setting', {
@@ -77,7 +83,12 @@ const bodies = (login: FixtureLogin) => ({
   'clear-setting': body('clear-setting', { tenant: login.tenantText, ...WRITE }),
 })
 
-function call<K extends Name>(world: World, name: K, login: FixtureLogin, target = login) {
+function call<K extends Exclude<Name, 'list-categories'>>(
+  world: World,
+  name: K,
+  login: FixtureLogin,
+  target = login,
+) {
   const handler = world.contribution.operations[name] as (
     context: ReturnType<typeof as>,
     value: unknown,
@@ -88,35 +99,35 @@ function call<K extends Name>(world: World, name: K, login: FixtureLogin, target
 const NAMES = ['list-settings', 'describe-setting', 'set-setting', 'clear-setting'] as const
 
 describe('list-settings', () => {
-  it('hands over the tenant, the principal, after and limit, and leaves an absent asset out', async () => {
+  it('hands over the tenant, the principal, the half it asks for, after and limit', async () => {
     const world = createWorld()
     await call(world, 'list-settings', ALICE)
     expect(world.calls()).toEqual([
       {
         method: 'list',
-        input: { principal: principalOf(ALICE), tenant: ALICE.tenant, after: null, limit: 20 },
+        input: {
+          principal: principalOf(ALICE),
+          tenant: ALICE.tenant,
+          scope: { kind: 'asset' },
+          after: null,
+          limit: 20,
+        },
       },
     ])
   })
 
-  it('hands over a named asset and the next text of the page before', async () => {
-    const world = createWorld()
-    const handler = world.contribution.operations['list-settings']
-    await handler(
-      as(ALICE),
-      body('list-settings', {
-        tenant: ALICE.tenantText,
-        asset: { name: 'shell' },
-        after: '20',
-        limit: 5,
-      }),
-    )
-    expect(world.calls()[0]?.input).toMatchObject({
-      asset: { name: 'shell' },
-      after: '20',
-      limit: 5,
-    })
-  })
+  it.each([[{ kind: 'asset', asset: { name: 'shell' } }], [{ kind: 'independent' }]])(
+    'hands over the scope %o and the next text of the page before',
+    async scope => {
+      const world = createWorld()
+      const handler = world.contribution.operations['list-settings']
+      await handler(
+        as(ALICE),
+        body('list-settings', { tenant: ALICE.tenantText, scope, after: '20', limit: 5 }),
+      )
+      expect(world.calls()[0]?.input).toMatchObject({ scope, after: '20', limit: 5 })
+    },
+  )
 
   it('a listed page carries each item with its value, source, revision and editability', async () => {
     const world = createWorld()
@@ -132,7 +143,7 @@ describe('list-settings', () => {
 })
 
 describe('describe-setting', () => {
-  it('hands over the asset and the item', async () => {
+  it('hands over the owner and the item', async () => {
     const world = createWorld()
     await call(world, 'describe-setting', ALICE)
     expect(world.calls()).toEqual([
@@ -141,11 +152,28 @@ describe('describe-setting', () => {
         input: {
           principal: principalOf(ALICE),
           tenant: ALICE.tenant,
-          asset: ASSET,
+          owner: ASSET,
           item: 'invoke',
         },
       },
     ])
+  })
+
+  it('hands over an independent owner as it came, and its view goes back with its owner', async () => {
+    const world = createWorld()
+    world.answer({
+      describe: { kind: 'described', item: { ...VIEWS.ordinary, owner: INDEPENDENT } },
+    })
+    const handler = world.contribution.operations['describe-setting']
+    const answer = await handler(
+      as(ALICE),
+      body('describe-setting', { tenant: ALICE.tenantText, owner: INDEPENDENT, item: 'timezone' }),
+    )
+    expect(world.calls()[0]?.input).toMatchObject({ owner: INDEPENDENT, item: 'timezone' })
+    expect(wire('describe-setting', answer)).toEqual({
+      outcome: 'succeeded',
+      body: { item: { ...VIEWS.ordinary, owner: INDEPENDENT } },
+    })
   })
 
   it.each(Object.entries(VIEWS))('a described %s item carries its revision', async (_, view) => {

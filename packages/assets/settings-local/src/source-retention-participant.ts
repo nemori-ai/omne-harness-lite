@@ -24,7 +24,7 @@ function write(raw: unknown, port: ParticipantPort) {
   if (!equal(input, observed))
     return { kind: 'failed' as const, diagnostic: 'settings_source_write_binding' }
   const binding = input.binding
-  const { domain, target } = binding.operation
+  const { domain, subject: target } = binding.operation
   const gate = readSourceGate(port, { domain, target })
   if (gate.pending !== null || gate.held !== 0) {
     const failure = { kind: 'rejected', reason: 'basis_changed' }

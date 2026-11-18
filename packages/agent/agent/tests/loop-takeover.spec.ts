@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import type { StepId } from '@omne-harness/agent-contract'
 import { decodeModelOperationId, decodeRevision } from '@omne-harness/model-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
@@ -7,16 +6,13 @@ import { acceptedInput, evidence, execution, ok, operation } from './journal-sup
 import { alice, eventually, loopAssembly } from './loop-support.ts'
 import {
   assistantTexts,
-  at,
   causeRecord,
   contactAnswer,
   failed,
   lostContact,
-  policy,
   replyOf,
   resumeEntry,
   saved,
-  START,
   takeover,
   type Takeover,
 } from './loop-takeover-support.ts'
@@ -47,7 +43,6 @@ describe('takeover of a main Model call whose result is not in the Journal', () 
       )
       expect(after.state).toMatchObject({ kind: 'waiting', waits: [{ kind: 'producer' }] })
       expect(after.checkpoint.calls).toEqual(parked.checkpoint.calls)
-      expect(after.checkpoint.modelRetry ?? null).toBeNull()
       expect(after.checkpoint.voided).toEqual([])
       expect(run.admitted).toHaveLength(1)
       ok(await next.runExecution())
@@ -73,27 +68,17 @@ describe('takeover of a main Model call whose result is not in the Journal', () 
     ok(await next.runExecution())
     expect(run.assembly.controls.modelContact.calls).toEqual([])
     expect(await assistantTexts(run.assembly)).toEqual(['the saved reply'])
-    expect((await saved(run.assembly)).checkpoint.modelRetry ?? null).toBeNull()
   })
 
-  it('the Model answers lost: one transient failure in the same commit that closes the call', async () => {
-    const run = await takeover([null, replyOf('the second reply')], policy(), d => d, {
+  it('the Model answers lost: the intent is voided in the commit that closes the call, and a new call goes out at once', async () => {
+    const run = await takeover([null, null], d => d, {
       jointCommits: ['message', 'context-transition', 'custody', 'processed'],
     })
     const [open] = (await inFlight(run)).checkpoint.calls
-    run.assembly.controls.modelContact.always(lostContact)
+    run.assembly.controls.modelContact.once(lostContact)
     const next = await run.rebuild()
     ok(await next.runExecution())
     const after = await saved(run.assembly)
-    expect(after.checkpoint).toMatchObject({
-      position: 'I8',
-      calls: [],
-      modelRetry: { failures: 1, since: START, notBefore: at(1) },
-    })
-    expect(after.state).toEqual({
-      kind: 'waiting',
-      waits: [{ kind: 'dependency', owner: 'modelRetry', position: 'I8' }],
-    })
     expect(after.checkpoint.voided).toEqual([
       {
         kind: 'model',
@@ -104,18 +89,15 @@ describe('takeover of a main Model call whose result is not in the Journal', () 
         basis: evidence('state-lock'),
       },
     ])
+    expect(after.checkpoint.step).toBe('step-2')
+    expect(after.checkpoint.calls).toHaveLength(1)
+    expect(after.checkpoint.calls[0]).not.toEqual(open)
+    expect(after.state).toMatchObject({ kind: 'waiting', waits: [{ kind: 'producer' }] })
+    expect(Object.hasOwn(after.checkpoint, 'modelRetry')).toBe(false)
     expect(after.settlement.candidate).toBeNull()
-    expect(run.retrying).toEqual([
-      [
-        'step-1' as StepId,
-        {
-          attempt: 2,
-          fault: { cause: 'runtime-lost', diagnostic: 'lost-contact', upstreamStatus: null },
-          notBefore: at(1),
-        },
-      ],
-    ])
-    expect(run.admitted).toHaveLength(1)
+    expect(run.admitted).toHaveLength(2)
+    expect(run.admitted[1]?.call).not.toBe(run.admitted[0]?.call)
+    expect(run.assembly.controls.clock.pending()).toEqual([])
     // No result of a lost call ever entered custody, so closing it claims no processing.
     expect(run.assembly.controls.journal.joint().map(item => item.caller?.kind)).not.toContain(
       'processed',
@@ -123,7 +105,7 @@ describe('takeover of a main Model call whose result is not in the Journal', () 
   })
 
   it('the Model answers lost: M3 produces no producer event, since no result is handed over', async () => {
-    const run = await takeover([null, replyOf('the second reply')])
+    const run = await takeover([null, null])
     await inFlight(run)
     run.assembly.controls.modelContact.always(lostContact)
     const next = await run.rebuild()
@@ -138,12 +120,12 @@ describe('takeover of a main Model call whose result is not in the Journal', () 
     )
     if (page.kind !== 'page') throw new Error('a gap in a new execution')
     expect(page.events.map(event => event.body.kind)).not.toContain('producer')
-    expect((await saved(run.assembly)).checkpoint).toMatchObject({ position: 'I8', calls: [] })
+    expect((await saved(run.assembly)).checkpoint.voided).toHaveLength(1)
   })
 
   it('the received results cannot be read when the Model is to be asked: M6 waits on the Journal and does not take the call as accepted', async () => {
     let broken = false
-    const run = await takeover([null], policy(), d => ({
+    const run = await takeover([null], d => ({
       ...d,
       entries: {
         ...d.entries,
@@ -186,56 +168,44 @@ describe('takeover of a main Model call whose result is not in the Journal', () 
     run.assembly.controls.modelContact.once(lostContact)
     const next = await run.rebuild()
     ok(await next.runExecution())
-    run.assembly.controls.clock.advanceTo(at(1))
-    ok(await next.runExecution())
     expect(run.admitted).toHaveLength(2)
     expect(run.admitted[1]?.call).not.toBe(run.admitted[0]?.call)
     const after = await saved(run.assembly)
     expect(after.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
-    expect(after.checkpoint.modelRetry).toBeNull()
     expect(await assistantTexts(run.assembly)).toEqual(['the second reply'])
   })
 
-  it('a lost call counts on top of the failures the checkpoint already holds', async () => {
-    const run = await takeover([failed(), null, replyOf('unused')], policy({ maxAttempts: 3 }))
-    const first = run.coordinator()
-    ok(await first.accept())
-    ok(await first.runExecution())
-    expect((await saved(run.assembly)).checkpoint.modelRetry).toMatchObject({ failures: 1 })
-    run.assembly.controls.clock.advanceTo(at(1))
-    ok(await first.runExecution())
-    expect(run.admitted).toHaveLength(2)
+  it('consecutive lost calls each take one step, and the step limit ends the run', async () => {
+    const run = await takeover([null, null, replyOf('unused')], d => d, { maxRunSteps: 2 })
+    await inFlight(run)
     run.assembly.controls.modelContact.always(lostContact)
-    const next = await run.rebuild()
-    ok(await next.runExecution())
-    expect((await saved(run.assembly)).checkpoint).toMatchObject({
-      calls: [],
-      modelRetry: { failures: 2, since: START },
-    })
+    ok(await (await run.rebuild()).runExecution())
     expect(run.admitted).toHaveLength(2)
+    expect((await saved(run.assembly)).checkpoint.step).toBe('step-2')
+
+    ok(await (await run.rebuild()).runExecution())
+    expect(run.admitted).toHaveLength(2)
+    expect(await causeRecord(run.assembly)).toBe(`${execution()}/step-2/guard`)
+    expect((await saved(run.assembly)).checkpoint.voided.map(item => item.step)).toEqual([
+      'step-1',
+      'step-2',
+    ])
   })
 
-  it('a lost call that uses up the budget fails the run with the lost-contact cause', async () => {
-    const run = await takeover([failed(), null, replyOf('unused')], policy({ maxAttempts: 2 }))
-    const first = run.coordinator()
-    ok(await first.accept())
-    ok(await first.runExecution())
-    run.assembly.controls.clock.advanceTo(at(1))
-    ok(await first.runExecution())
-    run.assembly.controls.modelContact.always(lostContact)
-    const next = await run.rebuild()
-    ok(await next.runExecution())
-    expect(await causeRecord(run.assembly)).toBe(
-      `${execution()}/step-2/model-failed/runtime-lost/lost-contact`,
-    )
-    const after = await saved(run.assembly)
-    expect(after.checkpoint.calls).toEqual([])
+  it('a call that settles as failed after a lost one fails the run with the cause of that failure', async () => {
+    const run = await takeover([null, failed(), replyOf('unused')])
+    await inFlight(run)
+    run.assembly.controls.modelContact.once(lostContact)
+    ok(await (await run.rebuild()).runExecution())
     expect(run.admitted).toHaveLength(2)
+    expect(await causeRecord(run.assembly)).toMatch(
+      new RegExp(`^${execution()}/step-2/model-failed/`, 'u'),
+    )
     expect(await assistantTexts(run.assembly)).toEqual([])
   })
 
   it('a result of the lost call that arrives late changes nothing', async () => {
-    const run = await takeover([null, replyOf('the second reply')])
+    const run = await takeover([null, null])
     await inFlight(run)
     run.assembly.controls.modelContact.once(lostContact)
     const next = await run.rebuild()
@@ -249,16 +219,11 @@ describe('takeover of a main Model call whose result is not in the Journal', () 
     )
     ok(await next.runExecution())
     const late = await saved(run.assembly)
-    expect(late.checkpoint).toMatchObject({
-      position: 'I8',
-      calls: [],
-      modelRetry: recorded.modelRetry,
-      step: recorded.step,
-    })
-    expect(run.admitted).toHaveLength(1)
+    expect(late.checkpoint).toMatchObject({ calls: recorded.calls, step: recorded.step })
+    expect(run.admitted).toHaveLength(2)
     expect(await assistantTexts(run.assembly)).toEqual([])
 
-    run.assembly.controls.clock.advanceTo(at(1))
+    await run.settle(1, replyOf('the second reply'))
     ok(await next.runExecution())
     expect((await saved(run.assembly)).state).toMatchObject({
       kind: 'ended',
@@ -279,7 +244,6 @@ describe('takeover of a main Model call whose result is not in the Journal', () 
     expect(contact.calls).toHaveLength(1)
     expect(after.state).toMatchObject({ kind: 'waiting', waits: [{ kind: 'producer' }] })
     expect(after.checkpoint.calls).toEqual(parked.checkpoint.calls)
-    expect(after.checkpoint.modelRetry ?? null).toBeNull()
     expect(after.checkpoint.voided).toEqual([])
     expect(run.admitted).toHaveLength(1)
     ok(await next.runExecution())
@@ -287,19 +251,17 @@ describe('takeover of a main Model call whose result is not in the Journal', () 
     expect(run.admitted).toHaveLength(1)
   })
 
-  it('a takeover that is interrupted before the failure is saved asks again and counts once', async () => {
-    const run = await takeover([null, replyOf('the second reply')])
+  it('a takeover that is interrupted before the lost call is closed asks again and voids the intent once', async () => {
+    const run = await takeover([null, null])
     await inFlight(run)
     run.assembly.controls.modelContact.always(contactAnswer('unknown'))
     const interrupted = await run.rebuild()
     ok(await interrupted.runExecution())
-    run.assembly.controls.modelContact.always(lostContact)
+    run.assembly.controls.modelContact.once(lostContact)
     const next = await run.rebuild()
     ok(await next.runExecution())
-    expect((await saved(run.assembly)).checkpoint).toMatchObject({
-      calls: [],
-      modelRetry: { failures: 1 },
-    })
+    expect((await saved(run.assembly)).checkpoint.voided).toHaveLength(1)
+    expect(run.admitted).toHaveLength(2)
   })
 })
 

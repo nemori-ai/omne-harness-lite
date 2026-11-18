@@ -173,18 +173,66 @@ function changeHolding(
   writeHolding(port, holding)
   return { revision: holding.revision, changed: true }
 }
+function holdPublished(
+  port: ParticipantPort,
+  domain: DomainRef,
+  command: Extract<Mutation, { kind: 'publishAndHold' }>,
+) {
+  const { operationId, assetRef, version, holding } = command
+  const current = readHolding(port, domain, holding.holdingRef)
+  if (!current)
+    return hold(port, domain, {
+      kind: 'hold',
+      operationId,
+      assetRef,
+      selection: { kind: 'follow' },
+      ...holding,
+    })
+  if (current.state === 'removed') return rejected('holding_removed')
+  if (current.assetRef !== assetRef) return rejected('holding_exists')
+  if (selectedVersion(port, current)?.version.version === version)
+    return { revision: current.revision, changed: false }
+  return changeHolding(port, domain, {
+    kind: 'changeHolding',
+    operationId,
+    holdingRef: holding.holdingRef,
+    scopeRef: holding.scopeRef,
+    expectedRevision: current.revision,
+    change: { kind: 'selectVersion', selection: { kind: 'pinned', version } },
+  })
+}
+/** One transaction: a rejection of the holding rolls back the version written before it. */
+function publishAndHold(
+  port: ParticipantPort,
+  domain: DomainRef,
+  command: Extract<Mutation, { kind: 'publishAndHold' }>,
+) {
+  if (command.holding.scopeRef !== scopeRef(domain)) return rejected('forbidden')
+  const published = publish(port, domain, { ...command, kind: 'publish' })
+  if ('kind' in published) return published
+  const held = holdPublished(port, domain, command)
+  if ('kind' in held) return held
+  return { revision: published.revision, changed: published.changed || held.changed }
+}
+function apply(port: ParticipantPort, domain: DomainRef, command: Mutation) {
+  switch (command.kind) {
+    case 'publish':
+      return publish(port, domain, command)
+    case 'publishAndHold':
+      return publishAndHold(port, domain, command)
+    case 'hold':
+      return hold(port, domain, command)
+    case 'changeHolding':
+      return changeHolding(port, domain, command)
+  }
+}
 export function mutate(port: ParticipantPort, binding: MutationBinding) {
   const { domain, command } = binding
   const current = readDomain(port)
   if (scopeRef(domain) === null || (current && !equal(current.domain, domain)))
     return rejected('forbidden')
   if (current?.revision === Number.MAX_SAFE_INTEGER - 1) return rejected('limit_exceeded')
-  const result =
-    command.kind === 'publish'
-      ? publish(port, domain, command)
-      : command.kind === 'hold'
-        ? hold(port, domain, command)
-        : changeHolding(port, domain, command)
+  const result = apply(port, domain, command)
   if ('kind' in result) return result
   const domainRevision = readDomain(port)?.revision ?? 0
   return { kind: 'committed' as const, operationId: command.operationId, ...result, domainRevision }

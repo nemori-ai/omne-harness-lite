@@ -17,7 +17,15 @@ export type SettingJson =
   | { [key: string]: SettingJson }
 
 export type AssetQuery = Readonly<{ category?: string; name: string }>
-export type AssetRef = Readonly<{ category: string; name: string }>
+export type Owner =
+  | Readonly<{ kind: 'asset'; category: string; name: string }>
+  | Readonly<{ kind: 'independent'; providerId: string; definitionId: string }>
+export type OwnerQuery =
+  | Readonly<{ kind: 'asset'; category?: string; name: string }>
+  | Readonly<{ kind: 'independent'; providerId: string; definitionId: string }>
+export type ListScope =
+  | Readonly<{ kind: 'asset'; asset?: AssetQuery }>
+  | Readonly<{ kind: 'independent' }>
 export type Presence = Readonly<{ kind: 'unset' }> | Readonly<{ kind: 'set'; value: SettingJson }>
 export type Editable =
   | Readonly<{ kind: 'yes' }>
@@ -26,10 +34,16 @@ export type SecretState = 'unset' | 'available' | 'revoked' | 'unreadable'
 type Layer = 'default' | 'organization' | 'tenant'
 
 export type SettingView = Readonly<{
-  asset: AssetRef
+  owner: Owner
   item: string
   revision: string
-  declaration: Readonly<{ title: string; purpose: string; appliesAt: string; clearEffect: string }>
+  declaration: Readonly<{
+    title: string
+    purpose: string
+    appliesAt: string
+    clearEffect: string
+    group: Readonly<{ id: string; title: string; description: string }>
+  }>
 }> &
   (
     | Readonly<{
@@ -88,17 +102,24 @@ export type WriteOutcome =
 type ItemInput = Readonly<{
   principal: Principal
   tenant: TenantId
-  asset: AssetQuery
+  owner: OwnerQuery
   item: string
 }>
 type WriteInput = ItemInput & Readonly<{ operation: string; expectedRevision: string }>
+
+export interface CategoriesPort {
+  list(): readonly Readonly<{
+    category: string
+    display: Readonly<{ title: string; summary: string }>
+  }>[]
+}
 
 export interface TenantSettingsPort {
   list(
     input: Readonly<{
       principal: Principal
       tenant: TenantId
-      asset?: AssetQuery
+      scope: ListScope
       after: string | null
       limit: number
     }>,

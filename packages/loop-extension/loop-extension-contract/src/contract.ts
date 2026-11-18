@@ -4,6 +4,7 @@ import {
   readBodyText,
   refusal,
   type BodyContract,
+  type CategoryDisplay,
   type JsonValue,
   type Judgment,
 } from '@omne-harness/assets'
@@ -12,6 +13,12 @@ import { loopExtensionLayout } from './package.ts'
 
 export const LOOP_EXTENSION_CATEGORY = 'loop-extension'
 export const RUN_SETTING = 'run'
+
+export const loopExtensionCategoryDisplay: CategoryDisplay = Object.freeze({
+  title: '拓展件',
+  summary: '挂在 agent 循环某一处位置上的一段判断：观察、改写或否决这一步。',
+  creation: '一个目录，根下有 extension.json；命令型另带它运行的脚本。',
+})
 
 const PROVIDER = 'loop-extension'
 const GROUP = 'loop-extension'

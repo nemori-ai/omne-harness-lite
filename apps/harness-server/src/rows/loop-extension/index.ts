@@ -7,7 +7,10 @@ import {
   loopExtensionRunLocationsKey,
   loopExtensionViewsKey,
 } from '@omne-harness/loop-extension-cordis-contract/cordis'
-import { loopExtensionPlugin } from '@omne-harness/loop-extension-host-local/cordis'
+import {
+  loopExtensionCategoryPlugin,
+  loopExtensionPlugin,
+} from '@omne-harness/loop-extension-host-local/cordis'
 import { z } from 'zod'
 import { EntryRunLocations } from '../../entry/loop-extensions.ts'
 import { currentScope, sessionWorkReaderOf } from '../../entry/tool-requests.ts'
@@ -47,6 +50,8 @@ export const loopExtensionRow = defineRow({
     Config: rowConfig,
     async apply(ctx: Context, config: z.infer<typeof rowConfig>) {
       const commands = config.commands
+      // The category is this domain's contribution: it waits for the category point and leaves with this row.
+      ctx.plugin(loopExtensionCategoryPlugin)
       const scopePorts = {
         readWork: sessionWorkReaderOf(ctx),
         scopeBinding: () => ctx.get(executionScopeBindingKey),

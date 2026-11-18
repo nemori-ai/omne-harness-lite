@@ -74,7 +74,6 @@ import type {
   CompactionState,
   SavedPreparation,
   VoidedIntent,
-  ModelRetryState,
   ConsumerRef,
   ConsumptionId,
   ContextContent,
@@ -344,7 +343,6 @@ type Landed = {
   StructureFailure: StructureFailure
   Subject: Subject
   VoidedIntent: VoidedIntent
-  ModelRetryState: ModelRetryState
   Waiting: Waiting
   AcceptedInput: AcceptedInput
   AgentAccessCheck: AgentAccessCheck<string>
@@ -791,14 +789,8 @@ describe('the discriminants of the request chapter', () => {
     expectTypeOf<Of<'tool'>['action']>().toEqualTypeOf<ActionId>()
   })
 
-  it('a checkpoint may hold the retry state of the main model call of its step', () => {
-    expectTypeOf<AgentCheckpoint['modelRetry']>().toEqualTypeOf<
-      ModelRetryState | null | undefined
-    >()
-    expectTypeOf<keyof ModelRetryState>().toEqualTypeOf<'failures' | 'since' | 'notBefore'>()
-    expectTypeOf<ModelRetryState['since']>().toEqualTypeOf<AgentInstant>()
-    expectTypeOf<ModelRetryState['notBefore']>().toEqualTypeOf<AgentInstant>()
-    expectTypeOf<ModelRetryState['failures']>().toEqualTypeOf<number>()
+  it('a checkpoint holds no retry state of the main model call', () => {
+    expectTypeOf<AgentCheckpoint>().not.toHaveProperty('modelRetry')
   })
 
   it('prepare excludes the compaction purpose', () => {
@@ -1296,6 +1288,7 @@ describe('the discriminants of the Journal chapter', () => {
       | 'readCancellationInstallation'
       | 'readFinish'
       | 'query'
+      | 'inputAcceptance'
       | 'output'
     >()
     expectTypeOf<keyof AgentJournalAttachment<string>>().toEqualTypeOf<
@@ -1458,16 +1451,23 @@ describe('Tool association and control references', () => {
     }>().not.toExtend<ActionJudgment>()
   })
 
-  it('requires invocation and nullable operation only for Tool controls', () => {
+  it('requires invocation and nullable operation for Tool controls, the invocation for Model ones', () => {
     type Base = Pick<ControlRecord, 'operation' | 'stages'>
     type Tool = Base & {
       command: Extract<ExecutionControl, { call: T.ToolCallId }>
       toolInvocation: T.ToolInvocationRef
       toolOperation: T.ToolOperationRef | null
     }
-    type Other = Base & {
-      command: Extract<ExecutionControl, { kind: 'cancel' | 'suspend' | 'interrupt-model' }>
+    type Model = Base & {
+      command: Extract<ExecutionControl, { kind: 'interrupt-model' }>
+      modelInvocation: M.ModelInvocationRef
     }
+    type Other = Base & {
+      command: Extract<ExecutionControl, { kind: 'cancel' | 'suspend' }>
+    }
+    expectTypeOf<Model>().toExtend<ControlRecord>()
+    expectTypeOf<Omit<Model, 'modelInvocation'>>().not.toExtend<ControlRecord>()
+    expectTypeOf<Other & { modelInvocation: M.ModelInvocationRef }>().not.toExtend<ControlRecord>()
     expectTypeOf<Tool>().toExtend<ControlRecord>()
     expectTypeOf<Omit<Tool, 'toolInvocation'>>().not.toExtend<ControlRecord>()
     expectTypeOf<Omit<Tool, 'toolOperation'>>().not.toExtend<ControlRecord>()

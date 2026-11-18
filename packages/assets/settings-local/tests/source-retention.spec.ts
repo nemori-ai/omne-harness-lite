@@ -279,7 +279,7 @@ it('a draining target does not block another source target in the same storage d
   const world = await open()
   await world.write([{ kind: 'begin', update: sourceUpdate() }])
   const other = reserve('other-source-attempt')
-  const reference = { ...source, target: { ...source.target, targetRef: 'other-preferences' } }
+  const reference = { ...source, target: { ...source.target, definitionId: 'other-preferences' } }
   other.request.source = reference
   other.snapshot.source = reference
   other.snapshot.projection.target = reference.target

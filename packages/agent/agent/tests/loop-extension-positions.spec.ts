@@ -251,31 +251,35 @@ describe('after_model_call, failure', () => {
     return { ...p, assembly, handle, calls }
   }
 
-  it('a failure before the first content: retry is allowed, and the main call is made again', async () => {
-    const s = await failing(() => output({ kind: 'retry', plan }), 'none')
-    expect(kinds(await eventsOf(s.handle)).at(-1)).toBe('ended')
-    expect(s.calls).toHaveLength(2)
-    expect(s.extensions.invocations[0]?.input.subject).toMatchObject({
-      purpose: 'main',
-      request: { suppliers: [expect.any(Object)] },
-      fault: { cause: 'stream-lost' },
-      dispatches: [],
-    })
-    expect((await loaded(s.assembly)).state).toMatchObject({ conclusion: { kind: 'complete' } })
-  })
+  it.each(['none', 'observed'] as const)(
+    'a settled failure (first content %s): retry is no output of it, Agent makes no second call, and the run fails with the model fault',
+    async firstContent => {
+      const s = await failing(() => output({ kind: 'retry', plan }), firstContent)
+      await eventsOf(s.handle)
+      expect(s.calls).toHaveLength(1)
+      expect(s.extensions.invocations[0]?.input.subject).toMatchObject({
+        purpose: 'main',
+        request: { suppliers: [expect.any(Object)] },
+        fault: { cause: 'stream-lost' },
+      })
+      const ended = await loaded(s.assembly)
+      expect(ended.settlement.candidate?.failure).toMatchObject({ kind: 'no-reply' })
+      expect(
+        s
+          .commits()
+          .flatMap(commit => commit.calls.map(call => call.output))
+          .filter(Boolean),
+      ).toContain('errored')
+    },
+  )
 
-  it('the final failure of the call: retry is not an output of it; the member observes and the run fails with the model fault', async () => {
-    const s = await failing(() => output({ kind: 'retry', plan }), 'observed')
+  it('observed: the run fails with the model fault, and the pass has left the checkpoint', async () => {
+    const s = await failing(() => observed, 'none')
     await eventsOf(s.handle)
     expect(s.calls).toHaveLength(1)
     const ended = await loaded(s.assembly)
     expect(ended.settlement.candidate?.failure).toMatchObject({ kind: 'no-reply' })
-    expect(
-      s
-        .commits()
-        .flatMap(commit => commit.calls.map(call => call.output))
-        .filter(Boolean),
-    ).toContain('errored')
+    expect(ended.checkpoint).toMatchObject({ chain: null, passages: [] })
   })
 
   it('stop: the run ends with the extension as the cause, not with a retry', async () => {

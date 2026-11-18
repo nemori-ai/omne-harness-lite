@@ -325,6 +325,7 @@ describe('the Agent rows of a decision in its own transaction', () => {
           operation: 'aop_joint_log',
           digest: 'sha256:joint-log',
           blobs: [],
+          items: [],
           boundaries: [
             {
               execution: run.execution,
@@ -473,6 +474,69 @@ describe('the observed-only tail of an earlier execution', () => {
     }
     ok(await commitLog(s.a, { observation: event }))
     ok(await startRun(s.a, 'start-run-2-again'))
+  })
+})
+
+describe('a call the Agent records bind before Session interprets them', () => {
+  it('a producer fact about it waits while it is uninterpreted, and passes once interpreted', async () => {
+    const s = await created()
+    const run = await open(s, 1)
+    const registration = registrationOf(run.attempt, 'late')
+    if (
+      registration.kind !== 'call-registration' ||
+      registration.registration.kind !== 'associated'
+    )
+      throw new Error('an associated registration')
+    const producer = registration.registration.binding.producer
+    const event = eventOf(run, 1, [registration], 'log-late')
+    await s.agent.publish({ ...agentEventOf(event), consequences: [registration] as never })
+    expect(indexOf(s.a, await workOf(s.a), run.execution).reads.uninterpreted).toEqual([
+      { execution: run.execution, sequence: '1', consumption: registration.consumption, producer },
+    ])
+    const fact = (name: string) =>
+      s.a.port.commit({
+        access: s.a.access(TENANT_A),
+        command: {
+          kind: 'receive',
+          input: {
+            tenant: TENANT_A,
+            session: sessionId(SESSION),
+            operation: operationId(name),
+            fact: { kind: 'execution', producer, source: evidence(`fact/${name}`) },
+          },
+        } as never,
+        guards: [],
+      })
+    expect(failureOf(await fact('early'))).toMatchObject({
+      kind: 'unavailable',
+      owner: 'session-history',
+    })
+    ok(await commitLog(s.a, { observation: event }))
+    expect(indexOf(s.a, await workOf(s.a), run.execution).reads.uninterpreted).toEqual([])
+    ok(await fact('after'))
+  })
+
+  it('a producer fact about a call no record binds is still refused as invalid', async () => {
+    const s = await created()
+    await open(s, 1)
+    const refused = await s.a.port.commit({
+      access: s.a.access(TENANT_A),
+      command: {
+        kind: 'receive',
+        input: {
+          tenant: TENANT_A,
+          session: sessionId(SESSION),
+          operation: operationId('never'),
+          fact: {
+            kind: 'execution',
+            producer: { kind: 'model', call: 'never-bound' },
+            source: evidence('fact/never'),
+          },
+        },
+      } as never,
+      guards: [],
+    })
+    expect(failureOf(refused)).toMatchObject({ kind: 'invalid', field: 'fact.producer' })
   })
 })
 

@@ -6,6 +6,8 @@
     "identity",
     "authorization",
     "session-storage",
+    "asset-categories",
+    "tenant-assets",
     "governance",
     "calendar",
     "schedule",
@@ -44,6 +46,7 @@
     "tool-records",
     "tool-body-sweep",
     "tool-bindings",
+    "skills",
     "tool-runtime",
     "tool-executor",
     "tool-host",
@@ -107,6 +110,15 @@
         "currentToolPermission",
         "sessionModesInstallation",
         "tenantDomainRegistration"
+      ]
+    },
+    {
+      "row": "tenant-assets",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "principalVerifier",
+        "tenantStanding"
       ]
     },
     {

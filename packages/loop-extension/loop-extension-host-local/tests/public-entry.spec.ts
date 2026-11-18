@@ -11,8 +11,8 @@ it('the root entry exports the views, the publisher of the block, the builtin re
   ])
 })
 
-it('the cordis entry exports the plugin alone', async () => {
+it('the cordis entry exports the host plugin and the contribution of the category', async () => {
   const cordis: Record<string, unknown> =
     await import('@omne-harness/loop-extension-host-local/cordis')
-  expect(Object.keys(cordis)).toEqual(['loopExtensionPlugin'])
+  expect(Object.keys(cordis).sort()).toEqual(['loopExtensionCategoryPlugin', 'loopExtensionPlugin'])
 })

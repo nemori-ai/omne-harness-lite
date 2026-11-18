@@ -89,7 +89,7 @@ export type Label =
   | 'settled'
   | 'kept'
   | 'partial'
-  | 'retry'
+  | 'lost'
   | 'empty'
   | 'fixed'
   | 'cancel'
@@ -228,7 +228,7 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'I3', on: 'admitted', to: 'I4' },
   { from: 'I3', on: 'rejected', to: 'I8' },
   { from: 'I3', on: 'partial', to: 'I8' },
-  { from: 'I3', on: 'retry', to: 'I8' },
+  { from: 'I3', on: 'lost', to: 'I8' },
   { from: 'I3', on: 'try-finish', to: 'F1' },
   { from: 'I3', on: 'wait', to: 'W0' },
   { from: 'I3', on: 'cancel', to: 'F0' },

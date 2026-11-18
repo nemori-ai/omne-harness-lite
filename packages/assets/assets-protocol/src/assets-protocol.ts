@@ -17,9 +17,43 @@ const nullable = <const R extends Rule>(rule: R) =>
   ({ kind: 'one-of', rules: [rule, nothing] }) as const
 
 const assetQuery = object({ category: { rule: text, optional: true }, name: { rule: text } })
-const assetRef = object({ category: { rule: text }, name: { rule: text } })
+const independentRef = {
+  kind: { rule: literal('independent') },
+  providerId: { rule: text },
+  definitionId: { rule: text },
+} as const
+const ownerQuery = {
+  kind: 'one-of',
+  rules: [
+    object({
+      kind: { rule: literal('asset') },
+      category: { rule: text, optional: true },
+      name: { rule: text },
+    }),
+    object(independentRef),
+  ],
+} as const
+const owner = {
+  kind: 'one-of',
+  rules: [
+    object({ kind: { rule: literal('asset') }, category: { rule: text }, name: { rule: text } }),
+    object(independentRef),
+  ],
+} as const
+const listScope = {
+  kind: 'one-of',
+  rules: [
+    object({ kind: { rule: literal('asset') }, asset: { rule: assetQuery, optional: true } }),
+    object({ kind: { rule: literal('independent') } }),
+  ],
+} as const
+const categoryView = object({
+  category: { rule: text },
+  title: { rule: text },
+  summary: { rule: text },
+})
 
-const itemTarget = { tenant: { rule: tenant }, asset: { rule: assetQuery }, item: { rule: text } }
+const itemTarget = { tenant: { rule: tenant }, owner: { rule: ownerQuery }, item: { rule: text } }
 const writeTarget = {
   ...itemTarget,
   operation: { rule: text },
@@ -47,7 +81,7 @@ const secretState = literal('unset', 'available', 'revoked', 'unreadable')
 const layer = literal('default', 'organization', 'tenant')
 
 const head = {
-  asset: { rule: assetRef },
+  owner: { rule: owner },
   item: { rule: text },
   revision: { rule: revision },
   declaration: {
@@ -56,6 +90,13 @@ const head = {
       purpose: { rule: anyText },
       appliesAt: { rule: anyText },
       clearEffect: { rule: anyText },
+      group: {
+        rule: object({
+          id: { rule: text },
+          title: { rule: anyText },
+          description: { rule: anyText },
+        }),
+      },
     }),
   },
 } as const
@@ -150,7 +191,7 @@ export const assetsProtocol = defineProtocol({
       body: ruleCodec(
         object({
           tenant: { rule: tenant },
-          asset: { rule: assetQuery, optional: true },
+          scope: { rule: listScope },
           after: { rule: nullable(text) },
           limit: { rule: { kind: 'page-limit' } },
         }),
@@ -204,6 +245,25 @@ export const assetsProtocol = defineProtocol({
         invalid: empty,
         conflict: empty,
         'not-writable': notWritable,
+      },
+    },
+    'list-categories': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(
+        object({
+          after: { rule: nullable(text) },
+          limit: { rule: { kind: 'page-limit' } },
+        }),
+      ),
+      outcomes: {
+        succeeded: ruleCodec(
+          object({
+            items: { rule: { kind: 'array', item: categoryView } },
+            next: { rule: nullable(text) },
+          }),
+        ),
       },
     },
   },

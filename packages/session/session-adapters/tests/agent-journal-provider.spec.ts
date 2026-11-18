@@ -966,7 +966,14 @@ describe('sessionAdoptedRequests: the a part of a session, from the same plugin 
     expect(await read()).toEqual({ kind: 'value', value: null })
     await m0(s, journal(), open.authority, '1')
     const answer = await read()
-    expect(answer).toMatchObject({ kind: 'value', value: { order: '1', execution: s.execution } })
+    // The order is the publication that adopted the request: the M0, the last one.
+    const [[pub]] = s.controls!.select(
+      `SELECT pub FROM er_fact WHERE session = '${s.access.session}' AND kind = 'request.adopted'`,
+    ).rows as [[bigint]]
+    expect(answer).toMatchObject({
+      kind: 'value',
+      value: { order: String(pub), execution: s.execution },
+    })
     expect(wiring.decided.at(-1)).toEqual({
       access: s.access,
       operation: 'history.readModelView',

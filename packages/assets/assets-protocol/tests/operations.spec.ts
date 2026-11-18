@@ -37,6 +37,7 @@ const table = {
   'describe-setting': { identity: 'login', effect: 'read', limit: 'small' },
   'set-setting': { identity: 'login', effect: 'commit', limit: 'small' },
   'clear-setting': { identity: 'login', effect: 'commit', limit: 'small' },
+  'list-categories': { identity: 'login', effect: 'read', limit: 'small' },
 } as const
 
 const always = ['succeeded', 'protocol-rejected', 'basis-unavailable', 'denied']
@@ -45,19 +46,22 @@ const outcomes = {
   'describe-setting': ['not-visible', 'conflict'],
   'set-setting': ['no-change', 'not-visible', 'invalid', 'conflict', 'not-writable', 'unknown'],
   'clear-setting': ['no-change', 'not-visible', 'invalid', 'conflict', 'not-writable', 'unknown'],
+  'list-categories': [],
 } as const
 
 const operations = assetsProtocol.operations
 type Name = keyof typeof operations
 
-const asset = { category: 'tool', name: 'shell' }
+const asset = { kind: 'asset', category: 'tool', name: 'shell' }
+const independent = { kind: 'independent', providerId: 'calendar', definitionId: 'environment' }
 const declaration = {
   title: 'Invoke',
   purpose: 'Whether Shell may run',
   appliesAt: 'next call',
   clearEffect: 'falls back',
+  group: { id: 'shell', title: 'Shell', description: 'Shell settings' },
 }
-const head = { asset, item: 'invoke', revision: '7', declaration }
+const head = { owner: asset, item: 'invoke', revision: '7', declaration }
 const views = {
   ordinary: {
     ...head,
@@ -102,7 +106,7 @@ const views = {
 } as const
 
 describe('assets/v1', () => {
-  it('is assets major 1 with exactly the four setting operations and no observation', () => {
+  it('is assets major 1 with the four setting operations, list-categories and no observation', () => {
     expect(assetsProtocol.name).toBe('assets')
     expect(assetsProtocol.major).toBe(1)
     expect(Object.keys(operations).sort()).toEqual(Object.keys(table).sort())
@@ -133,24 +137,55 @@ describe('assets/v1', () => {
 })
 
 describe('bodies', () => {
-  const write = { tenant, asset, item: 'invoke', operation: 'op-1', expectedRevision: '7' }
+  const write = { tenant, owner: asset, item: 'invoke', operation: 'op-1', expectedRevision: '7' }
 
-  it('every operation carries its target tenant in the body', () => {
-    for (const operation of Object.values(operations))
-      rejects(operation.body, { asset, item: 'invoke', after: null, limit: 10 })
+  it('every setting operation carries its target tenant in the body', () => {
+    for (const [name, operation] of Object.entries(operations))
+      if (name !== 'list-categories')
+        rejects(operation.body, { owner: asset, item: 'invoke', after: null, limit: 10 })
   })
 
-  it('list-settings: an asset is optional, after is the next text or null, limit is a page limit', () => {
+  it('list-categories carries no tenant: after is the next text or null, limit is a page limit', () => {
+    const codec = operations['list-categories'].body
+    expectRoundTrip(codec, { after: null, limit: 100 })
+    expectRoundTrip(codec, { after: 'model-provider', limit: 1 })
+    rejects(codec, { tenant, after: null, limit: 10 })
+    rejects(codec, { after: null, limit: 101 })
+    rejects(codec, { after: null })
+  })
+
+  it('list-settings asks for one half: the assets, narrowed to one or not, or the independent settings', () => {
     const codec = operations['list-settings'].body
-    expectRoundTrip(codec, { tenant, after: null, limit: 100 })
-    expectRoundTrip(codec, { tenant, asset: { name: 'shell' }, after: '20', limit: 1 })
-    rejects(codec, { tenant, after: null, limit: 101 })
-    rejects(codec, { tenant, after: null })
+    expectRoundTrip(codec, { tenant, scope: { kind: 'asset' }, after: null, limit: 100 })
+    expectRoundTrip(codec, {
+      tenant,
+      scope: { kind: 'asset', asset: { name: 'shell' } },
+      after: '20',
+      limit: 1,
+    })
+    expectRoundTrip(codec, { tenant, scope: { kind: 'independent' }, after: null, limit: 100 })
+    rejects(codec, { tenant, after: null, limit: 100 })
+    rejects(codec, { tenant, asset: { name: 'shell' }, after: null, limit: 100 })
+    rejects(codec, { tenant, scope: { kind: 'both' }, after: null, limit: 100 })
+    rejects(codec, {
+      tenant,
+      scope: { kind: 'independent', asset: { name: 'shell' } },
+      after: null,
+      limit: 100,
+    })
+    rejects(codec, { tenant, scope: { kind: 'asset' }, after: null, limit: 101 })
+    rejects(codec, { tenant, scope: { kind: 'asset' }, after: null })
   })
 
-  it('describe-setting names one item', () => {
-    expectRoundTrip(operations['describe-setting'].body, { tenant, asset, item: 'invoke' })
-    rejects(operations['describe-setting'].body, { tenant, asset, item: '' })
+  it('describe-setting names one item of an asset or of an independent group', () => {
+    const codec = operations['describe-setting'].body
+    expectRoundTrip(codec, { tenant, owner: asset, item: 'invoke' })
+    expectRoundTrip(codec, { tenant, owner: { kind: 'asset', name: 'shell' }, item: 'invoke' })
+    expectRoundTrip(codec, { tenant, owner: independent, item: 'timezone' })
+    rejects(codec, { tenant, owner: asset, item: '' })
+    rejects(codec, { tenant, asset: { category: 'tool', name: 'shell' }, item: 'invoke' })
+    rejects(codec, { tenant, owner: { kind: 'independent', providerId: 'calendar' }, item: 'x' })
+    rejects(codec, { tenant, owner: { ...independent, name: 'shell' }, item: 'x' })
   })
 
   it('set-setting takes an ordinary value, a pick or a secret, never an allowed set', () => {
@@ -166,7 +201,8 @@ describe('bodies', () => {
   it('clear-setting carries the operation and the revision it read', () => {
     const codec = operations['clear-setting'].body
     expectRoundTrip(codec, write)
-    rejects(codec, { tenant, asset, item: 'invoke', operation: 'op-1' })
+    expectRoundTrip(codec, { ...write, owner: independent })
+    rejects(codec, { tenant, owner: asset, item: 'invoke', operation: 'op-1' })
   })
 })
 
@@ -177,11 +213,30 @@ describe('answers', () => {
     expectRoundTrip(codec, { items: [], next: null, completeness: 'complete' })
   })
 
+  it('a view names its owner, asset or independent, and the group its item is in', () => {
+    const codec = operations['describe-setting'].outcomes.succeeded
+    expectRoundTrip(codec, { item: { ...views.ordinary, owner: independent } })
+    rejects(codec, { item: { ...views.ordinary, owner: { kind: 'asset', name: 'shell' } } })
+    rejects(codec, { item: { ...views.ordinary, asset: { category: 'tool', name: 'shell' } } })
+    const { group: _group, ...withoutGroup } = declaration
+    rejects(codec, { item: { ...views.ordinary, declaration: withoutGroup } })
+  })
+
   it.each(Object.entries(views))('a described %s view carries its revision', (_, view) => {
     const codec = operations['describe-setting'].outcomes.succeeded
     expectRoundTrip(codec, { item: view })
     const { revision: _revision, ...withoutRevision } = view
     rejects(codec, { item: withoutRevision })
+  })
+
+  it('a page of categories carries each category with its name and summary, and its next', () => {
+    const codec = operations['list-categories'].outcomes.succeeded
+    expectRoundTrip(codec, {
+      items: [{ category: 'tool', title: '工具', summary: '代理可以调用的函数。' }],
+      next: 'tool',
+    })
+    expectRoundTrip(codec, { items: [], next: null })
+    rejects(codec, { items: [{ category: 'tool', title: '工具' }], next: null })
   })
 
   it('a write answers the new revision, and not-writable its reason', () => {

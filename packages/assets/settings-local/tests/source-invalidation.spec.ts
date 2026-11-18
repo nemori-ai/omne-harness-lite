@@ -102,7 +102,7 @@ it('protects target definition, layout, grants and retirement without blocking a
       target: w.change.target,
     }),
   ).toEqual({ kind: 'rejected', reason: 'basis_changed' })
-  const target = { ...w.change.target, targetRef: 'unrelated' }
+  const target = { ...w.change.target, definitionId: 'unrelated' }
   expect(
     await w.owner.mutate({
       kind: 'provision',
@@ -170,7 +170,7 @@ it('rejects a writer with missing source facts or an open fact for a different t
     kind: 'rejected_before_accept',
     reason: 'participant_dependency_missing',
   })
-  const other = { ...command, target: { ...command.target, targetRef: 'other' } }
+  const other = { ...command, target: { ...command.target, definitionId: 'other' } }
   const result = await transaction(w, [
     ...sourceWriteCommands(sourceTargetWriteBinding(w.world.domain, other)),
     mutation,

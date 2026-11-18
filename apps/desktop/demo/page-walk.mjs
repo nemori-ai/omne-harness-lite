@@ -11,6 +11,7 @@ import {
   writeOperator,
 } from '../../harness-server/tests/r9/support.ts'
 import { accessProtocol } from '@omne-harness/public-contract'
+import { createClient } from '@omne-harness/sdk/core'
 import { httpServer, memoryCredentialStore, openLoginSession } from '../dist/main-core/index.js'
 import { domainProtocols } from '../dist/shared/protocols.js'
 import { createWebHost } from '../dist/web-host/server.js'
@@ -403,7 +404,12 @@ async function walk(browser, origin, proofs) {
       const found = page.querySelectorAll('[role=tablist][aria-label="资产的类别"] [role=tab]')
       return found.length > 0 ? [...found].map(tab => tab.textContent) : undefined
     })
-    if (!tabs.includes('MCP')) throw new Error('no MCP tab: ' + JSON.stringify(tabs))
+    for (const name of ['工具', '模型供应商', 'MCP'])
+      if (!tabs.includes(name)) throw new Error('no ' + name + ' tab: ' + JSON.stringify(tabs))
+    for (const id of ['tool', 'model-provider'])
+      if (tabs.includes(id)) throw new Error('the tab ' + id + ' shows its identifier, not the name from the server')
+    for (const gone of ['偏好', 'preference'])
+      if (tabs.includes(gone)) throw new Error('the asset page still has a tab for settings that are not assets: ' + JSON.stringify(tabs))
     const order = nav()
     if (!(order.indexOf('待你决定') < order.indexOf('资产') && order.indexOf('资产') < order.indexOf('设置')))
       throw new Error('the asset page is not between the decisions and the settings: ' + JSON.stringify(order))
@@ -472,15 +478,29 @@ async function walk(browser, origin, proofs) {
     return { text }`,
   )
   await step(
-    '设置页的说明',
+    '设置页的两组：改时区，再清除',
     `
     await press('.shell-nav-link', '设置')
-    const page = await wait('the settings note', () => {
+    const page = await wait('the two groups on the settings page', () => {
       const section = document.querySelector('section[data-page=settings]')
-      return section && !section.hidden && section.innerText.includes('资产自己的设置都在「资产」页里') ? section : undefined
+      if (!section || section.hidden) return undefined
+      const groups = [...section.querySelectorAll('section.assets-group')].map(group => group.getAttribute('aria-label'))
+      return groups.includes('日历与时区') && groups.includes('agent 管理日程') ? section : undefined
     })
-    if (page.querySelector('li.assets-setting') !== null) throw new Error('the settings page still lists asset settings')
-    return { text: page.innerText.trim() }`,
+    const groups = [...page.querySelectorAll('section.assets-group')].map(group => group.getAttribute('aria-label'))
+    const row = [...page.querySelectorAll('li.assets-setting')].find(item =>
+      item.querySelector('.assets-setting-title').textContent === '时区')
+    if (!row) throw new Error('no timezone on the settings page')
+    const picks = [...page.querySelectorAll('li.assets-setting')].filter(item => item.querySelector('[role=radio]')).length
+    if (picks < 2) throw new Error('the two enum settings show no choices: ' + picks)
+    fill(row.querySelector('.assets-setting-value input'), 'Europe/Paris')
+    const set = await wait('an enabled set', () => [...row.querySelectorAll('button')].find(button => button.textContent.trim() === '设置' && !button.disabled))
+    set.click()
+    await wait('the write', () => row.innerText.includes('已写入。') && row.innerText.includes('Europe/Paris'))
+    const clear = await wait('an enabled clear', () => [...row.querySelectorAll('button')].find(button => button.textContent.trim() === '清除' && !button.disabled))
+    clear.click()
+    await wait('the clear to land', () => !row.innerText.includes('正在提交') && !row.innerText.includes('Europe/Paris'))
+    return { groups, written: 'Europe/Paris', cleared: true }`,
   )
   await step(
     '明暗切换',
@@ -735,6 +755,25 @@ async function walk(browser, origin, proofs) {
   )
 }
 
+const CATEGORIES = [
+  ['model-provider', '模型供应商'],
+  ['skill', '技能'],
+  ['tool', '工具'],
+]
+
+async function listCategories(session) {
+  const assets = domainProtocols.find(protocol => protocol.name === 'assets')
+  const answer = await createClient(assets, session.transport)['list-categories']({
+    after: null,
+    limit: 100,
+  })
+  const page = answer.outcome === 'succeeded' ? answer.body : undefined
+  const listed = page?.items.map(item => [item.category, item.title])
+  if (page?.next !== null || JSON.stringify(listed) !== JSON.stringify(CATEGORIES))
+    throw new Error('list-categories answered ' + JSON.stringify(answer))
+  print(`list-categories: ${JSON.stringify(listed)}`)
+}
+
 const scratch = newScratch('page-walk-')
 const profile = mkdtempSync(join(tmpdir(), 'page-walk-chrome-'))
 let gateway
@@ -782,6 +821,7 @@ try {
   browser = await devtools(chrome.port)
   await walk(browser, `http://127.0.0.1:${hostPort}/`, proofs)
   print(`walk: all steps passed; ${proofs.size} login proof(s) were searched for`)
+  await listCategories(session)
   code = 0
 } catch (failure) {
   print(`failed: ${failure instanceof Error ? failure.message : String(failure)}`)

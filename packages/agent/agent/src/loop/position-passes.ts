@@ -28,7 +28,6 @@ import {
   callsIn,
   closedKeepingRewrites,
   eachSlot,
-  failureTrigger,
   single,
   subjects,
 } from './extension-positions.ts'
@@ -150,13 +149,13 @@ async function afterFailure<P>(
 ) {
   const { access, ports, runner } = host
   const read = () => ports.models.calls.dispatches({ ...access, call })
-  const before = await read()
+  // The call has settled: its failure passes once, as the final one, and retrying is no output of it.
   return runner.run('I3', {
     id: `${action}/after_model_call`,
     position: 'after_model_call',
     dimension: { ending: 'failure' },
     purpose: 'main',
-    trigger: 'ok' in before ? failureTrigger(before.ok) : 'final',
+    trigger: 'final',
     async subjects() {
       if (request === null)
         return fail({

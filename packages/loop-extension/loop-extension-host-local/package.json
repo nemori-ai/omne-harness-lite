@@ -34,6 +34,7 @@
     "@omne-harness/agent-contract": "workspace:*",
     "@omne-harness/agent-cordis-contract": "workspace:*",
     "@omne-harness/assets": "workspace:*",
+    "@omne-harness/assets-cordis-contract": "workspace:*",
     "@omne-harness/execution-environment-contract": "workspace:*",
     "@omne-harness/execution-environment-cordis-contract": "workspace:*",
     "@omne-harness/kernel-basis": "workspace:*",

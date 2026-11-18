@@ -19,9 +19,7 @@ function requests(): AccessRequest[] {
     { name: 'alpha', index: 1 },
     { name: 'beta', index: 0 },
   ] as const
-  return accessRequests(['alpha'], bases, ['body', 'guide', 'new', 'bad']).filter(
-    item => item.op !== 'describe',
-  )
+  return accessRequests(['alpha'], bases, ['body', 'guide', 'new', 'bad'])
 }
 
 export async function exploreAbort(): Promise<Report> {

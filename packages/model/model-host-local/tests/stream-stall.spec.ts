@@ -42,11 +42,13 @@ if (record === undefined) throw new Error('no record openai/gpt-5.6-sol')
 const recorded = readRecordFixture('pi-ai-openai', record)
 const FIRST_EVENT = recorded.stream.slice(0, recorded.stream.indexOf('\n\n') + 2)
 
-type Gateway = 'silent' | 'stops-after-first-event'
+type Gateway = 'silent' | 'silent-once' | 'stops-after-first-event'
 let gateway: Gateway = 'silent'
+const RETRY = { maxAttempts: 2, maxElapsedMs: 30_000, delaysMs: [0], jitter: 0 }
 
 const certificate = createCertificate()
 let server: HttpsFixture
+let answeredBefore = 0
 let directory: string
 beforeAll(async () => {
   directory = realpathSync(mkdtempSync(join(tmpdir(), 'model-host-local-stall-')))
@@ -56,6 +58,11 @@ beforeAll(async () => {
       return
     }
     if (gateway === 'silent') return
+    if (gateway === 'silent-once') {
+      if (server.requests.length > answeredBefore + 1)
+        res.writeHead(200, { 'content-type': 'text/event-stream' }).end(recorded.stream)
+      return
+    }
     res.writeHead(200, { 'content-type': 'text/event-stream' })
     res.write(FIRST_EVENT)
   })
@@ -74,9 +81,11 @@ async function stalledCall(label: string, mode: Gateway) {
     label,
     directory,
     gateway: { url: server.url, ca: certificate.cert },
+    retry: RETRY,
   })
   try {
     const before = server.requests.length
+    answeredBefore = before
     const begun = Date.now()
     const { driven } = await local.drive()
     const waited = Date.now() - begun
@@ -100,7 +109,7 @@ function endedOf(facts: readonly TransportFact[]) {
 
 describe('a gateway that stops sending, through the assembled local send path', () => {
   it(
-    'a gateway that never answers fails the call as upstream-unavailable, stream-stall',
+    'a gateway that never answers is asked twice, and the call fails as upstream-unavailable, stream-stall',
     { tags: ['slow'], timeout: CASE_TIMEOUT_MS },
     async () => {
       const { local, driven, recovery, dispatches, waited, requests } = await stalledCall(
@@ -109,26 +118,62 @@ describe('a gateway that stops sending, through the assembled local send path', 
       )
 
       expect(built.stalls).toContain(STALL_MS)
-      expect(waited).toBeGreaterThanOrEqual(STALL_MS - 50)
+      expect(waited).toBeGreaterThanOrEqual(2 * STALL_MS - 50)
 
-      expect(requests).toHaveLength(1)
-      expect(requests[0]?.headers.authorization).toBe(`Bearer ${PLACEHOLDER}`)
+      expect(requests).toHaveLength(2)
+      for (const request of requests)
+        expect(request.headers.authorization).toBe(`Bearer ${PLACEHOLDER}`)
 
-      const ended = endedOf(local.facts)
-      expect(ended).toHaveLength(1)
-      expect(local.facts.at(-1)).toBe(ended[0])
-      expect(ended[0]?.termination).toEqual({
+      const stalled = {
         kind: 'failed',
         fault: { cause: 'upstream-unavailable', diagnostic: 'stream-stall', upstreamStatus: null },
-      })
+      }
+      const ended = endedOf(local.facts)
+      expect(ended.map(fact => fact.termination)).toEqual([stalled, stalled])
+      expect(local.facts.at(-1)).toBe(ended[1])
       expect(local.facts.some(fact => fact.kind === 'block-delta')).toBe(false)
 
-      expect(driven).toEqual({
-        failure: { kind: 'invalid', field: 'termination', reason: 'retry-not-decided' },
+      expect(driven).toEqual({ ok: undefined })
+      expect(recovery.state).toMatchObject({
+        phase: 'settled',
+        settlement: { termination: stalled },
+        attempts: { allowed: 2, made: 2 },
       })
-      expect(recovery.state).toMatchObject({ phase: 'running', firstContent: 'none-proven' })
-      expect(dispatches).toHaveLength(1)
-      expect(dispatches[0]?.terminal).toEqual(ended[0]?.termination)
+      expect(dispatches).toHaveLength(2)
+      for (const dispatch of dispatches) {
+        expect(dispatch).toMatchObject({ firstContent: 'none-proven' })
+        expect(dispatch.terminal).toEqual(stalled)
+      }
+    },
+  )
+
+  it(
+    'a gateway that is silent once and then answers: the same call is sent again and completes',
+    { tags: ['slow'], timeout: CASE_TIMEOUT_MS },
+    async () => {
+      const { local, driven, recovery, dispatches, requests } = await stalledCall(
+        'stall-once',
+        'silent-once',
+      )
+
+      expect(requests).toHaveLength(2)
+      expect(driven).toEqual({ ok: undefined })
+      expect(recovery.state).toMatchObject({
+        phase: 'settled',
+        settlement: { termination: { kind: 'completed' } },
+        attempts: { allowed: 2, made: 2 },
+      })
+      expect(dispatches).toHaveLength(2)
+      expect(dispatches[0]).toMatchObject({
+        firstContent: 'none-proven',
+        terminal: {
+          kind: 'failed',
+          fault: { cause: 'upstream-unavailable', diagnostic: 'stream-stall' },
+        },
+      })
+      expect(dispatches[1]?.terminal).toMatchObject({ kind: 'completed' })
+      const text = local.facts.flatMap(fact => (fact.kind === 'block-delta' ? [fact.delta] : []))
+      expect(text.join('')).toContain('visible answer')
     },
   )
 

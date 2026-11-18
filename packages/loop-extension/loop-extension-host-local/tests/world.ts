@@ -5,13 +5,14 @@ import { fileURLToPath } from 'node:url'
 import type { LoopExtensionDeclaration, Passage } from '@omne-harness/agent-contract'
 import {
   capabilityId,
-  createCategoryRegistry,
+  createCategoryPoint,
   type AssetLayerSource,
   type PackageReader,
 } from '@omne-harness/assets'
 import {
   assetsSqlMaterials,
   createAssetsLocal,
+  publishedRef,
   tenantLayerSource,
 } from '@omne-harness/assets-local'
 import {
@@ -25,6 +26,7 @@ import { implementationOf } from '@omne-harness/loop-extension'
 import {
   LOOP_EXTENSION_CATEGORY,
   loopExtensionBodyContract,
+  loopExtensionCategoryDisplay,
   type ExtensionSources,
   type RunSetting,
   type TenantExtensionSources,
@@ -189,8 +191,11 @@ export async function openTenant(tenant: TenantId) {
   mkdirSync(parent, { recursive: true })
   const root = mkdtempSync(join(parent, 'case-'))
   const opened = await openStorage(root, tenantRef)
-  const categories = createCategoryRegistry()
-  categories.register(loopExtensionBodyContract())
+  const categories = createCategoryPoint()
+  categories.contribute({
+    contract: loopExtensionBodyContract(),
+    display: loopExtensionCategoryDisplay,
+  })
   const assets = createAssetsLocal({
     storage: opened.storage,
     domain: opened.domain,
@@ -246,40 +251,35 @@ export async function openTenant(tenant: TenantId) {
       },
     },
   }
-  const assetRef = (name: string) => `tenant/${LOOP_EXTENSION_CATEGORY}/${name}`
-  const holdingRef = (name: string) => `${LOOP_EXTENSION_CATEGORY}.${name}`
+  const refOf = (name: string) => {
+    const made = capabilityId(LOOP_EXTENSION_CATEGORY, name)
+    if (!made.ok) throw new Error('not a capability identity')
+    return { capability: made.id, ref: publishedRef(made.id) }
+  }
+  const assetRef = (name: string) => refOf(name).ref
+  const holdingRef = (name: string) => refOf(name).ref
+  /** Publishes a version and holds it in the same commit; a later version of a held asset is pinned in its place. */
   async function publish(
     declaration: LoopExtensionDeclaration,
     files: Readonly<Record<string, string>> = {},
   ): Promise<string> {
-    const made = capabilityId(LOOP_EXTENSION_CATEGORY, declaration.name)
-    if (!made.ok) throw new Error('not a capability identity')
     const published = await assets.packages.publish({
-      capability: made.id,
-      assetRef: assetRef(declaration.name),
+      capability: refOf(declaration.name).capability,
       from: packageOf({ ...files, 'extension.json': JSON.stringify(declaration) }),
       operationId: `publish-${(operations += 1)}`,
+      holding: {
+        sources: [
+          {
+            sourceId: 'tenant',
+            ownerRef: tenantRef,
+            scope: { kind: 'owner', subjectRef: 'loop-extensions' },
+          },
+        ],
+        grants: [],
+      },
     })
     if (published.kind !== 'published') throw new Error(JSON.stringify(published))
     return published.version
-  }
-  async function hold(name: string): Promise<void> {
-    const held = await assets.hold({
-      operationId: `hold-${(operations += 1)}`,
-      holdingRef: holdingRef(name),
-      scopeRef: tenantRef,
-      assetRef: assetRef(name),
-      selection: { kind: 'follow' },
-      sources: [
-        {
-          sourceId: 'tenant',
-          ownerRef: tenantRef,
-          scope: { kind: 'owner', subjectRef: 'loop-extensions' },
-        },
-      ],
-      grants: [],
-    })
-    if (held.kind !== 'committed') throw new Error(JSON.stringify(held))
   }
   async function setEnabled(name: string, enabled: boolean): Promise<void> {
     const holding = await assets.readHolding({ holdingRef: holdingRef(name), scopeRef: tenantRef })
@@ -307,7 +307,6 @@ export async function openTenant(tenant: TenantId) {
     broken,
     assetRef,
     publish,
-    hold,
     setEnabled,
     setRun,
     listening: () => listeners.size,

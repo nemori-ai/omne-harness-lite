@@ -13,7 +13,7 @@ it('keeps the disabled state and management visibility, including after restart'
   await first.setup()
   const disable = {
     operationId: 'disable',
-    holdingRef: target.targetRef,
+    holdingRef: target.holdingRef,
     scopeRef: target.scopeRef,
     expectedRevision: 1,
     change: { kind: 'setEnabled' as const, enabled: false },
@@ -38,7 +38,7 @@ it('keeps the disabled state and management visibility, including after restart'
   const reopened = await openWorld({ root: first.root })
   worlds.push(reopened)
   expect(
-    await reopened.owner.readHolding({ holdingRef: target.targetRef, scopeRef: target.scopeRef }),
+    await reopened.owner.readHolding({ holdingRef: target.holdingRef, scopeRef: target.scopeRef }),
   ).toMatchObject({ kind: 'holding', holding: { state: 'held', enabled: false, revision: 2 } })
   const management = await reopened.capture({ targets: [target] })
   expect(management.kind).toBe('committed')
@@ -68,7 +68,7 @@ it('does not revive a removed holding through setEnabled', async () => {
   const world = await openWorld()
   worlds.push(world)
   await world.setup()
-  const identity = { holdingRef: target.targetRef, scopeRef: target.scopeRef }
+  const identity = { holdingRef: target.holdingRef, scopeRef: target.scopeRef }
   expect(
     await world.owner.changeHolding({
       ...identity,

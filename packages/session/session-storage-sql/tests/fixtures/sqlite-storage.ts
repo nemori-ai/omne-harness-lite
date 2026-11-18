@@ -40,6 +40,7 @@ import indexMigration from '../../src/worker/execution-index-migration.ts'
 import recordMigration from '../../src/worker/execution-record-migration.ts'
 import executionRecord from '../../src/worker/execution-record.ts'
 import factBlobMigration from '../../src/worker/fact-blob-migration.ts'
+import itemMigration from '../../src/worker/item-migration.ts'
 import factBodyMigration from '../../src/worker/fact-body-migration.ts'
 import migration from '../../src/worker/migration.ts'
 import evidenceMigration from '../../src/worker/operation-evidence-migration.ts'
@@ -47,6 +48,9 @@ import participant from '../../src/worker/participant.ts'
 import preadmissionMigration from '../../src/worker/preadmission-migration.ts'
 import readBinding from '../../src/worker/read-binding.ts'
 import readBlob from '../../src/worker/read-blob.ts'
+import readBlobs from '../../src/worker/read-blobs.ts'
+import readExecutionItems from '../../src/worker/read-execution-items.ts'
+import readExecutionOpenItems from '../../src/worker/read-execution-open-items.ts'
 import readExecutionBatches from '../../src/worker/read-execution-batches.ts'
 import readExecutionEvents from '../../src/worker/read-execution-events.ts'
 import readExecutionOpen from '../../src/worker/read-execution-open.ts'
@@ -103,6 +107,9 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readExecutionEvents,
   readExecutionOperation,
   readBlob,
+  readBlobs,
+  readExecutionItems,
+  readExecutionOpenItems,
   readExecutionSession,
   readPreadmission,
 ]
@@ -128,6 +135,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   statePartMigration,
   factBodyMigration,
   factBlobMigration,
+  itemMigration,
   compactionIndexMigration,
 ]
 

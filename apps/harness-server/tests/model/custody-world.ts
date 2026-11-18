@@ -118,7 +118,6 @@ const CONFIGURATION: ModelConfiguration = {
   observerCheckIntervalMs: 25,
   resultPageTargetBytes: 4096,
   readIdleMs: 1000,
-  retryBackoffMs: 0,
   cleanupRetryMs: 0,
 }
 const request: FixedModelRequest = {
@@ -416,6 +415,7 @@ function modelRecords(custody: { open: boolean; view?: Context }) {
   const release = createModelEvidence(ADOPTION, {
     initial: () => undefined,
     reader: () => undefined,
+    receive: () => undefined,
     custody: () => (custody.open && custody.view ? agentCustodyOf(custody.view) : undefined),
   })
   const memory = createTestModelDependencies<unknown>({

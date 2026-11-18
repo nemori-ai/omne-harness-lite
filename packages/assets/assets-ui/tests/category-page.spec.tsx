@@ -5,6 +5,7 @@ import type { SettingView } from '@omne-harness/assets-protocol'
 import { AssetsPage, createGovernance } from '../src/index.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
+import { namesOf } from './fixtures/names.ts'
 import { ordinaryView, permissionView, secretView } from './fixtures/views.ts'
 
 const TENANT =
@@ -34,14 +35,14 @@ async function answer(
 
 async function listed(
   items: readonly SettingView[] = [permissionView()],
-  categoryLabels: Readonly<Record<string, string>> = {},
+  names: Readonly<Record<string, string>> = {},
 ): Promise<FakeClient> {
   const fake = createFakeClient()
   render(
     <AssetsPage
       governance={createGovernance({ client: fake.client })}
       tenant={TENANT}
-      categoryLabels={categoryLabels}
+      categoryNames={namesOf(names)}
     />,
   )
   await answer(fake, 'list-settings', {
@@ -91,7 +92,7 @@ it('P2 改一项：带修订号提交，成功后按服务端读到的视图重�
   fireEvent.click(screen.getByRole('button', { name: '设置' }))
   const set = await fake.next('set-setting')
   expect(set.body).toMatchObject({
-    asset: { category: 'tool', name: 'shell' },
+    owner: { kind: 'asset', category: 'tool', name: 'shell' },
     item: 'call-permission',
     expectedRevision: '1',
     value: { kind: 'permission', pick: 'auto' },
@@ -262,7 +263,7 @@ it('P13 同一份资产的设置项排在一块，块的标题是资产的名字
 })
 
 it('P14 名字相同而类别不同的两份资产在各自的页签里，各是一块，各带自己的类别名', async () => {
-  const sameName = secretView({ asset: { category: 'model', name: 'shell' } })
+  const sameName = secretView({ owner: { kind: 'asset', category: 'model', name: 'shell' } })
   await listed([permissionView(), sameName], { tool: '工具', model: '模型' })
   const block = () => {
     const blocks = screen
@@ -335,7 +336,7 @@ it('S4 设置：带修订号送出原文；提交时口令框立刻清空，页�
   expect(secretInput().value).toBe('')
   const set = await fake.next('set-setting')
   expect(set.body).toMatchObject({
-    asset: { category: 'model', name: 'openai' },
+    owner: { kind: 'asset', category: 'model', name: 'openai' },
     item: 'api-key',
     expectedRevision: '2',
     value: { kind: 'secret', secret: SENTINEL },

@@ -1,0 +1,82 @@
+{
+  "member": "notification",
+  "model": "models/handoff/NotificationHandoff.tla",
+  "scope": "finite model NotificationHandoff: one tenant and two events of one source. Case one-recipient: one recipient, both events strong and sharing one replace key, a minimum interval of two ticks over three instants, at most two beats and two delivery tries for each unit. Case no-replace-key: one recipient, no replace key, one strong event, one delivery try, two beats; two notifications can be live together, so a beat can carry more than one. Case two-recipients: two recipients, one strong event, one delivery try, no beat; it checks that boxes, units and pacing of two recipients do not interfere. Each action is one commit of its owner. The session intake is modelled only as a set that recalls by submission id; subscriptions, qualification, several destinations for one recipient, retry back-off and standing items are not modelled. Safety only: nothing here shows that a strong notification is eventually delivered. No refinement proof to the implementation.",
+  "workers": 4,
+  "timeoutSeconds": 600,
+  "cases": [
+    {
+      "name": "one-recipient",
+      "config": "models/handoff/one-recipient.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "no-replace-key",
+      "config": "models/handoff/no-replace-key.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "two-recipients",
+      "config": "models/handoff/two-recipients.cfg",
+      "expected": "complete"
+    }
+  ],
+  "mutations": [
+    {
+      "name": "no-recall",
+      "base": "one-recipient",
+      "old": "Fresh(e) == e \\notin accepted",
+      "new": "Fresh(e) == TRUE",
+      "invariant": "OneNotificationPerRecipient"
+    },
+    {
+      "name": "box-outside-the-accepting-commit",
+      "base": "one-recipient",
+      "old": "Boxed(e) == Recipients",
+      "new": "Boxed(e) == {}",
+      "invariant": "AcceptedIsBoxed"
+    },
+    {
+      "name": "supersede-only-unresolved",
+      "base": "one-recipient",
+      "old": "Supersedes(e2, r) == e2 \\in Keyed /\\ Has(e2, r)",
+      "new": "Supersedes(e2, r) == e2 \\in Keyed /\\ Has(e2, r) /\\ resolved[e2][r] = \"none\"",
+      "invariant": "OneLivePerKey"
+    },
+    {
+      "name": "new-submission-id-on-retry",
+      "base": "one-recipient",
+      "old": "SubOf(u, n) == u.id",
+      "new": "SubOf(u, n) == <<u.id, n>>",
+      "invariant": "OneInputPerUnit"
+    },
+    {
+      "name": "unit-membership-not-recorded",
+      "base": "one-recipient",
+      "old": "InSomeUnit(e, r) == \\E u \\in units : u.kind = \"strong\" /\\ u.r = r /\\ e \\in u.members",
+      "new": "InSomeUnit(e, r) == FALSE",
+      "invariant": "OneUnitPerStrong"
+    },
+    {
+      "name": "beat-only-new",
+      "base": "no-replace-key",
+      "old": "Remindable(r) == LiveSet(r)",
+      "new": "Remindable(r) == LiveSet(r) \\ beatSeen[r]",
+      "invariant": "BeatCarriesAllLive"
+    },
+    {
+      "name": "beat-on-empty-box",
+      "base": "no-replace-key",
+      "old": "HasWork(r) == Remindable(r) # {}",
+      "new": "HasWork(r) == TRUE",
+      "invariant": "NoEmptyBeat"
+    },
+    {
+      "name": "no-minimum-interval",
+      "base": "one-recipient",
+      "old": "PacingOk(r) == lastStrong[r] < 0 \\/ now >= lastStrong[r] + MinInterval",
+      "new": "PacingOk(r) == TRUE",
+      "invariant": "StrongPaced"
+    }
+  ]
+}

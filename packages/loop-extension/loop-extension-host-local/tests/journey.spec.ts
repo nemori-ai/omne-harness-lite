@@ -45,7 +45,6 @@ describe('enabling, disabling and replacing an extension without a restart', () 
     const world = await tenant()
     const views = createEnabledExtensionsViews({ sources: sourcesOf(world) })
     const version = await world.publish(probe('probe'))
-    await world.hold('probe')
     expect(await members(views)).toEqual([])
     world.setRun('probe', on)
     const read = await views.read(reader(tenantA))
@@ -75,7 +74,6 @@ describe('enabling, disabling and replacing an extension without a restart', () 
     const world = await tenant()
     const views = createEnabledExtensionsViews({ sources: sourcesOf(world) })
     await world.publish(probe('probe'))
-    await world.hold('probe')
     world.setRun('probe', on)
     await members(views)
     const once = world.reads.list
@@ -102,7 +100,6 @@ describe('enabling, disabling and replacing an extension without a restart', () 
     const first = await world.publish(
       probe('probe', { implementation: { kind: 'builtin', builtinName: 'first' } }),
     )
-    await world.hold('probe')
     world.setRun('probe', on)
     expect(await members(views)).toEqual([`probe@${first}`])
     const second = await world.publish(
@@ -132,7 +129,6 @@ describe('two tenants', () => {
     builtins.register('probe', async () => ({ kind: 'output', value: { kind: 'observed' } }))
     const implementations = createExtensionImplementations({ sources, builtins })
     const version = await a.publish(probe('probe'))
-    await a.hold('probe')
     a.setRun('probe', on)
     expect(await members(views, tenantA)).toEqual([`probe@${version}`])
     expect(await members(views, tenantB)).toEqual([])
@@ -159,7 +155,6 @@ describe('a source that cannot be read', () => {
     const world = await tenant()
     const views = createEnabledExtensionsViews({ sources: sourcesOf(world) })
     await world.publish(probe('probe'))
-    await world.hold('probe')
     world.setRun('probe', { kind: 'unavailable' })
     expect(await views.read(reader(tenantA))).toEqual({
       kind: 'unavailable',
@@ -180,7 +175,6 @@ describe('a source that cannot be read', () => {
     const world = await tenant()
     const views = createEnabledExtensionsViews({ sources: sourcesOf(world) })
     await world.publish(probe('probe'))
-    await world.hold('probe')
     world.setRun('probe', on)
     const entered = Promise.withResolvers<void>()
     const release = Promise.withResolvers<void>()
@@ -220,7 +214,6 @@ describe('resolving an implementation', () => {
     const resolve = (member: { capability: string; assetRef: string; version: string }) =>
       implementations.resolve({ ...reader(tenantA), passage: passageOf(member) })
     const version = await world.publish(probe('probe'))
-    await world.hold('probe')
     const recorded = { capability: 'probe', assetRef: world.assetRef('probe'), version }
     expect(await resolve(recorded)).toMatchObject(unavailable)
     const leave = builtins.register('probe', async () => ({ kind: 'notStartedUnavailable' }))
@@ -242,7 +235,6 @@ describe('resolving an implementation', () => {
       }),
       { 'run.mjs': 'process.stdout.write("{}")\n' },
     )
-    await world.hold('script')
     expect(
       await resolve({ capability: 'script', assetRef: world.assetRef('script'), version: script }),
     ).toMatchObject({ failure: { diagnostic: 'this host runs no command implementation' } })

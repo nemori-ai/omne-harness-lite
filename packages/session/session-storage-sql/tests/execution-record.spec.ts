@@ -67,6 +67,7 @@ function write(over: Partial<ExecutionRecordWrite> = {}): ExecutionRecordWrite {
     operation: 'aop_open',
     digest: 'sha256:open',
     blobs: [],
+    items: [],
     boundaries: [
       {
         execution,

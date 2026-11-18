@@ -189,8 +189,3 @@ export function batchSubject(batch: ActionBatch): Subject {
   }
 }
 
-export function failureTrigger(dispatches: readonly DispatchRecord[]): 'first-content' | 'final' {
-  return dispatches.some(record => record.firstContent !== 'none-proven')
-    ? 'final'
-    : 'first-content'
-}

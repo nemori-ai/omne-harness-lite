@@ -75,21 +75,6 @@ function listBreak(material: Material, ok: unknown): string | undefined {
     : 'the listing is not the pinned material'
 }
 
-function exportBreak(material: Material, ok: unknown): string | undefined {
-  const sealed = sealedOf(material.name, material.files)
-  if (field(ok, 'digest') !== sealed.digest) return 'the export names another snapshot'
-  const entries = field(ok, 'entries')
-  if (!Array.isArray(entries) || entries.length !== sealed.entries.length)
-    return 'the export is not every entry'
-  for (const entry of sealed.entries) {
-    const given: unknown = entries.find((item: unknown) => field(item, 'path') === entry.path)
-    if (field(given, 'digest') !== entry.digest) return `${entry.path}: another digest`
-    if (!isDeepStrictEqual(field(given, 'bytes'), bytesIn(material, entry.path)))
-      return `${entry.path}: other bytes`
-  }
-  return undefined
-}
-
 export function mixedBreak(
   world: WorldSpec,
   request: AccessRequest,
@@ -98,7 +83,6 @@ export function mixedBreak(
   if ('thrown' in observation) return `threw ${observation.thrown}`
   const ok = okOf(observation)
   if (ok === undefined) return onlyFailure(observation) ? undefined : 'a failure with content'
-  if (request.op === 'describe') return undefined
   const pinned = pinnedBasis(world, request)
   if (!isDeepStrictEqual(field(ok, 'basis'), pinned))
     return `the result names ${JSON.stringify(field(ok, 'basis'))}, pinned is ${JSON.stringify(pinned)}`
@@ -109,8 +93,6 @@ export function mixedBreak(
       return readBreak(material, request, ok)
     case 'list':
       return listBreak(material, ok)
-    case 'export':
-      return exportBreak(material, ok)
     default: {
       const exhaustive: never = request
       return exhaustive
@@ -144,9 +126,7 @@ const PAGES = [
 
 function requests(): AccessRequest[] {
   const bases = [undefined, { name: 'alpha', index: 0 }, { name: 'alpha', index: 1 }] as const
-  const plain = accessRequests(['alpha'], bases, ['body', 'guide', 'new']).filter(
-    item => item.op !== 'describe',
-  )
+  const plain = accessRequests(['alpha'], bases, ['body', 'guide', 'new'])
   const paged = bases.flatMap(basis =>
     PAGES.map(
       range =>

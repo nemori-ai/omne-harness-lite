@@ -116,12 +116,6 @@ import {
   noReplyEnd,
   type UnusableResult,
 } from './model-result.ts'
-import {
-  askedRetry,
-  modelRetryNotDue,
-  retryModelCall,
-  type ModelRetryEntry,
-} from './model-retry.ts'
 import { readModelDeliveryMaterial } from '../receiving-material.ts'
 import {
   advanceAcceptedControl,
@@ -246,8 +240,7 @@ export type ExecutionEntry<P> = Readonly<{
         reason: DurableEvidence
       }>,
   ): Promise<Outcome<CommandReceipt, Failure>>
-}> &
-  ModelRetryEntry
+}>
 
 export type ReplyAdmissionReadReport = Readonly<{
   kind: 'origin-reread'
@@ -1309,28 +1302,20 @@ function coordinate<P>(
     checkpoint: () => required(checkpoint, 'checkpoint'),
   })
 
-  // A model call that gave no usable reply: the failure pass first, then a retry, then the end of the Run.
+  // A model call that gave no usable reply. A lost call is made again at the next step; a settled failure goes through the failure pass, then ends the Run: retrying belongs to Model.
   async function unusableReply(
     current: Iteration,
     result: UnusableResult,
     caller: CallerCommit,
   ): Promise<Outcome<Step, Failure>> {
+    if (current.lost !== null)
+      return step('lost', {
+        checkpoint: { calls: [], ...lostIntent(required(checkpoint, 'checkpoint'), current) },
+        caller,
+      })
     const failed = await failurePass(current, result)
     if ('failure' in failed) return failed
     if (failed.ok.kind === 'left') return succeed(failed.ok.step)
-    const saved = () => required(checkpoint, 'checkpoint').modelRetry ?? null
-    const asked = failed.ok.effects?.[0]?.retry ?? null
-    const retried =
-      asked === null
-        ? await retryModelCall(entry, current.step, result, saved, ports.clock)
-        : await askedRetry(saved(), asked.output.plan, ports.clock)
-    if ('failure' in retried) return retried
-    const lost = lostIntent(required(checkpoint, 'checkpoint'), current)
-    if (retried.ok !== null)
-      return step('retry', {
-        checkpoint: { calls: [], modelRetry: retried.ok, ...lost, ...failed.ok.applied },
-        caller,
-      })
     if (decided?.kind !== 'try-finish' || decided.failure?.kind !== 'no-reply') {
       const instant = await ports.clock.now()
       if ('failure' in instant) return instant
@@ -1338,7 +1323,7 @@ function coordinate<P>(
       const call = invocationParts(reference, access.tenant).call
       decided = noReplyEnd(execution, current.step, call, result, instant.ok)
     }
-    return step('try-finish', { caller })
+    return step('try-finish', { checkpoint: failed.ok.applied, caller })
   }
 
   const runExecutionNodes = {
@@ -1575,11 +1560,7 @@ function coordinate<P>(
       pendingHandoff = null
       if (decision !== 'prepared')
         return step('rejected', { checkpoint: { calls: [] }, caller: processed })
-      const retrying = (required(checkpoint, 'checkpoint').modelRetry ?? null) !== null
-      return step('admitted', {
-        checkpoint: { calls: [], ...(retrying ? { modelRetry: null } : {}) },
-        caller: processed,
-      })
+      return step('admitted', { checkpoint: { calls: [] }, caller: processed })
     },
     async I4() {
       const admitted = admittedReply()
@@ -1616,10 +1597,6 @@ function coordinate<P>(
       const current = await readFacts(read.ok)
       if ('failure' in current) return current
       facts = current.ok
-      const retry = required(checkpoint, 'checkpoint').modelRetry ?? null
-      const notDue = await modelRetryNotDue(retry, ports.clock)
-      if ('failure' in notDue) return notDue
-      if (notDue.ok !== null) return waitFor('I8', notDue.ok, null)
       const evaluated = await evaluate('I8', current.ok)
       if ('failure' in evaluated) return evaluated
       if (
@@ -2405,7 +2382,7 @@ function coordinate<P>(
   // A call that was lost never ran: only a call the Model ended as failed passes the position after it.
   async function failurePass(current: Iteration, result: ModelResult) {
     const terminal = result.settlement.termination
-    if (current.lost !== null || terminal.kind !== 'failed')
+    if (terminal.kind !== 'failed')
       return succeed<PassOutcome>({ kind: 'ran', effects: null, applied: {} })
     const request = current.ready?.request ?? null
     return positions.afterFailure(

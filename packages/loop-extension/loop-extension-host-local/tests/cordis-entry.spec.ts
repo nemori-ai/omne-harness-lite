@@ -46,7 +46,6 @@ async function enabled() {
   const world = await openTenant(tenantA)
   worlds.push(world)
   const version = await world.publish(probe('probe'))
-  await world.hold('probe')
   world.setRun('probe', { kind: 'value', value: true })
   const recorded = { capability: 'probe', assetRef: world.assetRef('probe'), version }
   return { world, version, passage: passageOf(recorded) }

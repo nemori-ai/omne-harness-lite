@@ -2,6 +2,7 @@ import { afterEach, expect, it } from 'vitest'
 import { readSettingsSource } from '../src/index.ts'
 import { openSourceServiceWorld, source } from './source-service-world.ts'
 import { sourceRequest } from './source-retention-world.ts'
+import { sibling } from './world.ts'
 
 const close: (() => Promise<void>)[] = []
 afterEach(async () => {
@@ -49,13 +50,13 @@ it('answers forbidden for a target that the domain does not hold, and unsupporte
   expect(
     await readSettingsSource(w.storage, {
       ...source,
-      target: { ...source.target, targetRef: 'missing-target' },
+      target: sibling(source.target, 'missing-target'),
     }),
   ).toEqual({ kind: 'unavailable', reason: 'forbidden' })
   expect(
     await readSettingsSource(w.storage, {
       ...source,
-      target: { ...source.target, policyId: 'asset' },
+      target: { kind: 'asset', holdingRef: 'tool/web', scopeRef: source.target.scopeRef },
     }),
   ).toEqual({ kind: 'unavailable', reason: 'unsupported' })
 })

@@ -9,7 +9,6 @@ import {
   type Continuation,
   type Failure,
   type LoopFacts,
-  type ModelRetryState,
   type Next,
   type ReplyAdmissionRead,
   type StepId,
@@ -124,6 +123,13 @@ function producerWaits(facts: LoopFacts): Waiting[] | null {
   return waiting
 }
 
+// Written by the commit that closed a lost main call; the next step sends the request again.
+function lostMainCall(checkpoint: AgentCheckpoint): boolean {
+  return checkpoint.voided.some(
+    item => item.kind === 'model' && item.cause === 'lost' && item.step === checkpoint.step,
+  )
+}
+
 function afterIteration(facts: LoopFacts): Outcome<Next, Failure> {
   const { checkpoint } = facts
   const round = toolRound(checkpoint.batch)
@@ -137,7 +143,7 @@ function afterIteration(facts: LoopFacts): Outcome<Next, Failure> {
     round === 'round' ||
     facts.batch.ordered.length > 0 ||
     facts.conditions.progression.kind === 'continue' ||
-    (checkpoint.modelRetry ?? null) !== null
+    lostMainCall(checkpoint)
   if (basis) return succeed({ kind: 'take-inputs', position: 'I0' })
   // A pass that ended in a veto stays open: the vetoed step is neither proposed again nor taken for a completion.
   if (checkpoint.chain !== null)
@@ -202,10 +208,7 @@ const CHECKPOINT_MEMBERS: readonly (keyof AgentCheckpoint)[] = [
   'voided',
 ]
 
-const OPTIONAL_CHECKPOINT_MEMBERS: readonly (keyof AgentCheckpoint)[] = [
-  'adoptedRequest',
-  'modelRetry',
-]
+const OPTIONAL_CHECKPOINT_MEMBERS: readonly (keyof AgentCheckpoint)[] = ['adoptedRequest']
 
 const KNOWN_CHECKPOINT_MEMBERS: readonly string[] = [
   ...CHECKPOINT_MEMBERS,
@@ -268,27 +271,6 @@ function readPositionOf(value: unknown): Outcome<ReplyAdmissionRead, Failure> {
   return succeed({ kind: 'verified', prefix: { sequence: sequence.ok, basis: basis.ok } })
 }
 
-function isInstant(value: unknown): value is string {
-  return typeof value === 'string' && Number.isFinite(Date.parse(value))
-}
-
-function retryStateOf(value: unknown): Outcome<ModelRetryState | null, Failure> {
-  const field = 'checkpoint.modelRetry'
-  if (value === null) return succeed(null)
-  if (!isRecord(value)) return refused(field, 'type')
-  for (const member of Object.keys(value))
-    if (!['failures', 'since', 'notBefore'].includes(member))
-      return refused(`${field}.${member}`, 'unknown-field')
-  const failures = value['failures']
-  if (typeof failures !== 'number' || !Number.isInteger(failures) || failures < 1)
-    return refused(`${field}.failures`, 'range')
-  const since = value['since']
-  if (!isInstant(since)) return refused(`${field}.since`, 'type')
-  const notBefore = value['notBefore']
-  if (!isInstant(notBefore)) return refused(`${field}.notBefore`, 'type')
-  return succeed({ failures, since, notBefore })
-}
-
 function decode(value: Continuation): Outcome<AgentCheckpoint, Failure> {
   if (!sameAdoption(value.schema, agentCheckpointSchema))
     return refused('schema', 'not the checkpoint schema of this evaluator')
@@ -325,11 +307,7 @@ function decode(value: Continuation): Outcome<AgentCheckpoint, Failure> {
   const caused = (item: Record<string, unknown>) =>
     item['cause'] === 'not-accepted' || (item['kind'] === 'model' && item['cause'] === 'lost')
   if (!tree['voided'].every(caused)) return refused('checkpoint.voided.cause', 'type')
-  const decoded = { ...(tree as AgentCheckpoint), step: step.ok, replyAdmissionRead: read.ok }
-  if (!Object.hasOwn(tree, 'modelRetry')) return succeed(decoded)
-  const retry = retryStateOf(tree['modelRetry'])
-  if ('failure' in retry) return retry
-  return succeed({ ...decoded, modelRetry: retry.ok })
+  return succeed({ ...(tree as AgentCheckpoint), step: step.ok, replyAdmissionRead: read.ok })
 }
 
 export const agentEvaluator: AgentEvaluator = Object.freeze({ initial, next, encode, decode })

@@ -16,6 +16,7 @@ import {
   loopExtensionSourcesKey,
 } from '@omne-harness/loop-extension-cordis-contract/cordis'
 import { createBuiltinExtensions } from './builtins.ts'
+export { loopExtensionCategoryPlugin } from './category.ts'
 import { createCommandHost } from './commands.ts'
 import { createExtensionImplementations } from './implementations.ts'
 import { createEnabledExtensionsViews } from './views.ts'

@@ -275,6 +275,9 @@ catalogs:
     happy-dom:
       specifier: 21.0.4
       version: 21.0.4
+    immutable:
+      specifier: 5.1.9
+      version: 5.1.9
     js-tiktoken:
       specifier: 1.0.21
       version: 1.0.21
@@ -566,6 +569,9 @@ importers:
       '@omne-harness/assets-access':
         specifier: workspace:*
         version: link:../../packages/assets/assets-access
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/assets/assets-cordis-contract
       '@omne-harness/assets-local':
         specifier: workspace:*
         version: link:../../packages/assets/assets-local
@@ -701,6 +707,9 @@ importers:
       '@omne-harness/request-context-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/context/request-context-cordis-contract
+      '@omne-harness/retry':
+        specifier: workspace:*
+        version: link:../../packages/common/retry
       '@omne-harness/runtime-context':
         specifier: workspace:*
         version: link:../../packages/context/runtime-context
@@ -773,6 +782,18 @@ importers:
       '@omne-harness/settings-local':
         specifier: workspace:*
         version: link:../../packages/assets/settings-local
+      '@omne-harness/skill':
+        specifier: workspace:*
+        version: link:../../packages/skills/skill
+      '@omne-harness/skill-contract':
+        specifier: workspace:*
+        version: link:../../packages/skills/skill-contract
+      '@omne-harness/skill-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/skills/skill-cordis-contract
+      '@omne-harness/skill-host-local':
+        specifier: workspace:*
+        version: link:../../packages/skills/skill-host-local
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../packages/storage/sql-contract
@@ -788,6 +809,9 @@ importers:
       '@omne-harness/telemetry-node':
         specifier: workspace:*
         version: link:../../packages/telemetry/telemetry-node
+      '@omne-harness/text-search':
+        specifier: workspace:*
+        version: link:../../packages/common/text-search
       '@omne-harness/time-source':
         specifier: workspace:*
         version: link:../../packages/assembly/time-source
@@ -834,6 +858,9 @@ importers:
       '@omne-harness/identity-protocol':
         specifier: workspace:*
         version: link:../../packages/identity/identity-protocol
+      '@omne-harness/mcp-host-local':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-host-local
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../packages/access/sdk
@@ -980,9 +1007,6 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
-      '@omne-harness/retry':
-        specifier: workspace:*
-        version: link:../../common/retry
       '@omne-harness/telemetry-contract':
         specifier: workspace:*
         version: link:../../telemetry/telemetry-contract
@@ -1109,6 +1133,9 @@ importers:
       '@omne-harness/agent-cordis-contract':
         specifier: workspace:*
         version: link:../agent-cordis-contract
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../assets/assets-cordis-contract
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block
@@ -1127,9 +1154,6 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
-      '@omne-harness/retry':
-        specifier: workspace:*
-        version: link:../../common/retry
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract
@@ -1281,6 +1305,28 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/assets/assets-cordis-contract:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../assets
+      '@omne-harness/settings':
+        specifier: workspace:*
+        version: link:../settings
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1610,6 +1656,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../assets/assets-cordis-contract
       '@omne-harness/calendar':
         specifier: workspace:*
         version: link:../calendar
@@ -1911,6 +1960,18 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../operation-result
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/common/text-search:
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -3092,6 +3153,9 @@ importers:
       '@omne-harness/assets':
         specifier: workspace:*
         version: link:../../assets/assets
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../assets/assets-cordis-contract
       '@omne-harness/execution-environment-contract':
         specifier: workspace:*
         version: link:../../execution/execution-environment-contract
@@ -3228,6 +3292,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../assets/assets-cordis-contract
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
@@ -3347,6 +3414,9 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
+      '@omne-harness/retry':
+        specifier: workspace:*
+        version: link:../../common/retry
       '@omne-harness/stream-arrival':
         specifier: workspace:*
         version: link:../../common/stream-arrival
@@ -3452,6 +3522,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../assets/assets-cordis-contract
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -3473,6 +3546,9 @@ importers:
       '@omne-harness/pi-ai-transport':
         specifier: workspace:*
         version: link:../pi-ai-transport
+      '@omne-harness/retry':
+        specifier: workspace:*
+        version: link:../../common/retry
       '@omne-harness/settings':
         specifier: workspace:*
         version: link:../../assets/settings
@@ -3801,6 +3877,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../assets/assets-cordis-contract
       '@omne-harness/calendar':
         specifier: workspace:*
         version: link:../../calendar/calendar
@@ -4141,6 +4220,9 @@ importers:
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract
+      immutable:
+        specifier: 'catalog:'
+        version: 5.1.9
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -4499,6 +4581,9 @@ importers:
       '@omne-harness/skill-contract':
         specifier: workspace:*
         version: link:../skill-contract
+      '@omne-harness/text-search':
+        specifier: workspace:*
+        version: link:../../common/text-search
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -4559,37 +4644,34 @@ importers:
 
   packages/skills/skill-host-local:
     dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 'catalog:'
-        version: 4.0.4
       '@omne-harness/assets':
         specifier: workspace:*
         version: link:../../assets/assets
-      '@omne-harness/kernel-basis':
+      '@omne-harness/assets-cordis-contract':
         specifier: workspace:*
-        version: link:../../assembly/kernel-basis
+        version: link:../../assets/assets-cordis-contract
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
-      '@omne-harness/skill':
-        specifier: workspace:*
-        version: link:../skill
       '@omne-harness/skill-contract':
         specifier: workspace:*
         version: link:../skill-contract
-      '@omne-harness/skill-cordis-contract':
-        specifier: workspace:*
-        version: link:../skill-cordis-contract
     devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@omne-harness/assets-local':
         specifier: workspace:*
         version: link:../../assets/assets-local
       '@omne-harness/settings-local':
         specifier: workspace:*
         version: link:../../assets/settings-local
+      '@omne-harness/skill':
+        specifier: workspace:*
+        version: link:../skill
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../storage/sql-contract
@@ -4954,6 +5036,9 @@ importers:
       '@omne-harness/stream-arrival':
         specifier: workspace:*
         version: link:../../common/stream-arrival
+      '@omne-harness/text-search':
+        specifier: workspace:*
+        version: link:../../common/text-search
       '@omne-harness/tool':
         specifier: workspace:*
         version: link:../tool
@@ -9241,6 +9326,9 @@ packages:
 
   immediate@3.0.6:
     resolution: {integrity: sha512-XXOFtyqDjNDAQxVfYxuF7g9Il/IbWmmlQg2MYKOH8ExIT1qg6xc4zyS3HaEEATgs1btfzxq15ciUiY7gjSXRGQ==}
+
+  immutable@5.1.9:
+    resolution: {integrity: sha512-m8nVez3rwrgmWxtLMt1ZYXB2Lv7OKYn/disyxAlSDYAlKSlFoPPfIAmAM/M5xqL4m4C/wAPw7S2/CNaUii1Hxg==}
 
   import-meta-resolve@4.2.0:
     resolution: {integrity: sha512-Iqv2fzaTQN28s/FwZAoFq0ZSs/7hMAHJVX+w8PZl3cY19Pxk6jFFalxQoIfW2826i/fDLXv8IiEZRIT0lDuWcg==}
@@ -14702,6 +14790,8 @@ snapshots:
   ignore@7.0.12: {}
 
   immediate@3.0.6: {}
+
+  immutable@5.1.9: {}
 
   import-meta-resolve@4.2.0: {}
 

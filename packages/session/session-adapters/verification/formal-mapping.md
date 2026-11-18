@@ -1,6 +1,6 @@
 # 形式模型与规格、代码的对照
 
-本页对照 `session-adapters/verification` 下两个有限模型：进程代次与准入记录（`generation-handoff`）、Agent 事实族（`journal-facts`）。条款在包组规格 [`packages/session/SPEC.md`](../../SPEC.md)；Agent 一侧的承诺在 [Agent 规格](../../../agent/SPEC.md)。模型检查只说明有限范围内的设计性质。配置预期见下表；运行器按预期判读，正控要求无反例，负控要求命中指定性质。手写的无界证明见 [proofs/](proofs/)。
+本页对照 `session-adapters/verification` 下三个有限模型：进程代次与准入记录（`generation-handoff`）、Agent 事实族（`journal-facts`）、执行日志的开放集（`journal-open-set`）。条款在包组规格 [`packages/session/SPEC.md`](../../SPEC.md)；Agent 一侧的承诺在 [Agent 规格](../../../agent/SPEC.md)。模型检查只说明有限范围内的设计性质。配置预期见下表；运行器按预期判读，正控要求无反例，负控要求命中指定性质。手写的无界证明见 [proofs/](proofs/)。
 
 ## generation-handoff
 
@@ -97,3 +97,24 @@
 | `RetrySame`、`RetryConflict` | 同语义输入认回原结果，异语义输入答冲突，无写入                                                     |
 | `Crash`、`Recover`           | 进程重启；继任者冷启动折叠，再挂接                                                                 |
 | `Refuse`                     | 存储在受理前拒绝，无写入：暂时的原因驱动等待后以同一操作重发，确定的原因驱动不重发，Run 以失败终结 |
+
+## journal-open-set
+
+`OpenSet.tla` 是抽象模型：一个执行，项有原键，开、改、关，关后不变。持久投影与关闭索引在追加批的同一次提交里写；写者的进程内视图折叠到哪一批就持有哪一批的开放集；冷装载分两页读投影，两页的头不同就重来；Agent 先看快照，缺席的项按原键点查，决定只在读到的修订上条件提交；生产方保存迟到结果，不带期望修订。规格见 Agent 规格「执行日志」的快照与开放两条。
+
+| 性质         | 含义                                           | 模型中的名字           | 负控                                                                              |
+| ------------ | ---------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------- |
+| 快照是开放集 | 快照等于它所标修订的开放项                     | `P1_SnapshotIsOpenSet` | `bad-mix-pages`：冷装载接受两个头的页                                             |
+| 投影同提交   | 持久投影始终是整条日志的开放集，头等于日志长度 | `P2_ProjectionCurrent` | `bad-projection-lags`：投影由之后的步骤写                                         |
+| 按原键可达   | 开着的在投影里，关了的按原键查得到             | `P3_Reachable`         | `bad-no-closed-index`：关闭只从投影删，不写关闭索引                               |
+| 决定看到真值 | 提交的决定看到的是它提交修订上的真值           | `P4_DecisionsTrue`     | `bad-absent-as-never`：缺席当作从未发生；`bad-unchecked-commit`：不带期望修订提交 |
+| 只含开放项   | 快照的大小只取决于开放工作                     | `P5_OpenBound`         | `bad-keep-closed`：关闭项留在快照                                                 |
+
+配置：`open-set` 是正控（2 个键、4 个批、每批至多 2 处改动、1 次崩溃、2 次重来），预期无反例；六个 `bad-*` 各打开一个错误，预期只命中上表对应的性质。运行：`models/run-tlc.sh models <证据目录>`。
+
+| 模型                       | 实现                                                                                   |
+| -------------------------- | -------------------------------------------------------------------------------------- |
+| 开放的判据                 | `agent-contract` 的 `openItems`；两份核心都照它裁快照                                  |
+| 按原键点查                 | `AgentJournalReading.inputAcceptance`；模型控制记录自带 `modelInvocation`              |
+| 进程内视图与冷重建同一投影 | `testing/journal-records.ts` 与进程内推进；守卫 `tests/journal-records-parity.spec.ts` |
+| 持久投影、冷装载两页同头   | 尚未实现：冷装载仍从头重放事实（#1310）                                                |

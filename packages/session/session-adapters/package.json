@@ -56,7 +56,8 @@
     "@omne-harness/session-cordis-contract": "workspace:*",
     "@omne-harness/session-storage-sql": "workspace:*",
     "@omne-harness/sql-contract": "workspace:*",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "immutable": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

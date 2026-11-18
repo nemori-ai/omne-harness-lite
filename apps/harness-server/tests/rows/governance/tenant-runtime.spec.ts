@@ -1,4 +1,5 @@
 import { toolAssetTarget } from '../../../src/rows/governance/tool-installation-assets.ts'
+import { openTenantAssets } from '../../../src/rows/tenant-assets/host.ts'
 import { canonicalText } from '@omne-harness/authorization'
 import { CurrentPermissionService } from '../../../src/rows/governance/current-permission-service.ts'
 // @module-tag slow
@@ -23,11 +24,28 @@ import { IdentitySqlPlugin } from '@omne-harness/identity-sql/cordis'
 import { createSqliteStorage } from '@omne-harness/sqlite-provider'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
 import { access, organizationCodec } from '@omne-harness/legal-identity'
-import { createSettingsRegistry } from '@omne-harness/settings'
-import { createCategoryRegistry } from '@omne-harness/assets'
+import {
+  createIndependentSettingsPoint,
+  createSettingsRegistry,
+  SettingDefinitionsSchema,
+  targetSortKey,
+  type SettingDefinitions,
+} from '@omne-harness/settings'
+import {
+  capabilityId,
+  createCategoryPoint,
+  pinBody,
+  readBodyText,
+  type BodyContract,
+} from '@omne-harness/assets'
+import { toolCategoryDisplay } from '@omne-harness/tool-contract'
 import { createAssetsLocal } from '@omne-harness/assets-local'
 import { createToolAssetCategory } from '../../../src/rows/governance/tool-assets.ts'
-import { PREFERENCE_SETTINGS } from '../../../src/rows/governance/preference-settings.ts'
+import { governedCapture } from '../../../src/rows/governance/governed-capture.ts'
+import { calendarEnvironmentSettings } from '@omne-harness/calendar-local'
+import { scheduleAgentAuthoringSettings } from '@omne-harness/schedule-local'
+
+const SHIPPED_INDEPENDENT_SETTINGS = [calendarEnvironmentSettings, scheduleAgentAuthoringSettings]
 import {
   combinationManifest,
   manifestDigest,
@@ -60,6 +78,7 @@ import {
 } from '../../../src/rows/session-storage/directory.ts'
 import { prepareTenantDirectory } from '../../../src/rows/session-storage/initialize.ts'
 import { TenantGovernanceHost } from '../../../src/rows/governance/tenant-host.ts'
+import { createTenantSettingsFace } from '../../../src/rows/governance/tenant-settings-service.ts'
 import {
   openOrganizationSettingsSources,
   organizationSettingsSource,
@@ -184,12 +203,18 @@ async function world(extraParticipants: SqlMaterialCatalog['participants'] = [])
   })
   const published = await directory.ensureRegistered(tenantRef)
   if (published.kind !== 'ready') throw new Error(JSON.stringify(published))
+  const toolCategory = createCategoryPoint()
+  toolCategory.contribute({
+    contract: createToolAssetCategory(release),
+    display: toolCategoryDisplay,
+  })
   const options: TenantGovernanceOptions = {
     materials,
     storage: made.storage,
     domain,
     scope,
     catalogPrincipal: principal,
+    capture: governedCapture(toolCategory),
     destination: 'harness.governance',
     identity: {
       verifier: authority.verifier,
@@ -224,6 +249,17 @@ async function world(extraParticipants: SqlMaterialCatalog['participants'] = [])
       return result.ok
     },
     installationPrincipal: installation.ok,
+    loginPrincipal() {
+      const actor = authority.issuer.issueSystem({ component: 'identity-login-fixture' })
+      if ('failure' in actor) throw new Error('login actor')
+      const result = authority.issuer.issueActingForTenant({
+        actor: actor.ok,
+        tenant: principal.tenant,
+        work: { owner: 'identity-login', work: 'lgn_runtime' },
+      })
+      if ('failure' in result) throw new Error('login principal')
+      return result.ok
+    },
     directory,
     async reopenStorage() {
       await made.control.close({ initiator: 'disposal' })
@@ -674,18 +710,38 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
   for (const entry of w.release.manifest.entries)
     for (const definition of entry.governance.declaration.settings)
       expect(registry.registerContribution(definition).kind).toBe('registered')
-  for (const definition of PREFERENCE_SETTINGS)
-    expect(registry.registerContribution(definition).kind).toBe('registered')
+  const independent = createIndependentSettingsPoint(registry)
+  for (const definition of SHIPPED_INDEPENDENT_SETTINGS) independent.contribute(definition)
   const sources = await openOrganizationSettingsSources(w.options)
   if (sources.kind !== 'created') throw new Error(JSON.stringify(sources))
   cleanup.push(sources.close)
   const targets = sources.targets
-  function prepare(organizationTargets = targets) {
+  const categories = createCategoryPoint()
+  categories.contribute({
+    contract: createToolAssetCategory(w.release),
+    display: toolCategoryDisplay,
+  })
+  const packageRoot = realpathSync(mkdtempSync(join(tmpdir(), 'governance-assets-')))
+  cleanup.push(() => rmSync(packageRoot, { recursive: true, force: true }))
+  let local: ReturnType<typeof openTenantAssets> | undefined
+  const tenantAssets = () =>
+    (local ??= openTenantAssets(
+      { storage: w.options.storage, materials: w.options.materials, packageRoot, categories },
+      w.options.domain,
+    ))
+  cleanup.push(async () => (await local)?.close())
+  function prepare(
+    organizationTargets = targets,
+    independentSettings: () => readonly SettingDefinitions[] = () => independent.list(),
+  ) {
     const prepared = prepareInstalledTenantGovernance({
       ...w.options,
       installationPrincipal: w.installationPrincipal,
       release: w.release,
       organizationTargets,
+      categories,
+      tenantAssets,
+      independentSettings,
       registry,
       clock: { now: () => 1794096000000 },
       cursorLifetimeMs: 60000,
@@ -693,7 +749,7 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
     w.setDestination(prepared.destination)
     return prepared
   }
-  return { w, sources, prepare }
+  return { w, sources, prepare, registry, categories, independent }
 }
 
 it('installs the actual Tool release and adopts its original holdings before exposing the tenant backend', async () => {
@@ -719,6 +775,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
     'tool.Files',
     'tool.Schedules',
     'tool.Shell',
+    'tool.Skills',
     'tool.TodoItems',
     'tool.Tools',
     'tool.Web',
@@ -736,21 +793,28 @@ it('installs the actual Tool release and adopts its original holdings before exp
   })
   expect(settings).toMatchObject({ completeness: 'complete' })
   if ('kind' in settings) throw new Error(JSON.stringify(settings))
-  expect(settings.views.map(view => [view.target.policyId, view.target.targetRef])).toEqual([
-    ['independent', 'calendar.environment'],
-    ['independent', 'schedule.agent-authoring'],
-    ...[
-      'Ask',
-      'BkgToolCalls',
-      'Calendar',
-      'Files',
-      'Schedules',
-      'Shell',
-      'TodoItems',
-      'Tools',
-      'Web',
-    ].map(name => ['asset', `harness.preinstalled.tool.${name}`]),
-  ])
+  const keyText = (key: readonly string[]) => JSON.stringify(key)
+  const viewed = settings.views.map(view => keyText(targetSortKey(view.target).slice(1)))
+  expect(viewed.sort()).toEqual(
+    [
+      ['independent', 'calendar', 'environment'],
+      ['independent', 'schedule', 'agent-authoring'],
+      ...[
+        'Ask',
+        'BkgToolCalls',
+        'Calendar',
+        'Files',
+        'Schedules',
+        'Shell',
+        'Skills',
+        'TodoItems',
+        'Tools',
+        'Web',
+      ].map(name => ['asset', `harness.preinstalled.tool.${name}`]),
+    ]
+      .map(keyText)
+      .sort(),
+  )
   const tool = w.release.manifest.entries.find(entry => entry.asset.name === 'Shell')!
   const principal = w.workPrincipal('request-session')
   const { ledgerWorld } =
@@ -834,8 +898,11 @@ it.each([false, true])(
     const original = await prepare().open()
     if (original.kind !== 'created') throw new Error(JSON.stringify(original))
     cleanup.push(original.close)
-    const categories = createCategoryRegistry()
-    categories.register(createToolAssetCategory(w.release))
+    const categories = createCategoryPoint()
+    categories.contribute({
+      contract: createToolAssetCategory(w.release),
+      display: toolCategoryDisplay,
+    })
     const assets = createAssetsLocal({
       ...governanceStorageCombinations(w.options.materials).assets,
       domain: w.options.domain,
@@ -973,6 +1040,48 @@ it('closes an interrupted installation and resumes from original partial holding
   expect(catalog.items.every(item => item.availability === 'available')).toBe(true)
 })
 
+it('a group that cannot be opened leaves the tenant, the other group and the asset settings available', async () => {
+  const { w, prepare } = await installedWorld()
+  const altered: SettingDefinitions = {
+    ...calendarEnvironmentSettings,
+    groups: calendarEnvironmentSettings.groups.map(group => ({
+      ...group,
+      description: `${group.description}（同一版本的另一份内容）`,
+    })),
+  }
+  const request = {
+    deploymentRef: w.options.scope.deploymentId,
+    mode: 'management' as const,
+    targets: [],
+    selectionRef: null,
+  }
+  const earlier = prepare(undefined, () => [altered, scheduleAgentAuthoringSettings])
+  const first = await earlier.open()
+  if (first.kind !== 'created') throw new Error(JSON.stringify(first))
+  expect(await earlier.readSettings(request)).toHaveProperty('views')
+  expect(await first.close()).toEqual({ kind: 'closed' })
+
+  const later = prepare(undefined, () => SHIPPED_INDEPENDENT_SETTINGS)
+  const runtime = await later.open()
+  expect(runtime).toMatchObject({ kind: 'created' })
+  if (runtime.kind !== 'created') throw new Error(JSON.stringify(runtime))
+  cleanup.push(runtime.close)
+  const settings = await later.readSettings(request)
+  if ('kind' in settings) throw new Error(JSON.stringify(settings))
+  expect(settings).toMatchObject({ completeness: 'complete', unavailableProviders: [] })
+  const independent = settings.views.filter(view => view.target.kind === 'independent')
+  expect(independent.map(view => view.definition.providerId).sort()).toEqual([
+    'calendar',
+    'schedule',
+  ])
+  expect(independent.find(view => view.definition.providerId === 'calendar')?.definition).toEqual(
+    altered,
+  )
+  expect(settings.views.filter(view => view.target.kind === 'asset')).toHaveLength(
+    w.release.manifest.entries.length,
+  )
+})
+
 it('preserves a nonempty Settings assignment across default tenant installation remount', async () => {
   const configuration = {
     destination: 'settings.installation-preservation',
@@ -987,8 +1096,8 @@ it('preserves a nonempty Settings assignment across default tenant installation 
   const entry = w.release.manifest.entries.find(value => value.asset.name === 'Shell')
   if (!entry) throw new Error('Shell release absent')
   const target = {
-    policyId: 'asset',
-    targetRef: 'harness.preinstalled.tool.Shell',
+    kind: 'asset' as const,
+    holdingRef: 'harness.preinstalled.tool.Shell',
     scopeRef: w.options.scope.tenantRef,
   }
   const request = {
@@ -1148,4 +1257,216 @@ it('preserves a nonempty Settings assignment across default tenant installation 
   const after = await next.readSettings(request)
   if ('kind' in after) throw new Error(JSON.stringify(after))
   expect(after.views).toEqual(before.views)
+})
+
+it('opens a group of independent settings declared only in this test, and keeps its target when it is withdrawn', async () => {
+  const { w, prepare, independent } = await installedWorld()
+  const gadget = SettingDefinitionsSchema.parse({
+    providerId: 'test.gadget',
+    definitionId: 'environment',
+    version: '1',
+    groups: [
+      { id: 'general', parentId: null, title: '小工具', description: '只在这个用例里', order: 0 },
+    ],
+    items: [
+      {
+        id: 'mode',
+        groupId: 'general',
+        category: 'preference',
+        presentation: {
+          title: '方式',
+          description: '小工具怎样跑',
+          impact: '下一次读时生效',
+          clear: '回到默认',
+          adoption: 'next-read',
+        },
+        valueSchema: { type: 'string' },
+        default: { kind: 'value', value: 'quiet' },
+        merge: 'override',
+        sensitivity: 'ordinary',
+      },
+    ],
+  })
+  const withdraw = independent.contribute(gadget)
+  const assembly = prepare()
+  const runtime = await assembly.open()
+  if (runtime.kind !== 'created') throw new Error(JSON.stringify(runtime))
+  cleanup.push(runtime.close)
+  const request = {
+    deploymentRef: w.options.scope.deploymentId,
+    mode: 'management' as const,
+    targets: [],
+    selectionRef: null,
+  }
+  const groups = async () => {
+    const read = await assembly.readSettings(request)
+    if ('kind' in read) throw new Error(JSON.stringify(read))
+    return read.views
+      .filter(view => view.target.kind === 'independent')
+      .map(view => targetSortKey(view.target).slice(2).join('/'))
+      .sort()
+  }
+  const opened = await groups()
+  expect(opened).toEqual([
+    'calendar/environment',
+    'schedule/agent-authoring',
+    'test.gadget/environment',
+  ])
+  const host = new TenantGovernanceHost({ domains: w.directory.lookup, prepare: () => assembly })
+  cleanup.push(async () => {
+    await host.close(monotonicClock.now() + 3000)
+  })
+  const face = createTenantSettingsFace({
+    host,
+    scope: w.options.scope,
+    storage: w.options.storage,
+    release: () => w.release,
+    identity: { verifier: w.options.identity.verifier, standing: w.options.identity.standing },
+    active: () => true,
+  })
+  const login = w.loginPrincipal()
+  const independentList = async () => {
+    const page = await face.list({
+      principal: login,
+      tenant: login.tenant,
+      scope: { kind: 'independent' },
+      after: null,
+      limit: 100,
+    })
+    if (page.kind !== 'listed') throw new Error(JSON.stringify(page))
+    return page.items.map(view =>
+      view.owner.kind === 'independent'
+        ? `${view.owner.providerId}/${view.owner.definitionId}/${view.item}/${view.declaration.group.title}`
+        : `asset/${view.item}`,
+    )
+  }
+  const listedBefore = await independentList()
+  expect(listedBefore).toContain('test.gadget/environment/mode/小工具')
+  expect(listedBefore.filter(text => text.startsWith('asset/'))).toEqual([])
+  withdraw()
+  expect(await groups()).toEqual(opened)
+  expect(await independentList()).toEqual(listedBefore)
+})
+
+it('lists the settings of a holding whose category exists only in this test, beside the tools', async () => {
+  const { w, prepare, registry, categories } = await installedWorld()
+  const gadget = SettingDefinitionsSchema.parse({
+    providerId: 'test.gadget',
+    definitionId: 'preferences',
+    version: '1',
+    groups: [{ id: 'general', parentId: null, title: 'General', description: 'Gadget', order: 0 }],
+    items: [
+      {
+        id: 'enabled',
+        groupId: 'general',
+        category: 'preference',
+        presentation: {
+          title: 'Enabled',
+          description: 'Whether the gadget runs',
+          impact: 'Used on next read',
+          clear: 'Use the outer value',
+          adoption: 'next-read',
+        },
+        valueSchema: { type: 'boolean' },
+        default: { kind: 'value', value: false },
+        merge: 'override',
+        sensitivity: 'ordinary',
+      },
+    ],
+  })
+  expect(registry.registerContribution(gadget).kind).toBe('registered')
+  const contract: BodyContract = {
+    category: 'gadget',
+    schema: { kind: 'null' },
+    judge: () => ({ ok: true }),
+    deriveDeclarations: () => ({ entries: [] }),
+    references: () => [],
+    settings: () => gadget,
+  }
+  const display = { title: 'Gadget', summary: 'A category that exists only in this test.' }
+  const withdraw = categories.contribute({ contract, display })
+  const assembly = prepare()
+  const runtime = await assembly.open()
+  if (runtime.kind !== 'created') throw new Error(JSON.stringify(runtime))
+  cleanup.push(runtime.close)
+  const assets = createAssetsLocal({
+    ...governanceStorageCombinations(w.options.materials).assets,
+    domain: w.options.domain,
+    storage: w.options.storage,
+    categories,
+  })
+  cleanup.push(assets.close)
+  const identity = capabilityId('gadget', 'one')
+  const body = readBodyText('{}', {
+    maxBytes: 100,
+    maxDepth: 4,
+    maxItems: 4,
+    maxMembers: 4,
+    maxStringLength: 16,
+    maxNumberLength: 16,
+  })
+  if (!identity.ok || body.kind !== 'ok') throw new Error('gadget fixture')
+  const tenantRef = w.options.scope.tenantRef
+  expect(
+    await assets.publish({
+      operationId: 'gadget-publish',
+      assetRef: 'test/gadget/one',
+      pinned: pinBody({ identity: identity.id, version: '1', source: 'test', body: body.value }),
+      expectedRevision: 0,
+    }),
+  ).toMatchObject({ kind: 'committed' })
+  expect(
+    await assets.hold({
+      operationId: 'gadget-hold',
+      holdingRef: 'test.gadget.one',
+      scopeRef: tenantRef,
+      assetRef: 'test/gadget/one',
+      selection: { kind: 'follow' },
+      sources: [
+        {
+          sourceId: 'tenant',
+          ownerRef: 'test.gadget',
+          scope: { kind: 'tenant', subjectRef: tenantRef },
+        },
+      ],
+      grants: [{ sourceId: 'tenant', actions: ['set', 'clear'] }],
+    }),
+  ).toMatchObject({ kind: 'committed' })
+  const host = new TenantGovernanceHost({ domains: w.directory.lookup, prepare: () => assembly })
+  cleanup.push(async () => {
+    await host.close(monotonicClock.now() + 3000)
+  })
+  const face = createTenantSettingsFace({
+    host,
+    scope: w.options.scope,
+    storage: w.options.storage,
+    release: () => w.release,
+    identity: { verifier: w.options.identity.verifier, standing: w.options.identity.standing },
+    active: () => true,
+  })
+  const login = w.loginPrincipal()
+  async function listed() {
+    const page = await face.list({
+      principal: login,
+      tenant: login.tenant,
+      scope: { kind: 'asset' },
+      after: null,
+      limit: 100,
+    })
+    if (page.kind !== 'listed') throw new Error(JSON.stringify(page))
+    return page.items.map(item =>
+      item.owner.kind === 'asset'
+        ? `${item.owner.category}/${item.owner.name}/${item.item}`
+        : `independent/${item.item}`,
+    )
+  }
+  const tools = w.release.manifest.entries.map(entry => `tool/${entry.asset.name}/invoke`).sort()
+  const first = await listed()
+  expect(first).toEqual(['gadget/one/enabled', ...tools])
+
+  withdraw()
+  expect(await listed()).toEqual(first)
+
+  categories.contribute({ contract, display: { title: 'Renamed', summary: 'Another name.' } })
+  expect(await listed()).toEqual(first)
 })

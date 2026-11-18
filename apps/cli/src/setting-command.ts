@@ -16,6 +16,7 @@ import { readOptions } from './options.ts'
 import { exitCodeOf, report, type RequestEcho } from './report.ts'
 
 const JSON_SWITCH = '--json'
+const INDEPENDENT_SWITCH = '--independent'
 const VALUE_OPTION = '--value'
 const PAGE_LIMIT = 100
 const MAX_PAGES = 10_000
@@ -23,6 +24,12 @@ const MAX_PAGES = 10_000
 type Action = 'list' | 'set' | 'show' | 'unset'
 
 type AssetSelector = { readonly category?: string; readonly name: string }
+type Owner =
+  | { readonly kind: 'asset'; readonly category?: string; readonly name: string }
+  | { readonly kind: 'independent'; readonly providerId: string; readonly definitionId: string }
+type Scope =
+  | { readonly kind: 'asset'; readonly asset?: AssetSelector }
+  | { readonly kind: 'independent' }
 
 function isAction(value: string | undefined): value is Action {
   return value === 'list' || value === 'set' || value === 'show' || value === 'unset'
@@ -34,16 +41,22 @@ const WORDS: Readonly<Record<Action, readonly string[]>> = {
   show: ['<asset>', '<item>'],
   unset: ['<asset>', '<item>'],
 }
+const INDEPENDENT_WORDS: Readonly<Record<Action, readonly string[]>> = {
+  list: [],
+  set: ['<provider>/<definition>', '<item>'],
+  show: ['<provider>/<definition>', '<item>'],
+  unset: ['<provider>/<definition>', '<item>'],
+}
 
 const VALUE_OPTIONS: readonly string[] = [serverOption, VALUE_OPTION]
 
 const OPTION_RULES: Readonly<
   Record<Action, Readonly<{ accepted: readonly string[]; switches?: readonly string[] }>>
 > = {
-  list: { accepted: [serverOption] },
-  set: { accepted: [serverOption, VALUE_OPTION] },
-  show: { accepted: [serverOption], switches: [JSON_SWITCH] },
-  unset: { accepted: [serverOption] },
+  list: { accepted: [serverOption], switches: [INDEPENDENT_SWITCH] },
+  set: { accepted: [serverOption, VALUE_OPTION], switches: [INDEPENDENT_SWITCH] },
+  show: { accepted: [serverOption], switches: [JSON_SWITCH, INDEPENDENT_SWITCH] },
+  unset: { accepted: [serverOption], switches: [INDEPENDENT_SWITCH] },
 }
 
 function split(args: readonly string[]): { words: string[]; options: string[] } {
@@ -103,14 +116,23 @@ function assetOf(text: string): AssetSelector | undefined {
   return category === '' || name === '' ? undefined : { category, name }
 }
 
+function groupOf(text: string): Owner | undefined {
+  const slash = text.indexOf('/')
+  const providerId = text.slice(0, slash)
+  const definitionId = text.slice(slash + 1)
+  return slash < 1 || definitionId === '' || definitionId.includes('/')
+    ? undefined
+    : { kind: 'independent', providerId, definitionId }
+}
+
 type Targeted = Readonly<{
   values: ReadonlyMap<string, string>
-  asset: AssetSelector
+  owner: Owner
   item: string
 }>
 
 type Invocation =
-  | Readonly<{ action: 'list'; values: ReadonlyMap<string, string>; asset?: AssetSelector }>
+  | Readonly<{ action: 'list'; values: ReadonlyMap<string, string>; scope: Scope }>
   | (Targeted & Readonly<{ action: Exclude<Action, 'list'> }>)
 
 function readInvocation(
@@ -122,19 +144,28 @@ function readInvocation(
   const read = readOptions(options, { ...OPTION_RULES[action], required: [] })
   if (read.kind === 'unrecognized') return unrecognized(name)
   if (read.kind === 'missing') return missingOption(name, read.option)
-  const expected = WORDS[action]
+  const independent = read.values.has(INDEPENDENT_SWITCH)
+  const expected = (independent ? INDEPENDENT_WORDS : WORDS)[action]
   if (words.length > expected.length) return unrecognized(name)
   const missing = action === 'list' ? undefined : expected[words.length]
   if (missing !== undefined) return missingOption(name, missing)
-  const [assetText, item = ''] = words
-  const asset = assetText === undefined ? undefined : assetOf(assetText)
-  if (assetText !== undefined && asset === undefined) return unrecognized(name)
-  if (action === 'list')
-    return asset === undefined
-      ? { action, values: read.values }
-      : { action, values: read.values, asset }
-  if (asset === undefined || item === '') return unrecognized(name)
-  return { action, values: read.values, asset, item }
+  const [ownerText, item = ''] = words
+  if (action === 'list') {
+    if (independent) return { action, values: read.values, scope: { kind: 'independent' } }
+    const asset = ownerText === undefined ? undefined : assetOf(ownerText)
+    if (ownerText !== undefined && asset === undefined) return unrecognized(name)
+    const scope: Scope = asset === undefined ? { kind: 'asset' } : { kind: 'asset', asset }
+    return { action, values: read.values, scope }
+  }
+  const asset = independent || ownerText === undefined ? undefined : assetOf(ownerText)
+  const owner: Owner | undefined =
+    ownerText === undefined
+      ? undefined
+      : independent
+        ? groupOf(ownerText)
+        : asset && { kind: 'asset', ...asset }
+  if (owner === undefined || item === '') return unrecognized(name)
+  return { action, values: read.values, owner, item }
 }
 
 async function readSecret(
@@ -169,7 +200,7 @@ function pageOf(body: unknown): {
 async function listAll(
   link: Link,
   tenant: TenantId,
-  asset: AssetSelector | undefined,
+  scope: Scope,
   firstMessageId: string,
   newId: () => string,
 ): Promise<Listing> {
@@ -180,7 +211,7 @@ async function listAll(
     const result = await link.call(
       assetsProtocol,
       'list-settings',
-      { tenant, ...(asset === undefined ? {} : { asset }), after, limit: PAGE_LIMIT },
+      { tenant, scope, after, limit: PAGE_LIMIT },
       page === 1 ? firstMessageId : newId(),
     )
     if (result === undefined) return { kind: 'refused' }
@@ -201,14 +232,14 @@ async function runList(
   name: string,
   link: Link,
   tenant: TenantId,
-  asset: AssetSelector | undefined,
+  scope: Scope,
   output: CliOutput,
   environment: CommandEnvironment,
 ): Promise<ExitCode> {
   const { newId } = environment.services
   const messageId = newId()
   const echo: RequestEcho = { messageId, tenant: encodeTenantText(tenant) }
-  const listing = await listAll(link, tenant, asset, messageId, newId)
+  const listing = await listAll(link, tenant, scope, messageId, newId)
   if (listing.kind === 'refused') return usageError(output, unrecognized(name))
   if (listing.kind === 'broken') return localFailure(output, `omne ${name}: ${listing.reason}\n`)
   if (listing.kind === 'stopped') return report(name, listing.result, echo, output)
@@ -241,7 +272,7 @@ async function runWrite(
   environment: CommandEnvironment,
 ): Promise<ExitCode> {
   const { newId } = environment.services
-  const { asset, item } = invocation
+  const { owner, item } = invocation
   const readId = newId()
   const ordinary = action === 'set' ? ordinaryValueOf(name, invocation.values) : undefined
   if (typeof ordinary === 'string') return usageError(output, ordinary)
@@ -256,7 +287,7 @@ async function runWrite(
   const described = await link.call(
     assetsProtocol,
     'describe-setting',
-    { tenant, asset, item },
+    { tenant, owner, item },
     readId,
   )
   if (described === undefined) return usageError(output, unrecognized(name))
@@ -269,7 +300,7 @@ async function runWrite(
   const messageId = newId()
   const target = {
     tenant,
-    asset,
+    owner,
     item,
     operation: newId(),
     expectedRevision: text(describedItem, 'revision'),
@@ -292,11 +323,11 @@ async function runShow(
   environment: CommandEnvironment,
 ): Promise<ExitCode> {
   const messageId = environment.services.newId()
-  const { asset, item } = invocation
+  const { owner, item } = invocation
   const result = await link.call(
     assetsProtocol,
     'describe-setting',
-    { tenant, asset, item },
+    { tenant, owner, item },
     messageId,
   )
   if (result === undefined) return usageError(output, unrecognized(name))
@@ -320,7 +351,7 @@ async function runSetting(
   const { link, tenant } = loaded
   switch (invocation.action) {
     case 'list':
-      return runList(name, link, tenant, invocation.asset, output, environment)
+      return runList(name, link, tenant, invocation.scope, output, environment)
     case 'show':
       return runShow(name, invocation, link, tenant, output, environment)
     case 'set':
@@ -331,8 +362,8 @@ async function runSetting(
 
 export const settingCommand: CommandSpec = {
   name: 'setting',
-  usage: 'list|set|show|unset',
+  usage: 'list|set|show|unset [--independent]',
   summary:
-    'List the settings of the acting tenant, or set, show or unset one; set reads a secret from the prompt, or takes --value <JSON>.',
+    'List the asset settings of the acting tenant, or with --independent its independent settings (named <provider>/<definition>); set, show or unset one; set reads a secret from the prompt, or takes --value <JSON>.',
   run: runSetting,
 }

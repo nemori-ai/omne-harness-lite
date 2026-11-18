@@ -79,7 +79,6 @@ async function arranged(entry: keyof typeof SCRIPTS, timeout = 'PT20S') {
   worlds.push(world)
   const implementation = { kind: 'command', interpreter: 'node', entry, timeout } as const
   const version = await world.publish(probe('script', { implementation }), SCRIPTS)
-  await world.hold('script')
   const sources = sourcesOf(world)
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'loop-extension-run-')))
   const host = createCommandHost<string>({

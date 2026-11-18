@@ -1,4 +1,3 @@
-import { isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { standingPrincipalRef } from '@omne-harness/identity'
@@ -13,7 +12,10 @@ import {
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { fail } from '@omne-harness/operation-result'
 import { GovernanceIdSchema } from '@omne-harness/governance-contract'
-import { createSettingsRegistry } from '@omne-harness/settings'
+import { assetCategoriesKey, independentSettingsKey } from '@omne-harness/assets-cordis-contract'
+import { IndependentSettingsService } from '@omne-harness/assets-cordis-contract/cordis'
+import { toolCategoryDisplay } from '@omne-harness/tool-contract'
+import { createIndependentSettingsPoint, createSettingsRegistry } from '@omne-harness/settings'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
 import { toolContributionAuthorityKey } from '@omne-harness/tool-cordis-contract/cordis'
 import { defineRow } from '../../row.ts'
@@ -30,16 +32,19 @@ import {
 } from './session-permission-backend-service.ts'
 import { createToolGovernanceDefinitionSource } from './tool-definition-source.ts'
 import { prepareInstalledTenantGovernance } from './tenant-installation.ts'
-import { PREFERENCE_SETTINGS } from './preference-settings.ts'
-import { preferenceSettingsKey, providePreferenceSettings } from './preference-settings-service.ts'
+import { createToolAssetCategory } from './tool-assets.ts'
+import {
+  provideTenantIndependentSettings,
+  tenantIndependentSettingsKey,
+} from './independent-settings-service.ts'
 import { TenantGovernanceHost } from './tenant-host.ts'
+import { tenantAssetsKey } from '../tenant-assets/service.ts'
 import { tenantDomainRegistrationKey } from './tenant-domain-registration-service.ts'
 import { openOrganizationSettingsSources } from './organization-settings.ts'
 import { permissionOriginsOf } from './permission-origins.ts'
 import { CurrentPermissionService, currentToolPermissionKey } from './current-permission-service.ts'
 import { provideTenantSettings, tenantSettingsKey } from './tenant-settings-service.ts'
 import { GovernanceExtensionSources } from './extension-sources.ts'
-import { tenantHoldingsHolder } from './tenant-holdings.ts'
 import { loopExtensionSourcesKey } from '@omne-harness/loop-extension-cordis-contract/cordis'
 import { isHitlReservation } from '../tool-hitl/host.ts'
 import { toolHitlHolder } from '../tool-hitl/holder.ts'
@@ -49,11 +54,6 @@ const configSchema = z.strictObject({
   logicalServiceId: GovernanceIdSchema,
   recoveryPagesPerPass: z.number().int().min(1),
   closeTimeoutMs: z.number().int().min(0).max(60_000),
-  /** Where the packages tenants publish are kept. Without it no package can be published to a tenant. */
-  assetPackagesRoot: z
-    .string()
-    .refine(value => isAbsolute(value))
-    .optional(),
 })
 
 class SessionBackend extends SessionPermissionBackendService {
@@ -100,8 +100,9 @@ export const governanceRow = defineRow({
       standingDestinationResolverKey,
       currentToolPermissionKey,
       tenantSettingsKey,
+      independentSettingsKey,
+      tenantIndependentSettingsKey,
       loopExtensionSourcesKey,
-      preferenceSettingsKey,
     ],
     injects: [
       storageKey,
@@ -113,6 +114,8 @@ export const governanceRow = defineRow({
       governanceDirectoryPrincipalsKey,
       governanceInstallationPrincipalsKey,
       toolContributionAuthorityKey,
+      assetCategoriesKey,
+      tenantAssetsKey,
     ],
     sameProviderGroup: null,
   },
@@ -122,15 +125,19 @@ export const governanceRow = defineRow({
     const release = releaseOf(ctx)
     const materials = await productionStorageCatalog(async () => release)
     if (release.kind !== 'trusted') throw new Error('governance Tool release unavailable')
+    ctx.assetCategories.contribute({
+      contract: createToolAssetCategory(release),
+      display: toolCategoryDisplay,
+    })
+    const categories = ctx.assetCategories.view
     const registry = createSettingsRegistry({ capacity: 1024 })
     ctx.effect(() => () => registry.close(), 'governance.settings-registry.close')
     for (const entry of release.manifest.entries)
       for (const definition of entry.governance.declaration.settings)
         if (registry.registerContribution(definition).kind !== 'registered')
           throw new Error('governance Settings definition registration failed')
-    for (const definition of PREFERENCE_SETTINGS)
-      if (registry.registerContribution(definition).kind !== 'registered')
-        throw new Error('governance preference Settings definition registration failed')
+    const independent = createIndependentSettingsPoint(registry)
+    new IndependentSettingsService(ctx, independent)
     const identity = {
       verifier: ctx.principalVerifier,
       standing: ctx.tenantStanding,
@@ -169,11 +176,11 @@ export const governanceRow = defineRow({
           installationPrincipal,
           login: () => ctx.identityGovernance,
           release,
+          categories,
+          tenantAssets: () => ctx.tenantAssets.open(tenantRef),
+          independentSettings: () => independent.list(),
           permissionOrigins: () => permissionOriginsOf(ctx),
           organizationTargets: sources.targets,
-          ...(config.assetPackagesRoot === undefined
-            ? {}
-            : { assetPackagesRoot: config.assetPackagesRoot }),
           scope,
           domain,
           materials,
@@ -205,16 +212,12 @@ export const governanceRow = defineRow({
       },
     })
     new StandingDestination(ctx, host)
-    const holdings = tenantHoldingsHolder(ctx)
-    holdings.of = tenantRef => host.holdings(tenantRef)
-    ctx.effect(
-      () => () => {
-        holdings.of = null
-      },
-      'governance.tenant-holdings.close',
-    )
     new GovernanceExtensionSources(ctx, {
-      holdings: async tenantRef => holdings.of?.(tenantRef),
+      async holdings(tenantRef) {
+        const settings = await host.settings(tenantRef)
+        const assets = settings === undefined ? undefined : await ctx.tenantAssets.open(tenantRef)
+        return assets === undefined || settings === undefined ? undefined : { assets, settings }
+      },
       registry,
       deploymentRef: config.deploymentId,
     })
@@ -233,7 +236,7 @@ export const governanceRow = defineRow({
       },
       'governance.tenant-settings.active',
     )
-    providePreferenceSettings(ctx, { host, deploymentRef: config.deploymentId })
+    provideTenantIndependentSettings(ctx, { host, deploymentRef: config.deploymentId })
     provideTenantSettings(ctx, {
       host,
       scope: config,

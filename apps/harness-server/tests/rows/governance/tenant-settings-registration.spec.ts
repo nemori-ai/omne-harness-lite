@@ -69,7 +69,13 @@ function world() {
   return { face, ensure, read }
 }
 
-const listing = (principal: unknown) => ({ principal, tenant: A, after: null, limit: 10 })
+const listing = (principal: unknown) => ({
+  principal,
+  tenant: A,
+  scope: { kind: 'asset' } as const,
+  after: null,
+  limit: 10,
+})
 
 it('registers the domain of a tenant that has no Session yet once the login of the tenant is admitted', async () => {
   const w = world()

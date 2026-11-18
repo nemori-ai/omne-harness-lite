@@ -18,7 +18,7 @@ async function listening() {
 it('a committed publish, hold, disable and enable each give one signal with the domain and its revision, in order', async () => {
   const { world, changes } = await listening()
   await world.setup()
-  const holding = { holdingRef: target.targetRef, scopeRef: target.scopeRef }
+  const holding = { holdingRef: target.holdingRef, scopeRef: target.scopeRef }
   const disabled = await world.owner.changeHolding({
     ...holding,
     operationId: 'disable',
@@ -42,7 +42,7 @@ it('a rejected change and a change that changes nothing give no signal', async (
   const { world, changes } = await listening()
   await world.setup()
   const before = changes.length
-  const holding = { holdingRef: target.targetRef, scopeRef: target.scopeRef }
+  const holding = { holdingRef: target.holdingRef, scopeRef: target.scopeRef }
   const stale = await world.owner.changeHolding({
     ...holding,
     operationId: 'stale',

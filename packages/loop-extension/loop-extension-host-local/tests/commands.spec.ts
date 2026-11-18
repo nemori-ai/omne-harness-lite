@@ -214,7 +214,6 @@ async function arranged(
   const version = await world.publish(probe('script', { implementation }), {
     'check.mjs': 'process.stdout.write(JSON.stringify({ kind: "observed" }))\n',
   })
-  await world.hold('script')
   const member = { capability: 'script', assetRef: world.assetRef('script'), version }
   const sources = sourcesOf(world)
   const directory =

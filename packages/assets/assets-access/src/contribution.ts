@@ -9,6 +9,7 @@ import type { AssetsProtocol } from '@omne-harness/assets-protocol'
 import type { JsonValue } from '@omne-harness/json-text'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type {
+  CategoriesPort,
   ReadRefusal,
   SettingInput,
   SettingJson,
@@ -20,6 +21,7 @@ import type {
 
 export type AssetsContributionInput = Readonly<{
   settings: () => TenantSettingsPort | undefined
+  categories: () => CategoriesPort | undefined
   principals: TargetTenantPrincipals
 }>
 
@@ -79,9 +81,23 @@ function presenceOf(presence: Extract<SettingView, { kind: 'ordinary' }>['own'])
     : ({ kind: 'set', value: treeOf(presence.value) } as const)
 }
 
+function ownerOf(owner: SettingView['owner']): WireView['owner'] {
+  switch (owner.kind) {
+    case 'asset':
+      return { kind: 'asset', category: owner.category, name: owner.name }
+    case 'independent':
+      return {
+        kind: 'independent',
+        providerId: owner.providerId,
+        definitionId: owner.definitionId,
+      }
+  }
+}
+
 function viewOf(view: SettingView): WireView {
+  const { group } = view.declaration
   const head = {
-    asset: { category: view.asset.category, name: view.asset.name },
+    owner: ownerOf(view.owner),
     item: view.item,
     revision: view.revision,
     declaration: {
@@ -89,6 +105,7 @@ function viewOf(view: SettingView): WireView {
       purpose: view.declaration.purpose,
       appliesAt: view.declaration.appliesAt,
       clearEffect: view.declaration.clearEffect,
+      group: { id: group.id, title: group.title, description: group.description },
     },
   }
   switch (view.kind) {
@@ -225,7 +242,7 @@ export function createAssetsContribution(
           face.list({
             principal,
             tenant,
-            ...(body.asset === undefined ? {} : { asset: body.asset }),
+            scope: body.scope,
             after: body.after,
             limit: body.limit,
           }),
@@ -246,7 +263,7 @@ export function createAssetsContribution(
         if ('outcome' in admitted) return admitted
         const { principal, tenant, face } = admitted
         const described = await read(() =>
-          face.describe({ principal, tenant, asset: body.asset, item: body.item }),
+          face.describe({ principal, tenant, owner: body.owner, item: body.item }),
         )
         if ('outcome' in described) return described
         if (described.kind !== 'described') return readRefused(described)
@@ -261,7 +278,7 @@ export function createAssetsContribution(
             face.set({
               principal,
               tenant,
-              asset: body.asset,
+              owner: body.owner,
               item: body.item,
               operation: body.operation,
               expectedRevision: body.expectedRevision,
@@ -279,13 +296,33 @@ export function createAssetsContribution(
             face.clear({
               principal,
               tenant,
-              asset: body.asset,
+              owner: body.owner,
               item: body.item,
               operation: body.operation,
               expectedRevision: body.expectedRevision,
             }),
           ),
         )
+      },
+      async 'list-categories'(_call, body) {
+        const categories = input.categories()
+        if (categories === undefined) return UNAVAILABLE
+        const listed = await read(async () => categories.list())
+        if ('outcome' in listed) return listed
+        const after = body.after
+        const rest = after === null ? listed : listed.filter(entry => entry.category > after)
+        const page = rest.slice(0, body.limit)
+        return {
+          outcome: 'succeeded',
+          body: {
+            items: page.map(({ category, display }) => ({
+              category,
+              title: display.title,
+              summary: display.summary,
+            })),
+            next: rest.length > page.length ? (page.at(-1)?.category ?? null) : null,
+          },
+        }
       },
     },
     observations: {},

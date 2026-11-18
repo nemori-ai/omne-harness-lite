@@ -10,6 +10,7 @@ import {
   type TransportFailure,
 } from '@omne-harness/model-contract'
 import {
+  requestHead,
   type MaterializedTransport,
   type SendDemand,
   type TransportFact,
@@ -86,6 +87,7 @@ const NO_FACTS: AsyncIterable<TransportFact> = {
 function observingFactory() {
   const transports: Observed[] = []
   let plan: StartPlan = () => {}
+  let facts: AsyncIterable<TransportFact> = NO_FACTS
   const faults = new Map<number, Faults>()
   function createTransport(config: PiTransportConfig): PiTransport {
     const observed: Observed = { config, prepares: 0, reads: [], closes: 0, preparedCloses: 0 }
@@ -109,7 +111,7 @@ function observingFactory() {
                   start() {
                     observed.reads.push(config.credential.read())
                     plan(observed, transports)
-                    return NO_FACTS
+                    return facts
                   },
                   close: async () => {},
                 }
@@ -136,6 +138,13 @@ function observingFactory() {
     acquired: () => transports.slice(1),
     onStart(next: StartPlan) {
       plan = next
+    },
+    yielding(list: readonly TransportFact[]) {
+      facts = {
+        async *[Symbol.asyncIterator]() {
+          yield* list
+        },
+      }
     },
     createTransport,
   }
@@ -455,6 +464,79 @@ describe('the ownership of a materialized transport', () => {
     expect(() =>
       second.startWithCredential(foreign, secretsOf('placeholder-b'), new AbortController().signal),
     ).toThrow(expect.objectContaining({ reason: 'foreign-materialization' }))
+    await resources.close()
+  })
+})
+
+describe('the receive record of a resource', () => {
+  const diagnostic: TransportFact = {
+    kind: 'diagnostic',
+    value: { kind: 'reasoning-disabled', reason: 'foreign-prefix' },
+  }
+  const failed: TransportFact = {
+    kind: 'ended',
+    termination: {
+      kind: 'failed',
+      fault: { cause: 'upstream-unavailable', diagnostic: 'http-503', upstreamStatus: '503' },
+    },
+  }
+  const UNPROVEN = {
+    failure: {
+      kind: 'unavailable',
+      dependency: 'model-receive-evidence',
+      diagnostic: 'receive-window-unproven',
+    },
+  }
+  const ask = (window: string, facts: readonly TransportFact[]) => ({
+    tenant: DEMAND.tenant,
+    call: DEMAND.call,
+    execution: DEMAND.execution,
+    consumer: DEMAND.consumer,
+    request: requestHead(DEMAND.request),
+    requestDigest: 'r'.repeat(64),
+    dispatch: DEMAND.dispatch,
+    window,
+    facts,
+    batchDigest: 'b'.repeat(64),
+  })
+
+  async function started(list: readonly TransportFact[]) {
+    const { factory, resources } = observed()
+    factory.yielding(list)
+    const resource = await acquired(resources)
+    const [transport] = factory.acquired()
+    if (transport === undefined) throw new Error('no transport was built')
+    const facts = resource.startWithCredential(
+      await materializedOf(resource),
+      secretsOf('placeholder-a'),
+      new AbortController().signal,
+    )
+    return { resources, resource, transport, facts: facts[Symbol.asyncIterator]() }
+  }
+
+  it('proves a window of the facts the transport handed over while the body is unread', async () => {
+    const { resources, facts } = await started([diagnostic])
+    await facts.next()
+    expect(resources.receive.prove(ask('w1', [diagnostic]))).toMatchObject({
+      ok: { window: 'w1', paused: true, noPrefetch: true },
+    })
+    await resources.close()
+  })
+
+  it('proves nothing once the transport told that it reads the body, until it handed over the end', async () => {
+    const { resources, transport, facts } = await started([diagnostic])
+    transport.config.onResponseBody?.()
+    await facts.next()
+    expect(resources.receive.prove(ask('w1', [diagnostic]))).toEqual(UNPROVEN)
+    await resources.close()
+  })
+
+  it('proves the end the transport handed over, and nothing after the resource was released', async () => {
+    const { resources, resource, facts } = await started([failed])
+    await facts.next()
+    expect(resources.receive.prove(ask('w1', [failed]))).toMatchObject({ ok: { window: 'w1' } })
+    await resource.release()
+    expect(resources.receive.prove(ask('w2', []))).toEqual(UNPROVEN)
     await resources.close()
   })
 })

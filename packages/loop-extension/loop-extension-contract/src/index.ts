@@ -24,6 +24,7 @@ export {
   RUN_SETTING,
   declarationOf,
   loopExtensionBodyContract,
+  loopExtensionCategoryDisplay,
 } from './contract.ts'
 export { DECLARATION_PATH, LOOP_EXTENSION_PACKAGE_LIMITS, MODEL_CALL_NEED } from './package.ts'
 export {

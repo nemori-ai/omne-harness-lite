@@ -88,14 +88,34 @@ export const publishMetadataSchema = z.strictObject({
   assetRef: SettingsReferenceSchema,
   expectedRevision: revisionSchema,
 })
-export const publishSchema = publishMetadataSchema.extend({
-  kind: z.literal('publish'),
+const publishedFields = {
   category: SettingsIdSchema,
   name: SettingsIdSchema,
   version: SettingsIdSchema,
   source: SettingsReferenceSchema,
   body: bodySchema,
   declaration: declarationSchema,
+}
+export const publishSchema = publishMetadataSchema.extend({
+  kind: z.literal('publish'),
+  ...publishedFields,
+})
+export const publishedHoldingSchema = z
+  .strictObject({
+    holdingRef: SettingsReferenceSchema,
+    scopeRef: SettingsReferenceSchema,
+    sources: SettingsSourceIdentitiesSchema,
+    grants: grantsSchema,
+  })
+  .refine(holding =>
+    holding.grants.every(grant =>
+      holding.sources.some(source => source.sourceId === grant.sourceId),
+    ),
+  )
+export const publishAndHoldSchema = publishMetadataSchema.extend({
+  kind: z.literal('publishAndHold'),
+  ...publishedFields,
+  holding: publishedHoldingSchema,
 })
 export const holdSchema = z
   .strictObject({
@@ -131,6 +151,7 @@ export const changeHoldingSchema = z.strictObject({
 })
 export const mutationSchema = z.discriminatedUnion('kind', [
   publishSchema,
+  publishAndHoldSchema,
   holdSchema.safeExtend({ kind: z.literal('hold') }),
   changeHoldingSchema.extend({ kind: z.literal('changeHolding') }),
 ])
@@ -138,12 +159,18 @@ export const mutationBindingSchema = z.strictObject({
   domain: domainSchema,
   command: mutationSchema,
 })
+export const captureExcludedSchema = z.array(z.string().min(1).max(64)).max(16)
 export const workerCommandSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('mutate'), binding: mutationBindingSchema }),
-  z.strictObject({ kind: z.literal('capture'), binding: SettingsProjectionBindingSchema }),
+  z.strictObject({
+    kind: z.literal('capture'),
+    binding: SettingsProjectionBindingSchema,
+    excluded: captureExcludedSchema,
+  }),
   z.strictObject({
     kind: z.literal('capturePublication'),
     binding: SettingsProjectionBindingSchema,
+    excluded: captureExcludedSchema,
   }),
 ])
 export const failureSchema = z.strictObject({
@@ -163,6 +190,7 @@ export const failureSchema = z.strictObject({
     'operation_conflict',
     'closing',
     'unsupported',
+    'unknown_category',
   ]),
 })
 export const committedSchema = z.strictObject({

@@ -8,7 +8,8 @@ import { useEffect, type ReactNode } from 'react'
 import { AssetsPage, createGovernance, type GovernanceModel } from '../src/index.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
-import { permissionView } from './fixtures/views.ts'
+import { namesOf } from './fixtures/names.ts'
+import { assetOwner, permissionView } from './fixtures/views.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -25,7 +26,7 @@ async function settle(): Promise<void> {
 }
 
 const held = (category: string, name: string): SettingView =>
-  permissionView({ asset: { category, name } })
+  permissionView({ owner: assetOwner(category, name) })
 
 const mounted: string[] = []
 
@@ -63,12 +64,12 @@ async function opened(
   mounted.length = 0
   const fake = createFakeClient()
   const governance = createGovernance({ client: fake.client })
-  const labels = { tool: '工具' }
+  const names = namesOf({ tool: '工具' })
   const element = (shown: readonly AttachedEntry[]) => (
     <AssetsPage
       governance={governance}
       tenant={TENANT}
-      categoryLabels={labels}
+      categoryNames={names}
       pages={pagesOf(shown)}
     />
   )

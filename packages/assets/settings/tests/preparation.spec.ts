@@ -9,7 +9,7 @@ import {
 } from '../src/index.ts'
 
 const operation = {
-  target: { policyId: 'catalog', targetRef: 'target', scopeRef: 'tenant' },
+  target: { kind: 'asset', holdingRef: 'tool/web', scopeRef: 'tenant' },
   operationId: 'original-operation',
 }
 const preparation = {
@@ -45,7 +45,7 @@ describe('Settings preparation protocol', () => {
   it('rejects an observed ready attempt belonging to a different root or target', () => {
     for (const other of [
       { ...operation, operationId: 'other' },
-      { ...operation, target: { ...operation.target, targetRef: 'other' } },
+      { ...operation, target: { ...operation.target, holdingRef: 'tool/other' } },
       { ...operation, target: { ...operation.target, scopeRef: 'other-tenant' } },
     ]) {
       expect(

@@ -1,5 +1,5 @@
 import type { z } from 'zod'
-import type { CapabilityId, CategoryRegistry, PinnedBody } from '@omne-harness/assets'
+import type { CapabilityId, CategoryView, PinnedBody } from '@omne-harness/assets'
 import type { ChangeSignal } from '@omne-harness/settings'
 import type { LocalPackages, PackageDurability, PackageStep } from './packages.ts'
 import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
@@ -12,6 +12,7 @@ import type {
   holdSchema,
   holdingResultSchema,
   publishMetadataSchema,
+  publishedHoldingSchema,
   versionResultSchema,
   holdingLookupSchema,
   listLookupSchema,
@@ -23,12 +24,15 @@ export type AssetsLocalOptions = Readonly<{
   domain: DomainRef
   combinationVersion: string
   manifestDigest: string
-  categories: CategoryRegistry
+  categories: Pick<CategoryView, 'lookup'>
   packageRoot?: string
   afterPackageStep?: (step: PackageStep) => void | Promise<void>
   packageDurability?: PackageDurability
 }>
 export type AssetsPublish = Readonly<z.infer<typeof publishMetadataSchema> & { pinned: PinnedBody }>
+export type AssetsPublishAndHold = Readonly<
+  AssetsPublish & { holding: z.infer<typeof publishedHoldingSchema> }
+>
 export type AssetsHold = z.infer<typeof holdSchema>
 export type AssetsHoldingChange = z.infer<typeof changeHoldingSchema>
 export type AssetsMutationResult =
@@ -47,6 +51,7 @@ export type AssetsListResult = z.infer<typeof listResultSchema>
 export interface AssetsLocal {
   readAsset(input: z.infer<typeof assetLookupSchema>): Promise<AssetsReadResult>
   publish(input: AssetsPublish): Promise<AssetsMutationResult>
+  publishAndHold(input: AssetsPublishAndHold): Promise<AssetsMutationResult>
   hold(input: AssetsHold): Promise<AssetsMutationResult>
   changeHolding(input: AssetsHoldingChange): Promise<AssetsMutationResult>
   readHolding(input: z.infer<typeof holdingLookupSchema>): Promise<AssetsHoldingResult>

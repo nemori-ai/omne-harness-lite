@@ -110,10 +110,11 @@ const declaration = {
   purpose: 'Search the web',
   appliesAt: 'next call',
   clearEffect: 'search stops',
+  group: { id: 'web', title: 'Web', description: 'Web search' },
 }
 export const secretView = {
   kind: 'secret',
-  asset: { category: 'tool', name: 'Web' },
+  owner: { kind: 'asset', category: 'tool', name: 'Web' },
   item: 'exa.apiKey',
   revision: settingRevision,
   declaration,
@@ -123,7 +124,7 @@ export const secretView = {
 }
 export const ordinaryView = {
   kind: 'ordinary',
-  asset: { category: 'tool', name: 'Web' },
+  owner: { kind: 'asset', category: 'tool', name: 'Web' },
   item: 'maxResults',
   revision: '0',
   declaration: { ...declaration, title: 'Search results' },

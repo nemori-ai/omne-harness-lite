@@ -3,7 +3,6 @@ export {
   refusal,
   type BodyContract,
   type CapabilityId,
-  type CategoryRegistry,
   type Declarations,
   type JudgeContext,
   type JsonLimits,
@@ -45,8 +44,25 @@ export {
   type PackageSourceFailure,
 } from './package.ts'
 export { isReadBody, readBodyText, readSnapshot } from './read-body.ts'
-export { createCategoryRegistry, unknownCategory } from './registry.ts'
+export {
+  createCategoryPoint,
+  unknownCategory,
+  type CategoryContribution,
+  type CategoryDisplay,
+  type CategoryListing,
+  type CategoryPoint,
+  type CategoryView,
+} from './category-point.ts'
 export { pinBody, type PinnedBody } from './adoption.ts'
+export {
+  createTenantPublishing,
+  type PublishContent,
+  type TenantActing,
+  type TenantPublisher,
+  type TenantPublishing,
+  type TenantPublishOutcome,
+  type TenantPublishRequest,
+} from './publishing.ts'
 export { projectAssetSettings, type AssetSettingsProjection } from './settings.ts'
 export {
   decideAssetHoldingChange,

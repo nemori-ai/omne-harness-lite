@@ -269,7 +269,6 @@ export function createTestAgentDependencies<P>(
       reads: controls.reads.port,
       registration: null,
       clock: controls.clock.port,
-      random: () => 0,
     },
   }
 }

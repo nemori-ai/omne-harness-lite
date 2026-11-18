@@ -1,5 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
-import { tenantLayerSource } from '@omne-harness/assets-local'
+import { tenantLayerSource, type AssetsLocal } from '@omne-harness/assets-local'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   RUN_SETTING,
@@ -12,9 +12,9 @@ import {
   type SettingDefinitions,
   type createSettingsRegistry,
 } from '@omne-harness/settings'
-import type { TenantHoldings } from './tenant-holdings.ts'
+import type { TenantSettingsAccess } from './tenant-runtime.ts'
 
-type Holdings = TenantHoldings
+type Holdings = Readonly<{ assets: AssetsLocal; settings: TenantSettingsAccess }>
 
 const UNAVAILABLE: RunSetting = { kind: 'unavailable' }
 
@@ -34,7 +34,7 @@ export function tenantExtensionSources(
     settingsChanges += 1
   })
   async function run(holdingRef: string): Promise<RunSetting> {
-    const target = { policyId: 'asset', scopeRef: tenantRef, targetRef: holdingRef }
+    const target = { kind: 'asset' as const, holdingRef, scopeRef: tenantRef }
     const basis = await settings.read({
       deploymentRef: input.deploymentRef,
       mode: 'management',
@@ -42,7 +42,9 @@ export function tenantExtensionSources(
       selectionRef: null,
     })
     if ('kind' in basis || basis.completeness !== 'complete') return UNAVAILABLE
-    const view = basis.views.find(item => item.target.targetRef === holdingRef)
+    const view = basis.views.find(
+      item => item.target.kind === 'asset' && item.target.holdingRef === holdingRef,
+    )
     if (view === undefined) return { kind: 'absent' }
     const evaluated = evaluateSettings({ definition: view.definition, sources: view.state.sources })
     if (evaluated.kind !== 'complete') return UNAVAILABLE

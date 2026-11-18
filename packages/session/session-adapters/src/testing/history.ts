@@ -13,6 +13,7 @@ import type {
 } from '@omne-harness/agent-contract'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
+import { uninterpretedCalls } from '@omne-harness/session-contract'
 import type {
   SessionAttemptRecord,
   SessionHistoryIndex,
@@ -29,6 +30,7 @@ import type {
   DurableEvidence,
   SessionBatchRecord,
   SessionTakenRecord,
+  SessionUninterpretedCall,
 } from '@omne-harness/session-contract'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import { digestOf, canonical } from './session-values.ts'
@@ -452,6 +454,7 @@ export function history<P>(
   })
   const executions: SessionHistoryIndex['executions'][number][] = []
   const prefixes: SessionHistoryReads['prefixes'][number][] = []
+  const uninterpreted: SessionUninterpretedCall[] = []
   const batches: SessionBatchRecord[] = []
   const taken: SessionTakenRecord[] = []
   for (const id of needed) {
@@ -503,13 +506,15 @@ export function history<P>(
         kinds: fact.consequences.map(item => item.kind),
       })),
     })
+    const unread = facts.filter(fact => BigInt(fact.sequence) > BigInt(reference.readThrough))
     prefixes.push({
       execution: id,
       run: run.run,
       after: reference.readThrough,
       through: upper,
-      facts: facts.filter(fact => BigInt(fact.sequence) > BigInt(reference.readThrough)),
+      facts: unread,
     })
+    uninterpreted.push(...uninterpretedCalls(id, unread))
     batches.push(...(root.agent.batches.get(id) ?? []))
     taken.push(...(root.sources.takenByExecution.get(id) ?? []))
   }
@@ -547,6 +552,7 @@ export function history<P>(
       prefixes,
       attempts,
       taken,
+      uninterpreted,
     },
   }
 }

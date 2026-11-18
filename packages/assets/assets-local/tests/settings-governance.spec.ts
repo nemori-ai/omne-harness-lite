@@ -1,6 +1,6 @@
 import { ownerSources } from './sources.ts'
-import { createCategoryRegistry } from '@omne-harness/assets'
 import { afterEach, expect, it } from 'vitest'
+import { lookupOf } from './lookup.ts'
 const { openCatalogWorld } = (await import(
   new URL('../tests/catalog-world.ts', import.meta.resolve('@omne-harness/settings-local')).href
 )) as typeof import('../../settings-local/tests/catalog-world.ts')
@@ -15,7 +15,7 @@ async function open() {
   const w = await openCatalogWorld({
     assets: {
       materials: assetsSqlMaterials(),
-      command: assetsSettingsProjectionCommand,
+      command: binding => assetsSettingsProjectionCommand(binding, { excluded: [] }),
     },
   })
   const assets = createAssetsLocal({ ...w.terminalOptions, categories })
@@ -27,11 +27,15 @@ async function open() {
       expectedRevision: 0,
     }),
   ).toMatchObject({ kind: 'committed' })
-  const target = { policyId: 'asset', targetRef: 'holding-1', scopeRef: w.change.target.scopeRef }
+  const target = {
+    kind: 'asset' as const,
+    holdingRef: 'holding-1',
+    scopeRef: w.change.target.scopeRef,
+  }
   expect(
     await assets.hold({
       operationId: 'hold',
-      holdingRef: target.targetRef,
+      holdingRef: target.holdingRef,
       scopeRef: target.scopeRef,
       assetRef: 'asset-1',
       selection: { kind: 'follow' },
@@ -66,7 +70,7 @@ it('uses one public application for standalone and real asset targets with real 
   expect(page).toMatchObject({
     kind: 'catalog',
     completeness: 'complete',
-    entries: [{ target: { policyId: 'asset' } }, { target: { policyId: 'independent' } }],
+    entries: [{ target: { kind: 'asset' } }, { target: { kind: 'independent' } }],
   })
   const command = {
     ...w.change,
@@ -85,7 +89,7 @@ it('uses one public application for standalone and real asset targets with real 
   expect(
     await w.assets.changeHolding({
       operationId: 'remove',
-      holdingRef: w.target.targetRef,
+      holdingRef: w.target.holdingRef,
       scopeRef: w.target.scopeRef,
       expectedRevision: 1,
       change: { kind: 'remove' },
@@ -128,7 +132,7 @@ it('keeps the value of a disabled holding for management and still writes it', a
   expect(
     await w.assets.changeHolding({
       operationId: 'disable',
-      holdingRef: w.target.targetRef,
+      holdingRef: w.target.holdingRef,
       scopeRef: w.target.scopeRef,
       expectedRevision: 1,
       change: { kind: 'setEnabled', enabled: false },
@@ -150,13 +154,18 @@ it('refuses a holding that does not exist and the same reference under another p
   const w = await open()
   opened.push(w)
   for (const wrong of [
-    { ...w.target, targetRef: 'missing' },
-    { ...w.target, policyId: 'independent' },
+    { ...w.target, holdingRef: 'missing' },
+    {
+      kind: 'independent' as const,
+      providerId: 'example',
+      definitionId: w.target.holdingRef,
+      scopeRef: w.target.scopeRef,
+    },
   ])
     expect(
       await w.write(w.principal, {
         ...w.change,
-        operationId: `wrong-${wrong.policyId}`,
+        operationId: `wrong-${wrong.kind}`,
         target: wrong,
         definitionRef: definitionRef(),
       }),
@@ -180,6 +189,9 @@ it('changes the actual selected asset definition and requires explicit re-adopti
       expectedRevision: 1,
     }),
   ).toMatchObject({ kind: 'committed' })
+  expect(await w.service.queries.evaluate(w.principal, { ...w.view, targets: [w.target] })).toEqual(
+    { kind: 'rejected', reason: 'unavailable' },
+  )
   w.registry.registerContribution(definition('2', true))
   expect(await w.service.queries.evaluate(w.principal, { ...w.view, targets: [w.target] })).toEqual(
     { kind: 'rejected', reason: 'definition_changed' },
@@ -203,8 +215,7 @@ it('changes the actual selected asset definition and requires explicit re-adopti
 it('omits legitimately undeclared assets from management without denying unrelated settings', async () => {
   const w = await open()
   opened.push(w)
-  const registry = createCategoryRegistry()
-  registry.register({
+  const registry = lookupOf({
     category: 'service',
     schema: { kind: 'null' },
     judge: () => ({ ok: true }),
@@ -244,7 +255,7 @@ it('omits legitimately undeclared assets from management without denying unrelat
     expect(
       await w.service.queries.evaluate(w.principal, {
         ...w.view,
-        targets: [{ ...w.target, targetRef: 'plain' }],
+        targets: [{ ...w.target, holdingRef: 'plain' }],
       }),
     ).toEqual({ kind: 'rejected', reason: 'forbidden' })
   } finally {
@@ -266,7 +277,7 @@ it('shows disabled asset settings through the public catalog but refuses runtime
   expect(
     await w.assets.changeHolding({
       operationId: 'disable',
-      holdingRef: w.target.targetRef,
+      holdingRef: w.target.holdingRef,
       scopeRef: w.target.scopeRef,
       expectedRevision: 1,
       change: { kind: 'setEnabled', enabled: false },
@@ -297,7 +308,7 @@ it('shows disabled asset settings through the public catalog but refuses runtime
   expect(
     await w.assets.changeHolding({
       operationId: 'enable',
-      holdingRef: w.target.targetRef,
+      holdingRef: w.target.holdingRef,
       scopeRef: w.target.scopeRef,
       expectedRevision: 2,
       change: { kind: 'setEnabled', enabled: true },
@@ -324,7 +335,7 @@ it('blocks old assignments when the same asset source id belongs to a different 
   expect(
     await w.assets.changeHolding({
       operationId: 'replace-source-owner',
-      holdingRef: w.target.targetRef,
+      holdingRef: w.target.holdingRef,
       scopeRef: w.target.scopeRef,
       expectedRevision: 1,
       change: {

@@ -10,7 +10,7 @@ const declaration = entry.governance.declaration
 const definition = declaration.settings[0]!
 
 export function settingsSnapshotFixture() {
-  const target = { policyId: 'asset', scopeRef: 'tenant-a', targetRef: 'shell' }
+  const target = { kind: 'asset' as const, holdingRef: 'shell', scopeRef: 'tenant-a' }
   const snapshot: TargetSnapshot & {
     values: Extract<TargetSnapshot['values'], { presence: 'absent' | 'present' }>
   } = {

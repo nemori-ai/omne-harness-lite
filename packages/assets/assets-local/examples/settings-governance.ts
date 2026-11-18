@@ -17,14 +17,14 @@ const input = z
 const w = await openCatalogWorld({
   assets: {
     materials: assetsSqlMaterials(),
-    command: assetsSettingsProjectionCommand,
+    command: binding => assetsSettingsProjectionCommand(binding, { excluded: [] }),
   },
 })
 const assets = createAssetsLocal({ ...w.terminalOptions, categories })
 const show = (step: string, result: unknown) => console.log(JSON.stringify({ step, result }))
 const target = {
-  policyId: 'asset',
-  targetRef: 'manual-holding',
+  kind: 'asset' as const,
+  holdingRef: 'manual-holding',
   scopeRef: w.change.target.scopeRef,
 }
 try {
@@ -42,7 +42,7 @@ try {
   assert.equal(published.kind, 'committed')
   const held = await assets.hold({
     operationId: 'hold',
-    holdingRef: target.targetRef,
+    holdingRef: target.holdingRef,
     scopeRef: target.scopeRef,
     assetRef: 'manual-asset',
     selection: { kind: 'follow' },

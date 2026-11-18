@@ -195,6 +195,7 @@ function routed(next: () => AgentJournal<string>): AgentJournal<string> {
     inputs: call('inputs'),
     readReplyAdmissions: call('readReplyAdmissions'),
     query: call('query'),
+    inputAcceptance: call('inputAcceptance'),
     output: {
       read: input => next().output.read(input),
       events: input => next().output.events(input),

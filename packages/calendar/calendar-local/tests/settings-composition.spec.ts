@@ -82,11 +82,11 @@ it('rejects a different tenant context even when the trusted resolver accidental
   })
 })
 
-it('rechecks standalone target retirement and declaration availability', async () => {
+it('rechecks standalone target retirement; an unloaded declaration keeps the opened group readable', async () => {
   const w = await open()
   expect(await w.environment.read(w.context)).toMatchObject({ kind: 'found' })
   w.registry.releaseContribution(w.registration.registrationId)
-  expect(await w.environment.read(w.context)).toEqual({ kind: 'unavailable' })
+  expect(await w.environment.read(w.context)).toMatchObject({ kind: 'found' })
   expect(w.registry.registerContribution(w.definition)).toMatchObject({ kind: 'registered' })
   expect(await w.environment.read(w.context)).toMatchObject({ kind: 'found' })
   expect(

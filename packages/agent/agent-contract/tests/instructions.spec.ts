@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   INSTRUCTION_LIMITS,
   agentBodyContract,
+  agentDefinitionCategoryDisplay,
   judgeAgentDefinition,
 } from '@omne-harness/agent-contract'
-import { createCategoryRegistry, readBodyText } from '@omne-harness/assets'
+import { createCategoryPoint, readBodyText } from '@omne-harness/assets'
 
 const definition = (extra: Record<string, unknown> = {}) => ({
   category: 'AgentDefinition',
@@ -156,8 +157,8 @@ describe('the body contract applies the same instruction rules', () => {
     maxNumberLength: 100,
   }
   const judge = (content: unknown) => {
-    const registry = createCategoryRegistry()
-    registry.register(agentBodyContract())
+    const registry = createCategoryPoint()
+    registry.contribute({ contract: agentBodyContract(), display: agentDefinitionCategoryDisplay })
     const contract = registry.lookup('AgentDefinition')
     const read = readBodyText(JSON.stringify(content), limits)
     if (contract === undefined || read.kind !== 'ok') throw new Error('fixture')

@@ -38,12 +38,10 @@ import {
   type ResumeEntry,
 } from './loop/coordinator.ts'
 import { agentEvidence } from './loop/identities.ts'
-import { modelRetryEntry } from './loop/model-retry.ts'
 import { reconciliationPacer } from './loop/reconciliation.ts'
 import { createControlWriter, releaseForeground } from './control.ts'
 import type { AgentMeasurer } from './measure.ts'
 import type {
-  AgentModelRetryingReceiver,
   AgentRunEndedFailedReceiver,
   AgentRunFailedReceiver,
   AgentRunWaitingReceiver,
@@ -193,7 +191,6 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
     | 'toolConcurrency'
     | 'jointCommits'
     | 'maxRunSteps'
-    | 'modelRetry'
     | 'compactionProvider'
   >
   guard: AccessGuard<P>
@@ -202,7 +199,6 @@ export type ProviderEntry<P, B extends ContentBlock> = Readonly<{
   failed: AgentRunFailedReceiver | undefined
   endedFailed: AgentRunEndedFailedReceiver | undefined
   waiting: AgentRunWaitingReceiver | undefined
-  modelRetrying: AgentModelRetryingReceiver | undefined
 }>
 
 /** The parts of a coordinator that every execution of this provider shares. */
@@ -443,7 +439,6 @@ export function createProvider<P, B extends ContentBlock>(
           })
         } catch {}
       },
-      ...modelRetryEntry(entry, dependencies.random, execution),
       toolConcurrency: entry.configuration.toolConcurrency,
       maxRunSteps: maxRunStepsOf(entry.configuration),
     })

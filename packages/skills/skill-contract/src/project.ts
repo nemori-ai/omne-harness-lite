@@ -1,5 +1,5 @@
 import type { CapabilityId, JsonValue } from '@omne-harness/assets'
-import type { SettingDeclaration, SkillDefinition } from './values.ts'
+import type { SkillDefinition } from './values.ts'
 
 const text = (value: string): JsonValue => ({ kind: 'string', value })
 const list = (items: readonly JsonValue[]): JsonValue => ({ kind: 'array', items })
@@ -15,20 +15,12 @@ function tool(id: CapabilityId): JsonValue {
   ])
 }
 
-function setting(declaration: SettingDeclaration): JsonValue {
-  return object([
-    ['name', text(declaration.name)],
-    ['category', text(declaration.category)],
-  ])
-}
-
 export function projectAssetBody(definition: SkillDefinition): JsonValue {
   const { manifest, declaration, snapshot } = definition
   return object([
     ['name', text(manifest.name)],
     ['description', text(manifest.description)],
     ['tools', list(declaration.dependencies.map(tool))],
-    ['settings', list(declaration.settings.map(setting))],
     ['package', object([['digest', text(snapshot.digest)]])],
   ])
 }

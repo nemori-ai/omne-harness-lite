@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readOrNull } from '../src/cordis/agent-journal.ts'
+import { readOrNull } from '../src/cordis/event-projection.ts'
 import { HistoryFailure } from '../src/testing/history-failure.ts'
 
 describe('reading an original fragment of an event', () => {

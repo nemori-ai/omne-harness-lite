@@ -8,7 +8,7 @@ import {
   pinBody,
   readBodyText,
   type CapabilityId,
-  type CategoryRegistry,
+  type CategoryView,
   type JsonValue,
   type PackageLayout,
   type PackageManifest,
@@ -20,9 +20,9 @@ import {
 import { writeJsonText } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { digest } from './encoding.ts'
-import type { AssetsMutationResult, AssetsOperationResult, AssetsPublish } from './types.ts'
+import type { AssetsMutationResult, AssetsPublishAndHold } from './types.ts'
 
-export type PackageStep = 'staged' | 'recorded'
+export type PackageStep = 'staged' | 'swapped'
 
 export type PackageDurability = Readonly<{
   file(path: string, bytes: Uint8Array | string): Promise<void>
@@ -57,17 +57,19 @@ export type PackagePublishResult =
   | Readonly<{ kind: 'unknown'; operationId: string }>
 
 export type PackageRecovery = Readonly<{
-  completed: number
   discarded: number
+  deferred: readonly CapabilityId[]
   mismatched: readonly CapabilityId[]
 }>
+
+export type PackageHolding = Omit<AssetsPublishAndHold['holding'], 'holdingRef' | 'scopeRef'>
 
 export interface PublishedPackages {
   publish(input: {
     capability: CapabilityId
-    assetRef: string
     from: PackageReader
     operationId: string
+    holding: PackageHolding
   }): Promise<PackagePublishResult>
   reader(input: { assetRef: string; version: string }): PackageReader
   recover(): Promise<PackageRecovery>
@@ -85,8 +87,7 @@ export interface LocalPackages extends PublishedPackages {
 type VersionRecord = Readonly<{ category: string; name: string; body: JsonValue }>
 
 export type PackageRecords = Readonly<{
-  publish(input: AssetsPublish): Promise<AssetsMutationResult>
-  getOperation(operationId: string): Promise<AssetsOperationResult>
+  publishAndHold(input: AssetsPublishAndHold): Promise<AssetsMutationResult>
   readAssetRevision(assetRef: string): Promise<Outcome<number, string>>
   readVersionRecord(
     assetRef: string,
@@ -96,6 +97,17 @@ export type PackageRecords = Readonly<{
 
 export function versionDirectoryName(version: string): string {
   return version.replaceAll(':', '-')
+}
+
+const VERSION_DIRECTORY = /^sha256-([0-9a-f]{64})$/
+
+function versionOfDirectory(name: string): string | undefined {
+  const hex = VERSION_DIRECTORY.exec(name)?.[1]
+  return hex === undefined ? undefined : `sha256:${hex}`
+}
+
+export function publishedRef(capability: CapabilityId): string {
+  return `${capability.category}/${capability.name}`
 }
 
 const CATEGORY_FILE = '.category'
@@ -210,27 +222,22 @@ async function isDirectory(path: string): Promise<boolean> {
   }
 }
 
-type StagingMeta = Readonly<{ category: string; name: string; assetRef: string; version: string }>
-
-type Staged = Readonly<{ dir: string; meta?: StagingMeta }>
-
 type PublishRequest = Parameters<PublishedPackages['publish']>[0]
 
 type Place = Readonly<{ manifest: PackageManifest; final: string }>
 
 type Prepared = Readonly<{
-  root: string
   staging: string
   manifest: PackageManifest
   version: string
   body: JsonValue
-  meta: StagingMeta
   final: string
 }>
 
 type Shared = Readonly<{
   root: string | undefined
-  categories: CategoryRegistry
+  holdingScope: string
+  categories: Pick<CategoryView, 'lookup'>
   records: PackageRecords
 }>
 
@@ -239,7 +246,6 @@ type PackageDisk = Readonly<{
     staging: string,
     manifest: PackageManifest,
     from: PackageReader,
-    meta: StagingMeta,
   ): Promise<PackageSourceFailure | undefined>
   swap(staging: string, final: string, category: string): Promise<void>
 }>
@@ -272,30 +278,21 @@ function recordRejected(reason: string): PackagePublishResult {
     : rejected({ kind: 'record-rejected', reason })
 }
 
-async function stagingsIn(root: string): Promise<Staged[]> {
+async function discardStagings(root: string): Promise<number> {
   let names: string[]
   try {
     names = await readdir(join(root, STAGING))
   } catch (error) {
-    if (errorCode(error) === 'ENOENT') return []
+    if (errorCode(error) === 'ENOENT') return 0
     throw error
   }
-  return Promise.all(
-    names.map(async name => {
-      const dir = join(root, STAGING, name)
-      try {
-        const meta = JSON.parse(await readFile(join(dir, 'meta.json'), 'utf8')) as StagingMeta
-        return { dir, meta }
-      } catch {
-        return { dir }
-      }
-    }),
-  )
+  for (const name of names) await rm(join(root, STAGING, name), { recursive: true, force: true })
+  return names.length
 }
 
 function packageDisk(durability: PackageDurability): PackageDisk {
   return {
-    async stage(staging, manifest, from, meta) {
+    async stage(staging, manifest, from) {
       const files = join(staging, 'files')
       await mkdir(files, { recursive: true })
       const directories = new Set([files, staging, dirname(staging)])
@@ -309,7 +306,6 @@ function packageDisk(durability: PackageDurability): PackageDisk {
         for (let dir = dirname(target); dir !== files; dir = dirname(dir)) directories.add(dir)
         await durability.file(target, opened.ok)
       }
-      await durability.file(join(staging, 'meta.json'), JSON.stringify(meta))
       for (const directory of [...directories].sort((a, b) => b.length - a.length))
         await durability.directory(directory)
       return undefined
@@ -337,7 +333,7 @@ function packagePublisher(
   disk: PackageDisk,
   afterStep: ((step: PackageStep) => void | Promise<void>) | undefined,
 ): (request: PublishRequest) => Promise<PackagePublishResult> {
-  const { root, categories, records } = shared
+  const { root, holdingScope, categories, records } = shared
 
   async function validate(request: PublishRequest): Promise<Outcome<Prepared, PackageRejection>> {
     const { capability, from } = request
@@ -358,88 +354,53 @@ function packagePublisher(
     const version = packageDigest(manifest.entries)
     const judged = contract.judge(body.ok, { capabilityName: capability.name, definition: version })
     if (!judged.ok) return fail({ kind: 'invalid-package', reason: judged.rejected })
-    const { name, category } = capability
     return succeed({
-      root,
       staging: join(root, STAGING, digest(request.operationId)),
       manifest,
       version,
       body: body.ok,
-      meta: { category, name, assetRef: request.assetRef, version },
-      final: finalOf(root, layout, name, version),
+      final: finalOf(root, layout, capability.name, version),
     })
   }
 
-  async function completeSwap(prepared: Prepared): Promise<void> {
-    const { meta, final } = prepared
-    if (await isDirectory(final)) return
-    const staged = (await stagingsIn(prepared.root)).find(
-      one =>
-        one.meta?.category === meta.category &&
-        one.meta.name === meta.name &&
-        one.meta.version === meta.version,
-    )
-    if (staged === undefined) throw new Error('a recorded version has neither files nor staging')
-    await disk.swap(staged.dir, final, meta.category)
-  }
-
-  async function settledBefore(
-    prepared: Prepared,
-    operationId: string,
-  ): Promise<PackagePublishResult | undefined> {
-    const { meta, version } = prepared
-    const receipt = await records.getOperation(operationId)
-    if (receipt.kind === 'committed') {
-      await completeSwap(prepared)
-      return { kind: 'published', version, changed: receipt.changed }
-    }
-    if (receipt.kind === 'unknown') return { kind: 'unknown', operationId }
-    if (receipt.kind === 'rejected') return recordRejected(receipt.reason)
-    const existing = await records.readVersionRecord(meta.assetRef, version)
-    if (!('ok' in existing)) return rejected({ kind: 'record-rejected', reason: existing.failure })
-    if (existing.ok === undefined) return undefined
-    await completeSwap(prepared)
-    return { kind: 'published', version, changed: false }
-  }
-
-  async function stageRecordSwap(
+  async function swapIn(
     prepared: Prepared,
     request: PublishRequest,
-  ): Promise<PackagePublishResult> {
-    const { capability, assetRef, from, operationId } = request
-    const { staging, manifest, version, body, meta, final } = prepared
+  ): Promise<PackagePublishResult | undefined> {
+    const { staging, manifest, final } = prepared
+    if (await isDirectory(final)) return undefined
     await rm(staging, { recursive: true, force: true })
-    const revision = await records.readAssetRevision(assetRef)
-    if (!('ok' in revision)) return rejected({ kind: 'record-rejected', reason: revision.failure })
-    const failure = await disk.stage(staging, manifest, from, meta)
+    const failure = await disk.stage(staging, manifest, request.from)
     if (failure !== undefined) {
       await rm(staging, { recursive: true, force: true })
       return rejected({ kind: 'source-failed', failure })
     }
     await afterStep?.('staged')
-    const recorded = await records.publish({
-      operationId,
-      assetRef,
-      expectedRevision: revision.ok,
-      pinned: pinBody({ identity: capability, version, source: SOURCE, body }),
-    })
-    if (recorded.kind === 'unknown') return { kind: 'unknown', operationId }
-    if (recorded.kind === 'rejected') {
-      await rm(staging, { recursive: true, force: true })
-      return recordRejected(recorded.reason)
-    }
-    await afterStep?.('recorded')
-    await disk.swap(staging, final, capability.category)
-    return { kind: 'published', version, changed: recorded.changed }
+    await disk.swap(staging, final, request.capability.category)
+    await afterStep?.('swapped')
+    return undefined
   }
 
   return async request => {
     const prepared = await validate(request)
     if (!('ok' in prepared)) return rejected(prepared.failure)
-    return (
-      (await settledBefore(prepared.ok, request.operationId)) ??
-      stageRecordSwap(prepared.ok, request)
-    )
+    const { capability, operationId } = request
+    const ref = publishedRef(capability)
+    const revision = await records.readAssetRevision(ref)
+    if (!('ok' in revision)) return rejected({ kind: 'record-rejected', reason: revision.failure })
+    const failed = await swapIn(prepared.ok, request)
+    if (failed !== undefined) return failed
+    const { version, body } = prepared.ok
+    const recorded = await records.publishAndHold({
+      operationId,
+      assetRef: ref,
+      expectedRevision: revision.ok,
+      pinned: pinBody({ identity: capability, version, source: SOURCE, body }),
+      holding: { holdingRef: ref, scopeRef: holdingScope, ...request.holding },
+    })
+    if (recorded.kind === 'unknown') return { kind: 'unknown', operationId }
+    if (recorded.kind === 'rejected') return recordRejected(recorded.reason)
+    return { kind: 'published', version, changed: recorded.changed }
   }
 }
 
@@ -453,7 +414,9 @@ async function placeOf(
   const record = await records.readVersionRecord(assetRef, version)
   if (!('ok' in record)) return fail('unavailable')
   if (record.ok === undefined) return fail('package-not-found')
-  const layout = categories.lookup(record.ok.category)?.layout
+  const contract = categories.lookup(record.ok.category)
+  if (contract === undefined) return fail('unavailable')
+  const layout = contract.layout
   const manifest = manifestOf(record.ok.body)
   if (layout === undefined || manifest === undefined) return fail('package-not-found')
   return succeed({ manifest, final: finalOf(root, layout, record.ok.name, version) })
@@ -518,46 +481,54 @@ async function locatePackage(
   }
 }
 
-function packageRecovery(shared: Shared, disk: PackageDisk): () => Promise<PackageRecovery> {
+function packageRecovery(shared: Shared): () => Promise<PackageRecovery> {
   const { root, categories, records } = shared
 
-  async function settle(root: string, staged: Staged): Promise<'completed' | 'discarded'> {
-    const { meta } = staged
-    const layout = meta === undefined ? undefined : categories.lookup(meta.category)?.layout
-    if (meta !== undefined && layout !== undefined) {
-      const recorded = await records.readVersionRecord(meta.assetRef, meta.version)
-      if (!('ok' in recorded)) throw new Error(recorded.failure)
-      const final = finalOf(root, layout, meta.name, meta.version)
-      if (recorded.ok !== undefined && !(await isDirectory(final))) {
-        await disk.swap(staged.dir, final, meta.category)
-        return 'completed'
-      }
-    }
-    await rm(staged.dir, { recursive: true, force: true })
-    return 'discarded'
+  async function unrecorded(category: string, name: string, dir: string) {
+    const version = versionOfDirectory(dir)
+    const id = capabilityId(category, name)
+    if (version === undefined || !id.ok) return undefined
+    const record = await records.readVersionRecord(publishedRef(id.id), version)
+    if (!('ok' in record)) throw new Error(record.failure)
+    return record.ok === undefined ? id.id : undefined
   }
 
   return async () => {
-    if (root === undefined) return { completed: 0, discarded: 0, mismatched: [] }
-    let completed = 0
-    let discarded = 0
-    for (const staged of await stagingsIn(root)) {
-      if ((await settle(root, staged)) === 'completed') completed += 1
-      else discarded += 1
+    if (root === undefined) return { discarded: 0, deferred: [], mismatched: [] }
+    let discarded = await discardStagings(root)
+    const deferred = new Map<string, CapabilityId>()
+    for (const namespace of await directoriesIn(root)) {
+      const category = await categoryOf(root, namespace)
+      if (category === undefined) continue
+      const present = categories.lookup(category) !== undefined
+      for (const name of await directoriesIn(join(root, namespace)))
+        for (const dir of await directoriesIn(join(root, namespace, name))) {
+          const id = await unrecorded(category, name, dir)
+          if (id === undefined) continue
+          if (!present) deferred.set(`${category}\0${name}`, id)
+          else {
+            await rm(join(root, namespace, name, dir), { recursive: true, force: true })
+            discarded += 1
+          }
+        }
     }
-    return { completed, discarded, mismatched: await mismatchedIn(root) }
+    return { discarded, deferred: [...deferred.values()], mismatched: await mismatchedIn(root) }
+  }
+}
+
+async function categoryOf(root: string, namespace: string): Promise<string | undefined> {
+  try {
+    return await readFile(join(root, namespace, CATEGORY_FILE), 'utf8')
+  } catch {
+    return undefined
   }
 }
 
 async function mismatchedIn(root: string): Promise<CapabilityId[]> {
   const found = new Map<string, CapabilityId>()
   for (const namespace of await directoriesIn(root)) {
-    let category: string
-    try {
-      category = await readFile(join(root, namespace, CATEGORY_FILE), 'utf8')
-    } catch {
-      continue
-    }
+    const category = await categoryOf(root, namespace)
+    if (category === undefined) continue
     for (const name of await directoriesIn(join(root, namespace)))
       for (const version of await directoriesIn(join(root, namespace, name))) {
         const dir = join(root, namespace, name, version)
@@ -571,12 +542,14 @@ async function mismatchedIn(root: string): Promise<CapabilityId[]> {
 
 export function createPublishedPackages(input: {
   root: string | undefined
-  categories: CategoryRegistry
+  holdingScope: string
+  categories: Pick<CategoryView, 'lookup'>
   records: PackageRecords
   afterStep?: ((step: PackageStep) => void | Promise<void>) | undefined
   durability?: PackageDurability | undefined
 }): LocalPackages {
-  const shared: Shared = { root: input.root, categories: input.categories, records: input.records }
+  const { root, holdingScope, categories, records } = input
+  const shared: Shared = { root, holdingScope, categories, records }
   const disk = packageDisk(input.durability ?? nodeDurability)
   const publish = packagePublisher(shared, disk, input.afterStep)
   return {
@@ -588,7 +561,7 @@ export function createPublishedPackages(input: {
       }
     },
     reader: request => packageReader(shared, request),
-    recover: packageRecovery(shared, disk),
+    recover: packageRecovery(shared),
     locate: request => locatePackage(shared, request),
   }
 }

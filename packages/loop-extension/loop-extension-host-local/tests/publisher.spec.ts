@@ -90,7 +90,6 @@ async function enabledTenant() {
   const world = await openTenant(tenantA)
   worlds.push(world)
   const version = await world.publish(probe('probe'))
-  await world.hold('probe')
   world.setRun('probe', { kind: 'value', value: true })
   return { world, version }
 }

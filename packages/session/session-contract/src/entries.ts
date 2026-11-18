@@ -122,6 +122,16 @@ export type SessionEntry =
       participation: Participation | null
     }>
   | Readonly<{
+      /** The message of an input, placed in the model view when a step takes the input. */
+      kind: 'message.delivered'
+      input: InputId
+      message: Message
+      source: DurableEvidence
+      admission: DurableEvidence
+      consumption: null
+      participation: Participation
+    }>
+  | Readonly<{
       kind: 'intake.routed'
       input: InputId
       destination: 'current-run' | 'next-run'
@@ -282,6 +292,7 @@ export type SessionEntry =
       channel: SessionEntriesChannel
       after: string
       through: string
+      position: string
       boundary: Readonly<{ revision: string; executionEvidence: DurableEvidence; count: string }>
       interpreted: readonly Readonly<{ ordinal: string; key: string }>[]
     }>
@@ -510,6 +521,7 @@ const KNOWN_KINDS: ReadonlySet<string> = new Set<SessionEntryKind>([
   'message.tool_internal',
   'message.system_reminder',
   'message.compaction',
+  'message.delivered',
   'intake.routed',
   'intake.handed-over',
   'run.started',

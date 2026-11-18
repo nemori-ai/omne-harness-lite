@@ -1,7 +1,13 @@
 import { readdirSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, expect, it } from 'vitest'
-import { definition, definitionRef, secretDefinition, secretDefinitionRef } from './world.ts'
+import {
+  definition,
+  definitionRef,
+  secretDefinition,
+  secretDefinitionRef,
+  sibling,
+} from './world.ts'
 import { intentAttemptIdentity } from '../src/intent-records.ts'
 import { digest, json } from '../src/encoding.ts'
 import { stored } from './business-world.ts'
@@ -139,7 +145,7 @@ it.each(['scope', 'target'] as const)(
             scope:
               mismatch === 'scope' ? { kind: 'tenant', tenant: 'another-tenant' } : request.scope,
             target:
-              mismatch === 'target' ? { ...request.target, targetRef: 'other' } : request.target,
+              mismatch === 'target' ? { ...request.target, definitionId: 'other' } : request.target,
           }
         },
       },
@@ -173,7 +179,7 @@ it('rechecks access for each read and shows no operation of another target or pr
   )
   expect(
     await w.service.getOperation(w.context, {
-      target: { ...target, targetRef: 'other' },
+      target: sibling(target, 'other'),
       operationId,
     }),
   ).toEqual({ kind: 'not_found' })
