@@ -529,30 +529,34 @@ describe('exclusion is a fact of the log', () => {
   })
 })
 
-// The events a log emitted, in order: they close at birth, so only the item changes hold them.
-function eventsOfLog(log: readonly PublishedBatch[], execution: string): EventView[] {
+// What a log opened in a family that closes at birth, in order: only the item changes hold it.
+function openedOfLog<T>(log: readonly PublishedBatch[], execution: string, family: string): T[] {
   let view = emptySessionView()
-  const events: EventView[] = []
+  const opened: T[] = []
   for (const batch of log) {
     const landed = foldItems(view, batch)
     view = landed.view
     if (batch.execution !== execution) continue
     for (const change of landed.changes)
-      if (change.family === 'event' && change.change === 'opened')
-        events.push(change.body as EventView)
+      if (change.family === family && change.change === 'opened') opened.push(change.body as T)
   }
-  return events
+  return opened
 }
 
+const eventsOfLog = (log: readonly PublishedBatch[], execution: string) =>
+  openedOfLog<EventView>(log, execution, 'event')
+
 describe('the Tool start fence is a fact and an entry event', () => {
-  it('fence.started folds into the fences, projects an entry event and survives the rows', () => {
+  it('fence.started opens a fence that closes at birth, projects an entry event and survives the rows', () => {
     const { log } = scene(random(48), { rounds: 3, executions: 1, finish: false })
     const view = foldAll(log)
     const execution = view.executions.get(log[0]!.execution)!
-    expect(execution.fences.length).toBeGreaterThan(0)
+    const fences = openedOfLog<{ pub: number }>(log, log[0]!.execution, 'fence')
+    expect(fences.length).toBeGreaterThan(0)
+    expect(execution.fences).toEqual([])
     const emitted = eventsOfLog(log, log[0]!.execution)
     expect(execution.emitted).toBe(emitted.length)
-    for (const fence of execution.fences) {
+    for (const fence of fences) {
       const event = emitted.find(item => item.pub === fence.pub)
       expect(event?.kind).toBe('entry')
       expect(event?.fact.kind).toBe('fence.started')

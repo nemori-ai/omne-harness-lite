@@ -265,6 +265,39 @@ describe('the items of an execution', () => {
     ])
   })
 
+  it('reads the items under a key prefix, closed ones too, and no item of another prefix', async () => {
+    const a = await session()
+    const key = (consumption: string, version: string) => JSON.stringify([consumption, version])
+    await publish(
+      a,
+      nth(1, [
+        opened('result', key('c1', 'placeholder')),
+        opened('result', key('c1', 'v1')),
+        opened('result', key('c10', 'v1')),
+        opened('result', key('c2', 'v1')),
+        opened('intent', key('c1', 'v1')),
+      ]),
+    )
+    await publish(a, nth(2, [changed('result', key('c1', 'placeholder'), false)]))
+    const under = async (prefix: string) => {
+      const page = decodeExecutionRecordOpenItems(
+        await read(a, 'execution-record.open-items', {
+          ...scope,
+          after: null,
+          families: ['result'],
+          all: true,
+          under: prefix,
+        }),
+      )
+      return page?.kind === 'open' ? page.items.map(item => [item.item, item.open]) : null
+    }
+    expect(await under('["c1",')).toEqual([
+      [key('c1', 'placeholder'), false],
+      [key('c1', 'v1'), true],
+    ])
+    expect(await under('["c3",')).toEqual([])
+  })
+
   it('answers an execution of another session as denied', async () => {
     const a = await session()
     await publish(a, nth(1, [opened('intent', 'a1')]))

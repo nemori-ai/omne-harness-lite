@@ -35,6 +35,7 @@ import {
   type ParticipationKind,
   type ProducerCall,
   type Ref,
+  type ResultKey,
   type ResultStage,
 } from './facts.ts'
 
@@ -305,10 +306,7 @@ export type ExecutionView = Readonly<{
   adopted: RequestView | null
   voided: readonly VoidedView[]
   intents: ReadonlyMap<ActionId, IntentView>
-  results: ReadonlyMap<ConsumptionId, ResultView>
-  /** The placeholder a call that went to the background delivered; at most one per call. */
-  placeholders: ReadonlyMap<ConsumptionId, ReceivedView>
-  deliveries: ReadonlyMap<ConsumptionId, readonly ReceivedView[]>
+  results: ReadonlyMap<ResultKey, ResultView>
   admissions: readonly AdmissionView[]
   handoffs: ReadonlyMap<string, HandoffView>
   controls: ReadonlyMap<AgentOperationId, ControlView>
@@ -381,8 +379,6 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     voided: [],
     intents: new SharedMap(),
     results: new SharedMap(),
-    placeholders: new SharedMap(),
-    deliveries: new SharedMap(),
     admissions: [],
     handoffs: new SharedMap(),
     controls: new SharedMap(),
@@ -414,12 +410,20 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
 
 export const handoffKey = (reference: HandoffReference): string => canonical(reference)
 
-/** Every received delivery that holds custody of an entry: results and placeholders. */
+/** The deliveries each consumption received, in the order they came. */
+export function receivedBy(view: ExecutionView): Map<ConsumptionId, ReceivedView[]> {
+  const by = new Map<ConsumptionId, ReceivedView[]>()
+  const add = (consumption: ConsumptionId, received: ReceivedView | null) => {
+    if (received !== null) by.set(consumption, [...(by.get(consumption) ?? []), received])
+  }
+  for (const item of view.results.values()) add(item.consumption, item.received)
+  for (const list of by.values()) list.sort((left, right) => left.pub - right.pub)
+  return by
+}
+
+/** Every received delivery that holds custody of an entry. */
 export function receivedViews(view: ExecutionView): readonly ReceivedView[] {
-  return [
-    ...[...view.results.values()].flatMap(item => (item.received === null ? [] : [item.received])),
-    ...view.placeholders.values(),
-  ]
+  return [...view.results.values()].flatMap(item => (item.received === null ? [] : [item.received]))
 }
 
 function plain(value: unknown): unknown {

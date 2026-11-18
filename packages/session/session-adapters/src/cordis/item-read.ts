@@ -22,7 +22,7 @@ import { READ_ATTEMPTS, type Reader } from './journal-read.ts'
 import { refsIn } from './content-refs.ts'
 import { fetchBlobClosure } from './block-read.ts'
 import { blobRowDigest, factDigestOf } from './journal-batch.ts'
-import { itemText, type ItemRef } from '../testing/closed-items.ts'
+import { itemText, underText, type ItemRef } from '../testing/closed-items.ts'
 import type { CommonRoot, JournalCell } from '../testing/root.ts'
 import type { ProjectedRecords } from '../testing/journal-records.ts'
 
@@ -35,12 +35,13 @@ export type ItemsRead =
 
 const unread = (diagnostic: string): ItemsRead => ({ kind: 'unavailable', diagnostic })
 
-// The open items of one execution (of the named families, or all), every page at one head.
+// The open items of one execution (named families or all; `under`: a key prefix), at one head.
 export async function readOpenItems(
   read: Reader,
   scope: ItemScope,
   families: readonly string[] | null,
   all = false,
+  under: string | null = null,
 ): Promise<ItemsRead> {
   for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
     let after: ExecutionItemKey | null = null
@@ -52,6 +53,7 @@ export async function readOpenItems(
         after,
         ...(families === null ? {} : { families: [...families] }),
         ...(all ? { all } : {}),
+        ...(under === null ? {} : { under }),
       })
       if (output.kind === 'unread')
         return unread(`the open items of the execution are not readable: ${output.reason}`)
@@ -101,16 +103,27 @@ export async function fetchClosed(
   const byExecution = Map.groupBy(refs, ref => ref.execution)
   for (const [execution, wanted] of byExecution) {
     const scope = { tenant: lender.tenantText, session: lender.session, execution }
-    const found = await readItems(
-      read,
-      scope,
-      wanted.map(ref => ({ family: ref.family, item: ref.item })),
-    )
-    if (found.kind === 'unavailable') return found.diagnostic
-    for (const ref of wanted) lender.fetched.set(itemText(ref), null)
-    for (const item of found.items)
+    const keyed = wanted.filter(ref => ref.under !== true)
+    const items: ExecutionItem[] = []
+    if (keyed.length > 0) {
+      const keys = keyed.map(ref => ({ family: ref.family, item: ref.item }))
+      const found = await readItems(read, scope, keys)
+      if (found.kind === 'unavailable') return found.diagnostic
+      items.push(...found.items)
+    }
+    for (const ref of keyed) lender.fetched.set(itemText(ref), null)
+    for (const ref of wanted.filter(ref => ref.under === true)) {
+      const found = await readOpenItems(read, scope, [ref.family], true, ref.item)
+      if (found.kind === 'unavailable') return found.diagnostic
+      items.push(...found.items)
+      lender.fetched.set(
+        underText(ref),
+        found.items.map(item => item.item),
+      )
+    }
+    for (const item of items)
       lender.fetched.set(itemText({ execution, family: item.family, item: item.item }), item.body)
-    const rows = found.items.flatMap(item => [...refsIn(item.body)].map(blobRowDigest))
+    const rows = items.flatMap(item => [...refsIn(item.body)].map(blobRowDigest))
     const missing = await fetchBlobClosure(read, lender.tenantText, rows, lender.lentBlocks)
     if (missing !== null) return `the content block ${missing} of a closed item is not readable`
   }

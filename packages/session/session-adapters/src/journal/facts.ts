@@ -42,7 +42,6 @@ import { canonical } from '../testing/canonical.ts'
 
 export const FACT_MAX_BYTES = 4096
 
-// How a cursor names a material it holds: a short digest of the item key, bounded whatever the source.
 export const materialHold = (key: string): string =>
   createHash('sha256').update(key).digest('hex').slice(0, 16)
 export const BATCH_OVERHEAD_BYTES = 512
@@ -127,6 +126,15 @@ export type CursorMembers = Readonly<{
 export type CursorMember = keyof CursorMembers
 
 export type ResultStage = 'recorded' | 'custody' | 'processed' | 'released'
+
+// A result is one produced version under one consumption: a late one changes none before it.
+export type ResultKey = string & { readonly resultKey: unique symbol }
+
+export const resultKey = (consumption: ConsumptionId, version: string): ResultKey =>
+  JSON.stringify([consumption, version]) as ResultKey
+
+export const resultsUnder = (consumption: ConsumptionId): string =>
+  `${JSON.stringify([consumption]).slice(0, -1)},`
 
 export type FactBody =
   | Readonly<{
@@ -529,10 +537,9 @@ export function factKey(fact: FactBody): string {
       return `call/${fact.action}`
     case 'result.received':
       if (fact.result.delivery === 'account') return `account/${fact.delivery}`
-      if (fact.result.delivery === 'placeholder') return `placeholder/${fact.consumption}`
-      return `received/${fact.consumption}`
+      return `received/${resultKey(fact.consumption, fact.result.version)}`
     case 'result.handled':
-      return `handled/${fact.consumption}/${fact.stage}`
+      return `handled/${resultKey(fact.consumption, fact.result.version)}/${fact.stage}`
     case 'reply.judged':
       return `reply/${fact.sequence}`
     case 'message.published':

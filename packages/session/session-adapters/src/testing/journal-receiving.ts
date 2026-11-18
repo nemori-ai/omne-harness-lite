@@ -49,7 +49,6 @@ import {
   type Blob,
   type ExecutionView,
   blobOf,
-  callHeld,
   refOf,
   stampOfReceipt,
   type FactBody,
@@ -62,6 +61,7 @@ import {
   closedReceived,
   receivedEntries,
   deliveryOf,
+  keyVersion,
   preservedSource,
   receivedMaterialSource,
   type Kept,
@@ -169,7 +169,7 @@ function receivedCall(entry: ReceivedEntry): ProducerCall {
   return {
     producer: entry.delivery.producer,
     call: String(key.reference),
-    version: key.kind === 'result' ? String(key.result) : refOf(key).digest,
+    version: keyVersion(key),
     delivery: key.kind,
     source: structuredClone(entry.material),
   }
@@ -353,7 +353,8 @@ function delivered<P>(
   const text = deliveryText(input, entry)
   const held = hooks.state().deliveries.get(text)
   if (held !== undefined) return held
-  const closed = closedReceived(hooks.closed(), mintOf(hooks), input, entry.consumption, false)
+  const result = { consumption: entry.consumption, version: keyVersion(entry.delivery.key) }
+  const closed = closedReceived(hooks.closed(), mintOf(hooks), input, result, false)
   return closed?.delivery === text ? closed.kept : undefined
 }
 
@@ -683,10 +684,8 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     receivedOf: async input => {
       const found = qualified(input, false)
       if ('failure' in found) return found
-      const held = callHeld(input.consumption, hooks.viewOf(found.ok.id))
-      return succeed(
-        structuredClone(receivedEntries(hooks.closed(), found.ok, input.consumption, held)),
-      )
+      const view = hooks.viewOf(found.ok.id)
+      return succeed(structuredClone(receivedEntries(hooks.closed(), view, input.consumption)))
     },
   }
   const materialPort: AgentMaterials<P, ContentBlock> = {

@@ -11,10 +11,19 @@ import type { ObligationView } from '../journal/view.ts'
 import type { ObligationLedger } from './obligation-ledger.ts'
 import type { SharedMap } from '../journal/shared-map.ts'
 
-export type ItemRef = Readonly<{ execution: AgentExecutionId; family: string; item: string }>
+// One item by its key; with `under`, every item of the family whose key starts with `item`.
+export type ItemRef = Readonly<{
+  execution: AgentExecutionId
+  family: string
+  item: string
+  under?: true
+}>
 
 export const itemText = (ref: ItemRef): string =>
   JSON.stringify([ref.execution, ref.family, ref.item])
+
+export const underText = (ref: ItemRef): string =>
+  JSON.stringify([ref.execution, ref.family, ref.item, 'under'])
 
 // What an operation answered, kept closed under the operation: a repeat is recognized by it.
 export const ANSWER_FAMILY = 'answer'
@@ -41,7 +50,6 @@ export type ClosedTable = Readonly<{ closed: SharedMap<string, unknown>; closedC
 export const peekClosed = (table: ClosedTable, ref: ItemRef): unknown =>
   table.closed.get(itemText(ref)) ?? null
 
-// For a read that must know: throws NeedItems naming what the table does not hold.
 export function needClosed(table: ClosedTable, ref: ItemRef): unknown {
   const text = itemText(ref)
   if (table.closed.has(text)) return table.closed.get(text) ?? null
@@ -56,6 +64,20 @@ export function needAllClosed(
   const missing = table.closedComplete ? [] : refs.filter(ref => !table.closed.has(itemText(ref)))
   if (missing.length > 0) throw new NeedItems(missing)
   return new Map(refs.map(ref => [ref.item, table.closed.get(itemText(ref)) ?? null]))
+}
+
+export function needUnder(table: ClosedTable, ref: ItemRef): ReadonlyMap<string, unknown> {
+  const of = (item: string) => table.closed.get(itemText({ ...ref, item })) ?? null
+  const read = table.closed.get(underText(ref)) as readonly string[] | undefined
+  if (read !== undefined) return new Map(read.map(item => [item, of(item)]))
+  if (!table.closedComplete) throw new NeedItems([{ ...ref, under: true }])
+  const found = new Map<string, unknown>()
+  for (const [text, body] of table.closed) {
+    const [execution, family, item, group] = JSON.parse(text) as string[]
+    if (group !== undefined || execution !== ref.execution || family !== ref.family) continue
+    if (item!.startsWith(ref.item) && body !== null) found.set(item!, body)
+  }
+  return found
 }
 
 export function closedObligations(
@@ -79,8 +101,9 @@ export function fullViewOf(
 ): ExecutionView {
   const rows = viewItems(view)
   for (const [text, body] of closed) {
-    const [execution, family, item] = JSON.parse(text) as [string, string, string]
-    if (execution === view.execution) rows.push({ family, item, open: false, body })
+    const [execution, family, item, group] = JSON.parse(text) as string[]
+    if (group === undefined && execution === view.execution)
+      rows.push({ family: family!, item: item!, open: false, body })
   }
   const key = (row: (typeof rows)[number]) => `${row.family}\0${row.item}`
   return viewOfItems(

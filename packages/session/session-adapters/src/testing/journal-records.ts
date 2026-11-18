@@ -24,6 +24,7 @@ import { needClosed, type ClosedTable } from './closed-items.ts'
 import {
   checkpointOf,
   handoffKey,
+  receivedBy,
   receivedViews,
   type ProducerCall,
   type BlobStore,
@@ -405,7 +406,7 @@ export function projectExecution(
     admissions: admissionRecords(view),
     entries: entryRecords(view, context.blobs),
     deliveries: new Map(
-      [...view.deliveries].map(([consumption, list]) => [
+      [...receivedBy(view)].map(([consumption, list]) => [
         consumption,
         list.map(item => blob<ReceivedEntry>(context.blobs, item.custody)),
       ]),

@@ -2,7 +2,6 @@ import type {
   ActionId,
   AgentOperationId,
   Authority,
-  ConsumptionId,
   ControlStage,
   DurableEvidence,
   HandoffReference,
@@ -10,10 +9,12 @@ import type {
 import { canonical } from '../testing/canonical.ts'
 import {
   eventKindOf,
+  resultKey,
   type CursorMembers,
   type FactBody,
   type FactOf,
   type PublishedBatch,
+  type ResultKey,
   type ResultStage,
 } from './facts.ts'
 import {
@@ -54,9 +55,7 @@ type Draft = {
   -readonly [K in keyof ExecutionView]: ExecutionView[K]
 } & {
   intents: Map<ActionId, IntentView>
-  results: Map<ConsumptionId, ResultView>
-  placeholders: Map<ConsumptionId, ReceivedView>
-  deliveries: Map<ConsumptionId, readonly ReceivedView[]>
+  results: Map<ResultKey, ResultView>
   handoffs: Map<string, HandoffView>
   controls: Map<AgentOperationId, ControlView>
   materials: Map<string, MaterialView>
@@ -75,8 +74,6 @@ function draftOf(view: ExecutionView): Draft {
     cursorMoved: { ...view.cursorMoved },
     intents: forkTrackedOf(view.intents),
     results: forkTrackedOf(view.results),
-    placeholders: forkTrackedOf(view.placeholders),
-    deliveries: forkTrackedOf(view.deliveries),
     handoffs: forkTrackedOf(view.handoffs),
     controls: forkTrackedOf(view.controls),
     materials: forkTrackedOf(view.materials),
@@ -220,17 +217,9 @@ function foldResultReceived(draft: Draft, fact: FactOf<'result.received'>, stamp
     material: fact.material,
     ...stamp,
   }
-  draft.deliveries.set(fact.consumption, [
-    ...(draft.deliveries.get(fact.consumption) ?? []),
-    received,
-  ])
-  if (fact.result.delivery === 'placeholder') {
-    if (!draft.placeholders.has(fact.consumption))
-      draft.placeholders.set(fact.consumption, received)
-    return
-  }
-  const known = draft.results.get(fact.consumption)
-  draft.results.set(fact.consumption, {
+  const key = resultKey(fact.consumption, fact.result.version)
+  const known = draft.results.get(key)
+  draft.results.set(key, {
     consumption: fact.consumption,
     result: known?.result ?? fact.result,
     received: known?.received ?? received,
@@ -240,10 +229,11 @@ function foldResultReceived(draft: Draft, fact: FactOf<'result.received'>, stamp
 }
 
 function foldResultHandled(draft: Draft, fact: FactOf<'result.handled'>, pub: number): void {
-  const known = draft.results.get(fact.consumption)
+  const key = resultKey(fact.consumption, fact.result.version)
+  const known = draft.results.get(key)
   const stages: Partial<Record<ResultStage, DurableEvidence>> = { ...known?.stages }
   if (stages[fact.stage] === undefined) stages[fact.stage] = fact.evidence
-  draft.results.set(fact.consumption, {
+  draft.results.set(key, {
     consumption: fact.consumption,
     result: known?.result ?? fact.result,
     received: known?.received ?? null,

@@ -15,6 +15,8 @@ export {
   encodeBatch,
   factKey,
   refOf,
+  resultKey,
+  resultsUnder,
 } from './facts.ts'
 export type {
   Attempt,
@@ -35,6 +37,7 @@ export type {
   ProducerCall,
   PublishedBatch,
   Ref,
+  ResultKey,
   ResultStage,
 } from './facts.ts'
 export { advances, fold, foldAll, foldItems } from './fold.ts'
@@ -55,6 +58,7 @@ export {
   emptyExecutionView,
   emptySessionView,
   handoffKey,
+  receivedBy,
   receivedViews,
   viewDigest,
   viewText,

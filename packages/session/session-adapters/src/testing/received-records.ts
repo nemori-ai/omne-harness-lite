@@ -9,7 +9,12 @@ import type {
 import type { ContentBlock } from '@omne-harness/content-block'
 import {
   batchEvidence,
+  callHeld,
+  refOf,
+  resultKey,
+  resultsUnder,
   type BlobStore,
+  type ExecutionView,
   type Mint,
   type PublishedBatch,
   type ReceivedView,
@@ -19,7 +24,7 @@ import {
 } from '../journal/index.ts'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { canonical } from './canonical.ts'
-import { needClosed, peekClosed, type ClosedTable } from './closed-items.ts'
+import { needClosed, needUnder, peekClosed, type ClosedTable } from './closed-items.ts'
 import { journalEvidence, revisionOf } from './journal-values.ts'
 import type { Stored } from './material-table.ts'
 
@@ -117,21 +122,27 @@ export const preservedSource = (
     1,
   )
 
+export function keyVersion(key: ReceivedEntry['delivery']['key']): string {
+  if (key.kind !== 'result') return refOf(key).digest
+  return typeof key.result === 'string' ? key.result : key.result.version
+}
+
 function sourceNames(
   namespace: string,
   source: DurableEvidence,
 ): Readonly<{
   tenant: string
   execution: AgentExecutionId
-  consumption: ConsumptionId | null
+  result: Readonly<{ consumption: ConsumptionId; version: string }> | null
 }> | null {
   try {
     const parts = JSON.parse(source.record) as unknown
     if (!Array.isArray(parts) || parts[0] !== namespace) return null
     if (parts[1] !== RECEIVED_MATERIAL && parts[1] !== PRESERVED_MATERIAL) return null
     const [tenant, execution] = JSON.parse(String(parts[2])) as [string, AgentExecutionId]
-    const consumption = parts[1] === RECEIVED_MATERIAL ? (parts[5] as ConsumptionId) : null
-    return { tenant, execution, consumption }
+    if (parts[1] !== RECEIVED_MATERIAL) return { tenant, execution, result: null }
+    const version = keyVersion(parts[3] as ReceivedEntry['delivery']['key'])
+    return { tenant, execution, result: { consumption: parts[5] as ConsumptionId, version } }
   } catch {
     return null
   }
@@ -164,16 +175,17 @@ export function receivedRecord(scope: RecordScope, received: ReceivedView): Rece
   }
 }
 
-// A result the core no longer holds open, by its consumption; a read that must know asks with need.
+// A closed result by its consumption and version; a read that must know asks with need.
 export function closedReceived(
   table: ClosedTable & Readonly<{ blobs: BlobStore }>,
   mint: Mint,
   input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>,
-  consumption: ConsumptionId,
+  result: Readonly<{ consumption: ConsumptionId; version: string }>,
   need: boolean,
 ): ReceivedRecord | undefined {
   const scope = scopeOf(input.tenant, input.execution, mint, table.blobs)
-  const ref = { execution: scope.execution, family: 'result', item: consumption }
+  const item = resultKey(result.consumption, result.version)
+  const ref = { execution: scope.execution, family: 'result', item }
   const body = (need ? needClosed(table, ref) : peekClosed(table, ref)) as ResultView | null
   if (body === null || body.received === null) return undefined
   return receivedRecord(scope, body.received)
@@ -190,7 +202,7 @@ export function closedMaterial(
   const named = sourceNames(mint.session, source)
   const encoded = tenantCodec.encode(tenant)
   if (named === null || !encoded.ok || named.tenant !== encoded.value) return undefined
-  if (named.consumption === null) {
+  if (named.result === null) {
     const ref = { execution: named.execution, family: 'material', item: canonical(source) }
     const body = (need ? needClosed(table, ref) : peekClosed(table, ref)) as MaterialView | null
     if (body === null) return undefined
@@ -201,26 +213,28 @@ export function closedMaterial(
     }
   }
   const input = { tenant, execution: named.execution }
-  const closed = closedReceived(table, mint, input, named.consumption, need)
+  const closed = closedReceived(table, mint, input, named.result, need)
   return closed !== undefined && canonical(closed.kept.entry.material) === canonical(source)
     ? (closed.material ?? undefined)
     : undefined
 }
 
-// Every entry a consumption received, in order: from the record, else from the closed item.
+// Every entry a consumption received, in order; once no step holds the call, closed ones too.
 export function receivedEntries(
   table: ClosedTable & Readonly<{ blobs: BlobStore }>,
-  execution: Readonly<{
-    id: AgentExecutionId
-    deliveries: ReadonlyMap<ConsumptionId, readonly ReceivedEntry[]>
-  }>,
+  view: ExecutionView,
   consumption: ConsumptionId,
-  held: boolean,
 ): readonly ReceivedEntry[] {
-  const kept = execution.deliveries.get(consumption)
-  if (kept !== undefined) return kept
-  if (held) return []
-  const ref = { execution: execution.id, family: 'delivery', item: consumption }
-  const closed = needClosed(table, ref) as ReceivedView[] | null
-  return (closed ?? []).map(item => block<ReceivedEntry>(table.blobs, item.custody))
+  const found = new Map<string, ReceivedView>()
+  const add = (received: ReceivedView | null | undefined) => {
+    if (received !== null && received !== undefined) found.set(received.delivery, received)
+  }
+  for (const item of view.results.values()) if (item.consumption === consumption) add(item.received)
+  if (!callHeld(consumption, view)) {
+    const under = { execution: view.execution, family: 'result', item: resultsUnder(consumption) }
+    for (const body of needUnder(table, under).values()) add((body as ResultView).received)
+  }
+  return [...found.values()]
+    .sort((left, right) => left.pub - right.pub)
+    .map(item => block<ReceivedEntry>(table.blobs, item.custody))
 }
