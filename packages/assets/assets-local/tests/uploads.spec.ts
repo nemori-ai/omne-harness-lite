@@ -40,7 +40,8 @@ function idOf(category: string, name: string): CapabilityId {
 
 const BUNDLE = idOf('bundle', 'docs')
 const README = { path: 'README.md', bytes: 5 }
-const ENTRIES = [README, { path: 'lib/a.txt', bytes: 3 }]
+const LIB = { path: 'lib/a.txt', bytes: 3 }
+const ENTRIES = [README, LIB]
 
 function world(policy: Partial<UploadPolicy> = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'uploads-')))
@@ -146,7 +147,7 @@ describe('begin (table one, first row)', () => {
 
   it.each([
     ['another file list', [README], BUNDLE],
-    ['another size', [{ path: 'README.md', bytes: 6 }, ENTRIES[1]], BUNDLE],
+    ['another size', [{ path: 'README.md', bytes: 6 }, LIB], BUNDLE],
     ['another capability', ENTRIES, idOf('bundle', 'other')],
   ])('in, the same operation with %s is an operation conflict', async (_label, entries, id) => {
     const w = world()

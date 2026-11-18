@@ -208,6 +208,7 @@ export const committedSchema = z.strictObject({
 export const receiptSchema = z.strictObject({
   binding: mutationBindingSchema,
   result: z.union([committedSchema, failureSchema]),
+  domainRevision: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
 })
 export const holdingLookupSchema = z.strictObject({
   holdingRef: SettingsReferenceSchema,
@@ -288,6 +289,14 @@ export const readRequestSchema = z.discriminatedUnion('kind', [
     lookup: heldCapabilityLookupSchema,
   }),
   z.strictObject({ kind: z.literal('summary'), domain: domainSchema, lookup: versionLookupSchema }),
+  z.strictObject({ kind: z.literal('domain'), domain: domainSchema, lookup: z.null() }),
+])
+export const domainResultSchema = z.union([
+  z.strictObject({
+    kind: z.literal('domain'),
+    revision: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+  }),
+  failureSchema,
 ])
 export const summaryResultSchema = z.union([
   z.strictObject({ kind: z.literal('summary'), summary: summarySchema.nullable() }),

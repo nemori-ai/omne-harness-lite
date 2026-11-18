@@ -9,6 +9,7 @@ import type {
   assetResultSchema,
   changeHoldingSchema,
   committedSchema,
+  domainResultSchema,
   failureSchema,
   holdSchema,
   holdingResultSchema,
@@ -33,7 +34,10 @@ export type AssetsLocalOptions = Readonly<{
   /** Without a policy, or without a package root, uploads answer unavailable. */
   uploads?: UploadPolicy
   clock?: () => number
+  /** Called once after each new commit that changed something, before its result is answered. */
+  onCommitted?: (signal: AssetsCommitted) => void
 }>
+export type AssetsCommitted = Readonly<{ domain: DomainRef; revision: number }>
 export type AssetsPublish = Readonly<z.infer<typeof publishMetadataSchema> & { pinned: PinnedBody }>
 export type AssetsPublishAndHold = Readonly<
   AssetsPublish & { holding: z.infer<typeof publishedHoldingSchema> }
@@ -65,6 +69,7 @@ export interface AssetsLocal {
   readSummary(input: z.infer<typeof versionLookupSchema>): Promise<AssetsSummaryResult>
   readonly packages: LocalPackages
   readonly uploads: LocalUploads
+  domainRevision(): Promise<z.infer<typeof domainResultSchema>>
   getOperation(operationId: string): Promise<AssetsOperationResult>
   /** The outcome of the publication made under this operation, as the publisher answered it. */
   recallPublication(operationId: string): Promise<PublicationRecall>

@@ -137,6 +137,7 @@ export async function openWorld(
     packageDurability?: Parameters<typeof createAssetsLocal>[0]['packageDurability']
     uploads?: Parameters<typeof createAssetsLocal>[0]['uploads']
     clock?: () => number
+    onCommitted?: Parameters<typeof createAssetsLocal>[0]['onCommitted']
   } = {},
 ) {
   const parent = fileURLToPath(
@@ -192,6 +193,7 @@ export async function openWorld(
       : { packageDurability: options.packageDurability }),
     ...(options.uploads === undefined ? {} : { uploads: options.uploads }),
     ...(options.clock === undefined ? {} : { clock: options.clock }),
+    ...(options.onCommitted === undefined ? {} : { onCommitted: options.onCommitted }),
   })
   async function setup() {
     const published = await owner.publish({

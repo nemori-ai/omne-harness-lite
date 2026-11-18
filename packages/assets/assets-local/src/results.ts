@@ -39,6 +39,17 @@ export function receiptResult(
       return terminalReceipt(result, domain, operationId, same)
   }
 }
+/** The domain revision a commit made just now left; a receipt answered again is not new. */
+export function freshDomainRevision(
+  result: CommitResultV2,
+  domain: DomainRef,
+  operationId: string,
+): number | undefined {
+  return result.kind === 'committed' && !result.recalled
+    ? decodeReceipt(result, domain, operationId)?.domainRevision
+    : undefined
+}
+
 export type PublicationRecall =
   | Readonly<{
       kind: 'published'
