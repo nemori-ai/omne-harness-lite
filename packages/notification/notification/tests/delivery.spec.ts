@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
+import { createDelivery } from '@omne-harness/notification'
 import { fakeChannel } from '@omne-harness/notification/testing'
 import type { StandingItem } from '@omne-harness/notification-contract'
-import { agent, declared, MINUTE, person, request, world } from './world.ts'
+import { agent, declared, defaults, MINUTE, person, request, world } from './world.ts'
 
 /** One minute into a beat slot: nothing accepted in a test is due for a beat before 06:30. */
 function strongWorld(...types: Parameters<typeof world>) {
@@ -477,6 +478,43 @@ describe('each recipient gets its own', () => {
   })
 })
 
+describe('a recipient whose builtin destination was never written', () => {
+  it('is still reminded of a standing item, next to a recipient whose destination exists', async () => {
+    const blocked = declared({
+      name: 'blocked' as never,
+      kind: { kind: 'standing', binding: 'demo.blocked' },
+      defaults: { person: 'strong', agent: 'off' },
+    })
+    const w = strongWorld(declared({ defaults: { person: 'off', agent: 'off' } }), blocked)
+    await w.subscriptions.set(w.ctx, {
+      recipient: agent('a'),
+      source: 'demo.things',
+      type: 'changed',
+      scope: { kind: 'all' },
+      level: 'weak',
+      note: null,
+      term: { kind: 'standing' },
+    })
+    expect(
+      [...w.store.facts(w.ctx.tenant).destinations.values()].map(entry => entry.recipient),
+    ).toEqual([agent('a')])
+    const item = {
+      id: 'i1',
+      source: 'demo.things',
+      type: 'blocked',
+      subject: null,
+      title: 'Open',
+      locator: null,
+      since: '2026-11-18T06:00:30.000Z',
+    }
+    w.standing.set({ kind: 'ok', items: [item as never] })
+    await w.advance()
+    expect(bodies(w.inApp)).toEqual([{ kind: 'standing', item }])
+    const [unit] = [...w.store.facts(w.ctx.tenant).units.values()]
+    expect(unit?.state).toBe('delivered')
+  })
+})
+
 describe('a pass that finds nothing to do', () => {
   it('commits nothing and asks only for real instants', async () => {
     const blocked = declared({
@@ -581,8 +619,13 @@ describe('what a pass cannot read', () => {
     await w.advance()
     expect(reminders.count).toBe(0)
     Object.assign(w.store, { reminded })
-    w.store.fail('rolled-back')
+    const remind = w.store.remind
+    Object.assign(w.store, { remind: async () => ({ kind: 'rolled-back' }) })
     await w.advance()
+    expect(bodies(w.inApp).filter(body => (body as { kind: string }).kind === 'standing')).toEqual(
+      [],
+    )
+    Object.assign(w.store, { remind })
     await w.advance()
     expect(
       bodies(w.inApp).filter(body => (body as { kind: string }).kind === 'standing'),
@@ -704,6 +747,22 @@ describe('forming a unit when the store answers otherwise', () => {
 describe('wake-ups for one tenant', () => {
   it('run again when one arrives during a pass, so nothing accepted meanwhile is left behind', async () => {
     const w = strongWorld()
+    const patient = createDelivery({
+      store: w.store,
+      channels: w.channels,
+      sources: w.sources,
+      authority: w.authority,
+      standing: w.standing,
+      clock: w.clock,
+      hints: w.hints,
+      defaults,
+      config: {
+        listLimit: 3,
+        retry: { maxAttempts: 3, backoffMs: [MINUTE] },
+        deliverTimeoutMs: 60_000,
+        defaultBeatMinutes: 30,
+      },
+    })
     let release: (() => void) | undefined
     const gate = new Promise<void>(resolve => {
       release = resolve
@@ -720,13 +779,16 @@ describe('wake-ups for one tenant', () => {
       },
     })
     await w.sending.send(w.ctx, request('e1'))
-    const first = w.advance()
+    const first = patient.advance(w.ctx.tenant)
     await vi.waitFor(() => expect(held).toBe(true))
     await w.sending.send(w.ctx, request('e2'))
-    const second = w.advance()
+    const second = patient.advance(w.ctx.tenant)
+    expect(second).toBe(first)
     release?.()
-    await Promise.all([first, second])
+    await first
     expect(members(w.inApp.deliveries)).toEqual([['e1'], ['e2']])
+    await patient.advance(w.ctx.tenant)
+    expect(w.inApp.deliveries).toHaveLength(2)
   })
 
   it('leave no timer behind after a delivery', async () => {

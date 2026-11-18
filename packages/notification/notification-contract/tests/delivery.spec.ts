@@ -193,6 +193,11 @@ describe('composeBody', () => {
     })
   })
 
+  it('gives an empty digest for no members, strong or not', () => {
+    const empty = { kind: 'digest', count: 0, listed: [], standingOpen: null }
+    expect(composeBody('strong', [], 3, null)).toEqual(empty)
+  })
+
   it('gives a digest for a beat even with one member, and for none', () => {
     expect(composeBody('beat', [entry('e1')], 3, 2)).toMatchObject({
       kind: 'digest',

@@ -50,14 +50,16 @@ export function createCatalog(deps: CatalogDependencies): NotificationCatalog {
 
   /** The declarations registered now. Null: one of them cannot be read, so the list would be short. */
   function declarations(): readonly SourceDeclaration[] | null {
+    const read: SourceDeclaration[] = []
     try {
-      const all = deps.sources.list()
-      return all.every(entry => entry.kind === 'registered')
-        ? all.flatMap(entry => (entry.kind === 'registered' ? [entry.declaration] : []))
-        : null
+      for (const entry of deps.sources.list()) {
+        if (entry.kind !== 'registered') return null
+        read.push(entry.declaration)
+      }
     } catch {
       return null
     }
+    return read
   }
 
   return {

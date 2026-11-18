@@ -115,6 +115,13 @@ describe('the catalogue', () => {
 
   it('is refused without authority and unavailable when the authority cannot answer', async () => {
     const w = world()
+    await w.catalog.sources(w.ctx)
+    await w.catalog.channels(w.ctx)
+    expect(w.authority.asked()).toEqual([
+      { kind: 'list-catalog' },
+      { kind: 'know-source', source },
+      { kind: 'list-catalog' },
+    ])
     w.authority.answer(() => 'denied')
     expect(await w.catalog.sources(w.ctx)).toEqual(denied)
     expect(await w.catalog.channels(w.ctx)).toEqual(denied)

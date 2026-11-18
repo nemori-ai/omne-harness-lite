@@ -68,7 +68,7 @@ async function attempt(
   const answer = async (): Promise<DeliveryResult> => {
     try {
       const result = await channel.deliver(delivery)
-      return RESULT_KINDS.includes(result?.kind) ? result : UNKNOWN
+      return RESULT_KINDS.includes(result.kind) ? result : UNKNOWN
     } catch {
       return UNKNOWN
     }
