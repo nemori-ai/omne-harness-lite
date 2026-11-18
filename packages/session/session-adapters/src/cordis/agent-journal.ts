@@ -611,7 +611,7 @@ function settleRecordStop<P, T>(
         kind: 'answer',
         value: fail(
           unavailable(
-            `the Agent records were not saved: ${reply.kind}${'diagnostic' in reply ? ` (${reply.diagnostic})` : ''}`,
+            `the Agent records were not saved: ${reply.kind}${'diagnostic' in reply ? ` (${reply.diagnostic})` : ''}${'reason' in reply ? ` (${reply.reason})` : ''}`,
           ),
         ),
       }

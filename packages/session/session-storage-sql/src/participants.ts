@@ -643,7 +643,13 @@ export type ExecutionRecordItemsRead = Readonly<{
   keys: readonly ExecutionItemKey[]
 }>
 export type ExecutionRecordItems =
-  | Readonly<{ kind: 'items'; published: string; items: readonly ExecutionItem[] }>
+  | Readonly<{
+      kind: 'items'
+      published: string
+      items: readonly ExecutionItem[]
+      /** The keys one page had no room for: read them next. */
+      rest: readonly ExecutionItemKey[]
+    }>
   | ExecutionRecordMissing
   | ExecutionRecordDenied
 
@@ -652,9 +658,10 @@ export function decodeExecutionRecordItems(output: JsonValue): ExecutionRecordIt
   if (value === null) return null
   if (value['kind'] !== 'items') return refusalOf(value)
   const items = listDecoded(value['items'], itemOf)
+  const rest = listDecoded(value['rest'], itemKeyOf)
   const { published } = value
-  return typeof published === 'string' && items !== null
-    ? { kind: 'items', published, items }
+  return typeof published === 'string' && items !== null && rest !== null
+    ? { kind: 'items', published, items, rest }
     : null
 }
 

@@ -7,7 +7,6 @@ import {
   decodeValue,
   EXECUTION_BATCH_MAX_FACTS,
   EXECUTION_FACT_MAX_BYTES,
-  EXECUTION_ITEM_MAX_BYTES,
   sha256,
 } from '../codec.ts'
 import { findPreadmission, preadmissionRecord } from './read-preadmission.ts'
@@ -155,10 +154,14 @@ function parseItem(execution: string): (item: Json) => Item | null {
     if (!isText(owner) || !isText(family) || typeof item !== 'string' || !('body' in raw))
       return null
     if ((change !== 'opened' && change !== 'changed') || typeof open !== 'boolean') return null
-    const body = JSON.stringify(raw['body'] ?? null)
-    return utf8(body) > EXECUTION_ITEM_MAX_BYTES
-      ? null
-      : { execution: owner, family, item, change, open, body }
+    return {
+      execution: owner,
+      family,
+      item,
+      change,
+      open,
+      body: JSON.stringify(raw['body'] ?? null),
+    }
   }
 }
 

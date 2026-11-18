@@ -73,14 +73,28 @@ export async function readItems(
   scope: ItemScope,
   keys: readonly ExecutionItemKey[],
 ): Promise<ItemsRead> {
-  const output = await read(EXECUTION_RECORD_HANDLERS.items, { ...scope, keys: [...keys] })
-  if (output.kind === 'unread')
-    return unread(`the items of the execution are not readable: ${output.reason}`)
-  const found = decodeExecutionRecordItems(output.output)
-  if (found === null) return unread('the items of the execution do not decode')
-  if (found.kind === 'denied') return { kind: 'read', published: 0, items: [] }
-  if (found.kind === 'missing') return unread('the Agent records of the session are older')
-  return { kind: 'read', published: Number(found.published), items: found.items }
+  for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
+    let rest: readonly ExecutionItemKey[] = keys
+    let published: string | null = null
+    const items: ExecutionItem[] = []
+    // A page holds what fits; the keys it had no room for are read next, all at one head.
+    while (rest.length > 0) {
+      const output = await read(EXECUTION_RECORD_HANDLERS.items, { ...scope, keys: [...rest] })
+      if (output.kind === 'unread')
+        return unread(`the items of the execution are not readable: ${output.reason}`)
+      const found = decodeExecutionRecordItems(output.output)
+      if (found === null) return unread('the items of the execution do not decode')
+      if (found.kind === 'denied') return { kind: 'read', published: 0, items: [] }
+      if (found.kind === 'missing') return unread('the Agent records of the session are older')
+      if (published !== null && found.published !== published) break
+      if (found.rest.length >= rest.length) return unread('a page of items read none of its keys')
+      published = found.published
+      items.push(...found.items)
+      rest = found.rest
+    }
+    if (rest.length === 0) return { kind: 'read', published: Number(published ?? 0), items }
+  }
+  return unread('the items of the execution kept changing while they were read')
 }
 
 // What a call read back by original key (null: not held at that head), with the blocks they name.
