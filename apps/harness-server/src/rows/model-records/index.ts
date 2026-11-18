@@ -24,10 +24,7 @@ import {
   type ModelCommandsEvidence,
   type ModelInitialExecution,
 } from '@omne-harness/model/commands'
-import { anthropicTokenizerResources, createAnthropicFamily } from '@omne-harness/pi-ai-anthropic'
 import type { TiktokenExecutor } from '@omne-harness/tokenizer-tiktoken'
-import { createOpenAiFamily, openAiTokenizerResources } from '@omne-harness/pi-ai-openai'
-import { composeFamilies } from '@omne-harness/pi-ai-transport'
 import { modelTokenizersKey, type ModelTokenizers } from '@omne-harness/tokenizer-tiktoken/cordis'
 import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
@@ -40,6 +37,7 @@ import { modelRecordsPortOf } from '../../model/ports.ts'
 import { observationTiming } from '../../model/observation.ts'
 import { createModelQualification } from '../../model/qualification.ts'
 import { officialSendSources } from '../../model/sources.ts'
+import { releaseFamilies } from '../../model/families.ts'
 import { defineRow } from '../../row.ts'
 import { providerRoutes } from '../../assets/model-providers.ts'
 import { credentialLayerSupplier } from '../../model/credential-layer.ts'
@@ -170,20 +168,7 @@ function mountRecords(ctx: Context, config: ModelRecordsConfig): void {
       }
       const Stage = createModelSendStagePlugin<unknown>({
         requestDisclosure,
-        families: composeFamilies([
-          createOpenAiFamily({
-            tokenizer: openAiTokenizerResources(),
-            executor,
-            limits: sendStage.preparation.openai.limits,
-            margin: sendStage.preparation.openai.margin,
-          }),
-          createAnthropicFamily({
-            tokenizer: anthropicTokenizerResources(),
-            executor,
-            limits: sendStage.preparation.anthropic.limits,
-            margin: sendStage.preparation.anthropic.margin,
-          }),
-        ]),
+        families: releaseFamilies(sendStage.preparation, executor),
         coordinator,
         materialization: {
           maxRecords: sendStage.materialization.maxRecords,
