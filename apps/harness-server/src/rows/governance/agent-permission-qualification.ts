@@ -8,7 +8,6 @@ import {
   type PermissionBasisRequest,
 } from '@omne-harness/permissions'
 import type { PermissionQualification } from './permission-qualification.ts'
-import type { ToolRelease } from '../../entry/tool-release.ts'
 import {
   agentPermissionOperation,
   declaredPermission,

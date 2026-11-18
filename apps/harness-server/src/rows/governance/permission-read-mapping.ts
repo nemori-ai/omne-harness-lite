@@ -9,12 +9,10 @@ import {
   type PermissionBasisRequest,
 } from '@omne-harness/permissions'
 import type { GovernanceScope } from '@omne-harness/governance-contract'
-import type { ToolRelease } from '../../entry/tool-release.ts'
 import {
   declaredPermission,
   type ToolPermissionAction,
 } from '../authorization/current-tool-permission.ts'
-import { toolAssetTarget } from './tool-installation-assets.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 import { organizationSettingsSource } from './organization-settings.ts'
 import {

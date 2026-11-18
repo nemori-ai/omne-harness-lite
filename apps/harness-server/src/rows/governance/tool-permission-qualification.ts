@@ -11,7 +11,6 @@ import type {
   InvocationQualification,
   LocalInvocationQualifier,
 } from '@omne-harness/tool-host-local'
-import type { ToolRelease } from '../../entry/tool-release.ts'
 import { sameAdoption } from '../../entry/tool-release-manifest.ts'
 import {
   declaredPermission,
