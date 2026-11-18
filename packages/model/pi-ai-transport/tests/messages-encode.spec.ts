@@ -205,6 +205,68 @@ describe('encode: the conversation', () => {
   })
 })
 
+describe('encode: what an assistant turn sends back', () => {
+  const asked = message('u1', 'user', [textBlock('b1', 'weather in Oslo?')])
+  const after = (blocks: readonly unknown[]) =>
+    blocks.flatMap(block => {
+      const call = block as { kind: string; callId?: string }
+      return call.kind === 'tool_call_unparsed' && call.callId !== undefined
+        ? [message('r1', 'tool', [resultBlock('x1', call.callId), textBlock('x2', 'done')])]
+        : []
+    })
+  const turn = (blocks: readonly unknown[], extra: object = {}) =>
+    encode(UNBOUND, {
+      messages: [
+        asked,
+        message('a1', 'assistant', blocks, extra),
+        ...after(blocks),
+        message('u2', 'user', [textBlock('b2', 'go on')]),
+      ],
+    })
+  const sent = (outcome: ReturnType<typeof encode>) =>
+    (body(outcome).messages as { role: string; content: unknown[] }[]).slice(1, 2)
+
+  it('leaves out a block the model must not see', () => {
+    expect(
+      sent(turn([textBlock('t1', 'for the person', false), textBlock('t2', 'shown')])),
+    ).toEqual([{ role: 'assistant', content: [{ type: 'text', text: 'shown' }] }])
+  })
+
+  it('sends a turn that carries only reasoning state', () => {
+    const outcome = turn([stateBlock('s1', SIGNED)], {
+      replay: { scope: SCOPE, format: UNBOUND.replay.formats.produces, at: [0] },
+    })
+    expect(sent(outcome)).toEqual([
+      {
+        role: 'assistant',
+        content: [{ type: 'thinking', thinking: 'plan the call', signature: 'sig-1' }],
+      },
+    ])
+  })
+
+  it('sends arguments that are not an object as an empty object, and an object as written', () => {
+    const unparsed = (raw: string) => ({
+      kind: 'tool_call_unparsed',
+      id: 'c1',
+      visibility: { toHuman: true, toModel: true },
+      callId: 'call-1',
+      name: 'lookup',
+      raw,
+    })
+    const input = (raw: string) =>
+      (sent(turn([unparsed(raw)]))[0]?.content[0] as { input?: unknown } | undefined)?.input
+    expect(input('[1,2]')).toEqual({})
+    expect(input('7')).toEqual({})
+    expect(input('{"q":"x"}')).toEqual({ q: 'x' })
+  })
+
+  it('refuses a turn with content the model cannot take', () => {
+    expect(turn([textBlock('t1', 'look'), imageBlock('i1', 'image/x-unknown')])).toMatchObject({
+      failure: {},
+    })
+  })
+})
+
 describe('encode: what the model does not accept is refused before anything is sent', () => {
   const lastAssistant = [
     message('u1', 'user', [textBlock('b1', 'hi')]),
