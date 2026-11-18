@@ -125,10 +125,19 @@ describe('the asset summary is written with its version', () => {
   it('a summary record bound to another version is refused when read', () => {
     const port = open()
     run(port, withSummary('p1', 'v1'))
-    port.execute('UPDATE al_summaries SET record = ?', [
-      canonical({ domain, assetRef: 'note/other', version: 'v1', summary }),
-    ])
-    expect(() => readSummary(port, domain, REF, 'v1')).toThrow('Misbound summary record')
+    for (const bound of [
+      { domain, assetRef: 'note/other', version: 'v1', summary },
+      { domain, assetRef: REF, version: 'v9', summary },
+      {
+        domain: { ...domain, transactionDomain: 'assets.other' },
+        assetRef: REF,
+        version: 'v1',
+        summary,
+      },
+    ]) {
+      port.execute('UPDATE al_summaries SET record = ?', [canonical(bound)])
+      expect(() => readSummary(port, domain, REF, 'v1')).toThrow('Misbound summary record')
+    }
   })
 })
 

@@ -73,6 +73,10 @@ describe('admitSummary', () => {
     ['no description', { title: 't', facts: [] }],
     ['facts that are not a list', { title: 't', description: 'd', facts: {} }],
     ['a fact without text', { title: 't', description: 'd', facts: [{ name: 'n' }] }],
+    ['a fact without name', { title: 't', description: 'd', facts: [{ text: 't' }] }],
+    ['a fact that is null', { title: 't', description: 'd', facts: [null] }],
+    ['a fact that is a number', { title: 't', description: 'd', facts: [1] }],
+    ['a number', 7],
   ])('answers no summary for %s', (_, value) => {
     expect(admitSummary(value)).toBeNull()
   })

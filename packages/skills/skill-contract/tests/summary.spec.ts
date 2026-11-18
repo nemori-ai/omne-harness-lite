@@ -90,6 +90,35 @@ describe('the asset summary of a Skill version', () => {
     ])
   })
 
+  it('joins several tools with 、, counts no files without a manifest, and gives an empty description when there is none', () => {
+    const read = readBodyText(
+      JSON.stringify({
+        name: 'two-tools',
+        tools: [
+          { category: 'tool', name: 'read_file' },
+          { category: 'tool', name: 'write_file' },
+        ],
+      }),
+      {
+        maxBytes: 4096,
+        maxDepth: 8,
+        maxItems: 16,
+        maxMembers: 16,
+        maxStringLength: 64,
+        maxNumberLength: 8,
+      },
+    )
+    if (read.kind !== 'ok') throw new Error(read.kind)
+    expect(skillBodyContract().summarize?.(read.value, { capabilityName: 'two-tools' })).toEqual({
+      title: 'two-tools',
+      description: '',
+      facts: [
+        { name: '文件', text: '0 个' },
+        { name: '依赖', text: 'read_file、write_file' },
+      ],
+    })
+  })
+
   it('throws for a body that fails judgment, as the other derivations do', async () => {
     const body = await recordBody(fixtureFiles('full-skill'))
     expect(() => skillBodyContract().summarize?.(body, { capabilityName: 'other' })).toThrow(

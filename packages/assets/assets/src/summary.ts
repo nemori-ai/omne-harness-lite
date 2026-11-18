@@ -17,25 +17,23 @@ export const SUMMARY_LIMITS = Object.freeze({
   text: 200,
 })
 
+type Untrusted<T> = Readonly<Partial<Record<keyof T, unknown>>> | null | undefined
+
 function clip(value: unknown, limit: number): string | undefined {
-  if (typeof value !== 'string') return undefined
-  const points = [...value]
-  return points.length > limit ? points.slice(0, limit).join('') : value
+  return typeof value === 'string' ? [...value].slice(0, limit).join('') : undefined
 }
 
 function factOf(value: unknown): AssetSummaryFact | undefined {
-  if (typeof value !== 'object' || value === null) return undefined
-  const { name, text } = value as Record<string, unknown>
-  const clippedName = clip(name, SUMMARY_LIMITS.name)
-  const clippedText = clip(text, SUMMARY_LIMITS.text)
+  const fact = value as Untrusted<AssetSummaryFact>
+  const clippedName = clip(fact?.name, SUMMARY_LIMITS.name)
+  const clippedText = clip(fact?.text, SUMMARY_LIMITS.text)
   if (clippedName === undefined || clippedText === undefined) return undefined
   return Object.freeze({ name: clippedName, text: clippedText })
 }
 
 /** What a category's `summarize` returned, clipped to the bounds; `null` when the shape is wrong. */
 export function admitSummary(value: unknown): AssetSummary | null {
-  if (typeof value !== 'object' || value === null) return null
-  const { title, description, facts } = value as Record<string, unknown>
+  const { title, description, facts } = (value as Untrusted<AssetSummary>) ?? {}
   const clippedTitle = clip(title, SUMMARY_LIMITS.title)
   const clippedDescription = clip(description, SUMMARY_LIMITS.description)
   if (clippedTitle === undefined || clippedDescription === undefined || !Array.isArray(facts))
@@ -54,11 +52,10 @@ export function summarizeVersion(
   categories: Pick<CategoryView, 'lookup'>,
   pinned: PinnedBody,
 ): AssetSummary | null {
-  const summarize = categories.lookup(pinned.identity.category)?.summarize
-  if (summarize === undefined) return null
+  const contract = categories.lookup(pinned.identity.category)
   try {
     const context = { capabilityName: pinned.identity.name, definition: pinned.version }
-    return admitSummary(summarize(pinned.body, context))
+    return admitSummary(contract?.summarize?.(pinned.body, context))
   } catch {
     return null
   }

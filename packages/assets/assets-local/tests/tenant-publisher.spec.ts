@@ -13,7 +13,12 @@ import {
   type JsonValue,
   type PackageReader,
 } from '@omne-harness/assets'
-import { createTenantPublisher, newHoldingRef } from '../src/tenant-publisher.ts'
+import {
+  createTenantPublisher,
+  newHoldingRef,
+  originOf,
+  TENANT_PUBLISHING_OWNER,
+} from '../src/tenant-publisher.ts'
 import { openWorld, type World } from './world.ts'
 
 const worlds: World[] = []
@@ -97,6 +102,22 @@ async function world(packageRoot?: string) {
 }
 
 const root = () => realpathSync(mkdtempSync(join(tmpdir(), 'assets-tenant-publisher-')))
+
+describe('the origin of a holding', () => {
+  const source = (ownerRef: string) => ({
+    sourceId: ownerRef,
+    ownerRef,
+    scope: { kind: 'tenant' as const, subjectRef: 'tenant-a' },
+  })
+  it.each([
+    [[source(TENANT_PUBLISHING_OWNER)], 'customized'],
+    [[source('harness-server.tool-release'), source(TENANT_PUBLISHING_OWNER)], 'customized'],
+    [[source('harness-server.tool-release')], 'official'],
+    [[], 'official'],
+  ] as const)('%o is %s', (sourceLayout, origin) => {
+    expect(originOf({ sourceLayout: [...sourceLayout] })).toBe(origin)
+  })
+})
 
 describe('the tenant publisher answers in the outcomes of the publish service', () => {
   it('数据型：发布并持有，持有引用由这次操作生成，版本是正文的摘要；同一操作再发认回', async () => {
