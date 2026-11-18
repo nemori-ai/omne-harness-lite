@@ -494,6 +494,28 @@ describe('creating assets through the management service over the local assets o
     ).toEqual({ kind: 'invalid', reason: 'limit-exceeded:files' })
   })
 
+  it('two creations of one name at once: exactly one is published, and the other is recalled as the conflict it was', async () => {
+    const w = await world()
+    const make = (operationId: string) =>
+      w.management.createFromData({
+        ...ALICE,
+        operationId,
+        capability: id('note', 'same'),
+        body: read(`{"by":"${operationId}"}`),
+      })
+    const outcomes = await Promise.all([make('make-1'), make('make-2')])
+    expect(outcomes.map(outcome => outcome.kind).sort()).toEqual(['conflict', 'published'])
+    const loser = outcomes[0]?.kind === 'conflict' ? 'make-1' : 'make-2'
+    expect(
+      await w.management.recall({
+        ...ALICE,
+        operationId: loser,
+        request: { kind: 'create', capability: id('note', 'same') },
+      }),
+    ).toEqual({ kind: 'conflict' })
+    expect(await w.names()).toEqual(['same:on'])
+  })
+
   it('a data asset is created through the service, and its recall answers the same; another capability conflicts', async () => {
     const w = await world()
     const outcome = await w.management.createFromData({

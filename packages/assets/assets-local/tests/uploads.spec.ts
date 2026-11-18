@@ -179,6 +179,7 @@ describe('begin (table one, first row)', () => {
       await uploads.begin({ operationId: 'up-1', capability: BUNDLE, entries: ENTRIES }),
     ).toEqual({ kind: 'unavailable' })
     expect(await uploads.reader('up-1')).toEqual({ kind: 'unavailable' })
+    expect(await uploads.sweep()).toBe(0)
   })
 })
 
