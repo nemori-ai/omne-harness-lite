@@ -463,6 +463,12 @@ importers:
       '@omne-harness/mcp-ui':
         specifier: workspace:*
         version: link:../../packages/mcp/mcp-ui
+      '@omne-harness/notification-protocol':
+        specifier: workspace:*
+        version: link:../../packages/notification/notification-protocol
+      '@omne-harness/notification-ui':
+        specifier: workspace:*
+        version: link:../../packages/notification/notification-ui
       '@omne-harness/public-contract':
         specifier: workspace:*
         version: link:../../packages/access/public-contract
