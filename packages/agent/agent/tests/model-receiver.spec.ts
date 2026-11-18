@@ -1731,3 +1731,31 @@ it.each(['denied', 'unavailable', 'throw'] as const)(
     expect(receiver.inspect().pending).toBe(1)
   },
 )
+
+it.each(['retry', 'recover'] as const)(
+  '%s of an execution whose calls all have their results has nothing pending',
+  async method => {
+    const s = await setup()
+    let checks = 0
+    const receiver = createAgentModelReceiver(
+      {
+        ...s.dependencies,
+        targets: { ...s.dependencies.targets, forExecution: async () => ({ ok: [] }) },
+        access: {
+          async check() {
+            checks++
+            return { kind: 'allowed', evidence: evidence('allowed') }
+          },
+        },
+      },
+      createModelReceiverState<string>(),
+    )
+    const answer = await receiver[method]({
+      access: alice,
+      execution: execution(),
+      signal: new AbortController().signal,
+    })
+    expect(answer).toEqual({ ok: expect.objectContaining({ pending: 0 }) })
+    expect(checks).toBe(0)
+  },
+)

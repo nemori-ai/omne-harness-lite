@@ -275,6 +275,9 @@ catalogs:
     happy-dom:
       specifier: 21.0.4
       version: 21.0.4
+    immutable:
+      specifier: 5.1.9
+      version: 5.1.9
     js-tiktoken:
       specifier: 1.0.21
       version: 1.0.21
@@ -4060,6 +4063,9 @@ importers:
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract
+      immutable:
+        specifier: 'catalog:'
+        version: 5.1.9
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -9163,6 +9169,9 @@ packages:
 
   immediate@3.0.6:
     resolution: {integrity: sha512-XXOFtyqDjNDAQxVfYxuF7g9Il/IbWmmlQg2MYKOH8ExIT1qg6xc4zyS3HaEEATgs1btfzxq15ciUiY7gjSXRGQ==}
+
+  immutable@5.1.9:
+    resolution: {integrity: sha512-m8nVez3rwrgmWxtLMt1ZYXB2Lv7OKYn/disyxAlSDYAlKSlFoPPfIAmAM/M5xqL4m4C/wAPw7S2/CNaUii1Hxg==}
 
   import-meta-resolve@4.2.0:
     resolution: {integrity: sha512-Iqv2fzaTQN28s/FwZAoFq0ZSs/7hMAHJVX+w8PZl3cY19Pxk6jFFalxQoIfW2826i/fDLXv8IiEZRIT0lDuWcg==}
@@ -14624,6 +14633,8 @@ snapshots:
   ignore@7.0.12: {}
 
   immediate@3.0.6: {}
+
+  immutable@5.1.9: {}
 
   import-meta-resolve@4.2.0: {}
 

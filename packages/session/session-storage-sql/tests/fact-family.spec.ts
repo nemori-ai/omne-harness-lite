@@ -105,6 +105,7 @@ function nth(n: number, over: Partial<ExecutionRecordWrite> = {}): ExecutionReco
     digest: `sha256:op-${String(n)}`,
     facts: factsOf(n, execution),
     blobs: [],
+    items: [],
     boundaries: [
       {
         execution,

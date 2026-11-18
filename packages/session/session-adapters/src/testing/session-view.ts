@@ -87,6 +87,8 @@ export function sessionView<P>(
             }),
         ),
       query: input => invoke(input, 'journal.query', view => view.journal.query(input)),
+      inputAcceptance: input =>
+        invoke(input, 'journal.inputAcceptance', view => view.journal.inputAcceptance(input)),
       output: {
         read: input =>
           invoke(input, 'journal.output.read', view => view.journal.output.read(input)),
