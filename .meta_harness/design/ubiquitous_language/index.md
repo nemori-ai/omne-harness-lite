@@ -146,6 +146,8 @@
 | [UL-asset-version](terms/capabilities-and-composition.md#ul-asset-version--资产版本--asset-version) | 资产版本 | Asset Version | 一个资产某一次发布定下的那份内容，已发布即不可变；已有会话的常驻工具只在采用点跟随同形的新版 |
 | [UL-package-manifest](terms/capabilities-and-composition.md#ul-package-manifest--包的清单--package-manifest) | 包的清单 | Package Manifest | 正文是目录的资产版本所带的文件清单：每个文件的路径、大小、摘要；**不是装配清单** |
 | [UL-package-reader](terms/capabilities-and-composition.md#ul-package-reader--包的读口--package-reader) | 包的读口 | Package Reader | 资产按层、能力标识、版本交出的读取入口：给清单，按路径与摘要读文件；**不给宿主机路径** |
+| [UL-asset-summary](terms/capabilities-and-composition.md#ul-asset-summary--资产简介--asset-summary) | 资产简介 | Asset Summary | 一个资产版本给人看的标题、一句说明与几条事实；类别的算法在发布时算出，随版本不变；**只供显示** |
+| [UL-asset-upload](terms/capabilities-and-composition.md#ul-asset-upload--资产上传--asset-upload) | 资产上传 | Asset Upload | 目录型资产在发布之前分段送到服务端、暂时放着的那份文件；按申报收齐才能提交；**提交之前不是资产，谁也看不到** |
 | [UL-skill-package](terms/capabilities-and-composition.md#ul-skill-package--skill-包--skill-package) | Skill 包 | Skill Package | 技能一份完整内容的形式：以 `SKILL.md` 为根的目录树；**不是身份，不是插件，也不是代码成员包** |
 | [UL-package-snapshot](terms/capabilities-and-composition.md#ul-package-snapshot--skill-包快照--skill-package-snapshot) | Skill 包快照 | Skill Package Snapshot | Skill 包某一时刻全部条目的不可变清单及其内容摘要；**内容摘要是散列值，不是文字摘要**；读已发布版本时由包的清单封出 |
 | [UL-material-basis](terms/capabilities-and-composition.md#ul-material-basis--skill-材料依据--skill-material-basis) | Skill 材料依据 | Skill Material Basis | 调用方手里指明此前读到哪一份 Skill 材料的值：能力标识、来源层、资产版本（工作区来源可缺省）与 Skill 包快照的内容摘要四项，凭能力标识、来源层与内容摘要确定同一份材料；**不含包的位置，不授予访问，不是采用依据** |
