@@ -12,6 +12,7 @@ const { evaluatePermission } = await pkg('permissions')
 const { loadProductionRelease, TOOL_RELEASE_TENANT } = await src('entry/tool-release.ts')
 const { inProcessPrincipalAuthority } = await pkg('identity')
 const { tenantCodec } = await pkg('legal-identity')
+const { releasedDeclaration } = await src('entry/permission-declarations.ts')
 const { createPermissionReadMapping } = await src('rows/governance/permission-read-mapping.ts')
 const { toolAssetPublication } = await src('rows/governance/tool-assets.ts')
 const { targetCapture } = await src('rows/governance/target-snapshot.ts')
@@ -79,7 +80,8 @@ const action = {
 let settingsReads = 0
 const map = createPermissionReadMapping({
   scope,
-  release: () => release,
+  declarations: () =>
+    release.kind === 'trusted' ? release.manifest.entries.map(releasedDeclaration) : [],
   settings: async () => {
     settingsReads++
     throw Error('No Settings source exists')
@@ -336,7 +338,8 @@ checked('snapshot only publishes runtime material', () => {
 })
 const foreignMap = createPermissionReadMapping({
   scope: { ...scope, tenantRef: 'foreign' },
-  release: () => release,
+  declarations: () =>
+    release.kind === 'trusted' ? release.manifest.entries.map(releasedDeclaration) : [],
   settings: async () => {
     throw Error('must not read Settings')
   },

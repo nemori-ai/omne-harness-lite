@@ -629,7 +629,12 @@ describe('tool result round', () => {
   it('admits a denial message for each action when the whole batch is denied', async () => {
     const assembly = await toolAssembly()
     assembly.controls.admission.admit.always(() => ({
-      ok: { kind: 'deny', evidence: evidence('denied-by-policy'), reason: 'policy' },
+      ok: {
+        kind: 'deny',
+        category: 'rule',
+        evidence: evidence('denied-by-policy'),
+        reason: 'policy',
+      },
     }))
     ok(await invoke(assembly))
     await deliverToolSuggestion(assembly, [toolCall('call-a'), toolCall('call-b')])
@@ -707,7 +712,12 @@ describe('tool result round', () => {
     const assembly = await toolAssembly()
     acceptEach(assembly)
     assembly.controls.admission.admit.always(() => ({
-      ok: { kind: 'deny', reason: 'rule/no-shell', evidence: evidence('denied-by-rule') },
+      ok: {
+        kind: 'deny',
+        category: 'rule',
+        reason: 'rule/no-shell',
+        evidence: evidence('denied-by-rule'),
+      },
     }))
     ok(await invoke(assembly))
     await deliverToolSuggestion(assembly, [toolCall('call-a')])
@@ -716,7 +726,7 @@ describe('tool result round', () => {
       toolMessages(await events(assembly)).map(message =>
         message.blocks.flatMap(block => (block.kind === 'text' ? [block.text] : [])),
       ),
-    ).toEqual([['The tool call was denied and did not run.']])
+    ).toEqual([['The tool call was denied by a rule or a prohibition and did not run.']])
   })
 
   it('does not release an action allowed earlier in a batch while a later admission is unavailable', async () => {

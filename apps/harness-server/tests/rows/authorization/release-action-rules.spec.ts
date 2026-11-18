@@ -7,6 +7,7 @@ import { serveProfile } from '../../../src/profile.ts'
 import { createActionAdmission } from '../../../src/rows/authorization/adapters.ts'
 import { authorizationConfig } from '../../../src/rows/authorization/action-rules.ts'
 import { fixtureTenant, okOf } from '../../entry/support.ts'
+import { ownResolution } from './own-resolution.ts'
 
 const tenant = fixtureTenant('a')
 const distribution: unknown = JSON.parse(
@@ -46,6 +47,7 @@ function admissionFor(config: unknown, currentPermission = true) {
   })
   const { actionRules } = authorizationConfig.parse(config)
   const admission = createActionAdmission({
+    readResolution: ownResolution,
     actionRules,
     readAdmission: () => identity,
     readPermission: () =>

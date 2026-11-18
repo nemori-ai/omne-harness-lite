@@ -37,6 +37,7 @@ it('reads mode provenance without a permission item and preserves the original c
           operation: operationId('mode-after-creation'),
           declaration: {
             kind: 'permission-mode',
+            expectedRevision: '0',
             value: 'never',
             authorization: evidence('fixture-mode'),
           },

@@ -6,7 +6,7 @@ import {
   type SessionPermissionModeInput,
 } from '../src/index.ts'
 import type { Adoption, Modes } from '@omne-harness/session-contract'
-import { decideInquiry } from '@omne-harness/authorization'
+import { decideRelease } from '@omne-harness/authorization'
 
 it('publishes the source-bound permission-mode projection', () => {
   expect(adapters).toHaveProperty('projectSessionPermissionMode')
@@ -134,7 +134,19 @@ it('never lets a projected bypass override a structural prohibition or missing b
       override: { value: permission, source },
     })
     if (result.kind !== 'projected') throw new Error('not projected')
-    expect(decideInquiry('prohibited', result.value.policy)).toBe('deny')
-    expect(decideInquiry('unavailable', result.value.policy)).toBe('unavailable')
+    const session = {
+      kind: 'read' as const,
+      revision: '0',
+      policy: result.value.policy,
+      once: false,
+      sessionGrantBasis: null,
+    }
+    expect(
+      decideRelease({ carrier: false, verdict: { kind: 'prohibited', revision: '1' }, session }),
+    ).toMatchObject({ kind: 'refuse', reason: 'prohibited' })
+    expect(decideRelease({ carrier: false, verdict: { kind: 'unavailable' }, session })).toEqual({
+      kind: 'unavailable',
+      missing: 'verdict',
+    })
   }
 })

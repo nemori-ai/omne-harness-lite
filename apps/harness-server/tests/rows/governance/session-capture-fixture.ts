@@ -109,6 +109,7 @@ export async function createCaptureSession(
             operation: operationId('capture-session-mode'),
             declaration: {
               kind: 'permission-mode',
+              expectedRevision: '0',
               value: 'never',
               authorization: evidence('capture-mode-fixture'),
             },

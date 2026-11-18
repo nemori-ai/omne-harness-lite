@@ -30,7 +30,7 @@
 
 - **控制边界**：派发者可显式撤回 spawn／delegate 的工作；父 Run 停止不自动停止子会话执行，报告结束派发而不决定子 Run 终态。
 - **形态**：过程
-- **出处**：[元能力：派发有三种模式](../../product/meta-capabilities/design.md#三种派发模式)（rev 9）
+- **出处**：[元能力：派发有三种模式](../../product/meta-capabilities/design.md#三种派发模式)（rev 10）
 - **注意 ①**：**两处分水岭，各自只有一条。**`spawn` 与 `delegate` 只差
   「**它带着什么开始干活**」——**一个带副本加交代，一个只带交代**；
   `spawn`/`delegate` 与 `handoff` 只差
@@ -59,7 +59,7 @@
 
 - **形态**：属性
 - **出处**：[元能力：三种派发模式](../../product/meta-capabilities/design.md#三种派发模式) ·
-  [元能力：一次报告与后续消息](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 9）
+  [元能力：一次报告与后续消息](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 10）
 - **别混 ①**：与「**派发出去的 agent**」不是一回事——**后者含 `handoff`，它不含**。
   [规则一](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)管的是前者，范围更大
 - **别混 ②**：**与 [agent 类型](capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type)不是一回事**——
@@ -98,7 +98,7 @@
 
 - **归档边界**：接收会话归档期间拒绝新的任务消息，告知发送方；既有执行的迟到结果和账不丢失，也不作为新任务入队。
 - **形态**：规则
-- **出处**：[元能力：先说谁能给谁发消息](../../product/meta-capabilities/design.md#双向通信与消息失败)（rev 9）
+- **出处**：[元能力：先说谁能给谁发消息](../../product/meta-capabilities/design.md#双向通信与消息失败)（rev 10）
 - **注意 ①**：**规则二那三个条件缺一不可**，「**会话仍活跃**」尤其容易被忽略——
   **一个会话已被归档的 agent，不是「暂时联系不上」，是这条通路不存在了**。
   **「活跃」就是「未被归档」**（[现行词义](../index.md)）——
@@ -129,7 +129,7 @@
 > **a report comes once**, messages any number of times.
 
 - **形态**：对象
-- **出处**：[元能力：报告与消息是两样东西](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 9）
+- **出处**：[元能力：报告与消息是两样东西](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 10）
 - **⚠️ 它终结的是这次派发，不是那个会话。**[子 agent](#ul-subagent--子-agent--subagent) 交回报告之后，
   它的会话不会因此归档，也不据此认定子 Run 终态；后续消息仍须满足[当前通信准入](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)。
   **不点破这一条，就会被做成「报告一到就把那个会话收掉」——而且不报错**
@@ -188,17 +188,17 @@
 
 > **中**：**一次需要人输入的请求，带齐让人当场就能判断的全部信息与选项。**
 > **「当场」是这个定义的重点**：人**不必回到原来那个会话去翻上下文**，读这张卡片就够了。
-> **来源有三种**：agent 发起、系统发起（放行判断，选项四档固定）、**[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)发起**（选项集由出卡的拓展件写）；记录里分得出是哪一种、哪一件。
+> **来源有三种**：agent 发起、系统发起（放行判断，选项五档固定，内容由系统按实际动作生成）、**[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)发起**（选项集由出卡的拓展件写）；记录里分得出是哪一种、哪一件。
 >
 > **EN**: **One request for human input, carrying everything a person needs to judge it
 > on the spot** — options included. **"On the spot" is the point**: they should not
 > have to go back to the originating session and read up on the context. **It has three
-> sources**: raised by the agent, by the system (the release judgement, with its fixed four
-> options), or **by a loop extension** (whose option set the extension writes); the record
+> sources**: raised by the agent, by the system (the release judgement, with its fixed five
+> options and content the system generates from the actual action), or **by a loop extension** (whose option set the extension writes); the record
 > tells which source, and which extension.
 
 - **形态**：对象
-- **出处**：[PF-008 §4 决策卡片](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#决策卡片) · [§6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#63-卡片自包含但要留得住溯源的路)（rev 7）
+- **出处**：[PF-008 §4 决策卡片](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#决策卡片) · [§6.3](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#63-卡片自包含但要留得住溯源的路)（rev 7） · [人在回路：处理系统的放行卡片](../../product/human-intervention/design.md#j-hi03-处理系统的放行卡片)（rev 4）
 - **注意 ①**：**一张卡片只能被答一次**，在会话里答还是在[池子](#ul-decision-pool--决策池--decision-pool)里答**都算数**，
   **答完两处一起消失**——**同一张卡片有两套状态，人就再也不信任这个池子了**
 - **注意 ②**：**「在会话里答」指的是在会话里那张卡片上答，不是发一条消息**。
@@ -278,6 +278,7 @@
 - **形态**：过程
 - **出处**：[PF-008 §4 放行判断](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#放行判断) · [§5.2](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#52-那个判断函数)（rev 7） · [PF-012 §5.8 系统自带的几件](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#系统自带的几件各站在哪) · [系统自带的几件，不可用时各有定法](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#系统自带的几件不可用时各有定法)（rev 25）
 - **注意 ①**：**没有任何一样单独说了算。**获批不等于自动放行，有权限设置也不等于请示没意义
+- **注意 ⑤**：**判的是模型实际要执行的动作**——经 `Tools()` 取用一个工具时，判的是被取用的工具与它的参数，不是 `Tools()` 这次调用（[元能力：动作放行与环境准入](../../product/meta-capabilities/design.md#动作放行与环境准入)（rev 10））
 - **注意 ②**：**权限设置里明确禁止的，会话授权翻不了案**——
   否则任何禁止都能靠「让用户在会话里点个同意」绕过去，
   而**会话里坐着的那个人，未必是设权限的那个人**
@@ -298,7 +299,7 @@
 > own**. **Several questions may be asked at once.**
 
 - **形态**：过程
-- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 9）
+- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 10）
 - **别混**：与[请示](#ul-approval-request--请示--approval-request)**形状不同**——
   **问询是开放的，拿到之后接着想；请示是封闭的，拿到之后才动手**
 - **注意 ①**：**自由作答这条路由系统保证，不靠 agent 记得留**——**靠自觉总有忘的时候**
@@ -320,7 +321,7 @@
 > setting only when the actor has the required authority.
 
 - **形态**：过程
-- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 9）
+- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 10）
 - **注意 ①**：**先把事做了再请示，那不叫请示，叫通知**——**人拒绝的时候已经晚了**
 - **注意 ②**：**翻不出裁决就不要翻。**人的回答常常不落在准/驳上（「第二封改改语气再发」）——
   **替人合成一个裁决等于伪造签字**
@@ -343,7 +344,7 @@
 > the session's run mode.
 
 - **形态**：对象
-- **出处**：[元能力：会话授权上下文](../../product/meta-capabilities/design.md#会话授权上下文)（rev 9）
+- **出处**：[元能力：会话授权上下文](../../product/meta-capabilities/design.md#会话授权上下文)（rev 10）
 - **注意 ①**：**流水里的每一笔是一次[授权表达](#ul-authorization-expression--授权表达--authorization-expression)**，
   **三个维度**——**来源**（结构化：界面上对着条目操作 / **语义化：用嘴说**）、
   **方向**（给出 / 撤回）、**作用域**（这一次 / 本会话 / **全局，即本租户下未来所有会话**）。
@@ -384,7 +385,7 @@
 > that the setting is effective.
 
 - **形态**：对象
-- **出处**：[元能力：一笔授权表达有三个维度](../../product/meta-capabilities/design.md#会话授权上下文)（rev 9）
+- **出处**：[元能力：一笔授权表达有三个维度](../../product/meta-capabilities/design.md#会话授权上下文)（rev 10）
 - **别混**：**不是[会话授权上下文](#ul-session-authorization-context--会话授权上下文--session-authorization-context)**——
   那是流水**整份**，这是流水里的**一笔**
 - **注意 ①**：**撤回也是一笔**——**不是把先前那笔擦掉**，是往后再记一笔

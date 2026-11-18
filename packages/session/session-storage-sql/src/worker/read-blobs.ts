@@ -1,8 +1,5 @@
-import { handler, PAGE_ROWS } from './support.ts'
+import { handler, PAGE_BYTES, PAGE_ROWS } from './support.ts'
 import { readSharedBlob } from './shared-blobs.ts'
-
-// The bytes of one page of blocks: past this total the remaining digests are answered as `rest`.
-const PAGE_BYTES = 4 * 1024 * 1024
 
 // Content blocks by digest, as many as fit one page; digests the store does not hold are `missing`.
 export default handler('execution-record.blobs', (input, port) => {

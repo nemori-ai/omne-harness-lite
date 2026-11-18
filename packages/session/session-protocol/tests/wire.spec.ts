@@ -22,6 +22,8 @@ type Name = Exclude<
   | 'read-waiting'
   | 'background-call'
   | 'list-background-calls'
+  | 'read-permission-mode'
+  | 'change-permission-mode'
 >
 type Samples = Readonly<Record<Name, readonly Record<string, unknown>[]>>
 

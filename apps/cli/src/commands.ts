@@ -343,6 +343,72 @@ const sessionControl = (
   },
 })
 
+type PermissionModeName = BodyOf<SessionProtocol['operations']['change-permission-mode']>['mode']
+const PERMISSION_MODES: readonly PermissionModeName[] = [
+  'never',
+  'auto_permission',
+  'bypass-permissions',
+]
+type ModeTarget = Omit<Targeted, 'controlId'>
+
+const modeTarget = (values: Option): ModeTarget | undefined => {
+  const target = targeted(values)
+  return target === undefined ? undefined : { session: target.session, tenant: target.tenant }
+}
+
+const readPermissionMode: ExistingCommand<ModeTarget> = {
+  kind: 'existing',
+  name: 'read-permission-mode',
+  accepted: ['--session', '--tenant', serverOption],
+  required: ['--session'],
+  parse: modeTarget,
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: (parsed, { owner: tenant, newId }) => {
+    const messageId = newId()
+    return {
+      send: link =>
+        link.call(
+          sessionProtocol,
+          'read-permission-mode',
+          { tenant, session: parsed.session },
+          messageId,
+        ),
+      echo: { messageId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
+
+// The change names the revision it was read at, so a change made meanwhile answers conflict.
+const changePermissionMode: ExistingCommand<
+  ModeTarget & { mode: PermissionModeName; expectedRevision: string }
+> = {
+  kind: 'existing',
+  name: 'change-permission-mode',
+  accepted: ['--session', '--tenant', '--mode', '--expected-revision', serverOption],
+  required: ['--session', '--mode', '--expected-revision'],
+  parse: values => {
+    const target = modeTarget(values)
+    const mode = PERMISSION_MODES.find(name => name === values.get('--mode'))
+    if (target === undefined || mode === undefined) return undefined
+    return { ...target, mode, expectedRevision: values.get('--expected-revision') ?? '' }
+  },
+  target: ({ session, tenant }) => ({ session, tenant }),
+  build: (parsed, { owner: tenant, newId }) => {
+    const messageId = newId()
+    const { session, mode, expectedRevision } = parsed
+    return {
+      send: link =>
+        link.call(
+          sessionProtocol,
+          'change-permission-mode',
+          { tenant, session, mode, expectedRevision },
+          messageId,
+        ),
+      echo: { messageId, tenant: encodeTenantText(tenant) },
+    }
+  },
+}
+
 type ArchivedFilters = BodyOf<SessionProtocol['operations']['list-archived-sessions']>
 type By = NonNullable<ArchivedFilters['by']>
 const BY = ['person', 'auto', 'parent'] as const
@@ -516,6 +582,19 @@ export const productionCommands: readonly CommandSpec[] = [
     summary: 'Take a session back from the archive.',
     run: (args, output, environment) =>
       runSession(sessionControl('unarchive-session'), args, output, environment),
+  },
+  {
+    name: 'read-permission-mode',
+    usage: '--session <id>',
+    summary: 'Read the permission mode of a session and the revision it stands at.',
+    run: (args, output, environment) => runSession(readPermissionMode, args, output, environment),
+  },
+  {
+    name: 'change-permission-mode',
+    usage: '--session <id> --mode <mode> --expected-revision <n>',
+    summary:
+      'Change the permission mode of a session (never, auto_permission or bypass-permissions) at the revision read.',
+    run: (args, output, environment) => runSession(changePermissionMode, args, output, environment),
   },
   {
     name: 'list-archived-sessions',

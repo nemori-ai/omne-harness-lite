@@ -223,8 +223,54 @@
   overflow-wrap: anywhere;
 }
 
-.hitl-card-choices:disabled .hitl-card-choice {
+.hitl-card-choices:disabled .hitl-card-choice,
+.hitl-card-choice[data-offered='false'] {
   cursor: not-allowed;
+}
+
+.hitl-card-choice[data-offered='false'] {
+  opacity: 0.6;
+}
+
+.hitl-release-call {
+  display: grid;
+  gap: var(--omne-space-inline);
+  min-width: 0;
+}
+
+.hitl-release-summary {
+  overflow-wrap: anywhere;
+}
+
+.hitl-release-arguments pre {
+  max-height: 16rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.hitl-release-cut,
+.hitl-release-origin {
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+  overflow-wrap: anywhere;
+}
+
+.hitl-release-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--omne-space-inline);
+}
+
+.hitl-release-group {
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.hitl-release-group[data-lasting='true'] {
+  padding-inline-start: var(--omne-space-inline);
+  border-inline-start: 1px solid var(--omne-line);
 }
 
 .hitl-session-cards {

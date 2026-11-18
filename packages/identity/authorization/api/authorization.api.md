@@ -21,10 +21,9 @@
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `EffectiveArguments` · `evidence.d.ts`
 - `ExpiryReading` · `system-action.d.ts`
+- `GateVerdict` · `release.d.ts`
 - `GrantOutcome` · `permit.d.ts`
-- `InquiryDisposition` · `inquiry.d.ts`
 - `InquiryPolicy` · `inquiry.d.ts`
-- `InquiryRequirement` · `inquiry.d.ts`
 - `MaintenanceGrant` · `system-action.d.ts`
 - `MaintenanceGrantReading` · `system-action.d.ts`
 - `MaintenanceGrantSource` · `system-reference.d.ts`
@@ -37,8 +36,19 @@
 - `PermitLookup` · `permit.d.ts`
 - `PermitRef` · `permit.d.ts`
 - `PermitState` · `permit.d.ts`
+- `RELEASE_ARGUMENTS_LIMIT` · `release-card.d.ts`
+- `RELEASE_OPTIONS` · `release-card.d.ts`
 - `ReferenceAdmissionDependencies` · `reference.d.ts`
+- `ReleaseBasis` · `release.d.ts`
+- `ReleaseCard` · `release-card.d.ts`
+- `ReleaseCardAction` · `release-card.d.ts`
+- `ReleaseCardOption` · `release-card.d.ts`
+- `ReleaseDecision` · `release.d.ts`
+- `ReleaseFacts` · `release.d.ts`
+- `ReleaseOffer` · `release-card.d.ts`
+- `ReleaseOption` · `release-card.d.ts`
 - `SYSTEM_ACTION_MATRIX` · `system-matrix.d.ts`
+- `SessionFacts` · `release.d.ts`
 - `StandingBasis` · `admission.d.ts`
 - `SystemActionAuthorization` · `system-action.d.ts`
 - `SystemActionBasis` · `system-action.d.ts`
@@ -52,7 +62,7 @@
 - `SystemActionTarget` · `system-action.d.ts`
 - `canonicalText` · `evidence.d.ts`
 - `decideAdmission` · `admission.d.ts`
-- `decideInquiry` · `inquiry.d.ts`
+- `decideRelease` · `release.d.ts`
 - `decideSystemAction` · `system-action.d.ts`
 - `decisionEvidence` · `evidence.d.ts`
 - `decodePermitId` · `permit.d.ts`
@@ -63,6 +73,7 @@
 - `operationEquals` · `operation.d.ts`
 - `referenceAdmissionCheck` · `reference.d.ts`
 - `referenceSystemActionAuthorization` · `system-reference.d.ts`
+- `releaseCard` · `release-card.d.ts`
 - `targetEquals` · `operation.d.ts`
 
 ## 入口 `./testing` · `testing/index.d.ts`
@@ -149,8 +160,11 @@ export declare function decisionEvidence(record: string, revision: string, conte
 
 ```ts
 export { decideAdmission } from './admission.ts';
-export { decideInquiry } from './inquiry.ts';
-export type { InquiryPolicy, InquiryRequirement, InquiryDisposition } from './inquiry.ts';
+export { decideRelease } from './release.ts';
+export { RELEASE_ARGUMENTS_LIMIT, RELEASE_OPTIONS, releaseCard } from './release-card.ts';
+export type { ReleaseCard, ReleaseCardAction, ReleaseCardOption, ReleaseOffer, ReleaseOption, } from './release-card.ts';
+export type { GateVerdict, ReleaseBasis, ReleaseDecision, ReleaseFacts, SessionFacts, } from './release.ts';
+export type { InquiryPolicy } from './inquiry.ts';
 export type { AdmissionBasis, AdmissionCheck, AdmissionDecision, AdmissionFacts, AdmissionInput, DenialReason, StandingBasis, } from './admission.ts';
 export { canonicalText, decisionEvidence, digestOf, effectiveArgumentsOf, noArguments, } from './evidence.ts';
 export type { DecisionEvidence, DurableEvidence, EffectiveArguments } from './evidence.ts';
@@ -174,9 +188,6 @@ export type { MaintenanceGrantSource, SystemActionClock, SystemActionDependencie
 export type InquiryPolicy = Readonly<{
     onAsk: 'deny' | 'ask-human' | 'skip-ask';
 }>;
-export type InquiryRequirement = 'none' | 'required' | 'prohibited' | 'unavailable';
-export type InquiryDisposition = 'continue' | 'ask-human' | 'deny' | 'unavailable';
-export declare function decideInquiry(requirement: InquiryRequirement, policy: InquiryPolicy | null): InquiryDisposition;
 ```
 
 ## 声明文件 `operation.d.ts`
@@ -305,6 +316,104 @@ export type ReferenceAdmissionDependencies = Readonly<{
     permits: PermitLedger | null;
 }>;
 export declare function referenceAdmissionCheck(deps: ReferenceAdmissionDependencies): AdmissionCheck;
+```
+
+## 声明文件 `release-card.d.ts`
+
+```ts
+export declare const RELEASE_OPTIONS: readonly [
+    'deny-once',
+    'allow-once',
+    'allow-session',
+    'allow-always',
+    'deny-always'
+];
+export type ReleaseOption = (typeof RELEASE_OPTIONS)[number];
+export type ReleaseCardAction = Readonly<{
+    tool: string;
+    command: string | null;
+    preview: string;
+    effectiveArguments: string;
+    session: string;
+    agent: string;
+}>;
+export type ReleaseOffer = Readonly<Record<ReleaseOption, boolean>>;
+export type ReleaseCardOption = Readonly<{
+    id: ReleaseOption;
+    label: string;
+    scope: string;
+    offered: boolean;
+    lasting: boolean;
+}>;
+export type ReleaseCard = Readonly<{
+    title: string;
+    target: Readonly<{
+        tool: string;
+        command: string | null;
+        preview: string;
+    }>;
+    arguments: Readonly<{
+        text: string;
+        truncated: boolean;
+        digest: string;
+    }>;
+    origin: Readonly<{
+        session: string;
+        agent: string;
+    }>;
+    options: readonly [
+        ReleaseCardOption,
+        ...ReleaseCardOption[]
+    ];
+}>;
+export declare const RELEASE_ARGUMENTS_LIMIT = 4096;
+export declare function releaseCard(action: ReleaseCardAction, offer: ReleaseOffer): ReleaseCard;
+```
+
+## 声明文件 `release.d.ts`
+
+```ts
+import type { InquiryPolicy } from './inquiry.ts';
+export type GateVerdict = Readonly<{
+    kind: 'prohibited' | 'allowed' | 'decision-required';
+    revision: string;
+}> | Readonly<{
+    kind: 'unavailable';
+}>;
+export type SessionFacts = Readonly<{
+    kind: 'read';
+    revision: string;
+    policy: InquiryPolicy;
+    once: boolean;
+    sessionGrantBasis: string | null;
+}> | Readonly<{
+    kind: 'unavailable';
+}>;
+export type ReleaseFacts = Readonly<{
+    carrier: boolean;
+    verdict: GateVerdict;
+    session: SessionFacts;
+}>;
+export type ReleaseBasis = Readonly<{
+    verdict: string;
+    session: string | null;
+}>;
+export type ReleaseDecision = Readonly<{
+    kind: 'release';
+    by: 'verdict' | 'carrier' | 'once' | 'session' | 'skip-ask';
+    basis: ReleaseBasis;
+}> | Readonly<{
+    kind: 'ask';
+    basis: ReleaseBasis;
+}> | Readonly<{
+    kind: 'refuse';
+    reason: 'prohibited' | 'inquiry-policy';
+    basis: ReleaseBasis;
+}> | Readonly<{
+    kind: 'unavailable';
+    missing: 'verdict' | 'session';
+}>;
+export declare function decideRelease(facts: ReleaseFacts): ReleaseDecision;
 ```
 
 ## 声明文件 `system-action.d.ts`

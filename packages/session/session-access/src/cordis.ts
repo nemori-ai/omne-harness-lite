@@ -15,6 +15,7 @@ import type {
   SessionAccessFaces,
   SessionAccessSettings,
   SessionListing,
+  SessionPermissionModes,
   TargetTenantPrincipals,
 } from './ports.ts'
 import { createRequestDrain } from './request-drain.ts'
@@ -29,6 +30,7 @@ export type SessionAccessPluginInput<S = SessionAccessSettings> = Readonly<{
   definitions: (ctx: Context) => DefinitionResolver | undefined
   listing: (directory: SessionDirectory<Principal>) => SessionListing
   causes?: (ctx: Context) => RunFailureCauses | undefined
+  permissionModes?: (ctx: Context) => SessionPermissionModes | undefined
   prepareCreation?: (input: SessionCreateInput) => SessionCreateInput
 }>
 
@@ -51,6 +53,7 @@ function facesOf(
     management: {
       create: creation => management.create(prepare === undefined ? creation : prepare(creation)),
       interrupt: urgent => management.interrupt(urgent),
+      change: declared => management.change(declared),
     },
     work,
     history,
@@ -97,6 +100,7 @@ export function createSessionAccessPlugin<S extends SessionAccessSettings>(
                 return directory === undefined ? undefined : input.listing(directory)
               },
               causes: () => input.causes?.(ctx),
+              permissionModes: () => input.permissionModes?.(ctx),
               principals,
               facts: input.facts,
               settings,

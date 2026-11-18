@@ -1,3 +1,4 @@
+import { releasedDeclaration } from '../../../src/entry/permission-declarations.ts'
 import { toolAssetTarget } from '../../../src/rows/governance/tool-installation-assets.ts'
 import { openTenantAssets } from '../../../src/rows/tenant-assets/host.ts'
 import { canonicalText } from '@omne-harness/authorization'
@@ -741,6 +742,7 @@ async function installedWorld(extraParticipants: SqlMaterialCatalog['participant
       storage,
       installationPrincipal: w.installationPrincipal,
       release: w.release,
+      permissionDeclarations: () => w.release.manifest.entries.map(releasedDeclaration),
       organizationTargets,
       categories,
       tenantAssets,
