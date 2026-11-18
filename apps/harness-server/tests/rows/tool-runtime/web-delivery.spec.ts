@@ -184,6 +184,11 @@ async function turnOnRelease(calls: readonly Call[], exaKey: string) {
   }
 }
 
+const shown = (blocks: readonly unknown[]) =>
+  blocks.filter(
+    block => (block as { visibility?: { toHuman?: boolean } }).visibility?.toHuman !== false,
+  )
+
 describe('the Web meta tool on the release tree (web-meta-tool slice 02)', () => {
   it(
     'the model sees Web, fetch returns the local page as Markdown, search sends the configured key and returns the hit, and the Run completes',
@@ -245,7 +250,8 @@ describe('the Web meta tool on the release tree (web-meta-tool slice 02)', () =>
         expect(exaRequests.map(request => request.apiKey)).toEqual([exaKey])
         expect(seen.join('\n')).not.toContain(exaKey)
         expect(JSON.stringify(entries)).not.toContain(exaKey)
-        expect(blocksOf(entries[6])).toMatchObject([{ kind: 'text', text: FINAL }])
+        // What the person sees is the final text; a reply on Responses also keeps a hidden reasoning state.
+        expect(shown(blocksOf(entries[6]))).toMatchObject([{ kind: 'text', text: FINAL }])
         expect(entries[7]?.payload['terminal']).toMatchObject({ outcome: 'completed' })
       } finally {
         await pages.close()
