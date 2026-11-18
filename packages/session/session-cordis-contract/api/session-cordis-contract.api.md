@@ -263,6 +263,8 @@
 - `SessionWorkPrincipals` · 包 `@omne-harness/session-contract`
 - `SourceAdmission` · 包 `@omne-harness/session-contract`
 - `SourceRefusal` · 包 `@omne-harness/session-contract`
+- `SourceRequest` · 包 `@omne-harness/session-contract`
+- `SourceRequestIdentities` · 包 `@omne-harness/session-contract`
 - `SourceTerms` · 包 `@omne-harness/session-contract`
 - `StartAdoption` · 包 `@omne-harness/session-contract`
 - `StartedRun` · 包 `@omne-harness/session-contract`
@@ -345,6 +347,7 @@
 - `sessionIntakeLimits` · 包 `@omne-harness/session-contract`
 - `sessionModesBlock` · 包 `@omne-harness/session-contract`
 - `shortCallId` · 包 `@omne-harness/session-contract`
+- `sourceRequestIdentities` · 包 `@omne-harness/session-contract`
 - `uninterpretedCalls` · 包 `@omne-harness/session-contract`
 - `wakingInputs` · 包 `@omne-harness/session-contract`
 - `withIntakeTerms` · 包 `@omne-harness/session-contract`

@@ -76,6 +76,7 @@ it('exports exactly the declared root runtime surface', () => {
     'sessionIntakeLimits',
     'sessionModesBlock',
     'shortCallId',
+    'sourceRequestIdentities',
     'uninterpretedCalls',
     'wakingInputs',
     'withIntakeTerms',

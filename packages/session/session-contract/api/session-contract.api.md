@@ -253,6 +253,8 @@
 - `SessionWorkPrincipals` · `ports.d.ts`
 - `SourceAdmission` · `input-sources.d.ts`
 - `SourceRefusal` · `input-sources.d.ts`
+- `SourceRequest` · `source-requests.d.ts`
+- `SourceRequestIdentities` · `source-requests.d.ts`
 - `SourceTerms` · `input-sources.d.ts`
 - `StartAdoption` · `faces.d.ts`
 - `StartedRun` · `faces.d.ts`
@@ -334,6 +336,7 @@
 - `sessionIntakeLimits` · `intake.d.ts`
 - `sessionModesBlock` · `block.d.ts`
 - `shortCallId` · `background-calls.d.ts`
+- `sourceRequestIdentities` · `source-requests.d.ts`
 - `uninterpretedCalls` · `uninterpreted-calls.d.ts`
 - `wakingInputs` · `intake.d.ts`
 - `withIntakeTerms` · `input-sources.d.ts`
@@ -2180,6 +2183,7 @@ export { rebuildSessionPermissions, type SessionPermissionHistory } from './perm
 export { backgroundCallView, shortCallId } from './background-calls.ts';
 export type { BackgroundCallLabel, BackgroundCallResolution, BackgroundCallRecord, BackgroundCallSource, BackgroundCallState, BackgroundCallStatus, BackgroundCallStop, BackgroundCallView, StopInitiator, StopView, } from './background-calls.ts';
 export { compactionContextForView, isAcceptedInputRecord } from './model-view.ts';
+export { sourceRequestIdentities, type SourceRequest, type SourceRequestIdentities, } from './source-requests.ts';
 ```
 
 ## 声明文件 `initialization-parse.d.ts`
@@ -3454,8 +3458,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:df0936409d5e68fcc83cae423967ba33a8e69bb1d99b73e43177d1c1d1a3c03c";
-export declare const SESSION_RELEASE_DIGEST = "sha256:df0936409d5e68fcc83cae423967ba33a8e69bb1d99b73e43177d1c1d1a3c03c";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:beca8c04e037e372a41d2e4faf29259eff5c3739a3c2989adce6874d48c1a004";
+export declare const SESSION_RELEASE_DIGEST = "sha256:beca8c04e037e372a41d2e4faf29259eff5c3739a3c2989adce6874d48c1a004";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -3537,6 +3541,27 @@ export declare function evidenceFields(value: unknown, field: string): void;
 export declare const equalValue: (left: unknown, right: unknown) => boolean;
 export declare function unique<T>(items: readonly T[], key: (item: T) => string, field: string): void;
 export declare function annotationTargets(value: unknown): void;
+```
+
+## 声明文件 `source-requests.d.ts`
+
+```ts
+import { type TenantId } from '@omne-harness/legal-identity';
+import type { InputId, SessionId, SessionOperationId } from './identity.ts';
+import type { InputSourceName } from './input-sources.ts';
+export type SourceRequest = Readonly<{
+    tenant: TenantId;
+    source: InputSourceName;
+    request: string;
+    session?: SessionId;
+}>;
+export type SourceRequestIdentities = Readonly<{
+    session: SessionId;
+    input: InputId;
+    create: SessionOperationId;
+    accept: SessionOperationId;
+}>;
+export declare function sourceRequestIdentities(request: SourceRequest): SourceRequestIdentities;
 ```
 
 ## 声明文件 `stop-reminder.d.ts`

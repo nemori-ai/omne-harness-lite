@@ -369,3 +369,8 @@ export type {
   StopView,
 } from './background-calls.ts'
 export { compactionContextForView, isAcceptedInputRecord } from './model-view.ts'
+export {
+  sourceRequestIdentities,
+  type SourceRequest,
+  type SourceRequestIdentities,
+} from './source-requests.ts'

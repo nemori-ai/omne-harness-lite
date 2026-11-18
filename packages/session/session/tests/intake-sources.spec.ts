@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import type { IntakeSubject, SessionFailure } from '@omne-harness/session-contract'
+import {
+  sourceRequestIdentities,
+  type IntakeSubject,
+  type SessionFailure,
+} from '@omne-harness/session-contract'
 import {
   TESTING_SOURCES,
   TESTING_SYSTEM_COMPONENT,
@@ -12,7 +16,7 @@ import {
   testingInputSources,
 } from '@omne-harness/session-contract/testing'
 import { memoryBackendWith } from './fixtures/backends.ts'
-import { harness } from './fixtures/harness.ts'
+import { harness, TENANT_A } from './fixtures/harness.ts'
 
 type Harness = Awaited<ReturnType<typeof harness>>
 const open: Harness[] = []
@@ -161,5 +165,89 @@ describe('a source that is withdrawn leaves what was accepted (SE-29)', () => {
     // No subject either: a recall needs neither the source nor the subject kind.
     s.allowedAs(null)
     expect(succeeded(await s.accept('kept'), 'recall')).toMatchObject({ recovered: true })
+  })
+})
+
+describe('another domain creates a session and sends inputs with the same operations (SE-32, I-12)', () => {
+  const request = (name: string) =>
+    sourceRequestIdentities({ tenant: TENANT_A, source: TESTING_SOURCES.system, request: name })
+
+  async function creator() {
+    const s = await service()
+    const ids = request('job-7/run-1')
+    const initial = { ...reminder('seed'), input: ids.input }
+    const create = () => {
+      s.allowedAs(SYSTEM)
+      return s.h.faces('intake').management.create({
+        ...s.h.access(ids.session),
+        operation: ids.create,
+        creation: creation({ initial }),
+      })
+    }
+    const work = async () =>
+      succeeded(await s.h.backend.transactions.readWork(s.h.access(ids.session)), 'read')
+    return { ...s, ids, create, work }
+  }
+
+  it('the same request identity gives the same session and one input, the second time as a recall', async () => {
+    const c = await creator()
+    const first = succeeded(await c.create(), 'create')
+    const again = succeeded(await c.create(), 'the same request again')
+    expect(first.receipt.recovered).toBe(false)
+    expect(again.receipt).toEqual({ ...first.receipt, recovered: true })
+    const work = await c.work()
+    expect(work.session).toBe(c.ids.session)
+    expect(work.pending).toEqual([c.ids.input])
+  })
+
+  it('the session and its initial input stand in one commit: one revision holds both', async () => {
+    const c = await creator()
+    const created = succeeded(await c.create(), 'create')
+    const work = await c.work()
+    expect(work.revision).toBe(created.receipt.revision)
+    expect(work.pending).toEqual([c.ids.input])
+  })
+
+  it('a commit that does not land leaves neither the session nor the input', async () => {
+    const c = await creator()
+    c.h.view.onCommit(async () => ({
+      failure: { kind: 'unavailable', owner: 'store', diagnostic: 'down' },
+    }))
+    expect(failureOf(await c.create())).toMatchObject({ kind: 'unavailable' })
+    c.h.view.onCommit(null)
+    expect(await c.h.backend.transactions.readWork(c.h.access(c.ids.session))).toMatchObject({
+      failure: { kind: 'denied' },
+    })
+    succeeded(await c.create(), 'the request again')
+    expect((await c.work()).pending).toEqual([c.ids.input])
+  })
+
+  it('an input to an archived session is refused: it is not queued and the session is not restored', async () => {
+    const s = await service()
+    await s.h.create()
+    succeeded(
+      await s.h.faces('maintainer').work.control({
+        ...s.h.access(),
+        operation: operationId('archive'),
+        intent: { kind: 'archive' },
+      }),
+      'archive',
+    )
+    const ids = sourceRequestIdentities({
+      tenant: TENANT_A,
+      source: TESTING_SOURCES.system,
+      request: 'note-1',
+      session: s.h.access().session,
+    })
+    s.allowedAs(SYSTEM)
+    const sent = await s.h.faces('intake').work.accept({
+      ...s.h.access(),
+      operation: ids.accept,
+      value: { ...reminder('note'), input: ids.input },
+    })
+    expect(failureOf(sent)).toEqual({ kind: 'archived' })
+    const work = await s.work()
+    expect(work.lifecycle).toBe('archived')
+    expect(work.pending).toEqual([])
   })
 })
