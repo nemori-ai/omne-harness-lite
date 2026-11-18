@@ -32,7 +32,12 @@ async function start(): Promise<LoadedTree> {
   const storage = storageRows(base)
   const tree = await loadTree({
     base,
-    rows: [...storage.specs, declared(agentJournalRow, agentJournalCombination())],
+    rows: [
+      ...storage.specs,
+      declared(agentJournalRow, {
+        combinationVersion: agentJournalCombination().combinationVersion,
+      }),
+    ],
   })
   release.push(() => tree.dispose())
   return tree
