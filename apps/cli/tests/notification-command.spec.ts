@@ -91,6 +91,7 @@ describe('omne notification send', () => {
       named: [person],
     })
     expect(event).not.toBe(sent(service, 'send')[0]?.messageId)
+    expect(run.stderr).toBe('')
     expect(printed(run)).toMatchObject({
       outcome: 'succeeded',
       body: { recipients: [person] },
@@ -154,6 +155,13 @@ describe('omne notification send', () => {
     expect(run.stderr).toContain('omne notification sent --source owner.posts --event e-9')
   })
 
+  it('says only that the result is uncertain for a command that has no way to ask again', async () => {
+    await serve(seen => (seen.operation === 'mark' ? { outcome: 'unknown', body: {} } : undefined))
+    const run = await cli(['notification', 'done', '--event', 'e-1'])
+    expect(run.code).toBe(5)
+    expect(run.stderr).toBe('omne notification done: result uncertain\n')
+  })
+
   it('asks what became of a send by its event id, and never sends', async () => {
     const service = await serve()
     const run = await cli(['notification', 'sent', '--event', 'e-9'])
@@ -186,12 +194,23 @@ describe('omne notification list, show and the four marks', () => {
   it.each([
     ['--after', 'x'],
     ['--after', '-1'],
-    ['--limit', '0'],
+    ['--after', '0x10'],
+    ['--after', '05'],
+    ['--after', '1e1'],
     ['--limit', '1.5'],
-  ])('refuses %s %s before any request', async (option, value) => {
+    ['--limit', '1e1'],
+    ['--limit', ' 5'],
+  ])('refuses %s %s before any request and names the option', async (option, value) => {
     const service = await serve()
     const run = await cli(['notification', 'list', option, value])
     expect(run.code).toBe(2)
+    expect(run.stderr).toBe(`omne notification list: ${option.slice(2)}\n`)
+    expect(sent(service, 'list-inbox')).toEqual([])
+  })
+
+  it('leaves a page size of zero to the protocol, which does not send it', async () => {
+    const service = await serve()
+    expect((await cli(['notification', 'list', '--limit', '0'])).code).toBe(2)
     expect(sent(service, 'list-inbox')).toEqual([])
   })
 
@@ -260,6 +279,18 @@ describe('omne notification: usage', () => {
     expect(run.code).toBe(2)
     expect(run.stdout).toBe('')
     expect(service.seen).toHaveLength(before)
+  })
+
+  it.each([
+    [['notification', 'send'], 'omne notification send: missing --title'],
+    [['notification', 'sent'], 'omne notification sent: missing --event'],
+    [['notification', 'show'], 'omne notification show: missing --event'],
+    [['notification', 'restore'], 'omne notification restore: missing --event'],
+    [['notification', 'forward'], 'omne notification: unrecognized arguments'],
+    [['notification', 'sources', '--all'], 'omne notification sources: unrecognized arguments'],
+  ])('%j says what is wrong', async (argv, message) => {
+    await serve()
+    expect((await cli(argv)).stderr.split('\n')[0]).toBe(message)
   })
 
   it('needs a login', async () => {

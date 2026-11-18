@@ -466,6 +466,40 @@ describe('a send by the owner', () => {
     expect(w.store.commits()).toBe(commits)
   })
 
+  /** Every refusal the sending face can answer, with what the protocol says for it. */
+  const REFUSALS = [
+    ['too-large', { outcome: 'invalid', body: { reason: 'too-large' } }],
+    ['content-too-large', { outcome: 'invalid', body: { reason: 'too-large' } }],
+    ['unknown-event-type', { outcome: 'invalid', body: { reason: 'unknown-event-type' } }],
+    ['standing-type', { outcome: 'invalid', body: { reason: 'standing-type' } }],
+    ['invalid-subject', { outcome: 'invalid', body: { reason: 'invalid-subject' } }],
+    ['naming-not-allowed', { outcome: 'invalid', body: { reason: 'naming-not-allowed' } }],
+    [
+      'recipient-not-admissible',
+      { outcome: 'invalid', body: { reason: 'recipient-not-admissible' } },
+    ],
+    ['conflict', { outcome: 'conflict', body: { reason: 'different-content' } }],
+    ['not-permitted', { outcome: 'denied' }],
+    ['causal-depth-exceeded', INVALID],
+    ['invalid-source-name', INVALID],
+    ['incomplete-identity', INVALID],
+    ['invalid-scope', INVALID],
+    ['invalid-term', INVALID],
+    ['invalid-request', INVALID],
+  ] as const
+
+  it.each(REFUSALS)(
+    'answers the refusal %s of the domain in the words of the protocol',
+    async (reason, answer) => {
+      const w = world()
+      w.state.faces = {
+        ...w.real,
+        sending: { ...w.real.sending, send: async () => ({ kind: 'refused', reason }) },
+      }
+      expect(await w.call('send', post)).toEqual(answer)
+    },
+  )
+
   it('refuses a named recipient the authority does not admit', async () => {
     const w = world()
     w.authority.answer((_ctx, action) => (action.kind === 'be-recipient' ? 'denied' : 'allowed'))
