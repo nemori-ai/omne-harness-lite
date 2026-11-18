@@ -422,6 +422,7 @@
 - **注意**：**「从哪个通道进来」是它的一个属性，不是它的种类**——
   交付面、连接件送达、定时到点、别的会话捎话，**同一套受理规矩，差别只在取值**；
   **斜杠命令不是来源取值**，它是经交付面进来的到达在受理时被认出的内容标注
+- **注意**：只有会成为会话消息的到达才取得待处理资格，这一步叫输入受理（Intake）。卡片答复回到等待的拥有者，控制指令交它的处理方，它们不经输入受理。见 [C-89](../conflicts.md#c-89入站到达与输入受理的范围)
 
 
 ### UL-background-result-eligibility · 后台结果投递资格 · Background Result Eligibility
@@ -437,7 +438,7 @@
 > but it does not become an input.
 
 - **形态**：属性
-- **出处**：[会话与工作「一次工作可以等待、恢复和并行调用」](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 10）
+- **出处**：[会话与工作「一次工作可以等待、恢复和并行调用」](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 11）
 - **别混**：**它不是工具结果的交付。**交付是 Tool 把结果推给受理时冻结的消费位置，有没有这项资格都照推；
   这项资格只管结局能不能再进会话，成为一条输入
 - **注意 ①**：裸写「投递资格」只在讲后台结局的一段里作数；跨 topic 引用写正式名
@@ -456,8 +457,78 @@
 > of a call that was stopped by itself.
 
 - **形态**：变体（父：[入站到达](#ul-inbound-arrival--入站到达--inbound-arrival)）
-- **出处**：[会话与工作「一次工作可以等待、恢复和并行调用」](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 10）
+- **出处**：[会话与工作「一次工作可以等待、恢复和并行调用」](../../product/sessions-and-work/design.md#一次工作可以等待恢复和并行调用)（rev 11）
 - **别混**：**它不是被留存的结局。**被留存的结局不成为输入，模型读不到；不叫醒的输入是输入，模型在下一次承接时读到
+- **注意**：一条输入叫不叫醒由它的[输入来源](#ul-input-source--输入来源--input-source)决定，在受理时定下，之后不改
+
+
+### UL-input-source · 输入来源 · Input Source
+
+> **中**：**一个业务向会话登记的、说明「这类输入是谁、凭什么送来」的那份声明。**
+> 登记之后这个业务就能给会话送输入，会话不认识它是谁；卸下之后新的输入送不进来，已经受理的不受影响。
+> 声明写：名字、给人看的名字、接受哪一类主体、送来的输入能不能单独引起一轮工作。
+> 它不写作者角色：一条输入是用户消息还是系统提醒，由送它的主体是不是用户本人决定。
+> 登记不等于许可：许不许往某个会话送，每一次受理另外核对。
+>
+> **EN**: **The declaration a business registers with sessions, stating who sends this kind of
+> input and on what grounds.** Once registered, the business can submit inputs and sessions do not
+> know who it is. Once withdrawn, new inputs are not admitted and admitted ones are unaffected. The
+> declaration gives a name, a label for people, the kind of principal it accepts, and whether its
+> inputs can start a run by themselves. It does not give the author role: an input is a user
+> message only when the principal that sent it is the user in person. Registration is not
+> permission; whether a submission to one session is allowed is checked at every intake.
+
+- **形态**：对象
+- **出处**：[会话与工作「别的业务也能把事情交给会话」](../../product/sessions-and-work/design.md#别的业务也能把事情交给会话)（rev 11）
+- **别混 ①**：不是[来源标记](record-and-context.md#ul-source-tag--来源标记--source-tag)。来源标记是一条输入身上记着的那个值；输入来源是登记的那份声明，标记的值取自它的名字
+- **别混 ②**：不是[通知来源](#ul-notification-source--通知来源--notification-source)。通知来源向通知登记，说的是谁在发事件；输入来源向会话登记，说的是谁在送输入
+- **注意**：身份是它的名字，`<领域>.<名字>`。同名的第二份登记失败，不覆盖
+
+
+### UL-input-fate · 输入的去向 · Input Fate
+
+> **中**：**一条已受理的输入现在在哪一步：还在待处理、被哪一轮工作接下了、那一轮怎样结束、或者它随取消与归档了结了。**
+> 它只按这条输入自己在会话日志里的记录算出，任一时刻恰有一个答案。会话里最新的一条回复不是它。
+>
+> **EN**: **Where one admitted input stands now: still pending, taken by which run, how that run
+> ended, or closed out by a cancellation or an archive.** It is computed only from the records of
+> that input in the session log, and has exactly one answer at any time. The latest reply in the
+> session is not it.
+
+- **形态**：视图
+- **出处**：[会话与工作「别的业务也能把事情交给会话」](../../product/sessions-and-work/design.md#别的业务也能把事情交给会话)（rev 11）
+- **别混**：不是提交的结局。结局答「这一次送，会话接下了没有」；去向答「接下之后它怎样了」
+
+
+### UL-history-search · 搜历史 · History Search
+
+> **中**：**在一个租户的全部会话历史里，按范围、类型与内容找出具体的消息。**
+> 内容条件是一个或几个词，或一条正则表达式。每个命中指到一条消息，可以从它往前往后读上下文。
+> 它如实说明找全了没有：来不及找完时写明没有找全，不说成没有。
+>
+> **EN**: **Finding specific messages in all session histories of one tenant by scope, type and
+> content.** The content condition is one or more words, or one regular expression. Each hit points
+> at one message, and the history can be read forward and backward from it. It states whether the
+> search was complete: when it could not finish, the answer says so and does not say there is none.
+
+- **形态**：过程
+- **出处**：[会话与工作「在全部会话里找到说过的话」](../../product/sessions-and-work/design.md#在全部会话里找到说过的话)（rev 11）
+- **别混**：不是搜会话。搜会话按标题找会话；搜历史按消息里的字找到具体的那句话
+
+
+### UL-history-index · 历史索引 · History Index
+
+> **中**：**为[搜历史](#ul-history-search--搜历史--history-search)加速的那份索引。**
+> 它从各个会话的日志算出，丢了能重算，可以落后于日志。它只帮着缩小要看的范围：一条消息算不算命中，以会话日志里的原文为准。
+>
+> **EN**: **The index that speeds up history search.** It is computed from the session logs, can be
+> rebuilt when lost, and may lag behind the logs. It only narrows what has to be looked at: whether a
+> message is a hit is decided by the original text in the session log.
+
+- **形态**：视图
+- **出处**：[会话与工作「在全部会话里找到说过的话」](../../product/sessions-and-work/design.md#在全部会话里找到说过的话)（rev 11）
+- **别混**：不是会话日志。它不保存任何别处没有的事实
+
 
 ### UL-background-call-number · 后台调用短号 · Background Call Number
 
