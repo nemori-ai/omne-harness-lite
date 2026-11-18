@@ -34,11 +34,13 @@ import {
 } from './answers.ts'
 import { retryRun } from './retry-run.ts'
 import { backgroundCall, listBackgroundCalls } from './background-calls.ts'
+import { selectModel } from './select-model.ts'
 import { stopCall } from './stop-call.ts'
 import { archiveSession, listArchivedSessions, listSessions, unarchiveSession } from './archive.ts'
 import type {
   DefinitionResolver,
   PrincipalFacts,
+  ModelTargets,
   RunFailureCauses,
   SessionAccessFaces,
   SessionAccessSettings,
@@ -55,6 +57,7 @@ export type SessionContributionInput = Readonly<{
   definitions: () => DefinitionResolver | undefined
   listing: () => SessionListing | undefined
   causes: () => RunFailureCauses | undefined
+  modelTargets: () => ModelTargets | undefined
   principals: TargetTenantPrincipals
   facts: PrincipalFacts
   settings: SessionAccessSettings
@@ -346,6 +349,8 @@ export function createSessionContribution(
         readWaiting({ admit, causes: input.causes }, call.principal, body),
       'cancel-run': (call, body) => cancelRun(call.principal, body),
       'stop-call': (call, body) => stopCall({ admit, factOf }, call.principal, body),
+      'select-model': (call, body) =>
+        selectModel({ admit, factOf, targets: input.modelTargets }, call.principal, body),
       'retry-run': (call, body) => retryRun({ admit, factOf }, call.principal, body),
       'background-call': (call, body) => backgroundCall({ admit, factOf }, call.principal, body),
       'list-background-calls': (call, body) => listBackgroundCalls({ admit }, call.principal, body),

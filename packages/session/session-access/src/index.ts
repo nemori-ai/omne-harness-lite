@@ -4,6 +4,8 @@ export type { QueuedRequest } from './request-queue.ts'
 export type {
   DefinitionResolver,
   JournalRecord,
+  ModelTargetCheck,
+  ModelTargets,
   PrincipalFact,
   PrincipalFacts,
   RequestJournal,

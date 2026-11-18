@@ -11,6 +11,7 @@ import type {
   DefinitionResolver,
   PrincipalFacts,
   RequestJournal,
+  ModelTargets,
   RunFailureCauses,
   SessionAccessFaces,
   SessionAccessSettings,
@@ -29,6 +30,8 @@ export type SessionAccessPluginInput<S = SessionAccessSettings> = Readonly<{
   definitions: (ctx: Context) => DefinitionResolver | undefined
   listing: (directory: SessionDirectory<Principal>) => SessionListing
   causes?: (ctx: Context) => RunFailureCauses | undefined
+  /** How a model route resolves for a selection; the release adapts Model's profiles to it. */
+  modelTargets?: (ctx: Context) => ModelTargets | undefined
   prepareCreation?: (input: SessionCreateInput) => SessionCreateInput
 }>
 
@@ -51,6 +54,7 @@ function facesOf(
     management: {
       create: creation => management.create(prepare === undefined ? creation : prepare(creation)),
       interrupt: urgent => management.interrupt(urgent),
+      change: declared => management.change(declared),
     },
     work,
     history,
@@ -97,6 +101,7 @@ export function createSessionAccessPlugin<S extends SessionAccessSettings>(
                 return directory === undefined ? undefined : input.listing(directory)
               },
               causes: () => input.causes?.(ctx),
+              modelTargets: () => input.modelTargets?.(ctx),
               principals,
               facts: input.facts,
               settings,

@@ -1,0 +1,159 @@
+import { describe, expect, it } from 'vitest'
+import type { SessionId } from '@omne-harness/session-contract'
+import {
+  DEFINITION,
+  TARGET_BASIS,
+  createWorld,
+  fixtureLogin,
+  loginIdentity,
+  type World,
+} from './fixtures/world.ts'
+
+const signal = new AbortController().signal
+const ops = (world: World) => world.contribution.operations
+const as = <P>(principal: P) => ({ principal, messageId: 'm-1', signal })
+
+const ALICE = fixtureLogin('a')
+const BOB = fixtureLogin('b')
+const MODEL = 'anthropic/claude-sonnet-5'
+
+async function created(world: World): Promise<SessionId> {
+  const answer = await ops(world)['create-session'](as(world.issue(ALICE)), {
+    createCallId: 'create-1',
+    definition: DEFINITION,
+    purpose: 'hello',
+  })
+  if (answer.outcome !== 'succeeded') throw new Error(`fixture create answered ${answer.outcome}`)
+  return answer.body.session as SessionId
+}
+
+const select = (world: World, session: string, controlId = 'control-1', who = ALICE) =>
+  ops(world)['select-model'](as(loginIdentity(who)), {
+    tenant: who.tenant,
+    session,
+    controlId,
+    model: MODEL,
+  })
+
+const changes = (world: World) =>
+  world.session.controls.calls().filter(call => call.method === 'change')
+
+describe('select-model, row by row of T3', () => {
+  it('row 1: a login that cannot act for the tenant is refused before anything is asked', async () => {
+    for (const [refusal, expected] of [
+      ['denied', { outcome: 'denied' }],
+      ['basis-unavailable', { outcome: 'basis-unavailable' }],
+      ['throw', { outcome: 'basis-unavailable' }],
+    ] as const) {
+      const world = createWorld()
+      const session = await created(world)
+      world.refuseTargets(refusal)
+      expect(await select(world, session)).toEqual(expected)
+      expect(world.targets.calls()).toEqual([])
+      expect(changes(world)).toEqual([])
+    }
+  })
+
+  it('row 2: a session that does not exist and a session of another tenant get the same answer', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    const missing = await select(world, 'no-such-session')
+    const foreign = await select(world, session, 'control-1', BOB)
+    expect(missing).toEqual(foreign)
+    expect(changes(world).every(call => call.operation !== undefined)).toBe(true)
+  })
+
+  it.each(['unknown-name', 'withdrawn', 'excluded'] as const)(
+    'row 3: a route that resolves to no profile (%s) is refused with its reason and nothing is committed',
+    async reason => {
+      const world = createWorld()
+      const session = await created(world)
+      world.targets.answer({ kind: 'refused', reason })
+      expect(await select(world, session)).toEqual({ outcome: 'invalid', body: { reason } })
+      expect(changes(world)).toEqual([])
+    },
+  )
+
+  it.each(['modality', 'locked', 'scope'] as const)(
+    'row 4: a profile that is not selectable (%s) is refused with its reason and nothing is committed',
+    async reason => {
+      const world = createWorld()
+      const session = await created(world)
+      world.targets.answer({ kind: 'refused', reason })
+      expect(await select(world, session)).toEqual({ outcome: 'invalid', body: { reason } })
+      expect(changes(world)).toEqual([])
+    },
+  )
+
+  it('row 5: a selectable target without a credential is committed, and the answer says so', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    world.targets.answer({ kind: 'selectable', credential: 'missing', basis: TARGET_BASIS })
+    expect(await select(world, session)).toEqual({
+      outcome: 'succeeded',
+      body: { controlId: 'control-1', model: MODEL, credential: 'missing' },
+    })
+    const [change] = changes(world)
+    expect(change?.input).toEqual({ kind: 'model', name: MODEL, basis: TARGET_BASIS })
+    expect(world.targets.calls()).toEqual([
+      expect.objectContaining({ tenant: ALICE.tenant, route: MODEL }),
+    ])
+  })
+
+  it('row 6: selecting the current model commits like any other selection', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    expect((await select(world, session, 'control-1')).outcome).toBe('succeeded')
+    expect((await select(world, session, 'control-2')).outcome).toBe('succeeded')
+    expect(changes(world)).toHaveLength(2)
+  })
+
+  it('row 7: a session with a Run in progress takes the selection; the Run is not touched', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    world.session.controls.addRun(session, 'run-1')
+    expect((await select(world, session)).outcome).toBe('succeeded')
+    const methods = world.session.controls.calls().map(call => call.method)
+    expect(methods.filter(method => method !== 'create' && method !== 'change')).toEqual([])
+  })
+
+  it.each([
+    [{ kind: 'archived' }, 'archived'],
+    [{ kind: 'frozen' }, 'frozen'],
+    [{ kind: 'conflict', operation: 'op' }, 'conflict'],
+  ] as const)(
+    'row 8: Session refusing the command (%j) is answered as %s',
+    async (failure, outcome) => {
+      const world = createWorld()
+      const session = await created(world)
+      world.session.controls.failNext(failure as never)
+      expect(await select(world, session)).toEqual({ outcome, body: {} })
+    },
+  )
+
+  it('row 9: an unconfirmed commit answers unknown; the same control identity is the same operation', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    world.session.controls.throwOn('change', new Error('connection lost'))
+    expect(await select(world, session)).toEqual({ outcome: 'unknown' })
+    world.session.controls.restore()
+    expect((await select(world, session)).outcome).toBe('succeeded')
+    const [first, second] = changes(world)
+    expect(first?.operation).toBeDefined()
+    expect(second?.operation).toBe(first?.operation)
+    expect((await select(world, session, 'control-2')).outcome).toBe('succeeded')
+    expect(changes(world)[2]?.operation).not.toBe(first?.operation)
+  })
+
+  it('answers basis-unavailable, and commits nothing, when the model targets are absent or throw', async () => {
+    for (const fault of ['absent', 'throw', 'unavailable'] as const) {
+      const world = createWorld()
+      const session = await created(world)
+      if (fault === 'absent') world.remove('modelTargets')
+      else if (fault === 'throw') world.targets.answer('throw')
+      else world.targets.answer({ kind: 'unavailable' })
+      expect(await select(world, session)).toEqual({ outcome: 'basis-unavailable' })
+      expect(changes(world)).toEqual([])
+    }
+  })
+})

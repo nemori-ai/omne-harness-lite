@@ -7,6 +7,7 @@ import type {
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   Adoption,
+  DurableEvidence,
   SavedModelSelection,
   SessionHistory,
   SessionManagement,
@@ -80,7 +81,7 @@ export interface SessionListing {
 }
 
 export type SessionAccessFaces = Readonly<{
-  management: Pick<SessionManagement<Principal>, 'create' | 'interrupt'>
+  management: Pick<SessionManagement<Principal>, 'create' | 'interrupt' | 'change'>
   work: Pick<
     SessionWork<Principal>,
     | 'accept'
@@ -128,3 +129,22 @@ export type SessionAccessSettings = Readonly<{
   requestQueueLimit: number
   requestRetryDelaysMs: readonly number[]
 }>
+
+/** What a model route resolves to for a session's selection: Model answers it, the release adapts. */
+export type ModelTargetCheck =
+  | Readonly<{
+      kind: 'selectable'
+      credential: 'available' | 'missing' | 'unknown'
+      basis: DurableEvidence
+    }>
+  | Readonly<{
+      kind: 'refused'
+      reason: 'unknown-name' | 'withdrawn' | 'excluded' | 'modality' | 'locked' | 'scope'
+    }>
+  | Readonly<{ kind: 'unavailable' }>
+
+export interface ModelTargets {
+  check(
+    input: Readonly<{ principal: Principal; tenant: TenantId; route: string }>,
+  ): Promise<ModelTargetCheck>
+}

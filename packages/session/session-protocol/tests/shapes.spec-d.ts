@@ -144,7 +144,7 @@ type SessionOutcomes = {
     | 'unsupported'
 }
 
-test('the operations are exactly the sixteen of session/v1', () => {
+test('the operations are exactly the seventeen of session/v1', () => {
   expectTypeOf<Name>().toEqualTypeOf<
     | 'create-session'
     | 'query-create-session'
@@ -162,6 +162,7 @@ test('the operations are exactly the sixteen of session/v1', () => {
     | 'retry-run'
     | 'background-call'
     | 'list-background-calls'
+    | 'select-model'
   >()
   expectTypeOf<keyof SessionProtocol['observations']>().toEqualTypeOf<'observe-session'>()
   expectTypeOf(sessionProtocol.name).toEqualTypeOf<'session'>()
