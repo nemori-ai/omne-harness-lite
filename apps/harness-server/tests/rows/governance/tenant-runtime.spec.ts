@@ -773,6 +773,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
     'tool.BkgToolCalls',
     'tool.Calendar',
     'tool.Files',
+    'tool.Notifications',
     'tool.Schedules',
     'tool.Shell',
     'tool.Skills',
