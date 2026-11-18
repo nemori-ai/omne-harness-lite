@@ -107,16 +107,22 @@ const defaults = {
 
 export function changeFeed() {
   const listeners = new Set<NotificationChangeListener>()
+  const released: NotificationChangeListener[] = []
   let broken = false
   return {
     listeners,
+    /** One entry for every call of an undo function. */
+    released,
     breakNext() {
       broken = true
     },
     subscribe(listener: NotificationChangeListener) {
       if (broken) throw new Error('feed is down')
       listeners.add(listener)
-      return () => void listeners.delete(listener)
+      return () => {
+        released.push(listener)
+        listeners.delete(listener)
+      }
     },
     inbox(tenant: string) {
       for (const listener of listeners)

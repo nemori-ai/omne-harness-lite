@@ -1,7 +1,7 @@
 import type { EndOf, FrameOf, FrameSource } from '@omne-harness/access-cordis-contract'
-import { tenantCodec } from '@omne-harness/legal-identity'
 import type { NotificationProtocol } from '@omne-harness/notification-protocol'
 import type { NotificationChangeFeed, NotificationPrincipals } from './ports.ts'
+import { tenantTextOf } from './projection.ts'
 
 type ObserveChanges = NotificationProtocol['observations']['observe-changes']
 type Frame = FrameOf<ObserveChanges>
@@ -27,9 +27,7 @@ export function createChangeObservation(
   input: ChangeObservationInput,
 ): FrameSource<ObserveChanges> {
   return async (context, open) => {
-    const encoded = tenantCodec.encode(open.tenant)
-    if (!encoded.ok) throw new TypeError('notification-access: tenant is not a minted TenantId')
-    const tenantText = encoded.value
+    const tenantText = tenantTextOf(open.tenant)
 
     /** Asked again before every frame: an observer that lost the tenant hears nothing more. */
     async function admission(): Promise<Admission> {
@@ -48,7 +46,7 @@ export function createChangeObservation(
     if (changes === undefined) return UNAVAILABLE
 
     const pending = new Set<About>(ABOUT)
-    const state = { closed: false }
+    let closed = false
     let wake: (() => void) | undefined
     const rouse = (): void => {
       const resolve = wake
@@ -64,7 +62,7 @@ export function createChangeObservation(
           rouse()
         },
         closed() {
-          state.closed = true
+          closed = true
           rouse()
         },
       })
@@ -81,13 +79,13 @@ export function createChangeObservation(
       release()
       rouse()
     }
-    signal.addEventListener('abort', onAbort, { once: true })
+    signal.addEventListener('abort', onAbort)
     if (signal.aborted) onAbort()
 
     async function* frames(): AsyncGenerator<Frame, EndOf<ObserveChanges>> {
       try {
         for (;;) {
-          if (signal.aborted || state.closed) return 'unavailable'
+          if (signal.aborted || closed) return 'unavailable'
           if (pending.size === 0) {
             await new Promise<void>(resolve => {
               wake = resolve

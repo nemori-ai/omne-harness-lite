@@ -238,6 +238,34 @@ describe('what blocks managing destinations', () => {
     })
     w.store.fail('rolled-back')
     expect(await w.destinations.remove(w.ctx, { recipient: person, id: 'x' })).toEqual(unavailable)
+    const builtin = { recipient: person, id: 'default' }
+    w.store.fail('rolled-back')
+    expect(await w.destinations.change(w.ctx, builtin, { enabled: false })).toEqual(unavailable)
+    w.store.fail('unknown-lost')
+    expect(await w.destinations.change(w.ctx, builtin, { enabled: false })).toEqual({
+      kind: 'unknown',
+    })
+    expect(await w.destinations.change(w.ctx, builtin, { enabled: false })).toMatchObject({
+      kind: 'done',
+      recalled: false,
+      value: { state: 'disabled' },
+    })
+  })
+
+  it('asks the authority about the recipient it is going to touch', async () => {
+    const w = withMail()
+    const ref = { recipient: agent('a'), id: 'default' }
+    await w.destinations.add(w.ctx, { ...mailTo('me@x'), recipient: agent('a') })
+    await w.destinations.change(w.ctx, ref, { enabled: false })
+    await w.destinations.remove(w.ctx, ref)
+    await w.destinations.list(w.ctx, agent('a'))
+    const manage = { kind: 'manage-destinations', recipient: agent('a') }
+    expect(w.authority.asked()).toEqual([
+      manage,
+      manage,
+      manage,
+      { kind: 'read-inbox', recipient: agent('a') },
+    ])
   })
 
   it.each([
@@ -287,6 +315,18 @@ describe('what blocks managing destinations', () => {
         w.destinations.change(w.ctx, { recipient: person, id: 'default' }, {
           enabled: 'yes',
         } as never),
+    ],
+    [
+      'change of a recipient that is not one, with a valid patch',
+      (w: ReturnType<typeof world>) =>
+        w.destinations.change(w.ctx, { recipient: { kind: 'team' }, id: 'default' } as never, {
+          enabled: false,
+        }),
+    ],
+    [
+      'remove with an id that is not a string',
+      (w: ReturnType<typeof world>) =>
+        w.destinations.remove(w.ctx, { recipient: person, id: ['default'] } as never),
     ],
     [
       'remove without an id',

@@ -164,11 +164,21 @@ describe('the frames of observe-changes', () => {
     expect(await frames.next()).toEqual({ done: true, value: 'unavailable' })
   })
 
-  it('an observer that stops reading lets go of the feed', async () => {
+  it('an observer that stops reading lets go of the feed and of the call, once', async () => {
     const w = world()
     const frames = await opened(w)
     await frames.next()
     await frames.return('unavailable')
+    expect(w.feed.listeners.size).toBe(0)
+    w.controller.abort()
+    expect(w.feed.released).toHaveLength(1)
+  })
+
+  it('a tenant that was not minted is not asked about and not subscribed', async () => {
+    const w = world()
+    const source = w.contribution.observations['observe-changes']
+    await expect(source(w.context as never, { tenant: {} as never })).rejects.toThrow(TypeError)
+    expect(w.state.logins).toEqual([])
     expect(w.feed.listeners.size).toBe(0)
   })
 

@@ -1,3 +1,4 @@
+import { tenantIdSchema } from '@omne-harness/notification-contract'
 import { describe, expect, it } from 'vitest'
 import {
   NAMES,
@@ -182,6 +183,61 @@ describe('step four', () => {
       expect(await w.call(name, body)).toMatchObject({ outcome: 'succeeded' })
     },
   )
+})
+
+describe('what the plugin does not let through', () => {
+  it('a tenant that was not minted reaches neither the identity nor the domain', async () => {
+    const w = world()
+    for (const name of NAMES) {
+      const handler = w.contribution.operations[name] as (
+        call: never,
+        body: never,
+      ) => Promise<unknown>
+      await expect(
+        handler(w.context as never, { ...SAMPLES[name], tenant: {} } as never),
+      ).rejects.toThrow(/not a minted TenantId/)
+    }
+    expect(w.state.logins).toEqual([])
+    expect(w.authority.asked()).toEqual([])
+  })
+
+  it('an instant the domain kept wrongly is not written as an answer', async () => {
+    const w = world()
+    await w.send('e1')
+    const { inbox } = w.real
+    w.state.faces = {
+      ...w.real,
+      inbox: {
+        ...inbox,
+        read: async (ctx, ref) => {
+          const read = await inbox.read(ctx, ref)
+          if (read.kind !== 'done') throw new Error(read.kind)
+          return { ...read, value: { ...read.value, acceptedAt: 'yesterday' as never } }
+        },
+      },
+    }
+    await expect(w.call('read-notification', ref('e1'))).rejects.toThrow(/invalid instant/)
+  })
+
+  it.each([
+    ['invalid-request', INVALID],
+    ['invalid-scope', INVALID],
+    ['invalid-term', INVALID],
+    ['term-in-past', { outcome: 'invalid', body: { reason: 'term-in-past' } }],
+    ['not-subscribable', { outcome: 'invalid', body: { reason: 'not-subscribable' } }],
+    ['scope-does-not-fit', { outcome: 'invalid', body: { reason: 'scope-does-not-fit' } }],
+    ['not-permitted', { outcome: 'denied' }],
+    ['not-own-recipient', { outcome: 'denied' }],
+    ['confirmation-mismatch', { outcome: 'denied' }],
+  ] as const)('a subscription the domain refuses as %s has one answer', async (reason, answer) => {
+    const w = world()
+    const subscriptions = {
+      ...w.real.subscriptions,
+      set: async () => ({ kind: 'refused', reason }),
+    }
+    w.state.faces = { ...w.real, subscriptions } as never
+    expect(await w.call('set-subscription', change)).toEqual(answer)
+  })
 })
 
 describe('the inbox', () => {
@@ -505,6 +561,18 @@ describe('destinations', () => {
     })
     expect(await w.call('list-destinations', { recipient: person })).toMatchObject({
       body: { destinations: [builtin] },
+    })
+  })
+
+  it('says since when a destination is blocked', async () => {
+    const w = world()
+    await w.call('add-destination', mail)
+    const facts = w.store.facts(tenantIdSchema.parse(TENANT))
+    for (const [id, destination] of facts.destinations)
+      if (!destination.builtin)
+        facts.destinations.set(id, { ...destination, blockedSince: NOW as never })
+    expect(await w.call('list-destinations', { recipient: person })).toMatchObject({
+      body: { destinations: [builtin, { ...added, blockedSince: NOW }] },
     })
   })
 

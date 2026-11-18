@@ -52,8 +52,8 @@ type NewTarget = Readonly<{
 }>
 
 function parseNew(input: NewDestination): NewTarget | null {
-  const recipient = parseWith(recipientRefSchema, input?.recipient)
-  const channel = channelNameSchema.safeParse(input?.channel)
+  const recipient = parseWith(recipientRefSchema, input.recipient)
+  const channel = channelNameSchema.safeParse(input.channel)
   if (!('ok' in recipient) || !channel.success) return null
   if (typeof input.address !== 'string' || !LEVELS.includes(input.minLevel)) return null
   const { address, minLevel } = input
@@ -103,8 +103,8 @@ export function createDestinations(deps: DestinationsDependencies): Notification
   }
 
   function parseDestinationRef(ref: DestinationRef): DestinationRef | null {
-    const recipient = parseWith(recipientRefSchema, ref?.recipient)
-    const named = typeof ref?.id === 'string' && ref.id.length > 0
+    const recipient = parseWith(recipientRefSchema, ref.recipient)
+    const named = typeof ref.id === 'string' && ref.id.length > 0
     return 'ok' in recipient && named ? { recipient: recipient.ok, id: ref.id } : null
   }
 

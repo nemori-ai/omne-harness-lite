@@ -1,5 +1,5 @@
 import type { AccessContribution } from '@omne-harness/access-cordis-contract'
-import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   BeatRefusal,
   CallContext,
@@ -21,6 +21,7 @@ import {
   sourceOf,
   subscriptionOf,
   summaryOf,
+  tenantTextOf,
   viewOf,
 } from './projection.ts'
 
@@ -118,16 +119,10 @@ async function committing<T, R, D, F>(
   }
 }
 
-function tenantTextOf(tenant: TenantId): string {
-  const encoded = tenantCodec.encode(tenant)
-  if (!encoded.ok) throw new TypeError('notification-access: tenant is not a minted TenantId')
-  return encoded.value
-}
-
 type Ready = Readonly<{ outcome: null; faces: NotificationFaces; ctx: CallContext }>
 
 /** Steps one to three: the login acts for the tenant, the principal is current, the faces are here. */
-export async function prepare(
+async function prepare(
   input: Pick<NotificationContributionInput, 'principals' | 'faces'>,
   login: Login,
   tenant: TenantId,

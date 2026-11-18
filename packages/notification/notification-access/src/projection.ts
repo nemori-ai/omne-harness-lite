@@ -1,3 +1,4 @@
+import { tenantCodec, type TenantId as LegalTenantId } from '@omne-harness/legal-identity'
 import { encodeInstant, parseInstant, type Instant } from '@omne-harness/utc-instant'
 import type {
   CatalogChannel,
@@ -16,6 +17,8 @@ import type {
   NotificationViewBody,
 } from '@omne-harness/notification-protocol'
 
+const SECONDS = '0000-00-00T00:00:00'
+
 /** The domain keeps instants as text; the protocol carries them as instants. */
 export function instantOf(text: string): Instant {
   const parsed = parseInstant(text)
@@ -25,8 +28,15 @@ export function instantOf(text: string): Instant {
 
 /** Milliseconds, as the domain writes instants. A finer instant stays finer, and the domain refuses it. */
 export function instantText(instant: Instant): string {
-  const [whole = '', fraction = ''] = encodeInstant(instant).slice(0, -1).split('.')
-  return `${whole}.${fraction.replace(/0+$/u, '').padEnd(3, '0')}Z`
+  const text = encodeInstant(instant)
+  const fraction = text.slice(SECONDS.length + 1, -1)
+  return `${text.slice(0, SECONDS.length)}.${fraction.replace(/0+$/u, '').padEnd(3, '0')}Z`
+}
+
+export function tenantTextOf(tenant: LegalTenantId): string {
+  const encoded = tenantCodec.encode(tenant)
+  if (!encoded.ok) throw new TypeError('notification-access: tenant is not a minted TenantId')
+  return encoded.value
 }
 
 export function marksOf(marks: Marks): NotificationSummaryBody['marks'] {

@@ -110,6 +110,7 @@ describe('changes', () => {
     expect(channel.address.accepts('')).toBe(true)
     expect(channel.address.accepts('x')).toBe(false)
     expect(channel.leavesSystem).toBe(false)
+    expect([channel.label, channel.address.hint]).toEqual(['应用内', '留空'])
     const recipient = { kind: 'person' } as const
     const result = await channel.deliver({ tenant: t1, recipient, address: '', unit: {} as never })
     expect(result).toEqual({ kind: 'delivered' })
