@@ -53,8 +53,8 @@ describe('sources', () => {
     }
   })
 
-  it('counts 65 allowing cells in the Session table and 19 in the Agent table', () => {
-    expect(auditPolicy().session.allowedCells).toBe(65)
+  it('counts 66 allowing cells in the Session table and 19 in the Agent table', () => {
+    expect(auditPolicy().session.allowedCells).toBe(66)
     expect(auditPolicy().agent.allowedCells).toBe(19)
   })
 

@@ -1,4 +1,10 @@
-import type { ActionAdmission, AdmissionDecision } from '@omne-harness/agent-contract'
+import type {
+  ActionAdmission,
+  AdmissionDecision,
+  DurableEvidence,
+} from '@omne-harness/agent-contract'
+import type { TenantId } from '@omne-harness/legal-identity'
+import type { AuthorizationExpression } from '@omne-harness/session-contract'
 import {
   canonicalText,
   decisionEvidence,
@@ -10,10 +16,12 @@ import { succeed } from '@omne-harness/operation-result'
 import type { ToolActionResolution } from '@omne-harness/tool-contract'
 import type { ToolCallLabeling } from '../../entry/tool-action-resolution.ts'
 import { actionRulesSchema, toolActionRule, type ActionRules } from './action-rules.ts'
-import { answeredDecision, askedDecision } from './release-asking.ts'
+import { answerEffect, askedDecision, type AnswerEffect } from './release-asking.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 import {
+  agentActionConsumer,
   agentPermissionOperation,
+  onceTarget,
   type ToolPermissionAction,
   type ToolPermissionCheck,
 } from './current-tool-permission.ts'
@@ -22,8 +30,21 @@ type Request = Parameters<ActionAdmission<unknown>['admit']>[0]
 export type AdmissionReader = () => AdmissionCheck | undefined
 export type ToolPermissionReader = () => ToolPermissionCheck | undefined
 export type ResolutionReader = () => ToolActionResolution<unknown> | undefined
+/** Appends a person's authorization to the session log; one decision names one operation. */
+export type AuthorizationWriter = Readonly<{
+  express(
+    input: Readonly<{
+      principal: ToolPermissionAction['principal']
+      tenant: TenantId
+      session: string
+      card: DurableEvidence
+      expression: AuthorizationExpression
+    }>,
+  ): Promise<'written' | 'refused' | 'unavailable'>
+}>
 type Readers = Readonly<{
   readAdmission: AdmissionReader
+  readAuthorizations?: () => AuthorizationWriter | undefined
   readPermission: ToolPermissionReader
   readResolution: ResolutionReader
   /** Absent when no labeling is installed: an action a person must release then waits. */
@@ -146,6 +167,56 @@ async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecis
   }
 }
 
+type Granting = Extract<AnswerEffect, { kind: 'grant' }>
+type Scoped = Readonly<{ scope: AuthorizationExpression['scope'] }>
+
+// What the person released: this very action, or its gate for the session as the gate stands now.
+async function scopeOf(
+  judging: Judging,
+  gate: Judged,
+  effect: Granting,
+): Promise<Scoped | AdmissionDecision | null> {
+  if (effect.scope === 'once')
+    return {
+      scope: {
+        kind: 'once',
+        consumer: agentActionConsumer(judging.input),
+        target: onceTarget(gate.definition),
+        argumentsDigest: effectiveArgumentsOf(gate.effectiveArguments).digest,
+      },
+    }
+  if (judging.permission === undefined)
+    return unavailable('the current permission dependency is unavailable')
+  const current = await judging.permission.check(permissionAction(judging, gate))
+  if (current.kind !== 'ask') return null
+  if (current.gate === undefined) return undecidable('the gate that asks is not named')
+  return { scope: { kind: 'session', ...current.gate } }
+}
+
+// The answer's effect comes first, so judging again reads the authorization it wrote.
+async function grant(
+  judging: Judging,
+  gates: Gates,
+  effect: Granting,
+  writer: AuthorizationWriter | undefined,
+): Promise<AdmissionDecision | null> {
+  if (writer === undefined) return unavailable('the session authorization writer is unavailable')
+  const found = await scopeOf(judging, gates[gates.length - 1]!, effect)
+  // A gate that no longer asks needs no release: judging answers what it is now.
+  if (found === null || !('scope' in found)) return found
+  const written = await writer.express({
+    principal: judging.principal,
+    tenant: judging.input.tenant,
+    session: judging.session,
+    card: effect.card,
+    expression: { scope: found.scope, direction: 'grant', source: effect.source },
+  })
+  if (written === 'written') return null
+  return written === 'refused'
+    ? undecidable('the session refused the authorization')
+    : unavailable('the authorization could not be written now')
+}
+
 async function decide(
   input: Request,
   rules: ActionRules | undefined,
@@ -170,7 +241,8 @@ async function decide(
       evidence: decisionEvidence('action-principal', '0', { target, arguments: argumentsDigest }),
     }
   }
-  if (input.decision !== null) return answeredDecision(input.decision)
+  const effect = input.decision === null ? null : answerEffect(input.decision)
+  if (effect?.kind === 'decided') return effect.decision
   const admission = readers.readAdmission()
   if (admission === undefined) return unavailable('the action admission dependency is unavailable')
   const identity = await admission.check({
@@ -193,6 +265,10 @@ async function decide(
     argumentsDigest,
     permission: readers.readPermission(),
     labeling: readers.readLabeling?.(),
+  }
+  if (effect !== null) {
+    const granted = await grant(judging, gates, effect, readers.readAuthorizations?.())
+    if (granted !== null) return granted
   }
   const [first, ...rest] = gates
   let answer = await judgeGate(judging, first)

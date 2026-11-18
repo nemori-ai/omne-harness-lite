@@ -125,6 +125,7 @@ function refusalOf(guard: GuardCommand, command: SessionCommand, tenant: string)
 
 // What a person declares adopts nothing from the deployment; its qualification is checked at the commit.
 const PERSON_DECLARATIONS: ReadonlySet<string> = new Set([
+  'authorization-expression',
   'permission-assignment',
   'permission-mode',
 ])

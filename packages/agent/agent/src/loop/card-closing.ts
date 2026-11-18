@@ -5,6 +5,7 @@ import {
   type ActionBatch,
   type AgentCheckpoint,
   type AgentExecutionId,
+  type CardReply,
   type CardRound,
   type CardRoundId,
   type DurableEvidence,
@@ -15,7 +16,15 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { AgentDependencies } from '../construction.ts'
 import { AGENT_OWNER, agentEvidence } from './identities.ts'
-import { afterClosed, chainOf, needOfAction, presentRequest } from './admission-chain.ts'
+import {
+  afterClosed,
+  afterRejudged,
+  afterReply,
+  chainOf,
+  needOfAction,
+  presentRequest,
+  type Judged,
+} from './admission-chain.ts'
 import { localFailure } from './node-failure.ts'
 import { deniedForRefusedAdmission, type ToolAdmission } from './tools.ts'
 import { needOf, type PassageNeed } from './passages.ts'
@@ -24,9 +33,61 @@ export const OUT_ROUNDS: readonly PassageNeed[] = ['present', 'read', 'closed']
 
 type Ports<P> = Pick<AgentDependencies<P, ContentBlock>, 'cards' | 'clock'>
 type Closed = Readonly<{ actions: Action[]; passages: readonly Passage[] }>
+type Withdrawn = readonly Readonly<{
+  card: DurableEvidence
+  reply: Exclude<CardReply, { kind: 'pending' }>
+}>[]
+type Settled = Extract<ToolAdmission, { kind: 'allowed' | 'denied' }>
 
 const defect = (diagnostic: string): Failure =>
   localFailure('invariant', { kind: 'unavailable', owner: `${AGENT_OWNER}#defect`, diagnostic })
+
+type Place<P> = Readonly<{ ports: Ports<P>; access: Access<P>; execution: AgentExecutionId }>
+
+async function shownCards<P>(
+  { ports, access, execution }: Place<P>,
+  chain: Passage,
+  round: CardRound,
+): Promise<Outcome<readonly DurableEvidence[], Failure>> {
+  if (round.progress.kind === 'presented')
+    return succeed(round.progress.cards.map(card => card.card))
+  const request = presentRequest(chain)
+  if (request === null) return fail(defect('an open round to present has no request'))
+  const found = await ports.cards.lookup({ ...access, execution, ...request })
+  if ('failure' in found) return found
+  if (found.ok.kind === 'unknown')
+    return fail({
+      kind: 'unavailable',
+      owner: 'agentDecisionCards',
+      diagnostic: 'the result of presenting a card round is unknown',
+    })
+  return succeed(found.ok.kind === 'presented' ? found.ok.cards : [])
+}
+
+// The operation is the round's, so a retry withdraws it once. Each card answers how it ended.
+async function withdrawRoundAt<P>(
+  place: Place<P>,
+  chain: Passage,
+  reason: DurableEvidence,
+  unsent: ReadonlySet<CardRoundId>,
+): Promise<Outcome<Withdrawn, Failure>> {
+  const last = chain.progress.kind === 'asked' ? chain.progress.rounds.at(-1) : undefined
+  if (last === undefined || needOf(chain) === 'closed' || unsent.has(last.round)) return succeed([])
+  const cards = await shownCards(place, chain, last)
+  if ('failure' in cards) return cards
+  if (cards.ok.length === 0) return succeed([])
+  const operation = decodeAgentOperationId(`${last.round}/withdraw`)
+  if ('failure' in operation) return fail(defect('a card round names no withdraw operation'))
+  return place.ports.cards.invalidate({
+    ...place.access,
+    operation: operation.ok,
+    execution: place.execution,
+    passage: chain.id,
+    round: last.round,
+    cards: cards.ok,
+    reason,
+  })
+}
 
 /** Card rounds always end: what may still be open with the person is withdrawn, chains settle. */
 export function cardClosing<P>(
@@ -35,52 +96,12 @@ export function cardClosing<P>(
   execution: AgentExecutionId,
   unsentRounds: ReadonlySet<CardRoundId>,
 ) {
-  async function shownCards(
-    chain: Passage,
-    round: CardRound,
-  ): Promise<Outcome<readonly DurableEvidence[], Failure>> {
-    if (round.progress.kind === 'presented')
-      return succeed(round.progress.cards.map(card => card.card))
-    const request = presentRequest(chain)
-    if (request === null) return fail(defect('an open round to present has no request'))
-    const found = await ports.cards.lookup({ ...access, execution, ...request })
-    if ('failure' in found) return found
-    if (found.ok.kind === 'unknown')
-      return fail({
-        kind: 'unavailable',
-        owner: 'agentDecisionCards',
-        diagnostic: 'the result of presenting a card round is unknown',
-      })
-    return succeed(found.ok.kind === 'presented' ? found.ok.cards : [])
-  }
-
-  // The operation is the round's, so a retry withdraws it once.
-  async function withdrawRound(
+  const withdrawRound = (
     chain: Passage,
     reason: DurableEvidence,
     unsent: ReadonlySet<CardRoundId>,
-  ): Promise<Outcome<void, Failure>> {
-    const last = chain.progress.kind === 'asked' ? chain.progress.rounds.at(-1) : undefined
-    if (last === undefined || needOf(chain) === 'closed' || unsent.has(last.round))
-      return succeed(undefined)
-    const cards = await shownCards(chain, last)
-    if ('failure' in cards) return cards
-    if (cards.ok.length === 0) return succeed(undefined)
-    const operation = decodeAgentOperationId(`${last.round}/withdraw`)
-    if ('failure' in operation) return fail(defect('a card round names no withdraw operation'))
-    const withdrawn = await ports.cards.invalidate({
-      ...access,
-      operation: operation.ok,
-      execution,
-      passage: chain.id,
-      round: last.round,
-      cards: cards.ok,
-      reason,
-    })
-    return 'failure' in withdrawn ? withdrawn : succeed(undefined)
-  }
+  ) => withdrawRoundAt({ ports, access, execution }, chain, reason, unsent)
 
-  // Ends the card rounds of the given needs: each is withdrawn, then its chain settles as card-closed.
   async function close(
     actions: readonly Action[],
     saved: readonly Passage[],
@@ -123,6 +144,30 @@ export function cardClosing<P>(
         if ('failure' in withdrawn) return withdrawn
       }
       return succeed(undefined)
+    },
+
+    // The batch settled a waiting action: its card is withdrawn, unless the person answered first.
+    async endSuperseded(
+      batch: ActionBatch,
+      waiting: Action,
+      chain: Passage,
+      saved: readonly Passage[],
+      answer: Settled,
+    ): Promise<Outcome<Judged & Readonly<{ heard: boolean }>, Failure>> {
+      const reason = agentEvidence(`${execution}/${batch.id}/A0/rejudged/${waiting.id}`, {
+        kind: answer.kind,
+      })
+      const withdrawn = await withdrawRound(chain, reason, unsentRounds)
+      if ('failure' in withdrawn) return withdrawn
+      const heard = withdrawn.ok.find(item => item.reply.kind !== 'invalidated')
+      const instant = await ports.clock.now()
+      if ('failure' in instant) return instant
+      const next =
+        heard === undefined
+          ? afterRejudged(saved, answer, chain, instant.ok)
+          : afterReply(saved, waiting, chain, heard.card, heard.reply)
+      if ('failure' in next) return fail(defect(`${next.failure.step} is not defined here`))
+      return succeed({ ...next.ok, heard: heard !== undefined })
     },
 
     // A card the person never answered was closed: the action is refused and the Run goes on.

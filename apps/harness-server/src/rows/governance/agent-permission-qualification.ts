@@ -9,6 +9,7 @@ import {
 } from '@omne-harness/permissions'
 import type { PermissionQualification } from './permission-qualification.ts'
 import {
+  agentActionConsumer,
   agentPermissionOperation,
   declaredPermission,
   toolPermissionRequestMatches,
@@ -67,8 +68,13 @@ export async function qualifyAgentPermission(
     if ('failure' in original)
       return original.failure.kind === 'denied' ? { kind: 'denied' } : unavailable()
     if (canonicalText(original.ok.request) !== canonicalText(given)) return unavailable()
-    const session = await readBoundSessionPermission(input.readSession, permission, action.inquiry)
-    if (session === undefined) return unavailable()
+    const bound = await readBoundSessionPermission(
+      input.readSession,
+      permission,
+      action.inquiry,
+      agentActionConsumer(position),
+    )
+    if (bound === undefined) return unavailable()
     const constraint = await readAgentPermissionConstraint({
       adoptions: input.adoptions,
       resolution: {
@@ -85,7 +91,9 @@ export async function qualifyAgentPermission(
         configuration: released.interpretation.definition.settings === null ? 'unmapped' : 'mapped',
         principalRef: standingPrincipalRef(action.principal),
         definition: released.entry.governance.declaration.reference,
-        session,
+        session: bound.current,
+        consumer: bound.consumer,
+        authorizations: bound.authorizations,
         constraints: [constraint],
       },
     }

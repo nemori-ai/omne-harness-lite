@@ -69,18 +69,15 @@ import {
 } from './identities.ts'
 import {
   adopted,
-  afterAdmission,
   afterPresentRefused,
   afterPresented,
   afterReply,
   chainOf,
   denialOf,
   extensionPassages,
-  handBackOf,
   humanWaits,
   needOfAction,
   presentRequest,
-  withChosenRewrite,
 } from './admission-chain.ts'
 import { cardClosing } from './card-closing.ts'
 import { canonical } from '../canonical.ts'
@@ -96,6 +93,7 @@ import { LOOP_NODES, successor, type LoopNode } from './nodes.ts'
 import { attemptWrite, originalJournal, type OriginalWrite } from './original-write.ts'
 import { localFailure, nodeFailureCategory, type NodeFailureCategory } from './node-failure.ts'
 import { readBatchToolCalls } from './action-source.ts'
+import { judgeBatch } from './batch-judging.ts'
 import { answeredByPort, notingPorts } from './port-answers.ts'
 import {
   consumeModelResult,
@@ -116,7 +114,6 @@ import {
 } from '../control.ts'
 import {
   actionOf,
-  admitToolAction,
   candidateDigest,
   answeredCandidate,
   deniedCandidate,
@@ -141,7 +138,6 @@ import {
   toolCall,
   unsent,
   type AssociatedToolCall,
-  type ToolAdmission,
 } from './tools.ts'
 import { contactMainCall } from './contact.ts'
 import { sameAuthority, sameRecipient } from './same.ts'
@@ -2172,61 +2168,19 @@ function coordinate<P>(
       const batch = currentBatch()
       const parts = await batchToolCalls(batch)
       if ('failure' in parts) return parts
-      let passages = required(checkpoint, 'checkpoint').passages
-      const answers: Extract<ToolAdmission, { kind: 'judged' | 'allowed' }>[] = []
-      const opened: CardRoundId[] = []
-      const pass = { id: batch.id, pass: globalThis.crypto.randomUUID() }
-      for (const action of batch.actions) {
-        if (needOfAction(passages, action) !== 'judge') {
-          answers.push({ kind: 'judged', action })
-          continue
-        }
-        const chain = chainOf(passages, action)
-        const handBack = handBackOf(chain)
-        const original = parts.ok.get(action.original.callId)
-        if (original === undefined)
-          return fail({
-            kind: 'invalid',
-            field: 'original.callId',
-            reason: 'the preserved reply has no tool call of this call id',
-          })
-        const admitted = await admitToolAction(
-          ports,
-          access,
-          execution,
-          required(authority, 'authority'),
-          withChosenRewrite(action, chain, handBack),
-          original,
-          handBack,
-          pass,
-        )
-        if ('failure' in admitted) return admitted
-        if (admitted.ok.kind === 'unavailable') return waitFor('A0', admitted.ok, null)
-        if (admitted.ok.kind === 'refused') {
-          const ended = await closing.endRefused(batch, answers, passages, opened, admitted.ok)
-          return 'failure' in ended ? ended : step('judged', { checkpoint: ended.ok })
-        }
-        if (chain === null && admitted.ok.kind !== 'asked') {
-          answers.push(
-            admitted.ok.kind === 'denied'
-              ? { kind: 'judged', action: admitted.ok.action }
-              : admitted.ok,
-          )
-          continue
-        }
-        const instant = await ports.clock.now()
-        if ('failure' in instant) return instant
-        const judged = afterAdmission(passages, admitted.ok, chain, instant.ok)
-        if ('failure' in judged)
-          return fail(defect(`A0: ${judged.failure.step} is not defined here`))
-        passages = judged.ok.passages
-        if (judged.opened !== undefined) opened.push(judged.opened)
-        answers.push(
-          admitted.ok.kind === 'allowed'
-            ? admitted.ok
-            : { kind: 'judged', action: judged.ok.action },
-        )
+      const judging = {
+        ports,
+        access,
+        execution,
+        authority: required(authority, 'authority'),
+        closing,
       }
+      const saved = required(checkpoint, 'checkpoint').passages
+      const judged = await judgeBatch(judging, batch, parts.ok, saved)
+      if ('failure' in judged) return judged
+      if (judged.ok.kind === 'wait') return waitFor('A0', judged.ok.failure, null)
+      if (judged.ok.kind === 'ended') return step('judged', { checkpoint: judged.ok.checkpoint })
+      const { answers, passages, opened } = judged.ok
       const budget = entry.toolConcurrency
       const actions: Action[] = []
       for (const answer of answers) {

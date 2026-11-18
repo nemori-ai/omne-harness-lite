@@ -35,7 +35,11 @@ const SESSION_GOLDEN = {
   finishRun: WORK_ONLY,
   create: [M, D, D],
   completeInitialization: NOT_MEMBER_ROW,
-  change: [M, D, D],
+  change: [
+    'member [declaration permission-assignment|permission-mode|collaboration-mode|environment-mode|workspace|model|declaration|context-registration|context-step-commit|recovery-input]',
+    'member [declaration authorization-expression]',
+    D,
+  ],
   setRelation: [M, D, D],
   configureAutoArchive: [M, D, D],
   considerAutoArchive: WORK_ONLY,

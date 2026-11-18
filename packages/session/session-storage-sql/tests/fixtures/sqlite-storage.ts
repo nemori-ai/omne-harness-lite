@@ -5,6 +5,7 @@ import readCompactionContext from '../../src/worker/read-compaction-context.ts'
 import readCurrentScope from '../../src/worker/read-current-scope.ts'
 import checkCompactionInput from '../../src/worker/check-compaction-input.ts'
 import permissionMigration from '../../src/worker/permission-current-migration.ts'
+import authorizationContextMigration from '../../src/worker/authorization-context-migration.ts'
 import readPermissionCurrent from '../../src/worker/read-permission-current.ts'
 import ordinaryBasis from '../../src/worker/ordinary-basis.ts'
 import { SESSION_LOG_PARTICIPANTS } from '../../src/participants.ts'
@@ -127,6 +128,7 @@ const MIGRATIONS: readonly MigrationModule[] = [
   stateItemMigration,
   attemptGrantMigration,
   permissionMigration,
+  authorizationContextMigration,
   scopeIndexMigration,
   sessionListMigration,
   sessionArchiveMigration,

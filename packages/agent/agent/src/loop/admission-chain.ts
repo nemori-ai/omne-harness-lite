@@ -164,6 +164,25 @@ export function afterAdmission(
   return stepped(action, passages, resolve(before, denial, action.judgment.evidence))
 }
 
+/** A waiting action as admission judges it again: the same action, asked without its card. */
+export function judgedAgain(passages: readonly Passage[], action: Action): Action | null {
+  if (action.judgment.kind !== 'waiting' || needOfAction(passages, action) !== 'read') return null
+  return { ...action, judgment: { kind: 'pending', passage: action.judgment.passage } }
+}
+
+/** An answer that no longer asks settles a waiting action's chain without the person. */
+export function afterRejudged(
+  passages: readonly Passage[],
+  answer: Extract<ToolAdmission, { kind: 'allowed' | 'denied' }>,
+  chain: Passage,
+  at: AgentInstant,
+): Step {
+  const { action } = answer
+  const output: ExtensionOutput =
+    answer.kind === 'allowed' ? { kind: 'observed' } : { kind: 'veto', reason: answer.category }
+  return stepped(action, passages, close(chain, concluded(action, chain.id, at, output)))
+}
+
 /** A card round that ends with no answer refuses the action; it is not the person's no. */
 export function afterClosed(
   passages: readonly Passage[],

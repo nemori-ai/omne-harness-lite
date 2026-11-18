@@ -3,6 +3,7 @@ import type {
   AdmissionDecision,
   DecisionCardDraft,
   DenialCategory,
+  DurableEvidence,
 } from '@omne-harness/agent-contract'
 import {
   decisionEvidence,
@@ -20,8 +21,8 @@ type Request = Parameters<ActionAdmission<unknown>['admit']>[0]
 // The options this deployment gives effect to now; the card shows the others as not offered.
 const OFFER: ReleaseOffer = {
   'deny-once': true,
-  'allow-once': false,
-  'allow-session': false,
+  'allow-once': true,
+  'allow-session': true,
   'allow-always': false,
   'deny-always': false,
 }
@@ -104,17 +105,43 @@ export async function askedDecision(
   return { kind: 'need-decision', card: draftOf(card, input.action), evidence: asking.evidence }
 }
 
-/** A person's answer that releases nothing refuses the action, each kind with its own category. */
-export function answeredDecision(decision: NonNullable<Request['decision']>): AdmissionDecision {
+/** What a person's answer does: refuse the action outright, or grant and then judge again. */
+export type AnswerEffect =
+  | Readonly<{ kind: 'decided'; decision: AdmissionDecision }>
+  | Readonly<{
+      kind: 'grant'
+      scope: 'once' | 'session'
+      card: DurableEvidence
+      source: DurableEvidence
+    }>
+
+/** An answer that releases nothing refuses the action, each kind with its own category. */
+export function answerEffect(decision: NonNullable<Request['decision']>): AnswerEffect {
   const { card, answer } = decision
-  const refused = (category: DenialCategory, reason: string): AdmissionDecision => ({
-    kind: 'deny',
-    category,
-    reason,
-    evidence: decisionEvidence('action-answer', '1', { card, answer: answer.evidence, reason }),
+  const refused = (category: DenialCategory, reason: string): AnswerEffect => ({
+    kind: 'decided',
+    decision: {
+      kind: 'deny',
+      category,
+      reason,
+      evidence: decisionEvidence('action-answer', '1', { card, answer: answer.evidence, reason }),
+    },
   })
   if (answer.kind === 'remark') return refused('guidance', 'human-guidance')
   if (answer.kind === 'declined') return refused('not-released', 'declined')
   if (answer.option === 'deny-once') return refused('not-released', 'deny-once')
-  return { kind: 'undecidable', diagnostic: 'the answer chose an option the card did not offer' }
+  if (answer.option === 'allow-once' || answer.option === 'allow-session')
+    return {
+      kind: 'grant',
+      scope: answer.option === 'allow-once' ? 'once' : 'session',
+      card,
+      source: answer.evidence,
+    }
+  return {
+    kind: 'decided',
+    decision: {
+      kind: 'undecidable',
+      diagnostic: 'the answer chose an option the card did not offer',
+    },
+  }
 }

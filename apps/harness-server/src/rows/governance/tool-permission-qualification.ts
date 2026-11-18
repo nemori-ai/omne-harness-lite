@@ -96,8 +96,14 @@ export async function qualifyToolPermission(
       return result.failure.kind === 'denied' ? { kind: 'denied' } : unavailable()
     const original = result.ok
     if (!answersGivenCall(original, given, permission)) return unavailable()
-    const session = await readBoundSessionPermission(input.readSession, permission, action.inquiry)
-    if (session === undefined) return unavailable()
+    // A call Tools forwards is taken where the call that carries it was: its origin names that place.
+    const { owner, work, position } = original.origin.request.consumer
+    const bound = await readBoundSessionPermission(input.readSession, permission, action.inquiry, {
+      owner,
+      work,
+      position,
+    })
+    if (bound === undefined) return unavailable()
     const agent = await qualifyOriginalToolAgent({
       principal,
       tenant,
@@ -113,7 +119,9 @@ export async function qualifyToolPermission(
         configuration: released.interpretation.definition.settings === null ? 'unmapped' : 'mapped',
         principalRef: standingPrincipalRef(principal),
         definition,
-        session,
+        session: bound.current,
+        consumer: bound.consumer,
+        authorizations: bound.authorizations,
         constraints: agent.ok === null ? [] : [agent.ok],
       },
     }

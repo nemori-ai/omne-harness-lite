@@ -1,5 +1,6 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  EMPTY_AUTHORIZATIONS,
   commandDigest,
   sessionIntakeLimits,
   judgeSessionIntake,
@@ -141,6 +142,7 @@ function snapshotOf(
     execution: creation.execution,
     declarations: evidenceOf('declarations', session),
     permissions: { revision: '0', assignments: [] },
+    authorizations: EMPTY_AUTHORIZATIONS,
     revisions: { workspace: '0', declarations: record.revision },
     run: { kind: 'none' },
     pending: [...record.inputs],

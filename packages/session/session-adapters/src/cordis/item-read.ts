@@ -77,7 +77,6 @@ export async function readItems(
     let rest: readonly ExecutionItemKey[] = keys
     let published: string | null = null
     const items: ExecutionItem[] = []
-    // A page holds what fits; the keys it had no room for are read next, all at one head.
     while (rest.length > 0) {
       const output = await read(EXECUTION_RECORD_HANDLERS.items, { ...scope, keys: [...rest] })
       if (output.kind === 'unread')

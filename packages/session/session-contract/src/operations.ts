@@ -39,6 +39,13 @@ export type SessionOperationElements =
     }>
   | Readonly<{ kind: 'external-call'; binding: CallBinding }>
   | Readonly<{ kind: 'context-reminder'; session: SessionId; source: DurableEvidence }>
+  /** An authorization a person expressed on a card: the decision names the one operation. */
+  | Readonly<{
+      kind: 'authorization'
+      session: SessionId
+      card: DurableEvidence
+      decision: DurableEvidence
+    }>
   | Readonly<{ kind: 'idle'; session: SessionId; observation: DurableEvidence }>
   | Readonly<{ kind: 'auto-archive'; session: SessionId; idleEvidence: DurableEvidence }>
   | Readonly<{ kind: 'freeze'; session: SessionId; evidence: DurableEvidence }>

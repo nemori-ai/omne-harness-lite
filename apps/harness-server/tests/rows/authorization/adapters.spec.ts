@@ -312,6 +312,78 @@ describe('sessionAccessCheck: members and branches', () => {
     })
   })
 
+  describe('an authorization a person expressed on a card', () => {
+    const card = { owner: 'cards', record: 'card-1', revision: '1', digest: 'c' }
+    const said = { owner: 'cards', record: 'answer-1', revision: '1', digest: 'a' }
+    const once = (source = said) => ({
+      declaration: {
+        kind: 'authorization-expression',
+        authorization: card,
+        expression: {
+          scope: {
+            kind: 'once',
+            consumer: { owner: '@omne-harness/agent', work: 'execution', position: 'action' },
+            target: 'Shell',
+            argumentsDigest: 'd',
+          },
+          direction: 'grant',
+          source,
+        },
+      },
+    })
+    const answering = (reply: unknown) => {
+      const w = world()
+      const read: unknown[] = []
+      const cards = {
+        read: async (input: unknown) => {
+          read.push(input)
+          return { ok: reply }
+        },
+      }
+      const check = createSessionAccessCheck({ ...w.ports, cards: () => cards as never })
+      return { w, read, check }
+    }
+    const chosen = (option: string, evidence = said) => ({
+      kind: 'chosen',
+      option,
+      value: null,
+      evidence,
+    })
+
+    it('lets the Run of this session write it when the card holds that very answer', async () => {
+      const { w, read, check } = answering(chosen('allow-once'))
+      expect((await check.check(mutate(w.work(), 'change', once()))).kind).toBe('allowed')
+      expect(read).toMatchObject([{ card }])
+    })
+
+    it.each([
+      ['another option', chosen('deny-once')],
+      ['another answer', chosen('allow-once', { ...said, record: 'answer-2' })],
+      ['no answer yet', { kind: 'pending' }],
+      ['words instead of a choice', { kind: 'remark', text: 'go on', evidence: said }],
+    ])('denies it when the card holds %s', async (_, reply) => {
+      const { w, check } = answering(reply)
+      expect(await check.check(mutate(w.work(), 'change', once()))).toEqual({ kind: 'denied' })
+    })
+
+    it('denies the login, a foreign principal and the Run of another session, and reads no card', async () => {
+      const { w, read, check } = answering(chosen('allow-once'))
+      for (const principal of [w.login(), w.foreign(), w.work(OTHER)])
+        expect(await check.check(mutate(principal, 'change', once()))).toEqual({ kind: 'denied' })
+      expect(read).toEqual([])
+    })
+
+    it('answers unavailable while the cards cannot be read, and writes nothing on its own word', async () => {
+      const w = world()
+      expect((await w.session.check(mutate(w.work(), 'change', once()))).kind).toBe('unavailable')
+      const failing = createSessionAccessCheck({
+        ...w.ports,
+        cards: () => ({ read: async () => ({ failure: { kind: 'unavailable' } }) }) as never,
+      })
+      expect((await failing.check(mutate(w.work(), 'change', once()))).kind).toBe('unavailable')
+    })
+  })
+
   it('denies the two operations to the work principal and to a foreign principal', async () => {
     const w = world()
     for (const kind of ['configureAutoArchive', 'setRelation']) {

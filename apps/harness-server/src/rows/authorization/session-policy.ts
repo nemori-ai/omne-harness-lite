@@ -1,5 +1,5 @@
 import type { SessionAccessOperation } from '@omne-harness/session-contract'
-import { cell, row, type PolicyRow } from './cells.ts'
+import { cell, row, type DeclarationKind, type PolicyRow } from './cells.ts'
 
 const { member, matrix, deny } = cell
 
@@ -7,6 +7,20 @@ const OUTSIDE_MATRIX = '矩阵外（AU-12 第 2 步）'
 const NO_SOURCE = '无放行出处'
 const NO_SYSTEM_READ = 'DA4 §5.6 普通读取没有系统分支'
 const SYSTEM_ONLY = 'DA4 §4.7 第 1 步只接受系统主体'
+// What a login declares about its own session; an authorization expression is not among them.
+const LOGIN_DECLARATIONS = [
+  'permission-assignment',
+  'permission-mode',
+  'collaboration-mode',
+  'environment-mode',
+  'workspace',
+  'model',
+  'declaration',
+  'context-registration',
+  'context-step-commit',
+  'recovery-input',
+] as const satisfies readonly Exclude<DeclarationKind, 'authorization-expression'>[]
+
 const NOT_IN_MATRIX_A2 = '矩阵没有这一行，见候选第 7 节 A-2'
 
 export const SESSION_POLICY = Object.freeze({
@@ -99,10 +113,12 @@ export const SESSION_POLICY = Object.freeze({
   ),
   change: row(
     member(
-      'SS:609「本会话租户」，SS:89，SW:129、253 三个模式，SW:61 模型。逐权限配值还需具名登录写资格，见会话逐权限配值的直接登录政策',
+      'SS:609「本会话租户」，SS:89，SW:129、253 三个模式，SW:61 模型。逐权限配值还需具名登录写资格，见会话逐权限配值的直接登录政策。授权表达不在内：它只由人在卡上的答复产生',
+      { kind: 'declaration', kinds: LOGIN_DECLARATIONS },
     ),
-    deny(
-      'SW:129：Agent 不能直接写模式。SS:609 只列 intake。Agent 经 HITL 改模式的证据没有解释形状（AU-11「首批不覆盖的部分」）',
+    member(
+      'packages/session/SPEC.md「权限配值与待办」：会话授权上下文的追加要专属的写资格。只有这个会话的这一轮能写，并且只凭卡上那一个答复（准入的适配在答复之后写，访问检查回读卡）。别的声明照 SW:129：Agent 不能直接写模式',
+      { kind: 'declaration', kinds: ['authorization-expression'] },
     ),
     deny(OUTSIDE_MATRIX),
   ),

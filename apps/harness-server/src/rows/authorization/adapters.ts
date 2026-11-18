@@ -10,7 +10,12 @@ import {
   type SystemActionDecision,
   type SystemActionRequest,
 } from '@omne-harness/authorization'
-import type { AgentAccessCheck, AgentAccessDecision } from '@omne-harness/agent-contract'
+import type {
+  AgentAccessCheck,
+  AgentAccessDecision,
+  DecisionCards,
+  DurableEvidence,
+} from '@omne-harness/agent-contract'
 import type { ActingForTenantPrincipal, SystemPrincipal } from '@omne-harness/identity'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import type {
@@ -37,6 +42,8 @@ export { createToolAccessGuard } from './tool-access.ts'
 
 export type AccessPorts = Readonly<{
   admission: AdmissionCheck
+  /** Where the answers people gave on cards are read back; absent, no authorization is written. */
+  cards?: () => DecisionCards<unknown> | undefined
   systemActions: SystemActionAuthorization
   login: SessionPermissionLogin
 }>
@@ -46,10 +53,18 @@ type Verdict = SessionAccessDecision & AgentAccessDecision
 type Plan =
   | Readonly<{ kind: 'denied' }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-  | Readonly<{ kind: 'member'; input: AdmissionInput; permissionWrite?: PreparedPermissionWrite }>
+  | Readonly<{
+      kind: 'member'
+      input: AdmissionInput
+      permissionWrite?: PreparedPermissionWrite
+      cardDecision?: CardDecision
+    }>
   | Readonly<{ kind: 'matrix'; request: SystemActionRequest }>
 
 const DENIED: Plan = Object.freeze({ kind: 'denied' })
+
+/** The card answer an authorization expression claims: the write stands only on that answer. */
+type CardDecision = Readonly<{ card: DurableEvidence; source: DurableEvidence; option: string }>
 
 function tenantText(tenant: TenantId): string {
   const encoded = tenantCodec.encode(tenant)
@@ -119,7 +134,10 @@ async function execute(plan: Plan, ports: AccessPorts): Promise<Verdict> {
       return unavailable(plan.diagnostic)
     case 'member': {
       const decision = fromDecision(await ports.admission.check(plan.input))
-      return decision.kind === 'allowed' && plan.permissionWrite !== undefined
+      if (decision.kind !== 'allowed') return decision
+      if (plan.cardDecision !== undefined)
+        return answeredOnCard(plan.cardDecision, plan.input, decision, ports.cards?.())
+      return plan.permissionWrite !== undefined
         ? qualifyPermissionWrite(plan.permissionWrite, decision.evidence, ports.login)
         : decision
     }
@@ -223,9 +241,50 @@ function commandFacts(
         branch: { fact: command.input.fact.kind },
         fact: command.input.fact,
       }
+    case 'change':
+      return {
+        arguments: args,
+        branch: { declaration: command.input.declaration.kind },
+        fact: null,
+      }
     default:
       return { arguments: args, branch: {}, fact: null }
   }
+}
+
+// The answer the person gave on the card is read back where it was recorded, not taken from the command.
+async function answeredOnCard(
+  claimed: CardDecision,
+  input: AdmissionInput,
+  allowed: Verdict,
+  cards: DecisionCards<unknown> | undefined,
+): Promise<Verdict> {
+  if (cards === undefined) return unavailable('the decision cards are not installed')
+  const read = await cards.read({ ...input.access, card: claimed.card })
+  if ('failure' in read) return unavailable('the card answer could not be read now')
+  const reply = read.ok
+  return reply.kind === 'chosen' &&
+    reply.option === claimed.option &&
+    canonicalText(reply.evidence) === canonicalText(claimed.source)
+    ? allowed
+    : Object.freeze({ kind: 'denied' })
+}
+
+const OPTION_OF = {
+  'once/grant': 'allow-once',
+  'session/grant': 'allow-session',
+  'session/revoke': 'deny-always',
+} as const
+
+function cardDecisionOf(target: SessionAccessRequest<unknown>['target']): CardDecision | null {
+  if (!('command' in target) || target.command.kind !== 'change') return null
+  const { declaration } = target.command.input
+  if (declaration.kind !== 'authorization-expression') return null
+  const { scope, direction, source } = declaration.expression
+  const option: string | undefined = (OPTION_OF as Record<string, string>)[
+    `${scope.kind}/${direction}`
+  ]
+  return option === undefined ? null : { card: declaration.authorization, source, option }
 }
 
 function planSession(input: SessionAccessRequest<unknown>): Plan {
@@ -277,16 +336,22 @@ function planSession(input: SessionAccessRequest<unknown>): Plan {
     },
     matrix: (purpose, principal) => sessionMatrixRequest(purpose, principal, target, tenant, facts),
   })
-  if (
-    planned.kind !== 'member' ||
-    !('command' in target) ||
-    target.command.kind !== 'change' ||
-    target.command.input.declaration.kind !== 'permission-assignment'
-  )
+  if (planned.kind !== 'member' || !('command' in target) || target.command.kind !== 'change')
     return planned
-  if (who.column !== 'login') return DENIED
-  const permissionWrite = preparePermissionWrite(target.command, who.principal)
-  return permissionWrite === null ? DENIED : { ...planned, permissionWrite }
+  // Two declarations need more than the cell: each carries the qualification its write stands on.
+  switch (target.command.input.declaration.kind) {
+    case 'authorization-expression': {
+      const cardDecision = cardDecisionOf(target)
+      return cardDecision === null ? DENIED : { ...planned, cardDecision }
+    }
+    case 'permission-assignment': {
+      if (who.column !== 'login') return DENIED
+      const permissionWrite = preparePermissionWrite(target.command, who.principal)
+      return permissionWrite === null ? DENIED : { ...planned, permissionWrite }
+    }
+    default:
+      return planned
+  }
 }
 
 function sessionResource(

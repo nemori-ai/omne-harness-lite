@@ -1,0 +1,166 @@
+import type {
+  Access,
+  Action,
+  ActionBatch,
+  ActionToolCall,
+  AgentExecutionId,
+  Authority,
+  CardRoundId,
+  Failure,
+  Passage,
+} from '@omne-harness/agent-contract'
+import type { ContentBlock } from '@omne-harness/content-block'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import type { AgentDependencies } from '../construction.ts'
+import {
+  afterAdmission,
+  chainOf,
+  handBackOf,
+  judgedAgain,
+  needOfAction,
+  withChosenRewrite,
+} from './admission-chain.ts'
+import type { cardClosing } from './card-closing.ts'
+import { AGENT_OWNER } from './identities.ts'
+import { localFailure } from './node-failure.ts'
+import { admitToolAction, type HandBack, type ToolAdmission } from './tools.ts'
+
+type Ports<P> = Pick<
+  AgentDependencies<P, ContentBlock>,
+  'admission' | 'toolRequests' | 'materials' | 'clock'
+>
+type Judging<P> = Readonly<{
+  ports: Ports<P>
+  access: Access<P>
+  execution: AgentExecutionId
+  authority: Authority
+  closing: ReturnType<typeof cardClosing<P>>
+}>
+type Answer = Extract<ToolAdmission, { kind: 'judged' | 'allowed' }>
+type Ended = Extract<
+  Awaited<ReturnType<Judging<unknown>['closing']['endRefused']>>,
+  { ok: unknown }
+>
+
+/** What one pass over a batch came to: every action answered, or the batch must wait, or it ended. */
+export type BatchJudgment =
+  | Readonly<{
+      kind: 'answered'
+      answers: readonly Answer[]
+      passages: readonly Passage[]
+      opened: readonly CardRoundId[]
+    }>
+  | Readonly<{ kind: 'wait'; failure: Extract<Failure, { kind: 'unavailable' }> }>
+  | Readonly<{ kind: 'ended'; checkpoint: Ended['ok'] }>
+
+type Verdict = Exclude<ToolAdmission, { kind: 'unavailable' | 'refused' }>
+type Asked =
+  | Readonly<{ kind: 'verdict'; verdict: Verdict }>
+  | Exclude<BatchJudgment, { kind: 'answered' }>
+
+const wait = (owner: string, diagnostic: string): BatchJudgment => ({
+  kind: 'wait',
+  failure: { kind: 'unavailable', owner, diagnostic },
+})
+
+export async function judgeBatch<P>(
+  judging: Judging<P>,
+  batch: ActionBatch,
+  originals: ReadonlyMap<string, ActionToolCall>,
+  saved: readonly Passage[],
+): Promise<Outcome<BatchJudgment, Failure>> {
+  const { ports, access, execution, authority, closing } = judging
+  let passages = saved
+  const answers: Answer[] = []
+  const opened: CardRoundId[] = []
+  const pass = { id: batch.id, pass: globalThis.crypto.randomUUID() }
+
+  async function ask(
+    action: Action,
+    original: ActionToolCall,
+    handBack: HandBack | null,
+  ): Promise<Outcome<Asked, Failure>> {
+    const admitted = await admitToolAction(
+      ports,
+      access,
+      execution,
+      authority,
+      action,
+      original,
+      handBack,
+      pass,
+    )
+    if ('failure' in admitted) return admitted
+    if (admitted.ok.kind === 'unavailable')
+      return succeed(wait(admitted.ok.owner, admitted.ok.diagnostic) as Asked)
+    if (admitted.ok.kind !== 'refused') return succeed({ kind: 'verdict', verdict: admitted.ok })
+    const ended = await closing.endRefused(batch, answers, passages, opened, admitted.ok)
+    return 'failure' in ended ? ended : succeed({ kind: 'ended', checkpoint: ended.ok })
+  }
+
+  for (const action of batch.actions) {
+    if (needOfAction(passages, action) !== 'judge') {
+      answers.push({ kind: 'judged', action })
+      continue
+    }
+    const chain = chainOf(passages, action)
+    const handBack = handBackOf(chain)
+    const original = originals.get(action.original.callId)
+    if (original === undefined)
+      return fail({
+        kind: 'invalid',
+        field: 'original.callId',
+        reason: 'the preserved reply has no tool call of this call id',
+      })
+    const asked = await ask(withChosenRewrite(action, chain, handBack), original, handBack)
+    if ('failure' in asked) return asked
+    if (asked.ok.kind !== 'verdict') return succeed(asked.ok)
+    const { verdict } = asked.ok
+    if (chain === null && verdict.kind !== 'asked') {
+      answers.push(verdict.kind === 'denied' ? { kind: 'judged', action: verdict.action } : verdict)
+      continue
+    }
+    const instant = await ports.clock.now()
+    if ('failure' in instant) return instant
+    const judged = afterAdmission(passages, verdict, chain, instant.ok)
+    if ('failure' in judged)
+      return fail(
+        localFailure('invariant', {
+          kind: 'unavailable',
+          owner: `${AGENT_OWNER}#defect`,
+          diagnostic: `A0: ${judged.failure.step} is not defined here`,
+        }),
+      )
+    passages = judged.ok.passages
+    if (judged.opened !== undefined) opened.push(judged.opened)
+    answers.push(
+      verdict.kind === 'allowed' ? verdict : { kind: 'judged', action: judged.ok.action },
+    )
+  }
+  // What this pass judged may have changed what the session allows: the actions still waiting
+  // for the person are asked again, and one that no longer needs asking leaves its card.
+  for (const [index, action] of batch.actions.entries()) {
+    const again = judgedAgain(passages, action)
+    const chain = chainOf(passages, action)
+    const original = originals.get(action.original.callId)
+    if (again === null || chain === null || original === undefined) continue
+    const asked = await ask(again, original, null)
+    if ('failure' in asked) return asked
+    if (asked.ok.kind !== 'verdict') return succeed(asked.ok)
+    const { verdict } = asked.ok
+    if (verdict.kind !== 'allowed' && verdict.kind !== 'denied') continue
+    const settled = await closing.endSuperseded(batch, action, chain, passages, verdict)
+    if ('failure' in settled) {
+      const { failure } = settled
+      return failure.kind === 'unavailable'
+        ? succeed(wait(failure.owner, failure.diagnostic))
+        : settled
+    }
+    passages = settled.ok.passages
+    answers[index] =
+      verdict.kind === 'allowed' && !settled.ok.heard
+        ? verdict
+        : { kind: 'judged', action: settled.ok.action }
+  }
+  return succeed({ kind: 'answered', answers, passages, opened })
+}

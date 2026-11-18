@@ -11,6 +11,7 @@ import {
   type LedgerWrite,
   type ToolLedgerStore,
 } from '@omne-harness/tool'
+import type { ToolPermitConsumption } from '@omne-harness/tool-contract/provider'
 import {
   decodeToolCallId,
   decodeToolOperationId,
@@ -111,6 +112,7 @@ type AcceptanceRecord = Readonly<{
   executorReceipt: DurableEvidence
   acceptance: DurableEvidence
   requirementSource?: DurableEvidence
+  authorizations?: readonly ToolPermitConsumption[]
 }>
 type RejectionRecord = Readonly<{
   kind: 'rejection'
@@ -897,20 +899,14 @@ export function createLocalStartCoordinator<P>(
         if (requirement.kind !== 'not-required')
           return reply(unknownProgress(REQUIREMENTS_UNAVAILABLE))
         const key = startKey('acceptance', call, start)
-        const acceptance = mint(tenant, key, revision, {
+        const facts = {
           permit: permit.ok.digest,
           executorReceipt: receipt.ok,
           requirementSource: requirement.source,
-        })
-        const accepted: AcceptanceRecord = {
-          kind: 'acceptance',
-          call,
-          start,
-          permit: permit.ok.digest,
-          executorReceipt: receipt.ok,
-          acceptance,
-          requirementSource: requirement.source,
+          ...(policy.authorizations === undefined ? {} : { authorizations: policy.authorizations }),
         }
+        const acceptance = mint(tenant, key, revision, facts)
+        const accepted: AcceptanceRecord = { kind: 'acceptance', call, start, ...facts, acceptance }
         return {
           kind: 'commit',
           puts: [accepted],

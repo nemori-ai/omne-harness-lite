@@ -3,7 +3,7 @@ import { afterEach, expect, it } from 'vitest'
 import { evidence, operationId, ordinaryInput } from '@omne-harness/session-contract/testing'
 import {
   SESSION_LOG_PARTICIPANTS,
-  decodeSessionPermissionCurrent,
+  decodeSessionPermissionRead,
   sessionCommandFacts,
   sessionCommitCommands,
   sessionPermissionGuardFacts,
@@ -48,9 +48,9 @@ async function read(app: RealApp): Promise<SessionPermissionCurrent> {
     },
   })
   if (result.kind !== 'read') throw new Error(JSON.stringify(result))
-  const current = decodeSessionPermissionCurrent(result.output)
-  if (current === 'malformed' || current.kind !== 'current')
-    throw new Error(JSON.stringify(current))
+  const read = decodeSessionPermissionRead(result.output)
+  if (read === 'malformed' || read.kind !== 'current') throw new Error(JSON.stringify(read))
+  const { authorizations: _authorizations, ...current } = read
   return current
 }
 

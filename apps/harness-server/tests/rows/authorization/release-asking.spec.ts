@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { decisionEvidence } from '@omne-harness/authorization'
 import { writeJsonText } from '@omne-harness/json-text'
-import { answeredDecision, askedDecision } from '../../../src/rows/authorization/release-asking.ts'
+import { answerEffect, askedDecision } from '../../../src/rows/authorization/release-asking.ts'
 
 const evidence = decisionEvidence('release-asking-test', '1', {})
 const card = { owner: 'hitl', record: 'card-1', revision: '1', digest: 'd' }
@@ -17,12 +17,42 @@ describe('a person answer that releases nothing', () => {
       'deny-once',
     ],
   ] as const)('refuses the action with its category', (answer, category, reason) => {
-    expect(answeredDecision({ card, answer })).toMatchObject({ kind: 'deny', category, reason })
+    expect(answerEffect({ card, answer })).toMatchObject({
+      kind: 'decided',
+      decision: { kind: 'deny', category, reason },
+    })
   })
 
   it('cannot read an option the card did not offer as a release', () => {
+    const answer = { kind: 'chosen', option: 'allow-always', value: null, evidence: said } as const
+    expect(answerEffect({ card, answer })).toMatchObject({
+      kind: 'decided',
+      decision: { kind: 'undecidable' },
+    })
+  })
+})
+
+describe('a person who releases this one call', () => {
+  it('grants a once authorization on the card answer, to be judged again', () => {
     const answer = { kind: 'chosen', option: 'allow-once', value: null, evidence: said } as const
-    expect(answeredDecision({ card, answer })).toMatchObject({ kind: 'undecidable' })
+    expect(answerEffect({ card, answer })).toEqual({
+      kind: 'grant',
+      scope: 'once',
+      card,
+      source: said,
+    })
+  })
+})
+
+describe('a person who releases the tool for this session', () => {
+  it('grants an authorization for the session on the card answer, to be judged again', () => {
+    const answer = { kind: 'chosen', option: 'allow-session', value: null, evidence: said } as const
+    expect(answerEffect({ card, answer })).toEqual({
+      kind: 'grant',
+      scope: 'session',
+      card,
+      source: said,
+    })
   })
 })
 
@@ -68,8 +98,8 @@ describe('the card for an action a person must release', () => {
       detail.options.map((option: { id: string; offered: boolean }) => [option.id, option.offered]),
     ).toEqual([
       ['deny-once', true],
-      ['allow-once', false],
-      ['allow-session', false],
+      ['allow-once', true],
+      ['allow-session', true],
       ['allow-always', false],
       ['deny-always', false],
     ])

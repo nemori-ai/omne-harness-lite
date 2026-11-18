@@ -42,6 +42,8 @@ import {
   type PermissionReadMapping,
   type PermissionReadMappingOptions,
 } from './permission-read-mapping.ts'
+import type { AuthorizationConsumer } from '@omne-harness/session-contract'
+import type { SessionAuthorizations } from '@omne-harness/session-storage-sql/participants'
 import { readSessionPermissionForCapture } from './permission-session-current.ts'
 import { readProjection, type ProjectionRead } from './projection-read.ts'
 import { qualifyToolPermission } from './tool-permission-qualification.ts'
@@ -73,6 +75,8 @@ export type CurrentPermissionRead = Readonly<{
   request: PermissionBasisRequest | null
   reading: PermissionBasisReading
   condition: StartCondition | null
+  authorizations: SessionAuthorizations | null
+  consumer: AuthorizationConsumer | null
 }>
 
 const unavailable = (sourceRef = 'harness.permission-basis'): PermissionBasisReading => ({
@@ -82,7 +86,13 @@ const unavailable = (sourceRef = 'harness.permission-basis'): PermissionBasisRea
 const without = (
   reading: PermissionBasisReading,
   request: PermissionBasisRequest | null = null,
-): CurrentPermissionRead => ({ request, reading, condition: null })
+): CurrentPermissionRead => ({
+  request,
+  reading,
+  condition: null,
+  authorizations: null,
+  consumer: null,
+})
 
 const missingOrganization = (): PermissionSource => ({
   kind: 'unavailable',
@@ -100,8 +110,8 @@ async function qualified(
     action: context,
     permission: request,
     declarations: options.declarations(),
-    readSession: (value: PermissionBasisRequest) =>
-      readSessionPermissionForCapture(options.storage, options.domain, value),
+    readSession: (value: PermissionBasisRequest, consumer: AuthorizationConsumer) =>
+      readSessionPermissionForCapture(options.storage, options.domain, value, consumer),
   }
   return context.origin.kind === 'agent-action'
     ? qualifyAgentPermission({
@@ -240,6 +250,8 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
         ...options.conditions[origin.configuration],
         commands: [...commands, permissionBasisGuardCommand(basis)],
       },
+      authorizations: origin.authorizations,
+      consumer: origin.consumer,
     }
   }
 

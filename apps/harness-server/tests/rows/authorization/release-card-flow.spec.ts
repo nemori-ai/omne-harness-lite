@@ -8,43 +8,48 @@ import {
   pollUntil,
   toolCalls,
   toolCallsThenText,
+  startAcceptances,
   toolResults,
   type ReleaseTree,
 } from '../../support/release-tree.ts'
+import {
+  ONCE,
+  answerCard,
+  pendingCard,
+  perMessageShell,
+  perMessageTodoThroughTools,
+} from './release-flow-support.ts'
 
 const NOT_RELEASED = 'The tool call did not run: the person did not allow it this time.'
 const GUIDED =
   'The tool call did not run. The person answered the approval card with guidance instead of a decision. Their words follow.'
 
 // In auto_permission a Shell call, asked by default, waits on a release card; the answer ends the Run.
-async function answered(tree: ReleaseTree, label: string, reply: readonly string[]) {
-  const session = await tree.startSession(`start: echo ${label}`)
-  const [item] = await pollUntil(
-    `the release card of ${label}`,
-    () => tree.cards({ sessionRef: session, states: ['pending'] }),
-    cards => cards.length === 1,
-  )
-  if (item === undefined) throw new Error('no card')
-  const answer = await tree.cli([
-    'submit-reply',
-    '--request',
-    item.card.ref.request.requestId,
-    '--card',
-    item.card.ref.cardId,
-    '--revision',
-    item.card.revision,
-    ...reply,
-    '--reply-id',
-    `reply-${label}`,
-  ])
-  expect(answer.status, answer.stderr).toBe(0)
+async function answered(tree: ReleaseTree, label: string, reply: readonly string[], into?: string) {
+  let session = into
+  if (session === undefined) session = await tree.startSession(`start: echo ${label}`)
+  else {
+    const sent = await tree.cli([
+      'send-input',
+      '--session',
+      session,
+      '--text',
+      `start: echo ${label}`,
+    ])
+    expect(sent.status, sent.stderr).toBe(0)
+  }
+  const card = await pendingCard(tree, session, label)
+  await answerCard(tree, card, reply, `reply-${label}`)
+  const ends = into === undefined ? 1 : 2
   const entries = await pollUntil(
     `the Run of ${label} to end`,
     () => historyOf(tree, session),
-    value => value.some(entry => entry.kind === 'run.terminal'),
+    value => value.filter(entry => entry.kind === 'run.terminal').length === ends,
   )
   return {
-    question: item.card.question,
+    session,
+    entries,
+    question: card.question,
     result: toolResults(entries).join('\n'),
     started: toolCalls(tree.storageRoot).some(row => row.tool === 'Shell'),
   }
@@ -92,7 +97,7 @@ it('a call through Tools naming a resident tool ends the Run without starting th
 
 it('cancelling the Run while its release card is open withdraws the card and ends the Run', async () => {
   const exit = await onReleaseTree(
-    { script: shellScript, permission: 'auto_permission' },
+    { script: perMessageShell, permission: 'auto_permission' },
     async tree => {
       const session = await tree.startSession('start: echo cancelled')
       await pollUntil(
@@ -115,6 +120,10 @@ it('cancelling the Run while its release card is open withdraws the card and end
         () => tree.cards({ sessionRef: session, states: ['pending'] }),
         cards => cards.length === 0,
       )
+      // Session ends the Run at once; the Agent winds down after it and may withdraw the card later.
+      // The session takes the next input: a new Run asks again, and its answer ends it.
+      const next = await answered(tree, 'after', ['--option', 'deny-once'], session)
+      expect(next.result).toContain(NOT_RELEASED)
       expect(toolCalls(tree.storageRoot).some(row => row.tool === 'Shell')).toBe(false)
     },
   )
@@ -139,8 +148,8 @@ it('a release card the person does not release never starts the call, whatever t
           : [],
       ).toEqual([
         ['deny-once', true],
-        ['allow-once', false],
-        ['allow-session', false],
+        ['allow-once', true],
+        ['allow-session', true],
         ['allow-always', false],
         ['deny-always', false],
       ])
@@ -157,3 +166,44 @@ it('a release card the person does not release never starts the call, whatever t
   )
   expect(exit).toBe(0)
 })
+
+// One action either way: a resident tool called directly, or a nonresident one carried by Tools.
+it.each([
+  ['directly', 'Shell', { script: perMessageShell }],
+  [
+    'through Tools',
+    'TodoItems',
+    { script: perMessageTodoThroughTools, nonresident: ['TodoItems'] },
+  ],
+])(
+  'a call made %s and released once runs once, the start records the consumption, and the next call asks again',
+  async (_how, tool, how) => {
+    const exit = await onReleaseTree(
+      { ...how, permission: 'auto_permission', extraHistoryKinds: [ONCE] },
+      async tree => {
+        const released = await answered(tree, 'released', ['--option', 'allow-once'])
+        expect(released.question).toMatchObject({ kind: 'release', target: { tool } })
+        expect(released.result).not.toContain('did not run')
+        const granted = released.entries.filter(entry => entry.kind === ONCE)
+        expect(granted).toHaveLength(1)
+        const payload = granted[0]?.payload as { expression: { scope: { consumer: unknown } } }
+        const { expression } = payload
+        expect(expression).toMatchObject({
+          scope: { kind: 'once', consumer: { owner: '@omne-harness/agent' } },
+          direction: 'grant',
+        })
+        const consumed = startAcceptances(tree.storageRoot).filter(row => 'authorizations' in row)
+        expect(consumed).toHaveLength(1)
+        expect(consumed[0]?.['authorizations']).toMatchObject([
+          { consumer: expression.scope.consumer },
+        ])
+
+        const again = await answered(tree, 'again', ['--option', 'deny-once'], released.session)
+        expect(again.result).toContain(NOT_RELEASED)
+        expect(again.entries.filter(entry => entry.kind === ONCE)).toHaveLength(1)
+        expect(toolCalls(tree.storageRoot).filter(row => row.tool === tool)).toHaveLength(1)
+      },
+    )
+    expect(exit).toBe(0)
+  },
+)

@@ -96,6 +96,9 @@ export function createToolActionResolution(
       // A target the forward refuses (resident, not included, not available) is no target either.
       if ('failure' in resolved)
         return resolved.failure.kind === 'denied' ? invalid('name', 'target-refused') : resolved
+      // A call its target would answer with usage carries no action either.
+      if ('answer' in callOf(resolved.ok.availability.definition, resolved.ok.effective))
+        return invalid('arguments', 'target-call-refused')
       return succeed({
         kind: 'carried',
         carrier: { name: input.name, definition: tools.ok.adoption },

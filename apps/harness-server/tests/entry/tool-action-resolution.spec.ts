@@ -399,6 +399,44 @@ describe('a Tools call whose carrier or target cannot be resolved now', () => {
     }
   })
 
+  it('answers invalid for a call its nonresident target would answer with usage', async () => {
+    const world = await forwardWorld()
+    try {
+      const resolution = createToolActionResolution({
+        release: () => world.release,
+        catalog: () => world.catalog,
+        view: () => ({
+          read: async access => {
+            const read = await world.view.read(access)
+            if ('failure' in read) return read
+            const entries = read.ok.entries.map(entry =>
+              entry.key.asset.name === 'Shell' ? { ...entry, resident: false } : entry,
+            )
+            return { ok: { ...read.ok, entries } }
+          },
+        }),
+      })
+      // Shell execute needs an intent, and Tools forwards only the business arguments.
+      const carried = toolsCall(world, {
+        name: 'Shell',
+        command: 'execute',
+        arguments: { script: 'ls' },
+      })
+      expect(
+        await resolution.resolve({
+          principal: world.principal,
+          tenant: world.tenant,
+          name: 'Tools',
+          effectiveArguments: carried,
+        }),
+      ).toMatchObject({
+        failure: { kind: 'invalid', field: 'arguments', reason: 'target-call-refused' },
+      })
+    } finally {
+      await world.close()
+    }
+  })
+
   it('reads no label with no catalog, a failed inspect, or a tool not available', async () => {
     const world = await forwardWorld()
     try {

@@ -9,6 +9,7 @@ import {
   AgentAccessCheckService,
   agentAccessCheckKey,
   agentActionAdmissionKey,
+  agentDecisionCardsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ActionAdmission, AgentAccessCheck } from '@omne-harness/agent-contract'
 import type { IdentityClock, PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
@@ -38,6 +39,7 @@ import {
 } from './system-action-service.ts'
 import { authorizationConfig } from './action-rules.ts'
 import { createToolTargetPolicy, installToolTargetPolicy } from './tool-target-policy.ts'
+import { sessionAuthorizationWriter } from './session-authorization-writer.ts'
 import { currentPermissionOf } from './current-permission.ts'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import {
@@ -94,6 +96,7 @@ function portsOf(ctx: Context, grants: ReturnType<typeof releaseMaintenanceGrant
   return Object.freeze({
     admission: referenceAdmissionCheck({ verifier, standing, permits: null }),
     login: { queryCurrentTenant: input => ctx.identityGovernance.queryCurrentTenant(input) },
+    cards: () => ctx.get(agentDecisionCardsKey, false),
     systemActions: referenceSystemActionAuthorization({
       verifier,
       grants,
@@ -125,6 +128,7 @@ const plugin: Plugin.Object = {
     }
     const resolution = createToolActionResolution(forwarding)
     const labeling = createToolCallLabeling(forwarding)
+    const authorizations = sessionAuthorizationWriter(ctx)
     const readPermission = () => (active ? permission : undefined)
     installToolTargetPolicy(
       ctx,
@@ -132,6 +136,7 @@ const plugin: Plugin.Object = {
         actionRules,
         () => (active ? ports.admission : undefined),
         readPermission,
+        () => (active ? resolution : undefined),
       ),
     )
     new SystemActionAuthorizationImpl(ctx, ports.systemActions, () => active)
@@ -145,6 +150,7 @@ const plugin: Plugin.Object = {
         readPermission,
         readResolution: () => (active ? resolution : undefined),
         readLabeling: () => (active ? labeling : undefined),
+        readAuthorizations: () => (active ? authorizations : undefined),
       }),
     )
   },

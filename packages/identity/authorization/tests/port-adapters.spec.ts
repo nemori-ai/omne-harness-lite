@@ -108,7 +108,12 @@ function toAgentAdmissionDecision(decision: AdmissionDecision): AgentAdmissionDe
     case 'allowed':
       return { kind: 'allow', evidence: decision.evidence }
     case 'denied':
-      return { kind: 'deny', reason: decision.reason, evidence: decision.evidence }
+      return {
+        kind: 'deny',
+        category: 'rule',
+        reason: decision.reason,
+        evidence: decision.evidence,
+      }
     case 'unavailable':
       return { kind: 'unavailable', diagnostic: decision.diagnostic }
   }
@@ -117,6 +122,7 @@ function toAgentAdmissionDecision(decision: AdmissionDecision): AgentAdmissionDe
 function denyHumanGuidance(card: DurableEvidence, answer: DurableEvidence): AgentAdmissionDecision {
   return {
     kind: 'deny',
+    category: 'guidance',
     reason: 'human-guidance',
     evidence: decisionEvidence('admission/agent/admit-action', answer.revision, {
       kind: 'denied',
