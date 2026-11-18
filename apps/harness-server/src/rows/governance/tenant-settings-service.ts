@@ -5,7 +5,7 @@ import type { PrincipalVerifier, TenantStandingSource } from '@omne-harness/iden
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   createTenantSettings,
-  type SettingsTargetView,
+  type AssetTarget,
   type TenantSettings,
   type TenantSettingsAssetRef,
 } from '@omne-harness/settings'
@@ -14,7 +14,6 @@ import type { ToolRelease } from '../../entry/tool-release.ts'
 import { createSettingsGuard } from '../authorization/settings-access.ts'
 import type { TenantGovernanceHost } from './tenant-host.ts'
 import { createTenantSettingsPermissions } from './tenant-settings-permissions.ts'
-import { preferenceAssetOf } from './preference-settings.ts'
 
 type Face = TenantSettings<unknown>
 
@@ -62,20 +61,17 @@ export type TenantSettingsServiceOptions = Readonly<{
 
 const unavailable = { kind: 'rejected', reason: 'unavailable' } as const
 
-export function settingsAssetOf(host: Pick<TenantGovernanceHost, 'assets'>) {
+export function settingsHoldingOf(host: Pick<TenantGovernanceHost, 'assets'>) {
   return async (
     tenant: TenantId,
-    view: SettingsTargetView,
+    target: AssetTarget,
   ): Promise<TenantSettingsAssetRef | undefined> => {
-    const preference = preferenceAssetOf(view.target)
-    if (preference !== undefined) return preference
-    if (view.target.kind !== 'asset') return undefined
     const tenantRef = tenantCodec.encode(tenant)
     const assets = tenantRef.ok ? await host.assets(tenantRef.value) : undefined
     if (assets === undefined) throw new Error('the assets of the tenant are unavailable')
     const read = await assets.readHolding({
-      holdingRef: view.target.holdingRef,
-      scopeRef: view.target.scopeRef,
+      holdingRef: target.holdingRef,
+      scopeRef: target.scopeRef,
     })
     if (read.kind === 'absent') return undefined
     if (read.kind !== 'holding') throw new Error(`the holding cannot be read: ${read.reason}`)
@@ -104,7 +100,7 @@ export function createTenantSettingsFace(options: TenantSettingsServiceOptions):
         const settings = await settingsOf(tenant)
         return settings === undefined ? unavailable : settings.read(request)
       },
-      assetOf: settingsAssetOf(options.host),
+      holdingOf: settingsHoldingOf(options.host),
     },
     permissions: createTenantSettingsPermissions(options),
     writer: {

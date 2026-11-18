@@ -13,7 +13,9 @@ import {
   type SettingsGrant,
   type SettingsSourceDescriptor,
   type SettingsState,
+  type SettingsTarget,
   type SettingsTargetView,
+  type SettingView,
   type TenantSettingsPermissions,
   type TenantSettingsWriteResult,
   type WriteOutcome,
@@ -42,7 +44,12 @@ function definitionOf(withNote = false): SettingDefinitions {
     providerId: 'harness',
     definitionId: 'tool.Shell',
     version: '1',
-    groups: [{ id: 'g', parentId: null, title: 'G', description: 'Group', order: 0 }],
+    groups: [
+      { id: 'g', parentId: null, title: 'G', description: 'Group', order: 0 },
+      ...(withNote
+        ? [{ id: 'h', parentId: null, title: 'H', description: 'Other group', order: 1 }]
+        : []),
+    ],
     items: [
       {
         id: 'invoke',
@@ -101,7 +108,7 @@ function definitionOf(withNote = false): SettingDefinitions {
             },
             {
               id: 'free',
-              groupId: 'g',
+              groupId: 'h',
               category: 'preference' as const,
               presentation,
               valueSchema: {},
@@ -139,9 +146,25 @@ const SESSION_SOURCE: SettingsSourceDescriptor = {
   authorityRevision: '1',
 }
 
-function world(options: Readonly<{ withNote?: boolean; withSession?: boolean }> = {}) {
+const ASSET_TARGET = { kind: 'asset', holdingRef: 'tool.Shell', scopeRef: 'tenant-a' } as const
+const INDEPENDENT_TARGET = {
+  kind: 'independent',
+  providerId: 'harness',
+  definitionId: 'tool.Shell',
+  scopeRef: 'tenant-a',
+} as const
+
+function world(
+  options: Readonly<{
+    withNote?: boolean
+    withSession?: boolean
+    kind?: 'asset' | 'independent'
+    mixed?: boolean
+    secondIndependent?: boolean
+  }> = {},
+) {
   const definition = definitionOf(options.withNote === true)
-  const target = { kind: 'asset', holdingRef: 'tool.Shell', scopeRef: 'tenant-a' } as const
+  const target: SettingsTarget = options.kind === 'independent' ? INDEPENDENT_TARGET : ASSET_TARGET
   const definitionRef = {
     providerId: 'harness',
     definitionId: 'tool.Shell',
@@ -285,13 +308,17 @@ function world(options: Readonly<{ withNote?: boolean; withSession?: boolean }> 
           flags.catalog === 'not-held'
             ? []
             : flags.catalog === 'duplicate'
-              ? [view(), { ...view(), target: { ...target, holdingRef: 'tool.Shell.copy' } }]
+              ? [view(), { ...view(), target: { ...ASSET_TARGET, holdingRef: 'tool.Shell.copy' } }]
               : [
                   view(),
                   ...Array.from({ length: flags.copies }, (_, index) => ({
                     ...view(),
-                    target: { ...target, holdingRef: `tool.Shell.copy${index}` },
+                    target: { ...ASSET_TARGET, holdingRef: `tool.Shell.copy${index}` },
                   })),
+                  ...(options.mixed === true ? [{ ...view(), target: INDEPENDENT_TARGET }] : []),
+                  ...(options.secondIndependent === true
+                    ? [{ ...view(), target: { ...INDEPENDENT_TARGET, providerId: 'aaa' } }]
+                    : []),
                 ]
         return {
           scopeKey: 'tenant-a',
@@ -301,10 +328,10 @@ function world(options: Readonly<{ withNote?: boolean; withSession?: boolean }> 
           unavailableProviders: [],
         }
       },
-      assetOf: async (tenant, candidate) => {
+      holdingOf: async (tenant, candidate) => {
         assetTenants.add(String(tenant))
         if (flags.assetThrows) throw new Error('the holding cannot be read')
-        const held = candidate.target.kind === 'asset' ? candidate.target.holdingRef : ''
+        const held = candidate.holdingRef
         return /^tool\.Shell\.copy\d+$/.test(held)
           ? { category: 'tool', name: held }
           : held === 'tool.Shell.copy'
@@ -367,11 +394,17 @@ function world(options: Readonly<{ withNote?: boolean; withSession?: boolean }> 
   return { face, calls, admitted, assetTenants, flags, writes, assign, own, state: () => state }
 }
 
-const SHELL = { category: 'tool', name: 'Shell' }
+const SHELL = { kind: 'asset', category: 'tool', name: 'Shell' } as const
+const ASSETS = { kind: 'asset' } as const
+const GROUP = { id: 'g', title: 'G', description: 'Group' }
+const ownerText = (view: SettingView) =>
+  view.owner.kind === 'asset'
+    ? `${view.owner.category}/${view.owner.name}`
+    : `${view.owner.providerId}/${view.owner.definitionId}`
 const item = (principal = LOGIN_A, tenant = tenantA, itemId = 'invoke') => ({
   principal,
   tenant,
-  asset: SHELL,
+  owner: SHELL,
   item: itemId,
 })
 const pick = (value: string, operation = `op-${value}`, expectedRevision = '0') => ({
@@ -410,7 +443,13 @@ describe('set', () => {
     expect(await w.face.clear({ ...pick('auto'), principal: WORK_A })).toEqual({ kind: 'denied' })
     expect(await w.face.describe(item(WORK_A))).toEqual({ kind: 'denied' })
     expect(
-      await w.face.list({ principal: WORK_A, tenant: tenantA, after: null, limit: 10 }),
+      await w.face.list({
+        principal: WORK_A,
+        tenant: tenantA,
+        scope: ASSETS,
+        after: null,
+        limit: 10,
+      }),
     ).toEqual({ kind: 'denied' })
     expect(w.calls.every(call => call === 'principals.admit')).toBe(true)
     expect(w.writes).toEqual([])
@@ -605,6 +644,7 @@ describe('list and describe', () => {
     const listed = await w.face.list({
       principal: LOGIN_A,
       tenant: tenantA,
+      scope: ASSETS,
       after: null,
       limit: 10,
     })
@@ -621,7 +661,7 @@ describe('list and describe', () => {
       declaration: { appliesAt: 'For each later call', clearEffect: presentation.clear },
     })
     expect(listed.items.find(value => value.item === 'verbose')).toEqual({
-      asset: SHELL,
+      owner: SHELL,
       item: 'verbose',
       revision: '1',
       declaration: {
@@ -629,6 +669,7 @@ describe('list and describe', () => {
         purpose: presentation.description,
         appliesAt: 'Applies from the next read of the item.',
         clearEffect: presentation.clear,
+        group: GROUP,
       },
       kind: 'ordinary',
       valueSchema: { type: 'boolean' },
@@ -639,7 +680,7 @@ describe('list and describe', () => {
       editable: { kind: 'yes' },
     })
     expect(listed.items.find(value => value.item === 'apiKey')).toEqual({
-      asset: SHELL,
+      owner: SHELL,
       item: 'apiKey',
       revision: '1',
       declaration: {
@@ -647,6 +688,7 @@ describe('list and describe', () => {
         purpose: presentation.description,
         appliesAt: 'Applies from the next read of the item.',
         clearEffect: presentation.clear,
+        group: GROUP,
       },
       kind: 'secret',
       own: 'unreadable',
@@ -657,13 +699,20 @@ describe('list and describe', () => {
 
   it('pages come from one read and continue with next', async () => {
     const w = world()
-    const first = await w.face.list({ principal: LOGIN_A, tenant: tenantA, after: null, limit: 2 })
+    const first = await w.face.list({
+      principal: LOGIN_A,
+      tenant: tenantA,
+      scope: ASSETS,
+      after: null,
+      limit: 2,
+    })
     if (first.kind !== 'listed') throw new Error(JSON.stringify(first))
     expect(first.items.map(value => value.item)).toEqual(['apiKey', 'invoke'])
     expect(first.next).toBe('2')
     const second = await w.face.list({
       principal: LOGIN_A,
       tenant: tenantA,
+      scope: ASSETS,
       after: first.next,
       limit: 2,
     })
@@ -697,13 +746,25 @@ describe('list and describe', () => {
     w.flags.catalog = 'unavailable'
     expect(await w.face.describe(item())).toEqual({ kind: 'unavailable' })
     expect(
-      await w.face.list({ principal: LOGIN_A, tenant: tenantA, after: null, limit: 10 }),
+      await w.face.list({
+        principal: LOGIN_A,
+        tenant: tenantA,
+        scope: ASSETS,
+        after: null,
+        limit: 10,
+      }),
     ).toEqual({ kind: 'unavailable' })
     w.flags.catalog = 'ok'
     w.flags.organizationReadable = false
     expect(await w.face.describe(item())).toEqual({ kind: 'unavailable' })
     expect(
-      await w.face.list({ principal: LOGIN_A, tenant: tenantA, after: null, limit: 10 }),
+      await w.face.list({
+        principal: LOGIN_A,
+        tenant: tenantA,
+        scope: ASSETS,
+        after: null,
+        limit: 10,
+      }),
     ).toEqual({ kind: 'unavailable' })
     w.flags.organizationReadable = true
     w.flags.catalog = 'partial'
@@ -711,7 +772,13 @@ describe('list and describe', () => {
       kind: 'unavailable',
     })
     expect(
-      await w.face.list({ principal: LOGIN_A, tenant: tenantA, after: null, limit: 10 }),
+      await w.face.list({
+        principal: LOGIN_A,
+        tenant: tenantA,
+        scope: ASSETS,
+        after: null,
+        limit: 10,
+      }),
     ).toMatchObject({ kind: 'listed', completeness: 'partial' })
   })
 
@@ -728,7 +795,7 @@ describe('list and describe', () => {
         read: async () => {
           throw new Error('must not read')
         },
-        assetOf: async () => undefined,
+        holdingOf: async () => undefined,
       },
       permissions: {} as TenantSettingsPermissions,
       writer: {
@@ -942,7 +1009,9 @@ describe('the numbers the face accepts are whole strings', () => {
   const cursors = ['x1', '1x', ' 1', '1\n', '01', '1000000000']
   it.each(cursors)('page cursor %j: unavailable', async after => {
     const w = world()
-    expect(await w.face.list({ principal: LOGIN_A, tenant: tenantA, after, limit: 1 })).toEqual({
+    expect(
+      await w.face.list({ principal: LOGIN_A, tenant: tenantA, scope: ASSETS, after, limit: 1 }),
+    ).toEqual({
       kind: 'unavailable',
     })
   })
@@ -950,7 +1019,13 @@ describe('the numbers the face accepts are whole strings', () => {
   it('a cursor of nine digits is a cursor', async () => {
     const w = world()
     expect(
-      await w.face.list({ principal: LOGIN_A, tenant: tenantA, after: '999999999', limit: 1 }),
+      await w.face.list({
+        principal: LOGIN_A,
+        tenant: tenantA,
+        scope: ASSETS,
+        after: '999999999',
+        limit: 1,
+      }),
     ).toMatchObject({ kind: 'listed', items: [], next: null })
   })
 })
@@ -958,7 +1033,10 @@ describe('the numbers the face accepts are whole strings', () => {
 describe('which asset a query names', () => {
   const named = (category: string | undefined, name: string) => ({
     ...item(),
-    asset: category === undefined ? { name } : { category, name },
+    owner:
+      category === undefined
+        ? { kind: 'asset' as const, name }
+        : { kind: 'asset' as const, category, name },
   })
 
   it('a name with another category: not-visible', async () => {
@@ -981,10 +1059,10 @@ describe('which asset a query names', () => {
     w.flags.catalog = 'duplicate'
     w.flags.copyAsset = { category: 'other', name: 'Shell' }
     expect(await w.face.describe(named('tool', 'Shell'))).toMatchObject({
-      item: { asset: { category: 'tool', name: 'Shell' } },
+      item: { owner: { category: 'tool', name: 'Shell' } },
     })
     expect(await w.face.describe(named('other', 'Shell'))).toMatchObject({
-      item: { asset: { category: 'other', name: 'Shell' } },
+      item: { owner: { category: 'other', name: 'Shell' } },
     })
     expect(await w.face.describe(named(undefined, 'Shell'))).toEqual({ kind: 'conflict' })
   })
@@ -994,10 +1072,10 @@ describe('which asset a query names', () => {
     w.flags.catalog = 'duplicate'
     w.flags.copyAsset = { category: 'tool', name: 'Other' }
     expect(await w.face.describe(named('tool', 'Shell'))).toMatchObject({
-      item: { asset: { name: 'Shell' } },
+      item: { owner: { name: 'Shell' } },
     })
     expect(await w.face.describe(named(undefined, 'Other'))).toMatchObject({
-      item: { asset: { name: 'Other' } },
+      item: { owner: { name: 'Other' } },
     })
   })
 
@@ -1008,12 +1086,12 @@ describe('which asset a query names', () => {
     const listed = await w.face.list({
       principal: LOGIN_A,
       tenant: tenantA,
-      asset: { category: 'other', name: 'Shell' },
+      scope: { kind: 'asset', asset: { category: 'other', name: 'Shell' } },
       after: null,
       limit: 10,
     })
     if (listed.kind !== 'listed') throw new Error(JSON.stringify(listed))
-    expect(listed.items.map(value => value.asset.category)).toEqual(['other', 'other', 'other'])
+    expect(listed.items.map(ownerText)).toEqual(['other/Shell', 'other/Shell', 'other/Shell'])
   })
 
   it('a list across assets orders by category, then name, then item', async () => {
@@ -1023,17 +1101,18 @@ describe('which asset a query names', () => {
     const listed = await w.face.list({
       principal: LOGIN_A,
       tenant: tenantA,
+      scope: ASSETS,
       after: null,
       limit: 10,
     })
     if (listed.kind !== 'listed') throw new Error(JSON.stringify(listed))
-    expect(listed.items.map(value => `${value.asset.name}/${value.item}`)).toEqual([
-      'Alpha/apiKey',
-      'Alpha/invoke',
-      'Alpha/verbose',
-      'Shell/apiKey',
-      'Shell/invoke',
-      'Shell/verbose',
+    expect(listed.items.map(value => `${ownerText(value)}/${value.item}`)).toEqual([
+      'tool/Alpha/apiKey',
+      'tool/Alpha/invoke',
+      'tool/Alpha/verbose',
+      'tool/Shell/apiKey',
+      'tool/Shell/invoke',
+      'tool/Shell/verbose',
     ])
   })
 
@@ -1044,11 +1123,12 @@ describe('which asset a query names', () => {
     const listed = await w.face.list({
       principal: LOGIN_A,
       tenant: tenantA,
+      scope: ASSETS,
       after: null,
       limit: 10,
     })
     if (listed.kind !== 'listed') throw new Error(JSON.stringify(listed))
-    expect(listed.items.map(value => `${value.asset.category}/${value.asset.name}`)).toEqual([
+    expect(listed.items.map(ownerText)).toEqual([
       'alpha/Zed',
       'alpha/Zed',
       'alpha/Zed',
@@ -1065,6 +1145,7 @@ describe('which asset a query names', () => {
     const listed = await w.face.list({
       principal: LOGIN_A,
       tenant: tenantA,
+      scope: ASSETS,
       after: null,
       limit: 10,
     })
@@ -1238,7 +1319,7 @@ describe('which layer an ordinary item reports', () => {
 describe('what the face passes on to its ports', () => {
   it('each method asks admission for its own action', async () => {
     const w = world()
-    await w.face.list({ principal: LOGIN_A, tenant: tenantA, after: null, limit: 1 })
+    await w.face.list({ principal: LOGIN_A, tenant: tenantA, scope: ASSETS, after: null, limit: 1 })
     await w.face.describe(item())
     await w.face.set(pick('deny'))
     await w.face.clear({ ...item(), operation: 'c', expectedRevision: '1' })
@@ -1340,7 +1421,13 @@ describe('what the face passes on to its ports', () => {
     const w = world()
     w.assign('tenant', 'ghost', true)
     expect(
-      await w.face.list({ principal: LOGIN_A, tenant: tenantA, after: null, limit: 10 }),
+      await w.face.list({
+        principal: LOGIN_A,
+        tenant: tenantA,
+        scope: ASSETS,
+        after: null,
+        limit: 10,
+      }),
     ).toEqual({ kind: 'unavailable' })
     expect(await w.face.describe(item())).toEqual({ kind: 'unavailable' })
     expect(await w.face.set(pick('deny', 'ghost', '1'))).toEqual({ kind: 'unavailable' })
@@ -1351,7 +1438,13 @@ describe('what the face passes on to its ports', () => {
     const w = world()
     w.flags.readThrows = true
     expect(
-      await w.face.list({ principal: LOGIN_A, tenant: tenantA, after: null, limit: 10 }),
+      await w.face.list({
+        principal: LOGIN_A,
+        tenant: tenantA,
+        scope: ASSETS,
+        after: null,
+        limit: 10,
+      }),
     ).toEqual({ kind: 'unavailable' })
     expect(await w.face.describe(item())).toEqual({ kind: 'unavailable' })
     expect(await w.face.set(pick('deny'))).toEqual({ kind: 'unavailable' })
@@ -1364,7 +1457,13 @@ describe('what the face passes on to its ports', () => {
   it('reads the asset of each view for the tenant of the request', async () => {
     const w = world()
     expect(
-      await w.face.list({ principal: LOGIN_A, tenant: tenantA, after: null, limit: 10 }),
+      await w.face.list({
+        principal: LOGIN_A,
+        tenant: tenantA,
+        scope: ASSETS,
+        after: null,
+        limit: 10,
+      }),
     ).toMatchObject({ kind: 'listed' })
     expect([...w.assetTenants]).toEqual([String(tenantA)])
   })
@@ -1373,7 +1472,13 @@ describe('what the face passes on to its ports', () => {
     const w = world()
     w.flags.assetThrows = true
     expect(
-      await w.face.list({ principal: LOGIN_A, tenant: tenantA, after: null, limit: 10 }),
+      await w.face.list({
+        principal: LOGIN_A,
+        tenant: tenantA,
+        scope: ASSETS,
+        after: null,
+        limit: 10,
+      }),
     ).toEqual({ kind: 'unavailable' })
     expect(await w.face.describe(item())).toEqual({ kind: 'unavailable' })
     expect(w.calls).not.toContain('writer.write')
@@ -1382,7 +1487,13 @@ describe('what the face passes on to its ports', () => {
 
 describe('the page size of a list', () => {
   const page = async (w: ReturnType<typeof world>, limit: number, after: string | null = null) => {
-    const listed = await w.face.list({ principal: LOGIN_A, tenant: tenantA, after, limit })
+    const listed = await w.face.list({
+      principal: LOGIN_A,
+      tenant: tenantA,
+      scope: ASSETS,
+      after,
+      limit,
+    })
     if (listed.kind !== 'listed') throw new Error(JSON.stringify(listed))
     return listed
   }
@@ -1441,9 +1552,146 @@ describe('the numbers the face accepts are whole strings, more shapes', () => {
     'page cursor %j: unavailable',
     async after => {
       const w = world()
-      expect(await w.face.list({ principal: LOGIN_A, tenant: tenantA, after, limit: 1 })).toEqual({
+      expect(
+        await w.face.list({ principal: LOGIN_A, tenant: tenantA, scope: ASSETS, after, limit: 1 }),
+      ).toEqual({
         kind: 'unavailable',
       })
     },
   )
+})
+
+const INDEPENDENT = {
+  kind: 'independent',
+  providerId: 'harness',
+  definitionId: 'tool.Shell',
+} as const
+
+describe('who a setting belongs to and which half a list asks for (tables seven and eight)', () => {
+  async function listed(
+    w: ReturnType<typeof world>,
+    scope: Parameters<typeof w.face.list>[0]['scope'],
+  ) {
+    const page = await w.face.list({
+      principal: LOGIN_A,
+      tenant: tenantA,
+      scope,
+      after: null,
+      limit: 100,
+    })
+    if (page.kind !== 'listed') throw new Error(JSON.stringify(page))
+    return page.items
+  }
+
+  it('the asset list has no independent item, the independent list no asset item, and together they are all', async () => {
+    const w = world({ mixed: true })
+    const assets = await listed(w, { kind: 'asset' })
+    const independent = await listed(w, { kind: 'independent' })
+    expect(assets.map(value => value.owner)).toEqual([SHELL, SHELL, SHELL])
+    expect(independent.map(value => value.owner)).toEqual([INDEPENDENT, INDEPENDENT, INDEPENDENT])
+    const all = [...assets, ...independent].map(value => `${value.owner.kind}/${value.item}`)
+    expect(new Set(all).size).toBe(6)
+  })
+
+  it('an independent target answers for itself and the list reads no holding', async () => {
+    const w = world({ mixed: true })
+    await listed(w, { kind: 'independent' })
+    expect([...w.assetTenants]).toEqual([])
+  })
+
+  it('an asset query never finds an independent target, and an independent query never an asset one', async () => {
+    const independent = world({ kind: 'independent' })
+    const at = (owner: Parameters<typeof independent.face.describe>[0]['owner']) => ({
+      ...item(),
+      owner,
+      item: 'verbose',
+    })
+    expect(await independent.face.describe(at(SHELL))).toEqual({ kind: 'not-visible' })
+    expect(await independent.face.describe(at(INDEPENDENT))).toMatchObject({
+      kind: 'described',
+      item: { owner: INDEPENDENT, item: 'verbose', declaration: { group: GROUP } },
+    })
+    expect(await independent.face.describe(at({ ...INDEPENDENT, definitionId: 'other' }))).toEqual({
+      kind: 'not-visible',
+    })
+    const asset = world()
+    expect(await asset.face.describe(at(INDEPENDENT))).toEqual({ kind: 'not-visible' })
+  })
+
+  it('two independent owners: each is found by its provider, and the list orders by owner, then item', async () => {
+    const w = world({ kind: 'independent', secondIndependent: true })
+    const at = (providerId: string) => ({
+      ...item(),
+      owner: { ...INDEPENDENT, providerId },
+      item: 'verbose',
+    })
+    expect(await w.face.describe(at('aaa'))).toMatchObject({
+      kind: 'described',
+      item: { owner: { ...INDEPENDENT, providerId: 'aaa' } },
+    })
+    expect(await w.face.describe(at('harness'))).toMatchObject({
+      kind: 'described',
+      item: { owner: INDEPENDENT },
+    })
+    expect(await w.face.describe(at('zzz'))).toEqual({ kind: 'not-visible' })
+    const items = await listed(w, { kind: 'independent' })
+    expect(
+      items.map(
+        view => `${view.owner.kind === 'independent' ? view.owner.providerId : ''}/${view.item}`,
+      ),
+    ).toEqual([
+      'aaa/apiKey',
+      'aaa/invoke',
+      'aaa/verbose',
+      'harness/apiKey',
+      'harness/invoke',
+      'harness/verbose',
+    ])
+  })
+
+  it('an item reports the group it is declared in', async () => {
+    const w = world({ kind: 'independent', withNote: true })
+    const at = (itemId: string) => ({ ...item(), owner: INDEPENDENT, item: itemId })
+    expect(await w.face.describe(at('free'))).toMatchObject({
+      item: { declaration: { group: { id: 'h', title: 'H', description: 'Other group' } } },
+    })
+    expect(await w.face.describe(at('note'))).toMatchObject({
+      item: { declaration: { group: GROUP } },
+    })
+  })
+})
+
+describe('one set of value operations for both kinds of target (I-14)', () => {
+  async function outcomes(kind: 'asset' | 'independent') {
+    const w = world({ kind })
+    const owner = kind === 'asset' ? SHELL : INDEPENDENT
+    const at = (operation: string, expectedRevision: string) => ({
+      principal: LOGIN_A,
+      tenant: tenantA,
+      owner,
+      item: 'verbose',
+      operation,
+      expectedRevision,
+    })
+    const ordinary = (value: unknown) => ({ kind: 'ordinary' as const, value: value as never })
+    return [
+      await w.face.set({ ...at('write', '0'), value: ordinary(true) }),
+      await w.face.set({ ...at('again', '1'), value: ordinary(true) }),
+      await w.face.set({ ...at('stale', '0'), value: ordinary(false) }),
+      await w.face.set({ ...at('wrong', '1'), value: ordinary('yes') }),
+      await w.face.clear(at('clear', '1')),
+    ]
+  }
+
+  it('write, no change, a stale revision, an invalid value and a clear end the same for both kinds', async () => {
+    const asset = await outcomes('asset')
+    expect(asset).toEqual([
+      { kind: 'written', revision: '1' },
+      { kind: 'no-change' },
+      { kind: 'conflict' },
+      { kind: 'invalid' },
+      { kind: 'written', revision: '2' },
+    ])
+    expect(await outcomes('independent')).toEqual(asset)
+  })
 })

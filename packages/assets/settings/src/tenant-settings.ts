@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { TenantId } from '@omne-harness/legal-identity'
-import type { SettingsChange, SettingsTarget } from './commands.ts'
+import type { AssetTarget, SettingsChange, SettingsTarget } from './commands.ts'
 import { valueValidator } from './definition.ts'
 import { evaluateSettings, type SettingResolution } from './evaluation.ts'
 import type { SettingsFailure, SettingsReadPort, SettingsTargetView } from './ports.ts'
@@ -10,6 +10,15 @@ import { SettingsIdSchema, type SettingItem, type SettingPresence } from './sche
 export type SettingJson = z.infer<ReturnType<typeof z.json>>
 export type TenantSettingsAssetQuery = Readonly<{ category?: string; name: string }>
 export type TenantSettingsAssetRef = Readonly<{ category: string; name: string }>
+export type SettingOwner =
+  | Readonly<{ kind: 'asset'; category: string; name: string }>
+  | Readonly<{ kind: 'independent'; providerId: string; definitionId: string }>
+export type SettingOwnerQuery =
+  | Readonly<{ kind: 'asset'; category?: string; name: string }>
+  | Readonly<{ kind: 'independent'; providerId: string; definitionId: string }>
+export type SettingListScope =
+  | Readonly<{ kind: 'asset'; asset?: TenantSettingsAssetQuery }>
+  | Readonly<{ kind: 'independent' }>
 export type TenantSettingsAction = 'list' | 'describe' | 'set' | 'clear'
 
 export const SettingInputSchema = z.discriminatedUnion('kind', [
@@ -44,7 +53,7 @@ export type PermissionItemView = Readonly<{
   editable: Editable
 }>
 export type SettingView = Readonly<{
-  asset: TenantSettingsAssetRef
+  owner: SettingOwner
   item: string
   revision: string
   declaration: Readonly<{
@@ -52,6 +61,7 @@ export type SettingView = Readonly<{
     purpose: string
     appliesAt: string
     clearEffect: string
+    group: Readonly<{ id: string; title: string; description: string }>
   }>
 }> &
   (
@@ -93,14 +103,14 @@ export type WriteOutcome =
 export type TenantSettingsListInput<P> = Readonly<{
   principal: P
   tenant: TenantId
-  asset?: TenantSettingsAssetQuery
+  scope: SettingListScope
   after: string | null
   limit: number
 }>
 export type TenantSettingsItemInput<P> = Readonly<{
   principal: P
   tenant: TenantId
-  asset: TenantSettingsAssetQuery
+  owner: SettingOwnerQuery
   item: string
 }>
 export type TenantSettingsWriteInput<P> = TenantSettingsItemInput<P> &
@@ -133,7 +143,7 @@ export interface TenantSettingsPrincipals<P> {
 }
 export type TenantSettingsCatalog = SettingsReadPort<TenantId> &
   Readonly<{
-    assetOf(tenant: TenantId, view: SettingsTargetView): Promise<TenantSettingsAssetRef | undefined>
+    holdingOf(tenant: TenantId, target: AssetTarget): Promise<TenantSettingsAssetRef | undefined>
   }>
 export interface TenantSettingsPermissions {
   kindOf(input: Readonly<{ view: SettingsTargetView; itemId: string }>): 'permission' | 'ordinary'
@@ -175,7 +185,7 @@ const REVISION = /^(0|[1-9][0-9]{0,14})$/
 const OFFSET = /^(0|[1-9][0-9]{0,8})$/
 
 type Entry = Readonly<{
-  asset: TenantSettingsAssetRef
+  owner: SettingOwner
   view: SettingsTargetView
   item: SettingItem
   resolution: SettingResolution
@@ -186,6 +196,26 @@ function sameAsset(ref: TenantSettingsAssetRef, query: TenantSettingsAssetQuery)
   return (
     ref.name === query.name && (query.category === undefined || ref.category === query.category)
   )
+}
+function sameOwner(owner: SettingOwner, query: SettingOwnerQuery): boolean {
+  switch (query.kind) {
+    case 'asset':
+      return owner.kind === 'asset' && sameAsset(owner, query)
+    case 'independent':
+      return (
+        owner.kind === 'independent' &&
+        owner.providerId === query.providerId &&
+        owner.definitionId === query.definitionId
+      )
+  }
+}
+function ownerKey(owner: SettingOwner): readonly string[] {
+  switch (owner.kind) {
+    case 'asset':
+      return [owner.kind, owner.category, owner.name]
+    case 'independent':
+      return [owner.kind, owner.providerId, owner.definitionId]
+  }
 }
 function revisionOf(view: SettingsTargetView): string {
   return String(view.state.revision)
@@ -268,7 +298,7 @@ function rejectedOutcome(reason: SettingsFailure['reason']): WriteOutcome {
   return REJECTED_OUTCOME[reason]
 }
 
-type ViewHead = Pick<SettingView, 'asset' | 'item' | 'revision'>
+type ViewHead = Pick<SettingView, 'owner' | 'item' | 'revision'>
 type ViewDeclaration = SettingView['declaration']
 function ownValueOf(view: SettingsTargetView, itemId: string): SettingPresence | undefined {
   const source = tenantSourceOf(view)
@@ -329,16 +359,35 @@ function parseWrite(
   }
 }
 
-async function heldViews(
-  catalog: Pick<TenantSettingsCatalog, 'assetOf'>,
+async function ownerOf(
+  catalog: Pick<TenantSettingsCatalog, 'holdingOf'>,
+  tenant: TenantId,
+  target: SettingsTarget,
+): Promise<SettingOwner | undefined> {
+  switch (target.kind) {
+    case 'asset': {
+      const held = await catalog.holdingOf(tenant, target)
+      return held === undefined ? undefined : { kind: 'asset', ...held }
+    }
+    case 'independent':
+      return {
+        kind: 'independent',
+        providerId: target.providerId,
+        definitionId: target.definitionId,
+      }
+  }
+}
+
+async function ownedViews(
+  catalog: Pick<TenantSettingsCatalog, 'holdingOf'>,
   tenant: TenantId,
   views: readonly SettingsTargetView[],
 ) {
   try {
-    const assets = await Promise.all(views.map(view => catalog.assetOf(tenant, view)))
+    const owners = await Promise.all(views.map(view => ownerOf(catalog, tenant, view.target)))
     return views.flatMap((view, index) => {
-      const asset = assets[index]
-      return asset === undefined ? [] : [{ asset, view }]
+      const owner = owners[index]
+      return owner === undefined ? [] : [{ owner, view }]
     })
   } catch {
     return undefined
@@ -356,7 +405,7 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
     }
   }
 
-  async function entries(tenant: TenantId) {
+  async function entries(tenant: TenantId, kind: SettingsTarget['kind']) {
     let basis: Awaited<ReturnType<TenantSettingsCatalog['read']>>
     try {
       basis = await catalog.read(tenant, {
@@ -369,10 +418,14 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
       return undefined
     }
     if ('kind' in basis) return undefined
-    const held = await heldViews(catalog, tenant, basis.views)
-    if (held === undefined) return undefined
+    const owned = await ownedViews(
+      catalog,
+      tenant,
+      basis.views.filter(view => view.target.kind === kind),
+    )
+    if (owned === undefined) return undefined
     const found: Entry[] = []
-    for (const { asset, view } of held) {
+    for (const { owner, view } of owned) {
       const evaluated = evaluateSettings({
         definition: view.definition,
         sources: view.state.sources,
@@ -381,12 +434,12 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
       for (const item of view.definition.items) {
         const resolution = evaluated.entries.find(value => value.itemId === item.id)
         if (resolution === undefined) return undefined
-        found.push({ asset, view, item, resolution })
+        found.push({ owner, view, item, resolution })
       }
     }
     found.sort((a, b) => {
-      const left = JSON.stringify([a.asset.category, a.asset.name, a.item.id])
-      const right = JSON.stringify([b.asset.category, b.asset.name, b.item.id])
+      const left = JSON.stringify([...ownerKey(a.owner), a.item.id])
+      const right = JSON.stringify([...ownerKey(b.owner), b.item.id])
       return left < right ? -1 : left > right ? 1 : 0
     })
     return { entries: found, completeness: basis.completeness }
@@ -394,13 +447,13 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
 
   async function locate(
     tenant: TenantId,
-    asset: TenantSettingsAssetQuery,
+    owner: SettingOwnerQuery,
     itemId: string,
   ): Promise<Located> {
-    const read = await entries(tenant)
+    const read = await entries(tenant, owner.kind)
     if (read === undefined) return { kind: 'unavailable' }
     const matches = read.entries.filter(
-      entry => sameAsset(entry.asset, asset) && entry.item.id === itemId,
+      entry => sameOwner(entry.owner, owner) && entry.item.id === itemId,
     )
     if (matches.length > 1) return { kind: 'conflict' }
     const entry = matches[0]
@@ -410,13 +463,15 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
   }
 
   async function viewOf(tenant: TenantId, entry: Entry): Promise<SettingView | undefined> {
-    const { asset, view, item } = entry
-    const head = { asset, item: item.id, revision: revisionOf(view) }
+    const { owner, view, item } = entry
+    const head = { owner, item: item.id, revision: revisionOf(view) }
+    const group = view.definition.groups.find(value => value.id === item.groupId)!
     const declaration = {
       title: item.presentation.title,
       purpose: item.presentation.description,
       appliesAt: ADOPTION_TEXT[item.presentation.adoption],
       clearEffect: item.presentation.clear,
+      group: { id: group.id, title: group.title, description: group.description },
     }
     if (item.sensitivity === 'secret')
       return {
@@ -508,7 +563,7 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
     if (admitted !== 'allowed') return { kind: admitted }
     const parsed = parseWrite(input, value)
     if (parsed.kind !== 'parsed') return parsed
-    const located = await locate(input.tenant, input.asset, parsed.item)
+    const located = await locate(input.tenant, input.owner, parsed.item)
     if (located.kind !== 'found') return located
     const { entry } = located
     const prepared = prepare(input, action, entry, parsed)
@@ -557,11 +612,12 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
       const offset = input.after === null ? 0 : OFFSET.test(input.after) ? Number(input.after) : -1
       if (offset < 0) return { kind: 'unavailable' }
       const limit = Math.min(Math.max(Math.trunc(input.limit) || 1, 1), LIST_LIMIT)
-      const read = await entries(input.tenant)
+      const { scope } = input
+      const read = await entries(input.tenant, scope.kind)
       if (read === undefined) return { kind: 'unavailable' }
-      const { asset } = input
+      const narrowed = scope.kind === 'asset' ? scope.asset : undefined
       const selected = read.entries.filter(
-        entry => asset === undefined || sameAsset(entry.asset, asset),
+        entry => narrowed === undefined || sameOwner(entry.owner, { kind: 'asset', ...narrowed }),
       )
       const page = selected.slice(offset, offset + limit)
       const items: SettingView[] = []
@@ -580,7 +636,7 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
     async describe(input) {
       const admitted = await admit(input.principal, input.tenant, 'describe')
       if (admitted !== 'allowed') return { kind: admitted }
-      const located = await locate(input.tenant, input.asset, input.item)
+      const located = await locate(input.tenant, input.owner, input.item)
       if (located.kind !== 'found') return located
       const item = await viewOf(input.tenant, located.entry)
       return item === undefined ? { kind: 'unavailable' } : { kind: 'described', item }

@@ -793,22 +793,28 @@ it('installs the actual Tool release and adopts its original holdings before exp
   })
   expect(settings).toMatchObject({ completeness: 'complete' })
   if ('kind' in settings) throw new Error(JSON.stringify(settings))
-  expect(settings.views.map(view => targetSortKey(view.target).slice(1))).toEqual([
-    ['independent', 'calendar', 'environment'],
-    ['independent', 'schedule', 'agent-authoring'],
-    ...[
-      'Ask',
-      'BkgToolCalls',
-      'Calendar',
-      'Files',
-      'Schedules',
-      'Shell',
-      'Skills',
-      'TodoItems',
-      'Tools',
-      'Web',
-    ].map(name => ['asset', `harness.preinstalled.tool.${name}`]),
-  ])
+  const keyText = (key: readonly string[]) => JSON.stringify(key)
+  const viewed = settings.views.map(view => keyText(targetSortKey(view.target).slice(1)))
+  expect(viewed.sort()).toEqual(
+    [
+      ['independent', 'calendar', 'environment'],
+      ['independent', 'schedule', 'agent-authoring'],
+      ...[
+        'Ask',
+        'BkgToolCalls',
+        'Calendar',
+        'Files',
+        'Schedules',
+        'Shell',
+        'Skills',
+        'TodoItems',
+        'Tools',
+        'Web',
+      ].map(name => ['asset', `harness.preinstalled.tool.${name}`]),
+    ]
+      .map(keyText)
+      .sort(),
+  )
   const tool = w.release.manifest.entries.find(entry => entry.asset.name === 'Shell')!
   const principal = w.workPrincipal('request-session')
   const { ledgerWorld } =
@@ -1306,8 +1312,40 @@ it('opens a group of independent settings declared only in this test, and keeps 
     'schedule/agent-authoring',
     'test.gadget/environment',
   ])
+  const host = new TenantGovernanceHost({ domains: w.directory.lookup, prepare: () => assembly })
+  cleanup.push(async () => {
+    await host.close(monotonicClock.now() + 3000)
+  })
+  const face = createTenantSettingsFace({
+    host,
+    scope: w.options.scope,
+    storage: w.options.storage,
+    release: () => w.release,
+    identity: { verifier: w.options.identity.verifier, standing: w.options.identity.standing },
+    active: () => true,
+  })
+  const login = w.loginPrincipal()
+  const independentList = async () => {
+    const page = await face.list({
+      principal: login,
+      tenant: login.tenant,
+      scope: { kind: 'independent' },
+      after: null,
+      limit: 100,
+    })
+    if (page.kind !== 'listed') throw new Error(JSON.stringify(page))
+    return page.items.map(view =>
+      view.owner.kind === 'independent'
+        ? `${view.owner.providerId}/${view.owner.definitionId}/${view.item}/${view.declaration.group.title}`
+        : `asset/${view.item}`,
+    )
+  }
+  const listedBefore = await independentList()
+  expect(listedBefore).toContain('test.gadget/environment/mode/小工具')
+  expect(listedBefore.filter(text => text.startsWith('asset/'))).toEqual([])
   withdraw()
   expect(await groups()).toEqual(opened)
+  expect(await independentList()).toEqual(listedBefore)
 })
 
 it('lists the settings of a holding whose category exists only in this test, beside the tools', async () => {
@@ -1411,18 +1449,20 @@ it('lists the settings of a holding whose category exists only in this test, bes
     const page = await face.list({
       principal: login,
       tenant: login.tenant,
+      scope: { kind: 'asset' },
       after: null,
       limit: 100,
     })
     if (page.kind !== 'listed') throw new Error(JSON.stringify(page))
-    return page.items.map(item => `${item.asset.category}/${item.asset.name}/${item.item}`)
+    return page.items.map(item =>
+      item.owner.kind === 'asset'
+        ? `${item.owner.category}/${item.owner.name}/${item.item}`
+        : `independent/${item.item}`,
+    )
   }
   const tools = w.release.manifest.entries.map(entry => `tool/${entry.asset.name}/invoke`).sort()
-  const preferences = SHIPPED_INDEPENDENT_SETTINGS.flatMap(definition =>
-    definition.items.map(item => `preference/${definition.providerId}/${item.id}`),
-  ).sort()
   const first = await listed()
-  expect(first).toEqual(['gadget/one/enabled', ...preferences, ...tools])
+  expect(first).toEqual(['gadget/one/enabled', ...tools])
 
   withdraw()
   expect(await listed()).toEqual(first)

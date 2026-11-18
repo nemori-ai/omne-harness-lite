@@ -46,7 +46,6 @@ import { createBoundSkills } from '../../../src/rows/tool-bindings/skills.ts'
 import { productionStorageCatalog } from '../../../src/rows/storage/production-catalog.ts'
 import { governanceStorageCombinations } from '../../../src/rows/governance/storage-combinations.ts'
 import { governedCapture } from '../../../src/rows/governance/governed-capture.ts'
-import { preferenceCategory } from '../../../src/rows/governance/preference-settings.ts'
 import { fixtureEnv, fixtureTenant, okOf } from '../../entry/support.ts'
 import { providerConfig } from '../storage/fixtures/tree.ts'
 import {
@@ -113,7 +112,6 @@ async function world() {
     contract: modelProviderBodyContract(),
     display: modelProviderCategoryDisplay,
   })
-  categories.contribute(preferenceCategory)
   categories.contribute({ contract: skillBodyContract(), display: skillCategoryDisplay })
   const store = { storage: made.storage, materials, packageRoot, categories }
   const tenantAssets = new TenantAssetsHost({
@@ -404,7 +402,7 @@ describe('the skills row and the Skills binding over a real store', () => {
 
   it('leaves the governance capture of a tenant domain unchanged by a published Skill', async () => {
     const w = await world()
-    expect(w.governed().excluded).toEqual(['preference', 'skill'])
+    expect(w.governed().excluded).toEqual(['skill'])
     await w.publish('placeholder-skill')
     const before = await w.capture(w.governed().excluded)
     await w.publish('weekly-report')

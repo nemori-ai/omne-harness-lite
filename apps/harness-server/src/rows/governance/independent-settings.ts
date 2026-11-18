@@ -87,10 +87,24 @@ async function provisionOne(
 /**
  * Opens one tenant's independent targets group by group. A ready group is remembered by the digest of
  * its declaration and never read again; an unavailable group answers only for itself and is tried
- * again the next time it is needed.
+ * again the next time it is needed. Callers that need the same declaration at once share one opening.
  */
 export function independentTargetsOf(owner: Owner, tenantRef: string) {
-  const ready = new Map<string, string>()
+  const ready = new Set<string>()
+  const opening = new Map<string, Promise<IndependentGroupState>>()
+  const open = (identity: string, definition: SettingDefinitions) => {
+    const known = opening.get(identity)
+    if (known !== undefined) return known
+    const started = provisionOne(owner, tenantRef, definition)
+      .catch(() => 'unavailable' as const)
+      .then(state => {
+        opening.delete(identity)
+        if (state === 'ready') ready.add(identity)
+        return state
+      })
+    opening.set(identity, started)
+    return started
+  }
   return {
     async ensure(
       definitions: readonly SettingDefinitions[],
@@ -98,16 +112,8 @@ export function independentTargetsOf(owner: Owner, tenantRef: string) {
       const states = new Map<string, IndependentGroupState>()
       for (const definition of definitions) {
         const key = JSON.stringify([definition.providerId, definition.definitionId])
-        const digest = canonicalDigest(definition)
-        if (ready.get(key) === digest) {
-          states.set(key, 'ready')
-          continue
-        }
-        const state = await provisionOne(owner, tenantRef, definition).catch(
-          () => 'unavailable' as const,
-        )
-        if (state === 'ready') ready.set(key, digest)
-        states.set(key, state)
+        const identity = JSON.stringify([key, canonicalDigest(definition)])
+        states.set(key, ready.has(identity) ? 'ready' : await open(identity, definition))
       }
       return states
     },

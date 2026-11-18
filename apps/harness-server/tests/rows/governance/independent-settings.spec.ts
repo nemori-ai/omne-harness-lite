@@ -115,6 +115,44 @@ describe('opening one group of independent settings for a tenant (table six)', (
     expect(states.get(CALENDAR)).toBe('ready')
   })
 
+  it('reads that need the same group at once open it once: the later ones wait for that opening', async () => {
+    const stored = new Map<string, Stored>()
+    const writes: string[] = []
+    let writing = false
+    const slow = {
+      async readTarget(target: { definitionId: string }) {
+        const found = stored.get(target.definitionId)
+        return found === undefined
+          ? { kind: 'not_found' }
+          : {
+              kind: 'found',
+              retired: false,
+              projection: { definition: found.definition, sources: layout() },
+            }
+      },
+      async mutate(command: {
+        record: { target: { definitionId: string }; definition: SettingDefinitions }
+      }) {
+        writes.push(command.record.target.definitionId)
+        if (writing) return { kind: 'rejected', reason: 'unavailable' }
+        writing = true
+        await new Promise(resolve => setTimeout(resolve, 5))
+        stored.set(command.record.target.definitionId, { definition: command.record.definition })
+        writing = false
+        return { kind: 'committed' }
+      },
+    } as never
+    const targets = independentTargetsOf(slow, TENANT)
+    const states = await Promise.all([
+      targets.ensure([calendarEnvironmentSettings]),
+      targets.ensure([calendarEnvironmentSettings]),
+      targets.ensure([calendarEnvironmentSettings, scheduleAgentAuthoringSettings]),
+    ])
+    expect(states.map(state => state.get(CALENDAR))).toEqual(['ready', 'ready', 'ready'])
+    expect(states[2]?.get(SCHEDULE)).toBe('ready')
+    expect(writes).toEqual(['environment', 'agent-authoring'])
+  })
+
   it('a ready group is remembered by its declaration and not read again', async () => {
     const w = owner(new Map())
     const targets = independentTargetsOf(w.owner, TENANT)

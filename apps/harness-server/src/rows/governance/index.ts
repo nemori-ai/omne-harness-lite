@@ -33,7 +33,6 @@ import {
 import { createToolGovernanceDefinitionSource } from './tool-definition-source.ts'
 import { prepareInstalledTenantGovernance } from './tenant-installation.ts'
 import { createToolAssetCategory } from './tool-assets.ts'
-import { preferenceCategory } from './preference-settings.ts'
 import {
   provideTenantIndependentSettings,
   tenantIndependentSettingsKey,
@@ -127,7 +126,6 @@ export const governanceRow = defineRow({
       contract: createToolAssetCategory(release),
       display: toolCategoryDisplay,
     })
-    ctx.assetCategories.contribute(preferenceCategory)
     const categories = ctx.assetCategories.view
     const registry = createSettingsRegistry({ capacity: 1024 })
     ctx.effect(() => () => registry.close(), 'governance.settings-registry.close')

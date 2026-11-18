@@ -45,7 +45,7 @@ function foreignTenant(tenant: string): string {
 
 describe('calendar and calendar-access rows', () => {
   it(
-    'answer date questions offline on the release tree with their calendar basis, and refuse another tenant and a bad login',
+    'answer date questions offline on the release tree with their calendar basis, read the timezone the CLI set, and refuse another tenant and a bad login',
     { tags: ['slow'], timeout: 240_000 },
     async () => {
       const exitCode = await onReleaseTree({ script: toolCallsThenText(() => []) }, async tree => {
@@ -60,6 +60,26 @@ describe('calendar and calendar-access rows', () => {
           json: {
             outcome: 'succeeded',
             body: { calendar: 'cn-legal-holidays', timezone: 'Asia/Shanghai' },
+          },
+        })
+        const environment = ['--independent', 'calendar/environment', 'timezone']
+        const set = await tree.cli(['setting', 'set', ...environment, '--value', '"Europe/Paris"'])
+        expect(set.status, set.stderr).toBe(0)
+        const shown = await tree.cli(['setting', 'show', ...environment, '--json'])
+        expect(shown.status, shown.stderr).toBe(0)
+        expect(shown.result).toMatchObject({
+          outcome: 'succeeded',
+          body: {
+            item: {
+              owner: { kind: 'independent', providerId: 'calendar', definitionId: 'environment' },
+              own: { kind: 'set', value: 'Europe/Paris' },
+            },
+          },
+        })
+        expect(await call(tree, 'read-environment', { tenant })).toMatchObject({
+          json: {
+            outcome: 'succeeded',
+            body: { calendar: 'cn-legal-holidays', timezone: 'Europe/Paris' },
           },
         })
         const makeUp = await call(tree, 'answer', {

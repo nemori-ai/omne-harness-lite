@@ -163,7 +163,7 @@ const at = (access: Access, asset: { category?: string; name: string }, item: st
 })
 
 const webView = (own: string, official: string) => ({
-  asset: WEB,
+  owner: { kind: 'asset', ...WEB },
   item: ITEM,
   revision: '0',
   declaration: {
@@ -171,6 +171,7 @@ const webView = (own: string, official: string) => ({
     purpose: expect.any(String),
     appliesAt: expect.any(String),
     clearEffect: expect.any(String),
+    group: { id: expect.any(String), title: expect.any(String), description: expect.any(String) },
   },
   kind: 'secret',
   own,
@@ -210,10 +211,8 @@ describe('the settings row: registry, secret items and governance', () => {
         items: [],
       })
       const all = await w.port.list(access)
-      expect(all.kind === 'listed' ? all.items.map(view => view.asset.name) : all).toEqual([
-        'openrouter',
-        'Web',
-      ])
+      const nameOf = (view: { owner: { kind: string; name?: string } }) => view.owner.name
+      expect(all.kind === 'listed' ? all.items.map(nameOf) : all).toEqual(['openrouter', 'Web'])
     } finally {
       await w.close()
     }

@@ -50,7 +50,7 @@ export function createIndependentSettingsPoint(registry: Registry): IndependentS
     },
     list() {
       return [...contributions.entries()]
-        .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+        .sort(([left], [right]) => (left < right ? -1 : 1))
         .map(([, contribution]) => contribution.definition)
     },
   })

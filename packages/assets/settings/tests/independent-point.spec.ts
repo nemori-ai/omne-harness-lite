@@ -79,6 +79,38 @@ describe('the contribution point of independent settings (table five)', () => {
       }),
       /no secret item/,
     ],
+    [
+      'a governance item beside an ordinary one',
+      {
+        ...declaration('calendar', 'environment'),
+        items: [
+          ...declaration('calendar', 'environment').items,
+          {
+            ...declaration('calendar', 'environment').items[0]!,
+            id: 'rule',
+            category: 'governance',
+          },
+        ],
+      },
+      /no governance item/,
+    ],
+    [
+      'a secret item beside an ordinary one',
+      {
+        ...declaration('calendar', 'environment'),
+        items: [
+          ...declaration('calendar', 'environment').items,
+          {
+            ...declaration('calendar', 'environment').items[0]!,
+            id: 'key',
+            category: 'binding',
+            sensitivity: 'secret',
+            default: { kind: 'absent' },
+          },
+        ],
+      },
+      /no secret item/,
+    ],
   ])('%s throws and changes nothing', (_case, value, refusal) => {
     const { registry, point } = open()
     expect(() => point.contribute(value)).toThrow(refusal)
@@ -135,5 +167,27 @@ describe('the contribution point of independent settings (table five)', () => {
       ['calendar', 'environment'],
       ['schedule', 'agent-authoring'],
     ])
+  })
+
+  it('the order does not depend on the order of contribution', () => {
+    const keys = [
+      ['d', 'x'],
+      ['c', 'x'],
+      ['b', 'x'],
+      ['a', 'y'],
+      ['a', 'x'],
+    ] as const
+    for (const order of [keys, [...keys].reverse()]) {
+      const { point } = open()
+      for (const [provider, definition] of order)
+        point.contribute(declaration(provider, definition))
+      expect(point.list().map(d => `${d.providerId}/${d.definitionId}`)).toEqual([
+        'a/x',
+        'a/y',
+        'b/x',
+        'c/x',
+        'd/x',
+      ])
+    }
   })
 })
