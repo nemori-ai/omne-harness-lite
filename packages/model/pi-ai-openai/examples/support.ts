@@ -28,7 +28,8 @@ import {
   type ProxyConfig,
 } from '@omne-harness/pi-ai-transport'
 
-const OPENROUTER = 'https://openrouter.ai/api/v1/chat/completions'
+const OPENROUTER_CHAT = 'https://openrouter.ai/api/v1/chat/completions'
+const OPENROUTER_RESPONSES = 'https://openrouter.ai/api/v1/responses'
 const END_MARKER = '[DONE]'
 
 export function proxyFromEnvironment(): ProxyConfig {
@@ -185,7 +186,10 @@ export function openTransport(families: readonly PiFamily[]): OpenTransport {
     families: composeFamilies(families),
     routes: {
       openrouter: {
-        endpoints: { 'chat-completions': { url: OPENROUTER, endMarker: END_MARKER } },
+        endpoints: {
+          'chat-completions': { url: OPENROUTER_CHAT, endMarker: END_MARKER },
+          responses: { url: OPENROUTER_RESPONSES, endMarker: END_MARKER },
+        },
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: { kind: 'bearer', item: 'apiKey' },
       },

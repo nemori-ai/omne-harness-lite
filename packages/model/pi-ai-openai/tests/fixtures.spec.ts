@@ -1,11 +1,16 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import type { TransportFact } from '@omne-harness/model-contract/provider'
-import { composeFamilies, defineFamily } from '@omne-harness/pi-ai-transport'
+import { composeFamilies, defineFamily, RECORD_FACTS } from '@omne-harness/pi-ai-transport'
 import { checkRecordFixtures, fixtureDirectory } from '@omne-harness/pi-ai-transport/testing'
-import { OPENAI_OWNER } from '@omne-harness/pi-ai-openai'
+import {
+  OPENAI_OWNER,
+  OPENAI_RECORDS,
+  type OpenAiRecord,
+  type OpenAiResponsesRecord,
+} from '@omne-harness/pi-ai-openai'
 import {
   CAPTURED_DIRECTORY,
   CASES_DIRECTORY,
@@ -16,6 +21,7 @@ import {
 import { FAMILY, recordNamed } from './support/openai.ts'
 
 const root = fileURLToPath(FIXTURES_ROOT)
+const REPOSITORY = fileURLToPath(new URL('../../../../', import.meta.url))
 const SHOWN = { toHuman: true, toModel: true }
 const rendered = renderedCases()
 
@@ -62,6 +68,24 @@ describe('checkRecordFixtures', () => {
     const ids = rendered.filter(item => item.case.slot === 'case').map(item => item.case.id)
     expect(readdirSync(join(root, CASES_DIRECTORY)).toSorted()).toEqual(ids.toSorted())
   })
+})
+
+describe('the sources of the adaptation facts', () => {
+  const records: readonly OpenAiRecord[] = OPENAI_RECORDS
+  const cited = records.filter((record): record is OpenAiResponsesRecord => 'engine' in record)
+
+  it.each(cited.map(record => [record.name, record] as const))(
+    '%s cites an existing file for every fact',
+    (_name, record) => {
+      for (const fact of RECORD_FACTS) {
+        const source = record.provenance[fact]
+        expect(source.measuredAt, fact).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+        expect(existsSync(join(REPOSITORY, source.evidence)), `${fact}: ${source.evidence}`).toBe(
+          true,
+        )
+      }
+    },
+  )
 })
 
 function dataFrames(stream: string): readonly unknown[] {

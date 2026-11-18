@@ -98,11 +98,21 @@ function turnJson(turn: ProjectedTurn, detail: string): JsonValue {
   return obj({ role: str(turn.role), content: arr(parts), ...replayJson(turn) })
 }
 
+// A chat record names the role of the system prompt and the image detail on its wire. The
+// Responses interface sends the system prompt as a developer message and writes no image detail.
+function instructionRole(record: OpenAiRecord): string {
+  return 'engine' in record ? 'developer' : record.wire.roles.instruction
+}
+
+function imageDetail(record: OpenAiRecord): string {
+  return 'engine' in record ? 'auto' : (record.wire.image?.detail ?? 'auto')
+}
+
 export function representationOf(
   record: OpenAiRecord,
   view: ProjectedRequest,
 ): Readonly<{ tokenInput: JsonValue; units: MeterUnits }> {
-  const detail = record.wire.image?.detail ?? 'auto'
+  const detail = imageDetail(record)
   const instruction = view.instruction.flatMap(block =>
     block.kind === 'text' ? [obj({ type: str('text'), text: str(block.text) })] : [],
   )
@@ -111,7 +121,7 @@ export function representationOf(
       ? []
       : [
           {
-            json: obj({ role: str(record.wire.roles.instruction), content: arr(instruction) }),
+            json: obj({ role: str(instructionRole(record)), content: arr(instruction) }),
             message: null,
           },
         ]
