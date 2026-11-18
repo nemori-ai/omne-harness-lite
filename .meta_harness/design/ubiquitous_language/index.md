@@ -107,7 +107,8 @@
 | [UL-step-commit](terms/scope-and-resolution.md#ul-step-commit--步提交--step-commit) | 步提交 | Step Commit | 持有者在步边界把该步全部更新合并成的一份结果并写成事实，**一步一份** |
 | [UL-change-material](terms/scope-and-resolution.md#ul-change-material--变化材料--change-material) | 变化材料 | Change Material | 块变化后交给持有者变化消费路径的输入：键、前后修订、按资格过滤的前值；**不是提醒本身** |
 | [UL-scope-ref](terms/scope-and-resolution.md#ul-scope-ref--作用域引用--scope-reference) | 作用域引用 | Scope Reference | 指向一个作用域的不透明引用，可带父引用；持有者不解释它是租户、会话还是运行 |
-| [UL-scope-holder](terms/scope-and-resolution.md#ul-scope-holder--作用域持有者--scope-holder) | 作用域持有者 | Scope Holder | 为一个作用域维护注册、签发读取资格、写步提交的那一方；一作用域一持有者；本版只有会话 |
+| [UL-tenant-level-scope](terms/scope-and-resolution.md#ul-tenant-level-scope--租户级作用域--tenant-level-scope) | 租户级作用域 | Tenant-Level Scope | 每个租户一个的 runtime context 作用域；只有供给块；会话级作用域的父；会话之外的使用者按资格直接读 |
+| [UL-scope-holder](terms/scope-and-resolution.md#ul-scope-holder--作用域持有者--scope-holder) | 作用域持有者 | Scope Holder | 为一个作用域维护注册、签发读取资格、写步提交的那一方；一作用域一持有者；会话级的是会话，租户级的登记部署的事实 |
 | [UL-integrator](terms/scope-and-resolution.md#ul-integrator--集成方--integrator) | 集成方 | Integrator | 知道各参与者、负责接线并拥有翻译的一方；被集成方不知道它 |
 | [UL-semantic-owner](terms/scope-and-resolution.md#ul-semantic-owner--语义拥有者--semantic-owner) | 语义拥有者 | Semantic Owner | 决定一份值是什么意思的一方；块声明归它，不归存放方，也不一定归生产者 |
 | [UL-session-settings](terms/scope-and-resolution.md#ul-session-settings--会话级设置--session-settings) | 会话级设置 | Session Settings | 会话自有取值与继承声明，持久化不扩大作用域 |
@@ -402,6 +403,10 @@
 | [UL-inbound-arrival](terms/interaction-and-dispatch.md#ul-inbound-arrival--入站到达--inbound-arrival) | 入站到达 | Inbound Arrival | 外面送进一个会话、**被受理之后**的那条事实；**不是消息**，**裸写「到达」不作数** |
 | [UL-background-result-eligibility](terms/interaction-and-dispatch.md#ul-background-result-eligibility--后台结果投递资格--background-result-eligibility) | 后台结果投递资格 | Background Result Eligibility | 转了后台的执行，真实结局还能不能作为入站到达进入原会话；只有归档撤销，单独停止与取消 Run 都不撤销 |
 | [UL-non-waking-input](terms/interaction-and-dispatch.md#ul-non-waking-input--不叫醒的输入--non-waking-input) | 不叫醒的输入 | Non-waking Input | 已受理、但**不能单独使会话开始一轮**的入站到达；停止提醒与被停调用的结局 |
+| [UL-input-source](terms/interaction-and-dispatch.md#ul-input-source--输入来源--input-source) | 输入来源 | Input Source | 一个业务向会话登记的声明：这类输入是谁、凭什么送来；不写作者角色；登记不等于许可 |
+| [UL-input-fate](terms/interaction-and-dispatch.md#ul-input-fate--输入的去向--input-fate) | 输入的去向 | Input Fate | 一条已受理的输入现在在哪一步、属于哪一轮、那一轮怎样结束；只按它自己的记录算 |
+| [UL-history-search](terms/interaction-and-dispatch.md#ul-history-search--搜历史--history-search) | 搜历史 | History Search | 在一个租户全部会话的历史里按范围、类型与内容找到具体的消息；如实说明找全了没有 |
+| [UL-history-index](terms/interaction-and-dispatch.md#ul-history-index--历史索引--history-index) | 历史索引 | History Index | 给搜历史加速的投影；可重建、可落后；命中以日志原文为准 |
 | [UL-background-call-number](terms/interaction-and-dispatch.md#ul-background-call-number--后台调用短号--background-call-number) | 后台调用短号 | Background Call Number | 会话给一项后台执行的会话内编号，**不是调用的身份** |
 | [UL-inbound-target](terms/interaction-and-dispatch.md#ul-inbound-target--投递目标--inbound-target) | 投递目标 | Inbound Target | 连接件两种投递方式里 ①「已有会话开口接收」那一路的配置：进哪个会话，**本版只指一个已有的会话**；落点与身份类，**不是交付面** |
 | [UL-business-flow-extension-point](terms/interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point) | 业务流程拓展点 | Business Flow Extension Point | 拦得住请求，**碰不到已经落定的事实**；**与 Loop 拓展点并列的另一类** |
