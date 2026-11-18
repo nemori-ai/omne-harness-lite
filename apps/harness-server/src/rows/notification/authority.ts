@@ -6,10 +6,7 @@ import { OWNER_POSTS } from './owner-source.ts'
 const PERSON: RecipientRef = { kind: 'person' }
 const selfOf = (actor: Actor): RecipientRef => (actor.kind === 'owner' ? PERSON : actor.recipient)
 
-/**
- * Whether this actor may do this. An actor handles only what is its own: the owner the person's
- * inbox, an agent the inbox of its session. Each sends as its one source.
- */
+/** An actor handles only what is its own: the owner the person's inbox, an agent its session's. Each sends as its one source. */
 export function mayDo(actor: Actor, action: AuthorityAction): boolean {
   const own = (recipient: RecipientRef) => sameRecipient(recipient, selfOf(actor))
   switch (action.kind) {

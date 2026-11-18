@@ -24,10 +24,7 @@ export type TenantBindingPorts = Readonly<{
   listing(): Promise<TenantDomainListing>
 }>
 
-/**
- * Where each tenant keeps its notifications: its own transaction domain, with the notification
- * combination registered there. What is kept is a cache; a tenant without a binding is asked again.
- */
+/** Each tenant's notifications live in its own domain, where the combination is registered. A cache: no binding is asked again. */
 export function createTenantBindings(ports: TenantBindingPorts) {
   const bound = new Map<TenantId, Promise<TenantBinding | null>>()
   let combination: Promise<Combination> | undefined

@@ -667,6 +667,11 @@
       "config": {}
     },
     {
+      "id": "notification-access",
+      "plugin": "notificationAccessRow",
+      "config": {}
+    },
+    {
       "id": "tool-access",
       "plugin": "toolAccessRow",
       "config": {}

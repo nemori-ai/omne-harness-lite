@@ -244,10 +244,16 @@ function sendHandler(input: NotificationContributionInput): Handlers['send'] {
     const ready = await prepare(input, call.principal, body.tenant)
     if (ready.outcome !== null) return ready
     const { type, subject, title, locator, replaceKey, renotify, named } = body
+    let at: string
+    try {
+      at = input.now()
+    } catch {
+      return UNAVAILABLE
+    }
     const event = {
       type,
       subject,
-      at: input.now(),
+      at,
       content: { title, body: body.body, locator },
       replaceKey,
       renotify,

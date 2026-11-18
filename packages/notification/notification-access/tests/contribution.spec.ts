@@ -496,6 +496,16 @@ describe('a send by the owner', () => {
     })
   })
 
+  it('has no basis while the server cannot tell the time, and writes nothing', async () => {
+    const w = world()
+    const commits = w.store.commits()
+    w.state.clockDown = true
+    expect(await w.call('send', post)).toEqual({ outcome: 'basis-unavailable' })
+    expect(w.store.commits()).toBe(commits)
+    w.state.clockDown = false
+    expect(await w.call('send', post)).toMatchObject({ outcome: 'succeeded' })
+  })
+
   it('sends as the owner of the tenant the login acts for, never as an agent', async () => {
     const w = world()
     await w.call('send', post)

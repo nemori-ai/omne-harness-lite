@@ -191,6 +191,7 @@ export function world() {
     feed: feed as ReturnType<typeof changeFeed> | undefined,
     actor: { kind: 'owner' } as Actor,
     logins: [] as string[],
+    clockDown: false,
   }
   const principal = { principal: 'issued' } as unknown as Principal
   const contextOf = (tenant: string): CallContext => ({
@@ -209,7 +210,10 @@ export function world() {
     },
     faces: () => state.faces,
     changes: () => state.feed,
-    now: () => clock.now(),
+    now() {
+      if (state.clockDown) throw new Error('clock is down')
+      return clock.now()
+    },
   })
   const login = {} as LoginIdentity
   const controller = new AbortController()

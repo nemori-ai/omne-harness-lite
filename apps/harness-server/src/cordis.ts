@@ -40,6 +40,7 @@ export { humanInterventionAccessRow } from './rows/human-intervention-access/ind
 export { sessionDiagnosticsAccessRow } from './rows/session-diagnostics-access/index.ts'
 export { calendarAccessRow } from './rows/calendar-access/index.ts'
 export { scheduleAccessRow } from './rows/schedule-access/index.ts'
+export { notificationAccessRow } from './rows/notification-access/index.ts'
 export { toolAccessRow } from './rows/tool-access/index.ts'
 export { agentJournalRow } from './rows/agent-journal/index.ts'
 export { agentInstancesRow } from './rows/agent-instances/index.ts'
