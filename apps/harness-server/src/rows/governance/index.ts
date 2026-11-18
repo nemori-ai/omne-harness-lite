@@ -1,5 +1,6 @@
 import { permissionDeclarationsOf } from '../../entry/permission-declarations.ts'
 import type { Context } from '@deepseek-ai/cordis'
+import { agentDecisionCardsKey } from '@omne-harness/agent-cordis-contract/cordis'
 import { z } from 'zod'
 import { standingPrincipalRef } from '@omne-harness/identity'
 import {
@@ -237,6 +238,7 @@ export const governanceRow = defineRow({
         standing: { read: input => ctx.tenantStanding.read(input) },
       },
       active: () => active,
+      cards: () => ctx.get(agentDecisionCardsKey, false),
     })
     ctx.effect(
       () => () => host.close(monotonicClock.now() + config.closeTimeoutMs),

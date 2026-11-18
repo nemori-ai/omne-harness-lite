@@ -406,6 +406,31 @@ describe('sessionAccessCheck: members and branches', () => {
       })
     })
 
+    it('lets a once release stand on an answer for always, whose setting could not be written', async () => {
+      const { w, check } = answering(chosen('allow-always'))
+      expect((await check.check(mutate(w.work(), 'change', once()))).kind).toBe('allowed')
+      const session = answering(chosen('allow-always'))
+      expect(await session.check.check(mutate(session.w.work(), 'change', forSession()))).toEqual({
+        kind: 'denied',
+      })
+    })
+
+    it('lets the release of the session be withdrawn only on an answer for always deny naming the gate', async () => {
+      const revoke = () => {
+        const declared = forSession()
+        const expression = { ...declared.declaration.expression, direction: 'revoke' }
+        return { declaration: { ...declared.declaration, expression } }
+      }
+      const held = answering({ ...handingBack(gate), option: 'deny-always' })
+      expect((await held.check.check(mutate(held.w.work(), 'change', revoke()))).kind).toBe(
+        'allowed',
+      )
+      const other = answering(handingBack(gate))
+      expect(await other.check.check(mutate(other.w.work(), 'change', revoke()))).toEqual({
+        kind: 'denied',
+      })
+    })
+
     it('denies the login, a foreign principal and the Run of another session, and reads no card', async () => {
       const { w, read, check } = answering(chosen('allow-once'))
       for (const principal of [w.login(), w.foreign(), w.work(OTHER)])

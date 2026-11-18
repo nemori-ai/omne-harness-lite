@@ -39,7 +39,8 @@ const perMessage = (through: 'Shell' | 'Tools') =>
     // Tools forwards only the business arguments, so it carries a command that needs no intent.
     const params =
       through === 'Shell'
-        ? { script: `echo ${label}-done` }
+        ? // A label that starts with slow- keeps its call running for a while.
+          { script: `${label.startsWith('slow-') ? 'sleep 12; ' : ''}echo ${label}-done` }
         : { name: 'TodoItems', command: 'add', arguments: { text: `${label}-done` } }
     const call = JSON.stringify({ command: 'execute', intent: 'test call', params })
     return [{ id: `call_${label}`, tool: through, arguments: call }]

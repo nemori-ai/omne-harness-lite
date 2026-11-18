@@ -40,6 +40,9 @@ import {
 import { authorizationConfig } from './action-rules.ts'
 import { createToolTargetPolicy, installToolTargetPolicy } from './tool-target-policy.ts'
 import { sessionAuthorizationWriter } from './session-authorization-writer.ts'
+import { createTenantPicks } from './tenant-picks.ts'
+import { permissionDeclarationsOf } from '../../entry/permission-declarations.ts'
+import { tenantSettingsKey } from '../governance/tenant-settings-service.ts'
 import { currentPermissionOf } from './current-permission.ts'
 import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
 import {
@@ -129,6 +132,10 @@ const plugin: Plugin.Object = {
     const resolution = createToolActionResolution(forwarding)
     const labeling = createToolCallLabeling(forwarding)
     const authorizations = sessionAuthorizationWriter(ctx)
+    const picks = createTenantPicks({
+      declarations: () => permissionDeclarationsOf(ctx),
+      settings: () => ctx.get(tenantSettingsKey, false),
+    })
     const readPermission = () => (active ? permission : undefined)
     installToolTargetPolicy(
       ctx,
@@ -151,6 +158,7 @@ const plugin: Plugin.Object = {
         readResolution: () => (active ? resolution : undefined),
         readLabeling: () => (active ? labeling : undefined),
         readAuthorizations: () => (active ? authorizations : undefined),
+        readPicks: () => (active ? picks : undefined),
       }),
     )
   },

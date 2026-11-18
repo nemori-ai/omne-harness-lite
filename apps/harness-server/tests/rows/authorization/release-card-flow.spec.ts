@@ -150,8 +150,8 @@ it('a release card the person does not release never starts the call, whatever t
         ['deny-once', true],
         ['allow-once', true],
         ['allow-session', true],
-        ['allow-always', false],
-        ['deny-always', false],
+        ['allow-always', true],
+        ['deny-always', true],
       ])
       expect(refused.result).toBe(NOT_RELEASED)
 

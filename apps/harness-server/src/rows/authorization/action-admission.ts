@@ -1,10 +1,4 @@
-import type {
-  ActionAdmission,
-  AdmissionDecision,
-  DurableEvidence,
-} from '@omne-harness/agent-contract'
-import type { TenantId } from '@omne-harness/legal-identity'
-import type { AuthorizationExpression } from '@omne-harness/session-contract'
+import type { ActionAdmission, AdmissionDecision } from '@omne-harness/agent-contract'
 import {
   canonicalText,
   decisionEvidence,
@@ -16,37 +10,30 @@ import { succeed } from '@omne-harness/operation-result'
 import type { ToolActionResolution } from '@omne-harness/tool-contract'
 import type { ToolCallLabeling } from '../../entry/tool-action-resolution.ts'
 import { actionRulesSchema, toolActionRule, type ActionRules } from './action-rules.ts'
-import { answerEffect, askedDecision, type AnswerEffect } from './release-asking.ts'
+import { applyAnswer, type AuthorizationWriter } from './answer-effects.ts'
+import { answerEffect, askedDecision } from './release-asking.ts'
+import type { TenantPicks } from './tenant-picks.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 import {
   agentPermissionOperation,
   type ToolPermissionAction,
   type ToolPermissionCheck,
 } from './current-tool-permission.ts'
-import { agentActionConsumer, onceTarget } from './authorization-facts.ts'
+import { agentActionConsumer } from './authorization-facts.ts'
 
 type Request = Parameters<ActionAdmission<unknown>['admit']>[0]
 export type AdmissionReader = () => AdmissionCheck | undefined
 export type ToolPermissionReader = () => ToolPermissionCheck | undefined
 export type ResolutionReader = () => ToolActionResolution<unknown> | undefined
-/** Appends a person's authorization to the session log; one decision names one operation. */
-export type AuthorizationWriter = Readonly<{
-  express(
-    input: Readonly<{
-      principal: ToolPermissionAction['principal']
-      tenant: TenantId
-      session: string
-      card: DurableEvidence
-      expression: AuthorizationExpression
-    }>,
-  ): Promise<'written' | 'refused' | 'unavailable'>
-}>
+export type { AuthorizationWriter } from './answer-effects.ts'
 type Readers = Readonly<{
   readAdmission: AdmissionReader
   readAuthorizations?: () => AuthorizationWriter | undefined
   readPermission: ToolPermissionReader
   readResolution: ResolutionReader
   readLabeling?: () => ToolCallLabeling | undefined
+  /** The tenant's own setting of a gate; absent, the deployment gives no lasting option. */
+  readPicks?: () => TenantPicks | undefined
 }>
 
 function unavailable(diagnostic: string): AdmissionDecision {
@@ -104,6 +91,7 @@ type Judging = Readonly<{
   argumentsDigest: AdmissionInput['arguments']
   permission: ToolPermissionCheck | undefined
   labeling: ToolCallLabeling | undefined
+  picks: TenantPicks | undefined
 }>
 
 function permissionAction(judging: Judging, gate: Judged): ToolPermissionAction {
@@ -130,6 +118,15 @@ function permissionAction(judging: Judging, gate: Judged): ToolPermissionAction 
   }
 }
 
+const NO_LASTING = Object.freeze({ allow: false, deny: false })
+
+// Which lasting options the card gives: the ones the tenant's setting of this gate can take now.
+function lastingOf(judging: Judging, gate: Judged) {
+  if (judging.picks === undefined) return NO_LASTING
+  const { principal, input } = judging
+  return judging.picks.writable({ principal, tenant: input.tenant, definition: gate.definition })
+}
+
 // One gate passes its action rule (a carrier with no rule passes it) and then its current permission.
 async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecision> {
   const { rules } = judging
@@ -146,7 +143,10 @@ async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecis
   if (judging.permission === undefined)
     return unavailable('the current permission dependency is unavailable')
   const current = await judging.permission.check(permissionAction(judging, gate))
-  if (current.kind === 'ask')
+  if (current.kind === 'ask') {
+    const lasting = await lastingOf(judging, gate)
+    if (lasting === 'unavailable')
+      return unavailable('the tenant setting of the gate could not be read now')
     return askedDecision(judging.labeling, {
       input: judging.input,
       principal: judging.principal,
@@ -155,7 +155,9 @@ async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecis
       effectiveArguments: gate.effectiveArguments,
       evidence: current.evidence,
       gate: current.gate,
+      lasting,
     })
+  }
   if (current.kind !== 'allow') return current
   return {
     kind: 'allow',
@@ -164,42 +166,6 @@ async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecis
       permission: current.evidence,
     }),
   }
-}
-
-type Granting = Extract<AnswerEffect, { kind: 'grant' }>
-type Scope = AuthorizationExpression['scope']
-
-// This very action, or the gate the card was made for with the basis the card holds.
-function scopeOf(judging: Judging, gate: Judged, effect: Granting): Scope {
-  if (effect.scope === 'session') return { kind: 'session', ...effect.gate }
-  return {
-    kind: 'once',
-    consumer: agentActionConsumer(judging.input),
-    target: onceTarget(gate.definition),
-    argumentsDigest: effectiveArgumentsOf(gate.effectiveArguments).digest,
-  }
-}
-
-// The answer's effect comes first, so judging again reads the authorization it wrote.
-async function grant(
-  judging: Judging,
-  gates: Gates,
-  effect: Granting,
-  writer: AuthorizationWriter | undefined,
-): Promise<AdmissionDecision | null> {
-  if (writer === undefined) return unavailable('the session authorization writer is unavailable')
-  const scope = scopeOf(judging, gates[gates.length - 1]!, effect)
-  const written = await writer.express({
-    principal: judging.principal,
-    tenant: judging.input.tenant,
-    session: judging.session,
-    card: effect.card,
-    expression: { scope, direction: 'grant', source: effect.source },
-  })
-  if (written === 'written') return null
-  return written === 'refused'
-    ? undecidable('the session refused the authorization')
-    : unavailable('the authorization could not be written now')
 }
 
 async function decide(
@@ -250,10 +216,21 @@ async function decide(
     argumentsDigest,
     permission: readers.readPermission(),
     labeling: readers.readLabeling?.(),
+    picks: readers.readPicks?.(),
   }
   if (effect !== null) {
-    const granted = await grant(judging, gates, effect, readers.readAuthorizations?.())
-    if (granted !== null) return granted
+    const answered = {
+      principal: who.principal,
+      tenant: input.tenant,
+      session: who.session,
+      consumer: agentActionConsumer(input),
+      gate: gates[gates.length - 1]!,
+    }
+    const applied = await applyAnswer(answered, effect, {
+      authorizations: readers.readAuthorizations?.(),
+      picks: judging.picks,
+    })
+    if (applied !== null) return applied
   }
   const [first, ...rest] = gates
   let answer = await judgeGate(judging, first)

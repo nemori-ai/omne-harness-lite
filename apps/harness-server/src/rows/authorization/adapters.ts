@@ -69,7 +69,7 @@ const DENIED: Plan = Object.freeze({ kind: 'denied' })
 type CardDecision = Readonly<{
   card: DurableEvidence
   source: DurableEvidence
-  option: string
+  options: readonly string[]
   gate: AskedGate | null
 }>
 
@@ -272,7 +272,7 @@ async function answeredOnCard(
   const reply = read.ok
   const answered =
     reply.kind === 'chosen' &&
-    reply.option === claimed.option &&
+    claimed.options.includes(reply.option) &&
     canonicalText(reply.evidence) === canonicalText(claimed.source)
   // A lasting authorization names the gate of its card, with the basis the card holds.
   const sameGate =
@@ -282,21 +282,20 @@ async function answeredOnCard(
   return answered && sameGate ? allowed : Object.freeze({ kind: 'denied' })
 }
 
-const OPTION_OF = {
-  'once/grant': 'allow-once',
-  'session/grant': 'allow-session',
-  'session/revoke': 'deny-always',
-} as const
+// The answers each expression may stand on; an answer for always also releases this once when unwritten.
+const OPTIONS_OF: Readonly<Record<string, readonly string[]>> = {
+  'once/grant': ['allow-once', 'allow-always'],
+  'session/grant': ['allow-session'],
+  'session/revoke': ['deny-always'],
+}
 
 function cardDecisionOf(target: SessionAccessRequest<unknown>['target']): CardDecision | null {
   if (!('command' in target) || target.command.kind !== 'change') return null
   const { declaration } = target.command.input
   if (declaration.kind !== 'authorization-expression') return null
   const { scope, direction, source } = declaration.expression
-  const option: string | undefined = (OPTION_OF as Record<string, string>)[
-    `${scope.kind}/${direction}`
-  ]
-  if (option === undefined) return null
+  const options = OPTIONS_OF[`${scope.kind}/${direction}`]
+  if (options === undefined) return null
   const gate =
     scope.kind === 'session'
       ? {
@@ -305,7 +304,7 @@ function cardDecisionOf(target: SessionAccessRequest<unknown>['target']): CardDe
           basis: scope.basis,
         }
       : null
-  return { card: declaration.authorization, source, option, gate }
+  return { card: declaration.authorization, source, options, gate }
 }
 
 function planSession(input: SessionAccessRequest<unknown>): Plan {

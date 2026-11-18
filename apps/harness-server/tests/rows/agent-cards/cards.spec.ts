@@ -114,6 +114,7 @@ describe('a round of card requests as HITL questions', () => {
         session: 'ses-1',
         definition: { owner: 'tool', name: 'Shell', revision: '1', digest: 'd' },
         effectiveArguments: '{"command":"run","params":{"cmd":"ls"}}',
+        lasting: { allow: false, deny: false },
         evidence: decisionEvidence('cards-test', '1', {}),
       },
     )

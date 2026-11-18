@@ -15,16 +15,19 @@ import {
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ToolCallLabeling } from '../../entry/tool-action-resolution.ts'
 import type { AskedGate, ToolPermissionAction } from './current-tool-permission.ts'
+import type { LastingEffect } from './tenant-picks.ts'
 
 type Request = Parameters<ActionAdmission<unknown>['admit']>[0]
 
-// The options this deployment gives effect to now; the card shows the others as not offered.
-const OFFER: ReleaseOffer = {
-  'deny-once': true,
-  'allow-once': true,
-  'allow-session': true,
-  'allow-always': false,
-  'deny-always': false,
+// The lasting options are given only while the tenant's own setting of the gate can take them.
+function offerOf(lasting: Readonly<Record<LastingEffect, boolean>>): ReleaseOffer {
+  return {
+    'deny-once': true,
+    'allow-once': true,
+    'allow-session': true,
+    'allow-always': lasting.allow,
+    'deny-always': lasting.deny,
+  }
 }
 const DESCRIPTION = '下面是 agent 要执行的这一次调用。看过之后选一档，每档下面写着它管多大。'
 const DECLINE = '这一次调用不执行。'
@@ -86,6 +89,7 @@ export async function askedDecision(
     effectiveArguments: string
     evidence: DecisionEvidence
     gate?: AskedGate | undefined
+    lasting: Readonly<Record<LastingEffect, boolean>>
   }>,
 ): Promise<AdmissionDecision> {
   if (labeling === undefined)
@@ -106,13 +110,13 @@ export async function askedDecision(
       session: asking.session,
       agent: input.execution,
     },
-    OFFER,
+    offerOf(asking.lasting),
   )
   const draft = draftOf(card, input.action, asking.gate)
   return { kind: 'need-decision', card: draft, evidence: asking.evidence }
 }
 
-/** What a person's answer does: refuse the action outright, or grant and then judge again. */
+/** What a person's answer does: refuse the action outright, or write what it grants and then judge again. */
 export type AnswerEffect =
   | Readonly<{ kind: 'decided'; decision: AdmissionDecision }>
   | Readonly<{ kind: 'grant'; scope: 'once'; card: DurableEvidence; source: DurableEvidence }>
@@ -123,6 +127,35 @@ export type AnswerEffect =
       card: DurableEvidence
       source: DurableEvidence
     }>
+  | Readonly<{
+      kind: 'lasting'
+      effect: 'allow'
+      option: 'allow-always'
+      card: DurableEvidence
+      source: DurableEvidence
+    }>
+  | Readonly<{
+      kind: 'lasting'
+      effect: 'deny'
+      option: 'deny-always'
+      gate: AskedGate
+      card: DurableEvidence
+      source: DurableEvidence
+    }>
+
+export function refusal(
+  answered: Readonly<{ card: DurableEvidence; source: DurableEvidence }>,
+  category: DenialCategory,
+  reason: string,
+): AdmissionDecision {
+  const facts = { card: answered.card, answer: answered.source, reason }
+  return {
+    kind: 'deny',
+    category,
+    reason,
+    evidence: decisionEvidence('action-answer', '1', facts),
+  }
+}
 
 /** The gate a release card was made for, as the card hands it back with a chosen option. */
 export function gateOfAnswer(value: JsonValue | null): AskedGate | null {
@@ -139,26 +172,29 @@ export function gateOfAnswer(value: JsonValue | null): AskedGate | null {
     : { capabilityId, enforcementKey, basis }
 }
 
-/** An answer that releases nothing refuses the action, each kind with its own category. */
+/** An answer that releases nothing refuses the action; the others name what is to be written. */
 export function answerEffect(decision: NonNullable<Request['decision']>): AnswerEffect {
   const { card, answer } = decision
+  const source = answer.evidence
   const refused = (category: DenialCategory, reason: string): AnswerEffect => ({
     kind: 'decided',
-    decision: {
-      kind: 'deny',
-      category,
-      reason,
-      evidence: decisionEvidence('action-answer', '1', { card, answer: answer.evidence, reason }),
-    },
+    decision: refusal({ card, source }, category, reason),
   })
   if (answer.kind === 'remark') return refused('guidance', 'human-guidance')
   if (answer.kind === 'declined') return refused('not-released', 'declined')
-  if (answer.option === 'deny-once') return refused('not-released', 'deny-once')
-  const source = answer.evidence
-  if (answer.option === 'allow-once') return { kind: 'grant', scope: 'once', card, source }
   const gate = gateOfAnswer(answer.value)
-  if (answer.option === 'allow-session' && gate !== null)
+  switch (answer.option) {
+    case 'deny-once':
+      return refused('not-released', 'deny-once')
+    case 'allow-once':
+      return { kind: 'grant', scope: 'once', card, source }
+    case 'allow-always':
+      return { kind: 'lasting', effect: 'allow', option: 'allow-always', card, source }
+  }
+  if (gate !== null && answer.option === 'allow-session')
     return { kind: 'grant', scope: 'session', gate, card, source }
+  if (gate !== null && answer.option === 'deny-always')
+    return { kind: 'lasting', effect: 'deny', option: 'deny-always', gate, card, source }
   return {
     kind: 'decided',
     decision: {

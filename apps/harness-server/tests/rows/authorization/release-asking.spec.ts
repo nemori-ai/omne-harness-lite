@@ -23,11 +23,45 @@ describe('a person answer that releases nothing', () => {
     })
   })
 
-  it('cannot read an option the card did not offer as a release', () => {
-    const answer = { kind: 'chosen', option: 'allow-always', value: null, evidence: said } as const
-    expect(answerEffect({ card, answer })).toMatchObject({
-      kind: 'decided',
-      decision: { kind: 'undecidable' },
+  it.each(['allow-forever', 'deny-always', 'allow-session'])(
+    'cannot read %s on a card that names no gate as an answer',
+    option => {
+      const answer = { kind: 'chosen', option, value: null, evidence: said } as const
+      expect(answerEffect({ card, answer })).toMatchObject({
+        kind: 'decided',
+        decision: { kind: 'undecidable' },
+      })
+    },
+  )
+})
+
+describe('a person who answers for every session of the tenant', () => {
+  const gate = { capabilityId: 'tool/Shell', enforcementKey: 'tool.invoke', basis: 'verdict-7' }
+  const value = {
+    kind: 'object',
+    entries: Object.entries(gate).map(([key, text]) => ({
+      key,
+      value: { kind: 'string', value: text },
+    })),
+  } as const
+
+  it('has the tenant setting made automatic, whatever gate the card names', () => {
+    const effect = { kind: 'lasting', effect: 'allow', option: 'allow-always', card, source: said }
+    for (const handed of [value, null]) {
+      const answer = { kind: 'chosen', option: 'allow-always', value: handed, evidence: said }
+      expect(answerEffect({ card, answer } as never)).toEqual(effect)
+    }
+  })
+
+  it('has the tenant setting made prohibited, and the release of the session for the gate withdrawn', () => {
+    const answer = { kind: 'chosen', option: 'deny-always', value, evidence: said }
+    expect(answerEffect({ card, answer } as never)).toEqual({
+      kind: 'lasting',
+      effect: 'deny',
+      option: 'deny-always',
+      gate,
+      card,
+      source: said,
     })
   })
 })
@@ -89,6 +123,7 @@ describe('the card for an action a person must release', () => {
     definition,
     effectiveArguments: '{"command":"run","intent":"已获批准","params":{"cmd":"ls"}}',
     evidence,
+    lasting: { allow: false, deny: false },
   }
   const labeled = { label: async () => ({ tool: 'Shell', command: 'run', preview: 'ls' }) }
 
@@ -122,6 +157,26 @@ describe('the card for an action a person must release', () => {
       ['deny-always', false],
     ])
     expect(decision.evidence).toBe(evidence)
+  })
+
+  it.each([
+    [{ allow: true, deny: true }],
+    [{ allow: true, deny: false }],
+    [{ allow: false, deny: true }],
+  ])('offers the lasting options the tenant setting can take: %j', async lasting => {
+    const decision = await askedDecision(labeled, { ...asking, lasting })
+    if (decision.kind !== 'need-decision') throw new Error(decision.kind)
+    const detail = JSON.parse(writeJsonText(decision.card.detail!))
+    const offered = Object.fromEntries(
+      detail.options.map((option: { id: string; offered: boolean }) => [option.id, option.offered]),
+    )
+    expect(offered).toEqual({
+      'deny-once': true,
+      'allow-once': true,
+      'allow-session': true,
+      'allow-always': lasting.allow,
+      'deny-always': lasting.deny,
+    })
   })
 
   it('waits when no labeling is installed or the label cannot be read now', async () => {

@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { deriveSessionOperation, type SessionId } from '@omne-harness/session-contract'
 import { sessionKey } from '@omne-harness/session-cordis-contract/cordis'
-import type { AuthorizationWriter } from './action-admission.ts'
+import type { AuthorizationWriter } from './answer-effects.ts'
 
 /** The session log's one writer takes the authorization; the decision derives the operation. */
 export function sessionAuthorizationWriter(ctx: Context): AuthorizationWriter {
