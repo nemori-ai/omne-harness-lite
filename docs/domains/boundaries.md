@@ -27,7 +27,7 @@
 | [执行环境](execution-environments/README.md)，资源能力 | 落点、设施及供给/释放 | 逻辑工作区、准入及工具效果分别拥有 |
 | [日历](calendars/README.md)，业务能力 | 供应、版本、覆盖及计算 | 日程接受Job，Context/存储不解释日历语义 |
 | [日程与Job](schedules-and-jobs/README.md)，业务治理 | 描述、候选、接受、等待取消及整体结果 | 消费日历与本域执行、通知端口；外部适配承接程序或 agent 工作，不接管 Run 终态或送达 |
-| [通知](notifications/README.md)，业务交付 | 独立发送、目标送达及未完成责任 | 来源工作归发起方，执行完成不表示送达 |
+| [通知](notifications/README.md)，支撑能力 | 接下、通知订阅、收件箱、投递去处与投递结果 | 事件的真假归来源，持续事项经Context读，许不许归授权，给agent的投递经会话的输入受理；核心域不依赖它 |
 | [Slash Command](slash-commands/README.md)，专有类别 | 识别、绑定、参数及展开 | 交付面识别，受理复核，队列/日志及工作流原拥有者承担 |
 | [Skill](skills/README.md)，专有类别 | 方法、资源、发现及读取 | 治理拥有持有，消费者拥有采用，脚本由 Shell 运行并沿Tool/环境的规则 |
 | [MCP](mcp/README.md)，专有类别 | 接入点、连接、合法发现及桥接 | 凭据沿治理，动作沿Tool，连接恢复不授权重发 |
