@@ -25,7 +25,7 @@ function turnedSince(turns: Turns, at: number, signal: AbortSignal): Promise<voi
       resolve()
     }
     turns.waiting.add(wake)
-    signal.addEventListener('abort', wake, { once: true })
+    signal.addEventListener('abort', wake)
   })
 }
 

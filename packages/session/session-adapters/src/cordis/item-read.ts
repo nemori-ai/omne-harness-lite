@@ -108,6 +108,34 @@ type Lender = Readonly<{
   lentBlocks: Map<string, string>
 }>
 
+async function readAsked(
+  read: Reader,
+  lender: Lender,
+  execution: AgentExecutionId,
+  wanted: readonly ItemRef[],
+): Promise<readonly ExecutionItem[] | string> {
+  const scope = { tenant: lender.tenantText, session: lender.session, execution }
+  const keyed = wanted.filter(ref => ref.under !== true)
+  const items: ExecutionItem[] = []
+  if (keyed.length > 0) {
+    const keys = keyed.map(ref => ({ family: ref.family, item: ref.item }))
+    const found = await readItems(read, scope, keys)
+    if (found.kind === 'unavailable') return found.diagnostic
+    items.push(...found.items)
+  }
+  for (const ref of keyed) lender.fetched.set(itemText(ref), null)
+  for (const ref of wanted.filter(ref => ref.under === true)) {
+    const found = await readOpenItems(read, scope, [ref.family], true, ref.item)
+    if (found.kind === 'unavailable') return found.diagnostic
+    items.push(...found.items)
+    lender.fetched.set(
+      underText(ref),
+      found.items.map(item => item.item),
+    )
+  }
+  return items
+}
+
 export async function fetchClosed(
   read: Reader,
   lender: Lender,
@@ -117,27 +145,9 @@ export async function fetchClosed(
     lender.fetched.has(ref.under === true ? underText(ref) : itemText(ref))
   const refs = asked.filter(ref => !alreadyRead(ref))
   if (refs.length === 0) return 'a round needs closed items the call has already read'
-  const byExecution = Map.groupBy(refs, ref => ref.execution)
-  for (const [execution, wanted] of byExecution) {
-    const scope = { tenant: lender.tenantText, session: lender.session, execution }
-    const keyed = wanted.filter(ref => ref.under !== true)
-    const items: ExecutionItem[] = []
-    if (keyed.length > 0) {
-      const keys = keyed.map(ref => ({ family: ref.family, item: ref.item }))
-      const found = await readItems(read, scope, keys)
-      if (found.kind === 'unavailable') return found.diagnostic
-      items.push(...found.items)
-    }
-    for (const ref of keyed) lender.fetched.set(itemText(ref), null)
-    for (const ref of wanted.filter(ref => ref.under === true)) {
-      const found = await readOpenItems(read, scope, [ref.family], true, ref.item)
-      if (found.kind === 'unavailable') return found.diagnostic
-      items.push(...found.items)
-      lender.fetched.set(
-        underText(ref),
-        found.items.map(item => item.item),
-      )
-    }
+  for (const [execution, wanted] of Map.groupBy(refs, ref => ref.execution)) {
+    const items = await readAsked(read, lender, execution, wanted)
+    if (typeof items === 'string') return items
     for (const item of items)
       lender.fetched.set(itemText({ execution, family: item.family, item: item.item }), item.body)
     const rows = items.flatMap(item => [...refsIn(item.body)].map(blobRowDigest))
