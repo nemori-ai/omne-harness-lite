@@ -51,7 +51,7 @@ async function interpreted(
 ) {
   const s = await sqlScene(name)
   scenes.push(s)
-  const heads = { unwritten: false, undecided: false }
+  const heads = { undecided: false }
   const bytes = { written: [] as number[], read: [] as number[] }
   const base = s.storage
   s.storage = {
@@ -68,7 +68,6 @@ async function interpreted(
         bytes.read.push(JSON.stringify(result.output).length)
       if (result.kind !== 'read' || request.handler !== EVENTS_HANDLER) return result
       let output = result.output
-      if (heads.unwritten) output = withPlaceholderHead(output)
       if (heads.undecided) output = withUndecidedEvents(output)
       return { ...result, output }
     },
@@ -106,12 +105,6 @@ const QUICK_RETRY = { initialMs: 1, multiplier: 2, maxMs: 4 } as const
 
 const BATCHES_HANDLER = EXECUTION_RECORD_HANDLERS.facts
 const EVENTS_HANDLER = EXECUTION_RECORD_HANDLERS.events
-
-function withPlaceholderHead(output: JsonValue): JsonValue {
-  const copy = structuredClone(output) as { receipt?: { digest: string } | null }
-  if (copy.receipt !== undefined && copy.receipt !== null) copy.receipt.digest = 'unknown'
-  return copy as JsonValue
-}
 
 function withUndecidedEvents(output: JsonValue): JsonValue {
   const copy = structuredClone(output) as { events?: { consequences: unknown; control: unknown }[] }
@@ -545,7 +538,9 @@ describe('the backoff of the event queue and its one retry per execution (#1216 
   const retries = (logged: readonly string[]) =>
     logged.flatMap(line => {
       const found =
-        /^call (\d+) of the interpretation of .* answered (\S+); again in (\S+) ms$/.exec(line)
+        /^call (\d+) of the interpretation of .* answered (\S+)(?: \(.+\))?; again in (\S+) ms$/.exec(
+          line,
+        )
       return found === null ? [] : [[Number(found[1]), found[2], found[3]]]
     })
 
@@ -592,6 +587,10 @@ describe('the backoff of the event queue and its one retry per execution (#1216 
       [3, 'unavailable', '3'],
       [4, 'unavailable', '5'],
     ])
+    // An unavailable answer says who could not answer and why: a stuck execution is not a busy one.
+    expect(f.logged.find(line => line.startsWith('call 1 of'))).toMatch(
+      /answered unavailable \(\S+: .+\); again in 0 ms$/,
+    )
   })
 
   it('a call whose outcome stays unknown after its sends is made again, and the event commits once', async () => {
@@ -721,21 +720,6 @@ describe('what commits nothing', () => {
     await settle()
     expect(stateReads(f.s)).toBe(reads)
     expect(f.sent).toHaveLength(0)
-  })
-
-  it('a head that another execution wrote is unavailable, and nothing is committed', async () => {
-    const f = await interpreted('ad02-placeholder-head', { plugin: 'later' })
-    await started(f.s, f.c.journal())
-    await f.mountPlugin()
-    f.heads.unwritten = true
-    expect(await f.interpretation.interpret(f.target)).toMatchObject({
-      failure: {
-        kind: 'unavailable',
-        diagnostic: 'the head of the execution was written by another execution',
-      },
-    })
-    expect(f.sent).toHaveLength(0)
-    expect(await readThrough(f.s)).toBe('0')
   })
 
   it('without sessionTransactions the plugin stays pending and commits nothing', async () => {

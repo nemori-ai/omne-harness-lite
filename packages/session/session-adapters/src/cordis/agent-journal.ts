@@ -122,8 +122,8 @@ import {
 import { SharedMap } from '../journal/shared-map.ts'
 import { boundariesOf, captureFresh, projectionOf, type Fault } from './event-projection.ts'
 import {
+  headsOf,
   JOURNAL_PROVIDER,
-  answeredReceipt,
   preparePublication,
   unavailable,
   type Prepared,
@@ -332,7 +332,7 @@ export type InterpretableEvent = Readonly<{
 
 export type ExecutionInterpretation = Readonly<{
   revision: string
-  head: DurableEvidence | null
+  head: DurableEvidence
   emittedThrough: string
   events: readonly InterpretableEvent[]
 }>
@@ -400,12 +400,11 @@ export async function readExecutionInterpretation(
   )
   if (read.kind === 'absent') return { kind: 'read', execution: null }
   if (read.kind === 'unavailable') return read
-  const receipt = read.receipt as DurableEvidence | null
   return {
     kind: 'read',
     execution: {
       revision: read.revision,
-      head: receipt === null || receipt.digest === 'unknown' ? null : receipt,
+      head: read.receipt as unknown as DurableEvidence,
       emittedThrough: read.emittedThrough,
       events: read.events.map(event => ({
         sequence: event.sequence,
@@ -611,7 +610,7 @@ function settleRecordStop<P, T>(
         kind: 'answer',
         value: fail(
           unavailable(
-            `the Agent records were not saved: ${reply.kind}${'diagnostic' in reply ? ` (${reply.diagnostic})` : ''}`,
+            `the Agent records were not saved: ${reply.kind}${'diagnostic' in reply ? ` (${reply.diagnostic})` : 'reason' in reply ? ` (${reply.reason})` : ''}`,
           ),
         ),
       }
@@ -1224,11 +1223,11 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
   function admissionsOf(
     written: Written,
     own: MemoryExecution | undefined,
-    receipt: CommandReceipt | null,
+    accepted: DurableEvidence | undefined,
     scratch: Scratch,
   ): ExecutionAdmissionRecord[] {
     if ((written.method !== 'open' && written.method !== 'submit') || own === undefined) return []
-    if (receipt === null) return []
+    if (accepted === undefined) return []
     const check = scratch.checks[0]
     const input =
       check?.kind === 'open'
@@ -1248,8 +1247,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         input,
         execution: own.id,
         operation: written.operation ?? '',
-        accepted: receipt.evidence,
-        grant: check?.kind === 'open' ? check.grant : receipt.evidence,
+        accepted,
+        grant: check?.kind === 'open' ? check.grant : accepted,
         attachment: attachment.authority.executionAttachment,
         ...(original === undefined ? {} : { attempt: original.attempt }),
       },
@@ -1334,13 +1333,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       own === undefined
         ? undefined
         : [...before.agent.executions.values()].find(item => item.id === own.id)
-    const receipt = answeredReceipt(answer)
     const appended = after.agent.log.filter(batch => batch.pub > book.view.head)
     if (appended.length === 0)
       return {
         kind: 'answer',
         value: fail(unavailable(`a ${written.method} changed the Agent records without a batch`)),
       }
+    const heads = headsOf(mintOf(book), after.agent.view, appended)
     const execution = appended[0]!.execution
     const operation = storageOperation(
       execution,
@@ -1382,8 +1381,8 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         facts: prepared.records,
         blobs: blobs.ok,
         items: prepared.items,
-        boundaries: boundariesOf(changed, receipt),
-        admissions: admissionsOf(written, own, receipt, scratch),
+        boundaries: boundariesOf(changed, heads),
+        admissions: admissionsOf(written, own, own && heads.get(own.id), scratch),
       }),
       ...scratch.checks.map(check => sessionCheckFacts(check)),
       ...scratch.commands.map(command => sessionCommandFacts(command, [])),
