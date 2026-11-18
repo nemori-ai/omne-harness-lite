@@ -1,3 +1,4 @@
+import { releasedDeclaration } from '../../../src/entry/permission-declarations.ts'
 import { expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import {
@@ -26,6 +27,7 @@ import type { PermissionBasisReading, PermissionBasisRequest } from '@omne-harne
 import { loadProductionRelease, TOOL_RELEASE_TENANT } from '../../../src/entry/tool-release.ts'
 import {
   createCurrentToolPermission,
+  declaredPermission,
   type ToolPermissionAction,
   type ToolPermissionPorts,
 } from '../../../src/rows/authorization/current-tool-permission.ts'
@@ -151,7 +153,8 @@ function world() {
     },
   }
   const ports: ToolPermissionPorts = {
-    release: () => release,
+    declarations: () =>
+      release.kind === 'trusted' ? release.manifest.entries.map(releasedDeclaration) : [],
     inquiry: async () => inquiry,
     source: () => ({
       readCurrent: async () => {
@@ -294,21 +297,39 @@ it('rejects a substituted declaration even when its identity is unchanged', asyn
   })
 })
 
-it('does not reuse an interpretation for a different adoption or an unavailable release', async () => {
+it('answers unavailable, and reads nothing, when no declaration names the capability', async () => {
   const w = world()
   expect(
     await createCurrentToolPermission(w.ports).check({
       ...w.input,
       definition: { ...w.input.definition, digest: 'other' },
     }),
-  ).toMatchObject({ kind: 'undecidable' })
+  ).toMatchObject({ kind: 'unavailable' })
   expect(
-    await createCurrentToolPermission({
-      ...w.ports,
-      release: () => ({ kind: 'unavailable', diagnostic: 'gone' }),
-    }).check(w.input),
-  ).toMatchObject({ kind: 'undecidable' })
+    await createCurrentToolPermission({ ...w.ports, declarations: () => [] }).check(w.input),
+  ).toMatchObject({ kind: 'unavailable' })
   expect(w.reads()).toBe(0)
+})
+
+it('judges a capability outside the release once its category owner registers its declaration', async () => {
+  const w = world()
+  const released = w.ports.declarations()
+  const own = released.find(entry => entry.asset.adoption.name === w.input.definition.name)
+  if (own === undefined) throw new Error('fixture declaration missing')
+  const capability = { ...w.input.definition, name: 'TestCapability', digest: 'test-capability' }
+  const registered = { ...own, asset: { name: 'TestCapability', adoption: capability } }
+  const outside = { ...w.input, definition: capability }
+  expect(await createCurrentToolPermission(w.ports).check(outside)).toMatchObject({
+    kind: 'unavailable',
+  })
+  const check = createCurrentToolPermission({
+    ...w.ports,
+    declarations: () => [...released, registered],
+  })
+  expect(declaredPermission([...released, registered], outside)?.entry.asset.name).toBe(
+    'TestCapability',
+  )
+  expect(await check.check(outside)).not.toMatchObject({ kind: 'unavailable' })
 })
 
 it('does not expose dependency exception details', async () => {

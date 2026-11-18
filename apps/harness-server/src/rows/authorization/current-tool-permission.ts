@@ -26,7 +26,7 @@ import type {
 } from '@omne-harness/tool-contract'
 import type { SessionInquiryView } from '@omne-harness/session-adapters'
 import { capturedInquirySchema } from '../governance/permission-inquiry.ts'
-import type { ToolRelease } from '../../entry/tool-release.ts'
+import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
 import { interpretPermission } from '../governance/permission-interpreter.ts'
 import { sameAdoption } from '../../entry/tool-release-manifest.ts'
 import {
@@ -90,7 +90,7 @@ export type CurrentPermissionSource = Readonly<{
 export type ToolPermissionContext = ToolPermissionAction &
   Readonly<{ inquiry: SessionInquiryView | null }>
 export type ToolPermissionPorts = Readonly<{
-  release(): ToolRelease
+  declarations(): readonly PermissionDeclaration[]
   source(): CurrentPermissionSource | undefined
   inquiry(input: ToolPermissionAction): Promise<SessionInquiryView | null>
 }>
@@ -98,11 +98,12 @@ export type ToolPermissionPorts = Readonly<{
 const unavailable = (diagnostic: string) => ({ kind: 'unavailable' as const, diagnostic })
 const undecidable = (diagnostic: string) => ({ kind: 'undecidable' as const, diagnostic })
 
-export function releasedToolPermission(release: ToolRelease, input: ToolPermissionAction) {
-  if (release.kind !== 'trusted') return undefined
-  const entries = release.manifest.entries.filter(entry =>
-    sameAdoption(entry.asset.adoption, input.definition),
-  )
+// A gate is found by the capability's identity in the declarations its category owners registered.
+export function declaredPermission(
+  declarations: readonly PermissionDeclaration[],
+  input: Pick<ToolPermissionAction, 'definition'>,
+) {
+  const entries = declarations.filter(entry => sameAdoption(entry.asset.adoption, input.definition))
   if (entries.length !== 1) return undefined
   const entry = entries[0]!
   const bindings = entry.governance.declaration.enforcementBindings.filter(
@@ -252,9 +253,9 @@ export function createCurrentToolPermission(ports: ToolPermissionPorts): ToolPer
           definition: { ...input.definition },
           origin: structuredClone(input.origin),
         }
-        const released = releasedToolPermission(ports.release(), captured)
+        const released = declaredPermission(ports.declarations(), captured)
         if (released === undefined)
-          return undecidable('The released tool has no single trusted permission binding.')
+          return unavailable('No permission declaration names this capability and gate.')
         const { interpretation } = released
         const source = ports.source()
         if (source === undefined)

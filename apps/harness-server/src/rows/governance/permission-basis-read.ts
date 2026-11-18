@@ -139,7 +139,7 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
     const shared = {
       action: context,
       permission: request,
-      release: options.release(),
+      declarations: options.declarations(),
       readSession: (value: PermissionBasisRequest) =>
         readSessionPermissionForCapture(options.storage, options.domain, value),
     }

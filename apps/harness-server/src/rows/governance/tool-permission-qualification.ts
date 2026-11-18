@@ -1,3 +1,4 @@
+import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
 import { capturedInquirySchema } from './permission-inquiry.ts'
 import { canonicalText } from '@omne-harness/authorization'
 import { standingPrincipalRef, type ActingForTenantPrincipal } from '@omne-harness/identity'
@@ -13,7 +14,7 @@ import type {
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import { sameAdoption } from '../../entry/tool-release-manifest.ts'
 import {
-  releasedToolPermission,
+  declaredPermission,
   toolPermissionRequestMatches,
   type ToolPermissionAction,
   type ToolPermissionContext,
@@ -58,7 +59,7 @@ export async function qualifyToolPermission(
   input: Readonly<{
     action: ToolPermissionContext
     permission: PermissionBasisRequest
-    release: ToolRelease
+    declarations: readonly PermissionDeclaration[]
     qualifier: LocalInvocationQualifier<ActingForTenantPrincipal>
     readSession: SessionPermissionCaptureReader
     agent?: ToolAgentPermissionSource | undefined
@@ -78,7 +79,7 @@ export async function qualifyToolPermission(
     }
     const permission = PermissionBasisRequestSchema.parse(input.permission)
     if (!originalCallMatches(action)) return { kind: 'denied' }
-    const available = releasedToolPermission(input.release, action)
+    const available = declaredPermission(input.declarations, action)
     if (available === undefined) return unavailable()
     const released = structuredClone(available)
     if (!toolPermissionRequestMatches(action, permission, released.interpretation))

@@ -1,3 +1,4 @@
+import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
 import { capturedInquirySchema } from './permission-inquiry.ts'
 import type { AgentActionQualification, AgentAdoptions } from '@omne-harness/agent-contract'
 import { canonicalText } from '@omne-harness/authorization'
@@ -10,7 +11,7 @@ import type { PermissionQualification } from './permission-qualification.ts'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import {
   agentPermissionOperation,
-  releasedToolPermission,
+  declaredPermission,
   toolPermissionRequestMatches,
   type ToolPermissionContext,
 } from '../authorization/current-tool-permission.ts'
@@ -25,7 +26,7 @@ export async function qualifyAgentPermission(
   input: Readonly<{
     action: ToolPermissionContext
     permission: PermissionBasisRequest
-    release: ToolRelease
+    declarations: readonly PermissionDeclaration[]
     qualifier: AgentActionQualification<ActingForTenantPrincipal>
     adoptions: Pick<AgentAdoptions<ActingForTenantPrincipal>, 'resolve'>
     readSession: SessionPermissionCaptureReader
@@ -45,7 +46,7 @@ export async function qualifyAgentPermission(
     }
     if (action.origin.kind !== 'agent-action') return { kind: 'denied' }
     const permission = PermissionBasisRequestSchema.parse(input.permission)
-    const available = releasedToolPermission(input.release, action)
+    const available = declaredPermission(input.declarations, action)
     if (available === undefined) return unavailable()
     const released = structuredClone(available)
     const { kind: _kind, carrier, ...position } = action.origin

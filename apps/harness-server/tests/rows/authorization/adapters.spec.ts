@@ -1250,7 +1250,12 @@ describe('the row', () => {
     }
     try {
       const admission = ctx.agentActionAdmission
-      expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'undecidable' } })
+      expect(await admission.admit(input as never)).toMatchObject({
+        ok: {
+          kind: 'unavailable',
+          diagnostic: 'No permission declaration names this capability and gate.',
+        },
+      })
       await row.dispose()
       expect(await admission.admit(input as never)).toMatchObject({ ok: { kind: 'unavailable' } })
     } finally {
@@ -1415,7 +1420,12 @@ describe('the row', () => {
     expect(answers['holder']).toMatchObject({ kind: 'allowed' })
     expect(answers['intruder']).toEqual({ kind: 'denied' })
     expect(answers['agent']).toMatchObject({ kind: 'allowed' })
-    expect(answers['admission']).toMatchObject({ ok: { kind: 'undecidable' } })
+    expect(answers['admission']).toMatchObject({
+      ok: {
+        kind: 'unavailable',
+        diagnostic: 'No permission declaration names this capability and gate.',
+      },
+    })
     expect(answers['broken']).toMatchObject({ kind: 'unavailable' })
     expect(JSON.stringify([answers, run.records, run.stderr])).not.toContain('SECRET-TEXT')
   })

@@ -1,3 +1,4 @@
+import { releasedDeclaration } from '../../../src/entry/permission-declarations.ts'
 // @module-tag slow
 import { randomUUID } from 'node:crypto'
 import { afterEach, expect, it } from 'vitest'
@@ -120,7 +121,8 @@ it('reads the basis of a real Agent action and guards a later commit with it', a
   await withLiveTree(config, async ({ agent }) => {
     const read = createPermissionBasisRead({
       scope: w.scope,
-      release: () => w.release,
+      declarations: () =>
+        w.release.kind === 'trusted' ? w.release.manifest.entries.map(releasedDeclaration) : [],
       storage: {
         ...w.storage,
         commit: (...args) => {

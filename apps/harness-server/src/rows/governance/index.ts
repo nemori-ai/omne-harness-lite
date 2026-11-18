@@ -1,3 +1,4 @@
+import { permissionDeclarationsOf } from '../../entry/permission-declarations.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import { standingPrincipalRef } from '@omne-harness/identity'
@@ -171,6 +172,7 @@ export const governanceRow = defineRow({
           release,
           categories,
           permissionOrigins: () => permissionOriginsOf(ctx),
+          permissionDeclarations: () => permissionDeclarationsOf(ctx),
           organizationTargets: sources.targets,
           scope,
           domain,

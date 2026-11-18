@@ -21,7 +21,7 @@ const ON_ASK = {
 } as const
 
 const evidence = decisionEvidence('normalized-test', '1', {})
-const allowing: AdmissionCheck = { check: async () => ({ kind: 'allowed', evidence }) }
+const allowing = { check: async () => ({ kind: 'allowed', evidence }) } as unknown as AdmissionCheck
 const rules = {
   revision: 'r1',
   rules: [

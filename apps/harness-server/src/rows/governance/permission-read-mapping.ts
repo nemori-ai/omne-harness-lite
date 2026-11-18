@@ -1,3 +1,7 @@
+import {
+  declarationTarget,
+  type PermissionDeclaration,
+} from '../../entry/permission-declarations.ts'
 import { canonicalText, effectiveArgumentsOf } from '@omne-harness/authorization'
 import { organizationCodec, tenantCodec } from '@omne-harness/legal-identity'
 import {
@@ -7,7 +11,7 @@ import {
 import type { GovernanceScope } from '@omne-harness/governance-contract'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import {
-  releasedToolPermission,
+  declaredPermission,
   type ToolPermissionAction,
 } from '../authorization/current-tool-permission.ts'
 import { toolAssetTarget } from './tool-installation-assets.ts'
@@ -25,7 +29,7 @@ export type PermissionReadMapping = Readonly<{
 }>
 export type PermissionReadMappingOptions = Readonly<{
   scope: GovernanceScope
-  release(): ToolRelease
+  declarations(): readonly PermissionDeclaration[]
 }>
 
 export function createPermissionReadMapping(options: PermissionReadMappingOptions) {
@@ -37,12 +41,12 @@ export function createPermissionReadMapping(options: PermissionReadMappingOption
       const organization = organizationCodec.encode(input.tenant.organization)
       if (who === undefined || !tenant.ok || !organization.ok || tenant.value !== scope.tenantRef)
         return undefined
-      const available = releasedToolPermission(options.release(), input)
+      const available = declaredPermission(options.declarations(), input)
       if (available === undefined) return undefined
       const released = structuredClone(available)
       const operation = { ...input.operation }
       const argumentsDigest = effectiveArgumentsOf(input.effectiveArguments).digest
-      const target = toolAssetTarget(released.entry, tenant.value)
+      const target = declarationTarget(released.entry, tenant.value)
       let source: PermissionReadMapping['source'] = null
       if (released.interpretation.definition.settings !== null) {
         const settings = mappedDefinition({
