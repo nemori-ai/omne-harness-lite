@@ -148,7 +148,8 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
   {
     family: 'input',
     holder: list(at('inputs'), item => item.input, byPub),
-    open: always,
+    open: (item: ExecutionView['inputs'][number], view: ExecutionView) =>
+      inputOpen(item.input, view),
   },
   {
     family: 'step',
@@ -279,6 +280,7 @@ const EXEC_MEMBERS = [
   'acknowledgedAt',
   'emitted',
   'entries',
+  'accepted',
   'admitted',
 ] as const
 
@@ -301,6 +303,7 @@ export function execBody(view: ExecutionView): ExecBody {
     acknowledgedAt: view.acknowledgedAt,
     emitted: view.emitted,
     entries: view.entries,
+    accepted: view.accepted,
     admitted: view.admitted,
     finish: { current: finish.current, ended: finish.ended },
   }

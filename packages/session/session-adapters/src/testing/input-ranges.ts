@@ -63,6 +63,7 @@ export function createInputRanges(
       const from = Number(match[1])
       const to = Number(match[2])
       if (to < from || to > execution.inputs.length) return undefined
+      if (execution.inputs.slice(from, to).includes(undefined as never)) return undefined
       if (from !== 0 && ![...memo(execution).batches.values()].some(range => range.to === from))
         return undefined
       const range = { from, to }

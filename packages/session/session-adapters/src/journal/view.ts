@@ -62,6 +62,7 @@ export type AttachmentView = Readonly<{
 
 export type InputView = Readonly<{
   input: InputId
+  place: number
   entry: AgentOperationId
   message: Ref
   source: DurableEvidence | null
@@ -329,6 +330,7 @@ export type ExecutionView = Readonly<{
   acknowledgedAt: number
   emitted: number
   entries: number
+  accepted: number
   /** The reply admission ledger the admissions fold into: the open ones are only its tail. */
   admitted: AdmittedView
   fences: readonly Readonly<{
@@ -395,6 +397,7 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     acknowledged: 0,
     acknowledgedAt: 0,
     emitted: 0,
+    accepted: 0,
     entries: 0,
     admitted: { consecutive: 0, total: 0, last: null, sequence: 0, basis: null },
     fences: [],

@@ -1,6 +1,7 @@
 import { canonical } from './canonical.ts'
 import {
   acceptanceIn,
+  type AcceptedInput,
   type AgentJournal,
   type AgentOperationId,
   type DurableEvidence,
@@ -16,7 +17,7 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { revisionOf } from './journal-values.ts'
 import { candidateOf, routeOf } from './journal-finishing.ts'
 import type { HandoffRecord, MemoryExecution } from './journal.ts'
-import { closedHandoffRecord } from './journal-records.ts'
+import { closedHandoffRecord, closedInput, inputRecord } from './journal-records.ts'
 import type { ExecutionView } from '../journal/index.ts'
 type Execution = MemoryExecution
 
@@ -253,6 +254,25 @@ export function heldHandoff(
   return handoffRecord(execution, reference) ?? closedHandoffRecord(table, execution, reference)
 }
 
+// An accepted input by its id: the one the record holds, else the closed item. A write that
+// recognizes the input must know it, so it reads the closed item back; another one peeks.
+export function acceptedInput(
+  table: Parameters<typeof closedHandoffRecord>[0],
+  execution: Execution,
+  input: InputId,
+  lineage: 'new-input' | 'recognize-input',
+): Readonly<{ value: AcceptedInput; revision: number }> | undefined {
+  const held = execution.inputs.find(item => (item as AcceptedInput | undefined)?.id === input)
+  if (held === undefined) {
+    const closed = closedInput(table, execution.id, input, lineage === 'recognize-input')
+    return closed && { value: inputRecord(closed, table.blobs), revision: closed.revision }
+  }
+  const revision = execution.inputRevisions.get(input)
+  if (revision === undefined)
+    throw new Error('session Journal defect: an accepted input has no revision')
+  return { value: held, revision }
+}
+
 // The acceptance of one input by its identity: the handoff of its entry, open or closed.
 export function inputAcceptanceOf(
   table: Parameters<typeof closedHandoffRecord>[0],
@@ -260,7 +280,8 @@ export function inputAcceptanceOf(
   view: Pick<ExecutionView, 'inputs'>,
   input: InputId,
 ): OriginalInputAcceptance | null {
-  const entry = view.inputs.find(item => item.input === input)?.entry
+  const held = view.inputs.find(item => item.input === input)
+  const entry = (held ?? closedInput(table, execution.id, input, true))?.entry
   if (entry === undefined) return null
   const record = heldHandoff(table, execution, {
     kind: 'input',

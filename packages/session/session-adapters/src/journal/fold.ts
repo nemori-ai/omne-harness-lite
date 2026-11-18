@@ -163,20 +163,22 @@ function foldInputAccepted(
   pub: number,
   revision: number,
 ): void {
-  if (!draft.inputs.some(item => item.input === fact.input))
-    draft.inputs = [
-      ...draft.inputs,
-      {
-        input: fact.input,
-        entry: fact.entry,
-        message: fact.message,
-        source: fact.source,
-        priority: fact.priority,
-        watermark: fact.watermark,
-        pub,
-        revision,
-      },
-    ]
+  if (draft.inputs.some(item => item.input === fact.input)) return
+  draft.accepted += 1
+  draft.inputs = [
+    ...draft.inputs,
+    {
+      input: fact.input,
+      place: draft.accepted - 1,
+      entry: fact.entry,
+      message: fact.message,
+      source: fact.source,
+      priority: fact.priority,
+      watermark: fact.watermark,
+      pub,
+      revision,
+    },
+  ]
 }
 
 function foldRequestAdopted(draft: Draft, fact: FactOf<'request.adopted'>, pub: number): void {

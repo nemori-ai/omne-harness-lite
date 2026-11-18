@@ -13,6 +13,7 @@ import type {
   HandoffOutcome,
   HandoffReference,
   HandoffResolution,
+  InputId,
   PendingCall,
   ReceivedEntry,
   ResultResponsibility,
@@ -20,7 +21,7 @@ import type {
 } from '@omne-harness/agent-contract'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { canonical } from './canonical.ts'
-import { needClosed, type ClosedTable } from './closed-items.ts'
+import { needClosed, peekClosed, type ClosedTable } from './closed-items.ts'
 import {
   checkpointOf,
   handoffKey,
@@ -33,6 +34,7 @@ import {
   type ExecutionView,
   type Mint,
   type HandoffView,
+  type InputView,
   type Stamp,
   type ResultView,
   type SessionJournalView,
@@ -211,6 +213,30 @@ function historyOf(item: HandoffView, ended: DurableEvidence | null): HandoffRec
 // processed a result without that record is a fact of the step, not a responsibility.
 const responsible = (item: ResultView): boolean => item.stages.recorded !== undefined
 
+export const inputRecord = (item: InputView, blobs: BlobStore): AcceptedInput => ({
+  id: item.input,
+  content: blob(blobs, item.message),
+  source: item.source,
+  priority: item.priority,
+})
+
+export function closedInput(
+  table: ClosedTable,
+  execution: AgentExecutionId,
+  input: InputId,
+  need: boolean,
+): InputView | undefined {
+  const ref = { execution, family: 'input', item: input }
+  return ((need ? needClosed(table, ref) : peekClosed(table, ref)) as InputView | null) ?? undefined
+}
+
+function inputRecords(view: ExecutionView, blobs: BlobStore): AcceptedInput[] {
+  const records = Array.from<AcceptedInput>({ length: 0 })
+  records.length = view.accepted
+  for (const item of view.inputs) records[item.place] = inputRecord(item, blobs)
+  return records
+}
+
 export function attachmentsOf(
   view: Pick<ExecutionView, 'attachments'>,
 ): MemoryExecution['attachments'] {
@@ -344,12 +370,7 @@ export function projectExecution(
     revision: view.revision,
     state: stateOf(view, context.blobs) as MemoryExecution['state'],
     attachments: attachmentsOf(view),
-    inputs: view.inputs.map((item): AcceptedInput => ({
-      id: item.input,
-      content: blob(context.blobs, item.message),
-      source: item.source,
-      priority: item.priority,
-    })),
+    inputs: inputRecords(view, context.blobs),
     inputRevisions: new Map(view.inputs.map(item => [item.input, item.revision])),
     retainedFrom: 1,
     acknowledged: view.acknowledged,

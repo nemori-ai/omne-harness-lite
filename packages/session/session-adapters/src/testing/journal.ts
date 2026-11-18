@@ -198,6 +198,7 @@ import {
   custodyTargetFailure,
   handoffRecord,
   heldHandoff,
+  acceptedInput,
   inputAcceptanceOf,
   invalid,
   preparedHandoff,
@@ -3066,7 +3067,8 @@ export function createJournal<P>(
           return answer(fail(invalid('lineage', 'a recognizing operation is not the original one')))
         }
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
-        const known = execution.inputs.find(accepted => accepted.id === input.value.id)
+        const accepted = acceptedInput(state(), execution, input.value.id, lineage.kind)
+        const known = accepted?.value
         if (lineage.kind === 'recognize-input') {
           const entry = lineage.original.entry
           const record = operationAnswer(state(), { ...input, operation: entry.operation }, true)
@@ -3089,9 +3091,7 @@ export function createJournal<P>(
             !sameValue(stored.resolution.outcome.origin, lineage.original.outcome.origin)
           )
             return answer(fail(invalid('lineage', 'the original lineage is not the one on record')))
-          const at = execution.inputRevisions.get(known.id)
-          if (at === undefined)
-            throw new Error('session Journal defect: an accepted input has no revision')
+          const at = accepted!.revision
           const reached = reachedStamp(state(), execution.id, at)
           return recognitionBatch(
             reached?.op === entry.operation ? reached : undefined,

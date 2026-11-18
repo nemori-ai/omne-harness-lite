@@ -156,7 +156,7 @@ function copyExecution(value: MemoryExecution): MemoryExecution {
   return {
     ...value,
     attachments: value.attachments.map(item => ({ ...item })),
-    inputs: [...value.inputs],
+    inputs: value.inputs.slice(),
     inputRevisions: new Map(value.inputRevisions),
     resultRevisions: new Map(value.resultRevisions),
     // slice keeps the holes of the closed places: a spread would fill them.

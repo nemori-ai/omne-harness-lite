@@ -479,7 +479,7 @@ function jointState<P>(
   const root = cell.state()
   const execution = [...root.agent.executions.values()].find(item => item.id === input.execution)
   return {
-    accepted: execution?.inputs,
+    accepted: execution?.inputs.filter(() => true),
     snapshot: book.scratch?.snapshot,
     resultOf(caller) {
       if (execution === undefined) return fail({ kind: 'denied', action: method })

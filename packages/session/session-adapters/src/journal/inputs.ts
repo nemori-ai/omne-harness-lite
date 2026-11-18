@@ -9,12 +9,15 @@ export type Range = Readonly<{ from: number; to: number }>
 export type Batch = Readonly<{ id: InputBatchId; ordered: readonly InputId[] }>
 
 export function takenRange(
-  execution: Readonly<{ id: AgentExecutionId; inputs: readonly Readonly<{ id: InputId }>[] }>,
+  execution: Readonly<{
+    id: AgentExecutionId
+    inputs: readonly (Readonly<{ id: InputId }> | undefined)[]
+  }>,
   batch: Batch,
 ): Range | undefined {
   const [first] = batch.ordered
   if (first !== undefined) {
-    const from = execution.inputs.findIndex(input => input.id === first)
+    const from = execution.inputs.findIndex(input => input?.id === first)
     return from < 0 ? undefined : { from, to: from + batch.ordered.length }
   }
   const named = /\/batch\/(0|[1-9][0-9]*)-(0|[1-9][0-9]*)$/u.exec(String(batch.id))
@@ -28,12 +31,23 @@ export function takenRange(
     : undefined
 }
 
+// The place the batch starts at: of its first input, or the one its id names when it is empty.
+function takenFrom(view: ExecutionView, batch: Batch): number | undefined {
+  const [first] = batch.ordered
+  if (first !== undefined) return view.inputs.find(item => item.input === first)?.place
+  const named = /\/batch\/(0|[1-9][0-9]*)-(0|[1-9][0-9]*)$/u.exec(String(batch.id))
+  if (named === null) return undefined
+  const from = Number(named[1])
+  const to = Number(named[2])
+  return from === to && to <= view.accepted && batchIdOf(view.execution, from, to) === batch.id
+    ? from
+    : undefined
+}
+
 export function inputOpen(input: InputId, view: ExecutionView): boolean {
-  const index = view.inputs.findIndex(item => item.input === input)
+  const place = view.inputs.find(item => item.input === input)?.place
   const taken = view.cursor.inputBatch
-  if (index < 0 || taken === null || taken === undefined) return true
+  if (place === undefined || taken === null || taken === undefined) return true
   const step = view.steps.find(item => item.batch.id === taken)
-  if (step === undefined) return true
-  const inputs = view.inputs.map(item => ({ id: item.input }))
-  return index >= (takenRange({ id: view.execution, inputs }, step.batch)?.from ?? 0)
+  return step === undefined || place >= (takenFrom(view, step.batch) ?? 0)
 }
