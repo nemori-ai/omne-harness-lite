@@ -558,3 +558,16 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 ### C-85：请求候选与限额未知
 
 `UL-request-candidate` 的「候选装得下才成立」与 [UL-fit-verdict](terms/record-and-context.md#ul-fit-verdict--装入裁定--fit-verdict) 的「限额未知不是失败，候选照常成立」不一致。限额未知不保证装得下；候选成立与已知装入保证须区分。相关正文归[请求计算](../product/runtime-context/design.md#61-request-context-的派生计算)，词条措辞由该拥有者复核；本条不把未知改成通过。
+
+### C-86：作业通知策略与通知订阅
+
+[UL-job-notification-policy](terms/execution-and-outcome.md#ul-job-notification-policy--作业通知策略--job-notification-policy) 说工作意图自己声明哪些执行事件要通知。[通知产品正文](../product/notifications/design.md#j-no03)（rev 3）说来源只交事件，要不要提醒归收件人的[通知订阅](terms/interaction-and-dispatch.md#ul-notification-subscription--通知订阅--notification-subscription)。两处定义打架。产品负责人 2026-11-18 认可了后一种。日程与作业的正文还没有改写，见通知正文的 Q-NO05。处置归日程与作业 topic 的维护者：改写 J-SJ08、J-SJ14 之后，这个词条退出，本项闭合。
+
+### C-87：连接件的投递方式与投递去处
+
+[UL-connector](terms/capabilities-and-composition.md#ul-connector--连接件--connector) 的条件性定义说外部事件有两种投递方式：已有的会话开口接收（配置是投递目标），或事件开一个新会话。通知产品正文说外面的事经[通知来源](terms/interaction-and-dispatch.md#ul-notification-source--通知来源--notification-source)进来，给谁由通知订阅定，推到哪由[投递去处](terms/interaction-and-dispatch.md#ul-delivery-destination--投递去处--delivery-destination)定。连接件的产品状态是搁置，两处现在不同时生效。连接件恢复时由产品负责人裁：它的两种投递方式是不是改用通知订阅与投递去处来表达。
+
+### C-88：「通知」与「收件箱」在别处的用法
+
+同名不同义，两处都是本系统自己的设计。会话的包组规格用「通知」「通知者」指提交之后的唤醒；人工介入的包组规格用「原等待的收件箱」指决定交到原等待的交接位置。它们不是[通知](terms/interaction-and-dispatch.md#ul-notification--通知--notification)与[收件箱](terms/interaction-and-dispatch.md#ul-notification-inbox--收件箱--notification-inbox)。处置：这两个词裸用时指通知领域的对象；会话与人工介入的规格各自改用「叫醒」与别的名字，由它们的维护者在下一次修订时改，改完本项闭合。改名会牵到源码里的名字，不在通知的落盘里做。
+

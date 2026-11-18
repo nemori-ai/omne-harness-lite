@@ -417,6 +417,21 @@
 | [UL-asset-page](terms/interaction-and-dispatch.md#ul-asset-page--资产页--asset-page) | 资产页 | Asset Page | 桌面应用里人管理本租户各类资产的那一部分；按类别分页签；资产自己的设置在这里改 |
 | [UL-asset-category-page](terms/interaction-and-dispatch.md#ul-asset-category-page--资产类别页面--asset-category-page) | 资产类别页面 | Asset Category Page | 一类资产在资产页里自己的那一页；由这一类的界面模块带来，没带来时用通用的页面；**不存事实** |
 | [UL-asset-governance-port](terms/interaction-and-dispatch.md#ul-asset-governance-port--资产治理口--asset-governance-port) | 资产治理口 | Asset Governance Port | 资产的界面模块交给一类资产的界面模块的口：这一类的资产、设置项与改它们的操作；**规则不由它判** |
+| [UL-notification](terms/interaction-and-dispatch.md#ul-notification--通知--notification) | 通知 | Notification | 一个收件人的收件箱里的一条 |
+| [UL-notification-source](terms/interaction-and-dispatch.md#ul-notification-source--通知来源--notification-source) | 通知来源 | Notification Source | 一个会产生通知事件的东西，在通知这里登记过 |
+| [UL-notification-event-type](terms/interaction-and-dispatch.md#ul-notification-event-type--通知事件类型--notification-event-type) | 通知事件类型 | Notification Event Type | 一个通知来源声明的一类事 |
+| [UL-notification-event](terms/interaction-and-dispatch.md#ul-notification-event--通知事件--notification-event) | 通知事件 | Notification Event | 一个通知来源交来的一次性事件的一次发生 |
+| [UL-standing-item](terms/interaction-and-dispatch.md#ul-standing-item--持续事项--standing-item) | 持续事项 | Standing Item | 一个通知来源那边一件还没了结、要收件人处理的事，例如一张等人决定的卡、一条被挡住的安排 |
+| [UL-notification-recipient](terms/interaction-and-dispatch.md#ul-notification-recipient--通知收件人--notification-recipient) | 通知收件人 | Notification Recipient | 通知交给的一方 |
+| [UL-notification-inbox](terms/interaction-and-dispatch.md#ul-notification-inbox--收件箱--notification-inbox) | 收件箱 | Notification Inbox | 一个通知收件人的全部通知 |
+| [UL-notification-subscription](terms/interaction-and-dispatch.md#ul-notification-subscription--通知订阅--notification-subscription) | 通知订阅 | Notification Subscription | 一个通知收件人对一类通知事件、在一个范围里的选择：不收、弱或强 |
+| [UL-notification-level](terms/interaction-and-dispatch.md#ul-notification-level--通知强度--notification-level) | 通知强度 | Notification Level | 通知订阅的取值，也是一条通知上定下的值 |
+| [UL-delivery-destination](terms/interaction-and-dispatch.md#ul-delivery-destination--投递去处--delivery-destination) | 投递去处 | Delivery Destination | 一个通知收件人的一个接收点：一个投递渠道、这个渠道认得的地址、它最低收哪种强度、启用与否 |
+| [UL-delivery-channel](terms/interaction-and-dispatch.md#ul-delivery-channel--投递渠道--delivery-channel) | 投递渠道 | Delivery Channel | 一种把通知推给收件人的办法，在通知这里登记过 |
+| [UL-delivery-unit](terms/interaction-and-dispatch.md#ul-delivery-unit--投递单元--delivery-unit) | 投递单元 | Delivery Unit | 一次投递的单位：为一个投递去处定下的一组通知 |
+| [UL-notification-delivered](terms/interaction-and-dispatch.md#ul-notification-delivered--通知送达--notification-delivered) | 通知送达 | Notification Delivered | 一条通知在收件人的收件箱里，收件人随时取得回 |
+| [UL-replace-key](terms/interaction-and-dispatch.md#ul-replace-key--替换键--replace-key) | 替换键 | Replace Key | 发送通知事件时可带的一个键 |
+| [UL-notification-beat](terms/interaction-and-dispatch.md#ul-notification-beat--通知节拍--notification-beat) | 通知节拍 | Notification Beat | 一个通知收件人的定时点 |
 
 ## [记录与上下文](terms/record-and-context.md)
 
