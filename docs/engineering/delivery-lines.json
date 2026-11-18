@@ -58,6 +58,7 @@
         "packages/assets/assets-cordis-contract",
         "packages/human-intervention/human-intervention-protocol",
         "packages/calendar/calendar-protocol",
+        "packages/notification/notification-protocol",
         "packages/schedule/schedule-protocol"
       ]
     },

@@ -1,0 +1,77 @@
+import {
+  sameSend,
+  selectRecipients,
+  supersede,
+  UNMARKED,
+  type EventTypeFacts,
+  type Instant,
+  type RecipientRef,
+  type Selected,
+  type SendRequest,
+} from '@omne-harness/notification-contract'
+import type { NotificationTxn } from '../txn.ts'
+import { ensureRecipient, type RecipientDefaults } from './destinations.ts'
+
+export type AcceptCommand = Readonly<{
+  request: SendRequest
+  type: EventTypeFacts
+  defaults: RecipientDefaults
+  now: Instant
+}>
+
+export type AcceptResult =
+  | Readonly<{ kind: 'accepted'; recipients: readonly RecipientRef[] }>
+  | Readonly<{ kind: 'recalled'; recipients: readonly RecipientRef[] }>
+  | Readonly<{ kind: 'conflict' }>
+
+/** Puts one recipient's notification in its inbox and applies what the event replaces. */
+function box(txn: NotificationTxn, command: AcceptCommand, entry: Selected): void {
+  const { identity, event } = command.request
+  const replaced =
+    event.replaceKey === null
+      ? []
+      : supersede(identity, event, txn.sameKey(entry.recipient, identity.source, event.replaceKey))
+  for (const old of replaced) {
+    const marks = txn.notification(entry.recipient, old)!.marks
+    txn.setMarks(entry.recipient, old, { ...marks, supersededBy: identity })
+  }
+  txn.insertNotification({
+    identity,
+    recipient: entry.recipient,
+    sequence: txn.nextSequence(),
+    level: entry.level,
+    cause: entry.cause,
+    acceptedAt: command.now,
+    marks: UNMARKED,
+    replaceKey: event.replaceKey,
+    quiet: replaced.length > 0 && !event.renotify,
+  })
+}
+
+/** One transaction: the send, a notification per recipient, the superseded marks, the expiry of `once` subscriptions. */
+export function acceptSend(txn: NotificationTxn, command: AcceptCommand): AcceptResult {
+  const { identity, event } = command.request
+  const known = txn.send(identity.source, identity.eventId)
+  if (known !== null)
+    return sameSend(known.event, event)
+      ? { kind: 'recalled', recipients: known.recipients }
+      : { kind: 'conflict' }
+  for (const named of event.named) ensureRecipient(txn, named, command.defaults)
+  const subscriptions = txn.subscriptionsFor(identity.source, event.type)
+  const selected = selectRecipients(
+    event,
+    command.type,
+    txn.recipients(),
+    subscriptions,
+    command.now,
+  )
+  for (const entry of selected) {
+    ensureRecipient(txn, entry.recipient, command.defaults)
+    box(txn, command, entry)
+    if (entry.hit?.term.kind === 'once') txn.expireSubscription(entry.hit)
+  }
+  const recipients = selected.map(entry => entry.recipient)
+  const { external } = command.type
+  txn.insertSend({ identity, event, external, acceptedAt: command.now, recipients })
+  return { kind: 'accepted', recipients }
+}
