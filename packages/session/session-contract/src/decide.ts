@@ -186,11 +186,9 @@ function decideCreate(
   if (creation.initial !== null) {
     if (creation.initial.input.length === 0 || creation.initial.message.blocks.length === 0)
       return invalid('creation.initial', 'the initial input has no identity or no content')
-    const source = admittedSourceOf(creation.initial, reads, 'creation.initial')
-    if ('kind' in source) return source
-    const limited = judgeAdmitted(0, creation.initial, source, limits)
-    if (limited !== null) return rejected(limited)
-    out.push(...acceptedOrdinary(creation.initial, 'next-run', null, source))
+    const admitted = admitInput(creation.initial, 0, { reads, limits }, 'creation.initial')
+    if ('kind' in admitted) return admitted
+    out.push(...acceptedOrdinary(creation.initial, 'next-run', null, admitted.source))
   }
   return entries(out)
 }
@@ -219,13 +217,22 @@ function admittedSourceOf(
   return source
 }
 
-function judgeAdmitted(
-  pending: number,
+type Admitted = Readonly<{ source: AdmittedSource }>
+type Intake = Readonly<{ reads: DecideReads; limits: SessionIntakeLimits }>
+
+// One input is admitted on its terms and within the capacity its source counts toward.
+function admitInput(
   input: Ordinary,
-  source: AdmittedSource,
-  limits: SessionIntakeLimits,
-): ReturnType<typeof judgeSessionIntake> {
-  return source.countsTowardCapacity ? judgeSessionIntake(pending, input, limits) : null
+  pending: number,
+  intake: Intake,
+  field: string,
+): Admitted | Decision {
+  const source = admittedSourceOf(input, intake.reads, field)
+  if ('kind' in source) return source
+  const limited = source.countsTowardCapacity
+    ? judgeSessionIntake(pending, input, intake.limits)
+    : null
+  return limited === null ? { source } : rejected(limited)
 }
 
 function acceptedOrdinary(
@@ -300,12 +307,10 @@ function decideAccept(
       if (value.kind !== 'ordinary') return invalid('value', 'not an ordinary input')
       if (snapshot.pending.includes(value.input))
         return invalid('value.input', 'an input of that identity was already accepted')
-      const source = admittedSourceOf(value, reads, 'value')
-      if ('kind' in source) return source
-      const limited = judgeAdmitted(pendingIntakeCount(snapshot), value, source, limits)
-      if (limited !== null) return rejected(limited)
+      const admitted = admitInput(value, pendingIntakeCount(snapshot), { reads, limits }, 'value')
+      if ('kind' in admitted) return admitted
       const run = snapshot.run.kind === 'active' ? snapshot.run.run : null
-      return entries(acceptedOrdinary(value, route.destination, run, source))
+      return entries(acceptedOrdinary(value, route.destination, run, admitted.source))
     }
   }
 }
@@ -837,11 +842,10 @@ function decideInterrupt(
     previous.pending.includes(command.input.urgent.input)
   )
     return invalid('urgent', 'empty or duplicate input')
-  const source = admittedSourceOf(command.input.urgent, reads, 'urgent')
-  if ('kind' in source) return source
   const pending = pendingIntakeCount(previous)
-  const limited = judgeAdmitted(pending, command.input.urgent, source, limits)
-  if (limited !== null) return rejected(limited)
+  const admitted = admitInput(command.input.urgent, pending, { reads, limits }, 'urgent')
+  if ('kind' in admitted) return admitted
+  const { source } = admitted
   const { urgent, decision, operation } = command.input
   const run = command.input.run ?? (previous.run.kind === 'active' ? previous.run.run : null)
   if (run === null) {
@@ -885,10 +889,8 @@ function decideCommand(
   command: SessionCommand,
   guards: readonly GuardCommand[],
   record: OperationRecord | null,
-  given: DecideReads,
+  reads: DecideReads,
 ): Decision {
-  const terms = intakeTermsOf(guards)
-  const reads: DecideReads = terms === null ? given : { ...given, intake: terms }
   if (
     previous !== null &&
     (previous.session !== command.input.session ||
@@ -951,6 +953,12 @@ function decideCommand(
   }
 }
 
+// The writer's terms ride with the guards of the commit; every decider reads them as `reads.intake`.
+function readsWithTerms(reads: DecideReads, guards: readonly GuardCommand[]): DecideReads {
+  const terms = intakeTermsOf(guards)
+  return terms === null ? reads : { ...reads, intake: terms }
+}
+
 export function decide(
   previous: WorkSnapshot | null,
   command: SessionCommand,
@@ -960,7 +968,7 @@ export function decide(
 ): Decision {
   try {
     const decision = closeControlFailure(
-      decideCommand(previous, command, guards, record, reads),
+      decideCommand(previous, command, guards, record, readsWithTerms(reads, guards)),
       command,
     )
     if (decision.kind === 'entries' && previous !== null && decision.entries.length > 0) {

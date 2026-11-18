@@ -157,7 +157,10 @@ export const sqlBackend: BackendFactory = {
     return {
       name: 'real sqlite-provider pair',
       transactions,
-      delegated,
+      // The suite answers without a subject kind; this fixture admits its inputs as a member.
+      delegated: {
+        bind: checked => delegated.bind({ subject: { kind: 'member' }, ...checked }),
+      },
       initializationGuards: command => Promise.resolve([fixtureInitializationGuard(command)]),
       register: notifier => registerSessionNotifier(created.storage, notifier),
       dispose: async () => {

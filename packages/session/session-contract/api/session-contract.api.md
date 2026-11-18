@@ -7,6 +7,7 @@
 ## 入口 `.` · `index.d.ts`
 
 - `AdmittedMessage` · `faces.d.ts`
+- `AdmittedSource` · `input-sources.d.ts`
 - `Adoption` · 包 `@omne-harness/exchange-refs`
 - `AdoptionEvidenceCommand` · `ports.d.ts`
 - `AdvanceClaim` · `judgments.d.ts`
@@ -18,7 +19,6 @@
 - `ArchivedBy` · `faces.d.ts`
 - `AttemptId` · `identity.d.ts`
 - `AutoArchivePolicy` · `values.d.ts`
-- `BACKGROUND_INPUT_OWNER` · `background-outcome.d.ts`
 - `BackgroundCallLabel` · `background-calls.d.ts`
 - `BackgroundCallRecord` · `background-calls.d.ts`
 - `BackgroundCallResolution` · `background-calls.d.ts`
@@ -59,6 +59,8 @@
 - `Decision` · `judgments.d.ts`
 - `DeclarationChange` · `values.d.ts`
 - `DeliveredInputs` · `faces.d.ts`
+- `DerivedAdmission` · `input-sources.d.ts`
+- `DerivedInputKind` · `input-sources.d.ts`
 - `DerivedMessage` · `values.d.ts`
 - `DirectCallControl` · `call-control.d.ts`
 - `DriveFailure` · `ports.d.ts`
@@ -80,6 +82,7 @@
 - `HistoryPage` · `faces.d.ts`
 - `INGRESS_FAMILIES` · `operations.d.ts`
 - `INITIALIZATION_PROTOCOL` · `initialization-schema.d.ts`
+- `INTAKE_GUARD_OWNER` · `input-sources.d.ts`
 - `IdleCoverage` · `values.d.ts`
 - `IdleJudgment` · `judgments.d.ts`
 - `IdleObservation` · `values.d.ts`
@@ -102,6 +105,14 @@
 - `InputAdmissionPage` · `history-values.d.ts`
 - `InputBatch` · `values.d.ts`
 - `InputId` · `identity.d.ts`
+- `InputSourceDeclaration` · `input-sources.d.ts`
+- `InputSourceLookup` · `input-sources.d.ts`
+- `InputSourceName` · `input-sources.d.ts`
+- `InputSourceRegistry` · `input-sources.d.ts`
+- `InputSources` · `input-sources.d.ts`
+- `IntakeBasis` · `input-sources.d.ts`
+- `IntakeSubject` · `input-sources.d.ts`
+- `IntakeTerms` · `input-sources.d.ts`
 - `ModelViewBasis` · `faces.d.ts`
 - `ModelViewRead` · `faces.d.ts`
 - `ModelViewRow` · `faces.d.ts`
@@ -179,6 +190,7 @@
 - `SessionCreation` · `values.d.ts`
 - `SessionCustodySource` · `ports.d.ts`
 - `SessionDelegatedTransactions` · `access.d.ts`
+- `SessionDerivedInputs` · `input-sources.d.ts`
 - `SessionDirectory` · `faces.d.ts`
 - `SessionEntriesBoundary` · `interpretation-values.d.ts`
 - `SessionEntriesChannel` · `interpretation-values.d.ts`
@@ -239,6 +251,9 @@
 - `SessionWork` · `faces.d.ts`
 - `SessionWorkEntryIndex` · `work-entry-values.d.ts`
 - `SessionWorkPrincipals` · `ports.d.ts`
+- `SourceAdmission` · `input-sources.d.ts`
+- `SourceRefusal` · `input-sources.d.ts`
+- `SourceTerms` · `input-sources.d.ts`
 - `StartAdoption` · `faces.d.ts`
 - `StartedRun` · `faces.d.ts`
 - `StopInitiator` · `background-calls.d.ts`
@@ -252,18 +267,22 @@
 - `Waiting` · `values.d.ts`
 - `WorkSnapshot` · `values.d.ts`
 - `WorkspaceAttachment` · `values.d.ts`
+- `admitDerived` · `input-sources.d.ts`
+- `admitSource` · `input-sources.d.ts`
 - `archiveCollapse` · `call-control.d.ts`
 - `backgroundCallView` · `background-calls.d.ts`
 - `backgroundCalls` · `call-control.d.ts`
 - `backgroundInputId` · `background-outcome.d.ts`
 - `batchEvidence` · `batch-evidence.d.ts`
 - `commandDigest` · `decide.d.ts`
+- `commandInput` · `input-sources.d.ts`
 - `compactionCallChangeOf` · `work-entry-state.d.ts`
 - `compactionContextForView` · `model-view.d.ts`
 - `contextScopeOf` · `context-scopes.d.ts`
 - `contextScopesOf` · `context-scopes.d.ts`
 - `controlAnswer` · `call-control.d.ts`
 - `controlRoutes` · `call-control.d.ts`
+- `createInputSourceRegistry` · `input-sources.d.ts`
 - `decide` · `decide.d.ts`
 - `decideCompactionCommit` · `compaction-commit.d.ts`
 - `decideControlConsequences` · `control-normalization.d.ts`
@@ -277,7 +296,9 @@
 - `expectedHolds` · `judgments.d.ts`
 - `expectedRevision` · `judgments.d.ts`
 - `initializationRegistrationCommit` · `initialization-plan.d.ts`
+- `inputSourceName` · `input-sources.d.ts`
 - `inputsToDeliver` · `intake.d.ts`
+- `intakeTermsOf` · `input-sources.d.ts`
 - `isAcceptedInputRecord` · `model-view.d.ts`
 - `isDeferredFact` · `history-values.d.ts`
 - `judgeAdvance` · `judgments.d.ts`
@@ -289,7 +310,10 @@
 - `judgeWaiting` · `judgments.d.ts`
 - `mutationAccessRequest` · `access.d.ts`
 - `openWork` · `judgments.d.ts`
+- `parseInputSourceName` · `input-sources.d.ts`
 - `pendingIntakeCount` · `intake.d.ts`
+- `prepareEntriesTerms` · `input-sources.d.ts`
+- `prepareIntakeTerms` · `input-sources.d.ts`
 - `projectCompactionCommit` · `compaction-commit.d.ts`
 - `projectSessionEntries` · `entries-interpretation.d.ts`
 - `projectSessionLog` · `projection.d.ts`
@@ -311,6 +335,7 @@
 - `shortCallId` · `background-calls.d.ts`
 - `uninterpretedCalls` · `uninterpreted-calls.d.ts`
 - `wakingInputs` · `intake.d.ts`
+- `withIntakeTerms` · `input-sources.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
 
@@ -338,7 +363,10 @@
 - `SessionDelegatedTransactionsFixture` · `testing-delegated.d.ts`
 - `SessionLogFixture` · `testing-log.d.ts`
 - `SessionTransactionsFixture` · `testing-transactions.d.ts`
+- `TESTING_DECLARATIONS` · `testing-sources.d.ts`
 - `TESTING_OWNER` · `testing-values.d.ts`
+- `TESTING_SOURCES` · `testing-sources.d.ts`
+- `TESTING_SYSTEM_COMPONENT` · `testing-sources.d.ts`
 - `adoptedInitializationFixture` · `testing-initialization.d.ts`
 - `adoption` · `testing-values.d.ts`
 - `agentDriveConformance` · `testing-provider-conformance.d.ts`
@@ -367,7 +395,6 @@
 - `initializationFixtureFacts` · `testing-initialization.d.ts`
 - `initializationFixtureGuard` · `testing-initialization.d.ts`
 - `inputId` · `testing-values.d.ts`
-- `intakeInput` · `testing-values.d.ts`
 - `isNotApplicable` · `testing-case.d.ts`
 - `memoryAccess` · `testing-values.d.ts`
 - `memoryOtherAccess` · `testing-values.d.ts`
@@ -394,9 +421,13 @@
 - `sessionTransactionsConformance` · `testing-transactions.d.ts`
 - `shapeOf` · `testing-case.d.ts`
 - `succeeded` · `testing-case.d.ts`
+- `testingDerivedInputs` · `testing-sources.d.ts`
+- `testingInputSources` · `testing-sources.d.ts`
+- `testingIntakeGuards` · `testing-sources.d.ts`
 - `testingTenant` · `testing-values.d.ts`
 - `testingWorkspace` · `testing-values.d.ts`
 - `userMessage` · `testing-values.d.ts`
+- `withMemberSubject` · `testing-access.d.ts`
 
 ## 声明文件 `access.d.ts`
 
@@ -405,6 +436,7 @@ import type { SessionPermissionWriteQualification } from './permission-values.ts
 import type { Access, TenantId } from '@omne-harness/legal-identity';
 import type { DurableEvidence, ResidentKey, SessionAccess, SessionId } from './identity.ts';
 import type { MutationName, SessionCommand, SessionTransactionPort } from './ports.ts';
+import type { IntakeSubject } from './input-sources.ts';
 export type SessionReadAccessOperation = 'listTodos' | 'readWork' | 'readCurrentScope' | 'readWaiting' | 'readBackgroundCalls' | 'resolveBackgroundCall' | 'readInput' | 'queryOperation' | 'readModelSelection' | 'queryControlOperation' | 'loadRecovery' | 'inspectIdle' | 'history.begin' | 'history.next' | 'history.since' | 'history.readModelView' | 'history.readCompactionContext';
 type SessionMutationAccess<P> = {
     readonly [K in MutationName]: Readonly<{
@@ -466,6 +498,7 @@ export type SessionAccessDecision = Readonly<{
     kind: 'allowed';
     evidence: DurableEvidence;
     writeQualification?: SessionPermissionWriteQualification;
+    subject?: IntakeSubject;
 }> | Readonly<{
     kind: 'denied';
 }> | Readonly<{
@@ -479,6 +512,7 @@ export type SessionCheckedAccess<P> = Readonly<{
     request: SessionAccessRequest<P>;
     evidence: DurableEvidence;
     writeQualification?: SessionPermissionWriteQualification;
+    subject?: IntakeSubject;
 }>;
 export interface SessionDelegatedTransactions<P> {
     bind(checked: SessionCheckedAccess<P>): SessionTransactionPort<P>;
@@ -557,7 +591,8 @@ import type { ConsumptionId, InputId } from './identity.ts';
 import type { SessionEntriesInterpretation } from './interpretation-values.ts';
 import type { EncodedEntry } from './judgments.ts';
 import type { BackgroundDisposition, ControlProgress, ProducerRef, RoutedInput, WorkSnapshot } from './values.ts';
-export declare const BACKGROUND_INPUT_OWNER = "background-tool-execution";
+import { type DerivedAdmission } from './input-sources.ts';
+export declare const BACKGROUND_OUTCOME_EVIDENCE_OWNER = "background-tool-execution";
 type Draft = {
     -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K];
 };
@@ -596,11 +631,15 @@ export type BackgroundStep = Readonly<{
 export declare function backgroundInputId(producer: ProducerRef, result: string): InputId;
 export declare function backgroundRecordOf(snapshot: WorkSnapshot, consumption: ConsumptionId): BackgroundCallRecord | null;
 export declare function judgeBackgroundOutcome(snapshot: WorkSnapshot, consumption: ConsumptionId): BackgroundOutcomeJudgment;
-export declare function stopReminderEntries(snapshot: WorkSnapshot, record: BackgroundCallRecord, stop: BackgroundCallStop): Readonly<{
+export declare function stopReminderEntries(snapshot: WorkSnapshot, record: BackgroundCallRecord, stop: BackgroundCallStop, admission: DerivedAdmission | undefined): Readonly<{
+    kind: 'entries';
     entries: readonly EncodedEntry[];
     input: Ordinary;
+}> | Readonly<{
+    kind: 'rejected';
+    failure: SessionFailure;
 }>;
-export declare function decideBackground(snapshot: WorkSnapshot, fact: Backgrounded | Outcome, origin: HistoryEntry['origin']): BackgroundStep;
+export declare function decideBackground(snapshot: WorkSnapshot, fact: Backgrounded | Outcome, origin: HistoryEntry['origin'], admission: DerivedAdmission | undefined): BackgroundStep;
 export declare function applyBackgrounded(draft: Draft, entry: Extract<SessionEntry, {
     kind: 'call.backgrounded';
 }>): string | null;
@@ -1042,7 +1081,6 @@ export declare const PATH_MUTATIONS: readonly [
 export declare function runIdOf(session: SessionId, first: InputId, predecessor: RunId | null): RunId;
 export declare function attemptIdOf(run: RunId, ordinal: string): AttemptId;
 export declare function executionIdOf(run: RunId): string;
-export declare const LOGIN_ENTRY_OWNER = "login-entry";
 export declare function commandDigest(command: SessionCommand): string;
 export declare function decide(previous: WorkSnapshot | null, command: SessionCommand, guards: readonly GuardCommand[], record: OperationRecord | null, reads: DecideReads): Decision;
 ```
@@ -1075,6 +1113,7 @@ export declare function terminalEntries(snapshot: WorkSnapshot, terminal: RunTer
 import type { Decision, OperationRecord } from './judgments.ts';
 import type { SessionEntriesObservation, SessionEntriesProgress, SessionEntriesStart } from './interpretation-values.ts';
 import type { WorkSnapshot } from './values.ts';
+import type { IntakeTerms } from './input-sources.ts';
 export declare const SAME_LOG_ENTRIES_VIA = "same-log-entries";
 type EntriesDecision = Exclude<Decision, {
     kind: 'control-answer';
@@ -1085,6 +1124,7 @@ export declare function projectSessionEntries(snapshot: WorkSnapshot, input: Rea
     start: SessionEntriesStart;
     saved: readonly SessionEntriesProgress[];
     record: OperationRecord | null;
+    derived?: IntakeTerms['derived'];
 }>): EntriesDecision;
 export {};
 ```
@@ -1098,6 +1138,7 @@ import type { Message } from '@omne-harness/message';
 import type { Adoption, AgentInstanceRef, AttemptId, ConsumptionId, DurableEvidence, InputId, RunId, SessionId, SessionOperationId, TodoItemId } from './identity.ts';
 import type { BoundedClose, InitializationResult, Participation, RecoveryTask, RunTerminal, SessionCreation, ResidentAdoption, ResidentTool, DeclarationChange, Relation, AutoArchivePolicy, IdleObservation, ControlProgress, ContextScopeBinding, CallBinding, ProducedResult, ProducerRef, InputBatch, Waiting, ExecutionRef, BackgroundDisposition } from './values.ts';
 import type { EntryClass, HistoryEntry } from './faces.ts';
+import type { AdmittedSource } from './input-sources.ts';
 import type { EncodedEntry } from './judgments.ts';
 import type { InitialAdoption, InitializationAdoption, InitializationGuardResult, InitializationFactReference, InitializationPlanItem, InitializationRequirement, InitializationRegistration } from './values.ts';
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts';
@@ -1175,7 +1216,7 @@ export type SessionEntry = Readonly<{
     destination: 'current-run' | 'next-run';
     run: RunId | null;
     origin: DurableEvidence;
-    wakes?: false;
+    source: AdmittedSource;
 }> | Readonly<{
     kind: 'intake.handed-over';
     input: InputId;
@@ -2133,8 +2174,9 @@ export type { SessionWorkEntryIndex, SessionCallEntryReferences, SessionControlE
 export { mutationAccessRequest, readAccessRequest, type SessionAccessCheck, type SessionAccessDecision, type SessionAccessOperation, type SessionAccessRequest, type SessionAccessTarget, type SessionCheckedAccess, type SessionDelegatedTransactions, type SessionReadAccessOperation, } from './access.ts';
 export { DEFAULT_SESSION_INTAKE_LIMITS, sessionIntakeLimits, sessionInputBytes, judgeSessionIntake, pendingIntakeCount, inputsToDeliver, runStartInputs, wakingInputs, } from './intake.ts';
 export { archiveCollapse, backgroundCalls, controlAnswer, controlRoutes, type ArchiveCollapse, type ControlRoutes, type DirectCallControl, } from './call-control.ts';
-export { BACKGROUND_INPUT_OWNER, backgroundInputId, judgeBackgroundOutcome, type BackgroundOutcomeJudgment, } from './background-outcome.ts';
+export { backgroundInputId, judgeBackgroundOutcome, type BackgroundOutcomeJudgment, } from './background-outcome.ts';
 export type { SessionIntakeLimits } from './intake.ts';
+export { INTAKE_GUARD_OWNER, admitDerived, admitSource, createInputSourceRegistry, inputSourceName, commandInput, prepareEntriesTerms, prepareIntakeTerms, withIntakeTerms, intakeTermsOf, parseInputSourceName, type AdmittedSource, type DerivedAdmission, type DerivedInputKind, type InputSourceDeclaration, type InputSourceLookup, type InputSourceName, type InputSourceRegistry, type InputSources, type IntakeBasis, type IntakeSubject, type SourceTerms, type IntakeTerms, type SessionDerivedInputs, type SourceAdmission, type SourceRefusal, } from './input-sources.ts';
 export type { TodoItem, VisibleTodoItem, TodoMutationReceipt, TodoPageCursor, TodoPage, SessionTodos, } from './todos.ts';
 export type { SessionPermissionAssignment, SessionPermissions, SessionPermissionChangeBasis, SessionPermissionWriteQualification, } from './permission-values.ts';
 export { rebuildSessionPermissions, type SessionPermissionHistory } from './permission-history.ts';
@@ -2259,6 +2301,110 @@ import type { RunTerminal, WorkSnapshot } from './values.ts';
 export declare function pendingAfterTerminal(snapshot: Pick<WorkSnapshot, 'pending' | 'unanswered'>, outcome: RunTerminal['outcome']): readonly InputId[];
 ```
 
+## 声明文件 `input-sources.d.ts`
+
+```ts
+import type { GuardCommand, SessionCommand } from './ports.ts';
+import type { RoutedInput } from './values.ts';
+export type InputSourceName = string & {
+    readonly __inputSource: unique symbol;
+};
+export declare function parseInputSourceName(text: unknown): InputSourceName | null;
+export declare function inputSourceName(text: string): InputSourceName;
+export type InputSourceDeclaration = Readonly<{
+    name: InputSourceName;
+    label: string;
+    accepts: Readonly<{
+        subject: 'member';
+    }> | Readonly<{
+        subject: 'system';
+        component: string;
+        screened: boolean;
+    }>;
+    wake: 'always' | 'never' | 'as-requested';
+}>;
+export type IntakeSubject = Readonly<{
+    kind: 'member';
+}> | Readonly<{
+    kind: 'system';
+    component: string;
+}>;
+export type AdmittedSource = Readonly<{
+    name: InputSourceName;
+    label: string;
+    role: 'user' | 'system_reminder';
+    wakes: boolean;
+    entry: 'login' | 'trusted';
+    countsTowardCapacity: boolean;
+}>;
+export type SourceRefusal = 'subject-not-accepted' | 'wake-flag-not-allowed';
+export type SourceAdmission = Readonly<{
+    kind: 'admitted';
+    source: AdmittedSource;
+    parse: boolean;
+    screened: boolean;
+}> | Readonly<{
+    kind: 'refused';
+    reason: SourceRefusal;
+}>;
+export declare function admitSource(declaration: InputSourceDeclaration, subject: IntakeSubject, request: Readonly<{
+    wake?: boolean;
+}>): SourceAdmission;
+export type InputSourceLookup = Readonly<{
+    kind: 'registered';
+    declaration: InputSourceDeclaration;
+}> | Readonly<{
+    kind: 'absent';
+}>;
+export interface InputSources {
+    lookup(name: InputSourceName): InputSourceLookup;
+}
+export type InputSourceRegistry = InputSources & Readonly<{
+    register(declaration: InputSourceDeclaration): () => void;
+}>;
+export declare function createInputSourceRegistry(): InputSourceRegistry;
+export type DerivedInputKind = 'background-outcome' | 'background-stop';
+export type DerivedAdmission = Readonly<{
+    declaration: InputSourceDeclaration;
+    subject: IntakeSubject;
+}>;
+export interface SessionDerivedInputs {
+    admission(kind: DerivedInputKind): DerivedAdmission | null;
+}
+export type SourceTerms = Readonly<{
+    kind: 'admitted';
+    source: AdmittedSource;
+}> | Readonly<{
+    kind: 'refused';
+    reason: SourceRefusal;
+}> | Readonly<{
+    kind: 'unavailable';
+    reason: 'source-absent' | 'subject-absent';
+}>;
+export type IntakeTerms = Readonly<{
+    source?: SourceTerms;
+    derived?: Readonly<Partial<Record<DerivedInputKind, DerivedAdmission>>>;
+}>;
+export declare const INTAKE_GUARD_OWNER = "session-intake";
+type Ordinary = Extract<RoutedInput, {
+    kind: 'ordinary';
+}>;
+export declare function commandInput(command: SessionCommand): Ordinary | null;
+export type IntakeBasis = Readonly<{
+    subject: IntakeSubject | undefined;
+    sources: InputSources | null;
+    derived: SessionDerivedInputs | null;
+}>;
+export declare function prepareIntakeTerms(command: SessionCommand, basis: IntakeBasis): IntakeTerms | null;
+export declare function prepareEntriesTerms(derived: SessionDerivedInputs | null): IntakeTerms['derived'];
+export declare function withIntakeTerms(guards: readonly GuardCommand[], terms: IntakeTerms | null): readonly GuardCommand[];
+export declare function intakeTermsOf(guards: readonly GuardCommand[]): IntakeTerms | null;
+export declare function admitDerived(admission: DerivedAdmission | undefined, request: Readonly<{
+    wake?: boolean;
+}>): AdmittedSource | null;
+export {};
+```
+
 ## 声明文件 `intake.d.ts`
 
 ```ts
@@ -2279,7 +2425,7 @@ export declare function judgeSessionIntake(pending: number, value: Extract<Route
 }>, limits: SessionIntakeLimits): Extract<SessionFailure, {
     kind: 'limited';
 }> | null;
-export declare function pendingIntakeCount(snapshot: Pick<WorkSnapshot, 'pending' | 'handed' | 'backgroundInputs' | 'quietInputs'>): number;
+export declare function pendingIntakeCount(snapshot: Pick<WorkSnapshot, 'pending' | 'handed' | 'uncountedInputs'>): number;
 export declare function inputsToDeliver(snapshot: Pick<WorkSnapshot, 'deliveredTail'>, ordered: readonly InputId[]): readonly InputId[];
 export declare function runStartInputs(snapshot: Pick<WorkSnapshot, 'pending' | 'quietInputs'> | null | undefined): readonly InputId[];
 export declare function wakingInputs(snapshot: Pick<WorkSnapshot, 'pending' | 'quietInputs'>): readonly InputId[];
@@ -2373,6 +2519,7 @@ export type SessionLogReceipt = Readonly<{
 ```ts
 import type { SessionPermissionChangeBasis } from './permission-values.ts';
 import { type SessionIntakeLimits } from './intake.ts';
+import type { IntakeTerms } from './input-sources.ts';
 import type { CompactionContext } from '@omne-harness/message';
 import type { AdvanceRef, InputId, RunId, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
 import type { AutoArchivePolicy, BoundedClose, ControlIntent, IdleCoverage, IdleObservation, Participation, ProducerRef, RecoveryTask, RoutedInput, RunTerminal, SessionWaiting, Waiting, WorkSnapshot } from './values.ts';
@@ -2543,10 +2690,7 @@ export type DecideReads = Readonly<{
     initializationReceipts?: readonly CommitReceipt[];
     calls?: readonly SessionCallLookup[];
     runs?: readonly SessionRunLookup[];
-    firstInput?: Readonly<{
-        input: InputId;
-        origin: DurableEvidence;
-    }>;
+    intake?: IntakeTerms;
 }>;
 export declare const OFF_PATH_DIAGNOSTIC = "not on the M2 first tenant path; the judgment lands with #756 (S-1b)";
 export declare const OFF_PATH_FAILURE: Extract<SessionFailure, {
@@ -3310,8 +3454,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:e161b6fe04d14f531909a7e4b1efe4323915191560eaacd03d1eb00c5b6949c5";
-export declare const SESSION_RELEASE_DIGEST = "sha256:e161b6fe04d14f531909a7e4b1efe4323915191560eaacd03d1eb00c5b6949c5";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:2ba2531d700d6810747c8419fd6622d5d9f4efc04d6359322438afa603d5cd6e";
+export declare const SESSION_RELEASE_DIGEST = "sha256:2ba2531d700d6810747c8419fd6622d5d9f4efc04d6359322438afa603d5cd6e";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -3401,15 +3545,15 @@ export declare function annotationTargets(value: unknown): void;
 import type { SystemReminderMessage } from '@omne-harness/message';
 import type { BackgroundCallRecord, BackgroundCallStop } from './background-calls.ts';
 import type { InputId, SessionOperationId } from './identity.ts';
+import type { InputSourceName } from './input-sources.ts';
 import type { RoutedInput } from './values.ts';
 type Block = SystemReminderMessage['blocks'][number];
 type Ordinary = Extract<RoutedInput, {
     kind: 'ordinary';
 }>;
-export declare const STOP_INPUT_OWNER = "background-call-stop";
 export declare function stoppedText(message: string, stop: BackgroundCallStop): Block;
 export declare function stopInputId(record: BackgroundCallRecord, operation: SessionOperationId): InputId;
-export declare function stopReminderInput(record: BackgroundCallRecord, stop: BackgroundCallStop): Ordinary;
+export declare function stopReminderInput(record: BackgroundCallRecord, stop: BackgroundCallStop, source: InputSourceName): Ordinary;
 export {};
 ```
 
@@ -3429,6 +3573,7 @@ export interface ScriptedSessionAccessCheck<P> extends SessionAccessCheck<P> {
 }
 export declare function createScriptedSessionAccessCheck<P>(answers: readonly SessionAccessScript[]): ScriptedSessionAccessCheck<P>;
 export declare function createPolicySessionAccessCheck<P>(policy: (request: SessionAccessRequest<P>) => SessionAccessScript): ScriptedSessionAccessCheck<P>;
+export declare function withMemberSubject<P>(check: SessionAccessCheck<P>): SessionAccessCheck<P>;
 ```
 
 ## 声明文件 `testing-case.d.ts`
@@ -3706,6 +3851,36 @@ export interface MemoryAgentDrive extends AgentDrivePort {
 export declare function createMemoryAgentDrive(): MemoryAgentDrive;
 ```
 
+## 声明文件 `testing-sources.d.ts`
+
+```ts
+import { type InputSources, type IntakeSubject, type IntakeTerms, type InputSourceDeclaration, type InputSourceRegistry, type SessionDerivedInputs } from './input-sources.ts';
+import type { SessionAccessCheck } from './access.ts';
+import type { GuardCommand, SessionCommand } from './ports.ts';
+export declare const TESTING_SYSTEM_COMPONENT = "session-testing";
+export declare const TESTING_SOURCES: Readonly<{
+    person: import("./input-sources.ts").InputSourceName;
+    system: import("./input-sources.ts").InputSourceName;
+    quiet: import("./input-sources.ts").InputSourceName;
+    outcome: import("./input-sources.ts").InputSourceName;
+    stop: import("./input-sources.ts").InputSourceName;
+}>;
+export declare const TESTING_DECLARATIONS: readonly InputSourceDeclaration[];
+export declare function testingInputSources(): InputSourceRegistry;
+export declare function testingDerivedInputs(sources?: Pick<InputSourceRegistry, 'lookup'>): SessionDerivedInputs;
+export declare function testingIntakeGuards(command: SessionCommand, given?: IntakeSubject | null): readonly GuardCommand[];
+export type TestingWriterOptions = Readonly<{
+    sources?: InputSources | null;
+    derived?: SessionDerivedInputs | null;
+    subjects?: 'strict' | 'member-by-default';
+}>;
+export declare function testingWriter<P>(options: TestingWriterOptions): {
+    check: (check: SessionAccessCheck<P>) => SessionAccessCheck<P>;
+    guards: (command: SessionCommand, guards: readonly GuardCommand[], subject: IntakeSubject | undefined) => readonly GuardCommand[];
+    entries: () => IntakeTerms['derived'];
+};
+```
+
 ## 声明文件 `testing-transactions.d.ts`
 
 ```ts
@@ -3720,6 +3895,7 @@ import type { BoundedClose, RoutedInput, RunTerminal, SessionCreation, WorkSnaps
 import type { CommitReceipt, AdmittedMessage, EntryClass, HistoryEntry, PendingReason, SessionFailure } from './faces.ts';
 import type { GuardCommand, MutationName, Mutations, SessionCommand, SessionTransactionPort } from './ports.ts';
 import { type SessionLogObservation } from './projection.ts';
+import { type TestingWriterOptions } from './testing-sources.ts';
 import { type MemoryInitializationSource } from './testing-initialization-source.ts';
 import { type ConformanceCase } from './testing-case.ts';
 export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> {
@@ -3744,7 +3920,7 @@ export interface MemoryInitializationTransactions<P> extends MemorySessionLogTra
     }>;
 }
 export declare function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason[];
-export type MemorySessionTransactionOptions<P> = Readonly<{
+export type MemorySessionTransactionOptions<P> = TestingWriterOptions & Readonly<{
     intakeLimits?: SessionIntakeLimits;
     initialization?: MemoryInitializationSource;
     history?: MemorySessionHistorySource;
@@ -3904,7 +4080,7 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
         backgroundPlaceholders?: readonly import("./identity.ts").ConsumptionId[];
         backgroundCalls?: readonly import("./background-calls.ts").BackgroundCallRecord[];
         backgroundOrdinal?: number;
-        backgroundInputs?: readonly InputId[];
+        uncountedInputs?: readonly InputId[];
         quietInputs?: readonly InputId[];
         deliveredTail?: readonly InputId[];
         releasedScopes?: readonly Readonly<{
@@ -3965,9 +4141,6 @@ export declare function assistantMessage(text: string, id?: string): Message;
 export declare function ordinaryInput(input: string, text?: string): Extract<RoutedInput, {
     kind: 'ordinary';
 }>;
-export declare function intakeInput(input: string, text?: string): Extract<RoutedInput, {
-    kind: 'ordinary';
-}>;
 export declare function creation(overrides?: Partial<SessionCreation>): SessionCreation;
 export declare function guard(participant: string, owner: string, facts: unknown): GuardCommand;
 ```
@@ -3981,7 +4154,7 @@ export { sessionEntriesConformance } from './testing-entries.ts';
 export { memorySessionLogFixture, sessionLogConformance, type SessionLogFixture, } from './testing-log.ts';
 export { memorySessionDelegatedTransactionsFixture, sessionDelegatedTransactionsConformance, type SessionDelegatedTransactionsFixture, } from './testing-delegated.ts';
 export { createMemorySessionClock, createMemorySessionContextInput, createMemorySessionEvidenceBridge, createScriptedSessionIdentityBridge, type IdentityScript, type MemorySessionClock, type MemorySessionContextInput, type MemorySessionEvidenceBridge, type ScriptedSessionIdentityBridge, } from './testing-ports.ts';
-export { TESTING_OWNER, adoption, assistantMessage, creation, evidence, guard, inputId, memoryAccess, memoryOtherAccess, mintEvidence, operationId, intakeInput, ordinaryInput, sessionId, testingTenant, testingWorkspace, userMessage, } from './testing-values.ts';
+export { TESTING_OWNER, adoption, assistantMessage, creation, evidence, guard, inputId, memoryAccess, memoryOtherAccess, mintEvidence, operationId, ordinaryInput, sessionId, testingTenant, testingWorkspace, userMessage, } from './testing-values.ts';
 export * from './testing-providers.ts';
 export { createMemoryInitializationSource, type MemoryInitializationSource, } from './testing-initialization-source.ts';
 export { adoptedInitializationFixture, initializationFixtureFacts, initializationFixtureGuard, } from './testing-initialization.ts';
@@ -3989,6 +4162,8 @@ export type { MemorySessionTransactionOptions } from './testing-transactions.ts'
 export { sessionIdentityBridgeConformance, sessionEvidenceBridgeConformance, sessionContextInputConformance, sessionClockConformance, sessionIdleInputConformance, sessionNotifierConformance, scopeReleaseConformance, agentDriveConformance, } from './testing-provider-conformance.ts';
 export { createMemorySessionHistorySource, type MemorySessionHistorySource, } from './testing-history-source.ts';
 export { createPolicySessionAccessCheck, createScriptedSessionAccessCheck, type ScriptedSessionAccessCheck, type SessionAccessScript, } from './testing-access.ts';
+export { TESTING_DECLARATIONS, TESTING_SOURCES, TESTING_SYSTEM_COMPONENT, testingDerivedInputs, testingInputSources, testingIntakeGuards, } from './testing-sources.ts';
+export { withMemberSubject } from './testing-access.ts';
 ```
 
 ## 声明文件 `todos.d.ts`
@@ -4051,6 +4226,7 @@ import type { SessionHistoryIndex } from './history-values.ts';
 import type { SessionCallRecord, SessionCallWait } from './call-values.ts';
 import type { SessionEntriesProgress } from './interpretation-values.ts';
 import type { Adoption, AdvanceRef, AttemptId, ConsumerRef, ConsumptionId, DurableEvidence, InputId, ResidentKey, BatchId, RunId, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
+import type { InputSourceName } from './input-sources.ts';
 export type ResidentTool = Readonly<{
     capability: string;
     version: string;
@@ -4178,6 +4354,8 @@ export type RoutedInput = Readonly<{
     input: InputId;
     message: Message;
     origin: DurableEvidence;
+    source: InputSourceName;
+    wake?: boolean;
 }> | Readonly<{
     kind: 'card-decision';
     card: DurableEvidence;
@@ -4519,7 +4697,7 @@ export type WorkSnapshot = Readonly<{
     backgroundPlaceholders?: readonly ConsumptionId[];
     backgroundCalls?: readonly BackgroundCallRecord[];
     backgroundOrdinal?: number;
-    backgroundInputs?: readonly InputId[];
+    uncountedInputs?: readonly InputId[];
     quietInputs?: readonly InputId[];
     deliveredTail?: readonly InputId[];
     releasedScopes?: readonly Readonly<{

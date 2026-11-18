@@ -1,6 +1,5 @@
 import {
   createInputSourceRegistry,
-  inputSourceName,
   prepareEntriesTerms,
   prepareIntakeTerms,
   withIntakeTerms,
@@ -9,6 +8,7 @@ import {
   type IntakeTerms,
   type DerivedInputKind,
   type InputSourceDeclaration,
+  type InputSourceName,
   type InputSourceRegistry,
   type SessionDerivedInputs,
 } from './input-sources.ts'
@@ -18,12 +18,14 @@ import { withMemberSubject } from './testing-access.ts'
 
 export const TESTING_SYSTEM_COMPONENT = 'session-testing'
 
+const named = (text: string) => text as InputSourceName
+
 export const TESTING_SOURCES = Object.freeze({
-  person: inputSourceName('test.person'),
-  system: inputSourceName('test.system'),
-  quiet: inputSourceName('test.quiet'),
-  outcome: inputSourceName('test.background-outcome'),
-  stop: inputSourceName('test.background-stop'),
+  person: named('test.person'),
+  system: named('test.system'),
+  quiet: named('test.quiet'),
+  outcome: named('test.background-outcome'),
+  stop: named('test.background-stop'),
 })
 
 const SYSTEM = { subject: 'system', component: TESTING_SYSTEM_COMPONENT, screened: false } as const

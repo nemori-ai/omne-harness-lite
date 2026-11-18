@@ -192,9 +192,10 @@ describe('no terms, no intake: the answer is unavailable and nothing is written 
     const s = await scene()
     succeeded(await s.create(), 'create')
     s.as(undefined)
-    expect(refused(await s.accept('no-subject'), 'no subject')).toMatchObject({
+    expect(refused(await s.accept('no-subject'), 'no subject')).toEqual({
       kind: 'unavailable',
       owner: 'session-intake',
+      diagnostic: 'the terms of this input are not available: subject-absent',
     })
     expect(s.routed()).toEqual([])
   })
@@ -239,10 +240,48 @@ describe('the values live in the log, not in the registry (SE-29)', () => {
     succeeded(await s.create(), 'create')
     const snapshot = await s.read()
     expect(snapshot.pending).toEqual(['initial'])
-    expect(s.routed()[0]).toMatchObject({ input: 'initial', source: { role: 'user', wakes: true } })
+    expect(s.routed()[0]).toMatchObject({
+      input: 'initial',
+      destination: 'next-run',
+      run: null,
+      source: { role: 'user', wakes: true },
+    })
     s.withdrawRegistry()
     expect(succeeded(await s.create(), 'the same creation again')).toMatchObject({
       receipt: { recovered: true },
+    })
+  })
+
+  it('a refused initial input names its place in the creation, and an urgent one its own', async () => {
+    const refusedCreation = await scene({ initial: ordinaryInput('initial') })
+    refusedCreation.as(SYSTEM)
+    expect(refused(await refusedCreation.create(), 'create')).toEqual({
+      kind: 'invalid',
+      field: 'creation.initial.source',
+      reason: 'subject-not-accepted',
+    })
+    expect(refusedCreation.rows()).toEqual([])
+    const s = await scene()
+    succeeded(await s.create(), 'create')
+    s.as(SYSTEM)
+    const urgent = await s.port.commit({
+      access,
+      guards: [],
+      command: {
+        kind: 'interrupt',
+        input: {
+          ...base,
+          operation: operationId('urgent'),
+          run: null,
+          urgent: ordinaryInput('urgent'),
+          decision: evidence('person'),
+        },
+      },
+    })
+    expect(refused(urgent, 'interrupt')).toEqual({
+      kind: 'invalid',
+      field: 'urgent.source',
+      reason: 'subject-not-accepted',
     })
   })
 

@@ -10,7 +10,7 @@ import type { RoutedInput, WorkSnapshot } from './values.ts'
 import { encodeEntry } from './entries.ts'
 import { decideProducerFact } from './decide-receive.ts'
 import { decideBackground } from './background-outcome.ts'
-import type { DerivedAdmission, IntakeTerms } from './input-sources.ts'
+import type { IntakeTerms } from './input-sources.ts'
 import { digestOf } from './operations.ts'
 import {
   SessionValidationFailure,
@@ -66,7 +66,7 @@ export function projectSessionEntries(
     checkRange(observation)
     checkStart(snapshot, observation, start, saved)
     checkItems(observation)
-    return interpret(snapshot, observation, input.derived?.['background-outcome'])
+    return interpret(snapshot, observation, input.derived)
   } catch (error) {
     if (error instanceof SessionValidationFailure) return refuse(error.failure)
     if (error instanceof TypeError || error instanceof RangeError)
@@ -191,7 +191,7 @@ function checkItems(observation: SessionEntriesObservation): void {
 function interpret(
   snapshot: WorkSnapshot,
   observation: SessionEntriesObservation,
-  outcome: DerivedAdmission | undefined,
+  derived: IntakeTerms['derived'],
 ): EntriesDecision {
   const {
     tenant,
@@ -217,7 +217,7 @@ function interpret(
       const field = `items[${at}].interpretation[${index}]`
       if (fact.kind === 'observed') return
       if (fact.kind === 'backgrounded' || fact.kind === 'background-outcome') {
-        const step = decideBackground(current, fact, origin, outcome)
+        const step = decideBackground(current, fact, origin, derived)
         if (step.kind === 'rejected') refusedAt(step.failure, field)
         out.push(...step.entries)
         admitted.push(...step.admitted)

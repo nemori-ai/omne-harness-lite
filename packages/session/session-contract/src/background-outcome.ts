@@ -5,7 +5,7 @@ import { encodeEntry } from './entries.ts'
 import type { HistoryEntry, SessionFailure } from './faces.ts'
 import type { ConsumptionId, InputId } from './identity.ts'
 import type { SessionEntriesInterpretation } from './interpretation-values.ts'
-import type { EncodedEntry } from './judgments.ts'
+import type { Decision, EncodedEntry } from './judgments.ts'
 import { digestOf } from './operations.ts'
 import type {
   BackgroundDisposition,
@@ -20,10 +20,10 @@ import { stopReminderInput, stoppedText } from './stop-reminder.ts'
 import { originOf, sourceOf } from './decision-support.ts'
 import {
   INTAKE_GUARD_OWNER,
-  admitDerived,
+  admitDerivedOf,
   type AdmittedSource,
-  type DerivedAdmission,
   type InputSourceName,
+  type IntakeTerms,
 } from './input-sources.ts'
 
 /** The evidence owner of an outcome's record: where the content came from. It decides nothing. */
@@ -33,6 +33,7 @@ type Draft = { -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K] }
 type Ordinary = Extract<RoutedInput, { kind: 'ordinary' }>
 type Backgrounded = Extract<SessionEntriesInterpretation, { kind: 'backgrounded' }>
 type Outcome = Extract<SessionEntriesInterpretation, { kind: 'background-outcome' }>
+type EntriesDecided = Extract<Decision, { kind: 'entries' }>
 
 export type BackgroundOutcomeJudgment =
   | Readonly<{ kind: 'refused' }>
@@ -181,32 +182,44 @@ const noTerms = (what: string): Extract<SessionFailure, { kind: 'unavailable' }>
 })
 
 // A person's stop of a call in the background leaves one reminder; it never starts a Run itself.
-export function stopReminderEntries(
+export function withStopReminder(
+  decision: EntriesDecided,
   snapshot: WorkSnapshot,
   record: BackgroundCallRecord,
   stop: BackgroundCallStop,
-  admission: DerivedAdmission | undefined,
-):
-  | Readonly<{ kind: 'entries'; entries: readonly EncodedEntry[]; input: Ordinary }>
-  | Readonly<{ kind: 'rejected'; failure: SessionFailure }> {
-  const source = admitDerived(admission, {})
+  terms: IntakeTerms | undefined,
+): Decision {
+  const source = admitDerivedOf(terms?.derived, 'background-stop', {})
   if (source === null) return { kind: 'rejected', failure: noTerms('a stop reminder') }
   const input = stopReminderInput(record, stop, source.name)
   const origin = originOf(sourceOf(stop.operation, 'control'))
-  return { kind: 'entries', entries: reminderEntries(snapshot, input, source, origin), input }
+  return {
+    ...decision,
+    entries: [...decision.entries, ...reminderEntries(snapshot, input, source, origin)],
+    admitted: [...(decision.admitted ?? []), input],
+  }
+}
+
+type BoundOutcome = Readonly<{ consumption: ConsumptionId }>
+
+function outcomeBinding(snapshot: WorkSnapshot, fact: Outcome): BoundOutcome | BackgroundStep {
+  const consumption = consumptionOf(snapshot, fact.producer)
+  if (consumption === null) return invalid('producer', 'no original binding')
+  if (fact.result.length === 0) return invalid('result', 'empty')
+  if (fact.reminder.role !== 'system_reminder' || fact.reminder.blocks.length === 0)
+    return invalid('reminder', 'not a system reminder with content')
+  return { consumption }
 }
 
 function decideOutcome(
   snapshot: WorkSnapshot,
   fact: Outcome,
   origin: HistoryEntry['origin'],
-  admission: DerivedAdmission | undefined,
+  derived: IntakeTerms['derived'],
 ): BackgroundStep {
-  const consumption = consumptionOf(snapshot, fact.producer)
-  if (consumption === null) return invalid('producer', 'no original binding')
-  if (fact.result.length === 0) return invalid('result', 'empty')
-  if (fact.reminder.role !== 'system_reminder' || fact.reminder.blocks.length === 0)
-    return invalid('reminder', 'not a system reminder with content')
+  const bound = outcomeBinding(snapshot, fact)
+  if ('kind' in bound) return bound
+  const { consumption } = bound
   const judged = judgeBackgroundOutcome(snapshot, consumption)
   if (judged.kind === 'refused') return invalid('producer', 'the call is not backgrounded')
   const placeholders = (snapshot.backgroundPlaceholders ?? []).filter(item => item !== consumption)
@@ -231,7 +244,7 @@ function decideOutcome(
       placeholders,
       controls,
     }
-  const source = admitDerived(admission, { wake: judged.stop === null })
+  const source = admitDerivedOf(derived, 'background-outcome', { wake: judged.stop === null })
   if (source === null) return { kind: 'rejected', failure: noTerms('a background outcome') }
   const input = reminderInput(fact, judged.stop, source.name)
   return {
@@ -250,11 +263,11 @@ export function decideBackground(
   snapshot: WorkSnapshot,
   fact: Backgrounded | Outcome,
   origin: HistoryEntry['origin'],
-  admission: DerivedAdmission | undefined,
+  derived: IntakeTerms['derived'],
 ): BackgroundStep {
   return fact.kind === 'backgrounded'
     ? decideBackgrounded(snapshot, fact, origin)
-    : decideOutcome(snapshot, fact, origin, admission)
+    : decideOutcome(snapshot, fact, origin, derived)
 }
 
 export function applyBackgrounded(

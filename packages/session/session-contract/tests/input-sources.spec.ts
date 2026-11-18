@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   admitDerived,
+  admitDerivedOf,
   admitSource,
   createInputSourceRegistry,
   inputSourceName,
@@ -10,6 +11,7 @@ import {
   withIntakeTerms,
   parseInputSourceName,
   type InputSourceDeclaration,
+  type InputSources,
   type IntakeSubject,
 } from '@omne-harness/session-contract'
 
@@ -91,9 +93,12 @@ describe('admitSource: subject kind x accepted subject x wake rule', () => {
 describe('input source names and the registry', () => {
   it('a name is <domain>.<name>; anything else is not a name', () => {
     expect(parseInputSourceName('session.member')).toBe('session.member')
-    for (const bad of ['member', 'Session.member', 'a.b.c', '.x', 'a.', '', 7, null])
+    const textLike = { toString: () => 'session.member' }
+    for (const bad of ['member', 'Session.member', 'a.b.c', '.x', 'a.', '', 7, null, textLike])
       expect(parseInputSourceName(bad)).toBeNull()
-    expect(() => inputSourceName('login-entry')).toThrow(TypeError)
+    expect(() => inputSourceName('login-entry')).toThrow(
+      /"login-entry" is not an input source name/u,
+    )
   })
 
   it('looks a declaration up by name and forgets it at withdrawal', () => {
@@ -128,22 +133,55 @@ describe('input source names and the registry', () => {
   it('refuses a declaration with no label, no wake rule or no accepted subject', () => {
     const registry = createInputSourceRegistry()
     const good = declaration(FROM_PROBE, 'always')
-    expect(() => registry.register({ ...good, label: ' ' })).toThrow(TypeError)
-    expect(() => registry.register({ ...good, wake: 'sometimes' as never })).toThrow(TypeError)
-    expect(() =>
-      registry.register({
-        ...good,
-        accepts: { subject: 'system', component: '', screened: false },
-      }),
-    ).toThrow(TypeError)
+    const accepting = (accepts: unknown) => () =>
+      registry.register({ ...good, accepts: accepts as never })
+    expect(() => registry.register({ ...good, label: ' ' })).toThrow(/probe\.task has no label/u)
+    expect(() => registry.register({ ...good, label: 7 as never })).toThrow(/has no label/u)
+    expect(() => registry.register({ ...good, wake: 'sometimes' as never })).toThrow(
+      /probe\.task has no wake rule/u,
+    )
+    const noSubject = /probe\.task names no accepted subject/u
+    expect(accepting({ subject: 'system', component: '', screened: false })).toThrow(noSubject)
+    expect(accepting({ subject: 'system', component: 7, screened: false })).toThrow(noSubject)
+    expect(accepting({ subject: 'robot', component: 'probe', screened: false })).toThrow(noSubject)
     expect(() => registry.register({ ...good, name: 'nodot' as never })).toThrow(TypeError)
+    expect(registry.lookup(good.name)).toEqual({ kind: 'absent' })
+  })
+
+  it('keeps exactly the declared members, and screened only when it is true', () => {
+    const registry = createInputSourceRegistry()
+    const extra = { ...FROM_PROBE, screened: 'yes', note: 'x' } as never
+    registry.register({ ...declaration(extra, 'always'), role: 'user' } as never)
+    expect(registry.lookup(inputSourceName('probe.task'))).toEqual({
+      kind: 'registered',
+      declaration: {
+        name: 'probe.task',
+        label: 'Probe task',
+        accepts: { subject: 'system', component: 'probe', screened: false },
+        wake: 'always',
+      },
+    })
+    const screened = createInputSourceRegistry()
+    screened.register(declaration({ ...FROM_PROBE, screened: true }, 'never'))
+    expect(screened.lookup(inputSourceName('probe.task'))).toMatchObject({
+      declaration: { accepts: { screened: true } },
+    })
   })
 })
 
 describe('intake terms are computed where the command is committed', () => {
-  const registry = createInputSourceRegistry()
-  registry.register(declaration(FROM_PROBE, 'as-requested'))
-  const outcome = { declaration: declaration(FROM_PROBE, 'as-requested'), subject: PROBE }
+  const name = 'probe.task' as InputSourceDeclaration['name']
+  const asRequested = {
+    name,
+    label: 'Probe task',
+    accepts: FROM_PROBE,
+    wake: 'as-requested',
+  } as const
+  const registry: InputSources = {
+    lookup: asked =>
+      asked === name ? { kind: 'registered', declaration: asRequested } : { kind: 'absent' },
+  }
+  const outcome = { declaration: asRequested, subject: PROBE }
   const derived = { admission: () => outcome }
   const base = { tenant: null as never, session: 's' as never, operation: 'op' as never }
   const value = {
@@ -151,15 +189,42 @@ describe('intake terms are computed where the command is committed', () => {
     input: 'i' as never,
     message: { id: 'm', role: 'system_reminder', blocks: [] } as never,
     origin: { owner: 'o', record: 'r', revision: '1', digest: 'd' },
-    source: inputSourceName('probe.task'),
+    source: name,
   } as const
   const accept = { kind: 'accept', input: { ...base, value } } as const
   const basis = { subject: PROBE, sources: registry, derived }
 
   it('admits the input of a command and carries the terms as one guard', () => {
     const terms = prepareIntakeTerms(accept, basis)
-    expect(terms).toMatchObject({ source: { kind: 'admitted', source: { wakes: true } } })
+    const source = {
+      name: 'probe.task',
+      label: 'Probe task',
+      role: 'system_reminder',
+      wakes: true,
+      entry: 'trusted',
+      countsTowardCapacity: false,
+    }
+    expect(terms).toEqual({ source: { kind: 'admitted', source } })
+    expect(withIntakeTerms([], terms)).toEqual([
+      {
+        owner: 'session-intake',
+        participant: 'session',
+        protocol: {
+          owner: 'session',
+          name: 'intake-terms',
+          revision: '1',
+          digest: 'sha256:session-intake-terms@1',
+        },
+        facts: terms,
+      },
+    ])
     expect(intakeTermsOf(withIntakeTerms([], terms))).toEqual(terms)
+  })
+
+  it('prepares no terms for a routed input that is not ordinary', () => {
+    const card = { kind: 'card-decision', card: {}, decision: {}, destination: {} }
+    const command = { kind: 'accept', input: { ...base, value: card } }
+    expect(prepareIntakeTerms(command as never, basis)).toBeNull()
   })
 
   it('carries the wake the request asked for, and a refusal with its reason', () => {
@@ -203,6 +268,28 @@ describe('intake terms are computed where the command is committed', () => {
     expect(intakeTermsOf([])).toBeNull()
   })
 
+  it('reads the admitted values only in their exact shape, member by member', () => {
+    const admitted = prepareIntakeTerms(accept, basis)
+    const good = admitted?.source?.kind === 'admitted' ? admitted.source.source : null
+    const withSource = (source: unknown) =>
+      intakeTermsOf(withIntakeTerms([], { source: { kind: 'admitted', source: source as never } }))
+    expect(withSource(good)).not.toBeNull()
+    for (const [member, value] of [
+      ['name', 'nodot'],
+      ['label', 7],
+      ['role', 'owner'],
+      ['wakes', 'yes'],
+      ['entry', 'side-door'],
+      ['countsTowardCapacity', 0],
+    ] as const)
+      expect(withSource({ ...good, [member]: value }), member).toBeNull()
+    expect(withSource(null)).toBeNull()
+    expect(withSource('probe.task')).toBeNull()
+    const guard = withIntakeTerms([], admitted)[0]!
+    expect(intakeTermsOf([{ ...guard, facts: 'terms' as never }])).toBeNull()
+    expect(intakeTermsOf([{ ...guard, facts: null as never }])).toBeNull()
+  })
+
   it('a derived input is admitted by the same formula, with the wake Session asks for', () => {
     expect(admitDerived(outcome, { wake: false })).toMatchObject({
       wakes: false,
@@ -211,5 +298,10 @@ describe('intake terms are computed where the command is committed', () => {
     expect(admitDerived(outcome, { wake: true })).toMatchObject({ wakes: true })
     expect(admitDerived({ ...outcome, subject: OTHER }, {})).toBeNull()
     expect(admitDerived(undefined, {})).toBeNull()
+    expect(admitDerivedOf(undefined, 'background-stop', {})).toBeNull()
+    expect(admitDerivedOf({}, 'background-stop', {})).toBeNull()
+    expect(admitDerivedOf({ 'background-stop': outcome }, 'background-stop', {})).toMatchObject({
+      name: 'probe.task',
+    })
   })
 })

@@ -687,9 +687,16 @@ describe('the pure judgments at their edges', () => {
     }
     const decided = (guards: readonly GuardCommand[]) =>
       decide(previous, command, guards, null, { compaction: null })
-    const unavailable = { kind: 'rejected', failure: { kind: 'unavailable' } }
-    expect(decided([])).toMatchObject(unavailable)
-    expect(decided(testingIntakeGuards(command, null))).toMatchObject(unavailable)
+    const unavailable = (reason: string) => ({
+      kind: 'rejected',
+      failure: {
+        kind: 'unavailable',
+        owner: 'session-intake',
+        diagnostic: `the terms of this input are not available: ${reason}`,
+      },
+    })
+    expect(decided([])).toEqual(unavailable('none prepared'))
+    expect(decided(testingIntakeGuards(command, null))).toEqual(unavailable('subject-absent'))
     expect(decided(testingIntakeGuards(command, { kind: 'system', component: 'x' }))).toEqual({
       kind: 'rejected',
       failure: { kind: 'invalid', field: 'value.source', reason: 'subject-not-accepted' },
@@ -697,9 +704,13 @@ describe('the pure judgments at their edges', () => {
     const system = { ...value, source: TESTING_SOURCES.system }
     const other = { ...command, input: { ...command.input, value: system } } as SessionCommand
     const component = { kind: 'system', component: TESTING_SYSTEM_COMPONENT } as const
-    expect(decided(testingIntakeGuards(other, component))).toMatchObject({
+    expect(decided(testingIntakeGuards(other, component))).toEqual({
       kind: 'rejected',
-      failure: { kind: 'invalid', field: 'value.source' },
+      failure: {
+        kind: 'invalid',
+        field: 'value.source',
+        reason: 'the intake terms are of another source',
+      },
     })
     expect(
       decide(previous, other, testingIntakeGuards(other, component), null, { compaction: null }),

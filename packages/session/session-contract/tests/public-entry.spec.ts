@@ -10,6 +10,7 @@ it('exports exactly the declared root runtime surface', () => {
     'INITIALIZATION_PROTOCOL',
     'INTAKE_GUARD_OWNER',
     'admitDerived',
+    'admitDerivedOf',
     'admitSource',
     'archiveCollapse',
     'backgroundCallView',

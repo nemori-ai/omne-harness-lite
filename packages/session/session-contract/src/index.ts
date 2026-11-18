@@ -312,6 +312,7 @@ export type { SessionIntakeLimits } from './intake.ts'
 export {
   INTAKE_GUARD_OWNER,
   admitDerived,
+  admitDerivedOf,
   admitSource,
   createInputSourceRegistry,
   inputSourceName,

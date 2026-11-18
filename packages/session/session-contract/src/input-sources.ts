@@ -231,17 +231,19 @@ export function withIntakeTerms(
   ]
 }
 
+const ADMITTED_SHAPE: Readonly<Record<keyof AdmittedSource, (value: unknown) => boolean>> = {
+  name: value => parseInputSourceName(value) !== null,
+  label: value => typeof value === 'string',
+  role: value => value === 'user' || value === 'system_reminder',
+  wakes: value => typeof value === 'boolean',
+  entry: value => value === 'login' || value === 'trusted',
+  countsTowardCapacity: value => typeof value === 'boolean',
+}
+
 function isAdmittedSource(value: unknown): value is AdmittedSource {
   if (typeof value !== 'object' || value === null) return false
-  const source = value as Readonly<Record<string, unknown>>
-  return (
-    parseInputSourceName(source['name']) !== null &&
-    typeof source['label'] === 'string' &&
-    (source['role'] === 'user' || source['role'] === 'system_reminder') &&
-    typeof source['wakes'] === 'boolean' &&
-    (source['entry'] === 'login' || source['entry'] === 'trusted') &&
-    typeof source['countsTowardCapacity'] === 'boolean'
-  )
+  const given = value as Readonly<Record<string, unknown>>
+  return Object.entries(ADMITTED_SHAPE).every(([member, fits]) => fits(given[member]))
 }
 
 export function intakeTermsOf(guards: readonly GuardCommand[]): IntakeTerms | null {
@@ -251,6 +253,14 @@ export function intakeTermsOf(guards: readonly GuardCommand[]): IntakeTerms | nu
   const admitted = terms.source?.kind === 'admitted' ? terms.source.source : undefined
   if (admitted !== undefined && !isAdmittedSource(admitted)) return null
   return terms
+}
+
+export function admitDerivedOf(
+  derived: IntakeTerms['derived'],
+  kind: DerivedInputKind,
+  request: Readonly<{ wake?: boolean }>,
+): AdmittedSource | null {
+  return admitDerived(derived?.[kind], request)
 }
 
 export function admitDerived(

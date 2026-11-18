@@ -212,7 +212,7 @@ export async function runR9Flow(): Promise<FlowRecord> {
         first?.startup?.['accepting'] === true &&
           first.startup['outcome'] === 'ready' &&
           JSON.stringify(first.startup['implementations']) ===
-            JSON.stringify({ real: 71, 'contract-double': 0, 's0-double': 2 }) &&
+            JSON.stringify({ real: 72, 'contract-double': 0, 's0-double': 2 }) &&
           first.pending.length === 0,
         `startup ${shortJson(first?.startup)}, not ACTIVE: ${(first?.pending ?? []).join(', ')}`,
       ),

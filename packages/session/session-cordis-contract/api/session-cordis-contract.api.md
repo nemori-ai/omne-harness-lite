@@ -7,6 +7,7 @@
 ## 入口 `.` · `index.d.ts`
 
 - `AdmittedMessage` · 包 `@omne-harness/session-contract`
+- `AdmittedSource` · 包 `@omne-harness/session-contract`
 - `Adoption` · 包 `@omne-harness/exchange-refs`
 - `AdoptionEvidenceCommand` · 包 `@omne-harness/session-contract`
 - `AdvanceClaim` · 包 `@omne-harness/session-contract`
@@ -18,7 +19,6 @@
 - `ArchivedBy` · 包 `@omne-harness/session-contract`
 - `AttemptId` · 包 `@omne-harness/session-contract`
 - `AutoArchivePolicy` · 包 `@omne-harness/session-contract`
-- `BACKGROUND_INPUT_OWNER` · 包 `@omne-harness/session-contract`
 - `BackgroundCallLabel` · 包 `@omne-harness/session-contract`
 - `BackgroundCallRecord` · 包 `@omne-harness/session-contract`
 - `BackgroundCallResolution` · 包 `@omne-harness/session-contract`
@@ -59,6 +59,8 @@
 - `Decision` · 包 `@omne-harness/session-contract`
 - `DeclarationChange` · 包 `@omne-harness/session-contract`
 - `DeliveredInputs` · 包 `@omne-harness/session-contract`
+- `DerivedAdmission` · 包 `@omne-harness/session-contract`
+- `DerivedInputKind` · 包 `@omne-harness/session-contract`
 - `DerivedMessage` · 包 `@omne-harness/session-contract`
 - `DirectCallControl` · 包 `@omne-harness/session-contract`
 - `DriveFailure` · 包 `@omne-harness/session-contract`
@@ -80,6 +82,7 @@
 - `HistoryPage` · 包 `@omne-harness/session-contract`
 - `INGRESS_FAMILIES` · 包 `@omne-harness/session-contract`
 - `INITIALIZATION_PROTOCOL` · 包 `@omne-harness/session-contract`
+- `INTAKE_GUARD_OWNER` · 包 `@omne-harness/session-contract`
 - `IdleCoverage` · 包 `@omne-harness/session-contract`
 - `IdleJudgment` · 包 `@omne-harness/session-contract`
 - `IdleObservation` · 包 `@omne-harness/session-contract`
@@ -102,6 +105,14 @@
 - `InputAdmissionPage` · 包 `@omne-harness/session-contract`
 - `InputBatch` · 包 `@omne-harness/session-contract`
 - `InputId` · 包 `@omne-harness/session-contract`
+- `InputSourceDeclaration` · 包 `@omne-harness/session-contract`
+- `InputSourceLookup` · 包 `@omne-harness/session-contract`
+- `InputSourceName` · 包 `@omne-harness/session-contract`
+- `InputSourceRegistry` · 包 `@omne-harness/session-contract`
+- `InputSources` · 包 `@omne-harness/session-contract`
+- `IntakeBasis` · 包 `@omne-harness/session-contract`
+- `IntakeSubject` · 包 `@omne-harness/session-contract`
+- `IntakeTerms` · 包 `@omne-harness/session-contract`
 - `ModelViewBasis` · 包 `@omne-harness/session-contract`
 - `ModelViewRead` · 包 `@omne-harness/session-contract`
 - `ModelViewRow` · 包 `@omne-harness/session-contract`
@@ -186,6 +197,7 @@
 - `SessionCursorVerifyResult` · `cursor-signing.d.ts`
 - `SessionCustodySource` · 包 `@omne-harness/session-contract`
 - `SessionDelegatedTransactions` · 包 `@omne-harness/session-contract`
+- `SessionDerivedInputs` · 包 `@omne-harness/session-contract`
 - `SessionDirectory` · 包 `@omne-harness/session-contract`
 - `SessionEntriesBoundary` · 包 `@omne-harness/session-contract`
 - `SessionEntriesChannel` · 包 `@omne-harness/session-contract`
@@ -249,6 +261,9 @@
 - `SessionWork` · 包 `@omne-harness/session-contract`
 - `SessionWorkEntryIndex` · 包 `@omne-harness/session-contract`
 - `SessionWorkPrincipals` · 包 `@omne-harness/session-contract`
+- `SourceAdmission` · 包 `@omne-harness/session-contract`
+- `SourceRefusal` · 包 `@omne-harness/session-contract`
+- `SourceTerms` · 包 `@omne-harness/session-contract`
 - `StartAdoption` · 包 `@omne-harness/session-contract`
 - `StartedRun` · 包 `@omne-harness/session-contract`
 - `StepCommittedBlocks` · `context-facts.d.ts`
@@ -263,18 +278,22 @@
 - `Waiting` · 包 `@omne-harness/session-contract`
 - `WorkSnapshot` · 包 `@omne-harness/session-contract`
 - `WorkspaceAttachment` · 包 `@omne-harness/session-contract`
+- `admitDerived` · 包 `@omne-harness/session-contract`
+- `admitSource` · 包 `@omne-harness/session-contract`
 - `archiveCollapse` · 包 `@omne-harness/session-contract`
 - `backgroundCallView` · 包 `@omne-harness/session-contract`
 - `backgroundCalls` · 包 `@omne-harness/session-contract`
 - `backgroundInputId` · 包 `@omne-harness/session-contract`
 - `batchEvidence` · 包 `@omne-harness/session-contract`
 - `commandDigest` · 包 `@omne-harness/session-contract`
+- `commandInput` · 包 `@omne-harness/session-contract`
 - `compactionCallChangeOf` · 包 `@omne-harness/session-contract`
 - `compactionContextForView` · 包 `@omne-harness/session-contract`
 - `contextScopeOf` · 包 `@omne-harness/session-contract`
 - `contextScopesOf` · 包 `@omne-harness/session-contract`
 - `controlAnswer` · 包 `@omne-harness/session-contract`
 - `controlRoutes` · 包 `@omne-harness/session-contract`
+- `createInputSourceRegistry` · 包 `@omne-harness/session-contract`
 - `decide` · 包 `@omne-harness/session-contract`
 - `decideCompactionCommit` · 包 `@omne-harness/session-contract`
 - `decideControlConsequences` · 包 `@omne-harness/session-contract`
@@ -288,7 +307,9 @@
 - `expectedHolds` · 包 `@omne-harness/session-contract`
 - `expectedRevision` · 包 `@omne-harness/session-contract`
 - `initializationRegistrationCommit` · 包 `@omne-harness/session-contract`
+- `inputSourceName` · 包 `@omne-harness/session-contract`
 - `inputsToDeliver` · 包 `@omne-harness/session-contract`
+- `intakeTermsOf` · 包 `@omne-harness/session-contract`
 - `isAcceptedInputRecord` · 包 `@omne-harness/session-contract`
 - `isDeferredFact` · 包 `@omne-harness/session-contract`
 - `judgeAdvance` · 包 `@omne-harness/session-contract`
@@ -300,7 +321,10 @@
 - `judgeWaiting` · 包 `@omne-harness/session-contract`
 - `mutationAccessRequest` · 包 `@omne-harness/session-contract`
 - `openWork` · 包 `@omne-harness/session-contract`
+- `parseInputSourceName` · 包 `@omne-harness/session-contract`
 - `pendingIntakeCount` · 包 `@omne-harness/session-contract`
+- `prepareEntriesTerms` · 包 `@omne-harness/session-contract`
+- `prepareIntakeTerms` · 包 `@omne-harness/session-contract`
 - `projectCompactionCommit` · 包 `@omne-harness/session-contract`
 - `projectSessionEntries` · 包 `@omne-harness/session-contract`
 - `projectSessionLog` · 包 `@omne-harness/session-contract`
@@ -322,6 +346,7 @@
 - `shortCallId` · 包 `@omne-harness/session-contract`
 - `uninterpretedCalls` · 包 `@omne-harness/session-contract`
 - `wakingInputs` · 包 `@omne-harness/session-contract`
+- `withIntakeTerms` · 包 `@omne-harness/session-contract`
 
 ## 入口 `./cordis` · `cordis.d.ts`
 
@@ -337,9 +362,11 @@
 - `SessionCursorSigningService` · `cordis.d.ts`
 - `SessionCustodySourceService` · `cordis.d.ts`
 - `SessionDelegatedTransactionsService` · `cordis.d.ts`
+- `SessionDerivedInputsService` · `cordis.d.ts`
 - `SessionEvidenceBridgeService` · `cordis.d.ts`
 - `SessionIdentityBridgeService` · `cordis.d.ts`
 - `SessionIdleInputService` · `cordis.d.ts`
+- `SessionInputSourcesService` · `cordis.d.ts`
 - `SessionIntercept` · `cordis.d.ts`
 - `SessionInternalPrincipalsService` · `cordis.d.ts`
 - `SessionNotifierService` · `cordis.d.ts`
@@ -364,9 +391,12 @@
 - `sessionCursorSigningKey` · `cordis.d.ts`
 - `sessionCustodySourceKey` · `cordis.d.ts`
 - `sessionDelegatedTransactionsKey` · `cordis.d.ts`
+- `sessionDerivedInputsKey` · `cordis.d.ts`
 - `sessionEvidenceKey` · `cordis.d.ts`
 - `sessionIdentityKey` · `cordis.d.ts`
 - `sessionIdleInputKey` · `cordis.d.ts`
+- `sessionInputSourcesKey` · `cordis.d.ts`
+- `sessionInputSourcesPlugin` · `cordis.d.ts`
 - `sessionKey` · `cordis.d.ts`
 - `sessionNotifierKey` · `cordis.d.ts`
 - `sessionPrincipalBindingsKey` · `cordis.d.ts`
@@ -463,8 +493,9 @@ export interface SessionScopeLookup {
 ## 声明文件 `cordis.d.ts`
 
 ```ts
-import { type Context, Service } from '@deepseek-ai/cordis';
+import { type Context, type Plugin, Service } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
+import { type DerivedAdmission, type DerivedInputKind, type InputSourceDeclaration, type InputSourceLookup, type InputSourceName, type InputSources, type SessionDerivedInputs } from '@omne-harness/session-contract';
 import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, SessionDelegatedTransactions, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionWorkPrincipals, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallControl, SessionCallStates, SessionCallerClass, SessionClock, SessionContextInput, SessionDirectory, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
 import type { SessionAdoptedRequests } from './adopted-request.ts';
 import type { SessionCursorSigning } from './cursor-signing.ts';
@@ -668,9 +699,26 @@ export declare abstract class SessionAdoptedRequestsService<P = unknown> extends
     abstract readonly readAdoptedRequest: SessionAdoptedRequests<P>['readAdoptedRequest'];
 }
 export declare const sessionAdoptedRequestsKey = "sessionAdoptedRequests";
+export declare class SessionInputSourcesService extends Service implements InputSources {
+    static readonly provide = "sessionInputSources";
+    private readonly registry;
+    constructor(ctx: Context);
+    register(declaration: InputSourceDeclaration): void;
+    lookup(name: InputSourceName): InputSourceLookup;
+}
+export declare const sessionInputSourcesKey = "sessionInputSources";
+export declare const sessionInputSourcesPlugin: Plugin.Object;
+export declare abstract class SessionDerivedInputsService extends Service implements SessionDerivedInputs {
+    static readonly provide = "sessionDerivedInputs";
+    constructor(ctx: Context);
+    abstract admission(kind: DerivedInputKind): DerivedAdmission | null;
+}
+export declare const sessionDerivedInputsKey = "sessionDerivedInputs";
 declare module '@deepseek-ai/cordis' {
     interface Context {
         session: SessionService<unknown>;
+        sessionInputSources: SessionInputSourcesService;
+        sessionDerivedInputs: SessionDerivedInputsService;
         sessionAccessCheck: SessionAccessCheckService<unknown>;
         sessionTransactions: SessionTransactionPortService<unknown>;
         sessionPrincipals: SessionInternalPrincipalsService<unknown>;

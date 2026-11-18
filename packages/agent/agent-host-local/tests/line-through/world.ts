@@ -561,7 +561,8 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
     },
   }
 
-  const sessionChecks = createPolicySessionAccessCheck<string>(sessionPolicy)
+  // This world admits inputs as a member of the tenant: every allowed answer names that subject.
+  const sessionChecks = withMemberSubject(createPolicySessionAccessCheck<string>(sessionPolicy))
   const pairOver = (over: SqlStorage) =>
     createSessionStoragePair<string>({
       storage: over,
@@ -583,7 +584,7 @@ export async function openLineWorld(options: LineWorldOptions = {}) {
             },
           }),
       },
-      accessCheck: withMemberSubject(sessionChecks),
+      accessCheck: sessionChecks,
       cursorSigning: createFixedSessionCursorSigning(),
       sources: testingInputSources(),
       derived: testingDerivedInputs(),
