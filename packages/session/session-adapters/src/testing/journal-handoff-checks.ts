@@ -239,6 +239,28 @@ export function custodyBasis(
   }
 }
 
+export function custodyChain(
+  attempts: Attempts,
+  stateOf: (operation: AgentOperationId) => 'committed' | 'excluded' | undefined,
+): CustodyChain {
+  const root = attempts.find(([, attempt]) => attempt.custody === null)
+  if (root === undefined) return null
+  const chain: Exclude<CustodyChain, null>['chain'][number][] = []
+  let committed: AgentOperationId | null = null
+  let current: AgentOperationId | null = root[0]
+  let predecessor: AgentOperationId | null = null
+  while (current !== null) {
+    const fixed = stateOf(current)
+    if (fixed === undefined) break
+    chain.push({ operation: current, predecessor, state: fixed })
+    if (fixed === 'committed') committed = current
+    const next = attempts.find(([, attempt]) => attempt.custody?.predecessor.operation === current)
+    predecessor = current
+    current = next?.[0] ?? null
+  }
+  return { root: root[0], chain, committed }
+}
+
 // A recordHandoff attempt, checked against the record of its H and the custody chain it extends.
 export function validatedCustody<P>(
   basis: CustodyBasis,

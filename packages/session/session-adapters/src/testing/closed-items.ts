@@ -4,6 +4,7 @@ import {
   viewItems,
   viewOfItems,
   type ExecutionView,
+  type ItemChange,
   type PublishedBatch,
   type SessionJournalView,
 } from '../journal/index.ts'
@@ -119,11 +120,34 @@ export function landClosed(
   batch: PublishedBatch,
 ): SessionJournalView {
   const folded = foldItems(view, batch)
-  for (const change of folded.changes)
+  land(table, batch.execution, folded.changes)
+  return folded.view
+}
+
+function land(table: ClosedTable, execution: AgentExecutionId, changes: readonly ItemChange[]) {
+  for (const change of changes)
     if (!change.open)
       table.closed.set(
-        itemText({ execution: batch.execution, family: change.family, item: change.item }),
+        itemText({ execution, family: change.family, item: change.item }),
         change.body,
       )
+}
+
+export function landOnce(
+  table: ClosedTable,
+  view: SessionJournalView,
+  batch: PublishedBatch,
+): SessionJournalView | null {
+  const folded = foldItems(view, batch)
+  const held = (change: ItemChange) =>
+    table.closed.has(
+      itemText({ execution: batch.execution, family: change.family, item: change.item }),
+    )
+  if (
+    table.closedComplete &&
+    folded.changes.some(change => change.change === 'opened' && held(change))
+  )
+    return null
+  land(table, batch.execution, folded.changes)
   return folded.view
 }

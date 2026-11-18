@@ -4,7 +4,7 @@ import { controlStageOf, controlTarget, type ToolControlRecord } from './journal
 import { canonical, canonicalOfKept } from './canonical.ts'
 import { openEffectsAt, openSnapshotItems } from './execution-open-set.ts'
 import type { JournalCell, TransactionAnswer } from './root.ts'
-import { closedObligations, landClosed } from './closed-items.ts'
+import { closedObligations, landClosed, landOnce } from './closed-items.ts'
 import { landEntry } from './closed-rows.ts'
 import { eventPage } from './event-pages.ts'
 import {
@@ -202,6 +202,7 @@ import {
   copy,
   custodyTargetFailure,
   custodyBasis,
+  custodyChain,
   custodyGroups,
   handoffRecord,
   heldHandoff,
@@ -1191,11 +1192,13 @@ export function createJournal<P>(
     const advanced = advances({ ...built, pub })
     const rev = advanced ? current + 1 : current
     const batch: PublishedBatch = { ...built, envelope: { ...envelope, rev }, pub }
+    const prior = agent.view
+    const landed = landOnce(agent, prior, batch)
+    if (landed === null) return fail(conflict(input.operation))
     for (const [digest, value] of prepared.blobs)
       if (!agent.blobs.has(digest)) agent.blobs.set(digest, copy(value))
     agent.log = [...agent.log, batch]
-    const prior = agent.view
-    agent.view = landClosed(agent, agent.view, batch)
+    agent.view = landed
     const folded = agent.view.executions.get(input.execution)
     if (folded === undefined || folded.revision !== rev)
       throw new TypeError('the fold did not reach the revision the envelope names')
@@ -1712,15 +1715,9 @@ export function createJournal<P>(
   function custodyOf(
     execution: Execution,
     handoff: HandoffReference,
-    groups: ReadonlyMap<
-      string,
-      readonly (readonly [AgentOperationId, CustodyAttempt])[]
-    > = custodyGroups(execution),
+    groups: ReturnType<typeof custodyGroups> = custodyGroups(execution),
   ): Exclude<ExecutionHandoff['custody'], null> | null {
-    const attempts = groups.get(canonicalOfKept(handoff)) ?? []
-    const root = attempts.find(([, attempt]) => attempt.custody === null)
-    if (root === undefined) return null
-    const stateOf = (operation: AgentOperationId): 'committed' | 'excluded' | undefined => {
+    return custodyChain(groups.get(canonicalOfKept(handoff)) ?? [], operation => {
       const at = operationKey(execution.tenant, execution.id, operation)
       const held = at === undefined ? undefined : state().operations.get(at)
       // The log decides: an exclusion folded into the view holds over a write still held pending.
@@ -1732,23 +1729,7 @@ export function createJournal<P>(
         true,
       )
       return answer?.kind === 'committed' ? 'committed' : undefined
-    }
-    const chain: Exclude<ExecutionHandoff['custody'], null>['chain'][number][] = []
-    let committed: AgentOperationId | null = null
-    let current: AgentOperationId | null = root[0]
-    let predecessor: AgentOperationId | null = null
-    while (current !== null) {
-      const fixed = stateOf(current)
-      if (fixed === undefined) break
-      chain.push({ operation: current, predecessor, state: fixed })
-      if (fixed === 'committed') committed = current
-      const next = attempts.find(
-        ([, attempt]) => attempt.custody?.predecessor.operation === current,
-      )
-      predecessor = current
-      current = next?.[0] ?? null
-    }
-    return { root: root[0], chain, committed }
+    })
   }
 
   type CandidateVariant = CandidateRequest<P>

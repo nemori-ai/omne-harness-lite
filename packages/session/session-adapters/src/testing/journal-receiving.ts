@@ -24,6 +24,7 @@ import type {
   ReceivedEntry,
 } from '@omne-harness/agent-contract'
 import {
+  type AgentOperationId,
   decodeAgentExecutionId,
   decodeAgentOperationId,
   decodeConsumptionId,
@@ -302,10 +303,16 @@ function deliveryRef(delivery: ReceivedEntry['delivery'], tenant: TenantId) {
 }
 
 // A repeat of a saved delivery under a new operation recognizes the operation that saved it.
-const recognizing = <R>(kept: Kept, value: () => R): Attempt<R> => {
+const recognizing = <R>(
+  kept: Kept,
+  asking: Readonly<{ operation: AgentOperationId }>,
+  value: () => R,
+): Attempt<R> => {
   const at = stampOfReceipt(kept.receipt)
   if (at === undefined)
     return { kind: 'answer', value: fail(unavailable('the saved delivery names no batch')) }
+  // The operation that saved the delivery has its batch: it is answered without a second one.
+  if (at.op === asking.operation) return { kind: 'answer', value: succeed(value()) }
   return {
     kind: 'batch',
     facts: [
@@ -499,7 +506,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
               return { kind: 'answer', value: fail(conflict(input)) }
             const value = rich(input, kept)
             if ('failure' in value) return { kind: 'answer', value }
-            return recognizing(kept, () => ({ kind: 'committed' as const, value: value.ok }))
+            return recognizing(kept, input, () => ({ kind: 'committed' as const, value: value.ok }))
           }
           if (previous) return { kind: 'answer', value: fail(conflict(input)) }
           const revision = execution.revision + 1
@@ -606,7 +613,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
               canonical(kept.entry) !== canonical(input.entry)
             )
               return { kind: 'answer', value: fail(conflict(input)) }
-            return recognizing(kept, () => structuredClone(kept.receipt))
+            return recognizing(kept, input, () => structuredClone(kept.receipt))
           }
         }
         scripted = recordFaults.get(executionText(input))
