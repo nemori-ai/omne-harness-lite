@@ -221,6 +221,11 @@ describe('the default retry policy after a refusal of reasoning state', () => {
       ask({ failure: refused, dispatches: [failed(second)] }),
     )
     expect(decided.decision).toEqual({ kind: 'resend-without-replay', supplier: second })
+    const later = await decisionOf(
+      resending(1),
+      ask({ failure: refused, dispatches: [earlier(), failed(third)] }),
+    )
+    expect(later.decision).toEqual({ kind: 'resend-without-replay', supplier: third })
   })
 
   it('row 2: carried and refused for it, with the bound spent: stops with the refusal', async () => {

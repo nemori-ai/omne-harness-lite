@@ -578,6 +578,17 @@ describe('encode: replay', () => {
     ])
   })
 
+  it('carries no reasoning state for a continuable reply of thinking alone', () => {
+    const thinkingOnly = message(
+      'a1',
+      'assistant',
+      [thinkingBlock('k1', 'pondering'), textBlock('b1', 'answer')],
+      { replay: { scope: SCOPE, format: FORMAT, at: [] } },
+    )
+    const encoded = encode(testRecord(), { messages: [thinkingOnly, follow] }, engineProbe())
+    expect('ok' in encoded && encoded.ok.replayCarried).toBe(false)
+  })
+
   it('leaves out the parts and the thinking of a message from another scope', () => {
     const probe = engineProbe()
     const encoded = encode(testRecord(), { messages: [assistant('gateway/other'), follow] }, probe)

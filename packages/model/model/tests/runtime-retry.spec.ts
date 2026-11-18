@@ -697,9 +697,20 @@ describe('a refusal of the reasoning state the dispatch carried', () => {
       role: 'user',
       blocks: [{ kind: 'text', id: 'q', visibility: seen, text: 'ask' }],
     })
+  const plain = message({
+    id: 'msg_plain000000000000000000',
+    role: 'assistant',
+    blocks: [{ kind: 'text', id: 'p', visibility: seen, text: 'a reply without a mark' }],
+  })
   const fixed: FixedModelRequest = {
     ...request,
-    messages: [ask('msg_ask1000000000000000000'), reply, ask('msg_ask2000000000000000000')],
+    messages: [
+      ask('msg_ask0000000000000000000'),
+      plain,
+      ask('msg_ask1000000000000000000'),
+      reply,
+      ask('msg_ask2000000000000000000'),
+    ],
   }
 
   function resending(max = 1) {

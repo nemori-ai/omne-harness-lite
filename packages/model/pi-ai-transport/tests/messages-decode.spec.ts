@@ -385,6 +385,42 @@ describe('decode: refusals', () => {
     },
   )
 
+  it('leaves another refusal of a request that carried nothing to the status', async () => {
+    const exchange: HttpExchange = {
+      result: Promise.resolve({
+        kind: 'http-error',
+        status: 400,
+        headers: new Headers() as never,
+        errorBody: {
+          kind: 'complete',
+          bytes: new TextEncoder().encode('{"error":{"message":"max_tokens: too large"}}'),
+        },
+      }),
+      stop: () => {},
+      stopped: Promise.resolve(),
+      requestMaySent: () => true,
+    }
+    const facts: TransportFact[] = []
+    for await (const fact of factsOfSend({
+      exchange,
+      decoder: decoderOf(),
+      route: {} as never,
+      limits: {} as never,
+      diagnostics: [],
+      replayCarried: false,
+    }))
+      facts.push(fact)
+    expect(facts).toEqual([
+      {
+        kind: 'ended',
+        termination: {
+          kind: 'failed',
+          fault: { cause: 'input-rejected', diagnostic: 'http-400', upstreamStatus: '400' },
+        },
+      },
+    ])
+  })
+
   it('leaves any other refusal to the status', () => {
     const decoder = decoderOf()
     expect(decoder.refused?.(400, '{"error":{"message":"max_tokens: too large"}}')).toBeNull()
