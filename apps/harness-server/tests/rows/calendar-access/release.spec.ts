@@ -62,6 +62,16 @@ describe('calendar and calendar-access rows', () => {
             body: { calendar: 'cn-legal-holidays', timezone: 'Asia/Shanghai' },
           },
         })
+        const independentList = await tree.cli(['setting', 'list', '--independent'])
+        expect(independentList.status, independentList.stderr).toBe(0)
+        const groups = new Set(
+          (
+            independentList.result?.['body'] as {
+              items: { owner: { providerId: string; definitionId: string } }[]
+            }
+          ).items.map(item => `${item.owner.providerId}/${item.owner.definitionId}`),
+        )
+        expect([...groups].sort()).toEqual(['calendar/environment', 'schedule/agent-authoring'])
         const environment = ['--independent', 'calendar/environment', 'timezone']
         const set = await tree.cli(['setting', 'set', ...environment, '--value', '"Europe/Paris"'])
         expect(set.status, set.stderr).toBe(0)
