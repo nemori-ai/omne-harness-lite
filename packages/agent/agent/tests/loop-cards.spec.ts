@@ -558,7 +558,99 @@ describe('a card round always ends (Agent rule: card rounds always settle)', () 
       kind: 'ended',
       conclusion: { kind: 'cancelled' },
     })
+    const [withdraw] = assembly.controls.cards.invalidate.calls
+    expect(withdraw).toMatchObject({
+      operation: 'step-1/tool/0/admission/round/1/withdraw',
+      passage: 'step-1/tool/0/admission',
+      round: 'step-1/tool/0/admission/round/1',
+      cards: [evidence('card/step-1/tool/0/admission/round/1/card/1')],
+    })
+    expect(withdraw?.reason.record).toBe(`${execution()}/F0/cancel`)
     expect(assembly.controls.cards.invalidate.calls).toHaveLength(1)
     expect(assembly.controls.tools.invoke.calls).toHaveLength(0)
+  })
+
+  async function cancelWhilePresentUnknown(
+    assembly: Assembly,
+    onCancel: Parameters<Assembly['controls']['cards']['lookup']['always']>[0],
+  ) {
+    const { present, lookup } = assembly.controls.cards
+    assembly.controls.admission.admit.always(async () => ask())
+    present.always(async () => ({ failure: { kind: 'commit-unknown', operation } }))
+    lookup.always(async () => ({ ok: { kind: 'unknown' } }))
+    const handle = ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    await eventually(async () => {
+      const { state } = await snapshot(assembly)
+      return state.kind === 'waiting' && state.waits.some(wait => wait.kind === 'dependency')
+    })
+    lookup.always(onCancel)
+    ok(
+      await handle.control.control({
+        ...input,
+        operation: ok(decodeAgentOperationId('cancel-the-run')),
+        command: { kind: 'cancel', reason: evidence('cancel') },
+      }),
+    )
+  }
+
+  it('looks a card up before withdrawing it when its present had no certain result', async () => {
+    const assembly = await cardAssembly()
+    withdrawn(assembly)
+    const found = [evidence('card/found')]
+    await cancelWhilePresentUnknown(assembly, async () => ({
+      ok: { kind: 'presented', cards: found },
+    }))
+    await eventually(async () => (await snapshot(assembly)).state.kind === 'ended')
+    expect(assembly.controls.cards.invalidate.calls.map(call => call.cards)).toEqual([found])
+  })
+
+  it('withdraws nothing when the lookup finds the card was never presented', async () => {
+    const assembly = await cardAssembly()
+    withdrawn(assembly)
+    await cancelWhilePresentUnknown(assembly, async () => ({
+      ok: { kind: 'not-presented', exclusion: evidence('excluded') },
+    }))
+    await eventually(async () => (await snapshot(assembly)).state.kind === 'ended')
+    expect((await snapshot(assembly)).state).toMatchObject({ conclusion: { kind: 'cancelled' } })
+    expect(assembly.controls.cards.invalidate.calls).toHaveLength(0)
+  })
+
+  it('does not end the Run while it cannot know whether the card it must withdraw exists', async () => {
+    const assembly = await cardAssembly()
+    withdrawn(assembly)
+    await cancelWhilePresentUnknown(assembly, async () => ({ ok: { kind: 'unknown' } }))
+    await eventually(async () => {
+      const { state } = await snapshot(assembly)
+      return (
+        state.kind === 'waiting' &&
+        state.waits.some(wait => wait.kind === 'dependency' && wait.owner === 'agentDecisionCards')
+      )
+    })
+    expect((await snapshot(assembly)).state.kind).not.toBe('ended')
+    expect(assembly.controls.cards.invalidate.calls).toHaveLength(0)
+  })
+
+  it('does not end the Run as cancelled while the open card could not be withdrawn', async () => {
+    const assembly = await cardAssembly()
+    assembly.controls.cards.invalidate.always(async () => ({
+      failure: { kind: 'unavailable', owner: 'agentDecisionCards', diagnostic: 'down' },
+    }))
+    assembly.controls.admission.admit.always(async () => ask())
+    const handle = ok(await invoke(assembly))
+    await deliverToolSuggestion(assembly, [toolCall('call-a')])
+    await waitingForPerson(assembly)
+    ok(
+      await handle.control.control({
+        ...input,
+        operation: ok(decodeAgentOperationId('cancel-the-run')),
+        command: { kind: 'cancel', reason: evidence('cancel') },
+      }),
+    )
+    await eventually(async () => assembly.controls.cards.invalidate.calls.length >= 1)
+    expect((await snapshot(assembly)).state).toMatchObject({
+      kind: 'waiting',
+      waits: [{ kind: 'human' }],
+    })
   })
 })

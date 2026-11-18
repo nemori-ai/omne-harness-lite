@@ -5,6 +5,7 @@ import {
   type ActionBatch,
   type AgentCheckpoint,
   type AgentExecutionId,
+  type CardRound,
   type CardRoundId,
   type DurableEvidence,
   type Failure,
@@ -34,8 +35,26 @@ export function cardClosing<P>(
   execution: AgentExecutionId,
   unsentRounds: ReadonlySet<CardRoundId>,
 ) {
-  // The operation is the round's, so a retry withdraws it once. A round never sent, or found not
-  // presented, has nothing to withdraw.
+  async function shownCards(
+    chain: Passage,
+    round: CardRound,
+  ): Promise<Outcome<readonly DurableEvidence[], Failure>> {
+    if (round.progress.kind === 'presented')
+      return succeed(round.progress.cards.map(card => card.card))
+    const request = presentRequest(chain)
+    if (request === null) return fail(defect('an open round to present has no request'))
+    const found = await ports.cards.lookup({ ...access, execution, ...request })
+    if ('failure' in found) return found
+    if (found.ok.kind === 'unknown')
+      return fail({
+        kind: 'unavailable',
+        owner: 'agentDecisionCards',
+        diagnostic: 'the result of presenting a card round is unknown',
+      })
+    return succeed(found.ok.kind === 'presented' ? found.ok.cards : [])
+  }
+
+  // The operation is the round's, so a retry withdraws it once.
   async function withdrawRound(
     chain: Passage,
     reason: DurableEvidence,
@@ -44,23 +63,10 @@ export function cardClosing<P>(
     const last = chain.progress.kind === 'asked' ? chain.progress.rounds.at(-1) : undefined
     if (last === undefined || needOf(chain) === 'closed' || unsent.has(last.round))
       return succeed(undefined)
-    let cards: readonly DurableEvidence[]
-    if (last.progress.kind === 'presented') cards = last.progress.cards.map(card => card.card)
-    else {
-      const request = presentRequest(chain)
-      if (request === null) return fail(defect('an open round to present has no request'))
-      const found = await ports.cards.lookup({ ...access, execution, ...request })
-      if ('failure' in found) return found
-      if (found.ok.kind === 'unknown')
-        return fail({
-          kind: 'unavailable',
-          owner: 'agentDecisionCards',
-          diagnostic: 'the result of presenting a card round is unknown',
-        })
-      if (found.ok.kind === 'not-presented') return succeed(undefined)
-      cards = found.ok.cards
-    }
-    const operation = decodeAgentOperationId(`${chain.id}/${last.round}/withdraw`)
+    const cards = await shownCards(chain, last)
+    if ('failure' in cards) return cards
+    if (cards.ok.length === 0) return succeed(undefined)
+    const operation = decodeAgentOperationId(`${last.round}/withdraw`)
     if ('failure' in operation) return fail(defect('a card round names no withdraw operation'))
     const withdrawn = await ports.cards.invalidate({
       ...access,
@@ -68,7 +74,7 @@ export function cardClosing<P>(
       execution,
       passage: chain.id,
       round: last.round,
-      cards,
+      cards: cards.ok,
       reason,
     })
     return 'failure' in withdrawn ? withdrawn : succeed(undefined)
