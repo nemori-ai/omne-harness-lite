@@ -370,7 +370,7 @@ function messagesWriter(): Writer {
 function messagesUsage(usage: ChatUsage | undefined): object {
   if (usage === undefined) return {}
   return {
-    input_tokens: usage.prompt_tokens,
+    input_tokens: usage.prompt_tokens - (usage.prompt_tokens_details?.cached_tokens ?? 0),
     cache_read_input_tokens: usage.prompt_tokens_details?.cached_tokens ?? 0,
     output_tokens: usage.completion_tokens,
     output_tokens_details: {

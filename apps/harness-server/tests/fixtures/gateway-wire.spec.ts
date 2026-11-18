@@ -343,6 +343,10 @@ const KNOWN_USAGE = {
   reasoning: '12',
 }
 
+// Messages counts input without the tokens read from the cache (a real cache hit reports
+// input_tokens 4 next to cache_read_input_tokens 1835); Responses counts them in.
+const MESSAGES_KNOWN_USAGE = { ...KNOWN_USAGE, input: '32' }
+
 const CALLS = [
   { callId: 'call_1', name: 'get_weather', arguments: '{"city":"Oslo"}' },
   { callId: 'call_2', name: 'get_time', arguments: '{"zone":"CET"}' },
@@ -436,7 +440,7 @@ describe('renderReply: the chat answer of a script, on the Messages interface', 
       calls: CALLS,
       state: [[thinking('SEALED-B')]],
       termination: ended('tool-suggestions'),
-      usage: KNOWN_USAGE,
+      usage: MESSAGES_KNOWN_USAGE,
       cost: ['0.00042'],
     })
   })
