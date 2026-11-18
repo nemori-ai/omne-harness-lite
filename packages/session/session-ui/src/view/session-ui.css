@@ -177,6 +177,22 @@
 .omne-session-dock:empty {
   display: none;
 }
+.omne-session-work {
+  flex: none;
+  display: grid;
+  gap: var(--omne-space-inline);
+  max-height: 30%;
+  overflow-y: auto;
+  color: var(--omne-ink-muted);
+  font-size: var(--omne-text-caption);
+}
+.omne-session-work-line {
+  margin: 0;
+}
+.omne-session-work ul {
+  margin: 0;
+  padding-left: 1.25em;
+}
 .omne-conversation > * + * {
   margin-top: var(--omne-space-block);
 }
