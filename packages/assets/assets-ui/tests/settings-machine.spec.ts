@@ -196,6 +196,72 @@ describe('整张表', () => {
   })
 })
 
+describe('别处改了：重读整张表', () => {
+  const OTHER = permissionView({ item: 'other-permission' })
+  const page = (items: readonly unknown[], next: string | null = null) => ({
+    outcome: 'succeeded' as const,
+    body: { items: items as never, next, completeness: 'complete' as const },
+  })
+  const refreshing = (state: State) => {
+    const changed = run(state, { kind: 'changed' })
+    const token = state.issued + 1
+    expect(changed.effects).toEqual([{ kind: 'list', token, after: null }])
+    return { state: changed.state, token }
+  }
+
+  it('没读过、读不出或正在读：从头再读，旧的答复作废', () => {
+    expect(run(INITIAL, { kind: 'changed' }).state.list.kind).toBe('reading')
+    const reading = run(INITIAL, { kind: 'read-list' }).state
+    const again = run(reading, { kind: 'changed' }).state
+    expect(again.list).toMatchObject({ kind: 'reading', token: 2 })
+    expect(run(again, { kind: 'list-answered', token: 1, answer: page([VIEW]) }).state).toBe(again)
+  })
+
+  it('已读：重读时各行照旧能用，读完换成新的一张表', () => {
+    const { state, token } = refreshing(listed())
+    expect(rowIn(state)).toEqual(rowIn(listed()))
+    const paged = run(state, { kind: 'list-answered', token, answer: page([OTHER], 'next') })
+    expect(paged.effects).toEqual([{ kind: 'list', token, after: 'next' }])
+    const done = run(paged.state, { kind: 'list-answered', token, answer: page([VIEW]) }).state
+    expect(done.list).toMatchObject({ kind: 'read', partial: false })
+    if (done.list.kind !== 'read') return
+    expect(done.list.rows.map(row => row.key)).toEqual([keyOf(OTHER), KEY])
+    expect(done.list.refresh).toBeUndefined()
+  })
+
+  it('不再出现的项随之消失', () => {
+    const { state, token } = refreshing(listed())
+    const done = run(state, { kind: 'list-answered', token, answer: page([]) }).state
+    expect(done.list).toEqual({ kind: 'read', rows: [], partial: false })
+  })
+
+  it('重读期间一行的写照旧答复；读完这一行仍带着它的写', () => {
+    const { state, token } = refreshing(submitting())
+    const answered = run(state, {
+      kind: 'write-answered',
+      key: KEY,
+      operation: 'op-1',
+      answer: { outcome: 'unknown' },
+    }).state
+    expect(rowIn(answered).write).toMatchObject({ kind: 'unknown', confirming: true })
+    const done = run(answered, { kind: 'list-answered', token, answer: page([VIEW]) }).state
+    expect(rowIn(done).write).toEqual(rowIn(answered).write)
+  })
+
+  it('重读读不出：照实说，不把上一次读到的当成现在的，也不显示成空', () => {
+    const { state, token } = refreshing(listed())
+    const failed = run(state, {
+      kind: 'list-answered',
+      token,
+      answer: { outcome: 'basis-unavailable' },
+    }).state
+    expect(failed.list).toEqual({
+      kind: 'failed',
+      notice: { kind: 'refused', text: '服务端暂时读不出需要的依据，稍后再试。' },
+    })
+  })
+})
+
 describe('一项', () => {
   it('闲时点「设置」：交，带这一项的修订号与挑选', () => {
     const { state, effects } = run(listed(), {

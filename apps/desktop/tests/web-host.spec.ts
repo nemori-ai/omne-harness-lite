@@ -84,6 +84,51 @@ const OBSERVE = {
   open: { session: 's' },
 }
 
+/** A page's one event stream; `next` gives the events of the observations on it, in order. */
+async function pageEvents(base: string, page = 'page-1') {
+  const abort = new AbortController()
+  const response = await fetch(`${base}/bridge/events?page=${page}`, { signal: abort.signal })
+  expect(response.headers.get('content-type')).toBe('text/event-stream')
+  const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader()
+  let text = ''
+  let taken = 0
+  return {
+    page,
+    attach: (id: string, request: unknown = OBSERVE) =>
+      post(base, '/bridge/observe', { page, id, request: JSON.stringify(request) }),
+    async next(count: number): Promise<{ id: string; event: unknown }[]> {
+      while (events(text).length < taken + count) {
+        const chunk = await reader.read()
+        if (chunk.done) break
+        text += chunk.value
+      }
+      seenByPage.push(text)
+      const got = events(text).slice(taken, taken + count) as { id: string; event: string }[]
+      taken += got.length
+      return got.map(item => ({ id: item.id, event: JSON.parse(item.event) }))
+    },
+    close: () => abort.abort(),
+  }
+}
+
+async function cancelled(stream: (request: { signal: AbortSignal }) => void, server: FakeServer) {
+  let done = false
+  server.stream('session/v1 observe-session', async function* (request) {
+    try {
+      stream(request)
+      yield value({ kind: 'state', n: 1 })
+      await new Promise(resolve => request.signal.addEventListener('abort', resolve))
+      return { kind: 'aborted' }
+    } finally {
+      done = true
+    }
+  })
+  return async () => {
+    for (let i = 0; i < 50 && !done; i += 1) await new Promise(r => setTimeout(r, 10))
+    return done
+  }
+}
+
 describe('宿主的通道', () => {
   it('调用：转发一次调用，答复是传输的三种结果之一', async () => {
     const { base, server } = await start()
@@ -129,51 +174,67 @@ describe('宿主的通道', () => {
     expect(server.seen).toEqual([])
   })
 
-  it('观察：一帧一个事件，最后一个事件是怎样结束的', async () => {
+  it('观察：挂在这一页的事件流上，一帧一个事件，最后一个事件是怎样结束的', async () => {
     const { base, server } = await start()
     server.stream('session/v1 observe-session', async function* () {
       yield value({ kind: 'state', n: 1 })
       yield value({ kind: 'state', n: 2 })
       return { kind: 'ended', reason: 'refresh-exhausted' }
     })
-    const response = await post(base, '/bridge/observe', OBSERVE)
-    expect(response.headers.get('content-type')).toBe('text/event-stream')
-    const text = await response.text()
-    seenByPage.push(text)
-    expect(events(text)).toEqual([
-      { kind: 'frame', frame: { kind: 'state', n: 1 } },
-      { kind: 'frame', frame: { kind: 'state', n: 2 } },
-      { kind: 'end', end: { kind: 'ended', reason: 'refresh-exhausted' } },
+    const page = await pageEvents(base)
+    expect((await page.attach('o-1')).status).toBe(200)
+    expect(await page.next(3)).toEqual([
+      { id: 'o-1', event: { kind: 'frame', frame: { kind: 'state', n: 1 } } },
+      { id: 'o-1', event: { kind: 'frame', frame: { kind: 'state', n: 2 } } },
+      { id: 'o-1', event: { kind: 'end', end: { kind: 'ended', reason: 'refresh-exhausted' } } },
     ])
+    page.close()
   })
 
   it('观察：被拒也以结束事件答复', async () => {
     const { base } = await start()
-    const text = await (await post(base, '/bridge/observe', OBSERVE)).text()
-    expect(events(text)).toEqual([
-      { kind: 'end', end: { kind: 'refused', outcome: 'basis-unavailable' } },
+    const page = await pageEvents(base)
+    await page.attach('o-1')
+    expect(await page.next(1)).toEqual([
+      { id: 'o-1', event: { kind: 'end', end: { kind: 'refused', outcome: 'basis-unavailable' } } },
     ])
+    page.close()
   })
 
-  it('观察：页面断开就取消观察', async () => {
+  it('观察：这一页没有事件流时不转发，答 409；页面认作没发出', async () => {
     const { base, server } = await start()
-    let cancelled = false
-    server.stream('session/v1 observe-session', async function* (request) {
-      try {
-        yield value({ kind: 'state', n: 1 })
-        await new Promise(resolve => request.signal.addEventListener('abort', resolve))
-        return { kind: 'aborted' }
-      } finally {
-        cancelled = true
-      }
+    const response = await post(base, '/bridge/observe', {
+      page: 'nobody',
+      id: 'o-1',
+      request: JSON.stringify(OBSERVE),
     })
-    const abort = new AbortController()
-    const response = await post(base, '/bridge/observe', OBSERVE, abort.signal)
-    expect(await firstEvents(response, 1, abort)).toEqual([
-      { kind: 'frame', frame: { kind: 'state', n: 1 } },
+    expect(response.status).toBe(409)
+    expect(server.seen.some(item => item.target.includes('observe-session'))).toBe(false)
+  })
+
+  it('观察：一页的十条观察走同一条事件流，各按标识分开；停一条只停它', async () => {
+    const { base, server } = await start()
+    const settled = await cancelled(() => undefined, server)
+    const page = await pageEvents(base)
+    for (let id = 0; id < 10; id += 1) expect((await page.attach(`o-${id}`)).status).toBe(200)
+    const first = await page.next(10)
+    expect(new Set(first.map(item => item.id)).size).toBe(10)
+    await post(base, '/bridge/unobserve', { page: page.page, id: 'o-3' })
+    expect(await settled()).toBe(true)
+    expect((await post(base, '/bridge/call', CALL)).status).toBe(200)
+    page.close()
+  })
+
+  it('观察：页面的事件流断开，就取消挂在上面的全部观察', async () => {
+    const { base, server } = await start()
+    const settled = await cancelled(() => undefined, server)
+    const page = await pageEvents(base)
+    await page.attach('o-1')
+    expect(await page.next(1)).toEqual([
+      { id: 'o-1', event: { kind: 'frame', frame: { kind: 'state', n: 1 } } },
     ])
-    for (let i = 0; i < 50 && !cancelled; i += 1) await new Promise(r => setTimeout(r, 10))
-    expect(cancelled).toBe(true)
+    page.close()
+    expect(await settled()).toBe(true)
   })
 
   it('登录成功：答复只有结果', async () => {
@@ -273,7 +334,10 @@ describe('宿主的通道', () => {
       operation: '../../identity/v1/issue-login',
       body: { loginIdentifier: 'alice', credential: 'pw' },
     })
-    seenByPage.push(await (await post(base, '/bridge/observe', OBSERVE)).text())
+    const page = await pageEvents(base)
+    seenByPage.push(await (await page.attach('o-1')).text())
+    await page.next(2)
+    page.close()
     await postText(base, '/bridge/logout', {})
     expect(server.seen.some(item => item.credentials.proof === PROOF_SENTINEL)).toBe(true)
     expect(seenByPage.length).toBeGreaterThan(10)

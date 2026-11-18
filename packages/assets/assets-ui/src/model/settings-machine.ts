@@ -1,6 +1,7 @@
 import type { AssetsProtocol, SettingView } from '@omne-harness/assets-protocol'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import { COMMON_SENTENCES, refusal, type Notice } from './notices.ts'
 
 type Client = ClientOf<AssetsProtocol>
 type Answer<K extends Exclude<keyof Client, 'observe'>> = Awaited<ReturnType<Client[K]>>
@@ -8,7 +9,7 @@ export type ListAnswer = Answer<'list-settings'>
 export type DescribeAnswer = Answer<'describe-setting'>
 export type WriteAnswer = Answer<'set-setting'> | Answer<'clear-setting'>
 
-export type Notice = Readonly<{ kind: 'refused' | 'unavailable' | 'unknown'; text: string }>
+export type { Notice } from './notices.ts'
 
 export type WriteRequest =
   | Readonly<{ kind: 'set'; pick: string }>
@@ -33,10 +34,13 @@ export type RowRead =
 
 export type Row = Readonly<{ key: string; view: SettingView; read: RowRead; write: Write }>
 
+/** A read of the list after a change elsewhere: the rows read before stay in use until it ends. */
+export type Refresh = Readonly<{ token: number; rows: readonly Row[]; partial: boolean }>
+
 export type List =
   | Readonly<{ kind: 'unread' }>
   | Readonly<{ kind: 'reading'; token: number; rows: readonly Row[]; partial: boolean }>
-  | Readonly<{ kind: 'read'; rows: readonly Row[]; partial: boolean }>
+  | Readonly<{ kind: 'read'; rows: readonly Row[]; partial: boolean; refresh?: Refresh }>
   | Readonly<{ kind: 'failed'; notice: Notice }>
 
 export type State = Readonly<{
@@ -49,6 +53,7 @@ export type Target = Readonly<{ owner: SettingView['owner']; item: string }>
 
 export type Event =
   | Readonly<{ kind: 'read-list' }>
+  | Readonly<{ kind: 'changed' }>
   | Readonly<{ kind: 'list-answered'; token: number; answer: ListAnswer }>
   | Readonly<{ kind: 'set'; key: string; pick: string; operation: string }>
   | Readonly<{ kind: 'set-value'; key: string; value: JsonValue; operation: string }>
@@ -86,14 +91,11 @@ type Refusal = Exclude<
 type NotWritable = Extract<WriteAnswer, { outcome: 'not-writable' }>['body']['reason']
 
 const SENTENCES: Readonly<Record<Refusal, string>> = {
-  denied: '没有权限，或登录已失效。',
+  ...COMMON_SENTENCES,
   'not-visible': '这一项现在看不到了：资产没有持有，或声明里没有这一项。',
   conflict: '这一项在别处改过了，没有写入。已重新读取。',
   invalid: '服务端认为这个值不合这一项的规定，没有写入。',
   'basis-unavailable': '服务端暂时读不出需要的依据，没有写入。稍后再试。',
-  'protocol-rejected': '服务端不认这个请求的格式。',
-  unavailable: '没有发出去。',
-  uncertain: '没有收到可信的答复。',
 }
 
 const READ_SENTENCES: Readonly<Record<Refusal, string>> = {
@@ -109,12 +111,8 @@ const NOT_WRITABLE: Readonly<Record<NotWritable, string>> = {
   'not-a-source': '这一层不能配这一项。',
 }
 
-function notice(outcome: Refusal, sentences: Readonly<Record<Refusal, string>>): Notice {
-  return {
-    kind: outcome === 'unavailable' || outcome === 'uncertain' ? 'unavailable' : 'refused',
-    text: sentences[outcome],
-  }
-}
+const notice = (outcome: Refusal, sentences: Readonly<Record<Refusal, string>>): Notice =>
+  refusal(outcome, sentences[outcome])
 
 function readList(state: State): Step {
   const token = state.issued + 1
@@ -124,8 +122,57 @@ function readList(state: State): Step {
   }
 }
 
+function changed(state: State): Step {
+  const list = state.list
+  if (list.kind !== 'read') return readList(state)
+  const token = state.issued + 1
+  return {
+    state: { issued: token, list: { ...list, refresh: { token, rows: [], partial: false } } },
+    effects: [{ kind: 'list', token, after: null }],
+  }
+}
+
+type Page = Extract<ListAnswer, { outcome: 'succeeded' }>['body']
+
+function gather(rows: readonly Row[], page: Page): readonly Row[] {
+  const known = new Map(rows.map(row => [row.key, row]))
+  for (const view of page.items) {
+    const key = keyOf(view)
+    known.set(key, { key, view, read: { kind: 'read' }, write: { kind: 'none' } })
+  }
+  return [...known.values()]
+}
+
+/** The rows of a finished refresh keep the write and any row read in flight of the rows before. */
+function refreshAnswered(state: State, list: ReadList, refresh: Refresh, answer: ListAnswer): Step {
+  if (answer.outcome !== 'succeeded')
+    return same({
+      ...state,
+      list: { kind: 'failed', notice: notice(answer.outcome, READ_SENTENCES) },
+    })
+  const gathered = gather(refresh.rows, answer.body)
+  const partial = refresh.partial || answer.body.completeness === 'partial'
+  const { token } = refresh
+  if (answer.body.next !== null)
+    return {
+      state: { ...state, list: { ...list, refresh: { token, rows: gathered, partial } } },
+      effects: [{ kind: 'list', token, after: answer.body.next }],
+    }
+  const before = new Map(list.rows.map(row => [row.key, row]))
+  const rows = gathered.map(row => {
+    const kept = before.get(row.key)
+    if (kept === undefined) return row
+    return { ...row, write: kept.write, read: kept.read.kind === 'reading' ? kept.read : row.read }
+  })
+  return same({ ...state, list: { kind: 'read', rows, partial } })
+}
+
+type ReadList = Extract<List, { kind: 'read' }>
+
 function listAnswered(state: State, token: number, answer: ListAnswer): Step {
   const list = state.list
+  if (list.kind === 'read' && list.refresh?.token === token)
+    return refreshAnswered(state, list, list.refresh, answer)
   if (list.kind !== 'reading' || list.token !== token) return same(state)
   if (answer.outcome !== 'succeeded')
     return same({
@@ -133,12 +180,7 @@ function listAnswered(state: State, token: number, answer: ListAnswer): Step {
       list: { kind: 'failed', notice: notice(answer.outcome, READ_SENTENCES) },
     })
   const page = answer.body
-  const known = new Map(list.rows.map(row => [row.key, row]))
-  for (const view of page.items) {
-    const key = keyOf(view)
-    known.set(key, { key, view, read: { kind: 'read' }, write: { kind: 'none' } })
-  }
-  const rows = [...known.values()]
+  const rows = gather(list.rows, page)
   const partial = list.partial || page.completeness === 'partial'
   if (page.next === null) return same({ ...state, list: { kind: 'read', rows, partial } })
   return {
@@ -295,6 +337,8 @@ export function step(state: State, event: Event): Step {
       return state.list.kind === 'unread' || state.list.kind === 'failed'
         ? readList(state)
         : same(state)
+    case 'changed':
+      return changed(state)
     case 'list-answered':
       return listAnswered(state, event.token, event.answer)
     case 'set':

@@ -1,8 +1,10 @@
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, it } from 'vitest'
+import type { DomainRef } from '@omne-harness/sql-contract'
 import type { ParticipantPort } from '@omne-harness/sql-contract/worker'
 import migration from '../src/migration.ts'
 import { mutate } from '../src/mutations.ts'
+import reads from '../src/read.ts'
 import { canonical } from '../src/encoding.ts'
 import { readHolding, readSummary, readVersion, selectedVersion } from '../src/records.ts'
 import { mutationSchema, type Mutation } from '../src/schema.ts'
@@ -296,5 +298,25 @@ describe('publishAndHold: the version and the holding in one participant call', 
       reason: 'revision_conflict',
     })
     expect(selected(port)).toBe('v1')
+  })
+})
+
+describe('the domain revision as the read handler answers it', () => {
+  const asked = (port: ParticipantPort, scope: DomainRef = domain) =>
+    reads.read({ kind: 'domain', domain: scope, lookup: null }, port as never)
+
+  it('is 0 before anything is written, then follows every change, and another domain is refused', () => {
+    const port = open()
+    expect(asked(port)).toEqual({ kind: 'read', output: { kind: 'domain', revision: 0 } })
+    run(port, publishAndHold('p1', 'v1'))
+    const after = asked(port)
+    expect(
+      after.kind === 'read' && (after.output as { revision: number }).revision,
+    ).toBeGreaterThan(0)
+    const other = { ...domain, scope: { kind: 'tenant', tenant: 'tenant-b' } } as const
+    expect(asked(port, other)).toEqual({
+      kind: 'read',
+      output: { kind: 'rejected', reason: 'forbidden' },
+    })
   })
 })

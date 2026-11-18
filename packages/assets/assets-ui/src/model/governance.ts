@@ -1,15 +1,38 @@
-import type { AssetsProtocol } from '@omne-harness/assets-protocol'
+import type { AssetRowView, AssetsProtocol, CreationDetail } from '@omne-harness/assets-protocol'
 import type { JsonValue } from '@omne-harness/json-text'
 import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import { AssetsDriver } from './assets-driver.ts'
+import type { Action, AssetsState, Detail } from './assets-machine.ts'
 import { holdingsOf, type Holding } from './holdings.ts'
 import { SettingsDriver } from './settings-driver.ts'
-import type { Notice, State } from './settings-machine.ts'
+import type { Notice, Row, State } from './settings-machine.ts'
+import { createTenantChanges, type TenantChanges } from './tenant-changes.ts'
+
+/** One listed asset with its own settings, its detail when opened, and its action slot. */
+export type AssetEntry = Readonly<{
+  row: AssetRowView
+  settings: readonly Row[]
+  detail: Detail | null
+  action: Action
+}>
+
+export type CategoryAssets =
+  | Readonly<{ kind: 'reading' }>
+  | Readonly<{ kind: 'unreadable'; notice: Notice }>
+  | Readonly<{ kind: 'read'; entries: readonly AssetEntry[]; partial: boolean }>
 
 export type CategorySnapshot =
   | Readonly<{ kind: 'reading' }>
   | Readonly<{ kind: 'unreadable'; notice: Notice }>
-  | Readonly<{ kind: 'read'; holdings: readonly Holding[]; partial: boolean }>
+  | Readonly<{
+      kind: 'read'
+      holdings: readonly Holding[]
+      partial: boolean
+      assets: CategoryAssets
+      /** How this category creates an asset; null until the category is described. */
+      creation: CreationDetail | null
+    }>
 
 export type CategoryGovernance = Readonly<{
   subscribe: (listener: () => void) => () => void
@@ -22,6 +45,11 @@ export type CategoryGovernance = Readonly<{
   confirm: (key: string) => void
   retryRow: (key: string) => void
   close: () => void
+  openAsset: (name: string) => void
+  closeAsset: (name: string) => void
+  setEnabled: (name: string, enabled: boolean) => void
+  remove: (name: string) => void
+  confirmAsset: (name: string) => void
 }>
 
 export type GovernanceModel = Readonly<{
@@ -32,11 +60,39 @@ export type GovernanceModel = Readonly<{
 export type GovernanceDeps = Readonly<{
   client: ClientOf<AssetsProtocol>
   newId?: () => string
+  changes?: TenantChanges
 }>
 
 const READING: CategorySnapshot = { kind: 'reading' }
+const NO_ACTION: Action = { kind: 'none' }
+const NOT_BY_CATEGORY: CategoryAssets = {
+  kind: 'unreadable',
+  notice: { kind: 'refused', text: '这个视图不分类别，不列资产。' },
+}
 
-export function snapshotOf(state: State, category: string | null): CategorySnapshot {
+const READING_ASSETS: CategoryAssets = { kind: 'reading' }
+
+/** The listed assets joined with their settings; a setting whose asset is not listed is not shown. */
+function listedAssets(assets: AssetsState, holdings: readonly Holding[]): CategoryAssets {
+  const list = assets.list
+  if (list.kind === 'failed') return { kind: 'unreadable', notice: list.notice }
+  const listed = list.kind === 'read' ? list : list.kind === 'reading' ? list.shown : null
+  if (listed === null) return READING_ASSETS
+  const settingsOf = new Map(holdings.map(holding => [holding.name, holding.rows]))
+  const entries = listed.items.map(row => ({
+    row,
+    settings: settingsOf.get(row.name) ?? [],
+    detail: assets.details.get(row.name) ?? null,
+    action: assets.actions.get(row.name) ?? NO_ACTION,
+  }))
+  return { kind: 'read', entries, partial: listed.partial }
+}
+
+export function snapshotOf(
+  state: State,
+  category: string | null,
+  assets?: AssetsState,
+): CategorySnapshot {
   const list = state.list
   switch (list.kind) {
     case 'unread':
@@ -51,49 +107,118 @@ export function snapshotOf(state: State, category: string | null): CategorySnaps
           : list.rows.filter(
               row => row.view.owner.kind === 'asset' && row.view.owner.category === category,
             )
-      return { kind: 'read', holdings: holdingsOf(rows), partial: list.partial }
+      const holdings = holdingsOf(rows)
+      return {
+        kind: 'read',
+        holdings,
+        partial: list.partial,
+        assets: assets === undefined ? NOT_BY_CATEGORY : listedAssets(assets, holdings),
+        creation: assets?.category.kind === 'read' ? assets.category.creation : null,
+      }
     }
   }
 }
 
-type Shared = { readonly driver: SettingsDriver; users: number }
+type Shared<D> = { readonly driver: D; users: number; readonly release: () => void }
+
+/** Drivers shared by key, each started once and disposed with its last user. */
+function sharing<D extends { dispose(): void }>() {
+  const shared = new Map<string, Shared<D>>()
+  return {
+    take(key: string, make: () => Shared<D>): Shared<D> {
+      const entry = shared.get(key) ?? make()
+      shared.set(key, entry)
+      entry.users += 1
+      return entry
+    },
+    give(key: string, entry: Shared<D>): void {
+      entry.users -= 1
+      if (entry.users > 0) return
+      entry.release()
+      entry.driver.dispose()
+      shared.delete(key)
+    },
+  }
+}
+
+const nothing = (): void => undefined
+
+export const NO_ASSET_ACTIONS = Object.freeze({
+  openAsset: nothing,
+  closeAsset: nothing,
+  setEnabled: nothing,
+  remove: nothing,
+  confirmAsset: nothing,
+})
+
+function assetActions(driver: AssetsDriver) {
+  return {
+    openAsset: (name: string) => driver.dispatch({ kind: 'open', name }),
+    closeAsset: (name: string) => driver.dispatch({ kind: 'close', name }),
+    setEnabled: (name: string, enabled: boolean) =>
+      driver.change(name, { kind: enabled ? 'enable' : 'disable' }),
+    remove: (name: string) => driver.change(name, { kind: 'remove' }),
+    confirmAsset: (name: string) => driver.dispatch({ kind: 'confirm', name }),
+  }
+}
+
+/** Reads again only what could not be read: the settings list, the asset list, the category. */
+function retry(settings: SettingsDriver, assets: AssetsDriver | undefined): void {
+  settings.readList()
+  const state = assets?.getState()
+  if (state?.list.kind === 'failed') assets?.dispatch({ kind: 'read-list' })
+  if (state?.category.kind === 'failed') assets?.dispatch({ kind: 'read-category' })
+}
 
 export function createGovernance(deps: GovernanceDeps): GovernanceModel {
-  const shared = new Map<string, Shared>()
+  const changes = deps.changes ?? createTenantChanges({ client: deps.client })
+  const ids = deps.newId === undefined ? {} : { newId: deps.newId }
 
-  function share(tenant: TenantId, key: string): Shared {
-    const known = shared.get(key)
-    if (known !== undefined) return known
-    const driver = new SettingsDriver({
-      client: deps.client,
-      tenant,
-      scope: { kind: 'asset' },
-      ...(deps.newId === undefined ? {} : { newId: deps.newId }),
-    })
-    const created: Shared = { driver, users: 0 }
-    shared.set(key, created)
+  const settingsPool = sharing<SettingsDriver>()
+  const assetsPool = sharing<AssetsDriver>()
+
+  function settingsOf(tenant: TenantId): Shared<SettingsDriver> {
+    const scope = { kind: 'asset' } as const
+    const driver = new SettingsDriver({ client: deps.client, tenant, scope, ...ids })
     driver.readList()
-    return created
+    return { driver, users: 0, release: changes.subscribe(tenant, () => driver.refresh()) }
+  }
+
+  function assetsOf(tenant: TenantId, category: string): Shared<AssetsDriver> {
+    const driver = new AssetsDriver({ client: deps.client, tenant, category, ...ids })
+    driver.start()
+    const release = changes.subscribe(tenant, () => driver.dispatch({ kind: 'changed' }))
+    return { driver, users: 0, release }
   }
 
   function view(tenant: TenantId, category: string | null): CategoryGovernance {
-    const key = encodeTenantText(tenant)
-    const entry = share(tenant, key)
-    entry.users += 1
-    const { driver } = entry
-    let seen: State | undefined
+    const tenantKey = encodeTenantText(tenant)
+    const settings = settingsPool.take(tenantKey, () => settingsOf(tenant))
+    const assetsKey = JSON.stringify([tenantKey, category])
+    const assets =
+      category === null ? undefined : assetsPool.take(assetsKey, () => assetsOf(tenant, category))
+    const driver = settings.driver
+    let seen: [State, AssetsState | undefined] | undefined
     let snapshot = READING
     return {
-      subscribe: driver.subscribe,
+      subscribe(listener) {
+        const fromSettings = driver.subscribe(listener)
+        const fromAssets = assets?.driver.subscribe(listener)
+        return () => {
+          fromSettings()
+          fromAssets?.()
+        }
+      },
       getSnapshot() {
         const state = driver.getState()
-        if (state !== seen) {
-          seen = state
-          snapshot = snapshotOf(state, category)
+        const assetsState = assets?.driver.getState()
+        if (seen?.[0] !== state || seen[1] !== assetsState) {
+          seen = [state, assetsState]
+          snapshot = snapshotOf(state, category, assetsState)
         }
         return snapshot
       },
-      read: () => driver.readList(),
+      read: () => retry(driver, assets?.driver),
       set: (key, pick) => driver.set(key, pick),
       setValue: (key, value) => driver.setValue(key, value),
       setSecret: (key, secret) => driver.setSecret(key, secret),
@@ -101,11 +226,10 @@ export function createGovernance(deps: GovernanceDeps): GovernanceModel {
       confirm: key => driver.confirm(key),
       retryRow: key => driver.retryRow(key),
       close() {
-        entry.users -= 1
-        if (entry.users > 0) return
-        driver.dispose()
-        shared.delete(key)
+        if (assets !== undefined) assetsPool.give(assetsKey, assets)
+        settingsPool.give(tenantKey, settings)
       },
+      ...(assets === undefined ? NO_ASSET_ACTIONS : assetActions(assets.driver)),
     }
   }
 

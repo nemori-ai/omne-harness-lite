@@ -10,7 +10,7 @@ import {
   startServer,
   writeOperator,
 } from '../../harness-server/tests/r9/support.ts'
-import { accessProtocol } from '@omne-harness/public-contract'
+import { accessProtocol, readTenantText } from '@omne-harness/public-contract'
 import { createClient } from '@omne-harness/sdk/core'
 import { httpServer, memoryCredentialStore, openLoginSession } from '../dist/main-core/index.js'
 import { domainProtocols } from '../dist/shared/protocols.js'
@@ -277,6 +277,8 @@ const HELPERS = `
     if (tab.getAttribute('aria-selected') !== 'true') tab.click()
     await wait('the panel of ' + tab.textContent, () => tab.getAttribute('aria-selected') === 'true' && shownPanel())
     await sleep(50)
+    for (const button of shownPanel().querySelectorAll('.assets-item-title button[aria-expanded=false]')) button.click()
+    await sleep(50)
     return shownPanel()
   }
   const inAssetTabs = async (what, find) => {
@@ -294,7 +296,7 @@ const HELPERS = `
   const shownCard = area => area.querySelector('.hitl-card')
 `
 
-async function walk(browser, origin, proofs) {
+async function walk(browser, origin, proofs, elsewhere) {
   const { send } = browser
   await send('Page.enable')
   await send('Page.navigate', { url: origin })
@@ -415,6 +417,37 @@ async function walk(browser, origin, proofs) {
       throw new Error('the asset page is not between the decisions and the settings: ' + JSON.stringify(order))
     return { nav: order, current: document.querySelector('[aria-current=page]').textContent.trim(), tabs }`,
   )
+  await step(
+    '资产的列表与详情',
+    `
+    const listed = await inAssetTabs('a listed asset', panel => panel.querySelector('li.assets-item'))
+    const item = await wait('its detail', () =>
+      listed.querySelector('.assets-detail') && listed.innerText.includes('现在能不能用') ? listed : undefined)
+    const facts = [...item.querySelectorAll('.assets-item-facts span')].map(span => span.textContent)
+    const standing = [...item.querySelectorAll('.fact-list-row')]
+      .find(row => row.querySelector('dt').textContent === '现在能不能用').querySelector('dd').textContent
+    return { asset: item.getAttribute('aria-label'), facts, standing }`,
+  )
+  let madeElsewhere = Promise.resolve()
+  await step(
+    '别处新建一份技能：页面不用人动就列出它',
+    `
+    const tab = await wait('the skill tab', () => assetTabs().find(item => item.textContent === '技能'))
+    await openTab(tab)
+    if (shownPanel().querySelector('li.assets-item[aria-label="walk-made"]')) throw new Error('walk-made is listed before it is made')
+    return 'watching the skill tab'`,
+    () => {
+      madeElsewhere = elsewhere.createSkill('walk-made').then(
+        () => print('made walk-made outside the page'),
+        failure => print(`making walk-made outside the page failed: ${failure.message}`),
+      )
+    },
+    `
+    const item = await wait('the new skill, without touching the page', () =>
+      shownPanel().querySelector('li.assets-item[aria-label="walk-made"]'))
+    return { listed: item.getAttribute('aria-label'), facts: [...item.querySelectorAll('.assets-item-facts span')].map(span => span.textContent) }`,
+  )
+  await madeElsewhere
   await step(
     '改一项设置，再清除它',
     `
@@ -761,6 +794,42 @@ const CATEGORIES = [
   ['tool', '工具'],
 ]
 
+/** A Skill made by the walk's own login outside the page, while the page is open. */
+async function createSkill(session, name) {
+  const client = protocol =>
+    createClient(
+      domainProtocols.find(item => item.name === protocol),
+      session.transport,
+    )
+  const current = await client('identity')['query-current-tenant']({})
+  const tenant = current.outcome === 'succeeded' ? readTenantText(current.body.tenantId) : undefined
+  if (tenant === undefined)
+    throw new Error('query-current-tenant answered ' + JSON.stringify(current))
+  const assets = client('assets')
+  const bytes = new TextEncoder().encode(
+    `---\nname: ${name}\ndescription: Made by the page walk.\n---\n\n# ${name}\n`,
+  )
+  const upload = `walk-${name}`
+  const begun = await assets['begin-asset-upload']({
+    tenant,
+    operation: upload,
+    category: 'skill',
+    name,
+    manifest: [{ path: 'SKILL.md', bytes: bytes.length }],
+  })
+  if (begun.outcome !== 'succeeded') throw new Error('begin-asset-upload answered ' + begun.outcome)
+  const sent = await assets['append-asset-upload']({
+    tenant,
+    upload,
+    path: 'SKILL.md',
+    offset: 0,
+    bytes,
+  })
+  if (sent.outcome !== 'succeeded') throw new Error('append-asset-upload answered ' + sent.outcome)
+  const made = await assets['commit-asset-upload']({ tenant, upload })
+  if (made.outcome !== 'succeeded') throw new Error('commit-asset-upload answered ' + made.outcome)
+}
+
 async function listCategories(session) {
   const assets = domainProtocols.find(protocol => protocol.name === 'assets')
   const answer = await createClient(assets, session.transport)['list-categories']({
@@ -776,6 +845,7 @@ async function listCategories(session) {
 
 const scratch = newScratch('page-walk-')
 const profile = mkdtempSync(join(tmpdir(), 'page-walk-chrome-'))
+const hostLog = []
 let gateway
 let server
 let host
@@ -814,12 +884,15 @@ try {
   host = createWebHost({
     session,
     pageRoot: new URL('../dist/page/', import.meta.url).pathname,
+    log: line => hostLog.push(`${new Date().toISOString()} ${line}`),
   })
   const hostPort = await host.listen(0)
   print(`host: http://127.0.0.1:${hostPort}/`)
   chrome = await startChrome(profile)
   browser = await devtools(chrome.port)
-  await walk(browser, `http://127.0.0.1:${hostPort}/`, proofs)
+  await walk(browser, `http://127.0.0.1:${hostPort}/`, proofs, {
+    createSkill: name => createSkill(session, name),
+  })
   print(`walk: all steps passed; ${proofs.size} login proof(s) were searched for`)
   await listCategories(session)
   code = 0
@@ -827,6 +900,12 @@ try {
   print(`failed: ${failure instanceof Error ? failure.message : String(failure)}`)
   const errors = server?.stderr().slice(-2000) ?? ''
   if (errors !== '') print(`server stderr (tail):\n${errors}`)
+  if (hostLog.length > 0) print(`host log (tail):\n${hostLog.slice(-30).join('\n')}`)
+  const startup = server
+    ?.stdout()
+    .split('\n')
+    .find(line => line.includes('"kind":"startup-result"'))
+  if (startup !== undefined) print(`server startup: ${startup.slice(0, 600)}`)
 } finally {
   releaseHeld()
   browser?.close()

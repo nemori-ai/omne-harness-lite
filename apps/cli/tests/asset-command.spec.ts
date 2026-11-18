@@ -140,6 +140,33 @@ describe('asset show', () => {
     expect(JSON.parse(json.stdout)).toMatchObject({ outcome: 'succeeded', body: { revision: 2 } })
   })
 
+  it('shows a data asset with its summary, why it is not in use, and that it has settings', async () => {
+    await loggedIn(seen =>
+      seen.operation === 'describe-asset'
+        ? {
+            outcome: 'succeeded',
+            body: {
+              item: {
+                ...assetRow,
+                enabled: false,
+                summary: { title: 'Review', description: 'Reads a diff.', facts: [] },
+              },
+              revision: 3,
+              content: { kind: 'data', body: { depth: 2 } },
+              standing: { kind: 'filtered', reason: 'disabled', by: null },
+              settings: true,
+            },
+          }
+        : undefined,
+    )
+    const shown = await cli(['asset', 'show', 'skill:review'])
+    expect(shown.code).toBe(0)
+    expect(shown.stdout).toContain('Enabled: no\nIn use: no (disabled)\n')
+    expect(shown.stdout).toContain('Settings: yes, see omne setting list\n')
+    expect(shown.stdout).toContain('Title: Review\nAbout: Reads a diff.\n')
+    expect(shown.stdout.endsWith('Content: data, add --json\n')).toBe(true)
+  })
+
   it('a word that is not <category>:<name> is a usage error', async () => {
     await loggedIn()
     expect((await cli(['asset', 'show', 'review'])).code).toBe(2)
@@ -251,6 +278,30 @@ describe('asset create --dir', () => {
     ).toBe(0)
     expect(one(service, 'append-asset-upload').map(seen => seen.body['offset'])).toEqual([8])
   })
+
+  it('a refused begin sends no part and commits nothing', async () => {
+    const service = await loggedIn(seen =>
+      seen.operation === 'begin-asset-upload' ? { outcome: 'denied', body: {} } : undefined,
+    )
+    const dir = skillDirectory({ 'SKILL.md': '# Review\n' })
+    expect((await cli(['asset', 'create', 'skill:review', '--dir', dir])).code).toBe(3)
+    expect(operations(service)).toEqual(['begin-asset-upload'])
+  })
+
+  it.each([
+    ['no longer open', { outcome: 'not-found', body: {} }, 3],
+    ['does not advance', { outcome: 'succeeded', body: { received: 0 } }, 1],
+  ] as const)(
+    'a part that is %s stops the upload before the commit',
+    async (_label, reply, code) => {
+      const service = await loggedIn(seen =>
+        seen.operation === 'append-asset-upload' ? reply : undefined,
+      )
+      const dir = skillDirectory({ 'SKILL.md': '# Review\n' })
+      expect((await cli(['asset', 'create', 'skill:review', '--dir', dir])).code).toBe(code)
+      expect(operations(service)).toEqual(['begin-asset-upload', 'append-asset-upload'])
+    },
+  )
 })
 
 describe('asset create --data', () => {
@@ -344,5 +395,22 @@ describe('asset watch', () => {
     expect(result.stderr).toContain('ended (unavailable)')
     expect(result.code).toBe(4)
     expect(one(service, 'observe-assets')[0]?.body).toEqual({ tenant: tenantText })
+  })
+
+  it.each([
+    ['ended because the login was denied', streamAnswer([], 'denied'), 3, 'ended (denied)'],
+    ['refused as denied', { outcome: 'denied', body: {} } as Answer, 3, 'ended (denied)'],
+    [
+      'refused for want of a basis',
+      { outcome: 'basis-unavailable', body: {} } as Answer,
+      4,
+      'ended (basis-unavailable)',
+    ],
+  ] as const)('an observation %s exits with its code', async (_label, reply, code, said) => {
+    await loggedIn(seen => (seen.operation === 'observe-assets' ? reply : undefined))
+    const result = await cli(['asset', 'watch'])
+    expect(result.stdout).toBe('')
+    expect(result.stderr).toContain(said)
+    expect(result.code).toBe(code)
   })
 })

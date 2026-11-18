@@ -150,6 +150,70 @@ describe.each<Carrier>(['http', 'ipc'])('页面的桥对着真的宿主，经 %s
   })
 })
 
+describe('网页宿主的通道：一页的观察走同一条事件流', () => {
+  async function opened() {
+    const server = fakeServer()
+    let aborted = 0
+    server.stream('session/v1 observe-session', async function* (request) {
+      yield value({ kind: 'state' })
+      await new Promise(resolve => request.signal.addEventListener('abort', resolve))
+      aborted += 1
+      return { kind: 'aborted' }
+    })
+    const session = await openLoginSession({
+      connect: server.connect,
+      store: memoryCredentialStore(),
+      contracts: [accessProtocol, identityProtocol, sessionProtocol],
+    })
+    const { host, port } = await listenFetchable(() => createWebHost({ session }))
+    const opens: string[] = []
+    const fetching = globalThis.fetch
+    globalThis.fetch = (input, init) => {
+      opens.push(new URL(String(input)).pathname)
+      return fetching(input, init)
+    }
+    cleanups.push(() => {
+      globalThis.fetch = fetching
+    })
+    const bridge = await connectPageBridge(httpHostChannel(`http://127.0.0.1:${port}`))
+    cleanups.push(() => bridge.close())
+    const observe = (signal: AbortSignal) =>
+      bridge.transport.observe({
+        protocol: { name: 'session', major: 1 },
+        observation: 'observe-session',
+        messageId: 'm',
+        open: value({}),
+        signal,
+      })
+    return { host, opens, observe, aborted: () => aborted }
+  }
+
+  it('八条观察只开一条事件流，各自收到自己的帧；停一条，宿主那一头只停它', async () => {
+    const { host, opens, observe, aborted } = await opened()
+    cleanups.push(() => host.close())
+    const controllers = Array.from({ length: 8 }, () => new AbortController())
+    const streams = controllers.map(controller => observe(controller.signal))
+    for (const frames of streams)
+      expect(await frames.next()).toEqual({ done: false, value: value({ kind: 'state' }) })
+    expect(opens.filter(path => path === '/bridge/events')).toHaveLength(1)
+    controllers[3]!.abort()
+    expect(await streams[3]!.next()).toEqual({ done: true, value: { kind: 'aborted' } })
+    await until(() => aborted() === 1)
+  })
+
+  it('事件流断了：上面的观察都答不确定；下一条观察重新开一条', async () => {
+    const { host, opens, observe } = await opened()
+    const first = observe(new AbortController().signal)
+    expect((await first.next()).done).toBe(false)
+    await host.close()
+    expect(await first.next()).toEqual({ done: true, value: { kind: 'uncertain' } })
+    expect(opens.filter(path => path === '/bridge/events')).toHaveLength(1)
+    const second = observe(new AbortController().signal)
+    expect(await second.next()).toEqual({ done: true, value: { kind: 'uncertain' } })
+    expect(opens.filter(path => path === '/bridge/events')).toHaveLength(2)
+  })
+})
+
 describe('桥的本地答法：不论哪种通道', () => {
   const REQUEST = {
     protocol: { name: 'session', major: 1 },

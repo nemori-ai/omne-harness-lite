@@ -7,13 +7,16 @@ import { answerPageFile } from '../shared/page-files.ts'
 import {
   BRIDGE,
   WIRE_LIMITS,
+  readAttach,
   readCall,
   readCredentials,
-  readObserve,
+  readDetach,
   writeLoginState,
-  writeObserveEvent,
+  writePageEvent,
   writeReport,
   writeResult,
+  type Attach,
+  type ObserveEvent,
 } from '../shared/wire.ts'
 
 export type WebHostOptions = {
@@ -69,6 +72,11 @@ function openStream(response: ServerResponse): void {
 
 const event = (data: string): string => `data: ${data}\n\n`
 
+type PageStream = {
+  readonly response: ServerResponse
+  readonly observations: Map<string, AbortController>
+}
+
 function pageGone(response: ServerResponse): AbortSignal {
   const controller = new AbortController()
   response.on('close', () => {
@@ -77,10 +85,87 @@ function pageGone(response: ServerResponse): AbortSignal {
   return controller.signal
 }
 
+/** One stream per page carries all of its observations: a browser keeps few connections per host. */
+function pageObservations(
+  session: LoginSession,
+  streams: Set<ServerResponse>,
+  log: (line: string) => void,
+) {
+  const pages = new Map<string, PageStream>()
+
+  function events(request: IncomingMessage, response: ServerResponse): void {
+    const page = new URL(request.url ?? '/', 'http://host').searchParams.get('page')
+    if (page === null || page === '') return send(response, 400, 'text/plain', 'no page')
+    pages.get(page)?.response.end()
+    openStream(response)
+    const stream: PageStream = { response, observations: new Map() }
+    pages.set(page, stream)
+    streams.add(response)
+    response.on('close', () => {
+      streams.delete(response)
+      for (const controller of stream.observations.values()) controller.abort()
+      if (pages.get(page) === stream) pages.delete(page)
+    })
+  }
+
+  async function forward(stream: PageStream, attach: Attach, controller: AbortController) {
+    const { signal } = controller
+    const write = (observed: ObserveEvent) =>
+      stream.response.write(event(writePageEvent(attach.id, observed)))
+    const frames = session.transport.observe({ ...attach.request, signal })
+    const stop = (): void => void frames.return({ kind: 'aborted' })
+    signal.addEventListener('abort', stop)
+    try {
+      for (;;) {
+        const next = await frames.next()
+        if (signal.aborted) return
+        if (next.done === true) {
+          const { protocol, observation } = attach.request
+          log(
+            `observation ${protocol.name}/v${protocol.major} ${observation} ended: ${next.value.kind}`,
+          )
+          return void write({ end: next.value })
+        }
+        write({ frame: next.value })
+      }
+    } catch {
+      if (!signal.aborted) write({ end: { kind: 'uncertain' } })
+    } finally {
+      signal.removeEventListener('abort', stop)
+      if (stream.observations.get(attach.id) === controller) stream.observations.delete(attach.id)
+    }
+  }
+
+  async function observe(request: IncomingMessage, response: ServerResponse): Promise<void> {
+    const attach = readAttach(await bodyText(request))
+    if (attach === undefined) return send(response, 400, 'text/plain', 'bad observation')
+    const stream = pages.get(attach.page)
+    if (stream === undefined) {
+      log('observation refused: the page has no event stream')
+      return send(response, 409, 'text/plain', 'no event stream')
+    }
+    const controller = new AbortController()
+    stream.observations.get(attach.id)?.abort()
+    stream.observations.set(attach.id, controller)
+    json(response, '{}')
+    await forward(stream, attach, controller)
+  }
+
+  async function unobserve(request: IncomingMessage, response: ServerResponse): Promise<void> {
+    const detach = readDetach(await bodyText(request))
+    if (detach === undefined) return send(response, 400, 'text/plain', 'bad detach')
+    pages.get(detach.page)?.observations.get(detach.id)?.abort()
+    json(response, '{}')
+  }
+
+  return { events, observe, unobserve }
+}
+
 export function createWebHost(options: WebHostOptions): WebHost {
   const { session } = options
   const log = options.log ?? (() => {})
   const streams = new Set<ServerResponse>()
+  const { events, observe, unobserve } = pageObservations(session, streams, log)
 
   function trusted(request: IncomingMessage, post: boolean): boolean {
     const host = request.headers.host ?? ''
@@ -96,31 +181,6 @@ export function createWebHost(options: WebHostOptions): WebHost {
     if (message === undefined) return send(response, 400, 'text/plain', 'bad call')
     const report = await session.transport.call({ ...message, signal: pageGone(response) })
     json(response, writeReport(report))
-  }
-
-  async function observe(request: IncomingMessage, response: ServerResponse): Promise<void> {
-    const message = readObserve(await bodyText(request))
-    if (message === undefined) return send(response, 400, 'text/plain', 'bad observation')
-    const signal = pageGone(response)
-    openStream(response)
-    const frames = session.transport.observe({ ...message, signal })
-    const stop = (): void => {
-      void frames.return({ kind: 'aborted' })
-    }
-    signal.addEventListener('abort', stop)
-    try {
-      for (;;) {
-        const next = await frames.next()
-        if (signal.aborted) return
-        if (next.done === true) {
-          response.end(event(writeObserveEvent({ end: next.value })))
-          return
-        }
-        response.write(event(writeObserveEvent({ frame: next.value })))
-      }
-    } finally {
-      signal.removeEventListener('abort', stop)
-    }
   }
 
   async function login(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -173,6 +233,8 @@ export function createWebHost(options: WebHostOptions): WebHost {
     }
     if (post && path === BRIDGE.call) return call(request, response)
     if (post && path === BRIDGE.observe) return observe(request, response)
+    if (post && path === BRIDGE.unobserve) return unobserve(request, response)
+    if (request.method === 'GET' && path === BRIDGE.events) return events(request, response)
     if (post && path === BRIDGE.login) return login(request, response)
     if (post && path === BRIDGE.logout) return logout(request, response)
     if (request.method === 'GET' && path === BRIDGE.loginState) return loginState(response)
