@@ -18,7 +18,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "TURBO_TELEMETRY_DISABLED=1 TURBO_NO_UPDATE_NOTIFIER=1 turbo run build --output-logs=errors-only",
+    "build": "node scripts/turbo-exact.mjs run build --output-logs=errors-only",
     "typecheck": "TURBO_TELEMETRY_DISABLED=1 TURBO_NO_UPDATE_NOTIFIER=1 turbo run typecheck --output-logs=errors-only",
     "prepare:native": "node scripts/prepare-native.mjs",
     "test": "node scripts/with-test-slot.mjs node --experimental-strip-types tools/test-runner/src/testing/cli.ts run --all --build",

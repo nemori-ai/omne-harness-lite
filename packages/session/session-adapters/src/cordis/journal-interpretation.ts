@@ -152,8 +152,6 @@ function createJournalInterpretation<P>(
       if (event.consequences === null && event.control === null)
         return succeed({ readThrough, committed, waiting })
       if (event.consequences?.every(item => item.kind === 'observed') === true) continue
-      if (view.head === null)
-        return unavailable('the head of the execution was written by another execution')
       const value = {
         session: target.session,
         run: progress.run,
@@ -192,13 +190,19 @@ function createJournalInterpretation<P>(
 
 type Retry = Readonly<{ wait: number; calls: number }>
 
+// An unavailable answer names who could not answer and why: without it a stuck execution reads the same as a busy one.
+const told = (failure: SessionFailure): string =>
+  failure.kind === 'unavailable'
+    ? `unavailable (${failure.owner}: ${failure.diagnostic})`
+    : failure.kind
+
 function reportEnd(
   logger: ReturnType<Context['logger']>,
   execution: string,
   answer: Answer<JournalInterpreted>,
 ): void {
   if ('failure' in answer)
-    logger.warn(`the interpretation of ${execution} answered ${answer.failure.kind}`)
+    logger.warn(`the interpretation of ${execution} answered ${told(answer.failure)}`)
   else if (answer.ok.waiting > 0)
     logger.warn(`${answer.ok.waiting} events of ${execution} have no decided consequences`)
 }
@@ -251,7 +255,7 @@ export function createSessionJournalInterpretationPlugin<P>(
             return unavailable(`a dependency threw: ${describe(cause)}`)
           }
         }
-        // Requeue the first retry at once: a moved head is readable right after its write; a wait lets another execution's write replace it with a placeholder head.
+        // Requeue the first retry at once: a moved head is readable right after its write.
         const retrying = new Set<string>()
         const attempt = async (target: JournalInterpretationTarget, retry: Retry | null) => {
           const key = JSON.stringify([target.session, target.execution])
@@ -263,7 +267,7 @@ export function createSessionJournalInterpretationPlugin<P>(
           }
           if (retry === null && retrying.has(key)) return
           retrying.add(key)
-          retryLater(target, retry ?? { wait: 0, calls: 0 }, answer.failure.kind)
+          retryLater(target, retry ?? { wait: 0, calls: 0 }, told(answer.failure))
         }
         const retryLater = (target: JournalInterpretationTarget, retry: Retry, kind: string) => {
           const calls = retry.calls + 1
