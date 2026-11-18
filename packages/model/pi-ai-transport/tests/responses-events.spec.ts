@@ -427,14 +427,14 @@ describe('the reasoning state payload', () => {
   it('reads back what it sealed, keys in order', () => {
     const entries = [
       { type: 'reasoning', item: reasoning },
-      { type: 'message', id: 'm1', parts: 2, phase: 'commentary' },
+      { type: 'message', id: 'm1', parts: 12, phase: 'commentary' },
       { type: 'message', id: 'm2', parts: 0, phase: null },
       { type: 'function_call', id: 'fc_1', callId: 'c1' },
     ] as const
     const payload = sealItems(entries)
     expect(payload).toBe(
       '[{"item":{"id":"rs_1","type":"reasoning"},"type":"reasoning"},' +
-        '{"id":"m1","parts":2,"phase":"commentary","type":"message"},' +
+        '{"id":"m1","parts":12,"phase":"commentary","type":"message"},' +
         '{"id":"m2","parts":0,"phase":null,"type":"message"},' +
         '{"call_id":"c1","id":"fc_1","type":"function_call"}]',
     )
@@ -448,6 +448,7 @@ describe('the reasoning state payload', () => {
     ['an item that is not an object', '["x"]'],
     ['an item of another type', '[{"text":"t","type":"text"}]'],
     ['a reasoning entry without its item', '[{"type":"reasoning"}]'],
+    ['a reasoning entry whose item is not an object', '[{"item":"r","type":"reasoning"}]'],
     [
       'a reasoning item of another type',
       '[{"item":{"id":"r","type":"message"},"type":"reasoning"}]',
@@ -458,6 +459,10 @@ describe('the reasoning state payload', () => {
     [
       'a message with a part count that is not a count',
       '[{"id":"m","parts":1.5,"phase":null,"type":"message"}]',
+    ],
+    [
+      'a message with a part count of more than nine digits',
+      '[{"id":"m","parts":1000000000,"phase":null,"type":"message"}]',
     ],
     ['a message without its phase', '[{"id":"m","parts":1,"type":"message"}]'],
     [

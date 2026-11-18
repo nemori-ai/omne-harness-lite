@@ -40,16 +40,14 @@ function word(members: Members, key: string): string | null {
   return value?.kind === 'string' && value.value !== '' ? value.value : null
 }
 
-function membersOf(value: JsonValue | undefined): Members | null {
-  return value?.kind === 'object'
-    ? new Map(value.entries.map(entry => [entry.key, entry.value]))
-    : null
+function membersOf(value: Extract<JsonValue, { kind: 'object' }>): Members {
+  return new Map(value.entries.map(entry => [entry.key, entry.value]))
 }
 
 function reasoningOf(members: Members): ItemEntry | null {
   const item = members.get('item')
+  if (item?.kind !== 'object') return null
   const inner = membersOf(item)
-  if (item?.kind !== 'object' || inner === null) return null
   return word(inner, 'type') === 'reasoning' && word(inner, 'id') !== null
     ? { type: 'reasoning', item }
     : null
@@ -80,9 +78,10 @@ const READERS: ReadonlyMap<string, (members: Members) => ItemEntry | null> = new
 ])
 
 function entryOf(value: JsonValue): ItemEntry | null {
+  if (value.kind !== 'object') return null
   const members = membersOf(value)
-  const read = members === null ? undefined : READERS.get(word(members, 'type') ?? '')
-  return members === null || read === undefined ? null : read(members)
+  const read = READERS.get(word(members, 'type') ?? '')
+  return read === undefined ? null : read(members)
 }
 
 /** The output items of a payload, or null when it is not one this engine sealed. */

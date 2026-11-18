@@ -121,11 +121,15 @@ it('uses a fresh measurement and exact access/profile/lineage for every candidat
   expect(f.releases()).toBe(2)
 })
 
-it('cites the call a carried reply names in its replay mark when its history row names none', async () => {
-  const f = fixture()
-  const first = f.value.history.entries[0]!
-  const judged = judgeMessage({
-    id: first.message.id,
+function judged(value: unknown) {
+  const outcome = judgeMessage(value)
+  if (!('ok' in outcome)) throw new Error(`fixture message: ${JSON.stringify(outcome)}`)
+  return outcome.ok
+}
+
+function carried(letter: string, call: string) {
+  return judged({
+    id: `msg_${letter.repeat(22)}`,
     role: 'assistant',
     blocks: [
       { kind: 'text', id: 't', visibility: { toHuman: true, toModel: true }, text: 'answer' },
@@ -137,17 +141,30 @@ it('cites the call a carried reply names in its replay mark when its history row
         pairs: [],
       },
     ],
-    replay: { scope: 'A', format: 'f1', at: [1], call: 'mcall_marked' },
+    replay: { scope: 'A', format: 'f1', at: [1], call },
   })
-  if (!('ok' in judged)) throw new Error('fixture reply')
-  const message = judged.ok
-  const input = {
-    ...f.value,
-    history: { ...f.value.history, entries: [{ ...first, message, represented: [message] }] },
-  }
-  ok(await measureDefaultInput(f.resources, access, input, assembledFor(input, [message], true)))
+}
+
+it('cites the call a carried reply in the request names in its replay mark, and nothing else', async () => {
+  const f = fixture()
+  const first = f.value.history.entries[0]!
+  const measured = carried('b', 'mcall_marked')
+  const elsewhere = carried('c', 'mcall_elsewhere')
+  const user = judged({
+    id: `msg_${'d'.repeat(22)}`,
+    role: 'user',
+    blocks: [{ kind: 'text', id: 'u', visibility: { toHuman: true, toModel: true }, text: 'q' }],
+  })
+  const entries = [measured, elsewhere, user].map(message => ({
+    ...first,
+    message,
+    represented: [message],
+  }))
+  const input = { ...f.value, history: { ...f.value.history, entries } }
+  const assembled = assembledFor(input, [measured, user], true)
+  ok(await measureDefaultInput(f.resources, access, input, assembled))
   expect(f.acquisitions[0]?.lineage).toEqual({
-    sources: [{ message: message.id, call: ok(decodeModelCallId('mcall_marked')) }],
+    sources: [{ message: measured.id, call: ok(decodeModelCallId('mcall_marked')) }],
   })
 })
 

@@ -110,6 +110,8 @@ describe('FixedRequestRecord format', () => {
       { history: { ...history, epoch: '' } },
       { history: { ...history, upper: { kind: 'other' } } },
       { messagePrefix: ['not an id'] },
+      { messagePrefix: [...(prefix['messagePrefix'] as string[]), 'not an id'] },
+      { messagePrefix: [...(prefix['messagePrefix'] as string[]), 5] },
       { messagePrefix: 'm1' },
       { projection: null },
       { tools: null },
