@@ -329,6 +329,8 @@ describe('decode: events written for the case', () => {
   it.each([
     ['a cache hit', { cached_tokens: 3465, cache_write_tokens: 195 }, 3663, '3', []],
     ['no written count', { cached_tokens: 0 }, 72, null, []],
+    ['no read count', { cache_write_tokens: 0 }, 72, null, []],
+    ['no whole', { cached_tokens: 0, cache_write_tokens: 0 }, undefined, null, []],
     ['a whole served from the cache', { cached_tokens: 72, cache_write_tokens: 0 }, 72, '0', []],
     [
       'parts one larger than the whole',
@@ -349,8 +351,11 @@ describe('decode: events written for the case', () => {
         ? { name: 'input', state: 'unknown', unit: 'token' }
         : { name: 'input', state: 'known', lexeme: uncached, unit: 'token' },
     )
-    expect(facts.filter(fact => fact.kind === 'diagnostic')).toEqual(diagnostics)
-    expect(facts.at(-1)?.kind).toBe('ended')
+    expect(facts.slice(facts.findIndex(fact => fact.kind === 'account'))).toEqual([
+      account,
+      ...diagnostics,
+      expect.objectContaining({ kind: 'ended' }),
+    ])
   })
 
   it('takes the end marker after the finish and refuses it before', () => {
