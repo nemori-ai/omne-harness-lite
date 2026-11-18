@@ -5,6 +5,8 @@ it('exports the registry, identity, and pin operations', () => {
   expect(Object.keys(assets).sort()).toEqual([
     'ASSET_LAYERS',
     'MAX_ASSET_PAGE',
+    'SUMMARY_LIMITS',
+    'admitSummary',
     'capabilityId',
     'collectCandidates',
     'createCategoryPoint',
@@ -20,6 +22,7 @@ it('exports the registry, identity, and pin operations', () => {
     'readBodyText',
     'readSnapshot',
     'refusal',
+    'summarizeVersion',
     'unknownCategory',
   ])
 })

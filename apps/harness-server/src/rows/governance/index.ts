@@ -125,6 +125,7 @@ export const governanceRow = defineRow({
     ctx.assetCategories.contribute({
       contract: createToolAssetCategory(release),
       display: toolCategoryDisplay,
+      generalCreation: 'closed',
     })
     const categories = ctx.assetCategories.view
     const registry = createSettingsRegistry({ capacity: 1024 })

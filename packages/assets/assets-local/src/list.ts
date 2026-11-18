@@ -1,7 +1,7 @@
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import type { DomainRef } from '@omne-harness/sql-contract'
 import { canonical, json, withinBudget } from './encoding.ts'
-import { boundHolding, foreign, readAsset, readDomain } from './records.ts'
+import { boundHolding, foreign, readAsset, readDomain, readSummary } from './records.ts'
 import { LIST_HANDLER, listRequestSchema, PROTOCOL, type Holding } from './schema.ts'
 
 type Port = Parameters<ReadHandlerModule['read']>[1]
@@ -53,6 +53,7 @@ function pageOf(port: Port, rows: readonly Holding[], limit: number): Result {
       version,
       selection: holding.selection.kind,
       enabled: holding.enabled,
+      summary: readSummary(port, holding.domain, holding.assetRef, version),
     })
   }
   const next = rows.length > limit ? (items.at(-1)?.name ?? null) : null

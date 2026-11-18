@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { MAX_ASSET_PAGE } from '@omne-harness/assets'
+import { MAX_ASSET_PAGE, SUMMARY_LIMITS } from '@omne-harness/assets'
 import { bodySchema } from './body.ts'
 import {
   SettingDefinitionsSchema,
@@ -18,7 +18,7 @@ export const PROTOCOL = 'assets-local/1'
 export const HANDLER = 'assets.read'
 export const LIST_HANDLER = 'assets.list'
 export const MIGRATION = { owner: PARTICIPANT, id: 'assets-local-1' }
-export const TABLES = ['al_domain', 'al_assets', 'al_versions', 'al_holdings']
+export const TABLES = ['al_domain', 'al_assets', 'al_versions', 'al_summaries', 'al_holdings']
 export const domainSchema = SettingsProjectionBindingSchema.shape.domain
 export const revisionSchema = z
   .number()
@@ -42,6 +42,11 @@ export const declarationSchema = z.discriminatedUnion('kind', [
     definitionRef: SettingsDefinitionRefSchema,
   }),
 ])
+export const summarySchema = z.strictObject({
+  title: z.string(),
+  description: z.string(),
+  facts: z.array(z.strictObject({ name: z.string(), text: z.string() })).max(SUMMARY_LIMITS.facts),
+})
 export const versionSchema = z.strictObject({
   domain: domainSchema,
   assetRef: SettingsReferenceSchema,
@@ -95,6 +100,7 @@ const publishedFields = {
   source: SettingsReferenceSchema,
   body: bodySchema,
   declaration: declarationSchema,
+  summary: summarySchema.nullable(),
 }
 export const publishSchema = publishMetadataSchema.extend({
   kind: z.literal('publish'),
@@ -260,6 +266,7 @@ export const listedSchema = z.strictObject({
   version: SettingsIdSchema,
   selection: z.enum(['follow', 'pinned']),
   enabled: z.boolean(),
+  summary: summarySchema.nullable(),
 })
 export const listResultSchema = z.union([
   z.strictObject({
@@ -283,5 +290,6 @@ export type Mutation = z.infer<typeof mutationSchema>
 export type MutationBinding = z.infer<typeof mutationBindingSchema>
 export type Holding = z.infer<typeof holdingSchema>
 export type Version = z.infer<typeof versionSchema>
+export type Summary = z.infer<typeof summarySchema>
 export type Asset = z.infer<typeof assetSchema>
 export type Failure = z.infer<typeof failureSchema>

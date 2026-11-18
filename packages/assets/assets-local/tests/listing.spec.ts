@@ -125,6 +125,7 @@ function listed(
     version: extra.version ?? '1',
     selection: extra.selection ?? 'follow',
     enabled: extra.enabled ?? true,
+    summary: null,
   }
 }
 

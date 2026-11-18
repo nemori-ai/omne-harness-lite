@@ -52,7 +52,15 @@ export {
   type CategoryListing,
   type CategoryPoint,
   type CategoryView,
+  type CreationMode,
 } from './category-point.ts'
+export {
+  SUMMARY_LIMITS,
+  admitSummary,
+  summarizeVersion,
+  type AssetSummary,
+  type AssetSummaryFact,
+} from './summary.ts'
 export { pinBody, type PinnedBody } from './adoption.ts'
 export {
   createTenantPublishing,

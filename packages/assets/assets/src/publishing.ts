@@ -1,4 +1,4 @@
-import type { CategoryView } from './category-point.ts'
+import type { CategoryView, CreationMode } from './category-point.ts'
 import type { CapabilityId, JsonValue } from './identity.ts'
 import type { PackageReader } from './package.ts'
 
@@ -46,9 +46,16 @@ export type TenantPublishing<P> = Readonly<{
 
 const UNAVAILABLE = Object.freeze({ kind: 'unavailable' } as const)
 
+function creationRefusal(mode: CreationMode, content: PublishContent['kind']): string | undefined {
+  if (mode === 'none') return 'creation-closed'
+  if (mode === 'data' && content === 'directory') return 'not-a-directory-category'
+  if (mode === 'directory' && content === 'data') return 'a-directory-category'
+  return undefined
+}
+
 export function createTenantPublishing<P>(ports: {
   acting: TenantActing<P>
-  categories: Pick<CategoryView, 'lookup'>
+  categories: Pick<CategoryView, 'describe'>
   publisherOf(tenant: string): Promise<TenantPublisher | undefined>
 }): TenantPublishing<P> {
   async function admitted(request: TenantPublishRequest<P>) {
@@ -69,14 +76,10 @@ export function createTenantPublishing<P>(ports: {
     async publish(request: TenantPublishRequest<P>): Promise<TenantPublishOutcome> {
       const answer = await admitted(request)
       if (answer !== 'admitted') return { kind: answer }
-      const contract = ports.categories.lookup(request.capability.category)
-      if (contract === undefined) return { kind: 'unknown-category' }
-      const directory = request.content.kind === 'directory'
-      if (directory !== (contract.layout !== undefined))
-        return {
-          kind: 'invalid',
-          reason: directory ? 'not-a-directory-category' : 'a-directory-category',
-        }
+      const listing = ports.categories.describe(request.capability.category)
+      if (listing === undefined) return { kind: 'unknown-category' }
+      const refused = creationRefusal(listing.creation, request.content.kind)
+      if (refused !== undefined) return { kind: 'invalid', reason: refused }
       const local = await publisher(request.tenant)
       if (local === undefined) return UNAVAILABLE
       const { operationId, capability, content } = request

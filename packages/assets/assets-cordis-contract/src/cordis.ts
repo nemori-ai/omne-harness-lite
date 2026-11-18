@@ -24,7 +24,11 @@ export class AssetCategoriesService extends Service {
     super(ctx, AssetCategoriesService.provide)
     const point = createCategoryPoint()
     this.point = point
-    this.view = Object.freeze({ lookup: point.lookup, list: point.list })
+    this.view = Object.freeze({
+      lookup: point.lookup,
+      describe: point.describe,
+      list: point.list,
+    })
   }
 
   contribute(contribution: CategoryContribution): void {

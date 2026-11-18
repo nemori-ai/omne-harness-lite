@@ -59,7 +59,7 @@ export function assetsSqlMaterials(): Pick<
         ordering: 'snapshot',
         readTables: TABLES,
         requiresMigrations: [MIGRATION],
-        maxRowsRead: 2 * MAX_ASSET_PAGE + 2,
+        maxRowsRead: 3 * MAX_ASSET_PAGE + 2,
         maxOutputBytes: 2 * 1024 * 1024,
       },
     ],

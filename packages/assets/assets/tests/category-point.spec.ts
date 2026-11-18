@@ -52,7 +52,7 @@ describe('contribute to an unregistered category', () => {
     expect(point.lookup('tool')?.category).toBe('tool')
     expect(point.lookup('tool')?.judge(document('{"name":"tool"}'))).toEqual({ ok: true })
     expect(point.list()).toEqual([
-      { category: 'tool', display: { title: '工具', summary: 'tool summary' } },
+      { category: 'tool', display: { title: '工具', summary: 'tool summary' }, creation: 'data' },
     ])
   })
 })
@@ -87,7 +87,7 @@ describe('withdraw a registered category', () => {
     point.contribute(contribution('tool', 'second'))
     withdrawFirst()
     expect(point.list()).toEqual([
-      { category: 'tool', display: { title: 'second', summary: 'tool summary' } },
+      { category: 'tool', display: { title: 'second', summary: 'tool summary' }, creation: 'data' },
     ])
   })
 
@@ -129,6 +129,43 @@ describe('lookup and list', () => {
     display.title = 'changed'
     expect(point.list()[0]?.display.title).toBe('工具')
     expect(Object.isFrozen(point.list())).toBe(true)
+  })
+})
+
+describe('how the general entry creates an asset of a category', () => {
+  const layout = {
+    namespace: 'bundle',
+    limits: { files: 1, fileBytes: 1, totalBytes: 1 },
+    inspect: async () => ({ ok: { kind: 'object', entries: [] } as JsonValue }),
+  }
+
+  it('follows the contract: a layout means a directory, none means a body', () => {
+    const point = createCategoryPoint()
+    point.contribute(contribution('note'))
+    point.contribute({ ...contribution('bundle'), contract: { ...contract('bundle'), layout } })
+    expect(point.describe('note')?.creation).toBe('data')
+    expect(point.describe('bundle')?.creation).toBe('directory')
+  })
+
+  it('is none when the contribution closes the general entry, whatever the contract', () => {
+    const point = createCategoryPoint()
+    point.contribute({ ...contribution('tool'), generalCreation: 'closed' })
+    point.contribute({
+      ...contribution('bundle'),
+      contract: { ...contract('bundle'), layout },
+      generalCreation: 'closed',
+    })
+    expect(point.list().map(listing => [listing.category, listing.creation])).toEqual([
+      ['bundle', 'none'],
+      ['tool', 'none'],
+    ])
+  })
+
+  it('describes one category as it lists it, and nothing for an unregistered one', () => {
+    const point = createCategoryPoint()
+    point.contribute(contribution('note'))
+    expect(point.describe('note')).toBe(point.list()[0])
+    expect(point.describe('nobody')).toBeUndefined()
   })
 })
 

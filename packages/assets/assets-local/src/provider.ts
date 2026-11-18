@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import { projectAssetSettings, type AssetSettingsProjection } from '@omne-harness/assets'
+import {
+  projectAssetSettings,
+  summarizeVersion,
+  type AssetSettingsProjection,
+} from '@omne-harness/assets'
 import { SettingsIdSchema } from '@omne-harness/settings'
 import {
   SettingsProjectionBindingSchema,
@@ -119,6 +123,7 @@ function publishCommand(
     source: input.pinned.source,
     body: input.pinned.body,
     declaration,
+    summary: summarizeVersion(options.categories, input.pinned),
     ...(holding === undefined ? {} : { holding }),
   })
   return command.success ? command.data : fail('invalid_input')

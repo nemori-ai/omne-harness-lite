@@ -45,7 +45,7 @@ describe('the categories service on a real Cordis root', () => {
     expect(labels(fiber.getEffects())).toContain('assetCategories.contribute')
     expect(service.view.lookup('gadget')?.category).toBe('gadget')
     expect(service.view.list()).toEqual([
-      { category: 'gadget', display: { title: 'Gadget', summary: 'Gadget.' } },
+      { category: 'gadget', display: { title: 'Gadget', summary: 'Gadget.' }, creation: 'data' },
     ])
     await fiber.dispose()
     expect(service.view.lookup('gadget')).toBeUndefined()
@@ -77,7 +77,7 @@ describe('the categories service on a real Cordis root', () => {
     await expect(second.await()).rejects.toThrow(/category already registered/)
     expect(second.state).toBe(FAILED)
     expect(service.view.list()).toEqual([
-      { category: 'gadget', display: { title: 'First', summary: 'First.' } },
+      { category: 'gadget', display: { title: 'First', summary: 'First.' }, creation: 'data' },
     ])
     await second.dispose()
     expect(service.view.list().map(listing => listing.display.title)).toEqual(['First'])
@@ -89,7 +89,7 @@ describe('the categories service on a real Cordis root', () => {
 
   it('gives readers a view that cannot contribute', async () => {
     const { service } = await categories()
-    expect(Object.keys(service.view).sort()).toEqual(['list', 'lookup'])
+    expect(Object.keys(service.view).sort()).toEqual(['describe', 'list', 'lookup'])
     expect(Object.isFrozen(service.view)).toBe(true)
   })
 })
