@@ -20,11 +20,16 @@ import {
 } from '@omne-harness/model-contract'
 import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import { OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
-import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
 import { assembleLocalModel } from '@omne-harness/model-host-local'
 import { createTestCredentials } from './support/credentials.ts'
 import { createCertificate, startHttpsServer, type HttpsFixture } from './support/https-server.ts'
-import { FAMILIES, PLACEHOLDER, ROUTE_PATH, TRANSPORT_LIMITS } from './support/local-host.ts'
+import {
+  FAMILIES,
+  PLACEHOLDER,
+  TRANSPORT_LIMITS,
+  isGatewayPath,
+  gatewayEndpoints,
+} from './support/local-host.ts'
 import { factorySupplier } from './support/profiles.ts'
 import { readRecordFixture } from './support/records.ts'
 
@@ -84,7 +89,7 @@ const held: Held[] = []
 beforeAll(async () => {
   directory = realpathSync(mkdtempSync(join(tmpdir(), 'model-host-local-cancel-')))
   server = await startHttpsServer(certificate, (res: ServerResponse, received) => {
-    if (received.path !== ROUTE_PATH) {
+    if (!isGatewayPath(received.path)) {
       res.writeHead(404).end()
       return
     }
@@ -241,12 +246,7 @@ function assembleHost(label: string) {
     },
     routes: {
       openrouter: {
-        endpoints: {
-          'chat-completions': {
-            url: new URL(ROUTE_PATH, server.url).href,
-            endMarker: GATEWAY_END_MARKER,
-          },
-        },
+        endpoints: gatewayEndpoints(server.url),
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: { kind: 'bearer', item: 'apiKey' },
       },

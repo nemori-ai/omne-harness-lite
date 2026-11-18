@@ -1,8 +1,9 @@
 export {
-  checkChatCompletionsFixtures,
+  checkRecordFixtures,
   fixtureDirectory,
   FIXTURE_FILES,
   GATEWAY_END_MARKER,
+  replayStream,
   type FixtureReport,
 } from './fixtures.ts'
 export {

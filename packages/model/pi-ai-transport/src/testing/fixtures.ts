@@ -22,10 +22,8 @@ export function fixtureDirectory(record: Readonly<{ name: string; revision: stri
   return join(encodeURIComponent(record.name), encodeURIComponent(record.revision))
 }
 
-export async function checkChatCompletionsFixtures(
-  family: PiFamily,
-  root: string,
-): Promise<FixtureReport> {
+/** Checks each record of the family against its fixture directory, whatever engine it binds. */
+export async function checkRecordFixtures(family: PiFamily, root: string): Promise<FixtureReport> {
   const records = familyRecords(family)
   const contributions = composeFamilies([family])
   const problems: string[] = []
@@ -202,7 +200,7 @@ export async function replayStream(
   const decoding = decodeBody({
     body: oneChunk(stream),
     decoder: binding.createDecoder({ request, accounting }),
-    endMarker: GATEWAY_END_MARKER,
+    endMarker: binding.endpoint === 'chat-completions' ? GATEWAY_END_MARKER : null,
     limits: { maxEventBytes: Math.max(1, stream.length), json: budgetsOf(stream.length) },
     received: () => true,
     progress,

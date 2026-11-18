@@ -30,8 +30,9 @@ import {
 } from '@omne-harness/pi-ai-transport'
 import { assembleStream } from '@omne-harness/stream-arrival'
 
-const OPENROUTER = 'https://openrouter.ai/api/v1/chat/completions'
+const OPENROUTER_CHAT = 'https://openrouter.ai/api/v1/chat/completions'
 const END_MARKER = '[DONE]'
+const OPENROUTER_MESSAGES = 'https://openrouter.ai/api/v1/messages'
 
 export function proxyFromEnvironment(): ProxyConfig {
   const url = process.env.HTTPS_PROXY
@@ -187,7 +188,10 @@ export function openTransport(families: readonly PiFamily[]): OpenTransport {
     families: composeFamilies(families),
     routes: {
       openrouter: {
-        endpoints: { 'chat-completions': { url: OPENROUTER, endMarker: END_MARKER } },
+        endpoints: {
+          'chat-completions': { url: OPENROUTER_CHAT, endMarker: END_MARKER },
+          messages: { url: OPENROUTER_MESSAGES, endMarker: null },
+        },
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: { kind: 'bearer', item: 'apiKey' },
       },
@@ -318,7 +322,7 @@ function headOf(block: ModelBlock): object {
 export function assembleReply(
   id: string,
   facts: readonly TransportFact[],
-  replay: Readonly<{ scope: string; format: string }>,
+  replay: Readonly<{ scope: string; format: string; prefix: string }>,
 ): Message {
   const target = parseMessageId(id)
   if (!target.ok) throw new Error(`message id ${id}: ${target.error}`)

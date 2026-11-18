@@ -1,46 +1,135 @@
-: OPENROUTER PROCESSING
+event: message_start
+data: {"type":"message_start","message":{"id":"msg_011ChA8h96CQ2P6b91bwyNqe","type":"message","role":"assistant","container":null,"content":[],"model":"anthropic/claude-sonnet-5","stop_reason":null,"stop_details":null,"stop_sequence":null,"usage":{"input_tokens":485,"output_tokens":2,"output_tokens_details":null,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"inference_geo":"global","server_tool_use":null,"service_tier":"standard","speed":"standard"},"provider":"Anthropic"}}
 
-: OPENROUTER PROCESSING
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":"","signature":""}}
 
-: OPENROUTER PROCESSING
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"I"}}
 
-: OPENROUTER PROCESSING
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"'m coun"}}
 
-: OPENROUTER PROCESSING
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"ting multiples of 3,"}}
 
-data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"Counting below","reasoning_details":[{"type":"reasoning.text","text":"Counting below","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" 7, and 21 under"}}
 
-data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" 200: 66 multi","reasoning_details":[{"type":"reasoning.text","text":" 200: 66 multi","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" 200 to find"}}
 
-data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"ples of 3, 28 ","reasoning_details":[{"type":"reasoning.text","text":"ples of 3, 28 ","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" how"}}
 
-data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"of 7, 9 of","reasoning_details":[{"type":"reasoning.text","text":"of 7, 9 of","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" many numbers are"}}
 
-data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" 21.","reasoning_details":[{"type":"reasoning.text","text":" 21.","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" divisible by 3 or"}}
 
-data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" Since I want divisible by","reasoning_details":[{"type":"reasoning.text","text":" Since I want divisible by","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" 7, and"}}
 
-data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" 3 or 7 but","reasoning_details":[{"type":"reasoning.text","text":" 3 or 7 but","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" I"}}
 
-data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":" not both","reasoning_details":[{"type":"reasoning.text","text":" not both","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"'ve"}}
 
-data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":", that","reasoning_details":[{"type":"reasoning.text","text":", that","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" got 66 +"}}
 
-data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"'s 66+28-2(","reasoning_details":[{"type":"reasoning.text","text":"'s 66+28-2(","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" 28 −"}}
 
-data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"9)=76.","reasoning_details":[{"type":"reasoning.text","text":"9)=76.","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" 9 = 85 "}}
 
-data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":"\n\n","reasoning_details":[{"type":"reasoning.text","text":"\n\n","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"so far. I"}}
 
-data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning_details":[{"type":"reasoning.text","signature":"EqgFCuQCCBMYAipA8XQlB+KVhxYuBcN8ZcF4N7KofQ53BB5zFR5qwja7qEBjEmAXuOWYIgiX6MxuXuHLTJ6MpUwBhO8rGMcRTnelsjIPY2xhdWRlLXNvbm5ldC01OABCCHRoaW5raW5nWiQwZDk4M2YzZi00OWZhLTRhNDYtODI1NC1iMWJiMjQ5MWEyYTl6HnVwcm9mXzAxMUNlUU5MQlhqUk1SVjJGeHAxZFR0Q5oBEQoPY2xhdWRlLXNvbm5ldC01qAHUtuzWBsIBOggEEAAaDALaigNPNwVPwQQmrSABMgQScc8lOgQ4MyOKQgQ4MyOKSgQ4MyOKUABaBNkF4VZgAmgBcADaAWAKFnByZWZpeF9iZWZvcmVfYmxvY2tfdjESICBVg35U6I8GdD68dBlXVW+CjZqh0/z9oKpw0MgiyxzVIgAyIMLAE8hqnJLiL5ZvPYYXdo+LekTJAq3MCXv6HgmK+04fSAMSDGH/pCyX6esxloTkHhoMprbQVUic5zs4N4eoIjAndN6rUfK45B0til3O++r+9VozYijJRHXdwNidIXiGE46TEF5kWSbfgtZy9yAZKkoq8AG8eWacrr83mxjJH7WEGnpS0Y1KfI+nip+MVDd/mkGbGaTwN25IfdEGWrLsBJ/64BTH93qlvLlT/FEfK3dV1cGLaoUw5EP4LfMlCie+FlkAkYUdS+I1gxFSybzePpk1qiUcahRyEQv9UajmcEcWq1H6S7xtgFTxpBXKa7vt4BL55ANOUYqTyOTDfUEH358k+T7BWi7XrkVzEZKCoapM9UPXF7yyCHuKgv/3QLoJuDNDLIgM07AT3RBplZPOWa4Plwpiex41N34K3C6VuyzlxWjg6IS6RIl46nPMTrVMNHsy+SkJ6F2mP64VhRnkMPAVdFAYAQ==.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1zb25uZXQtNS0yMDI2MDYzMHxhbnRocm9waWMifQ","format":"anthropic-claude-v1","index":0}]},"finish_reason":null,"native_finish_reason":null}]}
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"'m now"}}
 
-data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"**","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" checking whether the"}}
 
-data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"76**","role":"assistant"},"finish_reason":null,"native_finish_reason":null}]}
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" over"}}
 
-data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"index":0,"delta":{"content":"","role":"assistant","reasoning":null},"finish_reason":"stop","native_finish_reason":"end_turn"}]}
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"lap at"}}
 
-data: {"id":"gen-1792744273-vs9c2X5AWNsGvEBfacKJ","object":"chat.completion.chunk","created":1792744273,"model":"anthropic/claude-sonnet-5","provider":"Anthropic","service_tier":"default","choices":[{"index":0,"delta":{"content":"","role":"assistant"},"finish_reason":"stop","native_finish_reason":"end_turn"}],"usage":{"prompt_tokens":42,"completion_tokens":125,"total_tokens":167,"cost":0.001334,"is_byok":false,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":0,"audio_tokens":0,"video_tokens":0},"cost_details":{"upstream_inference_cost":0.001334,"upstream_inference_prompt_cost":0.000084,"upstream_inference_completions_cost":0.00125},"completion_tokens_details":{"reasoning_tokens":120,"image_tokens":0,"audio_tokens":0}}}
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" the"}}
 
-data: [DONE]
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" multiples of 21 has"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" been hand"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"led correctly."}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"\n\n"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"I'm now d"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"ropping the"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" multiples of 21 from"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" the "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"85,"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" since"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" those sh"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"ouldn't be counted,"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" which br"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"ings the"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" total to 76."}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"\n\n"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"Eu8GCucCCBMYAipALMKYBHYW1v5aC1M32qluX8AxSx7pEMNdCyDSqD1MgnshgEWTPCP/s13ngt1ZbLxe0aT8W28bayqtGncsFQrPojIPY2xhdWRlLXNvbm5ldC01OABCCHRoaW5raW5nWiQwZDk4M2YzZi00OWZhLTRhNDYtODI1NC1iMWJiMjQ5MWEyYTl6HnVwcm9mXzAxMUNlU1dQR2FOOUQ2V1dIeTdvbkpOZ5oBEQoPY2xhdWRlLXNvbm5ldC01qAGN1/XXBsIBPQgFEAAaDwGDcAIQlwNPNwVPwQQmrSACMgQScc8lOgQSkTOhQgTxkkZ2SgSXpKaKUAFaBNkF4VZgAmgBcAHaAWAKFnByZWZpeF9iZWZvcmVfYmxvY2tfdjESIMyMSdAwrFXOSLLX3x5LmHZ91mLbM2xbEOGog7UkUwx4IgAyIMLAE8hqnJLiL5ZvPYYXdo+LekTJAq3MCXv6HgmK+04fSAgSDB8kLvptboWoSDGDexoMpEJduJ5PsNRxnIouIjBZJKrMD5K6lrmrHO2r/eCvZTR9IxmCc6k+sr0/3BMfa0PI4+m5agNt/cybhpGIWSAqtAOTK2Hl6dH1t5U+EteTCr1EI5pPbwQ6yT0YOIM3+Ek+IvN0802KqLtj68hIFbLZZE/48LtfY24QAF40ZgvYoPkxLkkBkR5J7Bzn8ONa72dGlm28/BQe7UzjH9R87LNeErXd12MFA0M1ZG9GigNJ+GuDeLhC+JdJAL4rofErGaMb8gFMbmTakrByE5ov9Yf1+vk7aASoxXeM/ZMVyWzPJgfAk38jCV2OZQ89KwqNWnNn4RlfVvWUZQz7lr71V4ar8gH6USA9abkjfXy2WWfXawF5xK1fxgbuCIUbF7whftGLjciaJrhW2VZNrQesD/vQg9r88Z4EQew3+3ic/TIbY08VIFOVlEHxmGWJSjfT634xgF5zXs7n1uEnOAtmTkGDPJ/7+iWHrZ3Y3uwdCB9LgbGT8bSZ9TGi2e1sBBk+/POTH/zMBIg6bv0bakVkPh0cavhDtcIrubDrV7dN7guThRzbVmTiMxSE9+V5a3Ti0YQgJA/PWfCSt/l/eXNTj0v1lO6+1NQmqpHkQ1FpOXwT10jbZ7cEWesx3GFxUhwBhZVaevabS5T+hJdrxQp+CXr2WE16y1BTGAE=.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1zb25uZXQtNS0yMDI2MDYzMHxhbnRocm9waWMifQ"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"text","text":"","citations":[]}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"76"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"container":null,"stop_details":null,"stop_reason":"end_turn","stop_sequence":null},"usage":{"input_tokens":485,"output_tokens":191,"output_tokens_details":{"thinking_tokens":188},"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"server_tool_use":null,"service_tier":"standard","speed":"standard","cost":0.00288,"is_byok":false,"cost_details":{"upstream_inference_cost":0.00288,"upstream_inference_prompt_cost":0.00097,"upstream_inference_completions_cost":0.00191}},"context_management":null}
+
+event: message_stop
+data: {"type":"message_stop"}
 

@@ -13,6 +13,7 @@ import {
   fixedRequest,
   message,
   officialProfile,
+  prefixBefore,
   recordNamed,
   resultBlock,
   SOURCE,
@@ -20,6 +21,7 @@ import {
   supplierOf,
   textBlock,
   thinkingBlock,
+  thinkingPayload,
   tool,
   type RequestParts,
 } from './support/anthropic.ts'
@@ -32,15 +34,9 @@ const OPENAI_SCOPE = 'openrouter/openai/gpt-5.6-sol'
 const OPENAI_FORMAT = 'openai-responses-v1'
 const OPENAI_PAYLOAD =
   '{"data":"openai-cipher","format":"openai-responses-v1","id":"rs_1","type":"reasoning.encrypted"}'
-const FORMAT = 'anthropic-claude-v1'
-const ITEM = {
-  format: FORMAT,
-  index: 0,
-  signature: 'claude-signature',
-  text: 'claude thinking',
-  type: 'reasoning.text',
-}
-const CLAUDE_PAYLOAD = JSON.stringify([ITEM])
+const FORMAT = 'anthropic-messages-v1'
+const ITEM = { type: 'thinking', thinking: 'claude thinking', signature: 'claude-signature' }
+const CLAUDE_PAYLOAD = thinkingPayload([ITEM])
 
 function ownReplay(record: AnthropicRecord, at: readonly number[]): object {
   return { replay: { scope: `openrouter/${record.name}`, format: FORMAT, at } }
@@ -104,8 +100,7 @@ describe('an OpenAI message in an Anthropic request', () => {
         { role: 'user', content: [{ type: 'text', text: 'second question' }] },
         {
           role: 'assistant',
-          content: [{ type: 'text', text: 'claude answer' }],
-          reasoning_details: [ITEM],
+          content: [ITEM, { type: 'text', text: 'claude answer' }],
         },
         { role: 'user', content: [{ type: 'text', text: 'third question' }] },
       ],
@@ -124,7 +119,7 @@ describe('an OpenAI message in an Anthropic request', () => {
     const text = writeJsonText(result.ok.body)
     expect(text).not.toContain('openai-cipher')
     expect(text).not.toContain('openai private summary')
-    expect(JSON.stringify(body)).not.toContain('"reasoning":{')
+    expect(body).not.toHaveProperty('output_config')
   })
 
   it('the replay projection of the record names the foreign message in its diagnostics', () => {
@@ -146,7 +141,7 @@ describe('an OpenAI message in an Anthropic request', () => {
       resent: new Set(),
       system: request.system,
       tools: request.tools,
-      binding: 'none',
+      binding: SONNET.replay.binding,
     })
     const [openai, anthropic] = request.messages.filter(item => item.role === 'assistant')
     expect(projection.treatments).toEqual([
@@ -183,7 +178,7 @@ describe('an OpenAI message in an Anthropic request', () => {
     expect(result).toEqual({
       failure: {
         kind: 'unsupported',
-        field: 'thinking',
+        field: '/messages/1',
         adapter: recordAdoption(ANTHROPIC_OWNER, SONNET),
       },
     })
@@ -230,6 +225,52 @@ describe('own history', () => {
     expect(writeJsonText(result.ok.body)).not.toContain('unsigned')
     expect(result.ok.diagnostics).toEqual([])
   })
+
+  it('a group sealed in the retired format anthropic-claude-v1 is left out with a format diagnostic', async () => {
+    const retired = JSON.stringify([
+      {
+        format: 'anthropic-claude-v1',
+        index: 0,
+        signature: 'retired-signature',
+        text: 'retired thinking',
+        type: 'reasoning.text',
+      },
+    ])
+    const { request, result } = await encoded(SONNET, {
+      messages: [
+        message('u1', 'user', [textBlock('b1', 'Turn 1.')]),
+        message(
+          'a1',
+          'assistant',
+          [
+            thinkingBlock('k1', 'retired thinking'),
+            textBlock('t1', 'Answer 1.'),
+            stateBlock('s1', retired, ['k1']),
+          ],
+          {
+            replay: { scope: `openrouter/${SONNET.name}`, format: 'anthropic-claude-v1', at: [2] },
+          },
+        ),
+        message('u2', 'user', [textBlock('b2', 'Turn 2.')]),
+      ],
+    })
+    if (!('ok' in result)) throw new Error(JSON.stringify(result.failure))
+    expect(messagesOf(result.ok.body)[1]).toEqual({
+      role: 'assistant',
+      content: [{ type: 'text', text: 'Answer 1.' }],
+    })
+    expect(writeJsonText(result.ok.body)).not.toContain('retired-signature')
+    expect(result.ok.diagnostics).toEqual([
+      {
+        kind: 'replay-omitted',
+        message: request.messages[1]?.id,
+        scope: `openrouter/${SONNET.name}`,
+        format: 'anthropic-claude-v1',
+        omittedParts: 1,
+        reason: 'format',
+      },
+    ])
+  })
 })
 
 function toolTurn(
@@ -237,14 +278,16 @@ function toolTurn(
   format: string,
   payload: string,
   open = false,
+  prefix?: string,
 ): readonly unknown[] {
+  const mark = { scope, format, at: [2] }
   const turn = [
     message('u1', 'user', [textBlock('b1', 'look up x')]),
     message(
       'a1',
       'assistant',
       [thinkingBlock('k1', 'why'), callBlock('c1', 'call_1'), stateBlock('s1', payload, ['k1'])],
-      { replay: { scope, format, at: [2] } },
+      { replay: prefix === undefined ? mark : { ...mark, prefix } },
     ),
     message('t1', 'tool', [resultBlock('r1', 'call_1'), textBlock('b2', 'found')]),
   ]
@@ -296,8 +339,9 @@ describe('a foreign tool turn', () => {
       })
       if (!('ok' in result)) throw new Error(JSON.stringify(result.failure))
       const body: unknown = JSON.parse(writeJsonText(result.ok.body))
-      expect(body).toMatchObject({ reasoning: { effort: 'high' } })
-      expect(writeJsonText(result.ok.body)).not.toContain('"enabled"')
+      expect(body).toMatchObject({ output_config: { effort: 'high' } })
+      expect(body).toMatchObject({ thinking: { type: 'adaptive' } })
+      expect(writeJsonText(result.ok.body)).not.toContain('"disabled"')
       expect(writeJsonText(result.ok.body)).not.toContain('openai-cipher')
       const [openai] = request.messages.filter(item => item.role === 'assistant')
       expect(result.ok.diagnostics).toEqual([
@@ -313,8 +357,10 @@ describe('a foreign tool turn', () => {
     },
   )
 
-  it('an own continuable last tool turn carries its group on claude-opus-5.5', async () => {
-    const own = toolTurn(`openrouter/${OPUS_55.name}`, FORMAT, CLAUDE_PAYLOAD)
+  it('an own continuable last tool turn carries its group on claude-opus-5.5, on the prefix it was produced on', async () => {
+    const unmarked = toolTurn(`openrouter/${OPUS_55.name}`, FORMAT, CLAUDE_PAYLOAD)
+    const prefix = prefixBefore(OPUS_55, { messages: unmarked, tools: [tool('lookup')] }, 1)
+    const own = toolTurn(`openrouter/${OPUS_55.name}`, FORMAT, CLAUDE_PAYLOAD, false, prefix)
     const plan = await planned(OPUS_55, own)
     expect(plan.parameters.map(item => item.applied)).toEqual([HIGH])
     const { result } = await encoded(OPUS_55, {
@@ -324,12 +370,32 @@ describe('a foreign tool turn', () => {
     })
     if (!('ok' in result)) throw new Error(JSON.stringify(result.failure))
     expect(JSON.parse(writeJsonText(result.ok.body))).toMatchObject({
-      reasoning: { effort: 'high' },
+      output_config: { effort: 'high' },
     })
     expect(messagesOf(result.ok.body)[1]).toMatchObject({
       role: 'assistant',
-      reasoning_details: [ITEM],
+      content: [ITEM, { type: 'tool_use', name: 'lookup' }],
     })
     expect(result.ok.diagnostics).toEqual([])
+  })
+
+  it('the same group without the prefix it was produced on is left out on claude-opus-5.5', async () => {
+    const { request, result } = await encoded(OPUS_55, {
+      messages: toolTurn(`openrouter/${OPUS_55.name}`, FORMAT, CLAUDE_PAYLOAD),
+      tools: [tool('lookup')],
+      parameters: [HIGH],
+    })
+    if (!('ok' in result)) throw new Error(JSON.stringify(result.failure))
+    expect(writeJsonText(result.ok.body)).not.toContain('claude-signature')
+    expect(result.ok.diagnostics).toEqual([
+      {
+        kind: 'replay-omitted',
+        message: request.messages[1]?.id,
+        scope: `openrouter/${OPUS_55.name}`,
+        format: FORMAT,
+        omittedParts: 1,
+        reason: 'no-prefix',
+      },
+    ])
   })
 })

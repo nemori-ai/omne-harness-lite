@@ -28,6 +28,8 @@ export type PiProtocolFrame =
 export interface PiResponseDecoder {
   accept(frame: PiProtocolFrame): Outcome<readonly TransportFact[], ModelFault>
   end(): Outcome<readonly TransportFact[], ModelFault>
+  /** The fault of a refused request when the engine recognizes the refusal; null leaves it to the status. */
+  refused?(status: number, body: string): ModelFault | null
 }
 export type PiMaterializedMedia = Readonly<{
   reference: ContentReference

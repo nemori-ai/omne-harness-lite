@@ -11,6 +11,7 @@ import {
   ResponseBodyReadError,
   ResponseBodyStalledError,
   ResponseBodyStoppedError,
+  type ExchangeResult,
   type HttpExchange,
 } from './http.ts'
 import { closeSourceOnEarlyEnd } from './iteration.ts'
@@ -58,6 +59,17 @@ async function* readSend(input: SendInput): AsyncGenerator<TransportFact, void, 
   yield { kind: 'ended', termination: terminationOf(end) }
 }
 
+const UTF8 = new TextDecoder('utf-8', { fatal: false })
+
+// Only a body read whole is shown to the engine; the status decides the rest.
+function refusalOf(
+  decoder: PiResponseDecoder,
+  result: Extract<ExchangeResult, { kind: 'http-error' }>,
+): ModelFault | null {
+  if (decoder.refused === undefined || result.errorBody.kind !== 'complete') return null
+  return decoder.refused(result.status, UTF8.decode(result.errorBody.bytes))
+}
+
 // A listener that throws must not change what the transport does with the body.
 function beforeBody(input: Pick<SendInput, 'onResponseBody'>): void {
   try {
@@ -79,7 +91,7 @@ async function* decodeSend(
     case 'stalled':
       return STALLED_BEFORE_RESPONSE
     case 'http-error':
-      return { kind: 'http-error', status: result.status }
+      return { kind: 'http-error', status: result.status, fault: refusalOf(decoder, result) }
     case 'ok':
       break
     default: {

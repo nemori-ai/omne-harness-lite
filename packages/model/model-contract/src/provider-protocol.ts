@@ -91,6 +91,8 @@ export type ProviderDiagnostic =
   | Readonly<{ kind: 'reasoning-disabled'; reason: 'foreign-prefix' }>
   | Readonly<{ kind: 'reasoning-state-dropped'; reason: 'payload-too-long'; length: number }>
   | Readonly<{ kind: 'usage-inconsistent'; field: string }>
+  /** The upstream changed the request before it ran: what it did, where, and why; never content. */
+  | Readonly<{ kind: 'upstream-transformed'; type: string; path: string; reason: string }>
 export type TransportTermination =
   | Exclude<Termination, { kind: 'interrupted' }>
   | Readonly<{ kind: 'interrupted'; stop: 'confirmed' }>

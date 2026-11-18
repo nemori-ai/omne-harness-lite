@@ -1,0 +1,96 @@
+event: message_start
+data: {"type":"message_start","message":{"id":"msg_011ChA8BiXGgXHVRHwaV94ro","type":"message","role":"assistant","container":null,"content":[],"model":"anthropic/claude-fable-5.2","stop_reason":null,"stop_details":null,"stop_sequence":null,"usage":{"input_tokens":445,"output_tokens":3,"output_tokens_details":null,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"inference_geo":"global","server_tool_use":null,"service_tier":"standard","speed":"standard"},"provider":"Anthropic"}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":"","signature":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"I'm coun"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"ting the numbers from 1"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" to 99 that are div"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"isible by 3, 7"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":", or 21, subtrac"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"ting the overlap"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":","}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" which"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" gives 39. That"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" total"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" is odd, so it l"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"ands on Lima."}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"\n\n"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"CAQS7gUKEAgTGAI4AUIIdGhpbmtpbmcSDFcWYBwaRvIyIo5dCBoM5EqwlbTyeCwa1qzjIjBlkZBWJYBI1wmVB54bUxefGyqAILfLK9xiEdHvGWwIFlsR+Scqv1UUGcImnajxMfIqiwVVTXzT3XcIbUcNnDQMFjxLAgkqY7o1cF3O3bAve9YpLUnCQqDHZurY/msGHv4RGIOmX5RoObpSrLRUzAuxtLfpW48wbngGWhS+nb0GD2X3zCRF1pxhIrOyXV82sDvSOJhc3cTViMTKtFV+fUDGSx5qt1X6LiD58eTjer2JaQvifJBqnw0BdidinRYNimB+JIpra5yTYWqpmEQ3EjffNTv1WLyJ5KaJxv90adH15WeeqWVUThQu41hcVg4YmUEPkenG3oQ+nwgRCbQsW6NB86lhoqUIvGRbMN0dzz16hh8Ufoi5nlmGUxwuMzc8/p/wOOzBEAT1A6eBHQeoFVS4l++x4hv4SpAfHtsKjoH/eIe3ZC14+mKDQ+a4ISdwUPmR5TOEOnJhh1mHaj6LOjAqKIGyo6x2HnGzuFrSPhZa1GagSAcDnG5DkxxJrOsW/b09n4rwPiJ4bhyYJX1VyhAeCEuVGIx5X1uI6EB6s4ZKFZKmuDQpBb0Hj9y+L/tB41W1370lPORda87hTQZj5coB6dqvpPvj+lS7SSn2aEVs4J/jOLqSCDApqqr3FfF8ejmoz/i720nZu50Ljni7khE9YCJlQer/NmHKMU/pC8DDuKheoL5U3Sb5ztOZ/B9qjxycQVApYZNlnfjkbOv1O4z8F3qL9aFiGwgACVh3c1uATSru6Aq2TNc5S7PntshTj+WYd2qYXprzids82LDMQfoNC8ogm0lT4ocSglRdOhjPINEp9AMfxFaej1SjF8ydIbf3FKmTmyfm8TUGbo9VQ+WQnoSDkH9QvMSCGFIlz2cC0ivU34oBc3Mtg7OPrsw14hLC9xOoTqBBdyxSpvcQWT1tyz31uqv5FxFIiHf2X/sYAQ==.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1mYWJsZS01LjItMjAyNjExMDl8YW50aHJvcGljIn0"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"text","text":"","citations":[]}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"The"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" count is 33"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" + 14 − 2"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"·4 = 39 ("}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"od"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"d), so"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" Lima."}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: content_block_start
+data: {"type":"content_block_start","index":2,"content_block":{"type":"tool_use","id":"toolu_01Dr4nrBPpcvREtofKQdBj2r","caller":{"type":"direct"},"name":"get_weather","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":2,"delta":{"type":"input_json_delta","partial_json":"{\"city\": \"Lima"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":2,"delta":{"type":"input_json_delta","partial_json":"\"}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":2}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"container":null,"stop_details":null,"stop_reason":"tool_use","stop_sequence":null},"usage":{"input_tokens":445,"output_tokens":141,"output_tokens_details":{"thinking_tokens":61},"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"server_tool_use":null,"service_tier":"standard","speed":"standard","cost":0.0092,"is_byok":false,"cost_details":{"upstream_inference_cost":0.0092,"upstream_inference_prompt_cost":0.00356,"upstream_inference_completions_cost":0.00564}},"context_management":null}
+
+event: message_stop
+data: {"type":"message_stop"}
+

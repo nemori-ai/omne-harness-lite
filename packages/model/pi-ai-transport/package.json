@@ -18,6 +18,11 @@
       "types": "./dist/chat-completions/index.d.ts",
       "import": "./dist/chat-completions/index.js"
     },
+    "./messages": {
+      "source": "./src/messages/index.ts",
+      "types": "./dist/messages/index.d.ts",
+      "import": "./dist/messages/index.js"
+    },
     "./testing": {
       "source": "./src/testing/index.ts",
       "types": "./dist/testing/index.d.ts",

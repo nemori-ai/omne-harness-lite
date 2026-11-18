@@ -511,6 +511,7 @@ const DIAGNOSTIC_FIELDS: Readonly<Record<ProviderDiagnostic['kind'], readonly st
   'reasoning-disabled': ['kind', 'reason'],
   'reasoning-state-dropped': ['kind', 'reason', 'length'],
   'usage-inconsistent': ['kind', 'field'],
+  'upstream-transformed': ['kind', 'type', 'path', 'reason'],
 }
 const REPLAY_OMISSIONS: ReadonlySet<string> = new Set([
   'scope',
@@ -528,6 +529,7 @@ function isCount(value: unknown): boolean {
 function isText(value: unknown): boolean {
   return typeof value === 'string' && value.length > 0
 }
+const UPSTREAM_WORD = /^[a-z][a-z0-9_.]{0,127}$/
 function replayOmittedWellFormed(
   diagnostic: Extract<ProviderDiagnostic, { kind: 'replay-omitted' }>,
 ): boolean {
@@ -555,6 +557,10 @@ export function wellFormed(diagnostic: ProviderDiagnostic): boolean {
       return diagnostic.reason === 'payload-too-long' && isCount(diagnostic.length)
     case 'usage-inconsistent':
       return isText(diagnostic.field)
+    case 'upstream-transformed':
+      return [diagnostic.type, diagnostic.path, diagnostic.reason].every(word =>
+        UPSTREAM_WORD.test(word),
+      )
     default: {
       const _exhaustive: never = diagnostic
       return _exhaustive

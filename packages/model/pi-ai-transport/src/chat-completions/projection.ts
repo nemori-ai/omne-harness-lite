@@ -82,7 +82,9 @@ export function normalizeToolCallId(id: string): string {
     : `call_${createHash('sha256').update(id).digest('base64url').slice(0, 32)}`
 }
 
-export function recordDeclaration(record: ChatCompletionsRecord): ReplayDeclaration {
+export function recordDeclaration(
+  record: Pick<ChatCompletionsRecord, 'name' | 'route' | 'replay'>,
+): ReplayDeclaration {
   const judged = judgeReplayDeclaration(
     {
       provider: record.route.provider,

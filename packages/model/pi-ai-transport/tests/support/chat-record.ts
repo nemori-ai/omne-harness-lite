@@ -27,7 +27,7 @@ import type {
   ReplaySource,
   VendorHooks,
 } from '../../src/chat-completions/index.ts'
-import { recordAdoption, recordProvider } from '../../src/index.ts'
+import { recordAdoption, recordProvider, type PiModelRecordHead } from '../../src/index.ts'
 
 export const OWNER = '@omne-harness/pi-ai-engine-test'
 export const ROUTE: ChatCompletionsRecord['route'] = { provider: 'gateway', model: 'lab/model-a' }
@@ -115,7 +115,11 @@ export function testRecord(overrides: Partial<ChatCompletionsRecord> = {}): Chat
   }
 }
 
-export function supplierOf(record: ChatCompletionsRecord): Supplier {
+/** What the helpers below read of a record of any engine. */
+export type AnyRecord = PiModelRecordHead &
+  Readonly<{ replay: Pick<ChatCompletionsRecord['replay'], 'declaration'> }>
+
+export function supplierOf(record: AnyRecord): Supplier {
   return {
     adoption: recordAdoption(OWNER, record),
     provider: recordProvider(record),
@@ -188,7 +192,7 @@ export function testHooks(probe: EngineProbe, reasoning = true): VendorHooks {
   }
 }
 
-export function testMeter(record: ChatCompletionsRecord, probe: EngineProbe): FamilyMeter {
+export function testMeter(record: AnyRecord, probe: EngineProbe): FamilyMeter {
   const supplier = supplierOf(record)
   const basis: ModelCountingBasis = {
     supplier: { adoption: supplier.adoption, provider: supplier.provider, model: supplier.model },
@@ -286,7 +290,7 @@ export type RequestParts = Readonly<{
   declaration?: ReplayDeclaration
 }>
 
-export function declarationOf(record: ChatCompletionsRecord): ReplayDeclaration {
+export function declarationOf(record: AnyRecord): ReplayDeclaration {
   const judged = judgeReplayDeclaration(
     {
       provider: record.route.provider,
@@ -299,10 +303,7 @@ export function declarationOf(record: ChatCompletionsRecord): ReplayDeclaration 
   return judged.ok
 }
 
-export function fixedRequest(
-  record: ChatCompletionsRecord,
-  parts: RequestParts = {},
-): FixedModelRequest {
+export function fixedRequest(record: AnyRecord, parts: RequestParts = {}): FixedModelRequest {
   const judged = judgeFixedModelRequest({
     profile: adoption('profile'),
     suppliers: [supplierOf(record)],

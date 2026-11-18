@@ -47,7 +47,8 @@ const OPENAI_FAMILY = createOpenAiFamily({
 const FAMILIES = composeFamilies([OPENAI_FAMILY, ANTHROPIC_FAMILY])
 
 const PLACEHOLDER = 'placeholder-credential'
-const ROUTE_PATH = '/api/v1/chat/completions'
+// The OpenAI records go out on the chat-completions endpoint, the Anthropic records on Messages.
+const PATHS = { openai: '/api/v1/chat/completions', anthropic: '/api/v1/messages' } as const
 
 const LIMITS = {
   connectTimeoutMs: 5_000,
@@ -101,16 +102,16 @@ const FIXTURES: readonly RecordFixture[] = [
 const certificate = createCertificate()
 let server: HttpsFixture
 beforeAll(async () => {
-  const streams = new Map(FIXTURES.map(item => [item.model, item.stream]))
+  const fixtures = new Map(FIXTURES.map(item => [item.model, item]))
   server = await startHttpsServer(certificate, (res, request) => {
     const model: unknown = Reflect.get(Object(JSON.parse(request.body)), 'model')
-    const stream = typeof model === 'string' ? streams.get(model) : undefined
-    if (request.path !== ROUTE_PATH || stream === undefined) {
+    const fixture = typeof model === 'string' ? fixtures.get(model) : undefined
+    if (fixture === undefined || request.path !== PATHS[fixture.family]) {
       res.writeHead(404).end()
       return
     }
     res.writeHead(200, { 'content-type': 'text/event-stream' })
-    res.end(stream)
+    res.end(fixture.stream)
   })
 })
 afterAll(async () => {
@@ -138,9 +139,10 @@ function buildTransport(): Built {
       openrouter: {
         endpoints: {
           'chat-completions': {
-            url: new URL(ROUTE_PATH, server.url).href,
+            url: new URL(PATHS.openai, server.url).href,
             endMarker: GATEWAY_END_MARKER,
           },
+          messages: { url: new URL(PATHS.anthropic, server.url).href, endMarker: null },
         },
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: { kind: 'bearer', item: 'apiKey' },

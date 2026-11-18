@@ -2041,6 +2041,11 @@ export type ProviderDiagnostic = Readonly<{
 }> | Readonly<{
     kind: 'usage-inconsistent';
     field: string;
+}> | Readonly<{
+    kind: 'upstream-transformed';
+    type: string;
+    path: string;
+    reason: string;
 }>;
 export type TransportTermination = Exclude<Termination, {
     kind: 'interrupted';

@@ -14,7 +14,7 @@ import { judgeFixedModelRequest } from '@omne-harness/model-contract/provider'
 import { ANTHROPIC_RECORDS } from '@omne-harness/pi-ai-anthropic'
 import { OPENAI_RECORDS } from '@omne-harness/pi-ai-openai'
 import { createCertificate, startHttpsServer, type HttpsFixture } from './support/https-server.ts'
-import { assembleLocalHost, decoded, MARGIN_PERCENT, ROUTE_PATH } from './support/local-host.ts'
+import { assembleLocalHost, decoded, MARGIN_PERCENT, isGatewayPath } from './support/local-host.ts'
 import { inputEstimate, known, measureOn } from './support/metering.ts'
 import { officialProfile } from './support/profiles.ts'
 import { readRecordFixture, type FamilyName, type RecordFixture } from './support/records.ts'
@@ -63,7 +63,7 @@ beforeAll(async () => {
   server = await startHttpsServer(certificate, (res, request) => {
     const model: unknown = Reflect.get(Object(JSON.parse(request.body)), 'model')
     const stream = typeof model === 'string' ? streams.get(model) : undefined
-    if (request.path !== ROUTE_PATH || stream === undefined) {
+    if (!isGatewayPath(request.path) || stream === undefined) {
       res.writeHead(404).end()
       return
     }
@@ -94,7 +94,10 @@ const NEXT_USER = {
 function replyOf(
   input: Readonly<{ fixture: RecordFixture; blocks: readonly ModelBlock[]; format: string }>,
 ) {
-  const { fixture, blocks, format } = input
+  const { fixture, format } = input
+  // A tool call would need its result before the next turn, which only one of the two compared
+  // requests could carry; the reply unit counts as X's output with or without it.
+  const blocks = input.blocks.filter(block => block.kind !== 'tool_call')
   return {
     id: ASSISTANT_ID,
     role: 'assistant',

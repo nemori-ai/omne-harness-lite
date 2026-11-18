@@ -704,6 +704,12 @@ it('keeps provider diagnostics on the dispatch without changing blocks, first co
     { kind: 'reasoning-disabled', reason: 'foreign-prefix' },
     { kind: 'reasoning-state-dropped', reason: 'payload-too-long', length: 2_000_000 },
     { kind: 'usage-inconsistent', field: 'completion_tokens' },
+    {
+      kind: 'upstream-transformed',
+      type: 'thinking_dropped',
+      path: 'messages.1.content.0',
+      reason: 'prefix_binding_mismatch',
+    },
   ]
   const facts: readonly TransportFact[] = [
     ...diagnostics.map(value => ({ kind: 'diagnostic', value }) as const),
@@ -734,6 +740,13 @@ it('refuses a diagnostic that carries more than its kind allows, and keeps nothi
     ),
     { kind: 'reasoning-state-dropped', reason: 'payload-too-long', length: -1 } as const,
     { kind: 'usage-inconsistent', field: '' } as const,
+    {
+      kind: 'upstream-transformed',
+      type: 'thinking_dropped',
+      path: 'messages.1.content.0',
+      reason: 'Signature EqHkAQoMCAQSCA==',
+    } as const,
+    { kind: 'upstream-transformed', type: '', path: 'messages.1', reason: 'r' } as const,
   ]) {
     expect(
       await f.commands.preserve({

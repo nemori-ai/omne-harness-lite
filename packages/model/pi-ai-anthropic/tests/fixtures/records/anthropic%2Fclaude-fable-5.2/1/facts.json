@@ -1,0 +1,260 @@
+[
+  {
+    "kind": "block-open",
+    "index": "0",
+    "mode": "append",
+    "content": "thinking"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "I'm coun"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ting the numbers from 1"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " to 99 that are div"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "isible by 3, 7"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ", or 21, subtrac"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ting the overlap"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": ","
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " which"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " gives 39. That"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " total"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": " is odd, so it l"
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "ands on Lima."
+  },
+  {
+    "kind": "block-delta",
+    "index": "0",
+    "delta": "\n\n"
+  },
+  {
+    "kind": "block-open",
+    "index": "1",
+    "mode": "append",
+    "content": "text"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "The"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " count is 33"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " + 14 − 2"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "·4 = 39 ("
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "od"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": "d), so"
+  },
+  {
+    "kind": "block-delta",
+    "index": "1",
+    "delta": " Lima."
+  },
+  {
+    "kind": "block-open",
+    "index": "2",
+    "mode": "append",
+    "content": "tool-arguments"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "{\"city\": \"Lima"
+  },
+  {
+    "kind": "block-delta",
+    "index": "2",
+    "delta": "\"}"
+  },
+  {
+    "kind": "block-seal",
+    "index": "0",
+    "block": {
+      "kind": "thinking",
+      "id": "b0",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "I'm counting the numbers from 1 to 99 that are divisible by 3, 7, or 21, subtracting the overlap, which gives 39. That total is odd, so it lands on Lima.\n\n"
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "1",
+    "block": {
+      "kind": "text",
+      "id": "b1",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "text": "The count is 33 + 14 − 2·4 = 39 (odd), so Lima."
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "2",
+    "block": {
+      "kind": "tool_call",
+      "id": "b2",
+      "visibility": {
+        "toHuman": true,
+        "toModel": true
+      },
+      "callId": "toolu_01Dr4nrBPpcvREtofKQdBj2r",
+      "name": "get_weather",
+      "arguments": {
+        "kind": "object",
+        "entries": [
+          {
+            "key": "city",
+            "value": {
+              "kind": "string",
+              "value": "Lima"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "kind": "block-seal",
+    "index": "3",
+    "block": {
+      "kind": "reasoning_state",
+      "id": "b3",
+      "visibility": {
+        "toHuman": false,
+        "toModel": true
+      },
+      "payload": "[{\"signature\":\"CAQS7gUKEAgTGAI4AUIIdGhpbmtpbmcSDFcWYBwaRvIyIo5dCBoM5EqwlbTyeCwa1qzjIjBlkZBWJYBI1wmVB54bUxefGyqAILfLK9xiEdHvGWwIFlsR+Scqv1UUGcImnajxMfIqiwVVTXzT3XcIbUcNnDQMFjxLAgkqY7o1cF3O3bAve9YpLUnCQqDHZurY/msGHv4RGIOmX5RoObpSrLRUzAuxtLfpW48wbngGWhS+nb0GD2X3zCRF1pxhIrOyXV82sDvSOJhc3cTViMTKtFV+fUDGSx5qt1X6LiD58eTjer2JaQvifJBqnw0BdidinRYNimB+JIpra5yTYWqpmEQ3EjffNTv1WLyJ5KaJxv90adH15WeeqWVUThQu41hcVg4YmUEPkenG3oQ+nwgRCbQsW6NB86lhoqUIvGRbMN0dzz16hh8Ufoi5nlmGUxwuMzc8/p/wOOzBEAT1A6eBHQeoFVS4l++x4hv4SpAfHtsKjoH/eIe3ZC14+mKDQ+a4ISdwUPmR5TOEOnJhh1mHaj6LOjAqKIGyo6x2HnGzuFrSPhZa1GagSAcDnG5DkxxJrOsW/b09n4rwPiJ4bhyYJX1VyhAeCEuVGIx5X1uI6EB6s4ZKFZKmuDQpBb0Hj9y+L/tB41W1370lPORda87hTQZj5coB6dqvpPvj+lS7SSn2aEVs4J/jOLqSCDApqqr3FfF8ejmoz/i720nZu50Ljni7khE9YCJlQer/NmHKMU/pC8DDuKheoL5U3Sb5ztOZ/B9qjxycQVApYZNlnfjkbOv1O4z8F3qL9aFiGwgACVh3c1uATSru6Aq2TNc5S7PntshTj+WYd2qYXprzids82LDMQfoNC8ogm0lT4ocSglRdOhjPINEp9AMfxFaej1SjF8ydIbf3FKmTmyfm8TUGbo9VQ+WQnoSDkH9QvMSCGFIlz2cC0ivU34oBc3Mtg7OPrsw14hLC9xOoTqBBdyxSpvcQWT1tyz31uqv5FxFIiHf2X/sYAQ==.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1mYWJsZS01LjItMjAyNjExMDl8YW50aHJvcGljIn0\",\"thinking\":\"I'm counting the numbers from 1 to 99 that are divisible by 3, 7, or 21, subtracting the overlap, which gives 39. That total is odd, so it lands on Lima.\\n\\n\",\"type\":\"thinking\"}]",
+      "pairs": [
+        "b0"
+      ]
+    }
+  },
+  {
+    "kind": "account",
+    "event": "usage",
+    "value": {
+      "usage": [
+        {
+          "name": "input",
+          "state": "known",
+          "lexeme": "445",
+          "unit": "token"
+        },
+        {
+          "name": "output",
+          "state": "known",
+          "lexeme": "141",
+          "unit": "token"
+        },
+        {
+          "name": "cache-read",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "cache-write",
+          "state": "known",
+          "lexeme": "0",
+          "unit": "token"
+        },
+        {
+          "name": "reasoning",
+          "state": "known",
+          "lexeme": "61",
+          "unit": "token"
+        }
+      ],
+      "cost": [
+        {
+          "state": "known",
+          "lexeme": "0.0092",
+          "unit": "openrouter-credit",
+          "source": "billable"
+        }
+      ],
+      "trimmed": {
+        "state": "unknown",
+        "unit": "token"
+      },
+      "place": "openrouter/Anthropic",
+      "duration": {
+        "state": "unknown"
+      },
+      "revision": "1"
+    }
+  },
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "completed",
+      "reason": "tool-suggestions"
+    }
+  }
+]

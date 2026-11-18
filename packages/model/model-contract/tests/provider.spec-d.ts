@@ -305,10 +305,29 @@ it('ProviderDiagnostic is the closed set of four diagnostics without a payload',
     { kind: 'reasoning-disabled', reason: 'foreign-prefix' },
     { kind: 'reasoning-state-dropped', reason: 'payload-too-long', length: 9 },
     { kind: 'usage-inconsistent', field: 'completion_tokens' },
+    {
+      kind: 'upstream-transformed',
+      type: 'thinking_dropped',
+      path: 'messages.1.content.0',
+      reason: 'prefix_binding_mismatch',
+    },
   ]
   expectTypeOf<ProviderDiagnostic['kind']>().toEqualTypeOf<
-    'replay-omitted' | 'reasoning-disabled' | 'reasoning-state-dropped' | 'usage-inconsistent'
+    | 'replay-omitted'
+    | 'reasoning-disabled'
+    | 'reasoning-state-dropped'
+    | 'usage-inconsistent'
+    | 'upstream-transformed'
   >()
+  const transformed: ProviderDiagnostic = {
+    kind: 'upstream-transformed',
+    type: 'thinking_dropped',
+    path: 'messages.1.content.0',
+    reason: 'prefix_binding_mismatch',
+    // @ts-expect-error an upstream transformation says what, where and why, never the content
+    content: 'x',
+  }
+  void transformed
   const payload: ProviderDiagnostic = {
     kind: 'reasoning-state-dropped',
     reason: 'payload-too-long',

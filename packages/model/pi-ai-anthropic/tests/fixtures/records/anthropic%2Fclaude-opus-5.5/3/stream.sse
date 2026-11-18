@@ -1,0 +1,117 @@
+event: message_start
+data: {"type":"message_start","message":{"id":"msg_011ChA8CCTnXbMA61FV9oriy","type":"message","role":"assistant","container":null,"content":[],"model":"anthropic/claude-opus-5.5","stop_reason":null,"stop_details":null,"stop_sequence":null,"usage":{"input_tokens":445,"output_tokens":7,"output_tokens_details":null,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"inference_geo":"global","server_tool_use":null,"service_tier":"standard","speed":"standard"},"provider":"Anthropic"}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":"","signature":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"I'm counting the numb"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"ers below"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" 100 that are"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" divisible by 3, "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"7, or both"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"."}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" That's"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" 33 mult"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"iples of 3 "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"and 14 of 7,"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" with 4 div"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"isible by 21, so "}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"39"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" are div"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"isible by exactly one of"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" them. That's"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" an odd count"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":", so the"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" answer is"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" Lima."}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"\n\n"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"CAQS+wUKEAgTGAI4AUIIdGhpbmtpbmcSDKTNbpbYO6+lJ2ByBhoM2Df9ghAGS2sUCZvUIjA2FFkOdtE15Ptae0YMJAHYJ5Gky3OGMz/gPWR7ZgmIuDpD1pBOWKZUMy/p+zPjWw8qmAW4GLx4xfC7x3YM5AhfOnASZ6cn4BaIIFDU57qPVC3Ri8O/C1OWce+iGdEdwobkPVt47r3CMqCtmPOo4Yzym8NEoc/86RVVOaDuKlG5kUCYpe9/ITRNWbzZsDNxuTVrUvu1kbVZJA2+aEh7Nszw16yYsowCY3W207gE/a6RMCiI9MdqYCHHn2WsEt0LTZOB51uINpY3FT65tsg9X8XdxjkclEKWhfrZ8hO0rVcYjpIhpVvB+h9RM5e/iwbHp1DPahQPgQjACtZzNBpsj/1vRz30NQ2IN76Q2ZIdqZl2IE+BXppBDZQic48P5zgEgH16JLaUMm75aE1Yjw6BLB6ZLznlyNPtVoHvJYHZc7r/dsUjNxC7jR2gctW7S9UeEp8yCcHlCSeQ4AG3YQIXyV764JEZW1nzX2826fuDJZEsAFge632+QIomaHm+4p23+on7CP40xZ3Anbh/Xh1RKRC2keVP3l5C/9R9R2a8cbQ4ozmn98yfRybJnw8NB6ERpS8JFQxOmdUe/ApWDZKbWEgNLX8E0sRIpKX+y9sCDa9BkUiw0RhD3bhKmNNxnj9RDWyD3EJZ8GLsHFHOnEE+IRkDebxYgvflxUyk7IGLbyKozOCHlaGpBTFSoLJzc/DDTnOwAbajRMULZruYhlfrYsWoFIY7AuNipOy1jFTj1xNC+7RvmpKiijy/ch7OzCs7H+iipQA00Lg1gQz3occkonUThVW6lI8s24KYaTFddyoIAnKsV0g9v4QZBGxBqcRSlBgwmaluro3hJumzjaWttAROPFbv+CY8Y5WewIEHYvHot4nFmnAynK/eGyHfAbJUTRWsDdMAMeWYRdm/bO+EpnQgTenw8CDi2tYA6sR3iKRR5WNKcQACmnDrk046GAE=.eyJlbmRwb2ludF9zbHVnIjoiYW50aHJvcGljL2NsYXVkZS1vcHVzLTUuNS0yMDI2MDkyMXxhbnRocm9waWMifQ"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"text","text":"","citations":[]}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"The"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" count is 39, which"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" is odd, so I'll"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":" get the weather for Lima"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"."}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: content_block_start
+data: {"type":"content_block_start","index":2,"content_block":{"type":"tool_use","id":"toolu_017nT92zyB64ReCur7NHiSSt","caller":{"type":"direct"},"name":"get_weather","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":2,"delta":{"type":"input_json_delta","partial_json":"{\"city\": \"L"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":2,"delta":{"type":"input_json_delta","partial_json":"ima"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":2,"delta":{"type":"input_json_delta","partial_json":"\"}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":2}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"container":null,"stop_details":null,"stop_reason":"tool_use","stop_sequence":null},"usage":{"input_tokens":445,"output_tokens":139,"output_tokens_details":{"thinking_tokens":64},"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0},"server_tool_use":null,"service_tier":"standard","speed":"standard","cost":0.00456,"is_byok":false,"cost_details":{"upstream_inference_cost":0.00456,"upstream_inference_prompt_cost":0.00178,"upstream_inference_completions_cost":0.00278}},"context_management":null}
+
+event: message_stop
+data: {"type":"message_stop"}
+

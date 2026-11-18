@@ -32,7 +32,6 @@ import {
   type PiTransport,
   type PiTransportConfig,
 } from '@omne-harness/pi-ai-transport'
-import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createModelSendStagePlugin } from '../src/cordis.ts'
 import { vaultCredentialPlugin } from './support/credentials.ts'
@@ -48,8 +47,9 @@ import {
   decoded,
   FAMILIES,
   PLACEHOLDER,
-  ROUTE_PATH,
   TRANSPORT_LIMITS,
+  isGatewayPath,
+  gatewayEndpoints,
 } from './support/local-host.ts'
 import { factorySupplier } from './support/profiles.ts'
 import { firstRoundRequest, RECORD_CASE_NAMES, RECORD_CASES } from './support/recording-cases.ts'
@@ -911,7 +911,7 @@ describe('a connect failure that the send retries, through the plugin', () => {
         const certificate = createCertificate()
         closers.push(() => certificate.dispose())
         const server = await startHttpsServer(certificate, (res, received) => {
-          if (received.path !== ROUTE_PATH) {
+          if (!isGatewayPath(received.path)) {
             res.writeHead(404).end()
             return
           }
@@ -942,12 +942,7 @@ describe('a connect failure that the send retries, through the plugin', () => {
             },
             routes: {
               openrouter: {
-                endpoints: {
-                  'chat-completions': {
-                    url: new URL(ROUTE_PATH, front.url).href,
-                    endMarker: GATEWAY_END_MARKER,
-                  },
-                },
+                endpoints: gatewayEndpoints(front.url),
                 accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
                 auth: { kind: 'bearer', item: 'apiKey' },
               },
@@ -1008,7 +1003,7 @@ async function replayThroughPlugin(
     const certificate = createCertificate()
     closers.push(() => certificate.dispose())
     const server = await startHttpsServer(certificate, (res, received) => {
-      if (received.path !== ROUTE_PATH) {
+      if (!isGatewayPath(received.path)) {
         res.writeHead(404).end()
         return
       }
@@ -1029,12 +1024,7 @@ async function replayThroughPlugin(
         },
         routes: {
           openrouter: {
-            endpoints: {
-              'chat-completions': {
-                url: new URL(ROUTE_PATH, server.url).href,
-                endMarker: GATEWAY_END_MARKER,
-              },
-            },
+            endpoints: gatewayEndpoints(server.url),
             accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
             auth: { kind: 'bearer', item: 'apiKey' },
           },
