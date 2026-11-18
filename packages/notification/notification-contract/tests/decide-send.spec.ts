@@ -152,6 +152,25 @@ describe('decideSend: recall, then the source, then naming, then depth', () => {
     )
   })
 
+  it('proceeds when every named recipient is admissible', () => {
+    const naming = request({ named: [agent('a'), person] })
+    const checks = [named(agent('a')), named(person)]
+    expect(decideSend(null, naming, registered, checks, limits)).toHaveProperty('kind', 'proceed')
+  })
+
+  it('conflicts when only the reference of the locator differs', () => {
+    const locator = (ref: string) => ({
+      content: { title: 'Changed', body: 'It changed.', locator: { kind: 'session', ref } },
+    })
+    const known = { event: event(locator('s1')) }
+    expect(decideSend(known, request(locator('s2')), registered, [], limits)).toEqual(
+      refused('conflict'),
+    )
+    expect(decideSend(known, request(locator('s1')), registered, [], limits)).toEqual({
+      kind: 'recalled',
+    })
+  })
+
   it('answers basis-unavailable when admissibility cannot be decided', () => {
     const naming = request({ named: [agent('a')] })
     expect(

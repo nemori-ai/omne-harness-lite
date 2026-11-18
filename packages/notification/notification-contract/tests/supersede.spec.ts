@@ -21,7 +21,8 @@ describe('supersede', () => {
   const incoming = identity('new')
 
   it('answers nothing when the event has no replace key', () => {
-    expect(supersede(incoming, event(), [record('old')])).toEqual([])
+    const box = [record('old'), record('keyless', { replaceKey: null })]
+    expect(supersede(incoming, event(), box)).toEqual([])
   })
 
   it('takes every earlier notification with the same key, resolved or not', () => {
