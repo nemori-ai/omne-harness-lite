@@ -9,12 +9,12 @@ import {
 } from '@omne-harness/permissions'
 import type { PermissionQualification } from './permission-qualification.ts'
 import {
-  agentActionConsumer,
   agentPermissionOperation,
   declaredPermission,
   toolPermissionRequestMatches,
   type ToolPermissionContext,
 } from '../authorization/current-tool-permission.ts'
+import { agentActionConsumer } from '../authorization/authorization-facts.ts'
 import {
   readBoundSessionPermission,
   type SessionPermissionCaptureReader,

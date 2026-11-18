@@ -9,8 +9,8 @@ import {
   createActionAdmission,
   type AuthorizationWriter,
 } from '../../../src/rows/authorization/action-admission.ts'
+import { onceTarget } from '../../../src/rows/authorization/authorization-facts.ts'
 import {
-  onceTarget,
   permissionDecisionOf,
   type ToolPermissionCheck,
 } from '../../../src/rows/authorization/current-tool-permission.ts'
@@ -148,21 +148,30 @@ describe('a person who releases one call', () => {
 })
 
 describe('a person who releases the tool for this session', () => {
+  const gate = { capabilityId: 'tool/ToyEcho', enforcementKey: 'tool.invoke', basis: 'verdict-7' }
+  const handedBack = {
+    kind: 'object',
+    entries: Object.entries(gate).map(([key, value]) => ({
+      key,
+      value: { kind: 'string', value },
+    })),
+  }
   const forSession = {
     card,
-    answer: { kind: 'chosen', option: 'allow-session', value: null, evidence: said },
-  } as const
-  const gate = { capabilityId: 'tool/ToyEcho', enforcementKey: 'tool.invoke', basis: 'verdict-7' }
+    answer: { kind: 'chosen', option: 'allow-session', value: handedBack, evidence: said },
+  }
 
-  // The gate asks until the session holds a release for it that rests on the basis it has now.
-  async function admittingForSession(first: 'ask' | 'allow') {
+  // The gate asks until the session holds a release for it.
+  async function admittingForSession() {
     const world = await forwardWorld()
     const written: Written[] = []
+    const checked: number[] = []
     const check: ToolPermissionCheck = {
       check: async input => {
-        if (input.definition.name !== 'ToyEcho' || first === 'allow' || written.length > 0)
-          return { kind: 'allow', evidence, condition: null }
-        return { kind: 'ask', evidence, gate }
+        checked.push(written.length)
+        return input.definition.name === 'ToyEcho' && written.length === 0
+          ? { kind: 'ask', evidence, gate }
+          : { kind: 'allow', evidence, condition: null }
       },
     }
     const admission = createActionAdmission({
@@ -198,22 +207,18 @@ describe('a person who releases the tool for this session', () => {
       effectiveArguments: args,
       definition: echo.definition.adoption,
     } as never)
-    return { answer, written }
+    return { answer, written, checked }
   }
 
-  it('writes an authorization for the gate with the basis the gate has now, then judges again and allows', async () => {
-    const { answer, written } = await admittingForSession('ask')
+  it('writes an authorization for the gate and the basis the card hands back, then judges once and allows', async () => {
+    const { answer, written, checked } = await admittingForSession()
     expect(answer).toMatchObject({ ok: { kind: 'allow' } })
     expect(written).toHaveLength(1)
     expect(written[0]).toMatchObject({
       card,
       expression: { scope: { kind: 'session', ...gate }, direction: 'grant', source: said },
     })
-  })
-
-  it('writes nothing when the gate no longer asks: judging answers what it is now', async () => {
-    const { answer, written } = await admittingForSession('allow')
-    expect(answer).toMatchObject({ ok: { kind: 'allow' } })
-    expect(written).toHaveLength(0)
+    // The effect needs no reading of its own: the gate is judged once, after the write.
+    expect(checked).toEqual([1])
   })
 })

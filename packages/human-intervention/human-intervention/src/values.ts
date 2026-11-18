@@ -66,6 +66,12 @@ const effectOption = option.extend({ effectRef: HitlIdentifierSchema.optional() 
 // A release card shows every option of the issuer; one it does not offer now cannot be answered.
 // The issuer marks which options last beyond this call, so the card body groups them apart.
 const releaseOption = option.extend({ offered: z.boolean(), lasting: z.boolean() })
+// What the lasting options of a release card are about: the gate, as it stood when the card was made.
+const releaseGate = z.strictObject({
+  capabilityId: HitlIdentifierSchema,
+  enforcementKey: HitlIdentifierSchema,
+  basis: HitlIdentifierSchema,
+})
 const bounded = (maxCodePoints: number) =>
   z.string().refine(value => value.isWellFormed() && [...value].length <= maxCodePoints)
 const questionFields = {
@@ -115,6 +121,7 @@ export const QuestionSchema = z
       origin: z
         .strictObject({ session: HitlIdentifierSchema, agent: HitlIdentifierSchema })
         .readonly(),
+      gate: releaseGate.readonly().optional(),
       options: z.array(releaseOption.readonly()).min(1).max(64).readonly(),
     }),
   ])

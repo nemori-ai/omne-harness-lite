@@ -33,6 +33,8 @@ import {
   type PreparedPermissionWrite,
   type SessionPermissionLogin,
 } from './session-permission-write.ts'
+import type { AskedGate } from './current-tool-permission.ts'
+import { gateOfAnswer } from './release-asking.ts'
 
 import { classOf } from '../../model/principals.ts'
 import { classify, SESSION_WORK_OWNER } from './principals.ts'
@@ -64,7 +66,12 @@ type Plan =
 const DENIED: Plan = Object.freeze({ kind: 'denied' })
 
 /** The card answer an authorization expression claims: the write stands only on that answer. */
-type CardDecision = Readonly<{ card: DurableEvidence; source: DurableEvidence; option: string }>
+type CardDecision = Readonly<{
+  card: DurableEvidence
+  source: DurableEvidence
+  option: string
+  gate: AskedGate | null
+}>
 
 function tenantText(tenant: TenantId): string {
   const encoded = tenantCodec.encode(tenant)
@@ -263,11 +270,16 @@ async function answeredOnCard(
   const read = await cards.read({ ...input.access, card: claimed.card })
   if ('failure' in read) return unavailable('the card answer could not be read now')
   const reply = read.ok
-  return reply.kind === 'chosen' &&
+  const answered =
+    reply.kind === 'chosen' &&
     reply.option === claimed.option &&
     canonicalText(reply.evidence) === canonicalText(claimed.source)
-    ? allowed
-    : Object.freeze({ kind: 'denied' })
+  // A lasting authorization names the gate of its card, with the basis the card holds.
+  const sameGate =
+    claimed.gate === null ||
+    (reply.kind === 'chosen' &&
+      canonicalText(gateOfAnswer(reply.value)) === canonicalText(claimed.gate))
+  return answered && sameGate ? allowed : Object.freeze({ kind: 'denied' })
 }
 
 const OPTION_OF = {
@@ -284,7 +296,16 @@ function cardDecisionOf(target: SessionAccessRequest<unknown>['target']): CardDe
   const option: string | undefined = (OPTION_OF as Record<string, string>)[
     `${scope.kind}/${direction}`
   ]
-  return option === undefined ? null : { card: declaration.authorization, source, option }
+  if (option === undefined) return null
+  const gate =
+    scope.kind === 'session'
+      ? {
+          capabilityId: scope.capabilityId,
+          enforcementKey: scope.enforcementKey,
+          basis: scope.basis,
+        }
+      : null
+  return { card: declaration.authorization, source, option, gate }
 }
 
 function planSession(input: SessionAccessRequest<unknown>): Plan {

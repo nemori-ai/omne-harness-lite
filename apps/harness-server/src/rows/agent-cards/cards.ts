@@ -11,7 +11,7 @@ import {
   type PassageId,
 } from '@omne-harness/agent-contract'
 import type { Card, CardRef } from '@omne-harness/human-intervention'
-import { writeJsonText } from '@omne-harness/json-text'
+import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 
 export const AGENT_CARDS_OWNER = '@omne-harness/harness-server/agent-cards'
@@ -141,6 +141,18 @@ export function cardRefOf(evidence: DurableEvidence, tenantRef: string): CardRef
   return cardEvidence(card).digest === evidence.digest ? card : null
 }
 
+// A release card hands the gate it was made for back with the answer, as the admission wrote it.
+function gateOf(question: Card['question']): JsonValue | null {
+  if (question.kind !== 'release' || question.gate === undefined) return null
+  return {
+    kind: 'object',
+    entries: Object.entries(question.gate).map(([key, value]) => ({
+      key,
+      value: { kind: 'string', value },
+    })),
+  }
+}
+
 export function replyOf(card: Card): CardReply {
   if (card.kind === 'pending') return { kind: 'pending' }
   if (card.kind === 'invalidated')
@@ -162,7 +174,7 @@ export function replyOf(card: Card): CardReply {
   }
   switch (reply.kind) {
     case 'selection':
-      return { kind: 'chosen', option: reply.optionId, value: null, evidence }
+      return { kind: 'chosen', option: reply.optionId, value: gateOf(card.question), evidence }
     case 'text':
       return { kind: 'remark', text: reply.text, evidence }
     case 'decline':

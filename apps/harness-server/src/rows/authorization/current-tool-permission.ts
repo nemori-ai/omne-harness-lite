@@ -10,7 +10,6 @@ import {
   type ReleaseDecision,
   type SessionFacts,
 } from '@omne-harness/authorization'
-import { AGENT_CONSUMER_OWNER } from '@omne-harness/agent'
 import type { ActingForTenantPrincipal } from '@omne-harness/identity'
 import { organizationCodec, tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -28,6 +27,7 @@ import type {
 import type { SessionInquiryView } from '@omne-harness/session-adapters'
 import type { AuthorizationConsumer, OnceAuthorization } from '@omne-harness/session-contract'
 import type { SessionAuthorizations } from '@omne-harness/session-storage-sql/participants'
+import { onceAuthorizationFor, sessionGrantFor } from './authorization-facts.ts'
 import { capturedInquirySchema } from '../governance/permission-inquiry.ts'
 import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
 import { interpretPermission } from '../governance/permission-interpreter.ts'
@@ -169,33 +169,6 @@ export function toolPermissionRequestMatches(
   return matchesAction(input, request) && matchesRelease(request, interpretation)
 }
 
-export function agentActionConsumer(
-  position: Pick<
-    Extract<ToolPermissionAction['origin'], { kind: 'agent-action' }>,
-    'execution' | 'action'
-  >,
-): AuthorizationConsumer {
-  return { owner: AGENT_CONSUMER_OWNER, work: position.execution, position: position.action }
-}
-
-export const onceTarget = (definition: Adoption): string => canonicalText(definition)
-
-const sameConsumer = (a: AuthorizationConsumer, b: AuthorizationConsumer | null): boolean =>
-  b !== null && a.owner === b.owner && a.work === b.work && a.position === b.position
-
-function onceAuthorizationFor(
-  input: ToolPermissionAction,
-  { authorizations = null, consumer = null }: CurrentPermissionRead,
-): OnceAuthorization | null {
-  const found = authorizations?.once ?? null
-  return found !== null &&
-    sameConsumer(found.consumer, consumer) &&
-    found.target === onceTarget(input.definition) &&
-    found.argumentsDigest === effectiveArgumentsOf(input.effectiveArguments).digest
-    ? found
-    : null
-}
-
 function interpretReading(
   input: ToolPermissionAction,
   request: PermissionBasisRequest,
@@ -232,35 +205,19 @@ function interpretReading(
           : undefined
   if (kind === undefined)
     return undecidable('The permission interpretation answered outside its contract.')
-  return permissionDecisionOf(
-    { kind, revision: digestOf(reading) },
-    inquiry,
-    input.carrier === true,
-    {
-      evidence,
-      condition,
-      once: onceAuthorizationFor(input, read),
-      gate: {
-        capabilityId: request.capabilityId,
-        enforcementKey: request.enforcementKey,
-        basis: digestOf(reading),
-      },
-      sessionBasis: sessionGrantFor(request, read),
+  // The verdict belongs to the gate: its revision does not depend on the action that asked.
+  const revision = digestOf(reading.evaluation)
+  return permissionDecisionOf({ kind, revision }, inquiry, input.carrier === true, {
+    evidence,
+    condition,
+    once: onceAuthorizationFor(input, read),
+    gate: {
+      capabilityId: request.capabilityId,
+      enforcementKey: request.enforcementKey,
+      basis: revision,
     },
-  )
-}
-
-// A release for the session counts for the gate it names; whether its basis is current is judged.
-function sessionGrantFor(
-  request: PermissionBasisRequest,
-  { authorizations = null }: CurrentPermissionRead,
-): string | null {
-  const found = authorizations?.session ?? null
-  return found !== null &&
-    found.capabilityId === request.capabilityId &&
-    found.enforcementKey === request.enforcementKey
-    ? found.basis
-    : null
+    sessionBasis: sessionGrantFor(request, read),
+  })
 }
 
 type Found = Readonly<{

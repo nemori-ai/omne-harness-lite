@@ -366,6 +366,46 @@ describe('sessionAccessCheck: members and branches', () => {
       expect(await check.check(mutate(w.work(), 'change', once()))).toEqual({ kind: 'denied' })
     })
 
+    const gate = { capabilityId: 'tool/Shell', enforcementKey: 'tool.invoke', basis: 'r7' }
+    const forSession = (basis = gate.basis) => ({
+      declaration: {
+        kind: 'authorization-expression',
+        authorization: card,
+        expression: {
+          scope: { kind: 'session', ...gate, basis },
+          direction: 'grant',
+          source: said,
+        },
+      },
+    })
+    const handingBack = (held: typeof gate | null) => ({
+      ...chosen('allow-session'),
+      value:
+        held === null
+          ? null
+          : {
+              kind: 'object',
+              entries: Object.entries(held).map(([key, value]) => ({
+                key,
+                value: { kind: 'string', value },
+              })),
+            },
+    })
+
+    it('lets a release for the session through only for the gate and the basis the card holds', async () => {
+      const held = answering(handingBack(gate))
+      expect((await held.check.check(mutate(held.w.work(), 'change', forSession()))).kind).toBe(
+        'allowed',
+      )
+      expect(
+        await held.check.check(mutate(held.w.work(), 'change', forSession('another basis'))),
+      ).toEqual({ kind: 'denied' })
+      const none = answering(handingBack(null))
+      expect(await none.check.check(mutate(none.w.work(), 'change', forSession()))).toEqual({
+        kind: 'denied',
+      })
+    })
+
     it('denies the login, a foreign principal and the Run of another session, and reads no card', async () => {
       const { w, read, check } = answering(chosen('allow-once'))
       for (const principal of [w.login(), w.foreign(), w.work(OTHER)])

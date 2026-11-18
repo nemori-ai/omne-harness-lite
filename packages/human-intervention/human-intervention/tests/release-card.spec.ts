@@ -50,6 +50,13 @@ describe('the release card is its own kind of card', () => {
     expect(QuestionSchema.safeParse({ ...release, ...change }).success).toBe(false)
   })
 
+  it('takes the gate its lasting options are about, whole or not at all', () => {
+    const gate = { capabilityId: 'tool/Shell', enforcementKey: 'tool.invoke', basis: 'r7' }
+    expect(QuestionSchema.safeParse({ ...release, gate }).success).toBe(true)
+    const partial = { capabilityId: 'tool/Shell', enforcementKey: 'tool.invoke' }
+    expect(QuestionSchema.safeParse({ ...release, gate: partial }).success).toBe(false)
+  })
+
   it('takes a call with no command and no preview', () => {
     const target = { tool: 'read_file', command: null, preview: '' }
     expect(QuestionSchema.safeParse({ ...release, target }).success).toBe(true)

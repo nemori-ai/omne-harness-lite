@@ -280,6 +280,52 @@ describe('the state of a card as the reply of the port', () => {
     })
   })
 
+  it('hands the gate of a release card back with the chosen option, as the card holds it', () => {
+    const gate = { capabilityId: 'tool/Shell', enforcementKey: 'tool.invoke', basis: 'r7' }
+    const release = {
+      kind: 'release',
+      cardId: 'c1',
+      title: 'T',
+      description: 'D',
+      declineConsequence: 'C',
+      target: { tool: 'Shell', command: 'execute', preview: 'ls' },
+      arguments: { text: '{}', truncated: false, digest: 'd' },
+      origin: { session: 's', agent: 'e' },
+      gate,
+      options: [
+        { id: 'allow-session', label: 'L', description: 'S', offered: true, lasting: true },
+      ],
+    }
+    const card = CardSchema.parse({
+      kind: 'decided',
+      ref: cardRef,
+      revision: '2',
+      question: release,
+      decision: {
+        ref: {
+          card: cardRef,
+          decisionId: 'd1',
+          submission: { tenantRef: 't', actorRef: 'a', operationId: 'o' },
+        },
+        reply: { kind: 'selection', optionId: 'allow-session' },
+        basisRef: 'basis',
+        commitReceipt: 'receipt',
+      },
+      delivery: { kind: 'pending' },
+    })
+    expect(replyOf(card)).toMatchObject({
+      kind: 'chosen',
+      option: 'allow-session',
+      value: {
+        kind: 'object',
+        entries: Object.entries(gate).map(([key, value]) => ({
+          key,
+          value: { kind: 'string', value },
+        })),
+      },
+    })
+  })
+
   it('gives own words as a remark and a skip as declined', () => {
     expect(replyOf(decided({ kind: 'text', text: 'not now' }))).toMatchObject({
       kind: 'remark',

@@ -288,6 +288,29 @@ declare const item: {
                                                         };
                                                     };
                                                 };
+                                                readonly gate: {
+                                                    readonly rule: {
+                                                        readonly kind: 'object';
+                                                        readonly fields: {
+                                                            readonly capabilityId: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly enforcementKey: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly basis: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                        };
+                                                    };
+                                                    readonly optional: true;
+                                                };
                                                 readonly options: {
                                                     readonly rule: {
                                                         readonly kind: "array";
@@ -602,6 +625,29 @@ declare const item: {
                                                             };
                                                         };
                                                     };
+                                                };
+                                                readonly gate: {
+                                                    readonly rule: {
+                                                        readonly kind: 'object';
+                                                        readonly fields: {
+                                                            readonly capabilityId: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly enforcementKey: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly basis: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                        };
+                                                    };
+                                                    readonly optional: true;
                                                 };
                                                 readonly options: {
                                                     readonly rule: {
@@ -1093,6 +1139,29 @@ declare const item: {
                                                         };
                                                     };
                                                 };
+                                                readonly gate: {
+                                                    readonly rule: {
+                                                        readonly kind: 'object';
+                                                        readonly fields: {
+                                                            readonly capabilityId: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly enforcementKey: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                            readonly basis: {
+                                                                rule: {
+                                                                    readonly kind: 'text';
+                                                                };
+                                                            };
+                                                        };
+                                                    };
+                                                    readonly optional: true;
+                                                };
                                                 readonly options: {
                                                     readonly rule: {
                                                         readonly kind: "array";
@@ -1483,6 +1552,29 @@ declare const cardPage: {
                                                                         };
                                                                     };
                                                                 };
+                                                                readonly gate: {
+                                                                    readonly rule: {
+                                                                        readonly kind: 'object';
+                                                                        readonly fields: {
+                                                                            readonly capabilityId: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly enforcementKey: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly basis: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                    };
+                                                                    readonly optional: true;
+                                                                };
                                                                 readonly options: {
                                                                     readonly rule: {
                                                                         readonly kind: "array";
@@ -1797,6 +1889,29 @@ declare const cardPage: {
                                                                             };
                                                                         };
                                                                     };
+                                                                };
+                                                                readonly gate: {
+                                                                    readonly rule: {
+                                                                        readonly kind: 'object';
+                                                                        readonly fields: {
+                                                                            readonly capabilityId: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly enforcementKey: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly basis: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                    };
+                                                                    readonly optional: true;
                                                                 };
                                                                 readonly options: {
                                                                     readonly rule: {
@@ -2288,6 +2403,29 @@ declare const cardPage: {
                                                                         };
                                                                     };
                                                                 };
+                                                                readonly gate: {
+                                                                    readonly rule: {
+                                                                        readonly kind: 'object';
+                                                                        readonly fields: {
+                                                                            readonly capabilityId: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly enforcementKey: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                            readonly basis: {
+                                                                                rule: {
+                                                                                    readonly kind: 'text';
+                                                                                };
+                                                                            };
+                                                                        };
+                                                                    };
+                                                                    readonly optional: true;
+                                                                };
                                                                 readonly options: {
                                                                     readonly rule: {
                                                                         readonly kind: "array";
@@ -2734,6 +2872,11 @@ export declare const humanInterventionProtocol: {
                                 readonly cardId: string;
                                 readonly declineConsequence: string;
                                 readonly description: string;
+                                readonly gate?: {
+                                    readonly basis: string;
+                                    readonly capabilityId: string;
+                                    readonly enforcementKey: string;
+                                };
                                 readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;
@@ -2829,6 +2972,11 @@ export declare const humanInterventionProtocol: {
                                 readonly cardId: string;
                                 readonly declineConsequence: string;
                                 readonly description: string;
+                                readonly gate?: {
+                                    readonly basis: string;
+                                    readonly capabilityId: string;
+                                    readonly enforcementKey: string;
+                                };
                                 readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;
@@ -2890,6 +3038,11 @@ export declare const humanInterventionProtocol: {
                                 readonly cardId: string;
                                 readonly declineConsequence: string;
                                 readonly description: string;
+                                readonly gate?: {
+                                    readonly basis: string;
+                                    readonly capabilityId: string;
+                                    readonly enforcementKey: string;
+                                };
                                 readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;
@@ -2994,6 +3147,11 @@ export declare const humanInterventionProtocol: {
                                 readonly cardId: string;
                                 readonly declineConsequence: string;
                                 readonly description: string;
+                                readonly gate?: {
+                                    readonly basis: string;
+                                    readonly capabilityId: string;
+                                    readonly enforcementKey: string;
+                                };
                                 readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;
@@ -3089,6 +3247,11 @@ export declare const humanInterventionProtocol: {
                                 readonly cardId: string;
                                 readonly declineConsequence: string;
                                 readonly description: string;
+                                readonly gate?: {
+                                    readonly basis: string;
+                                    readonly capabilityId: string;
+                                    readonly enforcementKey: string;
+                                };
                                 readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;
@@ -3150,6 +3313,11 @@ export declare const humanInterventionProtocol: {
                                 readonly cardId: string;
                                 readonly declineConsequence: string;
                                 readonly description: string;
+                                readonly gate?: {
+                                    readonly basis: string;
+                                    readonly capabilityId: string;
+                                    readonly enforcementKey: string;
+                                };
                                 readonly kind: "release";
                                 readonly options: readonly {
                                     readonly description: string;

@@ -45,13 +45,31 @@ describe('a person who releases this one call', () => {
 })
 
 describe('a person who releases the tool for this session', () => {
-  it('grants an authorization for the session on the card answer, to be judged again', () => {
-    const answer = { kind: 'chosen', option: 'allow-session', value: null, evidence: said } as const
-    expect(answerEffect({ card, answer })).toEqual({
+  const gate = { capabilityId: 'tool/Shell', enforcementKey: 'tool.invoke', basis: 'verdict-7' }
+  const handedBack = {
+    kind: 'object',
+    entries: Object.entries(gate).map(([key, value]) => ({
+      key,
+      value: { kind: 'string', value },
+    })),
+  } as const
+
+  it('grants an authorization for the gate the card hands back, with the basis the card holds', () => {
+    const answer = { kind: 'chosen', option: 'allow-session', value: handedBack, evidence: said }
+    expect(answerEffect({ card, answer } as never)).toEqual({
       kind: 'grant',
       scope: 'session',
+      gate,
       card,
       source: said,
+    })
+  })
+
+  it('cannot read a release for the session from a card that names no gate', () => {
+    const answer = { kind: 'chosen', option: 'allow-session', value: null, evidence: said } as const
+    expect(answerEffect({ card, answer })).toMatchObject({
+      kind: 'decided',
+      decision: { kind: 'undecidable' },
     })
   })
 })

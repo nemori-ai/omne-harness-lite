@@ -43,7 +43,7 @@ it(
       await sendInput(tree, session, 'start: echo second')
       const second = await endedRuns(tree, session, 2)
       expect(toolResults(second).join('\n')).toContain('second-done')
-      expect(await tree.cards({ sessionRef: session })).toHaveLength(1)
+      expect(await tree.cards({ sessionRef: session, states: ['pending'] })).toEqual([])
       expect(second.filter(entry => entry.kind === ONCE)).toHaveLength(1)
       expect(startAcceptances(tree.storageRoot).filter(row => 'authorizations' in row)).toEqual([])
 
@@ -97,7 +97,6 @@ it(
       for (const n of [1, 2, 3]) expect(results).toContain(`three-${String(n)}-done`)
       expect(ended.filter(entry => entry.kind === ONCE)).toHaveLength(1)
       expect(await tree.cards({ sessionRef: session, states: ['pending'] })).toEqual([])
-      expect(await tree.cards({ sessionRef: session })).toHaveLength(3)
       expect(toolCalls(tree.storageRoot).filter(row => row.tool === 'Shell')).toHaveLength(3)
     })
     expect(exit).toBe(0)

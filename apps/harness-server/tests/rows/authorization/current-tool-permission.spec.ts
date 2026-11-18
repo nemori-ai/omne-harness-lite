@@ -33,7 +33,7 @@ import {
 } from '../../../src/rows/authorization/current-tool-permission.ts'
 import { okOf } from '../../entry/support.ts'
 import type { SessionAuthorizations } from '@omne-harness/session-storage-sql/participants'
-import { onceTarget } from '../../../src/rows/authorization/current-tool-permission.ts'
+import { onceTarget } from '../../../src/rows/authorization/authorization-facts.ts'
 
 const release = await loadProductionRelease()
 if (release.kind !== 'trusted') throw new Error('Production release unavailable')

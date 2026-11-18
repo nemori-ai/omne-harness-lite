@@ -19,12 +19,11 @@ import { actionRulesSchema, toolActionRule, type ActionRules } from './action-ru
 import { answerEffect, askedDecision, type AnswerEffect } from './release-asking.ts'
 import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 import {
-  agentActionConsumer,
   agentPermissionOperation,
-  onceTarget,
   type ToolPermissionAction,
   type ToolPermissionCheck,
 } from './current-tool-permission.ts'
+import { agentActionConsumer, onceTarget } from './authorization-facts.ts'
 
 type Request = Parameters<ActionAdmission<unknown>['admit']>[0]
 export type AdmissionReader = () => AdmissionCheck | undefined
@@ -155,6 +154,7 @@ async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecis
       definition: gate.definition,
       effectiveArguments: gate.effectiveArguments,
       evidence: current.evidence,
+      gate: current.gate,
     })
   if (current.kind !== 'allow') return current
   return {
@@ -167,28 +167,17 @@ async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecis
 }
 
 type Granting = Extract<AnswerEffect, { kind: 'grant' }>
-type Scoped = Readonly<{ scope: AuthorizationExpression['scope'] }>
+type Scope = AuthorizationExpression['scope']
 
-async function scopeOf(
-  judging: Judging,
-  gate: Judged,
-  effect: Granting,
-): Promise<Scoped | AdmissionDecision | null> {
-  if (effect.scope === 'once')
-    return {
-      scope: {
-        kind: 'once',
-        consumer: agentActionConsumer(judging.input),
-        target: onceTarget(gate.definition),
-        argumentsDigest: effectiveArgumentsOf(gate.effectiveArguments).digest,
-      },
-    }
-  if (judging.permission === undefined)
-    return unavailable('the current permission dependency is unavailable')
-  const current = await judging.permission.check(permissionAction(judging, gate))
-  if (current.kind !== 'ask') return null
-  if (current.gate === undefined) return undecidable('the gate that asks is not named')
-  return { scope: { kind: 'session', ...current.gate } }
+// This very action, or the gate the card was made for with the basis the card holds.
+function scopeOf(judging: Judging, gate: Judged, effect: Granting): Scope {
+  if (effect.scope === 'session') return { kind: 'session', ...effect.gate }
+  return {
+    kind: 'once',
+    consumer: agentActionConsumer(judging.input),
+    target: onceTarget(gate.definition),
+    argumentsDigest: effectiveArgumentsOf(gate.effectiveArguments).digest,
+  }
 }
 
 // The answer's effect comes first, so judging again reads the authorization it wrote.
@@ -199,15 +188,13 @@ async function grant(
   writer: AuthorizationWriter | undefined,
 ): Promise<AdmissionDecision | null> {
   if (writer === undefined) return unavailable('the session authorization writer is unavailable')
-  const found = await scopeOf(judging, gates[gates.length - 1]!, effect)
-  // A gate that no longer asks needs no release: judging answers what it is now.
-  if (found === null || !('scope' in found)) return found
+  const scope = scopeOf(judging, gates[gates.length - 1]!, effect)
   const written = await writer.express({
     principal: judging.principal,
     tenant: judging.input.tenant,
     session: judging.session,
     card: effect.card,
-    expression: { scope: found.scope, direction: 'grant', source: effect.source },
+    expression: { scope, direction: 'grant', source: effect.source },
   })
   if (written === 'written') return null
   return written === 'refused'
