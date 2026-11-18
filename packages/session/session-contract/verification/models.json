@@ -1,7 +1,7 @@
 {
   "member": "session-contract",
   "model": "models/background-calls/BackgroundCalls.tla",
-  "scope": "finite model BackgroundCalls: one session, one or two backgrounded tool calls, at most two user stops and two outcome deliveries for each call, one human input, one archive. Each action is one session commit; the order of pending inputs, freezing, unarchiving, the Tool side of a stop and the physical end of the execution are not modelled. Safety only. No refinement proof to the implementation. Finite model InputDelivery: one session, three inputs of which one is a quiet stop reminder, at most three Runs and three model replies. It follows which inputs a model request shows and whether the brackets agree with it; a taking and its delivery are one action, the order of submits is free, cancellation, archive and compaction are not modelled. Safety only. No refinement proof to the implementation.",
+  "scope": "finite model BackgroundCalls: one session, one or two backgrounded tool calls, at most two user stops and two outcome deliveries for each call, one human input, one archive. Each action is one session commit; the order of pending inputs, freezing, unarchiving, the Tool side of a stop and the physical end of the execution are not modelled. Safety only. No refinement proof to the implementation. Finite model InputDelivery: one session, three inputs of which one is a quiet stop reminder, at most three Runs and three model replies. It follows which inputs a model request shows and whether the brackets agree with it; a taking and its delivery are one action, the order of submits is free, cancellation, archive and compaction are not modelled. Safety only. No refinement proof to the implementation. Finite model SearchCoverage: two sessions with at most three log positions each, at most two index generations, one query at a time read in three steps, one process kill. Every log position stands for a matching message. The tailer, a rebuild with a swap at any time and the query steps interleave freely. Safety only; that the tailer catches up, a damaged index file and the verification of a candidate against the log are not modelled. No refinement proof to the implementation.",
   "workers": 2,
   "timeoutSeconds": 600,
   "cases": [
@@ -25,6 +25,18 @@
       "name": "delivery-guard-alone",
       "model": "models/input-delivery/InputDelivery.tla",
       "config": "models/input-delivery/guard-alone.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "search-design",
+      "model": "models/search-coverage/SearchCoverage.tla",
+      "config": "models/search-coverage/design.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "search-design-deeper",
+      "model": "models/search-coverage/SearchCoverage.tla",
+      "config": "models/search-coverage/design-deeper.cfg",
       "expected": "complete"
     }
   ],
@@ -156,6 +168,30 @@
       "model": "models/input-delivery/InputDelivery.tla",
       "config": "models/input-delivery/first-take-only.cfg",
       "expected": "AskHasNews"
+    },
+    {
+      "name": "search-non-atomic-cover",
+      "model": "models/search-coverage/SearchCoverage.tla",
+      "config": "models/search-coverage/bad-non-atomic-cover.cfg",
+      "expected": "S1_Complete"
+    },
+    {
+      "name": "search-rows-before-covered",
+      "model": "models/search-coverage/SearchCoverage.tla",
+      "config": "models/search-coverage/bad-rows-before-covered.cfg",
+      "expected": "S1_Complete"
+    },
+    {
+      "name": "search-mix-generations",
+      "model": "models/search-coverage/SearchCoverage.tla",
+      "config": "models/search-coverage/bad-mix-generations.cfg",
+      "expected": "S1_Complete"
+    },
+    {
+      "name": "search-silent-budget",
+      "model": "models/search-coverage/SearchCoverage.tla",
+      "config": "models/search-coverage/bad-silent-budget.cfg",
+      "expected": "S1_Complete"
     }
   ]
 }
