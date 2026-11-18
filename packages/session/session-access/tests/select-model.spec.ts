@@ -156,4 +156,13 @@ describe('select-model, row by row of T3', () => {
       expect(changes(world)).toEqual([])
     }
   })
+
+  it('answers basis-unavailable, and asks nothing, when the principal has no login fact', async () => {
+    const world = createWorld()
+    const session = await created(world)
+    world.breakFacts('undescribed')
+    expect(await select(world, session)).toEqual({ outcome: 'basis-unavailable' })
+    expect(world.targets.calls()).toEqual([])
+    expect(changes(world)).toEqual([])
+  })
 })

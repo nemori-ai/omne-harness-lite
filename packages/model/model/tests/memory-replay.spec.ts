@@ -296,6 +296,8 @@ describe('the replay range a settlement records', () => {
   it('binds the mark of carried reasoning only with a format, and keeps it on the dispatch record', async () => {
     const binding = { failure: { kind: 'invalid', field: 'receipt', reason: 'binding' } }
     expect(await (await receipted({ replayCarried: true })).record()).toEqual(binding)
+    const unmarked = { replayFormat: FORMAT, replayCarried: false as unknown as true }
+    expect(await (await receipted(unmarked)).record()).toEqual(binding)
     const f = await receipted({ replayFormat: FORMAT, replayPrefix: 'h:1', replayCarried: true })
     unbox(await f.record())
     const { principal, tenant, call } = f.admit

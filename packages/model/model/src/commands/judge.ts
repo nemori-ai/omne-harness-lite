@@ -162,6 +162,17 @@ const NOT_RETRYABLE_CAUSES = [
   'modality',
 ]
 
+// A prefix and the carried mark both describe reasoning in a replay format, so neither stands alone.
+function replayMarksBind({ replayFormat, replayPrefix, replayCarried }: MaterializationReceipt) {
+  if (replayFormat === undefined) return replayPrefix === undefined && replayCarried === undefined
+  return (
+    isReplayTag(replayFormat) &&
+    (replayPrefix === undefined ||
+      (replayPrefix.length > 0 && replayPrefix.length <= REPLAY_PREFIX_MAX_LENGTH)) &&
+    (replayCarried === undefined || replayCarried === true)
+  )
+}
+
 export function receiptBinds(
   receipt: MaterializationReceipt,
   supplier: Supplier,
@@ -171,13 +182,7 @@ export function receiptBinds(
     digest(receipt.supplier) === digest(supplier.adoption) &&
     digest(receipt.representation) === digest(request.representation) &&
     /^[0-9a-f]{64}$/u.test(receipt.payloadDigest) &&
-    (receipt.replayFormat === undefined || isReplayTag(receipt.replayFormat)) &&
-    (receipt.replayPrefix === undefined ||
-      (receipt.replayFormat !== undefined &&
-        receipt.replayPrefix.length > 0 &&
-        receipt.replayPrefix.length <= REPLAY_PREFIX_MAX_LENGTH)) &&
-    (receipt.replayCarried === undefined ||
-      (receipt.replayCarried === true && receipt.replayFormat !== undefined))
+    replayMarksBind(receipt)
   )
 }
 export function dispatchOf(call: CallDocument, id: string): DispatchDocument | ModelFailure {
