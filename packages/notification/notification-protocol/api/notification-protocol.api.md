@@ -6,6 +6,7 @@
 
 ## 入口 `.` · `index.d.ts`
 
+- `NotificationChannelBody` · `notification-protocol.d.ts`
 - `NotificationDestinationBody` · `notification-protocol.d.ts`
 - `NotificationProtocol` · `notification-protocol.d.ts`
 - `NotificationSourceBody` · `notification-protocol.d.ts`
@@ -17,7 +18,7 @@
 ## 声明文件 `index.d.ts`
 
 ```ts
-export { notificationProtocol, type NotificationDestinationBody, type NotificationProtocol, type NotificationSourceBody, type NotificationSubscriptionBody, type NotificationSummaryBody, type NotificationViewBody, } from './notification-protocol.ts';
+export { notificationProtocol, type NotificationDestinationBody, type NotificationProtocol, type NotificationChannelBody, type NotificationSourceBody, type NotificationSubscriptionBody, type NotificationSummaryBody, type NotificationViewBody, } from './notification-protocol.ts';
 ```
 
 ## 声明文件 `notification-protocol.d.ts`
@@ -1080,6 +1081,31 @@ declare const source: {
         };
     };
 };
+declare const channel: {
+    readonly kind: 'object';
+    readonly fields: {
+        readonly name: {
+            rule: {
+                readonly kind: 'text';
+            };
+        };
+        readonly label: {
+            rule: {
+                readonly kind: 'text';
+            };
+        };
+        readonly leavesSystem: {
+            rule: {
+                readonly kind: 'boolean';
+            };
+        };
+        readonly addressHint: {
+            rule: {
+                readonly kind: 'string';
+            };
+        };
+    };
+};
 export declare const notificationProtocol: {
     readonly operations: {
         readonly 'list-inbox': {
@@ -1896,5 +1922,6 @@ export type NotificationViewBody = RuleValue<typeof view>;
 export type NotificationSubscriptionBody = RuleValue<typeof subscription>;
 export type NotificationDestinationBody = RuleValue<typeof destination>;
 export type NotificationSourceBody = RuleValue<typeof source>;
+export type NotificationChannelBody = RuleValue<typeof channel>;
 export {};
 ```

@@ -10,6 +10,7 @@ import type {
   Subscription,
 } from '@omne-harness/notification-contract'
 import type {
+  NotificationChannelBody,
   NotificationDestinationBody,
   NotificationSourceBody,
   NotificationSubscriptionBody,
@@ -101,7 +102,7 @@ export function sourceOf(source: CatalogSource): NotificationSourceBody {
   }
 }
 
-export function channelOf(channel: CatalogChannel) {
+export function channelOf(channel: CatalogChannel): NotificationChannelBody {
   const { name, label, leavesSystem, addressHint } = channel
   return { name, label, leavesSystem, addressHint }
 }

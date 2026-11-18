@@ -327,3 +327,4 @@ export type NotificationViewBody = RuleValue<typeof view>
 export type NotificationSubscriptionBody = RuleValue<typeof subscription>
 export type NotificationDestinationBody = RuleValue<typeof destination>
 export type NotificationSourceBody = RuleValue<typeof source>
+export type NotificationChannelBody = RuleValue<typeof channel>
