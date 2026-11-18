@@ -394,6 +394,26 @@ async function ownedViews(
   }
 }
 
+function entriesOf(
+  owned: readonly Readonly<{ owner: SettingOwner; view: SettingsTargetView }>[],
+): Entry[] | undefined {
+  const found: Entry[] = []
+  for (const { owner, view } of owned) {
+    const evaluated = evaluateSettings({ definition: view.definition, sources: view.state.sources })
+    if (evaluated.kind !== 'complete') return undefined
+    for (const item of view.definition.items) {
+      const resolution = evaluated.entries.find(value => value.itemId === item.id)
+      if (resolution === undefined) return undefined
+      found.push({ owner, view, item, resolution })
+    }
+  }
+  return found.sort((a, b) => {
+    const left = JSON.stringify([...ownerKey(a.owner), a.item.id])
+    const right = JSON.stringify([...ownerKey(b.owner), b.item.id])
+    return left < right ? -1 : left > right ? 1 : 0
+  })
+}
+
 export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSettings<P> {
   const { principals, catalog, permissions, writer } = ports
 
@@ -423,26 +443,8 @@ export function createTenantSettings<P>(ports: TenantSettingsPorts<P>): TenantSe
       tenant,
       basis.views.filter(view => view.target.kind === kind),
     )
-    if (owned === undefined) return undefined
-    const found: Entry[] = []
-    for (const { owner, view } of owned) {
-      const evaluated = evaluateSettings({
-        definition: view.definition,
-        sources: view.state.sources,
-      })
-      if (evaluated.kind !== 'complete') return undefined
-      for (const item of view.definition.items) {
-        const resolution = evaluated.entries.find(value => value.itemId === item.id)
-        if (resolution === undefined) return undefined
-        found.push({ owner, view, item, resolution })
-      }
-    }
-    found.sort((a, b) => {
-      const left = JSON.stringify([...ownerKey(a.owner), a.item.id])
-      const right = JSON.stringify([...ownerKey(b.owner), b.item.id])
-      return left < right ? -1 : left > right ? 1 : 0
-    })
-    return { entries: found, completeness: basis.completeness }
+    const found = owned === undefined ? undefined : entriesOf(owned)
+    return found === undefined ? undefined : { entries: found, completeness: basis.completeness }
   }
 
   async function locate(

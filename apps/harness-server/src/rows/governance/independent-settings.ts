@@ -84,11 +84,7 @@ async function provisionOne(
   return (await observe()) ?? 'unavailable'
 }
 
-/**
- * Opens one tenant's independent targets group by group. A ready group is remembered by the digest of
- * its declaration and never read again; an unavailable group answers only for itself and is tried
- * again the next time it is needed. Callers that need the same declaration at once share one opening.
- */
+/** Opens a tenant's independent targets group by group; one opening per declaration is in flight. */
 export function independentTargetsOf(owner: Owner, tenantRef: string) {
   const ready = new Set<string>()
   const opening = new Map<string, Promise<IndependentGroupState>>()
