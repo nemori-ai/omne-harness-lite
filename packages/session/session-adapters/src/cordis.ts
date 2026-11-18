@@ -5,6 +5,7 @@ export {
   sessionInquiryBinding,
   sessionInteractionBinding,
   sessionModesBindings,
+  sessionModesModelBinding,
 } from './cordis/mode-block.ts'
 export { createSessionModesPlugin, type SessionModesPluginInput } from './cordis/mode-plugin.ts'
 export type {
@@ -92,3 +93,11 @@ export {
   type ToolLogConsumed,
   type ToolLogTarget,
 } from './cordis/tool-log-consumption.ts'
+export {
+  createModelReminders,
+  type ModelReminderFailure,
+  type ModelReminderInput,
+  type ModelReminderPorts,
+  type ModelReminders,
+  type PreparedReminders,
+} from './cordis/model-reminders.ts'

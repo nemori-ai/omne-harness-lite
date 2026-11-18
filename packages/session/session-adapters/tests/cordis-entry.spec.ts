@@ -11,6 +11,7 @@ it('cordis entry exports the production plugins that have landed', async () => {
     'contextChangeCommit',
     'contextScopeEndCommit',
     'contextStepCommit',
+    'createModelReminders',
     'createSessionAgentDrivePlugin',
     'createSessionAgentJournalPlugin',
     'createSessionCallControlPlugin',
@@ -34,6 +35,7 @@ it('cordis entry exports the production plugins that have landed', async () => {
     'sessionInteractionBinding',
     'sessionModesBindings',
     'sessionModesDescriptor',
+    'sessionModesModelBinding',
     'sessionModesProducer',
     'sessionScopeEvidence',
   ])

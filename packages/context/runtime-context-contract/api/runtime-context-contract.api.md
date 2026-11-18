@@ -127,6 +127,8 @@
 - `judgeNeed` · `judge.d.ts`
 - `judgeRegistration` · `judge.d.ts`
 - `reduceStep` · `reduce.d.ts`
+- `renderChangeReminder` · `reminder-text.d.ts`
+- `renderSnapshotReminder` · `reminder-text.d.ts`
 
 ## 入口 `./testing` · `testing/index.d.ts`
 
@@ -324,6 +326,7 @@ export declare function diffForReminder(input: DiffInput): readonly ChangeMateri
 export type { Cursor, ReadRefusalReason, MissingCause, UnknownCause, MissingItem, RevisionPair, ReadOutcome, SourceEvidence, NeedValue, NeedRequest, ReadResult, BlockState, BlockEntry, Snapshot, ChangeEntry, Changes, SnapshotResult, CursorInvalidated, ChangesResult, ContextReader, PreviousValue, ChangeMaterial, } from './reader.js';
 export type { RegisterProducerResult, ProducerOperations, PrepareRegistrationResult, IssueEligibilityResult, RevokeEligibilityResult, CommitInput, ApplyCommitResult, HolderOperations, BindResult, ReaderOperations, RuntimeContextOperations, } from './operations.js';
 export type { ContextUpdate, StepBlockMaterial, StepCommit } from './update.js';
+export { renderChangeReminder, renderSnapshotReminder } from './reminder-text.js';
 export type { Registration, RegistrationChange, EligibilityId, EligibilityState, Eligibility, EligibilityMaterial, } from './registration.js';
 export type { ReaderEligibilityRequest, ReaderEligibilityResult, ReaderEligibilityHandoff, } from './reader-eligibility.js';
 export type { Necessity, ContextNeed, Translation, NeedBinding, NeedBindingRef } from './need.js';
@@ -871,6 +874,14 @@ export type Eligibility<P = unknown> = Readonly<{
 }>;
 export type EligibilityMaterial<P = unknown> = Omit<Eligibility<P>, 'id' | 'state'>;
 export {};
+```
+
+## 声明文件 `reminder-text.d.ts`
+
+```ts
+import type { BlockEntry, ChangeEntry, ChangeMaterial } from './reader.js';
+export declare function renderSnapshotReminder(blocks: readonly BlockEntry[]): string | null;
+export declare function renderChangeReminder(entries: readonly ChangeEntry[], materials: readonly ChangeMaterial[]): string | null;
 ```
 
 ## 声明文件 `replay.d.ts`

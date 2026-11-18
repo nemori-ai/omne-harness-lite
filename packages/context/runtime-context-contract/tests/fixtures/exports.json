@@ -677,6 +677,16 @@
               "name": "diffForReminder",
               "kind": "value",
               "pending": false
+            },
+            {
+              "name": "renderSnapshotReminder",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "renderChangeReminder",
+              "kind": "value",
+              "pending": false
             }
           ]
         }

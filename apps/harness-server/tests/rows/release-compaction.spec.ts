@@ -240,6 +240,11 @@ function expectCompletedRun(run: CompactionRun, cycles: number, oldToolCalls: nu
   expect(run.requests).toHaveLength(cycles + 1)
   expect(run.requests[1]).toContain(SUMMARY)
   expect(run.requests[1]).not.toContain(LARGE_HISTORY)
+  // C6: the step after the compaction tells the model the runtime context again, in full.
+  const after = run.requests[1] ?? ''
+  expect(after.lastIndexOf('Runtime context: the current values.')).toBeGreaterThan(
+    after.indexOf(SUMMARY),
+  )
   expect(JSON.stringify(history)).toContain(LARGE_HISTORY)
   expect(JSON.stringify(history)).toContain('original-task-complete')
   expect(JSON.stringify(history)).toContain('compaction-tool-complete')

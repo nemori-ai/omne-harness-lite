@@ -2,11 +2,13 @@
 // returns the object it was built from, never a copy.
 import type {
   ContextBlockKey,
+  DescriptorCatalog,
   NeedBinding,
   StatefulBlockDescriptor,
 } from '@omne-harness/runtime-context-contract'
 import {
   sessionModesBindings,
+  sessionModesDescriptor,
   type SessionContextDefinitions,
 } from '@omne-harness/session-adapters/cordis'
 import { SESSION_MODES_PUBLICATION } from '@omne-harness/session-adapters'
@@ -79,3 +81,11 @@ const ADOPTED: readonly DeclaredContextBlocks[] = [
 
 export const adoptedContextDefinitions: SessionContextDefinitions =
   createContextDefinitions(ADOPTED)
+
+// The supplied blocks of this release; the journal tells the model the ones it may read.
+const SUPPLIED = new Map<string, ReturnType<DescriptorCatalog['get']>>([
+  [sessionModesDescriptor.key, sessionModesDescriptor],
+])
+export const suppliedContextBlocks: DescriptorCatalog = Object.freeze({
+  get: (key: ContextBlockKey) => SUPPLIED.get(key),
+})
