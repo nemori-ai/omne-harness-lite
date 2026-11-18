@@ -76,31 +76,26 @@ function subscriptionRefusal(reason: SubscriptionRefusal) {
   }
 }
 
-/** A send through the protocol has no origin, so its causal depth is never over the limit. */
-function sendRefusal(reason: ParseRefusal | SendRefusal) {
-  switch (reason) {
-    case 'too-large':
-    case 'content-too-large':
-      return invalid('too-large')
-    case 'unknown-event-type':
-    case 'standing-type':
-    case 'invalid-subject':
-    case 'naming-not-allowed':
-    case 'recipient-not-admissible':
-      return invalid(reason)
-    case 'conflict':
-      return { outcome: 'conflict', body: { reason: 'different-content' } } as const
-    case 'not-permitted':
-      return DENIED
-    case 'causal-depth-exceeded':
-    case 'invalid-source-name':
-    case 'incomplete-identity':
-    case 'invalid-scope':
-    case 'invalid-term':
-    case 'invalid-request':
-      return REQUEST
-  }
-}
+const CONTENT_CONFLICT = { outcome: 'conflict', body: { reason: 'different-content' } } as const
+
+/** What the protocol answers for each refusal of a send. A send through it has no origin, so its causal depth is never over the limit. */
+const SEND_REFUSALS = {
+  'too-large': invalid('too-large'),
+  'content-too-large': invalid('too-large'),
+  'unknown-event-type': invalid('unknown-event-type'),
+  'standing-type': invalid('standing-type'),
+  'invalid-subject': invalid('invalid-subject'),
+  'naming-not-allowed': invalid('naming-not-allowed'),
+  'recipient-not-admissible': invalid('recipient-not-admissible'),
+  conflict: CONTENT_CONFLICT,
+  'not-permitted': DENIED,
+  'causal-depth-exceeded': REQUEST,
+  'invalid-source-name': REQUEST,
+  'incomplete-identity': REQUEST,
+  'invalid-scope': REQUEST,
+  'invalid-term': REQUEST,
+  'invalid-request': REQUEST,
+} as const satisfies Record<ParseRefusal | SendRefusal, unknown>
 
 const removalRefusal = (reason: SubscriptionRemovalRefusal) =>
   reason === 'invalid-scope' || reason === 'invalid-request' ? REQUEST : DENIED
@@ -263,7 +258,7 @@ function sendHandler(input: NotificationContributionInput): Handlers['send'] {
     return committing(
       () => ready.faces.sending.send(ready.ctx, { identity: identityOf(ready.ctx, body), event }),
       (accepted, recalled) => committed(recalled, { recipients: accepted.recipients }),
-      sendRefusal,
+      reason => SEND_REFUSALS[reason],
     )
   }
 }

@@ -5,25 +5,33 @@ import { OWNER_POSTS } from './owner-source.ts'
 
 const PERSON: RecipientRef = { kind: 'person' }
 const selfOf = (actor: Actor): RecipientRef => (actor.kind === 'owner' ? PERSON : actor.recipient)
+const sourceOf = (actor: Actor) => (actor.kind === 'owner' ? OWNER_POSTS.name : AGENT_POSTS.name)
+
+type Towards = Readonly<{ recipient: RecipientRef }>
+const own = (actor: Actor, { recipient }: Towards) => sameRecipient(recipient, selfOf(actor))
+
+type Rules = {
+  [K in AuthorityAction['kind']]: (
+    actor: Actor,
+    action: Extract<AuthorityAction, { kind: K }>,
+  ) => boolean
+}
 
 /** An actor handles only what is its own: the owner the person's inbox, an agent its session's. Each sends as its one source. */
+const RULES: Rules = {
+  'send-as': (actor, { source }) => source === sourceOf(actor),
+  'read-inbox': own,
+  dispose: own,
+  'subscribe-for': own,
+  'manage-destinations': (actor, action) => actor.kind === 'owner' && own(actor, action),
+  'be-recipient': (actor, action) => action.recipient.kind === 'person' || own(actor, action),
+  'list-catalog': () => true,
+  'know-source': () => true,
+}
+
 export function mayDo(actor: Actor, action: AuthorityAction): boolean {
-  const own = (recipient: RecipientRef) => sameRecipient(recipient, selfOf(actor))
-  switch (action.kind) {
-    case 'send-as':
-      return action.source === (actor.kind === 'owner' ? OWNER_POSTS.name : AGENT_POSTS.name)
-    case 'read-inbox':
-    case 'dispose':
-    case 'subscribe-for':
-      return own(action.recipient)
-    case 'manage-destinations':
-      return actor.kind === 'owner' && own(action.recipient)
-    case 'be-recipient':
-      return action.recipient.kind === 'person' || own(action.recipient)
-    case 'list-catalog':
-    case 'know-source':
-      return true
-  }
+  const rule = RULES[action.kind] as (actor: Actor, action: AuthorityAction) => boolean
+  return rule(actor, action)
 }
 
 /** The actor of a context comes from a trusted adapter: the access row for a login, the tool binding for a call. */

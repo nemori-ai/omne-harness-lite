@@ -91,6 +91,7 @@ export const notificationRow = defineRow({
   Config: notificationConfig,
   async body(ctx, raw) {
     const { policy } = notificationConfig.parse(raw)
+    const logger = ctx.logger('notification')
     const directory = ctx.get(tenantDomainsKey) as TenantDomains<unknown>
     const scanner: unknown = ctx.get(TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY)
     const bindings = createTenantBindings({
@@ -100,8 +101,9 @@ export const notificationRow = defineRow({
         ctx.get(tenantDomainRegistrationKey) as TenantDomainRegistration | undefined,
       combination: notificationCombination,
       listing: () => directory.enumerate({ principal: scanner }),
+      report: (tenant, reason) =>
+        logger.warn('no notification storage for tenant %s: %s', tenant, reason),
     })
-    const logger = ctx.logger('notification')
     const provider = ctx.plugin(createNotificationLocalPlugin(), {
       policy,
       sql: bindings,

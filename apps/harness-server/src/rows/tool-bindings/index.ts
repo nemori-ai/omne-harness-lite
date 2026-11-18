@@ -38,6 +38,13 @@ export const toolBindingsConfig = z
   .default({})
 
 type Input = LocalToolBindingsPluginInput<unknown, unknown, ToolMessageContentBlock>
+
+/** The tools a domain brings: each call of one gets that domain's services attached, read per call. */
+const DOMAIN_TOOLS = [
+  ['Calendar', bindReleaseCalendar],
+  ['Schedules', bindReleaseSchedules],
+  ['Notifications', bindReleaseNotifications],
+] as const
 type Attachments = Readonly<{
   tools: ReturnType<typeof createReleaseToolsCapability> | null
   web: WebBindingConfig | null
@@ -71,13 +78,8 @@ export function releaseCapability(
       attachments.web !== null && isReleaseToolRequest(release, input.request, 'Web')
         ? bindReleaseWeb(input, withSkills, attachments.web, custody)
         : withSkills
-    if (isReleaseToolRequest(release, input.request, 'Calendar'))
-      return bindReleaseCalendar(ctx, input, withWeb)
-    if (isReleaseToolRequest(release, input.request, 'Schedules'))
-      return bindReleaseSchedules(ctx, input, withWeb)
-    return isReleaseToolRequest(release, input.request, 'Notifications')
-      ? bindReleaseNotifications(ctx, input, withWeb)
-      : withWeb
+    const domain = DOMAIN_TOOLS.find(([name]) => isReleaseToolRequest(release, input.request, name))
+    return domain === undefined ? withWeb : domain[1](ctx, input, withWeb)
   }
 }
 

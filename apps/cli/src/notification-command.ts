@@ -151,30 +151,37 @@ const SPECS: Readonly<Record<string, Spec>> = {
   },
 }
 
+/** The action and its options as given; a string is the usage error. */
+function invocationOf(
+  args: readonly string[],
+): Readonly<{ name: string; spec: Spec; values: Option }> | string {
+  const [action = '', ...rest] = args
+  const name = `notification ${action}`
+  const spec = Object.hasOwn(SPECS, action) ? SPECS[action] : undefined
+  if (spec === undefined) return unrecognized('notification')
+  const options = readOptions(rest, {
+    accepted: [serverOption, ...spec.options],
+    required: spec.required,
+    switches: spec.switches ?? [],
+  })
+  if (options.kind === 'unrecognized') return unrecognized(name)
+  if (options.kind === 'missing') return missingOption(name, options.option)
+  return { name, spec, values: options.values }
+}
+
 async function runNotification(
   args: readonly string[],
   output: CliOutput,
   environment: CommandEnvironment,
 ): Promise<ExitCode> {
-  const [action = '', ...rest] = args
-  const name = `notification ${action}`
-  const spec = Object.hasOwn(SPECS, action) ? SPECS[action] : undefined
-  if (spec === undefined) return usageError(output, unrecognized('notification'))
-  const options = readOptions(rest, {
-    accepted: [serverOption, ...spec.options],
-    required: spec.required,
-    ...(spec.switches === undefined ? {} : { switches: spec.switches }),
-  })
-  if (options.kind === 'unrecognized') return usageError(output, unrecognized(name))
-  if (options.kind === 'missing') return usageError(output, missingOption(name, options.option))
-  const loaded = loadLogin(options.values, output, environment)
+  const invocation = invocationOf(args)
+  if (typeof invocation === 'string') return usageError(output, invocation)
+  const { name, spec, values } = invocation
+  const loaded = loadLogin(values, output, environment)
   if (loaded.kind === 'exit') return loaded.code
-  const messageId = environment.services.newId()
-  const sending = spec.send(options.values, {
-    tenant: loaded.tenant,
-    newId: environment.services.newId,
-    messageId,
-  })
+  const { newId } = environment.services
+  const messageId = newId()
+  const sending = spec.send(values, { tenant: loaded.tenant, newId, messageId })
   if (typeof sending === 'string') return usageError(output, `omne ${name}: ${sending}\n`)
   const result = await sending.call(loaded.link)
   if (result === undefined) return usageError(output, unrecognized(name))

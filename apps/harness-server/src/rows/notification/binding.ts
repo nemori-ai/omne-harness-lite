@@ -22,6 +22,8 @@ export type TenantBindingPorts = Readonly<{
   registration(): TenantDomainRegistration | undefined
   combination(): Promise<Combination>
   listing(): Promise<TenantDomainListing>
+  /** Told why a tenant that has a domain got no binding: the callers only see an unavailable basis. */
+  report(tenant: TenantId, reason: string): void
 }>
 
 /** Each tenant's notifications live in its own domain, where the combination is registered. A cache: no binding is asked again. */
@@ -47,7 +49,9 @@ export function createTenantBindings(ports: TenantBindingPorts) {
       ...fixed,
       participants: NOTIFICATION_PARTICIPANTS,
     })
-    return registered.kind === 'registered' ? { transactionDomain, ...fixed } : null
+    if (registered.kind === 'registered') return { transactionDomain, ...fixed }
+    ports.report(tenant, `the storage answered ${registered.kind}`)
+    return null
   }
 
   return {
@@ -55,7 +59,10 @@ export function createTenantBindings(ports: TenantBindingPorts) {
       const known = bound.get(tenant)
       if (known !== undefined) return known
       const opening = open(tenant)
-        .catch(() => null)
+        .catch((error: unknown) => {
+          ports.report(tenant, String(error))
+          return null
+        })
         .then(binding => {
           if (binding === null) bound.delete(tenant)
           return binding

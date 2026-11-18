@@ -31,6 +31,7 @@ function world() {
     lookups: 0,
     combinations: 0,
   }
+  const reported: string[] = []
   const bindings = createTenantBindings({
     storage: {
       async registerCombination(input: Registration) {
@@ -66,8 +67,9 @@ function world() {
       if (state.listing === 'throws') throw new Error('directory is down')
       return state.listing
     },
+    report: (tenant, reason) => void reported.push(`${tenant}: ${reason}`),
   })
-  return { bindings, domains, registered, state }
+  return { bindings, domains, registered, state, reported }
 }
 
 describe('where a tenant keeps its notifications', () => {
@@ -157,6 +159,36 @@ describe('where a tenant keeps its notifications', () => {
     for (const [tenant, answer] of before) w.domains.set(tenant, answer)
     Object.assign(w.state, { register: 'registered', combination: 'ready', ensure: undefined })
     expect(await w.bindings.bind(A)).toEqual({ transactionDomain: 'td-a', ...COMBINATION })
+  })
+
+  it.each([
+    [
+      'the storage refuses the combination',
+      'refused',
+      `${A}: the storage answered invalid_storage`,
+    ],
+    ['the storage throws', 'throws', `${A}: Error: storage is down`],
+  ] as const)('says why when %s, once for each try', async (_name, register, line) => {
+    const w = world()
+    w.state.register = register
+    await w.bindings.bind(A)
+    await w.bindings.bind(A)
+    expect(w.reported).toEqual([line, line])
+  })
+
+  it('says why when the combination cannot be computed', async () => {
+    const w = world()
+    w.state.combination = 'throws'
+    await w.bindings.bind(A)
+    expect(w.reported).toEqual([`${A}: Error: catalogue is not readable`])
+  })
+
+  it('says nothing for a tenant that binds, or that has no domain of its own now', async () => {
+    const w = world()
+    await w.bindings.bind(A)
+    w.domains.delete(B)
+    await w.bindings.bind(B)
+    expect(w.reported).toEqual([])
   })
 
   it('registers the domain of a tenant that has none yet, then binds to it', async () => {
