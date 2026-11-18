@@ -206,3 +206,21 @@ export function closedMaterial(
     ? (closed.material ?? undefined)
     : undefined
 }
+
+// Every entry a consumption received, in order: from the record, else from the closed item.
+export function receivedEntries(
+  table: ClosedTable & Readonly<{ blobs: BlobStore }>,
+  execution: Readonly<{
+    id: AgentExecutionId
+    deliveries: ReadonlyMap<ConsumptionId, readonly ReceivedEntry[]>
+  }>,
+  consumption: ConsumptionId,
+  held: boolean,
+): readonly ReceivedEntry[] {
+  const kept = execution.deliveries.get(consumption)
+  if (kept !== undefined) return kept
+  if (held) return []
+  const ref = { execution: execution.id, family: 'delivery', item: consumption }
+  const closed = needClosed(table, ref) as ReceivedView[] | null
+  return (closed ?? []).map(item => block<ReceivedEntry>(table.blobs, item.custody))
+}

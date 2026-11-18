@@ -7,6 +7,7 @@ import {
 } from '@omne-harness/session-storage-sql/participants'
 import type { AgentExecutionId } from '@omne-harness/agent-contract'
 import {
+  callHeld,
   finishing,
   foldItems,
   viewOfItems,
@@ -22,7 +23,8 @@ import { refsIn } from './content-refs.ts'
 import { fetchBlobClosure } from './block-read.ts'
 import { blobRowDigest, factDigestOf } from './journal-batch.ts'
 import { itemText, type ItemRef } from '../testing/closed-items.ts'
-import type { JournalCell } from '../testing/root.ts'
+import type { CommonRoot, JournalCell } from '../testing/root.ts'
+import type { ProjectedRecords } from '../testing/journal-records.ts'
 
 export type ItemScope = Readonly<{ tenant: string; session: string; execution: string }>
 
@@ -236,4 +238,52 @@ export async function readOpenView(
     kind: 'unavailable',
     diagnostic: 'the open items of the session kept changing while they were read',
   }
+}
+
+export function heldOrigins<V>(
+  origins: ReadonlyMap<string, V>,
+  view: SessionJournalView,
+): SharedMap<string, V> {
+  const kept = new SharedMap<string, V>()
+  for (const [key, origin] of origins) {
+    const at = key.indexOf('\0')
+    const execution = view.executions.get(key.slice(0, at) as AgentExecutionId)
+    if (execution !== undefined && callHeld(key.slice(at + 1), execution)) kept.set(key, origin)
+  }
+  return kept
+}
+
+export function restoreRecords<P>(
+  book: Readonly<{
+    view: SessionJournalView
+    parsed: ReadonlyMap<string, unknown>
+    origins: CommonRoot['agent']['callOrigins']
+  }>,
+  cell: JournalCell<P>,
+  records: ProjectedRecords,
+): void {
+  cell.mutate(() => {
+    const root = cell.state()
+    const into = <K, V>(target: Map<K, V>, source: ReadonlyMap<K, V>) => {
+      for (const [key, value] of source) target.set(key, value)
+    }
+    root.agent.view = book.view
+    root.agent.log = []
+    root.agent.closedComplete = false
+    for (const [digest, value] of book.parsed) root.agent.blobs.set(digest, value)
+    into(root.agent.executions, records.executions)
+    into(root.agent.operations, records.operations)
+    into(root.agent.eventReceipts, records.fragments.eventReceipts)
+    into(root.agent.pendingEvents, records.fragments.pendingEvents)
+    into(root.agent.callOrigins, records.fragments.callOrigins)
+    into(root.agent.callOrigins, book.origins)
+    into(root.agent.human, records.fragments.human)
+    into(root.agent.indexedEvents, records.fragments.indexedEvents)
+    for (const name of Object.keys(records.receiving) as (keyof CommonRoot['receiving'])[])
+      into(
+        root.receiving[name] as Map<unknown, unknown>,
+        records.receiving[name] as Map<unknown, unknown>,
+      )
+    cell.touch()
+  })
 }

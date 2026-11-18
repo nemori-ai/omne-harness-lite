@@ -8,7 +8,7 @@ import { journalEvidence } from './journal-values.ts'
 type Memo = { batches: Map<InputBatchId, Range>; watermarks: Map<string, Range> }
 
 // Memos of the ranges an execution minted or took, one per execution: ids and records encode them.
-// A core built from records learns the batches its events took, then each one it mints or takes.
+// A core built from records learns the batches it still holds, then each one it mints or takes.
 export function createInputRanges(
   namespace: string,
   keyOf: (execution: MemoryExecution) => string,
@@ -18,12 +18,17 @@ export function createInputRanges(
     const at = keyOf(execution)
     let value = memos.get(at)
     if (value === undefined) {
-      value = { batches: new Map(), watermarks: new Map() }
-      for (const event of execution.events)
-        if (event.body.kind === 'input-taken') {
-          const range = takenRange(execution, event.body.batch)
-          if (range !== undefined) value.batches.set(event.body.batch.id, range)
-        }
+      const learned: Memo = { batches: new Map(), watermarks: new Map() }
+      const learn = (batch: Batch): void => {
+        const range = takenRange(execution, batch)
+        if (range !== undefined) learned.batches.set(batch.id, range)
+      }
+      // The events the record still holds (forEach skips the closed ones), and the batch in hand.
+      execution.events.forEach(event => {
+        if (event.body.kind === 'input-taken') learn(event.body.batch)
+      })
+      if (execution.checkpoint.inputBatch !== null) learn(execution.checkpoint.inputBatch)
+      value = learned
       memos.set(at, value)
     }
     return value

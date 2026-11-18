@@ -29,6 +29,7 @@ import {
   type FactBody,
   type FactRow,
   type OperationEntry,
+  type EventView,
   type PublishedBatch,
   type SessionJournalView,
   type Stamp,
@@ -528,14 +529,31 @@ describe('exclusion is a fact of the log', () => {
   })
 })
 
+// The events a log emitted, in order: they close at birth, so only the item changes hold them.
+function eventsOfLog(log: readonly PublishedBatch[], execution: string): EventView[] {
+  let view = emptySessionView()
+  const events: EventView[] = []
+  for (const batch of log) {
+    const landed = foldItems(view, batch)
+    view = landed.view
+    if (batch.execution !== execution) continue
+    for (const change of landed.changes)
+      if (change.family === 'event' && change.change === 'opened')
+        events.push(change.body as EventView)
+  }
+  return events
+}
+
 describe('the Tool start fence is a fact and an entry event', () => {
   it('fence.started folds into the fences, projects an entry event and survives the rows', () => {
     const { log } = scene(random(48), { rounds: 3, executions: 1, finish: false })
     const view = foldAll(log)
     const execution = view.executions.get(log[0]!.execution)!
     expect(execution.fences.length).toBeGreaterThan(0)
+    const emitted = eventsOfLog(log, log[0]!.execution)
+    expect(execution.emitted).toBe(emitted.length)
     for (const fence of execution.fences) {
-      const event = execution.events.find(item => item.pub === fence.pub)
+      const event = emitted.find(item => item.pub === fence.pub)
       expect(event?.kind).toBe('entry')
       expect(event?.fact.kind).toBe('fence.started')
     }
@@ -747,14 +765,11 @@ describe('a control stage the execution already reached projects no second event
 
   it('repeats nothing for the same stage fact, and one event for a changed state or a step', () => {
     const { prefix, batch } = controlScene()
-    const eventsOf = (facts: PublishedBatch['facts']) => {
-      const view = foldAll([...prefix, { ...batch, pub: prefix.length + 1, facts }])
-      return view.executions.get(batch.execution)?.events.map(event => event.kind) ?? []
-    }
-    const before =
-      foldAll(prefix)
-        .executions.get(batch.execution)
-        ?.events.map(e => e.kind) ?? []
+    const kindsOf = (log: readonly PublishedBatch[]) =>
+      eventsOfLog(log, batch.execution).map(event => event.kind)
+    const eventsOf = (facts: PublishedBatch['facts']) =>
+      kindsOf([...prefix, { ...batch, pub: prefix.length + 1, facts }])
+    const before = kindsOf(prefix)
     const stage = batch.facts.find(fact => fact.kind === 'control.stage')!
     if (stage.kind !== 'control.stage') throw new Error('control stage expected')
     expect(eventsOf([stage])).toEqual(before)

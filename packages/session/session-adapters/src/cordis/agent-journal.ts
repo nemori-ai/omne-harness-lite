@@ -109,6 +109,8 @@ import {
   type ItemRef,
 } from '../testing/closed-items.ts'
 import {
+  restoreRecords,
+  heldOrigins,
   fetchClosed,
   closesOpen,
   foldFull,
@@ -119,6 +121,7 @@ import {
   unsettled,
   type FullViews,
 } from './item-read.ts'
+import { EVENT_PAGE, pagesThere } from './event-stream.ts'
 import { SharedMap } from '../journal/shared-map.ts'
 import { boundariesOf, captureFresh, projectionOf, type Fault } from './event-projection.ts'
 import {
@@ -128,11 +131,7 @@ import {
   unavailable,
   type Prepared,
 } from './journal-publication.ts'
-import {
-  projectRecords,
-  type ProjectedRecords,
-  type ProjectionContext,
-} from '../testing/journal-records.ts'
+import { projectRecords, type ProjectionContext } from '../testing/journal-records.ts'
 import {
   readBlob,
   readEvents,
@@ -240,6 +239,7 @@ type Book<P> = {
   readonly fetched: Map<string, unknown>
   readonly lentBlocks: Map<string, string>
   readonly full: FullViews
+  origins: CommonRoot['agent']['callOrigins']
 }
 
 const PARTICIPANTS = ['message', 'context-transition', 'custody', 'processed'] as const
@@ -427,6 +427,8 @@ function adopt<P>(
   for (const view of found.views) {
     executions.set(view.execution, view)
     book.full.delete(view.execution)
+    for (const key of book.origins.keys())
+      if (key.startsWith(`${view.execution}\0`)) book.origins.delete(key)
   }
   for (const view of found.full) book.full.set(view.execution, view)
   book.view = { head: Math.max(book.view.head, published), executions }
@@ -593,8 +595,7 @@ function settleRecordStop<P, T>(
       return { kind: 'again' }
     case 'operation-conflict':
       return recalled(job, reply.digest)
-    // The store holds an item this write opens, or no longer holds one it changes open: the write
-    // repeats or touches closed work, as a repeated key in memory would.
+    // The store holds an item this write opens, or not the open one it changes: closed work.
     case 'item-conflict': {
       const ref: ItemRef = {
         execution: reply.execution as AgentExecutionId,
@@ -658,6 +659,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         refs: new ContentRefs(),
         fetched: new Map(),
         lentBlocks: new Map(),
+        origins: new SharedMap(),
         full: new Map(),
       }
       books.set(key, book)
@@ -900,32 +902,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     }
   }
 
-  function restore(book: Book<P>, cell: JournalCell<P>, records: ProjectedRecords): void {
-    cell.mutate(() => {
-      const root = cell.state()
-      const into = <K, V>(target: Map<K, V>, source: ReadonlyMap<K, V>) => {
-        for (const [key, value] of source) target.set(key, value)
-      }
-      root.agent.view = book.view
-      root.agent.log = []
-      root.agent.closedComplete = false
-      for (const [digest, value] of book.parsed) root.agent.blobs.set(digest, value)
-      into(root.agent.executions, records.executions)
-      into(root.agent.operations, records.operations)
-      into(root.agent.eventReceipts, records.fragments.eventReceipts)
-      into(root.agent.pendingEvents, records.fragments.pendingEvents)
-      into(root.agent.callOrigins, records.fragments.callOrigins)
-      into(root.agent.human, records.fragments.human)
-      into(root.agent.indexedEvents, records.fragments.indexedEvents)
-      for (const name of Object.keys(records.receiving) as (keyof CommonRoot['receiving'])[])
-        into(
-          root.receiving[name] as Map<unknown, unknown>,
-          records.receiving[name] as Map<unknown, unknown>,
-        )
-      cell.touch()
-    })
-  }
-
   function build(book: Book<P>): Copy<P> {
     const records = recordsView(book.view, book.full)
     keepNamed(book.refs, records, book)
@@ -951,7 +927,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         return undefined
       },
     })
-    restore(
+    restoreRecords(
       book,
       cell,
       projectRecords(
@@ -1518,6 +1494,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         root.agent.blobs.set(factDigestOf(blob.digest), JSON.parse(blob.payload) as unknown)
       for (const digest of released) root.agent.blobs.delete(digest)
     })
+    book.origins = heldOrigins(job.copy.cell.state().agent.callOrigins, book.view)
     // Records project the open view: once an open item closes or finishing ends, they are rebuilt.
     book.copy = dropped || closesOpen(prepared.changes) ? null : job.copy
     for (const at of book.held.keys()) {
@@ -1750,6 +1727,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
             yield fail<Failure>(refused('output.events'))
             return
           }
+          const read = (after: string | null) =>
+            run(input, 'output.read', core =>
+              core.port.output.read({ ...input, after, limit: EVENT_PAGE }),
+            )
+          const there = yield* pagesThere(read, input.after)
+          if (there === null) return
+          const { after } = there
           const copy = await serial(book, async () => {
             const domain = await domainOf(book)
             if ('failure' in domain) return domain
@@ -1762,7 +1746,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
             return
           }
           try {
-            yield* copy.ok.core.port.output.events(input)
+            yield* copy.ok.core.port.output.events({ ...input, after })
           } finally {
             book.users -= 1
             rest(book)

@@ -2,7 +2,6 @@ import type {
   ActionId,
   AgentOperationId,
   Authority,
-  ConsumerRef,
   ConsumptionId,
   ControlStage,
   DurableEvidence,
@@ -15,7 +14,6 @@ import {
   type FactBody,
   type FactOf,
   type PublishedBatch,
-  type Ref,
   type ResultStage,
 } from './facts.ts'
 import {
@@ -58,6 +56,7 @@ type Draft = {
   intents: Map<ActionId, IntentView>
   results: Map<ConsumptionId, ResultView>
   placeholders: Map<ConsumptionId, ReceivedView>
+  deliveries: Map<ConsumptionId, readonly ReceivedView[]>
   handoffs: Map<string, HandoffView>
   controls: Map<AgentOperationId, ControlView>
   materials: Map<string, MaterialView>
@@ -77,6 +76,7 @@ function draftOf(view: ExecutionView): Draft {
     intents: forkTrackedOf(view.intents),
     results: forkTrackedOf(view.results),
     placeholders: forkTrackedOf(view.placeholders),
+    deliveries: forkTrackedOf(view.deliveries),
     handoffs: forkTrackedOf(view.handoffs),
     controls: forkTrackedOf(view.controls),
     materials: forkTrackedOf(view.materials),
@@ -220,6 +220,10 @@ function foldResultReceived(draft: Draft, fact: FactOf<'result.received'>, stamp
     material: fact.material,
     ...stamp,
   }
+  draft.deliveries.set(fact.consumption, [
+    ...(draft.deliveries.get(fact.consumption) ?? []),
+    received,
+  ])
   if (fact.result.delivery === 'placeholder') {
     if (!draft.placeholders.has(fact.consumption))
       draft.placeholders.set(fact.consumption, received)
@@ -662,11 +666,15 @@ function apply(draft: Draft, fact: FactBody, stamp: Stamp, ord: number): void {
       return _exhaustive
     }
   }
-  if (event !== null)
+  if (event !== null) {
+    const entry = fact.kind === 'result.received' || fact.kind === 'fence.started'
+    draft.emitted += 1
+    if (entry) draft.entries += 1
     draft.events = [
       ...draft.events,
       {
-        eseq: draft.events.length + 1,
+        eseq: draft.emitted,
+        entry: entry ? draft.entries : null,
         kind: event,
         ord,
         attachment: active(draft),
@@ -674,6 +682,7 @@ function apply(draft: Draft, fact: FactBody, stamp: Stamp, ord: number): void {
         ...stamp,
       },
     ]
+  }
 }
 
 function foldAllMembers(view: SessionJournalView, batch: PublishedBatch): SessionJournalView {

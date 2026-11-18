@@ -5,6 +5,8 @@ import { canonical, canonicalOfKept } from './canonical.ts'
 import { openEffectsAt, openSnapshotItems } from './execution-open-set.ts'
 import type { JournalCell, TransactionAnswer } from './root.ts'
 import { closedObligations, landClosed } from './closed-items.ts'
+import { landEntry } from './closed-rows.ts'
+import { eventPage } from './event-pages.ts'
 import {
   admissionCounters,
   admissionProjectionOf,
@@ -48,10 +50,11 @@ import type {
   CallerCommit,
   CommandReceipt,
   ConsumerRef,
+  ConsumptionId,
   ControlRecord,
   ControlStage,
   EffectIntent,
-  EventPage,
+  ReceivedEntry,
   DurableEvidence,
   ExecutionControl,
   ExecutionHandoff,
@@ -411,6 +414,8 @@ export type MemoryExecution = {
   admissions: (AdmissionRecord | undefined)[]
   admissionLedger: AdmissionLedger
   entries: AgentJournalEntry[]
+  // Every entry each consumption it still holds received, in order.
+  deliveries: Map<ConsumptionId, readonly ReceivedEntry[]>
   handoffs: HandoffRecord[]
   custodyAttempts: Map<AgentOperationId, CustodyAttempt>
   finishing: FinishingRecords
@@ -1432,42 +1437,14 @@ export function createJournal<P>(
     })
   }
 
-  function readPage(
-    execution: Execution,
-    after: string | null,
-    limit: number,
-  ): Outcome<EventPage, Failure> {
-    const position = sequenceOf(after)
-    if (position === undefined || position > execution.events.length) {
-      return fail(invalid('after', 'not a sequence of this execution'))
-    }
-    if (!Number.isSafeInteger(limit) || limit < 1 || limit > readLimit) {
-      return fail(invalid('limit', `not a positive integer up to ${readLimit}`))
-    }
-    if (position + 1 < execution.retainedFrom) {
-      return succeed({
-        kind: 'gap',
-        retainedFrom: String(execution.retainedFrom),
-        recovery: journalEvidence(`${cell.namespace}/${execution.id}/recovery`, execution.revision),
-      })
-    }
-    const events = execution.events.slice(position, position + limit)
-    if (events.some(event => !event) || Array.from(events).some(event => !event)) {
-      cell.quarantine('confirmed original event gap')
-      return fail({
-        kind: 'unavailable',
-        owner: 'session-history',
-        diagnostic: 'confirmed original event gap',
-      })
-    }
-    const next = position + events.length
-    return succeed({
-      kind: 'page',
-      events: copy(events),
-      next: String(next),
-      caughtUp: next === execution.events.length,
-    })
-  }
+  const readPage = (execution: Execution, after: string | null, limit: number) =>
+    eventPage(
+      { table: state(), namespace: cell.namespace, readLimit, mint, eventSchema },
+      execution,
+      after,
+      limit,
+      () => cell.quarantine('confirmed original event gap'),
+    )
 
   function stateOf(execution: Execution): ExecutionState {
     if (execution.state.kind !== 'settling') return execution.state
@@ -1493,7 +1470,7 @@ export function createJournal<P>(
       revision: execution.revision,
       checkpoint: execution.checkpoint,
       results: execution.results,
-      entries: execution.entries,
+      entries: [...execution.deliveries.values()].flatMap(list => list.slice(0, 1)),
       effects: execution.effects,
       interruptionsOf: (effect: EffectIntent) =>
         interruptionsOf(effect, execution.controls, execution.tenant),
@@ -1553,7 +1530,7 @@ export function createJournal<P>(
         },
         controls: execution.controls,
         results: execution.results,
-        entries: execution.entries,
+        entries: [...execution.deliveries.values()].flatMap(list => list.slice(0, 1)),
         effects: execution.effects,
         interruptionsOf: effect => interruptionsOf(effect, execution.controls, execution.tenant),
         modelCallOf: effect => {
@@ -2458,6 +2435,7 @@ export function createJournal<P>(
                 view.revision,
               ),
               entries: [],
+              deliveries: new Map(),
               handoffs: [inputHandoff(acceptance, input.operation, view.revision)],
               custodyAttempts: new Map(),
               finishing: emptyFinishing(),
@@ -4034,8 +4012,10 @@ export function createJournal<P>(
     holds,
     receiptOf,
     ownEvidence,
-    projectEntry: (execution, entry, cause) =>
-      appendEvents(execution, [{ kind: 'entry', entry }], cause),
+    projectEntry: (execution, entry, cause) => {
+      appendEvents(execution, [{ kind: 'entry', entry }], cause)
+      landEntry(state(), execution, entry)
+    },
     ...(options.custodian === undefined ? {} : { custodian: options.custodian }),
   })
   return {

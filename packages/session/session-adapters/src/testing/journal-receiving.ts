@@ -13,7 +13,6 @@ import type {
   AgentMaterials,
   AgentReceivedCommits,
   CommandReceipt,
-  ConsumptionId,
   DurableEvidence,
   ExecutionMutation,
   Failure,
@@ -42,13 +41,15 @@ import type {
   ToolReceptionTargets,
 } from './reception-targets.ts'
 import { canonical } from './canonical.ts'
+import { entriesFrom } from './event-pages.ts'
 import { jsonTree } from './material-value.ts'
 import type { Attempt, JournalWrite, MemoryExecution, OperationRecord } from './journal.ts'
-import { JOURNAL_OWNER, journalEvidence, semanticKey } from './journal-values.ts'
+import { JOURNAL_OWNER, semanticKey } from './journal-values.ts'
 import {
   type Blob,
   type ExecutionView,
   blobOf,
+  callHeld,
   refOf,
   stampOfReceipt,
   type FactBody,
@@ -59,11 +60,11 @@ type Input<P> = ReceivedCommitInput<P, ContentBlock>
 import {
   closedMaterial,
   closedReceived,
+  receivedEntries,
   deliveryOf,
   preservedSource,
   receivedMaterialSource,
   type Kept,
-  type ReceivedRecord,
 } from './received-records.ts'
 import {
   bindTarget,
@@ -667,7 +668,9 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         (input.after !== null && (!/^(0|[1-9][0-9]*)$/.test(input.after) || from > list.length))
       )
         return fail({ kind: 'invalid', field: 'after', reason: 'not a position of the entries' })
-      const items = list.slice(from, from + input.limit).map((entry, index) => ({
+      const read = entriesFrom(hooks.closed(), found.ok, from, input.limit)
+      if (read === null) return fail(unavailable('an entry of the execution is not readable'))
+      const items = read.map((entry, index) => ({
         sequence: String(from + index + 1),
         entry: structuredClone(entry),
       }))
@@ -680,13 +683,9 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     receivedOf: async input => {
       const found = qualified(input, false)
       if ('failure' in found) return found
+      const held = callHeld(input.consumption, hooks.viewOf(found.ok.id))
       return succeed(
-        found.ok.entries
-          .filter(
-            (entry): entry is ReceivedEntry =>
-              entry.kind === 'received' && entry.consumption === input.consumption,
-          )
-          .map(entry => structuredClone(entry)),
+        structuredClone(receivedEntries(hooks.closed(), found.ok, input.consumption, held)),
       )
     },
   }

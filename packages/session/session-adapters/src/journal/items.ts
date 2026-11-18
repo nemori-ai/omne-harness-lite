@@ -112,7 +112,7 @@ const fallbackRequest = (view: ExecutionView): RequestView | undefined =>
 const intentHeld = (item: IntentView, view: ExecutionView): boolean =>
   view.cursor.holds?.actions.includes(item.action) ?? true
 
-function callHeld(consumption: string, view: ExecutionView): boolean {
+export function callHeld(consumption: string, view: ExecutionView): boolean {
   if (view.cursor.holds?.consumptions.includes(consumption as never) ?? true) return true
   for (const intent of view.intents.values())
     if (intent.pending.consumption === consumption && intentHeld(intent, view)) return true
@@ -176,6 +176,14 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
   },
   { family: 'placeholder', holder: table(at('placeholders')), open: always },
   {
+    family: 'delivery',
+    holder: table(at('deliveries')),
+    open: (_item: unknown, view: ExecutionView, key: string) => {
+      const result = view.results.get(key as never)
+      return result === undefined ? callHeld(key, view) : resultOpen(result, view)
+    },
+  },
+  {
     family: 'admission',
     holder: list(
       at('admissions'),
@@ -219,7 +227,7 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
       item => String(item.eseq),
       item => [item.eseq],
     ),
-    open: always,
+    open: closedAtBirth,
   },
   {
     family: 'binding',
@@ -271,6 +279,8 @@ const EXEC_MEMBERS = [
   'waits',
   'acknowledged',
   'acknowledgedAt',
+  'emitted',
+  'entries',
   'admitted',
 ] as const
 
@@ -291,6 +301,8 @@ export function execBody(view: ExecutionView): ExecBody {
     waits: view.waits,
     acknowledged: view.acknowledged,
     acknowledgedAt: view.acknowledgedAt,
+    emitted: view.emitted,
+    entries: view.entries,
     admitted: view.admitted,
     finish: { current: finish.current, ended: finish.ended },
   }
