@@ -209,12 +209,41 @@ describe('别处改了：重读整张表', () => {
     return { state: changed.state, token }
   }
 
-  it('没读过、读不出或正在读：从头再读，旧的答复作废', () => {
+  it('没读过、读不出：从头读', () => {
     expect(run(INITIAL, { kind: 'changed' }).state.list.kind).toBe('reading')
+    const failed = run(
+      INITIAL,
+      { kind: 'read-list' },
+      { kind: 'list-answered', token: 1, answer: { outcome: 'denied' } },
+    ).state
+    expect(run(failed, { kind: 'changed' }).effects).toEqual([
+      { kind: 'list', token: 2, after: null },
+    ])
+  })
+
+  it('正在读时又变了几次：不另发，只记一笔；读完再读一次，只一次', () => {
     const reading = run(INITIAL, { kind: 'read-list' }).state
-    const again = run(reading, { kind: 'changed' }).state
-    expect(again.list).toMatchObject({ kind: 'reading', token: 2 })
-    expect(run(again, { kind: 'list-answered', token: 1, answer: page([VIEW]) }).state).toBe(again)
+    const marked = run(reading, { kind: 'changed' }, { kind: 'changed' }, { kind: 'changed' })
+    expect(marked.effects).toEqual([])
+    expect(marked.state.list).toMatchObject({ kind: 'reading', token: 1, stale: true })
+    const answered = run(marked.state, { kind: 'list-answered', token: 1, answer: page([VIEW]) })
+    expect(answered.effects).toEqual([{ kind: 'list', token: 2, after: null }])
+    expect(rowIn(answered.state)).toMatchObject({ key: KEY })
+  })
+
+  it('重读正在跑时又变了几次：读完它再读一次', () => {
+    const { state, token } = refreshing(listed())
+    const marked = run(state, { kind: 'changed' }, { kind: 'changed' })
+    expect(marked.effects).toEqual([])
+    const answered = run(marked.state, { kind: 'list-answered', token, answer: page([VIEW]) })
+    expect(answered.effects).toEqual([{ kind: 'list', token: token + 1, after: null }])
+    const done = run(answered.state, {
+      kind: 'list-answered',
+      token: token + 1,
+      answer: page([VIEW]),
+    })
+    expect(done.effects).toEqual([])
+    expect(done.state.list).toMatchObject({ kind: 'read' })
   })
 
   it('已读：重读时各行照旧能用，读完换成新的一张表', () => {

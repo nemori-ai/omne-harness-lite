@@ -1,5 +1,12 @@
 import type { AssetRowView, AssetsProtocol, CreationDetail } from '@omne-harness/assets-protocol'
 import type { ClientOf } from '@omne-harness/sdk/core'
+import {
+  NOT_CREATING,
+  stepCreation,
+  type CreationEffect,
+  type CreationEvent,
+  type Creating,
+} from './creation.ts'
 import { COMMON_SENTENCES, refusal, type Notice } from './notices.ts'
 
 type Client = ClientOf<AssetsProtocol>
@@ -27,7 +34,7 @@ export type Action =
   | Readonly<{ kind: 'refused'; notice: Notice }>
 
 export type Detail =
-  | Readonly<{ kind: 'reading'; token: number; shown?: Described }>
+  | Readonly<{ kind: 'reading'; token: number; shown?: Described; stale: boolean }>
   | Readonly<{ kind: 'read'; asset: Described }>
   | Readonly<{ kind: 'absent' }>
   | Readonly<{ kind: 'failed'; notice: Notice }>
@@ -41,8 +48,9 @@ export type AssetList =
       token: number
       gathered: readonly AssetRowView[]
       partial: boolean
-      /** What the last read found, shown while this one runs; null when nothing was read before. */
+      /** What the last read found, null before any; `stale`: a change came, one more read follows. */
       shown: ListedAssets | null
+      stale: boolean
     }>
   | Readonly<{ kind: 'read'; items: readonly AssetRowView[]; partial: boolean }>
   | Readonly<{ kind: 'failed'; notice: Notice }>
@@ -63,6 +71,7 @@ export type AssetsState = Readonly<{
   category: CategoryInfo
   details: ReadonlyMap<string, Detail>
   actions: ReadonlyMap<string, Action>
+  creating: Creating
   /** The last read token issued: a new read takes the next one, so a stale answer never matches. */
   issued: number
 }>
@@ -80,6 +89,7 @@ export type AssetsEvent =
   | Readonly<{ kind: 'confirm'; name: string }>
   | Readonly<{ kind: 'confirm-answered'; name: string; operation: string; answer: RecallAnswer }>
   | Readonly<{ kind: 'changed' }>
+  | CreationEvent
 
 export type AssetsEffect =
   | Readonly<{ kind: 'list'; token: number; after: string | null }>
@@ -87,6 +97,7 @@ export type AssetsEffect =
   | Readonly<{ kind: 'describe'; name: string; token: number }>
   | Readonly<{ kind: 'change'; name: string; sent: AssetSent }>
   | Readonly<{ kind: 'recall'; name: string; sent: AssetSent }>
+  | CreationEffect
 
 export type AssetsStep = Readonly<{ state: AssetsState; effects: readonly AssetsEffect[] }>
 
@@ -95,6 +106,7 @@ export const INITIAL_ASSETS: AssetsState = {
   category: { kind: 'unread' },
   details: new Map(),
   actions: new Map(),
+  creating: NOT_CREATING,
   issued: 0,
 }
 
@@ -154,7 +166,7 @@ function readList(state: AssetsState): AssetsStep {
     state: {
       ...state,
       issued: token,
-      list: { kind: 'reading', token, gathered: [], partial: false, shown },
+      list: { kind: 'reading', token, gathered: [], partial: false, shown, stale: false },
     },
     effects: [{ kind: 'list', token, after: null }],
   }
@@ -172,7 +184,8 @@ function listAnswered(state: AssetsState, token: number, answer: ListAnswer): As
       state: { ...state, list: { ...list, gathered, partial } },
       effects: [{ kind: 'list', token, after: answer.body.next }],
     }
-  return same({ ...state, list: { kind: 'read', items: gathered, partial } })
+  const read = { ...state, list: { kind: 'read', items: gathered, partial } } as const
+  return list.stale ? readList(read) : same(read)
 }
 
 function categoryAnswered(state: AssetsState, answer: CategoryAnswer): AssetsStep {
@@ -192,7 +205,9 @@ function open(state: AssetsState, name: string): AssetsStep {
         ? current.shown
         : undefined
   const reading: Detail =
-    shown === undefined ? { kind: 'reading', token } : { kind: 'reading', token, shown }
+    shown === undefined
+      ? { kind: 'reading', token, stale: false }
+      : { kind: 'reading', token, shown, stale: false }
   return {
     state: { ...state, issued: token, details: withEntry(state.details, name, reading) },
     effects: [{ kind: 'describe', name, token }],
@@ -213,20 +228,28 @@ function detailAnswered(
       : answer.outcome === 'not-found'
         ? { kind: 'absent' }
         : { kind: 'failed', notice: notice(answer.outcome) }
-  return same({ ...state, details: withEntry(state.details, name, detail) })
+  const answered = { ...state, details: withEntry(state.details, name, detail) }
+  return current.stale ? open(answered, name) : same(answered)
 }
 
-/** After a change lands, the list and every open detail are read again: the server holds the facts. */
+/** After a change the list and open details are read again; a read already running is only marked. */
 function reread(state: AssetsState): AssetsStep {
-  const listed = readList(state)
-  let next = listed.state
-  const effects = [...listed.effects]
-  for (const name of state.details.keys()) {
-    const opened = open(next, name)
-    next = opened.state
-    effects.push(...opened.effects)
+  const list = state.list
+  let step: AssetsStep =
+    list.kind !== 'reading'
+      ? readList(state)
+      : same(list.stale ? state : { ...state, list: { ...list, stale: true } })
+  for (const [name, detail] of state.details) {
+    if (detail.kind === 'reading') {
+      if (detail.stale) continue
+      const marked = withEntry(step.state.details, name, { ...detail, stale: true })
+      step = { state: { ...step.state, details: marked }, effects: step.effects }
+      continue
+    }
+    const opened = open(step.state, name)
+    step = { state: opened.state, effects: [...step.effects, ...opened.effects] }
   }
-  return { state: next, effects }
+  return step
 }
 
 function holdingOf(state: AssetsState, name: string): string | undefined {
@@ -380,5 +403,20 @@ export function stepAssets(state: AssetsState, event: AssetsEvent): AssetsStep {
       return confirmAnswered(state, event.name, event.operation, event.answer)
     case 'changed':
       return reread(state)
+    case 'create':
+    case 'create-progress':
+    case 'create-answered':
+    case 'confirm-create':
+    case 'confirm-create-answered':
+      return creation(state, event)
   }
+}
+
+function creation(state: AssetsState, event: CreationEvent): AssetsStep {
+  const step = stepCreation(state.creating, event, name => holdingOf(state, name) !== undefined)
+  if (step.creating === state.creating) return same(state)
+  const next = { ...state, creating: step.creating }
+  if (!step.reread) return { state: next, effects: step.effects }
+  const reread = readList(next)
+  return { state: reread.state, effects: [...step.effects, ...reread.effects] }
 }

@@ -17,6 +17,7 @@ import type {
   CategoryGovernance,
   GovernanceModel,
 } from '../model/governance.ts'
+import { CreateForm } from './create-form.tsx'
 import { NoticeLine } from './notice.tsx'
 import { RowView } from './setting-row.tsx'
 
@@ -58,10 +59,37 @@ const LIST_PARTIAL = {
 
 function CategoryBody({ view, category, extras }: Shown): JSX.Element {
   const snapshot = useSyncExternalStore(view.subscribe, view.getSnapshot)
+  const [creating, setCreating] = useState(false)
   const retry = { label: '重试', onClick: view.read }
+  const creation =
+    snapshot.kind === 'read' && snapshot.creation?.kind !== 'none' ? snapshot.creation : null
+  const listed = (name: string) =>
+    snapshot.kind === 'read' &&
+    snapshot.assets.kind === 'read' &&
+    snapshot.assets.entries.some(entry => entry.row.name === name)
   return (
     <div className="assets-category">
-      <h2 className="assets-category-title">{extras.label(category)}</h2>
+      <header className="assets-category-head">
+        <h2 className="assets-category-title">{extras.label(category)}</h2>
+        {creation !== null && (
+          <Button
+            variant={creating ? 'ghost' : 'outline'}
+            aria-expanded={creating}
+            onClick={() => setCreating(open => !open)}
+          >
+            {creating ? '收起' : '新建'}
+          </Button>
+        )}
+      </header>
+      {creating && creation !== null && snapshot.kind === 'read' && (
+        <CreateForm
+          view={view}
+          creation={creation}
+          hint={snapshot.hint}
+          creating={snapshot.creating}
+          listed={listed}
+        />
+      )}
       <div className="assets-category-slot">{extras.categorySlot(category)}</div>
       {snapshot.kind === 'reading' && <LoadingState label="正在读取这一类的资产……" />}
       {snapshot.kind === 'unreadable' && <NoticeLine notice={snapshot.notice} action={retry} />}

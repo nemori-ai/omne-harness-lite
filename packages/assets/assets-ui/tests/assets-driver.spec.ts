@@ -136,3 +136,108 @@ describe('the assets driver', () => {
     expect(told()).toBe(seen)
   })
 })
+
+describe('the assets driver creating', () => {
+  const bytes = (text: string) => new TextEncoder().encode(text)
+  const PUBLISHED = { outcome: 'succeeded', body: { version: 'v', holding: 'h', changed: true } }
+
+  it('a data body goes out in one call under a new operation', async () => {
+    const { fake, driver } = await listed()
+    driver.create({ kind: 'data', name: 'notes', body: { kind: 'null' } })
+    expect((await fake.next('create-asset')).body).toEqual({
+      tenant: TENANT,
+      operation: 'op-1',
+      category: 'skill',
+      name: 'notes',
+      body: { kind: 'null' },
+    })
+  })
+
+  it('a directory: begin, then parts of the answered size from what the server has, then commit, all under one operation', async () => {
+    const { fake, driver } = await listed()
+    const files = [
+      { path: 'SKILL.md', bytes: bytes('0123456789') },
+      { path: 'a.txt', bytes: bytes('abc') },
+    ]
+    driver.create(
+      {
+        kind: 'directory',
+        name: 'review',
+        manifest: files.map(file => ({ path: file.path, bytes: file.bytes.length })),
+      },
+      files,
+    )
+    const begin = await fake.next('begin-asset-upload')
+    expect(begin.body).toMatchObject({ operation: 'op-1', name: 'review' })
+    begin.answer({
+      outcome: 'succeeded',
+      body: { partBytes: 4, received: [{ path: 'SKILL.md', bytes: 2 }] },
+    })
+    const sent: [string, number, string][] = []
+    for (;;) {
+      const append = await fake.next('append-asset-upload')
+      const {
+        path,
+        offset,
+        bytes: part,
+        upload,
+      } = append.body as {
+        path: string
+        offset: number
+        bytes: Uint8Array
+        upload: string
+      }
+      expect(upload).toBe('op-1')
+      sent.push([path, offset, new TextDecoder().decode(part)])
+      append.answer({ outcome: 'succeeded', body: { received: offset + part.length } })
+      if (path === 'a.txt') break
+    }
+    expect(sent).toEqual([
+      ['SKILL.md', 2, '2345'],
+      ['SKILL.md', 6, '6789'],
+      ['a.txt', 0, 'abc'],
+    ])
+    const commit = await fake.next('commit-asset-upload')
+    expect(driver.getState().creating).toMatchObject({ kind: 'sending', received: 13 })
+    expect(commit.body).toEqual({ tenant: TENANT, upload: 'op-1' })
+    commit.answer(PUBLISHED)
+    await settle()
+    expect(driver.getState().creating).toEqual({ kind: 'done', text: '已成为 review 的新版本。' })
+  })
+
+  it('a part the server does not move past stops the upload before the commit', async () => {
+    const { fake, driver } = await listed()
+    const files = [{ path: 'SKILL.md', bytes: bytes('0123') }]
+    driver.create(
+      { kind: 'directory', name: 'review', manifest: [{ path: 'SKILL.md', bytes: 4 }] },
+      files,
+    )
+    ;(await fake.next('begin-asset-upload')).answer({
+      outcome: 'succeeded',
+      body: { partBytes: 8, received: [] },
+    })
+    ;(await fake.next('append-asset-upload')).answer({
+      outcome: 'succeeded',
+      body: { received: 0 },
+    })
+    await settle()
+    expect(driver.getState().creating).toMatchObject({
+      kind: 'refused',
+      notice: { text: '上传没有往前走，没有新建。' },
+    })
+    expect(fake.calls.some(call => call.operation === 'commit-asset-upload')).toBe(false)
+  })
+
+  it('an unknown directory creation is recalled as its commit; a data one with its body', async () => {
+    const { fake, driver } = await listed()
+    driver.create({ kind: 'data', name: 'notes', body: { kind: 'null' } })
+    ;(await fake.next('create-asset')).answer({ outcome: 'unknown' })
+    await settle()
+    driver.dispatch({ kind: 'confirm-create' })
+    expect((await fake.next('query-asset-operation')).body).toEqual({
+      tenant: TENANT,
+      operation: 'op-1',
+      request: { kind: 'create-asset', category: 'skill', name: 'notes', body: { kind: 'null' } },
+    })
+  })
+})

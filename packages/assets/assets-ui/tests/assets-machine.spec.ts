@@ -313,7 +313,42 @@ describe('the action slot of one asset', () => {
 describe('a change elsewhere', () => {
   it('reads the list again and every open detail', () => {
     const opened = run(listed(), { kind: 'open', name: 'review' }).state
-    const changed = run(opened, { kind: 'changed' })
+    const read = run(opened, {
+      kind: 'detail-answered',
+      name: 'review',
+      token: opened.issued,
+      answer: { outcome: 'succeeded', body: DESCRIBED },
+    }).state
+    const changed = run(read, { kind: 'changed' })
     expect(changed.effects.map(effect => effect.kind)).toEqual(['list', 'describe'])
+  })
+
+  it('a run of changes while the list and a detail are being read costs one more read of each', () => {
+    const opened = run(listed(), { kind: 'open', name: 'review' }).state
+    const first = run(opened, { kind: 'changed' })
+    expect(first.effects.map(effect => effect.kind)).toEqual(['list'])
+    const more = run(first.state, { kind: 'changed' }, { kind: 'changed' })
+    expect(more.effects).toEqual([])
+    const listToken = first.state.list.kind === 'reading' ? first.state.list.token : -1
+    const detailAnswered = run(more.state, {
+      kind: 'detail-answered',
+      name: 'review',
+      token: opened.issued,
+      answer: { outcome: 'succeeded', body: DESCRIBED },
+    })
+    expect(detailAnswered.effects.map(effect => effect.kind)).toEqual(['describe'])
+    expect(detailAnswered.state.details.get('review')).toMatchObject({
+      kind: 'reading',
+      shown: DESCRIBED,
+    })
+    const listAnswered = run(detailAnswered.state, {
+      kind: 'list-answered',
+      token: listToken,
+      answer: {
+        outcome: 'succeeded',
+        body: { items: [ROW], next: null, completeness: 'complete' },
+      },
+    })
+    expect(listAnswered.effects.map(effect => effect.kind)).toEqual(['list'])
   })
 })

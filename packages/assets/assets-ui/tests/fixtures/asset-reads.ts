@@ -61,6 +61,7 @@ export function serveAssetReads(
   fake: FakeClient,
   rows: readonly AssetRowView[],
   describe: (row: AssetRowView) => unknown = described,
+  creation?: Readonly<{ detail: unknown; hint: string | null }>,
 ): void {
   serve(fake, 'list-assets', body => ({
     outcome: 'succeeded',
@@ -76,8 +77,8 @@ export function serveAssetReads(
       category: body['category'],
       title: String(body['category']),
       summary: '',
-      hint: null,
-      creation: { kind: 'none' },
+      hint: creation?.hint ?? null,
+      creation: creation?.detail ?? { kind: 'none' },
     },
   }))
   serve(fake, 'describe-asset', body => {

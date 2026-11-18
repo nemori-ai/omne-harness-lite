@@ -2,8 +2,9 @@ import type { AssetRowView, AssetsProtocol, CreationDetail } from '@omne-harness
 import type { JsonValue } from '@omne-harness/json-text'
 import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
-import { AssetsDriver } from './assets-driver.ts'
+import { AssetsDriver, type LocalFile } from './assets-driver.ts'
 import type { Action, AssetsState, Detail } from './assets-machine.ts'
+import { NOT_CREATING, type Creating } from './creation.ts'
 import { holdingsOf, type Holding } from './holdings.ts'
 import { SettingsDriver } from './settings-driver.ts'
 import type { Notice, Row, State } from './settings-machine.ts'
@@ -30,8 +31,10 @@ export type CategorySnapshot =
       holdings: readonly Holding[]
       partial: boolean
       assets: CategoryAssets
-      /** How this category creates an asset; null until the category is described. */
+      /** How this category creates an asset, and its hint; null until the category is described. */
       creation: CreationDetail | null
+      hint: string | null
+      creating: Creating
     }>
 
 export type CategoryGovernance = Readonly<{
@@ -50,6 +53,10 @@ export type CategoryGovernance = Readonly<{
   setEnabled: (name: string, enabled: boolean) => void
   remove: (name: string) => void
   confirmAsset: (name: string) => void
+  createFromData: (name: string, body: JsonValue) => void
+  /** Sends the files in parts; the bytes received so far come from the server's answers. */
+  createFromDirectory: (name: string, files: readonly LocalFile[]) => void
+  confirmCreate: () => void
 }>
 
 export type GovernanceModel = Readonly<{
@@ -114,6 +121,8 @@ export function snapshotOf(
         partial: list.partial,
         assets: assets === undefined ? NOT_BY_CATEGORY : listedAssets(assets, holdings),
         creation: assets?.category.kind === 'read' ? assets.category.creation : null,
+        hint: assets?.category.kind === 'read' ? assets.category.hint : null,
+        creating: assets?.creating ?? NOT_CREATING,
       }
     }
   }
@@ -149,6 +158,9 @@ export const NO_ASSET_ACTIONS = Object.freeze({
   setEnabled: nothing,
   remove: nothing,
   confirmAsset: nothing,
+  createFromData: nothing,
+  createFromDirectory: nothing,
+  confirmCreate: nothing,
 })
 
 function assetActions(driver: AssetsDriver) {
@@ -159,6 +171,17 @@ function assetActions(driver: AssetsDriver) {
       driver.change(name, { kind: enabled ? 'enable' : 'disable' }),
     remove: (name: string) => driver.change(name, { kind: 'remove' }),
     confirmAsset: (name: string) => driver.dispatch({ kind: 'confirm', name }),
+    createFromData: (name: string, body: JsonValue) => driver.create({ kind: 'data', name, body }),
+    createFromDirectory: (name: string, files: readonly LocalFile[]) =>
+      driver.create(
+        {
+          kind: 'directory',
+          name,
+          manifest: files.map(file => ({ path: file.path, bytes: file.bytes.length })),
+        },
+        files,
+      ),
+    confirmCreate: () => driver.dispatch({ kind: 'confirm-create' }),
   }
 }
 

@@ -10,7 +10,7 @@ import {
   startServer,
   writeOperator,
 } from '../../harness-server/tests/r9/support.ts'
-import { accessProtocol, readTenantText } from '@omne-harness/public-contract'
+import { accessProtocol } from '@omne-harness/public-contract'
 import { createClient } from '@omne-harness/sdk/core'
 import { httpServer, memoryCredentialStore, openLoginSession } from '../dist/main-core/index.js'
 import { domainProtocols } from '../dist/shared/protocols.js'
@@ -50,6 +50,8 @@ const held = new Promise(resolve => {
 })
 
 let phase = 'walk'
+/** What the host and the model gateway saw, with times; printed when a step fails. */
+const hostLog = []
 const AFTER_RETRY = 'answered after the retry'
 const TOOL_ARGUMENTS = JSON.stringify({ command: 'execute', params: { script: 'echo walk-args' } })
 const ASK_TITLE = 'Which port should the dev server use?'
@@ -119,6 +121,7 @@ const askCall = (index, id, args) => ({
 const final = (body, content) => `${sse([piece(body, content), STOP])}data: [DONE]\n\n`
 
 function answer({ index, body }) {
+  hostLog.push(`${new Date().toISOString()} model request ${index} (phase ${phase})`)
   const reply = { status: 200, contentType: 'text/event-stream' }
   if (phase === 'fail')
     return {
@@ -303,6 +306,7 @@ async function walk(browser, origin, proofs, elsewhere) {
   let number = 0
   const step = async (name, ...stages) => {
     number += 1
+    hostLog.push(`${new Date().toISOString()} step ${number} ${name}`)
     let result
     for (const stage of stages) {
       if (typeof stage === 'function') {
@@ -802,7 +806,7 @@ async function createSkill(session, name) {
       session.transport,
     )
   const current = await client('identity')['query-current-tenant']({})
-  const tenant = current.outcome === 'succeeded' ? readTenantText(current.body.tenantId) : undefined
+  const tenant = current.outcome === 'succeeded' ? current.body.tenantId : undefined
   if (tenant === undefined)
     throw new Error('query-current-tenant answered ' + JSON.stringify(current))
   const assets = client('assets')
@@ -845,7 +849,6 @@ async function listCategories(session) {
 
 const scratch = newScratch('page-walk-')
 const profile = mkdtempSync(join(tmpdir(), 'page-walk-chrome-'))
-const hostLog = []
 let gateway
 let server
 let host
@@ -881,8 +884,22 @@ try {
     },
     contracts: [accessProtocol, ...domainProtocols],
   })
+  const timed = {
+    async call(request) {
+      const started = Date.now()
+      const report = await session.transport.call(request)
+      const name = `${request.protocol.name}/v${request.protocol.major} ${request.operation}`
+      hostLog.push(
+        `${new Date().toISOString()} call ${name}: ${report.outcome ?? report.kind} in ${Date.now() - started} ms`,
+      )
+      return report
+    },
+    observe: request => session.transport.observe(request),
+  }
   host = createWebHost({
-    session,
+    session: new Proxy(session, {
+      get: (target, key) => (key === 'transport' ? timed : Reflect.get(target, key)),
+    }),
     pageRoot: new URL('../dist/page/', import.meta.url).pathname,
     log: line => hostLog.push(`${new Date().toISOString()} ${line}`),
   })
@@ -898,9 +915,12 @@ try {
   code = 0
 } catch (failure) {
   print(`failed: ${failure instanceof Error ? failure.message : String(failure)}`)
+  if (server !== undefined) writeFileSync(join(shots, 'server-stderr.log'), server.stderr())
   const errors = server?.stderr().slice(-2000) ?? ''
   if (errors !== '') print(`server stderr (tail):\n${errors}`)
-  if (hostLog.length > 0) print(`host log (tail):\n${hostLog.slice(-30).join('\n')}`)
+  if (hostLog.length > 0) writeFileSync(join(shots, 'host.log'), `${hostLog.join('\n')}\n`)
+  if (hostLog.length > 0)
+    print(`host log (tail; all of it in host.log):\n${hostLog.slice(-30).join('\n')}`)
   const startup = server
     ?.stdout()
     .split('\n')

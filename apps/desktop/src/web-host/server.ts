@@ -102,6 +102,8 @@ function pageObservations(
     pages.set(page, stream)
     streams.add(response)
     response.on('close', () => {
+      if (stream.observations.size > 0)
+        log(`page stream closed with ${stream.observations.size} observation(s) on it`)
       streams.delete(response)
       for (const controller of stream.observations.values()) controller.abort()
       if (pages.get(page) === stream) pages.delete(page)

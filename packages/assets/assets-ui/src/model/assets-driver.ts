@@ -9,6 +9,10 @@ import {
   type AssetsEvent,
   type AssetsState,
 } from './assets-machine.ts'
+import type { CreateAnswer, CreateRequest } from './creation.ts'
+
+/** One file of a directory to upload, by its path inside the directory. */
+export type LocalFile = Readonly<{ path: string; bytes: Uint8Array }>
 
 export type AssetsDriverDeps = Readonly<{
   client: ClientOf<AssetsProtocol>
@@ -31,6 +35,7 @@ export class AssetsDriver {
   readonly #listeners = new Set<() => void>()
   readonly #deps: AssetsDriverDeps
   readonly #newId: () => string
+  readonly #files = new Map<string, readonly LocalFile[]>()
   #disposed = false
 
   constructor(deps: AssetsDriverDeps) {
@@ -52,6 +57,13 @@ export class AssetsDriver {
 
   change(name: string, request: AssetRequest): void {
     this.dispatch({ kind: 'change', name, request, operation: this.#newId() })
+  }
+
+  /** A new asset: the bytes of a directory stay here, only its manifest goes into the state. */
+  create(request: CreateRequest, files: readonly LocalFile[] = []): void {
+    const operation = this.#newId()
+    if (request.kind === 'directory') this.#files.set(operation, files)
+    this.dispatch({ kind: 'create', operation, request })
   }
 
   dispose(): void {
@@ -119,6 +131,63 @@ export class AssetsDriver {
         ).then(answer => this.dispatch({ kind: 'confirm-answered', name, operation, answer }))
         return
       }
+      case 'create': {
+        const { operation, request } = effect
+        void this.#create(operation, request).then(answer => {
+          this.#files.delete(operation)
+          this.dispatch({ kind: 'create-answered', operation, answer })
+        })
+        return
+      }
+      case 'recall-create': {
+        const { operation, request } = effect
+        const asked =
+          request.kind === 'data'
+            ? ({ kind: 'create-asset', category, name: request.name, body: request.body } as const)
+            : ({ kind: 'commit-asset-upload' } as const)
+        void notSent(() =>
+          client['query-asset-operation']({ tenant, operation, request: asked }),
+        ).then(answer => this.dispatch({ kind: 'confirm-create-answered', operation, answer }))
+        return
+      }
     }
+  }
+
+  async #create(operation: string, request: CreateRequest): Promise<CreateAnswer> {
+    const { client, tenant, category } = this.#deps
+    const { name } = request
+    if (request.kind === 'data')
+      return notSent(() =>
+        client['create-asset']({ tenant, operation, category, name, body: request.body }),
+      )
+    const manifest = request.manifest
+    const begun = await notSent(() =>
+      client['begin-asset-upload']({ tenant, operation, category, name, manifest }),
+    )
+    if (begun.outcome !== 'succeeded') return begun
+    const { partBytes, received } = begun.body
+    let acked = received.reduce((sum, entry) => sum + entry.bytes, 0)
+    this.dispatch({ kind: 'create-progress', operation, received: acked })
+    for (const file of this.#files.get(operation) ?? []) {
+      let offset = received.find(entry => entry.path === file.path)?.bytes ?? 0
+      while (offset < file.bytes.length) {
+        const part = file.bytes.subarray(offset, offset + partBytes)
+        const sent = await notSent(() =>
+          client['append-asset-upload']({
+            tenant,
+            upload: operation,
+            path: file.path,
+            offset,
+            bytes: part,
+          }),
+        )
+        if (sent.outcome !== 'succeeded') return sent
+        if (sent.body.received <= offset) return { outcome: 'stalled' }
+        acked += sent.body.received - offset
+        offset = sent.body.received
+        this.dispatch({ kind: 'create-progress', operation, received: acked })
+      }
+    }
+    return notSent(() => client['commit-asset-upload']({ tenant, upload: operation }))
   }
 }

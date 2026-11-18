@@ -34,12 +34,23 @@ export type RowRead =
 
 export type Row = Readonly<{ key: string; view: SettingView; read: RowRead; write: Write }>
 
-/** A read of the list after a change elsewhere: the rows read before stay in use until it ends. */
-export type Refresh = Readonly<{ token: number; rows: readonly Row[]; partial: boolean }>
+/** A read after a change elsewhere; rows stay in use meanwhile; `stale` means one more read follows. */
+export type Refresh = Readonly<{
+  token: number
+  rows: readonly Row[]
+  partial: boolean
+  stale: boolean
+}>
 
 export type List =
   | Readonly<{ kind: 'unread' }>
-  | Readonly<{ kind: 'reading'; token: number; rows: readonly Row[]; partial: boolean }>
+  | Readonly<{
+      kind: 'reading'
+      token: number
+      rows: readonly Row[]
+      partial: boolean
+      stale: boolean
+    }>
   | Readonly<{ kind: 'read'; rows: readonly Row[]; partial: boolean; refresh?: Refresh }>
   | Readonly<{ kind: 'failed'; notice: Notice }>
 
@@ -117,20 +128,43 @@ const notice = (outcome: Refusal, sentences: Readonly<Record<Refusal, string>>):
 function readList(state: State): Step {
   const token = state.issued + 1
   return {
-    state: { list: { kind: 'reading', token, rows: [], partial: false }, issued: token },
+    state: {
+      list: { kind: 'reading', token, rows: [], partial: false, stale: false },
+      issued: token,
+    },
     effects: [{ kind: 'list', token, after: null }],
   }
 }
 
-function changed(state: State): Step {
-  const list = state.list
-  if (list.kind !== 'read') return readList(state)
+function refresh(state: State, list: ReadList): Step {
   const token = state.issued + 1
   return {
-    state: { issued: token, list: { ...list, refresh: { token, rows: [], partial: false } } },
+    state: {
+      issued: token,
+      list: { ...list, refresh: { token, rows: [], partial: false, stale: false } },
+    },
     effects: [{ kind: 'list', token, after: null }],
   }
 }
+
+/** A change while a read runs only marks it: one read in flight at a time, one more after it. */
+function changed(state: State): Step {
+  const list = state.list
+  switch (list.kind) {
+    case 'unread':
+    case 'failed':
+      return readList(state)
+    case 'reading':
+      return list.stale ? same(state) : same({ ...state, list: { ...list, stale: true } })
+    case 'read':
+      if (list.refresh === undefined) return refresh(state, list)
+      if (list.refresh.stale) return same(state)
+      return same({ ...state, list: { ...list, refresh: { ...list.refresh, stale: true } } })
+  }
+}
+
+const finished = (state: State, read: ReadList, stale: boolean): Step =>
+  stale ? refresh(state, read) : same({ ...state, list: read })
 
 type Page = Extract<ListAnswer, { outcome: 'succeeded' }>['body']
 
@@ -144,19 +178,18 @@ function gather(rows: readonly Row[], page: Page): readonly Row[] {
 }
 
 /** The rows of a finished refresh keep the write and any row read in flight of the rows before. */
-function refreshAnswered(state: State, list: ReadList, refresh: Refresh, answer: ListAnswer): Step {
+function refreshAnswered(state: State, list: ReadList, running: Refresh, answer: ListAnswer): Step {
   if (answer.outcome !== 'succeeded')
     return same({
       ...state,
       list: { kind: 'failed', notice: notice(answer.outcome, READ_SENTENCES) },
     })
-  const gathered = gather(refresh.rows, answer.body)
-  const partial = refresh.partial || answer.body.completeness === 'partial'
-  const { token } = refresh
+  const gathered = gather(running.rows, answer.body)
+  const partial = running.partial || answer.body.completeness === 'partial'
   if (answer.body.next !== null)
     return {
-      state: { ...state, list: { ...list, refresh: { token, rows: gathered, partial } } },
-      effects: [{ kind: 'list', token, after: answer.body.next }],
+      state: { ...state, list: { ...list, refresh: { ...running, rows: gathered, partial } } },
+      effects: [{ kind: 'list', token: running.token, after: answer.body.next }],
     }
   const before = new Map(list.rows.map(row => [row.key, row]))
   const rows = gathered.map(row => {
@@ -164,7 +197,7 @@ function refreshAnswered(state: State, list: ReadList, refresh: Refresh, answer:
     if (kept === undefined) return row
     return { ...row, write: kept.write, read: kept.read.kind === 'reading' ? kept.read : row.read }
   })
-  return same({ ...state, list: { kind: 'read', rows, partial } })
+  return finished(state, { kind: 'read', rows, partial }, running.stale)
 }
 
 type ReadList = Extract<List, { kind: 'read' }>
@@ -182,9 +215,9 @@ function listAnswered(state: State, token: number, answer: ListAnswer): Step {
   const page = answer.body
   const rows = gather(list.rows, page)
   const partial = list.partial || page.completeness === 'partial'
-  if (page.next === null) return same({ ...state, list: { kind: 'read', rows, partial } })
+  if (page.next === null) return finished(state, { kind: 'read', rows, partial }, list.stale)
   return {
-    state: { ...state, list: { kind: 'reading', token, rows, partial } },
+    state: { ...state, list: { ...list, rows, partial } },
     effects: [{ kind: 'list', token, after: page.next }],
   }
 }
