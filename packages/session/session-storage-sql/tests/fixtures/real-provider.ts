@@ -28,6 +28,9 @@ import {
   ordinaryInput,
   sessionId,
   testingTenant,
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
 } from '@omne-harness/session-contract/testing'
 import { createFixedSessionCursorSigning } from '@omne-harness/session-cordis-contract/testing'
 import {
@@ -205,6 +208,7 @@ export type RealAppOptions = Readonly<{
   extraParticipants?: SqlMaterialCatalog['participants']
   policy?: Parameters<typeof createPolicySessionAccessCheck<string>>[0]
   protectedBasis?: SessionStorageOptions<string>['protectedBasis']
+  budget?: SessionStorageOptions<string>['budget']
 }>
 
 export async function openRealApp(options: RealAppOptions = {}) {
@@ -304,10 +308,13 @@ export async function openRealApp(options: RealAppOptions = {}) {
   const storageOptions = {
     ...(options.intakeLimits === undefined ? {} : { intakeLimits: options.intakeLimits }),
     ...(options.protectedBasis === undefined ? {} : { protectedBasis: options.protectedBasis }),
+    ...(options.budget === undefined ? {} : { budget: options.budget }),
     storage,
     domains,
-    accessCheck,
+    accessCheck: withMemberSubject(accessCheck),
     cursorSigning: createFixedSessionCursorSigning(),
+    sources: testingInputSources(),
+    derived: testingDerivedInputs(),
     combination: { combinationVersion: COMBINATION, manifestDigest: digest },
   }
   const port = createSessionStorage<string>(storageOptions)

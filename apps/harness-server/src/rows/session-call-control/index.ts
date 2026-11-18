@@ -3,6 +3,7 @@ import { createSessionCallControlPlugin } from '@omne-harness/session-adapters/c
 import {
   sessionCallControlKey,
   sessionCallStatesKey,
+  sessionDerivedInputsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 import { toolRuntimeKey, type ToolRuntimeService } from '@omne-harness/tool-cordis-contract/cordis'
 import { z } from 'zod'
@@ -29,7 +30,7 @@ export const sessionCallControlRow = defineRow({
   row: 'session-call-control',
   implementation: 'real',
   manifest: {
-    provides: [sessionCallControlKey, sessionCallStatesKey],
+    provides: [sessionCallControlKey, sessionCallStatesKey, sessionDerivedInputsKey],
     injects: [],
     sameProviderGroup: null,
   },

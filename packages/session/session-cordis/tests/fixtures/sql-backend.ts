@@ -1,3 +1,8 @@
+import {
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
+} from '@omne-harness/session-contract/testing'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -143,14 +148,19 @@ export const sqlBackend: BackendFactory = {
     const { transactions, delegated } = createSessionStoragePair<string>({
       storage: created.storage,
       domains,
-      accessCheck,
+      accessCheck: withMemberSubject(accessCheck),
       cursorSigning: createFixedSessionCursorSigning(),
+      sources: testingInputSources(),
+      derived: testingDerivedInputs(),
       combination: { combinationVersion: COMBINATION, manifestDigest: digest },
     })
     return {
       name: 'real sqlite-provider pair',
       transactions,
-      delegated,
+      // The suite answers without a subject kind; this fixture admits its inputs as a member.
+      delegated: {
+        bind: checked => delegated.bind({ subject: { kind: 'member' }, ...checked }),
+      },
       initializationGuards: command => Promise.resolve([fixtureInitializationGuard(command)]),
       register: notifier => registerSessionNotifier(created.storage, notifier),
       dispose: async () => {

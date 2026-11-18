@@ -3,7 +3,6 @@ import { combinationManifest, manifestDigest } from '@omne-harness/sql-contract'
 import { rowDeclarationOf } from '../../../src/row.ts'
 import {
   CONFIRM_EACH,
-  NO_STANDING_SOURCES,
   notificationCombination,
   notificationConfig,
   notificationRow,
@@ -13,7 +12,7 @@ import { productionStorageCatalog } from '../../../src/rows/storage/production-c
 import { NOTIFICATION_POLICY } from '../../r9/support.ts'
 
 describe('the notification row', () => {
-  it('declares the eight services of the provider and what it needs before it starts', () => {
+  it('declares the nine services of the provider and what it needs before it starts', () => {
     expect(rowDeclarationOf(notificationRow)).toMatchObject({
       row: 'notification',
       implementation: 'real',
@@ -28,6 +27,7 @@ describe('the notification row', () => {
           'notificationSources',
           'notificationChannels',
           'notificationChanges',
+          'notificationStanding',
         ],
         injects: ['storage', 'tenantDomainLookup', 'tenantDomains', 'tenantDomainScannerPrincipal'],
       },
@@ -83,13 +83,9 @@ describe('the notification row', () => {
   })
 })
 
-describe('the two ports this tree answers the same way every time', () => {
+describe('the port this tree answers the same way every time', () => {
   it('has the owner confirm each subscription of an agent', async () => {
     expect(await CONFIRM_EACH.mode({} as never)).toEqual({ kind: 'per-request' })
-  })
-
-  it('reads the standing items and finds none', async () => {
-    expect(await NO_STANDING_SOURCES.read('tenant/o/a' as never)).toEqual({ kind: 'ok', items: [] })
   })
 })
 

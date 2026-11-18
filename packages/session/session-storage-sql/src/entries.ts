@@ -4,13 +4,14 @@ import {
   type SessionEntriesReceipt,
   type SessionEntriesStart,
   type SessionFailure,
+  prepareEntriesTerms,
 } from '@omne-harness/session-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { FactCommandV2 } from '@omne-harness/sql-contract'
 import { encodeValue } from './codec.ts'
 import { commitFacts, withCommitTime } from './commit.ts'
 import { SESSION_PARTICIPANT } from './participants.ts'
-import { domainOf, failure, type Context } from './context.ts'
+import { domainOf, failure, intakeBasisOf, type Context } from './context.ts'
 
 export async function commitEntries<P>(
   context: Context<P>,
@@ -27,6 +28,7 @@ export async function commitEntries<P>(
         intent: 'entries',
         observation: encodeValue(observation),
         start: encodeValue(start),
+        derived: encodeValue(prepareEntriesTerms(intakeBasisOf(context, undefined).derived)),
       },
     }
   } catch (error) {

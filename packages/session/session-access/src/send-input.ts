@@ -1,3 +1,4 @@
+import { MEMBER_INPUT_SOURCE } from './member-source.ts'
 import type { LoginIdentity, Principal } from '@omne-harness/access-cordis-contract'
 import { writeJsonText } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -116,6 +117,7 @@ function commitInput(
     input: inputIdentity(request.tenant, session, request.inputId) as InputId,
     message,
     origin: loginEntryOrigin(caller.account, caller.login),
+    source: MEMBER_INPUT_SOURCE.name,
   }
   if (request.urgent === true)
     return faces.management

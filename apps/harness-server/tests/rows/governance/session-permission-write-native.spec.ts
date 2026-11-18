@@ -28,6 +28,9 @@ import {
   initializationFixtureGuard,
   initializationFixtureFacts,
   adoptedInitializationFixture,
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
 } from '@omne-harness/session-contract/testing'
 import { createFixedSessionCursorSigning } from '@omne-harness/session-cordis-contract/testing'
 import {
@@ -174,8 +177,10 @@ it.each([
         resolve: async () => ({ kind: 'ready', entry }),
         snapshot: async () => ({ kind: 'ready', value: { revision: '1', entries: [entry] } }),
       },
-      accessCheck,
+      accessCheck: withMemberSubject(accessCheck),
       cursorSigning: createFixedSessionCursorSigning(),
+      sources: testingInputSources(),
+      derived: testingDerivedInputs(),
       protectedBasis: async commit => {
         if (source === undefined) throw new Error('source not installed')
         plans += 1

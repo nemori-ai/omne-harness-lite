@@ -2,7 +2,6 @@ import { decidePermissionAssignment } from './permission-state.ts'
 import { incompleteAuthorization } from './authorizations.ts'
 import {
   DEFAULT_SESSION_INTAKE_LIMITS,
-  judgeSessionIntake,
   pendingIntakeCount,
   type SessionIntakeLimits,
 } from './intake.ts'
@@ -26,6 +25,7 @@ import { tenantEquals, workspaceCodec, type WorkspaceId } from '@omne-harness/le
 import type {
   BoundedClose,
   DeclarationChange,
+  RoutedInput,
   RunTerminal,
   WorkSnapshot,
   WorkspaceAttachment,
@@ -56,7 +56,8 @@ import { decideManagement, decideControl } from './decide-management.ts'
 import { closeControlFailure, decideNamedControl } from './decide-control.ts'
 import { decideResults } from './decide-results.ts'
 import { decideProducerFact } from './decide-receive.ts'
-import { BACKGROUND_INPUT_OWNER } from './background-outcome.ts'
+import { admitInput, readsWithTerms } from './decide-intake.ts'
+import type { AdmittedSource } from './input-sources.ts'
 import { residentEntries, completeEvidence } from './decision-support.ts'
 import { closingEntries } from './run-closure.ts'
 import { pendingAfterTerminal } from './input-leases.ts'
@@ -159,6 +160,7 @@ function decideCreate(
   command: Extract<SessionCommand, { kind: 'create' }>,
   guards: readonly GuardCommand[],
   limits: SessionIntakeLimits,
+  reads: DecideReads,
 ): Decision {
   if (previous !== null) return invalid('session', 'the session already exists')
   const { creation } = command.input
@@ -186,17 +188,20 @@ function decideCreate(
   if (creation.initial !== null) {
     if (creation.initial.input.length === 0 || creation.initial.message.blocks.length === 0)
       return invalid('creation.initial', 'the initial input has no identity or no content')
-    const limited = judgeSessionIntake(0, creation.initial, limits)
-    if (limited !== null) return rejected(limited)
-    out.push(...acceptedOrdinary(creation.initial, 'next-run', null))
+    const admitted = admitInput(creation.initial, 0, { reads, limits }, 'creation.initial')
+    if ('kind' in admitted) return admitted
+    out.push(...acceptedOrdinary(creation.initial, 'next-run', null, admitted.source))
   }
   return entries(out)
 }
 
+type Ordinary = Extract<RoutedInput, { kind: 'ordinary' }>
+
 function acceptedOrdinary(
-  input: Extract<SessionCommand, { kind: 'accept' }>['input']['value'] & { kind: 'ordinary' },
+  input: Ordinary,
   destination: 'current-run' | 'next-run',
   run: RunId | null,
+  source: AdmittedSource,
 ): EncodedEntry[] {
   return [
     encodeEntry(
@@ -211,7 +216,7 @@ function acceptedOrdinary(
       { owner: 'user', via: 'intake', source: input.origin },
     ),
     encodeEntry(
-      { kind: 'intake.routed', input: input.input, destination, run, origin: input.origin },
+      { kind: 'intake.routed', input: input.input, destination, run, origin: input.origin, source },
       sessionOrigin(input.origin, 'intake'),
     ),
   ]
@@ -221,6 +226,7 @@ function decideAccept(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'accept' }>,
   limits: SessionIntakeLimits,
+  reads: DecideReads,
 ): Decision {
   const { value } = command.input
   const route = routeInput(snapshot, value)
@@ -263,15 +269,13 @@ function decideAccept(
       if (value.kind !== 'ordinary') return invalid('value', 'not an ordinary input')
       if (snapshot.pending.includes(value.input))
         return invalid('value.input', 'an input of that identity was already accepted')
-      const limited = judgeSessionIntake(pendingIntakeCount(snapshot), value, limits)
-      if (limited !== null) return rejected(limited)
+      const admitted = admitInput(value, pendingIntakeCount(snapshot), { reads, limits }, 'value')
+      if ('kind' in admitted) return admitted
       const run = snapshot.run.kind === 'active' ? snapshot.run.run : null
-      return entries(acceptedOrdinary(value, route.destination, run))
+      return entries(acceptedOrdinary(value, route.destination, run, admitted.source))
     }
   }
 }
-
-export const LOGIN_ENTRY_OWNER = 'login-entry'
 
 function adoptionEntries(
   snapshot: WorkSnapshot,
@@ -292,19 +296,9 @@ function adoptionEntries(
   ])
 }
 
-function loggedIn(reads: DecideReads, first: InputId): boolean {
-  const stored = reads.firstInput
-  return (
-    stored !== undefined &&
-    stored.input === first &&
-    (stored.origin.owner === LOGIN_ENTRY_OWNER || stored.origin.owner === BACKGROUND_INPUT_OWNER)
-  )
-}
-
 function decideStartRun(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'startRun' }>,
-  reads: DecideReads,
 ): Decision {
   const judgment = judgeRunStart(snapshot, command.input.entry)
   if (judgment.kind !== 'eligible') {
@@ -312,8 +306,6 @@ function decideStartRun(
     if (judgment.kind === 'awaiting-person') return rejected({ kind: 'no-input' })
     return rejected({ kind: judgment.kind })
   }
-  if (command.input.entry === 'interactive' && !loggedIn(reads, judgment.first))
-    return rejected({ kind: 'login-required' })
   const { candidate, instance } = command.input
   if (emptyAdoption(candidate)) return invalid('candidate', 'incomplete adoption')
   if (instance.owner !== 'agent' || instance.id.length === 0)
@@ -846,8 +838,10 @@ function decideInterrupt(
     previous.pending.includes(command.input.urgent.input)
   )
     return invalid('urgent', 'empty or duplicate input')
-  const limited = judgeSessionIntake(pendingIntakeCount(previous), command.input.urgent, limits)
-  if (limited !== null) return rejected(limited)
+  const pending = pendingIntakeCount(previous)
+  const admitted = admitInput(command.input.urgent, pending, { reads, limits }, 'urgent')
+  if ('kind' in admitted) return admitted
+  const { source } = admitted
   const { urgent, decision, operation } = command.input
   const run = command.input.run ?? (previous.run.kind === 'active' ? previous.run.run : null)
   if (run === null) {
@@ -856,6 +850,7 @@ function decideInterrupt(
       previous,
       { kind: 'accept', input: { tenant, session, operation, value: urgent } },
       limits,
+      reads,
     )
   }
   const control = decideControl(
@@ -865,7 +860,7 @@ function decideInterrupt(
     reads,
   )
   return control.kind === 'entries'
-    ? entries([...acceptedOrdinary(urgent, 'current-run', run), ...control.entries])
+    ? entries([...acceptedOrdinary(urgent, 'current-run', run, source), ...control.entries])
     : control
 }
 
@@ -901,7 +896,7 @@ function decideCommand(
   const recalled = recallOperation(previous, command, guards, record)
   if (recalled !== null) return recalled
   const limits = reads.intakeLimits ?? DEFAULT_SESSION_INTAKE_LIMITS
-  if (command.kind === 'create') return decideCreate(previous, command, guards, limits)
+  if (command.kind === 'create') return decideCreate(previous, command, guards, limits, reads)
   if (previous === null) return rejected({ kind: 'denied', action: command.kind })
   switch (command.kind) {
     case 'addTodo':
@@ -911,9 +906,9 @@ function decideCommand(
     case 'completeInitialization':
       return decideInitializationComplete(previous, command, guards, reads)
     case 'accept':
-      return decideAccept(previous, command, limits)
+      return decideAccept(previous, command, limits, reads)
     case 'startRun':
-      return decideStartRun(previous, command, reads)
+      return decideStartRun(previous, command)
     case 'recordMessage':
       return decideRecordMessage(previous, command)
     case 'receive':
@@ -963,7 +958,7 @@ export function decide(
 ): Decision {
   try {
     const decision = closeControlFailure(
-      decideCommand(previous, command, guards, record, reads),
+      decideCommand(previous, command, guards, record, readsWithTerms(reads, guards)),
       command,
     )
     if (decision.kind === 'entries' && previous !== null && decision.entries.length > 0) {

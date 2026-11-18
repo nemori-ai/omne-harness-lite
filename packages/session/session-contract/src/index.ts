@@ -317,12 +317,45 @@ export {
   type DirectCallControl,
 } from './call-control.ts'
 export {
-  BACKGROUND_INPUT_OWNER,
   backgroundInputId,
   judgeBackgroundOutcome,
   type BackgroundOutcomeJudgment,
 } from './background-outcome.ts'
 export type { SessionIntakeLimits } from './intake.ts'
+export {
+  INTAKE_BUDGET_REQUIRED,
+  INTAKE_GUARD_OWNER,
+  admitDerived,
+  admitDerivedOf,
+  admitSource,
+  createInputSourceRegistry,
+  inputSourceName,
+  commandInput,
+  prepareEntriesTerms,
+  prepareIntakeTerms,
+  budgetTermsOf,
+  commitWithinBudget,
+  withIntakeTerms,
+  intakeTermsOf,
+  parseInputSourceName,
+  type AdmittedSource,
+  type DerivedAdmission,
+  type DerivedInputKind,
+  type InputSourceDeclaration,
+  type InputSourceLookup,
+  type InputSourceName,
+  type InputSourceRegistry,
+  type InputSources,
+  type IntakeBasis,
+  type IntakeSubject,
+  type SourceTerms,
+  type IntakeTerms,
+  type SessionDerivedInputs,
+  type SessionIntakeBudget,
+  type BudgetTerms,
+  type SourceAdmission,
+  type SourceRefusal,
+} from './input-sources.ts'
 export type {
   TodoItem,
   VisibleTodoItem,
@@ -354,3 +387,22 @@ export type {
   StopView,
 } from './background-calls.ts'
 export { compactionContextForView, isAcceptedInputRecord } from './model-view.ts'
+export {
+  sourceRequestIdentities,
+  type SourceRequest,
+  type SourceRequestIdentities,
+} from './source-requests.ts'
+export { INPUT_FATE_KINDS, foldInputFate, type InputFate } from './input-fate.ts'
+export {
+  PENDING_PAGE_LIMIT,
+  PENDING_PREVIEW_CHARS,
+  inputFateOfRows,
+  pendingAcceptances,
+  pendingInputOf,
+  pendingPageOf,
+  previewOf,
+  waitingCalls,
+  type PendingInput,
+  type PendingPage,
+  type WaitingCall,
+} from './intake-reads.ts'

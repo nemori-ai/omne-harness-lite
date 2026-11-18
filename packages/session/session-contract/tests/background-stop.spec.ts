@@ -13,6 +13,7 @@ import {
   ordinaryInput,
   pendingReasonsOf,
   succeeded,
+  TESTING_SOURCES,
 } from '@omne-harness/session-contract/testing'
 import { backgroundInputId } from '../src/background-outcome.ts'
 import { pendingIntakeCount } from '../src/intake.ts'
@@ -34,6 +35,15 @@ import {
   producer,
   type Scene,
 } from './background-scene.ts'
+
+const QUIET_SOURCE = {
+  name: TESTING_SOURCES.stop,
+  label: 'Background stop',
+  role: 'system_reminder',
+  wakes: false,
+  entry: 'trusted',
+  countsTowardCapacity: false,
+} as const
 
 const OTHER = { kind: 'tool', call: 'call-other' } as const
 
@@ -136,7 +146,7 @@ describe('a stop of a call in the background (C19)', () => {
     expect(textOf(reminders(added)[0])).toContain('b1')
     expect(textOf(reminders(added)[0])).toContain('too slow')
     expect(routed(added)[0]).toMatchObject({ destination: 'current-run', run: c.run })
-    expect(routed(added)[0]).not.toHaveProperty('wakes')
+    expect(routed(added)[0]).toMatchObject({ source: { wakes: false } })
     const snapshot = await c.s.read()
     expect(snapshot.backgroundCalls?.[0]?.stop).toEqual({
       initiator: 'user',
@@ -196,7 +206,7 @@ describe('a stop of a call in the background (C19)', () => {
     const before = entryCount(c)
     succeeded(await stopOf(c, 'stop'), 'stop')
     const [entry] = routed(await newEntries(c, before))
-    expect(entry).toMatchObject({ destination: 'next-run', run: null, wakes: false })
+    expect(entry).toMatchObject({ destination: 'next-run', run: null, source: { wakes: false } })
     const snapshot = await c.s.read()
     expect(snapshot.quietInputs).toEqual([entry && 'input' in entry ? entry.input : null])
     expect(judgeRunStart(snapshot, 'interactive')).toEqual({ kind: 'no-input' })
@@ -218,7 +228,7 @@ describe('the outcome of a stopped call (C20)', () => {
       disposition: { kind: 'input', input: backgroundInputId(producer, 'rv-1') },
     })
     expect(textOf(reminders(added)[0])).toContain('stopped by the user. Reason: not needed')
-    expect(routed(added)[0]).toMatchObject({ destination: 'next-run', wakes: false })
+    expect(routed(added)[0]).toMatchObject({ destination: 'next-run', source: { wakes: false } })
     expect(judgeRunStart(await c.s.read(), 'interactive')).toEqual({ kind: 'no-input' })
   })
 
@@ -230,7 +240,7 @@ describe('the outcome of a stopped call (C20)', () => {
     const added = await newEntries(c, before)
     expect(textOf(reminders(added)[0])).toContain('stopped by you')
     expect(routed(added)[0]).toMatchObject({ destination: 'current-run', run: c.run })
-    expect(routed(added)[0]).not.toHaveProperty('wakes')
+    expect(routed(added)[0]).toMatchObject({ source: { wakes: false } })
   })
 
   it('a stop of one call leaves the outcome of another waking (UnstoppedOutcomeWakes)', async () => {
@@ -316,7 +326,7 @@ describe('only a waking input opens a Run (C20)', () => {
           destination: 'next-run',
           run: null,
           origin: evidence('stop'),
-          wakes: false,
+          source: QUIET_SOURCE,
         },
         { owner: 'session', via: 'direct', source: evidence('stop') },
       ),
@@ -482,7 +492,7 @@ describe('a returned input keeps what it was accepted as', () => {
     expect(failed.run).toMatchObject({ kind: 'terminal', terminal: { outcome: 'failed' } })
     expect(failed.pending).toEqual(quiet)
     expect(failed.quietInputs).toEqual(quiet)
-    expect(failed.backgroundInputs).toEqual([backgroundInputId(producer, 'rv-1')])
+    expect(failed.uncountedInputs).toEqual(quiet)
     expect(pendingIntakeCount(failed)).toBe(0)
     const run = failed.run.kind === 'terminal' ? failed.run.terminal.run : c.run
     expect(judgeRetryRun(failed, run)).toBe('nothing-pending')

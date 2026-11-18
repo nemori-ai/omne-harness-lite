@@ -97,13 +97,7 @@ async function collidingHistory(access: SessionAccess<string>) {
     },
     [],
     null,
-    {
-      compaction: null,
-      firstInput: {
-        input: ordinaryInput('shared-input').input,
-        origin: ordinaryInput('shared-input').origin,
-      },
-    },
+    { compaction: null },
   )
   if (start.kind !== 'entries') throw new Error(JSON.stringify(start))
   const revision = String(BigInt(snapshot.revision) + 1n) as WorkSnapshot['revision']

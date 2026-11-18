@@ -13,6 +13,9 @@ import {
   sessionId,
   testingTenant,
   type ScriptedSessionAccessCheck,
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
 } from '@omne-harness/session-contract/testing'
 import {
   createFixedSessionCursorSigning,
@@ -107,9 +110,11 @@ export async function app(
   const storageOptions: SessionStorageOptions<string> = {
     storage: provider.storage,
     domains,
-    accessCheck,
+    accessCheck: withMemberSubject(accessCheck),
     ...(options.intakeLimits === undefined ? {} : { intakeLimits: options.intakeLimits }),
     cursorSigning: signing,
+    sources: testingInputSources(),
+    derived: testingDerivedInputs(),
     combination: { combinationVersion: 'c1', manifestDigest: 'a'.repeat(64) },
     now: options.now ?? (() => clock),
     ...(options.workCache === undefined ? {} : { workCache: options.workCache }),

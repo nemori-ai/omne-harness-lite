@@ -1,3 +1,8 @@
+import {
+  testingDerivedInputs,
+  testingInputSources,
+  withMemberSubject,
+} from '@omne-harness/session-contract/testing'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -95,7 +100,8 @@ function catalogOf(): { catalog: SqlMaterialCatalog; digest: string } {
 
 export const sqlBackend: BackendFactory = {
   name: 'real sqlite-provider pair',
-  open: async accessCheck => {
+  open: async given => {
+    const accessCheck = withMemberSubject(given)
     const root = await realpath(await mkdtemp(join(tmpdir(), 'session-service-')))
     const { catalog, digest } = catalogOf()
     const closeLeases: CloseLeasePort = {
@@ -144,12 +150,17 @@ export const sqlBackend: BackendFactory = {
       domains,
       accessCheck,
       cursorSigning: createFixedSessionCursorSigning(),
+      sources: testingInputSources(),
+      derived: testingDerivedInputs(),
       combination: { combinationVersion: COMBINATION, manifestDigest: digest },
     })
     return {
       name: 'real sqlite-provider pair',
       transactions,
-      delegated,
+      // The harness answers without a subject kind; this fixture admits its inputs as a member.
+      delegated: {
+        bind: checked => delegated.bind({ subject: { kind: 'member' }, ...checked }),
+      },
       initializationGuards: command => Promise.resolve([fixtureInitializationGuard(command)]),
       dispose: async () => {
         await created.control.close({ initiator: 'disposal' }).catch(() => undefined)

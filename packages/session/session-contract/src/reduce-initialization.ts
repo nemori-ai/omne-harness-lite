@@ -12,6 +12,7 @@ import {
 } from './initialization-plan.ts'
 import { digestOf } from './operations.ts'
 
+import { withIntakeTerms, type IntakeTerms } from './input-sources.ts'
 function historicalGuard(facts: InitializationGuardFacts) {
   return {
     owner: 'session-initialization',
@@ -19,6 +20,14 @@ function historicalGuard(facts: InitializationGuardFacts) {
     protocol: INITIALIZATION_PROTOCOL,
     facts: toJsonValue(facts),
   }
+}
+
+// The log is the truth of what an admission fixed: the replay reads the values it recorded.
+function recordedTerms(decoded: readonly SessionEntry[]): IntakeTerms | null {
+  const routed = decoded.find(entry => entry.kind === 'intake.routed' && 'source' in entry)
+  return routed !== undefined && 'source' in routed
+    ? { source: { kind: 'admitted', source: routed.source } }
+    : null
 }
 
 export function validateInitializationBatch(
@@ -66,7 +75,7 @@ export function validateInitializationBatch(
             creation: created.creation,
           },
         },
-        [historicalGuard(facts)],
+        withIntakeTerms([historicalGuard(facts)], recordedTerms(decoded)),
         null,
         { compaction: null },
       )

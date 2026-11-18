@@ -14,6 +14,7 @@ import {
   operationId,
   ordinaryInput,
   sessionId,
+  testingIntakeGuards,
 } from '@omne-harness/session-contract/testing'
 import {
   deriveDriveOperation,
@@ -150,6 +151,7 @@ const acceptCommand = (name: string): SessionCommand => ({
   },
 })
 const login = [guard('login', 'login-entry', 'present')]
+const withTerms = (command: SessionCommand) => [...login, ...testingIntakeGuards(command)]
 
 async function running(
   a: App,
@@ -245,7 +247,7 @@ describe('the first publication: one commit with an execution-record and a sessi
     const before = await root(a)
     const result = await joint(a, 'aop_joint', [
       executionRecordFacts(write()),
-      sessionCommandFacts(acceptCommand('joint'), login),
+      sessionCommandFacts(acceptCommand('joint'), withTerms(acceptCommand('joint'))),
     ])
     expect(result.kind).toBe('committed')
     if (result.kind !== 'committed') return
@@ -276,7 +278,7 @@ describe('the first publication: one commit with an execution-record and a sessi
       a.provider.failWrite(pattern, 1, 19)
       const result = await joint(a, 'aop_fail', [
         executionRecordFacts(write()),
-        sessionCommandFacts(acceptCommand('fail'), login),
+        sessionCommandFacts(acceptCommand('fail'), withTerms(acceptCommand('fail'))),
       ])
       expect(result.kind).toBe('rolled_back')
       expect(count(a, 'er_operation')).toBe(0)
