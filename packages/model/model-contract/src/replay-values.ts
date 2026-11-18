@@ -124,8 +124,7 @@ function omissionOf(
 ): ReplayOmission | 'off' | null {
   const { replay } = message
   if (input.off) return 'off'
-  if (replay === undefined) return 'scope'
-  if (!accepted.has(replay.scope)) return 'scope'
+  if (replay === undefined || !accepted.has(replay.scope)) return 'scope'
   if (!input.formats.has(replay.format)) return 'format'
   if (input.resent.has(message.id)) return 'resent'
   if (input.binding === 'none') return null
@@ -166,7 +165,8 @@ function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
   if (value !== null && typeof value === 'object')
     return `{${Object.entries(value)
-      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+      // The keys of one object are distinct, so no two compare equal.
+      .sort(([left], [right]) => (left < right ? -1 : 1))
       .map(([key, member]) => `${JSON.stringify(key)}:${canonical(member)}`)
       .join(',')}}`
   return value === undefined ? 'null' : JSON.stringify(value)

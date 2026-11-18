@@ -8,7 +8,7 @@ import {
 } from '@omne-harness/model-contract/provider'
 import { judgeContentBlock } from '@omne-harness/content-block'
 import { createMemoryModelCommands } from '@omne-harness/model/testing'
-import { judgePart } from '@omne-harness/message'
+import { judgePart, parseMessageId } from '@omne-harness/message'
 import { digest } from '../src/testing/value.ts'
 import { memoryAssembly } from '../src/testing/memory.ts'
 import type { MemoryState } from '../src/testing/state.ts'
@@ -696,6 +696,10 @@ async function inspectable() {
   return { ...f, dispatchState }
 }
 
+const parsedMessage = parseMessageId('msg_aaaaaaaaaaaaaaaaaaaaa1')
+if (!parsedMessage.ok) throw new Error('message id fixture')
+const OMITTED_MESSAGE = parsedMessage.value
+
 it('keeps provider diagnostics on the dispatch without changing blocks, first content or terminal', async () => {
   const f = await inspectable()
   const window = 'diagnostics'
@@ -704,6 +708,14 @@ it('keeps provider diagnostics on the dispatch without changing blocks, first co
     { kind: 'reasoning-disabled', reason: 'foreign-prefix' },
     { kind: 'reasoning-state-dropped', reason: 'payload-too-long', length: 2_000_000 },
     { kind: 'usage-inconsistent', field: 'completion_tokens' },
+    {
+      kind: 'replay-omitted',
+      message: OMITTED_MESSAGE,
+      scope: 'gateway/lab/model-a',
+      format: 'lab-v1',
+      omittedParts: 1,
+      reason: 'prefix-tools',
+    },
     {
       kind: 'upstream-transformed',
       type: 'thinking_dropped',
@@ -728,6 +740,38 @@ it('keeps provider diagnostics on the dispatch without changing blocks, first co
   })
 })
 
+it('keeps a replay omission for each reason the projection can give', async () => {
+  const f = await inspectable()
+  const window = 'omissions'
+  unbox(await f.commands.openReceiveWindow({ ...(await f.write()), dispatch: f.dispatch, window }))
+  const diagnostics: readonly ProviderDiagnostic[] = [
+    'scope',
+    'format',
+    'resent',
+    'no-prefix',
+    'prefix-history',
+    'prefix-system',
+    'prefix-tools',
+    'prefix-projection',
+  ].map(reason => ({
+    kind: 'replay-omitted',
+    message: OMITTED_MESSAGE,
+    scope: 'gateway/lab/model-a',
+    format: 'lab-v1',
+    omittedParts: 1,
+    reason: reason as Extract<ProviderDiagnostic, { kind: 'replay-omitted' }>['reason'],
+  }))
+  unbox(
+    await f.commands.preserve({
+      ...(await f.write()),
+      dispatch: f.dispatch,
+      window,
+      facts: diagnostics.map(value => ({ kind: 'diagnostic', value }) as const),
+    }),
+  )
+  expect(f.dispatchState().diagnostics).toEqual(diagnostics)
+})
+
 it('refuses a diagnostic that carries more than its kind allows, and keeps nothing of the batch', async () => {
   const f = await inspectable()
   const window = 'bad-diagnostic'
@@ -746,7 +790,29 @@ it('refuses a diagnostic that carries more than its kind allows, and keeps nothi
       path: 'messages.1.content.0',
       reason: 'Signature EqHkAQoMCAQSCA==',
     } as const,
+    { kind: 'upstream-transformed', type: 'Xword', path: 'messages.1', reason: 'r' } as const,
+    { kind: 'upstream-transformed', type: 'word-X', path: 'messages.1', reason: 'r' } as const,
     { kind: 'upstream-transformed', type: '', path: 'messages.1', reason: 'r' } as const,
+    ...[{ message: 'not-a-message-id' }, { scope: '' }, { format: '' }].map(
+      broken =>
+        ({
+          kind: 'replay-omitted',
+          message: OMITTED_MESSAGE,
+          scope: 'gateway/lab/model-a',
+          format: 'lab-v1',
+          omittedParts: 1,
+          reason: 'scope',
+          ...broken,
+        }) as never,
+    ),
+    {
+      kind: 'replay-omitted',
+      message: 'msg_aaaaaaaaaaaaaaaaaaaaa1',
+      scope: 'gateway/lab/model-a',
+      format: 'lab-v1',
+      omittedParts: 1,
+      reason: 'because',
+    } as never,
   ]) {
     expect(
       await f.commands.preserve({

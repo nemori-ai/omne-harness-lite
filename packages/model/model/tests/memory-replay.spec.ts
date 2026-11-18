@@ -5,7 +5,7 @@ import {
   type ModelBlock,
 } from '@omne-harness/model-contract'
 import { type TransportFact } from '@omne-harness/model-contract/provider'
-import { judgePart } from '@omne-harness/message'
+import { judgePart, REPLAY_PREFIX_MAX_LENGTH } from '@omne-harness/message'
 import { createMemoryModelCommands } from '../src/testing/index.ts'
 import { digest } from '../src/testing/value.ts'
 import { fixture, instance, op, proof, unbox } from './memory-fixture.ts'
@@ -199,5 +199,113 @@ describe('a late terminal fact over a reply that holds reasoning state', () => {
     })
     expect(unbox(await f.commands.dispatches(f.admit))).toEqual(before)
     expect(await f.settle()).toMatchObject({ failure: { reason: 'not-actual' } })
+  })
+})
+
+describe('the replay range a settlement records', () => {
+  async function receipted(extra: Partial<MaterializationReceipt>) {
+    const f = await running()
+    const receipt: MaterializationReceipt = {
+      supplier: f.admit.request.suppliers[0].adoption,
+      representation: f.admit.request.representation,
+      payloadDigest: 'a'.repeat(64),
+      ...extra,
+    }
+    return {
+      ...f,
+      record: async () =>
+        f.commands.recordMaterialization({
+          ...(await f.write()),
+          dispatch: f.dispatch,
+          receipt,
+          window: 'w',
+        }),
+    }
+  }
+
+  async function settledWith(
+    extra: Partial<MaterializationReceipt>,
+    facts: readonly TransportFact[],
+  ) {
+    const f = await receipted(extra)
+    unbox(await f.record())
+    unbox(
+      await f.commands.recordSend({ ...(await f.write()), dispatch: f.dispatch, state: 'started' }),
+    )
+    f.completeWindows.add(`${f.admit.call}/w/${digest(facts)}`)
+    unbox(
+      await f.commands.preserve({ ...(await f.write()), dispatch: f.dispatch, window: 'w', facts }),
+    )
+    const end = facts.at(-1)
+    if (end?.kind !== 'ended' || end.termination.kind === 'interrupted') throw new Error('an end')
+    return {
+      ...f,
+      settled: unbox(
+        await f.commands.settle({ ...(await f.write()), termination: end.termination }),
+      ),
+    }
+  }
+
+  it('names the scope, the format and the call that produced the reasoning', async () => {
+    const f = await settledWith({ replayFormat: FORMAT }, [...reply, ended])
+    expect(f.settled.replay).toEqual({
+      scope: f.admit.request.declarations[0].produces,
+      format: FORMAT,
+      call: String(f.admit.call),
+    })
+  })
+
+  it('keeps the prefix the receipt recorded', async () => {
+    const f = await settledWith({ replayFormat: FORMAT, replayPrefix: 'h:1.s:2.t:3.p:4' }, [
+      ...reply,
+      ended,
+    ])
+    expect(f.settled.replay).toEqual({
+      scope: f.admit.request.declarations[0].produces,
+      format: FORMAT,
+      prefix: 'h:1.s:2.t:3.p:4',
+      call: String(f.admit.call),
+    })
+  })
+
+  it('records none for a reply without reasoning', async () => {
+    const f = await settledWith({ replayFormat: FORMAT }, [
+      { kind: 'block-open', index: '0', mode: 'append', content: 'text' },
+      { kind: 'block-delta', index: '0', delta: 'hello' },
+      { kind: 'block-seal', index: '0', block: text },
+      ended,
+    ])
+    expect(Object.hasOwn(f.settled, 'replay')).toBe(false)
+  })
+
+  it('records none when the call failed after the reasoning arrived', async () => {
+    const f = await settledWith({ replayFormat: FORMAT }, [
+      { kind: 'block-seal', index: '0', block: state },
+      {
+        kind: 'ended',
+        termination: {
+          kind: 'failed',
+          fault: { cause: 'stream-lost', diagnostic: 'stream lost', upstreamStatus: null },
+        },
+      },
+    ])
+    expect(f.settled.termination.kind).toBe('failed')
+    expect(Object.hasOwn(f.settled, 'replay')).toBe(false)
+  })
+
+  it('binds a prefix only with a format, and only within its length', async () => {
+    const binding = { failure: { kind: 'invalid', field: 'receipt', reason: 'binding' } }
+    const max = REPLAY_PREFIX_MAX_LENGTH
+    expect(await (await receipted({ replayPrefix: 'h:1' })).record()).toEqual(binding)
+    expect(await (await receipted({ replayFormat: FORMAT, replayPrefix: '' })).record()).toEqual(
+      binding,
+    )
+    expect(
+      await (await receipted({ replayFormat: FORMAT, replayPrefix: 'x'.repeat(max + 1) })).record(),
+    ).toEqual(binding)
+    expect(
+      'ok' in
+        (await (await receipted({ replayFormat: FORMAT, replayPrefix: 'x'.repeat(max) })).record()),
+    ).toBe(true)
   })
 })

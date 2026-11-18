@@ -224,7 +224,7 @@ describe('the replay key of judgeMessage', () => {
     const symbolic = { ...replay, [Symbol('note')]: 1 }
     const inherited = Object.create({ scope: 'sc' }) as Record<string, unknown>
     Object.assign(inherited, { format: 'f1', at: [1] })
-    for (const bad of [new Described(), withAccessor, hidden, symbolic, inherited]) {
+    for (const bad of [new Described(), withAccessor, hidden, symbolic, inherited, 'x']) {
       expect(judgeMessage(assistant({ replay: bad }))).toEqual({ rejected: 'replay' })
     }
     expect(accessor.calls()).toBe(0)

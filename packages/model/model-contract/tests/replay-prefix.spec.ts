@@ -130,3 +130,36 @@ describe('T1 rules 6 to 9: a receiver that binds the prefix', () => {
     expect(project([...history, reply('c')]).prefix).not.toBe(result.prefix)
   })
 })
+
+// A reply keeps its prefix in the session log, and a later release compares against it: the
+// string for the same request must not change between releases.
+describe('the prefix string', () => {
+  it('is the same in every release for the same request', () => {
+    expect(project([user('a'), reply('b'), user('c')]).prefix).toBe(
+      'h:e913533a661b0ce2b41c4bdbd01d78df.s:c274d35c8e9946e67f9866c2a197d7ab.t:2a7c20ebc43f473c4724d747326ecacd.p:7b4e41276f778d509234d9de4eb58bd9',
+    )
+  })
+
+  it('does not depend on the order of keys', () => {
+    const turned = (value: Readonly<Record<string, unknown>>) =>
+      Object.fromEntries(Object.entries(value).toReversed())
+    expect(
+      project([user('a')], { system: SYSTEM.map(turned), tools: TOOLS.map(turned) }).prefix,
+    ).toBe(project([user('a')]).prefix)
+  })
+
+  it('tells apart values that print alike without their structure', () => {
+    const prefix = (tools: unknown) => project([user('a')], { tools }).prefix
+    expect(prefix([12, 3])).not.toBe(prefix([1, 23]))
+    expect(prefix(['x'])).not.toBe(prefix({ 0: 'x' }))
+    expect(prefix(null)).not.toBe(prefix('null'))
+    expect(prefix(undefined)).toBe(prefix(null))
+  })
+
+  it('writes every digest at its full width, leading zeros included', () => {
+    for (let tools = 0; tools < 256; tools += 1)
+      expect(project([user('a')], { tools }).prefix).toMatch(
+        /^h:[0-9a-f]{32}\.s:[0-9a-f]{32}\.t:[0-9a-f]{32}\.p:[0-9a-f]{32}$/,
+      )
+  })
+})

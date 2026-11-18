@@ -433,15 +433,14 @@ function finishReplay(
   const state = blocks.some(block => block.kind === 'reasoning_state')
   if (!state && !blocks.some(block => block.kind === 'thinking')) return { kind: 'none' }
   const receipt = dispatch.record.materialization?.receipt
-  const format = receipt?.replayFormat
-  if (format === undefined)
+  if (receipt?.replayFormat === undefined)
     return state
       ? { kind: 'unknown', failure: invalid('termination', 'replay-format-unknown') }
       : { kind: 'none' }
+  const { replayFormat: format, replayPrefix: prefix } = receipt
   const supplier = digest(dispatch.record.supplier)
   const index = call.request?.suppliers.findIndex(item => digest(item) === supplier) ?? -1
   const scope = call.request?.declarations[index]?.produces
-  const prefix = receipt?.replayPrefix
   if (scope !== undefined)
     return { kind: 'range', range: { scope, format, ...(prefix === undefined ? {} : { prefix }) } }
   if (!state) return { kind: 'none' }
