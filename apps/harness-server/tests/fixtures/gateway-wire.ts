@@ -102,10 +102,23 @@ export function renderReply(path: string, reply: GatewayAnswer): GatewayAnswer {
   const wire = wireOf(path)
   if (wire === null || reply.status !== 200 || reply.contentType !== 'text/event-stream')
     return reply
-  const translate = translator(wire === 'responses' ? responsesWriter() : messagesWriter())
+  const translate = translator(writerOf(wire))
   const body = translate(reply.body)
   if (reply.rest === undefined) return { ...reply, body }
   return { ...reply, body, rest: { after: reply.rest.after, body: translate(reply.rest.body) } }
+}
+
+/**
+ * A translator for one streamed reply on `path`, fed the chat frames in the order they are written;
+ * null on the chat-completions path, where the frames go out as written.
+ */
+export function streamTranslator(path: string): ((part: string) => string) | null {
+  const wire = wireOf(path)
+  return wire === null ? null : translator(writerOf(wire))
+}
+
+function writerOf(wire: Wire): Writer {
+  return wire === 'responses' ? responsesWriter() : messagesWriter()
 }
 
 /**

@@ -5,6 +5,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AddressInfo, Socket } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { chatRequestOf, interfacePath, streamTranslator } from '../../fixtures/gateway-wire.ts'
 
 export type ReplyStep = Readonly<{
   kind: 'reply'
@@ -77,6 +78,33 @@ export type ProviderStub = Readonly<{
   close(): Promise<void>
 }>
 
+// The stub answers in chat-completions frames; the release may speak another interface, which the
+// gateway would translate both ways, so the stub reads the request and writes the reply through it.
+type Out = Readonly<{
+  writeHead(status: number, headers: Readonly<Record<string, string>>): void
+  write(frame: string): void
+  end(frame?: string): void
+}>
+
+function outOf(response: ServerResponse, path: string): Out {
+  const translate = streamTranslator(path)
+  let streaming = false
+  const wire = (frame: string) => (streaming && translate !== null ? translate(frame) : frame)
+  return {
+    writeHead: (status, headers) => {
+      streaming = status === 200 && headers['content-type'] === 'text/event-stream'
+      response.writeHead(status, headers)
+    },
+    write: frame => {
+      response.write(wire(frame))
+    },
+    end: frame => {
+      if (frame === undefined) response.end()
+      else response.end(wire(frame))
+    },
+  }
+}
+
 const sse = (event: unknown): string => `data: ${JSON.stringify(event)}\n\n`
 const DONE = 'data: [DONE]\n\n'
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
@@ -120,6 +148,14 @@ function chunksOf(text: string, size: number): string[] {
 
 type RequestFacts = { model: string; afterToolResult: boolean; lastUserText: string }
 
+function chatOf(path: string, raw: string): string {
+  try {
+    return chatRequestOf(path, raw)
+  } catch {
+    return raw
+  }
+}
+
 function factsOf(body: string): RequestFacts {
   try {
     const parsed = JSON.parse(body) as {
@@ -157,7 +193,7 @@ function usage(text: string) {
 }
 
 async function writeText(
-  response: ServerResponse,
+  response: Out,
   facts: RequestFacts,
   text: string,
   gapMs: number,
@@ -176,7 +212,7 @@ async function writeText(
 
 async function serveReply(
   step: ReplyStep | ToolCallStep,
-  response: ServerResponse,
+  response: Out,
   facts: RequestFacts,
   live: () => boolean,
   headWritten: boolean,
@@ -236,7 +272,9 @@ export async function startProviderStub(): Promise<ProviderStub> {
     const chunks: Buffer[] = []
     request.on('data', (chunk: Buffer) => chunks.push(chunk))
     request.on('end', () => {
-      const facts = factsOf(Buffer.concat(chunks).toString('utf8'))
+      const raw = Buffer.concat(chunks).toString('utf8')
+      const path = interfacePath(request.url ?? '', raw)
+      const facts = factsOf(chatOf(path, raw))
       arrivals.push({
         index,
         at: Date.now() - started,
@@ -250,14 +288,14 @@ export async function startProviderStub(): Promise<ProviderStub> {
         alive = false
       })
       const live = () => alive && !response.destroyed
-      void run(step, request, response, facts, live)
+      void run(step, request, outOf(response, path), facts, live)
     })
   }
 
   async function run(
     step: ScriptStep | undefined,
     request: IncomingMessage,
-    response: ServerResponse,
+    response: Out,
     facts: RequestFacts,
     live: () => boolean,
   ): Promise<void> {
