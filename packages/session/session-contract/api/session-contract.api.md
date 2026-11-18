@@ -87,6 +87,7 @@
 - `HistoryPage` · `faces.d.ts`
 - `INGRESS_FAMILIES` · `operations.d.ts`
 - `INITIALIZATION_PROTOCOL` · `initialization-schema.d.ts`
+- `INPUT_FATE_KINDS` · `input-fate.d.ts`
 - `INTAKE_GUARD_OWNER` · `input-sources.d.ts`
 - `IdleCoverage` · `values.d.ts`
 - `IdleJudgment` · `judgments.d.ts`
@@ -109,6 +110,7 @@
 - `InputAdmissionMember` · `history-values.d.ts`
 - `InputAdmissionPage` · `history-values.d.ts`
 - `InputBatch` · `values.d.ts`
+- `InputFate` · `input-fate.d.ts`
 - `InputId` · `identity.d.ts`
 - `InputSourceDeclaration` · `input-sources.d.ts`
 - `InputSourceLookup` · `input-sources.d.ts`
@@ -129,7 +131,11 @@
 - `OperationJudgment` · `judgments.d.ts`
 - `OperationRecord` · `judgments.d.ts`
 - `OperationResolution` · `faces.d.ts`
+- `PENDING_PAGE_LIMIT` · `intake-reads.d.ts`
+- `PENDING_PREVIEW_CHARS` · `intake-reads.d.ts`
 - `Participation` · `values.d.ts`
+- `PendingInput` · `intake-reads.d.ts`
+- `PendingPage` · `intake-reads.d.ts`
 - `PendingReason` · `faces.d.ts`
 - `ProducedResult` · `values.d.ts`
 - `ProducerFact` · `faces.d.ts`
@@ -274,6 +280,7 @@
 - `TodoPageCursor` · `todos.d.ts`
 - `VisibleTodoItem` · `todos.d.ts`
 - `Waiting` · `values.d.ts`
+- `WaitingCall` · `intake-reads.d.ts`
 - `WorkSnapshot` · `values.d.ts`
 - `WorkspaceAttachment` · `values.d.ts`
 - `admitDerived` · `input-sources.d.ts`
@@ -305,8 +312,10 @@
 - `expandHistoryEntries` · `entries.d.ts`
 - `expectedHolds` · `judgments.d.ts`
 - `expectedRevision` · `judgments.d.ts`
+- `foldInputFate` · `input-fate.d.ts`
 - `incompleteAuthorization` · `authorizations.d.ts`
 - `initializationRegistrationCommit` · `initialization-plan.d.ts`
+- `inputFateOfRows` · `intake-reads.d.ts`
 - `inputSourceName` · `input-sources.d.ts`
 - `inputsToDeliver` · `intake.d.ts`
 - `intakeTermsOf` · `input-sources.d.ts`
@@ -323,9 +332,13 @@
 - `onceAuthorizationOf` · `authorizations.d.ts`
 - `openWork` · `judgments.d.ts`
 - `parseInputSourceName` · `input-sources.d.ts`
+- `pendingAcceptances` · `intake-reads.d.ts`
+- `pendingInputOf` · `intake-reads.d.ts`
 - `pendingIntakeCount` · `intake.d.ts`
+- `pendingPageOf` · `intake-reads.d.ts`
 - `prepareEntriesTerms` · `input-sources.d.ts`
 - `prepareIntakeTerms` · `input-sources.d.ts`
+- `previewOf` · `intake-reads.d.ts`
 - `projectCompactionCommit` · `compaction-commit.d.ts`
 - `projectSessionEntries` · `entries-interpretation.d.ts`
 - `projectSessionLog` · `projection.d.ts`
@@ -349,6 +362,7 @@
 - `shortCallId` · `background-calls.d.ts`
 - `sourceRequestIdentities` · `source-requests.d.ts`
 - `uninterpretedCalls` · `uninterpreted-calls.d.ts`
+- `waitingCalls` · `intake-reads.d.ts`
 - `wakingInputs` · `intake.d.ts`
 - `withIntakeTerms` · `input-sources.d.ts`
 
@@ -452,7 +466,7 @@ import type { Access, TenantId } from '@omne-harness/legal-identity';
 import type { DurableEvidence, ResidentKey, SessionAccess, SessionId } from './identity.ts';
 import type { MutationName, SessionCommand, SessionTransactionPort } from './ports.ts';
 import type { IntakeSubject } from './input-sources.ts';
-export type SessionReadAccessOperation = 'listTodos' | 'readWork' | 'readCurrentScope' | 'readWaiting' | 'readBackgroundCalls' | 'resolveBackgroundCall' | 'readInput' | 'queryOperation' | 'readModelSelection' | 'queryControlOperation' | 'loadRecovery' | 'inspectIdle' | 'history.begin' | 'history.next' | 'history.since' | 'history.readModelView' | 'history.readCompactionContext';
+export type SessionReadAccessOperation = 'listTodos' | 'readWork' | 'readCurrentScope' | 'readWaiting' | 'readBackgroundCalls' | 'resolveBackgroundCall' | 'readInput' | 'readPending' | 'readWaitingCalls' | 'readInputFate' | 'queryOperation' | 'readModelSelection' | 'queryControlOperation' | 'loadRecovery' | 'inspectIdle' | 'history.begin' | 'history.next' | 'history.since' | 'history.readModelView' | 'history.readCompactionContext';
 type SessionMutationAccess<P> = {
     readonly [K in MutationName]: Readonly<{
         access: Access<P>;
@@ -1528,6 +1542,8 @@ import type { Outcome } from '@omne-harness/operation-result';
 import type { Adoption, AdvanceRef, AgentInstanceRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionId, SessionOperationId, SessionRevision, TodoItemId } from './identity.ts';
 import type { ControlOperationResolution, SessionCallTerminal, SessionControlReceipt, SessionModelSelection } from './control-values.ts';
 import type { AutoArchivePolicy, BoundedClose, CallBinding, Control, ControlProgress, DeclarationChange, DerivedMessage, FreezeVerdict, IdleObservation, InitializationResult, Participation, ProducedResult, ProducerRef, Relation, ResidentAdoption, RoutedInput, RunTerminal, ScopeReleaseDisposition, SessionCreation, SessionWaiting, WorkSnapshot } from './values.ts';
+import type { InputFate } from './input-fate.ts';
+import type { PendingPage, WaitingCall } from './intake-reads.ts';
 export type SessionFailure = Readonly<{
     kind: 'limited';
     resource: 'pending-inputs' | 'input-bytes';
@@ -1660,6 +1676,14 @@ export interface SessionWork<P> {
     }>): Reply<Extract<RoutedInput, {
         kind: 'ordinary';
     }>>;
+    readPending(input: SessionAccess<P> & Readonly<{
+        after: EntryId | null;
+        limit: number;
+    }>): Reply<PendingPage>;
+    readWaitingCalls(input: SessionAccess<P>): Reply<readonly WaitingCall[]>;
+    readInputFate(input: SessionAccess<P> & Readonly<{
+        input: InputId;
+    }>): Reply<InputFate>;
     startRun(input: Mutation<P> & Readonly<{
         entry: EntryClass;
         candidate: Adoption;
@@ -2269,6 +2293,8 @@ export { backgroundCallView, shortCallId } from './background-calls.ts';
 export type { BackgroundCallLabel, BackgroundCallResolution, BackgroundCallRecord, BackgroundCallSource, BackgroundCallState, BackgroundCallStatus, BackgroundCallStop, BackgroundCallView, StopInitiator, StopView, } from './background-calls.ts';
 export { compactionContextForView, isAcceptedInputRecord } from './model-view.ts';
 export { sourceRequestIdentities, type SourceRequest, type SourceRequestIdentities, } from './source-requests.ts';
+export { INPUT_FATE_KINDS, foldInputFate, type InputFate } from './input-fate.ts';
+export { PENDING_PAGE_LIMIT, PENDING_PREVIEW_CHARS, inputFateOfRows, pendingAcceptances, pendingInputOf, pendingPageOf, previewOf, waitingCalls, type PendingInput, type PendingPage, type WaitingCall, } from './intake-reads.ts';
 ```
 
 ## 声明文件 `initialization-parse.d.ts`
@@ -2377,6 +2403,34 @@ export declare function initializationGuard(previous: WorkSnapshot | null, comma
     kind: 'create' | 'completeInitialization';
 }>, guards: readonly GuardCommand[]): InitializationGuardFacts;
 export declare function validateResult(value: InitializationGuardResult, plan: InitializationPlanItem): void;
+```
+
+## 声明文件 `input-fate.d.ts`
+
+```ts
+import type { SessionEntry, SessionEntryKind } from './entries.ts';
+import type { InputId, RunId } from './identity.ts';
+import type { RunTerminal } from './values.ts';
+export type InputFate = Readonly<{
+    kind: 'pending';
+    returnedFrom: RunId | null;
+}> | Readonly<{
+    kind: 'taken';
+    run: RunId;
+}> | Readonly<{
+    kind: 'answered';
+    run: RunId;
+    terminal: 'active' | RunTerminal['outcome'];
+}> | Readonly<{
+    kind: 'settled';
+    by: 'cancelled' | 'archived' | 'frozen';
+    run: RunId | null;
+}> | Readonly<{
+    kind: 'refused';
+    reason: string;
+}>;
+export declare const INPUT_FATE_KINDS: readonly SessionEntryKind[];
+export declare function foldInputFate(input: InputId, entries: Iterable<SessionEntry>): InputFate | null;
 ```
 
 ## 声明文件 `input-leases.d.ts`
@@ -2491,6 +2545,56 @@ export declare function admitDerivedOf(derived: IntakeTerms['derived'], kind: De
 export declare function admitDerived(admission: DerivedAdmission | undefined, request: Readonly<{
     wake?: boolean;
 }>): AdmittedSource | null;
+export {};
+```
+
+## 声明文件 `intake-reads.d.ts`
+
+```ts
+import type { Message } from '@omne-harness/message';
+import type { HistoryEntry } from './faces.ts';
+import type { DurableEvidence, EntryId, InputId, RunId } from './identity.ts';
+import { type InputFate } from './input-fate.ts';
+import type { AdmittedSource } from './input-sources.ts';
+import type { RoutedInput, WorkSnapshot } from './values.ts';
+type Ordinary = Extract<RoutedInput, {
+    kind: 'ordinary';
+}>;
+export type PendingInput = Readonly<{
+    input: InputId;
+    position: EntryId;
+    source: Pick<AdmittedSource, 'name' | 'label'>;
+    role: AdmittedSource['role'];
+    wakes: boolean;
+    preview: string;
+}>;
+export type PendingPage = Readonly<{
+    inputs: readonly PendingInput[];
+    next: EntryId | null;
+}>;
+export type WaitingCall = Readonly<{
+    card: DurableEvidence;
+    action: string | null;
+    passage: string;
+    position: string;
+    run: RunId | null;
+}>;
+export declare const PENDING_PREVIEW_CHARS = 160;
+export declare const PENDING_PAGE_LIMIT = 100;
+export declare function waitingCalls(snapshot: WorkSnapshot): readonly WaitingCall[];
+export declare function previewOf(message: Message): string;
+export declare function pendingAcceptances(rows: Iterable<HistoryEntry>): ReadonlyMap<InputId, Readonly<{
+    position: EntryId;
+    source: AdmittedSource;
+}>> | null;
+export declare function pendingInputOf(stored: Ordinary, accepted: Readonly<{
+    position: EntryId;
+    source: AdmittedSource;
+}>): PendingInput;
+export declare function pendingPageOf(inputs: readonly PendingInput[], after: EntryId | null, limit: number): PendingPage;
+export declare function inputFateOfRows(input: InputId, rows: Iterable<HistoryEntry>): Readonly<{
+    fate: InputFate | null;
+}> | 'unreadable';
 export {};
 ```
 
@@ -3549,8 +3653,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:5d5dd791954e601166599b638a7a18a74a1eb00d089e8df8376e4d1f1a39ca42";
-export declare const SESSION_RELEASE_DIGEST = "sha256:5d5dd791954e601166599b638a7a18a74a1eb00d089e8df8376e4d1f1a39ca42";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:b193aae88c3a3c225db406466e387a63dc0192464041862459f8166a8f5afd62";
+export declare const SESSION_RELEASE_DIGEST = "sha256:b193aae88c3a3c225db406466e387a63dc0192464041862459f8166a8f5afd62";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

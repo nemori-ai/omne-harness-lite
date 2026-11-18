@@ -87,6 +87,7 @@
 - `HistoryPage` · 包 `@omne-harness/session-contract`
 - `INGRESS_FAMILIES` · 包 `@omne-harness/session-contract`
 - `INITIALIZATION_PROTOCOL` · 包 `@omne-harness/session-contract`
+- `INPUT_FATE_KINDS` · 包 `@omne-harness/session-contract`
 - `INTAKE_GUARD_OWNER` · 包 `@omne-harness/session-contract`
 - `IdleCoverage` · 包 `@omne-harness/session-contract`
 - `IdleJudgment` · 包 `@omne-harness/session-contract`
@@ -109,6 +110,7 @@
 - `InputAdmissionMember` · 包 `@omne-harness/session-contract`
 - `InputAdmissionPage` · 包 `@omne-harness/session-contract`
 - `InputBatch` · 包 `@omne-harness/session-contract`
+- `InputFate` · 包 `@omne-harness/session-contract`
 - `InputId` · 包 `@omne-harness/session-contract`
 - `InputSourceDeclaration` · 包 `@omne-harness/session-contract`
 - `InputSourceLookup` · 包 `@omne-harness/session-contract`
@@ -129,7 +131,11 @@
 - `OperationJudgment` · 包 `@omne-harness/session-contract`
 - `OperationRecord` · 包 `@omne-harness/session-contract`
 - `OperationResolution` · 包 `@omne-harness/session-contract`
+- `PENDING_PAGE_LIMIT` · 包 `@omne-harness/session-contract`
+- `PENDING_PREVIEW_CHARS` · 包 `@omne-harness/session-contract`
 - `Participation` · 包 `@omne-harness/session-contract`
+- `PendingInput` · 包 `@omne-harness/session-contract`
+- `PendingPage` · 包 `@omne-harness/session-contract`
 - `PendingReason` · 包 `@omne-harness/session-contract`
 - `ProducedResult` · 包 `@omne-harness/session-contract`
 - `ProducerFact` · 包 `@omne-harness/session-contract`
@@ -285,6 +291,7 @@
 - `TodoPageCursor` · 包 `@omne-harness/session-contract`
 - `VisibleTodoItem` · 包 `@omne-harness/session-contract`
 - `Waiting` · 包 `@omne-harness/session-contract`
+- `WaitingCall` · 包 `@omne-harness/session-contract`
 - `WorkSnapshot` · 包 `@omne-harness/session-contract`
 - `WorkspaceAttachment` · 包 `@omne-harness/session-contract`
 - `admitDerived` · 包 `@omne-harness/session-contract`
@@ -316,8 +323,10 @@
 - `expandHistoryEntries` · 包 `@omne-harness/session-contract`
 - `expectedHolds` · 包 `@omne-harness/session-contract`
 - `expectedRevision` · 包 `@omne-harness/session-contract`
+- `foldInputFate` · 包 `@omne-harness/session-contract`
 - `incompleteAuthorization` · 包 `@omne-harness/session-contract`
 - `initializationRegistrationCommit` · 包 `@omne-harness/session-contract`
+- `inputFateOfRows` · 包 `@omne-harness/session-contract`
 - `inputSourceName` · 包 `@omne-harness/session-contract`
 - `inputsToDeliver` · 包 `@omne-harness/session-contract`
 - `intakeTermsOf` · 包 `@omne-harness/session-contract`
@@ -334,9 +343,13 @@
 - `onceAuthorizationOf` · 包 `@omne-harness/session-contract`
 - `openWork` · 包 `@omne-harness/session-contract`
 - `parseInputSourceName` · 包 `@omne-harness/session-contract`
+- `pendingAcceptances` · 包 `@omne-harness/session-contract`
+- `pendingInputOf` · 包 `@omne-harness/session-contract`
 - `pendingIntakeCount` · 包 `@omne-harness/session-contract`
+- `pendingPageOf` · 包 `@omne-harness/session-contract`
 - `prepareEntriesTerms` · 包 `@omne-harness/session-contract`
 - `prepareIntakeTerms` · 包 `@omne-harness/session-contract`
+- `previewOf` · 包 `@omne-harness/session-contract`
 - `projectCompactionCommit` · 包 `@omne-harness/session-contract`
 - `projectSessionEntries` · 包 `@omne-harness/session-contract`
 - `projectSessionLog` · 包 `@omne-harness/session-contract`
@@ -360,6 +373,7 @@
 - `shortCallId` · 包 `@omne-harness/session-contract`
 - `sourceRequestIdentities` · 包 `@omne-harness/session-contract`
 - `uninterpretedCalls` · 包 `@omne-harness/session-contract`
+- `waitingCalls` · 包 `@omne-harness/session-contract`
 - `wakingInputs` · 包 `@omne-harness/session-contract`
 - `withIntakeTerms` · 包 `@omne-harness/session-contract`
 

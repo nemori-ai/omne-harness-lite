@@ -1,4 +1,9 @@
-import type { InputSources, SessionDerivedInputs } from '@omne-harness/session-contract'
+import type {
+  InputSources,
+  IntakeBasis,
+  IntakeSubject,
+  SessionDerivedInputs,
+} from '@omne-harness/session-contract'
 import { sessionIntakeLimits, type SessionIntakeLimits } from '@omne-harness/session-contract'
 import { randomUUID } from 'node:crypto'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -167,4 +172,13 @@ export async function readHandler(
   return failure(
     unavailable(`read ${handler}: ${result.kind === 'cancelled' ? 'cancelled' : result.reason}`),
   )
+}
+
+/** What this provider admits an input on: the subject of the access and the registries of now. */
+export function intakeBasisOf<P>(
+  context: Context<P>,
+  subject: IntakeSubject | undefined,
+): IntakeBasis {
+  const { sources, derived } = context.options
+  return { subject, sources: sources ?? null, derived: derived ?? null }
 }

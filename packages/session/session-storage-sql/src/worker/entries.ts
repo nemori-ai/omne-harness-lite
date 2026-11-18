@@ -50,6 +50,10 @@ type Input = Readonly<{
   derived: IntakeTerms['derived']
 }>
 
+function derivedOf(value: JsonValue | undefined): IntakeTerms['derived'] {
+  return value === undefined ? {} : (decodeValue(value) as IntakeTerms['derived'])
+}
+
 function inputOf(facts: Readonly<Record<string, JsonValue>>): Input | string {
   if (typeof facts['observation'] !== 'object' || typeof facts['start'] !== 'object')
     return 'the entries facts are incomplete'
@@ -57,10 +61,7 @@ function inputOf(facts: Readonly<Record<string, JsonValue>>): Input | string {
     return {
       observation: decodeValue(facts['observation'] as JsonValue) as SessionEntriesObservation,
       start: decodeValue(facts['start'] as JsonValue) as SessionEntriesStart,
-      derived:
-        facts['derived'] === undefined
-          ? {}
-          : (decodeValue(facts['derived']) as IntakeTerms['derived']),
+      derived: derivedOf(facts['derived']),
     }
   } catch (error) {
     return error instanceof Error ? error.message : 'undecodable facts'

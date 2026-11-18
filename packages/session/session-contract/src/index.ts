@@ -387,3 +387,17 @@ export {
   type SourceRequest,
   type SourceRequestIdentities,
 } from './source-requests.ts'
+export { INPUT_FATE_KINDS, foldInputFate, type InputFate } from './input-fate.ts'
+export {
+  PENDING_PAGE_LIMIT,
+  PENDING_PREVIEW_CHARS,
+  inputFateOfRows,
+  pendingAcceptances,
+  pendingInputOf,
+  pendingPageOf,
+  previewOf,
+  waitingCalls,
+  type PendingInput,
+  type PendingPage,
+  type WaitingCall,
+} from './intake-reads.ts'

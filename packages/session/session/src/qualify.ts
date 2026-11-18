@@ -5,6 +5,7 @@ import {
   type SessionAccess,
   type SessionAccessDecision,
   type SessionAccessRequest,
+  type SessionCheckedAccess,
   type SessionDelegatedTransactions,
   type SessionAccessCheck,
   type SessionFailure,
@@ -41,6 +42,20 @@ function permissionBindingHolds<P>(
   )
 }
 
+// What a view is bound to: the request, the evidence and whatever else the decision named.
+function checkedOf<P>(
+  request: SessionAccessRequest<P>,
+  decision: Extract<SessionAccessDecision, { kind: 'allowed' }>,
+): SessionCheckedAccess<P> {
+  const { evidence, writeQualification, subject } = decision
+  return {
+    request,
+    evidence,
+    ...(writeQualification === undefined ? {} : { writeQualification }),
+    ...(subject === undefined ? {} : { subject }),
+  }
+}
+
 export async function qualify<P>(
   dependencies: Qualifying<P>,
   request: SessionAccessRequest<P>,
@@ -69,16 +84,7 @@ export async function qualify<P>(
     case 'allowed':
       try {
         if (!permissionBindingHolds(request, decision)) return fail(denied(request.operation))
-        return succeed(
-          dependencies.transactions.bind({
-            request,
-            evidence: decision.evidence,
-            ...(decision.writeQualification === undefined
-              ? {}
-              : { writeQualification: decision.writeQualification }),
-            ...(decision.subject === undefined ? {} : { subject: decision.subject }),
-          }),
-        )
+        return succeed(dependencies.transactions.bind(checkedOf(request, decision)))
       } catch (error) {
         return fail(unavailable(OWNERS.delegated, `bind threw: ${messageOf(error)}`))
       }

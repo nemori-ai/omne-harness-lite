@@ -40,6 +40,7 @@ import {
   unavailable,
   type Context,
   type TenantDomainRef,
+  intakeBasisOf,
 } from './context.ts'
 import type { SessionProtectedBasisSource, SessionProtectedCommit } from './protected-basis.ts'
 
@@ -313,11 +314,7 @@ export async function commit<P, K extends MutationName>(
   if ('failure' in domain) return domain
   let facts: FactCommandV2
   try {
-    const terms = prepareIntakeTerms(command, {
-      subject: allowed.ok.subject,
-      sources: context.options.sources ?? null,
-      derived: context.options.derived ?? null,
-    })
+    const terms = prepareIntakeTerms(command, intakeBasisOf(context, allowed.ok.subject))
     const guards = withIntakeTerms(input.guards, terms)
     const base = sessionCommandFacts(command, guards, context.intakeLimits)
     facts = { ...base, facts: { ...base.facts, evidence: encodeValue(allowed.ok.evidence) } }
