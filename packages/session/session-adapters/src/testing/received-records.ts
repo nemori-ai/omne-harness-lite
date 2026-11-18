@@ -208,7 +208,7 @@ export function closedMaterial(
     if (body === null) return undefined
     return {
       tenant: named.tenant,
-      execution: body.qualifier,
+      execution: named.execution,
       value: block(table.blobs, body.value),
     }
   }

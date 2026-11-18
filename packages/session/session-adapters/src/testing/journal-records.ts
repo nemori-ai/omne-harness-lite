@@ -703,7 +703,7 @@ export function projectReceiving(
           if (state.materials.has(key)) return
           state.materials.set(key, {
             tenant: tenantText,
-            execution: material.qualifier,
+            execution: execution.id,
             value: blob(context.blobs, material.value),
           })
         },

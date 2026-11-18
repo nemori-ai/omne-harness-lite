@@ -348,7 +348,6 @@ export type FactBody =
       source: DurableEvidence
       value: Ref
       consumer: ConsumerRef
-      qualifier: AgentExecutionId | null
     }>
   | Readonly<{
       kind: 'op.excluded'

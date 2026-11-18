@@ -77,7 +77,6 @@ export type MaterialView = Readonly<{
   source: DurableEvidence
   value: Ref
   consumer: ConsumerRef
-  qualifier: AgentExecutionId | null
   pub: number
 }>
 

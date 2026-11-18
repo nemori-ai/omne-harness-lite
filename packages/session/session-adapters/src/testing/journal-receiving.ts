@@ -238,7 +238,6 @@ export type ReceivingState = {
   deliveries: SharedMap<string, Kept>
   aliases: SharedMap<string, Kept>
   bindings: SharedMap<string, { execution: AgentExecutionId; text: string }>
-  consumerExecutions: SharedMap<string, AgentExecutionId>
   pendingBindings: SharedMap<
     string,
     readonly {
@@ -259,7 +258,6 @@ export function emptyReceivingState(): ReceivingState {
     deliveries: new SharedMap(),
     aliases: new SharedMap(),
     bindings: new SharedMap(),
-    consumerExecutions: new SharedMap(),
     pendingBindings: new SharedMap(),
     targets: new SharedMap(),
     callTargets: new SharedMap(),
@@ -402,10 +400,8 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     const stored = materialOf(hooks, access, source)
     if (!stored || stored.tenant !== tenantText(access.tenant))
       return fail(unavailable('material-unreadable'))
-    if (stored.execution !== null) {
-      const check = qualified({ ...access, execution: stored.execution }, false)
-      if ('failure' in check) return check
-    }
+    const check = qualified({ ...access, execution: stored.execution }, false)
+    if ('failure' in check) return check
     return succeed(structuredClone(stored.value))
   }
   const rich = (access: Access<P>, kept: Kept): Outcome<ReceivedCommitValue, Failure> => {
@@ -728,18 +724,12 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         const old = materialOf(hooks, input, source, false)
         if (old && canonical(old.value) !== canonical(input.value))
           return answer(fail(invalid('identity')))
-        const execution =
-          hooks
-            .state()
-            .consumerExecutions.get(canonical([tenantText(input.tenant), input.consumer])) ?? null
-        if (execution !== null) {
-          const permission = qualified({ ...input, execution })
-          if ('failure' in permission) return answer(permission)
-        }
+        const permission = qualified(input)
+        if ('failure' in permission) return answer(permission)
         if (old) return answer(succeed(source))
         const kept = hooks
           .state()
-          .materials.sameContent(tenantText(input.tenant), execution, canonical(input.value))
+          .materials.sameContent(tenantText(input.tenant), input.execution, canonical(input.value))
         if (kept !== undefined && hooks.viewOf(input.execution).materials.has(kept))
           return answer(succeed(materialSourceOf(kept)))
         return {
@@ -750,7 +740,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
               source,
               value: refOf(input.value),
               consumer: structuredClone(input.consumer),
-              qualifier: execution,
             },
           ],
           blobs: [blobOf(input.value)],
@@ -759,7 +748,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           project: () => {
             hooks.state().materials.set(canonical(source), {
               tenant: tenantText(input.tenant),
-              execution,
+              execution: input.execution,
               value: structuredClone(input.value),
             })
           },
@@ -789,12 +778,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         if (old && (old.text !== text || old.execution !== input.execution))
           throw new TypeError('frozen binding cannot change')
         hooks.state().bindings.set(key, { execution: input.execution, text })
-        hooks
-          .state()
-          .consumerExecutions.set(
-            canonical([tenantText(input.tenant), input.entry.consumer]),
-            input.execution,
-          )
         hooks.touch()
       })
     },
