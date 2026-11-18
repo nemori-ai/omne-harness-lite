@@ -116,10 +116,12 @@ function consent(input: SubscriptionDecisionInput): SubscriptionDecision {
 }
 
 function admissibility(input: SubscriptionDecisionInput): SubscriptionRefusal | null {
-  const { change, declared, now } = input
+  const { change, declared, actor, now } = input
   if (change.term.kind === 'until' && change.term.at <= now) return 'term-in-past'
   if (!declared.subscribable.includes(change.recipient.kind)) return 'not-subscribable'
-  return scopeFits(change, declared) ? null : 'scope-does-not-fit'
+  if (!scopeFits(change, declared)) return 'scope-does-not-fit'
+  const own = actor.kind === 'owner' || sameRecipient(actor.recipient, change.recipient)
+  return own ? null : 'not-own-recipient'
 }
 
 function unchanged(current: Subscription, change: SubscriptionChange): boolean {
@@ -144,8 +146,6 @@ export function decideSubscription(input: SubscriptionDecisionInput): Subscripti
   const { change, actor, now } = input
   const refusal = admissibility(input)
   if (refusal !== null) return { kind: 'refused', reason: refusal }
-  if (actor.kind === 'agent' && !sameRecipient(actor.recipient, change.recipient))
-    return { kind: 'refused', reason: 'not-own-recipient' }
   const current = input.current !== null && isLive(input.current, now) ? input.current : null
   if (current !== null && unchanged(current, change)) return { kind: 'recalled', current }
   if (actor.kind === 'owner') return { kind: 'set', basis: { kind: 'owner' } }

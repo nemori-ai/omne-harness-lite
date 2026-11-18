@@ -312,5 +312,26 @@ describe('the beat of a recipient', () => {
       expect(await w.subscriptions.setBeat(w.ctx, person, beat as never)).toEqual(
         refused('invalid-request'),
       )
+    expect(
+      await w.subscriptions.setBeat(w.ctx, { kind: 'team' } as never, { kind: 'off' }),
+    ).toEqual(refused('invalid-request'))
+  })
+
+  it('answers what the authority and the store answered', async () => {
+    const w = world()
+    const every = { kind: 'every', minutes: 30 } as const
+    w.authority.answer(() => 'denied')
+    expect(await w.subscriptions.setBeat(w.ctx, person, every)).toEqual(refused('not-permitted'))
+    w.authority.answer(() => 'allowed')
+    w.store.fail('read-unavailable')
+    expect(await w.subscriptions.setBeat(w.ctx, person, every)).toEqual(unavailable)
+    w.store.fail('rolled-back')
+    expect(await w.subscriptions.setBeat(w.ctx, person, every)).toEqual(unavailable)
+    w.store.fail('unknown-applied')
+    expect(await w.subscriptions.setBeat(w.ctx, person, every)).toEqual({ kind: 'unknown' })
+    expect(await w.subscriptions.setBeat(w.ctx, person, every)).toMatchObject({
+      kind: 'done',
+      recalled: true,
+    })
   })
 })
