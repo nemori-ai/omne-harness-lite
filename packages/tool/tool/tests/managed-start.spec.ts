@@ -592,6 +592,71 @@ describe('21 start intent and start fence (P04)', () => {
     expect((await harness.state('c1')).phase).toBe('running')
   })
 
+  it('21 fence: a first start whose prepared environment was lost with its process settles never started, and the executor is not asked', async () => {
+    const lost = {
+      kind: 'lost',
+      evidence: evidence('environment-lost'),
+      diagnostic: 'gone',
+    } as const
+    const harness = startHarness({
+      environmentsPort: base =>
+        Object.assign(base, {
+          inspectPreparation: (input: Parameters<typeof base.inspectPreparation>[0]) => {
+            base.inspected.push(input.call)
+            return Promise.resolve({ ok: lost })
+          },
+        }),
+    })
+    await admitAll(harness, 'c1', 'c2')
+    await toStarting(harness, 'c1')
+    await harness.drive('c1')
+    expect(harness.environments.inspected).toEqual(['c1'])
+    expect(harness.binding.attempts).toEqual([])
+    expect(harness.authority.consumed).toEqual([])
+    expect(harness.authority.excluded).toEqual(['c1'])
+    expect(await harness.state('c1')).toMatchObject({
+      phase: 'settled',
+      terminal: { kind: 'unavailable', reason: 'environment: gone' },
+      effect: { kind: 'not-started' },
+      execution: { kind: 'not-started' },
+      queue: { kind: 'released', ordinal: '1' },
+    })
+    await harness.drive('c1')
+    expect(harness.authority.excluded).toEqual(['c1'])
+  })
+
+  it('21 fence: a run that did not prepare the environment asks for it once and starts with it', async () => {
+    const harness = startHarness()
+    await admitCall(harness, 'c1')
+    await toStarting(harness, 'c1')
+    await harness.drive('c1')
+    expect(harness.environments.inspected).toEqual(['c1'])
+    expect(harness.binding.environments).toEqual([{ preparedFor: 'c1' }])
+    expect(harness.authority.excluded).toEqual([])
+    expect((await harness.state('c1')).phase).toBe('running')
+  })
+
+  it.each(['pending', 'unknown', 'unavailable'] as const)(
+    '21 fence: a prepared environment that answers %s at the start starts nothing and ends nothing',
+    async answer => {
+      const harness = startHarness()
+      await admitCall(harness, 'c1')
+      await toStarting(harness, 'c1')
+      harness.environments.answer(callId('c1'), answer)
+      await harness.drive('c1')
+      expect(harness.binding.attempts).toEqual([])
+      expect(harness.authority.excluded).toEqual([])
+      expect(await harness.state('c1')).toMatchObject({
+        phase: 'starting',
+        queue: { kind: 'held' },
+      })
+      harness.environments.answer(callId('c1'), 'prepared')
+      await harness.drive('c1')
+      expect(harness.binding.environments).toEqual([{ preparedFor: 'c1' }])
+      expect((await harness.state('c1')).phase).toBe('running')
+    },
+  )
+
   it('21 fence: an unknown start answer starts nothing and keeps the start task', async () => {
     const harness = startHarness()
     await admitCall(harness, 'c1')
