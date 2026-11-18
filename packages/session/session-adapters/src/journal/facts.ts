@@ -112,17 +112,14 @@ export type CursorMembers = Readonly<{
   definition: Adoption
   adoptedRequest: Ref | null
   state: 'reconciling' | 'advancing' | 'waiting' | 'settling' | 'suspended'
-  // What the checkpoint holds open that its blocks name: the fold reads it without the blocks.
-  // null: it names more than a fact carries, so every item is held until the checkpoint shrinks.
-  holds: null | Readonly<{
-    actions: readonly ActionId[]
-    consumptions: readonly ConsumptionId[]
-    handoffs: readonly string[]
-    materials: readonly string[]
-    // The sequence of the reply admission prefix the checkpoint has verified (0: none).
-    admissionsFrom: number
-  }>
+  // The sequence of the reply admission prefix the checkpoint has verified (0: none).
+  admissionsFrom: number
 }>
+
+// One thing a checkpoint holds open, by its kind and identity: the fold reads holds, not blocks.
+export type HoldKind = 'action' | 'consumption' | 'handoff' | 'material'
+export type HoldRef = readonly [kind: HoldKind, id: string]
+export const holdText = ([kind, id]: HoldRef): string => `${kind}/${id}`
 export type CursorMember = keyof CursorMembers
 
 export type ResultStage = 'recorded' | 'custody' | 'processed' | 'released'
@@ -372,6 +369,13 @@ export type FactBody =
       fence: DurableEvidence
     }>
   | Readonly<{ kind: 'cursor.moved'; step: StepId; members: Partial<CursorMembers> }>
+  // What a commit's checkpoint newly holds and what it let go: the change only, so no bound.
+  | Readonly<{
+      kind: 'hold.changed'
+      step: StepId
+      held: readonly HoldRef[]
+      released: readonly HoldRef[]
+    }>
 
 export type FactKind = FactBody['kind']
 export type FactOf<K extends FactKind> = Extract<FactBody, { kind: K }>
@@ -408,6 +412,7 @@ export const FACT_KINDS: readonly FactKind[] = Object.freeze([
   'op.excluded',
   'fence.started',
   'cursor.moved',
+  'hold.changed',
   'material.preserved',
   'target.bound',
 ])
@@ -583,6 +588,8 @@ export function factKey(fact: FactBody): string {
       return `fence/${fact.operation}`
     case 'cursor.moved':
       return `cursor/${fact.step}/${digestOf(fact.members)}`
+    case 'hold.changed':
+      return `hold/${fact.step}/${digestOf([fact.held, fact.released])}`
   }
 }
 

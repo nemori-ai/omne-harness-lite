@@ -3,6 +3,7 @@ import type {
   AgentOperationId,
   JournalCommitState,
   PendingCall,
+  StepId,
   VoidedIntent,
 } from '@omne-harness/agent-contract'
 import { canonical } from '../testing/canonical.ts'
@@ -12,12 +13,15 @@ import {
   FACT_MAX_BYTES,
   bytesOf,
   factKey,
+  holdText,
   materialHold,
   refOf,
   type Batch,
   type BatchEnvelope,
   type CursorMembers,
   type FactBody,
+  type HoldKind,
+  type HoldRef,
   type ResultKey,
 } from './facts.ts'
 import { handoffKey, type ExecutionView } from './view.ts'
@@ -62,33 +66,34 @@ export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState)
         ? null
         : refOf(checkpoint.adoptedRequest),
     state: state.kind,
-    holds: heldBy(checkpoint),
-  }
-}
-
-// Half a fact at most: the cursor's other members share it.
-const HOLDS_MAX_BYTES = FACT_MAX_BYTES / 2
-
-function heldBy(checkpoint: AgentCheckpoint): CursorMembers['holds'] {
-  const holds = {
-    actions: [
-      ...checkpoint.calls.map(call => call.action),
-      ...(checkpoint.batch?.actions.map(action => action.id) ?? []),
-    ],
-    consumptions: [
-      ...checkpointCalls(checkpoint).map(call => call.consumption),
-      ...(checkpoint.compaction === null ? [] : [checkpoint.compaction.consumption]),
-    ],
-    handoffs: (checkpoint.batch?.slots ?? []).flatMap(slot =>
-      slot.handoff === null ? [] : [handoffKey(slot.handoff)],
-    ),
-    materials: heldMaterials(checkpoint),
     admissionsFrom:
       checkpoint.replyAdmissionRead.kind === 'verified'
         ? Number(checkpoint.replyAdmissionRead.prefix.sequence)
         : 0,
   }
-  return bytesOf(holds) > HOLDS_MAX_BYTES ? null : holds
+}
+
+// Everything the checkpoint holds open, named one at a time.
+export function heldBy(checkpoint: AgentCheckpoint): HoldRef[] {
+  const actions = [
+    ...checkpoint.calls.map(call => call.action),
+    ...(checkpoint.batch?.actions.map(action => action.id) ?? []),
+  ]
+  const consumptions = [
+    ...checkpointCalls(checkpoint).map(call => call.consumption),
+    ...(checkpoint.compaction === null ? [] : [checkpoint.compaction.consumption]),
+  ]
+  const handoffs = (checkpoint.batch?.slots ?? []).flatMap(slot =>
+    slot.handoff === null ? [] : [handoffKey(slot.handoff)],
+  )
+  const named = (kind: HoldKind, ids: readonly string[]): HoldRef[] =>
+    [...new Set(ids)].map(id => [kind, id])
+  return [
+    ...named('action', actions),
+    ...named('consumption', consumptions),
+    ...named('handoff', handoffs),
+    ...named('material', heldMaterials(checkpoint)),
+  ]
 }
 
 // The sources a checkpoint still reads: the request or answer each batch action was judged with,
@@ -210,6 +215,53 @@ export function cursorMoved(
   const members = movedMembers(view.cursor, cursorOf(checkpoint, state))
   if (Object.keys(members).length === 0) return null
   return { kind: 'cursor.moved', step: checkpoint.step, members }
+}
+
+type HoldChanged = Extract<FactBody, { kind: 'hold.changed' }> &
+  Readonly<{ held: HoldRef[]; released: HoldRef[] }>
+
+const holdFact = (step: StepId, held: HoldRef[], released: HoldRef[]): HoldChanged => ({
+  kind: 'hold.changed',
+  step,
+  held,
+  released,
+})
+
+// The holds a commit's checkpoint gains and lets go, a fact at a time until full; none, no fact.
+export function holdsMoved(
+  view: Pick<ExecutionView, 'holds'>,
+  checkpoint: AgentCheckpoint,
+): HoldChanged[] {
+  const next = heldBy(checkpoint)
+  const wanted = new Set(next.map(holdText))
+  const open = view.holds.filter(hold => !hold.released)
+  const had = new Set(open.map(hold => holdText([hold.kind, hold.id])))
+  const changes: (readonly ['held' | 'released', HoldRef])[] = [
+    ...next.filter(ref => !had.has(holdText(ref))).map(ref => ['held', ref] as const),
+    ...open
+      .filter(hold => !wanted.has(holdText([hold.kind, hold.id])))
+      .map(hold => ['released', [hold.kind, hold.id]] as const),
+  ]
+  const facts: HoldChanged[] = []
+  let fact = holdFact(checkpoint.step, [], [])
+  for (const [side, ref] of changes) {
+    const grown = { ...fact, [side]: [...fact[side], ref] }
+    if (bytesOf(grown) > FACT_MAX_BYTES) {
+      facts.push(fact)
+      fact = holdFact(checkpoint.step, [], [])
+    }
+    fact[side].push(ref)
+  }
+  if (fact.held.length + fact.released.length > 0) facts.push(fact)
+  return facts
+}
+
+// The cursor of a checkpoint no cursor preceded, with everything it holds.
+export function cursorPlaced(checkpoint: AgentCheckpoint, state: JournalCommitState): FactBody[] {
+  return [
+    { kind: 'cursor.moved', step: checkpoint.step, members: cursorOf(checkpoint, state) },
+    ...holdsMoved({ holds: [] }, checkpoint),
+  ]
 }
 
 export type BatchRefusal =

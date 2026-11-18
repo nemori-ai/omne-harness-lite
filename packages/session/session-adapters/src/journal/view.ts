@@ -30,6 +30,7 @@ import {
   type AttachmentBasis,
   type Attempt,
   type CursorMembers,
+  type HoldKind,
   type FactBody,
   type FactOf,
   type ParticipationKind,
@@ -169,6 +170,14 @@ export type HandoffView = Readonly<{
   }>[]
 }>
 
+export type HoldView = Readonly<{
+  kind: HoldKind
+  id: string
+  pub: number
+  ord: number
+  released: boolean
+}>
+
 export type ControlView = Readonly<{
   control: AgentOperationId
   command: ExecutionControl
@@ -301,6 +310,8 @@ export type ExecutionView = Readonly<{
   attachments: readonly AttachmentView[]
   cursor: Readonly<Partial<CursorMembers>>
   cursorMoved: Readonly<Partial<Record<keyof CursorMembers, number>>>
+  holds: readonly HoldView[]
+  holdsJudged: number
   inputs: readonly InputView[]
   steps: readonly Readonly<{ step: StepId; batch: InputBatch; pub: number }>[]
   requests: readonly RequestView[]
@@ -374,6 +385,8 @@ export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {
     attachments: [],
     cursor: {},
     cursorMoved: {},
+    holds: [],
+    holdsJudged: 0,
     inputs: [],
     steps: [],
     requests: [],

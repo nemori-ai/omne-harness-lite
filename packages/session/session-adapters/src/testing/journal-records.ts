@@ -43,7 +43,7 @@ import type { AdmissionLedger, AdmissionProjection, AdmissionRecord } from './re
 import { finishingOf } from './journal-finishing.ts'
 import { emptyReceivingState, type ReceivingState } from './journal-receiving.ts'
 import { bindTarget } from './binding-targets.ts'
-import { controlRecordOf } from './journal-controls.ts'
+import { controlRecordOf } from './control-records.ts'
 import { journalEvidence, operationText, revisionOf, semanticKey } from './journal-values.ts'
 import { captureHuman } from './human.ts'
 import { receivedRecord, stampReceipt } from './received-records.ts'

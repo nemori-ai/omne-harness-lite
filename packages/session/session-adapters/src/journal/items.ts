@@ -1,11 +1,12 @@
 import { SharedMap, forkOf } from './shared-map.ts'
-import { factKey, materialHold, resultKey } from './facts.ts'
+import { factKey, holdText, materialHold, resultKey, type HoldKind } from './facts.ts'
 import type { AgentExecutionId, ConsumptionId } from '@omne-harness/agent-contract'
 import { inputOpen } from './inputs.ts'
 import {
   emptyExecutionView,
   handoffKey,
   type HandoffView,
+  type HoldView,
   type AdmissionView,
   type BindingView,
   type ExecutionView,
@@ -109,11 +110,24 @@ function openIn(family: ItemFamily, entry: Entry, view: ExecutionView, item: str
 const fallbackRequest = (view: ExecutionView): RequestView | undefined =>
   view.requests.findLast(item => item.step !== view.cursor.step && item.voided === null)
 
+const heldSets = new WeakMap<readonly HoldView[], ReadonlySet<string>>()
+
+export function held(view: ExecutionView, kind: HoldKind, id: string): boolean {
+  let set = heldSets.get(view.holds)
+  if (set === undefined) {
+    set = new Set(
+      view.holds.filter(hold => !hold.released).map(hold => holdText([hold.kind, hold.id])),
+    )
+    heldSets.set(view.holds, set)
+  }
+  return set.has(holdText([kind, id]))
+}
+
 const intentHeld = (item: IntentView, view: ExecutionView): boolean =>
-  view.cursor.holds?.actions.includes(item.action) ?? true
+  held(view, 'action', item.action)
 
 export function callHeld(consumption: string, view: ExecutionView): boolean {
-  if (view.cursor.holds?.consumptions.includes(consumption as never) ?? true) return true
+  if (held(view, 'consumption', consumption)) return true
   for (const intent of view.intents.values())
     if (intent.pending.consumption === consumption && intentHeld(intent, view)) return true
   return false
@@ -185,7 +199,7 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
       item => [item.sequence],
     ),
     open: (item: AdmissionView, view: ExecutionView) =>
-      item.sequence >= (view.cursor.holds?.admissionsFrom ?? 0),
+      item.sequence >= (view.cursor.admissionsFrom ?? 0),
   },
   {
     family: 'handoff',
@@ -193,10 +207,19 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
     open: (item: HandoffView, view: ExecutionView, key: string) =>
       (item.resolved === null && item.retired === null) ||
       (view.cursor.currentHandoff != null && key === handoffKey(view.cursor.currentHandoff)) ||
-      (view.cursor.holds?.handoffs.includes(key) ?? true) ||
+      held(view, 'handoff', key) ||
       (item.handoff.kind === 'input'
         ? inputOpen(item.handoff.input, view)
         : item.prepared?.step === view.cursor.step),
+  },
+  {
+    family: 'hold',
+    holder: list(
+      at('holds'),
+      (hold: HoldView) => `${holdText([hold.kind, hold.id])}@${String(hold.pub)}`,
+      byPubOrd,
+    ),
+    open: (hold: HoldView) => !hold.released,
   },
   { family: 'control', holder: table(at('controls')), open: always },
   {
@@ -240,8 +263,7 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
     family: 'material',
     holder: table(at('materials')),
     open: (item: MaterialView, view: ExecutionView, key: string) =>
-      (view.cursor.holds?.materials.includes(materialHold(key)) ?? true) ||
-      item.pub > (view.cursorMoved.holds ?? 0),
+      held(view, 'material', materialHold(key)) || item.pub > view.holdsJudged,
   },
   { family: 'op', holder: table(at('ops')), open: closedAtBirth, apart: true },
   {
@@ -274,6 +296,7 @@ const EXEC_MEMBERS = [
   'opened',
   'cursor',
   'cursorMoved',
+  'holdsJudged',
   'adopted',
   'waits',
   'acknowledged',
@@ -297,6 +320,7 @@ export function execBody(view: ExecutionView): ExecBody {
     opened: view.opened,
     cursor: view.cursor,
     cursorMoved: view.cursorMoved,
+    holdsJudged: view.holdsJudged,
     adopted: view.adopted,
     waits: view.waits,
     acknowledged: view.acknowledged,

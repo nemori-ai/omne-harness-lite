@@ -9,6 +9,7 @@ import type {
 import { canonical } from '../testing/canonical.ts'
 import {
   eventKindOf,
+  holdText,
   resultKey,
   type CursorMembers,
   type FactBody,
@@ -550,6 +551,25 @@ function foldFenceStarted(
     ]
 }
 
+function foldHoldChanged(
+  draft: Draft,
+  fact: FactOf<'hold.changed'>,
+  pub: number,
+  ord: number,
+): void {
+  const released = new Set(fact.released.map(holdText))
+  const kept = draft.holds.map(hold =>
+    !hold.released && released.has(holdText([hold.kind, hold.id]))
+      ? { ...hold, released: true }
+      : hold,
+  )
+  draft.holds = [
+    ...kept,
+    ...fact.held.map(([kind, id]) => ({ kind, id, pub, ord, released: false })),
+  ]
+  draft.holdsJudged = pub
+}
+
 function foldCursorMoved(draft: Draft, fact: FactOf<'cursor.moved'>, pub: number): void {
   for (const [name, value] of Object.entries(fact.members) as [
     keyof CursorMembers,
@@ -660,6 +680,9 @@ function apply(draft: Draft, fact: FactBody, stamp: Stamp, ord: number): void {
       break
     case 'cursor.moved':
       foldCursorMoved(draft, fact, pub)
+      break
+    case 'hold.changed':
+      foldHoldChanged(draft, fact, pub, ord)
       break
     default: {
       const _exhaustive: never = fact

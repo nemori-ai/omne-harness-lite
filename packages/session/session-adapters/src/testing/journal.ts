@@ -144,7 +144,8 @@ import {
   blobsOf,
   checkpointOf,
   cursorMoved,
-  cursorOf as cursorMembersOf,
+  holdsMoved,
+  cursorPlaced,
   emptyExecutionView,
   modelAttempt,
   receiptOf as batchReceiptOf,
@@ -2361,11 +2362,7 @@ export function createJournal<P>(
             outcome: refOf(outcome),
             history: outcome.record,
           },
-          {
-            kind: 'cursor.moved',
-            step: checkpoint.step,
-            members: cursorMembersOf(checkpoint, { kind: 'advancing' }),
-          },
+          ...cursorPlaced(checkpoint, { kind: 'advancing' }),
           ...bound.facts,
         ]
         const blobs: Blob[] = [
@@ -2944,7 +2941,7 @@ export function createJournal<P>(
         const moved = cursorMoved(view, input.checkpoint, input.state)
         if (moved !== null) {
           blobs.push(...blobsOf(input.checkpoint))
-          facts.push(moved)
+          facts.push(moved, ...holdsMoved(view, input.checkpoint))
         }
         const bound = receiving.newBindings(
           {

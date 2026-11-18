@@ -6,7 +6,6 @@ import { emptyExecutionView, viewItems, type ExecutionView } from '../src/journa
 import { SharedMap } from '../src/journal/shared-map.ts'
 
 const EXECUTION = 'run_1/execution' as AgentExecutionId
-const holds = { actions: [], consumptions: [], handoffs: [], materials: [], admissionsFrom: 0 }
 
 const rows = (view: ExecutionView, closed: readonly string[] = []) =>
   viewItems(view).map(item => ({
@@ -19,12 +18,12 @@ const rows = (view: ExecutionView, closed: readonly string[] = []) =>
 
 it('an execution that left finishing between the two reads is read as its open items only', async () => {
   const empty = emptyExecutionView(EXECUTION)
-  const settling: ExecutionView = { ...empty, cursor: { state: 'settling', holds } }
+  const settling: ExecutionView = { ...empty, cursor: { state: 'settling' } }
   // The same execution one batch later: back to advancing, the intent of its settled call closed.
   const intent = { action: 'a1', step: 's1', pending: {}, authority: {}, request: null, pub: 1 }
   const advancing: ExecutionView = {
     ...empty,
-    cursor: { state: 'advancing', holds },
+    cursor: { state: 'advancing' },
     intents: new SharedMap([['a1', intent]]) as never,
   }
   const asked: boolean[] = []
@@ -53,7 +52,7 @@ it('an execution that still finishes is held in full, with its open view beside 
   const intent = { action: 'a1', step: 's1', pending: {}, authority: {}, request: null, pub: 1 }
   const settling: ExecutionView = {
     ...empty,
-    cursor: { state: 'settling', holds },
+    cursor: { state: 'settling' },
     intents: new SharedMap([['a1', intent]]) as never,
   }
   const read: Reader = async (_handler, input) => ({

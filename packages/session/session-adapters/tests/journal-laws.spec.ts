@@ -640,8 +640,8 @@ describe('cursor.moved carries the changed top-level members only; no new fact, 
       { kind: 'advancing' },
     )
     const moved = movedMembers(before, after)
-    // What the checkpoint holds moves with its calls.
-    expect(Object.keys(moved).sort()).toEqual(['calls', 'holds', 'position'])
+    // What the checkpoint holds is not a member of the cursor: it changes in facts of its own.
+    expect(Object.keys(moved).sort()).toEqual(['calls', 'position'])
     expect(moved.calls).toEqual(refOf([{ kind: 'model' }]))
     expect(bytesOf(moved)).toBeLessThan(256)
   })
@@ -975,8 +975,9 @@ describe('the checkpoint of a folded view takes the input batch and the voided i
     const execution = voidedScene()
     const begun = execution.steps.at(-1)!
     const request = execution.requests.find(item => item.voided !== null)!
-    const intent = [...execution.intents.values()].find(
-      item => item.pending.kind === 'model' && item.pending.reference === request.reference,
+    // The step has moved on from the voided call: its intent has closed, the voiding names it.
+    const intent = execution.voided.find(
+      item => item.intent === 'model' && item.reference === request.reference,
     )!
     const checkpoint = {
       ...sampleCheckpoint(),
