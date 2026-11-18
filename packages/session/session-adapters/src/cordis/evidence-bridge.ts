@@ -20,6 +20,7 @@ import {
 const BRIDGE_OWNER = 'sessionEvidence'
 const INITIALIZATION = 'session-initialization'
 
+const EXEMPT_CHANGES: ReadonlySet<string> = new Set(['permission-assignment', 'model'])
 const ADOPTION: ReadonlySet<string> = new Set<AdoptionEvidenceCommand['kind']>([
   'create',
   'startRun',
@@ -182,9 +183,9 @@ export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceB
     return succeed(materials)
   }
 
+  // A permission write is checked in its own transaction; a model's legality was judged with Model.
   private sourcesFor(command: SessionCommand): Source<P>[] {
-    if (command.kind === 'change' && command.input.declaration.kind === 'permission-assignment')
-      return []
+    if (command.kind === 'change' && EXEMPT_CHANGES.has(command.input.declaration.kind)) return []
     const sources: Source<P>[] = []
     if (ADOPTION.has(command.kind)) sources.push(this.adoption)
     if (PRODUCTION.has(command.kind)) sources.push(this.production)

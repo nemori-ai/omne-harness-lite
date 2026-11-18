@@ -205,6 +205,25 @@ describe('the material table, split by command', () => {
     },
   )
 
+  it('leaves a model selection to the caller that judged the target with Model, without adoption material', async () => {
+    const { asked, prepare } = await assembled({ adoption: async () => succeed([]) })
+    const change: SessionCommand = {
+      kind: 'change',
+      input: {
+        tenant: A.tenant,
+        session: A.session,
+        operation: operationId('model-change'),
+        declaration: {
+          kind: 'model',
+          name: 'anthropic/claude-sonnet-5',
+          basis: evidence('the-profile-the-route-resolved-to'),
+        },
+      },
+    }
+    expect(await prepare(change, A)).toEqual(succeed([]))
+    expect(asked).toEqual([])
+  })
+
   it('asks no source and hands no material for a command outside the table', async () => {
     const { asked, prepare } = await assembled()
     expect(await prepare(command('claim'))).toEqual(succeed([]))
