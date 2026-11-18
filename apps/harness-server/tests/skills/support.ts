@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { capabilityId, createCategoryPoint, type PackageReader } from '@omne-harness/assets'
-import { createAssetsLocal } from '@omne-harness/assets-local'
+import { createAssetsLocal, publishedRef } from '@omne-harness/assets-local'
 import { skillBodyContract, skillCategoryDisplay } from '@omne-harness/skill-contract'
 import type { PackageLocator } from '@omne-harness/skill-contract/provider'
 import { createDirectorySource } from '@omne-harness/skill-host-local'
@@ -94,30 +94,26 @@ export async function openSkillPublisher(place: PublishPlace): Promise<SkillPubl
     async publish(dir, name, enabled = true) {
       const made = capabilityId('skill', name)
       if (!made.ok) throw new Error(`not a Skill name: ${name}`)
-      const assetRef = `tenant/skill/${name}`
       const published = await assets.packages.publish({
         capability: made.id,
-        assetRef,
         from: directoryReader(dir),
         operationId: `publish-${name}-${Date.now()}`,
+        holding: {
+          sources: [
+            {
+              sourceId: 'tenant',
+              ownerRef: tenant,
+              scope: { kind: 'owner', subjectRef: 'skills' },
+            },
+          ],
+          grants: [],
+        },
       })
       if (published.kind !== 'published') throw new Error(JSON.stringify(published))
-      const held = await assets.hold({
-        operationId: `hold-${name}-${Date.now()}`,
-        holdingRef: `skill.${name}`,
-        scopeRef: tenant,
-        assetRef,
-        selection: { kind: 'follow' },
-        sources: [
-          { sourceId: 'tenant', ownerRef: tenant, scope: { kind: 'owner', subjectRef: 'skills' } },
-        ],
-        grants: [],
-      })
-      if (held.kind !== 'committed') throw new Error(JSON.stringify(held))
       if (!enabled) {
         const disabled = await assets.changeHolding({
           operationId: `disable-${name}-${Date.now()}`,
-          holdingRef: `skill.${name}`,
+          holdingRef: publishedRef(made.id),
           scopeRef: tenant,
           expectedRevision: 1,
           change: { kind: 'setEnabled', enabled: false },

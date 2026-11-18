@@ -9,6 +9,7 @@ export { tenantLayerSource } from './layer.ts'
 export type * from './types.ts'
 export type {
   LocalPackages,
+  PackageHolding,
   PackageLocation,
   PackagePublishResult,
   PackageRecovery,
@@ -16,6 +17,7 @@ export type {
   PackageStep,
   PublishedPackages,
 } from './packages.ts'
+export { publishedRef } from './packages.ts'
 export {
   assetsPublicationFact,
   AssetPublicationRefSchema,

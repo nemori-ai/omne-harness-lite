@@ -1,11 +1,11 @@
 // @module-tag slow
 // Opens a real sqlite store with its worker threads and publishes packages to disk.
 import {
+  cpSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   realpathSync,
-  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
@@ -203,26 +203,21 @@ const search = (skills: SkillsAccess, query: string) =>
   skills.search({ query, after: null, limit: 10 }, signal)
 
 describe('the skills row and the Skills binding over a real store', () => {
-  it('finishes a publish that stopped after recording its version when the tenant set opens', async () => {
+  it('cleans what an interrupted publish left when the tenant set opens, and keeps what was recorded', async () => {
     const w = await world()
-    const version = await w.publish('weekly-report')
+    await w.publish('weekly-report')
     const versions = join(w.alphaRoot, 'skills', 'weekly-report')
     const [placed] = readdirSync(versions)
     if (placed === undefined) throw new Error('no version directory')
-    const staging = join(w.alphaRoot, '.staging', 'interrupted')
+    const unrecorded = join(versions, `sha256-${'0'.repeat(64)}`)
+    cpSync(join(versions, placed), unrecorded, { recursive: true })
+    const staging = join(w.alphaRoot, '.staging', 'interrupted', 'files')
     mkdirSync(staging, { recursive: true })
-    renameSync(join(versions, placed), join(staging, 'files'))
-    writeFileSync(
-      join(staging, 'meta.json'),
-      JSON.stringify({
-        category: 'skill',
-        name: 'weekly-report',
-        assetRef: 'tenant/skill/weekly-report',
-        version,
-      }),
-    )
+    writeFileSync(join(staging, 'SKILL.md'), 'half')
     const body = await w.alpha.read({ skill: 'weekly-report', offset: 0, maxBytes: 65536 }, signal)
     expect(body).toMatchObject({ ok: { directory: join(versions, placed) } })
+    expect(readdirSync(versions)).toEqual([placed])
+    expect(readdirSync(join(w.alphaRoot, '.staging'))).toEqual([])
   })
 
   it('gives a principal that is not session work of the tenant neither the Skill nor its content', async () => {

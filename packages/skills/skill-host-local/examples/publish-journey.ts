@@ -9,6 +9,7 @@ import {
 import {
   assetsSqlMaterials,
   createAssetsLocal,
+  publishedRef,
   tenantLayerSource,
   type AssetsLocal,
   type PackageLocation,
@@ -176,27 +177,24 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
     const made = capabilityId('skill', 'sample-skill')
     if (!made.ok) throw new Error('not a capability identity')
     const capability = made.id
-    const assetRef = 'tenant/skill/sample-skill'
+    const assetRef = publishedRef(capability)
 
     const published = await assets.packages.publish({
       capability,
-      assetRef,
       from: directoryReader(directories, options.packageDir),
       operationId: 'publish-sample-skill',
+      holding: {
+        sources: [
+          {
+            sourceId: 'tenant',
+            ownerRef: tenantRef,
+            scope: { kind: 'owner', subjectRef: 'skills' },
+          },
+        ],
+        grants: [],
+      },
     })
     if (published.kind !== 'published') throw new Error(JSON.stringify(published))
-    const held = await assets.hold({
-      operationId: 'hold-sample-skill',
-      holdingRef: 'skill.sample-skill',
-      scopeRef: tenantRef,
-      assetRef,
-      selection: { kind: 'follow' },
-      sources: [
-        { sourceId: 'tenant', ownerRef: tenantRef, scope: { kind: 'owner', subjectRef: 'skills' } },
-      ],
-      grants: [],
-    })
-    if (held.kind !== 'committed') throw new Error(JSON.stringify(held))
 
     async function official(): Promise<SkillLayerInput> {
       const root = options.officialDir
