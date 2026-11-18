@@ -39,6 +39,7 @@ import {
   savedTenant,
 } from '../r9/support.ts'
 import {
+  readHistoryFrom,
   readHistoryPage,
   savedClients,
   type HistoryEntry,
@@ -259,13 +260,22 @@ function withCompaction(layer: unknown, options: ReleaseTreeOptions): unknown {
 
 export type Entry = HistoryEntry
 
+// The whole history of a session, page after page: one page holds only its first 256 KB.
 export async function history(
   port: number,
   home: string,
   session: string,
 ): Promise<readonly Entry[]> {
-  const answer = await readHistoryPage(savedClients(port, home), savedTenant(home), session)
-  return answer.outcome === 'succeeded' ? answer.body.entries : []
+  const clients = savedClients(port, home)
+  const tenant = savedTenant(home)
+  const entries: Entry[] = []
+  let page = await readHistoryPage(clients, tenant, session)
+  while (page.outcome === 'succeeded') {
+    entries.push(...page.body.entries)
+    if (page.body.exhausted || page.body.next === null) return entries
+    page = await readHistoryFrom(clients, tenant, session, page.body.next)
+  }
+  return []
 }
 
 function sqliteFiles(storageRoot: string): string[] {
