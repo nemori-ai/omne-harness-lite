@@ -80,7 +80,7 @@ afterEach(() => {
 })
 
 describe('serve: the release tree of doubles', () => {
-  it('the release tree of 69 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
+  it('the release tree of 70 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
     try {
       const port = await freePort()
@@ -108,6 +108,7 @@ describe('serve: the release tree of doubles', () => {
         'governance:real',
         'calendar:real',
         'schedule:real',
+        'notification:real',
         'session-provider:real',
         'session-ad02:real',
         'session-ad03:real',
@@ -174,12 +175,39 @@ describe('serve: the release tree of doubles', () => {
         scope: 'serving',
         accepting: true,
         outcome: 'ready',
-        enabledRows: 71,
+        enabledRows: 72,
         barrierCalls: 1,
-        implementations: { real: 69, 'contract-double': 0, 's0-double': 2 },
+        implementations: { real: 70, 'contract-double': 0, 's0-double': 2 },
       })
       expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
       expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])
+    } finally {
+      rmSync(base, { recursive: true, force: true })
+    }
+  })
+
+  it('the release gives the notification row no policy; without one from the operator the tree is not ready and the log names the policy', async () => {
+    expect(release.rows.find(r => r.id === 'notification')).toEqual({
+      id: 'notification',
+      plugin: 'notificationRow',
+      config: {},
+    })
+    const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
+    try {
+      const { ops } = withTelemetry(
+        operatorLayer({ storageRoot: join(base, 'storage'), port: await freePort() }),
+      ) as { ops: { id: string }[] }
+      const run = await serveOnce({
+        distribution: release,
+        operator: { ops: ops.filter(op => op.id !== 'notification') },
+        readinessTimeoutMs: 15_000,
+        shutdownDeadlineMs: 5000,
+      })
+      expect(run.result).toMatchObject({ exitCode: 3, accepting: false })
+      const said = run.records
+        .filter(r => r['component'] === 'notification' && r['level'] === 'error')
+        .map(r => String((r['fields'] as { text?: unknown }).text))
+      expect(said.join('\n')).toMatch(/invalid config[^]*at policy/)
     } finally {
       rmSync(base, { recursive: true, force: true })
     }

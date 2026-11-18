@@ -126,6 +126,11 @@
       "config": {}
     },
     {
+      "id": "notification",
+      "plugin": "notificationRow",
+      "config": {}
+    },
+    {
       "id": "session-provider",
       "plugin": "sessionProviderRow",
       "config": {

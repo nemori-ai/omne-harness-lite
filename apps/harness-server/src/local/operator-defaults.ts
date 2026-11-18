@@ -363,6 +363,19 @@ const AGENT_HOST = {
   instanceIdleMs: 60_000,
 } as const
 
+/** A person gets every notification on the application's own surfaces. An agent has no destination until sessions take input from notifications. */
+const NOTIFICATION_POLICY = {
+  bodyLength: 16_384,
+  causalDepth: 3,
+  pageLimit: 100,
+  listLimit: 10,
+  retry: { maxAttempts: 5, backoffMs: [1_000, 5_000, 30_000, 120_000] },
+  deliverTimeoutMs: 10_000,
+  beat: { defaultMinutes: 60, minMinutes: 5, maxMinutes: 1_440 },
+  scanIntervalMs: 60_000,
+  recipients: { person: { channel: 'in-app', minLevel: 'weak' }, agent: null },
+}
+
 const TELEMETRY_BUDGETS = {
   maxRecordBytes: 16_384,
   maxQueueItems: 1024,
@@ -495,6 +508,9 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
       ? ([['tenant-assets', { packageRoot: locations.assetsRoot }]] as const)
       : []),
     ...(rows.has('skills') ? ([['skills', { ranking: SEARCH_RANKING }]] as const) : []),
+    ...(rows.has('notification')
+      ? ([['notification', { policy: NOTIFICATION_POLICY }]] as const)
+      : []),
     ['execution-host', { filesRoot: settings.workspace, stateDirectory: locations.hostFilesDir }],
     [
       'request-context',

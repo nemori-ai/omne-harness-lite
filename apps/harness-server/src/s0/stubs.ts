@@ -76,6 +76,20 @@ const TABLE: Readonly<Record<string, Entry>> = {
     injects: ['storage', 'tenantDomainLookup', 'calendarQuery', 'tenantIndependentSettings'],
     phase: 'composition',
   },
+  notification: {
+    provides: [
+      'notificationSending',
+      'notificationInbox',
+      'notificationSubscriptions',
+      'notificationDestinations',
+      'notificationCatalog',
+      'notificationSources',
+      'notificationChannels',
+      'notificationChanges',
+    ],
+    injects: ['storage', 'tenantDomainLookup', 'tenantDomains', 'tenantDomainScannerPrincipal'],
+    phase: 'composition',
+  },
   'session-storage': {
     provides: [
       'sessionTransactions',

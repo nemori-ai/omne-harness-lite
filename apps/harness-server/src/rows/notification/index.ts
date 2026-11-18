@@ -1,0 +1,128 @@
+import { z } from 'zod'
+import type { ConsentModes, StandingItems } from '@omne-harness/notification'
+import { instantSchema, type Instant } from '@omne-harness/notification-contract'
+import {
+  notificationCatalogKey,
+  notificationChangesKey,
+  notificationChannelsKey,
+  notificationDestinationsKey,
+  notificationInboxKey,
+  notificationSendingKey,
+  notificationSourcesKey,
+  notificationSubscriptionsKey,
+} from '@omne-harness/notification-cordis-contract/cordis'
+import { notificationPolicySchema } from '@omne-harness/notification-local'
+import { createNotificationLocalPlugin } from '@omne-harness/notification-local/cordis'
+import {
+  combinationManifest,
+  manifestDigest,
+  type SqlStorage,
+  type TenantDomainLookup,
+  type TenantDomains,
+} from '@omne-harness/sql-contract'
+import {
+  storageKey,
+  tenantDomainLookupKey,
+  tenantDomainsKey,
+} from '@omne-harness/sql-contract/cordis'
+import { readSystemInstant } from '../../entry/session-clock.ts'
+import { TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY } from '../../entry/tenant-domain-scanner.ts'
+import { defineRow } from '../../row.ts'
+import {
+  tenantDomainRegistrationKey,
+  type TenantDomainRegistration,
+} from '../governance/tenant-domain-registration-service.ts'
+import { productionStorageCatalog } from '../storage/production-catalog.ts'
+import { createNotificationAuthority } from './authority.ts'
+import { createTenantBindings, NOTIFICATION_PARTICIPANTS, type Combination } from './binding.ts'
+import { OWNER_POSTS } from './owner-source.ts'
+
+export const notificationConfig = z.strictObject({ policy: notificationPolicySchema })
+
+/** The owner confirms each subscription an agent asks for. A setting that lets them stand comes with the agent's half. */
+const CONFIRM_EACH: ConsentModes = { mode: async () => ({ kind: 'per-request' }) }
+
+/** No source publishes standing items into this tree yet: the read succeeds and finds none. */
+const NO_STANDING_SOURCES: StandingItems = { read: async () => ({ kind: 'ok', items: [] }) }
+
+function now(): Instant {
+  const instant = readSystemInstant()
+  if (!instant.ok) throw new Error('notification clock unavailable')
+  return instantSchema.parse(instant.text)
+}
+
+/** The storage combination of the notification participant, from the catalogue of the running code. */
+export async function notificationCombination(): Promise<Combination> {
+  const catalog = await productionStorageCatalog()
+  const manifest = combinationManifest({ catalog, participants: NOTIFICATION_PARTICIPANTS })
+  if (manifest.kind !== 'manifest') throw new Error('notification combination is not registrable')
+  const digest = manifestDigest(manifest.manifest)
+  return {
+    combinationVersion: `harness-notification/${digest.slice(0, 16)}`,
+    manifestDigest: digest,
+  }
+}
+
+export const notificationRow = defineRow({
+  row: 'notification',
+  implementation: 'real',
+  manifest: {
+    provides: [
+      notificationSendingKey,
+      notificationInboxKey,
+      notificationSubscriptionsKey,
+      notificationDestinationsKey,
+      notificationCatalogKey,
+      notificationSourcesKey,
+      notificationChannelsKey,
+      notificationChangesKey,
+    ],
+    injects: [
+      storageKey,
+      tenantDomainLookupKey,
+      tenantDomainsKey,
+      TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY,
+    ],
+    sameProviderGroup: null,
+  },
+  lifecycle: { kind: 'body', phase: 'composition' },
+  Config: notificationConfig,
+  async body(ctx, raw) {
+    const { policy } = notificationConfig.parse(raw)
+    const directory = ctx.get(tenantDomainsKey) as TenantDomains<unknown>
+    const scanner: unknown = ctx.get(TENANT_DOMAIN_SCANNER_PRINCIPAL_KEY)
+    const bindings = createTenantBindings({
+      storage: ctx.get(storageKey) as SqlStorage,
+      lookup: ctx.get(tenantDomainLookupKey) as TenantDomainLookup,
+      registration: () =>
+        ctx.get(tenantDomainRegistrationKey) as TenantDomainRegistration | undefined,
+      combination: notificationCombination,
+      listing: () => directory.enumerate({ principal: scanner }),
+    })
+    const logger = ctx.logger('notification')
+    const provider = ctx.plugin(createNotificationLocalPlugin(), {
+      policy,
+      sql: bindings,
+      ports: {
+        authority: createNotificationAuthority(),
+        consent: CONFIRM_EACH,
+        standing: NO_STANDING_SOURCES,
+      },
+      clock: { now },
+      report: error => logger.warn('notification work failed: %s', String(error)),
+    })
+    await provider.await()
+    ctx.inject([notificationSourcesKey], child => {
+      child.effect(
+        () => child.notificationSources.register(OWNER_POSTS),
+        'notification.owner-posts',
+      )
+    })
+    return {
+      async stop() {
+        await provider.dispose()
+        return { kind: 'settled' }
+      },
+    }
+  },
+})

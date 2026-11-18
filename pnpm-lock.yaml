@@ -668,6 +668,24 @@ importers:
       '@omne-harness/model-storage-sql':
         specifier: workspace:*
         version: link:../../packages/model/model-storage-sql
+      '@omne-harness/notification':
+        specifier: workspace:*
+        version: link:../../packages/notification/notification
+      '@omne-harness/notification-access':
+        specifier: workspace:*
+        version: link:../../packages/notification/notification-access
+      '@omne-harness/notification-contract':
+        specifier: workspace:*
+        version: link:../../packages/notification/notification-contract
+      '@omne-harness/notification-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/notification/notification-cordis-contract
+      '@omne-harness/notification-local':
+        specifier: workspace:*
+        version: link:../../packages/notification/notification-local
+      '@omne-harness/notification-tools':
+        specifier: workspace:*
+        version: link:../../packages/notification/notification-tools
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../packages/common/operation-result

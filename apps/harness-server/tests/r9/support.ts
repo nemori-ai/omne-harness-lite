@@ -348,6 +348,19 @@ export function toolRowsOperatorConfig(options: { storageRoot: string; exaEndpoi
   }
 }
 
+/** A whole policy, as an operator gives it: the release layer carries no numbers. */
+export const NOTIFICATION_POLICY = {
+  bodyLength: 4096,
+  causalDepth: 3,
+  pageLimit: 50,
+  listLimit: 5,
+  retry: { maxAttempts: 3, backoffMs: [100, 1000] },
+  deliverTimeoutMs: 5000,
+  beat: { defaultMinutes: 60, minMinutes: 5, maxMinutes: 1440 },
+  scanIntervalMs: 60_000,
+  recipients: { person: { channel: 'in-app', minLevel: 'weak' }, agent: null },
+}
+
 export function operatorLayer(options: {
   storageRoot: string
   port: number
@@ -418,6 +431,7 @@ export function operatorLayer(options: {
         config: { packageRoot: join(dirname(options.storageRoot), 'assets') },
       },
       { kind: 'replace', id: 'skills', config: { ranking: SEARCH_RANKING } },
+      { kind: 'replace', id: 'notification', config: { policy: NOTIFICATION_POLICY } },
       {
         kind: 'replace',
         id: 'request-context',

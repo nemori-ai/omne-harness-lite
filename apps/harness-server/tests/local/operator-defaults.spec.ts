@@ -1,3 +1,4 @@
+import { notificationConfig } from '../../src/rows/notification/index.ts'
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -229,8 +230,19 @@ describe('localOperatorLayer over the bundled distribution', () => {
     expect(without.ops.map(op => op.id)).toEqual(
       layer.ops
         .map(op => op.id)
-        .filter(id => id !== 'tenant-assets' && id !== 'skills' && id !== 'secret-custody'),
+        .filter(id => !['tenant-assets', 'skills', 'secret-custody', 'notification'].includes(id)),
     )
+  })
+
+  it('gives the notification row one whole policy that its schema takes, with every surface of the person reached in the application', () => {
+    const config = configOf(layer, 'notification')
+    expect(Object.keys(config ?? {})).toEqual(['policy'])
+    const parsed = notificationConfig.parse(config)
+    expect(parsed.policy.recipients).toEqual({
+      person: { channel: 'in-app', minLevel: 'weak' },
+      agent: null,
+    })
+    expect(parsed.policy.retry.backoffMs.length).toBeLessThan(parsed.policy.retry.maxAttempts)
   })
 
   it('does not overwrite any key that the release gives a replaced row', () => {
