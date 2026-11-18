@@ -877,7 +877,7 @@
 > **EN**: One entry in one recipient's inbox. It is the record that an accepted notification event left for that recipient. It carries the level, cause and note that were fixed when the event was accepted, and the marks that the recipient put on it. One send leaves at most one notification for one recipient.
 
 - **形态**：对象
-- **出处**：[通知：几样东西分别成立](../../product/notifications/design.md#model)（rev 3）
+- **出处**：[通知：几样东西分别成立](../../product/notifications/design.md#model)（rev 4）
 - **别混**：不是会话规格里指「提交之后的唤醒」的那个通知；不是运行时 context 给模型的变化提醒；不是[复制通知](circulation-and-entitlement.md#ul-copy-notice--复制通知--copy-notice)。
 - **注意**：它在收件箱里就是已送达。往界面、会话或外面推的结果不改这一点。
 
@@ -889,7 +889,7 @@
 > **EN**: Something that produces notification events and is registered with the notification domain. It declares its name and a set of notification event types. The registration is a fact of the deployment. It is not per tenant, and it gives no principal the right to send.
 
 - **形态**：对象
-- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 3）
+- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 4）
 - **别混**：不是会话的输入来源。输入来源说一条输入是谁送进会话的；通知来源说一件事是哪里发生的。
 - **注意**：系统里的领域、agent、通知自己都可以是通知来源。[连接件](capabilities-and-composition.md#ul-connector--连接件--connector)恢复之后也是一种。
 
@@ -901,7 +901,7 @@
 > **EN**: One kind of occurrence that a notification source declares. There are two kinds. A one-off event is sent by the source. A standing item is published by the source as runtime data and is never sent. The declaration says which recipient kinds can subscribe, whether a recipient can be named, the default level for each recipient kind, and whether the content comes from outside the system.
 
 - **形态**：属性
-- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 3）
+- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 4）
 - **别混**：[连接件事件类型](capabilities-and-composition.md#ul-connector-event-type--连接件事件类型--connector-event-type)是连接件这一种来源的事件类型。
 
 
@@ -912,7 +912,7 @@
 > **EN**: One occurrence of a one-off event that a notification source hands over. Its identity is the tenant, the source and the event id that the source gives. A second send with the same identity returns the first result. It carries the event type, the subject in the source that it is about, the time and the content.
 
 - **形态**：对象
-- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 3）
+- **出处**：[通知：一件事发生了](../../product/notifications/design.md#j-no01)（rev 4）
 - **别混**：不是内核总线上的事件，也不是会话日志里发生的事。「事件」裸用不是术语，见[冲突 C-11](../conflicts.md)。
 
 
@@ -923,7 +923,7 @@
 > **EN**: Something on a notification source's side that is still open and needs the recipient, for example a card that waits for a decision or a blocked schedule. Only the source decides whether it is open or closed. The source publishes the items that are open now. The notification domain reads them to remind the recipient and does not store them.
 
 - **形态**：视图
-- **出处**：[通知：还开着的事](../../product/notifications/design.md#j-no08)（rev 3）
+- **出处**：[通知：还开着的事](../../product/notifications/design.md#j-no08)（rev 4）
 - **别混**：不是[通知](#ul-notification--通知--notification)。它不进收件箱，收件人不能划掉它；了结它要在来源那里把事办了。
 
 
@@ -934,7 +934,7 @@
 > **EN**: The party that notifications are given to. There are two kinds: a person, which is the tenant itself, or an entrusted agent. To the notification domain an entrusted agent is an opaque reference that only the delivery channel able to reach it understands. A recipient exists within one tenant.
 
 - **形态**：对象
-- **出处**：[通知：agent 订阅一类事件](../../product/notifications/design.md#j-no05)（rev 3）
+- **出处**：[通知：agent 订阅一类事件](../../product/notifications/design.md#j-no05)（rev 4）
 - **注意**：两种收件人用同一套通知订阅、收件箱、强度与节拍。
 
 
@@ -945,7 +945,7 @@
 > **EN**: All notifications of one notification recipient. For a person, the inbox is the "new" section of the panel in the interface.
 
 - **形态**：视图
-- **出处**：[通知：回来之后，在一个面板上看和处置](../../product/notifications/design.md#j-no02)（rev 3）
+- **出处**：[通知：回来之后，在一个面板上看和处置](../../product/notifications/design.md#j-no02)（rev 4）
 - **别混**：不是人工介入规格里「原等待的收件箱」，见冲突 C-88。
 
 
@@ -956,7 +956,7 @@
 > **EN**: The choice that one notification recipient makes for one notification event type within a scope: off, weak or strong. It also carries a note, a term and the basis on which it stands. The scope is everything, a subject equal to a reference, or a subject that starts with a prefix. The most specific scope wins. A subscription of an entrusted agent needs the owner's consent as its basis.
 
 - **形态**：对象
-- **出处**：[通知：我定哪些要收](../../product/notifications/design.md#j-no03)（rev 3）
+- **出处**：[通知：我定哪些要收](../../product/notifications/design.md#j-no03)（rev 4）
 - **别混**：[事件订阅](capabilities-and-composition.md#ul-event-subscription--事件订阅--event-subscription)是连接件持有上的设置，定哪几种外部事件进系统，agent 不在运行时改它。通知订阅定进来之后谁收，agent 可以为自己订。
 - **别混**：[日程订阅](execution-and-outcome.md#ul-schedule-subscription--日程订阅--schedule-subscription)订的是系统提供的定时功能，不是事件。
 
@@ -968,7 +968,7 @@
 > **EN**: The value of a notification subscription, and the value fixed on a notification. Strong: the notification is delivered immediately after it enters the inbox. Weak: it is not delivered by itself and waits for the beat. Off is a subscription value only: no notification is left for this recipient.
 
 - **形态**：属性
-- **出处**：[通知：我定哪些要收](../../product/notifications/design.md#j-no03)（rev 3）
+- **出处**：[通知：我定哪些要收](../../product/notifications/design.md#j-no03)（rev 4）
 - **注意**：来源只给缺省强度，之后归收件人。被点名的收件人选了不收时按弱。
 
 
@@ -979,7 +979,7 @@
 > **EN**: One place where a notification recipient receives deliveries: a delivery channel, an address that the channel understands, the lowest level it takes, and whether it is enabled. One notification is delivered to every enabled destination of the recipient, and each delivery has its own result.
 
 - **形态**：对象
-- **出处**：[通知：同一条通知同时到几个地方](../../product/notifications/design.md#j-no04)（rev 3）
+- **出处**：[通知：同一条通知同时到几个地方](../../product/notifications/design.md#j-no04)（rev 4）
 - **别混**：连接件的[投递目标](#ul-inbound-target--投递目标--inbound-target)说外部事件送进哪个会话，见冲突 C-87。
 
 
@@ -990,7 +990,7 @@
 > **EN**: A way to deliver notifications to a recipient, registered with the notification domain. It declares which addresses it understands and whether it leaves the system. It promises that a repeated delivery with the same identity has no second effect.
 
 - **形态**：对象
-- **出处**：[通知：同一条通知同时到几个地方](../../product/notifications/design.md#j-no04)（rev 3）
+- **出处**：[通知：同一条通知同时到几个地方](../../product/notifications/design.md#j-no04)（rev 4）
 
 
 ### UL-delivery-unit · 投递单元 · Delivery Unit
@@ -1000,7 +1000,7 @@
 > **EN**: The unit of one delivery: a set of notifications fixed for one delivery destination. Strong notifications are grouped into units under the minimum interval. A beat groups everything that needs a reminder at that time. The members and content of a unit are fixed when it is formed, and every retry delivers the same unit.
 
 - **形态**：对象
-- **出处**：[通知：agent 把事攒着](../../product/notifications/design.md#j-no06)（rev 3）
+- **出处**：[通知：agent 把事攒着](../../product/notifications/design.md#j-no06)（rev 4）
 
 
 ### UL-notification-delivered · 通知送达 · Notification Delivered
@@ -1010,7 +1010,7 @@
 > **EN**: A notification is in the recipient's inbox and the recipient can retrieve it at any time. This holds from the moment the notification event is accepted. No delivery result to any destination changes it.
 
 - **形态**：状态
-- **出处**：[通知：几样东西分别成立](../../product/notifications/design.md#model)（rev 3）
+- **出处**：[通知：几样东西分别成立](../../product/notifications/design.md#model)（rev 4）
 - **别混**：不是已投递、看过或了结；也不是模型与工具的[交付责任解除](execution-and-outcome.md#ul-delivery-release--交付责任解除--delivery-release)。
 
 
@@ -1021,7 +1021,7 @@
 > **EN**: A key that a send can carry. When a new notification with the same recipient, source and key enters the inbox, the earlier ones are marked as superseded by it and cannot be restored. By default the superseding notification is not delivered again.
 
 - **形态**：属性
-- **出处**：[通知：agent 写一条给人看](../../product/notifications/design.md#j-no07)（rev 3）
+- **出处**：[通知：agent 写一条给人看](../../product/notifications/design.md#j-no07)（rev 4）
 
 
 ### UL-notification-beat · 通知节拍 · Notification Beat
@@ -1031,7 +1031,7 @@
 > **EN**: A recurring point in time of one notification recipient. When it comes and the inbox has something that needs a reminder, those notifications are composed into one digest and delivered once. Otherwise nothing happens. The owner sets the interval.
 
 - **形态**：属性
-- **出处**：[通知：agent 把事攒着](../../product/notifications/design.md#j-no06)（rev 3）
+- **出处**：[通知：agent 把事攒着](../../product/notifications/design.md#j-no06)（rev 4）
 - **别混**：节拍只提醒已有的通知，不带任何工作。定期要 agent 做一件事归日程。
 
 ---
