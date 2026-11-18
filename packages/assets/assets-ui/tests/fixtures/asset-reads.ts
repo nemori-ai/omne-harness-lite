@@ -56,12 +56,14 @@ const described = (row: AssetRowView): unknown => ({
   settings: false,
 })
 
+type Creation = Readonly<{ detail: unknown; hint: string | null }>
+
 /** Answers every read of the asset list, of a category and of one asset from these rows. */
 export function serveAssetReads(
   fake: FakeClient,
   rows: readonly AssetRowView[],
   describe: (row: AssetRowView) => unknown = described,
-  creation?: Readonly<{ detail: unknown; hint: string | null }>,
+  creationOf?: Creation | ((category: string) => Creation | undefined),
 ): void {
   serve(fake, 'list-assets', body => ({
     outcome: 'succeeded',
@@ -71,16 +73,20 @@ export function serveAssetReads(
       completeness: 'complete',
     },
   }))
-  serve(fake, 'describe-category', body => ({
-    outcome: 'succeeded',
-    body: {
-      category: body['category'],
-      title: String(body['category']),
-      summary: '',
-      hint: creation?.hint ?? null,
-      creation: creation?.detail ?? { kind: 'none' },
-    },
-  }))
+  serve(fake, 'describe-category', body => {
+    const category = String(body['category'])
+    const creation = typeof creationOf === 'function' ? creationOf(category) : creationOf
+    return {
+      outcome: 'succeeded',
+      body: {
+        category,
+        title: category,
+        summary: '',
+        hint: creation?.hint ?? null,
+        creation: creation?.detail ?? { kind: 'none' },
+      },
+    }
+  })
   serve(fake, 'describe-asset', body => {
     const row = rows.find(item => item.category === body['category'] && item.name === body['name'])
     if (row === undefined) return { outcome: 'not-found', body: {} }
