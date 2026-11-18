@@ -1,6 +1,6 @@
 import { SharedMap, forkOf } from './shared-map.ts'
-import { factKey } from './facts.ts'
-import type { AgentExecutionId } from '@omne-harness/agent-contract'
+import { factKey, resultKey } from './facts.ts'
+import type { AgentExecutionId, ConsumptionId } from '@omne-harness/agent-contract'
 import {
   emptyExecutionView,
   type AdmissionView,
@@ -115,10 +115,11 @@ function callHeld(consumption: string, view: ExecutionView): boolean {
   return false
 }
 
+const owed = (item: ResultView): boolean =>
+  item.stages.recorded !== undefined && item.stages.released === undefined
+
 const resultOpen = (item: ResultView, view: ExecutionView): boolean =>
-  item.stages.processed === undefined ||
-  (item.stages.recorded !== undefined && item.stages.released === undefined) ||
-  callHeld(item.consumption, view)
+  owed(item) || callHeld(item.consumption, view)
 
 export function sourceOpen(id: string, view: ExecutionView): boolean {
   const [kind, key] = JSON.parse(id) as [string, string]
@@ -127,7 +128,8 @@ export function sourceOpen(id: string, view: ExecutionView): boolean {
     return intent !== undefined && intentHeld(intent, view)
   }
   if (kind !== 'result') return true
-  const result = view.results.get((JSON.parse(key) as string[])[2] as never)
+  const [, version, consumption] = JSON.parse(key) as [unknown, string, ConsumptionId]
+  const result = view.results.get(resultKey(consumption, version))
   return result !== undefined && resultOpen(result, view)
 }
 
@@ -211,8 +213,13 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
     family: 'binding',
     holder: list(at('bindings'), item => item.reference, byPubOrd),
     open: (item: BindingView, view: ExecutionView) => {
-      const result = view.results.get(item.consumption)
-      return result === undefined || resultOpen(result, view)
+      let any = false
+      for (const result of view.results.values()) {
+        if (result.consumption !== item.consumption) continue
+        if (resultOpen(result, view)) return true
+        any = true
+      }
+      return !any
     },
   },
   { family: 'material', holder: table(at('materials')), open: always },
