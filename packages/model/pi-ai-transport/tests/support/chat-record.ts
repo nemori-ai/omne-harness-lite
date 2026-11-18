@@ -338,7 +338,7 @@ export function assembledOf(request: FixedModelRequest): AssembledModelInput {
 }
 
 export function profileOf(
-  record: ChatCompletionsRecord,
+  record: AnyRecord,
   options: Readonly<{ replay?: ProfileReplay; outputLimit?: string }> = {},
 ): ModelProfile {
   const revision = decodeRevision('1')

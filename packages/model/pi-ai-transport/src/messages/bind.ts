@@ -2,6 +2,7 @@ import type { Adoption, FixedModelRequest, Supplier } from '@omne-harness/model-
 import type { RouteAccounting } from '../config.ts'
 import type { PiFamilyBinding } from '../family.ts'
 import { recordAdoption } from '../family-table.ts'
+import { sameAdoption } from '../engine-request.ts'
 import { isPositiveInteger } from '../limits.ts'
 import { declarationName, TOOL_NAME_RULES, toolNamesOf } from '../chat-completions/tool-names.ts'
 import {
@@ -32,15 +33,6 @@ const MESSAGES_FIELDS: ReadonlySet<GatewayField> = new Set([
   'top_p',
   'reasoning.effort',
 ])
-
-function sameAdoption(left: Adoption, right: Adoption): boolean {
-  return (
-    left.owner === right.owner &&
-    left.name === right.name &&
-    left.revision === right.revision &&
-    left.digest === right.digest
-  )
-}
 
 function wiredFields(table: ParameterTable): readonly GatewayField[] {
   const fields: GatewayField[] = []

@@ -275,13 +275,60 @@ describe('decode: events written for the case', () => {
     })
   })
 
-  it('reads an error event as an in-band fault by its type', () => {
-    expect(
-      run([START, frame({ type: 'error', error: { type: 'overloaded_error' } })]).fault,
-    ).toEqual({
-      cause: 'upstream-unavailable',
+  it.each([
+    ['overloaded_error', 'upstream-unavailable'],
+    ['api_error', 'upstream-unavailable'],
+    ['rate_limit_error', 'upstream-unavailable'],
+    ['invalid_request_error', 'input-rejected'],
+    ['request_too_large', 'input-rejected'],
+    ['authentication_error', 'credential'],
+    ['permission_error', 'credential'],
+    ['something_new', 'unclassified'],
+  ])('reads an error event of type %s as an in-band %s fault', (type, cause) => {
+    expect(run([START, frame({ type: 'error', error: { type } })]).fault).toEqual({
+      cause,
       diagnostic: 'in-band-error',
       upstreamStatus: null,
+    })
+  })
+
+  it.each([
+    ['an event of an unknown type', { type: 'message_paused' }, 'unsupported-event'],
+    ['a frame that is not an object', ['x'], 'event-not-object'],
+    ['a block event without an index', { type: 'content_block_stop' }, 'event-without-index'],
+    ['a start without its message', { type: 'message_start' }, 'message-start-without-message'],
+    [
+      'a delta of an unknown kind',
+      { type: 'content_block_delta', index: 0, delta: { type: 'citations_delta' } },
+      'unsupported-delta',
+    ],
+  ])('refuses %s', (_case, value, diagnostic) => {
+    expect(run([frame(value)]).fault).toEqual({
+      cause: 'upstream-protocol',
+      diagnostic,
+      upstreamStatus: null,
+    })
+  })
+
+  it('takes a ping anywhere and keeps the usage of the start when the finish reports none', () => {
+    const { facts } = run([
+      frame({ type: 'ping' }),
+      START,
+      frame({ type: 'ping' }),
+      ...TEXT,
+      frame({ type: 'message_delta', delta: { stop_reason: 'end_turn' } }),
+      frame({ type: 'message_stop' }),
+    ])
+    expect(facts.find(fact => fact.kind === 'account')).toMatchObject({
+      value: {
+        usage: [
+          { name: 'input', state: 'known', lexeme: '10' },
+          { name: 'output', state: 'unknown' },
+          { name: 'cache-read', state: 'unknown' },
+          { name: 'cache-write', state: 'unknown' },
+          { name: 'reasoning', state: 'unknown' },
+        ],
+      },
     })
   })
 })

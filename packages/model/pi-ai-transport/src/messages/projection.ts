@@ -221,6 +221,70 @@ function addUser(
   return { ok: undefined }
 }
 
+type AssistantBlock = Extract<ChatMessage, { role: 'assistant' }>['blocks'][number]
+
+type AssistantParts = {
+  payloads: string[]
+  thoughts: string[]
+  content: JsonValue[]
+  blocks: ProjectedPart[]
+}
+
+type AssistantContext = MessageContext &
+  Readonly<{ treatment: ReplayTreatment; carry: ReadonlySet<number>; pending: Built['pending'] }>
+
+function thinkingPart(
+  parts: AssistantParts,
+  block: Extract<AssistantBlock, { kind: 'thinking' }>,
+  rule: ReplayTreatment['thinking'],
+): void {
+  if (rule === 'omit') return
+  if (rule !== 'text') {
+    parts.thoughts.push(block.text)
+    return
+  }
+  parts.content.push(object({ type: text('text'), text: text(block.text) }))
+  parts.blocks.push({ kind: 'text', id: block.id, visibility: block.visibility, text: block.text })
+}
+
+function assistantPart(
+  parts: AssistantParts,
+  block: AssistantBlock,
+  at: Readonly<{ index: number; path: string }>,
+  context: AssistantContext,
+): Outcome<void, TransportFailure> {
+  switch (block.kind) {
+    case 'reasoning_state':
+      if (context.carry.has(at.index)) parts.payloads.push(block.payload)
+      return { ok: undefined }
+    case 'thinking':
+      thinkingPart(parts, block, context.treatment.thinking)
+      return { ok: undefined }
+    case 'tool_call':
+    case 'tool_call_unparsed': {
+      const id = normalizeToolCallId(block.callId)
+      const name = context.names.wire(block.name)
+      const args = block.kind === 'tool_call' ? block.arguments : unparsedArguments(block.raw)
+      parts.content.push(
+        object({ type: text('tool_use'), id: text(id), name: text(name), input: sorted(args) }),
+      )
+      context.pending.set(id, at.path)
+      parts.blocks.push({ ...block, name })
+      return { ok: undefined }
+    }
+    case 'tool_call_incomplete':
+      return invalid(at.path, 'incomplete-tool-call')
+    case 'text':
+      parts.content.push(object({ type: text('text'), text: text(block.text) }))
+      parts.blocks.push(block)
+      return { ok: undefined }
+    default: {
+      const json = contentJson(block, at.path, context.input)
+      return 'ok' in json ? { ok: undefined } : json
+    }
+  }
+}
+
 function addAssistant(
   built: Built,
   message: Extract<ChatMessage, { role: 'assistant' }>,
@@ -229,61 +293,24 @@ function addAssistant(
 ): Outcome<void, TransportFailure> {
   const { treatment, input } = context
   const carry = new Set(treatment.continuable ? treatment.carry : [])
-  const payloads: string[] = []
-  const thoughts: string[] = []
-  const content: JsonValue[] = []
-  const blocks: ProjectedPart[] = []
+  const parts: AssistantParts = { payloads: [], thoughts: [], content: [], blocks: [] }
+  const full: AssistantContext = { ...context, carry, pending: built.pending }
   for (const [index, block] of message.blocks.entries()) {
-    const at = `${path}/blocks/${index}`
     if (!block.visibility.toModel) continue
-    switch (block.kind) {
-      case 'reasoning_state':
-        if (carry.has(index)) payloads.push(block.payload)
-        continue
-      case 'thinking':
-        if (treatment.thinking === 'text') {
-          content.push(object({ type: text('text'), text: text(block.text) }))
-          blocks.push({
-            kind: 'text',
-            id: block.id,
-            visibility: block.visibility,
-            text: block.text,
-          })
-        } else if (treatment.thinking !== 'omit') thoughts.push(block.text)
-        continue
-      case 'tool_call':
-      case 'tool_call_unparsed': {
-        const id = normalizeToolCallId(block.callId)
-        const name = context.names.wire(block.name)
-        const args = block.kind === 'tool_call' ? block.arguments : unparsedArguments(block.raw)
-        content.push(
-          object({ type: text('tool_use'), id: text(id), name: text(name), input: sorted(args) }),
-        )
-        built.pending.set(id, at)
-        blocks.push({ ...block, name })
-        continue
-      }
-      case 'tool_call_incomplete':
-        return invalid(at, 'incomplete-tool-call')
-      case 'text':
-        content.push(object({ type: text('text'), text: text(block.text) }))
-        blocks.push(block)
-        continue
-      default: {
-        const json = contentJson(block, at, input)
-        if (!('ok' in json)) return json
-        continue
-      }
-    }
+    const added = assistantPart(parts, block, { index, path: `${path}/blocks/${index}` }, full)
+    if (!('ok' in added)) return added
   }
-  const thinking = replayedThinking(payloads, thoughts, treatment, path, input)
+  const thinking = replayedThinking(parts.payloads, parts.thoughts, treatment, path, input)
   if (!('ok' in thinking)) return thinking
-  if (thinking.ok.length === 0 && content.length === 0) return { ok: undefined }
-  built.turns.push({ role: 'assistant', content: [...thinking.ok.map(thinkingJson), ...content] })
+  if (thinking.ok.length === 0 && parts.content.length === 0) return { ok: undefined }
+  built.turns.push({
+    role: 'assistant',
+    content: [...thinking.ok.map(thinkingJson), ...parts.content],
+  })
   built.view.push({
     message: message.id,
     role: 'assistant',
-    blocks,
+    blocks: parts.blocks,
     replay:
       thinking.ok.length === 0
         ? { kind: 'none' }
