@@ -466,9 +466,7 @@
 | [UL-fit-verdict](terms/record-and-context.md#ul-fit-verdict--装入裁定--fit-verdict) | 装入裁定 | Fit Verdict | 装得下 · 固定部分超限 · 需要压缩 · 限额未知，四选一；**限额未知不是失败** |
 | [UL-representation-choice](terms/record-and-context.md#ul-representation-choice--表示决定--representation-choice) | 表示决定 | Representation Choice | 每个内容块用原件、派生表示、transcript 还是延迟加载的选择；不读字节 |
 | [UL-prompt-contribution](terms/record-and-context.md#ul-prompt-contribution--提示词贡献--prompt-contribution) | 提示词贡献 | Prompt Contribution | 登记进系统提示词组装的一条材料，**只有有序段与变量两类**；弃用 ~~动态事实段~~ |
-| [UL-context-snapshot-reminder](terms/record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder) | 上下文快照提醒 | Context Snapshot Reminder | 完整读取后放进请求的全部稳定块完整值，**只进请求不进日志**，锚定位置 |
-| [UL-snapshot-anchor](terms/record-and-context.md#ul-snapshot-anchor--快照锚点--snapshot-anchor) | 快照锚点 | Snapshot Anchor | 快照提醒在模型可见历史里的固定位置：完整读取时的历史尾部，压缩后在压缩记录之后 |
-| [UL-tail-facts-reminder](terms/record-and-context.md#ul-tail-facts-reminder--尾部易变提醒--tail-facts-reminder) | 尾部易变提醒 | Tail Facts Reminder | 请求**最末**那条只含逐请求变化块的提醒，每次重算，不进历史与快照 |
+| [UL-context-snapshot-reminder](terms/record-and-context.md#ul-context-snapshot-reminder--上下文快照提醒--context-snapshot-reminder) | 上下文快照提醒 | Context Snapshot Reminder | 持有者写进会话日志的全部可读块完整值，写入之后位置不变 |
 | [UL-compaction-plan](terms/record-and-context.md#ul-compaction-plan--压缩计划--compaction-plan) | 压缩计划 | Compaction Plan | 提供者内部的有界计划，不是 Agent 消费协议 |
 | [UL-compaction-plan-progress](terms/record-and-context.md#ul-compaction-plan-progress--压缩计划进度--compaction-plan-progress) | 压缩计划进度 | Compaction Plan Progress | 提供者保管和恢复的内部计划位置 |
 | [UL-compaction-step-request](terms/record-and-context.md#ul-compaction-step-request--压缩步请求--compaction-step-request) | 压缩步请求 | Compaction Step Request | 提供者内部步骤的请求，不交 Agent 驱动 |
