@@ -15,7 +15,11 @@ describe('the OpenRouter provider body', () => {
           endMarker: '[DONE]',
         },
         { protocol: 'messages', url: 'https://openrouter.ai/api/v1/messages' },
-        { protocol: 'responses', url: 'https://openrouter.ai/api/v1/responses' },
+        {
+          protocol: 'responses',
+          url: 'https://openrouter.ai/api/v1/responses',
+          endMarker: '[DONE]',
+        },
       ],
       accounting: { ...OPENROUTER_ACCOUNTING },
       credentials: [

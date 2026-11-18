@@ -14,7 +14,11 @@ export const OPENROUTER_PROVIDER_BODY_TEXT: string = JSON.stringify({
       endMarker: '[DONE]',
     },
     { protocol: 'messages', url: 'https://openrouter.ai/api/v1/messages' },
-    { protocol: 'responses', url: 'https://openrouter.ai/api/v1/responses' },
+    {
+      protocol: 'responses',
+      url: 'https://openrouter.ai/api/v1/responses',
+      endMarker: '[DONE]',
+    },
   ],
   accounting: OPENROUTER_ACCOUNTING,
   credentials: [

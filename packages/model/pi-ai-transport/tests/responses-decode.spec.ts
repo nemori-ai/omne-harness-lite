@@ -21,6 +21,8 @@ import {
   stream,
 } from './support/responses-record.ts'
 import { frame } from './support/messages-record.ts'
+import { readFileSync } from 'node:fs'
+import { replayStream } from '../src/testing/index.ts'
 
 const ACCOUNTING = { place: 'gateway', costUnit: 'gateway-credit' }
 const UPSTREAM = responsesRecord({ serving: { order: ['upstream'], reports: ['Upstream'] } })
@@ -344,5 +346,26 @@ describe('decode: events written for the case', () => {
 
   it('has no refusal of its own: a refused request is left to its status', () => {
     expect(decoderOf().refused).toBeUndefined()
+  })
+})
+
+// The gateway ends a Responses stream with its end marker; a recording replays to its end.
+it('replays a recorded stream to the end through the end marker of the gateway', async () => {
+  const record = UPSTREAM
+  const binding = bindResponses({
+    record,
+    supplier: supplierOf(record),
+    meter: testMeter(record, engineProbe()),
+    limits: LIMITS,
+    release: async () => {},
+  })
+  const request = fixedRequest(record, { tools: [tool('get_weather'), tool('lookup')] })
+  const bytes = new Uint8Array(
+    readFileSync(new URL('./fixtures/responses/message-call.sse', import.meta.url)),
+  )
+  const facts = await replayStream(binding, bytes, request, ACCOUNTING)
+  expect(facts.at(-1)).toEqual({
+    kind: 'ended',
+    termination: { kind: 'completed', reason: 'tool-suggestions' },
   })
 })
