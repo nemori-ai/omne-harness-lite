@@ -22,7 +22,12 @@ export async function openOrganizationCurrentWorld(
   const identity = await openIdentityWorld()
   const organization = organizationCodec.encode(identity.administrator.tenant.organization)
   if (!organization.ok) throw new Error('Invalid organization fixture')
-  const target = { policyId: 'independent', targetRef: 'preferences', scopeRef: organization.value }
+  const target = {
+    kind: 'independent',
+    providerId: 'example',
+    definitionId: 'preferences',
+    scopeRef: organization.value,
+  } as const
   const domain: DomainRef = { scope: { kind: 'system' }, transactionDomain: 'system.settings' }
   const parent = fileURLToPath(
     new URL('../../../../tmp/closures/settings-organization-current/', import.meta.url),

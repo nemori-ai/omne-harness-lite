@@ -1,11 +1,16 @@
 import type { AssetsProtocol } from '@omne-harness/assets-protocol'
+import type { JsonValue } from '@omne-harness/json-text'
 import type { TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { INITIAL, step, type Effect, type Event, type State } from './settings-machine.ts'
 
+type ListBody = Parameters<ClientOf<AssetsProtocol>['list-settings']>[0]
+export type SettingsScope = ListBody['scope']
+
 export type SettingsDriverDeps = Readonly<{
   client: ClientOf<AssetsProtocol>
   tenant: TenantId
+  scope: SettingsScope
   newId?: () => string
 }>
 
@@ -22,12 +27,14 @@ export class SettingsDriver {
   readonly #listeners = new Set<() => void>()
   readonly #client: ClientOf<AssetsProtocol>
   readonly #tenant: TenantId
+  readonly #scope: SettingsScope
   readonly #newId: () => string
   #disposed = false
 
   constructor(deps: SettingsDriverDeps) {
     this.#client = deps.client
     this.#tenant = deps.tenant
+    this.#scope = deps.scope
     this.#newId = deps.newId ?? (() => crypto.randomUUID())
   }
 
@@ -44,6 +51,10 @@ export class SettingsDriver {
 
   set(key: string, pick: string): void {
     this.dispatch({ kind: 'set', key, pick, operation: this.#newId() })
+  }
+
+  setValue(key: string, value: JsonValue): void {
+    this.dispatch({ kind: 'set-value', key, value, operation: this.#newId() })
   }
 
   setSecret(key: string, secret: string): void {
@@ -82,9 +93,9 @@ export class SettingsDriver {
     switch (effect.kind) {
       case 'list': {
         const { token, after } = effect
-        void notSent(() => client['list-settings']({ tenant, after, limit: PAGE_LIMIT })).then(
-          answer => this.dispatch({ kind: 'list-answered', token, answer }),
-        )
+        void notSent(() =>
+          client['list-settings']({ tenant, scope: this.#scope, after, limit: PAGE_LIMIT }),
+        ).then(answer => this.dispatch({ kind: 'list-answered', token, answer }))
         return
       }
       case 'describe': {
@@ -104,6 +115,11 @@ export class SettingsDriver {
             case 'set':
               return client['set-setting'](
                 { ...body, value: { kind: 'permission', pick: request.pick } },
+                options,
+              )
+            case 'set-value':
+              return client['set-setting'](
+                { ...body, value: { kind: 'ordinary', value: request.value } },
                 options,
               )
             case 'set-secret':

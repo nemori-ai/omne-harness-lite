@@ -36,6 +36,7 @@ import {
 } from './fixtures/tree.ts'
 import { identityRow } from '../../../src/rows/identity/index.ts'
 import { assetCategoriesRow } from '../../../src/rows/asset-categories/index.ts'
+import { tenantAssetsRow } from '../../../src/rows/tenant-assets/index.ts'
 import { governanceRow } from '../../../src/rows/governance/index.ts'
 import { principalIssuer, principalVerifier } from '../../../src/entry/principals.ts'
 import { governanceInstallationPrincipals } from '../../../src/entry/governance-installation-principals.ts'
@@ -164,6 +165,7 @@ it('publishes a real tenant backend from the governance row without authorizing 
     extraRows: [
       declared(identityRow, releaseIdentityConfig()),
       declared(assetCategoriesRow, {}),
+      declared(tenantAssetsRow, { packageRoot: join(stateRoot, 'packages') }),
       declared(governanceRow, {
         deploymentId: 'harness-local',
         logicalServiceId: 'harness-governance',

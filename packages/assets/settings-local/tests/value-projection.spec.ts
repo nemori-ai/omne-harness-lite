@@ -144,7 +144,7 @@ it.each(['missing', 'foreign'] as const)(
         binding.request.targets = [
           {
             ...w.target,
-            ...(kind === 'missing' ? { targetRef: 'missing' } : { scopeRef: 'tenant-b' }),
+            ...(kind === 'missing' ? { definitionId: 'missing' } : { scopeRef: 'tenant-b' }),
           },
         ]
       }),

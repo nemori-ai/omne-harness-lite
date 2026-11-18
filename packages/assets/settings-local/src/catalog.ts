@@ -224,7 +224,7 @@ export function createSettingsCatalog(
         principalRef: operation.principalRef,
         destination: options.destination,
         scopeRef,
-        targetRef: canonical(operation.target),
+        targetRef: canonical(operation.subject),
         inputDigest: operation.commandDigest,
       },
     })

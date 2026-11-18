@@ -17,8 +17,8 @@ import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
 import type { GovernanceScope } from '@omne-harness/governance-contract'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import type { ToolReleaseEntry } from '../../entry/tool-release-manifest.ts'
-import { PREFERENCE_SETTINGS_CONFIGURATION, preferenceOf } from './preference-settings.ts'
-import { createPreferenceSettingsPreparation } from './preference-settings-write.ts'
+import { INDEPENDENT_SETTINGS_CONFIGURATION } from './independent-settings.ts'
+import { createIndependentSettingsPreparation } from './independent-settings-write.ts'
 import { governanceStorageCombinations } from './storage-combinations.ts'
 import {
   TARGET_SNAPSHOT,
@@ -205,13 +205,16 @@ export function createTenantSettingsWrite(options: TenantSettingsWriteOptions) {
     },
   })
 
-  const preference = createPreferenceSettingsPreparation({ ...options, domain, combinations })
+  const independent = createIndependentSettingsPreparation({ ...options, domain, combinations })
   const writer: TenantSettingsWriter = {
     async write(input) {
-      if (preferenceOf(input.command.target) !== undefined)
-        return writeThrough(preference.service, options.writer, input)
-      planned = (await options.epoch()) ?? planned
-      return writeThrough(prepared.service, options.writer, input)
+      switch (input.command.target.kind) {
+        case 'independent':
+          return writeThrough(independent.service, options.writer, input)
+        case 'asset':
+          planned = (await options.epoch()) ?? planned
+          return writeThrough(prepared.service, options.writer, input)
+      }
     },
   }
 
@@ -219,13 +222,13 @@ export function createTenantSettingsWrite(options: TenantSettingsWriteOptions) {
     writer,
     destination: {
       seal: (reservation: Parameters<typeof prepared.control.destination.seal>[0]) =>
-        reservation.binding.destination === PREFERENCE_SETTINGS_CONFIGURATION.destination
-          ? preference.control.destination.seal(reservation)
+        reservation.binding.destination === INDEPENDENT_SETTINGS_CONFIGURATION.destination
+          ? independent.control.destination.seal(reservation)
           : prepared.control.destination.seal(reservation),
     },
     close: async () => {
       await prepared.control.close()
-      await preference.control.close()
+      await independent.control.close()
     },
   }
 }

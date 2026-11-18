@@ -7,6 +7,7 @@
     "authorization",
     "session-storage",
     "asset-categories",
+    "tenant-assets",
     "governance",
     "calendar",
     "schedule",
@@ -111,10 +112,12 @@
       ]
     },
     {
-      "row": "skills",
+      "row": "tenant-assets",
       "names": [
         "storage",
-        "tenantDomainLookup"
+        "tenantDomainLookup",
+        "principalVerifier",
+        "tenantStanding"
       ]
     },
     {

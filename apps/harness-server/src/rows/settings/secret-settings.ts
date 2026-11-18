@@ -58,7 +58,7 @@ const isSecret = (view: SecretItemView): view is Secret => view.sensitivity === 
 
 function viewOf(own: Secret, official: Secret): SecretView {
   return {
-    asset: own.asset,
+    owner: { kind: 'asset', category: own.asset.category, name: own.asset.name },
     item: own.itemId,
     revision: '0',
     declaration: {
@@ -66,6 +66,7 @@ function viewOf(own: Secret, official: Secret): SecretView {
       purpose: own.purpose,
       appliesAt: own.appliesAt,
       clearEffect: own.clearEffect,
+      group: own.group,
     },
     kind: 'secret',
     own: stateOf(own.presence),

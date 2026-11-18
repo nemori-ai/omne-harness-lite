@@ -11,6 +11,7 @@ import type {
   holdSchema,
   holdingResultSchema,
   publishMetadataSchema,
+  publishedHoldingSchema,
   versionResultSchema,
   holdingLookupSchema,
   listLookupSchema,
@@ -28,6 +29,9 @@ export type AssetsLocalOptions = Readonly<{
   packageDurability?: PackageDurability
 }>
 export type AssetsPublish = Readonly<z.infer<typeof publishMetadataSchema> & { pinned: PinnedBody }>
+export type AssetsPublishAndHold = Readonly<
+  AssetsPublish & { holding: z.infer<typeof publishedHoldingSchema> }
+>
 export type AssetsHold = z.infer<typeof holdSchema>
 export type AssetsHoldingChange = z.infer<typeof changeHoldingSchema>
 export type AssetsMutationResult =
@@ -43,6 +47,7 @@ export type AssetsListResult = z.infer<typeof listResultSchema>
 export interface AssetsLocal {
   readAsset(input: z.infer<typeof assetLookupSchema>): Promise<AssetsReadResult>
   publish(input: AssetsPublish): Promise<AssetsMutationResult>
+  publishAndHold(input: AssetsPublishAndHold): Promise<AssetsMutationResult>
   hold(input: AssetsHold): Promise<AssetsMutationResult>
   changeHolding(input: AssetsHoldingChange): Promise<AssetsMutationResult>
   readHolding(input: z.infer<typeof holdingLookupSchema>): Promise<AssetsHoldingResult>

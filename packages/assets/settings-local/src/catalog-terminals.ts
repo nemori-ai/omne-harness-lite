@@ -11,7 +11,7 @@ export function createCatalogTerminals(options: SettingsSqlTerminalOptions) {
       if (
         !parsed.success ||
         !equal(parsed.data.domain, options.domain) ||
-        parsed.data.target.policyId !== 'catalog'
+        parsed.data.subject.kind !== 'catalog-capture'
       )
         return { kind: 'conflict' }
       const binding = parsed.data

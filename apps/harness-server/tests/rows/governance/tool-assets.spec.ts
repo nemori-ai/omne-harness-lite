@@ -62,13 +62,13 @@ it('refuses foreign, missing, disabled and removed holdings', async () => {
   await w.setup()
   for (const target of [
     { ...w.target, scopeRef: 'tenant-b' },
-    { ...w.target, targetRef: 'missing' },
+    { ...w.target, holdingRef: 'missing' },
   ])
     expect(await w.capture([target])).toMatchObject({ kind: 'rolled_back' })
   expect(
     await w.owner.changeHolding({
       operationId: 'disable',
-      holdingRef: w.target.targetRef,
+      holdingRef: w.target.holdingRef,
       scopeRef: w.target.scopeRef,
       expectedRevision: 1,
       change: { kind: 'setEnabled', enabled: false },
@@ -78,7 +78,7 @@ it('refuses foreign, missing, disabled and removed holdings', async () => {
   expect(
     await w.owner.changeHolding({
       operationId: 'remove',
-      holdingRef: w.target.targetRef,
+      holdingRef: w.target.holdingRef,
       scopeRef: w.target.scopeRef,
       expectedRevision: 2,
       change: { kind: 'remove' },
@@ -117,7 +117,7 @@ it('joins actual Assets, standalone and immutable release facts in the real Work
   expect(
     await w.owner.changeHolding({
       operationId: 'disable-current',
-      holdingRef: w.target.targetRef,
+      holdingRef: w.target.holdingRef,
       scopeRef: w.target.scopeRef,
       expectedRevision: 1,
       change: { kind: 'setEnabled', enabled: false },

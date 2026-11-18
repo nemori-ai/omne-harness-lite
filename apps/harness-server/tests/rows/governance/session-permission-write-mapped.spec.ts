@@ -108,9 +108,10 @@ it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)
     route = {
       domain: { scope: { kind: 'system' }, transactionDomain: 'system.settings' },
       target: {
-        policyId: 'independent',
+        kind: 'independent' as const,
+        providerId: 'governance',
+        definitionId: 'shell-permission',
         scopeRef: organization.value,
-        targetRef: 'shell-permission',
       },
     }
     const definition = w.declaration.settings[0]
@@ -200,7 +201,7 @@ it.each(['set', 'organization-deny', 'tenant-deny', 'selected-source'] as const)
         organizationSource: async () =>
           route === undefined || scenario !== 'selected-source'
             ? route
-            : { ...route, target: { ...route.target, targetRef: 'replaced-source' } },
+            : { ...route, target: { ...route.target, definitionId: 'replaced-source' } },
       }),
       readCatalog: request => w.service.readCatalog(w.access, request),
       combinations: { clear: unused, unmapped: unused, mapped },

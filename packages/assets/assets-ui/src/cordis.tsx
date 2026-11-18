@@ -10,7 +10,7 @@ import { createGovernance } from './model/governance.ts'
 import { assetsCategory, assetsCategoryPage, assetsHolding } from './model/points.ts'
 import { AssetsPage } from './view/assets-page.tsx'
 import { boundRow } from './view/setting-row.tsx'
-import { SettingsNote } from './view/settings-note.tsx'
+import { SettingsPage } from './view/settings-page.tsx'
 
 const ASSETS = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
 
@@ -50,7 +50,8 @@ export const assetsUiModule = defineUiModule<Record<string, ClientOf<AssetsProto
       id: 'settings',
       title: '设置',
       order: SETTINGS_PAGE_ORDER,
-      render: () => <SettingsNote />,
+      render: ({ scope }) =>
+        scope === undefined ? null : <SettingsPage client={client} tenant={scope} />,
     })
   },
 })

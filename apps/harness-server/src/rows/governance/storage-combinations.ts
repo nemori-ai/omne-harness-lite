@@ -114,22 +114,22 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
       tenantSettingsCurrentParticipant('commit'),
     ],
     tenantSettingsRecovery: [...SETTINGS_RECOVERY_PARTICIPANTS],
-    preferenceTargets: [
+    independentTargets: [
       ...SETTINGS_RECOVERY_PARTICIPANTS.filter(name => name !== 'settings.source-finalization'),
       'settings.source-snapshot',
       'settings.targets',
     ],
-    preferenceCapture: [
+    independentCapture: [
       ...SETTINGS_RECOVERY_PARTICIPANTS,
       'settings.targets',
       standaloneCurrentParticipant('tenant', 'capture'),
     ],
-    preferenceReady: [
+    independentReady: [
       ...SETTINGS_READY_PARTICIPANTS,
       'settings.targets',
       standaloneCurrentParticipant('tenant', 'ready'),
     ],
-    preferenceCommit: [
+    independentCommit: [
       ...SETTINGS_COMMIT_PARTICIPANTS,
       'settings.targets',
       standaloneCurrentParticipant('tenant', 'commit'),
@@ -165,9 +165,9 @@ export function governanceStorageCombinations(catalog: SqlMaterialCatalog) {
     tenantSettingsReady: build('tenantSettingsReady'),
     tenantSettingsCommit: build('tenantSettingsCommit'),
     tenantSettingsRecovery: build('tenantSettingsRecovery'),
-    preferenceTargets: build('preferenceTargets'),
-    preferenceCapture: build('preferenceCapture'),
-    preferenceReady: build('preferenceReady'),
-    preferenceCommit: build('preferenceCommit'),
+    independentTargets: build('independentTargets'),
+    independentCapture: build('independentCapture'),
+    independentReady: build('independentReady'),
+    independentCommit: build('independentCommit'),
   }
 }

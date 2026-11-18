@@ -88,14 +88,34 @@ export const publishMetadataSchema = z.strictObject({
   assetRef: SettingsReferenceSchema,
   expectedRevision: revisionSchema,
 })
-export const publishSchema = publishMetadataSchema.extend({
-  kind: z.literal('publish'),
+const publishedFields = {
   category: SettingsIdSchema,
   name: SettingsIdSchema,
   version: SettingsIdSchema,
   source: SettingsReferenceSchema,
   body: bodySchema,
   declaration: declarationSchema,
+}
+export const publishSchema = publishMetadataSchema.extend({
+  kind: z.literal('publish'),
+  ...publishedFields,
+})
+export const publishedHoldingSchema = z
+  .strictObject({
+    holdingRef: SettingsReferenceSchema,
+    scopeRef: SettingsReferenceSchema,
+    sources: SettingsSourceIdentitiesSchema,
+    grants: grantsSchema,
+  })
+  .refine(holding =>
+    holding.grants.every(grant =>
+      holding.sources.some(source => source.sourceId === grant.sourceId),
+    ),
+  )
+export const publishAndHoldSchema = publishMetadataSchema.extend({
+  kind: z.literal('publishAndHold'),
+  ...publishedFields,
+  holding: publishedHoldingSchema,
 })
 export const holdSchema = z
   .strictObject({
@@ -131,6 +151,7 @@ export const changeHoldingSchema = z.strictObject({
 })
 export const mutationSchema = z.discriminatedUnion('kind', [
   publishSchema,
+  publishAndHoldSchema,
   holdSchema.safeExtend({ kind: z.literal('hold') }),
   changeHoldingSchema.extend({ kind: z.literal('changeHolding') }),
 ])

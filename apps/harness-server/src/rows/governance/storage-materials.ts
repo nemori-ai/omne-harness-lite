@@ -23,7 +23,7 @@ import {
 } from './session-permission-basis.ts'
 import { targetSnapshotParticipant } from './target-snapshot.ts'
 import { permissionBasisGuardParticipant, permissionBasisParticipant } from './permission-basis.ts'
-import { PREFERENCE_SETTINGS_CONFIGURATION } from './preference-settings.ts'
+import { INDEPENDENT_SETTINGS_CONFIGURATION } from './independent-settings.ts'
 import { projectionReadHandler } from './projection-read.ts'
 import { PROJECTION_READ_MEMBERS } from './storage-combinations.ts'
 import {
@@ -72,7 +72,7 @@ export function governanceStorageMaterials(
     permissionBasisParticipant(),
     permissionBasisGuardParticipant(),
     ...tenantSettingsCurrentParticipants(TENANT_SETTINGS_CONFIGURATION),
-    ...settingsStandaloneCurrentMaterials('tenant', PREFERENCE_SETTINGS_CONFIGURATION),
+    ...settingsStandaloneCurrentMaterials('tenant', INDEPENDENT_SETTINGS_CONFIGURATION),
   ]
   const migrations = owners.flatMap(owner => owner.migrations)
   return {

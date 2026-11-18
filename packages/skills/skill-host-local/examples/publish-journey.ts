@@ -3,12 +3,15 @@ import { join } from 'node:path'
 import {
   capabilityId,
   createCategoryPoint,
+  createTenantPublishing,
   type CapabilityId,
   type PackageReader,
 } from '@omne-harness/assets'
 import {
   assetsSqlMaterials,
   createAssetsLocal,
+  createTenantPublisher,
+  publishedRef,
   tenantLayerSource,
   type AssetsLocal,
   type PackageLocation,
@@ -176,27 +179,25 @@ export async function runPublishJourney(options: PublishJourneyOptions): Promise
     const made = capabilityId('skill', 'sample-skill')
     if (!made.ok) throw new Error('not a capability identity')
     const capability = made.id
-    const assetRef = 'tenant/skill/sample-skill'
+    const assetRef = publishedRef(capability)
 
-    const published = await assets.packages.publish({
-      capability,
-      assetRef,
-      from: directoryReader(directories, options.packageDir),
+    const publishing = createTenantPublishing<Readonly<{ tenant: string }>>({
+      acting: {
+        admit: async ({ principal, tenant }) =>
+          principal.tenant === tenant ? 'admitted' : 'denied',
+      },
+      categories,
+      publisherOf: async tenant =>
+        tenant === tenantRef ? createTenantPublisher(assets, tenantRef) : undefined,
+    })
+    const published = await publishing.publish({
       operationId: 'publish-sample-skill',
+      tenant: tenantRef,
+      principal: { tenant: tenantRef },
+      capability,
+      content: { kind: 'directory', from: directoryReader(directories, options.packageDir) },
     })
     if (published.kind !== 'published') throw new Error(JSON.stringify(published))
-    const held = await assets.hold({
-      operationId: 'hold-sample-skill',
-      holdingRef: 'skill.sample-skill',
-      scopeRef: tenantRef,
-      assetRef,
-      selection: { kind: 'follow' },
-      sources: [
-        { sourceId: 'tenant', ownerRef: tenantRef, scope: { kind: 'owner', subjectRef: 'skills' } },
-      ],
-      grants: [],
-    })
-    if (held.kind !== 'committed') throw new Error(JSON.stringify(held))
 
     async function official(): Promise<SkillLayerInput> {
       const root = options.officialDir

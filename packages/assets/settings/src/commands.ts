@@ -10,11 +10,36 @@ import {
 } from './schema.ts'
 import { immutable, withinSettingsBudget } from './value.ts'
 
-export const SettingsTargetSchema = z.strictObject({
-  policyId: SettingsIdSchema,
-  targetRef: SettingsReferenceSchema,
+export const AssetTargetSchema = z.strictObject({
+  kind: z.literal('asset'),
+  holdingRef: SettingsReferenceSchema,
   scopeRef: SettingsReferenceSchema,
 })
+export const IndependentTargetSchema = z.strictObject({
+  kind: z.literal('independent'),
+  providerId: SettingsIdSchema,
+  definitionId: SettingsIdSchema,
+  scopeRef: SettingsReferenceSchema,
+})
+export const SettingsTargetSchema = z.discriminatedUnion('kind', [
+  AssetTargetSchema,
+  IndependentTargetSchema,
+])
+export type AssetTarget = z.infer<typeof AssetTargetSchema>
+export type IndependentTarget = z.infer<typeof IndependentTargetSchema>
+
+export function targetSortKey(target: SettingsTarget): readonly string[] {
+  switch (target.kind) {
+    case 'asset':
+      return [target.scopeRef, target.kind, target.holdingRef]
+    case 'independent':
+      return [target.scopeRef, target.kind, target.providerId, target.definitionId]
+  }
+}
+
+export function sameTarget(left: SettingsTarget, right: SettingsTarget): boolean {
+  return JSON.stringify(targetSortKey(left)) === JSON.stringify(targetSortKey(right))
+}
 export const SettingsDefinitionRefSchema = z.strictObject({
   providerId: SettingsIdSchema,
   definitionId: SettingsIdSchema,

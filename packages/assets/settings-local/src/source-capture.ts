@@ -29,7 +29,7 @@ export function captureSource(port: ReadPort, source: SourceReference) {
     kind: 'unavailable' as const,
     reason,
   })
-  if (source.target.policyId !== 'independent') return unavailable('unsupported')
+  if (source.target.kind !== 'independent') return unavailable('unsupported')
   if (!isIndependentTargetInDomain(source.domain, source.target)) return unavailable('forbidden')
   const record = readStandaloneSettingsRecord(port, stateKey(source.domain.scope, source.target))
   if (!record || record.retired) return unavailable('forbidden')

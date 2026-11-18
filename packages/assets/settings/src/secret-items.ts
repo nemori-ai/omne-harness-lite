@@ -31,6 +31,7 @@ export type SecretItemView = Readonly<{
   purpose: string
   appliesAt: string
   clearEffect: string
+  group: Readonly<{ id: string; title: string; description: string }>
 }> &
   (
     | Readonly<{ sensitivity: 'secret'; presence: SecretPresence }>
@@ -132,6 +133,7 @@ export function createSettingsSecretItems(deps: SettingsSecretItemsDeps): Settin
   ): readonly SecretItemView[] | 'denied' | 'unavailable' {
     const views: SecretItemView[] = []
     for (const item of definition.items) {
+      const group = definition.groups.find(value => value.id === item.groupId)!
       const view = {
         asset: ref.asset,
         itemId: item.id,
@@ -139,6 +141,7 @@ export function createSettingsSecretItems(deps: SettingsSecretItemsDeps): Settin
         purpose: item.presentation.description,
         appliesAt: ADOPTION_TEXT[item.presentation.adoption],
         clearEffect: item.presentation.clear,
+        group: { id: group.id, title: group.title, description: group.description },
       }
       if (item.sensitivity !== 'secret') {
         views.push({ ...view, sensitivity: item.sensitivity })

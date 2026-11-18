@@ -14,7 +14,7 @@ it('persists immutable body, selected holding and original operation across prov
   const first = await open()
   await first.setup()
   expect(
-    await first.owner.readHolding({ holdingRef: target.targetRef, scopeRef: target.scopeRef }),
+    await first.owner.readHolding({ holdingRef: target.holdingRef, scopeRef: target.scopeRef }),
   ).toMatchObject({
     kind: 'holding',
     holding: { state: 'held', revision: 1 },
@@ -35,7 +35,7 @@ it('persists immutable body, selected holding and original operation across prov
   expect(
     await second.owner.hold({
       operationId: 'hold-1',
-      holdingRef: target.targetRef,
+      holdingRef: target.holdingRef,
       scopeRef: target.scopeRef,
       assetRef: 'asset-a',
       selection: { kind: 'follow' },

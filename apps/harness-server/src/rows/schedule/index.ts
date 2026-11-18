@@ -21,6 +21,7 @@ import {
   createScheduleLocalApplication,
   type ScheduleLocalApplication,
 } from '@omne-harness/schedule-local'
+import { scheduleAgentAuthoringSettingsPlugin } from '@omne-harness/schedule-local/cordis'
 import {
   combinationManifest,
   manifestDigest,
@@ -32,9 +33,9 @@ import { readSystemInstant } from '../../entry/session-clock.ts'
 import { defineRow } from '../../row.ts'
 import { environmentOf } from '../calendar/index.ts'
 import {
-  preferenceSettingsKey,
-  type PreferenceSettingsService,
-} from '../governance/preference-settings-service.ts'
+  tenantIndependentSettingsKey,
+  type TenantIndependentSettingsService,
+} from '../governance/independent-settings-service.ts'
 import {
   tenantDomainRegistrationKey,
   type TenantDomainRegistration,
@@ -74,7 +75,8 @@ type Host = Readonly<{
 function createTenantHost(ctx: Context): Host {
   const storage = ctx.get(storageKey) as SqlStorage
   const domains = ctx.get(tenantDomainLookupKey) as TenantDomainLookup
-  const preferences = () => ctx.get(preferenceSettingsKey) as PreferenceSettingsService
+  const independent = () =>
+    ctx.get(tenantIndependentSettingsKey) as TenantIndependentSettingsService
   const opened = new Map<string, Promise<ScheduleLocalApplication | undefined>>()
   let combination:
     | Promise<Readonly<{ combinationVersion: string; manifestDigest: string }>>
@@ -107,7 +109,7 @@ function createTenantHost(ctx: Context): Host {
     if (registered.kind !== 'registered') return undefined
     const calendar = ctx.get(calendarQueryKey) as CalendarQueries
     const authorizers = createScheduleAuthorizers({
-      mode: tenant => readConsentMode(preferences(), tenant),
+      mode: tenant => readConsentMode(independent(), tenant),
       answer: readConsentAnswer({
         live: (tenantRef, call) => liveCalls(ctx).get(liveCallKey(tenantRef, call)),
         decidedCards: () => toolHitlHolder(ctx).decidedCards,
@@ -125,7 +127,7 @@ function createTenantHost(ctx: Context): Host {
       worker: { maxConcurrent: 2, maxQueued: 16 },
       prediction: {
         calendar,
-        environment: createScheduleCalendarEnvironment(environmentOf(preferences())),
+        environment: createScheduleCalendarEnvironment(environmentOf(independent())),
         basisGuards: {
           prepare: async () => ({ kind: 'ok', value: { guardRef: `${OWNER}/basis` } }),
         },
@@ -280,11 +282,12 @@ export const scheduleRow = defineRow({
   implementation: 'real',
   manifest: {
     provides: [scheduleCommandsKey, scheduleQueriesKey],
-    injects: [storageKey, tenantDomainLookupKey, calendarQueryKey, preferenceSettingsKey],
+    injects: [storageKey, tenantDomainLookupKey, calendarQueryKey, tenantIndependentSettingsKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'body', phase: 'composition' },
   async body(ctx) {
+    ctx.plugin(scheduleAgentAuthoringSettingsPlugin)
     const host = createTenantHost(ctx)
     new Commands(ctx, host)
     new Queries(ctx, host)

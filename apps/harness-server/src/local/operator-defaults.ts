@@ -491,9 +491,10 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
         },
       },
     ],
-    ...(rows.has('skills')
-      ? ([['skills', { packageRoot: locations.assetsRoot, ranking: SEARCH_RANKING }]] as const)
+    ...(rows.has('tenant-assets')
+      ? ([['tenant-assets', { packageRoot: locations.assetsRoot }]] as const)
       : []),
+    ...(rows.has('skills') ? ([['skills', { ranking: SEARCH_RANKING }]] as const) : []),
     ['execution-host', { filesRoot: settings.workspace, stateDirectory: locations.hostFilesDir }],
     [
       'request-context',

@@ -17,7 +17,7 @@ it('installs the actual released Tool through Assets and preserves its holding o
   if (installed.kind !== 'ready') throw new Error(JSON.stringify(installed))
   const target = installed.target
   const holding = await w.owner.readHolding({
-    holdingRef: target.targetRef,
+    holdingRef: target.holdingRef,
     scopeRef: target.scopeRef,
   })
   expect(holding).toMatchObject({
@@ -30,12 +30,12 @@ it('installs the actual released Tool through Assets and preserves its holding o
   })
   expect(await installToolAsset(input)).toEqual(installed)
   expect(
-    await w.owner.readHolding({ holdingRef: target.targetRef, scopeRef: target.scopeRef }),
+    await w.owner.readHolding({ holdingRef: target.holdingRef, scopeRef: target.scopeRef }),
   ).toEqual(holding)
   expect(
     await w.owner.changeHolding({
       operationId: 'user-disable',
-      holdingRef: target.targetRef,
+      holdingRef: target.holdingRef,
       scopeRef: target.scopeRef,
       expectedRevision: 1,
       change: { kind: 'setEnabled', enabled: false },
@@ -43,7 +43,7 @@ it('installs the actual released Tool through Assets and preserves its holding o
   ).toMatchObject({ kind: 'committed' })
   expect(await installToolAsset(input)).toEqual({ kind: 'inactive', target })
   expect(
-    await w.owner.readHolding({ holdingRef: target.targetRef, scopeRef: target.scopeRef }),
+    await w.owner.readHolding({ holdingRef: target.holdingRef, scopeRef: target.scopeRef }),
   ).toMatchObject({
     kind: 'holding',
     holding: { enabled: false, revision: 2 },
@@ -58,7 +58,7 @@ it('coalesces concurrent installation through original receipts and retains remo
   expect(first).toMatchObject({ kind: 'ready' })
   expect(second).toEqual(first)
   if (first.kind !== 'ready') throw new Error(JSON.stringify(first))
-  const lookup = { holdingRef: first.target.targetRef, scopeRef: first.target.scopeRef }
+  const lookup = { holdingRef: first.target.holdingRef, scopeRef: first.target.scopeRef }
   expect(
     await w.owner.changeHolding({
       ...lookup,

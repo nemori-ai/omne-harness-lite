@@ -1,0 +1,90 @@
+import { join } from 'node:path'
+import type { CategoryView } from '@omne-harness/assets'
+import { createAssetsLocal, type AssetsLocal } from '@omne-harness/assets-local'
+import type { DomainRef, SqlMaterialCatalog, TenantDomainLookup } from '@omne-harness/sql-contract'
+import { governanceStorageCombinations } from '../governance/storage-combinations.ts'
+
+type Storage = Parameters<typeof createAssetsLocal>[0]['storage']
+
+export type TenantAssetsStore = Readonly<{
+  storage: Storage
+  materials: SqlMaterialCatalog
+  packageRoot: string
+  categories: Pick<CategoryView, 'lookup'>
+}>
+
+export function domainRoot(packageRoot: string, domain: DomainRef): string {
+  return join(packageRoot, Buffer.from(domain.transactionDomain, 'utf8').toString('hex'))
+}
+
+export async function openTenantAssets(
+  store: TenantAssetsStore,
+  domain: DomainRef,
+): Promise<AssetsLocal> {
+  const combination = governanceStorageCombinations(store.materials).assets
+  const registered = await store.storage.registerCombination({ ...domain, ...combination })
+  if (registered.kind !== 'registered') throw new Error(`assets combination ${registered.kind}`)
+  const assets = createAssetsLocal({
+    ...combination,
+    domain,
+    storage: store.storage,
+    categories: store.categories,
+    packageRoot: domainRoot(store.packageRoot, domain),
+  })
+  try {
+    await assets.packages.recover()
+  } catch (error) {
+    await assets.close()
+    throw error
+  }
+  return assets
+}
+
+export type TenantAssetsHostOptions = Readonly<{
+  domains: TenantDomainLookup
+  open(domain: DomainRef): Promise<AssetsLocal>
+}>
+
+/** Opens the local assets of a tenant once and recovers it once: the publish order assumes no second one. */
+export class TenantAssetsHost {
+  private readonly options: TenantAssetsHostOptions
+  private readonly opening = new Map<string, Promise<AssetsLocal | undefined>>()
+  private closed = false
+
+  constructor(options: TenantAssetsHostOptions) {
+    this.options = options
+  }
+
+  open(tenantRef: string): Promise<AssetsLocal | undefined> {
+    if (this.closed) return Promise.resolve(undefined)
+    const known = this.opening.get(tenantRef)
+    if (known !== undefined) return known
+    const made = this.make(tenantRef)
+    this.opening.set(tenantRef, made)
+    void made.then(assets => {
+      if (assets === undefined) this.opening.delete(tenantRef)
+    })
+    return made
+  }
+
+  private async make(tenantRef: string): Promise<AssetsLocal | undefined> {
+    try {
+      const found = await this.options.domains.lookup({ tenant: tenantRef })
+      if (found.kind !== 'ready') return undefined
+      const { domain } = found
+      if (domain.scope.kind !== 'tenant' || domain.scope.tenant !== tenantRef) return undefined
+      const assets = await this.options.open(domain)
+      if (!this.closed) return assets
+      await assets.close()
+      return undefined
+    } catch {
+      return undefined
+    }
+  }
+
+  async close(): Promise<void> {
+    this.closed = true
+    const opened = await Promise.all(this.opening.values())
+    await Promise.all(opened.map(assets => assets?.close()))
+  }
+}

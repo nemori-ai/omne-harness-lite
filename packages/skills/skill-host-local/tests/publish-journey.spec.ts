@@ -29,7 +29,7 @@ describe('publishing a directory as a Skill of the tenant, then reading it', () 
       kind: 'adopted',
       ref: {
         layer: 'tenant',
-        locator: { kind: 'content-store', digest: run.version, ref: 'tenant/skill/sample-skill' },
+        locator: { kind: 'content-store', digest: run.version, ref: 'skill/sample-skill' },
       },
     })
     expect(run.body.content).toMatchObject({

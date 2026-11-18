@@ -79,8 +79,11 @@ const TREE = { 'content:t.spec.ts': 'f1', 'content:src/a.ts': 'a1' }
 const same = (key: string) => TREE[key as keyof typeof TREE] ?? 'missing'
 
 describe('一份用例文件能不能跳过（全化表）', () => {
-  const reuse = (records: ReadSetRecord[], digest = same, env = ENV) =>
-    reusableFiles(records, digest, env).get('t.spec.ts')
+  const reuse = (
+    records: ReadSetRecord[],
+    digest = same,
+    env: Readonly<Record<string, string>> = ENV,
+  ) => reusableFiles(records, digest, env).get('t.spec.ts')
 
   it('没有任何记录：跑', () => {
     expect(reuse([])).toBeUndefined()

@@ -4,7 +4,7 @@ import {
   type IdentityQualifiedPreparationOptions,
 } from '@omne-harness/settings-local/preparation'
 import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
-import { PREFERENCE_SETTINGS_CONFIGURATION } from './preference-settings.ts'
+import { INDEPENDENT_SETTINGS_CONFIGURATION } from './independent-settings.ts'
 import type { governanceStorageCombinations } from './storage-combinations.ts'
 
 type Registration = Readonly<{ combinationVersion: string; manifestDigest: string }>
@@ -13,8 +13,8 @@ const reference = (value: Registration): Registration => ({
   manifestDigest: value.manifestDigest,
 })
 
-/** Changes to a tenant's own preference targets: the settings current, no governance snapshot. */
-export function createPreferenceSettingsPreparation(options: {
+/** Changes to a tenant's independent targets: the settings current, no governance snapshot. */
+export function createIndependentSettingsPreparation(options: {
   storage: SqlStorage
   domain: DomainRef
   identity: IdentityQualifiedPreparationOptions['identity']
@@ -28,18 +28,18 @@ export function createPreferenceSettingsPreparation(options: {
     backend: {
       storage,
       domain,
-      destination: PREFERENCE_SETTINGS_CONFIGURATION.destination,
+      destination: INDEPENDENT_SETTINGS_CONFIGURATION.destination,
       registrations: {
         checkpoint: reference(combinations.tenantSettingsCheckpoint),
-        ready: reference(combinations.preferenceReady),
-        commit: reference(combinations.preferenceCommit),
+        ready: reference(combinations.independentReady),
+        commit: reference(combinations.independentCommit),
         recovery: reference(combinations.tenantSettingsRecovery),
       },
       ...createTenantSettingsCurrent({
         storage,
         domain,
-        capture: reference(combinations.preferenceCapture),
-        configuration: PREFERENCE_SETTINGS_CONFIGURATION,
+        capture: reference(combinations.independentCapture),
+        configuration: INDEPENDENT_SETTINGS_CONFIGURATION,
       }),
       sources: { reserve: unsupported, settle: unsupported },
     },
