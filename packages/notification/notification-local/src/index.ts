@@ -14,7 +14,7 @@ export {
   type NotificationLocalApplication,
   type NotificationLocalOptions,
 } from './application.ts'
-export { IN_APP, type NotificationChange } from './changes.ts'
+export { IN_APP } from './changes.ts'
 export { realTimers, type Timers } from './hints.ts'
 export {
   NotificationPolicyError,

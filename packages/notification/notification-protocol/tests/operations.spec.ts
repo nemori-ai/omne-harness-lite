@@ -56,6 +56,7 @@ const READS = [
   'list-channels',
 ]
 const COMMITS = [
+  'send',
   'mark',
   'set-subscription',
   'remove-subscription',
@@ -66,15 +67,16 @@ const COMMITS = [
 ]
 
 describe('notification/v1', () => {
-  it('is notification major 1 with eight reads, seven commits and one observation', () => {
+  it('is notification major 1 with eight reads, eight commits and one observation', () => {
     expect([notificationProtocol.name, notificationProtocol.major]).toEqual(['notification', 1])
     expect(Object.keys(operations).sort()).toEqual([...READS, ...COMMITS].sort())
     expect(Object.keys(observations)).toEqual(['observe-changes'])
     for (const [name, operation] of Object.entries(operations)) {
       expect([name, operation.effect]).toEqual([name, READS.includes(name) ? 'read' : 'commit'])
-      expect([operation.identity, operation.limit, operation.countsAsAccess]).toEqual([
+      expect([name, operation.identity, operation.limit, operation.countsAsAccess]).toEqual([
+        name,
         'login',
-        'small',
+        name === 'send' ? 'input' : 'small',
         true,
       ])
     }
@@ -176,6 +178,60 @@ describe('the inbox', () => {
         { recipient: agent, marks: resolved },
       ],
     })
+  })
+})
+
+describe('a send by the owner', () => {
+  const send = {
+    tenant,
+    source: 'owner.posts',
+    event: 'p1',
+    type: 'post',
+    subject: null,
+    title: 'Water the plants',
+    body: 'Before Friday.',
+    locator: null,
+    replaceKey: null,
+    renotify: false,
+    named: [person],
+  }
+
+  it('hands one event over under a source, with or without subject, locator and replace key', () => {
+    expectRoundTrip(operations.send.body, send)
+    expectRoundTrip(operations.send.body, {
+      ...send,
+      subject: 'garden',
+      locator: { kind: 'session', ref: 's-1' },
+      replaceKey: 'plants',
+      renotify: true,
+      named: [person, agent],
+    })
+    expectRoundTrip(operations.send.body, { ...send, body: '', named: [] })
+  })
+
+  it.each([
+    ['no title', { title: '' }],
+    ['no event id', { event: '' }],
+    ['no source', { source: '' }],
+    ['a locator without a reference', { locator: { kind: 'session' } }],
+    ['a recipient of an unknown kind', { named: [{ kind: 'group' }] }],
+    ['seventeen named recipients', { named: Array.from({ length: 17 }, () => person) }],
+    ['a time of its own', { at: instant }],
+    ['an origin of its own', { origin: { emitter: agent, depth: 0 } }],
+  ])('does not take %s', (_name, more) => {
+    expect(readSample(operations.send.body, { ...send, ...more }).ok).toBe(false)
+  })
+
+  it('answers who received it, the same for a send that is recalled', () => {
+    for (const outcome of ['succeeded', 'no-change'] as const) {
+      expectRoundTrip(operations.send.outcomes[outcome], { recipients: [person, agent] })
+      expectRoundTrip(operations.send.outcomes[outcome], { recipients: [] })
+    }
+  })
+
+  it('says that the same identity already carries other content', () => {
+    expectRoundTrip(operations.send.outcomes.conflict, { reason: 'different-content' })
+    expect(readSample(operations.send.outcomes.conflict, { reason: 'superseded' }).ok).toBe(false)
   })
 })
 
@@ -315,6 +371,14 @@ describe('the invalid outcome', () => {
     'read-notification': [],
     mark: [],
     'query-send': [],
+    send: [
+      'too-large',
+      'unknown-event-type',
+      'standing-type',
+      'invalid-subject',
+      'naming-not-allowed',
+      'recipient-not-admissible',
+    ],
     'list-subscriptions': [],
     'set-subscription': ['term-in-past', 'not-subscribable', 'scope-does-not-fit'],
     'remove-subscription': [],

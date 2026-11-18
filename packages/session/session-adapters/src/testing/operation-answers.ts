@@ -49,10 +49,23 @@ export function fixAnswer(agent: Agent, at: string, input: Operation, record: An
   agent.closed.set(itemText(answerRef(input.execution, input.operation)), record)
 }
 
+// A method whose value embeds records the Journal holds keeps an answer that names them instead.
+export type AnswerKeeping<R> = Readonly<{
+  keep: (value: R) => unknown
+  restore: (kept: unknown) => R
+}>
+
+export const keptAnswer = <R>(value: R, keeping: AnswerKeeping<R> | undefined): unknown =>
+  structuredClone(keeping === undefined ? value : keeping.keep(value))
+
+export const restoredAnswer = <R>(kept: unknown, keeping: AnswerKeeping<R> | undefined): R =>
+  keeping === undefined ? (structuredClone(kept) as R) : keeping.restore(structuredClone(kept))
+
 export function recognizedAnswer<R>(
   agent: Agent,
   input: Operation,
   key: string,
+  keeping?: AnswerKeeping<R>,
 ): Outcome<R, Failure> | undefined {
   const record = operationAnswer(agent, input)
   if (record === undefined) return undefined
@@ -60,7 +73,7 @@ export function recognizedAnswer<R>(
   if (record.key !== key) return fail(conflict)
   return record.kind === 'rejected'
     ? fail(structuredClone(record.failure))
-    : succeed(structuredClone(record.value) as R)
+    : succeed(restoredAnswer(record.value, keeping))
 }
 
 export function reachedStamp(

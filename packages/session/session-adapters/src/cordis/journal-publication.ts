@@ -1,4 +1,4 @@
-import type { AgentExecutionId, CommandReceipt, Failure } from '@omne-harness/agent-contract'
+import type { AgentExecutionId, DurableEvidence, Failure } from '@omne-harness/agent-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   EXECUTION_BATCH_MAX_FACTS,
@@ -9,12 +9,15 @@ import {
 import type { JsonValue } from '@omne-harness/sql-contract'
 import {
   FACT_MAX_BYTES,
+  advances,
   batchBytes,
   contentPath,
   foldItems,
+  receiptOf,
   type BatchEnvelope,
   type ItemChange,
   type EventView,
+  type Mint,
   type ParticipationKind,
   type PublishedBatch,
   type SessionJournalView,
@@ -33,20 +36,17 @@ export const unavailable = (diagnostic: string): Failure => ({
   diagnostic,
 })
 
-const fieldOf = (value: unknown, key: string): unknown =>
-  typeof value === 'object' && value !== null && key in value
-    ? (value as Record<string, unknown>)[key]
-    : undefined
-
-const isReceipt = (value: unknown): value is CommandReceipt =>
-  typeof value === 'object' && value !== null && 'evidence' in value && 'revision' in value
-
-// A write's receipt (the answer, its `receipt`, or a received commit's) heads its execution.
-export function answeredReceipt(answer: Outcome<unknown, Failure>): CommandReceipt | null {
-  if (!('ok' in answer)) return null
-  const committed = fieldOf(answer.ok, 'value')
-  const candidates = [answer.ok, fieldOf(answer.ok, 'receipt'), fieldOf(committed, 'receipt')]
-  return candidates.find(isReceipt) ?? null
+// The head of each execution a write moved: the receipt of the batch, not of the method's answer.
+export function headsOf(
+  mint: Mint,
+  view: SessionJournalView,
+  appended: readonly PublishedBatch[],
+): ReadonlyMap<string, DurableEvidence> {
+  return new Map(
+    appended
+      .filter(advances)
+      .map(batch => [batch.execution as string, receiptOf(mint, view, batch).evidence]),
+  )
 }
 
 // The events of the appended batches are the tail of the folded view: walk back only over them.

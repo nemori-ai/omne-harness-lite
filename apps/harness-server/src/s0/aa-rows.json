@@ -11,6 +11,7 @@
     "governance",
     "calendar",
     "schedule",
+    "notification",
     "session-provider",
     "session-ad02",
     "session-ad03",
@@ -70,6 +71,7 @@
     "session-diagnostics-access",
     "calendar-access",
     "schedule-access",
+    "notification-access",
     "tool-access"
   ],
   "trusted": [
@@ -132,6 +134,15 @@
         "storage",
         "tenantDomainLookup",
         "tenantDomainRegistration"
+      ]
+    },
+    {
+      "row": "notification",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "tenantDomainRegistration",
+        "tenantDomainScannerPrincipal"
       ]
     },
     {
@@ -411,6 +422,13 @@
     },
     {
       "row": "schedule-access",
+      "names": [
+        "principalIssuer",
+        "tenantStanding"
+      ]
+    },
+    {
+      "row": "notification-access",
       "names": [
         "principalIssuer",
         "tenantStanding"

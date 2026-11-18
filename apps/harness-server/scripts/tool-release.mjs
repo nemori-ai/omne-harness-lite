@@ -18,6 +18,7 @@ const PROBES = [
     Skills: { resultMaxBytes: 4096 },
     Calendar: { resultMaxBytes: 16 },
     Schedules: { resultMaxBytes: 64 },
+    Notifications: { resultMaxBytes: 64 },
   },
   {
     Shell: {
@@ -36,6 +37,7 @@ const PROBES = [
     Skills: { resultMaxBytes: 1048576 },
     Calendar: { resultMaxBytes: 1048576 },
     Schedules: { resultMaxBytes: 1048576 },
+    Notifications: { resultMaxBytes: 1048576 },
   },
 ]
 

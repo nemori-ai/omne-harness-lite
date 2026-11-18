@@ -26,7 +26,21 @@ const NOW = '2026-11-18T06:00:00.000Z'
 const INVALID = { outcome: 'invalid', body: { reason: 'request' } }
 
 /** One body per operation that the protocol reads and the domain takes. */
+const post = {
+  source: 'demo.things',
+  event: 's1',
+  type: 'changed',
+  subject: 'repo/a',
+  title: 'Posted',
+  body: 'By the owner.',
+  locator: null,
+  replaceKey: null,
+  renotify: false,
+  named: [person],
+}
+
 const SAMPLES: Record<Name, Record<string, unknown>> = {
+  send: post,
   'list-inbox': { recipient: person, filter: 'all', after: null, limit: 10 },
   'read-notification': ref('e1'),
   mark: { ...ref('e1'), operation: 'seen' },
@@ -104,6 +118,7 @@ describe('step four', () => {
   })
 
   it.each([
+    'send',
     'list-inbox',
     'read-notification',
     'query-send',
@@ -127,6 +142,7 @@ describe('step four', () => {
 
   /** Every commit, with what has to be there before it changes anything. */
   const COMMITS = [
+    ['send', null, post],
     ['mark', null, SAMPLES.mark],
     ['set-subscription', null, change],
     ['remove-subscription', ['set-subscription', change], key],
@@ -367,6 +383,170 @@ describe('the inbox', () => {
     expect(await w.call('query-send', { source: 'demo.things', event: 'e1' })).toEqual({
       outcome: 'denied',
     })
+  })
+})
+
+describe('a send by the owner', () => {
+  it('hands the event over as the body says, at the time of the server, and names who received it', async () => {
+    const w = world()
+    const body = { ...post, locator: { kind: 'session', ref: 's-9' }, replaceKey: 'k' }
+    expect(await w.call('send', body)).toEqual({
+      outcome: 'succeeded',
+      body: { recipients: [person] },
+    })
+    expect(await w.call('read-notification', ref('s1'))).toEqual({
+      outcome: 'succeeded',
+      body: expect.objectContaining({
+        type: 'changed',
+        subject: 'repo/a',
+        title: 'Posted',
+        body: 'By the owner.',
+        locator: { kind: 'session', ref: 's-9' },
+        cause: { kind: 'named' },
+        at: NOW,
+        acceptedAt: NOW,
+      }),
+    })
+  })
+
+  it('recalls the same send at a later time and keeps one notification', async () => {
+    const w = world()
+    await w.call('send', post)
+    w.clock.advance(60_000)
+    expect(await w.call('send', post)).toEqual({
+      outcome: 'no-change',
+      body: { recipients: [person] },
+    })
+    const page = await w.call('list-inbox', SAMPLES['list-inbox'])
+    expect(page).toMatchObject({ body: { entries: [{ event: 's1', acceptedAt: NOW }] } })
+    expect((page as { body: { entries: unknown[] } }).body.entries).toHaveLength(1)
+  })
+
+  it('refuses other content under an identity that is taken', async () => {
+    const w = world()
+    await w.call('send', post)
+    expect(await w.call('send', { ...post, title: 'Changed my mind' })).toEqual({
+      outcome: 'conflict',
+      body: { reason: 'different-content' },
+    })
+  })
+
+  it('reaches every named recipient the type lets a send name', async () => {
+    const w = world()
+    expect(await w.call('send', { ...post, named: [person, agent('a')] })).toEqual({
+      outcome: 'succeeded',
+      body: { recipients: [person, agent('a')] },
+    })
+  })
+
+  it('a second send under the same replace key takes the place of the first', async () => {
+    const w = world()
+    await w.call('send', { ...post, replaceKey: 'weekly' })
+    await w.call('send', { ...post, event: 's2', replaceKey: 'weekly', renotify: true })
+    expect(await w.call('read-notification', ref('s1'))).toMatchObject({
+      body: { marks: { supersededBy: { source: 'demo.things', event: 's2' } } },
+    })
+    const sends = w.store.facts(tenantIdSchema.parse(TENANT)).sends
+    expect([...sends.values()].map(send => send.event.renotify)).toEqual([false, true])
+  })
+
+  it.each([
+    ['too-large', { body: 'x'.repeat(1001) }],
+    ['unknown-event-type', { type: 'never-declared' }],
+    ['standing-type', { type: 'open' }],
+    ['invalid-subject', { type: 'plain' }],
+    ['naming-not-allowed', { type: 'for-the-owner', named: [agent('a')] }],
+  ])('names why the send is not valid: %s', async (reason, more) => {
+    const w = world()
+    const commits = w.store.commits()
+    expect(await w.call('send', { ...post, ...more })).toEqual({
+      outcome: 'invalid',
+      body: { reason },
+    })
+    expect(w.store.commits()).toBe(commits)
+  })
+
+  /** Every refusal the sending face can answer, with what the protocol says for it. */
+  const REFUSALS = [
+    ['too-large', { outcome: 'invalid', body: { reason: 'too-large' } }],
+    ['content-too-large', { outcome: 'invalid', body: { reason: 'too-large' } }],
+    ['unknown-event-type', { outcome: 'invalid', body: { reason: 'unknown-event-type' } }],
+    ['standing-type', { outcome: 'invalid', body: { reason: 'standing-type' } }],
+    ['invalid-subject', { outcome: 'invalid', body: { reason: 'invalid-subject' } }],
+    ['naming-not-allowed', { outcome: 'invalid', body: { reason: 'naming-not-allowed' } }],
+    [
+      'recipient-not-admissible',
+      { outcome: 'invalid', body: { reason: 'recipient-not-admissible' } },
+    ],
+    ['conflict', { outcome: 'conflict', body: { reason: 'different-content' } }],
+    ['not-permitted', { outcome: 'denied' }],
+    ['causal-depth-exceeded', INVALID],
+    ['invalid-source-name', INVALID],
+    ['incomplete-identity', INVALID],
+    ['invalid-scope', INVALID],
+    ['invalid-term', INVALID],
+    ['invalid-request', INVALID],
+  ] as const
+
+  it.each(REFUSALS)(
+    'answers the refusal %s of the domain in the words of the protocol',
+    async (reason, answer) => {
+      const w = world()
+      w.state.faces = {
+        ...w.real,
+        sending: { ...w.real.sending, send: async () => ({ kind: 'refused', reason }) },
+      }
+      expect(await w.call('send', post)).toEqual(answer)
+    },
+  )
+
+  it('refuses a named recipient the authority does not admit', async () => {
+    const w = world()
+    w.authority.answer((_ctx, action) => (action.kind === 'be-recipient' ? 'denied' : 'allowed'))
+    expect(await w.call('send', post)).toEqual({
+      outcome: 'invalid',
+      body: { reason: 'recipient-not-admissible' },
+    })
+  })
+
+  it('answers invalid for a source name that is not one', async () => {
+    const w = world()
+    expect(await w.call('send', { ...post, source: 'Not A Source' })).toEqual(INVALID)
+  })
+
+  it('denies a source the authority does not let this login send as, and writes nothing', async () => {
+    const w = world()
+    const commits = w.store.commits()
+    w.authority.answer((_ctx, action) => (action.kind === 'send-as' ? 'denied' : 'allowed'))
+    expect(await w.call('send', post)).toEqual({ outcome: 'denied' })
+    expect(w.authority.asked()).toContainEqual({ kind: 'send-as', source: 'demo.things' })
+    expect(w.store.commits()).toBe(commits)
+  })
+
+  it('has no basis while the source is not registered, and sends once it is', async () => {
+    const w = world()
+    expect(await w.call('send', { ...post, source: 'demo.absent' })).toEqual({
+      outcome: 'basis-unavailable',
+    })
+  })
+
+  it('has no basis while the server cannot tell the time, and writes nothing', async () => {
+    const w = world()
+    const commits = w.store.commits()
+    w.state.clockDown = true
+    expect(await w.call('send', post)).toEqual({ outcome: 'basis-unavailable' })
+    expect(w.store.commits()).toBe(commits)
+    w.state.clockDown = false
+    expect(await w.call('send', post)).toMatchObject({ outcome: 'succeeded' })
+  })
+
+  it('sends as the owner of the tenant the login acts for, never as an agent', async () => {
+    const w = world()
+    await w.call('send', post)
+    const [sent] = [...w.store.facts(tenantIdSchema.parse(TENANT)).sends.values()]
+    expect(sent?.event.origin).toBeNull()
+    expect(sent?.identity).toEqual({ tenant: TENANT, source: 'demo.things', eventId: 's1' })
+    expect(w.store.facts(tenantIdSchema.parse(OTHER)).sends.size).toBe(0)
   })
 })
 
@@ -619,6 +799,8 @@ describe('the catalogue', () => {
               },
               { name: 'for-people', subscribable: ['person'] },
               { name: 'plain', subject: { presence: 'none', hint: '' } },
+              { name: 'for-the-owner', nameable: ['person'] },
+              { name: 'open', kind: 'standing' },
             ],
           },
         ],

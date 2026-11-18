@@ -51,6 +51,11 @@
       "config": {}
     },
     {
+      "id": "notification",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "session-provider",
       "plugin": "stubPlugin",
       "config": {}
@@ -342,6 +347,11 @@
     },
     {
       "id": "schedule-access",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "notification-access",
       "plugin": "stubPlugin",
       "config": {}
     },

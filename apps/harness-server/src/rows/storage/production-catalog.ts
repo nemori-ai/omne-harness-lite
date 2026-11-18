@@ -1,4 +1,5 @@
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
+import { notificationSqlMaterials } from '@omne-harness/notification-local'
 import { loadProductionRelease, type ToolRelease } from '../../entry/tool-release.ts'
 import { calendarStorageMaterials } from '../calendar/authority.ts'
 import { scheduleStorageMaterials } from '../schedule/guard.ts'
@@ -10,7 +11,12 @@ export async function productionStorageCatalog(
 ): Promise<SqlMaterialCatalog> {
   const core = storageCatalog()
   const governance = governanceStorageMaterials(await readRelease(), core)
-  const domains = [governance, calendarStorageMaterials(), scheduleStorageMaterials()]
+  const domains = [
+    governance,
+    calendarStorageMaterials(),
+    scheduleStorageMaterials(),
+    notificationSqlMaterials(),
+  ]
   return {
     ...core,
     participants: [...core.participants, ...domains.flatMap(owner => owner.participants)],
