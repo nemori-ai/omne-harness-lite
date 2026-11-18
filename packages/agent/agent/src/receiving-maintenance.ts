@@ -42,10 +42,12 @@ export function createReceptionMaintenance<P>(
       } catch {
         return fail(maintenanceUnavailable('targets'))
       }
-      if (targets.length === 0 || targets.some(target => target.execution !== input.execution))
+      if (targets.some(target => target.execution !== input.execution))
         return fail(maintenanceDenied())
       if (input.signal.aborted) return cancelledMaintenance()
       const scope = scopeOf(input.access, targets)
+      // An execution whose calls all have their results owes nothing to maintain.
+      if (targets.length === 0) return succeed(receptionReport(state, scope))
       const check = async () => {
         try {
           return await qualify(dependencies, input.access, targets, input.signal)

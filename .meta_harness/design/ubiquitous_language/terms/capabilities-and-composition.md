@@ -1172,13 +1172,13 @@
 
 ### UL-notification-capability · 通知能力 · Notification Capability
 
-> **中**：供系统和 agent 发送通知并送达到明确目标租户的能力；支持定时来源，也支持无日程或作业来源的通知。
+> **中**：让一个收件人知道一件已经发生的事的能力。来源交出事件，通知按收件人的通知订阅决定给谁、多急，放进收件人的收件箱，再推到它的投递去处。收件人是人或受托的 agent。
 >
-> **EN**: A capability used by both the system and agents to send notifications and deliver them to an explicitly identified target tenant, with or without a schedule or scheduled job as their source.
+> **EN**: The capability that lets a recipient know about something that has happened. A source hands over an event. The notification domain uses the recipient's notification subscriptions to decide who gets it and how urgently, puts it in the recipient's inbox, and then delivers it to the recipient's destinations. A recipient is a person or an entrusted agent.
 
 - **形态**：总称
-- **出处**：[PF-021 §4 通知能力](https://github.com/nemori-ai/omne-harness-lite/blob/1bbd0d6d6439441235da873e4a73b174f04fa3a0/.meta_harness/design/product.0.0.1.legacy/PF-021-schedule-and-calendar/design.md#通知能力)（rev 8）
-- **别混**：不是成果上报、普通会话回复或复制通知邀约本身；目标租户沿既有租户身份，送达不自动等于已读。
+- **出处**：[通知：产品需求](../../product/notifications/design.md#产品需求描述)（rev 3）
+- **别混**：不是成果上报、普通会话回复或复制通知邀约本身。要一个人做决定归人在回路；交出一份要验收的工作归日程与作业。
 
 
 ### UL-system-schedule-definition · 系统日程定义 · System Schedule Definition

@@ -2,20 +2,37 @@ import type {
   AgentCheckpoint,
   AgentOperationId,
   JournalCommitState,
+  PendingCall,
   VoidedIntent,
 } from '@omne-harness/agent-contract'
 import { canonical } from '../testing/canonical.ts'
 import {
   REVIVABLE_EXCLUSIONS,
   BATCH_MAX_FACTS,
+  FACT_MAX_BYTES,
+  bytesOf,
   factKey,
   refOf,
   type Batch,
   type BatchEnvelope,
   type CursorMembers,
   type FactBody,
+  type ResultKey,
 } from './facts.ts'
-import type { ExecutionView } from './view.ts'
+import { handoffKey, type ExecutionView } from './view.ts'
+
+// The calls a checkpoint still waits on: its calls, those of its batch, those of its passages.
+export function checkpointCalls(checkpoint: AgentCheckpoint): PendingCall[] {
+  return [
+    ...checkpoint.calls,
+    ...(checkpoint.batch?.actions.flatMap(action => (action.call ? [action.call] : [])) ?? []),
+    ...checkpoint.passages.flatMap(passage =>
+      passage.operations.flatMap(operation =>
+        'pending' in operation && operation.pending ? [operation.pending] : [],
+      ),
+    ),
+  ]
+}
 
 export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState): CursorMembers {
   return {
@@ -44,7 +61,32 @@ export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState)
         ? null
         : refOf(checkpoint.adoptedRequest),
     state: state.kind,
+    holds: heldBy(checkpoint),
   }
+}
+
+// Half a fact at most: the cursor's other members share it.
+const HOLDS_MAX_BYTES = FACT_MAX_BYTES / 2
+
+function heldBy(checkpoint: AgentCheckpoint): CursorMembers['holds'] {
+  const holds = {
+    actions: [
+      ...checkpoint.calls.map(call => call.action),
+      ...(checkpoint.batch?.actions.map(action => action.id) ?? []),
+    ],
+    consumptions: [
+      ...checkpointCalls(checkpoint).map(call => call.consumption),
+      ...(checkpoint.compaction === null ? [] : [checkpoint.compaction.consumption]),
+    ],
+    handoffs: (checkpoint.batch?.slots ?? []).flatMap(slot =>
+      slot.handoff === null ? [] : [handoffKey(slot.handoff)],
+    ),
+    admissionsFrom:
+      checkpoint.replyAdmissionRead.kind === 'verified'
+        ? Number(checkpoint.replyAdmissionRead.prefix.sequence)
+        : 0,
+  }
+  return bytesOf(holds) > HOLDS_MAX_BYTES ? null : holds
 }
 
 export type BlobStore = ReadonlyMap<string, unknown>
@@ -73,7 +115,7 @@ function held<T>(blobs: BlobStore, ref: Readonly<{ digest: string }>, what: stri
 }
 
 export function checkpointOf(
-  view: Pick<ExecutionView, 'cursor' | 'steps' | 'requests' | 'voided' | 'intents'>,
+  view: Pick<ExecutionView, 'cursor' | 'steps' | 'voided'>,
   blobs: BlobStore,
 ): AgentCheckpoint {
   const { cursor } = view
@@ -90,16 +132,14 @@ export function checkpointOf(
     const { step, basis } = fact
     if (fact.intent === 'tool')
       return { kind: 'tool', step, action: fact.action, cause: fact.cause, basis }
-    const request = view.requests.find(item => item.step === step && item.attempt === fact.attempt)
-    const reference = request?.reference
-    const intent = [...view.intents.values()].find(
-      item => item.pending.kind === 'model' && item.pending.reference === reference,
-    )
-    if (reference === undefined || intent === undefined)
-      throw new TypeError(
-        `the Journal holds no call.intended for the voided request ${step}/${fact.attempt}`,
-      )
-    return { kind: 'model', step, action: intent.action, reference, cause: fact.cause, basis }
+    return {
+      kind: 'model',
+      step,
+      action: fact.action,
+      reference: fact.reference,
+      cause: fact.cause,
+      basis,
+    }
   })
   const checkpoint: AgentCheckpoint = {
     schema: need('schema'),
@@ -201,18 +241,12 @@ export function keyKnown(view: ExecutionView, key: string): boolean {
       return view.steps.some(item => `${item.step}#${item.batch.id}` === name)
     case 'call':
       return view.intents.has(name as never)
-    case 'associated':
-      return (
-        view.intents.get(name as never)?.association !== null && view.intents.has(name as never)
-      )
     case 'received':
-      return view.results.get(name as never)?.received !== null && view.results.has(name as never)
+      return (view.results.get(name as ResultKey)?.received ?? null) !== null
     case 'placeholder':
       return view.placeholders.has(name as never)
     case 'reply':
       return view.admissions.some(item => String(item.sequence) === name)
-    case 'batch':
-      return view.batches.has(name as never)
     case 'candidate':
       return view.finish.candidates.some(item => item.candidate === name)
     case 'ended':

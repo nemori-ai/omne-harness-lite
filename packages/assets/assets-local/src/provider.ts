@@ -32,12 +32,13 @@ import {
   type Mutation,
 } from './schema.ts'
 import { createPublishedPackages, type PackageRecords } from './packages.ts'
-import { receiptResult } from './results.ts'
+import { receiptResult, type SameOperation } from './results.ts'
 import type {
   AssetsLocal,
   AssetsLocalOptions,
   AssetsMutationResult,
   AssetsPublish,
+  AssetsPublishAndHold,
 } from './types.ts'
 const fail = (reason: Failure['reason']): Failure => ({ kind: 'rejected', reason })
 
@@ -79,7 +80,11 @@ export function assetsPublicationCommand(
 ): FactCommandV2 {
   return captureFacts('capturePublication', binding, scope)
 }
-function publishCommand(options: AssetsLocalOptions, input: AssetsPublish) {
+function publishCommand(
+  options: AssetsLocalOptions,
+  input: AssetsPublish,
+  holding?: AssetsPublishAndHold['holding'],
+) {
   if (!withinBudget(input)) return fail('limit_exceeded')
   const metadata = publishMetadataSchema.safeParse({
     operationId: input.operationId,
@@ -107,15 +112,25 @@ function publishCommand(options: AssetsLocalOptions, input: AssetsPublish) {
         }
   const command = mutationSchema.safeParse({
     ...metadata.data,
-    kind: 'publish',
+    kind: holding === undefined ? 'publish' : 'publishAndHold',
     category: input.pinned.identity.category,
     name: input.pinned.identity.name,
     version: input.pinned.version,
     source: input.pinned.source,
     body: input.pinned.body,
     declaration,
+    ...(holding === undefined ? {} : { holding }),
   })
   return command.success ? command.data : fail('invalid_input')
+}
+function sameCommand(command: Mutation): SameOperation {
+  return recorded => equal(recorded, command)
+}
+/** A retry reads the asset revision anew, so the recorded expected revision is not part of the input. */
+function samePublication(command: Mutation): SameOperation {
+  const input = (mutation: Mutation) =>
+    'expectedRevision' in mutation ? { ...mutation, expectedRevision: 0 } : mutation
+  return recorded => equal(input(recorded), input(command))
 }
 type ReadKind = 'asset' | 'holding' | 'version' | 'heldCapability' | 'list'
 
@@ -133,6 +148,49 @@ function storageRead(options: Pick<AssetsLocalOptions, 'storage' | 'domain'>) {
       : fail(
           result.kind === 'unavailable' && result.reason === 'closing' ? 'closing' : 'unavailable',
         )
+  }
+}
+
+type Store = Pick<
+  AssetsLocalOptions,
+  'storage' | 'domain' | 'combinationVersion' | 'manifestDigest'
+>
+
+async function commitMutation(
+  options: Store,
+  command: Mutation,
+  same: SameOperation = sameCommand(command),
+): Promise<AssetsMutationResult> {
+  try {
+    const result = await options.storage.commit({
+      identity: identity(options.domain, command.operationId),
+      combinationVersion: options.combinationVersion,
+      manifestDigest: options.manifestDigest,
+      commands: [
+        {
+          participant: PARTICIPANT,
+          facts: { kind: 'mutate', binding: json({ domain: options.domain, command }) },
+        },
+      ],
+    })
+    const mapped = receiptResult(result, options.domain, command.operationId, same)
+    return mapped.kind === 'not_found'
+      ? { kind: 'unknown', operationId: command.operationId }
+      : mapped
+  } catch {
+    return { kind: 'unknown', operationId: command.operationId }
+  }
+}
+
+async function recallOperation(options: Store, operationId: string) {
+  try {
+    return receiptResult(
+      await options.storage.query(identity(options.domain, operationId)),
+      options.domain,
+      operationId,
+    )
+  } catch {
+    return { kind: 'unknown' as const, operationId }
   }
 }
 
@@ -155,27 +213,7 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     void promise.then(() => active.delete(promise))
     return promise
   }
-  async function commit(command: Mutation): Promise<AssetsMutationResult> {
-    try {
-      const result = await options.storage.commit({
-        identity: identity(options.domain, command.operationId),
-        combinationVersion: options.combinationVersion,
-        manifestDigest: options.manifestDigest,
-        commands: [
-          {
-            participant: PARTICIPANT,
-            facts: { kind: 'mutate', binding: json({ domain: options.domain, command }) },
-          },
-        ],
-      })
-      const mapped = receiptResult(result, options.domain, command.operationId, command)
-      return mapped.kind === 'not_found'
-        ? { kind: 'unknown', operationId: command.operationId }
-        : mapped
-    } catch {
-      return { kind: 'unknown', operationId: command.operationId }
-    }
-  }
+  const commit = (command: Mutation, same?: SameOperation) => commitMutation(options, command, same)
   async function change(value: unknown): Promise<AssetsMutationResult> {
     if (!withinBudget(value)) return fail('limit_exceeded')
     const parsed = mutationSchema.safeParse(value)
@@ -200,6 +238,12 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
       run(async () => {
         const command = publishCommand(options, input)
         return command.kind === 'rejected' ? command : commit(command)
+      }),
+    publishAndHold: input =>
+      run(async () => {
+        const { holding, ...published } = input
+        const command = publishCommand(options, published, holding)
+        return command.kind === 'rejected' ? command : commit(command, samePublication(command))
       }),
     hold: input =>
       run(async () => {
@@ -249,15 +293,7 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
     getOperation: operationId =>
       run(async () => {
         if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
-        try {
-          return receiptResult(
-            await options.storage.query(identity(options.domain, operationId)),
-            options.domain,
-            operationId,
-          )
-        } catch {
-          return { kind: 'unknown' as const, operationId }
-        }
+        return recallOperation(options, operationId)
       }),
     close() {
       return (closed ??= Promise.allSettled(active).then(() => undefined))
@@ -265,6 +301,7 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
   }
   const packages = createPublishedPackages({
     root: options.packageRoot,
+    holdingScope: options.domain.scope.tenant,
     categories: options.categories,
     afterStep: options.afterPackageStep,
     durability: options.packageDurability,
@@ -275,8 +312,7 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
 
 function packageRecordsOf(local: Omit<AssetsLocal, 'packages'>): PackageRecords {
   return {
-    publish: local.publish,
-    getOperation: local.getOperation,
+    publishAndHold: local.publishAndHold,
     async readAssetRevision(assetRef) {
       const result = await local.readAsset({ assetRef })
       if (result.kind === 'rejected') return { failure: result.reason }

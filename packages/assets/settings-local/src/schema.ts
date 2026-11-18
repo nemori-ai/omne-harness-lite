@@ -22,10 +22,20 @@ export const domainSchema = z.strictObject({
   scope: scopeSchema,
   transactionDomain: SettingsIdSchema,
 })
+export const catalogCaptureSchema = z.strictObject({
+  kind: z.literal('catalog-capture'),
+  deploymentRef: SettingsReferenceSchema,
+  tenantRef: SettingsReferenceSchema,
+})
+export const operationSubjectSchema = z.discriminatedUnion('kind', [
+  ...SettingsTargetSchema.options,
+  catalogCaptureSchema,
+])
+export type OperationSubject = z.infer<typeof operationSubjectSchema>
 export const operationBindingSchema = z.strictObject({
   domain: domainSchema,
   principalRef: SettingsReferenceSchema,
-  target: SettingsTargetSchema,
+  subject: operationSubjectSchema,
   operationId: SettingsIdSchema,
   commandDigest: z.string().regex(/^[a-f0-9]{64}$/),
 })

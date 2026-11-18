@@ -1,5 +1,5 @@
 import type { TenantSettingsPort } from '@omne-harness/assets-access'
-import type { SecretSettings, SecretView } from '../settings/ports.ts'
+import type { SecretItemInput, SecretSettings, SecretView } from '../settings/ports.ts'
 
 export type SettingsSources = Readonly<{
   secrets(): SecretSettings | undefined
@@ -40,8 +40,17 @@ function limitOf(limit: number): number {
   return Math.min(Math.max(Math.trunc(limit) || 1, 1), LIST_LIMIT)
 }
 
-function itemOf(input: ItemInput): ItemInput {
-  return { principal: input.principal, tenant: input.tenant, asset: input.asset, item: input.item }
+type AssetQuery = Readonly<{ category?: string; name: string }>
+
+function secretItemOf(input: ItemInput, asset: AssetQuery): SecretItemInput {
+  return { principal: input.principal, tenant: input.tenant, asset, item: input.item }
+}
+
+function assetOf(owner: ItemInput['owner']): AssetQuery | undefined {
+  if (owner.kind !== 'asset') return undefined
+  return owner.category === undefined
+    ? { name: owner.name }
+    : { category: owner.category, name: owner.name }
 }
 
 function recognised(answer: Awaited<ReturnType<Port['describe']>>): WriteOutcome {
@@ -58,14 +67,14 @@ export function unifySettings(sources: SettingsSources): TenantSettingsPort {
     room: number,
   ): Promise<ListAnswer> {
     const catalog = sources.catalog()
-    const { asset } = input
+    const asset = input.scope.kind === 'asset' ? input.scope.asset : undefined
     const listed =
       catalog === undefined
         ? UNAVAILABLE
         : await catalog.list({
             principal: input.principal,
             tenant: input.tenant,
-            ...(asset === undefined ? {} : { asset }),
+            scope: input.scope,
             after,
             limit: room,
           })
@@ -81,15 +90,17 @@ export function unifySettings(sources: SettingsSources): TenantSettingsPort {
     return { kind: 'listed', items: page, next: null, completeness: 'complete' }
   }
 
-  async function list(input: ListInput): Promise<ListAnswer> {
+  async function secretsIn(input: ListInput) {
+    const { principal, tenant, scope } = input
+    if (scope.kind === 'independent') return { kind: 'listed' as const, items: [] }
     const secretFace = sources.secrets()
     if (secretFace === undefined) return UNAVAILABLE
-    const { principal, tenant, asset } = input
-    const secrets = await secretFace.list({
-      principal,
-      tenant,
-      ...(asset === undefined ? {} : { asset }),
-    })
+    const { asset } = scope
+    return secretFace.list({ principal, tenant, ...(asset === undefined ? {} : { asset }) })
+  }
+
+  async function list(input: ListInput): Promise<ListAnswer> {
+    const secrets = await secretsIn(input)
     if (secrets.kind !== 'listed') return secrets
     const cursor = cursorOf(input.after, secrets.items.length)
     if (cursor === undefined) return UNAVAILABLE
@@ -104,61 +115,71 @@ export function unifySettings(sources: SettingsSources): TenantSettingsPort {
   }
 
   async function describe(input: ItemInput) {
+    const catalog = sources.catalog()
+    const asset = assetOf(input.owner)
+    if (asset === undefined) return catalog === undefined ? UNAVAILABLE : catalog.describe(input)
     const secretFace = sources.secrets()
     if (secretFace === undefined) return UNAVAILABLE
-    const described = await secretFace.describe(itemOf(input))
+    const described = await secretFace.describe(secretItemOf(input, asset))
     if (described.kind !== 'not-visible') return described
-    const catalog = sources.catalog()
     return catalog === undefined ? UNAVAILABLE : catalog.describe(input)
   }
 
   async function setSecret(
     input: Parameters<Port['set']>[0],
+    asset: AssetQuery,
     secret: string,
   ): Promise<WriteOutcome> {
     if (input.expectedRevision !== SECRET_REVISION) return CONFLICT
     const secretFace = sources.secrets()
     if (secretFace === undefined) return UNAVAILABLE
-    const written = await secretFace.set({ ...itemOf(input), secret })
+    const written = await secretFace.set({ ...secretItemOf(input, asset), secret })
     if (written.kind !== 'not-visible') return written
     const catalog = sources.catalog()
-    return catalog === undefined ? UNAVAILABLE : recognised(await catalog.describe(itemOf(input)))
+    return catalog === undefined ? UNAVAILABLE : recognised(await catalog.describe(input))
   }
 
   async function setValue(input: Parameters<Port['set']>[0]): Promise<WriteOutcome> {
     const catalog = sources.catalog()
     if (catalog === undefined) return UNAVAILABLE
     const written = await catalog.set(input)
-    if (written.kind !== 'not-visible') return written
+    const asset = assetOf(input.owner)
+    if (written.kind !== 'not-visible' || asset === undefined) return written
     const secretFace = sources.secrets()
     return secretFace === undefined
       ? UNAVAILABLE
-      : recognised(await secretFace.describe(itemOf(input)))
+      : recognised(await secretFace.describe(secretItemOf(input, asset)))
   }
 
-  async function clearSecret(input: Parameters<Port['clear']>[0]): Promise<WriteOutcome> {
+  async function clearSecret(
+    input: Parameters<Port['clear']>[0],
+    asset: AssetQuery,
+  ): Promise<WriteOutcome> {
     const secretFace = sources.secrets()
     if (secretFace === undefined) return UNAVAILABLE
-    if (input.expectedRevision === SECRET_REVISION) return secretFace.clear(itemOf(input))
-    const described = await secretFace.describe(itemOf(input))
+    const item = secretItemOf(input, asset)
+    if (input.expectedRevision === SECRET_REVISION) return secretFace.clear(item)
+    const described = await secretFace.describe(item)
     if (described.kind === 'described') return CONFLICT
     return described
   }
 
   async function clear(input: Parameters<Port['clear']>[0]): Promise<WriteOutcome> {
-    const cleared = await clearSecret(input)
-    if (cleared.kind !== 'not-visible') return cleared
+    const asset = assetOf(input.owner)
+    const cleared = asset === undefined ? undefined : await clearSecret(input, asset)
+    if (cleared !== undefined && cleared.kind !== 'not-visible') return cleared
     const catalog = sources.catalog()
     return catalog === undefined ? UNAVAILABLE : catalog.clear(input)
   }
 
-  return Object.freeze({
-    list,
-    describe,
-    set: input =>
-      input.value.kind === 'secret' ? setSecret(input, input.value.secret) : setValue(input),
-    clear,
-  } satisfies TenantSettingsPort)
+  async function set(input: Parameters<Port['set']>[0]): Promise<WriteOutcome> {
+    const asset = assetOf(input.owner)
+    return input.value.kind === 'secret' && asset !== undefined
+      ? setSecret(input, asset, input.value.secret)
+      : setValue(input)
+  }
+
+  return Object.freeze({ list, describe, set, clear } satisfies TenantSettingsPort)
 }
 
 function secretPage(items: readonly SecretView[], next: string): Listed {

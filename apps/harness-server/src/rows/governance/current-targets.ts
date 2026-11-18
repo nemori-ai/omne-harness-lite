@@ -87,14 +87,24 @@ export function currentGovernanceTargets(input: {
   return targets
 }
 
+function sidesOf(
+  input: Parameters<typeof currentGovernanceTargets>[0],
+  kind: SettingsOwnerProjection['views'][number]['target']['kind'],
+) {
+  switch (kind) {
+    case 'asset':
+      return { settings: input.assets, publications: input.assetPublications }
+    case 'independent':
+      return { settings: input.standalone, publications: input.standalonePublications }
+  }
+}
+
 function matchTarget(
   input: Parameters<typeof currentGovernanceTargets>[0],
   target: SettingsOwnerProjection['views'][number]['target'],
 ) {
-  const kind = target.policyId
-  if (kind !== 'asset' && kind !== 'independent') return undefined
-  const settings = kind === 'asset' ? input.assets : input.standalone
-  const publications = kind === 'asset' ? input.assetPublications : input.standalonePublications
+  const kind = target.kind
+  const { settings, publications } = sidesOf(input, kind)
   const view = only(settings.views.filter(view => equal(view.target, target)))
   const publication = only(publications.views.filter(view => equal(view.target, target)))
   if (view === undefined || publication === undefined) return undefined

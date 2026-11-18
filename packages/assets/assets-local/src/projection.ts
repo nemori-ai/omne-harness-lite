@@ -20,8 +20,8 @@ function selectedTarget(
   binding: SettingsProjectionBinding,
   target: SettingsTargetProjection['target'],
 ) {
-  if (target.policyId !== 'asset' || target.scopeRef !== scopeRef(binding.domain)) return null
-  const holding = readHolding(port, binding.domain, target.targetRef)
+  if (target.kind !== 'asset' || target.scopeRef !== scopeRef(binding.domain)) return null
+  const holding = readHolding(port, binding.domain, target.holdingRef)
   if (!holding || holding.state !== 'held') return null
   const selected = selectedVersion(port, holding)
   return selected === null ? null : { holding, ...selected }
@@ -70,10 +70,10 @@ function captureTargets(
 ) {
   const targets = binding.request.targets
   if (targets.length > 0 || binding.request.mode !== 'management')
-    return targets.filter(target => target.policyId === 'asset')
-  return heldOutside(port, canonical(binding.domain), excluded).map(targetRef => ({
-    policyId: 'asset',
-    targetRef,
+    return targets.filter(target => target.kind === 'asset')
+  return heldOutside(port, canonical(binding.domain), excluded).map(holdingRef => ({
+    kind: 'asset' as const,
+    holdingRef,
     scopeRef: scope,
   }))
 }

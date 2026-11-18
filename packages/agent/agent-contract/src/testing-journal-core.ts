@@ -17,6 +17,7 @@ import type { AgentJournal, HandoffCustody, OriginalInputAcceptance } from './jo
 import type { PendingHandoff } from './passages.ts'
 import { uncoveredCase, type ConformanceCase } from './testing-case.ts'
 import { finishingCases } from './testing-journal-finishing.ts'
+import { openSnapshotCases } from './testing-journal-open.ts'
 import {
   admitReply,
   advancement,
@@ -1162,40 +1163,8 @@ export function agentJournalCoreConformance<P>(
         )
       },
     },
-    {
-      name: 'load: handoffs and checkpoint.currentHandoff are read at one revision, and a commit without a handoff change keeps currentHandoff',
-      run: async () => {
-        const opened = await fixture.open('load-same-revision')
-        const { journal } = opened
-        const request = pendingHandoff(opened, await load(opened), 'h1')
-        const receipt = await ok(
-          journal.commit(prepareCommit(opened, await load(opened), 'p1', request)),
-          'P',
-        )
-        const after = await load(opened)
-        assert.equal(after.revision, receipt.revision)
-        assert.deepEqual(after.checkpoint.currentHandoff, request.reference)
-        assert.equal(handoffOf(after, request.reference).history.kind, 'pending')
-        await refused(
-          journal.commit(
-            commitAt(opened, after, 'drop-pointer', opened.authority, {
-              checkpoint: { ...after.checkpoint, position: 'I8', currentHandoff: null },
-            }),
-          ),
-          'invalid',
-          'a commit without a handoff change that clears currentHandoff',
-        )
-        const kept = await ok(
-          journal.commit(commitAt(opened, after, 'keep-pointer')),
-          'a commit that keeps the pointer',
-        )
-        const later = await load(opened)
-        assert.equal(later.revision, kept.revision)
-        assert.deepEqual(later.checkpoint.currentHandoff, request.reference)
-        assert.equal(handoffOf(later, request.reference).history.kind, 'pending')
-      },
-    },
     ...finishingCases(fixture),
+    ...openSnapshotCases(fixture),
     ...replyAdmissionCases(fixture, true),
   ]
 }

@@ -1,3 +1,4 @@
+import type { Context } from '@deepseek-ai/cordis'
 import {
   createSessionAgentJournalPlugin,
   type SessionAgentJournalPluginInput,
@@ -24,8 +25,11 @@ import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/co
 import { suppliedContextBlocks } from '../../assembly/context-definitions.ts'
 import { releaseCancellation } from '../../entry/cancellation-installation.ts'
 import { defineRow } from '../../row.ts'
+import { agentJournalCombination, combinationConfig, type CombinationConfig } from './config.ts'
 
-export { agentJournalCombination } from './config.ts'
+export { agentJournalCombination, COMBINATION_VERSION } from './config.ts'
+
+const INJECTS = [sessionAccessCheckKey, storageKey, tenantDomainLookupKey]
 
 export function createAgentJournalRow(input: SessionAgentJournalPluginInput = {}) {
   return defineRow({
@@ -44,9 +48,7 @@ export function createAgentJournalRow(input: SessionAgentJournalPluginInput = {}
         sessionAdoptedRequestsKey,
       ],
       injects: [
-        sessionAccessCheckKey,
-        storageKey,
-        tenantDomainLookupKey,
+        ...INJECTS,
         ...(input.reminders === undefined
           ? []
           : [runtimeContextKey, runtimeContextReaderEligibilityKey]),
@@ -54,7 +56,17 @@ export function createAgentJournalRow(input: SessionAgentJournalPluginInput = {}
       sameProviderGroup: 'agent-journal',
     },
     lifecycle: { kind: 'none' },
-    plugin: createSessionAgentJournalPlugin(input),
+    plugin: {
+      name: 'agent-journal',
+      inject: INJECTS,
+      Config: combinationConfig,
+      async apply(ctx: Context, config: CombinationConfig) {
+        await ctx.plugin(
+          createSessionAgentJournalPlugin(input),
+          agentJournalCombination(config.combinationVersion),
+        )
+      },
+    },
   })
 }
 

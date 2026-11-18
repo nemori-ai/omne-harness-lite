@@ -3,7 +3,7 @@ import {
   agentScheduleConsentItem,
   scheduleAgentAuthoringSettings,
 } from '@omne-harness/schedule-local'
-import type { PreferenceSettingsService } from '../../../src/rows/governance/preference-settings-service.ts'
+import type { TenantIndependentSettingsService } from '../../../src/rows/governance/independent-settings-service.ts'
 import { readConsentMode } from '../../../src/rows/schedule/consent-setting.ts'
 
 const value = (v: unknown) => ({
@@ -25,7 +25,7 @@ function preferences(basis: unknown) {
       if (basis instanceof Error) throw basis
       return basis
     },
-  } as unknown as PreferenceSettingsService
+  } as unknown as TenantIndependentSettingsService
   return { service, asked }
 }
 

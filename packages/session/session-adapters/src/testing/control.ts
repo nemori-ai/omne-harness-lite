@@ -1,5 +1,7 @@
 import type {
   AgentEvent,
+  AgentExecutionId,
+  AgentOperationId,
   ControlRecord,
   ControlStage,
   EffectIntent,
@@ -19,7 +21,9 @@ import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { resolveToolInvocationRef, resolveToolOperationRef } from '@omne-harness/tool-contract'
 import { canonical } from './session-values.ts'
 import { HistoryFailure, corrupt, unavailable } from './history-failure.ts'
-import { operationText, type MemoryExecution } from './journal.ts'
+import type { MemoryExecution, OperationRecord } from './journal.ts'
+import { operationText } from './journal-values.ts'
+import { answerRef, needClosed } from './closed-items.ts'
 import type { CommonRoot } from './root.ts'
 
 const STAGES: readonly SessionControlStage[] = [
@@ -64,12 +68,24 @@ function toolInvocationOf(execution: MemoryExecution, record: ControlRecord): st
     : null
 }
 
+// The record of an operation, or what it answered once its record left the core.
+function recorded(
+  root: CommonRoot,
+  tenant: string,
+  execution: AgentExecutionId,
+  operation: AgentOperationId,
+): OperationRecord | undefined {
+  const held = root.agent.operations.get(operationText(tenant, execution, operation))
+  if (held !== undefined) return held
+  return (needClosed(root.agent, answerRef(execution, operation)) ?? undefined) as
+    | OperationRecord
+    | undefined
+}
+
 function acceptedOf(root: CommonRoot, execution: MemoryExecution, record: ControlRecord): string {
   const tenant = tenantCodec.encode(execution.tenant)
   if (!tenant.ok) corrupt('tenant')
-  const original = root.agent.operations.get(
-    operationText(tenant.value, execution.id, record.operation),
-  )
+  const original = recorded(root, tenant.value, execution.id, record.operation)
   if (original?.kind !== 'committed') unavailable('original control command')
   return String(original.receipt.revision)
 }
@@ -150,9 +166,7 @@ function urgentOf(root: CommonRoot, execution: MemoryExecution): SessionControlE
       execution: execution.id,
       input: String(input.id) as InputId,
     })
-    const original = root.agent.operations.get(
-      operationText(tenant.value, execution.id, operation as never),
-    )
+    const original = recorded(root, tenant.value, execution.id, operation as AgentOperationId)
     return original?.kind === 'committed'
       ? [{ input: String(input.id) as InputId, message: input.content, origin: input.source }]
       : []

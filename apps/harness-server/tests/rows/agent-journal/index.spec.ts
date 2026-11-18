@@ -40,10 +40,9 @@ async function start(): Promise<LoadedTree> {
     // No Runtime Context here: the row under test is the release row without telling the model.
     rows: [
       ...storage.specs,
-      declared(
-        createAgentJournalRow({ cancellation: releaseCancellation }),
-        agentJournalCombination(),
-      ),
+      declared(createAgentJournalRow({ cancellation: releaseCancellation }), {
+        combinationVersion: agentJournalCombination().combinationVersion,
+      }),
     ],
   })
   release.push(() => tree.dispose())

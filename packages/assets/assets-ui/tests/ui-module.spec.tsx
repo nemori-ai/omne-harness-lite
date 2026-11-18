@@ -111,7 +111,7 @@ it('U6 the module provides the governance port: another module injects it, reads
     list.answer({
       outcome: 'succeeded',
       body: {
-        items: [permissionView({ asset: { category: 'mcp', name: 'context7' } })],
+        items: [permissionView({ owner: { kind: 'asset', category: 'mcp', name: 'context7' } })],
         next: null,
         completeness: 'complete',
       },

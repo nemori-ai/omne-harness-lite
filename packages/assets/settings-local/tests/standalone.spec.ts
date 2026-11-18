@@ -7,7 +7,7 @@ import {
   StandalonePublicationProjectionSchema,
 } from '../src/index.ts'
 import { openPreparedTargetWorld } from './prepared-target-world.ts'
-import { definition, definitionRef } from './world.ts'
+import { definition, definitionRef, sibling } from './world.ts'
 const opened: { close(): Promise<void> }[] = []
 afterEach(async () => {
   for (const world of opened.splice(0)) await world.close()
@@ -173,7 +173,7 @@ it('stores and clears an explicit publication reference under the existing owner
   expect(await publication(w)).toMatchObject({
     views: [{ publicationRef: null, ownerRevision: 2 }],
   })
-  expect(await publication(w, { ...w.target, targetRef: 'missing' })).toMatchObject({
+  expect(await publication(w, sibling(w.target, 'missing'))).toMatchObject({
     kind: 'rolled_back',
   })
 })

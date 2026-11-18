@@ -29,7 +29,16 @@ it('captures actual declared asset targets and never invents a runtime selection
   })
   for (const request of [
     { mode: 'runtime' as const, targets: [] },
-    { targets: [{ policyId: 'independent', targetRef: 'preferences', scopeRef: 'tenant-a' }] },
+    {
+      targets: [
+        {
+          kind: 'independent' as const,
+          providerId: 'example',
+          definitionId: 'preferences',
+          scopeRef: 'tenant-a',
+        },
+      ],
+    },
   ]) {
     const captured = await world.capture(request)
     expect(captured.kind).toBe('committed')
@@ -53,7 +62,7 @@ it('safely rejects removed, nonexistent, cross-scope and cross-domain projection
   const world = await open()
   for (const wrong of [
     { ...target, scopeRef: 'tenant-b' },
-    { ...target, targetRef: 'missing' },
+    { ...target, holdingRef: 'missing' },
   ])
     expect((await world.capture({ targets: [wrong] })).kind).toBe('rolled_back')
   const result = await world.storage.commit({
@@ -139,7 +148,7 @@ it('refuses management overflow instead of truncating 129 real holdings into suc
     kind: 'conflict',
     basis: { failure: { kind: 'rejected', reason: 'limit_exceeded' } },
   })
-  const explicit = await world.capture({ targets: [{ ...target, targetRef: 'holding-128' }] })
+  const explicit = await world.capture({ targets: [{ ...target, holdingRef: 'holding-128' }] })
   expect(explicit.kind).toBe('committed')
 }, 30000)
 async function serviceAndNoteWorld() {
@@ -176,7 +185,7 @@ async function holdOne(world: World, category: 'service' | 'note', name: string)
 function capturedRefs(result: Awaited<ReturnType<World['capture']>>): string[] {
   if (result.kind !== 'committed') throw new Error('capture failed')
   const views = SettingsOwnerProjectionSchema.parse(result.responses[0]?.reply.response).views
-  return views.map(view => view.target.targetRef)
+  return views.flatMap(view => (view.target.kind === 'asset' ? [view.target.holdingRef] : []))
 }
 it('leaves out the holdings of the categories the caller excludes, so they do not count to the limit', async () => {
   const world = await serviceAndNoteWorld()

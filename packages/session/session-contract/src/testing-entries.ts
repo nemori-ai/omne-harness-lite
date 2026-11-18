@@ -6,6 +6,8 @@ import type {
   SessionEntriesInterpretation,
   SessionEntriesItem,
   SessionEntriesObservation,
+  SessionEntriesProgress,
+  SessionEntriesReceipt,
   SessionEntriesStart,
 } from './interpretation-values.ts'
 import type { WorkSnapshot } from './values.ts'
@@ -85,6 +87,7 @@ function observation(
     operation,
     after: '0',
     through: '2',
+    position: '2',
     boundary: {
       execution: o.execution,
       channel: 'tool-received',
@@ -110,6 +113,7 @@ function next(o: Opened, operation: SessionOperationId, start: SessionEntriesSta
     observation: observation(o, operation, {
       after: '2',
       through: '3',
+      position: '3',
       items: [item('3', [produced])],
     }),
     start,
@@ -117,6 +121,16 @@ function next(o: Opened, operation: SessionOperationId, start: SessionEntriesSta
 }
 
 const initial: SessionEntriesStart = { kind: 'initial' }
+
+// The first observation ends at item 2, read at entry position 2.
+const progressOf = (o: Opened, receipt: SessionEntriesReceipt): SessionEntriesProgress => ({
+  run: o.run,
+  execution: o.execution,
+  channel: 'tool-received',
+  through: receipt.through,
+  position: '2',
+  interpreted: receipt.interpreted,
+})
 
 async function allEntries<P>(
   history: SessionHistory<P>,
@@ -189,15 +203,7 @@ export function sessionEntriesConformance<P>(): readonly ConformanceCase<
         )
         const after = await o.s.readWork()
         assert.equal(BigInt(after.revision), BigInt(before.revision) + 1n, 'one revision')
-        assert.deepEqual(after.entriesProgress, [
-          {
-            run: o.run,
-            execution: o.execution,
-            channel: 'tool-received',
-            through: receipt.through,
-            interpreted: receipt.interpreted,
-          },
-        ])
+        assert.deepEqual(after.entriesProgress, [progressOf(o, receipt)])
         const progress = await allEntries(fixture.port.history, fixture.access, [
           'entries.interpreted',
         ])
@@ -309,16 +315,7 @@ export function sessionEntriesConformance<P>(): readonly ConformanceCase<
           'commitEntries',
         )
         const operation = fixture.operation('refused')
-        const continued = next(o, operation, {
-          kind: 'saved',
-          progress: {
-            run: o.run,
-            execution: o.execution,
-            channel: 'tool-received',
-            through: committed.through,
-            interpreted: committed.interpreted,
-          },
-        })
+        const continued = next(o, operation, { kind: 'saved', progress: progressOf(o, committed) })
         const range = continued.observation
         const refusals: readonly [string, SessionEntriesObservation, SessionEntriesStart][] = [
           ['denied', { ...range, session: sessionId(`${o.base.session}-other`) }, continued.start],

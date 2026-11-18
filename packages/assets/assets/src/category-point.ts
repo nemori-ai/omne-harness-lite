@@ -1,7 +1,7 @@
 import type { BodyContract } from './identity.ts'
 import { copyTree } from './read-body.ts'
 
-export type CategoryDisplay = Readonly<{ title: string; summary: string }>
+export type CategoryDisplay = Readonly<{ title: string; summary: string; creation?: string }>
 
 export type CategoryContribution = Readonly<{ contract: BodyContract; display: CategoryDisplay }>
 
@@ -54,15 +54,18 @@ export function createCategoryPoint(): CategoryPoint {
 function admit({ contract, display }: CategoryContribution): Entry {
   const category = contract.category
   if (category === '') throw new TypeError('category name is empty')
-  if (display.title === '' || display.summary === '')
+  if (display.title === '' || display.summary === '' || display.creation === '')
     throw new TypeError('category display is incomplete')
   const schema = copyTree(contract.schema, false)
   if (schema === undefined) throw new TypeError('schema could not be copied')
+  const { title, summary, creation } = display
   return Object.freeze({
     contract: Object.freeze({ ...contract, category, schema }),
     listing: Object.freeze({
       category,
-      display: Object.freeze({ title: display.title, summary: display.summary }),
+      display: Object.freeze(
+        creation === undefined ? { title, summary } : { title, summary, creation },
+      ),
     }),
   })
 }

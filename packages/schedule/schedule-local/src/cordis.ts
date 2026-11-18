@@ -6,7 +6,15 @@ import {
   ScheduleQueriesService,
 } from '@omne-harness/schedule-cordis-contract/cordis'
 import type { ScheduleCommands, ScheduleQueries } from '@omne-harness/schedule-contract'
+import { independentSettingsPlugin } from '@omne-harness/assets-cordis-contract/cordis'
 import { createScheduleLocalApplication, type ScheduleLocalOptions } from './application.ts'
+import { scheduleAgentAuthoringSettings } from './settings-declaration.ts'
+
+/** Schedules bring their own agent authoring settings; the row that runs schedules loads it. */
+export const scheduleAgentAuthoringSettingsPlugin = independentSettingsPlugin(
+  'schedule-agent-authoring-settings',
+  scheduleAgentAuthoringSettings,
+)
 
 export type ScheduleLocalConfiguration = Omit<ScheduleLocalOptions, 'sql' | 'prediction'> & {
   sql: Omit<ScheduleLocalOptions['sql'], 'storage'>

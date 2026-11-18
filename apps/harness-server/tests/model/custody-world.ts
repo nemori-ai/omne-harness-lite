@@ -271,7 +271,9 @@ async function journalTree(base: ReturnType<typeof makeBase>) {
         domainRule: 'organization-account/1',
       }),
       // This world has no Runtime Context: the journal here does not tell the model.
-      declared(createAgentJournalRow({ cancellation: releaseCancellation }), combination),
+      declared(createAgentJournalRow({ cancellation: releaseCancellation }), {
+        combinationVersion: combination.combinationVersion,
+      }),
       declared(probe),
     ],
   })

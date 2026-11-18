@@ -776,7 +776,10 @@ describe('外壳：一项坏了只坏这一项', () => {
     ).not.toBeNull()
     expect(failed()).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: '设置' }))
-    expect(section('settings')?.textContent).toContain('资产自己的设置都在「资产」页里')
+    await act(async () => {
+      await settle()
+    })
+    expect(section('settings')?.textContent).toContain('这一层还没有不属于资产的设置。')
   })
 
   it('侧栏区的一项抛出：只有它读不出，别的侧栏项与页面照常', async () => {
@@ -963,17 +966,18 @@ describe('外壳：读位置的快照', () => {
 
 describe('资产页：类别带来自己的页面（MCP）', () => {
   const ASSETS = protocolServiceName({ name: assetsProtocol.name, major: assetsProtocol.major })
-  const CONTEXT7 = { category: 'mcp', name: 'context7' }
+  const CONTEXT7 = { kind: 'asset', category: 'mcp', name: 'context7' }
   const declaration = (title: string) => ({
     title,
     purpose: `${title}的用途。`,
     appliesAt: '下一次连接起生效。',
     clearEffect: '这一层不再提供这个值。',
+    group: { id: 'context7', title: 'context7', description: 'context7 的设置' },
   })
   const items = [
     {
       kind: 'permission',
-      asset: CONTEXT7,
+      owner: CONTEXT7,
       item: 'call-actions',
       revision: '1',
       declaration: declaration('调用这个接入点的动作'),
@@ -990,7 +994,7 @@ describe('资产页：类别带来自己的页面（MCP）', () => {
     },
     {
       kind: 'ordinary',
-      asset: CONTEXT7,
+      owner: CONTEXT7,
       item: 'target',
       revision: '1',
       declaration: declaration('连接目标'),

@@ -11,7 +11,7 @@ import { permissionView } from './fixtures/views.ts'
 
 const VIEW = permissionView()
 const KEY = keyOf(VIEW)
-const TARGET = { asset: VIEW.asset, item: VIEW.item }
+const TARGET = { owner: VIEW.owner, item: VIEW.item }
 
 function run(state: State, ...events: Event[]): { state: State; effects: unknown[] } {
   let current = state
@@ -73,6 +73,19 @@ function stillUnknown(): State {
     answer: { outcome: 'uncertain' },
   }).state
 }
+
+describe('一项的键', () => {
+  it('同名的项，归属不同就是两项：两个独立归属只差提供者也分得开，资产与独立也分得开', () => {
+    const independent = (providerId: string) =>
+      keyOf({
+        ...VIEW,
+        owner: { kind: 'independent', providerId, definitionId: 'environment' },
+      })
+    expect(independent('calendar')).not.toBe(independent('schedule'))
+    expect(independent('calendar')).not.toBe(KEY)
+    expect(independent('calendar')).toBe(independent('calendar'))
+  })
+})
 
 describe('整张表', () => {
   it('挂上：读中，列出第一页', () => {
@@ -207,6 +220,28 @@ describe('一项', () => {
       answer: { outcome: 'succeeded', body: { revision: '2' } },
     }).state
     expect(step(rereading, { kind: 'clear', key: KEY, operation: 'op-2' }).state).toBe(rereading)
+  })
+
+  it('闲时交一个普通值：交，带这一项的修订号与值；结果未知时原样再送同一个值', () => {
+    const value = { kind: 'string', value: 'Asia/Shanghai' } as const
+    const sent = { operation: 'op-1', expectedRevision: '1', request: { kind: 'set-value', value } }
+    const { state, effects } = run(listed(), {
+      kind: 'set-value',
+      key: KEY,
+      value,
+      operation: 'op-1',
+    })
+    expect(rowIn(state).write).toEqual({ kind: 'submitting', sent })
+    expect(effects).toEqual([{ kind: 'write', key: KEY, target: TARGET, sent }])
+    const unknown = run(state, {
+      kind: 'write-answered',
+      key: KEY,
+      operation: 'op-1',
+      answer: { outcome: 'unknown' },
+    })
+    expect(rowIn(unknown.state).write).toMatchObject({ kind: 'unknown', confirming: true, sent })
+    expect(unknown.effects).toEqual([{ kind: 'write', key: KEY, target: TARGET, sent }])
+    expect(step(state, { kind: 'set-value', key: KEY, value, operation: 'op-2' }).state).toBe(state)
   })
 
   it('闲时点「清除」：交，带这一项的修订号', () => {

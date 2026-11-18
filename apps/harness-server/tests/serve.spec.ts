@@ -80,7 +80,7 @@ afterEach(() => {
 })
 
 describe('serve: the release tree of doubles', () => {
-  it('the release tree of 67 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
+  it('the release tree of 68 real and 2 s0-double rows loads, accepts, stops on request and exits 0', async () => {
     const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
     try {
       const port = await freePort()
@@ -104,6 +104,7 @@ describe('serve: the release tree of doubles', () => {
         'authorization:real',
         'session-storage:real',
         'asset-categories:real',
+        'tenant-assets:real',
         'governance:real',
         'calendar:real',
         'schedule:real',
@@ -172,9 +173,9 @@ describe('serve: the release tree of doubles', () => {
         scope: 'serving',
         accepting: true,
         outcome: 'ready',
-        enabledRows: 69,
+        enabledRows: 70,
         barrierCalls: 1,
-        implementations: { real: 67, 'contract-double': 0, 's0-double': 2 },
+        implementations: { real: 68, 'contract-double': 0, 's0-double': 2 },
       })
       expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
       expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])
@@ -186,10 +187,15 @@ describe('serve: the release tree of doubles', () => {
   it.each([
     ['agent-journal', 'agentJournalRow'],
     ['session-handoff', 'sessionHandoffRow'],
-  ])('the release gives %s the combination that session-storage registers', (id, plugin) => {
-    const row = release.rows.find(r => r.id === id)
-    expect(row).toMatchObject({ plugin, config: agentJournalCombination() })
-  })
+  ])(
+    'the release gives %s the combination version alone; the row takes the digest from the catalog',
+    (id, plugin) => {
+      const row = release.rows.find(r => r.id === id)
+      const { combinationVersion } = agentJournalCombination()
+      expect(row).toMatchObject({ plugin })
+      expect(row?.config).toEqual({ combinationVersion })
+    },
+  )
 
   it('only s0.assemblyLifecycle carries the s0. prefix', async () => {
     const run = await serveOnce({ distribution: release, operator: await releaseOperator() })

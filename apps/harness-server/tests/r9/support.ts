@@ -414,12 +414,10 @@ export function operatorLayer(options: {
       { kind: 'replace', id: 'execution-host', config: tools.host },
       {
         kind: 'replace',
-        id: 'skills',
-        config: {
-          packageRoot: join(dirname(options.storageRoot), 'assets'),
-          ranking: SEARCH_RANKING,
-        },
+        id: 'tenant-assets',
+        config: { packageRoot: join(dirname(options.storageRoot), 'assets') },
       },
+      { kind: 'replace', id: 'skills', config: { ranking: SEARCH_RANKING } },
       {
         kind: 'replace',
         id: 'request-context',

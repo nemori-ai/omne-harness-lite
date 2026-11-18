@@ -129,7 +129,7 @@ async function world(organization: Rule | null, own: Rule | null = null) {
         completeness: 'complete',
         unavailableProviders: [],
       }),
-      assetOf: async () => ({ category: 'tool', name: 'Shell' }),
+      holdingOf: async () => ({ category: 'tool', name: 'Shell' }),
     },
     permissions: createTenantSettingsPermissions({
       scope: { deploymentId: 'deployment', logicalServiceId: 'service' },
@@ -151,7 +151,12 @@ async function world(organization: Rule | null, own: Rule | null = null) {
       },
     },
   })
-  const item = { principal: 'login', tenant, asset: { name: 'Shell' }, item: itemId }
+  const item = {
+    principal: 'login',
+    tenant,
+    owner: { kind: 'asset', name: 'Shell' } as const,
+    item: itemId,
+  }
   return { face, item, writes }
 }
 

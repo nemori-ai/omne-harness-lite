@@ -84,6 +84,25 @@ describe('a checkpoint change spilled whole restores in order across provider co
     expect((await load(s, other)).checkpoint).toEqual(moved.checkpoint)
   })
 
+  it('a checkpoint that names more calls than a cursor fact can hold is committed all the same', async () => {
+    const s = await sqlScene('bridge-many-calls')
+    const writer = s.view.journal
+    const authority = ok(await writer.open(s.openInput)).authority
+    const calls = Array.from(
+      { length: 200 },
+      (_, at) => toolCall(s.access.tenant, `many-${String(at)}`).pending,
+    )
+    ok(await commit(s, writer, authority, 'many', c => ({ ...c, position: 'W0', calls }) as never))
+    const written = await load(s, writer)
+    expect(written.checkpoint.calls).toHaveLength(200)
+    expect((await load(s, cold(s))).checkpoint).toEqual(written.checkpoint)
+    // The checkpoint shrinks again: the cursor names what it holds once more.
+    ok(
+      await commit(s, writer, authority, 'few', c => ({ ...c, calls: calls.slice(0, 1) }) as never),
+    )
+    expect((await load(s, cold(s))).checkpoint.calls).toHaveLength(1)
+  })
+
   it('two large changes in a row both survive a rebuild', async () => {
     const s = await sqlScene('bridge-spill-twice')
     const writer = s.view.journal

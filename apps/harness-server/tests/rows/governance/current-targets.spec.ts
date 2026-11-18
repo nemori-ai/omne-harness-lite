@@ -16,7 +16,7 @@ beforeAll(async () => {
   const entry = release.manifest.entries.find(value => value.asset.name === 'Shell')
   const definition = entry?.governance.declaration.settings[0]
   if (entry === undefined || definition === undefined) throw new Error('Shell declaration absent')
-  const target = { policyId: 'asset', scopeRef: 'tenant-a', targetRef: 'shell' }
+  const target = { kind: 'asset' as const, holdingRef: 'shell', scopeRef: 'tenant-a' }
   const capture: Input['capture'] = {
     domain: { scope: { kind: 'tenant', tenant: 'tenant-a' }, transactionDomain: 'governance' },
     principalRef: 'alice',
@@ -162,13 +162,6 @@ const mutations: [string, (input: Input) => void][] = [
       input.released = [...input.released, ...input.released]
     },
   ],
-  [
-    'unsupported target owner',
-    input => {
-      const target = input.capture.request.targets[0]
-      if (target) target.policyId = 'unknown'
-    },
-  ],
 ]
 it.each(mutations)(
   'refuses %s instead of presenting complete current evidence',
@@ -236,9 +229,10 @@ it('leaves a target without governance items out of the governance catalog', () 
   const input = managementInput()
   const definition = scheduleAgentAuthoringSettings
   const target = {
-    policyId: 'independent',
+    kind: 'independent' as const,
+    providerId: definition.providerId,
+    definitionId: definition.definitionId,
     scopeRef: 'tenant-a',
-    targetRef: 'schedule.agent-authoring',
   }
   const definitionRef = {
     providerId: definition.providerId,

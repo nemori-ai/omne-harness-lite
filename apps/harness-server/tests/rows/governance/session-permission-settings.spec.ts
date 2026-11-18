@@ -10,14 +10,15 @@ function fixture() {
     permission = bundle.permissions[0],
     definition = bundle.settings[0]
   if (!permission || !definition) throw new Error('Fixture mapping required')
-  const target = { policyId: 'independent', scopeRef: scope.tenantRef, targetRef: 'permission' }
+  const target = {
+    kind: 'independent' as const,
+    providerId: definition.providerId,
+    definitionId: definition.definitionId,
+    scopeRef: scope.tenantRef,
+  }
   const source = {
     domain: { scope: { kind: 'system' as const }, transactionDomain: 'organization-settings' },
-    target: {
-      policyId: 'independent',
-      scopeRef: 'org_00000000000000000000000001',
-      targetRef: 'permission',
-    },
+    target: { ...target, scopeRef: 'org_00000000000000000000000001' },
   }
   const view: SettingsBasis['views'][number] = {
     target,
@@ -94,7 +95,7 @@ it.each([
     completeness: scenario === 'partial' ? 'partial' : 'complete',
     views:
       scenario === 'ambiguous'
-        ? [view, { ...view, target: { ...w.target, targetRef: 'another-target' } }]
+        ? [view, { ...view, target: { ...w.target, definitionId: 'another-target' } }]
         : [view],
   }
   let routed = false

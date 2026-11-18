@@ -783,3 +783,22 @@ it.each(['retry', 'recover'] as const)(
     expect(outside.map(item => item.commit.kind)).toEqual(['unknown'])
   },
 )
+
+it.each(['retry', 'recover'] as const)(
+  '%s of an execution whose calls all have their results has nothing pending',
+  async method => {
+    const s = await setup()
+    const rebuilt = ok(
+      createAgentToolReceiver(
+        {
+          ...s.dependencies,
+          targets: { ...s.dependencies.targets, forExecution: async () => ({ ok: [] }) },
+        },
+        createToolReceiverState<string>(),
+      ),
+    )
+    expect(await rebuilt[method]({ access, execution: execution(), signal: signal() })).toEqual({
+      ok: { pending: 0, diagnostics: [] },
+    })
+  },
+)

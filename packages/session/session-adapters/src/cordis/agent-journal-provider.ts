@@ -67,6 +67,7 @@ export type ExecutionRoutedJournalOptions<P> = SessionLogJournalOptions<P> &
 
 type Journal<P> = AgentJournal<P>
 type RoutedJournal<P> = Journal<P> & Required<Pick<Journal<P>, 'readFinish'>>
+
 type Materials<P> = AgentMaterials<P, ContentBlock>
 type SessionView<P> = SessionLogJournalProvider<P>
 type Scope = Readonly<{ tenant: TenantId; execution: AgentExecutionId }>
@@ -77,6 +78,10 @@ const unavailable = (diagnostic: string): Failure => ({
   owner: OWNER,
   diagnostic,
 })
+
+// An optional read the routed Journal does not hold answers unavailable, never an empty value.
+const unread = <T>(answer: Outcome<T, Failure> | undefined, what: string): Outcome<T, Failure> =>
+  answer ?? fail(unavailable(`the session Journal has no ${what} read`))
 
 async function indexedSession<P>(
   options: ExecutionRoutedJournalOptions<P>,
@@ -218,26 +223,17 @@ export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalO
     recordTerminalObservation: input =>
       written('recordTerminalObservation', input, j => j.recordTerminalObservation(input)),
     readCancellationInstallation: input =>
-      routed(
-        'readCancellationInstallation',
-        input,
-        async j =>
-          (await j.readCancellationInstallation?.(input)) ??
-          fail(unavailable('the session Journal has no cancellation installation read')),
+      routed('readCancellationInstallation', input, async j =>
+        unread(await j.readCancellationInstallation?.(input), 'cancellation installation'),
       ),
     load: input => routed('load', input, j => j.load(input)),
     inputs: input => routed('inputs', input, j => j.inputs(input)),
     readReplyAdmissions: input =>
       routed('readReplyAdmissions', input, j => j.readReplyAdmissions(input)),
     readFinish: input =>
-      routed(
-        'readFinish',
-        input,
-        async j =>
-          (await j.readFinish?.(input)) ??
-          fail(unavailable('the session Journal has no finish read')),
-      ),
+      routed('readFinish', input, async j => unread(await j.readFinish?.(input), 'finish')),
     query: input => routed('query', input, j => j.query(input)),
+    inputAcceptance: input => routed('inputAcceptance', input, j => j.inputAcceptance(input)),
     output: {
       read: input => routed('read', input, j => j.output.read(input)),
       async *events(input) {
@@ -579,6 +575,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
   readonly readReplyAdmissions: AgentJournal<unknown>['readReplyAdmissions']
   readonly readFinish: NonNullable<AgentJournal<unknown>['readFinish']>
   readonly query: AgentJournal<unknown>['query']
+  readonly inputAcceptance: AgentJournal<unknown>['inputAcceptance']
   readonly output: AgentJournal<unknown>['output']
 
   constructor(
@@ -646,6 +643,7 @@ export class SessionLogAgentJournalProvider extends AgentJournalService<unknown>
     this.readReplyAdmissions = journal.readReplyAdmissions
     this.readFinish = journal.readFinish
     this.query = journal.query
+    this.inputAcceptance = journal.inputAcceptance
     this.output = journal.output
     new SessionLogJournalEntries(ctx, routed.entries)
     new SessionLogMaterials(ctx, routed.materials)

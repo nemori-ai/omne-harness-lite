@@ -6,7 +6,7 @@ import {
 } from '@omne-harness/settings-local'
 import { createSettingsCatalogDestination } from '@omne-harness/settings-local/identity'
 import { organizationSettingsSource } from './organization-settings.ts'
-import { PREFERENCE_SETTINGS_CONFIGURATION } from './preference-settings.ts'
+import { INDEPENDENT_SETTINGS_CONFIGURATION } from './independent-settings.ts'
 import { createSessionPermissionSettingsResolver } from './session-permission-settings.ts'
 import { governanceStorageCombinations } from './storage-combinations.ts'
 import { prepareTenantGovernance, type TenantGovernanceOptions } from './tenant-runtime.ts'
@@ -99,7 +99,7 @@ export function prepareTenantGovernanceWithSettings(
           : reservation.binding.destination === destination
             ? settingsDestination.seal(reservation)
             : reservation.binding.destination === TENANT_SETTINGS_CONFIGURATION.destination ||
-                reservation.binding.destination === PREFERENCE_SETTINGS_CONFIGURATION.destination
+                reservation.binding.destination === INDEPENDENT_SETTINGS_CONFIGURATION.destination
               ? write.destination.seal(reservation)
               : governance.destination.seal(reservation),
     },

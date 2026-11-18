@@ -173,6 +173,7 @@ it('names on the root entry exactly the types and values that the SPEC gives it'
     'projectAssetBody',
     'sameCapability',
     'skillBodyContract',
+    'skillCategoryDisplay',
     'toPackagePath',
   ])
 })

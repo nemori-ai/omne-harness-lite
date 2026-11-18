@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { access } from '@omne-harness/legal-identity'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { DomainRef, TenantDomainLookup } from '@omne-harness/sql-contract'
 import {
   directoryOf,
   routedSkills,
@@ -19,14 +18,7 @@ function keyOf(tenant: TenantId): string {
   return encoded.value
 }
 
-function domainOf(tenant: TenantId): DomainRef {
-  return {
-    scope: { kind: 'tenant', tenant: keyOf(tenant) },
-    transactionDomain: `domain-${keyOf(tenant)}`,
-  }
-}
-
-function setOf(label: string, closed: string[]): TenantSkills {
+function setOf(label: string): TenantSkills {
   return {
     catalog: {
       summaries: async () => ({ ok: [] }),
@@ -36,46 +28,29 @@ function setOf(label: string, closed: string[]): TenantSkills {
       read: async () => ({ failure: { kind: 'resource-missing' } }),
       list: async () => ({ failure: { kind: 'source-unavailable' } }),
     },
-    close: async () => {
-      closed.push(label)
-    },
   }
 }
 
-function world(
-  answer: (tenant: string) => Awaited<ReturnType<TenantDomainLookup['lookup']>> = tenant => ({
-    kind: 'ready',
-    domain: domainOf(tenant === keyOf(alpha) ? alpha : beta),
-  }),
-) {
-  const lookups: string[] = []
+function world() {
   const opened: string[] = []
-  const closed: string[] = []
-  let failOpen = false
+  let answer: 'set' | 'none' | 'throw' = 'set'
   const gates: (() => void)[] = []
   let gated = false
   const host = new TenantSkillsHost({
-    domains: {
-      async lookup({ tenant }) {
-        lookups.push(tenant)
-        return answer(tenant)
-      },
-    },
-    async open(tenant, domain) {
+    async open(tenant, tenantRef) {
       if (gated) await new Promise<void>(resolve => gates.push(resolve))
-      if (failOpen) throw new Error('store down')
-      opened.push(domain.transactionDomain)
-      return setOf(keyOf(tenant) === keyOf(alpha) ? 'alpha' : 'beta', closed)
+      opened.push(tenantRef)
+      if (answer === 'throw') throw new Error('store down')
+      if (answer === 'none') return undefined
+      return setOf(keyOf(tenant) === keyOf(alpha) ? 'alpha' : 'beta')
     },
   })
   return {
     host,
     routed: routedSkills(host),
-    lookups,
     opened,
-    closed,
-    failNext: (value: boolean) => {
-      failOpen = value
+    answer: (value: typeof answer) => {
+      answer = value
     },
     hold: () => {
       gated = true
@@ -87,7 +62,7 @@ function world(
   }
 }
 
-describe('one Skill service set per tenant', () => {
+describe('one Skill service set per tenant, over the local assets of the tenant', () => {
   it('builds one set for concurrent first calls and reuses it after', async () => {
     const w = world()
     w.hold()
@@ -97,8 +72,7 @@ describe('one Skill service set per tenant', () => {
     w.release()
     expect(await first).toBe(await second)
     expect(await w.host.get(alpha)).toBe(await first)
-    expect(w.opened).toEqual([`domain-${keyOf(alpha)}`])
-    expect(w.lookups).toEqual([keyOf(alpha)])
+    expect(w.opened).toEqual([keyOf(alpha)])
   })
 
   it('routes each call to the set of the tenant in its access', async () => {
@@ -124,34 +98,20 @@ describe('one Skill service set per tenant', () => {
     ).toStrictEqual({ failure: { kind: 'source-unavailable' } })
   })
 
-  it('answers no set, and keeps no failure, when the domain is not ready or the set cannot be built', async () => {
-    let state: 'unregistered' | 'down' | 'ready' = 'unregistered'
-    const w = world(() =>
-      state === 'ready'
-        ? { kind: 'ready', domain: domainOf(alpha) }
-        : state === 'down'
-          ? ({ kind: 'unavailable', diagnostic: 'down' } as never)
-          : { kind: 'unregistered' },
-    )
+  it('answers no set, and keeps no failure, when the local assets are not there or the set cannot be built', async () => {
+    const w = world()
+    w.answer('none')
     expect(await w.host.get(alpha)).toBeUndefined()
-    state = 'down'
+    w.answer('throw')
     expect(await w.host.get(alpha)).toBeUndefined()
-    state = 'ready'
-    w.failNext(true)
-    expect(await w.host.get(alpha)).toBeUndefined()
-    w.failNext(false)
+    w.answer('set')
     expect(await w.host.get(alpha)).toBeDefined()
-    expect(w.lookups).toHaveLength(4)
-  })
-
-  it('refuses a domain that belongs to another tenant', async () => {
-    const w = world(() => ({ kind: 'ready', domain: domainOf(beta) }))
-    expect(await w.host.get(alpha)).toBeUndefined()
-    expect(w.opened).toEqual([])
+    expect(w.opened).toHaveLength(3)
   })
 
   it('answers unknown through the routed services when there is no set', async () => {
-    const w = world(() => ({ kind: 'unregistered' }))
+    const w = world()
+    w.answer('none')
     expect(await w.routed.catalog.search(access('p', alpha), null, { text: '' })).toStrictEqual({
       failure: 'unknown',
     })
@@ -172,20 +132,18 @@ describe('one Skill service set per tenant', () => {
     ).toStrictEqual({ failure: { kind: 'unknown' } })
   })
 
-  it('closes every set it built, answers no set after closing, and closes a set that finishes building after', async () => {
+  it('answers no set after closing, also for a set that finishes building after', async () => {
     const w = world()
     await w.host.get(alpha)
     w.hold()
     const late = w.host.get(beta)
-    const closing = w.host.close()
+    w.host.close()
     w.release()
-    await closing
     expect(await late).toBeUndefined()
-    expect(w.closed.sort()).toEqual(['alpha', 'beta'])
-    const looked = w.lookups.length
+    const opened = w.opened.length
     expect(await w.host.get(alpha)).toBeUndefined()
     expect(await w.host.get(fixtureTenant('c'))).toBeUndefined()
-    expect(w.lookups).toHaveLength(looked)
+    expect(w.opened).toHaveLength(opened)
   })
 
   it('gives the local directory of a Skill version, none when it has none, and unavailable when the store cannot tell', async () => {
@@ -198,12 +156,12 @@ describe('one Skill service set per tenant', () => {
             return place
           },
         },
-      } as never)({ ref: 'tenant/skill/x', digest: 'sha256:0' } as never)
+      } as never)({ ref: 'skill/x', digest: 'sha256:0' } as never)
     expect(await at({ kind: 'local-directory', path: '/skills/x' })).toStrictEqual({
       ok: '/skills/x',
     })
     expect(await at({ kind: 'absent' })).toStrictEqual({ ok: null })
     expect(await at({ kind: 'unavailable' })).toStrictEqual({ failure: 'unavailable' })
-    expect(asked[0]).toStrictEqual({ assetRef: 'tenant/skill/x', version: 'sha256:0' })
+    expect(asked[0]).toStrictEqual({ assetRef: 'skill/x', version: 'sha256:0' })
   })
 })

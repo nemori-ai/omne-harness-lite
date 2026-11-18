@@ -9,7 +9,7 @@ import { AssetsPage, createGovernance, type GovernanceModel } from '../src/index
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
 import { namesOf } from './fixtures/names.ts'
-import { permissionView } from './fixtures/views.ts'
+import { assetOwner, permissionView } from './fixtures/views.ts'
 
 const TENANT =
   '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
@@ -26,7 +26,7 @@ async function settle(): Promise<void> {
 }
 
 const held = (category: string, name: string): SettingView =>
-  permissionView({ asset: { category, name } })
+  permissionView({ owner: assetOwner(category, name) })
 
 const mounted: string[] = []
 

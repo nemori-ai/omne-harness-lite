@@ -12,6 +12,7 @@ import {
 import type { CommitResultV2 } from '@omne-harness/sql-contract'
 import { allocation, openIntentWorld } from './intent-world.ts'
 import { source, sourceSnapshot } from './source-retention-world.ts'
+import { sibling } from './world.ts'
 import { sourceRequestSchema } from '../src/source-retention-schema.ts'
 import { sourceReservationKey } from '../src/source-retention-records.ts'
 import { intentCommandDigest } from '../src/intent-records.ts'
@@ -127,10 +128,7 @@ it('requires held Identity and an explicit empty source manifest before publishi
 it('requires every immutable source member held and refuses changed membership', async () => {
   const s = await setup()
   await s.identityHeld()
-  s.ready.sources.sources = [
-    source,
-    { ...source, target: { ...source.target, targetRef: 'second' } },
-  ]
+  s.ready.sources.sources = [source, { ...source, target: sibling(source.target, 'second') }]
   await s.planSources()
   await s.hold(0)
   expect(response(await s.w.ready(s.ready))).toEqual({ kind: 'pending', dependency: 'sources' })
@@ -209,7 +207,7 @@ it('bounds the expanded immutable request vector, not just the compact source li
     route: 'r'.repeat(1000),
     sources: Array.from({ length: 1024 }, (_, i) => ({
       ...source,
-      target: { ...source.target, targetRef: `source-${i}` },
+      target: { ...source.target, definitionId: `source-${i}` },
     })),
   }
   expect(await s.planSources()).toEqual({ kind: 'rejected', reason: 'limit_exceeded' })

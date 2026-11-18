@@ -64,7 +64,7 @@ import {
 } from '@omne-harness/session-contract/testing'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { createLocalToolReceiver, createToolReceiverState } from '../../src/index.ts'
-import { createAgentHostLocalPlugin, createAgentHostPlugin } from '../../src/host-plugin.ts'
+import { createAgentHostPlugin } from '../../src/host-plugin.ts'
 import {
   type LineWorldOptions,
   COORDINATOR,
@@ -149,6 +149,8 @@ export type ToolStep = Readonly<{
   content: readonly ContentBlock[]
   delayMs?: number
   hold?: Promise<unknown>
+  /** The call moves to the background: its placeholder is pushed first, its result after `hold`. */
+  background?: true
 }>
 export type ToolScript = (index: number, request: ToolInvokeRequest) => ToolStep
 
@@ -342,6 +344,8 @@ export async function openW2World(options: W2Options) {
   const answeredTerminals = new Set<string>()
   const endedRuns: { run: string; execution: AgentExecutionId; outcome: string }[] = []
   let afterSave: () => void = () => undefined
+  // A wait on Session's interpretation ends by time passing, not by a save; the doubles let time pass for it.
+  const clockWatch = { historyWait: false }
   const observe = (event: unknown): void => {
     if ((event as { kind?: string }).kind === 'round-complete') roundsComplete += 1
     recorder?.observe(event as MeasureEvent)
@@ -382,10 +386,7 @@ export async function openW2World(options: W2Options) {
     ...(options.root === undefined ? {} : { root: options.root }),
     ...(options.progression === undefined ? {} : { progression: options.progression }),
     storageLimits: { ...LONG_RUN_LIMITS, ...options.storageLimits },
-    hostPlugin:
-      options.onHandoff === undefined && options.wrapAgentDependencies === undefined
-        ? createAgentHostLocalPlugin({ measure: observe, toolRequests: toolRequestSource })
-        : observedHandoffHost(options, toolRequestSource, observe),
+    hostPlugin: observedHost(options, toolRequestSource, observe, clockWatch),
     ...(earlier === 'session' ? { holder: 'external' as const } : {}),
     sessionProvider: ObservedSession,
     contextPlugin: createAgentContextPlugin({ measure: observe }),
@@ -529,9 +530,11 @@ export async function openW2World(options: W2Options) {
 
   let budget = 0
   let releases = 0
+  let historyReleases = 0
   let driving = true
   afterSave = () => {
     budget += RELEASES_PER_SAVE
+    clockWatch.historyWait = false
   }
   const nearWait = (): number | null => {
     const horizon = Date.parse(w.clock.now()) + 60_000
@@ -542,11 +545,19 @@ export async function openW2World(options: W2Options) {
     return instants.length === 0 ? null : Math.min(...instants)
   }
   const driver = (async () => {
+    let lastHistoryRelease = 0
     while (driving) {
-      const at = budget > 0 ? nearWait() : null
+      const history =
+        budget === 0 && clockWatch.historyWait && Date.now() - lastHistoryRelease >= 20
+      const at = budget > 0 || history ? nearWait() : null
       if (at !== null) {
-        budget -= 1
-        releases += 1
+        if (budget > 0) {
+          budget -= 1
+          releases += 1
+        } else {
+          historyReleases += 1
+          lastHistoryRelease = Date.now()
+        }
         w.clock.advanceTo(new Date(at).toISOString())
       }
       await sleep(2)
@@ -650,6 +661,33 @@ export async function openW2World(options: W2Options) {
     const definedDelay = step.delayMs ?? delay
     const actualStart = performance.now()
     await sleep(definedDelay)
+    const pushed = async (delivery: ToolDelivery<ContentBlock>) => {
+      let answer: Awaited<ReturnType<typeof toolReceiver.push>> | null = null
+      for (let attempt = 0; attempt < 200; attempt += 1) {
+        answer = await toolReceiver.push({
+          access: agentAccess,
+          delivery,
+          signal: new AbortController().signal,
+        })
+        if ('ok' in answer) break
+        await sleep(20)
+      }
+      return answer
+    }
+    if (step.background === true) {
+      const placed = await pushed({
+        kind: 'placeholder',
+        key: { kind: 'placeholder', producer: 'tool', reference },
+        consumer: request.consumer,
+        delivery: ok(decodeToolDeliveryId(`placeholder-w2-${index}`)),
+        source: { kind: 'launched' },
+        label: { intent: 'wait', tool: 'read_file', command: null, preview: '' },
+        evidence: evidenceOf(`w2/tool/placeholder/${index}`),
+      })
+      if (placed === null || !('ok' in placed))
+        throw new Error(`the placeholder was not saved: ${JSON.stringify(placed)}`)
+      afterSave()
+    }
     if (step.hold !== undefined) await step.hold
     const delivery: ToolDelivery<ContentBlock> = {
       kind: 'result',
@@ -674,16 +712,7 @@ export async function openW2World(options: W2Options) {
       },
       account: null,
     }
-    let answer: Awaited<ReturnType<typeof toolReceiver.push>> | null = null
-    for (let attempt = 0; attempt < 200; attempt += 1) {
-      answer = await toolReceiver.push({
-        access: agentAccess,
-        delivery,
-        signal: new AbortController().signal,
-      })
-      if ('ok' in answer) break
-      await sleep(20)
-    }
+    const answer = await pushed(delivery)
     if (answer !== null && 'ok' in answer) {
       counters.receive('tool')
       afterSave()
@@ -845,6 +874,7 @@ export async function openW2World(options: W2Options) {
     warnings,
     consumers,
     releases: () => releases,
+    historyReleases: () => historyReleases,
     roundCompletes: () => roundsComplete,
     lastTerminal,
     lastOutcome,
@@ -874,12 +904,15 @@ export async function openW2World(options: W2Options) {
   }
 }
 
-function observedHandoffHost(
+// The host the world runs: the production runtime with the doubles' tool requests, the test's handoff observer and
+// dependency wrapper, and every host receiver kept. A run that waits on Session's history marks `watch`.
+function observedHost(
   options: Pick<W2Options, 'onHandoff' | 'wrapAgentDependencies'>,
   toolRequests: NonNullable<Dependencies['toolRequests']>,
   observe: (event: unknown) => void,
+  watch: { historyWait: boolean },
 ) {
-  return createAgentHostPlugin((dependencies: Dependencies, runtimeOptions) => {
+  return createAgentHostPlugin((dependencies: Dependencies, runtimeOptions, extras) => {
     const observed: Dependencies = {
       ...dependencies,
       toolRequests,
@@ -895,7 +928,14 @@ function observedHandoffHost(
     return createAgentRuntime(
       options.wrapAgentDependencies?.(observed) ?? observed,
       runtimeOptions,
-      { measure: observe },
+      {
+        ...extras,
+        waiting: event => {
+          if (event.owner === 'session-history') watch.historyWait = true
+          extras.waiting(event)
+        },
+        measure: observe,
+      },
     )
   })
 }

@@ -173,7 +173,7 @@ export async function cancelTree(cancellation: 'release' | 'absent'): Promise<Ca
                 .releaseCancellation,
             })
           : createAgentJournalRow({}),
-        combination,
+        { combinationVersion: combination.combinationVersion },
       ),
     ],
   })

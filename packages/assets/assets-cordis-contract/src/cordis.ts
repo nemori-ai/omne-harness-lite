@@ -4,8 +4,16 @@ import {
   type CategoryContribution,
   type CategoryPoint,
   type CategoryView,
+  type TenantPublishing,
+  type TenantPublishOutcome,
+  type TenantPublishRequest,
 } from '@omne-harness/assets'
-import { assetCategoriesKey } from './index.ts'
+import type {
+  IndependentSettingsPoint,
+  IndependentSettingsView,
+  SettingDefinitions,
+} from '@omne-harness/settings'
+import { assetCategoriesKey, assetPublishingKey, independentSettingsKey } from './index.ts'
 
 /** @owner packages/assets/assets-cordis-contract */
 export class AssetCategoriesService extends Service {
@@ -24,9 +32,54 @@ export class AssetCategoriesService extends Service {
   }
 }
 
+/** @owner packages/assets/assets-cordis-contract */
+export class AssetPublishingService extends Service implements TenantPublishing<unknown> {
+  static readonly provide = assetPublishingKey
+  private readonly publishing: TenantPublishing<unknown>
+  constructor(ctx: Context, publishing: TenantPublishing<unknown>) {
+    super(ctx, AssetPublishingService.provide)
+    this.publishing = publishing
+  }
+
+  publish(request: TenantPublishRequest<unknown>): Promise<TenantPublishOutcome> {
+    return this.publishing.publish(request)
+  }
+}
+
+/** @owner packages/assets/assets-cordis-contract */
+export class IndependentSettingsService extends Service {
+  static readonly provide = independentSettingsKey
+  readonly view: IndependentSettingsView
+  protected readonly point: IndependentSettingsPoint
+  constructor(ctx: Context, point: IndependentSettingsPoint) {
+    super(ctx, IndependentSettingsService.provide)
+    this.point = point
+    this.view = Object.freeze({ list: point.list })
+  }
+
+  contribute(definition: SettingDefinitions): void {
+    this.ctx.effect(() => this.point.contribute(definition), 'independentSettings.contribute')
+  }
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     assetCategories: AssetCategoriesService
+    assetPublishing: AssetPublishingService
+    independentSettings: IndependentSettingsService
+  }
+}
+
+export function independentSettingsPlugin(
+  name: string,
+  definition: SettingDefinitions,
+): Plugin.Object {
+  return {
+    name,
+    inject: [independentSettingsKey],
+    apply(ctx: Context) {
+      ctx.independentSettings.contribute(definition)
+    },
   }
 }
 

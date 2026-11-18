@@ -22,7 +22,12 @@ export async function openTenantCurrentWorld(
   const identity = await openIdentityWorld()
   const tenant = tenantCodec.encode(identity.administrator.tenant)
   if (!tenant.ok) throw new Error('Invalid tenant fixture')
-  const target = { policyId: 'independent', targetRef: 'preferences', scopeRef: tenant.value }
+  const target = {
+    kind: 'independent',
+    providerId: 'example',
+    definitionId: 'preferences',
+    scopeRef: tenant.value,
+  } as const
   const domain: DomainRef = {
     scope: { kind: 'tenant', tenant: tenant.value },
     transactionDomain: 'tenant/preferences',

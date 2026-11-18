@@ -8,8 +8,12 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import { createSessionMessageHandoffPlugin } from '@omne-harness/session-adapters/cordis'
 import { sessionKey, sessionWorkPrincipalsKey } from '@omne-harness/session-cordis-contract/cordis'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
-import { z } from 'zod'
 import { defineRow } from '../../row.ts'
+import {
+  agentJournalCombination,
+  combinationConfig,
+  type CombinationConfig,
+} from '../agent-journal/config.ts'
 import { coordinatorPrincipalsOf } from '../session-adapters/coordinator.ts'
 
 export const MESSAGE_HANDOFF_PROVIDER = Object.freeze({
@@ -19,12 +23,8 @@ export const MESSAGE_HANDOFF_PROVIDER = Object.freeze({
   digest: 'session-adapters:message-handoff/1',
 })
 
-const text = z.string().min(1)
-export const sessionHandoffConfig = z.strictObject({
-  combinationVersion: text,
-  manifestDigest: text,
-})
-export type SessionHandoffConfig = z.output<typeof sessionHandoffConfig>
+export const sessionHandoffConfig = combinationConfig
+export type SessionHandoffConfig = CombinationConfig
 
 export function principalIdentityOf(principal: unknown): string {
   const value = principal as Principal | null | undefined
@@ -55,7 +55,7 @@ const plugin: Plugin.Object = {
         principalIdentity: principalIdentityOf,
         provider: MESSAGE_HANDOFF_PROVIDER,
       }),
-      config,
+      agentJournalCombination(config.combinationVersion),
     )
   },
 }
