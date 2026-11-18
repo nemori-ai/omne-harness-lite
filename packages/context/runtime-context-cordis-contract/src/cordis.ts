@@ -153,6 +153,9 @@ export abstract class RuntimeContextTenantScopeService<P = unknown>
   abstract issue(
     ...args: Parameters<StaticScopeHolder<P>['issue']>
   ): ReturnType<StaticScopeHolder<P>['issue']>
+  abstract read(
+    ...args: Parameters<StaticScopeHolder<P>['read']>
+  ): ReturnType<StaticScopeHolder<P>['read']>
 }
 export const runtimeContextTenantScopeKey = RuntimeContextTenantScopeService.provide
 

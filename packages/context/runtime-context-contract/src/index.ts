@@ -57,6 +57,7 @@ export type {
   StaticScopeFailure,
   StaticReaderRequest,
   StaticReaderGrant,
+  StaticRead,
   StaticScopeHolder,
   StaticContribution,
 } from './static-scope.js'

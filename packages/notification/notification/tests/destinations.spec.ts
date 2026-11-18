@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { context, fakeChannel } from '@omne-harness/notification/testing'
 import {
+  CHANNEL_WITHDRAWN,
   createChannelRegistry,
   createDestinations,
   NotificationRegistrationError,
@@ -349,10 +350,11 @@ describe('the channel registry', () => {
     const registry = createChannelRegistry(() => changes.push(1))
     const mail = fakeChannel('mail')
     const undo = registry.register(mail)
-    expect(registry.lookup(mail.name)).toEqual({ kind: 'registered', channel: mail })
-    expect(registry.list()).toEqual([mail])
+    const registered = { kind: 'registered', channel: { name: mail.name, label: mail.label } }
+    expect(registry.lookup(mail.name)).toMatchObject(registered)
+    expect(registry.list()).toMatchObject([{ name: mail.name }])
     expect(() => registry.register(fakeChannel('mail'))).toThrow(NotificationRegistrationError)
-    expect(registry.lookup(mail.name)).toEqual({ kind: 'registered', channel: mail })
+    expect(registry.lookup(mail.name)).toMatchObject(registered)
     undo()
     undo()
     expect(registry.lookup(mail.name)).toEqual({ kind: 'absent' })
@@ -360,10 +362,64 @@ describe('the channel registry', () => {
     const again = fakeChannel('mail')
     registry.register(again)
     undo()
-    expect(registry.lookup(again.name)).toEqual({ kind: 'registered', channel: again })
+    expect(registry.lookup(again.name)).toMatchObject({ kind: 'registered' })
     expect(() => registry.register({ ...mail, name: 'Bad Name' as never })).toThrow(
       NotificationRegistrationError,
     )
+  })
+  it('withdraws in order: no new delivery at once, the deliveries in flight get their outcome, then the name is free (INV-NO22)', async () => {
+    const changes: number[] = []
+    const registry = createChannelRegistry(() => changes.push(1))
+    const landing: ((result: { kind: 'delivered' }) => void)[] = []
+    const calls: unknown[] = []
+    const mail = {
+      ...fakeChannel('mail'),
+      deliver: (delivery: unknown) => {
+        calls.push(delivery)
+        return new Promise<{ kind: 'delivered' }>(resolve => landing.push(resolve))
+      },
+    }
+    const withdraw = registry.register(mail)
+    const offered = registry.lookup(mail.name)
+    if (offered.kind !== 'registered') throw new Error('fixture: not registered')
+    const flight = offered.channel.deliver('first' as never)
+    let withdrawn = false
+    const done = withdraw().then(() => {
+      withdrawn = true
+    })
+    expect(registry.lookup(mail.name)).toEqual({ kind: 'absent' })
+    expect(registry.list()).toEqual([])
+    expect(changes).toHaveLength(2)
+    expect(await offered.channel.deliver('late' as never)).toEqual(CHANNEL_WITHDRAWN)
+    expect(calls).toEqual(['first'])
+    expect(() => registry.register(fakeChannel('mail'))).toThrow(/already registered/u)
+    await Promise.resolve()
+    expect(withdrawn).toBe(false)
+    landing[0]?.({ kind: 'delivered' })
+    expect(await flight).toEqual({ kind: 'delivered' })
+    await done
+    expect(withdrawn).toBe(true)
+    expect(withdraw()).toBe(withdraw())
+    registry.register(fakeChannel('mail'))
+    expect(registry.lookup(mail.name)).toMatchObject({ kind: 'registered' })
+    expect(changes).toHaveLength(3)
+  })
+
+  it('a delivery that throws or rejects has landed too: the withdrawal does not wait for ever', async () => {
+    const registry = createChannelRegistry()
+    const broken = {
+      ...fakeChannel('mail'),
+      deliver: () => {
+        throw new Error('the channel fell over')
+      },
+    }
+    const withdraw = registry.register(broken)
+    const offered = registry.lookup(broken.name)
+    if (offered.kind !== 'registered') throw new Error('fixture: not registered')
+    const flight = offered.channel.deliver('first' as never)
+    await withdraw()
+    await expect(flight).rejects.toThrow('fell over')
+    expect(registry.lookup(broken.name)).toEqual({ kind: 'absent' })
   })
 })
 

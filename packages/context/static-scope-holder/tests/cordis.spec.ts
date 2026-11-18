@@ -10,10 +10,11 @@ import {
 import { createRuntimeContext } from '@omne-harness/runtime-context'
 import { TENANT_SCOPE_KIND, tenantScopePlugin } from '@omne-harness/static-scope-holder/cordis'
 import { staticScopeOf } from '@omne-harness/static-scope-holder'
-import { block, readWith, tenantA, trustOf } from './support.ts'
+import { block, readWith, supplied, supplyOf, tenantA, trustOf } from './support.ts'
 
 const BUDGET = block('test.budget')
-const READER = { consumer: 'coordinator', blocks: [BUDGET.key], needs: [] } as const
+const KEY = BUDGET.declaration.key
+const READER = { consumer: 'coordinator', blocks: [KEY], needs: [] } as const
 
 type Ops = RuntimeContextOperations<unknown>
 
@@ -53,15 +54,16 @@ describe('the tenant scope plugin', () => {
     const holder = root.runtimeContextTenantScope
     expect(holder.scopeOf(tenantA)).toEqual(staticScopeOf(TENANT_SCOPE_KIND, tenantA))
     const before = await holder.issue('holder', tenantA, READER)
-    expect(before).toMatchObject({ ok: { missing: { blocks: [BUDGET.key] } } })
+    expect(before).toMatchObject({ ok: { missing: { blocks: [KEY] } } })
     const fiber = await root.plugin(owner)
     const granted = await holder.issue('holder', tenantA, READER)
     expect(granted).toMatchObject({ ok: { missing: { blocks: [] } } })
     if ('failure' in granted) return
-    expect(await readWith(rc, granted.ok.eligibility)).toBe('snapshot:refused')
+    supplied.set(supplyOf(KEY, tenantA), 12)
+    expect(await readWith(rc, granted.ok.eligibility)).toMatchObject({ values: { [KEY]: 12 } })
     await fiber.dispose()
     const after = await holder.issue('holder', tenantA, READER)
-    expect(after).toMatchObject({ ok: { missing: { blocks: [BUDGET.key] } } })
+    expect(after).toMatchObject({ ok: { missing: { blocks: [KEY] } } })
   })
 
   it('is there only while Runtime Context and the registration point are both there', async () => {

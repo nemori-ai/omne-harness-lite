@@ -4367,6 +4367,9 @@ importers:
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../storage/sqlite-provider
+      '@omne-harness/static-scope-holder':
+        specifier: workspace:*
+        version: link:../../context/static-scope-holder
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

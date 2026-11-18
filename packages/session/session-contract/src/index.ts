@@ -332,6 +332,7 @@ export {
   commandInput,
   prepareEntriesTerms,
   prepareIntakeTerms,
+  budgetTermsOf,
   withIntakeTerms,
   intakeTermsOf,
   parseInputSourceName,
@@ -348,6 +349,8 @@ export {
   type SourceTerms,
   type IntakeTerms,
   type SessionDerivedInputs,
+  type SessionIntakeBudget,
+  type BudgetTerms,
   type SourceAdmission,
   type SourceRefusal,
 } from './input-sources.ts'

@@ -13,15 +13,18 @@ import {
 
 function block(key: string, required = true): StaticBlock {
   return {
-    key: key as ContextBlockKey,
-    kind: 'supplied',
-    schema: { '~standard': { version: 1, vendor: 'tests', validate: value => ({ value }) } },
-    consumers: ['coordinator'],
-    required,
-    disclosure: 'plain',
-    carriesPrevious: false,
-    volatility: 'stable',
-    recovery: 'reread',
+    declaration: {
+      key: key as ContextBlockKey,
+      kind: 'supplied',
+      schema: { '~standard': { version: 1, vendor: 'tests', validate: value => ({ value }) } },
+      consumers: ['coordinator'],
+      required,
+      disclosure: 'plain',
+      carriesPrevious: false,
+      volatility: 'per-request',
+      recovery: 'reread',
+    },
+    supply: async () => ({ kind: 'none' }),
   }
 }
 
@@ -39,7 +42,7 @@ const contributor = (name: string, declared: StaticBlock) =>
   contributing(name, { blocks: [declared] })
 
 function need(name: string, key: string): NeedBinding {
-  const shape = block(key).schema
+  const shape = block(key).declaration.schema
   return {
     need: { name, shape, consumer: 'coordinator', purpose: 'a test', necessity: 'optional' },
     key: key as ContextBlockKey,
@@ -53,7 +56,7 @@ async function tree() {
 }
 
 const keys = (root: Context) =>
-  root.runtimeContextTenantBlocks.current().blocks.map(item => item.key)
+  root.runtimeContextTenantBlocks.current().blocks.map(item => item.declaration.key)
 
 describe('the registration point runtime-context.tenant-blocks (IC-13)', () => {
   it('a contribution is there while its plugin is loaded and gone when it unloads', async () => {
@@ -79,7 +82,9 @@ describe('the registration point runtime-context.tenant-blocks (IC-13)', () => {
     await expect(root.plugin(contributor('second', block('test.budget', false)))).rejects.toThrow(
       /already contributed/u,
     )
-    expect(root.runtimeContextTenantBlocks.current().blocks).toMatchObject([{ required: true }])
+    expect(root.runtimeContextTenantBlocks.current().blocks).toMatchObject([
+      { declaration: { required: true } },
+    ])
   })
 
   it('the same declaration of a block key again is accepted and stays while one contributor stays', async () => {

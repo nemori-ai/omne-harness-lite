@@ -17,6 +17,7 @@ import { NotificationPolicyError } from '@omne-harness/notification-local'
 import { StorageService } from '@omne-harness/sql-contract/cordis'
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import { builds, createStoreOptions, openApplication, owner, request, T1 } from './fixture.ts'
+import { fakeChannel } from '@omne-harness/notification/testing'
 import { openSqlWorld } from './storage/world.ts'
 
 class FixtureStorage extends StorageService {
@@ -69,7 +70,7 @@ it('starts when the storage is there, binds every face and extension point, and 
       closed: () => void heard.push('closed'),
     })
     const contributor = ctx.inject([notificationSourcesKey, notificationSendingKey], child => {
-      child.effect(() => child.notificationSources.register(builds), 'demo-builds-source')
+      child.notificationSources.register(builds)
     })
     await contributor.await()
     const sending = ctx.get(notificationSendingKey)
@@ -89,6 +90,49 @@ it('starts when the storage is there, binds every face and extension point, and 
     unsubscribe?.()
     for (const key of KEYS) expect(ctx.get(key)).toBeUndefined()
     expect(await sending?.send(owner(), request('b1'))).toEqual({ kind: 'basis-unavailable' })
+  } finally {
+    await world.close()
+  }
+})
+
+it('withdraws a contributed channel with its contributor: absent at once, gone when the delivery in flight has its outcome (INV-NO22)', async () => {
+  const world = await openSqlWorld()
+  const ctx = new Context()
+  try {
+    await ctx.plugin(FixtureStorage, world.storage).await()
+    await ctx.plugin(createNotificationLocalPlugin(), await configuration(world)).await()
+    const landing: (() => void)[] = []
+    const mail = {
+      ...fakeChannel('mail'),
+      deliver: () =>
+        new Promise<{ kind: 'delivered' }>(resolve =>
+          landing.push(() => resolve({ kind: 'delivered' })),
+        ),
+    }
+    const contributor = ctx.inject([notificationChannelsKey], child => {
+      child.notificationChannels.register(mail)
+    })
+    await contributor.await()
+    const channels = ctx.get(notificationChannelsKey)
+    const offered = channels?.lookup(mail.name)
+    if (offered?.kind !== 'registered') throw new Error('fixture: the channel is not registered')
+    const flight = offered.channel.deliver({} as never)
+    let withdrawn = false
+    const disposing = contributor.dispose().then(() => {
+      withdrawn = true
+    })
+    await new Promise(resolve => setImmediate(resolve))
+    expect(channels?.lookup(mail.name)).toEqual({ kind: 'absent' })
+    expect(withdrawn).toBe(false)
+    landing[0]?.()
+    expect(await flight).toEqual({ kind: 'delivered' })
+    await disposing
+    expect(withdrawn).toBe(true)
+    const again = ctx.inject([notificationChannelsKey], child => {
+      child.notificationChannels.register(fakeChannel('mail'))
+    })
+    await again.await()
+    expect(channels?.lookup(mail.name)).toMatchObject({ kind: 'registered' })
   } finally {
     await world.close()
   }

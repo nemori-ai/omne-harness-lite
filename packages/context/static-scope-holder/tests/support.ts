@@ -5,7 +5,6 @@ import type {
   ContextReader,
   EligibilityId,
   NeedBinding,
-  ProducerHandle,
   RuntimeContextOperations,
   StaticBlock,
   StaticRegistration,
@@ -44,18 +43,36 @@ const numberSchema = {
   },
 }
 
-export function block(key: string, overrides: Partial<StaticBlock> = {}): StaticBlock {
+/** What the blocks of a test supply, by block key and tenant. Absent: the owner has no value. */
+export const supplied = new Map<string, number | 'unavailable'>()
+
+export function supplyOf(key: string, tenant: TenantId): string {
+  const text = tenantCodec.encode(tenant)
+  return `${key}@${text.ok ? text.value : ''}`
+}
+
+export function block(
+  key: string,
+  overrides: Partial<StaticBlock['declaration']> = {},
+): StaticBlock {
   return {
-    key: key as ContextBlockKey,
-    kind: 'supplied',
-    schema: numberSchema,
-    consumers: ['coordinator', 'extension'],
-    required: false,
-    disclosure: 'plain',
-    carriesPrevious: false,
-    volatility: 'stable',
-    recovery: 'reread',
-    ...overrides,
+    declaration: {
+      key: key as ContextBlockKey,
+      kind: 'supplied',
+      schema: numberSchema,
+      consumers: ['coordinator', 'extension'],
+      required: true,
+      disclosure: 'plain',
+      carriesPrevious: false,
+      recovery: 'reread',
+      ...overrides,
+      volatility: 'per-request',
+    },
+    supply: async ({ tenant }) => {
+      const value = supplied.get(supplyOf(key, tenant))
+      if (value === undefined) return { kind: 'none' }
+      return value === 'unavailable' ? { kind: 'unavailable' } : { kind: 'value', value }
+    },
   }
 }
 
@@ -132,37 +149,6 @@ export function world(
   return { ports, rc, content, holder: make(), another: make }
 }
 
-const handles = new WeakMap<World, Map<string, ProducerHandle>>()
-
-/** Publishes a value into the scope of the tenant. The scope has to be ensured first. */
-export async function publish(
-  w: World,
-  tenant: TenantId,
-  declared: StaticBlock,
-  value: number,
-): Promise<void> {
-  if (declared.volatility === 'per-request') throw new Error('fixture publishes stable blocks')
-  const known = handles.get(w) ?? new Map<string, ProducerHandle>()
-  handles.set(w, known)
-  const name = `${declared.key}/${w.holder.scopeOf(tenant).ref}`
-  let handle = known.get(name)
-  if (handle === undefined) {
-    const registered = await w.rc.registerProducer('producer', {
-      key: declared.key,
-      tenant,
-      producer: { producer: 'producer' },
-      declaration: { ...declared, volatility: declared.volatility },
-      scoped: true,
-    })
-    if (registered.kind !== 'registered')
-      throw new Error(`registerProducer: ${JSON.stringify(registered)}`)
-    handle = registered.handle
-    known.set(name, handle)
-  }
-  const published = await handle.publish({ scope: w.holder.scopeOf(tenant), tenant, value })
-  if (published.kind !== 'published') throw new Error(`publish: ${JSON.stringify(published)}`)
-}
-
 export type View = Readonly<{
   values: Readonly<Record<string, unknown>>
   missing: Readonly<Record<string, string>>
@@ -185,6 +171,11 @@ async function snapshotOf(reader: ContextReader): Promise<View | string> {
     values[item.key] = item.state.kind === 'value' ? item.state.value : item.state.kind
   const missing: Record<string, string> = {}
   for (const item of snapshot.value.missing) missing[item.key] = item.cause
+  for (const item of snapshot.value.perRequest) {
+    if (item.kind === 'value') values[item.key] = item.value
+    else if (item.kind === 'none') values[item.key] = 'none'
+    else missing[item.key] = item.kind === 'missing' ? item.cause : `unknown:${item.cause}`
+  }
   return { values, missing }
 }
 

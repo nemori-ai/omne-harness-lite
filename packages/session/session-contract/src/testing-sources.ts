@@ -1,4 +1,5 @@
 import {
+  budgetTermsOf,
   createInputSourceRegistry,
   prepareEntriesTerms,
   prepareIntakeTerms,
@@ -11,6 +12,7 @@ import {
   type InputSourceName,
   type InputSourceRegistry,
   type SessionDerivedInputs,
+  type SessionIntakeBudget,
 } from './input-sources.ts'
 import type { SessionAccessCheck } from './access.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
@@ -89,6 +91,8 @@ export function testingIntakeGuards(
 export type TestingWriterOptions = Readonly<{
   sources?: InputSources | null
   derived?: SessionDerivedInputs | null
+  /** The budget of a tenant, read at each commit. Absent: the limits of the double apply. */
+  budget?: SessionIntakeBudget
   /** `strict`: an allowed answer without a subject kind admits no input. Default: it is a member. */
   subjects?: 'strict' | 'member-by-default'
 }>
@@ -100,12 +104,17 @@ export function testingWriter<P>(options: TestingWriterOptions) {
   return {
     check: (check: SessionAccessCheck<P>): SessionAccessCheck<P> =>
       options.subjects === 'strict' ? check : withMemberSubject(check),
-    guards: (
+    guards: async (
       command: SessionCommand,
       guards: readonly GuardCommand[],
       subject: IntakeSubject | undefined,
-    ): readonly GuardCommand[] =>
-      withIntakeTerms(guards, prepareIntakeTerms(command, { subject, sources, derived })),
+    ): Promise<readonly GuardCommand[]> => {
+      const budget = await budgetTermsOf(options.budget, command)
+      return withIntakeTerms(
+        guards,
+        prepareIntakeTerms(command, { subject, sources, derived, budget }),
+      )
+    },
     entries: (): IntakeTerms['derived'] => prepareEntriesTerms(derived),
   }
 }

@@ -1,4 +1,6 @@
 import type { JsonValue } from '@omne-harness/json-text'
+import type { TenantId } from '@omne-harness/legal-identity'
+import { sessionIntakeLimits, type SessionIntakeLimits } from './intake.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import type { RoutedInput } from './values.ts'
 
@@ -151,9 +153,18 @@ export type SourceTerms =
   | Readonly<{ kind: 'refused'; reason: SourceRefusal }>
   | Readonly<{ kind: 'unavailable'; reason: 'source-absent' | 'subject-absent' }>
 
+export type BudgetTerms =
+  | Readonly<{ kind: 'given'; limits: SessionIntakeLimits }>
+  | Readonly<{ kind: 'unavailable' }>
+
+export interface SessionIntakeBudget {
+  read(tenant: TenantId): Promise<SessionIntakeLimits | null>
+}
+
 /** The terms of one commit's intake. The transaction port computes them; `decide` reads them. */
 export type IntakeTerms = Readonly<{
   source?: SourceTerms
+  budget?: BudgetTerms
   derived?: Readonly<Partial<Record<DerivedInputKind, DerivedAdmission>>>
 }>
 
@@ -194,7 +205,23 @@ export type IntakeBasis = Readonly<{
   subject: IntakeSubject | undefined
   sources: InputSources | null
   derived: SessionDerivedInputs | null
+  budget?: BudgetTerms | undefined
 }>
+
+export async function budgetTermsOf(
+  budget: SessionIntakeBudget | null | undefined,
+  command: SessionCommand,
+): Promise<BudgetTerms | undefined> {
+  if (budget === null || budget === undefined || commandInput(command) === null) return undefined
+  try {
+    const limits = await budget.read(command.input.tenant)
+    return limits === null
+      ? { kind: 'unavailable' }
+      : { kind: 'given', limits: sessionIntakeLimits(limits) }
+  } catch {
+    return { kind: 'unavailable' }
+  }
+}
 
 /** Computes the terms of a command where it is committed. It never fails: `decide` answers. */
 export function prepareIntakeTerms(
@@ -202,7 +229,10 @@ export function prepareIntakeTerms(
   basis: IntakeBasis,
 ): IntakeTerms | null {
   const input = commandInput(command)
-  if (input !== null) return { source: sourceTerms(input, basis.subject, basis.sources) }
+  if (input !== null) {
+    const source = sourceTerms(input, basis.subject, basis.sources)
+    return basis.budget === undefined ? { source } : { source, budget: basis.budget }
+  }
   if (command.kind !== 'stopCall') return null
   const stop = basis.derived?.admission('background-stop') ?? null
   return stop === null ? null : { derived: { 'background-stop': stop } }
@@ -246,13 +276,26 @@ function isAdmittedSource(value: unknown): value is AdmittedSource {
   return Object.entries(ADMITTED_SHAPE).every(([member, fits]) => fits(given[member]))
 }
 
+function isBudgetTerms(value: unknown): boolean {
+  if (value === undefined) return true
+  const budget = value as BudgetTerms
+  if (budget?.kind === 'unavailable') return true
+  if (budget?.kind !== 'given') return false
+  try {
+    sessionIntakeLimits(budget.limits)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function intakeTermsOf(guards: readonly GuardCommand[]): IntakeTerms | null {
   const guard = guards.find(item => item.owner === INTAKE_GUARD_OWNER)
   if (guard === undefined || typeof guard.facts !== 'object' || guard.facts === null) return null
   const terms = guard.facts as unknown as IntakeTerms
   const admitted = terms.source?.kind === 'admitted' ? terms.source.source : undefined
   if (admitted !== undefined && !isAdmittedSource(admitted)) return null
-  return terms
+  return isBudgetTerms(terms.budget) ? terms : null
 }
 
 export function admitDerivedOf(

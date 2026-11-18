@@ -118,6 +118,7 @@ export declare abstract class RuntimeContextTenantScopeService<P = unknown> exte
     abstract scopeOf(...args: Parameters<StaticScopeHolder<P>['scopeOf']>): ScopeRef;
     abstract ensure(...args: Parameters<StaticScopeHolder<P>['ensure']>): ReturnType<StaticScopeHolder<P>['ensure']>;
     abstract issue(...args: Parameters<StaticScopeHolder<P>['issue']>): ReturnType<StaticScopeHolder<P>['issue']>;
+    abstract read(...args: Parameters<StaticScopeHolder<P>['read']>): ReturnType<StaticScopeHolder<P>['read']>;
 }
 export declare const runtimeContextTenantScopeKey = "runtimeContextTenantScope";
 export declare const runtimeContextScopeKey: 'scope';

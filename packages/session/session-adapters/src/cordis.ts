@@ -102,3 +102,12 @@ export {
   BACKGROUND_STOP_SOURCE,
   createBackgroundDerivedInputs,
 } from './cordis/background-sources.ts'
+export {
+  createIntakeBudgetOwnerPlugin,
+  createIntakeBudgetPlugin,
+  createIntakeBudgetReader,
+  sessionIntakeBudgetBlock,
+  sessionIntakeBudgetDescriptor,
+  type IntakeBudgetPluginInput,
+  type IntakeBudgetReaderDeps,
+} from './cordis/intake-budget.ts'

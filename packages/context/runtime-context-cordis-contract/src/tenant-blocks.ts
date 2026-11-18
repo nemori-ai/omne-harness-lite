@@ -15,13 +15,19 @@ export interface StaticRegistry {
 export function createStaticRegistry(): StaticRegistry {
   const contributions = new Set<StaticContribution>()
   const declared = (key: ContextBlockKey) =>
-    [...contributions].flatMap(item => item.blocks ?? []).find(block => block.key === key)
+    [...contributions]
+      .flatMap(item => item.blocks ?? [])
+      .find(block => block.declaration.key === key)?.declaration
   return {
     register(contribution) {
       for (const block of contribution.blocks ?? []) {
-        const known = declared(block.key)
-        if (known !== undefined && declarationDigest(known) !== declarationDigest(block))
-          throw new Error(`the block ${block.key} is already contributed with another declaration`)
+        const { key } = block.declaration
+        const known = declared(key)
+        if (
+          known !== undefined &&
+          declarationDigest(known) !== declarationDigest(block.declaration)
+        )
+          throw new Error(`the block ${key} is already contributed with another declaration`)
       }
       const own = { ...contribution }
       contributions.add(own)

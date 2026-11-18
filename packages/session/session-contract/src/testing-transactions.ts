@@ -614,7 +614,7 @@ export function createMemorySessionTransactionPair<P>(
       const qualification = await qualify(mutationAccessRequest(input.access, command))
       if ('failure' in qualification) return fail(qualification.failure)
       const { evidence: accessEvidence, subject } = qualification.ok
-      const guards = writer.guards(command, input.guards, subject)
+      const guards = await writer.guards(command, input.guards, subject)
       const key = keyOf(command.input.tenant, command.input.session)
       if ('failure' in key) return key
       const store = stores.get(key.ok)

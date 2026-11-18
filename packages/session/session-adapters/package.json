@@ -66,6 +66,7 @@
     "@omne-harness/agent-context": "workspace:*",
     "@omne-harness/request-context": "workspace:*",
     "@omne-harness/runtime-context": "workspace:*",
+    "@omne-harness/static-scope-holder": "workspace:*",
     "@omne-harness/sqlite-provider": "workspace:*"
   }
 }

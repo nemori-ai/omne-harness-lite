@@ -30,6 +30,9 @@ class TenantScopeProvider extends RuntimeContextTenantScopeService<unknown> {
   issue(...args: Parameters<StaticScopeHolder<unknown>['issue']>) {
     return this.holder.issue(...args)
   }
+  read(...args: Parameters<StaticScopeHolder<unknown>['read']>) {
+    return this.holder.read(...args)
+  }
 }
 
 export const tenantScopePlugin: Plugin.Object = {

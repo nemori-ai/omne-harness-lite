@@ -35,6 +35,7 @@
 - `BackgroundOutcomeJudgment` · `background-outcome.d.ts`
 - `BatchId` · `identity.d.ts`
 - `BoundedClose` · `values.d.ts`
+- `BudgetTerms` · `input-sources.d.ts`
 - `CONTEXT_SCOPE_KINDS` · `context-scopes.d.ts`
 - `CallBinding` · `values.d.ts`
 - `CallRegistrationView` · `call-registration.d.ts`
@@ -229,6 +230,7 @@
 - `SessionIdleInput` · `ports.d.ts`
 - `SessionInputAdmission` · `history-values.d.ts`
 - `SessionInputScope` · `history-values.d.ts`
+- `SessionIntakeBudget` · `input-sources.d.ts`
 - `SessionIntakeLimits` · `intake.d.ts`
 - `SessionInternalPrincipals` · `ports.d.ts`
 - `SessionListItem` · `faces.d.ts`
@@ -291,6 +293,7 @@
 - `backgroundCalls` · `call-control.d.ts`
 - `backgroundInputId` · `background-outcome.d.ts`
 - `batchEvidence` · `batch-evidence.d.ts`
+- `budgetTermsOf` · `input-sources.d.ts`
 - `commandDigest` · `decide.d.ts`
 - `commandInput` · `input-sources.d.ts`
 - `compactionCallChangeOf` · `work-entry-state.d.ts`
@@ -2285,7 +2288,7 @@ export { DEFAULT_SESSION_INTAKE_LIMITS, sessionIntakeLimits, sessionInputBytes, 
 export { archiveCollapse, backgroundCalls, controlAnswer, controlRoutes, type ArchiveCollapse, type ControlRoutes, type DirectCallControl, } from './call-control.ts';
 export { backgroundInputId, judgeBackgroundOutcome, type BackgroundOutcomeJudgment, } from './background-outcome.ts';
 export type { SessionIntakeLimits } from './intake.ts';
-export { INTAKE_GUARD_OWNER, admitDerived, admitDerivedOf, admitSource, createInputSourceRegistry, inputSourceName, commandInput, prepareEntriesTerms, prepareIntakeTerms, withIntakeTerms, intakeTermsOf, parseInputSourceName, type AdmittedSource, type DerivedAdmission, type DerivedInputKind, type InputSourceDeclaration, type InputSourceLookup, type InputSourceName, type InputSourceRegistry, type InputSources, type IntakeBasis, type IntakeSubject, type SourceTerms, type IntakeTerms, type SessionDerivedInputs, type SourceAdmission, type SourceRefusal, } from './input-sources.ts';
+export { INTAKE_GUARD_OWNER, admitDerived, admitDerivedOf, admitSource, createInputSourceRegistry, inputSourceName, commandInput, prepareEntriesTerms, prepareIntakeTerms, budgetTermsOf, withIntakeTerms, intakeTermsOf, parseInputSourceName, type AdmittedSource, type DerivedAdmission, type DerivedInputKind, type InputSourceDeclaration, type InputSourceLookup, type InputSourceName, type InputSourceRegistry, type InputSources, type IntakeBasis, type IntakeSubject, type SourceTerms, type IntakeTerms, type SessionDerivedInputs, type SessionIntakeBudget, type BudgetTerms, type SourceAdmission, type SourceRefusal, } from './input-sources.ts';
 export type { TodoItem, VisibleTodoItem, TodoMutationReceipt, TodoPageCursor, TodoPage, SessionTodos, } from './todos.ts';
 export type { SessionPermissionAssignment, SessionPermissions, SessionPermissionChangeBasis, SessionPermissionWriteQualification, } from './permission-values.ts';
 export { rebuildSessionPermissions, type SessionPermissionHistory } from './permission-history.ts';
@@ -2444,6 +2447,8 @@ export declare function pendingAfterTerminal(snapshot: Pick<WorkSnapshot, 'pendi
 ## 声明文件 `input-sources.d.ts`
 
 ```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import { type SessionIntakeLimits } from './intake.ts';
 import type { GuardCommand, SessionCommand } from './ports.ts';
 import type { RoutedInput } from './values.ts';
 export type InputSourceName = string & {
@@ -2521,8 +2526,18 @@ export type SourceTerms = Readonly<{
     kind: 'unavailable';
     reason: 'source-absent' | 'subject-absent';
 }>;
+export type BudgetTerms = Readonly<{
+    kind: 'given';
+    limits: SessionIntakeLimits;
+}> | Readonly<{
+    kind: 'unavailable';
+}>;
+export interface SessionIntakeBudget {
+    read(tenant: TenantId): Promise<SessionIntakeLimits | null>;
+}
 export type IntakeTerms = Readonly<{
     source?: SourceTerms;
+    budget?: BudgetTerms;
     derived?: Readonly<Partial<Record<DerivedInputKind, DerivedAdmission>>>;
 }>;
 export declare const INTAKE_GUARD_OWNER = "session-intake";
@@ -2534,7 +2549,9 @@ export type IntakeBasis = Readonly<{
     subject: IntakeSubject | undefined;
     sources: InputSources | null;
     derived: SessionDerivedInputs | null;
+    budget?: BudgetTerms | undefined;
 }>;
+export declare function budgetTermsOf(budget: SessionIntakeBudget | null | undefined, command: SessionCommand): Promise<BudgetTerms | undefined>;
 export declare function prepareIntakeTerms(command: SessionCommand, basis: IntakeBasis): IntakeTerms | null;
 export declare function prepareEntriesTerms(derived: SessionDerivedInputs | null): IntakeTerms['derived'];
 export declare function withIntakeTerms(guards: readonly GuardCommand[], terms: IntakeTerms | null): readonly GuardCommand[];
@@ -4074,7 +4091,7 @@ export declare function createMemoryAgentDrive(): MemoryAgentDrive;
 ## 声明文件 `testing-sources.d.ts`
 
 ```ts
-import { type InputSources, type IntakeSubject, type IntakeTerms, type InputSourceDeclaration, type InputSourceName, type InputSourceRegistry, type SessionDerivedInputs } from './input-sources.ts';
+import { type InputSources, type IntakeSubject, type IntakeTerms, type InputSourceDeclaration, type InputSourceName, type InputSourceRegistry, type SessionDerivedInputs, type SessionIntakeBudget } from './input-sources.ts';
 import type { SessionAccessCheck } from './access.ts';
 import type { GuardCommand, SessionCommand } from './ports.ts';
 export declare const TESTING_SYSTEM_COMPONENT = "session-testing";
@@ -4092,11 +4109,12 @@ export declare function testingIntakeGuards(command: SessionCommand, given?: Int
 export type TestingWriterOptions = Readonly<{
     sources?: InputSources | null;
     derived?: SessionDerivedInputs | null;
+    budget?: SessionIntakeBudget;
     subjects?: 'strict' | 'member-by-default';
 }>;
 export declare function testingWriter<P>(options: TestingWriterOptions): {
     check: (check: SessionAccessCheck<P>) => SessionAccessCheck<P>;
-    guards: (command: SessionCommand, guards: readonly GuardCommand[], subject: IntakeSubject | undefined) => readonly GuardCommand[];
+    guards: (command: SessionCommand, guards: readonly GuardCommand[], subject: IntakeSubject | undefined) => Promise<readonly GuardCommand[]>;
     entries: () => IntakeTerms['derived'];
 };
 ```

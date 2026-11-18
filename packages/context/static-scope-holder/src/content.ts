@@ -7,12 +7,17 @@ import {
   type RegistrationChange,
   type RegistrationRevision,
   type ScopeRef,
+  type StaticBlock,
   type StaticRegistration,
 } from '@omne-harness/runtime-context-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 
-export type Entry = Readonly<{ digest: string; bindings: readonly NeedBinding[] }>
+export type Entry = Readonly<{
+  digest: string
+  bindings: readonly NeedBinding[]
+  block: StaticBlock
+}>
 export type Content = ReadonlyMap<ContextBlockKey, Entry>
 
 function hash(parts: readonly unknown[]): string {
@@ -25,23 +30,23 @@ function bindingText(binding: NeedBinding): readonly unknown[] {
 }
 
 export function contentOf(registration: StaticRegistration): Outcome<Content, string> {
-  const declared = new Map<ContextBlockKey, string>()
+  const declared = new Map<ContextBlockKey, Readonly<{ digest: string; block: StaticBlock }>>()
   for (const block of registration.blocks) {
-    const digest = declarationDigest(block)
-    const known = declared.get(block.key)
-    if (known !== undefined && known !== digest)
-      return fail(`the block ${block.key} is declared twice with different declarations`)
-    declared.set(block.key, digest)
+    const { key } = block.declaration
+    const digest = declarationDigest(block.declaration)
+    const known = declared.get(key)
+    if (known !== undefined && known.digest !== digest)
+      return fail(`the block ${key} is declared twice with different declarations`)
+    declared.set(key, { digest, block })
   }
   const content = new Map<ContextBlockKey, Entry>()
   for (const key of [...declared.keys()].sort()) {
+    const { digest, block } = declared.get(key) ?? {}
+    if (block === undefined) continue
     const bindings = registration.needs
       .filter(binding => binding.key === key)
       .sort((left, right) => left.need.name.localeCompare(right.need.name))
-    content.set(key, {
-      digest: hash([declared.get(key), bindings.map(bindingText)]),
-      bindings,
-    })
+    content.set(key, { digest: hash([digest, bindings.map(bindingText)]), bindings, block })
   }
   return succeed(content)
 }

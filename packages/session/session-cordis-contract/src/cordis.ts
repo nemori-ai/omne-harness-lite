@@ -9,6 +9,7 @@ import {
   type InputSourceName,
   type InputSources,
   type SessionDerivedInputs,
+  type SessionIntakeBudget,
 } from '@omne-harness/session-contract'
 import type {
   AgentDrivePort,
@@ -476,11 +477,30 @@ export abstract class SessionDerivedInputsService extends Service implements Ses
 }
 export const sessionDerivedInputsKey = SessionDerivedInputsService.provide
 
+/**
+ * The budget of ordinary inputs of a tenant. The single writer takes it at each commit of an
+ * input (`ctx.get`). An absent service: the writer's own limits apply. A null answer: the input
+ * is `unavailable`, never judged on a guess.
+ *
+ * @owner packages/session/session-contract
+ */
+export abstract class SessionIntakeBudgetService extends Service implements SessionIntakeBudget {
+  static readonly provide = 'sessionIntakeBudget'
+  constructor(ctx: Context) {
+    super(ctx, SessionIntakeBudgetService.provide)
+  }
+  abstract read(
+    ...args: Parameters<SessionIntakeBudget['read']>
+  ): ReturnType<SessionIntakeBudget['read']>
+}
+export const sessionIntakeBudgetKey = SessionIntakeBudgetService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     session: SessionService<unknown>
     sessionInputSources: SessionInputSourcesService
     sessionDerivedInputs: SessionDerivedInputsService
+    sessionIntakeBudget: SessionIntakeBudgetService
     sessionAccessCheck: SessionAccessCheckService<unknown>
     sessionTransactions: SessionTransactionPortService<unknown>
     sessionPrincipals: SessionInternalPrincipalsService<unknown>

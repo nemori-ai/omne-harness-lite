@@ -16,6 +16,7 @@ import {
   type SessionCommand,
   type SessionFailure,
   type SessionOperationId,
+  budgetTermsOf,
   prepareIntakeTerms,
   withIntakeTerms,
 } from '@omne-harness/session-contract'
@@ -312,9 +313,10 @@ export async function commit<P, K extends MutationName>(
   if ('failure' in allowed) return allowed
   const domain = await domainOf(context, command.input.tenant)
   if ('failure' in domain) return domain
+  const budget = await budgetTermsOf(context.options.budget, command)
   let facts: FactCommandV2
   try {
-    const terms = prepareIntakeTerms(command, intakeBasisOf(context, allowed.ok.subject))
+    const terms = prepareIntakeTerms(command, intakeBasisOf(context, allowed.ok.subject, budget))
     const guards = withIntakeTerms(input.guards, terms)
     const base = sessionCommandFacts(command, guards, context.intakeLimits)
     facts = { ...base, facts: { ...base.facts, evidence: encodeValue(allowed.ok.evidence) } }

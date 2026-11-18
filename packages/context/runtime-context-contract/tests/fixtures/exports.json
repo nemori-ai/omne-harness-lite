@@ -722,6 +722,11 @@
               "name": "StaticScopeHolder",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "StaticRead",
+              "kind": "type",
+              "pending": false
             }
           ]
         }

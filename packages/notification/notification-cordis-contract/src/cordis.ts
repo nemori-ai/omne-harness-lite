@@ -91,7 +91,7 @@ export abstract class NotificationCatalogService extends Service implements Noti
 }
 export const notificationCatalogKey = NotificationCatalogService.provide
 
-/** The extension point `notification.sources`. A contribution is an effect on the contributor's scope. */
+/** The extension point `notification.sources`. Registering is the effect of the caller (IC-13). */
 export abstract class NotificationSourcesService extends Service {
   static readonly provide = 'notificationSources'
 
@@ -99,11 +99,16 @@ export abstract class NotificationSourcesService extends Service {
     super(ctx, NotificationSourcesService.provide)
   }
 
-  abstract register(declaration: SourceDeclaration): () => void
+  register(declaration: SourceDeclaration): void {
+    this.ctx.effect(() => this.contribute(declaration), 'notificationSources.register')
+  }
+
+  protected abstract contribute(declaration: SourceDeclaration): () => void
   abstract lookup(name: SourceName): SourceLookup
 }
 export const notificationSourcesKey = NotificationSourcesService.provide
 
+/** The extension point `notification.channels`. Withdrawing ends when no delivery is in flight. */
 export abstract class NotificationChannelsService extends Service {
   static readonly provide = 'notificationChannels'
 
@@ -111,7 +116,11 @@ export abstract class NotificationChannelsService extends Service {
     super(ctx, NotificationChannelsService.provide)
   }
 
-  abstract register(channel: ChannelContribution): () => void
+  register(channel: ChannelContribution): void {
+    this.ctx.effect(() => this.contribute(channel), 'notificationChannels.register')
+  }
+
+  protected abstract contribute(channel: ChannelContribution): () => Promise<void>
   abstract lookup(name: ChannelName): ChannelLookup
 }
 export const notificationChannelsKey = NotificationChannelsService.provide

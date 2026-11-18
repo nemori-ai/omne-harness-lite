@@ -41,9 +41,15 @@ export function admitInput(
 ): Admitted | Decision {
   const source = admittedSourceOf(input, intake.reads, field)
   if ('kind' in source) return source
-  const limited = source.countsTowardCapacity
-    ? judgeSessionIntake(pending, input, intake.limits)
-    : null
+  if (!source.countsTowardCapacity) return { source }
+  const budget = intake.reads.intake?.budget
+  if (budget?.kind === 'unavailable')
+    return rejected({
+      kind: 'unavailable',
+      owner: INTAKE_GUARD_OWNER,
+      diagnostic: 'the intake budget of this tenant is not available',
+    })
+  const limited = judgeSessionIntake(pending, input, budget?.limits ?? intake.limits)
   return limited === null ? { source } : rejected(limited)
 }
 

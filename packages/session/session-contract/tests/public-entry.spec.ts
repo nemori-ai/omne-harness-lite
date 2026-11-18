@@ -21,6 +21,7 @@ it('exports exactly the declared root runtime surface', () => {
     'backgroundCalls',
     'backgroundInputId',
     'batchEvidence',
+    'budgetTermsOf',
     'commandDigest',
     'commandInput',
     'compactionCallChangeOf',

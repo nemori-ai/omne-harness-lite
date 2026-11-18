@@ -88,22 +88,28 @@ class LocalCatalog extends NotificationCatalogService {
 }
 
 class LocalSources extends NotificationSourcesService {
-  readonly register: NotificationSources['register']
   readonly lookup: NotificationSources['lookup']
+  private readonly registry: NotificationSources
   constructor(ctx: Context, registry: NotificationSources) {
     super(ctx)
-    this.register = registry.register
+    this.registry = registry
     this.lookup = registry.lookup
+  }
+  protected contribute(declaration: Parameters<NotificationSources['register']>[0]) {
+    return this.registry.register(declaration)
   }
 }
 
 class LocalChannels extends NotificationChannelsService {
-  readonly register: NotificationChannels['register']
   readonly lookup: NotificationChannels['lookup']
+  private readonly registry: NotificationChannels
   constructor(ctx: Context, registry: NotificationChannels) {
     super(ctx)
-    this.register = registry.register
+    this.registry = registry
     this.lookup = registry.lookup
+  }
+  protected contribute(channel: Parameters<NotificationChannels['register']>[0]) {
+    return this.registry.register(channel)
   }
 }
 

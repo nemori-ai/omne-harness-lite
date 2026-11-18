@@ -117,10 +117,7 @@ export const notificationRow = defineRow({
     })
     await provider.await()
     ctx.inject([notificationSourcesKey], child => {
-      child.effect(
-        () => child.notificationSources.register(OWNER_POSTS),
-        'notification.owner-posts',
-      )
+      child.notificationSources.register(OWNER_POSTS)
     })
     return {
       async stop() {

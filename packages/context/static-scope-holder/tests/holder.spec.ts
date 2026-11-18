@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import type { ContextBlockKey, HolderDecision } from '@omne-harness/runtime-context-contract'
 import { staticScopeOf, staticScopeTenant } from '@omne-harness/static-scope-holder'
 import {
@@ -8,9 +8,10 @@ import {
   commits,
   holderCalls,
   need,
-  publish,
   readWith,
   recoveries,
+  supplied,
+  supplyOf,
   tenantA,
   tenantB,
   trustOf,
@@ -19,8 +20,14 @@ import {
 
 const BUDGET = block('test.budget')
 const OTHER = block('test.other')
-const KEY = BUDGET.key
+const KEY = BUDGET.declaration.key
+const OTHER_KEY = OTHER.declaration.key
 const READER = { consumer: 'coordinator', blocks: [KEY], needs: [] } as const
+
+beforeEach(() => {
+  supplied.clear()
+  supplied.set(supplyOf(KEY, tenantA), 12)
+})
 
 async function issued(
   holder: ReturnType<typeof world>['holder'],
@@ -54,27 +61,36 @@ describe.each(MECHANISMS)('the static scope holder over %s', (_name, factory) =>
   const fresh = (content = { blocks: [BUDGET], needs: [] as ReturnType<typeof need>[] }) =>
     world(factory, content)
 
-  it('registers the current content, so a reader it issues reads what the producer published', async () => {
+  it('registers the current content, and a reader it issues reads what the owner supplies at that read', async () => {
     const w = fresh()
-    const ensured = await w.holder.ensure('holder', tenantA)
-    expect(ensured).toEqual({ ok: w.holder.scopeOf(tenantA) })
-    await publish(w, tenantA, BUDGET, 12)
-    expect(await readWith(w.rc, await issued(w.holder))).toEqual({
-      values: { [KEY]: 12 },
-      missing: {},
+    expect(await w.holder.ensure('holder', tenantA)).toEqual({ ok: w.holder.scopeOf(tenantA) })
+    const reader = await issued(w.holder)
+    expect(await readWith(w.rc, reader)).toEqual({ values: { [KEY]: 12 }, missing: {} })
+    supplied.set(supplyOf(KEY, tenantA), 3)
+    expect(await readWith(w.rc, reader)).toEqual({ values: { [KEY]: 3 }, missing: {} })
+  })
+
+  it('reads a block its owner cannot supply as missing, and a block without a value as missing: never as empty', async () => {
+    const w = fresh()
+    const reader = await issued(w.holder)
+    supplied.set(supplyOf(KEY, tenantA), 'unavailable')
+    expect(await readWith(w.rc, reader)).toEqual({
+      values: {},
+      missing: { [KEY]: 'source-unavailable' },
     })
+    supplied.delete(supplyOf(KEY, tenantA))
+    expect(await readWith(w.rc, reader)).toEqual({ values: {}, missing: { [KEY]: 'no-value' } })
   })
 
   it('finds its registration again: a second ensure asks nothing, and a second holder with the same content changes nothing (CX-45)', async () => {
     const w = fresh({ blocks: [BUDGET, OTHER], needs: [] })
     await w.holder.ensure('holder', tenantA)
-    await publish(w, tenantA, BUDGET, 12)
     const before = await issued(w.holder)
     expect([recoveries(w.ports), commits(w.ports)]).toEqual([1, 0])
     expect(await w.holder.ensure('holder', tenantA)).toEqual({ ok: w.holder.scopeOf(tenantA) })
     expect([recoveries(w.ports), commits(w.ports)]).toEqual([1, 0])
     expect(await w.another().ensure('holder', tenantA)).toEqual({ ok: w.holder.scopeOf(tenantA) })
-    // The scope kept its readers and its values: the mechanism found the same recovery again.
+    // The scope kept its readers: the mechanism found the same recovery again.
     expect(await readWith(w.rc, before)).toEqual({ values: { [KEY]: 12 }, missing: {} })
     const next = await w.rc.applyCommit('holder', {
       kind: 'registration',
@@ -97,8 +113,6 @@ describe.each(MECHANISMS)('the static scope holder over %s', (_name, factory) =>
 
   it('serves no reader of the process before: after a rebuild a reader has to be issued again (CX-45)', async () => {
     const first = fresh()
-    await first.holder.ensure('holder', tenantA)
-    await publish(first, tenantA, BUDGET, 12)
     const old = await issued(first.holder)
     await first.rc.close()
     const second = fresh()
@@ -106,19 +120,21 @@ describe.each(MECHANISMS)('the static scope holder over %s', (_name, factory) =>
     expect(await second.holder.ensure('holder', tenantA)).toEqual({
       ok: first.holder.scopeOf(tenantA),
     })
-    await publish(second, tenantA, BUDGET, 13)
     expect(await readWith(second.rc, await issued(second.holder))).toEqual({
-      values: { [KEY]: 13 },
+      values: { [KEY]: 12 },
       missing: {},
     })
   })
 
-  it('keeps tenants apart: the reader of another tenant reads its own scope, and no eligibility crosses', async () => {
+  it('keeps tenants apart: each tenant reads what is supplied for it, and no eligibility crosses', async () => {
     const w = fresh()
-    await w.holder.ensure('holder', tenantA)
-    await publish(w, tenantA, BUDGET, 12)
-    const other = await readWith(w.rc, await issued(w.holder, tenantB))
-    expect(other).not.toMatchObject({ values: { [KEY]: 12 } })
+    supplied.set(supplyOf(KEY, tenantB), 99)
+    expect(await readWith(w.rc, await issued(w.holder, tenantA))).toMatchObject({
+      values: { [KEY]: 12 },
+    })
+    expect(await readWith(w.rc, await issued(w.holder, tenantB))).toMatchObject({
+      values: { [KEY]: 99 },
+    })
     const crossing = await w.rc.issueEligibility('holder', {
       supersedes: null,
       scope: w.holder.scopeOf(tenantA),
@@ -134,28 +150,36 @@ describe.each(MECHANISMS)('the static scope holder over %s', (_name, factory) =>
 
   it('follows the content: a withdrawn block is removed and reported missing, never read as empty; a new block is added', async () => {
     const w = fresh({ blocks: [BUDGET, OTHER], needs: [] })
+    supplied.set(supplyOf(OTHER_KEY, tenantA), 5)
     await w.holder.ensure('holder', tenantA)
-    await publish(w, tenantA, BUDGET, 12)
-    await publish(w, tenantA, OTHER, 5)
     w.content.current = { blocks: [OTHER], needs: [] }
     const gone = await w.holder.issue('holder', tenantA, {
       consumer: 'coordinator',
-      blocks: [KEY, OTHER.key],
+      blocks: [KEY, OTHER_KEY],
       needs: ['absent-need'],
     })
     expect(gone).toMatchObject({ ok: { missing: { blocks: [KEY], needs: ['absent-need'] } } })
     if ('failure' in gone) return
-    const view = await readWith(w.rc, gone.ok.eligibility)
-    expect(view).toMatchObject({ values: { [OTHER.key]: 5 } })
-    expect(view).not.toHaveProperty(['values', KEY])
+    expect(await readWith(w.rc, gone.ok.eligibility)).toEqual({
+      values: { [OTHER_KEY]: 5 },
+      missing: {},
+    })
     expect(commits(w.ports)).toBe(1)
     w.content.current = { blocks: [BUDGET, OTHER], needs: [] }
-    await w.holder.ensure('holder', tenantA)
-    await publish(w, tenantA, BUDGET, 14)
     const back = await w.holder.issue('holder', tenantA, READER)
     expect(back).toMatchObject({ ok: { missing: { blocks: [], needs: [] } } })
-    expect(await readWith(w.rc, await issued(w.holder))).toMatchObject({ values: { [KEY]: 14 } })
+    expect(await readWith(w.rc, await issued(w.holder))).toMatchObject({ values: { [KEY]: 12 } })
     expect(commits(w.ports)).toBe(2)
+  })
+
+  it('supplies through the contribution that is there now: a replaced contribution of the same block takes over', async () => {
+    const w = fresh()
+    const reader = await issued(w.holder)
+    const replaced = { ...BUDGET, supply: async () => ({ kind: 'value', value: 77 }) as const }
+    w.content.current = { blocks: [replaced], needs: [] }
+    await w.holder.ensure('holder', tenantA)
+    expect(await readWith(w.rc, reader)).toEqual({ values: { [KEY]: 77 }, missing: {} })
+    expect(commits(w.ports)).toBe(0)
   })
 
   it('updates the bindings of a block when a need is contributed later, and hands the reader what its needs give it', async () => {
@@ -165,32 +189,35 @@ describe.each(MECHANISMS)('the static scope holder over %s', (_name, factory) =>
       blocks: [BUDGET, OTHER],
       needs: [
         need('plain', KEY),
-        need('translated', OTHER.key, { translated: true }),
-        need('unasked', OTHER.key),
-        need('of-another-consumer', OTHER.key, { consumer: 'extension' }),
+        need('translated', OTHER_KEY, { translated: true }),
+        need('unasked', OTHER_KEY),
+        need('of-another-consumer', OTHER_KEY, { consumer: 'extension' }),
       ],
     }
     const needs = ['plain', 'translated', 'of-another-consumer']
-    await issued(w.holder, tenantA, { consumer: 'coordinator', blocks: [], needs })
-    const issue = holderCalls(w.ports, 'issue').at(-1)
-    expect(issue?.action).toMatchObject({
+    const granted = await w.holder.issue('holder', tenantA, {
+      consumer: 'coordinator',
+      blocks: [],
+      needs,
+    })
+    expect(granted).toMatchObject({ ok: { missing: { needs: ['of-another-consumer'] } } })
+    expect(holderCalls(w.ports, 'issue').at(-1)?.action).toMatchObject({
       material: {
         keys: [KEY],
-        bindings: [{ need: 'translated', key: OTHER.key }],
+        bindings: [{ need: 'translated', key: OTHER_KEY }],
         registrationRevision: 3,
       },
     })
     expect(commits(w.ports)).toBe(2)
   })
 
-  it('ignores a need bound to a block that nobody declares', async () => {
+  it('ignores a need bound to a block that nobody declares, and reports it missing', async () => {
     const w = fresh({ blocks: [BUDGET], needs: [need('orphan', 'test.absent')] })
-    await issued(w.holder, tenantA, { consumer: 'coordinator', blocks: [], needs: ['orphan'] })
-    const issue = holderCalls(w.ports, 'issue').at(-1)
-    expect(issue?.action).toMatchObject({ material: { keys: [], bindings: [] } })
-    expect(await w.holder.issue('holder', tenantA, { ...READER, needs: ['orphan'] })).toMatchObject(
-      { ok: { missing: { blocks: [], needs: ['orphan'] } } },
-    )
+    const granted = await w.holder.issue('holder', tenantA, { ...READER, needs: ['orphan'] })
+    expect(granted).toMatchObject({ ok: { missing: { blocks: [], needs: ['orphan'] } } })
+    expect(holderCalls(w.ports, 'issue').at(-1)?.action).toMatchObject({
+      material: { keys: [KEY], bindings: [] },
+    })
     expect([recoveries(w.ports), commits(w.ports)]).toEqual([1, 0])
   })
 
@@ -203,10 +230,11 @@ describe.each(MECHANISMS)('the static scope holder over %s', (_name, factory) =>
     ])
     expect(both.every(result => 'ok' in result)).toBe(true)
     expect([recoveries(w.ports), commits(w.ports)]).toEqual([1, 0])
+    expect(w.ports.calls.filter(call => call.face === 'producer')).toHaveLength(2)
   })
 
   it('answers unavailable for a block declared twice with different declarations, and registers nothing', async () => {
-    const w = fresh({ blocks: [BUDGET, block(KEY, { required: true })], needs: [] })
+    const w = fresh({ blocks: [BUDGET, block(KEY, { required: false })], needs: [] })
     expect(await w.holder.ensure('holder', tenantA)).toMatchObject({
       failure: { kind: 'unavailable', diagnostic: expect.stringContaining(KEY) },
     })
@@ -217,6 +245,7 @@ describe.each(MECHANISMS)('the static scope holder over %s', (_name, factory) =>
   })
 
   describe.each([
+    ['register', 'registerProducer'],
     ['begin-replay', 'beginReplay'],
     ['finish-replay', 'finishReplay'],
     ['commit', 'applyCommit'],
@@ -229,7 +258,7 @@ describe.each(MECHANISMS)('the static scope holder over %s', (_name, factory) =>
       w.content.current = { blocks: [BUDGET, OTHER], needs: [] }
       let once = true
       w.ports.script(call => {
-        if (call.face !== 'holder' || call.action.kind !== action || !once) return undefined
+        if (call.face === 'reader' || call.action.kind !== action || !once) return undefined
         once = false
         return answer
       })
@@ -243,10 +272,9 @@ describe.each(MECHANISMS)('the static scope holder over %s', (_name, factory) =>
       })
       const reader = await w.holder.issue('holder', tenantA, {
         ...READER,
-        blocks: [KEY, OTHER.key],
+        blocks: [KEY, OTHER_KEY],
       })
       expect(reader).toMatchObject({ ok: { missing: { blocks: [] } } })
-      await publish(w, tenantA, BUDGET, 12)
       expect(await readWith(w.rc, await issued(w.holder))).toMatchObject({ values: { [KEY]: 12 } })
       expect(commits(w.ports)).toBe(action === 'commit' ? 2 : 0)
     })
@@ -263,6 +291,85 @@ describe.each(MECHANISMS)('the static scope holder over %s', (_name, factory) =>
       expect(await w.holder.issue('holder', tenantA, READER)).toEqual({
         failure: { kind: 'denied' },
       })
+    })
+  })
+
+  describe('a read', () => {
+    const entriesOf = async (
+      w: ReturnType<typeof world>,
+      request: Parameters<ReturnType<typeof world>['holder']['read']>[2] = READER,
+    ) => {
+      const read = await w.holder.read('holder', tenantA, request)
+      if ('failure' in read) return read.failure
+      return {
+        entries: read.ok.entries.map(entry => [
+          entry.key,
+          entry.kind === 'value' ? entry.value : entry.kind,
+        ]),
+        missing: read.ok.missing,
+      }
+    }
+
+    it('ensures, then gives an entry for each registered block and lists what is not registered', async () => {
+      const w = fresh()
+      const request = {
+        consumer: 'coordinator',
+        blocks: [KEY, OTHER_KEY],
+        needs: ['absent'],
+      } as const
+      expect(await entriesOf(w, request)).toEqual({
+        entries: [[KEY, 12]],
+        missing: { blocks: [OTHER_KEY], needs: ['absent'] },
+      })
+      supplied.delete(supplyOf(KEY, tenantA))
+      expect(await entriesOf(w, request)).toMatchObject({ entries: [[KEY, 'missing']] })
+    })
+
+    it('keeps the reader of a request object, and keeps the readers of two request objects apart', async () => {
+      const w = fresh()
+      for (const _ of [1, 2, 3]) expect(await entriesOf(w)).toMatchObject({ entries: [[KEY, 12]] })
+      expect(holderCalls(w.ports, 'issue')).toHaveLength(1)
+      expect(await entriesOf(w, { ...READER })).toMatchObject({ entries: [[KEY, 12]] })
+      expect(holderCalls(w.ports, 'issue')).toHaveLength(2)
+    })
+
+    it('issues a reader again when the registration of its block changed under it', async () => {
+      const w = fresh()
+      expect(await entriesOf(w)).toMatchObject({ entries: [[KEY, 12]] })
+      w.content.current = { blocks: [], needs: [] }
+      expect(await entriesOf(w)).toEqual({ entries: [], missing: { blocks: [KEY], needs: [] } })
+      w.content.current = { blocks: [BUDGET], needs: [] }
+      expect(await entriesOf(w)).toMatchObject({ entries: [[KEY, 12]], missing: { blocks: [] } })
+      expect(commits(w.ports)).toBe(2)
+    })
+
+    it.each([
+      ['unavailable', { kind: 'unavailable', diagnostic: 'snapshot answered unknown' }],
+      ['refused', { kind: 'denied' }],
+    ] as const)(
+      'answers unavailable while the authority of the reader is %s, and reads again afterwards',
+      async (kind, failure) => {
+        const w = fresh()
+        expect(await entriesOf(w)).toMatchObject({ entries: [[KEY, 12]] })
+        w.ports.script(call => (call.face === 'reader' ? { kind } : undefined))
+        expect(await entriesOf(w)).toEqual(failure)
+        w.ports.script(undefined)
+        expect(await entriesOf(w)).toMatchObject({ entries: [[KEY, 12]] })
+      },
+    )
+
+    it('answers the failure of the ensure, and of the bind, without reading', async () => {
+      const w = fresh()
+      w.ports.script(call =>
+        call.face === 'holder' && call.action.kind === 'begin-replay'
+          ? { kind: 'refused' }
+          : undefined,
+      )
+      expect(await entriesOf(w)).toEqual({ kind: 'denied' })
+      w.ports.script(undefined)
+      await w.holder.ensure('holder', tenantA)
+      await w.rc.close()
+      expect(await entriesOf(w)).toMatchObject({ kind: 'unavailable' })
     })
   })
 
@@ -293,10 +400,5 @@ describe.each(MECHANISMS)('the static scope holder over %s', (_name, factory) =>
     expect(await w.another().ensure('holder', tenantA)).toMatchObject({
       failure: { kind: 'unavailable', diagnostic: expect.stringContaining('finishReplay') },
     })
-  })
-
-  it('reads a registered block that no producer ever declared as a refusal, never as an empty value', async () => {
-    const w = fresh()
-    expect(await readWith(w.rc, await issued(w.holder))).toBe('snapshot:refused')
   })
 })

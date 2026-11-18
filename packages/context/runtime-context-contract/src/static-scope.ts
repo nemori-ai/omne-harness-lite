@@ -2,15 +2,19 @@ import type { TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { SuppliedBlockDescriptor } from './descriptor.js'
 import type { NeedBinding } from './need.js'
+import type { SupplyCallback } from './producer.js'
+import type { PerRequestEntry } from './reader.js'
 import type { EligibilityId } from './registration.js'
 import type { ConsumerClass, ContextBlockKey, ScopeRef } from './shared.js'
 
-/** A supplied block only: a static scope has no stateful block, so it has no step (CX-46). */
-export type StaticBlock = SuppliedBlockDescriptor<ContextBlockKey, unknown>
+/** A block of a static scope: asked for at each read, never stored, with no step (CX-46). */
+export type StaticBlock<P = unknown> = Readonly<{
+  declaration: SuppliedBlockDescriptor<ContextBlockKey, unknown> & { volatility: 'per-request' }
+  supply: SupplyCallback<unknown, P>
+}>
 
-/** What one deployment registers in every scope of a static kind: the same for each tenant. */
-export type StaticRegistration = Readonly<{
-  blocks: readonly StaticBlock[]
+export type StaticRegistration<P = unknown> = Readonly<{
+  blocks: readonly StaticBlock<P>[]
   needs: readonly NeedBinding[]
 }>
 
@@ -30,19 +34,28 @@ export type StaticReaderGrant = Readonly<{
   missing: Readonly<{ blocks: readonly ContextBlockKey[]; needs: readonly string[] }>
 }>
 
+export type StaticRead = Readonly<{
+  entries: readonly PerRequestEntry[]
+  missing: StaticReaderGrant['missing']
+}>
+
 export interface StaticScopeHolder<P = unknown> {
-  /** Deterministic: the same tenant gives the same reference. */
   scopeOf(tenant: TenantId): ScopeRef
-  /** Recovers the scope once, then brings its registrations to the current content. Repeatable. */
   ensure(principal: P, tenant: TenantId): Promise<Outcome<ScopeRef, StaticScopeFailure>>
   issue(
     principal: P,
     tenant: TenantId,
     reader: StaticReaderRequest,
   ): Promise<Outcome<StaticReaderGrant, StaticScopeFailure>>
+  /** Ensures, then reads. The reader is kept for the request object: pass the same object. */
+  read(
+    principal: P,
+    tenant: TenantId,
+    reader: StaticReaderRequest,
+  ): Promise<Outcome<StaticRead, StaticScopeFailure>>
 }
 
-export type StaticContribution = Readonly<{
-  blocks?: readonly StaticBlock[]
+export type StaticContribution<P = unknown> = Readonly<{
+  blocks?: readonly StaticBlock<P>[]
   needs?: readonly NeedBinding[]
 }>

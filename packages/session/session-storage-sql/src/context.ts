@@ -1,8 +1,10 @@
 import type {
+  BudgetTerms,
   InputSources,
   IntakeBasis,
   IntakeSubject,
   SessionDerivedInputs,
+  SessionIntakeBudget,
 } from '@omne-harness/session-contract'
 import { sessionIntakeLimits, type SessionIntakeLimits } from '@omne-harness/session-contract'
 import { randomUUID } from 'node:crypto'
@@ -34,6 +36,8 @@ export type SessionStorageOptions<P> = Readonly<{
   sources?: InputSources
   /** The admissions of the inputs Session derives from its own log. */
   derived?: SessionDerivedInputs
+  /** The budget of a tenant, read at each commit of an input. Absent: `intakeLimits` applies. */
+  budget?: SessionIntakeBudget
   storage: SqlStorage
   domains: TenantDomainAccess
   accessCheck: SessionAccessCheck<P>
@@ -178,7 +182,8 @@ export async function readHandler(
 export function intakeBasisOf<P>(
   context: Context<P>,
   subject: IntakeSubject | undefined,
+  budget?: BudgetTerms,
 ): IntakeBasis {
   const { sources, derived } = context.options
-  return { subject, sources: sources ?? null, derived: derived ?? null }
+  return { subject, sources: sources ?? null, derived: derived ?? null, budget }
 }
