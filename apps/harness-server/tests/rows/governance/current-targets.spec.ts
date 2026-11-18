@@ -255,3 +255,41 @@ it('leaves a target without governance items out of the governance catalog', () 
   expect(currentGovernanceCatalog(input)).toEqual(currentGovernanceCatalog(managementInput()))
   expect(currentGovernanceCatalog(input)).toMatchObject({ unavailableOwners: [] })
 })
+
+it.each([
+  ['only preferences', () => scheduleAgentAuthoringSettings],
+  ['a permission item', () => managementInput().assets.views[0]!.definition],
+] as const)(
+  'leaves an asset a tenant published out of the governance catalog, its settings %s: no release has to publish it',
+  (_, definitionOf) => {
+    const input = managementInput()
+    const definition = definitionOf()
+    const target = { kind: 'asset' as const, holdingRef: 'fixture.alpha', scopeRef: 'tenant-a' }
+    const definitionRef = {
+      providerId: definition.providerId,
+      definitionId: definition.definitionId,
+      version: definition.version,
+      digest: canonicalDigest(definition).slice(7),
+    }
+    input.assets.views.push({
+      ...structuredClone(input.assets.views[0]!),
+      target,
+      definition,
+      definitionRef,
+    })
+    const publication = structuredClone(input.assetPublications.views[0]!)
+    input.assetPublications.views.push({
+      ...publication,
+      target,
+      definitionRef,
+      publicationRef: {
+        ...publication.publicationRef,
+        category: 'fixture',
+        name: 'alpha',
+        source: 'tenant-publishing',
+      },
+    })
+    expect(currentGovernanceCatalog(input)).toEqual(currentGovernanceCatalog(managementInput()))
+    expect(currentGovernanceCatalog(input)).toMatchObject({ unavailableOwners: [] })
+  },
+)
