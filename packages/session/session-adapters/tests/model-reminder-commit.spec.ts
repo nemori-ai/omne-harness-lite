@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { SystemReminderMessage } from '@omne-harness/message'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import { refusalFailure, type JournalCommitResult } from '../src/journal-commit.ts'
 import {
@@ -62,10 +63,17 @@ describe('the reminder commit answers', () => {
 
   it('names the reminder by the scope, the view and the Session revision it was read for', () => {
     const access = memoryAccess('tester', 'reminder-command')
-    const message = {
+    const message: SystemReminderMessage = {
       id: 'msg_reminder' as never,
-      role: 'system_reminder' as const,
-      blocks: [],
+      role: 'system_reminder',
+      blocks: [
+        {
+          kind: 'text',
+          id: 'blk_reminder' as never,
+          visibility: { toHuman: true, toModel: true },
+          text: 'told',
+        },
+      ],
     }
     const scope = { ref: 'session-scope:1' } as ScopeRef
     const at = (revision: string, view = '3') =>

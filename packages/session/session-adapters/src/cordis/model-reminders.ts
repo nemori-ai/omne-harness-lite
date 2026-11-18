@@ -20,9 +20,8 @@ import {
   type SnapshotResult,
 } from '@omne-harness/runtime-context-contract'
 
-// The holder tells the model the blocks it may read: a full snapshot when nothing was told in this
-// process, then only what changed. What was told lives in memory and moves on only after the
-// reminder commit is accepted; losing it costs one more full snapshot, which only appends.
+// A full snapshot when nothing was told in this process, then only what changed; what was told
+// moves on only after the reminder commit is accepted, and losing it costs one more snapshot.
 
 export type ModelReminderFailure =
   | Readonly<{ kind: 'denied' }>
@@ -158,7 +157,6 @@ export function createModelReminders<P>(ports: ModelReminderPorts<P>): ModelRemi
       if (key === null) return fail({ kind: 'denied' })
       const eligibility = await eligibilityOf(input)
       if ('failure' in eligibility) return eligibility
-      // A reissued eligibility is a new reader: what the old one told does not carry over.
       if (told.get(key)?.eligibility.eligibility !== eligibility.ok.eligibility) drop(key)
       const previous = told.get(key)
       let reader: ContextReader

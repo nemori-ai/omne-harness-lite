@@ -33,7 +33,6 @@ import {
   type SessionLogConsequence,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
-import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import {
   EXECUTION_BATCH_MAX_FACTS,
   SESSION_HISTORY_ROOT_HANDLER,
@@ -67,7 +66,6 @@ import {
   refusalFailure,
   standingOf,
   type GenerationMemory,
-  type JournalCommitResult,
   type JournalCombination,
 } from '../journal-commit.ts'
 import {
@@ -88,7 +86,7 @@ import {
 import {
   participationAccessFailure,
   participationFailure,
-  type ParticipationMethod,
+  participationMethodOf,
 } from '../participation-mapping.ts'
 import { canonical } from '../testing/canonical.ts'
 import {
@@ -141,13 +139,7 @@ import {
   type Reader,
 } from './journal-read.ts'
 import { attemptOfAuthority, attemptOfGrant } from './attempt-grant.ts'
-import type { ModelReminders } from './model-reminders.ts'
-import {
-  openContextScope,
-  reminderCommand,
-  reminderOutcome,
-  reminderReadFailure,
-} from './model-reminder-commit.ts'
+import { createModelTelling, type ModelReminders } from './model-telling.ts'
 
 export type SessionLogJournalOptions<P> = Readonly<{
   storage: SqlStorage
@@ -158,8 +150,7 @@ export type SessionLogJournalOptions<P> = Readonly<{
   hostRecords?: MemoryAgentJournalOptions<P>['hostRecords']
   fault?: Fault
   report?: (report: JournalPublicationReport) => void
-  /** Without it, no write tells the model the runtime context. */
-  reminders?: ModelReminders<P>
+  reminders?: ModelReminders<P> | undefined
 }>
 
 type Fault = (diagnostic: string) => void
@@ -763,10 +754,6 @@ function jointState<P>(
   }
 }
 
-function beginsStep(appended: readonly PublishedBatch[]): boolean {
-  return appended.some(batch => batch.facts.some(fact => fact.kind === 'step.begun'))
-}
-
 function kindsOf(scratch: Scratch): ParticipationKind[] {
   const kinds: ParticipationKind[] = []
   for (const command of scratch.commands)
@@ -797,6 +784,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return false
   }
   const generations: GenerationMemory = new Map()
+  const telling = createModelTelling<P, Book<P>>({ ...options, generations, read: snapshotOf })
 
   function bookOf(tenant: TenantId, session: SessionId): Book<P> | null {
     const text = tenantCodec.encode(tenant)
@@ -1363,17 +1351,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     | Readonly<{ kind: 'answer'; value: Outcome<T, Failure> }>
     | Readonly<{ kind: 'again' }>
 
-  function participationOf(method: string): ParticipationMethod | null {
-    return method === 'open' ||
-      method === 'attach' ||
-      method === 'submit' ||
-      method === 'tryFinish' ||
-      method === 'commit' ||
-      method === 'recordResult'
-      ? method
-      : null
-  }
-
   function hold(
     book: Book<P>,
     after: CommonRoot,
@@ -1578,98 +1555,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     return succeed(withBatch)
   }
 
-  function modelScope(book: Book<P>, snapshot: WorkSnapshot): ScopeRef | null {
-    return openContextScope({ tenant: book.tenant, session: book.session, snapshot })
-  }
-
-  function forgetTold(book: Book<P>, snapshot: WorkSnapshot | null): void {
-    const scope = snapshot === null ? null : modelScope(book, snapshot)
-    if (scope !== null) options.reminders?.forget({ tenant: book.tenant, scope })
-  }
-
-  // The request that resumes after a compaction is prepared in the same step: the model is told
-  // in full right after the compaction is committed. If that fails, the next step tells it.
-  async function tellAfterCompaction(
-    book: Book<P>,
-    domain: DomainRef,
-    input: ExecutionMutation<P>,
-    scratch: Scratch,
-    outcome: JournalCommitResult,
-  ): Promise<void> {
-    const compacted = scratch.commands.some(item => item.kind === 'commitDerived')
-    if (!compacted || outcome.kind === 'refused') return
-    forgetTold(book, scratch.snapshot)
-    if (outcome.kind !== 'committed') return
-    const fresh = await snapshotOf(book, domain)
-    const told =
-      'failure' in fresh
-        ? ({ kind: 'answer', value: fail(fresh.failure) } as const)
-        : await tellModel<unknown>(book, domain, input, fresh.ok)
-    if (told?.kind === 'answer' && 'failure' in told.value)
-      options.fault?.(
-        `the runtime context after a compaction is told at the next step: ${JSON.stringify(told.value.failure)}`,
-      )
-  }
-
-  // Before a step takes its inputs, the model is told what changed in the runtime context: the
-  // reminder is its own Session commit, right before the step, and the step is written again on
-  // the revision it made. A read that fails fails the step; nothing told moves on unless committed.
-  async function tellModel<T>(
-    book: Book<P>,
-    domain: DomainRef,
-    input: ExecutionMutation<P>,
-    snapshot: WorkSnapshot | null,
-  ): Promise<Settled<T> | null> {
-    const reminders = options.reminders
-    if (reminders === undefined) return null
-    const answer = (failure: Failure): Settled<T> => ({ kind: 'answer', value: fail(failure) })
-    if (snapshot === null) return answer(unavailable('no Session snapshot to tell the model from'))
-    const scope = modelScope(book, snapshot)
-    if (scope === null) return answer(unavailable('the session has no open context scope'))
-    const prepared = await reminders.prepare({
-      principal: input.principal,
-      tenant: book.tenant,
-      scope,
-      at: String(snapshot.revision),
-    })
-    if ('failure' in prepared) return answer(reminderReadFailure(prepared.failure))
-    const [message] = prepared.ok.messages
-    if (message === undefined) {
-      prepared.ok.advance()
-      return null
-    }
-    const command = reminderCommand({
-      tenant: book.tenant,
-      session: book.session,
-      scope,
-      at: snapshot.revision,
-      viewRevision: prepared.ok.viewRevision,
-      message,
-    })
-    const outcome = await commitJournal({
-      storage: options.storage,
-      domain,
-      combination: options.combination,
-      operation: command.input.operation,
-      commands: sessionCommitCommands([sessionCommandFacts(command, [])]),
-      generations,
-    })
-    await afterSessionCommit({
-      storage: options.storage,
-      domain,
-      tenant: book.tenantText,
-      session: book.session,
-      answer:
-        outcome.kind === 'committed'
-          ? { receipt: outcome.receipt, recalled: outcome.recalled }
-          : null,
-      journal: { published: book.published === null ? null : String(book.published) },
-    })
-    const settled = reminderOutcome(outcome)
-    if (settled === 'told') prepared.ok.advance()
-    return typeof settled === 'string' ? { kind: 'again' } : answer(settled)
-  }
-
   async function publish<T>(
     book: Book<P>,
     domain: DomainRef,
@@ -1697,9 +1582,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         kind: 'answer',
         value: fail(unavailable(`a ${written.method} changed the Agent records without a batch`)),
       }
-    const told = beginsStep(appended)
-      ? await tellModel<T>(book, domain, input as ExecutionMutation<P>, scratch.snapshot)
-      : null
+    const told = await telling.beforeStep(book, domain, input, scratch, appended)
     if (told !== null) return told
     const execution = appended[0]!.execution
     const operation = storageOperation(
@@ -1777,7 +1660,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           : null,
       journal: { published: book.published === null ? null : String(book.published) },
     })
-    await tellAfterCompaction(book, domain, input as ExecutionMutation<P>, scratch, outcome)
+    await telling.afterCompaction(book, domain, input, scratch, outcome)
     return settled
   }
 
@@ -1928,7 +1811,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     stop: Parameters<typeof decodeSessionReply>[0],
   ): Settled<T> {
     const reply = decodeSessionReply(stop)
-    const method = participationOf(job.written.method)
+    const method = participationMethodOf(job.written.method)
     switch (reply.kind) {
       case 'stopped': {
         if (method === null || job.agentOperation === null)

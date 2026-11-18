@@ -25,10 +25,12 @@ function told(text: string): SystemReminderMessage {
 // A holder that has one reminder to tell until it is told; it records what the journal did.
 function scripted(answer: 'tell' | 'fail' = 'tell') {
   const calls: string[] = []
+  const inputs: unknown[] = []
   let pending: SystemReminderMessage | null = told('runtime context: the current values')
   const reminders: ModelReminders<string> = {
     prepare: async input => {
       calls.push(`prepare@${input.at}`)
+      inputs.push(input)
       if (answer === 'fail')
         return { failure: { kind: 'unavailable', diagnostic: 'scripted read failure' } }
       const messages = pending === null ? [] : [pending]
@@ -45,7 +47,7 @@ function scripted(answer: 'tell' | 'fail' = 'tell') {
     },
     forget: () => calls.push('forget'),
   }
-  return { reminders, calls }
+  return { reminders, calls, inputs }
 }
 
 function journalOf(
@@ -83,9 +85,16 @@ describe('the journal tells the model before a step takes its inputs (C4, C7)', 
     const s = await sqlScene('reminders-first')
     try {
       ok(await s.view.journal.open(s.openInput))
-      const { reminders, calls } = scripted()
+      const { reminders, calls, inputs } = scripted()
       await takeInputs(s, journalOf(s, reminders))
       expect(await modelView(s)).toEqual(['system_reminder', 'user'])
+      const work = ok(await s.port.readWork(s.sessionAccess))
+      const scope = work.contextScopes?.at(-1)?.scope
+      expect(inputs[0]).toMatchObject({ principal: s.access.principal, tenant: s.access.tenant })
+      expect((inputs[0] as { scope: { ref: string } }).scope.ref).toBe(scope)
+      expect(Number((inputs[1] as { at: string }).at)).toBeGreaterThan(
+        Number((inputs[0] as { at: string }).at),
+      )
       expect(calls.filter(call => call === 'advance')).toHaveLength(2)
       expect(calls[0]).toMatch(/^prepare@/)
     } finally {

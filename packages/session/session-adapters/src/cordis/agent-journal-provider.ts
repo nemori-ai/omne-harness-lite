@@ -25,7 +25,7 @@ import {
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { SessionAccessCheck, SessionId } from '@omne-harness/session-contract'
+import type { SessionId } from '@omne-harness/session-contract'
 import type {
   SessionAdoptedRequestRead,
   SessionAdoptedRequests,
@@ -39,9 +39,7 @@ import {
   SESSION_READ_PROTOCOL,
   decodeSessionExecution,
 } from '@omne-harness/session-storage-sql/participants'
-import type { SqlStorage, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { storageKey, tenantDomainLookupKey } from '@omne-harness/sql-contract/cordis'
-import type { JournalCombination } from '../journal-commit.ts'
 import {
   createSessionLogJournal,
   materialSessionOf,
@@ -61,18 +59,11 @@ const OWNER = 'session-log-journal'
 const LOGGER = 'session-adapters/agent-journal'
 const ROUTE_CACHE_ENTRIES = 4096
 
-export type ExecutionRoutedJournalOptions<P> = Readonly<{
-  storage: SqlStorage
-  tenantDomainLookup: TenantDomainLookup
-  sessionAccessCheck: SessionAccessCheck<P>
-  combination: JournalCombination
-  routeCacheEntries?: number
-  cancellation?: SessionLogJournalOptions<P>['cancellation']
-  published?: (tenant: TenantId, session: SessionId, execution: AgentExecutionId) => void
-  fault?: SessionLogJournalOptions<P>['fault']
-  report?: SessionLogJournalOptions<P>['report']
-  reminders?: SessionLogJournalOptions<P>['reminders']
-}>
+export type ExecutionRoutedJournalOptions<P> = SessionLogJournalOptions<P> &
+  Readonly<{
+    routeCacheEntries?: number
+    published?: (tenant: TenantId, session: SessionId, execution: AgentExecutionId) => void
+  }>
 
 type Journal<P> = AgentJournal<P>
 type RoutedJournal<P> = Journal<P> & Required<Pick<Journal<P>, 'readFinish'>>
@@ -125,16 +116,7 @@ async function indexedSession<P>(
 }
 
 export function createExecutionRoutedJournal<P>(options: ExecutionRoutedJournalOptions<P>) {
-  const journals = createSessionLogJournal<P>({
-    storage: options.storage,
-    tenantDomainLookup: options.tenantDomainLookup,
-    sessionAccessCheck: options.sessionAccessCheck,
-    combination: options.combination,
-    ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),
-    ...(options.fault === undefined ? {} : { fault: options.fault }),
-    ...(options.report === undefined ? {} : { report: options.report }),
-    ...(options.reminders === undefined ? {} : { reminders: options.reminders }),
-  })
+  const journals = createSessionLogJournal<P>(options)
   const limit = options.routeCacheEntries ?? ROUTE_CACHE_ENTRIES
   const routes = new Map<string, Route<P>>()
   let closed = false

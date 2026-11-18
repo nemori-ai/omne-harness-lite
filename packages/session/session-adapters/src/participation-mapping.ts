@@ -59,3 +59,14 @@ export function participationAccessFailure(
     ? { kind: 'denied', action }
     : { kind: 'unavailable', owner: 'session-access', diagnostic: action }
 }
+
+export function participationMethodOf(method: string): ParticipationMethod | null {
+  return method === 'open' ||
+    method === 'attach' ||
+    method === 'submit' ||
+    method === 'tryFinish' ||
+    method === 'commit' ||
+    method === 'recordResult'
+    ? method
+    : null
+}
