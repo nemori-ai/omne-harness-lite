@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { expect, it } from 'vitest'
 
-const ENGINES = ['chat-completions', 'messages'] as const
+const ENGINES = ['chat-completions', 'messages', 'responses'] as const
 
 const VENDOR_WORD =
   /(?<![a-z])(openai|anthropic|claude|gpt|gemini|google|deepseek|grok|xai|qwen|moonshot|kimi|glm|zai)/gi
