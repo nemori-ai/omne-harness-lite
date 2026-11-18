@@ -1061,18 +1061,158 @@
       "source": "docs/architecture/layers-and-dependencies.md#依赖方向与cordis集成"
     },
     {
+      "id": "DIR-CORE-NOTIFICATION",
+      "from": [
+        "packages/session/session",
+        "packages/session/session-access",
+        "packages/session/session-adapters",
+        "packages/session/session-contract",
+        "packages/session/session-cordis",
+        "packages/session/session-cordis-contract",
+        "packages/session/session-diagnostics-access",
+        "packages/session/session-diagnostics-protocol",
+        "packages/session/session-observation",
+        "packages/session/session-protocol",
+        "packages/session/session-storage-sql",
+        "packages/session/session-ui",
+        "packages/agent/agent-contract",
+        "packages/agent/agent-cordis-contract",
+        "packages/agent/agent-host-local",
+        "packages/model/model-contract",
+        "packages/model/model-cordis-contract",
+        "packages/model/pi-ai-transport",
+        "packages/tool/tool-access",
+        "packages/tool/tool-contract",
+        "packages/tool/tool-cordis-contract",
+        "packages/tool/tool-protocol",
+        "packages/tool/tool-ui"
+      ],
+      "to": [
+        "packages/notification/notification",
+        "packages/notification/notification-access",
+        "packages/notification/notification-contract",
+        "packages/notification/notification-cordis-contract",
+        "packages/notification/notification-local",
+        "packages/notification/notification-protocol",
+        "packages/notification/notification-tools",
+        "packages/notification/notification-ui"
+      ],
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "DIR-NOTIFICATION-OUTWARD",
+      "from": ["packages/notification/notification-contract", "packages/notification/notification"],
+      "to": [
+        "packages/session/session",
+        "packages/session/session-access",
+        "packages/session/session-adapters",
+        "packages/session/session-contract",
+        "packages/session/session-cordis",
+        "packages/session/session-cordis-contract",
+        "packages/session/session-diagnostics-access",
+        "packages/session/session-diagnostics-protocol",
+        "packages/session/session-observation",
+        "packages/session/session-protocol",
+        "packages/session/session-storage-sql",
+        "packages/session/session-ui",
+        "packages/schedule/schedule",
+        "packages/schedule/schedule-access",
+        "packages/schedule/schedule-contract",
+        "packages/schedule/schedule-cordis-contract",
+        "packages/schedule/schedule-local",
+        "packages/schedule/schedule-protocol",
+        "packages/schedule/schedule-tools",
+        "packages/schedule/schedule-ui",
+        "packages/calendar/calendar",
+        "packages/calendar/calendar-access",
+        "packages/calendar/calendar-contract",
+        "packages/calendar/calendar-cordis-contract",
+        "packages/calendar/calendar-local",
+        "packages/calendar/calendar-protocol",
+        "packages/calendar/calendar-tools",
+        "packages/calendar/calendar-ui",
+        "packages/human-intervention/human-intervention-access",
+        "packages/human-intervention/human-intervention-protocol",
+        "packages/human-intervention/human-intervention-tool",
+        "packages/human-intervention/human-intervention-ui"
+      ],
+      "source": "packages/notification/SPEC.md"
+    },
+    {
       "id": "DIR-NOTIFICATION-PURE",
       "from": ["packages/notification/notification-contract", "packages/notification/notification"],
       "to": [
         "packages/notification/notification-cordis-contract",
-        "packages/notification/notification-local"
+        "packages/notification/notification-local",
+        "packages/notification/notification-tools",
+        "packages/notification/notification-protocol",
+        "packages/notification/notification-access",
+        "packages/notification/notification-ui"
       ],
       "source": "packages/notification/SPEC.md"
     },
     {
       "id": "DIR-NOTIFICATION-DEFINITION",
       "from": ["packages/notification/notification-cordis-contract"],
-      "to": ["packages/notification/notification", "packages/notification/notification-local"],
+      "to": [
+        "packages/notification/notification",
+        "packages/notification/notification-local",
+        "packages/notification/notification-tools",
+        "packages/notification/notification-protocol",
+        "packages/notification/notification-access",
+        "packages/notification/notification-ui"
+      ],
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "DIR-NOTIFICATION-TOOLS",
+      "from": ["packages/notification/notification-tools"],
+      "to": [
+        "packages/notification/notification",
+        "packages/notification/notification-local",
+        "packages/notification/notification-cordis-contract",
+        "packages/notification/notification-protocol",
+        "packages/notification/notification-access",
+        "packages/notification/notification-ui"
+      ],
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "DIR-NOTIFICATION-PROTOCOL",
+      "from": ["packages/notification/notification-protocol"],
+      "to": [
+        "packages/notification/notification-contract",
+        "packages/notification/notification",
+        "packages/notification/notification-cordis-contract",
+        "packages/notification/notification-local",
+        "packages/notification/notification-tools",
+        "packages/notification/notification-access",
+        "packages/notification/notification-ui"
+      ],
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "DIR-NOTIFICATION-ACCESS",
+      "from": ["packages/notification/notification-access"],
+      "to": [
+        "packages/notification/notification",
+        "packages/notification/notification-local",
+        "packages/notification/notification-tools",
+        "packages/notification/notification-ui"
+      ],
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "DIR-NOTIFICATION-UI",
+      "from": ["packages/notification/notification-ui"],
+      "to": [
+        "packages/notification/notification-contract",
+        "packages/notification/notification",
+        "packages/notification/notification-cordis-contract",
+        "packages/notification/notification-local",
+        "packages/notification/notification-tools",
+        "packages/notification/notification-access"
+      ],
       "source": "packages/notification/SPEC.md"
     },
     {
