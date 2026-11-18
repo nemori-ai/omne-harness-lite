@@ -1,7 +1,7 @@
 // @module-tag slow
 import { request } from 'node:http'
 import { describe, expect, it } from 'vitest'
-import { savedLoginProof, savedTenant } from '../../r9/support.ts'
+import { bodyOf, savedLoginProof, savedTenant } from '../../r9/support.ts'
 import { onReleaseTree, toolCallsThenText, type ReleaseTree } from '../../support/release-tree.ts'
 
 type Reply = Readonly<{ status: number; json: any }>
@@ -64,12 +64,11 @@ describe('calendar and calendar-access rows', () => {
         })
         const independentList = await tree.cli(['setting', 'list', '--independent'])
         expect(independentList.status, independentList.stderr).toBe(0)
+        const listedItems = bodyOf(independentList)['items'] as readonly {
+          owner: { providerId: string; definitionId: string }
+        }[]
         const groups = new Set(
-          (
-            independentList.result?.['body'] as {
-              items: { owner: { providerId: string; definitionId: string } }[]
-            }
-          ).items.map(item => `${item.owner.providerId}/${item.owner.definitionId}`),
+          listedItems.map(item => `${item.owner.providerId}/${item.owner.definitionId}`),
         )
         expect([...groups].sort()).toEqual(['calendar/environment', 'schedule/agent-authoring'])
         const environment = ['--independent', 'calendar/environment', 'timezone']
