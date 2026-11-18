@@ -5,6 +5,16 @@ import { createHash } from 'node:crypto'
 import { canonical, canonicalOfKept } from './canonical.ts'
 import { openEffectsAt, openSnapshotItems } from './execution-open-set.ts'
 import type { JournalCell, TransactionAnswer } from './root.ts'
+import { landClosed } from './closed-items.ts'
+import {
+  fixAnswer,
+  operationAnswer,
+  reachedStamp,
+  receiptIn,
+  recognitionBatch,
+  recognitionOf,
+  recognizedAnswer,
+} from './operation-answers.ts'
 import type {
   AcceptedInput,
   AgentCheckpoint,
@@ -102,6 +112,7 @@ import {
   batchIdOf,
   frozenSet,
   journalEvidence,
+  operationText,
   revisionOf,
   openKey,
   semanticKey,
@@ -119,9 +130,9 @@ import {
   cursorMoved,
   cursorOf as cursorMembersOf,
   emptyExecutionView,
-  fold,
   modelAttempt,
   receiptOf as batchReceiptOf,
+  stampOfReceipt,
   BATCH_MAX_FACTS,
   refOf,
   voidedFacts,
@@ -440,6 +451,7 @@ type Committed = Readonly<{
   key: string
   value: unknown
   receipt: CommandReceipt
+  match?: string
 }>
 type Excluded = Readonly<{
   kind: 'excluded'
@@ -479,6 +491,8 @@ export type Attempt<R> =
       derive: (answer: Answer) => R
       project: (batch: PublishedBatch, view: ExecutionView) => void
       receiptState?: CommandReceipt['state']
+      // What else a repeat under another key may match to be recognized, kept with the answer.
+      match?: string
     }>
   | Readonly<{
       kind: 'reject'
@@ -572,14 +586,6 @@ function exactDataFields(value: unknown, fields: readonly string[]): boolean {
 type RetainedFaultInput = Parameters<
   MemoryAgentJournal<unknown>['setRetainedToolInvocationFault']
 >[0]
-
-export function operationText(
-  tenant: string,
-  execution: AgentExecutionId,
-  operation: AgentOperationId,
-) {
-  return JSON.stringify([tenant, execution, operation])
-}
 
 function retainedFaultKey(input: RetainedFaultInput): string | undefined {
   if (!exactDataFields(input, ['tenant', 'execution', 'control', 'fault'])) return undefined
@@ -1321,19 +1327,6 @@ export function createJournal<P>(
     return succeed(execution)
   }
 
-  function recognized<R>(
-    input: ExecutionMutation<P>,
-    key: string,
-  ): Outcome<R, Failure> | undefined {
-    const at = operationKey(input.tenant, input.execution, input.operation)
-    const record = at === undefined ? undefined : state().operations.get(at)
-    if (record?.kind === 'rejected') {
-      return fail(record.key === key ? copy(record.failure) : conflict(input.operation))
-    }
-    if (record?.kind !== 'committed') return undefined
-    return record.key === key ? succeed(copy(record.value) as R) : fail(conflict(input.operation))
-  }
-
   function nextEvidence(execution: Execution, what: string, revision: number): DurableEvidence {
     const serial = execution.serial + 1
     if (cell.writing()) execution.serial = serial
@@ -1347,8 +1340,7 @@ export function createJournal<P>(
     input: ExecutionMutation<P>,
     key: string,
   ): CommandReceipt | undefined {
-    const at = operationKey(input.tenant, input.execution, input.operation)
-    const record = at === undefined ? undefined : state().operations.get(at)
+    const record = operationAnswer(state(), input)
     if (record?.kind === 'committed' && record.key === key) return copy(record.receipt)
     const execution = state().executions.get(executionKey(input.tenant, input.execution))
     if (execution === undefined) return undefined
@@ -1539,8 +1531,7 @@ export function createJournal<P>(
       return answered(pending.key === key ? commitUnknown : fail(conflict(input.operation)))
     }
     const exclude = (reason: 'dropped' | 'no-write') => {
-      const fixed = state().operations.get(at)?.kind
-      if (fixed === 'committed' || fixed === 'rejected') return
+      if (operationAnswer(state(), input) !== undefined) return
       cell.touch()
       state().operations.set(at, {
         kind: 'excluded',
@@ -1563,7 +1554,21 @@ export function createJournal<P>(
       const rejected = check()
       if (rejected !== undefined) return { kind: 'answered', value: fail(rejected) }
       const prepared = prepare()
-      if (prepared.kind === 'answer') return { kind: 'answered', value: prepared.value }
+      if (prepared.kind === 'answer') {
+        // A refusal may be an exact repeat whose answer this core has not read: that answer holds.
+        if ('failure' in prepared.value) {
+          const original = operationAnswer(state(), input, true)
+          if (original?.key === key)
+            return {
+              kind: 'answered',
+              value:
+                original.kind === 'committed'
+                  ? succeed(copy(original.value) as R)
+                  : fail(copy(original.failure)),
+            }
+        }
+        return { kind: 'answered', value: prepared.value }
+      }
       if (prepared.kind === 'unknown') return prepared
       if (prepared.kind === 'reject') {
         const appended = append(input, key, {
@@ -1576,7 +1581,7 @@ export function createJournal<P>(
         })
         if ('failure' in appended) return { kind: 'answered', value: appended }
         cell.touch()
-        state().operations.set(at, {
+        fixAnswer(state(), at, input, {
           kind: 'rejected',
           key,
           failure: prepared.failure,
@@ -1598,7 +1603,13 @@ export function createJournal<P>(
           }
         }
         cell.touch()
-        state().operations.set(at, { kind: 'committed', key, value: copy(value), receipt })
+        fixAnswer(state(), at, input, {
+          kind: 'committed',
+          key,
+          value: copy(value),
+          receipt,
+          ...(prepared.match === undefined ? {} : { match: prepared.match }),
+        })
         return { kind: 'wrote', value }
       }
       prepared.apply()
@@ -1609,7 +1620,7 @@ export function createJournal<P>(
         if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
       }
       cell.touch()
-      state().operations.set(at, {
+      fixAnswer(state(), at, input, {
         kind: 'committed',
         key,
         value: copy(prepared.value),
@@ -1623,8 +1634,7 @@ export function createJournal<P>(
       if (run.kind === 'unknown') hold()
     }
     const hold = () => {
-      const fixed = state().operations.get(at)?.kind
-      if (fixed === 'committed' || fixed === 'rejected') return
+      if (operationAnswer(state(), input) !== undefined) return
       cell.touch()
       state().operations.set(at, {
         kind: 'pending',
@@ -1702,7 +1712,7 @@ export function createJournal<P>(
       if (!agent.blobs.has(digest)) agent.blobs.set(digest, copy(value))
     agent.log = [...agent.log, batch]
     const prior = agent.view
-    agent.view = fold(agent.view, batch)
+    agent.view = landClosed(agent, agent.view, batch)
     const folded = agent.view.executions.get(input.execution)
     if (folded === undefined || folded.revision !== rev)
       throw new TypeError('the fold did not reach the revision the envelope names')
@@ -1730,56 +1740,9 @@ export function createJournal<P>(
       for (const [digest, value] of owed.blobs)
         if (!agent.blobs.has(digest)) agent.blobs.set(digest, copy(value))
       agent.log = [...agent.log.slice(0, -1), amended]
-      agent.view = fold(prior, amended)
+      agent.view = landClosed(agent, prior, amended)
     }
     return succeed({ value, receipt, advanced })
-  }
-
-  function recognitionOf<R>(
-    target: AgentOperationId | undefined,
-    revision: number,
-    value: (receipt: CommandReceipt) => R,
-    receiptState: CommandReceipt['state'] = 'applied',
-  ): Attempt<R> {
-    if (target === undefined || !state().view.ops.has(target))
-      return answer(
-        fail({
-          kind: 'unavailable',
-          owner: JOURNAL_OWNER,
-          diagnostic: `the fact recognized at revision ${String(revision)} is not in the folded view`,
-        }),
-      )
-    return {
-      kind: 'batch',
-      facts: [{ kind: 'op.recognized', target }],
-      blobs: [],
-      kinds: [],
-      derive: derived => {
-        const receipt = receiptIn(derived)
-        if (receipt.revision !== revisionOf(revision))
-          throw new TypeError('a recognition answered another revision than the recognized fact')
-        return value(receipt)
-      },
-      project: () => {},
-      receiptState,
-    }
-  }
-
-  function recognitionBatch(
-    target: AgentOperationId | undefined,
-    revision: number,
-    receiptState: CommandReceipt['state'],
-  ): Attempt<CommandReceipt> {
-    return recognitionOf(target, revision, receipt => receipt, receiptState)
-  }
-
-  function reachedBy(execution: AgentExecutionId, revision: number): AgentOperationId | undefined {
-    return state().view.executions.get(execution)?.reached.get(revision)
-  }
-
-  function receiptIn(derived: Answer): CommandReceipt {
-    if (!('receipt' in derived)) throw new TypeError(`a ${derived.kind} answer carries no receipt`)
-    return derived.receipt
   }
 
   function ownEvidence(
@@ -1844,11 +1807,9 @@ export function createJournal<P>(
     const out: FactBody[] = []
     for (const [at, record] of state().operations.excludedOf(input.execution)) {
       if (at !== operationKey(input.tenant, input.execution, record.operation)) continue
-      if (
-        carried.has(record.operation) ||
-        before.excluded.has(record.operation) ||
-        before.ops.has(record.operation)
-      )
+      if (carried.has(record.operation) || before.excluded.has(record.operation)) continue
+      // An operation the store answered is not excluded: the answer is read back before deciding.
+      if (operationAnswer(state(), { ...input, operation: record.operation }, true) !== undefined)
         continue
       out.push({
         kind: 'op.excluded',
@@ -1865,6 +1826,7 @@ export function createJournal<P>(
     const out: FactBody[] = []
     for (const [, record] of state().operations.pendingOf(execution.id)) {
       if (!pendingOf(record, execution) || record.key.startsWith('received:')) continue
+      if (operationAnswer(state(), record, true) !== undefined) continue
       out.push({
         kind: 'op.excluded',
         operation: record.operation,
@@ -2358,8 +2320,16 @@ export function createJournal<P>(
     if (root === undefined) return null
     const stateOf = (operation: AgentOperationId): 'committed' | 'excluded' | undefined => {
       const at = operationKey(execution.tenant, execution.id, operation)
-      const record = at === undefined ? undefined : state().operations.get(at)
-      return record?.kind === 'committed' || record?.kind === 'excluded' ? record.kind : undefined
+      const held = at === undefined ? undefined : state().operations.get(at)
+      // The log decides: an exclusion folded into the view holds over a write still held pending.
+      if (held?.kind === 'excluded' || viewOf(execution.id).excluded.has(operation))
+        return 'excluded'
+      const answer = operationAnswer(
+        state(),
+        { tenant: execution.tenant, execution: execution.id, operation },
+        true,
+      )
+      return answer?.kind === 'committed' ? 'committed' : undefined
     }
     const chain: Exclude<ExecutionHandoff['custody'], null>['chain'][number][] = []
     let committed: AgentOperationId | null = null
@@ -2913,7 +2883,11 @@ export function createJournal<P>(
         if (existing !== undefined && !tenantEquals(existing.tenant, input.tenant)) {
           return answer(fail(denied('open')))
         }
-        const original = recognized<{ receipt: CommandReceipt; authority: Authority }>(input, key)
+        const original = recognizedAnswer<{ receipt: CommandReceipt; authority: Authority }>(
+          state(),
+          input,
+          key,
+        )
         if (original !== undefined) return answer(original)
         if (existing !== undefined) return answer(fail(conflict(input.operation)))
         const malformed = acceptanceFailure('open', input, acceptance)
@@ -3051,7 +3025,11 @@ export function createJournal<P>(
         const found = owned(input, 'attach')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<{ receipt: CommandReceipt; authority: Authority }>(input, key)
+        const original = recognizedAnswer<{ receipt: CommandReceipt; authority: Authority }>(
+          state(),
+          input,
+          key,
+        )
         if (original !== undefined) return answer(original)
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         if (!grantHolds(input, 'attach')) return answer(fail(denied('attach')))
@@ -3117,7 +3095,7 @@ export function createJournal<P>(
         const found = owned(input, 'detach')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<DurableEvidence>(input, key)
+        const original = recognizedAnswer<DurableEvidence>(state(), input, key)
         if (original !== undefined) return answer(original)
         const target = execution.attachments.find(
           attachment =>
@@ -3128,7 +3106,7 @@ export function createJournal<P>(
         if (target.handoff !== null) {
           const handoff = target.handoff
           return recognitionOf(
-            reachedBy(execution.id, target.handoffRevision),
+            reachedStamp(state(), execution.id, target.handoffRevision),
             target.handoffRevision,
             () => copy(handoff),
           )
@@ -3194,7 +3172,7 @@ export function createJournal<P>(
             !completeEvidence(fact.source))
         )
           return answer(fail(invalid('replyAdmission', 'incomplete original admission')))
-        const original = recognized<CommandReceipt>(input, key)
+        const original = recognizedAnswer<CommandReceipt>(state(), input, key)
         if (original !== undefined) return answer(original)
         if (!holds(execution, input.authority)) return answer(fail({ kind: 'stale-advance' }))
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
@@ -3651,7 +3629,7 @@ export function createJournal<P>(
         const found = owned(input, 'submit')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<CommandReceipt>(input, key)
+        const original = recognizedAnswer<CommandReceipt>(state(), input, key)
         if (original !== undefined) return answer(original)
         const lineage = input.lineage
         if (lineage.kind === 'new-input') {
@@ -3667,8 +3645,7 @@ export function createJournal<P>(
         const known = execution.inputs.find(accepted => accepted.id === input.value.id)
         if (lineage.kind === 'recognize-input') {
           const entry = lineage.original.entry
-          const acceptedBy = operationKey(input.tenant, input.execution, entry.operation)
-          const record = acceptedBy === undefined ? undefined : state().operations.get(acceptedBy)
+          const record = operationAnswer(state(), { ...input, operation: entry.operation }, true)
           const acceptedValue = entry.kind === 'invoke' ? entry.initial : entry.value
           if (record?.kind !== 'committed' || known === undefined || known.id !== acceptedValue.id)
             return answer(
@@ -3691,7 +3668,12 @@ export function createJournal<P>(
           const at = execution.inputRevisions.get(known.id)
           if (at === undefined)
             throw new Error('session Journal defect: an accepted input has no revision')
-          return recognitionBatch(entry.operation, at, 'accepted')
+          const reached = reachedStamp(state(), execution.id, at)
+          return recognitionBatch(
+            reached?.op === entry.operation ? reached : undefined,
+            at,
+            'accepted',
+          )
         }
         if (known !== undefined) return answer(fail(conflict(input.operation)))
         if (input.value.source === null) return answer(fail(denied('submit')))
@@ -3744,7 +3726,7 @@ export function createJournal<P>(
         const found = owned(input, 'control')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<CommandReceipt>(input, key)
+        const original = recognizedAnswer<CommandReceipt>(state(), input, key)
         if (original !== undefined) return answer(original)
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         const target = controlTarget(input.command, pendingCalls(execution), execution.tenant)
@@ -3789,7 +3771,7 @@ export function createJournal<P>(
         const found = owned(input, 'acknowledge')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<CommandReceipt>(input, key)
+        const original = recognizedAnswer<CommandReceipt>(state(), input, key)
         if (original !== undefined) return answer(original)
         const through = sequenceOf(input.through)
         if (through === undefined || through < 1 || through > execution.events.length) {
@@ -3797,7 +3779,7 @@ export function createJournal<P>(
         }
         if (through <= execution.acknowledged)
           return recognitionBatch(
-            reachedBy(execution.id, execution.acknowledgedAt),
+            reachedStamp(state(), execution.id, execution.acknowledgedAt),
             execution.acknowledgedAt,
             'applied',
           )
@@ -3822,7 +3804,7 @@ export function createJournal<P>(
         const found = owned(input, 'recordResult')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<CommandReceipt>(input, key)
+        const original = recognizedAnswer<CommandReceipt>(state(), input, key)
         if (original !== undefined) return answer(original)
         if (
           !input.result.version ||
@@ -3888,7 +3870,7 @@ export function createJournal<P>(
           semanticKey('responsibility', known) === semanticKey('responsibility', responsibility)
         ) {
           const at = execution.resultRevisions.get(resultKey) ?? execution.revision
-          return recognitionBatch(reachedBy(execution.id, at), at, 'applied')
+          return recognitionBatch(reachedStamp(state(), execution.id, at), at, 'applied')
         }
         const evidence = ownEvidence(execution.id, key, execution.revision + 1)
         const call = producerCallOf(input.result)
@@ -3968,7 +3950,7 @@ export function createJournal<P>(
           const found = owned(input, method)
           if ('failure' in found) return answer(found)
           const execution = found.ok
-          const original = recognized<CommandReceipt>(input, key)
+          const original = recognizedAnswer<CommandReceipt>(state(), input, key)
           if (original !== undefined) return answer(original)
           if (attachment?.kind === 'malformed') {
             return answer(fail(invalid('toolOperation', 'malformed-tool-operation-reference')))
@@ -3993,7 +3975,7 @@ export function createJournal<P>(
             const first = execution.stageReceipts.get(stageKey)
             if (first !== undefined) {
               const at = Number(first.revision)
-              return recognitionBatch(reachedBy(execution.id, at), at, 'applied')
+              return recognitionBatch(reachedStamp(state(), execution.id, at), at, 'applied')
             }
           }
           const ended = execution.state.kind === 'ended'
@@ -4109,7 +4091,7 @@ export function createJournal<P>(
         const found = owned(input, 'recordHandoff')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<CommandReceipt>(input, key)
+        const original = recognizedAnswer<CommandReceipt>(state(), input, key)
         if (original !== undefined) return answer(original)
         const at = operationKey(input.tenant, input.execution, input.operation)
         const fixed = at === undefined ? undefined : state().operations.get(at)
@@ -4177,7 +4159,7 @@ export function createJournal<P>(
           const found = owned(input, 'prepareFinish')
           if ('failure' in found) return answer(found)
           const execution = found.ok
-          const original = recognized<Issued>(input, key)
+          const original = recognizedAnswer<Issued>(state(), input, key)
           if (original !== undefined) return answer(original)
           const authorization = input.authorization
           if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
@@ -4257,7 +4239,7 @@ export function createJournal<P>(
           const found = owned(input, 'tryFinish')
           if ('failure' in found) return answer(found)
           const execution = found.ok
-          const original = recognized<FinishResult>(input, key)
+          const original = recognizedAnswer<FinishResult>(state(), input, key)
           if (original !== undefined) return answer(original)
           const changed = answer<FinishResult>(
             succeed({ kind: 'changed', revision: revisionOf(execution.revision) }),
@@ -4371,7 +4353,7 @@ export function createJournal<P>(
         const found = owned(input, 'commitSettlement')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<SettlementResult>(input, key)
+        const original = recognizedAnswer<SettlementResult>(state(), input, key)
         if (original !== undefined) return answer(original)
         switch (input.kind) {
           case 'establish-cancellation':
@@ -4396,7 +4378,7 @@ export function createJournal<P>(
         const found = owned(input, 'recordTerminalObservation')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognized<CommandReceipt>(input, key)
+        const original = recognizedAnswer<CommandReceipt>(state(), input, key)
         if (original !== undefined) return answer(original)
         const index = execution.observations.findIndex(item => item.passage === input.passage)
         const item = execution.observations[index]
@@ -4415,7 +4397,7 @@ export function createJournal<P>(
             return answer(fail(conflict(input.operation)))
           const first = execution.observed.get(input.passage)
           if (first !== undefined)
-            return recognitionBatch(first.operation, Number(first.revision), 'applied')
+            return recognitionBatch(stampOfReceipt(first), Number(first.revision), 'applied')
         }
         const planned = plannedReceipt(execution, input.operation, key)
         const observed = input.observed
@@ -4554,7 +4536,9 @@ export function createJournal<P>(
         return fail(denied('query'))
       }
       const at = operationKey(input.tenant, input.execution, input.operation)
-      const record = at === undefined ? undefined : state().operations.get(at)
+      const held = at === undefined ? undefined : state().operations.get(at)
+      const record =
+        held ?? (execution === undefined ? undefined : operationAnswer(state(), input, true))
       if (execution === undefined && record === undefined) return fail(denied('query'))
       if (record === undefined || record.kind === 'pending') return succeed({ kind: 'unknown' })
       if (record.kind === 'excluded') {
@@ -4623,6 +4607,7 @@ export function createJournal<P>(
   const receiving = createJournalReceiving<P>({
     owned,
     operations: () => state().operations,
+    answered: (input, need) => operationAnswer(state(), input, need),
     authorize: cell.authorize,
     gate: cell.gate,
     state: () => cell.state().receiving,
@@ -4630,7 +4615,6 @@ export function createJournal<P>(
     touch: () => cell.touch(),
     namespace: cell.namespace,
     operationKey,
-    indexed: operation => state().view.ops.has(operation),
     write,
     holds,
     receiptOf,

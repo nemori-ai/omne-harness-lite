@@ -310,7 +310,13 @@ export type FactBody =
       observed: DurableEvidence
     }>
   | Readonly<{ kind: 'ack.through'; sequence: number }>
-  | Readonly<{ kind: 'op.recognized'; target: AgentOperationId; recalls?: true }>
+  // A recognition names the batch of the operation it recognizes: that operation has left memory.
+  | Readonly<{
+      kind: 'op.recognized'
+      target: AgentOperationId
+      at: Readonly<{ pub: number; digest: string; revision: number }>
+      recalls?: true
+    }>
   | Readonly<{
       kind: 'material.preserved'
       source: DurableEvidence

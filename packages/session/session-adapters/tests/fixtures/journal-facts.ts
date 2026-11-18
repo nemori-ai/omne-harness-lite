@@ -258,7 +258,13 @@ function roundBatches(builder: Builder, rng: Random): void {
       },
     ])
   if (rng.chance(1, 3))
-    batch(builder, 'recognize', [{ kind: 'op.recognized', target: intend.envelope.op }])
+    batch(builder, 'recognize', [
+      {
+        kind: 'op.recognized',
+        target: intend.envelope.op,
+        at: { pub: 0, digest: '', revision: 0 },
+      },
+    ])
   batch(builder, 'receive', [
     {
       kind: 'result.received',
@@ -574,10 +580,16 @@ export function scene(rng: Random, options: SceneOptions = {}): Scene {
   } else for (const builder of builders) ordered.push(...builder.batches)
   const log: PublishedBatch[] = []
   let view = emptySessionView()
+  // A recognition names the batch it recognizes, known once that batch is published.
+  const stamps = new Map<string, Readonly<{ pub: number; digest: string; revision: number }>>()
   for (const [index, value] of ordered.entries()) {
-    const draft = { ...value, pub: index + 1 }
+    const facts = value.facts.map(fact =>
+      fact.kind === 'op.recognized' ? { ...fact, at: stamps.get(fact.target)! } : fact,
+    )
+    const draft = { ...value, facts, pub: index + 1 }
     view = fold(view, draft)
     const rev = view.executions.get(value.execution)!.revision
+    stamps.set(value.envelope.op, { pub: draft.pub, digest: value.envelope.digest, revision: rev })
     log.push({ ...draft, envelope: { ...draft.envelope, rev } })
   }
   const byOp = new Map(log.map(item => [item.envelope.op, item]))

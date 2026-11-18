@@ -276,11 +276,12 @@ describe('the reader records projected from the fold', () => {
     }
     const projected = projectExecution(folded, context)
     const diff = fieldsDiff(written, projected)
+    // A core holds the open operations (exclusions); what one answered is a closed item.
     const writtenOps = [...s.view.controls.operations().entries()]
-      .filter(([, record]) => record.kind !== 'pending')
-      .map(([key, record]) => [key, record.kind === 'excluded' ? { ...record, key: '' } : record])
+      .filter(([, record]) => record.kind === 'excluded')
+      .map(([key, record]) => [key, { ...record, key: '' }])
       .sort()
-    const projectedOps = [...projectOperations(folded, context, projected).entries()].sort()
+    const projectedOps = [...projectOperations(folded, context).entries()].sort()
     const opsDiff = writtenOps.flatMap(([key, record], index) => {
       const other = projectedOps[index]
       return other !== undefined && other[0] === key && canonical(other[1]) === canonical(record)
@@ -345,7 +346,8 @@ describe('the reader records projected from the fold', () => {
     expect(lines.filter(line => line.includes('DIFFER'))).toEqual([])
     expect(writtenReceiving.deliveries.size).toBeGreaterThanOrEqual(2)
     expect(writtenReceiving.materials.size).toBeGreaterThanOrEqual(2)
-    expect(writtenReceiving.aliases.size).toBeGreaterThan(writtenReceiving.deliveries.size)
+    // A recognition is answered from its closed answer: only received operations keep an alias.
+    expect(writtenReceiving.aliases.size).toBe(writtenReceiving.deliveries.size)
     expect(writtenReceiving.targets.size).toBe(2)
     expect(writtenFragments.callOrigins.size).toBe(2)
   })

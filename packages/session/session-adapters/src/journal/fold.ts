@@ -66,7 +66,7 @@ type Draft = {
   ops: Map<AgentOperationId, OperationEntry>
   excluded: Map<AgentOperationId, ExclusionEntry>
   rejections: Map<AgentOperationId, RejectionEntry>
-  reached: Map<number, AgentOperationId>
+  reached: Map<number, Stamp>
   cursor: Partial<CursorMembers>
   cursorMoved: Partial<Record<keyof CursorMembers, number>>
 }
@@ -506,7 +506,7 @@ function foldMaterialPreserved(
 }
 
 function foldOpExcluded(draft: Draft, fact: FactOf<'op.excluded'>, pub: number): void {
-  if (!draft.ops.has(fact.operation) && !draft.excluded.has(fact.operation))
+  if (!draft.excluded.has(fact.operation))
     draft.excluded.set(fact.operation, {
       execution: draft.execution,
       reason: fact.reason,
@@ -663,10 +663,7 @@ function foldAllMembers(view: SessionJournalView, batch: PublishedBatch): Sessio
     batch.envelope.rev >= 1 ? batch.envelope.rev : moves ? draft.revision + 1 : draft.revision
   const recognition = batch.facts.find(fact => fact.kind === 'op.recognized')
   const target = recognition?.kind === 'op.recognized' ? recognition.target : null
-  const answered =
-    target === null
-      ? revision
-      : (draft.ops.get(target)?.revision ?? view.ops.get(target)?.revision ?? revision)
+  const answered = recognition?.kind === 'op.recognized' ? recognition.at.revision : revision
   const entry: OperationEntry = {
     execution: batch.execution,
     digest: batch.envelope.digest,
@@ -676,26 +673,23 @@ function foldAllMembers(view: SessionJournalView, batch: PublishedBatch): Sessio
     recalls: recognition?.kind === 'op.recognized' && recognition.recalls === true,
     kinds: batch.envelope.kinds,
   }
-  if (!draft.ops.has(batch.envelope.op)) draft.ops.set(batch.envelope.op, entry)
-  if (moves && !draft.reached.has(revision)) draft.reached.set(revision, batch.envelope.op)
-  draft.revision = revision
-  draft.head = batch.pub
   const stamp: Stamp = {
     op: batch.envelope.op,
     digest: batch.envelope.digest,
     pub: batch.pub,
     revision,
   }
+  if (!draft.ops.has(batch.envelope.op)) draft.ops.set(batch.envelope.op, entry)
+  const exclusion = draft.excluded.get(batch.envelope.op)
+  if (exclusion !== undefined && exclusion.revived !== true)
+    draft.excluded.set(batch.envelope.op, { ...exclusion, revived: true })
+  if (moves && !draft.reached.has(revision)) draft.reached.set(revision, stamp)
+  draft.revision = revision
+  draft.head = batch.pub
   for (const [index, fact] of batch.facts.entries()) apply(draft, fact, stamp, index + 1)
   const executions = forkOf(view.executions)
   executions.set(batch.execution, draft)
-  const ops = view.ops.has(batch.envelope.op)
-    ? view.ops
-    : forkOf(view.ops).set(batch.envelope.op, entry)
-  const excluded = forkOf(view.excluded)
-  for (const [operation, exclusion] of draft.excluded)
-    if (!excluded.has(operation) && !ops.has(operation)) excluded.set(operation, exclusion)
-  return { head: batch.pub, executions, ops, excluded }
+  return { head: batch.pub, executions }
 }
 
 // A fold of one batch together with the items it opened, changed or closed in its execution. The

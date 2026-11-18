@@ -6,6 +6,8 @@ import {
   type ExecutionItemKey,
 } from '@omne-harness/session-storage-sql/participants'
 import { READ_ATTEMPTS, type Reader } from './journal-read.ts'
+import { itemText, type ItemRef } from '../testing/closed-items.ts'
+import type { JournalCell } from '../testing/root.ts'
 
 export type ItemScope = Readonly<{ tenant: string; session: string; execution: string }>
 
@@ -63,4 +65,45 @@ export async function readItems(
   if (found.kind === 'denied') return { kind: 'read', published: 0, items: [] }
   if (found.kind === 'missing') return unread('the Agent records of the session are older')
   return { kind: 'read', published: Number(found.published), items: found.items }
+}
+
+// What a call read back by original key: null for a key the store did not hold at that head.
+type Lender = Readonly<{ tenantText: string; session: string; fetched: Map<string, unknown> }>
+
+export async function fetchClosed(
+  read: Reader,
+  lender: Lender,
+  refs: readonly ItemRef[],
+): Promise<string | null> {
+  const byExecution = Map.groupBy(refs, ref => ref.execution)
+  for (const [execution, wanted] of byExecution) {
+    const scope = { tenant: lender.tenantText, session: lender.session, execution }
+    const found = await readItems(
+      read,
+      scope,
+      wanted.map(ref => ({ family: ref.family, item: ref.item })),
+    )
+    if (found.kind === 'unavailable') return found.diagnostic
+    for (const ref of wanted) lender.fetched.set(itemText(ref), null)
+    for (const item of found.items)
+      lender.fetched.set(itemText({ execution, family: item.family, item: item.item }), item.body)
+  }
+  return null
+}
+
+export function unlend<P>(cell: JournalCell<P>): void {
+  if (cell.state().agent.closed.size === 0) return
+  cell.mutate(() => {
+    cell.state().agent.closed.clear()
+    cell.touch()
+  })
+}
+
+export function lendFetched<P>(lender: Lender, cell: JournalCell<P>): void {
+  if (lender.fetched.size === 0) return
+  cell.mutate(() => {
+    const { closed } = cell.state().agent
+    for (const [text, body] of lender.fetched) if (!closed.has(text)) closed.set(text, body)
+    cell.touch()
+  })
 }

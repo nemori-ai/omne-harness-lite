@@ -1,6 +1,5 @@
 import type {
   AgentConclusion,
-  AgentOperationId,
   Authority,
   CommandReceipt,
   DurableEvidence,
@@ -8,7 +7,7 @@ import type {
 } from '@omne-harness/agent-contract'
 import { decodeExecutionRevision } from '@omne-harness/agent-contract'
 import type { PublishedBatch, Ref } from './facts.ts'
-import type { SessionJournalView } from './view.ts'
+import type { SessionJournalView, Stamp } from './view.ts'
 
 export type Answer =
   | Readonly<{ kind: 'receipt'; receipt: CommandReceipt }>
@@ -55,8 +54,25 @@ export function batchEvidence(
   }
 }
 
+// The batch a receipt names, read from its batch evidence: what a recognition of it records.
+export function stampOfReceipt(receipt: CommandReceipt): Stamp | undefined {
+  const found = /\/pub\/(\d+)$/u.exec(receipt.evidence.record)
+  if (found === null) return undefined
+  return {
+    op: receipt.operation,
+    digest: receipt.evidence.digest,
+    pub: Number(found[1]),
+    revision: Number(receipt.revision),
+  }
+}
+
+// The revision a batch answers: the recognized operation's, else the one its envelope reached (an
+// envelope without one is answered just after it landed, at the revision of the view).
 export function answeredRevision(view: SessionJournalView, batch: PublishedBatch): number {
-  return view.ops.get(batch.envelope.op)?.revision ?? batch.envelope.rev
+  const recognition = batch.facts.find(fact => fact.kind === 'op.recognized')
+  if (recognition?.kind === 'op.recognized') return recognition.at.revision
+  if (batch.envelope.rev >= 1) return batch.envelope.rev
+  return view.executions.get(batch.execution)?.revision ?? 0
 }
 
 export function receiptOf(
@@ -65,23 +81,24 @@ export function receiptOf(
   batch: PublishedBatch,
 ): CommandReceipt {
   const recalled = batch.facts.find(fact => fact.kind === 'op.recognized' && fact.recalls === true)
-  const entry = recalled?.kind === 'op.recognized' ? view.ops.get(recalled.target) : undefined
-  if (recalled?.kind === 'op.recognized' && entry !== undefined)
+  if (recalled?.kind === 'op.recognized') {
+    const { at } = recalled
     return {
       operation: recalled.target,
       execution: batch.execution,
-      revision: revisionOf(entry.revision),
+      revision: revisionOf(at.revision),
       evidence: batchEvidence(
         mint,
         {
           execution: batch.execution,
-          pub: entry.pub,
-          envelope: { digest: entry.digest },
+          pub: at.pub,
+          envelope: { digest: at.digest },
         } as PublishedBatch,
-        entry.revision,
+        at.revision,
       ),
       state: 'applied',
     }
+  }
   const revision = answeredRevision(view, batch)
   return {
     operation: batch.envelope.op,
@@ -118,23 +135,4 @@ export function answer(mint: Mint, view: SessionJournalView, batch: PublishedBat
     }
   }
   return { kind: 'receipt', receipt }
-}
-
-export function operationState(
-  view: SessionJournalView,
-  operation: AgentOperationId,
-): 'committed' | 'excluded' | 'unknown' {
-  if (view.ops.has(operation)) return 'committed'
-  if (view.excluded.has(operation)) return 'excluded'
-  return 'unknown'
-}
-
-export function batchOf(
-  view: SessionJournalView,
-  operation: AgentOperationId,
-  read: (pub: number) => PublishedBatch | undefined,
-): PublishedBatch | null {
-  const entry = view.ops.get(operation)
-  if (entry === undefined) return null
-  return read(entry.pub) ?? null
 }

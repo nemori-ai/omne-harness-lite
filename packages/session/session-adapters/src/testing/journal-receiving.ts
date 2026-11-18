@@ -7,7 +7,6 @@ import type {
   Adoption,
   Access,
   AgentExecutionId,
-  AgentOperationId,
   AgentInstanceId,
   AgentJournalEntries,
   AgentJournalEntry,
@@ -45,7 +44,14 @@ import { canonical } from './canonical.ts'
 import { jsonTree } from './material-value.ts'
 import type { Attempt, JournalWrite, MemoryExecution, OperationRecord } from './journal.ts'
 import { journalEvidence, semanticKey } from './journal-values.ts'
-import { type Blob, blobOf, refOf, type FactBody, type ProducerCall } from '../journal/index.ts'
+import {
+  type Blob,
+  blobOf,
+  refOf,
+  stampOfReceipt,
+  type FactBody,
+  type ProducerCall,
+} from '../journal/index.ts'
 
 type Input<P> = ReceivedCommitInput<P, ContentBlock>
 export type Kept = { entry: ReceivedEntry; receipt: CommandReceipt; saved: DurableEvidence | null }
@@ -64,11 +70,12 @@ type Hooks<P> = {
     action: string,
   ): Outcome<MemoryExecution, Failure>
   operations(): Map<string, OperationRecord>
+  // What an operation answered when this core no longer holds its record.
+  answered(input: ExecutionMutation<P>, need?: boolean): OperationRecord | undefined
   state(): ReceivingState
   mutate<T>(action: () => T): T
   touch(): void
   namespace: string
-  indexed(operation: AgentOperationId): boolean
   operationKey(
     tenant: TenantId,
     execution: AgentExecutionId,
@@ -271,6 +278,49 @@ function deliveryRef(delivery: ReceivedEntry['delivery'], tenant: TenantId) {
       : resolveToolInvocationRef(delivery.key.reference, tenant)
 }
 
+// A repeat of a saved delivery under a new operation recognizes the operation that saved it.
+const recognizing = <R>(kept: Kept, value: () => R): Attempt<R> => {
+  const at = stampOfReceipt(kept.receipt)
+  if (at === undefined)
+    return { kind: 'answer', value: fail(unavailable('the saved delivery names no batch')) }
+  return {
+    kind: 'batch',
+    facts: [
+      {
+        kind: 'op.recognized',
+        target: at.op,
+        at: { pub: at.pub, digest: at.digest, revision: at.revision },
+        recalls: true,
+      },
+    ],
+    blobs: [],
+    kinds: [],
+    derive: value,
+    project: () => {},
+  }
+}
+
+// What a committed delivery kept: the record of its open result, else the answer it gave; a
+// recognition answers with the receipt of the delivery it recognized, which keeps it.
+function keptOf<P>(
+  hooks: Hooks<P>,
+  input: ExecutionMutation<P>,
+  previous: Extract<OperationRecord, { kind: 'committed' }>,
+  need = false,
+): Kept | undefined {
+  const keyOf = (of: ExecutionMutation<P>) =>
+    hooks.operationKey(of.tenant, of.execution, of.operation) ?? ''
+  const own =
+    hooks.state().aliases.get(keyOf(input)) ?? (previous.value as { value?: Kept } | null)?.value
+  if (own !== undefined || previous.receipt.operation === input.operation) return own
+  const target = { ...input, operation: previous.receipt.operation }
+  const recognized = hooks.operations().get(keyOf(target)) ?? hooks.answered(target, need)
+  if (recognized?.kind !== 'committed') return undefined
+  return (
+    hooks.state().aliases.get(keyOf(target)) ?? (recognized.value as { value?: Kept } | null)?.value
+  )
+}
+
 export function createJournalReceiving<P>(hooks: Hooks<P>) {
   const qualifications = new Map<string, Map<P, Qualification>>()
   const pauses = new Map<
@@ -321,7 +371,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     text: string,
   ): Outcome<{ kind: 'committed'; value: ReceivedCommitValue }, Failure> | undefined => {
     if (previous?.kind !== 'committed' || previous.key !== text) return undefined
-    const original = hooks.state().aliases.get(operationKey(input))
+    const original = keptOf(hooks, input, previous)
     if (!original) return undefined
     const value = rich(input, original)
     return 'failure' in value ? value : succeed({ kind: 'committed' as const, value: value.ok })
@@ -340,23 +390,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       hooks.state().pendingBindings.get(targetKey(input, input.entry.delivery.key.reference)) ?? [],
       input,
     )
-  }
-  const recognizing = <R>(input: ExecutionMutation<P>, kept: Kept, value: () => R): Attempt<R> => {
-    if (!hooks.indexed(kept.receipt.operation))
-      return {
-        kind: 'answer',
-        value: fail(unavailable('the saved delivery is not in the folded view')),
-      }
-    return {
-      kind: 'batch',
-      facts: [{ kind: 'op.recognized', target: kept.receipt.operation, recalls: true }],
-      blobs: [],
-      kinds: [],
-      derive: value,
-      project: () => {
-        hooks.state().aliases.set(operationKey(input), kept)
-      },
-    }
   }
   const sourceOf = (input: Input<P>) =>
     journalEvidence(
@@ -403,7 +436,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           const permission = qualified(input)
           if ('failure' in permission) return { kind: 'answer', value: permission }
           const execution = permission.ok
-          const previous = hooks.operations().get(operationKey(input))
+          const previous = hooks.operations().get(operationKey(input)) ?? hooks.answered(input)
           if (previous?.kind === 'excluded')
             return {
               kind: 'answer',
@@ -415,7 +448,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           const original = recommitted(input, previous, text)
           if (original) return { kind: 'answer', value: original }
           if (previous?.kind === 'committed' && previous.key !== text) {
-            const old = hooks.state().aliases.get(operationKey(input))
+            const old = keptOf(hooks, input, previous)
             if (
               !old ||
               canonical(old.entry) !== canonical({ ...input.entry, material: old.entry.material })
@@ -435,7 +468,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
               return { kind: 'answer', value: fail(conflict(input)) }
             const value = rich(input, kept)
             if ('failure' in value) return { kind: 'answer', value }
-            return recognizing(input, kept, () => ({ kind: 'committed' as const, value: value.ok }))
+            return recognizing(kept, () => ({ kind: 'committed' as const, value: value.ok }))
           }
           if (previous) return { kind: 'answer', value: fail(conflict(input)) }
           const revision = execution.revision + 1
@@ -492,11 +525,12 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       if ('failure' in decodeAgentOperationId(input.operation)) return fail(invalid('operation'))
       const found = qualified(input)
       if ('failure' in found) return found
-      const operation = hooks.operations().get(operationKey(input))
+      const operation = hooks.operations().get(operationKey(input)) ?? hooks.answered(input, true)
       if (!operation || operation.kind === 'pending') return succeed({ kind: 'unknown' })
       if (operation.kind === 'excluded')
         return succeed({ kind: 'excluded', evidence: structuredClone(operation.evidence) })
-      const kept = hooks.state().aliases.get(operationKey(input))
+      const kept =
+        operation.kind === 'committed' ? keptOf(hooks, input, operation, true) : undefined
       if (!kept || kept.saved === null) return fail({ kind: 'unsupported' })
       const value = rich(input, kept)
       return 'failure' in value ? value : succeed({ kind: 'committed', value: value.ok })
@@ -522,13 +556,14 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           if ('failure' in deliveryRef(input.entry.delivery, input.tenant))
             return { kind: 'answer', value: fail(denied()) }
         }
-        const previous = hooks.operations().get(operationKey(input))
+        const previous = hooks.operations().get(operationKey(input)) ?? hooks.answered(input)
         if (previous) {
-          const old = hooks.state().aliases.get(operationKey(input))
-          if (
-            previous.kind !== 'committed' ||
-            (previous.key !== text && (!old || canonical(old.entry) !== canonical(input.entry)))
-          )
+          const old = previous.kind === 'committed' ? keptOf(hooks, input, previous) : undefined
+          const same =
+            previous.kind === 'committed' &&
+            (previous.match === canonical(input.entry) ||
+              (old !== undefined && canonical(old.entry) === canonical(input.entry)))
+          if (previous.kind !== 'committed' || (previous.key !== text && !same))
             return { kind: 'answer', value: fail(conflict(input)) }
           return { kind: 'answer', value: succeed(structuredClone(previous.receipt)) }
         }
@@ -540,7 +575,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
               canonical(kept.entry) !== canonical(input.entry)
             )
               return { kind: 'answer', value: fail(conflict(input)) }
-            return recognizing(input, kept, () => structuredClone(kept.receipt))
+            return recognizing(kept, () => structuredClone(kept.receipt))
           }
         }
         scripted = recordFaults.get(executionText(input))
@@ -571,6 +606,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
             written = derived.receipt
             return structuredClone(derived.receipt)
           },
+          match: canonical(input.entry),
           project: (_batch, view) => {
             if (written === undefined)
               throw new TypeError('append derives the receipt before it projects the batch')

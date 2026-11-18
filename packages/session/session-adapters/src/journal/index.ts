@@ -75,14 +75,7 @@ export type {
   SessionJournalView,
   Stamp,
 } from './view.ts'
-export {
-  answer,
-  answeredRevision,
-  batchEvidence,
-  batchOf as batchOfOperation,
-  operationState,
-  receiptOf,
-} from './answer.ts'
+export { answer, answeredRevision, batchEvidence, receiptOf, stampOfReceipt } from './answer.ts'
 export type { Answer, Mint } from './answer.ts'
 export {
   batchOf,

@@ -77,6 +77,10 @@ export type CommonRoot = Readonly<{
   agent: {
     log: readonly PublishedBatch[]
     view: SessionJournalView
+    // Closed items by itemText (see closed-items.ts): all of them for a core no store backs; what
+    // this call closed or read back for one a store backs.
+    closed: SharedMap<string, unknown>
+    closedComplete: boolean
     blobs: SharedMap<string, unknown>
     executions: SharedMap<string, MemoryExecution>
     operations: OperationTable
@@ -194,6 +198,8 @@ function emptyCommonRoot(): CommonRoot {
     agent: {
       log: [],
       view: emptySessionView(),
+      closed: new SharedMap(),
+      closedComplete: true,
       blobs: new SharedMap(),
       executions: new SharedMap(),
       operations: new OperationTable(),

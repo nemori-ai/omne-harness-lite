@@ -34,6 +34,7 @@ export type ItemChange = Readonly<{
 }>
 
 const always = (): boolean => true
+const closedAtBirth = (): boolean => false
 
 type Member = Exclude<keyof ExecutionView, 'finish'>
 type FinishMember = 'candidates' | 'lists' | 'obligations'
@@ -129,14 +130,15 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
     open: always,
   },
   { family: 'material', holder: table(at('materials')), open: always },
-  { family: 'op', holder: table(at('ops')), open: always },
-  { family: 'exclusion', holder: table(at('excluded')), open: always },
-  { family: 'rejection', holder: table(at('rejections')), open: always },
+  { family: 'op', holder: table(at('ops')), open: closedAtBirth },
   {
-    family: 'reached',
-    holder: table(at('reached')),
-    open: always,
+    family: 'exclusion',
+    holder: table(at('excluded')),
+    open: (entry: ExecutionView['excluded'] extends ReadonlyMap<unknown, infer E> ? E : never) =>
+      entry.revived !== true,
   },
+  { family: 'rejection', holder: table(at('rejections')), open: always },
+  { family: 'reached', holder: table(at('reached')), open: closedAtBirth },
   {
     family: 'candidate',
     holder: list(finishAt('candidates'), item => item.candidate),

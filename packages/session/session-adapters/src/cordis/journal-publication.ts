@@ -22,6 +22,7 @@ import {
 import { canonical } from '../testing/canonical.ts'
 import type { MemoryExecution } from '../testing/journal.ts'
 import type { CommonRoot } from '../testing/root.ts'
+import { ANSWER_FAMILY } from '../testing/closed-items.ts'
 import { coreBlobRows, type DerivedFact, type EventProjection } from './journal-batch.ts'
 
 export const JOURNAL_PROVIDER = 'session-log-journal'
@@ -40,9 +41,10 @@ function eventsFrom(events: readonly EventView[], pub: number): readonly EventVi
 }
 
 export type PublicationInput = Readonly<{
-  // The published view and its count, before this write.
   view: SessionJournalView
   published: number
+  // The core's closed items before the write: read back, so not published again unless changed.
+  closedBefore: ReadonlyMap<string, unknown>
   stored: (row: string) => boolean
   after: CommonRoot
   own: MemoryExecution | undefined
@@ -64,6 +66,27 @@ export type Prepared = Readonly<{
   items: readonly ExecutionItemRecord[]
   changes: readonly ItemChange[]
 }>
+
+// What the write's operations answered, as items closed at birth; a repeat reads them back as JSON.
+function answersOf(
+  before: ReadonlyMap<string, unknown>,
+  after: CommonRoot,
+  execution: AgentExecutionId,
+): Outcome<ExecutionItemRecord[], Failure> {
+  const out: ExecutionItemRecord[] = []
+  for (const [text, body] of after.agent.closed) {
+    if (before.get(text) === body) continue
+    const [owner, family, item] = JSON.parse(text) as [string, string, string]
+    if (family !== ANSWER_FAMILY) continue
+    if (owner !== execution)
+      return fail(unavailable(`the write answered ${item} of another execution ${owner}`))
+    const json = JSON.parse(JSON.stringify(body)) as JsonValue
+    if (canonical(json) !== canonical(body))
+      return fail(unavailable(`the answer of ${item} is not JSON data`))
+    out.push({ family, item, change: 'opened', open: false, body: json })
+  }
+  return succeed(out)
+}
 
 // The batch one write publishes: its envelope, its facts with their event projections, the blocks
 // it adds, and the view and items it leaves once it lands at the next publication.
@@ -125,6 +148,8 @@ export function preparePublication(input: PublicationInput): Outcome<Prepared, F
         `the batch of ${method} holds ${String(records.length)} facts, more than ${String(EXECUTION_BATCH_MAX_FACTS)}`,
       ),
     )
+  const answers = answersOf(input.closedBefore, after, execution as AgentExecutionId)
+  if ('failure' in answers) return answers
   const pub = input.published + 1
   const landed = foldItems(input.view, {
     execution: execution as AgentExecutionId,
@@ -139,13 +164,16 @@ export function preparePublication(input: PublicationInput): Outcome<Prepared, F
     blobs: [...blobs.values()],
     pub,
     view: landed.view,
-    items: landed.changes.map(({ family, item, change, open, body }) => ({
-      family,
-      item,
-      change,
-      open,
-      body: body as JsonValue,
-    })),
+    items: [
+      ...landed.changes.map(({ family, item, change, open, body }) => ({
+        family,
+        item,
+        change,
+        open,
+        body: body as JsonValue,
+      })),
+      ...answers.ok,
+    ],
     changes: landed.changes,
     batchBytes: batchBytes({
       execution: execution as AgentExecutionId,

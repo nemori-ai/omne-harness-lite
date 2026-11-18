@@ -19,18 +19,20 @@ import {
   factKey,
   fold,
   foldAll,
+  foldItems,
   modelAttempt,
   movedMembers,
   openCalls,
-  operationState,
   refOf,
   viewDigest,
   viewText,
   voidedFacts,
   type FactBody,
   type FactRow,
+  type OperationEntry,
   type PublishedBatch,
   type SessionJournalView,
+  type Stamp,
 } from '../src/journal/index.ts'
 import { testCancellationPolicyInstallation } from '@omne-harness/agent-contract/testing'
 import {
@@ -58,6 +60,31 @@ import { forAll, random } from './fixtures/property.ts'
 
 const mint = { owner: 'laws', session: 'session-1' }
 const scope = { tenant: 'tenant-1', session: 'session-1' }
+
+// The view a fold leaves and every item it handed out, open or closed, as the store keeps them.
+function itemStore() {
+  let view = emptySessionView()
+  const families = new Map<string, Map<string, unknown>>()
+  const family = (execution: string, name: string) => {
+    const key = `${execution}\0${name}`
+    const found = families.get(key) ?? new Map<string, unknown>()
+    families.set(key, found)
+    return found
+  }
+  return {
+    get view() {
+      return view
+    },
+    land(batch: PublishedBatch) {
+      const landed = foldItems(view, batch)
+      view = landed.view
+      for (const change of landed.changes)
+        family(batch.execution, change.family).set(change.item, change.body)
+    },
+    item: (execution: string, name: string, item: string) => family(execution, name).get(item),
+    count: (execution: string, name: string) => family(execution, name).size,
+  }
+}
 
 function rowsOf(log: readonly PublishedBatch[]): FactRow[] {
   const rows: FactRow[] = []
@@ -212,16 +239,20 @@ describe('F4 answers derive from the batch: no stored copy, one batch per operat
       runs: 40,
       generate: rng => scene(rng),
       check: ({ log }) => {
-        let view = emptySessionView()
+        const index = itemStore()
         for (const batch of log) {
-          const before = view.executions.get(batch.execution)?.revision ?? 0
-          view = fold(view, batch)
-          const after = view.executions.get(batch.execution)!.revision
+          const before = index.view.executions.get(batch.execution)?.revision ?? 0
+          index.land(batch)
+          const after = index.view.executions.get(batch.execution)!.revision
           const recognition = batch.facts.find(fact => fact.kind === 'op.recognized')
           if (recognition?.kind === 'op.recognized') {
             if (after !== before) return 'a recognition advanced the revision'
-            const target = view.ops.get(recognition.target)
-            const entry = view.ops.get(batch.envelope.op)
+            const target = index.item(batch.execution, 'op', recognition.target) as
+              | OperationEntry
+              | undefined
+            const entry = index.item(batch.execution, 'op', batch.envelope.op) as
+              | OperationEntry
+              | undefined
             if (target === undefined || entry?.revision !== target.revision)
               return 'a recognition answers another revision than its target'
           } else if (batch.facts.length === 0) {
@@ -238,31 +269,37 @@ describe('F4 answers derive from the batch: no stored copy, one batch per operat
       runs: 40,
       generate: rng => scene(rng),
       check: ({ log }) => {
-        let view = emptySessionView()
+        const index = itemStore()
         for (const batch of log) {
-          const before = view.executions.get(batch.execution)
-          view = fold(view, batch)
-          const after = view.executions.get(batch.execution)!
-          if (after.revision !== (before?.revision ?? 0)) {
-            if (after.reached.get(after.revision) !== batch.envelope.op)
+          const before = index.view.executions.get(batch.execution)?.revision ?? 0
+          const held = index.count(batch.execution, 'reached')
+          index.land(batch)
+          const after = index.view.executions.get(batch.execution)!
+          if (after.reached.size !== 0) return 'the revision index stayed in memory'
+          const reached = index.item(batch.execution, 'reached', String(after.revision)) as
+            | Stamp
+            | undefined
+          if (after.revision !== before) {
+            if (reached?.op !== batch.envelope.op || reached.pub !== batch.pub)
               return `revision ${String(after.revision)} is not indexed to its batch`
-          } else if (after.reached.size !== (before?.reached.size ?? 0))
+          } else if (index.count(batch.execution, 'reached') !== held)
             return 'a batch that advanced nothing changed the index'
-          if (after.reached.size !== after.revision)
-            return `the index holds ${String(after.reached.size)} entries at revision ${String(after.revision)}`
+          if (index.count(batch.execution, 'reached') !== after.revision)
+            return `the index holds ${String(index.count(batch.execution, 'reached'))} entries at revision ${String(after.revision)}`
         }
         return null
       },
     })
   })
 
-  it('one batch per operation: a second batch of an operation already indexed changes nothing but the head (P6)', () => {
+  it('one batch per operation: a second batch of an operation opens its op item again, which the store refuses (P6)', () => {
     const { log } = scene(random(3), { rounds: 2, executions: 1 })
     const view = foldAll(log)
     const repeated: PublishedBatch = { ...log[2]!, pub: log.length + 1 }
-    const after = fold(view, repeated)
-    expect(after.ops.get(repeated.envelope.op)).toEqual(view.ops.get(repeated.envelope.op))
-    expect(after.ops.get(repeated.envelope.op)!.pub).toBe(log[2]!.pub)
+    const { changes } = foldItems(view, repeated)
+    expect(changes).toContainEqual(
+      expect.objectContaining({ family: 'op', item: repeated.envelope.op, change: 'opened' }),
+    )
   })
 
   it('negative control: a retry that re-executes appends a second batch; decide refuses the repeated keys', () => {
@@ -434,15 +471,16 @@ describe('an unchanged commit appends the envelope alone', () => {
       runs: 40,
       generate: rng => scene(rng),
       check: ({ log }) => {
-        let view = emptySessionView()
+        const index = itemStore()
         const at = new Map<string, number>()
         for (const batch of log) {
-          const before = view.executions.get(batch.execution)?.revision ?? 0
-          view = fold(view, batch)
+          const before = index.view.executions.get(batch.execution)?.revision ?? 0
+          index.land(batch)
           if (batch.facts.length > 0) continue
-          const after = view.executions.get(batch.execution)!.revision
+          const after = index.view.executions.get(batch.execution)!.revision
           if (after !== before) return 'an envelope-only batch advanced the revision'
-          if (operationState(view, batch.envelope.op) !== 'committed') return 'not indexed'
+          if (index.item(batch.execution, 'op', batch.envelope.op) === undefined)
+            return 'not indexed'
           const encoded = encodeBatch(scope, batch.pub, 0, batch)
           if ('failure' in encoded || encoded.ok.rows.length !== 1) return 'not one row'
           if (batchBytes(batch) > BATCH_OVERHEAD_BYTES) return 'not a small constant'
@@ -450,7 +488,7 @@ describe('an unchanged commit appends the envelope alone', () => {
         }
         for (const batch of log)
           if (batch.facts.length === 0) {
-            const derived = answer(mint, view, batch)
+            const derived = answer(mint, index.view, batch)
             if (
               derived.kind !== 'receipt' ||
               Number(derived.receipt.revision) !== at.get(batch.envelope.op)
@@ -475,18 +513,19 @@ describe('an unchanged commit appends the envelope alone', () => {
     }
     const built = batchOf(execution, envelope, [])
     expect(built).toEqual({ execution: execution.execution, envelope, facts: [] })
-    const appended = fold(view, {
+    const appended = foldItems(view, {
       ...(built as { execution: never; envelope: never; facts: never }),
       pub: log.length + 1,
     })
-    expect(operationState(appended, envelope.op)).toBe('committed')
-    expect(appended.executions.get(execution.execution)!.revision).toBe(execution.revision)
-    expect(operationState(view, envelope.op)).toBe('unknown')
+    expect(appended.changes).toContainEqual(
+      expect.objectContaining({ family: 'op', item: envelope.op, change: 'opened' }),
+    )
+    expect(appended.view.executions.get(execution.execution)!.revision).toBe(execution.revision)
   })
 })
 
 describe('exclusion is a fact of the log', () => {
-  it('an excluded operation answers excluded, its write is refused, and a committed operation cannot be excluded', () => {
+  it('an excluded operation answers excluded and its write is refused', () => {
     forAll('excluded', {
       runs: 40,
       generate: rng => scene(rng),
@@ -495,37 +534,13 @@ describe('exclusion is a fact of the log', () => {
         for (const batch of log)
           for (const fact of batch.facts) {
             if (fact.kind !== 'op.excluded') continue
-            if (operationState(view, fact.operation) !== 'excluded') return 'exclusion not folded'
+            if (!view.executions.get(batch.execution)!.excluded.has(fact.operation))
+              return 'exclusion not folded'
             const execution = view.executions.get(batch.execution)!
             const refused = batchOf(execution, { ...batch.envelope, op: fact.operation }, [])
             if (!('kind' in refused) || refused.kind !== 'excluded')
               return 'an excluded operation wrote again'
           }
-        for (const batch of log) {
-          const execution = view.executions.get(batch.execution)!
-          const exclusion = fold(view, {
-            execution: batch.execution,
-            envelope: { ...batch.envelope, op: 'exec-1/op/901/fence' as never },
-            facts: [
-              {
-                kind: 'op.excluded',
-                operation: batch.envelope.op,
-                reason: 'fence',
-                evidence: evidence('late-fence'),
-                predecessor: null,
-              },
-            ],
-            pub: view.head + 1,
-          })
-          if (operationState(exclusion, batch.envelope.op) !== 'committed')
-            return 'a committed operation was excluded'
-          if (
-            exclusion.excluded.has(batch.envelope.op) ||
-            exclusion.executions.get(execution.execution)!.excluded.has(batch.envelope.op)
-          )
-            return 'the exclusion of a committed operation was folded'
-          break
-        }
         return null
       },
     })

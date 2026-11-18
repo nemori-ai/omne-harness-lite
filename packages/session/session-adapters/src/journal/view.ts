@@ -233,6 +233,8 @@ export type ExclusionEntry = Readonly<{
   evidence: DurableEvidence
   predecessor: AgentOperationId | null
   pub: number
+  // A later batch of the operation revived it: the exclusion no longer holds.
+  revived?: true
 }>
 
 export type OperationEntry = Readonly<{
@@ -319,21 +321,17 @@ export type ExecutionView = Readonly<{
   ops: ReadonlyMap<AgentOperationId, OperationEntry>
   excluded: ReadonlyMap<AgentOperationId, ExclusionEntry>
   rejections: ReadonlyMap<AgentOperationId, RejectionEntry>
-  reached: ReadonlyMap<number, AgentOperationId>
+  reached: ReadonlyMap<number, Stamp>
 }>
 
 export type SessionJournalView = Readonly<{
   head: number
   executions: ReadonlyMap<AgentExecutionId, ExecutionView>
-  ops: ReadonlyMap<AgentOperationId, OperationEntry>
-  excluded: ReadonlyMap<AgentOperationId, ExclusionEntry>
 }>
 
 export const emptySessionView = (): SessionJournalView => ({
   head: 0,
   executions: new SharedMap(),
-  ops: new SharedMap(),
-  excluded: new SharedMap(),
 })
 
 export function emptyExecutionView(execution: AgentExecutionId): ExecutionView {

@@ -107,12 +107,7 @@ describe('the batch rules of the command migration, with their negative controls
     expect(advances(published(view, [], ['message']))).toBe(true)
     expect(advances(published(view, []))).toBe(false)
     const after = fold(
-      {
-        head: 0,
-        executions: new Map([[execution, { ...view, revision: 3 }]]),
-        ops: new Map(),
-        excluded: new Map(),
-      },
+      { head: 0, executions: new Map([[execution, { ...view, revision: 3 }]]) },
       published(view, [], ['message']),
     )
     expect(after.executions.get(execution)!.revision).toBe(4)
@@ -128,10 +123,7 @@ describe('the batch rules of the command migration, with their negative controls
       { kind: 'step.begun', step, batch: batch('b-1') },
       { kind: 'cursor.moved', step, members: { inputBatch: 'b-1' as never } },
     ])
-    const view = fold(
-      { head: 0, executions: new Map(), ops: new Map(), excluded: new Map() },
-      first,
-    ).executions.get(execution)!
+    const view = fold({ head: 0, executions: new Map() }, first).executions.get(execution)!
     const second = batchOf(
       view,
       { op: 'op-2' as never, digest: 'd-2', rev: 0, gen: '1', kinds: [] },
@@ -164,7 +156,7 @@ describe('the batch rules of the command migration, with their negative controls
       material: null,
     })
     const view = fold(
-      { head: 0, executions: new Map(), ops: new Map(), excluded: new Map() },
+      { head: 0, executions: new Map() },
       published(emptyExecutionView(execution), [received('result', 'r-1')]),
     ).executions.get(execution)!
     const account = batchOf(
