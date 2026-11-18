@@ -54,6 +54,10 @@ describe('what a resolved route means for a selection', () => {
     },
   )
 
+  it('a profile that is not selectable without a reason answers unavailable, not a refusal', () => {
+    expect(targetOf(resolved({ selectable: false, reasons: [] }))).toEqual({ kind: 'unavailable' })
+  })
+
   it.each([
     ['available', 'available'],
     ['missing', 'missing'],
