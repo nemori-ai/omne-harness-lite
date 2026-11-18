@@ -310,7 +310,7 @@ async function walk(browser, origin, proofs, elsewhere) {
     let result
     for (const stage of stages) {
       if (typeof stage === 'function') {
-        stage()
+        await stage()
         continue
       }
       result = await send('Runtime.evaluate', {
@@ -452,6 +452,38 @@ async function walk(browser, origin, proofs, elsewhere) {
     return { listed: item.getAttribute('aria-label'), facts: [...item.querySelectorAll('.assets-item-facts span')].map(span => span.textContent) }`,
   )
   await madeElsewhere
+  const skillDirectory = mkdtempSync(join(tmpdir(), 'page-walk-skill-'))
+  writeFileSync(
+    join(skillDirectory, 'SKILL.md'),
+    '---\nname: walk-page\ndescription: Made in the page by the walk.\n---\n\n# walk-page\n',
+  )
+  await step(
+    '在页面里新建一份技能：选目录、提交，列表里出现它',
+    `
+    const tab = await wait('the skill tab', () => assetTabs().find(item => item.textContent === '技能'))
+    await openTab(tab)
+    await press('button', '新建')
+    const form = await wait('the form', () => shownPanel().querySelector('form[aria-label="新建"]'))
+    fill(form.querySelector('input:not([type=file])'), 'walk-page')
+    return 'the form is open'`,
+    async () => {
+      const found = await send('Runtime.evaluate', {
+        expression: `document.querySelector('form[aria-label="新建"] input[type=file]')`,
+      })
+      await send('DOM.setFileInputFiles', {
+        objectId: found.result.objectId,
+        files: [skillDirectory],
+      })
+    },
+    `
+    const form = shownPanel().querySelector('form[aria-label="新建"]')
+    await wait('the file count', () => form.innerText.includes('1 个文件'))
+    await press('form[aria-label="新建"] button', '提交')
+    await wait('the creation', () => form.innerText.includes('已新建 walk-page。'))
+    const item = await wait('the new row', () => shownPanel().querySelector('li.assets-item[aria-label="walk-page"]'))
+    return { created: item.getAttribute('aria-label'), note: form.innerText.split('\\n').filter(line => line.includes('文件')) }`,
+  )
+  rmSync(skillDirectory, { recursive: true, force: true })
   await step(
     '改一项设置，再清除它',
     `
