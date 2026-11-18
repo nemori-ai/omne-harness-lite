@@ -1,0 +1,79 @@
+import type { BodyContract } from './identity.ts'
+import { copyTree } from './read-body.ts'
+
+export type CategoryDisplay = Readonly<{ title: string; summary: string }>
+
+export type CategoryContribution = Readonly<{ contract: BodyContract; display: CategoryDisplay }>
+
+export type CategoryListing = Readonly<{ category: string; display: CategoryDisplay }>
+
+export type CategoryView = Readonly<{
+  lookup(category: string): BodyContract | undefined
+  list(): readonly CategoryListing[]
+}>
+
+export type CategoryPoint = CategoryView &
+  Readonly<{ contribute(contribution: CategoryContribution): () => void }>
+
+type Entry = Readonly<{ contract: BodyContract; listing: CategoryListing }>
+
+export function createCategoryPoint(): CategoryPoint {
+  const entries = new Map<string, Entry>()
+  let listed: readonly CategoryListing[] = Object.freeze([])
+
+  function relist(): void {
+    listed = Object.freeze(
+      [...entries.values()]
+        .map(entry => entry.listing)
+        .sort((left, right) => (left.category < right.category ? -1 : 1)),
+    )
+  }
+
+  return Object.freeze({
+    contribute(contribution: CategoryContribution): () => void {
+      const entry = admit(contribution)
+      const category = entry.listing.category
+      if (entries.has(category)) throw new TypeError('category already registered')
+      entries.set(category, entry)
+      relist()
+      return () => {
+        if (entries.get(category) !== entry) return
+        entries.delete(category)
+        relist()
+      }
+    },
+    lookup(category: string): BodyContract | undefined {
+      return entries.get(category)?.contract
+    },
+    list(): readonly CategoryListing[] {
+      return listed
+    },
+  })
+}
+
+function admit({ contract, display }: CategoryContribution): Entry {
+  const category = contract.category
+  if (category === '') throw new TypeError('category name is empty')
+  if (display.title === '' || display.summary === '')
+    throw new TypeError('category display is incomplete')
+  const schema = copyTree(contract.schema, false)
+  if (schema === undefined) throw new TypeError('schema could not be copied')
+  return Object.freeze({
+    contract: Object.freeze({ ...contract, category, schema }),
+    listing: Object.freeze({
+      category,
+      display: Object.freeze({ title: display.title, summary: display.summary }),
+    }),
+  })
+}
+
+export function unknownCategory(
+  categories: Pick<CategoryView, 'lookup'>,
+  category: string,
+):
+  | { readonly ok: true; readonly contract: BodyContract }
+  | { readonly ok: false; readonly rejected: 'unknown-category' } {
+  const contract = categories.lookup(category)
+  if (contract === undefined) return { ok: false, rejected: 'unknown-category' }
+  return { ok: true, contract }
+}

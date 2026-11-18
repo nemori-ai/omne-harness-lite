@@ -1058,6 +1058,28 @@ export declare const assetsProtocol: {
                 readonly tenant: import("@omne-harness/legal-identity").TenantId;
             }>;
         };
+        readonly 'list-categories': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly items: readonly {
+                        readonly category: string;
+                        readonly summary: string;
+                        readonly title: string;
+                    }[];
+                    readonly next: string | null;
+                }>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: "login";
+            readonly effect: "read";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly after: string | null;
+                readonly limit: number;
+            }>;
+        };
     };
     readonly name: "assets";
     readonly major: 1;

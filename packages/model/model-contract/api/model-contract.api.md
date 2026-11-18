@@ -291,6 +291,7 @@
 - `ModelProviderBody` · `provider-asset.d.ts`
 - `ModelProviderBodyRejection` · `provider-asset.d.ts`
 - `modelProviderBodyContract` · `provider-asset.d.ts`
+- `modelProviderCategoryDisplay` · `provider-asset.d.ts`
 - `parseModelProviderBody` · `provider-asset.d.ts`
 - `readModelProviderBody` · `provider-asset.d.ts`
 
@@ -1934,10 +1935,11 @@ export type ReplayProjection = Readonly<{
 ## 声明文件 `provider-asset.d.ts`
 
 ```ts
-import { type BodyContract } from '@omne-harness/assets';
+import { type BodyContract, type CategoryDisplay } from '@omne-harness/assets';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { ProviderName } from './root.ts';
 export declare const MODEL_PROVIDER_CATEGORY = "model-provider";
+export declare const modelProviderCategoryDisplay: CategoryDisplay;
 export type CredentialItemDeclaration = Readonly<{
     item: string;
     title: string;

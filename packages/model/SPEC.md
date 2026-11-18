@@ -36,7 +36,7 @@ Model 为别人实现的端口：
 | `ModelProfiles`、`ModelRequestPreparation`                                         | `packages/agent`，经应用装配适配              | 我提供档案求值与固定请求的准备；准备不计量输入                                             |
 | `ModelPreparationResources` 与其中的 `ModelInputMeter`                             | `packages/context`                            | 我提供请求前用的计量租约；输入大不大、要不要压缩由你判断                                   |
 | `ModelStreamReferences.current`、`ModelStreamObservation`                          | `packages/session` 的会话观察，经应用装配接入 | 我提供一次调用当前的内容观察目标与它的公共观察流                                           |
-| 资产类别 `model-provider` 的正文契约                                               | `packages/assets`，经应用装配登记             | 我声明供应商正文的形状与它要哪些秘密设置项；持有与求值归你                                 |
+| 资产类别 `model-provider` 的正文契约与显示声明                                     | `packages/assets`：本机成员的贡献插件放进类别的拓展点；官方持有的投影直接用 | 我声明供应商正文的形状、它要哪些秘密设置项与这一类的名字；持有与求值归你 |
 
 Model 声明、由别人实现的端口：
 

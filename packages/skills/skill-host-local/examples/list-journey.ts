@@ -1,9 +1,9 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { capabilityId, createCategoryRegistry } from '@omne-harness/assets'
+import { capabilityId, createCategoryPoint } from '@omne-harness/assets'
 import { createAssetsLocal, tenantLayerSource, type AssetsLocal } from '@omne-harness/assets-local'
 import type { Access, TenantId } from '@omne-harness/legal-identity'
-import { skillBodyContract } from '@omne-harness/skill-contract'
+import { skillBodyContract, skillCategoryDisplay } from '@omne-harness/skill-contract'
 import type { Resolution } from '@omne-harness/skill-contract/provider'
 import {
   createDirectorySource,
@@ -114,8 +114,8 @@ export async function runListJourney(options: ListJourneyOptions): Promise<ListJ
   const tenantRef = 'demo-tenant'
   await mkdir(options.stateDir, { recursive: true })
   const opened = await openStorage(options.stateDir, tenantRef)
-  const categories = createCategoryRegistry()
-  categories.register(skillBodyContract())
+  const categories = createCategoryPoint()
+  categories.contribute({ contract: skillBodyContract(), display: skillCategoryDisplay })
   const assets = createAssetsLocal({
     storage: opened.storage,
     domain: opened.domain,

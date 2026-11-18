@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import { projectAssetSettings } from '@omne-harness/assets'
+import { projectAssetSettings, type AssetSettingsProjection } from '@omne-harness/assets'
 import { SettingsIdSchema } from '@omne-harness/settings'
 import {
   SettingsProjectionBindingSchema,
@@ -11,7 +11,7 @@ import { digest, equal, identity, json, withinBudget } from './encoding.ts'
 import {
   assetLookupSchema,
   assetResultSchema,
-  captureCategoriesSchema,
+  captureExcludedSchema,
   heldCapabilityLookupSchema,
   changeHoldingSchema,
   domainSchema,
@@ -41,7 +41,7 @@ import type {
 } from './types.ts'
 const fail = (reason: Failure['reason']): Failure => ({ kind: 'rejected', reason })
 
-export type CaptureScope = Readonly<{ categories: readonly string[] }>
+export type CaptureScope = Readonly<{ excluded: readonly string[] }>
 
 function captureFacts(
   kind: 'capture' | 'capturePublication',
@@ -53,11 +53,20 @@ function captureFacts(
     facts: {
       kind,
       binding: json(SettingsProjectionBindingSchema.parse(binding)),
-      categories: json(captureCategoriesSchema.parse([...new Set(scope.categories)].sort())),
+      excluded: json(captureExcludedSchema.parse([...new Set(scope.excluded)].sort())),
     },
   }
 }
-/** A management view without named targets captures the holdings of `scope.categories` only. */
+const PROJECTION_REJECTIONS = {
+  invalid_body: 'invalid_input',
+  invalid_declaration: 'invalid_input',
+  unknown_category: 'unknown_category',
+  provider_unavailable: 'unavailable',
+} as const satisfies Record<
+  Extract<AssetSettingsProjection, { kind: 'rejected' }>['reason'],
+  Failure['reason']
+>
+/** A management view without named targets captures every holding except those of `scope.excluded`. */
 export function assetsSettingsProjectionCommand(
   binding: SettingsProjectionBinding,
   scope: CaptureScope,
@@ -82,8 +91,7 @@ function publishCommand(options: AssetsLocalOptions, input: AssetsPublish) {
     assetRef: metadata.data.assetRef,
     pinned: input.pinned,
   })
-  if (projection.kind === 'rejected')
-    return fail(projection.reason === 'provider_unavailable' ? 'unavailable' : 'invalid_input')
+  if (projection.kind === 'rejected') return fail(PROJECTION_REJECTIONS[projection.reason])
   const declaration =
     projection.kind === 'none'
       ? projection

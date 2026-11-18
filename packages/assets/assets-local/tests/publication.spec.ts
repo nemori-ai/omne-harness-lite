@@ -1,8 +1,8 @@
-import { createCategoryRegistry } from '@omne-harness/assets'
 import { randomUUID } from 'node:crypto'
 import { afterEach, expect, it } from 'vitest'
 import { assetsPublicationCommand, AssetsPublicationProjectionSchema } from '../src/index.ts'
 import { digest } from '../src/encoding.ts'
+import { lookupOf } from './lookup.ts'
 import { openWorld, pinned, target, definition, type World } from './world.ts'
 const worlds: World[] = []
 afterEach(async () => {
@@ -27,7 +27,7 @@ async function capture(w: World, targets = [target]) {
           captureId,
           request: { deploymentRef: 'test', mode: 'runtime', targets, selectionRef: null },
         },
-        { categories: ['service'] },
+        { excluded: [] },
       ),
     ],
   })
@@ -36,8 +36,7 @@ async function capture(w: World, targets = [target]) {
     : result
 }
 it('follows the selected publication even when Settings are identical while pinned holdings stay fixed', async () => {
-  const fixedDefinitions = createCategoryRegistry()
-  fixedDefinitions.register({
+  const fixedDefinitions = lookupOf({
     category: 'service',
     schema: { kind: 'null' },
     judge: () => ({ ok: true }),
@@ -124,8 +123,7 @@ it('refuses missing, foreign and disabled runtime targets', async () => {
 })
 
 it('captures a real asset publication without requiring a Settings declaration', async () => {
-  const noSettings = createCategoryRegistry()
-  noSettings.register({
+  const noSettings = lookupOf({
     category: 'service',
     schema: { kind: 'null' },
     judge: () => ({ ok: true }),

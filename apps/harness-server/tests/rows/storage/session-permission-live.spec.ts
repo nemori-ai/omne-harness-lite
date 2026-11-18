@@ -35,6 +35,7 @@ import {
 import { authorization } from '../../../src/rows/authorization/row.ts'
 import { SESSION_PERMISSION_OWN_LOGIN_POLICY } from '../../../src/rows/authorization/session-permission-write.ts'
 import { identityRow } from '../../../src/rows/identity/index.ts'
+import { assetCategoriesRow } from '../../../src/rows/asset-categories/index.ts'
 import { governanceRow } from '../../../src/rows/governance/index.ts'
 import { releaseIdentityConfig } from '../identity/fixtures.ts'
 import { createCommand, createGuards, declared, loadStorageTree } from './fixtures/tree.ts'
@@ -66,6 +67,7 @@ it('sets and clears a Session permission through the original login and delegate
     ],
     extraRows: [
       declared(identityRow, releaseIdentityConfig()),
+      declared(assetCategoriesRow, {}),
       declared(governanceRow, {
         deploymentId: 'harness-local',
         logicalServiceId: 'harness-governance',

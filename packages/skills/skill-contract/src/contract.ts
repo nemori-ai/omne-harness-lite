@@ -5,9 +5,15 @@ import {
   readSnapshot,
   refusal,
   type BodyContract,
+  type CategoryDisplay,
   type JsonValue,
   type Judgment,
 } from '@omne-harness/assets'
+
+export const skillCategoryDisplay: CategoryDisplay = Object.freeze({
+  title: '技能',
+  summary: '一份说明加配套文件，代理需要时读取。',
+})
 import { isPackageDigest } from './digest.ts'
 import { skillLayout } from './layout.ts'
 import { isSkillName } from './names.ts'

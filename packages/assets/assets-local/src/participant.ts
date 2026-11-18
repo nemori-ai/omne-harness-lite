@@ -11,9 +11,9 @@ export default {
     const parsed = workerCommandSchema.safeParse(facts)
     if (!parsed.success) return { kind: 'failed', diagnostic: 'assets_invalid_input' }
     const command = parsed.data
-    if (command.kind === 'capture') return capture(port, command.binding, command.categories)
+    if (command.kind === 'capture') return capture(port, command.binding, command.excluded)
     if (command.kind === 'capturePublication')
-      return capture(port, command.binding, command.categories, true)
+      return capture(port, command.binding, command.excluded, true)
     const result = mutate(port, command.binding)
     const response = json({ binding: command.binding, result })
     return result.kind === 'committed'

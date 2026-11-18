@@ -1,6 +1,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
+import { assetCategoriesKey } from '@omne-harness/assets-cordis-contract'
 import type { SkillAccess, SkillCatalog } from '@omne-harness/skill-contract'
+import { skillCategoryPlugin } from '@omne-harness/skill-host-local/cordis'
 import {
   SkillAccessService,
   SkillCatalogService,
@@ -54,18 +56,20 @@ export const skillsRow = defineRow({
   implementation: 'real',
   manifest: {
     provides: [skillCatalogKey, skillAccessKey],
-    injects: [storageKey, tenantDomainLookupKey],
+    injects: [storageKey, tenantDomainLookupKey, assetCategoriesKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'body', phase: 'composition' },
   async body(ctx, raw) {
     const config = skillsRowConfig.parse(raw)
     const release = releaseOf(ctx)
+    ctx.plugin(skillCategoryPlugin)
     const store = {
       storage: ctx.storage,
       materials: await productionStorageCatalog(async () => release),
       packageRoot: config.packageRoot,
       ranking: config.ranking,
+      categories: ctx.assetCategories.view,
     }
     const host = new TenantSkillsHost({
       domains: ctx.tenantDomainLookup,

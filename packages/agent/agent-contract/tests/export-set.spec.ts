@@ -16,6 +16,7 @@ it('exports exactly the judgments, the constants, the identity decoders and the 
     'admissionActionOf',
     'admissionPassageOf',
     'agentBodyContract',
+    'agentDefinitionCategoryDisplay',
     'cardDraftOf',
     'cardRequestOf',
     'compactionGeneration',

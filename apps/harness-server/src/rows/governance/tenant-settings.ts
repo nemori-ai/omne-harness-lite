@@ -12,7 +12,6 @@ import { governanceStorageCombinations } from './storage-combinations.ts'
 import { prepareTenantGovernance, type TenantGovernanceOptions } from './tenant-runtime.ts'
 import { TENANT_SETTINGS_CONFIGURATION } from './tenant-settings-current.ts'
 import { createTenantSettingsWrite } from './tenant-settings-write.ts'
-import { GOVERNED_CAPTURE } from './tool-assets.ts'
 
 const destination = 'harness.governance.settings-catalog'
 
@@ -40,7 +39,7 @@ export function prepareTenantGovernanceWithSettings(
     clock: options.clock,
     cursorLifetimeMs: options.cursorLifetimeMs,
     project: binding => [
-      assetsSettingsProjectionCommand(binding, GOVERNED_CAPTURE),
+      assetsSettingsProjectionCommand(binding, options.capture()),
       standaloneSettingsProjectionCommand(binding),
     ],
   })

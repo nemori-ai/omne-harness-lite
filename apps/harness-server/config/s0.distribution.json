@@ -26,6 +26,11 @@
       "config": {}
     },
     {
+      "id": "asset-categories",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "governance",
       "plugin": "stubPlugin",
       "config": {}

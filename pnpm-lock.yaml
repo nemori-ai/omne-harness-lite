@@ -569,6 +569,9 @@ importers:
       '@omne-harness/assets-access':
         specifier: workspace:*
         version: link:../../packages/assets/assets-access
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../packages/assets/assets-cordis-contract
       '@omne-harness/assets-local':
         specifier: workspace:*
         version: link:../../packages/assets/assets-local
@@ -843,6 +846,9 @@ importers:
       '@omne-harness/identity-protocol':
         specifier: workspace:*
         version: link:../../packages/identity/identity-protocol
+      '@omne-harness/mcp-host-local':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-host-local
       '@omne-harness/sdk':
         specifier: workspace:*
         version: link:../../packages/access/sdk
@@ -1115,6 +1121,9 @@ importers:
       '@omne-harness/agent-cordis-contract':
         specifier: workspace:*
         version: link:../agent-cordis-contract
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../assets/assets-cordis-contract
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block
@@ -1284,6 +1293,25 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(happy-dom@21.0.4)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/assets/assets-cordis-contract:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness/assets':
+        specifier: workspace:*
+        version: link:../assets
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -3101,6 +3129,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../assets/assets-cordis-contract
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
@@ -3328,6 +3359,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../assets/assets-cordis-contract
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -4447,6 +4481,9 @@ importers:
       '@omne-harness/assets':
         specifier: workspace:*
         version: link:../../assets/assets
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../assets/assets-cordis-contract
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
@@ -4457,6 +4494,9 @@ importers:
         specifier: workspace:*
         version: link:../skill-contract
     devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@omne-harness/assets-local':
         specifier: workspace:*
         version: link:../../assets/assets-local

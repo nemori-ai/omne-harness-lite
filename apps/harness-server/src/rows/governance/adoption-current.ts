@@ -19,7 +19,7 @@ import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
 import { canonicalDigest } from '@omne-harness/tool'
 import { GOVERNANCE_PUBLICATIONS } from './current-publications.ts'
 import { PERMISSION_SUPPORT, SUPPORT_PARTICIPANT } from './permission-protocol.ts'
-import { GOVERNED_CAPTURE } from './tool-assets.ts'
+import { NAMED_TARGETS } from './governed-capture.ts'
 
 export const ADOPTION_CURRENT_PARTICIPANT = {
   participant: 'harness.governance-current',
@@ -67,7 +67,7 @@ export function createGovernanceAdoptionProjection(
     return [
       { participant: 'harness.tool-permission-release', facts: {} },
       { participant: SUPPORT_PARTICIPANT.participant, facts: {} },
-      assetsPublicationCommand(capture, GOVERNED_CAPTURE),
+      assetsPublicationCommand(capture, NAMED_TARGETS),
       standaloneSettingsPublicationCommand(capture),
       {
         participant: ADOPTION_CURRENT_PARTICIPANT.participant,

@@ -2,8 +2,8 @@ import { ownerSources } from './sources.ts'
 import { afterEach, expect, it } from 'vitest'
 import { SettingsOwnerProjectionSchema } from '@omne-harness/settings-local'
 import { assetsSettingsProjectionCommand, assetsSqlMaterials } from '../src/index.ts'
-import { createCategoryRegistry } from '@omne-harness/assets'
-import { categories, grants, noteBody, openWorld, pinned, target, type World } from './world.ts'
+import { createCategoryPoint } from '@omne-harness/assets'
+import { grants, noteBody, openWorld, pinned, service, target, type World } from './world.ts'
 const worlds: World[] = []
 async function open(setup = true) {
   const world = await openWorld()
@@ -78,7 +78,7 @@ it('safely rejects removed, nonexistent, cross-scope and cross-domain projection
             selectionRef: null,
           },
         },
-        { categories: ['service'] },
+        { excluded: [] },
       ),
     ],
   })
@@ -143,11 +143,13 @@ it('refuses management overflow instead of truncating 129 real holdings into suc
   expect(explicit.kind).toBe('committed')
 }, 30000)
 async function serviceAndNoteWorld() {
-  const service = categories.lookup('service') ?? fail('service category')
-  const registry = createCategoryRegistry()
-  registry.register(service)
-  registry.register({ ...service, category: 'note' })
-  const world = await openWorld({ categories: registry })
+  const point = createCategoryPoint()
+  point.contribute(service)
+  point.contribute({
+    contract: { ...service.contract, category: 'note' },
+    display: { title: 'Note', summary: 'A second category that exists only in these tests.' },
+  })
+  const world = await openWorld({ categories: point })
   worlds.push(world)
   return world
 }
@@ -176,7 +178,7 @@ function capturedRefs(result: Awaited<ReturnType<World['capture']>>): string[] {
   const views = SettingsOwnerProjectionSchema.parse(result.responses[0]?.reply.response).views
   return views.map(view => view.target.targetRef)
 }
-it('captures only the holdings of the categories the caller names, so other holdings do not count to the limit', async () => {
+it('leaves out the holdings of the categories the caller excludes, so they do not count to the limit', async () => {
   const world = await serviceAndNoteWorld()
   const holdAll = async (category: 'service' | 'note', count: number) => {
     for (let index = 0; index < count; index++)
@@ -184,10 +186,10 @@ it('captures only the holdings of the categories the caller names, so other hold
   }
   await holdAll('service', 6)
   await holdAll('note', 130)
-  expect(capturedRefs(await world.capture())).toEqual(
+  expect(capturedRefs(await world.capture({}, { excluded: ['note'] }))).toEqual(
     [0, 1, 2, 3, 4, 5].map(index => `holding-service-${index}`),
   )
-  const both = await world.capture({}, { categories: ['service', 'note'] })
+  const both = await world.capture()
   expect(both.kind).toBe('rolled_back')
   if (both.kind !== 'rolled_back') throw new Error('expected rejection')
   expect(both.responses.at(-1)?.reply).toMatchObject({
@@ -199,11 +201,7 @@ it('orders the holdings of several categories by holding, as one scan of every h
   await holdOne(world, 'service', 'a')
   await holdOne(world, 'note', 'b')
   await holdOne(world, 'service', 'c')
-  expect(capturedRefs(await world.capture({}, { categories: ['service', 'note'] }))).toEqual([
-    'holding-a',
-    'holding-b',
-    'holding-c',
-  ])
+  expect(capturedRefs(await world.capture())).toEqual(['holding-a', 'holding-b', 'holding-c'])
 }, 60000)
 it('provides only the projection fact and the publication fact', () => {
   expect(assetsSqlMaterials().participants[0]?.providesFacts.map(fact => fact.key)).toEqual([
@@ -211,7 +209,3 @@ it('provides only the projection fact and the publication fact', () => {
     'assets.current-publication',
   ])
 })
-
-function fail(message: string): never {
-  throw new Error(message)
-}

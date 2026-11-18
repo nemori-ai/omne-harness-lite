@@ -15,8 +15,6 @@ import type { ToolRelease } from '../../entry/tool-release.ts'
 import type { ToolReleaseEntry } from '../../entry/tool-release-manifest.ts'
 
 const TOOL_CATEGORY = 'tool'
-/** The asset categories the governance row manages in a tenant domain. Its captures scan only these. */
-export const GOVERNED_CAPTURE = Object.freeze({ categories: Object.freeze([TOOL_CATEGORY]) })
 
 const limits = {
   maxBytes: 256 * 1024,

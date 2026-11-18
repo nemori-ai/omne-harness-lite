@@ -99,6 +99,7 @@ const ROOT = [
   'digestDefinition',
   'isActionArgs',
   'markUnavailable',
+  'mcpCategoryDisplay',
   'mcpEndpointBodyContract',
   'mergeListing',
   'parseEndpointBody',

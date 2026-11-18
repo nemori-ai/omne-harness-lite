@@ -1,14 +1,10 @@
 import { join } from 'node:path'
-import { createCategoryRegistry } from '@omne-harness/assets'
+import type { CategoryView } from '@omne-harness/assets'
 import { createAssetsLocal, tenantLayerSource, type AssetsLocal } from '@omne-harness/assets-local'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { createSkillAccess, createSkillCatalog } from '@omne-harness/skill'
-import {
-  skillBodyContract,
-  type SkillAccess,
-  type SkillCatalog,
-} from '@omne-harness/skill-contract'
+import type { SkillAccess, SkillCatalog } from '@omne-harness/skill-contract'
 import {
   createContentStoreSource,
   createSkillDecisions,
@@ -33,6 +29,7 @@ export type TenantSkillsStore = Readonly<{
   materials: SqlMaterialCatalog
   packageRoot: string
   ranking: RankingParameters
+  categories: Pick<CategoryView, 'lookup'>
 }>
 
 export type TenantSkillsHostOptions = Readonly<{
@@ -69,13 +66,11 @@ export async function openTenantSkills(
   const combination = governanceStorageCombinations(options.materials).assets
   const registered = await options.storage.registerCombination({ ...domain, ...combination })
   if (registered.kind !== 'registered') throw new Error(`skills combination ${registered.kind}`)
-  const categories = createCategoryRegistry()
-  categories.register(skillBodyContract())
   const assets = createAssetsLocal({
     ...combination,
     domain,
     storage: options.storage,
-    categories,
+    categories: options.categories,
     packageRoot: domainRoot(options.packageRoot, domain),
   })
   try {

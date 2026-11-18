@@ -1,4 +1,4 @@
-export { agentBodyContract } from './body-contract.ts'
+export { agentBodyContract, agentDefinitionCategoryDisplay } from './body-contract.ts'
 export { obligationCategoryOf } from './finishing.ts'
 export { ATTRIBUTE_ITEMS, INSTRUCTION_LIMITS } from './definition.ts'
 export {

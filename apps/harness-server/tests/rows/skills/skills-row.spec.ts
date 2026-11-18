@@ -14,7 +14,13 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { principalIssuerKey } from '@omne-harness/identity/cordis'
 import { access, tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import { capabilityId } from '@omne-harness/assets'
+import { capabilityId, createCategoryPoint } from '@omne-harness/assets'
+import {
+  modelProviderBodyContract,
+  modelProviderCategoryDisplay,
+} from '@omne-harness/model-contract/provider-asset'
+import { skillBodyContract, skillCategoryDisplay } from '@omne-harness/skill-contract'
+import { toolBodyContract, toolCategoryDisplay } from '@omne-harness/tool-contract'
 import type { DomainRef, TenantDomainLookup } from '@omne-harness/sql-contract'
 import { assetsSettingsProjectionCommand } from '@omne-harness/assets-local'
 import { SettingsOwnerProjectionSchema } from '@omne-harness/settings-local'
@@ -35,7 +41,8 @@ import {
 import { createBoundSkills } from '../../../src/rows/tool-bindings/skills.ts'
 import { productionStorageCatalog } from '../../../src/rows/storage/production-catalog.ts'
 import { governanceStorageCombinations } from '../../../src/rows/governance/storage-combinations.ts'
-import { GOVERNED_CAPTURE } from '../../../src/rows/governance/tool-assets.ts'
+import { governedCapture } from '../../../src/rows/governance/governed-capture.ts'
+import { preferenceCategory } from '../../../src/rows/governance/preference-settings.ts'
 import { fixtureEnv, fixtureTenant, okOf } from '../../entry/support.ts'
 import { providerConfig } from '../storage/fixtures/tree.ts'
 import {
@@ -95,7 +102,15 @@ async function world() {
     },
   }
   const packageRoot = join(root, 'assets')
-  const store = { storage: made.storage, materials, packageRoot, ranking }
+  const categories = createCategoryPoint()
+  categories.contribute({ contract: toolBodyContract(), display: toolCategoryDisplay })
+  categories.contribute({
+    contract: modelProviderBodyContract(),
+    display: modelProviderCategoryDisplay,
+  })
+  categories.contribute(preferenceCategory)
+  categories.contribute({ contract: skillBodyContract(), display: skillCategoryDisplay })
+  const store = { storage: made.storage, materials, packageRoot, ranking, categories }
   const host = new TenantSkillsHost({
     domains: lookup,
     open: (tenant, domain) => openTenantSkills(store, tenant, domain),
@@ -126,7 +141,7 @@ async function world() {
       enabled,
     })
   }
-  const capture = (categories: readonly string[]) => {
+  const capture = (excluded: readonly string[]) => {
     const domain = domainOf(alpha, 'tenant-alpha')
     const binding = {
       domain,
@@ -148,12 +163,13 @@ async function world() {
       },
       combinationVersion: assets.combinationVersion,
       manifestDigest: assets.manifestDigest,
-      commands: [assetsSettingsProjectionCommand(binding, { categories })],
+      commands: [assetsSettingsProjectionCommand(binding, { excluded })],
     })
   }
   const assets = governanceStorageCombinations(materials).assets
   return {
     capture,
+    governed: governedCapture(categories),
     alpha: bound(alpha, 'session-alpha'),
     beta: bound(beta, 'session-beta'),
     publish: (name: string, enabled = true) => publish(alpha, name, enabled),
@@ -352,10 +368,11 @@ describe('the skills row and the Skills binding over a real store', () => {
 
   it('leaves the governance capture of a tenant domain unchanged by a published Skill', async () => {
     const w = await world()
+    expect(w.governed().excluded).toEqual(['preference', 'skill'])
     await w.publish('placeholder-skill')
-    const before = await w.capture(GOVERNED_CAPTURE.categories)
+    const before = await w.capture(w.governed().excluded)
     await w.publish('weekly-report')
-    const after = await w.capture(GOVERNED_CAPTURE.categories)
+    const after = await w.capture(w.governed().excluded)
     expect(before.kind).toBe('committed')
     expect(after.kind).toBe('committed')
     if (before.kind !== 'committed' || after.kind !== 'committed') throw new Error('capture')
@@ -367,9 +384,11 @@ describe('the skills row and the Skills binding over a real store', () => {
   it('keeps 130 Skill holdings out of the governance capture and its limit of 128', async () => {
     const w = await world()
     await w.publishMany(Array.from({ length: 130 }, (_, index) => `skill-${String(index)}`))
-    const governed = await w.capture(GOVERNED_CAPTURE.categories)
+    const governed = await w.capture(w.governed().excluded)
     expect(governed.kind).toBe('committed')
-    const everything = await w.capture([...GOVERNED_CAPTURE.categories, 'skill'])
+    const everything = await w.capture(
+      w.governed().excluded.filter(category => category !== 'skill'),
+    )
     expect(everything.kind).toBe('rolled_back')
     expect(JSON.stringify(everything)).toContain('limit_exceeded')
   })

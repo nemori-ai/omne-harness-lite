@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process'
+import { repositoryEnv } from '@omne-harness/repo-toolchain/core/git-environment'
 import { mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -63,7 +65,7 @@ function record(
   extra: Partial<ReadSetRecord> = {},
 ): ReadSetRecord {
   return {
-    version: 1,
+    version: 2,
     head: 'head-new',
     recordedAt: '2026-11-17T10:00:00.000Z',
     tree,
@@ -116,6 +118,18 @@ describe('一份用例文件能不能跳过（全化表）', () => {
     ).toBeUndefined()
   })
 
+  it('环境变量只比值，不比写进记录的先后', () => {
+    const both = { A: '1', B: '2' }
+    const recorded = record({ 't.spec.ts': entry('t.spec.ts') }, TREE, { env: { B: '2', A: '1' } })
+    expect(reuse([recorded], same, both)).toBeDefined()
+  })
+
+  it('有的记录里没有这份文件：只看有它的那几份', () => {
+    const other = record({ 'o.spec.ts': entry('o.spec.ts') }, TREE, { head: 'head-other' })
+    const mine = record({ 't.spec.ts': entry('t.spec.ts') }, TREE, { head: 'head-old' })
+    expect(reuse([other, mine])?.from.head).toBe('head-old')
+  })
+
   it('读到的某一项摘要变了，或文件已被删掉：跑', () => {
     const changed = (key: string) => (key === 'content:src/a.ts' ? 'a2' : same(key))
     expect(reuse([record({ 't.spec.ts': entry('t.spec.ts') }, TREE)], changed)).toBeUndefined()
@@ -150,9 +164,22 @@ describe('一份用例文件能不能跳过（全化表）', () => {
 describe('跳过的底：读集之外也要算进去的输入', () => {
   const MEMBERS = ['packages/a', 'packages/ab', 'apps/server']
   const FLOOR: Floor = {
-    global: ['package.json', 'pnpm-lock.yaml', 'tsconfig.base.json'],
-    member: member => [`${member}/package.json`, `${member}/tsconfig.json`],
+    global: ['content:package.json', 'content:pnpm-lock.yaml', 'glob:tsconfig*.json'],
+    member: member => [`content:${member}/package.json`, `glob:${member}/tsconfig*.json`],
   }
+
+  it('底由全局路径定：没有通配的是内容一项，带通配的是通配一项；成员一份是它的 package.json 与 tsconfig*.json；去重、排序', () => {
+    const floor = floorOf(['package.json', 'tsconfig*.json', '**/turbo.json', 'package.json'])
+    expect(floor.global).toEqual([
+      'content:package.json',
+      'glob:**/turbo.json',
+      'glob:tsconfig*.json',
+    ])
+    expect(floor.member('packages/a')).toEqual([
+      'content:packages/a/package.json',
+      'glob:packages/a/tsconfig*.json',
+    ])
+  })
 
   it('成员按最长的目录前缀认，前缀要到斜杠为止', () => {
     expect(ownerOf('packages/ab/src/x.ts', MEMBERS)).toBe('packages/ab')
@@ -165,19 +192,26 @@ describe('跳过的底：读集之外也要算进去的输入', () => {
   it('全局文件，加上读集涉及的每个成员的 package.json 与 tsconfig，都并进读集；运行时一项不算成员', () => {
     expect(
       floorReads(
-        ['content:packages/a/src/x.ts', 'listing:apps/server/tests', 'runtime:node'],
+        [
+          'content:packages/a/src/x.ts',
+          'listing:apps/server/tests',
+          'runtime:node',
+          'content:tools/shared.ts',
+        ],
         MEMBERS,
         FLOOR,
       ),
+      '不在任何成员里的读只并它自己',
     ).toEqual([
       'content:apps/server/package.json',
-      'content:apps/server/tsconfig.json',
       'content:package.json',
       'content:packages/a/package.json',
       'content:packages/a/src/x.ts',
-      'content:packages/a/tsconfig.json',
       'content:pnpm-lock.yaml',
-      'content:tsconfig.base.json',
+      'content:tools/shared.ts',
+      'glob:apps/server/tsconfig*.json',
+      'glob:packages/a/tsconfig*.json',
+      'glob:tsconfig*.json',
       'listing:apps/server/tests',
       'runtime:node',
     ])
@@ -195,7 +229,7 @@ describe('跳过的底：读集之外也要算进去的输入', () => {
     const exportsChanged = (key: string) =>
       key === 'content:packages/a/package.json' ? 'v2' : 'v1'
     expect(reusableFiles([rec], exportsChanged, ENV).has('t.spec.ts')).toBe(false)
-    const tsconfigChanged = (key: string) => (key === 'content:tsconfig.base.json' ? 'v2' : 'v1')
+    const tsconfigChanged = (key: string) => (key === 'glob:tsconfig*.json' ? 'v2' : 'v1')
     expect(reusableFiles([rec], tsconfigChanged, ENV).has('t.spec.ts')).toBe(false)
   })
 })
@@ -236,6 +270,16 @@ describe('跳过的文件并回成员的结果', () => {
     expect(run?.report?.testResults.map(result => result.name)).toEqual(['/new/root/t.spec.ts'])
     expect(run?.timing?.files.map(file => file.file)).toEqual(['/new/root/t.spec.ts'])
     expect(cachedRun('m', '/new/root', new Map())).toBeUndefined()
+  })
+
+  it('记录里的结果没带计时：并回的这一份没有计时，不凭空造一条', () => {
+    const { timing: _dropped, ...bare } = cached('t.spec.ts')
+    const reused = reusableFiles(
+      [record({ 't.spec.ts': entry('t.spec.ts', { cached: bare }) }, TREE)],
+      same,
+      ENV,
+    )
+    expect(cachedRun('m', '/new/root', reused)).not.toHaveProperty('timing')
   })
 })
 
@@ -288,7 +332,7 @@ describe('记录与跳过连起来', () => {
       'pkg/package.json': '{}',
       'tsconfig.base.json': '{}',
     })
-    const floor = floorOf(root, ['tsconfig*.json'])
+    const floor = floorOf(['tsconfig*.json'])
     const made = recordOf(
       root,
       {
@@ -312,9 +356,9 @@ describe('记录与跳过连起来', () => {
     )
     expect(made.env).toEqual(ENV)
     expect(made.files['pkg/tests/a.spec.ts']?.reads).toEqual(
-      expect.arrayContaining(['content:pkg/package.json', 'content:tsconfig.base.json']),
+      expect.arrayContaining(['content:pkg/package.json', 'glob:tsconfig*.json']),
     )
-    expect(made.tree['content:tsconfig.base.json']).toBeDefined()
+    expect(made.tree['glob:tsconfig*.json']).toBeDefined()
     expect(made.files['pkg/tests/a.spec.ts']?.cached).toBeDefined()
     expect(made.files['pkg/tests/b.spec.ts']?.cached).toBeUndefined()
     expect(made.files['pkg/tests/a.spec.ts']?.incomplete).toEqual([CHANGED_DURING_RUN])
@@ -327,7 +371,7 @@ describe('记录与跳过连起来', () => {
       'pkg/package.json': '{}',
     })
     const home = join(root, 'home')
-    const floor = floorOf(root, [])
+    const floor = floorOf([])
     const record = (runDir: string, plan = new Map<string, Map<string, never>>()) =>
       recordReadSets({
         root,
@@ -361,14 +405,66 @@ describe('记录与跳过连起来', () => {
     expect(second.get('pkg')?.get('pkg/tests/a.spec.ts')?.from.head).toBe('h1')
 
     record(run(root, 'run2', []), second as never)
-    expect(
-      readRecord(recordPath(home, 'pkg', 'fast'))?.files['pkg/tests/a.spec.ts']?.cached,
-    ).toBeDefined()
+    const carried = readRecord(recordPath(home, 'pkg', 'fast'))
+    expect(carried?.files['pkg/tests/a.spec.ts']?.cached).toBeDefined()
+    expect(carried?.tree['content:pkg/tests/a.spec.ts'], '带进来的条目连同它读到的摘要').toBe(
+      second.get('pkg')?.get('pkg/tests/a.spec.ts')?.tree['content:pkg/tests/a.spec.ts'],
+    )
     expect(readdirSync(historyDir(home, 'pkg', 'fast'))).toHaveLength(1)
     expect([...skippedOf(plan(), 'pkg')]).toEqual(['tests/a.spec.ts'])
 
     expect(plan({ VITEST_POOL: 'threads' }).size).toBe(0)
     writeFileSync(join(root, 'pkg/package.json'), '{"exports":"./other.js"}')
     expect(plan().size).toBe(0)
+  })
+
+  it('全局路径里带通配的模式：改了匹配到的文件、新建了匹配的文件都不跳过；不相干的新文件照样跳过', () => {
+    const root = checkout({
+      '.gitignore': 'home/\nrun*/\n',
+      'pkg/tests/a.spec.ts': 'a',
+      'pkg/src/a.ts': 'src',
+      'pkg/package.json': '{}',
+      'turbo.json': '{}',
+    })
+    execFileSync('git', ['init', '-q'], { cwd: root, env: repositoryEnv(process.env) })
+    const home = join(root, 'home')
+    const floor = floorOf(['**/turbo.json'])
+    recordReadSets({
+      root,
+      home,
+      runDir: run(root, 'run1', ['pkg/tests/a.spec.ts']),
+      tier: 'fast',
+      head: 'h1',
+      recordedAt: '2026-11-17T01:00:00.000Z',
+      members: [{ path: 'pkg', slug: 'pkg' }],
+      extras: () => ({
+        floor: reads => floorReads(reads, ['pkg'], floor),
+        cached: cachedResults(root, join(root, 'run1'), 'pkg'),
+        env: ENV,
+      }),
+    })
+    const skipped = () => [
+      ...skippedOf(
+        planReuse({
+          home,
+          tier: 'fast',
+          members: ['pkg'],
+          slug: member => member,
+          env: ENV,
+          digest: digests(root),
+        }),
+        'pkg',
+      ),
+    ]
+    expect(skipped()).toEqual(['tests/a.spec.ts'])
+    writeFileSync(join(root, 'turbo.json'), '{"tasks":{}}')
+    expect(skipped()).toEqual([])
+    writeFileSync(join(root, 'turbo.json'), '{}')
+    expect(skipped()).toEqual(['tests/a.spec.ts'])
+    writeFileSync(join(root, 'pkg/turbo.json'), '{}')
+    expect(skipped()).toEqual([])
+    rmSync(join(root, 'pkg/turbo.json'))
+    writeFileSync(join(root, 'pkg/notes.md'), '')
+    expect(skipped()).toEqual(['tests/a.spec.ts'])
   })
 })

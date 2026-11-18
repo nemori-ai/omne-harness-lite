@@ -1,3 +1,4 @@
+import { refusal, type BodyContract, type CategoryContribution } from '@omne-harness/assets'
 import { calendarEnvironmentSettings } from '@omne-harness/calendar-local'
 import { scheduleAgentAuthoringSettings } from '@omne-harness/schedule-local'
 import { canonicalText } from '@omne-harness/authorization'
@@ -38,6 +39,22 @@ export function preferenceOf(target: SettingsTarget): SettingDefinitions | undef
     definition =>
       canonicalText(preferenceTarget(definition, target.scopeRef)) === canonicalText(target),
   )
+}
+
+const preferenceContract: BodyContract = {
+  category: PREFERENCE_CATEGORY,
+  schema: { kind: 'null' },
+  judge: () => refusal('not-publishable'),
+  deriveDeclarations: () => ({ entries: [] }),
+  references: () => [],
+}
+
+export const preferenceCategory: CategoryContribution = {
+  contract: preferenceContract,
+  display: {
+    title: '偏好',
+    summary: '各领域声明的个人设置，每个租户一份；不是可以发布的资产。',
+  },
 }
 
 export function preferenceAssetOf(target: SettingsTarget): TenantSettingsAssetRef | undefined {

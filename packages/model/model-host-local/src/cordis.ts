@@ -62,3 +62,4 @@ export type {
   ModelSendStagePluginOptions,
   ModelSendStageSettings,
 } from './plugins/send-stage.ts'
+export { modelProviderCategoryPlugin } from './category.ts'

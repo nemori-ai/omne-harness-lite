@@ -39,7 +39,16 @@ describe('这一件活的预算', () => {
     })
     expect(budgetFor(POLICY, { OMNE_WORKER_BUDGET: '100000' }, 8).workers).toBe(8)
     expect(() => budgetFor(POLICY, { OMNE_WORKER_BUDGET: 'many' }, 8)).toThrow('OMNE_WORKER_BUDGET')
+    for (const bad of ['4x', 'x4', '0'])
+      expect(() => budgetFor(POLICY, { OMNE_WORKER_BUDGET: bad }, 8), bad).toThrow(
+        'OMNE_WORKER_BUDGET',
+      )
     expect(budgetFor(POLICY, {}, 8)).toEqual({ workers: 6, cores: 8, source: 'capacity' })
+    expect(budgetFor(POLICY, { OMNE_WORKER_BUDGET: '' }, 8), '设成空串等于没设').toEqual({
+      workers: 6,
+      cores: 8,
+      source: 'capacity',
+    })
   })
 })
 
@@ -66,6 +75,10 @@ describe('一个成员一层要多少令牌', () => {
     expect(
       processWeight(POLICY, 'packages/x', 'fast', [reading(4, 2), reading(70, 100)]).tokens,
     ).toBe(0.7)
+    expect(
+      processWeight(POLICY, 'packages/x', 'fast', [reading(15, 5), reading(70, 100)]).tokens,
+      '进程秒恰好等于下限的算读数',
+    ).toBe(3)
   })
 
   it('每个进程的令牌数：没有读数时取配置的起始值，再没有就是 1', () => {
@@ -75,6 +88,10 @@ describe('一个成员一层要多少令牌', () => {
       source: 'seed',
     })
     expect(processWeight(POLICY, 'apps/server', 'fast', [])).toEqual({
+      tokens: 1,
+      source: 'default',
+    })
+    expect(processWeight(POLICY, 'apps/other', 'slow', []), '起始值按成员认').toEqual({
       tokens: 1,
       source: 'default',
     })

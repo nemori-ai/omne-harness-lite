@@ -7,7 +7,7 @@ it('exports the registry, identity, and pin operations', () => {
     'MAX_ASSET_PAGE',
     'capabilityId',
     'collectCandidates',
-    'createCategoryRegistry',
+    'createCategoryPoint',
     'decideAssetHoldingChange',
     'digestBytes',
     'evaluate',

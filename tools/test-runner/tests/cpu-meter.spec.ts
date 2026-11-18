@@ -21,8 +21,8 @@ function scratch(): string {
   return dir
 }
 
-const BURN = (ms: number, exit: number) =>
-  `const t = Date.now(); while (Date.now() - t < ${ms}) {} process.exit(${exit})`
+const BURN = (cpuMs: number, exit: number) =>
+  `const s = process.cpuUsage(); const used = () => { const u = process.cpuUsage(s); return u.user + u.system }; while (used() < ${cpuMs * 1000}) {} process.exit(${exit})`
 
 describe('计 CPU 的启动器', () => {
   it.skipIf(!cpuMeterAvailable())(

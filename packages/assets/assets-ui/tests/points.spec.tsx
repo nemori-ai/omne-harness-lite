@@ -9,7 +9,7 @@ import {
   ASSETS_HOLDING,
   assetsCategory,
   assetsHolding,
-  createAssetsUiModule,
+  assetsUiModule,
 } from '../src/cordis.tsx'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient } from './fixtures/fake-client.ts'
@@ -35,7 +35,7 @@ async function shown(items: readonly SettingView[], contribute: (ctx: Context) =
   const { root, shell } = await startShell()
   const fake = createFakeClient()
   root.reflect.provide(SERVICE, fake.client)
-  await root.plugin(createAssetsUiModule({ categoryLabels: { tool: '工具', model: '模型' } }))
+  await root.plugin(assetsUiModule)
   await root.plugin({ name: 'contributor', inject: ['shell'], apply: contribute })
   shell.tenant = TENANT
   const page = shell.items('pages')[0]!
@@ -43,6 +43,16 @@ async function shown(items: readonly SettingView[], contribute: (ctx: Context) =
   ;(await fake.next('list-settings')).answer({
     outcome: 'succeeded',
     body: { items, next: null, completeness: 'complete' },
+  })
+  ;(await fake.next('list-categories')).answer({
+    outcome: 'succeeded',
+    body: {
+      items: [
+        { category: 'model', title: '模型', summary: '模型。' },
+        { category: 'tool', title: '工具', summary: '工具。' },
+      ],
+      next: null,
+    },
   })
   await settle()
   return shell
@@ -127,7 +137,7 @@ it('对象编成文本再解回来不走样：名字里带冒号与数字也一�
   const tricky = secretView({ asset: { category: '12:ab', name: ':7:x' } })
   const { root, shell } = await startShell()
   root.reflect.provide(SERVICE, createFakeClient().client)
-  await root.plugin(createAssetsUiModule())
+  await root.plugin(assetsUiModule)
   const received: unknown[] = []
   await root.plugin({
     name: 'contributor',

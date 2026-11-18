@@ -8,6 +8,7 @@ import { useEffect, type ReactNode } from 'react'
 import { AssetsPage, createGovernance, type GovernanceModel } from '../src/index.ts'
 import { stubAnimation } from './fixtures/dom-stubs.ts'
 import { createFakeClient, type FakeClient } from './fixtures/fake-client.ts'
+import { namesOf } from './fixtures/names.ts'
 import { permissionView } from './fixtures/views.ts'
 
 const TENANT =
@@ -63,12 +64,12 @@ async function opened(
   mounted.length = 0
   const fake = createFakeClient()
   const governance = createGovernance({ client: fake.client })
-  const labels = { tool: '工具' }
+  const names = namesOf({ tool: '工具' })
   const element = (shown: readonly AttachedEntry[]) => (
     <AssetsPage
       governance={governance}
       tenant={TENANT}
-      categoryLabels={labels}
+      categoryNames={names}
       pages={pagesOf(shown)}
     />
   )

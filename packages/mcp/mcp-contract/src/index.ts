@@ -47,6 +47,7 @@ export type {
   Untrusted,
 } from './values.ts'
 export {
+  mcpCategoryDisplay,
   mcpEndpointBodyContract,
   parseEndpointBody,
   type EndpointBodyRejection,

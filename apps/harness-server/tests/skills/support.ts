@@ -1,8 +1,8 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { capabilityId, createCategoryRegistry, type PackageReader } from '@omne-harness/assets'
+import { capabilityId, createCategoryPoint, type PackageReader } from '@omne-harness/assets'
 import { createAssetsLocal } from '@omne-harness/assets-local'
-import { skillBodyContract } from '@omne-harness/skill-contract'
+import { skillBodyContract, skillCategoryDisplay } from '@omne-harness/skill-contract'
 import type { PackageLocator } from '@omne-harness/skill-contract/provider'
 import { createDirectorySource } from '@omne-harness/skill-host-local'
 import type { DomainRef, SqlMaterialCatalog, SqlStorage } from '@omne-harness/sql-contract'
@@ -71,18 +71,22 @@ export type SkillPublisher = Readonly<{
   close(): Promise<void>
 }>
 
+export function skillCategories() {
+  const point = createCategoryPoint()
+  point.contribute({ contract: skillBodyContract(), display: skillCategoryDisplay })
+  return point
+}
+
 /** Publishes Skill directories into a tenant domain and holds them, the way the assets owner does. */
 export async function openSkillPublisher(place: PublishPlace): Promise<SkillPublisher> {
   const combination = governanceStorageCombinations(place.materials).assets
   const registered = await place.storage.registerCombination({ ...place.domain, ...combination })
   if (registered.kind !== 'registered') throw new Error(JSON.stringify(registered))
-  const categories = createCategoryRegistry()
-  categories.register(skillBodyContract())
   const assets = createAssetsLocal({
     ...combination,
     domain: place.domain,
     storage: place.storage,
-    categories,
+    categories: skillCategories(),
     packageRoot: domainRoot(place.packageRoot, place.domain),
   })
   const tenant = place.domain.scope.kind === 'tenant' ? place.domain.scope.tenant : 'system'

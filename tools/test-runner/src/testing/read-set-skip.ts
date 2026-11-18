@@ -38,8 +38,7 @@ export function floorReads(
   members: readonly string[],
   floor: Floor,
 ): string[] {
-  const keys = new Set(reads)
-  for (const path of floor.global) keys.add(`content:${path}`)
+  const keys = new Set([...reads, ...floor.global])
   const owners = new Set<string>()
   for (const key of reads) {
     const at = key.indexOf(':')
@@ -47,7 +46,7 @@ export function floorReads(
     const owner = ownerOf(key.slice(at + 1), members)
     if (owner !== undefined) owners.add(owner)
   }
-  for (const owner of owners) for (const path of floor.member(owner)) keys.add(`content:${path}`)
+  for (const owner of owners) for (const key of floor.member(owner)) keys.add(key)
   return [...keys].sort()
 }
 
@@ -124,32 +123,13 @@ export function archiveLatest(home: string, slug: string, tier: RunTier): void {
     rmSync(join(dir, name), { force: true })
 }
 
-function expand(root: string, pattern: string): string[] {
-  if (!pattern.includes('*')) return [pattern]
-  const slash = pattern.lastIndexOf('/')
-  const dir = slash < 0 ? '' : pattern.slice(0, slash)
-  const name = new RegExp(
-    `^${pattern
-      .slice(slash + 1)
-      .replace(/[.+?^${}()|[\]\\]/gu, '\\$&')
-      .replaceAll('*', '[^/]*')}$`,
-    'u',
-  )
-  if (dir.includes('*')) return []
-  try {
-    return readdirSync(join(root, dir))
-      .filter(entry => name.test(entry))
-      .map(entry => (dir === '' ? entry : `${dir}/${entry}`))
-      .sort()
-  } catch {
-    return []
-  }
-}
+const floorKey = (pattern: string) =>
+  pattern.includes('*') ? `glob:${pattern}` : `content:${pattern}`
 
-export function floorOf(root: string, globalPaths: readonly string[]): Floor {
+export function floorOf(globalPaths: readonly string[]): Floor {
   return {
-    global: [...new Set(globalPaths.flatMap(pattern => expand(root, pattern)))].sort(),
-    member: member => [`${member}/package.json`, ...expand(root, `${member}/tsconfig*.json`)],
+    global: [...new Set(globalPaths.map(floorKey))].sort(),
+    member: member => [`content:${member}/package.json`, `glob:${member}/tsconfig*.json`],
   }
 }
 

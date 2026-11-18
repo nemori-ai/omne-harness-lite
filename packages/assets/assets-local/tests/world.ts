@@ -4,7 +4,14 @@ import { mkdtempSync, mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import canonicalize from 'canonicalize'
-import { capabilityId, createCategoryRegistry, pinBody, readBodyText } from '@omne-harness/assets'
+import {
+  capabilityId,
+  createCategoryPoint,
+  pinBody,
+  readBodyText,
+  type CategoryContribution,
+  type CategoryView,
+} from '@omne-harness/assets'
 import { SettingDefinitionsSchema } from '@omne-harness/settings'
 import { settingsSqlMaterials, type SettingsProjectionBinding } from '@omne-harness/settings-local'
 import { SETTINGS_RECOVERY_PARTICIPANTS } from '@omne-harness/settings-local/preparation'
@@ -56,22 +63,26 @@ export function definition(version = '1', enabled = false) {
     ],
   })
 }
-export const categories = createCategoryRegistry()
-categories.register({
-  category: 'service',
-  schema: { kind: 'null' },
-  judge: () => ({ ok: true }),
-  deriveDeclarations: () => ({ entries: [] }),
-  references: () => [],
-  settings(body, context) {
-    const enabled =
-      body.kind === 'object' &&
-      body.entries.some(
-        entry => entry.key === 'enabled' && entry.value.kind === 'boolean' && entry.value.value,
-      )
-    return definition(context?.definition, enabled)
+export const service: CategoryContribution = {
+  display: { title: 'Service', summary: 'A category that exists only in these tests.' },
+  contract: {
+    category: 'service',
+    schema: { kind: 'null' },
+    judge: () => ({ ok: true }),
+    deriveDeclarations: () => ({ entries: [] }),
+    references: () => [],
+    settings(body, context) {
+      const enabled =
+        body.kind === 'object' &&
+        body.entries.some(
+          entry => entry.key === 'enabled' && entry.value.kind === 'boolean' && entry.value.value,
+        )
+      return definition(context?.definition, enabled)
+    },
   },
-})
+}
+export const categories = createCategoryPoint()
+categories.contribute(service)
 export function pinned(version = '1', enabled = false, name = 'example') {
   const id = capabilityId('service', name)
   const body = readBodyText(JSON.stringify({ enabled }), {
@@ -117,7 +128,7 @@ export const grants = [
 ]
 export async function openWorld(
   options: {
-    categories?: typeof categories
+    categories?: Pick<CategoryView, 'lookup'>
     config?: Partial<import('@omne-harness/sqlite-provider').SqliteStorageConfig>
     root?: string
     ownerWrap?: (storage: SqlStorage) => SqlStorage
@@ -199,7 +210,7 @@ export async function openWorld(
   }
   async function capture(
     overrides: Partial<SettingsProjectionBinding['request']> = {},
-    scope: { categories: readonly string[] } = { categories: ['service'] },
+    scope: { excluded: readonly string[] } = { excluded: [] },
   ) {
     const binding: SettingsProjectionBinding = {
       domain,

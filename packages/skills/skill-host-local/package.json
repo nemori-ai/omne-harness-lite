@@ -12,6 +12,11 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
     }
   },
   "files": [
@@ -26,11 +31,13 @@
   },
   "dependencies": {
     "@omne-harness/assets": "workspace:*",
+    "@omne-harness/assets-cordis-contract": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/skill-contract": "workspace:*"
   },
   "devDependencies": {
+    "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/assets-local": "workspace:*",
     "@omne-harness/skill": "workspace:*",
     "@omne-harness/settings-local": "workspace:*",

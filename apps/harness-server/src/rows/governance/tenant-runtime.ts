@@ -1,3 +1,4 @@
+import type { AssetsLocal } from '@omne-harness/assets-local'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import { createPermissionBasisRead, type PermissionOrigins } from './permission-basis-read.ts'
 import { GOVERNANCE_PROJECTION_READ } from './storage-materials.ts'
@@ -22,6 +23,7 @@ import type { SessionPermissionSettingsResolver } from './session-permission-set
 import { governanceStorageCombinations } from './storage-combinations.ts'
 import { createGovernanceAdoptionProjection } from './adoption-current.ts'
 import { governanceCatalogProjection } from './catalog-current.ts'
+import type { GovernedCapture } from './governed-capture.ts'
 import { createSessionPermissionBasisSource } from './session-permission-basis-source.ts'
 
 export type TenantGovernanceOptions = Omit<
@@ -35,6 +37,7 @@ export type TenantGovernanceOptions = Omit<
     permissionOrigins?: () => PermissionOrigins | undefined
     login?: () => SessionPermissionLogin | undefined
     settings?: SessionPermissionSettingsResolver
+    capture: GovernedCapture
   }>
 type Combinations = ReturnType<typeof governanceStorageCombinations>
 const unavailable = (phase: 'binding' | 'registration' | 'startup', reason: string) => ({
@@ -108,7 +111,7 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
       },
       current: {
         adoption: createGovernanceAdoptionProjection(options.domain.transactionDomain),
-        catalog: governanceCatalogProjection,
+        catalog: governanceCatalogProjection(options.capture),
       },
     })
     if (runtime.kind !== 'created') return unavailable(phase, `${runtime.owner} ${runtime.kind}`)
@@ -170,10 +173,13 @@ export type TenantSettingsAccess = Readonly<{
   writer: TenantSettingsWriter
 }>
 
+export type TenantAssetsAccess = Pick<AssetsLocal, 'readHolding'>
+
 /** Publish the durable settlement routes before open() can begin historical recovery. */
 export type TenantGovernanceAssembly = Readonly<{
   destination: StandingDestinationResolver
   settings?: TenantSettingsAccess
+  assets?: TenantAssetsAccess
   open(): Promise<
     | Awaited<ReturnType<typeof open>>
     | Readonly<{
