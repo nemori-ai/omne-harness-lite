@@ -144,6 +144,53 @@ describe.skipIf(process.platform === 'win32')('scripts/turbo-exact.mjs', () => {
     expect(f.has(`${MEMBER}/dist/stale.js`)).toBe(false)
   })
 
+  it('`prune` makes the outputs exact from a summary the caller already holds: turbo is not started and the summary stays', () => {
+    const kept = [`${MEMBER}/dist/index.js`]
+    const stale = [`${MEMBER}/dist/cordis.js`, `${MEMBER}/dist/old/environment.js`]
+    const f = fixture([built('HIT', kept)], [...kept, ...stale])
+    const ran = f.run('prune', f.summary)
+    expect(ran.status, ran.stderr).toBe(0)
+    expect(f.turboArgs()).toBe('')
+    for (const file of kept) expect(f.has(file), file).toBe(true)
+    for (const file of stale) expect(f.has(file), file).toBe(false)
+    for (const file of stale) expect(ran.stderr).toContain(file)
+    expect(existsSync(f.summary)).toBe(true)
+  })
+
+  it('`prune --root` works on the tree turbo ran in, not on the tree the script lives in', () => {
+    const files = [`${MEMBER}/dist/index.js`, `${MEMBER}/dist/stale.js`]
+    const f = fixture([built('HIT', [`${MEMBER}/dist/index.js`])], files)
+    const other = join(dirname(f.summary), 'elsewhere')
+    for (const file of files) {
+      mkdirSync(dirname(join(other, file)), { recursive: true })
+      writeFileSync(join(other, file), file)
+    }
+    expect(f.run('prune', f.summary, '--root', other).status).toBe(0)
+    for (const file of files) expect(f.has(file), file).toBe(true)
+    expect(existsSync(join(other, `${MEMBER}/dist/index.js`))).toBe(true)
+    expect(existsSync(join(other, `${MEMBER}/dist/stale.js`))).toBe(false)
+  })
+
+  it('`prune` of a hit that cannot be judged fails and removes nothing', () => {
+    const files = [`${MEMBER}/dist/index.js`, `${MEMBER}/dist/other.js`]
+    const f = fixture([built('HIT', [])], files)
+    const ran = f.run('prune', f.summary)
+    expect(ran.status).toBe(2)
+    expect(ran.stderr).toContain('不清空它')
+    for (const file of files) expect(f.has(file), file).toBe(true)
+  })
+
+  it.each([
+    [['prune']],
+    [['prune', 'summary.json', '--root']],
+    [['prune', 'summary.json', '--other', 'x']],
+  ])('%j is a usage error', args => {
+    const f = fixture([], [])
+    const ran = f.run(...args)
+    expect(ran.status).toBe(2)
+    expect(ran.stderr).toContain('用法')
+  })
+
   it('anything but `run <task>` is a usage error and turbo is not started', () => {
     const f = fixture([], [])
     const ran = f.run('ls')

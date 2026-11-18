@@ -130,6 +130,29 @@ describe('the wake-up after a reply', () => {
     expect(absent.mock.calls[0]?.[0]).toContain('no Tool instance host')
   })
 
+  it('says so when the host answers that it cannot take the call, with the reason the host gave', async () => {
+    const { app } = application()
+    const refusing = () =>
+      ({
+        schedule: async () => ({
+          failure: {
+            kind: 'unavailable',
+            owner: 'tool-instance-host',
+            diagnostic: 'The Tool instance host queue is full.',
+          },
+        }),
+      }) as never
+    const warn = vi.fn()
+    expect(
+      await withDecided(app, wakeOnDecision(refusing, warn)).submitReply(access, command),
+    ).toEqual({ kind: 'decided' })
+    await settle()
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0]?.[0]).toContain('scheduling the call')
+    expect(warn.mock.calls[0]?.[0]).toContain('unavailable')
+    expect(warn.mock.calls[0]?.[0]).toContain('queue is full')
+  })
+
   it('a wake-up hook that throws does not change the answer of the reply', async () => {
     const { app } = application()
     const wrapped = withDecided(app, () => {

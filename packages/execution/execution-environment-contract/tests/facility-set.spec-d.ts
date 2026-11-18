@@ -10,7 +10,7 @@ import type {
   FileSystemFacility,
   ResourceLedger,
   RetainedProcessLedger,
-  SessionTerminalRetention,
+  ScopeTerminalRetention,
   TerminalFacility,
   TerminalRetentionOperation,
 } from '@omne-harness/execution-environment-contract'
@@ -45,7 +45,7 @@ it('keeps the command operation list and accepts commands without the retained-p
   expectTypeOf<RetainedProcessLedger>().toExtend<
     Pick<ResourceLedger, 'closed' | 'plan' | 'adopt' | 'stopped'>
   >()
-  expectTypeOf<SessionTerminalRetention>().toExtend<{
+  expectTypeOf<ScopeTerminalRetention>().toExtend<{
     readonly processes?: RetainedProcessLedger
   }>()
 })

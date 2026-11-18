@@ -27,7 +27,7 @@ import type {
   ManagedResource,
   RecoveryAccess,
   ResourceLedger,
-  SessionTerminalRetention,
+  ScopeTerminalRetention,
 } from './ports.ts'
 import type { EnvironmentRequirement, IsolationClaim } from './requirement.ts'
 
@@ -50,7 +50,7 @@ export type ProviderAcquireInput = Readonly<{
   placement: Placement
   tenant: TenantId
   ledger: ResourceLedger
-  retention?: SessionTerminalRetention & { readonly released: AbortSignal }
+  retention?: ScopeTerminalRetention & { readonly released: AbortSignal }
 }>
 
 export type ProviderAcquisition =
@@ -191,7 +191,7 @@ export type AcquireInput<P> = Readonly<{
   placement: Placement
   ledger: ResourceLedger
   guard: FacilityGuard<P>
-  retention?: SessionTerminalRetention
+  retention?: ScopeTerminalRetention
 }>
 
 export type EnvironmentAction =

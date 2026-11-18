@@ -31,9 +31,9 @@ function builtInFixture() {
   const double = createMemoryToolResidencyReader({ pageSize: 2 })
   const at = key('read_file')
   const holders = [
-    { tenant: tenantA(), session: 'session-1', shape: shape('read_file') },
-    { tenant: tenantB(), session: 'session-1', shape: shape('read_file') },
-    { tenant: tenantA(), session: 'session-2', shape: shape('read_file') },
+    { tenant: tenantA(), holder: 'session-1', shape: shape('read_file') },
+    { tenant: tenantB(), holder: 'session-1', shape: shape('read_file') },
+    { tenant: tenantA(), holder: 'session-2', shape: shape('read_file') },
   ]
   double.set(at, holders)
   return {
@@ -41,7 +41,7 @@ function builtInFixture() {
     fixture: {
       reader: double.reader,
       key: at,
-      references: holders.map(({ tenant, session, shape }) => ({ holder: session, tenant, shape })),
+      references: holders.map(({ tenant, holder, shape }) => ({ holder, tenant, shape })),
       interrupt: () => double.interrupt(),
     },
   }
@@ -55,7 +55,7 @@ describe('createMemoryToolResidencyReader with the built-in source', () => {
 
   it('answers unavailable for a cursor of another key and for a forged cursor', async () => {
     const { double, fixture } = builtInFixture()
-    double.set(key('other'), [{ tenant: tenantA(), session: 's', shape: shape('other') }])
+    double.set(key('other'), [{ tenant: tenantA(), holder: 's', shape: shape('other') }])
     const first = await fixture.reader.referencing({
       scope: 'system',
       key: fixture.key,
@@ -119,7 +119,7 @@ describe('createMemoryToolResidencyReader with the built-in source', () => {
     const double = createMemoryToolResidencyReader()
     expect(() =>
       double.set(key('bad'), [
-        { tenant: tenantA(), session: 's', shape: { ...shape('bad'), name: '' } },
+        { tenant: tenantA(), holder: 's', shape: { ...shape('bad'), name: '' } },
       ]),
     ).toThrow(TypeError)
   })
@@ -130,14 +130,14 @@ describe('createMemoryToolResidencyReader with the built-in source', () => {
 })
 
 function sessionLike() {
-  const records = new Map<string, ResidentReferencesPage['sessions'][number][]>()
+  const records = new Map<string, ResidentReferencesPage['references'][number][]>()
   let failure: string | null = null
   const read: ResidentReferencesRead = async ({ key: text, after, limit }) => {
     if (failure !== null) return fail({ kind: failure })
     const all = records.get(text) ?? []
     const offset = after === null ? 0 : Number(after)
     const next = offset + limit < all.length ? String(offset + limit) : null
-    return succeed({ sessions: all.slice(offset, offset + limit), next })
+    return succeed({ references: all.slice(offset, offset + limit), next })
   }
   return {
     read,
@@ -145,7 +145,7 @@ function sessionLike() {
     fail: (kind: string) => {
       failure = kind
     },
-    add(text: string, record: ResidentReferencesPage['sessions'][number]) {
+    add(text: string, record: ResidentReferencesPage['references'][number]) {
       records.set(text, [...(records.get(text) ?? []), record])
     },
   }
@@ -158,13 +158,13 @@ describe('createMemoryToolResidencyReader with an outer source', () => {
     if ('failure' in facts) throw new Error('facts')
     source.add(facts.ok.key, {
       tenant: tenantA(),
-      session: 's1',
+      holder: 's1',
       capability: 'read_file',
       shape: facts.ok.shape,
     })
     source.add(facts.ok.key, {
       tenant: tenantB(),
-      session: 's2',
+      holder: 's2',
       capability: 'read_file',
       shape: { kind: 'string', value: 'not a shape' },
     })
@@ -172,7 +172,7 @@ describe('createMemoryToolResidencyReader with an outer source', () => {
     expect(
       await double.reader.referencing({ scope: 'system', key: key('read_file'), after: null }),
     ).toEqual({
-      failure: { kind: 'unavailable', diagnostic: 'shape: sessions[1].shape type' },
+      failure: { kind: 'unavailable', diagnostic: 'shape: references[1].shape type' },
     })
   })
 
@@ -198,7 +198,7 @@ describe('createMemoryToolResidencyReader with an outer source', () => {
       pageSize: 7,
       source: async ({ limit }) => {
         limits.push(limit)
-        return succeed({ sessions: [], next: null })
+        return succeed({ references: [], next: null })
       },
     })
     await double.reader.referencing({ scope: 'system', key: key('x'), after: null })
@@ -214,10 +214,10 @@ function roundTripFixture(): ResidentKeyRoundTripFixture {
     tenant: TenantId,
     text: string,
     capability: string,
-    stored: ResidentReferencesPage['sessions'][number]['shape'],
+    stored: ResidentReferencesPage['references'][number]['shape'],
   ) => {
     sessions += 1
-    source.add(text, { tenant, session: `session-${sessions}`, capability, shape: stored })
+    source.add(text, { tenant, holder: `session-${sessions}`, capability, shape: stored })
   }
   return {
     reader: createMemoryToolResidencyReader({ source: source.read }).reader,
@@ -244,14 +244,14 @@ describe('residentKeyRoundTripConformance', () => {
     const double = createMemoryToolResidencyReader()
     const written = new Map<
       string,
-      { key: ToolBindingKey; holders: { tenant: TenantId; session: string; shape: ToolShape }[] }
+      { key: ToolBindingKey; holders: { tenant: TenantId; holder: string; shape: ToolShape }[] }
     >()
     const fixture: ResidentKeyRoundTripFixture = {
       reader: double.reader,
       async write({ tenant, key: at, shape: first }) {
         const id = JSON.stringify(at.asset.adoption) + at.layer.kind
         const entry = written.get(id) ?? { key: at, holders: [] }
-        entry.holders.push({ tenant, session: `s${entry.holders.length}`, shape: first })
+        entry.holders.push({ tenant, holder: `s${entry.holders.length}`, shape: first })
         written.set(id, entry)
         double.set(at, entry.holders)
       },

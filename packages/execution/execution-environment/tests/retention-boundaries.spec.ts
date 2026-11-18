@@ -135,7 +135,7 @@ it('does not cache attach authorization and still lets the owner release after a
   const terminal = acquired.lease.facility('terminal')
   if (!terminal) throw new Error('expected terminal')
   const request = { access: accessA, binding: host, origin: originRef('call-1'), requestId: 'a' }
-  const created = await terminal.create({ ...request, cwd: '/', env: {}, retain: 'session' })
+  const created = await terminal.create({ ...request, cwd: '/', env: {}, retain: 'scope' })
   if (created.kind !== 'done') throw new Error('expected terminal creation')
   const retention = terminal.retention
   if (retention === undefined) throw new Error('expected retention support')
@@ -202,7 +202,7 @@ it('rejects retained requests without a configured retention or without provider
       origin: originRef('call-1'),
       requestId: 'legacy',
     }
-    expect(await terminal.create({ ...request, cwd: '/', env: {}, retain: 'session' })).toEqual({
+    expect(await terminal.create({ ...request, cwd: '/', env: {}, retain: 'scope' })).toEqual({
       kind: 'rejected',
       requestId: request.requestId,
       reason: 'unsupported',

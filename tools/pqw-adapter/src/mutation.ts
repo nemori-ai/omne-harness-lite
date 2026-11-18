@@ -1,6 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { FAST_VITEST_CONFIG, STRYKER_MODULES, pqwScripts, slugOf } from './locations.ts'
+import {
+  EXACT_BUILD,
+  FAST_VITEST_CONFIG,
+  STRYKER_MODULES,
+  pqwScripts,
+  slugOf,
+} from './locations.ts'
 import type { ChangedMember } from './members.ts'
 import type { Options } from './options.ts'
 import type { Executor, Outcome } from './process.ts'
@@ -55,14 +61,7 @@ export function mutationArgs(call: MutationCall): string[] {
 }
 
 export function upstreamBuildArgs(names: readonly string[]): string[] {
-  return [
-    'exec',
-    'turbo',
-    'run',
-    'build',
-    '--output-logs=errors-only',
-    ...names.map(name => `--filter=${name}^...`),
-  ]
+  return [...EXACT_BUILD, '--output-logs=errors-only', ...names.map(name => `--filter=${name}^...`)]
 }
 
 export function rangeLines(mutate: readonly string[], lineCount: (path: string) => number): number {
