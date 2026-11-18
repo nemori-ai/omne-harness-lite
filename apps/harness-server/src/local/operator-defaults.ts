@@ -69,7 +69,9 @@ export const LOCAL_TOKENIZERS = {
 } as const
 
 const PREPARATION = {
-  maxCitedCalls: 8,
+  // A reply that carries reasoning state cites the call that produced it, and a request cites
+  // every such reply it carries; the bound guards one preparation against an unbounded read.
+  maxCitedCalls: 1_024,
   openai: {
     limits: {
       toolArguments: {

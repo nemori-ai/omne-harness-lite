@@ -86,7 +86,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     updatedAt: '2026-11-02T00:00:00Z',
   }
   const preparation = {
-    maxCitedCalls: 8,
+    maxCitedCalls: 1_024,
     openai: {
       limits: {
         toolArguments: {
