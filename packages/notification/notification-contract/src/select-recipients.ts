@@ -29,6 +29,9 @@ function mostSpecific(
   return best
 }
 
+/** The parts of an event, or of a standing item, that decide who it is for. */
+export type Addressing = Pick<EventFacts, 'subject' | 'named' | 'origin'>
+
 function causeOf(named: boolean, subscription: Subscription | null): Cause {
   if (named) return { kind: 'named' }
   if (subscription === null) return { kind: 'type-default' }
@@ -38,8 +41,8 @@ function causeOf(named: boolean, subscription: Subscription | null): Cause {
 /** One recipient's answer: selected with a level and a cause, or not selected. */
 function selectOne(
   recipient: RecipientRef,
-  event: EventFacts,
-  declared: EventTypeFacts,
+  event: Addressing,
+  declared: Pick<EventTypeFacts, 'defaults'>,
   subscriptions: readonly Subscription[],
   now: Instant,
 ): Selected | null {
@@ -58,8 +61,8 @@ function selectOne(
 
 /** Who gets this event, how urgent, and why. The recipient that emitted it is never selected. */
 export function selectRecipients(
-  event: EventFacts,
-  declared: EventTypeFacts,
+  event: Addressing,
+  declared: Pick<EventTypeFacts, 'defaults'>,
   recipients: readonly RecipientRef[],
   subscriptions: readonly Subscription[],
   now: Instant,

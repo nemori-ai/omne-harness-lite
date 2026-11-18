@@ -10,8 +10,14 @@ import {
   type SendRequest,
 } from '@omne-harness/notification-contract'
 import type { NotificationTxn } from '../txn.ts'
+import { ensureRecipient, type RecipientDefaults } from './destinations.ts'
 
-export type AcceptCommand = Readonly<{ request: SendRequest; type: EventTypeFacts; now: Instant }>
+export type AcceptCommand = Readonly<{
+  request: SendRequest
+  type: EventTypeFacts
+  defaults: RecipientDefaults
+  now: Instant
+}>
 
 export type AcceptResult =
   | Readonly<{ kind: 'accepted'; recipients: readonly RecipientRef[] }>
@@ -50,7 +56,7 @@ export function acceptSend(txn: NotificationTxn, command: AcceptCommand): Accept
     return sameSend(known.event, event)
       ? { kind: 'recalled', recipients: known.recipients }
       : { kind: 'conflict' }
-  for (const named of event.named) txn.ensureRecipient(named)
+  for (const named of event.named) ensureRecipient(txn, named, command.defaults)
   const subscriptions = txn.subscriptionsFor(identity.source, event.type)
   const selected = selectRecipients(
     event,
@@ -60,10 +66,12 @@ export function acceptSend(txn: NotificationTxn, command: AcceptCommand): Accept
     command.now,
   )
   for (const entry of selected) {
+    ensureRecipient(txn, entry.recipient, command.defaults)
     box(txn, command, entry)
     if (entry.hit?.term.kind === 'once') txn.expireSubscription(entry.hit)
   }
   const recipients = selected.map(entry => entry.recipient)
-  txn.insertSend({ identity, event, acceptedAt: command.now, recipients })
+  const { external } = command.type
+  txn.insertSend({ identity, event, external, acceptedAt: command.now, recipients })
   return { kind: 'accepted', recipients }
 }

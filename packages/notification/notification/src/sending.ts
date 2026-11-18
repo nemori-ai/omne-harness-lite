@@ -22,6 +22,7 @@ import {
 import { ask, type Clock, type NotificationAuthority } from './ports.ts'
 import type { NotificationSources } from './registries.ts'
 import type { NotificationStore } from './store.ts'
+import type { RecipientDefaults } from './transactions/destinations.ts'
 
 export type SendingDependencies = Readonly<{
   authority: NotificationAuthority
@@ -29,6 +30,7 @@ export type SendingDependencies = Readonly<{
   sources: NotificationSources
   clock: Clock
   limits: SendLimits
+  defaults: RecipientDefaults
   /** Called after a send was accepted. Only a wake-up: the store holds what is to be done. */
   accepted?: (tenant: TenantId) => void
 }>
@@ -107,7 +109,8 @@ export function createSending(deps: SendingDependencies): NotificationSending {
     type: EventTypeFacts,
   ): Promise<SendOutcome> {
     const { identity } = request
-    const answer = await deps.store.accept(ctx.tenant, { request, type, now: deps.clock.now() })
+    const command = { request, type, defaults: deps.defaults, now: deps.clock.now() }
+    const answer = await deps.store.accept(ctx.tenant, command)
     if (answer.kind === 'rolled-back') return UNAVAILABLE
     if (answer.kind === 'unknown') return { kind: 'unknown' }
     if (answer.value.kind === 'conflict') return { kind: 'refused', reason: 'conflict' }
@@ -129,7 +132,8 @@ export function createSending(deps: SendingDependencies): NotificationSending {
       return { kind: 'done', recalled: true, value }
     }
     if (decision.kind !== 'proceed') return decision
-    return commit(ctx, request, { defaults: decision.declared.defaults })
+    const { defaults, external } = decision.declared
+    return commit(ctx, request, { defaults, external })
   }
 
   return {

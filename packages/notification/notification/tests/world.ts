@@ -1,4 +1,5 @@
 import {
+  channelNameSchema,
   eventTypeNameSchema,
   sourceNameSchema,
   type EventTypeDeclaration,
@@ -8,17 +9,24 @@ import {
   type TenantId,
 } from '@omne-harness/notification-contract'
 import {
+  createChannelRegistry,
+  createDelivery,
+  createDestinations,
   createInbox,
   createSending,
   createSourceRegistry,
   createSubscriptions,
+  type RecipientDefaults,
 } from '@omne-harness/notification'
 import {
   context,
   createMemoryStore,
   fakeAuthority,
+  fakeChannel,
   fakeClock,
   fakeConsent,
+  fakeHints,
+  fakeStanding,
 } from '@omne-harness/notification/testing'
 
 export const person: RecipientRef = { kind: 'person' }
@@ -68,7 +76,14 @@ export function request(
   }
 }
 
+export const defaults: RecipientDefaults = {
+  person: { channel: channelNameSchema.parse('in-app'), minLevel: 'weak' },
+  agent: { channel: channelNameSchema.parse('session'), minLevel: 'weak' },
+}
+export const MINUTE = 60_000
+
 export function world(...types: EventTypeDeclaration[]) {
+  const ctx = context()
   const store = createMemoryStore()
   const authority = fakeAuthority()
   const clock = fakeClock()
@@ -81,6 +96,7 @@ export function world(...types: EventTypeDeclaration[]) {
     sources,
     clock,
     limits: { bodyLength: 1000, causalDepth: 3 },
+    defaults,
     accepted: tenant => wakes.push(tenant),
   })
   const inbox = createInbox({ authority, store, clock, pageLimit: 50 })
@@ -91,9 +107,34 @@ export function world(...types: EventTypeDeclaration[]) {
     sources,
     consent,
     clock,
+    defaults,
     beatRange: { min: 5, max: 1440 },
   })
-  const ctx = context()
+  const channels = createChannelRegistry()
+  const inApp = fakeChannel('in-app')
+  const session = fakeChannel('session', { defaultMinIntervalMs: 10 * MINUTE })
+  const removeInApp = channels.register(inApp)
+  channels.register(session)
+  const destinations = createDestinations({ authority, store, channels, defaults })
+  const standing = fakeStanding()
+  const hints = fakeHints()
+  const delivery = createDelivery({
+    store,
+    channels,
+    sources,
+    authority,
+    standing,
+    clock,
+    hints,
+    defaults,
+    config: {
+      listLimit: 3,
+      retry: { maxAttempts: 3, backoffMs: [MINUTE] },
+      deliverTimeoutMs: 20,
+      defaultBeatMinutes: 30,
+    },
+  })
+  const advance = () => delivery.advance(ctx.tenant)
   const ref = (eventId: string, recipient: RecipientRef = person) => ({
     recipient,
     identity: { tenant: ctx.tenant, source, eventId },
@@ -115,6 +156,15 @@ export function world(...types: EventTypeDeclaration[]) {
     inbox,
     consent,
     subscriptions,
+    channels,
+    inApp,
+    session,
+    removeInApp,
+    destinations,
+    standing,
+    hints,
+    delivery,
+    advance,
     ctx,
     as,
     ref,

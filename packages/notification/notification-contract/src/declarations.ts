@@ -1,3 +1,4 @@
+import type { DeliveryResult, DeliveryUnit } from './delivery-model.ts'
 import type {
   ChannelName,
   EventTypeName,
@@ -56,6 +57,7 @@ export function subjectAccepted(rule: SubjectRule, subject: string | null): bool
 /** The part of a declaration that crosses into a storage transaction: data only. */
 export type EventTypeFacts = Readonly<{
   defaults: Readonly<Record<RecipientKind, Level>>
+  external: boolean
 }>
 
 export type ChannelAddressRule = Readonly<{
@@ -63,4 +65,22 @@ export type ChannelAddressRule = Readonly<{
   accepts: (address: string) => boolean
 }>
 
-export type { ChannelName, RecipientRef }
+export type ChannelDelivery = Readonly<{
+  recipient: RecipientRef
+  address: string
+  unit: DeliveryUnit
+}>
+
+export type ChannelContribution = Readonly<{
+  name: ChannelName
+  label: string
+  address: ChannelAddressRule
+  leavesSystem: boolean
+  defaultMinIntervalMs: number
+  /** Calling it again with the same `unit.id` must not produce a second effect. */
+  deliver(delivery: ChannelDelivery): Promise<DeliveryResult>
+}>
+
+export type ChannelLookup =
+  | Readonly<{ kind: 'registered'; channel: ChannelContribution }>
+  | Readonly<{ kind: 'absent' }>

@@ -1,6 +1,9 @@
 import {
   recipientKey,
   type Beat,
+  type BoxEntry,
+  type Destination,
+  type DestinationRef,
   type InboxPage,
   type InboxQuery,
   type Marks,
@@ -16,9 +19,16 @@ import {
 } from '@omne-harness/notification-contract'
 import type { NotificationStore, StoreAnswer, StoreRead } from '../store.ts'
 import { acceptSend } from '../transactions/accept.ts'
+import {
+  formBeatUnit,
+  formStrongUnit,
+  recordDelivery,
+  remindStanding,
+} from '../transactions/deliver.ts'
+import { writeDestination } from '../transactions/destinations.ts'
 import { markNotification } from '../transactions/mark.ts'
 import { writeBeat, writeSubscription } from '../transactions/subscribe.ts'
-import type { NotificationTxn, SendRecord } from '../txn.ts'
+import type { NotificationTxn, SendRecord, StoredUnit } from '../txn.ts'
 
 /** One tenant's facts. Plain data, so a transaction is a copy that replaces the original. */
 export type TenantFacts = {
@@ -27,6 +37,9 @@ export type TenantFacts = {
   recipients: Map<string, RecipientRef>
   subscriptions: Map<string, Subscription>
   beats: Map<string, Beat>
+  destinations: Map<string, Destination>
+  units: Map<string, StoredUnit>
+  reminders: Set<string>
   sequence: number
 }
 
@@ -36,6 +49,9 @@ const emptyFacts = (): TenantFacts => ({
   recipients: new Map([['person', { kind: 'person' }]]),
   subscriptions: new Map(),
   beats: new Map(),
+  destinations: new Map(),
+  units: new Map(),
+  reminders: new Set(),
   sequence: 0,
 })
 
@@ -44,6 +60,20 @@ const notificationKey = (recipient: RecipientRef, identity: SendIdentity) =>
   JSON.stringify([recipientKey(recipient), identity.source, identity.eventId])
 export const subscriptionKey = (key: SubscriptionKey) =>
   JSON.stringify([recipientKey(key.recipient), key.source, key.type, key.scope])
+
+const destinationKey = (ref: DestinationRef) =>
+  JSON.stringify([recipientKey(ref.recipient), ref.id])
+const reminderKey = (recipient: RecipientRef, item: string) =>
+  JSON.stringify([recipientKey(recipient), item])
+const unresolved = (marks: Marks) => marks.resolved === null && marks.supersededBy === null
+
+function boxEntry(facts: TenantFacts, record: NotificationRecord): BoxEntry {
+  const send = facts.sends.get(sendKey(record.identity.source, record.identity.eventId))!
+  const { type, content } = send.event
+  const { title, body, locator } = content
+  const { source } = record.identity
+  return { ...record, source, type, title, body, locator, external: send.external }
+}
 
 export function memoryTxn(facts: TenantFacts): NotificationTxn {
   const boxOf = (recipient: RecipientRef) =>
@@ -98,6 +128,36 @@ export function memoryTxn(facts: TenantFacts): NotificationTxn {
       boxOf(recipient).filter(
         record => record.identity.source === source && record.replaceKey === replaceKey,
       ),
+    currentSequence: () => facts.sequence,
+    pendingStrong: (recipient, after) =>
+      boxOf(recipient)
+        .filter(record => record.level === 'strong' && !record.quiet && record.sequence > after)
+        .filter(record => unresolved(record.marks))
+        .sort((a, b) => a.sequence - b.sequence)
+        .map(record => boxEntry(facts, record)),
+    unresolved: recipient =>
+      boxOf(recipient)
+        .filter(record => unresolved(record.marks))
+        .sort((a, b) => a.sequence - b.sequence)
+        .map(record => boxEntry(facts, record)),
+    destinations: recipient =>
+      [...facts.destinations.values()].filter(
+        destination => recipientKey(destination.recipient) === recipientKey(recipient),
+      ),
+    putDestination(destination) {
+      facts.destinations.set(destinationKey(destination), destination)
+    },
+    deleteDestination(ref) {
+      facts.destinations.delete(destinationKey(ref))
+    },
+    unit: id => facts.units.get(id) ?? null,
+    putUnit(unit) {
+      facts.units.set(unit.id, unit)
+    },
+    reminded: (recipient, item) => facts.reminders.has(reminderKey(recipient, item)),
+    insertReminder(recipient, item) {
+      facts.reminders.add(reminderKey(recipient, item))
+    },
   }
 }
 
@@ -113,6 +173,9 @@ export type MemoryStore = NotificationStore &
     /** Direct access for arranging a test. */
     facts(tenant: TenantId): TenantFacts
   }>
+
+const snapshot = (facts: TenantFacts) =>
+  JSON.stringify(Object.values(facts).map(part => (typeof part === 'number' ? part : [...part])))
 
 function summary(facts: TenantFacts, record: NotificationRecord): NotificationSummary {
   const send = facts.sends.get(sendKey(record.identity.source, record.identity.eventId))!
@@ -130,8 +193,6 @@ function summary(facts: TenantFacts, record: NotificationRecord): NotificationSu
     marks,
   }
 }
-
-const unresolved = (marks: Marks) => marks.resolved === null && marks.supersededBy === null
 
 /** A reference repository: each commit runs a script on a copy of the tenant's facts and replaces them on success. */
 export function createMemoryStore(): MemoryStore {
@@ -157,11 +218,10 @@ export function createMemoryStore(): MemoryStore {
     if (failure === 'rolled-back') return { kind: 'rolled-back' }
     if (failure === 'unknown-lost') return { kind: 'unknown' }
     const working = structuredClone(factsOf(tenant))
-    const before = JSON.stringify([...working.notifications, ...working.sends, working.sequence])
+    const before = snapshot(working)
     const value = script(memoryTxn(working))
     tenants.set(tenant, working)
-    if (JSON.stringify([...working.notifications, ...working.sends, working.sequence]) !== before)
-      commits += 1
+    if (snapshot(working) !== before) commits += 1
     return failure === 'unknown-applied' ? { kind: 'unknown' } : { kind: 'committed', value }
   }
 
@@ -193,6 +253,43 @@ export function createMemoryStore(): MemoryStore {
     subscriptions: async (tenant, recipient) =>
       read(tenant, facts => memoryTxn(facts).subscriptionsOf(recipient)),
     beat: async (tenant, recipient) => read(tenant, facts => memoryTxn(facts).beat(recipient)),
+    destination: (tenant, command) => commit(tenant, txn => writeDestination(txn, command)),
+    formStrong: (tenant, command) => commit(tenant, txn => formStrongUnit(txn, command)),
+    formBeat: (tenant, command) => commit(tenant, txn => formBeatUnit(txn, command)),
+    remind: (tenant, command) => commit(tenant, txn => remindStanding(txn, command)),
+    recordDelivery: (tenant, command) => commit(tenant, txn => recordDelivery(txn, command)),
+    destinations: async (tenant, recipient) =>
+      read(tenant, facts => memoryTxn(facts).destinations(recipient)),
+    delivery: async (tenant, now) =>
+      read(tenant, facts => ({
+        destinations: [...facts.destinations.values()],
+        beats: [...facts.recipients.values()].map(recipient => ({
+          recipient,
+          beat: memoryTxn(facts).beat(recipient),
+        })),
+        due: [...facts.units.values()].filter(
+          unit => unit.state === 'pending' && unit.dueAt <= now,
+        ),
+      })),
+    pendingStrong: async (tenant, ref) =>
+      read(tenant, facts => {
+        const txn = memoryTxn(facts)
+        const destination = txn.destinations(ref.recipient).find(entry => entry.id === ref.id)
+        return destination === undefined
+          ? []
+          : txn.pendingStrong(ref.recipient, destination.strongCursor)
+      }),
+    unresolved: async (tenant, recipient) =>
+      read(tenant, facts => memoryTxn(facts).unresolved(recipient)),
+    subscriptionsFor: async (tenant, source, type) =>
+      read(tenant, facts => memoryTxn(facts).subscriptionsFor(source, type)),
+    reminded: async (tenant, recipient) =>
+      read(tenant, facts =>
+        [...facts.reminders]
+          .map(key => JSON.parse(key) as [string, string])
+          .filter(([owner]) => owner === recipientKey(recipient))
+          .map(([, item]) => item),
+      ),
     send: async (tenant, identity) =>
       read(tenant, facts => {
         const record = facts.sends.get(sendKey(identity.source, identity.eventId))

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { SubscriptionChangeInput } from '@omne-harness/notification-contract'
 import { createSubscriptions } from '@omne-harness/notification'
 import { context } from '@omne-harness/notification/testing'
-import { agent, declared, person, request, world } from './world.ts'
+import { agent, declared, defaults, person, request, world } from './world.ts'
 
 const unavailable = { kind: 'basis-unavailable' }
 const refused = (reason: string) => ({ kind: 'refused', reason })
@@ -271,6 +271,7 @@ describe('what blocks a subscription', () => {
       sources: w.sources,
       consent: w.consent,
       clock: w.clock,
+      defaults,
       beatRange: { min: 5, max: 1440 },
     })
     expect(await late.set(w.ctx, change({ level: 'strong' }))).toEqual(unavailable)

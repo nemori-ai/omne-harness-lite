@@ -17,6 +17,7 @@ import type {
   sendRequestSchema,
 } from './values.ts'
 import type { MarkOperation } from './decide-mark.ts'
+import type { Destination, DestinationRef, MinLevel } from './delivery-model.ts'
 import type {
   Confirmation,
   SubscriptionChange,
@@ -132,4 +133,45 @@ export interface NotificationSubscriptions {
     recipient: RecipientRef,
     beat: Beat,
   ): Promise<Outcome<Beat, SubscriptionRefusal>>
+}
+
+export type DestinationState = 'enabled' | 'disabled' | 'channel-absent'
+
+export type DestinationView = Pick<
+  Destination,
+  'recipient' | 'id' | 'channel' | 'address' | 'minLevel' | 'builtin' | 'blocked'
+> &
+  Readonly<{ state: DestinationState }>
+
+export type DestinationRefusal =
+  | 'invalid-request'
+  | 'not-permitted'
+  | 'invalid-address'
+  | 'not-found'
+  | 'builtin'
+
+export type NewDestination = Readonly<{
+  recipient: RecipientRef
+  channel: string
+  address: string
+  minLevel: MinLevel
+}>
+
+export type DestinationPatch = Readonly<{ minLevel?: MinLevel; enabled?: boolean }>
+
+export interface NotificationDestinations {
+  add(
+    ctx: CallContext,
+    destination: NewDestination,
+  ): Promise<Outcome<DestinationView, DestinationRefusal>>
+  change(
+    ctx: CallContext,
+    ref: DestinationRef,
+    patch: DestinationPatch,
+  ): Promise<Outcome<DestinationView, DestinationRefusal>>
+  remove(ctx: CallContext, ref: DestinationRef): Promise<Outcome<null, DestinationRefusal>>
+  list(
+    ctx: CallContext,
+    recipient: RecipientRef,
+  ): Promise<Outcome<readonly DestinationView[], DestinationRefusal>>
 }

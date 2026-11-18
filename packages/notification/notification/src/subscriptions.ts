@@ -24,6 +24,7 @@ import {
 import { ask, type Clock, type ConsentModes, type NotificationAuthority } from './ports.ts'
 import type { NotificationSources } from './registries.ts'
 import type { NotificationStore } from './store.ts'
+import type { RecipientDefaults } from './transactions/destinations.ts'
 
 export type SubscriptionsDependencies = Readonly<{
   authority: NotificationAuthority
@@ -31,6 +32,7 @@ export type SubscriptionsDependencies = Readonly<{
   sources: NotificationSources
   consent: ConsentModes
   clock: Clock
+  defaults: RecipientDefaults
   /** The interval a beat may take, in minutes. */
   beatRange: Readonly<{ min: number; max: number }>
 }>
@@ -109,7 +111,8 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
     expected: Subscription | null,
     next: Subscription | null,
   ): Promise<Blocked | { kind: 'unknown' } | null> {
-    const answer = await deps.store.subscribe(ctx.tenant, { key, expected, next })
+    const command = { key, expected, next, defaults: deps.defaults }
+    const answer = await deps.store.subscribe(ctx.tenant, command)
     if (answer.kind === 'unknown') return { kind: 'unknown' }
     return answer.kind === 'rolled-back' || answer.value.kind === 'stale' ? UNAVAILABLE : null
   }

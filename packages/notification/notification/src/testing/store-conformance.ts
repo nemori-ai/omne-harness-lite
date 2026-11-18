@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import {
+  channelNameSchema,
   eventFactsSchema,
   eventTypeNameSchema,
   instantSchema,
@@ -14,6 +15,7 @@ import {
 } from '@omne-harness/notification-contract'
 import type { NotificationStore, StoreAnswer } from '../store.ts'
 import type { AcceptCommand } from '../transactions/accept.ts'
+import type { RecipientDefaults } from '../transactions/destinations.ts'
 
 /** Every implementation of the repository passes these cases, each on a store of its own. */
 export type StoreConformanceCase = Readonly<{
@@ -24,6 +26,11 @@ export type StoreConformanceCase = Readonly<{
 const T1 = tenantIdSchema.parse('tenant-one')
 const T2 = tenantIdSchema.parse('tenant-two')
 const PERSON: RecipientRef = { kind: 'person' }
+/** The defaults every case uses: a person starts with one destination, an agent with none. */
+export const DEFAULTS: RecipientDefaults = {
+  person: { channel: channelNameSchema.parse('in-app'), minLevel: 'weak' },
+  agent: null,
+}
 const at = (minute: number) =>
   instantSchema.parse(new Date(Date.UTC(2026, 10, 18, 6, minute)).toISOString())
 
@@ -53,7 +60,8 @@ const command = (
   minute = 1,
 ): AcceptCommand => ({
   request: request(eventId, event),
-  type: { defaults: { person: 'weak', agent: 'off' } },
+  type: { defaults: { person: 'weak', agent: 'off' }, external: false },
+  defaults: DEFAULTS,
   now: at(minute),
 })
 
@@ -244,25 +252,50 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
         basis: { kind: 'owner' },
         expired: false,
       } as const
-      assert.deepEqual(committed(await store.subscribe(T1, { key, expected: null, next: first })), {
-        kind: 'written',
-      })
+      assert.deepEqual(
+        committed(
+          await store.subscribe(T1, { defaults: DEFAULTS, key, expected: null, next: first }),
+        ),
+        {
+          kind: 'written',
+        },
+      )
       const weak = { ...first, level: 'weak' } as const
-      assert.deepEqual(committed(await store.subscribe(T1, { key, expected: null, next: weak })), {
-        kind: 'stale',
-      })
+      assert.deepEqual(
+        committed(
+          await store.subscribe(T1, { defaults: DEFAULTS, key, expected: null, next: weak }),
+        ),
+        {
+          kind: 'stale',
+        },
+      )
       assert.deepEqual(value(await store.subscription(T1, key)), first)
-      assert.deepEqual(committed(await store.subscribe(T1, { key, expected: first, next: weak })), {
-        kind: 'written',
-      })
+      assert.deepEqual(
+        committed(
+          await store.subscribe(T1, { defaults: DEFAULTS, key, expected: first, next: weak }),
+        ),
+        {
+          kind: 'written',
+        },
+      )
       assert.deepEqual(value(await store.subscriptions(T1, key.recipient)), [weak])
       assert.deepEqual(value(await store.subscriptions(T2, key.recipient)), [])
-      assert.deepEqual(committed(await store.subscribe(T1, { key, expected: first, next: null })), {
-        kind: 'stale',
-      })
-      assert.deepEqual(committed(await store.subscribe(T1, { key, expected: weak, next: null })), {
-        kind: 'written',
-      })
+      assert.deepEqual(
+        committed(
+          await store.subscribe(T1, { defaults: DEFAULTS, key, expected: first, next: null }),
+        ),
+        {
+          kind: 'stale',
+        },
+      )
+      assert.deepEqual(
+        committed(
+          await store.subscribe(T1, { defaults: DEFAULTS, key, expected: weak, next: null }),
+        ),
+        {
+          kind: 'written',
+        },
+      )
       assert.equal(value(await store.subscription(T1, key)), null)
     },
   },
@@ -284,7 +317,7 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
           basis: { kind: 'owner' },
           expired: false,
         } as const
-        committed(await store.subscribe(T1, { key, expected: null, next }))
+        committed(await store.subscribe(T1, { defaults: DEFAULTS, key, expected: null, next }))
       }
       const result = committed(await store.accept(T1, command('big')))
       assert.equal(result.kind, 'accepted')

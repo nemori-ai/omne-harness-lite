@@ -5,25 +5,36 @@
  */
 import assert from 'node:assert/strict'
 import {
+  createChannelRegistry,
+  createDelivery,
   createInbox,
   createSending,
   createSourceRegistry,
   createSubscriptions,
+  type RecipientDefaults,
 } from '@omne-harness/notification'
 import {
   context,
   createMemoryStore,
   fakeAuthority,
+  fakeChannel,
   fakeClock,
   fakeConsent,
+  fakeHints,
+  fakeStanding,
 } from '@omne-harness/notification/testing'
 import {
+  channelNameSchema,
   eventTypeNameSchema,
   sourceNameSchema,
   type RecipientRef,
   type SendRequestInput,
 } from '@omne-harness/notification-contract'
 
+const defaults: RecipientDefaults = {
+  person: { channel: channelNameSchema.parse('in-app'), minLevel: 'weak' },
+  agent: { channel: channelNameSchema.parse('session'), minLevel: 'weak' },
+}
 const store = createMemoryStore()
 const authority = fakeAuthority()
 const clock = fakeClock('2026-11-18T06:00:00.000Z')
@@ -34,6 +45,7 @@ const sending = createSending({
   sources,
   clock,
   limits: { bodyLength: 4000, causalDepth: 3 },
+  defaults,
 })
 const inbox = createInbox({ authority, store, clock, pageLimit: 50 })
 const consent = fakeConsent()
@@ -43,7 +55,30 @@ const subscriptions = createSubscriptions({
   sources,
   consent,
   clock,
+  defaults,
   beatRange: { min: 5, max: 1440 },
+})
+const channels = createChannelRegistry()
+const inApp = fakeChannel('in-app')
+const sessionInput = fakeChannel('session', { defaultMinIntervalMs: 10 * 60_000 })
+channels.register(inApp)
+channels.register(sessionInput)
+const hints = fakeHints()
+const delivery = createDelivery({
+  store,
+  channels,
+  sources,
+  authority,
+  standing: fakeStanding(),
+  clock,
+  hints,
+  defaults,
+  config: {
+    listLimit: 3,
+    retry: { maxAttempts: 3, backoffMs: [60_000] },
+    deliverTimeoutMs: 1000,
+    defaultBeatMinutes: 30,
+  },
 })
 const owner = context('tenant-demo')
 const person: RecipientRef = { kind: 'person' }
@@ -87,7 +122,7 @@ sources.register({
     },
   ],
 })
-console.log('通知走查：发送、入箱、处置、订阅')
+console.log('通知走查：发送、入箱、处置、订阅、合并')
 console.log('来源 demo.builds 已登记，事件类型 finished 对人的缺省是弱。')
 
 // 发送
@@ -210,5 +245,87 @@ assert.deepEqual(lowered.kind === 'done' && lowered.value.basis, {
   kind: 'granular',
   decision: 'card-17',
 })
+
+// 合并
+const tenant = owner.tenant
+const pushed = (channel: typeof inApp) =>
+  channel.deliveries.map(({ unit }) => ({
+    kind: unit.kind,
+    body: unit.body.kind,
+    members: unit.members.map(member => member.eventId),
+  }))
+
+const strongAgain = { ...agentChange, note: '失败了就开一张卡' } as const
+const raised = await subscriptions.set(asTriager, strongAgain, {
+  decision: 'card-18',
+  content: asked.kind === 'needs-confirmation' ? asked.request.content : '',
+  approved: true,
+})
+assert.equal(raised.kind, 'done')
+
+clock.set('2026-11-18T06:05:00.000Z')
+await sending.send(owner, request('build-43', '构建 43 失败'))
+await delivery.advance(tenant)
+show('合并：第一条强通知立刻推给 agent，一条通知一个单元，带全文', 'build-43', pushed(sessionInput))
+assert.deepEqual(pushed(sessionInput), [{ kind: 'strong', body: 'single', members: ['build-43'] }])
+
+clock.set('2026-11-18T06:06:00.000Z')
+await sending.send(owner, request('build-44', '构建 44 失败'))
+await sending.send(owner, request('build-45', '构建 45 失败'))
+await delivery.advance(tenant)
+show('最小间隔（10 分钟）里又来两条：不推，排队；请时钟在间隔结束时叫醒', '06:06', {
+  pushed: pushed(sessionInput).length,
+  wake: hints.wakes.find(wake => wake.at === '2026-11-18T06:15:00.000Z'),
+})
+assert.equal(sessionInput.deliveries.length, 1)
+
+clock.set('2026-11-18T06:15:00.000Z')
+await delivery.advance(tenant)
+show('间隔结束：攒下的两条合成一个单元，一份摘要', '06:15', pushed(sessionInput).at(-1))
+assert.deepEqual(pushed(sessionInput).at(-1), {
+  kind: 'strong',
+  body: 'digest',
+  members: ['build-44', 'build-45'],
+})
+
+sessionInput.answer({ kind: 'unknown' })
+clock.set('2026-11-18T06:26:00.000Z')
+await sending.send(owner, request('build-46', '构建 46 失败'))
+await delivery.advance(tenant)
+clock.set('2026-11-18T06:27:00.000Z')
+await delivery.advance(tenant)
+const [firstTry, secondTry] = sessionInput.deliveries.slice(-2)
+show('一次投递结果不知道：退避后再投，是同一个单元、同一个身份', 'build-46', {
+  sameIdentity: firstTry?.unit.id === secondTry?.unit.id,
+  members: secondTry?.unit.members.map(member => member.eventId),
+})
+assert.deepEqual(firstTry?.unit, secondTry?.unit)
+
+const before = store.commits()
+clock.set('2026-11-18T06:30:00.000Z')
+await delivery.advance(tenant)
+show('节拍到点：把还没了结的合成一份摘要，各去处一次', '06:30', {
+  agent: pushed(sessionInput).at(-1),
+  person: pushed(inApp).at(-1),
+})
+assert.equal(pushed(sessionInput).at(-1)?.kind, 'beat')
+assert.equal(pushed(inApp).at(-1)?.kind, 'beat')
+
+for (const eventId of ['build-42', 'build-43', 'build-44', 'build-45', 'build-46']) {
+  const identity = { ...request(eventId, '').identity } as never
+  await inbox.mark(owner, { recipient: person, identity }, 'seen')
+  await inbox.mark(owner, { recipient: triager, identity }, 'done')
+}
+const settled = store.commits()
+clock.set('2026-11-18T07:00:00.000Z')
+const deliveredBefore = inApp.deliveries.length + sessionInput.deliveries.length
+await delivery.advance(tenant)
+show('下一拍没有该提醒的：不形成单元，不写任何事实，不投递', '07:00', {
+  commits: store.commits() - settled,
+  deliveries: inApp.deliveries.length + sessionInput.deliveries.length - deliveredBefore,
+})
+assert.equal(store.commits(), settled)
+assert.equal(inApp.deliveries.length + sessionInput.deliveries.length, deliveredBefore)
+assert.ok(settled > before)
 
 console.log(`\n走查通过：${step} 步。`)

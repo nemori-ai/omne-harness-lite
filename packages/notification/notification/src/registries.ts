@@ -1,6 +1,10 @@
 import {
+  channelNameSchema,
   eventTypeNameSchema,
   sourceNameSchema,
+  type ChannelContribution,
+  type ChannelLookup,
+  type ChannelName,
   type SourceDeclaration,
   type SourceLookup,
   type SourceName,
@@ -31,6 +35,37 @@ function checkDeclaration(declaration: SourceDeclaration): void {
         `invalid or repeated event type in ${declaration.name}: ${String(type.name)}`,
       )
     names.add(type.name)
+  }
+}
+
+/** The extension point `notification.channels`. */
+export interface NotificationChannels {
+  register(channel: ChannelContribution): () => void
+  lookup(name: ChannelName): ChannelLookup
+  list(): readonly ChannelContribution[]
+}
+
+export function createChannelRegistry(onChange: () => void = () => {}): NotificationChannels {
+  const entries = new Map<ChannelName, ChannelContribution>()
+  return {
+    register(channel) {
+      if (!channelNameSchema.safeParse(channel.name).success)
+        throw new NotificationRegistrationError(`invalid channel name: ${String(channel.name)}`)
+      if (entries.has(channel.name))
+        throw new NotificationRegistrationError(`channel already registered: ${channel.name}`)
+      entries.set(channel.name, channel)
+      onChange()
+      return () => {
+        if (entries.get(channel.name) !== channel) return
+        entries.delete(channel.name)
+        onChange()
+      }
+    },
+    lookup(name) {
+      const channel = entries.get(name)
+      return channel === undefined ? { kind: 'absent' } : { kind: 'registered', channel }
+    },
+    list: () => [...entries.values()],
   }
 }
 

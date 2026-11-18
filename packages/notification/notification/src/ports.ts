@@ -2,9 +2,13 @@ import type {
   AuthorityAnswer,
   CallContext,
   ConsentMode,
+  Destination,
+  Disclosure,
   Instant,
   RecipientRef,
   SourceName,
+  StandingRead,
+  TenantId,
 } from '@omne-harness/notification-contract'
 
 export type AuthorityAction =
@@ -16,10 +20,11 @@ export type AuthorityAction =
   | Readonly<{ kind: 'list-catalog' }>
   | Readonly<{ kind: 'be-recipient'; recipient: RecipientRef }>
 
-/** Declared here, implemented by identity and authorization through the assembly. */
 export interface NotificationAuthority {
   /** Whether this subject may do this now. Asked on every operation, never cached. */
   decide(ctx: CallContext, action: AuthorityAction): Promise<AuthorityAnswer>
+  /** How much of a notification may leave the system towards this destination. */
+  disclosure(tenant: TenantId, destination: Destination): Promise<Disclosure | 'unavailable'>
 }
 
 export interface Clock {
@@ -39,8 +44,17 @@ export async function ask(
   }
 }
 
-/** Declared here, implemented by the assembly from the owner's settings. */
 export interface ConsentModes {
   /** How this tenant's owner lets agents subscribe right now. */
   mode(ctx: CallContext): Promise<ConsentMode | 'unavailable'>
+}
+
+/** This group's need for standing items, in its own shape. The assembly binds the sources' blocks to it. */
+export interface StandingItems {
+  read(tenant: TenantId): Promise<StandingRead>
+}
+
+/** A wake-up. It may come early, late, twice or never: the store holds what is to be done. */
+export interface ClockHints {
+  wakeAt(tenant: TenantId, instant: Instant): void
 }

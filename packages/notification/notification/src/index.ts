@@ -8,3 +8,12 @@ export { createSending, type SendingDependencies } from './sending.ts'
 export { createInbox, type InboxDependencies } from './inbox.ts'
 export * from './transactions/subscribe.ts'
 export { createSubscriptions, type SubscriptionsDependencies } from './subscriptions.ts'
+export * from './transactions/deliver.ts'
+export * from './transactions/destinations.ts'
+export { createDestinations, type DestinationsDependencies } from './destinations.ts'
+export {
+  createDelivery,
+  type DeliveryConfig,
+  type DeliveryDependencies,
+  type NotificationDelivery,
+} from './delivery.ts'
