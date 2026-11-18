@@ -7,7 +7,7 @@ import {
 } from '@omne-harness/request-context-contract'
 import { assemble, fixture, must, target } from './fixtures.js'
 
-async function recordOf(): Promise<FixedRequestRecord> {
+async function recordOf(prefixed = false): Promise<FixedRequestRecord> {
   const f = fixture()
   const result = await assemble(f.input, f.ports, f.policies)
   if (result.kind !== 'candidate-before-extension') throw new Error('Fixture did not assemble')
@@ -16,7 +16,7 @@ async function recordOf(): Promise<FixedRequestRecord> {
     target,
     candidate: must(decodeCandidateRef('candidate:1')),
     coverage: result.candidate.coverage,
-    continuation: null,
+    continuation: prefixed ? result.candidate.continuation : null,
   }
 }
 const refused = (field: string) => ({ failure: { field, reason: 'unsupported-format' } })
@@ -84,8 +84,37 @@ describe('FixedRequestRecord format', () => {
     expect('ok' in empty).toBe(true)
   })
 
-  it('refuses a stored continuation until the basis has a stored form', async () => {
-    const value = stored(await recordOf())
+  it('round-trips the continuation prefix it was built on, its history under the target of the record', async () => {
+    const value = await recordOf(true)
+    if (value.continuation === null) throw new Error('no prefix')
+    expect(value.continuation.messagePrefix.length).toBeGreaterThan(0)
+    const json = stored(value)
+    expect(Object.keys((json.continuation as { history: object }).history)).toEqual([
+      'epoch',
+      'upper',
+    ])
+    expect(decodeFixedRequestRecord(json)).toEqual({ ok: value })
+  })
+
+  it('refuses a continuation of another shape', async () => {
+    const value = stored(await recordOf(true))
+    const prefix = value['continuation'] as Record<string, unknown>
+    const history = prefix['history'] as Record<string, unknown>
+    const withPrefix = (changes: Record<string, unknown>) => ({
+      ...value,
+      continuation: { ...prefix, ...changes },
+    })
+    for (const changed of [
+      { extra: 1 },
+      { history: { ...history, target: value['target'] } },
+      { history: { ...history, epoch: '' } },
+      { history: { ...history, upper: { kind: 'other' } } },
+      { messagePrefix: ['not an id'] },
+      { messagePrefix: 'm1' },
+      { projection: null },
+      { tools: null },
+    ])
+      expect(decodeFixedRequestRecord(withPrefix(changed))).toEqual(refused('continuation'))
     expect(decodeFixedRequestRecord({ ...value, continuation: {} })).toEqual(
       refused('continuation'),
     )

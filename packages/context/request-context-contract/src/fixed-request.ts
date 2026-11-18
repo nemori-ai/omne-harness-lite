@@ -3,9 +3,11 @@ import { tenantCodec } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { decodeCandidateRef, type CandidateRef, type ContextTarget } from './refs.js'
-import { isCoverage } from './coverage-validation.js'
-import { record } from './schema-primitives.js'
-import type { ContinuationBasis, Coverage } from './values.js'
+import { parseMessageId } from '@omne-harness/message'
+import { isCoverage, isHistoryUpper } from './coverage-validation.js'
+import { decodeEpochId } from './refs.js'
+import { adoption, isEvidence, record } from './schema-primitives.js'
+import type { ContinuationPrefix, Coverage, HistoryUpper } from './values.js'
 
 const SCHEMA = 'request-context/fixed-request/1'
 
@@ -14,7 +16,7 @@ export type FixedRequestRecord = Readonly<{
   target: ContextTarget
   candidate: CandidateRef
   coverage: Coverage
-  continuation: ContinuationBasis | null
+  continuation: ContinuationPrefix | null
 }>
 export type FixedRequestRecordRejection = Readonly<{ field: string; reason: 'unsupported-format' }>
 
@@ -36,6 +38,36 @@ function decodeTarget(value: unknown): ContextTarget | undefined {
   return tenant.ok && 'ok' in scope ? { tenant: tenant.value, scope: scope.ok } : undefined
 }
 
+const EVIDENCE_KEYS = ['system', 'tools', 'parameters', 'replay', 'visibility'] as const
+const PREFIX_KEYS = ['history', 'messagePrefix', 'projection', ...EVIDENCE_KEYS] as const
+
+// The history evidence is stored without its target: it is the target of the record.
+function continuationJson(value: ContinuationPrefix | null): unknown {
+  if (value === null) return null
+  const { target: _target, ...history } = value.history
+  return { ...value, history }
+}
+
+function decodeContinuation(
+  value: unknown,
+  target: ContextTarget,
+): ContinuationPrefix | null | undefined {
+  if (value === null) return null
+  if (!record(value) || !exactKeys(value, PREFIX_KEYS)) return undefined
+  const { history, messagePrefix } = value
+  if (!record(history) || !exactKeys(history, ['epoch', 'upper'])) return undefined
+  const epoch = decodeEpochId(history.epoch)
+  if ('failure' in epoch || !isHistoryUpper(history.upper)) return undefined
+  if (!Array.isArray(messagePrefix)) return undefined
+  const ids = messagePrefix.map(id => (typeof id === 'string' ? parseMessageId(id) : null))
+  if (!ids.every(id => id?.ok === true) || !adoption(value.projection)) return undefined
+  if (!EVIDENCE_KEYS.every(key => isEvidence(value[key]))) return undefined
+  return structuredClone({
+    ...(value as unknown as ContinuationPrefix),
+    history: { target, epoch: epoch.ok, upper: history.upper as HistoryUpper },
+  })
+}
+
 export function encodeFixedRequestRecord(value: FixedRequestRecord): JsonValue {
   const tenant = tenantCodec.encode(value.target.tenant)
   if (!tenant.ok) throw new TypeError('The tenant of a fixed request record is not a minted tenant')
@@ -45,7 +77,7 @@ export function encodeFixedRequestRecord(value: FixedRequestRecord): JsonValue {
       target: { tenant: tenant.value, scope: value.target.scope },
       candidate: value.candidate,
       coverage: value.coverage,
-      continuation: value.continuation,
+      continuation: continuationJson(value.continuation),
     }),
   ) as JsonValue
 }
@@ -60,14 +92,15 @@ export function decodeFixedRequestRecord(
   const candidate = decodeCandidateRef(value.candidate)
   if ('failure' in candidate) return bad('candidate')
   if (!isCoverage(value.coverage)) return bad('coverage')
-  if (value.continuation !== null) return bad('continuation')
+  const continuation = decodeContinuation(value.continuation, target)
+  if (continuation === undefined) return bad('continuation')
   return {
     ok: {
       schema: SCHEMA,
       target,
       candidate: candidate.ok,
       coverage: structuredClone(value.coverage),
-      continuation: null,
+      continuation,
     },
   }
 }

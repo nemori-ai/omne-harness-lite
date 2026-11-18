@@ -107,6 +107,7 @@ export type {
   TenantModelCall,
   SourcedMessage,
   ContinuationBasis,
+  ContinuationPrefix,
   AdoptedRequestFact,
   HistoryEvidence,
   NewInputBatch,

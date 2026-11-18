@@ -590,7 +590,15 @@ class SessionHolderSources extends ContextHolderSourcesService<unknown> {
         candidate: record.candidate,
         order: order.ok,
         committed: saved.fixed,
-        continuation: record.continuation,
+        // The record holds the basis the candidate was built on; the adoption names its call.
+        continuation:
+          record.continuation === null
+            ? null
+            : {
+                ...record.continuation,
+                call: { tenant: located.target.tenant, call: invocation.ok.call },
+                fixed: saved.fixed,
+              },
       },
     }
   }

@@ -10,6 +10,7 @@ import {
   decodeFixedRequestRecord,
   encodeFixedRequestRecord,
   type ContextTarget,
+  type ContinuationPrefix,
   type Coverage,
   type FixedRequestRecord,
 } from '@omne-harness/request-context-contract'
@@ -67,7 +68,23 @@ export function coverageDigest(coverage: Coverage): string {
 
 export type FixedValues = Readonly<{
   candidate?: string
+  continuation?: ContinuationPrefix
 }>
+
+/** A prefix as Request Context records it for a request built on the history up to row 2. */
+export function samplePrefix(target: ContextTarget): ContinuationPrefix {
+  const value = {
+    history: { target, epoch: 'epoch:1', upper: { kind: 'entry', seq: '2' } },
+    messagePrefix: [`msg_${'a'.repeat(22)}`],
+    projection: adoption('projection'),
+    system: evidence('system'),
+    tools: evidence('tools'),
+    parameters: evidence('parameters'),
+    replay: evidence('replay'),
+    visibility: evidence('visibility'),
+  }
+  return value as unknown as ContinuationPrefix
+}
 
 export function fixedRecord(target: ContextTarget, tag = '1', values: FixedValues = {}) {
   const record: FixedRequestRecord = {
@@ -75,7 +92,7 @@ export function fixedRecord(target: ContextTarget, tag = '1', values: FixedValue
     target,
     candidate: must(decodeCandidateRef(values.candidate ?? `candidate:${tag}`)),
     coverage: sampleCoverage(target, tag),
-    continuation: null,
+    continuation: values.continuation ?? null,
   }
   const encoded = encodeFixedRequestRecord(record) as JsonValue
   must(decodeFixedRequestRecord(encoded))

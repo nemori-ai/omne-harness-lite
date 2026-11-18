@@ -168,6 +168,9 @@ export type ContinuationBasis = Readonly<{
   visibility: DurableEvidence
 }>
 
+/** The basis a request is built on; adopting the request adds its call and the fixed evidence. */
+export type ContinuationPrefix = Omit<ContinuationBasis, 'call' | 'fixed'>
+
 export type AdoptedRequestFact = Readonly<{
   coverage: Coverage
   target: ContextTarget
@@ -277,7 +280,7 @@ export type RequestCandidate = Readonly<{
   representations: readonly RepresentationChoice[]
   assembled: M.AssembledModelInput
   modality: M.ModalityRequirement | null
-  continuation: Omit<ContinuationBasis, 'call' | 'fixed'>
+  continuation: ContinuationPrefix
 }>
 
 export type AssemblyFailure =

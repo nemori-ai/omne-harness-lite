@@ -554,6 +554,11 @@
               "pending": false
             },
             {
+              "name": "ContinuationPrefix",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "AdoptedRequestFact",
               "kind": "type",
               "pending": false

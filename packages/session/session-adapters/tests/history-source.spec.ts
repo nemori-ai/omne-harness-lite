@@ -35,7 +35,12 @@ import {
   sessionAdoptedRequestsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
 import { createSessionHistorySource } from '../src/cordis/history-source.ts'
-import { invocation, m0Checkpoint, type FixedValues } from './fixtures/adopted-request.ts'
+import {
+  invocation,
+  m0Checkpoint,
+  samplePrefix,
+  type FixedValues,
+} from './fixtures/adopted-request.ts'
 import { ok, scene, type SceneQualification } from './fixtures/common-journal.ts'
 import { take } from './fixtures/progression.ts'
 
@@ -809,6 +814,20 @@ describe('the narrow adoption source reads the a part of the session', () => {
     expect(Object.keys(answer.value).sort()).toEqual(Object.keys(expected).sort())
     for (const [field, value] of Object.entries(expected))
       expect(answer.value[field as keyof typeof answer.value], field).toEqual(value)
+  })
+
+  it('completes the prefix a request was built on with the call it was sent as and its fixed evidence', async () => {
+    const { w, target, source } = await adoptedWorld()
+    const prefix = samplePrefix(target)
+    const { saved } = savedOf(target, '1', '1', { continuation: prefix })
+    w.provider.state.saved = saved
+    const answer = await source()
+    if (answer.kind !== 'value' || answer.value === null) throw new Error(JSON.stringify(answer))
+    expect(answer.value.continuation).toEqual({
+      ...prefix,
+      call: { tenant: target.tenant, call: 'mcall_1' },
+      fixed: saved.fixed,
+    })
   })
 
   it('the token changes when a new M0 is saved, and only then', async () => {

@@ -44,6 +44,7 @@
 - `ContextSources` · `sources.d.ts`
 - `ContextTarget` · `refs.d.ts`
 - `ContinuationBasis` · `values.d.ts`
+- `ContinuationPrefix` · `values.d.ts`
 - `ContributionRejection` · `registry.d.ts`
 - `ContributionResult` · `registry.d.ts`
 - `ContributionsResult` · `registry.d.ts`
@@ -346,13 +347,13 @@ export declare function declareTools(tools: readonly ToolAdoption[]): ToolDeclar
 import type { JsonValue } from '@omne-harness/json-text';
 import type { Outcome } from '@omne-harness/operation-result';
 import { type CandidateRef, type ContextTarget } from './refs.js';
-import type { ContinuationBasis, Coverage } from './values.js';
+import type { ContinuationPrefix, Coverage } from './values.js';
 export type FixedRequestRecord = Readonly<{
     schema: 'request-context/fixed-request/1';
     target: ContextTarget;
     candidate: CandidateRef;
     coverage: Coverage;
-    continuation: ContinuationBasis | null;
+    continuation: ContinuationPrefix | null;
 }>;
 export type FixedRequestRecordRejection = Readonly<{
     field: string;
@@ -430,7 +431,7 @@ export type { HistoryRow, HistoryPage, HistoryReadResult, CompactionContextResul
 export type { BudgetInput } from './budget.js';
 export { judgeBudget } from './budget.js';
 export type { ContributionRejection, ContributionResult, ContributionsResult, PromptContributionRegistry, } from './registry.js';
-export type { RequestPurpose, AssemblyCall, CallIdentity, InputGroups, GroupName, HistoryUpper, HistoryCursor, TenantModelCall, SourcedMessage, ContinuationBasis, AdoptedRequestFact, HistoryEvidence, NewInputBatch, AssemblyContext, PromptContributionBase, PromptSection, PromptVariable, PromptContribution, PromptContributionSet, SelectedModel, ToolAdoption, ConditionsEvidence, AlterationEvidence, PreviousPreparation, TransitionEvidence, Layer, PrefixBreakReason, Coverage, BudgetBreach, FitVerdict, RepresentationChoice, RequestLayers, RequestCandidate, AssemblyFailure, InvalidReason, UnavailableOwner, AssemblyUnknown, AssemblyOutcome, AssemblyResult, } from './values.js';
+export type { RequestPurpose, AssemblyCall, CallIdentity, InputGroups, GroupName, HistoryUpper, HistoryCursor, TenantModelCall, SourcedMessage, ContinuationBasis, ContinuationPrefix, AdoptedRequestFact, HistoryEvidence, NewInputBatch, AssemblyContext, PromptContributionBase, PromptSection, PromptVariable, PromptContribution, PromptContributionSet, SelectedModel, ToolAdoption, ConditionsEvidence, AlterationEvidence, PreviousPreparation, TransitionEvidence, Layer, PrefixBreakReason, Coverage, BudgetBreach, FitVerdict, RepresentationChoice, RequestLayers, RequestCandidate, AssemblyFailure, InvalidReason, UnavailableOwner, AssemblyUnknown, AssemblyOutcome, AssemblyResult, } from './values.js';
 export { LAYER_ORDER, PREFIX_BREAK_REASONS, callIdentity } from './values.js';
 export type { FixedRequestRecord, FixedRequestRecordRejection } from './fixed-request.js';
 export { encodeFixedRequestRecord, decodeFixedRequestRecord } from './fixed-request.js';
@@ -1707,6 +1708,7 @@ export type ContinuationBasis = Readonly<{
     replay: DurableEvidence;
     visibility: DurableEvidence;
 }>;
+export type ContinuationPrefix = Omit<ContinuationBasis, 'call' | 'fixed'>;
 export type AdoptedRequestFact = Readonly<{
     coverage: Coverage;
     target: ContextTarget;
@@ -1839,7 +1841,7 @@ export type RequestCandidate = Readonly<{
     representations: readonly RepresentationChoice[];
     assembled: M.AssembledModelInput;
     modality: M.ModalityRequirement | null;
-    continuation: Omit<ContinuationBasis, 'call' | 'fixed'>;
+    continuation: ContinuationPrefix;
 }>;
 export type AssemblyFailure = Readonly<{
     kind: 'denied';

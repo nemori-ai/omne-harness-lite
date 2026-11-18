@@ -240,7 +240,7 @@ export function createAgentRequests<P>(options: AgentRequestsOptions<P>): AgentR
           target,
           candidate: candidate.candidate,
           coverage: candidate.coverage,
-          continuation: null,
+          continuation: candidate.continuation,
         }),
       },
     }

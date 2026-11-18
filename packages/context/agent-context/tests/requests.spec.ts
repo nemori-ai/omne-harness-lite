@@ -114,7 +114,7 @@ describe('prepare', () => {
       }
     }
 
-    it('keeps the facts of this moment: coverage, candidate and target', async () => {
+    it('keeps the facts of this moment: coverage, candidate, target and the prefix it was built on', async () => {
       const w = await createWorld({ meter: twoChecks })
       const result = okOf(
         await prepared(w, { beforeModelCall: w.passed, selection: widerSelection(w, '4000') }),
@@ -127,7 +127,9 @@ describe('prepare', () => {
       expect(record.coverage).toEqual(w.candidates.at(-1)?.coverage)
       expect(record.candidate).toBe('action-1')
       expect(record.target).toEqual(w.f.target)
-      expect(record.continuation).toBeNull()
+      const prefix = w.candidates.at(-1)?.continuation
+      expect(prefix?.messagePrefix.length).toBeGreaterThan(0)
+      expect(record.continuation).toEqual(prefix)
     })
 
     it('keeps the coverage of the candidate, not a coverage that a later read gives', async () => {
@@ -739,6 +741,39 @@ describe('compaction assessment and resume', () => {
     expect(await w.requests.assessCompaction(assessment)).toMatchObject({
       failure: { kind: 'unavailable', diagnostic: 'compaction-budget-unmeasured' },
     })
+  })
+
+  it('cites the call a retained reply names in its replay mark when it measures the request after the summary', async () => {
+    const base = historyRow(1)
+    const judged = judgeMessage({
+      role: 'assistant',
+      id: base.message.id,
+      blocks: [
+        { kind: 'text', id: 't1', visibility: { toModel: true, toHuman: true }, text: 'answer' },
+        {
+          kind: 'reasoning_state',
+          id: 's1',
+          visibility: { toModel: true, toHuman: false },
+          payload: 'p',
+          pairs: [],
+        },
+      ],
+      replay: { scope: 'A', format: 'f1', at: [1], call: 'mcall_marked' },
+    })
+    if (!('ok' in judged) || judged.ok.role !== 'assistant') throw new Error('fixture reply')
+    const reply = judged.ok
+    const { w, frozen, assessment } = await planned({
+      rows: [historyRow(0, 'goal'), { ...base, message: reply }],
+    })
+    const kept = frozen.history.entries.find(entry => entry.message.id === reply.id)
+    if (kept === undefined) throw new Error('the reply was not frozen')
+    await w.requests.assessCompaction({
+      ...assessment,
+      message: { ...assessment.message, retained: [kept.ref] },
+    })
+    expect(w.f.preparation.calls().at(-1)?.lineage?.sources).toEqual([
+      { message: reply.id, call: 'mcall_marked' },
+    ])
   })
 
   it('returns cannot-fit when retained history plus summary remains too large', async () => {
