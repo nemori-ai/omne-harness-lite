@@ -2,16 +2,19 @@ import { describe, expect, it } from 'vitest'
 import {
   INTAKE_BUDGET_REQUIRED,
   INTAKE_GUARD_OWNER,
+  admitSource,
   budgetTermsOf,
   commitWithinBudget,
   intakeTermsOf,
   withIntakeTerms,
+  type BudgetTerms,
   type IntakeSubject,
   type SessionCommand,
   type SessionIntakeBudget,
   type SessionIntakeLimits,
 } from '@omne-harness/session-contract'
 import {
+  TESTING_DECLARATIONS,
   TESTING_SOURCES,
   TESTING_SYSTEM_COMPONENT,
   createMemoryInitializationSource,
@@ -26,6 +29,7 @@ import {
   refused,
   succeeded,
 } from '@omne-harness/session-contract/testing'
+import { admitInput } from '../src/decide-intake.ts'
 import { initializationGuards } from './initialization-fixture.ts'
 
 const access = memoryAccess('budget-test')
@@ -150,8 +154,9 @@ describe('the budget of the tenant is read when the answer depends on it (SE-28)
     },
   )
 
-  it('admits an input that does not count toward the budget while the budget cannot be read', async () => {
+  it('admits an input that does not count toward the budget while one waits and the budget cannot be read', async () => {
     const s = await scene(null)
+    succeeded(await s.accept('one'), 'one')
     s.state.subject = SYSTEM
     succeeded(await s.accept('reminder', reminder('reminder')), 'reminder')
   })
@@ -175,6 +180,43 @@ describe('the budget of the tenant is read when the answer depends on it (SE-28)
     expect(intakeTermsOf(withIntakeTerms([], fine))).toEqual(fine)
     const deferred = { budget: { kind: 'deferred' } } as const
     expect(intakeTermsOf(withIntakeTerms([], deferred))).toEqual(deferred)
+  })
+})
+
+describe('what the decider answers on the budget terms it is given', () => {
+  const input = ordinaryInput('judged')
+  const person = TESTING_DECLARATIONS.find(item => item.name === input.source)!
+  const admitted = admitSource(person, { kind: 'member' }, {})
+  if (admitted.kind !== 'admitted') throw new Error('the testing person source admits a member')
+  const judged = (budget: BudgetTerms | undefined, pending: number) => {
+    const source = { kind: 'admitted', source: admitted.source } as const
+    const intake = budget === undefined ? { source } : { source, budget }
+    return admitInput(input, pending, { reads: { intake } as never, limits: OWN }, 'value')
+  }
+  const refusal = (answer: unknown) => (answer as { failure?: unknown }).failure
+
+  it('admits on unread terms while no input waits, and says the answer depends on them once one waits', () => {
+    expect(judged({ kind: 'deferred' }, 0)).toEqual({ source: admitted.source })
+    expect(refusal(judged({ kind: 'deferred' }, 1))).toEqual({
+      kind: 'unavailable',
+      owner: INTAKE_GUARD_OWNER,
+      diagnostic: INTAKE_BUDGET_REQUIRED,
+    })
+  })
+
+  it('tells unread terms from terms that could not be read', () => {
+    expect(judged({ kind: 'unavailable' }, 0)).toEqual({ source: admitted.source })
+    expect(refusal(judged({ kind: 'unavailable' }, 1))).toEqual(UNAVAILABLE)
+    expect(INTAKE_BUDGET_REQUIRED).not.toBe(UNAVAILABLE.diagnostic)
+  })
+
+  it('judges on the given budget, and on the limits of the writer when no terms of a budget came', () => {
+    expect(refusal(judged({ kind: 'given', limits: limit(1) }, 1))).toMatchObject({ limit: 1 })
+    expect(judged({ kind: 'given', limits: limit(2) }, 1)).toEqual({ source: admitted.source })
+    expect(judged(undefined, OWN.maxPendingInputs - 1)).toEqual({ source: admitted.source })
+    expect(refusal(judged(undefined, OWN.maxPendingInputs))).toMatchObject({
+      limit: OWN.maxPendingInputs,
+    })
   })
 })
 
