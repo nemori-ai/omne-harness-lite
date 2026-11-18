@@ -94,6 +94,7 @@ function exampleBinding(bound: Supplier): PiFamilyBinding {
   }
   return {
     supplier: bound,
+    endpoint: 'chat-completions',
     adoption: adoption('family'),
     counting,
     rules: { plan: () => ({ failure: refused }) },
@@ -190,8 +191,9 @@ const pi = createPiTransport({
   families,
   routes: {
     local: {
-      url: `https://127.0.0.1:${port}/v1/chat`,
-      endMarker: '[DONE]',
+      endpoints: {
+        'chat-completions': { url: `https://127.0.0.1:${port}/v1/chat`, endMarker: '[DONE]' },
+      },
       accounting: { place: 'local', costUnit: 'local-credit' },
       auth: { kind: 'bearer', item: 'apiKey' },
     },

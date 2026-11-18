@@ -5,11 +5,18 @@ import {
 import { describe, expect, it } from 'vitest'
 
 describe('the OpenRouter provider body', () => {
-  it('names openrouter, its streaming endpoint, the decoder accounting and the one apiKey item', () => {
+  it('names openrouter, its three streaming endpoints, the decoder accounting and the one apiKey item', () => {
     expect(JSON.parse(OPENROUTER_PROVIDER_BODY_TEXT)).toEqual({
       name: 'openrouter',
-      protocol: 'chat-completions',
-      endpoint: { url: 'https://openrouter.ai/api/v1/chat/completions', endMarker: '[DONE]' },
+      endpoints: [
+        {
+          protocol: 'chat-completions',
+          url: 'https://openrouter.ai/api/v1/chat/completions',
+          endMarker: '[DONE]',
+        },
+        { protocol: 'messages', url: 'https://openrouter.ai/api/v1/messages' },
+        { protocol: 'responses', url: 'https://openrouter.ai/api/v1/responses' },
+      ],
       accounting: { ...OPENROUTER_ACCOUNTING },
       credentials: [
         {

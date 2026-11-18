@@ -55,8 +55,12 @@ const LIMITS = {
 }
 const ROUTES = {
   openrouter: {
-    url: 'https://gateway.invalid/api/v1/chat/completions',
-    endMarker: '[DONE]',
+    endpoints: {
+      'chat-completions': {
+        url: 'https://gateway.invalid/api/v1/chat/completions',
+        endMarker: '[DONE]',
+      },
+    },
     accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
     auth: { kind: 'bearer' as const, item: 'apiKey' },
   },
@@ -451,7 +455,17 @@ describe('the ownership of a materialized transport', () => {
     const resources = createPiSendResources<Principal>({
       network,
       families: composeFamilies([family]),
-      routes: { openrouter: { ...ROUTES.openrouter, endMarker: GATEWAY_END_MARKER } },
+      routes: {
+        openrouter: {
+          ...ROUTES.openrouter,
+          endpoints: {
+            'chat-completions': {
+              url: ROUTES.openrouter.endpoints['chat-completions'].url,
+              endMarker: GATEWAY_END_MARKER,
+            },
+          },
+        },
+      },
       limits: LIMITS,
       materialization: { maxRecords: 8, execution: () => ({ ok: DEMAND.initiator }) },
     })
@@ -576,8 +590,7 @@ describe('release and close', () => {
         families: composeFamilies([]),
         routes: {
           openrouter: {
-            url: 'http://gateway.invalid/',
-            endMarker: null,
+            endpoints: { 'chat-completions': { url: 'http://gateway.invalid/', endMarker: null } },
             accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
             auth: { kind: 'bearer', item: 'apiKey' },
           },

@@ -287,8 +287,12 @@ function observing() {
 
 const ROUTES = {
   openrouter: {
-    url: 'https://gateway.invalid/api/v1/chat/completions',
-    endMarker: '[DONE]',
+    endpoints: {
+      'chat-completions': {
+        url: 'https://gateway.invalid/api/v1/chat/completions',
+        endMarker: '[DONE]',
+      },
+    },
     accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
     auth: { kind: 'bearer' as const, item: 'apiKey' },
   },
@@ -938,8 +942,12 @@ describe('a connect failure that the send retries, through the plugin', () => {
             },
             routes: {
               openrouter: {
-                url: new URL(ROUTE_PATH, front.url).href,
-                endMarker: GATEWAY_END_MARKER,
+                endpoints: {
+                  'chat-completions': {
+                    url: new URL(ROUTE_PATH, front.url).href,
+                    endMarker: GATEWAY_END_MARKER,
+                  },
+                },
                 accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
                 auth: { kind: 'bearer', item: 'apiKey' },
               },
@@ -1021,8 +1029,12 @@ async function replayThroughPlugin(
         },
         routes: {
           openrouter: {
-            url: new URL(ROUTE_PATH, server.url).href,
-            endMarker: GATEWAY_END_MARKER,
+            endpoints: {
+              'chat-completions': {
+                url: new URL(ROUTE_PATH, server.url).href,
+                endMarker: GATEWAY_END_MARKER,
+              },
+            },
             accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
             auth: { kind: 'bearer', item: 'apiKey' },
           },

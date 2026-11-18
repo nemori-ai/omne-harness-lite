@@ -133,6 +133,7 @@ function binding(supplier: Supplier, probe: FamilyProbe): PiFamilyBinding {
   }
   return {
     supplier,
+    endpoint: 'chat-completions',
     adoption: adoption('family'),
     counting,
     rules: { plan: () => ({ failure: refused }) },

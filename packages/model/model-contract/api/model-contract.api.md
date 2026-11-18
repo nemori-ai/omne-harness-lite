@@ -293,6 +293,7 @@
 - `MODEL_PROVIDER_CATEGORY` · `provider-asset.d.ts`
 - `ModelProviderBody` · `provider-asset.d.ts`
 - `ModelProviderBodyRejection` · `provider-asset.d.ts`
+- `ModelProviderEndpoint` · `provider-asset.d.ts`
 - `modelProviderBodyContract` · `provider-asset.d.ts`
 - `modelProviderCategoryDisplay` · `provider-asset.d.ts`
 - `parseModelProviderBody` · `provider-asset.d.ts`
@@ -1957,20 +1958,21 @@ export type CredentialItemDeclaration = Readonly<{
     impact: string;
     clear: string;
 }>;
+export type ModelProviderEndpoint = Readonly<{
+    protocol: string;
+    url: string;
+    endMarker?: string;
+}>;
 export type ModelProviderBody = Readonly<{
     name: ProviderName;
-    protocol: string;
-    endpoint: Readonly<{
-        url: string;
-        endMarker?: string;
-    }>;
+    endpoints: readonly ModelProviderEndpoint[];
     accounting: Readonly<{
         place: string;
         costUnit: string;
     }>;
     credentials: readonly CredentialItemDeclaration[];
 }>;
-export type ModelProviderBodyRejection = 'not-an-object' | 'invalid-name' | 'name-mismatch' | 'invalid-protocol' | 'invalid-endpoint' | 'invalid-accounting' | 'invalid-credentials' | 'duplicate-credential';
+export type ModelProviderBodyRejection = 'not-an-object' | 'invalid-name' | 'name-mismatch' | 'invalid-endpoints' | 'invalid-protocol' | 'duplicate-protocol' | 'invalid-endpoint' | 'invalid-accounting' | 'invalid-credentials' | 'duplicate-credential';
 export declare function parseModelProviderBody(body: unknown, capabilityName?: string): Outcome<ModelProviderBody, ModelProviderBodyRejection>;
 export declare function readModelProviderBody(body: unknown): ModelProviderBody | undefined;
 export declare function modelProviderBodyContract(): BodyContract;

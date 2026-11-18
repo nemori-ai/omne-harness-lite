@@ -185,8 +185,7 @@ export function openTransport(families: readonly PiFamily[]): OpenTransport {
     families: composeFamilies(families),
     routes: {
       openrouter: {
-        url: OPENROUTER,
-        endMarker: END_MARKER,
+        endpoints: { 'chat-completions': { url: OPENROUTER, endMarker: END_MARKER } },
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: { kind: 'bearer', item: 'apiKey' },
       },

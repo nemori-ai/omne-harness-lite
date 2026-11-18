@@ -250,8 +250,12 @@ export function assembleLocalHost(input: LocalHostInput) {
     },
     routes: {
       openrouter: {
-        url: new URL(ROUTE_PATH, gateway.url).href,
-        endMarker: GATEWAY_END_MARKER,
+        endpoints: {
+          'chat-completions': {
+            url: new URL(ROUTE_PATH, gateway.url).href,
+            endMarker: GATEWAY_END_MARKER,
+          },
+        },
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: { kind: 'bearer', item: 'apiKey' },
       },

@@ -959,15 +959,15 @@
 ### UL-model-provider · 模型供应商 · Model Provider
 
 > **中**：**模型请求真实到达的那一家上游服务。**它是资产类别 `model-provider` 的一份[资产](#ul-asset--资产--asset)，
-> 正文说明它用哪种协议、端点在哪里、怎样计费，以及它需要哪些凭据项。
+> 正文说明它用哪些协议、每种协议的端点在哪里、怎样计费，以及它需要哪些凭据项。
 > 每个凭据项是它声明的一项秘密[设置](#ul-setting--设置--setting)，某一层为这一项配上的值是[模型凭据](#ul-model-credential--模型凭据--model-credential)；
 > 一家可以声明多个凭据项，也可以一个都不声明。
 > 它的身份按资产的规则确定：能力标识是「`model-provider` ＋ name」，同一个能力标识下可以有不同的具体资产，
 > 分得出这一家与那一家靠的是具体资产。官方供应商对每个合法租户视为已持有。
 >
 > **EN**: **The upstream service that a model request actually reaches.** It is one asset of the asset
-> category `model-provider`. Its body states which protocol it speaks, where its endpoint is, how it charges,
-> and which credential items it needs. Each credential item is a secret setting that the provider declares,
+> category `model-provider`. Its body states which protocols it speaks, where the endpoint for each protocol is,
+> how it charges, and which credential items it needs. Each credential item is a secret setting that the provider declares,
 > and the value set for that item at one layer is a model credential. A provider may declare several
 > credential items, or none. Its identity follows the asset rules: the capability identifier is
 > "`model-provider` + name", one capability identifier can have different concrete assets, and the concrete

@@ -35,7 +35,6 @@ type Book = Readonly<{
   published: number | null
 }>
 type Scratch = Readonly<{ snapshot: WorkSnapshot | null; commands: readonly SessionCommand[] }>
-// The journal writes of a step carry the principal they act for.
 const principalOf = <P>(write: object): P => (write as Readonly<{ principal: P }>).principal
 
 /** What the write does next: go on, write again, or answer with the failure. */

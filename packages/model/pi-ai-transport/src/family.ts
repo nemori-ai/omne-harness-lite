@@ -1,4 +1,4 @@
-import type { RouteAccounting } from './config.ts'
+import type { EngineEndpoint, RouteAccounting } from './config.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { ContentReference } from '@omne-harness/content-block'
@@ -41,6 +41,8 @@ export type PiFamilyBinding = Readonly<{
   counting: ModelCountingBasis
   rules: ModelRequestRules
   meter: CalibratedInputMeter
+  /** The gateway interface this binding encodes for; the route gives its address. */
+  endpoint: EngineEndpoint
   replayFormat: string | null
   tools: ModelToolPayloadAdapter<JsonValue>
   encode(

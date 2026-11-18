@@ -451,15 +451,32 @@ function finishReplay(
   )
 }
 /** The replay range a settled result carries: the latest dispatch completed it. */
-export function settledReplay(
-  call: CallDocument,
-  termination: Termination,
-): SettledReplay | undefined {
+function settledReplay(call: CallDocument, termination: Termination): SettledReplay | undefined {
   const latest = call.dispatches.at(-1)
   if (termination.kind !== 'completed' || latest === undefined) return undefined
   const sealed = latest.blocks.flatMap(b => (b.kind === 'sealed' ? [b.block] : []))
   const replay = finishReplay(call, latest, sealed)
   return replay.kind === 'range' ? replay.range : undefined
+}
+/** The settlement a call records at a version: how it ended, where its output stops, its replay. */
+export function settlementOf(
+  call: CallDocument,
+  input: Readonly<{ call: ModelCallId; termination: Termination }>,
+  version: Settlement['version'],
+): Settlement {
+  const replay = settledReplay(call, input.termination)
+  return {
+    version,
+    termination: structuredClone(input.termination),
+    cursor: call.cursor,
+    source: {
+      owner: 'model-memory',
+      record: `${input.call}/${version}`,
+      revision: String(BigInt(call.state.revision) + 1n),
+      digest: digest(input.termination),
+    },
+    ...(replay === undefined ? {} : { replay }),
+  }
 }
 export function completionOf(
   call: CallDocument,

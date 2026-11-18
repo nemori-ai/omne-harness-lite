@@ -18,8 +18,6 @@ import type {
   ModelOperationId,
   ReadStart,
   Revision,
-  Settlement,
-  Termination,
   Snapshot,
 } from '@omne-harness/model-contract'
 import {
@@ -61,7 +59,7 @@ import {
   settlementFailure,
   tasks,
   unresolved,
-  settledReplay,
+  settlementOf,
 } from './judge.ts'
 import {
   accountFact,
@@ -110,11 +108,6 @@ function atDispatch<T>(
     if ('kind' in dispatch) return { failure: dispatch }
     return apply(call, dispatch)
   })
-}
-
-function replayOf(call: Parameters<typeof settledReplay>[0], termination: Termination) {
-  const replay = settledReplay(call, termination)
-  return replay === undefined ? {} : { replay }
 }
 
 export function callCommands<P>(
@@ -322,19 +315,7 @@ export function callCommands<P>(
               const legality = settlementFailure(call, input.termination)
               if (legality) return { failure: legality }
               if (executionFailed(input.termination)) abandonReceiveWindows(call)
-              const version = resultVersion()
-              const settlement: Settlement = {
-                version,
-                termination: structuredClone(input.termination),
-                cursor: call.cursor,
-                source: {
-                  owner: 'model-memory',
-                  record: `${input.call}/${version}`,
-                  revision: String(BigInt(call.state.revision) + 1n),
-                  digest: digest(input.termination),
-                },
-                ...replayOf(call, input.termination),
-              }
+              const settlement = settlementOf(call, input, resultVersion())
               if (encodedBytes(settlement) > MAX_SETTLEMENT_BYTES)
                 return { failure: invalid('settlement', 'encoded-byte-limit') }
               call.state = { ...call.state, phase: 'settled', settlement }

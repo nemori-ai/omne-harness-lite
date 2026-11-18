@@ -640,8 +640,12 @@ export async function assembleLine(input: LineInput) {
     },
     routes: {
       openrouter: {
-        url: new URL(ROUTE_PATH, input.gateway.url).href,
-        endMarker: GATEWAY_END_MARKER,
+        endpoints: {
+          'chat-completions': {
+            url: new URL(ROUTE_PATH, input.gateway.url).href,
+            endMarker: GATEWAY_END_MARKER,
+          },
+        },
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: { kind: 'bearer', item: 'apiKey' },
       },

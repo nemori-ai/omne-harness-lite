@@ -7,8 +7,15 @@ export const OPENROUTER_ACCOUNTING: RouteAccounting = Object.freeze({
 
 export const OPENROUTER_PROVIDER_BODY_TEXT: string = JSON.stringify({
   name: 'openrouter',
-  protocol: 'chat-completions',
-  endpoint: { url: 'https://openrouter.ai/api/v1/chat/completions', endMarker: '[DONE]' },
+  endpoints: [
+    {
+      protocol: 'chat-completions',
+      url: 'https://openrouter.ai/api/v1/chat/completions',
+      endMarker: '[DONE]',
+    },
+    { protocol: 'messages', url: 'https://openrouter.ai/api/v1/messages' },
+    { protocol: 'responses', url: 'https://openrouter.ai/api/v1/responses' },
+  ],
   accounting: OPENROUTER_ACCOUNTING,
   credentials: [
     {

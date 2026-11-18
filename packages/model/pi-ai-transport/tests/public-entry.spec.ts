@@ -1,12 +1,13 @@
 import { expect, it } from 'vitest'
 
-it('the root entry exports the family table, the network resources factory and the transport factory as its only runtime values', async () => {
+it('the root entry exports the family table, the network resources factory, the transport factory and the engine endpoint guard as its only runtime values', async () => {
   const root: object = await import('@omne-harness/pi-ai-transport')
   expect(Object.keys(root).toSorted()).toEqual([
     'composeFamilies',
     'createNetworkResources',
     'createPiTransport',
     'defineFamily',
+    'isEngineEndpoint',
     'recordAdoption',
     'recordProvider',
     'replayFormatsOf',

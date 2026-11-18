@@ -19,6 +19,7 @@ import type {
   ModelFaultCause,
   OverLimitMetric,
   Reply,
+  SettledReplay,
   Settlement,
   Termination,
   ToolSuggestion,
@@ -90,6 +91,13 @@ it('ModelFault, Termination and Settlement describe the single end of a call', (
   // @ts-expect-error an interruption names its control operation
   const noControl: Termination = { kind: 'interrupted' }
   void [ends, settlement, cause, noControl]
+})
+
+it('a settled replay names the scope and format of its reasoning state, and the prefix only when bound', () => {
+  expectTypeOf<SettledReplay>().toEqualTypeOf<
+    Readonly<{ scope: string; format: string; prefix?: string }>
+  >()
+  expectTypeOf<Settlement['replay']>().toEqualTypeOf<SettledReplay | undefined>()
 })
 
 it('an input-over-limit fault reports only what the upstream gave, and no other cause carries a report', () => {

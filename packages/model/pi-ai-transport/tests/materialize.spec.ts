@@ -44,8 +44,7 @@ function setup(maxConnections = 1): {
     families: family.families,
     routes: {
       [SUPPLIER.provider]: {
-        url: ROUTE_URL,
-        endMarker: END_MARKER,
+        endpoints: { 'chat-completions': { url: ROUTE_URL, endMarker: END_MARKER } },
         accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
         auth: { kind: 'bearer', item: 'apiKey' },
       },

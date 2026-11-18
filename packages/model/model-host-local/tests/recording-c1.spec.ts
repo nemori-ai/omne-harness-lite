@@ -112,8 +112,12 @@ async function transportObligations(
           families: FAMILIES,
           routes: {
             openrouter: {
-              url: new URL(ROUTE_PATH, server.url).href,
-              endMarker: GATEWAY_END_MARKER,
+              endpoints: {
+                'chat-completions': {
+                  url: new URL(ROUTE_PATH, server.url).href,
+                  endMarker: GATEWAY_END_MARKER,
+                },
+              },
               accounting: { place: 'openrouter', costUnit: 'openrouter-credit' },
               auth: { kind: 'bearer', item: 'apiKey' },
             },

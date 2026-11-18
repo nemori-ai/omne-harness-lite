@@ -1769,6 +1769,11 @@
               "pending": false
             },
             {
+              "name": "ModelProviderEndpoint",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "ModelProviderBodyRejection",
               "kind": "type",
               "pending": false
