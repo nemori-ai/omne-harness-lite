@@ -113,6 +113,35 @@ it('F2 数据型：照 schema 每个属性一个控件，必填的标出来，�
   expect(form.getByText('已新建 notes。')).toBeTruthy()
 })
 
+it('F7 被拒照服务端的原因说；结果不明给「认回」，认回用同一个操作标识，答原结局就照它写', async () => {
+  const fake = await shown({ kind: 'data', schema: FIELDS_SCHEMA })
+  const form = await openForm()
+  named(form, 'notes')
+  fireEvent.change(form.getByLabelText('地址（必填）'), { target: { value: 'https://x' } })
+  fireEvent.click(form.getByRole('button', { name: '提交' }))
+  ;(await fake.next('create-asset')).answer({
+    outcome: 'invalid',
+    body: { reason: '地址不通', missing: ['url'] },
+  })
+  await settle()
+  expect(form.getByText('服务端没有收下：地址不通。缺：url。')).toBeTruthy()
+
+  fireEvent.click(form.getByRole('button', { name: '提交' }))
+  const sent = await fake.next('create-asset')
+  sent.answer({ outcome: 'unknown' })
+  await settle()
+  expect(form.getByText(/结果不明/)).toBeTruthy()
+  fireEvent.click(form.getByRole('button', { name: '认回' }))
+  const recall = await fake.next('query-asset-operation')
+  expect(recall.body).toMatchObject({
+    operation: (sent.body as { operation: string }).operation,
+    request: { kind: 'create-asset', name: 'notes' },
+  })
+  recall.answer({ outcome: 'succeeded', body: { version: 'v', holding: 'h', changed: true } })
+  await settle()
+  expect(form.getByText('已新建 notes。')).toBeTruthy()
+})
+
 it('F3 一个数字框里不是数：说出来，不能提交', async () => {
   await shown({ kind: 'data', schema: FIELDS_SCHEMA })
   const form = await openForm()
