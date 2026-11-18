@@ -121,7 +121,7 @@ import {
   unsettled,
   type FullViews,
 } from './item-read.ts'
-import { EVENT_PAGE, pagesThere } from './event-stream.ts'
+import { EVENT_PAGE, eventsAfter, newTurns, turn, type Turns } from './event-stream.ts'
 import { SharedMap } from '../journal/shared-map.ts'
 import { boundariesOf, captureFresh, projectionOf, type Fault } from './event-projection.ts'
 import {
@@ -240,6 +240,7 @@ type Book<P> = {
   readonly lentBlocks: Map<string, string>
   readonly full: FullViews
   origins: CommonRoot['agent']['callOrigins']
+  readonly turns: Turns
 }
 
 const PARTICIPANTS = ['message', 'context-transition', 'custody', 'processed'] as const
@@ -433,6 +434,7 @@ function adopt<P>(
   book.view = { head: Math.max(book.view.head, published), executions }
   book.published = Math.max(book.published ?? 0, published)
   book.copy = null
+  turn(book.turns)
 }
 
 async function fetchBlobs<P>(book: Book<P>, read: Reader): Promise<Failure | null> {
@@ -660,6 +662,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         lentBlocks: new Map(),
         origins: new SharedMap(),
         full: new Map(),
+        turns: newTurns(),
       }
       books.set(key, book)
     }
@@ -1496,6 +1499,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     book.origins = heldOrigins(job.copy.cell.state().agent.callOrigins, book.view)
     // Records project the open view: once an open item closes or finishing ends, they are rebuilt.
     book.copy = dropped || closesOpen(prepared.changes) ? null : job.copy
+    turn(book.turns)
     for (const at of book.held.keys()) {
       const record = job.after.agent.operations.get(at)
       if (record !== undefined && record.kind !== 'pending') book.held.delete(at)
@@ -1727,29 +1731,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
             return
           }
           const read = (after: string | null) =>
-            run(input, 'output.read', core =>
-              core.port.output.read({ ...input, after, limit: EVENT_PAGE }),
-            )
-          const there = yield* pagesThere(read, input.after)
-          if (there === null) return
-          const { after } = there
-          const copy = await serial(book, async () => {
-            const domain = await domainOf(book)
-            if ('failure' in domain) return domain
-            const synced = await sync(book, domain.ok)
-            if ('ok' in synced) book.users += 1
-            return synced
-          })
-          if ('failure' in copy) {
-            yield copy
-            return
-          }
-          try {
-            yield* copy.ok.core.port.output.events({ ...input, after })
-          } finally {
-            book.users -= 1
-            rest(book)
-          }
+            run(input, 'output.read', async core => {
+              const page = await core.port.output.read({ ...input, after, limit: EVENT_PAGE })
+              if ('failure' in page) return page
+              const ended = book.view.executions.get(input.execution)?.finish.ended ?? null
+              return succeed({ page: page.ok, ended: ended !== null })
+            })
+          yield* eventsAfter(read, input.after, book.turns, input.signal)
         },
       },
     }
