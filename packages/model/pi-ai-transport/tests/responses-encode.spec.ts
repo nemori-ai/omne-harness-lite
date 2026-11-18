@@ -105,6 +105,82 @@ const REMINDER = {
   content: [{ type: 'input_text', text: 'context.window-usage: 2% used' }],
 }
 
+describe('encode: what the projection leaves out or moves', () => {
+  const asked = message('u1', 'user', [textBlock('b1', 'weather in Oslo?')])
+  const next = message('u2', 'user', [textBlock('b2', 'go on')])
+
+  it('leaves a system block the model must not see out of the developer message', () => {
+    const input = body(
+      encode(responsesRecord(), {
+        system: [textBlock('s1', 'for the person', false), textBlock('s2', 'be brief')],
+        messages: [asked],
+      }),
+    ).input as { role?: string; content?: { text?: string }[] }[]
+    expect(input[0]).toMatchObject({ role: 'developer', content: [{ text: 'be brief' }] })
+    expect(JSON.stringify(input)).not.toContain('for the person')
+  })
+
+  it('takes a thought of another format through the adapter only when it is empty', () => {
+    const base = responsesRecord()
+    const record = responsesRecord({
+      replay: { ...base.replay, declaration: { foreignThinking: 'adapter' } },
+    })
+    const reply = (thought: string) =>
+      encode(record, {
+        messages: [
+          asked,
+          message('a1', 'assistant', [thinkingBlock('k1', thought), textBlock('t1', 'checking')], {
+            replay: { scope: SCOPE, format: 'other-v1', at: [] },
+          }),
+          next,
+        ],
+      })
+    const input = body(reply('')).input as { role?: string }[]
+    expect(input.map(item => item.role)).toEqual(['user', 'assistant', 'user'])
+    expect(reply('plan the call')).toMatchObject({ failure: { kind: 'unsupported' } })
+  })
+
+  it('sends the image of a tool result in a user message after the results', () => {
+    const input = body(
+      encode(responsesRecord(), {
+        messages: [
+          asked,
+          message('a1', 'assistant', [callBlock('c1', 'call-1', 'get_weather')]),
+          message('r1', 'tool', [resultBlock('x1', 'call-1'), imageBlock('x2')]),
+        ],
+        tools: [tool('get_weather')],
+      }),
+    ).input as { type?: string; role?: string; content?: { type: string }[] }[]
+    expect(input.slice(-2)).toMatchObject([
+      { type: 'function_call_output', call_id: 'call-1', output: '' },
+      { role: 'user', content: [{ type: 'input_image' }] },
+    ])
+  })
+
+  it('carries nothing back when the request turns replay off', () => {
+    const outcome = encode(responsesRecord(), {
+      messages: answered(sealItems(ENTRIES)),
+      tools: [tool('get_weather')],
+      replay: 'off',
+    })
+    if (!('ok' in outcome)) throw new Error(JSON.stringify(outcome.failure))
+    expect(outcome.ok.replayCarried).toBe(false)
+    expect(writeJsonText(outcome.ok.body)).not.toContain('cipher')
+  })
+
+  it('refuses media it was not given a way to send', () => {
+    const record = responsesRecord()
+    const request: FixedModelRequest = fixedRequest(record, { messages: [asked] })
+    const outcome = bind(record).encode({
+      request,
+      media: [{ id: 'img-1' } as never],
+      declaration: request.declarations[0],
+      resent: [],
+    })
+    expect(outcome).toMatchObject({ failure: { kind: 'unsupported', field: 'media' } })
+  })
+})
+
 describe('encode: the body', () => {
   it('writes the route, the pinned upstream, stream, no storage, the encrypted reasoning, and the system prompt as the first developer message', () => {
     const outcome = encode(responsesRecord(), { system: [textBlock('s1', 'be brief')] })
@@ -268,6 +344,20 @@ describe('encode: the conversation', () => {
     [
       'a payload with fewer items than the reply has',
       sealItems([{ type: 'reasoning', item: REASONING_ITEM }]),
+    ],
+    [
+      'a payload that covers the call but not the text',
+      sealItems([
+        { type: 'reasoning', item: REASONING_ITEM },
+        { type: 'function_call', id: 'fc_1', callId: 'call-1' },
+      ]),
+    ],
+    [
+      'a payload that covers the text but not the call',
+      sealItems([
+        { type: 'reasoning', item: REASONING_ITEM },
+        { type: 'message', id: 'msg_1', parts: 1, phase: 'commentary' },
+      ]),
     ],
     [
       'a payload whose call is another call',
