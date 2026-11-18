@@ -113,15 +113,12 @@ function bodyOf(
   const { record } = context
   const members = parameterMembers(context, params)
   if (!('ok' in members)) return members
-  let cache = null
-  if (record.wire.cache.kind === 'last-message') {
-    const target = cacheTarget(projection.turns)
-    if (target === null)
-      return {
-        failure: { kind: 'unsupported', field: 'no-cache-target', adapter: context.adapter },
-      }
-    cache = { target, ttl: record.wire.cache.ttl }
-  }
+  // The cache is an optimisation: a request with no text to mark goes out unmarked.
+  const target = record.wire.cache.kind === 'last-message' ? cacheTarget(projection.turns) : null
+  const cache =
+    target === null || record.wire.cache.kind !== 'last-message'
+      ? null
+      : { target, ttl: record.wire.cache.ttl }
   return {
     ok: object({
       model: text(record.route.model),

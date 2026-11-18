@@ -286,7 +286,7 @@ describe('encode: the body around the conversation', () => {
     expect(JSON.stringify(encodeBody(record, { messages, replay: 'off' }))).not.toContain('sig')
   })
 
-  it('refuses media it is handed and a request with nothing the model sees to mark for the cache', () => {
+  it('refuses media it is handed, and sends a request with nothing the model sees unmarked for the cache', () => {
     const record = messagesRecord({
       wire: { ...messagesRecord().wire, cache: { kind: 'last-message', ttl: '5m' } },
     })
@@ -295,9 +295,9 @@ describe('encode: the body around the conversation', () => {
     })
     const binding = bind(record)
     const input = { request, declaration: request.declarations[0], resent: [] }
-    expect(binding.encode({ ...input, media: [] })).toEqual({
-      failure: { kind: 'unsupported', field: 'no-cache-target', adapter: adapterOf(record) },
-    })
+    const unmarked = binding.encode({ ...input, media: [] })
+    if (!('ok' in unmarked)) throw new Error(JSON.stringify(unmarked.failure))
+    expect(writeJsonText(unmarked.ok.body)).not.toContain('cache_control')
     expect(
       binding.encode({
         ...input,

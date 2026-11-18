@@ -417,12 +417,14 @@ describe('encode: the explicit cache', () => {
     expect(JSON.stringify(input.slice(2))).not.toContain('prompt_cache_breakpoint')
   })
 
-  it('refuses a request with no text the model sees to mark', () => {
-    expect(
-      encode(CACHED, { messages: [message('u1', 'user', [textBlock('b1', 'hidden', false)])] }),
-    ).toEqual({
-      failure: { kind: 'unsupported', field: 'no-cache-target', adapter: adapterOf(CACHED) },
-    })
+  it('sends a request with no text the model sees without any cache member', () => {
+    for (const messages of [[], [message('u1', 'user', [textBlock('b1', 'hidden', false)])]]) {
+      const encoded = encode(CACHED, { messages })
+      if (!('ok' in encoded)) throw new Error(JSON.stringify(encoded.failure))
+      const body = JSON.stringify(encoded.ok.body)
+      for (const member of ['prompt_cache_key', 'prompt_cache_options', 'prompt_cache_breakpoint'])
+        expect(body).not.toContain(member)
+    }
   })
 })
 

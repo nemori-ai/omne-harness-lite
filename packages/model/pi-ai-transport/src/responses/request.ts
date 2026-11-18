@@ -129,8 +129,8 @@ function cacheMembers(
   const { cache } = context.record.wire
   if (cache.kind === 'none') return { ok: { members: {}, target: null } }
   const target = cacheTarget(projection.items)
-  if (target === null)
-    return { failure: { kind: 'unsupported', field: 'no-cache-target', adapter: context.adapter } }
+  // The cache is an optimisation: a request with no text to mark goes out unmarked.
+  if (target === null) return { ok: { members: {}, target: null } }
   return {
     ok: {
       members: {
