@@ -133,6 +133,9 @@ async function decide(
         advance: structuredClone(input.advance),
         original: structuredClone(input.original),
         ...(gate.carried === undefined ? {} : { carrier: structuredClone(gate.carried) }),
+        ...(input.batch === undefined
+          ? {}
+          : { pass: canonicalText([input.batch.id, input.batch.pass]) }),
       },
     })
     if (current.kind !== 'allow') return current

@@ -7,6 +7,7 @@ import {
   type ActionBatch,
   type ActionId,
   type ActionSlot,
+  type ActionBatchId,
   type ActionToolCall,
   type AdmissionDecision,
   type Adoption,
@@ -150,6 +151,7 @@ export async function admitToolAction<P>(
   action: Action,
   original: ActionToolCall,
   handBack: HandBack | null,
+  batch?: Readonly<{ id: ActionBatchId; pass: string }>,
 ): Promise<Outcome<ToolAdmission, Failure>> {
   if (action.judgment.kind !== 'pending') return judged(action)
   if (original.callId !== action.original.callId)
@@ -180,6 +182,7 @@ export async function admitToolAction<P>(
     definition,
     permissions: [],
     decision: handBack,
+    ...(batch === undefined ? {} : { batch }),
   })
   if ('failure' in admitted) return notAnswered('agentActionAdmission', admitted.failure)
   if (admitted.ok.kind !== 'allow') return notAllowed(action, admitted.ok)

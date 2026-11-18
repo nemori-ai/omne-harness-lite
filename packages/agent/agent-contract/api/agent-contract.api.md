@@ -3221,6 +3221,10 @@ export interface ActionAdmission<P> {
             card: DurableEvidence;
             answer: CardAnswer | CardRemark;
         }> | null;
+        batch?: Readonly<{
+            id: ActionBatchId;
+            pass: string;
+        }>;
     }>): Reply<AdmissionDecision>;
 }
 export type MessageSource = Readonly<{

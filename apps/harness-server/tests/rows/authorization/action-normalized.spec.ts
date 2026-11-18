@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { decisionEvidence, type AdmissionCheck } from '@omne-harness/authorization'
 import { createToolActionResolution } from '../../../src/entry/tool-action-resolution.ts'
 import { createActionAdmission } from '../../../src/rows/authorization/action-admission.ts'
+import { inquiryOncePerPass } from '../../../src/rows/authorization/current-permission.ts'
 import {
   permissionDecisionOf,
   type ToolPermissionAction,
@@ -149,6 +150,62 @@ describe('one action judged the same whether called directly or through Tools', 
       )
       expect(answer.direct).toEqual({ kind: 'allow', reason: undefined })
       expect(answer.viaTools).toEqual({ kind: 'deny', reason: 'permission-policy' })
+    } finally {
+      await world.close()
+    }
+  })
+})
+
+describe('one judging pass over a batch reads the session once', () => {
+  it.each([1, 3, 8])('a batch of %i actions reads the inquiry policy once per pass', async size => {
+    const world = await forwardWorld()
+    try {
+      let reads = 0
+      const inquiry = inquiryOncePerPass(async () => {
+        reads += 1
+        return null
+      })
+      const check: ToolPermissionCheck = {
+        async check(input) {
+          await inquiry(input)
+          return { kind: 'allow', evidence, condition: null }
+        },
+      }
+      const admission = createActionAdmission({
+        actionRules: rules,
+        readAdmission: () => allowing,
+        readPermission: () => check,
+        readResolution: () =>
+          createToolActionResolution({
+            release: () => world.release,
+            catalog: () => world.catalog,
+            view: () => world.view,
+          }),
+      })
+      const echo = world.request('ToyEcho').availability
+      if (echo.kind !== 'available') throw new Error('ToyEcho unavailable')
+      const judge = (index: number, pass: string) => {
+        const call = echoCall(world, { note: String(index) })
+        return admission.admit({
+          principal: world.principal,
+          tenant: world.tenant,
+          execution: 'e',
+          passage: `p${String(index)}`,
+          action: `a${String(index)}`,
+          advance: {},
+          original: { name: 'ToyEcho', arguments: call },
+          effectiveArguments: call,
+          definition: echo.definition.adoption,
+          permissions: [],
+          decision: null,
+          batch: { id: 'batch-1', pass },
+        } as never)
+      }
+      for (let index = 0; index < size; index += 1)
+        expect(await judge(index, 'first')).toMatchObject({ ok: { kind: 'allow' } })
+      expect(reads).toBe(1)
+      await judge(0, 'second')
+      expect(reads).toBe(2)
     } finally {
       await world.close()
     }

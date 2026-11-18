@@ -229,6 +229,8 @@ export interface ActionAdmission<P> {
         definition: Adoption
         permissions: readonly NamedCapturedRead[]
         decision: Readonly<{ card: DurableEvidence; answer: CardAnswer | CardRemark }> | null
+        /** The batch this action is judged with, and this pass over it; one pass reads each fact once. */
+        batch?: Readonly<{ id: ActionBatchId; pass: string }>
       }>,
   ): Reply<AdmissionDecision>
 }

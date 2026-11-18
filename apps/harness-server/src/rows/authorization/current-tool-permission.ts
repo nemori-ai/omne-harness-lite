@@ -48,6 +48,8 @@ export type ToolPermissionAction = Readonly<{
         kind: 'agent-action'
         /** Set when this action is the target the Agent's call carries; the call is qualified. */
         carrier?: Readonly<{ definition: Adoption; effectiveArguments: string }>
+        /** The judging pass over the Agent's batch: facts of the session are read once per pass. */
+        pass?: string
       }> &
         Pick<
           Parameters<ActionAdmission<unknown>['admit']>[0],

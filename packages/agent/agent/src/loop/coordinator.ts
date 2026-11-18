@@ -2180,6 +2180,7 @@ function coordinate<P>(
       let passages = required(checkpoint, 'checkpoint').passages
       const answers: Extract<ToolAdmission, { kind: 'judged' | 'allowed' }>[] = []
       const opened: CardRoundId[] = []
+      const pass = { id: batch.id, pass: globalThis.crypto.randomUUID() }
       for (const action of batch.actions) {
         if (needOfAction(passages, action) !== 'judge') {
           answers.push({ kind: 'judged', action })
@@ -2202,6 +2203,7 @@ function coordinate<P>(
           withChosenRewrite(action, chain, handBack),
           original,
           handBack,
+          pass,
         )
         if ('failure' in admitted) return admitted
         if (admitted.ok.kind === 'unavailable') return waitFor('A0', admitted.ok, null)

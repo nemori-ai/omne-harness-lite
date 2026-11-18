@@ -1,3 +1,6 @@
+import { canonicalText } from '@omne-harness/authorization'
+import { passMemory } from '../authorization/pass-memory.ts'
+import { sessionWorkOf } from '../tool-runtime/session-work.ts'
 import { randomUUID } from 'node:crypto'
 import type {
   AgentActionQualification,
@@ -88,6 +91,10 @@ const missingOrganization = (): PermissionSource => ({
 
 export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
   const map = createPermissionReadMapping(options)
+  const standingOnce = passMemory<Awaited<ReturnType<typeof member>>>()
+  const gateOnce = passMemory<
+    Readonly<{ basis: PermissionBasis; organization: PermissionSource }> | undefined
+  >()
 
   const matchesScope = (principal: Principal) => {
     const tenant = tenantCodec.encode(principal.tenant)
@@ -164,7 +171,11 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
       origin: structuredClone(raw.origin),
       inquiry: capturedInquirySchema.parse(raw.inquiry),
     }
-    const standing = await member(context.principal)
+    const pass = context.origin.kind === 'agent-action' ? context.origin.pass : undefined
+    const work = sessionWorkOf(context.principal, context.tenant)
+    const passKey = (...parts: unknown[]) =>
+      pass === undefined ? undefined : canonicalText([pass, work?.session ?? null, ...parts])
+    const standing = await standingOnce(passKey('standing'), () => member(context.principal))
     if (standing.kind !== 'member') return without(standing)
     const mapped = await map(context)
     if (mapped === undefined) return without(unavailable('harness.permission-target'))
@@ -191,18 +202,29 @@ export function createPermissionBasisRead(options: PermissionBasisReadOptions) {
       }),
       origin.configuration,
     )
-    const projected = await readProjection(options.storage, options.domain, options.read, commands)
-    if (projected.kind !== 'completed') return without(unavailable(), request)
-    const basis: PermissionBasis = permissionBasisSchema.parse(projected.response)
+    // The layers of one gate do not depend on the action; one pass reads them once.
+    const gate = await gateOnce(
+      passKey('gate', mapped.target, request.definition, origin.session, origin.constraints),
+      async () => {
+        const projected = await readProjection(
+          options.storage,
+          options.domain,
+          options.read,
+          commands,
+        )
+        if (projected.kind !== 'completed') return undefined
+        const basis: PermissionBasis = permissionBasisSchema.parse(projected.response)
+        return { basis, organization: await organization(mapped, request, basis.evaluation) }
+      },
+    )
+    if (gate === undefined) return without(unavailable(), request)
+    const { basis } = gate
     const current = PermissionCurrentBasisSchema.parse({
       kind: 'current',
       request,
       evaluation: {
         ...basis.evaluation,
-        sources: {
-          ...basis.evaluation.sources,
-          organization: await organization(mapped, request, basis.evaluation),
-        },
+        sources: { ...basis.evaluation.sources, organization: gate.organization },
       },
     })
     if (evaluatePermission(current.evaluation).kind === 'invalid-input')
