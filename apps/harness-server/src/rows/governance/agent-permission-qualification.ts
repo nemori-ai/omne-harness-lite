@@ -1,3 +1,4 @@
+import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
 import { capturedInquirySchema } from './permission-inquiry.ts'
 import type { AgentActionQualification, AgentAdoptions } from '@omne-harness/agent-contract'
 import { canonicalText } from '@omne-harness/authorization'
@@ -7,13 +8,13 @@ import {
   type PermissionBasisRequest,
 } from '@omne-harness/permissions'
 import type { PermissionQualification } from './permission-qualification.ts'
-import type { ToolRelease } from '../../entry/tool-release.ts'
 import {
   agentPermissionOperation,
-  releasedToolPermission,
+  declaredPermission,
   toolPermissionRequestMatches,
   type ToolPermissionContext,
 } from '../authorization/current-tool-permission.ts'
+import { agentActionConsumer } from '../authorization/authorization-facts.ts'
 import {
   readBoundSessionPermission,
   type SessionPermissionCaptureReader,
@@ -25,7 +26,7 @@ export async function qualifyAgentPermission(
   input: Readonly<{
     action: ToolPermissionContext
     permission: PermissionBasisRequest
-    release: ToolRelease
+    declarations: readonly PermissionDeclaration[]
     qualifier: AgentActionQualification<ActingForTenantPrincipal>
     adoptions: Pick<AgentAdoptions<ActingForTenantPrincipal>, 'resolve'>
     readSession: SessionPermissionCaptureReader
@@ -45,28 +46,36 @@ export async function qualifyAgentPermission(
     }
     if (action.origin.kind !== 'agent-action') return { kind: 'denied' }
     const permission = PermissionBasisRequestSchema.parse(input.permission)
-    const available = releasedToolPermission(input.release, action)
+    const available = declaredPermission(input.declarations, action)
     if (available === undefined) return unavailable()
     const released = structuredClone(available)
-    const { kind: _kind, ...position } = action.origin
+    // The judging pass only shares reads; the Agent's journal knows the call, not the pass.
+    const { kind: _kind, carrier, pass, ...position } = action.origin
     const expectedOperation = agentPermissionOperation(position)
     if (
       canonicalText(action.operation) !== canonicalText(expectedOperation) ||
       !toolPermissionRequestMatches(action, permission, released.interpretation)
     )
       return { kind: 'denied' }
+    // The Agent's journal holds the call it made; a carried target is qualified through that call.
     const given = {
       tenant: action.tenant,
       ...position,
-      definition: action.definition,
-      effectiveArguments: action.effectiveArguments,
+      definition: carrier?.definition ?? action.definition,
+      effectiveArguments: carrier?.effectiveArguments ?? action.effectiveArguments,
     }
     const original = await input.qualifier.qualify({ ...given, principal: action.principal })
     if ('failure' in original)
       return original.failure.kind === 'denied' ? { kind: 'denied' } : unavailable()
     if (canonicalText(original.ok.request) !== canonicalText(given)) return unavailable()
-    const session = await readBoundSessionPermission(input.readSession, permission, action.inquiry)
-    if (session === undefined) return unavailable()
+    const bound = await readBoundSessionPermission(
+      input.readSession,
+      permission,
+      action.inquiry,
+      // Only an action a person answered can hold a once authorization; a pass asks for none.
+      pass === undefined ? agentActionConsumer(position) : null,
+    )
+    if (bound === undefined) return unavailable()
     const constraint = await readAgentPermissionConstraint({
       adoptions: input.adoptions,
       resolution: {
@@ -83,7 +92,9 @@ export async function qualifyAgentPermission(
         configuration: released.interpretation.definition.settings === null ? 'unmapped' : 'mapped',
         principalRef: standingPrincipalRef(action.principal),
         definition: released.entry.governance.declaration.reference,
-        session,
+        session: bound.current,
+        consumer: bound.consumer,
+        authorizations: bound.authorizations,
         constraints: [constraint],
       },
     }

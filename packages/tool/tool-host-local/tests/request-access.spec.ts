@@ -278,4 +278,69 @@ describe('current request policy at the local start boundary', () => {
     expect(f.conditions).toHaveLength(4)
     expect(await f.acceptanceCount()).toBe(0)
   })
+
+  const consumption = (f: ReturnType<typeof fixture>) => ({
+    permit: { tenant: f.call.tenant, permit: 'sha256:decision' },
+    consumer: { owner: '@omne-harness/agent', work: 'execution', position: 'step-1/tool/0' },
+    evidence: evidence('card-answer'),
+  })
+  const acceptances = async (f: ReturnType<typeof fixture>) => {
+    const found = await f.memory.read(callHostDomain(f.call.tenant, 'start', f.call.call))
+    if (found.kind !== 'complete') throw new Error('fixture store unavailable')
+    return found.records.flatMap(row => {
+      const value = row.kind === 'host' ? (row.host.value as { kind?: string } | null) : null
+      return value?.kind === 'acceptance' ? [value as Record<string, unknown>] : []
+    })
+  }
+
+  it('records the once authorization a start consumes in its one acceptance', async () => {
+    let consumed: RequestAccessVerdict | null = null
+    const f = fixture(async () => consumed ?? { kind: 'allowed', condition: null })
+    consumed = { kind: 'allowed', condition: null, authorizations: [consumption(f)] }
+    const permit = ok(await f.prepare())
+    const input = { ...f.call, permit, executorReceipt: evidence('executor'), request: f.fixed }
+    const started = ok(await f.authority.consume(input))
+    expect(started.kind).toBe('started')
+    expect(ok(await f.authority.consume(input))).toEqual(started)
+    const records = await acceptances(f)
+    expect(records).toHaveLength(1)
+    expect(records[0]?.['authorizations']).toEqual([consumption(f)])
+  })
+
+  it('records no consumption for a start that rests on no once authorization', async () => {
+    const f = fixture(allowed)
+    const permit = ok(await f.prepare())
+    const input = { ...f.call, permit, executorReceipt: evidence('executor'), request: f.fixed }
+    expect(ok(await f.authority.consume(input)).kind).toBe('started')
+    expect(await acceptances(f)).toEqual([
+      expect.not.objectContaining({ authorizations: expect.anything() }),
+    ])
+  })
+
+  it.each([
+    ['not a list', { permit: 'p' }],
+    [
+      'an entry without its consumer',
+      [{ permit: { tenant: {}, permit: 'p' }, evidence: evidence('e') }],
+    ],
+    [
+      'an entry without evidence',
+      [{ permit: { tenant: {}, permit: 'p' }, consumer: { owner: 'o', work: 'w', position: 'p' } }],
+    ],
+  ] as const)(
+    'accepts nothing when the consumed authorizations are %s',
+    async (_, authorizations) => {
+      let healthy = true
+      const f = fixture(async () =>
+        healthy
+          ? { kind: 'allowed', condition: null }
+          : ({ kind: 'allowed', condition: null, authorizations } as never),
+      )
+      const permit = ok(await f.prepare())
+      healthy = false
+      const input = { ...f.call, permit, executorReceipt: evidence('executor'), request: f.fixed }
+      expect(ok(await f.authority.consume(input)).kind).toBe('unknown')
+      expect(await f.acceptanceCount()).toBe(0)
+    },
+  )
 })

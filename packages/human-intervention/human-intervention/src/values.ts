@@ -63,6 +63,17 @@ const option = z.strictObject({
   description: text(4096),
 })
 const effectOption = option.extend({ effectRef: HitlIdentifierSchema.optional() })
+// A release card shows every option of the issuer; one it does not offer now cannot be answered.
+// The issuer marks which options last beyond this call, so the card body groups them apart.
+const releaseOption = option.extend({ offered: z.boolean(), lasting: z.boolean() })
+// What the lasting options of a release card are about: the gate, as it stood when the card was made.
+const releaseGate = z.strictObject({
+  capabilityId: HitlIdentifierSchema,
+  enforcementKey: HitlIdentifierSchema,
+  basis: HitlIdentifierSchema,
+})
+const bounded = (maxCodePoints: number) =>
+  z.string().refine(value => value.isWellFormed() && [...value].length <= maxCodePoints)
 const questionFields = {
   cardId: CardIdSchema,
   title: text(256),
@@ -93,6 +104,25 @@ export const QuestionSchema = z
       ...questionFields,
       kind: z.literal('admission'),
       options: z.array(effectOption.readonly()).max(64).readonly(),
+    }),
+    z.strictObject({
+      ...questionFields,
+      kind: z.literal('release'),
+      target: z
+        .strictObject({
+          tool: HitlIdentifierSchema,
+          command: HitlIdentifierSchema.nullable(),
+          preview: bounded(256),
+        })
+        .readonly(),
+      arguments: z
+        .strictObject({ text: bounded(4096), truncated: z.boolean(), digest: HitlIdentifierSchema })
+        .readonly(),
+      origin: z
+        .strictObject({ session: HitlIdentifierSchema, agent: HitlIdentifierSchema })
+        .readonly(),
+      gate: releaseGate.readonly().optional(),
+      options: z.array(releaseOption.readonly()).min(1).max(64).readonly(),
     }),
   ])
   .refine(uniqueOptions, { message: 'Option identities must be unique within a card' })

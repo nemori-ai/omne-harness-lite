@@ -139,7 +139,7 @@ export function createAgentDecisionCards(input: AgentCardsInput): DecisionCards<
     if ('failure' in seated) return seated
     const audience = input.audience()
     if (audience === undefined) return unavailable('no audience of HITL cards is installed')
-    const key = roundKey(at.passage, at.round)
+    const key = roundKey(execution, at.passage, at.round)
     const operation = decodeAgentOperationId(roundOperation(key, 'register'))
     if ('failure' in operation) return invalid('round', 'the round names no operation')
     const actorRef = standingPrincipalRef(seated.ok.principal)
@@ -355,7 +355,7 @@ export function createAgentDecisionCards(input: AgentCardsInput): DecisionCards<
     const seated = await seat(request.tenant)
     if ('failure' in seated) return seated
     const { at, principal } = seated.ok
-    const key = roundKey(request.passage, request.round)
+    const key = roundKey(request.execution, request.passage, request.round)
     const command = InvalidateWaitSchema.safeParse({
       protocol: 'hitl/1',
       operation: {

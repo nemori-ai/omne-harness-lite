@@ -189,6 +189,7 @@ const card = z
     options: z.tuple([option], option),
     about: z.strictObject({ position: z.enum(POSITIONS), action: actionId.optional() }),
     proposedRewrite: z.strictObject({ option: text, effectiveArguments: z.string() }).optional(),
+    detail: jsonValue.optional(),
   })
   .refine(draft => new Set(draft.options.map(entry => entry.id)).size === draft.options.length)
   .refine(
@@ -249,6 +250,7 @@ function copyCard(draft: Extract<Parsed, { kind: 'ask' }>['card']): DecisionCard
       ...(draft.about.action === undefined ? {} : { action: draft.about.action }),
     },
     ...(draft.proposedRewrite === undefined ? {} : { proposedRewrite: draft.proposedRewrite }),
+    ...(draft.detail === undefined ? {} : { detail: draft.detail }),
   }
 }
 
@@ -400,8 +402,8 @@ export function judgeExtensionOutput(
 export const DECISION_CARD_DRAFT_SCHEMA: Adoption = Object.freeze({
   owner: 'agent',
   name: 'decision-card-draft',
-  revision: '1',
-  digest: 'agent:decision-card-draft/1',
+  revision: '2',
+  digest: 'agent:decision-card-draft/2',
 })
 
 function treeOf(value: unknown): JsonValue {

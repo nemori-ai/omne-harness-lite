@@ -53,6 +53,27 @@ export const SessionPermissionCurrentSchema = z.strictObject({
     .nullable(),
 })
 export type SessionPermissionCurrent = z.infer<typeof SessionPermissionCurrentSchema>
+
+const consumer = z.strictObject({ owner: text, work: text, position: text })
+/** The row and, by key, the authorizations in force for it: the gate's, and the named action's. */
+export const SessionPermissionCurrentRequestSchema = SessionPermissionReadSchema.extend({
+  consumer: consumer.nullable().optional(),
+})
+export const SessionAuthorizationsSchema = z.strictObject({
+  revision: count,
+  once: z
+    .strictObject({ consumer, target: text, argumentsDigest: text, source: evidence })
+    .nullable(),
+  session: z
+    .strictObject({ capabilityId: text, enforcementKey: text, basis: text, source: evidence })
+    .nullable(),
+})
+export type SessionAuthorizations = z.infer<typeof SessionAuthorizationsSchema>
+/** What `session.permission-current` answers: the permission row with those authorizations. */
+export const SessionPermissionCurrentReadSchema = SessionPermissionCurrentSchema.extend({
+  authorizations: SessionAuthorizationsSchema,
+})
+export type SessionPermissionCurrentRead = z.infer<typeof SessionPermissionCurrentReadSchema>
 export const SessionPermissionHeadSchema = SessionPermissionCurrentSchema.omit({
   capabilityId: true,
   enforcementKey: true,
@@ -91,6 +112,15 @@ export function sessionPermissionGuardFacts(current: SessionPermissionCurrent): 
   }
 }
 export type SessionPermissionReadResult = SessionPermissionCurrent | Readonly<{ kind: 'not-ready' }>
+
+export function decodeSessionPermissionRead(
+  value: unknown,
+): SessionPermissionCurrentRead | Readonly<{ kind: 'not-ready' }> | 'malformed' {
+  const parsed = z
+    .union([SessionPermissionCurrentReadSchema, z.strictObject({ kind: z.literal('not-ready') })])
+    .safeParse(value)
+  return parsed.success ? parsed.data : 'malformed'
+}
 
 export function decodeSessionPermissionCurrent(
   value: unknown,

@@ -17,21 +17,22 @@ describe('deriveIngressOperation', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  it('keeps the three families disjoint for the same fields', () => {
+  it('keeps the four families disjoint for the same fields', () => {
     const fields = ['login', 'tenant', 'session', 'id']
     const ids = Object.values(INGRESS_FAMILIES).map(family =>
       deriveIngressOperation(family, fields),
     )
-    expect(new Set(ids).size).toBe(3)
+    expect(new Set(ids).size).toBe(4)
   })
 
-  it('is stable and fixed to the three family texts', () => {
+  it('is stable and fixed to the four family texts', () => {
     const a = deriveIngressOperation(INGRESS_FAMILIES.control, ['l', 't', 's', 'c'])
     expect(a).toBe(deriveIngressOperation(INGRESS_FAMILIES.control, ['l', 't', 's', 'c']))
     expect(INGRESS_FAMILIES).toEqual({
       control: 'session-public/1-control',
       accept: 'session-public/1-accept',
       create: 'session-public/1-create',
+      mode: 'session-public/1-mode',
     })
     expect(a.startsWith('sop_')).toBe(true)
   })

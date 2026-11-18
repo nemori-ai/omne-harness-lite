@@ -56,6 +56,8 @@
 - `SearchArguments` · `tools-protocol.d.ts`
 - `SearchPage` · `tools-protocol.d.ts`
 - `SourceLayer` · `definitions.d.ts`
+- `ToolActionResolution` · `forwarding.d.ts`
+- `ToolActionTarget` · `forwarding.d.ts`
 - `ToolArguments` · `definitions.d.ts`
 - `ToolAvailability` · `definitions.d.ts`
 - `ToolBackgroundCallsValue` · `background-calls.d.ts`
@@ -70,6 +72,7 @@
 - `ToolBodyRetention` · `results.d.ts`
 - `ToolBodyWriter` · `body-writer.d.ts`
 - `ToolBodyWriterStatus` · `body-writer.d.ts`
+- `ToolCallAction` · `forwarding.d.ts`
 - `ToolCallContact` · `results.d.ts`
 - `ToolCallId` · `identity.d.ts`
 - `ToolCallLabel` · `call-label.d.ts`
@@ -2206,7 +2209,7 @@ export interface ToolCommands<P, B extends ContentBlock> {
 ```ts
 import type { JsonValue } from '@omne-harness/json-text';
 import type { FixedToolRequest } from './definitions.ts';
-import type { CallAccess, ToolCallId, ToolOperationId } from './identity.ts';
+import type { Access, Adoption, CallAccess, ToolCallId, ToolOperationId } from './identity.ts';
 import type { InvocationAccess, ToolInvokeRequest, ToolDefiniteFailure, ToolInvokeOutcome } from './operations.ts';
 import type { ToolStartRecord } from './ports.ts';
 import type { Reply } from './results.ts';
@@ -2221,6 +2224,28 @@ export type ToolForwardIntent = Readonly<{
     command: string | null;
     arguments: JsonValue;
 }>;
+export type ToolActionTarget = Readonly<{
+    name: string;
+    definition: Adoption;
+    command: string | null;
+    effectiveArguments: string;
+}>;
+export type ToolCallAction = Readonly<{
+    kind: 'own';
+}> | Readonly<{
+    kind: 'carried';
+    carrier: Readonly<{
+        name: string;
+        definition: Adoption;
+    }>;
+    target: ToolActionTarget;
+}>;
+export interface ToolActionResolution<P> {
+    resolve(input: Access<P> & Readonly<{
+        name: string;
+        effectiveArguments: string;
+    }>): Reply<ToolCallAction>;
+}
 export type ToolForwardBinding = Readonly<{
     call: ToolCallId;
     admission: ToolOperationId;
@@ -2334,7 +2359,7 @@ export { callLabel } from './call-label.ts';
 export type { ToolCallLabel } from './call-label.ts';
 export { toolsCapabilityOf } from './tools-capability.ts';
 export type { ToolsCapability, ToolsExecuteAnswer } from './tools-capability.ts';
-export type { ToolForwardIntent } from './forwarding.ts';
+export type { ToolActionResolution, ToolActionTarget, ToolCallAction, ToolForwardIntent, } from './forwarding.ts';
 export type { SearchArguments, SearchPage, InspectArguments, ToolUsageView, ToolFixedReadArguments, ToolsReadArguments, } from './tools-protocol.ts';
 export { returnSummary } from './return-description.ts';
 ```

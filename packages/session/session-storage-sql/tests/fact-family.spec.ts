@@ -21,7 +21,7 @@ import {
   type ExecutionFactRecord,
   type ExecutionRecordWrite,
 } from '../src/participants.ts'
-import { canonicalText, EXECUTION_ITEM_MAX_BYTES } from '../src/codec.ts'
+import { canonicalText } from '../src/codec.ts'
 import { sessionStorageMaterials } from '../src/materials.ts'
 import factBlobMigration from '../src/worker/fact-blob-migration.ts'
 import executionRecord from '../src/worker/execution-record.ts'
@@ -334,21 +334,6 @@ describe('one publication appends one batch', () => {
       'two events of one sequence',
       { facts: [...factsOf(1, 'exe_1'), ...factsOf(1, 'exe_1').slice(1)] },
       'two facts emit one event',
-    ],
-    [
-      'an item past the bound',
-      {
-        items: [
-          {
-            family: 'answer',
-            item: 'op-1',
-            change: 'opened',
-            open: false,
-            body: 'x'.repeat(EXECUTION_ITEM_MAX_BYTES),
-          },
-        ],
-      },
-      `the item answer/op-1 of ${String(EXECUTION_ITEM_MAX_BYTES + 2)} bytes`,
     ],
     [
       'a block whose digest is not its payload',

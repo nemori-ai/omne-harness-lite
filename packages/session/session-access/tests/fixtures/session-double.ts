@@ -25,6 +25,7 @@ type P = Principal
 type FaceMethod =
   | 'create'
   | 'interrupt'
+  | 'change'
   | 'accept'
   | 'queryOperation'
   | 'cancelRun'
@@ -186,7 +187,7 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
     return succeed(receipt)
   }
 
-  const management: Pick<SessionManagement<P>, 'create' | 'interrupt'> = {
+  const management: Pick<SessionManagement<P>, 'create' | 'interrupt' | 'change'> = {
     async create(input) {
       record('create', input, input.creation)
       if (accessDenied(input)) return fail({ kind: 'denied', action: 'create' })
@@ -211,6 +212,12 @@ export function createSessionDouble(options: SessionDoubleOptions): SessionDoubl
       if ('failure' in outcome) return outcome
       const progress = found.runs.size > 0 ? ({ operation: input.operation } as never) : null
       return succeed({ receipt: outcome.ok, progress })
+    },
+    async change(input) {
+      record('change', input, input.declaration)
+      if (accessDenied(input)) return fail({ kind: 'denied', action: 'change' })
+      if (existing(input) === undefined) return fail({ kind: 'denied', action: 'change' })
+      return commit('change', input.operation, { declaration: input.declaration })
     },
   }
 

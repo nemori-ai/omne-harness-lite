@@ -40,7 +40,7 @@ const action = unwrap(decodeActionId('step-1/tool/0'))
 const passage = unwrap(admissionPassageOf(action))
 const round = unwrap(decodeCardRoundId('round-1'))
 const execution = unwrap(decodeAgentExecutionId('exec-1'))
-const key = roundKey(passage, round)
+const key = roundKey(execution, passage, round)
 const evidence = (record: string) => ({
   owner: 'test',
   record,
@@ -378,7 +378,15 @@ describe('read: the decision of one card', () => {
 describe('invalidate: the cards of a round end together', () => {
   const cards = cardRefs.map(ref => cardEvidence(ref as never))
   const operation = unwrap(decodeAgentOperationId('finish-1/invalidate'))
-  const input = { ...access, operation, passage, round, cards, reason: evidence('terminal') }
+  const input = {
+    ...access,
+    operation,
+    execution,
+    passage,
+    round,
+    cards,
+    reason: evidence('terminal'),
+  }
   const invalidatedCard = (cardId: string) => ({
     ...pendingCard(cardId),
     kind: 'invalidated',

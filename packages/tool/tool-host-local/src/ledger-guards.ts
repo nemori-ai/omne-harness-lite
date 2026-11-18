@@ -9,7 +9,11 @@ import {
   type ToolLedgerGuards,
 } from '@omne-harness/tool'
 import type { FixedToolRequest } from '@omne-harness/tool-contract'
-import type { CallAccess, ToolBindings } from '@omne-harness/tool-contract/provider'
+import type {
+  CallAccess,
+  ToolBindings,
+  ToolPermitConsumption,
+} from '@omne-harness/tool-contract/provider'
 import {
   defaultResultPolicy,
   type ToolMessageContentBlock,
@@ -31,7 +35,12 @@ export const localArgumentLimits: ToolLedgerBudgets['arguments'] = Object.freeze
 export type StartCondition = Readonly<Record<string, unknown>>
 
 export type RequestAccessVerdict =
-  | Readonly<{ kind: 'allowed'; condition: StartCondition | null }>
+  | Readonly<{
+      kind: 'allowed'
+      condition: StartCondition | null
+      /** The once authorizations this start consumes; recorded with its acceptance. */
+      authorizations?: readonly ToolPermitConsumption[]
+    }>
   | Exclude<AccessVerdict, { kind: 'allowed' }>
 
 export interface ToolRequestAccess<P> {
