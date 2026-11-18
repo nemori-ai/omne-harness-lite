@@ -666,10 +666,11 @@ function apply(draft: Draft, fact: FactBody, stamp: Stamp, ord: number): void {
       return _exhaustive
     }
   }
+  // An entry takes the next place whether or not it is announced: one kept after the end is not.
+  const entry = fact.kind === 'result.received' || fact.kind === 'fence.started'
+  if (entry) draft.entries += 1
   if (event !== null) {
-    const entry = fact.kind === 'result.received' || fact.kind === 'fence.started'
     draft.emitted += 1
-    if (entry) draft.entries += 1
     draft.events = [
       ...draft.events,
       {

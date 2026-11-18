@@ -5,7 +5,8 @@ import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import { evidence } from '@omne-harness/session-contract/testing'
 import { resultKey } from '../src/journal/index.ts'
 import { ok, operation } from './fixtures/common-journal.ts'
-import { sqlScene } from './fixtures/sql-scene.ts'
+import { endOpened, refusedByModel } from './fixtures/finish.ts'
+import { handed, sqlScene } from './fixtures/sql-scene.ts'
 import { toolCall } from './fixtures/tool-call.ts'
 
 const MATERIAL = {
@@ -136,6 +137,110 @@ it('the outcome of a backgrounded call is kept as a result of its own, after the
     expect(await receive('placeholder-again', placeholder, s.fresh())).toEqual(placed)
     const account = await receive('account', tool.entry, s.fresh())
     expect(await receivedOf(s.fresh())).toEqual([placed.entry, final.entry, account.entry])
+  } finally {
+    await s.close()
+  }
+})
+
+it('results that come after the execution ended each take the next place, whichever replica keeps them', async () => {
+  const s = await sqlScene('closed-background-ended')
+  try {
+    const journal = s.view.journal
+    const opened = ok(await journal.open(s.openInput))
+    ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
+    const { authority } = opened
+    const load = async () => ok(await journal.load({ ...s.access, execution: s.execution }))
+    const commit = async (name: string, change: object) => {
+      const loaded = await load()
+      ok(
+        await journal.commit({
+          ...s.access,
+          execution: s.execution,
+          operation: operation(name),
+          authority,
+          expected: loaded.revision,
+          checkpoint: loaded.checkpoint,
+          state: { kind: 'advancing' },
+          events: [],
+          effects: [],
+          caller: { kind: 'none' },
+          replyAdmission: null,
+          handoff: null,
+          finish: null,
+          ...change,
+        }),
+      )
+    }
+    const tool = toolCall(s.access.tenant, 'background')
+    const { pending } = tool
+    if (tool.entry.delivery.producer !== 'tool') throw new Error('fixture: a Tool entry')
+    const { reference } = tool.entry.delivery.key
+    const entryOf = (key: object): ReceivedEntry =>
+      ({ ...tool.entry, delivery: { producer: 'tool', key } }) as ReceivedEntry
+    const placeholder = entryOf({ kind: 'placeholder', producer: 'tool', reference })
+    const versioned = (version: string) =>
+      entryOf({
+        kind: 'result',
+        producer: 'tool',
+        reference,
+        result: ok(decodeToolResultVersion(version)),
+        account: null,
+      })
+    const waits = [{ kind: 'producer' as const, pending }]
+    await commit('wait', {
+      checkpoint: { ...(await load()).checkpoint, calls: [pending] },
+      state: { kind: 'waiting', waits },
+      events: [{ kind: 'waiting', waits }],
+      effects: [{ action: pending.action, pending, authority }],
+    })
+    const receive = async (name: string, entry: ReceivedEntry, view = s.view) => {
+      const { material: _material, ...draft } = entry
+      const answer = await view.received!.commit({
+        ...s.access,
+        execution: s.execution,
+        operation: operation(name),
+        entry: draft,
+        material: MATERIAL,
+      })
+      const committed = ok(answer)
+      if (committed.kind !== 'committed') throw new Error(`received ${committed.kind}`)
+      return committed.value
+    }
+    const placed = await receive('placeholder', placeholder)
+    await commit('placeholder-processed', {
+      checkpoint: { ...(await load()).checkpoint, calls: [] },
+      events: [
+        {
+          kind: 'producer',
+          result: {
+            producer: {
+              kind: 'tool',
+              call: ok(resolveToolInvocationRef(reference, s.access.tenant)).call,
+            },
+            version: 'placeholder',
+            delivery: 'tdel_0',
+            source: evidence('placeholder'),
+          },
+          consumption: pending.consumption,
+        },
+      ],
+    })
+    await endOpened(s, journal, opened, refusedByModel())
+    expect((await load()).state.kind).toBe('ended')
+
+    // The call ends after its execution did, and reports twice. Each report reaches a replica
+    // that has only the store: the second must not take the place of the first.
+    const first = await receive('outcome', versioned('tres_1'), s.fresh())
+    const second = await receive('late-version', versioned('tres_2'), s.fresh())
+    const receivedOf = async (view = s.view) =>
+      ok(
+        await view.entries.receivedOf({
+          ...s.access,
+          execution: s.execution,
+          consumption: pending.consumption,
+        }),
+      )
+    expect(await receivedOf(s.fresh())).toEqual([placed.entry, first.entry, second.entry])
   } finally {
     await s.close()
   }

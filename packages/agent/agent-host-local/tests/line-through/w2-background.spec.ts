@@ -103,3 +103,38 @@ it('a result version that comes late for a call the Run is done with is kept', a
   expect(await w.toolLatePushes[0]).toHaveProperty('ok')
   expect(await w.lastOutcome()).toBe('completed')
 }, 180_000)
+
+it('two backgrounded calls that end one after the other, after their Run ended, both hand their outcomes back', async () => {
+  const first = Promise.withResolvers<void>()
+  const second = Promise.withResolvers<void>()
+  const w = await openW2World({
+    model: admission =>
+      admission.index === 0
+        ? { parts: [toolCallBlock('tc-0'), toolCallBlock('tc-1')], reason: 'tool-suggestions' }
+        : { parts: [replyText(`done-${admission.index}`, 'done')], reason: 'stop' },
+    tool: index => ({
+      content: [replyText(`built-${index}`, `build ${index} passed`)],
+      background: true,
+      hold: index === 0 ? first.promise : second.promise,
+    }),
+    defaultDelayMs: 0,
+    earlier: 'session',
+    reception: 'routed',
+  })
+  worlds.push(w)
+  await w.createSession('w2-background-ended-twice')
+  await w.runRound(1, 'build both in the background', 120_000)
+  expect(await w.lastOutcome()).toBe('completed')
+  const calls = async () => ok(await w.probe.readWork(intakeAccess)).backgroundCalls ?? []
+  const settled = async () => (await calls()).filter(call => call.settled === 'input').length
+
+  // Each outcome is one more entry at the place of the ended execution: the second takes the place
+  // after the first, whichever replica keeps it.
+  first.resolve()
+  expect(await w.toolPushes[0]).toHaveProperty('ok')
+  await w.until(async () => (await settled()) === 1)
+  second.resolve()
+  expect(await w.toolPushes[1]).toHaveProperty('ok')
+  await w.until(async () => (await settled()) === 2)
+  expect(w.endedRuns().at(-1)).toMatchObject({ outcome: 'completed' })
+}, 180_000)
