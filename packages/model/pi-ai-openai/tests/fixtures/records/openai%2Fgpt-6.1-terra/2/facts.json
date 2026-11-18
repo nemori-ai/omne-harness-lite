@@ -483,8 +483,7 @@
       "usage": [
         {
           "name": "input",
-          "state": "known",
-          "lexeme": "101",
+          "state": "unknown",
           "unit": "token"
         },
         {

@@ -68,26 +68,27 @@ const OSLO = {
 }
 
 describe('decode: recorded streams', () => {
+  // These recordings carry no written count, so the uncached input is unknown.
   it.each([
     [
       'reasoning-message-call.sse',
       'Oslo is further north than Lima.',
       'call_jmn8oYLK9o71ZdKuk5VIrvWp',
-      ['72', '53', '0', null, '17'],
+      [null, '53', '0', null, '17'],
       '0.000674',
     ],
     [
       'reasoning-message-call-2.sse',
       'Oslo is farther north than Lima.',
       'call_TVyCdAFXh8IJ02QrXhiUetIh',
-      ['72', '63', '0', null, '27'],
+      [null, '63', '0', null, '27'],
       '0.00009',
     ],
     [
       'message-call.sse',
       'Oslo is farther north than Lima.',
       'call_6KU3iZXD0j683UUHb41HQBSM',
-      ['82', '34', '0', null, '0'],
+      [null, '34', '0', null, '0'],
       '0.000504',
     ],
   ])(
@@ -299,7 +300,7 @@ describe('decode: events written for the case', () => {
     })
   })
 
-  it('counts cache writes and names an unknown cost as no cost', () => {
+  it('counts cache writes apart from the input and names an unknown cost as no cost', () => {
     const { facts } = run([
       stream.created,
       ...messageItem(0, 'm1', 'ok'),
@@ -313,7 +314,7 @@ describe('decode: events written for the case', () => {
     expect(facts.find(fact => fact.kind === 'account')).toMatchObject({
       value: {
         usage: [
-          { name: 'input', lexeme: '1052' },
+          { name: 'input', lexeme: '10' },
           { name: 'output', lexeme: '5' },
           { name: 'cache-read', lexeme: '0' },
           { name: 'cache-write', lexeme: '1042' },
@@ -322,6 +323,34 @@ describe('decode: events written for the case', () => {
         cost: [],
       },
     })
+  })
+
+  // input_tokens holds the cached and the written input too (measured on OpenRouter, 2026-11-18).
+  it.each([
+    ['a cache hit', { cached_tokens: 3465, cache_write_tokens: 195 }, 3663, '3', []],
+    ['no written count', { cached_tokens: 0 }, 72, null, []],
+    ['a whole served from the cache', { cached_tokens: 72, cache_write_tokens: 0 }, 72, '0', []],
+    [
+      'parts one larger than the whole',
+      { cached_tokens: 50, cache_write_tokens: 23 },
+      72,
+      null,
+      [{ kind: 'diagnostic', value: { kind: 'usage-inconsistent', field: 'input' } }],
+    ],
+  ] as const)('reads the uncached input of %s', (_, details, total, uncached, diagnostics) => {
+    const { facts } = run([
+      stream.created,
+      ...messageItem(0, 'm1', 'ok'),
+      stream.completed({ input_tokens: total, input_tokens_details: details, output_tokens: 5 }),
+    ])
+    const account = facts.find(fact => fact.kind === 'account')
+    expect(account?.kind === 'account' && account.value.usage[0]).toEqual(
+      uncached === null
+        ? { name: 'input', state: 'unknown', unit: 'token' }
+        : { name: 'input', state: 'known', lexeme: uncached, unit: 'token' },
+    )
+    expect(facts.filter(fact => fact.kind === 'diagnostic')).toEqual(diagnostics)
+    expect(facts.at(-1)?.kind).toBe('ended')
   })
 
   it('takes the end marker after the finish and refuses it before', () => {

@@ -543,8 +543,7 @@
       "usage": [
         {
           "name": "input",
-          "state": "known",
-          "lexeme": "111",
+          "state": "unknown",
           "unit": "token"
         },
         {

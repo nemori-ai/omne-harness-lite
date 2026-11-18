@@ -436,11 +436,19 @@ function end(input: ResponsesDecoderInput, phase: Phase): StepResult {
       return {
         fault: { cause: 'stream-lost', diagnostic: 'ended-without-finish', upstreamStatus: null },
       }
-    case 'finished':
+    case 'finished': {
+      const uncached = uncachedInput(phase.usage)
       return {
         phase: ENDED,
-        facts: [accountFact(input, phase), { kind: 'ended', termination: phase.termination }],
+        facts: [
+          accountFact(input, phase, uncached === 'negative' ? null : uncached),
+          ...(uncached === 'negative'
+            ? [diagnosticFact({ kind: 'usage-inconsistent', field: 'input' })]
+            : []),
+          { kind: 'ended', termination: phase.termination },
+        ],
       }
+    }
     case 'ended':
       return protocol('decoder-already-ended')
     default: {
@@ -456,12 +464,23 @@ function counted(name: string, lexeme: string | null): CallAccountReport['usage'
     : { name, state: 'known', lexeme, unit: 'token' }
 }
 
+// input_tokens holds the cached and the written input too; the account counts them apart.
+function uncachedInput({ input, cacheRead, cacheWrite }: Finished['usage']): string | null {
+  if (input === null || cacheRead === null || cacheWrite === null) return null
+  const remainder = BigInt(input) - BigInt(cacheRead) - BigInt(cacheWrite)
+  return remainder < 0n ? 'negative' : String(remainder)
+}
+
 // The interface does not report which upstream served; the record pins exactly one.
-function accountFact(input: ResponsesDecoderInput, phase: Finished): TransportFact {
+function accountFact(
+  input: ResponsesDecoderInput,
+  phase: Finished,
+  uncached: string | null,
+): TransportFact {
   const { usage } = phase
   const report: CallAccountReport = {
     usage: [
-      counted('input', usage.input),
+      counted('input', uncached),
       counted('output', usage.output),
       counted('cache-read', usage.cacheRead),
       counted('cache-write', usage.cacheWrite),

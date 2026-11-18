@@ -337,17 +337,19 @@ const UNKNOWN_USAGE = {
   reasoning: 'unknown',
 }
 
-const KNOWN_USAGE = {
-  input: '40',
+// The account counts input without the tokens read from or written to the cache. Responses counts
+// both inside input_tokens, so without a written count the uncached input is unknown.
+const RESPONSES_KNOWN_USAGE = {
+  input: 'unknown',
   output: '30',
   'cache-read': '8',
   'cache-write': 'unknown',
   reasoning: '12',
 }
 
-// Messages counts input without the tokens read from the cache (a real cache hit reports
-// input_tokens 4 next to cache_read_input_tokens 1835); Responses counts them in.
-const MESSAGES_KNOWN_USAGE = { ...KNOWN_USAGE, input: '32' }
+// Messages reports input that way already (a real cache hit reports input_tokens 4 next to
+// cache_read_input_tokens 1835).
+const MESSAGES_KNOWN_USAGE = { ...RESPONSES_KNOWN_USAGE, input: '32' }
 
 const CALLS = [
   { callId: 'call_1', name: 'get_weather', arguments: '{"city":"Oslo"}' },
@@ -403,7 +405,7 @@ describe('renderReply: the chat answer of a script, on the Responses interface',
         ],
       ],
       termination: ended('tool-suggestions'),
-      usage: KNOWN_USAGE,
+      usage: RESPONSES_KNOWN_USAGE,
       cost: ['0.00042'],
     })
   })
