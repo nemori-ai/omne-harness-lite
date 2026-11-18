@@ -15,11 +15,7 @@ export type ResponsesEvent =
   | Readonly<{ type: 'incomplete'; reason: string | null; usage: Usage }>
   | Readonly<{ type: 'failed'; code: string | null; errorType: string | null }>
 
-/**
- * One step of a part of an item: a text part of a message, or a summary part of a reasoning
- * item. Its text is the first text of a start, the piece of a delta, the whole text when the
- * text is done, and empty otherwise.
- */
+/** A step of a text part or a summary part, with the text the step carries, if any. */
 export type PartStep = Readonly<{
   kind: 'start' | 'delta' | 'text-done' | 'end'
   part: number

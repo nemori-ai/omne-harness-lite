@@ -177,7 +177,6 @@ function added(
 
 type PartOpen = Extract<Open, { kind: 'reasoning' | 'message' }>
 
-/** Opens the next part of the open message or reasoning item as a block of the given kind. */
 function opened(work: Work, open: PartOpen, content: 'text' | 'thinking'): void {
   const index = openBlock(work, content)
   const growing = { index, at: open.count, value: '' }
@@ -217,7 +216,6 @@ type PartRule = Readonly<{ misplaced: string; run: PartRun }>
 
 const unchanged: PartRun = (_limits, work) => work
 
-// A text part opens at its start and closes when its text is done.
 const TEXT_STEPS: Readonly<Record<PartStep['kind'], PartRule>> = {
   start: {
     misplaced: 'part-out-of-order',

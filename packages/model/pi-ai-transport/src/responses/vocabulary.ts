@@ -40,11 +40,7 @@ export type ResponsesRecord = PiModelRecordHead &
 
 export type ResponsesLimits = ChatCompletionsLimits
 
-/**
- * One output item of a reply, as its reasoning state keeps it. A reasoning item is kept whole;
- * a message keeps its shell, its text being the text blocks of the reply; a function call keeps
- * its identities, its name and arguments being a tool call block of the reply.
- */
+/** An output item as the reasoning state keeps it; text and calls stay in the reply's blocks. */
 export type ItemEntry =
   | Readonly<{ type: 'reasoning'; item: JsonValue }>
   | Readonly<{ type: 'message'; id: string; parts: number; phase: string | null }>

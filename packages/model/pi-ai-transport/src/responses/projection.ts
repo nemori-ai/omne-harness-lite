@@ -175,7 +175,6 @@ export function projectResponses(
   }
 }
 
-/** The input items of the system prompt, where the record puts it there, and of the history. */
 function conversation(
   input: ResponsesProjectionInput,
   names: ToolNames,
@@ -373,8 +372,7 @@ function assistantParts(
   return { ok: parts }
 }
 
-// A reply that carries nothing back: its text as one message, then its calls in order. Thinking
-// of another model that the request leaves to the adapter has no form here.
+// A reply that carries nothing back: its text as one message, then its calls in order.
 function plainReply(
   parts: AssistantParts,
   treatment: ReplayTreatment,
@@ -398,8 +396,7 @@ function plainReply(
   return { ok: { items, reasoning: [] } }
 }
 
-// A reply that carries its output items back: each in the order it came, its text and calls
-// taken in order from the blocks of the reply. Items and blocks that do not pair up refuse.
+// A reply that carries its items back in their order, its text and calls taken from its blocks.
 function carriedReply(parts: AssistantParts): Outcome<Replied, TransportFailure> {
   const entries: ItemEntry[] = []
   for (const payload of parts.payloads) {
@@ -498,8 +495,7 @@ function addResult(
   return { ok: undefined }
 }
 
-// Images of tool results go in one user message after the results, as the interface takes no
-// image in a function call output here.
+// Images of tool results go in one user message after the results.
 function flushImages(built: Built): void {
   const images = built.images
   built.images = null
