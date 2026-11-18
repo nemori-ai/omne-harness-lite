@@ -11,7 +11,7 @@ import {
 } from '@omne-harness/settings'
 import type { SqlStorage } from '@omne-harness/sql-contract'
 import type { ToolRelease } from '../../entry/tool-release.ts'
-import { createSettingsGuard } from '../authorization/settings-access.ts'
+import { createSettingsGuard, type CardsReader } from '../authorization/settings-access.ts'
 import type { TenantGovernanceHost } from './tenant-host.ts'
 import { createTenantSettingsPermissions } from './tenant-settings-permissions.ts'
 
@@ -57,6 +57,8 @@ export type TenantSettingsServiceOptions = Readonly<{
   release(): ToolRelease | undefined
   identity: Readonly<{ verifier: PrincipalVerifier; standing: TenantStandingSource }>
   active(): boolean
+  /** Where a card answer is read back; absent, no session work sets a tenant setting. */
+  cards?: CardsReader
 }>
 
 const unavailable = { kind: 'rejected', reason: 'unavailable' } as const
@@ -83,7 +85,11 @@ export function settingsHoldingOf(host: Pick<TenantGovernanceHost, 'assets'>) {
 
 export function createTenantSettingsFace(options: TenantSettingsServiceOptions): Face {
   const admission = referenceAdmissionCheck({ ...options.identity, permits: null })
-  const guard = createSettingsGuard(() => (options.active() ? admission : undefined))
+  const { cards } = options
+  const guard = createSettingsGuard(
+    () => (options.active() ? admission : undefined),
+    cards === undefined ? undefined : () => (options.active() ? cards() : undefined),
+  )
   const settingsOf = async (tenant: TenantId) => {
     const tenantRef = tenantCodec.encode(tenant)
     return tenantRef.ok ? options.host.settings(tenantRef.value) : undefined

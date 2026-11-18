@@ -1,0 +1,77 @@
+{
+  "member": "authorization",
+  "model": "models/ActionAuthorization.tla",
+  "scope": "finite model: ActionAuthorization (the release judgement of one gate in one tenant: a batch of two actions in one session, or one action in each of two sessions; the tenant setting changed by others at most once, the run mode switched at most once, write eligibility flipped at most once, one restart, each session cancelled at most once). Safety, and EveryActionSettles under weak fairness of the system steps and of the person answering. No refinement proof to the implementation; no real storage, card transport or tool start.",
+  "workers": 2,
+  "timeoutSeconds": 900,
+  "cases": [
+    {
+      "name": "valid-batch",
+      "model": "models/ActionAuthorization.tla",
+      "config": "models/valid-batch.cfg",
+      "expected": "complete"
+    },
+    {
+      "name": "valid-isolation",
+      "model": "models/ActionAuthorization.tla",
+      "config": "models/valid-isolation.cfg",
+      "expected": "complete"
+    }
+  ],
+  "controls": [
+    {
+      "name": "bad-non-atomic-fence",
+      "model": "models/ActionAuthorization.tla",
+      "config": "models/bad-non-atomic-fence.cfg",
+      "expected": "NoUnjustStart"
+    },
+    {
+      "name": "bad-fence-trusts-admission",
+      "model": "models/ActionAuthorization.tla",
+      "config": "models/bad-fence-trusts-admission.cfg",
+      "expected": "NoUnjustStart"
+    },
+    {
+      "name": "bad-permit-not-bound",
+      "model": "models/ActionAuthorization.tla",
+      "config": "models/bad-permit-not-bound.cfg",
+      "expected": "NoUnjustStart"
+    },
+    {
+      "name": "bad-stale-session-grant",
+      "model": "models/ActionAuthorization.tla",
+      "config": "models/bad-stale-session-grant.cfg",
+      "expected": "NoUnjustStart"
+    },
+    {
+      "name": "bad-bypass-beats-deny",
+      "model": "models/ActionAuthorization.tla",
+      "config": "models/bad-bypass-beats-deny.cfg",
+      "expected": "NoUnjustStart"
+    },
+    {
+      "name": "bad-remark-approves",
+      "model": "models/ActionAuthorization.tla",
+      "config": "models/bad-remark-approves.cfg",
+      "expected": "HumanNoNeverRuns"
+    },
+    {
+      "name": "bad-no-barrier",
+      "model": "models/ActionAuthorization.tla",
+      "config": "models/bad-no-barrier.cfg",
+      "expected": "BarrierHolds"
+    },
+    {
+      "name": "bad-cancel-leaves-card-open",
+      "model": "models/ActionAuthorization.tla",
+      "config": "models/bad-cancel-leaves-card-open.cfg",
+      "expected": "temporal"
+    },
+    {
+      "name": "bad-volatile-ledger",
+      "model": "models/ActionAuthorization.tla",
+      "config": "models/bad-volatile-ledger.cfg",
+      "expected": "ApprovalNotLost"
+    }
+  ]
+}

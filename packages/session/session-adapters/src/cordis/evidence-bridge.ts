@@ -20,7 +20,6 @@ import {
 const BRIDGE_OWNER = 'sessionEvidence'
 const INITIALIZATION = 'session-initialization'
 
-const EXEMPT_CHANGES: ReadonlySet<string> = new Set(['permission-assignment', 'model'])
 const ADOPTION: ReadonlySet<string> = new Set<AdoptionEvidenceCommand['kind']>([
   'create',
   'startRun',
@@ -124,6 +123,15 @@ function refusalOf(guard: GuardCommand, command: SessionCommand, tenant: string)
   return null
 }
 
+// What a person declares adopts nothing from the deployment; its qualification is checked at the
+// commit, and a model's target by Model before it.
+const PERSON_DECLARATIONS: ReadonlySet<string> = new Set([
+  'authorization-expression',
+  'permission-assignment',
+  'permission-mode',
+  'model',
+])
+
 export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceBridgeService<P> {
   static readonly inject = [
     sessionAdoptionSourceKey,
@@ -185,7 +193,8 @@ export class SessionEvidenceBridgeProvider<P = unknown> extends SessionEvidenceB
 
   // A permission write is checked in its own transaction; a model's legality was judged with Model.
   private sourcesFor(command: SessionCommand): Source<P>[] {
-    if (command.kind === 'change' && EXEMPT_CHANGES.has(command.input.declaration.kind)) return []
+    if (command.kind === 'change' && PERSON_DECLARATIONS.has(command.input.declaration.kind))
+      return []
     const sources: Source<P>[] = []
     if (ADOPTION.has(command.kind)) sources.push(this.adoption)
     if (PRODUCTION.has(command.kind)) sources.push(this.production)

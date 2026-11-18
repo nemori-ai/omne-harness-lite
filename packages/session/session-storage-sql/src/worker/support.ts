@@ -14,6 +14,8 @@ import { StoredEntryMalformed } from '../entry-codec.ts'
 import { PROTOCOL } from './schema.ts'
 
 export const PAGE_ROWS = 200
+// The bytes of one page of content: a page holds what fits, and always its first row.
+export const PAGE_BYTES = 4 * 1024 * 1024
 
 export function handler(
   name: string,

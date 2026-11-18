@@ -1,3 +1,4 @@
+import { releasedDeclaration } from '../../../src/entry/permission-declarations.ts'
 import { expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import {
@@ -26,10 +27,13 @@ import type { PermissionBasisReading, PermissionBasisRequest } from '@omne-harne
 import { loadProductionRelease, TOOL_RELEASE_TENANT } from '../../../src/entry/tool-release.ts'
 import {
   createCurrentToolPermission,
+  declaredPermission,
   type ToolPermissionAction,
   type ToolPermissionPorts,
 } from '../../../src/rows/authorization/current-tool-permission.ts'
 import { okOf } from '../../entry/support.ts'
+import type { SessionAuthorizations } from '@omne-harness/session-storage-sql/participants'
+import { onceTarget } from '../../../src/rows/authorization/authorization-facts.ts'
 
 const release = await loadProductionRelease()
 if (release.kind !== 'trusted') throw new Error('Production release unavailable')
@@ -129,6 +133,7 @@ function world() {
     },
   } satisfies PermissionBasisReading
   let reading: PermissionBasisReading = current
+  let authorizations: SessionAuthorizations | null = null
   const condition = { combinationVersion: 'fixture/1', commands: [] }
   let reads = 0
   const inquiry: SessionInquiryView = {
@@ -151,12 +156,13 @@ function world() {
     },
   }
   const ports: ToolPermissionPorts = {
-    release: () => release,
+    declarations: () =>
+      release.kind === 'trusted' ? release.manifest.entries.map(releasedDeclaration) : [],
     inquiry: async () => inquiry,
     source: () => ({
       readCurrent: async () => {
         reads++
-        return { request, reading, condition }
+        return { request, reading, condition, authorizations, consumer }
       },
     }),
   }
@@ -172,8 +178,88 @@ function world() {
     set: (next: PermissionBasisReading) => {
       reading = next
     },
+    authorize: (next: SessionAuthorizations | null) => {
+      authorizations = next
+    },
   }
 }
+
+type World = ReturnType<typeof world>
+const consumer = { owner: '@omne-harness/agent', work: 'execution', position: 'action' }
+function onceFor(w: World, overrides: Partial<NonNullable<SessionAuthorizations['once']>> = {}) {
+  return {
+    revision: '1',
+    once: {
+      consumer,
+      target: onceTarget(w.input.definition),
+      argumentsDigest: effectiveArgumentsOf(w.input.effectiveArguments).digest,
+      source: decisionEvidence('card-answer', '1', {}),
+      ...overrides,
+    },
+    session: null,
+  } satisfies SessionAuthorizations
+}
+
+it('releases the action a once authorization names and gives it for the start to consume', async () => {
+  const w = world()
+  w.current.evaluation.sources.tenant.rule.pick = 'ask'
+  const check = createCurrentToolPermission(w.ports)
+  expect(await check.check(w.input)).toMatchObject({ kind: 'ask' })
+  w.authorize(onceFor(w))
+  expect(await check.check(w.input)).toMatchObject({
+    kind: 'allow',
+    condition: w.condition,
+    authorization: { consumer, source: decisionEvidence('card-answer', '1', {}) },
+  })
+})
+
+it.each([
+  ['target', { target: 'another tool' }],
+  ['arguments', { argumentsDigest: '0'.repeat(64) }],
+  ['place', { consumer: { ...consumer, position: 'another action' } }],
+] as const)(
+  'does not release an action whose %s differs from the once authorization',
+  async (_, overrides) => {
+    const w = world()
+    w.current.evaluation.sources.tenant.rule.pick = 'ask'
+    w.authorize(onceFor(w, overrides))
+    expect(await createCurrentToolPermission(w.ports).check(w.input)).toMatchObject({ kind: 'ask' })
+  },
+)
+
+it('releases an action of a gate released for the session while the basis of that release is current', async () => {
+  const w = world()
+  w.current.evaluation.sources.tenant.rule.pick = 'ask'
+  const check = createCurrentToolPermission(w.ports)
+  const asked = await check.check(w.input)
+  if (asked.kind !== 'ask' || asked.gate === undefined) throw new Error(JSON.stringify(asked))
+  const { capabilityId, enforcementKey, basis } = asked.gate
+  const source = decisionEvidence('card-answer', '1', {})
+  const forSession = (given: Partial<typeof asked.gate>) => ({
+    revision: '1',
+    once: null,
+    session: { capabilityId, enforcementKey, basis, source, ...given },
+  })
+  w.authorize(forSession({}))
+  const released = await check.check(w.input)
+  expect(released).toMatchObject({ kind: 'allow', condition: w.condition })
+  expect(released).not.toHaveProperty('authorization')
+  w.authorize(forSession({ basis: 'the basis before the setting changed' }))
+  expect(await check.check(w.input)).toMatchObject({ kind: 'ask' })
+  w.authorize(forSession({ capabilityId: 'another capability' }))
+  expect(await check.check(w.input)).toMatchObject({ kind: 'ask' })
+})
+
+it('consumes no once authorization when the gate became automatic, and refuses when it became prohibited', async () => {
+  const w = world()
+  w.authorize(onceFor(w))
+  const check = createCurrentToolPermission(w.ports)
+  const automatic = await check.check(w.input)
+  expect(automatic).toMatchObject({ kind: 'allow' })
+  expect(automatic).not.toHaveProperty('authorization')
+  w.current.evaluation.sources.tenant.rule.pick = 'deny'
+  expect(await check.check(w.input)).toMatchObject({ kind: 'deny', category: 'rule' })
+})
 
 it('gives the condition of the reading with an allow, and with nothing else', async () => {
   const w = world(),
@@ -235,7 +321,7 @@ it('requires a current source and never turns ask or missing constraints into al
   const w = world(),
     check = createCurrentToolPermission(w.ports)
   w.current.evaluation.sources.tenant.rule.pick = 'ask'
-  expect(await check.check(w.input)).toMatchObject({ kind: 'undecidable' })
+  expect(await check.check(w.input)).toMatchObject({ kind: 'ask' })
   w.current.evaluation.sources.tenant.rule.pick = 'auto'
   w.set({
     ...w.current,
@@ -294,21 +380,39 @@ it('rejects a substituted declaration even when its identity is unchanged', asyn
   })
 })
 
-it('does not reuse an interpretation for a different adoption or an unavailable release', async () => {
+it('answers unavailable, and reads nothing, when no declaration names the capability', async () => {
   const w = world()
   expect(
     await createCurrentToolPermission(w.ports).check({
       ...w.input,
       definition: { ...w.input.definition, digest: 'other' },
     }),
-  ).toMatchObject({ kind: 'undecidable' })
+  ).toMatchObject({ kind: 'unavailable' })
   expect(
-    await createCurrentToolPermission({
-      ...w.ports,
-      release: () => ({ kind: 'unavailable', diagnostic: 'gone' }),
-    }).check(w.input),
-  ).toMatchObject({ kind: 'undecidable' })
+    await createCurrentToolPermission({ ...w.ports, declarations: () => [] }).check(w.input),
+  ).toMatchObject({ kind: 'unavailable' })
   expect(w.reads()).toBe(0)
+})
+
+it('judges a capability outside the release once its category owner registers its declaration', async () => {
+  const w = world()
+  const released = w.ports.declarations()
+  const own = released.find(entry => entry.asset.adoption.name === w.input.definition.name)
+  if (own === undefined) throw new Error('fixture declaration missing')
+  const capability = { ...w.input.definition, name: 'TestCapability', digest: 'test-capability' }
+  const registered = { ...own, asset: { name: 'TestCapability', adoption: capability } }
+  const outside = { ...w.input, definition: capability }
+  expect(await createCurrentToolPermission(w.ports).check(outside)).toMatchObject({
+    kind: 'unavailable',
+  })
+  const check = createCurrentToolPermission({
+    ...w.ports,
+    declarations: () => [...released, registered],
+  })
+  expect(declaredPermission([...released, registered], outside)?.entry.asset.name).toBe(
+    'TestCapability',
+  )
+  expect(await check.check(outside)).not.toMatchObject({ kind: 'unavailable' })
 })
 
 it('does not expose dependency exception details', async () => {
@@ -341,7 +445,7 @@ it('carries the original owner context and the unchanged issued principal to the
 
 it.each([
   ['deny', 'deny'],
-  ['ask-human', 'undecidable'],
+  ['ask-human', 'ask'],
   ['skip-ask', 'allow'],
 ] as const)(
   'consumes published %s only for a structurally permitted inquiry',
@@ -359,7 +463,7 @@ it.each([
 )
 
 it.each(['missing', 'exception'] as const)(
-  'retains prohibition when inquiry publication is %s',
+  'retains prohibition, and does not refuse for good, when inquiry publication is %s',
   async failure => {
     const w = world()
     const check = createCurrentToolPermission({
@@ -370,7 +474,7 @@ it.each(['missing', 'exception'] as const)(
       },
     })
     w.current.evaluation.sources.tenant.rule.pick = 'ask'
-    expect(await check.check(w.input)).toMatchObject({ kind: 'undecidable' })
+    expect(await check.check(w.input)).toMatchObject({ kind: 'unavailable' })
     w.current.evaluation.sources.tenant.rule.pick = 'deny'
     expect(await check.check(w.input)).toMatchObject({ kind: 'deny' })
   },

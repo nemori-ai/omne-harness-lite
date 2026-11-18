@@ -6,6 +6,7 @@ export type {
   JournalRecord,
   ModelTargetCheck,
   ModelTargets,
+  PermissionModeReading,
   PrincipalFact,
   PrincipalFacts,
   RequestJournal,
@@ -18,5 +19,6 @@ export type {
   SessionListEntry,
   SessionListing,
   SessionListPage,
+  SessionPermissionModes,
   TargetTenantPrincipals,
 } from './ports.ts'

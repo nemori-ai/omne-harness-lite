@@ -1,4 +1,5 @@
 import type { SessionPermissions } from './permission-values.ts'
+import type { AuthorizationContext, AuthorizationExpression } from './authorizations.ts'
 import type { PermissionDefinitionRef, PermissionRule } from '@omne-harness/permissions'
 import type { TodoItem } from './todos.ts'
 import type { BackgroundCallRecord, StopInitiator } from './background-calls.ts'
@@ -283,8 +284,14 @@ export type DeclarationChange =
       authorization: DurableEvidence
     }>
   | Readonly<{
+      kind: 'authorization-expression'
+      expression: AuthorizationExpression
+      authorization: DurableEvidence
+    }>
+  | Readonly<{
       kind: 'permission-mode'
       value: Modes['permission']
+      expectedRevision: string
       authorization: DurableEvidence
     }>
   | Readonly<{
@@ -371,6 +378,8 @@ export type WorkSnapshot = Readonly<{
   execution: Adoption
   declarations: DurableEvidence
   permissions: SessionPermissions
+  /** The authorizations a person expressed in this session that are in force now. */
+  authorizations: AuthorizationContext
   revisions: Readonly<{ workspace: string; declarations: string }>
   run: RunState
   pending: readonly InputId[]

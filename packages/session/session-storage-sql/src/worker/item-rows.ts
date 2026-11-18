@@ -1,6 +1,7 @@
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { sessionHead } from './fact-rows.ts'
 import {
+  PAGE_BYTES,
   big,
   oneRow,
   packed,
@@ -19,6 +20,19 @@ export const isItemKey = (value: unknown): value is ItemKey =>
   typeof (value as ItemKey).family === 'string' &&
   (value as ItemKey).family !== '' &&
   typeof (value as ItemKey).item === 'string'
+
+export const itemBytes = (row: Row): number => packed(row['body']).length
+
+/** How many of the rows one page holds: what fits the page's bytes, and always the first row. */
+export function pageLength(rows: readonly Row[], limit: number): number {
+  let bytes = 0
+  let count = 0
+  while (count < rows.length && count < limit && (count === 0 || bytes < PAGE_BYTES)) {
+    bytes += itemBytes(rows[count]!)
+    count += 1
+  }
+  return count
+}
 
 export function itemOutput(row: Row): JsonValue {
   return {

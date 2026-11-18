@@ -68,6 +68,10 @@ export type ReplyPlan =
   | Readonly<{ kind: 'invalid-input'; reason: 'unknown-option' }>
   | Readonly<{ kind: 'unavailable'; reason: 'wait-unavailable' }>
 
+// Only a release card marks options it shows but does not offer now.
+const answerable = (option: Readonly<{ id: string; offered?: boolean }>): boolean =>
+  option.offered !== false
+
 export function decideReply({
   card,
   command,
@@ -89,7 +93,7 @@ export function decideReply({
   const reply = command.reply
   if (
     reply.kind === 'selection' &&
-    !card.question.options.some(option => option.id === reply.optionId)
+    !card.question.options.some(option => option.id === reply.optionId && answerable(option))
   ) {
     return { kind: 'invalid-input', reason: 'unknown-option' }
   }

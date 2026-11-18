@@ -33,6 +33,7 @@ async function beforeMigration(withAssignment = false) {
           operation: operationId('mode-before-upgrade'),
           declaration: {
             kind: 'permission-mode',
+            expectedRevision: '0',
             value: 'never',
             authorization: evidence('mode-fixture'),
           },

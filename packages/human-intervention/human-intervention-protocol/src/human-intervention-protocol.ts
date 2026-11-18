@@ -95,6 +95,43 @@ const question = {
         },
       },
     }),
+    object({
+      ...questionFields,
+      kind: { rule: literal('release') },
+      target: {
+        rule: object({
+          tool: { rule: text },
+          command: { rule: nullable(text) },
+          preview: { rule: { kind: 'string' } },
+        }),
+      },
+      arguments: {
+        rule: object({
+          text: { rule: text },
+          truncated: { rule: { kind: 'boolean' } },
+          digest: { rule: text },
+        }),
+      },
+      origin: { rule: object({ session: { rule: text }, agent: { rule: text } }) },
+      gate: {
+        rule: object({
+          capabilityId: { rule: text },
+          enforcementKey: { rule: text },
+          basis: { rule: text },
+        }),
+        optional: true,
+      },
+      options: {
+        rule: {
+          kind: 'array',
+          item: object({
+            ...option,
+            offered: { rule: { kind: 'boolean' } },
+            lasting: { rule: { kind: 'boolean' } },
+          }),
+        },
+      },
+    }),
   ],
 } as const
 

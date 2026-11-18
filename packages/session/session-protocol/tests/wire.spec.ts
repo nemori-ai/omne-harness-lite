@@ -23,6 +23,8 @@ type Name = Exclude<
   | 'background-call'
   | 'list-background-calls'
   | 'select-model'
+  | 'read-permission-mode'
+  | 'change-permission-mode'
 >
 type Samples = Readonly<Record<Name, readonly Record<string, unknown>[]>>
 

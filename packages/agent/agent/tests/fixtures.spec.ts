@@ -82,7 +82,7 @@ describe('action admission', () => {
     })
     expect(ok(await admission.port.admit(input)).kind).toBe('allow')
     const answers: AdmissionDecision[] = [
-      { kind: 'deny', reason: 'policy', evidence: testEvidence('deny') },
+      { kind: 'deny', category: 'rule', reason: 'policy', evidence: testEvidence('deny') },
       {
         kind: 'need-decision',
         card: stub({ title: 'ask' }),

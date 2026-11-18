@@ -59,7 +59,12 @@ describe('the explicit access check double', () => {
         tenant: access.tenant,
         session: access.session,
         operation: operationId('change'),
-        declaration: { kind: 'permission-mode', value: 'never', authorization: evidence('change') },
+        declaration: {
+          kind: 'permission-mode',
+          value: 'never',
+          expectedRevision: '0',
+          authorization: evidence('change'),
+        },
       },
     } satisfies SessionCommand
     const change = {

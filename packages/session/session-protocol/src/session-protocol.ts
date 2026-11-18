@@ -136,6 +136,13 @@ const unarchiveAnswer = object({
   controlId: { rule: text },
 })
 
+// The permission handling mode now, with the permission revision it stands at.
+const permissionModeValue = literal('never', 'auto_permission', 'bypass-permissions')
+const permissionMode = object({
+  mode: { rule: permissionModeValue },
+  revision: { rule: text },
+})
+
 const readHistory = {
   kind: 'one-of',
   rules: [
@@ -353,6 +360,33 @@ export const sessionProtocol = defineProtocol({
       outcomes: { succeeded: ruleCodec(unarchiveAnswer), invalid: empty, conflict: empty },
       countsAsAccess: true,
     },
+    'read-permission-mode': {
+      identity: 'login',
+      effect: 'read',
+      limit: 'small',
+      body: ruleCodec(object(target)),
+      outcomes: { succeeded: ruleCodec(permissionMode), invalid: empty },
+      countsAsAccess: true,
+    },
+    'change-permission-mode': {
+      identity: 'login',
+      effect: 'commit',
+      limit: 'small',
+      body: ruleCodec(
+        object({
+          ...target,
+          mode: { rule: permissionModeValue },
+          expectedRevision: { rule: text },
+        }),
+      ),
+      outcomes: {
+        succeeded: ruleCodec(permissionMode),
+        'no-change': ruleCodec(permissionMode),
+        conflict: empty,
+        invalid: empty,
+      },
+      countsAsAccess: true,
+    },
     'cancel-run': {
       identity: 'login',
       effect: 'commit',
@@ -447,7 +481,6 @@ export const sessionProtocol = defineProtocol({
       },
       countsAsAccess: true,
     },
-    // The control identity derives the session operation; an unknown answer is retried with it.
     'select-model': {
       identity: 'login',
       effect: 'commit',

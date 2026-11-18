@@ -25,6 +25,7 @@ type P = Principal
 type FaceMethod =
   | 'create'
   | 'interrupt'
+  | 'change'
   | 'accept'
   | 'queryOperation'
   | 'cancelRun'

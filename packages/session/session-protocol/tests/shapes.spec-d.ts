@@ -163,6 +163,8 @@ test('the operations are exactly the seventeen of session/v1', () => {
     | 'background-call'
     | 'list-background-calls'
     | 'select-model'
+    | 'read-permission-mode'
+    | 'change-permission-mode'
   >()
   expectTypeOf<keyof SessionProtocol['observations']>().toEqualTypeOf<'observe-session'>()
   expectTypeOf(sessionProtocol.name).toEqualTypeOf<'session'>()

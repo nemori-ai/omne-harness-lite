@@ -562,6 +562,47 @@ describe('session commands', () => {
     },
   )
 
+  it('read-permission-mode sends the session; change-permission-mode the mode and the revision read', async () => {
+    const service = await serve()
+    await loginOwningSession(service)
+    await cli(['read-permission-mode', '--session', sessionId])
+    expect(service.seen.at(-1)?.path).toBe('/api/session/v1/read-permission-mode')
+    expect(service.seen.at(-1)?.body).toEqual({ tenant: tenantText, session: sessionId })
+    await cli([
+      'change-permission-mode',
+      '--session',
+      sessionId,
+      '--mode',
+      'auto_permission',
+      '--expected-revision',
+      '3',
+    ])
+    expect(service.seen.at(-1)?.path).toBe('/api/session/v1/change-permission-mode')
+    expect(service.seen.at(-1)?.body).toEqual({
+      tenant: tenantText,
+      session: sessionId,
+      mode: 'auto_permission',
+      expectedRevision: '3',
+    })
+  })
+
+  it('change-permission-mode refuses a mode outside the three and sends nothing', async () => {
+    const service = await serve()
+    await loginOwningSession(service)
+    const before = service.seen.length
+    const bad = await cli([
+      'change-permission-mode',
+      '--session',
+      sessionId,
+      '--mode',
+      'ask',
+      '--expected-revision',
+      '0',
+    ])
+    expect(bad).toMatchObject({ code: 2, stderr: commandUnrecognized('change-permission-mode') })
+    expect(service.seen).toHaveLength(before)
+  })
+
   it('list-archived-sessions reads the login tenant and sends only the filters given (C29)', async () => {
     const service = await serve()
     await loginOwningSession(service)

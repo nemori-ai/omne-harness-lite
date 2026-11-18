@@ -8,7 +8,9 @@ import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   Adoption,
   DurableEvidence,
+  Modes,
   SavedModelSelection,
+  SessionAccess,
   SessionHistory,
   SessionManagement,
   SessionWork,
@@ -78,6 +80,15 @@ type ListingAnswer = Promise<
 export interface SessionListing {
   list(input: ListingInput): ListingAnswer
   listArchived(input: ListingInput & ArchiveFilters): ListingAnswer
+}
+
+export type PermissionModeReading =
+  | Readonly<{ kind: 'read'; mode: Modes['permission']; revision: string }>
+  | Readonly<{ kind: 'unavailable' }>
+
+/** The permission mode in force for a session, with the permission revision it stands at. */
+export interface SessionPermissionModes {
+  read(access: SessionAccess<Principal>): Promise<PermissionModeReading>
 }
 
 export type SessionAccessFaces = Readonly<{

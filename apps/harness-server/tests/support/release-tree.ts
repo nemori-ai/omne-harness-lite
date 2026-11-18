@@ -49,10 +49,12 @@ export function releaseDistribution(modes: ReleaseModes = {}): unknown {
   const distribution = JSON.parse(
     readFileSync(new URL('../../config/serve.distribution.json', import.meta.url), 'utf8'),
   ) as { rows: Array<{ id: string; config: unknown }> }
+  const nonresident = modes.nonresident ?? []
   if (
     modes.permission === undefined &&
     modes.collaboration === undefined &&
-    modes.model === undefined
+    modes.model === undefined &&
+    nonresident.length === 0
   )
     return distribution
   const adoptionRow = distribution.rows.find(row => row.id === 'agent-adoptions')
@@ -67,6 +69,12 @@ export function releaseDistribution(modes: ReleaseModes = {}): unknown {
     if (coding.initialModelSelection === undefined) throw new Error('No coding model selection')
     coding.initialModelSelection.name = modes.model
   }
+  const references = coding.definition['references'] as {
+    capability: { name: string }
+    resident: boolean
+  }[]
+  for (const reference of references)
+    if (nonresident.includes(reference.capability.name)) reference.resident = false
   adoptionRow.config = mappings
   return distribution
 }
@@ -76,6 +84,8 @@ type ReleaseModes = Readonly<{
   collaboration?: 'co-work' | 'auto-drive'
   /** The model a coding session starts on, in place of the distribution's. */
   model?: string
+  /** Release tools the coding Agent reaches only through Tools in this tree. */
+  nonresident?: readonly string[]
 }>
 
 export const sse = (events: readonly unknown[]): string =>
@@ -393,6 +403,25 @@ export type ToolCallRow = Readonly<{
   }> | null
 }>
 
+/** What the local Tool host recorded: permits, acceptances, rejections and the rest, as stored. */
+export function hostRecords(storageRoot: string): readonly Readonly<Record<string, unknown>>[] {
+  return ledgerRows(storageRoot).flatMap(row => {
+    const record = row.record as {
+      kind?: string
+      host?: { value?: Record<string, unknown> | null }
+    }
+    const value = record.host?.value
+    return record.kind === 'host' && value != null ? [value] : []
+  })
+}
+
+/** The acceptance records of Tool starts: each start has one, with what it consumed. */
+export function startAcceptances(
+  storageRoot: string,
+): readonly Readonly<Record<string, unknown>>[] {
+  return hostRecords(storageRoot).filter(value => value['kind'] === 'acceptance')
+}
+
 export function toolCalls(storageRoot: string): readonly ToolCallRow[] {
   const calls = new Map<string, { tool: string; phase: string; delivery: string | null }>()
   const entries = new Map<string, NonNullable<ToolCallRow['entry']>>()
@@ -557,6 +586,7 @@ export type ReleaseTreeOptions = Readonly<{
   permission?: string
   collaboration?: 'co-work' | 'auto-drive'
   model?: string
+  nonresident?: readonly string[]
   audience?: (registrar: string) => HitlAudience
   queueCapacity?: number
   observationPolicy?: Readonly<Record<string, number>>

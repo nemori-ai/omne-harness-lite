@@ -19,6 +19,7 @@ const WHO: Readonly<Record<string, string>> = {
   question: 'Agent 在问你',
   approval: 'Agent 想先问你批不批准',
   admission: '系统要你放行',
+  release: '系统要你放行这一次调用',
   extension: '拓展件在问你',
 }
 
@@ -65,6 +66,7 @@ export function CardView({ card, at, of, disabled, driver, onDraft }: Props): JS
       {question.description === '' ? null : (
         <p className="hitl-card-text">{question.description}</p>
       )}
+      {question.kind === 'release' ? <ReleaseCall question={question} /> : null}
       <Answer
         item={item}
         draft={draftOfShown(card)}
@@ -110,19 +112,13 @@ function Answer({
             )
           }
         >
-          {question.options.map(option => (
-            <label
-              key={option.id}
-              className="hitl-card-choice"
-              data-state={picked === `${OPTION}${option.id}` ? 'checked' : 'unchecked'}
-            >
-              <RadioGroupItem value={`${OPTION}${option.id}`} />
-              <span className="hitl-card-choice-label">{option.label}</span>
-              {option.description === '' ? null : (
-                <span className="hitl-card-choice-text">{option.description}</span>
-              )}
-            </label>
-          ))}
+          {question.kind === 'release' ? (
+            <ReleaseChoices options={question.options} picked={picked} />
+          ) : (
+            question.options.map(option => (
+              <Choice key={option.id} option={option} picked={picked} offered />
+            ))
+          )}
         </RadioGroup>
       )}
       <label className="hitl-card-words-label" htmlFor={words}>
@@ -155,6 +151,71 @@ function Answer({
         )}
       </div>
     </fieldset>
+  )
+}
+
+type Question = HumanInterventionCardItem['card']['question']
+type ReleaseQuestion = Extract<Question, { kind: 'release' }>
+type Option = Readonly<{ id: string; label: string; description: string }>
+
+function Choice({
+  option,
+  picked,
+  offered,
+}: Readonly<{ option: Option; picked: string; offered: boolean }>): JSX.Element {
+  return (
+    <label
+      className="hitl-card-choice"
+      data-state={picked === `${OPTION}${option.id}` ? 'checked' : 'unchecked'}
+      data-offered={offered}
+    >
+      <RadioGroupItem value={`${OPTION}${option.id}`} disabled={!offered} />
+      <span className="hitl-card-choice-label">{option.label}</span>
+      {option.description === '' ? null : (
+        <span className="hitl-card-choice-text">{option.description}</span>
+      )}
+    </label>
+  )
+}
+
+// The release card's body: the call as a summary line, its arguments on demand, where it comes from.
+function ReleaseCall({ question }: Readonly<{ question: ReleaseQuestion }>): JSX.Element {
+  const { target, arguments: given, origin } = question
+  const call = [target.tool, target.command, target.preview]
+    .filter(part => part !== null && part !== '')
+    .join(' ')
+  return (
+    <div className="hitl-release-call">
+      <code className="hitl-release-summary">{call}</code>
+      <details className="hitl-release-arguments">
+        <summary>参数</summary>
+        <pre>{given.text}</pre>
+        {given.truncated ? (
+          <p className="hitl-release-cut">{`参数太长，只显示开头。全文摘要 ${given.digest}`}</p>
+        ) : null}
+      </details>
+      <p className="hitl-release-origin">{`会话 ${origin.session} · Agent ${origin.agent}`}</p>
+    </div>
+  )
+}
+
+// One-time options and lasting ones sit apart; an option the issuer does not offer now is shown, not choosable.
+function ReleaseChoices({
+  options,
+  picked,
+}: Readonly<{ options: ReleaseQuestion['options']; picked: string }>): JSX.Element {
+  return (
+    <div className="hitl-release-options">
+      {[false, true].map(lasting => (
+        <div key={String(lasting)} className="hitl-release-group" data-lasting={lasting}>
+          {options
+            .filter(option => option.lasting === lasting)
+            .map(option => (
+              <Choice key={option.id} option={option} picked={picked} offered={option.offered} />
+            ))}
+        </div>
+      ))}
+    </div>
   )
 }
 

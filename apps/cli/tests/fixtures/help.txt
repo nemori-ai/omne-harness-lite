@@ -19,6 +19,8 @@ Commands
   omne select-model --session <id> --model <route>                                                                   Select the model of a session: the next model request uses it.
   omne archive-session --session <id>                                                                                Archive a session: its run ends and its background calls are withdrawn.
   omne unarchive-session --session <id>                                                                              Take a session back from the archive.
+  omne read-permission-mode --session <id>                                                                           Read the permission mode of a session and the revision it stands at.
+  omne change-permission-mode --session <id> --mode <mode> --expected-revision <n>                                   Change the permission mode of a session (never, auto_permission or bypass-permissions) at the revision read.
   omne list-archived-sessions [--since <instant>] [--before <instant>] [--by person|auto|parent] [--title <text>]    List the archived sessions, the latest archived first.
   omne calls list|show|output|stop|background                                                                        List the background tool calls of a session, read one, or stop or background it.
   omne list-cards                                                                                                    List the cards that wait for a person.

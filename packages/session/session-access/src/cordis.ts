@@ -16,6 +16,7 @@ import type {
   SessionAccessFaces,
   SessionAccessSettings,
   SessionListing,
+  SessionPermissionModes,
   TargetTenantPrincipals,
 } from './ports.ts'
 import { createRequestDrain } from './request-drain.ts'
@@ -32,6 +33,7 @@ export type SessionAccessPluginInput<S = SessionAccessSettings> = Readonly<{
   causes?: (ctx: Context) => RunFailureCauses | undefined
   /** How a model route resolves for a selection; the release adapts Model's profiles to it. */
   modelTargets?: (ctx: Context) => ModelTargets | undefined
+  permissionModes?: (ctx: Context) => SessionPermissionModes | undefined
   prepareCreation?: (input: SessionCreateInput) => SessionCreateInput
 }>
 
@@ -102,6 +104,7 @@ export function createSessionAccessPlugin<S extends SessionAccessSettings>(
               },
               causes: () => input.causes?.(ctx),
               modelTargets: () => input.modelTargets?.(ctx),
+              permissionModes: () => input.permissionModes?.(ctx),
               principals,
               facts: input.facts,
               settings,

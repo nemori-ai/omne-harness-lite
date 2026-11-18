@@ -6,20 +6,14 @@ import type {
   Principal,
 } from '@omne-harness/access-cordis-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
-import type {
-  DurableEvidence,
-  HistoryPage,
-  RunId,
-  SessionCreation,
-  SessionId,
-} from '@omne-harness/session-contract'
+import type { SessionCreation, SessionId } from '@omne-harness/session-contract'
 import type {
   SessionObservation,
   SessionObservationEnd,
   SessionObservationFrame,
 } from '@omne-harness/session-observation'
 import type { SessionProtocol } from '@omne-harness/session-protocol'
-import { controlOperation, createOperation, sessionIdentity, tenantTextOf } from './derivation.ts'
+import { createOperation, sessionIdentity, tenantTextOf } from './derivation.ts'
 import {
   commitCall,
   describedBy,
@@ -32,6 +26,7 @@ import {
   type Refusal,
   type Target,
 } from './answers.ts'
+import { cancelRun } from './cancel-run.ts'
 import { retryRun } from './retry-run.ts'
 import { backgroundCall, listBackgroundCalls } from './background-calls.ts'
 import { selectModel } from './select-model.ts'
@@ -45,8 +40,11 @@ import type {
   SessionAccessFaces,
   SessionAccessSettings,
   SessionListing,
+  SessionPermissionModes,
   TargetTenantPrincipals,
 } from './ports.ts'
+import { changePermissionMode, readPermissionMode } from './permission-mode.ts'
+import { readHistory } from './read-history.ts'
 import { readWaiting } from './read-waiting.ts'
 import type { RequestDrain } from './request-drain.ts'
 import { interruptInput, querySendInput, sendInput } from './send-input.ts'
@@ -58,6 +56,7 @@ export type SessionContributionInput = Readonly<{
   listing: () => SessionListing | undefined
   causes: () => RunFailureCauses | undefined
   modelTargets: () => ModelTargets | undefined
+  permissionModes: () => SessionPermissionModes | undefined
   principals: TargetTenantPrincipals
   facts: PrincipalFacts
   settings: SessionAccessSettings
@@ -67,38 +66,6 @@ export type SessionContributionInput = Readonly<{
 type ObserveSession = SessionProtocol['observations']['observe-session']
 
 type TenantPrincipal = Readonly<{ principal: Principal; tenantText: string }>
-
-function withinPageBound(pageBytes: string, bound: number): boolean {
-  const boundText = String(bound)
-  return (
-    pageBytes.length < boundText.length ||
-    (pageBytes.length === boundText.length && pageBytes <= boundText)
-  )
-}
-
-function sourceOf(evidence: DurableEvidence) {
-  return {
-    owner: evidence.owner,
-    record: evidence.record,
-    revision: evidence.revision,
-    digest: evidence.digest,
-  }
-}
-
-function pageOf(page: HistoryPage) {
-  return {
-    entries: page.entries.map(entry => ({
-      entryId: entry.id,
-      revision: entry.revision,
-      kind: entry.kind,
-      payload: entry.payload,
-    })),
-    next: page.next,
-    exhausted: page.exhausted,
-    scannedThrough: page.scannedThrough,
-    upper: page.upper,
-  }
-}
 
 async function* framesOf(
   frames: AsyncGenerator<SessionObservationFrame, SessionObservationEnd | undefined>,
@@ -193,7 +160,13 @@ export function createSessionContribution(
   }
 
   const factOf = (principal: Principal) => describedBy(facts, principal)
-  const ports = { admit, factOf, causes: input.causes, targets: input.modelTargets }
+  const held = {
+    admit,
+    factOf,
+    causes: input.causes,
+    modes: input.permissionModes,
+    targets: input.modelTargets,
+  }
   const sending = { target, factOf, faces: input.faces, requests: input.requests }
   const listing = { principalFor, listing: input.listing, settings }
 
@@ -271,73 +244,6 @@ export function createSessionContribution(
     }
   }
 
-  async function readHistory(
-    login: LoginIdentity,
-    body: Body<'read-history'>,
-  ): Promise<Answer<'read-history'>> {
-    const admitted = await admit(login, body.tenant, body.session)
-    if ('outcome' in admitted) return admitted
-    if (body.cursor === null && !withinPageBound(body.pageBytes, settings.maxPageBytes))
-      return { outcome: 'invalid', body: {} }
-    const { access, faces } = admitted
-    const result = await readCall(() =>
-      body.cursor === null
-        ? faces.history.begin({
-            ...access,
-            kinds: settings.historyKinds,
-            from: null,
-            direction: body.direction,
-            pageBytes: Number(body.pageBytes),
-          })
-        : faces.history.next({ ...access, cursor: body.cursor }),
-    )
-    if (result === 'basis-unavailable') return UNAVAILABLE
-    if ('failure' in result) return refused('read-history', result.failure)
-    return { outcome: 'succeeded', body: pageOf(result.ok) }
-  }
-
-  async function cancelRun(
-    login: LoginIdentity,
-    body: Body<'cancel-run'>,
-  ): Promise<Answer<'cancel-run'>> {
-    const admitted = await admit(login, body.tenant, body.session)
-    if ('outcome' in admitted) return admitted
-    const { access, tenantText, faces } = admitted
-    const caller = factOf(access.principal)
-    if (caller === undefined) return UNAVAILABLE
-    const { controlId, run } = body
-    const result = await commitCall(() =>
-      faces.work.cancelRun({
-        ...access,
-        operation: controlOperation(caller.login, tenantText, access.session, controlId),
-        run: run as RunId,
-        urgency: body.urgency,
-      }),
-    )
-    if (result === 'unknown') return { outcome: 'unknown' }
-    if ('failure' in result) return refused('cancel-run', result.failure)
-    const saved = result.ok.answer
-    switch (saved.kind) {
-      case 'requested':
-        return { outcome: 'succeeded', body: { kind: 'requested', controlId, run } }
-      case 'ended':
-        return {
-          outcome: 'succeeded',
-          body: {
-            kind: 'ended',
-            controlId,
-            run,
-            terminal: {
-              outcome: saved.terminal.outcome,
-              source: sourceOf(saved.terminal.evidence),
-            },
-          },
-        }
-      case 'not-found':
-        return { outcome: 'not-found', body: {} }
-    }
-  }
-
   return {
     operations: {
       'create-session': (call, body) => createSession(call.principal, body),
@@ -345,18 +251,20 @@ export function createSessionContribution(
       'send-input': (call, body) => sendInput(sending, call.principal, body),
       'interrupt-input': (call, body) => interruptInput(sending, call.principal, body),
       'query-send-input': (call, body) => querySendInput(sending, call.principal, body),
-      'read-history': (call, body) => readHistory(call.principal, body),
-      'read-waiting': (call, body) => readWaiting(ports, call.principal, body),
-      'cancel-run': (call, body) => cancelRun(call.principal, body),
-      'stop-call': (call, body) => stopCall(ports, call.principal, body),
-      'select-model': (call, body) => selectModel(ports, call.principal, body),
-      'retry-run': (call, body) => retryRun(ports, call.principal, body),
-      'background-call': (call, body) => backgroundCall(ports, call.principal, body),
-      'list-background-calls': (call, body) => listBackgroundCalls(ports, call.principal, body),
+      'read-history': (call, body) => readHistory({ admit, settings }, call.principal, body),
+      'read-waiting': (call, body) => readWaiting(held, call.principal, body),
+      'cancel-run': (call, body) => cancelRun(held, call.principal, body),
+      'stop-call': (call, body) => stopCall(held, call.principal, body),
+      'select-model': (call, body) => selectModel(held, call.principal, body),
+      'retry-run': (call, body) => retryRun(held, call.principal, body),
+      'background-call': (call, body) => backgroundCall(held, call.principal, body),
+      'list-background-calls': (call, body) => listBackgroundCalls(held, call.principal, body),
       'list-sessions': (call, body) => listSessions(listing, call.principal, body),
       'list-archived-sessions': (call, body) => listArchivedSessions(listing, call.principal, body),
-      'archive-session': (call, body) => archiveSession(ports, call.principal, body),
-      'unarchive-session': (call, body) => unarchiveSession(ports, call.principal, body),
+      'archive-session': (call, body) => archiveSession(held, call.principal, body),
+      'unarchive-session': (call, body) => unarchiveSession(held, call.principal, body),
+      'read-permission-mode': (call, body) => readPermissionMode(held, call.principal, body),
+      'change-permission-mode': (call, body) => changePermissionMode(held, call.principal, body),
     },
     observations: {
       'observe-session': async (context, open) => {
