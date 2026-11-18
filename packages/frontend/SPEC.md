@@ -210,5 +210,5 @@ React、Tailwind 4（无配置文件，`@theme inline` 把 Tailwind 的主题名
 | FE-I12 | 登录与退出的答案只有结果，不含任何登录证明 | 页面里的界面模块读到登录证明 | `shell-contract/tests/slots.spec-d.ts` 里登录端口的类型用例 |
 | FE-I13 | 附着位置里的一项只渲染在名字相同的地方，收到那个地方给的对象；按键的拓展点里，一项只出现在它的键下 | 一个对象的界面出现在另一个对象上 | `shell-contract/tests/attached.spec.ts` 的参考外壳用例；`shell-contract/tests/point.spec.ts`；`apps/desktop/tests/shell.spec.tsx` 的附着位置用例 |
 | FE-I14 | 外壳画的一项在渲染当中抛出时，只有这一项显示读不出；别的项与宿主的页面照常。这一条由外壳的实现守，契约只规定它 | 一个领域的界面出错，整个页面卸掉 | `apps/desktop/tests/shell.spec.tsx` 的「一项坏了只坏这一项」一组 |
-| FE-I15 | 瞬时提示只有数据，外壳自己画；一个界面模块的提示随它的作用域撤掉；同一个 `id` 至多显示一条 | 一个领域的提示坏了连累外壳；卸掉的模块还留着提示 | 只有文字 |
-| FE-I16 | 瞬时提示不保存、不重放，提示这个操作没有结果 | 界面模块把「提示过」当成「人看到了」 | 只有文字 |
+| FE-I15 | 瞬时提示只有数据，外壳自己画；一个界面模块的提示随它的作用域撤掉；同一个 `id` 至多显示一条 | 一个领域的提示坏了连累外壳；卸掉的模块还留着提示 | `shell-contract/tests/toast.spec.ts` 与 `toast-store.spec.ts`；`shell-contract/tests/slots.spec-d.ts` 的 `Toast` 形状；`apps/desktop/tests/toasts.spec.tsx` |
+| FE-I16 | 瞬时提示不保存、不重放，提示这个操作没有结果 | 界面模块把「提示过」当成「人看到了」 | `shell-contract/tests/toast.spec.ts` 的「shows what a module hands over and gives nothing back」；`shell-contract/tests/slots.spec-d.ts` 的 `toast` 签名；`notification-ui/tests/toast-arrivals.spec.tsx` 的「toasting changes nothing about the notification」 |

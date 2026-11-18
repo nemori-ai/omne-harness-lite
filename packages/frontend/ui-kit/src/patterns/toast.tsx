@@ -13,7 +13,6 @@ export interface ToastItemProps {
   readonly dismissLabel?: string
 }
 
-/** One toast: a notice that floats, with a way to close it and at most one action. */
 export function ToastItem({
   tone,
   title,
@@ -43,7 +42,6 @@ export interface ToastStackProps {
   readonly children: ReactNode
 }
 
-/** The corner the toasts float in, oldest on top. Empty, it draws nothing. */
 export function ToastStack({ label, children }: ToastStackProps): React.JSX.Element | null {
   if (Children.count(children) === 0) return null
   return (

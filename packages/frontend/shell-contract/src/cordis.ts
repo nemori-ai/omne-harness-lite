@@ -10,6 +10,8 @@ export abstract class ShellService extends Service {
   static readonly provide = 'shell'
   abstract readonly login: ShellLogin
   abstract readonly scope: ScopeSource
+  /** The callers whose scope already carries the take-down of their toasts. */
+  private readonly toastCallers = new WeakSet<object>()
 
   constructor(ctx: Context) {
     super(ctx, ShellService.provide)
@@ -28,8 +30,6 @@ export abstract class ShellService extends Service {
     if (!this.toastCallers.has(caller) && !this.bindToasts(caller, board)) return
     board.show(caller, toast)
   }
-
-  private readonly toastCallers = new WeakSet<object>()
 
   private bindToasts(caller: object, board: ToastBoard): boolean {
     try {

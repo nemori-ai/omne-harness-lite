@@ -10,6 +10,9 @@ import type {
 const because = (outcome: string): string =>
   outcome === 'unavailable' ? '连不上服务。' : refused(outcome, '').text
 
+const worthShowing = (read: WorkRead<unknown>): boolean =>
+  read.kind === 'unreadable' || (read.kind === 'read' && read.items.length > 0)
+
 function useSessionWork(store: SessionWorkStore, tenant: string, session: string, at: unknown) {
   const subscribe = useCallback(
     (listener: () => void) => store.subscribe(tenant, session, listener),
@@ -22,54 +25,51 @@ function useSessionWork(store: SessionWorkStore, tenant: string, session: string
   return work
 }
 
-function Pending({
+function Part<T>({
   read,
+  what,
+  heading,
+  line,
 }: {
-  readonly read: WorkRead<{ inputs: readonly QueuedInput[]; more: boolean }>
+  readonly read: WorkRead<T>
+  readonly what: string
+  readonly heading: (count: number, more: boolean) => string
+  readonly line: (item: T) => Readonly<{ key: string; text: string }>
 }) {
-  if (read.kind === 'unread') return null
+  if (read.kind === 'unread' || !worthShowing(read)) return null
   if (read.kind === 'unreadable')
-    return <p className="omne-session-work-line">还排着哪些话现在读不到：{because(read.outcome)}</p>
-  const { inputs, more } = read.value
-  if (inputs.length === 0) return null
+    return (
+      <p className="omne-session-work-line">
+        {what}现在读不到：{because(read.outcome)}
+      </p>
+    )
   return (
     <div className="omne-session-work-part">
-      <p className="omne-session-work-line">
-        {more
-          ? `至少还有 ${inputs.length} 句话排着没处理，这里只列出前面的`
-          : `还有 ${inputs.length} 句话排着没处理`}
-      </p>
+      <p className="omne-session-work-line">{heading(read.items.length, read.more)}</p>
       <ul>
-        {inputs.map(input => (
-          <li key={input.input} data-role={input.role}>
-            {input.source.label}：{input.preview}
-          </li>
-        ))}
+        {read.items.map(item => {
+          const { key, text } = line(item)
+          return <li key={key}>{text}</li>
+        })}
       </ul>
     </div>
   )
 }
 
-function Calls({ read }: { readonly read: WorkRead<readonly WaitingCallItem[]> }) {
-  if (read.kind === 'unread') return null
-  if (read.kind === 'unreadable')
-    return (
-      <p className="omne-session-work-line">在等人答的调用现在读不到：{because(read.outcome)}</p>
-    )
-  if (read.value.length === 0) return null
-  return (
-    <div className="omne-session-work-part">
-      <p className="omne-session-work-line">agent 停着，在等人答 {read.value.length} 张卡</p>
-      <ul>
-        {read.value.map(call => (
-          <li key={`${call.card.owner}/${call.card.record}`}>
-            {call.action ?? call.passage} · 卡 {call.card.record}
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
+const pendingHeading = (count: number, more: boolean): string =>
+  more ? `至少还有 ${count} 句话排着没处理，这里只列出前面的` : `还有 ${count} 句话排着没处理`
+
+const pendingLine = (input: QueuedInput) => ({
+  key: input.input,
+  text: `${input.source.label}：${input.preview}`,
+})
+
+const callsHeading = (count: number): string => `agent 停着，在等人答 ${count} 张卡`
+
+const callLine = (call: WaitingCallItem) => ({
+  key: `${call.card.owner}/${call.card.record}`,
+  text: `${call.action ?? call.passage} · 卡 ${call.card.record}`,
+})
 
 /** What the session still holds: inputs no run took yet, and calls that wait for a person. */
 export function SessionWork({
@@ -85,17 +85,11 @@ export function SessionWork({
   readonly revision: string | null
 }) {
   const work = useSessionWork(store, tenant, session, revision)
-  const shown = [work.pending, work.calls].some(
-    read => read.kind === 'unreadable' || (read.kind === 'read' && hasAny(read.value)),
-  )
-  if (!shown) return null
+  if (!worthShowing(work.pending) && !worthShowing(work.calls)) return null
   return (
     <section className="omne-session-work" aria-label="排着的与在等的">
-      <Pending read={work.pending} />
-      <Calls read={work.calls} />
+      <Part read={work.pending} what="还排着哪些话" heading={pendingHeading} line={pendingLine} />
+      <Part read={work.calls} what="在等人答的调用" heading={callsHeading} line={callLine} />
     </section>
   )
 }
-
-const hasAny = (value: Readonly<{ inputs: readonly unknown[] }> | readonly unknown[]): boolean =>
-  'inputs' in value ? value.inputs.length > 0 : value.length > 0

@@ -14,12 +14,12 @@ export type WaitingCallItem = Succeeded<'read-waiting-calls'>['calls'][number]
 /** What Session answered last, or why it could not be read. Unreadable is never shown as none. */
 export type WorkRead<T> =
   | Readonly<{ kind: 'unread' }>
-  | Readonly<{ kind: 'read'; value: T }>
+  | Readonly<{ kind: 'read'; items: readonly T[]; more: boolean }>
   | Readonly<{ kind: 'unreadable'; outcome: string }>
 
 export type SessionWork = Readonly<{
-  pending: WorkRead<Readonly<{ inputs: readonly QueuedInput[]; more: boolean }>>
-  calls: WorkRead<readonly WaitingCallItem[]>
+  pending: WorkRead<QueuedInput>
+  calls: WorkRead<WaitingCallItem>
 }>
 
 export const UNREAD_WORK: SessionWork = { pending: { kind: 'unread' }, calls: { kind: 'unread' } }
@@ -27,6 +27,21 @@ export const UNREAD_WORK: SessionWork = { pending: { kind: 'unread' }, calls: { 
 const PAGE_LIMIT = 20
 
 type Entry = { work: SessionWork; issued: number; listeners: Set<() => void> }
+
+type Outcome = Readonly<{ outcome: string }>
+type Success<A extends Outcome> = Extract<A, { outcome: 'succeeded' }>
+
+const succeeded = <A extends Outcome>(answer: A): answer is Success<A> =>
+  answer.outcome === 'succeeded'
+
+function readOf<A extends Outcome, T>(
+  answer: A,
+  items: (answer: Success<A>) => Readonly<{ items: readonly T[]; more: boolean }>,
+): WorkRead<T> {
+  return succeeded(answer)
+    ? { kind: 'read', ...items(answer) }
+    : { kind: 'unreadable', outcome: answer.outcome }
+}
 
 const keyOf = (tenant: string, session: string): string => `${tenant}\u0000${session}`
 
@@ -67,17 +82,8 @@ export class SessionWorkStore {
     ])
     if (entry.issued !== token || this.entries.get(keyOf(tenant, session)) !== entry) return
     entry.work = {
-      pending:
-        pending.outcome === 'succeeded'
-          ? {
-              kind: 'read',
-              value: { inputs: pending.body.inputs, more: pending.body.next !== null },
-            }
-          : { kind: 'unreadable', outcome: pending.outcome },
-      calls:
-        calls.outcome === 'succeeded'
-          ? { kind: 'read', value: calls.body.calls }
-          : { kind: 'unreadable', outcome: calls.outcome },
+      pending: readOf(pending, ({ body }) => ({ items: body.inputs, more: body.next !== null })),
+      calls: readOf(calls, ({ body }) => ({ items: body.calls, more: false })),
     }
     for (const listener of entry.listeners) listener()
   }
