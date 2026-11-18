@@ -1,4 +1,5 @@
 import type { AssetsLocal } from '@omne-harness/assets-local'
+import type { PermissionDeclaration } from '../../entry/permission-declarations.ts'
 import type { ToolRelease } from '../../entry/tool-release.ts'
 import { createPermissionBasisRead, type PermissionOrigins } from './permission-basis-read.ts'
 import { GOVERNANCE_PROJECTION_READ } from './storage-materials.ts'
@@ -34,6 +35,7 @@ export type TenantGovernanceOptions = Omit<
     materials: SqlMaterialCatalog
     catalogPrincipal: ActingForTenantPrincipal
     permissionRelease?: () => ToolRelease
+    permissionDeclarations?: () => readonly PermissionDeclaration[]
     permissionOrigins?: () => PermissionOrigins | undefined
     login?: () => SessionPermissionLogin | undefined
     settings?: SessionPermissionSettingsResolver
@@ -118,11 +120,11 @@ async function open(options: TenantGovernanceOptions, combinations: Combinations
     const { service } = runtime
     let closed = false
     const permissionBasis =
-      options.permissionRelease === undefined || handler === undefined
+      options.permissionDeclarations === undefined || handler === undefined
         ? undefined
         : createPermissionBasisRead({
             scope: options.scope,
-            release: options.permissionRelease,
+            declarations: options.permissionDeclarations,
             storage: options.storage,
             domain: options.domain,
             epoch: runtime.epoch,

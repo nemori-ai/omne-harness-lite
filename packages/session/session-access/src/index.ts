@@ -5,6 +5,7 @@ export type { QueuedRequest } from './request-queue.ts'
 export type {
   DefinitionResolver,
   JournalRecord,
+  PermissionModeReading,
   PrincipalFact,
   PrincipalFacts,
   RequestJournal,
@@ -17,5 +18,6 @@ export type {
   SessionListEntry,
   SessionListing,
   SessionListPage,
+  SessionPermissionModes,
   TargetTenantPrincipals,
 } from './ports.ts'

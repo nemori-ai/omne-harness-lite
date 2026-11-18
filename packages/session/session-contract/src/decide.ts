@@ -1,7 +1,7 @@
 import { decidePermissionAssignment } from './permission-state.ts'
+import { incompleteAuthorization } from './authorizations.ts'
 import {
   DEFAULT_SESSION_INTAKE_LIMITS,
-  judgeSessionIntake,
   pendingIntakeCount,
   type SessionIntakeLimits,
 } from './intake.ts'
@@ -24,6 +24,7 @@ import type { Adoption } from './identity.ts'
 import { tenantEquals, workspaceCodec, type WorkspaceId } from '@omne-harness/legal-identity'
 import type {
   BoundedClose,
+  DeclarationChange,
   RoutedInput,
   RunTerminal,
   WorkSnapshot,
@@ -55,7 +56,8 @@ import { decideManagement, decideControl } from './decide-management.ts'
 import { closeControlFailure, decideNamedControl } from './decide-control.ts'
 import { decideResults } from './decide-results.ts'
 import { decideProducerFact } from './decide-receive.ts'
-import { INTAKE_GUARD_OWNER, intakeTermsOf, type AdmittedSource } from './input-sources.ts'
+import { admitInput, readsWithTerms } from './decide-intake.ts'
+import type { AdmittedSource } from './input-sources.ts'
 import { residentEntries, completeEvidence } from './decision-support.ts'
 import { closingEntries } from './run-closure.ts'
 import { pendingAfterTerminal } from './input-leases.ts'
@@ -194,46 +196,6 @@ function decideCreate(
 }
 
 type Ordinary = Extract<RoutedInput, { kind: 'ordinary' }>
-
-// The values of an input come from the terms Session prepared, never from the request (SE-28).
-function admittedSourceOf(
-  input: Ordinary,
-  reads: DecideReads,
-  field: string,
-): AdmittedSource | Decision {
-  const terms = reads.intake?.source
-  if (terms === undefined || terms.kind === 'unavailable')
-    return rejected({
-      kind: 'unavailable',
-      owner: INTAKE_GUARD_OWNER,
-      diagnostic: `the terms of this input are not available: ${terms?.reason ?? 'none prepared'}`,
-    })
-  if (terms.kind === 'refused') return invalid(`${field}.source`, terms.reason)
-  const { source } = terms
-  if (source.name !== input.source)
-    return invalid(`${field}.source`, 'the intake terms are of another source')
-  if (source.role !== input.message.role)
-    return invalid(`${field}.message.role`, `this source authors ${source.role} messages only`)
-  return source
-}
-
-type Admitted = Readonly<{ source: AdmittedSource }>
-type Intake = Readonly<{ reads: DecideReads; limits: SessionIntakeLimits }>
-
-// One input is admitted on its terms and within the capacity its source counts toward.
-function admitInput(
-  input: Ordinary,
-  pending: number,
-  intake: Intake,
-  field: string,
-): Admitted | Decision {
-  const source = admittedSourceOf(input, intake.reads, field)
-  if ('kind' in source) return source
-  const limited = source.countsTowardCapacity
-    ? judgeSessionIntake(pending, input, intake.limits)
-    : null
-  return limited === null ? { source } : rejected(limited)
-}
 
 function acceptedOrdinary(
   input: Ordinary,
@@ -577,7 +539,38 @@ function decideDeclarationChange(
       basis: reads.permissionChange,
       source: commandEvidence(command.input.operation, 'change'),
     })
+  if (declaration.kind === 'authorization-expression')
+    return decideAuthorization(command, declaration)
   return decideChange(snapshot, command)
+}
+
+// Session keeps the person's expression and reduces it; whether it counts is Authorization's to say.
+function decideAuthorization(
+  command: Extract<SessionCommand, { kind: 'change' }>,
+  declaration: Extract<DeclarationChange, { kind: 'authorization-expression' }>,
+): Decision {
+  const missing = incompleteAuthorization(declaration.expression)
+  if (missing !== null) return invalid(`declaration.expression.${missing}`, 'incomplete expression')
+  if (!completeEvidence(declaration.authorization))
+    return invalid('declaration.authorization', 'incomplete evidence')
+  const entry = {
+    kind: 'session.authorization-expressed',
+    expression: declaration.expression,
+    authority: declaration.authorization,
+  } as const
+  return entries([
+    encodeEntry(entry, sessionOrigin(commandEvidence(command.input.operation, 'change'))),
+  ])
+}
+
+// A mode change names the permission revision it was read at; the commit checks it in the same transaction.
+function modeRevisionRefusal(
+  snapshot: WorkSnapshot,
+  change: Extract<DeclarationChange, { kind: 'permission-mode' }>,
+): Decision | null {
+  return change.expectedRevision === snapshot.permissions.revision
+    ? null
+    : { kind: 'rejected', failure: { kind: 'changed', revision: snapshot.revision } }
 }
 
 function decideChange(
@@ -592,6 +585,9 @@ function decideChange(
         ? declaration.basis
         : declaration.registration
   if (!completeEvidence(proof)) return invalid('declaration', 'incomplete evidence')
+  const moved =
+    declaration.kind === 'permission-mode' ? modeRevisionRefusal(snapshot, declaration) : null
+  if (moved !== null) return moved
   if (declaration.kind === 'model' && !declaration.name)
     return invalid('declaration.name', 'empty model selection')
   if (
@@ -951,12 +947,6 @@ function decideCommand(
       return exhaustive
     }
   }
-}
-
-// The writer's terms ride with the guards of the commit; every decider reads them as `reads.intake`.
-function readsWithTerms(reads: DecideReads, guards: readonly GuardCommand[]): DecideReads {
-  const terms = intakeTermsOf(guards)
-  return terms === null ? reads : { ...reads, intake: terms }
 }
 
 export function decide(

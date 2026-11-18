@@ -18,6 +18,10 @@
 - `ArchiveCollapse` · `call-control.d.ts`
 - `ArchivedBy` · `faces.d.ts`
 - `AttemptId` · `identity.d.ts`
+- `AuthorizationConsumer` · `authorizations.d.ts`
+- `AuthorizationContext` · `authorizations.d.ts`
+- `AuthorizationExpression` · `authorizations.d.ts`
+- `AuthorizationScope` · `authorizations.d.ts`
 - `AutoArchivePolicy` · `values.d.ts`
 - `BackgroundCallLabel` · `background-calls.d.ts`
 - `BackgroundCallRecord` · `background-calls.d.ts`
@@ -69,6 +73,7 @@
 - `DriveReply` · `ports.d.ts`
 - `DriveTarget` · `ports.d.ts`
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
+- `EMPTY_AUTHORIZATIONS` · `authorizations.d.ts`
 - `EncodedEntry` · `judgments.d.ts`
 - `EntryClass` · `faces.d.ts`
 - `EntryId` · `identity.d.ts`
@@ -119,6 +124,7 @@
 - `Modes` · `values.d.ts`
 - `Mutation` · `identity.d.ts`
 - `MutationName` · `ports.d.ts`
+- `OnceAuthorization` · `authorizations.d.ts`
 - `OpenWork` · `judgments.d.ts`
 - `OperationJudgment` · `judgments.d.ts`
 - `OperationRecord` · `judgments.d.ts`
@@ -162,6 +168,7 @@
 - `SessionAdoptionRecorded` · `ports.d.ts`
 - `SessionAdoptionSource` · `ports.d.ts`
 - `SessionAttemptRecord` · `history-values.d.ts`
+- `SessionAuthorization` · `authorizations.d.ts`
 - `SessionBatchRecord` · `history-values.d.ts`
 - `SessionBlockDeclaration` · `ports.d.ts`
 - `SessionCallControl` · `ports.d.ts`
@@ -298,6 +305,7 @@
 - `expandHistoryEntries` · `entries.d.ts`
 - `expectedHolds` · `judgments.d.ts`
 - `expectedRevision` · `judgments.d.ts`
+- `incompleteAuthorization` · `authorizations.d.ts`
 - `initializationRegistrationCommit` · `initialization-plan.d.ts`
 - `inputSourceName` · `input-sources.d.ts`
 - `inputsToDeliver` · `intake.d.ts`
@@ -312,6 +320,7 @@
 - `judgeSessionIntake` · `intake.d.ts`
 - `judgeWaiting` · `judgments.d.ts`
 - `mutationAccessRequest` · `access.d.ts`
+- `onceAuthorizationOf` · `authorizations.d.ts`
 - `openWork` · `judgments.d.ts`
 - `parseInputSourceName` · `input-sources.d.ts`
 - `pendingIntakeCount` · `intake.d.ts`
@@ -325,10 +334,12 @@
 - `readRunBoundary` · `run-boundary.d.ts`
 - `rebuildSessionPermissions` · `permission-history.d.ts`
 - `reduce` · `reduce.d.ts`
+- `reduceAuthorizations` · `authorizations.d.ts`
 - `requiredWorkEntries` · `work-entry-state.d.ts`
 - `resolveCascade` · `judgments.d.ts`
 - `resolveControlScope` · `judgments.d.ts`
 - `resolveOperation` · `judgments.d.ts`
+- `retireOnce` · `authorizations.d.ts`
 - `routeInput` · `judgments.d.ts`
 - `runCancelledBy` · `decision-support.d.ts`
 - `runStartInputs` · `intake.d.ts`
@@ -523,6 +534,51 @@ export interface SessionDelegatedTransactions<P> {
 }
 export declare function readAccessRequest<P>(access: SessionAccess<P>, operation: SessionReadAccessOperation): SessionAccessRequest<P>;
 export declare function mutationAccessRequest<P>(access: SessionAccess<P>, command: SessionCommand): SessionAccessRequest<P>;
+export {};
+```
+
+## 声明文件 `authorizations.d.ts`
+
+```ts
+import type { DurableEvidence } from './identity.ts';
+export type AuthorizationConsumer = Readonly<{
+    owner: string;
+    work: string;
+    position: string;
+}>;
+export type AuthorizationScope = Readonly<{
+    kind: 'once';
+    consumer: AuthorizationConsumer;
+    target: string;
+    argumentsDigest: string;
+}> | Readonly<{
+    kind: 'session';
+    capabilityId: string;
+    enforcementKey: string;
+    basis: string;
+}>;
+export type AuthorizationExpression = Readonly<{
+    scope: AuthorizationScope;
+    direction: 'grant' | 'revoke';
+    source: DurableEvidence;
+}>;
+type Scoped<K extends AuthorizationScope['kind']> = Omit<Extract<AuthorizationScope, {
+    kind: K;
+}>, 'kind'> & Readonly<{
+    source: DurableEvidence;
+}>;
+export type OnceAuthorization = Scoped<'once'>;
+export type SessionAuthorization = Scoped<'session'>;
+export type AuthorizationContext = Readonly<{
+    revision: string;
+    once: readonly OnceAuthorization[];
+    session: readonly SessionAuthorization[];
+}>;
+export declare const EMPTY_AUTHORIZATIONS: AuthorizationContext;
+export declare function incompleteAuthorization(expression: AuthorizationExpression): string | null;
+export declare function reduceAuthorizations(context: AuthorizationContext, expression: AuthorizationExpression): AuthorizationContext;
+export declare function retireOnce(context: AuthorizationContext): AuthorizationContext;
+export declare function onceAuthorizationOf(context: AuthorizationContext, consumer: AuthorizationConsumer): OnceAuthorization | undefined;
 export {};
 ```
 
@@ -999,6 +1055,29 @@ export declare function validateInitializationRecall(previous: WorkSnapshot | nu
 }>, guards: readonly GuardCommand[]): Decision | null;
 ```
 
+## 声明文件 `decide-intake.d.ts`
+
+```ts
+import type { GuardCommand } from './ports.ts';
+import { type AdmittedSource } from './input-sources.ts';
+import { type SessionIntakeLimits } from './intake.ts';
+import type { DecideReads, Decision } from './judgments.ts';
+import type { RoutedInput } from './values.ts';
+type Ordinary = Extract<RoutedInput, {
+    kind: 'ordinary';
+}>;
+type Admitted = Readonly<{
+    source: AdmittedSource;
+}>;
+type Intake = Readonly<{
+    reads: DecideReads;
+    limits: SessionIntakeLimits;
+}>;
+export declare function admitInput(input: Ordinary, pending: number, intake: Intake, field: string): Admitted | Decision;
+export declare function readsWithTerms(reads: DecideReads, guards: readonly GuardCommand[]): DecideReads;
+export {};
+```
+
 ## 声明文件 `decide-management.d.ts`
 
 ```ts
@@ -1144,6 +1223,7 @@ import type { InitialAdoption, InitializationAdoption, InitializationGuardResult
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts';
 import type { SessionEntriesChannel } from './interpretation-values.ts';
 import type { BackgroundCallLabel, BackgroundCallSource } from './background-calls.ts';
+import type { AuthorizationExpression } from './authorizations.ts';
 export declare const SESSION_INTERPRETER: Adoption;
 export type InitializationItem = Omit<Extract<RecoveryTask, {
     kind: 'initialization';
@@ -1155,6 +1235,10 @@ export type SessionEntry = Readonly<{
     }>;
     previousRevision: string;
     revision: string;
+    authority: DurableEvidence;
+}> | Readonly<{
+    kind: 'session.authorization-expressed';
+    expression: AuthorizationExpression;
     authority: DurableEvidence;
 }> | Readonly<{
     kind: 'session.todo-added';
@@ -2147,6 +2231,7 @@ export { expectedHolds, expectedRevision, judgeAdvance, judgeCompletion, judgeId
 export { decide, commandDigest } from './decide.ts';
 export { runCancelledBy } from './decision-support.ts';
 export { batchEvidence } from './batch-evidence.ts';
+export { EMPTY_AUTHORIZATIONS, incompleteAuthorization, onceAuthorizationOf, reduceAuthorizations, retireOnce, type AuthorizationConsumer, type AuthorizationContext, type AuthorizationExpression, type AuthorizationScope, type OnceAuthorization, type SessionAuthorization, } from './authorizations.ts';
 export { reduce } from './reduce.ts';
 export { decideCompactionCommit, projectCompactionCommit, type CompactionCommitState, } from './compaction-commit.ts';
 export { expandHistoryEntries } from './entries.ts';
@@ -2837,6 +2922,11 @@ export type SessionOperationElements = Readonly<{
     session: SessionId;
     source: DurableEvidence;
 }> | Readonly<{
+    kind: 'authorization';
+    session: SessionId;
+    card: DurableEvidence;
+    decision: DurableEvidence;
+}> | Readonly<{
     kind: 'idle';
     session: SessionId;
     observation: DurableEvidence;
@@ -2888,6 +2978,7 @@ export declare const INGRESS_FAMILIES: Readonly<{
     readonly control: 'session-public/1-control';
     readonly accept: 'session-public/1-accept';
     readonly create: 'session-public/1-create';
+    readonly mode: 'session-public/1-mode';
 }>;
 export type IngressFamily = (typeof INGRESS_FAMILIES)[keyof typeof INGRESS_FAMILIES];
 export declare function deriveIngressOperation(family: IngressFamily, fields: readonly string[]): SessionOperationId;
@@ -3458,8 +3549,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:beca8c04e037e372a41d2e4faf29259eff5c3739a3c2989adce6874d48c1a004";
-export declare const SESSION_RELEASE_DIGEST = "sha256:beca8c04e037e372a41d2e4faf29259eff5c3739a3c2989adce6874d48c1a004";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:5d5dd791954e601166599b638a7a18a74a1eb00d089e8df8376e4d1f1a39ca42";
+export declare const SESSION_RELEASE_DIGEST = "sha256:5d5dd791954e601166599b638a7a18a74a1eb00d089e8df8376e4d1f1a39ca42";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -4076,6 +4167,7 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
         execution: import("@omne-harness/exchange-refs").Adoption;
         declarations: DurableEvidence;
         permissions: import("./permission-values.ts").SessionPermissions;
+        authorizations: import("./authorizations.ts").AuthorizationContext;
         revisions: Readonly<{
             workspace: string;
             declarations: string;
@@ -4240,6 +4332,7 @@ export declare function uninterpretedCalls(execution: string, facts: Iterable<Re
 
 ```ts
 import type { SessionPermissions } from './permission-values.ts';
+import type { AuthorizationContext, AuthorizationExpression } from './authorizations.ts';
 import type { PermissionDefinitionRef, PermissionRule } from '@omne-harness/permissions';
 import type { TodoItem } from './todos.ts';
 import type { BackgroundCallRecord, StopInitiator } from './background-calls.ts';
@@ -4573,8 +4666,13 @@ export type DeclarationChange = Readonly<{
     expectedRevision: string;
     authorization: DurableEvidence;
 }> | Readonly<{
+    kind: 'authorization-expression';
+    expression: AuthorizationExpression;
+    authorization: DurableEvidence;
+}> | Readonly<{
     kind: 'permission-mode';
     value: Modes['permission'];
+    expectedRevision: string;
     authorization: DurableEvidence;
 }> | Readonly<{
     kind: 'collaboration-mode';
@@ -4693,6 +4791,7 @@ export type WorkSnapshot = Readonly<{
     execution: Adoption;
     declarations: DurableEvidence;
     permissions: SessionPermissions;
+    authorizations: AuthorizationContext;
     revisions: Readonly<{
         workspace: string;
         declarations: string;

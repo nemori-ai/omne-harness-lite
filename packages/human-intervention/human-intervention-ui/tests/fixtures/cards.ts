@@ -48,6 +48,42 @@ export function approvalItem(cardId = 'card-2'): HumanInterventionCardItem {
   }
 }
 
+export function releaseItem(cardId = 'card-3'): HumanInterventionCardItem {
+  const option = (id: string, label: string, offered: boolean, lasting: boolean) => ({
+    id,
+    label,
+    description: `${label}的作用范围`,
+    offered,
+    lasting,
+  })
+  return {
+    card: {
+      kind: 'pending',
+      ref: { request: { tenantRef: TENANT_REF, requestId: `request-${cardId}` }, cardId },
+      revision: '1',
+      question: {
+        kind: 'release',
+        cardId,
+        title: '要执行 Shell run，放行吗？',
+        description: '',
+        declineConsequence: '这一次调用不执行。',
+        target: { tool: 'Shell', command: 'run', preview: 'ls -la' },
+        arguments: { text: '{"cmd":"ls -la"}', truncated: true, digest: 'digest-of-all' },
+        origin: { session: 'ses_0123456789abcdef', agent: 'exe-1' },
+        options: [
+          option('deny-once', '本次不放行', true, false),
+          option('allow-once', '本次放行', false, false),
+          option('allow-session', '本会话放行', false, true),
+          option('allow-always', '始终放行', false, true),
+          option('deny-always', '始终禁止', false, true),
+        ],
+      },
+    },
+    origin: { kind: 'admission', sessionRef: 'ses_0123456789abcdef' },
+    displayContext: '',
+  }
+}
+
 export const page = (
   items: readonly HumanInterventionCardItem[],
   next: string | null = null,

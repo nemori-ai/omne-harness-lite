@@ -9,7 +9,7 @@ import {
 } from '@omne-harness/session-contract/testing'
 import {
   SESSION_LOG_PARTICIPANTS,
-  decodeSessionPermissionCurrent,
+  decodeSessionPermissionRead,
   sessionCommandFacts,
   sessionCommitCommands,
   sessionPermissionGuardFacts,
@@ -54,9 +54,9 @@ async function read(app: RealApp): Promise<SessionPermissionCurrent> {
     },
   })
   if (result.kind !== 'read') throw new Error(JSON.stringify(result))
-  const current = decodeSessionPermissionCurrent(result.output)
-  if (current === 'malformed' || current.kind !== 'current')
-    throw new Error(JSON.stringify(current))
+  const read = decodeSessionPermissionRead(result.output)
+  if (read === 'malformed' || read.kind !== 'current') throw new Error(JSON.stringify(read))
+  const { authorizations: _authorizations, ...current } = read
   return current
 }
 
@@ -80,7 +80,12 @@ function capture(app: RealApp, current: SessionPermissionCurrent, name: string) 
   })
 }
 
-function changeMode(app: RealApp, name: string, value: 'never' | 'auto_permission') {
+function changeMode(
+  app: RealApp,
+  name: string,
+  value: 'never' | 'auto_permission',
+  expectedRevision = '0',
+) {
   return app.port.commit({
     access: app.access(TENANT_A),
     guards: [],
@@ -92,6 +97,7 @@ function changeMode(app: RealApp, name: string, value: 'never' | 'auto_permissio
         operation: operationId(name),
         declaration: {
           kind: 'permission-mode',
+          expectedRevision,
           value,
           authorization: evidence('mode-policy-fixture'),
         },
@@ -138,7 +144,7 @@ it('keeps ordinary intake from invalidating permissions but rejects an ABA mode 
   expect(await app.accept(TENANT_A, 'session-1', 'unrelated')).toHaveProperty('ok')
   expect(await capture(app, prior, 'unchanged-permission')).toMatchObject({ kind: 'committed' })
   expect(await changeMode(app, 'never-mode', 'never')).toHaveProperty('ok')
-  expect(await changeMode(app, 'auto-mode', 'auto_permission')).toHaveProperty('ok')
+  expect(await changeMode(app, 'auto-mode', 'auto_permission', '1')).toHaveProperty('ok')
   expect(await capture(app, prior, 'aba-capture')).toMatchObject({ kind: 'rolled_back' })
 }, 30_000)
 

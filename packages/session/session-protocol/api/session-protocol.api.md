@@ -573,6 +573,54 @@ export declare const sessionProtocol: {
             }>;
             readonly countsAsAccess: true;
         };
+        readonly 'read-permission-mode': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly mode: "auto_permission" | "bypass-permissions" | "never";
+                    readonly revision: string;
+                }>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+            };
+            readonly identity: "login";
+            readonly effect: "read";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly session: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly countsAsAccess: true;
+        };
+        readonly 'change-permission-mode': {
+            readonly outcomes: {
+                readonly succeeded: import("@omne-harness/public-contract").Codec<{
+                    readonly mode: "auto_permission" | "bypass-permissions" | "never";
+                    readonly revision: string;
+                }>;
+                readonly 'no-change': import("@omne-harness/public-contract").Codec<{
+                    readonly mode: "auto_permission" | "bypass-permissions" | "never";
+                    readonly revision: string;
+                }>;
+                readonly conflict: import("@omne-harness/public-contract").Codec<{}>;
+                readonly invalid: import("@omne-harness/public-contract").Codec<{}>;
+                readonly "basis-unavailable": true;
+                readonly denied: true;
+                readonly "protocol-rejected": true;
+                readonly unknown: true;
+            };
+            readonly identity: "login";
+            readonly effect: "commit";
+            readonly limit: "small";
+            readonly body: import("@omne-harness/public-contract").Codec<{
+                readonly expectedRevision: string;
+                readonly mode: "auto_permission" | "bypass-permissions" | "never";
+                readonly session: string;
+                readonly tenant: import("@omne-harness/legal-identity").TenantId;
+            }>;
+            readonly countsAsAccess: true;
+        };
         readonly 'cancel-run': {
             readonly outcomes: {
                 readonly succeeded: import("@omne-harness/public-contract").Codec<{

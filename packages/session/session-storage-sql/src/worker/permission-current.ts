@@ -8,6 +8,7 @@ import {
   type SessionPermissionRead,
   type SessionPermissionReadResult,
 } from '../permission-current.ts'
+import { writeAuthorizations } from './authorization-context.ts'
 import { big, oneRow, text, type Executor, type Scope } from './support.ts'
 
 const json = (value: unknown): string => JSON.stringify(encodeValue(value))
@@ -117,6 +118,7 @@ export function writePermissionCurrent(
   snapshot: WorkSnapshot,
   entries: readonly HistoryEntry[],
 ): void {
+  writeAuthorizations(port, scope, previous, snapshot)
   if (previous === null) {
     port.execute(
       'INSERT INTO sl_permission_head (tenant, session, revision, adopted, override, source) VALUES (?, ?, ?, ?, NULL, ?)',

@@ -38,7 +38,7 @@ describe('the request of one decision card', () => {
   it('reads no draft from a request of another shape', () => {
     const request = cardRequestOf('a', draft)
     for (const schema of [
-      { ...DECISION_CARD_DRAFT_SCHEMA, revision: '2' },
+      { ...DECISION_CARD_DRAFT_SCHEMA, revision: '1' },
       { ...DECISION_CARD_DRAFT_SCHEMA, name: 'other' },
       { ...DECISION_CARD_DRAFT_SCHEMA, owner: 'other' },
       { ...DECISION_CARD_DRAFT_SCHEMA, digest: 'other' },

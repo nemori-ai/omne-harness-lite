@@ -18,6 +18,10 @@
 - `ArchiveCollapse` · 包 `@omne-harness/session-contract`
 - `ArchivedBy` · 包 `@omne-harness/session-contract`
 - `AttemptId` · 包 `@omne-harness/session-contract`
+- `AuthorizationConsumer` · 包 `@omne-harness/session-contract`
+- `AuthorizationContext` · 包 `@omne-harness/session-contract`
+- `AuthorizationExpression` · 包 `@omne-harness/session-contract`
+- `AuthorizationScope` · 包 `@omne-harness/session-contract`
 - `AutoArchivePolicy` · 包 `@omne-harness/session-contract`
 - `BackgroundCallLabel` · 包 `@omne-harness/session-contract`
 - `BackgroundCallRecord` · 包 `@omne-harness/session-contract`
@@ -69,6 +73,7 @@
 - `DriveReply` · 包 `@omne-harness/session-contract`
 - `DriveTarget` · 包 `@omne-harness/session-contract`
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
+- `EMPTY_AUTHORIZATIONS` · 包 `@omne-harness/session-contract`
 - `EncodedEntry` · 包 `@omne-harness/session-contract`
 - `EntryClass` · 包 `@omne-harness/session-contract`
 - `EntryId` · 包 `@omne-harness/session-contract`
@@ -119,6 +124,7 @@
 - `Modes` · 包 `@omne-harness/session-contract`
 - `Mutation` · 包 `@omne-harness/session-contract`
 - `MutationName` · 包 `@omne-harness/session-contract`
+- `OnceAuthorization` · 包 `@omne-harness/session-contract`
 - `OpenWork` · 包 `@omne-harness/session-contract`
 - `OperationJudgment` · 包 `@omne-harness/session-contract`
 - `OperationRecord` · 包 `@omne-harness/session-contract`
@@ -165,6 +171,7 @@
 - `SessionAdoptionRecorded` · 包 `@omne-harness/session-contract`
 - `SessionAdoptionSource` · 包 `@omne-harness/session-contract`
 - `SessionAttemptRecord` · 包 `@omne-harness/session-contract`
+- `SessionAuthorization` · 包 `@omne-harness/session-contract`
 - `SessionBatchRecord` · 包 `@omne-harness/session-contract`
 - `SessionBlockDeclaration` · 包 `@omne-harness/session-contract`
 - `SessionCallControl` · 包 `@omne-harness/session-contract`
@@ -309,6 +316,7 @@
 - `expandHistoryEntries` · 包 `@omne-harness/session-contract`
 - `expectedHolds` · 包 `@omne-harness/session-contract`
 - `expectedRevision` · 包 `@omne-harness/session-contract`
+- `incompleteAuthorization` · 包 `@omne-harness/session-contract`
 - `initializationRegistrationCommit` · 包 `@omne-harness/session-contract`
 - `inputSourceName` · 包 `@omne-harness/session-contract`
 - `inputsToDeliver` · 包 `@omne-harness/session-contract`
@@ -323,6 +331,7 @@
 - `judgeSessionIntake` · 包 `@omne-harness/session-contract`
 - `judgeWaiting` · 包 `@omne-harness/session-contract`
 - `mutationAccessRequest` · 包 `@omne-harness/session-contract`
+- `onceAuthorizationOf` · 包 `@omne-harness/session-contract`
 - `openWork` · 包 `@omne-harness/session-contract`
 - `parseInputSourceName` · 包 `@omne-harness/session-contract`
 - `pendingIntakeCount` · 包 `@omne-harness/session-contract`
@@ -336,10 +345,12 @@
 - `readRunBoundary` · 包 `@omne-harness/session-contract`
 - `rebuildSessionPermissions` · 包 `@omne-harness/session-contract`
 - `reduce` · 包 `@omne-harness/session-contract`
+- `reduceAuthorizations` · 包 `@omne-harness/session-contract`
 - `requiredWorkEntries` · 包 `@omne-harness/session-contract`
 - `resolveCascade` · 包 `@omne-harness/session-contract`
 - `resolveControlScope` · 包 `@omne-harness/session-contract`
 - `resolveOperation` · 包 `@omne-harness/session-contract`
+- `retireOnce` · 包 `@omne-harness/session-contract`
 - `routeInput` · 包 `@omne-harness/session-contract`
 - `runCancelledBy` · 包 `@omne-harness/session-contract`
 - `runStartInputs` · 包 `@omne-harness/session-contract`

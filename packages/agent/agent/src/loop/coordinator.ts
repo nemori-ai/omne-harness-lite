@@ -69,20 +69,17 @@ import {
 } from './identities.ts'
 import {
   adopted,
-  afterAdmission,
   afterPresentRefused,
   afterPresented,
   afterReply,
   chainOf,
+  denialOf,
   extensionPassages,
-  guidanceOf,
-  handBackOf,
   humanWaits,
   needOfAction,
   presentRequest,
-  withChosenRewrite,
 } from './admission-chain.ts'
-import type { PassageNeed } from './passages.ts'
+import { cardClosing } from './card-closing.ts'
 import { canonical } from '../canonical.ts'
 import { waitForExecutionChange, type HeldPosition, type ReconciliationPacer } from './wait.ts'
 import { diagnosticOf } from './diagnostic.ts'
@@ -96,6 +93,7 @@ import { LOOP_NODES, successor, type LoopNode } from './nodes.ts'
 import { attemptWrite, originalJournal, type OriginalWrite } from './original-write.ts'
 import { localFailure, nodeFailureCategory, type NodeFailureCategory } from './node-failure.ts'
 import { readBatchToolCalls } from './action-source.ts'
+import { judgeBatch } from './batch-judging.ts'
 import { answeredByPort, notingPorts } from './port-answers.ts'
 import {
   consumeModelResult,
@@ -116,14 +114,11 @@ import {
 } from '../control.ts'
 import {
   actionOf,
-  admitToolAction,
   candidateDigest,
   answeredCandidate,
   deniedCandidate,
-  guidedCandidate,
   uncheckedCandidate,
   deniedUnchecked,
-  deniedForRefusedAdmission,
   deniedSlot,
   preserveAllowedRequest,
   sentToolRequest,
@@ -143,7 +138,6 @@ import {
   toolCall,
   unsent,
   type AssociatedToolCall,
-  type ToolAdmission,
 } from './tools.ts'
 import { contactMainCall } from './contact.ts'
 import { sameAuthority, sameRecipient } from './same.ts'
@@ -306,16 +300,12 @@ function heldAfter(
   return { revision, emittedThrough: emitted === 0n ? null : String(emitted) }
 }
 
-const CARD_ROUND_CLOSING = '#502 stage 3'
 const RETURN_KINDS = ['placeholder', 'result'] as const
-const OUT_ROUNDS: readonly PassageNeed[] = ['present', 'read', 'closed']
 
+// An admission chain still asking ends with the Run once its cards are withdrawn; an extension's does not.
 function pendingPassage(passages: readonly Passage[]): Failure | null {
-  const pending = passages.find(passage => passage.progress.kind !== 'applied')
-  if (pending === undefined) return null
-  return extensionPassages([pending]).length === 0
-    ? notYet('R0', 'an admission passage with an open card round', CARD_ROUND_CLOSING)
-    : notYet('R0', 'a pending passage', '#502 stage 3')
+  const pending = extensionPassages(passages).some(passage => passage.progress.kind !== 'applied')
+  return pending ? notYet('R0', 'a pending passage', '#502 stage 3') : null
 }
 
 function notYet(node: LoopNode, what: string, card: string): Failure {
@@ -540,6 +530,7 @@ function coordinate<P>(
   let cancellationChanged = false
   let waits: readonly Waiting[] = []
   const unsentRounds = new Set<CardRoundId>()
+  const closing = cardClosing(ports, access, execution, unsentRounds)
   let waitingAt: LoopNode = 'E1'
   let yieldedWait = false
   let savedWait = false
@@ -1287,7 +1278,7 @@ function coordinate<P>(
     return step('wait', null)
   }
 
-  function refusedFinishRoute(read: LoopFacts): Outcome<Step, Failure> {
+  async function refusedFinishRoute(read: LoopFacts): Promise<Outcome<Step, Failure>> {
     finishRefused = false
     if (finishUnavailable !== null) {
       const failure = finishUnavailable
@@ -1298,6 +1289,8 @@ function coordinate<P>(
     const latest = required(snapshot, 'snapshot')
     if (latest.controls.length > 0)
       return fail(notYet('R0', 'a terminal control responsibility', '#502 stage 5'))
+    const withdrawn = await closing.withdrawOpen(latest.checkpoint, 'R0/finish', decided)
+    if ('failure' in withdrawn) return withdrawn
     const pending = pendingPassage(latest.checkpoint.passages)
     if (pending !== null) return fail(pending)
     if (
@@ -1472,6 +1465,8 @@ function coordinate<P>(
       if (advancementOf(snapshot).kind !== 'current') return step('reconciled', null)
       if (cancellationOf(snapshot) !== undefined) return cancelledReconcile()
       if (fault !== null) {
+        const withdrawn = await closing.withdrawOpen(snapshot.checkpoint, 'R0/fault', fault)
+        if ('failure' in withdrawn) return withdrawn
         const pending = pendingPassage(snapshot.checkpoint.passages)
         if (pending !== null) return fail(pending)
         if (reissueObligations) {
@@ -1487,7 +1482,7 @@ function coordinate<P>(
         return waitFor('R0', read.failure, readFacts)
       }
       facts = read.ok
-      return finishRefused ? refusedFinishRoute(read.ok) : step('reconciled', null)
+      return finishRefused ? await refusedFinishRoute(read.ok) : step('reconciled', null)
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
@@ -1866,12 +1861,8 @@ function coordinate<P>(
     if (answer === undefined) {
       if (deniedUnchecked(execution, currentBatch(), action))
         return succeed(uncheckedCandidate(execution, action))
-      const words = guidanceOf(required(checkpoint, 'checkpoint').passages, action.id)
-      return succeed(
-        words === null
-          ? deniedCandidate(execution, action)
-          : guidedCandidate(execution, action, words),
-      )
+      const denial = denialOf(required(checkpoint, 'checkpoint').passages, action.id)
+      return succeed(deniedCandidate(execution, action, denial))
     }
     const material = await ports.materials.read({ ...access, source: answer })
     if ('failure' in material) return material
@@ -2177,67 +2168,19 @@ function coordinate<P>(
       const batch = currentBatch()
       const parts = await batchToolCalls(batch)
       if ('failure' in parts) return parts
-      let passages = required(checkpoint, 'checkpoint').passages
-      const answers: Extract<ToolAdmission, { kind: 'judged' | 'allowed' }>[] = []
-      const opened: CardRoundId[] = []
-      for (const action of batch.actions) {
-        if (needOfAction(passages, action) !== 'judge') {
-          answers.push({ kind: 'judged', action })
-          continue
-        }
-        const chain = chainOf(passages, action)
-        const handBack = handBackOf(chain)
-        const original = parts.ok.get(action.original.callId)
-        if (original === undefined)
-          return fail({
-            kind: 'invalid',
-            field: 'original.callId',
-            reason: 'the preserved reply has no tool call of this call id',
-          })
-        const admitted = await admitToolAction(
-          ports,
-          access,
-          execution,
-          required(authority, 'authority'),
-          withChosenRewrite(action, chain, handBack),
-          original,
-          handBack,
-        )
-        if ('failure' in admitted) return admitted
-        if (admitted.ok.kind === 'unavailable') return waitFor('A0', admitted.ok, null)
-        if (admitted.ok.kind === 'refused') {
-          if (batch.actions.some(item => OUT_ROUNDS.includes(needOfAction(passages, item))))
-            return fail(
-              notYet(
-                'A0',
-                'closing the card rounds of a batch that is denied as a whole',
-                CARD_ROUND_CLOSING,
-              ),
-            )
-          const denied = deniedForRefusedAdmission(execution, batch, admitted.ok, answers)
-          return step('judged', { checkpoint: { batch: { ...batch, actions: denied } } })
-        }
-        if (chain === null && admitted.ok.kind !== 'asked') {
-          answers.push(
-            admitted.ok.kind === 'denied'
-              ? { kind: 'judged', action: admitted.ok.action }
-              : admitted.ok,
-          )
-          continue
-        }
-        const instant = await ports.clock.now()
-        if ('failure' in instant) return instant
-        const judged = afterAdmission(passages, admitted.ok, chain, instant.ok)
-        if ('failure' in judged)
-          return fail(defect(`A0: ${judged.failure.step} is not defined here`))
-        passages = judged.ok.passages
-        if (judged.opened !== undefined) opened.push(judged.opened)
-        answers.push(
-          admitted.ok.kind === 'allowed'
-            ? admitted.ok
-            : { kind: 'judged', action: judged.ok.action },
-        )
+      const judging = {
+        ports,
+        access,
+        execution,
+        authority: required(authority, 'authority'),
+        closing,
       }
+      const saved = required(checkpoint, 'checkpoint').passages
+      const judged = await judgeBatch(judging, batch, parts.ok, saved)
+      if ('failure' in judged) return judged
+      if (judged.ok.kind === 'wait') return waitFor('A0', judged.ok.failure, null)
+      if (judged.ok.kind === 'ended') return step('judged', { checkpoint: judged.ok.checkpoint })
+      const { answers, passages, opened } = judged.ok
       const budget = entry.toolConcurrency
       const actions: Action[] = []
       for (const answer of answers) {
@@ -2265,10 +2208,10 @@ function coordinate<P>(
       const passages = required(checkpoint, 'checkpoint').passages
       const needs = batch.actions.map(action => needOfAction(passages, action))
       if (needs.includes('judge')) return step('judge', null)
-      if (needs.includes('closed'))
-        return fail(
-          notYet('A1', 'a card round that was closed without an answer', CARD_ROUND_CLOSING),
-        )
+      if (needs.includes('closed')) {
+        const ended = await closing.endAnswerless(batch, passages)
+        return 'failure' in ended ? ended : step('carded', { checkpoint: ended.ok })
+      }
       if (needs.includes('present')) return presentRounds(batch, passages)
       if (needs.includes('read')) return readCards(batch, passages)
       const approved = batch.actions
@@ -3096,6 +3039,8 @@ function coordinate<P>(
         const interrupted = await interruptForCancel(control, pending)
         if ('failure' in interrupted) return interrupted
       }
+      const withdrawn = await closing.withdrawOpen(read.ok.checkpoint, 'F0/cancel', control)
+      if ('failure' in withdrawn) return withdrawn
       return step('cancelled', null)
     },
     async F1() {

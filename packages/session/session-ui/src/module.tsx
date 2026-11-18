@@ -5,11 +5,13 @@ import { defineUiModule } from '@omne-harness/shell-contract/cordis'
 import { Fragment } from 'react'
 import { ArchiveStore } from './model/archive.ts'
 import { BackgroundCallsStore } from './model/background-calls.ts'
+import { PermissionModeStore } from './model/permission-mode.ts'
 import { SessionWorkspaces } from './model/session-workspaces.ts'
 import { sessionCallDetail, sessionDock, sessionSide } from './points.ts'
 import { ArchiveAction, ArchivedSessions } from './view/archive.tsx'
 import { BackgroundHint, SideWithBackground } from './view/background-pane.tsx'
 import { ConversationPage } from './view/conversation-page.tsx'
+import { PermissionModeAction } from './view/permission-mode.tsx'
 import { SessionListPanel } from './view/session-list-panel.tsx'
 import { SidePanel } from './view/side-panel.tsx'
 
@@ -30,6 +32,7 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
     const workspaces = new SessionWorkspaces({ client })
     const background = new BackgroundCallsStore(client)
     const archive = new ArchiveStore(client)
+    const modes = new PermissionModeStore(client)
     sessionDock.contribute(shell, {
       id: 'background-calls',
       order: 10,
@@ -68,12 +71,15 @@ export const sessionUiModule = defineUiModule<Record<string, ClientOf<SessionPro
           scope={scope}
           heading={session =>
             scope === undefined ? null : (
-              <ArchiveAction
-                store={archive}
-                workspaces={workspaces}
-                tenant={scope}
-                session={session}
-              />
+              <>
+                <PermissionModeAction store={modes} tenant={scope} session={session} />
+                <ArchiveAction
+                  store={archive}
+                  workspaces={workspaces}
+                  tenant={scope}
+                  session={session}
+                />
+              </>
             )
           }
           dock={session =>

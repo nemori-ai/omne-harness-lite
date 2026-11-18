@@ -205,6 +205,26 @@ describe('the material table, split by command', () => {
     },
   )
 
+  it('leaves a permission mode change to the access check of its commit without adoption material', async () => {
+    const { asked, prepare } = await assembled({ adoption: async () => succeed([]) })
+    const change: SessionCommand = {
+      kind: 'change',
+      input: {
+        tenant: A.tenant,
+        session: A.session,
+        operation: operationId('mode-change'),
+        declaration: {
+          kind: 'permission-mode',
+          value: 'auto_permission',
+          expectedRevision: '0',
+          authorization: evidence('login-entry'),
+        },
+      },
+    }
+    expect(await prepare(change, A)).toEqual(succeed([]))
+    expect(asked).toEqual([])
+  })
+
   it('asks no source and hands no material for a command outside the table', async () => {
     const { asked, prepare } = await assembled()
     expect(await prepare(command('claim'))).toEqual(succeed([]))

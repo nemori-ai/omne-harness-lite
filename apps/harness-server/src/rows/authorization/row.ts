@@ -9,6 +9,7 @@ import {
   AgentAccessCheckService,
   agentAccessCheckKey,
   agentActionAdmissionKey,
+  agentDecisionCardsKey,
 } from '@omne-harness/agent-cordis-contract/cordis'
 import type { ActionAdmission, AgentAccessCheck } from '@omne-harness/agent-contract'
 import type { IdentityClock, PrincipalVerifier, TenantStandingSource } from '@omne-harness/identity'
@@ -38,7 +39,18 @@ import {
 } from './system-action-service.ts'
 import { authorizationConfig } from './action-rules.ts'
 import { createToolTargetPolicy, installToolTargetPolicy } from './tool-target-policy.ts'
+import { sessionAuthorizationWriter } from './session-authorization-writer.ts'
+import { createTenantPicks } from './tenant-picks.ts'
+import { permissionDeclarationsOf } from '../../entry/permission-declarations.ts'
+import { tenantSettingsKey } from '../governance/tenant-settings-service.ts'
 import { currentPermissionOf } from './current-permission.ts'
+import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
+import {
+  createToolActionResolution,
+  createToolCallLabeling,
+} from '../../entry/tool-action-resolution.ts'
+import { releaseOf } from '../../entry/tool-release.ts'
+import { releaseCatalogViewOf } from '../tool-bindings/catalog-view.ts'
 
 class SessionAccessCheckImpl extends SessionAccessCheckService<unknown> {
   readonly check: SessionAccessCheck<unknown>['check']
@@ -87,6 +99,7 @@ function portsOf(ctx: Context, grants: ReturnType<typeof releaseMaintenanceGrant
   return Object.freeze({
     admission: referenceAdmissionCheck({ verifier, standing, permits: null }),
     login: { queryCurrentTenant: input => ctx.identityGovernance.queryCurrentTenant(input) },
+    cards: () => ctx.get(agentDecisionCardsKey, false),
     systemActions: referenceSystemActionAuthorization({
       verifier,
       grants,
@@ -111,6 +124,18 @@ const plugin: Plugin.Object = {
     )
     const ports = portsOf(ctx, grants)
     const permission = currentPermissionOf(ctx)
+    const forwarding = {
+      release: () => releaseOf(ctx),
+      catalog: () => ctx.get(toolCatalogKey, false),
+      view: () => releaseCatalogViewOf(ctx),
+    }
+    const resolution = createToolActionResolution(forwarding)
+    const labeling = createToolCallLabeling(forwarding)
+    const authorizations = sessionAuthorizationWriter(ctx)
+    const picks = createTenantPicks({
+      declarations: () => permissionDeclarationsOf(ctx),
+      settings: () => ctx.get(tenantSettingsKey, false),
+    })
     const readPermission = () => (active ? permission : undefined)
     installToolTargetPolicy(
       ctx,
@@ -118,6 +143,7 @@ const plugin: Plugin.Object = {
         actionRules,
         () => (active ? ports.admission : undefined),
         readPermission,
+        () => (active ? resolution : undefined),
       ),
     )
     new SystemActionAuthorizationImpl(ctx, ports.systemActions, () => active)
@@ -129,6 +155,10 @@ const plugin: Plugin.Object = {
         actionRules,
         readAdmission: () => (active ? ports.admission : undefined),
         readPermission,
+        readResolution: () => (active ? resolution : undefined),
+        readLabeling: () => (active ? labeling : undefined),
+        readAuthorizations: () => (active ? authorizations : undefined),
+        readPicks: () => (active ? picks : undefined),
       }),
     )
   },

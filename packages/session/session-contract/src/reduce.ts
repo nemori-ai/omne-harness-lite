@@ -22,6 +22,7 @@ import { hasUnansweredCalls, trackCalls } from './run-closure.ts'
 import { scopeBinding } from './decide-management.ts'
 import { batchEvidence } from './batch-evidence.ts'
 import { digestOf } from './operations.ts'
+import { EMPTY_AUTHORIZATIONS, retireOnce } from './authorizations.ts'
 import { applyParticipation } from './result-state.ts'
 import { initializationProjection, validateInitializationBatch } from './reduce-initialization.ts'
 import { sameInitializationValue } from './initialization-plan.ts'
@@ -236,6 +237,8 @@ function applyRunTerminal(
     item.run === entry.terminal.run ? { ...item, terminal: entry.terminal } : item,
   )
   draft.run = { kind: 'terminal', terminal: entry.terminal }
+  // No action of an ended Run starts any more: none holds a once authorization.
+  draft.authorizations = retireOnce(draft.authorizations)
   draft.handed = []
   draft.taken = []
   draft.waiting = []
@@ -307,6 +310,7 @@ function created(
     execution: entry.creation.execution,
     declarations: origin,
     permissions: { revision: '0', assignments: [] },
+    authorizations: EMPTY_AUTHORIZATIONS,
     revisions: { workspace: '0', declarations: '0' },
     run: { kind: 'none' },
     pending: [],

@@ -113,6 +113,7 @@ describe('the ./participants entry', () => {
       'decodeSessionInput',
       'decodeSessionPermissionCurrent',
       'decodeSessionPermissionMode',
+      'decodeSessionPermissionRead',
       'decodeSessionReply',
       'decodeSessionWork',
       'executionRecordBlobFacts',

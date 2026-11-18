@@ -194,6 +194,19 @@ export {
 export { decide, commandDigest } from './decide.ts'
 export { runCancelledBy } from './decision-support.ts'
 export { batchEvidence } from './batch-evidence.ts'
+export {
+  EMPTY_AUTHORIZATIONS,
+  incompleteAuthorization,
+  onceAuthorizationOf,
+  reduceAuthorizations,
+  retireOnce,
+  type AuthorizationConsumer,
+  type AuthorizationContext,
+  type AuthorizationExpression,
+  type AuthorizationScope,
+  type OnceAuthorization,
+  type SessionAuthorization,
+} from './authorizations.ts'
 export { reduce } from './reduce.ts'
 export {
   decideCompactionCommit,

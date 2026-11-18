@@ -1,4 +1,6 @@
 import {
+  AUTHORIZATION_CONTEXT_MIGRATION,
+  AUTHORIZATION_CONTEXT_TABLES,
   PERMISSION_CURRENT_MIGRATION,
   PERMISSION_CURRENT_TABLES,
 } from './worker/permission-current-schema.ts'
@@ -193,9 +195,10 @@ export const HANDLERS: readonly Handler[] = [
   {
     handler: 'session.permission-current',
     file: 'read-permission-current',
-    tables: PERMISSION_CURRENT_TABLES,
-    migrations: [PERMISSION_CURRENT_MIGRATION],
-    maxRowsRead: 2,
+    tables: [...PERMISSION_CURRENT_TABLES, ...AUTHORIZATION_CONTEXT_TABLES],
+    migrations: [PERMISSION_CURRENT_MIGRATION, AUTHORIZATION_CONTEXT_MIGRATION],
+    // The permission row and its assignment; the authorization revision and the two rows asked for.
+    maxRowsRead: 5,
   },
   {
     handler: 'session.work',
@@ -446,6 +449,7 @@ export function sessionStorageMaterials(
           ...SESSION_TABLES,
           ...COMPACTION_INDEX_TABLES,
           ...PERMISSION_CURRENT_TABLES,
+          ...AUTHORIZATION_CONTEXT_TABLES,
           ...EXECUTION_INDEX_TABLES,
           ...OPERATION_EVIDENCE_TABLES,
           ...STATE_ITEM_TABLES,
@@ -488,6 +492,9 @@ export function sessionStorageMaterials(
       migrationOf(COMPACTION_INDEX_MIGRATION, 'compaction-index-migration', [migrationRef]),
       migrationOf(sessionArchiveMigrationRef, 'session-archive-migration', [
         sessionListMigrationRef,
+      ]),
+      migrationOf(AUTHORIZATION_CONTEXT_MIGRATION, 'authorization-context-migration', [
+        PERMISSION_CURRENT_MIGRATION,
       ]),
       migrationOf(preadmissionMigrationRef, 'preadmission-migration', [recordMigrationRef]),
       migrationOf(admissionAttemptMigrationRef, 'admission-attempt-migration', [

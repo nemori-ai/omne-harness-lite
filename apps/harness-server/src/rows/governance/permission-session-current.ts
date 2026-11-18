@@ -5,11 +5,14 @@ import { z } from 'zod'
 import { canonicalText } from '@omne-harness/authorization'
 import { canonicalDigest } from '@omne-harness/tool'
 import type { DomainRef, SqlStorage } from '@omne-harness/sql-contract'
+import type { AuthorizationConsumer } from '@omne-harness/session-contract'
 import {
   decodeSessionPermissionCurrent,
+  decodeSessionPermissionRead,
   SESSION_PERMISSION_CURRENT_HANDLER,
+  type SessionAuthorizations,
   type SessionPermissionCurrent,
-  type SessionPermissionReadResult,
+  type SessionPermissionCurrentRead,
 } from '@omne-harness/session-storage-sql/participants'
 import {
   PermissionSourceSchema,
@@ -25,15 +28,31 @@ export const sessionPermissionObservationSchema = z.json().transform((value, ctx
   return z.NEVER
 })
 
+const sessionPermissionReadSchema = z.json().transform((value, ctx) => {
+  const parsed = decodeSessionPermissionRead(value)
+  if (parsed !== 'malformed' && parsed.kind === 'current') return parsed
+  ctx.addIssue({ code: 'custom', message: 'A current Session permission read is required' })
+  return z.NEVER
+})
+
+/** A null consumer reads no once authorization: the gate's rows alone, the same for every action. */
 export type SessionPermissionCaptureReader = (
   request: PermissionBasisRequest,
-) => Promise<SessionPermissionReadResult | undefined>
+  consumer: AuthorizationConsumer | null,
+) => Promise<SessionPermissionCurrentRead | Readonly<{ kind: 'not-ready' }> | undefined>
+/** The session's permission row, and apart from it the authorizations in force where the action is taken. */
+export type BoundSessionPermission = Readonly<{
+  current: SessionPermissionCurrent
+  authorizations: SessionAuthorizations
+  consumer: AuthorizationConsumer | null
+}>
 
 export async function readSessionPermissionForCapture(
   storage: SqlStorage,
   domain: DomainRef,
   request: PermissionBasisRequest,
-): Promise<SessionPermissionReadResult | undefined> {
+  consumer: AuthorizationConsumer | null,
+): ReturnType<SessionPermissionCaptureReader> {
   const { scope, capabilityId, enforcementKey } = request
   if (
     scope.sessionId === null ||
@@ -46,10 +65,16 @@ export async function readSessionPermissionForCapture(
     handler: SESSION_PERMISSION_CURRENT_HANDLER,
     protocol: '1',
     requestKey: randomUUID(),
-    input: { tenant: scope.tenantId, session: scope.sessionId, capabilityId, enforcementKey },
+    input: {
+      tenant: scope.tenantId,
+      session: scope.sessionId,
+      capabilityId,
+      enforcementKey,
+      consumer,
+    },
   })
   if (read.kind !== 'read') return undefined
-  const parsed = decodeSessionPermissionCurrent(read.output)
+  const parsed = decodeSessionPermissionRead(read.output)
   return parsed === 'malformed' ? undefined : parsed
 }
 
@@ -69,10 +94,15 @@ export async function readBoundSessionPermission(
   reader: SessionPermissionCaptureReader,
   request: PermissionBasisRequest,
   inquiry: SessionInquiryView | null,
-): Promise<SessionPermissionCurrent | undefined> {
-  const parsed = sessionPermissionObservationSchema.safeParse(await reader(request))
-  if (!parsed.success || !matchesSessionPermission(parsed.data, request)) return undefined
-  return matchesCapturedInquiry(inquiry, parsed.data) ? parsed.data : undefined
+  consumer: AuthorizationConsumer | null,
+): Promise<BoundSessionPermission | undefined> {
+  const parsed = sessionPermissionReadSchema.safeParse(await reader(request, consumer))
+  if (!parsed.success) return undefined
+  const { authorizations, ...current } = parsed.data
+  if (!matchesSessionPermission(current, request)) return undefined
+  return matchesCapturedInquiry(inquiry, current)
+    ? { current, authorizations, consumer }
+    : undefined
 }
 
 /** A stale definition is an unknown layer; it must not erase a prohibition from another layer. */

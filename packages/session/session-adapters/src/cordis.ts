@@ -6,7 +6,11 @@ export {
   sessionInteractionBinding,
   sessionModesBindings,
 } from './cordis/mode-block.ts'
-export { createSessionModesPlugin, type SessionModesPluginInput } from './cordis/mode-plugin.ts'
+export {
+  createSessionModesPlugin,
+  type SessionModesPluginInput,
+  type SessionPermissionModeReading,
+} from './cordis/mode-plugin.ts'
 export type {
   SessionAgentDriveInput,
   SessionCoordinatorPrincipalFailure,
