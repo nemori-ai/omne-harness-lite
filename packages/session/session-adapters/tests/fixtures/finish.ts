@@ -1,5 +1,7 @@
 import type {
   AgentJournal,
+  Authority,
+  CommandReceipt,
   FailureCandidate,
   FinishCandidateContent,
   FinishIntent,
@@ -38,12 +40,23 @@ export async function endWithFailure(
   journal: AgentJournal<string>,
   failure: FailureCandidate,
 ) {
+  const opened = ok(await journal.open(s.openInput))
+  ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
+  return endOpened(s, journal, opened, failure)
+}
+
+// Ends an open execution whose first input Session took over and which waits on nothing: takes
+// the input, settles and finishes.
+export async function endOpened(
+  s: SqlScene,
+  journal: AgentJournal<string>,
+  opened: Readonly<{ receipt: CommandReceipt; authority: Authority }>,
+  failure: FailureCandidate,
+) {
   const read = journal.readFinish
   if (read === undefined) throw new Error('the Journal has no readFinish')
   const readFinish = () => read({ ...s.access, execution: s.execution })
   const load = async () => ok(await journal.load({ ...s.access, execution: s.execution }))
-  const opened = ok(await journal.open(s.openInput))
-  ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
   const beforeCandidate = await readFinish()
 
   const taken = await load()
