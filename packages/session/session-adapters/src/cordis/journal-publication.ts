@@ -1,4 +1,4 @@
-import type { AgentExecutionId, Failure } from '@omne-harness/agent-contract'
+import type { AgentExecutionId, CommandReceipt, Failure } from '@omne-harness/agent-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   EXECUTION_BATCH_MAX_FACTS,
@@ -32,6 +32,22 @@ export const unavailable = (diagnostic: string): Failure => ({
   owner: JOURNAL_PROVIDER,
   diagnostic,
 })
+
+const fieldOf = (value: unknown, key: string): unknown =>
+  typeof value === 'object' && value !== null && key in value
+    ? (value as Record<string, unknown>)[key]
+    : undefined
+
+const isReceipt = (value: unknown): value is CommandReceipt =>
+  typeof value === 'object' && value !== null && 'evidence' in value && 'revision' in value
+
+// A write's receipt (the answer, its `receipt`, or a received commit's) heads its execution.
+export function answeredReceipt(answer: Outcome<unknown, Failure>): CommandReceipt | null {
+  if (!('ok' in answer)) return null
+  const committed = fieldOf(answer.ok, 'value')
+  const candidates = [answer.ok, fieldOf(answer.ok, 'receipt'), fieldOf(committed, 'receipt')]
+  return candidates.find(isReceipt) ?? null
+}
 
 // The events of the appended batches are the tail of the folded view: walk back only over them.
 function eventsFrom(events: readonly EventView[], pub: number): readonly EventView[] {
@@ -88,8 +104,7 @@ function answersOf(
   return succeed(out)
 }
 
-// The batch one write publishes: its envelope, its facts with their event projections, the blocks
-// it adds, and the view and items it leaves once it lands at the next publication.
+// One write's batch: envelope, facts with projections, new blocks, the view and items after it.
 export function preparePublication(input: PublicationInput): Outcome<Prepared, Failure> {
   const { after, own, appended, method, kinds, project } = input
   const blobs = new Map<string, ExecutionBlobRecord>()

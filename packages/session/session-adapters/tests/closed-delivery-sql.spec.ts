@@ -3,6 +3,7 @@ import { decodeActionId, type PendingCall } from '@omne-harness/agent-contract'
 import { sampleReceivedModelResult } from '@omne-harness/agent-contract/testing'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { evidence } from '@omne-harness/session-contract/testing'
+import { readExecutionInterpretation } from '../src/cordis/agent-journal.ts'
 import { ok, operation } from './fixtures/common-journal.ts'
 import { sqlScene } from './fixtures/sql-scene.ts'
 
@@ -72,6 +73,16 @@ it('a delivery of a result that has closed is recognized from the store, by a co
       return answer.value
     }
     const first = await commitReceived('received')
+    // The head the store holds after a received commit is that write's receipt: a placeholder would stop
+    // the Session's interpretation of this execution until the execution writes again.
+    const read = await readExecutionInterpretation(
+      {
+        storage: s.storage,
+        tenantDomainLookup: { lookup: () => Promise.resolve({ kind: 'ready', domain: s.domain }) },
+      },
+      { tenant: s.access.tenant, session: s.access.session, execution: s.execution, after: '0' },
+    )
+    expect(read).toMatchObject({ kind: 'read', execution: { head: first.receipt.evidence } })
     const record = (name: string, view = s.view) =>
       view.entries.record({
         ...s.access,

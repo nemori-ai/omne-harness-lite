@@ -123,6 +123,7 @@ import { SharedMap } from '../journal/shared-map.ts'
 import { boundariesOf, captureFresh, projectionOf, type Fault } from './event-projection.ts'
 import {
   JOURNAL_PROVIDER,
+  answeredReceipt,
   preparePublication,
   unavailable,
   type Prepared,
@@ -301,18 +302,6 @@ function changedExecutions(before: CommonRoot, after: CommonRoot): MemoryExecuti
   for (const [key, value] of after.agent.executions)
     if (before.agent.executions.get(key) !== value) out.push(value)
   return out
-}
-
-function receiptOf(answer: Outcome<unknown, Failure>): CommandReceipt | null {
-  if (!('ok' in answer) || typeof answer.ok !== 'object' || answer.ok === null) return null
-  const value = answer.ok as Record<string, unknown>
-  const receipt = 'receipt' in value ? value['receipt'] : value
-  return typeof receipt === 'object' &&
-    receipt !== null &&
-    'evidence' in receipt &&
-    'revision' in receipt
-    ? (receipt as CommandReceipt)
-    : null
 }
 
 export function materialSessionOf(
@@ -1345,7 +1334,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       own === undefined
         ? undefined
         : [...before.agent.executions.values()].find(item => item.id === own.id)
-    const receipt = receiptOf(answer)
+    const receipt = answeredReceipt(answer)
     const appended = after.agent.log.filter(batch => batch.pub > book.view.head)
     if (appended.length === 0)
       return {
