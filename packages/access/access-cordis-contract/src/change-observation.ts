@@ -28,10 +28,7 @@ async function admission<O extends ObservationContract>(
   }
 }
 
-/**
- * The frame source of an observation whose frames carry nothing but "it changed": one frame on
- * opening, then one for each run of changes, each given only after the admission holds again.
- */
+/** Frames that only say "changed": one on opening, one per run of changes, each after admission holds again. */
 export function createChangeObservation<O extends ObservationContract>(
   input: ChangeObservationInput<O>,
 ): FrameSource<O> {

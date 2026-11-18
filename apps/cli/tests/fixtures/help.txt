@@ -45,6 +45,7 @@ Commands
   omne schedule list|show|history|agenda|preview|create|<action>                                                     Read, preview and create the schedules of the acting tenant, or change one by an action: rename, edit, revise, replace, promote, pause, resume, stop or discard.
   omne notification send|sent|list|show|seen|done|dismiss|restore|sources                                            Post a notification to yourself and ask what became of it, list and read the inbox of the acting tenant, mark a notification seen, done, dismissed or restored, or list the sources.
   omne setting list|set|show|unset [--independent]                                                                   List the asset settings of the acting tenant, or with --independent its independent settings (named <provider>/<definition>); set, show or unset one; set reads a secret from the prompt, or takes --value <JSON>.
+  omne asset categories|list|show|create|enable|disable|remove|watch                                                 Manage the assets of the acting tenant: list the categories, list one category, show one (<category>:<name>), create one from --data <JSON|@file> or --dir <directory>, enable, disable or remove one (remove needs --yes), and watch for changes; --resume <operation> recalls an uncertain outcome.
 
   --home <directory>    State directory. Overrides OMNE_HOME.
   OMNE_HOME             State directory when --home is absent.

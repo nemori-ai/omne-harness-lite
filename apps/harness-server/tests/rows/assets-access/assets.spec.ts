@@ -1,7 +1,10 @@
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { settledSession } from '../../governance/tenant-settings-support.ts'
-import { savedTenant } from '../../r9/support.ts'
+import { runOmne, savedTenant } from '../../r9/support.ts'
 import { until } from '../../support/listening.ts'
 import { tenantOf, type ProtocolClients } from '../../support/protocol-clients.ts'
 import { onReleaseTree, toolCallsThenText } from '../../support/release-tree.ts'
@@ -215,6 +218,52 @@ describe('assets/v1 asset operations on the release tree', () => {
         ]
         for (const answer of await Promise.all(denied))
           expect(answer).toEqual({ outcome: 'denied' })
+      })
+      expect(exitCode).toBe(0)
+    },
+  )
+
+  it(
+    'the omne command creates a Skill from a directory, lists, shows, disables and removes it, and makes it again',
+    { tags: ['slow'], timeout: 240_000 },
+    async () => {
+      const exitCode = await onReleaseTree({ script: toolCallsThenText(() => []) }, async tree => {
+        await settledSession(tree, 'hello')
+        const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'omne-asset-cli-')))
+        const dir = join(cwd, 'review')
+        mkdirSync(join(dir, 'notes'), { recursive: true })
+        writeFileSync(join(dir, 'SKILL.md'), SKILL)
+        writeFileSync(join(dir, 'notes', 'checklist.md'), '- read\n- say\n')
+        const omne = (...args: string[]) =>
+          runOmne({ args, home: tree.home, server: `http://127.0.0.1:${tree.port}`, cwd })
+
+        const created = await omne('asset', 'create', 'skill:review', '--dir', dir)
+        expect(created.status).toBe(0)
+        expect(created.result).toMatchObject({ outcome: 'succeeded', body: { changed: true } })
+
+        const listed = await omne('asset', 'list', 'skill')
+        expect(listed.status).toBe(0)
+        expect(listed.stdout).toMatch(
+          /^NAME +ENABLED +ORIGIN +VERSION +TITLE\nreview +yes +customized /,
+        )
+
+        const shown = await omne('asset', 'show', 'skill:review')
+        expect(shown.stdout).toContain('Files:\n  SKILL.md  ')
+        expect(shown.stdout).toContain('  notes/checklist.md  13\n')
+
+        expect((await omne('asset', 'disable', 'skill:review')).result).toMatchObject({
+          outcome: 'succeeded',
+        })
+        expect((await omne('asset', 'show', 'skill:review')).stdout).toContain(
+          'In use: no (disabled)',
+        )
+        const refused = await omne('asset', 'remove', 'skill:review')
+        expect(refused.status).toBe(2)
+        expect((await omne('asset', 'remove', 'skill:review', '--yes')).status).toBe(0)
+        expect((await omne('asset', 'list', 'skill', '--json')).result).toMatchObject({
+          body: { items: [] },
+        })
+        expect((await omne('asset', 'create', 'skill:review', '--dir', dir)).status).toBe(0)
       })
       expect(exitCode).toBe(0)
     },

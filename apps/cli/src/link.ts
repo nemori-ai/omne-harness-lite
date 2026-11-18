@@ -5,6 +5,7 @@ import {
   type BodyOf,
   type CallReport,
   type Credentials,
+  type OpenOf,
   type Transport,
 } from '@omne-harness/sdk/core'
 import type { CommandEnvironment } from './cli-types.ts'
@@ -16,6 +17,8 @@ export type CallResult =
 
 export type Login = { readonly proof: string; readonly tenant: string }
 
+export type WatchEnd = Readonly<{ kind: string; reason?: string; outcome?: string }>
+
 export interface Link {
   readonly origin: string
   /** Resolves to undefined when the body does not fit the contract: a usage error. */
@@ -25,12 +28,23 @@ export interface Link {
     body: BodyOf<P['operations'][K]>,
     messageId: string,
   ): Promise<CallResult | undefined>
+  /** The frames of an observation as plain values, until it ends; the end is the return value. */
+  observe<P extends ProtocolContract, K extends keyof P['observations'] & string>(
+    protocol: P,
+    observation: K,
+    open: OpenOf<P['observations'][K]>,
+    messageId: string,
+  ): AsyncGenerator<unknown, WatchEnd>
 }
 
 export type Opened = { readonly kind: 'link'; readonly link: Link } | { readonly kind: 'refused' }
 
 type Wire = Extract<CallReport, { kind: 'answered' }>['body']
 type Invoke = (body: unknown, options: { messageId: string }) => Promise<{ outcome: string }>
+type Watch = (
+  open: unknown,
+  options: { signal: AbortSignal; messageId: string },
+) => AsyncGenerator<unknown, WatchEnd>
 
 const loopbackHosts: ReadonlySet<string> = new Set(['127.0.0.1', 'localhost'])
 
@@ -113,6 +127,21 @@ export function openLink(environment: CommandEnvironment, origin: string, login?
       if (answer.outcome === 'unavailable') return { kind: 'unavailable' }
       if (answer.outcome === 'uncertain' || answered === undefined) return { kind: 'uncertain' }
       return { kind: 'response', outcome: answer.outcome, body: plain(answered) }
+    },
+    async *observe(protocol, observation, open, messageId) {
+      credentials = credentialsOf(protocol.observations[observation]!.identity, login)
+      const client = createClient(protocol, transport) as unknown as {
+        observe: Record<string, Watch>
+      }
+      const frames = client.observe[observation]!(open, {
+        signal: new AbortController().signal,
+        messageId,
+      })
+      for (;;) {
+        const next = await frames.next()
+        if (next.done === true) return next.value
+        yield next.value
+      }
     },
   }
   return { kind: 'link', link }
