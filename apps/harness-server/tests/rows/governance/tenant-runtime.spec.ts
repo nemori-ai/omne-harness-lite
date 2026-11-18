@@ -804,6 +804,7 @@ it('installs the actual Tool release and adopts its original holdings before exp
         'BkgToolCalls',
         'Calendar',
         'Files',
+        'Notifications',
         'Schedules',
         'Shell',
         'Skills',

@@ -4,6 +4,10 @@ import {
   scheduleCommandsKey,
   scheduleQueriesKey,
 } from '@omne-harness/schedule-cordis-contract/cordis'
+import {
+  notificationInboxKey,
+  notificationSendingKey,
+} from '@omne-harness/notification-cordis-contract/cordis'
 import type { PrincipalVerifier } from '@omne-harness/identity'
 import { executionEnvironmentKey } from '@omne-harness/execution-environment-cordis-contract/cordis'
 import { principalVerifierKey } from '@omne-harness/identity/cordis'
@@ -101,6 +105,8 @@ const CAPABILITY_SERVICES: Readonly<Record<string, string>> = {
   'calendar.read': calendarCalculatorKey,
   'schedule.read': scheduleQueriesKey,
   'schedule.write': scheduleCommandsKey,
+  'notification.read': notificationInboxKey,
+  'notification.write': notificationSendingKey,
 }
 
 function capabilityFacts(ctx: Context, definition: ToolDefinition) {

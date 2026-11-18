@@ -223,6 +223,7 @@ describe('the startup snapshot', () => {
       '@omne-harness/tool-definitions',
       '@omne-harness/calendar-tools',
       '@omne-harness/schedule-tools',
+      '@omne-harness/notification-tools',
     ])
   })
 

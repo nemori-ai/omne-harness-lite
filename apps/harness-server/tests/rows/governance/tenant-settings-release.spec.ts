@@ -30,6 +30,7 @@ it('a login principal sets the Shell invoke permission to deny on the release tr
           'BkgToolCalls',
           'Calendar',
           'Files',
+          'Notifications',
           'Schedules',
           'Shell',
           'Skills',

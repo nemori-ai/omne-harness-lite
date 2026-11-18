@@ -470,6 +470,7 @@ export function localOperatorLayer(input: LocalOperatorInput): OperatorLayer {
           Skills: { resultMaxBytes: LOCAL_TOOL_RESULT_BYTES },
           Calendar: { resultMaxBytes: 65_536 },
           Schedules: { resultMaxBytes: 65_536 },
+          Notifications: { resultMaxBytes: 65_536 },
         },
       },
     ],

@@ -14,6 +14,7 @@ import {
   toolCatalogKey,
 } from '@omne-harness/tool-cordis-contract/cordis'
 import { shellToolModule } from '@omne-harness/tool-definitions'
+import { notificationsToolModule } from '@omne-harness/notification-tools'
 import { principalIssuer, sessionWorkIssuerOf } from '../../../src/entry/principals.ts'
 import { createToolReleaseEntries } from '../../../src/entry/tool-release.ts'
 import { governanceOf } from '../../../src/entry/tool-release-manifest.ts'
@@ -72,6 +73,41 @@ describe('tool-bindings: availability from verified sources only', () => {
         attachmentsReadable: true,
       }),
     )
+  })
+
+  it('gives the Notifications tool its two capabilities as dependencies, each there only while its service is', async () => {
+    const { fixture, judge } = await judged()
+    const created = okOf(
+      notificationsToolModule.createAuthor(tree(TEST_CONSTRUCTION.Notifications)),
+      'author',
+    )
+    const definition = okOf(
+      judgeToolDefinition(
+        deriveDefinition(governanceOf(entryOf(fixture.manifest, 'Notifications')), created.facts),
+      ),
+      'definition',
+    )
+    const dependencies = async () => okOf(await judge({ definition }), 'judge').dependencies
+    expect(await dependencies()).toEqual([
+      { name: 'notification.read', available: false },
+      { name: 'notification.write', available: false },
+    ])
+    const inbox = fixture.root.plugin({
+      name: 'inbox',
+      apply: (ctx: Context) => void new StubService(ctx, 'notificationInbox', 'notification', {}),
+    })
+    await inbox
+    expect(await dependencies()).toEqual([
+      { name: 'notification.read', available: true },
+      { name: 'notification.write', available: false },
+    ])
+    await fixture.root.plugin({
+      name: 'sending',
+      apply: (ctx: Context) => void new StubService(ctx, 'notificationSending', 'notification', {}),
+    })
+    expect((await dependencies()).map(dependency => dependency.available)).toEqual([true, true])
+    await inbox.dispose()
+    expect((await dependencies()).map(dependency => dependency.available)).toEqual([false, true])
   })
 
   it('answers unavailable for consumer material the release has not confirmed', async () => {

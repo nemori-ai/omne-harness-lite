@@ -31,6 +31,7 @@ import { bindReleaseBackgroundCalls } from './background-calls.ts'
 import { bindReleaseWeb, webBindingConfig, type WebBindingConfig } from './web.ts'
 import { bindReleaseCalendar } from './calendar.ts'
 import { bindReleaseSchedules } from './schedules.ts'
+import { bindReleaseNotifications } from './notifications.ts'
 
 export const toolBindingsConfig = z
   .strictObject({ tools: toolsCapabilityConfig.optional(), web: webBindingConfig.optional() })
@@ -72,8 +73,10 @@ export function releaseCapability(
         : withSkills
     if (isReleaseToolRequest(release, input.request, 'Calendar'))
       return bindReleaseCalendar(ctx, input, withWeb)
-    return isReleaseToolRequest(release, input.request, 'Schedules')
-      ? bindReleaseSchedules(ctx, input, withWeb)
+    if (isReleaseToolRequest(release, input.request, 'Schedules'))
+      return bindReleaseSchedules(ctx, input, withWeb)
+    return isReleaseToolRequest(release, input.request, 'Notifications')
+      ? bindReleaseNotifications(ctx, input, withWeb)
       : withWeb
   }
 }
