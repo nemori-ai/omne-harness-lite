@@ -284,6 +284,7 @@ export function assembleLocalHost(input: LocalHostInput) {
       : createDefaultRetryPolicy<typeof principal>({
           adoption: request.retryPolicy,
           policy: input.retry,
+          replayResend: { max: 1 },
           clock: memory.dependencies.clock,
           random: () => 0,
         })

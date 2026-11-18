@@ -558,9 +558,9 @@ describe('encode: replay', () => {
 
   it('writes the carried parts of a continuable message through the reasoning hook', () => {
     const probe = engineProbe()
-    const messages = messagesOf(
-      encode(testRecord(), { messages: [assistant(SCOPE), follow] }, probe),
-    )
+    const encoded = encode(testRecord(), { messages: [assistant(SCOPE), follow] }, probe)
+    const messages = messagesOf(encoded)
+    expect('ok' in encoded && encoded.ok.replayCarried).toBe(true)
     expect(probe.replays).toEqual([
       {
         parts: [{ payload: 'sealed-1', format: FORMAT }],
@@ -580,9 +580,9 @@ describe('encode: replay', () => {
 
   it('leaves out the parts and the thinking of a message from another scope', () => {
     const probe = engineProbe()
-    const messages = messagesOf(
-      encode(testRecord(), { messages: [assistant('gateway/other'), follow] }, probe),
-    )
+    const encoded = encode(testRecord(), { messages: [assistant('gateway/other'), follow] }, probe)
+    const messages = messagesOf(encoded)
+    expect('ok' in encoded && encoded.ok.replayCarried).toBe(false)
     expect(probe.replays).toEqual([])
     expect(messages).toEqual([
       { role: 'assistant', content: 'answer' },

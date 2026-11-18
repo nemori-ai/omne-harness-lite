@@ -167,6 +167,7 @@ function binding(supplier: Supplier, probe: FamilyProbe): PiFamilyBinding {
           },
           diagnostics: probe.encodeDiagnostics,
           replayPrefix: 'h:test.s:test.t:test.p:test',
+          replayCarried: false,
         },
       }
     },

@@ -442,6 +442,7 @@ export type DispatchRecord = Readonly<{
         source: DurableEvidence;
     }> | null;
     messages?: readonly MessageId[];
+    withoutReplay?: 'resend' | 'later';
 }>;
 export interface ModelCalls<P> {
     admit(input: Admit<P>): Reply<Admission>;
@@ -2149,6 +2150,9 @@ export type RetryDecision = Readonly<{
     supplier: Supplier;
     notBefore: string;
     basis: Adoption;
+}> | Readonly<{
+    kind: 'resend-without-replay';
+    supplier: Supplier;
 }>;
 export type RetryPosition = Readonly<{
     operation: ModelOperationId;
@@ -2899,7 +2903,7 @@ export declare function createConsumption<P>(core: Core<P>): ModelConsumption<P>
 
 ```ts
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { CallContact, ControlState, CustodyState, DispatchRecord, DurableEvidence, ResultPart, Reply, Termination, VisibleBlock } from '../index.ts';
+import type { CallContact, ControlState, CustodyState, DispatchRecord, DurableEvidence, ResultPart, Reply, Settlement, Termination, VisibleBlock } from '../index.ts';
 import type { CommitQuery, TransportFact } from '../provider/index.ts';
 import type { CallAccess, DispatchId, ModelCallId, ModelInstanceId, ModelOperationId, ResultVersion, Revision } from '../root.ts';
 import { type Core, type ScriptedAction } from './core.ts';
@@ -2923,6 +2927,7 @@ export interface ScriptController<P> {
         source: DurableEvidence;
         pageSize: number;
         pageTargetBytes: number;
+        replay?: Settlement['replay'];
     }>): void;
     play(input: ScriptedCall & Readonly<{
         facts: readonly TransportFact[];

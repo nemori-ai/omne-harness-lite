@@ -147,7 +147,10 @@ describe('localOperatorLayer over the bundled distribution', () => {
   it('gives the retry values to the Model host, and none to the Agent', () => {
     expect(configOf(layer, 'agent-host')).not.toHaveProperty('modelRetry')
     expect(configOf(layer, 'model-host')).toMatchObject({
-      retry: { policy: { maxAttempts: 2, maxElapsedMs: 30_000, delaysMs: [1_000], jitter: 0.2 } },
+      retry: {
+        policy: { maxAttempts: 2, maxElapsedMs: 30_000, delaysMs: [1_000], jitter: 0.2 },
+        replayResend: { max: 1 },
+      },
     })
   })
 

@@ -61,6 +61,8 @@ export type PiFamilyBinding = Readonly<{
       diagnostics: readonly ProviderDiagnostic[]
       /** The prefix of this request; a reply it produces records it in its replay mark. */
       replayPrefix: string
+      /** Whether the request carries reasoning state back. */
+      replayCarried: boolean
     }>,
     TransportFailure
   >

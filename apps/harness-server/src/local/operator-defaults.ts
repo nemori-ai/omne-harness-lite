@@ -112,6 +112,7 @@ const MODEL_HOST = {
   retry: {
     adoption: PROFILES.retryPolicy,
     policy: { maxAttempts: 2, maxElapsedMs: 30_000, delaysMs: [1_000], jitter: 0.2 },
+    replayResend: { max: 1 },
   },
   results: {
     maxConcurrentCalls: LOCAL_CONCURRENT_MODEL_CALLS,

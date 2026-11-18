@@ -69,6 +69,7 @@ export async function materialize(
       body,
       receipt,
       diagnostics,
+      replayCarried: encoded.ok.replayCarried,
     })
     handedOver = true
     return { ok: materialized }
@@ -97,6 +98,7 @@ function createMaterialized(
       body: Uint8Array
       receipt: MaterializationReceipt
       diagnostics: readonly ProviderDiagnostic[]
+      replayCarried: boolean
     }>,
 ): MaterializedHandle {
   let phase: MaterializedPhase = {
@@ -162,6 +164,7 @@ function createMaterialized(
       route,
       limits: config.limits,
       diagnostics: input.diagnostics,
+      replayCarried: input.replayCarried,
       onResponseBody: config.onResponseBody,
     })
   }

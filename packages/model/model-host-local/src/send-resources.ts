@@ -134,10 +134,11 @@ export function sendResourcesOver<P>(
     const transport: ModelTransport = {
       prepare(request, supplier, dispatch) {
         if (inactive) return Promise.resolve({ failure: SOURCE_UNAVAILABLE })
+        // The resource prepares the demand it was acquired for; what the dispatch leaves out is
+        // the send boundary's, from the durable record of the dispatch.
         if (
           !isDeepStrictEqual(request, demand.request) ||
-          !isDeepStrictEqual(supplier, demand.supplier) ||
-          dispatch.resent.length !== 0
+          !isDeepStrictEqual(supplier, demand.supplier)
         )
           return Promise.resolve({
             failure: { kind: 'invalid', field: 'demand', reason: 'binding' },

@@ -165,6 +165,8 @@ export type DispatchPlan = Readonly<{
 export type RetryDecision =
   | Readonly<{ kind: 'stop'; fault: ModelFault }>
   | Readonly<{ kind: 'retry'; supplier: Supplier; notBefore: string; basis: Adoption }>
+  /** At once, to the supplier that refused the reasoning state, without any reasoning state. */
+  | Readonly<{ kind: 'resend-without-replay'; supplier: Supplier }>
 export type RetryPosition = Readonly<{
   operation: ModelOperationId
   dispatch: DispatchId

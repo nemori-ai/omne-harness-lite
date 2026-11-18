@@ -24,6 +24,8 @@ export type SendInput = Readonly<{
   route: CheckedRoute
   limits: PiTransportLimits
   diagnostics: readonly ProviderDiagnostic[]
+  /** Whether the request carried reasoning state back. */
+  replayCarried: boolean
   onResponseBody?: (() => void) | undefined
 }>
 
@@ -61,13 +63,21 @@ async function* readSend(input: SendInput): AsyncGenerator<TransportFact, void, 
 
 const UTF8 = new TextDecoder('utf-8', { fatal: false })
 
-// Only a body read whole is shown to the engine; the status decides the rest.
+// Only a body read whole is shown to the engine; the status decides the rest. A refusal of
+// reasoning state the request did not carry is an invalid request (T2, fourth row).
 function refusalOf(
   decoder: PiResponseDecoder,
   result: Extract<ExchangeResult, { kind: 'http-error' }>,
+  carried: boolean,
 ): ModelFault | null {
   if (decoder.refused === undefined || result.errorBody.kind !== 'complete') return null
-  return decoder.refused(result.status, UTF8.decode(result.errorBody.bytes))
+  const fault = decoder.refused(result.status, UTF8.decode(result.errorBody.bytes))
+  if (fault?.cause !== 'replay-rejected' || carried) return fault
+  return {
+    cause: 'input-rejected',
+    diagnostic: 'replay-not-carried',
+    upstreamStatus: fault.upstreamStatus,
+  }
 }
 
 // A listener that throws must not change what the transport does with the body.
@@ -81,7 +91,7 @@ async function* decodeSend(
   input: SendInput,
   progress: Progress,
 ): AsyncGenerator<TransportFact, SendEnd, undefined> {
-  const { exchange, decoder, route, limits } = input
+  const { exchange, decoder, route, limits, replayCarried } = input
   const result = await exchange.result
   switch (result.kind) {
     case 'stopped':
@@ -91,7 +101,11 @@ async function* decodeSend(
     case 'stalled':
       return STALLED_BEFORE_RESPONSE
     case 'http-error':
-      return { kind: 'http-error', status: result.status, fault: refusalOf(decoder, result) }
+      return {
+        kind: 'http-error',
+        status: result.status,
+        fault: refusalOf(decoder, result, replayCarried),
+      }
     case 'ok':
       break
     default: {

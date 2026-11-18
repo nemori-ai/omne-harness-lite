@@ -116,6 +116,7 @@ export function modelRowsOperatorConfig(options: { storageRoot: string; modelRou
     retry: {
       adoption: profiles.retryPolicy,
       policy: { maxAttempts: 2, maxElapsedMs: 30_000, delaysMs: [50], jitter: 0 },
+      replayResend: { max: 1 },
     },
     results: {
       maxConcurrentCalls: 4,

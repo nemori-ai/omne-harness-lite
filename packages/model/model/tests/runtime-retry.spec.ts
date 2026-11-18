@@ -1,4 +1,4 @@
-import { judgePart } from '@omne-harness/message'
+import { judgeMessage, judgePart } from '@omne-harness/message'
 import { describe, expect, it } from 'vitest'
 import type { FixedModelRequest, ModelFault, RetryDecision } from '@omne-harness/model-contract'
 import type { ModelRetryPolicy, TransportFact } from '@omne-harness/model-contract/provider'
@@ -153,6 +153,12 @@ describe('a dispatch that failed before any content reaches the retry policy', (
           notBefore: START,
           basis: input.request.retryPolicy,
         }),
+    ],
+    [
+      'decides a resend without reasoning state after a failure that refused none',
+      'decision-refused',
+      (input: Decide): Answer =>
+        decided(input, { kind: 'resend-without-replay', supplier: input.request.suppliers[0] }),
     ],
   ])(
     'a policy that %s settles the call as policy-unavailable',
@@ -512,6 +518,7 @@ describe('the default policy with fallback over three suppliers', () => {
     const policy = createDefaultRetryPolicy<Principal>({
       adoption: request.retryPolicy,
       policy: { maxAttempts: 5, maxElapsedMs: 1000, delaysMs: [0], jitter: 0 },
+      replayResend: { max: 1 },
       clock: { now: () => START },
       random: () => 0,
     })
@@ -651,5 +658,165 @@ describe('the call state tells how far its dispatches got', () => {
     const three = [supplier, supplier, supplier] as const
     expect(initialAttempts({ fallback: true, suppliers: three }).allowed).toBe(3)
     expect(initialAttempts({ fallback: false, suppliers: three }).allowed).toBe(2)
+  })
+})
+
+// T2 rows 1 and 2 through the runtime: the resend goes out at once without reasoning state.
+describe('a refusal of the reasoning state the dispatch carried', () => {
+  const refused: ModelFault = {
+    cause: 'replay-rejected',
+    replayCarried: true,
+    diagnostic: 'replay-signature',
+    upstreamStatus: '400',
+  }
+  const refusal: TransportFact = { kind: 'ended', termination: { kind: 'failed', fault: refused } }
+  const seen = { toHuman: true, toModel: true }
+  const message = (value: unknown) => {
+    const judged = judgeMessage(value)
+    if ('rejected' in judged) throw new Error(`fixture message: ${judged.rejected}`)
+    return judged.ok
+  }
+  const reply = message({
+    id: 'msg_reply000000000000000000',
+    role: 'assistant',
+    blocks: [
+      { kind: 'text', id: 'a', visibility: seen, text: 'earlier answer' },
+      {
+        kind: 'reasoning_state',
+        id: 'r',
+        visibility: { toHuman: false, toModel: true },
+        payload: 'sealed',
+        pairs: [],
+      },
+    ],
+    replay: { scope: 'test.invalid/test', format: 'test-format-v1', at: [1] },
+  })
+  const ask = (id: string) =>
+    message({
+      id,
+      role: 'user',
+      blocks: [{ kind: 'text', id: 'q', visibility: seen, text: 'ask' }],
+    })
+  const fixed: FixedModelRequest = {
+    ...request,
+    messages: [ask('msg_ask1000000000000000000'), reply, ask('msg_ask2000000000000000000')],
+  }
+
+  function resending(max = 1) {
+    const policy = createDefaultRetryPolicy<Principal>({
+      adoption: request.retryPolicy,
+      policy: { maxAttempts: 5, maxElapsedMs: 1000, delaysMs: [0], jitter: 0 },
+      replayResend: { max },
+      clock: { now: () => START },
+      random: () => 0,
+    })
+    const f = runtimeFixture({}, undefined, undefined, undefined, policy)
+    const adapter = f.options.evidence[0]
+    if (!adapter) throw new Error('missing evidence adapter')
+    adapter.receive = input => ({
+      ok: { window: input.window, batchDigest: input.batchDigest, paused: true, noPrefetch: true },
+    })
+    adapter.retry = verifyRetryDecision
+    return { f, admit: { ...f.admit, request: fixed } }
+  }
+  async function settled(f: F, admit: F['admit'], facts: readonly TransportFact[]) {
+    unbox(await f.provider.runtime.calls.admit(admit))
+    await f.start(admit.call)
+    f.channel(admit.call).push(facts)
+    await eventually(() => f.results.has(admit.call))
+    return f.channel(admit.call)
+  }
+
+  it('row 1: sends again at once to the same supplier without the reasoning state, and the reply settles the call', async () => {
+    const { f, admit } = resending()
+    try {
+      const channel = await settled(f, admit, [refusal, ...answer])
+      expect(channel.resent).toEqual([[], [reply.id]])
+      expect(channel.suppliers).toEqual(['test', 'test'])
+      expect((await dispatches(f)).map(d => d.withoutReplay)).toEqual([undefined, 'resend'])
+      expect(await termination(f)).toEqual({ kind: 'completed', reason: 'stop' })
+      expect((await state(f)).attempts).toMatchObject({ allowed: 2, made: 2 })
+    } finally {
+      await f.dispose()
+    }
+  })
+
+  it('row 2: a refusal after the resend ends the call with the refusal', async () => {
+    const { f, admit } = resending()
+    try {
+      await settled(f, admit, [refusal, refusal])
+      expect(await termination(f)).toEqual({ kind: 'failed', fault: refused })
+      expect(await dispatches(f)).toHaveLength(2)
+    } finally {
+      await f.dispose()
+    }
+  })
+
+  it('row 2 with no resend allowed: ends the call with the refusal at once', async () => {
+    const { f, admit } = resending(0)
+    try {
+      await settled(f, admit, [refusal])
+      expect(await termination(f)).toEqual({ kind: 'failed', fault: refused })
+      expect(await dispatches(f)).toHaveLength(1)
+    } finally {
+      await f.dispose()
+    }
+  })
+
+  it.each([
+    [
+      'to a supplier other than the one that refused it',
+      [refusal],
+      (input: Decide): RetryDecision => ({
+        kind: 'resend-without-replay',
+        supplier: { ...input.request.suppliers[0], model: 'another-model' },
+      }),
+      1,
+    ],
+    [
+      'a second time in the call',
+      [refusal, refusal],
+      (input: Decide): RetryDecision => ({
+        kind: 'resend-without-replay',
+        supplier: input.request.suppliers[0],
+      }),
+      2,
+    ],
+  ])(
+    'refuses a decision to send again without reasoning state %s, and settles as policy-unavailable',
+    async (_name, facts, decision, made) => {
+      const { f } = world(input => decided(input, decision(input)))
+      try {
+        expect(await run(f, facts)).toEqual({ ok: undefined })
+        expect(await termination(f)).toEqual({
+          kind: 'failed',
+          fault: {
+            cause: 'policy-unavailable',
+            diagnostic: 'decision-refused',
+            upstreamStatus: null,
+          },
+        })
+        expect(await dispatches(f)).toHaveLength(made)
+      } finally {
+        await f.dispose()
+      }
+    },
+  )
+
+  it('every later dispatch of the call carries no reasoning state, and the resend takes no ordinary place', async () => {
+    const { f, admit } = resending()
+    try {
+      const channel = await settled(f, admit, [refusal, failed503, ...answer])
+      expect(channel.resent).toEqual([[], [reply.id], [reply.id]])
+      expect((await dispatches(f)).map(d => d.withoutReplay)).toEqual([
+        undefined,
+        'resend',
+        'later',
+      ])
+      expect(await termination(f)).toEqual({ kind: 'completed', reason: 'stop' })
+      expect((await state(f)).attempts).toMatchObject({ allowed: 2, made: 3 })
+    } finally {
+      await f.dispose()
+    }
   })
 })

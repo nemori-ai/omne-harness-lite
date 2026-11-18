@@ -9,7 +9,7 @@ import type {
   Supplier,
   TransportFailure,
 } from '@omne-harness/model-contract'
-import { judgeReplayDeclaration } from '@omne-harness/model-contract/provider'
+import { judgeReplayDeclaration, type ReplayTreatment } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import { wireParameter } from './chat-completions/parameters.ts'
 import type {
@@ -24,6 +24,10 @@ import { serializeBody } from './payload.ts'
 // it applies, and the representation the meter makes of the request.
 
 export type Materialized = Extract<MeterRepresentation, { kind: 'materialized' }>
+
+export function carriesReplay(treatments: readonly ReplayTreatment[]): boolean {
+  return treatments.some(treatment => treatment.continuable && treatment.carry.length > 0)
+}
 
 export type EngineBinding = Readonly<{
   record: Pick<ChatCompletionsRecord, 'parameters' | 'extensions'>

@@ -32,6 +32,7 @@ import type {
 } from '@omne-harness/model-contract/provider'
 import { canonical, digest, invalid } from './value.ts'
 import type { CallDocument, DispatchDocument, EvidenceContext, TenantDocuments } from './types.ts'
+import { sentWithoutReplay } from './attempts.ts'
 
 export const MAX_TERMINATION_BYTES = 4096
 export const MAX_SETTLEMENT_BYTES = 8192
@@ -223,7 +224,8 @@ function retrySupplierFailure(
   const canRetry = retryable(call, prior)
   if (canRetry) return canRetry
   if (
-    call.retry?.kind !== 'retry' ||
+    call.retry === null ||
+    call.retry.kind === 'stop' ||
     !call.retrySource ||
     digest(call.retry.supplier) !== digest(input.supplier) ||
     digest(call.retrySource) !== digest(input.policyDecision)
@@ -234,21 +236,36 @@ function retrySupplierFailure(
 export function positionedRetryRequest(
   call: CallDocument,
   input: Pick<Parameters<ModelCommands<never>['decideRetry']>[0], 'position'>,
-): Outcome<FixedRequestHead, ModelFailure> {
+): Outcome<Readonly<{ request: FixedRequestHead; dispatch: DispatchDocument }>, ModelFailure> {
   if (!call.request || !call.retryPosition || digest(call.retryPosition) !== digest(input.position))
     return { failure: invalid('position', 'not-original') }
   const dispatch = dispatchOf(call, input.position.dispatch)
   if ('kind' in dispatch) return { failure: dispatch }
   const failure = retryable(call, dispatch)
   if (failure) return { failure }
-  return { ok: call.request }
+  return { ok: { request: call.request, dispatch } }
+}
+// A resend answers a refusal of carried state, once per call, to the supplier that refused it.
+function resendFailure(call: CallDocument, positioned: DispatchDocument, supplier: Supplier) {
+  const terminal = positioned.logicalTerminal
+  return terminal?.kind !== 'failed' ||
+    terminal.fault.cause !== 'replay-rejected' ||
+    sentWithoutReplay(call) ||
+    digest(supplier) !== digest(positioned.record.supplier)
+    ? invalid('decision', 'replay-resend')
+    : null
 }
 export function retryChoiceFailure(
+  call: CallDocument,
   request: FixedRequestHead,
-  dispatchCount: number,
+  positioned: DispatchDocument,
   decision: RetryDecision,
 ): ModelFailure | null {
+  if (decision.kind === 'resend-without-replay')
+    return resendFailure(call, positioned, decision.supplier)
   if (decision.kind === 'retry') {
+    // The resend does not take a place of the ordinary retries.
+    const dispatchCount = call.dispatches.filter(d => d.record.withoutReplay !== 'resend').length
     if (
       !parseInstant(decision.notBefore).ok ||
       digest(decision.basis) !== digest(request.retryPolicy)
@@ -289,8 +306,7 @@ export function executionFailed(termination: Termination): boolean {
 }
 function settlementPendingFailure(call: CallDocument): ModelFailure | null {
   const latest = call.dispatches.at(-1)
-  const awaited =
-    call.retryPosition !== null && (call.retry === null || call.retry.kind === 'retry')
+  const awaited = call.retryPosition !== null && (call.retry === null || call.retry.kind !== 'stop')
   if (awaited && call.state.control.kind === 'none') return invalid('termination', 'retry-pending')
   if (latest && [...latest.windows.values()].includes('open'))
     return invalid('termination', 'receive-pending')

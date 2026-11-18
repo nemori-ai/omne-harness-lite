@@ -179,6 +179,7 @@ if (SUPPLIER === undefined) throw new Error('durable assembly: request without a
 const RETRY_SETTINGS = {
   adoption: ADOPTION,
   policy: { maxAttempts: 2, maxElapsedMs: 1000, delaysMs: [0], jitter: 0 },
+  replayResend: { max: 1 },
 }
 const HOST_SETTINGS = {
   concurrencyLimit: 8,

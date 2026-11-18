@@ -1,8 +1,12 @@
 import type {
+  DispatchId,
   DispatchProgress,
+  DispatchRecord,
   DurableEvidence,
+  ModelOperationId,
   RetryDecision,
   RetryPosition,
+  Supplier,
 } from '@omne-harness/model-contract'
 import type { FixedRequestHead } from '@omne-harness/model-contract/provider'
 import type { CallDocument, DispatchDocument } from './types.ts'
@@ -16,6 +20,51 @@ export function initialAttempts(
 function progress(call: CallDocument, change: Partial<DispatchProgress>): void {
   if (call.state.attempts === undefined) return
   call.state = { ...call.state, attempts: { ...call.state.attempts, ...change } }
+}
+export const sentWithoutReplay = (call: CallDocument): boolean =>
+  call.dispatches.some(d => d.record.withoutReplay !== undefined)
+/** How the next dispatch treats reasoning state: the resend and every dispatch after it carry none. */
+export function withoutReplayOf(call: CallDocument): DispatchRecord['withoutReplay'] {
+  if (call.retry?.kind === 'resend-without-replay') return 'resend'
+  return sentWithoutReplay(call) ? 'later' : undefined
+}
+/** The next dispatch of the call starts: its record, a cleared retry record, the running state. */
+export function beginDispatch(
+  call: CallDocument,
+  input: Readonly<{ dispatch: DispatchId; supplier: Supplier; operation: ModelOperationId }>,
+  messages: NonNullable<DispatchRecord['messages']>,
+): void {
+  const withoutReplay = withoutReplayOf(call)
+  call.dispatches.push({
+    record: {
+      dispatch: input.dispatch,
+      supplier: structuredClone(input.supplier),
+      intent: input.operation,
+      send: 'prepared',
+      firstContent: 'none-proven',
+      terminal: null,
+      account: null,
+      materialization: null,
+      messages: [...messages],
+      ...(withoutReplay === undefined ? {} : { withoutReplay }),
+    },
+    logicalTerminal: null,
+    windows: new Map(),
+    events: new Map(),
+    assembly: null,
+    blocks: [],
+    nextSeq: new Map(),
+    trims: new Map(),
+    hadContent: new Set(),
+    diagnostics: [],
+  })
+  beginAttempt(call)
+  call.state = {
+    ...call.state,
+    phase: 'running',
+    dispatch: input.dispatch,
+    firstContent: 'none-proven',
+  }
 }
 export function beginAttempt(call: CallDocument): void {
   call.retry = null

@@ -81,6 +81,8 @@ export function runtimeFixture(
     ready: ReturnType<typeof deferred<void>>
     reads: number
     starts: number
+    /** What each prepared transport was told to leave out. */
+    resent: (readonly string[])[]
     returns: number
     closes: number
     suppliers: string[]
@@ -105,6 +107,7 @@ export function runtimeFixture(
         ready,
         reads: 0,
         starts: 0,
+        resent: [],
         returns: 0,
         closes: 0,
         suppliers: [],
@@ -190,7 +193,13 @@ export function runtimeFixture(
       })
       return {
         ok: {
-          transport: script.transport,
+          transport: {
+            ...script.transport,
+            prepare(request, supplier, dispatch) {
+              stream.resent.push([...dispatch.resent])
+              return script.transport.prepare(request, supplier, dispatch)
+            },
+          },
           startWithCredential() {
             stream.starts++
             stream.suppliers.push(demand.supplier.adoption.name)

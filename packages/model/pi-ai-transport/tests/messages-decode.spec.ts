@@ -13,6 +13,8 @@ import {
   tool,
 } from './support/chat-record.ts'
 import { frame, framesOf, messagesRecord } from './support/messages-record.ts'
+import { factsOfSend } from '../src/fact-stream.ts'
+import type { HttpExchange } from '../src/http.ts'
 
 const ACCOUNTING = { place: 'gateway', costUnit: 'gateway-credit' }
 const UPSTREAM = messagesRecord({ serving: { order: ['upstream'], reports: ['Anthropic'] } })
@@ -345,6 +347,43 @@ describe('decode: refusals', () => {
       upstreamStatus: '400',
     })
   })
+
+  // T2: only a request that carried reasoning state back can be refused for it.
+  it.each([
+    [true, { cause: 'replay-rejected', replayCarried: true, diagnostic: 'replay-signature' }],
+    [false, { cause: 'input-rejected', diagnostic: 'replay-not-carried' }],
+  ] as const)(
+    'ends the dispatch on that refusal by whether it carried state (%s)',
+    async (carried, fault) => {
+      const exchange: HttpExchange = {
+        result: Promise.resolve({
+          kind: 'http-error',
+          status: 400,
+          headers: new Headers() as never,
+          errorBody: { kind: 'complete', bytes: new TextEncoder().encode(SIGNATURE_REFUSAL) },
+        }),
+        stop: () => {},
+        stopped: Promise.resolve(),
+        requestMaySent: () => true,
+      }
+      const facts: TransportFact[] = []
+      for await (const fact of factsOfSend({
+        exchange,
+        decoder: decoderOf(),
+        route: {} as never,
+        limits: {} as never,
+        diagnostics: [],
+        replayCarried: carried,
+      }))
+        facts.push(fact)
+      expect(facts).toEqual([
+        {
+          kind: 'ended',
+          termination: { kind: 'failed', fault: { ...fault, upstreamStatus: '400' } },
+        },
+      ])
+    },
+  )
 
   it('leaves any other refusal to the status', () => {
     const decoder = decoderOf()

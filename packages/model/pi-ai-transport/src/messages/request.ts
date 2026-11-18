@@ -18,6 +18,7 @@ import { bool, finite, lexeme, list, object, text } from '../chat-completions/js
 import { planParameters } from '../chat-completions/parameters.ts'
 import {
   appliedFor,
+  carriesReplay,
   materialize,
   profileDeclaration,
   wiredParams,
@@ -222,6 +223,7 @@ export function encodeMessages(
     representation: Materialized
     diagnostics: readonly ProviderDiagnostic[]
     replayPrefix: string
+    replayCarried: boolean
   }>,
   TransportFailure
 > {
@@ -258,6 +260,7 @@ export function encodeMessages(
         reason: item.reason,
       })),
       replayPrefix: projection.ok.replayPrefix,
+      replayCarried: carriesReplay(projection.ok.treatments),
     },
   }
 }

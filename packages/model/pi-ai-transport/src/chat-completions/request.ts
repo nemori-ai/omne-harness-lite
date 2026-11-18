@@ -22,6 +22,7 @@ import { bool, list, object, text } from './json.ts'
 import { planParameters } from './parameters.ts'
 import {
   appliedFor,
+  carriesReplay,
   materialize,
   profileDeclaration,
   wiredParams,
@@ -195,6 +196,7 @@ export function encodeRequest(
     representation: Materialized
     diagnostics: readonly ProviderDiagnostic[]
     replayPrefix: string
+    replayCarried: boolean
   }>,
   TransportFailure
 > {
@@ -230,6 +232,7 @@ export function encodeRequest(
       ...encoded.ok,
       diagnostics: diagnosticsOf(projection.ok),
       replayPrefix: projection.ok.replayPrefix,
+      replayCarried: carriesReplay(projection.ok.treatments),
     },
   }
 }

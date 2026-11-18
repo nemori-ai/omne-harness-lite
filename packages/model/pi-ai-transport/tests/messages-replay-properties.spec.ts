@@ -87,6 +87,8 @@ function send(world: World, model: Model): Sent {
   // P3: sending leaves the log as it was, byte for byte.
   expect(JSON.stringify(fixed.messages)).toBe(log)
   const body = JSON.parse(writeJsonText(encoded.ok.body)) as Record<string, unknown>
+  // The dispatch says it carries reasoning state exactly when its body does.
+  expect(encoded.ok.replayCarried).toBe(carried(body).size > 0)
   return { body, prefix: encoded.ok.replayPrefix }
 }
 
