@@ -346,6 +346,26 @@ const TABLES: Record<Name, readonly (readonly [unknown, unknown])[]> = {
         },
       },
     ],
+    [
+      {
+        kind: 'asset',
+        row: { ...ROW, summary: null },
+        revision: 1,
+        content: { kind: 'data', body: { kind: 'null' } },
+        standing: { kind: 'selected' },
+        settings: false,
+      },
+      {
+        outcome: 'succeeded',
+        body: {
+          item: { ...ROW_WIRE, summary: null },
+          revision: 1,
+          content: { kind: 'data', body: { kind: 'null' } },
+          standing: { kind: 'selected' },
+          settings: false,
+        },
+      },
+    ],
     [{ kind: 'absent' }, { outcome: 'not-found', body: {} }],
     [{ kind: 'denied' }, { outcome: 'denied' }],
     [{ kind: 'unavailable' }, { outcome: 'basis-unavailable' }],
@@ -457,6 +477,17 @@ describe('observe-assets', () => {
       { tenant: BOB.tenant },
     )
     expect(opened).toEqual({ outcome: 'denied' })
+    expect(world.listeners).toEqual([])
+  })
+
+  it('a login whose acting cannot be settled now answers basis-unavailable, not denied', async () => {
+    const world = setup()
+    world.state.refusal = 'basis-unavailable'
+    const opened = await world.contribution.observations['observe-assets'](
+      { principal: loginIdentity(ALICE), messageId: 'm-o', signal: new AbortController().signal },
+      { tenant: ALICE.tenant },
+    )
+    expect(opened).toEqual({ outcome: 'basis-unavailable' })
     expect(world.listeners).toEqual([])
   })
 })

@@ -216,6 +216,20 @@ describe('describe-category', () => {
     })
   })
 
+  it('a category closed to creation gives none even when its contract has a directory layout', async () => {
+    const point = createCategoryPoint()
+    point.contribute({
+      contract: contract('bundle', true),
+      display: { title: '包', summary: '包。' },
+      generalCreation: 'closed',
+    })
+    expect(
+      wire('describe-category', (await describeOf('bundle', () => point)).answer),
+    ).toMatchObject({
+      body: { creation: { kind: 'none' } },
+    })
+  })
+
   it('a category not there is not-found; no extension point is basis-unavailable', async () => {
     expect((await describeOf('gone')).answer).toEqual({ outcome: 'not-found', body: {} })
     expect((await describeOf('skill', () => undefined)).answer).toEqual({

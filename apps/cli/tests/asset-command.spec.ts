@@ -318,6 +318,22 @@ describe('asset create --data', () => {
     ])
   })
 
+  it('--resume recalls the creation with the same body; not committed, it sends it under that operation', async () => {
+    const service = await loggedIn()
+    const result = await cli(['asset', 'create', 'note:a', '--data', '{"a":1}', '--resume', 'op-7'])
+    expect(result.code).toBe(0)
+    expect(operations(service)).toEqual(['query-asset-operation', 'create-asset'])
+    expect(one(service, 'query-asset-operation')[0]?.body).toEqual({
+      tenant: tenantText,
+      operation: 'op-7',
+      request: { kind: 'create-asset', category: 'note', name: 'a', body: { a: 1 } },
+    })
+    expect(one(service, 'create-asset')[0]?.body).toMatchObject({
+      operation: 'op-7',
+      body: { a: 1 },
+    })
+  })
+
   it('takes exactly one of --data and --dir, and --data must be JSON', async () => {
     const service = await loggedIn()
     expect((await cli(['asset', 'create', 'note:a'])).code).toBe(2)
@@ -335,6 +351,23 @@ describe('asset enable, disable and remove', () => {
     const body = one(service, 'set-asset-enabled')[0]?.body
     expect(body).toMatchObject({ tenant: tenantText, holding: 'held-1', enabled: false })
     expect(String(body?.['operation']).endsWith('/held-1')).toBe(true)
+  })
+
+  it('enable sends enabled true; a resumed operation without a holding in it reads the holding from the asset', async () => {
+    const service = await loggedIn()
+    expect((await cli(['asset', 'enable', 'skill:review'])).code).toBe(0)
+    expect(one(service, 'set-asset-enabled')[0]?.body).toMatchObject({ enabled: true })
+    expect((await cli(['asset', 'enable', 'skill:review', '--resume', 'op-plain'])).code).toBe(0)
+    expect(operations(service).slice(2)).toEqual([
+      'describe-asset',
+      'query-asset-operation',
+      'set-asset-enabled',
+    ])
+    expect(one(service, 'set-asset-enabled')[1]?.body).toMatchObject({
+      operation: 'op-plain',
+      holding: 'held-1',
+      enabled: true,
+    })
   })
 
   it('remove without --yes says why and exits 2 without asking the server; with --yes it removes', async () => {

@@ -156,6 +156,31 @@ describe('a detail', () => {
     })
     expect(gone.state.details.get('review')).toEqual({ kind: 'absent' })
   })
+
+  it('a detail that cannot be read is failed with a sentence, not absent', () => {
+    const opened = run(listed(), { kind: 'open', name: 'review' })
+    const failed = run(opened.state, {
+      kind: 'detail-answered',
+      name: 'review',
+      token: opened.state.issued,
+      answer: { outcome: 'basis-unavailable' },
+    })
+    expect(failed.state.details.get('review')).toMatchObject({ kind: 'failed' })
+  })
+
+  it('opening again while it reads keeps what was shown, under a new token', () => {
+    const opened = run(listed(), { kind: 'open', name: 'review' })
+    const read = run(opened.state, {
+      kind: 'detail-answered',
+      name: 'review',
+      token: opened.state.issued,
+      answer: { outcome: 'succeeded', body: DESCRIBED },
+    })
+    const again = run(read.state, { kind: 'open', name: 'review' })
+    const twice = run(again.state, { kind: 'open', name: 'review' })
+    expect(twice.state.issued).toBeGreaterThan(again.state.issued)
+    expect(twice.state.details.get('review')).toMatchObject({ kind: 'reading', shown: DESCRIBED })
+  })
 })
 
 describe('the action slot of one asset', () => {
@@ -195,6 +220,18 @@ describe('the action slot of one asset', () => {
         notice: { kind: 'refused', text: '这一份是部署装的官方资产，不能停用或移除。' },
       },
       false,
+    ],
+    [
+      'not-writable removed',
+      { outcome: 'not-writable', body: { reason: 'removed' } },
+      { kind: 'refused', notice: { kind: 'refused', text: '这一份已经移除了。' } },
+      false,
+    ],
+    [
+      'not-found',
+      { outcome: 'not-found', body: {} },
+      { kind: 'refused', notice: { kind: 'refused', text: '这一份已经不在了。' } },
+      true,
     ],
     [
       'conflict',
@@ -255,6 +292,7 @@ describe('the action slot of one asset', () => {
       expect(unknown.state.actions.get('review')).toMatchObject({
         kind: 'unknown',
         confirming: false,
+        notice: { kind: 'unknown', text: '结果不明：可能已经改了，也可能没有。认回一下再决定。' },
       })
       expect(submitting(unknown.state, 'op-2').effects).toEqual([])
       const recall = run(unknown.state, { kind: 'confirm', name: 'review' })
@@ -287,6 +325,21 @@ describe('the action slot of one asset', () => {
       { kind: 'refused', notice: { kind: 'unavailable', text: '上一次没有生效，可以再试一次。' } },
     ],
     ['basis-unavailable', { outcome: 'basis-unavailable' }, { kind: 'unknown', confirming: false }],
+    ['not sent', { outcome: 'unavailable' }, { kind: 'unknown', confirming: false }],
+    ['uncertain', { outcome: 'uncertain' }, { kind: 'unknown', confirming: false }],
+    [
+      'not-writable removed',
+      { outcome: 'not-writable', body: { reason: 'removed' } },
+      { kind: 'refused', notice: { kind: 'refused', text: '这一份已经移除了。' } },
+    ],
+    [
+      'not-writable official',
+      { outcome: 'not-writable', body: { reason: 'official' } },
+      {
+        kind: 'refused',
+        notice: { kind: 'refused', text: '这一份是部署装的官方资产，不能停用或移除。' },
+      },
+    ],
   ] as const)('a recall answered %s', (_label, answer, action) => {
     const answered = run(recalling(), {
       kind: 'confirm-answered',
@@ -307,6 +360,40 @@ describe('the action slot of one asset', () => {
         answer: { outcome: 'succeeded', body: {} },
       }).state,
     ).toBe(state)
+  })
+})
+
+describe('the creation slot inside the assets of one category', () => {
+  const request = { kind: 'data', name: 'notes', body: { kind: 'null' } } as const
+  const created = { outcome: 'succeeded', body: { version: 'v', holding: 'h', changed: true } }
+
+  it('a creation that succeeds reads the list again; one answered for another operation changes nothing', () => {
+    const sent = run(listed(), { kind: 'create', operation: 'c-1', request })
+    expect(sent.effects).toEqual([{ kind: 'create', operation: 'c-1', request }])
+    const stale = run(sent.state, {
+      kind: 'create-answered',
+      operation: 'c-0',
+      answer: created as never,
+    })
+    expect(stale.state).toBe(sent.state)
+    const done = run(sent.state, {
+      kind: 'create-answered',
+      operation: 'c-1',
+      answer: created as never,
+    })
+    expect(done.state.creating).toEqual({ kind: 'done', text: '已新建 notes。' })
+    expect(done.effects).toEqual([{ kind: 'list', token: done.state.issued, after: null }])
+  })
+
+  it('a recall of an unknown creation asks with it and reads nothing yet', () => {
+    const sent = run(listed(), { kind: 'create', operation: 'c-1', request })
+    const unknown = run(sent.state, {
+      kind: 'create-answered',
+      operation: 'c-1',
+      answer: { outcome: 'unknown' } as never,
+    })
+    const recall = run(unknown.state, { kind: 'confirm-create' })
+    expect(recall.effects).toEqual([{ kind: 'recall-create', operation: 'c-1', request }])
   })
 })
 
