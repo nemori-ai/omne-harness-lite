@@ -131,6 +131,64 @@ describe('the items of the journal view', () => {
     )
   })
 
+  it('a request stays open while its step is current, or as the fallback when the current one is voided', () => {
+    const at = (n: number) => `step-${String(n)}` as never
+    const ref = { digest: 'a'.repeat(64), size: 2 }
+    const batch = (pub: number, facts: PublishedBatch['facts']): PublishedBatch => ({
+      execution: 'exe_requests' as never,
+      envelope: {
+        op: `op-${String(pub)}` as never,
+        digest: `d-${String(pub)}`,
+        rev: 0,
+        gen: '1',
+        kinds: [],
+      },
+      facts,
+      pub,
+    })
+    const adopt = (n: number, pub: number) =>
+      batch(pub, [
+        { kind: 'cursor.moved', step: at(n), members: { step: at(n) } },
+        {
+          kind: 'request.adopted',
+          step: at(n),
+          attempt: 0 as never,
+          reference: `ref-${String(n)}` as never,
+          fixed: evidence(`fixed/${String(n)}`),
+          schema: { owner: 'suite', name: 'request', revision: '1', digest: 'suite:request' },
+          record: ref,
+          coverage: null,
+        },
+      ])
+    let view = emptySessionView()
+    const changes: { item: string; open: boolean }[] = []
+    for (const next of [adopt(1, 1), adopt(2, 2), adopt(3, 3)]) {
+      const folded = foldItems(view, next)
+      changes.push(...folded.changes.filter(c => c.family === 'request'))
+      view = folded.view
+    }
+    const requests = () => view.executions.get('exe_requests' as never)!.requests
+    // Step 3 is current; step 2 is the fallback; step 1 closed when step 3 came.
+    expect(requests().map(item => item.reference)).toEqual(['ref-2', 'ref-3'])
+    expect(changes).toContainEqual(expect.objectContaining({ item: 'ref-1', open: false }))
+    view = foldItems(
+      view,
+      batch(4, [
+        {
+          kind: 'intent.voided',
+          intent: 'model',
+          step: at(3),
+          attempt: 0 as never,
+          action: 'action-3' as never,
+          reference: 'ref-3' as never,
+          cause: 'not-accepted',
+          basis: evidence('voided/3'),
+        },
+      ]),
+    ).view
+    expect(view.executions.get('exe_requests' as never)!.adopted?.reference).toBe('ref-2')
+  })
+
   it('a fold that changes nothing in an execution reports no item', () => {
     const view = emptySessionView()
     const replayed = foldItems(view, {

@@ -7,6 +7,7 @@ import {
   type ExecutionView,
   type IntentView,
   type ObligationView,
+  type RequestView,
   type ResultView,
 } from './view.ts'
 
@@ -100,6 +101,9 @@ function openIn(family: ItemFamily, entry: Entry, view: ExecutionView, item: str
   return (family.open as Open)(entry, view, item)
 }
 
+const fallbackRequest = (view: ExecutionView): RequestView | undefined =>
+  view.requests.findLast(item => item.step !== view.cursor.step && item.voided === null)
+
 const intentHeld = (item: IntentView, view: ExecutionView): boolean =>
   view.cursor.holds?.actions.includes(item.action) ?? true
 
@@ -151,7 +155,8 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
   {
     family: 'request',
     holder: list(at('requests'), item => item.reference, byPub),
-    open: always,
+    open: (item: RequestView, view: ExecutionView) =>
+      item.step === view.cursor.step || item === fallbackRequest(view),
   },
   { family: 'voided', holder: list(at('voided'), keyOf, byPubOrd), open: always },
   {

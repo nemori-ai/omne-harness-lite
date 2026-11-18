@@ -1164,9 +1164,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         )
           latest = { execution: execution.execution, request: execution.adopted }
       if (latest === null) return { kind: 'value', value: null }
-      let order = 0
-      for (const execution of book.view.executions.values())
-        for (const request of execution.requests) if (request.pub <= latest.request.pub) order += 1
       const digest = blobRowDigest(latest.request.record.digest)
       let payload = book.blobs.get(digest)
       if (payload === undefined) {
@@ -1180,7 +1177,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         return {
           kind: 'value',
           value: {
-            order: String(order),
+            order: String(latest.request.pub),
             execution: latest.execution,
             reference: String(latest.request.reference),
             fixed: latest.request.fixed,
