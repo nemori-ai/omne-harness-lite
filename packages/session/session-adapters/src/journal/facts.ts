@@ -109,6 +109,12 @@ export type CursorMembers = Readonly<{
   definition: Adoption
   adoptedRequest: Ref | null
   state: 'reconciling' | 'advancing' | 'waiting' | 'settling' | 'suspended'
+  // What the checkpoint holds open that its blocks name: the fold reads it without the blocks.
+  holds: Readonly<{
+    actions: readonly ActionId[]
+    consumptions: readonly ConsumptionId[]
+    handoffs: readonly string[]
+  }>
 }>
 export type CursorMember = keyof CursorMembers
 
@@ -160,6 +166,8 @@ export type FactBody =
       intent: 'model'
       step: StepId
       attempt: Attempt
+      action: ActionId
+      reference: ModelInvocationRef
       cause: 'not-accepted' | 'lost'
       basis: DurableEvidence
     }>
@@ -262,6 +270,7 @@ export type FactBody =
       kind: 'target.bound'
       reference: string
       pending: Ref<PendingCall>
+      consumption: ConsumptionId
       instance: AgentInstanceId
     }>
   | Readonly<{

@@ -223,6 +223,7 @@ export type BindingView = Readonly<{
   definition: Adoption
   reference: string
   pending: Ref<PendingCall>
+  consumption: ConsumptionId
   instance: AgentInstanceId
   pub: number
 }>
@@ -386,12 +387,6 @@ export function receivedViews(view: ExecutionView): readonly ReceivedView[] {
     ...[...view.results.values()].flatMap(item => (item.received === null ? [] : [item.received])),
     ...view.placeholders.values(),
   ]
-}
-
-export function openCalls(view: ExecutionView): readonly IntentView[] {
-  return [...view.intents.values()].filter(
-    intent => view.results.get(intent.pending.consumption)?.received == null,
-  )
 }
 
 function plain(value: unknown): unknown {

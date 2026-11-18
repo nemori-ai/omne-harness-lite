@@ -548,7 +548,7 @@
       },
       "packages/session/session-adapters/src/testing/journal-receiving.ts": {
         "count": 1,
-        "longest": 616
+        "longest": 615
       },
       "packages/session/session-adapters/src/testing/journal-records.ts": {
         "count": 1,

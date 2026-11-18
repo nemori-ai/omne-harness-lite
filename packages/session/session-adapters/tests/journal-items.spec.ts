@@ -7,7 +7,7 @@ import {
   type PublishedBatch,
   type SessionJournalView,
 } from '../src/journal/index.ts'
-import { scene } from './fixtures/journal-facts.ts'
+import { evidence, scene } from './fixtures/journal-facts.ts'
 import { forAll } from './fixtures/property.ts'
 
 type Held = { open: boolean; body: string }
@@ -62,6 +62,36 @@ describe('the items of the journal view', () => {
         return null
       },
     })
+  })
+
+  it('a later step that takes the same batch closes the earlier one', () => {
+    const batch = { id: 'b-1' as never, watermark: evidence('watermark/b-1'), ordered: [] }
+    const step = (n: number, pub: number): PublishedBatch => ({
+      execution: 'exe_steps' as never,
+      envelope: {
+        op: `op-${String(n)}` as never,
+        digest: `d-${String(n)}`,
+        rev: 0,
+        gen: '1',
+        kinds: [],
+      },
+      facts: [
+        { kind: 'step.begun', step: `step-${String(n)}` as never, batch },
+        {
+          kind: 'cursor.moved',
+          step: `step-${String(n)}` as never,
+          members: { inputBatch: 'b-1' },
+        },
+      ],
+      pub,
+    })
+    const first = foldItems(emptySessionView(), step(1, 1))
+    const second = foldItems(first.view, step(2, 2))
+    const steps = second.view.executions.get('exe_steps' as never)!.steps
+    expect(steps.map(item => item.step)).toEqual(['step-2'])
+    expect(second.changes).toContainEqual(
+      expect.objectContaining({ family: 'step', item: 'step-1#b-1', open: false }),
+    )
   })
 
   it('a fold that changes nothing in an execution reports no item', () => {

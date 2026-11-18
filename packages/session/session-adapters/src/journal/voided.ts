@@ -20,7 +20,15 @@ export function voidedFacts(
     const request = view.requests.findLast(request => request.reference === item.reference)
     if (request === undefined) return null
     const { step, attempt } = request
-    facts.push({ ...closed, intent: 'model', step, attempt, cause: item.cause })
+    facts.push({
+      ...closed,
+      intent: 'model',
+      step,
+      attempt,
+      action: item.action,
+      reference: item.reference,
+      cause: item.cause,
+    })
   }
   return facts
 }

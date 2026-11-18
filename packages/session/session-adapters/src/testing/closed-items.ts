@@ -16,8 +16,7 @@ export const answerRef = (execution: AgentExecutionId, operation: AgentOperation
   item: operation,
 })
 
-// A read that needs closed items its round has not read: the provider reads them by original key
-// and runs the round again from the same root. The draft of the round is dropped with the throw.
+// A read needs closed items its round has not read: the provider reads them back and runs again.
 export class NeedItems extends Error {
   readonly refs: readonly ItemRef[]
 
@@ -31,7 +30,6 @@ export class NeedItems extends Error {
 // whole closed store; an incomplete one holds what this call closed or read back.
 export type ClosedTable = Readonly<{ closed: SharedMap<string, unknown>; closedComplete: boolean }>
 
-// For a write, which treats an unknown key as new and leaves the judgement to the store.
 export const peekClosed = (table: ClosedTable, ref: ItemRef): unknown =>
   table.closed.get(itemText(ref)) ?? null
 

@@ -15,7 +15,7 @@ import {
   type CursorMembers,
   type FactBody,
 } from './facts.ts'
-import type { ExecutionView } from './view.ts'
+import { handoffKey, type ExecutionView } from './view.ts'
 
 export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState): CursorMembers {
   return {
@@ -44,6 +44,16 @@ export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState)
         ? null
         : refOf(checkpoint.adoptedRequest),
     state: state.kind,
+    holds: {
+      actions: [
+        ...checkpoint.calls.map(call => call.action),
+        ...(checkpoint.batch?.actions.map(action => action.id) ?? []),
+      ],
+      consumptions: checkpoint.calls.map(call => call.consumption),
+      handoffs: (checkpoint.batch?.slots ?? []).flatMap(slot =>
+        slot.handoff === null ? [] : [handoffKey(slot.handoff)],
+      ),
+    },
   }
 }
 
@@ -73,7 +83,7 @@ function held<T>(blobs: BlobStore, ref: Readonly<{ digest: string }>, what: stri
 }
 
 export function checkpointOf(
-  view: Pick<ExecutionView, 'cursor' | 'steps' | 'requests' | 'voided' | 'intents'>,
+  view: Pick<ExecutionView, 'cursor' | 'steps' | 'voided'>,
   blobs: BlobStore,
 ): AgentCheckpoint {
   const { cursor } = view
@@ -90,16 +100,14 @@ export function checkpointOf(
     const { step, basis } = fact
     if (fact.intent === 'tool')
       return { kind: 'tool', step, action: fact.action, cause: fact.cause, basis }
-    const request = view.requests.find(item => item.step === step && item.attempt === fact.attempt)
-    const reference = request?.reference
-    const intent = [...view.intents.values()].find(
-      item => item.pending.kind === 'model' && item.pending.reference === reference,
-    )
-    if (reference === undefined || intent === undefined)
-      throw new TypeError(
-        `the Journal holds no call.intended for the voided request ${step}/${fact.attempt}`,
-      )
-    return { kind: 'model', step, action: intent.action, reference, cause: fact.cause, basis }
+    return {
+      kind: 'model',
+      step,
+      action: fact.action,
+      reference: fact.reference,
+      cause: fact.cause,
+      basis,
+    }
   })
   const checkpoint: AgentCheckpoint = {
     schema: need('schema'),

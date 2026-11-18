@@ -243,6 +243,8 @@ function roundBatches(builder: Builder, rng: Random): void {
         intent: 'model',
         step,
         attempt: 0,
+        action: modelAction,
+        reference,
         cause: 'not-accepted',
         basis: evidence(`${builder.execution}/not-accepted/${builder.step}`),
       },

@@ -117,6 +117,9 @@ const tenantText = (tenant: TenantId) => {
   const encoded = tenantCodec.encode(tenant)
   return encoded.ok ? encoded.value : ''
 }
+
+const targetKey = <P>(access: Pick<Access<P>, 'tenant'>, reference: string) =>
+  canonical([tenantText(access.tenant), reference])
 const executionText = <P>(input: Access<P> & { execution: AgentExecutionId }) =>
   canonical([tenantText(input.tenant), input.execution])
 const deliveryText = <P>(
@@ -331,8 +334,6 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
   const recordFaults = new Map<string, RecordFault>()
   const operationKey = (input: ExecutionMutation<P>) =>
     hooks.operationKey(input.tenant, input.execution, input.operation) ?? ''
-  const targetKey = (access: Pick<Access<P>, 'tenant'>, reference: string) =>
-    canonical([tenantText(access.tenant), reference])
   const qualified = (
     input: Access<P> & { execution: AgentExecutionId },
     custody = true,
@@ -920,6 +921,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           kind: 'target.bound',
           reference: pending.reference,
           pending: refOf(value),
+          consumption: pending.consumption,
           instance,
         })
       }

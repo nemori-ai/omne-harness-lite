@@ -371,6 +371,7 @@ function foldTargetBound(draft: Draft, fact: FactOf<'target.bound'>, pub: number
       definition,
       reference: fact.reference,
       pending: fact.pending,
+      consumption: fact.consumption,
       instance: fact.instance,
       pub,
     },

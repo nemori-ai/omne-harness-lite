@@ -51,7 +51,6 @@ export {
   emptyExecutionView,
   emptySessionView,
   handoffKey,
-  openCalls,
   receivedViews,
   viewDigest,
   viewText,

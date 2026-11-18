@@ -83,9 +83,10 @@ export const ITEM_FAMILIES: readonly ItemFamily[] = [
   {
     family: 'step',
     holder: list(at('steps'), item => `${item.step}#${item.batch.id}`),
-    // Only the step of the batch the cursor has taken is read: a later batch closes it.
+    // Only the latest step of the batch the cursor has taken is read: a later step closes it.
     open: (item: ExecutionView['steps'][number], view: ExecutionView) =>
-      view.cursor.inputBatch === item.batch.id,
+      view.cursor.inputBatch === item.batch.id &&
+      !view.steps.some(other => other.batch.id === item.batch.id && other.pub > item.pub),
   },
   // A step can adopt again under the same attempt: a request is its model invocation.
   {
