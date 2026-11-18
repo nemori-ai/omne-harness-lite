@@ -139,7 +139,7 @@ const RESPONSES = {
   serving: { order: ['openai'], reports: ['OpenAI'] },
   wire: {
     system: 'developer',
-    cache: { kind: 'explicit', ttl: '30m' },
+    cache: { kind: 'automatic' },
     image: { mediaTypes: IMAGE_MEDIA_TYPES },
     reasoning: { summary: 'auto' },
     toolNames: { rule: 'underscore/1', maxLength: 64 },
@@ -160,7 +160,7 @@ const MATRIX: Readonly<Partial<Record<RecordFact, string>>> = {
   'replay-binding':
     'reasoning items carried after an earlier message was edited, one request: on gpt-6.2-astra and gpt-6.2-sol the input tokens fell by 7 to 16, read as dropped, so bound to the prefix; on the others they counted as usual, so no binding',
   cache:
-    'the same request sent twice: the explicit cache hit on the second; on gpt-6.2-astra and gpt-6.2-sol the automatic cache missed both times',
+    'a three-turn session on the release service (live model matrix): with automatic caching and a session key the later requests read 0.996 of their input from the cache on gpt-6.1-terra and gpt-6.2-sol; an explicit breakpoint moved to the newest message each turn read nothing on gpt-6.1-terra',
   'system-placement': 'one developer message asking for capital letters: the reply was in capitals',
 }
 
@@ -222,7 +222,7 @@ function recordOf(item: Measured) {
 export const OPENAI_RECORDS = [
   recordOf({
     model: 'gpt-6-astra',
-    revision: '2',
+    revision: '3',
     binding: 'none',
     profile: ENDPOINT_PROFILE,
     image: 'astra-patch/1',
@@ -239,7 +239,7 @@ export const OPENAI_RECORDS = [
   },
   recordOf({
     model: 'gpt-6-sol',
-    revision: '2',
+    revision: '3',
     binding: 'none',
     profile: ENDPOINT_PROFILE,
     image: 'sol-luna-auto-proxy/1',
@@ -256,7 +256,7 @@ export const OPENAI_RECORDS = [
   },
   recordOf({
     model: 'gpt-6-luna',
-    revision: '2',
+    revision: '3',
     binding: 'none',
     profile: ENDPOINT_PROFILE,
     image: 'sol-luna-auto-proxy/1',
@@ -273,14 +273,14 @@ export const OPENAI_RECORDS = [
   },
   recordOf({
     model: 'gpt-6.1-sol',
-    revision: '2',
+    revision: '3',
     binding: 'none',
     profile: GPT61_SOL_PROFILE,
     image: 'sol-luna-auto-proxy/1',
   }),
   recordOf({
     model: 'gpt-6.1-terra',
-    revision: '2',
+    revision: '3',
     binding: 'none',
     profile: GPT61_TERRA_PROFILE,
     image: 'sol-luna-auto-proxy/1',
@@ -307,7 +307,7 @@ export const OPENAI_RECORDS = [
   },
   recordOf({
     model: 'gpt-5.6-terra',
-    revision: '2',
+    revision: '3',
     binding: 'none',
     profile: ENDPOINT_PROFILE,
     image: 'gpt56-patch/1',
@@ -324,7 +324,7 @@ export const OPENAI_RECORDS = [
   },
   recordOf({
     model: 'gpt-5.6-luna',
-    revision: '2',
+    revision: '3',
     binding: 'none',
     profile: ENDPOINT_PROFILE,
     image: 'gpt56-patch/1',
@@ -341,14 +341,14 @@ export const OPENAI_RECORDS = [
   },
   recordOf({
     model: 'gpt-6.2-astra',
-    revision: '1',
+    revision: '2',
     binding: 'prefix',
     profile: gpt62Profile('gpt-6.2-astra'),
     image: 'sol-luna-auto-proxy/1',
   }),
   recordOf({
     model: 'gpt-6.2-sol',
-    revision: '1',
+    revision: '2',
     binding: 'prefix',
     profile: gpt62Profile('gpt-6.2-sol'),
     image: 'sol-luna-auto-proxy/1',

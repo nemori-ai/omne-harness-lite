@@ -1,18 +1,18 @@
 [
-  {"name":"openai/gpt-6-astra","revision":"2","digest":"a7570b6265b1fc1de78827c283a0a8f9efe3fd7c35ad71e8c16b9ce4cb19315e"},
   {"name":"openai/gpt-6-astra-pro","revision":"1","digest":"8ec631c7fd2e079317a6dc83ce68a3dc740bf009c262963d744dde1278caa223"},
-  {"name":"openai/gpt-6-sol","revision":"2","digest":"557660e399b63c4812dbd997b582dcbaf2af01c77dcb795f229d119411fd3719"},
   {"name":"openai/gpt-6-sol-pro","revision":"1","digest":"227fc31be15ca0197b09fb2c71fc17d9a77719f9d6e8de5e78b5bc1cf1e323da"},
-  {"name":"openai/gpt-6-luna","revision":"2","digest":"23c0cebb35da19be693540e7e74646d9ca674fcb0cf177c1c5b5863da7197b90"},
   {"name":"openai/gpt-6-luna-pro","revision":"1","digest":"9f65875705d97376e8c4d2076521f80f6af0706ea3773342b1d2ec30e1dcd39f"},
-  {"name":"openai/gpt-6.1-sol","revision":"2","digest":"768c6393d27282f21736624fc932accdb671c84aebb512b7fcdc8e1d6b2f9def"},
-  {"name":"openai/gpt-6.1-terra","revision":"2","digest":"b7636e75db11c89118d423d07d3f1523ff091e49ba9a03fc12f11981243e066f"},
   {"name":"openai/gpt-5.6-sol","revision":"1","digest":"c0a7d39ab021d974354d074719862c95f90232f2c06f68c822058f4b0d5c7772"},
   {"name":"openai/gpt-5.6-sol-pro","revision":"1","digest":"c291f31d22f88cb0e02fabaa0c6ad4e0910e94a05ea969160b6dfde8ce1ed00d"},
-  {"name":"openai/gpt-5.6-terra","revision":"2","digest":"554e58b24af3c5ff5babe0e1407843232529a574d3b4c861eb1d8c1fddc01190"},
   {"name":"openai/gpt-5.6-terra-pro","revision":"1","digest":"43ba40ab2f8a5c7dcaa044d9a45771623a6525215473368e40ab4bf99aa6fe80"},
-  {"name":"openai/gpt-5.6-luna","revision":"2","digest":"ef41f3a3101bb2fbfafd0f04045397b3ca72cbdccbd02cc1a65fa2469598036e"},
   {"name":"openai/gpt-5.6-luna-pro","revision":"1","digest":"a0a2bc891f92a701c53119db08692308a979dd503fecc1822b4eab75b6c06b7b"},
-  {"name":"openai/gpt-6.2-astra","revision":"1","digest":"af1fa0a8c1390c97ce8b066370ca84904d1ce698f55956d326038cc7da709d0c"},
-  {"name":"openai/gpt-6.2-sol","revision":"1","digest":"d9169a097ef64b0d5eaf898721808307e31775bb4a5e9037f41fe15cdb08b61a"}
+  {"name":"openai/gpt-6-astra","revision":"3","digest":"b43c7ca380c2179e51f4a7be46f43b09a73ac62968f2029707a08377629262e1"},
+  {"name":"openai/gpt-6-sol","revision":"3","digest":"1247d20354cfe667217a8bc79dfebb5c7211629aabe0639d1418cef8731f5bae"},
+  {"name":"openai/gpt-6-luna","revision":"3","digest":"ad32918cf09ed8e056a474979a07021042aef7b61f03a60a6d87d3ed12911d7a"},
+  {"name":"openai/gpt-6.1-sol","revision":"3","digest":"606f4f93102a95f0446cbb3b5cf2f1536ec7231e4d0baa5f1e29f90c9369649c"},
+  {"name":"openai/gpt-6.1-terra","revision":"3","digest":"f0c142d574adc94366493b6e76c5ac18c36f7801bc546e79166f458e7a059b97"},
+  {"name":"openai/gpt-5.6-terra","revision":"3","digest":"a11387616be9d9d4f99fd09f9669070ed24fdd2534f2875f44e7f0b66b15533d"},
+  {"name":"openai/gpt-5.6-luna","revision":"3","digest":"99547654de77ec1bdb55123e9d26790a53821aa2653a2a4b3142a3b8cf98495d"},
+  {"name":"openai/gpt-6.2-astra","revision":"2","digest":"797589ac26ed57244f2070f4209dc7f4947c596bd09619064ca6b25ed611e4d5"},
+  {"name":"openai/gpt-6.2-sol","revision":"2","digest":"e2106efe2f1a03ec915e843150a6927b43bfb47af16a95ca00f3075d48b0cd22"}
 ]

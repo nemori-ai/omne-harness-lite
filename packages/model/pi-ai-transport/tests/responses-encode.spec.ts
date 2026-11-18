@@ -339,9 +339,9 @@ describe('encode: the conversation', () => {
   })
 })
 
-describe('encode: the explicit cache', () => {
+describe('encode: the automatic cache', () => {
   const CACHED = responsesRecord({
-    wire: { ...responsesRecord().wire, cache: { kind: 'explicit', ttl: '30m' } },
+    wire: { ...responsesRecord().wire, cache: { kind: 'automatic' } },
   })
 
   function digests(prefix: string): string {
@@ -353,26 +353,20 @@ describe('encode: the explicit cache', () => {
     return `${part('s')}${part('t')}`
   }
 
-  it('writes a key from the system prompt and the tools, the options, and a breakpoint on the last text of the last message', () => {
+  it('writes a key from the system prompt and the tools, and nothing that marks a breakpoint', () => {
     const outcome = encode(CACHED, {
       system: [textBlock('s1', 'be brief')],
-      messages: [
-        message('u1', 'user', [
-          textBlock('b1', 'first'),
-          textBlock('b2', 'second'),
-          imageBlock('i1'),
-        ]),
-      ],
+      messages: [message('u1', 'user', [textBlock('b1', 'first'), textBlock('b2', 'second')])],
     })
     const sent = body(outcome)
     if (!('ok' in outcome)) throw new Error('encode')
     expect(sent.prompt_cache_key).toBe(digests(outcome.ok.replayPrefix))
     expect(sent.prompt_cache_key).toMatch(/^[0-9a-f]{64}$/)
-    expect(sent.prompt_cache_options).toEqual({ mode: 'explicit', ttl: '30m' })
+    expect(JSON.stringify(sent)).not.toContain('prompt_cache_options')
+    expect(JSON.stringify(sent)).not.toContain('prompt_cache_breakpoint')
     expect((sent.input as { content: unknown[] }[])[1]?.content).toEqual([
       { type: 'input_text', text: 'first' },
-      { type: 'input_text', text: 'second', prompt_cache_breakpoint: { mode: 'explicit' } },
-      { type: 'input_image', image_url: 'data:image/png;base64,iVBORw0KGgo=' },
+      { type: 'input_text', text: 'second' },
     ])
   })
 
@@ -394,37 +388,11 @@ describe('encode: the explicit cache', () => {
     expect(key({ system, tools: [tool('lookup')] })).not.toBe(first)
   })
 
-  it('puts the breakpoint on the last message with text when the input ends with tool results', () => {
-    const sent = body(
-      encode(CACHED, {
-        messages: [
-          message('u1', 'user', [textBlock('b1', 'go')]),
-          message('a1', 'assistant', [textBlock('t1', 'on it'), callBlock('c1', 'call-1')]),
-          message('r1', 'tool', [resultBlock('x1', 'call-1'), textBlock('x2', 'done')]),
-        ],
-        tools: [tool('lookup')],
-      }),
-    )
-    const input = sent.input as { content?: unknown[] }[]
-    expect(input[1]?.content).toEqual([
-      {
-        type: 'output_text',
-        text: 'on it',
-        annotations: [],
-        prompt_cache_breakpoint: { mode: 'explicit' },
-      },
-    ])
-    expect(JSON.stringify(input.slice(2))).not.toContain('prompt_cache_breakpoint')
-  })
-
-  it('sends a request with no text the model sees without any cache member', () => {
-    for (const messages of [[], [message('u1', 'user', [textBlock('b1', 'hidden', false)])]]) {
-      const encoded = encode(CACHED, { messages })
-      if (!('ok' in encoded)) throw new Error(JSON.stringify(encoded.failure))
-      const body = JSON.stringify(encoded.ok.body)
-      for (const member of ['prompt_cache_key', 'prompt_cache_options', 'prompt_cache_breakpoint'])
-        expect(body).not.toContain(member)
-    }
+  it('writes no cache member for a record without a cache', () => {
+    const plain = responsesRecord({ wire: { ...responsesRecord().wire, cache: { kind: 'none' } } })
+    const encoded = encode(plain, { messages: [message('u1', 'user', [textBlock('b1', 'go')])] })
+    if (!('ok' in encoded)) throw new Error(JSON.stringify(encoded.failure))
+    expect(JSON.stringify(encoded.ok.body)).not.toContain('prompt_cache')
   })
 })
 

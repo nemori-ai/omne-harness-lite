@@ -66,47 +66,12 @@ function parameterMembers(
   return { ok: members }
 }
 
-type CacheTarget = Readonly<{ item: number; part: number }>
-
-function isText(part: JsonValue): boolean {
-  if (part.kind !== 'object') return false
-  const type = part.entries.find(entry => entry.key === 'type')?.value
-  return type?.kind === 'string' && (type.value === 'input_text' || type.value === 'output_text')
-}
-
-// The last text part of the last message that has one.
-function cacheTarget(items: readonly ResponsesItem[]): CacheTarget | null {
-  for (let item = items.length - 1; item >= 0; item -= 1) {
-    const found = items[item]
-    if (found?.kind !== 'message') continue
-    const part = found.content.findLastIndex(isText)
-    if (part >= 0) return { item, part }
-  }
-  return null
-}
-
-function marked(part: JsonValue): JsonValue {
-  if (part.kind !== 'object') throw new Error('a content part is an object')
-  const members = Object.fromEntries(part.entries.map(entry => [entry.key, entry.value]))
-  return object({ ...members, prompt_cache_breakpoint: object({ mode: text('explicit') }) })
-}
-
-function itemsJson(items: readonly ResponsesItem[], target: CacheTarget | null): JsonValue {
+function itemsJson(items: readonly ResponsesItem[]): JsonValue {
   return list(
-    items.map((item, index) =>
+    items.map(item =>
       item.kind === 'item'
         ? item.json
-        : object({
-            ...item.members,
-            type: text('message'),
-            content: list(
-              item.content.map((part, at) =>
-                target !== null && target.item === index && target.part === at
-                  ? marked(part)
-                  : part,
-              ),
-            ),
-          }),
+        : object({ ...item.members, type: text('message'), content: list(item.content) }),
     ),
   )
 }
@@ -122,24 +87,9 @@ function cacheKey(prefix: string): string {
   return `${digest('s')}${digest('t')}`
 }
 
-function cacheMembers(
-  context: ResponsesContext,
-  projection: ResponsesProjection,
-): Outcome<Readonly<{ members: Members; target: CacheTarget | null }>, TransportFailure> {
-  const { cache } = context.record.wire
-  if (cache.kind === 'none') return { ok: { members: {}, target: null } }
-  const target = cacheTarget(projection.items)
-  // The cache is an optimisation: a request with no text to mark goes out unmarked.
-  if (target === null) return { ok: { members: {}, target: null } }
-  return {
-    ok: {
-      members: {
-        prompt_cache_key: text(cacheKey(projection.replayPrefix)),
-        prompt_cache_options: object({ mode: text('explicit'), ttl: text(cache.ttl) }),
-      },
-      target,
-    },
-  }
+function cacheMembers(context: ResponsesContext, projection: ResponsesProjection): Members {
+  if (context.record.wire.cache.kind === 'none') return {}
+  return { prompt_cache_key: text(cacheKey(projection.replayPrefix)) }
 }
 
 function bodyOf(
@@ -150,8 +100,6 @@ function bodyOf(
   const { record } = context
   const members = parameterMembers(context, params)
   if (!('ok' in members)) return members
-  const cache = cacheMembers(context, projection)
-  if (!('ok' in cache)) return cache
   return {
     ok: object({
       model: text(record.route.model),
@@ -163,9 +111,9 @@ function bodyOf(
       store: bool(false),
       include: list([text('reasoning.encrypted_content')]),
       ...members.ok,
-      ...cache.ok.members,
+      ...cacheMembers(context, projection),
       instructions: projection.instructions === null ? undefined : text(projection.instructions),
-      input: itemsJson(projection.items, cache.ok.target),
+      input: itemsJson(projection.items),
       tools: projection.tools.length > 0 ? list(projection.tools) : undefined,
       tool_choice: projection.toolChoice,
     }),

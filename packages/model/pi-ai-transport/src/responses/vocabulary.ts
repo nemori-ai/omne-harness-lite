@@ -11,7 +11,8 @@ import type {
 /** How a request of the record is written on the Responses interface. */
 export type ResponsesWire = Readonly<{
   system: 'developer' | 'instructions'
-  cache: Readonly<{ kind: 'none' }> | Readonly<{ kind: 'explicit'; ttl: '30m' }>
+  /** Automatic caching with a session key; a breakpoint that moves each turn never hit. */
+  cache: Readonly<{ kind: 'none' }> | Readonly<{ kind: 'automatic' }>
   image: Readonly<{ mediaTypes: readonly string[] }> | null
   reasoning: Readonly<{ summary: 'auto' | null }>
   toolNames: Readonly<{ rule: 'underscore/1'; maxLength: number }>

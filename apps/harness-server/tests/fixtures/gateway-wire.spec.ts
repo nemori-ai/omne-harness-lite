@@ -542,21 +542,14 @@ const RESPONSES_TOP = {
   include: ['reasoning.encrypted_content'],
   model: 'openai/gpt-6.1-sol',
   prompt_cache_key: 'a'.repeat(64),
-  prompt_cache_options: { mode: 'explicit', ttl: '30m' },
   provider: { allow_fallbacks: false, order: ['openai'] },
   reasoning: { effort: 'high', summary: 'auto' },
   store: false,
   stream: true,
   tool_choice: 'auto',
 }
-const said = (role: string, text: string, breakpoint = false) => ({
-  content: [
-    {
-      ...(breakpoint ? { prompt_cache_breakpoint: { mode: 'explicit' } } : {}),
-      text,
-      type: 'input_text',
-    },
-  ],
+const said = (role: string, text: string) => ({
+  content: [{ text, type: 'input_text' }],
   role,
   type: 'message',
 })
@@ -614,7 +607,7 @@ const chatOf = (path: string, body: object): unknown =>
 
 describe('chatRequestOf: a Responses request, read as the chat request equal to it', () => {
   it('one user message', () => {
-    const raw = JSON.stringify({ ...RESPONSES_TOP, input: [said('user', 'Say hello.', true)] })
+    const raw = JSON.stringify({ ...RESPONSES_TOP, input: [said('user', 'Say hello.')] })
     expect(chatRequestOf(RESPONSES, raw)).toBe(
       '{"messages":[{"content":"Say hello.","role":"user"}],"model":"openai/gpt-6.1-sol",' +
         '"reasoning":{"effort":"high"},"stream":true}',
@@ -669,8 +662,8 @@ describe('chatRequestOf: a Responses request, read as the chat request equal to 
     })
   })
 
-  it('a later request starts with the messages of the earlier one, though the cache breakpoint moved', () => {
-    const earlier = { ...RESPONSES_TOP, input: [...OPENING.slice(0, 2), said('user', 'Go.', true)] }
+  it('a later request starts with the messages of the earlier one', () => {
+    const earlier = { ...RESPONSES_TOP, input: [...OPENING.slice(0, 2), said('user', 'Go.')] }
     const later = {
       ...RESPONSES_TOP,
       input: [...OPENING.slice(0, 2), said('user', 'Go.'), ...FOLLOWING],

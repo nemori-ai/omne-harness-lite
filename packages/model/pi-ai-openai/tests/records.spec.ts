@@ -42,15 +42,15 @@ const MODELS = { ...SEALED, ...ADDED }
 // Each model at the revision of its current record; a record changes its revision when its data
 // changes, so the adoption digest of an older revision never names new data.
 const REVISIONS = {
-  'openai/gpt-6.2-astra': '1',
-  'openai/gpt-6-astra': '2',
-  'openai/gpt-6.2-sol': '1',
-  'openai/gpt-6.1-sol': '2',
-  'openai/gpt-6-sol': '2',
-  'openai/gpt-6.1-terra': '2',
-  'openai/gpt-5.6-terra': '2',
-  'openai/gpt-6-luna': '2',
-  'openai/gpt-5.6-luna': '2',
+  'openai/gpt-6.2-astra': '2',
+  'openai/gpt-6-astra': '3',
+  'openai/gpt-6.2-sol': '2',
+  'openai/gpt-6.1-sol': '3',
+  'openai/gpt-6-sol': '3',
+  'openai/gpt-6.1-terra': '3',
+  'openai/gpt-5.6-terra': '3',
+  'openai/gpt-6-luna': '3',
+  'openai/gpt-5.6-luna': '3',
   'openai/gpt-6-astra-pro': '1',
   'openai/gpt-6-sol-pro': '1',
   'openai/gpt-6-luna-pro': '1',
@@ -214,12 +214,12 @@ describe('the wire data', () => {
     }
   })
 
-  it('pins the one OpenAI upstream on the Responses interface: a developer message, the 30-minute explicit cache, four image types, automatic summaries, 64-character tool names', () => {
+  it('pins the one OpenAI upstream on the Responses interface: a developer message, automatic caching keyed by the session, four image types, automatic summaries, 64-character tool names', () => {
     for (const record of RESPONSES_RECORDS) {
       expect(record.serving).toEqual({ order: ['openai'], reports: ['OpenAI'] })
       expect(record.wire).toEqual({
         system: 'developer',
-        cache: { kind: 'explicit', ttl: '30m' },
+        cache: { kind: 'automatic' },
         image: { mediaTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] },
         reasoning: { summary: 'auto' },
         toolNames: { rule: 'underscore/1', maxLength: 64 },
