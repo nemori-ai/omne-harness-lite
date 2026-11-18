@@ -637,6 +637,16 @@
       "config": {}
     },
     {
+      "id": "runtime-context-tenant-scope",
+      "plugin": "runtimeContextTenantScopeRow",
+      "config": {}
+    },
+    {
+      "id": "session-intake-budget",
+      "plugin": "sessionIntakeBudgetRow",
+      "config": {}
+    },
+    {
       "id": "session-observation",
       "plugin": "sessionObservationRow",
       "config": {}

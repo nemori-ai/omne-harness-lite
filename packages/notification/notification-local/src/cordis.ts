@@ -11,6 +11,7 @@ import type { NotificationChannels, NotificationSources } from '@omne-harness/no
 import {
   NotificationCatalogService,
   NotificationChangesService,
+  NotificationStandingService,
   NotificationChannelsService,
   NotificationDestinationsService,
   NotificationInboxService,
@@ -121,6 +122,14 @@ class LocalChanges extends NotificationChangesService {
   }
 }
 
+class LocalStanding extends NotificationStandingService {
+  readonly blocked: NotificationStandingService['blocked']
+  constructor(ctx: Context, blocked: NotificationStandingService['blocked']) {
+    super(ctx)
+    this.blocked = blocked
+  }
+}
+
 export function createNotificationLocalPlugin() {
   return {
     name: 'notification-local',
@@ -140,6 +149,7 @@ export function createNotificationLocalPlugin() {
           ctx.plugin(LocalSources, application.sources),
           ctx.plugin(LocalChannels, application.channels),
           ctx.plugin(LocalChanges, application.changes),
+          ctx.plugin(LocalStanding, application.blocked),
         ]
         ctx.effect(() => () => application.close(), 'notification-local-drain')
         await Promise.all(bound.map(fiber => fiber.await()))

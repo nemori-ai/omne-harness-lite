@@ -64,6 +64,8 @@
     "context-compaction",
     "agent-account-outlet",
     "runtime-context",
+    "runtime-context-tenant-scope",
+    "session-intake-budget",
     "session-observation",
     "server-entry",
     "identity-access",
@@ -144,7 +146,8 @@
         "storage",
         "tenantDomainLookup",
         "tenantDomainRegistration",
-        "tenantDomainScannerPrincipal"
+        "tenantDomainScannerPrincipal",
+        "tenantScopePrincipals"
       ]
     },
     {
@@ -168,7 +171,8 @@
         "sessionDelegatedTransactions",
         "systemActionAuthorization",
         "sessionPermissionBackend",
-        "tenantDomainRegistration"
+        "tenantDomainRegistration",
+        "tenantScopePrincipals"
       ]
     },
     {

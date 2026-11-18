@@ -29,6 +29,8 @@ import {
   sessionDerivedInputsKey,
   sessionInputSourcesKey,
 } from '@omne-harness/session-cordis-contract/cordis'
+import { runtimeContextTenantScopeKey } from '@omne-harness/runtime-context-cordis-contract/cordis'
+import { createIntakeBudgetReader } from '@omne-harness/session-adapters/cordis'
 import { createSessionCommitNotifier } from '@omne-harness/session-cordis/cordis'
 import {
   createSessionPrincipalBindings,
@@ -51,6 +53,7 @@ import {
   tenantDomainLookupKey,
   tenantDomainsKey,
 } from '@omne-harness/sql-contract/cordis'
+import { tenantScopePrincipalsKey } from '../../entry/tenant-scope-principals.ts'
 import { defineRow, type RowHandle } from '../../row.ts'
 import { monotonicClock } from '../../shutdown.ts'
 import { storageCatalog } from '../storage/catalog.ts'
@@ -67,6 +70,18 @@ import { openTenantDirectory, type RegisterOutcome, type TenantDirectory } from 
 import { createTenantEnumeration } from './enumeration.ts'
 
 export const OWNER = 'apps/harness-server/session-storage'
+
+// The pending limit is the tenant's setting, read through the tenant-level scope at each commit
+// of an input; the size limit stays this row's. While the scope is away the input is unavailable.
+function tenantBudgetOf(ctx: Context, config: SessionStorageRowConfig) {
+  return createIntakeBudgetReader<unknown>({
+    scope: () => ctx.get(runtimeContextTenantScopeKey),
+    principal: async tenant => ctx.get(tenantScopePrincipalsKey)?.forTenant(tenant) ?? null,
+    maxInputBytes: config.intakeLimits.maxInputBytes,
+    report: diagnostic =>
+      ctx.logger('session-storage').warn('the intake budget cannot be read: %s', diagnostic),
+  })
+}
 
 const unavailable = (diagnostic: string): Outcome<never, SessionFailure> =>
   fail<SessionFailure>({ kind: 'unavailable', owner: OWNER, diagnostic })
@@ -416,6 +431,7 @@ async function body(ctx: Context, raw: unknown): Promise<RowHandle> {
     derived: {
       admission: kind => ctx.get(sessionDerivedInputsKey)?.admission(kind) ?? null,
     },
+    ...(config.tenantBudget ? { budget: tenantBudgetOf(ctx, config) } : {}),
     // Without the service the commit has no time; it is never the wall clock of this process.
     clock: {
       sample: () =>

@@ -1,6 +1,9 @@
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
+  BindResult,
+  ConsumerClass,
+  EligibilityId,
   RuntimeContextOperations,
   StaticRegistration,
   StaticScopeFailure,
@@ -16,13 +19,15 @@ export type StaticScopeHolderDeps<P> = Readonly<{
   kind: string
   runtime: RuntimeContextOperations<P>
   registration: () => StaticRegistration<P>
+  /** Binds a reader as a consumer of its class, where the mechanism asks the caller to say it. */
+  bindAs?: (consumer: ConsumerClass, eligibility: EligibilityId) => Promise<BindResult>
 }>
 
 export function createStaticScopeHolder<P>(deps: StaticScopeHolderDeps<P>): StaticScopeHolder<P> {
   const { kind, runtime } = deps
   const held = new Map<string, Held>()
   const queues = new Map<string, Promise<unknown>>()
-  const reading = createReading(runtime)
+  const reading = createReading(runtime, deps.bindAs ?? ((_consumer, id) => runtime.bind(id)))
 
   type Answer<T> = Promise<Outcome<T, StaticScopeFailure>>
   const guarded = <T>(operation: string, task: () => Answer<T>): Answer<T> =>

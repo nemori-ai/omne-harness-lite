@@ -3,6 +3,7 @@ import type { Context, Plugin } from '@deepseek-ai/cordis'
 import {
   runtimeContextKey,
   runtimeContextReaderEligibilityKey,
+  runtimeContextTenantScopeKey,
 } from '@omne-harness/runtime-context-cordis-contract/cordis'
 import {
   createSessionContextHolder,
@@ -66,6 +67,8 @@ const plugin: Plugin.Object = {
             .warn(`confirmed registration refresh answered ${refreshed.kind}`)
       },
       translation: createSessionContextTranslation(adoptedContextDefinitions),
+      // A Session scope hangs under the tenant-level scope while that scope has a holder.
+      parentScope: tenant => ctx.get(runtimeContextTenantScopeKey)?.scopeOf(tenant),
       scopeIndexEntries: config.scopeIndexEntries,
       pageBytes: config.pageBytes,
     })

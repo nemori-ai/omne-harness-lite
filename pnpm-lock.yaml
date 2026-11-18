@@ -815,6 +815,9 @@ importers:
       '@omne-harness/sqlite-provider':
         specifier: workspace:*
         version: link:../../packages/storage/sqlite-provider
+      '@omne-harness/static-scope-holder':
+        specifier: workspace:*
+        version: link:../../packages/context/static-scope-holder
       '@omne-harness/telemetry-contract':
         specifier: workspace:*
         version: link:../../packages/telemetry/telemetry-contract
@@ -2380,6 +2383,9 @@ importers:
       '@omne-harness/runtime-context':
         specifier: workspace:*
         version: link:../runtime-context
+      '@omne-harness/runtime-context-cordis':
+        specifier: workspace:*
+        version: link:../runtime-context-cordis
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -4294,6 +4300,9 @@ importers:
       '@omne-harness/agent-cordis-contract':
         specifier: workspace:*
         version: link:../../agent/agent-cordis-contract
+      '@omne-harness/assets-cordis-contract':
+        specifier: workspace:*
+        version: link:../../assets/assets-cordis-contract
       '@omne-harness/authorization':
         specifier: workspace:*
         version: link:../../identity/authorization
@@ -4342,6 +4351,9 @@ importers:
       '@omne-harness/session-storage-sql':
         specifier: workspace:*
         version: link:../session-storage-sql
+      '@omne-harness/settings':
+        specifier: workspace:*
+        version: link:../../assets/settings
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../storage/sql-contract

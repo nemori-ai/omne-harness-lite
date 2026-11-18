@@ -10,6 +10,7 @@ import {
   notificationInboxKey,
   notificationSendingKey,
   notificationSourcesKey,
+  notificationStandingKey,
   notificationSubscriptionsKey,
 } from '@omne-harness/notification-cordis-contract/cordis'
 import { createNotificationLocalPlugin } from '@omne-harness/notification-local/cordis'
@@ -45,6 +46,7 @@ const KEYS = [
   notificationSourcesKey,
   notificationChannelsKey,
   notificationChangesKey,
+  notificationStandingKey,
 ]
 
 async function configuration(world: Awaited<ReturnType<typeof openSqlWorld>>) {

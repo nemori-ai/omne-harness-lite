@@ -29,8 +29,10 @@ import {
   sessionReplayFactsKey,
   sessionWorkPrincipalsKey,
 } from '@omne-harness/session-cordis-contract/cordis'
+import { staticScopeTenant } from '@omne-harness/static-scope-holder'
+import { TENANT_SCOPE_KIND } from '@omne-harness/static-scope-holder/cordis'
 import type { EntryEnv, EntryObjectModule } from '../types.ts'
-import { verifierOf } from './principals.ts'
+import { ENTRY_COMPONENTS, TENANT_SCOPE_WORK, verifierOf } from './principals.ts'
 import {
   decideSessionModesProducer,
   type SessionModesAuthoritySources,
@@ -69,6 +71,71 @@ function tenantOf(action: HolderAction<unknown>): TenantId | undefined {
 }
 
 export type RuntimeContextAuthorityOptions = SessionModesAuthoritySources
+
+const TENANT_SCOPE_PRODUCER = `static-scope:${TENANT_SCOPE_KIND}`
+
+function holdsTenantScope(principal: ActingForTenantPrincipal): boolean {
+  return (
+    principal.actor.component === ENTRY_COMPONENTS.tenantScope &&
+    principal.work.owner === TENANT_SCOPE_WORK.owner &&
+    principal.work.work === TENANT_SCOPE_WORK.work
+  )
+}
+
+const AUTHORIZED = (principal: ActingForTenantPrincipal): AuthorityDecision<unknown> => ({
+  kind: 'authorized',
+  principal,
+  current: () => true,
+})
+
+/** The tenant-level scope is supplied by its holder alone, for its own tenant and its own scope. */
+function decideTenantScopeProducer(
+  principal: ActingForTenantPrincipal,
+  action: ProducerAction,
+): AuthorityDecision<unknown> {
+  if (
+    action.producer.producer !== TENANT_SCOPE_PRODUCER ||
+    !tenantEquals(principal.tenant, action.tenant)
+  )
+    return REFUSED
+  if (action.kind === 'register' || action.kind === 'invalidate-tenant')
+    return AUTHORIZED(principal)
+  const owner = staticScopeTenant(TENANT_SCOPE_KIND, action.scope)
+  return owner !== undefined && tenantEquals(owner, action.tenant) ? AUTHORIZED(principal) : REFUSED
+}
+
+/** A reader of a tenant-level scope is the holder's principal for the tenant the scope names. */
+function decideTenantScopeReader(
+  principal: ActingForTenantPrincipal,
+  owner: TenantId,
+): AuthorityDecision<unknown> {
+  return holdsTenantScope(principal) && tenantEquals(principal.tenant, owner)
+    ? AUTHORIZED(principal)
+    : REFUSED
+}
+
+const NO_STEPS: StepCommittedBlocks = Object.freeze({ kind: 'known', keys: Object.freeze([]) })
+
+/** A tenant-level scope has no step, so its recovery restores no step-committed block. */
+export function withTenantScopeFacts(inner: SessionReplayFacts): SessionReplayFacts {
+  const facts: SessionReplayFacts = {
+    stepCommittedBlocks: (scope, through) =>
+      staticScopeTenant(TENANT_SCOPE_KIND, scope) === undefined
+        ? inner.stepCommittedBlocks(scope, through)
+        : Promise.resolve(NO_STEPS),
+  }
+  return Object.freeze(facts)
+}
+
+/** A reference of the tenant-level kind is bound to the tenant it names; the rest is the Session's. */
+export function withTenantScopeBindings(inner: ScopeBindingSource): ScopeBindingSource {
+  return Object.freeze({
+    async lookup(scope: ScopeRef) {
+      const tenant = staticScopeTenant(TENANT_SCOPE_KIND, scope)
+      return tenant === undefined ? inner.lookup(scope) : { kind: 'bound' as const, tenant }
+    },
+  })
+}
 
 async function readerScopeDecision(
   options: RuntimeContextAuthorityOptions,
@@ -119,6 +186,8 @@ export function createRuntimeContextAuthority(
       if (verification.kind === 'unavailable') return UNAVAILABLE
       if (verification.kind === 'rejected' || verification.principal.kind !== 'acting-for-tenant')
         return REFUSED
+      if (holdsTenantScope(verification.principal))
+        return decideTenantScopeProducer(verification.principal, action)
       return decideSessionModesProducer(options, verification.principal, action)
     },
     async reader(
@@ -133,6 +202,8 @@ export function createRuntimeContextAuthority(
       const verified = verification.principal
       if (verified.kind !== 'acting-for-tenant' || !tenantEquals(verified.tenant, tenant))
         return REFUSED
+      const owner = staticScopeTenant(TENANT_SCOPE_KIND, scope)
+      if (owner !== undefined) return decideTenantScopeReader(verified, owner)
       if (verified.actor.component !== 'sessionWorkPrincipals' || verified.work.owner !== 'session')
         return REFUSED
       return readerScopeDecision(options, verified, tenant, scope)
@@ -198,9 +269,9 @@ function trustFor(state: TrustState, reader: Context): RuntimeContextTrust<unkno
       scopeOwners: state.scopes?.scopeOwners,
       sessionWork: state.sessionWork,
     }),
-    bindings: state.scopes?.bindings ?? unavailableScopeBindings,
+    bindings: withTenantScopeBindings(state.scopes?.bindings ?? unavailableScopeBindings),
     current: { capture: () => ({ current }) },
-    replayFacts: state.replayFacts,
+    replayFacts: withTenantScopeFacts(state.replayFacts),
   })
   state.byReader.set(reader, trust)
   return trust

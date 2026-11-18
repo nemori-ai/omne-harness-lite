@@ -316,6 +316,16 @@
       "config": {}
     },
     {
+      "id": "runtime-context-tenant-scope",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "session-intake-budget",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "session-observation",
       "plugin": "stubPlugin",
       "config": {}

@@ -12,6 +12,8 @@ import type {
   SourceDeclaration,
   SourceLookup,
   SourceName,
+  StandingRead,
+  TenantId,
 } from '@omne-harness/notification-contract'
 
 /** @owner packages/notification/notification-cordis-contract */
@@ -125,6 +127,18 @@ export abstract class NotificationChannelsService extends Service {
 }
 export const notificationChannelsKey = NotificationChannelsService.provide
 
+/** What this group publishes about itself: the standing items of its blocked destinations. */
+export abstract class NotificationStandingService extends Service {
+  static readonly provide = 'notificationStanding'
+
+  constructor(ctx: Context) {
+    super(ctx, NotificationStandingService.provide)
+  }
+
+  abstract readonly blocked: (tenant: TenantId) => Promise<StandingRead>
+}
+export const notificationStandingKey = NotificationStandingService.provide
+
 /** @owner packages/notification/notification-cordis-contract */
 export abstract class NotificationChangesService extends Service implements NotificationChangeFeed {
   static readonly provide = 'notificationChanges'
@@ -147,5 +161,6 @@ declare module '@deepseek-ai/cordis' {
     notificationSources: NotificationSourcesService
     notificationChanges: NotificationChangesService
     notificationChannels: NotificationChannelsService
+    notificationStanding: NotificationStandingService
   }
 }

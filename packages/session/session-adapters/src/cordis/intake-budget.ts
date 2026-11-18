@@ -1,4 +1,3 @@
-import type { Context, Plugin } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   StaticBlock,
@@ -6,35 +5,27 @@ import type {
   StaticScopeHolder,
   SuppliedBlockDescriptor,
 } from '@omne-harness/runtime-context-contract'
-import {
-  runtimeContextTenantBlocksKey,
-  runtimeContextTenantScopeKey,
-} from '@omne-harness/runtime-context-cordis-contract/cordis'
-import {
-  sessionIntakeLimits,
-  type SessionIntakeBudget,
-  type SessionIntakeLimits,
-} from '@omne-harness/session-contract'
-import { SessionIntakeBudgetService } from '@omne-harness/session-cordis-contract/cordis'
+import type { SessionIntakeBudget } from '@omne-harness/session-contract'
+
+export type SessionIntakeBudgetValue = Readonly<{ maxPendingInputs: number }>
 
 declare module '@omne-harness/runtime-context-contract' {
   interface ContextBlocks {
-    'session.intake-budget': SessionIntakeLimits
+    'session.intake-budget': SessionIntakeBudgetValue
   }
 }
 
 const KEY = 'session.intake-budget'
 
-function limitsOf(value: unknown): SessionIntakeLimits | null {
+function valueOf(value: unknown): SessionIntakeBudgetValue | null {
   if (typeof value !== 'object' || value === null) return null
-  try {
-    return sessionIntakeLimits(value as SessionIntakeLimits)
-  } catch {
-    return null
-  }
+  const { maxPendingInputs } = value as SessionIntakeBudgetValue
+  return Number.isSafeInteger(maxPendingInputs) && maxPendingInputs >= 1
+    ? { maxPendingInputs }
+    : null
 }
 
-/** The budget of ordinary inputs of a tenant now. Required: a read that finds no value is missing. */
+/** Required: a read that finds no value is missing, never an empty budget. */
 export const sessionIntakeBudgetDescriptor = Object.freeze({
   key: KEY,
   kind: 'supplied',
@@ -43,10 +34,10 @@ export const sessionIntakeBudgetDescriptor = Object.freeze({
       version: 1,
       vendor: 'session-adapters',
       validate: (value: unknown) => {
-        const limits = limitsOf(value)
-        return limits === null
-          ? { issues: [{ message: 'Expected the intake limits of a tenant' }] }
-          : { value: limits }
+        const budget = valueOf(value)
+        return budget === null
+          ? { issues: [{ message: 'Expected the intake budget of a tenant' }] }
+          : { value: budget }
       },
     },
   },
@@ -56,84 +47,56 @@ export const sessionIntakeBudgetDescriptor = Object.freeze({
   carriesPrevious: false,
   volatility: 'per-request',
   recovery: 'reread',
-} satisfies SuppliedBlockDescriptor<typeof KEY, SessionIntakeLimits>)
+} satisfies SuppliedBlockDescriptor<typeof KEY, SessionIntakeBudgetValue>)
 
+/** The block the owner of the setting contributes. Null from `read`: it cannot be read now. */
 export function sessionIntakeBudgetBlock(
-  read: (tenant: TenantId) => Promise<SessionIntakeLimits | null>,
+  read: (tenant: TenantId) => Promise<number | null>,
 ): StaticBlock {
   return Object.freeze({
     declaration: sessionIntakeBudgetDescriptor,
     supply: async ({ tenant }) => {
-      const limits = await read(tenant)
-      return limits === null ? { kind: 'unavailable' } : { kind: 'value', value: limits }
+      const maxPendingInputs = await read(tenant)
+      return maxPendingInputs === null
+        ? { kind: 'unavailable' }
+        : { kind: 'value', value: { maxPendingInputs } }
     },
   })
 }
 
 export type IntakeBudgetReaderDeps<P> = Readonly<{
-  scope: Pick<StaticScopeHolder<P>, 'read'>
+  scope(): Pick<StaticScopeHolder<P>, 'read'> | undefined
   /** Null: Session cannot act for this tenant now. */
   principal(tenant: TenantId): Promise<P | null>
+  /** The size limit of one input: a deployment value, not a setting of the tenant. */
+  maxInputBytes: number
+  report?(diagnostic: string): void
 }>
 
 const REQUEST: StaticReaderRequest = { consumer: 'coordinator', blocks: [KEY], needs: [] }
 
 /** Reads the budget through the tenant-level scope. Whatever is not a value reads as null. */
 export function createIntakeBudgetReader<P>(deps: IntakeBudgetReaderDeps<P>): SessionIntakeBudget {
+  const none = (diagnostic: string): null => {
+    deps.report?.(diagnostic)
+    return null
+  }
   return Object.freeze({
     async read(tenant: TenantId) {
       try {
+        const scope = deps.scope()
+        if (scope === undefined) return none('the holder of the tenant-level scope is not there')
         const principal = await deps.principal(tenant)
-        if (principal === null) return null
-        const read = await deps.scope.read(principal, tenant, REQUEST)
-        if ('failure' in read) return null
+        if (principal === null) return none('no principal acts for this tenant now')
+        const read = await scope.read(principal, tenant, REQUEST)
+        if ('failure' in read) return none(`the read failed: ${JSON.stringify(read.failure)}`)
         const entry = read.ok.entries.find(item => item.key === KEY)
-        return entry?.kind === 'value' ? limitsOf(entry.value) : null
-      } catch {
-        return null
+        const budget = entry?.kind === 'value' ? valueOf(entry.value) : null
+        if (budget === null) return none(`the block read as ${JSON.stringify(entry ?? 'absent')}`)
+        return { ...budget, maxInputBytes: deps.maxInputBytes }
+      } catch (cause) {
+        return none(`the read threw: ${cause instanceof Error ? cause.message : String(cause)}`)
       }
     },
   })
-}
-
-export type IntakeBudgetPluginInput = Readonly<{
-  principal(tenant: TenantId): Promise<unknown | null>
-}>
-
-class IntakeBudgetProvider extends SessionIntakeBudgetService {
-  private readonly reader: SessionIntakeBudget
-
-  constructor(ctx: Context, input: IntakeBudgetPluginInput) {
-    super(ctx)
-    this.reader = createIntakeBudgetReader<unknown>({
-      scope: ctx[runtimeContextTenantScopeKey],
-      principal: input.principal,
-    })
-  }
-
-  read(...args: Parameters<SessionIntakeBudget['read']>) {
-    return this.reader.read(...args)
-  }
-}
-
-export function createIntakeBudgetPlugin(input: IntakeBudgetPluginInput): Plugin.Object {
-  return {
-    name: 'session-intake-budget',
-    inject: [runtimeContextTenantScopeKey],
-    apply(ctx: Context) {
-      new IntakeBudgetProvider(ctx, input)
-    },
-  }
-}
-
-export function createIntakeBudgetOwnerPlugin(
-  read: (tenant: TenantId) => Promise<SessionIntakeLimits | null>,
-): Plugin.Object {
-  return {
-    name: 'session-intake-budget-owner',
-    inject: [runtimeContextTenantBlocksKey],
-    apply(ctx: Context) {
-      ctx[runtimeContextTenantBlocksKey].register({ blocks: [sessionIntakeBudgetBlock(read)] })
-    },
-  }
 }

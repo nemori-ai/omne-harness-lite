@@ -38,6 +38,7 @@
   },
   "devDependencies": {
     "@omne-harness/runtime-context": "workspace:*",
+    "@omne-harness/runtime-context-cordis": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

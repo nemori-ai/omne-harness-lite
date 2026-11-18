@@ -103,11 +103,15 @@ export {
   createBackgroundDerivedInputs,
 } from './cordis/background-sources.ts'
 export {
-  createIntakeBudgetOwnerPlugin,
-  createIntakeBudgetPlugin,
   createIntakeBudgetReader,
   sessionIntakeBudgetBlock,
   sessionIntakeBudgetDescriptor,
-  type IntakeBudgetPluginInput,
   type IntakeBudgetReaderDeps,
+  type SessionIntakeBudgetValue,
 } from './cordis/intake-budget.ts'
+export {
+  pendingLimitOf,
+  sessionIntakeItems,
+  sessionIntakeSettings,
+  sessionIntakeSettingsPlugin,
+} from './intake-settings.ts'

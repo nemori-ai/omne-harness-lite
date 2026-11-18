@@ -399,7 +399,6 @@
 - `SessionIdentityBridgeService` · `cordis.d.ts`
 - `SessionIdleInputService` · `cordis.d.ts`
 - `SessionInputSourcesService` · `cordis.d.ts`
-- `SessionIntakeBudgetService` · `cordis.d.ts`
 - `SessionIntercept` · `cordis.d.ts`
 - `SessionInternalPrincipalsService` · `cordis.d.ts`
 - `SessionNotifierService` · `cordis.d.ts`
@@ -430,7 +429,6 @@
 - `sessionIdleInputKey` · `cordis.d.ts`
 - `sessionInputSourcesKey` · `cordis.d.ts`
 - `sessionInputSourcesPlugin` · `cordis.d.ts`
-- `sessionIntakeBudgetKey` · `cordis.d.ts`
 - `sessionKey` · `cordis.d.ts`
 - `sessionNotifierKey` · `cordis.d.ts`
 - `sessionPrincipalBindingsKey` · `cordis.d.ts`
@@ -529,7 +527,7 @@ export interface SessionScopeLookup {
 ```ts
 import { type Context, type Plugin, Service } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
-import { type DerivedAdmission, type DerivedInputKind, type InputSourceDeclaration, type InputSourceLookup, type InputSourceName, type InputSources, type SessionDerivedInputs, type SessionIntakeBudget } from '@omne-harness/session-contract';
+import { type DerivedAdmission, type DerivedInputKind, type InputSourceDeclaration, type InputSourceLookup, type InputSourceName, type InputSources, type SessionDerivedInputs } from '@omne-harness/session-contract';
 import type { AgentDrivePort, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, SessionDelegatedTransactions, SessionPrincipalBindingSource, SessionScopeOwnerSource, SessionWorkPrincipals, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallControl, SessionCallStates, SessionCallerClass, SessionClock, SessionContextInput, SessionDirectory, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
 import type { SessionAdoptedRequests } from './adopted-request.ts';
 import type { SessionCursorSigning } from './cursor-signing.ts';
@@ -748,18 +746,11 @@ export declare abstract class SessionDerivedInputsService extends Service implem
     abstract admission(kind: DerivedInputKind): DerivedAdmission | null;
 }
 export declare const sessionDerivedInputsKey = "sessionDerivedInputs";
-export declare abstract class SessionIntakeBudgetService extends Service implements SessionIntakeBudget {
-    static readonly provide = "sessionIntakeBudget";
-    constructor(ctx: Context);
-    abstract read(...args: Parameters<SessionIntakeBudget['read']>): ReturnType<SessionIntakeBudget['read']>;
-}
-export declare const sessionIntakeBudgetKey = "sessionIntakeBudget";
 declare module '@deepseek-ai/cordis' {
     interface Context {
         session: SessionService<unknown>;
         sessionInputSources: SessionInputSourcesService;
         sessionDerivedInputs: SessionDerivedInputsService;
-        sessionIntakeBudget: SessionIntakeBudgetService;
         sessionAccessCheck: SessionAccessCheckService<unknown>;
         sessionTransactions: SessionTransactionPortService<unknown>;
         sessionPrincipals: SessionInternalPrincipalsService<unknown>;

@@ -18,6 +18,10 @@ class TenantScopeProvider extends RuntimeContextTenantScopeService<unknown> {
       kind: TENANT_SCOPE_KIND,
       runtime: ctx[runtimeContextKey],
       registration: () => ctx[runtimeContextTenantBlocksKey].current(),
+      // Runtime Context binds a reader only for a caller that declares the reader's class.
+      bindAs: (consumer, id) =>
+        ctx.intercept(runtimeContextKey, { consumer }).get(runtimeContextKey)?.bind(id) ??
+        Promise.resolve({ kind: 'refused', reason: 'closed' }),
     })
   }
 

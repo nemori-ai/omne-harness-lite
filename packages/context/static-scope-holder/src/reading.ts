@@ -1,7 +1,10 @@
 import type { TenantId } from '@omne-harness/legal-identity'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
+  BindResult,
+  ConsumerClass,
   ContextReader,
+  EligibilityId,
   NeedBindingRef,
   RuntimeContextOperations,
   ScopeRef,
@@ -42,7 +45,9 @@ function readableBy(content: Content, reader: StaticReaderRequest) {
   return { material: { keys: [...keys], bindings }, missing }
 }
 
-export function createReading<P>(runtime: RuntimeContextOperations<P>) {
+type BindAs = (consumer: ConsumerClass, eligibility: EligibilityId) => Promise<BindResult>
+
+export function createReading<P>(runtime: RuntimeContextOperations<P>, bindAs: BindAs) {
   const kept = new WeakMap<StaticReaderRequest, Map<string, Bound>>()
 
   async function grant(
@@ -69,7 +74,7 @@ export function createReading<P>(runtime: RuntimeContextOperations<P>) {
   ): Promise<Outcome<ContextReader, StaticScopeFailure>> {
     const issued = await grant(reading)
     if ('failure' in issued) return issued
-    const answer = await runtime.bind(issued.ok.eligibility)
+    const answer = await bindAs(reading.reader.consumer, issued.ok.eligibility)
     return answer.kind === 'bound' ? succeed(answer.reader) : refusal('bind', answer)
   }
 
