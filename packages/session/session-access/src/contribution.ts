@@ -193,6 +193,7 @@ export function createSessionContribution(
   }
 
   const factOf = (principal: Principal) => describedBy(facts, principal)
+  const ports = { admit, factOf, causes: input.causes, targets: input.modelTargets }
   const sending = { target, factOf, faces: input.faces, requests: input.requests }
   const listing = { principalFor, listing: input.listing, settings }
 
@@ -345,20 +346,17 @@ export function createSessionContribution(
       'interrupt-input': (call, body) => interruptInput(sending, call.principal, body),
       'query-send-input': (call, body) => querySendInput(sending, call.principal, body),
       'read-history': (call, body) => readHistory(call.principal, body),
-      'read-waiting': (call, body) =>
-        readWaiting({ admit, causes: input.causes }, call.principal, body),
+      'read-waiting': (call, body) => readWaiting(ports, call.principal, body),
       'cancel-run': (call, body) => cancelRun(call.principal, body),
-      'stop-call': (call, body) => stopCall({ admit, factOf }, call.principal, body),
-      'select-model': (call, body) =>
-        selectModel({ admit, factOf, targets: input.modelTargets }, call.principal, body),
-      'retry-run': (call, body) => retryRun({ admit, factOf }, call.principal, body),
-      'background-call': (call, body) => backgroundCall({ admit, factOf }, call.principal, body),
-      'list-background-calls': (call, body) => listBackgroundCalls({ admit }, call.principal, body),
+      'stop-call': (call, body) => stopCall(ports, call.principal, body),
+      'select-model': (call, body) => selectModel(ports, call.principal, body),
+      'retry-run': (call, body) => retryRun(ports, call.principal, body),
+      'background-call': (call, body) => backgroundCall(ports, call.principal, body),
+      'list-background-calls': (call, body) => listBackgroundCalls(ports, call.principal, body),
       'list-sessions': (call, body) => listSessions(listing, call.principal, body),
       'list-archived-sessions': (call, body) => listArchivedSessions(listing, call.principal, body),
-      'archive-session': (call, body) => archiveSession({ admit, factOf }, call.principal, body),
-      'unarchive-session': (call, body) =>
-        unarchiveSession({ admit, factOf }, call.principal, body),
+      'archive-session': (call, body) => archiveSession(ports, call.principal, body),
+      'unarchive-session': (call, body) => unarchiveSession(ports, call.principal, body),
     },
     observations: {
       'observe-session': async (context, open) => {
