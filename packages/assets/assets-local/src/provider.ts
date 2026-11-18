@@ -30,6 +30,7 @@ import {
   PARTICIPANT,
   PROTOCOL,
   publishMetadataSchema,
+  summaryResultSchema,
   versionLookupSchema,
   versionResultSchema,
   type Failure,
@@ -137,7 +138,7 @@ function samePublication(command: Mutation): SameOperation {
     'expectedRevision' in mutation ? { ...mutation, expectedRevision: 0 } : mutation
   return recorded => equal(input(recorded), input(command))
 }
-type ReadKind = 'asset' | 'holding' | 'version' | 'heldCapability' | 'list'
+type ReadKind = 'asset' | 'holding' | 'version' | 'heldCapability' | 'summary' | 'list'
 
 function storageRead(options: Pick<AssetsLocalOptions, 'storage' | 'domain'>) {
   return async (kind: ReadKind, lookup: unknown) => {
@@ -187,12 +188,13 @@ async function commitMutation(
   }
 }
 
-async function recallOperation(options: Store, operationId: string) {
+async function recallOperation(options: Store, operationId: string, same?: SameOperation) {
   try {
     return receiptResult(
       await options.storage.query(identity(options.domain, operationId)),
       options.domain,
       operationId,
+      same,
     )
   } catch {
     return { kind: 'unknown' as const, operationId }
@@ -295,10 +297,29 @@ export function createAssetsLocal(input: AssetsLocalOptions): AssetsLocal {
           ? listResultSchema.parse(await read('list', parsed.data))
           : fail('invalid_input')
       }),
+    readSummary: input =>
+      run(async () => {
+        const parsed = versionLookupSchema.safeParse(input)
+        return parsed.success
+          ? summaryResultSchema.parse(await read('summary', parsed.data))
+          : fail('invalid_input')
+      }),
     getOperation: operationId =>
       run(async () => {
         if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
         return recallOperation(options, operationId)
+      }),
+    recallChange: ({ operationId, holdingRef, change }) =>
+      run(async () => {
+        if (!SettingsIdSchema.safeParse(operationId).success) return fail('invalid_input')
+        return recallOperation(
+          options,
+          operationId,
+          recorded =>
+            recorded.kind === 'changeHolding' &&
+            recorded.holdingRef === holdingRef &&
+            equal(recorded.change, change),
+        )
       }),
     close() {
       return (closed ??= Promise.allSettled(active).then(() => undefined))

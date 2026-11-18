@@ -13,12 +13,8 @@ import {
   type JsonValue,
   type PackageReader,
 } from '@omne-harness/assets'
-import {
-  createTenantPublisher,
-  newHoldingRef,
-  originOf,
-  TENANT_PUBLISHING_OWNER,
-} from '../src/tenant-publisher.ts'
+import { originOf, TENANT_PUBLISHING_OWNER } from '../src/origin.ts'
+import { createTenantPublisher, newHoldingRef } from '../src/tenant-publisher.ts'
 import { openWorld, type World } from './world.ts'
 
 const worlds: World[] = []

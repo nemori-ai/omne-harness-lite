@@ -264,8 +264,10 @@ export const listedSchema = z.strictObject({
   name: SettingsIdSchema,
   assetRef: SettingsReferenceSchema,
   version: SettingsIdSchema,
+  holdingRef: SettingsReferenceSchema,
   selection: z.enum(['follow', 'pinned']),
   enabled: z.boolean(),
+  origin: z.enum(['customized', 'official']),
   summary: summarySchema.nullable(),
 })
 export const listResultSchema = z.union([
@@ -285,6 +287,11 @@ export const readRequestSchema = z.discriminatedUnion('kind', [
     domain: domainSchema,
     lookup: heldCapabilityLookupSchema,
   }),
+  z.strictObject({ kind: z.literal('summary'), domain: domainSchema, lookup: versionLookupSchema }),
+])
+export const summaryResultSchema = z.union([
+  z.strictObject({ kind: z.literal('summary'), summary: summarySchema.nullable() }),
+  failureSchema,
 ])
 export type Mutation = z.infer<typeof mutationSchema>
 export type MutationBinding = z.infer<typeof mutationBindingSchema>

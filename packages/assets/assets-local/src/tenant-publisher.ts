@@ -11,12 +11,10 @@ import {
 } from '@omne-harness/assets'
 import { writeJsonText } from '@omne-harness/json-text'
 import { digest } from './encoding.ts'
+import { originOf, TENANT_PUBLISHING_OWNER } from './origin.ts'
 import { publishedAssetRef, type PackageHolding, type PackagePublishResult } from './packages.ts'
-import type { Failure, Holding } from './schema.ts'
+import type { Failure } from './schema.ts'
 import type { AssetsLocal, AssetsMutationResult } from './types.ts'
-
-/** The owner of the source a tenant publication gives its holding. */
-export const TENANT_PUBLISHING_OWNER = 'assets.tenant-publishing'
 
 const UNAVAILABLE = Object.freeze({ kind: 'unavailable' } as const)
 const CONFLICT = Object.freeze({ kind: 'conflict' } as const)
@@ -100,13 +98,6 @@ function mutationOutcome(
 /** A holding minted by a publication: the same operation always mints the same reference. */
 export function newHoldingRef(operationId: string): string {
   return `held-${digest(operationId).slice(0, 32)}`
-}
-
-/** Where a holding came from: a tenant publication, or the deployment that installed it. */
-export function originOf(holding: Pick<Holding, 'sourceLayout'>): 'customized' | 'official' {
-  return holding.sourceLayout.some(source => source.ownerRef === TENANT_PUBLISHING_OWNER)
-    ? 'customized'
-    : 'official'
 }
 
 /** The tenant source of a published holding: the tenant can set and clear its settings. */

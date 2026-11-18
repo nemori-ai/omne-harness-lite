@@ -10,6 +10,7 @@ it('exports the trusted owner and both public Settings integration commands', ()
     'assetsSettingsProjectionCommand',
     'assetsSqlMaterials',
     'createAssetsLocal',
+    'createTenantLayerStore',
     'createTenantPublisher',
     'newHoldingRef',
     'originOf',

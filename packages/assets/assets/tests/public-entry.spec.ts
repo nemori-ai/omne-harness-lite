@@ -10,6 +10,7 @@ it('exports the registry, identity, and pin operations', () => {
     'capabilityId',
     'collectCandidates',
     'createCategoryPoint',
+    'createTenantManagement',
     'createTenantPublishing',
     'decideAssetHoldingChange',
     'digestBytes',

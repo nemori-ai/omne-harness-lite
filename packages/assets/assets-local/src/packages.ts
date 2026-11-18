@@ -191,7 +191,7 @@ function field(value: JsonValue | undefined, key: string): JsonValue | undefined
     : undefined
 }
 
-function manifestOf(body: JsonValue): PackageManifest | undefined {
+export function manifestOf(body: JsonValue): PackageManifest | undefined {
   const items = field(field(body, 'manifest'), 'entries')
   if (items?.kind !== 'array') return undefined
   const entries = items.items.map(entryOf)

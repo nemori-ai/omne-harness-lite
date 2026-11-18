@@ -73,6 +73,21 @@ export {
 } from './publishing.ts'
 export { projectAssetSettings, type AssetSettingsProjection } from './settings.ts'
 export {
+  createTenantManagement,
+  type AssetContent,
+  type AssetOrigin,
+  type AssetRow,
+  type AssetRowPage,
+  type AssetStanding,
+  type HoldingChange,
+  type HoldingOutcome,
+  type ManagedAsset,
+  type ManagedList,
+  type StoreChange,
+  type TenantLayerStore,
+  type TenantManagement,
+} from './management.ts'
+export {
   decideAssetHoldingChange,
   type AssetHolding,
   type AssetHoldingChange,

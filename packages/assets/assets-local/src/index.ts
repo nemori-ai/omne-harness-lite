@@ -18,12 +18,9 @@ export type {
   PublishedPackages,
 } from './packages.ts'
 export { publishedAssetRef } from './packages.ts'
-export {
-  createTenantPublisher,
-  newHoldingRef,
-  originOf,
-  TENANT_PUBLISHING_OWNER,
-} from './tenant-publisher.ts'
+export { createTenantPublisher, newHoldingRef } from './tenant-publisher.ts'
+export { originOf, TENANT_PUBLISHING_OWNER } from './origin.ts'
+export { createTenantLayerStore } from './layer-store.ts'
 export {
   assetsPublicationFact,
   AssetPublicationRefSchema,

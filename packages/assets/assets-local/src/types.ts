@@ -12,6 +12,7 @@ import type {
   holdingResultSchema,
   publishMetadataSchema,
   publishedHoldingSchema,
+  summaryResultSchema,
   versionResultSchema,
   holdingLookupSchema,
   listLookupSchema,
@@ -42,6 +43,7 @@ export type AssetsOperationResult = AssetsMutationResult | Readonly<{ kind: 'not
 export type AssetsReadResult = z.infer<typeof assetResultSchema>
 export type AssetsHoldingResult = z.infer<typeof holdingResultSchema>
 export type AssetsVersionResult = z.infer<typeof versionResultSchema>
+export type AssetsSummaryResult = z.infer<typeof summaryResultSchema>
 export type AssetsListRequest = z.input<typeof listLookupSchema>
 export type AssetsListResult = z.infer<typeof listResultSchema>
 export interface AssetsLocal {
@@ -54,7 +56,17 @@ export interface AssetsLocal {
   readVersion(input: z.infer<typeof versionLookupSchema>): Promise<AssetsVersionResult>
   readHeldCapability(input: { capability: CapabilityId }): Promise<AssetsHoldingResult>
   listHeld(input: AssetsListRequest): Promise<AssetsListResult>
+  /** The asset summary stored with one version; a version is never rewritten, so neither is it. */
+  readSummary(input: z.infer<typeof versionLookupSchema>): Promise<AssetsSummaryResult>
   readonly packages: LocalPackages
   getOperation(operationId: string): Promise<AssetsOperationResult>
+  /** The receipt of an earlier change of this holding; a receipt for another change is a conflict. */
+  recallChange(
+    input: Readonly<{
+      operationId: string
+      holdingRef: string
+      change: AssetsHoldingChange['change']
+    }>,
+  ): Promise<AssetsOperationResult>
   close(): Promise<void>
 }

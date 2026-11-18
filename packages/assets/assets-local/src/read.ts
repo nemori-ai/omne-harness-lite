@@ -5,6 +5,7 @@ import {
   readAsset,
   readDomain,
   readHolding,
+  readSummary,
   readVersion,
   selectedVersion,
 } from './records.ts'
@@ -86,6 +87,14 @@ function versionResult(
   const version = readVersion(port, domain, lookup.assetRef, lookup.version)
   return { kind: 'read', output: json(version ? { kind: 'version', version } : { kind: 'absent' }) }
 }
+function summaryResult(
+  request: Extract<ReadRequest, { kind: 'summary' }>,
+  port: Port,
+): ReturnType<ReadHandlerModule['read']> {
+  const { domain, lookup } = request
+  const summary = readSummary(port, domain, lookup.assetRef, lookup.version)
+  return { kind: 'read', output: json({ kind: 'summary', summary }) }
+}
 
 export default {
   handler: HANDLER,
@@ -104,6 +113,8 @@ export default {
         return belongs(port, request.domain) ? versionResult(request, port) : FORBIDDEN
       case 'holding':
         return belongs(port, request.domain) ? holdingResult(request, port) : FORBIDDEN
+      case 'summary':
+        return belongs(port, request.domain) ? summaryResult(request, port) : FORBIDDEN
     }
   },
 } satisfies ReadHandlerModule
