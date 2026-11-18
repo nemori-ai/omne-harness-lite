@@ -4,6 +4,7 @@ import {
   type ModelInputMeter,
   type ModelPreparationResources,
 } from '@omne-harness/model-contract'
+import { judgeMessage } from '@omne-harness/message'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { assembledFor, measureDefaultInput } from '../src/default-measurement.ts'
 import { access, adoption, ok, request } from './request-fixture.ts'
@@ -118,6 +119,36 @@ it('uses a fresh measurement and exact access/profile/lineage for every candidat
   )
   expect(f.measurements.every(given => given.assembled === assembled)).toBe(true)
   expect(f.releases()).toBe(2)
+})
+
+it('cites the call a carried reply names in its replay mark when its history row names none', async () => {
+  const f = fixture()
+  const first = f.value.history.entries[0]!
+  const judged = judgeMessage({
+    id: first.message.id,
+    role: 'assistant',
+    blocks: [
+      { kind: 'text', id: 't', visibility: { toHuman: true, toModel: true }, text: 'answer' },
+      {
+        kind: 'reasoning_state',
+        id: 's',
+        visibility: { toHuman: false, toModel: true },
+        payload: 'p',
+        pairs: [],
+      },
+    ],
+    replay: { scope: 'A', format: 'f1', at: [1], call: 'mcall_marked' },
+  })
+  if (!('ok' in judged)) throw new Error('fixture reply')
+  const message = judged.ok
+  const input = {
+    ...f.value,
+    history: { ...f.value.history, entries: [{ ...first, message, represented: [message] }] },
+  }
+  ok(await measureDefaultInput(f.resources, access, input, assembledFor(input, [message], true)))
+  expect(f.acquisitions[0]?.lineage).toEqual({
+    sources: [{ message: message.id, call: ok(decodeModelCallId('mcall_marked')) }],
+  })
 })
 
 it('waits for a pending meter before releasing its lease', async () => {

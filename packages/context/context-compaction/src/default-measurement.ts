@@ -1,5 +1,6 @@
 import type { Access, CompactionInput, CompactionReply } from '@omne-harness/agent-contract'
 import type * as M from '@omne-harness/model-contract'
+import { replaySourceCall } from '@omne-harness/model-contract'
 import type { Message } from '@omne-harness/message'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { canonical } from './evidence.ts'
@@ -47,11 +48,12 @@ export async function measureDefaultInput<P>(
   const profile = input.target.profile.profile
   const present = new Set(assembled.messages.map(message => message.id))
   const lineage = {
-    sources: input.history.entries.flatMap(entry =>
-      entry.sourceCall !== undefined && present.has(entry.message.id)
-        ? [{ message: entry.message.id, call: entry.sourceCall }]
-        : [],
-    ),
+    sources: input.history.entries.flatMap(entry => {
+      const call = entry.sourceCall ?? replaySourceCall(entry.message)
+      return call !== null && present.has(entry.message.id)
+        ? [{ message: entry.message.id, call }]
+        : []
+    }),
   }
   const acquired = await resources.acquire({ ...access, profile, lineage })
   if ('failure' in acquired) return measurementUnavailable(canonical(acquired.failure))

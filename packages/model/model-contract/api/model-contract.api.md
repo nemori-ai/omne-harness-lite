@@ -162,6 +162,7 @@
 - `profileResolutionValue` · `profile-codec.d.ts`
 - `projectModelOutputV1` · `model-output-v1.d.ts`
 - `readProfileResolution` · `profile-codec.d.ts`
+- `replaySourceCall` · `replay-values.d.ts`
 - `resolveModelInvocationRef` · `reference.d.ts`
 
 ## 入口 `./conformance` · `conformance/index.d.ts`
@@ -1295,6 +1296,7 @@ export type * from './diagnostics.ts';
 export { decodeProviderName } from './provider-name.ts';
 export { MODEL_IDENTITY_MAX_LENGTH, MODEL_IDENTITY_PREFIXES, compareOutputCursors, decodeDispatchId, decodeModelCallId, decodeModelDiagnosticCursor, decodeModelDiagnosticId, decodeModelInstanceId, decodeModelOperationId, decodeOutputCursor, decodeResultVersion, decodeRevision, } from './identity-values.ts';
 export { deriveGuardControlOperation } from './guard-control.ts';
+export { replaySourceCall } from './replay-values.ts';
 export type { ModelInvocationParts, ModelInvocationRef, ModelReferenceFailure, ModelReferenceRejection, } from './reference.ts';
 export { MODEL_REFERENCE_MAX_LENGTH, encodeModelInvocationRef, decodeModelInvocationRef, resolveModelInvocationRef, } from './reference.ts';
 export { profileResolutionValue, readProfileResolution, judgeModelParameters, judgeToolDeclarations, } from './profile-codec.ts';
@@ -2412,9 +2414,10 @@ export {};
 
 ```ts
 import { type Outcome } from '@omne-harness/operation-result';
-import { type MessageId } from '@omne-harness/message';
+import { type Message, type MessageId } from '@omne-harness/message';
 import type { ReplayDeclaration, ReplayProjection, ReplayProjectionInput } from './profile.ts';
 import type { ModelFailure } from './result.ts';
+import type { ModelCallId } from './root.ts';
 export declare function judgeReplayDeclaration(supplier: Readonly<{
     provider: string;
     model: string;
@@ -2424,6 +2427,7 @@ export declare function judgeReplayDeclaration(supplier: Readonly<{
 }>>;
 export declare function projectReplay(input: ReplayProjectionInput): ReplayProjection;
 export declare function continuedMessages(projection: ReplayProjection): ReadonlySet<MessageId>;
+export declare function replaySourceCall(message: Message): ModelCallId | null;
 ```
 
 ## 声明文件 `request-head.d.ts`

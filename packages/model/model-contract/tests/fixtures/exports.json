@@ -746,6 +746,11 @@
               "name": "judgeToolDeclarations",
               "kind": "value",
               "pending": false
+            },
+            {
+              "name": "replaySourceCall",
+              "kind": "value",
+              "pending": false
             }
           ]
         },

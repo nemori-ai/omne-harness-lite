@@ -15,6 +15,8 @@ import type {
   ReplayTreatment,
 } from './profile.ts'
 import type { ModelFailure } from './result.ts'
+import { decodeModelCallId } from './identity-values.ts'
+import type { ModelCallId } from './root.ts'
 
 const FOREIGN_THINKING: readonly ForeignThinking[] = ['omit', 'text', 'adapter']
 
@@ -214,4 +216,11 @@ function diagnose(message: AssistantMessage, reason: ReplayOmission): ReplayDiag
 
 export function continuedMessages(projection: ReplayProjection): ReadonlySet<MessageId> {
   return new Set(projection.treatments.filter(item => item.continuable).map(item => item.message))
+}
+
+/** The call a reply names in its replay mark: the one whose output its reasoning state is metered by. */
+export function replaySourceCall(message: Message): ModelCallId | null {
+  if (message.role !== 'assistant' || message.replay?.call === undefined) return null
+  const decoded = decodeModelCallId(message.replay.call)
+  return 'ok' in decoded ? decoded.ok : null
 }

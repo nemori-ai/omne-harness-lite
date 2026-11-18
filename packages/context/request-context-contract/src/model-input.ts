@@ -1,5 +1,5 @@
 import type * as M from '@omne-harness/model-contract'
-import { decodeModelCallId } from '@omne-harness/model-contract'
+import { replaySourceCall } from '@omne-harness/model-contract'
 import type { Message, MessageId } from '@omne-harness/message'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import type { Access, DurableEvidence } from './refs.js'
@@ -85,12 +85,6 @@ function continues<P>(
   return holds ? basis.call.call : null
 }
 
-function replayCall(message: Message): M.ModelCallId | null {
-  if (message.role !== 'assistant' || message.replay?.call === undefined) return null
-  const decoded = decodeModelCallId(message.replay.call)
-  return 'ok' in decoded ? decoded.ok : null
-}
-
 export function lineageFor<P>(
   access: Access<P>,
   projected: readonly ProjectedMessage[],
@@ -105,7 +99,7 @@ export function lineageFor<P>(
     if (item.sourceCall !== undefined && !tenantEquals(item.sourceCall.tenant, access.tenant))
       return { kind: 'invalid', field: 'history.sourceCall', reason: 'tenant-mismatch' }
     // A reply carries the call that produced it in its replay mark, when the history row names none.
-    const call = item.sourceCall?.call ?? replayCall(item.message)
+    const call = item.sourceCall?.call ?? replaySourceCall(item.message)
     if (call === null) continue
     const previous = seen.get(item.message.id)
     if (previous !== undefined) {

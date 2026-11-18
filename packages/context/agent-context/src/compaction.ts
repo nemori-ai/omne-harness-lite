@@ -6,6 +6,7 @@ import {
   type RequestPreparation,
 } from '@omne-harness/agent-contract'
 import type * as M from '@omne-harness/model-contract'
+import { replaySourceCall } from '@omne-harness/model-contract'
 import { judgeCompaction, type CompactionContext, type Message } from '@omne-harness/message'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
@@ -194,11 +195,12 @@ export function createCompactionAssessment<P>(
     const after = frozen.history.entries.filter(entry => afterRefs.has(entry.ref))
     const messages = [...retained, ...summary.messages, ...after.flatMap(e => e.represented)]
     const present = new Set(messages.map(message => message.id))
-    const sources = frozen.history.entries.flatMap(entry =>
-      entry.sourceCall !== undefined && present.has(entry.message.id)
-        ? [{ message: entry.message.id, call: entry.sourceCall }]
-        : [],
-    )
+    const sources = frozen.history.entries.flatMap(entry => {
+      const call = entry.sourceCall ?? replaySourceCall(entry.message)
+      return call !== null && present.has(entry.message.id)
+        ? [{ message: entry.message.id, call }]
+        : []
+    })
     const selection = selectedModel({
       resolution: frozen.target.profile,
       parameters: frozen.target.parameters,
