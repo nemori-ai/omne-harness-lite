@@ -9,6 +9,8 @@ import { canonical } from '../testing/canonical.ts'
 import {
   REVIVABLE_EXCLUSIONS,
   BATCH_MAX_FACTS,
+  FACT_MAX_BYTES,
+  bytesOf,
   factKey,
   refOf,
   type Batch,
@@ -58,21 +60,29 @@ export function cursorOf(checkpoint: AgentCheckpoint, state: JournalCommitState)
         ? null
         : refOf(checkpoint.adoptedRequest),
     state: state.kind,
-    holds: {
-      actions: [
-        ...checkpoint.calls.map(call => call.action),
-        ...(checkpoint.batch?.actions.map(action => action.id) ?? []),
-      ],
-      consumptions: checkpointCalls(checkpoint).map(call => call.consumption),
-      handoffs: (checkpoint.batch?.slots ?? []).flatMap(slot =>
-        slot.handoff === null ? [] : [handoffKey(slot.handoff)],
-      ),
-      admissionsFrom:
-        checkpoint.replyAdmissionRead.kind === 'verified'
-          ? Number(checkpoint.replyAdmissionRead.prefix.sequence)
-          : 0,
-    },
+    holds: heldBy(checkpoint),
   }
+}
+
+// Half a fact at most: the cursor's other members share it.
+const HOLDS_MAX_BYTES = FACT_MAX_BYTES / 2
+
+function heldBy(checkpoint: AgentCheckpoint): CursorMembers['holds'] {
+  const holds = {
+    actions: [
+      ...checkpoint.calls.map(call => call.action),
+      ...(checkpoint.batch?.actions.map(action => action.id) ?? []),
+    ],
+    consumptions: checkpointCalls(checkpoint).map(call => call.consumption),
+    handoffs: (checkpoint.batch?.slots ?? []).flatMap(slot =>
+      slot.handoff === null ? [] : [handoffKey(slot.handoff)],
+    ),
+    admissionsFrom:
+      checkpoint.replyAdmissionRead.kind === 'verified'
+        ? Number(checkpoint.replyAdmissionRead.prefix.sequence)
+        : 0,
+  }
+  return bytesOf(holds) > HOLDS_MAX_BYTES ? null : holds
 }
 
 export type BlobStore = ReadonlyMap<string, unknown>
