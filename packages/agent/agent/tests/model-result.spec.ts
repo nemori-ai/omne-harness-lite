@@ -10,6 +10,7 @@ import {
   type Termination,
 } from '@omne-harness/model-contract'
 import { consumeModelResult, noReplyReason } from '../src/loop/model-result.ts'
+import { settlement as decodeSettlement } from '../src/receiving-values.ts'
 import { acceptedInput, evidence, execution, ok, producedResult } from './journal-support.ts'
 
 const step = ok(decodeStepId('step-1'))
@@ -149,5 +150,40 @@ describe('consumeModelResult keeps the reasoning state of a result that carries 
     if (result.kind !== 'reply') throw new Error(result.kind)
     expect(result.reply.blocks.map(block => block.kind)).toEqual(['text'])
     expect('replay' in result.reply).toBe(false)
+  })
+})
+
+describe('the replay range of a settlement as Agent reads it back (C11)', () => {
+  const plain = settlement({ kind: 'completed', reason: 'stop' })
+  const read = (replay: unknown) => decodeSettlement({ ...plain, replay })
+
+  it('keeps a range with its prefix and producing call, and either one alone', () => {
+    const range = { scope: 'vendor/model', format: 'f1', prefix: 'h:1', call: 'mcall_1' }
+    expect(read(range)?.replay).toEqual(range)
+    expect(read({ scope: 'vendor/model', format: 'f1' })?.replay).toEqual({
+      scope: 'vendor/model',
+      format: 'f1',
+    })
+    expect(read({ scope: 's', format: 'f', call: 'mcall_1' })?.replay).toEqual({
+      scope: 's',
+      format: 'f',
+      call: 'mcall_1',
+    })
+  })
+
+  it('reads a settlement without a range as one without it', () => {
+    const decoded = decodeSettlement(plain)
+    expect(decoded).not.toBeNull()
+    expect(decoded !== null && 'replay' in decoded).toBe(false)
+  })
+
+  it.each([
+    ['not an object', 'range'],
+    ['a scope that is not text', { scope: 1, format: 'f1' }],
+    ['a format that is not text', { scope: 's', format: null }],
+    ['a prefix that is not text', { scope: 's', format: 'f', prefix: 7 }],
+    ['a call that is not text', { scope: 's', format: 'f', call: false }],
+  ])('refuses the whole settlement for %s', (_, replay) => {
+    expect(read(replay)).toBeNull()
   })
 })
