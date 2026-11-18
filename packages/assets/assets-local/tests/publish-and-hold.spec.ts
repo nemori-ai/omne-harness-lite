@@ -201,6 +201,39 @@ describe('publishAndHold: the version and the holding in one participant call', 
     expect(readVersion(port, domain, REF, 'v1')).toBeNull()
   })
 
+  it('单独的发布与持有两种变更照旧各写自己的行', () => {
+    const port = open()
+    const { holding: _holding, ...fields } = publishAndHold('p1', 'v1') as Extract<
+      Mutation,
+      { kind: 'publishAndHold' }
+    >
+    const published = run(port, mutationSchema.parse({ ...fields, kind: 'publish' }))
+    expect(published).toEqual({ kind: 'committed', operationId: 'p1', revision: 1, changed: true })
+    expect(held(port)).toBeNull()
+    expect(
+      run(
+        port,
+        mutationSchema.parse({
+          kind: 'hold',
+          operationId: 'h1',
+          holdingRef: REF,
+          scopeRef: 'tenant-a',
+          assetRef: REF,
+          selection: { kind: 'follow' },
+          sources: [
+            {
+              sourceId: 'tenant',
+              ownerRef: 'test',
+              scope: { kind: 'tenant', subjectRef: 'tenant-a' },
+            },
+          ],
+          grants: [],
+        }),
+      ),
+    ).toEqual({ kind: 'committed', operationId: 'h1', revision: 1, changed: true })
+    expect(selected(port)).toBe('v1')
+  })
+
   it('发布这一步被拒（修订对不上）：不碰持有', () => {
     const port = open()
     run(port, publishAndHold('p1', 'v1'))

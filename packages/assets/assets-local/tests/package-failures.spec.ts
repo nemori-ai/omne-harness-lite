@@ -519,7 +519,16 @@ describe('the recovery scan', () => {
     })
     mkdirSync(join(root, 'bundles'), { recursive: true })
     writeFileSync(join(root, 'bundles', '.category'), 'bundle')
-    const names = ['loose', 'sha256', 'a-b-c', 'sha256-0', `sha512-${'0'.repeat(64)}`]
+    const hex = '0'.repeat(64)
+    const names = [
+      'loose',
+      'sha256',
+      'a-b-c',
+      'sha256-0',
+      `sha512-${hex}`,
+      `xsha256-${hex}`,
+      `sha256-${hex}x`,
+    ]
     for (const name of names) writeTree(join(root, 'bundles', 'report', name), FILES)
     expect(await packages.recover()).toMatchObject({ discarded: 0, deferred: [] })
     expect(asked).toEqual([])
@@ -565,6 +574,18 @@ describe('the recovery scan', () => {
     const { mismatched } = await packages.recover()
     expect(mismatched).toHaveLength(2)
     expect(mismatched).toEqual(expect.arrayContaining([report, id('bundle', 'other')]))
+  })
+
+  it('throws when the stagings cannot be listed, and keeps them', async () => {
+    const { root, packages } = setup()
+    writeTree(join(root, '.staging', 'one', 'files'), FILES)
+    chmodSync(join(root, '.staging'), 0o000)
+    try {
+      await expect(packages.recover()).rejects.toThrow()
+    } finally {
+      chmodSync(join(root, '.staging'), 0o755)
+    }
+    expect(stagingOf(root)).toEqual(['one'])
   })
 
   it('throws when the versions of a name cannot be listed', async () => {

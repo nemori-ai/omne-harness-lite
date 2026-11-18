@@ -329,12 +329,17 @@ describe('publish and hold: the four cells of the holding, in one commit', () =>
 
   it('类别没登记：答 unknown_category，不提交；存储答没提交：答 unknown', async () => {
     let refuse = false
+    let silent = false
     const w = await world({
       ownerWrap: storage => ({
         ...storage,
         async commit(request, options) {
           if (refuse) return { kind: 'not_committed', identity: request.identity } as never
           return storage.commit(request, options)
+        },
+        async query(identity) {
+          if (silent) throw new Error('the storage does not answer')
+          return storage.query(identity)
         },
       }),
     })
@@ -369,6 +374,12 @@ describe('publish and hold: the four cells of the holding, in one commit', () =>
       reason: 'unknown_category',
     })
     expect(await w.owner.getOperation('publish-nobody')).toEqual({ kind: 'not_found' })
+    silent = true
+    expect(await w.owner.getOperation('publish-nobody')).toEqual({
+      kind: 'unknown',
+      operationId: 'publish-nobody',
+    })
+    silent = false
     refuse = true
     expect(await w.owner.publishAndHold(input('plain'))).toEqual({
       kind: 'unknown',
@@ -831,6 +842,7 @@ describe('publish keeps its bytes durable before the version is recorded', () =>
     expect(directories).toEqual(
       expect.arrayContaining([join(dir, 'files/scripts'), join(dir, 'files'), dir, staging]),
     )
+    expect(directories).toEqual([...directories].sort((a, b) => b.length - a.length))
     expect(at(events, 'step', 'swapped')).toBeGreaterThan(staged)
   })
 
