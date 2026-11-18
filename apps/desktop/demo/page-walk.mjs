@@ -425,6 +425,7 @@ async function walk(browser, origin, proofs, elsewhere) {
     '资产的列表与详情',
     `
     const listed = await inAssetTabs('a listed asset', panel => panel.querySelector('li.assets-item'))
+    listed.querySelector('.assets-item-title button[aria-expanded=false]')?.click()
     const item = await wait('its detail', () =>
       listed.querySelector('.assets-detail') && listed.innerText.includes('现在能不能用') ? listed : undefined)
     const facts = [...item.querySelectorAll('.assets-item-facts span')].map(span => span.textContent)
@@ -482,6 +483,47 @@ async function walk(browser, origin, proofs, elsewhere) {
     await wait('the creation', () => form.innerText.includes('已新建 walk-page。'))
     const item = await wait('the new row', () => shownPanel().querySelector('li.assets-item[aria-label="walk-page"]'))
     return { created: item.getAttribute('aria-label'), note: form.innerText.split('\\n').filter(line => line.includes('文件')) }`,
+  )
+  await step(
+    '新建的这一份：列表里有它的简介；在详情里禁用、启用、移除',
+    `
+    const item = () => shownPanel().querySelector('li.assets-item[aria-label="walk-page"]')
+    const button = text => [...(item()?.querySelectorAll('button') ?? [])].find(each => each.textContent.trim() === text && !each.disabled)
+    const row = await wait('the row', item)
+    if (!row.innerText.includes('Made in the page by the walk.')) throw new Error('the row shows no summary: ' + row.innerText)
+    row.querySelector('button[aria-expanded="false"]')?.click()
+    ;(await wait('a disable button', () => button('禁用'))).click()
+    await wait('the row to read disabled', () => item()?.innerText.includes('已禁用'))
+    ;(await wait('an enable button', () => button('启用'))).click()
+    await wait('the row to read enabled', () => item()?.innerText.includes('已启用'))
+    ;(await wait('a remove button', () => button('移除'))).click()
+    ;(await wait('the confirmation', () => button('确认移除'))).click()
+    await wait('the row to go', () => item() === null)
+    return { summary: 'Made in the page by the walk.', disabled: true, enabled: true, removed: true }`,
+  )
+  await step(
+    '同名再新建：选同一个目录提交，列表里又有它',
+    `
+    if (shownPanel().querySelector('form[aria-label="新建"]') === null) await press('button', '新建')
+    const form = await wait('the form', () => shownPanel().querySelector('form[aria-label="新建"]'))
+    fill(form.querySelector('input:not([type=file])'), 'walk-page')
+    return 'the form is open'`,
+    async () => {
+      const found = await send('Runtime.evaluate', {
+        expression: `document.querySelector('form[aria-label="新建"] input[type=file]')`,
+      })
+      await send('DOM.setFileInputFiles', {
+        objectId: found.result.objectId,
+        files: [skillDirectory],
+      })
+    },
+    `
+    const form = shownPanel().querySelector('form[aria-label="新建"]')
+    await wait('the file count', () => form.innerText.includes('1 个文件'))
+    await press('form[aria-label="新建"] button', '提交')
+    const item = await wait('the row again', () => shownPanel().querySelector('li.assets-item[aria-label="walk-page"]'))
+    await wait('the creation', () => form.innerText.includes('已新建 walk-page。'))
+    return { again: item.getAttribute('aria-label'), facts: item.innerText.includes('已启用') }`,
   )
   rmSync(skillDirectory, { recursive: true, force: true })
   await step(
