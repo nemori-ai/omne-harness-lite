@@ -7,6 +7,7 @@ import {
 } from '@omne-harness/session-storage-sql/participants'
 import type { AgentExecutionId } from '@omne-harness/agent-contract'
 import {
+  callHeld,
   finishing,
   foldItems,
   viewOfItems,
@@ -21,8 +22,9 @@ import { READ_ATTEMPTS, type Reader } from './journal-read.ts'
 import { refsIn } from './content-refs.ts'
 import { fetchBlobClosure } from './block-read.ts'
 import { blobRowDigest, factDigestOf } from './journal-batch.ts'
-import { itemText, type ItemRef } from '../testing/closed-items.ts'
-import type { JournalCell } from '../testing/root.ts'
+import { itemText, underText, type ItemRef } from '../testing/closed-items.ts'
+import type { CommonRoot, JournalCell } from '../testing/root.ts'
+import type { ProjectedRecords } from '../testing/journal-records.ts'
 
 export type ItemScope = Readonly<{ tenant: string; session: string; execution: string }>
 
@@ -33,12 +35,13 @@ export type ItemsRead =
 
 const unread = (diagnostic: string): ItemsRead => ({ kind: 'unavailable', diagnostic })
 
-// The open items of one execution (of the named families, or all), every page at one head.
+// The open items of one execution (named families or all; `under`: a key prefix), at one head.
 export async function readOpenItems(
   read: Reader,
   scope: ItemScope,
   families: readonly string[] | null,
   all = false,
+  under: string | null = null,
 ): Promise<ItemsRead> {
   for (let attempt = 0; attempt < READ_ATTEMPTS; attempt += 1) {
     let after: ExecutionItemKey | null = null
@@ -50,6 +53,7 @@ export async function readOpenItems(
         after,
         ...(families === null ? {} : { families: [...families] }),
         ...(all ? { all } : {}),
+        ...(under === null ? {} : { under }),
       })
       if (output.kind === 'unread')
         return unread(`the open items of the execution are not readable: ${output.reason}`)
@@ -104,24 +108,49 @@ type Lender = Readonly<{
   lentBlocks: Map<string, string>
 }>
 
+async function readAsked(
+  read: Reader,
+  lender: Lender,
+  execution: AgentExecutionId,
+  wanted: readonly ItemRef[],
+): Promise<readonly ExecutionItem[] | string> {
+  const scope = { tenant: lender.tenantText, session: lender.session, execution }
+  const keyed = wanted.filter(ref => ref.under !== true)
+  const items: ExecutionItem[] = []
+  if (keyed.length > 0) {
+    const keys = keyed.map(ref => ({ family: ref.family, item: ref.item }))
+    const found = await readItems(read, scope, keys)
+    if (found.kind === 'unavailable') return found.diagnostic
+    items.push(...found.items)
+  }
+  for (const ref of keyed) lender.fetched.set(itemText(ref), null)
+  for (const ref of wanted.filter(ref => ref.under === true)) {
+    const found = await readOpenItems(read, scope, [ref.family], true, ref.item)
+    if (found.kind === 'unavailable') return found.diagnostic
+    items.push(...found.items)
+    lender.fetched.set(
+      underText(ref),
+      found.items.map(item => item.item),
+    )
+  }
+  return items
+}
+
 export async function fetchClosed(
   read: Reader,
   lender: Lender,
-  refs: readonly ItemRef[],
+  asked: readonly ItemRef[],
 ): Promise<string | null> {
-  const byExecution = Map.groupBy(refs, ref => ref.execution)
-  for (const [execution, wanted] of byExecution) {
-    const scope = { tenant: lender.tenantText, session: lender.session, execution }
-    const found = await readItems(
-      read,
-      scope,
-      wanted.map(ref => ({ family: ref.family, item: ref.item })),
-    )
-    if (found.kind === 'unavailable') return found.diagnostic
-    for (const ref of wanted) lender.fetched.set(itemText(ref), null)
-    for (const item of found.items)
+  const alreadyRead = (ref: ItemRef) =>
+    lender.fetched.has(ref.under === true ? underText(ref) : itemText(ref))
+  const refs = asked.filter(ref => !alreadyRead(ref))
+  if (refs.length === 0) return 'a round needs closed items the call has already read'
+  for (const [execution, wanted] of Map.groupBy(refs, ref => ref.execution)) {
+    const items = await readAsked(read, lender, execution, wanted)
+    if (typeof items === 'string') return items
+    for (const item of items)
       lender.fetched.set(itemText({ execution, family: item.family, item: item.item }), item.body)
-    const rows = found.items.flatMap(item => [...refsIn(item.body)].map(blobRowDigest))
+    const rows = items.flatMap(item => [...refsIn(item.body)].map(blobRowDigest))
     const missing = await fetchBlobClosure(read, lender.tenantText, rows, lender.lentBlocks)
     if (missing !== null) return `the content block ${missing} of a closed item is not readable`
   }
@@ -249,4 +278,52 @@ export async function readOpenView(
     kind: 'unavailable',
     diagnostic: 'the open items of the session kept changing while they were read',
   }
+}
+
+export function heldOrigins<V>(
+  origins: ReadonlyMap<string, V>,
+  view: SessionJournalView,
+): SharedMap<string, V> {
+  const kept = new SharedMap<string, V>()
+  for (const [key, origin] of origins) {
+    const at = key.indexOf('\0')
+    const execution = view.executions.get(key.slice(0, at) as AgentExecutionId)
+    if (execution !== undefined && callHeld(key.slice(at + 1), execution)) kept.set(key, origin)
+  }
+  return kept
+}
+
+export function restoreRecords<P>(
+  book: Readonly<{
+    view: SessionJournalView
+    parsed: ReadonlyMap<string, unknown>
+    origins: CommonRoot['agent']['callOrigins']
+  }>,
+  cell: JournalCell<P>,
+  records: ProjectedRecords,
+): void {
+  cell.mutate(() => {
+    const root = cell.state()
+    const into = <K, V>(target: Map<K, V>, source: ReadonlyMap<K, V>) => {
+      for (const [key, value] of source) target.set(key, value)
+    }
+    root.agent.view = book.view
+    root.agent.log = []
+    root.agent.closedComplete = false
+    for (const [digest, value] of book.parsed) root.agent.blobs.set(digest, value)
+    into(root.agent.executions, records.executions)
+    into(root.agent.operations, records.operations)
+    into(root.agent.eventReceipts, records.fragments.eventReceipts)
+    into(root.agent.pendingEvents, records.fragments.pendingEvents)
+    into(root.agent.callOrigins, records.fragments.callOrigins)
+    into(root.agent.callOrigins, book.origins)
+    into(root.agent.human, records.fragments.human)
+    into(root.agent.indexedEvents, records.fragments.indexedEvents)
+    for (const name of Object.keys(records.receiving) as (keyof CommonRoot['receiving'])[])
+      into(
+        root.receiving[name] as Map<unknown, unknown>,
+        records.receiving[name] as Map<unknown, unknown>,
+      )
+    cell.touch()
+  })
 }

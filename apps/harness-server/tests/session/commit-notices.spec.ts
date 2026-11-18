@@ -13,6 +13,24 @@ const options = { script, permission: 'bypass-permissions' }
 
 const sorted = (kinds: readonly string[]) => [...kinds].sort()
 
+// The facts of one call reach the log from two reporters: the producer's own report, and what the
+// Session reads off the Agent's output. The log takes the two commits in either order, so the
+// commits of one call are compared as a set.
+function callsAsSets(lines: readonly string[]): string[] {
+  const out: string[] = []
+  let facts: string[] = []
+  for (const line of [...lines, '']) {
+    if (line.startsWith('call.execution-fact')) {
+      facts.push(line)
+      continue
+    }
+    out.push(...facts.sort())
+    facts = []
+    if (line !== '') out.push(line)
+  }
+  return out
+}
+
 const TURN = [
   'session.created, session.adoption, session.tool-resident-admitted, session.context-registration-changed, session.initialization-item',
   'message.user, intake.routed',
@@ -48,7 +66,7 @@ describe('the commit notices of one turn with a tool call', () => {
         const notices = recorder.notices().filter(notice => notice.session === session)
         const rows = noticeTable(batches, notices, session)
         process.stdout.write(`${tableLines(rows).join('\n')}\n`)
-        expect(batches.map(batch => batch.kinds.join(', '))).toEqual(TURN)
+        expect(callsAsSets(batches.map(batch => batch.kinds.join(', ')))).toEqual(TURN)
         expect(rows.filter(row => row.notices !== 1)).toEqual([])
         for (const batch of batches) {
           const notice = notices.find(item => item.revision === batch.revision)

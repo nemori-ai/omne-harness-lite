@@ -238,3 +238,68 @@ describe('the custody chain of a recordHandoff whose storage outcome is undecide
     expect(await journal.recordHandoff(successor)).toHaveProperty('ok')
   })
 })
+
+describe('the custody of a hand-off the journal no longer holds open', () => {
+  it('a custody attempt that comes after the hand-off closed is recorded, and the next one sees it', async () => {
+    const s = await sqlScene('custody-after-close')
+    const journal = s.view.journal
+    const opened = ok(await journal.open(s.openInput))
+    const loaded = ok(await journal.load({ ...s.access, execution: s.execution }))
+    const request = handoffRequest(s, loaded, opened.authority)
+    const commit = async (name: string, change: object) => {
+      const at = ok(await journal.load({ ...s.access, execution: s.execution }))
+      ok(
+        await journal.commit({
+          ...s.access,
+          execution: s.execution,
+          operation: operation(name),
+          authority: opened.authority,
+          expected: at.revision,
+          checkpoint: at.checkpoint,
+          state: { kind: 'advancing' },
+          events: [],
+          effects: [],
+          caller: { kind: 'none' },
+          replyAdmission: null,
+          handoff: null,
+          finish: null,
+          ...change,
+        } as Parameters<Journal['commit']>[0]),
+      )
+    }
+    const excluded = {
+      kind: 'excluded' as const,
+      request,
+      origin: null,
+      exclusion: proof('exclusion/h1'),
+    }
+    await commit('prepare', {
+      checkpoint: { ...loaded.checkpoint, position: 'Q2', currentHandoff: request.reference },
+      handoff: { kind: 'prepare', request },
+    })
+    await commit('retire', {
+      checkpoint: { ...loaded.checkpoint, position: 'I3', currentHandoff: null },
+      handoff: { kind: 'retire', excluded, reason: proof('retired/h1') },
+    })
+    // The step moves on: nothing holds the retired hand-off, and its item closes.
+    await commit('next-step', {
+      checkpoint: { ...loaded.checkpoint, position: 'I3', step: 'step-2', currentHandoff: null },
+    })
+    const after = ok(await journal.load({ ...s.access, execution: s.execution }))
+    expect(after.handoffs.filter(item => item.handoff.kind === 'execution')).toEqual([])
+
+    const root = { ...rootOf(s, request, 'rh-late'), original: excluded } as RootHandoff
+    const recorded = ok(await journal.recordHandoff(root))
+    expect(await journal.recordHandoff(root)).toEqual({ ok: recorded })
+    // Another replica reads the closed hand-off and the attempt recorded under it.
+    const other = { ...rootOf(s, request, 'rh-late-other'), original: excluded } as RootHandoff
+    expect(await s.fresh().journal.recordHandoff(other)).toEqual({
+      failure: {
+        kind: 'invalid',
+        field: 'operation',
+        reason: 'the H already has its custody root',
+      },
+    })
+    await s.close()
+  })
+})
