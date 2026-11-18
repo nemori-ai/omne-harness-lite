@@ -1,7 +1,8 @@
 import { hitlDecisionWait } from '@omne-harness/human-intervention-tool'
-import type { JsonValue } from '@omne-harness/json-text'
+import { writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import { fail, succeed } from '@omne-harness/operation-result'
 import type { CommandTable } from '@omne-harness/tool-contract'
+import { z } from 'zod'
 import {
   commandGuide,
   defineCommandTool,
@@ -22,6 +23,7 @@ import {
   ownerAnswerOf,
   readConsentState,
   type ConsentState,
+  type OwnerAnswer,
 } from './consent.ts'
 import { notificationsOf, type BoundNotifications, type Reached } from './port.ts'
 import {
@@ -34,7 +36,7 @@ import {
   type NotificationsArguments,
   type NotificationsCommandName,
 } from './protocol.ts'
-import { settle, unavailable, type Segment } from './results.ts'
+import { cancelled, unavailable, writing, type Segment } from './results.ts'
 
 const ENCODING = 'wrapped' as const
 const encoder = new TextEncoder()
@@ -109,7 +111,7 @@ async function reach(
   const bound = notificationsOf(execution)
   if (bound === undefined) return unavailable(command, UNREACHABLE.unattached)
   const reached = await bound.reach()
-  if ('kind' in reached) return unavailable(command, UNREACHABLE[reached.reason])
+  if ('unreachable' in reached) return unavailable(command, UNREACHABLE[reached.unreachable])
   return { reached, bound }
 }
 
@@ -128,7 +130,16 @@ async function initial(
   return handler(ready.reached, args.params, ready.bound)
 }
 
-const cancelled = (reason: string): Segment => fail({ kind: 'cancelled', reason })
+const UNWRITTEN = {
+  declined: 'owner-declined: the owner declined; nothing was changed',
+  skipped: 'owner-skipped: the owner did not answer; nothing was changed',
+} as const
+
+/** What an answer that writes nothing tells the agent. */
+const unwritten = (answer: Exclude<OwnerAnswer, { kind: 'approved' }>) =>
+  answer.kind === 'replied'
+    ? `owner-replied: the owner answered in words; nothing was changed. text=${JSON.stringify(answer.text)}`
+    : UNWRITTEN[answer.kind]
 
 /** The owner answered: an approval sets the subscription with this card as its basis; anything else writes nothing. */
 async function resume(
@@ -137,14 +148,7 @@ async function resume(
   execution: ToolSegmentContext,
 ): Promise<Segment> {
   const answer = ownerAnswerOf(state, decision)
-  if (answer.kind === 'declined')
-    return cancelled('owner-declined: the owner declined; nothing was changed')
-  if (answer.kind === 'skipped')
-    return cancelled('owner-skipped: the owner did not answer; nothing was changed')
-  if (answer.kind === 'replied')
-    return cancelled(
-      `owner-replied: the owner answered in words; nothing was changed. text=${JSON.stringify(answer.text)}`,
-    )
+  if (answer.kind !== 'approved') return cancelled(unwritten(answer))
   const ready = await reach('subscribe', execution)
   if (!('reached' in ready)) return ready
   const { reached, bound } = ready
@@ -153,15 +157,11 @@ async function resume(
     content: state.content,
     approved: true,
   }
-  return settle(
+  return writing(
     'subscribe',
-    'write',
     async () => {
-      const outcome = await reached.faces.subscriptions.set(
-        reached.context,
-        changeOf(reached, state.params),
-        confirmation,
-      )
+      const change = changeOf(reached, state.params)
+      const outcome = await reached.faces.subscriptions.set(reached.context, change, confirmation)
       return outcome.kind === 'needs-confirmation'
         ? ({ kind: 'refused', reason: 'confirmation-mismatch' } as const)
         : outcome
@@ -185,13 +185,7 @@ export const notificationsExecutor: CheckpointedToolExecutor<NotificationsArgume
     },
   }
 
-function resultMaxBytesOf(construction: JsonValue): number | undefined {
-  if (construction.kind !== 'object' || construction.entries.length !== 1) return undefined
-  const [entry] = construction.entries
-  if (entry?.key !== 'resultMaxBytes' || entry.value.kind !== 'number') return undefined
-  const value = Number(entry.value.lexeme)
-  return Number.isSafeInteger(value) && value >= 64 ? value : undefined
-}
+const constructionSchema = z.strictObject({ resultMaxBytes: z.int().min(64) })
 
 type Operation = ToolOperation<null, ToolMessageContentBlock>
 
@@ -238,15 +232,15 @@ function operationOf(name: NotificationsCommandName, maximum: number) {
 export function createNotificationsAuthor(
   construction: JsonValue,
 ): ReturnType<ToolImplementationModule<null, ToolMessageContentBlock>['createAuthor']> {
-  const maximum = resultMaxBytesOf(construction)
-  if (maximum === undefined)
+  const read = constructionSchema.safeParse(JSON.parse(writeJsonText(construction)))
+  if (!read.success)
     return fail({
       field: 'construction',
       reason: 'Notifications takes only resultMaxBytes, at least 64',
     })
   const operations: Record<string, { summary: string; operation: Operation }> = {}
   for (const name of notificationsCommandNames) {
-    const operation = operationOf(name, maximum)
+    const operation = operationOf(name, read.data.resultMaxBytes)
     if ('failure' in operation)
       return fail({ field: 'commands', reason: JSON.stringify(operation.failure) })
     operations[name] = { summary: notificationsSummaries[name], operation: operation.ok }

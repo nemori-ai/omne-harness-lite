@@ -93,7 +93,7 @@ export function domain() {
   sources.register({
     name: sourceNameSchema.parse('demo.things'),
     label: 'Demo',
-    types: [event('changed'), event('for-people', { subscribable: ['person'] })],
+    types: [event('for-people', { subscribable: ['person'] }), event('changed')],
   })
   const channels = createChannelRegistry()
   channels.register(fakeChannel('in-app'))

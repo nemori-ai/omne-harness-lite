@@ -47,7 +47,7 @@ const REFUSALS: Readonly<Record<Refusal, readonly [Kind, string]>> = {
   ],
 }
 
-export const completed = (command: NotificationsCommandName, value: unknown): Segment =>
+const completed = (command: NotificationsCommandName, value: unknown): Segment =>
   succeed({ kind: 'completed', value: `done Notifications ${command}\n${JSON.stringify(value)}` })
 
 export function refused(reason: Refusal): Segment {
@@ -56,6 +56,7 @@ export function refused(reason: Refusal): Segment {
 }
 
 export const tooLarge = (reason: string): Segment => fail({ kind: 'too-large', reason })
+export const cancelled = (reason: string): Segment => fail({ kind: 'cancelled', reason })
 
 const operationOf = (command: NotificationsCommandName) => `Notifications.${command}`
 
@@ -70,19 +71,12 @@ export const unknown = (command: NotificationsCommandName): Segment =>
 
 const NOW_UNAVAILABLE = 'the notification services cannot answer now; nothing was changed'
 
-/** Runs one domain call. A read that throws has no basis; a write that throws has an unknown result. */
-export async function settle<T, R extends Refusal>(
+/** What the domain answered, as the result of the call. */
+export function answered<T, R extends Refusal>(
   command: NotificationsCommandName,
-  effect: 'read' | 'write',
-  call: () => Promise<DomainOutcome<T, R>>,
+  outcome: DomainOutcome<T, R>,
   done: (value: T, recalled: boolean) => unknown,
-): Promise<Segment> {
-  let outcome: DomainOutcome<T, R>
-  try {
-    outcome = await call()
-  } catch {
-    return effect === 'write' ? unknown(command) : unavailable(command, NOW_UNAVAILABLE)
-  }
+): Segment {
   switch (outcome.kind) {
     case 'done':
       return completed(command, done(outcome.value, outcome.recalled))
@@ -93,4 +87,36 @@ export async function settle<T, R extends Refusal>(
     case 'unknown':
       return unknown(command)
   }
+}
+
+type Call<T, R> = () => Promise<DomainOutcome<T, R>>
+
+/** A read that throws has no basis. */
+export async function reading<T, R extends Refusal>(
+  command: NotificationsCommandName,
+  call: Call<T, R>,
+  done: (value: T) => unknown,
+): Promise<Segment> {
+  let outcome: DomainOutcome<T, R>
+  try {
+    outcome = await call()
+  } catch {
+    return unavailable(command, NOW_UNAVAILABLE)
+  }
+  return answered(command, outcome, done)
+}
+
+/** A write that throws has an unknown result. */
+export async function writing<T, R extends Refusal>(
+  command: NotificationsCommandName,
+  call: Call<T, R>,
+  done: (value: T, recalled: boolean) => unknown,
+): Promise<Segment> {
+  let outcome: DomainOutcome<T, R>
+  try {
+    outcome = await call()
+  } catch {
+    return unknown(command)
+  }
+  return answered(command, outcome, done)
 }

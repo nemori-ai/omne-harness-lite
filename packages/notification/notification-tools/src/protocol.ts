@@ -102,6 +102,8 @@ const shapes = {
   unsubscribe: kind.extend({ scope: scopeSchema.optional() }),
 } as const satisfies Record<NotificationsCommandName, z.ZodType>
 
+export const subscribeParamsSchema = shapes.subscribe
+
 export type NotificationsArguments = {
   [K in NotificationsCommandName]: Readonly<{ command: K; params: z.output<(typeof shapes)[K]> }>
 }[NotificationsCommandName]
@@ -127,7 +129,7 @@ export const notificationsSummaries: Readonly<Record<NotificationsCommandName, s
 }
 
 export function notificationsContract(name: NotificationsCommandName): ParameterContract {
-  const document = z.toJSONSchema(shapes[name], { io: 'input', unrepresentable: 'any' })
+  const document = z.toJSONSchema(shapes[name])
   const { $schema: _dialect, ...schema } = document as Record<string, unknown>
   return { schema: tree(schema), vocabulary, descriptions: [] }
 }
@@ -147,9 +149,10 @@ export function notificationsParameterCodec(
       if ('failure' in read) return read
       const parsed = shapes[name].safeParse(JSON.parse(writeJsonText(read.ok)))
       if (!parsed.success) {
-        const issue = parsed.error.issues[0]
-        const at = issue === undefined || issue.path.length === 0 ? '' : `${issue.path.join('.')}: `
-        return fail({ kind: 'invalid', reason: `${at}${issue?.message ?? 'invalid'}` })
+        const problems = parsed.error.issues.map(({ path, message }) =>
+          path.length === 0 ? message : `${path.join('.')}: ${message}`,
+        )
+        return fail({ kind: 'invalid', reason: problems.join('; ') })
       }
       return succeed({ command: name, params: parsed.data } as NotificationsArguments)
     },

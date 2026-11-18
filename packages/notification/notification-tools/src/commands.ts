@@ -10,7 +10,7 @@ import { succeed } from '@omne-harness/operation-result'
 import { consentCard, encodeConsentState, requestTree } from './consent.ts'
 import type { BoundNotifications, Reached } from './port.ts'
 import type { ArgumentsOf, NotificationsCommandName } from './protocol.ts'
-import { settle, tooLarge, unknown, type Segment } from './results.ts'
+import { answered, reading, tooLarge, unknown, writing, type Segment } from './results.ts'
 
 const resolutionOf = (marks: Marks) =>
   marks.supersededBy !== null ? 'superseded' : (marks.resolved?.how ?? 'unresolved')
@@ -78,18 +78,16 @@ const send: Handler<'send'> = (reached, params, bound) => {
       origin: { emitter: self, depth: bound.causalDepth() },
     },
   }
-  return settle(
+  return writing(
     'send',
-    'write',
     () => faces.sending.send(context, request),
     (accepted, recalled) => ({ id: params.id, recipients: accepted.recipients, recalled }),
   )
 }
 
 const sent: Handler<'sent'> = (reached, params, bound) =>
-  settle(
+  reading(
     'sent',
-    'read',
     () => reached.faces.sending.querySend(reached.context, postIdentity(reached, bound, params.id)),
     status =>
       status.kind === 'not-submitted'
@@ -112,9 +110,8 @@ const inbox: Handler<'inbox'> = ({ faces, context, self }, params) => {
     after: params.after ?? null,
     limit: params.limit ?? 20,
   }
-  return settle(
+  return reading(
     'inbox',
-    'read',
     () => faces.inbox.list(context, query),
     page => ({ notifications: page.entries.map(entryOf), after: page.next }),
   )
@@ -126,8 +123,7 @@ const refOf = ({ context, self }: Reached, params: ArgumentsOf<'read'>['params']
 })
 
 const read: Handler<'read'> = (reached, params) =>
-  settle(
-    'read',
+  reading(
     'read',
     () => reached.faces.inbox.read(reached.context, refOf(reached, params)),
     view => ({
@@ -142,25 +138,22 @@ const read: Handler<'read'> = (reached, params) =>
 const dispose =
   <K extends Disposal>(operation: K): Handler<K> =>
   (reached, params) =>
-    settle(
+    writing(
       operation,
-      'write',
       () => reached.faces.inbox.mark(reached.context, refOf(reached, params), operation),
       (marks, recalled) => ({ state: resolutionOf(marks), recalled }),
     )
 
 const sources: Handler<'sources'> = ({ faces, context }) =>
-  settle(
+  reading(
     'sources',
-    'read',
     () => faces.catalog.sources(context),
     found => ({ sources: found.map(sourceOf) }),
   )
 
 const subscriptions: Handler<'subscriptions'> = ({ faces, context, self }) =>
-  settle(
+  reading(
     'subscriptions',
-    'read',
     () => faces.subscriptions.list(context, self),
     found => ({ subscriptions: found.map(subscriptionOf) }),
   )
@@ -180,17 +173,17 @@ export const subscribed = (subscription: Subscription, recalled: boolean) => ({
   recalled,
 })
 
-/** The label the owner reads on the card, best effort: a catalogue that cannot answer leaves the names. */
+/** The label the owner reads on the card, best effort: without the catalogue it is the name of the type. */
 async function labelOf({ faces, context }: Reached, change: SubscriptionChange): Promise<string> {
-  try {
-    const found = await faces.catalog.sources(context)
-    const source =
-      found.kind === 'done' ? found.value.find(item => item.name === change.source) : undefined
-    const type = source?.types.find(item => item.name === change.type)
-    return type === undefined ? change.type : `${source?.label ?? change.source}：${type.label}`
-  } catch {
-    return change.type
+  const found = await faces.catalog.sources(context).catch(() => undefined)
+  for (const source of found?.kind === 'done' ? found.value : []) {
+    const type =
+      source.name === change.source
+        ? source.types.find(item => item.name === change.type)
+        : undefined
+    if (type !== undefined) return `${source.label}：${type.label}`
   }
+  return change.type
 }
 
 async function suspendForConsent(
@@ -198,10 +191,14 @@ async function suspendForConsent(
   params: ArgumentsOf<'subscribe'>['params'],
   request: Readonly<{ content: string; change: SubscriptionChange }>,
 ): Promise<Segment> {
-  const label = await labelOf(reached, request.change)
-  const card = consentCard({ change: request.change, content: request.content, label })
-  const state = encodeConsentState({ params, content: request.content, cardId: card.cardId })
-  if ('failure' in state) return tooLarge(state.failure)
+  const { change, content } = request
+  const label = await labelOf(reached, change)
+  const card = consentCard({ self: reached.self, change, content, label })
+  const state = encodeConsentState({ params, content, cardId: card.cardId })
+  if ('failure' in state)
+    return tooLarge(
+      `${state.failure}: the note and the scope are too long to keep while the owner decides; shorten them`,
+    )
   return succeed({
     kind: 'suspended',
     state: state.ok,
@@ -219,9 +216,9 @@ const subscribe: Handler<'subscribe'> = async (reached, params) => {
   } catch {
     return unknown('subscribe')
   }
-  if (outcome.kind === 'needs-confirmation')
-    return suspendForConsent(reached, params, outcome.request)
-  return settle('subscribe', 'write', async () => outcome, subscribed)
+  return outcome.kind === 'needs-confirmation'
+    ? suspendForConsent(reached, params, outcome.request)
+    : answered('subscribe', outcome, subscribed)
 }
 
 const unsubscribe: Handler<'unsubscribe'> = ({ faces, context, self }, params) => {
@@ -231,9 +228,8 @@ const unsubscribe: Handler<'unsubscribe'> = ({ faces, context, self }, params) =
     type: params.type,
     scope: params.scope ?? { kind: 'all' as const },
   }
-  return settle(
+  return writing(
     'unsubscribe',
-    'write',
     () => faces.subscriptions.remove(context, key),
     (_none, recalled) => ({ recalled }),
   )

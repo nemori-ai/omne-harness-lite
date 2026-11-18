@@ -222,7 +222,7 @@ describe('subscribe when the owner asks to confirm', () => {
     const prefix = '字'.repeat(500)
     const big = { ...params, note: '字'.repeat(500), scope: { kind: 'subject-prefix', prefix } }
     const segment = await a.suspended('subscribe', big)
-    expect(segment.state.byteLength).toBeLessThan(16_384)
+    expect(segment.state.byteLength).toBeLessThan(CONSENT_STATE_MAX_BYTES)
     expect(segment.state.byteLength).toBeGreaterThan(6000)
   })
 })

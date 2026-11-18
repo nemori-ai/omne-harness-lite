@@ -1,10 +1,12 @@
 import { createHash } from 'node:crypto'
 import { readJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { SubscriptionChange } from '@omne-harness/notification-contract'
+import { z } from 'zod'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { ToolDecision } from '@omne-harness/tool-contract'
 import { describedAdoption } from '@omne-harness/tool-contract/provider'
-import type { ArgumentsOf } from './protocol.ts'
+import type { AgentRecipient } from './port.ts'
+import { subscribeParamsSchema, type ArgumentsOf } from './protocol.ts'
 
 /** What the call keeps across the wait: the subscribe it was asked, the content the owner sees, and the card raised. */
 export type ConsentState = Readonly<{
@@ -13,7 +15,8 @@ export type ConsentState = Readonly<{
   cardId: string
 }>
 
-export const CONSENT_STATE_MAX_BYTES = 16_384
+/** A subscribe whose note and scope are so long that the kept state is over this is refused. */
+export const CONSENT_STATE_MAX_BYTES = 8192
 export const consentStateIdentity = {
   id: '@omne-harness/notification-tools/consent-state',
   revision: '1',
@@ -53,11 +56,16 @@ function termText(term: SubscriptionChange['term']): string {
 
 /** The inquiry card: which notifications the agent wants, at which level, and for how long. */
 export function consentCard(
-  input: Readonly<{ change: SubscriptionChange; content: string; label: string }>,
+  input: Readonly<{
+    self: AgentRecipient
+    change: SubscriptionChange
+    content: string
+    label: string
+  }>,
 ) {
   const { change, label } = input
   const lines = [
-    `agent「${change.recipient.kind === 'agent' ? change.recipient.ref : '?'}」想订阅通知，需要你确认。`,
+    `agent「${input.self.ref}」想订阅通知，需要你确认。`,
     `通知：${label}（${change.source} / ${change.type}）`,
     `范围：${scopeText(change.scope)}；级别：${LEVELS[change.level]}；期限：${termText(change.term)}`,
     change.note === null ? null : `它写的备注：${change.note}`,
@@ -82,20 +90,23 @@ export function encodeConsentState(state: ConsentState): Outcome<Uint8Array, str
     : succeed(bytes)
 }
 
-const decoder = new TextDecoder('utf-8', { fatal: true })
+const stateSchema = z.strictObject({
+  params: subscribeParamsSchema,
+  content: z.string(),
+  cardId: z.string(),
+})
 
+/** A kept state is readable when it is whole and its card is the card of its content. */
 export function readConsentState(bytes: Uint8Array): Outcome<ConsentState, string> {
   let value: unknown
   try {
-    value = JSON.parse(decoder.decode(bytes))
+    value = JSON.parse(new TextDecoder().decode(bytes))
   } catch {
     return fail('consent-state-unreadable')
   }
-  if (typeof value !== 'object' || value === null) return fail('consent-state-unreadable')
-  const { params, content, cardId } = value as Record<string, unknown>
-  const whole = typeof params === 'object' && params !== null && typeof content === 'string'
-  return whole && cardId === cardIdOf(content)
-    ? succeed(value as ConsentState)
+  const parsed = stateSchema.safeParse(value)
+  return parsed.success && parsed.data.cardId === cardIdOf(parsed.data.content)
+    ? succeed(parsed.data)
     : fail('consent-state-unreadable')
 }
 

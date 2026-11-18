@@ -36,7 +36,7 @@ export type Reached = Readonly<{
   self: AgentRecipient
 }>
 
-export type Unreachable = Readonly<{ kind: 'unreachable'; reason: 'unavailable' | 'forbidden' }>
+export type Unreachable = Readonly<{ unreachable: 'unavailable' | 'forbidden' }>
 
 /** The notification services bound to one call. What identifies the agent comes from the call, never from the model. */
 export type BoundNotifications = Readonly<{
@@ -49,8 +49,8 @@ export type BoundNotifications = Readonly<{
   now(): string
 }>
 
-const unavailable: Unreachable = { kind: 'unreachable', reason: 'unavailable' }
-const forbidden: Unreachable = { kind: 'unreachable', reason: 'forbidden' }
+const unavailable: Unreachable = { unreachable: 'unavailable' }
+const forbidden: Unreachable = { unreachable: 'forbidden' }
 
 const digestOf = (value: unknown, length: number) =>
   createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, length)
@@ -61,12 +61,7 @@ export function bindNotifications(source: NotificationCallSource): BoundNotifica
     async reach() {
       const faces = source.faces()
       if (faces === undefined) return unavailable
-      let context: CallContext | undefined
-      try {
-        context = await source.context()
-      } catch {
-        return unavailable
-      }
+      const context = await (async () => source.context())().catch(() => undefined)
       if (context === undefined) return unavailable
       if (context.tenant !== source.tenant || context.actor.kind !== 'agent') return forbidden
       return { faces, context, self: context.actor.recipient }

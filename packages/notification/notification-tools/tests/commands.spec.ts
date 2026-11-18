@@ -256,6 +256,7 @@ describe('sources and subscriptions', () => {
       source: 'demo.things',
       label: 'Demo',
       types: [
+        expect.objectContaining({ type: 'for-people', agentsMaySubscribe: false }),
         {
           type: 'changed',
           label: 'Label of changed',
@@ -265,7 +266,6 @@ describe('sources and subscriptions', () => {
           agentsMaySubscribe: true,
           agentDefault: 'off',
         },
-        expect.objectContaining({ type: 'for-people', agentsMaySubscribe: false }),
       ],
     })
   })
