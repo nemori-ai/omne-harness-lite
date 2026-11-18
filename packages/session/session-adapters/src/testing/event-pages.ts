@@ -1,28 +1,16 @@
-import type {
-  Adoption,
-  AgentEvent,
-  AgentJournalEntry,
-  EventPage,
-  Failure,
-} from '@omne-harness/agent-contract'
+import type { Adoption, AgentEvent, EventPage, Failure } from '@omne-harness/agent-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { BlobStore, EventView, Mint } from '../journal/index.ts'
 import type { ClosedTable } from './closed-items.ts'
-import { ENTRY_FAMILY, readingRows } from './closed-rows.ts'
+import { between, readingRows } from './closed-rows.ts'
 import { eventRecord } from './journal-records.ts'
 import type { MemoryExecution } from './journal.ts'
 import { journalEvidence, sequenceOf } from './journal-values.ts'
 
-// Pages of what an execution emitted and of the entries it took. The record keeps the places it
-// still holds; a closed one is read back by its place.
+// Pages of what an execution emitted. The record keeps the places it still holds; a closed one is
+// read back by its place.
 
 type Table = ClosedTable & Readonly<{ blobs: BlobStore }>
-
-const between = <T>(rows: readonly (T | undefined)[], from: number, limit: number) =>
-  Array.from(
-    { length: Math.max(0, Math.min(limit, rows.length - from)) },
-    (_, at) => rows[from + at],
-  )
 
 const invalid = (field: string, reason: string): Failure => ({ kind: 'invalid', field, reason })
 
@@ -78,21 +66,4 @@ export function eventPage(
     next: String(next),
     caughtUp: next === execution.events.length,
   })
-}
-
-// The entries after a position (null: one of them is not readable).
-export function entriesFrom(
-  table: Table,
-  execution: MemoryExecution,
-  from: number,
-  limit: number,
-): AgentJournalEntry[] | null {
-  const read = readingRows(
-    table,
-    { execution: execution.id, family: ENTRY_FAMILY },
-    execution.entries,
-    body => body as AgentJournalEntry,
-    rows => between(rows, from, limit),
-  )
-  return read.some(entry => entry === undefined) ? null : (read as AgentJournalEntry[])
 }

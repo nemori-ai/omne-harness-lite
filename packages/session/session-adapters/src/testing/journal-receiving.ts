@@ -41,7 +41,7 @@ import type {
   ToolReceptionTargets,
 } from './reception-targets.ts'
 import { canonical } from './canonical.ts'
-import { entriesFrom } from './event-pages.ts'
+import { entriesFrom } from './closed-rows.ts'
 import { jsonTree } from './material-value.ts'
 import type { Attempt, JournalWrite, MemoryExecution, OperationRecord } from './journal.ts'
 import { JOURNAL_OWNER, semanticKey } from './journal-values.ts'

@@ -1,4 +1,4 @@
-import type { AgentExecutionId } from '@omne-harness/agent-contract'
+import type { AgentExecutionId, AgentJournalEntry } from '@omne-harness/agent-contract'
 import { NeedItems, itemText, type ClosedTable, type ItemRef } from './closed-items.ts'
 
 // Records by place as a read sees them: a hole is answered by the closed item at that place (its
@@ -35,7 +35,30 @@ export function readingRows<T, R>(
   return answer
 }
 
+export const between = <T>(rows: readonly (T | undefined)[], from: number, limit: number) =>
+  Array.from(
+    { length: Math.max(0, Math.min(limit, rows.length - from)) },
+    (_, at) => rows[from + at],
+  )
+
 export const ENTRY_FAMILY = 'entry'
+
+// The entries after a position (null: one of them is not readable).
+export function entriesFrom(
+  table: ClosedTable,
+  execution: Readonly<{ id: AgentExecutionId; entries: readonly AgentJournalEntry[] }>,
+  from: number,
+  limit: number,
+): AgentJournalEntry[] | null {
+  const read = readingRows(
+    table,
+    { execution: execution.id, family: ENTRY_FAMILY },
+    execution.entries,
+    body => body as AgentJournalEntry,
+    rows => between(rows, from, limit),
+  )
+  return read.some(entry => entry === undefined) ? null : (read as AgentJournalEntry[])
+}
 // Where a call was first registered and where it was associated: two items, each written once.
 export const ORIGIN_FAMILY = 'origin'
 export const ASSOCIATION_FAMILY = 'association'
