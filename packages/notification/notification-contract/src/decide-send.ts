@@ -4,7 +4,13 @@ import {
   type EventTypeDeclaration,
   type SourceLookup,
 } from './declarations.ts'
-import { sameRecipient, type EventFacts, type RecipientRef, type SendRequest } from './values.ts'
+import {
+  recipientKey,
+  sameRecipient,
+  type EventFacts,
+  type RecipientRef,
+  type SendRequest,
+} from './values.ts'
 
 export type SendLimits = Readonly<{ bodyLength: number; causalDepth: number }>
 export type AuthorityAnswer = 'allowed' | 'denied' | 'unavailable'
@@ -50,22 +56,56 @@ export function precheckSend(
   return { kind: 'proceed' }
 }
 
-function sameRecipients(a: readonly RecipientRef[], b: readonly RecipientRef[]): boolean {
-  return a.length === b.length && a.every((entry, index) => sameRecipient(entry, b[index]!))
+/** The parts of an event that make two sends under one identity the same send. */
+function sendFingerprint(event: EventFacts): string {
+  const { type, subject, content, named, replaceKey } = event
+  return JSON.stringify([
+    type,
+    subject,
+    content.title,
+    content.body,
+    content.locator === null ? null : [content.locator.kind, content.locator.ref],
+    named.map(recipientKey),
+    replaceKey,
+  ])
 }
 
 /** Two sends under one identity are the same send when these five parts agree. */
 export function sameSend(a: EventFacts, b: EventFacts): boolean {
-  return (
-    a.type === b.type &&
-    a.subject === b.subject &&
-    a.content.title === b.content.title &&
-    a.content.body === b.content.body &&
-    a.content.locator?.kind === b.content.locator?.kind &&
-    a.content.locator?.ref === b.content.locator?.ref &&
-    sameRecipients(a.named, b.named) &&
-    a.replaceKey === b.replaceKey
-  )
+  return sendFingerprint(a) === sendFingerprint(b)
+}
+
+type Refusal = Readonly<{ kind: 'refused'; reason: SendRefusal }>
+type Unavailable = Readonly<{ kind: 'basis-unavailable' }>
+const refuse = (reason: SendRefusal): Refusal => ({ kind: 'refused', reason })
+
+/** Step four: the type is declared, happens once, and the subject fits its notation. */
+function checkDeclared(
+  source: SourceLookup,
+  event: EventFacts,
+): Readonly<{ kind: 'declared'; declared: EventTypeDeclaration }> | Refusal | Unavailable {
+  if (source.kind !== 'registered') return { kind: 'basis-unavailable' }
+  const declared = findEventType(source.declaration, event.type)
+  if (declared === null) return refuse('unknown-event-type')
+  if (declared.kind.kind === 'standing') return refuse('standing-type')
+  if (!subjectAccepted(declared.subject, event.subject)) return refuse('invalid-subject')
+  return { kind: 'declared', declared }
+}
+
+/** Step five: every named recipient is of an allowed kind and admissible in this tenant. */
+function checkNamed(
+  event: EventFacts,
+  declared: EventTypeDeclaration,
+  named: readonly NamedCheck[],
+): Refusal | Unavailable | null {
+  for (const recipient of event.named) {
+    if (!declared.nameable.includes(recipient.kind)) return refuse('naming-not-allowed')
+    const check = named.find(entry => sameRecipient(entry.recipient, recipient))
+    if (check === undefined || check.admissible === 'denied')
+      return refuse('recipient-not-admissible')
+    if (check.admissible === 'unavailable') return { kind: 'basis-unavailable' }
+  }
+  return null
 }
 
 /**
@@ -81,24 +121,12 @@ export function decideSend(
 ): SendDecision {
   const { event } = request
   if (known !== null)
-    return sameSend(known.event, event)
-      ? { kind: 'recalled' }
-      : { kind: 'refused', reason: 'conflict' }
-  if (source.kind !== 'registered') return { kind: 'basis-unavailable' }
-  const declared = findEventType(source.declaration, event.type)
-  if (declared === null) return { kind: 'refused', reason: 'unknown-event-type' }
-  if (declared.kind.kind === 'standing') return { kind: 'refused', reason: 'standing-type' }
-  if (!subjectAccepted(declared.subject, event.subject))
-    return { kind: 'refused', reason: 'invalid-subject' }
-  for (const recipient of event.named) {
-    if (!declared.nameable.includes(recipient.kind))
-      return { kind: 'refused', reason: 'naming-not-allowed' }
-    const check = named.find(entry => sameRecipient(entry.recipient, recipient))
-    if (check === undefined || check.admissible === 'denied')
-      return { kind: 'refused', reason: 'recipient-not-admissible' }
-    if (check.admissible === 'unavailable') return { kind: 'basis-unavailable' }
-  }
+    return sameSend(known.event, event) ? { kind: 'recalled' } : refuse('conflict')
+  const type = checkDeclared(source, event)
+  if (type.kind !== 'declared') return type
+  const naming = checkNamed(event, type.declared, named)
+  if (naming !== null) return naming
   if (event.origin !== null && event.origin.depth > limits.causalDepth)
-    return { kind: 'refused', reason: 'causal-depth-exceeded' }
-  return { kind: 'proceed', declared }
+    return refuse('causal-depth-exceeded')
+  return { kind: 'proceed', declared: type.declared }
 }

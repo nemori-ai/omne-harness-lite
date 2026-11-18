@@ -7,7 +7,13 @@ import {
   type Selected,
   type Subscription,
 } from './model.ts'
-import { sameRecipient, type EventFacts, type Instant, type RecipientRef } from './values.ts'
+import {
+  sameRecipient,
+  type Cause,
+  type EventFacts,
+  type Instant,
+  type RecipientRef,
+} from './values.ts'
 
 function mostSpecific(
   recipient: RecipientRef,
@@ -30,9 +36,37 @@ function mostSpecific(
   return best
 }
 
+function causeOf(named: boolean, subscription: Subscription | null): Cause {
+  if (named) return { kind: 'named' }
+  if (subscription === null) return { kind: 'type-default' }
+  return { kind: 'subscription', scope: subscription.scope, note: subscription.note }
+}
+
+/** One recipient's answer: selected with a level and a cause, or not selected. */
+function selectOne(
+  recipient: RecipientRef,
+  event: EventFacts,
+  declared: EventTypeFacts,
+  subscriptions: readonly Subscription[],
+  now: Instant,
+): Selected | null {
+  const subscription = mostSpecific(recipient, event.subject, subscriptions, now)
+  const value = subscription === null ? declared.defaults[recipient.kind] : subscription.level
+  const named = event.named.some(entry => sameRecipient(entry, recipient))
+  if (value === 'off')
+    return named ? { recipient, level: 'weak', cause: { kind: 'named' }, hit: null } : null
+  return {
+    recipient,
+    level: value,
+    cause: causeOf(named, subscription),
+    hit: subscription === null ? null : subscriptionKeyOf(subscription),
+  }
+}
+
 /**
  * Decides who gets this event, how urgent it is for each, and why.
  * `subscriptions` are those of the tenant on this source and this event type.
+ * The recipient that emitted the event is never selected.
  */
 export function selectRecipients(
   event: EventFacts,
@@ -41,24 +75,9 @@ export function selectRecipients(
   subscriptions: readonly Subscription[],
   now: Instant,
 ): readonly Selected[] {
-  const selected: Selected[] = []
-  for (const recipient of recipients) {
-    if (event.origin !== null && sameRecipient(event.origin.emitter, recipient)) continue
-    const subscription = mostSpecific(recipient, event.subject, subscriptions, now)
-    const value = subscription === null ? declared.defaults[recipient.kind] : subscription.level
-    const named = event.named.some(entry => sameRecipient(entry, recipient))
-    if (value === 'off' && !named) continue
-    const hit = subscription !== null && value !== 'off' ? subscriptionKeyOf(subscription) : null
-    selected.push({
-      recipient,
-      level: value === 'off' ? 'weak' : value,
-      cause: named
-        ? { kind: 'named' }
-        : subscription === null
-          ? { kind: 'type-default' }
-          : { kind: 'subscription', scope: subscription.scope, note: subscription.note },
-      hit,
-    })
-  }
-  return selected
+  const emitter = event.origin?.emitter ?? null
+  return recipients
+    .filter(recipient => emitter === null || !sameRecipient(emitter, recipient))
+    .map(recipient => selectOne(recipient, event, declared, subscriptions, now))
+    .filter(entry => entry !== null)
 }
