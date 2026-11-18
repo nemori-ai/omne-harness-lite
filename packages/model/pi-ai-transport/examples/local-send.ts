@@ -118,6 +118,7 @@ function exampleBinding(bound: Supplier): PiFamilyBinding {
           requestBytes: '0',
         },
         diagnostics: [],
+        replayPrefix: 'h:none.s:none.t:none.p:none',
       },
     }),
     createDecoder,

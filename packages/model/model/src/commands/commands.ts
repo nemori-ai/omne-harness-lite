@@ -19,6 +19,7 @@ import type {
   ReadStart,
   Revision,
   Settlement,
+  Termination,
   Snapshot,
 } from '@omne-harness/model-contract'
 import {
@@ -60,6 +61,7 @@ import {
   settlementFailure,
   tasks,
   unresolved,
+  settledReplay,
 } from './judge.ts'
 import {
   accountFact,
@@ -108,6 +110,11 @@ function atDispatch<T>(
     if ('kind' in dispatch) return { failure: dispatch }
     return apply(call, dispatch)
   })
+}
+
+function replayOf(call: Parameters<typeof settledReplay>[0], termination: Termination) {
+  const replay = settledReplay(call, termination)
+  return replay === undefined ? {} : { replay }
 }
 
 export function callCommands<P>(
@@ -326,6 +333,7 @@ export function callCommands<P>(
                   revision: String(BigInt(call.state.revision) + 1n),
                   digest: digest(input.termination),
                 },
+                ...replayOf(call, input.termination),
               }
               if (encodedBytes(settlement) > MAX_SETTLEMENT_BYTES)
                 return { failure: invalid('settlement', 'encoded-byte-limit') }

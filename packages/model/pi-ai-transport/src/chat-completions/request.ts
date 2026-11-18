@@ -81,6 +81,7 @@ function diagnosticsOf(projection: Projection): readonly ProviderDiagnostic[] {
     scope: item.scope,
     format: item.format,
     omittedParts: item.omittedParts,
+    reason: item.reason,
   }))
 }
 
@@ -248,6 +249,7 @@ export function encodeRequest(
     body: JsonValue
     representation: Materialized
     diagnostics: readonly ProviderDiagnostic[]
+    replayPrefix: string
   }>,
   TransportFailure
 > {
@@ -280,5 +282,11 @@ export function encodeRequest(
     representation: request.representation,
   })
   if (!('ok' in encoded)) return encoded
-  return { ok: { ...encoded.ok, diagnostics: diagnosticsOf(projection.ok) } }
+  return {
+    ok: {
+      ...encoded.ok,
+      diagnostics: diagnosticsOf(projection.ok),
+      replayPrefix: projection.ok.replayPrefix,
+    },
+  }
 }

@@ -125,6 +125,7 @@
 - `RetryPosition` · `provider-protocol.d.ts`
 - `RetryResolution` · `provider-protocol.d.ts`
 - `Revision` · `root.d.ts`
+- `SettledReplay` · `result.d.ts`
 - `Settlement` · `result.d.ts`
 - `Snapshot` · `call-surface.d.ts`
 - `Supplier` · `root.d.ts`
@@ -258,7 +259,9 @@
 - `ProviderDiagnostic` · `provider-protocol.d.ts`
 - `Publication` · `provider-protocol.d.ts`
 - `RecoveryRecord` · `provider-protocol.d.ts`
+- `ReplayBinding` · `profile.d.ts`
 - `ReplayDiagnostic` · `profile.d.ts`
+- `ReplayOmission` · `profile.d.ts`
 - `ReplayProjection` · `profile.d.ts`
 - `ReplayProjectionInput` · `profile.d.ts`
 - `ReplayTreatment` · `profile.d.ts`
@@ -1913,22 +1916,29 @@ export type ReplayTreatment = Readonly<{
     omit: readonly number[];
     thinking: ForeignThinking;
 }>);
+export type ReplayOmission = 'scope' | 'format' | 'resent' | 'no-prefix' | 'prefix-history' | 'prefix-system' | 'prefix-tools' | 'prefix-projection';
 export type ReplayDiagnostic = Readonly<{
     message: MessageId;
     scope: string;
     format: string;
     omittedParts: number;
+    reason: ReplayOmission;
 }>;
+export type ReplayBinding = 'prefix' | 'none';
 export type ReplayProjectionInput = Readonly<{
     messages: readonly Message[];
     declaration: ReplayDeclaration;
     formats: ReadonlySet<string>;
     off: boolean;
     resent: ReadonlySet<MessageId>;
+    system: unknown;
+    tools: unknown;
+    binding: ReplayBinding;
 }>;
 export type ReplayProjection = Readonly<{
     treatments: readonly ReplayTreatment[];
     diagnostics: readonly ReplayDiagnostic[];
+    prefix: string;
 }>;
 ```
 
@@ -1985,6 +1995,7 @@ import type { Access, Adoption, ActorRef, Admit, CallAccess, ConsumerRef, Dispat
 import type { AckInput, AckReceipt, Admission, CallState, ControlState, CustodyState, DurableEvidence, ModelFailure, ModelBlock, ModelFault, Lookup, Reply, Settlement, Termination } from './result.ts';
 import type { DispatchRecord, GrowingContentKind, LiveRoute, ModelHandle, ModelRuntime, ReadState, ReadStart, Snapshot } from './call-surface.ts';
 import type { CallAccount } from '@omne-harness/call-account';
+import type { ReplayOmission } from './profile.ts';
 export type TransportFailure = Extract<ModelFailure, {
     kind: 'denied' | 'invalid' | 'unsupported' | 'unavailable';
 }>;
@@ -2017,6 +2028,7 @@ export type ProviderDiagnostic = Readonly<{
     scope: string;
     format: string;
     omittedParts: number;
+    reason: ReplayOmission;
 }> | Readonly<{
     kind: 'reasoning-disabled';
     reason: 'foreign-prefix';
@@ -2080,6 +2092,7 @@ export type MaterializationReceipt = Readonly<{
     representation: Adoption;
     payloadDigest: string;
     replayFormat?: string;
+    replayPrefix?: string;
 }>;
 export interface MaterializedTransport {
     readonly receipt: MaterializationReceipt;
@@ -2324,7 +2337,7 @@ export interface ModelProvider<P> {
 ```ts
 export type { ActorRef, FixedRequestHead } from '../root.ts';
 export type { CallAccountReport, CommitQuery, DispatchPlan, ExecutionRef, IndependentModelFact, LateDispatchFact, MaterializedTransport, ModelClock, ModelCommands, ModelInstanceDirectory, ModelInstanceHost, ModelMediaLease, ModelMediaReader, ModelProvider, ModelRetryPolicy, ModelSendBoundary, ModelToolPayloadAdapter, ModelTransport, PreparedTransport, ProviderDiagnostic, Publication, RecoveryRecord, SendDemand, SendResult, TransportDispatch, TransportFact, TransportTermination, WriteContext, } from '../provider-protocol.ts';
-export type { CalibratedInputMeter, MeterCalibration, ModelChoices, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, OutputWithheld, ProfileChange, ReplayDiagnostic, ReplayProjection, ReplayProjectionInput, ReplayTreatment, } from '../profile.ts';
+export type { CalibratedInputMeter, MeterCalibration, ModelChoices, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, OutputWithheld, ProfileChange, ReplayBinding, ReplayDiagnostic, ReplayOmission, ReplayProjection, ReplayProjectionInput, ReplayTreatment, } from '../profile.ts';
 export type { ConversionFailure, ConversionReply, ConverterKey, ConverterLookup, ModelConverter, ModelConverterCatalog, ModelMessageConversion, } from '../conversion.ts';
 export type { ModelTextTokenizer, TokenizationFailure, TokenizationSegment } from '../tokenizer.ts';
 export type { ModelBindingFailure, ModelDriveInput, ModelDriver, ModelDriverBinding, ModelDriverHost, ModelHostAuthority, } from '../driver.ts';
@@ -2611,11 +2624,17 @@ export type Termination = Readonly<{
     kind: 'interrupted';
     control: ModelOperationId;
 }>;
+export type SettledReplay = Readonly<{
+    scope: string;
+    format: string;
+    prefix?: string;
+}>;
 export type Settlement = Readonly<{
     version: ResultVersion;
     termination: Termination;
     cursor: OutputCursor;
     source: DurableEvidence;
+    replay?: SettledReplay;
 }>;
 export type CustodyState = Readonly<{
     kind: 'producer';

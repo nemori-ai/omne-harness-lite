@@ -55,6 +55,8 @@ export type PiFamilyBinding = Readonly<{
       body: JsonValue
       representation: Extract<MeterRepresentation, { kind: 'materialized' }>
       diagnostics: readonly ProviderDiagnostic[]
+      /** The prefix of this request; a reply it produces records it in its replay mark. */
+      replayPrefix: string
     }>,
     TransportFailure
   >

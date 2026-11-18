@@ -30,6 +30,7 @@
 - `MessageRoleMap` · `message.d.ts`
 - `PairingWitness` · `compaction.d.ts`
 - `REASONING_STATE_PAYLOAD_MAX_LENGTH` · `reasoning.d.ts`
+- `REPLAY_PREFIX_MAX_LENGTH` · `reasoning.d.ts`
 - `REPLAY_TAG_MAX_LENGTH` · `reasoning.d.ts`
 - `ReasoningReplay` · `reasoning.d.ts`
 - `ReasoningStatePart` · `reasoning.d.ts`
@@ -137,7 +138,7 @@ export type { CompactedRange, CompactionDerivation, RecordEntryRef } from './com
 export { judgeCompaction } from './compaction.ts';
 export type { CompactionBase, CompactionContext, CompactionJudgment, CompactionRejection, CoveredEntry, PairingWitness, } from './compaction.ts';
 export { judgePart } from './parts.ts';
-export { REASONING_STATE_PAYLOAD_MAX_LENGTH, REPLAY_TAG_MAX_LENGTH, isReplayTag, } from './reasoning.ts';
+export { REASONING_STATE_PAYLOAD_MAX_LENGTH, REPLAY_TAG_MAX_LENGTH, REPLAY_PREFIX_MAX_LENGTH, isReplayTag, } from './reasoning.ts';
 export type { ReasoningReplay, ReasoningStatePart } from './reasoning.ts';
 export type { CallPart, IncompleteToolCallPart, MessageContentBlock, MessagePart, ToolCallPart, ToolPart, ToolResultPart, UnparsedToolCallPart, } from './parts.ts';
 export { projectMessage } from './projection.ts';
@@ -310,10 +311,12 @@ export type ReasoningStatePart = Readonly<{
     payload: string;
     pairs: readonly BlockId[];
 }>;
+export declare const REPLAY_PREFIX_MAX_LENGTH = 1024;
 export type ReasoningReplay = Readonly<{
     scope: string;
     format: string;
     at: readonly number[];
+    prefix?: string;
 }>;
 export type ReasoningStateField = 'id' | 'visibility' | 'payload' | 'pairs';
 export declare const REASONING_STATE_FIELDS: readonly ReasoningStateField[];

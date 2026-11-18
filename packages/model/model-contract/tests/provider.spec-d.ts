@@ -152,7 +152,7 @@ it('a materialization receipt names the supplier, the representation and the pay
     budget,
   }
   expectTypeOf<keyof MaterializationReceipt>().toEqualTypeOf<
-    'supplier' | 'representation' | 'payloadDigest' | 'replayFormat'
+    'supplier' | 'representation' | 'payloadDigest' | 'replayFormat' | 'replayPrefix'
   >()
   void [noDigest, withBudget]
 })
@@ -294,7 +294,14 @@ it('a provider reports an account without the call and without the receipt', () 
 
 it('ProviderDiagnostic is the closed set of four diagnostics without a payload', () => {
   const diagnostics: ProviderDiagnostic[] = [
-    { kind: 'replay-omitted', message: message.id, scope: 's', format: 'f', omittedParts: 1 },
+    {
+      kind: 'replay-omitted',
+      message: message.id,
+      scope: 's',
+      format: 'f',
+      omittedParts: 1,
+      reason: 'scope',
+    },
     { kind: 'reasoning-disabled', reason: 'foreign-prefix' },
     { kind: 'reasoning-state-dropped', reason: 'payload-too-long', length: 9 },
     { kind: 'usage-inconsistent', field: 'completion_tokens' },

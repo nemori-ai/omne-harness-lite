@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { judgePart, parseMessageId } from '@omne-harness/message'
 import { assembleStream } from '@omne-harness/stream-arrival'
 import { readJsonText, writeJsonText } from '@omne-harness/json-text'
-import { isReplayTag } from '@omne-harness/message'
+import { isReplayTag, REPLAY_PREFIX_MAX_LENGTH } from '@omne-harness/message'
 import { parseInstant } from '@omne-harness/utc-instant'
 import type { Outcome } from '@omne-harness/operation-result'
 import { decodeRevision } from '@omne-harness/model-contract'
@@ -19,6 +19,7 @@ import type {
   Revision,
   Settlement,
   Supplier,
+  SettledReplay,
   Termination,
   VisibleBlock,
 } from '@omne-harness/model-contract'
@@ -169,7 +170,11 @@ export function receiptBinds(
     digest(receipt.supplier) === digest(supplier.adoption) &&
     digest(receipt.representation) === digest(request.representation) &&
     /^[0-9a-f]{64}$/u.test(receipt.payloadDigest) &&
-    (receipt.replayFormat === undefined || isReplayTag(receipt.replayFormat))
+    (receipt.replayFormat === undefined || isReplayTag(receipt.replayFormat)) &&
+    (receipt.replayPrefix === undefined ||
+      (receipt.replayFormat !== undefined &&
+        receipt.replayPrefix.length > 0 &&
+        receipt.replayPrefix.length <= REPLAY_PREFIX_MAX_LENGTH))
   )
 }
 export function dispatchOf(call: CallDocument, id: string): DispatchDocument | ModelFailure {
@@ -418,7 +423,7 @@ export type Completion =
   | Readonly<{ kind: 'refused' | 'replay-unknown'; failure: ModelFailure }>
 type FinishReplay =
   | Readonly<{ kind: 'none' }>
-  | Readonly<{ kind: 'range'; scope: string; format: string }>
+  | Readonly<{ kind: 'range'; range: SettledReplay }>
   | Readonly<{ kind: 'unknown'; failure: ModelFailure }>
 function finishReplay(
   call: CallDocument,
@@ -427,7 +432,8 @@ function finishReplay(
 ): FinishReplay {
   const state = blocks.some(block => block.kind === 'reasoning_state')
   if (!state && !blocks.some(block => block.kind === 'thinking')) return { kind: 'none' }
-  const format = dispatch.record.materialization?.receipt.replayFormat
+  const receipt = dispatch.record.materialization?.receipt
+  const format = receipt?.replayFormat
   if (format === undefined)
     return state
       ? { kind: 'unknown', failure: invalid('termination', 'replay-format-unknown') }
@@ -435,12 +441,25 @@ function finishReplay(
   const supplier = digest(dispatch.record.supplier)
   const index = call.request?.suppliers.findIndex(item => digest(item) === supplier) ?? -1
   const scope = call.request?.declarations[index]?.produces
-  if (scope !== undefined) return { kind: 'range', scope, format }
+  const prefix = receipt?.replayPrefix
+  if (scope !== undefined)
+    return { kind: 'range', range: { scope, format, ...(prefix === undefined ? {} : { prefix }) } }
   if (!state) return { kind: 'none' }
   throw new TypeError(
     'a completion with reasoning state found no replay declaration for its dispatch supplier: ' +
       'the request must declare every supplier, and cleanup must clear the blocks with the request',
   )
+}
+/** The replay range a settled result carries: the latest dispatch completed it. */
+export function settledReplay(
+  call: CallDocument,
+  termination: Termination,
+): SettledReplay | undefined {
+  const latest = call.dispatches.at(-1)
+  if (termination.kind !== 'completed' || latest === undefined) return undefined
+  const sealed = latest.blocks.flatMap(b => (b.kind === 'sealed' ? [b.block] : []))
+  const replay = finishReplay(call, latest, sealed)
+  return replay.kind === 'range' ? replay.range : undefined
 }
 export function completionOf(
   call: CallDocument,
@@ -464,18 +483,28 @@ export function completionOf(
   steps.push(
     replay.kind === 'none'
       ? { step: 'finish', index }
-      : { step: 'finish', index, replay: { scope: replay.scope, format: replay.format } },
+      : { step: 'finish', index, replay: replay.range },
   )
   if ('rejected' in assembleStream({ target: target(), steps }))
     return { kind: 'refused', failure: invalid('termination', 'invalid-completion') }
   return { kind: 'formed' }
 }
 const DIAGNOSTIC_FIELDS: Readonly<Record<ProviderDiagnostic['kind'], readonly string[]>> = {
-  'replay-omitted': ['kind', 'message', 'scope', 'format', 'omittedParts'],
+  'replay-omitted': ['kind', 'message', 'scope', 'format', 'omittedParts', 'reason'],
   'reasoning-disabled': ['kind', 'reason'],
   'reasoning-state-dropped': ['kind', 'reason', 'length'],
   'usage-inconsistent': ['kind', 'field'],
 }
+const REPLAY_OMISSIONS: ReadonlySet<string> = new Set([
+  'scope',
+  'format',
+  'resent',
+  'no-prefix',
+  'prefix-history',
+  'prefix-system',
+  'prefix-tools',
+  'prefix-projection',
+])
 function isCount(value: unknown): boolean {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 }
@@ -495,7 +524,8 @@ export function wellFormed(diagnostic: ProviderDiagnostic): boolean {
         parseMessageId(diagnostic.message).ok &&
         isText(diagnostic.scope) &&
         isText(diagnostic.format) &&
-        isCount(diagnostic.omittedParts)
+        isCount(diagnostic.omittedParts) &&
+        REPLAY_OMISSIONS.has(diagnostic.reason)
       )
     case 'reasoning-disabled':
       return diagnostic.reason === 'foreign-prefix'

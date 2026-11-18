@@ -18,10 +18,14 @@ export type ReasoningStatePart = Readonly<{
   pairs: readonly BlockId[]
 }>
 
+export const REPLAY_PREFIX_MAX_LENGTH = 1024
+
 export type ReasoningReplay = Readonly<{
   scope: string
   format: string
   at: readonly number[]
+  /** The digest of what preceded this message when its reasoning state was produced. */
+  prefix?: string
 }>
 
 export type ReasoningStateField = 'id' | 'visibility' | 'payload' | 'pairs'
@@ -90,12 +94,18 @@ function readAt(raw: unknown): readonly number[] | undefined {
   return Object.freeze(at)
 }
 
+function isPrefix(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= REPLAY_PREFIX_MAX_LENGTH
+}
+
 export function judgeReplay(raw: unknown): ReasoningReplay | undefined {
-  const fields = closedFields(raw, REPLAY_KEYS)
+  const prefixed = closedFields(raw, [...REPLAY_KEYS, 'prefix'])
+  const fields = prefixed ?? closedFields(raw, REPLAY_KEYS)
   if (fields === undefined) return undefined
-  const { scope, format } = fields
+  const { scope, format, prefix } = fields
   if (!isReplayTag(scope) || !isReplayTag(format)) return undefined
   const at = readAt(fields.at)
   if (at === undefined) return undefined
-  return Object.freeze({ scope, format, at })
+  if (prefixed === undefined) return Object.freeze({ scope, format, at })
+  return isPrefix(prefix) ? Object.freeze({ scope, format, at, prefix }) : undefined
 }

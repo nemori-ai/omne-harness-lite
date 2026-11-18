@@ -94,11 +94,14 @@ export type Termination =
   | Readonly<{ kind: 'completed'; reason: 'stop' | 'limit' | 'tool-suggestions' }>
   | Readonly<{ kind: 'failed'; fault: ModelFault }>
   | Readonly<{ kind: 'interrupted'; control: ModelOperationId }>
+/** The replay range of a completed result: what its reasoning state belongs to, and on what prefix. */
+export type SettledReplay = Readonly<{ scope: string; format: string; prefix?: string }>
 export type Settlement = Readonly<{
   version: ResultVersion
   termination: Termination
   cursor: OutputCursor
   source: DurableEvidence
+  replay?: SettledReplay
 }>
 export type CustodyState =
   | Readonly<{ kind: 'producer' }>

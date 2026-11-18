@@ -1,9 +1,15 @@
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { isReplayTag, type AssistantMessage, type MessageId } from '@omne-harness/message'
+import {
+  isReplayTag,
+  type AssistantMessage,
+  type Message,
+  type MessageId,
+} from '@omne-harness/message'
 import type {
   ForeignThinking,
   ReplayDeclaration,
   ReplayDiagnostic,
+  ReplayOmission,
   ReplayProjection,
   ReplayProjectionInput,
   ReplayTreatment,
@@ -90,27 +96,95 @@ export function projectReplay(input: ReplayProjectionInput): ReplayProjection {
   const accepted: ReadonlySet<string> = new Set(input.declaration.accepts)
   const treatments: ReplayTreatment[] = []
   const diagnostics: ReplayDiagnostic[] = []
+  const prefix = createPrefix(input.system, input.tools)
   input.messages.forEach((message, index) => {
-    if (message.role !== 'assistant') return
-    const continuable = canContinue(message, input, accepted)
-    treatments.push(treat(message, index, continuable, input.declaration.foreignThinking))
-    const diagnostic = continuable ? null : diagnose(message)
-    if (diagnostic !== null) diagnostics.push(diagnostic)
+    if (message.role === 'assistant') {
+      const omission = omissionOf(message, input, accepted, prefix.current())
+      const treatment = treat(message, index, omission === null, input.declaration.foreignThinking)
+      treatments.push(treatment)
+      const diagnostic =
+        omission === null || omission === 'off' ? null : diagnose(message, omission)
+      if (diagnostic !== null) diagnostics.push(diagnostic)
+      prefix.add(message, treatment.continuable)
+    } else prefix.add(message, null)
   })
   return Object.freeze({
     treatments: Object.freeze(treatments),
     diagnostics: Object.freeze(diagnostics),
+    prefix: prefix.current(),
   })
 }
 
-function canContinue(
+// T1: the first rule that holds decides; null carries the state.
+function omissionOf(
   message: AssistantMessage,
   input: ReplayProjectionInput,
   accepted: ReadonlySet<string>,
-): boolean {
+  prefix: string,
+): ReplayOmission | 'off' | null {
   const { replay } = message
-  if (input.off || replay === undefined || input.resent.has(message.id)) return false
-  return accepted.has(replay.scope) && input.formats.has(replay.format)
+  if (input.off) return 'off'
+  if (replay === undefined) return 'scope'
+  if (!accepted.has(replay.scope)) return 'scope'
+  if (!input.formats.has(replay.format)) return 'format'
+  if (input.resent.has(message.id)) return 'resent'
+  if (input.binding === 'none') return null
+  if (replay.prefix === undefined) return 'no-prefix'
+  return changedPart(replay.prefix, prefix)
+}
+
+const PARTS = [
+  ['h', 'prefix-history'],
+  ['s', 'prefix-system'],
+  ['t', 'prefix-tools'],
+  ['p', 'prefix-projection'],
+] as const
+
+function changedPart(recorded: string, current: string): ReplayOmission | null {
+  const was = new Map(recorded.split('.').map(part => [part.slice(0, 1), part]))
+  const now = new Map(current.split('.').map(part => [part.slice(0, 1), part]))
+  for (const [key, reason] of PARTS) if (was.get(key) !== now.get(key)) return reason
+  return null
+}
+
+// The prefix is four digests in our own form: the history before a message, the system prompt,
+// the tool declarations, and the carry decisions taken so far.
+function createPrefix(system: unknown, tools: unknown) {
+  let history = digest(['history'])
+  let projection = digest(['projection'])
+  const fixed = `s:${digest(system)}.t:${digest(tools)}`
+  return {
+    current: () => `h:${history}.${fixed}.p:${projection}`,
+    add(message: Message, carried: boolean | null) {
+      history = digest([history, message])
+      if (carried !== null) projection = digest([projection, message.id, carried])
+    },
+  }
+}
+
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
+  if (value !== null && typeof value === 'object')
+    return `{${Object.entries(value)
+      .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+      .map(([key, member]) => `${JSON.stringify(key)}:${canonical(member)}`)
+      .join(',')}}`
+  return value === undefined ? 'null' : JSON.stringify(value)
+}
+
+// Two FNV-1a 64-bit passes with different offsets: equality of prefixes only, no secret in them.
+function digest(value: unknown): string {
+  const text = canonical(value)
+  const prime = 0x100000001b3n
+  const mask = 0xffffffffffffffffn
+  let a = 0xcbf29ce484222325n
+  let b = 0x84222325cbf29ce4n
+  for (let index = 0; index < text.length; index += 1) {
+    const code = BigInt(text.charCodeAt(index))
+    a = ((a ^ code) * prime) & mask
+    b = ((b ^ (code + 0x9en)) * prime) & mask
+  }
+  return a.toString(16).padStart(16, '0') + b.toString(16).padStart(16, '0')
 }
 
 function treat(
@@ -126,7 +200,7 @@ function treat(
     : Object.freeze({ ...identity, continuable: false, omit: at, thinking: foreignThinking })
 }
 
-function diagnose(message: AssistantMessage): ReplayDiagnostic | null {
+function diagnose(message: AssistantMessage, reason: ReplayOmission): ReplayDiagnostic | null {
   const { replay } = message
   if (replay === undefined || replay.at.length === 0) return null
   return Object.freeze({
@@ -134,6 +208,7 @@ function diagnose(message: AssistantMessage): ReplayDiagnostic | null {
     scope: replay.scope,
     format: replay.format,
     omittedParts: replay.at.length,
+    reason,
   })
 }
 

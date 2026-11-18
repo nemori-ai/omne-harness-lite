@@ -15,7 +15,7 @@ import { replyMessageId } from './identities.ts'
 type Message = LoopFacts['inputs'][number]
 export type ModelOutcome = Readonly<{
   produced: ProducedResult
-  settlement: Pick<M.Settlement, 'termination' | 'source'>
+  settlement: Pick<M.Settlement, 'termination' | 'source' | 'replay'>
 }> &
   (
     | Readonly<{ kind: 'reply'; reply: Extract<Message, { role: 'assistant' }> }>

@@ -134,6 +134,9 @@ try {
         formats: new Set(formats.accepts),
         off: false,
         resent: new Set(),
+        system: request.system,
+        tools: request.tools,
+        binding: 'none',
       })
       const carried: number[] = []
       const omitted: number[] = []

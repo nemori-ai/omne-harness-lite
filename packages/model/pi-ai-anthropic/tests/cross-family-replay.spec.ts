@@ -118,6 +118,7 @@ describe('an OpenAI message in an Anthropic request', () => {
         scope: OPENAI_SCOPE,
         format: OPENAI_FORMAT,
         omittedParts: 1,
+        reason: 'scope',
       },
     ])
     const text = writeJsonText(result.ok.body)
@@ -143,6 +144,9 @@ describe('an OpenAI message in an Anthropic request', () => {
       formats: new Set(SONNET.replay.formats.accepts),
       off: false,
       resent: new Set(),
+      system: request.system,
+      tools: request.tools,
+      binding: 'none',
     })
     const [openai, anthropic] = request.messages.filter(item => item.role === 'assistant')
     expect(projection.treatments).toEqual([
@@ -303,6 +307,7 @@ describe('a foreign tool turn', () => {
           scope: OPENAI_SCOPE,
           format: OPENAI_FORMAT,
           omittedParts: 1,
+          reason: 'scope',
         },
       ])
     },

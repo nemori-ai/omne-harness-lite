@@ -11,6 +11,7 @@ import {
   type CompactionContext,
   type Message,
   type RecordEntryRef,
+  REPLAY_PREFIX_MAX_LENGTH,
 } from '@omne-harness/message'
 
 const id = 'msg_abcdefghijklmnopqrstuv'
@@ -307,5 +308,25 @@ describe('what a retained message keeps', () => {
   it('does not let the summary carry reasoning state', () => {
     const withState = { ...summary, blocks: [...summary.blocks, { ...state }] }
     expect(judgeMessage(withState)).toEqual({ rejected: 'misplaced-part', blockIndex: 1 })
+  })
+})
+
+describe('the prefix of a replay mark', () => {
+  const prefixed = (prefix: unknown) => assistant({ replay: { ...replay, prefix } })
+
+  it('keeps the prefix the reasoning state was produced on, and reads a mark without one', () => {
+    const judged = judgeMessage(prefixed('p:1.s:2.t:3.v:4'))
+    if (!('ok' in judged) || judged.ok.role !== 'assistant') throw new Error('expected a message')
+    expect(judged.ok.replay).toEqual({ ...replay, prefix: 'p:1.s:2.t:3.v:4' })
+    const old = judgeMessage(assistant({ replay: { ...replay } }))
+    if (!('ok' in old) || old.ok.role !== 'assistant') throw new Error('expected a message')
+    expect(old.ok.replay).toEqual(replay)
+    expect(old.ok.replay && 'prefix' in old.ok.replay).toBe(false)
+  })
+
+  it('refuses an empty, an oversized or a non-text prefix', () => {
+    for (const prefix of ['', 'x'.repeat(REPLAY_PREFIX_MAX_LENGTH + 1), 7, null])
+      expect(judgeMessage(prefixed(prefix))).toEqual({ rejected: 'replay' })
+    expect('ok' in judgeMessage(prefixed('x'.repeat(REPLAY_PREFIX_MAX_LENGTH)))).toBe(true)
   })
 })

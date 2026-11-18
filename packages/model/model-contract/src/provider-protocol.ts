@@ -50,6 +50,7 @@ import type {
   Snapshot,
 } from './call-surface.ts'
 import type { CallAccount } from '@omne-harness/call-account'
+import type { ReplayOmission } from './profile.ts'
 
 export type TransportFailure = Extract<
   ModelFailure,
@@ -85,6 +86,7 @@ export type ProviderDiagnostic =
       scope: string
       format: string
       omittedParts: number
+      reason: ReplayOmission
     }>
   | Readonly<{ kind: 'reasoning-disabled'; reason: 'foreign-prefix' }>
   | Readonly<{ kind: 'reasoning-state-dropped'; reason: 'payload-too-long'; length: number }>
@@ -115,6 +117,8 @@ export type MaterializationReceipt = Readonly<{
   representation: Adoption
   payloadDigest: string
   replayFormat?: string
+  /** The prefix the request was encoded on; present with a replay format. */
+  replayPrefix?: string
 }>
 export interface MaterializedTransport {
   readonly receipt: MaterializationReceipt

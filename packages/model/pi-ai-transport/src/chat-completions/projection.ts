@@ -58,6 +58,7 @@ export type Projection = Readonly<{
   choice: FixedModelRequest['toolChoice']
   treatments: readonly ReplayTreatment[]
   diagnostics: readonly ReplayDiagnostic[]
+  replayPrefix: string
 }>
 
 export type ProjectionInput = Readonly<{
@@ -155,6 +156,9 @@ export function project(input: ProjectionInput): Outcome<Projection, TransportFa
     formats: new Set(record.replay.formats.accepts),
     off: input.replayOff,
     resent: input.resent,
+    system: input.system,
+    tools: input.tools,
+    binding: 'none',
   })
   const treatments = new Map(replay.treatments.map(treatment => [treatment.index, treatment]))
   const messages: WireMessage[] = []
@@ -241,6 +245,7 @@ export function project(input: ProjectionInput): Outcome<Projection, TransportFa
       choice: toolChoice.ok.choice,
       treatments: replay.treatments,
       diagnostics: replay.diagnostics,
+      replayPrefix: replay.prefix,
     },
   }
 }

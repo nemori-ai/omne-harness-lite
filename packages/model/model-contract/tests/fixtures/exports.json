@@ -407,6 +407,11 @@
               "pending": false
             },
             {
+              "name": "SettledReplay",
+              "kind": "type",
+              "pending": false
+            },
+            {
               "name": "CustodyState",
               "kind": "type",
               "pending": false
@@ -1128,6 +1133,16 @@
             },
             {
               "name": "ReplayDiagnostic",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReplayBinding",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReplayOmission",
               "kind": "type",
               "pending": false
             },

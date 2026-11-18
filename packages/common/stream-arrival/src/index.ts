@@ -274,6 +274,7 @@ interface TrimStep {
 interface ReplayRange {
   readonly scope: string
   readonly format: string
+  readonly prefix?: string
 }
 
 interface FinishStep {
@@ -500,14 +501,15 @@ function parseClose(value: Record<string, unknown>, index: string): Parsed {
   return { step: { step: 'close', index, block: part.ok } }
 }
 
-const REPLAY_KEYS: readonly string[] = ['scope', 'format']
+const REPLAY_KEYS: readonly string[] = ['scope', 'format', 'prefix']
 
 function parseReplay(raw: unknown): ReplayRange | undefined {
   if (!isPlainRecord(raw) || hasUnreadableOwn(raw)) return undefined
   if (hasUnknownKey(raw, REPLAY_KEYS)) return undefined
-  const { scope, format } = raw
+  const { scope, format, prefix } = raw
   if (typeof scope !== 'string' || typeof format !== 'string') return undefined
-  return { scope, format }
+  if (prefix === undefined) return { scope, format }
+  return typeof prefix === 'string' ? { scope, format, prefix } : undefined
 }
 
 function parseFinish(value: Record<string, unknown>, index: string): Parsed {
@@ -686,8 +688,14 @@ function reasoningStateAt(blocks: readonly MessagePart[]): readonly number[] {
 function messageInput(state: LiveState, blocks: readonly MessagePart[], step: FinishStep) {
   const { id, role } = state.target
   if (step.replay === undefined) return { id, role, blocks }
-  const { scope, format } = step.replay
-  return { id, role, blocks, replay: { scope, format, at: reasoningStateAt(blocks) } }
+  const { scope, format, prefix } = step.replay
+  const at = reasoningStateAt(blocks)
+  return {
+    id,
+    role,
+    blocks,
+    replay: { scope, format, at, ...(prefix === undefined ? {} : { prefix }) },
+  }
 }
 
 function applyFinish(state: LiveState, step: FinishStep): Applied {

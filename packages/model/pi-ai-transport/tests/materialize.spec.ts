@@ -111,6 +111,7 @@ describe('materialize', () => {
       representation: REQUEST.representation,
       payloadDigest: createHash('sha256').update(EXPECTED_BODY).digest('hex'),
       replayFormat: 'test-format-v1',
+      replayPrefix: 'h:test.s:test.t:test.p:test',
     })
     await sent.close()
   })
