@@ -20,6 +20,7 @@ import type {
   SnapshotResult,
   SourceEvidence,
   UnknownCause,
+  ScopeRef,
 } from '@omne-harness/runtime-context-contract'
 import { validate } from './validation.js'
 import {
@@ -74,28 +75,54 @@ async function hop<P>(
   return s.fence === 'open' ? 'open' : 'closed'
 }
 
-// The value of a block: the reader's own scope first, then one ancestor at a time.
-async function inheritedValue<P>(
+type Located = Readonly<{ found: Found; d: Descriptor }>
+const NO_VALUE = (key: ContextBlockKey) => ({ key, kind: 'missing', cause: 'no-value' }) as const
+
+// Where a block is registered for this reader. An ancestor is a hop too: a replaying ancestor
+// discloses nothing, so the block is missing: not empty, and not the value it held before.
+async function located<P>(
   world: World<P>,
-  found: Found,
-  key: ContextBlockKey,
-  d: Descriptor,
   e: Eligibility<P>,
-): Promise<Readonly<{ found: Found; stored: Stored | undefined }> | 'fenced'> {
-  const stored = found.s.values.get(key)
-  if (d.volatility === 'per-request') return { found, stored }
-  let parent = found.s.scope.parent
-  while (!stored?.present && parent) {
+  key: ContextBlockKey,
+): Promise<Located | PerRequestEntry> {
+  const found = world.registration(e.scope, key)
+  const d = world.descriptors.get(key)
+  if (!found || !d || world.incompatible.has(found.s.scope.ref + '\0' + key)) return NO_VALUE(key)
+  const crossing = found.s.scope.ref === e.scope.ref ? 'open' : await hop(world, found.s, e)
+  if (crossing === 'closed') return FENCED(key)
+  const own = crossing === 'open' && tenantEquals(found.s.tenant, e.tenant)
+  return own ? { found, d } : NO_VALUE(key)
+}
+
+type Inherited = Readonly<{ found: Found; stored: Stored | undefined }>
+
+async function fromAncestors<P>(
+  world: World<P>,
+  from: ScopeRef | undefined,
+  key: ContextBlockKey,
+  e: Eligibility<P>,
+): Promise<Inherited | 'fenced' | null> {
+  for (let parent = from; parent;) {
     const candidate = world.registration(parent, key)
-    if (!candidate) break
-    const crossing = await hop(world, candidate.s, e)
+    const crossing = candidate ? await hop(world, candidate.s, e) : 'foreign'
     if (crossing === 'closed') return 'fenced'
-    if (crossing === 'foreign') break
-    const value = candidate.s.values.get(key)
-    if (value?.present) return { found: candidate, stored: value }
+    if (!candidate || crossing === 'foreign') return null
+    const stored = candidate.s.values.get(key)
+    if (stored?.present) return { found: candidate, stored }
     parent = candidate.s.scope.parent
   }
-  return { found, stored }
+  return null
+}
+
+async function inheritedValue<P>(
+  world: World<P>,
+  { found, d }: Located,
+  key: ContextBlockKey,
+  e: Eligibility<P>,
+): Promise<Inherited | 'fenced'> {
+  const stored = found.s.values.get(key)
+  if (d.volatility === 'per-request' || stored?.present) return { found, stored }
+  return (await fromAncestors(world, found.s.scope.parent, key, e)) ?? { found, stored }
 }
 
 export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
@@ -238,23 +265,16 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
   }
 
   async function readBlock(e: Eligibility<P>, key: ContextBlockKey): Promise<Item> {
-    let found = world.registration(e.scope, key)
-    const d = world.descriptors.get(key)
-    if (!found || !d || world.incompatible.has(found.s.scope.ref + '\0' + key))
-      return { key, kind: 'missing', cause: 'no-value' }
-    // The registration may be an ancestor's: that is a hop too. A replaying ancestor discloses
-    // nothing, so the block is missing: not empty, and not the value it held before.
-    const crossing = found.s.scope.ref === e.scope.ref ? 'open' : await hop(world, found.s, e)
-    if (crossing === 'closed') return FENCED(key)
-    if (crossing === 'foreign' || !tenantEquals(found.s.tenant, e.tenant))
-      return { key, kind: 'missing', cause: 'no-value' }
+    const where = await located(world, e, key)
+    if (!('found' in where)) return where
+    const { d } = where
     if (d.kind === 'supplied' && d.volatility !== 'per-request') {
-      const refreshed = await refresh(found, key, d)
+      const refreshed = await refresh(where.found, key, d)
       if (refreshed) return refreshed
     }
-    const inherited = await inheritedValue(world, found, key, d, e)
+    const inherited = await inheritedValue(world, where, key, e)
     if (inherited === 'fenced') return FENCED(key)
-    found = inherited.found
+    const { found } = inherited
     let stored = inherited.stored
     if (stored?.refused) return { kind: 'refused', reason: 'unauthorized' }
     if (stored?.unknown) return { key, kind: 'unknown', cause: 'source-unknown' }

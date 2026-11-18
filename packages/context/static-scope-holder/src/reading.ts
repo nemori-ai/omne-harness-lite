@@ -64,6 +64,15 @@ export function createReading<P>(runtime: RuntimeContextOperations<P>) {
       : refusal('issueEligibility', issued)
   }
 
+  async function bindFresh(
+    reading: Reading<P>,
+  ): Promise<Outcome<ContextReader, StaticScopeFailure>> {
+    const issued = await grant(reading)
+    if ('failure' in issued) return issued
+    const answer = await runtime.bind(issued.ok.eligibility)
+    return answer.kind === 'bound' ? succeed(answer.reader) : refusal('bind', answer)
+  }
+
   // A reader lives while what it was granted is what the request would be granted now, and until
   // a read of it is refused: a recovery ends it.
   async function read(reading: Reading<P>): Promise<Outcome<StaticRead, StaticScopeFailure>> {
@@ -72,21 +81,20 @@ export function createReading<P>(runtime: RuntimeContextOperations<P>) {
     kept.set(reader, held)
     const { material, missing } = readableBy(ensured.content, reader)
     const granted = JSON.stringify([ensured.state.revision, material])
-    for (const attempt of ['held', 'fresh'] as const) {
-      const bound = attempt === 'held' ? held.get(ensured.scope.ref) : undefined
-      let context = bound?.granted === granted ? bound.context : undefined
+    const at = ensured.scope.ref
+    if (held.get(at)?.granted !== granted) held.delete(at)
+    for (const _attempt of ['held', 'fresh']) {
+      let context = held.get(at)?.context
       if (context === undefined) {
-        const issued = await grant(reading)
-        if ('failure' in issued) return issued
-        const answer = await runtime.bind(issued.ok.eligibility)
-        if (answer.kind !== 'bound') return refusal('bind', answer)
-        context = answer.reader
-        held.set(ensured.scope.ref, { granted, context })
+        const fresh = await bindFresh(reading)
+        if ('failure' in fresh) return fresh
+        context = fresh.ok
+        held.set(at, { granted, context })
       }
       const snapshot = await context.snapshot()
       if (snapshot.kind === 'success')
         return succeed({ entries: snapshot.value.perRequest, missing })
-      held.delete(ensured.scope.ref)
+      held.delete(at)
       if (snapshot.kind !== 'refused') return unavailable(`snapshot answered ${snapshot.kind}`)
     }
     return unavailable('snapshot answered refused')

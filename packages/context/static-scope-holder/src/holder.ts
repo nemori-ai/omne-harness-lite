@@ -6,7 +6,7 @@ import type {
   StaticScopeFailure,
   StaticScopeHolder,
 } from '@omne-harness/runtime-context-contract'
-import { DENIED, guarded, unavailable } from './answers.ts'
+import { DENIED, unavailable } from './answers.ts'
 import { contentOf } from './content.ts'
 import { createReading, type Ensured } from './reading.ts'
 import { bringUp, newHeld, type Held } from './registering.ts'
@@ -23,6 +23,12 @@ export function createStaticScopeHolder<P>(deps: StaticScopeHolderDeps<P>): Stat
   const held = new Map<string, Held>()
   const queues = new Map<string, Promise<unknown>>()
   const reading = createReading(runtime)
+
+  type Answer<T> = Promise<Outcome<T, StaticScopeFailure>>
+  const guarded = <T>(operation: string, task: () => Answer<T>): Answer<T> =>
+    task().catch((cause: unknown) =>
+      unavailable(`${operation} threw: ${cause instanceof Error ? cause.message : String(cause)}`),
+    )
 
   // One tenant at a time: two callers that ensure together must not both register.
   function queued<T>(tenant: string, task: () => Promise<T>): Promise<T> {
