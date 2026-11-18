@@ -6,10 +6,13 @@ import {
   sendIdentitySchema,
   type Accepted,
   type CallContext,
+  type EventTypeFacts,
   type NamedCheck,
   type NotificationSending,
   type Outcome,
   type ParseRefusal,
+  type RecipientRef,
+  type SendDecision,
   type SendLimits,
   type SendRefusal,
   type SendRequest,
@@ -55,37 +58,55 @@ async function namedChecks(
   return checks
 }
 
+type Admitted = Readonly<{ request: SendRequest }>
+type Decided =
+  | Exclude<SendDecision, { kind: 'recalled' }>
+  | Readonly<{ kind: 'recalled'; recipients: readonly RecipientRef[] }>
+type Blocked = Exclude<SendOutcome, { kind: 'done' }>
+
+/** Steps one and two: the request parses, names this tenant, fits, and the subject may send. */
+async function admit(
+  deps: SendingDependencies,
+  ctx: CallContext,
+  input: unknown,
+): Promise<Admitted | Blocked> {
+  const parsed = parseSendRequest(input)
+  if ('refused' in parsed) return { kind: 'refused', reason: parsed.refused }
+  const request = parsed.ok
+  const { identity } = request
+  if (identity.tenant !== ctx.tenant) return { kind: 'refused', reason: 'not-permitted' }
+  const authority = await ask(deps.authority, ctx, { kind: 'send-as', source: identity.source })
+  const precheck = precheckSend(request, authority, deps.limits)
+  return precheck.kind === 'proceed' ? { request } : precheck
+}
+
+/** Steps three to six, against the earlier send as the store reads it now. */
+async function decide(
+  deps: SendingDependencies,
+  ctx: CallContext,
+  request: SendRequest,
+): Promise<Decided> {
+  const known = await deps.store.send(ctx.tenant, request.identity)
+  if (known.kind === 'unavailable') return UNAVAILABLE
+  const source = lookupSource(deps.sources, request)
+  const named = known.value === null ? await namedChecks(deps, ctx, request) : []
+  const record = known.value?.record ?? null
+  try {
+    const decision = decideSend(record, request, source, named, deps.limits)
+    if (decision.kind !== 'recalled') return decision
+  } catch {
+    return UNAVAILABLE
+  }
+  return { kind: 'recalled', recipients: record?.recipients ?? [] }
+}
+
 export function createSending(deps: SendingDependencies): NotificationSending {
-  async function send(ctx: CallContext, input: unknown): Promise<SendOutcome> {
-    const parsed = parseSendRequest(input)
-    if ('refused' in parsed) return { kind: 'refused', reason: parsed.refused }
-    const request = parsed.ok
+  async function commit(
+    ctx: CallContext,
+    request: SendRequest,
+    type: EventTypeFacts,
+  ): Promise<SendOutcome> {
     const { identity } = request
-    if (identity.tenant !== ctx.tenant) return { kind: 'refused', reason: 'not-permitted' }
-    const authority = await ask(deps.authority, ctx, { kind: 'send-as', source: identity.source })
-    const precheck = precheckSend(request, authority, deps.limits)
-    if (precheck.kind !== 'proceed') return precheck
-
-    const known = await deps.store.send(ctx.tenant, identity)
-    if (known.kind === 'unavailable') return UNAVAILABLE
-    const source = lookupSource(deps.sources, request)
-    const named = known.value === null ? await namedChecks(deps, ctx, request) : []
-    let decision
-    try {
-      decision = decideSend(known.value?.record ?? null, request, source, named, deps.limits)
-    } catch {
-      // A rule of the declaration could not answer.
-      return UNAVAILABLE
-    }
-    if (decision.kind === 'recalled')
-      return {
-        kind: 'done',
-        recalled: true,
-        value: { identity, recipients: known.value!.record.recipients },
-      }
-    if (decision.kind !== 'proceed') return decision
-
-    const type = { defaults: decision.declared.defaults }
     const answer = await deps.store.accept(ctx.tenant, { request, type, now: deps.clock.now() })
     if (answer.kind === 'rolled-back') return UNAVAILABLE
     if (answer.kind === 'unknown') return { kind: 'unknown' }
@@ -96,6 +117,19 @@ export function createSending(deps: SendingDependencies): NotificationSending {
       recalled: answer.value.kind === 'recalled',
       value: { identity, recipients: answer.value.recipients },
     }
+  }
+
+  async function send(ctx: CallContext, input: unknown): Promise<SendOutcome> {
+    const admitted = await admit(deps, ctx, input)
+    if ('kind' in admitted) return admitted
+    const { request } = admitted
+    const decision = await decide(deps, ctx, request)
+    if (decision.kind === 'recalled') {
+      const value = { identity: request.identity, recipients: decision.recipients }
+      return { kind: 'done', recalled: true, value }
+    }
+    if (decision.kind !== 'proceed') return decision
+    return commit(ctx, request, { defaults: decision.declared.defaults })
   }
 
   return {

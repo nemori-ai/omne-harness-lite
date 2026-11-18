@@ -3,6 +3,7 @@ import {
   recipientRefSchema,
   sendIdentitySchema,
   type CallContext,
+  type InboxQuery,
   type InboxRefusal,
   type NotificationInbox,
   type NotificationRef,
@@ -30,6 +31,15 @@ function parseRef(ref: NotificationRef): NotificationRef | null {
     : null
 }
 
+function parseQuery(query: InboxQuery, pageLimit: number): InboxQuery | null {
+  const recipient = parseWith(recipientRefSchema, query.recipient)
+  if (!('ok' in recipient)) return null
+  if (!Number.isInteger(query.limit) || query.limit < 1 || query.limit > pageLimit) return null
+  if (query.after !== null && (!Number.isInteger(query.after) || query.after < 0)) return null
+  if (query.filter !== 'unresolved' && query.filter !== 'all') return null
+  return { ...query, recipient: recipient.ok }
+}
+
 export function createInbox(deps: InboxDependencies): NotificationInbox {
   /** No authority answers the same as a notification that does not exist. */
   async function gate(
@@ -43,16 +53,12 @@ export function createInbox(deps: InboxDependencies): NotificationInbox {
   }
 
   return {
-    async list(ctx, query) {
-      const recipient = parseWith(recipientRefSchema, query.recipient)
-      const sized =
-        Number.isInteger(query.limit) && query.limit >= 1 && query.limit <= deps.pageLimit
-      const placed = query.after === null || (Number.isInteger(query.after) && query.after >= 0)
-      const filtered = query.filter === 'unresolved' || query.filter === 'all'
-      if (!('ok' in recipient) || !sized || !placed || !filtered) return refuse('invalid-request')
-      const blocked = await gate(ctx, 'read-inbox', recipient.ok)
+    async list(ctx, input) {
+      const query = parseQuery(input, deps.pageLimit)
+      if (query === null) return refuse('invalid-request')
+      const blocked = await gate(ctx, 'read-inbox', query.recipient)
       if (blocked !== null) return blocked
-      const page = await deps.store.box(ctx.tenant, { ...query, recipient: recipient.ok })
+      const page = await deps.store.box(ctx.tenant, query)
       if (page.kind === 'unavailable') return UNAVAILABLE
       return { kind: 'done', recalled: false, value: page.value }
     },
