@@ -400,7 +400,7 @@ it('drains real tenant destinations before completing their organization source 
 })
 it('continues a bounded page of pending source updates without skipping a second target', async () => {
   const w = await open()
-  const second = { ...w.target, targetRef: 'second-preferences' }
+  const second = { ...w.target, definitionId: 'second-preferences' }
   expect(
     await w.owner.mutate({
       kind: 'provision',

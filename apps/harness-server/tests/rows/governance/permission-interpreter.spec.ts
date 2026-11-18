@@ -18,8 +18,9 @@ describe('transaction permission interpretation', () => {
       tenantId: encoded.value,
       targetId: JSON.stringify({
         scopeRef: encoded.value,
-        policyId: 'independent',
-        targetRef: 'commands/permissions/shell',
+        kind: 'independent',
+        providerId: 'commands',
+        definitionId: 'permissions-shell',
       }),
     }
     input.action.request.scope = scope

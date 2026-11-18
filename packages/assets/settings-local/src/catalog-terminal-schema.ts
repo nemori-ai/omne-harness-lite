@@ -14,8 +14,8 @@ export const CATALOG_TERMINAL_MIGRATION = {
   id: 'settings-catalog-terminal-1',
 }
 export const catalogTerminalSchema = terminalSchema.refine(
-  value => value.binding.target.policyId === 'catalog',
+  value => value.binding.subject.kind === 'catalog-capture',
 )
 export const catalogTerminalCommandSchema = terminalCommandSchema.refine(
-  value => value.binding.target.policyId === 'catalog',
+  value => value.binding.subject.kind === 'catalog-capture',
 )

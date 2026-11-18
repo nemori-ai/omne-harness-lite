@@ -127,6 +127,30 @@
   font-size: var(--omne-text-caption);
 }
 
+.assets-group {
+  display: grid;
+  gap: var(--omne-space-inline);
+  padding-block: var(--omne-space-block);
+}
+
+.assets-group-head {
+  display: grid;
+  gap: var(--omne-space-inline);
+}
+
+.assets-group-title {
+  margin: 0;
+  color: var(--omne-ink-primary);
+  font-size: var(--omne-text-ui);
+  font-weight: 500;
+}
+
+.assets-group-description {
+  margin: 0;
+  color: var(--omne-ink-faint);
+  font-size: var(--omne-text-caption);
+}
+
 .assets-category-slot:empty,
 .assets-holding-slot:empty {
   display: none;
@@ -168,7 +192,8 @@
   font-size: var(--omne-text-caption);
 }
 
-.assets-setting-secret {
+.assets-setting-secret,
+.assets-setting-value {
   display: flex;
   gap: var(--omne-space-inline);
   width: 100%;

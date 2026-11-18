@@ -29,6 +29,8 @@ import { runInProcess, type InProcessOptions } from './support/in-process.ts'
 
 const SENTINEL = 'exa-cli-sentinel-9d2c-never-printed'
 const WEB = { category: 'tool', name: 'Web' }
+const WEB_OWNER = { kind: 'asset', ...WEB }
+const NAMED_WEB = { kind: 'asset', name: 'Web' }
 const ITEM = 'exa.apiKey'
 
 let root: string
@@ -101,7 +103,7 @@ describe('setting set', () => {
     expect(sent?.headers['omne-acting-tenant']).toBeUndefined()
     expect(sent?.body).toEqual({
       tenant: tenantText,
-      asset: WEB,
+      owner: WEB_OWNER,
       item: ITEM,
       operation: expect.any(String),
       expectedRevision: settingRevision,
@@ -132,7 +134,7 @@ describe('setting set', () => {
     expect(operations.slice(-2)).toEqual(['describe-setting', 'set-setting'])
     expect(seenOf(service, 'describe-setting')?.body).toEqual({
       tenant: tenantText,
-      asset: WEB,
+      owner: WEB_OWNER,
       item: ITEM,
     })
     expect(seenOf(service, 'set-setting')?.body).toMatchObject({ expectedRevision: '41' })
@@ -281,7 +283,7 @@ describe('setting set --value', () => {
     expect(result.credentialReads).toBe(0)
     expect(seenOf(service, 'set-setting')?.body).toEqual({
       tenant: tenantText,
-      asset: { name: 'Web' },
+      owner: NAMED_WEB,
       item: 'maxResults',
       operation: expect.any(String),
       expectedRevision: '7',
@@ -365,13 +367,15 @@ describe('the asset selector', () => {
       const result = await cli(args)
       expect(result.code, args.join(' ')).toBe(0)
     }
-    for (const operation of ['describe-setting', 'clear-setting', 'list-settings']) {
+    for (const operation of ['describe-setting', 'clear-setting']) {
       const body = seenOf(service, operation)?.body as Record<string, unknown>
-      expect(body['asset'], operation).toEqual(expected)
-      expect(Object.hasOwn(body['asset'] as object, 'category'), operation).toBe(
+      expect(body['owner'], operation).toEqual({ kind: 'asset', ...expected })
+      expect(Object.hasOwn(body['owner'] as object, 'category'), operation).toBe(
         'category' in expected,
       )
     }
+    const listed = seenOf(service, 'list-settings')?.body as Record<string, unknown>
+    expect(listed['scope']).toEqual({ kind: 'asset', asset: expected })
   })
 
   it.each([':Web', 'tool:', ':', ''])('%j is a usage error and sends nothing', async asset => {
@@ -393,7 +397,7 @@ describe('setting show', () => {
     expect(result.credentialReads).toBe(0)
     const sent = seenOf(service, 'describe-setting')
     expect(sent?.path).toBe('/api/assets/v1/describe-setting')
-    expect(sent?.body).toEqual({ tenant: tenantText, asset: { name: 'Web' }, item: ITEM })
+    expect(sent?.body).toEqual({ tenant: tenantText, owner: NAMED_WEB, item: ITEM })
     expect(result.stdout).toBe('Your key: set\nDeployment default: not set\n')
   })
 
@@ -496,7 +500,7 @@ describe('setting unset', () => {
     expect(sent?.path).toBe('/api/assets/v1/clear-setting')
     expect(sent?.body).toEqual({
       tenant: tenantText,
-      asset: { name: 'Web' },
+      owner: NAMED_WEB,
       item: ITEM,
       operation: expect.any(String),
       expectedRevision: settingRevision,
@@ -526,16 +530,57 @@ describe('setting list', () => {
     expect(all.code).toBe(0)
     const first = seenOf(service, 'list-settings')
     expect(first?.path).toBe('/api/assets/v1/list-settings')
-    expect(first?.body).toEqual({ tenant: tenantText, after: null, limit: 100 })
+    expect(first?.body).toEqual({
+      tenant: tenantText,
+      scope: { kind: 'asset' },
+      after: null,
+      limit: 100,
+    })
     const printed = JSON.parse(all.stdout)
     expect(printed).toMatchObject({ result: 'response', outcome: 'succeeded' })
     expect(printed.body.items).toContainEqual(
-      expect.objectContaining({ asset: WEB, item: ITEM, kind: 'secret' }),
+      expect.objectContaining({ owner: WEB_OWNER, item: ITEM, kind: 'secret' }),
     )
     expect(printed.body.completeness).toBe('complete')
     const one = await cli(['setting', 'list', 'tool:Web'])
     expect(one.code).toBe(0)
-    expect(seenOf(service, 'list-settings')?.body).toMatchObject({ asset: WEB })
+    expect(seenOf(service, 'list-settings')?.body).toMatchObject({
+      scope: { kind: 'asset', asset: WEB },
+    })
+  })
+
+  it('--independent asks for the independent settings and names one by provider and definition', async () => {
+    const service = await serve()
+    await login(service)
+    expect((await cli(['setting', 'list', '--independent'])).code).toBe(0)
+    expect(seenOf(service, 'list-settings')?.body).toEqual({
+      tenant: tenantText,
+      scope: { kind: 'independent' },
+      after: null,
+      limit: 100,
+    })
+    expect(
+      (await cli(['setting', 'show', '--independent', 'calendar/environment', 'tz'])).code,
+    ).toBe(0)
+    expect(seenOf(service, 'describe-setting')?.body).toEqual({
+      tenant: tenantText,
+      owner: { kind: 'independent', providerId: 'calendar', definitionId: 'environment' },
+      item: 'tz',
+    })
+  })
+
+  it.each([
+    [['setting', 'list', '--independent', 'calendar/environment']],
+    [['setting', 'show', '--independent', 'calendar', 'tz']],
+    [['setting', 'show', '--independent', '/environment', 'tz']],
+    [['setting', 'show', '--independent', 'calendar/', 'tz']],
+    [['setting', 'show', '--independent', 'a/b/c', 'tz']],
+  ])('%j is a usage error and sends nothing', async args => {
+    const service = await serve()
+    await login(service)
+    const before = service.seen.length
+    expect((await cli(args)).code).toBe(2)
+    expect(service.seen.length).toBe(before)
   })
 
   const page = (items: unknown[], next: string | null, completeness = 'complete') => ({
@@ -634,7 +679,7 @@ describe('usage errors', () => {
     const result = await cli(['setting', 'show', '--server', service.origin, 'Web', ITEM])
     expect(result.code).toBe(0)
     expect(seenOf(service, 'describe-setting')?.body).toMatchObject({
-      asset: { name: 'Web' },
+      owner: NAMED_WEB,
       item: ITEM,
     })
   })

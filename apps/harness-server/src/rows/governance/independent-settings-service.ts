@@ -7,55 +7,56 @@ import type {
   SettingsTarget,
   SettingsViewRequest,
 } from '@omne-harness/settings'
-import { preferenceDefinitionRef, preferenceTarget } from './preference-settings.ts'
+import { independentDefinitionRef, independentTarget } from './independent-settings.ts'
 import type { TenantGovernanceHost } from './tenant-host.ts'
 
-export type PreferenceBinding = Readonly<{
+export type IndependentBinding = Readonly<{
   request: SettingsViewRequest
   target: SettingsTarget
   definitionRef: SettingsDefinitionRef
 }>
 
 /**
- * Reads a tenant's preference targets as the tenant's catalog reader. For the rows that decide with a
- * preference (calendar environment, schedule consent); it grants no write and no read to a person.
+ * Reads a tenant's independent targets as the tenant's catalog reader, for the rows that decide with
+ * their own independent settings (calendar environment, schedule consent). The read opens the group
+ * first; it grants no write and no read to a person.
  * @owner apps/harness-server/src/rows/governance
  */
-export abstract class PreferenceSettingsService extends Service {
-  static readonly provide = 'preferenceSettings'
+export abstract class TenantIndependentSettingsService extends Service {
+  static readonly provide = 'tenantIndependentSettings'
   constructor(ctx: Context) {
-    super(ctx, PreferenceSettingsService.provide)
+    super(ctx, TenantIndependentSettingsService.provide)
   }
   abstract readonly bindingOf: (
     tenantRef: string,
     definition: SettingDefinitions,
-  ) => PreferenceBinding
+  ) => IndependentBinding
   abstract readonly read: (
     tenantRef: string,
     request: SettingsViewRequest,
   ) => Promise<SettingsBasis | SettingsFailure | undefined>
 }
-export const preferenceSettingsKey = PreferenceSettingsService.provide
+export const tenantIndependentSettingsKey = TenantIndependentSettingsService.provide
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
-    preferenceSettings: PreferenceSettingsService
+    tenantIndependentSettings: TenantIndependentSettingsService
   }
 }
 
-class PreferenceSettingsImpl extends PreferenceSettingsService {
-  readonly bindingOf: PreferenceSettingsService['bindingOf']
-  readonly read: PreferenceSettingsService['read']
+class TenantIndependentSettingsImpl extends TenantIndependentSettingsService {
+  readonly bindingOf: TenantIndependentSettingsService['bindingOf']
+  readonly read: TenantIndependentSettingsService['read']
   constructor(
     ctx: Context,
     options: Readonly<{ host: Pick<TenantGovernanceHost, 'settings'>; deploymentRef: string }>,
   ) {
     super(ctx)
     this.bindingOf = (tenantRef, definition) => {
-      const target = preferenceTarget(definition, tenantRef)
+      const target = independentTarget(definition, tenantRef)
       return {
         target,
-        definitionRef: preferenceDefinitionRef(definition),
+        definitionRef: independentDefinitionRef(definition),
         request: {
           deploymentRef: options.deploymentRef,
           mode: 'management',
@@ -69,9 +70,9 @@ class PreferenceSettingsImpl extends PreferenceSettingsService {
   }
 }
 
-export function providePreferenceSettings(
+export function provideTenantIndependentSettings(
   ctx: Context,
   options: Readonly<{ host: Pick<TenantGovernanceHost, 'settings'>; deploymentRef: string }>,
 ) {
-  return new PreferenceSettingsImpl(ctx, options)
+  return new TenantIndependentSettingsImpl(ctx, options)
 }

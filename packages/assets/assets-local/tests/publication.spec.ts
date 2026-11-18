@@ -72,7 +72,7 @@ it('follows the selected publication even when Settings are identical while pinn
   expect(
     await w.owner.changeHolding({
       operationId: 'pin',
-      holdingRef: target.targetRef,
+      holdingRef: target.holdingRef,
       scopeRef: target.scopeRef,
       expectedRevision: 1,
       change: { kind: 'selectVersion', selection: { kind: 'pinned', version: '1' } },
@@ -104,7 +104,7 @@ it('refuses missing, foreign and disabled runtime targets', async () => {
   worlds.push(w)
   await w.setup()
   expect(await capture(w, [target, target])).toMatchObject({ kind: 'rolled_back' })
-  expect(await capture(w, [{ ...target, targetRef: 'missing' }])).toMatchObject({
+  expect(await capture(w, [{ ...target, holdingRef: 'missing' }])).toMatchObject({
     kind: 'rolled_back',
   })
   expect(await capture(w, [{ ...target, scopeRef: 'foreign' }])).toMatchObject({
@@ -113,7 +113,7 @@ it('refuses missing, foreign and disabled runtime targets', async () => {
   expect(
     await w.owner.changeHolding({
       operationId: 'disable',
-      holdingRef: target.targetRef,
+      holdingRef: target.holdingRef,
       scopeRef: target.scopeRef,
       expectedRevision: 1,
       change: { kind: 'setEnabled', enabled: false },
@@ -143,7 +143,7 @@ it('captures a real asset publication without requiring a Settings declaration',
   expect(
     await w.owner.changeHolding({
       operationId: 'disable-unmapped',
-      holdingRef: target.targetRef,
+      holdingRef: target.holdingRef,
       scopeRef: target.scopeRef,
       expectedRevision: 1,
       change: { kind: 'setEnabled', enabled: false },

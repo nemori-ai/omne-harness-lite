@@ -110,7 +110,8 @@ export type CursorMembers = Readonly<{
   adoptedRequest: Ref | null
   state: 'reconciling' | 'advancing' | 'waiting' | 'settling' | 'suspended'
   // What the checkpoint holds open that its blocks name: the fold reads it without the blocks.
-  holds: Readonly<{
+  // null: it names more than a fact carries, so every item is held until the checkpoint shrinks.
+  holds: null | Readonly<{
     actions: readonly ActionId[]
     consumptions: readonly ConsumptionId[]
     handoffs: readonly string[]

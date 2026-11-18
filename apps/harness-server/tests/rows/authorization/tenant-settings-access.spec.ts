@@ -61,7 +61,7 @@ function world() {
 const item = (principal: unknown, tenant: TenantId = A) => ({
   principal,
   tenant,
-  asset: { name: 'Shell' },
+  owner: { kind: 'asset', name: 'Shell' } as const,
   item: 'invoke',
 })
 const write = (principal: unknown, tenant: TenantId = A) => ({
@@ -79,7 +79,9 @@ describe('tenantSettings admission', () => {
   ] as const)('denies %s on every method and reads nothing', async (_name, principal, tenant) => {
     const w = world()
     expect(await w.face.describe(item(principal, tenant))).toEqual({ kind: 'denied' })
-    expect(await w.face.list({ principal, tenant, after: null, limit: 10 })).toEqual({
+    expect(
+      await w.face.list({ principal, tenant, scope: { kind: 'asset' }, after: null, limit: 10 }),
+    ).toEqual({
       kind: 'denied',
     })
     expect(

@@ -26,10 +26,10 @@ export function snapshotOperation(input: SnapshotInput): OperationBinding {
     domain: input.binding.domain,
     principalRef: input.binding.principalRef,
     operationId: input.binding.captureId,
-    target: {
-      policyId: 'catalog',
-      targetRef: input.binding.request.deploymentRef,
-      scopeRef: input.binding.domain.scope.tenant,
+    subject: {
+      kind: 'catalog-capture',
+      deploymentRef: input.binding.request.deploymentRef,
+      tenantRef: input.binding.domain.scope.tenant,
     },
     commandDigest: digest(input),
   }

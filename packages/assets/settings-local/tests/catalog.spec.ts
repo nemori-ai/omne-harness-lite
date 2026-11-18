@@ -2,7 +2,7 @@ import { afterEach, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
 import canonicalize from 'canonicalize'
 import { openCatalogWorld } from './catalog-world.ts'
-import { definition } from './world.ts'
+import { definition, sibling } from './world.ts'
 const opened: Awaited<ReturnType<typeof openCatalogWorld>>[] = []
 async function open() {
   const w = await openCatalogWorld()
@@ -33,12 +33,12 @@ it('aggregates real target state, retains values across declaration unload and d
   w.registry.releaseContribution(w.registration.registrationId)
   expect(await w.service.queries.readCatalog(w.principal, request(w.view))).toMatchObject({
     kind: 'catalog',
-    completeness: 'partial',
-    entries: [],
+    completeness: 'complete',
+    entries: [{ resolution: { value: { kind: 'value', value: true } } }],
   })
-  expect(await w.service.queries.evaluate(w.principal, w.view)).toEqual({
-    kind: 'rejected',
-    reason: 'unavailable',
+  expect(await w.service.queries.evaluate(w.principal, w.view)).toMatchObject({
+    kind: 'complete',
+    entries: [{ resolution: { value: { value: true } } }],
   })
   w.registry.registerContribution(definition)
   expect(await w.service.queries.evaluate(w.principal, w.view)).toMatchObject({
@@ -141,7 +141,7 @@ it('binds pages to the complete captured basis and a finite lifetime', async () 
       kind: 'provision',
       operationId: 'second',
       expectedRevision: null,
-      record: { ...w.record, target: { ...w.change.target, targetRef: 'second' } },
+      record: { ...w.record, target: sibling(w.change.target, 'second') },
     }),
   ).toMatchObject({ kind: 'committed' })
   const first = await w.service.queries.readCatalog(w.principal, request(w.view))
@@ -149,7 +149,7 @@ it('binds pages to the complete captured basis and a finite lifetime', async () 
   const next = { ...request(w.view), cursor: first.nextCursor }
   expect(await w.service.queries.readCatalog(w.principal, next)).toMatchObject({
     kind: 'catalog',
-    entries: [{ target: { targetRef: 'second' } }],
+    entries: [{ target: { definitionId: 'second' } }],
   })
   w.setNow(61000)
   expect(await w.service.queries.readCatalog(w.principal, next)).toEqual({
@@ -219,7 +219,7 @@ it('does not revive an expired explicit selection when the wall clock moves back
 it('counts only active requested standalone targets, not retired history', async () => {
   const w = await open()
   for (let i = 0; i < 128; i++) {
-    const target = { ...w.change.target, targetRef: `retired-${i}` }
+    const target = { ...w.change.target, definitionId: `retired-${i}` }
     expect(
       await w.owner.mutate({
         kind: 'provision',

@@ -200,7 +200,7 @@
       },
       "packages/assets/settings/src/tenant-settings.ts": {
         "count": 1,
-        "longest": 245
+        "longest": 234
       },
       "packages/calendar/calendar-local/src/runner/index.ts": {
         "count": 1,
@@ -596,7 +596,7 @@
       },
       "packages/session/session/src/advance.ts": {
         "count": 1,
-        "longest": 522
+        "longest": 506
       },
       "packages/session/session/src/command.ts": {
         "count": 1,

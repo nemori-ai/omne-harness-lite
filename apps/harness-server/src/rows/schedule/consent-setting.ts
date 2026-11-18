@@ -3,16 +3,16 @@ import {
   scheduleAgentAuthoringSettings,
 } from '@omne-harness/schedule-local'
 import { evaluateSettings } from '@omne-harness/settings'
-import type { PreferenceSettingsService } from '../governance/preference-settings-service.ts'
+import type { TenantIndependentSettingsService } from '../governance/independent-settings-service.ts'
 import type { ConsentMode } from './consent.ts'
 
 /** The owner's agent-authoring setting now: automatic with the revision of its value, or draft. */
 export async function readConsentMode(
-  preferences: PreferenceSettingsService,
+  independent: TenantIndependentSettingsService,
   tenantRef: string,
 ): Promise<ConsentMode> {
-  const binding = preferences.bindingOf(tenantRef, scheduleAgentAuthoringSettings)
-  const basis = await preferences.read(tenantRef, binding.request)
+  const binding = independent.bindingOf(tenantRef, scheduleAgentAuthoringSettings)
+  const basis = await independent.read(tenantRef, binding.request)
   if (basis === undefined || !('views' in basis) || basis.completeness !== 'complete')
     return { kind: 'unreadable' }
   const [view] = basis.views

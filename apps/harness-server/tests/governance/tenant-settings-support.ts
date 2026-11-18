@@ -8,7 +8,7 @@ import {
   type ReleaseTree,
 } from '../support/release-tree.ts'
 
-export const SHELL = { category: 'tool', name: 'Shell' } as const
+export const SHELL = { kind: 'asset', category: 'tool', name: 'Shell' } as const
 
 export function faceOf(tree: ReleaseTree): TenantSettings<unknown> {
   const face = tree.scope.get('tenantSettings') as TenantSettings<unknown> | undefined

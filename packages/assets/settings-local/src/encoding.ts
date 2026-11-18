@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import canonicalize from 'canonicalize'
 import type { SettingsTarget } from '@omne-harness/settings'
 import type { JsonValue, StorageScope } from '@omne-harness/sql-contract'
+import type { OperationSubject } from './schema.ts'
 
 export function canonical(value: unknown): string {
   const result = canonicalize(value)
@@ -22,10 +23,10 @@ export function stateKey(scope: StorageScope, target: SettingsTarget): string {
 }
 export function operationKey(
   principalRef: string,
-  target: SettingsTarget,
+  subject: OperationSubject,
   operationId: string,
 ): string {
-  return digest([principalRef, target, operationId])
+  return digest([principalRef, subject, operationId])
 }
 export function withinBudget(value: unknown): boolean {
   const active = new Set<object>()

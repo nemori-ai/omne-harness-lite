@@ -32,7 +32,7 @@ const exit = await onReleaseTree({ script: shellScript }, async tree => {
   const face = faceOf(tree)
   await shellRound(tree, 'warmup')
   const { principal, tenant } = await loginAccess(tree)
-  const item = { principal, tenant, asset: SHELL, item: 'invoke' }
+  const item = { principal, tenant, owner: SHELL, item: 'invoke' }
   const before = await face.describe(item)
   if (before.kind !== 'described') throw new Error(JSON.stringify(before))
   print(`describe before: ${shown(before.item)}`)

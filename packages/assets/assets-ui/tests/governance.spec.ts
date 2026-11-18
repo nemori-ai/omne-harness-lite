@@ -15,8 +15,9 @@ const TENANT = tenantOf(TENANT_TEXT)
 const OTHER_TENANT = tenantOf(
   TENANT_TEXT.replace('acc_00000000000000000000000001', 'acc_00000000000000000000000002'),
 )
-const MCP_VIEW = permissionView({ asset: { category: 'mcp', name: 'context7' } })
+const MCP_VIEW = permissionView({ owner: { kind: 'asset', category: 'mcp', name: 'context7' } })
 const SHELL_VIEW = permissionView()
+const ASSETS = { kind: 'asset' }
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0))
 
@@ -37,7 +38,7 @@ describe('the governance port: one category of one tenant', () => {
     const mcp = governance.open(TENANT, 'mcp')
     expect(mcp.getSnapshot()).toEqual({ kind: 'reading' })
     const list = await fake.next('list-settings')
-    expect(list.body).toEqual({ tenant: TENANT, after: null, limit: 100 })
+    expect(list.body).toEqual({ tenant: TENANT, scope: ASSETS, after: null, limit: 100 })
     list.answer(page([SHELL_VIEW, MCP_VIEW]))
     await settle()
     const snapshot = mcp.getSnapshot()
@@ -128,8 +129,8 @@ describe('the governance port: one category of one tenant', () => {
     const b = governance.open(OTHER_TENANT, 'mcp')
     const [listA, listB] = [await fake.next('list-settings'), await fake.next('list-settings')]
     expect([listA.body, listB.body]).toEqual([
-      { tenant: TENANT, after: null, limit: 100 },
-      { tenant: OTHER_TENANT, after: null, limit: 100 },
+      { tenant: TENANT, scope: ASSETS, after: null, limit: 100 },
+      { tenant: OTHER_TENANT, scope: ASSETS, after: null, limit: 100 },
     ])
     listA.answer(page([MCP_VIEW]))
     await settle()
@@ -142,7 +143,7 @@ describe('the governance port: one write, by the table of one submission', () =>
   async function opened() {
     const { fake, governance } = setup()
     const mcp = governance.open(TENANT, 'mcp')
-    const secretSetting = secretView({ asset: MCP_VIEW.asset, editable: { kind: 'yes' } })
+    const secretSetting = secretView({ owner: MCP_VIEW.owner, editable: { kind: 'yes' } })
     ;(await fake.next('list-settings')).answer(page([MCP_VIEW, secretSetting]))
     await settle()
     const snapshot = mcp.getSnapshot()

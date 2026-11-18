@@ -1,4 +1,5 @@
 import type { AssetsProtocol, SettingView } from '@omne-harness/assets-protocol'
+import type { JsonValue } from '@omne-harness/json-text'
 import type { ClientOf } from '@omne-harness/sdk/core'
 
 type Client = ClientOf<AssetsProtocol>
@@ -11,6 +12,7 @@ export type Notice = Readonly<{ kind: 'refused' | 'unavailable' | 'unknown'; tex
 
 export type WriteRequest =
   | Readonly<{ kind: 'set'; pick: string }>
+  | Readonly<{ kind: 'set-value'; value: JsonValue }>
   | Readonly<{ kind: 'set-secret' }>
   | Readonly<{ kind: 'clear' }>
 
@@ -43,12 +45,13 @@ export type State = Readonly<{
   issued: number
 }>
 
-export type Target = Readonly<{ asset: SettingView['asset']; item: string }>
+export type Target = Readonly<{ owner: SettingView['owner']; item: string }>
 
 export type Event =
   | Readonly<{ kind: 'read-list' }>
   | Readonly<{ kind: 'list-answered'; token: number; answer: ListAnswer }>
   | Readonly<{ kind: 'set'; key: string; pick: string; operation: string }>
+  | Readonly<{ kind: 'set-value'; key: string; value: JsonValue; operation: string }>
   | Readonly<{ kind: 'set-secret'; key: string; secret: string; operation: string }>
   | Readonly<{ kind: 'clear'; key: string; operation: string }>
   | Readonly<{ kind: 'write-answered'; key: string; operation: string; answer: WriteAnswer }>
@@ -65,10 +68,14 @@ export type Step = Readonly<{ state: State; effects: readonly Effect[] }>
 
 export const INITIAL: State = { list: { kind: 'unread' }, issued: 0 }
 
-export const keyOf = (view: Target): string =>
-  JSON.stringify([view.asset.category, view.asset.name, view.item])
+export const keyOf = ({ owner, item }: Target): string =>
+  JSON.stringify(
+    owner.kind === 'asset'
+      ? [owner.kind, owner.category, owner.name, item]
+      : [owner.kind, owner.providerId, owner.definitionId, item],
+  )
 
-const targetOf = (view: SettingView): Target => ({ asset: view.asset, item: view.item })
+const targetOf = (view: SettingView): Target => ({ owner: view.owner, item: view.item })
 
 const same = (state: State): Step => ({ state, effects: [] })
 
@@ -292,6 +299,11 @@ export function step(state: State, event: Event): Step {
       return listAnswered(state, event.token, event.answer)
     case 'set':
       return startWrite(state, event.key, event.operation, { kind: 'set', pick: event.pick })
+    case 'set-value':
+      return startWrite(state, event.key, event.operation, {
+        kind: 'set-value',
+        value: event.value,
+      })
     case 'set-secret':
       return startWrite(state, event.key, event.operation, { kind: 'set-secret' }, event.secret)
     case 'clear':

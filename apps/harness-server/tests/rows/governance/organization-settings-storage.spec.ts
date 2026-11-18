@@ -48,9 +48,10 @@ async function world() {
   const organization = organizationCodec.encode(TENANT_A.organization)
   if (!organization.ok) throw new Error('Invalid fixture organization')
   const target = {
-    policyId: 'independent',
+    kind: 'independent' as const,
+    providerId: 'governance',
+    definitionId: 'permission-source',
     scopeRef: organization.value,
-    targetRef: 'permission-source',
   }
   const owner = createStandaloneSettingsOwner({ storage: made.storage, domain, ...registration })
   cleanup.push(() => owner.close())

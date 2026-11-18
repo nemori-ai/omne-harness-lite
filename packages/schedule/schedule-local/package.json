@@ -40,7 +40,8 @@
     "zod": "catalog:",
     "@omne-harness/calendar-cordis-contract": "workspace:*",
     "@omne-harness/calendar": "workspace:*",
-    "@omne-harness/settings": "workspace:*"
+    "@omne-harness/settings": "workspace:*",
+    "@omne-harness/assets-cordis-contract": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness/sqlite-provider": "workspace:*",

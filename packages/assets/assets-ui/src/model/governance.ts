@@ -1,4 +1,5 @@
 import type { AssetsProtocol } from '@omne-harness/assets-protocol'
+import type { JsonValue } from '@omne-harness/json-text'
 import { encodeTenantText, type TenantId } from '@omne-harness/public-contract'
 import type { ClientOf } from '@omne-harness/sdk/core'
 import { holdingsOf, type Holding } from './holdings.ts'
@@ -15,6 +16,7 @@ export type CategoryGovernance = Readonly<{
   getSnapshot: () => CategorySnapshot
   read: () => void
   set: (key: string, pick: string) => void
+  setValue: (key: string, value: JsonValue) => void
   setSecret: (key: string, secret: string) => void
   clear: (key: string) => void
   confirm: (key: string) => void
@@ -46,7 +48,9 @@ export function snapshotOf(state: State, category: string | null): CategorySnaps
       const rows =
         category === null
           ? list.rows
-          : list.rows.filter(row => row.view.asset.category === category)
+          : list.rows.filter(
+              row => row.view.owner.kind === 'asset' && row.view.owner.category === category,
+            )
       return { kind: 'read', holdings: holdingsOf(rows), partial: list.partial }
     }
   }
@@ -63,6 +67,7 @@ export function createGovernance(deps: GovernanceDeps): GovernanceModel {
     const driver = new SettingsDriver({
       client: deps.client,
       tenant,
+      scope: { kind: 'asset' },
       ...(deps.newId === undefined ? {} : { newId: deps.newId }),
     })
     const created: Shared = { driver, users: 0 }
@@ -90,6 +95,7 @@ export function createGovernance(deps: GovernanceDeps): GovernanceModel {
       },
       read: () => driver.readList(),
       set: (key, pick) => driver.set(key, pick),
+      setValue: (key, value) => driver.setValue(key, value),
       setSecret: (key, secret) => driver.setSecret(key, secret),
       clear: key => driver.clear(key),
       confirm: key => driver.confirm(key),

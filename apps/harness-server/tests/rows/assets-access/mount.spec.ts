@@ -114,7 +114,7 @@ describe('assets-access row', () => {
         }
         await settledSession(tree, 'hello')
         const tenant = savedTenant(tree.home)
-        const item = { tenant, asset: SHELL, item: 'invoke' }
+        const item = { tenant, owner: SHELL, item: 'invoke' }
 
         const before = await assets(tree, 'describe-setting', item, 'm-describe-1')
         expect(before).toMatchObject({
@@ -153,7 +153,7 @@ describe('assets-access row', () => {
         const listed = await assets(
           tree,
           'list-settings',
-          { tenant, after: null, limit: 100 },
+          { tenant, scope: { kind: 'asset' }, after: null, limit: 100 },
           'm-list',
         )
         expect(listed).toMatchObject({ status: 200, json: { outcome: 'succeeded' } })
@@ -171,7 +171,6 @@ describe('assets-access row', () => {
         const page = categories.json as { body: { items: { category: string; title: string }[] } }
         expect(page.body.items.map(item => [item.category, item.title])).toEqual([
           ['model-provider', '模型供应商'],
-          ['preference', '偏好'],
           ['skill', '技能'],
           ['tool', '工具'],
         ])

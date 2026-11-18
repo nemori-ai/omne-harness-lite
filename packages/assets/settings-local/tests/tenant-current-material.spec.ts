@@ -14,7 +14,12 @@ const tenantRef = (() => {
 })()
 const source = {
   domain: { scope: { kind: 'tenant' as const, tenant: tenantRef }, transactionDomain: 'tenant/a' },
-  target: { policyId: 'independent', targetRef: 'preferences', scopeRef: tenantRef },
+  target: {
+    kind: 'independent' as const,
+    providerId: 'example',
+    definitionId: 'preferences',
+    scopeRef: tenantRef,
+  },
 }
 function input() {
   const projection = sourceSnapshot().projection

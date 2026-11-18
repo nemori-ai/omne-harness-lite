@@ -22,7 +22,7 @@ export function matchesOrganizationCurrentSource(source: SourceReference, actorT
     organization.ok &&
     source.domain.scope.kind === 'system' &&
     source.domain.transactionDomain === 'system.settings' &&
-    source.target.policyId === 'independent' &&
+    source.target.kind === 'independent' &&
     source.target.scopeRef === organization.value
   )
 }
@@ -31,7 +31,7 @@ function matchesTenantCurrentSource(source: SourceReference, actorTenantRef: str
     tenantCodec.parse(actorTenantRef).ok &&
     source.domain.scope.kind === 'tenant' &&
     source.domain.scope.tenant === actorTenantRef &&
-    source.target.policyId === 'independent' &&
+    source.target.kind === 'independent' &&
     source.target.scopeRef === actorTenantRef
   )
 }
