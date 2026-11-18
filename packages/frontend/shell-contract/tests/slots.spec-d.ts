@@ -19,7 +19,9 @@ import type {
   GateProps,
   ItemOf,
   PageItem,
+  PageProps,
   ScopedProps,
+  Toast,
   ShellLogin,
   ShellLoginState,
   ShellSlots,
@@ -58,7 +60,7 @@ test('each slot takes its own item', () => {
       order: number
       icon?: string
       badge?: (props: ScopedProps) => ReactNode
-      render: (props: ScopedProps) => ReactNode
+      render: (props: PageProps) => ReactNode
     }>
   >()
   expectTypeOf<SidebarItem>().toEqualTypeOf<
@@ -69,6 +71,9 @@ test('each slot takes its own item', () => {
 test('the render properties: the gate gets no tenant, the others get the tenant text', () => {
   expectTypeOf<keyof GateProps>().toBeNever()
   expectTypeOf<ScopedProps>().toEqualTypeOf<Readonly<{ scope: string | undefined }>>()
+  expectTypeOf<PageProps>().toEqualTypeOf<
+    Readonly<{ scope: string | undefined; subject?: string }>
+  >()
   expectTypeOf<AttachedProps>().toEqualTypeOf<
     Readonly<{ scope: string | undefined; subject: string }>
   >()
@@ -93,7 +98,19 @@ test('contribute refuses an item that belongs to another slot', () => {
 
 test('the slots reader and the service members', () => {
   expectTypeOf<ShellSlots['items']>().toBeCallableWith('pages')
-  expectTypeOf<ShellService['navigate']>().toEqualTypeOf<(pageId: string) => void>()
+  expectTypeOf<ShellService['navigate']>().toEqualTypeOf<
+    (pageId: string, subject?: string) => void
+  >()
+  expectTypeOf<ShellService['toast']>().toEqualTypeOf<(toast: Toast) => void>()
+  expectTypeOf<Toast>().toEqualTypeOf<
+    Readonly<{
+      id: string
+      tone: 'info' | 'attention'
+      title: string
+      body?: string
+      action?: Readonly<{ label: string; page: string; subject?: string }>
+    }>
+  >()
   expectTypeOf<ShellService['attached']>().toEqualTypeOf<
     (anchor: string, subject: string) => ReactNode
   >()
