@@ -60,6 +60,7 @@ describe('Session current permission relation', () => {
         operation: operationId('permission-mode-change'),
         declaration: {
           kind: 'permission-mode' as const,
+          expectedRevision: '0',
           value: 'never' as const,
           authorization: evidence('mode-policy-fixture'),
         },
@@ -95,6 +96,7 @@ describe('Session current permission relation', () => {
         operation: operationId('failed-mode-change'),
         declaration: {
           kind: 'permission-mode' as const,
+          expectedRevision: '0',
           value: 'never' as const,
           authorization: evidence('mode-policy-fixture'),
         },

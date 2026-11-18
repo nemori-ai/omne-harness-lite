@@ -50,7 +50,7 @@ const SESSION_GOLDEN = {
   retryRun: BOTH,
   freeze: WORK_ONLY,
   receive: [D, M, 'matrix scope-release-receive [fact scope-release]'],
-  readWork: WORK_ONLY,
+  readWork: BOTH,
   readCurrentScope: WORK_ONLY,
   readWaiting: [M, D, D],
   readBackgroundCalls: [M, M, D],

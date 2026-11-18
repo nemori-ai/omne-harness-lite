@@ -140,7 +140,14 @@ function extraFor(
   if (operation === 'accept') return cell.when?.kinds.includes('business') ? business : ordinary
   if (operation === 'receive') return scopeReleaseFact
   if (operation === 'change')
-    return { declaration: { kind: 'permission-mode', value: 'never', authorization: evidence } }
+    return {
+      declaration: {
+        kind: 'permission-mode',
+        value: 'never',
+        expectedRevision: '0',
+        authorization: evidence,
+      },
+    }
   return {}
 }
 

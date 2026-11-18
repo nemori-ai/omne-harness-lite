@@ -2737,6 +2737,7 @@ export declare const INGRESS_FAMILIES: Readonly<{
     readonly control: 'session-public/1-control';
     readonly accept: 'session-public/1-accept';
     readonly create: 'session-public/1-create';
+    readonly mode: 'session-public/1-mode';
 }>;
 export type IngressFamily = (typeof INGRESS_FAMILIES)[keyof typeof INGRESS_FAMILIES];
 export declare function deriveIngressOperation(family: IngressFamily, fields: readonly string[]): SessionOperationId;
@@ -3307,8 +3308,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:183adf5df56e10d24b5b4e4921e2024538090f1538b5bdd2f8286478da98349e";
-export declare const SESSION_RELEASE_DIGEST = "sha256:183adf5df56e10d24b5b4e4921e2024538090f1538b5bdd2f8286478da98349e";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:35ada4579e2d909ca30a2a23938b5d8a1fc31a0c581691dbe5f51f9273e357db";
+export declare const SESSION_RELEASE_DIGEST = "sha256:35ada4579e2d909ca30a2a23938b5d8a1fc31a0c581691dbe5f51f9273e357db";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -4369,6 +4370,7 @@ export type DeclarationChange = Readonly<{
 }> | Readonly<{
     kind: 'permission-mode';
     value: Modes['permission'];
+    expectedRevision: string;
     authorization: DurableEvidence;
 }> | Readonly<{
     kind: 'collaboration-mode';

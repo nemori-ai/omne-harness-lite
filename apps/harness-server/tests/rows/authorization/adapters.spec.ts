@@ -263,8 +263,8 @@ describe('sessionAccessCheck: members and branches', () => {
     const w = world()
     w.flags.standing = 'not-member'
     expect(await w.session.check(read(w.work(), 'readWork'))).toEqual({ kind: 'denied' })
-    w.flags.standing = 'member'
     expect(await w.session.check(read(w.login(), 'readWork'))).toEqual({ kind: 'denied' })
+    w.flags.standing = 'member'
     expect(await w.session.check(read(w.foreign(), 'readWork'))).toEqual({ kind: 'denied' })
   })
 
@@ -290,6 +290,25 @@ describe('sessionAccessCheck: members and branches', () => {
       expect(await w.session.check(request), kind).toEqual({ kind: 'denied' })
     }
     expect(w.reached()).toBe(0)
+  })
+
+  it('lets the own login change the permission mode, and denies the work principal of the Agent', async () => {
+    const w = world()
+    const declaration = {
+      declaration: {
+        kind: 'permission-mode',
+        value: 'auto_permission',
+        expectedRevision: '0',
+        authorization: { owner: 'login-entry', record: 'login', revision: '1', digest: 'd' },
+      },
+    }
+    expect((await w.session.check(mutate(w.login(), 'change', declaration))).kind).toBe('allowed')
+    expect(await w.session.check(mutate(w.work(), 'change', declaration))).toEqual({
+      kind: 'denied',
+    })
+    expect(await w.session.check(mutate(w.foreign(), 'change', declaration))).toEqual({
+      kind: 'denied',
+    })
   })
 
   it('denies the two operations to the work principal and to a foreign principal', async () => {

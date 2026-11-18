@@ -285,6 +285,7 @@ export type DeclarationChange =
   | Readonly<{
       kind: 'permission-mode'
       value: Modes['permission']
+      expectedRevision: string
       authorization: DurableEvidence
     }>
   | Readonly<{

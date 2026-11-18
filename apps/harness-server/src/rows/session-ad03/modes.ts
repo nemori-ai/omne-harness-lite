@@ -18,7 +18,7 @@ import {
   createSessionModesPlugin,
   type SessionModesPluginInput,
 } from '@omne-harness/session-adapters/cordis'
-import type { SessionId } from '@omne-harness/session-contract'
+import type { SessionAccess, SessionId } from '@omne-harness/session-contract'
 import type { SessionModesPrincipalsService } from '../../entry/session-modes-principals.ts'
 
 export const sessionModesInstallationKey = 'sessionModesInstallation'
@@ -43,6 +43,9 @@ export class SessionModesInstallation extends Service {
   readonly prepareInitial: (input: ModesCreation) => ReturnType<typeof prepareContextRegistration>
   readonly ensure: (tenant: TenantId) => Promise<{ kind: 'ready' | 'unavailable' }>
   readonly refresh: (tenant: TenantId, session: SessionId) => ReturnType<Producer['refresh']>
+  readonly readPermissionMode: (
+    access: SessionAccess<unknown>,
+  ) => ReturnType<Producer['readPermissionMode']>
 
   constructor(ctx: Context, sources: Sources) {
     super(ctx, sessionModesInstallationKey)
@@ -115,6 +118,10 @@ export class SessionModesInstallation extends Service {
     this.refresh = async (tenant, session) => {
       const mounted = await producer(tenant)
       return mounted?.refresh(session) ?? { kind: 'unavailable' }
+    }
+    this.readPermissionMode = async access => {
+      const mounted = await producer(access.tenant)
+      return mounted?.readPermissionMode(access) ?? { kind: 'unavailable' }
     }
   }
 }

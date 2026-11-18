@@ -737,9 +737,19 @@ describe('SessionAccessCheck through the admission check', () => {
   })
 
   it.each([
-    { kind: 'permission-mode', value: 'never', authorization: EVIDENCE },
-    { kind: 'permission-mode', value: 'auto_permission', authorization: EVIDENCE },
-    { kind: 'permission-mode', value: 'bypass-permissions', authorization: EVIDENCE },
+    { kind: 'permission-mode', value: 'never', expectedRevision: '0', authorization: EVIDENCE },
+    {
+      kind: 'permission-mode',
+      value: 'auto_permission',
+      expectedRevision: '0',
+      authorization: EVIDENCE,
+    },
+    {
+      kind: 'permission-mode',
+      value: 'bypass-permissions',
+      expectedRevision: '0',
+      authorization: EVIDENCE,
+    },
     { kind: 'collaboration-mode', value: 'co-work', authorization: EVIDENCE },
     { kind: 'collaboration-mode', value: 'auto-drive', authorization: EVIDENCE },
     {

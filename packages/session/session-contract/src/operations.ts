@@ -117,6 +117,7 @@ export const INGRESS_FAMILIES = Object.freeze({
   control: 'session-public/1-control',
   accept: 'session-public/1-accept',
   create: 'session-public/1-create',
+  mode: 'session-public/1-mode',
 } as const)
 export type IngressFamily = (typeof INGRESS_FAMILIES)[keyof typeof INGRESS_FAMILIES]
 

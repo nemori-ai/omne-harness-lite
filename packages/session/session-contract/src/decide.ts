@@ -22,7 +22,13 @@ import type {
 } from './identity.ts'
 import type { Adoption } from './identity.ts'
 import { tenantEquals, workspaceCodec, type WorkspaceId } from '@omne-harness/legal-identity'
-import type { BoundedClose, RunTerminal, WorkSnapshot, WorkspaceAttachment } from './values.ts'
+import type {
+  BoundedClose,
+  DeclarationChange,
+  RunTerminal,
+  WorkSnapshot,
+  WorkspaceAttachment,
+} from './values.ts'
 import type { HistoryEntry, ProducerFact, SessionFailure, StartAdoption } from './faces.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
 import { encodeEntry } from './entries.ts'
@@ -543,6 +549,16 @@ function decideDeclarationChange(
   return decideChange(snapshot, command)
 }
 
+// A mode change names the permission revision it was read at; the commit checks it in the same transaction.
+function modeRevisionRefusal(
+  snapshot: WorkSnapshot,
+  change: Extract<DeclarationChange, { kind: 'permission-mode' }>,
+): Decision | null {
+  return change.expectedRevision === snapshot.permissions.revision
+    ? null
+    : { kind: 'rejected', failure: { kind: 'changed', revision: snapshot.revision } }
+}
+
 function decideChange(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'change' }>,
@@ -555,6 +571,9 @@ function decideChange(
         ? declaration.basis
         : declaration.registration
   if (!completeEvidence(proof)) return invalid('declaration', 'incomplete evidence')
+  const moved =
+    declaration.kind === 'permission-mode' ? modeRevisionRefusal(snapshot, declaration) : null
+  if (moved !== null) return moved
   if (declaration.kind === 'model' && !declaration.name)
     return invalid('declaration.name', 'empty model selection')
   if (

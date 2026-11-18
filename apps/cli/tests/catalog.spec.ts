@@ -75,6 +75,8 @@ describe('command catalog', () => {
       'stop-call',
       'archive-session',
       'unarchive-session',
+      'read-permission-mode',
+      'change-permission-mode',
       'list-archived-sessions',
       'calls',
       'list-cards',

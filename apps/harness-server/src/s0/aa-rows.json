@@ -375,7 +375,8 @@
       "names": [
         "principalIssuer",
         "tenantStanding",
-        "definitionMappings"
+        "definitionMappings",
+        "sessionModesInstallation"
       ]
     },
     {

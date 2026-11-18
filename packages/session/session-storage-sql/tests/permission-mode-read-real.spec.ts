@@ -49,6 +49,7 @@ it('retains original creation evidence through a mode change and real Worker reo
           operation: operationId('changed-mode-before-reopen'),
           declaration: {
             kind: 'permission-mode',
+            expectedRevision: '0',
             value: 'never',
             authorization: evidence('mode-policy-fixture'),
           },

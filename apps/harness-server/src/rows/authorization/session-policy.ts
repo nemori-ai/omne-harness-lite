@@ -160,7 +160,13 @@ export const SESSION_POLICY = Object.freeze({
       { kind: 'fact', kinds: ['scope-release'] },
     ),
   ),
-  readWork: row(deny(NO_SOURCE), member('SS:552，DA4 §4.1'), deny(NO_SYSTEM_READ)),
+  readWork: row(
+    member(
+      '`session/v1` 的 `read-permission-mode` 与 `change-permission-mode`：本人读本会话的当前模式与权限修订，packages/session/SPEC.md「协议、接入与界面」',
+    ),
+    member('SS:552，DA4 §4.1'),
+    deny(NO_SYSTEM_READ),
+  ),
   readCurrentScope: row(deny(NO_SOURCE), member('SS:95，当前作用域窄读'), deny(NO_SYSTEM_READ)),
   readWaiting: row(
     member('`session/v1` 的 `read-waiting`，packages/session/SPEC.md「等人」'),
