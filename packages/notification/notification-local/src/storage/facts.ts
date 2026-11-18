@@ -4,6 +4,7 @@ import {
   recipientRefSchema,
   type Beat,
   type BoxEntry,
+  type Marks,
   type NotificationRecord,
   type RecipientRef,
   type SendIdentity,
@@ -14,7 +15,8 @@ import type { QueryRows, SqlValue } from '@omne-harness/sql-contract/worker'
 import {
   beatSchema,
   destinationSchema,
-  notificationRecordSchema,
+  acceptedNotificationSchema,
+  marksSchema,
   ROW_LIMIT,
   sendRecordSchema,
   storedUnitSchema,
@@ -45,8 +47,24 @@ function rows<T>(
 }
 
 const one = <T>(found: readonly T[]): T | null => found[0] ?? null
-const unresolved = (record: NotificationRecord) =>
-  record.marks.resolved === null && record.marks.supersededBy === null ? 1 : 0
+const unresolved = (marks: Marks) =>
+  marks.resolved === null && marks.supersededBy === null ? 1 : 0
+const cell = <T>(schema: z.ZodType<T>, value: unknown): T =>
+  schema.parse(JSON.parse(text.parse(value)))
+
+/** A notification as stored: what was fixed when it was accepted, and its marks now. */
+export function notificationOf(accepted: unknown, marks: unknown): NotificationRecord {
+  return { ...cell(acceptedNotificationSchema, accepted), marks: cell(marksSchema, marks) }
+}
+
+function notifications(
+  port: SqlPort,
+  where: string,
+  params: readonly SqlValue[],
+): NotificationRecord[] {
+  const sql = `SELECT record, marks FROM nt_notifications WHERE ${where}`
+  return select(port, sql, params).map(row => notificationOf(row[0], row[1]))
+}
 const scopeKey = (key: SubscriptionKey) => JSON.stringify(key.scope)
 const subscriptionParams = (key: SubscriptionKey) => [
   recipientKey(key.recipient),
@@ -69,15 +87,12 @@ export function boxEntry(record: NotificationRecord, send: SendRecord): BoxEntry
   }
 }
 
-const BOX =
-  'SELECT n.record, s.record FROM nt_notifications n JOIN nt_sends s ON s.source = n.source AND s.event_id = n.event_id'
+export const BOX =
+  'SELECT n.record, n.marks, s.record FROM nt_notifications n JOIN nt_sends s ON s.source = n.source AND s.event_id = n.event_id'
 
 function entries(port: SqlPort, where: string, params: readonly SqlValue[]): BoxEntry[] {
   return select(port, `${BOX} WHERE ${where} ORDER BY n.sequence ASC`, params).map(row =>
-    boxEntry(
-      notificationRecordSchema.parse(JSON.parse(text.parse(row[0]))),
-      sendRecordSchema.parse(JSON.parse(text.parse(row[1]))),
-    ),
+    boxEntry(notificationOf(row[0], row[1]), cell(sendRecordSchema, row[2])),
   )
 }
 
@@ -91,15 +106,10 @@ export function beatOf(port: SqlPort, recipient: RecipientRef): Beat {
   return one(rows(port, beatSchema, sql, [recipientKey(recipient)])) ?? { kind: 'default' }
 }
 
-/** The person is a recipient of every tenant, written or not. */
+/** The person is a recipient of every tenant, written or not, and always the first. */
 export function recipientsOf(port: SqlPort): RecipientRef[] {
-  const stored = rows(
-    port,
-    recipientRefSchema,
-    'SELECT record FROM nt_recipients ORDER BY rowid',
-    [],
-  )
-  return stored.some(recipient => recipient.kind === 'person') ? stored : [PERSON, ...stored]
+  const sql = "SELECT record FROM nt_recipients WHERE recipient <> 'person' ORDER BY rowid"
+  return [PERSON, ...rows(port, recipientRefSchema, sql, [])]
 }
 
 export function currentSequence(port: SqlPort): number {
@@ -109,32 +119,12 @@ export function currentSequence(port: SqlPort): number {
 
 /** One tenant's facts over one SQL transaction. The scripts of the domain run on it unchanged. */
 export function sqlTxn(port: SqlPort): NotificationTxn {
-  const notification = (recipient: RecipientRef, identity: SendIdentity) =>
-    one(
-      rows(
-        port,
-        notificationRecordSchema,
-        'SELECT record FROM nt_notifications WHERE recipient = ? AND source = ? AND event_id = ?',
-        [recipientKey(recipient), identity.source, identity.eventId],
-      ),
-    )
-  const writeNotification = (record: NotificationRecord) => {
-    const { identity, recipient, sequence, level, quiet, replaceKey } = record
-    port.execute(
-      'INSERT INTO nt_notifications (recipient, source, event_id, sequence, strong, quiet, unresolved, replace_key, record) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(recipient, source, event_id) DO UPDATE SET unresolved = excluded.unresolved, record = excluded.record',
-      [
-        recipientKey(recipient),
-        identity.source,
-        identity.eventId,
-        sequence,
-        level === 'strong' ? 1 : 0,
-        quiet ? 1 : 0,
-        unresolved(record),
-        replaceKey,
-        JSON.stringify(record),
-      ],
-    )
-  }
+  const where = 'recipient = ? AND source = ? AND event_id = ?'
+  const keyOf = (recipient: RecipientRef, identity: SendIdentity) => [
+    recipientKey(recipient),
+    identity.source,
+    identity.eventId,
+  ]
   return {
     send: (source, eventId) => sendOf(port, source, eventId),
     insertSend(record) {
@@ -187,7 +177,6 @@ export function sqlTxn(port: SqlPort): NotificationTxn {
         subscriptionParams(key),
       )
     },
-    beat: recipient => beatOf(port, recipient),
     setBeat(recipient, beat) {
       port.execute(
         'INSERT INTO nt_beats (recipient, beat) VALUES (?, ?) ON CONFLICT(recipient) DO UPDATE SET beat = excluded.beat',
@@ -202,20 +191,34 @@ export function sqlTxn(port: SqlPort): NotificationTxn {
       )
       return next
     },
-    notification,
-    insertNotification: writeNotification,
+    notification: (recipient, identity) =>
+      one(notifications(port, where, keyOf(recipient, identity))),
+    insertNotification({ marks, ...accepted }) {
+      const { identity, recipient, sequence, level, quiet, replaceKey } = accepted
+      port.execute(
+        'INSERT INTO nt_notifications (recipient, source, event_id, sequence, strong, quiet, unresolved, replace_key, record, marks) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          ...keyOf(recipient, identity),
+          sequence,
+          level === 'strong' ? 1 : 0,
+          quiet ? 1 : 0,
+          unresolved(marks),
+          replaceKey,
+          JSON.stringify(accepted),
+          JSON.stringify(marks),
+        ],
+      )
+    },
     setMarks(recipient, identity, marks) {
-      const record = notification(recipient, identity)
-      if (record === null) throw new Error('marks of a notification that is not stored')
-      writeNotification({ ...record, marks })
+      const sql = `UPDATE nt_notifications SET marks = ?, unresolved = ? WHERE ${where}`
+      port.execute(sql, [JSON.stringify(marks), unresolved(marks), ...keyOf(recipient, identity)])
     },
     sameKey: (recipient, source, replaceKey) =>
-      rows(
-        port,
-        notificationRecordSchema,
-        'SELECT record FROM nt_notifications WHERE recipient = ? AND source = ? AND replace_key = ? ORDER BY sequence',
-        [recipientKey(recipient), source, replaceKey],
-      ),
+      notifications(port, 'recipient = ? AND source = ? AND replace_key = ? ORDER BY sequence', [
+        recipientKey(recipient),
+        source,
+        replaceKey,
+      ]),
     currentSequence: () => currentSequence(port),
     pendingStrong: (recipient, after) =>
       entries(

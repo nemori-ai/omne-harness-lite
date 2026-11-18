@@ -12,11 +12,19 @@ import type { DeliveryState, SendView } from '@omne-harness/notification'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ReadHandlerModule } from '@omne-harness/sql-contract/worker'
 import { z } from 'zod'
-import { beatOf, recipientsOf, select, sendOf, sqlTxn, type SqlPort } from './facts.ts'
+import {
+  beatOf,
+  BOX,
+  notificationOf,
+  recipientsOf,
+  select,
+  sendOf,
+  sqlTxn,
+  type SqlPort,
+} from './facts.ts'
 import {
   destinationSchema,
   HANDLER,
-  notificationRecordSchema,
   PROTOCOL,
   sendRecordSchema,
   storedUnitSchema,
@@ -36,14 +44,14 @@ function summaries(
   params: readonly (string | number)[],
   atMost: number | null = null,
 ) {
-  const sql = `SELECT n.record, s.record FROM nt_notifications n JOIN nt_sends s ON s.source = n.source AND s.event_id = n.event_id WHERE ${where}`
+  const sql = `${BOX} WHERE ${where}`
   const found =
     atMost === null
       ? select(port, sql, params)
       : port.execute(`${sql} LIMIT ?`, [...params, atMost]).rows
   return found.map(row => {
-    const record = parsed(notificationRecordSchema, row[0])
-    const send = parsed(sendRecordSchema, row[1])
+    const record = notificationOf(row[0], row[1])
+    const send = parsed(sendRecordSchema, row[2])
     const { identity, recipient, sequence, level, cause, acceptedAt, marks } = record
     const { type, subject, at, content } = send.event
     const summary: NotificationSummary = {
@@ -82,12 +90,10 @@ function notification(port: SqlPort, ref: NotificationRef): NotificationView | n
 function send(port: SqlPort, identity: NotificationRef['identity']): SendView | null {
   const record = sendOf(port, identity.source, identity.eventId)
   if (record === null) return null
-  const txn = sqlTxn(port)
-  const notifications = record.recipients.map(recipient => {
-    const stored = txn.notification(recipient, identity)
-    if (stored === null) throw new Error('an accepted send without its notification')
-    return { recipient, marks: stored.marks }
-  })
+  const where = 'n.source = ? AND n.event_id = ? ORDER BY n.sequence ASC'
+  const notifications = summaries(port, where, [identity.source, identity.eventId]).map(
+    ({ summary }) => ({ recipient: summary.recipient, marks: summary.marks }),
+  )
   return { record, notifications }
 }
 

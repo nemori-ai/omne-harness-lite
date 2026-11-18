@@ -67,6 +67,9 @@ const reminderKey = (recipient: RecipientRef, item: string) =>
   JSON.stringify([recipientKey(recipient), item])
 const unresolved = (marks: Marks) => marks.resolved === null && marks.supersededBy === null
 
+const beatOf = (facts: TenantFacts, recipient: RecipientRef): Beat =>
+  facts.beats.get(recipientKey(recipient)) ?? { kind: 'default' }
+
 function boxEntry(facts: TenantFacts, record: NotificationRecord): BoxEntry {
   const send = facts.sends.get(sendKey(record.identity.source, record.identity.eventId))!
   const { type, content } = send.event
@@ -110,7 +113,6 @@ export function memoryTxn(facts: TenantFacts): NotificationTxn {
     deleteSubscription(key) {
       facts.subscriptions.delete(subscriptionKey(key))
     },
-    beat: recipient => facts.beats.get(recipientKey(recipient)) ?? { kind: 'default' },
     setBeat(recipient, beat) {
       facts.beats.set(recipientKey(recipient), beat)
     },
@@ -252,7 +254,7 @@ export function createMemoryStore(): MemoryStore {
       read(tenant, facts => facts.subscriptions.get(subscriptionKey(key)) ?? null),
     subscriptions: async (tenant, recipient) =>
       read(tenant, facts => memoryTxn(facts).subscriptionsOf(recipient)),
-    beat: async (tenant, recipient) => read(tenant, facts => memoryTxn(facts).beat(recipient)),
+    beat: async (tenant, recipient) => read(tenant, facts => beatOf(facts, recipient)),
     destination: (tenant, command) => commit(tenant, txn => writeDestination(txn, command)),
     formStrong: (tenant, command) => commit(tenant, txn => formStrongUnit(txn, command)),
     formBeat: (tenant, command) => commit(tenant, txn => formBeatUnit(txn, command)),
@@ -265,7 +267,7 @@ export function createMemoryStore(): MemoryStore {
         destinations: [...facts.destinations.values()],
         beats: [...facts.recipients.values()].map(recipient => ({
           recipient,
-          beat: memoryTxn(facts).beat(recipient),
+          beat: beatOf(facts, recipient),
         })),
         due: [...facts.units.values()].filter(
           unit => unit.state === 'pending' && unit.dueAt <= now,

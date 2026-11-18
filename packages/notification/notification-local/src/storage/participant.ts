@@ -36,7 +36,7 @@ export default {
   protocol: PROTOCOL,
   execute(facts, port) {
     const script = facts['script']
-    if (typeof script !== 'string' || !SCRIPTS.includes(script as ScriptName))
+    if (!SCRIPTS.includes(script as ScriptName))
       return { kind: 'failed', diagnostic: 'unknown_notification_script' }
     const result = RUN[script as ScriptName](sqlTxn(port), facts['command'] as never)
     return { kind: 'participated', response: (result ?? null) as JsonValue }

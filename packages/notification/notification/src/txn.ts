@@ -50,7 +50,6 @@ export interface NotificationTxn {
   subscriptionsOf(recipient: RecipientRef): readonly Subscription[]
   putSubscription(subscription: Subscription): void
   deleteSubscription(key: SubscriptionKey): void
-  beat(recipient: RecipientRef): Beat
   setBeat(recipient: RecipientRef, beat: Beat): void
 
   nextSequence(): number

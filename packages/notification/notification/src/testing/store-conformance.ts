@@ -219,6 +219,16 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
         ['e5'],
       )
       assert.equal(last.next, null)
+      const page = (limit: number) =>
+        store.box(T1, { recipient: PERSON, filter: 'all', after: null, limit })
+      const three = value(await page(3))
+      assert.deepEqual(
+        three.entries.map(entry => entry.identity.eventId),
+        ['e1', 'e2', 'e3'],
+      )
+      assert.equal(three.next, three.entries[2]?.sequence)
+      assert.equal(value(await page(5)).next, null)
+      assert.equal(value(await page(6)).next, null)
     },
   },
   {
@@ -326,6 +336,91 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
         },
       )
       assert.equal(value(await store.subscription(T1, key)), null)
+    },
+  },
+  {
+    name: 'a once subscription expires in the commit that hits it and does not hit again',
+    async run(create) {
+      const store = await create()
+      const key = subscriptionOf('a1')
+      const once = {
+        ...key,
+        level: 'strong',
+        note: null,
+        term: { kind: 'once' },
+        basis: { kind: 'owner' },
+        expired: false,
+      } as const
+      const other = {
+        ...subscriptionOf('a2'),
+        level: 'weak',
+        note: null,
+        term: { kind: 'standing' },
+        basis: { kind: 'owner' },
+        expired: false,
+      } as const
+      committed(await store.subscribe(T1, { defaults: DEFAULTS, key, expected: null, next: once }))
+      committed(
+        await store.subscribe(T1, { defaults: DEFAULTS, key: other, expected: null, next: other }),
+      )
+      committed(await store.accept(T1, command('e1')))
+      committed(await store.accept(T1, command('e2')))
+      const boxOf = async (ref: string) =>
+        value(
+          await store.box(T1, {
+            recipient: { kind: 'agent', ref },
+            filter: 'all',
+            after: null,
+            limit: 10,
+          }),
+        )
+      assert.deepEqual(
+        (await boxOf('a1')).entries.map(entry => entry.identity.eventId),
+        ['e1'],
+      )
+      assert.deepEqual(
+        (await boxOf('a2')).entries.map(entry => entry.identity.eventId),
+        ['e1', 'e2'],
+      )
+      assert.deepEqual(value(await store.subscription(T1, key)), { ...once, expired: true })
+      assert.deepEqual(value(await store.subscription(T1, other)), other)
+      assert.deepEqual(value(await store.subscriptionsFor(T1, key.source, key.type)), [
+        { ...once, expired: true },
+        other,
+      ])
+    },
+  },
+  {
+    name: 'the delivery state lists each recipient once with its beat, and every destination',
+    async run(create) {
+      const store = await create()
+      assert.deepEqual(value(await store.delivery(T1, at(0))), {
+        destinations: [],
+        beats: [{ recipient: PERSON, beat: { kind: 'default' } }],
+        due: [],
+      })
+      const agent: RecipientRef = { kind: 'agent', ref: 'a1' }
+      committed(await store.accept(T1, command('e1', { named: [agent] })))
+      committed(await store.accept(T1, command('e2', { named: [agent] })))
+      committed(
+        await store.setBeat(T1, { recipient: PERSON, beat: { kind: 'every', minutes: 30 } }),
+      )
+      const state = value(await store.delivery(T1, at(0)))
+      assert.deepEqual(state.beats, [
+        { recipient: PERSON, beat: { kind: 'every', minutes: 30 } },
+        { recipient: agent, beat: { kind: 'default' } },
+      ])
+      assert.deepEqual(
+        state.destinations.map(entry => [
+          entry.recipient,
+          entry.id,
+          entry.channel,
+          entry.builtin,
+          entry.strongCursor,
+        ]),
+        [[PERSON, BUILTIN_ID, 'in-app', true, 0]],
+      )
+      assert.deepEqual(value(await store.delivery(T2, at(0))).destinations, [])
     },
   },
   {

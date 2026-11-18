@@ -46,17 +46,19 @@ export const sendRecordSchema = z.strictObject({
   recipients: z.array(recipientRefSchema),
 }) satisfies z.ZodType<SendRecord>
 
-export const notificationRecordSchema = z.strictObject({
+/** What is fixed when a notification is accepted. Its marks change and are stored beside it. */
+export const acceptedNotificationSchema = z.strictObject({
   identity: sendIdentitySchema,
   recipient: recipientRefSchema,
   sequence: z.number().int().positive(),
   level: z.enum(['weak', 'strong']),
   cause: causeSchema,
   acceptedAt: instantSchema,
-  marks: marksSchema,
   replaceKey: z.string().nullable(),
   quiet: z.boolean(),
-}) satisfies z.ZodType<NotificationRecord>
+}) satisfies z.ZodType<Omit<NotificationRecord, 'marks'>>
+
+export { marksSchema }
 
 export const subscriptionSchema = z.strictObject({
   recipient: recipientRefSchema,

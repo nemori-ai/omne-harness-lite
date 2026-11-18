@@ -5,7 +5,7 @@ const STATEMENTS = [
   'CREATE TABLE nt_sends (source TEXT NOT NULL, event_id TEXT NOT NULL, record TEXT NOT NULL, PRIMARY KEY(source, event_id))',
   'CREATE TABLE nt_recipients (recipient TEXT PRIMARY KEY, record TEXT NOT NULL)',
   'CREATE TABLE nt_beats (recipient TEXT PRIMARY KEY, beat TEXT NOT NULL)',
-  'CREATE TABLE nt_notifications (recipient TEXT NOT NULL, source TEXT NOT NULL, event_id TEXT NOT NULL, sequence INTEGER NOT NULL, strong INTEGER NOT NULL, quiet INTEGER NOT NULL, unresolved INTEGER NOT NULL, replace_key TEXT, record TEXT NOT NULL, PRIMARY KEY(recipient, source, event_id))',
+  'CREATE TABLE nt_notifications (recipient TEXT NOT NULL, source TEXT NOT NULL, event_id TEXT NOT NULL, sequence INTEGER NOT NULL, strong INTEGER NOT NULL, quiet INTEGER NOT NULL, unresolved INTEGER NOT NULL, replace_key TEXT, record TEXT NOT NULL, marks TEXT NOT NULL, PRIMARY KEY(recipient, source, event_id))',
   'CREATE UNIQUE INDEX nt_notifications_box ON nt_notifications(recipient, sequence)',
   'CREATE INDEX nt_notifications_open ON nt_notifications(recipient, unresolved, sequence)',
   'CREATE INDEX nt_notifications_key ON nt_notifications(recipient, source, replace_key)',
