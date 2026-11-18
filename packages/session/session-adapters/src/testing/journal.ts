@@ -29,12 +29,15 @@ import { issueFacts, LEDGER_KINDS, obligationChanges, touchedBy } from './obliga
 import { closedReceived } from './received-records.ts'
 import {
   fixAnswer,
+  keptAnswer,
   operationAnswer,
   reachedStamp,
   receiptIn,
   recognitionBatch,
   recognitionOf,
   recognizedAnswer,
+  restoredAnswer,
+  type AnswerKeeping,
 } from './operation-answers.ts'
 import type {
   AcceptedInput,
@@ -188,6 +191,7 @@ import {
   supersessionOf,
   type RecordedSettlement,
 } from './journal-finishing.ts'
+import { settlementKeeping } from './settlement-answers.ts'
 import {
   type CandidateRequest,
   type CustodyRequest,
@@ -468,7 +472,6 @@ export type OperationRecord = Committed | Rejected | Excluded | Pending
 export type Attempt<R> =
   | Readonly<{ kind: 'answer'; value: Outcome<R, Failure> }>
   | Readonly<{ kind: 'unknown' }>
-  | Readonly<{ kind: 'write'; value: R; receipt: CommandReceipt; apply: () => void }>
   | Readonly<{
       kind: 'batch'
       facts: readonly FactBody[]
@@ -911,11 +914,17 @@ export function createJournal<P>(
     prepare: () => Attempt<R>,
     beforeRecognition?: () => Failure | undefined,
     onDropped?: () => void,
+    keeping?: AnswerKeeping<R>,
   ): Promise<Outcome<R, Failure>> {
     const entered = enter(method, input)
     if ('failure' in entered) return entered
     await cell.wait(input, method)
     let decision: JointDecision | null = null
+    const { fault } = entered.ok
+    const transacted = () =>
+      cell.transact(input, method, () =>
+        run(method, fault, input, key, prepare, beforeRecognition, decision, onDropped, keeping),
+      )
     if (method === 'commit' || method === 'recordResult') {
       const caller =
         method === 'commit'
@@ -944,28 +953,14 @@ export function createJournal<P>(
         const refused = beforeRecognition?.()
         if (refused) return fail(refused)
         const preview = prepare()
-        if (preview.kind === 'answer')
-          return cell.transact(input, method, () =>
-            run(
-              method,
-              entered.ok.fault,
-              input,
-              key,
-              prepare,
-              beforeRecognition,
-              decision,
-              onDropped,
-            ),
-          )
+        if (preview.kind === 'answer') return transacted()
         if (preview.kind === 'unknown')
           return fail({ kind: 'commit-unknown', operation: input.operation })
         const failure = await options.prepareResult(input, method)
         if (failure) return fail(failure)
       }
     }
-    return cell.transact(input, method, () =>
-      run(method, entered.ok.fault, input, key, prepare, beforeRecognition, decision, onDropped),
-    )
+    return transacted()
   }
 
   function enter(
@@ -993,6 +988,7 @@ export function createJournal<P>(
     beforeRecognition?: () => Failure | undefined,
     decision: JointDecision | null = null,
     onDropped?: () => void,
+    keeping?: AnswerKeeping<R>,
   ): TransactionAnswer<R> {
     const answered = (outcome: Outcome<R, Failure>): TransactionAnswer<R> => ({
       kind: 'answered',
@@ -1052,7 +1048,7 @@ export function createJournal<P>(
               kind: 'answered',
               value:
                 original.kind === 'committed'
-                  ? succeed(copy(original.value) as R)
+                  ? succeed(restoredAnswer(original.value, keeping))
                   : fail(copy(original.failure)),
             }
         }
@@ -1095,27 +1091,14 @@ export function createJournal<P>(
         fixAnswer(state(), at, input, {
           kind: 'committed',
           key,
-          value: copy(value),
+          value: keptAnswer(value, keeping),
           receipt,
           ...(prepared.match === undefined ? {} : { match: prepared.match }),
         })
         return { kind: 'wrote', value }
       }
-      prepared.apply()
-      const captured = cell.committed(input, method, prepared.receipt)
-      if (captured) return { kind: 'answered', value: fail(captured) }
-      if (method !== 'tryFinish') {
-        const participation = cell.participate(input, method, prepared.receipt, decision)
-        if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
-      }
-      cell.touch()
-      fixAnswer(state(), at, input, {
-        kind: 'committed',
-        key,
-        value: copy(prepared.value),
-        receipt: prepared.receipt,
-      })
-      return { kind: 'wrote', value: prepared.value }
+      const _exhaustive: never = prepared
+      return _exhaustive
     }
 
     const decide = (run: Run) => {
@@ -3794,11 +3777,16 @@ export function createJournal<P>(
 
     commitSettlement(input) {
       const key = semanticKey('commitSettlement', input)
-      return write('commitSettlement', input, key, () => {
+      const keeping = settlementKeeping(() => ({
+        records: state().executions.get(executionKey(input.tenant, input.execution))?.finishing,
+        view: viewOf(input.execution),
+        blobs: state().blobs,
+      }))
+      const prepare = (): Attempt<SettlementResult> => {
         const found = owned(input, 'commitSettlement')
         if ('failure' in found) return answer(found)
         const execution = found.ok
-        const original = recognizedAnswer<SettlementResult>(state(), input, key)
+        const original = recognizedAnswer(state(), input, key, keeping)
         if (original !== undefined) return answer(original)
         switch (input.kind) {
           case 'establish-cancellation':
@@ -3814,7 +3802,8 @@ export function createJournal<P>(
             return _exhaustive
           }
         }
-      })
+      }
+      return write('commitSettlement', input, key, prepare, undefined, undefined, keeping)
     },
 
     recordTerminalObservation(input) {

@@ -171,7 +171,7 @@ export type EventsRead =
   | Readonly<{
       kind: 'read'
       revision: string
-      receipt: JsonValue
+      receipt: NonNullable<JsonValue>
       emittedThrough: string
       ended: JsonValue
       events: readonly ExecutionEvent[]
@@ -228,6 +228,7 @@ export async function readEvents(
           return unread(
             `the events of the execution end at sequence ${String(through)}, before ${head.emittedThrough}`,
           )
+        if (head.receipt === null) return unread('the execution has no head receipt')
         return {
           kind: 'read',
           revision: head.revision,
