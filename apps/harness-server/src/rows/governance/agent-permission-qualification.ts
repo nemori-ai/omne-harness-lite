@@ -48,18 +48,19 @@ export async function qualifyAgentPermission(
     const available = releasedToolPermission(input.release, action)
     if (available === undefined) return unavailable()
     const released = structuredClone(available)
-    const { kind: _kind, ...position } = action.origin
+    const { kind: _kind, carrier, ...position } = action.origin
     const expectedOperation = agentPermissionOperation(position)
     if (
       canonicalText(action.operation) !== canonicalText(expectedOperation) ||
       !toolPermissionRequestMatches(action, permission, released.interpretation)
     )
       return { kind: 'denied' }
+    // The Agent's journal holds the call it made; a carried target is qualified through that call.
     const given = {
       tenant: action.tenant,
       ...position,
-      definition: action.definition,
-      effectiveArguments: action.effectiveArguments,
+      definition: carrier?.definition ?? action.definition,
+      effectiveArguments: carrier?.effectiveArguments ?? action.effectiveArguments,
     }
     const original = await input.qualifier.qualify({ ...given, principal: action.principal })
     if ('failure' in original)

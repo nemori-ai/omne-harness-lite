@@ -21,6 +21,7 @@
 - `DurableEvidence` · 包 `@omne-harness/exchange-refs`
 - `EffectiveArguments` · `evidence.d.ts`
 - `ExpiryReading` · `system-action.d.ts`
+- `GateVerdict` · `release.d.ts`
 - `GrantOutcome` · `permit.d.ts`
 - `InquiryDisposition` · `inquiry.d.ts`
 - `InquiryPolicy` · `inquiry.d.ts`
@@ -38,7 +39,11 @@
 - `PermitRef` · `permit.d.ts`
 - `PermitState` · `permit.d.ts`
 - `ReferenceAdmissionDependencies` · `reference.d.ts`
+- `ReleaseBasis` · `release.d.ts`
+- `ReleaseDecision` · `release.d.ts`
+- `ReleaseFacts` · `release.d.ts`
 - `SYSTEM_ACTION_MATRIX` · `system-matrix.d.ts`
+- `SessionFacts` · `release.d.ts`
 - `StandingBasis` · `admission.d.ts`
 - `SystemActionAuthorization` · `system-action.d.ts`
 - `SystemActionBasis` · `system-action.d.ts`
@@ -53,6 +58,7 @@
 - `canonicalText` · `evidence.d.ts`
 - `decideAdmission` · `admission.d.ts`
 - `decideInquiry` · `inquiry.d.ts`
+- `decideRelease` · `release.d.ts`
 - `decideSystemAction` · `system-action.d.ts`
 - `decisionEvidence` · `evidence.d.ts`
 - `decodePermitId` · `permit.d.ts`
@@ -150,6 +156,8 @@ export declare function decisionEvidence(record: string, revision: string, conte
 ```ts
 export { decideAdmission } from './admission.ts';
 export { decideInquiry } from './inquiry.ts';
+export { decideRelease } from './release.ts';
+export type { GateVerdict, ReleaseBasis, ReleaseDecision, ReleaseFacts, SessionFacts, } from './release.ts';
 export type { InquiryPolicy, InquiryRequirement, InquiryDisposition } from './inquiry.ts';
 export type { AdmissionBasis, AdmissionCheck, AdmissionDecision, AdmissionFacts, AdmissionInput, DenialReason, StandingBasis, } from './admission.ts';
 export { canonicalText, decisionEvidence, digestOf, effectiveArgumentsOf, noArguments, } from './evidence.ts';
@@ -305,6 +313,52 @@ export type ReferenceAdmissionDependencies = Readonly<{
     permits: PermitLedger | null;
 }>;
 export declare function referenceAdmissionCheck(deps: ReferenceAdmissionDependencies): AdmissionCheck;
+```
+
+## 声明文件 `release.d.ts`
+
+```ts
+import type { InquiryPolicy } from './inquiry.ts';
+export type GateVerdict = Readonly<{
+    kind: 'prohibited' | 'allowed' | 'decision-required';
+    revision: string;
+}> | Readonly<{
+    kind: 'unavailable';
+}>;
+export type SessionFacts = Readonly<{
+    kind: 'read';
+    revision: string;
+    policy: InquiryPolicy;
+    once: boolean;
+    sessionGrantBasis: string | null;
+}> | Readonly<{
+    kind: 'unavailable';
+}>;
+export type ReleaseFacts = Readonly<{
+    carrier: boolean;
+    verdict: GateVerdict;
+    session: SessionFacts;
+}>;
+export type ReleaseBasis = Readonly<{
+    verdict: string;
+    session: string | null;
+}>;
+export type ReleaseDecision = Readonly<{
+    kind: 'release';
+    by: 'verdict' | 'carrier' | 'once' | 'session' | 'skip-ask';
+    basis: ReleaseBasis;
+}> | Readonly<{
+    kind: 'ask';
+    basis: ReleaseBasis;
+}> | Readonly<{
+    kind: 'refuse';
+    reason: 'prohibited' | 'inquiry-policy';
+    basis: ReleaseBasis;
+}> | Readonly<{
+    kind: 'unavailable';
+    missing: 'verdict' | 'session';
+}>;
+export declare function decideRelease(facts: ReleaseFacts): ReleaseDecision;
 ```
 
 ## 声明文件 `system-action.d.ts`

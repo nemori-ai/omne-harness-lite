@@ -1,6 +1,6 @@
 import type { JsonValue } from '@omne-harness/json-text'
 import type { FixedToolRequest } from './definitions.ts'
-import type { CallAccess, ToolCallId, ToolOperationId } from './identity.ts'
+import type { Access, Adoption, CallAccess, ToolCallId, ToolOperationId } from './identity.ts'
 import type {
   InvocationAccess,
   ToolInvokeRequest,
@@ -20,6 +20,34 @@ export type ToolForwardIntent = Readonly<{
   command: string | null
   arguments: JsonValue
 }>
+/** The action one tool call really performs: the tool it names, with the command and arguments it runs. */
+export type ToolActionTarget = Readonly<{
+  name: string
+  definition: Adoption
+  command: string | null
+  effectiveArguments: string
+}>
+/**
+ * A call is its own action (the tool it names, as described before admission), or it carries the
+ * action of a target it names; the carrier is then kept.
+ */
+export type ToolCallAction =
+  | Readonly<{ kind: 'own' }>
+  | Readonly<{
+      kind: 'carried'
+      carrier: Readonly<{ name: string; definition: Adoption }>
+      target: ToolActionTarget
+    }>
+/**
+ * Which action a call performs, answered by Tool before the call is made. A carried call naming a
+ * target that is not there, a command the target lacks or arguments of the wrong shape answers
+ * `invalid`.
+ */
+export interface ToolActionResolution<P> {
+  resolve(
+    input: Access<P> & Readonly<{ name: string; effectiveArguments: string }>,
+  ): Reply<ToolCallAction>
+}
 export type ToolForwardBinding = Readonly<{
   call: ToolCallId
   admission: ToolOperationId

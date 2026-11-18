@@ -39,6 +39,10 @@ import {
 import { authorizationConfig } from './action-rules.ts'
 import { createToolTargetPolicy, installToolTargetPolicy } from './tool-target-policy.ts'
 import { currentPermissionOf } from './current-permission.ts'
+import { toolCatalogKey } from '@omne-harness/tool-cordis-contract/cordis'
+import { createToolActionResolution } from '../../entry/tool-action-resolution.ts'
+import { releaseOf } from '../../entry/tool-release.ts'
+import { releaseCatalogViewOf } from '../tool-bindings/catalog-view.ts'
 
 class SessionAccessCheckImpl extends SessionAccessCheckService<unknown> {
   readonly check: SessionAccessCheck<unknown>['check']
@@ -111,6 +115,11 @@ const plugin: Plugin.Object = {
     )
     const ports = portsOf(ctx, grants)
     const permission = currentPermissionOf(ctx)
+    const resolution = createToolActionResolution({
+      release: () => releaseOf(ctx),
+      catalog: () => ctx.get(toolCatalogKey, false),
+      view: () => releaseCatalogViewOf(ctx),
+    })
     const readPermission = () => (active ? permission : undefined)
     installToolTargetPolicy(
       ctx,
@@ -129,6 +138,7 @@ const plugin: Plugin.Object = {
         actionRules,
         readAdmission: () => (active ? ports.admission : undefined),
         readPermission,
+        readResolution: () => (active ? resolution : undefined),
       }),
     )
   },

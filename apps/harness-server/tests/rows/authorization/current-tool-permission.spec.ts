@@ -359,7 +359,7 @@ it.each([
 )
 
 it.each(['missing', 'exception'] as const)(
-  'retains prohibition when inquiry publication is %s',
+  'retains prohibition, and does not refuse for good, when inquiry publication is %s',
   async failure => {
     const w = world()
     const check = createCurrentToolPermission({
@@ -370,7 +370,7 @@ it.each(['missing', 'exception'] as const)(
       },
     })
     w.current.evaluation.sources.tenant.rule.pick = 'ask'
-    expect(await check.check(w.input)).toMatchObject({ kind: 'undecidable' })
+    expect(await check.check(w.input)).toMatchObject({ kind: 'unavailable' })
     w.current.evaluation.sources.tenant.rule.pick = 'deny'
     expect(await check.check(w.input)).toMatchObject({ kind: 'deny' })
   },

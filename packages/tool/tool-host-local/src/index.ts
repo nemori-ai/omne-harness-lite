@@ -127,4 +127,4 @@ export { createLocalToolResultDelivery, type LocalDeliveryInput } from './result
 export { createLocalToolForwarding } from './tool-forwarding.ts'
 export type { LocalToolForwarding, LocalToolForwardingInput } from './tool-forwarding.ts'
 
-export { TOOL_FORWARDING_OWNER } from './invocation-forwarding.ts'
+export { TOOL_FORWARDING_OWNER, forwardIntentOfCall } from './invocation-forwarding.ts'

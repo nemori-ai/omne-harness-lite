@@ -1,0 +1,156 @@
+import { describe, expect, it } from 'vitest'
+import { decisionEvidence, type AdmissionCheck } from '@omne-harness/authorization'
+import { createToolActionResolution } from '../../../src/entry/tool-action-resolution.ts'
+import { createActionAdmission } from '../../../src/rows/authorization/action-admission.ts'
+import {
+  permissionDecisionOf,
+  type ToolPermissionAction,
+  type ToolPermissionCheck,
+} from '../../../src/rows/authorization/current-tool-permission.ts'
+import { echoCall, toolsCall } from '../../entry/tool-call-support.ts'
+import { forwardWorld } from '../../entry/tool-forward-support.ts'
+
+type Tier = 'allowed' | 'prohibited' | 'decision-required'
+type Mode = 'never' | 'auto_permission' | 'bypass-permissions'
+const TIERS: readonly Tier[] = ['allowed', 'prohibited', 'decision-required']
+const MODES: readonly Mode[] = ['never', 'auto_permission', 'bypass-permissions']
+const ON_ASK = {
+  never: 'deny',
+  auto_permission: 'ask-human',
+  'bypass-permissions': 'skip-ask',
+} as const
+
+const evidence = decisionEvidence('normalized-test', '1', {})
+const allowing: AdmissionCheck = { check: async () => ({ kind: 'allowed', evidence }) }
+const rules = {
+  revision: 'r1',
+  rules: [
+    { id: 'tools', effect: 'allow', tool: 'Tools' },
+    { id: 'echo', effect: 'allow', tool: 'ToyEcho' },
+  ],
+}
+
+// The current permission of each gate is a tier by tool name; the session's policy follows the mode.
+function permission(tiers: Readonly<Record<string, Tier>>, mode: Mode) {
+  const seen: ToolPermissionAction[] = []
+  const check: ToolPermissionCheck = {
+    async check(input) {
+      seen.push(input)
+      const kind = tiers[input.definition.name]
+      if (kind === undefined) return { kind: 'unavailable', diagnostic: 'no tier' }
+      const inquiry = {
+        inquiry: { policy: { onAsk: ON_ASK[mode] } },
+        basis: { permissionRevision: '1' },
+      } as never
+      return permissionDecisionOf({ kind, revision: '1' }, inquiry, input.carrier === true, {
+        evidence,
+        condition: null,
+      })
+    },
+  }
+  return { check, seen }
+}
+
+async function both(
+  world: Awaited<ReturnType<typeof forwardWorld>>,
+  tiers: Readonly<Record<string, Tier>>,
+  mode: Mode,
+) {
+  const resolution = createToolActionResolution({
+    release: () => world.release,
+    catalog: () => world.catalog,
+    view: () => world.view,
+  })
+  const current = permission(tiers, mode)
+  const admission = createActionAdmission({
+    actionRules: rules,
+    readAdmission: () => allowing,
+    readPermission: () => current.check,
+    readResolution: () => resolution,
+  })
+  const base = {
+    principal: world.principal,
+    tenant: world.tenant,
+    execution: 'e',
+    passage: 'p',
+    action: 'a',
+    advance: {},
+    permissions: [],
+    decision: null,
+  }
+  const direct = echoCall(world, {})
+  const carried = toolsCall(world, { name: 'ToyEcho', command: 'info', arguments: {} })
+  const adoption = (name: 'Tools' | 'ToyEcho') => {
+    const availability = world.request(name).availability
+    if (availability.kind !== 'available') throw new Error(`${name} unavailable`)
+    return availability.definition.adoption
+  }
+  const shape = (answer: Awaited<ReturnType<typeof admission.admit>>) =>
+    'failure' in answer
+      ? answer
+      : { kind: answer.ok.kind, reason: 'reason' in answer.ok ? answer.ok.reason : undefined }
+  const directly = await admission.admit({
+    ...base,
+    original: { name: 'ToyEcho', arguments: direct },
+    effectiveArguments: direct,
+    definition: adoption('ToyEcho'),
+  } as never)
+  const viaTools = await admission.admit({
+    ...base,
+    original: { name: 'Tools', arguments: carried },
+    effectiveArguments: carried,
+    definition: adoption('Tools'),
+  } as never)
+  return { direct: shape(directly), viaTools: shape(viaTools), seen: current.seen }
+}
+
+describe('one action judged the same whether called directly or through Tools', () => {
+  it('in each of the nine cells of tier and mode, with Tools itself asking', async () => {
+    const world = await forwardWorld()
+    try {
+      for (const tier of TIERS)
+        for (const mode of MODES) {
+          const answer = await both(world, { ToyEcho: tier, Tools: 'decision-required' }, mode)
+          expect(answer.viaTools, `${tier} × ${mode}`).toEqual(answer.direct)
+        }
+    } finally {
+      await world.close()
+    }
+  })
+
+  it('judges the target before the call is made, and the carrier only for a prohibition', async () => {
+    const world = await forwardWorld()
+    try {
+      const answer = await both(
+        world,
+        { ToyEcho: 'decision-required', Tools: 'decision-required' },
+        'never',
+      )
+      const [carrier, target] = answer.seen.slice(-2)
+      expect(carrier).toMatchObject({ carrier: true, definition: { name: 'Tools' } })
+      expect(target).toMatchObject({
+        definition: { name: 'ToyEcho' },
+        origin: { kind: 'agent-action', carrier: { definition: { name: 'Tools' } } },
+      })
+      expect(target).not.toHaveProperty('carrier')
+      expect(answer.viaTools).toEqual({ kind: 'deny', reason: 'inquiry-policy' })
+    } finally {
+      await world.close()
+    }
+  })
+
+  it('a prohibited Tools refuses through it, while the direct call is not affected', async () => {
+    const world = await forwardWorld()
+    try {
+      const answer = await both(
+        world,
+        { ToyEcho: 'allowed', Tools: 'prohibited' },
+        'bypass-permissions',
+      )
+      expect(answer.direct).toEqual({ kind: 'allow', reason: undefined })
+      expect(answer.viaTools).toEqual({ kind: 'deny', reason: 'permission-policy' })
+    } finally {
+      await world.close()
+    }
+  })
+})

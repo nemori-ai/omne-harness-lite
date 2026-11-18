@@ -1,5 +1,13 @@
 export { decideAdmission } from './admission.ts'
 export { decideInquiry } from './inquiry.ts'
+export { decideRelease } from './release.ts'
+export type {
+  GateVerdict,
+  ReleaseBasis,
+  ReleaseDecision,
+  ReleaseFacts,
+  SessionFacts,
+} from './release.ts'
 export type { InquiryPolicy, InquiryRequirement, InquiryDisposition } from './inquiry.ts'
 export type {
   AdmissionBasis,

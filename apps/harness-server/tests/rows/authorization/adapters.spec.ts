@@ -57,6 +57,7 @@ import { serveProfile } from '../../../src/profile.ts'
 import { defineRow, rowDeclarationOf } from '../../../src/row.ts'
 import { serveOnce } from '../../fixtures/serve/harness.ts'
 import { fixtureTenant, okOf } from '../../entry/support.ts'
+import { ownResolution } from './own-resolution.ts'
 
 const A = fixtureTenant('a')
 const B = fixtureTenant('b')
@@ -863,6 +864,7 @@ describe('agentActionAdmission', () => {
   it('does not treat a static allow as current permission', async () => {
     const w = world()
     const admission = createActionAdmission({
+      readResolution: ownResolution,
       readAdmission: () => w.ports.admission,
       readPermission: () => undefined,
       actionRules: rules,
@@ -874,6 +876,7 @@ describe('agentActionAdmission', () => {
   it('requires the issued Session work principal, the correct tenant and current membership', async () => {
     const w = world()
     const admission = createActionAdmission({
+      readResolution: ownResolution,
       readAdmission: () => w.ports.admission,
       readPermission: () => undefined,
       actionRules: rules,
@@ -898,6 +901,7 @@ describe('agentActionAdmission', () => {
     const w = world()
     const input = action(w.work())
     const admission = createActionAdmission({
+      readResolution: ownResolution,
       readAdmission: () => w.ports.admission,
       readPermission: () => undefined,
       actionRules: rules,
@@ -912,6 +916,7 @@ describe('agentActionAdmission', () => {
       })
     }
     const exact = createActionAdmission({
+      readResolution: ownResolution,
       readAdmission: () => w.ports.admission,
       readPermission: () => ({
         check: async request => {
@@ -952,6 +957,7 @@ describe('agentActionAdmission', () => {
       [() => ({ check: async () => ({ kind: 'odd' }) as never }), 'undecidable'],
     ] as const) {
       const failed = createActionAdmission({
+        readResolution: ownResolution,
         readAdmission,
         readPermission: () => undefined,
         actionRules: rules,
@@ -997,6 +1003,7 @@ describe('agentActionAdmission', () => {
       [deny, allow],
     ]) {
       const admission = createActionAdmission({
+        readResolution: ownResolution,
         readAdmission: () => w.ports.admission,
         readPermission: () => undefined,
         actionRules: { revision: 'ops-2', rules },
@@ -1012,6 +1019,7 @@ describe('agentActionAdmission', () => {
       expect(JSON.stringify(result)).not.toContain('secret')
     }
     const admission = createActionAdmission({
+      readResolution: ownResolution,
       readAdmission: () => w.ports.admission,
       actionRules: { revision: 'ops-1', rules: [allow] },
       readPermission: () => ({
@@ -1037,6 +1045,7 @@ describe('agentActionAdmission', () => {
 
   it('has no default allow: every action is undecidable, with or without permissions or a decision', async () => {
     const admission = createActionAdmission({
+      readResolution: ownResolution,
       readAdmission: () => undefined,
       readPermission: () => undefined,
     })

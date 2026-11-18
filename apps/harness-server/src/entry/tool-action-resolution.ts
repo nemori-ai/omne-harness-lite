@@ -1,0 +1,69 @@
+import { fail, succeed } from '@omne-harness/operation-result'
+import { canonicalDigest } from '@omne-harness/tool'
+import type { ToolActionResolution } from '@omne-harness/tool-contract'
+import { forwardIntentOfCall } from '@omne-harness/tool-host-local'
+import {
+  releaseToolConsumer,
+  resolveForwardTarget,
+  type ForwardRequestPorts,
+} from './tool-forward-requests.ts'
+import { callOf } from './tool-requests.ts'
+
+const unavailable = (diagnostic: string) =>
+  fail({ kind: 'unavailable' as const, dependency: 'tool-action', diagnostic })
+const invalid = (field: string, reason: string) => fail({ kind: 'invalid' as const, field, reason })
+
+// Only a `Tools` execute call carries another action; every other call is its own, read nothing for it.
+export function createToolActionResolution(
+  ports: ForwardRequestPorts,
+): ToolActionResolution<unknown> {
+  return {
+    async resolve(input) {
+      if (input.name !== 'Tools') return succeed({ kind: 'own' })
+      const release = ports.release()
+      const catalog = ports.catalog()
+      if (release.kind !== 'trusted' || catalog === undefined)
+        return unavailable('The release snapshot or the catalog is unavailable.')
+      const entry = release.manifest.entries.find(item => item.asset.name === input.name)
+      if (entry === undefined) return unavailable('Tools is not a release tool')
+      const inspected = await catalog.inspect({
+        principal: input.principal,
+        tenant: input.tenant,
+        name: input.name,
+        command: null,
+        consumer: releaseToolConsumer(release),
+      })
+      if ('failure' in inspected) return inspected
+      const availability = inspected.ok
+      if (
+        availability.kind !== 'available' ||
+        availability.layer.kind !== 'official' ||
+        canonicalDigest(availability.definition.adoption) !== canonicalDigest(entry.asset.adoption)
+      )
+        return unavailable('Tools is not available as released')
+      const called = callOf(availability.definition, input.effectiveArguments)
+      if ('answer' in called) return invalid('command', 'unknown-command')
+      if (called.command !== 'execute') return succeed({ kind: 'own' })
+      const definition = availability.definition.adoption
+      const effective = input.effectiveArguments
+      const intent = forwardIntentOfCall({
+        definition: availability.definition,
+        command: called.command,
+        arguments: { original: effective, effective, complete: true },
+      })
+      if (intent === null) return invalid('arguments', 'tools-execute-arguments')
+      const resolved = await resolveForwardTarget(ports, input, intent)
+      if ('failure' in resolved) return resolved
+      return succeed({
+        kind: 'carried',
+        carrier: { name: input.name, definition },
+        target: {
+          name: intent.name,
+          definition: resolved.ok.availability.definition.adoption,
+          command: intent.command,
+          effectiveArguments: resolved.ok.effective,
+        },
+      })
+    },
+  }
+}

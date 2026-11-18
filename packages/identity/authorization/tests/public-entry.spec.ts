@@ -10,6 +10,7 @@ it('publishes the authorization shapes: the decision, the system action decision
       'canonicalText',
       'decideAdmission',
       'decideInquiry',
+      'decideRelease',
       'decideSystemAction',
       'decisionEvidence',
       'decodePermitId',
