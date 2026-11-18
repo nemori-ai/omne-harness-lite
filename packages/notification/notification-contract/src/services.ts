@@ -18,15 +18,11 @@ import type {
 } from './values.ts'
 import type { MarkOperation } from './decide-mark.ts'
 
-/** Who acts: the owner of the tenant, or an entrusted agent acting for itself. */
 export type Actor =
   | Readonly<{ kind: 'owner' }>
   | Readonly<{ kind: 'agent'; recipient: Extract<RecipientRef, { kind: 'agent' }> }>
 
-/**
- * Carried by every call. `subject` is the verified principal; this group does not read it,
- * it hands it to the authority port. A trusted adapter builds the context, never a model.
- */
+/** `subject` is the verified principal, handed to the authority port. A trusted adapter builds this, never a model. */
 export type CallContext = Readonly<{ tenant: TenantId; subject: unknown; actor: Actor }>
 
 export type SendRequestInput = z.input<typeof sendRequestSchema>
@@ -47,7 +43,6 @@ export interface NotificationSending {
     ctx: CallContext,
     request: SendRequestInput,
   ): Promise<Outcome<Accepted, ParseRefusal | SendRefusal>>
-  /** Asks about an earlier send by its identity. Read-only. */
   querySend(
     ctx: CallContext,
     identity: SendIdentityInput,
@@ -84,10 +79,7 @@ export type NotificationView = NotificationSummary &
 
 export type NotificationRef = Readonly<{ recipient: RecipientRef; identity: SendIdentity }>
 
-/**
- * `not-found` covers three cases the caller cannot tell apart: no authority, no such
- * notification or recipient, and a notification of another tenant.
- */
+/** `not-found` covers no authority, no such notification, and a notification of another tenant. */
 export type InboxRefusal = 'invalid-request' | 'not-found' | 'restore-first' | 'superseded'
 
 export interface NotificationInbox {

@@ -7,10 +7,8 @@ import type {
   SourceName,
 } from './values.ts'
 
-/** How an event of this type names the thing it is about. */
 export type SubjectRule = Readonly<{
   presence: 'none' | 'optional' | 'required'
-  /** One sentence for people and models: what a subject of this type looks like. */
   hint: string
   /** A pure check of the notation. Absent: every non-empty string is accepted. */
   accepts?: (subject: string) => boolean
@@ -21,20 +19,13 @@ export type EventTypeDeclaration = Readonly<{
   label: string
   /** Written for a model that decides whether to subscribe. */
   description: string
-  /**
-   * `event`: happens once and arrives through a send.
-   * `standing`: a state the source owns and publishes. `binding` is the source's opaque
-   * reference to that published state. It never arrives through a send.
-   */
+  /** `standing`: a state the source owns and publishes; `binding` is its opaque reference. It never arrives by a send. */
   kind: Readonly<{ kind: 'event' }> | Readonly<{ kind: 'standing'; binding: string }>
   subject: SubjectRule
-  /** Which kinds of recipient may subscribe. */
   subscribable: readonly RecipientKind[]
   /** Which kinds of recipient a send may name. Empty: naming is not allowed. */
   nameable: readonly RecipientKind[]
-  /** The level a recipient of each kind gets without a subscription. */
   defaults: Readonly<Record<RecipientKind, Level>>
-  /** The content comes from outside this system. */
   external: boolean
 }>
 
@@ -44,7 +35,6 @@ export type SourceDeclaration = Readonly<{
   types: readonly EventTypeDeclaration[]
 }>
 
-/** What the catalogue tells a caller about one source right now. */
 export type SourceLookup =
   | Readonly<{ kind: 'registered'; declaration: SourceDeclaration }>
   | Readonly<{ kind: 'absent' }>

@@ -663,6 +663,14 @@
       "source": "packages/notification/SPEC.md"
     },
     {
+      "id": "packages/notification/notification",
+      "paths": ["packages/notification/notification/src/**"],
+      "layer": "unknown",
+      "domains": ["notification"],
+      "status": "candidate",
+      "source": "packages/notification/SPEC.md"
+    },
+    {
       "id": "packages/calendar/calendar-contract",
       "paths": ["packages/calendar/calendar-contract/src/**"],
       "layer": "contract",

@@ -14,6 +14,7 @@ const record = (
   acceptedAt: at(0),
   marks: UNMARKED,
   replaceKey: 'progress',
+  quiet: false,
   ...overrides,
 })
 

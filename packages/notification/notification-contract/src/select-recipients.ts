@@ -63,11 +63,7 @@ function selectOne(
   }
 }
 
-/**
- * Decides who gets this event, how urgent it is for each, and why.
- * `subscriptions` are those of the tenant on this source and this event type.
- * The recipient that emitted the event is never selected.
- */
+/** Who gets this event, how urgent, and why. The recipient that emitted it is never selected. */
 export function selectRecipients(
   event: EventFacts,
   declared: EventTypeFacts,

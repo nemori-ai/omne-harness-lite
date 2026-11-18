@@ -1,0 +1,131 @@
+/**
+ * Walks one event from a source to a recipient's inbox without Cordis and without SQL.
+ * Every step prints its input and what the group answered, and fails the run when the
+ * answer is not the expected one.
+ */
+import assert from 'node:assert/strict'
+import { createInbox, createSending, createSourceRegistry } from '@omne-harness/notification'
+import {
+  context,
+  createMemoryStore,
+  fakeAuthority,
+  fakeClock,
+} from '@omne-harness/notification/testing'
+import {
+  eventTypeNameSchema,
+  sourceNameSchema,
+  type RecipientRef,
+  type SendRequestInput,
+} from '@omne-harness/notification-contract'
+
+const store = createMemoryStore()
+const authority = fakeAuthority()
+const clock = fakeClock('2026-11-18T06:00:00.000Z')
+const sources = createSourceRegistry()
+const sending = createSending({
+  authority,
+  store,
+  sources,
+  clock,
+  limits: { bodyLength: 4000, causalDepth: 3 },
+})
+const inbox = createInbox({ authority, store, clock, pageLimit: 50 })
+const owner = context('tenant-demo')
+const person: RecipientRef = { kind: 'person' }
+
+let step = 0
+function show(title: string, input: unknown, answer: unknown): void {
+  step += 1
+  console.log(`\n── ${step}. ${title}`)
+  console.log('   输入：', JSON.stringify(input))
+  console.log('   答复：', JSON.stringify(answer))
+}
+
+const request = (eventId: string, title: string): SendRequestInput => ({
+  identity: { tenant: 'tenant-demo', source: 'demo.builds', eventId },
+  event: {
+    type: 'finished',
+    subject: 'repo/harness',
+    at: '2026-11-18T05:59:30.000Z',
+    content: { title, body: `${title}。详情见构建页。`, locator: { kind: 'build', ref: eventId } },
+    replaceKey: null,
+    renotify: false,
+    named: [],
+    origin: null,
+  },
+})
+
+sources.register({
+  name: sourceNameSchema.parse('demo.builds'),
+  label: '演示：构建',
+  types: [
+    {
+      name: eventTypeNameSchema.parse('finished'),
+      label: '构建结束',
+      description: '一次构建结束了，成功或失败。',
+      kind: { kind: 'event' },
+      subject: { presence: 'required', hint: '仓库路径，例如 repo/harness' },
+      subscribable: ['person', 'agent'],
+      nameable: ['person'],
+      defaults: { person: 'weak', agent: 'off' },
+      external: false,
+    },
+  ],
+})
+console.log('通知走查：发送、入箱、处置')
+console.log('来源 demo.builds 已登记，事件类型 finished 对人的缺省是弱。')
+
+// 发送
+const first = request('build-41', '构建 41 失败')
+const accepted = await sending.send(owner, first)
+show('发送：来源交一个事件', first.identity, accepted)
+assert.equal(accepted.kind, 'done')
+assert.deepEqual(accepted.kind === 'done' && accepted.value.recipients, [person])
+
+const again = await sending.send(owner, first)
+show('同一个发送身份再发一次：认回，不写', first.identity, again)
+assert.deepEqual(again.kind === 'done' && again.recalled, true)
+
+const conflict = await sending.send(owner, request('build-41', '构建 41 成功'))
+show('同一个发送身份换了内容：冲突，不覆盖', '标题改成「构建 41 成功」', conflict)
+assert.deepEqual(conflict, { kind: 'refused', reason: 'conflict' })
+
+// 入箱
+const page = await inbox.list(owner, {
+  recipient: person,
+  filter: 'unresolved',
+  after: null,
+  limit: 10,
+})
+show('入箱：答了已接下，通知已经在收件人的箱里', '列箱（没了结的）', page)
+assert.equal(page.kind === 'done' && page.value.entries.length, 1)
+
+const ref = { recipient: person, identity: { ...first.identity } as never }
+const view = await inbox.read(owner, ref)
+show('读一条：全文，读不会把它标成看过', first.identity, view)
+assert.equal(view.kind === 'done' && view.value.marks.seenAt, null)
+
+// 处置
+clock.advance(60_000)
+const done = await inbox.mark(owner, ref, 'done')
+show('处置：标成办完', '办完', done)
+assert.equal(done.kind === 'done' && done.value.resolved?.how, 'done')
+
+const dismiss = await inbox.mark(owner, ref, 'dismiss')
+show('办完之后直接划掉：拒绝，要先恢复', '划掉', dismiss)
+assert.deepEqual(dismiss, { kind: 'refused', reason: 'restore-first' })
+
+const empty = await inbox.list(owner, {
+  recipient: person,
+  filter: 'unresolved',
+  after: null,
+  limit: 10,
+})
+show('再列箱（没了结的）：没有了；它仍在「全部」里', '列箱（没了结的）', empty)
+assert.equal(empty.kind === 'done' && empty.value.entries.length, 0)
+
+const other = await inbox.read(context('tenant-other'), ref)
+show('另一个租户来读这一条：和不存在是同一个拒绝', 'tenant-other', other)
+assert.deepEqual(other, { kind: 'refused', reason: 'not-found' })
+
+console.log(`\n走查通过：${step} 步。`)

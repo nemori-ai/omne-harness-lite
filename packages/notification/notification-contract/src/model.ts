@@ -34,13 +34,14 @@ export type Subscription = SubscriptionKey &
 export type NotificationRecord = Readonly<{
   identity: SendIdentity
   recipient: RecipientRef
-  /** The position in the inbox: later accepted, larger. */
   sequence: number
   level: BoxedLevel
   cause: Cause
   acceptedAt: Instant
   marks: Marks
   replaceKey: string | null
+  /** It replaced an earlier notification and the send did not ask to remind again. */
+  quiet: boolean
 }>
 
 export type Selected = Readonly<{

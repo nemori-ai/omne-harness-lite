@@ -6,7 +6,6 @@ export const BODY_CEILING = 65_536
 export const tenantIdSchema = z.string().min(1).max(200).brand<'NotificationTenantId'>()
 export type TenantId = z.infer<typeof tenantIdSchema>
 
-/** `<domain>.<name>`: the key of a registered notification source. */
 export const sourceNameSchema = z
   .string()
   .max(100)
@@ -66,7 +65,6 @@ export type Scope = z.infer<typeof scopeSchema>
 
 export const levelSchema = z.enum(['off', 'weak', 'strong'])
 export type Level = z.infer<typeof levelSchema>
-/** The level a notification carries once it is in an inbox. */
 export type BoxedLevel = Exclude<Level, 'off'>
 
 export const termSchema = z.discriminatedUnion('kind', [
@@ -113,7 +111,7 @@ export const marksSchema = z
 export type Marks = z.infer<typeof marksSchema>
 export const UNMARKED: Marks = { seenAt: null, resolved: null, supersededBy: null }
 
-/** Where a click on the notification leads: a session, a card, a schedule, a job. Opaque here. */
+/** Where a click leads: a session, a card, a schedule, a job. Opaque here. */
 export const locatorSchema = z
   .strictObject({ kind: z.string().min(1).max(64), ref: z.string().min(1).max(500) })
   .readonly()
@@ -153,7 +151,6 @@ export const sendRequestSchema = z
   .readonly()
 export type SendRequest = z.infer<typeof sendRequestSchema>
 
-/** The key under which one recipient is stored and compared. */
 export function recipientKey(recipient: RecipientRef): string {
   return recipient.kind === 'person' ? 'person' : `agent:${recipient.ref}`
 }
