@@ -730,10 +730,7 @@ export const storeConformanceCases: readonly StoreConformanceCase[] = [
       })
       assert.deepEqual(await write({ kind: 'remove', ref: INBOX }), { kind: 'builtin' })
       assert.deepEqual(await write({ kind: 'remove', ref }), { kind: 'removed' })
-      assert.deepEqual(await write({ kind: 'remove', ref }), {
-        kind: 'recalled',
-        destination: null,
-      })
+      assert.deepEqual(await write({ kind: 'remove', ref }), { kind: 'absent' })
       const left = value(await store.destinations(T1, PERSON)).map(
         destination => destination.channel,
       )

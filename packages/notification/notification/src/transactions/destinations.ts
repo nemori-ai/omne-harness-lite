@@ -79,12 +79,16 @@ export type DestinationCommand =
     }>
   | Readonly<{ kind: 'remove'; ref: DestinationRef; defaults: RecipientDefaults }>
 
-export type DestinationResult =
-  | Readonly<{ kind: 'written'; destination: Destination }>
-  | Readonly<{ kind: 'recalled'; destination: Destination | null }>
-  | Readonly<{ kind: 'removed' }>
-  | Readonly<{ kind: 'not-found' }>
-  | Readonly<{ kind: 'builtin' }>
+type Written = Readonly<{ kind: 'written'; destination: Destination }>
+type Recalled = Readonly<{ kind: 'recalled'; destination: Destination }>
+
+/** What each command can answer. Removing a destination that is not there is `absent`, not an error. */
+export type DestinationResults = Readonly<{
+  add: Written | Recalled
+  change: Written | Recalled | Readonly<{ kind: 'not-found' }>
+  remove: Readonly<{ kind: 'removed' | 'absent' | 'builtin' }>
+}>
+export type DestinationResultOf<C extends DestinationCommand> = DestinationResults[C['kind']]
 
 export const destinationId = (channel: ChannelName, address: string) =>
   JSON.stringify([channel, address])
@@ -96,7 +100,7 @@ function find(txn: NotificationTxn, ref: DestinationRef): Destination | null {
 type Add = Extract<DestinationCommand, { kind: 'add' }>
 type Change = Extract<DestinationCommand, { kind: 'change' }>
 
-function add(txn: NotificationTxn, command: Add): DestinationResult {
+function add(txn: NotificationTxn, command: Add): DestinationResults['add'] {
   const { recipient, channel, address, minLevel } = command
   const same = txn
     .destinations(recipient)
@@ -119,7 +123,7 @@ function add(txn: NotificationTxn, command: Add): DestinationResult {
   return { kind: 'written', destination }
 }
 
-function change(txn: NotificationTxn, command: Change): DestinationResult {
+function change(txn: NotificationTxn, command: Change): DestinationResults['change'] {
   const current = find(txn, command.ref)
   if (current === null) return { kind: 'not-found' }
   const destination = { ...current, ...command.patch }
@@ -129,18 +133,22 @@ function change(txn: NotificationTxn, command: Change): DestinationResult {
   return { kind: 'written', destination }
 }
 
-function remove(txn: NotificationTxn, ref: DestinationRef): DestinationResult {
+function remove(txn: NotificationTxn, ref: DestinationRef): DestinationResults['remove'] {
   const current = find(txn, ref)
-  if (current === null) return { kind: 'recalled', destination: null }
+  if (current === null) return { kind: 'absent' }
   if (current.builtin) return { kind: 'builtin' }
   txn.deleteDestination(ref)
   return { kind: 'removed' }
 }
 
+export function writeDestination<C extends DestinationCommand>(
+  txn: NotificationTxn,
+  command: C,
+): DestinationResultOf<C>
 export function writeDestination(
   txn: NotificationTxn,
   command: DestinationCommand,
-): DestinationResult {
+): DestinationResults[keyof DestinationResults] {
   const recipient = command.kind === 'add' ? command.recipient : command.ref.recipient
   ensureRecipient(txn, recipient, command.defaults)
   if (command.kind === 'add') return add(txn, command)

@@ -303,13 +303,16 @@ describe('withdrawing', () => {
     ).toEqual(unavailable)
     await new Promise(resolve => setTimeout(resolve, 20))
     expect(closed).toBe(false)
+    expect(app.changes).not.toContain('closed')
     release?.()
     await closing
     expect(app.probe.deliveries).toHaveLength(1)
     expect(app.application.sources.lookup(AGENT_POSTS.name)).toEqual({ kind: 'absent' })
     expect(app.application.channels.lookup(IN_APP)).toEqual({ kind: 'absent' })
     expect(app.manual.pending.size).toBe(0)
+    expect(app.changes.filter(change => change === 'closed')).toHaveLength(1)
     await app.application.close()
+    expect(app.changes.at(-1)).toBe('closed')
 
     const again = await open({ world: app.world })
     expect(await titles(again)).toEqual(['Build b1 failed'])

@@ -87,17 +87,25 @@ export type NotificationView = NotificationSummary &
   Readonly<{ subject: string | null; at: Instant; body: string; locator: Locator | null }>
 
 export type NotificationRef = Readonly<{ recipient: RecipientRef; identity: SendIdentity }>
+export type NotificationRefInput = Readonly<{
+  recipient: RecipientRef
+  identity: SendIdentityInput
+}>
 
 /** `not-found` covers no authority, no such notification, and a notification of another tenant. */
-export type InboxRefusal = 'invalid-request' | 'not-found' | 'restore-first' | 'superseded'
+export type InboxReadRefusal = 'invalid-request' | 'not-found'
+export type InboxRefusal = InboxReadRefusal | 'restore-first' | 'superseded'
 
 export interface NotificationInbox {
-  list(ctx: CallContext, query: InboxQuery): Promise<Outcome<InboxPage, InboxRefusal>>
+  list(ctx: CallContext, query: InboxQuery): Promise<Outcome<InboxPage, InboxReadRefusal>>
   /** Reads one notification in full. Reading does not mark it seen. */
-  read(ctx: CallContext, ref: NotificationRef): Promise<Outcome<NotificationView, InboxRefusal>>
+  read(
+    ctx: CallContext,
+    ref: NotificationRefInput,
+  ): Promise<Outcome<NotificationView, InboxReadRefusal>>
   mark(
     ctx: CallContext,
-    ref: NotificationRef,
+    ref: NotificationRefInput,
     operation: MarkOperation,
   ): Promise<Outcome<Marks, InboxRefusal>>
 }
@@ -116,6 +124,10 @@ export type Beat =
   | Readonly<{ kind: 'off' }>
   | Readonly<{ kind: 'every'; minutes: number }>
 
+export type RecipientRefusal = 'invalid-request' | 'not-permitted'
+export type SubscriptionRemovalRefusal = RecipientRefusal | 'invalid-scope' | 'not-own-recipient'
+export type BeatRefusal = RecipientRefusal | 'out-of-range'
+
 export interface NotificationSubscriptions {
   /** Sets one subscription. It affects sends accepted afterwards, never what is in an inbox. */
   set(
@@ -124,16 +136,20 @@ export interface NotificationSubscriptions {
     confirmation?: Confirmation | null,
   ): Promise<SubscriptionOutcome>
   /** Returns the key to the default of its event type. Not the same as setting it to `off`. */
-  remove(ctx: CallContext, key: SubscriptionKeyInput): Promise<Outcome<null, SubscriptionRefusal>>
+  remove(
+    ctx: CallContext,
+    key: SubscriptionKeyInput,
+  ): Promise<Outcome<null, SubscriptionRemovalRefusal>>
   list(
     ctx: CallContext,
     recipient: RecipientRef,
-  ): Promise<Outcome<readonly Subscription[], SubscriptionRefusal>>
+  ): Promise<Outcome<readonly Subscription[], RecipientRefusal>>
+  beat(ctx: CallContext, recipient: RecipientRef): Promise<Outcome<Beat, RecipientRefusal>>
   setBeat(
     ctx: CallContext,
     recipient: RecipientRef,
     beat: Beat,
-  ): Promise<Outcome<Beat, SubscriptionRefusal>>
+  ): Promise<Outcome<Beat, BeatRefusal>>
 }
 
 export type DestinationState = 'enabled' | 'disabled' | 'channel-absent'
@@ -143,13 +159,6 @@ export type DestinationView = Pick<
   'recipient' | 'id' | 'channel' | 'address' | 'minLevel' | 'builtin' | 'blockedSince'
 > &
   Readonly<{ state: DestinationState }>
-
-export type DestinationRefusal =
-  | 'invalid-request'
-  | 'not-permitted'
-  | 'invalid-address'
-  | 'not-found'
-  | 'builtin'
 
 export type NewDestination = Readonly<{
   recipient: RecipientRef
@@ -164,17 +173,20 @@ export interface NotificationDestinations {
   add(
     ctx: CallContext,
     destination: NewDestination,
-  ): Promise<Outcome<DestinationView, DestinationRefusal>>
+  ): Promise<Outcome<DestinationView, RecipientRefusal | 'invalid-address'>>
   change(
     ctx: CallContext,
     ref: DestinationRef,
     patch: DestinationPatch,
-  ): Promise<Outcome<DestinationView, DestinationRefusal>>
-  remove(ctx: CallContext, ref: DestinationRef): Promise<Outcome<null, DestinationRefusal>>
+  ): Promise<Outcome<DestinationView, RecipientRefusal | 'not-found'>>
+  remove(
+    ctx: CallContext,
+    ref: DestinationRef,
+  ): Promise<Outcome<null, RecipientRefusal | 'builtin'>>
   list(
     ctx: CallContext,
     recipient: RecipientRef,
-  ): Promise<Outcome<readonly DestinationView[], DestinationRefusal>>
+  ): Promise<Outcome<readonly DestinationView[], RecipientRefusal>>
 }
 
 export type CatalogEventType = Pick<

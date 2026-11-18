@@ -63,7 +63,6 @@ export type SubscriptionRefusal =
   | 'scope-does-not-fit'
   | 'not-own-recipient'
   | 'confirmation-mismatch'
-  | 'out-of-range'
 
 export type SubscriptionDecision =
   | Readonly<{ kind: 'set'; basis: Basis }>

@@ -7,6 +7,7 @@ import {
   type InboxRefusal,
   type NotificationInbox,
   type NotificationRef,
+  type NotificationRefInput,
   type RecipientRef,
 } from '@omne-harness/notification-contract'
 import { ask, type AuthorityAction, type Clock, type NotificationAuthority } from './ports.ts'
@@ -20,10 +21,10 @@ export type InboxDependencies = Readonly<{
 }>
 
 const UNAVAILABLE = { kind: 'basis-unavailable' } as const
-const refuse = (reason: InboxRefusal) => ({ kind: 'refused', reason }) as const
-type Blocked = typeof UNAVAILABLE | ReturnType<typeof refuse>
+const refuse = <R extends InboxRefusal>(reason: R) => ({ kind: 'refused', reason }) as const
+type Blocked = typeof UNAVAILABLE | ReturnType<typeof refuse<'not-found'>>
 
-function parseRef(ref: NotificationRef): NotificationRef | null {
+function parseRef(ref: NotificationRefInput): NotificationRef | null {
   const recipient = parseWith(recipientRefSchema, ref.recipient)
   const identity = parseWith(sendIdentitySchema, ref.identity)
   return 'ok' in recipient && 'ok' in identity

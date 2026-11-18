@@ -27,7 +27,7 @@ import type {
   RecordResult,
   RemindCommand,
 } from './transactions/deliver.ts'
-import type { DestinationCommand, DestinationResult } from './transactions/destinations.ts'
+import type { DestinationCommand, DestinationResultOf } from './transactions/destinations.ts'
 import type { MarkCommand, MarkResult } from './transactions/mark.ts'
 import type { BeatCommand, SubscribeCommand, SubscribeResult } from './transactions/subscribe.ts'
 import type { SendRecord, StoredUnit } from './txn.ts'
@@ -58,10 +58,10 @@ export interface NotificationStore {
   mark(tenant: TenantId, command: MarkCommand): Promise<StoreAnswer<MarkResult>>
   subscribe(tenant: TenantId, command: SubscribeCommand): Promise<StoreAnswer<SubscribeResult>>
   setBeat(tenant: TenantId, command: BeatCommand): Promise<StoreAnswer<null>>
-  destination(
+  destination<C extends DestinationCommand>(
     tenant: TenantId,
-    command: DestinationCommand,
-  ): Promise<StoreAnswer<DestinationResult>>
+    command: C,
+  ): Promise<StoreAnswer<DestinationResultOf<C>>>
   formStrong(tenant: TenantId, command: FormStrongCommand): Promise<StoreAnswer<FormResult>>
   formBeat(tenant: TenantId, command: FormBeatCommand): Promise<StoreAnswer<FormResult>>
   remind(tenant: TenantId, command: RemindCommand): Promise<StoreAnswer<readonly DeliveryUnit[]>>

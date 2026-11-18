@@ -85,6 +85,13 @@ describe('the destinations of a recipient', () => {
       recalled: false,
       value: { state: 'disabled', minLevel: 'weak' },
     })
+    const sparse = { enabled: true, minLevel: undefined } as never
+    expect(await w.destinations.change(w.ctx, ref, sparse)).toMatchObject({
+      kind: 'done',
+      recalled: false,
+      value: { state: 'enabled', minLevel: 'weak' },
+    })
+    await w.destinations.change(w.ctx, ref, { enabled: false })
     expect(await w.destinations.change(w.ctx, ref, { enabled: false })).toMatchObject({
       recalled: true,
     })

@@ -11,26 +11,43 @@ export type NotificationChange =
   | Readonly<{ kind: 'inbox'; tenant: TenantId; recipient: RecipientRef | null }>
   | Readonly<{ kind: 'catalog' }>
 
+export type NotificationChangeListener = Readonly<{
+  changed(change: NotificationChange): void
+  /** The feed is gone and nothing more arrives. */
+  closed(): void
+}>
+
 export type NotificationChanges = Readonly<{
-  subscribe(listener: (change: NotificationChange) => void): () => void
+  /** A listener that subscribes after the feed closed is told so at once. */
+  subscribe(listener: NotificationChangeListener): () => void
   emit(change: NotificationChange): void
+  close(): void
 }>
 
 export function createChanges(report: (error: unknown) => void): NotificationChanges {
-  const listeners = new Set<(change: NotificationChange) => void>()
+  const listeners = new Set<NotificationChangeListener>()
+  let closed = false
+  const tell = (call: () => void) => {
+    try {
+      call()
+    } catch (error) {
+      report(error)
+    }
+  }
   return {
     subscribe(listener) {
-      listeners.add(listener)
+      if (closed) tell(() => listener.closed())
+      else listeners.add(listener)
       return () => void listeners.delete(listener)
     },
     emit(change) {
-      for (const listener of listeners) {
-        try {
-          listener(change)
-        } catch (error) {
-          report(error)
-        }
-      }
+      for (const listener of listeners) tell(() => listener.changed(change))
+    },
+    close() {
+      closed = true
+      const told = [...listeners]
+      listeners.clear()
+      for (const listener of told) tell(() => listener.closed())
     },
   }
 }

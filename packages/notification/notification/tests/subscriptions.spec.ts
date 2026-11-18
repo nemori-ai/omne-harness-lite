@@ -318,6 +318,25 @@ describe('the beat of a recipient', () => {
     ).toEqual(refused('invalid-request'))
   })
 
+  it('is read back as it was set, and as the default before anyone set it', async () => {
+    const w = world()
+    const read = (recipient: unknown = person) => w.subscriptions.beat(w.ctx, recipient as never)
+    expect(await read()).toEqual({ kind: 'done', recalled: false, value: { kind: 'default' } })
+    await w.subscriptions.setBeat(w.ctx, person, { kind: 'every', minutes: 30 })
+    expect(await read()).toMatchObject({ value: { kind: 'every', minutes: 30 } })
+    expect(await read(agent('a'))).toMatchObject({ value: { kind: 'default' } })
+    expect(await read({ kind: 'team' })).toEqual(refused('invalid-request'))
+    const asked: unknown[] = []
+    w.authority.answer((_ctx, action) => (asked.push(action), 'denied'))
+    expect(await read()).toEqual(refused('not-permitted'))
+    expect(asked).toEqual([{ kind: 'read-inbox', recipient: person }])
+    w.authority.answer(() => 'unavailable')
+    expect(await read()).toEqual(unavailable)
+    w.authority.answer(() => 'allowed')
+    w.store.fail('read-unavailable')
+    expect(await read()).toEqual(unavailable)
+  })
+
   it('answers what the authority and the store answered', async () => {
     const w = world()
     const every = { kind: 'every', minutes: 30 } as const

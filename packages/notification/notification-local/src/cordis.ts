@@ -49,12 +49,14 @@ class LocalSubscriptions extends NotificationSubscriptionsService {
   readonly set: NotificationSubscriptions['set']
   readonly remove: NotificationSubscriptions['remove']
   readonly list: NotificationSubscriptions['list']
+  readonly beat: NotificationSubscriptions['beat']
   readonly setBeat: NotificationSubscriptions['setBeat']
   constructor(ctx: Context, face: NotificationSubscriptions) {
     super(ctx)
     this.set = face.set
     this.remove = face.remove
     this.list = face.list
+    this.beat = face.beat
     this.setBeat = face.setBeat
   }
 }

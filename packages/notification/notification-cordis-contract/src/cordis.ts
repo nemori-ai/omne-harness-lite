@@ -54,6 +54,7 @@ export abstract class NotificationSubscriptionsService
   abstract readonly set: NotificationSubscriptions['set']
   abstract readonly remove: NotificationSubscriptions['remove']
   abstract readonly list: NotificationSubscriptions['list']
+  abstract readonly beat: NotificationSubscriptions['beat']
   abstract readonly setBeat: NotificationSubscriptions['setBeat']
 }
 export const notificationSubscriptionsKey = NotificationSubscriptionsService.provide

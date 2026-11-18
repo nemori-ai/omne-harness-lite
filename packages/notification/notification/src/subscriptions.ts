@@ -19,7 +19,7 @@ import {
   type SubscriptionChange,
   type SubscriptionDecision,
   type SubscriptionKey,
-  type SubscriptionRefusal,
+  type BeatRefusal,
 } from '@omne-harness/notification-contract'
 import { ask, type Clock, type ConsentModes, type NotificationAuthority } from './ports.ts'
 import type { NotificationSources } from './registries.ts'
@@ -38,8 +38,8 @@ export type SubscriptionsDependencies = Readonly<{
 }>
 
 const UNAVAILABLE = { kind: 'basis-unavailable' } as const
-const refuse = (reason: SubscriptionRefusal) => ({ kind: 'refused', reason }) as const
-type Blocked = typeof UNAVAILABLE | ReturnType<typeof refuse>
+const refuse = <R extends string>(reason: R) => ({ kind: 'refused', reason }) as const
+type Blocked = typeof UNAVAILABLE | ReturnType<typeof refuse<'not-permitted'>>
 
 const actorOf = (ctx: CallContext): SubscriptionActor =>
   ctx.actor.kind === 'owner' ? ctx.actor : { kind: 'agent', recipient: ctx.actor.recipient }
@@ -58,7 +58,7 @@ function declaredType(
 
 export function createSubscriptions(deps: SubscriptionsDependencies): NotificationSubscriptions {
   /** Only the owner sets a beat, and only within the governed range. */
-  function beatRefusal(ctx: CallContext, beat: Beat): SubscriptionRefusal | null {
+  function beatRefusal(ctx: CallContext, beat: Beat): BeatRefusal | null {
     if (!validBeat(beat)) return 'invalid-request'
     if (ctx.actor.kind !== 'owner') return 'not-permitted'
     const { min, max } = deps.beatRange
@@ -141,7 +141,8 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
 
     async remove(ctx, input) {
       const parsed = parseWith(subscriptionKeySchema, input)
-      if ('refused' in parsed) return refuse(parseRefusal(parsed.refused))
+      if ('refused' in parsed)
+        return refuse(parsed.refused === 'invalid-scope' ? parsed.refused : 'invalid-request')
       const key = parsed.ok
       const own = ctx.actor.kind === 'owner' || sameRecipient(ctx.actor.recipient, key.recipient)
       if (!own) return refuse('not-own-recipient')
@@ -160,6 +161,16 @@ export function createSubscriptions(deps: SubscriptionsDependencies): Notificati
       const blocked = await gate(ctx, 'read-inbox', recipient.ok)
       if (blocked !== null) return blocked
       const read = await deps.store.subscriptions(ctx.tenant, recipient.ok)
+      if (read.kind === 'unavailable') return UNAVAILABLE
+      return { kind: 'done', recalled: false, value: read.value }
+    },
+
+    async beat(ctx, input) {
+      const recipient = parseWith(recipientRefSchema, input)
+      if ('refused' in recipient) return refuse('invalid-request')
+      const blocked = await gate(ctx, 'read-inbox', recipient.ok)
+      if (blocked !== null) return blocked
+      const read = await deps.store.beat(ctx.tenant, recipient.ok)
       if (read.kind === 'unavailable') return UNAVAILABLE
       return { kind: 'done', recalled: false, value: read.value }
     },
@@ -187,7 +198,7 @@ function validBeat(beat: Beat): boolean {
   return beat?.kind === 'every' && Number.isInteger(beat.minutes) && beat.minutes > 0
 }
 
-const parseRefusal = (refusal: ParseRefusal): SubscriptionRefusal =>
+const parseRefusal = (refusal: ParseRefusal) =>
   refusal === 'invalid-scope' || refusal === 'invalid-term' ? refusal : 'invalid-request'
 
 const sameBeat = (a: Beat, b: Beat) =>

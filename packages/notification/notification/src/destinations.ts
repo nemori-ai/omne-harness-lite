@@ -6,23 +6,16 @@ import {
   type ChannelName,
   type Destination,
   type DestinationRef,
-  type DestinationRefusal,
   type DestinationView,
   type MinLevel,
   type NewDestination,
   type NotificationDestinations,
-  type Outcome,
   type RecipientRef,
 } from '@omne-harness/notification-contract'
 import { ask, type NotificationAuthority } from './ports.ts'
 import type { NotificationChannels } from './registries.ts'
 import type { NotificationStore, StoreAnswer } from './store.ts'
-import {
-  withBuiltin,
-  type DestinationCommand,
-  type DestinationResult,
-  type RecipientDefaults,
-} from './transactions/destinations.ts'
+import { withBuiltin, type RecipientDefaults } from './transactions/destinations.ts'
 
 export type DestinationsDependencies = Readonly<{
   authority: NotificationAuthority
@@ -32,18 +25,23 @@ export type DestinationsDependencies = Readonly<{
 }>
 
 const UNAVAILABLE = { kind: 'basis-unavailable' } as const
-const refuse = (reason: DestinationRefusal) => ({ kind: 'refused', reason }) as const
-type Blocked = typeof UNAVAILABLE | ReturnType<typeof refuse>
-type Written = Outcome<DestinationView, DestinationRefusal>
+const refuse = <R extends string>(reason: R) => ({ kind: 'refused', reason }) as const
+type Blocked = typeof UNAVAILABLE | ReturnType<typeof refuse<'not-permitted'>>
 
 const LEVELS = ['strong', 'weak']
 
-function validPatch(patch: Readonly<{ minLevel?: unknown; enabled?: unknown }>): boolean {
+type Patch = Readonly<{ minLevel?: MinLevel; enabled?: boolean }>
+
+/** Keeps the keys that carry a value: a key that is present and undefined changes nothing. */
+function parsePatch(patch: Readonly<{ minLevel?: unknown; enabled?: unknown }>): Patch | null {
   const { minLevel, enabled, ...rest } = patch
-  if (Object.keys(rest).length > 0 || (minLevel === undefined && enabled === undefined))
-    return false
-  if (minLevel !== undefined && !LEVELS.includes(minLevel as string)) return false
-  return enabled === undefined || typeof enabled === 'boolean'
+  if (Object.keys(rest).length > 0 || (minLevel === undefined && enabled === undefined)) return null
+  if (minLevel !== undefined && !LEVELS.includes(minLevel as string)) return null
+  if (enabled !== undefined && typeof enabled !== 'boolean') return null
+  return {
+    ...(minLevel === undefined ? {} : { minLevel: minLevel as MinLevel }),
+    ...(enabled === undefined ? {} : { enabled }),
+  }
 }
 
 type NewTarget = Readonly<{
@@ -83,19 +81,15 @@ export function createDestinations(deps: DestinationsDependencies): Notification
     return answer === 'unavailable' ? UNAVAILABLE : null
   }
 
-  function written(answer: StoreAnswer<DestinationResult>): Written {
-    if (answer.kind === 'rolled-back') return UNAVAILABLE
-    if (answer.kind === 'unknown') return { kind: 'unknown' }
-    const result = answer.value
-    if (result.kind === 'not-found' || result.kind === 'builtin') return refuse(result.kind)
-    if (result.kind === 'removed' || result.destination === null) return refuse('not-found')
-    const recalled = result.kind === 'recalled'
-    return { kind: 'done', recalled, value: view(result.destination) }
-  }
+  const uncommitted = (answer: Exclude<StoreAnswer<unknown>, { kind: 'committed' }>) =>
+    answer.kind === 'rolled-back' ? UNAVAILABLE : ({ kind: 'unknown' } as const)
 
-  async function write(ctx: CallContext, command: DestinationCommand): Promise<Written> {
-    return written(await deps.store.destination(ctx.tenant, command))
-  }
+  const done = (result: Readonly<{ kind: 'written' | 'recalled'; destination: Destination }>) =>
+    ({
+      kind: 'done',
+      recalled: result.kind === 'recalled',
+      value: view(result.destination),
+    }) as const
 
   /** Whether the channel takes this address. A channel that is absent or cannot answer: unavailable. */
   function addressAccepted(name: ChannelName, address: string): boolean | 'unavailable' {
@@ -123,15 +117,21 @@ export function createDestinations(deps: DestinationsDependencies): Notification
       const accepted = addressAccepted(target.channel, target.address)
       if (accepted === 'unavailable') return UNAVAILABLE
       if (!accepted) return refuse('invalid-address')
-      return write(ctx, { kind: 'add', ...target, defaults: deps.defaults })
+      const command = { kind: 'add', ...target, defaults: deps.defaults } as const
+      const answer = await deps.store.destination(ctx.tenant, command)
+      return answer.kind === 'committed' ? done(answer.value) : uncommitted(answer)
     },
 
-    async change(ctx, input, patch) {
+    async change(ctx, input, given) {
       const ref = parseDestinationRef(input)
-      if (ref === null || !validPatch(patch ?? {})) return refuse('invalid-request')
+      const patch = parsePatch(given ?? {})
+      if (ref === null || patch === null) return refuse('invalid-request')
       const blocked = await gate(ctx, 'manage-destinations', ref.recipient)
       if (blocked !== null) return blocked
-      return write(ctx, { kind: 'change', ref, patch, defaults: deps.defaults })
+      const command = { kind: 'change', ref, patch, defaults: deps.defaults } as const
+      const answer = await deps.store.destination(ctx.tenant, command)
+      if (answer.kind !== 'committed') return uncommitted(answer)
+      return answer.value.kind === 'not-found' ? refuse('not-found') : done(answer.value)
     },
 
     async remove(ctx, input) {
@@ -141,12 +141,10 @@ export function createDestinations(deps: DestinationsDependencies): Notification
       if (blocked !== null) return blocked
       const command = { kind: 'remove', ref, defaults: deps.defaults } as const
       const answer = await deps.store.destination(ctx.tenant, command)
-      if (answer.kind === 'committed' && answer.value.kind === 'removed')
-        return { kind: 'done', recalled: false, value: null }
-      if (answer.kind === 'committed' && answer.value.kind === 'recalled')
-        return { kind: 'done', recalled: true, value: null }
-      const failed = written(answer)
-      return failed.kind === 'done' ? UNAVAILABLE : failed
+      if (answer.kind !== 'committed') return uncommitted(answer)
+      const { kind } = answer.value
+      if (kind === 'builtin') return refuse('builtin')
+      return { kind: 'done', recalled: kind === 'absent', value: null }
     },
 
     async list(ctx, input) {

@@ -208,6 +208,7 @@ export async function createNotificationLocalApplication(
         timers.clear(periodic)
         hints.stop()
         for (const undo of withdraw.reverse()) undo()
+        changes.close()
       })()
       return closing
     },

@@ -61,27 +61,51 @@ describe('wake-ups', () => {
   })
 })
 
+const hearing = (seen: unknown[]) => ({
+  changed: (change: unknown) => void seen.push(change),
+  closed: () => void seen.push('closed'),
+})
+
 describe('changes', () => {
   it('reach every observer, and one that throws is reported without stopping the others', () => {
     const reported: unknown[] = []
     const changes = createChanges(error => void reported.push(error))
     const seen: unknown[] = []
     const failing = new Error('observer failed')
-    changes.subscribe(() => {
+    const thrower = () => {
       throw failing
-    })
-    const undo = changes.subscribe(change => void seen.push(change))
+    }
+    changes.subscribe({ changed: thrower, closed: thrower })
+    const undo = changes.subscribe(hearing(seen))
     changes.emit({ kind: 'catalog' })
     undo()
     changes.emit({ kind: 'catalog' })
     expect(seen).toEqual([{ kind: 'catalog' }])
-    expect(reported).toEqual([failing, failing])
+    changes.close()
+    expect(reported).toEqual([failing, failing, failing])
+  })
+
+  it('once closed tell every observer so, once, and carry nothing more', () => {
+    const changes = createChanges(() => {})
+    const seen: unknown[] = []
+    const gone: unknown[] = []
+    changes.subscribe(hearing(seen))
+    changes.subscribe(hearing(gone))()
+    changes.close()
+    changes.close()
+    changes.emit({ kind: 'catalog' })
+    expect(seen).toEqual(['closed'])
+    expect(gone).toEqual([])
+    const late: unknown[] = []
+    changes.subscribe(hearing(late))()
+    changes.emit({ kind: 'catalog' })
+    expect(late).toEqual(['closed'])
   })
 
   it('are told by the in-app channel, which accepts only the empty address', async () => {
     const changes = createChanges(() => {})
     const seen: unknown[] = []
-    changes.subscribe(change => void seen.push(change))
+    changes.subscribe(hearing(seen))
     const channel = inAppChannel(changes)
     expect(channel.address.accepts('')).toBe(true)
     expect(channel.address.accepts('x')).toBe(false)
@@ -95,7 +119,7 @@ describe('changes', () => {
   it('follow a commit that was written or may have been, never one that was rolled back, and never a delivery', async () => {
     const changes = createChanges(() => {})
     const seen: unknown[] = []
-    changes.subscribe(change => void seen.push(change))
+    changes.subscribe(hearing(seen))
     const answers = ['committed', 'unknown', 'rolled-back'] as const
     let turn = 0
     const answer = async () => {

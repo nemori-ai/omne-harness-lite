@@ -687,6 +687,22 @@
       "source": "packages/notification/SPEC.md"
     },
     {
+      "id": "packages/notification/notification-protocol",
+      "paths": ["packages/notification/notification-protocol/src/**"],
+      "layer": "contract",
+      "domains": ["notification"],
+      "status": "candidate",
+      "source": "packages/notification/SPEC.md"
+    },
+    {
+      "id": "packages/notification/notification-access",
+      "paths": ["packages/notification/notification-access/src/**"],
+      "layer": "unknown",
+      "domains": ["notification"],
+      "status": "candidate",
+      "source": "packages/notification/SPEC.md"
+    },
+    {
       "id": "packages/calendar/calendar-contract",
       "paths": ["packages/calendar/calendar-contract/src/**"],
       "layer": "contract",

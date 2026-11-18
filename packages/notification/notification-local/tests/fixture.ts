@@ -148,7 +148,10 @@ export async function openApplication(
   if (probeName !== null) application.channels.register(probe)
   application.sources.register(builds)
   const changes: unknown[] = []
-  application.changes.subscribe(change => void changes.push(change))
+  application.changes.subscribe({
+    changed: change => void changes.push(change),
+    closed: () => void changes.push('closed'),
+  })
   return {
     world,
     application,
