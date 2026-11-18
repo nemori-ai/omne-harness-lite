@@ -63,7 +63,7 @@ import type { BackgroundCallLabel, BackgroundCallSource } from './background-cal
 export const SESSION_INTERPRETER: Adoption = Object.freeze({
   owner: '@omne-harness/session-contract',
   name: 'session-log',
-  revision: '4',
+  revision: '5',
   digest: SESSION_RELEASE_DIGEST,
 })
 

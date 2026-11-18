@@ -268,6 +268,7 @@
 - `WorkSnapshot` · `values.d.ts`
 - `WorkspaceAttachment` · `values.d.ts`
 - `admitDerived` · `input-sources.d.ts`
+- `admitDerivedOf` · `input-sources.d.ts`
 - `admitSource` · `input-sources.d.ts`
 - `archiveCollapse` · `call-control.d.ts`
 - `backgroundCallView` · `background-calls.d.ts`
@@ -589,9 +590,9 @@ import type { SessionEntry } from './entries.ts';
 import type { HistoryEntry, SessionFailure } from './faces.ts';
 import type { ConsumptionId, InputId } from './identity.ts';
 import type { SessionEntriesInterpretation } from './interpretation-values.ts';
-import type { EncodedEntry } from './judgments.ts';
+import type { Decision, EncodedEntry } from './judgments.ts';
 import type { BackgroundDisposition, ControlProgress, ProducerRef, RoutedInput, WorkSnapshot } from './values.ts';
-import { type DerivedAdmission } from './input-sources.ts';
+import { type IntakeTerms } from './input-sources.ts';
 export declare const BACKGROUND_OUTCOME_EVIDENCE_OWNER = "background-tool-execution";
 type Draft = {
     -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K];
@@ -604,6 +605,9 @@ type Backgrounded = Extract<SessionEntriesInterpretation, {
 }>;
 type Outcome = Extract<SessionEntriesInterpretation, {
     kind: 'background-outcome';
+}>;
+type EntriesDecided = Extract<Decision, {
+    kind: 'entries';
 }>;
 export type BackgroundOutcomeJudgment = Readonly<{
     kind: 'refused';
@@ -631,15 +635,8 @@ export type BackgroundStep = Readonly<{
 export declare function backgroundInputId(producer: ProducerRef, result: string): InputId;
 export declare function backgroundRecordOf(snapshot: WorkSnapshot, consumption: ConsumptionId): BackgroundCallRecord | null;
 export declare function judgeBackgroundOutcome(snapshot: WorkSnapshot, consumption: ConsumptionId): BackgroundOutcomeJudgment;
-export declare function stopReminderEntries(snapshot: WorkSnapshot, record: BackgroundCallRecord, stop: BackgroundCallStop, admission: DerivedAdmission | undefined): Readonly<{
-    kind: 'entries';
-    entries: readonly EncodedEntry[];
-    input: Ordinary;
-}> | Readonly<{
-    kind: 'rejected';
-    failure: SessionFailure;
-}>;
-export declare function decideBackground(snapshot: WorkSnapshot, fact: Backgrounded | Outcome, origin: HistoryEntry['origin'], admission: DerivedAdmission | undefined): BackgroundStep;
+export declare function withStopReminder(decision: EntriesDecided, snapshot: WorkSnapshot, record: BackgroundCallRecord, stop: BackgroundCallStop, terms: IntakeTerms | undefined): Decision;
+export declare function decideBackground(snapshot: WorkSnapshot, fact: Backgrounded | Outcome, origin: HistoryEntry['origin'], derived: IntakeTerms['derived']): BackgroundStep;
 export declare function applyBackgrounded(draft: Draft, entry: Extract<SessionEntry, {
     kind: 'call.backgrounded';
 }>): string | null;
@@ -2176,7 +2173,7 @@ export { DEFAULT_SESSION_INTAKE_LIMITS, sessionIntakeLimits, sessionInputBytes, 
 export { archiveCollapse, backgroundCalls, controlAnswer, controlRoutes, type ArchiveCollapse, type ControlRoutes, type DirectCallControl, } from './call-control.ts';
 export { backgroundInputId, judgeBackgroundOutcome, type BackgroundOutcomeJudgment, } from './background-outcome.ts';
 export type { SessionIntakeLimits } from './intake.ts';
-export { INTAKE_GUARD_OWNER, admitDerived, admitSource, createInputSourceRegistry, inputSourceName, commandInput, prepareEntriesTerms, prepareIntakeTerms, withIntakeTerms, intakeTermsOf, parseInputSourceName, type AdmittedSource, type DerivedAdmission, type DerivedInputKind, type InputSourceDeclaration, type InputSourceLookup, type InputSourceName, type InputSourceRegistry, type InputSources, type IntakeBasis, type IntakeSubject, type SourceTerms, type IntakeTerms, type SessionDerivedInputs, type SourceAdmission, type SourceRefusal, } from './input-sources.ts';
+export { INTAKE_GUARD_OWNER, admitDerived, admitDerivedOf, admitSource, createInputSourceRegistry, inputSourceName, commandInput, prepareEntriesTerms, prepareIntakeTerms, withIntakeTerms, intakeTermsOf, parseInputSourceName, type AdmittedSource, type DerivedAdmission, type DerivedInputKind, type InputSourceDeclaration, type InputSourceLookup, type InputSourceName, type InputSourceRegistry, type InputSources, type IntakeBasis, type IntakeSubject, type SourceTerms, type IntakeTerms, type SessionDerivedInputs, type SourceAdmission, type SourceRefusal, } from './input-sources.ts';
 export type { TodoItem, VisibleTodoItem, TodoMutationReceipt, TodoPageCursor, TodoPage, SessionTodos, } from './todos.ts';
 export type { SessionPermissionAssignment, SessionPermissions, SessionPermissionChangeBasis, SessionPermissionWriteQualification, } from './permission-values.ts';
 export { rebuildSessionPermissions, type SessionPermissionHistory } from './permission-history.ts';
@@ -2399,6 +2396,9 @@ export declare function prepareIntakeTerms(command: SessionCommand, basis: Intak
 export declare function prepareEntriesTerms(derived: SessionDerivedInputs | null): IntakeTerms['derived'];
 export declare function withIntakeTerms(guards: readonly GuardCommand[], terms: IntakeTerms | null): readonly GuardCommand[];
 export declare function intakeTermsOf(guards: readonly GuardCommand[]): IntakeTerms | null;
+export declare function admitDerivedOf(derived: IntakeTerms['derived'], kind: DerivedInputKind, request: Readonly<{
+    wake?: boolean;
+}>): AdmittedSource | null;
 export declare function admitDerived(admission: DerivedAdmission | undefined, request: Readonly<{
     wake?: boolean;
 }>): AdmittedSource | null;
@@ -3454,8 +3454,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:2ba2531d700d6810747c8419fd6622d5d9f4efc04d6359322438afa603d5cd6e";
-export declare const SESSION_RELEASE_DIGEST = "sha256:2ba2531d700d6810747c8419fd6622d5d9f4efc04d6359322438afa603d5cd6e";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:df0936409d5e68fcc83cae423967ba33a8e69bb1d99b73e43177d1c1d1a3c03c";
+export declare const SESSION_RELEASE_DIGEST = "sha256:df0936409d5e68fcc83cae423967ba33a8e69bb1d99b73e43177d1c1d1a3c03c";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -3854,16 +3854,16 @@ export declare function createMemoryAgentDrive(): MemoryAgentDrive;
 ## 声明文件 `testing-sources.d.ts`
 
 ```ts
-import { type InputSources, type IntakeSubject, type IntakeTerms, type InputSourceDeclaration, type InputSourceRegistry, type SessionDerivedInputs } from './input-sources.ts';
+import { type InputSources, type IntakeSubject, type IntakeTerms, type InputSourceDeclaration, type InputSourceName, type InputSourceRegistry, type SessionDerivedInputs } from './input-sources.ts';
 import type { SessionAccessCheck } from './access.ts';
 import type { GuardCommand, SessionCommand } from './ports.ts';
 export declare const TESTING_SYSTEM_COMPONENT = "session-testing";
 export declare const TESTING_SOURCES: Readonly<{
-    person: import("./input-sources.ts").InputSourceName;
-    system: import("./input-sources.ts").InputSourceName;
-    quiet: import("./input-sources.ts").InputSourceName;
-    outcome: import("./input-sources.ts").InputSourceName;
-    stop: import("./input-sources.ts").InputSourceName;
+    person: InputSourceName;
+    system: InputSourceName;
+    quiet: InputSourceName;
+    outcome: InputSourceName;
+    stop: InputSourceName;
 }>;
 export declare const TESTING_DECLARATIONS: readonly InputSourceDeclaration[];
 export declare function testingInputSources(): InputSourceRegistry;

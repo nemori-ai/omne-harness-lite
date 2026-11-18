@@ -279,6 +279,7 @@
 - `WorkSnapshot` · 包 `@omne-harness/session-contract`
 - `WorkspaceAttachment` · 包 `@omne-harness/session-contract`
 - `admitDerived` · 包 `@omne-harness/session-contract`
+- `admitDerivedOf` · 包 `@omne-harness/session-contract`
 - `admitSource` · 包 `@omne-harness/session-contract`
 - `archiveCollapse` · 包 `@omne-harness/session-contract`
 - `backgroundCallView` · 包 `@omne-harness/session-contract`
