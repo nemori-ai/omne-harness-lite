@@ -70,6 +70,40 @@ function predecessorOf(snapshot: WorkSnapshot, run: RunId): RunId | null {
   return at > 0 ? (executions[at - 1]?.run ?? null) : null
 }
 
+async function invokeOnce(
+  port: AgentDrivePort,
+  target: Parameters<AgentDrivePort['invoke']>[0],
+): Promise<Outcome<DriveReceipt, DriveFailure>> {
+  try {
+    return await port.invoke(target)
+  } catch (error) {
+    return fail({ kind: 'unavailable', diagnostic: `invoke threw: ${messageOf(error)}` })
+  }
+}
+
+async function settled(
+  port: AgentDrivePort,
+  target: Parameters<AgentDrivePort['query']>[0],
+): Promise<boolean> {
+  try {
+    const answer = await port.query(target)
+    return 'ok' in answer && answer.ok !== 'unknown'
+  } catch {
+    return false
+  }
+}
+
+async function submitOnce(
+  port: AgentDrivePort,
+  target: Parameters<AgentDrivePort['submit']>[0],
+): Promise<Outcome<DriveReceipt, DriveFailure>> {
+  try {
+    return await port.submit(target)
+  } catch (error) {
+    return fail({ kind: 'unavailable', diagnostic: `submit threw: ${messageOf(error)}` })
+  }
+}
+
 export function createAdvance<P>(
   input: Readonly<{
     dependencies: SessionDependencies<P>
@@ -209,29 +243,6 @@ export function createAdvance<P>(
     return send()
   }
 
-  const invokeOnce = async (
-    port: AgentDrivePort,
-    target: Parameters<AgentDrivePort['invoke']>[0],
-  ): Promise<Outcome<DriveReceipt, DriveFailure>> => {
-    try {
-      return await port.invoke(target)
-    } catch (error) {
-      return fail({ kind: 'unavailable', diagnostic: `invoke threw: ${messageOf(error)}` })
-    }
-  }
-
-  const settled = async (
-    port: AgentDrivePort,
-    target: Parameters<AgentDrivePort['query']>[0],
-  ): Promise<boolean> => {
-    try {
-      const answer = await port.query(target)
-      return 'ok' in answer && answer.ok !== 'unknown'
-    } catch {
-      return false
-    }
-  }
-
   const stillAdvancing = async (ref: SessionRef, started: StartedRun): Promise<Holding> => {
     const snapshot = await as('coordinator', ref, principal =>
       coordinator.readWork({ principal, ...ref }),
@@ -262,9 +273,9 @@ export function createAdvance<P>(
 
   const retryWait = async (
     ref: SessionRef,
-    run: RunId,
+    run: RunId | null,
     delay: number,
-    step: 'invoke' | 'finishRun' | 'submit',
+    step: 'invoke' | 'finishRun' | 'submit' | 'startRun',
     holds: () => Promise<Holding>,
   ): Promise<boolean> => {
     const key = sessionKey(ref)
@@ -302,17 +313,6 @@ export function createAdvance<P>(
       return false
     } finally {
       if (waiting.get(key) === stop) waiting.delete(key)
-    }
-  }
-
-  const submitOnce = async (
-    port: AgentDrivePort,
-    target: Parameters<AgentDrivePort['submit']>[0],
-  ): Promise<Outcome<DriveReceipt, DriveFailure>> => {
-    try {
-      return await port.submit(target)
-    } catch (error) {
-      return fail({ kind: 'unavailable', diagnostic: `submit threw: ${messageOf(error)}` })
     }
   }
 
@@ -507,21 +507,39 @@ export function createAdvance<P>(
       }),
     )
 
-  const openRun = async (
-    ref: SessionRef,
-    snapshot: WorkSnapshot,
-    first: InputId,
-  ): Promise<void> => {
-    const predecessor = snapshot.run.kind === 'terminal' ? snapshot.run.terminal.run : null
-    const started = await start(ref, first, predecessor, snapshot.definition.adopted)
-    if ('ok' in started) return invoke(ref, started.ok)
-    const failure = started.failure
-    if (failure.kind === 'frozen') {
-      if (failure.verdict !== null) return freeze(ref, failure.verdict)
-      return
+  // A Run that cannot start yet for a passing reason (its predecessor not read through, a moved
+  // revision) is tried again after each configured delay, judged again on a fresh read.
+  const openRun = async (ref: SessionRef, opened: WorkSnapshot, input: InputId): Promise<void> => {
+    const delays = policy.advance.retryDelaysMs
+    let snapshot = opened
+    let first = input
+    for (let attempt = 0; ; attempt += 1) {
+      const predecessor = snapshot.run.kind === 'terminal' ? snapshot.run.terminal.run : null
+      const started = await start(ref, first, predecessor, snapshot.definition.adopted)
+      if ('ok' in started) return invoke(ref, started.ok)
+      const failure = started.failure
+      if (failure.kind === 'frozen') {
+        if (failure.verdict !== null) return freeze(ref, failure.verdict)
+        return
+      }
+      if (failure.kind === 'unavailable' || failure.kind === 'changed') {
+        const delay = delays[attempt]
+        if (delay === undefined)
+          return report(ref, 'C2', 'startRun', null, 'retries-exhausted', failure)
+        if (!(await retryWait(ref, null, delay, 'startRun', () => Promise.resolve(true)))) return
+        const fresh = await as('coordinator', ref, principal =>
+          coordinator.readWork({ principal, ...ref }),
+        )
+        if ('failure' in fresh) return reportFailure(ref, 'startRun', null, fresh)
+        const judgment = judgeRunStart(fresh.ok, 'interactive')
+        if (judgment.kind !== 'eligible') return
+        snapshot = fresh.ok
+        first = judgment.first
+        continue
+      }
+      if (failure.kind !== 'run-active') reportFailure(ref, 'startRun', null, started)
+      return unknownTo(ref, started, () => openRun(ref, snapshot, first))
     }
-    if (failure.kind !== 'run-active') reportFailure(ref, 'startRun', null, started)
-    unknownTo(ref, started, () => openRun(ref, snapshot, first))
   }
 
   const replay = async (ref: SessionRef): Promise<void> => {
