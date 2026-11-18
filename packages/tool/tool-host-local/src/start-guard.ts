@@ -1,8 +1,8 @@
 import type { AccessVerdict, StartVerdict, ToolStartGuard } from '@omne-harness/tool'
 import type { StartCoordinatorAccess } from './start-coordinator.ts'
-import type { ToolPermitConsumption } from '@omne-harness/tool-contract/provider'
+import type { ToolPermitConsumption, ToolPermitRef } from '@omne-harness/tool-contract/provider'
+import { z } from 'zod'
 import type { RequestAccessVerdict, StartCondition, ToolRequestAccess } from './ledger-guards.ts'
-import { readRequirementSource } from './start-permit-requirements.ts'
 
 export const PROGRAMMATIC_NOT_IN_M2 = 'programmatic-not-in-m2'
 
@@ -12,38 +12,38 @@ export type LocalStartGuardInput<P> = Readonly<{
 }>
 
 const MALFORMED = 'request-access answered a malformed authorization'
-const filled = (value: unknown): value is string => typeof value === 'string' && value.length > 0
-
-function consumptionOf(value: unknown): ToolPermitConsumption | null {
-  if (typeof value !== 'object' || value === null) return null
-  const permit: unknown = Reflect.get(value, 'permit')
-  const consumer: unknown = Reflect.get(value, 'consumer')
-  const evidence = readRequirementSource(Reflect.get(value, 'evidence'))
-  if (typeof permit !== 'object' || permit === null) return null
-  if (typeof consumer !== 'object' || consumer === null || evidence === null) return null
-  const id: unknown = Reflect.get(permit, 'permit')
-  const tenant: unknown = Reflect.get(permit, 'tenant')
-  const [owner, work, position]: unknown[] = ['owner', 'work', 'position'].map(key =>
-    Reflect.get(consumer, key),
+const text = z.string().min(1)
+const held = <T>() => z.custom<T>(value => typeof value === 'object' && value !== null)
+const consumptions: z.ZodType<readonly ToolPermitConsumption[]> = z
+  .array(
+    z
+      .object({
+        permit: z.object({ tenant: held<ToolPermitRef['tenant']>(), permit: text }).readonly(),
+        consumer: z.object({ owner: text, work: text, position: text }).readonly(),
+        evidence: z.object({ owner: text, record: text, revision: text, digest: text }).readonly(),
+      })
+      .readonly(),
   )
-  if (!filled(id) || typeof tenant !== 'object' || tenant === null) return null
-  if (!filled(owner) || !filled(work) || !filled(position)) return null
-  return Object.freeze({
-    permit: Object.freeze({
-      tenant: tenant as ToolPermitConsumption['permit']['tenant'],
-      permit: id,
-    }),
-    consumer: Object.freeze({ owner, work, position }),
-    evidence,
-  })
-}
+  .readonly()
+// What the provider answered is read as data: a shape it does not have answers unavailable.
+const answered = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('allowed'),
+    condition: z.custom<StartCondition | null>(value => typeof value === 'object'),
+    authorizations: z.unknown().optional(),
+  }),
+  z.object({ kind: z.literal('denied'), reason: z.string() }),
+  z.object({ kind: z.literal('unavailable'), diagnostic: z.string() }),
+])
 
 // Absent is none; anything present must be a whole list of consumptions, or the answer is malformed.
-function consumptionsOf(value: unknown): readonly ToolPermitConsumption[] | null {
-  if (value === undefined) return []
-  if (!Array.isArray(value)) return null
-  const read = value.map(consumptionOf)
-  return read.every(item => item !== null) ? (read as ToolPermitConsumption[]) : null
+function allowed(condition: StartCondition | null, authorizations: unknown): RequestAccessVerdict {
+  if (authorizations === undefined) return { kind: 'allowed', condition }
+  const read = consumptions.safeParse(authorizations)
+  if (!read.success) return { kind: 'unavailable', diagnostic: MALFORMED }
+  return read.data.length === 0
+    ? { kind: 'allowed', condition }
+    : { kind: 'allowed', condition, authorizations: read.data }
 }
 
 export async function qualifyRequestAccess<P>(
@@ -51,32 +51,16 @@ export async function qualifyRequestAccess<P>(
   input: Parameters<ToolRequestAccess<P>['qualify']>[0],
 ): Promise<RequestAccessVerdict> {
   if (provider === undefined) return { kind: 'allowed', condition: null }
-  try {
-    const result: unknown = await provider.qualify(input)
-    if (typeof result === 'object' && result !== null && 'kind' in result) {
-      if (
-        result.kind === 'allowed' &&
-        'condition' in result &&
-        typeof result.condition === 'object'
-      ) {
-        const condition = result.condition as StartCondition | null
-        const authorizations = consumptionsOf(Reflect.get(result, 'authorizations'))
-        if (authorizations === null) return { kind: 'unavailable', diagnostic: MALFORMED }
-        return authorizations.length === 0
-          ? { kind: 'allowed', condition }
-          : { kind: 'allowed', condition, authorizations }
-      }
-      if (result.kind === 'denied' && 'reason' in result && typeof result.reason === 'string')
-        return { kind: 'denied', reason: result.reason }
-      if (
-        result.kind === 'unavailable' &&
-        'diagnostic' in result &&
-        typeof result.diagnostic === 'string'
-      )
-        return { kind: 'unavailable', diagnostic: result.diagnostic }
-    }
-  } catch {}
-  return { kind: 'unavailable', diagnostic: 'request-access unavailable' }
+  const result = await Promise.resolve(input)
+    .then(asked => provider.qualify(asked))
+    .then(
+      value => answered.safeParse(value),
+      () => undefined,
+    )
+  if (result?.success !== true)
+    return { kind: 'unavailable', diagnostic: 'request-access unavailable' }
+  const verdict = result.data
+  return verdict.kind === 'allowed' ? allowed(verdict.condition, verdict.authorizations) : verdict
 }
 
 export function createLocalStartGuard<P>(input: LocalStartGuardInput<P>): ToolStartGuard<P> {
