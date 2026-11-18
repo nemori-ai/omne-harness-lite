@@ -1,0 +1,176 @@
+// @vitest-environment happy-dom
+import { Context } from '@deepseek-ai/cordis'
+import { act, cleanup, render } from '@testing-library/react'
+import { afterEach, beforeAll, expect, it } from 'vitest'
+import { protocolServiceName } from '@omne-harness/client-assembly/cordis'
+import { notificationProtocol } from '@omne-harness/notification-protocol'
+import { INBOX_SECTIONS, inboxSections, notificationUiModule } from '../src/cordis.ts'
+import { entry, page } from './fixtures/entries.ts'
+import { stubAnimation } from './fixtures/dom-stubs.ts'
+import { createFakeClient } from './fixtures/fake-client.ts'
+import { startShell } from './fixtures/reference-shell.ts'
+
+const TENANT =
+  '{"organization":"org_00000000000000000000000000","account":"acc_00000000000000000000000001"}'
+const SERVICE = protocolServiceName({
+  name: notificationProtocol.name,
+  major: notificationProtocol.major,
+})
+
+beforeAll(stubAnimation)
+afterEach(cleanup)
+
+async function settle(): Promise<void> {
+  await act(async () => {
+    await new Promise(resolve => setTimeout(resolve, 0))
+  })
+}
+const later = () => new Promise(resolve => setTimeout(resolve, 0))
+const pageIds = (root: Context) =>
+  (root.shell as unknown as { items(slot: 'pages'): { id: string }[] })
+    .items('pages')
+    .map(item => item.id)
+
+async function loaded() {
+  const { root, shell } = await startShell()
+  const fake = createFakeClient()
+  const unprovide = root.reflect.provide(SERVICE, fake.client)
+  await root.plugin(notificationUiModule)
+  return { root, shell, fake, unprovide }
+}
+
+it('with the protocol client on the tree it puts one page with a count, and nothing else', async () => {
+  const { shell } = await loaded()
+  const [placed] = shell.items('pages')
+  expect(placed).toMatchObject({ id: 'notifications', title: '通知', order: 11 })
+  expect(placed?.badge).toBeTypeOf('function')
+  expect(shell.items('pages')).toHaveLength(1)
+  expect(shell.items('sidebar')).toEqual([])
+  expect(shell.items('gate')).toEqual([])
+  expect(shell.items('attached')).toEqual([])
+})
+
+it('without the protocol client it does not load', async () => {
+  const { root } = await startShell()
+  await root.plugin(notificationUiModule)
+  expect(pageIds(root)).toEqual([])
+})
+
+it('the page and the count go when the client goes and come back with it', async () => {
+  const { root, fake, unprovide } = await loaded()
+  expect(pageIds(root)).toEqual(['notifications'])
+  unprovide()
+  await later()
+  expect(pageIds(root)).toEqual([])
+  root.reflect.provide(SERVICE, fake.client)
+  await later()
+  expect(pageIds(root)).toEqual(['notifications'])
+})
+
+it('the page uses the tenant of the shell; without one it draws nothing and asks nothing', async () => {
+  const { shell, fake } = await loaded()
+  const item = shell.items('pages')[0]!
+  const blank = render(
+    <>
+      {item.render({ scope: undefined })}
+      {item.badge?.({ scope: undefined })}
+    </>,
+  )
+  await settle()
+  expect(blank.container.textContent).toBe('')
+  expect(fake.observations).toHaveLength(0)
+  cleanup()
+  render(<>{item.render({ scope: TENANT })}</>)
+  await settle()
+  expect(fake.observations).toHaveLength(1)
+})
+
+it('the page and the count read the same inbox: one observation, one list', async () => {
+  const { shell, fake } = await loaded()
+  const item = shell.items('pages')[0]!
+  const view = render(
+    <>
+      <span data-testid="badge">{item.badge?.({ scope: TENANT })}</span>
+      {item.render({ scope: TENANT })}
+    </>,
+  )
+  await settle()
+  await act(async () => fake.observations[0]!.frame())
+  ;(await fake.next('list-inbox')).answer(page([entry('e1', 1)]))
+  await settle()
+  expect(view.getByTestId('badge').textContent).toBe('1')
+  expect(view.getByRole('region', { name: '未了结' })).toBeTruthy()
+  expect(fake.observations).toHaveLength(1)
+  expect(fake.calls.filter(call => call.operation === 'list-inbox')).toHaveLength(1)
+})
+
+it('unloading stops the observation', async () => {
+  const { shell, fake, unprovide } = await loaded()
+  render(<>{shell.items('pages')[0]!.render({ scope: TENANT })}</>)
+  await settle()
+  unprovide()
+  await later()
+  expect(fake.observations[0]!.signal.aborted).toBe(true)
+})
+
+it('another domain puts a section into the panel through the point, and takes it out again', async () => {
+  const { root, shell } = await loaded()
+  shell.tenant = TENANT
+  expect(inboxSections.name).toBe(INBOX_SECTIONS)
+  expect(INBOX_SECTIONS).toBe('notification.inbox-sections')
+  const seenBy: unknown[] = []
+  const other = root.plugin({
+    name: 'other-domain-ui',
+    inject: ['shell'],
+    apply(ctx: Context) {
+      inboxSections.contribute(ctx.shell as never, {
+        id: 'standing',
+        order: 5,
+        label: '持续事项',
+        render: props => {
+          seenBy.push(props)
+          return <p>有一件事还开着</p>
+        },
+      })
+      inboxSections.contribute(ctx.shell as never, {
+        id: 'bare',
+        order: 1,
+        render: () => <p>没有标题的一栏</p>,
+      })
+    },
+  })
+  await other
+  const draw = () => render(<>{shell.items('pages')[0]!.render({ scope: TENANT })}</>)
+  const first = draw()
+  await settle()
+  const extra = first.container.querySelector('.notification-extra')!
+  expect([...extra.querySelectorAll('section')].map(section => section.textContent)).toEqual([
+    '没有标题的一栏',
+    '持续事项有一件事还开着',
+  ])
+  expect(first.getByRole('heading', { name: '持续事项' })).toBeTruthy()
+  expect(seenBy[0]).toEqual({ scope: TENANT, subject: { recipient: 'person' } })
+  cleanup()
+  await other.dispose()
+  const second = draw()
+  await settle()
+  expect(second.container.querySelector('.notification-extra')).toBeNull()
+  expect(second.queryByText('有一件事还开着')).toBeNull()
+})
+
+it('a section put under the anchor with a subject the point does not read is not drawn', async () => {
+  const { root, shell } = await loaded()
+  shell.tenant = TENANT
+  expect(shell.arranged(INBOX_SECTIONS, 'agent', entries => entries.length)).toBe(0)
+  await root.plugin({
+    name: 'other-domain-ui',
+    inject: ['shell'],
+    apply(ctx: Context) {
+      inboxSections.contribute(ctx.shell as never, { id: 's', order: 1, render: () => <p>一栏</p> })
+    },
+  })
+  const drawn = render(<>{shell.attached(INBOX_SECTIONS, 'agent')}</>)
+  expect(drawn.container.innerHTML).toBe('')
+  const right = render(<>{shell.attached(INBOX_SECTIONS, 'person')}</>)
+  expect(right.container.textContent).toBe('一栏')
+})
