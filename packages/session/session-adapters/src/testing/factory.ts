@@ -361,7 +361,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     const root = cell.state()
     const execution = root.agent.executions.get(executionKey(root, input.execution))
     return {
-      accepted: execution?.inputs,
+      accepted: execution?.inputs.filter(() => true),
       snapshot: root.session?.snapshot,
       resultOf: caller =>
         execution

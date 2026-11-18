@@ -250,13 +250,12 @@ describe('tryFinish on the production session-log Journal with the pending-input
         const other = memoryAccess('tester', 'another-session')
         await s.journals.forSession(other).journal.load({ ...other, execution: s.execution })
       }
+      // A stream holds no replica: the book of the ended session rests like any other.
       const warm = await readsOfOneLoad()
       await workElsewhere()
-      expect(await readsOfOneLoad()).toBe(warm)
+      expect(await readsOfOneLoad()).toBeGreaterThan(warm)
       stop.abort()
       await stream.return?.()
-      await workElsewhere()
-      expect(await readsOfOneLoad()).toBeGreaterThan(warm)
     } finally {
       await s.close()
     }

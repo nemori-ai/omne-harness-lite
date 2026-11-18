@@ -22,9 +22,12 @@ import {
   batchBytes,
   emptySessionView,
   fold,
+  heldBy,
+  holdText,
   refOf,
   type Batch,
   type FactBody,
+  type HoldRef,
   type ParticipationKind,
   type PublishedBatch,
   type Ref,
@@ -79,6 +82,19 @@ type Builder = {
   intends: Batch[]
   finish: { candidate: Batch; obligations: Batch; ended: Batch } | null
   obligations: string[]
+  held: HoldRef[]
+}
+
+// What the Journal writes beside a cursor move: the holds the checkpoint gained and let go, read
+// from its calls the way the Journal reads them.
+function holdsOf(builder: Builder, step: StepId, calls: readonly PendingCall[]): FactBody[] {
+  const next = heldBy({ calls, batch: null, passages: [], compaction: null } as never)
+  const wanted = new Set(next.map(holdText))
+  const had = new Set(builder.held.map(holdText))
+  const held = next.filter(ref => !had.has(holdText(ref)))
+  const released = builder.held.filter(ref => !wanted.has(holdText(ref)))
+  builder.held = next
+  return held.length + released.length === 0 ? [] : [{ kind: 'hold.changed', step, held, released }]
 }
 
 function authorityOf(builder: Builder): Authority {
@@ -234,6 +250,7 @@ function roundBatches(builder: Builder, rng: Random): void {
       step,
       members: { position: 'M0', step, inputBatch: taken, calls: blob([pending]) },
     },
+    ...holdsOf(builder, step, [pending]),
   ])
   builder.intends.push(intend)
   if (rng.chance(1, 4))
@@ -350,6 +367,7 @@ function roundBatches(builder: Builder, rng: Random): void {
         request: blob({ tool: 'read', arguments: { path: 'x' } }),
       },
       { kind: 'cursor.moved', step, members: { position: 'X2', calls: blob([toolPending]) } },
+      ...holdsOf(builder, step, [toolPending]),
     ])
     batch(builder, 'fence', [
       {
@@ -559,6 +577,7 @@ export function scene(rng: Random, options: SceneOptions = {}): Scene {
       intends: [],
       finish: null,
       obligations: [],
+      held: [],
     }
     builder.authority = authorityOf(builder)
     openBatches(builder, rng)

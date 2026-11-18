@@ -612,6 +612,8 @@ export type ExecutionRecordOpenItemsRead = Readonly<{
   families?: readonly string[]
   /** Closed items too: what an execution holds once it finishes. */
   all?: boolean
+  /** Only the items whose key starts with this. */
+  under?: string
 }>
 export type ExecutionRecordOpenItemsPage =
   | Readonly<{
