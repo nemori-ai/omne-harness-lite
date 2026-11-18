@@ -14,35 +14,49 @@ function declaredName(node: ts.Node): string | undefined {
   return first !== undefined && ts.isStringLiteralLike(first) ? first.text : undefined
 }
 
+const RULE_ID = 'session-core-no-source-names'
+const BUILT = '核心成员自己造了一个输入来源名；来源由贡献方向 session.input-sources 登记'
+const WRITTEN = '核心成员写了一个登记的输入来源名；判断只读受理时写进日志的值，不点来源的名字'
+
+type Files = Parameters<Rule['check']>[0]
+
+function declaredNames(files: Files): ReadonlySet<string> {
+  const names = new Set<string>()
+  for (const file of files)
+    visitSyntax(syntaxOf(file), node => {
+      const name = declaredName(node)
+      if (name !== undefined) names.add(name)
+    })
+  return names
+}
+
+function isCoreSource(path: string): boolean {
+  return CORE.test(path) && !isTestPath(path) && !TESTING_DOUBLE.test(path)
+}
+
+/** What a node of a core member does wrong, if anything: builds a source name, or writes one. */
+function faultOf(node: ts.Node, names: ReadonlySet<string>): string | undefined {
+  if (declaredName(node) !== undefined) return BUILT
+  if (!ts.isStringLiteralLike(node) || !names.has(node.text)) return undefined
+  return declaredName(node.parent) === undefined ? WRITTEN : undefined
+}
+
 export const sessionCoreNoSourceNames: Rule = {
-  id: 'session-core-no-source-names',
+  id: RULE_ID,
   source: 'packages/session/SPEC.md#输入来源 · SE-30',
   description:
     'Session 的三个核心成员（session-contract、session、session-cordis）的源码里不出现任何登记的输入来源名，也不自己造来源名',
   check(files) {
-    const names = new Set<string>()
-    for (const file of files)
-      visitSyntax(syntaxOf(file), node => {
-        const name = declaredName(node)
-        if (name !== undefined) names.add(name)
-      })
+    const names = declaredNames(files)
     const out: Violation[] = []
     for (const file of files) {
-      if (!CORE.test(file.path) || isTestPath(file.path) || TESTING_DOUBLE.test(file.path)) continue
+      if (!isCoreSource(file.path)) continue
       const syntax = syntaxOf(file)
       visitSyntax(syntax, node => {
-        const built = declaredName(node) !== undefined
-        const written = ts.isStringLiteralLike(node) && names.has(node.text)
-        if (!built && !written) return
-        if (written && declaredName(node.parent) !== undefined) return
-        out.push({
-          rule: this.id,
-          path: file.path,
-          line: lineAt(file.text, node.getStart(syntax)),
-          message: built
-            ? '核心成员自己造了一个输入来源名；来源由贡献方向 session.input-sources 登记'
-            : '核心成员写了一个登记的输入来源名；判断只读受理时写进日志的值，不点来源的名字',
-        })
+        const message = faultOf(node, names)
+        if (message === undefined) return
+        const line = lineAt(file.text, node.getStart(syntax))
+        out.push({ rule: RULE_ID, path: file.path, line, message })
       })
     }
     return out

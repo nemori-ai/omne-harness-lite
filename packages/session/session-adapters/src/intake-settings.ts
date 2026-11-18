@@ -51,14 +51,21 @@ export const sessionIntakeSettingsPlugin = independentSettingsPlugin(
 
 type View = Readonly<{ definition: unknown; state: Readonly<{ sources: unknown }> }>
 
+function onlyView(basis: unknown): View | null {
+  const views = (basis as { views?: unknown } | null)?.views
+  return Array.isArray(views) && views.length === 1 ? (views[0] as View) : null
+}
+
+function wholeLimit(value: unknown): number | null {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1 ? value : null
+}
+
 /** The pending limit a settings read gives. Null: the read does not carry a value of it. */
 export function pendingLimitOf(basis: unknown): number | null {
-  const views = (basis as { views?: readonly View[] } | null)?.views
-  const view = Array.isArray(views) && views.length === 1 ? (views[0] as View) : undefined
-  if (view === undefined) return null
+  const view = onlyView(basis)
+  if (view === null) return null
   const evaluated = evaluateSettings({ definition: view.definition, sources: view.state?.sources })
   if (evaluated.kind !== 'complete') return null
   const entry = evaluated.entries.find(item => item.itemId === sessionIntakeItems.pendingLimit)
-  const value = entry?.value.kind === 'value' ? entry.value.value : null
-  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1 ? value : null
+  return entry?.value.kind === 'value' ? wholeLimit(entry.value.value) : null
 }
