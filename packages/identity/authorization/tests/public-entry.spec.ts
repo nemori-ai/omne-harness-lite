@@ -9,7 +9,6 @@ it('publishes the authorization shapes: the decision, the system action decision
       'SYSTEM_ACTION_MATRIX',
       'canonicalText',
       'decideAdmission',
-      'decideInquiry',
       'decideRelease',
       'decideSystemAction',
       'decisionEvidence',

@@ -29,23 +29,20 @@ function undecidable(diagnostic: string): AdmissionDecision {
   return { kind: 'undecidable', diagnostic }
 }
 
-function ruleFor(rules: ActionRules, gate: Pick<Judged, 'definition'>) {
-  return toolActionRule(rules, gate.definition)
-}
-
 type Judged = Readonly<{
   definition: ToolPermissionAction['definition']
   effectiveArguments: string
   carrier?: true
   carried?: Readonly<{ definition: ToolPermissionAction['definition']; effectiveArguments: string }>
 }>
+type Gates = readonly [Judged, ...Judged[]]
 
 // What admission judges is the action the call performs: a carrier only for a prohibition, then its target.
 async function judgedOf(
   input: Request,
   principal: ToolPermissionAction['principal'],
   readResolution: ResolutionReader,
-): Promise<readonly Judged[] | AdmissionDecision> {
+): Promise<Gates | AdmissionDecision> {
   const own = { definition: input.definition, effectiveArguments: input.effectiveArguments }
   const resolution = readResolution()
   if (resolution === undefined)
@@ -58,19 +55,75 @@ async function judgedOf(
   })
   if ('failure' in resolved)
     // A carried call naming no valid target runs only the carrier, which answers the argument error.
-    return resolved.failure.kind === 'invalid' && input.original.name === 'Tools'
+    return resolved.failure.kind === 'invalid'
       ? [{ ...own, carrier: true }]
       : unavailable('the action could not be resolved now')
   if (resolved.ok.kind === 'own') return [own]
   const { target } = resolved.ok
   return [
     { ...own, carrier: true },
-    {
-      definition: target.definition,
-      effectiveArguments: target.effectiveArguments,
-      carried: own,
-    },
+    { definition: target.definition, effectiveArguments: target.effectiveArguments, carried: own },
   ]
+}
+
+type Judging = Readonly<{
+  input: Request
+  rules: ActionRules
+  principal: ToolPermissionAction['principal']
+  identity: Awaited<ReturnType<AdmissionCheck['check']>>
+  target: AdmissionInput['target']
+  argumentsDigest: AdmissionInput['arguments']
+  permission: ToolPermissionCheck | undefined
+}>
+
+function permissionAction(judging: Judging, gate: Judged): ToolPermissionAction {
+  const { input } = judging
+  return {
+    principal: judging.principal,
+    tenant: input.tenant,
+    operation: agentPermissionOperation(input),
+    definition: { ...gate.definition },
+    effectiveArguments: gate.effectiveArguments,
+    ...(gate.carrier ? { carrier: true as const } : {}),
+    origin: {
+      kind: 'agent-action',
+      execution: input.execution,
+      passage: input.passage,
+      action: input.action,
+      advance: structuredClone(input.advance),
+      original: structuredClone(input.original),
+      ...(gate.carried === undefined ? {} : { carrier: structuredClone(gate.carried) }),
+      ...(input.batch === undefined
+        ? {}
+        : { pass: canonicalText([input.batch.id, input.batch.pass]) }),
+    },
+  }
+}
+
+// One gate passes its action rule (a carrier with no rule passes it) and then its current permission.
+async function judgeGate(judging: Judging, gate: Judged): Promise<AdmissionDecision> {
+  const { rules } = judging
+  const rule = toolActionRule(rules, gate.definition)
+  const decision = actionDecision(
+    judging.identity,
+    rule,
+    rules,
+    judging.target,
+    judging.argumentsDigest,
+  )
+  if (decision.kind !== 'allow' && !(gate.carrier && decision.kind === 'undecidable'))
+    return decision
+  if (judging.permission === undefined)
+    return unavailable('the current permission dependency is unavailable')
+  const current = await judging.permission.check(permissionAction(judging, gate))
+  if (current.kind !== 'allow') return current
+  return {
+    kind: 'allow',
+    evidence: decisionEvidence('action-current-permission', rules.revision, {
+      rule: decision.kind === 'allow' ? decision.evidence : null,
+      permission: current.evidence,
+    }),
+  }
 }
 
 async function decide(
@@ -108,51 +161,29 @@ async function decide(
     requires: [],
     permit: null,
   })
-  const judged = await judgedOf(input, who.principal, readResolution)
-  if (!Array.isArray(judged)) return judged as AdmissionDecision
-  const permission = readPermission()
-  let allowed: AdmissionDecision | undefined
-  for (const gate of judged as readonly Judged[]) {
-    const decision = actionDecision(identity, ruleFor(rules, gate), rules, target, argumentsDigest)
-    if (decision.kind !== 'allow' && !(gate.carrier && decision.kind === 'undecidable'))
-      return decision
-    if (permission === undefined)
-      return unavailable('the current permission dependency is unavailable')
-    const current = await permission.check({
-      principal: who.principal,
-      tenant: input.tenant,
-      operation: agentPermissionOperation(input),
-      definition: { ...gate.definition },
-      effectiveArguments: gate.effectiveArguments,
-      ...(gate.carrier ? { carrier: true as const } : {}),
-      origin: {
-        kind: 'agent-action',
-        execution: input.execution,
-        passage: input.passage,
-        action: input.action,
-        advance: structuredClone(input.advance),
-        original: structuredClone(input.original),
-        ...(gate.carried === undefined ? {} : { carrier: structuredClone(gate.carried) }),
-        ...(input.batch === undefined
-          ? {}
-          : { pass: canonicalText([input.batch.id, input.batch.pass]) }),
-      },
-    })
-    if (current.kind !== 'allow') return current
-    allowed = {
-      kind: 'allow',
-      evidence: decisionEvidence('action-current-permission', rules.revision, {
-        rule: decision.kind === 'allow' ? decision.evidence : null,
-        permission: current.evidence,
-      }),
-    }
+  const gates = await judgedOf(input, who.principal, readResolution)
+  if ('kind' in gates) return gates
+  const judging = {
+    input,
+    rules,
+    principal: who.principal,
+    identity,
+    target,
+    argumentsDigest,
+    permission: readPermission(),
   }
-  return allowed ?? undecidable('the call performs no action')
+  const [first, ...rest] = gates
+  let answer = await judgeGate(judging, first)
+  for (const gate of rest) {
+    if (answer.kind !== 'allow') return answer
+    answer = await judgeGate(judging, gate)
+  }
+  return answer
 }
 
 function actionDecision(
   identity: Awaited<ReturnType<AdmissionCheck['check']>>,
-  rule: ReturnType<typeof ruleFor>,
+  rule: ReturnType<typeof toolActionRule>,
   rules: ActionRules,
   target: AdmissionInput['target'],
   argumentsDigest: AdmissionInput['arguments'],

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { decisionEvidence, type AdmissionCheck } from '@omne-harness/authorization'
+import type { ToolActionResolution } from '@omne-harness/tool-contract'
 import { createToolActionResolution } from '../../../src/entry/tool-action-resolution.ts'
 import { createActionAdmission } from '../../../src/rows/authorization/action-admission.ts'
 import { inquiryOncePerPass } from '../../../src/rows/authorization/current-permission.ts'
@@ -153,6 +154,70 @@ describe('one action judged the same whether called directly or through Tools', 
     } finally {
       await world.close()
     }
+  })
+})
+
+describe('when the action the call performs cannot be resolved', () => {
+  async function admitThrough(resolution: (() => ToolActionResolution<unknown>) | undefined) {
+    const world = await forwardWorld()
+    try {
+      const current = permission({ Tools: 'decision-required' }, 'never')
+      const admission = createActionAdmission({
+        actionRules: rules,
+        readAdmission: () => allowing,
+        readPermission: () => current.check,
+        readResolution: resolution ?? (() => undefined),
+      })
+      const tools = world.request('Tools').availability
+      if (tools.kind !== 'available') throw new Error('Tools unavailable')
+      const call = toolsCall(world, { name: 'Missing', arguments: {} })
+      const answer = await admission.admit({
+        principal: world.principal,
+        tenant: world.tenant,
+        execution: 'e',
+        passage: 'p',
+        action: 'a',
+        advance: {},
+        original: { name: 'Tools', arguments: call },
+        effectiveArguments: call,
+        definition: tools.definition.adoption,
+        permissions: [],
+        decision: null,
+      } as never)
+      return { answer, seen: current.seen }
+    } finally {
+      await world.close()
+    }
+  }
+  type Failure = Extract<
+    Awaited<ReturnType<ToolActionResolution<unknown>['resolve']>>,
+    { failure: unknown }
+  >['failure']
+  const answering = (failure: Failure) => (): ToolActionResolution<unknown> => ({
+    resolve: async () => ({ failure }),
+  })
+
+  it('answers unavailable and asks no permission when no resolution is installed', async () => {
+    const { answer, seen } = await admitThrough(undefined)
+    expect(answer).toMatchObject({ ok: { kind: 'unavailable' } })
+    expect(seen).toEqual([])
+  })
+
+  it('answers unavailable when the resolution cannot answer now', async () => {
+    const { answer, seen } = await admitThrough(
+      answering({ kind: 'unavailable', dependency: 'tool-action', diagnostic: 'down' }),
+    )
+    expect(answer).toMatchObject({ ok: { kind: 'unavailable' } })
+    expect(seen).toEqual([])
+  })
+
+  it('judges only the carrier when the call names no valid target, so Tools answers the error', async () => {
+    const { answer, seen } = await admitThrough(
+      answering({ kind: 'invalid', field: 'name', reason: 'unknown-target' }),
+    )
+    expect(seen).toHaveLength(1)
+    expect(seen[0]).toMatchObject({ carrier: true, definition: { name: 'Tools' } })
+    expect(answer).toMatchObject({ ok: { kind: 'allow' } })
   })
 })
 

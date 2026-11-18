@@ -13,6 +13,34 @@ const unavailable = (diagnostic: string) =>
   fail({ kind: 'unavailable' as const, dependency: 'tool-action', diagnostic })
 const invalid = (field: string, reason: string) => fail({ kind: 'invalid' as const, field, reason })
 
+type Input = Parameters<ToolActionResolution<unknown>['resolve']>[0]
+
+// The released `Tools` as the catalog offers it now; anything else is not the carrier this resolves.
+async function releasedTools(ports: ForwardRequestPorts, input: Input) {
+  const release = ports.release()
+  const catalog = ports.catalog()
+  if (release.kind !== 'trusted' || catalog === undefined)
+    return unavailable('The release snapshot or the catalog is unavailable.')
+  const entry = release.manifest.entries.find(item => item.asset.name === input.name)
+  if (entry === undefined) return unavailable('Tools is not a release tool')
+  const inspected = await catalog.inspect({
+    principal: input.principal,
+    tenant: input.tenant,
+    name: input.name,
+    command: null,
+    consumer: releaseToolConsumer(release),
+  })
+  if ('failure' in inspected) return inspected
+  const availability = inspected.ok
+  if (
+    availability.kind !== 'available' ||
+    availability.layer.kind !== 'official' ||
+    canonicalDigest(availability.definition.adoption) !== canonicalDigest(entry.asset.adoption)
+  )
+    return unavailable('Tools is not available as released')
+  return succeed(availability.definition)
+}
+
 // Only a `Tools` execute call carries another action; every other call is its own, read nothing for it.
 export function createToolActionResolution(
   ports: ForwardRequestPorts,
@@ -20,34 +48,14 @@ export function createToolActionResolution(
   return {
     async resolve(input) {
       if (input.name !== 'Tools') return succeed({ kind: 'own' })
-      const release = ports.release()
-      const catalog = ports.catalog()
-      if (release.kind !== 'trusted' || catalog === undefined)
-        return unavailable('The release snapshot or the catalog is unavailable.')
-      const entry = release.manifest.entries.find(item => item.asset.name === input.name)
-      if (entry === undefined) return unavailable('Tools is not a release tool')
-      const inspected = await catalog.inspect({
-        principal: input.principal,
-        tenant: input.tenant,
-        name: input.name,
-        command: null,
-        consumer: releaseToolConsumer(release),
-      })
-      if ('failure' in inspected) return inspected
-      const availability = inspected.ok
-      if (
-        availability.kind !== 'available' ||
-        availability.layer.kind !== 'official' ||
-        canonicalDigest(availability.definition.adoption) !== canonicalDigest(entry.asset.adoption)
-      )
-        return unavailable('Tools is not available as released')
-      const called = callOf(availability.definition, input.effectiveArguments)
+      const tools = await releasedTools(ports, input)
+      if ('failure' in tools) return tools
+      const called = callOf(tools.ok, input.effectiveArguments)
       if ('answer' in called) return invalid('command', 'unknown-command')
       if (called.command !== 'execute') return succeed({ kind: 'own' })
-      const definition = availability.definition.adoption
       const effective = input.effectiveArguments
       const intent = forwardIntentOfCall({
-        definition: availability.definition,
+        definition: tools.ok,
         command: called.command,
         arguments: { original: effective, effective, complete: true },
       })
@@ -56,7 +64,7 @@ export function createToolActionResolution(
       if ('failure' in resolved) return resolved
       return succeed({
         kind: 'carried',
-        carrier: { name: input.name, definition },
+        carrier: { name: input.name, definition: tools.ok.adoption },
         target: {
           name: intent.name,
           definition: resolved.ok.availability.definition.adoption,

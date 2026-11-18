@@ -43,7 +43,7 @@ Identity 包组回答两个问题。身份：谁在行事，他现在是不是�
 | 成员资格预留 `StandingReservations`、治理恢复 `IdentityGovernanceRecovery` | Governance、Settings、HITL；受信装配                  | 在外域写入期间挡住成员变更；按原逻辑身份认回结果未知的成员变更   |
 | 租户动作准入 `AdmissionCheck`、许可台账 `PermitLedger`                     | 应用装配里 Agent、Tool、Session 访问端口的适配器      | 准入裁定与证据；许可的授予、查找与恰好一次的消费                 |
 | 系统动作授权 `SystemActionAuthorization`                                   | Session、tenant-domains、Agent 宿主的系统部件         | 系统主体做矩阵内维护动作的裁定                                   |
-| 询问处理 `decideInquiry`                                                   | Session（权限模式的投影）                             | 结构化裁定之后，按询问策略给出继续、问人、拒绝或不可用           |
+| 放行判断 `decideRelease`                                                   | 准入的适配（Agent 的官方准入与启动围栏）               | 结构化裁定、授权表达与询问策略按四步固定次序给出放行、问人、拒绝或不可用 |
 | 入口身份端口 `AccessIdentity`                                              | Access（入口管道）                                    | 识别登录证明、代租户签发主体、报告成功业务访问                   |
 | 协议契约 `identity/v1` 与它的接入插件                                      | Access（入口登记表）、桌面客户端                      | 身份操作的协议面与处理函数                                       |
 

@@ -23,9 +23,7 @@
 - `ExpiryReading` · `system-action.d.ts`
 - `GateVerdict` · `release.d.ts`
 - `GrantOutcome` · `permit.d.ts`
-- `InquiryDisposition` · `inquiry.d.ts`
 - `InquiryPolicy` · `inquiry.d.ts`
-- `InquiryRequirement` · `inquiry.d.ts`
 - `MaintenanceGrant` · `system-action.d.ts`
 - `MaintenanceGrantReading` · `system-action.d.ts`
 - `MaintenanceGrantSource` · `system-reference.d.ts`
@@ -57,7 +55,6 @@
 - `SystemActionTarget` · `system-action.d.ts`
 - `canonicalText` · `evidence.d.ts`
 - `decideAdmission` · `admission.d.ts`
-- `decideInquiry` · `inquiry.d.ts`
 - `decideRelease` · `release.d.ts`
 - `decideSystemAction` · `system-action.d.ts`
 - `decisionEvidence` · `evidence.d.ts`
@@ -155,10 +152,9 @@ export declare function decisionEvidence(record: string, revision: string, conte
 
 ```ts
 export { decideAdmission } from './admission.ts';
-export { decideInquiry } from './inquiry.ts';
 export { decideRelease } from './release.ts';
 export type { GateVerdict, ReleaseBasis, ReleaseDecision, ReleaseFacts, SessionFacts, } from './release.ts';
-export type { InquiryPolicy, InquiryRequirement, InquiryDisposition } from './inquiry.ts';
+export type { InquiryPolicy } from './inquiry.ts';
 export type { AdmissionBasis, AdmissionCheck, AdmissionDecision, AdmissionFacts, AdmissionInput, DenialReason, StandingBasis, } from './admission.ts';
 export { canonicalText, decisionEvidence, digestOf, effectiveArgumentsOf, noArguments, } from './evidence.ts';
 export type { DecisionEvidence, DurableEvidence, EffectiveArguments } from './evidence.ts';
@@ -182,9 +178,6 @@ export type { MaintenanceGrantSource, SystemActionClock, SystemActionDependencie
 export type InquiryPolicy = Readonly<{
     onAsk: 'deny' | 'ask-human' | 'skip-ask';
 }>;
-export type InquiryRequirement = 'none' | 'required' | 'prohibited' | 'unavailable';
-export type InquiryDisposition = 'continue' | 'ask-human' | 'deny' | 'unavailable';
-export declare function decideInquiry(requirement: InquiryRequirement, policy: InquiryPolicy | null): InquiryDisposition;
 ```
 
 ## 声明文件 `operation.d.ts`

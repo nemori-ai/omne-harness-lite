@@ -51,7 +51,11 @@ export function decideRelease(facts: ReleaseFacts): ReleaseDecision {
   if (session.once) return { kind: 'release', by: 'once', basis }
   if (session.sessionGrantBasis === verdict.revision)
     return { kind: 'release', by: 'session', basis }
-  switch (session.policy.onAsk) {
+  return byInquiryPolicy(session.policy.onAsk, basis)
+}
+
+function byInquiryPolicy(onAsk: InquiryPolicy['onAsk'], basis: ReleaseBasis): ReleaseDecision {
+  switch (onAsk) {
     case 'deny':
       return { kind: 'refuse', reason: 'inquiry-policy', basis }
     case 'ask-human':
