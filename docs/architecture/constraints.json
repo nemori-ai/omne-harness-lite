@@ -70,6 +70,11 @@
       "id": "mcp",
       "label": "MCP 接入",
       "source": "packages/mcp/SPEC.md"
+    },
+    {
+      "id": "notification",
+      "label": "订阅、通知与推送",
+      "source": "docs/domains/boundaries.md#责任地图"
     }
   ],
   "roles": [
@@ -648,6 +653,14 @@
       "domains": [],
       "status": "candidate",
       "source": "packages/access/SPEC.md"
+    },
+    {
+      "id": "packages/notification/notification-contract",
+      "paths": ["packages/notification/notification-contract/src/**"],
+      "layer": "contract",
+      "domains": ["notification"],
+      "status": "adopted",
+      "source": "packages/notification/SPEC.md"
     },
     {
       "id": "packages/calendar/calendar-contract",
